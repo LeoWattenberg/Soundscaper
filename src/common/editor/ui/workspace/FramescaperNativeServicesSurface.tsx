@@ -10,9 +10,13 @@ import {
 	nativeMediaCapabilityEntry,
 } from '../../native-media-capability-snapshot.ts';
 import {
-	FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID,
-	framescaperSelectedV28WatchTargetAvailable,
-	type FramescaperSelectedV28WatchContextAuthority,
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	isCurrentProjectSchemaIdentity,
+} from '../../project-schema-identity.ts';
+import {
+	FRAMESCAPER_PROJECT_WATCH_BIN_ID,
+	framescaperProjectWatchTargetAvailable,
+	type FramescaperProjectWatchContextAuthority,
 } from '../../native-watch-target.ts';
 
 import {
@@ -33,8 +37,8 @@ import type {
 	FramescaperNativeServicesDialogContext,
 } from '../dialogs/FramescaperNativeServicesDialog.tsx';
 import type {
-	FramescaperNativeOpenFxAuthoringRuntimeV28,
-} from '../../../../framescaper/editor-native-openfx-action-v28.ts';
+	FramescaperNativeOpenFxAuthoringRuntimeNativeMedia,
+} from '../../../../framescaper/editor-native-openfx-action.ts';
 import {
 	isFramescaperNativeProjectActionRuntime,
 	type FramescaperNativeProjectActionRuntime,
@@ -92,7 +96,7 @@ export interface FramescaperNativeServicesSurfaceHostOptions {
 	readonly bridge: FramescaperNativeServicesBridge;
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 	readonly projectActions?: FramescaperNativeProjectActionRuntime | null;
-	readonly openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
+	readonly openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia | null;
 	readonly documentValue?: Document | null;
 	readonly createHostRoot?: (container: HTMLElement) => FramescaperNativeServicesHostRoot;
 }
@@ -172,13 +176,14 @@ export function resolveFramescaperNativeServicesWorkspaceRuntime(input: Readonly
 	editingBlocked?: boolean;
 	readOnly?: boolean;
 	projectActions?: FramescaperNativeProjectActionRuntime | null;
-	openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
+	openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia | null;
 }>): Readonly<FramescaperNativeServicesWorkspaceRuntime> | null {
-	const schemaVersion = projectSchemaVersion(input.project);
-	const projectActions = isFramescaperNativeProjectActionRuntime(input.projectActions)
+	const currentProject = isCurrentProjectSchemaIdentity(
+		input.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	);
+	const projectActions = currentProject
+		&& isFramescaperNativeProjectActionRuntime(input.projectActions)
 		? input.projectActions : null;
-	if (schemaVersion === 27
-		|| ((schemaVersion === 25 || schemaVersion === 26) && projectActions === null)) return null;
 	const bridge = resolveBridge(input);
 	if (bridge === null) return null;
 	const store = framescaperNativeServicesStoreFor(bridge);
@@ -235,7 +240,7 @@ export function wrapFramescaperNativeServicesMenuRuntime(
 
 export function framescaperNativeServicesDialogContextForProject(
 	project: unknown,
-	authority: FramescaperSelectedV28WatchContextAuthority = Object.freeze({
+	authority: FramescaperProjectWatchContextAuthority = Object.freeze({
 		writable: false, videoImportAvailable: false, proxyGenerationAvailable: false,
 	}),
 ): FramescaperNativeServicesDialogContext {
@@ -245,10 +250,10 @@ export function framescaperNativeServicesDialogContextForProject(
 	const projectId = typeof idValue === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(idValue)
 		? idValue : null;
 	const targetAvailable = projectId !== null
-		&& framescaperSelectedV28WatchTargetAvailable(project, authority);
+		&& framescaperProjectWatchTargetAvailable(project, authority);
 	return Object.freeze({
 		projectId,
-		binId: targetAvailable ? FRAMESCAPER_SELECTED_V28_WATCH_BIN_ID : null,
+		binId: targetAvailable ? FRAMESCAPER_PROJECT_WATCH_BIN_ID : null,
 		allowProxyGeneration: targetAvailable && authority.proxyGenerationAvailable,
 	});
 }
@@ -258,13 +263,6 @@ function ownData(record: Readonly<Record<string, unknown>> | null, key: string):
 	const descriptor = Object.getOwnPropertyDescriptor(record, key);
 	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
 		? descriptor.value : undefined;
-}
-
-function projectSchemaVersion(project: unknown): number | null {
-	const row = project !== null && typeof project === 'object' && !Array.isArray(project)
-		? project as Readonly<Record<string, unknown>> : null;
-	const value = ownData(row, 'schemaVersion');
-	return Number.isSafeInteger(value) ? Number(value) : null;
 }
 
 function resolveBridge(input: Readonly<{

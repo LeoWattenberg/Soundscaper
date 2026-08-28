@@ -105,7 +105,8 @@ test('project scheduling omits a lane only when its valid graph parameter is exp
 	const registry = new ScheduledParameterRegistry();
 	registry.registerSuspendedParameter(descriptor());
 	const project = {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
+		mixer: {},
 		automationLanes: [lane()],
 	} as EngineProject;
 
@@ -142,12 +143,13 @@ test('project scheduling omits a lane only when its valid graph parameter is exp
 	}), /outside its target range/iu);
 });
 
-test('selected Framescaper V27 schedules shared V21 automation against active graph parameters', () => {
+test('Framescaper v1 schedules shared V21 automation against active graph parameters', () => {
 	const packets: ScheduledParameterMessage[] = [];
 	const registry = new ScheduledParameterRegistry();
 	registry.registerMessageTarget(descriptor(), (message) => { packets.push(message); });
 	const result = scheduleProjectAutomationLanesV21({
-		schemaVersion: 27,
+		schemaFamily: 'framescaper', schemaVersion: 1,
+		mixer: {},
 		automationLanes: [lane()],
 	} as EngineProject, registry, {
 		fromFrame: 0,

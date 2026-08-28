@@ -22,11 +22,11 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	assert.ok(fence, 'the surface control must say what is and is not machine-runnable');
 	assert.match(
 		fence.summary,
-		/Soundscaper S30.*exact S29 foundation.*insert.*native-plugin.*persistent supervised host.*real-time and offline.*V21 PDC.*vendor window/iu,
+		/Soundscaper family v1.*direct unversioned Soundscaper baseline.*insert.*native-plugin.*persistent supervised host.*real-time and offline.*V21 PDC.*vendor window/iu,
 	);
 	assert.match(
 		fence.summary,
-		/Framescaper F31.*immutable V28 foundation.*scan, enable and Add OFX.*context-aware V14 frame graph.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
+		/Framescaper family v1.*direct unversioned Framescaper baseline.*scan, enable and Add OFX.*context-aware V14 frame graph.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
 	);
 	assert.match(
 		fence.summary,
@@ -44,13 +44,13 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 		'desktop/native-audio-session-service.ts',
 		'desktop/plugin-vendor-window-authority.mjs',
 		'desktop/native-child-isolation-launcher.ts',
-		'src/soundscaper/editor-native-plugin-actions-v29.ts',
-		'src/framescaper/editor-openfx-frame-graph-v28.ts',
+		'src/soundscaper/editor-native-plugin-actions.ts',
+		'desktop/framescaper-openfx-live-frame-transform.ts',
 		'tests/desktop-protocol.test.js',
 		'tests/desktop-plugin-registry.test.ts',
 		'tests/desktop-plugin-host-service.test.ts',
 		'tests/desktop-native-child-isolation-launcher.test.ts',
-		'tests/audio-editor-framescaper-v28-openfx-frame-graph.test.ts',
+		'tests/desktop-framescaper-openfx-live-frame-transform.test.ts',
 		'tests/production-licensing-matrix.test.js',
 	]);
 
@@ -145,7 +145,7 @@ test('the native plug-in hosting row enables testing while keeping machine gaps 
 	assert.ok(unexercised, 'the unexercised hosting gates must remain a named residual risk');
 	assert.match(
 		unexercised.exposure,
-		/product callers.*Soundscaper S30.*exact S29 foundation.*real-time and offline hosting.*V21 PDC.*vendor-window lifecycle.*Framescaper F31.*immutable V28 foundation.*all six contexts/iu,
+		/product callers.*Soundscaper family v1.*direct unversioned baseline.*real-time and offline hosting.*V21 PDC.*vendor-window lifecycle.*Framescaper family v1.*direct unversioned baseline.*all six contexts/iu,
 	);
 	assert.match(
 		unexercised.exposure,
@@ -170,7 +170,7 @@ test('the native helper row stops describing hosting and device opening as absen
 	assert.doesNotMatch(residual.exposure, /opens no operating-system device/iu);
 	assert.match(
 		residual.exposure,
-		/Soundscaper S30\/V11.*native audio.*native-effect hosting.*exact S29 foundation.*Framescaper F31\/V14\/V20.*persistent services V3.*immutable V28 native foundation.*native media.*OpenFX frame graph/iu,
+		/Soundscaper family-v1 route.*native audio.*native-effect hosting.*direct unversioned baseline.*Framescaper family-v1 and exact V14-render route.*persistent services V3.*direct unversioned native baseline.*native media.*OpenFX frame graph/iu,
 	);
 	assert.match(residual.exposure, /0\/10.*all five Soundscaper professional rows.*both Framescaper payload manifests are empty.*zero accepted cohorts/iu);
 	assert.match(residual.acceptanceCriteria.join(' '), /m5-helper-fault-and-loopback-v1/u);
@@ -186,7 +186,7 @@ test('the threat-model narrative separates enabled testing from machine and rele
 	);
 	assert.match(
 		threatModel,
-		/Soundscaper S30\/V11.*exact S29-founded.*real-time and offline.*V21 PDC.*vendor.*Framescaper F31\/V14\/V20.*immutable V28 foundation.*all six contexts.*Interact Suite V1.*DrawSuite V1/iu,
+		/1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaFamily:'framescaper'.*native-payload.*release-blocking/isu,
 	);
 	assert.match(threatModel, /0\/10.*payload.*pending-external.*zero accepted cohorts/iu);
 	assert.match(

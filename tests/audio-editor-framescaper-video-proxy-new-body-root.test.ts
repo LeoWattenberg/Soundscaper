@@ -15,14 +15,14 @@ import {
 	VideoProxyClaimStagingRepository,
 } from '../src/common/editor/storage/video-proxy-claim-staging-repository.ts';
 import {
-	createFramescaperEditorProjectEnvironmentV18,
-	type FramescaperEditorProjectEnvironmentV18,
-} from '../src/framescaper/editor-project-environment-v18.ts';
-import { framescaperProjectStoreAuthorityV18 } from '../src/framescaper/editor-project-store-v18.ts';
-import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
+	createFramescaperEditorProjectEnvironment,
+	type FramescaperEditorProjectEnvironment,
+} from '../src/framescaper/editor-project-environment.ts';
+import { framescaperProjectStoreAuthority } from '../src/framescaper/editor-project-store.ts';
+import { FRAMESCAPER_SEQUENCE_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
-const PROFILE = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_SEQUENCE_PROJECT_RUNTIME_PROFILE;
 const OPERATION_ID = 'atomic-new-body-operation';
 const PROJECT_ID = 'atomic-new-body-project';
 const SOURCE_ID = 'original-video-source';
@@ -115,14 +115,14 @@ interface InstrumentedIndexedDB extends IDBFactory {
 }
 
 interface Fixture {
-	readonly environment: Readonly<FramescaperEditorProjectEnvironmentV18>;
+	readonly environment: Readonly<FramescaperEditorProjectEnvironment>;
 	readonly indexedDB: InstrumentedIndexedDB;
-	readonly authority: ReturnType<typeof framescaperProjectStoreAuthorityV18>;
+	readonly authority: ReturnType<typeof framescaperProjectStoreAuthority>;
 }
 
 async function createFixture(context: TestContext): Promise<Fixture> {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as InstrumentedIndexedDB;
-	const environment = await createFramescaperEditorProjectEnvironmentV18({
+	const environment = await createFramescaperEditorProjectEnvironment({
 		storeOptions: {
 			indexedDB,
 			preferOpfs: false,
@@ -133,12 +133,12 @@ async function createFixture(context: TestContext): Promise<Fixture> {
 	return {
 		environment,
 		indexedDB,
-		authority: framescaperProjectStoreAuthorityV18(PROFILE, environment.store),
+		authority: framescaperProjectStoreAuthority(PROFILE, environment.store),
 	};
 }
 
 async function newBodyWriter(
-	environment: Readonly<FramescaperEditorProjectEnvironmentV18>,
+	environment: Readonly<FramescaperEditorProjectEnvironment>,
 	bodyKey: string,
 	bytes: Uint8Array,
 ): Promise<VideoProxyClaimedMediaAssetWriter> {

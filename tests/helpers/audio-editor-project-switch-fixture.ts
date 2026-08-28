@@ -6,7 +6,7 @@ import type { ProjectLifecycleHistory, ProjectLifecycleLock, ProjectLifecyclePro
 import { createProjectSwitchService, type ProjectSwitchServiceRuntime, type ProjectSwitchState } from '../../src/common/editor/controller/project-switch-service.ts';
 import { createScapeInspectionQuiescence } from '../../src/common/editor/controller/scape-inspection-quiescence.ts';
 import { SourceChunkProviderRegistry } from '../../src/common/editor/controller/source-chunk-provider-registry.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-identity.ts';
 
 export function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined; const promise = new Promise<Value>((complete) => { resolve = complete; });
@@ -20,6 +20,7 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly title: string; readonly sampleRate: number;
 	readonly revision: number;
 	readonly tracks: readonly TestTrack[]; readonly clips: readonly Readonly<{ id: string }>[];
+	readonly schemaFamily?: 'soundscaper' | 'framescaper';
 	readonly schemaVersion?: number; readonly featureRequirements?: unknown;
 	readonly trackFolders?: readonly unknown[];
 }
@@ -29,7 +30,8 @@ interface TestLock extends ProjectLifecycleLock { releases: number; }
 
 export function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
 	return {
-		id, title: id, sampleRate: 48_000, revision: 0, tracks, clips: [], trackFolders: [], schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		id, title: id, sampleRate: 48_000, revision: 0, tracks, clips: [], trackFolders: [],
+		schemaFamily: 'soundscaper', schemaVersion: PROJECT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: [] },
 	};
 }
@@ -54,7 +56,7 @@ export function createFixture(
 	const oldProject = project('old-project');
 	let currentProject: TestProject | null = oldProject;
 	let createdSequence = 0;
-	let migrationReadOnly = false;
+	let loadReadOnly = false;
 	let loadedEngineProject: TestProject | null = null;
 	let acquire: (projectId: string) => Promise<ProjectLifecycleLock> = async (projectId) => lock(projectId);
 	let loadSources: (value: TestProject) => Promise<unknown> = async () => undefined;
@@ -152,6 +154,9 @@ export function createFixture(
 			title: string; sampleRate: number; tracks?: readonly TestTrack[];
 		}>) => ({
 			id: `created-${++createdSequence}`, title, sampleRate, revision: 0, tracks, clips: [],
+			trackFolders: [],
+			schemaFamily: 'soundscaper' as const, schemaVersion: PROJECT_SCHEMA_VERSION,
+			featureRequirements: { schemaVersion: 1, requirements: [] },
 		}),
 		normalizeProjectSampleRate: (value: unknown) => Number(value) || 48_000,
 		createInitialAudioTrackCommand: (options: Readonly<Record<string, unknown>>) => ({
@@ -168,7 +173,7 @@ export function createFixture(
 				tracks: [...history.present.tracks, prepared],
 			} };
 		},
-		migrateProject: (value: unknown) => ({ project: value as TestProject, readOnly: migrationReadOnly }),
+		loadProject: (value: unknown) => ({ project: value as TestProject, readOnly: loadReadOnly }),
 		verifyProjectFallbackIntegrity: () => ({ assertCurrent() {} }),
 		assignPreferredInputToTrack: (trackId: string) => { assignedTracks.push(trackId); },
 		cancelTimedRecording: () => { events.push('cancel-timed'); },
@@ -274,7 +279,7 @@ export function createFixture(
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
 		setStopPreview(value: typeof stopPreview) { stopPreview = value; }, setDisposeRenderEngines(value: typeof disposeRenderEngines) { disposeRenderEngines = value; },
 		setSaveNow(value: typeof saveNow) { saveNow = value; },
-		setMigrationReadOnly(value: boolean) { migrationReadOnly = value; },
+		setLoadReadOnly(value: boolean) { loadReadOnly = value; },
 		setRecoveryBlocked(value: boolean) { recoveryBlocked = value; },
 		setPendingRecovery(projectId: string) { recoveryProjects.add(projectId); },
 		async resolveRecovery() {

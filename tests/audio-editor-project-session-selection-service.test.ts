@@ -9,11 +9,10 @@ import {
 } from '../src/common/editor/controller/project-session-selection-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 interface TestProject {
+	readonly schemaFamily?: unknown;
 	readonly schemaVersion?: unknown;
 	readonly timelineAnnotations?: unknown;
 	readonly selection?: Readonly<{ clipIds: readonly unknown[] }>;
@@ -137,13 +136,14 @@ test('project session selection falls back to the first label and then null when
 	});
 });
 
-test('project session selection restores annotations for active V17 and Soundscaper V21 documents', () => {
-	for (const schemaVersion of [
-		AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+test('project session selection restores annotations for the internal foundation and both v1 families', () => {
+	for (const identity of [
+		{ schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION },
+		{ schemaFamily: 'soundscaper', schemaVersion: 1 },
+		{ schemaFamily: 'framescaper', schemaVersion: 1 },
 	]) {
 		const fixture = createFixture({
-			schemaVersion,
+			...identity,
 			timelineAnnotations: [{ id: 'annotation' }, { id: 'other' }],
 			tracks: [],
 			clips: [],
@@ -188,14 +188,14 @@ test('project session selection clears malformed annotation focus', () => {
 	assert.equal(older.state.selectedAnnotationId, null);
 });
 
-test('project session selection does not traverse Framescaper or future annotation storage', () => {
+test('project session selection does not traverse pre-release or future annotation storage', () => {
 	let annotationReads = 0;
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+	for (const identity of [
+		{ schemaVersion: 19 },
+		{ schemaFamily: 'soundscaper', schemaVersion: 2 },
 	]) {
 		const foreignProject: TestProject = {
-			schemaVersion,
+			...identity,
 			get timelineAnnotations(): never {
 				annotationReads += 1;
 				throw new Error('foreign timelineAnnotations was traversed');

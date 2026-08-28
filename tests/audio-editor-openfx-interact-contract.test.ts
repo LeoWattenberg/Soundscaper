@@ -15,7 +15,8 @@ const HANDLE = 'ab'.repeat(20);
 
 test('the Interact wire is pathless, sequenced, normalized, and covers pointer keyboard and focus', () => {
 	const request = framescaperOpenFxInteractRequestV1({
-		protocolVersion: 1, project: { id: 'project-v28', revision: 4 },
+		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-v28', revision: 4 },
 		pluginHandle: HANDLE, effect: effect(),
 		effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect()), context: 'filter',
 		target: 'overlay', parameterName: null,
@@ -46,7 +47,8 @@ test('the Interact wire is pathless, sequenced, normalized, and covers pointer k
 
 test('custom parameter identity and the 64 by 64 DrawSuite result are exact', () => {
 	const request = framescaperOpenFxInteractRequestV1({
-		protocolVersion: 1, project: { id: 'project-v28', revision: 4 },
+		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-v28', revision: 4 },
 		pluginHandle: HANDLE, effect: effect('general'),
 		effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect('general')), context: 'general',
 		target: 'custom-parameter', parameterName: 'parameter15', events: [],
@@ -80,7 +82,8 @@ test('custom parameter identity and the 64 by 64 DrawSuite result are exact', ()
 
 test('ReplyDefault/no-draw retains a transparent surface and cannot mutate another instance', () => {
 	const request = framescaperOpenFxInteractRequestV1({
-		protocolVersion: 1, project: { id: 'project-v28', revision: 4 },
+		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-v28', revision: 4 },
 		pluginHandle: HANDLE, effect: effect(),
 		effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect()), context: 'filter',
 		target: 'overlay', parameterName: null, events: [],

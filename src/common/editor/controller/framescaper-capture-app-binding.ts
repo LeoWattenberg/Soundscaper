@@ -31,7 +31,11 @@ import type {
 	FramescaperCaptureSessionActions,
 	FramescaperCaptureSessionService,
 } from './framescaper-capture-session-types.ts';
-import { isFramescaperCaptureProjectSchema } from '../project-schema-version.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 
 type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 	'mediaDevices' | 'createStream' | 'MediaRecorder' | 'MediaStreamTrackProcessor'
@@ -45,7 +49,8 @@ type PassThroughOptions = Pick<FramescaperCaptureAppCompositionOptions,
 
 export interface FramescaperCaptureAppProject extends Record<string, unknown> {
 	readonly id: string;
-	readonly schemaVersion: 18 | 19 | 20 | 31;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly revision: number;
 	readonly updatedAt?: unknown;
 	readonly sampleRate: number;
@@ -89,7 +94,8 @@ export interface FramescaperCaptureAppBindingStore extends FramescaperCaptureApp
 export interface FramescaperCaptureAppBindingOptions extends PassThroughOptions {
 	readonly adminInterlock: Pick<FramescaperCaptureAdminInterlock, 'beginCaptureAdmission'>;
 	readonly productId: string;
-	readonly routeSchemaVersion: number;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly isDesktop: boolean;
 	readonly embedded: boolean;
 	readonly store: FramescaperCaptureAppBindingStore;
@@ -125,7 +131,7 @@ export function createFramescaperCaptureAppBinding(
 		throw new TypeError('Framescaper capture app binding options are required.');
 	}
 	if (options.productId !== 'framescaper') return null;
-	if (!isCaptureRouteForPlatform(options.routeSchemaVersion, options.isDesktop)) return null;
+	assertCurrentFramescaperIdentity(options, 'capture route');
 	assertBindingOptions(options);
 	const projects = createFramescaperCaptureAppProjectRepository(options);
 	const projectPublication = createFramescaperCaptureProjectPublicationPort({
@@ -147,7 +153,8 @@ export function createFramescaperCaptureAppBinding(
 	});
 	const composition = createFramescaperCaptureAppComposition({
 		productId: 'framescaper',
-		routeSchemaVersion: options.routeSchemaVersion,
+		schemaFamily: options.schemaFamily,
+		schemaVersion: options.schemaVersion,
 		embedded: options.embedded,
 		store: options.store,
 		projectPublication,
@@ -170,7 +177,7 @@ export function createFramescaperCaptureAppBinding(
 /** Ensure a recovered background origin has an inactive session-history owner. */
 export async function ensureFramescaperCaptureRecoveryOrigin(
 	options: Pick<FramescaperCaptureAppBindingOptions,
-		'routeSchemaVersion' | 'sessionController' | 'projectRuntime'
+		'schemaFamily' | 'schemaVersion' | 'sessionController' | 'projectRuntime'
 	>,
 	projects: FramescaperCaptureAppProjectRepository,
 	projectIdValue: string,
@@ -179,7 +186,7 @@ export async function ensureFramescaperCaptureRecoveryOrigin(
 	if (options.sessionController.getSnapshot().tabs.some((tab) => tab.projectId === projectId)) return;
 	const stored = await projects.load(projectId);
 	if (!stored) throw new Error('Framescaper capture recovery origin project is unavailable.');
-	const project = routeProject(stored, options.routeSchemaVersion);
+	const project = routeProject(stored);
 	if (project.id !== projectId) throw new Error('Framescaper capture recovery origin identity changed.');
 	options.sessionController.openProject(project, {
 		activate: false,
@@ -236,7 +243,7 @@ export function createFramescaperCaptureAppProjectRepository(
 /** Resolve deterministic publication geometry from the retained origin tab/base. */
 export async function deriveFramescaperCaptureAppPublicationContext(
 	options: Pick<FramescaperCaptureAppBindingOptions,
-		'routeSchemaVersion' | 'sessionController'
+		'schemaFamily' | 'schemaVersion' | 'sessionController'
 	>,
 	projects: FramescaperCaptureAppProjectRepository,
 	manifestValue: FramescaperCaptureSessionManifestV1,
@@ -248,13 +255,13 @@ export async function deriveFramescaperCaptureAppPublicationContext(
 }>> {
 	const manifest = normalizeFramescaperCaptureSessionManifest(manifestValue);
 	const captured = options.sessionController.captureProjectHistory(manifest.projectFence.projectId);
-	let project = routeProject(captured.history.present, options.routeSchemaVersion);
+	let project = routeProject(captured.history.present);
 	if (!sameFence(framescaperCaptureProjectFence(project), manifest.projectFence)) {
 		const historical = await projects.load(manifest.projectFence.projectId, {
 			revision: manifest.projectFence.baseRevision,
 		});
 		if (!historical) throw new Error('Framescaper capture origin base revision is unavailable.');
-		project = routeProject(historical, options.routeSchemaVersion);
+		project = routeProject(historical);
 	}
 	if (!sameFence(framescaperCaptureProjectFence(project), manifest.projectFence)) {
 		throw new Error('Framescaper capture publication context changed its exact project fence.');
@@ -272,11 +279,11 @@ export async function deriveFramescaperCaptureAppPublicationContext(
 }
 
 function captureOrigin(options: FramescaperCaptureAppBindingOptions) {
-	const activeProject = routeProject(options.getActiveProject(), options.routeSchemaVersion);
+	const activeProject = routeProject(options.getActiveProject());
 	options.assertProjectWritable(activeProject.id);
 	const activeHistory = options.getActiveHistory();
 	if (!activeHistory) throw new Error('Framescaper capture requires an active project history.');
-	const historyProject = routeProject(activeHistory.present, options.routeSchemaVersion);
+	const historyProject = routeProject(activeHistory.present);
 	if (!sameProject(activeProject, historyProject)) {
 		throw new Error('Framescaper capture active project and history are not the same revision.');
 	}
@@ -292,15 +299,12 @@ function captureOrigin(options: FramescaperCaptureAppBindingOptions) {
 	});
 }
 
-function routeProject(value: unknown, routeSchemaVersion: number): FramescaperCaptureAppProject {
+function routeProject(value: unknown): FramescaperCaptureAppProject {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Framescaper capture requires an exact route project.');
 	}
+	assertCurrentFramescaperIdentity(value, 'capture project');
 	const project = value as Partial<FramescaperCaptureAppProject>;
-	if (!isFramescaperCaptureProjectSchema(routeSchemaVersion)
-		|| project.schemaVersion !== routeSchemaVersion) {
-		throw new RangeError('Framescaper capture project does not match its exact route schema.');
-	}
 	stableId(project.id, 'Framescaper capture project ID');
 	nonNegativeInteger(project.revision, 'Framescaper capture project revision');
 	positiveInteger(project.sampleRate, 'Framescaper capture project sample rate');
@@ -309,11 +313,6 @@ function routeProject(value: unknown, routeSchemaVersion: number): FramescaperCa
 		throw new TypeError('Framescaper capture project requires sequences.');
 	}
 	return project as FramescaperCaptureAppProject;
-}
-
-function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 | 31 {
-	return isFramescaperCaptureProjectSchema(value)
-		&& (value === 20 || value === 31 || value === (desktop ? 18 : 19));
 }
 
 function projectSequence(project: FramescaperCaptureAppProject, sequenceId: string) {
@@ -472,10 +471,13 @@ function microsecondsToFrames(microseconds: number, sampleRate: number): number 
 }
 
 function sameFence(
-	left: Readonly<{ readonly projectId: string; readonly baseRevision: number; readonly baseSha256: string }>,
-	right: Readonly<{ readonly projectId: string; readonly baseRevision: number; readonly baseSha256: string }>,
+	left: Readonly<{ readonly schemaFamily: 'framescaper'; readonly schemaVersion: 1;
+		readonly projectId: string; readonly baseRevision: number; readonly baseSha256: string }>,
+	right: Readonly<{ readonly schemaFamily: 'framescaper'; readonly schemaVersion: 1;
+		readonly projectId: string; readonly baseRevision: number; readonly baseSha256: string }>,
 ): boolean {
-	return left.projectId === right.projectId && left.baseRevision === right.baseRevision
+	return left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
+		&& left.projectId === right.projectId && left.baseRevision === right.baseRevision
 		&& left.baseSha256 === right.baseSha256;
 }
 
@@ -518,5 +520,13 @@ function assertBindingOptions(options: FramescaperCaptureAppBindingOptions): voi
 		|| typeof options.acquireProjectWriteAuthority !== 'function'
 		|| typeof options.prepareCaptureStart !== 'function') {
 		throw new TypeError('Framescaper capture app binding dependencies are incomplete.');
+	}
+}
+
+function assertCurrentFramescaperIdentity(value: unknown, label: string): void {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`Framescaper ${label} requires the current project schema identity.`);
 	}
 }

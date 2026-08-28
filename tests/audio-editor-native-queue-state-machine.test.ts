@@ -364,6 +364,7 @@ function queued(overrides: Readonly<{
 	inputFingerprints?: readonly { sourceId: string; sha256: string }[];
 }> = {}): NativeQueueRecordV1 {
 	return createNativeQueueRecordV1({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: JOB_ID,
 		taskKind: overrides.taskKind ?? 'encoded-export',
 		planVersion: 6,

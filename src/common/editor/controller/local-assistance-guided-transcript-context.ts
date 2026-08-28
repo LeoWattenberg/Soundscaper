@@ -23,7 +23,8 @@ const MAXIMUM_EDITORIAL_EXCERPT_CHARACTERS = 8_192;
 
 export interface LocalAssistanceGuidedPrimitiveFence {
 	readonly projectId: string;
-	readonly schemaVersion: number;
+	readonly schemaFamily: 'soundscaper' | 'framescaper';
+	readonly schemaVersion: 1;
 	readonly revision: number;
 	readonly sequenceId: string;
 	readonly occurrenceIds: readonly string[];

@@ -14,7 +14,7 @@ import {
 	createAudioTrack,
 	createVideoSource,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * The three interchange profiles describe a document the product actually writes.
@@ -91,7 +91,7 @@ function harness(project: Readonly<Record<string, unknown>>) {
 }
 
 function videoProject() {
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'interchange-video', title: 'Interchange video', now: NOW,
 		sources: [createVideoSource({
 			id: 'cam', name: 'CAM A', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',
@@ -114,7 +114,7 @@ function musicalProject() {
 		frameCount: SAMPLE_RATE * 10, channelCount: 2, sampleRate: SAMPLE_RATE,
 		originalSampleRate: SAMPLE_RATE, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'interchange-musical', title: 'Interchange musical', now: NOW,
 		sources: [source],
 		clips: [createAudioClip({

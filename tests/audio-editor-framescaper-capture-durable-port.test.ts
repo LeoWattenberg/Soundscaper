@@ -23,7 +23,7 @@ test('durable port maps recorder formats and keeps coordinator ownership private
 	});
 	const session = await binding.port.prepare({
 		sessionId: 'session-a', generation: 2,
-		projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
 		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 100, destination: 'both' },
 		destination: 'both',
 		sources: [
@@ -135,7 +135,7 @@ function coordinatorHarness(options: Readonly<{
 function prepareRequest() {
 	return {
 		sessionId: 'session-a', generation: 2,
-		projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
 		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 100, destination: 'both' as const },
 		destination: 'both' as const,
 		sources: [{ streamId: 'video-a', sourceId: 'source-a', role: 'camera' as const }],
@@ -171,7 +171,7 @@ function inventory(state: FramescaperCaptureSessionManifestV1['state'], sessionI
 function manifest(state: FramescaperCaptureSessionManifestV1['state'], sessionId = 'session-a') {
 	return Object.freeze({
 		version: 1 as const, sessionId, generation: 1, state, recoveryDecision: null,
-		projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
 		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 100, destination: 'both' as const },
 		clock: { monotonicOriginMicroseconds: 1_000, pauseSpans: Object.freeze([]) },
 		streams: Object.freeze([{

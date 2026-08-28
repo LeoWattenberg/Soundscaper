@@ -57,7 +57,7 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 		leaseQualification: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,
 			renewIntervalMs: Math.max(100, Math.floor(admitted.leaseTtlMs / 3)),
-			// V11's journal checkpoint is synchronous, so the phase is recorded with
+		// The baseline journal checkpoint is synchronous, so the phase is recorded with
 			// synchronous writes and the thread then parks until the matrix kills the
 			// process. Parking rather than exiting leaves the journal and the
 			// unexpired lease exactly as a crash would.
@@ -140,7 +140,7 @@ export function terminateDesktopProjectLibraryLeaseSmokeRenderer(
 export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 	const api = plan.productId === 'framescaper'
 		? scope?.framescaperDesktop?.v1?.projectLibrary
-		: scope?.soundscaperProjectLibraryDesktop?.v11;
+		: scope?.soundscaperProjectLibraryDesktop?.v1;
 	if (!api) throw new Error(`${plan.productId} lease smoke bridge is unavailable`);
 	await api.connect();
 	const catalog = await api.listProjects();
@@ -232,8 +232,8 @@ async function resultPayload(plan, renderer, host, projectLibraryEvidence) {
 	if (evidence?.project?.projectId !== plan.projectId || typeof evidence.project.sha256 !== 'string') {
 		throw new Error('Desktop lease smoke project evidence is inconsistent');
 	}
-	// A source-free matrix must not advertise managed media. V11 reports the
-	// bundle's body count rather than V9's source descriptors.
+	// A source-free matrix must not advertise managed media. The baseline reports
+	// the bundle's body count rather than historical source descriptors.
 	if (!Number.isSafeInteger(evidence.project.bodyCount) || evidence.project.bodyCount < 0) {
 		throw new Error('Desktop lease smoke managed-media evidence is invalid');
 	}

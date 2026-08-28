@@ -249,13 +249,15 @@ function advancedFixture(
 		onProgress: () => { operationCalls += 1; return () => undefined; },
 		workflow,
 	});
-	const project = Object.freeze({ id: 'project-a', schemaVersion: 30, revision: 2,
+	const project = Object.freeze({ id: 'project-a', schemaFamily: 'soundscaper' as const,
+		schemaVersion: 1, revision: 2,
 		clips: Object.freeze([{ id: 'clip-a', kind: 'audio', sourceId: 'source-a',
 			sequenceId: 'main', avLinkId: null, reversed: false, speedRatio: 1,
 			pitchCents: 0, stretchToTempo: false, warpMap: null }]),
 		sources: Object.freeze([{ id: 'source-a', kind: 'audio', sampleRate: 48_000 }]),
 		assistanceAssets: Object.freeze([]) });
-	const fence = Object.freeze({ projectId: 'project-a', schemaVersion: 30, revision: 2,
+	const fence = Object.freeze({ projectId: 'project-a', schemaFamily: 'soundscaper' as const,
+		schemaVersion: 1, revision: 2,
 		sequenceId: 'main', occurrenceIds: Object.freeze(['clip-a']), sourceId: 'source-a',
 		sourceSha256: '2c'.repeat(32), sourceStartFrame: 0, sourceEndFrame: 48_000,
 		linkMembershipSha256: '3d'.repeat(32), timingAuthoritySha256: '4e'.repeat(32) });

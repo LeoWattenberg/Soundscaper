@@ -251,7 +251,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 		}),
 		createHistory: (candidate) => ({ present: candidate }),
 		executeCommand: (history) => history,
-		migrateProject: (value) => ({ project: value as TestProject, readOnly: false }),
+		loadProject: (value) => ({ project: value as TestProject, readOnly: false }),
 		verifyProjectFallbackIntegrity: () => Object.freeze({ assertCurrent() {} }),
 		assignPreferredInputToTrack: () => undefined,
 		cancelTimedRecording: () => undefined,

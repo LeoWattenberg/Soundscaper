@@ -25,17 +25,17 @@ import { createAudioSource } from '../src/common/editor/project-media-factory.ts
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { canonicalMediaContentBlob } from '../src/common/editor/storage/media-content-digest.ts';
 import {
-	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v31.ts';
-import { createFramescaperProjectV31 } from '../src/framescaper/editor-project-v31.ts';
-import { createFramescaperScapeNativeRuntimeV31 } from '../src/framescaper/editor-scape-native-v31.ts';
+	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-project-runtime-profile.ts';
+import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
+import { createFramescaperScapeNativeRuntime } from '../src/framescaper/editor-scape-native.ts';
 import {
-	createSoundscaperProjectV30,
-} from '../src/soundscaper/editor-project-v30.ts';
+	createSoundscaperProject,
+} from '../src/soundscaper/editor-project.ts';
 import {
-	createSoundscaperScapeNativeRuntimeV30,
-	type SoundscaperScapeNativeStoreV30,
-} from '../src/soundscaper/editor-scape-native-v30.ts';
+	createSoundscaperScapeNativeRuntime,
+	type SoundscaperScapeNativeStore,
+} from '../src/soundscaper/editor-scape-native.ts';
 
 const SOURCE_ID = 'dialogue-source';
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -45,8 +45,8 @@ const PCM = Object.freeze([0.125, -0.25, 0.5, -0.75]);
 
 type Store = ReturnType<typeof createProjectStore>;
 
-test('S30 `.scape` round-trips authenticated transcript and native plug-in bodies together', async (context) => {
-	const transcript = publication(30);
+test('Soundscaper v1 `.scape` round-trips authenticated transcript and native plug-in bodies together', async (context) => {
+	const transcript = publication('soundscaper');
 	const nativeBytes = Uint8Array.from([0, 7, 13, 255]);
 	const nativeSha256 = digestScapeBytes(nativeBytes);
 	const nativeBodyId = `native-plugin-state:${nativeSha256}`;
@@ -54,7 +54,7 @@ test('S30 `.scape` round-trips authenticated transcript and native plug-in bodie
 	const recipientNative = new Map<string, Uint8Array>();
 	const sender = soundscaperStore(context, 's30-sender', senderNative);
 	const recipient = soundscaperStore(context, 's30-recipient', recipientNative);
-	const project = createSoundscaperProjectV30({
+	const project = createSoundscaperProject({
 		id: 's30-transcript-scape', title: 'Portable transcript', now: NOW,
 		sources: [source()], assistanceAssets: [transcript.reference],
 		nativePluginStates: [{
@@ -69,7 +69,7 @@ test('S30 `.scape` round-trips authenticated transcript and native plug-in bodie
 	} as never);
 	await seedProjectBodies(sender, transcript);
 
-	const runtime = createSoundscaperScapeNativeRuntimeV30();
+	const runtime = createSoundscaperScapeNativeRuntime();
 	const exported = await runtime.exportScapeProject(project, sender);
 	assert.deepEqual(exported.manifest.assets.map(({ kind }) => kind), [
 		'audio', 'native-plugin-state', ASSISTANCE_TRANSCRIPT_SCAPE_KIND_V1,
@@ -87,26 +87,26 @@ test('S30 `.scape` round-trips authenticated transcript and native plug-in bodie
 	assert.deepEqual(assetAuthority(returned.manifest), assetAuthority(exported.manifest));
 });
 
-test('F31 `.scape` collision import rebinds transcript JSON and its immutable reference together', async (context) => {
-	const transcript = publication(31);
+test('Framescaper v1 `.scape` collision import rebinds transcript JSON and its immutable reference together', async (context) => {
+	const transcript = publication('framescaper');
 	const sender = memoryStore(context, 'f31-collision-sender');
 	const recipient = memoryStore(context, 'f31-collision-recipient');
-	const project = createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+	const project = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 		id: 'f31-transcript-scape', title: 'Portable transcript', now: NOW,
 		sources: [source()], assistanceAssets: [transcript.reference],
 	} as never);
 	await seedProjectBodies(sender, transcript);
 	await persistPcm(recipient, SOURCE_ID, [1]);
 
-	const runtime = createFramescaperScapeNativeRuntimeV31(
-		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+	const runtime = createFramescaperScapeNativeRuntime(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 	);
 	const exported = await runtime.exportScapeProject(project, sender);
 	const imported = await runtime.importScapeProject(exported.blob!, recipient);
 	const held = imported.project as typeof project;
 	const reboundSources = held.sources as readonly Readonly<{ kind: string; id: string }>[];
 	const reboundSource = reboundSources.find(({ kind }) => kind === 'audio')!;
-	const reboundAsset = held.assistanceAssets[0]!;
+	const reboundAsset = (held.assistanceAssets as readonly (typeof transcript.reference)[])[0]!;
 	assert.notEqual(reboundSource.id, SOURCE_ID);
 	assert.equal(reboundAsset.sourceId, reboundSource.id);
 	assert.notEqual(reboundAsset.body.storageKey, transcript.reference.body.storageKey);
@@ -122,16 +122,16 @@ test('F31 `.scape` collision import rebinds transcript JSON and its immutable re
 	assert.equal(descriptor.sha256, reboundAsset.body.sha256);
 });
 
-test('selected S30/F31 export refuses missing and semantically corrupt transcript bodies', async (context) => {
-	const transcript = publication(30);
+test('both v1 families refuse missing and semantically corrupt transcript bodies', async (context) => {
+	const transcript = publication('soundscaper');
 	const missing = memoryStore(context, 'transcript-missing');
 	await persistPcm(missing, SOURCE_ID, PCM);
-	const soundscaper = createSoundscaperProjectV30({
+	const soundscaper = createSoundscaperProject({
 		id: 's30-missing-transcript', title: 'Missing transcript', now: NOW,
 		sources: [source()], assistanceAssets: [transcript.reference],
 	} as never);
 	await assert.rejects(
-		createSoundscaperScapeNativeRuntimeV30().exportScapeProject(soundscaper, missing as never),
+		createSoundscaperScapeNativeRuntime().exportScapeProject(soundscaper, missing as never),
 		/unavailable|metadata|missing/iu,
 	);
 
@@ -156,28 +156,28 @@ test('selected S30/F31 export refuses missing and semantically corrupt transcrip
 	const corrupt = memoryStore(context, 'transcript-corrupt');
 	await persistPcm(corrupt, SOURCE_ID, PCM);
 	await persistTranscriptBody(corrupt, wrongReference.body, wrongBytes);
-	const framescaper = createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+	const framescaper = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 		id: 'f31-corrupt-transcript', title: 'Corrupt transcript', now: NOW,
 		sources: [source()], assistanceAssets: [wrongReference],
 	} as never);
 	await assert.rejects(
-		createFramescaperScapeNativeRuntimeV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE)
+		createFramescaperScapeNativeRuntime(FRAMESCAPER_PROJECT_RUNTIME_PROFILE)
 			.exportScapeProject(framescaper, corrupt),
 		/source identity|source ID|project reference/iu,
 	);
 });
 
 test('a later corrupt archive entry rolls back an owned transcript-body import', async (context) => {
-	const transcript = publication(31);
+	const transcript = publication('framescaper');
 	const sender = memoryStore(context, 'f31-rollback-sender');
 	const recipient = memoryStore(context, 'f31-rollback-recipient');
-	const project = createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+	const project = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 		id: 'f31-transcript-rollback', title: 'Rollback transcript', now: NOW,
 		sources: [source()], assistanceAssets: [transcript.reference],
 	} as never);
 	await seedProjectBodies(sender, transcript);
-	const runtime = createFramescaperScapeNativeRuntimeV31(
-		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+	const runtime = createFramescaperScapeNativeRuntime(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 	);
 	const exported = await runtime.exportScapeProject(project, sender);
 	const audio = exported.manifest.assets.find(({ kind }) => kind === 'audio')!;
@@ -188,7 +188,7 @@ test('a later corrupt archive entry rolls back an owned transcript-body import',
 	assert.equal(await recipient.getMediaAssetMetadata(transcript.reference.body.storageKey), null);
 });
 
-function publication(schemaVersion: 30 | 31) {
+function publication(schemaFamily: 'soundscaper' | 'framescaper') {
 	return createAssistanceTranscriptBodyPublicationV1({
 		assetId: 'transcript-dialogue',
 		review: {
@@ -202,7 +202,8 @@ function publication(schemaVersion: 30 | 31) {
 		},
 		selectedMedia: {
 			selectionFence: {
-				projectId: `project-v${String(schemaVersion)}`, schemaVersion, revision: 0,
+				schemaFamily, schemaVersion: 1,
+				projectId: `project-${schemaFamily}`, revision: 0,
 				sequenceId: 'main-sequence', occurrenceIds: ['dialogue-clip'],
 				sourceId: SOURCE_ID, sourceSha256: SOURCE_SHA256,
 				sourceStartFrame: 0, sourceEndFrame: 4,
@@ -273,9 +274,9 @@ function soundscaperStore(
 	context: TestContext,
 	label: string,
 	bodies: Map<string, Uint8Array>,
-): AudioEditorProjectStore & SoundscaperScapeNativeStoreV30 {
+): AudioEditorProjectStore & SoundscaperScapeNativeStore {
 	const base = memoryStore(context, label);
-	const extensions: SoundscaperScapeNativeStoreV30 = {
+	const extensions: SoundscaperScapeNativeStore = {
 		getNativePluginStateBodyMetadata: (bodyId) => {
 			const bytes = bodies.get(bodyId);
 			return bytes ? { byteLength: bytes.byteLength, sha256: digestScapeBytes(bytes) } : null;
@@ -293,7 +294,7 @@ function soundscaperStore(
 			return expected;
 		},
 	};
-	return new Proxy(base as AudioEditorProjectStore & SoundscaperScapeNativeStoreV30, {
+	return new Proxy(base as AudioEditorProjectStore & SoundscaperScapeNativeStore, {
 		get(target, property) {
 			if (Object.hasOwn(extensions, property)) {
 				const value = Reflect.get(extensions, property);

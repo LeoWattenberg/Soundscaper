@@ -135,8 +135,8 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 			},
 		});
 		const semanticSearch = Object.freeze({
-			open: async ({ projectId, projectRevision }) => Object.freeze({ sessionVersion: 1,
-				sessionId: 'aa'.repeat(20), projectId, projectRevision,
+			open: async ({ schemaFamily, schemaVersion, projectId, projectRevision }) => Object.freeze({ sessionVersion: 1,
+				sessionId: 'aa'.repeat(20), schemaFamily, schemaVersion, projectId, projectRevision,
 				expiresAtEpochMs: Date.now() + 60_000 }),
 			authorize: async ({ session }) => session,
 			revoke: async () => true,

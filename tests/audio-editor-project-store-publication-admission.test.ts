@@ -237,34 +237,6 @@ test('a caller capacity admission receives exact canonical bytes without a secon
 	assert.equal(estimateCalls, 0);
 });
 
-test('desktop shared publication does not start after central capacity refusal', async (context) => {
-	let commits = 0;
-	const store = createProjectStore({
-		indexedDB: createInstrumentedIndexedDB(),
-		memoryFallback: false,
-		preferOpfs: false,
-		databaseName: uniqueDatabaseName('project-capacity-desktop-shared'),
-		storageManager: { estimate: async () => ({ usage: 1, quota: 1 }) },
-		desktopProjectBridge: {
-			listSharedProjects: async () => [],
-			readSharedProject: async () => null,
-			commitSharedProject: async (document: string) => {
-				commits += 1;
-				return document;
-			},
-			deleteSharedProject: async () => true,
-		},
-	});
-	context.after(async () => { await store.close(); });
-
-	await assert.rejects(
-		store.saveProject({ id: 'capacity-shared-project', revision: 1 }),
-		(error: unknown) => error instanceof ProjectPublicationQuotaError,
-	);
-	assert.equal(commits, 0);
-	assert.deepEqual(await store.listProjectRevisions('capacity-shared-project'), []);
-});
-
 function uniqueDatabaseName(prefix: string): string {
 	return `${prefix}-${String(Date.now())}-${String(Math.random())}`;
 }

@@ -56,7 +56,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 	);
 	assert.match(
 		relationship.currentBehavior,
-		/maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed videoEffects-only clip-target render relationship.*separately qualified.*controller activation.*bounded video delivery.*independent route-specific relationship.*source.*digest admissions.*Framescaper V18 proxy attachment preservation.*isolated re-attestation.*qualified.*selected Framescaper F31 retains.*generation.*Original\/Proxy\/Auto.*offline editing.*relink\/regenerate.*immutable V28 foundation.*resource- and externally unqualified.*grant no delivery or native-runtime authority.*browser export.*V14 carrier producer.*delivery.*original-authoritative.*refuse.*original.*unavailable/iu,
+		/maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed videoEffects-only clip-target render relationship.*separately qualified.*controller activation.*bounded video delivery.*independent route-specific relationship.*source.*digest admissions.*Framescaper family v1 proxy attachment preservation.*isolated re-attestation.*qualified.*Framescaper family v1 retains.*generation.*Original\/Proxy\/Auto.*offline editing.*relink\/regenerate.*direct unversioned Framescaper baseline domain.*resource- and externally unqualified.*grant no delivery or native-runtime authority.*browser export.*V14 carrier producer.*delivery.*original-authoritative.*refuse.*original.*unavailable/iu,
 	);
 	for (const evidence of [
 		'src/common/editor/storage/video-derivative-relationship.ts',
@@ -64,13 +64,10 @@ test('disposable video previews remain reproducible local relationships, not dur
 		'src/common/editor/controller/source-import.ts',
 		'src/common/editor/commands/project-source-bin-runtime.js',
 		'src/common/editor/scape-project.js',
-		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
 		'tests/audio-editor-video-derivative-binding.test.ts',
 		'tests/audio-editor-source-import.test.ts',
 		'tests/audio-editor-project-bin.test.js',
 		'tests/audio-editor-scape-project.test.js',
-		'tests/audio-editor-desktop-shared-project-source-availability.test.ts',
-		'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
 		'tests/audio-editor-feature-requirement-retention.test.ts',
 		'tests/audio-editor-scape-feature-requirements.test.ts',
 		'tests/audio-editor-scape-video-return-roundtrip.test.ts',
@@ -94,7 +91,7 @@ test('disposable video previews remain reproducible local relationships, not dur
 		documentation,
 		/reproducible.*not.*project history.*\.scape.*managed handoff.*rendered fallbacks.*durable/isu,
 	);
-	assert.match(documentation, /maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed\s+videoEffects-only clip-target render relationship.*separately qualified.*controller\s+activation.*bounded video delivery.*independent\s+route-specific relationship.*source.*digest admissions.*Framescaper V18\s+proxy attachment preservation.*isolated re-attestation.*qualified.*selected Framescaper F31\s+retains.*immutable V28\s+foundation.*generation.*Original\/Proxy\/Auto.*offline editing.*relink\/regenerate.*resource-\s+and externally unqualified.*grant no delivery or native-runtime authority.*browser export.*V14 carrier producer.*delivery.*original-authoritative.*refuse.*original.*unavailable/isu);
+	assert.match(documentation, /maintained exact-schema role-defined audio whole-mix fallback.*separately qualified.*fresh-recipient managed acquisition.*activation.*role-defined whole-project video render.*one closed\s+videoEffects-only clip-target render relationship.*separately qualified.*controller\s+activation.*bounded video delivery.*independent\s+route-specific relationship.*source.*digest admissions.*Framescaper family\s+v1\s+proxy attachment preservation.*isolated re-attestation.*qualified.*Framescaper family v1\s+retains.*direct\s+unversioned Framescaper baseline domain.*generation.*Original\/Proxy\/Auto.*offline editing.*relink\/regenerate.*resource-\s+and externally unqualified.*grant no delivery or native-runtime authority.*browser export.*V14 carrier producer.*delivery.*original-authoritative.*refuse.*original.*unavailable/isu);
 	assert.match(
 		documentation,
 		/not editorial proxies.*decoder.*RSS/isu,

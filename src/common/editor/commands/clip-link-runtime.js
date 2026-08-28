@@ -6,6 +6,11 @@ import {
 	createStableId,
 } from '../project.js';
 import {
+	hasCoreEditingProjectAuthority,
+	hasProjectBinMediaAuthority,
+	hasSequenceGeometryProjectAuthority,
+} from '../project-schema-version.ts';
+import {
 	assertUnusedClipId,
 	normalizeClipForProject,
 	normalizeCommandIds,
@@ -144,7 +149,7 @@ function splitSingleClip(project, clip, atFrame, rightClipId, rightAvLinkId = nu
 }
 
 function conformedSplitFrame(project, clip, linkedClip, atFrame) {
-	if (Number(project.schemaVersion) < 10) return atFrame;
+	if (!hasSequenceGeometryProjectAuthority(project)) return atFrame;
 	const video = clip.kind === 'video' ? clip : linkedClip?.kind === 'video' ? linkedClip : null;
 	if (!video) return atFrame;
 	const sequence = project.sequences?.find((candidate) => candidate.id === video.sequenceId);
@@ -158,7 +163,7 @@ function conformedSplitFrame(project, clip, linkedClip, atFrame) {
 }
 
 export function linkAvClips(project, command) {
-	if (project.schemaVersion < 4) throw new RangeError('A/V links require an AudioEditorProjectV4 project.');
+	if (!hasProjectBinMediaAuthority(project)) throw new RangeError('A/V links require an active bin-media project.');
 	const video = requireClip(project, command.videoClipId);
 	const audio = requireClip(project, command.audioClipId);
 	if (video.kind !== 'video' || audio.kind !== 'audio') {
@@ -185,7 +190,7 @@ export function linkAvClips(project, command) {
 }
 
 export function unlinkAvClips(project, command) {
-	if (project.schemaVersion < 4) throw new RangeError('A/V links require an AudioEditorProjectV4 project.');
+	if (!hasProjectBinMediaAuthority(project)) throw new RangeError('A/V links require an active bin-media project.');
 	const requestedClip = command.clipId ? requireClip(project, command.clipId) : null;
 	const avLinkId = command.avLinkId || requestedClip?.avLinkId;
 	if (!avLinkId) return;
@@ -215,7 +220,7 @@ export function prepareGroupClipsCommand(clipIds, idFactory = createStableId) {
 }
 
 export function groupClips(project, clipIds, groupId) {
-	if (project.schemaVersion < 2) throw new RangeError('Clip grouping requires an AudioEditorProjectV2 or newer project.');
+	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Clip grouping requires an active editing project.');
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	if (ids.length < 2) throw new RangeError('At least two clips are required to create a group.');
 	const stableGroupId = requireStableCommandId(groupId, 'clip group');
@@ -226,7 +231,7 @@ export function groupClips(project, clipIds, groupId) {
 }
 
 export function ungroupClips(project, clipIds) {
-	if (project.schemaVersion < 2) throw new RangeError('Clip grouping requires an AudioEditorProjectV2 or newer project.');
+	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Clip grouping requires an active editing project.');
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	for (const clipId of ids) {
 		const clip = requireClip(project, clipId);
@@ -247,7 +252,7 @@ export function joinClips(project, clipIds) {
 		clipsByTrack.set(track.id, trackClips);
 	}
 	if (clipsByTrack.size > 1) {
-		if (project.schemaVersion < 4 || clipsByTrack.size !== 2 || clips.some((clip) => !clip.avLinkId)) {
+		if (!hasProjectBinMediaAuthority(project) || clipsByTrack.size !== 2 || clips.some((clip) => !clip.avLinkId)) {
 			throw new RangeError('Joined clips must belong to the same track.');
 		}
 		const selectedIds = new Set(ids);

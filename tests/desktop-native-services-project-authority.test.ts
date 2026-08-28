@@ -11,6 +11,11 @@ import {
 } from '../src/common/editor/native-queue-record.ts';
 import { nativeQueueKeyedPlanV7 } from './helpers/native-queue-plan-fixture.ts';
 
+const PROJECT_IDENTITY = Object.freeze({
+	schemaFamily: 'framescaper' as const,
+	schemaVersion: 1 as const,
+});
+
 test('the main-private authority revalidates machine facts without consulting milestone-9 review', async () => {
 	const plan = nativeQueueKeyedPlanV7();
 	const inputs = Object.freeze([
@@ -18,6 +23,7 @@ test('the main-private authority revalidates machine facts without consulting mi
 		Object.freeze({ sourceId: 'source-b', sha256: '34'.repeat(32) }),
 	]);
 	const record = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '01'.repeat(20), taskKind: 'encoded-export', plan,
 		projectId: 'project-1', projectRevision: 7, inputFingerprints: inputs,
 		rootGrantId: 'ab'.repeat(16), relativeDestination: 'export.mov',
@@ -35,8 +41,10 @@ test('the main-private authority revalidates machine facts without consulting mi
 	});
 	const authority = new FramescaperNativeProjectAuthority({
 		project: {
-			projectState: () => Object.freeze({ open: true, writable: true }),
+			...PROJECT_IDENTITY,
+			projectState: () => Object.freeze({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => Object.freeze({
+				...PROJECT_IDENTITY,
 				projectId: 'project-1', projectRevision: revision,
 				projectSha256: '56'.repeat(32),
 				bodies: Object.freeze(inputs.map((input) => Object.freeze({
@@ -67,10 +75,6 @@ test('the main-private authority revalidates machine facts without consulting mi
 		scratchMatches: () => true,
 	});
 
-	assert.deepEqual(authority.watchProject('project-1'), {
-		schemaVersion: 20, projectId: 'project-1', projectRevision: 7,
-		open: true, writable: true,
-	});
 	assert.deepEqual(await authority.revalidate(record, root, true), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
 		inputFingerprintsMatch: true, rootGrantAuthorized: true, rootGrantValid: true,
@@ -85,18 +89,6 @@ test('the main-private authority revalidates machine facts without consulting mi
 	assert.equal((await authority.revalidate(record, root, true)).projectRevisionMatches, false);
 });
 
-test('watch recovery recognizes only an exact V20 project-bin video digest', async () => {
-	const digest = '12'.repeat(32);
-	const document = JSON.stringify({
-		schemaVersion: 20, id: 'project-1', revision: 7,
-		sources: [{ kind: 'video', id: 'source-a', contentSha256: digest }],
-		projectBin: { clips: [{ kind: 'video', id: 'clip-a', sourceId: 'source-a' }] },
-	});
-	const authority = watchAuthority(document);
-	assert.equal(await authority.watchImportAlreadyPresent('project-1', digest), true);
-	assert.equal(await authority.watchImportAlreadyPresent('project-1', '34'.repeat(32)), false);
-});
-
 test('project revalidation derives verified image-sequence recovery progress from main-owned evidence', async () => {
 	const plan = nativeQueueKeyedPlanV7();
 	const inputs = Object.freeze([
@@ -104,6 +96,7 @@ test('project revalidation derives verified image-sequence recovery progress fro
 		Object.freeze({ sourceId: 'source-b', sha256: '34'.repeat(32) }),
 	]);
 	const queued = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '02'.repeat(20), taskKind: 'image-sequence-export', plan,
 		projectId: 'project-1', projectRevision: 7, inputFingerprints: inputs,
 		rootGrantId: 'ab'.repeat(16), relativeDestination: 'frames/frame.png',
@@ -139,8 +132,10 @@ test('project revalidation derives verified image-sequence recovery progress fro
 	});
 	const authority = new FramescaperNativeProjectAuthority({
 		project: {
-			projectState: () => Object.freeze({ open: true, writable: true }),
+			...PROJECT_IDENTITY,
+			projectState: () => Object.freeze({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			projectRecord: () => Object.freeze({
+				...PROJECT_IDENTITY,
 				projectId: 'project-1', projectRevision: 7, projectSha256: '56'.repeat(32),
 				bodies: Object.freeze(inputs.map((input) => Object.freeze({
 					kind: 'video-original' as const, sourceId: input.sourceId,
@@ -186,26 +181,3 @@ test('project revalidation derives verified image-sequence recovery progress fro
 	assert.equal(stale.plannedFrameCount, 30);
 	assert.equal(reported.length, 1);
 });
-
-function watchAuthority(document: string): FramescaperNativeProjectAuthority {
-	return new FramescaperNativeProjectAuthority({
-		project: {
-			projectState: () => Object.freeze({ open: true, writable: true }),
-			projectRecord: () => Object.freeze({
-				projectId: 'project-1', projectRevision: 7, projectSha256: '56'.repeat(32),
-				bodies: Object.freeze([]),
-			}),
-			readProjectBundle: async () => ({
-				project: { projectRevision: 7, sha256: '56'.repeat(32) }, document, bodies: [],
-			}),
-			readBody: async () => new Uint8Array(),
-		},
-		scratchRoot: '/private/scratch', executable: () => null,
-		createMessageChannel: () => { throw new Error('unused'); },
-		probeRoot: async () => { throw new Error('unused'); },
-		publicationPortFor: () => { throw new Error('unused'); },
-		publicationFenceFor: () => { throw new Error('unused'); },
-		reserveScratch: () => undefined, settleScratch: async () => undefined,
-		scratchMatches: () => false,
-	});
-}

@@ -8,7 +8,7 @@ import {
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
-test('selected F31 exposes native work only through menus and retains its watch target', async ({ page }) => {
+test('Framescaper v1 exposes native work only through menus and retains its watch target', async ({ page }) => {
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
@@ -71,6 +71,7 @@ test('selected F31 exposes native work only through menus and retains its watch 
 	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
 		.find(([kind]) => kind === 'createWatch'))).toEqual([
 		'createWatch', {
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			grantId: 'ab'.repeat(16), projectId, binId: 'project-bin',
 			extensions: ['wav', 'mp3', 'mp4', 'mov'], importMode: 'link', generateProxies: true,
 		},
@@ -97,7 +98,7 @@ test('a Framescaper bridge cannot surface Framescaper native menus in Soundscape
 // their budgets are sized from measured worst cases rather than defaults.
 const SLOW_WORKFLOW = { timeout: 120_000 };
 
-test('selected V28 authors typed OpenFX state only from the opted-in Effect menu', async ({ page }) => {
+test('Framescaper v1 authors typed OpenFX state only from the opted-in Effect menu', async ({ page }) => {
 	test.setTimeout(240_000);
 	await installNativeServicesFixture(page);
 	const editor = await bootEditor(page, '/framescaper/embed/en/');
@@ -128,7 +129,7 @@ test('selected V28 authors typed OpenFX state only from the opted-in Effect menu
 	]);
 });
 
-test('selected V28 runs one cumulative accessible OpenFX Interact workflow without a vendor window', async ({ page, browserName }) => {
+test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow without a vendor window', async ({ page, browserName }) => {
 	test.setTimeout(360_000);
 	await page.emulateMedia({ forcedColors: 'active' });
 	await installNativeServicesFixture(page);
@@ -241,7 +242,8 @@ async function installNativeServicesFixture(page) {
 		let queueState = 'queued';
 		let watchRules = [];
 		const queueRow = () => ({
-			jobId: '12'.repeat(20), taskKind: 'encoded-export', projectId: 'browser-v28',
+			jobId: '12'.repeat(20), taskKind: 'encoded-export',
+			schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'browser-v28',
 			relativeDestination: 'exports/reel.mov', state: queueState,
 			position: 0, progress: null, attempt: 0, lastFailureCode: null,
 		});

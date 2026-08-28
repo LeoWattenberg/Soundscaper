@@ -19,7 +19,8 @@ import {
 } from './helpers/audio-editor-local-assistance-guided-preparation-fixture.ts';
 
 const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 30, revision: 4, sequenceId: 'main-sequence',
+	projectId: 'project-1', schemaFamily: 'framescaper' as const, schemaVersion: 1,
+	revision: 4, sequenceId: 'main-sequence',
 	occurrenceIds: Object.freeze(['voice-clip']), sourceId: 'voice-source',
 	sourceSha256: SOURCE_SHA256, sourceStartFrame: 24_000, sourceEndFrame: 72_000,
 	linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
@@ -203,7 +204,8 @@ function contextFixture(project: Readonly<Record<string, unknown>>, storageKey: 
 
 function linkedProject() {
 	return {
-		id: 'project-1', schemaVersion: 30, revision: 4, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'framescaper' as const, schemaVersion: 1,
+		revision: 4, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		selection: { startFrame: 48_000, endFrame: 96_000,
 			clipIds: ['camera-clip'], trackIds: ['video-track'] },

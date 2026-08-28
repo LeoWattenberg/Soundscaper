@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
+
 import { createAddSourceCommand } from '../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts';
 import type {
@@ -119,10 +121,10 @@ export function createProjectBinReplacementService(
 			restoreBaseDocument(baseDocument);
 			if (!result) return null;
 			const importedClip = findProjectBinClip(importedProject, result.clipId);
-			const importedItemClips = importedClip && importedProject.schemaVersion >= 4
+			const importedItemClips = importedClip && hasProjectBinMediaAuthority(importedProject)
 				? projectBinClips(importedProject).filter((clip) => clip.binItemId === importedClip.binItemId)
 				: importedClip ? [importedClip] : [];
-			const targetItemClips = baseProject.schemaVersion >= 4
+			const targetItemClips = hasProjectBinMediaAuthority(baseProject)
 				? projectBinClips(baseProject).filter((clip) => clip.binItemId === target.binItemId)
 				: [target];
 			const importedKinds = importedItemClips.map(projectBinMediaKind).sort();

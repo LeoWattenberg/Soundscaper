@@ -52,6 +52,8 @@ const MAXIMUM_SOURCE_BODIES = 5_118;
 type ProjectBody = NativeProjectMediaBody;
 
 interface ProjectRecord {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly projectSha256: string;
@@ -65,7 +67,14 @@ interface ProjectBundle {
 }
 
 export interface FramescaperNativeProjectAuthorityPort {
-	projectState(projectId: string): Readonly<{ open: boolean; writable: boolean }>;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
+	projectState(projectId: string): Readonly<{
+		readonly schemaFamily: 'framescaper';
+		readonly schemaVersion: 1;
+		readonly open: boolean;
+		readonly writable: boolean;
+	}>;
 	projectRecord(projectId: string): ProjectRecord | null;
 	readProjectBundle(projectId: string): Promise<unknown>;
 	readBody(body: unknown): Promise<Uint8Array>;
@@ -117,50 +126,30 @@ export class FramescaperNativeProjectAuthority {
 	readonly #scratchRoot: string;
 
 	constructor(options: FramescaperNativeProjectAuthorityOptions) {
+		assertProjectPortIdentity(options?.project);
 		this.#options = options;
 		this.#scratchRoot = absolutePath(options.scratchRoot, 'scratch root');
 	}
 
-	projectState(projectId: string): Readonly<{ open: boolean; writable: boolean }> {
-		return this.#options.project.projectState(projectId);
+	projectState(projectId: string): Readonly<{
+		readonly schemaFamily: 'framescaper'; readonly schemaVersion: 1;
+		readonly open: boolean; readonly writable: boolean;
+	}> {
+		const state = this.#options.project.projectState(projectId);
+		assertProjectPortIdentity(state);
+		if (typeof state.open !== 'boolean' || typeof state.writable !== 'boolean') {
+			throw new TypeError('The native project state authority is malformed.');
+		}
+		return Object.freeze({
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			open: state.open, writable: state.writable,
+		});
 	}
 
 	openFxTimingAssets(plan: unknown) {
 		return authenticateOpenFxProjectTimingAssets({
 			plan, project: this.#options.project, parseBundle: projectBundle,
 		});
-	}
-
-	watchProject(projectId: string): Readonly<{
-		schemaVersion: 20;
-		projectId: string;
-		projectRevision: number;
-		open: boolean;
-		writable: boolean;
-	}> | null {
-		const state = this.projectState(projectId);
-		const record = this.#options.project.projectRecord(projectId);
-		if (record === null || record.projectId !== projectId) return null;
-		return Object.freeze({
-			schemaVersion: 20, projectId, projectRevision: record.projectRevision,
-			open: state.open, writable: state.writable,
-		});
-	}
-
-	/** Recover the narrow save-before-watch-acknowledgement crash window. */
-	async watchImportAlreadyPresent(projectId: string, contentSha256: string): Promise<boolean> {
-		if (!SHA256.test(contentSha256)) throw new TypeError('A watch-import recovery digest is invalid.');
-		const record = this.#options.project.projectRecord(projectId);
-		if (record === null || record.projectId !== projectId) return false;
-		const bundle = projectBundle(await this.#options.project.readProjectBundle(projectId));
-		if (bundle.project.projectRevision !== record.projectRevision
-			|| bundle.project.sha256 !== record.projectSha256) {
-			throw new Error('The watch-import recovery project changed while it was inspected.');
-		}
-		let value: unknown;
-		try { value = JSON.parse(bundle.document) as unknown; }
-		catch { throw new Error('The watch-import recovery project is not canonical JSON.'); }
-		return projectContainsWatchImport(value, projectId, record.projectRevision, contentSha256);
 	}
 
 	async revalidate(
@@ -355,30 +344,6 @@ export class FramescaperNativeProjectAuthority {
 	}
 }
 
-function projectContainsWatchImport(
-	value: unknown,
-	projectId: string,
-	projectRevision: number,
-	contentSha256: string,
-): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const project = value as Record<string, unknown>;
-	if (project.schemaVersion !== 20 || project.id !== projectId
-		|| project.revision !== projectRevision || !Array.isArray(project.sources)
-		|| !project.projectBin || typeof project.projectBin !== 'object') return false;
-	const sourceIds = new Set(project.sources.flatMap((source) => {
-		if (!source || typeof source !== 'object' || Array.isArray(source)) return [];
-		const row = source as Record<string, unknown>;
-		return row.kind === 'video' && row.contentSha256 === contentSha256
-			&& typeof row.id === 'string' ? [row.id] : [];
-	}));
-	const clips = (project.projectBin as Record<string, unknown>).clips;
-	return sourceIds.size > 0 && Array.isArray(clips) && clips.some((clip) => {
-		if (!clip || typeof clip !== 'object' || Array.isArray(clip)) return false;
-		return sourceIds.has(String((clip as Record<string, unknown>).sourceId));
-	});
-}
-
 function storedPlan(record: NativeQueueRecordV2): Readonly<{
 	plan: Readonly<Record<string, unknown>>;
 	fingerprint: string;
@@ -412,6 +377,21 @@ function projectBundle(value: unknown): ProjectBundle {
 			.filter((body) => (body as Record<string, unknown> | null)?.kind !== 'assistance-transcript')
 			.map(projectBody)),
 	});
+}
+
+function assertProjectPortIdentity(value: unknown): void {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('The native project body authority requires a project port.');
+	}
+	for (const [field, expected] of [
+		['schemaFamily', 'framescaper'], ['schemaVersion', 1],
+	] as const) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')
+			|| descriptor.value !== expected) {
+			throw new TypeError('The native project body authority requires the exact Framescaper v1 identity.');
+		}
+	}
 }
 
 function projectBody(value: unknown): Readonly<ProjectBody> {

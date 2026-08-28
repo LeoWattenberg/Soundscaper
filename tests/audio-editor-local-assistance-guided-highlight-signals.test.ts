@@ -117,7 +117,8 @@ test('guided highlights preserve compact long source-time custody through owned 
 
 function sourceTimeAuthority() {
 	return {
-		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		descriptorVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-a', projectRevision: 8, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 		sourceSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),

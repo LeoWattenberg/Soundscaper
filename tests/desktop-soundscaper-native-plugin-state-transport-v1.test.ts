@@ -5,28 +5,28 @@ import { createHash } from 'node:crypto'
 import test from 'node:test'
 
 import {
-	createSoundscaperDesktopProjectLibraryV11MainPreloadBridge,
-} from '../desktop/soundscaper-project-library-v11-main-preload.ts'
+	createSoundscaperDesktopProjectLibraryMainPreloadBridge,
+} from '../desktop/soundscaper-project-library-main-preload.ts'
 import {
-	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS,
-} from '../desktop/soundscaper-project-library-v11-main-channels.ts'
+	SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS,
+} from '../desktop/soundscaper-project-library-main-channels.ts'
 import {
 	validateSoundscaperNativePluginStateBodyRecordV1,
 } from '../src/soundscaper/desktop-native-plugin-state-transport-v1.ts'
 
-test('desktop V11 exposes pathless native-state body persistence only after handshake', async () => {
+test('desktop baseline exposes pathless native-state body persistence only after handshake', async () => {
 	const bytes = Uint8Array.from([0, 1, 2, 255])
 	const sha256 = createHash('sha256').update(bytes).digest('hex')
 	const bodyId = `native-plugin-state:${sha256}`
 	const calls: Readonly<{ channel: string; value: unknown }>[] = []
-	const bridge = createSoundscaperDesktopProjectLibraryV11MainPreloadBridge({
+	const bridge = createSoundscaperDesktopProjectLibraryMainPreloadBridge({
 		invoke: async (channel: string, value?: unknown) => {
 			(calls as { channel: string; value: unknown }[]).push({ channel, value })
-			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.handshake) return value
-			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.persistNativePluginState) {
+			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.handshake) return value
+			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.persistNativePluginState) {
 				return { kind: 'native-plugin-state', bodyId, byteLength: bytes.byteLength, sha256 }
 			}
-			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.readNativePluginState) {
+			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.readNativePluginState) {
 				return { kind: 'native-plugin-state', bodyId, byteLength: bytes.byteLength, sha256, bytes }
 			}
 			throw new Error(`Unexpected channel ${channel}`)
@@ -39,9 +39,9 @@ test('desktop V11 exposes pathless native-state body persistence only after hand
 	})
 	assert.deepEqual((await bridge.readNativePluginState(bodyId))?.bytes, bytes)
 	assert.equal(calls.at(-2)?.channel,
-		SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.persistNativePluginState)
+		SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.persistNativePluginState)
 	assert.equal(calls.at(-1)?.channel,
-		SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.readNativePluginState)
+		SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.readNativePluginState)
 })
 
 test('desktop native-state transport rejects digest drift and shared bytes', () => {
@@ -63,14 +63,14 @@ test('desktop native-state transport rejects digest drift and shared bytes', () 
 	}), /ordinary/iu)
 })
 
-test('desktop V11 rejects a persisted descriptor for different bytes', async () => {
+test('desktop baseline rejects a persisted descriptor for different bytes', async () => {
 	const bytes = Uint8Array.from([1, 2, 3])
 	const otherBytes = Uint8Array.from([4, 5, 6])
 	const otherSha256 = createHash('sha256').update(otherBytes).digest('hex')
-	const bridge = createSoundscaperDesktopProjectLibraryV11MainPreloadBridge({
+	const bridge = createSoundscaperDesktopProjectLibraryMainPreloadBridge({
 		invoke: async (channel: string, value?: unknown) => {
-			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.handshake) return value
-			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_V11_MAIN_CHANNELS.persistNativePluginState) {
+			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.handshake) return value
+			if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.persistNativePluginState) {
 				return {
 					kind: 'native-plugin-state',
 					bodyId: `native-plugin-state:${otherSha256}`,

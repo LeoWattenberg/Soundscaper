@@ -6,7 +6,7 @@ import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
 
-test('5B status records selected F31/V14/V20 over the V28 foundation without claiming native activation', async () => {
+test('5B generation prose remains provenance beneath the Framescaper-v1 authority', async () => {
 	const [roadmap, parentPlan, pickup, threatModel, compatibility] = await Promise.all([
 		text('roadmap.md'),
 		text('docs/milestone-5-plan.md'),
@@ -31,8 +31,14 @@ test('5B status records selected F31/V14/V20 over the V28 foundation without cla
 	const helper = security.risks.find(({ id }) => id === 'native-helper-processes');
 	assert.ok(helper);
 	assert.match(JSON.stringify(helper), /V14.*evaluated-RGBA.*carrier/isu);
-	assert.match(threatModel, /selected F31.*V28 foundation.*V14.*carrier/isu);
-	assert.match(compatibility, /^## Framescaper F31 product isolation$/mu);
+	assert.match(threatModel, /version-bearing S21–S30, F18–F32.*historical implementation provenance/isu);
+	assert.match(compatibility, /^## Family-v1 product isolation$/mu);
+	assert.match(compatibility, /Version-bearing S21–S30, F18–F32.*implementation provenance/isu);
+	const nativeControl = security.risks
+		.flatMap(({ currentControls }) => currentControls)
+		.find(({ id }) => id === 'framescaper-native-services-pathless-bridge');
+	assert.equal(nativeControl?.policyAuthority, 'family-v1-active');
+	assert.match(nativeControl.summary, /Framescaper family v1.*direct unversioned Framescaper baseline.*V14/isu);
 
 	for (const manifest of [mediaPayloads, openFxPayloads]) {
 		assert.deepEqual(manifest.payloads, []);

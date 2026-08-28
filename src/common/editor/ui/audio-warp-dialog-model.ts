@@ -25,7 +25,7 @@ export interface AudioWarpDialogModel {
 export function createAudioWarpDialogModel(input: AudioWarpDialogModelInput): Readonly<AudioWarpDialogModel> {
 	if (input.productId !== 'soundscaper') return emptyModel();
 	const project = dataRecord(input.project);
-	if (!project || !isAudioWarpProjectSchema(project.schemaVersion)) return emptyModel();
+	if (!project || !isAudioWarpProjectSchema(project)) return emptyModel();
 	const selectedClipId = typeof input.snapshot.selectedClipId === 'string'
 		? input.snapshot.selectedClipId
 		: null;

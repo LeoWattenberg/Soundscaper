@@ -6,9 +6,7 @@ import {
 } from '../../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../../src/framescaper/editor-project-v28.ts';
-import { createSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperProject } from '../../src/soundscaper/editor-project.ts';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -35,7 +33,7 @@ test.describe('take lane and comp workflow', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await expect(editor.locator('[data-editor-surface="take-comp"]')).toHaveCount(0);
 		await installAudioResumeProbe(page);
-		await openTakeCompArchive(editor, 'soundscaper');
+		await openTakeCompArchive(editor);
 		await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
 		await expect(page.getByRole('dialog', { name: 'Project features unavailable', exact: true })).toHaveCount(0);
 
@@ -120,17 +118,15 @@ test.describe('take lane and comp workflow', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('Framescaper keeps take comps unavailable with bypass-only preservation and no menu', async ({ page }) => {
+	test('Framescaper holds a Soundscaper v1 take-comp project opaquely with no authoring menu', async ({ page }) => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await openTakeCompArchive(editor, 'framescaper');
-		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
-		await expect(decision).toBeVisible();
-		await expect(decision).toContainText('Take lanes and comps');
-		await expect(decision).toContainText('Unavailable · Bypass declared');
-		await expect(decision).not.toContainText('Rendered fallback declared');
-		await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
+		await openTakeCompArchive(editor);
+		await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
+		await expect(editor.locator('[data-status]')).toHaveText('This project is read-only.');
+		await expect(page.getByRole('dialog', { name: 'Project features unavailable', exact: true })).toHaveCount(0);
+		await expect(editor.locator(`[data-track-row][data-track-id="${TRACK_ID}"]`)).toHaveCount(0);
 		await editor.getByRole('menuitem', { name: 'Tracks', exact: true }).click();
 		const menu = page.getByRole('menu', { name: 'Tracks', exact: true });
 		await expect(menu.getByRole('menuitem', { name: 'Take lanes and comps', exact: true })).toHaveCount(0);
@@ -145,21 +141,18 @@ async function openTakeCompDialog(page, editor) {
 	return dialog;
 }
 
-async function openTakeCompArchive(editor, productId) {
+async function openTakeCompArchive(editor) {
 	await editor.locator('[data-aup4-input]').setInputFiles({
 		name: 'take-comp-workflow.scape',
 		mimeType: SCAPE_MIME_TYPE,
-		buffer: await takeCompArchive(productId),
+		buffer: await takeCompArchive(),
 	});
 }
 
-const archivePromises = new Map();
-function takeCompArchive(productId) {
-	if (!archivePromises.has(productId)) archivePromises.set(productId, createTakeCompArchive(productId));
-	return archivePromises.get(productId);
-}
+let archivePromise;
+function takeCompArchive() { return archivePromise ||= createTakeCompArchive(); }
 
-async function createTakeCompArchive(productId) {
+async function createTakeCompArchive() {
 	const store = createProjectStore({
 		indexedDB: null,
 		databaseName: `browser-take-comp-fixture-${String(Date.now())}`,
@@ -180,10 +173,7 @@ async function createTakeCompArchive(productId) {
 			persistTone(store, sources[0], 330),
 			persistTone(store, sources[1], 660),
 		]);
-		const createProject = productId === 'soundscaper'
-			? createSoundscaperProjectV29
-			: (options) => createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-		const project = createProject({
+		const project = createSoundscaperProject({
 			id: PROJECT_ID,
 			title: 'Browser take comp project',
 			now: '2026-08-12T12:00:00.000Z',

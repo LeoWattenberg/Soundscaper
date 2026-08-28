@@ -12,7 +12,6 @@ import {
 	ZipWriter,
 } from '@zip.js/zip.js';
 
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { ScapeAudioChunkBudget } from '../src/common/editor/scape-expanded-byte-budget.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import {
@@ -23,14 +22,21 @@ import {
 } from '../src/common/editor/scape-archive-media.ts';
 import {
 	exportScapeProject,
-	importScapeProject,
-	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	WAVPACK_PCM_MAXIMUM_CHANNELS,
 	WAVPACK_PCM_MAXIMUM_FRAMES,
 } from '../src/common/editor/wavpack/index.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -154,7 +160,8 @@ test('audio import rejects noncanonical PCM chunk geometry without publishing in
 test('export rejects projects outside the importable entry envelope before asset work', async () => {
 	let assetReads = 0;
 	const project = {
-		schemaVersion: 6,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		id: 'too-many-sources',
 		sources: Array.from({ length: 4_095 }, (_, index) => ({
 			kind: 'video', id: `video-${String(index)}`, storageKey: `video-${String(index)}`,
@@ -285,6 +292,8 @@ function syntheticArchive(
 		formatVersion: 1,
 		project: {
 			entry: 'project.json',
+			schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+			schemaVersion: PROJECT_SCHEMA_VERSION,
 			size: projectBytes.byteLength,
 			sha256: digestScapeBytes(projectBytes),
 		},

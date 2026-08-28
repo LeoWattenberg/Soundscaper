@@ -48,14 +48,13 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 		'tests/audio-editor-document-snapshot.test.ts',
 		'tests/audio-editor-session.test.js',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
-		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
-		'tests/audio-editor-desktop-shared-project-video-clip-fallback-handoff.test.ts',
+		'tests/audio-editor-framescaper-baseline.test.ts',
 		'tests/production-security-video-rendered-fallback.test.js',
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 
 	assert.match(
 		control.summary,
-		/exact schema 17.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*canonical manifest/iu,
+		/exact owning-family v1.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*canonical manifest/iu,
 	);
 	assert.match(
 		control.summary,
@@ -96,76 +95,17 @@ test('role-defined whole-project and first-party clip-local video fallback playb
 	);
 	assert.match(
 		control.summary,
-		/more than one qualifying video fallback.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*other relationship roles.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*both frozen video roles.*packaged runtime or UI final-delivery workflows.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*exact one-audio.one-video final delivery.*separate control/iu,
+		/more than one qualifying video fallback.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*other relationship roles.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified.*freeze.*proxy.*relink.*embedded fallback audio.*other export parity.*source-level evidence.*source\/component binding.*both frozen video roles.*packaged runtime or UI activation, transport playback, and final-delivery workflows.*unqualified.*browser behavior.*codec qualification.*unqualified.*range or reference-scale.*unqualified.*durable byte lease.*cross-process.*whole-handoff atomicity.*exact one-audio.one-video final delivery.*separate control/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
-	const playbackStart = threatModel.indexOf('Video rendered-fallback preview and playback');
-	const playbackEnd = threatModel.indexOf('\n\n`org.example.future-video-pipeline` supplies', playbackStart);
-	assert.ok(playbackStart >= 0 && playbackEnd > playbackStart);
-	const documentation = threatModel.slice(playbackStart, playbackEnd).replace(/\s+/gu, ' ');
-	assert.match(
-		documentation,
-		/video rendered-fallback preview and playback.*exact schema 17.*`project-video-render-v1`.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed role.*feature ID.*opaque.*does not discover, load, or execute.*feature code.*report video descriptor.*canonical manifest requirement.*requirement ID.*feature ID.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
-	);
-	assert.match(
-		documentation,
-		/`video-clip-render-v1`.*exact registered `videoEffects`.*unavailable.*declared and effective `rendered-fallback`/iu,
-	);
-	assert.match(
-		documentation,
-		/genuine immutable video Blob.*exact admitted size.*SHA-256.*4 MiB.*before activation.*relationship currentness.*after.*required-source activation.*before.*engine/iu,
-	);
-	assert.match(
-		documentation,
-		/only `project-video-render-v1`.*whole-project contract.*one exact video source.*project and source sample rates.*positive safe integers.*frame count.*width.*height.*frame rate.*transient full-length render.*frame zero.*timeline video tracks and clips.*audio.*labels.*Project Bin.*sources.*canonical document.*history.*unchanged/iu,
-	);
-	assert.match(
-		documentation,
-		/`video-clip-render-v1`.*restricted to `videoEffects`.*exact timeline target clip.*enabled maintained effect.*fallback source.*differ.*canonical source.*`hasAudio: false`.*frame count.*target duration.*sample rate.*width.*height.*frame rate.*canonical source/iu,
-	);
-	assert.match(
-		documentation,
-		/replaces only the target.*source-local start.*trims.*zero.*speed.*one.*video effects.*empty.*target identity.*track membership.*timeline placement.*duration.*grouping.*A\/V link.*layer and transition context.*unaffected clips and sources.*Project Bin.*canonical document.*history.*unchanged/iu,
-	);
-	assert.match(
-		documentation,
-		/required manifest-only video source.*before.*transient engine.*preview.*projected clip.*exact source identity/iu,
-	);
-	assert.match(
-		documentation,
-		/frozen.*metadata.*localized source\/component UI.*bind only.*feature ID.*requirement ID.*without.*source identity.*digest/iu,
-	);
-	assert.match(
-		documentation,
-		/more than one qualifying video fallback rejects.*multiple clip fallbacks.*preview and playback.*other mixed relationships.*unqualified.*exact one-audio.one-video final delivery.*separate control/iu,
-	);
-	assert.match(
-		documentation,
-		/linked-only or unmanaged playback.*unqualified.*generic fallback authoring.*third-party feature-code activation.*unqualified/iu,
-	);
-	assert.match(
-		documentation,
-		/exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*both frozen video roles.*packaged runtime or UI final-delivery workflows.*unqualified.*browser behavior.*codec qualification.*unqualified.*reference-scale evidence.*unqualified.*whole-handoff atomicity/iu,
-	);
-
-	const handoffStart = threatModel.indexOf('Four narrower one-way headless fixtures');
-	const handoffEnd = threatModel.indexOf(
-		'\n\nOne narrow linked-PCM managed-handoff exception',
-		handoffStart,
-	);
-	assert.notEqual(handoffStart, -1, 'video rendered-fallback handoff section is missing');
+	const normalizedThreatModel = threatModel.replace(/\s+/gu, ' ');
+	assert.match(normalizedThreatModel, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaVersion:1/isu);
+	assert.match(normalizedThreatModel, /other known family.*later version.*opaque read-only custody.*not semantic validation/isu);
+	assert.match(normalizedThreatModel, /version-bearing S21–S30, F18–F32.*historical implementation provenance/isu);
 	assert.ok(
-		handoffEnd > handoffStart,
-		'linked-PCM managed-handoff section must follow the video rendered-fallback handoff section',
-	);
-	const handoff = threatModel.slice(handoffStart, handoffEnd).replace(/\s+/gu, ' ');
-	assert.match(
-		handoff,
-		/org\.example\.future-video-pipeline.*whole-project fixture.*editable retained-video original.*full-render fallback.*fresh Soundscaper shadow.*controller manifest verification.*exact fallback Blob URL/iu,
-	);
-	assert.match(
-		handoff,
-		/separate first-party clip-local videoEffects fixture.*canonical original.*digest-bound fallback.*fresh recipient.*exact target clip ID.*closes and reopens.*canonical shadow.*admits the relationship.*role.*target clip ID.*source ID.*SHA-256.*target-only playback/iu,
+		threatModel.indexOf('Video rendered-fallback preview and playback')
+			> threatModel.indexOf('historical implementation provenance'),
+		'the predecessor-schema playback narrative is retained only as provenance',
 	);
 });

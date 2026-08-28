@@ -88,7 +88,7 @@ export function projectFeatureAffectedObjects<Project extends object>(
 ): ProjectFeatureAffectedObjectIndex | null {
 	if (!isRecord(project)) return null;
 	const projectRecord = project;
-	if (!isMaintainedProjectFeatureSchema(dataProperty(projectRecord, 'schemaVersion'))) return null;
+	if (!isMaintainedProjectFeatureSchema(projectRecord)) return null;
 	if (report?.compatible !== false || report.format !== 'soundscaper-project') return null;
 	if (!Array.isArray(report.items)) return null;
 	const budget = new ObjectBudget(lowerOnlyLimit(

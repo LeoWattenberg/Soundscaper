@@ -6,11 +6,10 @@ import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { editorProjectFeatureCapabilityProfileDefinition } from '../src/common/editor/project-feature-capability-profile.ts';
-import { FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-v18.ts';
-import { FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-v19.ts';
-import { FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-v20.ts';
-import { SOUNDSCAPER_V21_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/soundscaper/editor-project-feature-capability-profile-v21.ts';
-import { SOUNDSCAPER_V23_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/soundscaper/editor-project-feature-capability-profile-v23.ts';
+import { FRAMESCAPER_SEQUENCE_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-sequence.ts';
+import { FRAMESCAPER_COMPOSITION_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-composition.ts';
+import { FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-retime.ts';
+import { SOUNDSCAPER_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/soundscaper/editor-project-feature-capability-profile.ts';
 import { FRAMESCAPER_PROFILE } from '../src/framescaper/product.js';
 import { SOUNDSCAPER_PROFILE } from '../src/soundscaper/product.js';
 
@@ -25,10 +24,9 @@ test('it is registered and unavailable in every profile whose documents cannot h
 	// demands the capability. A V21 document has nowhere to put a sequence, so
 	// its profile keeps reporting the capability off rather than dropping it.
 	for (const [name, profile] of [
-		['Soundscaper V21', SOUNDSCAPER_V21_PROJECT_FEATURE_CAPABILITY_PROFILE],
-		['Framescaper V18', FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE],
-		['Framescaper V19', FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE],
-		['Framescaper V20', FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Framescaper V18', FRAMESCAPER_SEQUENCE_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Framescaper V19', FRAMESCAPER_COMPOSITION_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Framescaper V20', FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE],
 	] as const) {
 		const registration = editorProjectFeatureCapabilityProfileDefinition(profile)
 			.registrations.find((entry) => entry.key === 'masteringSequences');
@@ -38,9 +36,9 @@ test('it is registered and unavailable in every profile whose documents cannot h
 	}
 });
 
-test('V23 is the one profile that offers it, because it is the one that can hold it', () => {
+test('the Soundscaper baseline offers mastering sequences', () => {
 	const registration = editorProjectFeatureCapabilityProfileDefinition(
-		SOUNDSCAPER_V23_PROJECT_FEATURE_CAPABILITY_PROFILE,
+		SOUNDSCAPER_PROJECT_FEATURE_CAPABILITY_PROFILE,
 	).registrations.find((entry) => entry.key === 'masteringSequences');
 	assert.equal(registration?.available, true);
 });
@@ -71,10 +69,10 @@ test('the hand-written profiles keep their registrations in raw ascending order'
 	// at module load rather than at an assertion — so an out-of-order insert
 	// surfaces as a mass import failure with no obvious cause.
 	for (const [name, profile] of [
-		['Framescaper V18', FRAMESCAPER_V18_PROJECT_FEATURE_CAPABILITY_PROFILE],
-		['Framescaper V19', FRAMESCAPER_V19_PROJECT_FEATURE_CAPABILITY_PROFILE],
-		['Framescaper V20', FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE],
-		['Soundscaper V21', SOUNDSCAPER_V21_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Framescaper V18', FRAMESCAPER_SEQUENCE_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Framescaper V19', FRAMESCAPER_COMPOSITION_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Framescaper V20', FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE],
+		['Soundscaper baseline', SOUNDSCAPER_PROJECT_FEATURE_CAPABILITY_PROFILE],
 	] as const) {
 		const keys = editorProjectFeatureCapabilityProfileDefinition(profile)
 			.registrations.map((entry) => entry.key);

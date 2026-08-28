@@ -48,7 +48,7 @@ export async function createFramescaperNativeOpfsFramePackCollector(
 	});
 }
 
-/** Exact-length OPFS spool shared by selected V28 picture and PCM carriers. */
+/** Exact-length OPFS spool shared by selected nativeMedia picture and PCM carriers. */
 export async function createFramescaperNativeOpfsByteSpool(
 	maximumChunkBytes: number,
 	expectedByteLength: number,
@@ -146,7 +146,7 @@ class OpfsByteSpool implements FramescaperNativeOpfsByteSpool {
 
 async function opfsRoot(): Promise<FileSystemDirectoryHandle> {
 	if (!globalThis.navigator?.storage || typeof navigator.storage.getDirectory !== 'function') {
-		throw new Error('Selected V28 direct carrier staging requires OPFS.');
+		throw new Error('Selected nativeMedia direct carrier staging requires OPFS.');
 	}
 	return navigator.storage.getDirectory();
 }

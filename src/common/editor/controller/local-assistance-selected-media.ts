@@ -14,6 +14,10 @@ import {
 	type AssistanceSelectionFence,
 } from '../assistance/proposal-session.ts';
 import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
+import {
 	createLocalAssistanceAudioWaveFromChunks,
 	LOCAL_ASSISTANCE_PREPARATION_CHUNK_FRAMES,
 } from './local-assistance-audio-preparation.ts';
@@ -40,6 +44,7 @@ type DataRecord = Readonly<Record<string, unknown>>;
 
 interface SelectedMediaProject extends DataRecord {
 	readonly id: string;
+	readonly schemaFamily: 'soundscaper' | 'framescaper';
 	readonly schemaVersion: number;
 	readonly revision: number;
 	readonly sampleRate: number;
@@ -277,6 +282,7 @@ export function createLocalAssistanceSelectionFence(
 	const sequenceId = text(clip.sequenceId ?? project.primarySequenceId, 'sequence id');
 	return validateAssistanceSelectionFence({
 		projectId: project.id,
+		schemaFamily: project.schemaFamily,
 		schemaVersion: project.schemaVersion,
 		revision: project.revision,
 		sequenceId,
@@ -339,10 +345,14 @@ function prepareRequest(value: unknown): Readonly<{
 }
 
 function selectedProject(value: unknown): SelectedMediaProject {
+	const identity = readProjectSchemaIdentity(value);
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Local assistance requires an active project.');
 	}
 	const project = value as Partial<SelectedMediaProject>;
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Local assistance requires the current project schema.');
+	}
 	if (!Array.isArray(project.sources) || !Array.isArray(project.clips)
 		|| !Array.isArray(project.tracks)) {
 		throw new TypeError('The active project has no bounded media inventory.');
@@ -350,7 +360,8 @@ function selectedProject(value: unknown): SelectedMediaProject {
 	return {
 		...(project as SelectedMediaProject),
 		id: text(project.id, 'project id'),
-		schemaVersion: integer(project.schemaVersion, 1, 'project schema version'),
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		revision: integer(project.revision, 0, 'project revision'),
 		sampleRate: integer(project.sampleRate, 1, 'project sample rate'),
 		primarySequenceId: text(project.primarySequenceId, 'primary sequence id'),

@@ -44,6 +44,7 @@ export function useWorkspaceAssistanceSearchRuntime({ project, source }) {
 		}
 		const ownedOpening = openingRef.current;
 		void Promise.resolve().then(() => source.open({
+			schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion,
 			projectId: project.id, projectRevision: project.revision,
 		})).then((session) => {
 			if (openingRef.current !== ownedOpening) {

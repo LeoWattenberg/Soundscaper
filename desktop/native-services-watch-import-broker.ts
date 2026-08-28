@@ -16,6 +16,7 @@ import {
 	type FramescaperNativeWatchProjectWitness,
 } from './native-services-watch-import-contract.ts';
 import type { FramescaperNativeWatchEntry } from './native-services-watch-repository.ts';
+import { FRAMESCAPER_PROJECT_WATCH_BIN_ID } from '../src/common/editor/native-watch-target.ts';
 
 export {
 	framescaperNativeWatchImportClaim,
@@ -39,11 +40,7 @@ export interface FramescaperNativeWatchImportBrokerOptions {
 	readonly currentOwner: () => object | null;
 	readonly isOwnerCurrent: (owner: object) => boolean;
 	readonly inspectProject: (projectId: string) => FramescaperNativeWatchProjectWitness | null;
-	readonly alreadyImported: (
-		projectId: string,
-		contentSha256: string,
-	) => Promise<boolean>;
-	readonly inspectImported?: (
+	readonly inspectImported: (
 		projectId: string,
 		binId: string | null,
 		contentSha256: string,
@@ -68,7 +65,8 @@ interface BrokerEntry {
 	readonly offer: FramescaperNativeWatchImportOffer;
 	readonly owner: object;
 	readonly projectRevision: number;
-	readonly projectSchemaVersion: 20 | 28 | 31;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly existingSourceId: string | null;
 	readonly locator: FramescaperNativeWatchLinkedLocator;
 	readonly promise: Promise<boolean>;
@@ -92,7 +90,7 @@ export class FramescaperNativeWatchImportBroker {
 		if (!options || typeof options.currentOwner !== 'function'
 			|| typeof options.isOwnerCurrent !== 'function'
 			|| typeof options.inspectProject !== 'function'
-			|| typeof options.alreadyImported !== 'function'
+			|| typeof options.inspectImported !== 'function'
 			|| typeof options.createLocator !== 'function'
 			|| typeof options.releaseLocator !== 'function'
 			|| typeof options.mintOpaqueId !== 'function') {
@@ -116,20 +114,14 @@ export class FramescaperNativeWatchImportBroker {
 		const project = this.#options.inspectProject(offer.rule.projectId);
 		if (!framescaperNativeWatchUsableProject(project, offer.rule.projectId)
 			|| !framescaperNativeWatchRuleAdmitted(offer.rule, project)) return false;
-		let existingSourceId: string | null = null;
-		if (project.schemaVersion !== 20) {
-			if (!this.#options.inspectImported) return false;
-			const imported = framescaperNativeWatchImportedWitness(await this.#options.inspectImported(
-				offer.rule.projectId, offer.rule.binId, offer.contentSha256,
-			));
-			if (imported && !sameImportedTarget(imported, offer, project)) return false;
-			if (imported && (!offer.rule.generateProxies || imported.proxyAttached)) {
-				return this.#unchanged(owner, project);
-			}
-			existingSourceId = imported?.sourceId ?? null;
-		} else if (await this.#options.alreadyImported(offer.rule.projectId, offer.contentSha256)) {
+		const imported = framescaperNativeWatchImportedWitness(await this.#options.inspectImported(
+			offer.rule.projectId, offer.rule.binId, offer.contentSha256,
+		));
+		if (imported && !sameImportedTarget(imported, offer, project)) return false;
+		if (imported && (!offer.rule.generateProxies || imported.proxyAttached)) {
 			return this.#unchanged(owner, project);
 		}
+		const existingSourceId = imported?.sourceId ?? null;
 		let locator: FramescaperNativeWatchLinkedLocator | null = null;
 		try {
 			locator = framescaperNativeWatchLinkedLocator(await this.#options.createLocator(
@@ -147,7 +139,8 @@ export class FramescaperNativeWatchImportBroker {
 			const entry: BrokerEntry = {
 				key, offer, owner, locator, promise, resolve,
 				projectRevision: project.projectRevision,
-				projectSchemaVersion: project.schemaVersion, existingSourceId,
+				schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion,
+				existingSourceId,
 				claimId: null, completion: null, timer: null,
 			};
 			entry.timer = this.#schedule(() => { void this.#expire(entry); }, this.#timeoutMs);
@@ -164,12 +157,15 @@ export class FramescaperNativeWatchImportBroker {
 		const request = framescaperNativeWatchImportClaimRequest(value);
 		for (const entry of this.#entries.values()) {
 			if (entry.owner !== owner || entry.completion !== null
+				|| entry.schemaFamily !== request.schemaFamily
+				|| entry.schemaVersion !== request.schemaVersion
 				|| entry.offer.rule.projectId !== request.projectId
 				|| entry.projectRevision !== request.projectRevision) continue;
 			const project = this.#options.inspectProject(request.projectId);
 			if (!framescaperNativeWatchUsableProject(project, request.projectId)
 				|| !framescaperNativeWatchRuleAdmitted(entry.offer.rule, project)
-				|| project.schemaVersion !== entry.projectSchemaVersion
+				|| project.schemaFamily !== entry.schemaFamily
+				|| project.schemaVersion !== entry.schemaVersion
 				|| project.projectRevision !== request.projectRevision) continue;
 			if (entry.claimId === null) {
 				entry.claimId = opaqueId(this.#options.mintOpaqueId(), 'watch-import claim id');
@@ -184,25 +180,26 @@ export class FramescaperNativeWatchImportBroker {
 		const request = framescaperNativeWatchImportCompletionRequest(value);
 		const entry = this.#claims.get(request.claimId);
 		if (!entry || entry.owner !== owner || !this.#options.isOwnerCurrent(owner)) return false;
-		if (entry.offer.rule.projectId !== request.projectId
+		if (entry.schemaFamily !== request.schemaFamily || entry.schemaVersion !== request.schemaVersion
+			|| entry.offer.rule.projectId !== request.projectId
 			|| entry.projectRevision !== request.expectedProjectRevision) return false;
 		if (entry.completion !== null) return sameCompletion(entry.completion, request);
 		if (!validCompletionTarget(entry, request)) return false;
 		if (request.success) {
 			const project = this.#options.inspectProject(request.projectId);
 			if (!framescaperNativeWatchUsableProject(project, request.projectId)
-				|| project.schemaVersion !== entry.projectSchemaVersion
+				|| project.schemaFamily !== entry.schemaFamily
+				|| project.schemaVersion !== entry.schemaVersion
 				|| project.projectRevision !== request.committedProjectRevision) return false;
-			if (entry.projectSchemaVersion !== 20) {
-				const imported = await this.#inspectImported(entry);
-				if (!imported || imported.sourceId !== requestSourceId(request)
-					|| imported.projectRevision !== request.committedProjectRevision
-					|| (entry.offer.rule.generateProxies && !imported.proxyAttached)) return false;
-				const verifiedProject = this.#options.inspectProject(request.projectId);
-				if (!framescaperNativeWatchUsableProject(verifiedProject, request.projectId)
-					|| verifiedProject.schemaVersion !== entry.projectSchemaVersion
-					|| verifiedProject.projectRevision !== request.committedProjectRevision) return false;
-			}
+			const imported = await this.#inspectImported(entry);
+			if (!imported || imported.sourceId !== request.sourceId
+				|| imported.projectRevision !== request.committedProjectRevision
+				|| (entry.offer.rule.generateProxies && !imported.proxyAttached)) return false;
+			const verifiedProject = this.#options.inspectProject(request.projectId);
+			if (!framescaperNativeWatchUsableProject(verifiedProject, request.projectId)
+				|| verifiedProject.schemaFamily !== entry.schemaFamily
+				|| verifiedProject.schemaVersion !== entry.schemaVersion
+				|| verifiedProject.projectRevision !== request.committedProjectRevision) return false;
 		}
 		entry.completion = request;
 		this.#cancelSchedule(entry.timer);
@@ -244,7 +241,7 @@ export class FramescaperNativeWatchImportBroker {
 	}
 
 	async #release(entry: BrokerEntry): Promise<void> {
-		if (entry.projectSchemaVersion !== 20 && entry.offer.rule.importMode === 'link'
+		if (entry.offer.rule.importMode === 'link'
 			&& entry.existingSourceId === null) {
 			try {
 				if (await this.#inspectImported(entry) !== null) return;
@@ -257,15 +254,14 @@ export class FramescaperNativeWatchImportBroker {
 	}
 
 	async #inspectImported(entry: BrokerEntry): Promise<FramescaperNativeWatchImportedWitness | null> {
-		if (!this.#options.inspectImported) return null;
 		const value = framescaperNativeWatchImportedWitness(await this.#options.inspectImported(
 			entry.offer.rule.projectId, entry.offer.rule.binId, entry.offer.contentSha256,
 		));
 		if (!value || !sameImportedTarget(value, entry.offer, {
-			schemaVersion: entry.projectSchemaVersion,
+			schemaFamily: entry.schemaFamily, schemaVersion: entry.schemaVersion,
 			projectId: entry.offer.rule.projectId,
 			projectRevision: value.projectRevision,
-			open: true, writable: true, binId: entry.offer.rule.binId,
+			open: true, writable: true, binId: FRAMESCAPER_PROJECT_WATCH_BIN_ID,
 		})) return null;
 		return value;
 	}
@@ -274,6 +270,7 @@ export class FramescaperNativeWatchImportBroker {
 		const current = this.#options.inspectProject(project.projectId);
 		return this.#options.isOwnerCurrent(owner)
 			&& framescaperNativeWatchUsableProject(current, project.projectId)
+			&& current.schemaFamily === project.schemaFamily
 			&& current.schemaVersion === project.schemaVersion
 			&& current.projectRevision === project.projectRevision;
 	}
@@ -286,14 +283,12 @@ export class FramescaperNativeWatchImportBroker {
 }
 
 function claimProjection(entry: BrokerEntry): FramescaperNativeWatchImportClaim {
-	const claim = {
+	return Object.freeze({
+		schemaFamily: entry.schemaFamily, schemaVersion: entry.schemaVersion,
 		claimId: entry.claimId!, projectId: entry.offer.rule.projectId,
 		projectRevision: entry.projectRevision, importMode: entry.offer.rule.importMode,
 		...entry.locator, contentSha256: entry.offer.contentSha256,
-	} as const;
-	if (entry.projectSchemaVersion === 20) return Object.freeze(claim);
-	return Object.freeze({
-		...claim, projectSchemaVersion: entry.projectSchemaVersion, binId: entry.offer.rule.binId!,
+		binId: FRAMESCAPER_PROJECT_WATCH_BIN_ID,
 		generateProxies: entry.offer.rule.generateProxies,
 		existingSourceId: entry.existingSourceId,
 	});
@@ -310,12 +305,7 @@ function validCompletionTarget(
 	entry: BrokerEntry,
 	request: FramescaperNativeWatchImportCompletionRequest,
 ): boolean {
-	if (entry.projectSchemaVersion === 20) {
-		return !('projectSchemaVersion' in request)
-			&& request.committedProjectRevision === request.expectedProjectRevision + 1;
-	}
-	if (!('projectSchemaVersion' in request)
-		|| request.projectSchemaVersion !== entry.projectSchemaVersion
+	if (request.schemaFamily !== entry.schemaFamily || request.schemaVersion !== entry.schemaVersion
 		|| request.binId !== entry.offer.rule.binId
 		|| request.contentSha256 !== entry.offer.contentSha256) return false;
 	if (!request.success) {
@@ -326,16 +316,14 @@ function validCompletionTarget(
 		&& request.committedProjectRevision === request.expectedProjectRevision + revisionDelta;
 }
 
-function requestSourceId(request: FramescaperNativeWatchImportCompletionRequest): string | null {
-	return 'projectSchemaVersion' in request ? request.sourceId : null;
-}
-
 function sameImportedTarget(
 	value: FramescaperNativeWatchImportedWitness,
 	offer: FramescaperNativeWatchImportOffer,
 	project: FramescaperNativeWatchProjectWitness,
 ): boolean {
 	return value.projectId === offer.rule.projectId
+		&& value.schemaFamily === project.schemaFamily
+		&& value.schemaVersion === project.schemaVersion
 		&& value.projectRevision === project.projectRevision
 		&& value.binId === offer.rule.binId
 		&& value.contentSha256 === offer.contentSha256;

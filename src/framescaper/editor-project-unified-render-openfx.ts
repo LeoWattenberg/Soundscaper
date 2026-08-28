@@ -7,13 +7,13 @@ import {
 	type FramescaperUnifiedRenderFoundation,
 } from './editor-project-unified-render-core.ts';
 
-/** Select active attachment owners and retain every byte of their V26 state. */
+/** Select active attachment owners and retain every byte of their openFx state. */
 export function createFramescaperUnifiedOpenFxRenderNodes(
 	foundation: FramescaperUnifiedRenderFoundation,
 	representedIdentities: ReadonlySet<string>,
 ): readonly UnifiedExactRenderOpenFxNode[] {
 	const effects = foundation.project.ofxEffects;
-	if (!Array.isArray(effects)) throw new TypeError('A V26 project must own an ofxEffects array.');
+	if (!Array.isArray(effects)) throw new TypeError('A openFx project must own an ofxEffects array.');
 	const active = effects
 		.map((value, index) => record(value, `ofxEffects[${String(index)}]`) as unknown as OfxEffectStateV26)
 		.filter(({ attachment }) => representedIdentities.has(attachment.targetId))

@@ -17,12 +17,12 @@ import {
 } from '../desktop/native-media-helper-job.ts';
 import { createNativeMediaOutputTreeIdentity } from '../desktop/native-media-output-tree.ts';
 import { canonicalizeNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import { framescaperMediaHostDescriptorFixture } from './helpers/framescaper-media-host-descriptor-fixture.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const JOB_ID = 'ab'.repeat(20);
 const ROOT_GRANT_ID = 'cd'.repeat(16);
@@ -121,10 +121,10 @@ async function writeNativeSequence(path: string, frameCount: number) {
 
 function sequencePlan() {
 	const options = framescaperV20Options();
-	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-	const base = createFramescaperProjectUnifiedExactRenderPlanV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-		createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
+	const base = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	return {
 		...base, format: { container: 'image2', extension: 'png', mimeType: 'image/png' },

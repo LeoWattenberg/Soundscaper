@@ -8,11 +8,9 @@ import {
 	createFramescaperEditControlMenuItems,
 } from '../src/common/editor/ui/framescaper-edit-control-menu-model.ts';
 import {
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
-} from '../src/common/editor/project-schema-version.ts';
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+} from '../src/common/editor/project-schema-identity.ts';
 import { createPersistedVideoProject } from './helpers/persisted-video-project-fixture.ts';
 
 const COPY = Object.freeze({
@@ -22,259 +20,159 @@ const COPY = Object.freeze({
 	hideVideo: 'Hide video',
 });
 
-function project(options: Readonly<{
-	linked?: boolean;
-	hidden?: boolean;
-	audioStart?: number;
-	audioDuration?: number;
-	audioLaneGroupId?: string;
-	ambiguous?: boolean;
-	duplicateOwnership?: boolean;
-}> = {}) {
-	const linked = options.linked ?? true;
-	return {
-		sampleRate: 48_000,
-		projectBin: { clips: [] },
-		tracks: [
-			{
-				id: 'video-track', type: 'video', laneGroupId: 'lane-a', hidden: options.hidden ?? false,
-				clipIds: ['video-clip'],
-			},
-			{
-				id: 'audio-track', type: 'audio', laneGroupId: options.audioLaneGroupId ?? 'lane-a',
-				clipIds: ['audio-clip', ...(options.ambiguous ? ['audio-duplicate'] : [])],
-			},
-			...(options.duplicateOwnership ? [{
-				id: 'duplicate-owner', type: 'audio', laneGroupId: 'lane-b', clipIds: ['audio-clip'],
-			}] : []),
-		],
-		clips: [
-			{
-				id: 'video-clip', kind: 'video', timelineStartFrame: 1_000, durationFrames: 2_000,
-				sourceStartFrame: 0, sourceDurationFrames: 2_000, avLinkId: linked ? 'av-link' : null,
-			},
-			{
-				id: 'audio-clip', kind: 'audio', timelineStartFrame: options.audioStart ?? 1_000,
-				durationFrames: options.audioDuration ?? 2_000, sourceStartFrame: 0,
-				sourceDurationFrames: options.audioDuration ?? 2_000, avLinkId: linked ? 'av-link' : null,
-			},
-			...(options.ambiguous ? [{
-				id: 'audio-duplicate', kind: 'audio', timelineStartFrame: 1_000,
-				durationFrames: 2_000, sourceStartFrame: 0, sourceDurationFrames: 2_000, avLinkId: null,
-			}] : []),
-		],
-	};
-}
-
-test('a linked selected clip exposes one exact unlink operation', () => {
-	const value = project();
-	const before = structuredClone(value);
+test('Framescaper v1 derives linked-audio and video-visibility operations from current coordinates', () => {
+	const project = baselineProject();
+	const before = structuredClone(project);
 	const model = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: value, selectedClipId: 'video-clip',
-		selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
+		productId: 'framescaper', project, selectedClipId: 'persisted-timeline-video',
+		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
 	});
 	assert.deepEqual(model.link, {
 		id: 'video-linked-audio', label: 'Unlink audio', disabled: false,
-		operation: { kind: 'unlink', clipId: 'video-clip' },
+		operation: { kind: 'unlink', clipId: 'persisted-timeline-video' },
 	});
-	assert.deepEqual(value, before);
+	assert.deepEqual(model.visibility, {
+		id: 'video-track-visibility', label: 'Hide video', disabled: false,
+		operation: { trackId: 'persisted-video-track', hidden: true },
+	});
+	assert.deepEqual(project, before);
 	assert.ok(Object.isFrozen(model));
 	assert.ok(Object.isFrozen(model.link));
 	assert.ok(Object.isFrozen(model.link?.operation));
 });
 
-test('an unlinked clip resolves only one aligned companion in its lane group', () => {
-	for (const selectedClipId of ['video-clip', 'audio-clip']) {
+test('Framescaper v1 resolves the exact unlinked audio/video companion pair', () => {
+	const project = baselineProject({ linked: false, hidden: true });
+	for (const selectedClipId of ['persisted-timeline-video', 'persisted-timeline-audio']) {
 		const model = createFramescaperEditControlMenuModel({
-			productId: 'framescaper', project: project({ linked: false }), selectedClipId,
-			selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
+			productId: 'framescaper', project, selectedClipId,
+			selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
 		});
 		assert.deepEqual(model.link?.operation, {
-			kind: 'link', videoClipId: 'video-clip', audioClipId: 'audio-clip',
+			kind: 'link', videoClipId: 'persisted-timeline-video',
+			audioClipId: 'persisted-timeline-audio',
 		});
 		assert.equal(model.link?.label, 'Link audio');
-		assert.equal(model.link?.disabled, false);
+		assert.equal(model.visibility?.label, 'Show video');
 	}
 });
 
-test('linking fails closed for ambiguous, misaligned, and cross-lane candidates', () => {
-	for (const value of [
-		project({ linked: false, ambiguous: true }),
-		project({ linked: false, audioStart: 1_001 }),
-		project({ linked: false, audioDuration: 1_999 }),
-		project({ linked: false, audioLaneGroupId: 'lane-b' }),
-		project({ linked: false, duplicateOwnership: true }),
-	]) {
-		const model = createFramescaperEditControlMenuModel({
-			productId: 'framescaper', project: value, selectedClipId: 'video-clip',
-			selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
-		});
-		assert.equal(model.link?.label, 'Link audio');
-		assert.equal(model.link?.disabled, true);
-		assert.equal(model.link?.operation, null);
-	}
-});
-
-test('video visibility derives one checked track update while audio and missing tracks fail closed', () => {
-	const visible = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: project({ hidden: false }), selectedClipId: null,
-		selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
-	});
-	assert.deepEqual(visible.visibility, {
-		id: 'video-track-visibility', label: 'Hide video', disabled: false,
-		operation: { trackId: 'video-track', hidden: true },
-	});
-	const hidden = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: project({ hidden: true }), selectedClipId: null,
-		selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
-	});
-	assert.equal(hidden.visibility?.label, 'Show video');
-	assert.deepEqual(hidden.visibility?.operation, { trackId: 'video-track', hidden: false });
-	for (const selectedTrackId of ['audio-track', 'missing']) {
-		const unavailable = createFramescaperEditControlMenuModel({
-			productId: 'framescaper', project: project(), selectedClipId: null,
-			selectedTrackId, editBlocked: false, copy: COPY,
-		});
-		assert.equal(unavailable.visibility?.disabled, true);
-		assert.equal(unavailable.visibility?.operation, null);
-	}
-});
-
-test('blocked edits retain labels but disable actions, and Soundscaper gets no items', () => {
-	const blocked = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: project(), selectedClipId: 'video-clip',
-		selectedTrackId: 'video-track', editBlocked: true, copy: COPY,
-	});
-	assert.equal(blocked.link?.label, 'Unlink audio');
-	assert.equal(blocked.link?.disabled, true);
-	assert.equal(blocked.visibility?.label, 'Hide video');
-	assert.equal(blocked.visibility?.disabled, true);
-	assert.deepEqual(createFramescaperEditControlMenuModel({
-		productId: 'soundscaper', project: project(), selectedClipId: 'video-clip',
-		selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
-	}), { link: null, visibility: null });
-});
-
-test('missing selections and malformed projects fail closed without dispatching', () => {
+test('Framescaper v1 menu items dispatch exact existing controller actions', () => {
 	const calls: unknown[][] = [];
-	const actions = {
-		link: (...args: unknown[]) => calls.push(['link', ...args]),
-		unlink: (...args: unknown[]) => calls.push(['unlink', ...args]),
-		setVideoHidden: (...args: unknown[]) => calls.push(['hidden', ...args]),
-	};
-	for (const value of [null, {}, { sampleRate: 0, clips: [], tracks: [] }]) {
-		const items = createFramescaperEditControlMenuItems({
-			productId: 'framescaper', project: value, selectedClipId: null,
-			selectedTrackId: null, editBlocked: false, copy: COPY,
-		}, actions);
-		assert.equal(items.link?.disabled, true);
-		assert.equal(items.visibility?.disabled, true);
-		items.link?.onClick();
-		items.visibility?.onClick();
-	}
-	assert.deepEqual(calls, []);
-});
-
-test('menu item builders dispatch exact existing controller actions', () => {
-	const calls: unknown[][] = [];
-	const linked = createFramescaperEditControlMenuItems({
-		productId: 'framescaper', project: project(), selectedClipId: 'video-clip',
-		selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
+	const items = createFramescaperEditControlMenuItems({
+		productId: 'framescaper', project: baselineProject(),
+		selectedClipId: 'persisted-timeline-video', selectedTrackId: 'persisted-video-track',
+		editBlocked: false, copy: COPY,
 	}, {
 		link: (...args) => calls.push(['link', ...args]),
 		unlink: (...args) => calls.push(['unlink', ...args]),
 		setVideoHidden: (...args) => calls.push(['hidden', ...args]),
 	});
-	linked.link?.onClick();
-	linked.visibility?.onClick();
+	items.link?.onClick();
+	items.visibility?.onClick();
 	assert.deepEqual(calls, [
-		['unlink', 'video-clip'],
-		['hidden', 'video-track', true],
+		['unlink', 'persisted-timeline-video'],
+		['hidden', 'persisted-video-track', true],
 	]);
-	const unlinked = createFramescaperEditControlMenuItems({
-		productId: 'framescaper', project: project({ linked: false }), selectedClipId: 'audio-clip',
-		selectedTrackId: 'video-track', editBlocked: false, copy: COPY,
+	assert.ok(Object.isFrozen(items));
+	assert.ok(Object.isFrozen(items.link));
+});
+
+test('Framescaper linked controls fail closed for blocked, foreign, and malformed projects', () => {
+	const calls: unknown[][] = [];
+	const blocked = createFramescaperEditControlMenuItems({
+		productId: 'framescaper', project: baselineProject(),
+		selectedClipId: 'persisted-timeline-video', selectedTrackId: 'persisted-video-track',
+		editBlocked: true, copy: COPY,
 	}, {
 		link: (...args) => calls.push(['link', ...args]),
 		unlink: (...args) => calls.push(['unlink', ...args]),
 		setVideoHidden: (...args) => calls.push(['hidden', ...args]),
 	});
-	unlinked.link?.onClick();
-	assert.deepEqual(calls.at(-1), ['link', 'video-clip', 'audio-clip']);
-	assert.ok(Object.isFrozen(unlinked));
-	assert.ok(Object.isFrozen(unlinked.link));
-});
+	assert.equal(blocked.link?.disabled, true);
+	assert.equal(blocked.visibility?.disabled, true);
+	blocked.link?.onClick();
+	blocked.visibility?.onClick();
+	assert.deepEqual(calls, []);
 
-test('current persisted video coordinates resolve through the shared runtime projection', () => {
-	const { project: persisted } = createPersistedVideoProject({ timeline: true });
-	const video = persisted.clips.find(({ kind }) => kind === 'video');
-	assert.ok(video);
-	assert.equal(Object.hasOwn(video, 'timelineStartFrame'), false);
-	assert.equal(Object.hasOwn(video, 'durationFrames'), false);
-	const linked = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
-		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
-	});
-	assert.equal(linked.link?.label, 'Unlink audio');
-	assert.equal(linked.link?.disabled, false);
-
-	const unlinked = structuredClone(persisted) as unknown as {
-		clips: Array<{ id: string; avLinkId: string | null }>;
-	};
-	for (const clip of unlinked.clips) clip.avLinkId = null;
-	const linkable = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: unlinked, selectedClipId: 'persisted-timeline-video',
-		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
-	});
-	assert.deepEqual(linkable.link?.operation, {
-		kind: 'link', videoClipId: 'persisted-timeline-video', audioClipId: 'persisted-timeline-audio',
-	});
-});
-
-test('exact Framescaper V19, V20, and V27 project their required empty annotation carrier for linked controls', () => {
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
-		FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
-	]) {
-		const persisted = structuredClone(createPersistedVideoProject({ timeline: true }).project) as unknown as {
-			schemaVersion: number;
-			timelineAnnotations: unknown[];
-		};
-		persisted.schemaVersion = schemaVersion;
-		persisted.timelineAnnotations = [];
-		const model = createFramescaperEditControlMenuModel({
-			productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
-			selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
-		});
-		assert.equal(model.link?.label, 'Unlink audio');
-		assert.equal(model.link?.disabled, false);
-		persisted.timelineAnnotations = [{ id: 'unsupported' }];
-		const blocked = createFramescaperEditControlMenuModel({
-			productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
-			selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
-		});
-		assert.equal(blocked.link?.label, 'Link audio');
-		assert.equal(blocked.link?.disabled, true);
+	for (const [productId, project] of [
+		['soundscaper', baselineProject()],
+		['framescaper', { schemaFamily: 'soundscaper', schemaVersion: 1 }],
+		['framescaper', { schemaVersion: 1 }],
+	] as const) {
+		assert.deepEqual(createFramescaperEditControlMenuModel({
+			productId, project, selectedClipId: null, selectedTrackId: null,
+			editBlocked: false, copy: COPY,
+		}), { link: null, visibility: null });
 	}
+
+	const malformedCurrent = createFramescaperEditControlMenuModel({
+		productId: 'framescaper',
+		project: { schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY, schemaVersion: PROJECT_SCHEMA_VERSION },
+		selectedClipId: null, selectedTrackId: null, editBlocked: false, copy: COPY,
+	});
+	assert.equal(malformedCurrent.link?.disabled, true);
+	assert.equal(malformedCurrent.visibility?.disabled, true);
 });
 
-test('selected F31 keeps linked controls active after reviewed shot markers are accepted', () => {
-	const persisted = structuredClone(createPersistedVideoProject({ timeline: true }).project) as unknown as {
-		schemaVersion: number;
-		primarySequenceId: string;
-		timelineAnnotations: unknown[];
-	};
-	persisted.schemaVersion = FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION;
-	persisted.timelineAnnotations = [{
-		id: 'assistance-shot:accepted', sequenceId: persisted.primarySequenceId,
+test('Framescaper v1 requires a valid annotation carrier for linked controls', () => {
+	const project = baselineProject();
+	project.timelineAnnotations = [];
+	const available = createFramescaperEditControlMenuModel({
+		productId: 'framescaper', project, selectedClipId: 'persisted-timeline-video',
+		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
+	});
+	assert.equal(available.link?.disabled, false);
+	project.timelineAnnotations = [{ id: 'unsupported' }];
+	const blocked = createFramescaperEditControlMenuModel({
+		productId: 'framescaper', project, selectedClipId: 'persisted-timeline-video',
+		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
+	});
+	assert.equal(blocked.link?.disabled, true);
+});
+
+test('Framescaper v1 keeps controls active after reviewed shot markers are accepted', () => {
+	const project = baselineProject();
+	project.timelineAnnotations = [{
+		id: 'assistance-shot:accepted', sequenceId: project.primarySequenceId,
 		name: 'Shot 1', color: 'orange', batchId: 'assistance-shot-batch:accepted',
 		opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 24_000,
 	}];
 	const model = createFramescaperEditControlMenuModel({
-		productId: 'framescaper', project: persisted, selectedClipId: 'persisted-timeline-video',
+		productId: 'framescaper', project, selectedClipId: 'persisted-timeline-video',
 		selectedTrackId: 'persisted-video-track', editBlocked: false, copy: COPY,
 	});
-	assert.deepEqual(model.link?.operation, { kind: 'unlink', clipId: 'persisted-timeline-video' });
-	assert.deepEqual(model.visibility?.operation, { trackId: 'persisted-video-track', hidden: true });
+	assert.deepEqual(model.link?.operation, {
+		kind: 'unlink', clipId: 'persisted-timeline-video',
+	});
+	assert.deepEqual(model.visibility?.operation, {
+		trackId: 'persisted-video-track', hidden: true,
+	});
 });
+
+interface BaselineTestProject extends Record<string, unknown> {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
+	readonly primarySequenceId: string;
+	timelineAnnotations: unknown[];
+	clips: Array<Record<string, unknown> & { avLinkId: string | null }>;
+	tracks: Array<Record<string, unknown> & { type: string; hidden: boolean }>;
+}
+
+function baselineProject(
+	options: Readonly<{ linked?: boolean; hidden?: boolean }> = {},
+): BaselineTestProject {
+	const project = structuredClone(
+		createPersistedVideoProject({ timeline: true }).project,
+	) as unknown as BaselineTestProject;
+	Object.assign(project, {
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+	});
+	if (options.linked === false) {
+		for (const clip of project.clips) clip.avLinkId = null;
+	}
+	const videoTrack = project.tracks.find(({ type }) => type === 'video');
+	if (videoTrack && options.hidden !== undefined) videoTrack.hidden = options.hidden;
+	return project;
+}

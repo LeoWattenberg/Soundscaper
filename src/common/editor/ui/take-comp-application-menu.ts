@@ -5,7 +5,10 @@ import { isTakeCompProjectSchema } from '../project-schema-version.ts';
 export interface TakeCompApplicationMenuInput {
 	readonly productId: string;
 	readonly capability: boolean;
-	readonly project: Readonly<{ readonly schemaVersion?: unknown }> | null;
+	readonly project: Readonly<{
+		readonly schemaFamily?: unknown;
+		readonly schemaVersion?: unknown;
+	}> | null;
 	readonly copy: Readonly<Record<string, string>>;
 	open(): unknown;
 }
@@ -16,7 +19,7 @@ export function createTakeCompApplicationMenuItems(input: TakeCompApplicationMen
 	return Object.freeze([Object.freeze({
 		id: 'take-comp-editor',
 		label: input.copy.takeCompMenu,
-		disabled: !isTakeCompProjectSchema(input.project?.schemaVersion),
+		disabled: !isTakeCompProjectSchema(input.project),
 		onClick: input.open,
 	})]);
 }

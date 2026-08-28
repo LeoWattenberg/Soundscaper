@@ -230,7 +230,8 @@ function workflow(
 		contractVersion: 1, jobId: JOB_ID, workflowId, recipeVersion: 1, settingsVersion: 1,
 		settings, stageIds, models, inputs, outputs,
 		fence: {
-			fenceVersion: 1, projectId: 'project-a', schemaVersion: 31, revision: 8,
+			fenceVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', revision: 8,
 			sequenceId: 'sequence-a', sourceRanges, transcriptBodySha256: null,
 			recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, stageIds),
 			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),
@@ -295,7 +296,8 @@ function cropKeyframe(sourceFrame: number, left: number) {
 }
 
 function highlightSourceTimeAuthority() {
-	return { schemaVersion: 1, kind: 'selected-video-source-time-authority',
+	return { descriptorVersion: 1, kind: 'selected-video-source-time-authority',
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		projectId: 'project-a', projectRevision: 1, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 		sourceSha256: '78'.repeat(32), timingAuthoritySha256: 'bc'.repeat(32),
@@ -341,7 +343,9 @@ function reviewed(
 
 function primitiveFence(workflowValue: AssistanceWorkflowV1, includeLinked = false) {
 	const range = workflowValue.fence.sourceRanges.find(({ mediaKind }) => mediaKind === 'video')!;
-	return { projectId: workflowValue.fence.projectId, schemaVersion: workflowValue.fence.schemaVersion,
+	return { projectId: workflowValue.fence.projectId,
+		schemaFamily: workflowValue.fence.schemaFamily,
+		schemaVersion: workflowValue.fence.schemaVersion,
 		revision: workflowValue.fence.revision, sequenceId: workflowValue.fence.sequenceId,
 		occurrenceIds: includeLinked ? ['audio-occurrence', 'video-occurrence'] : range.occurrenceIds,
 		sourceId: range.sourceId, sourceSha256: range.sourceSha256,

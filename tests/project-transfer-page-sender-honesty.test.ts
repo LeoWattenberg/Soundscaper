@@ -157,8 +157,8 @@ test('a project unticked while the confirmation is open is never read', async ()
 		sender.opens = () => popup;
 
 		const sendingStore = new FakeStore([
-			{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 },
-			{ id: 'video-2', title: 'Title card', schemaVersion: 31 },
+			{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-2', title: 'Title card', schemaFamily: 'framescaper', schemaVersion: 1 },
 		] as never);
 		const receivingStore = new FakeStore();
 		const archive = createFakeArchive();
@@ -183,7 +183,9 @@ test('a project unticked while the confirmation is open is never read', async ()
 
 		// Second thoughts, with the confirmation still on screen.
 		const boxes = sender.document.body.querySelectorAll('[data-transfer-choice]');
-		assert.deepEqual(boxes.map((box) => box.value), ['video-1', 'video-2']);
+		assert.deepEqual(boxes.map((box) => box.value), [
+			'framescaper:video-1', 'framescaper:video-2',
+		]);
 		boxes[1].checked = false;
 
 		await sender.document.clickButton(/^Yes, send/u);
@@ -361,9 +363,9 @@ async function withCutShortSend(
 		sender.opens = () => popup;
 
 		const sendingStore = new FakeStore([
-			{ id: 'video-1', title: titles[0], schemaVersion: 31 },
-			{ id: 'video-2', title: titles[1], schemaVersion: 31 },
-			{ id: 'video-3', title: titles[2], schemaVersion: 31 },
+			{ id: 'video-1', title: titles[0], schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-2', title: titles[1], schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-3', title: titles[2], schemaFamily: 'framescaper', schemaVersion: 1 },
 		] as never);
 		const receivingStore = new FakeStore();
 		const runtime = runtimeFor(createFakeArchive());
@@ -456,4 +458,3 @@ function runtimeFor(archive: ReturnType<typeof createFakeArchive>): TransferRunt
 		receiveTransfer: receiveProjectTransfer,
 	};
 }
-

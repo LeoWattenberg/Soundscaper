@@ -343,8 +343,9 @@ test('Guided highlight review exposes bounded title, trim, transcript, and crop 
 	const markup = renderToStaticMarkup(<LocalAssistanceGuidedReview copy={ENGLISH_COPY}
 		review={review} selectedChoiceIds={[]} onChoiceChange={() => undefined}
 		highlightDraft={draft}
-		highlightSourceTimeAuthority={{ schemaVersion: 1,
+		highlightSourceTimeAuthority={{ descriptorVersion: 1,
 			kind: 'selected-video-source-time-authority', projectId: 'project-a', projectRevision: 1,
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			sequenceId: 'sequence-a', videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 			sourceSha256: '11'.repeat(32), timingAuthoritySha256: '22'.repeat(32),
 			sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: 0, sourceEndFrame: 24,

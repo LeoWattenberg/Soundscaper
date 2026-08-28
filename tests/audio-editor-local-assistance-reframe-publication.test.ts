@@ -21,31 +21,31 @@ import {
 	validateVideoTimingAssetBytes,
 } from '../src/common/editor/video-timing-asset.ts';
 import {
-	applyFramescaperProjectCommandV31,
-	type FramescaperProjectCommandV31,
-} from '../src/framescaper/editor-project-v31-commands.ts';
+	applyFramescaperProjectCommandAssistance,
+	type FramescaperProjectCommandAssistance,
+} from '../src/framescaper/editor-project-assistance-commands.ts';
 import {
-	createFramescaperProjectHistoryV31,
-	executeFramescaperProjectCommandV31,
-	type FramescaperProjectHistoryV31,
-	undoFramescaperProjectCommandV31,
-} from '../src/framescaper/editor-project-v31-history.ts';
+	createFramescaperProjectHistoryAssistance,
+	executeFramescaperProjectCommandAssistance,
+	type FramescaperProjectHistoryAssistance,
+	undoFramescaperProjectCommandAssistance,
+} from '../src/framescaper/editor-project-assistance-history.ts';
 import {
-	createFramescaperProjectV31,
-	type FramescaperProjectV31,
-} from '../src/framescaper/editor-project-v31.ts';
+	createFramescaperProjectAssistance,
+	type FramescaperProjectAssistance,
+} from '../src/framescaper/editor-project-assistance.ts';
 import {
-	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v31.ts';
+	FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
 import {
 	framescaperV20Options,
 	opacityKeyframes,
-} from './helpers/framescaper-v20-model-fixture.ts';
+} from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE;
 const NOW = '2026-08-26T15:00:00.000Z';
 
-function project(): FramescaperProjectV31 {
+function project(): FramescaperProjectAssistance {
 	const options = structuredClone(framescaperV20Options());
 	options.id = 'reframe-project';
 	options.title = 'Reframe project';
@@ -54,24 +54,25 @@ function project(): FramescaperProjectV31 {
 		startFrame: 0, endFrame: 48_000, trackIds: ['video-track'], clipIds: ['video-clip'],
 		frequencyRange: null, annotationIds: [],
 	};
-	const created = createFramescaperProjectV31(PROFILE, options as never);
+	const created = createFramescaperProjectAssistance(PROFILE, options as never);
 	const clip = records(created.clips).find(({ id }) => id === 'video-clip')!;
-	return applyFramescaperProjectCommandV31(PROFILE, created, createSetVideoKeyframesCommand(
+	return applyFramescaperProjectCommandAssistance(PROFILE, created, createSetVideoKeyframesCommand(
 		'video-clip', clip.videoKeyframes, opacityKeyframes(),
 	), { now: NOW });
 }
 
-function currentAuthority(value: FramescaperProjectV31) {
+function currentAuthority(value: FramescaperProjectAssistance) {
 	return resolveLocalAssistanceSelectedVideoAuthority({
 		getProject: () => value,
 		getSelectedClipId: () => 'video-clip',
 	});
 }
 
-function fence(value: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
+function fence(value: FramescaperProjectAssistance): AssistanceWorkflowFenceV1 {
 	const selected = currentAuthority(value);
 	return {
 		fenceVersion: 1,
+		schemaFamily: selected.fence.schemaFamily,
 		projectId: selected.fence.projectId,
 		schemaVersion: selected.fence.schemaVersion,
 		revision: selected.fence.revision,
@@ -137,7 +138,7 @@ function keyframe(sourceFrame: number, left: number, right: number) {
 }
 
 function harness(initial = project()) {
-	let history = createFramescaperProjectHistoryV31(PROFILE, initial);
+	let history = createFramescaperProjectHistoryAssistance(PROFILE, initial);
 	let expectedFence = fence(initial);
 	let commits = 0;
 	const publication = createFramescaperAssistanceReframePublication({
@@ -149,15 +150,15 @@ function harness(initial = project()) {
 		assertProject: (token) => assert.strictEqual(token, history.present),
 		commit: (command) => {
 			commits += 1;
-			history = executeFramescaperProjectCommandV31(
-				PROFILE, history, command as FramescaperProjectCommandV31, { now: NOW },
+			history = executeFramescaperProjectCommandAssistance(
+				PROFILE, history, command as FramescaperProjectCommandAssistance, { now: NOW },
 			);
 		},
 	});
 	return {
 		publication,
-		get history(): FramescaperProjectHistoryV31 { return history; },
-		set history(value: FramescaperProjectHistoryV31) { history = value; },
+		get history(): FramescaperProjectHistoryAssistance { return history; },
+		set history(value: FramescaperProjectHistoryAssistance) { history = value; },
 		get commits(): number { return commits; },
 		set expectedFence(value: AssistanceWorkflowFenceV1) { expectedFence = value; },
 	};
@@ -191,7 +192,7 @@ test('Reframe publishes one ordinary F31 batch, preserves unrelated curves, and 
 		{ num: 0, den: 1 }, { num: 5, den: 1 }, { num: 9, den: 1 },
 	]);
 
-	session.history = undoFramescaperProjectCommandV31(PROFILE, session.history, { now: NOW });
+	session.history = undoFramescaperProjectCommandAssistance(PROFILE, session.history, { now: NOW });
 	assert.deepEqual(session.history.present.clips, initial.clips);
 });
 
@@ -208,7 +209,7 @@ test('Reframe revalidates both aggregate and selected-video authority before com
 	assert.equal(session.commits, 0);
 });
 
-test('Reframe refuses non-F31 authority before publication', async () => {
+test('Reframe refuses a foreign-family authority before publication', async () => {
 	const initial = project();
 	const heldFence = fence(initial);
 	let commits = 0;
@@ -216,7 +217,7 @@ test('Reframe refuses non-F31 authority before publication', async () => {
 		currentAuthority: () => ({
 			selection: {
 				...currentAuthority(initial),
-				project: { ...initial, schemaVersion: 30 },
+				project: { ...initial, schemaFamily: 'soundscaper', schemaVersion: 1 } as never,
 			} as never,
 			fence: heldFence,
 		}),
@@ -224,7 +225,8 @@ test('Reframe refuses non-F31 authority before publication', async () => {
 		assertProject() {},
 		commit() { commits += 1; },
 	});
-	await assert.rejects(publication.acceptReviewed({ fence: heldFence, result: result() }), /F31|schema/iu);
+	await assert.rejects(publication.acceptReviewed({ fence: heldFence, result: result() }),
+		/family|foreign|schema|stale/iu);
 	assert.equal(commits, 0);
 });
 
@@ -244,12 +246,12 @@ test('Reframe revalidates VFR ticks and preserves exact source-frame mapping', a
 		...source, timingAsset: timing.reference,
 		timingDecision: { mode: 'exact', rate: { num: 10, den: 1 }, backend: 'fixture' },
 	} : source);
-	const created = createFramescaperProjectV31(PROFILE, options as never);
+	const created = createFramescaperProjectAssistance(PROFILE, options as never);
 	const source = records(created.sources).find(({ id }) => id === 'video-source')!;
 	registerVideoTimingIndex(source, validateVideoTimingAssetBytes(timing.reference, timing.bytes));
 	try {
 		const clip = records(created.clips).find(({ id }) => id === 'video-clip')!;
-		const initial = applyFramescaperProjectCommandV31(PROFILE, created,
+		const initial = applyFramescaperProjectCommandAssistance(PROFILE, created,
 			createSetVideoKeyframesCommand('video-clip', clip.videoKeyframes, opacityKeyframes()),
 			{ now: NOW });
 		const session = harness(initial);
@@ -285,9 +287,9 @@ test('Reframe maps exact monotonic forward retime boundaries into visible keyfra
 			segments: [{ mode: 'constant-forward' }],
 		},
 	} : clip);
-	const created = createFramescaperProjectV31(PROFILE, options as never);
+	const created = createFramescaperProjectAssistance(PROFILE, options as never);
 	const clip = records(created.clips).find(({ id }) => id === 'video-clip')!;
-	const initial = applyFramescaperProjectCommandV31(PROFILE, created,
+	const initial = applyFramescaperProjectCommandAssistance(PROFILE, created,
 		createSetVideoKeyframesCommand('video-clip', clip.videoKeyframes, opacityKeyframes(5)),
 		{ now: NOW });
 	const session = harness(initial);
@@ -301,7 +303,7 @@ test('Reframe maps exact monotonic forward retime boundaries into visible keyfra
 	]);
 });
 
-function cropPositions(value: FramescaperProjectV31) {
+function cropPositions(value: FramescaperProjectAssistance) {
 	const clip = records(value.clips).find(({ id }) => id === 'video-clip')!;
 	const keyframes = clip.videoKeyframes as Readonly<{ curves: readonly Readonly<{
 		target: Readonly<{ parameterId: string }>;

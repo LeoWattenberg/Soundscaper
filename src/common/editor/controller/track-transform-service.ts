@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+
 import {
 	createAddClipCommand,
 	createAddSourceCommand,
@@ -356,7 +358,7 @@ export function createTrackTransformService(
 	}
 
 	function requireAudioTrack(project: ControllerProject, trackId: string | null): ControllerTrack {
-		if (project.schemaVersion < 2) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
 		const track = findControllerTrack(project, trackId);
 		if (!track || track.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
 		return track;

@@ -3,18 +3,25 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import type { ScapeArchiveEntry } from '../src/common/editor/scape-archive-envelope.ts';
 import { ScapeExpandedByteBudget } from '../src/common/editor/scape-expanded-byte-budget.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
 import {
 	extractScapeVideo,
 	SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES,
 	type ScapeVideoWriter,
 } from '../src/common/editor/scape-archive-video.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -347,6 +354,8 @@ function syntheticVideoArchive({
 		formatVersion: 1,
 		project: {
 			entry: 'project.json',
+			schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+			schemaVersion: PROJECT_SCHEMA_VERSION,
 			size: projectBytes.byteLength,
 			sha256: digestScapeBytes(projectBytes),
 		},

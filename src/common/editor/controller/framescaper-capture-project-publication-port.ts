@@ -2,6 +2,11 @@
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { FramescaperCaptureProjectFenceV1 } from '../framescaper-capture-session-manifest.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 import { digestScapeBytes } from '../scape-archive-media.ts';
 import { serializeScapeProjectDocument } from '../scape-project-document.ts';
 import type {
@@ -275,6 +280,11 @@ function assertBaseOrTarget(
 export function framescaperCaptureProjectFence(
 	project: CapturePublicationProject,
 ): Readonly<FramescaperCaptureProjectFenceV1> {
+	const identity = readProjectSchemaIdentity(project);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Framescaper capture requires the current Framescaper project schema.');
+	}
 	if (!project || typeof project.id !== 'string' || !project.id) {
 		throw new TypeError('Framescaper capture requires an origin project.');
 	}
@@ -283,6 +293,8 @@ export function framescaperCaptureProjectFence(
 		throw new RangeError('Framescaper capture origin revision is invalid.');
 	}
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: project.id,
 		baseRevision: revision,
 		baseSha256: projectDigest(project),

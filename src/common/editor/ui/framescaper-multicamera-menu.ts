@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isFramescaperSequenceProjectSchema } from '../project-schema-version.ts';
+import { isCurrentProjectSchemaIdentity } from '../project-schema-identity.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -92,17 +92,20 @@ export function createFramescaperMulticameraMenuItems(
 ): Readonly<FramescaperMulticameraMenu> | null {
 	if (input.productId !== 'framescaper') return null;
 	const project = record(input.project);
-	const enabled = isFramescaperSequenceProjectSchema(project?.schemaVersion) && !input.editingBlocked;
-	const selectedClip = enabled ? selectedVideoClip(project) : null;
+	const enabled = project !== null
+		&& isCurrentProjectSchemaIdentity(project, 'framescaper')
+		&& !input.editingBlocked;
+	const selectedClip = enabled && project ? selectedVideoClip(project) : null;
 	const groups = records(project?.multicameraGroups);
 	const current = selectedClip
 		? groups.find(({ outputClipId }) => outputClipId === selectedClip.id) ?? null
 		: null;
-	const create = enabled && selectedClip && !current ? createCommand(project, selectedClip, groups) : null;
-	const switchCommand = enabled && current ? nextMemberCommand(project, current) : null;
-	const earlier = enabled && current ? nudgeCommand(project, current, -1) : null;
-	const later = enabled && current ? nudgeCommand(project, current, 1) : null;
-	const remove = enabled && current ? removeCommand(project, current) : null;
+	const create = enabled && project && selectedClip && !current
+		? createCommand(project, selectedClip, groups) : null;
+	const switchCommand = enabled && project && current ? nextMemberCommand(project, current) : null;
+	const earlier = enabled && project && current ? nudgeCommand(project, current, -1) : null;
+	const later = enabled && project && current ? nudgeCommand(project, current, 1) : null;
+	const remove = enabled && project && current ? removeCommand(project, current) : null;
 	const items = Object.freeze([
 		leaf('multicamera-create', input.copy.createMulticamera, create, actions),
 		leaf('multicamera-switch', input.copy.switchMulticamera, switchCommand, actions),

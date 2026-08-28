@@ -55,7 +55,7 @@ test('each product-ready graph excludes the other product tree', () => {
 	}));
 	assert.throws(
 		() => assertProductGraphOwnership('soundscaper', {
-			moduleIds: new Set(['/workspace/src/framescaper/editor-project-v31.ts']),
+			moduleIds: new Set(['/workspace/src/framescaper/editor-project-assistance.ts']),
 		}),
 		/soundscaper.*forbidden framescaper product module/iu,
 	);

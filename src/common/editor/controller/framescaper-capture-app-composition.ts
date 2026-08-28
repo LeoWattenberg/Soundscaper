@@ -105,7 +105,8 @@ export type { FramescaperCaptureDesktopBridgeV1 } from './framescaper-capture-de
 
 export interface FramescaperCaptureAppCompositionOptions {
 	readonly productId: string;
-	readonly routeSchemaVersion: 18 | 19 | 20 | 31;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly embedded: boolean;
 	readonly store?: FramescaperCaptureAppStore | null;
 	readonly mediaDevices?: BrowserCaptureSourcePortDependencies['mediaDevices'];
@@ -245,7 +246,8 @@ export function createFramescaperCaptureAppComposition(
 		originGuard,
 		setupDefaults,
 		completeRuntimeProbe: async (availability) => deviceAvailability = await completeFramescaperCaptureRuntimeProbe({
-			availability, productId: options.productId, routeSchemaVersion: options.routeSchemaVersion,
+			availability, productId: options.productId,
+			schemaFamily: options.schemaFamily, schemaVersion: options.schemaVersion,
 			embedded: options.embedded, desktop, MediaRecorder, TrackProcessor, getAudioContext: options.getAudioContext,
 			...(options.recordingControllerFactory ? { recordingControllerFactory: options.recordingControllerFactory } : {}),
 			...(options.AudioWorkletNode !== undefined ? { AudioWorkletNode: options.AudioWorkletNode } : {}),

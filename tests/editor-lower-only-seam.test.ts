@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { normalizeHelperResourcePolicy } from '../desktop/helper-contract.ts';
-import { DesktopLibraryMediaCapacity } from '../desktop/project-library-media-capacity.ts';
 import { admitLowerOnly } from '../src/common/editor/lower-only-seam.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import {
@@ -81,18 +80,6 @@ test('the helper resource seam keeps a floor of one and defaults to the hard max
 		/Helper peak RSS must be a lower-only safe integer/u);
 	assert.equal(normalizeHelperResourcePolicy({ maximumRssBytes: undefined }).maximumRssBytes,
 		normalizeHelperResourcePolicy().maximumRssBytes);
-});
-
-test('the managed-media capacity seams keep a floor of zero', () => {
-	const base = { managedMediaRoot: '/managed' };
-	assert.doesNotThrow(() => new DesktopLibraryMediaCapacity({
-		...base,
-		maximumAdmittedBytes: 0,
-		maximumMediaRows: 0,
-		maximumMetadataBytes: 0,
-	}));
-	assert.throws(() => new DesktopLibraryMediaCapacity({ ...base, maximumMediaRows: -1 }),
-		/Desktop library managed-media catalog rows must be a lower-only safe integer no greater than \d+$/u);
 });
 
 test('the affected-object seam keeps a floor of zero and its two distinct refusals', () => {

@@ -15,6 +15,7 @@ import type { LocalAssistanceGuidedPreparationUnavailableReason } from
 	'../ui/local-assistance-preparation.ts';
 import type { LocalAssistanceGuidedPrimitiveFence } from
 	'./local-assistance-guided-transcript-context.ts';
+import { readProjectSchemaIdentity } from '../project-schema-identity.ts';
 
 const SHA256 = /^[a-f\d]{64}$/u;
 
@@ -36,11 +37,14 @@ export function createLocalAssistanceGuidedAggregateFenceV1(options: Readonly<{
 	const { project, primitiveFences, stages, settingsBody, models } = options;
 	if (primitiveFences.length < 1) unavailable('source-custody-unavailable');
 	assertCompatibleAuthorities(project, primitiveFences);
+	const identity = readProjectSchemaIdentity(project);
+	if (identity.schemaVersion !== 1) unavailable('source-custody-unavailable');
 	const sourceRanges = sourceRangeInventory(project, primitiveFences);
 	return Object.freeze({
 		fenceVersion: 1,
 		projectId: identifier(project.id, 'project ID'),
-		schemaVersion: integer(project.schemaVersion, 1, 'project schema version'),
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: 1,
 		revision: integer(project.revision, 0, 'project revision'),
 		sequenceId: primitiveFences[0]!.sequenceId,
 		sourceRanges,
@@ -57,12 +61,14 @@ function assertCompatibleAuthorities(
 	values: readonly LocalAssistanceGuidedPrimitiveFence[],
 ): void {
 	const first = values[0]!;
-	if (first.projectId !== project.id || first.schemaVersion !== project.schemaVersion
+	if (first.projectId !== project.id || first.schemaFamily !== project.schemaFamily
+		|| first.schemaVersion !== project.schemaVersion
 		|| first.revision !== project.revision) stale();
 	assertLinkMembership(project, first.occurrenceIds);
 	const occurrences = JSON.stringify(first.occurrenceIds);
 	for (const value of values) {
-		if (value.projectId !== first.projectId || value.schemaVersion !== first.schemaVersion
+		if (value.projectId !== first.projectId || value.schemaFamily !== first.schemaFamily
+			|| value.schemaVersion !== first.schemaVersion
 			|| value.revision !== first.revision || value.sequenceId !== first.sequenceId
 			|| value.linkMembershipSha256 !== first.linkMembershipSha256
 			|| JSON.stringify(value.occurrenceIds) !== occurrences) stale();

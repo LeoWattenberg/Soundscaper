@@ -8,7 +8,7 @@ import { createCurrentAudioEditorProject } from '../src/common/editor/project-cu
 import {
 	createLabelTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createRiffMarkerChunks, parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
 import {
 	createRiffAnnotationExport,
@@ -83,29 +83,30 @@ test('RIFF import creates fresh primary-sequence markers and positive regions wi
 	assert.equal(result.report.items.length, 0);
 });
 
-test('RIFF annotation interchange retains the inherited annotation authority on exact Soundscaper V21', () => {
+test('RIFF annotation interchange retains the inherited annotation authority on exact Soundscaper v1', () => {
 	const current = annotationProject([
-		annotation({ id: 'v21-marker', kind: 'marker', anchor: 'sample', positionFrame: 120 }),
+		annotation({ id: 'baseline-marker', kind: 'marker', anchor: 'sample', positionFrame: 120 }),
 	]);
 	const project = {
 		...current,
-		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper' as const,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 	};
 	const exported = createRiffAnnotationExport(project, {
 		range: { startFrame: 0, endFrame: 200 },
 		outputSampleRate: 48_000,
 	});
 	assert.deepEqual(exported.markers.map(({ sampleOffset, label }) => ({ sampleOffset, label })), [
-		{ sampleOffset: 120, label: 'v21-marker' },
+		{ sampleOffset: 120, label: 'baseline-marker' },
 	]);
 	const imported = createRiffAnnotationImport(project, parseRiffMarkersFromChunks(createRiffMarkerChunks([
-		{ id: 21, sampleOffset: 160, label: 'Imported V21 marker' },
+		{ id: 21, sampleOffset: 160, label: 'Imported baseline marker' },
 	])), {
 		sourceSampleRate: 48_000,
 		timelineStartFrame: 0,
-		idFactory: () => 'v21-imported-marker',
+		idFactory: () => 'baseline-imported-marker',
 	});
-	assert.equal(imported.annotations[0]?.id, 'v21-imported-marker');
+	assert.equal(imported.annotations[0]?.id, 'baseline-imported-marker');
 	assert.equal(imported.annotations[0]?.sequenceId, current.primarySequenceId);
 });
 

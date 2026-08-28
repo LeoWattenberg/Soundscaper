@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact durable manifest/claim validation for selected V7/V8/V14 input stages. */
+/** Exact durable manifest/claim validation for supported render-plan input stages. */
 
 import { lstat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -28,6 +28,11 @@ import type { NativeRenderInputOwnedStage } from './native-services-render-input
 import type {
 	FramescaperNativeRenderInputDescriptorV1,
 } from './native-services-render-input-validation.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 export interface NativeRenderInputStagedFile extends FramescaperNativeRenderInputDescriptorV1 {
 	readonly name: string;
@@ -60,6 +65,7 @@ export async function assertNativeRenderInputLiveOwnedStage(
 	nativeRenderInputDescriptorsForPlan(manifest.files, envelope);
 	await requireNativeRenderInputStageClaim(owned.directory, record.jobId);
 	const identity = Object.freeze({
+		schemaFamily: manifest.schemaFamily, schemaVersion: manifest.schemaVersion,
 		planFingerprint: manifest.planFingerprint,
 		projectId: manifest.projectId,
 		projectRevision: manifest.projectRevision,
@@ -91,8 +97,14 @@ export async function readNativeRenderInputStageManifest(
 	let value: unknown;
 	try { value = JSON.parse(payload) as unknown; }
 	catch { throw new Error('The render-input manifest is not JSON.'); }
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('The render-input manifest requires the current Framescaper project schema.');
+	}
 	const row = nativeRenderInputClosedRecord(value, [
-		'stageVersion', 'stageId', 'planVersion', 'planFingerprint', 'projectId',
+		'stageVersion', 'stageId', 'schemaFamily', 'schemaVersion', 'planVersion',
+		'planFingerprint', 'projectId',
 		'projectRevision', 'inputFingerprints', 'files',
 	], 'render-input manifest');
 	if (row.stageVersion !== 1 || ![7, 8, 14].includes(row.planVersion as number)) {
@@ -101,6 +113,8 @@ export async function readNativeRenderInputStageManifest(
 	const manifest: NativeRenderInputStageManifest = Object.freeze({
 		stageVersion: 1,
 		stageId: nativeRenderInputStageId(row.stageId),
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		planVersion: row.planVersion as 7 | 8 | 14,
 		planFingerprint: nativeRenderInputDigestValue(row.planFingerprint, 'manifest plan'),
 		projectId: nativeRenderInputIdentifier(row.projectId, 'manifest project'),
@@ -168,6 +182,8 @@ function assertRecordIdentity(
 	record: NativeRenderInputQueueRecord,
 ): void {
 	if (manifest.stageId !== record.jobId || manifest.planFingerprint !== record.planFingerprint
+		|| manifest.schemaFamily !== record.schemaFamily
+		|| manifest.schemaVersion !== record.schemaVersion
 		|| manifest.planVersion !== record.planVersion
 		|| manifest.projectId !== record.projectId || manifest.projectRevision !== record.projectRevision
 		|| JSON.stringify(manifest.inputFingerprints) !== JSON.stringify(record.inputFingerprints)) {

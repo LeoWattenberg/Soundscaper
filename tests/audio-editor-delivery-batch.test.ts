@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { normalizeEditorExportSettings } from '../src/common/editor/controller/export-settings.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {
 	DeliveryBatchError,
 	createDeliveryBatch,
@@ -32,12 +32,12 @@ function region(id: string, name: string, startFrame: number, endFrame: number, 
 }
 
 function albumProject() {
-	const base = createSoundscaperProjectV23({
+	const base = createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
 	} as never);
 	const sequenceId = base.primarySequenceId;
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		sources: [{
 			id: 'source', name: 'Source', storageKey: 'pcm/source', mimeType: 'audio/wav',

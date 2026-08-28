@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperCaptureProjectFenceV1 } from '../framescaper-capture-session-manifest.ts';
+import {
+	normalizeFramescaperCaptureProjectFence,
+	type FramescaperCaptureProjectFenceV1,
+} from '../framescaper-capture-session-manifest.ts';
 import {
 	planFramescaperCapturePublication,
 	type FramescaperCapturePublicationBatchCommand,
@@ -270,21 +273,7 @@ async function rollbackOwned(
 }
 
 function normalizeFence(value: FramescaperCaptureProjectFenceV1): FramescaperCaptureProjectFenceV1 {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('Capture publication project fence must be a data record.');
-	}
-	const projectId = sourceId({ id: value.projectId });
-	if (!Number.isSafeInteger(value.baseRevision) || value.baseRevision < 0) {
-		throw new RangeError('Capture publication base revision must be non-negative.');
-	}
-	if (typeof value.baseSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(value.baseSha256)) {
-		throw new TypeError('Capture publication base SHA-256 is invalid.');
-	}
-	return Object.freeze({
-		projectId,
-		baseRevision: value.baseRevision,
-		baseSha256: value.baseSha256,
-	});
+	return normalizeFramescaperCaptureProjectFence(value);
 }
 
 function boundedStreams(

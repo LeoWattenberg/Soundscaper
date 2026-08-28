@@ -25,14 +25,13 @@ import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
 } from '../src/common/editor/video-timing-asset.ts';
-import { createFramescaperDormantCandidateRenderSession } from '../src/framescaper/editor-dormant-candidate-render-session.ts';
 import {
 	createFramescaperUnifiedRenderFoundation,
 	finalizeFramescaperUnifiedRenderPlan,
 } from '../src/framescaper/editor-project-unified-render-core.ts';
-import { FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v22.ts';
-import { createFramescaperProjectV22 } from '../src/framescaper/editor-project-v22.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectTransitions } from '../src/framescaper/editor-project-transitions.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 import { renderAuthority } from './helpers/framescaper-unified-render-project-fixture.ts';
 import {
 	NTSC,
@@ -146,35 +145,6 @@ test('VFR sidecar admission rejects missing, unused, mismatched, and lookalike t
 	);
 });
 
-test('the dormant candidate session retains authenticated VFR timing for plan, preview, and export', async () => {
-	const { project, authority, timing } = candidateVfrFixture();
-	const session = createFramescaperDormantCandidateRenderSession({
-		generation: 22,
-		profile: FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE,
-		project,
-		authority,
-	});
-	assert.doesNotThrow(() => assertUnifiedExactRenderPlanWithTimingSidecars(
-		session.plan, new Map([['video-source', timing]]),
-	));
-	assert.throws(() => assertUnifiedExactRenderPlan(session.plan), /VFR|timing.*(?:bytes|sidecar|asset)/iu);
-	const frame = session.createClipExportFrameSource('video-clip').frameAt(9);
-	assert.deepEqual(frame.pictures[0]?.sourceTime, { numerator: 99n, denominator: 200n });
-	let previewOrdinal = -1;
-	const preview = session.createClipPreviewConsumer('video-clip', {
-		pause() {}, assertCurrent() {},
-		present(request) {
-			previewOrdinal = request.drawableSourceFrame;
-			return Promise.resolve({ mediaTime: request.targetSeconds });
-		},
-	}, { onPresented() {} });
-	assert.deepEqual(await preview.requestFrame({
-		outputOrdinal: 9, clipId: 'video-clip', sourceId: 'video-source',
-	}), { kind: 'presented' });
-	assert.equal(previewOrdinal, frame.pictures[0]?.sourceOrdinal);
-	preview.dispose();
-});
-
 test('inactive VFR sources remain mandatory and foundation timing authority cannot be mutated or forged', () => {
 	const activeTiming = bindVfrTiming('vfr-source', [0n, 10n, 30n, 60n], 40n, 100);
 	const inactiveTiming = bindVfrTiming('inactive-source', [0n, 25n], 75n, 100);
@@ -280,8 +250,8 @@ function candidateVfrFixture() {
 	const source = (options.sources as Record<string, unknown>[])[0]!;
 	source.timingAsset = publication.reference;
 	source.timingDecision = { mode: 'exact', rate: { num: 10, den: 1 }, backend: 'demuxer' };
-	const project = createFramescaperProjectV22(
-		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE,
+	const project = createFramescaperProjectTransitions(
+		FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE,
 		{ ...options, videoTransitionsByTrackId: { 'video-track': [] } },
 	);
 	const index = validateVideoTimingAssetBytes(publication.reference, publication.bytes);

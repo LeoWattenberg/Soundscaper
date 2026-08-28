@@ -192,7 +192,7 @@ function project({
 	masterLatency?: number;
 }>): ReferenceProject {
 	return {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		sampleRate: SAMPLE_RATE,
 		masterChannels: 2,
 		tracks,
@@ -206,6 +206,7 @@ function project({
 			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
 			edges,
 		},
+		automationLanes: [],
 	};
 }
 
@@ -308,10 +309,12 @@ interface ReferenceEdge {
 }
 
 interface ReferenceProject extends Readonly<Record<string, unknown>> {
-	readonly schemaVersion: 21;
+	readonly schemaFamily: 'soundscaper';
+	readonly schemaVersion: 1;
 	readonly sampleRate: number;
 	readonly masterChannels: number;
 	readonly tracks: readonly ReferenceTrack[];
+	readonly automationLanes: readonly unknown[];
 	readonly master: ReferenceEffectHost;
 	readonly mixer: Readonly<{
 		readonly schemaVersion: 1;

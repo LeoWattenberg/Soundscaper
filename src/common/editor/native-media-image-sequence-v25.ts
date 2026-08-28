@@ -139,7 +139,7 @@ export interface NativeMediaImageSequenceSourcePackWriterV25 {
 	discard(): Awaitable<void>;
 }
 
-export interface FramescaperImageSequenceImportPortsV25 {
+export interface FramescaperImageSequenceImportPorts {
 	select(): Awaitable<FramescaperImageSequenceImportSelectionV25 | null>;
 	createSourcePackWriter(): Awaitable<NativeMediaImageSequenceSourcePackWriterV25>;
 	publishInventory(
@@ -330,7 +330,7 @@ export function nativeMediaImageSequenceArchiveRootsV25(sourceValue: unknown): r
 
 /** Controller action exposed to the existing File > Import menu integration. */
 export async function runFramescaperImageSequenceImportV25(
-	ports: FramescaperImageSequenceImportPortsV25,
+	ports: FramescaperImageSequenceImportPorts,
 ): Promise<NativeMediaImageSequenceSourceV25 | null> {
 	const selected = await ports.select();
 	if (selected === null) return null;

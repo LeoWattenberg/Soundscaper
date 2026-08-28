@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -17,12 +17,16 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import { encodeAiff } from '../src/common/editor/aiff.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const LOCATOR_ID = 'locator_scape_audio_000001';
 const LOCATOR_REVISION = 'snapshot_scape_audio_000001';

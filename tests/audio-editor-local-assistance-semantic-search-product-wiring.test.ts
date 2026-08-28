@@ -8,8 +8,8 @@ const ROOT = new URL('../', import.meta.url);
 
 test('selected desktop products inject only the menu-lazy project derivative source', async () => {
 	const [soundscaper, framescaper, lazySource] = await Promise.all([
-		read('src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx'),
-		read('src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx'),
+		read('src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'),
+		read('src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx'),
 		read('src/common/editor/ui/local-assistance-lazy-semantic-search-source.ts'),
 	]);
 	for (const source of [soundscaper, framescaper]) {

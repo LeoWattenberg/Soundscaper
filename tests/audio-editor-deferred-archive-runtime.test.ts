@@ -84,7 +84,9 @@ test('archive implementations stay unloaded until their existing actions run and
 	await runtime.importScapeProject(scapeInput, {}, {});
 	await runtime.exportScapeProject({}, {}, {});
 	assert.equal(calls.scape, 1);
-	await runtime.copyFutureScapeArchive(new Blob(), () => {}, {});
+	await runtime.copyFutureScapeArchive(new Blob(), () => {}, {
+		currentProjectSchemaFamily: 'soundscaper',
+	});
 	assert.equal(calls.copy, 1);
 });
 
@@ -101,21 +103,21 @@ test('selected startup owners contain no static archive implementation imports',
 	for (const path of [
 		'src/common/editor/app.js',
 		'src/common/editor/controller/scape-inspection-service.ts',
-		'src/soundscaper/editor-scape-native-v30.ts',
-		'src/framescaper/editor-scape-native-v31.ts',
+		'src/soundscaper/editor-scape-native.ts',
+		'src/framescaper/editor-scape-native.ts',
 	]) {
 		const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 		assert.doesNotMatch(source, /from ['"](?:\.\.\/)*(?:common\/editor\/)?(?:aup4-client|aup-legacy(?:-conversion)?|scape-project|scape-archive-copy)(?:\.[^'"]+)?['"]/u, path);
 	}
-	const legacyFramescaperExporter = readFileSync(new URL(
-		'../src/framescaper/scape-project-file-export-v18.ts', import.meta.url,
+	const framescaperArchiveBoundary = readFileSync(new URL(
+		'../src/framescaper/editor-scape-native.ts', import.meta.url,
 	), 'utf8');
 	assert.doesNotMatch(
-		legacyFramescaperExporter,
+		framescaperArchiveBoundary,
 		/import\s+(?!type\b)[^;]+from ['"]@zip\.js\/zip\.js['"]/u,
 	);
 	assert.doesNotMatch(
-		legacyFramescaperExporter,
+		framescaperArchiveBoundary,
 		/import\s+(?!type\b)[^;]+from ['"]\.\.\/common\/editor\/scape-export-destination\.ts['"]/u,
 	);
 	const projectInput = readFileSync(new URL(

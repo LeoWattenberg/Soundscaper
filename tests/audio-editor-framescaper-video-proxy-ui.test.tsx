@@ -17,28 +17,26 @@ import {
 import {
 	bindFramescaperVideoProxyActionRuntime,
 	registerFramescaperVideoProxyActionRuntime,
-} from '../src/framescaper/editor-video-proxy-action-runtime-v20.ts';
+} from '../src/framescaper/editor-video-proxy-action-runtime.ts';
 
-test('selected F31 retains V20/V27/V28 proxy projects in one existing menu with product isolation', () => {
+test('the baseline retains proxy projects in one existing menu with product isolation', () => {
 	let opens = 0;
-	for (const schemaVersion of [20, 27, 28, 31]) {
-		const items = createFramescaperVideoProxyApplicationMenuItems({
-			productId: 'framescaper', project: project(schemaVersion),
-			copy: {}, open: () => { opens += 1; },
-		});
-		assert.equal(items.length, 1);
-		assert.equal(items[0]?.id, 'video-proxy-manager');
-		assert.equal(items[0]?.disabled, false);
-		items[0]?.onClick();
-	}
-	assert.equal(opens, 4);
+	const items = createFramescaperVideoProxyApplicationMenuItems({
+		productId: 'framescaper', project: project(),
+		copy: {}, open: () => { opens += 1; },
+	});
+	assert.equal(items.length, 1);
+	assert.equal(items[0]?.id, 'video-proxy-manager');
+	assert.equal(items[0]?.disabled, false);
+	items[0]?.onClick();
+	assert.equal(opens, 1);
 	assert.deepEqual(createFramescaperVideoProxyApplicationMenuItems({
-		productId: 'soundscaper', project: project(20), copy: {}, open: () => undefined,
+		productId: 'soundscaper', project: project(), copy: {}, open: () => undefined,
 	}), []);
 });
 
 test('proxy dialog model targets the selected source and reports offline attached state', () => {
-	const value = project(31);
+	const value = project();
 	(value.sources[0] as Record<string, unknown>).proxyAttachment = { originalAuthorityKind: 'linked' };
 	const model = createFramescaperVideoProxyDialogModel({
 		project: value, selectedClipId: 'video-clip', missingSourceIds: ['video-source'],
@@ -71,7 +69,7 @@ test('the proxy workflow is lazy, menu-only, and does not activate native M5 pro
 		'the clicked Project Bin occurrence, rather than timeline selection, seeds the proxy dialog');
 	assert.doesNotMatch(overlays, /import FramescaperVideoProxyDialog from/u);
 	assert.doesNotMatch(projectBin, /import FramescaperVideoProxyDialog from/u);
-	assert.match(nativeMenu, /professionalMediaProject[\s\S]*schemaVersion === 25 \|\| schemaVersion === 26/u);
+	assert.match(nativeMenu, /professionalMediaProject\s*=\s*hasProject/u);
 });
 
 test('the selected proxy dialog exposes pathless attach-existing from its lazy menu surface', () => {
@@ -90,7 +88,7 @@ test('the selected proxy dialog exposes pathless attach-existing from its lazy m
 	}));
 	const markup = renderToStaticMarkup(<FramescaperVideoProxyDialog
 		controller={controller}
-		snapshot={{ project: project(27), selectedClipId: 'video-clip', missingSourceIds: [] }}
+		snapshot={{ project: project(), selectedClipId: 'video-clip', missingSourceIds: [] }}
 		editingBlocked={false}
 		copy={{}}
 		fileService={{}}
@@ -115,7 +113,7 @@ test('proxy status never promotes an attachment pointer to verified trust', () =
 		attachExisting: async () => undefined, detach: async () => undefined,
 		regenerate: async () => undefined, relinkOriginal: async () => 'relinked',
 	}));
-	const value = project(27);
+	const value = project();
 	(value.sources[0] as Record<string, unknown>).proxyAttachment = { originalAuthorityKind: 'owned' };
 	const markup = renderToStaticMarkup(<FramescaperVideoProxyDialog
 		controller={controller}
@@ -128,9 +126,9 @@ test('proxy status never promotes an attachment pointer to verified trust', () =
 	assert.doesNotMatch(markup, /verified proxy is attached/iu);
 });
 
-function project(schemaVersion: number) {
+function project() {
 	return {
-		schemaVersion,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		sources: [{
 			kind: 'video', id: 'video-source', name: 'Camera', proxyAttachment: null,
 		}],

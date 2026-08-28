@@ -53,6 +53,7 @@ import {
 } from './transfer-project-selection.ts';
 import type { TransferChoiceHandle } from './transfer-page-view.ts';
 import type { TransferPageContext } from './transfer-page-context.ts';
+import { readProjectSchemaIdentity } from '../editor/project-schema-identity.ts';
 
 type ExportStore = Parameters<typeof streamTransferArchives>[0]['store'];
 
@@ -173,8 +174,21 @@ function requireChosen(
 
 /** The exporter never sees a project the visitor did not tick. */
 function selectionPredicate(chosen: readonly TransferProjectOffer[]): (project: { id: string }) => boolean {
-	const ticked = new Set(chosen.map((offer) => offer.projectId));
-	return (project) => ticked.has(project.id);
+	const ticked = new Set(chosen
+		.filter((offer) => offer.storeProjectId !== null)
+		.map((offer) => offer.schemaFamily === null
+			? offer.storeProjectId as string
+			: `${offer.schemaFamily}:${offer.storeProjectId as string}`));
+	return (project) => {
+		let key = project.id;
+		try {
+			key = `${readProjectSchemaIdentity(project).schemaFamily}:${project.id}`;
+		} catch {
+			// A malformed identity was never preselected, but remains visible for
+			// explicit custody. Its raw id is the only selection handle available.
+		}
+		return ticked.has(key);
+	};
 }
 
 /**

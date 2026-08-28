@@ -4,8 +4,7 @@ import {
 } from '@zip.js/zip.js';
 
 import { createStableId } from './project.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
-import { migrateAudioEditorProject } from './migration.js';
+import { isCurrentProjectSchemaIdentity } from './project-schema-identity.ts';
 import { remapProjectFeatureRequirementSourceIds } from './project-feature-requirements.ts';
 import {
 	aggregateScapeErrors,
@@ -42,7 +41,11 @@ import {
 import { assertScapeImportStore, ScapeImportTransaction } from './scape-import-transaction.ts';
 import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
 import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-project-assets.ts';
-import { parseScapeProjectDocument } from './scape-project-document.ts';
+import {
+	loadScapeProjectDocument,
+	resolveScapeCurrentProjectSchemaFamily,
+	resolveScapeCurrentProjectSchemaVersion,
+} from './scape-project-admission.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
@@ -80,6 +83,7 @@ export async function exportScapeProject(project, store, options = {}) {
 		maximumBlobBytes: options.maximumBlobBytes,
 		output: writable || createWritable ? 'stream' : 'blob',
 		signal,
+		currentProjectSchemaFamily: options.currentProjectSchemaFamily,
 		currentProjectSchemaVersion: options.currentProjectSchemaVersion,
 		additionalSourceKinds: assetExtension?.sourceKinds,
 		additionalAssets,
@@ -195,15 +199,16 @@ export async function importScapeProject(input, store, options = {}) {
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
 			throwIfScapeAborted(signal);
-			const loaded = migrateScapeProjectDocument(projectText, options);
-			let project = structuredClone(loaded.project);
+			const loaded = loadScapeProjectDocument(projectText, manifest.project, options);
 			if (loaded.readOnly) {
-				return { project, manifest, readOnly: true, reason: loaded.reason, collision: null };
+				return { project: loaded.project, manifest, readOnly: true, reason: loaded.reason, collision: null };
 			}
+			let project = structuredClone(loaded.project);
 			const archiveProject = structuredClone(project);
 			const extensionValidation = assetExtension?.validateImportAssets(project, manifest) ?? null;
 			const assetBySourceId = indexScapeProjectAssets(project, manifest, {
-				currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
+				currentProjectSchemaFamily: resolveScapeCurrentProjectSchemaFamily(options),
+				currentProjectSchemaVersion: resolveScapeCurrentProjectSchemaVersion(options),
 				additionalSourceKinds: assetExtension?.sourceKinds,
 			});
 			const timingAssetByStorageKey = indexScapeProjectTimingAssets(project, manifest);
@@ -303,7 +308,7 @@ export async function importScapeProject(input, store, options = {}) {
 
 			const sourceIdMap = await prepareScapeImportSourceIdentities(project, store, assetExtension, signal);
 			remapScapeProjectSourceReferences(project, sourceIdMap);
-			if (!loaded.readOnly && project.schemaVersion === scapeCurrentProjectSchemaVersion(options)) {
+			if (isCurrentProjectSchemaIdentity(project, resolveScapeCurrentProjectSchemaFamily(options))) {
 				if (options.rebindProjectSourceIdentities !== undefined) {
 					if (typeof options.rebindProjectSourceIdentities !== 'function') {
 						throw new TypeError('The Scape project source-identity rebinder must be a function.');
@@ -524,7 +529,8 @@ function joinScapeTimingChunks(chunks, expectedBytes) {
  *   options?: Readonly<{ signal?: AbortSignal }>,
  * ) => PromiseLike<unknown> | unknown } | null} store
  * @param {{ signal?: AbortSignal,
- *   migrateProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
+ *   loadProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
+ *   currentProjectSchemaFamily?: import('./project-schema-identity.ts').ProjectSchemaFamily,
  *   currentProjectSchemaVersion?: number,
  *   projectFeatureCompatibility?: { evaluate: (project: unknown) => unknown },
  *   projectAssetExtension?: import('./scape-project-asset-extension.ts').ScapeProjectAssetExtension,
@@ -539,18 +545,21 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 			options.archiveLimits || {}, signal, assetExtension?.assetKinds);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
-		const loaded = migrateScapeProjectDocument(projectText, options);
+		const loaded = loadScapeProjectDocument(projectText, manifest.project, options);
 		if (!loaded.readOnly) {
 			assetExtension?.validateImportAssets(loaded.project, manifest);
 			indexScapeProjectAssets(loaded.project, manifest, {
-				currentProjectSchemaVersion: scapeCurrentProjectSchemaVersion(options),
+				currentProjectSchemaFamily: resolveScapeCurrentProjectSchemaFamily(options),
+				currentProjectSchemaVersion: resolveScapeCurrentProjectSchemaVersion(options),
 				additionalSourceKinds: assetExtension?.sourceKinds,
 			});
 		}
-		const featureRequirementsCompatibility = options.projectFeatureCompatibility
+		const featureRequirementsCompatibility = !loaded.readOnly && options.projectFeatureCompatibility
 			? options.projectFeatureCompatibility.evaluate(loaded.project)
 			: null;
-		const existing = store?.loadProject
+		// Opaque foreign/future custody must not query a current-family store by
+		// an id whose domain was deliberately not admitted.
+		const existing = !loaded.readOnly && store?.loadProject
 			? await awaitScapeReadOperation(
 				() => {
 					const lookup = Promise.resolve(store.loadProject(loaded.project.id, { signal }));
@@ -563,8 +572,10 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 		return Object.freeze({
 			id: loaded.project.id,
 			title: loaded.project.title,
+			schemaFamily: loaded.identity.schemaFamily,
 			schemaVersion: loaded.project.schemaVersion,
 			readOnly: loaded.readOnly,
+			reason: loaded.reason,
 			exists: Boolean(existing),
 			manifest,
 			featureRequirementsCompatibility,
@@ -573,28 +584,4 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 		blob: options.archiveReaderFactory,
 		byteSource: options.archiveByteSourceReaderFactory,
 	});
-}
-
-/** Select a product-owned exact schema without changing the shared default. */
-function migrateScapeProjectDocument(projectText, options) {
-	const migrateProject = options?.migrateProject ?? migrateAudioEditorProject;
-	if (typeof migrateProject !== 'function') {
-		throw new TypeError('The Scape project migration owner must be a function.');
-	}
-	const loaded = migrateProject(parseScapeProjectDocument(projectText));
-	if (!loaded || typeof loaded !== 'object' || !loaded.project || typeof loaded.project !== 'object') {
-		throw new TypeError('The Scape project migration owner returned an invalid result.');
-	}
-	if (typeof loaded.readOnly !== 'boolean') {
-		throw new TypeError('The Scape project migration result requires a readOnly decision.');
-	}
-	return loaded;
-}
-
-function scapeCurrentProjectSchemaVersion(options) {
-	const value = options?.currentProjectSchemaVersion ?? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
-	if (!Number.isSafeInteger(value) || value < 1) {
-		throw new TypeError('The Scape current project schema version must be a positive safe integer.');
-	}
-	return value;
 }

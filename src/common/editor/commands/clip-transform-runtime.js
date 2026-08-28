@@ -10,6 +10,11 @@ import {
 	findTrack,
 } from '../project.js';
 import {
+	hasCoreEditingProjectAuthority,
+	hasProjectBinMediaAuthority,
+	hasSequenceGeometryProjectAuthority,
+} from '../project-schema-version.ts';
+import {
 	assertClipSourceBounds,
 	assertClipSpace,
 	assertUnusedClipId,
@@ -203,7 +208,7 @@ function buildClipTransformState(project, transforms) {
 		const oldTrack = requireClipTrack(project, clip.id);
 		const track = requireTrack(project, transform.trackId || oldTrack.id);
 		if (!Array.isArray(track.clipIds)) throw new RangeError(`Media clips cannot be transformed onto track ${track.id}.`);
-		if (project.schemaVersion >= 4 && track.type !== clip.kind) {
+		if (hasProjectBinMediaAuthority(project) && track.type !== clip.kind) {
 			throw new RangeError(`A ${clip.kind} clip cannot be transformed onto a ${track.type} track.`);
 		}
 		const changes = transform.changes || {};
@@ -246,7 +251,7 @@ function buildClipTransformState(project, transforms) {
 }
 
 function validateClipTransformState(project, state, overwrite) {
-	if (project.schemaVersion >= 2) return;
+	if (hasCoreEditingProjectAuthority(project)) return;
 	const movingIds = new Set(state.map((item) => item.clip.id));
 	for (const track of project.tracks.filter((item) => Array.isArray(item.clipIds))) {
 		const activeClips = state.filter((item) => item.track.id === track.id).map((item) => item.updated);
@@ -359,7 +364,7 @@ function overwriteClipRanges(project, state) {
 }
 
 function conformedOverwriteCut(project, item) {
-	if (Number(project.schemaVersion) < 10 || item.updated.kind !== 'video') return item.updated;
+	if (!hasSequenceGeometryProjectAuthority(project) || item.updated.kind !== 'video') return item.updated;
 	const owningSequence = project.sequences?.find((candidate) => (
 		Array.isArray(candidate.trackIds) && candidate.trackIds.includes(item.track?.id)
 	));

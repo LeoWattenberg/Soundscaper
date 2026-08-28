@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+
 export interface TransportServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -202,14 +204,15 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	function commitLoopRange(range: RuntimeValue) {
 		const loopCommand = { type: 'loop/set', ...range };
 		if (!range.enabled || !state.selectionFollowsLoop) return commit(loopCommand);
-		const selection = getProject().selection || {};
+		const project = getProject();
+		const selection = project.selection || {};
 		return commit({
 			type: 'batch',
 			commands: [loopCommand, {
 				type: 'selection/set',
 				startFrame: range.startFrame,
 				endFrame: range.endFrame,
-				...(getProject().schemaVersion >= 2 ? {
+				...(hasCoreEditingProjectAuthority(project) ? {
 					trackIds: selection.trackIds || [],
 					clipIds: selection.clipIds || [],
 					frequencyRange: selection.frequencyRange || null,

@@ -84,7 +84,9 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				if (service === null) throw new Error('Native publication fencing is unavailable.');
 				await service.for(record, root).beforePublication();
 			};
-			return Object.freeze({ beforePublication: assert, afterPublication: assert });
+			return Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1,
+				projectId: record.projectId, projectRevision: record.projectRevision,
+				beforePublication: assert, afterPublication: assert });
 		},
 		checkpointStore: nodePorts.checkpointStore,
 		checkpointInspectFor: nodePorts.checkpointInspectFor,
@@ -126,8 +128,8 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		},
 	});
 	const projectAuthority = projectBodyAuthority === null ? null
-			: modules.createSelectedV28ProjectAuthority({
-				project: options.projectAuthority, projectSchemaVersion: options.projectAuthority.projectSchemaVersion,
+			: modules.createProjectMediaAuthority({
+				project: options.projectAuthority,
 				watch: projectBodyAuthority, runtime: mediaRuntime, renderInputs: renderInputStaging,
 			platform: options.externalDisplay.platform, probeRoot: nodePorts.probeRoot,
 			hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
@@ -139,7 +141,9 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 					if (service === null) throw new Error('Native publication fencing is unavailable.');
 					await service.for(record, root).beforePublication();
 				};
-				return Object.freeze({ beforePublication: assert, afterPublication: assert });
+				return Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1,
+					projectId: record.projectId, projectRevision: record.projectRevision,
+					beforePublication: assert, afterPublication: assert });
 			},
 				recordProxyOutput: (record, root, receipt) => (
 					proxyOutputBroker.recordPublished(record, root, receipt)
@@ -182,7 +186,6 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 			currentOwner: options.watchImportAuthority.currentOwner,
 			isOwnerCurrent: options.watchImportAuthority.isOwnerCurrent,
 			inspectProject: (projectId) => projectAuthority.watchProject(projectId),
-			alreadyImported: (projectId, digest) => projectAuthority.watchImportAlreadyPresent(projectId, digest),
 			inspectImported: (projectId, binId, digest) => projectAuthority.watchImportState(projectId, binId, digest),
 			createLocator: nodePorts.watchRegisterLocator,
 			releaseLocator: nodePorts.watchReleaseLocator,
@@ -200,7 +203,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	}
 	try {
 		runtime = modules.startRuntime({
-			databasePath: resolve(options.userDataPath, 'framescaper-native-services.sqlite'),
+			databasePath: resolve(options.userDataPath, 'framescaper-native-services-v1.sqlite'),
 			leaseId: randomUUID(),
 			instanceId: options.instanceId,
 			processId: options.processId,
@@ -398,7 +401,7 @@ function setPreference(settings, preference, enabled) {
 async function loadRuntimeModules() {
 	const [runtime, ipc, nodePorts, externalDisplay, nativeMedia, openFx, openFxService,
 		capabilityReport, displayController,
-		projectAuthority, selectedV28Authority, watchImportBroker,
+		projectAuthority, projectMediaAuthority, watchImportBroker,
 		imageSequenceSelection, imageSequenceImport, proxyOutputs, queueCapacity, renderInputs,
 		backendAuthority] = await Promise.all([
 		import('./project-library-runtime/desktop/native-services-runtime-v3.js'),
@@ -411,7 +414,7 @@ async function loadRuntimeModules() {
 		import('./project-library-runtime/desktop/native-media-capability-report.js'),
 		import('./project-library-runtime/desktop/external-display-controller.js'),
 		import('./project-library-runtime/desktop/native-services-project-authority.js'),
-		import('./project-library-runtime/desktop/native-services-selected-v28-project-authority.js'),
+		import('./project-library-runtime/desktop/native-services-project-media-authority.js'),
 		import('./project-library-runtime/desktop/native-services-watch-import-broker.js'),
 		import('./project-library-runtime/desktop/native-image-sequence-selection.js'),
 		import('./project-library-runtime/desktop/framescaper-native-image-sequence-registration.js'),
@@ -436,8 +439,8 @@ async function loadRuntimeModules() {
 		createCapabilityReport: capabilityReport.createFramescaperNativeCapabilityReportV1,
 		externalDisplaySupport: displayController.externalDisplayPlacementSupport,
 		createProjectAuthority: (options) => new projectAuthority.FramescaperNativeProjectAuthority(options),
-		createSelectedV28ProjectAuthority: (options) => (
-			new selectedV28Authority.FramescaperNativeSelectedV28ProjectAuthority(options)
+		createProjectMediaAuthority: (options) => (
+			new projectMediaAuthority.FramescaperNativeProjectMediaAuthority(options)
 		),
 		createWatchImportBroker: (options) => new watchImportBroker.FramescaperNativeWatchImportBroker(options),
 		ImageSequenceSelectionBroker: imageSequenceSelection.FramescaperNativeImageSequenceSelectionBroker,

@@ -2,12 +2,20 @@
 
 /** Closed, pathless renderer authority for one authenticated decoded sequence pack. */
 
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
+
 const OPAQUE_ID = /^[a-f0-9]{40}$/u;
 const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 
 export type FramescaperNativeImageSequenceDecodeRequest =
 	| Readonly<{
 		readonly operation: 'decode';
+		readonly schemaFamily: 'framescaper';
+		readonly schemaVersion: 1;
 		readonly requestId: string;
 		readonly projectId: string;
 		readonly projectRevision: number;
@@ -23,7 +31,7 @@ export type FramescaperNativeImageSequenceDecodeRequest =
 	| Readonly<{ readonly operation: 'release'; readonly claimId: string }>;
 
 const FIELDS = Object.freeze({
-	decode: ['operation', 'requestId', 'projectId', 'projectRevision', 'sourceId'],
+	decode: ['operation', 'schemaFamily', 'schemaVersion', 'requestId', 'projectId', 'projectRevision', 'sourceId'],
 	cancel: ['operation', 'requestId'],
 	read: ['operation', 'claimId', 'offset', 'length'],
 	release: ['operation', 'claimId'],
@@ -43,6 +51,11 @@ export function assertFramescaperNativeImageSequenceDecodeRequest(
 		throw new TypeError('The image-sequence decode request has an inexact shape.');
 	}
 	if (operation === 'decode') {
+		const identity = readProjectSchemaIdentity(record);
+		if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+			|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+			throw new TypeError('The image-sequence decode request has a foreign project identity.');
+		}
 		opaque(record.requestId, 'request ID');
 		projectId(record.projectId, 'project ID');
 		projectId(record.sourceId, 'source ID');
@@ -61,7 +74,16 @@ function exactRecord(value: unknown, label: string): Record<string, unknown> {
 		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
 		throw new TypeError(`An image-sequence ${label} must be a plain record.`);
 	}
-	return value as Record<string, unknown>;
+	const output = Object.create(null) as Record<string, unknown>;
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string') throw new TypeError(`An image-sequence ${label} has a symbol field.`);
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`An image-sequence ${label}.${key} must be an own enumerable data property.`);
+		}
+		output[key] = descriptor.value;
+	}
+	return output;
 }
 
 function opaque(value: unknown, label: string): string {

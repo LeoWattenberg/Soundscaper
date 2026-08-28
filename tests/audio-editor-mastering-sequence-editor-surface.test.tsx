@@ -5,8 +5,8 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import { applySoundscaperProjectCommandV23 } from '../src/soundscaper/editor-project-v23-commands.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {
 	createSoundscaperProductionApplicationMenuItems,
 	type SoundscaperProductionSurface,
@@ -35,12 +35,12 @@ const CAPABILITIES = Object.freeze({
 });
 
 function albumProject(entries: readonly unknown[] = [{ id: 'e1', annotationId: 'r-one' }]) {
-	const base = createSoundscaperProjectV23({
+	const base = createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
 	} as never);
 	const sequenceId = base.primarySequenceId;
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
 		primarySequenceId: sequenceId,
@@ -169,7 +169,7 @@ test('the New sequence button states the sequence the new one orders', () => {
 	const operation = masteringSequenceAddOperation(
 		snapshot.primarySequenceId, 'generated', SOUNDSCAPER_PRODUCTION_COPY.newMasteringSequence,
 	);
-	const created = applySoundscaperProjectCommandV23(project, operation as never, { now: NOW });
+	const created = applySoundscaperProjectCommand(project, operation as never, { now: NOW });
 	assert.equal(created.masteringSequences.length, 2);
 	assert.equal(
 		created.masteringSequences.find(({ id }) => id === 'generated')?.sequenceId,

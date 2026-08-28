@@ -23,7 +23,7 @@ import {
 	isVideoExportDialogFormat,
 	projectHasTimelineVideo,
 } from '../export-dialog-model.js';
-import { framescaperV27CaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
+import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
 import {
@@ -153,7 +153,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const blocked = !snapshot.ready || snapshot.importing || snapshot.recording || snapshot.processingEffect || snapshot.missingSourceIds?.length > 0 || !snapshot.project?.clips?.length;
 	const hasTimelineVideo = projectHasTimelineVideo(snapshot.project);
 	const videoFormat = isVideoExportDialogFormat(settings.format);
-	const captionDeliveryUnavailable = framescaperV27CaptionDeliveryUnavailable(
+	const captionDeliveryUnavailable = framescaperCaptionDeliveryUnavailable(
 		productId, snapshot.project,
 	);
 	// Generic video delivery captions from label tracks. Selected Framescaper owns its

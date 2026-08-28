@@ -34,7 +34,7 @@ export function createFramescaperVideoProxyApplicationMenuItems(
 function supportedProject(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const project = value as Readonly<Record<string, unknown>>;
-	if (!isFramescaperVideoProxyProjectSchema(project.schemaVersion)) return false;
+	if (!isFramescaperVideoProxyProjectSchema(project)) return false;
 	return Array.isArray(project.sources) && project.sources.some((source) => (
 		source && typeof source === 'object'
 		&& (source as Readonly<Record<string, unknown>>).kind === 'video'

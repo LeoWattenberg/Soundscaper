@@ -9,7 +9,14 @@ import {
 } from '../snap-grid.js';
 import { normalizeProjectBextMetadata } from '../project-bext-metadata.ts';
 import { authoredAdmChannelCount, normalizeAdmProjectMetadata } from '../adm-project-metadata.ts';
-import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
+import {
+	hasAdmMetadataProjectAuthority,
+	hasBextMetadataProjectAuthority,
+	hasCoreEditingProjectAuthority,
+	hasProjectBinMediaAuthority,
+	hasVideoEffectsProjectAuthority,
+	isTimelineAnnotationProjectSchema,
+} from '../project-schema-version.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import {
 	collectRelatedClipIds,
@@ -52,7 +59,7 @@ function setSelection(project, command) {
 	const range = startFrame <= endFrame
 		? { startFrame, endFrame }
 		: { startFrame: endFrame, endFrame: startFrame };
-	const supportsAnnotations = isTimelineAnnotationProjectSchema(project.schemaVersion)
+	const supportsAnnotations = isTimelineAnnotationProjectSchema(project)
 		&& Array.isArray(project.timelineAnnotations);
 	if (Object.hasOwn(command, 'annotationIds') && !supportsAnnotations) {
 		throw new RangeError('Timeline annotation selection requires schema 11 or 12.');
@@ -95,7 +102,7 @@ function setLoop(project, command) {
 }
 
 function setSnap(project, command) {
-	if (project.schemaVersion < 2) throw new RangeError('Snap settings require an AudioEditorProjectV2 or newer project.');
+	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Snap settings require an active editing project.');
 	const settings = command.settings || {};
 	const next = {
 		...project.snap,
@@ -117,7 +124,7 @@ function addProjectBinClip(project, value) {
 		...value,
 		...cloneVideoCompositionCarrierFields(value, `Project Bin clip ${String(value?.id ?? '')}`),
 		groupId: null,
-		...(project.schemaVersion >= 4 ? {
+		...(hasProjectBinMediaAuthority(project) ? {
 			avLinkId: null,
 			binItemId: value?.binItemId || value?.id,
 		} : {}),
@@ -155,7 +162,7 @@ function moveTimelineClipsToProjectBin(project, clipIds) {
 			...cloneVideoCompositionCarrierFields(clip, `Moved Project Bin clip ${clip.id}`),
 			groupId: null,
 			id: clip.id,
-			...(project.schemaVersion >= 4 ? {
+			...(hasProjectBinMediaAuthority(project) ? {
 				avLinkId: null,
 				binItemId: binItemByClipId.get(clip.id) || clip.id,
 			} : {}),
@@ -173,7 +180,7 @@ function moveTimelineClipsToProjectBin(project, clipIds) {
 
 function placeProjectBinClip(project, command) {
 	const binClip = requireProjectBinClip(project, command.binClipId);
-	const itemClips = project.schemaVersion >= 4
+	const itemClips = hasProjectBinMediaAuthority(project)
 		? project.projectBin.clips.filter((clip) => clip.binItemId === binClip.binItemId)
 		: [binClip];
 	const timelineStartFrame = assertFrame(command.timelineStartFrame, 'project-bin.timelineStartFrame');
@@ -195,12 +202,12 @@ function placeProjectBinClip(project, command) {
 			|| (placements.length === 1 ? placements[0] : null);
 		if (!placement) throw new ReferenceError(`Missing placement for Project Bin clip ${itemClip.id}.`);
 		const track = requireTrack(project, placement.trackId);
-		if (!Array.isArray(track.clipIds) || (project.schemaVersion >= 4 && track.type !== itemClip.kind)) {
+		if (!Array.isArray(track.clipIds) || (hasProjectBinMediaAuthority(project) && track.type !== itemClip.kind)) {
 			throw new RangeError(`A ${itemClip.kind || 'audio'} Project Bin clip needs a matching media track.`);
 		}
 		const clipId = requireStableCommandId(placement.clipId, 'placed clip');
 		assertUnusedClipId(project, clipId);
-		const videoEffects = itemClip.kind === 'video' && project.schemaVersion >= 5
+		const videoEffects = itemClip.kind === 'video' && hasVideoEffectsProjectAuthority(project)
 			? cloneVideoEffectsWithCommandIds(
 				itemClip.videoEffects,
 				placement.videoEffectIds,
@@ -214,7 +221,7 @@ function placeProjectBinClip(project, command) {
 			timelineStartFrame,
 			groupId: null,
 			...(videoEffects ? { videoEffects } : {}),
-			...(project.schemaVersion >= 4 ? { avLinkId, binItemId: null } : {}),
+			...(hasProjectBinMediaAuthority(project) ? { avLinkId, binItemId: null } : {}),
 		};
 		candidate = rebindVideoKeyframeCarrierEffects(
 			candidate,
@@ -248,7 +255,7 @@ function updateProjectBinClip(project, clipId, changes = {}) {
 	if (Object.hasOwn(changes, 'color') && (typeof changes.color !== 'string' || !changes.color.trim())) {
 		throw new TypeError('A project-bin clip color is required.');
 	}
-	const itemIds = new Set(project.schemaVersion >= 4
+	const itemIds = new Set(hasProjectBinMediaAuthority(project)
 		? projectBin.clips.filter((candidate) => candidate.binItemId === clip.binItemId).map((candidate) => candidate.id)
 		: [clip.id]);
 	projectBin.clips = projectBin.clips.map((candidate) => itemIds.has(candidate.id)
@@ -257,7 +264,7 @@ function updateProjectBinClip(project, clipId, changes = {}) {
 			...changes,
 			id: candidate.id,
 			groupId: null,
-			...(project.schemaVersion >= 4 ? { avLinkId: null, binItemId: candidate.binItemId } : {}),
+			...(hasProjectBinMediaAuthority(project) ? { avLinkId: null, binItemId: candidate.binItemId } : {}),
 		})
 		: candidate);
 }
@@ -266,7 +273,7 @@ function removeProjectBinClip(project, clipId) {
 	const projectBin = requireProjectBin(project);
 	const clip = projectBin.clips.find((candidate) => candidate.id === clipId);
 	if (!clip) throw new ReferenceError(`Unknown project-bin clip: ${clipId}.`);
-	if (project.schemaVersion >= 4) {
+	if (hasProjectBinMediaAuthority(project)) {
 		projectBin.clips = projectBin.clips.filter((candidate) => candidate.binItemId !== clip.binItemId);
 		return;
 	}
@@ -276,7 +283,7 @@ function removeProjectBinClip(project, clipId) {
 function removeProjectBinSourceFromProject(project, clipId) {
 	const projectBin = requireProjectBin(project);
 	const clip = requireProjectBinClip(project, clipId);
-	const itemClips = project.schemaVersion >= 4
+	const itemClips = hasProjectBinMediaAuthority(project)
 		? projectBin.clips.filter((candidate) => candidate.binItemId === clip.binItemId)
 		: [clip];
 	const sourceIds = new Set(itemClips.map((candidate) => candidate.sourceId));
@@ -365,7 +372,7 @@ function replaceProjectBinMedia(project, command) {
 					Math.max(0, replacement.newSource.frameCount - template.sourceStartFrame - template.sourceDurationFrames),
 				),
 				groupId: null,
-				...(project.schemaVersion >= 4 ? {
+				...(hasProjectBinMediaAuthority(project) ? {
 					avLinkId: null,
 					binItemId: clip.binItemId,
 				} : {}),
@@ -375,7 +382,7 @@ function replaceProjectBinMedia(project, command) {
 		return next ? [{
 			...next,
 			groupId: null,
-			...(project.schemaVersion >= 4 ? { avLinkId: null, binItemId: clip.binItemId } : {}),
+			...(hasProjectBinMediaAuthority(project) ? { avLinkId: null, binItemId: clip.binItemId } : {}),
 		}] : [];
 	});
 
@@ -444,12 +451,12 @@ function recordReplacementContraction(project, clip, frames, contractionsByTrack
 }
 
 function updateMetadata(project, changes = {}) {
-	if (project.schemaVersion < 2) throw new RangeError('Metadata editing requires an AudioEditorProjectV2 or newer project.');
+	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Metadata editing requires an active editing project.');
 	if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new TypeError('Metadata changes must be an object.');
 	const allowed = new Set([
 		'title', 'artist', 'album', 'trackNumber', 'year', 'comments', 'tags',
-		...(project.schemaVersion >= 6 ? ['bext'] : []),
-		...(project.schemaVersion >= 7 ? ['adm'] : []),
+		...(hasBextMetadataProjectAuthority(project) ? ['bext'] : []),
+		...(hasAdmMetadataProjectAuthority(project) ? ['adm'] : []),
 	]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Metadata field cannot be updated: ${key}.`);
 	const next = { ...project.metadata };
@@ -485,7 +492,7 @@ function updateMetadata(project, changes = {}) {
 }
 
 function setTimeDisplay(project, command) {
-	if (project.schemaVersion < 2) throw new RangeError('Time-display settings require an AudioEditorProjectV2 or newer project.');
+	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Time-display settings require an active editing project.');
 	if (typeof command.format !== 'string' || !command.format.trim()) throw new TypeError('A time-display format is required.');
 	project.timeDisplay = { ...project.timeDisplay, format: command.format };
 }

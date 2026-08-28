@@ -68,7 +68,7 @@ export function applyProjectedTimelineAnnotationCommand(
 	command: TimelineAnnotationCommand,
 ): void {
 	const candidate = project as MutableProjectedTimelineAnnotationProject;
-	if (!isTimelineAnnotationProjectSchema(candidate.schemaVersion)) {
+	if (!isTimelineAnnotationProjectSchema(candidate)) {
 		throw new RangeError('Timeline annotation commands require schema 11 or 12.');
 	}
 	if (!isRuntimeProjectProjection(candidate)) {

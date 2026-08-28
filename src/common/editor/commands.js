@@ -3,7 +3,7 @@
 import { commitProject } from './project.js';
 import { projectForCommandConsumers } from './project-current-runtime.ts';
 import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	hasCoreEditingProjectAuthority,
 } from './project-schema-version.ts';
 import { createEditorCommandMutationTransaction } from './commands/mutation-transaction.ts';
 
@@ -86,7 +86,7 @@ export {
  * @returns {Project}
  */
 export function applyEditorCommand(project, command, options = {}) {
-	if (project?.schemaVersion !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) {
+	if (!hasCoreEditingProjectAuthority(project)) {
 		throw new RangeError('Editor commands require a current audio editor project.');
 	}
 	if (!command || typeof command.type !== 'string') {

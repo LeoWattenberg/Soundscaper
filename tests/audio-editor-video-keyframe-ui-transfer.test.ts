@@ -109,7 +109,8 @@ test('transfer parsing rejects oversized, open, accessor-backed, cyclic, binary,
 function keyframeModel(withCurve = true) {
 	const keyframes = createDefaultVideoKeyframeCurves(rational(20));
 	const project = {
-		schemaVersion: 20,
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		clips: [{
 			id: 'video', kind: 'video', title: 'Picture',
 			sequenceStartFrame: 0, sequenceFrameCount: 20,

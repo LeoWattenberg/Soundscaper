@@ -4,7 +4,7 @@ import {
 	validateFramescaperDesktopExactBody,
 	type FramescaperDesktopExactBodyDescriptor,
 } from './project-library-exact-generation-storage.ts';
-import { framescaperDesktopProjectLibraryV12DenseArray as denseArray } from './project-library-v12-values.ts';
+import { framescaperDesktopProjectLibraryDenseArray as denseArray } from './framescaper-project-library-values.ts';
 
 const MAXIMUM_BODIES = 4_094;
 
@@ -14,7 +14,6 @@ export interface ExactGenerationProject extends Record<string, unknown> {
 	readonly revision: number;
 	readonly updatedAt: string;
 }
-
 export interface FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration {
 	readonly label: string;
 	readonly maximumBodies?: number;

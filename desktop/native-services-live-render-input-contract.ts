@@ -20,11 +20,18 @@ import {
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
 	HELPER_DATA_PLANE_MAXIMUM_BYTES,
 } from './helper-data-plane.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 export const FRAMESCAPER_NATIVE_LIVE_RENDER_INPUT_VERSION = 1;
 
 export interface FramescaperNativeLiveRenderInputBeginRequestV1 {
 	readonly liveRenderVersion: typeof FRAMESCAPER_NATIVE_LIVE_RENDER_INPUT_VERSION;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly planVersion: 14;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
@@ -60,8 +67,14 @@ export interface FramescaperNativeLiveRenderInputControl {
 export function framescaperNativeLiveRenderInputBeginRequest(
 	value: unknown,
 ): FramescaperNativeLiveRenderInputControl {
+	const projectIdentity = readProjectSchemaIdentity(value);
+	if (projectIdentity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| projectIdentity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Live render-input staging requires the current Framescaper schema.');
+	}
 	const row = nativeRenderInputClosedRecord(value, [
-		'liveRenderVersion', 'planVersion', 'planFingerprint', 'planPayload', 'projectId',
+		'liveRenderVersion', 'schemaFamily', 'schemaVersion', 'planVersion',
+		'planFingerprint', 'planPayload', 'projectId',
 		'projectRevision', 'inputFingerprints', 'restartJobId', 'carrierByteLength', 'audio',
 	], 'live render-input begin request');
 	if (row.liveRenderVersion !== 1 || row.planVersion !== 14 || typeof row.planPayload !== 'string') {
@@ -84,13 +97,16 @@ export function framescaperNativeLiveRenderInputBeginRequest(
 		throw new Error('The live V14 audio stage disagrees with its immutable plan.');
 	}
 	const identity = Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		planFingerprint,
 		projectId: nativeRenderInputIdentifier(row.projectId, 'project id'),
 		projectRevision: nativeRenderInputNonNegative(row.projectRevision, 'project revision'),
 		inputFingerprints: nativeRenderInputFingerprints(row.inputFingerprints),
 	});
 	const request = Object.freeze({
-		liveRenderVersion: 1 as const, planVersion: 14 as const,
+		liveRenderVersion: 1 as const, schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION, planVersion: 14 as const,
 		planFingerprint, planPayload: row.planPayload,
 		projectId: identity.projectId, projectRevision: identity.projectRevision,
 		inputFingerprints: identity.inputFingerprints,

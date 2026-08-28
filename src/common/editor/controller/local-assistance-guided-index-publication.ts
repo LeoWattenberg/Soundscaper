@@ -119,6 +119,7 @@ export async function publishLocalAssistanceGuidedIndex(
 	}
 	const bytes = createAssistanceSemanticDerivativeBundleV1({
 		provider: workflow.workflowId === 'index-transcript' ? 'transcript' : 'visual',
+		schemaFamily: workflow.fence.schemaFamily, schemaVersion: workflow.fence.schemaVersion,
 		projectId: workflow.fence.projectId, projectRevision: workflow.fence.revision,
 		sequenceId: workflow.fence.sequenceId, sourceId, matrix: matrixBytes, rows, ocr,
 	});

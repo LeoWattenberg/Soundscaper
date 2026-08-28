@@ -20,7 +20,8 @@ const INPUT_CLAIM_ID = 'b'.repeat(40);
 const OUTPUT_CLAIM_ID = 'c'.repeat(40);
 const SHA256 = 'd'.repeat(64);
 const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 30, revision: 2, sequenceId: 'sequence-1',
+	schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+	projectId: 'project-1', revision: 2, sequenceId: 'sequence-1',
 	occurrenceIds: Object.freeze(['occurrence-1']), sourceId: 'source-1',
 	sourceSha256: '1'.repeat(64), sourceStartFrame: 0, sourceEndFrame: 96_000,
 	linkMembershipSha256: '2'.repeat(64), timingAuthoritySha256: '3'.repeat(64),

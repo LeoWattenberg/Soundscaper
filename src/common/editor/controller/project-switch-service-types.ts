@@ -134,7 +134,7 @@ export interface ProjectSwitchServiceRuntime<
 	}>) => Readonly<{ readonly track: Project['tracks'][number] }>;
 	readonly createHistory: (project: Project) => History;
 	readonly executeCommand: (history: History, command: unknown) => History;
-	readonly migrateProject: (value: unknown) => Readonly<{
+	readonly loadProject: (value: unknown) => Readonly<{
 		project: Project;
 		readOnly: boolean;
 		intrinsicReadOnly?: boolean;

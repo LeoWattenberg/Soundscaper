@@ -5,8 +5,10 @@
 import { reviewAssistanceAudioTagsV1 } from '../assistance/m7-semantic-results.ts';
 import {
 	validateAssistanceWorkflow,
+	type AssistanceWorkflowFenceV1,
 	type AssistanceWorkflowOutputClaimV1,
 } from '../assistance/workflow.ts';
+import { readProjectSchemaIdentity } from '../project-schema-identity.ts';
 import type { AssistanceDerivativeRecordV1 } from
 	'../storage/assistance-derivative-repository.ts';
 import type { AssistanceDerivativeRepositoryPort } from
@@ -42,8 +44,7 @@ export async function retainLocalAssistanceGuidedReactionScores(
 		throw new RangeError('Only the Guided reaction workflow retains PANNs scores.');
 	}
 	const claim = exactOutputClaim(workflow.outputs, 'tag-reactions', 'audio-tags');
-	await assertCurrentProject(request.currentProject, workflow.fence.projectId,
-		workflow.fence.revision);
+	await assertCurrentProject(request.currentProject, workflow.fence);
 	request.signal?.throwIfAborted();
 	const body = await request.readOutput({ jobId: workflow.jobId,
 		workflowId: 'mark-reactions', claim });
@@ -62,8 +63,7 @@ export async function retainLocalAssistanceGuidedReactionScores(
 	}
 	const reviewed = reviewAssistanceAudioTagsV1(parsed);
 	const bytes = UTF8.encode(JSON.stringify(reviewed));
-	await assertCurrentProject(request.currentProject, workflow.fence.projectId,
-		workflow.fence.revision);
+	await assertCurrentProject(request.currentProject, workflow.fence);
 	request.signal?.throwIfAborted();
 	return await request.repository.save(workflow, 'audio-tags', {
 		mediaType: AUDIO_TAGS_MEDIA_TYPE, bytes,
@@ -82,15 +82,17 @@ function exactOutputClaim(
 
 async function assertCurrentProject(
 	read: () => PromiseLike<unknown> | unknown,
-	projectId: string,
-	revision: number,
+	fence: AssistanceWorkflowFenceV1,
 ): Promise<void> {
 	const value = await read();
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Guided reaction retention requires current project authority.');
 	}
 	const row = value as Readonly<Record<string, unknown>>;
-	if (row.projectId !== projectId || row.projectRevision !== revision) {
+	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaFamily !== fence.schemaFamily
+		|| identity.schemaVersion !== fence.schemaVersion
+		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision) {
 		throw new DOMException('The Guided reaction project authority is stale.', 'AbortError');
 	}
 }

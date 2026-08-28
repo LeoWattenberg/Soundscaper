@@ -6,8 +6,13 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const SESSION = Object.freeze({
-	sessionVersion: 1, sessionId: 'a'.repeat(40), projectId: 'project-1',
+	sessionVersion: 1, sessionId: 'a'.repeat(40), schemaFamily: 'soundscaper', schemaVersion: 1,
+	projectId: 'project-1',
 	projectRevision: 7, expiresAtEpochMs: 1_800_000_060_000,
+});
+
+const AUTHORITY = Object.freeze({
+	schemaFamily: 'soundscaper', schemaVersion: 1, projectId: 'project-1', projectRevision: 7,
 });
 
 test('preload exposes a closed pathless semantic-search session bridge', async () => {
@@ -16,17 +21,18 @@ test('preload exposes a closed pathless semantic-search session bridge', async (
 		embedding: Array.from({ length: 768 }, (_entry, index) => index === 0 ? 1 : 0),
 	}), true, true]);
 	const search = fixture.bridge.localAssistance.semanticSearch;
-	const opened = await search.open({ projectId: 'project-1', projectRevision: 7 });
+	const opened = await search.open(AUTHORITY);
 	const authorized = await search.authorize({
-		session: opened, projectId: 'project-1', projectRevision: 7,
+		session: opened, ...AUTHORITY,
 	});
 	assert.deepEqual(Object.keys(opened), [
-		'sessionVersion', 'sessionId', 'projectId', 'projectRevision', 'expiresAtEpochMs',
+		'sessionVersion', 'sessionId', 'schemaFamily', 'schemaVersion', 'projectId',
+		'projectRevision', 'expiresAtEpochMs',
 	]);
 	assert.deepEqual(authorized, opened);
 	const queryId = 'b'.repeat(40);
 	const result = await search.query({
-		queryVersion: 1, queryId, session: opened, projectId: 'project-1', projectRevision: 7,
+		queryVersion: 1, queryId, session: opened, ...AUTHORITY,
 		provider: 'transcript', query: 'red bicycle',
 	});
 	assert.equal(result.embedding.length, 768);
@@ -35,14 +41,14 @@ test('preload exposes a closed pathless semantic-search session bridge', async (
 	assert.equal(await search.revoke(opened.sessionId), true);
 	assert.deepEqual(JSON.parse(JSON.stringify(fixture.invocations)), [
 		['soundscaper:v1:assistance:semantic-search:open', {
-			projectId: 'project-1', projectRevision: 7,
+			...AUTHORITY,
 		}],
 		['soundscaper:v1:assistance:semantic-search:authorize', {
-			session: SESSION, projectId: 'project-1', projectRevision: 7,
+			session: SESSION, ...AUTHORITY,
 		}],
 		['soundscaper:v1:assistance:semantic-search:query', {
-			queryVersion: 1, queryId, session: SESSION, projectId: 'project-1',
-			projectRevision: 7, provider: 'transcript', query: 'red bicycle',
+			queryVersion: 1, queryId, session: SESSION, ...AUTHORITY,
+			provider: 'transcript', query: 'red bicycle',
 		}],
 		['soundscaper:v1:assistance:semantic-search:cancel-query', queryId],
 		['soundscaper:v1:assistance:semantic-search:revoke', SESSION.sessionId],
@@ -52,11 +58,11 @@ test('preload exposes a closed pathless semantic-search session bridge', async (
 test('preload rejects forged semantic-search authority on both IPC sides', async () => {
 	const malformedResult = await loadPreload([{ ...SESSION, projectRevision: -1 }]);
 	await assert.rejects(malformedResult.bridge.localAssistance.semanticSearch.open({
-		projectId: 'project-1', projectRevision: 7,
+		...AUTHORITY,
 	}), /semantic-search|revision|session|non-negative/iu);
 	const malformedRequest = await loadPreload([]);
 	await assert.rejects(malformedRequest.bridge.localAssistance.semanticSearch.open({
-		projectId: '../escape', projectRevision: 7,
+		...AUTHORITY, projectId: '../escape',
 	}), /semantic-search|project/iu);
 	await assert.rejects(malformedRequest.bridge.localAssistance.semanticSearch.revoke('../session'),
 		/semantic-search|identifier/iu);

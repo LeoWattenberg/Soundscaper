@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Optional pathless renderer claims for main-owned project assets. */
+/** Optional pathless renderer claims for main-owned baseline project assets. */
 
 export const FRAMESCAPER_NATIVE_PROJECT_ASSET_METHODS = Object.freeze([
 	'claimWatchImport', 'completeWatchImport',
 	'claimProxyOutput', 'readProxyOutput', 'releaseProxyOutput',
 ] as const);
 
-interface FramescaperNativeWatchImportClaimBase {
+export interface FramescaperNativeWatchImportClaim {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly claimId: string;
 	readonly projectId: string;
 	readonly projectRevision: number;
@@ -19,56 +21,28 @@ interface FramescaperNativeWatchImportClaimBase {
 	readonly mimeType: string;
 	readonly lastModified: number;
 	readonly contentSha256: string;
-}
-
-export type FramescaperNativeWatchImportClaimV20 = FramescaperNativeWatchImportClaimBase;
-
-export interface FramescaperNativeWatchImportClaimV28
-	extends FramescaperNativeWatchImportClaimBase {
-	readonly projectSchemaVersion: 28;
-	readonly binId: string;
+	readonly binId: 'project-bin';
 	readonly generateProxies: boolean;
 	readonly existingSourceId: string | null;
 }
 
-export interface FramescaperNativeWatchImportClaimV31
-	extends Omit<FramescaperNativeWatchImportClaimV28, 'projectSchemaVersion'> {
-	readonly projectSchemaVersion: 31;
-}
-
-export type FramescaperNativeWatchImportClaim =
-	| FramescaperNativeWatchImportClaimV20
-	| FramescaperNativeWatchImportClaimV28
-	| FramescaperNativeWatchImportClaimV31;
-
-export interface FramescaperNativeWatchImportCompletionV20 {
+export interface FramescaperNativeWatchImportCompletion {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly claimId: string;
 	readonly projectId: string;
 	readonly expectedProjectRevision: number;
 	readonly committedProjectRevision: number;
 	readonly success: boolean;
-}
-
-export interface FramescaperNativeWatchImportCompletionV28
-	extends FramescaperNativeWatchImportCompletionV20 {
-	readonly projectSchemaVersion: 28;
-	readonly binId: string;
+	readonly binId: 'project-bin';
 	readonly sourceId: string | null;
 	readonly contentSha256: string;
 }
 
-export interface FramescaperNativeWatchImportCompletionV31
-	extends Omit<FramescaperNativeWatchImportCompletionV28, 'projectSchemaVersion'> {
-	readonly projectSchemaVersion: 31;
-}
-
-export type FramescaperNativeWatchImportCompletion =
-	| FramescaperNativeWatchImportCompletionV20
-	| FramescaperNativeWatchImportCompletionV28
-	| FramescaperNativeWatchImportCompletionV31;
-
 export interface FramescaperNativeProjectAssetsBridge {
 	claimWatchImport?(request: Readonly<{
+		readonly schemaFamily: 'framescaper';
+		readonly schemaVersion: 1;
 		readonly projectId: string;
 		readonly projectRevision: number;
 	}>): Promise<FramescaperNativeWatchImportClaim | null>;

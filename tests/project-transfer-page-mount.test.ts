@@ -26,9 +26,10 @@ import {
 	listTransferProjects,
 } from '../src/common/transfer/transfer-project-selection.ts';
 import {
-	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION,
-} from '../src/common/editor/project-schema-version.ts';
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
 import { FakeStore, createFakeArchive } from './project-transfer-bundle-fixture.ts';
 import {
 	exportProjectTransferBundle,
@@ -153,9 +154,18 @@ test('the self-mount cannot be doubled by route.js driving the export as well', 
 test('the sender lists projects for confirmation and sends only what was ticked', async () => {
 	const scope = createScope(SEND_ROUTE.path, 'https://soundscaper.org');
 	const store = new FakeStore([
-		{ id: 'audio-1', title: 'Field recording', schemaVersion: SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION },
-		{ id: 'video-1', title: 'Interview cut', schemaVersion: FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION },
-		{ id: 'video-2', title: 'Title sequence', schemaVersion: FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION },
+		{
+			id: 'audio-1', title: 'Field recording',
+			schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY, schemaVersion: PROJECT_SCHEMA_VERSION,
+		},
+		{
+			id: 'video-1', title: 'Interview cut',
+			schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY, schemaVersion: PROJECT_SCHEMA_VERSION,
+		},
+		{
+			id: 'video-2', title: 'Title sequence',
+			schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY, schemaVersion: PROJECT_SCHEMA_VERSION,
+		},
 	] as never);
 	const archive = createFakeArchive();
 	const namespace = await loadPageModule(scope);
@@ -188,7 +198,11 @@ test('the sender lists projects for confirmation and sends only what was ticked'
 	const boxes = other.document.body.checkboxes();
 	assert.deepEqual(
 		boxes.map((box) => [box.value, box.checked]),
-		[['audio-1', false], ['video-1', true], ['video-2', true]],
+		[
+			['soundscaper:audio-1', false],
+			['framescaper:video-1', true],
+			['framescaper:video-2', true],
+		],
 	);
 
 	// Untick one of the peer-product projects, then confirm.
@@ -218,11 +232,15 @@ test('the sender lists projects for confirmation and sends only what was ticked'
 	assert.deepEqual(other.saved, ['Interview cut.scape']);
 });
 
-test('product classification keys off the project schema, both ways round', () => {
-	assert.equal(transferProjectProduct({ id: 'a', schemaVersion: 30 }), 'soundscaper');
-	assert.equal(transferProjectProduct({ id: 'a', schemaVersion: 17 }), 'soundscaper');
-	assert.equal(transferProjectProduct({ id: 'a', schemaVersion: 31 }), 'framescaper');
-	assert.equal(transferProjectProduct({ id: 'a', schemaVersion: 19 }), 'framescaper');
+test('product classification keys off the family and never a bare version', () => {
+	assert.equal(transferProjectProduct({
+		id: 'a', schemaFamily: 'soundscaper', schemaVersion: 1,
+	}), 'soundscaper');
+	assert.equal(transferProjectProduct({
+		id: 'a', schemaFamily: 'framescaper', schemaVersion: 1,
+	}), 'framescaper');
+	assert.equal(transferProjectProduct({ id: 'a', schemaVersion: 30 }), null);
+	assert.equal(transferProjectProduct({ id: 'a', schemaVersion: 31 }), null);
 	assert.equal(transferProjectProduct({ id: 'a' }), null);
 	assert.equal(transferProductForOrigin('https://framescaper.org'), 'framescaper');
 	assert.equal(transferProductForOrigin('https://soundscaper.org'), 'soundscaper');
@@ -231,14 +249,14 @@ test('product classification keys off the project schema, both ways round', () =
 
 test('listing offers every project but only preselects the peer product', async () => {
 	const store = new FakeStore([
-		{ id: 'audio-1', title: 'Field recording', schemaVersion: 30 },
-		{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 },
+		{ id: 'audio-1', title: 'Field recording', schemaFamily: 'soundscaper', schemaVersion: 1 },
+		{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
 		{ id: 'mystery', title: 'Unknown', schemaVersion: 999 },
 	] as never);
 	const listing = await listTransferProjects({ store, product: 'framescaper' });
 	assert.deepEqual(listing.map((row) => [row.projectId, row.product, row.preselected]), [
-		['audio-1', 'soundscaper', false],
-		['video-1', 'framescaper', true],
+		['soundscaper:audio-1', 'soundscaper', false],
+		['framescaper:video-1', 'framescaper', true],
 		['mystery', null, false],
 	]);
 	// With no peer product to key off - a loopback exercise - nothing is preselected.

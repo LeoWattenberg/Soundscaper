@@ -12,7 +12,10 @@ import {
 	mergeEditingRanges,
 } from './clip-basic-runtime.js';
 import { isTimelineAnnotationProjectSchema } from '../project-schema-version.ts';
-import { isFoundationProjectSchema, projectForCommandConsumers } from '../project-current-runtime.ts';
+import {
+	isFoundationProjectAuthority,
+	projectForCommandConsumers,
+} from '../project-current-runtime.ts';
 import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
@@ -237,7 +240,7 @@ export function prepareRangeDeleteCommand(project, options = {}, idFactory = cre
 		}
 	}
 	const command = { type, trackIds, clipIds, ...range, splitClipIds, splitAvLinkIds, videoEffectIds };
-	return type === 'range/ripple-delete' && isTimelineAnnotationProjectSchema(project.schemaVersion)
+	return type === 'range/ripple-delete' && isTimelineAnnotationProjectSchema(project)
 		? {
 			...command,
 			annotationRippleOperations: createTimelineAnnotationRippleOperations(project, geometry, clipIds),
@@ -267,7 +270,7 @@ export function prepareDisjointRangeDeleteCommand(project, options = {}, idFacto
 			? working
 			: projectForCommandConsumers(working);
 		working = cloneProject(commandProject);
-		if (isFoundationProjectSchema(working.schemaVersion)) {
+		if (isFoundationProjectAuthority(working)) {
 			brandRuntimeProjectProjection(working);
 		}
 		deleteRange(working, command, rangeDeleteRippleMode(command.type));

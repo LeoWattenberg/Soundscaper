@@ -31,28 +31,27 @@ import {
 	type VideoClipComposition,
 } from '../src/common/editor/video-clip-composition.ts';
 import {
-	createFramescaperPlaybackProjectServiceV19,
-} from '../src/framescaper/editor-project-playback-v19.ts';
+	createFramescaperPlaybackProjectService,
+} from '../src/framescaper/editor-project-playback.ts';
 import {
-	FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v19.ts';
+	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-project-runtime-profile.ts';
 import {
-	createEditorProjectRuntimeV19Selection,
-} from '../src/framescaper/editor-project-runtime-v19-selection.ts';
+	createEditorProjectRuntimeSelection,
+} from '../src/framescaper/editor-project-runtime-selection.ts';
 import {
-	applyFramescaperProjectCommandV19,
-	type FramescaperProjectCommandV19,
-} from '../src/framescaper/editor-project-v19-commands.ts';
-import {
-	createFramescaperProjectV19,
-	type FramescaperProjectV19,
-} from '../src/framescaper/editor-project-v19.ts';
+	applyFramescaperProjectCommand,
+	type FramescaperProjectCommand,
+} from '../src/framescaper/editor-project-commands.ts';
+import type { FramescaperProjectComposition } from '../src/framescaper/editor-project-composition.ts';
+import { createFramescaperProject, type FramescaperProject } from '../src/framescaper/editor-project.ts';
 
 const CREATED = '2026-08-13T16:00:00.000Z';
 const EDITED = '2026-08-13T16:01:00.000Z';
-const PROFILE = FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
 const SAMPLE_RATE = 48_000;
 const FRAME_SAMPLES = 4_800;
+type BaselineCompositionProject = FramescaperProject & FramescaperProjectComposition;
 
 test('move and exact roll-like transforms preserve detached composition ownership', () => {
 	const movedBase = timelineProject();
@@ -71,6 +70,7 @@ test('move and exact roll-like transforms preserve detached composition ownershi
 				clipId: 'left', trackId: 'video-track',
 				changes: { durationFrames: 21 * FRAME_SAMPLES, sourceDurationFrames: 21 },
 				sequencePlacement: { sequenceStartFrame: 0, sequenceFrameCount: 21 },
+				sequenceTrimRange: { startFrame: 0, endFrame: 21 },
 			},
 			{
 				clipId: 'middle', trackId: 'video-track',
@@ -81,6 +81,7 @@ test('move and exact roll-like transforms preserve detached composition ownershi
 					sourceDurationFrames: 19,
 				},
 				sequencePlacement: { sequenceStartFrame: 21, sequenceFrameCount: 19 },
+				sequenceTrimRange: { startFrame: 1, endFrame: 20 },
 			},
 		],
 	});
@@ -115,6 +116,7 @@ test('slip, slide-like transforms, and uniform stretch retain every authored com
 					sourceDurationFrames: 16,
 				},
 				sequencePlacement: { sequenceStartFrame: 44, sequenceFrameCount: 16 },
+				sequenceTrimRange: { startFrame: 4, endFrame: 20 },
 			},
 		],
 	});
@@ -340,7 +342,7 @@ test('multicamera switching preserves output composition through persisted and p
 	assert.equal(timelineClip(switched, 'output').sourceId, 'video-source-a');
 	assertOwnedComposition(switched, 'output', composition(1), compositionOf(base, 'output'));
 
-	const playback = createFramescaperPlaybackProjectServiceV19(PROFILE)
+	const playback = createFramescaperPlaybackProjectService(PROFILE)
 		.projectForPlayback(switched).project;
 	const output = playback.clips.find(({ id }) => id === 'output');
 	assert.ok(output);
@@ -349,7 +351,7 @@ test('multicamera switching preserves output composition through persisted and p
 	assert.notStrictEqual(output.videoComposition, timelineClip(switched, 'output').videoComposition);
 });
 
-function timelineProject(): FramescaperProjectV19 {
+function timelineProject(): BaselineCompositionProject {
 	return projectWithVideoClips('composition-edit-matrix', [
 		videoClip('left', 0, 20, 0, composition(1)),
 		videoClip('middle', 20, 20, 20, composition(2)),
@@ -357,7 +359,7 @@ function timelineProject(): FramescaperProjectV19 {
 	], true);
 }
 
-function singleVideoProject(): FramescaperProjectV19 {
+function singleVideoProject(): BaselineCompositionProject {
 	return projectWithVideoClips('composition-range-matrix', [
 		videoClip('long', 0, 60, 0, composition(1)),
 	], false);
@@ -367,14 +369,14 @@ function projectWithVideoClips(
 	id: string,
 	videoClips: readonly Readonly<Record<string, unknown>>[],
 	withAudio: boolean,
-): FramescaperProjectV19 {
+): BaselineCompositionProject {
 	const audioClip = {
 		kind: 'audio', id: 'audio', sourceId: 'audio-source', title: 'Audio',
 		timelineStartFrame: 0, durationFrames: 20 * FRAME_SAMPLES,
 		sourceStartFrame: 0, sourceDurationFrames: 20 * FRAME_SAMPLES,
 		fadeInFrames: 0, fadeOutFrames: 0,
 	};
-	return createFramescaperProjectV19(PROFILE, {
+	return createFramescaperProject(PROFILE, {
 		id, title: id, now: CREATED, sampleRate: SAMPLE_RATE,
 		sources: [
 			videoSource('video-source-a', '12'),
@@ -406,11 +408,11 @@ function projectWithVideoClips(
 			trackIds: ['video-track', ...(withAudio ? ['audio-track'] : [])],
 		}],
 		primarySequenceId: 'main-sequence',
-	});
+	}) as BaselineCompositionProject;
 }
 
-function multicameraProject(): FramescaperProjectV19 {
-	return createFramescaperProjectV19(PROFILE, {
+function multicameraProject(): BaselineCompositionProject {
+	return createFramescaperProject(PROFILE, {
 		id: 'multicamera-composition-v19', title: 'Multicamera composition', now: CREATED,
 		sources: [videoSource('video-source-a', '12'), videoSource('video-source-b', '34')],
 		clips: [videoClip('output', 0, 10, 0, composition(1))],
@@ -427,7 +429,7 @@ function multicameraProject(): FramescaperProjectV19 {
 				{ id: 'camera-b', groupId: 'camera-group', sourceId: 'video-source-b', syncOffsetSamples: 0 },
 			],
 		}],
-	});
+	}) as BaselineCompositionProject;
 }
 
 function videoSource(id: string, digestByte: string): Record<string, unknown> {
@@ -472,17 +474,17 @@ function composition(variant: 1 | 2 | 3): VideoClipComposition {
 	});
 }
 
-function apply(project: FramescaperProjectV19, command: unknown): FramescaperProjectV19 {
-	return applyFramescaperProjectCommandV19(
+function apply(project: BaselineCompositionProject, command: unknown): BaselineCompositionProject {
+	return applyFramescaperProjectCommand(
 		PROFILE,
 		project,
-		command as FramescaperProjectCommandV19,
+		command as FramescaperProjectCommand,
 		{ now: EDITED },
-	);
+	) as BaselineCompositionProject;
 }
 
-function commandProject(project: FramescaperProjectV19): Record<string, unknown> {
-	return createEditorProjectRuntimeV19Selection(PROFILE)
+function commandProject(project: BaselineCompositionProject): Record<string, unknown> {
+	return createEditorProjectRuntimeSelection(PROFILE)
 		.projectForCommandConsumers(project) as Record<string, unknown>;
 }
 
@@ -491,24 +493,24 @@ function stableIds(): (prefix?: string) => string {
 	return (prefix = 'id') => `${prefix}-${String(next++)}`;
 }
 
-function timelineClip(project: FramescaperProjectV19, id: string): Readonly<Record<string, unknown>> {
+function timelineClip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
 	const result = project.clips.find((candidate) => candidate.id === id);
 	assert.ok(result, `Missing timeline clip ${id}.`);
 	return result;
 }
 
-function binClip(project: FramescaperProjectV19, id: string): Readonly<Record<string, unknown>> {
+function binClip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
 	const result = project.projectBin.clips.find((candidate) => candidate.id === id);
 	assert.ok(result, `Missing Project Bin clip ${id}.`);
 	return result;
 }
 
-function compositionOf(project: FramescaperProjectV19, id: string): CompositionRecord {
+function compositionOf(project: BaselineCompositionProject, id: string): CompositionRecord {
 	return compositionRecord(timelineClip(project, id).videoComposition);
 }
 
 function assertOwnedComposition(
-	project: FramescaperProjectV19,
+	project: BaselineCompositionProject,
 	id: string,
 	expected: VideoClipComposition,
 	previous: CompositionRecord,
@@ -520,7 +522,7 @@ function assertOwnedComposition(
 	assert.notStrictEqual(actual.transform, previous.transform);
 }
 
-function assertDetachedFromEachOther(project: FramescaperProjectV19, leftId: string, rightId: string): void {
+function assertDetachedFromEachOther(project: BaselineCompositionProject, leftId: string, rightId: string): void {
 	const left = compositionOf(project, leftId);
 	const right = compositionOf(project, rightId);
 	assert.notStrictEqual(left, right);

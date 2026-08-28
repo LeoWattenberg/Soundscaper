@@ -8,13 +8,13 @@ import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-med
 import {
 	executeNativeMediaPlanV14,
 } from '../desktop/native-media-v14-executor.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 import { normalizeNativeMediaImageSequenceSourceV25 } from '../src/common/editor/native-media-image-sequence-v25.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 test('selected V14 retries only a typed closed backend refusal through Web Core', async () => {
 	const fixture = executionFixture();
@@ -77,7 +77,7 @@ test('a carrier-owned image-sequence source requires no original-body grant', as
 });
 
 function sequenceExecutionFixture() {
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 	const options = framescaperV20Options();
 	const source = (options.sources as Record<string, unknown>[])[0]!;
 	const characteristics = createUnreportedVideoSourceCharacteristicsV25();
@@ -104,12 +104,12 @@ function sequenceExecutionFixture() {
 		},
 		characteristics,
 	});
-	const project = createFramescaperProjectV28(profile, {
+	const project = createFramescaperProjectNativeMedia(profile, {
 		...options, id: 'v14-sequence-executor', title: 'V14 sequence executor',
 		videoTransitionsByTrackId: { 'video-track': [] },
 	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const envelope = createNativeMediaPlanEnvelopeV2(plan);
 	return Object.freeze({
@@ -130,12 +130,12 @@ function sequenceExecutionFixture() {
 }
 
 function executionFixture() {
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-	const project = createFramescaperProjectV28(profile, {
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+	const project = createFramescaperProjectNativeMedia(profile, {
 		...framescaperV20Options(), id: 'v14-executor', title: 'V14 executor',
 	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const envelope = createNativeMediaPlanEnvelopeV2(plan);
 	return Object.freeze({

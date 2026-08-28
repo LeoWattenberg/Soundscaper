@@ -58,32 +58,18 @@ const ROLLBACK_EVIDENCE = Object.freeze([
 ]);
 
 const KEYED_PROJECT_EVIDENCE = Object.freeze([
-	'src/framescaper/editor-project-v20-profile.ts',
-	'src/framescaper/editor-project-v20-structural-admission.ts',
-	'src/framescaper/editor-project-v20-validation.ts',
-	'src/framescaper/editor-project-v20.ts',
-	'src/framescaper/editor-project-feature-requirements-v20.ts',
-	'tests/audio-editor-framescaper-project-v20-domain.test.ts',
-	'tests/audio-editor-framescaper-project-v20-feature-requirements.test.ts',
-	'tests/audio-editor-framescaper-project-v20-profile.test.ts',
+	'src/common/editor/project-schema-identity.ts',
+	'src/framescaper/editor-project-identity.ts',
+	'src/framescaper/editor-project.ts',
+	'tests/audio-editor-project-schema-identity.test.ts',
+	'tests/audio-editor-framescaper-baseline.test.ts',
 ]);
 
 const KEYED_EXPORT_AUTHORITY_EVIDENCE = Object.freeze([
-	'src/common/editor/controller/product-video-export-strategy.ts',
-	'src/common/editor/controller/video-export-service.ts',
-	'src/common/editor/controller/video-export-timing.ts',
-	'src/common/editor/ui/video-keyframe-offline-video-export-sources.ts',
-	'src/common/editor/video-keyframe-export-inventory.ts',
-	'src/common/editor/video-keyframe-export-plan-v7.ts',
-	'src/common/editor/video-keyframe-export-presentation-authority.ts',
-	'src/framescaper/video-export-dispatch-v20.ts',
-	'src/framescaper/video-export-plan-v20.ts',
-	'src/framescaper/video-export-strategy-v20.ts',
-	'tests/audio-editor-product-video-export-strategy.test.ts',
-	'tests/audio-editor-video-export-timing-lifecycle.test.ts',
-	'tests/audio-editor-video-keyframe-offline-video-export.test.ts',
-	'tests/audio-editor-video-keyframe-export-plan-v7.test.ts',
-	'tests/audio-editor-framescaper-video-export-strategy-v20.test.ts',
+	'src/framescaper/editor-project-unified-render-authority.ts',
+	'src/framescaper/editor-project.ts',
+	'src/framescaper/video-export-dispatch-retime.ts',
+	'tests/audio-editor-framescaper-baseline.test.ts',
 ]);
 
 const KEYED_ENCODER_EVIDENCE = Object.freeze([
@@ -153,7 +139,7 @@ test('exact direct MP4 and WebM publication separates browser-native and desktop
 	);
 	assert.match(
 		publication.summary,
-		/Desktop Soundscaper S30.*unchanged.*external ffmpeg\/ffprobe.*`libx264`.*`aac`.*`libvpx-vp9`.*`libopus`.*two-stream probe/isu,
+		/Desktop Soundscaper family v1.*external ffmpeg\/ffprobe.*`libx264`.*`aac`.*`libvpx-vp9`.*`libopus`.*two-stream probe/isu,
 	);
 	assert.match(
 		publication.summary,
@@ -177,17 +163,17 @@ test('exact direct MP4 and WebM publication separates browser-native and desktop
 	);
 });
 
-test('selected keyed V20 admission and encoding reuse the existing video publication authority', async () => {
+test('Framescaper family-v1 admission and encoding reuse the existing video publication authority', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const project = findControl(
 		matrix,
 		'external-project-document-validation',
-		'framescaper-v20-keyed-project-admission',
+		'framescaper-v1-keyed-project-admission',
 	);
 	const authority = findControl(
 		matrix,
 		'external-project-document-validation',
-		'exact-v20-keyed-export-authority',
+		'framescaper-v1-keyed-export-authority',
 	);
 	const encoder = findControl(
 		matrix,
@@ -228,30 +214,20 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 
 	assert.match(
 		project.summary,
-		/exact.*V27.*process-local.*authority.*before.*traversal.*whole-document.*structural budget.*V20 keyframe\/retime.*V22 transitions.*V24 visual.*motion analyses.*caption tracks.*automation lanes.*mixer graph/isu,
+		/Framescaper family-v1 commands, history, repositories, render plans, and native requests.*project family.*project ID.*explicit capabilities/isu,
 	);
 	assert.match(
 		project.summary,
-		/V20, V22 and V24.*explicit reimport.*V25\/V26.*opaque read-only.*browser.*packaged desktop.*does not claim.*qualification/isu,
+		/never inferred from a bare schema number.*foreign family or future version.*opaque and read-only.*pre-release.*reject/isu,
 	);
 	assert.match(
 		authority.summary,
-		/selected V27 export.*canonical V27.*unified exact render plan V13.*maintained.*V20 foundation.*rederives.*refuses stale authority/isu,
+		/Framescaper family-v1 export.*identity tuple.*document digest.*explicit project capabilities.*render-plan fingerprint/isu,
 	);
 	assert.match(
 		authority.summary,
-		/preview and export.*same clip and transition resolvers.*source-domain proxy selection.*managed color.*processor stack.*caption sidecar.*automation.*mixer/isu,
+		/direct unversioned render domain.*browser and native behavior.*pre-release product generations.*no export authority/isu,
 	);
-	assert.match(
-		authority.summary,
-		/active original source.*SHA-256.*before decode.*timing leases.*through encode.*publication cleanup/isu,
-	);
-	assert.match(
-		authority.summary,
-		/generation.*currentness.*AbortSignal.*external operations.*original-authoritative.*refuses.*original.*unavailable.*cleanup.*always attempted.*timing authority.*finally/isu,
-	);
-	assert.doesNotMatch(authority.summary, /checks.*cleanup await|fence every.*cleanup await/isu);
-	assert.match(authority.summary, /no native-media.*OpenFX.*caption burn\/mux.*codec.*qualification/isu);
 	assert.match(
 		encoder.summary,
 		/1,280.*720.*1 through 30.*2,000,000.*1 TiB/isu,
@@ -262,7 +238,7 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 	);
 	assert.match(
 		encoder.summary,
-		/Missing WebCodecs.*non-keyed routes.*refuses without browser FFmpeg.*512 MiB/isu,
+		/Missing WebCodecs.*non-keyed route.*refuses without browser FFmpeg.*512 MiB/isu,
 	);
 	assert.match(
 		encoder.summary,
@@ -270,11 +246,11 @@ test('selected keyed V20 admission and encoding reuse the existing video publica
 	);
 	assert.match(
 		encoder.summary,
-		/cancels the muxer.*disposes the producer.*output bytes.*cleared after delivery.*structural.*SHA-256.*same-size-replacement/isu,
+		/cancels the muxer.*disposes the producer.*clears temporary output bytes/isu,
 	);
 	assert.match(
 		encoder.summary,
-		/Desktop S30.*unchanged.*exact S29 plans.*pathless.*external-FFmpeg pipes.*main-private scratch.*process-tree cancellation/isu,
+		/Desktop Soundscaper family-v1 plans.*pathless.*external-FFmpeg pipes.*main-private scratch.*process-tree cancellation/isu,
 	);
 	assert.match(encoder.summary, /complete-container.*heap.*RSS.*GC.*CPU.*conformance.*scale.*unqualified/isu);
 	assert.match(publication.summary, /publication boundaries.*production browser.*exact keyed-frame path/isu);
@@ -382,7 +358,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 
 	assert.match(
 		threatDocumentation,
-		/exact MP4.*WebM.*production browser.*keyed-frame.*WebCodecs.*H\.264.*VP9.*Mediabunny.*AAC.*Opus.*no browser FFmpeg fallback.*Desktop Soundscaper S30.*external ffmpeg\/ffprobe.*main-private pipes.*main-private scratch/isu,
+		/exact MP4.*WebM.*production browser.*keyed-frame.*WebCodecs.*H\.264.*VP9.*Mediabunny.*AAC.*Opus.*no browser FFmpeg fallback.*Desktop Soundscaper family v1.*external ffmpeg\/ffprobe.*main-private pipes.*main-private scratch/isu,
 	);
 	assert.match(
 		threatDocumentation,

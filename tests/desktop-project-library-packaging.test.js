@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -14,7 +13,6 @@ import {
 	DESKTOP_EXPECTED_RUNTIME_FILES,
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
-import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,84 +46,23 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.ok(result.files.includes('desktop/assistance-float32-mono-wave-file-reader.js'));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
 	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
-	const runtime = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-host.js')).href}?test=${Date.now()}`);
-	const linkedVideoRegistry = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-registry.js')).href}?test=${Date.now()}`);
-	const linkedVideoStore = await import(`${pathToFileURL(join(outputRoot, 'desktop/linked-video-locator-store.js')).href}?test=${Date.now()}`);
-	const editorService = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-editor-service.js')).href}?test=${Date.now()}`);
-	const editorMediaService = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-editor-media-service.js')).href}?test=${Date.now()}`);
-	const managedMedia = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-media.js')).href}?test=${Date.now()}`);
-	for (const generation of [13, 14, 15, 16]) {
-		const candidateMain = await import(`${pathToFileURL(join(outputRoot, `desktop/project-library-v${String(generation)}-main.js`)).href}?test=${Date.now()}`);
-		const candidateIpc = await import(`${pathToFileURL(join(outputRoot, `desktop/project-library-v${String(generation)}-main-ipc.js`)).href}?test=${Date.now()}`);
-		assert.equal(typeof candidateMain[`FramescaperDesktopProjectLibraryV${String(generation)}Main`], 'function');
-		assert.equal(typeof candidateIpc[`registerFramescaperDesktopProjectLibraryV${String(generation)}MainIpc`], 'function');
-	}
-	assert.equal(typeof runtime.DesktopProjectLibraryHost?.start, 'function');
-	assert.equal(typeof linkedVideoRegistry.FileDesktopLinkedVideoLocatorRegistry, 'function');
-	assert.equal(typeof linkedVideoStore.DesktopLinkedVideoLocatorStore, 'function');
-	assert.equal(typeof editorService.DesktopSharedProjectLibraryService, 'function');
-	assert.equal(typeof editorMediaService.DesktopSharedProjectMediaService, 'function');
-	assert.equal(typeof managedMedia.DesktopLibraryManagedMediaStore, 'function');
-	let commitCalls = 0;
-	const unusedManagedMediaHost = {
-		publishManagedMedia: async () => { throw new Error('Unexpected managed-media publication'); },
-		readManagedMedia: async () => new Uint8Array(),
-		readProjectBundleById: async () => null,
-	};
-	const service = new editorService.DesktopSharedProjectLibraryService({
-		...unusedManagedMediaHost,
-		commitProjectById: async ({ project }) => {
-			commitCalls += 1;
-			return { catalog: {}, project };
-		},
-		deleteProjectById: async () => false,
-		readCatalog: () => ({ projects: [] }),
-		readProjectById: async () => null,
-		snapshot: () => ({ owner: { product: 'soundscaper' } }),
-	}, {
-		createEntryId: () => 'packaging-entry-0001',
-		now: () => 10_000,
-	});
-	const project = createCurrentAudioEditorProject({
-		id: 'packaging-project',
-		title: 'Packaging project',
-		now: '2026-07-30T12:00:00.000Z',
-	});
-	const validDocument = serializeScapeProjectDocument(project);
-	assert.deepEqual(await service.commitSharedProject({ document: validDocument, expectedRevision: null }), {
-		status: 'committed', document: validDocument,
-	});
-	const invalidDocument = serializeScapeProjectDocument({ ...project, tempo: { ...project.tempo, bpm: 0 } });
-	await assert.rejects(() => service.commitSharedProject({
-		document: invalidDocument, expectedRevision: null,
-	}), /tempo\.bpm/u);
-	assert.equal(commitCalls, 1);
-	const boundedService = new editorService.DesktopSharedProjectLibraryService({
-		...unusedManagedMediaHost,
-		commitProjectById: async ({ project: committedProject }) => {
-			commitCalls += 1;
-			return { catalog: {}, project: committedProject };
-		},
-		deleteProjectById: async () => false,
-		readCatalog: () => ({ projects: [] }),
-		readProjectById: async () => null,
-		snapshot: () => ({ owner: { product: 'soundscaper' } }),
-	}, {
-		createEntryId: () => 'packaging-entry-0002',
-		documentLimits: {
-			maximumPayloadCount: 1,
-			maximumTraversalNodes: 80,
-		},
-		now: () => 10_000,
-	});
-	const overBudgetDocument = serializeScapeProjectDocument({
-		...project,
-		opaqueExtensions: { items: Array.from({ length: 16 }, (_, index) => index) },
-	});
-	await assert.rejects(
-		() => boundedService.commitSharedProject({ document: overBudgetDocument, expectedRevision: null }),
-		/JSON.*structural traversal node limit/iu,
-	);
-	assert.equal(commitCalls, 1, 'compiled structural admission must run before the host commit');
-	await Promise.all([service.dispose(), boundedService.dispose()]);
+	const soundMain = await import(`${pathToFileURL(join(outputRoot, 'desktop/soundscaper-project-library-main.js')).href}?test=${Date.now()}`);
+	const soundIpc = await import(`${pathToFileURL(join(outputRoot, 'desktop/soundscaper-project-library-main-ipc.js')).href}?test=${Date.now()}`);
+	const frameMain = await import(`${pathToFileURL(join(outputRoot, 'desktop/framescaper-project-library-main.js')).href}?test=${Date.now()}`);
+	const frameIpc = await import(`${pathToFileURL(join(outputRoot, 'desktop/framescaper-project-library-main-ipc.js')).href}?test=${Date.now()}`);
+	const exactMain = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-exact-generation-main.js')).href}?test=${Date.now()}`);
+	const exactIpc = await import(`${pathToFileURL(join(outputRoot, 'desktop/project-library-exact-generation-main-ipc.js')).href}?test=${Date.now()}`);
+	assert.equal(typeof soundMain.SoundscaperDesktopProjectLibraryMain?.start, 'function');
+	assert.equal(typeof soundIpc.registerSoundscaperDesktopProjectLibraryMainIpc, 'function');
+	assert.equal(typeof frameMain.FramescaperDesktopProjectLibraryMain?.start, 'function');
+	assert.equal(typeof frameIpc.registerFramescaperDesktopProjectLibraryMainIpc, 'function');
+	assert.equal(typeof exactMain.FramescaperDesktopProjectLibraryExactGenerationMain?.start, 'function');
+	assert.equal(typeof exactIpc.registerFramescaperDesktopProjectLibraryExactGenerationMainIpc, 'function');
+	assert.equal(result.files.some((file) => /(?:^|\/)project-library-v\d+(?:-|\.)/u.test(file)), false);
+	for (const retired of [
+		'desktop/project-library-host.js',
+		'desktop/project-library-editor-service.js',
+		'desktop/project-library-editor-media-service.js',
+		'desktop/project-library-media.js',
+	]) assert.equal(result.files.includes(retired), false, `${retired} must not ship`);
 });

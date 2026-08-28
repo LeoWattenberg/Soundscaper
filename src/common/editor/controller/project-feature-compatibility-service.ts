@@ -6,9 +6,15 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../project-feature-requirements.ts';
 import { snapshotProjectFeatureCapabilities } from '../project-feature-capabilities.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 import { isMaintainedProjectFeatureSchema } from '../project-schema-version.ts';
 
 interface ProjectWithFeatureRequirements {
+	readonly schemaFamily?: unknown;
 	readonly schemaVersion?: unknown;
 	readonly featureRequirements?: unknown;
 	readonly sources?: unknown;
@@ -29,6 +35,7 @@ export interface ProjectFeatureCompatibilityService {
  */
 export function createProjectFeatureCompatibilityService(
 	capabilities: Readonly<Record<string, unknown>>,
+	currentProjectSchemaFamily?: ProjectSchemaFamily,
 ): ProjectFeatureCompatibilityService {
 	const snapshot = snapshotProjectFeatureCapabilities(capabilities);
 	const knownFeatureIds = new Set(snapshot.knownFeatureIds);
@@ -38,7 +45,22 @@ export function createProjectFeatureCompatibilityService(
 	function evaluate(project: unknown): ProjectFeatureRequirementsReport | null {
 		if (!project || typeof project !== 'object' || Array.isArray(project)) return null;
 		const candidate = project as ProjectWithFeatureRequirements;
-		if (!isMaintainedProjectFeatureSchema(candidate.schemaVersion)) return null;
+		if (currentProjectSchemaFamily === undefined && isMaintainedProjectFeatureSchema(candidate)) {
+			return evaluateMaintainedProject(candidate);
+		}
+		try {
+			const identity = readProjectSchemaIdentity(candidate);
+			if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION
+				|| identity.schemaFamily !== currentProjectSchemaFamily) return null;
+		} catch {
+			return null;
+		}
+		return evaluateMaintainedProject(candidate);
+	}
+
+	function evaluateMaintainedProject(
+		candidate: ProjectWithFeatureRequirements,
+	): ProjectFeatureRequirementsReport {
 		return evaluateProjectFeatureRequirements(
 			candidate.featureRequirements as ProjectFeatureRequirementsManifest,
 			{

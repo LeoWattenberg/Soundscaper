@@ -2,7 +2,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import {
 	addRackEffect,
 	assertAccessibleBasics,
@@ -122,7 +122,7 @@ test.describe('Soundscaper exact V30 production UI', () => {
 		const video = stored.clips.find(({ kind }) => kind === 'video');
 		const audio = stored.clips.find(({ kind }) => kind === 'audio');
 		const sequence = stored.sequences.find(({ id }) => id === video?.sequenceId);
-		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
+		expect(stored.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
 		expect(videoSource).toMatchObject({
 			sourceFrameCount: 32, sampleFrameCount: 103_296, timingDecision: { mode: 'exact' },
 		});
@@ -262,7 +262,7 @@ test.describe('Soundscaper exact V30 production UI', () => {
 		await chooseFileAction(page, editor, 'Save project');
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		const stored = await readStoredSoundscaperProject(page, projectId);
-		expect(stored.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
+		expect(stored.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
 		expect(stored.automationLanes).toHaveLength(1);
 		expect(stored.automationLanes[0].id).toBe(lane.id);
 		expect(stored.automationLanes[0]).not.toEqual(lane);

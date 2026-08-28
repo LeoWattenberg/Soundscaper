@@ -25,6 +25,20 @@ test('security claims point to checked-in implementation and verification eviden
 		for (const control of risk.currentControls) {
 			assert.match(control.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 			assert.ok(control.summary.length > 0, `${risk.id}/${control.id} needs a summary`);
+			if (control.policyAuthority === 'historical-provenance-only') {
+				assert.match(control.summary, /preserves pre-freeze.*no family-v1.*authority/iu);
+				assert.equal(
+					control.historicalPreFreezeNarrative?.status,
+					'provenance-only-not-runtime-authority',
+				);
+				continue;
+			}
+			assert.equal(control.policyAuthority, 'family-v1-active', `${risk.id}/${control.id}`);
+			assert.doesNotMatch(
+				control.summary,
+				/\b(?:S(?:2[1-9]|30)|F(?:1[89]|2\d|3[0-2]))\b|schema(?:Version)?[- ]?(?:1[5-9]|2\d|3[0-2])/u,
+				`${risk.id}/${control.id} cites retired project authority`,
+			);
 			assert.ok(control.evidence.length > 0, `${risk.id}/${control.id} needs evidence`);
 			evidence.push(...control.evidence);
 		}
@@ -91,112 +105,20 @@ test('threat-model documentation defines the limits of enforced controls', async
 	]) assertOrderedClaim(documentation, claim);
 	assert.match(
 		documentation,
-		/shared-desktop-project-library-integrity.*partial.*product-neutral appData library.*fresh filesystem library scope `?v9`?.*SQLite `?user_version`? 11.*ignores rather than migrates.*prior shared `?v8`? scope.*preserv.*metadata schema 8.*exact schema 16.*user_version`? 10.*in place.*older.*v7.*schema-15.*user-version-9.*historical.*untouched.*copied `?v8`?.*`?user_version`? 10.*`?v9`? path.*reject.*without mutation.*migrat.*adopt.*backfill.*metadata schema 9.*separate opaque library entry ID.*exact schema 17.*bounded byte length.*SHA-256.*immutable revision-and-digest path.*canonical tagged-binary codec.*opaque binary state.*non-raiseable 256 MiB.*lower-only test seam.*persistence root.*reserves.*canonical path.*unique random attempt.*lease.*fencing-token.*authoritative project and stage inventories.*same immediate transaction.*before exclusive stage creation.*exact-lease cleanup.*acknowledged.*exclusive-open failure.*registration.*without unlinking.*error after exclusive creation.*registered random stage.*lost-lease or failed cleanup.*registration.*takeover.*successful materialization.*exact metadata and stage paths.*lease ID.*fencing token.*renames and syncs.*marks the canonical row materialized.*removes the stage row.*every catalog reference.*before an exact plus-one journaled catalog commit.*before staging.*before publication.*transactionally at catalog commit.*old or new complete file-and-catalog pair.*stale fencing token cannot publish.*serializes commits.*continues lease renewal while close fences new work and drains admitted work/isu,
+		/shared-desktop-project-library-integrity.*current authority is product-isolated.*Soundscaper and Framescaper desktop libraries.*family-v1 handshakes.*library schema 1.*SQLite user_version 1.*distinct kw\.media.*project-library\/v1 roots.*SSCP and FSCP application IDs.*schemaFamily and schemaVersion.*disjoint product:v1:project-library.*pre-release roots.*untouched and invisible.*no migration or copy-forward marker.*Historical pre-freeze provenance.*grants no current project, migration, storage, IPC, or package authority/isu,
 	);
 	assert.match(
 		documentation,
-		/after recovery.*before host exposure.*immutable-document collector.*authoritative project and stage inventories.*monotonic row IDs.*independent cycle high-waters.*both cursors.*alternating schedule.*100,000 total rows.*64-row batches.*immediate SQLite writer transaction.*exact unexpired lease.*before and after filesystem work.*current exact-lease stage.*live.*stale registered regular stage.*unlinked.*missing attempt retires.*non-regular target.*non-direct parent.*untouched and inventoried.*canonical rows.*current lease.*outstanding stage.*ineligible.*rescan flag.*restarting the canonical high-water.*portable case-folded reachability.*current catalog.*previous and next snapshots.*pending prepared or committed journals.*deterministic noncatalogable quarantine.*unregistered stage-looking.*canonical.*forged quarantine.*do not consume.*budget.*untouched.*100,001-row.*successive bounded passes.*later inserts.*next high-water cycle.*low- and mixed-cap.*canonical rescanning.*yield.*renewal and cancellation.*stale takeover.*tested reclamation failure during startup.*releases its still-owned lease.*cleanup failure.*reported.*static symlinked project root.*managed media.*untouched.*without adding renderer IPC/isu,
+		/family-qualified handshake.*current fenced lease.*only the current lease may publish.*immutable bodies.*digest-bound.*recovery roots.*before host exposure/isu,
 	);
 	assert.match(
 		documentation,
-		/after metadata-journal recovery.*project-file reclamation.*before host exposure.*managed-media collector.*canonical and stage-attempt inventories.*descriptor.*project identity.*exact revision.*document digest.*storage key.*lease.*fencing token.*tracked catalog row.*exact current project tuple.*logically retires.*unmanaged or untracked.*preserved.*journal.*settled.*before physical deletion.*persisted.*independent high-waters.*alternating schedule.*100,000.*64-row batches.*current exact-lease.*current catalog.*outstanding stage.*protected.*deterministic noncatalogable quarantine.*crash-left.*promotion.*quarantine.*unregistered.*legacy.*symlink.*non-regular.*untouched.*later startup.*empty director.*SQLite\/WAL.*continuous runtime cleanup.*unqualified/isu,
+		/Version-bearing S21–S30, F18–F32.*historical implementation provenance.*not runtime, migration, storage, or packaging authorities/isu,
 	);
 	assert.match(
 		documentation,
-		/main-owned editor service.*bounded document.*strict exact-schema-17 maintained-persistence-domain validator.*before.*host commit.*before project staging.*loaded commit result.*stored reads.*before returning a renderer response.*core project, document, media, and graph structures.*strictly checked.*all audio effects.*cloneable.*generic identity, enabled, and parameter structure.*type-specific semantic checks.*missing-effect compatibility metadata.*parametric EQ.*other first- and third-party effect payload semantics.*not gated.*invalid collection shapes.*duplicate identities.*dangling source or clip references.*invalid loaded commit result.*input-side failures.*do not reach a host commit or project file.*packaged-runtime fixture.*validator.*emitted and active/isu,
+		/Historical pre-freeze provenance.*shared-library description.*grants no current project, migration, storage, IPC, or package authority/isu,
 	);
-	assert.match(
-		documentation,
-		/before `JSON\.parse`.*structurally scans every schema.*101,536 JSON values.*depth 130.*exact schema 17.*independent decoded-codec.*structural-validator.*100,000 logical nodes.*depth 128 per phase/isu,
-	);
-	assert.match(
-		documentation,
-		/over-budget renderer input.*rejects before host commit.*before project staging.*loaded commit result.*rejected after the host has already published.*neither.*reaches a renderer response/isu,
-	);
-	assert.match(
-		documentation,
-		/canonical JSON-derived production graphs.*ordinary direct objects.*not arbitrary in-realm proxies.*malicious injected hosts or providers.*within that scope.*accessors.*`?toJSON`? hooks.*method-shadowed arrays.*hidden or symbol data.*cycles.*exotic containers.*non-JSON scalars.*reject without invoking application accessors/isu,
-	);
-	assert.match(
-		documentation,
-		/identity service.*frozen preload.*owner-scoped IPC.*bounded, pathless list, read, bundle, commit, delete, and managed-source transfer.*256 MiB.*4 KiB.*10,000-summary.*64 GiB source-body.*4,094-bundle-descriptor.*4 MiB chunk.*renderer transfer code.*4,094 reachable logical sources.*before source-body or bridge-body I\/O.*four active source uploads.*four active source reads.*across the bridge service.*capacity remains charged.*publication or abort settlement.*disposal waits.*finishing publications.*catalog summaries.*entry IDs.*main-owned catalog\/filesystem paths.*digests.*product preferences.*raw `updatedAtMs` fields.*leases.*fencing tokens.*managed bundle descriptors.*binding IDs.*source identities and storage keys.*source kind.*audio-f32le-chunks-v1.*video-original-v1.*byte lengths.*SHA-256 digests.*owner revocation.*fences new work.*aborts owned upload sessions.*drains admitted operations/isu,
-	);
-	assert.match(
-		documentation,
-		/ordinary shared-project saves remain document-only.*managed canonical PCM and retained original video.*explicit project-handoff action.*before any source body read or bridge call.*4,094 reachable logical sources.*same-kind physical bindings.*rejects conflicting aliases.*aggregate 64 GiB audio-and-video byte budget.*audio-only 65,536-chunk budget.*two full validating reads.*binding is absent.*second read.*uploads bounded sequential chunks.*changed PCM, video bytes, or trusted video metadata/isu,
-	);
-	assert.match(
-		documentation,
-		/main revalidates the exact current project revision.*requested reachable source kind, identity, geometry.*audio-f32le-chunks-v1.*video-original-v1.*derives the catalog document SHA-256 rather than accepting it from the renderer.*serialized host repeats exact revision-and-document-digest validation.*immutable binding includes project identity, exact revision, exact document digest, and storage-key\/media geometry.*prior-revision row or same-revision document variant.*neither advertised nor accepted as present.*exact-present reuse.*declared length and SHA-256.*reverifies the regular body/isu,
-	);
-	assert.match(
-		documentation,
-		/schema-4 managed-media canonical and stage-attempt inventories.*exact descriptor.*project identity.*revision.*document digest.*storage key.*state.*lease ID.*fencing token.*after point-in-time capacity admission.*exact canonical row.*random upload or reuse stage.*before body or optional hard-link work.*before directory or stage creation.*materialization.*exact registered stage.*regular.*atomically renames.*syncs the directory.*canonical row to materialized.*removes the stage row.*catalog preparation.*exact materialized or published row.*catalog commit.*published in the same SQLite transaction as metadata/isu,
-	);
-	assert.match(
-		documentation,
-		/same-kind canonical binding.*fully verify the donor.*private random staged hard link.*verify it again.*promote it exclusively.*opaque or corrupt donor rows.*skipped.*exhausted donor link count.*another donor.*target race.*never overwritten.*unsupported hard-link behavior.*bounded upload.*other operational failures propagate.*private regular stage.*digest-verified and synced.*atomically renamed.*directory-synced before catalog publication.*publication failure.*materialized.*upload or linked.*retry.*without a renderer body upload.*does not consume.*offered stream/isu,
-	);
-	assert.match(
-		documentation,
-		/one managed-media store instance.*exact-absent audio or video binding.*prospective catalog.*same-instance pending descriptors.*50,000-row.*4 MiB serialized-metadata ceilings.*lower-only test seams.*synchronously reserves one row.*declared body bytes.*aggregate 64 GiB pending-byte ceiling.*BigInt `?statfs`?.*failed, malformed, or known-insufficient.*before managed-media directory work.*body iteration.*optional hard-link work.*held through descriptor-publication settlement.*final publication rereads the catalog.*revalidates.*exact-present bindings.*bypass.*descriptor and body verification.*not a universal copy-free guarantee.*hard-link reuse.*full declared body.*reject a feasible link/isu,
-	);
-	assert.match(
-		documentation,
-		/capacity admission.*store-instance and point-in-time.*not an operating-system.*cross-instance or cross-process.*whole-handoff.*renderer-session reservation.*beginSourceWrite.*return ready before asynchronous host\/store refusal.*appData project-document staging separately admits the exact serialized document size.*point-in-time fail-closed BigInt `statfs` for the projects root.*before document directory or stage work.*SQLite\/WAL allocation.*filesystem allocation overhead.*later external allocation.*write-time success.*UI state.*startup-bounded tracked-inventory reclamation.*separate.*continuous runtime cleanup.*100,000.*later startup.*unregistered or legacy.*empty director.*SQLite\/WAL.*unqualified/isu,
-	);
-	assert.match(
-		documentation,
-		/renderer repository.*repeats maintained-persistence-domain exact-schema-17 validation and canonical reserialization.*before local mutation.*product-local shadow.*shared latest document and summary list.*authoritative.*fails closed.*incomplete desktop bridge.*source-free editor fixture.*Soundscaper.*same identity and revision.*fresh Framescaper-local store.*next revision.*higher fencing token.*shared media catalog.*empty/isu,
-	);
-	assert.match(
-		documentation,
-		/historical.*pre-V18.*V9.*schema 17.*dedicated Linux x64 CI.*two separate unpacked packages.*Soundscaper.*Framescaper.*Soundscaper.*current CI.*retired.*no longer runs.*isolated appData.*separate product profiles.*reuses.*Soundscaper profile.*renderer[- ]ready.*pathless preload IPC.*exact[- ]SHA-256.*source-free.*schema 17.*revisions 1, 2, and 3.*summary.*main-only catalog row.*clean recovery.*no stale takeover.*higher fencing token.*increasing catalog revisions?.*preferred product.*process exit.*lease release.*combined with.*composed editor.*closes only.*generic packaged source-free preload\/IPC\/multi-process\/executable lifecycle gap/isu,
-	);
-	assert.match(
-		documentation,
-		/does not qualify packaged controller autosave or tab activation.*source-bearing bytes, playback, or managed media.*concurrent opens.*crash or stale takeover.*interruption or power loss.*path identity.*installers or file associations.*Windows, macOS, or ARM64.*third-party.*gating.*legacy Soundscaper.*migration/isu,
-	);
-	assert.match(
-		documentation,
-		/latest authoritative exact-schema-17 source-bearing load.*4,094 reachable timeline, Project Bin, and fallback sources.*before source bodies are read.*same-kind physical bindings.*rejects conflicts.*aggregate 64 GiB audio-and-video byte ceiling.*audio-only 65,536-chunk ceiling.*fresh recipient first acquires.*managed canonical-PCM and retained-original-video descriptors.*bounded reads.*staged product-local audio-source or media-asset writers.*descriptor identity, kind and storage key.*exact byte length.*SHA-256.*atomic if-absent publication.*canonical audio byte geometry.*opaque exact bytes.*not decoded or probed for media geometry.*loses the absence race.*only its own staging.*preserves the winner.*partial transfers.*pre-shadow failures.*acquisition-owned audio records or owned video publications.*source-token, path, or media-chunk payloads.*concurrent replacement.*preserved.*not acquired.*pre-existing latest recipient-local exact-schema-17 snapshot.*logical identity, kind, storage key, MIME type.*kind-specific media geometry.*ordered Float32Array PCM.*trusted recipient-local SHA-256.*video body read.*genuine exact-size Blob.*SHA-256.*4 MiB windows.*no on-access storage maintenance.*failures detected before shadow publication.*preserve.*prior local shadow.*prevent activation.*cancellation.*after the exact shadow is durable.*retains the exact shadow and acquired audio and video.*source-free.*zero source or media I\/O/isu,
-	);
-	assert.match(
-		documentation,
-		/headless composed mixed-media fixture.*exact PCM plus one retained original video from Soundscaper.*fresh Framescaper-local store before activation.*no missing sources.*exact PCM to the playback engine.*exact video bytes.*shared Blob URL.*timeline and Project Bin.*play and stop state.*edits and saves in Framescaper.*returns to the original Soundscaper profile.*tested Linux filesystem.*revision-bound audio and video catalog rows.*distinct.*one inode.*local revision history.*no bridge or shared-library body read or upload.*controller\/headless evidence.*not packaged Electron UI or browser video-codec qualification/isu,
-	);
-	assert.match(
-		documentation,
-		/linked retained-video slice.*schema-1 closed product-local binding.*exact project and source.*pathless opaque locator ID.*opaque locator-revision fence.*independent repository-owned CAS binding token.*storage key.*video MIME.*exact source geometry.*byte length.*lowercase SHA-256.*no filesystem path, URL, handle, or linked body.*project ID, source ID, storage key, MIME type.*every geometry field.*before privileged platform I\/O.*expected locator revision.*exact length.*complete SHA-256.*4 MiB windows.*rereads.*binding.*CAS fence.*fresh per-operation alias session.*module-private WeakMap.*forged.*rejected.*complete reachable video alias group.*before any linked body read.*metadata.*aggregate budget preflight.*before lazy.*body resolution.*storage key alone.*never authorizes.*binding, descriptor-free shared admission, and visual activation.*no durable product-owned copy.*explicit managed handoff.*bounded same-store\/process lifecycle coordinator.*project deletion and whole-store clear.*local commit.*before exact metadata release.*live alias.*prevents release.*pending retry.*rechecks aliases.*fulfilled false.*settles.*external target.*untouched/isu,
-	);
-	assert.match(
-		documentation,
-		/ordinary locator load.*`?materialized-v1`?.*playback load.*exact locator revision.*opened.*`?linked-video-range-v1`? handle.*same identity.*replacement after admission cannot retarget/isu,
-	);
-	assert.match(
-		documentation,
-		/selection and import adapter.*whole-Blob materializer.*closed exact locator ID-and-revision CAS release.*missing, malformed, or accessor revision.*never authorizes cleanup.*explicit exact-content relink.*already-bound.*writable Project Bin video source.*whether or not it is currently missing.*missing-source state is not eligibility.*pathless selected Blob.*opaque locator ID and revision.*exact old binding token.*selected Blob.*old byte length and SHA-256.*candidate.*exact selected revision.*same selected length and digest.*synchronous `assertCanPublish`.*same compensated memory batch or IndexedDB readwrite transaction.*immediately before.*binding and provisional-root pair.*task cancellation.*writable writer.*project generation.*initially missing source.*missing-source status.*stops timeline playback and Project Bin preview.*revokes.*before CAS.*restores an initially available source's visual.*records missing state when restoration fails.*Activation happens after CAS.*clears missing state.*publishes.*records missing state on the committed binding.*canonical project.*history identities remain unchanged.*prepublication.*preserves the old binding.*alias-aware.*distinct candidate locator.*postpublication activation failure.*retains.*missing state.*displaced old locator.*not immediately released.*bounded later startup reconciliation.*desktop visual activation.*ranged playback lease.*exact binding revision.*complete pinned handle.*4 MiB ranges.*binding and CAS fence.*returns only the media URL and one-shot release.*does not construct another original-video Blob/isu,
-	);
-	assert.match(
-		documentation,
-		/visual service owns that lease.*Object URLs.*candidate and stored leases are released once.*bulk cleanup.*media-element failure.*exact media URL.*failed ranged admission.*does not silently retry.*platform port without the optional playback lease/isu,
-	);
-	assertOrderedClaim(documentation, /maintained linked-PCM slice.*shared owner-scoped range pool.*exact-revision.*digest-verified.*WAV\/RF64, structurally validated classic AIFF, or canonical first-party AIFF-C float32 inspection.*canonical PCM chunk reads.*without a second whole-original Blob.*same-inode external mutation during or after sequential digest verification.*not fenced.*not an immutable, durable, or cross-process byte snapshot.*selection and initial binding, whole-Blob resolution, availability, handoff, and relink selection.*complete body.*512 MiB.*visual activation and linked-PCM canonical reads.*at-most-4-MiB responses.*without constructing another original Blob.*Float32 arrays.*metadata.*decoder or codec amplification.*RSS.*browser caching.*garbage-collection headroom.*no packaged, operating-system, or reference-scale evidence/isu);
-	assertOrderedClaim(documentation, /privileged service.*compromised renderer.*over-budget or maintained-domain-invalid exact-schema-17 input.*before.*host.*stage a project.*shared-project-parse-budget.*remains open.*unmanaged recipient admission.*not an atomic snapshot.*same-metadata replacement.*can go undetected.*owned canonical PCM.*generation-fenced.*root-to-base copy-on-write ancestry.*observed at session open.*not a durable proof.*intended base generation.*content or byte lease.*cross-store or cross-process.*managed handoff now closes.*Soundscaper-to-Framescaper edit\/save\/return.*canonical PCM and retained original video.*manifest-only exact-schema role-defined unknown-feature audio whole-mix.*role-defined.*unknown-feature whole-project video.*first-party videoEffects clip-target and first-party audioEffects track-target fallbacks.*startup-bounded tracked managed-media reclamation.*continuous runtime cleanup/isu);
-	assert.match(
-		documentation,
-		/linked retained video.*product-local chooser.*validated main\/preload boundary.*whole-Blob selection\/import adapter.*exact-binding import.*closed exact locator ID-and-revision CAS release.*owner-scoped exact-revision ranged visual playback.*maintained linked-PCM slice.*shared owner-scoped range pool.*canonical PCM chunk reads.*without a second whole-original Blob.*private main-owned registry.*pathless.*not an operating-system bookmark.*pathname replacement after range admission cannot retarget.*same-inode external mutation.*not fenced.*not an immutable, durable, or cross-process byte snapshot.*selection and initial binding.*complete body.*visual activation and linked-PCM canonical reads.*at-most-4-MiB responses.*without constructing another original Blob.*Float32 arrays.*metadata.*decoder or codec amplification.*RSS.*browser caching.*no packaged, operating-system, or reference-scale evidence/isu,
-	);
-	assert.match(
-		documentation,
-		/bounded same-store\/process project-delete and clear cleanup.*local commit.*before metadata release.*live aliases.*pending retry.*bounded cooperative startup pass.*point-in-time authoritative catalog.*10,000 closed exact project\/revision summaries.*readwrite transaction.*local current projects and retained revisions.*100,000 closed mixed-kind binding rows.*generic pass.*128 mixed-kind exact locator\/revision pairs.*legacy video-only fallback.*reference cardinality and deletion only to video.*full-store rows and aliases.*preserving audio.*Catalog-absent bindings.*unreachable.*catalog-live binding.*source-pruned only.*bounded product-local exact-schema-17 current and retained graph.*current revision equals the catalog summary.*missing, stale, invalid, incomplete, or over-bound.*surviving alias.*remain live.*rolls back before IPC.*source-level reachability beyond bounded startup reconciliation, maintained saves, and successful writable activations remains open.*catalog snapshot.*binding transaction.*main registry write.*not one cross-boundary atomic operation.*hostile renderer.*inventory completeness.*separate store, profile, or process.*not serialized.*general continuous cleanup.*remains open.*packaged executable.*operating-system file-dialog and identity behavior.*broader linked audio.*authored-proxy relationships.*rendered-fallback authoring and managed handoff beyond the closed audio and closed whole-project video roles and the maintained first-party clip-local videoEffects and track-local audioEffects relationships.*browser.*video.*codec behavior.*two fixed Linux x64 Electron source-bearing shared-library workflows.*qualified separately.*activation and transport playback.*four frozen rendered-fallback roles.*two web.*\.scape.*counterparts.*fixed Chromium browser-download fixture.*packaged rendered-fallback final delivery.*fallback authoring or other relationships.*linked\/unmanaged-media relationships.*remaining browser and platform matrix.*open.*hard-link.*power-loss.*Linux x64 source-free packaged lifecycle.*remaining platform.*pre-release schemas 1 through 16.*source-media re-import.*no raw-project migration path.*prior shared.*v8.*older.*v7.*v6.*v5.*v4.*v3.*v2.*v1.*product-private Soundscaper libraries.*unsupported.*Audacity.*maintained interchange boundaries/isu,
-	);
-	assert.match(
-		documentation.replace(/\s+/gu, ' '),
-		/bounded cooperative startup reconciliation pass.*main\/renderer durability boundary.*durable IndexedDB opens.*before.*project loading.*point-in-time authoritative.*catalog.*10,000 project summaries.*closed\s+own-data.*id, revision.*invalid or duplicate identities.*invalid.*revisions.*summary bound.*reject.*before the binding transaction.*Memory fallback returns before catalog listing, binding mutation, or IPC.*durable platform port without reconciliation.*catalog.*no binding mutation or IPC.*one IndexedDB readwrite transaction.*local current projects, retained revisions, and linked-original bindings.*100,000 closed binding rows.*128 unique exact locator\/revision pairs.*complete mixed-kind inventory.*Malformed rows.*conflicting locator revisions or storage aliases.*bounds.*binding deletion failure.*abort and roll back.*before IPC.*catalog-absent projects.*Every audio or video binding.*project is absent.*unreachable.*catalog-live project.*source-level pruning.*product-local current document.*exact schema 17 at the catalog revision.*64 exact retained revisions.*current revision.*timeline, Project Bin, and every feature-fallback source.*without publisher gating.*Missing, older, newer, malformed, incomplete, or over-bound.*retains every binding.*100,000 aggregate roots.*suppress.*source-level pruning.*catalog-absent.*eligible.*surviving same-store alias.*positive inventory.*closed preload\/IPC path.*catalog summary.*authoritative for project presence and current revision.*not.*content.*product-local graph.*catalog snapshot.*local transaction.*main registry write.*not one cross-boundary atomic operation.*binding deletion commits before.*separate main operation.*later main.*rejection.*retry.*Main serializes.*startup-loaded metadata.*runtime-created records.*failed.*retry.*successful pass.*store\/process.*Unknown or stale references.*before mutation.*registry write.*in-memory inventory.*Owner revocation.*persisted restore.*on-disk outcome.*indeterminate.*never load, stat, write, or delete external media bytes.*project-absent or source-unreachable.*catalog-revision fence.*Current-process abandoned records.*later main-process restart.*cannot authenticate inventory or local-graph completeness.*compromised renderer.*omit.*live references.*startup metadata.*same-revision product-local graph.*not content-authenticated.*Separate store, profile, or process.*not serialized.*cooperative.*first-party lifecycle housekeeping.*not a renderer-compromise integrity control.*orderly close, dispose, and reopen.*abrupt process death.*fsync.*power loss.*not qualified.*source-level cleanup outside bounded startup, maintained saves, and successful writable activations.*general continuous cleanup beyond same-store startup\/save\/activation\/delete\/clear.*hostile IndexedDB row.*remain open/isu,
-	);
-	assert.doesNotMatch(documentation, /guaranteed progress after an incomplete|incomplete 100,000-entry reclamation inventory/iu);
-	assert.doesNotMatch(documentation, /abandoned stage-file cleanup.*remain(?:s)? open/iu);
 });
 
 test('disposable video preview cache evidence binds current originals without claiming editorial proxies', async () => {
@@ -215,7 +137,6 @@ test('disposable video preview cache evidence binds current originals without cl
 		'src/common/editor/controller/source-import.ts',
 		'src/common/editor/commands/project-source-bin-runtime.js',
 		'src/common/editor/scape-project.js',
-		'src/common/editor/storage/desktop-shared-project-source-availability.ts',
 		'tests/audio-editor-video-derivative-binding.test.ts',
 		'tests/audio-editor-video-derivative-publication-fence.test.ts',
 		'tests/audio-editor-storage-records.test.ts',
@@ -224,8 +145,6 @@ test('disposable video preview cache evidence binds current originals without cl
 		'tests/audio-editor-source-import.test.ts',
 		'tests/audio-editor-project-bin.test.js',
 		'tests/audio-editor-scape-project.test.js',
-		'tests/audio-editor-desktop-shared-project-source-availability.test.ts',
-		'tests/audio-editor-desktop-shared-project-media-sender-video.test.ts',
 	]) assert.ok(control.evidence.some((item) => item.path === path), `Missing preview-cache evidence from ${path}`);
 	assert.match(
 		control.summary,
@@ -247,18 +166,12 @@ test('disposable video preview cache evidence binds current originals without cl
 	assertOrderedClaim(documentation, /selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Guided-local sign-off.*resource\s+qualification.*external qualification remain open/isu);
 });
 
-test('project feature requirements are bounded and fail closed at activation and pre-open inspection', async () => {
+test('project identities fail closed before traversal and expose no predecessor route', async () => {
 	const matrix = await readMatrix();
 	const boundary = matrix.boundaries.find(({ id }) => id === 'external-input-to-parser');
 	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
 	const control = projectDocuments?.currentControls.find(
 		({ id }) => id === 'project-schema-and-forward-read-validation',
-	);
-	const fallbackAdmission = projectDocuments?.currentControls.find(
-		({ id }) => id === 'controller-rendered-fallback-admission',
-	);
-	const fallbackPlayback = projectDocuments?.currentControls.find(
-		({ id }) => id === 'audio-rendered-fallback-playback',
 	);
 
 	assert.ok(boundary);
@@ -266,217 +179,50 @@ test('project feature requirements are bounded and fail closed at activation and
 	assert.equal(projectDocuments.status, 'partial');
 	assert.equal(projectDocuments.releaseDisposition, 'conditional');
 	assert.ok(control);
-	assert.ok(fallbackAdmission);
-	assert.ok(fallbackPlayback);
-	for (const path of [
-		'src/common/editor/migration.js',
-		'src/common/editor/project-feature-requirements.ts', 'src/common/editor/project-feature-video-clip-render-v1.ts',
-		'src/common/editor/project-document-validation.ts', 'src/common/editor/project-media-validation.ts',
-		'src/common/editor/retention.js',
-		'src/common/editor/scape-project-assets.ts',
-		'src/common/editor/scape-export-plan.ts',
-		'src/common/editor/scape-project.js',
-		'src/common/editor/project-feature-capabilities.ts', 'src/common/editor/project-owned-feature-requirements.ts', 'src/common/editor/project-foundation-validation.ts', 'src/common/editor/project-hierarchy-document-validation.ts', 'src/common/editor/project-track-lock-validation.ts', 'src/common/editor/project-v17.ts', 'src/common/editor/project-v17-validation.ts', 'src/common/editor/take-comp-domain.ts', 'src/common/editor/take-comp-document-v17.ts', 'src/common/editor/track-folder-v12.ts', 'src/common/editor/track-hierarchy-v12.ts', 'src/common/editor/track-folder-state-projection.ts', 'src/common/editor/track-folder-media-runtime.ts', 'src/common/editor/controller/playback-project-service.ts', 'src/common/editor/controller/video-export-service.ts', 'src/common/editor/controller/video-export-timing.ts', 'src/common/editor/video-export.js', 'src/common/editor/video-timeline.js',
-		'src/common/editor/project-feature-audio-effect-bypass.ts',
-		'src/common/editor/project-feature-video-effect-bypass.ts',
-		'src/common/editor/video-effects.js',
-		'src/common/editor/project.js',
-		'src/common/editor/project-feature-report-metadata.ts',
-		'src/common/editor/session.js',
-		'src/common/editor/controller/project-feature-compatibility-service.ts',
-		'src/common/editor/controller/project-switch-service.ts',
-		'src/common/editor/controller/document-snapshot.ts',
-		'src/common/editor/controller/scape-inspection-service.ts',
-		'src/common/editor/controller/scape-project-file-service.ts',
-		'src/common/editor/controller/scape-open-request-service.ts',
-		'src/common/editor/ui/workspace/scape-open-decision-continuation.ts',
-		'src/common/editor/ui/workspace/useScapeOpenDecisionContinuation.ts',
-		'src/common/editor/ui/workspace/ScapeOpenDecisionDialog.jsx',
-		'src/common/editor/ui/workspace/project-feature-compatibility-notice.ts',
-		'src/common/editor/ui/workspace/ProjectFeatureCompatibilityNotice.tsx',
-		'src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx',
-		'src/common/editor/ui/workspace/video-preview-effect-bypass.ts',
-		'src/common/editor/ui/workspace/VideoPreviewPanel.jsx',
-		'src/common/editor/app.js',
-		'tests/audio-editor-project-feature-requirements.test.ts',
-		'tests/audio-editor-project-feature-video-clip-render-v1.test.ts',
-		'tests/audio-editor-project-v9.test.ts',
-		'tests/audio-editor-feature-requirement-retention.test.ts',
-		'tests/audio-editor-scape-feature-requirements.test.ts',
-		'tests/audio-editor-scape-export-fallback-integrity.test.ts',
-		'tests/audio-editor-project-feature-capabilities.test.ts',
-		'tests/audio-editor-project-owned-feature-requirements.test.ts', 'tests/audio-editor-project-v15.test.ts', 'tests/audio-editor-project-v17.test.ts', 'tests/audio-editor-track-folder-state-projection.test.ts', 'tests/audio-editor-track-folder-media-runtime.test.ts',
-		'tests/audio-editor-project-feature-audio-effect-bypass.test.ts',
-		'tests/audio-editor-project-feature-video-effect-bypass.test.ts',
-		'tests/audio-editor-video-preview-effect-bypass.test.ts',
-		'tests/audio-editor-project-switch-service.test.ts',
-		'tests/audio-editor-session.test.js',
-		'tests/audio-editor-document-snapshot.test.ts',
-		'tests/audio-editor-scape-inspection-service.test.ts',
-		'tests/audio-editor-scape-project-file-service.test.ts',
-		'tests/audio-editor-scape-open-request-service.test.ts',
-		'tests/audio-editor-scape-open-decision-continuation.test.ts',
-		'tests/audio-editor-scape-open-decision-dialog.test.ts',
-		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
-		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
-	]) assert.ok(control.evidence.some((item) => item.path === path), path);
-	for (const path of [
-		'src/common/editor/migration.js',
-		'src/common/editor/project-feature-requirements.ts',
-		'src/common/editor/project-v17.ts',
-	]) assert.ok(boundary.entryPoints.includes(path), path);
+	assert.equal(control.policyAuthority, 'family-v1-active');
 
-	assert.match(control.summary, /bounded declarative.*deep-frozen/iu);
-	assert.match(control.summary, /duplicate requirement IDs.*noncanonical feature IDs.*unsupported dispositions/iu);
-	assert.match(control.summary, /without executing project-supplied identifiers or mutating/iu);
-	assert.match(control.summary, /current-schema.*current-format.*\.scape.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
-	assert.match(control.summary, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
-	assert.match(control.summary, /schema 17.*create.*load.*clone.*commit.*reserved `soundscaper\.audio-effects`.*track.*group.*send.*master.*disabled.*inactive.*publisher-authored.*take precedence.*missing.*foreign.*do not trigger.*reserved-ID conflicts.*reject/iu);
-	assert.match(control.summary, /same paths.*reserved `soundscaper\.video-effects`.*timeline.*Project Bin.*video clips.*disabled.*publisher-authored.*take precedence.*missing.*foreign.*non-video clips.*do not trigger.*reserved-ID conflicts.*reject/iu);
-	assert.match(control.summary, /schema-17 nested track folders.*closed top-level metadata.*authoritative closed per-sequence nodes.*exact derived sequence trackIds.*track and folder preorder.*`soundscaper\.track-folders`.*`Nested track folders`.*`bypass`.*no fallback.*Soundscaper registers.*available with native folder commands and tree UI.*Framescaper registers it known but unavailable.*preserved read-only there.*absent from both rendered-fallback eligibility.*audio or video fallback.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*privately authenticates.*marker.*forged marker.*before hierarchy traversal.*canonical folder state.*leaf-local flags.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only/iu);
-	assert.match(control.summary, /schema-17 take groups.*mandatory.*closed canonical records.*sequence and audio-track ownership.*audio-source bounds.*canonical lane, take, region, and group ordering.*4,096.*160-character.*globally unique.*identities.*nonoverlapping.*`soundscaper\.take-comp`.*`Take lanes and comps`.*`bypass`.*no fallback.*Soundscaper registers.*available\/native.*writable.*Framescaper.*known but unavailable\/bypassed.*read-only.*excluded from audio and video rendered-fallback eligibility.*refuses publisher substitution.*dedicated `take-comp-native-and-cross-product-preservation`.*production routed pass capture.*durability.*explicit open recovery.*bounded-resource.*dedicated `durable-routed-take-cycle-capture-and-recovery`/iu);
-	assert.match(control.summary, /schema 17.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*null.*not traversed/iu);
-	assert.match(control.summary, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
-	assert.match(control.summary, /current-format \.scape inspection.*provider-owned.*caller.*override.*exact schema 17.*before.*collision lookup.*deep-frozen.*future schemas.*null.*not traversed/iu);
-	assert.match(control.summary, /one.*decision.*no-collision.*open-read-only.*cancel.*combined.*copy-read-only.*cancel/iu);
-	assert.match(control.summary, /cancel.*before.*import.*persistence.*activation.*actual project history.*intrinsically read-only/iu);
-	assert.match(control.summary, /localized.*stable feature IDs.*declared disposition.*defaults? focus.*Cancel.*Escape/iu);
-	assert.match(control.summary, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
-	assert.match(control.summary, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*runtime fallback.*third-party/iu);
-	assert.match(control.summary, /exact schema 17.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
-	assert.match(control.summary, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*params.*context.*state.*not read.*deep-frozen.*affected-object inventory.*localized.*no controls/iu);
-	assert.match(control.summary, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
-	assert.match(control.summary, /exact schema 17.*registered `videoEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*preview-playback projection.*before activation side effects.*canonical project.*history.*source loading.*persistence.*save paths.*offline render.*video export.*unchanged/iu);
-	assert.match(control.summary, /enabled maintained first-party.*timeline.*Project Bin.*minimal disabled engine copies.*4,096.*256-character stable-ID.*128-character effect-type.*params.*context.*state.*opaque payloads.*not read/iu);
-	assert.match(control.summary, /cached selector.*exact timeline clip-ID.*effect-ID.*effect-type.*before compositor rendering.*active-effect counting.*preserving unchanged stack references.*Project Bin.*not a compositor input/iu);
-	assert.match(control.summary, /deep-frozen.*location.*clip ID.*effect ID.*effect type.*localized labels.*canonical clip ownership.*no controls.*future schemas.*before clip or Project Bin traversal/iu);
-	assert.match(control.summary, /already-disabled.*foreign.*unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*earlier Soundscaper project schemas.*outside this video slice/iu);
-	assert.match(control.summary, /current-format.*exact schema 17.*fallback.*claim.*canonical asset descriptor.*before.*collision.*storage/iu);
-	assert.match(control.summary, /export.*snapshot.*project root.*source records.*same sources.*toJSON rewrites.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*before.*publication/iu);
-	assert.match(control.summary, /inspection.*descriptor binding.*does not hash.*asset bodies/iu);
-	assert.match(control.summary, /separate maintained-controller admission.*exact-schema-17 raw and stored-project fallback bytes.*direct store loads.*runtime fallback substitution.*third-party/iu);
-	assert.match(control.summary, /generic runtime fallback substitution.*generic unavailable-feature placeholders.*general per-feature activation controls.*outside/iu);
+	const evidence = new Set(control.evidence.map(({ path }) => path));
 	for (const path of [
-			'src/common/editor/project-fallback-integrity.ts', 'src/common/editor/project-fallback-integrity-audio.ts', 'src/common/editor/project-fallback-integrity-video.ts', 'src/common/editor/project-fallback-integrity-snapshot.ts',
-		'src/common/editor/scape-archive-media.ts',
-		'src/common/editor/storage/media-content-digest.ts',
-		'src/common/editor/storage.js',
-		'src/common/editor/storage/source-read-repository.ts',
-		'src/common/editor/storage/source-repository.ts',
-		'src/common/editor/storage/media-asset-load-repository.ts',
-		'src/common/editor/storage/media-repository.ts',
-			'src/common/editor/controller/project-switch-service.ts', 'src/common/editor/controller/audio-rendered-fallback-export.ts', 'src/common/editor/controller/video-rendered-fallback-export.ts',
-		'src/common/editor/session-activation.js',
-		'src/common/editor/session.js',
-		'src/common/editor/app.js',
-			'tests/audio-editor-project-fallback-integrity.test.ts', 'tests/audio-editor-project-fallback-integrity-relationships.test.ts', 'tests/audio-editor-project-fallback-integrity-mixed-selection.test.ts',
-		'tests/audio-editor-source-read-cancellation.test.ts',
-		'tests/audio-editor-media-asset-load.test.ts',
-			'tests/audio-editor-project-switch-fallback-integrity.test.ts', 'tests/audio-editor-mixed-rendered-fallback-video-export.test.ts',
-		'tests/audio-editor-session-project-activation.test.js',
-	]) assert.ok(fallbackAdmission.evidence.some((item) => item.path === path), path);
-	assert.match(
-		fallbackAdmission.summary,
-		/authoritative exact-schema-17.*same-ID tab history.*session-owned history token.*local bytes.*before activation side effects.*exclusive session activation reservation.*history replacement.*competing active-project publication.*session publication.*released in finally.*audio-f32le-chunks-v1.*65,536-chunk.*video.*immutable original-media Blob.*4 MiB.*64 GiB.*before fallback body reads/iu,
-	);
-	assert.match(fallbackAdmission.summary, /Admission reads publish no storage maintenance/iu);
-	assert.match(fallbackAdmission.summary, /sequential.*cooperatively cancellable.*read-only video-metadata.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*provider-stalled fallback body read.*delay cancellation settlement.*iterator cleanup/iu);
-	assert.match(fallbackAdmission.summary, /deduplicates.*conflicting digests.*relationship roles.*target clip or track IDs.*before storage reads/iu);
-	assert.match(fallbackAdmission.summary, /video selector.*currentness snapshot.*role.*target clip ID.*source ID.*SHA-256.*source geometry.*drift.*before media use/iu);
-	assert.match(
-		fallbackAdmission.summary,
-			/future schemas.*no asset read.*joint final-video admission.*one audio.*one video selector.*cumulative.*before.*body reads.*operation-time full-source verification.*bounded per-chunk digest table.*private provider.*currentness.*geometry.*digest.*selected video delivery.*immutable Blob.*both selector identities.*activation admission remains point-in-time.*operation-scoped per-read validation.*durable storage-record lease.*cross-process immutability.*direct store\.loadProject.*publisher authenticity.*relationship roles beyond the closed audio and maintained video roles.*simultaneous.*beyond.*one-audio.one-video.*linked-only.*unmanaged.*discover, load, or execute third-party feature code.*future schemas.*placeholder.*bypass.*third-party activation gating/iu,
-	);
+		'src/common/editor/project-schema-identity.ts',
+		'src/common/editor/project-current-runtime.ts',
+		'src/common/editor/scape-archive-envelope.ts',
+		'src/common/editor/scape-archive-copy.ts',
+		'src/soundscaper/editor-project.ts',
+		'src/soundscaper/editor-project-validation.ts',
+		'src/framescaper/editor-project-runtime.ts',
+		'tests/audio-editor-project-schema-identity.test.ts',
+		'tests/audio-editor-scape-v1-baseline.test.ts',
+	]) assert.equal(evidence.has(path), true, path);
+
+	const activeRecord = JSON.stringify({ boundary, control });
+	assert.doesNotMatch(activeRecord, /migration\.js|project-v\d+|schema-?(?:1[5-9]|2\d|3[0-2])\b/iu);
+	for (const risk of matrix.risks) for (const candidate of risk.currentControls) {
+		if (candidate.policyAuthority !== 'family-v1-active') continue;
+		assert.doesNotMatch(
+			candidate.summary,
+			/(?:Soundscaper-to(?:-fresh)?-Framescaper|Framescaper-to(?:-fresh)?-Soundscaper|less-capable recipient)/iu,
+			`${risk.id}/${candidate.id} cites a retired cross-family semantic workflow`,
+		);
+	}
+	assert.match(control.summary, /own enumerable data properties.*schemaFamily.*soundscaper.*framescaper.*schemaVersion.*positive safe integer/isu);
+	assert.match(control.summary, /exact family v1.*other known family.*later version.*opaque read-only custody.*without domain traversal/isu);
+	assert.match(control.summary, /numeric-only.*REIMPORT_REQUIRED.*unknown.*malformed.*accessor-backed.*manifest\/root-disagreeing.*before project traversal, asset reads, or persistence/isu);
+	assert.match(control.summary, /Format-1 Scape inspection.*tuple.*before any body read/isu);
+	assert.match(control.summary, /no project migration, copy-forward, predecessor-validator dispatch.*family inferred from a bare number, suffix, feature wire, or native protocol version/isu);
+
 	for (const path of [
-		'src/common/editor/project-feature-audio-rendered-fallback.ts',
-		'src/common/editor/controller/playback-project-service.ts',
-		'src/common/editor/controller/source-lifecycle-service.ts',
-		'src/common/editor/controller/source-audio.ts',
-		'src/common/editor/controller/project-switch-service.ts',
-		'src/common/editor/app.js',
-		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
-		'tests/audio-editor-playback-project-service.test.ts',
-		'tests/audio-editor-source-lifecycle-service.test.ts',
-		'tests/audio-editor-required-source-preparation.test.ts',
-		'tests/audio-editor-source-audio.test.ts',
-		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
-		'tests/audio-editor-project-switch-playback-apply.test.ts',
-		'tests/audio-editor-project-switch-source-preparation.test.ts',
-		'tests/audio-editor-project-switch-service.test.ts',
-		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
-	]) assert.ok(fallbackPlayback.evidence.some((item) => item.path === path), path);
-	assert.match(
-		fallbackPlayback.summary,
-		/exact schema 17.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1 role.*canonical manifest.*mono or stereo.*whole-mix.*frame zero.*removes canonical audio.*neutral.*mixer and master.*retains video and label/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/initial activation and later engine reapplies.*stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/initial activation.*privately stages only the required fallback source.*before.*session activation reservation.*activation side effects.*decoded buffer or stream-provider candidate.*outside shared sourceBuffers.*shared sourceChunkProviders.*engine chunk-source publication.*pre-reservation.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*promptly.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/readiness or reservation failure.*discards.*active project, tab, lock.*prior shared source identities.*rechecks fallback admission.*session-owned history identity.*before reserving.*currentness checks.*engine entry.*shared publication.*ordinary loading.*excludes.*staged fallback source/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/commit builds private buffer and provider snapshots.*current shared state.*ordinary transient buffers.*staged required source.*precedence.*conflicting transient.*engine.*private snapshots first.*after.*callback returns.*checks the signal.*owning admission or canonical-project identity assertion.*synchronously.*publication boundary.*no await intervenes.*required buffer or provider.*mutates shared state/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/engine failure.*cancellation.*reservation or currentness failure.*publication-boundary identity failure.*throwing cache publication.*preserve prior shared identities.*cache refusal.*removes.*stale required representation.*commit ownership.*single-use.*discard.*idempotent/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/each canonical playback reapply.*one replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status.*only the newest source-ready projection.*engine/iu,
-	);
-	assert.match(
-		fallbackPlayback.summary,
-		/engine\.applyProject or activation engine callback.*not abortable or transactional.*may have taken effect.*post-call publication-boundary assertion.*blocks shared publication.*later activation step.*successful engine and shared source publication.*not rolled back.*ordinary-source loading.*outside.*required-source publication transaction.*short-buffer retention.*cache-fit policy.*streamed chunks.*not prefetched or revalidated/iu,
-	);
+		'src/common/editor/project-schema-identity.ts',
+		'src/soundscaper/editor-project-validation.ts',
+		'src/framescaper/editor-project-runtime.ts',
+	]) assert.equal(boundary.entryPoints.includes(path), true, path);
+	assert.equal(boundary.entryPoints.some((path) => /migration\.js|project-v\d+/u.test(path)), false);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	assertOrderedClaim(documentation, /feature-requirements manifest.*deep-frozen/iu);
-	assert.match(documentation, /do(?:es)? not hash or authenticate the referenced media bytes/iu);
-	assertOrderedClaim(documentation, /current-schema.*current-format `\.scape`.*preserve.*manifest.*fallback-only source assets.*collision remapping/iu);
-	assertOrderedClaim(documentation, /stable.*product capability registry.*strict `true`.*unregistered IDs.*unknown/iu);
-	assertOrderedClaim(documentation, /schema 17.*create.*load.*clone.*commit.*`soundscaper\.audio-effects`.*track.*group.*send.*master.*disabled.*inactive.*publisher-authored.*take precedence.*missing.*foreign.*do not trigger.*reserved-ID conflicts.*reject/iu);
-	assertOrderedClaim(documentation, /same paths.*`soundscaper\.video-effects`.*timeline.*Project Bin.*video clips.*disabled.*publisher-authored.*take precedence.*missing.*foreign.*non-video clips.*do not trigger.*reserved-ID conflicts.*reject/iu);
-	assertOrderedClaim(documentation.replace(/\s+/gu, ' '), /schema 17.*nested track folders.*closed top-level metadata.*authoritative closed per-sequence nodes.*trackIds.*track and folder preorder.*soundscaper\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper registers its capability available.*folder-aware commands.*tree UI.*Framescaper registers it known but unavailable.*preserving nonempty state read-only.*excluded from audio and video fallback.*rejects.*manifest admission.*before playback.*audio.*render.*video preview.*video export.*transient projection.*inherited folder mute.*solo.*hidden state.*leaf track flags.*before rendered-fallback.*authenticates.*marker.*forged marker.*before hierarchy traversal.*canonical folder state.*leaf-local flags.*routing.*history.*persistence.*remain unchanged.*collapsed and height.*UI-only/isu);
-	assertOrderedClaim(documentation.replace(/\s+/gu, ' '), /schema 17.*take groups.*mandatory closed canonical records.*sequence and audio-track ownership.*audio-source bounds.*canonical lane, take, region, and group ordering.*4,096.*160-character.*nonoverlap.*soundscaper\.take-comp.*org\.soundscaper\.capability\.take-comp.*bypass.*no fallback.*refuses publisher substitution.*excluded from audio and video rendered-fallback eligibility.*Soundscaper.*available\/native.*writable.*Framescaper.*unavailable\/bypassed.*read-only.*\.scape.*production-recovered cycle output.*fresh-recipient desktop handoff.*production-finalized cycle output.*durable-routed-take-cycle-capture-and-recovery/isu);
-	assertOrderedClaim(documentation, /schema 17.*actual project history.*before activation.*intrinsically read-only.*deep-frozen.*session metadata clones.*snapshot.*future schemas.*`null`.*not traversed/iu);
-	assertOrderedClaim(documentation, /same-ID tab.*stored read-only declaration.*ignored incoming.*flags/iu);
-	assertOrderedClaim(documentation, /active workspace.*persistent.*non-dismissible.*document-level.*counts.*bounded display names.*stable feature IDs.*declared dispositions.*tab.*active/iu);
-	assertOrderedClaim(documentation, /available items.*excluded.*evaluator messages.*fallback internals.*not read.*no activation controls.*feature-code-loading claim/iu);
-	assertOrderedClaim(documentation, /exact schema 17.*registered `audioEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*engine projection.*before activation side effects.*canonical project.*history.*persistence.*unchanged/iu);
-	assertOrderedClaim(documentation, /active.*enabled.*not already bypassed.*maintained first-party.*track.*group.*send.*master.*4,096.*does not read.*params.*context.*state.*deep-frozen.*localized.*noninteractive affected-object inventory/iu);
-	assertOrderedClaim(documentation, /unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
-	assertOrderedClaim(documentation, /exact schema 17.*registered `videoEffects`.*unavailable.*declared `bypass`.*effective `bypassed`.*bounded.*non-persisted.*preview-playback projection.*before activation side effects.*canonical project.*history.*source loading.*persistence.*save paths.*video export.*unchanged/iu);
-	assertOrderedClaim(documentation, /enabled maintained first-party.*timeline.*Project Bin.*minimal disabled copies.*4,096.*256-character stable-ID.*128-character effect-type.*does not read.*params.*context.*state.*opaque payloads/iu);
-	assertOrderedClaim(documentation, /deep-frozen.*Timeline or Project Bin.*location.*clip ID.*effect ID.*effect type.*localized.*control-free/iu);
-	assertOrderedClaim(documentation, /cached selector.*exact timeline.*clip ID.*effect ID.*effect type.*compositor rendering.*active-effect counting.*Project Bin.*not.*compositor/iu);
-	assertOrderedClaim(documentation, /future schemas.*before clip or Project Bin traversal.*unknown.*third-party.*rendered fallback.*offline render.*export.*activation controls.*outside/iu);
-	assertOrderedClaim(documentation, /current-format `\.scape` inspection.*provider-owned.*caller.*override.*schema 17.*before.*collision lookup.*deep-frozen.*future schemas.*`null`.*not traversed/iu);
-	assertOrderedClaim(documentation, /no-collision.*Open read-only.*Cancel.*combined.*Open as read-only copy.*single decision/isu);
-	assertOrderedClaim(documentation, /Cancel.*before import, persistence, or activation.*controller.*actual project history.*intrinsically read-only/isu);
-	assertOrderedClaim(documentation, /current-format.*exact schema 17.*fallback.*claim.*asset descriptor.*before.*collision.*storage/iu);
-	assertOrderedClaim(documentation, /export.*project root.*source records.*same sources.*accessors.*`toJSON` hooks.*without invocation.*hash.*before.*manifest.*commit.*import.*body.*SHA-256.*publication/iu);
-	assertOrderedClaim(documentation, /inspection.*does not hash.*asset bodies.*maintained exact-schema-17 controller activation.*referenced local audio and video fallback bytes/iu);
-	assert.match(documentation, /Admission reads publish no storage maintenance/iu);
-	assertOrderedClaim(documentation, /read-only video-metadata preflight.*raced against cancellation.*signal-ignoring provider.*continue after admission rejects.*fallback body read.*delay cancellation settlement/iu);
-	assertOrderedClaim(documentation, /direct `store\.loadProject\(\)` calls.*durable integrity after admission.*runtime fallback use by activation admission itself.*future-schema.*outside.*runtime selection.*playback controls.*operation-time-verified final-delivery controls/iu);
-	assertOrderedClaim(documentation, /point-in-time admission.*complete third-party activation gating/iu);
-	assertOrderedClaim(documentation, /role-defined audio rendered-fallback playback.*exact schema 17.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective `rendered-fallback`.*closed `project-audio-mix-v1` role.*opaque identity.*does not discover, load, or execute.*feature code.*whole-mix.*frame zero.*canonical project.*unchanged/isu);
-	assertOrderedClaim(documentation, /stored metadata.*rechecked.*short sources.*buffer geometry.*oversized sources.*streamable chunk provider.*does not prefetch or revalidate.*later provider failure/isu);
-	assertOrderedClaim(documentation, /initial activation.*privately stages only the required fallback source.*before.*session activation reservation.*activation side effects.*decoded buffer or stream-provider candidate.*outside shared `sourceBuffers`.*shared `sourceChunkProviders`.*engine chunk-source publication.*pre-reservation phase.*metadata.*audio-context.*decoded-body.*controller-lifetime signal.*exact reason.*late settlement.*buffers.*chunk providers.*engine chunk sources.*missing-source state.*status/isu);
-	assertOrderedClaim(documentation, /readiness or reservation failure.*discards.*active project.*tab.*lock.*prior shared source identities.*rechecks fallback admission.*session-owned history identity.*before reserving.*currentness checks.*engine entry.*shared publication.*ordinary loading.*excludes.*staged fallback source/isu);
-	assertOrderedClaim(documentation, /commit builds private buffer and provider snapshots.*current shared state.*ordinary transient buffers.*staged required source.*precedence.*conflicting transient.*engine.*private snapshots first.*after.*callback returns.*checks the signal.*owning admission or canonical-project identity assertion.*synchronously.*publication boundary.*no await intervenes.*required buffer or provider.*mutates shared state/isu);
-	assertOrderedClaim(documentation, /engine failure.*cancellation.*reservation or currentness failure.*publication-boundary identity failure.*throwing cache publication.*preserve.*prior shared identities.*cache refusal.*removes.*stale required representation.*commit ownership.*single-use.*discard.*idempotent/isu);
-	assertOrderedClaim(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact reason.*late settlement.*buffer.*provider.*engine.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
-	assertOrderedClaim(documentation, /not a durable byte lease.*`engine\.applyProject` or activation engine callback.*not abortable or transactional.*may have taken effect.*post-call publication-boundary assertion.*blocks shared publication.*later activation step.*successful engine and shared source publication.*not rolled back.*ordinary-source loading.*outside.*required-source publication transaction.*short-buffer retention.*cache-fit policy.*streamed chunks.*not prefetched or revalidated.*more than one.*feature identities.*non-audio roles.*fallback authoring.*freeze or proxy.*linked-only or unmanaged.*publisher authenticity.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*packaged runtime or UI.*browser.*reference-scale/isu);
+	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
+	assert.match(normalizedDocumentation, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaVersion:1.*schemaFamily:'framescaper'.*schemaVersion:1/isu);
+	assert.match(normalizedDocumentation, /no project migration, copy-forward, predecessor-validator dispatch/isu);
+	assert.match(normalizedDocumentation, /Fallback admission.*owning family-v1 identity.*same family.*foreign-family archive never enters those domain controls.*byte-exact Save Copy/isu);
+	assert.match(normalizedDocumentation, /stable 1\.0.*blocked/isu);
 });
 
 async function readMatrix() {

@@ -47,7 +47,7 @@ export function createTakeCompRuntimeHandlers(
 
 function takeProject(project: EditorCommandProject): MutableTakeCompProject {
 	const candidate = project as MutableTakeCompProject;
-	if (!isTakeCompProjectSchema(candidate.schemaVersion)) {
+	if (!isTakeCompProjectSchema(candidate)) {
 		throw new RangeError('Take comp commands require a schema-V17 project.');
 	}
 	if (!Array.isArray(candidate.takeGroups)) {

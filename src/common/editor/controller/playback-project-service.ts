@@ -17,6 +17,7 @@ import {
 	projectFeatureVideoRenderedFallbackPlayback,
 	type ProjectFeatureVideoRenderedFallbackMetadata,
 } from '../project-feature-video-rendered-fallback.ts';
+import type { ProjectSchemaFamily } from '../project-schema-identity.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -133,8 +134,12 @@ export interface PlaybackProjectApplyServiceRuntime<Project extends object>
 /** Compose every maintained transient project feature for editor playback. */
 export function createPlaybackProjectService(
 	capabilities: Readonly<Record<string, unknown>>,
+	currentProjectSchemaFamily?: ProjectSchemaFamily,
 ): PlaybackProjectService {
-	const compatibility = createProjectFeatureCompatibilityService(capabilities);
+	const compatibility = createProjectFeatureCompatibilityService(
+		capabilities,
+		currentProjectSchemaFamily,
+	);
 	return Object.freeze({
 		projectForPlayback,
 		projectForAudioRenderedFallbackDelivery,

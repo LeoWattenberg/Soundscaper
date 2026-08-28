@@ -134,7 +134,10 @@ export class FramescaperNativeServicesControllerV3 {
 		}));
 		this.#rootDisplayName = options.rootDisplayName ?? (() => 'Authorized folder');
 		this.#onQueueControl = options.onQueueControl;
-		this.#projectState = options.projectState ?? (() => Object.freeze({ open: false, writable: false }));
+		this.#projectState = options.projectState ?? (() => Object.freeze({
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			open: false, writable: false, binId: 'project-bin',
+		}));
 	}
 
 	snapshot(): FramescaperNativeServicesSnapshot {

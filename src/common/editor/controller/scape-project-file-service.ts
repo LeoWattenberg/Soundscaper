@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ProjectFeatureRequirementsReport } from '../project-feature-requirements.ts';
+import type { ProjectSchemaFamily } from '../project-schema-identity.ts';
+import type { ScapeManifest } from '../scape-archive-envelope.ts';
 import type { ScapeProjectInput } from '../scape-project-input.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 import { createProjectFeatureCompatibilityService } from './project-feature-compatibility-service.ts';
@@ -25,9 +27,11 @@ import {
 export interface ScapeProjectInspection extends ScapeOpenInspection {
 	readonly id: string;
 	readonly title: string;
+	readonly schemaFamily: ProjectSchemaFamily;
 	readonly schemaVersion: number;
 	readonly readOnly: boolean;
-	readonly manifest: Readonly<Record<string, unknown>>;
+	readonly reason: 'foreign-family' | 'newer-schema' | null;
+	readonly manifest: ScapeManifest;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 }
 
@@ -40,6 +44,7 @@ export interface ScapeProjectFileServiceRuntime<
 	readonly scapeInspectionQuiescenceOptions?: ScapeInspectionQuiescenceOptions;
 	readonly store: ScapeInspectionStore | null;
 	readonly productCapabilities: Readonly<Record<string, unknown>>;
+	readonly currentProjectSchemaFamily?: ProjectSchemaFamily;
 	readonly inspectScapeProject?: ScapeProjectInspector<Inspection>;
 	readonly openScape: (
 		file: ScapeProjectInput,
@@ -56,7 +61,10 @@ export function createScapeProjectFileService<
 >(runtime: ScapeProjectFileServiceRuntime<Inspection, Result>) {
 	const scapeInspectionQuiescence = runtime.scapeInspectionQuiescence
 		?? createScapeInspectionQuiescence(runtime.scapeInspectionQuiescenceOptions);
-	const projectFeatureCompatibility = createProjectFeatureCompatibilityService(runtime.productCapabilities);
+	const projectFeatureCompatibility = createProjectFeatureCompatibilityService(
+		runtime.productCapabilities,
+		runtime.currentProjectSchemaFamily,
+	);
 	const inspectionService = createScapeInspectionService<Inspection>({
 		lifetime: runtime.lifetime,
 		scapeInspectionQuiescence,

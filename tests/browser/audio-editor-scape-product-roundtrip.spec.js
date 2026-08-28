@@ -8,9 +8,8 @@ import {
 } from '@zip.js/zip.js';
 
 import {
-	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION,
-} from '../../src/common/editor/project-schema-version.ts';
+	PROJECT_SCHEMA_VERSION,
+} from '../../src/common/editor/project-schema-identity.ts';
 import {
 	expect,
 	test,
@@ -35,7 +34,7 @@ const PRODUCT_PATHS = {
 test.describe('exact selected-schema cross-product Scape handoffs', () => {
 	registerAudioEditorHooks();
 
-	test('Framescaper F31 holds S30 opaquely without damaging the Soundscaper archive', async ({ browser, page }) => {
+	test('Framescaper v1 holds Soundscaper v1 opaquely without damaging its archive', async ({ browser, page }) => {
 		await disableDirectScapeSave(page);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, PRODUCT_PATHS.soundscaper);
@@ -46,7 +45,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		const outboundArchive = await exportScapeArchive(page, origin, 'soundscaper');
 		const outbound = await inspectScapeArchive(outboundArchive);
 		expect(outbound.project.id).toBe(projectId);
-		expect(outbound.project.schemaVersion).toBe(SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
+		expect(outbound.project.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
 
 		const baseURL = new URL(page.url()).origin;
 		const openedRuntimes = [];
@@ -84,7 +83,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		}
 	});
 
-	test('Soundscaper S30 holds F31 opaquely without damaging the Framescaper archive', async ({ browser, page }) => {
+	test('Soundscaper v1 holds Framescaper v1 opaquely without damaging its archive', async ({ browser, page }) => {
 		await disableDirectScapeSave(page);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, PRODUCT_PATHS.framescaper);
@@ -94,7 +93,8 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		const outboundArchive = await exportScapeArchive(page, origin, 'framescaper');
 		const outbound = await inspectScapeArchive(outboundArchive);
 		expect(outbound.project.id).toBe(projectId);
-		expect(outbound.project.schemaVersion).toBe(FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION);
+		expect(outbound.project.schemaFamily).toBe('framescaper');
+		expect(outbound.project.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
 
 		const baseURL = new URL(page.url()).origin;
 		const openedRuntimes = [];
@@ -102,7 +102,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			const recipient = await openProductRuntime(browser, baseURL, 'soundscaper');
 			openedRuntimes.push(recipient);
 			const recipientErrors = collectClientErrors(recipient.page);
-			await openScapeArchive(recipient.editor, outboundArchive, 'framescaper-f31-outbound.fscape');
+			await openScapeArchive(recipient.editor, outboundArchive, 'framescaper-v1-outbound.fscape');
 			await expect(recipient.editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
 				timeout: 20_000,
 			});
@@ -116,7 +116,7 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 			const home = await openProductRuntime(browser, baseURL, 'framescaper');
 			openedRuntimes.push(home);
 			const homeErrors = collectClientErrors(home.page);
-			await openScapeArchive(home.editor, outboundArchive, 'framescaper-f31-home.fscape');
+			await openScapeArchive(home.editor, outboundArchive, 'framescaper-v1-home.fscape');
 			await expect(home.editor).toHaveAttribute('data-project-id', projectId, { timeout: 20_000 });
 			await expect(home.editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 			await expect(clipByName(home.editor, toneA.name)).toBeVisible();

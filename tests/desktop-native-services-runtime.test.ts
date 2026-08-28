@@ -28,7 +28,7 @@ test('the main-owned runtime composes one fenced database and truthful controlle
 	});
 	await runtime.ready;
 
-	assert.equal(runtime.databaseVersion, 2);
+	assert.equal(runtime.databaseVersion, 1);
 	assert.equal(runtime.controller.snapshot().runtimeAvailable, false);
 	assert.equal(runtime.controller.snapshot().nativeMediaEnabled, false);
 	mediaEnabled = true;
@@ -86,6 +86,7 @@ test('qualified recovery reaches an explicitly mounted dispatcher during startup
 		directoryIdentity: 'directory-a', authorizedAtMs: 3_000,
 	}, first.lease.lease(), 3_000);
 	const record = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'cd'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 		relativeDestination: 'programme.mp4', reservations: {
@@ -132,6 +133,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		directoryIdentity: 'directory-a', authorizedAtMs: 6_000,
 	}, first.lease.lease(), 6_000);
 	const recovered = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'd0'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 		relativeDestination: 'recovered.mp4', reservations: {
@@ -189,6 +191,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 		assert.deepEqual(executed, [recovered.jobId]);
 
 		const later = createNativeQueueRecordV2({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: 'd1'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 			relativeDestination: 'later.mp4', reservations: {
@@ -215,6 +218,7 @@ test('enabling Native Media wakes qualified recovered work once per preference t
 
 		await second.queueDispatcher?.dispose();
 		const deferred = createNativeQueueRecordV2({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: 'd2'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 			relativeDestination: 'deferred.mp4', reservations: {
@@ -251,6 +255,7 @@ test('startup leaves terminal rows visible without invoking project exact-plan r
 		directoryIdentity: 'directory-a', authorizedAtMs: 5_000,
 	}, first.lease.lease(), 5_000);
 	const record = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'cf'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,
 		relativeDestination: 'terminal.mp4', reservations: {
@@ -289,7 +294,8 @@ test('runtime close waits for an in-progress watch reconciliation before closing
 		now: () => 60_000,
 		watchScan: async () => { enterScan(); await scanBarrier; return []; },
 		watchProbe: async () => ({ succeeded: false, contentSha256: null }),
-		watchProjectState: () => ({ open: true, writable: true }),
+		watchProjectState: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			open: true, writable: true, binId: 'project-bin' }),
 		watchImportFile: async () => true,
 		watchFactory: () => ({ close: () => undefined }),
 	});
@@ -300,8 +306,9 @@ test('runtime close waits for an in-progress watch reconciliation before closing
 		directoryIdentity: 'directory-a', authorizedAtMs: 60_000,
 	}, runtime.lease.lease(), 60_000);
 	runtime.watch.create({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: 'af'.repeat(16), grantId: rootGrantId, projectId: 'project-1',
-		extensions: ['mov'], createdAtMs: 60_000,
+		binId: 'project-bin', extensions: ['mov'], createdAtMs: 60_000,
 	}, runtime.lease.lease(), 60_000);
 	runtime.watchCoordinator.refreshHints();
 	const reconciling = runtime.watchCoordinator.reconcileNow();
@@ -337,6 +344,7 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 		Object.freeze({ sourceId: 'source-b', sha256: '34'.repeat(32) }),
 	]);
 	const record = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'ce'.repeat(20), taskKind: 'image-sequence-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 7, inputFingerprints: inputs, rootGrantId,
 		relativeDestination: 'frames/frame.png', reservations: {
@@ -356,8 +364,13 @@ test('startup recovery dispatch uses frame counts reverified by project authorit
 	})));
 	const authority = new FramescaperNativeProjectAuthority({
 		project: {
-			projectState: () => Object.freeze({ open: true, writable: true }),
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectState: () => Object.freeze({
+				schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+				open: true, writable: true,
+			}),
 			projectRecord: () => Object.freeze({
+				schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 				projectId: record.projectId, projectRevision: record.projectRevision,
 				projectSha256: '56'.repeat(32),
 				bodies: Object.freeze(inputs.map((input) => Object.freeze({

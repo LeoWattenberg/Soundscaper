@@ -17,6 +17,8 @@ import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.t
 import type { StorageRepositoryPort } from '../src/common/editor/storage/repository-port.ts';
 import { assistanceWorkflowFixture } from './helpers/assistance-workflow-fixture.ts';
 
+const PROJECT_IDENTITY = Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const });
+
 test('semantic custody reopens current transcript, visual, and OCR indexes from disposable records',
 	async () => {
 		const repository = derivativeRepository();
@@ -29,7 +31,7 @@ test('semantic custody reopens current transcript, visual, and OCR indexes from 
 		}], [{ resultId: 'shared', timelineFrame: 100, label: 'Launch Plan' }]));
 		const custody = createLocalAssistanceSemanticIndexCustodyV1(repository);
 		const loaded = await custody.loadAuthenticated({
-			projectId: 'project-a', projectRevision: 8,
+			...PROJECT_IDENTITY, projectId: 'project-a', projectRevision: 8,
 		}, new AbortController().signal) as {
 			records: readonly { kind: string }[];
 			index: { transcript: { rows: readonly unknown[] }; visual: { rows: readonly unknown[] };
@@ -49,11 +51,11 @@ test('semantic custody treats stale, deleted, or semantically corrupt records as
 	}], []));
 	const custody = createLocalAssistanceSemanticIndexCustodyV1(repository);
 	assert.equal(await custody.loadAuthenticated({
-		projectId: 'project-a', projectRevision: 9,
+		...PROJECT_IDENTITY, projectId: 'project-a', projectRevision: 9,
 	}, new AbortController().signal), null);
 	await repository.purgeProject('project-a');
 	assert.equal(await custody.loadAuthenticated({
-		projectId: 'project-a', projectRevision: 8,
+		...PROJECT_IDENTITY, projectId: 'project-a', projectRevision: 8,
 	}, new AbortController().signal), null);
 });
 
@@ -65,7 +67,8 @@ function payload(
 ) {
 	return { mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE,
 		bytes: createAssistanceSemanticDerivativeBundleV1({
-			provider, projectId: 'project-a', projectRevision: 8, sequenceId: 'sequence-a',
+			provider, ...PROJECT_IDENTITY,
+			projectId: 'project-a', projectRevision: 8, sequenceId: 'sequence-a',
 			sourceId: 'source-a', matrix: createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors }),
 			rows, ocr,
 		}) };

@@ -5,6 +5,7 @@ import {
 	videoFrameToSampleFrame,
 	type RationalRate,
 } from '../timeline-time.ts';
+import { hasSequenceGeometryProjectAuthority } from '../project-schema-version.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -36,7 +37,7 @@ export function resolveRangeSequenceGeometry(
 	const targetTrackIds = canonicalStringArray(targetTrackIdsValue, 'targetTrackIds');
 	const range = sampleSpan(rangeValue, 'range');
 	const trackRanges = new Map<string, RangeSampleSpan | null>();
-	if (Number(project.schemaVersion) < 10) {
+	if (!hasSequenceGeometryProjectAuthority(project)) {
 		return Object.freeze({ sequences: Object.freeze([]), trackRanges });
 	}
 	const sampleRate = positiveSafeInteger(project.sampleRate, 'project.sampleRate');

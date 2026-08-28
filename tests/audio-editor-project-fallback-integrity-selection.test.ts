@@ -10,7 +10,7 @@ import {
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	PROJECT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 const VIDEO_BYTES = Uint8Array.of(0x66, 0x61, 0x6c, 0x6c, 0x62, 0x61, 0x63, 0x6b);
@@ -36,7 +36,7 @@ interface FallbackRequirementFixture extends Record<string, unknown> {
 test('selected video verification skips a missing unrelated body and retains one canonical Blob', async () => {
 	let videoLoads = 0;
 	const candidate = fallbackProject();
-	candidate.schemaVersion = SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION;
+	candidate.schemaVersion = PROJECT_SCHEMA_VERSION;
 	candidate.clips = [];
 	candidate.tracks = [];
 	candidate.automationLanes = [];
@@ -161,6 +161,7 @@ test('default verification still verifies every declared fallback and exposes no
 });
 
 function fallbackProject(): {
+	schemaFamily: 'framescaper';
 	schemaVersion: number;
 	sampleRate: number;
 	primarySequenceId: string;
@@ -172,7 +173,8 @@ function fallbackProject(): {
 	featureRequirements: { schemaVersion: number; requirements: FallbackRequirementFixture[] };
 } {
 	return {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],

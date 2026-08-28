@@ -4,11 +4,6 @@ import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
-import {
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
-} from '../src/common/editor/project-schema-version.ts';
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -181,19 +176,20 @@ test('an unknown feature can bind the closed whole-mix role without activating f
 	});
 });
 
-test('selected Framescaper V19 can project the maintained whole-mix fallback contract', () => {
-	const input = { ...project(), schemaVersion: FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION };
+test('Framescaper v1 can project the maintained whole-mix fallback contract', () => {
+	const input = { ...project(), schemaFamily: 'framescaper' as const, schemaVersion: 1 };
 	const projected = projectFeatureAudioRenderedFallbackPlayback(input, report());
 
 	assert.equal(projected.metadata?.role, 'project-audio-mix-v1');
 	assert.equal((projected.project as typeof input).clips[0]?.sourceId, 'fallback-source');
 });
 
-test('selected Framescaper V27 projects a neutral production mixer for whole-mix fallback playback', () => {
+test('Framescaper v1 projects a neutral production mixer for whole-mix fallback playback', () => {
 	const foundation = project();
 	const input = {
 		...foundation,
-		schemaVersion: FRAMESCAPER_PROJECT_V27_SCHEMA_VERSION,
+		schemaFamily: 'framescaper' as const,
+		schemaVersion: 1,
 		automationLanes: [{ id: 'canonical-lane' }],
 		mixer: createDefaultMixerGraphV21([{ id: 'track-a', channelCount: 2 }], 2),
 	};

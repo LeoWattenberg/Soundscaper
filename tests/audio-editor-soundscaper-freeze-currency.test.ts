@@ -127,16 +127,16 @@ test('a rack another strip keys cannot be frozen into a self-keyed render', asyn
 	// The freeze renders the track alone through a graph built for it, so an
 	// authored sidechain into its rack is not there: the dynamics worklet keys
 	// itself from its own input and a self-keyed limiter is what gets baked.
-	const { createSoundscaperAudioFreezeActionsV21 } = await import(
-		'../src/soundscaper/editor-audio-track-freeze-actions-v21.ts'
+	const { createSoundscaperAudioFreezeActions } = await import(
+		'../src/soundscaper/editor-audio-track-freeze-actions.ts'
 	);
-	const { applySoundscaperProjectCommandV21 } = await import(
-		'../src/soundscaper/editor-project-v21-commands.ts'
+	const { applySoundscaperProjectCommand } = await import(
+		'../src/soundscaper/editor-project-commands.ts'
 	);
 	const { createAudioTrack } = await import('../src/common/editor/project-media-factory.ts');
-	const { createSoundscaperProjectV21 } = await import('../src/soundscaper/editor-project-v21.ts');
+	const { createSoundscaperProject } = await import('../src/soundscaper/editor-project.ts');
 
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'freeze-sidechain', title: 'Freeze sidechain', now: '2026-08-19T12:00:00.000Z',
 		tracks: [
 			createAudioTrack({
@@ -148,7 +148,7 @@ test('a rack another strip keys cannot be frozen into a self-keyed render', asyn
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
 	});
-	const keyed = applySoundscaperProjectCommandV21(base, {
+	const keyed = applySoundscaperProjectCommand(base, {
 		type: 'mixer-graph/set',
 		expected: base.mixer,
 		mixer: {
@@ -165,7 +165,7 @@ test('a rack another strip keys cannot be frozen into a self-keyed render', asyn
 	} as never, { now: '2026-08-19T12:00:01.000Z' });
 
 	let prepared = 0;
-	const binding = createSoundscaperAudioFreezeActionsV21(
+	const binding = createSoundscaperAudioFreezeActions(
 		{
 			store: {
 				beginSourceWrite: () => { throw new Error('no render should start'); },

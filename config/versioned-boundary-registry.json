@@ -1,0 +1,453 @@
+{
+	"boundaries": [
+		{ "path": "desktop/assistance-power-etiquette-v1.ts", "kind": "ipc-contract", "justification": "assistance-power-etiquette-v1.ts is the persisted assistance worker or desktop IPC revision used across process boundaries." }
+		,
+		{ "path": "desktop/assistance-runtime-family-errors-v1.ts", "kind": "ipc-contract", "justification": "assistance-runtime-family-errors-v1.ts is the persisted assistance worker or desktop IPC revision used across process boundaries." }
+		,
+		{ "path": "desktop/assistance-runtime-family-idle-unload-v1.ts", "kind": "ipc-contract", "justification": "assistance-runtime-family-idle-unload-v1.ts is the persisted assistance worker or desktop IPC revision used across process boundaries." }
+		,
+		{ "path": "desktop/helper-native-ofx-host-grant-v2.ts", "kind": "helper-contract", "justification": "helper-native-ofx-host-grant-v2.ts is a native helper or OpenFX host grant revision used across the helper boundary." }
+		,
+		{ "path": "desktop/native-media-queue-dispatcher-v3.ts", "kind": "native-contract", "justification": "native-media-queue-dispatcher-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-media-v14-executor.ts", "kind": "native-contract", "justification": "native-media-v14-executor.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-media-v14-helper-adapter.ts", "kind": "helper-contract", "justification": "native-media-v14-helper-adapter.ts is a native helper or OpenFX host grant revision used across the helper boundary." }
+		,
+		{ "path": "desktop/native-media-v14-runtime-contract.ts", "kind": "native-contract", "justification": "native-media-v14-runtime-contract.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-media-v15-foundation-projection.ts", "kind": "native-contract", "justification": "native-media-v15-foundation-projection.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-queue-capacity-provider-v3.ts", "kind": "native-contract", "justification": "native-queue-capacity-provider-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-carrier-recovery-v3.ts", "kind": "native-contract", "justification": "native-services-carrier-recovery-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-checkpoint-recovery-v3.ts", "kind": "native-contract", "justification": "native-services-checkpoint-recovery-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-controller-contracts-v3.ts", "kind": "native-contract", "justification": "native-services-controller-contracts-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-controller-v3.ts", "kind": "native-contract", "justification": "native-services-controller-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-database-v3.ts", "kind": "native-contract", "justification": "native-services-database-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-lifecycle-v3.ts", "kind": "native-contract", "justification": "native-services-lifecycle-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-publication-fence-v3.ts", "kind": "native-contract", "justification": "native-services-publication-fence-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-queue-repository-v3.ts", "kind": "native-contract", "justification": "native-services-queue-repository-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-runtime-v3.ts", "kind": "native-contract", "justification": "native-services-runtime-v3.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/native-services-v14-backend-authority.ts", "kind": "native-contract", "justification": "native-services-v14-backend-authority.ts is a native-services carrier or execution-protocol revision independent of project schema." }
+		,
+		{ "path": "desktop/openfx-helper-v12-native-grant.ts", "kind": "helper-contract", "justification": "openfx-helper-v12-native-grant.ts is a native helper or OpenFX host grant revision used across the helper boundary." }
+		,
+		{ "path": "native/framescaper-media-host/src/ffmpeg_selected_v20_adapter.cpp", "kind": "native-contract", "justification": "ffmpeg_selected_v20_adapter.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/ffmpeg_selected_v20_adapter.hpp", "kind": "native-contract", "justification": "ffmpeg_selected_v20_adapter.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/ffmpeg_selected_v20_render.cpp", "kind": "native-contract", "justification": "ffmpeg_selected_v20_render.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/ffmpeg_selected_v20_render.hpp", "kind": "native-contract", "justification": "ffmpeg_selected_v20_render.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/legacy_plan_v8_filter_semantics.cpp", "kind": "native-contract", "justification": "legacy_plan_v8_filter_semantics.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/legacy_plan_v8_filter_semantics.hpp", "kind": "native-contract", "justification": "legacy_plan_v8_filter_semantics.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/legacy_plan_v8_visual_semantics.hpp", "kind": "native-contract", "justification": "legacy_plan_v8_visual_semantics.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/legacy_plan_v8_visual_semantics_impl.hpp", "kind": "native-contract", "justification": "legacy_plan_v8_visual_semantics_impl.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/selected_v20_frame_executor.cpp", "kind": "native-contract", "justification": "selected_v20_frame_executor.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/selected_v20_frame_executor.hpp", "kind": "native-contract", "justification": "selected_v20_frame_executor.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/selected_v20_frame_pack.cpp", "kind": "native-contract", "justification": "selected_v20_frame_pack.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/selected_v20_frame_pack.hpp", "kind": "native-contract", "justification": "selected_v20_frame_pack.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/selected_v20_plan_capture.cpp", "kind": "native-contract", "justification": "selected_v20_plan_capture.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/selected_v20_plan_capture.hpp", "kind": "native-contract", "justification": "selected_v20_plan_capture.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/unified_plan_v10_semantics.hpp", "kind": "native-contract", "justification": "unified_plan_v10_semantics.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/unified_plan_v11_v12_semantics.hpp", "kind": "native-contract", "justification": "unified_plan_v11_v12_semantics.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/unified_plan_v9_intent_authority.hpp", "kind": "native-contract", "justification": "unified_plan_v9_intent_authority.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-media-host/src/unified_plan_v9_semantics.hpp", "kind": "native-contract", "justification": "unified_plan_v9_semantics.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/interact_v1_invocation.cpp", "kind": "native-contract", "justification": "interact_v1_invocation.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/interact_v1_invocation.hpp", "kind": "native-contract", "justification": "interact_v1_invocation.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_cancellation_channel.cpp", "kind": "native-contract", "justification": "v12_cancellation_channel.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_cancellation_channel.hpp", "kind": "native-contract", "justification": "v12_cancellation_channel.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_gpu_qualification.cpp", "kind": "native-contract", "justification": "v12_gpu_qualification.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_gpu_qualification.hpp", "kind": "native-contract", "justification": "v12_gpu_qualification.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_host_invocation.cpp", "kind": "native-contract", "justification": "v12_host_invocation.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_host_invocation.hpp", "kind": "native-contract", "justification": "v12_host_invocation.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_output_file.cpp", "kind": "native-contract", "justification": "v12_output_file.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_output_file.hpp", "kind": "native-contract", "justification": "v12_output_file.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_retime_authority.cpp", "kind": "native-contract", "justification": "v12_retime_authority.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_retime_authority.hpp", "kind": "native-contract", "justification": "v12_retime_authority.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_transition_authority.cpp", "kind": "native-contract", "justification": "v12_transition_authority.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_transition_authority.hpp", "kind": "native-contract", "justification": "v12_transition_authority.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_video_timing_grants.cpp", "kind": "native-contract", "justification": "v12_video_timing_grants.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/framescaper-openfx-host/src/v12_video_timing_grants.hpp", "kind": "native-contract", "justification": "v12_video_timing_grants.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		,
+		{ "path": "native/milestone-5-native-isolation-launcher/profiles/linux-broker-v1.json", "kind": "native-contract", "justification": "linux-broker-v1.json is an OS sandbox profile revision consumed verbatim by the native isolation launcher." }
+		,
+		{ "path": "native/milestone-5-native-isolation-launcher/profiles/linux-v1.json", "kind": "native-contract", "justification": "linux-v1.json is an OS sandbox profile revision consumed verbatim by the native isolation launcher." }
+		,
+		{ "path": "native/milestone-5-native-isolation-launcher/profiles/macos-broker-v1.json", "kind": "native-contract", "justification": "macos-broker-v1.json is an OS sandbox profile revision consumed verbatim by the native isolation launcher." }
+		,
+		{ "path": "native/milestone-5-native-isolation-launcher/profiles/macos-v1.sb", "kind": "native-contract", "justification": "macos-v1.sb is an OS sandbox profile revision consumed verbatim by the native isolation launcher." }
+		,
+		{ "path": "native/milestone-5-native-isolation-launcher/profiles/windows-broker-v1.json", "kind": "native-contract", "justification": "windows-broker-v1.json is an OS sandbox profile revision consumed verbatim by the native isolation launcher." }
+		,
+		{ "path": "native/milestone-5-native-isolation-launcher/profiles/windows-v1.json", "kind": "native-contract", "justification": "windows-v1.json is an OS sandbox profile revision consumed verbatim by the native isolation launcher." }
+		,
+		{ "path": "scripts/compact-v8-coverage.mjs", "kind": "upstream-contract", "justification": "compact-v8-coverage.mjs follows the upstream V8 coverage format name and does not identify project schema." }
+		,
+		{ "path": "scripts/lib/m5b-quality-cohort-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-cohort-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
+		,
+		{ "path": "scripts/lib/m5b-quality-observations-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-observations-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
+		,
+		{ "path": "scripts/lib/m5b-quality-pipeline-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-pipeline-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
+		,
+		{ "path": "scripts/lib/v8-coverage-compaction.mjs", "kind": "upstream-contract", "justification": "v8-coverage-compaction.mjs follows the upstream V8 coverage format name and does not identify project schema." }
+		,
+		{ "path": "src/common/editor/assistance/assistance-asset-command-v1.ts", "kind": "persisted-contract", "justification": "assistance-asset-command-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/assistance-asset-reference-v1.ts", "kind": "persisted-contract", "justification": "assistance-asset-reference-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/beat-this-log-mel-v1.ts", "kind": "persisted-contract", "justification": "beat-this-log-mel-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/beat-this-postprocess-v1.ts", "kind": "persisted-contract", "justification": "beat-this-postprocess-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/binary-formats-v1.ts", "kind": "persisted-contract", "justification": "binary-formats-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/ctc-forced-alignment-v1.ts", "kind": "persisted-contract", "justification": "ctc-forced-alignment-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/deepfilternet3-signal-v1.ts", "kind": "persisted-contract", "justification": "deepfilternet3-signal-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/editorial-generation-v1.ts", "kind": "persisted-contract", "justification": "editorial-generation-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/float32-mono-wave-v1.ts", "kind": "persisted-contract", "justification": "float32-mono-wave-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/highlight-ranking-v1.ts", "kind": "persisted-contract", "justification": "highlight-ranking-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/nomic-tokenizer-v1.ts", "kind": "persisted-contract", "justification": "nomic-tokenizer-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-audio-cut-transform-registry-v1.ts", "kind": "persisted-contract", "justification": "owned-audio-cut-transform-registry-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-audio-cut-transform-results-v1.ts", "kind": "persisted-contract", "justification": "owned-audio-cut-transform-results-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-audio-cut-transform-types-v1.ts", "kind": "persisted-contract", "justification": "owned-audio-cut-transform-types-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-audio-workflow-transforms-v1.ts", "kind": "persisted-contract", "justification": "owned-audio-workflow-transforms-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-cut-workflow-transform-v1.ts", "kind": "persisted-contract", "justification": "owned-cut-workflow-transform-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-highlight-crop-evidence-v1.ts", "kind": "persisted-contract", "justification": "owned-highlight-crop-evidence-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-highlight-workflow-transforms-v1.ts", "kind": "persisted-contract", "justification": "owned-highlight-workflow-transforms-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-transform-validation-v1.ts", "kind": "persisted-contract", "justification": "owned-transform-validation-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-video-highlight-transform-registry-v1.ts", "kind": "persisted-contract", "justification": "owned-video-highlight-transform-registry-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-video-highlight-transform-results-v1.ts", "kind": "persisted-contract", "justification": "owned-video-highlight-transform-results-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-video-highlight-transform-types-v1.ts", "kind": "persisted-contract", "justification": "owned-video-highlight-transform-types-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-video-highlight-validation-v1.ts", "kind": "persisted-contract", "justification": "owned-video-highlight-validation-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/owned-video-workflow-transforms-v1.ts", "kind": "persisted-contract", "justification": "owned-video-workflow-transforms-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/panns-cnn10-postprocess-v1.ts", "kind": "persisted-contract", "justification": "panns-cnn10-postprocess-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/reframe-derivative-v1.ts", "kind": "persisted-contract", "justification": "reframe-derivative-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/reframe-planner-v1.ts", "kind": "persisted-contract", "justification": "reframe-planner-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/reusable-derivatives-v1.ts", "kind": "persisted-contract", "justification": "reusable-derivatives-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/semantic-derivative-bundle-v1.ts", "kind": "persisted-contract", "justification": "semantic-derivative-bundle-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/semantic-search-index-v1.ts", "kind": "persisted-contract", "justification": "semantic-search-index-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/semantic-search-runtime-v1.ts", "kind": "persisted-contract", "justification": "semantic-search-runtime-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/shot-boundaries-v1.ts", "kind": "persisted-contract", "justification": "shot-boundaries-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/siglip2-tokenizer-v1.ts", "kind": "persisted-contract", "justification": "siglip2-tokenizer-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/source-time-rows-v1.ts", "kind": "persisted-contract", "justification": "source-time-rows-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/subject-tracker-v1.ts", "kind": "persisted-contract", "justification": "subject-tracker-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/tiger-dnr-signal-v1.ts", "kind": "persisted-contract", "justification": "tiger-dnr-signal-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/tiger-dnr-streaming-overlap-v1.ts", "kind": "persisted-contract", "justification": "tiger-dnr-streaming-overlap-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/transcript-body-publication-v1.ts", "kind": "persisted-contract", "justification": "transcript-body-publication-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/transcript-indexing-v1.ts", "kind": "persisted-contract", "justification": "transcript-indexing-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/transcript-scape-asset-extension-v1.ts", "kind": "persisted-contract", "justification": "transcript-scape-asset-extension-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/transnetv2-onnx-adapter-v1.ts", "kind": "persisted-contract", "justification": "transnetv2-onnx-adapter-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/transnetv2-postprocess-v1.ts", "kind": "persisted-contract", "justification": "transnetv2-postprocess-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/visual-frame-pack-set-v1.ts", "kind": "persisted-contract", "justification": "visual-frame-pack-set-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/visual-frame-pack-v2.ts", "kind": "persisted-contract", "justification": "visual-frame-pack-v2.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/visual-indexing-v1.ts", "kind": "persisted-contract", "justification": "visual-indexing-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/visual-search-records-v1.ts", "kind": "persisted-contract", "justification": "visual-search-records-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/visual-semantic-results-v1.ts", "kind": "persisted-contract", "justification": "visual-semantic-results-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/visual-tag-classification-v1.ts", "kind": "persisted-contract", "justification": "visual-tag-classification-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/wav2vec2-english-tokenizer-v1.ts", "kind": "persisted-contract", "justification": "wav2vec2-english-tokenizer-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/workflow-custody-v1.ts", "kind": "persisted-contract", "justification": "workflow-custody-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/workflow-fence-v1.ts", "kind": "persisted-contract", "justification": "workflow-fence-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/workflow-review-authority-v1.ts", "kind": "persisted-contract", "justification": "workflow-review-authority-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/workflow-settings-v1.ts", "kind": "persisted-contract", "justification": "workflow-settings-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/audio-track-freeze-coordinator-v21.ts", "kind": "persisted-contract", "justification": "audio-track-freeze-coordinator-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/audio-track-freeze-lifecycle-v21.ts", "kind": "persisted-contract", "justification": "audio-track-freeze-lifecycle-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/audio-track-freeze-v21.ts", "kind": "persisted-contract", "justification": "audio-track-freeze-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/automation-lane-interval-edit-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-interval-edit-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/automation-lane-thinning-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-thinning-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/automation-lane-timebase-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-timebase-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/automation-lane-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/automation-write-mode-v21.ts", "kind": "persisted-contract", "justification": "automation-write-mode-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/bounded-json-structure-v1.ts", "kind": "persisted-contract", "justification": "bounded-json-structure-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/controller/isolated-track-render-project-v21.ts", "kind": "persisted-contract", "justification": "isolated-track-render-project-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/controller/soundscaper-delivery-publication-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-delivery-publication-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/controller/soundscaper-persistent-delivery-adapter-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-persistent-delivery-adapter-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/automation-control-v21.ts", "kind": "persisted-contract", "justification": "automation-control-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/automation-lane-scheduler-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-scheduler-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/native-effect-latency-v21.ts", "kind": "persisted-contract", "justification": "native-effect-latency-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/production-meter-runtime-session-v21.ts", "kind": "persisted-contract", "justification": "production-meter-runtime-session-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-automation-scheduler-v21.ts", "kind": "persisted-contract", "justification": "project-automation-scheduler-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-graph-v21-edges.ts", "kind": "persisted-contract", "justification": "project-graph-v21-edges.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-graph-v21.ts", "kind": "persisted-contract", "justification": "project-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/project-path-pdc-plan-v21.ts", "kind": "persisted-contract", "justification": "project-path-pdc-plan-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/engine/strip-meter-analyser-bank-v21.ts", "kind": "persisted-contract", "justification": "strip-meter-analyser-bank-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/folder-bus-v13.ts", "kind": "persisted-contract", "justification": "folder-bus-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/folder-mixer-graph-v21.ts", "kind": "persisted-contract", "justification": "folder-mixer-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/mixer-graph-surface-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-surface-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/mixer-graph-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-media-evaluated-carrier-v1.ts", "kind": "ipc-contract", "justification": "native-media-evaluated-carrier-v1.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/native-media-image-sequence-pack-v25.ts", "kind": "persisted-contract", "justification": "native-media-image-sequence-pack-v25.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-media-image-sequence-v25.ts", "kind": "persisted-contract", "justification": "native-media-image-sequence-v25.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-media-plan-envelope-v2.ts", "kind": "ipc-contract", "justification": "native-media-plan-envelope-v2.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/native-media-plan-envelope-v3.ts", "kind": "ipc-contract", "justification": "native-media-plan-envelope-v3.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/native-media-v14-native-dispatch.ts", "kind": "persisted-contract", "justification": "native-media-v14-native-dispatch.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-media-v14-openfx-carrier.ts", "kind": "ipc-contract", "justification": "native-media-v14-openfx-carrier.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/native-media-v14-render-family.ts", "kind": "persisted-contract", "justification": "native-media-v14-render-family.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-media-v14-support.ts", "kind": "persisted-contract", "justification": "native-media-v14-support.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-ofx-host-contract-v2.ts", "kind": "ipc-contract", "justification": "native-ofx-host-contract-v2.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/native-ofx-state-v26.ts", "kind": "helper-contract", "justification": "native-ofx-state-v26.ts is an external helper or OpenFX integration boundary with its own revision." }
+		,
+		{ "path": "src/common/editor/native-queue-record-v3.ts", "kind": "persisted-contract", "justification": "native-queue-record-v3.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/native-rgba-frame-pack-v1-contract.ts", "kind": "ipc-contract", "justification": "native-rgba-frame-pack-v1-contract.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/project-feature-audio-track-render-v1.ts", "kind": "persisted-contract", "justification": "project-feature-audio-track-render-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/project-feature-video-clip-render-v1.ts", "kind": "persisted-contract", "justification": "project-feature-video-clip-render-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/project-v17-validation.ts", "kind": "persisted-contract", "justification": "project-v17-validation.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/project-v17.ts", "kind": "persisted-contract", "justification": "project-v17.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/quality/project-pdc-reference-v21.ts", "kind": "persisted-contract", "justification": "project-pdc-reference-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/routing-cycle-v21.ts", "kind": "persisted-contract", "justification": "routing-cycle-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/soundscaper-delivery-contract-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-delivery-contract-v1.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/source-characteristics-v14.ts", "kind": "persisted-contract", "justification": "source-characteristics-v14.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/take-comp-document-v17.ts", "kind": "persisted-contract", "justification": "take-comp-document-v17.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/timeline-image-conversion-receipt-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-conversion-receipt-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/timeline-image-frame-pack-v1-layout.ts", "kind": "persisted-contract", "justification": "timeline-image-frame-pack-v1-layout.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/timeline-image-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/timeline-image-native-decode-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-native-decode-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/track-folder-v12.ts", "kind": "persisted-contract", "justification": "track-folder-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/track-hierarchy-mutation-v12.ts", "kind": "persisted-contract", "justification": "track-hierarchy-mutation-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/track-hierarchy-v12.ts", "kind": "persisted-contract", "justification": "track-hierarchy-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-linear-rgba-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-linear-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-delivery-v15.ts", "kind": "persisted-contract", "justification": "unified-exact-render-delivery-v15.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-consumers-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-finishing-consumers-v14.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-consumers-v14.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-finishing-motion-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-finishing-motion-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v10.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v10.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v11.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v11.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v12.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-plan-v9.ts", "kind": "persisted-contract", "justification": "unified-exact-render-plan-v9.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-visual-consumers-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-consumers-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/unified-exact-render-visual-materializer-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-materializer-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-caption-imsc-identities-v27.ts", "kind": "persisted-contract", "justification": "video-caption-imsc-identities-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-caption-imsc-v27.ts", "kind": "persisted-contract", "justification": "video-caption-imsc-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-caption-interchange-contract-v27.ts", "kind": "ipc-contract", "justification": "video-caption-interchange-contract-v27.ts is an independently versioned persisted or cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/video-caption-interchange-v27.ts", "kind": "persisted-contract", "justification": "video-caption-interchange-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-caption-track-v27.ts", "kind": "persisted-contract", "justification": "video-caption-track-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-color-cube-lut-v27.ts", "kind": "persisted-contract", "justification": "video-color-cube-lut-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-color-management-v27.ts", "kind": "persisted-contract", "justification": "video-color-management-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-freeze-v24.ts", "kind": "persisted-contract", "justification": "video-freeze-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-keyframe-export-plan-v7-values.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7-values.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-keyframe-export-plan-v7.ts", "kind": "persisted-contract", "justification": "video-keyframe-export-plan-v7.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-mask-matte-rgba-v13.ts", "kind": "persisted-contract", "justification": "video-mask-matte-rgba-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-mask-matte-v24.ts", "kind": "persisted-contract", "justification": "video-mask-matte-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-motion-analysis-v27.ts", "kind": "persisted-contract", "justification": "video-motion-analysis-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-motion-denoise-v27.ts", "kind": "persisted-contract", "justification": "video-motion-denoise-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-motion-model-v27.ts", "kind": "persisted-contract", "justification": "video-motion-model-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-motion-processing-v27.ts", "kind": "persisted-contract", "justification": "video-motion-processing-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-motion-webgl2-v27.ts", "kind": "persisted-contract", "justification": "video-motion-webgl2-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-proxy-attachment-v18.ts", "kind": "persisted-contract", "justification": "video-proxy-attachment-v18.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-retime-v16.ts", "kind": "persisted-contract", "justification": "video-retime-v16.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-source-color-interpretation-v27.ts", "kind": "persisted-contract", "justification": "video-source-color-interpretation-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-source-professional-characteristics-v25.ts", "kind": "persisted-contract", "justification": "video-source-professional-characteristics-v25.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-transition-v1.ts", "kind": "persisted-contract", "justification": "video-transition-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-visual-model-v24.ts", "kind": "persisted-contract", "justification": "video-visual-model-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-visual-presentation-v27.ts", "kind": "persisted-contract", "justification": "video-visual-presentation-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/video-visual-preset-v24.ts", "kind": "persisted-contract", "justification": "video-visual-preset-v24.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/framescaper/delivery-native-report-closure-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-report-closure-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/framescaper/delivery-native-report-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-report-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/framescaper/delivery-native-report-validation-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-report-validation-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v11-controller.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-controller.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v11-selection.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-selection.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v11.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v12-controller.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v12-controller.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v12.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v12.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v13-paste.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v13-paste.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v13.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v13.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v8.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v8.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/editor-session-clipboard-v9.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v9.ts is a clipboard wire-format revision exchanged independently of project schema." }
+		,
+		{ "path": "src/framescaper/native-render-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "native-render-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/soundscaper/desktop-native-plugin-state-transport-v1.ts", "kind": "persisted-contract", "justification": "desktop-native-plugin-state-transport-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+	]
+}

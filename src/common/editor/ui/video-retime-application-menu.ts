@@ -12,7 +12,7 @@ export interface VideoRetimeApplicationMenuInput {
 	open(): unknown;
 }
 
-/** A single V20-only entry; the editor itself is loaded only after activation. */
+/** A single Framescaper-v1 entry; the editor itself is loaded only after activation. */
 export function createVideoRetimeApplicationMenuItems(input: VideoRetimeApplicationMenuInput) {
 	if (input.productId !== 'framescaper' || !input.capability) return Object.freeze([]);
 	const model = createVideoRetimeDialogModel(input);

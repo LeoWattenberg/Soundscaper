@@ -23,15 +23,15 @@ import { framescaperOpenFxPluginProjectionV1 } from '../src/common/editor/native
 import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import { nativeRgbaFramePackV1ByteLength } from '../src/common/editor/native-rgba-frame-pack-v1-contract.ts';
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import { streamFramescaperNativeRgbaFramePackV1 } from '../src/framescaper/native-render-frame-pack-v1.ts';
 import type {
-	FramescaperNativeRenderDeliveryRequestV28,
-} from '../src/framescaper/editor-native-project-action-requests-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+	FramescaperNativeRenderDeliveryRequestNativeMedia,
+} from '../src/framescaper/editor-native-project-action-requests.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const STAGE_ID = 'ab'.repeat(20);
 const OWNER = Object.freeze({ renderer: 28 });
@@ -100,7 +100,7 @@ test('live V14 staging durably authenticates one bounded carrier for repeat nati
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('selected V28 image-sequence delivery revalidates its live carrier while proxy custody stays refused', async () => {
+test('baseline image-sequence delivery revalidates its live carrier while proxy custody stays refused', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-live-v14-image-sequence-'));
 	try {
 		const fixture = liveFixture(false, Object.freeze({
@@ -370,7 +370,7 @@ test('live V14 replay atomically admits only two of three concurrent native atte
 
 function liveFixture(
 	withOpenFx = false,
-	delivery?: FramescaperNativeRenderDeliveryRequestV28,
+	delivery?: FramescaperNativeRenderDeliveryRequestNativeMedia,
 ) {
 	const options = framescaperV20Options();
 	options.sources = (options.sources as Array<Record<string, unknown>>).filter(({ kind }) => kind === 'video')
@@ -385,10 +385,10 @@ function liveFixture(
 	options.tracks = (options.tracks as Array<Record<string, unknown>>).filter(({ type }) => type === 'video');
 	options.sequences = [{ id: 'main-sequence', rate: { num: 1, den: 1 }, trackIds: ['video-track'] }];
 	if (withOpenFx) options.ofxEffects = [openFxEffect()];
-	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-	const created = createFramescaperProjectUnifiedExactRenderPlanV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-		createFramescaperNativeRenderPlanAuthorityV28(project, delivery), delivery,
+	const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
+	const created = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityNativeMedia(project, delivery), delivery,
 	);
 	let plan = created;
 	if (withOpenFx) {
@@ -444,7 +444,8 @@ function byteDescriptor(bytes: Uint8Array) {
 
 function beginRequest(fixture: ReturnType<typeof liveFixture>) {
 	return Object.freeze({
-		liveRenderVersion: 1 as const, planVersion: 14 as const,
+		liveRenderVersion: 1 as const, schemaFamily: 'framescaper' as const,
+		schemaVersion: 1 as const, planVersion: 14 as const,
 		planFingerprint: fixture.envelope.fingerprint,
 		planPayload: JSON.stringify(fixture.plan), projectId: fixture.project.id,
 		projectRevision: fixture.project.revision,
@@ -457,6 +458,7 @@ function beginRequest(fixture: ReturnType<typeof liveFixture>) {
 function claimRequest(fixture: ReturnType<typeof liveFixture>) {
 	const begin = beginRequest(fixture);
 	return Object.freeze({
+		schemaFamily: begin.schemaFamily, schemaVersion: begin.schemaVersion,
 		derivedInputStageId: STAGE_ID, planVersion: 14 as const,
 		planFingerprint: begin.planFingerprint, planPayload: begin.planPayload,
 		projectId: begin.projectId, projectRevision: begin.projectRevision,
@@ -469,6 +471,7 @@ function queueRecord(
 	taskKind: 'encoded-export' | 'image-sequence-export' | 'proxy-generation' = 'encoded-export',
 ) {
 	return createNativeQueueRecordV3({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: STAGE_ID, taskKind, plan: fixture.plan,
 		projectId: String(fixture.project.id), projectRevision: Number(fixture.project.revision),
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],

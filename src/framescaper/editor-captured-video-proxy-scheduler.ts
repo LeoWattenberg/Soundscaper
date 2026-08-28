@@ -57,14 +57,7 @@ import {
 	throwIfCapturedVideoProxyAborted as throwIfAborted,
 } from './editor-captured-video-proxy-scheduler-guards.ts';
 import {
-	capturedVideoProxySchedulerDependenciesV18,
-	capturedVideoProxySchedulerDependenciesV19,
-	capturedVideoProxySchedulerDependenciesV20,
-	capturedVideoProxySchedulerDependenciesV27,
-	capturedVideoProxySchedulerDependenciesV28,
-	capturedVideoProxySchedulerDependenciesV32,
 	type CapturedVideoProxySchedulerDependencies,
-	type FramescaperCapturedVideoProxyRuntimeComposition,
 } from './editor-captured-video-proxy-scheduler-composition.ts';
 import {
 	FramescaperCapturedVideoProxyPreservationRepository,
@@ -84,9 +77,9 @@ import {
 } from './editor-captured-video-proxy-request.ts';
 import type { CapturedVideoProxyControllerTicket } from './editor-captured-video-proxy-session-reconciliation.ts';
 import {
-	acquireFramescaperVideoProxyAttachmentBudgetV18,
-	assertFramescaperVideoProxyAttachmentCapacityV18,
-} from './editor-video-proxy-attachment-capacity-v18.ts';
+	acquireFramescaperVideoProxyAttachmentBudgetSequence,
+	assertFramescaperVideoProxyAttachmentCapacitySequence,
+} from './editor-video-proxy-attachment-capacity-sequence.ts';
 
 export type {
 	FramescaperCapturedVideoProxyRuntimeComposition,
@@ -95,66 +88,6 @@ export type {
 export interface FramescaperCapturedVideoProxyScheduler {
 	(request: FramescaperCapturedVideoProxyRequest): Promise<void>;
 	dispose(): Promise<void>;
-}
-
-export function createFramescaperCapturedVideoProxySchedulerV18(
-	environmentValue: unknown,
-	sessionValue: unknown,
-	composition: FramescaperCapturedVideoProxyRuntimeComposition,
-): FramescaperCapturedVideoProxyScheduler {
-	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV18(
-		environmentValue, sessionValue, composition,
-	));
-}
-
-export function createFramescaperCapturedVideoProxySchedulerV19(
-	environmentValue: unknown,
-	sessionValue: unknown,
-	composition: FramescaperCapturedVideoProxyRuntimeComposition,
-): FramescaperCapturedVideoProxyScheduler {
-	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV19(
-		environmentValue, sessionValue, composition,
-	));
-}
-
-export function createFramescaperCapturedVideoProxySchedulerV20(
-	environmentValue: unknown,
-	sessionValue: unknown,
-	composition: FramescaperCapturedVideoProxyRuntimeComposition,
-): FramescaperCapturedVideoProxyScheduler {
-	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV20(
-		environmentValue, sessionValue, composition,
-	));
-}
-
-export function createFramescaperCapturedVideoProxySchedulerV27(
-	environmentValue: unknown,
-	sessionValue: unknown,
-	composition: FramescaperCapturedVideoProxyRuntimeComposition,
-): FramescaperCapturedVideoProxyScheduler {
-	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV27(
-		environmentValue, sessionValue, composition,
-	));
-}
-
-export function createFramescaperCapturedVideoProxySchedulerV28(
-	environmentValue: unknown,
-	sessionValue: unknown,
-	composition: FramescaperCapturedVideoProxyRuntimeComposition,
-): FramescaperCapturedVideoProxyScheduler {
-	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV28(
-		environmentValue, sessionValue, composition,
-	));
-}
-
-export function createFramescaperCapturedVideoProxySchedulerV32(
-	environmentValue: unknown,
-	sessionValue: unknown,
-	composition: FramescaperCapturedVideoProxyRuntimeComposition,
-): FramescaperCapturedVideoProxyScheduler {
-	return createFramescaperCapturedVideoProxyScheduler(capturedVideoProxySchedulerDependenciesV32(
-		environmentValue, sessionValue, composition,
-	));
 }
 
 export function createFramescaperCapturedVideoProxyScheduler(dependencies: CapturedVideoProxySchedulerDependencies): FramescaperCapturedVideoProxyScheduler {
@@ -288,7 +221,7 @@ export function createFramescaperCapturedVideoProxyScheduler(dependencies: Captu
 				return;
 			}
 			if (!dependencies.candidateObserver) throw new Error('This runtime cannot generate captured video proxies.');
-			releaseBudget = await acquireFramescaperVideoProxyAttachmentBudgetV18(dependencies.store, signal);
+			releaseBudget = await acquireFramescaperVideoProxyAttachmentBudgetSequence(dependencies.store, signal);
 			let currentProject = base;
 			let currentRelationshipProject = dependencies.projectForRelationship(base);
 			const originalObserver = createVideoProxyOriginalObserver({
@@ -334,7 +267,7 @@ export function createFramescaperCapturedVideoProxyScheduler(dependencies: Captu
 			const next = nextCapturedVideoProxyAttachmentProject(
 				dependencies, latest, request.sourceId, attachment, request.expectedProxyAttachment,
 			);
-			await assertFramescaperVideoProxyAttachmentCapacityV18(
+			await assertFramescaperVideoProxyAttachmentCapacitySequence(
 				dependencies.store,
 				latest as never,
 				next as never,

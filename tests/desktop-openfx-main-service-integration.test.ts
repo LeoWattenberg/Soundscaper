@@ -115,7 +115,8 @@ test('main carries one pathless offscreen Interact replay through the isolated h
 	];
 	const effect = interactEffect(fixture.plan);
 	const result = await fixture.service.interact({
-		protocolVersion: 1, project: fixture.plan.project, pluginHandle: scanned.pluginHandle,
+		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			...fixture.plan.project }, pluginHandle: scanned.pluginHandle,
 		effect, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect),
 		context: 'filter',
 		target: 'overlay', parameterName: null, events,
@@ -135,7 +136,8 @@ test('main carries one pathless offscreen Interact replay through the isolated h
 		)),
 	});
 	await assert.rejects(() => fixture.service.interact({
-		protocolVersion: 1, project: fixture.plan.project, pluginHandle: scanned.pluginHandle,
+		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			...fixture.plan.project }, pluginHandle: scanned.pluginHandle,
 		effect: stale, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(stale),
 		context: 'filter', target: 'overlay', parameterName: null, events: [],
 	}), /current project|authority|stale/iu);

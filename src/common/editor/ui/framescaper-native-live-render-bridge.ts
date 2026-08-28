@@ -13,6 +13,8 @@ export type FramescaperNativeLiveRenderInputRoleV1 =
 
 export interface FramescaperNativeLiveRenderInputStageRequestV1 {
 	readonly liveRenderVersion: 1;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly planVersion: 14;
 	readonly planFingerprint: string;
 	readonly planPayload: string;

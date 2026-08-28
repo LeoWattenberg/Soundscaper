@@ -371,7 +371,7 @@ function initialManifest(
 	return {
 		version: 1 as const, sessionId: encoded.sessionId, generation: 1, state: 'capturing' as const,
 		recoveryDecision: null,
-		projectFence: { projectId: encoded.projectId, baseRevision: 1, baseSha256: 'ab'.repeat(32) },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: encoded.projectId, baseRevision: 1, baseSha256: 'ab'.repeat(32) },
 		origin: { sequenceId: 'sequence-crash', playheadMicroseconds: 0, destination: 'both' as const },
 		clock: { monotonicOriginMicroseconds: 0, pauseSpans: [] },
 		streams: [{

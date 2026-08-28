@@ -15,8 +15,8 @@ import FramescaperOpenFxAddPanel from './FramescaperOpenFxAddPanel.tsx';
 import FramescaperOpenFxManagePanel from './FramescaperOpenFxManagePanel.tsx';
 import FramescaperOpenFxInteractPanel from './FramescaperOpenFxInteractPanel.tsx';
 import type {
-	FramescaperNativeOpenFxAuthoringRuntimeV28,
-} from '../../../../framescaper/editor-native-openfx-action-v28.ts';
+	FramescaperNativeOpenFxAuthoringRuntimeNativeMedia,
+} from '../../../../framescaper/editor-native-openfx-action.ts';
 import {
 	DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES,
 	framescaperNativeServicesStoreFor,
@@ -55,7 +55,7 @@ export interface FramescaperNativeServicesDialogProps {
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 	readonly context?: FramescaperNativeServicesDialogContext;
 	readonly projectActions?: FramescaperNativeProjectActionRuntime | null;
-	readonly openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
+	readonly openFxAuthoring?: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia | null;
 	readonly onClose: () => void;
 }
 
@@ -147,7 +147,7 @@ function SurfacePanel({
 	context: FramescaperNativeServicesDialogContext;
 	lifecycleMethods: readonly FramescaperNativeServicesLifecycleMethod[];
 	projectActions: FramescaperNativeProjectActionRuntime | null;
-	openFxAuthoring: FramescaperNativeOpenFxAuthoringRuntimeV28 | null;
+	openFxAuthoring: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia | null;
 }>) {
 	if (surface === 'background-jobs') {
 		return <QueuePanel copy={copy} snapshot={snapshot} busy={busy} perform={perform}
@@ -275,7 +275,8 @@ function WatchPanel({ copy, snapshot, busy, perform, context, lifecycleMethods }
 	const create = (): void => {
 		if (!canCreate || context.projectId === null) return;
 		perform({
-			type: 'watch-create', grantId, projectId: context.projectId, binId: context.binId,
+			type: 'watch-create', schemaFamily: 'framescaper', schemaVersion: 1,
+			grantId, projectId: context.projectId, binId: context.binId,
 			extensions: extensions.split(',').map((value) => value.trim()).filter(Boolean),
 			importMode,
 			generateProxies: context.allowProxyGeneration && generateProxies,

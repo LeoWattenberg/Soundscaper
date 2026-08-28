@@ -17,7 +17,7 @@ test('routed take-cycle capture has exact durability, recovery, and resource tru
 	assert.equal(risk.releaseDisposition, 'conditional');
 	assert.match(
 		control.summary,
-		/Soundscaper.*`takeComp`-gated.*Record options.*Record loop into takes.*writable exact-schema-17.*positive enabled loop.*unlocked armed audio targets.*routed input.*one owning sequence.*Framescaper.*neither.*cycle entry.*recovery UI.*direct start, Recover, and Discard.*before controller mutation/iu,
+		/Soundscaper.*`takeComp`-gated.*Record options.*Record loop into takes.*writable exact owning-family v1.*positive enabled loop.*unlocked armed audio targets.*routed input.*one owning sequence.*Framescaper.*neither.*cycle entry.*recovery UI.*direct start, Recover, and Discard.*before controller mutation/iu,
 	);
 	assert.match(
 		control.summary,
@@ -33,7 +33,7 @@ test('routed take-cycle capture has exact durability, recovery, and resource tru
 	);
 	assert.match(
 		control.summary,
-		/raw capture.*outside project JSON and `\.scape`.*durable analysis registry.*source-chunk roots.*1 through 768,000.*1 through 64 channels.*65,536 frames.*8 MiB useful planar Float32.*4,096 spans and passes.*V17 entity capacity.*64 active spools per project.*4,096 globally.*exact global boundary.*IndexedDB reopen/iu,
+		/raw capture.*outside project JSON and `\.scape`.*durable analysis registry.*source-chunk roots.*1 through 768,000.*1 through 64 channels.*65,536 frames.*8 MiB useful planar Float32.*4,096 spans and passes.*current family v1 entity capacity.*64 active spools per project.*4,096 globally.*exact global boundary.*IndexedDB reopen/iu,
 	);
 	assert.match(
 		control.summary,
@@ -53,11 +53,11 @@ test('routed take-cycle capture has exact durability, recovery, and resource tru
 	);
 	assert.match(
 		control.summary,
-		/lock loss.*cancellation and stop.*reinspection.*no prompt or bounded[- ]deadline guarantee.*partial settlement.*exact retry authority.*mixed.*IndexedDB process reopen.*Recover.*never activates.*stale published source token.*raw draft.*exact two-lane V17.*PCM.*Discard.*base unchanged.*zero.*source, envelope, spool, and chunk roots/iu,
+		/lock loss.*cancellation and stop.*reinspection.*no prompt or bounded[- ]deadline guarantee.*partial settlement.*exact retry authority.*mixed.*IndexedDB process reopen.*Recover.*never activates.*stale published source token.*raw draft.*exact two-lane family v1.*PCM.*Discard.*base unchanged.*zero.*source, envelope, spool, and chunk roots/iu,
 	);
 	assert.match(
 		control.summary,
-		/durable repository finalization and restart replay.*exact two-lane.*`\.scape` collision-copy.*production-recovered.*exact PCM.*remapping.*Soundscaper.*Framescaper.*read-only.*Soundscaper.*production-finalized.*no missing sources/iu,
+		/durable repository finalization and restart replay.*exact two-lane.*`\.scape` collision-copy.*production-recovered.*exact PCM.*remapping.*fresh Soundscaper family-v1 desktop-library reopen.*production-finalized.*no missing sources.*no foreign-family editing or shared-catalog authority/iu,
 	);
 	assert.match(
 		control.summary,
@@ -111,7 +111,7 @@ test('routed take-cycle capture has exact durability, recovery, and resource tru
 		'tests/helpers/cycle-produced-take-fixture.ts',
 		'tests/audio-editor-cycle-produced-take-fixture.test.ts',
 		'tests/audio-editor-scape-take-comp-roundtrip.test.ts',
-		'tests/desktop-project-library-take-comp-handoff.test.ts',
+		'tests/desktop-soundscaper-project-library-baseline.test.ts',
 		'tests/browser/audio-editor-take-cycle-recording.spec.js',
 	]);
 

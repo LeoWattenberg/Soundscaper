@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * The main-owned `framescaper-native-services.sqlite` database.
+ * The main-owned `framescaper-native-services-v1.sqlite` database.
  *
  * It is deliberately a second database rather than more tables in the project
  * library: background services outlive any one project, and a corrupt or
@@ -22,18 +22,12 @@
 
 import { DatabaseSync } from 'node:sqlite';
 
-import {
-	migrateNativeQueueRecordV1ToV2,
-	type NativeQueueRecordV1,
-	type NativeQueueRecordV2,
-} from '../src/common/editor/native-queue-record.ts';
-
 /** 'FSNS' — distinct from the project library's own application id. */
 export const FRAMESCAPER_NATIVE_SERVICES_APPLICATION_ID = 0x46534e53;
 
-export const FRAMESCAPER_NATIVE_SERVICES_DATABASE_VERSION = 2;
+export const FRAMESCAPER_NATIVE_SERVICES_DATABASE_VERSION = 1;
 
-export const FRAMESCAPER_NATIVE_SERVICES_DATABASE_FILE_NAME = 'framescaper-native-services.sqlite';
+export const FRAMESCAPER_NATIVE_SERVICES_DATABASE_FILE_NAME = 'framescaper-native-services-v1.sqlite';
 
 /** A lease is renewed well inside this window; a crashed owner expires out of it. */
 export const FRAMESCAPER_NATIVE_SERVICES_LEASE_MS = 30_000;
@@ -57,8 +51,7 @@ interface Migration {
 }
 
 const MIGRATIONS: readonly Migration[] = Object.freeze([
-	Object.freeze({ version: 1, apply: applyVersionOne }),
-	Object.freeze({ version: 2, apply: applyVersionTwo }),
+	Object.freeze({ version: 1, apply: applyBaselineVersionOne }),
 ]);
 
 /**
@@ -72,19 +65,17 @@ const MIGRATIONS: readonly Migration[] = Object.freeze([
  * later registry member therefore needs its own migration, and
  * `tests/desktop-native-services-database.test.ts` fails until it has one.
  */
-const VERSION_ONE_TASK_KINDS = Object.freeze([
+const BASELINE_TASK_KINDS = Object.freeze([
 	'encoded-export', 'image-sequence-export', 'proxy-generation',
 ]);
-const VERSION_ONE_CHECKPOINTABLE_TASK_KINDS = Object.freeze(['image-sequence-export']);
-const VERSION_ONE_RECOVERY_CLASSES = Object.freeze(['atomic-restart', 'verified-frame-checkpoint']);
-const VERSION_ONE_STATES = Object.freeze([
+const BASELINE_CHECKPOINTABLE_TASK_KINDS = Object.freeze(['image-sequence-export']);
+const BASELINE_RECOVERY_CLASSES = Object.freeze(['atomic-restart', 'verified-frame-checkpoint']);
+const BASELINE_STATES = Object.freeze([
 	'queued', 'running', 'paused', 'blocked', 'needs-authorization',
 	'completed', 'failed', 'cancelled',
 ]);
-
-/** Frozen V2 domains; a later executable plan requires another SQL migration. */
-const VERSION_TWO_PLAN_VERSIONS = Object.freeze([6, 7, 8, 9, 10, 11, 12]);
-const VERSION_TWO_ACTIVE_PLAN_VERSIONS = Object.freeze([7, 8, 9, 10, 11, 12]);
+const BASELINE_PLAN_VERSIONS = Object.freeze([6, 7, 8, 9, 10, 11, 12]);
+const BASELINE_ACTIVE_PLAN_VERSIONS = Object.freeze([7, 8, 9, 10, 11, 12]);
 
 /**
  * Open, verify, and migrate the services database, returning its version.
@@ -235,7 +226,8 @@ export function releaseFramescaperNativeServicesWriterLease(
 	).run(lease.leaseId, lease.fencingToken);
 }
 
-function applyVersionOne(database: DatabaseSync): void {
+/** Fresh baseline creation; the retired database is never opened or migrated. */
+function applyBaselineVersionOne(database: DatabaseSync): void {
 	database.exec(`
 	CREATE TABLE IF NOT EXISTS native_services_writer_lease (
 		singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -257,8 +249,11 @@ function applyVersionOne(database: DatabaseSync): void {
 	) STRICT;
 	CREATE TABLE IF NOT EXISTS render_queue_jobs (
 		job_id TEXT PRIMARY KEY CHECK (length(job_id) = 40),
-		task_kind TEXT NOT NULL CHECK (task_kind IN (${closedDomain(VERSION_ONE_TASK_KINDS)})),
-		plan_version INTEGER NOT NULL CHECK (plan_version IN (6, 7)),
+		record_version INTEGER NOT NULL CHECK (record_version = 2),
+		schema_family TEXT NOT NULL CHECK (schema_family = 'framescaper'),
+		schema_version INTEGER NOT NULL CHECK (schema_version = 1),
+		task_kind TEXT NOT NULL CHECK (task_kind IN (${closedDomain(BASELINE_TASK_KINDS)})),
+		plan_version INTEGER NOT NULL CHECK (plan_version IN (${BASELINE_PLAN_VERSIONS.join(', ')})),
 		plan_fingerprint TEXT NOT NULL CHECK (length(plan_fingerprint) = 64),
 		plan_payload TEXT NOT NULL CHECK (length(plan_payload) > 0),
 		project_id TEXT NOT NULL CHECK (length(project_id) > 0),
@@ -275,8 +270,8 @@ function applyVersionOne(database: DatabaseSync): void {
 			AND instr(relative_destination, char(92)) = 0
 		),
 		reservations TEXT NOT NULL,
-		recovery_class TEXT NOT NULL CHECK (recovery_class IN (${closedDomain(VERSION_ONE_RECOVERY_CLASSES)})),
-		state TEXT NOT NULL CHECK (state IN (${closedDomain(VERSION_ONE_STATES)})),
+		recovery_class TEXT NOT NULL CHECK (recovery_class IN (${closedDomain(BASELINE_RECOVERY_CLASSES)})),
+		state TEXT NOT NULL CHECK (state IN (${closedDomain(BASELINE_STATES)})),
 		position INTEGER NOT NULL CHECK (position >= 0),
 		progress REAL CHECK (progress IS NULL OR (progress >= 0.0 AND progress <= 1.0)),
 		attempt INTEGER NOT NULL CHECK (attempt >= 0),
@@ -284,8 +279,18 @@ function applyVersionOne(database: DatabaseSync): void {
 		created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
 		updated_at_ms INTEGER NOT NULL,
 		CHECK (updated_at_ms >= created_at_ms),
-		CHECK (recovery_class <> 'verified-frame-checkpoint' OR task_kind IN (${closedDomain(VERSION_ONE_CHECKPOINTABLE_TASK_KINDS)})),
-		CHECK (state <> 'failed' OR last_failure_code IS NOT NULL)
+		CHECK (recovery_class <> 'verified-frame-checkpoint' OR task_kind IN (${closedDomain(BASELINE_CHECKPOINTABLE_TASK_KINDS)})),
+		CHECK (state <> 'failed' OR last_failure_code IS NOT NULL),
+		CHECK (
+			plan_version IN (${BASELINE_ACTIVE_PLAN_VERSIONS.join(', ')})
+			OR (
+				plan_version = 6
+				AND (
+					state = 'completed'
+					OR (state IN ('blocked', 'cancelled') AND last_failure_code = 'unsupported-plan-version')
+				)
+			)
+		)
 	) STRICT;
 	CREATE INDEX IF NOT EXISTS render_queue_jobs_dispatch
 		ON render_queue_jobs (state, position, created_at_ms);
@@ -324,154 +329,6 @@ function applyVersionOne(database: DatabaseSync): void {
 			(singleton, active, lease_id, fencing_token, owner_process_id, owner_instance_id, acquired_at_ms, expires_at_ms)
 		VALUES (1, 0, NULL, 0, NULL, NULL, NULL, NULL)
 	`).run();
-}
-
-/**
- * Replace the queue table atomically so its frozen plan domain matches the
- * executable V7–V12 envelope. Every row is reparsed before any old table is
- * dropped. A malformed payload therefore rolls the transaction back to the
- * untouched V1 database instead of becoming a best-effort queue entry.
- */
-function applyVersionTwo(database: DatabaseSync): void {
-	const migrated = readVersionOneQueueRecords(database).map((record) => {
-		try {
-			return migrateNativeQueueRecordV1ToV2(record);
-		} catch (error) {
-			const detail = error instanceof Error ? error.message : String(error);
-			throw new FramescaperNativeServicesDatabaseError(
-				`The Framescaper native queue V1 row ${record.jobId} cannot migrate: ${detail}`,
-			);
-		}
-	});
-	database.exec(`
-		CREATE TABLE render_queue_jobs_v2 (
-			job_id TEXT PRIMARY KEY CHECK (length(job_id) = 40),
-			record_version INTEGER NOT NULL CHECK (record_version = 2),
-			task_kind TEXT NOT NULL CHECK (task_kind IN (${closedDomain(VERSION_ONE_TASK_KINDS)})),
-			plan_version INTEGER NOT NULL CHECK (plan_version IN (${VERSION_TWO_PLAN_VERSIONS.join(', ')})),
-			plan_fingerprint TEXT NOT NULL CHECK (length(plan_fingerprint) = 64),
-			plan_payload TEXT NOT NULL CHECK (length(plan_payload) > 0),
-			project_id TEXT NOT NULL CHECK (length(project_id) > 0),
-			project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
-			input_fingerprints TEXT NOT NULL,
-			root_grant_id TEXT NOT NULL REFERENCES durable_root_grants(grant_id),
-			relative_destination TEXT NOT NULL CHECK (
-				length(relative_destination) > 0
-				AND relative_destination NOT LIKE '/%'
-				AND instr('/' || relative_destination || '/', '//') = 0
-				AND instr('/' || relative_destination || '/', '/./') = 0
-				AND instr('/' || relative_destination || '/', '/../') = 0
-				AND instr(relative_destination, ':') = 0
-				AND instr(relative_destination, char(92)) = 0
-			),
-			reservations TEXT NOT NULL,
-			recovery_class TEXT NOT NULL CHECK (recovery_class IN (${closedDomain(VERSION_ONE_RECOVERY_CLASSES)})),
-			state TEXT NOT NULL CHECK (state IN (${closedDomain(VERSION_ONE_STATES)})),
-			position INTEGER NOT NULL CHECK (position >= 0),
-			progress REAL CHECK (progress IS NULL OR (progress >= 0.0 AND progress <= 1.0)),
-			attempt INTEGER NOT NULL CHECK (attempt >= 0),
-			last_failure_code TEXT,
-			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
-			updated_at_ms INTEGER NOT NULL,
-			CHECK (updated_at_ms >= created_at_ms),
-			CHECK (recovery_class <> 'verified-frame-checkpoint' OR task_kind IN (${closedDomain(VERSION_ONE_CHECKPOINTABLE_TASK_KINDS)})),
-			CHECK (state <> 'failed' OR last_failure_code IS NOT NULL),
-			CHECK (
-				plan_version IN (${VERSION_TWO_ACTIVE_PLAN_VERSIONS.join(', ')})
-				OR (
-					plan_version = 6
-					AND (
-						state = 'completed'
-						OR (state IN ('blocked', 'cancelled') AND last_failure_code = 'unsupported-plan-version')
-					)
-				)
-			)
-		) STRICT;
-		CREATE TABLE scratch_reservations_v2 (
-			job_id TEXT PRIMARY KEY REFERENCES render_queue_jobs_v2(job_id) ON DELETE CASCADE,
-			directory_name TEXT NOT NULL CHECK (length(directory_name) > 0),
-			manifest_digest TEXT NOT NULL CHECK (length(manifest_digest) = 64),
-			root_identity TEXT NOT NULL CHECK (length(root_identity) > 0),
-			reserved_bytes INTEGER NOT NULL CHECK (reserved_bytes >= 0),
-			state TEXT NOT NULL CHECK (state IN ('reserved', 'released', 'retained')),
-			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
-			expires_at_ms INTEGER CHECK (expires_at_ms IS NULL OR expires_at_ms >= created_at_ms)
-		) STRICT;
-	`);
-	const insert = database.prepare(`
-		INSERT INTO render_queue_jobs_v2 (
-			job_id, record_version, task_kind, plan_version, plan_fingerprint, plan_payload,
-			project_id, project_revision, input_fingerprints, root_grant_id,
-			relative_destination, reservations, recovery_class, state, position, progress,
-			attempt, last_failure_code, created_at_ms, updated_at_ms
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`);
-	for (const record of migrated) insertVersionTwoQueueRecord(insert, record);
-	database.exec(`
-		INSERT INTO scratch_reservations_v2
-			(job_id, directory_name, manifest_digest, root_identity, reserved_bytes, state, created_at_ms, expires_at_ms)
-		SELECT job_id, directory_name, manifest_digest, root_identity, reserved_bytes, state, created_at_ms, expires_at_ms
-		FROM scratch_reservations;
-		DROP TABLE scratch_reservations;
-		DROP TABLE render_queue_jobs;
-		ALTER TABLE render_queue_jobs_v2 RENAME TO render_queue_jobs;
-		ALTER TABLE scratch_reservations_v2 RENAME TO scratch_reservations;
-		CREATE INDEX render_queue_jobs_dispatch
-			ON render_queue_jobs (state, position, created_at_ms);
-	`);
-}
-
-function readVersionOneQueueRecords(database: DatabaseSync): readonly NativeQueueRecordV1[] {
-	const rows = database.prepare('SELECT * FROM render_queue_jobs ORDER BY job_id').all() as Record<string, unknown>[];
-	return rows.map((row) => ({
-		jobId: row.job_id as string,
-		taskKind: row.task_kind as NativeQueueRecordV1['taskKind'],
-		planVersion: row.plan_version as number,
-		planFingerprint: row.plan_fingerprint as string,
-		planPayload: row.plan_payload as string,
-		projectId: row.project_id as string,
-		projectRevision: row.project_revision as number,
-		inputFingerprints: parseStoredJson(row.input_fingerprints, 'input_fingerprints') as NativeQueueRecordV1['inputFingerprints'],
-		rootGrantId: row.root_grant_id as string,
-		relativeDestination: row.relative_destination as string,
-		reservations: parseStoredJson(row.reservations, 'reservations') as NativeQueueRecordV1['reservations'],
-		recoveryClass: row.recovery_class as NativeQueueRecordV1['recoveryClass'],
-		state: row.state as NativeQueueRecordV1['state'],
-		position: row.position as number,
-		progress: row.progress as number | null,
-		attempt: row.attempt as number,
-		lastFailureCode: row.last_failure_code as string | null,
-		createdAtMs: row.created_at_ms as number,
-		updatedAtMs: row.updated_at_ms as number,
-	}));
-}
-
-function insertVersionTwoQueueRecord(
-	statement: ReturnType<DatabaseSync['prepare']>,
-	record: NativeQueueRecordV2,
-): void {
-	statement.run(
-		record.jobId, record.recordVersion, record.taskKind, record.planVersion,
-		record.planFingerprint, record.planPayload, record.projectId, record.projectRevision,
-		JSON.stringify(record.inputFingerprints), record.rootGrantId, record.relativeDestination,
-		JSON.stringify(record.reservations), record.recoveryClass, record.state, record.position,
-		record.progress, record.attempt, record.lastFailureCode, record.createdAtMs, record.updatedAtMs,
-	);
-}
-
-function parseStoredJson(value: unknown, label: string): unknown {
-	if (typeof value !== 'string') {
-		throw new FramescaperNativeServicesDatabaseError(
-			`The Framescaper native queue ${label} field is not stored text.`,
-		);
-	}
-	try {
-		return JSON.parse(value) as unknown;
-	} catch {
-		throw new FramescaperNativeServicesDatabaseError(
-			`The Framescaper native queue ${label} field is not valid JSON.`,
-		);
-	}
 }
 
 /** Render a frozen domain as SQL literals, refusing anything a literal cannot hold. */

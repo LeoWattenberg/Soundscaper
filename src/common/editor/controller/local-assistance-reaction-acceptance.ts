@@ -299,7 +299,8 @@ function normalizeAuthority(value: LocalAssistanceRangeLabelAuthority): Normaliz
 		throw new TypeError('Reaction acceptance requires selected-media authority.');
 	}
 	const fence = validateAssistanceSelectionFence(value.fence);
-	if (value.project.id !== fence.projectId || value.project.schemaVersion !== fence.schemaVersion
+	if (value.project.id !== fence.projectId || value.project.schemaFamily !== fence.schemaFamily
+		|| value.project.schemaVersion !== fence.schemaVersion
 		|| value.project.revision !== fence.revision || !Array.isArray(value.project.tracks)) {
 		throw new AssistanceProposalStaleError();
 	}

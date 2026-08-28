@@ -11,7 +11,10 @@ import {
 } from '../src/common/editor/assistance/semantic-search-runtime-v1.ts';
 
 const NOW = 1_800_000_000_000;
-const AUTHORITY = Object.freeze({ projectId: 'project-1', projectRevision: 7 });
+const AUTHORITY = Object.freeze({
+	schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+	projectId: 'project-1', projectRevision: 7,
+});
 const SESSION = Object.freeze({
 	sessionVersion: 1 as const, sessionId: 'a'.repeat(40), ...AUTHORITY,
 	expiresAtEpochMs: NOW + 60_000,

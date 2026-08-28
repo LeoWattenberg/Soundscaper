@@ -10,6 +10,7 @@ import {
 	normalizeVideoEffect,
 	updateVideoEffect,
 } from '../video-effects.js';
+import { hasVideoEffectsProjectAuthority } from '../project-schema-version.ts';
 import {
 	insertionIndex,
 	requireClip,
@@ -72,7 +73,7 @@ export function allEffects(project) {
 }
 
 function requireVideoEffectStack(project, clipId) {
-	if (project.schemaVersion < 5) throw new RangeError('Video effects require an AudioEditorProjectV5 project.');
+	if (!hasVideoEffectsProjectAuthority(project)) throw new RangeError('Video effects require an active video-effects project.');
 	const clip = requireClip(project, clipId);
 	if (clip.kind !== 'video') throw new RangeError(`Clip ${clipId} is not a video clip.`);
 	if (!Array.isArray(clip.videoEffects)) throw new TypeError(`Video clip ${clipId} has no effect stack.`);

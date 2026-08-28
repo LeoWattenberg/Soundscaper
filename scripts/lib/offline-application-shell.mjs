@@ -30,8 +30,8 @@ const STATIC_CONTROL_FILES = Object.freeze([
 	'offline-shell.json',
 ]);
 const PRODUCT_ENTRIES = Object.freeze({
-	framescaper: 'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
-	soundscaper: 'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
+	framescaper: 'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
+	soundscaper: 'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 });
 const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	framescaper: Object.freeze({

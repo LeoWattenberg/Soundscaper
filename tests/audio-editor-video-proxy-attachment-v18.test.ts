@@ -221,58 +221,36 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		/video-timing-asset\.ts|video-timing-storage|candidate-observation|proxy-relationship|project-|storage\/|controller\/|ui\/|repository|capabilit|scape-|desktop|app\./u);
 	const consumers = new Set([
 		'scripts/lib/desktop-project-library-runtime.mjs',
-		// The V11 professional-media plan extends the existing proxy relationship
-		// while keeping the original authoritative for export.
+		// Independently versioned exact-render plans consume the persisted proxy wire.
 		'src/common/editor/unified-exact-render-plan-v11.ts',
-		// Selected V12 handoff transfers the inherited exact attachment body.
-		'src/framescaper/desktop-project-library-v12-body-transfer.ts',
-		// Capture generation constructs, transactionally preserves, and schedules
-		// this same reviewed scalar wire without adding a parallel attachment type.
+		// The baseline library and capture paths transfer and preserve the same wire.
+		'src/framescaper/desktop-project-library-body-transfer.ts',
+		'src/framescaper/desktop-project-library-core-body-transfer.ts',
 		'src/framescaper/editor-captured-video-proxy-bodies.ts',
 		'src/framescaper/editor-captured-video-proxy-preservation.ts',
 		'src/framescaper/editor-captured-video-proxy-request.ts',
 		'src/framescaper/editor-captured-video-proxy-scheduler-guards.ts',
 		'src/framescaper/editor-captured-video-proxy-transition.ts',
-		// The common scheduler request carries an optional exact old-attachment
-		// fence for atomic selected-proxy replacement.
 		'src/common/editor/controller/framescaper-capture-derivative-scheduler.ts',
-		// Dormant menu actions and V25 commands validate and mutate the same
-		// inherited relationship through its closed lifecycle.
-		'src/framescaper/editor-native-candidate-project-actions.ts',
-		'src/framescaper/editor-project-v18-archive-repository.ts',
-		'src/framescaper/editor-project-v18-claim-cleanup-repository.ts',
-		'src/framescaper/editor-project-v18-preservation-repository.ts',
-		'src/framescaper/editor-project-v18-runtime.ts',
-		'src/framescaper/editor-project-v18-validation.ts',
-		'src/framescaper/editor-project-v18.ts',
-		'src/framescaper/editor-project-v25-commands.ts',
-		'src/framescaper/editor-project-v25-validation.ts',
-		'src/framescaper/editor-video-proxy-attachment-coordinator-v18.ts',
-		// Selected V20/V27/V28 authoring, cleanup, commands, and verified preview all
-		// consume the same closed V18 attachment rather than defining a new wire.
-		'src/framescaper/editor-video-proxy-actions-v20.ts',
-		'src/framescaper/editor-video-proxy-cleanup-v20.ts',
-		'src/framescaper/editor-video-proxy-command-v20.ts',
-		'src/framescaper/editor-video-proxy-preview-media-v20.ts',
-		// The V27 desktop publication bridge validates inherited proxy bodies
-		// before transferring them into the isolated V18 library.
-		'src/framescaper/desktop-project-library-v27-body-transfer.ts',
-		// Selected V28 revalidates the inherited attachment before transferring
-		// its body alongside the new native extension body graph.
-		'src/framescaper/desktop-project-library-v28-body-transfer.ts',
-		// The V27 Scape extension preserves the same attachment while it plans
-		// independently authenticated proxy and timing bodies.
-		'src/framescaper/editor-scape-asset-plan-v27.ts',
-		// Decides which attachments an edit leaves true, so it reads the wire it
-		// carries forward.
-		'src/framescaper/editor-video-proxy-attachment-retention-v18.ts',
-		// Builds the identities the selector compares before a preview shows one.
-		'src/framescaper/editor-video-proxy-preview-v18.ts',
-		'src/framescaper/editor-video-proxy-reattestation-contract-v18.ts',
-		'src/framescaper/editor-video-proxy-reattestation-v18.ts',
-		'src/framescaper/editor-video-proxy-lifecycle-v25.ts',
-		'src/framescaper/scape-project-envelope-v18.ts',
-		'src/framescaper/scape-project-preservation-v18-support.ts',
+		// Baseline sequence custody and professional-media validation own lifecycle edits.
+		'src/framescaper/editor-project-sequence-archive-repository.ts',
+		'src/framescaper/editor-project-sequence-claim-cleanup-repository.ts',
+		'src/framescaper/editor-project-sequence-preservation-repository.ts',
+		'src/framescaper/editor-project-sequence-runtime.ts',
+		'src/framescaper/editor-project-sequence-validation.ts',
+		'src/framescaper/editor-project-sequence.ts',
+		'src/framescaper/editor-project-professional-media-commands.ts',
+		'src/framescaper/editor-project-professional-media-validation.ts',
+		// Baseline actions, cleanup, commands, preview, retention, and archive planning
+		// consume the contract without defining another attachment type.
+		'src/framescaper/editor-video-proxy-actions-retime.ts',
+		'src/framescaper/editor-video-proxy-cleanup-retime.ts',
+		'src/framescaper/editor-video-proxy-command-retime.ts',
+		'src/framescaper/editor-video-proxy-attachment-retention-sequence.ts',
+		'src/framescaper/editor-video-proxy-preview-media-retime.ts',
+		'src/framescaper/editor-video-proxy-reattestation-contract-sequence.ts',
+		'src/framescaper/editor-scape-asset-plan-finishing.ts',
+		'src/framescaper/editor-scape-asset-plan.ts',
 	]);
 	for (const root of ['src', 'desktop', 'scripts']) for (const file of sourceFiles(path.join(ROOT, root))) {
 		const relative = path.relative(ROOT, file).replaceAll(path.sep, '/');

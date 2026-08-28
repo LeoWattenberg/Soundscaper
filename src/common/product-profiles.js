@@ -63,7 +63,7 @@ export const SOUNDSCAPER_PROFILE = {
 	desktop: {
 		appId: 'org.soundscaper.desktop',
 		scheme: 'soundscaper-app',
-		sessionPartition: 'persist:soundscaper-v29',
+		sessionPartition: 'persist:soundscaper-production',
 		executableName: 'soundscaper',
 		category: 'AudioVideo;Audio',
 	},
@@ -129,7 +129,7 @@ export const FRAMESCAPER_PROFILE = {
 	desktop: {
 		appId: 'org.framescaper.desktop',
 		scheme: 'framescaper-app',
-		sessionPartition: 'persist:framescaper-v1',
+		sessionPartition: 'persist:framescaper-production',
 		executableName: 'framescaper',
 		category: 'AudioVideo;Video',
 	},

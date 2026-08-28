@@ -43,10 +43,13 @@ test('a build with no native-services controller shows no entries at all', () =>
 	});
 });
 
-test('selected V27 exposes no dormant milestone-5 native or OpenFX routes', () => {
-	assert.deepEqual(menu({ project: { schemaVersion: 27 } }), {
-		fileImport: [], fileExport: [], view: [], tools: [], effect: [],
-	});
+test('a numeric-only project cannot activate baseline native or OpenFX mutations', () => {
+	const items = menu({ project: { schemaVersion: 1 } });
+	for (const id of [
+		'framescaper-import-image-sequence', 'framescaper-add-to-render-queue',
+		'framescaper-proxy-generate', 'framescaper-proxy-attach',
+		'framescaper-proxy-detach', 'framescaper-proxy-relink', 'framescaper-ofx-add',
+	]) assert.equal(item(items, id)?.disabled, true, id);
 });
 
 test('every named surface is reachable from an existing menu family', () => {
@@ -105,7 +108,7 @@ test('an enabled tier exposes only surfaces with real selected-runtime actions',
 	const items = createFramescaperNativeServicesMenuItems(
 		{
 			productId: 'framescaper', runtimeAvailable: true, snapshot: enabledSnapshot(),
-			project: { schemaVersion: 20 }, editingBlocked: false,
+			project: baselineProject(), editingBlocked: false,
 			projectCapabilities: selectedCapabilities(),
 			lifecycleMethods: watchLifecycleMethods(),
 		},
@@ -126,12 +129,12 @@ test('an enabled tier exposes only surfaces with real selected-runtime actions',
 	]) assert.equal(item(items, id)?.disabled, true, id);
 });
 
-test('an exact candidate action port enables only its declared project mutations', () => {
+test('an exact baseline action port enables only its declared project mutations', () => {
 	const opened: string[] = [];
 	const items = createFramescaperNativeServicesMenuItems(
 		{
 			productId: 'framescaper', runtimeAvailable: true, snapshot: enabledSnapshot(),
-			project: { schemaVersion: 26 }, editingBlocked: false,
+			project: baselineProject(), editingBlocked: false,
 			projectCapabilities: { ...selectedCapabilities(), ofxEffects: true },
 			lifecycleMethods: watchLifecycleMethods(),
 			projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
@@ -151,9 +154,9 @@ test('an exact candidate action port enables only its declared project mutations
 	assert.deepEqual(opened, FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES);
 });
 
-test('selected F31 retains V28 native project actions only when the runtime gates admit them', () => {
+test('the baseline retains native project actions only when the runtime gates admit them', () => {
 	const items = menu({
-		project: { schemaVersion: 31 },
+		project: baselineProject(),
 		projectCapabilities: { ...selectedCapabilities(), ofxEffects: true },
 		projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
 	});
@@ -164,7 +167,7 @@ test('selected F31 retains V28 native project actions only when the runtime gate
 	]) assert.equal(item(items, id)?.disabled, false, id);
 });
 
-test('a candidate action declaration cannot bypass the owning schema and capability gates', () => {
+test('an action declaration cannot bypass the owning identity and capability gates', () => {
 	const items = menu({
 		projectActionSurfaces: FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
 		projectCapabilities: { ...selectedCapabilities(), sourceCharacteristics: false, ofxEffects: false },
@@ -178,9 +181,9 @@ test('a candidate action declaration cannot bypass the owning schema and capabil
 	assert.equal(item(items, 'framescaper-add-to-render-queue')?.disabled, false);
 });
 
-test('V25 and V26 authoring surfaces do not borrow broad V20 capability gates', () => {
+test('authoring surfaces do not borrow broad playback capability gates', () => {
 	const items = menu({
-		project: { schemaVersion: 20 },
+		project: baselineProject(),
 		projectCapabilities: {
 			...selectedCapabilities(),
 			sourceCharacteristics: true,
@@ -255,7 +258,7 @@ test('a capability the user has not opted into leaves its command disabled', () 
 	assert.equal(item(items, 'framescaper-proxy-detach')?.disabled, true);
 });
 
-test('candidate-only project capabilities keep authoring commands fail-closed', () => {
+test('incomplete project capabilities keep authoring commands fail-closed', () => {
 	const items = menu({
 		projectCapabilities: {
 			videoExport: true,
@@ -278,7 +281,7 @@ test('a valid proxy codec row cannot enable an unwired project mutation', () => 
 	// A producer keyed to the encode profile reports this row and no other; a
 	// menu spelling it differently would stay disabled with the tier ready.
 	const items = menu({
-		project: { schemaVersion: 25 },
+		project: baselineProject(),
 		snapshot: createNativeMediaCapabilitySnapshotV1({
 			masterEnabled: true,
 			entries: [entry('codec', NATIVE_MEDIA_PROXY_PROFILE_ID, true)],
@@ -295,7 +298,7 @@ test('the external display submenu lists non-primary displays and a None entry',
 		productId: 'framescaper',
 		runtimeAvailable: true,
 		snapshot: enabledSnapshot(),
-		project: { schemaVersion: 20 },
+		project: baselineProject(),
 		projectCapabilities: selectedCapabilities(),
 		lifecycleMethods: watchLifecycleMethods(),
 		editingBlocked: false,
@@ -442,12 +445,16 @@ function noopActions() {
 	return { open: () => undefined, openExternalDisplay: () => undefined };
 }
 
+function baselineProject() {
+	return Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1 });
+}
+
 function menu(overrides: Record<string, unknown> = {}) {
 	return createFramescaperNativeServicesMenuItems({
 		productId: 'framescaper',
 		runtimeAvailable: true,
 		snapshot: enabledSnapshot(),
-		project: { schemaVersion: 20 },
+		project: baselineProject(),
 		projectCapabilities: selectedCapabilities(),
 		lifecycleMethods: watchLifecycleMethods(),
 		editingBlocked: false,

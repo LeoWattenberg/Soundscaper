@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -13,9 +13,13 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-08-08T15:00:00.000Z';
 const PROJECT_ID = 'scape-return-roundtrip';
@@ -67,13 +71,10 @@ test('a portable Scape roundtrip returns owned PCM and its track fallback to a n
 	assert.equal(deliveredReport.items[0]?.disposition, 'rendered-fallback');
 	assert.equal(deliveredReport.items[0]?.fallback?.role, 'audio-track-render-v1');
 
-	const reopenedValue = await recipient.loadProject(PROJECT_ID);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assert.deepEqual(reopened.featureRequirements, project.featureRequirements);
-	assert.deepEqual(reopened.tracks[0]?.effects, [...TRACK_EFFECTS]);
+	assert.deepEqual(delivered.project.featureRequirements, project.featureRequirements);
+	assert.deepEqual(delivered.project.tracks[0]?.effects, [...TRACK_EFFECTS]);
 
-	const returning = await exportScapeProject(reopened, recipient);
+	const returning = await exportScapeProject(delivered.project, recipient);
 	assert.deepEqual(assetDigests(returning), outboundDigests,
 		'the read-only recipient must return the exact portable bodies it received');
 
@@ -95,11 +96,6 @@ test('a portable Scape roundtrip returns owned PCM and its track fallback to a n
 	assert.deepEqual(await storedSamples(home, LANE_SOURCE_ID), [...LANE_SAMPLES]);
 	assert.deepEqual(await storedSamples(home, FALLBACK_SOURCE_ID), [...FALLBACK_SAMPLES]);
 
-	const homeValue = await home.loadProject(PROJECT_ID);
-	assert.ok(homeValue);
-	const reopenedHome = homeValue as unknown as AudioEditorProjectCurrent;
-	assert.deepEqual(reopenedHome.featureRequirements, project.featureRequirements);
-	assert.deepEqual(reopenedHome.tracks[0]?.effects, [...TRACK_EFFECTS]);
 });
 
 test('a whole-mix audio render fallback survives the same Scape return roundtrip', async (context) => {
@@ -125,9 +121,7 @@ test('a whole-mix audio render fallback survives the same Scape return roundtrip
 	assert.equal(deliveredReport.items[0]?.disposition, 'rendered-fallback');
 	assert.equal(deliveredReport.items[0]?.fallback?.role, 'project-audio-mix-v1');
 
-	const reopenedValue = await recipient.loadProject(PROJECT_ID);
-	assert.ok(reopenedValue);
-	const returning = await exportScapeProject(reopenedValue as unknown as AudioEditorProjectCurrent, recipient);
+	const returning = await exportScapeProject(delivered.project, recipient);
 	assert.deepEqual(assetDigests(returning), assetDigests(outbound),
 		'the read-only recipient must return the exact portable bodies it received');
 

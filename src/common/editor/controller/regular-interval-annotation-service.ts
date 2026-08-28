@@ -203,7 +203,7 @@ function markerIncludesEnd(options: RegularIntervalAnnotationOptions): boolean {
 
 function assertProject(project: RegularIntervalProject): void {
 	if (!project || typeof project !== 'object'
-		|| !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+		|| !isTimelineAnnotationProjectSchema(project)) {
 		throw new RangeError('Regular interval annotations require schema 11 or 12.');
 	}
 	if (!Array.isArray(project.timelineAnnotations)

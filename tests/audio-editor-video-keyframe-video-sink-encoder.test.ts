@@ -14,9 +14,9 @@ import {
 	type VideoKeyframeEncoderOperationLease,
 	type VideoKeyframeVideoEditorFfmpeg,
 } from '../src/common/editor/video-keyframe-video-encoder.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const TOKEN = 'fedcba9876543210fedcba9876543210';
 const MP4 = Uint8Array.of(
@@ -170,8 +170,8 @@ test('same-size output replacement cannot close after bounded lower-cap delivery
 });
 
 function source(): VideoKeyframeExportFrameSource {
-	const project = createFramescaperProjectV20(
-		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+	const project = createFramescaperProjectRetime(
+		FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE,
 		framescaperV20Options(),
 	);
 	const compatible = structuredClone(project) as Record<string, unknown>;

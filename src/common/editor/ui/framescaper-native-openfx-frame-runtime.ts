@@ -9,7 +9,7 @@ import {
 } from './framescaper-native-openfx-frame-client.ts';
 
 /** Adapt the preload's one-port offers without exposing native paths or RGBA on control IPC. */
-export function createFramescaperNativeOpenFxFrameRuntimeV28(
+export function createFramescaperNativeOpenFxFrameRuntimeNativeMedia(
 	bridge: FramescaperNativeOpenFxBridge | null,
 	scope: Pick<Window, 'addEventListener' | 'removeEventListener'> & { readonly window?: Window } = globalThis.window,
 ): FramescaperOpenFxFramePortClient | null {

@@ -16,10 +16,10 @@ import {
 	encodeVideoKeyframeVideo,
 	type VideoKeyframeVideoEncoderDependencies,
 } from '../src/common/editor/video-keyframe-video-encoder.ts';
-import { createSoundscaperProjectRuntimeV29Selection } from '../src/soundscaper/editor-project-runtime-v29-selection.ts';
-import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts';
-import { createSoundscaperVideoExportStrategyV29 } from '../src/soundscaper/video-export-strategy-v29.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/editor-project-runtime-selection.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { createSoundscaperVideoExportStrategy } from '../src/soundscaper/video-export-strategy.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 import {
 	exportFixture,
 	harnessDependencies,
@@ -46,8 +46,8 @@ test('Soundscaper browser composition reaches WebCodecs without an FFmpeg operat
 		rotationDegrees: 0,
 		pixelAspectRatio: Object.freeze({ num: 1, den: 1 }),
 	});
-	const project = createSoundscaperProjectV29(options as never);
-	const runtime = createSoundscaperProjectRuntimeV29Selection();
+	const project = createSoundscaperProject(options as never);
+	const runtime = createSoundscaperProjectRuntimeSelection();
 	const events: string[] = [];
 	let nativeExecutions = 0;
 	const nativeDependencies: VideoKeyframeVideoEncoderDependencies = Object.freeze({
@@ -80,7 +80,7 @@ test('Soundscaper browser composition reaches WebCodecs without an FFmpeg operat
 			return encodeVideoKeyframeVideo(editorFfmpeg, request, nativeDependencies);
 		},
 	});
-	const strategy = createSoundscaperVideoExportStrategyV29(runtime, {
+	const strategy = createSoundscaperVideoExportStrategy(runtime, {
 		encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
 			return encodeVideoKeyframeOfflineVideo(request, offlineDependencies);
 		},

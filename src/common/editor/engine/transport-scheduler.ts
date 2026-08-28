@@ -5,7 +5,7 @@ import {
 } from '../ebu-r128-node.js';
 import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
-import { isProductionMixerProjectSchema } from '../project-schema-version.ts';
+import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import {
 	addNode,
 	connect,
@@ -426,7 +426,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		if (this.latestMasterLoudnessMeter?.loudness) {
 			master.loudness = this.latestMasterLoudnessMeter.loudness;
 		}
-		const production = isProductionMixerProjectSchema(this.project?.schemaVersion)
+		const production = hasProductionMixerProjectAuthority(this.project)
 			? sampleProductionMeterSessionV21(
 				this,
 				this.project,

@@ -11,10 +11,6 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
-import {
-	DesktopSharedProjectRepository,
-	type DesktopSharedProjectBridge,
-} from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import { LinkedOriginalLifecycleCoordinator } from '../src/common/editor/storage/linked-original-lifecycle-coordinator.ts';
 import {
 	maintainOpenedProjectWithLinkedOriginalReachability,
@@ -22,7 +18,6 @@ import {
 } from '../src/common/editor/storage/linked-original-project-open-maintenance.ts';
 import type { LinkedOriginalProjectReachabilityRepository } from '../src/common/editor/storage/linked-original-project-reachability-repository.ts';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
-import type { ProjectRepositoryPort } from '../src/common/editor/storage/project-repository.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
@@ -132,55 +127,6 @@ test('missing durable current project state suppresses open maintenance', async 
 	assert.equal(await fixture.store.maintainOpenedProject(PROJECT_ID, () => []), false);
 	assert.ok(await fixture.store.getLinkedOriginalBinding(PROJECT_ID, source.id));
 	assert.deepEqual(fixture.releases, []);
-});
-
-test('desktop open maintenance serializes with the latest project mutation queue', async () => {
-	const events: string[] = [];
-	const maintenanceGate = deferred<void>();
-	const maintenanceStarted = deferred<void>();
-	const projectValue = project(PROJECT_ID, 1);
-	const bridge: DesktopSharedProjectBridge = {
-		listSharedProjects: async () => [],
-		readSharedProject: async () => null,
-		commitSharedProject: async ({ document }) => {
-			events.push('remote:save');
-			return { status: 'committed', document };
-		},
-		deleteSharedProject: async () => true,
-	};
-	const shadow = {
-		save: async (value: unknown) => { events.push('shadow:save'); return value; },
-		load: async () => null,
-		list: async () => [],
-		listRevisions: async () => [],
-		delete: async () => undefined,
-	} as unknown as ProjectRepositoryPort;
-	const repository = new DesktopSharedProjectRepository({
-		bridge,
-		shadow,
-		sourceAvailability: {
-			getSourceMetadata: async () => null,
-			readSourceChunks: async function* () { /* No source payload. */ },
-			getMediaAssetMetadata: async () => null,
-			loadMediaAsset: async () => null,
-		},
-		onLocalCleanupError: () => undefined,
-	});
-
-	const maintenance = repository.maintainCurrentProject(PROJECT_ID, async () => {
-		events.push('maintenance:start');
-		maintenanceStarted.resolve();
-		await maintenanceGate.promise;
-		events.push('maintenance:end');
-	});
-	await maintenanceStarted.promise;
-	const save = repository.save(projectValue);
-	await Promise.resolve();
-	assert.deepEqual(events, ['maintenance:start']);
-
-	maintenanceGate.resolve();
-	await Promise.all([maintenance, save]);
-	assert.deepEqual(events, ['maintenance:start', 'maintenance:end', 'shadow:save', 'remote:save']);
 });
 
 test('queued open maintenance collects current roots and suppresses lost ownership under its lock', async () => {

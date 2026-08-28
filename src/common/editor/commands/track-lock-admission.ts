@@ -91,7 +91,7 @@ export function createTrackLockAdmission(
 	commandProjectionValue: unknown,
 ): Readonly<TrackLockAdmission> {
 	const persistedBase = record(persistedBaseValue, 'persisted project');
-	if (!isTrackLockProjectSchema(persistedBase.schemaVersion)) return NO_TRACK_LOCK_ADMISSION;
+	if (!isTrackLockProjectSchema(persistedBase)) return NO_TRACK_LOCK_ADMISSION;
 	const commandProjection = record(commandProjectionValue, 'command project');
 	const baselines = new Map<string, TrackLockBaseline>();
 	const initiallyLocked = records(persistedBase.tracks, 'project.tracks')

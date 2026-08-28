@@ -19,7 +19,7 @@ import {
 	type UnifiedExactRenderOpenFxNode,
 	type UnifiedExactRenderPlanV14,
 } from '../src/common/editor/unified-exact-render-plan.ts';
-import { attestFramescaperOpenFxEffectV26 } from '../src/framescaper/editor-native-openfx-authoring-v26.ts';
+import { attestFramescaperOpenFxEffectOpenFx } from '../src/framescaper/editor-native-openfx-authoring.ts';
 import { HELPER_DATA_CHUNK_MAXIMUM_BYTES } from './helper-data-plane.ts';
 import type {
 	FramescaperOpenFxExecutionRequestV1,
@@ -302,7 +302,7 @@ function resolveBinding(
 		|| !plugin.components.includes('RGBA') || !plugin.pixelDepths.includes('byte')) {
 		throw new Error('The exact OpenFX filter is not enabled for RGBA8 production.');
 	}
-	attestFramescaperOpenFxEffectV26(plugin, state);
+	attestFramescaperOpenFxEffectOpenFx(plugin, state);
 	const width = plan.output.canvas.width; const height = plan.output.canvas.height;
 	const frameCount = plan.output.frameCount; const frameBytes = width * height * 4;
 	return Object.freeze({

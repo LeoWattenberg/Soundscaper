@@ -56,9 +56,7 @@ export function projectFeatureVideoEffectPlaybackBypass<Project extends object>(
 	options: ProjectFeatureVideoEffectBypassOptions = {},
 ): ProjectFeatureVideoEffectBypassProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (!isMaintainedProjectFeatureSchema(
-		dataProperty(projectRecord, 'schemaVersion', 'project'),
-	)) return unchanged(project);
+	if (!isMaintainedProjectFeatureSchema(projectRecord)) return unchanged(project);
 	const requirementIds = qualifyingRequirementIds(report);
 	if (requirementIds.length === 0) return unchanged(project);
 	const maximumAffectedEffects = lowerOnlyLimit(

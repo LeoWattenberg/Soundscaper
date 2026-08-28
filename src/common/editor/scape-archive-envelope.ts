@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import {
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from './project-schema-identity.ts';
+import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
 
 export const SCAPE_FORMAT = 'scape-project';
@@ -41,6 +46,7 @@ export interface ScapeArchiveEntry {
 }
 
 export interface ScapeDescriptor {
+	readonly [key: string]: unknown;
 	entry: string;
 	size: number;
 	sha256: string;
@@ -48,7 +54,8 @@ export interface ScapeDescriptor {
 
 export interface ScapeProjectDescriptor extends ScapeDescriptor {
 	mimeType?: string;
-	schemaVersion?: number;
+	schemaFamily: ProjectSchemaFamily;
+	schemaVersion: number;
 }
 
 export interface ScapeAssetDescriptor extends ScapeDescriptor {
@@ -73,6 +80,20 @@ export interface ScapeArchiveEnvelope {
 	projectText: string;
 }
 
+/** A pre-baseline archive format is intentionally not a 1.0 migration source. */
+export class ScapeArchiveReimportRequiredError extends RangeError {
+	readonly code = 'REIMPORT_REQUIRED' as const;
+	readonly formatVersion: unknown;
+
+	constructor(formatVersion: unknown) {
+		super(
+			`Scape format ${String(formatVersion)} predates the family-qualified 1.0 baseline; re-import the source media.`,
+		);
+		this.name = 'ScapeArchiveReimportRequiredError';
+		this.formatVersion = formatVersion;
+	}
+}
+
 export async function readScapeArchiveEnvelope(
 	entries: readonly ScapeArchiveEntry[],
 	limitOverrides: Partial<ScapeArchiveLimits> = {},
@@ -83,8 +104,8 @@ export async function readScapeArchiveEnvelope(
 	const limits = resolveLimits(limitOverrides);
 	const expandedByteBudget = new ScapeExpandedByteBudget(limits.maximumExpandedBytes);
 	const entryByName = indexEntries(entries, limits, signal);
-	await validateEntryLayouts(entryByName.values(), signal);
 	const manifestEntry = requiredFileEntry(entryByName, SCAPE_MANIFEST_ENTRY);
+	await validateEntryLayouts([manifestEntry], signal);
 	assertMetadataLimit(manifestEntry, SCAPE_MANIFEST_ENTRY, limits.maximumManifestBytes);
 	const manifestText = await readBoundedTextEntry(
 		manifestEntry,
@@ -97,6 +118,7 @@ export async function readScapeArchiveEnvelope(
 	const manifest = parseScapeManifest(manifestText, additionalAssetKinds);
 	validateManifestOwnership(manifest, entryByName, limits);
 	const projectEntry = requiredFileEntry(entryByName, SCAPE_PROJECT_ENTRY);
+	await validateEntryLayouts([projectEntry], signal);
 	const projectText = await readBoundedTextEntry(
 		projectEntry,
 		SCAPE_PROJECT_ENTRY,
@@ -105,7 +127,23 @@ export async function readScapeArchiveEnvelope(
 		signal,
 	);
 	throwIfScapeAborted(signal);
+	assertManifestProjectIdentity(manifest, projectText);
+	await validateEntryLayouts(
+		[...entryByName.values()].filter(({ filename }) => (
+			filename !== SCAPE_MANIFEST_ENTRY && filename !== SCAPE_PROJECT_ENTRY
+		)),
+		signal,
+	);
 	return { entryByName, expandedByteBudget, manifest, projectText };
+}
+
+function assertManifestProjectIdentity(manifest: ScapeManifest, projectText: string): void {
+	const project = parseOpaqueScapeProjectDocument(projectText);
+	const identity = readProjectSchemaIdentity(project);
+	if (manifest.project.schemaFamily !== identity.schemaFamily
+		|| manifest.project.schemaVersion !== identity.schemaVersion) {
+		throw new Error('The Scape manifest project identity does not match its project document.');
+	}
 }
 
 async function validateEntryLayouts(
@@ -229,12 +267,16 @@ function parseScapeManifest(text: string, additionalAssetKinds: readonly string[
 	}
 	if (!isRecord(value) || value.format !== SCAPE_FORMAT) throw new RangeError('This is not a Scape project.');
 	if (value.formatVersion !== SCAPE_FORMAT_VERSION) {
+		if (value.formatVersion === 2) {
+			throw new ScapeArchiveReimportRequiredError(value.formatVersion);
+		}
 		throw new RangeError(`Unsupported Scape format version: ${String(value.formatVersion)}.`);
 	}
 	if (!isRecord(value.project) || !Array.isArray(value.assets)) {
 		throw new TypeError('The Scape manifest is incomplete.');
 	}
 	validateDescriptor(value.project);
+	readProjectSchemaIdentity(value.project);
 	const assetKinds = allowedAssetKinds(additionalAssetKinds);
 	for (const asset of value.assets) {
 		if (!isRecord(asset)) throw new TypeError('A Scape asset descriptor is invalid.');

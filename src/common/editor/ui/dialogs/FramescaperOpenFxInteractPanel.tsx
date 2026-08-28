@@ -5,10 +5,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
-	FramescaperNativeOpenFxAuthoringRuntimeV28,
-	FramescaperOpenFxInteractAuthoringModelV28,
-	FramescaperOpenFxInteractInstanceV28,
-} from '../../../../framescaper/editor-native-openfx-action-v28.ts';
+	FramescaperNativeOpenFxAuthoringRuntimeNativeMedia,
+	FramescaperOpenFxInteractAuthoringModelNativeMedia,
+	FramescaperOpenFxInteractInstanceNativeMedia,
+} from '../../../../framescaper/editor-native-openfx-action.ts';
 import {
 	framescaperOpenFxInteractEffectStateSha256V1,
 	framescaperOpenFxInteractRequestV1,
@@ -32,10 +32,10 @@ const EMPTY_MODIFIERS: readonly OfxInteractModifier[] = Object.freeze([]);
 
 export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }: Readonly<{
 	bridge: FramescaperNativeServicesBridge;
-	runtime: FramescaperNativeOpenFxAuthoringRuntimeV28;
+	runtime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia;
 	copy: FramescaperNativeServicesCopy;
 }>) {
-	const [model, setModel] = useState<FramescaperOpenFxInteractAuthoringModelV28 | null>(null);
+	const [model, setModel] = useState<FramescaperOpenFxInteractAuthoringModelNativeMedia | null>(null);
 	const [instanceId, setInstanceId] = useState('');
 	const [targetValue, setTargetValue] = useState('overlay');
 	const [status, setStatus] = useState(copy.ofxInteractLoading);
@@ -45,9 +45,9 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 	const generationRef = useRef(0);
 	const mountedRef = useRef(true);
 	const serialRef = useRef<Promise<void>>(Promise.resolve());
-	const authoritiesRef = useRef(new Map<string, FramescaperOpenFxInteractInstanceV28>());
+	const authoritiesRef = useRef(new Map<string, FramescaperOpenFxInteractInstanceNativeMedia>());
 
-	const installModel = useCallback((value: FramescaperOpenFxInteractAuthoringModelV28): void => {
+	const installModel = useCallback((value: FramescaperOpenFxInteractAuthoringModelNativeMedia): void => {
 		authoritiesRef.current = new Map(value.instances.map((instance) => [
 			instance.effect.instanceId, instance,
 		]));
@@ -195,7 +195,7 @@ export default function FramescaperOpenFxInteractPanel({ bridge, runtime, copy }
 }
 
 export function createFramescaperOpenFxInteractRequestV1(
-	instance: FramescaperOpenFxInteractInstanceV28,
+	instance: FramescaperOpenFxInteractInstanceNativeMedia,
 	target: InteractTarget,
 	events: readonly OfxInteractEventV1[],
 ): FramescaperOpenFxInteractRequestV1 {

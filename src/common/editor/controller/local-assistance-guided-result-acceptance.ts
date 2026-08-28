@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /** Explicit controller adaptation from reviewed aggregate terminals to owned primitive publishers. */
 import {
 	reviewAssistanceOwnedAudioCutTransformResultV1,
@@ -40,7 +39,6 @@ import {
 	reviewLocalAssistanceGuidedFramescaperSemantics,
 	type LocalAssistanceGuidedFramescaperAcceptancePorts,
 } from './local-assistance-guided-framescaper-acceptance.ts';
-
 export type {
 	LocalAssistanceGuidedHighlightAcceptanceRequest,
 	LocalAssistanceGuidedReframeAcceptanceRequest,
@@ -523,7 +521,8 @@ function primitiveFence(
 	occurrenceIds: readonly string[] = range.occurrenceIds,
 ): AssistanceSelectionFence {
 	return validateAssistanceSelectionFence({
-		projectId: workflow.fence.projectId, schemaVersion: workflow.fence.schemaVersion,
+		projectId: workflow.fence.projectId, schemaFamily: workflow.fence.schemaFamily,
+		schemaVersion: workflow.fence.schemaVersion,
 		revision: workflow.fence.revision, sequenceId: workflow.fence.sequenceId,
 		occurrenceIds, sourceId: range.sourceId,
 		sourceSha256: range.sourceSha256, sourceStartFrame: range.sourceStartFrame,
@@ -584,7 +583,8 @@ function exactRecord(value: unknown, fields: readonly string[], label: string): 
 }
 
 function sameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFence): boolean {
-	return left.projectId === right.projectId && left.schemaVersion === right.schemaVersion
+	return left.projectId === right.projectId && left.schemaFamily === right.schemaFamily
+		&& left.schemaVersion === right.schemaVersion
 		&& left.revision === right.revision && left.sequenceId === right.sequenceId
 		&& left.sourceId === right.sourceId && left.sourceSha256 === right.sourceSha256
 		&& left.sourceStartFrame === right.sourceStartFrame && left.sourceEndFrame === right.sourceEndFrame

@@ -10,7 +10,7 @@ import {
 	type FramescaperImageFrameTimingV1,
 	type FramescaperImageSourceV1,
 	type FramescaperImageTimingModeV1,
-} from './timeline-image-model-v32.ts';
+} from './timeline-image-model.ts';
 import {
 	decodeFramescaperImageConversionReceiptV1,
 	encodeFramescaperImageConversionReceiptV1,

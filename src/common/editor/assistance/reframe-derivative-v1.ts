@@ -21,6 +21,11 @@ import {
 	type AssistanceWorkflowSettingsV1,
 } from './workflow-settings-v1.ts';
 import { validateAssistanceWorkflowFenceV1 } from './workflow-fence-v1.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 
 export const ASSISTANCE_ACCEPTED_REFRAME_DERIVATIVE_MEDIA_TYPE =
 	'application/vnd.soundscaper.accepted-reframe-path+json';
@@ -30,7 +35,8 @@ type ReframeSettings = Extract<AssistanceWorkflowSettingsV1,
 
 export interface AssistanceAcceptedReframeDerivativeAuthorityV1 {
 	readonly projectId: string;
-	readonly projectSchemaVersion: number;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly baseProjectRevision: number;
 	readonly acceptedProjectRevision: number;
 	readonly sequenceId: string;
@@ -54,7 +60,7 @@ export interface AssistanceAcceptedReframeDerivativeV1 {
 
 const DERIVATIVE_FIELDS = Object.freeze(['schemaVersion', 'kind', 'authority', 'result'] as const);
 const AUTHORITY_FIELDS = Object.freeze([
-	'projectId', 'projectSchemaVersion', 'baseProjectRevision', 'acceptedProjectRevision',
+	'projectId', 'schemaFamily', 'schemaVersion', 'baseProjectRevision', 'acceptedProjectRevision',
 	'sequenceId', 'sourceRange', 'recipeVersion', 'settingsVersion', 'settings', 'stageIds',
 	'models', 'recipeSha256', 'settingsSha256', 'modelBindingsSha256',
 ] as const);
@@ -96,7 +102,8 @@ export function createAssistanceAcceptedReframeDerivativeV1(
 		kind: 'accepted-reframe-path',
 		authority: {
 			projectId: workflow.fence.projectId,
-			projectSchemaVersion: workflow.fence.schemaVersion,
+			schemaFamily: workflow.fence.schemaFamily,
+			schemaVersion: workflow.fence.schemaVersion,
 			baseProjectRevision: workflow.fence.revision,
 			acceptedProjectRevision,
 			sequenceId: workflow.fence.sequenceId,
@@ -123,6 +130,10 @@ export function reviewAssistanceAcceptedReframeDerivativeV1(
 	}
 	const candidate = exactRecord(row.authority, AUTHORITY_FIELDS,
 		'accepted Reframe derivative authority');
+	const identity = readProjectSchemaIdentity(candidate);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Accepted Reframe derivative requires the current project schema.');
+	}
 	const baseProjectRevision = integer(candidate.baseProjectRevision, 0,
 		'base project revision');
 	const acceptedProjectRevision = integer(candidate.acceptedProjectRevision, 1,
@@ -149,11 +160,12 @@ export function reviewAssistanceAcceptedReframeDerivativeV1(
 		throw new TypeError('Accepted Reframe derivative provenance digests disagree with their bodies.');
 	}
 	const projectId = id(candidate.projectId, 'project');
-	const projectSchemaVersion = integer(candidate.projectSchemaVersion, 1,
-		'project schema version');
+	const schemaFamily = identity.schemaFamily;
+	const schemaVersion = PROJECT_SCHEMA_VERSION;
 	const sequenceId = id(candidate.sequenceId, 'sequence');
 	const fence = validateAssistanceWorkflowFenceV1({
-		fenceVersion: 1, projectId, schemaVersion: projectSchemaVersion,
+		fenceVersion: 1, projectId, schemaFamily,
+		schemaVersion,
 		revision: baseProjectRevision, sequenceId, sourceRanges: [candidate.sourceRange],
 		transcriptBodySha256: null, recipeSha256, settingsSha256, modelBindingsSha256,
 	});
@@ -176,7 +188,8 @@ export function reviewAssistanceAcceptedReframeDerivativeV1(
 		throw new RangeError('Accepted Reframe path disagrees with exact source or settings authority.');
 	}
 	const authority: AssistanceAcceptedReframeDerivativeAuthorityV1 = Object.freeze({
-		projectId, projectSchemaVersion, baseProjectRevision, acceptedProjectRevision,
+		projectId, schemaFamily, schemaVersion,
+		baseProjectRevision, acceptedProjectRevision,
 		sequenceId, sourceRange, recipeVersion: 1, settingsVersion: 1,
 		settings, stageIds, models, recipeSha256, settingsSha256, modelBindingsSha256,
 	});
@@ -243,7 +256,15 @@ function exactRecord<const Field extends string>(
 		|| keys.some((key) => typeof key !== 'string' || !fields.includes(key as Field))) {
 		throw new TypeError(`The ${label} fields are invalid.`);
 	}
-	return row as Record<Field, unknown>;
+	const result = Object.create(null) as Record<Field, unknown>;
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(row, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`The ${label}.${field} must be an enumerable data property.`);
+		}
+		result[field] = descriptor.value;
+	}
+	return result;
 }
 
 function id(value: unknown, label: string): string {

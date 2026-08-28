@@ -17,6 +17,7 @@ import {
 } from './project-validation-primitives.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateVideoTrackComposition } from './video-timeline.js';
+import { hasCoreEditingProjectAuthority } from './project-schema-version.ts';
 
 const SAMPLE_FORMATS = new Set(['int16', 'int24', 'int32', 'float32', 'float64', 'unknown']);
 const DISPLAY_MODES = new Set(['waveform', 'spectrogram', 'multiview', 'half-wave']);
@@ -37,7 +38,7 @@ export function validateProjectMedia(
 	sampleRate: number,
 	options: ProjectMediaValidationOptions = {},
 ): ProjectMediaCollections {
-	const foundation = Number(project.schemaVersion) >= 10;
+	const foundation = hasCoreEditingProjectAuthority(project);
 	const sources = recordArray(project.sources, 'project.sources');
 	const clips = recordArray(project.clips, 'project.clips');
 	const tracks = recordArray(project.tracks, 'project.tracks');

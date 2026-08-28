@@ -17,15 +17,10 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
-	createSoundscaperAudioTrackFreezePlaybackServiceV21,
-} from '../src/soundscaper/editor-audio-track-freeze-playback-v21.ts';
-import {
-	createSoundscaperAudioTrackFreezePlaybackServiceV23,
-} from '../src/soundscaper/editor-audio-track-freeze-playback-v23.ts';
-import { createSoundscaperPlaybackProjectServiceV21 } from '../src/soundscaper/editor-project-playback-v21.ts';
-import { createSoundscaperPlaybackProjectServiceV23 } from '../src/soundscaper/editor-project-playback-v23.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+	createSoundscaperAudioTrackFreezePlaybackService,
+} from '../src/soundscaper/editor-audio-track-freeze-playback.ts';
+import { createSoundscaperPlaybackProjectService } from '../src/soundscaper/editor-project-playback.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * A frozen track inside a track folder must still project for playback and delivery.
@@ -52,11 +47,11 @@ for (const revision of ['V21', 'V23'] as const) {
 	test(`a frozen track inside a folder still projects for ${revision} playback and delivery`, () => {
 		const { project, freeze, derivedSource, trackId } = fixture(revision);
 		const playback = revision === 'V21'
-			? createSoundscaperAudioTrackFreezePlaybackServiceV21(
-				createSoundscaperPlaybackProjectServiceV21(), pcmStore(),
+			? createSoundscaperAudioTrackFreezePlaybackService(
+				createSoundscaperPlaybackProjectService(), pcmStore(),
 			)
-			: createSoundscaperAudioTrackFreezePlaybackServiceV23(
-				createSoundscaperPlaybackProjectServiceV23(), pcmStore(),
+			: createSoundscaperAudioTrackFreezePlaybackService(
+				createSoundscaperPlaybackProjectService(), pcmStore(),
 			);
 		playback.admitVerifiedFreeze({
 			project, trackId, freeze, derivedSource,
@@ -158,7 +153,7 @@ function fixture(revision: 'V21' | 'V23') {
 		primarySequenceId: 'main-sequence',
 	};
 	const project = revision === 'V21'
-		? createSoundscaperProjectV21(options)
-		: createSoundscaperProjectV23(options);
+		? createSoundscaperProject(options)
+		: createSoundscaperProject(options);
 	return { project, freeze, derivedSource, trackId: 'voice' };
 }

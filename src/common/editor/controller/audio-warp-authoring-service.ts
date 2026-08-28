@@ -38,9 +38,10 @@ import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
 import type { RationalInput } from '../timeline-time.ts';
 import type { EditorControllerLifetime } from './lifecycle.ts';
 
-export type AudioWarpAuthoringProject = ProjectHierarchyDocument & Readonly<{
-	readonly schemaVersion: 17 | 21;
-}>;
+export type AudioWarpAuthoringProject = ProjectHierarchyDocument & (
+	| Readonly<{ readonly schemaVersion: 17; readonly schemaFamily?: never }>
+	| Readonly<{ readonly schemaFamily: 'soundscaper' | 'framescaper'; readonly schemaVersion: 1 }>
+);
 
 export interface PreparedAudioWarpClipEdit {
 	readonly clipId: string;
@@ -206,10 +207,10 @@ export function createAudioWarpAuthoringService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) throw new RangeError('Editing is blocked.');
 		const project = dependencies.getProject();
-		if (!isAudioWarpProjectSchema(project.schemaVersion)) {
+		if (!isAudioWarpProjectSchema(project)) {
 			throw new RangeError('Audio warp authoring requires an exact audio-warp project schema.');
 		}
-		// V21 is admitted and validated by the selected Soundscaper runtime before
+		// Product v1 is admitted and validated by its selected runtime before
 		// this common controller is composed and again at its atomic commit boundary.
 		if (project.schemaVersion === 17) validateAudioEditorProjectV17(project);
 		return project;

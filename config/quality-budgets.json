@@ -1454,7 +1454,7 @@
 				"humanReviewMilestone": 9,
 				"humanReviewBlocks": "stable-1.0-release-admission"
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "config/production-licensing-matrix.json", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-actions.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-persistent-services-fault-v1",
@@ -1493,7 +1493,7 @@
 				"targets": ["win32-x64", "win32-arm64", "darwin-arm64", "linux-x64", "linux-arm64"],
 				"hostileCases": ["crash", "hang", "resource-violation", "malformed-descriptor", "network-denied", "filesystem-denied"]
 			},
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-v26-openfx-candidate.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-baseline.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		}
 	],
 	"workloads": [
@@ -2048,7 +2048,7 @@
 					"unit": "count"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-image-sequence.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-lifecycle-v25.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-media-professional-tier.test.ts", "tests/audio-editor-native-media-image-sequence.test.ts", "tests/audio-editor-native-media-proxy-recipe.test.ts", "tests/audio-editor-native-media-image-sequence-v25.test.ts", "tests/audio-editor-video-source-professional-v25.test.ts", "tests/audio-editor-framescaper-video-proxy-actions.test.ts", "scripts/collect-m5b-professional-media-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		},
 		{
 			"id": "m5b-persistent-services-recovery",
@@ -2186,7 +2186,7 @@
 					"unit": "bytes"
 				}
 			],
-			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-v26-openfx-candidate.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
+			"evidence": ["docs/milestone-5b-framescaper-native-tier.md", "tests/audio-editor-native-ofx-descriptor.test.ts", "tests/audio-editor-native-ofx-consent-and-binding.test.ts", "tests/audio-editor-native-ofx-host-contract-v26.test.ts", "tests/audio-editor-framescaper-baseline.test.ts", "tests/framescaper-openfx-host-source-manifest.test.js", "scripts/collect-m5b-openfx-quality.mjs", "tests/quality-budget-m5b-collectors.test.ts"]
 		}
 	]
 }

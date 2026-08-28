@@ -58,6 +58,8 @@ export function framescaperNativeQueueRow(
 	state: FramescaperNativeQueueProjection['state'] = 'queued',
 ): FramescaperNativeQueueProjection {
 	return {
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		jobId: FRAMESCAPER_NATIVE_JOB_ID,
 		taskKind: 'encoded-export',
 		projectId: 'project-1',

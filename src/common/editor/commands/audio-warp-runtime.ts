@@ -101,7 +101,7 @@ function incrementRenderCacheRevision(clip: DataRecord): void {
 
 function warpProject(project: EditorCommandProject): MutableAudioWarpProject {
 	const candidate = project as MutableAudioWarpProject;
-	if (!isAudioWarpProjectSchema(candidate.schemaVersion)) {
+	if (!isAudioWarpProjectSchema(candidate)) {
 		throw new RangeError('Audio warp commands require an exact audio-warp project schema.');
 	}
 	if (!Array.isArray(candidate.clips) || !Array.isArray(candidate.tracks)) {

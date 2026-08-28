@@ -7,7 +7,9 @@ export const APP_ID = PRODUCT_ID === 'framescaper' ? 'org.framescaper.desktop' :
 export const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 export const APP_HOST = 'bundle';
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
-export const SESSION_PARTITION = PRODUCT_ID === 'framescaper' ? 'persist:framescaper-v1' : 'persist:soundscaper-v1';
+export const SESSION_PARTITION = PRODUCT_ID === 'framescaper'
+	? 'persist:framescaper-production'
+	: 'persist:soundscaper-production';
 export const UPDATE_TAG_PREFIX = PRODUCT_ID === 'framescaper' ? 'framescaper-v' : 'v';
 export const SETTINGS_SCHEMA_VERSION = 1;
 
@@ -66,14 +68,6 @@ export const MAX_SAVE_TARGETS = 16;
 export const MAX_SAVE_SESSIONS = 4;
 export const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 export const MAX_SAVE_ADMITTED_BYTES = MAX_DESKTOP_SAVE_BYTES;
-export const MAX_SHARED_PROJECT_DOCUMENT_BYTES = 256 * 1024 ** 2;
-export const MAX_SHARED_PROJECT_ID_BYTES = 4 * 1024;
-export const MAX_SHARED_PROJECTS = 10_000;
-export const MAX_SHARED_SOURCE_BYTES = 64 * 1024 ** 3;
-export const MAX_SHARED_SOURCE_CHUNK_BYTES = 4 * 1024 * 1024;
-export const MAX_SHARED_SOURCE_READS = 4;
-export const MAX_SHARED_SOURCES = 4_094;
-
 export const IPC = Object.freeze({
 	environment: 'soundscaper:v1:environment',
 	chooseFiles: 'soundscaper:v1:files:choose',
@@ -92,16 +86,6 @@ export const IPC = Object.freeze({
 	patchFinalPrefix: 'soundscaper:v1:save:prefix',
 	finishWrite: 'soundscaper:v1:save:finish',
 	abortWrite: 'soundscaper:v1:save:abort',
-	listSharedProjects: 'soundscaper:v1:projects:list',
-	readSharedProject: 'soundscaper:v1:projects:read',
-	readSharedProjectBundle: 'soundscaper:v1:projects:bundle',
-	commitSharedProject: 'soundscaper:v1:projects:commit',
-	deleteSharedProject: 'soundscaper:v1:projects:delete',
-	beginSharedSourceWrite: 'soundscaper:v1:projects:sources:begin',
-	writeSharedSourceChunk: 'soundscaper:v1:projects:sources:chunk',
-	finishSharedSourceWrite: 'soundscaper:v1:projects:sources:finish',
-	abortSharedSourceWrite: 'soundscaper:v1:projects:sources:abort',
-	readSharedSourceChunk: 'soundscaper:v1:projects:sources:read',
 	helperProbeAvailability: 'soundscaper:v1:helper:probe-availability',
 	helperProbeBegin: 'soundscaper:v1:helper:probe-begin',
 	helperProbeAwait: 'soundscaper:v1:helper:probe-await',
@@ -181,16 +165,16 @@ export const IPC = Object.freeze({
 	framescaperNativeOpenFxFrame: 'framescaper:v1:native-services:openfx:frame-port',
 	framescaperNativeOpenFxFrameOffer: 'framescaper:v1:native-services:openfx:frame-offer',
 	framescaperNativeOpenFxInteract: 'framescaper:v1:native-services:openfx:interact',
-	framescaperProjectHandshake: 'framescaper:v20:projects:handshake',
-	framescaperProjectBundle: 'framescaper:v20:projects:bundle',
-	framescaperProjectBodyRead: 'framescaper:v20:projects:bodies:read',
-	framescaperProjectList: 'framescaper:v20:projects:list',
-	framescaperProjectDelete: 'framescaper:v20:projects:delete',
-	framescaperProjectDuplicate: 'framescaper:v20:projects:duplicate',
-	framescaperProjectBegin: 'framescaper:v20:projects:publication:begin',
-	framescaperProjectChunk: 'framescaper:v20:projects:publication:chunk',
-	framescaperProjectFinish: 'framescaper:v20:projects:publication:finish',
-	framescaperProjectAbort: 'framescaper:v20:projects:publication:abort',
+	framescaperProjectHandshake: 'framescaper:v1:project-library:handshake',
+	framescaperProjectBundle: 'framescaper:v1:project-library:bundle',
+	framescaperProjectBodyRead: 'framescaper:v1:project-library:bodies:read',
+	framescaperProjectList: 'framescaper:v1:project-library:list',
+	framescaperProjectDelete: 'framescaper:v1:project-library:delete',
+	framescaperProjectDuplicate: 'framescaper:v1:project-library:duplicate',
+	framescaperProjectBegin: 'framescaper:v1:project-library:publication:begin',
+	framescaperProjectChunk: 'framescaper:v1:project-library:publication:chunk',
+	framescaperProjectFinish: 'framescaper:v1:project-library:publication:finish',
+	framescaperProjectAbort: 'framescaper:v1:project-library:publication:abort',
 	listAssistanceModels: 'soundscaper:v1:assistance:list',
 	installAssistanceModel: 'soundscaper:v1:assistance:install',
 	cancelAssistanceModelInstall: 'soundscaper:v1:assistance:install:cancel',

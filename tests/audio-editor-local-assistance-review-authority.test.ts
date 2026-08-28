@@ -45,7 +45,8 @@ function prepared(
 	role: 'frame-pack' | 'editorial-context', mediaType: string, bytes: Blob,
 ) {
 	return { sourceId: 'source-a', operation, selectionFence: {
-		projectId: 'project-a', schemaVersion: 30, revision: 1, sequenceId: 'main',
+		projectId: 'project-a', schemaFamily: 'soundscaper', schemaVersion: 1,
+		revision: 1, sequenceId: 'main',
 		occurrenceIds: ['clip-a'], sourceId: 'source-a', sourceSha256: '1a'.repeat(32),
 		sourceStartFrame: 0, sourceEndFrame: 1, linkMembershipSha256: '2b'.repeat(32),
 		timingAuthoritySha256: '3c'.repeat(32),

@@ -260,7 +260,7 @@ test('copy-on-write sources share untouched chunks and retain base dependencies 
 
 	const future = Date.now() + 2 * 24 * 60 * 60 * 1000;
 	let result = await store.pruneUnreferencedSources({
-		protectedProjects: [{ clips: [{ sourceId: 'cow-derived' }] }],
+		protectedProjects: [{ schemaFamily: 'soundscaper', schemaVersion: 1, clips: [{ sourceId: 'cow-derived' }] }],
 		minimumAgeMs: 0,
 		now: future,
 	});
@@ -297,7 +297,7 @@ test('source pruning preserves live history and retained revisions before removi
 		await store.saveAnalysis(`audio-editor-peaks-v2:${sourceId}`, { levels: [sourceId] });
 	}
 	const project = (revision, sourceId, extraSources = []) => ({
-		id: 'retained-project',
+		id: 'retained-project', schemaFamily: 'soundscaper', schemaVersion: 1,
 		revision,
 		updatedAt: `2026-07-13T00:00:0${revision}.000Z`,
 		sources: [sourceId, ...extraSources].map((id) => ({ id, frameCount: 2, channelCount: 1 })),

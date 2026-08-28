@@ -18,6 +18,11 @@ import {
 } from './derivative-cache-policy.ts';
 import { KeyValueRepository, type KeyValuePrefixRecord } from './key-value-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 
 export const ASSISTANCE_DERIVATIVE_SCHEMA_VERSION = 1 as const;
 export const ASSISTANCE_DERIVATIVE_RECORD_VERSION = 1 as const;
@@ -40,7 +45,9 @@ export const ASSISTANCE_DERIVATIVE_KINDS = Object.freeze([
 export type AssistanceDerivativeKind = (typeof ASSISTANCE_DERIVATIVE_KINDS)[number];
 
 export interface AssistanceDerivativeIdentityV1 {
-	readonly schemaVersion: typeof ASSISTANCE_DERIVATIVE_SCHEMA_VERSION;
+	readonly derivativeVersion: typeof ASSISTANCE_DERIVATIVE_SCHEMA_VERSION;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly key: string;
 	readonly projectScopeSha256: string;
 	readonly identitySha256: string;
@@ -92,7 +99,8 @@ const DEFAULT_LIMITS: NormalizedDerivativeCacheLimits = Object.freeze({
 	maximumEntries: ASSISTANCE_DERIVATIVE_MAXIMUM_ENTRIES,
 });
 const RECORD_FIELDS = new Set([
-	'recordVersion', 'schemaVersion', 'key', 'projectScopeSha256', 'identitySha256',
+	'recordVersion', 'derivativeVersion', 'schemaFamily', 'schemaVersion',
+	'key', 'projectScopeSha256', 'identitySha256',
 	'projectId', 'kind', 'mediaType', 'size', 'payloadByteLength', 'payloadSha256',
 	'bytes', 'committedAt',
 ]);
@@ -119,7 +127,9 @@ export function createAssistanceDerivativeIdentityV1(
 	const descriptor = identityDescriptor(workflow, kind);
 	const identitySha256 = digestBytes(UTF8.encode(JSON.stringify(descriptor)));
 	return Object.freeze({
-		schemaVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
+		derivativeVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
+		schemaFamily: workflow.fence.schemaFamily,
+		schemaVersion: workflow.fence.schemaVersion,
 		key: `${ASSISTANCE_DERIVATIVE_KEY_PREFIX}${projectScopeSha256}:${identitySha256}`,
 		projectScopeSha256,
 		identitySha256,
@@ -358,10 +368,11 @@ function evictionRecord(record: AssistanceDerivativeRecordV1): Readonly<{
 function identityDescriptor(workflow: AssistanceWorkflowV1, kind: AssistanceDerivativeKind): unknown {
 	const fence = workflow.fence;
 	return {
-		schemaVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
+		derivativeVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
+		schemaFamily: fence.schemaFamily,
+		schemaVersion: fence.schemaVersion,
 		projectId: fence.projectId,
 		...(kind === 'reframe-path' ? { projectRevision: fence.revision } : {}),
-		projectSchemaVersion: fence.schemaVersion,
 		sequenceId: fence.sequenceId,
 		workflowId: workflow.workflowId,
 		kind,
@@ -423,7 +434,9 @@ function normalizeRecordOrNull(
 	try {
 		const record = closedRecord(value, RECORD_FIELDS, 'assistance derivative record');
 		if (record.recordVersion !== ASSISTANCE_DERIVATIVE_RECORD_VERSION
-			|| record.schemaVersion !== ASSISTANCE_DERIVATIVE_SCHEMA_VERSION) return null;
+			|| record.derivativeVersion !== ASSISTANCE_DERIVATIVE_SCHEMA_VERSION) return null;
+		const projectIdentity = readProjectSchemaIdentity(record);
+		if (projectIdentity.schemaVersion !== PROJECT_SCHEMA_VERSION) return null;
 		const key = typeof record.key === 'string' ? record.key : '';
 		const match = KEY.exec(key);
 		if (!match) return null;
@@ -433,7 +446,9 @@ function normalizeRecordOrNull(
 		if (match[1] !== projectScopeSha256 || match[2] !== identitySha256
 			|| projectScope(projectId) !== projectScopeSha256) return null;
 		const identity = Object.freeze({
-			schemaVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
+			derivativeVersion: ASSISTANCE_DERIVATIVE_SCHEMA_VERSION,
+			schemaFamily: projectIdentity.schemaFamily,
+			schemaVersion: PROJECT_SCHEMA_VERSION,
 			key,
 			projectScopeSha256,
 			identitySha256,
@@ -559,6 +574,7 @@ function digestBytes(value: Uint8Array): string {
 function sameIdentity(left: AssistanceDerivativeIdentityV1, right: AssistanceDerivativeIdentityV1): boolean {
 	return left.key === right.key && left.projectScopeSha256 === right.projectScopeSha256
 		&& left.identitySha256 === right.identitySha256 && left.projectId === right.projectId
+		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
 		&& left.kind === right.kind;
 }
 

@@ -22,12 +22,12 @@ import {
 	createVideoSource,
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperPlaybackProjectServiceV23 } from '../src/soundscaper/editor-project-playback-v23.ts';
+import { createSoundscaperPlaybackProjectService } from '../src/soundscaper/editor-project-playback.ts';
 import {
-	applySoundscaperProjectCommandV23,
-	soundscaperProjectForCommandConsumersV23,
-} from '../src/soundscaper/editor-project-v23-commands.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+	applySoundscaperProjectCommand,
+	soundscaperProjectForCommandConsumers,
+} from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * One document, carrying what several slices added, through every path that reads it.
@@ -51,7 +51,7 @@ test('a foldered, annotated, automated document survives every path that reads i
 	const project = crossSliceProject();
 
 	// Playback: the folder's mute reaches the leaf that inherits it.
-	const playback = createSoundscaperPlaybackProjectServiceV23();
+	const playback = createSoundscaperPlaybackProjectService();
 	const projection = playback.projectForPlayback(project);
 	assert.equal(trackOf(projection.project, 'voice')?.mute, true);
 	assert.equal(trackOf(projection.project, 'music')?.mute, false);
@@ -105,7 +105,7 @@ test('a whole-sequence ripple moves every authority by one PAL-conformed span', 
 		musicalRange: { startBeat: { num: 0, den: 1 }, endBeat: { num: 26, den: 25 } },
 	}]);
 
-	const rippled = applySoundscaperProjectCommandV23(project, command, { now: NOW });
+	const rippled = applySoundscaperProjectCommand(project, command, { now: NOW });
 	const marker = rippled.timelineAnnotations.find(({ id }) => id === 'marker-after');
 	assert.ok(marker?.kind === 'marker' && marker.anchor === 'sample');
 	assert.equal(marker.positionFrame, 23_040);
@@ -129,7 +129,7 @@ test('a partial-sequence ripple leaves sequence annotations and picture fixed', 
 	const command = preparedRipple(project, ['voice', 'music']);
 	assert.deepEqual(command.annotationRippleOperations, []);
 
-	const rippled = applySoundscaperProjectCommandV23(project, command, { now: NOW });
+	const rippled = applySoundscaperProjectCommand(project, command, { now: NOW });
 	const marker = rippled.timelineAnnotations.find(({ id }) => id === 'marker-after');
 	assert.ok(marker?.kind === 'marker' && marker.anchor === 'sample');
 	assert.equal(marker.positionFrame, 48_000);
@@ -145,7 +145,7 @@ function preparedRipple(
 	project: ReturnType<typeof crossSliceProject>,
 	trackIds: readonly string[],
 ): Extract<AudioEditorCommand, { readonly type: 'range/ripple-delete' }> {
-	const projection = soundscaperProjectForCommandConsumersV23(project);
+	const projection = soundscaperProjectForCommandConsumers(project);
 	const command = prepareRangeDeleteCommand(projection, {
 		startFrame: 0,
 		endFrame: 24_000,
@@ -182,7 +182,7 @@ function crossSliceProject() {
 		frameCount: SAMPLE_RATE * 10, sampleRate: SAMPLE_RATE, channelCount: 2,
 		frameRate: PAL, width: 1_920, height: 1_080,
 	});
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'cross-slice', title: 'Cross slice', now: NOW,
 		sources: [voiceSource, musicSource, takeSource, camera],
 		clips: [

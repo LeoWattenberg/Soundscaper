@@ -67,10 +67,10 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 			import(`${root}/src/common/editor/video-source-timing-view.ts`),
 			import(`${root}/src/common/editor/video-keyframe-export-presentation-authority.ts`),
 			import(`${root}/src/common/editor/project-media-factory.ts`),
-			import(`${root}/src/framescaper/editor-project-v20.ts`),
-			import(`${root}/src/framescaper/editor-project-v20-profile.ts`),
-			import(`${root}/src/framescaper/editor-project-v20-runtime.ts`),
-			import(`${root}/src/framescaper/editor-project-feature-requirements-v20.ts`),
+			import(`${root}/src/framescaper/editor-project-retime.ts`),
+			import(`${root}/src/framescaper/editor-project-retime-profile.ts`),
+			import(`${root}/src/framescaper/editor-project-retime-runtime.ts`),
+			import(`${root}/src/framescaper/editor-project-feature-requirements-retime.ts`),
 		]);
 		const source = Uint8Array.from(atob(sourceBase64), (value) => value.charCodeAt(0));
 		const sourceFrameByteLength = 128 * 72 * 4;
@@ -261,8 +261,8 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 				timingAsset: publication.reference,
 				timingDecision: { mode: 'exact', rate: { num: 12, den: 1 } },
 			}, 48_000);
-			const profile = framescaperProfile.FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
-			const project = framescaperV20.createFramescaperProjectV20(profile, {
+			const profile = framescaperProfile.FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE;
+			const project = framescaperV20.createFramescaperProjectRetime(profile, {
 				id: 'm4b2-keyframe-vfr', title: 'M4B2 keyed VFR',
 				now: '2026-08-14T00:00:00.000Z', sampleRate: 48_000,
 				sources: [sourceValue],
@@ -290,8 +290,8 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 				workload.createM4B2KeyframeParityProject(caseId).clips[0].videoKeyframes,
 			);
 			project.featureRequirements =
-				framescaperRequirements.reconcileFramescaperProjectFeatureRequirementsV20(profile, project);
-			const runtime = framescaperRuntime.framescaperProjectForRuntimeConsumersV20(profile, project);
+				framescaperRequirements.reconcileFramescaperProjectFeatureRequirementsRetime(profile, project);
+			const runtime = framescaperRuntime.framescaperProjectForRuntimeConsumersRetime(profile, project);
 			const index = timingAssetModule.validateVideoTimingAssetBytes(
 				publication.reference, publication.bytes,
 			);
@@ -491,10 +491,10 @@ async function transpileSourceModules() {
 		'common/editor/video-source-timing-view.ts',
 		'common/editor/video-keyframe-export-presentation-authority.ts',
 		'common/editor/project-media-factory.ts',
-		'framescaper/editor-project-v20.ts',
-		'framescaper/editor-project-v20-profile.ts',
-		'framescaper/editor-project-v20-runtime.ts',
-		'framescaper/editor-project-feature-requirements-v20.ts',
+		'framescaper/editor-project-retime.ts',
+		'framescaper/editor-project-retime-profile.ts',
+		'framescaper/editor-project-retime-runtime.ts',
+		'framescaper/editor-project-feature-requirements-retime.ts',
 	];
 	const pending = entries.map((name) => new URL(name, sourceRoot));
 	const discovered = new Map();

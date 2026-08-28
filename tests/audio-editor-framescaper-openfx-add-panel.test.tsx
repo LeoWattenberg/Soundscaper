@@ -7,10 +7,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
 	FramescaperOpenFxAddForm,
-	buildFramescaperOpenFxAuthoringRequestV28,
-	createFramescaperOpenFxFormStateV28,
+	buildFramescaperOpenFxAuthoringRequestNativeMedia,
+	createFramescaperOpenFxFormState,
 } from '../src/common/editor/ui/dialogs/FramescaperOpenFxAddPanel.tsx';
-import type { FramescaperOpenFxAuthoringModelV28 } from '../src/framescaper/editor-native-openfx-authoring-model-v28.ts';
+import type { FramescaperOpenFxAuthoringModelNativeMedia } from '../src/framescaper/editor-native-openfx-authoring-model.ts';
 
 const TYPES = [
 	'integer', 'integer2d', 'integer3d', 'double', 'double2d', 'double3d',
@@ -32,7 +32,7 @@ test('the menu-opened OpenFX form exposes every 1.5.1 parameter type and exact n
 });
 
 test('OpenFX form state becomes one complete typed authoring request', () => {
-	const source = createFramescaperOpenFxFormStateV28(model());
+	const source = createFramescaperOpenFxFormState(model());
 	const values = { ...source.values,
 		integer: '7', integer2d: '[1,2]', integer3d: '[1,2,3]', double: '[1.5]',
 		double2d: '[1.5,2.5]', double3d: '[1,2,3]', rgb: '[0.1,0.2,0.3]',
@@ -40,7 +40,7 @@ test('OpenFX form state becomes one complete typed authoring request', () => {
 		parametric: '[[0,0],[1,1]]', custom: 'opaque',
 	};
 	const keyframes = { ...source.keyframes, double: '[{"frame":4,"value":2.5}]' };
-	const request = buildFramescaperOpenFxAuthoringRequestV28(model(), {
+	const request = buildFramescaperOpenFxAuthoringRequestNativeMedia(model(), {
 		...source, values, keyframes, customEncodings: { custom: 'vendor-v1' },
 	});
 	assert.equal(request.context, 'transition');
@@ -56,16 +56,16 @@ test('OpenFX form state becomes one complete typed authoring request', () => {
 });
 
 test('OpenFX form request parsing refuses malformed vectors and stale targets', () => {
-	const source = createFramescaperOpenFxFormStateV28(model());
-	assert.throws(() => buildFramescaperOpenFxAuthoringRequestV28(model(), {
+	const source = createFramescaperOpenFxFormState(model());
+	assert.throws(() => buildFramescaperOpenFxAuthoringRequestNativeMedia(model(), {
 		...source, values: { ...source.values, rgba: '[1, 2]' },
 	}), /rgba|parameter|component/iu);
-	assert.throws(() => buildFramescaperOpenFxAuthoringRequestV28(model(), {
+	assert.throws(() => buildFramescaperOpenFxAuthoringRequestNativeMedia(model(), {
 		...source, targetId: 'missing-target',
 	}), /target|stale/iu);
 });
 
-function model(): FramescaperOpenFxAuthoringModelV28 {
+function model(): FramescaperOpenFxAuthoringModelNativeMedia {
 	return Object.freeze({
 		plugins: Object.freeze([Object.freeze({
 			pluginHandle: '12'.repeat(20), pluginId: 'net.example.AllParameters', vendor: 'Example',

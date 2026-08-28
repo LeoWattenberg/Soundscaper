@@ -11,9 +11,9 @@ import { assertNativeMediaGraphPlan } from '../src/common/editor/native-media-gr
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import { createVideoKeyframeExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.ts';
 import { admitVideoKeyframeEncoderWorkload } from '../src/common/editor/video-keyframe-encoder-stream.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 test('a delivery that states no quality still states the tier every export used', () => {
 	const plan = exportPlan();
@@ -128,7 +128,7 @@ function encoderArguments(format: string, quality?: string) {
 }
 
 function keyedEncoderArguments(quality?: string) {
-	const project_ = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_MODEL_PROFILE, framescaperV20Options());
+	const project_ = createFramescaperProjectRetime(FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE, framescaperV20Options());
 	const compatible = structuredClone(project_) as Record<string, unknown>;
 	compatible.schemaVersion = 17;
 	const frameSource = createVideoKeyframeExportFrameSource({

@@ -228,7 +228,7 @@ function structuralProject(overrides: Partial<ControllerProject> = {}): Controll
 		track('music', 'Mike Music', ['music-clip']),
 	];
 	return {
-		schemaVersion: 16,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		id: 'project', title: 'Project', sampleRate: 48_000,
 		tracks,
 		clips: [

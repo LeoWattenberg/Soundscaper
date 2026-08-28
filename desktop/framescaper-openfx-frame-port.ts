@@ -168,7 +168,8 @@ async function runSession(
 		});
 	});
 	const result = await service.execute(Object.freeze({
-		schemaVersion: 1, planPayload: request.planPayload,
+		protocolVersion: request.protocolVersion, schemaFamily: request.schemaFamily,
+		schemaVersion: request.schemaVersion, planPayload: request.planPayload,
 		planFingerprint: request.planFingerprint, instanceId: request.instanceId,
 		outputOrdinal: request.outputOrdinal, requestedBackend: request.requestedBackend,
 		transitionProgress: request.transitionProgress, inputs: Object.freeze(inputs), signal,
@@ -261,10 +262,11 @@ function once(port: MainPort, signal: AbortSignal): Promise<unknown> {
 
 function admitPortRequest(value: unknown): FramescaperOpenFxFramePortRequestV1 {
 	const row = closed(value, [
-		'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
+		'protocolVersion', 'schemaFamily', 'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
 		'requestedBackend', 'transitionProgress', 'inputs', 'inputBinding', 'requestNonce',
 	], 'OpenFX frame-port request');
 	const control = admitFramescaperOpenFxFrameControlV1({
+		protocolVersion: row.protocolVersion, schemaFamily: row.schemaFamily,
 		schemaVersion: row.schemaVersion, planPayload: row.planPayload,
 		planFingerprint: row.planFingerprint, instanceId: row.instanceId,
 		outputOrdinal: row.outputOrdinal, requestedBackend: row.requestedBackend,
@@ -303,6 +305,7 @@ function admitPortRequest(value: unknown): FramescaperOpenFxFramePortRequestV1 {
 	});
 	if (offset !== (binding?.byteLength ?? 0)) throw new Error('OpenFX frame-port descriptors do not cover exact input bytes.');
 	return Object.freeze({
+		protocolVersion: control.protocolVersion, schemaFamily: control.schemaFamily,
 		schemaVersion: control.schemaVersion, planPayload: control.planPayload,
 		planFingerprint: control.planFingerprint, instanceId: control.instanceId,
 		requestNonce,

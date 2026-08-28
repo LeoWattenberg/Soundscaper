@@ -10,13 +10,15 @@ import {
 	redoEditorCommand,
 	undoEditorCommand,
 } from '../history.js';
-import { migrateAudioEditorProject } from '../migration.js';
 import { cloneProject } from '../project.js';
-import { createCurrentAudioEditorProject } from '../project-current.ts';
+import {
+	createCurrentAudioEditorProject,
+	loadCurrentAudioEditorProject,
+} from '../project-current.ts';
 import { projectForCommandConsumers, projectForRuntimeConsumers } from '../project-current-runtime.ts';
 
 const METHOD_NAMES = [
-	'createProject', 'cloneProject', 'migrateProject', 'projectForCommandConsumers',
+	'createProject', 'cloneProject', 'projectForCommandConsumers',
 	'projectForRuntimeConsumers', 'prepareEditClipboardDescriptor',
 	'createHistory', 'executeCommand', 'applyCommand', 'undo', 'redo', 'canUndo', 'canRedo',
 ] as const;
@@ -59,7 +61,7 @@ export interface ControllerProjectRuntime {
 	readonly assistanceAssetCommands: boolean;
 	readonly createProject: (options?: Readonly<Record<string, unknown>>) => ControllerRuntimeProject;
 	readonly cloneProject: (project: unknown) => ControllerRuntimeProject;
-	readonly migrateProject: (project: unknown) => Readonly<{
+	readonly loadProject: (project: unknown) => Readonly<{
 		readonly project: ControllerRuntimeProject;
 		readonly readOnly: boolean;
 		readonly intrinsicReadOnly?: boolean;
@@ -118,7 +120,7 @@ const DEFAULT_RUNTIME = Object.freeze({
 	assistanceAssetCommands: false,
 	createProject: createCurrentAudioEditorProject,
 	cloneProject,
-	migrateProject: migrateAudioEditorProject,
+	loadProject: loadCurrentAudioEditorProject,
 	projectForCommandConsumers,
 	projectForRuntimeConsumers: (project: ControllerRuntimeProject) => (
 		projectForRuntimeConsumers(project as never) as ControllerRuntimeProject
@@ -167,6 +169,11 @@ export function resolveControllerProjectRuntime(
 		}
 		snapshot[name] = descriptor.value;
 	}
+	const loadProject = Object.getOwnPropertyDescriptor(runtime, 'loadProject');
+	if (!loadProject || !Object.hasOwn(loadProject, 'value') || typeof loadProject.value !== 'function') {
+		throw new TypeError('A complete controller project runtime requires loadProject.');
+	}
+	snapshot.loadProject = loadProject.value;
 	const duplicateCarrier = Object.getOwnPropertyDescriptor(runtime, 'prepareTrackDuplicateCarrier');
 	if (duplicateCarrier === undefined) {
 		snapshot.prepareTrackDuplicateCarrier = DEFAULT_RUNTIME.prepareTrackDuplicateCarrier;

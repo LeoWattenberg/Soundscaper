@@ -22,7 +22,8 @@ import { AssistanceStagingRegistry } from '../desktop/assistance-staging-registr
 import type { SpeechRuntimeAdapter } from '../desktop/assistance-speech-runtime.ts';
 
 const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 30, revision: 4, sequenceId: 'sequence-1',
+	projectId: 'project-1', schemaFamily: 'soundscaper' as const, schemaVersion: 1,
+	revision: 4, sequenceId: 'sequence-1',
 	occurrenceIds: Object.freeze(['clip-1']), sourceId: 'source-1',
 	sourceSha256: '1'.repeat(64), sourceStartFrame: 0, sourceEndFrame: 48_000,
 	linkMembershipSha256: '2'.repeat(64), timingAuthoritySha256: '3'.repeat(64),

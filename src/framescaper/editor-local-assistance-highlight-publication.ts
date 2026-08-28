@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Strict review and atomic F31 publication of selected Milestone-7 highlights. */
+/** Strict review and atomic assistance publication of selected Milestone-7 highlights. */
 
 import {
 	validateAssistanceWorkflowFenceV1,
@@ -38,18 +38,18 @@ import {
 	type RationalRate,
 } from '../common/editor/timeline-time.ts';
 import {
-	applyFramescaperProjectCommandV31,
-	type FramescaperProjectCommandV31,
-} from './editor-project-v31-commands.ts';
-import { createFramescaperVideoRetimeSetCommandV20 } from
-	'./editor-project-v20-retime-command.ts';
+	applyFramescaperProjectCommandAssistance,
+	type FramescaperProjectCommandAssistance,
+} from './editor-project-assistance-commands.ts';
+import { createFramescaperVideoRetimeSetCommandRetime } from
+	'./editor-project-retime-retime-command.ts';
 import {
-	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
-} from './editor-project-runtime-profile-v31.ts';
+	FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
+} from './editor-domain-runtime-profile.ts';
 import {
-	validateFramescaperProjectV31,
-	type FramescaperProjectV31,
-} from './editor-project-v31.ts';
+	validateFramescaperProjectAssistance,
+	type FramescaperProjectAssistance,
+} from './editor-project-assistance.ts';
 import {
 	reviewFramescaperAssistanceHighlightsV1,
 	type FramescaperAssistanceHighlightProposalV1,
@@ -71,7 +71,7 @@ export interface FramescaperAssistanceHighlightPublicationDependencies {
 	readonly captureProject: () => unknown;
 	readonly assertProject: (token: unknown) => void;
 	readonly createId: (prefix: string) => string;
-	readonly commit: (command: FramescaperProjectCommandV31) => Awaitable<void>;
+	readonly commit: (command: FramescaperProjectCommandAssistance) => Awaitable<void>;
 }
 
 export interface FramescaperAssistanceHighlightPublication {
@@ -102,7 +102,7 @@ interface BoundHighlight {
 }
 
 interface NormalizedAuthority {
-	readonly project: FramescaperProjectV31;
+	readonly project: FramescaperProjectAssistance;
 	readonly fence: AssistanceWorkflowFenceV1;
 	readonly sequence: DataRecord;
 	readonly highlights: readonly BoundHighlight[];
@@ -127,8 +127,8 @@ export function createFramescaperAssistanceHighlightPublication(
 		if (selected.length === 0) return;
 		const initial = normalizeAuthority(dependencies.currentAuthority(), review.fence, selected);
 		const command = publicationCommand(dependencies, initial);
-		applyFramescaperProjectCommandV31(
-			FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+		applyFramescaperProjectCommandAssistance(
+			FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
 			initial.project,
 			command,
 			{ now: String(initial.project.updatedAt) },
@@ -169,9 +169,10 @@ function normalizeAuthority(
 	}
 	const fence = validateAssistanceWorkflowFenceV1(value.fence);
 	if (!same(expectedFence, fence)) throw new AssistanceProposalStaleError();
-	validateFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, value.selection.project);
-	const project = value.selection.project as unknown as FramescaperProjectV31;
-	if (project.id !== fence.projectId || project.schemaVersion !== fence.schemaVersion
+	validateFramescaperProjectAssistance(FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE, value.selection.project);
+	const project = value.selection.project as unknown as FramescaperProjectAssistance;
+	if (project.schemaFamily !== fence.schemaFamily
+		|| project.id !== fence.projectId || project.schemaVersion !== fence.schemaVersion
 		|| project.revision !== fence.revision) throw new AssistanceProposalStaleError();
 	assertSelectionAuthority(value.selection, fence);
 	const sequence = recordArray(project.sequences, 'project sequences')
@@ -201,7 +202,8 @@ function assertSelectionAuthority(
 	const expectedRetime = selection.timingAuthority.mapping === 'forward-retime-v2'
 		? 'monotonic-forward' : 'identity';
 	const aggregateOccurrences = fence.sourceRanges.flatMap(({ occurrenceIds }) => occurrenceIds).sort();
-	if (selected.projectId !== fence.projectId || selected.schemaVersion !== fence.schemaVersion
+	if (selected.schemaFamily !== fence.schemaFamily
+		|| selected.projectId !== fence.projectId || selected.schemaVersion !== fence.schemaVersion
 		|| selected.revision !== fence.revision || selected.sequenceId !== fence.sequenceId
 		|| range.sourceId !== selected.sourceId || range.sourceSha256 !== selected.sourceSha256
 		|| range.sourceStartFrame !== selected.sourceStartFrame
@@ -221,7 +223,7 @@ function assertSelectionAuthority(
 }
 
 function bindHighlight(
-	project: FramescaperProjectV31,
+	project: FramescaperProjectAssistance,
 	fence: AssistanceWorkflowFenceV1,
 	sequence: DataRecord,
 	proposal: FramescaperAssistanceHighlightProposalV1,
@@ -291,7 +293,7 @@ function bindHighlight(
 }
 
 function occurrence(
-	project: FramescaperProjectV31,
+	project: FramescaperProjectAssistance,
 	fence: AssistanceWorkflowFenceV1,
 	sequence: DataRecord,
 	occurrenceId: string,
@@ -321,13 +323,13 @@ function occurrence(
 function publicationCommand(
 	dependencies: FramescaperAssistanceHighlightPublicationDependencies,
 	authority: NormalizedAuthority,
-): FramescaperProjectCommandV31 {
+): FramescaperProjectCommandAssistance {
 	const occupied = occupiedIds(authority.project);
-	const commands: FramescaperProjectCommandV31[] = [];
+	const commands: FramescaperProjectCommandAssistance[] = [];
 	for (const highlight of authority.highlights) {
 		commands.push(...highlightCommands(dependencies.createId, occupied, authority, highlight));
 	}
-	return Object.freeze({ type: 'batch', commands: Object.freeze(commands) }) as FramescaperProjectCommandV31;
+	return Object.freeze({ type: 'batch', commands: Object.freeze(commands) }) as FramescaperProjectCommandAssistance;
 }
 
 function highlightCommands(
@@ -335,7 +337,7 @@ function highlightCommands(
 	occupied: Set<string>,
 	authority: NormalizedAuthority,
 	highlight: BoundHighlight,
-): readonly FramescaperProjectCommandV31[] {
+): readonly FramescaperProjectCommandAssistance[] {
 	const next = (prefix: string): string => uniqueId(createId(prefix), occupied);
 	const sequenceId = next('assistance-highlight-sequence');
 	const videoTrackId = next('assistance-highlight-video-track');
@@ -383,7 +385,7 @@ function highlightCommands(
 	const expectedKeyframes = createDefaultVideoKeyframeCurves(highlight.sequenceFrameCount);
 	const keyframes = cropKeyframes(highlight);
 	const retimeCommand = highlight.videoRetimeMap === null ? [] : [
-		createFramescaperVideoRetimeSetCommandV20({ clipId: videoClipId,
+		createFramescaperVideoRetimeSetCommandRetime({ clipId: videoClipId,
 			expectedRetimeMap: null, retimeMap: highlight.videoRetimeMap }),
 	];
 	const audioTrackCommands = highlight.audio === null ? [] : [
@@ -412,7 +414,7 @@ function highlightCommands(
 				opaqueExtensions: { [EXTENSION_KEY]: extension },
 			})], opaqueExtensions: { [EXTENSION_KEY]: extension },
 		})), sequenceId }),
-	] as FramescaperProjectCommandV31[]);
+	] as FramescaperProjectCommandAssistance[]);
 }
 
 function cropKeyframes(highlight: BoundHighlight): DataRecord {
@@ -494,7 +496,7 @@ function greatestCommonDivisor(leftValue: bigint, rightValue: bigint): bigint {
 	return left || 1n;
 }
 
-function occupiedIds(project: FramescaperProjectV31): Set<string> {
+function occupiedIds(project: FramescaperProjectAssistance): Set<string> {
 	const result = new Set<string>();
 	for (const collection of [project.sources, project.clips, project.tracks, project.sequences,
 		(project.projectBin as DataRecord).clips]) {

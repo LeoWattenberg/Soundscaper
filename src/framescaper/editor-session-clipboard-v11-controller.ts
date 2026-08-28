@@ -5,14 +5,14 @@ import {
 	sampleFrameToVideoFrame,
 	type RationalRate,
 } from '../common/editor/timeline-time.ts';
-import type { FramescaperProjectCommandV27 } from './editor-project-v27-commands.ts';
-import { applyFramescaperProjectCommandV27 } from './editor-project-v27-commands.ts';
+import type { FramescaperProjectCommandFinishing } from './editor-project-finishing-commands.ts';
+import { applyFramescaperProjectCommandFinishing } from './editor-project-finishing-commands.ts';
 import {
 	normalizeFramescaperSessionClipboardV11,
 	prepareFramescaperFinishingClipboardPasteV11,
 	type FramescaperFinishingClipboardPasteV11,
 } from './editor-session-clipboard-v11.ts';
-import { validateFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
+import { validateFramescaperProjectFinishing, type FramescaperProjectFinishing } from './editor-project-finishing.ts';
 
 type DataRecord = Record<string, unknown>;
 type IdFactory = (prefix?: string) => string;
@@ -24,17 +24,17 @@ export function prepareFramescaperSessionClipboardPasteCommandV11(
 	clipboardValue: unknown,
 	baseCommand: AudioEditorCommand,
 	createId: IdFactory,
-): FramescaperProjectCommandV27 {
-	validateFramescaperProjectV27(profile, projectValue);
+): FramescaperProjectCommandFinishing {
+	validateFramescaperProjectFinishing(profile, projectValue);
 	if (typeof createId !== 'function') throw new TypeError('V11 paste requires an ID factory.');
-	const project = projectValue as FramescaperProjectV27;
+	const project = projectValue as FramescaperProjectFinishing;
 	const clipboard = normalizeFramescaperSessionClipboardV11(clipboardValue);
 	const paste = findPasteCommand(baseCommand);
 	if (JSON.stringify(paste.clipboard) !== JSON.stringify(clipboard.descriptor)) {
 		throw new RangeError('The V11 carrier and foundation paste descriptors must match exactly.');
 	}
 	const foundationCommand = sanitizeFoundationCommand(baseCommand, clipboard);
-	const afterBase = applyFramescaperProjectCommandV27(profile, project, foundationCommand);
+	const afterBase = applyFramescaperProjectCommandFinishing(profile, project, foundationCommand);
 	const allocations = allocationMaps(project, clipboard.finishing, createId);
 	const references = projectReferenceMaps(afterBase, clipboard, paste, allocations);
 	const pasted = prepareFramescaperFinishingClipboardPasteV11(clipboard.finishing, {
@@ -55,7 +55,7 @@ export function prepareFramescaperSessionClipboardPasteCommandV11(
 		projectReferenceIdMap: references.finishing,
 	});
 	const visualCommands = createVisualCommands(afterBase, pasted, clipboard, paste);
-	const afterVisual = visualCommands.length === 0 ? afterBase : applyFramescaperProjectCommandV27(
+	const afterVisual = visualCommands.length === 0 ? afterBase : applyFramescaperProjectCommandFinishing(
 		profile,
 		afterBase,
 		{ type: 'batch', commands: visualCommands },
@@ -71,7 +71,7 @@ export function prepareFramescaperSessionClipboardPasteCommandV11(
 function sanitizeFoundationCommand(
 	commandValue: AudioEditorCommand,
 	clipboard: ReturnType<typeof normalizeFramescaperSessionClipboardV11>,
-): FramescaperProjectCommandV27 {
+): FramescaperProjectCommandFinishing {
 	const visualSourceIds = new Set(clipboard.finishing.visual.sources.map(({ id }) => id));
 	const visualClipIds = new Set(clipboard.finishing.visual.clips.map(({ id }) => id));
 	const visualKeys = new Set(clipboard.clipBindings.flatMap(({ clipId, descriptorKey }) => (
@@ -111,7 +111,7 @@ function sanitizeFoundationCommand(
 		}
 		return command;
 	};
-	return sanitize(commandValue) as unknown as FramescaperProjectCommandV27;
+	return sanitize(commandValue) as unknown as FramescaperProjectCommandFinishing;
 }
 
 interface AllocationMaps {
@@ -129,7 +129,7 @@ interface AllocationMaps {
 }
 
 function allocationMaps(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	finishing: ReturnType<typeof normalizeFramescaperSessionClipboardV11>['finishing'],
 	createId: IdFactory,
 ): AllocationMaps {
@@ -153,7 +153,7 @@ function allocationMaps(
 }
 
 function projectReferenceMaps(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	clipboard: ReturnType<typeof normalizeFramescaperSessionClipboardV11>,
 	paste: DataRecord,
 	allocations: AllocationMaps,
@@ -249,12 +249,12 @@ function requiredFinishingProjectReferences(
 }
 
 function createVisualCommands(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	pasted: FramescaperFinishingClipboardPasteV11,
 	clipboard: ReturnType<typeof normalizeFramescaperSessionClipboardV11>,
 	paste: DataRecord,
-): FramescaperProjectCommandV27[] {
-	const commands: FramescaperProjectCommandV27[] = [];
+): FramescaperProjectCommandFinishing[] {
+	const commands: FramescaperProjectCommandFinishing[] = [];
 	for (const source of pasted.visual.sources) commands.push({
 		type: 'video-visual-source/set', sourceId: source.id, expectedSource: null, source,
 	});
@@ -297,7 +297,7 @@ function createVisualCommands(
 }
 
 function placeVisualClip(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	clip: FramescaperFinishingClipboardPasteV11['visual']['clips'][number],
 	descriptorClip: Readonly<Record<string, unknown>>,
 	descriptor: ReturnType<typeof normalizeFramescaperSessionClipboardV11>['descriptor'],
@@ -339,10 +339,10 @@ function placeVisualClip(
 }
 
 function createFinishingCommands(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	pasted: FramescaperFinishingClipboardPasteV11,
-): FramescaperProjectCommandV27[] {
-	const commands: FramescaperProjectCommandV27[] = [];
+): FramescaperProjectCommandFinishing[] {
+	const commands: FramescaperProjectCommandFinishing[] = [];
 	for (const context of pasted.colorContexts) {
 		const expected = project.videoColorContexts.find(({ sequenceId }) => sequenceId === context.sequenceId);
 		if (!expected) throw new ReferenceError(`V11 destination color context ${context.sequenceId} is missing.`);
@@ -404,12 +404,12 @@ function findPasteCommand(command: unknown): DataRecord {
 	return matches[0]!;
 }
 
-function sequenceForTrack(project: FramescaperProjectV27, trackId: string): string {
+function sequenceForTrack(project: FramescaperProjectFinishing, trackId: string): string {
 	return sequenceRecordForTrack(project, trackId).id;
 }
 
 function sequenceRecordForTrack(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	trackId: string,
 ): Readonly<{ id: string; rate: RationalRate }> {
 	for (const sequenceValue of records(project.sequences, 'V11 destination sequences')) {

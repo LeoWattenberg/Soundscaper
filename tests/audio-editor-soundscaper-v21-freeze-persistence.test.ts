@@ -18,14 +18,14 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { compactProjectSourceMetadata } from '../src/common/editor/retention.js';
 import {
-	soundscaperAudioTrackFreezeRequirementIdV21,
-} from '../src/soundscaper/editor-project-feature-requirements-v21.ts';
+	soundscaperAudioTrackFreezeRequirementId,
+} from '../src/soundscaper/editor-project-feature-requirements.ts';
 import {
-	cloneSoundscaperProjectV21,
-	createSoundscaperProjectV21,
-	loadSoundscaperProjectV21,
-} from '../src/soundscaper/editor-project-v21.ts';
-import { validateSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21-validation.ts';
+	cloneSoundscaperProject,
+	createSoundscaperProject,
+	loadSoundscaperProject,
+} from '../src/soundscaper/editor-project.ts';
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 const DERIVED_DIGEST = 'c3'.repeat(32);
@@ -41,7 +41,7 @@ test('V21 persists one exact optional freeze and owns its per-track rendered fal
 		featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze
 	));
 	assert.deepEqual(requirements, [{
-		id: soundscaperAudioTrackFreezeRequirementIdV21('voice'),
+		id: soundscaperAudioTrackFreezeRequirementId('voice'),
 		featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze,
 		displayName: 'Frozen audio track',
 		disposition: 'rendered-fallback',
@@ -50,7 +50,7 @@ test('V21 persists one exact optional freeze and owns its per-track rendered fal
 			sha256: DERIVED_DIGEST, targetTrackId: 'voice',
 		},
 	}]);
-	assert.equal(validateSoundscaperProjectV21(project), true);
+	assert.equal(validateSoundscaperProject(project), true);
 	assert.deepEqual(
 		(compactProjectSourceMetadata(project).sources as readonly Readonly<{ id: string }>[])
 			.map(({ id }) => id),
@@ -61,8 +61,8 @@ test('V21 persists one exact optional freeze and owns its per-track rendered fal
 		/"(?:pcm|base64|channelData|audioBuffer|payload|chunks|bytes|blob|data)":/u,
 	);
 
-	const cloned = cloneSoundscaperProjectV21(project);
-	const loaded = loadSoundscaperProjectV21(structuredClone(project));
+	const cloned = cloneSoundscaperProject(project);
+	const loaded = loadSoundscaperProject(structuredClone(project));
 	assert.deepEqual(cloned, project);
 	assert.deepEqual(loaded.project, project);
 	assert.notStrictEqual(cloned, project);
@@ -101,7 +101,7 @@ test('V21 freeze validation rejects wrong owners, missing identity, geometry dri
 	for (const [mutate, message] of cases) {
 		const candidate = structuredClone(project) as unknown as Record<string, unknown>;
 		mutate(candidate);
-		assert.throws(() => validateSoundscaperProjectV21(candidate), message);
+		assert.throws(() => validateSoundscaperProject(candidate), message);
 	}
 });
 
@@ -205,7 +205,7 @@ function frozenProject() {
 		id: 'voice', name: 'Voice', clipIds: ['voice-clip'], effects: [effect, automationEffect],
 		audioFreeze: freezeRecord(digests),
 	});
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'freeze-project', title: 'Freeze project', now: NOW,
 		sources: [liveSource, derivedSource], clips: [clip], tracks: [track],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],

@@ -16,10 +16,7 @@ import {
 	validateCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
-import {
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-} from '../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const NOW = '2026-08-10T16:00:00.000Z';
 
@@ -147,7 +144,8 @@ test('the document snapshot exposes per-sequence rows with structural state', ()
 	assert.equal(kickRow.rowHidden, true, 'a collapsed ancestor suppresses the row');
 	const soundscaperSnapshot = createDocumentTrackFolderSnapshot({
 		...folderedProject(),
-		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper',
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 	});
 	assert.deepEqual(soundscaperSnapshot, snapshot);
 });
@@ -155,13 +153,13 @@ test('the document snapshot exposes per-sequence rows with structural state', ()
 test('the snapshot never traverses obsolete, Framescaper, future, folder-free, or hostile documents', () => {
 	assert.deepEqual(createDocumentTrackFolderSnapshot(null).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 12 }).sequences, []);
-	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION }).sequences, []);
+	assert.deepEqual(createDocumentTrackFolderSnapshot({ schemaVersion: 19 }).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({
-		schemaVersion: FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
+		schemaVersion: 19,
 		get trackFolders(): never { throw new Error('trackFolders was traversed'); },
 	}).sequences, []);
 	assert.deepEqual(createDocumentTrackFolderSnapshot({
-		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+		schemaVersion: PROJECT_SCHEMA_VERSION + 1,
 		get trackFolders(): never { throw new Error('trackFolders was traversed'); },
 	}).sequences, []);
 	const folderFree = createCurrentAudioEditorProject({

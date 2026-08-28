@@ -329,7 +329,7 @@ export interface NativeProjectServiceRuntime {
 	readonly prepareAudacityProjectExport?: (
 		project: NativeProjectDocument,
 	) => NativeAwaitable<NativeProjectDocument>;
-	readonly migrateProject: (value: unknown) => Readonly<{ project: NativeProjectDocument }>;
+	readonly loadProject: (value: unknown) => Readonly<{ project: NativeProjectDocument }>;
 	readonly importScapeProject: (
 		file: NativeScapeProjectFile,
 		store: NativeProjectStore,

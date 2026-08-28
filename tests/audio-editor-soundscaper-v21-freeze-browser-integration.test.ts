@@ -13,23 +13,23 @@ import type { StorageRecord } from '../src/common/editor/storage/media-records.t
 import type { SourcePcmReadSession } from '../src/common/editor/storage/source-read-repository.ts';
 import type { AudioSourceWriter } from '../src/common/editor/storage/source-write-repository.ts';
 import {
-	createSoundscaperAudioFreezeActionsV21,
-	type SoundscaperAudioFreezeRenderEngineV21,
-} from '../src/soundscaper/editor-audio-track-freeze-actions-v21.ts';
+	createSoundscaperAudioFreezeActions,
+	type SoundscaperAudioFreezeRenderEngine,
+} from '../src/soundscaper/editor-audio-track-freeze-actions.ts';
 import {
-	createSoundscaperAudioTrackFreezePlaybackServiceV21,
-} from '../src/soundscaper/editor-audio-track-freeze-playback-v21.ts';
-import { createSoundscaperPlaybackProjectServiceV21 } from '../src/soundscaper/editor-project-playback-v21.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
-import { createSoundscaperProjectV21, type SoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+	createSoundscaperAudioTrackFreezePlaybackService,
+} from '../src/soundscaper/editor-audio-track-freeze-playback.ts';
+import { createSoundscaperPlaybackProjectService } from '../src/soundscaper/editor-project-playback.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperProject, type SoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 
 test('browser freeze actions render, persist, activate, refresh, unfreeze, and commit exact V21 state', async () => {
 	const store = new MemoryFreezeStore();
 	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV21(
-		createSoundscaperPlaybackProjectServiceV21(),
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(),
 		store,
 	);
 	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
@@ -43,7 +43,7 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 		actions: {
 			edit: {
 				commit(command: AudioTrackFreezeCoordinatorCommandV21) {
-					current = applySoundscaperProjectCommandV21(current, command, { now: NOW });
+					current = applySoundscaperProjectCommand(current, command, { now: NOW });
 					return current;
 				},
 			},
@@ -51,7 +51,7 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	};
 	let sourceSequence = 0;
 	let clipSequence = 0;
-	const binding = createSoundscaperAudioFreezeActionsV21(
+	const binding = createSoundscaperAudioFreezeActions(
 		{ store, playback },
 		controller,
 		{
@@ -95,8 +95,8 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	assert.deepEqual(playbackProjection.requiredAudioSourceIds, ['voice-freeze-1']);
 	assert.equal(projectedTrack(playbackProjection.project).effectsActive, false);
 	assert.equal(projectedClip(playbackProjection.project).sourceId, 'voice-freeze-1');
-	const reopenedPlayback = createSoundscaperAudioTrackFreezePlaybackServiceV21(
-		createSoundscaperPlaybackProjectServiceV21(),
+	const reopenedPlayback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(),
 		store,
 	);
 	const reopened = structuredClone(current);
@@ -105,7 +105,7 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	assert.equal(reopenedPlayback.getFreezeStatus(reopened, 'voice'), 'fresh');
 	assert.deepEqual(reopenedProjection.requiredAudioSourceIds, ['voice-freeze-1']);
 	assert.equal(projectedClip(reopenedProjection.project).sourceId, 'voice-freeze-1');
-	const reopenedStale = applySoundscaperProjectCommandV21(reopened, {
+	const reopenedStale = applySoundscaperProjectCommand(reopened, {
 		type: 'effect/add', scope: 'track', trackId: 'voice',
 		effect: { id: 'stale-highpass', type: 'highpass', enabled: true, params: {} },
 	});
@@ -113,7 +113,7 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	assert.equal(reopenedPlayback.getFreezeStatus(reopenedStale, 'voice'), 'stale');
 	assert.equal(projectedClip(reopenedPlayback.projectForPlayback(reopenedStale).project).sourceId, 'voice-source');
 	reopenedPlayback.dispose();
-	current = applySoundscaperProjectCommandV21(current, {
+	current = applySoundscaperProjectCommand(current, {
 		type: 'effect/add', scope: 'track', trackId: 'voice',
 		effect: { id: 'live-stale-highpass', type: 'highpass', enabled: true, params: {} },
 	});
@@ -161,8 +161,8 @@ test('an unrelated edit during a freeze does not discard the render', async () =
 	// move the selection was enough to lose a long render.
 	const store = new MemoryFreezeStore();
 	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV21(
-		createSoundscaperPlaybackProjectServiceV21(),
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(),
 		store,
 	);
 	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
@@ -175,20 +175,20 @@ test('an unrelated edit during a freeze does not discard the render', async () =
 		actions: {
 			edit: {
 				commit(command: AudioTrackFreezeCoordinatorCommandV21) {
-					current = applySoundscaperProjectCommandV21(current, command, { now: NOW });
+					current = applySoundscaperProjectCommand(current, command, { now: NOW });
 					return current;
 				},
 			},
 		},
 	};
 	const renderCalls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>> = [];
-	const binding = createSoundscaperAudioFreezeActionsV21(
+	const binding = createSoundscaperAudioFreezeActions(
 		{ store, playback },
 		controller,
 		{
 			createId: (kind) => kind === 'source' ? 'voice-freeze-1' : 'voice-freeze-clip-1',
 			createRenderEngine: () => fakeRenderEngine(renderCalls, () => {
-				current = applySoundscaperProjectCommandV21(current, {
+				current = applySoundscaperProjectCommand(current, {
 					type: 'selection/set', startFrame: 0, endFrame: 4, trackIds: ['voice'],
 				} as never, { now: NOW });
 			}),
@@ -205,8 +205,8 @@ test('an unrelated edit during a freeze does not discard the render', async () =
 test('an edit to the frozen material during a freeze still discards the render', async () => {
 	const store = new MemoryFreezeStore();
 	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
-	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV21(
-		createSoundscaperPlaybackProjectServiceV21(),
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(),
 		store,
 	);
 	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
@@ -219,20 +219,20 @@ test('an edit to the frozen material during a freeze still discards the render',
 		actions: {
 			edit: {
 				commit(command: AudioTrackFreezeCoordinatorCommandV21) {
-					current = applySoundscaperProjectCommandV21(current, command, { now: NOW });
+					current = applySoundscaperProjectCommand(current, command, { now: NOW });
 					return current;
 				},
 			},
 		},
 	};
 	const renderCalls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>> = [];
-	const binding = createSoundscaperAudioFreezeActionsV21(
+	const binding = createSoundscaperAudioFreezeActions(
 		{ store, playback },
 		controller,
 		{
 			createId: (kind) => kind === 'source' ? 'voice-freeze-1' : 'voice-freeze-clip-1',
 			createRenderEngine: () => fakeRenderEngine(renderCalls, () => {
-				current = applySoundscaperProjectCommandV21(current, {
+				current = applySoundscaperProjectCommand(current, {
 					type: 'effect/add', scope: 'track', trackId: 'voice',
 					effect: { id: 'mid-render-highpass', type: 'highpass', enabled: true, params: {} },
 				} as never, { now: NOW });
@@ -246,7 +246,7 @@ test('an edit to the frozen material during a freeze still discards the render',
 	playback.dispose();
 });
 
-function projectFixture(contentSha256: string): SoundscaperProjectV21 {
+function projectFixture(contentSha256: string): SoundscaperProject {
 	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
@@ -260,7 +260,7 @@ function projectFixture(contentSha256: string): SoundscaperProjectV21 {
 		id: 'voice', name: 'Voice', gain: 0.25, pan: 0.5, mute: true,
 		clipIds: [clip.id], effects: [],
 	});
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'freeze-browser-project', title: 'Freeze browser integration', now: NOW,
 		sources: [source], clips: [clip], tracks: [track],
 		sequences: [{ id: 'main-sequence', trackIds: [track.id] }],
@@ -271,7 +271,7 @@ function projectFixture(contentSha256: string): SoundscaperProjectV21 {
 function fakeRenderEngine(
 	calls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>>,
 	onRender?: () => void,
-): SoundscaperAudioFreezeRenderEngineV21 {
+): SoundscaperAudioFreezeRenderEngine {
 	let project: Record<string, unknown> | null = null;
 	return {
 		loadProject(value: unknown) {
@@ -288,7 +288,7 @@ function fakeRenderEngine(
 	};
 }
 
-function freezeTrack(project: SoundscaperProjectV21): Record<string, unknown> & {
+function freezeTrack(project: SoundscaperProject): Record<string, unknown> & {
 	readonly audioFreeze?: Readonly<{ readonly derivedSourceId: string }>;
 } {
 	return project.tracks.find(({ id }) => id === 'voice') as never;

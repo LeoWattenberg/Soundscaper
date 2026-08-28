@@ -1,68 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * One store's worth of surface over every store this origin actually has.
+ * Federates the two family-isolated 1.0 stores behind one transfer interface.
+ * Every project remains attached to the store that owns its media. Selection
+ * and duplicate detection use `(schemaFamily, projectId)`, so equal ids in the
+ * two families remain independent. An arriving archive is routed only to the
+ * store matching its complete schema tuple.
  *
- * `openTransferStore()` opens the shared editor database and each
- * generation-isolated database a device turns out to hold
- * (`transfer-store-generations.ts`). The page above it - and the export and
- * import layers below it - are written against a single project store, so this
- * module is what makes several of them look like one without losing track of
- * which is which.
- *
- * Three things have to survive that flattening, and each one is a way the
- * transfer could quietly lie to a visitor:
- *
- *   **Attribution.** A project has to stay attached to the store it came from.
- *   `exportScapeProject(project, store)` reads that project's media out of the
- *   store it is handed, so exporting a Framescaper V31 project against the
- *   shared database would produce an archive whose sources are silently absent.
- *   `transferStoreForProject()` is how the archive runtime recovers the right
- *   store, and it is keyed on the listed row itself rather than on its id,
- *   because ids are only unique inside one store.
- *
- *   **One identity per row.** Selection is keyed by string, so every row needs a
- *   distinct key even when the store listed it with no id at all - otherwise
- *   several unidentified rows share the empty string and ticking one ticks them
- *   all. `selectionKey` is that key: the project id where there is one, and a
- *   generated per-row key where there is not.
- *
- *   **No merging two generations into one.** When two generations hold the same
- *   project id - a V27 project reimported into V28 keeps its identity - only the
- *   newest is offered. Sending both would put two archives on the wire under one
- *   entry id, and the receiving origin would take the second for a duplicate of
- *   the first. The older copy is reported with a refusal that names the
- *   generation that shadowed it, never dropped from the listing.
- *
- *   **A home for an arriving archive.** The other direction asks the mirror
- *   question: an archive names a schema generation, and the store the visitor's
- *   editor will open for that generation is the one store it may be written to.
- *   `transferStoreHomeForSchema()` answers it, opening that generation's
- *   database if this origin has never had one - which is the ordinary case on a
- *   receiving origin, and is the same database the editor would create on its
- *   first run. A schema no store here claims has no home, and an archive with no
- *   home is refused by name rather than written into whichever store was handy.
- *
- * The store this exposes refuses nothing on its own. Rows that cannot be
- * exported are kept *out of `listProjects()`* and kept *in the inventory*: the
- * exporter's admission layer refuses a whole run over a single id-less row
- * (`selectProjectTransferProjects()` admits before it selects), so handing it
- * such a row would let one unaddressable project stop every other project from
- * crossing. Reporting it and leaving it behind is the failure shape that fits a
- * page whose job is to rescue as much as it can.
- *
- * ## Why a refusal here is a code, and not a sentence
- *
- * This module is on the dynamic side of the transfer page: it arrives with the
- * archive runtime, after the visitor has asked for a transfer.
- * `transfer-project-selection.ts` is on the *static* side - the page's own chunk
- * - and a module both sides import is hoisted into a third chunk that the page
- * then preloads (`tests/project-transfer-standalone-page-chunks.test.ts` fails
- * on exactly that). So the two sides share types, which are erased, and nothing
- * else: the store layer says *what happened* to a row, and the selection layer
- * owns every sentence the visitor reads. `tests/project-transfer-store-enumeration.test.ts`
- * holds the two admission rules to the same answer.
+ * Non-exportable rows stay visible in the inventory with a refusal code. The
+ * static selection chunk owns the human wording, avoiding a shared preload
+ * chunk while preserving the same admission rule on both sides.
  */
+
+import {
+	isProjectSchemaFamily,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+	type ProjectSchemaIdentity,
+} from '../editor/project-schema-identity.ts';
 
 /** Mirrors MAXIMUM_PROJECT_ID_LENGTH in project-transfer-bundle-admission.ts. */
 const MAXIMUM_PROJECT_ID_LENGTH = 256;
@@ -71,7 +26,7 @@ const MAXIMUM_PROJECT_ID_LENGTH = 256;
 export type TransferStoreRefusal =
 	/** The store listed it with no id the exporter would accept. */
 	| Readonly<{ code: 'unidentified' }>
-	/** An earlier store in the enumeration already claimed this project id. */
+	/** An earlier row already claimed this family-qualified project id. */
 	| Readonly<{ code: 'shadowed'; holder: string }>;
 
 export interface TransferStoreHandle {
@@ -80,11 +35,12 @@ export interface TransferStoreHandle {
 	readonly label: string;
 	readonly store: unknown;
 	/**
-	 * The project schema generation whose live editor opens this store.
+	 * The project schema tuple whose live editor opens this store.
 	 *
 	 * Optional because a caller that only lists does not need it; a store that
 	 * declares none is never the home of an arriving archive.
 	 */
+	readonly schemaFamily?: ProjectSchemaFamily;
 	readonly schemaVersion?: number;
 }
 
@@ -92,38 +48,24 @@ export interface TransferStoreHandle {
  * A store an arriving archive can be written to, and how to reach it.
  *
  * Separate from `TransferStoreHandle` because a home does not have to be open:
- * on a receiving origin the visitor has no generation databases at all, and the
+ * on a receiving origin the visitor has no baseline databases at all, and the
  * one their archive needs is opened - created - when the archive arrives.
  */
 export interface TransferStoreHomeSource {
 	readonly id: string;
 	readonly label: string;
-	/** The project schema whose home this store is; exactly one per store. */
+	/** The project schema tuple whose home this store is; exactly one per store. */
+	readonly schemaFamily: ProjectSchemaFamily;
 	readonly schemaVersion: number;
-	/** Who admits the arriving document - see `TransferStoreHome`. */
-	readonly documentMigration: TransferDocumentMigration;
 	/** Opens the store, creating its database if this origin has never had one. */
 	open(): Promise<unknown>;
 }
 
-/**
- * Who owns the admission of a document arriving for this store's generation.
- *
- * `this-build` is the shared editor store alone: the `.scape` layer's default
- * document owner (`migrateAudioEditorProject()`) *is* that store's editor's
- * owner, so an arriving V17 document is admitted by exactly the rule its editor
- * applies. Every generation's own owner lives inside that product's chunk and
- * cannot be reached from the transfer page (see `transfer-store-generations.ts`
- * for why), so its documents are admitted `as-stored`: written back exactly as
- * the archive carries them, on the strength of an exact schema match.
- */
-export type TransferDocumentMigration = 'this-build' | 'as-stored';
-
 export interface TransferStoreHome {
 	readonly storeId: string;
 	readonly storeLabel: string;
+	readonly schemaFamily: ProjectSchemaFamily;
 	readonly schemaVersion: number;
-	readonly documentMigration: TransferDocumentMigration;
 	readonly store: unknown;
 }
 
@@ -159,6 +101,7 @@ export interface TransferStoreInventory {
 export interface TransferStoreListing {
 	readonly storeId: string;
 	readonly storeLabel: string;
+	readonly schemaFamily?: ProjectSchemaFamily;
 	readonly projects: readonly unknown[];
 }
 
@@ -178,13 +121,23 @@ export function buildTransferStoreInventory(
 	// would open comes first (`openTransferStore()`) - which makes the winner the
 	// copy that editor actually opens.
 	const holders = new Map<string, string>();
-	const admitted: { readonly projectId: string | null; readonly shadowed: string | null }[] = [];
+	const admitted: {
+		readonly projectId: string | null;
+		readonly selectionIdentity: string | null;
+		readonly shadowed: string | null;
+	}[] = [];
 	for (const listing of listings) {
 		for (const project of listing.projects) {
 			const projectId = admittedTransferRowId(project);
-			const shadowed = projectId === null ? null : holders.get(projectId) ?? null;
-			if (projectId !== null && shadowed === null) holders.set(projectId, listing.storeLabel);
-			admitted.push({ projectId, shadowed });
+			const schemaFamily = listing.schemaFamily ?? admittedTransferRowFamily(project);
+			const selectionIdentity = projectId === null ? null : schemaFamily
+				? `${schemaFamily}:${projectId}`
+				: projectId;
+			const shadowed = selectionIdentity === null ? null : holders.get(selectionIdentity) ?? null;
+			if (selectionIdentity !== null && shadowed === null) {
+				holders.set(selectionIdentity, listing.storeLabel);
+			}
+			admitted.push({ projectId, selectionIdentity, shadowed });
 		}
 	}
 	// Every key a real project id will take, claimed before the first generated
@@ -194,12 +147,12 @@ export function buildTransferStoreInventory(
 	let index = 0;
 	for (const listing of listings) {
 		for (const project of listing.projects) {
-			const { projectId, shadowed } = admitted[index];
+			const { projectId, selectionIdentity, shadowed } = admitted[index];
 			const exportable = projectId !== null && shadowed === null;
 			rows.push(Object.freeze({
 				selectionKey: claimTransferSelectionKey(
 					claimed,
-					exportable ? projectId : null,
+					exportable ? selectionIdentity : null,
 					listing.storeId,
 					index,
 				),
@@ -232,6 +185,14 @@ export function admittedTransferRowId(project: unknown): string | null {
 	if (project === null || typeof project !== 'object') return null;
 	const id = (project as { id?: unknown }).id;
 	return typeof id === 'string' && id.length > 0 && id.length <= MAXIMUM_PROJECT_ID_LENGTH ? id : null;
+}
+
+function admittedTransferRowFamily(project: unknown): ProjectSchemaFamily | null {
+	try {
+		return readProjectSchemaIdentity(project).schemaFamily;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -267,8 +228,8 @@ interface TransferStoreFederationState {
 	readonly sources: readonly TransferStoreHandle[];
 	readonly unreadable: readonly TransferStoreFault[];
 	readonly owners: WeakMap<object, unknown>;
-	/** One home per schema generation, keyed by the schema its editor writes. */
-	readonly homes: ReadonlyMap<number, TransferStoreHomeSource>;
+	/** One home per schema tuple, keyed by family and version. */
+	readonly homes: ReadonlyMap<string, TransferStoreHomeSource>;
 	/** Homes this federation opened itself, so `close()` can close them again. */
 	readonly opened: Map<string, Promise<unknown>>;
 	readonly writer: unknown;
@@ -283,7 +244,7 @@ export interface TransferStoreFederationOptions {
 	/**
 	 * Every store an arriving archive may be written to, one per schema.
 	 *
-	 * Not the same set as `sources`: a home is where a *generation* of project
+	 * Not the same set as `sources`: a home is where a family-qualified project
 	 * lives, whether or not this device has one yet, while a source is a store
 	 * that was open in time to be listed. On a receiving origin the two barely
 	 * overlap - there is nothing to list and everything to write.
@@ -296,12 +257,12 @@ export interface TransferStoreFederationOptions {
 	 * a place where "one store" would be a wrong answer rather than a simple one:
 	 * a listing is the union of every store; `loadProject` is a question about
 	 * the origin, so it is asked of each store in home order; and an arriving
-	 * archive is written to the home of its own generation
+	 * archive is written to the home of its own tuple
 	 * (`transferStoreHomeForSchema()`). Export is routed too, one layer up:
 	 * `transferStoreForProject()` sends each export to the store that listed the
 	 * project. What is left - everything an ordinary page does with a project
 	 * store - reaches this one store, exactly as it did before this origin's
-	 * other generations were enumerated.
+	 * other family stores were enumerated.
 	 */
 	readonly writer: unknown;
 	readonly unreadable?: readonly TransferStoreFault[];
@@ -320,12 +281,13 @@ export function createTransferStoreFederation(
 	if (writer === null || typeof writer !== 'object') {
 		throw new TypeError('A transfer store federation needs a store to delegate writes to.');
 	}
-	const homes = new Map<number, TransferStoreHomeSource>();
+	const homes = new Map<string, TransferStoreHomeSource>();
 	for (const home of options.homes ?? []) {
-		// First claim wins, and a second claim on one schema is a registry defect
-		// rather than a visitor's problem: two homes for one generation would send
+		// First claim wins, and a second claim on one tuple is a registry defect
+		// rather than a visitor's problem: two homes for one tuple would send
 		// two archives of the same kind to two different databases.
-		if (!homes.has(home.schemaVersion)) homes.set(home.schemaVersion, home);
+		const key = projectSchemaIdentityKey(home);
+		if (!homes.has(key)) homes.set(key, home);
 	}
 	const state: TransferStoreFederationState = {
 		sources: Object.freeze([...options.sources]),
@@ -344,10 +306,11 @@ export function createTransferStoreFederation(
 				listings.push({
 					storeId: source.id,
 					storeLabel: source.label,
+					...(source.schemaFamily ? { schemaFamily: source.schemaFamily } : {}),
 					projects: await listOneStore(source.store),
 				});
 			} catch (error) {
-				// One generation the page cannot read must not refuse the whole
+				// One family store the page cannot read must not refuse the whole
 				// transfer: the rest of the visitor's projects are still movable,
 				// and this store is reported as one the page could not read.
 				faults.push(Object.freeze({
@@ -370,16 +333,21 @@ export function createTransferStoreFederation(
 		const inventory = await listTransferInventory();
 		return Object.freeze(inventory.rows.filter((row) => row.exportable).map((row) => row.project));
 	};
-	const resolveHome = async (schemaVersion: unknown): Promise<TransferStoreHome | null> => {
-		if (typeof schemaVersion !== 'number' || !Number.isSafeInteger(schemaVersion)) return null;
-		const home = state.homes.get(schemaVersion);
+	const resolveHome = async (identity: unknown): Promise<TransferStoreHome | null> => {
+		let key: string;
+		try {
+			key = projectSchemaIdentityKey(readProjectSchemaIdentity(identity));
+		} catch {
+			return null;
+		}
+		const home = state.homes.get(key);
 		if (!home) return null;
 		const already = state.sources.find((source) => source.id === home.id);
 		if (already) return frozenHome(home, already.store);
 		// Not open, and on a receiving origin it never was: opening it here is
 		// what creates the database the editor will open on its first run. The
-		// promise is retained rather than the store, so two archives of one
-		// generation arriving back to back open it once.
+		// promise is retained rather than the store, so two archives of one tuple
+		// arriving back to back open it once.
 		let opening = state.opened.get(home.id);
 		if (!opening) {
 			opening = home.open();
@@ -391,7 +359,7 @@ export function createTransferStoreFederation(
 		// Asked of the federation, "is this identity present?" is a question about
 		// the origin rather than about one database, and the caller that asks it -
 		// the import layer's residue guard - has no schema to route by. Answering
-		// only for the writer would report an untidied import into a generation
+		// only for the writer would report an untidied import into a family
 		// store as nothing at all.
 		for (const store of await federatedStores(state)) {
 			const load = (store as { loadProject?: unknown } | null)?.loadProject;
@@ -422,10 +390,10 @@ export function createTransferStoreFederation(
 		store,
 		close: async () => {
 			// Every store is closed, whatever any one of them does about it: a
-			// generation left open holds a connection that blocks the editor's own
+			// family store left open holds a connection that blocks the editor's own
 			// version upgrades. Homes opened for an arriving archive are closed the
 			// same way - they are the connections most likely to be in the editor's
-			// path, since the visitor is about to go and open that generation.
+			// path, since the visitor is about to open that product.
 			const opened = [...state.opened.values()].map(
 				(pending) => pending.catch(() => null),
 			);
@@ -484,7 +452,7 @@ export function transferStoreInventory(store: unknown): TransferStoreInventory |
 /**
  * The store that listed this project, or `null` when this is not a federation.
  *
- * Keyed on the listed row itself. Two generations can list two different
+ * Keyed on the listed row itself. Two family stores can list two different
  * projects under one id, so an id-keyed lookup would be able to answer with the
  * wrong store - and the wrong store is an archive with no media in it.
  */
@@ -502,8 +470,8 @@ function frozenHome(home: TransferStoreHomeSource, store: unknown): TransferStor
 	return Object.freeze({
 		storeId: home.id,
 		storeLabel: home.label,
+		schemaFamily: home.schemaFamily,
 		schemaVersion: home.schemaVersion,
-		documentMigration: home.documentMigration,
 		store,
 	});
 }
@@ -532,29 +500,37 @@ async function closeOneStore(store: unknown): Promise<void> {
 }
 
 /**
- * The store an archive of this schema generation belongs in, or `null`.
+ * The store an archive of this schema tuple belongs in, or `null`.
  *
  * Asked of the store rather than of this module's own registry, and by shape, so
  * that it survives the facades the import layer wraps a receiving store in:
  * `witnessProjectTransferWrites()` hands the archive importer a proxy over this
  * store, and a proxy forwards a property read but is not this store's identity.
  *
- * `null` is "no store here is the home of that generation", which is a refusal
+ * `null` is "no store here is the home of that tuple", which is a refusal
  * for the caller to name - never a licence to write somewhere else.
  */
 export async function transferStoreHomeForSchema(
 	store: unknown,
-	schemaVersion: number,
+	identity: ProjectSchemaIdentity,
 ): Promise<TransferStoreHome | null> {
 	const resolve = (store as { transferStoreHome?: unknown } | null)?.transferStoreHome;
 	if (typeof resolve !== 'function') return null;
-	return (resolve as (version: number) => Promise<TransferStoreHome | null>).call(
+	return (resolve as (value: ProjectSchemaIdentity) => Promise<TransferStoreHome | null>).call(
 		store,
-		schemaVersion,
+		identity,
 	);
 }
 
 /** True when this store can answer where an arriving archive belongs. */
 export function routesTransferArchivesHome(store: unknown): boolean {
 	return typeof (store as { transferStoreHome?: unknown } | null)?.transferStoreHome === 'function';
+}
+
+function projectSchemaIdentityKey(identity: ProjectSchemaIdentity): string {
+	if (!isProjectSchemaFamily(identity.schemaFamily)
+		|| !Number.isSafeInteger(identity.schemaVersion) || identity.schemaVersion < 1) {
+		throw new TypeError('A transfer home requires a valid project schema identity.');
+	}
+	return `${identity.schemaFamily}:${String(identity.schemaVersion)}`;
 }

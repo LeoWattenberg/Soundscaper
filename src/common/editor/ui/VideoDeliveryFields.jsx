@@ -199,7 +199,7 @@ export default function VideoDeliveryFields({
 			/>
 			{captionDeliveryUnavailable ? (
 				<p className="audio-editor-panel-hint" data-export-field="captionDeliveryUnavailable">
-					{copy.videoCaptionV27DeliveryUnavailable || 'Caption burn-in and mux are unavailable for selected Framescaper F31. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.'}
+					{copy.videoCaptionDeliveryUnavailable || 'Caption burn-in and mux are unavailable for Framescaper 1.0. Export SRT, WebVTT, or IMSC 1.1 sidecars from Tracks > Caption Tracks.'}
 				</p>
 			) : (
 				<>

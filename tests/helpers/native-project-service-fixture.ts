@@ -15,7 +15,8 @@ export function project(id = 'project-a'): NativeProjectDocument {
 	return {
 		id,
 		title: id,
-		schemaVersion: 5,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		sources: [],
 		clips: [],
 	};
@@ -111,7 +112,7 @@ export function createFixture(overrides: Partial<NativeProjectServiceRuntime> = 
 			delete: async () => undefined,
 			dispose: () => undefined,
 		}),
-		migrateProject: (value) => ({ project: value as ReturnType<typeof project> }),
+		loadProject: (value) => ({ project: value as ReturnType<typeof project> }),
 		importScapeProject: async () => ({ project: activeProject, readOnly: false, manifest: {} }),
 		exportScapeProject: async () => ({ blob: new Blob(['scape']), manifest: {} }),
 		copyFutureScapeArchive: async (input, write) => {

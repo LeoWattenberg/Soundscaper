@@ -39,7 +39,7 @@ export function selectTakeCycleStartAdmission(snapshot: DataRecord): Readonly<Ta
 		|| snapshot.transportState === 'playing') return blocked('busy');
 	const project = dataRecord(snapshot.project);
 	const loop = dataRecord(project?.loop);
-	if (!isTakeCompProjectSchema(project?.schemaVersion) || loop?.enabled !== true
+	if (!project || !isTakeCompProjectSchema(project) || loop?.enabled !== true
 		|| !nonNegativeSafeInteger(loop.startFrame)
 		|| !nonNegativeSafeInteger(loop.endFrame)
 		|| Number(loop.endFrame) <= Number(loop.startFrame)) return blocked('loop');

@@ -13,7 +13,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/exact-current-schema.*canonical namespaced feature identity.*unavailable or unknown.*closed project-audio-mix-v1.*whole-mix.*editor playback.*final-mix audio export.*selector-bound operation-time.*private chunk provider.*canonical state/iu,
+		/exact owning-family v1.*canonical namespaced feature identity.*unavailable or unknown.*closed project-audio-mix-v1.*whole-mix.*editor playback.*final-mix audio export.*selector-bound operation-time.*private chunk provider.*canonical state/iu,
 	);
 	assert.match(rule.requiredOutcome, /final-video delivery.*one.*maintained video fallback.*joint.*operation-time admission/iu);
 	assert.match(
@@ -22,7 +22,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative.*exact schema 17.*exactly one.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1.*canonical manifest/iu,
+		/authoritative.*exact owning-family v1.*exactly one.*canonical namespaced feature ID.*unavailable or unknown.*declared and effective rendered-fallback.*closed project-audio-mix-v1.*canonical manifest/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -79,7 +79,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
-		/org\.example\.future-mixer.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
+		/Soundscaper family-v1 same-family fallback witness.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -87,7 +87,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 	);
 	assert.match(
 		rule.currentBehavior,
-		/exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*this role.*packaged runtime or UI final-delivery workflows.*unqualified/iu,
+		/source-level and portable-open evidence.*source\/component binding.*packaged runtime or UI activation, transport playback, and final-delivery workflows.*unqualified/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -109,9 +109,9 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 		'src/common/editor/controller/source-lifecycle-service.ts',
 		'src/common/editor/controller/source-audio.ts',
 		'src/common/editor/retention.js',
-		'src/common/editor/storage/desktop-shared-project-media-acquisition.ts',
-		'src/common/editor/storage/desktop-shared-project-media-sender.ts',
-		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/framescaper/desktop-project-library-body-transfer.ts',
+		'desktop/soundscaper-project-library-transfer-service.ts',
+		'src/soundscaper/desktop-project-library-renderer.ts',
 		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
 		'tests/audio-editor-playback-project-service.test.ts',
 		'tests/audio-editor-audio-rendered-fallback-delivery-projection.test.ts',
@@ -128,28 +128,28 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 		'tests/audio-editor-project-switch-playback-apply.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-project-admin-service-coverage.test.ts',
-		'tests/desktop-project-library-audio-rendered-fallback-handoff.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
 	const documentation = await readFile(new URL('../docs/project-compatibility.md', import.meta.url), 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
-	assert.match(normalizedDocumentation, /exact schema 17.*canonical namespaced feature ID.*unavailable or unknown.*closed `project-audio-mix-v1` role.*whole-mix.*frame zero.*editor playback/isu);
+	assert.match(normalizedDocumentation, /exact owning-family v1.*canonical namespaced feature ID.*unavailable or unknown.*closed `project-audio-mix-v1` role.*whole-mix.*frame zero.*editor playback/isu);
 	assert.match(normalizedDocumentation, /closed role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/isu);
 	assert.match(documentation, /initial activation.*required fallback source.*decoded buffer or stream-provider candidate.*privately.*before.*activation reservation.*without changing.*shared buffer.*provider.*engine.*chunk-source state.*currentness.*reservation.*fails.*discarded.*prior buffer.*provider.*identities.*active project.*tab.*lock.*unchanged/isu);
 	assert.match(documentation, /ordinary-source loading.*excludes.*required fallback.*private source-buffer.*chunk-source snapshots.*staged required representation.*wins.*engine.*engine callback.*succeeds.*lifetime signal.*active.*synchronous project-identity or.*activation-admission assertion.*immediately\s+before shared publication.*no.*intervening await.*shared\s+source maps/isu);
 	assert.match(documentation, /each canonical playback reapply.*replaceable controller-lifetime task.*newer reapply.*successful project switch.*abort.*metadata.*audio-context.*decoded-body.*exact signal reason.*late settlement.*buffer.*provider.*engine-source.*missing-source.*status.*only the newest source-ready projection.*engine/isu);
 	assert.match(documentation, /engine.*already entered.*not abortable.*transactional.*engine-side effects.*later activation.*failure.*successful commit.*does not roll back.*ordinary-source loading.*outside.*cache-fit policy.*does not.*prefetch or revalidate/isu);
-	assert.match(documentation, /explicit desktop handoff.*manifest reachability.*fallback.*no timeline or Project Bin clip.*Soundscaper.*org\.example\.future-mixer.*feature-requirement report.*current writable project lock.*unchanged.*without flushing.*declared read-only.*future-schema.*lock-contended.*reject.*fresh Framescaper.*canonical original and fallback PCM.*exact managed.*bodies.*canonical project shadow.*transfer.*managed descriptor and body digest.*controller.*manifest fallback digest.*before.*read-only activation.*engine.*synthetic whole-mix.*exact fallback samples.*document snapshot.*canonical project/isu);
+	assert.match(documentation, /Managed-media, linked-original, and rendered-fallback\s+witnesses.*only between stores owned by the same\s+family/isu);
 	assert.match(documentation, /standalone audio-delivery projection.*audio rendered fallback.*reapplies the audio effect bypass.*does not compose the video.*rendered fallback.*simultaneous rendered fallback.*reject/isu);
 	assert.match(documentation, /final-video delivery.*compose.*one.*audio whole-mix.*one.*maintained video fallback.*single.*integrity admission/isu);
 	assert.match(documentation, /final-mix.*only.*stems.*BW64.*ADM.*reject.*before.*verification.*planning.*destination.*render/isu);
 	assert.match(documentation, /operation-time.*selector.*requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*full canonical.*chunk scan.*private.*chunk provider.*sole.*render source.*global.*cache.*unchanged/isu);
 	assert.match(documentation, /provider.*read.*rereads.*stored chunk.*geometry.*digest.*currentness.*chang.*integrity.*offline.*does not retry.*realtime/isu);
 	assert.match(normalizedDocumentation, /Corrupt same-shaped recipient-local PCM after activation.*rejects delivery before rendering or output.*exact repair restores the exact PCM.*final-mix.*canonical project.*shadow.*unchanged/isu);
-	assert.match(normalizedDocumentation, /`org\.example\.future-mixer`.*unknown-feature composed Soundscaper-to-fresh-Framescaper.*manifest.*metadata.*localized.*UI.*exact feature ID.*requirement ID/isu);
+	assert.match(normalizedDocumentation, /foreign-family archive never enters those domain controls.*byte-exact Save Copy/isu);
 	assert.match(normalizedDocumentation, /operation-time.*selector.*exact requirement ID.*feature ID.*audio kind.*source ID.*SHA-256.*tamper.*refus.*repair.*canonical project.*shadow.*unchanged/isu);
-	assert.match(normalizedDocumentation, /exact Linux x64 packaged workflow.*source\/component UI activation and transport playback.*both frozen audio roles.*packaged runtime or UI final-delivery workflows.*unqualified/isu);
+	assert.match(normalizedDocumentation, /Source-level and portable-open evidence.*four frozen rendered-fallback relationships.*packaged activation, transport playback, and final delivery remain unqualified/isu);
 	assert.match(documentation, /exact point-in-time provider.*immutable.*Blob.*not durable leases.*role-defined.*audio whole-mix.*role-defined whole-project video.*videoEffects-only\s+clip-target.*narrow editor-playback\s+and\s+delivery/isu);
 	assert.match(normalizedDocumentation, /more than one.*feature identities.*non-audio roles.*future schemas.*earlier Soundscaper schemas.*linked-only.*unmanaged.*authoring.*freeze.*proxy.*publisher authenticity.*third-party code activation.*packaged.*UI.*browser.*reference-scale/isu);
 });

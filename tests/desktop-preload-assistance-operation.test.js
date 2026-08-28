@@ -11,7 +11,7 @@ const JOB_ID = '1'.repeat(40);
 const CLAIM_ID = '2'.repeat(40);
 const STREAM_ID = '3'.repeat(40);
 const DIGEST = 'a'.repeat(64);
-const FENCE = Object.freeze({ projectId: 'project-1', schemaVersion: 28, revision: 1,
+const FENCE = Object.freeze({ projectId: 'project-1', schemaFamily: 'soundscaper', schemaVersion: 1, revision: 1,
 	sequenceId: 'sequence-1', occurrenceIds: ['occurrence-1'], sourceId: 'source-1',
 	sourceSha256: 'b'.repeat(64), sourceStartFrame: 0, sourceEndFrame: 48_000,
 	linkMembershipSha256: 'c'.repeat(64), timingAuthoritySha256: 'd'.repeat(64) });
@@ -25,7 +25,7 @@ const REQUEST = Object.freeze({ contractVersion: 1, jobId: JOB_ID, operation: 's
 const WORKFLOW_REQUEST = Object.freeze({ contractVersion: 1, jobId: JOB_ID,
 	workflowId: 'enhance-dialogue', recipeVersion: 1, settingsVersion: 1,
 	settings: { settingsVersion: 1, workflowId: 'enhance-dialogue', placement: 'project-bin' },
-	fence: { fenceVersion: 1, projectId: 'project-1', schemaVersion: 31, revision: 1,
+	fence: { fenceVersion: 1, projectId: 'project-1', schemaFamily: 'soundscaper', schemaVersion: 1, revision: 1,
 		sequenceId: 'sequence-1', sourceRanges: [{ slotId: 'primary-audio', mediaKind: 'audio',
 			sourceId: 'source-1', sourceSha256: 'b'.repeat(64), sourceSampleRate: 48_000,
 			occurrenceIds: ['occurrence-1'],

@@ -72,11 +72,11 @@ test('project retention roots a rendered fallback source without a clip referenc
 	assert.deepEqual([...collectProjectSourceIds(project)], ['fallback-render']);
 });
 
-test('project retention roots rendered fallbacks for every later schema', () => {
+test('project retention does not traverse future or numeric-only project identities', () => {
 	const project = fallbackProject('later-schema', 'fallback-render');
-	const later = { ...project, schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1 };
+	const later = { ...project, schemaFamily: 'soundscaper', schemaVersion: 2 };
 
-	assert.deepEqual([...collectProjectSourceIds(later)], ['fallback-render']);
+	assert.deepEqual([...collectProjectSourceIds(later)], []);
 
 	const opaqueProject = {
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
@@ -90,6 +90,12 @@ test('project retention roots rendered fallbacks for every later schema', () => 
 	};
 
 	assert.deepEqual([...collectProjectSourceIds(opaqueProject)], []);
+	assert.deepEqual([
+		...collectProjectSourceIds({
+			...project,
+			schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
+		}),
+	], []);
 });
 
 test('a document without a schema version roots only its clip references', () => {

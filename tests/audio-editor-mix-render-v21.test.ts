@@ -19,8 +19,8 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
-import { validateSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21-validation.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 
@@ -29,7 +29,7 @@ test('V21 mix snapshots retain exact graph authority and never create legacy rou
 	const tracks = project.tracks.filter(({ type }) => type === 'audio') as unknown as readonly ControllerTrack[];
 	const snapshot = createMixRenderSnapshot(project as unknown as ControllerProject, tracks);
 	const mixer = snapshot.mixer as unknown as typeof project.mixer;
-	assert.equal(snapshot.schemaVersion, 21);
+	assert.equal(snapshot.schemaVersion, 1);
 	assert.equal(Object.hasOwn(mixer, 'routes'), false);
 	assert.equal(Object.hasOwn(snapshot.tracks[0]!, 'envelope'), false);
 	assert.equal(validateMixerGraphV21(mixer, {
@@ -79,7 +79,7 @@ test('V21 mix snapshots reconcile owned requirements after pruning master-only a
 			(snapshot as unknown as { automationLanes: readonly unknown[] }).automationLanes,
 			[],
 		);
-		assert.equal(validateSoundscaperProjectV21(snapshot), true);
+		assert.equal(validateSoundscaperProject(snapshot), true);
 	}
 });
 
@@ -105,7 +105,7 @@ test('a V21 mix snapshot of a foldered project is one the engine will load', asy
 });
 
 function folderedFixture() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'mix-v21-folders', title: 'Mix V21 folders', now: NOW,
 		sources: [source('voice-source'), source('music-source')],
 		clips: [clip('voice-clip', 'voice-source'), clip('music-clip', 'music-source')],
@@ -131,7 +131,7 @@ function fixture(includeTrackAutomation = true) {
 	const musicSource = source('music-source');
 	const voiceClip = clip('voice-clip', 'voice-source');
 	const musicClip = clip('music-clip', 'music-source');
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'mix-v21', title: 'Mix V21', now: NOW,
 		sources: [voiceSource, musicSource],
 		clips: [voiceClip, musicClip],
@@ -181,7 +181,7 @@ function fixture(includeTrackAutomation = true) {
 }
 
 function singleTrackMasterAutomationFixture() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'mix-v21-single', title: 'Single V21 mix', now: NOW,
 		sources: [source('voice-source')],
 		clips: [clip('voice-clip', 'voice-source')],

@@ -10,7 +10,7 @@ import type { EffectTarget } from '../src/common/editor/controller/effect-select
 import { createEffect } from '../src/common/editor/effects.js';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 export function deferred<Value>() {
 	let resolve: (value: Value) => void = () => undefined;
@@ -30,30 +30,7 @@ export function createHarness(options: Readonly<{
 	spectralWorkerFrameDelta?: number;
 	validateRenderSnapshot?: (project: EffectAudioProject) => void;
 }> = {}) {
-	let project: EffectAudioProject = options.project ?? {
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000,
-		tracks: [
-			{
-				id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'], gain: 0.5, pan: 0.2,
-				mute: true, solo: true, envelope: [{ frame: 0 }], spectrogram: { windowSize: 2_048 },
-				effects: [
-					{ id: 'before', type: 'delay', params: {}, enabled: true },
-					{ id: 'noise', type: 'audacity-noise-reduction', params: {}, enabled: false },
-				],
-			},
-			{ id: 'track-b', name: 'B', type: 'audio', clipIds: [], effects: [] },
-		],
-		clips: [{
-			id: 'clip-a', kind: 'audio', sourceId: 'source-a', title: 'Clip',
-			timelineStartFrame: 100, sourceStartFrame: 0, sourceDurationFrames: 4_000, durationFrames: 4_000,
-		}],
-		selection: {
-			startFrame: 100, endFrame: 4_100, trackIds: ['track-a'], clipIds: ['clip-a'],
-			frequencyRange: { minimumFrequency: 80, maximumFrequency: 4_000 },
-		},
-		master: { gain: 0.8, effects: [{ id: 'master', type: 'delay', params: {} }] },
-		mixer: { groups: [{ id: 'group' }], sends: [{ id: 'send' }], routes: { 'track-a': {} } },
-	};
+	let project: EffectAudioProject = options.project ?? baselineHarnessProject();
 	const state: EffectAudioState = {
 		selectedTrackId: 'track-a',
 		selectedClipId: 'clip-a',
@@ -189,6 +166,45 @@ export function createHarness(options: Readonly<{
 	};
 }
 
+function baselineHarnessProject(): EffectAudioProject {
+	const source = createAudioSource({
+		id: 'source-a', storageKey: 'pcm:a', name: 'Source', mimeType: 'audio/wav',
+		frameCount: 4_000, channelCount: 1, sampleRate: 48_000,
+		originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const clip = createAudioClip({
+		id: 'clip-a', sourceId: source.id, title: 'Clip', timelineStartFrame: 100,
+		sourceStartFrame: 0, sourceDurationFrames: 4_000, durationFrames: 4_000,
+	});
+	const project = createSoundscaperProject({
+		id: 'project-a', title: 'Effect fixture', now: '2026-08-28T12:00:00.000Z',
+		sources: [source], clips: [clip],
+		tracks: [
+			createAudioTrack({
+				id: 'track-a', name: 'A', clipIds: [clip.id], gain: 0.5, pan: 0.2,
+				mute: true, solo: true, spectrogram: { windowSize: 2_048 },
+				effects: [
+					createEffect('delay', { id: 'before' }),
+					createEffect('audacity-noise-reduction', { id: 'noise', enabled: false }),
+				],
+			}),
+			createAudioTrack({ id: 'track-b', name: 'B', clipIds: [], effects: [] }),
+		],
+		selection: {
+			startFrame: 100, endFrame: 4_100, trackIds: ['track-a'], clipIds: ['clip-a'],
+			frequencyRange: { minimumFrequency: 80, maximumFrequency: 4_000 },
+		},
+	});
+	return {
+		...project,
+		master: {
+			...(project.master as Readonly<Record<string, unknown>>),
+			gain: 0.8,
+			effects: [createEffect('delay', { id: 'master' })],
+		},
+	} as unknown as EffectAudioProject;
+}
+
 export function folderedLegacyProject() {
 	return createAudioEditorProjectV17({
 		id: 'project-folders', title: 'Foldered legacy', now: '2026-08-19T12:00:00.000Z',
@@ -218,7 +234,7 @@ export function folderedLegacyProject() {
 }
 
 export function v21RenderProject() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'project-a', title: 'Selection render', now: '2026-08-14T12:00:00.000Z',
 		tracks: [
 			createAudioTrack({
@@ -241,4 +257,3 @@ export function v21RenderProject() {
 		}],
 	});
 }
-

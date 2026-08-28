@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createExportPlan } from '../src/common/editor/export.js';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { MasteringSequenceValidationError } from '../src/common/editor/mastering-sequence.ts';
 import { createDeliveryReportForPlan } from '../src/common/editor/delivery-conversion-inventory.ts';
 
@@ -25,12 +25,12 @@ function annotation(overrides: Record<string, unknown>, sequenceId: string): Rec
 }
 
 function albumProject(entries: readonly unknown[], options: Record<string, unknown> = {}) {
-	const base = createSoundscaperProjectV23({
+	const base = createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
 	} as never);
 	const sequenceId = base.primarySequenceId;
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		sources: [{
 			id: 'source', name: 'Source', storageKey: 'pcm/source', mimeType: 'audio/wav',

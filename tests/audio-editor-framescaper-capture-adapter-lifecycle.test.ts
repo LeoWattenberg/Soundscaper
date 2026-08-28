@@ -42,7 +42,7 @@ test('adapter identities remain durable and shutdown seals recovery without disp
 			async findRecovery() { return null; },
 		},
 		captureOrigin: () => ({
-			projectFence: { projectId: 'project-a', baseRevision: 1, baseSha256: SHA },
+			projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 1, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 0, destination: 'both' },
 		}),
 		createSourceIdentity: (source) => `web-vcr:${source.sourceId}`,

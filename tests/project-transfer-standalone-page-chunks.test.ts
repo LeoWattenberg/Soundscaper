@@ -18,7 +18,7 @@ import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk
  * that whole chunk - and everything it imports - into the transfer document's
  * preload set. That is not hypothetical. A single call to
  * `isFramescaperSequenceProjectSchema` from `transfer-project-selection.ts`
- * reached `project-schema-version.ts` while `editor-domain` claimed it, and both
+ * reached `project-schema-identity.ts` while `editor-domain` claimed it, and both
  * generated transfer documents carried 62 modulepreloads totalling 5,546,304
  * bytes, 49 of them editor chunks, onto a page that mounts no editor.
  *
@@ -51,7 +51,7 @@ import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk
 const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const TRANSFER_PAGE_ENTRY = fileURLToPath(new URL('../src/common/transfer/transfer-page-entry.ts', import.meta.url));
 const TRANSFER_DIRECTORY = 'src/common/transfer/';
-const SCHEMA_VERSION_MODULE = 'src/common/editor/project-schema-version.ts';
+const SCHEMA_IDENTITY_MODULE = 'src/common/editor/project-schema-identity.ts';
 
 /**
  * Modules outside the transfer world that the mounted page statically reaches.
@@ -60,7 +60,7 @@ const SCHEMA_VERSION_MODULE = 'src/common/editor/project-schema-version.ts';
  * list is a deliberate claim - and the module named has to have an owner that no
  * editor chunk shares.
  */
-const EXPECTED_SHARED_MODULES = [SCHEMA_VERSION_MODULE];
+const EXPECTED_SHARED_MODULES = [SCHEMA_IDENTITY_MODULE];
 
 test('the transfer page statically reaches only the transfer world and named shared modules', () => {
 	const shared = [...staticImportClosure(TRANSFER_PAGE_ENTRY)]
@@ -81,10 +81,10 @@ test('no editor chunk owns a module the transfer page statically reaches', () =>
 	assert.deepEqual(editorOwned, [], 'these modules put a whole editor chunk in the transfer preload set');
 });
 
-test('the schema-number vocabulary is an owned dependency-free leaf', () => {
-	assert.equal(chunkOwner(SCHEMA_VERSION_MODULE), 'project-schema-versions');
-	const group = chunkGroups.find((candidate) => candidate.name === 'project-schema-versions');
-	assert.ok(group, 'project-schema-versions must exist');
+test('the project identity reader is an owned dependency-free leaf', () => {
+	assert.equal(chunkOwner(SCHEMA_IDENTITY_MODULE), 'project-schema-identity');
+	const group = chunkGroups.find((candidate) => candidate.name === 'project-schema-identity');
+	assert.ok(group, 'project-schema-identity must exist');
 	assert.equal(group.minSize, 0, 'a shared leaf must not be merged back into a larger chunk');
 	assert.equal(group.includeDependenciesRecursively, false);
 	const domain = chunkGroups.find((candidate) => candidate.name === 'editor-domain');
@@ -94,7 +94,7 @@ test('the schema-number vocabulary is an owned dependency-free leaf', () => {
 		'editor-domain matches every flat editor module, so the leaf group must outrank it',
 	);
 	assert.deepEqual(
-		staticImports(resolve(REPOSITORY_ROOT, SCHEMA_VERSION_MODULE)),
+		staticImports(resolve(REPOSITORY_ROOT, SCHEMA_IDENTITY_MODULE)),
 		[],
 		'the schema vocabulary must stay dependency-free, or its chunk stops being small',
 	);
@@ -156,7 +156,7 @@ function requireBuiltTransferDocuments(): void {
  * the ownership rule above: an editor group appearing here is the 5 MB
  * regression that this whole file exists to catch.
  */
-const ADMITTED_PRELOAD_GROUPS = ['project-schema-versions', 'rolldown-runtime', 'site-entry'];
+const ADMITTED_PRELOAD_GROUPS = ['project-schema-identity', 'rolldown-runtime', 'site-entry'];
 
 /**
  * The most the transfer documents may preload, in bytes.

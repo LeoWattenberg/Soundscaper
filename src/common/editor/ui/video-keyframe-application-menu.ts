@@ -34,7 +34,7 @@ function lightweightSelection(
 	focusedId: string | null,
 ): Readonly<{ readonly locked: boolean }> | 'unsupported' | null {
 	const project = dataRecord(value);
-	if (!project || !isFramescaperVideoKeyframeProjectSchema(data(project, 'schemaVersion'))) {
+	if (!project || !isFramescaperVideoKeyframeProjectSchema(project)) {
 		return 'unsupported';
 	}
 	const budget = { remaining: MAXIMUM_VIDEO_KEYFRAME_MENU_ITEMS };

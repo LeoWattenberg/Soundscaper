@@ -210,7 +210,7 @@ test('failed AUP4 source staging rolls back committed PCM and closes the native 
 			inspect: async () => ({}),
 			delete: async (nativeId) => { deletedNativeIds.push(nativeId); },
 		}),
-		migrateProject: () => ({ project: imported }),
+		loadProject: () => ({ project: imported }),
 	});
 	const service = createNativeProjectService(fixture.runtime);
 
@@ -457,7 +457,7 @@ test('AUP3 open uses the shared lifecycle, diagnostics, and close cleanup', asyn
 			inspect: async () => ({}),
 			close: async (id) => { closed.push(id); },
 		}),
-		migrateProject: () => ({ project: importedProject }),
+		loadProject: () => ({ project: importedProject }),
 	});
 	const service = createNativeProjectService(fixture.runtime);
 	const result = await service.openAudacityProject(nativeFile('large.AUP3', 10));
@@ -470,7 +470,7 @@ test('AUP3 open uses the shared lifecycle, diagnostics, and close cleanup', asyn
 	assert.ok(fixture.statuses.some(({ message }) => message === 'Importing 50%'));
 });
 
-test('Audacity open uses its dedicated project adapter instead of general native migration', async () => {
+test('Audacity open uses its dedicated project adapter instead of general native admission', async () => {
 	const decodedProject = { ...project('decoded-v17'), schemaVersion: 17 };
 	const importedProject = { ...project('imported-v21'), schemaVersion: 21 };
 	let adapterCalls = 0;
@@ -492,9 +492,9 @@ test('Audacity open uses its dedicated project adapter instead of general native
 			assert.strictEqual(value, decodedProject);
 			return importedProject;
 		},
-		migrateProject: () => {
+		loadProject: () => {
 			migrationCalls += 1;
-			throw new Error('general native migration must remain fenced');
+			throw new Error('general native admission must remain fenced');
 		},
 	});
 	const service = createNativeProjectService(fixture.runtime);

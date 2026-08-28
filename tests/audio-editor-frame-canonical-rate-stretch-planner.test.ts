@@ -15,10 +15,6 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-} from '../src/common/editor/project-schema-version.ts';
-import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
 } from '../src/common/editor/runtime-clip-projection.ts';
@@ -86,16 +82,11 @@ test('right and left stretch anchor the opposite edge and preserve canonical sou
 
 test('frame-canonical planning retains authority on selected exact product schemas', () => {
 	const current = fixture();
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	]) {
-		const withoutTimelineAnnotations = { ...current.project, timelineAnnotations: undefined };
+	for (const schemaFamily of ['framescaper', 'soundscaper'] as const) {
 		const project = brandRuntimeProjectProjection(Object.freeze({
-			...(schemaVersion === SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION
-				? current.project
-				: withoutTimelineAnnotations),
-			schemaVersion,
+			...current.project,
+			schemaFamily,
+			schemaVersion: 1,
 		}));
 		const plan = planFrameCanonicalRateStretch(project, current.timingViews, {
 			activeClipId: 'video', edge: 'right', requestedBoundarySample: boundary(25, PAL),

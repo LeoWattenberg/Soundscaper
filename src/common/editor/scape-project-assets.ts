@@ -6,9 +6,15 @@ import {
 	type ProjectFeatureFallback,
 	type ProjectFeatureRequirementsManifest,
 } from './project-feature-requirements.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	classifyProjectSchemaIdentity,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from './project-schema-identity.ts';
 
 interface ScapeProjectWithSources {
+	readonly schemaFamily?: unknown;
 	readonly schemaVersion?: unknown;
 	readonly featureRequirements?: unknown;
 	readonly sources: readonly unknown[];
@@ -37,12 +43,13 @@ export interface ScapeProjectFallbackSnapshot {
 }
 
 export interface ScapeProjectAssetIndexOptions {
+	readonly currentProjectSchemaFamily?: ProjectSchemaFamily;
 	readonly currentProjectSchemaVersion?: number;
 	readonly additionalSourceKinds?: readonly string[];
 }
 
 /**
- * Validates the source identity boundary after project migration and returns
+ * Validates the source identity boundary after project admission and returns
  * the manifest descriptors keyed by their canonical project source IDs.
  */
 export function indexScapeProjectAssets(
@@ -50,8 +57,8 @@ export function indexScapeProjectAssets(
 	manifest: ScapeManifestAssets,
 	options: ScapeProjectAssetIndexOptions = {},
 ): ReadonlyMap<string, ScapeAssetDescriptor> {
+	const identity = currentScapeAssetProjectIdentity(project, options);
 	const sources = projectSources(project);
-	const currentProjectSchemaVersion = scapeAssetSchemaVersion(options);
 	const additionalSourceKinds = new Set(options.additionalSourceKinds ?? []);
 	const canonicalSources = sources.filter((value) => {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
@@ -73,17 +80,17 @@ export function indexScapeProjectAssets(
 	const projectSourceIds = new Set<string>();
 	for (const value of canonicalSources) {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
-			throw new TypeError('The migrated Scape project contains an invalid source.');
+			throw new TypeError('The admitted Scape project contains an invalid source.');
 		}
 		const source = value as Record<string, unknown>;
 		if (typeof source.id !== 'string' || !source.id) {
-			throw new TypeError('The migrated Scape project contains an invalid source ID.');
+			throw new TypeError('The admitted Scape project contains an invalid source ID.');
 		}
 		if (source.kind !== 'audio' && source.kind !== 'video') {
 			throw new TypeError(`Source ${source.id} has an unsupported kind.`);
 		}
 		if (projectSourceIds.has(source.id)) {
-			throw new Error(`The migrated Scape project contains duplicate source ${source.id}.`);
+			throw new Error(`The admitted Scape project contains duplicate source ${source.id}.`);
 		}
 		projectSourceIds.add(source.id);
 		const asset = assetBySourceId.get(source.id);
@@ -91,8 +98,7 @@ export function indexScapeProjectAssets(
 		if (source.kind !== asset.kind) {
 			throw new Error(`Source ${source.id} has an incompatible asset kind.`);
 		}
-		if ((project as ScapeProjectWithSources).schemaVersion === currentProjectSchemaVersion
-			&& source.kind === 'video' && source.contentSha256 !== undefined) {
+		if (source.kind === 'video' && source.contentSha256 !== undefined) {
 			if (typeof source.contentSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(source.contentSha256)) {
 				throw new TypeError(`Source ${source.id} has an invalid source content SHA-256.`);
 			}
@@ -102,18 +108,11 @@ export function indexScapeProjectAssets(
 		}
 	}
 	assertScapeProjectFallbackAssets(snapshotScapeProjectFallbackIntegrity(project, {
-		currentProjectSchemaVersion,
+		currentProjectSchemaFamily: identity.schemaFamily,
+		currentProjectSchemaVersion: identity.schemaVersion,
 	}).claims, assetBySourceId);
 	indexScapeProjectTimingAssets(project, manifest);
 	return assetBySourceId;
-}
-
-function scapeAssetSchemaVersion(options: ScapeProjectAssetIndexOptions): number {
-	const value = options.currentProjectSchemaVersion ?? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
-	if (!Number.isSafeInteger(value) || value < 1) {
-		throw new TypeError('The current Scape project schema version must be a positive safe integer.');
-	}
-	return value;
 }
 
 export function indexScapeProjectTimingAssets(
@@ -150,10 +149,15 @@ export function snapshotScapeProjectFallbackIntegrity(
 	options: ScapeProjectAssetIndexOptions = {},
 ): ScapeProjectFallbackSnapshot {
 	if (!project || typeof project !== 'object' || Array.isArray(project)) {
-		throw new TypeError('The migrated Scape project must be an object.');
+		throw new TypeError('The admitted Scape project must be an object.');
 	}
 	const candidate = project as ScapeProjectWithSources;
-	if (candidate.schemaVersion !== scapeAssetSchemaVersion(options)) return NO_FALLBACK_SNAPSHOT;
+	const identity = readProjectSchemaIdentity(candidate);
+	const currentFamily = options.currentProjectSchemaFamily ?? identity.schemaFamily;
+	if (classifyProjectSchemaIdentity(candidate, currentFamily).disposition !== 'current') {
+		return NO_FALLBACK_SNAPSHOT;
+	}
+	assertBaselineSchemaVersion(options.currentProjectSchemaVersion);
 	const sources = projectSources(project) as readonly Readonly<{ id?: unknown; kind?: unknown }>[];
 	const clips = Array.isArray(candidate.clips)
 		? candidate.clips as readonly Readonly<Record<string, unknown>>[]
@@ -178,6 +182,25 @@ export function snapshotScapeProjectFallbackIntegrity(
 	return Object.freeze({ featureRequirements: manifest, claims });
 }
 
+function currentScapeAssetProjectIdentity(
+	project: unknown,
+	options: ScapeProjectAssetIndexOptions,
+) {
+	const identity = readProjectSchemaIdentity(project);
+	const currentFamily = options.currentProjectSchemaFamily ?? identity.schemaFamily;
+	assertBaselineSchemaVersion(options.currentProjectSchemaVersion);
+	if (classifyProjectSchemaIdentity(project, currentFamily).disposition !== 'current') {
+		throw new RangeError('Scape asset validation requires a current-family baseline project.');
+	}
+	return identity;
+}
+
+function assertBaselineSchemaVersion(value: number | undefined): void {
+	if (value !== undefined && value !== PROJECT_SCHEMA_VERSION) {
+		throw new TypeError(`The current Scape project schema version must be ${String(PROJECT_SCHEMA_VERSION)}.`);
+	}
+}
+
 /** Binds serialized fallback claims to the completed canonical asset descriptors. */
 export function assertScapeProjectFallbackAssets(
 	claims: readonly ScapeProjectFallbackClaim[],
@@ -197,7 +220,7 @@ export function assertScapeProjectFallbackAssets(
 
 function projectSources(project: unknown): readonly unknown[] {
 	if (!project || typeof project !== 'object' || !Array.isArray((project as Partial<ScapeProjectWithSources>).sources)) {
-		throw new TypeError('The migrated Scape project has invalid sources.');
+		throw new TypeError('The admitted Scape project has invalid sources.');
 	}
 	return (project as ScapeProjectWithSources).sources;
 }

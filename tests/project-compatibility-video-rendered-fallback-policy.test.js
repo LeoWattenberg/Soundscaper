@@ -14,7 +14,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/exact-current-schema.*project-video-render-v1.*unavailable or unknown.*canonical namespaced feature (?:ID|identity).*full-source render.*unavailable-only video-clip-render-v1.*exact videoEffects.*one exact target clip.*complete admitted render/iu,
+		/exact owning-family v1.*project-video-render-v1.*unavailable or unknown.*canonical namespaced feature (?:ID|identity).*full-source render.*unavailable-only video-clip-render-v1.*exact videoEffects.*one exact target clip.*complete admitted render/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -30,7 +30,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/authoritative actual project history.*exact schema 17.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
+		/authoritative actual project history.*exact owning-family v1.*exactly one qualifying item.*project-video-render-v1.*canonical namespaced feature ID.*unavailable or unknown.*video-clip-render-v1.*exact videoEffects.*unavailable.*declared and effective rendered-fallback.*canonical manifest requirement.*requirement ID.*feature ID.*disposition.*role.*optional target clip ID.*video kind.*source ID.*SHA-256/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -76,7 +76,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 
 	assert.match(
 		rule.currentBehavior,
-		/org\.example\.future-video-pipeline.*unknown-feature.*headless Framescaper-to-fresh-Soundscaper.*managed whole-Blob handoff.*editable retained original.*manifest-only whole-project fallback/iu,
+		/Framescaper family-v1 same-family unknown-feature fixture.*managed whole-Blob handoff.*editable retained original.*manifest-only whole-project fallback/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -88,7 +88,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	);
 	assert.match(
 		rule.currentBehavior,
-		/exact one-audio.one-video final-video composition.*qualified.*more than one qualifying video fallback.*multiple clip fallbacks.*other mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature identities qualify only for project-video-render-v1.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*standalone audio.*simultaneous.*reject.*generic fallback authoring.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*exact Linux x64 packaged workflow.*activation and transport playback.*both frozen video roles.*packaged runtime or UI final-delivery.*unqualified.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
+		/exact one-audio.one-video final-video composition.*qualified.*more than one qualifying video fallback.*multiple clip fallbacks.*other mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature identities qualify only for project-video-render-v1.*third-party feature-code activation.*future schemas.*earlier Soundscaper schemas.*linked-only or unmanaged delivery.*standalone audio.*simultaneous.*reject.*generic fallback authoring.*freeze.*unfreeze.*proxy.*relink.*embedded fallback-video audio.*nonselected fallback-body claim.*offline-render parity.*source\/component UI binding.*qualified at source level.*packaged runtime or UI activation, transport playback, and final-delivery workflows.*unqualified.*browser.*codec.*range transport.*reference-scale.*no durable storage-record or byte lease.*cross-process replacement.*whole-handoff atomicity/iu,
 	);
 
 	for (const reference of rule.evidence) {
@@ -127,8 +127,7 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 		'tests/audio-editor-project-switch-fallback-integrity.test.ts',
 		'tests/audio-editor-video-preview-visual.test.ts',
 		'tests/audio-editor-project-feature-compatibility-notice.test.ts',
-		'tests/desktop-project-library-video-rendered-fallback-handoff.test.ts',
-		'tests/audio-editor-desktop-shared-project-video-clip-fallback-handoff.test.ts',
+		'tests/audio-editor-framescaper-baseline.test.ts',
 		'tests/audio-editor-scape-video-clip-fallback-roundtrip.test.ts',
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
@@ -136,59 +135,14 @@ test('compatibility policy qualifies a generic whole-project video role and firs
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
 	assert.match(
 		normalizedDocumentation,
-		/current nested manifest schema 2.*closed rendered-fallback roles.*`project-audio-mix-v1`.*`project-video-render-v1`.*`video-clip-render-v1`.*clip role.*canonical target clip ID.*nested manifest schema 1.*deterministically normalizes.*whole-project roles.*cannot declare the clip or track relationship/isu,
+		/1\.0 family baselines.*schemaFamily: 'soundscaper'.*schemaVersion: 1.*schemaFamily: 'framescaper'.*schemaVersion: 1/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/exact schema 17 video rendered-fallback projection.*two closed relationships.*`project-video-render-v1`.*canonical namespaced feature ID.*reported unavailable or unknown.*`video-clip-render-v1`.*restricted to exact `videoEffects`.*reported unavailable.*exactly one.*declared and effective.*canonical manifest.*requirement ID.*feature ID.*disposition.*relationship role.*optional target clip ID.*video kind.*source ID.*SHA-256/isu,
+		/project-video-render-v1.*video-clip-render-v1.*closed rendered-fallback roles/isu,
 	);
 	assert.match(
 		normalizedDocumentation,
-		/joint operation-time integrity.*audio.*video selectors.*requirement.*feature.*role.*target clip ID.*source ID.*SHA-256.*cumulative.*before.*body reads/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/private chunk provider.*canonical native `Blob`.*exact immutable `Blob`.*nonselected fallback bodies.*not read.*before the video plan.*storage preflight.*render.*selected encoding.*publication/isu,
-	);
-	assert.match(normalizedDocumentation, /production browsers.*keyed-frame.*WebCodecs.*Mediabunny.*no FFmpeg WebAssembly fallback/isu);
-	assert.match(
-		normalizedDocumentation,
-		/`project-video-render-v1`.*whole-project behavior.*exact video kind.*project sample rate.*positive safe-integer frame count.*width.*height.*positive finite frame rate.*replaces all timeline video clips and tracks.*one neutral clip and track.*full source.*frame zero.*preserves audio and label.*Project Bin.*sources.*canonical field/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/`video-clip-render-v1`.*closed `videoEffects`-only relationship.*one exact target clip ID.*enabled maintained effect.*fallback source.*different.*canonical source.*`hasAudio: false`.*frame count equal.*target clip duration.*sample rate.*width.*height.*frame rate.*replaces only that target timeline clip.*source starts at frame zero.*trim values.*zero.*speed.*one.*video effects.*empty/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/track membership.*timeline placement.*duration.*group.*A\/V link.*layer.*transition context.*unaffected clip and source.*canonical project and history.*unchanged.*manifest-only fallback.*required source.*before engine or preview.*projected clip.*exact source identity/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/video-delivery projection.*audio whole-mix.*then.*selected video rendered fallback.*one.*audio.*one.*video.*bypass projection.*not/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/whole-project plan.*only video input.*clip-local plan.*selected target input.*unaffected video/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/active audio whole-mix.*private.*chunk.*otherwise.*canonical audio.*separately staged mix.*embedded fallback-video audio.*not extracted or mapped/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/relationship snapshot.*role.*target clip ID.*canonical source and duration.*maintained target effects.*required source geometry.*role, target, context, or same-source relationship conflict.*before media use.*not a durable storage-record lease.*cross-process replacement guarantee/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/`org\.example\.future-video-pipeline`.*unknown-feature.*headless.*whole-project fallback.*retained original.*explicit managed handoff/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/second headless `video-clip-render-v1` witness.*canonical target.*unaffected video.*manifest-only fallback body.*fresh recipient.*target clip ID.*digest-bound fallback body.*exact canonical shadow.*reopens.*relationship-bound admission.*portable `\.scape`.*copy collision remaps only the fallback source ID.*preserves the canonical target clip ID/isu,
-	);
-	assert.match(
-		normalizedDocumentation,
-		/exact one-audio.one-video final-video composition.*qualified.*more than one qualifying fallback.*ambiguous.*multiple clip fallbacks.*other mixed fallback relationships.*unqualified.*noncanonical feature IDs.*unknown canonical feature IDs.*whole-project role.*do not activate third-party feature code.*future schemas.*generic fallback authoring.*linked or unmanaged delivery.*freeze.*proxy.*relink.*embedded fallback audio.*broader render parity.*exact Linux x64 packaged workflow.*activation and transport playback.*both frozen video roles.*packaged runtime or UI final-delivery.*unqualified.*browser behavior.*codec qualification.*reference-scale.*earlier Soundscaper project schemas.*not a compatibility target.*deterministic nested manifest-schema-1 whole-project normalization.*whole-handoff atomicity.*durable storage or cross-process byte lease/isu,
+		/Version-bearing S21–S30, F18–F32.*implementation provenance.*old project, store, migration, and package identities are not supported/isu,
 	);
 });

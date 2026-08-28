@@ -11,6 +11,8 @@ import {
 } from '../src/common/editor/controller/framescaper-capture-origin-guard.ts';
 
 const ORIGIN_A = Object.freeze({
+	schemaFamily: 'framescaper',
+	schemaVersion: 1,
 	projectId: 'project-a',
 	baseRevision: 7,
 	baseSha256: 'ab'.repeat(32),
@@ -19,6 +21,8 @@ const ORIGIN_A = Object.freeze({
 }) satisfies FramescaperCaptureOriginBinding;
 
 const ORIGIN_B = Object.freeze({
+	schemaFamily: 'framescaper',
+	schemaVersion: 1,
 	projectId: 'project-b',
 	baseRevision: 12,
 	baseSha256: 'cd'.repeat(32),

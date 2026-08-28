@@ -8,12 +8,13 @@ import {
 	sampleFrameToVideoFrame,
 	videoFrameToSampleFrame,
 } from '../timeline-time.ts';
+import { hasSequenceGeometryProjectAuthority } from '../project-schema-version.ts';
 import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
 import { requireTrack } from './shared-runtime.js';
 
 export function conformedPasteAnchors(project, clipboard, command, atFrame, pastedDurationFrames) {
 	const anchors = new Map();
-	if (project.schemaVersion < 10) return anchors;
+	if (!hasSequenceGeometryProjectAuthority(project)) return anchors;
 	for (const clipboardTrack of clipboard.tracks || []) {
 		if ((clipboardTrack.sourceTrackType || clipboardTrack.clips?.[0]?.kind || 'audio') !== 'video') continue;
 		const targetTrackId = command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId;

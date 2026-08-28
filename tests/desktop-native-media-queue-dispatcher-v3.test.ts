@@ -13,11 +13,11 @@ import { FramescaperNativeMediaQueueDispatcherV3 } from '../desktop/native-media
 import { FramescaperNativeQueueRepository } from '../desktop/native-services-queue-repository-v3.ts';
 import { FramescaperNativeRootRepository } from '../desktop/native-services-root-repository.ts';
 import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const GRANT_ID = 'f'.repeat(32);
 
@@ -34,12 +34,13 @@ test('a resume racing the aborted execution waits for it instead of colliding', 
 		grantId: GRANT_ID, rootPath: '/private/export-root',
 		volumeIdentity: 'volume-a', directoryIdentity: 'directory-a', authorizedAtMs: 0,
 	}, lease, 0);
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-	const project = createFramescaperProjectV28(profile, framescaperV20Options());
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+	const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const record = createNativeQueueRecordV3({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'ab'.repeat(20), taskKind: 'encoded-export', plan,
 		projectId: String(project.id), projectRevision: Number(project.revision),
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],

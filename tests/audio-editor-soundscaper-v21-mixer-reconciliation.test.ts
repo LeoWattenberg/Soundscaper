@@ -11,8 +11,8 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperRoutingEditorModel } from '../src/common/editor/ui/soundscaper-routing-editor-model.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-14T13:00:00.000Z';
 
@@ -20,13 +20,13 @@ test('an authored group assignment survives unrelated commands', () => {
 	// The legacy mixer surface authors a track-to-group route under the same
 	// assignment:* identity the folder reconciler owns, so folder authority used to
 	// reclaim it and silently reroute the track straight to master.
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'grouped', title: 'Grouped', now: NOW,
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 	});
-	const routed = applySoundscaperProjectCommandV21(project, {
+	const routed = applySoundscaperProjectCommand(project, {
 		type: 'batch', commands: [
 			{ type: 'mixer/bus-add', busType: 'group', bus: { id: 'dialogue', name: 'Dialogue' } },
 			{ type: 'mixer/route-update', trackId: 'voice', changes: { groupId: 'dialogue' } },
@@ -37,7 +37,7 @@ test('an authored group assignment survives unrelated commands', () => {
 		.map(({ id }) => id);
 	assert.deepEqual(trackEdges(routed), ['assignment:track:voice:mixer-node:dialogue']);
 
-	const renamed = applySoundscaperProjectCommandV21(routed, {
+	const renamed = applySoundscaperProjectCommand(routed, {
 		type: 'project/rename', title: 'Renamed',
 	} as AudioEditorCommand);
 	// The route is kept, and the folder fallback to master is not added alongside it,
@@ -68,7 +68,7 @@ test('narrowing the master restates every product-authored assignment map', () =
 		id, kind: 'assignment', source, destination,
 		position: 'post-fader', level: 1, enabled: true, channelMap,
 	});
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'adm-narrow', title: 'ADM narrow', now: NOW,
 		masterChannels: 6, metadata: { adm: authored('5.1') },
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
@@ -90,7 +90,7 @@ test('narrowing the master restates every product-authored assignment map', () =
 			],
 		},
 	} as never);
-	const narrowed = applySoundscaperProjectCommandV21(project, {
+	const narrowed = applySoundscaperProjectCommand(project, {
 		type: 'metadata/update', changes: { adm: authored('stereo') },
 	} as never);
 
@@ -111,7 +111,7 @@ test('narrowing a track restates its send route as well as its assignment', () =
 		content: { name: 'Content', language: 'en' },
 		bed: { name: `${layout} bed`, layout, assignments: [] },
 	});
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'send-narrow', title: 'Send narrow', now: NOW,
 		masterChannels: 6, metadata: { adm: authored('5.1') },
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
@@ -119,7 +119,7 @@ test('narrowing a track restates its send route as well as its assignment', () =
 		primarySequenceId: 'main-sequence',
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
 	} as never);
-	const routed = applySoundscaperProjectCommandV21(project, {
+	const routed = applySoundscaperProjectCommand(project, {
 		type: 'batch', commands: [
 			{ type: 'mixer/bus-add', busType: 'send', bus: { id: 'reverb', name: 'Reverb' } },
 			{ type: 'mixer/route-update', trackId: 'voice', changes: { sends: { reverb: 0.5 } } },
@@ -129,7 +129,7 @@ test('narrowing a track restates its send route as well as its assignment', () =
 		.find((edge) => edge.kind === 'send')?.channelMap;
 	assert.deepEqual(sendMap(routed), [0, 1, 2, 3, 4, 5]);
 
-	const narrowed = applySoundscaperProjectCommandV21(routed, {
+	const narrowed = applySoundscaperProjectCommand(routed, {
 		type: 'metadata/update', changes: { adm: authored('stereo') },
 	} as AudioEditorCommand);
 	// The clipless track follows the master down to two channels while the send bus
@@ -142,7 +142,7 @@ test('the routing editor accepts the graph the product authored for a wide maste
 	// A track with no clips takes its width from the master, which is the fallback the
 	// reconciler uses when it authors that track's map. The editor must resolve it the
 	// same way or it refuses to open the very graph it would be used to repair.
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'wide', title: 'Wide', now: NOW, masterChannels: 6,
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
@@ -168,7 +168,7 @@ test('a clip edit that narrows a track restates its send route with the master u
 		id: 'six-clip', sourceId: 'six', title: 'Six', timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'clip-narrow', title: 'Clip narrow', now: NOW, masterChannels: 6,
 		sources: [six], clips: [sixClip],
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['six-clip'] })],
@@ -176,7 +176,7 @@ test('a clip edit that narrows a track restates its send route with the master u
 		primarySequenceId: 'main-sequence',
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
 	} as never);
-	const routed = applySoundscaperProjectCommandV21(project, {
+	const routed = applySoundscaperProjectCommand(project, {
 		type: 'batch', commands: [
 			{ type: 'mixer/bus-add', busType: 'send', bus: { id: 'verb', name: 'Verb' } },
 			{ type: 'mixer/route-update', trackId: 'voice', changes: { sends: { verb: 0.5 } } },
@@ -190,7 +190,7 @@ test('a clip edit that narrows a track restates its send route with the master u
 		id: 'one', storageKey: 'pcm:one', frameCount: 512, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const narrowed = applySoundscaperProjectCommandV21(routed, {
+	const narrowed = applySoundscaperProjectCommand(routed, {
 		type: 'batch', commands: [
 			{ type: 'source/add', source: mono },
 			{ type: 'clip/remove-many', clipIds: ['six-clip'], rippleMode: 'none' },
@@ -220,7 +220,7 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 		id, sourceId, title: id, timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'sidechain-width', title: 'Sidechain width', now: NOW, masterChannels: 6,
 		sources: [wide('bed-live', 6), wide('key-live', 6)],
 		clips: [take('bed-clip', 'bed-live'), take('key-clip', 'key-live')],
@@ -235,7 +235,7 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 		primarySequenceId: 'main-sequence',
 	} as never);
 	const sidechainId = 'duck-the-bed';
-	const authored = applySoundscaperProjectCommandV21(base, {
+	const authored = applySoundscaperProjectCommand(base, {
 		type: 'mixer-graph/set', expected: base.mixer,
 		mixer: {
 			...base.mixer,
@@ -253,7 +253,7 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 		.find(({ id }) => id === sidechainId)?.channelMap;
 	assert.deepEqual(sidechainMap(authored), [0, 1, 2, 3, 4, 5]);
 
-	const narrowed = applySoundscaperProjectCommandV21(authored, {
+	const narrowed = applySoundscaperProjectCommand(authored, {
 		type: 'batch', commands: [
 			{ type: 'source/add', source: wide('key-stereo', 2) },
 			{ type: 'clip/replace-source', clipId: 'key-clip', sourceId: 'key-stereo' },
@@ -272,7 +272,7 @@ test('a hand-shaped map is still preserved across a width change', () => {
 		id: 'six', storageKey: 'pcm:six', frameCount: 512, channelCount: 6,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'hand-shaped', title: 'Hand shaped', now: NOW, masterChannels: 6,
 		sources: [source],
 		clips: [createAudioClip({
@@ -285,7 +285,7 @@ test('a hand-shaped map is still preserved across a width change', () => {
 		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
 	} as never);
 	const swapped = [1, 0, 3, 2, 5, 4];
-	const authored = applySoundscaperProjectCommandV21(base, {
+	const authored = applySoundscaperProjectCommand(base, {
 		type: 'mixer-graph/set', expected: base.mixer,
 		mixer: {
 			...base.mixer,
@@ -299,7 +299,7 @@ test('a hand-shaped map is still preserved across a width change', () => {
 		id: 'one', storageKey: 'pcm:one', frameCount: 512, channelCount: 1,
 		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-	const narrowed = applySoundscaperProjectCommandV21(authored, {
+	const narrowed = applySoundscaperProjectCommand(authored, {
 		type: 'batch', commands: [
 			{ type: 'source/add', source: mono },
 			{ type: 'clip/remove-many', clipIds: ['six-clip'], rippleMode: 'none' },

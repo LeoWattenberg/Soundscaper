@@ -8,11 +8,9 @@
  * side rail, no badge. Soundscaper receives none of it at all, because a native
  * video and OFX tier is not part of that product.
  *
- * Candidate V25/V26 custody keeps two entries reachable even while the native
- * tier is switched off or unavailable: preferences and OFX management. The
- * historical V27 route is Milestone 1–4 only and exposes none of this surface.
- * Selected V28 exposes each operation only when its capability and action port
- * are both authenticated. Everything else is disabled with the capability it needs.
+ * Preferences and OFX management stay reachable even while the native tier is
+ * switched off or unavailable. Every other operation is exposed only when its
+ * capability and action port are both authenticated.
  */
 
 import {
@@ -28,6 +26,10 @@ import type {
 import {
 	resolveFramescaperNativeServicesCopy,
 } from './framescaper-native-services-copy.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	isCurrentProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 import {
 	FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES,
 	type FramescaperNativeProjectActionSurface,
@@ -105,7 +107,7 @@ export interface FramescaperNativeServicesMenuInput {
 	readonly externalDisplays?: readonly ExternalDisplayDescriptorV1[];
 	readonly activeExternalDisplayId?: string | null;
 	readonly lifecycleMethods?: readonly FramescaperNativeServicesLifecycleMethod[];
-	/** Exact project mutations installed only by a candidate project runtime. */
+	/** Exact project mutations installed by the current Framescaper runtime. */
 	readonly projectActionSurfaces?: readonly FramescaperNativeProjectActionSurface[];
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 }
@@ -128,10 +130,11 @@ export function createFramescaperNativeServicesMenuItems(
 	actions: FramescaperNativeServicesMenuActions,
 ): FramescaperNativeServicesMenuItems {
 	if (input.productId !== 'framescaper' || !input.runtimeAvailable) return EMPTY;
-	if (projectSchemaVersion(input.project) === 27) return EMPTY;
 	const copy = resolveFramescaperNativeServicesCopy(input.copy);
 	const snapshot = input.snapshot;
-	const hasProject = input.project != null;
+	const hasProject = isCurrentProjectSchemaIdentity(
+		input.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	);
 	const mutable = hasProject && !input.editingBlocked && input.readOnly !== true;
 	const usable = (ref: NativeMediaCapabilityRefV1): boolean => (
 		snapshot !== null
@@ -152,10 +155,8 @@ export function createFramescaperNativeServicesMenuItems(
 	const projectAction = (surface: FramescaperNativeProjectActionSurface): boolean => (
 		input.projectActionSurfaces?.includes(surface) === true
 	);
-	const schemaVersion = projectSchemaVersion(input.project);
-	const professionalMediaProject = schemaVersion === 25 || schemaVersion === 26
-		|| schemaVersion === 28 || schemaVersion === 31;
-	const openFxProject = schemaVersion === 26 || schemaVersion === 28 || schemaVersion === 31;
+	const professionalMediaProject = hasProject;
+	const openFxProject = hasProject;
 	const leaf = (
 		id: string,
 		label: string,
@@ -282,13 +283,4 @@ function branch(
 		disabled: items.every((item) => item.disabled),
 		items: Object.freeze([...items]),
 	});
-}
-
-function projectSchemaVersion(value: unknown): number | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
-	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
-		&& Number.isSafeInteger(descriptor.value)
-		? Number(descriptor.value)
-		: null;
 }

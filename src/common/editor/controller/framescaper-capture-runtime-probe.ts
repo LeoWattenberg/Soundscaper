@@ -10,12 +10,13 @@ import {
 	selectFramescaperVideoMimeType,
 } from './framescaper-browser-capture-source.ts';
 import type { FramescaperCaptureDesktopSelection } from './framescaper-capture-device-adapter.ts';
-import { isFramescaperCaptureProjectSchema } from '../project-schema-version.ts';
+import { readProjectSchemaIdentity } from '../project-schema-identity.ts';
 
 export interface FramescaperCaptureRuntimeProbeOptions {
 	readonly availability: CaptureRuntimeAvailability;
 	readonly productId: string;
-	readonly routeSchemaVersion: 18 | 19 | 20 | 31;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly embedded: boolean;
 	readonly desktop: FramescaperCaptureDesktopSelection | null;
 	readonly MediaRecorder: FramescaperBrowserRecorderFactoryOptions['MediaRecorder'];
@@ -33,7 +34,8 @@ export async function completeFramescaperCaptureRuntimeProbe(
 	input: Readonly<FramescaperCaptureRuntimeProbeOptions>,
 ): Promise<CaptureRuntimeAvailability> {
 	if (input.productId !== 'framescaper') return unavailable('unsupported-platform');
-	if (!isCaptureRouteForPlatform(input.routeSchemaVersion, Boolean(input.desktop))) {
+	const identity = readProjectSchemaIdentity(input);
+	if (identity.schemaFamily !== 'framescaper' || identity.schemaVersion !== 1) {
 		return unavailable('unsupported-platform');
 	}
 	if (input.embedded && !input.desktop) return unavailable('embedded-route');
@@ -66,11 +68,6 @@ export async function completeFramescaperCaptureRuntimeProbe(
 		? input.availability.sourceRoles.filter((role) => role !== 'system-audio')
 		: input.availability.sourceRoles;
 	return createCaptureRuntimeAvailability({ status: 'available', sourceRoles });
-}
-
-function isCaptureRouteForPlatform(value: unknown, desktop: boolean): value is 18 | 19 | 20 | 31 {
-	return isFramescaperCaptureProjectSchema(value)
-		&& (value === 20 || value === 31 || value === (desktop ? 18 : 19));
 }
 
 function unavailable(reason: Parameters<typeof createCaptureRuntimeAvailability>[0] extends infer _Value

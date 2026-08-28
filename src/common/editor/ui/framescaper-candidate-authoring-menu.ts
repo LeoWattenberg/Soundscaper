@@ -3,6 +3,10 @@
 import type {
 	FramescaperCandidateAuthoringSurface,
 } from './framescaper-candidate-authoring-actions.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	isCurrentProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 
 export interface FramescaperCandidateAuthoringMenuItem {
 	readonly id: string;
@@ -32,17 +36,13 @@ const EMPTY: FramescaperCandidateAuthoringMenuItems = Object.freeze({
 	tracks: Object.freeze([]), generate: Object.freeze([]), effect: Object.freeze([]),
 });
 
-const TRANSITION_SCHEMAS = new Set([22, 24, 25, 26, 27, 28, 31, 32]);
-const VISUAL_SCHEMAS = new Set([24, 25, 26, 27, 28, 31, 32]);
-
-/** Generation-owned menu entries. V20 and every Soundscaper generation return no rows. */
+/** Current-family Framescaper authoring entries; Soundscaper returns no rows. */
 export function createFramescaperCandidateAuthoringMenuItems(
 	input: FramescaperCandidateAuthoringMenuInput,
 	actions: Readonly<{ open(surface: FramescaperCandidateAuthoringSurface): unknown }>,
 ): FramescaperCandidateAuthoringMenuItems {
-	const schemaVersion = projectSchemaVersion(input.project);
-	if (input.productId !== 'framescaper' || schemaVersion === null
-		|| !TRANSITION_SCHEMAS.has(schemaVersion)) return EMPTY;
+	if (input.productId !== 'framescaper'
+		|| !isCurrentProjectSchemaIdentity(input.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY)) return EMPTY;
 	const mutable = !input.editingBlocked && input.readOnly !== true;
 	const copy = input.copy ?? {};
 	const leaf = (
@@ -67,27 +67,18 @@ export function createFramescaperCandidateAuthoringMenuItems(
 				'video-transition-dissolve', 'videoTransitionDissolve'),
 		],
 	);
-	if (!VISUAL_SCHEMAS.has(schemaVersion)) {
-		return Object.freeze({ tracks: Object.freeze([]), generate: Object.freeze([]),
-			effect: Object.freeze([transitions]) });
-	}
-	const selectedV27 = schemaVersion === 27 || schemaVersion === 28
-		|| schemaVersion === 31 || schemaVersion === 32;
 	const generators = branch(
 		'framescaper-video-generators', copy.videoGenerators ?? 'Video Generators', [
 			leaf('framescaper-add-video-title', 'addVideoTitle', 'Add Title/Text…',
 				'video-title', 'videoGenerators'),
-			...(selectedV27 ? [leaf('framescaper-add-video-text', 'addVideoText', 'Add Text…',
-				'video-text', 'videoGenerators')] : []),
+			leaf('framescaper-add-video-text', 'addVideoText', 'Add Text…',
+				'video-text', 'videoGenerators'),
 			leaf('framescaper-add-video-shape', 'addVideoShape', 'Add Shape…',
 				'video-shape', 'videoGenerators'),
 			leaf('framescaper-add-video-solid', 'addVideoSolid', 'Add Solid…',
 				'video-solid', 'videoGenerators'),
-			...(selectedV27 ? [leaf('framescaper-save-video-visual-preset', 'saveVideoVisualPreset',
-				'Save Visual Preset…', 'video-visual-preset', 'videoGenerators')] : [
-				leaf('framescaper-add-external-video-generator', 'addExternalVideoGenerator',
-					'Add External Generator…', 'video-external-generator', 'videoGenerators'),
-			]),
+			leaf('framescaper-save-video-visual-preset', 'saveVideoVisualPreset',
+				'Save Visual Preset…', 'video-visual-preset', 'videoGenerators'),
 		],
 	);
 	return Object.freeze({
@@ -117,11 +108,4 @@ function branch(
 ): FramescaperCandidateAuthoringMenuItem {
 	return Object.freeze({ id, label, disabled: items.every(({ disabled }) => disabled),
 		items: Object.freeze([...items]) });
-}
-
-function projectSchemaVersion(value: unknown): number | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
-	return descriptor?.enumerable && Object.hasOwn(descriptor, 'value')
-		&& Number.isSafeInteger(descriptor.value) ? Number(descriptor.value) : null;
 }

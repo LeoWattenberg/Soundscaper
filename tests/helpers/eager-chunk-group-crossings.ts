@@ -25,7 +25,6 @@ const REPOSITORY_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-codec-foundations',
 	'editor-controller-core',
-	'editor-cube-lut-actions-v27',
 	'editor-domain',
 	'editor-effect-contracts',
 	'editor-engine',
@@ -35,9 +34,9 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-timeline',
 	'framescaper-project-foundations',
 	// Owned apart from `editor-domain` so the standalone transfer pages can read the
-	// schema numbers without loading an editor chunk. The leaf imports nothing itself,
+	// identity tuple without loading an editor chunk. The leaf imports nothing itself,
 	// and the editor shell loads it at startup, so it belongs on the eager side.
-	'project-schema-versions',
+	'project-schema-identity',
 	'vendor-design-system',
 	'vendor-react',
 ]);

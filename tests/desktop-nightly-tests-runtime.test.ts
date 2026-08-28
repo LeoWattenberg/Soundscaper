@@ -33,7 +33,7 @@ import { rawHttpRequest } from './helpers/raw-http-request.ts';
 const PRODUCT = Object.freeze({
 	id: 'soundscaper',
 	name: 'Soundscaper',
-	version: '0.2.0-beta.1',
+	version: '1.0.0-rc.1',
 });
 const PACKAGED_ENVIRONMENT = Object.freeze({ PATH: '/usr/bin', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204', SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac', SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct' });
 test('nightly test results resolve beside each portable artifact convention', () => {

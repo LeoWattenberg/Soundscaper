@@ -56,7 +56,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	);
 	assert.match(
 		sharedBudget.exposure,
-		/raw-JSON structural preflight.*every schema.*before `JSON\.parse`.*101,536 JSON values.*depth 130.*exact schema 17.*decoded.*semantic validator.*independent ceilings.*100,000 logical nodes.*depth 128/iu,
+		/raw-JSON structural preflight.*every owning-family-v1 project input.*before `JSON\.parse`.*101,536 JSON values.*depth 130.*exact owning family v1.*decoded.*semantic validator.*independent ceilings.*100,000 logical nodes.*depth 128/iu,
 	);
 	assert.match(
 		sharedBudget.exposure,
@@ -68,11 +68,11 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	);
 	assert.match(
 		sharedBudget.exposure,
-		/other supported project parsers.*elapsed-time budgets.*opaque-extension cloning.*aliases.*customized Audacity block sizes.*downstream.*total renderer RSS.*cancellation.*streaming-scale legacy import/iu,
+		/other supported input parsers.*elapsed-time budgets.*opaque-extension cloning.*aliases.*customized Audacity block sizes.*downstream.*total renderer RSS.*cancellation.*streaming-scale legacy import/iu,
 	);
 	assert.match(
 		sharedBudget.requiredControl,
-		/structural budgets.*remaining project families.*aggregate CPU or elapsed-time.*cancellation.*scalar-byte work.*end-to-end working-set.*repeated main shared-project phases.*downstream legacy-import/iu,
+		/structural budgets.*remaining supported input parsers.*aggregate CPU or elapsed-time.*cancellation.*scalar-byte work.*end-to-end working-set.*repeated main family-v1 project phases.*downstream legacy-import/iu,
 	);
 	assert.ok(malformedCorpus);
 	assert.match(
@@ -87,7 +87,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	);
 	assert.match(
 		documentation,
-		/shared-project-parse-budget.*remains open.*101,536-value\/depth-130 raw preflight.*per-phase 100,000-node\/depth-128 exact-V17 decode and validator admissions.*do not combine.*end-to-end work budget.*CPU or elapsed time.*cancellation.*allocation.*total main-process RSS/isu,
+		/1\.0 project-identity boundary.*own\s+enumerable data properties.*numeric-only.*REIMPORT_REQUIRED.*no project migration, copy-forward, predecessor-validator dispatch/isu,
 	);
 });
 

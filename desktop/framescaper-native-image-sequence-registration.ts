@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Production main-process ownership for selected-V28 image-sequence import. */
+/** Production main-process ownership for baseline image-sequence import. */
 
 import { resolve } from 'node:path';
 
@@ -18,10 +18,20 @@ import {
 	registerFramescaperNativeImageSequenceImportMainIpc,
 } from './native-image-sequence-import-main-ipc.ts';
 import type { FramescaperNativeMediaRuntime } from './native-media-runtime.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 interface ProjectAuthority {
-	projectState(projectId: string): Readonly<{ open: boolean; writable: boolean }>;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
+	projectState(projectId: string): Readonly<{ schemaFamily: 'framescaper'; schemaVersion: 1;
+		open: boolean; writable: boolean }>;
 	projectRecord(projectId: string): Readonly<{
+		schemaFamily: 'framescaper';
+		schemaVersion: 1;
 		projectId: string;
 		projectRevision: number;
 		projectSha256: string;
@@ -41,7 +51,8 @@ interface RendererBridge {
 export interface FramescaperNativeImageSequenceRegistrationOptions {
 	readonly userDataPath: string;
 	readonly route: Readonly<{
-		readonly candidateGeneration: 28;
+		readonly schemaFamily: 'framescaper';
+		readonly schemaVersion: 1;
 		readonly projectMutationSurface: 'image-sequence-import';
 		readonly professionalCharacteristicsContract: 'video-source-characteristics-v25';
 		isRouted(): boolean;
@@ -65,7 +76,7 @@ export async function createFramescaperNativeImageSequenceRegistration(
 	options: FramescaperNativeImageSequenceRegistrationOptions,
 ): Promise<FramescaperNativeImageSequenceRegistration> {
 	assertOptions(options);
-	const root = resolve(options.userDataPath, 'framescaper-native-image-sequence-import');
+	const root = resolve(options.userDataPath, 'framescaper-native-image-sequence-import-v1');
 	const authority = new FramescaperNativeImageSequenceImportAuthority({
 		root,
 		mintOpaqueId: options.mintOpaqueId,
@@ -131,14 +142,17 @@ export async function createFramescaperNativeImageSequenceRegistration(
 async function projectState(
 	project: ProjectAuthority,
 	projectId: string,
-): Promise<Readonly<{ open: boolean; writable: boolean; schemaVersion: 28; revision: number }> | null> {
+): Promise<Readonly<{ schemaFamily: 'framescaper'; schemaVersion: 1;
+	open: boolean; writable: boolean; revision: number }> | null> {
 	const state = project.projectState(projectId);
 	const record = project.projectRecord(projectId);
-	if (!record || record.projectId !== projectId) return null;
+	if (!record || !currentFramescaper(record) || !currentFramescaper(state)
+		|| record.projectId !== projectId) return null;
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		open: state.open === true,
 		writable: state.writable === true,
-		schemaVersion: 28,
 		revision: nonNegative(record.projectRevision, 'project revision'),
 	});
 }
@@ -146,12 +160,15 @@ async function projectState(
 async function projectContains(
 	project: ProjectAuthority,
 	request: Readonly<{
+		schemaFamily: 'framescaper';
+		schemaVersion: 1;
 		projectId: string;
 		sourceId: string;
 		inventoryStorageKey: string;
 		sourcePackStorageKey: string;
 	}>,
 ): Promise<boolean> {
+	if (!currentFramescaper(request)) return false;
 	const raw = await project.readProjectBundle(request.projectId);
 	if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
 	const bundle = raw as Readonly<Record<string, unknown>>;
@@ -159,9 +176,9 @@ async function projectContains(
 	let document: unknown;
 	try { document = JSON.parse(bundle.document); }
 	catch { return false; }
-	if (!document || typeof document !== 'object' || Array.isArray(document)) return false;
+	if (!currentFramescaper(document)) return false;
 	const value = document as Readonly<Record<string, unknown>>;
-	if (value.id !== request.projectId || value.schemaVersion !== 28 || !Array.isArray(value.sources)) {
+	if (value.id !== request.projectId || !Array.isArray(value.sources)) {
 		return false;
 	}
 	const source = value.sources.find((candidate) => candidate && typeof candidate === 'object'
@@ -189,14 +206,19 @@ function assetReferenced(
 ): boolean {
 	if (projectId === undefined) return false;
 	const record = project.projectRecord(projectId);
-	return record?.bodies.some((body) => body.storageKey === storageKey
+	if (!record || !currentFramescaper(record)) return false;
+	return record.bodies.some((body) => body.storageKey === storageKey
 		&& (body.kind === 'image-sequence-inventory'
 			|| body.kind === 'image-sequence-source-pack')) === true;
 }
 
 function assertOptions(options: FramescaperNativeImageSequenceRegistrationOptions): void {
-	if (!options || typeof options !== 'object' || options.route.candidateGeneration !== 28
-		|| options.route.projectMutationSurface !== 'image-sequence-import'
+	if (!options || typeof options !== 'object') {
+		throw new TypeError('Framescaper baseline image-sequence registration is invalid.');
+	}
+	assertCurrentFramescaper(options.route, 'image-sequence route');
+	assertCurrentFramescaper(options.project, 'image-sequence project authority');
+	if (options.route.projectMutationSurface !== 'image-sequence-import'
 		|| options.route.professionalCharacteristicsContract !== 'video-source-characteristics-v25'
 		|| options.route.isRouted() !== true
 		|| !options.project || ['projectState', 'projectRecord', 'readProjectBundle']
@@ -208,7 +230,23 @@ function assertOptions(options: FramescaperNativeImageSequenceRegistrationOption
 		|| typeof options.createMessageChannel !== 'function'
 		|| typeof options.mintOpaqueId !== 'function'
 		|| typeof options.runtimeAvailable !== 'function') {
-		throw new TypeError('Framescaper selected-V28 image-sequence registration is invalid.');
+		throw new TypeError('Framescaper baseline image-sequence registration is invalid.');
+	}
+}
+
+function currentFramescaper(value: unknown): boolean {
+	try {
+		const identity = readProjectSchemaIdentity(value);
+		return identity.schemaFamily === FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+			&& identity.schemaVersion === PROJECT_SCHEMA_VERSION;
+	} catch { return false; }
+}
+
+function assertCurrentFramescaper(value: unknown, label: string): void {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} requires the current Framescaper schema.`);
 	}
 }
 

@@ -11,7 +11,7 @@ import type {
 import { PROJECT_FEATURE_REQUIREMENTS_LIMITS } from './project-feature-requirements.ts';
 import { projectHasReportedSourceCharacteristics } from './source-characteristics-v14.ts';
 import {
-	isSoundscaperProductionProjectSchema,
+	isSoundscaperProductionProject,
 	isVideoRetimeCurveProjectSchema,
 } from './project-schema-version.ts';
 import { createDefaultMixerGraphV21, normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
@@ -130,7 +130,7 @@ const OWNED_FEATURE_REQUIREMENTS: readonly OwnedFeatureRequirement[] = Object.fr
 	foundationOwned(
 		FOUNDATION_REQUIREMENTS.videoRetime,
 		(project) => projectHasClipField(project, 'video', 'retimeMap'),
-		(project) => isVideoRetimeCurveProjectSchema(dataProperty(project, 'schemaVersion')),
+		(project) => isVideoRetimeCurveProjectSchema(project),
 	),
 	foundationOwned(FOUNDATION_REQUIREMENTS.masteringSequences, projectHoldsMasteringSequence),
 	foundationOwned(FOUNDATION_REQUIREMENTS.immersiveAdm, projectHoldsImmersiveAdm, () => true),
@@ -366,7 +366,7 @@ function projectHasVideoTimingAsset(project: Readonly<Record<string, unknown>>):
 }
 
 function projectHasAuthoredMixerGraphV21(project: Readonly<Record<string, unknown>>): boolean {
-	if (!isSoundscaperProductionProjectSchema(dataProperty(project, 'schemaVersion'))) return false;
+	if (!isSoundscaperProductionProject(project)) return false;
 	const masterChannels = Number(dataProperty(project, 'masterChannels'));
 	const trackWidths = resolveTerminalChannelWidths(project as never, masterChannels).tracks;
 	const audioTracks = dataArray(project, 'tracks')

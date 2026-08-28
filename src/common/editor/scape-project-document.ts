@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	isProjectSchemaFamily,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from './project-schema-identity.ts';
 import {
 	preflightScapeProjectJsonStructure,
 	type ScapeProjectJsonStructureLimits,
@@ -28,6 +33,8 @@ export interface ScapeProjectBinaryLimits {
 }
 
 export interface ScapeProjectDocumentOptions {
+	/** When supplied, another known product family remains completely opaque. */
+	readonly currentProjectSchemaFamily?: ProjectSchemaFamily;
 	readonly limits?: Partial<ScapeProjectBinaryLimits>;
 }
 
@@ -113,7 +120,7 @@ export function serializeScapeProjectDocument(
 	options: ScapeProjectDocumentOptions = {},
 ): string {
 	const limits = resolveOptions(options);
-	if (!hasCurrentSchemaVersion(value)) return ordinaryJson(value);
+	if (!hasBaselineProjectIdentity(value, options.currentProjectSchemaFamily)) return ordinaryJson(value);
 	const budget: EncodeBudget = {
 		limits,
 		active: new Set(),
@@ -130,13 +137,28 @@ export function parseScapeProjectDocument(
 	text: string,
 	options: ScapeProjectDocumentOptions = {},
 ): unknown {
+	const { limits, parsed } = parseOpaqueProjectDocument(text, options);
+	if (!hasBaselineProjectIdentity(parsed, options.currentProjectSchemaFamily)) return parsed;
+	decodeCurrentProject(parsed, limits);
+	return parsed;
+}
+
+/** Parse bounded inert JSON without activating any family-owned binary extension. */
+export function parseOpaqueScapeProjectDocument(
+	text: string,
+	options: ScapeProjectDocumentOptions = {},
+): unknown {
+	return parseOpaqueProjectDocument(text, options).parsed;
+}
+
+function parseOpaqueProjectDocument(
+	text: string,
+	options: ScapeProjectDocumentOptions,
+): Readonly<{ limits: Readonly<ScapeProjectBinaryLimits>; parsed: unknown }> {
 	if (typeof text !== 'string') throw new TypeError('The Scape project document must be JSON text.');
 	const limits = resolveOptions(options);
 	preflightScapeProjectJsonStructure(text, jsonStructureLimits(limits));
-	const parsed: unknown = JSON.parse(text);
-	if (!hasCurrentSchemaVersion(parsed)) return parsed;
-	decodeCurrentProject(parsed, limits);
-	return parsed;
+	return { limits, parsed: JSON.parse(text) as unknown };
 }
 
 function jsonStructureLimits(
@@ -152,7 +174,13 @@ function jsonStructureLimits(
 function resolveOptions(options: ScapeProjectDocumentOptions): Readonly<ScapeProjectBinaryLimits> {
 	if (!isPlainObject(options)) throw new TypeError('Scape project document options must be an object.');
 	for (const name of Object.keys(options)) {
-		if (name !== 'limits') throw new TypeError(`Unsupported Scape project document option: ${name}.`);
+		if (name !== 'limits' && name !== 'currentProjectSchemaFamily') {
+			throw new TypeError(`Unsupported Scape project document option: ${name}.`);
+		}
+	}
+	if (options.currentProjectSchemaFamily !== undefined
+		&& !isProjectSchemaFamily(options.currentProjectSchemaFamily)) {
+		throw new TypeError('The current Scape project schema family is unsupported.');
 	}
 	return resolveScapeProjectBinaryLimits(options.limits ?? {});
 }
@@ -163,16 +191,17 @@ function ordinaryJson(value: unknown): string {
 	return text;
 }
 
-function hasCurrentSchemaVersion(value: unknown): value is Record<string, unknown> {
+function hasBaselineProjectIdentity(
+	value: unknown,
+	currentFamily?: ProjectSchemaFamily,
+): value is Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
-	if (!descriptor) return false;
-	if (!Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError('Scape project schemaVersion accessors are not supported.');
-	}
-	if (descriptor.value !== AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION) return false;
+	if (!Object.getOwnPropertyDescriptor(value, 'schemaFamily')) return false;
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION
+		|| (currentFamily !== undefined && identity.schemaFamily !== currentFamily)) return false;
 	if (!isPlainObject(value)) {
-		throw new TypeError('A current-schema Scape project must be a plain object.');
+		throw new TypeError('A baseline Scape project must be a plain object.');
 	}
 	return true;
 }

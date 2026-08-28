@@ -316,6 +316,7 @@ test('watch-folder surface exposes create, reconcile, enable, and remove lifecyc
 		services: {
 			...base.services,
 			watchRules: [{
+				schemaFamily: 'framescaper', schemaVersion: 1,
 				ruleId: 'cd'.repeat(16), grantId: 'ab'.repeat(16), projectId: 'project-1',
 				binId: null,
 				extensions: ['wav'], importMode: 'link', generateProxies: false, enabled: true,
@@ -401,28 +402,27 @@ test('workspace resolution is Framescaper-only and keeps blocked-state surfaces 
 		'the pending projection must not claim helper availability');
 });
 
-test('selected V27 refuses direct native-services surface resolution', () => {
-	assert.equal(resolveFramescaperNativeServicesWorkspaceRuntime({
+test('numeric-only custody resolves no baseline native project actions', () => {
+	const runtime = resolveFramescaperNativeServicesWorkspaceRuntime({
 		productId: 'framescaper', bridge: fakeBridge().bridge,
-		project: { schemaVersion: 27 },
-	}), null);
+		project: { schemaVersion: 1 },
+	});
+	assert.deepEqual(runtime?.projectActionSurfaces, []);
 });
 
-test('selected V27 custody cannot surface dormant V25/V26 native services', () => {
-	for (const schemaVersion of [25, 26]) {
-		assert.equal(resolveFramescaperNativeServicesWorkspaceRuntime({
-			productId: 'framescaper', bridge: fakeBridge().bridge,
-			project: { schemaVersion }, projectActions: null,
-		}), null);
-	}
+test('only current family-qualified custody can surface baseline native services', () => {
 	const actions = candidateActions();
-	assert.ok(resolveFramescaperNativeServicesWorkspaceRuntime({
+	assert.deepEqual(resolveFramescaperNativeServicesWorkspaceRuntime({
 		productId: 'framescaper', bridge: fakeBridge().bridge,
-		project: { schemaVersion: 26 }, projectActions: actions,
-	}));
+		project: { schemaVersion: 1 }, projectActions: actions,
+	})?.projectActionSurfaces, []);
+	assert.deepEqual(resolveFramescaperNativeServicesWorkspaceRuntime({
+		productId: 'framescaper', bridge: fakeBridge().bridge,
+		project: { schemaFamily: 'framescaper', schemaVersion: 1 }, projectActions: actions,
+	})?.projectActionSurfaces, FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES);
 });
 
-test('historical watch context keeps selected-V28 target-bin authority unavailable', () => {
+test('numeric-only watch context keeps target-bin authority unavailable', () => {
 	assert.deepEqual(framescaperNativeServicesDialogContextForProject({
 		id: 'project-1', schemaVersion: 25,
 	}), {
@@ -432,9 +432,9 @@ test('historical watch context keeps selected-V28 target-bin authority unavailab
 	});
 });
 
-test('selected V28 watch context derives only its exact writable project bin', () => {
+test('the baseline watch context derives only its exact writable project bin', () => {
 	const project = Object.freeze({
-		id: 'project-28', schemaVersion: 28,
+		id: 'project-28', schemaFamily: 'framescaper', schemaVersion: 1,
 		projectBin: Object.freeze({ clips: Object.freeze([]) }),
 	});
 	assert.deepEqual(framescaperNativeServicesDialogContextForProject(project, {
@@ -457,9 +457,9 @@ test('selected V28 watch context derives only its exact writable project bin', (
 	});
 });
 
-test('selected F31 watch context retains the inherited writable project bin', () => {
+test('another baseline project retains the writable project-bin authority', () => {
 	const project = Object.freeze({
-		id: 'project-31', schemaVersion: 31,
+		id: 'project-31', schemaFamily: 'framescaper', schemaVersion: 1,
 		projectBin: Object.freeze({ clips: Object.freeze([]) }),
 	});
 	assert.deepEqual(framescaperNativeServicesDialogContextForProject(project, {
@@ -469,15 +469,17 @@ test('selected F31 watch context retains the inherited writable project bin', ()
 	});
 });
 
-test('workspace resolution admits only a branded candidate project-action runtime', () => {
+test('workspace resolution admits only a branded baseline project-action runtime', () => {
 	const actions = candidateActions();
 	const runtime = resolveFramescaperNativeServicesWorkspaceRuntime({
-		productId: 'framescaper', bridge: fakeBridge().bridge, projectActions: actions,
+		productId: 'framescaper', bridge: fakeBridge().bridge,
+		project: { schemaFamily: 'framescaper', schemaVersion: 1 }, projectActions: actions,
 	});
 	assert.deepEqual(runtime?.projectActionSurfaces, FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES);
 
 	const forged = resolveFramescaperNativeServicesWorkspaceRuntime({
 		productId: 'framescaper', bridge: fakeBridge().bridge,
+		project: { schemaFamily: 'framescaper', schemaVersion: 1 },
 		projectActions: { ...actions } as never,
 	});
 	assert.deepEqual(forged?.projectActionSurfaces, []);

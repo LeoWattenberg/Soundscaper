@@ -107,9 +107,24 @@ still measures the whole suite.
 limit or any emitted JavaScript chunk exceeds 500,000 bytes. It also audits the
 browser bundle for application-supplied FFmpeg imports, assets, and fetch seams.
 
+## 1.0 project baseline
+
+`1.0.0-rc.1` freezes two independent project identities:
+`{ schemaFamily: 'soundscaper', schemaVersion: 1 }` and
+`{ schemaFamily: 'framescaper', schemaVersion: 1 }`. Each product uses fresh
+browser and desktop stores and never opens, enumerates, migrates, mutates, or
+deletes a pre-release project store. A known other family or later version is
+opaque read-only custody; a retained archive can only be saved as a byte-exact
+copy. Numeric-only projects and pre-release `.scape` formats require re-import.
+
+The portable archive is family-qualified `formatVersion: 1`; file suffixes are
+routing hints and do not override the identity recorded in the manifest and
+project root. Stable 1.0 remains fail-closed on the outstanding Milestone 9
+evidence described in the [release policy](docs/release-policy.md).
+
 ## Desktop preview
 
-Soundscaper 0.2 can now be built as an unsigned desktop preview:
+Soundscaper `1.0.0-rc.1` can be built as an unsigned desktop preview:
 
 | Platform | Architectures | Packages |
 | --- | --- | --- |
@@ -161,8 +176,8 @@ translation release. For an intentionally offline/reproducible build, set
 contains `latest.json`, every referenced pack, the release manifest and audit,
 and the referenced source license; every descriptor is rechecked before use.
 
-Pushing a beta tag that exactly matches `package.json` (for example,
-`v0.2.0-beta.1`) runs unit, reproducibility, browser, and native packaging
+Pushing a beta or release-candidate tag that exactly matches `package.json` (for example,
+`v1.0.0-rc.1`) runs unit, reproducibility, browser, and native packaging
 checks. The same build runs nightly from the default branch at 02:17 UTC and
 can be started manually from the **Desktop preview and nightly** GitHub Actions
 workflow. Soundscaper and Framescaper are prepared, packaged, and smoke-tested

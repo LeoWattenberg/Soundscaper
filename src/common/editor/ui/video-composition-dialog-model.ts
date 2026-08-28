@@ -69,7 +69,7 @@ export function resolveSelectedVideoCompositionClip(
 	selectedClipIdValue: unknown,
 ): Readonly<SelectedVideoCompositionClip> | null {
 	const project = dataRecord(projectValue);
-	if (!project || !isFramescaperVideoCompositionProjectSchema(project.schemaVersion)) return null;
+	if (!project || !isFramescaperVideoCompositionProjectSchema(project)) return null;
 	const selectedClipIds = selectedIds(project, selectedClipIdValue);
 	if (selectedClipIds.length !== 1) return null;
 	const clips = dataRecords(project.clips);
@@ -97,7 +97,7 @@ export function createVideoCompositionDialogModel(
 ): Readonly<VideoCompositionDialogModel> {
 	const project = dataRecord(input.project);
 	if (input.productId !== 'framescaper' || !input.capability
-		|| !isFramescaperVideoCompositionProjectSchema(project?.schemaVersion)) {
+		|| !isFramescaperVideoCompositionProjectSchema(project)) {
 		return emptyModel('unsupported');
 	}
 	const selected = resolveSelectedVideoCompositionClip(input.project, input.snapshot.selectedClipId);

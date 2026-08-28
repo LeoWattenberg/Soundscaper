@@ -13,7 +13,10 @@ import {
 	projectFeatureVideoClipRenderV1Playback,
 	type ProjectFeatureVideoClipRenderV1Metadata,
 } from './project-feature-video-clip-render-v1.ts';
-import { isMaintainedRenderedFallbackProjectSchema } from './project-schema-version.ts';
+import {
+	isBaselineRenderedFallbackProject,
+	isMaintainedRenderedFallbackProjectSchema,
+} from './project-schema-version.ts';
 import {
 	sampleFrameToVideoFrame,
 	type RationalRate,
@@ -71,9 +74,8 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): ProjectFeatureVideoRenderedFallbackProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	if (!isMaintainedRenderedFallbackProjectSchema(
-		optionalDataProperty(projectRecord, 'schemaVersion', 'project'),
-	)) return unchanged(project);
+	if (!isBaselineRenderedFallbackProject(projectRecord)
+		&& !isMaintainedRenderedFallbackProjectSchema(projectRecord)) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
 	if (isQualifiedClipFallback(qualified)) {
@@ -369,13 +371,6 @@ function dataProperty(value: RecordValue, key: string, name: string): unknown {
 	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
 		throw new TypeError(`${name}.${key} must be an own data property.`);
 	}
-	return descriptor.value;
-}
-
-function optionalDataProperty(value: RecordValue, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor) return undefined;
-	if (!Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name}.${key} must be an own data property.`);
 	return descriptor.value;
 }
 

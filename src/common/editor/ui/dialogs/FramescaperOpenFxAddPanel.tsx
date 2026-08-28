@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Lazy, menu-owned authoring surface for every selected-V28 OpenFX context. */
+/** Lazy, menu-owned authoring surface for every baseline OpenFX context. */
 
 import React, { useEffect, useMemo, useState } from 'react';
 
@@ -11,17 +11,17 @@ import {
 	FRAMESCAPER_NATIVE_SERVICES_COPY,
 	type FramescaperNativeServicesCopy,
 } from '../framescaper-native-services-copy.ts';
-import type { FramescaperNativeOpenFxAuthoringRuntimeV28 } from '../../../../framescaper/editor-native-openfx-action-v28.ts';
+import type { FramescaperNativeOpenFxAuthoringRuntimeNativeMedia } from '../../../../framescaper/editor-native-openfx-action.ts';
 import {
-	createFramescaperOpenFxAuthoringDraftV28,
-	defaultFramescaperOpenFxParameterStateV28,
-	type FramescaperOpenFxAuthoringModelV28,
-	type FramescaperOpenFxAuthoringRequestV28,
-} from '../../../../framescaper/editor-native-openfx-authoring-model-v28.ts';
+	createFramescaperOpenFxAuthoringDraftNativeMedia,
+	defaultFramescaperOpenFxParameterStateNativeMedia,
+	type FramescaperOpenFxAuthoringModelNativeMedia,
+	type FramescaperOpenFxAuthoringRequestNativeMedia,
+} from '../../../../framescaper/editor-native-openfx-authoring-model.ts';
 
-export interface FramescaperOpenFxFormStateV28 {
+export interface FramescaperOpenFxFormState {
 	readonly pluginHandle: string;
-	readonly context: FramescaperOpenFxAuthoringRequestV28['context'];
+	readonly context: FramescaperOpenFxAuthoringRequestNativeMedia['context'];
 	readonly targetId: string;
 	readonly values: Readonly<Record<string, string | boolean>>;
 	readonly keyframes: Readonly<Record<string, string>>;
@@ -29,10 +29,10 @@ export interface FramescaperOpenFxFormStateV28 {
 }
 
 export default function FramescaperOpenFxAddPanel({ runtime, copy }: Readonly<{
-	runtime: FramescaperNativeOpenFxAuthoringRuntimeV28;
+	runtime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia;
 	copy: FramescaperNativeServicesCopy;
 }>) {
-	const [model, setModel] = useState<FramescaperOpenFxAuthoringModelV28 | null>(null);
+	const [model, setModel] = useState<FramescaperOpenFxAuthoringModelNativeMedia | null>(null);
 	const [error, setError] = useState('');
 	useEffect(() => {
 		let live = true;
@@ -53,11 +53,11 @@ export default function FramescaperOpenFxAddPanel({ runtime, copy }: Readonly<{
 
 export function FramescaperOpenFxAddForm({ model, onAuthor,
 	copy = FRAMESCAPER_NATIVE_SERVICES_COPY }: Readonly<{
-	model: FramescaperOpenFxAuthoringModelV28;
-	onAuthor: (request: FramescaperOpenFxAuthoringRequestV28) => PromiseLike<void> | void;
+	model: FramescaperOpenFxAuthoringModelNativeMedia;
+	onAuthor: (request: FramescaperOpenFxAuthoringRequestNativeMedia) => PromiseLike<void> | void;
 	copy?: FramescaperNativeServicesCopy;
 }>) {
-	const initial = useMemo(() => createFramescaperOpenFxFormStateV28(model), [model]);
+	const initial = useMemo(() => createFramescaperOpenFxFormState(model), [model]);
 	const [state, setState] = useState(initial);
 	const [status, setStatus] = useState<'ready' | 'working' | 'complete'>('ready');
 	const [error, setError] = useState('');
@@ -80,8 +80,8 @@ export function FramescaperOpenFxAddForm({ model, onAuthor,
 	};
 	const submit = (event: React.FormEvent): void => {
 		event.preventDefault(); setStatus('working'); setError('');
-		let request: FramescaperOpenFxAuthoringRequestV28;
-		try { request = buildFramescaperOpenFxAuthoringRequestV28(model, state); }
+		let request: FramescaperOpenFxAuthoringRequestNativeMedia;
+		try { request = buildFramescaperOpenFxAuthoringRequestNativeMedia(model, state); }
 		catch (failure) { setStatus('ready'); setError(message(failure)); return; }
 		void Promise.resolve(onAuthor(request)).then(
 			() => setStatus('complete'),
@@ -181,21 +181,21 @@ function ParameterControl({
 	</div>;
 }
 
-export function createFramescaperOpenFxFormStateV28(
-	model: FramescaperOpenFxAuthoringModelV28,
-): FramescaperOpenFxFormStateV28 {
+export function createFramescaperOpenFxFormState(
+	model: FramescaperOpenFxAuthoringModelNativeMedia,
+): FramescaperOpenFxFormState {
 	if (model.plugins.length === 0) throw new Error('No enabled OpenFX plug-in is available.');
 	return stateForPlugin(model, model.plugins[0]!.pluginHandle);
 }
 
 function stateForPlugin(
-	model: FramescaperOpenFxAuthoringModelV28,
+	model: FramescaperOpenFxAuthoringModelNativeMedia,
 	pluginHandle: string,
-): FramescaperOpenFxFormStateV28 {
+): FramescaperOpenFxFormState {
 	const plugin = pluginFor(model, pluginHandle);
 	const target = model.targets.find(({ context }) => plugin.supportedContexts.includes(context));
 	if (!target) throw new Error('The selected OpenFX plug-in has no compatible project target.');
-	const defaults = defaultFramescaperOpenFxParameterStateV28(plugin);
+	const defaults = defaultFramescaperOpenFxParameterStateNativeMedia(plugin);
 	return Object.freeze({
 		pluginHandle: plugin.pluginHandle, context: target.context, targetId: target.targetId,
 		values: Object.freeze(Object.fromEntries(defaults.map(({ name, value }) => [
@@ -210,10 +210,10 @@ function stateForPlugin(
 	});
 }
 
-export function buildFramescaperOpenFxAuthoringRequestV28(
-	model: FramescaperOpenFxAuthoringModelV28,
-	state: FramescaperOpenFxFormStateV28,
-): FramescaperOpenFxAuthoringRequestV28 {
+export function buildFramescaperOpenFxAuthoringRequestNativeMedia(
+	model: FramescaperOpenFxAuthoringModelNativeMedia,
+	state: FramescaperOpenFxFormState,
+): FramescaperOpenFxAuthoringRequestNativeMedia {
 	const plugin = pluginFor(model, state.pluginHandle);
 	if (!plugin.supportedContexts.includes(state.context)) {
 		throw new Error('The selected OpenFX context is stale.');
@@ -239,11 +239,11 @@ export function buildFramescaperOpenFxAuthoringRequestV28(
 		parameters: Object.freeze(parameters),
 		customEncodings,
 	});
-	createFramescaperOpenFxAuthoringDraftV28(model, request, () => 'preview-request');
+	createFramescaperOpenFxAuthoringDraftNativeMedia(model, request, () => 'preview-request');
 	return request;
 }
 
-function pluginFor(model: FramescaperOpenFxAuthoringModelV28, handle: string) {
+function pluginFor(model: FramescaperOpenFxAuthoringModelNativeMedia, handle: string) {
 	const plugin = model.plugins.find(({ pluginHandle }) => pluginHandle === handle);
 	if (!plugin) throw new Error('The selected OpenFX plug-in is stale.');
 	return framescaperOpenFxPluginProjectionV1(plugin);

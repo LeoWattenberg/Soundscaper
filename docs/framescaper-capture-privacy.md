@@ -1,6 +1,6 @@
 # Framescaper capture privacy
 
-> **Active selected boundary (2026-08-25):** selected Framescaper F31 sets
+> **Active 1.0 boundary (2026-08-28):** Framescaper family v1 sets
 > `framescaperCapture:true` and activates capture on standalone web and desktop
 > through its exact controller, app binding, and runtime probe. Recording Setup
 > remains default-hidden and requires explicit opt-in through **View > Panels**.
@@ -8,17 +8,18 @@
 > milestone-9 stable 1.0 admission record. `framescaperWebVcr:true` enables the
 > default-hidden, Record-menu-owned post-milestone extension for testing now.
 
-The selected F31 capture implementation is local-first. It can capture a
+The Framescaper family-v1 capture implementation is local-first. It can capture a
 camera, microphone, display, or a supported combination of those sources.
-Schema-18 desktop, schema-19 web, and schema-20 web/desktop are retained as
-historical compatibility routes.
+Pre-release schema-18 desktop, schema-19 web, and schema-20 web/desktop
+descriptions are retained only as provenance. They are not current
+compatibility, migration, or activation routes.
 Display capture may also return system or tab audio when the browser and
 operating system offer it. Framescaper treats that audio as a separate stream;
 it does not imply that system audio is available.
 
 ## Consent and visible state
 
-- On selected F31, opening a project or menu, opting into and showing the
+- On Framescaper family v1, opening a project or menu, opting into and showing the
   default-hidden Recording Setup panel, or pressing an inactive Record control
   does not open a device.
 - A preview request consumes one fresh, direct user-action generation. Display
@@ -80,11 +81,10 @@ disposable derivatives without awaiting them. Audio receives ordinary waveform
 activation and never a proxy job. Every valid owned captured video receives one
 proxy job after its poster and filmstrip attempt. The proxy request binds the
 capture session, origin project, source, committed revision, and source digest;
-selected F31 and historical exact V19 web, V18 desktop, and V20 web/desktop
-compatibility routes may attach it while the origin is inactive without
+Framescaper family v1 may attach it while the origin is inactive without
 switching the user's active project. A proxy or reconciliation failure
 is reported as a warning and does not roll back canonical recorded media. This
-capture-derived post-commit route remains separate from selected F31's general
+capture-derived post-commit route remains separate from the family-v1 general
 editorial proxy lifecycle.
 
 Incomplete acknowledged data remains local as an explicit recovery session.
@@ -114,13 +114,13 @@ Renderer revocation, controller disposal, application shutdown, and explicit
 desktop teardown invalidate the current generation and join resource cleanup.
 Short-lived desktop grants are single-use and expire if they are not consumed.
 
-Record is available on selected F31 standalone web and desktop only when the
+Record is available on Framescaper family-v1 standalone web and desktop only when the
 source, supported video encoder, audio packet path, cross-context Web Locks, complete
 encoded/raw/manifest repository set, video probe, and canonical publication
 store are all present. A partial stack remains unavailable; the presence of Web
 Locks alone is not a durability or device qualification claim.
-Historical exact schema-19 web, schema-18 desktop, and schema-20 web/desktop
-remain compatibility routes, and embedded Framescaper remains denied.
+Pre-release capture generations remain provenance only, and embedded
+Framescaper remains denied.
 
 ## Active Web VCR privacy boundary
 
@@ -165,11 +165,11 @@ resource ownership, exact stream timing and bounded PCM gap materialization,
 closed creation recovery, prewrite append-intent recovery, cross-context
 session-to-spool ordering, durable tail repair and terminal retirement, atomic
 publication, inactive and closed origin handling, ordinary asset exits,
-post-commit one-per-video/zero-audio proxy scheduling, V19/V18 inactive-origin
+post-commit one-per-video/zero-audio proxy scheduling, family-v1 inactive-origin
 attachment, active reconciliation and proxy cleanup/fencing, route policies,
-and desktop grant isolation. The selected F31 route, schema, storage profile,
-and controller-owned capture binding are covered without replacing the
-historical V19/V18 evidence.
+and desktop grant isolation. The Framescaper family-v1 route, fresh storage
+profile, and controller-owned capture binding are covered directly; historical
+V19/V18 tests remain provenance and grant no current authority.
 Configured Chromium, Firefox, and WebKit exercise the eight-case browser
 workflow with synthetic media: no implicit device enumeration, embedded and
 incomplete-runtime denial, all six source combinations, pause/resume and reopen,
@@ -180,7 +180,7 @@ pathless control-plane authority, status, grant, and teardown boundary; it does
 not exercise an actual camera, microphone, operating-system picker, loopback
 device, encoder, or long capture.
 
-The selected F31 implementation is active on standalone web and desktop, while
+The Framescaper family-v1 implementation is active on standalone web and desktop, while
 its manual qualification remains provisional. The registered 30-minute,
 six-combination fixture and workload remain provisional because
 `capture-os-browser-lab-matrix` is unprovisioned and is not qualification

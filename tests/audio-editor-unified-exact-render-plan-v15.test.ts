@@ -17,15 +17,15 @@ import {
 	createUnifiedExactRenderPlan,
 	type UnifiedExactRenderPlanV14,
 } from '../src/common/editor/unified-exact-render-plan.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const SHA_A = 'aa'.repeat(32);
 const SHA_B = 'bb'.repeat(32);
-const PROFILE = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 
 test('V15 seals one explicit mov_text caption delivery without changing V14 custody', () => {
 	const v14 = encodedPlan();
@@ -238,16 +238,16 @@ test('companion audio file names carry the export catalog extension', async () =
 });
 
 function encodedPlan(): UnifiedExactRenderPlanV14 {
-	const project = createFramescaperProjectV28(PROFILE, framescaperV20Options());
-	return createFramescaperProjectUnifiedExactRenderPlanV28(
-		PROFILE, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+	return createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		PROFILE, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 }
 
 function imageSequencePlan(): UnifiedExactRenderPlanV14 {
-	const project = createFramescaperProjectV28(PROFILE, framescaperV20Options());
-	return createFramescaperProjectUnifiedExactRenderPlanV28(
-		PROFILE, project, createFramescaperNativeRenderPlanAuthorityV28(project, {
+	const project = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+	return createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		PROFILE, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project, {
 			kind: 'image-sequence', format: 'png', frameRate: { num: 30, den: 1 }, preserveAlpha: true,
 		}), {
 			kind: 'image-sequence', format: 'png', frameRate: { num: 30, den: 1 }, preserveAlpha: true,

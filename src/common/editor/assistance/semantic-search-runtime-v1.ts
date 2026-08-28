@@ -15,16 +15,24 @@ import {
 	type AssistanceSemanticIndexV1,
 	type AssistanceSemanticQueryEmbeddingRequestV1,
 } from './semantic-search-index-v1.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 
 const SHA256 = /^[a-f\d]{64}$/u;
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const CUSTODY_FIELDS = Object.freeze([
-	'custodyVersion', 'disposition', 'projectId', 'projectRevision', 'records', 'index',
+	'custodyVersion', 'disposition', 'schemaFamily', 'schemaVersion',
+	'projectId', 'projectRevision', 'records', 'index',
 ]);
 const RECORD_FIELDS = Object.freeze(['kind', 'identitySha256', 'payloadSha256']);
 const RECORD_KINDS = Object.freeze(['embeddings', 'recognized-text', 'visual-index'] as const);
 
 export interface AssistanceSemanticSearchProjectAuthorityV1 {
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 }
@@ -33,12 +41,16 @@ export interface AssistanceSemanticSearchSessionPortV1 {
 	open(authority: AssistanceSemanticSearchProjectAuthorityV1): Promise<unknown>;
 	authorize(value: Readonly<{
 		readonly session: AssistanceSemanticSearchSession;
+		readonly schemaFamily: ProjectSchemaFamily;
+		readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 		readonly projectId: string;
 		readonly projectRevision: number;
 	}>): Promise<unknown>;
 	revoke(sessionId: string): Promise<boolean>;
 	embedInstalledQuery(request: Readonly<{
 		readonly session: AssistanceSemanticSearchSession;
+		readonly schemaFamily: ProjectSchemaFamily;
+		readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 		readonly projectId: string;
 		readonly projectRevision: number;
 		readonly provider: AssistanceSemanticQueryEmbeddingRequestV1['provider'];
@@ -123,9 +135,7 @@ export function createAssistanceSemanticSearchMenuSourceV1(options: Readonly<{
 				search: async (request: AssistanceAsyncSearchRequest) => {
 					const authorized = validateAssistanceSemanticSearchSession(
 						await options.sessions.authorize({
-							session: request.session,
-							projectId: authority.projectId,
-							projectRevision: authority.projectRevision,
+							session: request.session, ...authority,
 						}), now(),
 					);
 					if (!sameSession(request.session, authorized)) {
@@ -162,7 +172,9 @@ function reviewCustody(
 		throw new TypeError('Semantic-index custody is not an authenticated disposable grant.');
 	}
 	const claimedAuthority = projectAuthority(row);
-	if (claimedAuthority.projectId !== authority.projectId
+	if (claimedAuthority.schemaFamily !== authority.schemaFamily
+		|| claimedAuthority.schemaVersion !== authority.schemaVersion
+		|| claimedAuthority.projectId !== authority.projectId
 		|| claimedAuthority.projectRevision !== authority.projectRevision) {
 		throw new Error('Semantic-index custody disagrees with current project revision authority.');
 	}
@@ -182,10 +194,10 @@ function reviewCustody(
 		return RECORD_KINDS[kindIndex]!;
 	}));
 	const index = row.index as AssistanceSemanticIndexV1;
-	const indexAuthority = projectAuthority({
-		projectId: index?.projectId, projectRevision: index?.projectRevision,
-	});
-	if (indexAuthority.projectId !== authority.projectId
+	const indexAuthority = projectAuthority(index);
+	if (indexAuthority.schemaFamily !== authority.schemaFamily
+		|| indexAuthority.schemaVersion !== authority.schemaVersion
+		|| indexAuthority.projectId !== authority.projectId
 		|| indexAuthority.projectRevision !== authority.projectRevision) {
 		throw new Error('Semantic index disagrees with authenticated project revision authority.');
 	}
@@ -208,6 +220,10 @@ function hasRows(index: unknown, provider: 'transcript' | 'visual' | 'ocr'): boo
 }
 
 function projectAuthority(value: unknown): AssistanceSemanticSearchProjectAuthorityV1 {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Semantic-search project authority requires a current project schema.');
+	}
 	if (!value || typeof value !== 'object') {
 		throw new TypeError('Semantic-search project authority is invalid.');
 	}
@@ -216,14 +232,16 @@ function projectAuthority(value: unknown): AssistanceSemanticSearchProjectAuthor
 		|| !Number.isSafeInteger(row.projectRevision) || Number(row.projectRevision) < 0) {
 		throw new TypeError('Semantic-search project authority is invalid.');
 	}
-	return Object.freeze({ projectId: row.projectId, projectRevision: Number(row.projectRevision) });
+	return Object.freeze({ schemaFamily: identity.schemaFamily, schemaVersion: PROJECT_SCHEMA_VERSION,
+		projectId: row.projectId, projectRevision: Number(row.projectRevision) });
 }
 
 function assertSessionAuthority(
 	session: AssistanceSemanticSearchSession,
 	authority: AssistanceSemanticSearchProjectAuthorityV1,
 ): void {
-	if (session.projectId !== authority.projectId
+	if (session.schemaFamily !== authority.schemaFamily || session.schemaVersion !== authority.schemaVersion
+		|| session.projectId !== authority.projectId
 		|| session.projectRevision !== authority.projectRevision) {
 		throw new Error('Main semantic-search session disagrees with current project authority.');
 	}
@@ -234,6 +252,7 @@ function sameSession(
 	right: AssistanceSemanticSearchSession,
 ): boolean {
 	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
+		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
 		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
 		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
 }

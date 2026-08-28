@@ -293,6 +293,7 @@ function validReopenResult(plan) {
 		token: plan.token,
 		project: plan.project,
 		sharedProject: {
+			schemaFamily: 'soundscaper',
 			schemaVersion: SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 			revision: plan.project.revision,
 			sourceCount: 1,

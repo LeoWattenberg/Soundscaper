@@ -2,10 +2,9 @@
 
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import {
-	FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION,
-	isFramescaperVideoCompositionProjectSchema,
-	isTimelineAnnotationProjectSchema,
-} from '../project-schema-version.ts';
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	isCurrentProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 import type { RuntimeClipProject } from '../runtime-clip-projection.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -70,7 +69,10 @@ export interface FramescaperEditControlMenuItems {
 export function createFramescaperEditControlMenuModel(
 	input: FramescaperEditControlMenuInput,
 ): Readonly<FramescaperEditControlMenuModel> {
-	if (input.productId !== 'framescaper') return Object.freeze({ link: null, visibility: null });
+	if (input.productId !== 'framescaper'
+		|| !isCurrentProjectSchemaIdentity(input.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY)) {
+		return Object.freeze({ link: null, visibility: null });
+	}
 	const persistedProject = record(input.project);
 	let project: DataRecord | null = null;
 	try {
@@ -99,19 +101,7 @@ export function createFramescaperEditControlMenuModel(
 }
 
 function projectForLinkedControls(project: DataRecord): DataRecord {
-	if (!isFramescaperVideoCompositionProjectSchema(project.schemaVersion)) {
-		return projectForRuntimeConsumers(project as RuntimeClipProject) as unknown as DataRecord;
-	}
-	if (!Array.isArray(project.timelineAnnotations)
-		|| (project.schemaVersion !== FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION
-			&& project.timelineAnnotations.length !== 0)) {
-		throw new TypeError('Framescaper composition project has an unsupported timeline annotation carrier.');
-	}
-	const projectionInput = { ...project };
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {
-		delete projectionInput.timelineAnnotations;
-	}
-	return projectForRuntimeConsumers(projectionInput as RuntimeClipProject) as unknown as DataRecord;
+	return projectForRuntimeConsumers(project as RuntimeClipProject) as unknown as DataRecord;
 }
 
 /** Bind the derived state to the already-owned controller actions. */

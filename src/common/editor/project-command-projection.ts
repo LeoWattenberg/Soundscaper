@@ -155,10 +155,10 @@ export function reconcileProjectCommandResult(draft: DataRecord, persistedBase: 
 	draft.projectBin = bin;
 	conformLabels(draft, persistedBase, tempoMap, sampleRate);
 	reconcileSequenceTracks(draft, sequences, primarySequenceId);
-	if (isTrackFolderProjectSchema(draft.schemaVersion)) {
+	if (isTrackFolderProjectSchema(draft)) {
 		reconcileV12TrackHierarchy(draft, persistedBase, sequences);
 	}
-	if (isTimelineAnnotationProjectSchema(draft.schemaVersion)) reconcileTimelineAnnotations(draft);
+	if (isTimelineAnnotationProjectSchema(draft)) reconcileTimelineAnnotations(draft);
 	delete draft.runtimeProjectionVersion;
 	delete draft[LEGACY_TRACK_STRUCTURE_EDIT];
 	delete draft[FOLDER_AWARE_TRACK_STRUCTURE_EDIT];

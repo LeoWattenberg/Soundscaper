@@ -13,6 +13,8 @@ const NOW = 1_800_000_000_000;
 const SESSION = Object.freeze({
 	sessionVersion: 1,
 	sessionId: 'a'.repeat(40),
+	schemaFamily: 'framescaper' as const,
+	schemaVersion: 1 as const,
 	projectId: 'project-1',
 	projectRevision: 7,
 	expiresAtEpochMs: NOW + 60_000,
@@ -31,6 +33,8 @@ const visualMatrix = () => createAssistanceEmbeddingMatrixV1({
 function index() {
 	return {
 		indexVersion: 1 as const,
+		schemaFamily: 'framescaper' as const,
+		schemaVersion: 1 as const,
 		projectId: 'project-1',
 		projectRevision: 7,
 		transcript: {

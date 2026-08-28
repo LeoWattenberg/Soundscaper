@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolveVideoExportCanvas } from '../../video-export.js';
-import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	isCurrentProjectSchemaIdentity,
+} from '../../project-schema-identity.ts';
 import { createVideoKeyframeRenderStateProvider } from '../../video-keyframe-render-state-provider.ts';
 import {
 	isVideoKeyframePreviewFailureCurrent,
@@ -34,7 +37,7 @@ import {
 	shouldHideVideoPreviewIdentityFallback,
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
-import { bindFramescaperV27PreviewFreezeCapture } from './video-preview-freeze-capture.ts';
+import { bindFramescaperPreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
 import {
 	VideoPreviewOpenFxStatus,
@@ -280,7 +283,9 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			updateOpenFxIssue(openFxDispositions, reportsOpenFxDegradation);
 			const freezeProject = freezeCaptureProjectRef.current;
 			if (report.status !== 'fallback'
-				&& isSelectedFramescaperProjectSchema(freezeProject?.schemaVersion)) {
+				&& isCurrentProjectSchemaIdentity(
+					freezeProject, FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+				)) {
 				freezeEvaluatedFrameRef.current = {
 					projectId: freezeProject.id,
 					projectRevision: freezeProject.revision,
@@ -410,10 +415,12 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		};
 	}, [requestPreviewFrame, updateCompositorState, updateRenderIssue]);
 	useEffect(() => {
-		if (!isSelectedFramescaperProjectSchema(canonicalProject?.schemaVersion)) return undefined;
+		if (!isCurrentProjectSchemaIdentity(
+			canonicalProject, FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		)) return undefined;
 		let disposed = false;
 		let release = () => {};
-		void bindFramescaperV27PreviewFreezeCapture({
+		void bindFramescaperPreviewFreezeCapture({
 			owner: controller,
 			projectRef: freezeCaptureProjectRef,
 			evaluatedRef: freezeEvaluatedFrameRef,
@@ -423,7 +430,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 			else release = boundRelease;
 		});
 		return () => { disposed = true; release(); };
-	}, [canonicalProject?.schemaVersion, controller]);
+	}, [canonicalProject, controller]);
 	useEffect(() => {
 		if (compositorRef.current || compositorStateRef.current !== 'fallback') return;
 		updateRenderIssue(createVideoPreviewCompositorFallbackReport(

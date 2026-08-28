@@ -106,7 +106,7 @@ test('permission inventory, device changes, source settings and preview resource
 			async findRecovery() { return null; },
 		},
 		captureOrigin: () => ({
-			projectFence: { projectId: 'project-a', baseRevision: 0, baseSha256: SHA },
+			projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 0, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 0, destination: 'both' },
 		}),
 		createRecorder: () => { throw new Error('not reached'); },
@@ -486,7 +486,7 @@ function serviceHarness(options: Readonly<{
 		},
 		authorizeUserAction: (generation) => { events.push(`authorize:${String(generation)}`); },
 		captureOrigin: () => ({
-			projectFence: { projectId: options.currentProjectId ?? 'project-a', baseRevision: 4, baseSha256: SHA },
+			projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: options.currentProjectId ?? 'project-a', baseRevision: 4, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 2_000_000, destination: 'both' },
 		}),
 		originGuard: origin,
@@ -566,7 +566,10 @@ function recoverySession(projectId = 'project-a') {
 		sessionId: 'recovery-session',
 		sources: [{ streamId: 'display-stream', sourceId: 'display-source', role: 'display' as const }],
 		destination: 'timeline' as const,
-		projectFence: { projectId, baseRevision: 4, baseSha256: SHA },
+		projectFence: {
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			projectId, baseRevision: 4, baseSha256: SHA,
+		},
 		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 2_000_000, destination: 'timeline' as const },
 	};
 }

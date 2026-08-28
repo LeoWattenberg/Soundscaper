@@ -134,3 +134,28 @@ test('shared V11 projection resolves annotations in document order and brands th
 		/resolved timeline annotations/iu,
 	);
 });
+
+test('timeline annotation projection follows explicit capability for a family-qualified v1 project', () => {
+	const foundation = createCurrentAudioEditorProject({
+		now: '2026-08-28T00:00:00.000Z',
+		timelineAnnotations: [{
+			id: 'v1-marker', sequenceId: 'main-sequence', name: 'V1 marker', color: 'auto', batchId: null,
+			opaqueExtensions: {}, kind: 'marker', anchor: 'sample', positionFrame: 24_000,
+		}],
+	});
+	const project = Object.freeze({
+		...foundation,
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
+	});
+	const projected = resolveRuntimeProjectProjection(project);
+
+	assert.equal(isRuntimeProjectProjection(projected), true);
+	assert.equal(projected.schemaFamily, 'framescaper');
+	assert.equal(projected.schemaVersion, 1);
+	assert.deepEqual(projected.timelineAnnotations?.map((annotation) => ({
+		id: annotation.id,
+		start: annotation.timelineStartFrame,
+		domain: annotation.coordinateDomain,
+	})), [{ id: 'v1-marker', start: 24_000, domain: 'resolved-samples' }]);
+});

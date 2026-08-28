@@ -6,12 +6,40 @@ Its statuses distinguish behavior enforced today from outcomes owned by later
 roadmap milestones. A planned row is a release requirement, not permission to
 discard state until that row is implemented.
 
+## 1.0 family baselines
+
+The approved [`WP-9.0.0` decision](wp-9.0.0-baseline-decision.md) freezes two
+independent project identities for `1.0.0-rc.1`:
+
+- `{ schemaFamily: 'soundscaper', schemaVersion: 1 }`
+- `{ schemaFamily: 'framescaper', schemaVersion: 1 }`
+
+There is no persisted common family and no supported pre-release source. The
+identity reader accepts only own enumerable data properties and a positive
+safe-integer `schemaVersion`; it does not invoke accessors. Numeric-only
+documents raise the shared typed `REIMPORT_REQUIRED` error. Unknown families,
+malformed identities, accessors, and archive manifest/root disagreement reject
+before project traversal, asset reads, or persistence.
+
+An owning product opens its exact family v1 writable. The other known family,
+or a later version of the owning family, receives opaque read-only custody
+without domain traversal. When that custody came from an archive, Save Copy
+publishes the retained bytes exactly. It never normalizes, repacks, overwrites,
+or grants native feature authority.
+
+Both v1 stores are fresh. The candidate never opens, enumerates, migrates,
+mutates, or deletes a pre-release browser database, desktop library, or
+project-coupled native store. Future supported schemas must migrate from v1 of
+their own family; the RC line may not take another clean schema or storage
+break. Stable 1.0 remains blocked on the outstanding Milestone 9 evidence.
+
 The milestone-2 closure inventory names nine media-relationship IDs; each maps
 to one documented relationship here. `owned-canonical-pcm` and
-`owned-retained-video` are the managed mixed-media handoff bodies of the shared
-desktop persistence section. `linked-pcm` and `linked-retained-video` are the
-linked originals of that same section; both convert to recipient-owned media on
-handoff by design, and only linked PCM has a portable-archive route.
+`owned-retained-video` are the managed mixed-media bodies of each product's
+owning-family desktop library. `linked-pcm` and `linked-retained-video` are the
+linked originals of that same product-owned section; both convert to
+recipient-owned media on a same-family handoff, and only linked PCM has a
+portable-archive route.
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`, and
 `video-clip-render-v1` are the closed rendered-fallback roles of the project
 feature-requirements section. `disposable-preview-nonportable` is the
@@ -22,30 +50,55 @@ disposable video preview relationship.
 The core project loader and the portable archive are separate compatibility
 boundaries.
 
-- A raw project object whose `schemaVersion` is newer than the maintained
-  version is structured-cloned and returned read-only with reason
-  `newer-schema`. It is not normalized through the current schema.
-- A format-1 archive carrying a project schema greater than 17 opens read-only
-  without graph interpretation: the importer returns the unmutated document
-  before collision or source-identity rewriting, asset extraction, or store
-  publication, and the retained original archive saves as an exact byte copy
-  through the maintained save-copy action, so IDs, storage keys, binary state,
-  and unknown entries survive byte-identically. Editing and repacking remain
-  refused.
-- A future `.scape` `formatVersion` is rejected before project persistence.
-  Container-version support is never inferred from the inner project version.
-- Current-format exact schema 17 `.scape` round trips promise JSON-semantic
-  equality plus byte-exact preservation for the supported bounded tagged binary
-  types described below. They do not promise byte-for-byte `project.json`
-  equality, ZIP entry ordering, timestamps, or JSON formatting.
+- A raw project is routed by `(schemaFamily, schemaVersion)`, never a bare
+  number or file suffix.
+- A format-1 manifest repeats both identity fields in its project descriptor.
+  The descriptor and root document must agree before any asset read.
+- Current-family v1 archives use one format-1 body model containing the proxy,
+  timing, attachment, image, assistance, plug-in, and media behavior formerly
+  exercised by the pre-release format-2 implementation.
+- Family-less format 1 and every pre-release format 2 archive require re-import.
+  A future container format rejects before persistence.
+- A known foreign-family or future-version format-1 archive opens as opaque
+  read-only custody and retains the original archive for byte-exact Save Copy.
+- Current-family v1 round trips promise JSON-semantic equality plus byte-exact
+  preservation for supported bounded tagged binary values. They do not promise
+  byte-for-byte `project.json` equality, ZIP entry ordering, timestamps, or JSON
+  formatting.
 
-Read-only means that commands, autosave, overwrite, and migration publication
-must remain disabled. A future document may be inspected or exported unchanged
-only through a path proven not to normalize it. “Save a copy” may not silently
-turn an unknown schema into the current schema.
+Read-only means commands, autosave, overwrite, migration publication, feature
+activation, and native authority remain disabled. Save Copy may not silently
+turn a foreign or future identity into the current identity.
+
+The manifest advertises `scapeFormatVersions: [1]` and
+`attachedScapeFormatVersion: 1`. Independently versioned clipboard, render,
+native, helper, OpenFX, assistance, and public `*Desktop.v1` protocols keep
+their own versions.
+
+Managed desktop acquisition, fallback-body admission, and feature-compatibility
+projection operate only after the owning family-v1 identity has been admitted.
+Their fresh-recipient and reopen witnesses are same-family workflows. A
+Soundscaper project presented to Framescaper, or a Framescaper project presented
+to Soundscaper, never takes those semantic paths. A foreign-family archive never
+enters those domain controls: it remains opaque read-only custody and may only
+retain archive bytes for byte-exact Save Copy.
+
+The direct Soundscaper and Framescaper family-v1 libraries preserve catalog,
+body publication, list, duplicate, delete, lease, recovery, and plug-in state
+within their own family. Managed-media, linked-original, and rendered-fallback
+witnesses therefore transfer or reopen only between stores owned by the same
+family. The retired cross-family packaged handoff fixtures grant no current
+compatibility or release authority. Source-level and portable-open evidence
+qualifies the four frozen rendered-fallback relationships; packaged activation,
+transport playback, and final delivery remain unqualified.
+
+Version-bearing S21–S30, F18–F32, shared-schema, desktop-library, and format-2
+descriptions below are retained as implementation provenance. Their feature
+and safety mechanics are folded into the family-v1 baseline, but their old
+project, store, migration, and package identities are not supported.
 
 One narrow linked-PCM portable-archive exception applies only to the
-current-format exact schema 17 path. Under the 512 MiB linked-original ceiling,
+format-1 exact owning-family-v1 path. Under the 512 MiB linked-original ceiling,
 a sender may be backed by a maintained RIFF/RF64 PCM or IEEE-float WAV, a
 first-party BW64 integer-PCM `.wav`, or classic FORM/AIFF signed big-endian
 integer PCM at 8, 16, 24, or 32 bits, or canonical first-party FORM/AIFC v1
@@ -96,9 +149,9 @@ roadmap-only Lightscaper reserves `.liscape`. Every product accepts all three
 plus the legacy `.scape`, case-insensitively, so a project archive is never
 refused for carrying the suffix another product gave it.
 
-- A suffix is a routing hint only. Manifest, schema, capability, and digest
-  validation remain the authority on what a file is, and a disguised terminal
-  name such as `mix.sscape.zip` is not a project.
+- A suffix is a routing hint only. The manifest/root family-and-version tuple,
+  archive format, capability, and digest validation remain authoritative, and a
+  disguised terminal name such as `mix.sscape.zip` is not a project.
 - Saving replaces any recognized project suffix with the active product's and
   otherwise appends it, so a Soundscaper `Mix.sscape` saved from Framescaper
   becomes `Mix.fscape`. A retained future-schema archive is renamed the same
@@ -109,234 +162,110 @@ refused for carrying the suffix another product gave it.
 - Every accepted suffix takes the 65 GiB `scape-range-v1` desktop read profile;
   none falls back to bounded materialization.
 
-The archive itself is unchanged. The shared Scape schema, the
-`application/vnd.soundscaper.scape+zip` media type, the `scape-project` format,
-the `scape-range-v1` profile, and the `.scapefx` plug-in suffix all keep their
-existing values, and no migration or format-version bump is involved. Legacy
-`.scape` opening has no sunset; production code simply never emits it.
+The archive is now the family-qualified format-1 baseline. The
+`application/vnd.soundscaper.scape+zip` media type, `scape-project` format,
+`scape-range-v1` profile, and `.scapefx` plug-in suffix retain their independent
+values. Legacy `.scape` remains a routing suffix; it does not make a family-less
+archive readable.
 
-## Framescaper F31 product isolation
+## Family-v1 product isolation
 
 <!-- policy-narrative:framescaper-v18-product-isolation -->
-The maintained Framescaper bootstrap authenticates selected exact F31 before
-constructing its project environment on browser and packaged desktop routes. F31
-owns create, clone, validation, commands, one-step history, session, Clipboard
-V12, repository, playback, compatibility, Scape custody, product-isolated
-storage and assistance-asset custody while delegating its inherited
-retime/proxy, dissolve, visual, editorial, finishing, professional-source,
-OpenFX and unified exact V14 render behavior through an immutable exact V28
-foundation. Packaged desktop authenticates library V20, SQLite user_version 22,
-scope v20, and the schema-31 renderer behind the unchanged public
-framescaperDesktop.v1 bridge. When V20 is absent, first open treats a settled
-V19 store as its immutable direct source, opens it read-only, authenticates
-exact V28 documents, explicitly reimports them into F31, copies every referenced
-managed body byte-for-byte through durable cursor checkpoints, resumes
-idempotently after interruption, and never rewrites or deletes V19 or its
-inherited V18, V17 and V12 lineages, leases, or journals. V20 through V24
-require their historical reimport route before V27-to-V28 and V28-to-F31
-reimport; V25 and V26 remain descriptor-snapshotted opaque read-only custody
-with no candidate validation dispatch, and unowned V29/V30 remain opaque
-read-only. Soundscaper separately authenticates exact project S30 and desktop
-library V11, inherits its established project behavior through exact S29, and
-treats Framescaper schemas as read-only. Cross-product preservation never grants
-edit, activation, migration, native feature authority, shared catalog authority,
-or release qualification.
+Soundscaper selects { schemaFamily: 'soundscaper', schemaVersion: 1 } and
+Framescaper selects { schemaFamily: 'framescaper', schemaVersion: 1 }. Their
+direct unversioned bootstraps, controllers, domains, stores, and desktop
+libraries retain the complete frozen behavior without importing predecessor
+product generations. Fresh v1 stores have no migration or copy-forward path and
+never open, enumerate, mutate, or delete pre-release stores. A known other
+family or later family version receives opaque read-only custody; malformed and
+unknown identities reject before traversal.
 <!-- /policy-narrative:framescaper-v18-product-isolation -->
 
 ## Current local-assistance transcript custody
 
 <!-- policy-narrative:current-local-assistance-transcript-custody -->
-Selected Soundscaper S30 and Framescaper F31 own the closed assistanceAssets
-collection, org.soundscaper.capability.assistance-assets, and the additive
-AssistanceWorkflow v1 bridge while preserving operation-v1 consumers. Analyze ->
-Local Assistance exposes thirteen Guided recipes and an opt-in Advanced view of
-the existing fifteen primitives; Tools -> Local Models -> Manage Models remains
-the only installation surface, and no browser route runs inference. One
-main-owned consent authority binds the exact selection, permitted stage graph,
-model artifacts, slotted inputs and outputs, settings and recipe versions,
-linked occurrences, source ranges, timing and retime authority, and transcript
-body in an aggregate fence that is revalidated before disposable publication and
-again before acceptance. Existing catalog-authenticated Parakeet, Silero VAD,
-Pyannote-plus-ERes2Net diarization through Sherpa, deterministic cleanup, and
-model-free admitted external-FFmpeg fast shots remain executable. Conditional
-isolated workers and owned deterministic stages implement Whisper with
-English-only wav2vec2 alignment, DeepFilterNet enhancement, TIGER D/M/E
-separation, PANNs reactions, Beat This beats and held-tempo proposals,
-TransNetV2 accurate shots, nomic transcript search, SigLIP and PP-OCR visual
-search, YuNet/D-FINE/ByteTrack/U2-Net reframe, deterministic highlight ranking,
-and bounded grammar-constrained Qwen editorial text. Missing model, runtime,
-platform, conversion, or catalog authority returns typed unavailability without
-implicit installation, upstream fetch, substitution, fabricated output, or
-canonical mutation. Adapter-owned preparation retains exact channel and
-sample-rate geometry, bounded long-media chunks stay under one whole-selection
-fence, and strict semantic reviewers reject malformed, oversized, nonfinite,
-unordered, corrupt, stale, or wrong-role results. Project-isolated disposable
-custody holds embeddings, OCR and tags, shot tables, saliency and tracker state,
-accepted reframe evidence, and ranking checkpoints without changing .scape.
-Explicit review starts proposals unselected and publishes through ordinary
-one-step commands: transcript and caption replacement, link-aware cleanup,
-anonymous speakers, derived enhancement or D/M/E media, reactions, beats and
-representable tempo, shot annotations, crop and keyframes, and editable
-highlight sequences. Unaccepted indexes and raw Qwen output never become project
-state; accepted editorial fields are bounded inert text only. Transcript bodies
-retain digest-bound .scape custody and AUP4 reports their omission explicitly.
-Web routes retain and edit accepted ordinary project state but expose neither
-model installation nor inference. Only selected S30 and F31 profiles advertise
-the maintained workflow and acceptance commands; generic and historical profiles
-gain no authority. The converted TIGER, PANNs, Beat This, and TransNetV2
-artifacts and live parity, externally signed catalog entries, all five ONNX
-Runtime/whisper.cpp/llama.cpp target payload closures, Windows-arm64 Sherpa
-addon, immutable EU R2 publication and full public digest read-back, packaged
-canaries, privacy workload, and owner-lab evidence remain pending-external.
-Licensing, catalog-signature, artifact-integrity, runtime/platform,
-selected-media, storage-integrity, explicit-consent, and external-executable
-gates remain fail closed; manual and owner-lab qualification is documentary,
-nonblocking, unprovisioned, and open.
+Both family-v1 products own the closed assistanceAssets collection and
+independently versioned AssistanceWorkflow v1 bridge. Main-owned consent and
+publication fences bind the exact (schemaFamily, projectId), project revision,
+selected media, model/runtime inputs, and accepted output before ordinary
+one-step project commands publish state. Missing model, runtime, platform,
+conversion, or catalog authority returns typed unavailability. Pre-release
+numeric product schemas are not an assistance authority or custody route.
 <!-- /policy-narrative:current-local-assistance-transcript-custody -->
 
-## Framescaper V22–V30 compatibility and custody
+## Family-v1 foreign and future custody
 
 <!-- policy-narrative:framescaper-v22-v26-compatibility-custody -->
-Selected F31 explicitly reimports exact V28 documents through the
-generation-owned validator and constructs new F31 authority; it never edits or
-silently upgrades the source document. Historical V28 in turn owns the explicit
-V27 reimport foundation. V22, V23 and V24 remain opaque custody at the direct
-F31 boundary. V25 and V26 are recognized descriptor-snapshotted opaque read-only
-custody: selected F31 does not dispatch their candidate validators, migrate,
-author, save, overwrite, activate, or infer native-media or OpenFX authority
-from them. V29 and V30 are unowned opaque read-only versions with no migration
-or authoring route. Dormant candidate repositories remain exact-write only under
-authenticated historical profiles. F31 delegates native-source and OpenFX
-behavior through its immutable exact V28 foundation, but unavailable runtime
-requirements remain visible, preserved and default-off; custody grants no
-payload, third-party code, native execution, qualification, release, or
-activation claim. Soundscaper and cross-product handoff may retain state
-read-only but never acquire edit or migration authority.
+Identity routing uses the (schemaFamily, schemaVersion) tuple. The selected
+product validates only its own family v1 as writable and does not dispatch a
+foreign domain validator. Known foreign-family and future-version archives
+retain their original byte authority for Save Copy. Pre-release Soundscaper and
+Framescaper generations are provenance only: they are never validated, migrated,
+opened, or used to activate native capabilities.
 <!-- /policy-narrative:framescaper-v22-v26-compatibility-custody -->
 
-## Framescaper V18 nested-sequence compatibility
+## Framescaper v1 nested-sequence compatibility
 
 <!-- policy-narrative:framescaper-v18-nested-sequence-native -->
-Exact V18 requires one dense subsequences collection. Its validator proves
-stable identities, exact sequence ownership, bounded depth, cycle rejection,
-canonical aliases, positive frame ranges, and exact composed rate mappings.
-Nonempty state owns framescaper.nested-sequences for
-org.soundscaper.capability.nested-sequences with bypass and no fallback;
-Framescaper registers it native while Soundscaper registers it known
-unavailable. Framescaper exposes add, update, and remove through a lazy
-Tracks-menu subsequence menu, and its controller, commands, and history provide
-one-step undo and redo. The runtime deterministically flattens shared aliases
-into detached exact-V17 primary-sequence material, maps video and audio trims
-only when their target grids are exact, preserves mixer routes, and feeds the
-same result to playback and both rendered-fallback delivery projections. Clone,
-local persistence, desktop V10, and Scape format 1 or 2 preserve the graph. The
-session clipboard refuses a nonempty graph rather than flattening it, while
-explicit Framescaper-to-Soundscaper transfer is copy-only preservation with
-activation and editing forbidden; Soundscaper treats the V18 document as
-newer-schema read-only and cannot author the field.
+The direct Framescaper family-v1 sequence domain validates stable identities,
+ownership, bounded depth, cycles, aliases, ranges, and exact rate maps. Lazy
+menu actions route through one-step history, and the runtime deterministically
+flattens nested material for playback and delivery. The family-v1 format-1
+archive and fresh browser/desktop stores preserve the graph; Soundscaper family
+v1 receives only opaque foreign-family custody rather than feature activation.
 <!-- /policy-narrative:framescaper-v18-nested-sequence-native -->
 
-## Framescaper V18 multicamera compatibility
+## Framescaper v1 multicamera compatibility
 
 <!-- policy-narrative:framescaper-v18-multicamera-native -->
-Exact V18 requires one dense multicameraGroups collection. Each closed group
-binds the project, one sequence, one unretimed output video clip and track, at
-least two canonical video-source members, a stable active member, and signed
-safe-integer sample-canonical sync offsets; duplicate output ownership,
-unsupported automatic sync, retime, stale revisions, and stale active-member
-fences reject. Nonempty state owns framescaper.multicamera for
-org.soundscaper.capability.multicamera with bypass and no fallback; Framescaper
-registers it native while Soundscaper registers it known unavailable. Create,
-update, switch, nudge, and remove are reachable through the lazy Tracks-menu
-multicamera submenu and route through controller history. Runtime selection
-keeps the persisted output placement fixed and substitutes only the active
-canonical original source. Exact CFR source boundaries are admitted directly;
-verified timing evidence is mandatory for VFR, and even verified VFR refuses a
-mapped time between exact presentation boundaries. Multicamera materialization
-composes before nested flattening and feeds the same projection to playback and
-both rendered-fallback delivery paths. Clone, history, local persistence, Scape,
-and explicit copy-only cross-product preservation retain the groups; the session
-clipboard refuses them rather than losing their ownership graph. Automatic sync
-detection and proxy-source selection are not implemented.
+The direct Framescaper family-v1 sequence domain validates closed multicamera
+groups, canonical members, stable active selection, source timing, and
+synchronization bounds. Menu-reached actions use one-step history, and runtime
+selection composes before nested flattening. Family-v1 storage and format-1
+Scape preserve the groups; Soundscaper family v1 receives opaque foreign-family
+custody and no multicamera authority.
 <!-- /policy-narrative:framescaper-v18-multicamera-native -->
 
-## Framescaper V18 video-proxy preservation
+## Framescaper v1 video-proxy preservation
 
 <!-- policy-narrative:framescaper-v18-video-proxy-preservation -->
-Exact V18 validates one nullable proxyAttachment on every video source and
-reconciles nonnull state to the owned framescaper.video-proxy requirement, which
-Framescaper provides, so an attached document opens writable and its edits carry
-or drop the attachment only while its source claim remains true. Claim-bound
-repository publication, retention, startup maintenance, cleanup tombstones,
-archive format 2, and the selected F31 body graph preserve each exact
-proxy/timing pair while ordinary save cannot introduce or change a pointer. New
-body publication writes the media row, durable unverified claim root, and
-completed write lease in one transaction before bounded verification, preventing
-an unrooted-body gap. Scape format 2 validates and stages canonical originals
-plus proxy and timing bodies, while format 1 remains available only for
-attachment-free V18. Desktop library V20 transfers exact bounded chunks through
-its Framescaper/schema-31 handshake and reconciles the exact F31 shadow;
-immutable V19/schema-28 remains its direct import source. Re-attestation
-rehashes the bounded proxy and timing bodies, validates the timing reference and
-summary, binds an ephemeral timing view, reruns exact conformance against the
-current original, and mints process-local preview-only trust. Selected F31
-delegates generation, attach, detach, relink, regenerate, and Original, Proxy,
-or Auto selection through its exact V28 foundation to the lazy menu dialog. Its
-scheduler reports bounded progress and cancellation; publication proves
-candidates before stale-safe atomic history swaps. Before replacement or a
-changed-original relink invalidates an attachment, it durably journals the exact
-content-addressed proxy and timing body cleanup. Recovery resumes idempotently
-after interruption, preserves a body still rooted by the current project, and
-removes obsolete claims and bodies after successful regeneration or relink; a
-failed regeneration cancels cleanup after history rollback, while manual detach
-deliberately retains the body for one-step history. The maintained preview
-resolver reattests each session, adapts under pressure, and can keep editing and
-preview available from a valid proxy while the original is offline. Proxy
-selection occurs in the source domain before occurrence retime. Browser export,
-the V14 evaluated-RGBA carrier producer, and final delivery never select proxy
-pictures and visibly refuse without an authenticated original. Desktop library
-V20 delete and duplicate use the inherited main-first exact catalog
-compare-and-swap core with alias-aware local-shadow reconciliation. Duplicate
-retains the exact proxy and timing bodies through the F31 shadow. Delete
-tombstones only catalog ownership and retains immutable revisions and bodies;
-there is no physical reclamation, and it never reuses a project ID. Durable
-delete intents resume exact local shadow and binding-row reconciliation after
-restart. They do not durably capture pre-delete locator references: abrupt
-process death before the outer linked-original drain can leave main-private
-locator metadata for later cleanup, external files are never deleted, and crash-
-or power-loss locator release remains unqualified. The maintained package
-artifact smoke remains source-free and does not qualify packaged delete or
-duplicate.
+Framescaper family v1 validates proxy attachments and exact proxy/timing body
+pairs through direct unversioned modules. Generation, attach, detach, relink,
+regenerate, progress, cancellation, recovery, claim cleanup, and
+Original/Proxy/Auto preview selection are menu-reached and stale-safe. Proxy
+selection occurs in the source domain before occurrence retime; browser export,
+the independent V14 native carrier, and final delivery remain
+original-authoritative. The family-v1 desktop library and Scape format 1
+preserve every current body kind; pre-release format 2 requires re-import.
 <!-- /policy-narrative:framescaper-v18-video-proxy-preservation -->
 
 ## Timeline annotation compatibility
 
 <!-- policy-narrative:timeline-annotation-capability -->
-Non-empty schema 17 timelineAnnotations state reconciles one reserved
+Non-empty family v1 timelineAnnotations state reconciles one reserved
 soundscaper.timeline-annotations requirement for
 org.soundscaper.capability.timeline-annotations with disposition bypass and no
-fallback. Soundscaper and the selected Framescaper F31 profile register the
+fallback. Soundscaper and the Framescaper family v1 profile register the
 capability available, so current compatibility evaluation reports
 available/native and the shared capability-gated command, controller, pointer
 and keyboard UI, ripple-edit, clipboard, AUP/AUP4 label, and RIFF cue paths
-author and preserve canonical markers and positive regions. F31 reviewed shot
-acceptance also revalidates exact source and selection authority before
-replacing only its owned in-selection markers through the ordinary annotation
-command path. Historical Framescaper F18 through F28 profiles keep the
-capability known but unavailable, so their owned documents retain
-unavailable/bypassed preservation rather than acquiring native authority. The
-capability remains excluded from both audio and video rendered-fallback sets,
-and publisher-authored audio or video rendered fallback for it rejects.
-Exact-V17 clone, validation, runtime projection, atomic command reconciliation,
-current-format `.scape` persistence, and maintained desktop handoff preserve
-authoritative annotation coordinates, order, selection, stable IDs, batch
-identity, and opaque extensions within their tested interchange limits. Audacity
-export reports losses that its label model cannot represent; RIFF export clips
-or omits annotations at the selected media range and reports stable-ID, batch,
-anchor, color, and opaque-extension loss. This rule claims no annotation
-contribution to playback rendering, audio or video fallback, or semantic
-preservation beyond the tested current-schema and interchange paths, and pending
-manual qualification does not disable this bounded native path.
+author and preserve canonical markers and positive regions. Framescaper family
+v1 reviewed shot acceptance also revalidates exact source and selection
+authority before replacing only its owned in-selection markers through the
+ordinary annotation command path. Pre-release Framescaper profiles are
+provenance only and provide no family-v1 capability authority. The capability
+remains excluded from both audio and video rendered-fallback sets, and
+publisher-authored audio or video rendered fallback for it rejects. Exact
+owning-family v1 clone, validation, runtime projection, atomic command
+reconciliation, current-format `.scape` persistence, and maintained desktop
+handoff preserve authoritative annotation coordinates, order, selection, stable
+IDs, batch identity, and opaque extensions within their tested interchange
+limits. Audacity export reports losses that its label model cannot represent;
+RIFF export clips or omits annotations at the selected media range and reports
+stable-ID, batch, anchor, color, and opaque-extension loss. This rule claims no
+annotation contribution to playback rendering, audio or video fallback, or
+semantic preservation beyond the tested current-schema and interchange paths,
+and pending manual qualification does not disable this bounded native path.
 <!-- /policy-narrative:timeline-annotation-capability -->
 
 ## Nested track folder compatibility
@@ -372,7 +301,7 @@ commands, clipboard behavior, and native UI are outside this slice.
 ## Probed source characteristics
 
 <!-- policy-narrative:source-characteristics-capability -->
-Every schema 17 video source carries a characteristics record stating what an
+Every family v1 video source carries a characteristics record stating what an
 ingest probe reported: the reporting backend, coded frame size, rotation, pixel
 aspect ratio, field order, alpha, video codec, colour primaries, transfer,
 matrix and range, the bounded audio stream inventory with the stream ingest
@@ -399,7 +328,10 @@ re-import upgrade of an already-imported source and no probe evidence beyond the
 executed browser and Electron matrix.
 <!-- /policy-narrative:source-characteristics-capability -->
 
-## Pre-release schema breaks
+## Historical pre-release schema policy
+
+The following paragraphs record the policy that applied before the WP-9.0.0
+freeze. They are not readers or migration promises in the family-v1 runtime.
 
 Schema 17 is the only writable and readable raw-project schema before the first
 shipped release. Inputs from schemas 1 through 16, including historical V16
@@ -414,120 +346,83 @@ AUP, and AUP4 import are separate interchange boundaries and create current
 documents directly. Retained raw-schema migrations begin with the first shipped
 release and are governed by a separate versioned policy change.
 
-## V16 wire preservation and selected F31 web-core retime
+## Family-v1 video retime
 
-V17 preserves the closed JSON-safe V2 curve wire introduced by V16 on timeline
-and Project Bin video clips; historical raw V16 documents themselves require
-re-import. `null` is the writable default. A non-null map has 1 through 4,096
-segments and one more point, uses exact canonical number rationals and safe
-integers, spans outer frame zero through the owning `sequenceFrameCount`, stays
-inside the owning source bounds, and delegates all direction, freeze, ramp,
-endpoint, crossing, denominator, and bounded BigInt work to the exact V2 algebra
-adapter. Validation returns a deeply frozen snapshot and rejects the old V15 wire
-without guessing or migration.
-
-A non-null map forces the exact reserved `framescaper.video-retime` requirement
-for `org.soundscaper.capability.video-retime`, display name `Video retime maps`,
-disposition `bypass`, and `fallback: null`. A publisher declaration cannot
-suppress or replace it, and any reserved-ID conflict or rendered fallback
-rejects. Historical Soundscaper V17 custody keeps `videoRetime` unavailable and
-therefore retains the explicit read-only-or-cancel decision. Selected
-Framescaper F31 explicitly reimports exact V28 and delegates to the maintained
-V20 consumer through its immutable V28 foundation.
-
-F31 exposes stale-safe set, reset, constant, ramp, reverse, and freeze commands,
-each published as one history step through a menu-only lazy dialog. Inherited
-editorial moves retain the occurrence curve, while linked audio follows ordinary
-A/V-link placement without source warping (`warpMap` remains null and
-`audioWarp` remains false). Nested materialization reparameterizes an exact leaf
-curve onto the root occurrence. Program-preview random seeks and keyed browser
-MP4/WebM export plus the evaluated-RGBA V14 carrier query one authenticated
-ordinal authority for integer, NTSC, CFR, verified VFR, reverse, freeze, and
-ramp timing, so each output ordinal resolves the same source picture in every
-consumer.
-
-The menu-reached proxy lifecycle performs Original, Proxy, or Auto selection in
-the source domain before occurrence retime. It supports generation, attach,
-detach, relink, regenerate, bounded progress and cancellation, adaptive preview,
-offline editing, atomic cleanup, and original relink without making proxy timing
-authoritative. Delivery still authenticates the original and visibly refuses
-when it is unavailable. The V14 carrier likewise authenticates the original and
-never promotes proxy pictures to delivery authority.
-
-F31 clone/history, Clipboard V12, Scape custody, desktop library V20, and
-copy-only cross-product routes preserve the unchanged wire through the immutable
-V28/V14 foundation. V20 through V24 follow their historical reimport route
-before V27-to-V28 and V28-to-F31 reimport; V25/V26 and unowned V29/V30 stay
-opaque read-only custody. The native-media/OpenFX source route is complete, but
-authenticated payloads, readiness, reference-renderer, packaged-manual, codec,
-hardware, signing, lab, and release qualification remain open.
+<!-- policy-narrative:current-video-retime-baseline -->
+Framescaper family v1 validates and edits the retained closed V2
+occurrence-curve wire through direct unversioned retime modules. Constant, ramp,
+reverse, freeze, nested playback, source-domain proxy choice, browser encoding,
+and the independent V14 native carrier share one exact ordinal authority. Linked
+audio remains forward-timed, delivery remains original-authoritative, and absent
+originals visibly refuse delivery. The V2 curve and V14 carrier numbers are
+embedded protocol contracts, not project-family identities or migration sources.
+<!-- /policy-narrative:current-video-retime-baseline -->
 
 ## V17 take/comp preservation
 
 <!-- policy-narrative:take-comp-v17-preservation -->
-V17 alone adds the required root takeGroups collection. Each take group binds
-one sequence, one audio track, a positive sample range, stable lane order, takes
-to lanes and audio sources with bounded source ranges, and non-overlapping comp
-regions to available take spans. Validation enforces closed plain-data shapes,
-bounded collections, canonical ordering, globally unique take/comp identities,
-exact ownership, source bounds, group non-overlap on a track, and deeply frozen
-canonical snapshots. Nonempty state reconciles exactly one reserved
-soundscaper.take-comp requirement for org.soundscaper.capability.take-comp with
-display name Take lanes and comps, disposition bypass, and fallback null; empty
-state invents no requirement. Whenever take state exists, the reserved
-requirement refuses publisher substitution. The capability is true in
-Soundscaper and in the production capability register, so its compatibility
-report is available/native and compatible; it is false but registered in
-Framescaper, whose report is unavailable/bypassed and incompatible, so
-activation is intrinsically read-only there. It is excluded from both audio and
-video rendered-fallback eligibility sets, and publisher-authored substitution or
-rendered fallback rejects. Soundscaper composes a typed take/comp domain, group
-add, update, remove, and flatten command handlers, exact lane and take audition,
-range promotion, boundary editing, and stale-safe exact flatten publication
-behind a Tracks-menu dialog; Framescaper exposes no take/comp menu. Clipboard V4
-clips take geometry, retains take-owned source roots, and pastes an
-independently identified graph. A current-format .scape collision copy proves
-take groups as the only logical roots for exact PCM, remaps source and storage
-identities plus every take source ID, leaves recipient collisions untouched, and
-reopens the copied document and PCM exactly. A fresh desktop V9 metadata 9 and
-SQLite user_version 11 handoff proves Soundscaper opens the project writable, a
-fresh Framescaper recipient fetches the managed PCM and preserves the exact
-document intrinsically read-only, and a fresh Soundscaper recipient reopens it
-writable with no missing sources. Soundscaper's existing Record options menu
-exposes Record loop into takes only for a writable exact-schema-17 project with
-takeComp true; Framescaper exposes neither the cycle entry nor recovery UI, and
-direct start, Recover, and Discard actions enforce takeComp before controller
-mutation. A positive enabled loop with unlocked armed audio targets, one routed
-input for every target, and exactly one owning sequence per target is admitted;
-timed, punch-selection, and sound-activated recording, busy or pending recovery
-state, and a differently sized overlapping take group refuse. Selection-only
-edits synchronize the owning session while preserving dirty state and without
-autosave or compaction; cycle start then flushes the exact current project
-before capture input or durable session I/O and rechecks currentness. Each
-complete pass and an explicitly interrupted partial final pass becomes a
-separate ordered lane, take, and source; repeating the exact loop appends to the
-same group. Durable repository finalization and restart replay reopen exact
-two-lane schema-17 documents and PCM. The .scape collision-copy witness consumes
-recovered cycle output and proves exact source remapping and PCM; the fresh
-desktop Soundscaper-to-Framescaper-read-only-to-Soundscaper handoff consumes
-finalized cycle output and returns with no missing sources. The dedicated
-`durable-routed-take-cycle-capture-and-recovery` production-security control
-owns the exact resource, durability, recovery-authority, and qualification
-limits.
+family v1 alone adds the required root takeGroups collection. Each take group
+binds one sequence, one audio track, a positive sample range, stable lane order,
+takes to lanes and audio sources with bounded source ranges, and non-overlapping
+comp regions to available take spans. Validation enforces closed plain-data
+shapes, bounded collections, canonical ordering, globally unique take/comp
+identities, exact ownership, source bounds, group non-overlap on a track, and
+deeply frozen canonical snapshots. Nonempty state reconciles exactly one
+reserved soundscaper.take-comp requirement for
+org.soundscaper.capability.take-comp with display name Take lanes and comps,
+disposition bypass, and fallback null; empty state invents no requirement.
+Whenever take state exists, the reserved requirement refuses publisher
+substitution. The capability is true in Soundscaper and in the production
+capability register, so its compatibility report is available/native and
+compatible; it is false but registered in Framescaper, whose report is
+unavailable/bypassed and incompatible, so activation is intrinsically read-only
+there. It is excluded from both audio and video rendered-fallback eligibility
+sets, and publisher-authored substitution or rendered fallback rejects.
+Soundscaper composes a typed take/comp domain, group add, update, remove, and
+flatten command handlers, exact lane and take audition, range promotion,
+boundary editing, and stale-safe exact flatten publication behind a Tracks-menu
+dialog; Framescaper exposes no take/comp menu. Clipboard V4 clips take geometry,
+retains take-owned source roots, and pastes an independently identified graph. A
+current-format .scape collision copy proves take groups as the only logical
+roots for exact PCM, remaps source and storage identities plus every take source
+ID, leaves recipient collisions untouched, and reopens the copied document and
+PCM exactly. A fresh Soundscaper family-v1 desktop-library reopen proves the
+owning product retains the exact document and managed PCM writable with no
+missing sources; no foreign-family edit or shared-catalog authority is implied.
+Soundscaper's existing Record options menu exposes Record loop into takes only
+for a writable exact owning-family v1 project with takeComp true; Framescaper
+exposes neither the cycle entry nor recovery UI, and direct start, Recover, and
+Discard actions enforce takeComp before controller mutation. A positive enabled
+loop with unlocked armed audio targets, one routed input for every target, and
+exactly one owning sequence per target is admitted; timed, punch-selection, and
+sound-activated recording, busy or pending recovery state, and a differently
+sized overlapping take group refuse. Selection-only edits synchronize the owning
+session while preserving dirty state and without autosave or compaction; cycle
+start then flushes the exact current project before capture input or durable
+session I/O and rechecks currentness. Each complete pass and an explicitly
+interrupted partial final pass becomes a separate ordered lane, take, and
+source; repeating the exact loop appends to the same group. Durable repository
+finalization and restart replay reopen exact two-lane family-v1 documents and
+PCM. The .scape collision-copy witness consumes recovered cycle output and
+proves exact source remapping and PCM; the fresh Soundscaper family-v1 desktop
+reopen consumes finalized cycle output and returns with no missing sources. The
+dedicated `durable-routed-take-cycle-capture-and-recovery` production-security
+control owns the exact resource, durability, recovery-authority, and
+qualification limits.
 <!-- /policy-narrative:take-comp-v17-preservation -->
 
 ## Audio warp compatibility
 
 <!-- policy-narrative:audio-warp-capability -->
-V17 validates audio warp maps on both timeline and Project Bin audio clips. A
-map has 2 through 4,096 closed points with canonical reduced rational outer and
-source positions, strictly increasing outer and source domains, and forward mode
-only. Its outer endpoints match the resolved clip anchor extent and its source
-endpoints match the clip source extent. Sample-anchored maps use sample frames;
-musical maps require a beat extent and exact tempo authority; reversed clips
-reject. A valid Project Bin map survives project-bin/place as a distinct
-timeline clip ID with null binItemId and the same exact map, then passes V17
-validation. Nonempty state reconciles exactly one reserved
+family v1 validates audio warp maps on both timeline and Project Bin audio
+clips. A map has 2 through 4,096 closed points with canonical reduced rational
+outer and source positions, strictly increasing outer and source domains, and
+forward mode only. Its outer endpoints match the resolved clip anchor extent and
+its source endpoints match the clip source extent. Sample-anchored maps use
+sample frames; musical maps require a beat extent and exact tempo authority;
+reversed clips reject. A valid Project Bin map survives project-bin/place as a
+distinct timeline clip ID with null binItemId and the same exact map, then
+passes family v1 validation. Nonempty state reconciles exactly one reserved
 soundscaper.audio-warp requirement for org.soundscaper.capability.audio-warp
 with display name Audio warp maps, disposition bypass, and fallback null; empty
 state invents no requirement. Authored state refuses publisher substitution.
@@ -550,7 +445,7 @@ digest-to-source index exists, successful source deletion and retention pruning
 conservatively purge the whole transient payload and companion namespaces. Cache
 state never roots pruning, unrelated analysis survives, and a disposable cleanup
 fault cannot roll back or reject authoritative source deletion. That cache
-lifecycle is not a bound on the project document, and V17 has no
+lifecycle is not a bound on the project document, and family v1 has no
 transient-analysis array. Exact map algebra and its evaluator drive playback,
 waveform projection, trim, split, exact offline fallback, and export. The
 runtime never substitutes scalar output-length conversion: realtime segments
@@ -582,10 +477,31 @@ Existing selection, header, mixer, view, and track-rack controls remain usable,
 and both products expose Lock track and Unlock track through the Tracks menu.
 The lock does not imply mute, hidden, bypass, or project read-only state.
 
-## Shared desktop current-schema persistence
+## Family-v1 desktop project libraries
 
-The desktop editor has one implemented current-schema shared persistence
-envelope. A fresh filesystem library scope `v9`
+<!-- policy-narrative:family-v1-desktop-project-libraries -->
+The direct unversioned Soundscaper and Framescaper libraries authenticate {
+schemaFamily: 'soundscaper', schemaVersion: 1 } or { schemaFamily:
+'framescaper', schemaVersion: 1 } before renderer use. They use
+kw.media/soundscaper-project-library/v1 and
+kw.media/framescaper-project-library/v1, library schema 1, SQLite user_version
+1, the retained SSCP and FSCP application IDs, and disjoint
+soundscaper:v1:project-library:* and framescaper:v1:project-library:* IPC
+namespaces. Catalog summaries repeat schemaFamily and schemaVersion; each
+product refuses the other family as writable authority. Main retains the bounded
+pathless publication, immutable-body, list, duplicate, delete, lease-fencing,
+recovery, and plug-in-state mechanics behind the owning product boundary.
+Baseline tests seed every prior root and prove first start leaves those bytes
+and versions untouched. The runtime inventory stages only the direct baseline
+libraries and public *Desktop.v1 bridges; no migration or copy-forward marker
+exists.
+<!-- /policy-narrative:family-v1-desktop-project-libraries -->
+
+### Historical pre-freeze shared-library provenance
+
+The following description is provenance only; it grants no current project,
+migration, storage, IPC, or package authority. The pre-freeze desktop editor
+had one implemented shared persistence envelope. A fresh filesystem library scope `v9`
 (`kw.media/scape-project-library/v9`) uses SQLite `user_version` 11 and ignores
 rather than migrates the prior shared `v8` scope, preserving its metadata schema
 8, exact schema 16 catalog, and SQLite `user_version` 10 in place. The older
@@ -1542,37 +1458,13 @@ activation gating and legacy Soundscaper library migration remain deliberately
 separate from this slice.
 
 <!-- policy-narrative:desktop-electron-lease-protections -->
-Soundscaper V11 and selected Framescaper V20 each start one process-lifetime
-main-owned lease in a separate product scope and database, carrying a
-persistently monotonic fencing token. Startup waits out an unexpired lease left
-by a crashed owner, recovers pending prepared, materialized, or committed
-journals before authenticated renderer admission, renews the exact lease while
-the process is live, fences new admission and publication on renewal loss,
-drains admitted work, and releases only the exact lease before closing the
-database. Soundscaper V11 authenticates library generation 11, project
-generation 30, SQLite user_version 13 and scope v11; selected S30 inherits
-established project behavior through exact S29. Framescaper V20 authenticates
-library generation 20, project generation 31, SQLite user_version 22 and scope
-v20. When no V20 store exists, its idempotent first-open importer opens a
-settled V19 source read-only, authenticates exact V28 documents, explicitly
-reimports them into F31, copy-forwards managed bodies byte-for-byte through
-durable cursor checkpoints, resumes without duplication after interruption, and
-never reopens for writing, rewrites, or deletes V19 or its inherited V18, V17
-and V12 lease, lineage, or journal state. Publication compares expected metadata
-and project revisions and SHA-256, admits only a strictly higher revision, and
-passes prepared, materialized, committed, and complete journal checkpoints. The
-closed runner executes `same-project-simultaneous-open`,
-`writer-lease-transfer`, `stale-lease-takeover`, `conflicting-canonical-commit`,
-`renderer-loss-during-operation`, `orderly-process-restart`, and
-`crash-restart-recovery` for each selected product, then executes
-`cross-product-simultaneous-open` once to prove the V11 and V20 storage roots
-and fencing domains remain physically isolated. Qualification may only lower the
-shipped lease TTL and renewal interval. CI builds both unpacked products and
-emits one bounded no-retry aggregate on every maintained desktop target: Windows
-x64, Windows ARM64, macOS ARM64, Linux x64, and Linux ARM64. Automated test
-activation never waits on human qualification. All ten product/target rows
-remain pending-external milestone-9 stable 1.0 evidence; no accepted packaged
-result is checked in, so this rule and m2-electron-lease-matrix remain Partial.
+The Soundscaper and Framescaper family-v1 libraries use distinct roots, SQLite
+application IDs, user_version 1 databases, v1 IPC namespaces, and monotonic
+lease tokens. Startup recovers journals before renderer admission; renewal loss
+fences new work; shutdown drains admitted operations and releases only the exact
+owned lease. The cross-platform matrix remains partial and stable 1.0 stays
+blocked on all pending external target rows. No pre-release library is opened,
+copied forward, enumerated, mutated, or deleted.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->
@@ -2517,7 +2409,8 @@ managed handoff payloads. New video sources and maintained
 read-write `.scape` imports keep their nullable preview locators clear;
 maintained source-update commands cannot author them, desktop recipient binding
 ignores old locator values, and managed source declarations omit them. The
-nullable schema fields remain readable for old and opaque future documents.
+nullable fields remain readable within an admitted owning-family-v1 document;
+foreign and future identities stay opaque and are not traversed.
 Archive export includes only its canonical source assets, not derivative cache
 entries. After a portable-archive transfer, the recipient regenerates a preview
 bound to the exact admitted original digest, and neither transfer direction
@@ -2528,22 +2421,22 @@ separately qualified for fresh-recipient managed acquisition and activation.
 The maintained role-defined whole-project video render and one closed
 videoEffects-only clip-target render relationship are separately qualified for
 controller activation and bounded video delivery after their independent
-route-specific relationship, source, and digest admissions. Framescaper V18
-proxy attachment preservation and its isolated re-attestation primitive remain
-qualified under the product-specific rules above. Selected Framescaper F31
-retains the menu-reached proxy lifecycle after retime through its immutable V28
-foundation: generation,
+route-specific relationship, source, and digest admissions. Framescaper family
+v1 proxy attachment preservation and its isolated re-attestation primitive
+remain qualified under the product-specific rules above. Framescaper family v1
+retains the menu-reached proxy lifecycle after retime through its direct
+unversioned Framescaper baseline domain: generation,
 attach/detach, Original/Proxy/Auto preview selection,
 adaptive preview, offline editing, cancellation, relink/regenerate, atomic
-cleanup, and original relink. Those F31 consumer relationships remain resource-
+cleanup, and original relink. Those family-v1 consumer relationships remain resource-
 and externally unqualified and grant no delivery or native-runtime authority;
 browser export, the V14 carrier producer, and delivery stay
 original-authoritative and refuse when the original is unavailable.
 
 Posters and thumbnails are not editorial proxies. They provide no relink,
 watch, freeze, export, decoder-isolation, browser-heap, or process-RSS guarantee;
-they are unrelated to the preserved V18 proxy attachment or the selected F31
-editorial-proxy lifecycle and do not satisfy that lifecycle's still-open
+they are unrelated to the family-v1 proxy attachment or editorial-proxy
+lifecycle and do not satisfy that lifecycle's still-open
 resource, decoder-memory, or external qualification.
 
 ## Freeze and proxy fallback

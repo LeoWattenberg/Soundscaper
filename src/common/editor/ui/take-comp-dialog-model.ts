@@ -72,7 +72,7 @@ export function readTakeCompNumberEntry(text: string): Readonly<TakeCompNumberEn
 export function createTakeCompDialogModel(input: TakeCompDialogModelInput): Readonly<TakeCompDialogModel> {
 	if (input.productId !== 'soundscaper') return emptyModel();
 	const project = dataRecord(input.project);
-	if (!project || !isTakeCompProjectSchema(project.schemaVersion)) return emptyModel();
+	if (!project || !isTakeCompProjectSchema(project)) return emptyModel();
 	const canonical = createTakeCompDocumentGroupsV17(project.takeGroups, project);
 	const tracks = dataRecords(project.tracks);
 	const sources = dataRecords(project.sources);

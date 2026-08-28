@@ -285,6 +285,8 @@ async function repositoryFixture(
 function sourceProject(): ProjectDocument {
 	return {
 		id: PROJECT_ID,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		title: 'Created project',
 		revision: 0,
 		sources: [{ id: 'source-1', storageKey: STORAGE_KEY }],
@@ -293,7 +295,15 @@ function sourceProject(): ProjectDocument {
 }
 
 function sourceFreeProject(id: string, revision: number, title: string): ProjectDocument {
-	return { id, revision, title, sources: [], clips: [] };
+	return {
+		id,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
+		revision,
+		title,
+		sources: [],
+		clips: [],
+	};
 }
 
 function pendingSourceRecord(): Record<string, unknown> {

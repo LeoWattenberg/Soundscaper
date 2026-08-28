@@ -254,7 +254,9 @@ function editorialBlob(): Blob {
 }
 
 function projectFor(kind: 'audio' | 'video') {
-	return Object.freeze({ id: 'project-advanced-all', schemaVersion: kind === 'audio' ? 30 : 31,
+	return Object.freeze({ id: 'project-advanced-all',
+		schemaFamily: kind === 'audio' ? 'soundscaper' as const : 'framescaper' as const,
+		schemaVersion: 1,
 		revision: 4, sampleRate: 48_000, assistanceAssets: Object.freeze([]),
 		clips: Object.freeze([{ id: 'clip-a', kind, sourceId: 'source-a',
 			sequenceId: 'sequence-main', avLinkId: null, reversed: false, speedRatio: 1,
@@ -265,7 +267,9 @@ function projectFor(kind: 'audio' | 'video') {
 }
 
 function selectionFence(kind: 'audio' | 'video') {
-	return Object.freeze({ projectId: 'project-advanced-all', schemaVersion: kind === 'audio' ? 30 : 31,
+	return Object.freeze({ projectId: 'project-advanced-all',
+		schemaFamily: kind === 'audio' ? 'soundscaper' as const : 'framescaper' as const,
+		schemaVersion: 1,
 		revision: 4,
 		sequenceId: 'sequence-main', occurrenceIds: Object.freeze(['clip-a']), sourceId: 'source-a',
 		sourceSha256: SOURCE_SHA256, sourceStartFrame: 0, sourceEndFrame: 100,

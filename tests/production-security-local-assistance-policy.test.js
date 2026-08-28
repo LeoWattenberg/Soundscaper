@@ -35,7 +35,7 @@ test('Milestone 7 policy records conditional workflow activation and its externa
 	const externalExecutableRisk = matrix.risks.flatMap(({ residualRisks }) => residualRisks)
 		.find(({ id }) => id === 'external-ffmpeg-selected-executable-authority');
 
-	assert.equal(matrix.groundedAt, '2026-08-27');
+	assert.equal(matrix.groundedAt, '2026-08-28');
 	assert.ok(control);
 	assert.match(control.summary,
 		/Parakeet.*speech-recognition.*Silero.*voice-activity-detection.*Pyannote.*ERes2Net.*speaker-diarization.*authenticated Sherpa/isu);
@@ -111,7 +111,7 @@ function compact(value) {
 
 test('capability inventory records the shared Electron-only assistance surface for both products', async () => {
 	const inventory = await readJson('config/production-capabilities.json');
-	assert.equal(inventory.groundedAt, '2026-08-26');
+	assert.equal(inventory.groundedAt, '2026-08-28');
 	for (const productId of ['soundscaper', 'framescaper']) {
 		const surface = inventory.products[productId].platforms['electron-only'];
 		assert.equal(surface.status, 'partial');

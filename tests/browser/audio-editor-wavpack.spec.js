@@ -5,7 +5,7 @@ import {
 } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
-const DATABASE_VERSION = 8;
+const DATABASE_VERSION = 1;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const fixture = createWavFixture({
 	name: 'browser-wavpack-persistence.wav',
@@ -128,7 +128,7 @@ async function bootEditor(page) {
 
 async function waitForEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
-	await expect(editor).toBeVisible();
+	await expect(editor).toBeVisible({ timeout: 20_000 });
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 	return editor;

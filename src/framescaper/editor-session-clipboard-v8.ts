@@ -16,8 +16,8 @@ import {
 	type VideoStillClipV1,
 	type VideoStillSourceV1,
 } from '../common/editor/video-visual-model-v24.ts';
-import { assertFramescaperProjectV24CandidateProfile } from './editor-project-runtime-profile-v24.ts';
-import { validateFramescaperProjectV24, type FramescaperProjectV24 } from './editor-project-v24.ts';
+import { assertFramescaperProjectVisualCandidateProfile } from './editor-domain-runtime-profile.ts';
+import { validateFramescaperProjectVisual, type FramescaperProjectVisual } from './editor-project-visual.ts';
 
 export interface FramescaperVisualClipboardV8 {
 	readonly schemaVersion: 8;
@@ -50,9 +50,9 @@ export function createFramescaperVisualClipboardV8(
 	profile: unknown,
 	project: unknown,
 ): FramescaperVisualClipboardV8 {
-	assertFramescaperProjectV24CandidateProfile(profile);
-	validateFramescaperProjectV24(profile, project);
-	const candidate = project as FramescaperProjectV24;
+	assertFramescaperProjectVisualCandidateProfile(profile);
+	validateFramescaperProjectVisual(profile, project);
+	const candidate = project as FramescaperProjectVisual;
 	return normalizeFramescaperVisualClipboardV8({
 		schemaVersion: 8,
 		kind: 'framescaper-visual-fragment',
@@ -97,7 +97,7 @@ export function normalizeFramescaperVisualClipboardV8(value: unknown): Framescap
 	});
 }
 
-/** Prepare a detached V24 fragment using caller-owned fresh and destination identities. */
+/** Prepare a detached visual fragment using caller-owned fresh and destination identities. */
 export function prepareFramescaperVisualClipboardPasteV8(
 	clipboardValue: unknown,
 	options: Readonly<{

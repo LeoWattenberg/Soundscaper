@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from '../src/common/i18n/canonical-extras.js';
 import { VIDEO_CAPTION_COPY_BY_LOCALE } from '../src/common/i18n/video-caption-copy.js';
 import VideoDeliveryFields from '../src/common/editor/ui/VideoDeliveryFields.jsx';
-import { framescaperV27CaptionDeliveryUnavailable } from '../src/common/editor/ui/video-caption-delivery-surface.ts';
+import { framescaperCaptionDeliveryUnavailable } from '../src/common/editor/ui/video-caption-delivery-surface.ts';
 
 Reflect.set(globalThis, 'React', React);
 const RenderableVideoDeliveryFields = VideoDeliveryFields as React.ComponentType<Readonly<{
@@ -21,13 +21,18 @@ const RenderableVideoDeliveryFields = VideoDeliveryFields as React.ComponentType
 	captionDeliveryUnavailable?: boolean;
 }>>;
 
-test('caption delivery gate follows the selected Framescaper V27/V28/F31 routes', () => {
-	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 27 }), true);
-	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 28 }), true);
-	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 31 }), true);
-	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', { schemaVersion: 20 }), false);
-	assert.equal(framescaperV27CaptionDeliveryUnavailable('soundscaper', { schemaVersion: 27 }), false);
-	assert.equal(framescaperV27CaptionDeliveryUnavailable('framescaper', null), false);
+test('caption delivery gate follows the current Framescaper identity', () => {
+	assert.equal(framescaperCaptionDeliveryUnavailable('framescaper', {
+		schemaFamily: 'framescaper', schemaVersion: 1,
+	}), true);
+	assert.equal(framescaperCaptionDeliveryUnavailable('framescaper', {
+		schemaFamily: 'framescaper', schemaVersion: 2,
+	}), false);
+	assert.equal(framescaperCaptionDeliveryUnavailable('framescaper', { schemaVersion: 31 }), false);
+	assert.equal(framescaperCaptionDeliveryUnavailable('soundscaper', {
+		schemaFamily: 'framescaper', schemaVersion: 1,
+	}), false);
+	assert.equal(framescaperCaptionDeliveryUnavailable('framescaper', null), false);
 });
 
 test('selected Framescaper visibly refuses video-file caption delivery without hiding generic ownership', () => {
@@ -42,7 +47,7 @@ test('selected Framescaper visibly refuses video-file caption delivery without h
 	assert.match(generic, /Deliver captions/u);
 	assert.match(generic, /Draw the captions into the picture/u);
 
-	const selectedV27 = renderToStaticMarkup(<RenderableVideoDeliveryFields
+	const framescaper = renderToStaticMarkup(<RenderableVideoDeliveryFields
 		copy={COPY}
 		disabled={false}
 		labelTracks={[{ id: 'labels-1', name: 'English labels' }]}
@@ -50,9 +55,9 @@ test('selected Framescaper visibly refuses video-file caption delivery without h
 		onChange={() => undefined}
 		captionDeliveryUnavailable
 	/>);
-	assert.match(selectedV27, /data-export-field="captionDeliveryUnavailable"/u);
-	assert.match(selectedV27, /Caption burn-in and mux are unavailable.*Caption Tracks/u);
-	assert.doesNotMatch(selectedV27, /Captions from|Deliver captions|Draw the captions into the picture/u);
+	assert.match(framescaper, /data-export-field="captionDeliveryUnavailable"/u);
+	assert.match(framescaper, /Caption burn-in and mux are unavailable.*Caption Tracks/u);
+	assert.doesNotMatch(framescaper, /Captions from|Deliver captions|Draw the captions into the picture/u);
 });
 
 const COPY = Object.freeze({

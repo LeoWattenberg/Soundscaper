@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	isMasteringSequenceProjectSchema,
-	isSoundscaperProductionProjectSchema,
+	hasMasteringSequenceProjectAuthority,
+	isSoundscaperProductionProject,
 } from '../project-schema-version.ts';
 import {
 	resolveSoundscaperProductionCopy,
@@ -91,7 +91,7 @@ export function createSoundscaperProductionApplicationMenuItems(
 	if (input.productId !== 'soundscaper') return EMPTY_ITEMS;
 	const copy = resolveSoundscaperProductionCopy(input.copy);
 	const project = dataRecord(input.project);
-	const exactProject = isSoundscaperProductionProjectSchema(own(project, 'schemaVersion'));
+	const exactProject = isSoundscaperProductionProject(project);
 	const selectedTrack = records(own(project, 'tracks')).find((track) => (
 		own(track, 'id') === input.selectedTrackId
 	)) ?? null;
@@ -168,7 +168,7 @@ export function createSoundscaperProductionApplicationMenuItems(
 				id: 'soundscaper-mastering-sequences', label: copy.masteringSequences,
 				// Only a revision that owns the collection can hold one, so the entry
 				// stays visible and disabled elsewhere rather than vanishing.
-				enabled: isMasteringSequenceProjectSchema(own(project, 'schemaVersion')),
+				enabled: hasMasteringSequenceProjectAuthority(project),
 				invoke: () => actions.open('mastering-sequences'),
 			})]
 			: []),

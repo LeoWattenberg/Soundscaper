@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	rebindFramescaperMulticameraSourceIdentitiesV18,
-} from '../src/framescaper/editor-multicamera-source-rebind-v18.ts';
+	rebindFramescaperMulticameraSourceIdentitiesSequence,
+} from '../src/framescaper/editor-multicamera-source-rebind-sequence.ts';
 
 /**
  * A reassigned source identity reaches the groups that name it.
@@ -21,7 +21,7 @@ import {
 
 test('a rebound source identity follows into every multicamera member', () => {
 	const project = projectWithGroups();
-	rebindFramescaperMulticameraSourceIdentitiesV18(project, new Map([
+	rebindFramescaperMulticameraSourceIdentitiesSequence(project, new Map([
 		['source-a', 'source-a-copy'],
 		['source-b', 'source-b'],
 	]));
@@ -38,7 +38,7 @@ test('a rebound source identity follows into every multicamera member', () => {
 test('an import that reassigned nothing leaves the groups untouched', () => {
 	const project = projectWithGroups();
 	const before = structuredClone(project.multicameraGroups);
-	rebindFramescaperMulticameraSourceIdentitiesV18(project, new Map([
+	rebindFramescaperMulticameraSourceIdentitiesSequence(project, new Map([
 		['source-a', 'source-a'],
 		['source-b', 'source-b'],
 	]));
@@ -47,10 +47,10 @@ test('an import that reassigned nothing leaves the groups untouched', () => {
 
 test('a document with no groups is not a special case', () => {
 	const project = { multicameraGroups: [] } as Record<string, unknown>;
-	assert.doesNotThrow(() => rebindFramescaperMulticameraSourceIdentitiesV18(
+	assert.doesNotThrow(() => rebindFramescaperMulticameraSourceIdentitiesSequence(
 		project, new Map([['source-a', 'source-a-copy']]),
 	));
-	assert.doesNotThrow(() => rebindFramescaperMulticameraSourceIdentitiesV18(
+	assert.doesNotThrow(() => rebindFramescaperMulticameraSourceIdentitiesSequence(
 		{}, new Map([['source-a', 'source-a-copy']]),
 	));
 });

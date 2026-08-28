@@ -46,7 +46,7 @@
 			"releaseCondition": "All destructive and migratory paths preserve the last recoverable revision and pass format-specific round-trip and failure-injection tests.",
 			"escalation": "Stop distribution, preserve affected artifacts, identify the last safe build, and begin rollback and recovery immediately.",
 			"currentEvidence": [
-				"src/common/editor/migration.js",
+				"src/common/editor/project-schema-identity.ts",
 				"tests/audio-editor-project-v2.test.js",
 				"src/common/editor/scape-project.js",
 				"tests/audio-editor-scape-project.test.js"

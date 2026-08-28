@@ -54,7 +54,7 @@ export function imageSequenceImportAuthorityPort(value) {
 		return false;
 	}
 	const fields = [
-		'candidateGeneration', 'projectMutationSurface',
+		'schemaFamily', 'schemaVersion', 'projectMutationSurface',
 		'professionalCharacteristicsContract', 'isRouted',
 	].sort();
 	const keys = Reflect.ownKeys(value);
@@ -64,17 +64,29 @@ export function imageSequenceImportAuthorityPort(value) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, field);
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
 	}
-	return [25, 26, 28].includes(value.candidateGeneration)
+	return value.schemaFamily === 'framescaper' && value.schemaVersion === 1
 		&& value.projectMutationSurface === 'image-sequence-import'
 		&& value.professionalCharacteristicsContract === 'video-source-characteristics-v25'
 		&& typeof value.isRouted === 'function';
 }
 
 export function projectAuthorityPort(value) {
-	return value === null || (value && typeof value === 'object' && !Array.isArray(value)
-		&& (value.projectSchemaVersion === undefined || [28, 31].includes(value.projectSchemaVersion))
+	if (value === null) return true;
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const fields = [
+		'schemaFamily', 'schemaVersion',
+		'projectState', 'projectRecord', 'readProjectBundle', 'readBody', 'materializeBody',
+	].sort();
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length || keys.some((key) => typeof key !== 'string')
+		|| keys.map(String).sort().some((key, index) => key !== fields[index])) return false;
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
+	}
+	return value.schemaFamily === 'framescaper' && value.schemaVersion === 1
 		&& ['projectState', 'projectRecord', 'readProjectBundle', 'readBody', 'materializeBody']
-			.every((method) => typeof value[method] === 'function'));
+			.every((method) => typeof value[method] === 'function');
 }
 
 export function watchImportAuthorityPort(value) {

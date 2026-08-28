@@ -7,6 +7,7 @@ import {
 	findClipTrack,
 	normalizeFrameRange,
 } from '../project.js';
+import { hasCoreEditingProjectAuthority, hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import {
 	assertClipSourceBounds,
 	assertClipSpace,
@@ -30,9 +31,9 @@ export function addClip(project, trackId, value) {
 	if (!Array.isArray(track.clipIds)) throw new RangeError('Media clips can only be added to media tracks.');
 	const clip = normalizeClipForProject(project, {
 		...value,
-		...(project.schemaVersion >= 4 ? { binItemId: null } : {}),
+		...(hasProjectBinMediaAuthority(project) ? { binItemId: null } : {}),
 	});
-	if (project.schemaVersion >= 4 && track.type !== clip.kind) {
+	if (hasProjectBinMediaAuthority(project) && track.type !== clip.kind) {
 		throw new RangeError(`A ${clip.kind} clip cannot be added to a ${track.type} track.`);
 	}
 	assertUnusedClipId(project, clip.id);
@@ -104,12 +105,12 @@ export function updateClip(project, clipId, changes = {}) {
 }
 
 export function replaceClipSource(project, clipId, sourceId) {
-	if (project.schemaVersion < 2) throw new RangeError('Immutable sample editing requires an AudioEditorProjectV2 or newer project.');
+	if (!hasCoreEditingProjectAuthority(project)) throw new RangeError('Immutable sample editing requires an active editing project.');
 	const clip = requireClip(project, clipId);
 	const track = requireClipTrack(project, clipId);
 	const source = project.sources.find((candidate) => candidate.id === sourceId);
 	if (!source) throw new ReferenceError(`Unknown source: ${sourceId}.`);
-	if (project.schemaVersion >= 4 && source.kind !== clip.kind) {
+	if (hasProjectBinMediaAuthority(project) && source.kind !== clip.kind) {
 		throw new RangeError(`A ${clip.kind} clip cannot reference a ${source.kind} source.`);
 	}
 	const updated = normalizeClipForProject(project, {

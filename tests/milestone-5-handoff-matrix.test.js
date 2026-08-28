@@ -20,7 +20,7 @@ import {
 const REVISION = 'a'.repeat(40);
 const QUALIFICATION_REVISION = 'b'.repeat(40);
 const DIGEST = 'c'.repeat(64);
-const VERSION = '0.2.0-beta.1';
+const VERSION = '1.0.0-rc.1';
 const WORKLOAD_IDS = [
 	'm5-native-helper-and-audio',
 	'm5b-native-media-plan-parity-and-decode',

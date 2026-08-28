@@ -1,52 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Which of this origin's projects a transfer is even allowed to offer.
+ * Builds the explicit project offers shown before a transfer. The federation
+ * lists both fresh 1.0 stores, while every offer retains its owning store and
+ * complete family-qualified identity. Only projects matching the peer product
+ * are preselected, and only the visitor's final selection reaches the exporter.
  *
- * Both products share one origin's storage today, so "every project in the
- * store" is never the right answer to "what should I hand to the other
- * product". A visitor on soundscaper.org who opens the Framescaper transfer is
- * asking to move their *video* projects; sending their audio projects too would
- * copy work across an origin boundary they never asked to cross, and no amount
- * of honest reporting afterwards undoes that.
- *
- * So the page never sends a set it derived on its own. This module turns the
- * store's listing into a per-project offer - what it is, which product it
- * belongs to, which of this origin's stores holds it, and whether it is worth
- * preselecting - and the page turns that into checkboxes the visitor has to
- * leave ticked. The selection the visitor ends up with is the only thing the
- * exporter is ever given.
- *
- * "The store" is several stores: `openTransferStore()` opens the shared editor
- * database and every generation-isolated database this origin turns out to hold,
- * and hands them over as one federated store (`transfer-store-federation.ts`).
- * The listing here is the union of all of them, and every offer keeps the store
- * it came from - both because the exporter has to read each project out of the
- * right one, and because a visitor deciding what to move is entitled to see that
- * two of these rows are two generations rather than one project listed twice.
- *
- * That federation is asked for its inventory through the store itself
- * (`listTransferInventory()`), never through an import. This module is in the
- * transfer page's own chunk and the federation arrives with the archive runtime;
- * a module both of them import is hoisted into a third chunk that the page then
- * preloads, which `tests/project-transfer-standalone-page-chunks.test.ts`
- * refuses. So the store layer reports *what happened* to each row as a code, and
- * every sentence a visitor reads about it is written here.
- *
- * Product identity comes off the project's own schema version, because that is
- * the one field a stored project actually carries: `productId` is a runtime
- * notion of the shell that opened the document, not something persisted with
- * it. A schema this build does not recognize is reported as `null` rather than
- * guessed at - it is still offered, so a visitor can rescue it deliberately,
- * but it is never preselected.
+ * Product identity always comes from `schemaFamily`; a numeric schema version
+ * never implies a product. Malformed, unknown, and numeric-only identities are
+ * reported as unrecognized and are never preselected.
  */
 
 import {
-	isActiveAudioEditorProjectSchema,
-	isFramescaperSequenceProjectSchema,
-	isFramescaperVideoProxyProjectSchema,
-	isSelectedFramescaperProjectSchema,
-} from '../editor/project-schema-version.ts';
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../editor/project-schema-identity.ts';
 import type {
 	TransferStoreInventory,
 	TransferStoreInventoryRow,
@@ -79,20 +47,14 @@ export function transferProductForOrigin(origin: unknown): TransferProduct | nul
 }
 
 /**
- * Which product wrote a stored project, judged by its schema version.
- *
- * The shared V17 audio document counts as Soundscaper: it is an audio-authoring
- * document, and Framescaper never writes one.
+ * Which product wrote a stored project, judged only by its persisted family.
  */
 export function transferProjectProduct(project: unknown): TransferProduct | null {
-	if (project === null || typeof project !== 'object') return null;
-	const schemaVersion = (project as { schemaVersion?: unknown }).schemaVersion;
-	if (isSelectedFramescaperProjectSchema(schemaVersion)
-		|| isFramescaperSequenceProjectSchema(schemaVersion)
-		|| isFramescaperVideoProxyProjectSchema(schemaVersion)) {
-		return 'framescaper';
+	try {
+		return readProjectSchemaIdentity(project).schemaFamily;
+	} catch {
+		return null;
 	}
-	return isActiveAudioEditorProjectSchema(schemaVersion) ? 'soundscaper' : null;
 }
 
 /**
@@ -110,11 +72,11 @@ export const TRANSFER_UNIDENTIFIED_ROW_REFUSAL =
 	+ ' nothing can address it. It is left out of the transfer; every other project'
 	+ ' still crosses.';
 
-/** What the page says about the older of two copies that share one identity. */
+/** What the page says about a duplicate family-qualified identity. */
 export function transferShadowedRowRefusal(holder: string): string {
 	return `Cannot be transferred: ${holder} holds a project with the same id, and one`
 		+ ' identity can only cross once. Transfer that copy, or rename this one in its'
-		+ ' own generation first.';
+		+ ' own product first.';
 }
 
 /** What the page says about a store it could not read at all. */
@@ -137,11 +99,10 @@ export interface TransferProjectOffer {
 	 * This row's identity for selection, which is what the page ticks and reads
 	 * back.
 	 *
-	 * The project's own id wherever it has one that the exporter would accept.
+	 * The family-qualified id wherever the exporter can admit the tuple.
 	 * Where it does not - a row this origin listed without an id, or the older of
-	 * two copies sharing one id - it is a generated key that is still distinct
-	 * from every other row's. It has to be: the page keys its checkboxes by this
-	 * string, and rows that shared one key were selected and deselected together.
+	 * two copies sharing one tuple - it is a generated key that is still distinct
+	 * from every other row's. The page keys its checkboxes by this string.
 	 * A generated key matches no project, which is exactly right for a row that
 	 * cannot be exported.
 	 */
@@ -155,6 +116,7 @@ export interface TransferProjectOffer {
 	readonly storeLabel: string;
 	readonly title: string;
 	readonly product: TransferProduct | null;
+	readonly schemaFamily: ProjectSchemaFamily | null;
 	readonly schemaVersion: number | null;
 	/** True only when this project belongs to the product being transferred to. */
 	readonly preselected: boolean;
@@ -204,8 +166,10 @@ export async function listTransferProjects(
 	const offers: TransferProjectOffer[] = [];
 	for (const row of inventory.rows) {
 		const record = row.project as { title?: unknown; schemaVersion?: unknown } | null;
-		const product = transferProjectProduct(record);
-		const schemaVersion = typeof record?.schemaVersion === 'number' ? record.schemaVersion : null;
+		const identity = transferProjectIdentity(record);
+		const product = identity?.schemaFamily ?? null;
+		const schemaFamily = identity?.schemaFamily ?? null;
+		const schemaVersion = identity?.schemaVersion ?? null;
 		const title = typeof record?.title === 'string' && record.title.trim() ? record.title : null;
 		offers.push(Object.freeze({
 			projectId: row.selectionKey,
@@ -215,6 +179,7 @@ export async function listTransferProjects(
 			storeLabel: row.storeLabel,
 			title: title ?? row.projectId ?? UNTITLED_PROJECT,
 			product,
+			schemaFamily,
 			schemaVersion,
 			// A row the exporter must never be given is never ticked for the
 			// visitor either, whatever product wrote it.
@@ -231,12 +196,24 @@ export async function listTransferProjects(
 			storeLabel: fault.storeLabel,
 			title: fault.storeLabel,
 			product: null,
+			schemaFamily: null,
 			schemaVersion: null,
 			preselected: false,
 			refusal: transferUnreadableStoreRefusal(fault.reason),
 		}));
 	}
 	return Object.freeze(offers);
+}
+
+function transferProjectIdentity(project: unknown): Readonly<{
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: number;
+}> | null {
+	try {
+		return readProjectSchemaIdentity(project);
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -277,22 +254,26 @@ function singleStoreInventory(listed: readonly unknown[]): TransferStoreInventor
 			&& typeof id === 'string' && id.length > 0 && id.length <= MAXIMUM_PROJECT_ID_LENGTH
 			? id
 			: null;
-		const shadowed = projectId !== null && held.has(projectId);
-		if (projectId !== null) held.add(projectId);
-		return { projectId, shadowed };
+		const identity = transferProjectIdentity(project);
+		const selectionIdentity = projectId !== null && identity !== null
+			? `${identity.schemaFamily}:${projectId}`
+			: projectId;
+		const shadowed = selectionIdentity !== null && held.has(selectionIdentity);
+		if (selectionIdentity !== null) held.add(selectionIdentity);
+		return { projectId, selectionIdentity, shadowed };
 	});
 	// Every key a real id will take, claimed before the first generated key is
 	// minted, so the generated key is the one that moves - a real project whose
 	// id happens to read like a generated key keeps its own id, whichever of the
 	// two the store listed first.
 	const claimed = new Set<string>(
-		admitted.filter((row) => row.projectId !== null && !row.shadowed)
-			.map((row) => row.projectId as string),
+		admitted.filter((row) => row.selectionIdentity !== null && !row.shadowed)
+			.map((row) => row.selectionIdentity as string),
 	);
 	for (const [index, project] of listed.entries()) {
-		const { projectId, shadowed } = admitted[index];
+		const { projectId, selectionIdentity, shadowed } = admitted[index];
 		const exportable = projectId !== null && !shadowed;
-		let selectionKey = projectId ?? '';
+		let selectionKey = selectionIdentity ?? '';
 		if (!exportable) {
 			selectionKey = `${UNNAMED_STORE.id}#${index}`;
 			while (claimed.has(selectionKey)) selectionKey += '~';
@@ -321,7 +302,7 @@ function singleStoreInventory(listed: readonly unknown[]): TransferStoreInventor
  * A refusal outranks the product name: what the visitor needs from a row that
  * cannot cross is the reason, not which product wrote it.
  *
- * A named store is named here as well. Two generations can hold projects with
+ * A named store is named here as well. Two family stores can hold projects with
  * the same title, and "Interview cut - Framescaper project" twice over is a list
  * a visitor cannot act on; which storage each one is in is the difference
  * between them.
@@ -335,7 +316,7 @@ export function describeTransferProduct(offer: TransferProjectOffer): string {
 function describeOfferProduct(offer: TransferProjectOffer): string {
 	if (offer.product === 'framescaper') return 'Framescaper project';
 	if (offer.product === 'soundscaper') return 'Soundscaper project';
-	return offer.schemaVersion === null
+	return offer.schemaFamily === null || offer.schemaVersion === null
 		? 'Project of an unrecognized kind'
-		: `Project of an unrecognized kind (schema ${offer.schemaVersion})`;
+		: `Project of an unrecognized kind (${offer.schemaFamily} schema ${offer.schemaVersion})`;
 }

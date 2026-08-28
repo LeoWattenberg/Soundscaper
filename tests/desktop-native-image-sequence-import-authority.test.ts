@@ -31,16 +31,20 @@ import {
 import { resolveNativeMediaImageSequence } from '../src/common/editor/native-media-image-sequence.ts';
 import { normalizeVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
 import {
-	createFramescaperImageSequenceProductionPortsV25,
-} from '../src/framescaper/editor-native-image-sequence-import-production-ports-v25.ts';
+	createFramescaperImageSequenceProductionPortsProfessionalMedia,
+} from '../src/framescaper/editor-native-image-sequence-import-production-ports.ts';
 import type {
-	FramescaperImageSequenceNativeAdmissionRequestV25,
-} from '../src/framescaper/editor-native-image-sequence-import-v25.ts';
+	FramescaperImageSequenceNativeAdmissionRequest,
+} from '../src/framescaper/editor-native-image-sequence-import-production-ports.ts';
 import type { NativeMediaHelperPoolJobRequest } from '../desktop/native-media-helper-pool.ts';
 
 const OWNER = Object.freeze({ id: 'candidate-renderer' });
+const PROJECT_IDENTITY = Object.freeze({
+	schemaFamily: 'framescaper' as const,
+	schemaVersion: 1 as const,
+});
 
-test('the production candidate ports stream pathless bytes over the negotiated MessagePort', async () => {
+test('the production baseline ports stream pathless bytes over the negotiated MessagePort', async () => {
 	const fixture = await authorityFixture(true);
 	const assets = await sequenceAssets(['one', 'two']);
 	const handlers = new Map<string, (event: unknown, request: unknown) => unknown>();
@@ -68,9 +72,9 @@ test('the production candidate ports stream pathless bytes over the negotiated M
 		},
 		createMessageChannel: () => new MessageChannel() as never,
 	});
-	const ports = createFramescaperImageSequenceProductionPortsV25({
+	const ports = createFramescaperImageSequenceProductionPortsProfessionalMedia({
 		bridge: { ...transport, capabilities: async () => capabilitySnapshot(true) },
-		candidateGeneration: 25, projectId: 'candidate-project', projectRevision: 4,
+		projectId: 'candidate-project', projectRevision: 4,
 	});
 	const writer = await ports.createSourcePackWriter();
 	for (let offset = 0; offset < assets.packBytes.byteLength; offset += 3) {
@@ -111,7 +115,7 @@ test('the main-owned authority durably admits exact pathless pack and inventory 
 	const fixture = await authorityFixture(true);
 	const assets = await sequenceAssets(['one', 'two']);
 	const begun = await fixture.authority.request(OWNER, {
-		operation: 'begin', candidateGeneration: 25,
+		operation: 'begin', ...PROJECT_IDENTITY,
 		projectId: 'candidate-project', projectRevision: 4,
 	});
 	assert.equal(JSON.stringify(begun).includes(fixture.root), false);
@@ -152,7 +156,7 @@ test('tampered durable bytes fail admission and discard removes authenticated as
 	const fixture = await authorityFixture(true);
 	const assets = await sequenceAssets(['one']);
 	const begun = await fixture.authority.request(OWNER, {
-		operation: 'begin', candidateGeneration: 25,
+		operation: 'begin', ...PROJECT_IDENTITY,
 		projectId: 'candidate-project', projectRevision: 4,
 	}) as { transactionId: string };
 	await publishAssets(fixture.authority, begun.transactionId, assets);
@@ -176,7 +180,7 @@ test('restart recovery reclaims unreferenced transactions and retains referenced
 	const retained = await sequenceAssets(['retained']);
 	for (const assets of [orphan, retained]) {
 		const begun = await fixture.authority.request(OWNER, {
-			operation: 'begin', candidateGeneration: 25,
+			operation: 'begin', ...PROJECT_IDENTITY,
 			projectId: 'candidate-project', projectRevision: 4,
 		}) as { transactionId: string };
 		await publishAssets(fixture.authority, begun.transactionId, assets);
@@ -194,7 +198,7 @@ test('restart recovery reclaims unreferenced transactions and retains referenced
 test('default-off capability and wrong owner fail before durable or native work', async () => {
 	const blocked = await authorityFixture(false);
 	await assert.rejects(() => blocked.authority.request(OWNER, {
-		operation: 'begin', candidateGeneration: 25,
+		operation: 'begin', ...PROJECT_IDENTITY,
 		projectId: 'candidate-project', projectRevision: 4,
 	}), /disabled|unavailable|policy/iu);
 	assert.equal(blocked.probedFrames, 0);
@@ -202,7 +206,7 @@ test('default-off capability and wrong owner fail before durable or native work'
 
 	const usable = await authorityFixture(true);
 	const begun = await usable.authority.request(OWNER, {
-		operation: 'begin', candidateGeneration: 25,
+		operation: 'begin', ...PROJECT_IDENTITY,
 		projectId: 'candidate-project', projectRevision: 4,
 	}) as { transactionId: string };
 	await assert.rejects(() => usable.authority.request({}, {
@@ -236,7 +240,7 @@ test('recovery refuses a re-authenticated manifest with a traversal asset identi
 	const fixture = await authorityFixture(true);
 	const assets = await sequenceAssets(['one']);
 	const begun = await fixture.authority.request(OWNER, {
-		operation: 'begin', candidateGeneration: 25,
+		operation: 'begin', ...PROJECT_IDENTITY,
 		projectId: 'candidate-project', projectRevision: 4,
 	}) as { transactionId: string };
 	await publishAssets(fixture.authority, begun.transactionId, assets);
@@ -267,7 +271,7 @@ async function authorityFixture(usable: boolean) {
 		capabilities: () => capabilitySnapshot(usable),
 		runtimeAvailable: () => usable,
 		projectState: (projectId: string) => projectId === 'candidate-project'
-			? { open: true, writable: true, schemaVersion: 25, revision: project.revision }
+			? { ...PROJECT_IDENTITY, open: true, writable: true, revision: project.revision }
 			: null,
 		projectContainsImageSequence: ({ inventoryStorageKey, sourcePackStorageKey }) => (
 			project.storageKeys.has(inventoryStorageKey)
@@ -344,9 +348,9 @@ async function publishAssets(
 function admission(
 	_transactionId: string,
 	assets: Awaited<ReturnType<typeof sequenceAssets>>,
-): FramescaperImageSequenceNativeAdmissionRequestV25 {
+): FramescaperImageSequenceNativeAdmissionRequest {
 	return {
-		kind: 'framescaper-image-sequence-admission-v1', candidateGeneration: 25,
+		kind: 'framescaper-image-sequence-admission-v1', ...PROJECT_IDENTITY,
 		projectId: 'candidate-project', projectRevision: 4, sourceId: 'sequence-source',
 		profileId: 'decode-png-sequence', frameRate: { num: 24, den: 1 },
 		frameCount: assets.entries.length, inventory: assets.inventory.reference,

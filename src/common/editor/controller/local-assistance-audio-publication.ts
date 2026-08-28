@@ -309,7 +309,8 @@ function normalizeAuthority(
 	const clip = record(value.clip, 'selected clip');
 	const track = record(value.track, 'selected track');
 	const fence = validateAssistanceSelectionFence(value.fence);
-	if (project.id !== fence.projectId || project.schemaVersion !== fence.schemaVersion
+	if (project.id !== fence.projectId || project.schemaFamily !== fence.schemaFamily
+		|| project.schemaVersion !== fence.schemaVersion
 		|| project.revision !== fence.revision || source.id !== fence.sourceId
 		|| source.contentSha256 !== fence.sourceSha256 || clip.sourceId !== source.id
 		|| !fence.occurrenceIds.includes(String(clip.id)) || track.type !== 'audio'

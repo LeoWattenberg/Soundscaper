@@ -25,7 +25,7 @@ test('canonical PCM publication materializes an exact internal hole without shif
 	});
 	const session = await coordinator.create({
 		sessionId: 'capture-session', generation: 1,
-		projectFence: { projectId: 'capture-project', baseRevision: 1, baseSha256: 'ab'.repeat(32) },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'capture-project', baseRevision: 1, baseSha256: 'ab'.repeat(32) },
 		origin: { sequenceId: 'main-sequence', playheadMicroseconds: 0, destination: 'timeline' },
 		monotonicOriginMicroseconds: 0,
 		streams: [{

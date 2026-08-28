@@ -15,6 +15,7 @@ const COLOR_SET: ReadonlySet<string> = new Set(AUDIO_EDITOR_TIMELINE_ANNOTATION_
 export interface TimelineAnnotationAvailabilitySnapshot {
 	readonly capabilities?: { readonly timelineAnnotations?: boolean } | null;
 	readonly project?: {
+		readonly schemaFamily?: string;
 		readonly schemaVersion?: number;
 		readonly timelineAnnotations?: unknown;
 	} | null;
@@ -30,7 +31,7 @@ export function timelineAnnotationsAvailable(
 	snapshot: TimelineAnnotationAvailabilitySnapshot | null | undefined,
 ): boolean {
 	return snapshot?.capabilities?.timelineAnnotations === true
-		&& isActiveAudioEditorProjectSchema(snapshot?.project?.schemaVersion)
+		&& isActiveAudioEditorProjectSchema(snapshot?.project)
 		&& Array.isArray(snapshot?.project?.timelineAnnotations);
 }
 

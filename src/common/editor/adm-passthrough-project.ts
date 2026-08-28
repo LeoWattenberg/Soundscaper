@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isSoundscaperProductionProjectSchema } from './project-schema-version.ts';
+import { isSoundscaperProductionProject } from './project-schema-version.ts';
 
 export interface AdmPassthroughTimelineSource {
 	readonly id: string;
@@ -15,7 +15,7 @@ export function isNeutralAdmSignalPath(project: unknown): boolean {
 	const candidate = record(project);
 	const mixer = record(candidate?.mixer);
 	if (!candidate || !mixer || !Array.isArray(candidate.tracks)) return false;
-	const exactV21 = isSoundscaperProductionProjectSchema(candidate.schemaVersion) && mixer.schemaVersion === 1;
+	const exactV21 = isSoundscaperProductionProject(candidate) && mixer.schemaVersion === 1;
 	return isNeutralStrip(candidate.master, exactV21)
 		&& candidate.tracks.every((track) => record(track)?.type !== 'audio' || isNeutralStrip(track, exactV21))
 		&& (exactV21

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+
 import {
 	createAddLabelCommand,
 	createAddLabelTrackCommand,
@@ -308,7 +310,7 @@ export function createEditorTrackService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
-		if (project.schemaVersion < 2) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
 		const track = findControllerTrack(project, trackId);
 		if (!track || track.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
 		if (!isTrackDisplayMode(displayMode)) throw new RangeError(dependencies.copy.unknownTrackDisplay);
@@ -332,7 +334,7 @@ export function createEditorTrackService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
-		if (project.schemaVersion < 2) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
 		const track = findControllerTrack(project, trackId);
 		if (!track || track.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
 		if (!isTrackSampleFormat(sampleFormat)) throw new RangeError(dependencies.copy.unsupportedSampleFormat);

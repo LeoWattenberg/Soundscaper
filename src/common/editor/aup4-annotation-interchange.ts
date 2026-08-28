@@ -18,7 +18,7 @@ export function flattenAup4TimelineAnnotations(
 	compatibilityReport: DataRecord,
 ): void {
 	const project = projectForRuntimeConsumers(projectValue) as RuntimeClipProject & DataRecord;
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return;
+	if (!isTimelineAnnotationProjectSchema(project)) return;
 	const projected = resolveRuntimeTimelineAnnotationsProjection(
 		project as unknown as Parameters<typeof resolveRuntimeTimelineAnnotationsProjection>[0],
 	);

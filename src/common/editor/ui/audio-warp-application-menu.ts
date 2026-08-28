@@ -28,7 +28,7 @@ export function createAudioWarpApplicationMenuItems(input: AudioWarpApplicationM
 	return Object.freeze([Object.freeze({
 		id: 'audio-warp-editor',
 		label: input.copy.audioWarpMenu,
-		disabled: !isAudioWarpProjectSchema(project?.schemaVersion) || !selectedAudio
+		disabled: !isAudioWarpProjectSchema(project) || !selectedAudio
 			|| input.editingBlocked || owners[0]?.locked === true,
 		onClick: input.open,
 	})]);

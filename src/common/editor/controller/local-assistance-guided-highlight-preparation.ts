@@ -3,6 +3,10 @@
 /** Linked A/V custody preparation for deterministic Make Highlights signals. */
 
 import { scaleSampleFrame } from '../timeline-time.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../assistance/workflow-settings-v1.ts';
 import {
 	createLocalAssistanceGuidedHighlightAudioSignalsV1,
@@ -194,7 +198,8 @@ function assertSameFence(
 	actual: LocalAssistanceGuidedPrimitiveFence,
 	expected: LocalAssistanceGuidedPrimitiveFence,
 ): void {
-	if (actual.projectId !== expected.projectId || actual.schemaVersion !== expected.schemaVersion
+	if (actual.projectId !== expected.projectId || actual.schemaFamily !== expected.schemaFamily
+		|| actual.schemaVersion !== expected.schemaVersion
 		|| actual.revision !== expected.revision || actual.sequenceId !== expected.sequenceId
 		|| actual.sourceId !== expected.sourceId || actual.sourceSha256 !== expected.sourceSha256
 		|| actual.sourceStartFrame !== expected.sourceStartFrame
@@ -261,7 +266,8 @@ function assertLinkedFence(
 	audioSampleRate: number,
 	authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1,
 ): void {
-	if (audio.projectId !== video.projectId || audio.revision !== video.revision
+	if (audio.projectId !== video.projectId || audio.schemaFamily !== video.schemaFamily
+		|| audio.schemaVersion !== video.schemaVersion || audio.revision !== video.revision
 		|| audio.sequenceId !== video.sequenceId
 		|| audio.linkMembershipSha256 !== video.linkMembershipSha256
 		|| !audio.occurrenceIds.includes(videoOccurrenceId)
@@ -283,7 +289,8 @@ function sourceTimeAuthority(
 	fence: LocalAssistanceGuidedPrimitiveFence,
 ): LocalAssistanceSelectedVideoSourceTimeDescriptorV1 {
 	const row = record(value, 'selected-video source-time authority');
-	if (row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
+	if (row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
+		|| row.schemaFamily !== fence.schemaFamily || row.schemaVersion !== fence.schemaVersion
 		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
 		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
 		|| row.sourceSha256 !== fence.sourceSha256
@@ -299,11 +306,15 @@ function sourceTimeAuthority(
 
 function primitiveFence(value: unknown): LocalAssistanceGuidedPrimitiveFence {
 	const row = record(value, 'highlight selection fence');
+	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Highlight selection requires the current project schema.');
+	}
 	const occurrenceIds = Array.isArray(row.occurrenceIds)
 		? row.occurrenceIds.map((id) => String(id)) : [];
 	if (occurrenceIds.length < 1) throw new TypeError('Highlight occurrence authority is unavailable.');
 	return Object.freeze({ projectId: identifier(row.projectId, 'project'),
-		schemaVersion: integer(row.schemaVersion, 1, 'project schema'),
+		schemaFamily: identity.schemaFamily, schemaVersion: PROJECT_SCHEMA_VERSION,
 		revision: integer(row.revision, 0, 'project revision'),
 		sequenceId: identifier(row.sequenceId, 'sequence'),
 		occurrenceIds: Object.freeze(occurrenceIds), sourceId: identifier(row.sourceId, 'source'),

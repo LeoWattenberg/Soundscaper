@@ -12,7 +12,6 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedVideoOriginalPort } from '../src/common/editor/storage/linked-video-original-resolver.ts';
-import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const PROJECT_ID = 'save-reachability-project';
@@ -115,29 +114,6 @@ test('a store without a locator release port still retires unreachable binding r
 	assert.equal(await cleanup.getLinkedVideoOriginalBinding(PROJECT_ID, source.id), null);
 });
 
-test('Desktop remote rejection leaves shadow-adjacent bindings and locators untouched', async (context) => {
-	let rejectCommit = false;
-	const failure = new Error('planned shared publication failure');
-	const bridge: DesktopSharedProjectBridge = {
-		listSharedProjects: async () => [],
-		readSharedProject: async () => null,
-		commitSharedProject: async ({ document }) => {
-			if (rejectCommit) throw failure;
-			return { status: 'committed', document };
-		},
-		deleteSharedProject: async () => true,
-	};
-	const fixture = await storeFixture(context, 'memory', { desktopProjectBridge: bridge });
-	const source = videoSource('desktop-video');
-	await saveWithRoots(fixture.store, project(1, source), []);
-	await fixture.store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID);
-	rejectCommit = true;
-
-	await assert.rejects(saveWithRoots(fixture.store, project(2), []), (error) => error === failure);
-	assert.ok(await fixture.store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id));
-	assert.deepEqual(fixture.releases, []);
-});
-
 test('post-commit binding deletion failure reports, preserves the save, and retries later', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const reported: unknown[] = [];
@@ -167,7 +143,6 @@ test('post-commit binding deletion failure reports, preserves the save, and retr
 interface FixtureOptions {
 	readonly indexedDB?: ReturnType<typeof createInstrumentedIndexedDB>;
 	readonly reported?: unknown[];
-	readonly desktopProjectBridge?: DesktopSharedProjectBridge;
 }
 
 async function storeFixture(
@@ -187,7 +162,6 @@ async function storeFixture(
 		preferOpfs: false,
 		revisionLimit: 2,
 		linkedVideoOriginalPort: port,
-		desktopProjectBridge: options.desktopProjectBridge,
 		onLinkedVideoOriginalLocatorCleanupError: (error: unknown) => { options.reported?.push(error); },
 	});
 	context.after(async () => { await store.close(); });

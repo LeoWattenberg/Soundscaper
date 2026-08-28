@@ -3,7 +3,7 @@
 import { createFramescaperNestedSequenceMenuItems } from './framescaper-nested-sequence-menu.ts';
 import { createFramescaperMulticameraMenuItems } from './framescaper-multicamera-menu.ts';
 import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-candidate-authoring-menu.ts';
-import { createFramescaperV27FinishingMenuItems } from './framescaper-v27-finishing-menu.ts';
+import { createFramescaperFinishingMenuItems } from './framescaper-finishing-menu.ts';
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperProductionApplicationMenuItems } from './soundscaper-production-application-menu.ts';
@@ -62,10 +62,10 @@ export function createApplicationMenuProductItems({
 		readOnly: snapshot.readOnly === true,
 		actionSurfaces: authoringRuntime?.surfaces ?? [], copy,
 	}, { open: (surface) => authoringRuntime?.open(surface) });
-	const selectedFinishing = createFramescaperV27FinishingMenuItems({
+	const selectedFinishing = createFramescaperFinishingMenuItems({
 		productId, project, capabilities, editingBlocked: editBlocked,
 		readOnly: snapshot.readOnly === true, copy,
-	}, { open: (surface) => actions.openFramescaperV27Finishing?.(surface) });
+	}, { open: (surface) => actions.openFramescaperFinishing?.(surface) });
 	const nativeServices = createFramescaperNativeServicesMenuItems({
 		productId,
 		runtimeAvailable: nativeRuntime !== null,

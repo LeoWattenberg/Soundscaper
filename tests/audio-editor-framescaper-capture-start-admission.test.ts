@@ -119,7 +119,7 @@ function startHarness(options: Readonly<{
 		originGuard: createFramescaperCaptureOriginGuard(),
 		durable,
 		captureOrigin: () => ({
-			projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+			projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 2_000_000, destination: 'both' },
 		}),
 		createRecorder(request: FramescaperCaptureRecorderRequest): FramescaperCaptureRecorder {

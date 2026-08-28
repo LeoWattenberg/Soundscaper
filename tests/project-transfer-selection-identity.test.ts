@@ -46,9 +46,9 @@ function chosenFrom(
 test('every unidentified row gets an identity of its own', async () => {
 	const listing = await listTransferProjects({
 		store: store([
-			{ title: 'Nameless one', schemaVersion: 31 },
-			{ title: 'Nameless two', schemaVersion: 31 },
-			{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 },
+			{ title: 'Nameless one', schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ title: 'Nameless two', schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
 		]),
 		product: 'framescaper',
 	});
@@ -80,9 +80,9 @@ test('a generated key never collides with a real project id', async () => {
 test('an unidentified row is offered, refused by name, and never preselected', async () => {
 	const listing = await listTransferProjects({
 		store: store([
-			{ id: 'audio-1', title: 'Field recording', schemaVersion: 30 },
-			{ title: 'Nameless', schemaVersion: 31 },
-			{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 },
+			{ id: 'audio-1', title: 'Field recording', schemaFamily: 'soundscaper', schemaVersion: 1 },
+			{ title: 'Nameless', schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
 		]),
 		product: 'framescaper',
 	});
@@ -98,28 +98,40 @@ test('an unidentified row is offered, refused by name, and never preselected', a
 	assert.match(TRANSFER_UNIDENTIFIED_ROW_REFUSAL, /every other project still crosses/u);
 });
 
-test('the older of two copies sharing one id is offered, refused, and named', async () => {
-	// A V27 project reimported into V28 keeps its identity. Sending both would
+test('a duplicate within one family is offered, refused, and named', async () => {
+	// Two rows in one family can carry the same identity. Sending both would
 	// put two archives on the wire under one entry id, and the receiving origin
 	// would take the second for a duplicate of the first.
-	const newest = store([{ id: 'video-1', title: 'Interview cut', schemaVersion: 32 }]);
-	const older = store([{ id: 'video-1', title: 'Interview cut (V27)', schemaVersion: 27 }]);
+	const newest = store([{
+		id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1,
+	}]);
+	const older = store([{
+		id: 'video-1', title: 'Interview cut (duplicate)', schemaFamily: 'framescaper', schemaVersion: 1,
+	}]);
 	const federation = createTransferStoreFederation({
 		writer: newest,
 		sources: [
-			{ id: 'framescaper-v32', label: 'Framescaper V32 project storage', store: newest },
-			{ id: 'framescaper-v27', label: 'Framescaper V27 project storage', store: older },
+			{
+				id: 'framescaper-v1-primary', label: 'Framescaper v1 primary storage',
+				schemaFamily: 'framescaper', store: newest,
+			},
+			{
+				id: 'framescaper-v1-duplicate', label: 'Framescaper v1 duplicate storage',
+				schemaFamily: 'framescaper', store: older,
+			},
 		],
 	});
 	const listing = await listTransferProjects({
 		store: federation.store as Parameters<typeof listTransferProjects>[0]['store'],
 		product: 'framescaper',
 	});
-	assert.deepEqual(listing.map((offer) => offer.title), ['Interview cut', 'Interview cut (V27)']);
-	assert.deepEqual(listing.map((offer) => offer.storeId), ['framescaper-v32', 'framescaper-v27']);
+	assert.deepEqual(listing.map((offer) => offer.title), ['Interview cut', 'Interview cut (duplicate)']);
+	assert.deepEqual(listing.map((offer) => offer.storeId), [
+		'framescaper-v1-primary', 'framescaper-v1-duplicate',
+	]);
 	assert.deepEqual(listing.map((offer) => offer.refusal), [
 		null,
-		transferShadowedRowRefusal('Framescaper V32 project storage'),
+		transferShadowedRowRefusal('Framescaper v1 primary storage'),
 	]);
 	assert.deepEqual(listing.map((offer) => offer.preselected), [true, false]);
 	assert.notEqual(listing[0].projectId, listing[1].projectId);
@@ -131,7 +143,9 @@ test('the older of two copies sharing one id is offered, refused, and named', as
 });
 
 test('a store the page could not read is a row of its own, not a silence', async () => {
-	const shared = store([{ id: 'audio-1', title: 'Field recording', schemaVersion: 30 }]);
+	const shared = store([{
+		id: 'audio-1', title: 'Field recording', schemaFamily: 'soundscaper', schemaVersion: 1,
+	}]);
 	const federation = createTransferStoreFederation({
 		writer: shared,
 		sources: [{ id: 'shared-editor-storage', label: 'Shared editor storage', store: shared }],
@@ -154,19 +168,24 @@ test('a store the page could not read is a row of its own, not a silence', async
 });
 
 test('an offer says which of this origin\'s stores holds it', async () => {
-	const v31 = store([{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 }]);
+	const v31 = store([{
+		id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1,
+	}]);
 	const federation = createTransferStoreFederation({
 		writer: v31,
-		sources: [{ id: 'framescaper-v31', label: 'Framescaper V31 project storage', store: v31 }],
+		sources: [{
+			id: 'framescaper-v1', label: 'Framescaper v1 project storage',
+			schemaFamily: 'framescaper', store: v31,
+		}],
 	});
 	const listing = await listTransferProjects({
 		store: federation.store as Parameters<typeof listTransferProjects>[0]['store'],
 		product: 'framescaper',
 	});
-	assert.equal(listing[0].storeLabel, 'Framescaper V31 project storage');
+	assert.equal(listing[0].storeLabel, 'Framescaper v1 project storage');
 	assert.equal(
 		describeTransferProduct(listing[0]),
-		'Framescaper project, in Framescaper V31 project storage',
+		'Framescaper project, in Framescaper v1 project storage',
 	);
 	await federation.close();
 });

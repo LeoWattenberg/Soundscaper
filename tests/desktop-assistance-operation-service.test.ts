@@ -22,7 +22,8 @@ const MODEL_ID = 'parakeet-tdt-0.6b-v3';
 const VERSION = '3.0.0';
 const DIGESTS = Object.freeze(['1', '2', '3', '4'].map((value) => value.repeat(64)));
 const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 28, revision: 7, sequenceId: 'sequence-1',
+	projectId: 'project-1', schemaFamily: 'soundscaper' as const, schemaVersion: 1,
+	revision: 7, sequenceId: 'sequence-1',
 	occurrenceIds: Object.freeze(['occurrence-1']), sourceId: 'source-1',
 	sourceSha256: 'a'.repeat(64), sourceStartFrame: 0, sourceEndFrame: 48_000,
 	linkMembershipSha256: 'b'.repeat(64), timingAuthoritySha256: 'c'.repeat(64),

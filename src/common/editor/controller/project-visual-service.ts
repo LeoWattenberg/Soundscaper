@@ -1,14 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
+
 import {
 	resolveRuntimeProjectProjection,
 	type RuntimeClipProject,
 } from '../runtime-clip-projection.ts';
 import { loadVideoTimingAsset } from '../video-timing-storage.ts';
-import {
-	registerVideoTimingIndex,
-	unregisterVideoTimingIndex,
-} from '../video-source-time.ts';
+import { registerVideoTimingIndex, unregisterVideoTimingIndex } from '../video-source-time.ts';
 import type { VideoTimingIndex } from '../video-timing-asset.ts';
 
 export interface ProjectVisualSource extends Readonly<Record<string, unknown>> {
@@ -226,7 +225,7 @@ export function createProjectVisualService(
 		const clip = projectBinClips(project).find((candidate) => candidate.id === clipId) ?? null;
 		if (!project || !clip) return null;
 		const source = findSource(project, clip.sourceId);
-		const itemClips = project.schemaVersion >= 4
+		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];
 		const videoClip = itemClips.find((candidate) => candidate.kind === 'video') ?? null;

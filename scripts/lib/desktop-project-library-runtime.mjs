@@ -8,11 +8,8 @@ import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES
 import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-files.mjs';
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
-import { DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES } from './desktop-project-library-exact-runtime-files.mjs';
-import { DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES } from './desktop-project-library-v20-runtime-files.mjs';
-import { DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES } from './desktop-project-library-v27-runtime-files.mjs';
-import { DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES } from './desktop-soundscaper-v10-runtime-files.mjs';
-import { DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES } from './desktop-soundscaper-v11-runtime-files.mjs';
+import { DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES } from './desktop-project-library-baseline-runtime-files.mjs';
+import { DESKTOP_SOUNDSCAPER_RUNTIME_FILES } from './desktop-soundscaper-runtime-files.mjs';
 import {
 	assertNoTypeScriptImportSpecifiers,
 	assertStagedDesktopImportsResolve,
@@ -21,8 +18,7 @@ import { stageBundledAudioCodecRuntimeManifest } from './desktop-bundled-audio-c
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
-const SOUNDSCAPER_V10_PRELOAD_BUNDLE = 'soundscaper-project-library-v10-sandbox-preload.cjs';
-const SOUNDSCAPER_V11_PRELOAD_BUNDLE = 'soundscaper-project-library-v11-sandbox-preload.cjs';
+const SOUNDSCAPER_PRELOAD_BUNDLE = 'soundscaper-project-library-sandbox-preload.cjs';
 const DESKTOP_ONLY_EXCLUDED_SOURCES = Object.freeze(new Set(['bundled-audio-codec-runtime-manifest.json', 'ffmpeg-corresponding-source.json']));
 // Staged sources ship no TypeScript loader. Package aliases resolve to source
 // TypeScript in the repository and compiled runtime members in the application.
@@ -139,56 +135,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/openfx-main-plugin-binary.js',
 	'desktop/openfx-main-service.js',
 	'desktop/openfx-unified-render-execution.js',
-	'desktop/project-library-abort.js',
-	'desktop/project-library-api.js',
-	'desktop/project-library-contract.js',
-	'desktop/project-library-current-project.js',
-	'desktop/project-library-database.js',
-	'desktop/project-library-editor-managed-source.js',
-	'desktop/project-library-editor-media-service.js',
-	'desktop/project-library-editor-service.js',
-	'desktop/project-library-file-inventory.js',
-	'desktop/project-library-host.js',
-	'desktop/project-library-media-binding.js',
-	'desktop/project-library-media-body.js',
-	'desktop/project-library-media-capacity.js',
-	'desktop/project-library-media-inventory-reclamation.js',
-	'desktop/project-library-media-inventory-schema.js',
-	'desktop/project-library-media-inventory-store.js',
-	'desktop/project-library-media-inventory.js',
-	'desktop/project-library-media-reclamation.js',
-	'desktop/project-library-media-reuse.js',
-	'desktop/project-library-media.js',
-	'desktop/project-library-persistence.js',
-	'desktop/project-library-projects.js',
-	'desktop/project-library-reclamation.js',
-	'desktop/project-library-sequential-upload.js',
-	'desktop/project-library-stage-inventory.js',
-	'desktop/project-library-v10-catalog.js',
-	'desktop/project-library-v10-contract.js',
-	'desktop/project-library-v10-current-project.js',
-	'desktop/project-library-v10-database.js',
-	'desktop/project-library-v10-handshake-gate.js',
-	'desktop/project-library-v10-ipc.js',
-	'desktop/project-library-v10-lease-wait.js',
-	'desktop/project-library-v10-lifecycle-contract.js',
-	'desktop/project-library-v10-lifecycle-host.js',
-	'desktop/project-library-v10-main-channels.js',
-	'desktop/project-library-v10-main-ipc.js',
-	'desktop/project-library-v10-main-session.js',
-	'desktop/project-library-v10-main.js',
-	'desktop/project-library-v10-media-binding.js',
-	'desktop/project-library-v10-metadata.js',
-	'desktop/project-library-v10-persistence-codecs.js',
-	'desktop/project-library-v10-publication-contract.js',
-	'desktop/project-library-v10-publication-files.js',
-	'desktop/project-library-v10-publication-host.js',
-	'desktop/project-library-v10-publication-persistence.js',
-	'desktop/project-library-v10-publication-transport.js',
-	'desktop/project-library-v10-transfer-contract.js',
-	'desktop/project-library-v10-transfer-service.js',
-	'desktop/project-library-writer-coordinator.js',
-	'desktop/project-library.js',
 	'src/common/editor/adm-authored-objects.js',
 	'src/common/editor/adm-bed-layout.js',
 	'src/common/editor/adm-normalization-guards.js',
@@ -234,7 +180,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/project-media-types.js',
 	'src/common/editor/project-validation-budget.js',
 	'src/common/editor/project-validation-primitives.js',
-	'src/common/editor/retention.js',
 	'src/common/editor/routing-cycle-v21.js',
 	'src/common/editor/runtime-clip-projection.js',
 	'src/common/editor/runtime-timeline-annotation-projection.js',
@@ -246,7 +191,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/storage/project-storage-profile.js',
 	'src/common/editor/take-comp-document-v17.js',
 	'src/common/editor/take-comp-domain.js',
-	'src/common/editor/take-group-source-references.js',
 	'src/common/editor/terminal-channel-widths.js',
 	'src/common/editor/timeline-annotation.js',
 	'src/common/editor/timeline-coordinate-limits.js',
@@ -277,18 +221,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/wav-opaque-chunks.js',
 	'src/common/editor/web-vcr-domain.js',
 	'src/common/editor/web-vcr-geometry.js',
-	'src/framescaper/editor-project-feature-capability-profile-v18.js',
-	'src/framescaper/editor-project-feature-requirements-v18.js',
-	'src/framescaper/editor-project-runtime-profile-v18-prerequisite.js',
-	'src/framescaper/editor-project-runtime-profile-v18.js',
-	'src/framescaper/editor-project-storage-profile-v18.js',
-	'src/framescaper/editor-project-v18-multicam.js',
-	'src/framescaper/editor-project-v18-profile.js',
-	'src/framescaper/editor-project-v18-sequence.js',
-	'src/framescaper/editor-project-v18-subsequence.js',
-	'src/framescaper/editor-project-v18-validation.js',
-	...DESKTOP_SOUNDSCAPER_V10_RUNTIME_FILES,
-	...DESKTOP_SOUNDSCAPER_V11_RUNTIME_FILES,
+	...DESKTOP_SOUNDSCAPER_RUNTIME_FILES,
 	'src/common/editor/audacity-effects/live.js',
 	'src/common/editor/audacity-effects/live-capabilities.js',
 	'src/common/editor/audacity-effects/manifest.js',
@@ -334,14 +267,15 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-keyframe-curves.js',
 	'src/common/editor/video-keyframe-time-domain.js',
 	'src/common/editor/wavpack/pcm.js',
+	'src/common/editor/wavpack/client.js',
+	'src/common/editor/wavpack/index.js',
+	'src/common/editor/wavpack/operations.js',
+	'src/common/editor/wavpack/runtime.js',
+	'src/common/editor/worker-protocol.js',
+	'src/common/editor/worker-request-broker.js',
 	'src/common/i18n/canonical-extras.js',
 	'src/common/i18n/locale.js',
-	'src/soundscaper/editor-project-feature-requirements-v21.js',
-	'src/soundscaper/editor-project-feature-requirements-v23.js',
-	'src/soundscaper/editor-project-production-validation.js',
-	'src/soundscaper/editor-project-v23-validation.js',
-	...DESKTOP_PROJECT_LIBRARY_EXACT_RUNTIME_FILES,
-	...DESKTOP_PROJECT_LIBRARY_V20_RUNTIME_FILES,
+	...DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',
 	'src/common/editor/native-external-display.js',
 	'src/common/editor/native-media-atomic-publication.js',
@@ -416,22 +350,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-retime-runtime-mapping.js',
 	'src/common/editor/waveform-peak-contract.js',
 	'src/common/editor/wavpack/container.js',
-	'src/framescaper/editor-project-feature-capability-profile-v19.js',
-	'src/framescaper/editor-project-feature-capability-profile-v20.js',
-	'src/framescaper/editor-project-feature-requirements-v19.js',
-	'src/framescaper/editor-project-feature-requirements-v20.js',
-	'src/framescaper/editor-project-runtime-profile-v19-prerequisite.js',
-	'src/framescaper/editor-project-runtime-profile-v19.js',
-	'src/framescaper/editor-project-runtime-profile-v20-prerequisite.js',
-	'src/framescaper/editor-project-runtime-profile-v20.js',
-	'src/framescaper/editor-project-storage-profile-v19.js',
-	'src/framescaper/editor-project-storage-profile-v20.js',
-	'src/framescaper/editor-project-v19-profile.js',
-	'src/framescaper/editor-project-v19-validation.js',
-	'src/framescaper/editor-project-v20-profile.js',
-	'src/framescaper/editor-project-v20-structural-admission.js',
-	'src/framescaper/editor-project-v20-validation.js',
-	...DESKTOP_PROJECT_LIBRARY_V27_RUNTIME_FILES,
 ].sort());
 
 export async function compileDesktopProjectLibraryRuntime({ repositoryRoot, outputRoot }) {
@@ -494,26 +412,20 @@ export async function stageDesktopApplicationSources({
 	await assertStagedDesktopImportsResolve(applicationRoot);
 	assertRuntimePackageImportTargets();
 	await bundleSandboxPreload({
-		entryPoint: join(sourceRoot, 'soundscaper-project-library-v10-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
-		outputPath: join(applicationRoot, SOUNDSCAPER_V10_PRELOAD_BUNDLE),
-		productName: 'Soundscaper V10',
-	});
-	await bundleSandboxPreload({
-		entryPoint: join(sourceRoot, 'soundscaper-project-library-v11-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
-		outputPath: join(applicationRoot, SOUNDSCAPER_V11_PRELOAD_BUNDLE),
-		productName: 'Soundscaper V11',
+		entryPoint: join(sourceRoot, 'soundscaper-project-library-sandbox-preload.ts'),
+		cryptoShim: join(sourceRoot, 'soundscaper-project-library-sandbox-crypto.ts'),
+		outputPath: join(applicationRoot, SOUNDSCAPER_PRELOAD_BUNDLE),
+		productName: 'Soundscaper 1.0',
 	});
 	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'framescaper-capture-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE),
 		productName: 'Framescaper Capture',
 	});
 	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'framescaper-web-vcr-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-v10-sandbox-crypto.ts'),
+		cryptoShim: join(sourceRoot, 'project-library-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE),
 		productName: 'Framescaper Web VCR',
 	});

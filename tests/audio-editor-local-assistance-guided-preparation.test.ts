@@ -230,7 +230,7 @@ test('reverse, nested, multicamera, live, linked-unverifiable, and stale authori
 
 test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast', async () => {
 	const fixture = preparationFixture();
-	const videoProject: FixtureProject = { ...project(),
+	const videoProject: FixtureProject = { ...project(), schemaFamily: 'framescaper',
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
 			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }],
@@ -241,7 +241,7 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 		captureProject: () => ({ revision: 4 }), assertProject: () => undefined,
 		preflightStorage: async () => undefined,
 		currentSelectionFence: () => ({
-			projectId: 'project-1', schemaVersion: 30, revision: 4,
+			projectId: 'project-1', schemaFamily: 'framescaper', schemaVersion: 1, revision: 4,
 			sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
 			sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 			sourceStartFrame: 0, sourceEndFrame: 120,
@@ -254,7 +254,8 @@ test('Accurate Mark Cuts stages its exact frame pack and never substitutes Fast'
 				modes.push(request.shotDetectionMode);
 				return { sourceId: 'video-source', operation: 'shot-detection',
 					shotDetectionMode: 'accurate', selectionFence: {
-						projectId: 'project-1', schemaVersion: 30, revision: 4,
+						projectId: 'project-1', schemaFamily: 'framescaper',
+						schemaVersion: 1, revision: 4,
 						sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
 						sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 						sourceStartFrame: 0, sourceEndFrame: 120,
@@ -289,18 +290,19 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 	const fixture = preparationFixture();
 	const timingAuthoritySha256 = '34'.repeat(32);
 	const videoFence = {
-		projectId: 'project-1', schemaVersion: 30, revision: 4,
+		projectId: 'project-1', schemaFamily: 'framescaper', schemaVersion: 1, revision: 4,
 		sequenceId: 'main-sequence', occurrenceIds: ['video-clip'],
 		sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 		sourceStartFrame: 20, sourceEndFrame: 24,
 		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256,
 	};
-	const videoProject: FixtureProject = { ...project(),
+	const videoProject: FixtureProject = { ...project(), schemaFamily: 'framescaper',
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
 			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }],
 	};
-	const descriptor = { schemaVersion: 1, kind: 'selected-video-source-time-authority',
+	const descriptor = { descriptorVersion: 1, kind: 'selected-video-source-time-authority',
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		projectId: 'project-1', projectRevision: 4, sequenceId: 'main-sequence',
 		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 		timingAuthoritySha256, sourceWidth: 1_920, sourceHeight: 1_080,
@@ -368,11 +370,12 @@ test('Index Video stages exact selected-video timing authority beside raw decode
 
 test('Guided Reframe prepares both visual model stages through selected-video frame custody', async () => {
 	const fixture = preparationFixture();
-	const videoFence = { projectId: 'project-1', schemaVersion: 30, revision: 4,
+	const videoFence = { projectId: 'project-1', schemaFamily: 'framescaper',
+		schemaVersion: 1, revision: 4,
 		sequenceId: 'main-sequence', occurrenceIds: ['video-clip'], sourceId: 'video-source',
 		sourceSha256: SOURCE_SHA256, sourceStartFrame: 20, sourceEndFrame: 120,
 		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32) };
-	const videoProject: FixtureProject = { ...project(),
+	const videoProject: FixtureProject = { ...project(), schemaFamily: 'framescaper',
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
 			sequenceId: 'main-sequence', avLinkId: null, reversed: false, speedRatio: 1 }] };
@@ -413,7 +416,7 @@ test('Guided Reframe prepares both visual model stages through selected-video fr
 
 test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', async () => {
 	const fixture = preparationFixture();
-	const videoProject: FixtureProject = { ...project(),
+	const videoProject: FixtureProject = { ...project(), schemaFamily: 'framescaper',
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: SOURCE_SHA256 },
 			{ id: 'audio-source', kind: 'audio', contentSha256: 'cd'.repeat(32),
 				sampleRate: 48_000 }],
@@ -425,7 +428,7 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 	};
 	const linkMembershipSha256 = '12'.repeat(32);
 	const videoFence = {
-		projectId: 'project-1', schemaVersion: 30, revision: 4,
+		projectId: 'project-1', schemaFamily: 'framescaper', schemaVersion: 1, revision: 4,
 		sequenceId: 'main-sequence', occurrenceIds: ['audio-clip', 'video-clip'],
 		sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 		sourceStartFrame: 0, sourceEndFrame: 120,
@@ -435,7 +438,8 @@ test('Make Highlights adds Qwen only after explicit editorial rerank opt-in', as
 		sourceStartFrame: 0, sourceEndFrame: 240_000,
 		timingAuthoritySha256: '56'.repeat(32) };
 	const descriptor = {
-		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		descriptorVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-1', projectRevision: 4, sequenceId: 'main-sequence',
 		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: SOURCE_SHA256,
 		timingAuthoritySha256: videoFence.timingAuthoritySha256,

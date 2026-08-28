@@ -14,9 +14,9 @@ import {
 import { createVideoRetimeApplicationMenuItems } from '../src/common/editor/ui/video-retime-application-menu.ts';
 import { createVideoRetimeDialogModel } from '../src/common/editor/ui/video-retime-dialog-model.ts';
 
-function project(schemaVersion: 20 | 27 = 20) {
+function project() {
 	return {
-		schemaVersion,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		clips: [{
 			id: 'video-1', kind: 'video', name: 'Picture', sourceId: 'source-1',
 			sequenceStartFrame: 12, sequenceFrameCount: 10, sourceInFrame: 3,
@@ -27,7 +27,7 @@ function project(schemaVersion: 20 | 27 = 20) {
 	};
 }
 
-test('video-retime menu is a maintained V20/V27 Framescaper capability-gated lazy entry', () => {
+test('video-retime menu is a maintained Framescaper-v1 capability-gated lazy entry', () => {
 	let opened = 0;
 	const input = {
 		productId: 'framescaper', capability: true, project: project(), selectedClipId: 'video-1',
@@ -40,12 +40,12 @@ test('video-retime menu is a maintained V20/V27 Framescaper capability-gated laz
 	item?.onClick();
 	assert.equal(opened, 1);
 	assert.equal(createVideoRetimeApplicationMenuItems({
-		...input, project: project(27),
+		...input, project: project(),
 	})[0]?.disabled, false);
 	assert.deepEqual(createVideoRetimeApplicationMenuItems({ ...input, productId: 'soundscaper' }), []);
 	assert.deepEqual(createVideoRetimeApplicationMenuItems({ ...input, capability: false }), []);
 	assert.deepEqual(createVideoRetimeApplicationMenuItems({
-		...input, project: { ...project(), schemaVersion: 19 },
+		...input, project: { ...project(), schemaVersion: 2 },
 	}), []);
 });
 
@@ -98,7 +98,7 @@ test('video-retime dialog model snapshots exact selected clip command authority'
 
 	const selected = createVideoRetimeDialogModel({
 		productId: 'framescaper', capability: true,
-		project: project(27), selectedClipId: 'video-1', editingBlocked: false,
+		project: project(), selectedClipId: 'video-1', editingBlocked: false,
 	});
 	assert.equal(selected.blockReason, null);
 	assert.equal(selected.clipId, 'video-1');

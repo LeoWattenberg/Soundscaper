@@ -7,13 +7,13 @@ import { framescaperNativeQueueEnqueueRequest } from '../desktop/native-services
 import { nativeRenderInputExactEnvelope, nativeRenderInputStageRequired } from '../desktop/native-services-render-input-contract.ts';
 import { canonicalizeNativeMediaPlan, fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { nativeMediaV14RenderFamily } from '../src/common/editor/native-media-v14-render-family.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 const STAGE_ID = 'ab'.repeat(20);
 
 test('main requires a carrier for managed-color V14 and forbids one for the exact CPU subset', () => {
@@ -42,14 +42,14 @@ test('native V14 proxy generation admits no renderer carrier for its authenticat
 function plan(legacyUnmanaged: boolean) {
 	const options = legacyUnmanaged ? silentVideoOptions() : framescaperV20Options();
 	if (legacyUnmanaged) {
-		const derived = createFramescaperProjectV28(PROFILE, options);
+		const derived = createFramescaperProjectNativeMedia(PROFILE, options);
 		options.finishing = { sourceColorInterpretations: derived.videoSourceColorInterpretations.map(
 			(value) => ({ ...value, provenance: 'legacy-unmanaged-encoded' }),
 		) };
 	}
-	const project = createFramescaperProjectV28(PROFILE, options);
-	return createFramescaperProjectUnifiedExactRenderPlanV28(
-		PROFILE, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(PROFILE, options);
+	return createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		PROFILE, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 }
 
@@ -77,6 +77,7 @@ function request(
 ) {
 	return Object.freeze({
 		taskKind, planVersion: 14, derivedInputStageId,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		planFingerprint: fingerprintNativeMediaPlan(planValue).sha256,
 		planPayload: canonicalizeNativeMediaPlan(planValue), projectId: String(planValue.project.id),
 		projectRevision: Number(planValue.project.revision),

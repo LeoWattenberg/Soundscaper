@@ -17,11 +17,11 @@ import {
 import { collectHistorySourceIds, editorHistoryProjects } from '../src/common/editor/retention.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
-	createSoundscaperProjectHistoryV21,
-	executeSoundscaperProjectCommandV21,
-	undoSoundscaperProjectCommandV21,
-} from '../src/soundscaper/editor-project-v21-history.ts';
-import { createSoundscaperProjectV21, type SoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+	createSoundscaperProjectHistory,
+	executeSoundscaperProjectCommand,
+	undoSoundscaperProjectCommand,
+} from '../src/soundscaper/editor-project-history.ts';
+import { createSoundscaperProject, type SoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-14T14:00:00.000Z';
 const LIVE_BYTES = new Uint8Array([10, 20, 30, 40]);
@@ -145,7 +145,7 @@ test('commit rehashes live inputs and the derived body before one undoable freez
 	assert.equal(Object.hasOwn(baked, 'audioFreeze'), false);
 	assert.deepEqual(committed.project.automationLanes.map(({ id }) => id), ['voice-gain']);
 	assert.equal(fixture.commands.at(-1)?.type, 'audio-freeze/commit');
-	const undone = undoSoundscaperProjectCommandV21(fixture.history());
+	const undone = undoSoundscaperProjectCommand(fixture.history());
 	assert.deepEqual(track(undone.present).audioFreeze, installed.freeze);
 });
 
@@ -252,7 +252,7 @@ interface Stage {
 }
 
 function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
-	let history = createSoundscaperProjectHistoryV21(
+	let history = createSoundscaperProjectHistory(
 		projectFixture(),
 		options.historyLimit === undefined ? {} : { limit: options.historyLimit },
 	);
@@ -269,15 +269,15 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 		refuseCommand: false,
 		loseCurrentness() { generation += 1; },
 		rename(title: string) {
-			history = executeSoundscaperProjectCommandV21(history, { type: 'project/rename', title }, { now: NOW });
+			history = executeSoundscaperProjectCommand(history, { type: 'project/rename', title }, { now: NOW });
 			generation += 1;
 		},
 		history: () => history,
 		coordinator: null as unknown as ReturnType<typeof createAudioTrackFreezeCoordinatorV21<
-			SoundscaperProjectV21, Ticket, RenderBody, Stage
+			SoundscaperProject, Ticket, RenderBody, Stage
 		>>,
 	};
-	const ports: AudioTrackFreezeCoordinatorPortsV21<SoundscaperProjectV21, Ticket, RenderBody, Stage> = {
+	const ports: AudioTrackFreezeCoordinatorPortsV21<SoundscaperProject, Ticket, RenderBody, Stage> = {
 		controller: {
 			async capture() {
 				log.push('capture');
@@ -295,7 +295,7 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 				if (fixture.refuseCommand) throw new Error('CAS refusal');
 				if (ticket.generation !== generation) throw new Error('Project generation is stale.');
 				commands.push(command);
-				history = executeSoundscaperProjectCommandV21(history, command, { now: NOW });
+				history = executeSoundscaperProjectCommand(history, command, { now: NOW });
 				generation += 1;
 				return history.present;
 			},
@@ -360,7 +360,7 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 	return fixture;
 }
 
-function projectFixture(): SoundscaperProjectV21 {
+function projectFixture(): SoundscaperProject {
 	const liveSource = createAudioSource({
 		id: 'voice-live', storageKey: 'pcm:voice-live', contentSha256: LIVE_DIGEST,
 		frameCount: 512, channelCount: 2, sampleRate: 48_000, originalSampleRate: 48_000,
@@ -382,7 +382,7 @@ function projectFixture(): SoundscaperProjectV21 {
 		id: 'voice', name: 'Voice', gain: 0.75, pan: -0.1, clipIds: [clip.id],
 		effects: [effect, automationEffect],
 	});
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'freeze-coordinator-project', title: 'Freeze coordinator', now: NOW,
 		sources: [liveSource], clips: [clip], tracks: [trackValue],
 		sequences: [{ id: 'main-sequence', trackIds: [trackValue.id] }],
@@ -412,7 +412,7 @@ function committedClip(sourceId: string): Readonly<Record<string, unknown>> {
 	});
 }
 
-function track(project: SoundscaperProjectV21): Readonly<Record<string, unknown>> {
+function track(project: SoundscaperProject): Readonly<Record<string, unknown>> {
 	return project.tracks.find(({ id }) => id === 'voice') as unknown as Readonly<Record<string, unknown>>;
 }
 

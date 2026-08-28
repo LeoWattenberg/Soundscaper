@@ -16,6 +16,7 @@ import {
 	validateAssistanceWorkflow,
 	type AssistanceWorkflowV1,
 } from '../assistance/workflow.ts';
+import { readProjectSchemaIdentity } from '../project-schema-identity.ts';
 import type { AssistanceDerivativeRecordV1 } from
 	'../storage/assistance-derivative-repository.ts';
 import type { AssistanceDerivativeRepositoryPort } from
@@ -85,7 +86,7 @@ export function prepareLocalAssistanceGuidedHighlightReframeEvidenceV1(request: 
 	const candidates = request.records.flatMap((candidate) => {
 		const record = dataRecord(candidate, 'Highlight Reframe derivative record');
 		if (record.kind !== 'reframe-path' || record.projectId !== request.fence.projectId) return [];
-		const bytes = authenticatedPayload(record);
+		const bytes = authenticatedPayload(record, request.fence);
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
@@ -99,9 +100,15 @@ export function prepareLocalAssistanceGuidedHighlightReframeEvidenceV1(request: 
 	return candidates.length === 1 ? candidates[0]! : null;
 }
 
-function authenticatedPayload(record: Record<string, unknown>): Uint8Array {
+function authenticatedPayload(
+	record: Record<string, unknown>,
+	fence: LocalAssistanceGuidedPrimitiveFence,
+): Uint8Array {
 	const key = typeof record.key === 'string' ? RECORD_KEY.exec(record.key) : null;
-	if (record.recordVersion !== 1 || record.schemaVersion !== 1 || key === null
+	const identity = readProjectSchemaIdentity(record);
+	if (record.recordVersion !== 1 || record.derivativeVersion !== 1
+		|| identity.schemaFamily !== fence.schemaFamily
+		|| identity.schemaVersion !== fence.schemaVersion || key === null
 		|| record.projectScopeSha256 !== key[1] || record.identitySha256 !== key[2]
 		|| record.mediaType !== ASSISTANCE_ACCEPTED_REFRAME_DERIVATIVE_MEDIA_TYPE
 		|| !(record.bytes instanceof Uint8Array) || record.bytes.byteLength < 1
@@ -123,7 +130,8 @@ function matches(
 	const authority = derivative.authority;
 	const range = authority.sourceRange;
 	if (authority.projectId !== fence.projectId
-		|| authority.projectSchemaVersion !== fence.schemaVersion
+		|| authority.schemaFamily !== fence.schemaFamily
+		|| authority.schemaVersion !== fence.schemaVersion
 		|| authority.acceptedProjectRevision !== fence.revision
 		|| authority.sequenceId !== fence.sequenceId
 		|| range.sourceId !== fence.sourceId || range.sourceSha256 !== fence.sourceSha256
@@ -153,8 +161,12 @@ async function assertAcceptedProject(
 	workflow: AssistanceWorkflowV1,
 ): Promise<number> {
 	const row = dataRecord(await read(), 'accepted Reframe project authority');
+	const identity = readProjectSchemaIdentity(row);
 	const acceptedRevision = workflow.fence.revision + 1;
-	if (!Number.isSafeInteger(acceptedRevision) || row.projectId !== workflow.fence.projectId
+	if (!Number.isSafeInteger(acceptedRevision)
+		|| identity.schemaFamily !== workflow.fence.schemaFamily
+		|| identity.schemaVersion !== workflow.fence.schemaVersion
+		|| row.projectId !== workflow.fence.projectId
 		|| row.projectRevision !== acceptedRevision) {
 		throw new DOMException('Accepted Reframe derivative project authority is stale.', 'AbortError');
 	}

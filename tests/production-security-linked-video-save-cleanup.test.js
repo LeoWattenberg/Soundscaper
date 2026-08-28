@@ -21,7 +21,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 		'src/common/editor/controller/project-retention-service.ts',
 		'src/common/editor/controller/project-save-service.ts',
 		'src/common/editor/controller/project-switch-service.ts',
-		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/soundscaper/desktop-project-library-renderer.ts',
 		'src/common/editor/storage/linked-original-lifecycle-coordinator.ts',
 		'src/common/editor/storage/linked-original-pair-writer.ts',
 		'src/common/editor/storage/linked-original-project-binding-prune.ts',
@@ -37,7 +37,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 		'src/common/editor/storage/project-publication-options.ts',
 		'src/common/editor/storage/project-repository.ts',
 		'src/common/editor/storage.js',
-		'tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts',
+		'tests/audio-editor-linked-video-project-save-lifecycle.test.ts',
 		'tests/audio-editor-linked-audio-project-save-reconciliation.test.ts',
 		'tests/audio-editor-linked-original-lifecycle.test.ts',
 		'tests/audio-editor-linked-original-project-save.test.ts',
@@ -65,7 +65,7 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 	assert.match(control.summary, /durable IndexedDB.*skips read-only, failed, save-triggered, memory, and degraded activation.*lifecycle.*latest-project-mutation.*revalidates.*active project.*write-lock identity.*collects.*roots inside.*serialized ownership/isu);
 	assert.match(control.summary, /direct saves without authoritative roots.*skip destructive source-level cleanup/isu);
 	assert.match(control.summary, /same textual source ID.*kind-distinct.*wrong-kind.*does not retain.*protectedLinkedVideoSourceIds.*compatibility facade/isu);
-	assert.match(control.summary, /exact-schema-17 current project and at most 64 retained revisions.*timeline clips, Project Bin clips, and all feature-fallback declarations.*future, invalid, missing-current-revision, duplicate, or over-bound.*suppress(?:es)? cleanup/isu);
+	assert.match(control.summary, /exact owning-family v1 current project and at most 64 retained revisions.*timeline clips, Project Bin clips, and all feature-fallback declarations.*future, invalid, missing-current-revision, duplicate, or over-bound.*suppress(?:es)? cleanup/isu);
 	assert.match(control.summary, /100,000 aggregate roots.*100,000 closed binding rows.*128 unique exact locator\/revision pairs/isu);
 	assert.match(control.summary, /after project publication and revision pruning or terminal activation.*Desktop.*exact remote acknowledgement.*serialized activation.*per-project latest-mutation lock.*one atomic local binding transaction/isu);
 	assert.match(control.summary, /maintained binding, replacement, and alias publication.*closed scalar provisional root.*exact.*binding token.*same compensated memory batch or IndexedDB readwrite transaction.*exact unlink or (?:determinate )?rollback.*pair/isu);
@@ -81,22 +81,15 @@ test('the security matrix qualifies maintained save- and activation-triggered li
 });
 
 test('the threat model records the same maintained save boundary and residuals', async () => {
-	const documentation = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
-	assert.match(documentation, /maintained save- and successful-writable-activation-triggered kindful linked-original binding reachability/iu);
-	assert.match(documentation, /controller.*queued autosaves, flushes, inactive-tab saves, and project-switch or analysis explicit saves.*successful writable activation.*live Undo\/Redo.*clipboard.*recording.*render-cache.*direct unqualified save.*skip/isu);
-	assert.match(documentation, /durable IndexedDB.*read-only, failed, save-triggered, memory, or degraded activation.*lifecycle.*latest-project-mutation.*active project.*write-lock identity.*roots.*serialized/isu);
-	assert.match(documentation, /same textual source ID.*kind-distinct.*wrong-kind.*does not retain.*protectedLinkedVideoSourceIds.*compatibility facade/isu);
-	assert.match(documentation, /current exact schema 17 project.*64 retained revisions.*timeline.*Project Bin.*all feature-fallback declarations/isu);
-	assert.match(documentation, /100,000 aggregate roots.*100,000 (?:closed )?binding rows.*128.*locator/isu);
-	assert.match(documentation, /Desktop.*remote acknowledgement.*successful activation.*latest-mutation lock.*atomic local binding.*provisional root/isu);
-	assert.match(documentation, /closed scalar.*project.*kind.*source.*binding token.*same compensated memory batch or IndexedDB.*exact unlink.*pair/isu);
-	assert.match(documentation, /same-database bind-before-project.*independent.*cleanup.*durable.*exact owner token.*consume.*wildcard.*does not consume.*stale.*replacement.*failed maintenance.*settles no root/isu);
-	assert.match(documentation, /startup.*no owner token.*catalog-live.*rooted.*(?:retained|remains live).*unreachable.*unverifiable.*durable.*consumes.*catalog-absent.*pair/isu);
-	assert.match(documentation, /roots have no time expiry.*bounded safe leak.*version-8 upgrade.*does not backfill.*pre-root binding rows/isu);
-	assert.match(documentation, /report-only.*save or activation succeeds.*previously failed pending release.*rejects again.*unrelated activation cleanup.*alias.*exact locator/isu);
-	assert.match(documentation, /memory and IndexedDB.*no-owned-PCM linked WAV.*last durable revision.*canonical.*readable.*live audio root.*last root disappears.*exact locator.*once.*external WAV.*untouched/isu);
-	assert.match(documentation, /same IndexedDB database.*independent browser connections.*different databases or profiles.*catalog.*main locator registry.*abrupt crash or power loss.*hostile IndexedDB.*hostile renderer.*unqualified/isu);
-	assert.match(documentation, /project publication, (?:the )?local binding transaction, and main locator retirement.*separate/isu);
-	assert.match(documentation, /Source-level reachability beyond bounded startup reconciliation, maintained saves, and successful writable activations.*general continuous cleanup beyond same-store save\/activation\/delete\/clear/isu);
-	assert.doesNotMatch(documentation, /Source-level and general continuous cleanup beyond same-store project deletion and clear/iu);
+	const source = await readFile(threatModelUrl, 'utf8');
+	const documentation = source.replace(/\s+/gu, ' ');
+	assert.match(documentation, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaFamily:'framescaper'/isu);
+	assert.match(documentation, /product-isolated family-v1 appData catalog, project-document tree, and managed-media tree/isu);
+	assert.match(documentation, /family-qualified handshake and current fenced lease.*only the current lease may publish state/isu);
+	assert.match(documentation, /no project migration, copy-forward, predecessor-validator dispatch/isu);
+	assert.ok(
+		source.indexOf('Core project migration validates supported schemas')
+			> source.indexOf('historical implementation provenance'),
+		'the predecessor project narrative is retained only as historical provenance',
+	);
 });

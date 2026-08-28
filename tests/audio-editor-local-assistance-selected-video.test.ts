@@ -279,7 +279,7 @@ test('monotonic forward V16 retimes prepare and invert source cuts deterministic
 test('reverse, freeze, non-monotonic, unverifiable, nested, multicamera, and ambiguous video authority refuses before custody', async () => {
 	const base = videoProject();
 	const cases: readonly Readonly<[string, ReturnType<typeof videoProject>, RegExp]>[] = [
-		['non-F31', { ...base, schemaVersion: 28 }, /F31/iu],
+		['foreign family', { ...base, schemaFamily: 'soundscaper' as never }, /Framescaper|family/iu],
 		['reverse flag', withClip(base, { reversed: true }), /reverse|forward/iu],
 		['unverified VFR', withSource(base, {
 			timingDecision: { mode: 'exact', rate: { num: 24, den: 1 } },
@@ -485,7 +485,8 @@ function videoFixture(
 
 function videoProject() {
 	return {
-		id: 'project-1', schemaVersion: 31, revision: 7, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'framescaper' as const, schemaVersion: 1,
+		revision: 7, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		selection: { startFrame: 0, endFrame: 200_000,
 			clipIds: ['video-clip'], trackIds: ['video-track'] },

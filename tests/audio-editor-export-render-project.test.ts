@@ -18,10 +18,10 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import {
-	createSoundscaperAudioTrackFreezePlaybackServiceV23,
-} from '../src/soundscaper/editor-audio-track-freeze-playback-v23.ts';
-import { createSoundscaperPlaybackProjectServiceV23 } from '../src/soundscaper/editor-project-playback-v23.ts';
-import { cloneSoundscaperProjectV23, createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+	createSoundscaperAudioTrackFreezePlaybackService,
+} from '../src/soundscaper/editor-audio-track-freeze-playback.ts';
+import { createSoundscaperPlaybackProjectService } from '../src/soundscaper/editor-project-playback.ts';
+import { cloneSoundscaperProject, createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * What an export renders is the projection playback renders, detached.
@@ -45,7 +45,7 @@ test('the export document keeps a folder projection the canonical clone refuses'
 	const delivered = projectTrackFolderMediaStateV12(folderedProject());
 	// The reason this helper exists rather than the product's clone: the marker is
 	// a field the canonical record does not know.
-	assert.throws(() => cloneSoundscaperProjectV23(delivered as never), /unsupported field/iu);
+	assert.throws(() => cloneSoundscaperProject(delivered as never), /unsupported field/iu);
 
 	const exportProject = createExportRenderProject(delivered);
 	assert.notEqual(exportProject, delivered, 'the export document must be detached');
@@ -58,15 +58,15 @@ test('the export document keeps a folder projection the canonical clone refuses'
 
 test('the export document keeps a frozen track the canonical clone refuses', () => {
 	const { project, freeze, derivedSource } = frozenFixture();
-	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV23(
-		createSoundscaperPlaybackProjectServiceV23(), pcmStore(),
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(), pcmStore(),
 	);
 	playback.admitVerifiedFreeze({
 		project, trackId: 'voice', freeze, derivedSource,
 		sourceContentIdentities: [{ sourceId: 'voice-source', contentSha256: CONTENT_SHA256 }],
 	});
 	const delivered = playback.projectForAudioRenderedFallbackDelivery(project).project;
-	assert.throws(() => cloneSoundscaperProjectV23(delivered as never));
+	assert.throws(() => cloneSoundscaperProject(delivered as never));
 
 	const exportProject = createExportRenderProject(delivered);
 	const clips = (exportProject as unknown as {
@@ -80,8 +80,8 @@ test('the export document keeps a frozen track the canonical clone refuses', () 
 
 test('a frozen native delivery stem consumes its already-realized freeze requirement', () => {
 	const { project, freeze, derivedSource } = frozenFixture();
-	const playback = createSoundscaperAudioTrackFreezePlaybackServiceV23(
-		createSoundscaperPlaybackProjectServiceV23(), pcmStore(),
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(), pcmStore(),
 	);
 	playback.admitVerifiedFreeze({
 		project, trackId: 'voice', freeze, derivedSource,
@@ -122,7 +122,7 @@ function pcmStore() {
 }
 
 function folderedProject() {
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		...baseOptions(),
 		trackFolders: [{ id: 'stems', name: 'Stems', mute: true }],
 		sequences: [{
@@ -157,7 +157,7 @@ function frozenFixture() {
 		renderFrameCount: 8,
 		capturePosition: 'post-insert-pre-strip',
 	};
-	const project = createSoundscaperProjectV23({
+	const project = createSoundscaperProject({
 		...options,
 		sources: [...options.sources, derivedSource],
 		tracks: [createAudioTrack({

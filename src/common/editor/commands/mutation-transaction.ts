@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isFoundationProjectSchema } from '../project-current-runtime.ts';
+import {
+	isFoundationProjectAuthority,
+} from '../project-current-runtime.ts';
 import {
 	brandRuntimeProjectProjection,
 	type RuntimeClipProject,
@@ -49,7 +51,7 @@ export function createEditorCommandMutationTransaction(
 				throw new TypeError('A serializable editor command is required.');
 			}
 			const project = projectRecord(projectValue, 'command draft');
-			if (isFoundationProjectSchema(persistedProject.schemaVersion)) {
+			if (isFoundationProjectAuthority(persistedProject)) {
 				brandRuntimeProjectProjection(project as RuntimeClipProject);
 			}
 			mutate(project, command);
@@ -100,12 +102,12 @@ function mutateCommand(
 ): void {
 	const isChild = command.type !== 'batch';
 	if (isChild) admission.beforeCommand(project, command);
-	if (isTrackFolderProjectSchema(project.schemaVersion)
+	if (isTrackFolderProjectSchema(project)
 		&& (command.type === 'track/add' || command.type === 'track/remove' || command.type === 'track/reorder')
 		&& !(Array.isArray(project.trackFolders) && project.trackFolders.length > 0)) {
 		project[LEGACY_TRACK_STRUCTURE_EDIT] = true;
 	}
-	if (isFoundationProjectSchema(project.schemaVersion) && isChild) {
+	if (isFoundationProjectAuthority(project) && isChild) {
 		const clips = recordArray(project.clips, 'project.clips');
 		const before = new Map(clips.map((clip) => [clip.id, commandTimingSignature(clip)]));
 		dispatchEditorCommand(handlers, project, command);

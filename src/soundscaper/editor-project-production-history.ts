@@ -20,11 +20,11 @@ export interface SoundscaperProductionHistoryRevision {
 	applyCommand(
 		project: unknown,
 		command: AudioEditorCommand,
-		options: SoundscaperProjectCommandOptionsV21,
+		options: SoundscaperProductionCommandOptions,
 	): Record<string, unknown>;
 }
 
-export interface SoundscaperProjectCommandOptionsV21 {
+export interface SoundscaperProductionCommandOptions {
 	readonly now?: Date | string;
 }
 
@@ -55,7 +55,7 @@ export function validateSoundscaperProductionHistory(
 	revision: SoundscaperProductionHistoryRevision,
 ): history is SoundscaperProductionHistoryState {
 	if (!history || typeof history !== 'object' || Array.isArray(history)) {
-		throw new TypeError('A Soundscaper V21 history is required.');
+		throw new TypeError('A Soundscaper baseline history is required.');
 	}
 	const value = history as Partial<SoundscaperProductionHistoryState>;
 	const limit = historyLimit(value.limit);
@@ -84,7 +84,7 @@ export function executeSoundscaperProductionCommand(
 	history: SoundscaperProductionHistoryState | unknown,
 	command: AudioEditorCommand,
 	revision: SoundscaperProductionHistoryRevision,
-	options: SoundscaperProjectCommandOptionsV21 = {},
+	options: SoundscaperProductionCommandOptions = {},
 ): SoundscaperProductionHistoryState {
 	validateSoundscaperProductionHistory(history, revision);
 	const valid = history as SoundscaperProductionHistoryState;
@@ -104,7 +104,7 @@ export function executeSoundscaperProductionCommand(
 export function undoSoundscaperProductionCommand(
 	history: SoundscaperProductionHistoryState | unknown,
 	revision: SoundscaperProductionHistoryRevision,
-	options: SoundscaperProjectCommandOptionsV21 = {},
+	options: SoundscaperProductionCommandOptions = {},
 ): SoundscaperProductionHistoryState {
 	validateSoundscaperProductionHistory(history, revision);
 	const valid = history as SoundscaperProductionHistoryState;
@@ -119,7 +119,7 @@ export function undoSoundscaperProductionCommand(
 export function redoSoundscaperProductionCommand(
 	history: SoundscaperProductionHistoryState | unknown,
 	revision: SoundscaperProductionHistoryRevision,
-	options: SoundscaperProjectCommandOptionsV21 = {},
+	options: SoundscaperProductionCommandOptions = {},
 ): SoundscaperProductionHistoryState {
 	validateSoundscaperProductionHistory(history, revision);
 	const valid = history as SoundscaperProductionHistoryState;
@@ -137,7 +137,7 @@ function restore(
 	undoStack: readonly SoundscaperProductionHistoryEntry[],
 	redoStack: readonly SoundscaperProductionHistoryEntry[],
 	revision: SoundscaperProductionHistoryRevision,
-	options: SoundscaperProjectCommandOptionsV21,
+	options: SoundscaperProductionCommandOptions,
 ): SoundscaperProductionHistoryState {
 	const present = revision.cloneProject(entry.project);
 	const next = Number(history.present.revision) + 1;

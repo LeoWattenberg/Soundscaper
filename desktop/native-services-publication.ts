@@ -11,6 +11,11 @@ import {
 	type NativeMediaAuthenticatedOutputTree,
 	type NativeMediaOutputTreeSummaryV1,
 } from './native-media-output-tree.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAXIMUM_CHECKPOINT_FRAMES = 2_000_000;
@@ -52,6 +57,10 @@ export interface FramescaperNativePublicationPort {
 }
 
 export interface FramescaperNativePublicationFence {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
+	readonly projectId: string;
+	readonly projectRevision: number;
 	/** Revalidate the live writer, queue row, policy, and root immediately before rename. */
 	readonly beforePublication: () => Promise<void>;
 	/** Repeat the same checks immediately after rename and before durable advertisement. */
@@ -83,8 +92,9 @@ export async function publishVerifiedNativeMediaOutput(
 	port: FramescaperNativePublicationPort,
 	fence?: FramescaperNativePublicationFence,
 ): Promise<FramescaperNativePublicationResult> {
+	const publicationFence = fence === undefined ? undefined : exactPublicationFence(fence);
 	const plan = exactPublicationPlan(request.plan);
-	if (request.tree !== undefined) return publishVerifiedOutputTree(request, plan, port, fence);
+	if (request.tree !== undefined) return publishVerifiedOutputTree(request, plan, port, publicationFence);
 	const declaredByteLength = byteCount(request.declaredByteLength, 'declared output length');
 	const declaredSha256 = digest(request.declaredSha256, 'declared output');
 	const destination = await port.inspect(plan.relativeDestination);
@@ -94,15 +104,15 @@ export async function publishVerifiedNativeMediaOutput(
 			throw new Error('The native media destination already contains a different output.');
 		}
 		assertPublicationVerdict(request, plan, destination);
-		await fence?.beforePublication();
-		await fence?.afterPublication();
+		await publicationFence?.beforePublication();
+		await publicationFence?.afterPublication();
 		return result('already-published', plan, destination);
 	}
 	const temporary = await port.inspect(plan.temporaryRelativePath);
 	if (temporary === null) throw new Error('The verified native media temporary sibling is missing.');
 	assertRegularOutput(temporary, 'temporary sibling');
 	assertPublicationVerdict(request, plan, temporary);
-	await fence?.beforePublication();
+	await publicationFence?.beforePublication();
 	await port.renameTemporarySibling(plan.temporaryRelativePath, plan.relativeDestination);
 	const published = await port.inspect(plan.relativeDestination);
 	if (published === null) throw new Error('The native media atomic publication did not materialize its destination.');
@@ -111,7 +121,7 @@ export async function publishVerifiedNativeMediaOutput(
 		throw new Error('The native media output changed during atomic publication.');
 	}
 	try {
-		await fence?.afterPublication();
+		await publicationFence?.afterPublication();
 	} catch (fenceError) {
 		try {
 			await port.removePublishedOutput(plan.relativeDestination, published);
@@ -124,6 +134,47 @@ export async function publishVerifiedNativeMediaOutput(
 		throw fenceError;
 	}
 	return result('published', plan, published);
+}
+
+function exactPublicationFence(
+	value: unknown,
+): FramescaperNativePublicationFence {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Native publication requires the current Framescaper project schema.');
+	}
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Native publication requires a closed project fence.');
+	}
+	const fields = ['schemaFamily', 'schemaVersion', 'projectId', 'projectRevision',
+		'beforePublication', 'afterPublication'] as const;
+	const keys = Reflect.ownKeys(value);
+	if (keys.length !== fields.length
+		|| keys.some((key) => typeof key !== 'string' || !fields.includes(key as typeof fields[number]))) {
+		throw new TypeError('Native publication requires a closed project fence.');
+	}
+	const row = value as Readonly<Record<string, unknown>>;
+	const descriptors = Object.fromEntries(fields.map((field) => [field,
+		Object.getOwnPropertyDescriptor(row, field)])) as Record<typeof fields[number], PropertyDescriptor>;
+	if (fields.some((field) => !descriptors[field]?.enumerable
+		|| !Object.hasOwn(descriptors[field]!, 'value'))) {
+		throw new TypeError('Native publication fence fields must be own enumerable data properties.');
+	}
+	const projectId = descriptors.projectId.value as unknown;
+	const projectRevision = descriptors.projectRevision.value as unknown;
+	const beforePublication = descriptors.beforePublication.value as unknown;
+	const afterPublication = descriptors.afterPublication.value as unknown;
+	if (typeof projectId !== 'string' || projectId.length < 1 || projectId.length > 128
+		|| !Number.isSafeInteger(projectRevision) || Number(projectRevision) < 0
+		|| typeof beforePublication !== 'function' || typeof afterPublication !== 'function') {
+		throw new TypeError('Native publication project fence is malformed.');
+	}
+	return Object.freeze({ schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION, projectId,
+		projectRevision: Number(projectRevision),
+		beforePublication: beforePublication as () => Promise<void>,
+		afterPublication: afterPublication as () => Promise<void> });
 }
 
 async function publishVerifiedOutputTree(

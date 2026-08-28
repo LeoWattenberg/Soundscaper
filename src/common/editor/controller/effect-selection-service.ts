@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+
 export interface EffectSelectionFrequencyRange {
 	readonly minimumFrequency: number;
 	readonly maximumFrequency: number;
@@ -263,7 +265,7 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 	function setSpectralBoxSelection(options: SpectralBoxOptions = {}): EffectSelection | null {
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
-		if (project.schemaVersion < 2) throw new Error(runtime.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(runtime.copy.v2Required);
 		const selectedClip = runtime.state.selectedClipId ? findClip(project, runtime.state.selectedClipId) : null;
 		const clipTrack = selectedClip ? findClipTrack(project, selectedClip.id) : null;
 		const track = findTrack(project, runtime.state.selectedTrackId) ?? clipTrack;
@@ -300,7 +302,7 @@ export function createEffectSelectionService(runtime: EffectSelectionServiceRunt
 	): EffectSelection | null {
 		if (runtime.editingBlocked()) return null;
 		const project = runtime.getProject();
-		if (project.schemaVersion < 2) throw new Error(runtime.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(runtime.copy.v2Required);
 		const track = findTrack(project, runtime.state.selectedTrackId);
 		if (!track || track.type !== 'audio') throw new Error(runtime.copy.audioTrackRequired);
 		const centerFrame = safeNonNegativeInteger(options?.centerFrame, 'spectral brush center frame');

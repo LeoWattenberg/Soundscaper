@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Main-owned durable publication and native admission for dormant V25/V26 image sequences. */
+/** Main-owned durable publication and native admission for baseline image sequences. */
 import { createHash, type Hash } from 'node:crypto';
 import {
 	link, mkdir, open, readFile, readdir, rename, rm, unlink, writeFile,
@@ -19,7 +19,6 @@ import {
 	normalizeFramescaperNativeImageSequenceReference,
 	parseFramescaperNativeImageSequenceManifest,
 	type FramescaperNativeImageSequenceAssetKind as AssetKind,
-	type FramescaperNativeImageSequenceCandidateGeneration as CandidateGeneration,
 	type FramescaperNativeImageSequenceRecoveryManifest as Manifest,
 	type FramescaperNativeImageSequenceReference as Reference,
 } from './native-image-sequence-import-contract.ts';
@@ -56,8 +55,8 @@ import {
 	assertNativeImageSequenceRgba8DecodeCompatibility,
 } from '../src/common/editor/native-media-image-sequence-rgba8-admission.ts';
 import type {
-	FramescaperImageSequenceNativeAdmissionRequestV25,
-} from '../src/framescaper/editor-native-image-sequence-import-v25.ts';
+	FramescaperImageSequenceNativeAdmissionRequest,
+} from '../src/framescaper/editor-native-image-sequence-import-production-ports.ts';
 import {
 	assertImageSequenceReferenceFile,
 	assertImageSequenceReferenceHandle,
@@ -75,9 +74,10 @@ const TRANSACTION_ID = /^[a-f0-9]{40}$/u;
 const MANIFEST_VERSION = 1;
 const MAXIMUM_ACTIVE_TRANSACTIONS = 64;
 export interface FramescaperNativeImageSequenceProjectState {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly open: boolean;
 	readonly writable: boolean;
-	readonly schemaVersion: CandidateGeneration;
 	readonly revision: number;
 }
 
@@ -89,6 +89,8 @@ export interface FramescaperNativeImageSequenceImportAuthorityOptions {
 	/** Report-only milestone-9 stable-release review input; execution never awaits it. */
 	readonly projectState: (projectId: string) => Awaitable<FramescaperNativeImageSequenceProjectState | null>;
 	readonly projectContainsImageSequence: (value: Readonly<{
+		schemaFamily: 'framescaper';
+		schemaVersion: 1;
 		projectId: string;
 		sourceId: string;
 		inventoryStorageKey: string;
@@ -110,7 +112,8 @@ interface AssetState {
 interface Transaction {
 	readonly id: string;
 	readonly owner: object;
-	readonly generation: CandidateGeneration;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly directory: string;
@@ -131,13 +134,14 @@ interface PendingTransfer {
 }
 
 export type FramescaperNativeImageSequenceImportRequest =
-	| Readonly<{ operation: 'begin'; candidateGeneration: CandidateGeneration; projectId: string; projectRevision: number }>
+	| Readonly<{ operation: 'begin'; schemaFamily: 'framescaper'; schemaVersion: 1;
+		projectId: string; projectRevision: number }>
 	| Readonly<{ operation: 'write'; transactionId: string; asset: AssetKind; offset: number; bytes: Uint8Array }>
 	| Readonly<{ operation: 'prepare-write'; transactionId: string; asset: AssetKind; offset: number; binding: HelperDataPlaneBinding }>
 	| Readonly<{ operation: 'await-write'; transactionId: string; asset: AssetKind; offset: number; streamId: string }>
 	| Readonly<{ operation: 'commit'; transactionId: string; asset: AssetKind; reference: Reference }>
 	| Readonly<{ operation: 'read'; transactionId: string; asset: AssetKind; offset: number; length: number }>
-	| Readonly<{ operation: 'admit'; transactionId: string; admission: FramescaperImageSequenceNativeAdmissionRequestV25 }>
+	| Readonly<{ operation: 'admit'; transactionId: string; admission: FramescaperImageSequenceNativeAdmissionRequest }>
 	| Readonly<{ operation: 'complete'; transactionId: string; sourceId: string; inventorySha256: string; sourcePackSha256: string }>
 	| Readonly<{ operation: 'discard'; transactionId: string }>;
 
@@ -299,15 +303,13 @@ export class FramescaperNativeImageSequenceImportAuthority {
 	}
 
 	async #begin(owner: object, request: Extract<FramescaperNativeImageSequenceImportRequest, { operation: 'begin' }>): Promise<unknown> {
-		await this.#assertEnabled();
 		if (this.#transactions.size >= MAXIMUM_ACTIVE_TRANSACTIONS) {
 			throw new Error('The image-sequence transaction capacity is exhausted.');
 		}
-		const generation = request.candidateGeneration;
-		if (![25, 26, 28].includes(generation)) throw new TypeError('The candidate generation is unsupported.');
 		const projectId = framescaperNativeImageSequenceId(request.projectId, 'project ID');
 		const projectRevision = framescaperNativeImageSequenceInteger(request.projectRevision, 'project revision');
-		await this.#assertProject(projectId, generation, projectRevision);
+		await this.#assertProject(projectId, projectRevision);
+		await this.#assertEnabled();
 		const id = this.#options.mintOpaqueId();
 		if (!TRANSACTION_ID.test(id) || this.#transactions.has(id)) {
 			throw new Error('The image-sequence transaction identity is invalid or repeated.');
@@ -316,7 +318,8 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		const directory = join(this.#transactionRoot(), id);
 		await mkdir(directory, { mode: 0o700 });
 		const transaction: Transaction = {
-			id, owner, generation, projectId, projectRevision, directory, sourceId: null,
+			id, owner, schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId, projectRevision, directory, sourceId: null,
 			pack: assetState('pack', directory), inventory: assetState('inventory', directory),
 		};
 		this.#transactions.set(id, transaction);
@@ -380,14 +383,15 @@ export class FramescaperNativeImageSequenceImportAuthority {
 
 	async #admit(owner: object, request: Extract<FramescaperNativeImageSequenceImportRequest, { operation: 'admit' }>): Promise<unknown> {
 		const transaction = this.#owned(owner, request.transactionId);
+		await this.#assertProject(transaction.projectId, transaction.projectRevision);
 		await this.#assertEnabled();
 		const admission = normalizeFramescaperNativeImageSequenceAdmission(request.admission);
-		if (admission.candidateGeneration !== transaction.generation
+		if (admission.schemaFamily !== transaction.schemaFamily
+			|| admission.schemaVersion !== transaction.schemaVersion
 			|| admission.projectId !== transaction.projectId
 			|| admission.projectRevision !== transaction.projectRevision) {
-			throw new Error('Image-sequence admission has the wrong candidate project identity.');
+			throw new Error('Image-sequence admission has the wrong baseline project identity.');
 		}
-		await this.#assertProject(transaction.projectId, transaction.generation, transaction.projectRevision);
 		const inventoryReference = committedInventory(transaction);
 		const packReference = committedPack(transaction);
 		if (!sameReference(admission.inventory, inventoryReference)
@@ -458,10 +462,12 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			|| request.sourcePackSha256 !== pack.sha256) {
 			throw new Error('Image-sequence completion does not match the admitted identity.');
 		}
+		await this.#assertCurrentProject(transaction.projectId);
 		if (!await this.#options.projectContainsImageSequence({
+			schemaFamily: transaction.schemaFamily, schemaVersion: transaction.schemaVersion,
 			projectId: transaction.projectId, sourceId: request.sourceId,
 			inventoryStorageKey: inventory.storageKey, sourcePackStorageKey: pack.storageKey,
-		})) throw new Error('The candidate project does not yet contain the admitted image sequence.');
+		})) throw new Error('The baseline project does not yet contain the admitted image sequence.');
 		await rm(transaction.directory, { recursive: true, force: true });
 		this.#transactions.delete(transaction.id);
 		return Object.freeze({ operation: 'completed', transactionId: transaction.id });
@@ -504,11 +510,20 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		}
 	}
 
-	async #assertProject(id: string, generation: CandidateGeneration, revision: number): Promise<void> {
+	async #assertProject(id: string, revision: number): Promise<void> {
 		const project = await this.#options.projectState(id);
-		if (!project?.open || !project.writable || project.schemaVersion !== generation
+		if (!project?.open || !project.writable || project.schemaFamily !== 'framescaper'
+			|| project.schemaVersion !== 1
 			|| project.revision !== revision) {
-			throw new Error('Native image-sequence import requires the exact writable candidate project revision.');
+			throw new Error('Native image-sequence import requires the exact writable baseline project revision.');
+		}
+	}
+
+	async #assertCurrentProject(id: string): Promise<void> {
+		const project = await this.#options.projectState(id);
+		if (!project?.open || !project.writable || project.schemaFamily !== 'framescaper'
+			|| project.schemaVersion !== 1) {
+			throw new Error('Native image-sequence import requires the writable baseline project.');
 		}
 	}
 
@@ -530,8 +545,9 @@ export class FramescaperNativeImageSequenceImportAuthority {
 
 	async #persist(transaction: Transaction): Promise<void> {
 		const body = {
-			version: MANIFEST_VERSION, transactionId: transaction.id,
-			generation: transaction.generation, projectId: transaction.projectId,
+			version: MANIFEST_VERSION, schemaFamily: transaction.schemaFamily,
+			schemaVersion: transaction.schemaVersion, transactionId: transaction.id,
+			projectId: transaction.projectId,
 			projectRevision: transaction.projectRevision, sourceId: transaction.sourceId,
 			pack: transaction.pack.reference, inventory: transaction.inventory.reference,
 		};

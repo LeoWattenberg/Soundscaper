@@ -8,8 +8,8 @@ import { createContext, runInContext } from 'node:vm';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PUBLICATION_ID = 'ab'.repeat(24);
-const HANDSHAKE_CHANNEL = 'framescaper:v20:projects:handshake';
-const BEGIN_CHANNEL = 'framescaper:v20:projects:publication:begin';
+const HANDSHAKE_CHANNEL = 'framescaper:v1:project-library:handshake';
+const BEGIN_CHANNEL = 'framescaper:v1:project-library:publication:begin';
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 const MAXIMUM_BODIES = 5_118;
 
@@ -95,7 +95,7 @@ test('a Framescaper publication with no bodies is still admitted', async () => {
 	assert.deepEqual(structuredClone(invocations.at(-1).value.bodies), []);
 });
 
-test('the F31 preload admits its full transcript-extended body inventory and refuses one more', async () => {
+test('the baseline preload admits its full transcript-extended body inventory and refuses one more', async () => {
 	const admittedFixture = await exposedBridges();
 	const bodies = Array.from({ length: MAXIMUM_BODIES }, (_, bodyIndex) => ({ bodyIndex }));
 	assert.equal((await admittedFixture.library.beginPublication({

@@ -3,7 +3,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	SCAPE_FORMAT,
 	SCAPE_FORMAT_VERSION,
@@ -11,7 +10,10 @@ import {
 	type ScapeManifest,
 } from '../src/common/editor/scape-archive-envelope.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
-import { importScapeProject } from '../src/common/editor/scape-project.js';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	createVideoTimingAssetPublication,
@@ -19,6 +21,10 @@ import {
 	VIDEO_TIMING_ASSET_MIME_TYPE,
 	type VideoTimingAssetReference,
 } from '../src/common/editor/video-timing-asset.ts';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -108,6 +114,8 @@ function syntheticTimingArchive(options: Readonly<{
 		formatVersion: SCAPE_FORMAT_VERSION,
 		project: {
 			entry: 'project.json',
+			schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+			schemaVersion: PROJECT_SCHEMA_VERSION,
 			size: projectBytes.byteLength,
 			sha256: digestScapeBytes(projectBytes),
 		},

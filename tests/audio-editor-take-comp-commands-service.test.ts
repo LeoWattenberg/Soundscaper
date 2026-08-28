@@ -27,7 +27,7 @@ import {
 	createAudioEditorProjectV17,
 	type AudioEditorProjectV17,
 } from '../src/common/editor/project-v17.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
 
@@ -166,7 +166,7 @@ test('the controller plans audition and commits promotion and boundary edits as 
 
 test('the controller reads take plans from exact Soundscaper V21 authority', () => {
 	const v17 = project();
-	const v21 = createSoundscaperProjectV21({
+	const v21 = createSoundscaperProject({
 		...v17,
 		mixer: undefined,
 	}) as unknown as AudioEditorProjectV17;

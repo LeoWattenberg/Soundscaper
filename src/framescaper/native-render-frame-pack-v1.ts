@@ -19,7 +19,7 @@ const MAGIC = new TextEncoder().encode('framescaper-rgba-frame-pack-v1\n');
 const DEFAULT_CHUNK_BYTES = 16 * 1024 * 1024;
 const MINIMUM_CHUNK_BYTES = 32;
 
-/** Matches the renderer-to-main selected-V20 staging admission. */
+/** Matches the renderer-to-main selected-baseline staging admission. */
 export const FRAMESCAPER_RGBA_FRAME_PACK_MAXIMUM_BYTES = 16 * 1024 ** 3;
 
 export interface FramescaperNativeRgbaFramePackV1Request {
@@ -63,7 +63,7 @@ export type FramescaperNativeRgbaFramePackCollectorFactory = (
 	signal: AbortSignal,
 ) => PromiseLike<FramescaperNativeRgbaFramePackCollector> | FramescaperNativeRgbaFramePackCollector;
 
-/** Render and collect one canonical selected-V20 carrier without a frame schedule. */
+/** Render and collect one canonical selected-baseline carrier without a frame schedule. */
 export async function createFramescaperNativeRgbaFramePackV1(
 	request: FramescaperNativeRgbaFramePackV1Request,
 ): Promise<FramescaperNativeRgbaFramePackV1> {
@@ -91,7 +91,7 @@ export async function createFramescaperNativeRgbaFramePackV1(
 	}
 	const totalBytes = nativeRgbaFramePackV1ByteLength({ width, height, frameCount });
 	if (totalBytes > FRAMESCAPER_RGBA_FRAME_PACK_MAXIMUM_BYTES) {
-		throw new RangeError('The frame-pack byte domain exceeds the selected V20 16 GiB stage.');
+		throw new RangeError('The frame-pack byte domain exceeds the selected retime 16 GiB stage.');
 	}
 	const frameBytes = Number(frameBytesBig);
 	const collector = request.createCollector

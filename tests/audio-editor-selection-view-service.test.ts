@@ -9,13 +9,12 @@ import {
 } from '../src/common/editor/controller/selection-view-service.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 function createFixture() {
 	type TestProject = {
 		id: string;
+		schemaFamily?: string;
 		schemaVersion: number;
 		sampleRate: number;
 		tracks: Array<{
@@ -43,7 +42,7 @@ function createFixture() {
 	};
 	let project: TestProject = {
 		id: 'project-a',
-		schemaVersion: 5,
+		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
 		sampleRate: 1_000,
 		tracks: [
 			{ id: 'track-a', type: 'audio', clipIds: ['clip-a'] },
@@ -258,10 +257,11 @@ test('track, clip, and time selection clear V17 annotation focus and selection',
 	assert.deepEqual(fixture.project().selection?.annotationIds, []);
 });
 
-test('track selection clears Soundscaper V21 annotation focus and durable selection', () => {
+test('track selection clears Soundscaper v1 annotation focus and durable selection', () => {
 	const fixture = createFixture();
 	fixture.updateProject({
-		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		timelineAnnotations: [],
 		selection: {
 			startFrame: 10,
@@ -279,15 +279,15 @@ test('track selection clears Soundscaper V21 annotation focus and durable select
 	assert.deepEqual(fixture.project().selection?.annotationIds, []);
 });
 
-test('selection does not traverse Framescaper or future annotation storage', () => {
+test('selection does not traverse pre-release or future annotation storage', () => {
 	let annotationReads = 0;
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1,
+	for (const identity of [
+		{ schemaVersion: 19 },
+		{ schemaFamily: 'soundscaper', schemaVersion: 2 },
 	]) {
 		const fixture = createFixture();
 		fixture.updateProject({
-			schemaVersion,
+			...identity,
 			timelineAnnotations: undefined,
 			selection: {
 				startFrame: 10,
@@ -351,7 +351,7 @@ test('track and clip selection cover modern, additive, toggle, clear, and legacy
 	assert.deepEqual(fixture.project().selection?.clipIds, []);
 	assert.throws(() => fixture.service.selectClip('missing'), /Clip not found/u);
 
-	fixture.updateProject({ schemaVersion: 1 });
+	fixture.updateProject({ schemaFamily: undefined, schemaVersion: 1 });
 	assert.equal(fixture.service.selectClip('clip-b'), 'clip-b');
 	assert.equal(fixture.state.selectedTrackId, 'track-b');
 	assert.equal(fixture.state.selectedClipId, 'clip-b');
@@ -388,7 +388,7 @@ test('snap settings, legacy frame clamping, and zoom remain bounded', () => {
 	assert.equal(fixture.service.snapTimelineFrame(12.4), 12);
 	assert.throws(() => fixture.service.snapTimelineFrame(Number.POSITIVE_INFINITY), /finite/u);
 	assert.equal(fixture.service.setSnapSettings({ mode: 'nearest' }), fixture.project());
-	fixture.updateProject({ schemaVersion: 1 });
+	fixture.updateProject({ schemaFamily: undefined, schemaVersion: 1 });
 	assert.equal(fixture.service.snapTimelineFrame(-4), 0);
 	assert.throws(() => fixture.service.setSnapSettings(), /Version 2/u);
 

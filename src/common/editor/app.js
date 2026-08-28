@@ -350,7 +350,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const lastProjectSettingKey = `${productId}:last-project-id`;
 	const productSettingKey = (name) => productId === 'soundscaper' ? name : `${productId}:${name}`;
 	const fileService = options.fileService || createAudioEditorFileService();
-	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop, linkedOriginalPort: fileService.linkedOriginalPort, linkedVideoOriginalPort: fileService.linkedVideoOriginalPort, desktopProjectBridge: fileService.isDesktop ? (fileService.bridge ?? {}) : null });
+	const store = options.store || createProjectStore({ memoryFallback: !fileService.isDesktop, linkedOriginalPort: fileService.linkedOriginalPort, linkedVideoOriginalPort: fileService.linkedVideoOriginalPort });
 	const sourceBuffers = createSourceBufferCache({ maxBytes: options.sourceBufferCacheMaxBytes });
 	const mixRenderMemoryLimitBytes = normalizeByteLimit(options.mixRenderMemoryLimitBytes, AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES);
 	const sourceChunkProviders = new SourceChunkProviderRegistry();
@@ -437,7 +437,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 			formatBytes,
 		},
 	});
-	const playbackProjectService = options.playbackProjectService || createPlaybackProjectService(product.capabilities);
+	const playbackProjectService = options.playbackProjectService
+		|| createPlaybackProjectService(product.capabilities, product.id);
 	let videoNavigationService = null, framescaperCapture = null; const framescaperCaptureAdminInterlock = createFramescaperCaptureAdminInterlock();
 	const documentSnapshotRuntime = {
 		state, product, productId, capabilities, locale, projectForPlayback: (candidate) => playbackProjectService.projectForPlayback(candidate).project,
@@ -729,7 +730,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		scheduleTimer: globalThis.setTimeout.bind(globalThis), sessionController, sessionTab,
 		setProject: (nextProject) => { project = nextProject; },
 		disposeRenderEngines: clipTimePitchCacheService.disposeRenderEngines, sourceBuffers, sourceChunkProviders, sourcePeaks, state, stopProjectBinPreview, stopRecording, store,
-		switchProject, ...(options.framescaperCaptureRouteSchemaVersion ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
+		switchProject, ...(productId === 'framescaper' ? { beginCaptureInterlockedAdminOperation: framescaperCaptureAdminInterlock.beginAdminOperation } : {}),
 	});
 	const analysisService = createDeferredAudioAnalysisService({
 		lifetime, copy, state,
@@ -779,7 +780,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		scheduleTimer: (callback, delayMs) => Number(globalThis.setTimeout(callback, delayMs)),
 		clearTimer: (timer) => globalThis.clearTimeout(timer),
 	});
-	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape, productCapabilities: product.capabilities, inspectScapeProject: options.scapeProjectRuntime?.inspectScapeProject, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
+	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape, productCapabilities: product.capabilities, currentProjectSchemaFamily: product.id, inspectScapeProject: options.scapeProjectRuntime?.inspectScapeProject, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
 	const projectSwitchService = createProjectSwitchService({
 		state, lifetime, scapeInspectionQuiescence, projectGeneration, copy, productCapabilities: product.capabilities,
 		getProject: () => project,
@@ -789,7 +790,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createInitialAudioTrackCommand: createAddTrackCommand,
 		createHistory: projectRuntime.createHistory,
 		executeCommand: projectRuntime.executeCommand,
-		migrateProject: projectRuntime.migrateProject,
+		loadProject: projectRuntime.loadProject,
 		playbackProjectService,
 		verifyProjectFallbackIntegrity: (activeProject, verifyOptions) => verifyProjectFallbackIntegrity(activeProject, store, verifyOptions),
 		assignPreferredInputToTrack: (trackId) => assignPreferredInputToTrack(trackId),
@@ -879,7 +880,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		createAup4Client: deferredArchiveRuntime.createAup4Client,
 		initialAup4Client: options.aup4Client || null,
 		aup4Options: options.aup4 || {}, adaptAudacityProject: options.adaptAudacityProject,
-		prepareAudacityProjectExport: options.prepareAudacityProjectExport, migrateProject: projectRuntime.migrateProject,
+		prepareAudacityProjectExport: options.prepareAudacityProjectExport, loadProject: projectRuntime.loadProject,
 		importScapeProject: options.scapeProjectRuntime?.importScapeProject || deferredArchiveRuntime.importScapeProject,
 		exportScapeProject: options.scapeProjectRuntime?.exportScapeProject || deferredArchiveRuntime.exportScapeProject,
 		copyFutureScapeArchive: options.scapeProjectRuntime?.copyScapeArchive || deferredArchiveRuntime.copyFutureScapeArchive,
@@ -893,7 +894,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		scapeMimeType: SCAPE_MIME_TYPE,
 	});
-	const framescaperCaptureProxyScheduler = options.createFramescaperCaptureProxyScheduler?.({ runtime: ffmpeg, helperTimingProbe: fileService.helperTimingProbe, quiesceProjectSaves: createFramescaperCaptureProxySaveQuiescence({ getActiveProjectId: () => project?.id ?? null, hasUnsavedProjectChanges: () => Boolean(project && sessionTab(project.id)?.dirty), saves: projectSaveService }), synchronizeActiveProject: createFramescaperCaptureProxyActiveProjectSynchronizer({ getActiveProject: () => project, setActiveProject: (value) => { project = value; }, setActiveHistory: (value) => { state.history = value; }, applyProjectToPlaybackEngine, publishProjectState }) }) ?? null, framescaperCaptureDerivatives = options.framescaperCaptureRouteSchemaVersion
+	const framescaperCaptureProxyScheduler = options.createFramescaperCaptureProxyScheduler?.({ runtime: ffmpeg, helperTimingProbe: fileService.helperTimingProbe, quiesceProjectSaves: createFramescaperCaptureProxySaveQuiescence({ getActiveProjectId: () => project?.id ?? null, hasUnsavedProjectChanges: () => Boolean(project && sessionTab(project.id)?.dirty), saves: projectSaveService }), synchronizeActiveProject: createFramescaperCaptureProxyActiveProjectSynchronizer({ getActiveProject: () => project, setActiveProject: (value) => { project = value; }, setActiveHistory: (value) => { state.history = value; }, applyProjectToPlaybackEngine, publishProjectState }) }) ?? null, framescaperCaptureDerivatives = productId === 'framescaper'
 		? createFramescaperCaptureDerivativeScheduler({
 			getOriginProject: async (projectId) => sessionTab(projectId)?.history?.present ?? store.loadProject(projectId),
 			store,
@@ -901,16 +902,16 @@ export function createAudioEditorController(_root = null, options = {}) {
 			activateVideoSource: (source) => findSource(project, source.id) ? projectVisualService.activateVideoSource(source) : undefined,
 			createVideoFrameExtractor: createAudioEditorVideoFrameExtractor, videoThumbnailTimes: audioEditorVideoThumbnailTimes,
 			...(framescaperCaptureProxyScheduler ? { scheduleProxy: framescaperCaptureProxyScheduler } : {}),
-		})
-		: null;
-	const framescaperCaptureWriteAuthority = options.framescaperCaptureRouteSchemaVersion
+		}) : null;
+	const framescaperCaptureWriteAuthority = productId === 'framescaper'
 		? createFramescaperCaptureProjectWriteAuthority({
 			getProjectAdmission: (projectId) => { const tab = sessionTab(projectId); return tab ? { readOnly: Boolean(tab.readOnly), intrinsicReadOnly: Boolean(tab.metadata?.intrinsicReadOnly || tab.metadata?.declaredReadOnly || tab.metadata?.featureRequirementsReadOnly) } : null; },
 			getActiveProjectId: () => project?.id ?? null, getActiveReadOnly: () => state.readOnly,
 			getActiveLock: () => state.projectLock, acquireProjectLock: (projectId) => acquireLock(projectId),
 		}) : null;
 	framescaperCapture = createFramescaperCaptureAppBinding({
-		productId, adminInterlock: framescaperCaptureAdminInterlock, routeSchemaVersion: options.framescaperCaptureRouteSchemaVersion,
+		productId, adminInterlock: framescaperCaptureAdminInterlock,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		isDesktop: Boolean(fileService.isDesktop), embedded: globalThis.document?.documentElement?.dataset?.embedded === 'true',
 		store, sessionController, projectRuntime, mediaDevices,
 		getActiveProject: () => project, getActiveHistory: () => state.history,
@@ -930,7 +931,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		...(framescaperCaptureDerivatives ? { scheduleDerivatives: framescaperCaptureDerivatives } : {}),
 		onWarning: handleError, onChange: publishDocumentSnapshot,
 	});
-
 	const bootstrapToken = lifetime.capture();
 	const ready = bootstrap(bootstrapToken)
 		.then(async () => {

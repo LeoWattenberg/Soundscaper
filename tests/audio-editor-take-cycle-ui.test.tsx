@@ -165,11 +165,11 @@ function editableSnapshot() {
 	};
 }
 
-test('cycle recording admits the exact Soundscaper V21 project authority', () => {
+test('cycle recording admits the exact Soundscaper v1 project authority', () => {
 	const snapshot = editableSnapshot();
 	assert.deepEqual(selectTakeCycleStartAdmission({
 		...snapshot,
-		project: { ...snapshot.project, schemaVersion: 21 },
+		project: { ...snapshot.project, schemaFamily: 'soundscaper', schemaVersion: 1 },
 	}), { allowed: true, reason: null });
 });
 

@@ -39,7 +39,7 @@ export interface FramescaperUnifiedVisualRenderNodes {
 
 type DirectVisualState = VideoAdjustmentLayerV1 | VideoVisualPresetV1 | VideoMaskMatteGraphV1;
 
-/** Project V24 state projected onto the closed V10 visual node families. */
+/** Project visual state projected onto the closed V10 visual node families. */
 export function createFramescaperUnifiedVisualRenderNodes(
 	foundation: FramescaperUnifiedRenderFoundation,
 	authority: FramescaperUnifiedExactVisualRenderAuthority,
@@ -113,7 +113,7 @@ function pushFreeze(
 	const source = foundation.sourceById.get(renderedSourceId);
 	if (!source || !foundation.sourceNodeIdById.has(renderedSourceId)
 		|| source.contentSha256 !== fallback.renderedAssetSha256) {
-		throw new ReferenceError('V24 freeze fallback does not bind an exact rendered external source.');
+		throw new ReferenceError('visual freeze fallback does not bind an exact rendered external source.');
 	}
 	const authoredState = Object.freeze({
 		schemaVersion: 1 as const,
@@ -191,7 +191,7 @@ function rawFreshnessForModel(
 	value: ReadonlyMap<string, VideoFreezeFreshnessInputV1>,
 	modelId: string,
 ): unknown {
-	if (!(value instanceof Map)) throw new TypeError('V24 visual freshness authority must be an actual Map.');
+	if (!(value instanceof Map)) throw new TypeError('visual visual freshness authority must be an actual Map.');
 	return Map.prototype.get.call(value, modelId) as unknown;
 }
 
@@ -199,11 +199,11 @@ function assertExactFreshnessMap(
 	value: ReadonlyMap<string, VideoFreezeFreshnessInputV1>,
 	required: ReadonlySet<string>,
 ): void {
-	if (!(value instanceof Map)) throw new TypeError('V24 visual freshness authority must be an actual Map.');
+	if (!(value instanceof Map)) throw new TypeError('visual visual freshness authority must be an actual Map.');
 	const entries = [...Map.prototype.entries.call(value) as MapIterator<[unknown, unknown]>];
 	if (entries.length > required.size
 		|| entries.some(([key]) => typeof key !== 'string' || !required.has(key))) {
-		throw new RangeError('V24 visual freshness authority must contain exactly the rendered model identities.');
+		throw new RangeError('visual visual freshness authority must contain exactly the rendered model identities.');
 	}
 }
 

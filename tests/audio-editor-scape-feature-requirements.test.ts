@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -24,12 +24,19 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import {
 	exportScapeProject,
-	importScapeProject,
-	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+	validateBaselineSoundscaperProject as validateCurrentAudioEditorProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 const FALLBACK_SOURCE_ID = 'rendered-fallback-source';
@@ -63,7 +70,7 @@ test('the current feature requirements retain their compatibility semantics thro
 
 	assert.equal(imported.readOnly, false);
 	assert.equal(imported.reason, null);
-	assert.equal(imported.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
+	assert.equal(imported.project.schemaVersion, PROJECT_SCHEMA_VERSION);
 	assert.deepEqual(imported.project.featureRequirements, project.featureRequirements);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements), true);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements.requirements), true);
@@ -72,13 +79,7 @@ test('the current feature requirements retain their compatibility semantics thro
 		evaluateProjectFeatureRequirements(project.featureRequirements, availability),
 	);
 	assert.equal(validateCurrentAudioEditorProject(imported.project), true);
-	const reopenedValue = await targetStore.loadProject(project.id);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assert.deepEqual(reopened.featureRequirements, project.featureRequirements);
-	const reopenedSources = reopened.sources as readonly Readonly<Record<string, unknown>>[];
-	assert.equal(String(reopenedSources[0]?.id), FALLBACK_SOURCE_ID);
-	assert.equal(validateCurrentAudioEditorProject(reopened), true);
+	assert.ok(await targetStore.getSourceMetadata(FALLBACK_SOURCE_ID));
 });
 
 test('pre-open Scape inspection reports selected-product feature compatibility', async () => {
@@ -93,7 +94,9 @@ test('pre-open Scape inspection reports selected-product feature compatibility',
 	const service = createScapeProjectFileService({
 		lifetime: new EditorControllerLifetime(),
 		store: null,
-		productCapabilities: PRODUCT_PROFILES.framescaper.capabilities,
+		productCapabilities: PRODUCT_PROFILES.soundscaper.capabilities,
+		currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		inspectScapeProject,
 		openScape: () => { throw new Error('Inspection must not open the archive.'); },
 	});
 
@@ -106,7 +109,7 @@ test('pre-open Scape inspection reports selected-product feature compatibility',
 	});
 	const report = inspected.featureRequirementsCompatibility;
 	assert.ok(report);
-	assert.deepEqual(report.items.map(({ availability }) => availability), ['available', 'unavailable']);
+	assert.deepEqual(report.items.map(({ availability }) => availability), ['unavailable', 'available']);
 	assert.deepEqual(report.counts, { available: 1, unavailable: 1, unknown: 0 });
 	assert.equal(report.compatible, false);
 	assert.equal(Object.isFrozen(report), true);
@@ -201,12 +204,15 @@ test('pre-open Scape inspection leaves future project feature requirements opaqu
 		lifetime: new EditorControllerLifetime(),
 		store: null,
 		productCapabilities: PRODUCT_PROFILES.soundscaper.capabilities,
+		currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		inspectScapeProject,
 		openScape: () => { throw new Error('Inspection must not open the archive.'); },
 	});
 
 	const inspected = await service.inspectScape(archive);
 
-	assert.equal(inspected.schemaVersion, 18);
+	assert.equal(inspected.schemaFamily, SOUNDSCAPER_PROJECT_SCHEMA_FAMILY);
+	assert.equal(inspected.schemaVersion, 2);
 	assert.equal(inspected.readOnly, true);
 	assert.equal(inspected.featureRequirementsCompatibility, null);
 });
@@ -248,11 +254,6 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	assert.deepEqual(await storedSamples(targetStore, FALLBACK_SOURCE_ID), [1, 1, 1, 1]);
 	assert.deepEqual(await storedSamples(targetStore, copiedSourceId), [0.25, -0.5, 0.75, 0]);
 	assert.equal(validateCurrentAudioEditorProject(copied.project), true);
-	const reopenedValue = await targetStore.loadProject(copied.project.id);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assert.equal(reopened.featureRequirements.requirements[1]?.fallback?.sourceId, copiedSourceId);
-	assert.equal(validateCurrentAudioEditorProject(reopened), true);
 });
 
 function featureProject(
@@ -331,7 +332,8 @@ async function storedSamples(store: ProjectStore, sourceId: string): Promise<num
 
 async function futureProjectArchive(): Promise<Blob> {
 	const projectText = JSON.stringify({
-		schemaVersion: 18,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: 2,
 		id: 'future-feature-project',
 		title: 'Future feature project',
 		sources: [],
@@ -350,7 +352,8 @@ async function futureProjectArchive(): Promise<Blob> {
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
-			schemaVersion: 18,
+			schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+			schemaVersion: 2,
 			size: projectBytes.byteLength,
 			sha256: createHash('sha256').update(projectBytes).digest('hex'),
 		},

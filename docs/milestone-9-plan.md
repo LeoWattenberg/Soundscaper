@@ -12,6 +12,13 @@
 > once. Re-ground every citation at pickup — earlier milestones will have
 > moved the tree.
 
+> **Provenance note (2026-08-28):** the repository-grounded inventory and
+> implementation-generation citations below describe the pre-freeze campaign
+> snapshot. They are not active project compatibility, migration, or package
+> authority. The family-v1 freeze is owned by
+> [`config/project-compatibility.json`](../config/project-compatibility.json)
+> and the [WP-9.0.0 decision](wp-9.0.0-baseline-decision.md).
+
 ## Goals and ordering principle
 
 1. **Primary: no unproven claim ships.** Milestone 9 produces no new
@@ -70,14 +77,15 @@ parallel per environment.
   Notices are verified against the lockfile by
   `scripts/check-third-party-notices.mjs:12-63`. Fuses are flipped and
   verified at pack time (scripts/desktop-after-pack.mjs:34-41).
-- **Cross-product evidence, partially.** Web↔web Scape product
-  round-trips with frozen workflow IDs
-  (tests/browser/audio-editor-scape-product-roundtrip.spec.js:34-42),
-  rendered-fallback return
-  (tests/browser/audio-editor-scape-fallback-return-roundtrip.spec.js:83-90),
-  packaged Electron handoff and source-bearing smokes, and the desktop
-  lease-matrix CI jobs (.github/workflows/desktop-preview.yml:408-501 and
-  following).
+- **Baseline archive evidence.** The family-v1 archive suite
+  (`tests/audio-editor-scape-v1-baseline.test.ts`) covers current-family
+  writable admission, foreign-family and later-version opaque custody,
+  byte-exact Save Copy, and typed refusal of pre-baseline archives. The
+  selected Framescaper browser route independently refuses a pre-release
+  format-2 archive without replacing the open project
+  (`tests/browser/framescaper-prerelease-scape-refusal.spec.js`). Historical
+  cross-product and packaged handoff fixtures were campaign evidence for
+  pre-freeze generations and are not baseline admission evidence.
 - **Renderer-crash recovery** with coalesced cleanup and reload
   (desktop/main-window-recovery.ts:56-80).
 
@@ -137,17 +145,13 @@ parallel per environment.
    (tests/browser/audio-editor-shell-localization.spec.js:167). The
    release policy makes an inaccessible critical workflow an unwaivable
    critical defect (docs/release-policy.md:38-45).
-8. **Migration reinstatement is a defined but unimplemented obligation.**
-   The pre-release schema policy removed retained migrations and promises
-   their reinstatement "from the first shipped release onward"
-   (docs/milestone-3-plan.md:27-74, reinstatement clause at 67-68). The
-   compatibility register holds current schema 17 with
-   `retainedMigrationSources: []` and a retirement gate requiring a
-   `first-release-versioned-policy-change`
-   (config/project-compatibility.json:4-8, 21-28), older schemas fail
-   typed as `REIMPORT_REQUIRED` (src/common/editor/migration.js:18-27),
-   and the derived compatibility document already anticipates a retained
-   migration list (docs/project-compatibility.md:2233).
+8. **The migration floor is now frozen at each family v1 baseline.**
+   Pre-release Soundscaper and Framescaper documents and stores remain
+   unsupported and untouched; numeric-only documents fail with typed
+   `REIMPORT_REQUIRED` through the hardened identity reader. The active
+   register retains no pre-release migration source, and requires every
+   future supported Soundscaper or Framescaper schema to migrate from its own
+   family v1. There is no baseline migration or copy-forward runtime.
 9. **No provenance attestation exists** — no build-provenance or SBOM
    step in any workflow; §9's provenance gate (roadmap.md:828-829) is
    today only SHA256SUMS plus the corresponding-source manifests.
@@ -164,18 +168,14 @@ parallel per environment.
 
 ### First-release baseline and migration reinstatement
 
-The first shipped release freezes the baseline schema version, and the
-retained-migration policy reinstates from it exactly as the milestone-3
-plan promised. Reinstatement is one versioned policy change owned by
-WP-9.0.0: repopulate `retainedMigrationSources`, rewrite the
-`legacy-schema-migration` rule and its evidence
-(config/project-compatibility.json:30-45), rebuild the retained-migration
-fixture matrix from the baseline version, and wire the evidence into
-`qualification.migrationPassRatio`. From then on, every post-release
-schema change re-runs the affected qualification matrix per the
-release-policy invalidation rule (docs/release-policy.md:75-78). Before
-the baseline is frozen, pre-release clean breaks remain legal; after it,
-they are forbidden — this plan's single hardest one-way door.
+WP-9.0.0 freezes `{ soundscaper, 1 }` and `{ framescaper, 1 }` as separate
+baseline identities. Their retained-migration lists are empty because no
+pre-release project is readable or migrated. The next supported version of
+either family must name that family's v1 as its retained migration source,
+rebuild the affected migration fixture matrix, and wire the evidence into
+`qualification.migrationPassRatio`. Every later schema change re-runs the
+affected qualification matrix per the release-policy invalidation rule. A
+second clean project or storage break on the RC or stable 1.0 line is forbidden.
 
 ### Supported-matrix truth-up
 
@@ -250,6 +250,14 @@ re-grounding, following the milestone-3 pattern
 (docs/milestone-3-plan.md:467-470).
 
 ### WP-9.0.0 — Baseline, matrix truth-up, and migration reinstatement
+
+**Decision recorded 2026-08-28.** The approved
+[`1.0.0-rc.1` baseline decision](wp-9.0.0-baseline-decision.md) freezes
+Soundscaper v1 and Framescaper v1 as independent schema families. There are no
+earlier retained migration sources: the original packet language below is
+historical planning provenance, and “migration reinstatement” now means that
+every future supported successor must retain its own family's v1 baseline.
+Stable 1.0 remains blocked on the other Milestone 9 evidence.
 
 - **Outcome:** The user-approved first-release baseline (schema version,
   supported platform matrix, Safari disposition) recorded in one bounded

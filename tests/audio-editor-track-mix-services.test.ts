@@ -499,7 +499,7 @@ test('mix render service publishes one prepared atomic command after source pers
 
 function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerProject {
 	return {
-		schemaVersion: 5,
+		schemaVersion: 17,
 		id: 'project',
 		title: 'Project',
 		sampleRate: 48_000,
@@ -508,6 +508,7 @@ function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerP
 		sources: [],
 		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [] },
 		mixer: { groups: [], sends: [], routes: {} },
+		trackFolders: [],
 		...overrides,
 	};
 }

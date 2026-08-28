@@ -44,11 +44,13 @@ test('the isolated Interact helper authenticates one zero-port offscreen request
 			assert.equal(authority.writeOnly.length, 0);
 			assert.equal(authority.readOnly.length, 1);
 			const nativeGrant = JSON.parse(readFileSync(invocation.arguments[1]!, 'utf8')) as Record<string, unknown>;
-			assert.deepEqual(nativeGrant.project, { id: 'project-v28', revision: 7 });
+			assert.deepEqual(nativeGrant.project, { schemaFamily: 'framescaper', schemaVersion: 1,
+				id: 'project-v28', revision: 7 });
 			assert.deepEqual(nativeGrant.parameters, effect(fixture.plugin.sha256).parameters);
 			return handle({ exitCode: 0, stderr: '', stdout: JSON.stringify({
 				accepted: true, protocolVersion: 1, width: 64, height: 64, rowBytes: 256,
-				project: { id: 'project-v28', revision: 7 }, instanceId: 'effect-1',
+				project: { schemaFamily: 'framescaper', schemaVersion: 1,
+					id: 'project-v28', revision: 7 }, instanceId: 'effect-1',
 				effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect(fixture.plugin.sha256)),
 				target: 'custom-parameter', parameterName: 'parameter15', acceptedSequences: [4],
 				redrawRequested: true, surfaceDisposition: 'drawn', parameterMutations: [{
@@ -66,7 +68,8 @@ test('the isolated Interact helper authenticates one zero-port offscreen request
 			pluginFingerprint: `net.example.Interact@${fixture.plugin.sha256}`,
 			pluginId: 'net.example.Interact',
 			interact: {
-				protocolVersion: 1, project: { id: 'project-v28', revision: 7 },
+				protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+					id: 'project-v28', revision: 7 },
 				pluginHandle: 'ab'.repeat(20), effect: effect(fixture.plugin.sha256),
 				effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(
 					effect(fixture.plugin.sha256),

@@ -17,6 +17,14 @@ import { importScapeProject, inspectScapeProject } from '../src/common/editor/sc
 
 const DIGEST = '0'.repeat(64);
 const TEXT_ENCODER = new TextEncoder();
+const BASELINE_SCAPE_OPTIONS = Object.freeze({
+	currentProjectSchemaFamily: 'soundscaper' as const,
+	loadProject: (project: unknown) => ({
+		project: project as Record<string, unknown>,
+		readOnly: false,
+		reason: null,
+	}),
+});
 
 test('strict .scape envelope accepts the canonical manifest ownership graph', async () => {
 	const fixture = envelopeFixture();
@@ -28,6 +36,41 @@ test('strict .scape envelope accepts the canonical manifest ownership graph', as
 	assert.equal(fixture.entry('manifest.json').reads, 1);
 	assert.equal(fixture.entry('project.json').reads, 1);
 	assert.equal(fixture.entry('audio/source-1.f32c').reads, 0);
+});
+
+test('archive identity admission precedes every asset getData call', async (context) => {
+	const scenarios = [{
+		name: 'retired format 2',
+		mutateManifest(manifest: ScapeManifest) { Reflect.set(manifest, 'formatVersion', 2); },
+		expected: /predates.*baseline/iu,
+	}, {
+		name: 'unknown manifest family',
+		mutateManifest(manifest: ScapeManifest) { Reflect.set(manifest.project, 'schemaFamily', 'unknown'); },
+		expected: /unsupported project schema family/iu,
+	}, {
+		name: 'malformed manifest version',
+		mutateManifest(manifest: ScapeManifest) { Reflect.set(manifest.project, 'schemaVersion', 0); },
+		expected: /positive safe integer/iu,
+	}, {
+		name: 'manifest and root disagreement',
+		project: { id: 'project-1', schemaFamily: 'framescaper', schemaVersion: 1 },
+		mutateManifest(manifest: ScapeManifest) { Reflect.set(manifest.project, 'schemaFamily', 'soundscaper'); },
+		expected: /manifest project identity does not match/iu,
+	}];
+
+	for (const scenario of scenarios) await context.test(scenario.name, async () => {
+		const fixture = envelopeFixture(
+			scenario.mutateManifest,
+			[],
+			scenario.project,
+		);
+		await assert.rejects(
+			readScapeArchiveEnvelope(fixture.entries.map(({ entry }) => entry)),
+			scenario.expected,
+		);
+		assert.equal(fixture.entry('audio/source-1.f32c').calls, 0);
+		assert.equal(fixture.entry('audio/source-1.f32c').reads, 0);
+	});
 });
 
 test('strict .scape envelope rejects encrypted entries and cumulative expansion before reading metadata bodies', async (context) => {
@@ -263,8 +306,8 @@ test('inspect and import share fail-closed envelope validation before storage wr
 		beginMediaAssetWrite: async () => { storageWrites += 1; throw new Error('unexpected write'); },
 	};
 
-	await assert.rejects(importScapeProject(archive, store), /unreferenced entry: extra\.bin/iu);
-	await assert.rejects(inspectScapeProject(archive), /unreferenced entry: extra\.bin/iu);
+	await assert.rejects(importScapeProject(archive, store, BASELINE_SCAPE_OPTIONS), /unreferenced entry: extra\.bin/iu);
+	await assert.rejects(inspectScapeProject(archive, null, BASELINE_SCAPE_OPTIONS), /unreferenced entry: extra\.bin/iu);
 	assert.equal(storageWrites, 0);
 });
 
@@ -303,8 +346,8 @@ test('inspect and import require a project-source and manifest-asset bijection b
 			const calls: string[] = [];
 			const store = storageCallTracker(calls);
 
-			await assert.rejects(inspectScapeProject(archive, store), scenario.expected);
-			await assert.rejects(importScapeProject(archive, store), scenario.expected);
+			await assert.rejects(inspectScapeProject(archive, store, BASELINE_SCAPE_OPTIONS), scenario.expected);
+			await assert.rejects(importScapeProject(archive, store, BASELINE_SCAPE_OPTIONS), scenario.expected);
 			assert.deepEqual(calls, []);
 		});
 	}
@@ -346,8 +389,11 @@ function entryFixture(filename: string, contents: string | Uint8Array): EntryFix
 function envelopeFixture(
 	mutateManifest?: (manifest: ScapeManifest) => void,
 	extraEntries: EntryFixture[] = [],
+	project: Readonly<Record<string, unknown>> = {
+		id: 'project-1', schemaFamily: 'soundscaper', schemaVersion: 1,
+	},
 ) {
-	const projectText = JSON.stringify({ id: 'project-1', schemaVersion: 8 });
+	const projectText = JSON.stringify(project);
 	const projectBytes = TEXT_ENCODER.encode(projectText);
 	const assetBytes = TEXT_ENCODER.encode('asset');
 	const manifest: ScapeManifest = {
@@ -357,7 +403,8 @@ function envelopeFixture(
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
-			schemaVersion: 8,
+			schemaFamily: project.schemaFamily as 'soundscaper' | 'framescaper',
+			schemaVersion: project.schemaVersion as number,
 			size: projectBytes.byteLength,
 			sha256: DIGEST,
 		},
@@ -393,12 +440,12 @@ function envelopeFixture(
 }
 
 async function archiveWithUnreferencedEntry(): Promise<Blob> {
-	const project = createCurrentAudioEditorProject({
+	const project = baselineProject(createCurrentAudioEditorProject({
 		id: 'scape-envelope-project',
 		title: 'Envelope project',
 		sources: [],
 		clips: [],
-	});
+	}));
 	const projectText = JSON.stringify(project);
 	const projectBytes = TEXT_ENCODER.encode(projectText);
 	const manifest = {
@@ -408,6 +455,7 @@ async function archiveWithUnreferencedEntry(): Promise<Blob> {
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
+			schemaFamily: project.schemaFamily,
 			schemaVersion: project.schemaVersion,
 			size: projectBytes.byteLength,
 			sha256: DIGEST,
@@ -434,13 +482,13 @@ interface PortableArchiveAsset {
 }
 
 function portableProject(sources: readonly Record<string, unknown>[]) {
-	return createCurrentAudioEditorProject({
+	return baselineProject(createCurrentAudioEditorProject({
 		id: 'scape-source-bijection-project',
 		title: 'Source bijection project',
 		sources,
 		clips: [],
 		tracks: [],
-	});
+	}));
 }
 
 function archiveAsset(sourceId: string, kind: 'audio' | 'video'): PortableArchiveAsset {
@@ -454,7 +502,10 @@ function archiveAsset(sourceId: string, kind: 'audio' | 'video'): PortableArchiv
 }
 
 async function archiveWithProjectAssets(
-	project: ReturnType<typeof createCurrentAudioEditorProject>,
+	project: Readonly<Record<string, unknown>> & Readonly<{
+		schemaFamily: 'soundscaper';
+		schemaVersion: 1;
+	}>,
 	assets: readonly PortableArchiveAsset[],
 ): Promise<Blob> {
 	const projectText = JSON.stringify(project);
@@ -466,6 +517,7 @@ async function archiveWithProjectAssets(
 		project: {
 			entry: 'project.json',
 			mimeType: 'application/json',
+			schemaFamily: project.schemaFamily,
 			schemaVersion: project.schemaVersion,
 			size: projectBytes.byteLength,
 			sha256: sha256(projectBytes),
@@ -493,6 +545,15 @@ async function archiveWithProjectAssets(
 	}
 	await writer.add('manifest.json', new TextReader(JSON.stringify(manifest)), { level: 0, zip64: true });
 	return writer.close(undefined, { zip64: true });
+}
+
+function baselineProject(
+	project: ReturnType<typeof createCurrentAudioEditorProject>,
+): Omit<ReturnType<typeof createCurrentAudioEditorProject>, 'schemaVersion'> & Readonly<{
+	schemaFamily: 'soundscaper';
+	schemaVersion: 1;
+}> {
+	return { ...project, schemaFamily: 'soundscaper', schemaVersion: 1 };
 }
 
 function sha256(bytes: Uint8Array): string {

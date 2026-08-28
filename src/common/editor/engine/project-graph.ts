@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { connectSurroundMonitoring } from '../surround-monitoring.ts';
-import { isProductionMixerProjectSchema } from '../project-schema-version.ts';
+import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { stripParameterDescriptor } from '../effect-parameter-descriptors.ts';
@@ -53,7 +53,7 @@ export function projectGraphLatencyFrames(
 		sampleRate = project?.sampleRate || DEFAULT_SAMPLE_RATE,
 	}: ProjectGraphLatencyOptions = {},
 ): number {
-	if (isProductionMixerProjectSchema(project?.schemaVersion)) {
+	if (project && hasProductionMixerProjectAuthority(project)) {
 		return projectGraphLatencyFramesV21(project, { trackId, includeMaster, sampleRate });
 	}
 	return compileProjectPdcPlan(project, { trackId, includeMaster, sampleRate }).latencyFrames;
@@ -127,7 +127,7 @@ export function buildProjectGraph(
 		onParametricEqError,
 	}: BuildProjectGraphOptions = {},
 ): ProjectGraph {
-	if (isProductionMixerProjectSchema(project.schemaVersion)) {
+	if (hasProductionMixerProjectAuthority(project)) {
 		return buildProjectGraphV21(context, destination, project, {
 			metering, respectMuteSolo, trackId: onlyTrackId, includeMaster, includeTrackPan,
 			effectAnalysis, monitoring, parametricEqWasmModule, onParametricEqError,

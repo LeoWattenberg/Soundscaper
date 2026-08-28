@@ -4,9 +4,9 @@ import type {
 	FramescaperCapturedVideoProxyProject,
 } from './editor-captured-video-proxy-preservation.ts';
 import {
-	FramescaperDesktopProjectLibraryV10CommittedError,
-	FramescaperDesktopProjectLibraryV10IndeterminateError,
-} from './desktop-project-library-v10-renderer.ts';
+	FramescaperDesktopProjectLibraryCommittedError,
+	FramescaperDesktopProjectLibraryIndeterminateError,
+} from './desktop-project-library-errors.ts';
 
 interface CapturedVideoProxyDesktopPublicationOptions {
 	readonly base: FramescaperCapturedVideoProxyProject;
@@ -76,7 +76,7 @@ export async function publishCapturedVideoProxyDesktopMainFirst(
 			// Main may have committed immediately before cancellation became visible.
 			authoritative = options.cloneProject(await options.loadAuthoritativeProject());
 		} catch (reconcileError) {
-			if (primary instanceof FramescaperDesktopProjectLibraryV10CommittedError
+			if (primary instanceof FramescaperDesktopProjectLibraryCommittedError
 				&& primary.operation === 'publication') {
 				throw new CapturedVideoProxyDesktopCommittedReconciliationError(
 					options.target,
@@ -87,7 +87,7 @@ export async function publishCapturedVideoProxyDesktopMainFirst(
 					),
 				);
 			}
-			if (primary instanceof FramescaperDesktopProjectLibraryV10IndeterminateError
+			if (primary instanceof FramescaperDesktopProjectLibraryIndeterminateError
 				&& primary.operation === 'publication') {
 				throw new CapturedVideoProxyDesktopIndeterminateReconciliationError(
 					options.base,
@@ -108,7 +108,7 @@ export async function publishCapturedVideoProxyDesktopMainFirst(
 		if (options.fingerprint(authoritative) === options.fingerprint(options.target)) {
 			return authoritative;
 		}
-		if (primary instanceof FramescaperDesktopProjectLibraryV10CommittedError
+		if (primary instanceof FramescaperDesktopProjectLibraryCommittedError
 			&& primary.operation === 'publication') {
 			throw new CapturedVideoProxyDesktopCommittedReconciliationError(
 				options.target,

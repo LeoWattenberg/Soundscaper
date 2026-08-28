@@ -14,8 +14,6 @@ import type {
 } from '../src/common/editor/project-feature-requirements.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
@@ -89,16 +87,13 @@ test('a foreign audio effect type is named instead of staying invisible', () => 
 });
 
 test('selected product schemas retain inherited affected-object attribution', () => {
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	]) {
-		const source = { ...project(), schemaVersion };
+	for (const schemaFamily of ['framescaper', 'soundscaper'] as const) {
+		const source = { ...project(), schemaFamily, schemaVersion: 1 };
 		const index = projectFeatureAffectedObjects(source, report());
 		assert.deepEqual(
 			index?.requirements[0]?.objects.map(({ objectId }) => objectId),
 			['effect-foreign'],
-			`schema ${String(schemaVersion)} must retain inherited attribution`,
+			`${schemaFamily} v1 must retain inherited attribution`,
 		);
 	}
 });

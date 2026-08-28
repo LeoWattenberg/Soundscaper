@@ -14,8 +14,15 @@ import {
 	maximumScapeStoreArchiveBytes,
 } from '../src/common/editor/scape-export-estimate.ts';
 import { scapeAudioSourceLayout } from '../src/common/editor/scape-archive-media.ts';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { exportScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -303,7 +310,16 @@ test('save admission snapshots its destination classification before awaited met
 });
 
 function projectOnly(id: string) {
-	return { schemaVersion: 6, id, title: id, sources: [], clips: [], tracks: [] };
+	return {
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		id,
+		title: id,
+		sources: [],
+		clips: [],
+		tracks: [],
+		featureRequirements: { schemaVersion: 2, requirements: [] },
+	};
 }
 
 function audioProject(id: string, frameCount: number, chunkFrames: number) {

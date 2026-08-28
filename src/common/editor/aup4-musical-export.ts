@@ -22,7 +22,7 @@ const AUP4_MAXIMUM_SIGNATURE_DENOMINATOR = 0x4000_0000;
 
 /** Identify documents that require the current runtime projection at the AUP4 boundary. */
 export function isCurrentAup4MusicalSnapshot(project: DataRecord): boolean {
-	return isActiveAudioEditorProjectSchema(project.schemaVersion);
+	return isActiveAudioEditorProjectSchema(project);
 }
 
 /** Flatten AUP4's singleton tempo/signature while loss-accounting later map events. */

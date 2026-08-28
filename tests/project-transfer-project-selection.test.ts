@@ -27,9 +27,9 @@ const store = (projects: readonly unknown[]): { listProjects(): readonly unknown
 test('a listing row with no id is offered, not silently dropped', async () => {
 	const listing = await listTransferProjects({
 		store: store([
-			{ id: 'audio-1', title: 'Field recording', schemaVersion: 30 },
-			{ title: 'Nameless', schemaVersion: 31 },
-			{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 },
+			{ id: 'audio-1', title: 'Field recording', schemaFamily: 'soundscaper', schemaVersion: 1 },
+			{ title: 'Nameless', schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
 		]),
 		product: 'framescaper',
 	});
@@ -51,11 +51,12 @@ test('a listing row with no id is offered, not silently dropped', async () => {
 	assert.equal(describeTransferProduct(listing[1]), TRANSFER_UNIDENTIFIED_ROW_REFUSAL);
 });
 
-test('an unidentified row keeps a label even when the store gave it no title', async () => {
+test('a malformed numeric-only row keeps a label without inferring a product', async () => {
 	const listing = await listTransferProjects({ store: store([{ schemaVersion: 999 }]), product: null });
 	assert.equal(listing.length, 1);
 	assert.equal(listing[0].title, 'Untitled project');
-	assert.equal(listing[0].schemaVersion, 999);
+	assert.equal(listing[0].schemaVersion, null);
+	assert.equal(listing[0].product, null);
 	assert.equal(listing[0].refusal, TRANSFER_UNIDENTIFIED_ROW_REFUSAL);
 });
 
@@ -72,11 +73,13 @@ test('the refusal the offer reports is the one the exporter actually raises', ()
 
 test('an addressable row reports no refusal', async () => {
 	const listing = await listTransferProjects({
-		store: store([{ id: 'audio-1', title: 'Field recording', schemaVersion: 30 }]),
+		store: store([{
+			id: 'audio-1', title: 'Field recording', schemaFamily: 'soundscaper', schemaVersion: 1,
+		}]),
 		product: 'soundscaper',
 	});
 	assert.deepEqual(listing.map((offer) => [offer.projectId, offer.refusal, offer.preselected]), [
-		['audio-1', null, true],
+		['soundscaper:audio-1', null, true],
 	]);
 	assert.equal(describeTransferProduct(listing[0]), 'Soundscaper project');
 });

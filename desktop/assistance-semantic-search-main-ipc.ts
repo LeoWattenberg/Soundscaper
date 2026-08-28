@@ -11,6 +11,11 @@ import type {
 	AssistanceSemanticQueryExecutorResultV1,
 	AssistanceSemanticQueryExecutorV1,
 } from './assistance-semantic-query-executor.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../src/common/editor/project-schema-identity.ts';
 
 // These names restate `IPC` in desktop/constants.js on purpose: this module is staged into
 // the project-library runtime, whose expected file set does not include constants.js, so
@@ -26,7 +31,8 @@ export const ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS = Object.freeze({
 } as const);
 
 const QUERY_FIELDS = Object.freeze([
-	'queryVersion', 'queryId', 'session', 'projectId', 'projectRevision', 'provider', 'query',
+	'queryVersion', 'queryId', 'session', 'schemaFamily', 'schemaVersion',
+	'projectId', 'projectRevision', 'provider', 'query',
 ]);
 const QUERY_ID = /^[a-f\d]{40}$/u;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
@@ -113,9 +119,7 @@ export function registerAssistanceSemanticSearchMainIpc(
 		const request = authorizationRequest(value);
 		owns(currentOwner, request.session.sessionId);
 		try {
-			return authority.authorize(request.session, {
-				projectId: request.projectId, projectRevision: request.projectRevision,
-			});
+			return authority.authorize(request.session, request.authority);
 		} catch (error) {
 			forget(request.session.sessionId);
 			void abortSession(request.session.sessionId, new DOMException(
@@ -139,9 +143,7 @@ export function registerAssistanceSemanticSearchMainIpc(
 		const request = queryRequest(value);
 		owns(currentOwner, request.session.sessionId);
 		try {
-			authority.authorize(request.session, {
-				projectId: request.projectId, projectRevision: request.projectRevision,
-			});
+			authority.authorize(request.session, request.authority);
 		} catch (error) {
 			forget(request.session.sessionId);
 			await abortSession(request.session.sessionId, new DOMException(
@@ -211,6 +213,14 @@ export function registerAssistanceSemanticSearchMainIpc(
 function queryRequest(value: unknown): Readonly<{
 	readonly queryId: string;
 	readonly session: AssistanceSemanticSearchSession;
+	readonly authority: Readonly<{
+		readonly schemaFamily: ProjectSchemaFamily;
+		readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
+		readonly projectId: string;
+		readonly projectRevision: number;
+	}>;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly provider: 'transcript' | 'visual';
@@ -229,7 +239,8 @@ function queryRequest(value: unknown): Readonly<{
 		throw new TypeError('Semantic-search query request is invalid.');
 	}
 	const authorization = authorizationRequest({
-		session: row.session, projectId: row.projectId, projectRevision: row.projectRevision,
+		session: row.session, schemaFamily: row.schemaFamily, schemaVersion: row.schemaVersion,
+		projectId: row.projectId, projectRevision: row.projectRevision,
 	});
 	return Object.freeze({
 		queryId: queryIdValue(row.queryId), ...authorization,
@@ -266,18 +277,37 @@ function queryResult(
 
 function authorizationRequest(value: unknown): Readonly<{
 	readonly session: AssistanceSemanticSearchSession;
+	readonly authority: Readonly<{
+		readonly schemaFamily: ProjectSchemaFamily;
+		readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
+		readonly projectId: string;
+		readonly projectRevision: number;
+	}>;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 }> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Reflect.ownKeys(value).length !== 3
+		|| Reflect.ownKeys(value).length !== 5
 		|| !Object.hasOwn(value, 'session') || !Object.hasOwn(value, 'projectId')
-		|| !Object.hasOwn(value, 'projectRevision')) {
+		|| !Object.hasOwn(value, 'projectRevision') || !Object.hasOwn(value, 'schemaFamily')
+		|| !Object.hasOwn(value, 'schemaVersion')) {
 		throw new TypeError('Semantic-search authorization request fields are invalid.');
 	}
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Semantic-search authorization requires a current project schema.');
+	}
 	const row = value as Readonly<Record<string, unknown>>;
+	const authority = Object.freeze({ schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION, projectId: row.projectId as string,
+		projectRevision: row.projectRevision as number });
 	return Object.freeze({
 		session: row.session as AssistanceSemanticSearchSession,
+		authority,
+		schemaFamily: authority.schemaFamily,
+		schemaVersion: authority.schemaVersion,
 		projectId: row.projectId as string,
 		projectRevision: row.projectRevision as number,
 	});

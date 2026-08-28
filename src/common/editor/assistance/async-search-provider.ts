@@ -2,6 +2,12 @@
 
 /** Expiring, cancellable Assistance search with deterministic stale-result suppression. */
 
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
+
 export const ASSISTANCE_SEMANTIC_SEARCH_SESSION_VERSION = 1 as const;
 export const ASSISTANCE_ASYNC_SEARCH_RESULT_LIMIT = 50;
 
@@ -11,7 +17,8 @@ const STABLE_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
 const PROVIDERS = Object.freeze(['transcript', 'visual', 'ocr'] as const);
 const SESSION_FIELDS = Object.freeze([
-	'sessionVersion', 'sessionId', 'projectId', 'projectRevision', 'expiresAtEpochMs',
+	'sessionVersion', 'sessionId', 'schemaFamily', 'schemaVersion',
+	'projectId', 'projectRevision', 'expiresAtEpochMs',
 ]);
 const RESULT_FIELDS = Object.freeze([
 	'resultId', 'timelineFrame', 'label', 'detail', 'providers',
@@ -22,6 +29,8 @@ export type AssistanceAsyncSearchProviderKind = typeof PROVIDERS[number];
 export interface AssistanceSemanticSearchSession {
 	readonly sessionVersion: typeof ASSISTANCE_SEMANTIC_SEARCH_SESSION_VERSION;
 	readonly sessionId: string;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly expiresAtEpochMs: number;
@@ -70,6 +79,10 @@ export function validateAssistanceSemanticSearchSession(
 	nowValue = Date.now(),
 ): AssistanceSemanticSearchSession {
 	const now = epoch(nowValue, 'semantic-search current time');
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Semantic-search sessions require a current project schema.');
+	}
 	const row = exactRecord(value, SESSION_FIELDS, 'semantic-search session');
 	if (row.sessionVersion !== ASSISTANCE_SEMANTIC_SEARCH_SESSION_VERSION
 		|| typeof row.sessionId !== 'string' || !SESSION_ID.test(row.sessionId)) {
@@ -84,7 +97,8 @@ export function validateAssistanceSemanticSearchSession(
 		throw new RangeError('The semantic-search session exceeds its short-lived bound.');
 	}
 	return Object.freeze({ sessionVersion: ASSISTANCE_SEMANTIC_SEARCH_SESSION_VERSION,
-		sessionId: row.sessionId, projectId, projectRevision, expiresAtEpochMs });
+		sessionId: row.sessionId, schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION, projectId, projectRevision, expiresAtEpochMs });
 }
 
 export function createAssistanceAsyncSearchCoordinator(options: Readonly<{

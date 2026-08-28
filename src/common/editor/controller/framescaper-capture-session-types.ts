@@ -60,6 +60,8 @@ export interface FramescaperCaptureRecorderRequest<Stream = unknown, Track = unk
 }
 
 export interface FramescaperCaptureProjectFence {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly projectId: string;
 	readonly baseRevision: number;
 	readonly baseSha256: string;

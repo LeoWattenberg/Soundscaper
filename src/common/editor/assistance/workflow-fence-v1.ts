@@ -2,6 +2,12 @@
 
 /** Exact source, timing, and project authority for one aggregate assistance workflow. */
 
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
+
 export const ASSISTANCE_WORKFLOW_FENCE_VERSION = 1;
 
 export interface AssistanceWorkflowSourceRangeV1 {
@@ -21,7 +27,8 @@ export interface AssistanceWorkflowSourceRangeV1 {
 export interface AssistanceWorkflowFenceV1 {
 	readonly fenceVersion: typeof ASSISTANCE_WORKFLOW_FENCE_VERSION;
 	readonly projectId: string;
-	readonly schemaVersion: number;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly revision: number;
 	readonly sequenceId: string;
 	readonly sourceRanges: readonly AssistanceWorkflowSourceRangeV1[];
@@ -32,7 +39,7 @@ export interface AssistanceWorkflowFenceV1 {
 }
 
 const FENCE_KEYS = Object.freeze([
-	'fenceVersion', 'projectId', 'schemaVersion', 'revision', 'sequenceId', 'sourceRanges',
+	'fenceVersion', 'projectId', 'schemaFamily', 'schemaVersion', 'revision', 'sequenceId', 'sourceRanges',
 	'transcriptBodySha256', 'recipeSha256', 'settingsSha256', 'modelBindingsSha256',
 ]);
 const RANGE_KEYS = Object.freeze([
@@ -47,6 +54,10 @@ const MAXIMUM_OCCURRENCES = 1024;
 
 /** Normalize the exact aggregate authority revalidated before publication. */
 export function validateAssistanceWorkflowFenceV1(value: unknown): AssistanceWorkflowFenceV1 {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('The assistance workflow fence must bind the current project schema version.');
+	}
 	const record = exactRecord(value, FENCE_KEYS, 'assistance workflow fence');
 	if (record.fenceVersion !== ASSISTANCE_WORKFLOW_FENCE_VERSION) {
 		throw new TypeError('The assistance workflow fence uses an unsupported version.');
@@ -65,7 +76,8 @@ export function validateAssistanceWorkflowFenceV1(value: unknown): AssistanceWor
 	return Object.freeze({
 		fenceVersion: ASSISTANCE_WORKFLOW_FENCE_VERSION,
 		projectId: domainId(record.projectId, 'project ID'),
-		schemaVersion: positiveInteger(record.schemaVersion, 'project schema version'),
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		revision: nonNegativeInteger(record.revision, 'project revision'),
 		sequenceId: domainId(record.sequenceId, 'sequence ID'),
 		sourceRanges: Object.freeze(sourceRanges),
@@ -182,13 +194,6 @@ function digest(value: unknown, label: string): string {
 		throw new TypeError(`The assistance workflow ${label} needs a lowercase SHA-256 digest.`);
 	}
 	return value;
-}
-
-function positiveInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError(`The assistance ${label} is out of range.`);
-	}
-	return Number(value);
 }
 
 function boundedInteger(value: unknown, minimum: number, maximum: number, label: string): number {

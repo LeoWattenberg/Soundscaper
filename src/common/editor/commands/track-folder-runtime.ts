@@ -67,7 +67,7 @@ export function createTrackFolderRuntimeHandlers(): Readonly<TrackFolderCommandH
  */
 function folderProject(project: EditorCommandProject): MutableTrackFolderProject {
 	const candidate = project as MutableTrackFolderProject;
-	if (!isTrackFolderProjectSchema(candidate.schemaVersion)) {
+	if (!isTrackFolderProjectSchema(candidate)) {
 		throw new RangeError('Track folder commands require a track folder document schema.');
 	}
 	candidate[FOLDER_AWARE_TRACK_STRUCTURE_EDIT] = true;

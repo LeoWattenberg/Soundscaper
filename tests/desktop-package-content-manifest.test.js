@@ -287,7 +287,7 @@ async function osCodecPackageTree(context, target) {
 	const runtimeManifest = {
 		schemaVersion: 1,
 		productId: 'soundscaper',
-		applicationVersion: '0.2.0-beta.1',
+		applicationVersion: '1.0.0-rc.1',
 		sourceRevision: REVISION,
 		target: { platform, arch },
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
@@ -396,7 +396,7 @@ async function packageTree(context) {
 	const runtimeManifest = {
 		schemaVersion: 1,
 		productId: 'soundscaper',
-		applicationVersion: '0.2.0-beta.1',
+		applicationVersion: '1.0.0-rc.1',
 		sourceRevision: REVISION,
 		target: { platform: 'linux', arch: 'x64' },
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,

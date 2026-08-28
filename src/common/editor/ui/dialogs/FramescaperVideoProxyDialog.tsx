@@ -6,13 +6,13 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
 	framescaperVideoProxyActionRuntimeFor,
 	type FramescaperVideoProxyOriginalRelinkCandidate,
-	type FramescaperVideoProxyPreviewTrustV20,
+	type FramescaperVideoProxyPreviewTrust,
 	type FramescaperVideoProxyProgress,
-} from '../../../../framescaper/editor-video-proxy-action-runtime-v20.ts';
+} from '../../../../framescaper/editor-video-proxy-action-runtime.ts';
 import {
 	createFramescaperVideoProxyDialogModel,
 } from '../framescaper-video-proxy-dialog-model.ts';
-import type { FramescaperVideoProxyModeV20 } from '../../../../framescaper/editor-video-proxy-use-policy-v20.ts';
+import type { FramescaperVideoProxyModeRetime } from '../../../../framescaper/editor-video-proxy-use-policy-retime.ts';
 
 interface ProxyFileService {
 	readonly isDesktop?: boolean;
@@ -56,7 +56,7 @@ export default function FramescaperVideoProxyDialog({
 		readOnly: snapshot.readOnly === true,
 	}), [editingBlocked, snapshot]);
 	const [selectedSourceId, setSelectedSourceId] = useState<string | null>(model.selectedSourceId);
-	const [mode, setMode] = useState<FramescaperVideoProxyModeV20>('auto');
+	const [mode, setMode] = useState<FramescaperVideoProxyModeRetime>('auto');
 	const [pending, setPending] = useState<
 		'generate' | 'attach' | 'regenerate' | 'detach' | 'relink' | null
 	>(null);
@@ -296,14 +296,14 @@ export default function FramescaperVideoProxyDialog({
 	</AudioEditorDialogShell>;
 }
 
-function previewMode(value: string): FramescaperVideoProxyModeV20 {
+function previewMode(value: string): FramescaperVideoProxyModeRetime {
 	return value === 'original' || value === 'proxy' ? value : 'auto';
 }
 
 function proxyTrustLabel(
 	copy: Readonly<Record<string, string>>,
 	attachmentPresent: boolean,
-	trust: FramescaperVideoProxyPreviewTrustV20,
+	trust: FramescaperVideoProxyPreviewTrust,
 ): string {
 	if (!attachmentPresent) return label(copy, 'videoProxyNotAttached', 'No proxy is attached.');
 	if (trust === 'verified') {

@@ -33,6 +33,11 @@ import type {
 } from './native-services-root-repository.ts';
 import type { FramescaperNativeWatchRepository } from './native-services-watch-repository.ts';
 import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
+import {
 	assertFramescaperNativeWatchProjection,
 	framescaperNativeWatchProjection as watchProjection,
 	type FramescaperNativeWatchProjectState,
@@ -65,6 +70,8 @@ export interface FramescaperNativeServicePreferences {
 
 export interface FramescaperNativeQueueProjection {
 	readonly jobId: string;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly projectId: string;
 	readonly relativeDestination: string;
@@ -159,7 +166,10 @@ export class FramescaperNativeServicesController {
 		this.#setPreference = options.setPreference;
 		this.#rootDisplayName = options.rootDisplayName ?? (() => 'Authorized folder');
 		this.#onQueueControl = options.onQueueControl;
-		this.#projectState = options.projectState ?? (() => Object.freeze({ open: false, writable: false }));
+		this.#projectState = options.projectState ?? (() => Object.freeze({
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			open: false, writable: false, binId: 'project-bin' as const,
+		}));
 	}
 
 	snapshot(): FramescaperNativeServicesSnapshot {
@@ -473,12 +483,16 @@ export function assertFramescaperNativeServicesSnapshot(
 }
 
 function queueProjection(record: Readonly<{
-	jobId: string; taskKind: NativeQueueTaskKind; projectId: string; relativeDestination: string;
+	jobId: string; schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
+	taskKind: NativeQueueTaskKind; projectId: string; relativeDestination: string;
 	state: NativeQueueState; position: number; progress: number | null; attempt: number;
 	lastFailureCode: string | null;
 }>): FramescaperNativeQueueProjection {
 	return Object.freeze({
 		jobId: record.jobId,
+		schemaFamily: record.schemaFamily,
+		schemaVersion: record.schemaVersion,
 		taskKind: record.taskKind,
 		projectId: record.projectId,
 		relativeDestination: record.relativeDestination,
@@ -504,8 +518,13 @@ function commonGrant(grant: FramescaperNativeRootGrant): DurableRootGrantV1 {
 export function assertFramescaperNativeQueueProjection(
 	value: unknown,
 ): asserts value is FramescaperNativeQueueProjection {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('A native queue projection requires the current Framescaper schema.');
+	}
 	const row = closedRecord(value, [
-		'jobId', 'taskKind', 'projectId', 'relativeDestination', 'state',
+		'jobId', 'schemaFamily', 'schemaVersion', 'taskKind', 'projectId', 'relativeDestination', 'state',
 		'position', 'progress', 'attempt', 'lastFailureCode',
 	], 'native queue projection');
 	jobId(row.jobId);

@@ -34,6 +34,11 @@ import {
 	type FramescaperNativeProjectAssetsBridge,
 } from './framescaper-native-project-assets-bridge.ts';
 import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
+import {
 	FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS,
 	createFramescaperNativeServicesLifecycleStore,
 	type FramescaperNativeRootProjection,
@@ -41,6 +46,21 @@ import {
 	type FramescaperNativeServicesLifecycleStore,
 	type FramescaperNativeWatchProjection,
 } from './framescaper-native-services-lifecycle-bridge.ts';
+import {
+	booleanValue,
+	boundedArray,
+	boundedText,
+	closedRecord,
+	exactJobId,
+	exactOpaqueId,
+	member,
+	nonNegativeInteger,
+	optionalDisplayId,
+	positiveInteger,
+	recordOrNull,
+	stableExtension,
+	stableIdentifier,
+} from './framescaper-native-services-value-validation.ts';
 
 export type {
 	FramescaperNativeQueueEnqueueRendererRequest,
@@ -78,6 +98,8 @@ export const DEFAULT_FRAMESCAPER_NATIVE_SERVICE_PREFERENCES:
 
 export interface FramescaperNativeQueueProjection {
 	readonly jobId: string;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly projectId: string;
 	readonly relativeDestination: string;
@@ -355,8 +377,14 @@ function normalizeServicesSnapshot(value: unknown): FramescaperNativeServicesPro
 }
 
 function normalizeQueueProjection(value: unknown): FramescaperNativeQueueProjection {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('A Framescaper native queue row requires the current project schema.');
+	}
 	const row = closedRecord(value, [
-		'jobId', 'taskKind', 'projectId', 'relativeDestination', 'state', 'position',
+		'jobId', 'schemaFamily', 'schemaVersion', 'taskKind', 'projectId',
+		'relativeDestination', 'state', 'position',
 		'progress', 'attempt', 'lastFailureCode',
 	], 'Framescaper native queue row');
 	const jobId = exactJobId(row.jobId);
@@ -372,6 +400,8 @@ function normalizeQueueProjection(value: unknown): FramescaperNativeQueueProject
 	}
 	const failure = row.lastFailureCode === null ? null : boundedText(row.lastFailureCode, 'failure code');
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		jobId, taskKind, projectId,
 		relativeDestination: row.relativeDestination as string,
 		state, position, progress: row.progress as number | null,
@@ -390,14 +420,21 @@ function normalizeRootProjection(value: unknown): FramescaperNativeRootProjectio
 }
 
 function normalizeWatchProjection(value: unknown): FramescaperNativeWatchProjection {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('A Framescaper native watch rule requires the current project schema.');
+	}
 	const row = closedRecord(value, [
-		'ruleId', 'grantId', 'projectId', 'binId', 'extensions', 'importMode', 'generateProxies', 'enabled',
+		'schemaFamily', 'schemaVersion', 'ruleId', 'grantId', 'projectId', 'binId',
+		'extensions', 'importMode', 'generateProxies', 'enabled',
 	], 'Framescaper native watch rule');
 	if ((row.importMode !== 'link' && row.importMode !== 'copy')
 		|| typeof row.generateProxies !== 'boolean' || typeof row.enabled !== 'boolean') {
 		throw new TypeError('A Framescaper native watch rule has invalid state.');
 	}
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY, schemaVersion: PROJECT_SCHEMA_VERSION,
 		ruleId: exactOpaqueId(row.ruleId, 'watch rule id'),
 		grantId: exactOpaqueId(row.grantId, 'watch grant id'),
 		projectId: stableIdentifier(row.projectId, 'watch project id'),
@@ -497,103 +534,4 @@ function preferenceRequest(value: unknown): Readonly<{
 		preference: member(row.preference, FRAMESCAPER_NATIVE_SERVICE_PREFERENCES, 'preference'),
 		enabled: row.enabled,
 	});
-}
-
-function recordOrNull(value: unknown): Record<string, unknown> | null {
-	return value !== null && typeof value === 'object' && !Array.isArray(value)
-		? value as Record<string, unknown>
-		: null;
-}
-
-function closedRecord<const Field extends string>(
-	value: unknown,
-	fields: readonly Field[],
-	label: string,
-): Readonly<Record<Field, unknown>> {
-	const row = recordOrNull(value);
-	if (!row || (Object.getPrototypeOf(row) !== Object.prototype && Object.getPrototypeOf(row) !== null)) {
-		throw new TypeError(`${label} must be a plain record.`);
-	}
-	const keys = Reflect.ownKeys(row);
-	if (keys.length !== fields.length
-		|| keys.some((key) => typeof key !== 'string' || !fields.includes(key as Field))) {
-		throw new TypeError(`${label} has missing or unsupported fields.`);
-	}
-	return row as Readonly<Record<Field, unknown>>;
-}
-
-function boundedArray(value: unknown, maximum: number, label: string): readonly unknown[] {
-	if (!Array.isArray(value) || value.length > maximum
-		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError(`A Framescaper native ${label} value must be a bounded dense array.`);
-	}
-	return value;
-}
-
-function member<const Value extends string>(
-	value: unknown,
-	values: readonly Value[],
-	label: string,
-): Value {
-	if (typeof value !== 'string' || !(values as readonly string[]).includes(value)) {
-		throw new TypeError(`A Framescaper native ${label} value is invalid.`);
-	}
-	return value as Value;
-}
-
-function exactJobId(value: unknown): string {
-	if (typeof value !== 'string' || !/^[a-f0-9]{40}$/u.test(value)) {
-		throw new TypeError('A Framescaper native queue request requires an exact job id.');
-	}
-	return value;
-}
-
-function exactOpaqueId(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !/^[a-f0-9]{16,64}$/u.test(value)) {
-		throw new TypeError(`A Framescaper native ${label} is invalid.`);
-	}
-	return value;
-}
-
-function stableIdentifier(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(value)) {
-		throw new TypeError(`A Framescaper native ${label} is invalid.`);
-	}
-	return value;
-}
-
-function stableExtension(value: unknown): string {
-	if (typeof value !== 'string' || !/^[a-z0-9][a-z0-9]{0,15}$/u.test(value)) {
-		throw new TypeError('A Framescaper native watch extension is invalid.');
-	}
-	return value;
-}
-
-function optionalDisplayId(value: unknown): string | null {
-	return value === null ? null : boundedText(value, 'display id', 128);
-}
-
-function boundedText(value: unknown, label: string, maximum = 4_096): string {
-	if (typeof value !== 'string' || value.length === 0 || value.length > maximum || value.includes('\0')) {
-		throw new TypeError(`A Framescaper native ${label} value is invalid.`);
-	}
-	return value;
-}
-
-function nonNegativeInteger(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) {
-		throw new RangeError(`A Framescaper native ${label} value is invalid.`);
-	}
-	return value as number;
-}
-
-function positiveInteger(value: unknown, label: string): number {
-	const number = nonNegativeInteger(value, label);
-	if (number === 0) throw new RangeError(`A Framescaper native ${label} value must be positive.`);
-	return number;
-}
-
-function booleanValue(value: unknown, label: string): boolean {
-	if (typeof value !== 'boolean') throw new TypeError(`A Framescaper native ${label} value is invalid.`);
-	return value;
 }

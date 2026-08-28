@@ -3,7 +3,10 @@ import { productHref } from '../../../product-web-links.js';
 import { privacyPolicyUrl } from '../../../site/privacy-policy-links.js';
 import { documentationUrl } from '../../documentation-links.ts';
 import { framescaperVideoProxyActionRuntimeFor } from '../../framescaper-video-proxy-action-runtime-registry.ts';
-import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	isCurrentProjectSchemaIdentity,
+} from '../../project-schema-identity.ts';
 
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
@@ -14,9 +17,9 @@ import {
 	framescaperNativeProjectActionRuntimeFor,
 } from '../framescaper-native-project-actions.ts';
 import { framescaperCandidateAuthoringActionRuntimeFor } from '../framescaper-candidate-authoring-actions.ts';
-import { framescaperSelectedV27VisualAuthoringSurfaceId } from '../framescaper-selected-v27-visual-authoring-menu.ts';
-import { framescaperV27FinishingSurfaceId } from '../framescaper-v27-finishing-menu.ts';
-import { framescaperNativeOpenFxAuthoringRuntimeForV28 } from '../../framescaper-native-openfx-authoring-runtime-registry.ts';
+import { framescaperSelectedVisualAuthoringSurfaceId } from '../framescaper-selected-visual-authoring-menu.ts';
+import { framescaperFinishingSurfaceId } from '../framescaper-finishing-menu.ts';
+import { framescaperNativeOpenFxAuthoringRuntimeForNativeMedia } from '../../framescaper-native-openfx-authoring-runtime-registry.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
 import {
 	resolveFramescaperNativeServicesWorkspaceRuntime,
@@ -106,7 +109,7 @@ export function createWorkspaceApplicationMenus({
 		productId, copy, project, projectCapabilities: capabilities,
 		editingBlocked: editBlocked, readOnly: snapshot.readOnly === true,
 		projectActions,
-		openFxAuthoring: framescaperNativeOpenFxAuthoringRuntimeForV28(controller),
+		openFxAuthoring: framescaperNativeOpenFxAuthoringRuntimeForNativeMedia(controller),
 	});
 	const framescaperNativeServices = wrapFramescaperNativeServicesMenuRuntime(
 		framescaperNativeServicesRuntime, run,
@@ -115,9 +118,11 @@ export function createWorkspaceApplicationMenus({
 	const framescaperCandidateAuthoring = candidateAuthoringRuntime === null ? null : Object.freeze({
 		surfaces: candidateAuthoringRuntime.surfaces,
 		open: (surface) => {
-			const selectedV27Surface = isSelectedFramescaperProjectSchema(project?.schemaVersion)
-				? framescaperSelectedV27VisualAuthoringSurfaceId(surface) : null;
-			if (selectedV27Surface !== null) return openSurface(selectedV27Surface);
+			const selectedSurface = isCurrentProjectSchemaIdentity(
+				project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+			)
+				? framescaperSelectedVisualAuthoringSurfaceId(surface) : null;
+			if (selectedSurface !== null) return openSurface(selectedSurface);
 			return run(() => candidateAuthoringRuntime.run(surface));
 		},
 	});
@@ -155,8 +160,8 @@ export function createWorkspaceApplicationMenus({
 				openLocalAssistanceIndexedSearch: fileService.isDesktop && project
 					? openAssistanceSearch : undefined,
 				framescaperCandidateAuthoring,
-				openFramescaperV27Finishing: (surface) => openSurface(
-					framescaperV27FinishingSurfaceId(surface),
+				openFramescaperFinishing: (surface) => openSurface(
+					framescaperFinishingSurfaceId(surface),
 				),
 				framescaperNativeServices,
 				soundscaperProduction,

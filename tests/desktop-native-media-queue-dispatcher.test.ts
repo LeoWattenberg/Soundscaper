@@ -350,6 +350,7 @@ function queueRecords(
 	}
 	return Object.freeze(Array.from({ length: count }, (_, index) => {
 		const record = createNativeQueueRecordV2({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: (index + 1).toString(16).padStart(2, '0').repeat(20),
 			taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 			projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId,

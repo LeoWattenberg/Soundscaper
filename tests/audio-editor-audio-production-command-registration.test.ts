@@ -13,7 +13,7 @@ import {
 } from '../src/common/editor/commands/protocol.ts'
 import { createEditorCommandRuntime } from '../src/common/editor/commands/runtime-registry.ts'
 import { assertEditorCommandCapabilities } from '../src/common/editor/controller/command-capability-policy.ts'
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts'
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 
 test('production command discriminants are registered in exactly one exhaustive domain', () => {
 	assert.deepEqual(AUDIO_PRODUCTION_COMMAND_TYPES, [
@@ -28,7 +28,7 @@ test('production command discriminants are registered in exactly one exhaustive 
 })
 
 test('automation and mixer commands use complete expected-value CAS mutations', () => {
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		tracks: [],
 		automationLanes: [],
 	}) as unknown as Record<string, unknown>

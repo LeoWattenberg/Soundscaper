@@ -51,33 +51,64 @@ test('a fresh open creates the complete current schema', async () => {
 
 	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
 
+	assert.equal(EDITOR_STORAGE_DATABASE_VERSION, 1);
 	assertCurrentSchema(database, indexedDB, databaseName);
 	database.close();
 });
 
-test('a pre-current database is wiped and recreated on the current schema', async () => {
+const RETIRED_PRODUCT_DATABASE_NAMES = Object.freeze([
+	'kw-media-soundscaper-editor-v21',
+	'kw-media-soundscaper-editor-v23',
+	'kw-media-soundscaper-editor-v29',
+	'kw-media-soundscaper-editor-v30',
+	'kw-media-framescaper-editor-v18',
+	'kw-media-framescaper-editor-v19',
+	'kw-media-framescaper-editor-v20',
+	'kw-media-framescaper-editor-v22',
+	'kw-media-framescaper-editor-v24',
+	'kw-media-framescaper-editor-v25',
+	'kw-media-framescaper-editor-v26',
+	'kw-media-framescaper-editor-v27',
+	'kw-media-framescaper-editor-v28',
+	'kw-media-framescaper-editor-v31',
+	'kw-media-framescaper-editor-v32',
+]);
+
+test('every pre-release product database remains unopened and byte-for-byte recoverable', async () => {
 	const indexedDB = instrumentedIndexedDB();
-	const databaseName = uniqueDatabaseName('storage-schema-wipe');
-	const legacy = await openLegacyDatabase(indexedDB, databaseName);
-	indexedDB.seedRecord(databaseName, VIDEO_DERIVATIVE_STORE_NAME, legacyDerivativeRecord());
-	indexedDB.seedRecord(databaseName, 'mediaAssets', legacyMediaRecord());
-	indexedDB.seedRecord(databaseName, 'retiredStore', { key: 'legacy-only', value: true });
-	legacy.close();
+	for (const retiredName of RETIRED_PRODUCT_DATABASE_NAMES) {
+		const legacy = await openLegacyDatabase(indexedDB, retiredName);
+		indexedDB.seedRecord(retiredName, VIDEO_DERIVATIVE_STORE_NAME, legacyDerivativeRecord());
+		indexedDB.seedRecord(retiredName, 'mediaAssets', legacyMediaRecord());
+		indexedDB.seedRecord(retiredName, 'retiredStore', {
+			key: 'legacy-only',
+			value: new Uint8Array([0, 255, retiredName.length]),
+		});
+		legacy.close();
+	}
 
-	const database = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
+	for (const baselineName of [
+		'kw-media-soundscaper-editor-v1',
+		'kw-media-framescaper-editor-v1',
+	]) {
+		const database = await openDatabase(indexedDB as unknown as IDBFactory, baselineName);
+		assertCurrentSchema(database, indexedDB, baselineName);
+		database.close();
+	}
 
-	assertCurrentSchema(database, indexedDB, databaseName);
-	assert.equal(database.objectStoreNames.contains('retiredStore'), false);
-	database.close();
+	for (const retiredName of RETIRED_PRODUCT_DATABASE_NAMES) {
+		assert.equal(indexedDB.recordCount(retiredName, VIDEO_DERIVATIVE_STORE_NAME), 1, retiredName);
+		assert.equal(indexedDB.recordCount(retiredName, 'mediaAssets'), 1, retiredName);
+		assert.deepEqual(indexedDB.records(retiredName, 'retiredStore'), [{
+			key: 'legacy-only',
+			value: new Uint8Array([0, 255, retiredName.length]),
+		}], retiredName);
+	}
 });
 
-test('a failed initialization during the wipe restores the pre-current database before a clean retry', async () => {
+test('a failed v1 initialization rolls back before a clean retry', async () => {
 	const indexedDB = instrumentedIndexedDB();
-	const databaseName = uniqueDatabaseName('storage-schema-wipe-rollback');
-	const legacy = await openLegacyDatabase(indexedDB, databaseName);
-	indexedDB.seedRecord(databaseName, VIDEO_DERIVATIVE_STORE_NAME, legacyDerivativeRecord());
-	indexedDB.seedRecord(databaseName, 'mediaAssets', legacyMediaRecord());
-	legacy.close();
+	const databaseName = uniqueDatabaseName('storage-schema-v1-rollback');
 	const plannedFailure = new Error('planned staging-state initialization failure');
 	indexedDB.failNextPutForStore(MEDIA_ASSET_STAGING_STORE_NAME, plannedFailure);
 
@@ -87,14 +118,6 @@ test('a failed initialization during the wipe restores the pre-current database 
 	);
 
 	assert.equal(indexedDB.stats.activeTransactions, 0);
-	const restored = await openRawDatabase(indexedDB, databaseName, LEGACY_DATABASE_VERSION);
-	assert.equal(restored.version, LEGACY_DATABASE_VERSION);
-	assert.equal(restored.objectStoreNames.contains(MEDIA_ASSET_STAGING_STORE_NAME), false);
-	assert.equal(restored.objectStoreNames.contains('retiredStore'), true);
-	assert.equal(indexedDB.recordCount(databaseName, VIDEO_DERIVATIVE_STORE_NAME), 1);
-	assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 1);
-	restored.close();
-
 	const retried = await openDatabase(indexedDB as unknown as IDBFactory, databaseName);
 	assertCurrentSchema(retried, indexedDB, databaseName);
 	retried.close();

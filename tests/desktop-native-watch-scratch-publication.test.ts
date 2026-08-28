@@ -34,6 +34,9 @@ const GRANT_ID = 'f'.repeat(32);
 const ROOT = '/volumes/ingest';
 const SHA_A = 'a'.repeat(64);
 const SHA_B = 'b'.repeat(64);
+const PROJECT_IDENTITY = Object.freeze({
+	schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+});
 
 test('watch rules default to link and reconcile non-recursively after two stable observations', async () => {
 	const database = open();
@@ -43,13 +46,17 @@ test('watch rules default to link and reconcile non-recursively after two stable
 		leaseId: 'lease-a', instanceId: 'instance-a', processId: 1, nowMs: 0,
 	});
 	const rule = rules.create({
+		...PROJECT_IDENTITY,
 		ruleId: 'a'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		binId: 'project-bin',
 		extensions: ['mov', '.mp4'], createdAtMs: 0,
 	}, lease, 0);
 	assert.equal(rule.importMode, 'link');
 	assert.equal(rule.recursive, false);
 	assert.throws(() => rules.create({
+		...PROJECT_IDENTITY,
 		ruleId: 'b'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		binId: 'project-bin',
 		extensions: ['mov'], recursive: true, createdAtMs: 0,
 	}, lease, 0), /recursion is disabled/u);
 
@@ -64,7 +71,8 @@ test('watch rules default to link and reconcile non-recursively after two stable
 			file('notes.txt', 'file-3'),
 		],
 		probe: async (entry) => ({ succeeded: true, contentSha256: entry.name === 'camera.mov' ? SHA_A : SHA_B }),
-		projectState: () => ({ open: true, writable: true }),
+		projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true,
+			binId: 'project-bin' }),
 		lease: () => lease,
 		importFile: async ({ entry, rule: selectedRule }) => {
 			imported.push({ name: entry.name, mode: selectedRule.importMode });
@@ -93,7 +101,9 @@ test('fs.watch is only a hint and the coordinator always schedules an authoritat
 		leaseId: 'lease-a', instanceId: 'instance-a', processId: 1, nowMs: 0,
 	});
 	rules.create({
+		...PROJECT_IDENTITY,
 		ruleId: 'a'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		binId: 'project-bin',
 		extensions: ['mov'], createdAtMs: 0,
 	}, lease, 0);
 	const delays: number[] = [];
@@ -134,7 +144,9 @@ test('a rule whose root cannot be watched degrades to sweeps instead of aborting
 		leaseId: 'lease-missing', instanceId: 'instance-missing', processId: 1, nowMs: 0,
 	});
 	rules.create({
+		...PROJECT_IDENTITY,
 		ruleId: 'd'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		binId: 'project-bin',
 		extensions: ['mov'], createdAtMs: 0,
 	}, lease, 0);
 	const failures: unknown[] = [];
@@ -166,7 +178,9 @@ test('watch shutdown closes hint sources immediately and drains an in-progress r
 		leaseId: 'lease-drain', instanceId: 'instance-drain', processId: 1, nowMs: 0,
 	});
 	rules.create({
+		...PROJECT_IDENTITY,
 		ruleId: 'c'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		binId: 'project-bin',
 		extensions: ['mov'], createdAtMs: 0,
 	}, lease, 0);
 	let enterSecond!: () => void;
@@ -356,6 +370,7 @@ test('publication removes a newly renamed output and advertises nothing when its
 		plan, currentPlanFingerprint: SHA_A, finalized: true,
 		declaredByteLength: 5, declaredSha256: SHA_B,
 	}, port, {
+		schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'project-a', projectRevision: 0,
 		beforePublication: async () => { phases.push('before'); },
 		afterPublication: async () => {
 			phases.push('after');
@@ -423,6 +438,7 @@ function jobId(byte: string): string {
 
 function queueRecord(byte: string, position: number) {
 	return createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: jobId(byte), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [],
 		rootGrantId: GRANT_ID, relativeDestination: `exports/${byte}.mp4`,

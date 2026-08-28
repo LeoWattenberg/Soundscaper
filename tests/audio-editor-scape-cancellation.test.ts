@@ -3,7 +3,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import {
 	extractScapeVideo,
 	SCAPE_VIDEO_MAXIMUM_CHUNK_BYTES,
@@ -11,10 +10,13 @@ import {
 import { withScapeArchiveReader } from '../src/common/editor/scape-archive-reader.ts';
 import {
 	exportScapeProject,
-	importScapeProject,
-	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 test('pre-aborted import and inspection stop before metadata or storage work', async () => {
 	const sourceStore = memoryStore('scape-pre-abort-source');

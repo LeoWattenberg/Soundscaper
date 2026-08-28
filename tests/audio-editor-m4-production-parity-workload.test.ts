@@ -112,13 +112,15 @@ test('production PDC and gain scheduling plans are metric-sensitive', () => {
 	'the independent PCM oracle rejects edge gain placed before its ten-frame compensation');
 });
 
-test('the registered workload compiles a production V21 sidechain, send, and nested parallel graph', () => {
+test('the registered workload compiles a Soundscaper-v1 sidechain, send, and nested parallel graph', () => {
 	const project = createM4ProductionParityEngineProject();
 	const plan = compileProjectPathPdcPlanV21(project, {
 		sampleRate: M4_PRODUCTION_PARITY_SPECIFICATION.sampleRate,
 	});
 	const mixer = project.mixer as MixerGraphV21 | undefined;
-	assert.equal(project.schemaVersion, 21);
+	assert.deepEqual({ schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion }, {
+		schemaFamily: 'soundscaper', schemaVersion: 1,
+	});
 	assert.deepEqual(project.tracks?.map(({ id }) => id), ['program', 'control']);
 	assert.deepEqual(mixer?.groups.map(({ id }) => id), ['fast', 'parent']);
 	assert.deepEqual(mixer?.sends.map(({ id }) => id), ['slow']);

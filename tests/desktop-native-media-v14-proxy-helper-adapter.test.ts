@@ -35,13 +35,13 @@ import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-med
 import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
 import { nativeRgbaFramePackV1ByteLength } from '../src/common/editor/native-rgba-frame-pack-v1-contract.ts';
 import { normalizeVideoSourceCharacteristicsV25 } from '../src/common/editor/video-source-professional-characteristics-v25.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import { streamFramescaperNativeRgbaFramePackV1 } from '../src/framescaper/native-render-frame-pack-v1.ts';
 import { framescaperMediaHostDescriptorFixture } from './helpers/framescaper-media-host-descriptor-fixture.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const SOURCE_BYTES = new Uint8Array([9, 8, 7, 6]);
 const OUTPUT_BYTES = new Uint8Array([1, 3, 3, 7]);
@@ -398,7 +398,7 @@ async function mediaHostDescriptor(directory: string): Promise<FramescaperMediaH
 }
 
 function proxyEnvelope() {
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 	const options = framescaperV20Options();
 	options.sources = (options.sources as Array<Record<string, unknown>>).map((source) => (
 		source.kind === 'video' ? { ...source, contentSha256: digest(SOURCE_BYTES), videoCodec: 'h264',
@@ -408,14 +408,14 @@ function proxyEnvelope() {
 				pixelFormat: 'yuv420p10le', chromaFormat: '4:2:0',
 			}) } : source
 	));
-	const project = createFramescaperProjectV28(profile, options);
-	return createNativeMediaPlanEnvelopeV2(createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(profile, options);
+	return createNativeMediaPlanEnvelopeV2(createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	));
 }
 
 function liveRetryFixture() {
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 	const options = framescaperV20Options();
 	options.sources = (options.sources as Array<Record<string, unknown>>)
 		.filter(({ kind }) => kind === 'video').map((source) => ({
@@ -432,9 +432,9 @@ function liveRetryFixture() {
 	options.tracks = (options.tracks as Array<Record<string, unknown>>)
 		.filter(({ type }) => type === 'video');
 	options.sequences = [{ id: 'main-sequence', rate: { num: 1, den: 1 }, trackIds: ['video-track'] }];
-	const project = createFramescaperProjectV28(profile, options);
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(profile, options);
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const envelope = createNativeMediaPlanEnvelopeV2(plan);
 	const carrierByteLength = nativeRgbaFramePackV1ByteLength({
@@ -447,6 +447,7 @@ function liveRetryFixture() {
 function liveBeginRequest(fixture: ReturnType<typeof liveRetryFixture>) {
 	return Object.freeze({
 		liveRenderVersion: 1 as const, planVersion: 14 as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		planFingerprint: fixture.envelope.fingerprint, planPayload: JSON.stringify(fixture.plan),
 		projectId: fixture.project.id, projectRevision: fixture.project.revision,
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],
@@ -458,6 +459,7 @@ function liveClaimRequest(fixture: ReturnType<typeof liveRetryFixture>) {
 	const begin = liveBeginRequest(fixture);
 	return Object.freeze({
 		derivedInputStageId: LIVE_JOB_ID, planVersion: 14 as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		planFingerprint: begin.planFingerprint, planPayload: begin.planPayload,
 		projectId: begin.projectId, projectRevision: begin.projectRevision,
 		inputFingerprints: begin.inputFingerprints,
@@ -466,6 +468,7 @@ function liveClaimRequest(fixture: ReturnType<typeof liveRetryFixture>) {
 
 function liveQueueRecord(fixture: ReturnType<typeof liveRetryFixture>) {
 	return createNativeQueueRecordV3({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: LIVE_JOB_ID, taskKind: 'encoded-export', plan: fixture.plan,
 		projectId: String(fixture.project.id), projectRevision: Number(fixture.project.revision),
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],

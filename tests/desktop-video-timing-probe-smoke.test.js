@@ -20,14 +20,14 @@ import {
 } from '../desktop/video-timing-probe-smoke.js';
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
 import {
-	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v31.ts';
+	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-project-runtime-profile.ts';
 import {
-	createEditorProjectRuntimeV31Selection,
-} from '../src/framescaper/editor-project-runtime-v31-selection.ts';
+	createEditorProjectRuntimeSelection,
+} from '../src/framescaper/editor-project-runtime-selection.ts';
 import {
-	SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE,
-} from '../src/soundscaper/editor-project-storage-profile-v30.ts';
+	SOUNDSCAPER_PROJECT_STORAGE_PROFILE,
+} from '../src/soundscaper/editor-project-storage-profile.ts';
 import {
 	editorProjectStorageProfileNames,
 } from '../src/common/editor/storage/project-storage-profile.ts';
@@ -44,15 +44,12 @@ test('packaged timing probe keeps startup margin outside its renderer deadlines'
 // a wrong name — indexedDB.open() without a version silently creates an empty
 // database — so the probe would wait out its full deadline on a store that is
 // never written. Deriving the expectation from the profile each product mounts
-// makes the next revision flip fail here, in seconds, instead of in the nightly
-// packaged run. Framescaper is read off the runtime selection the desktop editor
-// mounts rather than off a named profile module, because naming the module is
-// the same staleness one level up: this check kept passing against the retired
-// V20 profile while packaged Framescaper had already moved to V28.
+// makes a future storage revision fail here, in seconds, instead of in the
+// nightly packaged run.
 test('packaged timing-probe storage profiles are the ones each product mounts', async () => {
-	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_V30_PROJECT_STORAGE_PROFILE);
-	const framescaper = editorProjectStorageProfileNames(createEditorProjectRuntimeV31Selection(
-		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+	const soundscaper = editorProjectStorageProfileNames(SOUNDSCAPER_PROJECT_STORAGE_PROFILE);
+	const framescaper = editorProjectStorageProfileNames(createEditorProjectRuntimeSelection(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 	).storageProfile);
 	assert.deepEqual(createDesktopVideoTimingProbeStorageProfile('soundscaper'), {
 		productId: 'soundscaper',
@@ -171,8 +168,8 @@ test('packaged timing-probe emits bounded path-free evidence after exact validat
 		target: 'windows-x64',
 		storageProfile: {
 			productId: 'framescaper',
-			databaseName: 'kw-media-framescaper-editor-v31',
-			opfsDirectoryName: 'framescaper-editor-v31-sources',
+			databaseName: 'kw-media-framescaper-editor-v1',
+			opfsDirectoryName: 'framescaper-editor-v1-sources',
 		},
 		fixtures: plan.fixtures.map((fixture) => {
 			const observation = result.fixtures.find(({ id }) => id === fixture.id);
@@ -219,7 +216,7 @@ test('timing probe identifies a revision jump before the first import publicatio
 		state: 'success',
 		getAttribute(name) { return name === 'data-state' ? this.state : null; },
 		get textContent() { return this.state === 'error'
-			? 'The desktop V11 publication is stale against its private revision witness.'
+			? 'The desktop v1 publication is stale against its private revision witness.'
 			: 'Ready'; },
 	};
 	const importButton = {
@@ -254,8 +251,7 @@ test('timing probe identifies a revision jump before the first import publicatio
 		indexedDB: { open: () => successfulRequest(database) },
 		setTimeout: (resolve) => { resolve(); },
 		soundscaperProjectLibraryDesktop: {
-			v10: { listProjects: async () => { throw new Error('Historical V10 bridge was consulted'); } },
-			v11: { listProjects: async () => catalog },
+			v1: { listProjects: async () => catalog },
 		},
 	};
 
@@ -396,7 +392,7 @@ test('desktop smoke routing admits the ordinary media chooser once and emits onl
 	assert.deepEqual(exits, [0]);
 });
 
-test('Framescaper packaged timing probe executes against the selected F31 storage profile', async () => {
+test('Framescaper packaged timing probe executes against the family-v1 storage profile', async () => {
 	const plan = timingPlan('framescaper');
 	const executions = [];
 	const probe = createDesktopSmokeProbe({

@@ -297,7 +297,7 @@ function validateFoundationClip(
 		const sourceStart = projectSafeInteger(clip.sourceStartFrame, 0, `${prefix}.sourceStartFrame`);
 		const sourceDuration = projectSafeInteger(clip.sourceDurationFrames, 1, `${prefix}.sourceDurationFrames`);
 		if (sourceStart + sourceDuration > Number(source.frameCount)) throw new RangeError(`${prefix} exceeds source bounds.`);
-		if (isVideoRetimeCurveProjectSchema(project.schemaVersion) && clip.retimeMap != null) {
+		if (isVideoRetimeCurveProjectSchema(project) && clip.retimeMap != null) {
 			throw new RangeError(`${prefix}.retimeMap is supported only on video clips.`);
 		}
 		validateOptionalBreakpoint(clip.warpMap, 'audio-warp', `${prefix}.warpMap`);
@@ -315,7 +315,7 @@ function validateFoundationClip(
 	const sourceIn = projectSafeInteger(clip.sourceInFrame, 0, `${prefix}.sourceInFrame`);
 	const sourceCount = projectSafeInteger(clip.sourceFrameCount, 1, `${prefix}.sourceFrameCount`);
 	if (sourceIn + sourceCount > Number(source.sourceFrameCount)) throw new RangeError(`${prefix} exceeds source-frame bounds.`);
-	if (isVideoRetimeCurveProjectSchema(project.schemaVersion)) {
+	if (isVideoRetimeCurveProjectSchema(project)) {
 		normalizeVideoRetimeCurveV16(clip.retimeMap, {
 			sequenceFrameCount: sequenceCount,
 			sourceInFrame: sourceIn,

@@ -2,9 +2,11 @@
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
 import {
+	hasProductionMixerProjectAuthority,
+	isBaselineRenderedFallbackProject,
 	isMaintainedRenderedFallbackProjectSchema,
 	isProductionMixerProjectSchema,
-	isSoundscaperProductionProjectSchema,
+	isSoundscaperProductionProject,
 } from './project-schema-version.ts';
 import { createDefaultMixerGraphV21 } from './mixer-graph-v21.ts';
 import {
@@ -73,14 +75,14 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	report: ProjectFeatureRequirementsReport | null | undefined,
 ): ProjectFeatureAudioRenderedFallbackProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
-	const schemaVersion = optionalDataProperty(projectRecord, 'schemaVersion', 'project');
-	if (!isMaintainedRenderedFallbackProjectSchema(schemaVersion)) return unchanged(project);
+	if (!isBaselineRenderedFallbackProject(projectRecord)
+		&& !isMaintainedRenderedFallbackProjectSchema(projectRecord)) return unchanged(project);
 	const qualified = qualifyingFallback(report);
 	if (!qualified) return unchanged(project);
 	if (isQualifiedTrackFallback(qualified)) {
 		return projectFeatureAudioTrackRenderV1Playback(project, qualified);
 	}
-	if (isSoundscaperProductionProjectSchema(schemaVersion)) return unchanged(project);
+	if (isSoundscaperProductionProject(projectRecord)) return unchanged(project);
 	assertManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
@@ -105,7 +107,8 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 		arrayValue(dataProperty(projectRecord, 'tracks', 'project'), 'project.tracks'),
 		track,
 	);
-	const productionMixer = isProductionMixerProjectSchema(schemaVersion);
+	const productionMixer = hasProductionMixerProjectAuthority(projectRecord)
+		|| isProductionMixerProjectSchema(projectRecord);
 	const masterChannels = positiveSafeInteger(
 		dataProperty(projectRecord, 'masterChannels', 'project'),
 		'Project master channel count',
@@ -396,13 +399,6 @@ function dataProperty(value: RecordValue, key: string, name: string): unknown {
 	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
 		throw new TypeError(`${name}.${key} must be an own data property.`);
 	}
-	return descriptor.value;
-}
-
-function optionalDataProperty(value: RecordValue, key: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, key);
-	if (!descriptor) return undefined;
-	if (!Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name}.${key} must be an own data property.`);
 	return descriptor.value;
 }
 

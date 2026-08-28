@@ -99,10 +99,10 @@ async function shellFixture(context) {
 		fixtureFile(outputRoot, '.offline-build-manifest.json', JSON.stringify({
 			'index.html': { file: 'assets/application-abc.js', isEntry: true, imports: ['_shared.js'] },
 			'_shared.js': { file: 'assets/shared.js' },
-			'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx': {
+			'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx': {
 				file: 'assets/soundscaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
 			},
-			'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx': {
+			'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx': {
 				file: 'assets/framescaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
 			},
 		})),

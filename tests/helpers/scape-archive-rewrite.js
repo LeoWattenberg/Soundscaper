@@ -24,6 +24,8 @@ export async function rewriteScapeProjectDocument(blob, mutate) {
 	const manifest = JSON.parse(manifestContent.value);
 	manifest.project.size = projectBytes.byteLength;
 	manifest.project.sha256 = digestScapeBytes(projectBytes);
+	if (Object.hasOwn(document, 'schemaFamily')) manifest.project.schemaFamily = document.schemaFamily;
+	else delete manifest.project.schemaFamily;
 	manifest.project.schemaVersion = document.schemaVersion;
 	manifestContent.value = JSON.stringify(manifest);
 	return writeArchiveContents(contents);

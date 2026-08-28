@@ -10,7 +10,7 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 class FakeParam {
 	value: number;
@@ -88,7 +88,7 @@ test('the connected main output reaches the aggregate latency reported to render
 });
 
 function projectWithSlowerAuxiliaryOutput() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'output-latency', title: 'Output latency', now: '2026-08-20T00:00:00.000Z',
 		sources: [createAudioSource({
 			id: 'source', storageKey: 'pcm:source', contentSha256: 'a'.repeat(64),

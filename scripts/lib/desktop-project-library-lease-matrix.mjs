@@ -10,9 +10,9 @@ import {
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from '../../desktop/project-library-lease-smoke.js';
-import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v31.ts';
-import { createFramescaperProjectV31 } from '../../src/framescaper/editor-project-v31.ts';
-import { createSoundscaperProjectV30 } from '../../src/soundscaper/editor-project-v30.ts';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile.ts';
+import { createFramescaperProject } from '../../src/framescaper/editor-project.ts';
+import { createSoundscaperProject } from '../../src/soundscaper/editor-project.ts';
 import { packagedExecutableCandidates, resolveSmokeArchitecture } from './desktop-smoke.mjs';
 
 export const DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_LEASE_MATRIX ';
@@ -507,12 +507,12 @@ export function createDesktopProjectLibraryLeaseMatrixDocument(
 	productId = 'soundscaper',
 ) {
 	if (productId === 'framescaper') {
-		return JSON.stringify(createFramescaperProjectV31(FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE, {
+		return JSON.stringify(createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 			id, title, revision, now: '2026-08-24T12:00:00.000Z',
 		}));
 	}
 	if (productId !== 'soundscaper') throw new TypeError('Lease matrix document product is unsupported');
-	const base = createSoundscaperProjectV30({ id, title });
+	const base = createSoundscaperProject({ id, title });
 	return JSON.stringify({ ...base, revision, metadata: { ...base.metadata, title } });
 }
 function deepFreeze(value) {

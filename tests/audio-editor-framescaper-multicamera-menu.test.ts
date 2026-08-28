@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	createFramescaperMulticameraActionsV18,
-} from '../src/framescaper/editor-project-v18-multicam-actions.ts';
+	createFramescaperMulticameraActionsSequence,
+} from '../src/framescaper/editor-project-sequence-multicam-actions.ts';
 import {
 	createFramescaperMulticameraMenuItems,
 } from '../src/common/editor/ui/framescaper-multicamera-menu.ts';
-import type { FramescaperProjectCommandV18 } from '../src/framescaper/editor-project-v18-subsequence.ts';
+import type { FramescaperProjectCommandSequence } from '../src/framescaper/editor-project-sequence-subsequence.ts';
 
 const COPY = Object.freeze({
 	multicamera: 'Multicamera',
@@ -21,9 +21,9 @@ const COPY = Object.freeze({
 });
 
 test('product actions construct the four exact fenced multicamera command families', () => {
-	const commands: FramescaperProjectCommandV18[] = [];
-	const actions = createFramescaperMulticameraActionsV18(
-		(command: FramescaperProjectCommandV18) => commands.push(command),
+	const commands: FramescaperProjectCommandSequence[] = [];
+	const actions = createFramescaperMulticameraActionsSequence(
+		(command: FramescaperProjectCommandSequence) => commands.push(command),
 	);
 	const group = multicameraGroup();
 	actions.createMulticamera('project-a', 7, group);
@@ -51,7 +51,7 @@ test('product actions construct the four exact fenced multicamera command famili
 });
 
 test('the Tracks menu creates one bounded zero-offset group from explicit selected video', () => {
-	const commands: FramescaperProjectCommandV18[] = [];
+	const commands: FramescaperProjectCommandSequence[] = [];
 	const menu = createFramescaperMulticameraMenuItems({
 		productId: 'framescaper', project: project(), editingBlocked: false, copy: COPY,
 	}, { execute: (command) => commands.push(command) });
@@ -79,16 +79,10 @@ test('the Tracks menu creates one bounded zero-offset group from explicit select
 		},
 	}]);
 	assert.equal(Object.isFrozen(commands[0]), true);
-	assert.equal(createFramescaperMulticameraMenuItems({
-		productId: 'framescaper', project: { ...project(), schemaVersion: 19 }, editingBlocked: false, copy: COPY,
-	}, { execute: () => undefined })?.disabled, false);
-	assert.equal(createFramescaperMulticameraMenuItems({
-		productId: 'framescaper', project: { ...project(), schemaVersion: 20 }, editingBlocked: false, copy: COPY,
-	}, { execute: () => undefined })?.disabled, false);
 });
 
 test('the Tracks menu switches, frame-nudges, and removes only the selected group', () => {
-	const commands: FramescaperProjectCommandV18[] = [];
+	const commands: FramescaperProjectCommandSequence[] = [];
 	const input = project();
 	input.multicameraGroups = [multicameraGroup()];
 	const menu = createFramescaperMulticameraMenuItems({
@@ -135,7 +129,7 @@ test('multicamera menu is Framescaper-only and fail-closed for stale or blocked 
 		productId: 'soundscaper', project: project(), editingBlocked: false, copy: COPY,
 	}, execute), null);
 	for (const candidate of [
-		{ ...project(), schemaVersion: 17 },
+		{ ...project(), schemaVersion: 2 },
 		{ ...project(), selection: { clipIds: [] } },
 	]) {
 		const menu = createFramescaperMulticameraMenuItems({
@@ -164,7 +158,8 @@ function project(
 ): Record<string, unknown> & { multicameraGroups: unknown[] } {
 	const timingDecision = { mode: 'conform-cfr-at-ingest', rate };
 	return {
-		id: 'project-a', revision: 7, schemaVersion: 18, primarySequenceId: 'main', sampleRate: 48_000,
+		id: 'project-a', revision: 7, schemaFamily: 'framescaper', schemaVersion: 1,
+		primarySequenceId: 'main', sampleRate: 48_000,
 		selection: { clipIds: ['output-clip'] },
 		sources: [
 			{ id: 'camera-b', kind: 'video', sampleFrameCount: 48_000, frameRate: rate, timingDecision },

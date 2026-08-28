@@ -15,13 +15,13 @@ test('nightly test launcher reads the source revision from its staged manifest',
 
 	assert.equal(await readDesktopNightlyTestsSourceRevision({
 		payloadRoot,
-		applicationVersion: '0.2.0-beta.1',
+		applicationVersion: '1.0.0-rc.1',
 	}), sourceRevision);
 
 	await writeManifest(payloadRoot, { sourceRevision: null });
 	assert.equal(await readDesktopNightlyTestsSourceRevision({
 		payloadRoot,
-		applicationVersion: '0.2.0-beta.1',
+		applicationVersion: '1.0.0-rc.1',
 	}), null);
 });
 
@@ -38,7 +38,7 @@ test('nightly test launcher rejects malformed or mismatched staged manifests', a
 		await assert.rejects(
 			() => readDesktopNightlyTestsSourceRevision({
 				payloadRoot,
-				applicationVersion: '0.2.0-beta.1',
+				applicationVersion: '1.0.0-rc.1',
 			}),
 			expected,
 		);
@@ -48,7 +48,7 @@ test('nightly test launcher rejects malformed or mismatched staged manifests', a
 	await assert.rejects(
 		() => readDesktopNightlyTestsSourceRevision({
 			payloadRoot,
-			applicationVersion: '0.2.0-beta.1',
+			applicationVersion: '1.0.0-rc.1',
 		}),
 		/stage manifest is not valid JSON/iu,
 	);
@@ -64,7 +64,7 @@ async function writeManifest(payloadRoot, override) {
 	const manifest = {
 		schemaVersion: 1,
 		kind: 'soundscaper-desktop-nightly-tests',
-		applicationVersion: '0.2.0-beta.1',
+		applicationVersion: '1.0.0-rc.1',
 		sourceRevision: 'a'.repeat(40),
 		...override,
 	};

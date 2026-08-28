@@ -4,33 +4,18 @@
  * than from a project's `sources` array.
  */
 
-import { AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	isFoundationProjectSchema,
+	isSelectedFramescaperProjectSchema,
+	isSoundscaperProductionProject,
+} from './project-schema-version.ts';
 import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 
-/** Product schemas are not importable from common, so V18 is named here. */
-const FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION = 18;
-const FRAMESCAPER_VISUAL_SCHEMA_VERSION = 24;
-const FRAMESCAPER_FINISHING_SCHEMA_VERSION = 27;
-const ASSISTANCE_ASSET_SCHEMA_VERSION = 30;
-const SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION = 21;
 const MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS = 16_384;
 const SHA256 = /^[a-f0-9]{64}$/u;
 
-/**
- * A schema only ever adds reference kinds, so each walk is gated on the
- * earliest schema that can carry it. Gating on one exact version leaves every
- * later document unrooted, and compaction then deletes the media it names.
- */
-const SOURCE_REFERENCE_WALKS = [
-	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectTakeGroupSourceIds },
-	{ since: AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, collect: collectFeatureFallbackSourceIds },
-	{ since: FRAMESCAPER_MULTICAMERA_SCHEMA_VERSION, collect: collectMulticameraMemberSourceIds },
-	{ since: SOUNDSCAPER_PRODUCTION_SCHEMA_VERSION, collect: collectAudioTrackFreezeSourceIds },
-	{ since: FRAMESCAPER_VISUAL_SCHEMA_VERSION, collect: collectVideoFreezeFallbackSourceIds },
-	{ since: ASSISTANCE_ASSET_SCHEMA_VERSION, collect: collectAssistanceAssetSourceIds },
-];
-
 export function collectProjectSourceIds(project, target = new Set()) {
+	if (!isFoundationProjectSchema(project)) return target;
 	const clips = [
 		...(project?.clips || []),
 		...(project?.projectBin?.clips || []),
@@ -38,9 +23,13 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	for (const clip of clips) {
 		if (typeof clip?.sourceId === 'string' && clip.sourceId) target.add(clip.sourceId);
 	}
-	const schemaVersion = typeof project?.schemaVersion === 'number' ? project.schemaVersion : 0;
-	for (const { since, collect } of SOURCE_REFERENCE_WALKS) {
-		if (schemaVersion >= since) collect(project, target);
+	collectTakeGroupSourceIds(project, target);
+	collectFeatureFallbackSourceIds(project, target);
+	collectAssistanceAssetSourceIds(project, target);
+	if (isSoundscaperProductionProject(project)) collectAudioTrackFreezeSourceIds(project, target);
+	if (isSelectedFramescaperProjectSchema(project)) {
+		collectMulticameraMemberSourceIds(project, target);
+		collectVideoFreezeFallbackSourceIds(project, target);
 	}
 	return target;
 }
@@ -93,25 +82,25 @@ function collectAssistanceAssetSourceIds(project, target) {
 }
 
 /**
- * Collect content-addressed V27 finishing bodies without exposing a partial
+ * Collect content-addressed Framescaper finishing bodies without exposing a partial
  * result if an alias, malformed identity, or root bound is encountered.
  */
-export function collectFramescaperProjectAssetStorageKeysV27(
+export function collectFramescaperProjectAssetStorageKeys(
 	project,
 	target = new Set(),
 	{ maximumRoots = MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS } = {},
 ) {
-	if (!(target instanceof Set)) throw new TypeError('V27 finishing asset target must be a Set.');
+	if (!(target instanceof Set)) throw new TypeError('Framescaper finishing asset target must be a Set.');
 	if (!Number.isSafeInteger(maximumRoots) || maximumRoots < 1
 		|| maximumRoots > MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS) {
-		throw new RangeError('V27 finishing asset root limit is invalid.');
+		throw new RangeError('Framescaper finishing asset root limit is invalid.');
 	}
-	if (project?.schemaVersion !== FRAMESCAPER_FINISHING_SCHEMA_VERSION) return target;
+	if (!isSelectedFramescaperProjectSchema(project)) return target;
 
 	const identities = new Map();
 	const add = (kind, value, expectedPrefix) => {
 		if (!value || typeof value !== 'object' || Array.isArray(value)) {
-			throw new TypeError(`V27 ${kind} asset identity must be an object.`);
+			throw new TypeError(`Framescaper ${kind} asset identity must be an object.`);
 		}
 		const storageKey = value.storageKey;
 		const sha256 = value.sha256;
@@ -119,16 +108,16 @@ export function collectFramescaperProjectAssetStorageKeysV27(
 		if (typeof storageKey !== 'string' || typeof sha256 !== 'string'
 			|| !SHA256.test(sha256) || storageKey !== `${expectedPrefix}${sha256}`
 			|| !Number.isSafeInteger(byteLength) || byteLength < 1) {
-			throw new RangeError(`V27 ${kind} asset identity is not content-bound.`);
+			throw new RangeError(`Framescaper ${kind} asset identity is not content-bound.`);
 		}
 		const identity = `${kind}\u0000${sha256}\u0000${String(byteLength)}`;
 		const existing = identities.get(storageKey);
 		if (existing !== undefined && existing !== identity) {
-			throw new RangeError(`V27 finishing asset alias ${storageKey} has conflicting identity.`);
+			throw new RangeError(`Framescaper finishing asset alias ${storageKey} has conflicting identity.`);
 		}
 		identities.set(storageKey, identity);
 		if (identities.size > maximumRoots) {
-			throw new RangeError('V27 finishing asset root limit was exceeded.');
+			throw new RangeError('Framescaper finishing asset root limit was exceeded.');
 		}
 	};
 
@@ -162,7 +151,7 @@ export function collectProjectStorageKeys(project, target = new Set()) {
 		const proxyTimingStorageKey = source?.proxyAttachment?.timingAsset?.storageKey;
 		if (typeof proxyTimingStorageKey === 'string' && proxyTimingStorageKey) target.add(proxyTimingStorageKey);
 	}
-	collectFramescaperProjectAssetStorageKeysV27(project, target);
+	collectFramescaperProjectAssetStorageKeys(project, target);
 	for (const asset of Array.isArray(project?.assistanceAssets) ? project.assistanceAssets : []) {
 		const storageKey = asset?.body?.storageKey;
 		if (typeof storageKey === 'string' && storageKey) target.add(storageKey);
@@ -172,7 +161,7 @@ export function collectProjectStorageKeys(project, target = new Set()) {
 
 function requiredArray(project, field) {
 	const value = project?.[field];
-	if (!Array.isArray(value)) throw new TypeError(`V27 ${field} must be an array.`);
+	if (!Array.isArray(value)) throw new TypeError(`Framescaper ${field} must be an array.`);
 	return value;
 }
 

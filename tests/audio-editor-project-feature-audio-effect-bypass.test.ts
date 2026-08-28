@@ -11,8 +11,6 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-fea
 import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_EFFECTS = PROJECT_FEATURE_CAPABILITY_IDS.audioEffects;
@@ -108,16 +106,13 @@ test('declared unavailable first-party audio effects are bypassed only in a boun
 });
 
 test('selected product schemas retain the inherited audio-effect playback projection', () => {
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	]) {
-		const input = { ...project(), schemaVersion };
+	for (const schemaFamily of ['framescaper', 'soundscaper'] as const) {
+		const input = { ...project(), schemaFamily, schemaVersion: 1 };
 		const result = projectFeatureAudioEffectPlaybackBypass(input, report());
 		assert.equal(
 			result.metadata?.placeholders.length,
 			3,
-			`schema ${String(schemaVersion)} must retain inherited audio-effect bypass`,
+			`${schemaFamily} v1 must retain inherited audio-effect bypass`,
 		);
 		assert.equal(result.project.tracks[0]?.effects[0]?.bypassed, true);
 	}

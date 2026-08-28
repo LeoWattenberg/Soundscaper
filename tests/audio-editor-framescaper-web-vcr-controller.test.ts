@@ -3,10 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-	createFramescaperWebVcrController,
-	type FramescaperWebVcrBridgeV1,
-} from '../src/common/editor/controller/framescaper-web-vcr-controller.ts';
+import { createFramescaperWebVcrController, type FramescaperWebVcrBridgeV1 } from '../src/common/editor/controller/framescaper-web-vcr-controller.ts';
 import type { WebVcrCommandV1, WebVcrSnapshot } from '../src/common/editor/web-vcr-domain.ts';
 
 test('Web VCR stays fail-closed behind the roadmap capability gate', async () => {
@@ -381,12 +378,9 @@ test('failed browser-data recovery never masks the primary destructive error', a
 });
 
 function harness(options: Readonly<{
-	enabled?: boolean;
-	host?: Readonly<WebVcrSnapshot>;
-	startGate?: Promise<void>;
-	rejectHostState?: string;
-	rejectHostStateOnce?: string;
-		preparingGate?: Promise<void>;
+	enabled?: boolean; host?: Readonly<WebVcrSnapshot>;
+	startGate?: Promise<void>; rejectHostState?: string;
+	rejectHostStateOnce?: string; preparingGate?: Promise<void>;
 		admissionGate?: Promise<void>;
 		admissionFailure?: unknown;
 	dispatchFailure?: string;
@@ -523,7 +517,10 @@ function harness(options: Readonly<{
 			begin() {
 				return {
 					captured: {
-						projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: 'ab'.repeat(32) },
+						projectFence: {
+							schemaFamily: 'framescaper', schemaVersion: 1,
+							projectId: 'project-a', baseRevision: 4, baseSha256: 'ab'.repeat(32),
+						},
 						origin: { sequenceId: 'sequence-a', playheadMicroseconds: 500_000, destination: 'both' as const },
 					},
 					async prepare() {},
@@ -537,7 +534,10 @@ function harness(options: Readonly<{
 					calls.push('admission:begin');
 					return {
 						captured: {
-							projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: 'ab'.repeat(32) },
+							projectFence: {
+								schemaFamily: 'framescaper', schemaVersion: 1,
+								projectId: 'project-a', baseRevision: 4, baseSha256: 'ab'.repeat(32),
+							},
 							origin: { sequenceId: 'sequence-a', playheadMicroseconds: 500_000, destination: 'both' as const },
 						},
 						async prepare() {

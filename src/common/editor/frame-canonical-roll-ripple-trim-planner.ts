@@ -474,10 +474,10 @@ function assertUnlocked(
 ): void {
 	for (const trackId of new Set(participants.map((item) => item.trackId))) {
 		const track = participants.find((item) => item.trackId === trackId)!.track;
-		if (isTrackLockProjectSchema(project.schemaVersion) && typeof track.locked !== 'boolean') {
+		if (isTrackLockProjectSchema(project) && typeof track.locked !== 'boolean') {
 			throw new TypeError(`Track ${trackId}.locked must be boolean in a V15 project.`);
 		}
-		if ((isTrackLockProjectSchema(project.schemaVersion) && track.locked === true) || predicate?.(trackId)) {
+		if ((isTrackLockProjectSchema(project) && track.locked === true) || predicate?.(trackId)) {
 			throw new RangeError(`Track ${trackId} is locked.`);
 		}
 	}

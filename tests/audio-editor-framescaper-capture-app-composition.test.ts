@@ -21,8 +21,8 @@ test('the complete Framescaper standalone runtime initializes without opening me
 	assert.equal(harness.manifestLists, 1, 'startup checks only the open project recovery inventory');
 });
 
-test('historical V20 initializes the same dormant capture runtime on web and desktop', async () => {
-	for (const changes of [{ routeSchemaVersion: 20 }, { routeSchemaVersion: 20, desktop: true }]) {
+test('Framescaper v1 initializes the same capture runtime on web and desktop', async () => {
+	for (const changes of [{}, { desktop: true }]) {
 		const harness = compositionHarness(changes);
 		await harness.value.initialize();
 		assert.equal(harness.value.snapshot.availability.status, 'available');
@@ -47,7 +47,7 @@ test('product, embedding, encoder, durability, and probe gaps fail closed', asyn
 			captureSpoolLockAvailable: () => false,
 		}, 'durable-storage-unavailable'],
 		['video probe', { videoProbe: null }, 'media-probe-unavailable'],
-		['wrong web route', { routeSchemaVersion: 18 }, 'unsupported-platform'],
+		['foreign project family', { schemaFamily: 'soundscaper' }, 'unsupported-platform'],
 	] as const) {
 		const harness = compositionHarness(changes);
 		await harness.value.initialize();
@@ -302,7 +302,7 @@ function compositionHarness(changes: Readonly<Record<string, unknown>> = {}) {
 	const videoStream = stream([videoTrack]);
 	const store = captureStore(() => { manifestLists += 1; });
 	const options = {
-		productId: 'framescaper', routeSchemaVersion: changes.desktop ? 18 : 19, embedded: false,
+		productId: 'framescaper', schemaFamily: 'framescaper', schemaVersion: 1, embedded: false,
 		store,
 		mediaDevices: {
 			async getUserMedia() { mediaOpens += 1; return emptyStream; },
@@ -323,7 +323,7 @@ function compositionHarness(changes: Readonly<Record<string, unknown>> = {}) {
 			async commitAtomic() { return { status: 'committed' as const }; },
 		},
 		captureOrigin: () => ({
-			projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+			projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 0, destination: 'both' as const },
 		}),
 		capturePublicationContext: () => ({
@@ -454,7 +454,7 @@ function testStartAdmission() {
 		begin() {
 			return {
 				captured: {
-					projectFence: { projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
+					projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 4, baseSha256: SHA },
 					origin: { sequenceId: 'sequence-a', playheadMicroseconds: 0, destination: 'both' as const },
 				},
 				async prepare() {},

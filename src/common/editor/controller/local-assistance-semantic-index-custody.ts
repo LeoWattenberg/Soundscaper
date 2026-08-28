@@ -18,6 +18,10 @@ import type {
 import type {
 	AssistanceDerivativeRepositoryPort,
 } from '../storage/deferred-assistance-derivative-repository.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 
 const PROJECT_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const KINDS = Object.freeze(['embeddings', 'visual-index'] as const);
@@ -59,6 +63,8 @@ export function createLocalAssistanceSemanticIndexCustodyV1(
 		return Object.freeze({
 			custodyVersion: 1 as const,
 			disposition: 'authenticated-disposable' as const,
+			schemaFamily: authority.schemaFamily,
+			schemaVersion: authority.schemaVersion,
 			projectId: authority.projectId,
 			projectRevision: authority.projectRevision,
 			records: Object.freeze(selected.map(({ record }) => Object.freeze({
@@ -67,6 +73,8 @@ export function createLocalAssistanceSemanticIndexCustodyV1(
 			}))),
 			index: Object.freeze({
 				indexVersion: 1 as const,
+				schemaFamily: authority.schemaFamily,
+				schemaVersion: authority.schemaVersion,
 				projectId: authority.projectId,
 				projectRevision: authority.projectRevision,
 				transcript: embeddedIndex(transcript, empty),
@@ -82,9 +90,13 @@ function candidate(
 	authority: AssistanceSemanticSearchProjectAuthorityV1,
 ): readonly Candidate[] {
 	try {
-		if (record.mediaType !== ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE) return [];
+		if (record.schemaFamily !== authority.schemaFamily
+			|| record.schemaVersion !== authority.schemaVersion
+			|| record.mediaType !== ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE) return [];
 		const bundle = reviewAssistanceSemanticDerivativeBundleV1(record.bytes);
-		if (bundle.projectId !== authority.projectId
+		if (bundle.schemaFamily !== authority.schemaFamily
+			|| bundle.schemaVersion !== authority.schemaVersion
+			|| bundle.projectId !== authority.projectId
 			|| bundle.projectRevision !== authority.projectRevision
 			|| record.kind === 'embeddings' && bundle.provider !== 'transcript'
 			|| record.kind === 'visual-index' && bundle.provider !== 'visual') return [];
@@ -107,8 +119,13 @@ function newestFirst(left: Candidate, right: Candidate): number {
 }
 
 function projectAuthority(value: unknown): AssistanceSemanticSearchProjectAuthorityV1 {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Semantic-index custody requires a current project schema.');
+	}
 	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| Reflect.ownKeys(value).length !== 2
+		|| Reflect.ownKeys(value).length !== 4
+		|| !Object.hasOwn(value, 'schemaFamily') || !Object.hasOwn(value, 'schemaVersion')
 		|| !Object.hasOwn(value, 'projectId') || !Object.hasOwn(value, 'projectRevision')) {
 		throw new TypeError('Semantic-index project authority is invalid.');
 	}
@@ -117,5 +134,6 @@ function projectAuthority(value: unknown): AssistanceSemanticSearchProjectAuthor
 		|| !Number.isSafeInteger(row.projectRevision) || Number(row.projectRevision) < 0) {
 		throw new TypeError('Semantic-index project authority is invalid.');
 	}
-	return Object.freeze({ projectId: row.projectId, projectRevision: Number(row.projectRevision) });
+	return Object.freeze({ schemaFamily: identity.schemaFamily, schemaVersion: PROJECT_SCHEMA_VERSION,
+		projectId: row.projectId, projectRevision: Number(row.projectRevision) });
 }

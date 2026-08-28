@@ -37,7 +37,7 @@ test('the dialog model admits one writable selected-route timeline video and exp
 	assert.deepEqual(model.keyframes, createDefaultVideoKeyframeCurves(rational(20)));
 	assert.equal(createVideoKeyframeDialogModel({
 		productId: 'framescaper', capability: true,
-		project: { ...value, schemaVersion: 27 }, snapshot: { selectedClipId: 'video' },
+		project: value, snapshot: { selectedClipId: 'video' },
 	}).blockReason, null);
 
 	const choices = listVideoKeyframeTargetChoices(model);
@@ -59,7 +59,7 @@ test('the dialog model admits one writable selected-route timeline video and exp
 	for (const [name, input, reason] of [
 		['capability', { productId: 'framescaper', capability: false, project: value, snapshot: { selectedClipId: 'video' } }, 'unsupported'],
 		['product', { productId: 'soundscaper', capability: true, project: value, snapshot: { selectedClipId: 'video' } }, 'unsupported'],
-		['schema', { productId: 'framescaper', capability: true, project: { ...value, schemaVersion: 19 }, snapshot: { selectedClipId: 'video' } }, 'unsupported'],
+		['schema', { productId: 'framescaper', capability: true, project: { ...value, schemaVersion: 2 }, snapshot: { selectedClipId: 'video' } }, 'unsupported'],
 		['selection', { productId: 'framescaper', capability: true, project: project({ selection: ['video', 'video-2'] }), snapshot: { selectedClipId: 'video' } }, 'no-video-clip'],
 		['locked', { productId: 'framescaper', capability: true, project: project({ locked: true }), snapshot: { selectedClipId: 'video' } }, 'locked'],
 		['read-only', { productId: 'framescaper', capability: true, project: value, snapshot: { selectedClipId: 'video', readOnly: true } }, 'read-only'],
@@ -192,12 +192,12 @@ test('the keyframe entry is menu-only for selected keyframe routes and available
 	item?.onClick();
 	assert.deepEqual(opened, ['video-keyframes']);
 	assert.equal(createVideoKeyframeApplicationMenuItems({
-		...input, project: { ...project(), schemaVersion: 27 },
+		...input, project: project(),
 	})[0]?.disabled, false);
 	assert.deepEqual(createVideoKeyframeApplicationMenuItems({ ...input, capability: false }), []);
 	assert.deepEqual(createVideoKeyframeApplicationMenuItems({
-		...input, project: { ...project(), schemaVersion: 19 },
-	}), [], 'the active V19 route remains absent even if a caller forges the UI capability');
+		...input, project: { ...project(), schemaVersion: 2 },
+	}), [], 'a future Framescaper route remains absent even if a caller forges the UI capability');
 	assert.deepEqual(createVideoKeyframeApplicationMenuItems({ ...input, productId: 'soundscaper' }), []);
 	assert.equal(createVideoKeyframeApplicationMenuItems({ ...input, editingBlocked: true })[0]?.disabled, true);
 	let traversals = 0;
@@ -243,7 +243,7 @@ function project(options: Readonly<{
 }> = {}) {
 	const keyframes = createDefaultVideoKeyframeCurves(rational(20));
 	return {
-		schemaVersion: 20,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		clips: [
 			{
 				id: 'video', kind: 'video', title: 'Picture',

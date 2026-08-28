@@ -60,6 +60,8 @@ export function applyFramescaperNativeServicesDatabaseVersionThree(database: Dat
 		CREATE TABLE render_queue_jobs_v3 (
 			job_id TEXT PRIMARY KEY CHECK (length(job_id) = 40),
 			record_version INTEGER NOT NULL CHECK (record_version = 3),
+			schema_family TEXT NOT NULL CHECK (schema_family = 'framescaper'),
+			schema_version INTEGER NOT NULL CHECK (schema_version = 1),
 			task_kind TEXT NOT NULL CHECK (task_kind IN (${domain(TASKS)})),
 			plan_version INTEGER NOT NULL CHECK (plan_version IN (${PLAN_VERSIONS.join(', ')})),
 			plan_fingerprint TEXT NOT NULL CHECK (length(plan_fingerprint) = 64),
@@ -112,11 +114,12 @@ export function applyFramescaperNativeServicesDatabaseVersionThree(database: Dat
 	`);
 	const insert = database.prepare(`
 		INSERT INTO render_queue_jobs_v3 (
-			job_id, record_version, task_kind, plan_version, plan_fingerprint, plan_payload,
+			job_id, record_version, schema_family, schema_version,
+			task_kind, plan_version, plan_fingerprint, plan_payload,
 			project_id, project_revision, input_fingerprints, root_grant_id,
 			relative_destination, reservations, recovery_class, state, position, progress,
 			attempt, last_failure_code, created_at_ms, updated_at_ms
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
 	for (const record of migrated) insert.run(...values(record));
 	database.exec(`
@@ -138,6 +141,7 @@ function readVersionTwoQueueRecords(database: DatabaseSync): readonly NativeQueu
 	return rows.map((row) => {
 		const record: NativeQueueRecordV2 = {
 			jobId: row.job_id as string, recordVersion: row.record_version as 2,
+			schemaFamily: row.schema_family as 'framescaper', schemaVersion: row.schema_version as 1,
 			taskKind: row.task_kind as NativeQueueRecordV2['taskKind'],
 			planVersion: row.plan_version as NativeQueueRecordV2['planVersion'],
 			planFingerprint: row.plan_fingerprint as string, planPayload: row.plan_payload as string,
@@ -158,7 +162,8 @@ function readVersionTwoQueueRecords(database: DatabaseSync): readonly NativeQueu
 
 function values(record: NativeQueueRecordV3) {
 	return [
-		record.jobId, record.recordVersion, record.taskKind, record.planVersion,
+		record.jobId, record.recordVersion, record.schemaFamily, record.schemaVersion,
+		record.taskKind, record.planVersion,
 		record.planFingerprint, record.planPayload, record.projectId, record.projectRevision,
 		JSON.stringify(record.inputFingerprints), record.rootGrantId, record.relativeDestination,
 		JSON.stringify(record.reservations), record.recoveryClass, record.state, record.position,

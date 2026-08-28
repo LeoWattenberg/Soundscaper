@@ -6,33 +6,38 @@ import test from 'node:test';
 import type { ScapeAssetDescriptor } from '../src/common/editor/scape-archive-envelope.ts';
 import { indexScapeProjectAssets } from '../src/common/editor/scape-project-assets.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
+import { asBaselineSoundscaperProject } from './helpers/baseline-scape-runtime.ts';
 
-test('scape project assets are indexed by exact migrated source identity', () => {
+test('scape project assets are indexed by exact admitted source identity', () => {
 	const audio = descriptor('audio-source', 'audio');
 	const video = descriptor('video-source', 'video');
-	const result = indexScapeProjectAssets({
+	const result = indexScapeProjectAssets(baselineProject({
 		sources: [
 			{ id: 'audio-source', storageKey: 'shared-content', kind: 'audio' },
 			{ id: 'video-source', storageKey: 'shared-content', kind: 'video' },
 		],
-	}, { assets: [video, audio] });
+	}), { assets: [video, audio] });
 
 	assert.deepEqual([...result.keys()], ['video-source', 'audio-source']);
 	assert.equal(result.get('audio-source'), audio);
 	assert.equal(result.get('video-source'), video);
-	assert.equal(indexScapeProjectAssets({ sources: [] }, { assets: [] }).size, 0);
+	assert.equal(indexScapeProjectAssets(baselineProject({ sources: [] }), { assets: [] }).size, 0);
 });
 
 test('current Scape video assets bind archive bytes to source.contentSha256', () => {
 	const sourceSha256 = '1'.repeat(64);
-	const project = createCurrentAudioEditorProject({
+	const project = asBaselineSoundscaperProject(createCurrentAudioEditorProject({
 		sources: [{
 			id: 'video-source', kind: 'video', storageKey: 'video-original', name: 'video.mp4',
 			mimeType: 'video/mp4', frameCount: 4_800, sampleRate: 48_000, width: 16, height: 16,
 			frameRate: { num: 30, den: 1 }, sourceFrameCount: 3, contentSha256: sourceSha256,
 		}],
-	});
+	}));
 	const video = { ...descriptor('video-source', 'video'), sha256: sourceSha256 };
 	assert.equal(indexScapeProjectAssets(project, { assets: [video] }).get(video.sourceId), video);
 	assert.throws(
@@ -44,7 +49,8 @@ test('current Scape video assets bind archive bytes to source.contentSha256', ()
 test('a product-owned current Scape schema binds video bytes to source.contentSha256', () => {
 	const sourceSha256 = '3'.repeat(64);
 	const project = {
-		schemaVersion: 19,
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 2, requirements: [] },
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: sourceSha256 }],
 		clips: [],
@@ -54,13 +60,13 @@ test('a product-owned current Scape schema binds video bytes to source.contentSh
 	assert.equal(indexScapeProjectAssets(
 		project,
 		{ assets: [video] },
-		{ currentProjectSchemaVersion: 19 },
+		{ currentProjectSchemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY },
 	).get(video.sourceId), video);
 	assert.throws(
 		() => indexScapeProjectAssets(
 			project,
 			{ assets: [{ ...video, sha256: '4'.repeat(64) }] },
-			{ currentProjectSchemaVersion: 19 },
+			{ currentProjectSchemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY },
 		),
 		/source content|content SHA-256|original.*digest/iu,
 	);
@@ -101,17 +107,23 @@ test('current Scape projects bind every rendered fallback digest to its canonica
 	);
 });
 
-test('future Scape projects leave feature requirements opaque while indexing sources', () => {
+test('future Scape projects are rejected before feature requirements or sources are traversed', () => {
 	const audio = descriptor('audio-source', 'audio');
 	const project = {
-		schemaVersion: 18,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: 2,
 		sources: [{ id: audio.sourceId, kind: audio.kind }],
 	};
 	Object.defineProperty(project, 'featureRequirements', {
 		get() { throw new Error('future feature requirements must remain opaque'); },
 	});
 
-	assert.equal(indexScapeProjectAssets(project, { assets: [audio] }).get(audio.sourceId), audio);
+	assert.throws(
+		() => indexScapeProjectAssets(project, { assets: [audio] }, {
+			currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		}),
+		/current-family baseline/iu,
+	);
 });
 
 test('scape project assets reject non-bijective or invalid source identities', async (context) => {
@@ -183,7 +195,7 @@ test('scape project assets reject non-bijective or invalid source identities', a
 	for (const scenario of cases) {
 		await context.test(scenario.name, () => {
 			assert.throws(
-				() => indexScapeProjectAssets(scenario.project, { assets: scenario.assets }),
+				() => indexScapeProjectAssets(baselineProject(scenario.project), { assets: scenario.assets }),
 				scenario.expected,
 			);
 		});
@@ -213,8 +225,21 @@ function featureProject(
 	sources: readonly Readonly<Record<string, unknown>>[] = [{ id: 'audio-source', kind: 'audio' }],
 ): Readonly<Record<string, unknown>> {
 	return {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		sources,
 		featureRequirements: { schemaVersion: 1, requirements },
+	};
+}
+
+function baselineProject(value: unknown): Readonly<Record<string, unknown>> {
+	const fields = value && typeof value === 'object' && !Array.isArray(value)
+		? value as Readonly<Record<string, unknown>>
+		: {};
+	return {
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		featureRequirements: { schemaVersion: 2, requirements: [] },
+		...fields,
 	};
 }

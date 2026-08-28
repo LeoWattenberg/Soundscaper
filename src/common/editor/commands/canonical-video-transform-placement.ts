@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isFoundationProjectSchema } from '../project-schema-version.ts';
+import { isBaselineFoundationProject, isFoundationProjectSchema } from '../project-schema-version.ts';
 import { videoFrameToSampleFrame, type RationalRate } from '../timeline-time.ts';
 import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
 import type { CanonicalVideoPlacementCommandValue } from './protocol.ts';
@@ -24,7 +24,8 @@ export function applyCanonicalVideoTransformPlacement(
 	const clip = record(clipValue, 'clip');
 	const track = record(trackValue, 'track');
 	const updated = record(updatedValue, 'updated clip');
-	if (!isFoundationProjectSchema(project.schemaVersion) || clip.kind !== 'video') {
+	if ((!isBaselineFoundationProject(project) && !isFoundationProjectSchema(project))
+		|| clip.kind !== 'video') {
 		throw new RangeError('Canonical sequence placement requires a foundation video clip.');
 	}
 	const sequencePlacement = canonicalPlacement(placementValue);

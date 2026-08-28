@@ -1,41 +1,31 @@
 import { Buffer } from 'node:buffer';
 
-import { framescaperProjectV20FoundationV27 } from '../../../src/framescaper/editor-project-v27-runtime.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../../../src/framescaper/editor-project-runtime-profile-v27.ts';
-import { framescaperProjectV27FoundationShapeV28 } from '../../../src/framescaper/editor-project-v28-foundation.ts';
-import { framescaperProjectV28FoundationShapeV31 } from '../../../src/framescaper/editor-project-v31-foundation.ts';
-import { createSoundscaperProjectV23 } from '../../../src/soundscaper/editor-project-v23.ts';
-import { createSoundscaperProjectV29 } from '../../../src/soundscaper/editor-project-v29.ts';
-import { createSoundscaperProjectV30 } from '../../../src/soundscaper/editor-project-v30.ts';
+import { framescaperProjectRetimeFoundationFinishing } from '../../../src/framescaper/editor-project-finishing-runtime.ts';
+import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from '../../../src/framescaper/editor-domain-runtime-profile.ts';
+import { framescaperProjectFinishingFoundationShapeNativeMedia } from '../../../src/framescaper/editor-project-native-media-foundation.ts';
+import { framescaperProjectNativeMediaFoundationShapeAssistance } from '../../../src/framescaper/editor-project-assistance-foundation.ts';
+import { createSoundscaperProject } from '../../../src/soundscaper/editor-project.ts';
 
-export async function promoteFramescaperArchiveToSoundscaperV23(
+export async function promoteFramescaperArchiveToSoundscaper(
 	input,
 	{ id, title, mutate = () => {} },
 	rewriteArchive,
 ) {
 	return promoteFramescaperArchive(
-		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV23,
+		input, { id, title, mutate }, rewriteArchive, createSoundscaperProject,
 	);
 }
 
-export async function promoteFramescaperArchiveToSoundscaperV29(
-	input,
-	{ id, title, mutate = () => {} },
-	rewriteArchive,
-) {
-	return promoteFramescaperArchive(
-		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV29,
-	);
-}
-
-export async function promoteFramescaperArchiveToSoundscaperV30(
-	input,
-	{ id, title, mutate = () => {} },
-	rewriteArchive,
-) {
-	return promoteFramescaperArchive(
-		input, { id, title, mutate }, rewriteArchive, createSoundscaperProjectV30,
-	);
+export function prepareSoundscaperV1Foundation(foundation) {
+	for (const track of foundation.tracks ?? []) delete track.videoTransitions;
+	for (const source of foundation.sources ?? []) {
+		if (source?.kind !== 'video' || !source.characteristics) continue;
+		for (const key of ['bitDepth', 'pixelFormat', 'chromaFormat', 'alphaMode', 'alphaInterpretation']) {
+			delete source.characteristics[key];
+		}
+		delete source.characteristics.colour?.masteringDisplay;
+		delete source.characteristics.colour?.contentLight;
+	}
 }
 
 async function promoteFramescaperArchive(input, { id, title, mutate }, rewriteArchive, createProject) {
@@ -108,16 +98,16 @@ function framescaperFoundationForSoundscaper(value) {
 
 function framescaperSelectedFoundation(value) {
 	if (value.schemaVersion === 31) {
-		return framescaperSelectedFoundation(framescaperProjectV28FoundationShapeV31(value));
+		return framescaperSelectedFoundation(framescaperProjectNativeMediaFoundationShapeAssistance(value));
 	}
 	if (value.schemaVersion === 28) {
-		return framescaperProjectV20FoundationV27(
-			FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
-			framescaperProjectV27FoundationShapeV28(value),
+		return framescaperProjectRetimeFoundationFinishing(
+			FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
+			framescaperProjectFinishingFoundationShapeNativeMedia(value),
 		);
 	}
 	return value.schemaVersion === 27
-		? framescaperProjectV20FoundationV27(FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE, value)
+		? framescaperProjectRetimeFoundationFinishing(FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, value)
 		: value;
 }
 

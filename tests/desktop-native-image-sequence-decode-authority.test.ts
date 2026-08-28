@@ -29,6 +29,10 @@ const SOURCE_ID = 'sequence-source';
 const REVISION = 8;
 const RATE = Object.freeze({ num: 60_000, den: 1_001 });
 const OWNER = Object.freeze({ id: 'renderer' });
+const PROJECT_IDENTITY = Object.freeze({
+	schemaFamily: 'framescaper' as const,
+	schemaVersion: 1 as const,
+});
 
 test('real authority decode retains exact 60000/1001 source, grant, pack, and claim timing', async (t) => {
 	const observed: {
@@ -245,14 +249,15 @@ async function authorityFixture(t: TestContext,
 		}),
 	});
 	const document = Object.freeze({
-		schemaVersion: 28, id: PROJECT_ID, revision: REVISION,
+		...PROJECT_IDENTITY, id: PROJECT_ID, revision: REVISION,
 		sources: Object.freeze([Object.freeze({
 			kind: 'video', id: SOURCE_ID, storageKey: pack.storageKey,
 			contentSha256: pack.sha256, imageSequence: source,
 		})]),
 	});
 	const bundle = Object.freeze({
-		project: Object.freeze({ projectRevision: REVISION }), document: JSON.stringify(document),
+		project: Object.freeze({ ...PROJECT_IDENTITY, projectRevision: REVISION }),
+		document: JSON.stringify(document),
 		bodies: Object.freeze([
 			Object.freeze({ kind: pack.kind, storageKey: pack.storageKey,
 				byteLength: pack.byteLength, sha256: pack.sha256 }),
@@ -270,7 +275,7 @@ async function authorityFixture(t: TestContext,
 	const authority = new FramescaperNativeImageSequenceDecodeAuthority({
 		root, scratchRoot,
 		project: {
-			projectState: () => Object.freeze({ open: true, writable: true }),
+			projectState: () => Object.freeze({ ...PROJECT_IDENTITY, open: true, writable: true }),
 			readProjectBundle: options.readProjectBundle ?? (() => Promise.resolve(bundle)),
 		},
 		executable: () => Object.freeze({
@@ -300,7 +305,7 @@ function fixtureBundle(fixture: Fixture): unknown { return fixture.bundle; }
 
 function decodeRequest(index: number) {
 	return Object.freeze({
-		operation: 'decode' as const, requestId: opaque(index),
+		operation: 'decode' as const, ...PROJECT_IDENTITY, requestId: opaque(index),
 		projectId: PROJECT_ID, projectRevision: REVISION, sourceId: SOURCE_ID,
 	});
 }

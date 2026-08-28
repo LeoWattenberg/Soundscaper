@@ -38,8 +38,8 @@ test('the site entry owns no editor CSS or complete catalog edge', async () => {
 
 test('selected product bootstraps construct full bundled English copy internally', async () => {
 	for (const path of [
-		'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
-		'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+		'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
+		'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
 	]) {
 		const bootstrap = await source(path);
 		assert.match(bootstrap, /bundledCatalogForLocale/u, path);

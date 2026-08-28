@@ -1,0 +1,50 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import {
+	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+	assertFramescaperProjectRuntimeProfile,
+} from './editor-project-runtime-profile.ts';
+
+/**
+ * Domain modules share one authenticated 1.0 authority. The aliases are local
+ * implementation seams while the domain filenames and exported public API are
+ * flattened; none denotes a persisted project identity.
+ */
+export const FRAMESCAPER_SEQUENCE_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_RETIME_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_PROFESSIONAL_MEDIA_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_OPENFX_PROJECT_CANDIDATE_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+export const FRAMESCAPER_TIMELINE_IMAGE_PROJECT_RUNTIME_PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
+
+export type FramescaperProjectRetimeProfile = EditorProjectRuntimeProfile;
+
+export const assertFramescaperProjectSequenceProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectCompositionProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectRetimeProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectTransitionsCandidateProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectVisualCandidateProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectProfessionalMediaCandidateProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectOpenFxCandidateProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectFinishingProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectNativeMediaProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectAssistanceProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;
+export const assertFramescaperProjectTimelineImageProfile: typeof assertFramescaperProjectRuntimeProfile =
+	assertFramescaperProjectRuntimeProfile;

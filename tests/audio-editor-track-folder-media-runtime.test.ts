@@ -27,7 +27,7 @@ import { createVideoExportPlan } from '../src/common/editor/video-export.js';
 import { resolveActiveVideoLayers } from '../src/common/editor/video-timeline.js';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+	PROJECT_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 type DataRecord = Record<string, unknown>;
@@ -82,9 +82,11 @@ test('transient V12 media projection flattens folder state without mutating loca
 	assert.equal(project.trackFolders[0]?.height, 320, 'folder height stays a UI-only local value');
 });
 
-test('transient folder media projection preserves inherited audibility on exact Soundscaper V21', () => {
+test('transient folder media projection preserves inherited audibility on exact Soundscaper v1', () => {
 	const current = audioFolderProject({ branch: { solo: true }, muted: { mute: true } });
-	const project = { ...current, schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION };
+	const project = {
+		...current, schemaFamily: 'soundscaper' as const, schemaVersion: PROJECT_SCHEMA_VERSION,
+	};
 	const projected = projectTrackFolderMediaStateV12(project);
 	assert.notStrictEqual(projected, project);
 	assert.equal(track(projected, 'selected').solo, true);
@@ -93,7 +95,7 @@ test('transient folder media projection preserves inherited audibility on exact 
 	assert.equal(isTrackFolderMediaStateProjectionV12(projected), true);
 });
 
-test('only exact V12 privately branded projections can bypass folder traversal', () => {
+test('private V12 branding cannot make a numeric-only project traversable', () => {
 	let traversals = 0;
 	const forged = {
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
@@ -103,14 +105,14 @@ test('only exact V12 privately branded projections can bypass folder traversal',
 			throw new Error('forged projections must fail before hierarchy traversal');
 		},
 	};
-	assert.throws(() => projectTrackFolderMediaStateV12(forged), /not trusted/);
+	assert.strictEqual(projectTrackFolderMediaStateV12(forged), forged);
 	assert.equal(traversals, 0);
 
 	const future = {
 		schemaVersion: 18,
 		trackFolderStateProjectionVersion: TRACK_FOLDER_STATE_PROJECTION_VERSION,
 	};
-	assert.strictEqual(projectTrackFolderMediaStateV12(future), future, 'future schemas stay opaque');
+	assert.strictEqual(projectTrackFolderMediaStateV12(future), future, 'pre-release schemas stay opaque');
 });
 
 test('empty and video-only folder solos never synthesize an audio solo', () => {

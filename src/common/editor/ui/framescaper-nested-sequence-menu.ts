@@ -66,8 +66,7 @@ export function createFramescaperNestedSequenceMenuItems(
 ): Readonly<FramescaperNestedSequenceMenu> | null {
 	if (input.productId !== 'framescaper') return null;
 	const project = record(input.project);
-	const schemaVersion = safeInteger(project?.schemaVersion, 18);
-	const exactAuthority = isFramescaperSequenceProjectSchema(schemaVersion);
+	const exactAuthority = isFramescaperSequenceProjectSchema(project);
 	const sequences = records(project?.sequences);
 	const subsequences = records(project?.subsequences);
 	const primaryId = typeof project?.primarySequenceId === 'string' ? project.primarySequenceId : null;

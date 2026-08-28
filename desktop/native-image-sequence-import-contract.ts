@@ -7,20 +7,26 @@ import type {
 	NativeMediaImageSequenceInventoryReferenceV25,
 	NativeMediaImageSequenceSourcePackReferenceV25,
 } from '../src/common/editor/native-media-image-sequence-v25.ts';
-import type { FramescaperImageSequenceNativeAdmissionRequestV25 } from '../src/framescaper/editor-native-image-sequence-import-v25.ts';
+import type { FramescaperImageSequenceNativeAdmissionRequest } from
+	'../src/framescaper/editor-native-image-sequence-import-production-ports.ts';
 import { imageSequenceStorageSha256 } from './native-image-sequence-import-storage.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 export const FRAMESCAPER_NATIVE_IMAGE_SEQUENCE_IMPORT_CONTROL_MAXIMUM_BYTES = 64 * 1024;
 
-export type FramescaperNativeImageSequenceCandidateGeneration = 25 | 26 | 28;
 export type FramescaperNativeImageSequenceAssetKind = 'pack' | 'inventory';
 export type FramescaperNativeImageSequenceReference =
 	| NativeMediaImageSequenceSourcePackReferenceV25
 	| NativeMediaImageSequenceInventoryReferenceV25;
 export interface FramescaperNativeImageSequenceRecoveryManifest {
 	readonly version: 1;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly transactionId: string;
-	readonly generation: FramescaperNativeImageSequenceCandidateGeneration;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly sourceId: string | null;
@@ -34,7 +40,7 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 const TRANSACTION_ID = /^[a-f0-9]{40}$/u;
 
 const REQUEST_FIELDS = Object.freeze({
-	begin: ['operation', 'candidateGeneration', 'projectId', 'projectRevision'],
+	begin: ['operation', 'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision'],
 	write: ['operation', 'transactionId', 'asset', 'offset', 'bytes'],
 	'prepare-write': ['operation', 'transactionId', 'asset', 'offset', 'binding'],
 	'await-write': ['operation', 'transactionId', 'asset', 'offset', 'streamId'],
@@ -56,13 +62,18 @@ export function assertFramescaperNativeImageSequenceImportRequest(
 		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
 		throw new TypeError('An image-sequence import request must be a plain record.');
 	}
-	const operation = (value as Readonly<{ operation?: unknown }>).operation;
+	const operationDescriptor = Object.getOwnPropertyDescriptor(value, 'operation');
+	if (!operationDescriptor?.enumerable || !Object.hasOwn(operationDescriptor, 'value')) {
+		throw new TypeError('The image-sequence import operation must be an own enumerable data property.');
+	}
+	const operation = operationDescriptor.value;
 	if (typeof operation !== 'string' || !Object.hasOwn(REQUEST_FIELDS, operation)) {
 		throw new TypeError('The image-sequence import operation is unsupported.');
 	}
 	if (operation === 'write' && !options.allowDirectWrite) {
 		throw new TypeError('Image-sequence bytes require the negotiated MessagePort data plane.');
 	}
+	if (operation === 'begin') currentFramescaperIdentity(value, 'image-sequence import opening');
 	const fields = REQUEST_FIELDS[operation as keyof typeof REQUEST_FIELDS];
 	const keys = Reflect.ownKeys(value);
 	if (keys.length !== fields.length
@@ -110,14 +121,14 @@ export function normalizeFramescaperNativeImageSequenceReference(
 
 export function normalizeFramescaperNativeImageSequenceAdmission(
 	value: unknown,
-): FramescaperImageSequenceNativeAdmissionRequestV25 {
+): FramescaperImageSequenceNativeAdmissionRequest {
+	currentFramescaperIdentity(value, 'image-sequence admission');
 	const record = exactRecord(value, [
-		'kind', 'candidateGeneration', 'projectId', 'projectRevision', 'sourceId', 'profileId',
+		'kind', 'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision', 'sourceId', 'profileId',
 		'frameRate', 'frameCount', 'inventory', 'sourcePack',
 	], 'admission');
-	if (record.kind !== 'framescaper-image-sequence-admission-v1'
-		|| ![25, 26, 28].includes(record.candidateGeneration as number)) {
-		throw new TypeError('Admission is not an exact V25/V26/V28 request.');
+	if (record.kind !== 'framescaper-image-sequence-admission-v1') {
+		throw new TypeError('Admission is not an exact Framescaper v1 request.');
 	}
 	framescaperNativeImageSequenceId(record.projectId, 'project ID');
 	framescaperNativeImageSequenceId(record.sourceId, 'source ID');
@@ -128,7 +139,7 @@ export function normalizeFramescaperNativeImageSequenceAdmission(
 	const rate = exactRecord(record.frameRate, ['num', 'den'], 'image-sequence rate');
 	framescaperNativeImageSequenceInteger(rate.num, 'rate numerator', 1);
 	framescaperNativeImageSequenceInteger(rate.den, 'rate denominator', 1);
-	return Object.freeze({ ...record }) as unknown as FramescaperImageSequenceNativeAdmissionRequestV25;
+	return Object.freeze({ ...record }) as unknown as FramescaperImageSequenceNativeAdmissionRequest;
 }
 
 export function parseFramescaperNativeImageSequenceManifest(
@@ -137,20 +148,22 @@ export function parseFramescaperNativeImageSequenceManifest(
 ): FramescaperNativeImageSequenceRecoveryManifest {
 	const record = exactRecord(
 		JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)),
-		['version', 'transactionId', 'generation', 'projectId', 'projectRevision', 'sourceId',
+		['version', 'schemaFamily', 'schemaVersion', 'transactionId', 'projectId',
+			'projectRevision', 'sourceId',
 			'pack', 'inventory', 'authenticator'],
 		'recovery manifest',
 	);
+	currentFramescaperIdentity(record, 'image-sequence recovery manifest');
 	if (record.version !== 1 || record.transactionId !== expectedTransactionId
 		|| !TRANSACTION_ID.test(expectedTransactionId)
-		|| ![25, 26, 28].includes(record.generation as number)
 		|| (record.sourceId !== null && typeof record.sourceId !== 'string')) {
 		throw new Error('Invalid image-sequence recovery identity.');
 	}
 	const body = Object.freeze({
 		version: 1 as const,
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		transactionId: expectedTransactionId,
-		generation: record.generation as FramescaperNativeImageSequenceCandidateGeneration,
 		projectId: framescaperNativeImageSequenceId(record.projectId, 'project ID'),
 		projectRevision: framescaperNativeImageSequenceInteger(
 			record.projectRevision, 'project revision',
@@ -167,6 +180,14 @@ export function parseFramescaperNativeImageSequenceManifest(
 		throw new Error('Unauthenticated image-sequence recovery manifest.');
 	}
 	return Object.freeze({ ...body, authenticator });
+}
+
+function currentFramescaperIdentity(value: unknown, label: string): void {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} requires the current Framescaper project schema.`);
+	}
 }
 
 export function framescaperNativeImageSequenceAssetPath(

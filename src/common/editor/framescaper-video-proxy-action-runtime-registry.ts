@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export type FramescaperVideoProxyModeV20 = 'original' | 'proxy' | 'auto';
+export type FramescaperVideoProxyModeRetime = 'original' | 'proxy' | 'auto';
 
-export interface FramescaperVideoProxyPressureV20 {
+export interface FramescaperVideoProxyPressureRetime {
 	readonly droppedFrameRatio: number;
 	readonly decodeQueueDepth: number;
 	readonly viewportScale: number;
@@ -32,20 +32,20 @@ export interface FramescaperVideoProxyOriginalRelinkCandidate {
 	readonly locator: Readonly<{ readonly locatorId: string; readonly locatorRevision: string }>;
 }
 
-export type FramescaperVideoProxyPreviewTrustV20 =
+export type FramescaperVideoProxyPreviewTrustRetime =
 	| 'unverified'
 	| 'verified'
 	| 'stale'
 	| 'unavailable';
 
 export interface FramescaperVideoProxyActionRuntime {
-	mode(sourceId: string): FramescaperVideoProxyModeV20;
-	previewTrust(sourceId: string): FramescaperVideoProxyPreviewTrustV20;
-	setMode(sourceId: string, mode: FramescaperVideoProxyModeV20): Promise<void>;
-	pressure(sourceId: string): Readonly<FramescaperVideoProxyPressureV20> | null;
+	mode(sourceId: string): FramescaperVideoProxyModeRetime;
+	previewTrust(sourceId: string): FramescaperVideoProxyPreviewTrustRetime;
+	setMode(sourceId: string, mode: FramescaperVideoProxyModeRetime): Promise<void>;
+	pressure(sourceId: string): Readonly<FramescaperVideoProxyPressureRetime> | null;
 	reportPreviewPressure(
 		sourceId: string,
-		pressure: Readonly<FramescaperVideoProxyPressureV20>,
+		pressure: Readonly<FramescaperVideoProxyPressureRetime>,
 	): Promise<void>;
 	generate(sourceId: string, options?: FramescaperVideoProxyOperationOptions): Promise<void>;
 	attachExisting(

@@ -5,11 +5,10 @@ import { createStorageRepositories } from './storage/repositories.ts';
 import { bindEditorProjectStoreProfileFromOptions } from './storage/project-store-profile-binding.ts';
 import { DEFAULT_OPFS_DIRECTORY_NAME } from './storage/opfs-repository.ts';
 import { DEFAULT_OPFS_WORKER_NAME } from './storage/opfs-sync-worker-client.ts';
-import { DesktopSharedProjectRepository } from './storage/desktop-shared-project-repository.ts';
 import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
 import { createStoreProjectIfAbsent, createStoreScapeProjectIfAbsent, deleteStoreProjectIfCurrent } from './storage/project-create-only-publication.ts';
-import { duplicateStoreProject, reportDesktopSharedProjectLocalCleanupError } from './storage/project-store-defaults.ts';
+import { duplicateStoreProject } from './storage/project-store-defaults.ts';
 import { restoreStoreProjectSnapshot } from './storage/project-snapshot-restore.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
@@ -39,8 +38,6 @@ export class AudioEditorProjectStore {
 		derivativeCacheNow = undefined,
 		linkedOriginalPort = null,
 		linkedVideoOriginalPort = null,
-		desktopProjectBridge = null,
-		onDesktopSharedProjectLocalCleanupError = reportDesktopSharedProjectLocalCleanupError,
 		onLinkedVideoOriginalLocatorCleanupError = undefined,
 		repositoryFactory = /** @type {import('./storage/repositories.ts').StorageRepositoryFactory} */ (createStorageRepositories),
 		} = options;
@@ -80,31 +77,7 @@ export class AudioEditorProjectStore {
 			opfsDirectoryName: projectStorageProfileNames?.opfsDirectoryName ?? DEFAULT_OPFS_DIRECTORY_NAME,
 			opfsWorkerName: projectStorageProfileNames?.opfsWorkerName ?? DEFAULT_OPFS_WORKER_NAME,
 		});
-		this.projectRepository = desktopProjectBridge
-			? new DesktopSharedProjectRepository({
-				bridge: desktopProjectBridge,
-				shadow: repositories.projects,
-				sourceAvailability: {
-					getSourceMetadata: (sourceId) => repositories.sources.getMetadata(sourceId),
-					readSourceChunks: (sourceId, readOptions) => repositories.sources.chunks(sourceId, readOptions),
-					getMediaAssetMetadata: (sourceId) => repositories.media.getAssetMetadata(sourceId),
-					loadMediaAsset: (sourceId, loadOptions) => repositories.media.loadAsset(sourceId, loadOptions),
-				},
-				sourceTransfer: {
-					getSourceMetadata: (sourceId) => repositories.sources.getMetadata(sourceId),
-					getMediaAssetMetadata: (sourceId) => repositories.media.getAssetMetadata(sourceId),
-					loadMediaAsset: (sourceId, loadOptions) => repositories.media.loadAsset(sourceId, loadOptions),
-					beginMediaAssetWrite: (sourceId, metadata, writeOptions) => (
-						repositories.media.beginAssetWrite(sourceId, metadata, writeOptions)
-					),
-					readSourceChunks: (sourceId, readOptions) => repositories.sources.chunks(sourceId, readOptions),
-					beginSourceWrite: (sourceId, metadata) => repositories.sources.beginWrite(sourceId, metadata),
-					discardSourceIfCurrent: (source) => repositories.sources.discardIfCurrent(source),
-				},
-				linkedVideoOriginals: repositories.linkedVideoOriginals,
-				onLocalCleanupError: onDesktopSharedProjectLocalCleanupError,
-			})
-			: repositories.projects;
+		this.projectRepository = repositories.projects;
 		this.settingsRepository = repositories.settings;
 		this.analysisRepository = repositories.analysis;
 		this.analysisCacheRepository = repositories.analysisCache || repositories.analysis;
@@ -188,12 +161,13 @@ export class AudioEditorProjectStore {
 	restoreProjectSnapshot(projectId, snapshot) { return restoreStoreProjectSnapshot(this, this.projectRepository, projectId, snapshot); }
 
 	async prepareProjectHandoff(project, { signal } = {}) {
-		if (!(this.projectRepository instanceof DesktopSharedProjectRepository)) return Object.freeze([]);
-		return this.projectRepository.prepareHandoff(project, signal);
+		void project;
+		void signal;
+		return Object.freeze([]);
 	}
 
 	preservesProjectsOnClear() {
-		return this.projectRepository instanceof DesktopSharedProjectRepository;
+		return false;
 	}
 
 	async duplicateProject(projectId, options = {}) {

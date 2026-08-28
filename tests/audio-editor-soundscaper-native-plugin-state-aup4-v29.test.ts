@@ -11,14 +11,14 @@ import {
 import { decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js'
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js'
 import {
-	embedSoundscaperNativePluginStatesInAup4V29,
-	recoverSoundscaperNativePluginStatesFromAup4V29,
-} from '../src/soundscaper/editor-native-plugin-state-aup4-v29.ts'
-import { importSoundscaperAudacityProjectV29 } from '../src/soundscaper/editor-audacity-project-import-v29.ts'
+	embedSoundscaperNativePluginStatesInAup4,
+	recoverSoundscaperNativePluginStatesFromAup4,
+} from '../src/soundscaper/editor-native-plugin-state-aup4.ts'
+import { importSoundscaperAudacityProject } from '../src/soundscaper/editor-audacity-project-import.ts'
 import {
-	createSoundscaperProjectV29,
-	validateSoundscaperProjectV29,
-} from '../src/soundscaper/editor-project-v29.ts'
+	createSoundscaperProject,
+	validateSoundscaperProject,
+} from '../src/soundscaper/editor-project.ts'
 
 function body(bytes: Uint8Array) {
 	const sha256 = createHash('sha256').update(bytes).digest('hex')
@@ -47,13 +47,13 @@ function state(instanceId: string, stateBody: ReturnType<typeof body>) {
 test('AUP4 V29 deduplicates opaque bodies and restores instances through binary XML', async () => {
 	const bytes = Uint8Array.from([0, 7, 13, 255])
 	const stateBody = body(bytes)
-	const original = createSoundscaperProjectV29({
+	const original = createSoundscaperProject({
 		id: 'aup4-native-state-v29',
 		title: 'AUP4 native state',
 		now: '2026-08-24T00:00:00.000Z',
 		nativePluginStates: [state('insert-01', stateBody), state('insert-02', stateBody)],
 	} as never)
-	const portable = await embedSoundscaperNativePluginStatesInAup4V29(original, {
+	const portable = await embedSoundscaperNativePluginStatesInAup4(original, {
 		loadNativePluginStateBody: (bodyId) => bodyId === stateBody.bodyId ? bytes : null,
 	})
 	const encoded = encodeAudacityBinaryXml(createAup4ProjectTree(portable))
@@ -61,16 +61,16 @@ test('AUP4 V29 deduplicates opaque bodies and restores instances through binary 
 	const decoded = await decodeAup4ProjectTree(reparsed, async () => null, {
 		idFactory: (prefix: string) => `${prefix}-reopened`,
 	})
-	const imported = importSoundscaperAudacityProjectV29(decoded.project)
+	const imported = importSoundscaperAudacityProject(decoded.project)
 	const persisted = new Map<string, Uint8Array>()
-	const recovered = await recoverSoundscaperNativePluginStatesFromAup4V29(imported, {
+	const recovered = await recoverSoundscaperNativePluginStatesFromAup4(imported, {
 		persistNativePluginStateBody: (value, expected) => {
 			persisted.set(expected.bodyId, Uint8Array.from(value))
 			return expected
 		},
 	})
 
-	assert.equal(validateSoundscaperProjectV29(recovered), true)
+	assert.equal(validateSoundscaperProject(recovered), true)
 	assert.deepEqual(recovered.nativePluginStates, original.nativePluginStates)
 	assert.deepEqual(persisted.get(stateBody.bodyId), bytes)
 })
@@ -78,26 +78,26 @@ test('AUP4 V29 deduplicates opaque bodies and restores instances through binary 
 test('AUP4 V29 refuses missing, drifted, duplicate and ambiguous native-state custody', async () => {
 	const bytes = Uint8Array.from([1, 2, 3])
 	const stateBody = body(bytes)
-	const original = createSoundscaperProjectV29({
+	const original = createSoundscaperProject({
 		id: 'aup4-native-state-faults',
 		title: 'AUP4 native faults',
 		now: '2026-08-24T00:00:00.000Z',
 		nativePluginStates: [state('insert-01', stateBody)],
 	} as never)
 	await assert.rejects(
-		() => embedSoundscaperNativePluginStatesInAup4V29(original, {
+		() => embedSoundscaperNativePluginStatesInAup4(original, {
 			loadNativePluginStateBody: () => null,
 		}),
 		/unavailable/iu,
 	)
 	await assert.rejects(
-		() => embedSoundscaperNativePluginStatesInAup4V29(original, {
+		() => embedSoundscaperNativePluginStatesInAup4(original, {
 			loadNativePluginStateBody: () => Uint8Array.from([9, 9, 9]),
 		}),
 		/SHA-256/iu,
 	)
 
-	const portable = await embedSoundscaperNativePluginStatesInAup4V29(original, {
+	const portable = await embedSoundscaperNativePluginStatesInAup4(original, {
 		loadNativePluginStateBody: () => bytes,
 	})
 	const portableExtensions = portable.opaqueExtensions as Readonly<Record<string, unknown>>
@@ -109,7 +109,7 @@ test('AUP4 V29 refuses missing, drifted, duplicate and ambiguous native-state cu
 		aup4UnknownNodes: [extension, structuredClone(extension)],
 	}
 	await assert.rejects(
-		() => recoverSoundscaperNativePluginStatesFromAup4V29(ambiguous as never, {
+		() => recoverSoundscaperNativePluginStatesFromAup4(ambiguous as never, {
 			persistNativePluginStateBody: (_value, expected) => expected,
 		}),
 		/ambiguous/iu,

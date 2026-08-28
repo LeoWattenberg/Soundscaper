@@ -15,6 +15,11 @@ import {
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { framescaperNativeImageSequenceAssetPath } from './native-image-sequence-import-contract.ts';
 import { assertImageSequenceReferenceFile } from './native-image-sequence-import-storage.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 const MAGIC = new TextEncoder().encode('framescaper-rgba-frame-pack-v1\n');
 export const IMAGE_SEQUENCE_DECODE_HEADER_BYTES = 59;
@@ -28,12 +33,15 @@ export interface AdmittedNativeImageSequence {
 }
 
 export async function admitFramescaperNativeImageSequenceSource(options: Readonly<{
+	schemaFamily: 'framescaper';
+	schemaVersion: 1;
 	root: string;
 	projectId: string;
 	projectRevision: number;
 	sourceId: string;
 	projectBundle: unknown;
 }>): Promise<Readonly<AdmittedNativeImageSequence>> {
+	assertFramescaperIdentity(options, 'image-sequence decode request');
 	const bundle = exactProjectBundle(options.projectBundle, options.projectId, options.projectRevision);
 	const source = exactProjectSequenceSource(bundle.document, options.sourceId);
 	assertNativeImageSequenceRgba8DecodeCompatibility(source.characteristics);
@@ -183,31 +191,32 @@ async function digestHandle(handle: FileHandle, byteLength: number): Promise<str
 }
 
 function exactProjectBundle(value: unknown, projectId: string, revision: number) {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('The V28 project bundle is unavailable.');
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('The baseline project bundle is unavailable.');
 	const row = value as Record<string, unknown>;
 	const project = row.project as Record<string, unknown> | null;
+	assertFramescaperIdentity(project, 'image-sequence project bundle');
 	if (!project || project.projectRevision !== revision || typeof row.document !== 'string' || !Array.isArray(row.bodies)) {
-		throw new Error('The V28 project bundle changed revision or body authority.');
+		throw new Error('The baseline project bundle changed revision or body authority.');
 	}
 	let document: unknown;
-	try { document = JSON.parse(row.document); } catch { throw new Error('The V28 project document is not JSON.'); }
+	try { document = JSON.parse(row.document); } catch { throw new Error('The baseline project document is not JSON.'); }
+	assertFramescaperIdentity(document, 'image-sequence project document');
 	if (!document || typeof document !== 'object' || Array.isArray(document)
 		|| (document as Record<string, unknown>).id !== projectId
-		|| (document as Record<string, unknown>).revision !== revision
-		|| (document as Record<string, unknown>).schemaVersion !== 28) {
-		throw new Error('The V28 project document changed selected identity.');
+		|| (document as Record<string, unknown>).revision !== revision) {
+		throw new Error('The baseline project document changed selected identity.');
 	}
 	return Object.freeze({ document: document as Record<string, unknown>, bodies: row.bodies as readonly unknown[] });
 }
 
 function exactProjectSequenceSource(document: Record<string, unknown>, sourceId: string): NativeMediaImageSequenceSourceV25 {
-	if (!Array.isArray(document.sources)) throw new TypeError('The V28 project has no source inventory.');
+	if (!Array.isArray(document.sources)) throw new TypeError('The baseline project has no source inventory.');
 	const matches = document.sources.filter((value) => value && typeof value === 'object' && !Array.isArray(value)
 		&& (value as Record<string, unknown>).id === sourceId);
 	if (matches.length !== 1) throw new Error('The image-sequence source is absent or duplicated.');
 	const source = matches[0] as Record<string, unknown>;
 	if (source.kind !== 'video' || source.imageSequence === null || source.imageSequence === undefined) {
-		throw new Error('The requested V28 source is not an imported image sequence.');
+		throw new Error('The requested baseline source is not an imported image sequence.');
 	}
 	const sequence = normalizeNativeMediaImageSequenceSourceV25(source.imageSequence);
 	if (sequence.id !== sourceId || source.storageKey !== sequence.sourcePack.storageKey
@@ -221,11 +230,19 @@ function exactBody(bodies: readonly unknown[], storageKey: string, kind: string)
 	const matches = bodies.filter((value) => value && typeof value === 'object' && !Array.isArray(value)
 		&& (value as Record<string, unknown>).kind === kind
 		&& (value as Record<string, unknown>).storageKey === storageKey);
-	if (matches.length !== 1) throw new Error(`The V28 ${kind} body is absent or duplicated.`);
+	if (matches.length !== 1) throw new Error(`The baseline ${kind} body is absent or duplicated.`);
 	const body = matches[0] as Record<string, unknown>;
 	if (!Number.isSafeInteger(body.byteLength) || Number(body.byteLength) < 1
-		|| typeof body.sha256 !== 'string') throw new TypeError(`The V28 ${kind} body is malformed.`);
+		|| typeof body.sha256 !== 'string') throw new TypeError(`The baseline ${kind} body is malformed.`);
 	return Object.freeze({ byteLength: Number(body.byteLength), sha256: body.sha256 });
+}
+
+function assertFramescaperIdentity(value: unknown, label: string): void {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} requires the current Framescaper schema.`);
+	}
 }
 
 function safeAdd(left: number, right: number): number {

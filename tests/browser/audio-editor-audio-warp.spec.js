@@ -7,9 +7,7 @@ import {
 } from '../../src/common/editor/project-media-factory.ts';
 import { exportScapeProject, SCAPE_MIME_TYPE } from '../../src/common/editor/scape-project.js';
 import { createProjectStore } from '../../src/common/editor/storage.js';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../../src/framescaper/editor-project-v28.ts';
-import { createSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperProject } from '../../src/soundscaper/editor-project.ts';
 import {
 	assertAccessibleBasics,
 	assertNoSeriousAxeViolations,
@@ -184,22 +182,16 @@ test.describe('audio warp and transient workflow', () => {
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 	});
 
-	test('Framescaper preserves authored warp maps read-only without exposing audio-warp authoring', async ({ page }) => {
+	test('Framescaper holds a Soundscaper v1 warp project opaquely without exposing audio-warp authoring', async ({ page }) => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
-		await openAudioWarpArchive(editor, true, 'framescaper-v28');
-		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
-		await expect(decision).toBeVisible();
-		await expect(decision).toContainText('Audio warp maps');
-		await expect(decision).toContainText('Unavailable · Bypass declared');
-		await expect(decision).not.toContainText('Rendered fallback declared');
-		await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
+		await openAudioWarpArchive(editor, true);
+		await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
-		await editor.getByRole('menuitem', { name: 'Effect', exact: true }).click();
-		const effectMenu = page.getByRole('menu', { name: 'Effect', exact: true });
-		await expect(effectMenu).toBeVisible();
-		await expect(getMenuItem(effectMenu, 'Pitch and tempo')).toHaveCount(0);
-		await page.keyboard.press('Escape');
+		await expect(editor.locator('[data-status]')).toHaveText('This project is read-only.');
+		await expect(page.getByRole('dialog', { name: 'Project features unavailable', exact: true })).toHaveCount(0);
+		await expect(clipByName(editor, 'Warp drums')).toHaveCount(0);
+		await expect(editor.getByRole('menuitem', { name: 'Effect', exact: true })).toHaveCount(0);
 		await expect(editor.locator('[data-editor-surface="audio-warp"]')).toHaveCount(0);
 	});
 });
@@ -288,22 +280,22 @@ async function installWarpCapture(page) {
 	}, { frameCount: FRAME_COUNT, sampleRate: SAMPLE_RATE });
 }
 
-async function openAudioWarpArchive(editor, withWarpMap, authority = 'soundscaper-v29') {
+async function openAudioWarpArchive(editor, withWarpMap) {
 	await editor.locator('[data-aup4-input]').setInputFiles({
 		name: `audio-warp-${withWarpMap ? 'authored' : 'plain'}.scape`,
 		mimeType: SCAPE_MIME_TYPE,
-		buffer: await audioWarpArchive(withWarpMap, authority),
+		buffer: await audioWarpArchive(withWarpMap),
 	});
 }
 
 const archives = new Map();
-function audioWarpArchive(withWarpMap, authority) {
-	const key = `${authority}:${String(withWarpMap)}`;
-	if (!archives.has(key)) archives.set(key, createAudioWarpArchive(withWarpMap, authority));
+function audioWarpArchive(withWarpMap) {
+	const key = String(withWarpMap);
+	if (!archives.has(key)) archives.set(key, createAudioWarpArchive(withWarpMap));
 	return archives.get(key);
 }
 
-async function createAudioWarpArchive(withWarpMap, authority) {
+async function createAudioWarpArchive(withWarpMap) {
 	const nonidentity = typeof withWarpMap === 'string' && withWarpMap.startsWith('nonidentity-');
 	const store = createProjectStore({
 		indexedDB: null,
@@ -334,9 +326,7 @@ async function createAudioWarpArchive(withWarpMap, authority) {
 			clips: [clip],
 			tracks: [createAudioTrack({ id: TRACK_ID, name: 'Drums', clipIds: [CLIP_ID] })],
 		};
-		const project = authority === 'framescaper-v28'
-			? createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options)
-			: createSoundscaperProjectV29(options);
+		const project = createSoundscaperProject(options);
 		const exported = await exportScapeProject(project, store);
 		if (!(exported.blob instanceof Blob)) throw new Error('Audio warp fixture export did not return a Blob.');
 		return Buffer.from(await exported.blob.arrayBuffer());

@@ -23,6 +23,11 @@ import {
 	type NativeQueueReservationsV1,
 	type NativeQueueTaskKind,
 } from '../native-queue-record.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 
 const OPAQUE_ID = /^[a-f0-9]{16,64}$/u;
 const JOB_ID = /^[a-f0-9]{40}$/u;
@@ -37,6 +42,8 @@ export interface FramescaperNativeRootProjection {
 }
 
 export interface FramescaperNativeWatchProjection {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly ruleId: string;
 	readonly grantId: string;
 	readonly projectId: string;
@@ -48,6 +55,8 @@ export interface FramescaperNativeWatchProjection {
 }
 
 export interface FramescaperNativeWatchCreateRendererRequest {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly grantId: string;
 	readonly projectId: string;
 	readonly binId: string | null;
@@ -57,6 +66,8 @@ export interface FramescaperNativeWatchCreateRendererRequest {
 }
 
 export interface FramescaperNativeQueueEnqueueRendererRequest {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly planVersion: 7 | 8 | 9 | 10 | 11 | 12 | 14;
 	readonly derivedInputStageId: string | null;
@@ -80,6 +91,8 @@ export interface FramescaperNativeRenderInputV1 {
 
 export interface FramescaperNativeRenderInputStageRendererRequestV1 {
 	readonly stageVersion: 1;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly planVersion: 7 | 8 | 14;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
@@ -194,8 +207,10 @@ export function createFramescaperNativeServicesLifecycleStore<Snapshot>(
 }
 
 function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRendererRequest {
+	const identity = framescaperProjectIdentity(value, 'queue enqueue request');
 	const row = closedRecord(value, [
-		'taskKind', 'planVersion', 'derivedInputStageId', 'planFingerprint', 'planPayload', 'projectId',
+		'schemaFamily', 'schemaVersion', 'taskKind', 'planVersion', 'derivedInputStageId',
+		'planFingerprint', 'planPayload', 'projectId',
 		'projectRevision', 'inputFingerprints', 'rootGrantId', 'relativeDestination',
 		'recoveryClass', 'reservations',
 	], 'queue enqueue request');
@@ -240,6 +255,7 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 	}
 	assertNativeMediaRelativeDestination(row.relativeDestination);
 	return Object.freeze({
+		...identity,
 		taskKind,
 		planVersion: row.planVersion as FramescaperNativeQueueEnqueueRendererRequest['planVersion'],
 		derivedInputStageId,
@@ -256,8 +272,10 @@ function queueEnqueueRequest(value: unknown): FramescaperNativeQueueEnqueueRende
 }
 
 function watchCreateRequest(value: unknown): FramescaperNativeWatchCreateRendererRequest {
+	const identity = framescaperProjectIdentity(value, 'watch create request');
 	const row = closedRecord(value, [
-		'grantId', 'projectId', 'binId', 'extensions', 'importMode', 'generateProxies',
+		'schemaFamily', 'schemaVersion', 'grantId', 'projectId', 'binId',
+		'extensions', 'importMode', 'generateProxies',
 	], 'watch create request');
 	const extensions = denseArray(row.extensions, 32, 'watch extensions').map((entry) => {
 		const normalized = typeof entry === 'string' ? entry.replace(/^\./u, '').toLowerCase() : '';
@@ -271,6 +289,7 @@ function watchCreateRequest(value: unknown): FramescaperNativeWatchCreateRendere
 		throw new TypeError('A Framescaper watch rule must state proxy generation.');
 	}
 	return Object.freeze({
+		...identity,
 		grantId: pattern(row.grantId, OPAQUE_ID, 'watch grant id'),
 		projectId: identifier(row.projectId, 'watch project id'),
 		binId: row.binId === null ? null : identifier(row.binId, 'watch bin id'),
@@ -315,13 +334,16 @@ function optionalRootResult(value: unknown): FramescaperNativeRootProjection | n
 }
 
 function watchResult(value: unknown): FramescaperNativeWatchProjection {
+	const identity = framescaperProjectIdentity(value, 'watch result');
 	const row = closedRecord(value, [
-		'ruleId', 'grantId', 'projectId', 'binId', 'extensions', 'importMode', 'generateProxies', 'enabled',
+		'schemaFamily', 'schemaVersion', 'ruleId', 'grantId', 'projectId', 'binId',
+		'extensions', 'importMode', 'generateProxies', 'enabled',
 	], 'watch result');
 	if (typeof row.generateProxies !== 'boolean' || typeof row.enabled !== 'boolean') {
 		throw new TypeError('A Framescaper watch result has invalid state.');
 	}
 	return Object.freeze({
+		...identity,
 		ruleId: pattern(row.ruleId, OPAQUE_ID, 'watch rule id'),
 		grantId: pattern(row.grantId, OPAQUE_ID, 'watch grant id'),
 		projectId: identifier(row.projectId, 'watch project id'),
@@ -447,4 +469,17 @@ function nonNegative(value: unknown, label: string): number {
 		throw new RangeError(`A Framescaper ${label} must be a non-negative safe integer.`);
 	}
 	return value as number;
+}
+
+function framescaperProjectIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: 'framescaper'; schemaVersion: 1 }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`A Framescaper ${label} requires the current project schema.`);
+	}
+	return Object.freeze({ schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION });
 }

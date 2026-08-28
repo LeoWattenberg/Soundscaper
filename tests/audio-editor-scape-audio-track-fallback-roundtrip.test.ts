@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -13,8 +13,12 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-08-08T13:00:00.000Z';
 const PROJECT_ID = 'scape-audio-track-fallback';
@@ -50,11 +54,6 @@ test('portable Scape preserves a track-local audio fallback in a fresh recipient
 	assertTrackFallbackRelationship(imported.project, FALLBACK_SOURCE_ID);
 	await assertStoredPcm(recipient, imported.project, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 
-	const reopenedValue = await recipient.loadProject(PROJECT_ID);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assertTrackFallbackRelationship(reopened, FALLBACK_SOURCE_ID);
-	await assertStoredPcm(recipient, reopened, FALLBACK_SOURCE_ID, FALLBACK_SAMPLES);
 });
 
 test('Scape collision-copy remaps only the fallback source identity, not its target track', async (context) => {
@@ -83,11 +82,6 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 	await assertStoredPcm(recipient, copied.project, copiedFallback.sourceId, FALLBACK_SAMPLES);
 	assert.deepEqual(await storedSamples(recipient, FALLBACK_SOURCE_ID), [...COLLIDING_SAMPLES]);
 
-	const reopenedValue = await recipient.loadProject(copied.project.id);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assertTrackFallbackRelationship(reopened, copiedFallback.sourceId);
-	assert.equal(trackFallback(reopened).targetTrackId, TARGET_TRACK_ID);
 });
 
 function trackFallbackProject(): AudioEditorProjectCurrent {

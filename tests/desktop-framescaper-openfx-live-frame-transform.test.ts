@@ -11,12 +11,12 @@ import {
 } from '../desktop/framescaper-openfx-live-frame-transform.ts';
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { framescaperOpenFxPluginProjectionV1 } from '../src/common/editor/native-ofx-service-contract.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import { streamFramescaperNativeRgbaFramePackV1 } from '../src/framescaper/native-render-frame-pack-v1.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const SHA_A = 'a1'.repeat(32);
 const SHA_B = 'b2'.repeat(32);
@@ -147,10 +147,10 @@ async function transformFixture() {
 	options.tracks = (options.tracks as Array<Record<string, unknown>>).filter(({ type }) => type === 'video');
 	options.sequences = [{ id: 'main-sequence', rate: { num: 1, den: 1 }, trackIds: ['video-track'] }];
 	options.ofxEffects = [effect()];
-	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-	const original = createFramescaperProjectUnifiedExactRenderPlanV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-		createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
+	const original = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const raw = structuredClone(original) as unknown as Record<string, unknown>;
 	const output = raw.output as Record<string, unknown>;

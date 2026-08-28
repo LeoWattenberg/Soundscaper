@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
+
 import {
 	collectClipTransformIds as collectLegacyClipTransformIds,
 	collectRelatedClipIds as collectLegacyRelatedClipIds,
@@ -171,7 +173,7 @@ export function createProjectBinService(
 		const project = dependencies.getProject();
 		const binClip = findProjectBinClip(project, binClipId);
 		if (!binClip) throw new Error(dependencies.copy.audioClipNotFound);
-		const itemClips = project.schemaVersion >= 4
+		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((clip) => clip.binItemId === binClip.binItemId)
 			: [binClip];
 		for (const itemClip of itemClips) {
@@ -303,7 +305,7 @@ export function createProjectBinService(
 	function projectBinSourceIds(clipId: string, project = dependencies.getProject()): Set<string> {
 		const clip = findProjectBinClip(project, clipId);
 		if (!clip) throw new Error(dependencies.copy.audioClipNotFound);
-		const itemClips = project.schemaVersion >= 4
+		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];
 		return new Set(itemClips.map((candidate) => candidate.sourceId));

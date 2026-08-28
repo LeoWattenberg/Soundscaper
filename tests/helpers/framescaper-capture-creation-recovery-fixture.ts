@@ -19,7 +19,10 @@ import { SourceRecordRepository } from '../../src/common/editor/storage/source-r
 export function sessionRequest(): CreateFramescaperCaptureDurableSessionRequest {
 	return {
 		sessionId: 'session-capture', generation: 1,
-		projectFence: { projectId: 'project-capture', baseRevision: 3, baseSha256: 'ab'.repeat(32) },
+		projectFence: {
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-capture', baseRevision: 3, baseSha256: 'ab'.repeat(32),
+		},
 		origin: { sequenceId: 'sequence-capture', playheadMicroseconds: 2_000_000, destination: 'both' },
 		monotonicOriginMicroseconds: 1_000,
 		streams: [{

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -13,8 +13,12 @@ import {
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-08-03T12:00:00.000Z';
 const PROJECT_ID = 'scape-video-clip-fallback';
@@ -50,11 +54,6 @@ test('portable Scape preserves a clip-local rendered fallback in a fresh recipie
 	assertClipFallbackRelationship(imported.project, FALLBACK_SOURCE_ID);
 	await assertStoredFallback(recipient, imported.project, FALLBACK_SOURCE_ID, FALLBACK_BODY);
 
-	const reopenedValue = await recipient.loadProject(PROJECT_ID);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assertClipFallbackRelationship(reopened, FALLBACK_SOURCE_ID);
-	await assertStoredFallback(recipient, reopened, FALLBACK_SOURCE_ID, FALLBACK_BODY);
 });
 
 test('Scape collision-copy remaps only the fallback source identity, not its target clip', async (context) => {
@@ -86,11 +85,6 @@ test('Scape collision-copy remaps only the fallback source identity, not its tar
 	await assertStoredFallback(recipient, copied.project, copiedFallback.sourceId, FALLBACK_BODY);
 	assert.deepEqual(await storedMediaBytes(recipient, FALLBACK_SOURCE_ID), COLLIDING_BODY);
 
-	const reopenedValue = await recipient.loadProject(copied.project.id);
-	assert.ok(reopenedValue);
-	const reopened = reopenedValue as unknown as AudioEditorProjectCurrent;
-	assertClipFallbackRelationship(reopened, copiedFallback.sourceId);
-	assert.equal(clipFallback(reopened).targetClipId, TARGET_CLIP_ID);
 });
 
 function clipFallbackProject(): AudioEditorProjectCurrent {

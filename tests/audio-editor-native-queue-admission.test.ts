@@ -222,6 +222,7 @@ function job(
 	}> = {},
 ): NativeQueueRecordV1 {
 	return createNativeQueueRecordV1({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: jobId(suffix),
 		taskKind: 'encoded-export',
 		planVersion: 6,

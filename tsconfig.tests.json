@@ -5,6 +5,6 @@
 		"tsBuildInfoFile": "./node_modules/.cache/typescript/tests.tsbuildinfo",
 		"types": ["node", "vite/client"]
 	},
-	"include": ["desktop/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "src/vite-env.d.ts", "tests/**/*.test.ts", "tests/**/*.test.tsx", "tests/fixtures/desktop-project-library-crash.ts", "tests/fixtures/desktop-project-library-holder.ts", "tests/helpers/persisted-video-project-fixture.ts"],
+	"include": ["desktop/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "src/vite-env.d.ts", "tests/**/*.test.ts", "tests/**/*.test.tsx", "tests/helpers/framescaper-exact-export-fixture.ts", "tests/helpers/persisted-video-project-fixture.ts"],
 	"exclude": ["dist", "node_modules", "test-results"]
 }

@@ -14,7 +14,7 @@ test('audio-warp policy records native Soundscaper and read-only Framescaper tru
 	assert.equal(rule.status, 'implemented');
 	assert.match(
 		rule.requiredOutcome,
-		/exact-schema-17 audio warp state.*timeline and Project Bin audio clips.*closed, bounded, strictly increasing.*clip-authority-validated/iu,
+		/exact owning-family v1 audio warp state.*timeline and Project Bin audio clips.*closed, bounded, strictly increasing.*clip-authority-validated/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -75,7 +75,7 @@ test('audio-warp policy records native Soundscaper and read-only Framescaper tru
 		'src/common/editor/audio-warp-clip-authority.ts',
 		'src/common/editor/audio-warp-runtime.ts',
 		'src/common/editor/audio-warp-render-parity.ts',
-		'src/common/editor/project-v17-validation.ts',
+		'src/soundscaper/editor-project-validation.ts',
 		'src/common/editor/runtime-clip-projection.ts',
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
@@ -96,7 +96,7 @@ test('audio-warp policy records native Soundscaper and read-only Framescaper tru
 		'tests/audio-editor-audio-warp-domain.test.ts',
 		'tests/audio-editor-audio-warp-authoring.test.ts',
 		'tests/audio-editor-audio-warp-runtime.test.ts',
-		'tests/audio-editor-project-v17.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/audio-editor-project-bin-service.test.ts',
 		'tests/audio-editor-audio-warp-pcm-parity.test.ts',
 		'tests/audio-editor-audio-warp-engine-status.test.ts',
@@ -107,7 +107,7 @@ test('audio-warp policy records native Soundscaper and read-only Framescaper tru
 		'tests/audio-editor-audio-warp-controller-composition.test.ts',
 		'tests/audio-editor-audio-warp-ui.test.tsx',
 		'tests/audio-editor-scape-audio-warp-roundtrip.test.ts',
-		'tests/desktop-project-library-audio-warp-handoff.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/audio-editor-audio-warp-export-service.test.ts',
 		'tests/browser/audio-editor-audio-warp.spec.js',
 	]) assert.equal(evidence.has(path), true, path);

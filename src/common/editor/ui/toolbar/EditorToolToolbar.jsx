@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { isSoundscaperProductionProjectSchema } from '../../project-schema-version.ts';
+import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
 import { Flyout } from '@soundscaper/design-system/Flyout';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -70,7 +70,7 @@ export default function EditorToolToolbar({
 }) {
 	const project = snapshot.project;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId && track.type === 'audio');
-	const outputAutomationAvailable = !isSoundscaperProductionProjectSchema(project?.schemaVersion) && Boolean(
+	const outputAutomationAvailable = !isSoundscaperProductionProject(project) && Boolean(
 		project?.mixer?.groups?.length
 		|| project?.mixer?.sends?.length
 		|| snapshot.preferences?.view?.showMasterTrack,

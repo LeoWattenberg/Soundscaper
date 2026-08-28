@@ -15,7 +15,8 @@ const SOURCE_SHA256 = 'ab'.repeat(32);
 
 function project(overrides: Readonly<Record<string, unknown>> = {}) {
 	return {
-		id: 'project-1', schemaVersion: 30, revision: 4, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 4, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		selection: { startFrame: 48_000, endFrame: 96_000, clipIds: ['voice-clip'], trackIds: ['voice-track'] },
 		sources: [{ id: 'voice-source', name: 'Interview', kind: 'audio',

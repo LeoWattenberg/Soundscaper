@@ -92,7 +92,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 		await expect(properties.locator('[data-source-note]')).toHaveCount(0);
 	});
 
-	test('an anamorphic composed source refuses browser export before target publication', async ({
+	test('an anamorphic composed source publishes through the keyed browser export path', async ({
 		page,
 	}) => {
 		test.setTimeout(90_000);
@@ -108,20 +108,31 @@ test.describe('3B-2b source display geometry qualification', () => {
 		}).toBe(1);
 		await addToTimeline(editor, ROTATED_ANAMORPHIC);
 
-		// This source needs the composed-graph path. The production browser has no
-		// FFmpeg fallback, so choosing MP4 must fail before a writer is acquired.
+		// This source needs the composed-graph path. Framescaper owns the exact keyed
+		// compositor, so the browser-native tier can publish it without an FFmpeg fallback.
 		await installVideoSaveTarget(page);
 		const exportDialog = await openExportDialog(page, editor);
 		const format = exportDialog.getByRole('group', { name: 'Format', exact: true });
 		await format.getByRole('button').click();
 		await page.getByRole('option', { name: 'MP4 video', exact: true }).click();
-		await expect(page.getByRole('alert')).toContainText(
-			/Unsupported export format: video-mp4|Browser-native video export is unavailable/u,
-		);
-		await expect(exportDialog).toBeHidden();
-		expect(await page.evaluate(() => globalThis.__videoSaveTarget)).toEqual({
-			chunks: [], closes: 0, fileName: null,
+		await exportDialog.getByRole('button', { name: 'Start export', exact: true }).click();
+		await expect.poll(() => page.evaluate(() => globalThis.__videoSaveTarget.closes), {
+			timeout: 45_000,
+		}).toBe(1);
+		await expect(editor.locator('[data-editor-status]')).toHaveAttribute('data-state', 'success');
+		await expect(exportDialog).toBeVisible();
+		const target = await page.evaluate(() => ({
+			chunkCount: globalThis.__videoSaveTarget.chunks.length,
+			byteLength: globalThis.__videoSaveTarget.chunks.reduce((total, chunk) => total + chunk.byteLength, 0),
+			closes: globalThis.__videoSaveTarget.closes,
+			fileName: globalThis.__videoSaveTarget.fileName,
+		}));
+		expect(target).toMatchObject({
+			closes: 1,
+			fileName: expect.stringMatching(/\.mp4$/u),
 		});
+		expect(target.chunkCount).toBeGreaterThan(0);
+		expect(target.byteLength).toBeGreaterThan(0);
 	});
 });
 

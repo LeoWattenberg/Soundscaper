@@ -57,6 +57,7 @@ type DataRecord = Readonly<Record<string, unknown>>;
 export interface LocalAssistanceTranscriptCleanupAuthority {
 	readonly project: DataRecord & Readonly<{
 		readonly id: string;
+		readonly schemaFamily: AssistanceSelectionFence['schemaFamily'];
 		readonly schemaVersion: number;
 		readonly revision: number;
 		readonly sampleRate: number;
@@ -283,7 +284,8 @@ function normalizeAuthority(value: LocalAssistanceTranscriptCleanupAuthority): N
 	}
 	const fence = validateAssistanceSelectionFence(value.fence);
 	const project = value.project;
-	if (project.id !== fence.projectId || project.schemaVersion !== fence.schemaVersion
+	if (project.id !== fence.projectId || project.schemaFamily !== fence.schemaFamily
+		|| project.schemaVersion !== fence.schemaVersion
 		|| project.revision !== fence.revision) {
 		throw new AssistanceProposalStaleError();
 	}

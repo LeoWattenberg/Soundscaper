@@ -19,8 +19,8 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../../src/common/editor/project-media-factory.ts';
-import { createSoundscaperProjectV29, validateSoundscaperProjectV29 } from '../../src/soundscaper/editor-project-v29.ts';
-import { createSoundscaperScapeNativeRuntimeV29 } from '../../src/soundscaper/editor-scape-native-v29.ts';
+import { createSoundscaperProject, validateSoundscaperProject } from '../../src/soundscaper/editor-project.ts';
+import { createSoundscaperScapeNativeRuntime } from '../../src/soundscaper/editor-scape-native.ts';
 import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -62,7 +62,7 @@ export const DESKTOP_SCAPE_OPEN_FIXTURE = deepFreeze({
 export async function createDesktopScapeOpenFixture(profileRoot) {
 	const profile = absolutePath(profileRoot, 'fixture profile root');
 	const project = createFixtureProject();
-	validateSoundscaperProjectV29(project);
+	validateSoundscaperProject(project);
 	const samples = createFixtureSamples();
 	const store = {
 		async loadMediaAsset() { return null; },
@@ -75,7 +75,7 @@ export async function createDesktopScapeOpenFixture(profileRoot) {
 			})();
 		},
 	};
-	const exported = await createSoundscaperScapeNativeRuntimeV29().exportScapeProject(project, store);
+	const exported = await createSoundscaperScapeNativeRuntime().exportScapeProject(project, store);
 	if (!(exported.blob instanceof Blob)) {
 		throw new Error('Packaged Scape-open fixture export did not produce a Blob');
 	}
@@ -454,7 +454,7 @@ function createFixtureProject() {
 		name: 'Packaged track',
 		clipIds: [fixture.project.clipId],
 	}, fixture.audio.sampleRate);
-	return createSoundscaperProjectV29({
+	return createSoundscaperProject({
 		id: fixture.project.id,
 		title: fixture.project.title,
 		revision: fixture.project.revision,

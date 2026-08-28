@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
 import { preflightScapeProjectJsonStructure } from '../src/common/editor/scape-project-json-preflight.ts';
 
 interface ScapeProjectBinaryLimits {
@@ -194,7 +197,8 @@ test('non-current schemas retain ordinary values but receive structural JSON adm
 	};
 	assert.deepEqual(parse(JSON.stringify(future)), future);
 	const overBudget = JSON.stringify({
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		items: Array.from({ length: 12 }, (_, index) => index),
 	});
 	assert.throws(() => parse(overBudget, { limits: {
@@ -365,15 +369,18 @@ test('the exact current schema preserves non-callable toJSON data while rejectin
 	const text = serialize(currentProject({ toJSON: 'ordinary opaque data' }));
 	assert.deepEqual(parse(text), currentProject({ toJSON: 'ordinary opaque data' }));
 	let activations = 0;
-	const root: Record<string, unknown> = { opaqueExtensions: {} };
+	const root: Record<string, unknown> = {
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		opaqueExtensions: {},
+	};
 	Object.defineProperty(root, 'schemaVersion', {
 		enumerable: true,
 		get() {
 			activations += 1;
-			return AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+			return PROJECT_SCHEMA_VERSION;
 		},
 	});
-	assert.throws(() => serialize(root), /schemaVersion.*accessor/iu);
+	assert.throws(() => serialize(root), /schemaVersion.*own enumerable data property/iu);
 	assert.equal(activations, 0);
 	const hookedArray = [1, 2] as unknown[] & { toJSON?: () => unknown };
 	hookedArray.toJSON = () => {
@@ -383,7 +390,8 @@ test('the exact current schema preserves non-callable toJSON data while rejectin
 	assert.throws(() => serialize(currentProject(hookedArray)), /toJSON hooks/iu);
 	assert.equal(activations, 0);
 	class ProjectRoot {
-		readonly schemaVersion = AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+		readonly schemaFamily = SOUNDSCAPER_PROJECT_SCHEMA_FAMILY;
+		readonly schemaVersion = PROJECT_SCHEMA_VERSION;
 		readonly opaqueExtensions = {};
 	}
 	assert.throws(() => serialize(new ProjectRoot()), /plain object/iu);
@@ -418,15 +426,17 @@ test('lowered traversal limits remain round-trip closed for encoded binary descr
 	if (!parse || !serialize) return;
 	const limits = {
 		maximumPayloadCount: 1,
-		maximumTraversalNodes: 3,
+		maximumTraversalNodes: 4,
 		maximumTraversalDepth: 1,
 	};
 	const document = serialize({
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		bytes: new Uint8Array([1]),
 	}, { limits });
 	assert.deepEqual(parse(document, { limits }), {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		bytes: new Uint8Array([1]),
 	});
 });
@@ -525,7 +535,11 @@ function codecFunctions(): Readonly<{
 }
 
 function currentProject(opaqueExtensions: unknown): Record<string, unknown> {
-	return { schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, opaqueExtensions };
+	return {
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+		opaqueExtensions,
+	};
 }
 
 function binaryTag(overrides: Partial<BinaryDescriptor> = {}): Record<string, BinaryDescriptor> {

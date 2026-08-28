@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+
 /**
  * Transitional ports for the sample-edit workflow. Property names are explicit
  * so a misspelled dependency fails during composition instead of becoming an
@@ -77,7 +79,7 @@ export function createSampleEditService(runtime: SampleEditServiceRuntime) {
 
 	function sampleEditingAvailable(clipId: RuntimeValue = state.selectedClipId) {
 		const project = getProject();
-		if (!project || project.schemaVersion < 2 || !clipId) return false;
+		if (!project || !hasCoreEditingProjectAuthority(project) || !clipId) return false;
 		const clip = findClip(project, clipId);
 		const source = clip ? findSource(project, clip.sourceId) : null;
 		const track = clip ? findClipTrack(project, clip.id) : null;

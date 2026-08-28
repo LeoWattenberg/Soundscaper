@@ -37,8 +37,9 @@ export function assistanceWorkflowFixture(
 		AssistanceWorkflowV1['models'];
 	const defaultFence = {
 		fenceVersion: ASSISTANCE_WORKFLOW_FENCE_VERSION,
+		schemaFamily: 'framescaper' as const,
 		projectId: 'project-a',
-		schemaVersion: 31,
+		schemaVersion: 1 as const,
 		revision: 8,
 		sequenceId: 'sequence-a',
 		sourceRanges: [{

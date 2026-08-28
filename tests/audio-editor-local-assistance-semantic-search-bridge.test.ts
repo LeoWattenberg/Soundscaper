@@ -7,8 +7,10 @@ import { resolveLocalAssistanceBridge } from
 	'../src/common/editor/ui/local-assistance-bridge.ts';
 
 const NOW = Date.now();
+const PROJECT_IDENTITY = Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const });
 const SESSION = Object.freeze({
-	sessionVersion: 1 as const, sessionId: 'a'.repeat(40), projectId: 'project-1',
+	sessionVersion: 1 as const, sessionId: 'a'.repeat(40), ...PROJECT_IDENTITY,
+	projectId: 'project-1',
 	projectRevision: 7, expiresAtEpochMs: NOW + 60_000,
 });
 
@@ -37,13 +39,14 @@ test('renderer projects the optional semantic-search session API without weakeni
 		cancelQuery: async (value: unknown) => { calls.push(value); return false; },
 	}));
 	assert.ok(bridge?.semanticSearch);
-	const opened = await bridge.semanticSearch.open({ projectId: 'project-1', projectRevision: 7 });
+	const opened = await bridge.semanticSearch.open({ ...PROJECT_IDENTITY,
+		projectId: 'project-1', projectRevision: 7 });
 	assert.deepEqual(opened, SESSION);
 	assert.deepEqual(await bridge.semanticSearch.authorize({
-		session: opened, projectId: 'project-1', projectRevision: 7,
+		session: opened, ...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 	}), SESSION);
 	const embedding = await bridge.semanticSearch.embedInstalledQuery({
-		session: opened, projectId: 'project-1', projectRevision: 7,
+		session: opened, ...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 		provider: 'transcript', query: 'red bicycle', signal: new AbortController().signal,
 	});
 	assert.equal(embedding.length, 768);
@@ -52,7 +55,8 @@ test('renderer projects the optional semantic-search session API without weakeni
 	assert.equal(calls.length, 4);
 	assert.match((calls[2] as { queryId: string }).queryId, /^[a-f\d]{40}$/u);
 	assert.deepEqual(Object.keys(calls[2] as object).sort(), [
-		'projectId', 'projectRevision', 'provider', 'query', 'queryId', 'queryVersion', 'session',
+		'projectId', 'projectRevision', 'provider', 'query', 'queryId', 'queryVersion',
+		'schemaFamily', 'schemaVersion', 'session',
 	]);
 });
 
@@ -67,10 +71,10 @@ test('renderer refuses malformed semantic-search bridge shape and returned autho
 	}));
 	assert.ok(bridge?.semanticSearch);
 	await assert.rejects(bridge.semanticSearch.open({
-		projectId: 'project-1', projectRevision: 7,
+		...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 	}), /fields|session/iu);
 	await assert.rejects(bridge.semanticSearch.open({
-		projectId: '../escape', projectRevision: 7,
+		...PROJECT_IDENTITY, projectId: '../escape', projectRevision: 7,
 	}), /project|authority/iu);
 });
 
@@ -85,7 +89,7 @@ test('renderer cancels stale native query work and types unavailable installed m
 	}));
 	assert.ok(missing?.semanticSearch);
 	await assert.rejects(missing.semanticSearch.embedInstalledQuery({
-		session: SESSION, projectId: 'project-1', projectRevision: 7,
+		session: SESSION, ...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 		provider: 'visual', query: 'query', signal: new AbortController().signal,
 	}), (error) => Boolean(error && typeof error === 'object'
 		&& (error as { reason?: unknown }).reason === 'query-models-unavailable'));
@@ -108,7 +112,7 @@ test('renderer cancels stale native query work and types unavailable installed m
 	assert.ok(cancellable?.semanticSearch);
 	const controller = new AbortController();
 	const pending = cancellable.semanticSearch.embedInstalledQuery({
-		session: SESSION, projectId: 'project-1', projectRevision: 7,
+		session: SESSION, ...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 		provider: 'transcript', query: 'cancel', signal: controller.signal,
 	});
 	await entered;

@@ -166,7 +166,8 @@ export function createLocalAssistancePreparationRuntime(
 							currentProject: () => {
 								const project = dependencies.getProject() as
 									Readonly<Record<string, unknown>>;
-								return { projectId: project.id, projectRevision: project.revision };
+								return { schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion,
+									projectId: project.id, projectRevision: project.revision };
 							},
 						});
 					} catch {
@@ -270,7 +271,8 @@ export function createLocalAssistancePreparationRuntime(
 			await publicationFenceResolver.assertCurrentFence(workflow, publicationSignal);
 			const currentProject = () => {
 				const project = dependencies.getProject() as Readonly<Record<string, unknown>>;
-				return { projectId: project.id, projectRevision: project.revision };
+				return { schemaFamily: project.schemaFamily, schemaVersion: project.schemaVersion,
+					projectId: project.id, projectRevision: project.revision };
 			};
 			if (workflow.workflowId === 'index-transcript' || workflow.workflowId === 'index-video') {
 				if (!dependencies.assistanceDerivativeRepository) return Object.freeze({

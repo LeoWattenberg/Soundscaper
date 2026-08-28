@@ -18,12 +18,12 @@ import { linkedOriginalBindingKey } from '../src/common/editor/storage/linked-or
 import type { LinkedOriginalLocatorReference } from '../src/common/editor/storage/linked-original-repository.ts';
 import { editorProjectStorageProfileNames } from '../src/common/editor/storage/project-storage-profile.ts';
 import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
-import { createSoundscaperProjectStoreV21 } from '../src/soundscaper/editor-project-store-v21.ts';
-import { SOUNDSCAPER_V21_PROJECT_STORAGE_PROFILE } from '../src/soundscaper/editor-project-storage-profile-v21.ts';
+import { createSoundscaperProjectStore } from '../src/soundscaper/editor-project-store.ts';
+import { SOUNDSCAPER_PROJECT_STORAGE_PROFILE } from '../src/soundscaper/editor-project-storage-profile.ts';
 import {
-	createSoundscaperProjectV21,
-	type SoundscaperProjectV21,
-} from '../src/soundscaper/editor-project-v21.ts';
+	createSoundscaperProject,
+	type SoundscaperProject,
+} from '../src/soundscaper/editor-project.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const NOW = '2026-08-14T12:00:00.000Z';
@@ -63,7 +63,7 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 test('selected V21 startup reconciliation prunes only unreachable exact-project bindings', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as IDBFactory;
 	let reconciled: readonly LinkedOriginalLocatorReference[] = [];
-	const store = createSoundscaperProjectStoreV21({
+	const store = createSoundscaperProjectStore({
 		indexedDB,
 		preferOpfs: false,
 		linkedOriginalPort: {
@@ -85,7 +85,7 @@ test('selected V21 startup reconciliation prunes only unreachable exact-project 
 
 	const database = await openDatabase(
 		indexedDB,
-		editorProjectStorageProfileNames(SOUNDSCAPER_V21_PROJECT_STORAGE_PROFILE).databaseName,
+		editorProjectStorageProfileNames(SOUNDSCAPER_PROJECT_STORAGE_PROFILE).databaseName,
 	);
 	context.after(() => { database.close(); });
 	await transact(database, LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME, 'readwrite', (stores) => (
@@ -107,17 +107,17 @@ test('selected V21 startup reconciliation prunes only unreachable exact-project 
 });
 
 function createStore(context: TestContext, indexedDB: IDBFactory | null): AudioEditorProjectStore {
-	const store = createSoundscaperProjectStoreV21({ indexedDB, preferOpfs: false });
+	const store = createSoundscaperProjectStore({ indexedDB, preferOpfs: false });
 	context.after(async () => { await store.close(); });
 	return store;
 }
 
-function rootedProject(id: string, source: TestAudioSource): SoundscaperProjectV21 {
+function rootedProject(id: string, source: TestAudioSource): SoundscaperProject {
 	const clip = createAudioClip({
 		id: `${id}-clip`, sourceId: source.id, durationFrames: 4, sourceDurationFrames: 4,
 	});
 	const track = createAudioTrack({ id: `${id}-track`, clipIds: [clip.id] });
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id,
 		title: 'V21 linked-original preservation',
 		now: NOW,

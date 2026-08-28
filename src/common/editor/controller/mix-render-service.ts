@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { DerivedSourceService } from './derived-source-service.ts';
 import type {
@@ -130,7 +132,7 @@ export function createMixRenderService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
-		if (project.schemaVersion < 2) throw new Error(dependencies.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
 		const targetTracks = selectAudioTracksForMix(
 			project,
 			dependencies.getSelectedTrackId(),

@@ -6,9 +6,9 @@ import test from 'node:test'
 import { editorProjectFeatureCapabilityProfileDefinition } from '../src/common/editor/project-feature-capability-profile.ts'
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts'
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts'
-import { FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-v20.ts'
-import { SOUNDSCAPER_V21_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/soundscaper/editor-project-feature-capability-profile-v21.ts'
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts'
+import { FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/framescaper/editor-project-feature-capability-profile-retime.ts'
+import { SOUNDSCAPER_PROJECT_FEATURE_CAPABILITY_PROFILE } from '../src/soundscaper/editor-project-feature-capability-profile.ts'
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 
 test('registers V21 production capability IDs with product-isolated availability', () => {
 	assert.deepEqual({
@@ -21,10 +21,10 @@ test('registers V21 production capability IDs with product-isolated availability
 		audioTrackFreeze: 'org.soundscaper.capability.audio-track-freeze',
 	})
 	const soundscaper = editorProjectFeatureCapabilityProfileDefinition(
-		SOUNDSCAPER_V21_PROJECT_FEATURE_CAPABILITY_PROFILE,
+		SOUNDSCAPER_PROJECT_FEATURE_CAPABILITY_PROFILE,
 	)
 	const framescaper = editorProjectFeatureCapabilityProfileDefinition(
-		FRAMESCAPER_V20_PROJECT_FEATURE_CAPABILITY_PROFILE,
+		FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE,
 	)
 	for (const key of ['audioAutomation', 'audioMixerGraph', 'audioTrackFreeze']) {
 		assert.equal(soundscaper.registrations.find((item) => item.key === key)?.available, true)
@@ -33,7 +33,7 @@ test('registers V21 production capability IDs with product-isolated availability
 })
 
 test('nonempty lanes and an authored graph own exact bypass-only requirements', () => {
-	const neutral = createSoundscaperProjectV21()
+	const neutral = createSoundscaperProject()
 	assert.equal(neutral.featureRequirements.requirements.some(({ id }) => (
 		id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioAutomation
 		|| id === PROJECT_OWNED_FEATURE_REQUIREMENT_IDS.audioMixerGraph
@@ -42,7 +42,7 @@ test('nonempty lanes and an authored graph own exact bypass-only requirements', 
 	;(mixer.vcas as unknown as Array<Record<string, unknown>>).push({
 		id: 'master-vca', name: 'Master VCA', gain: 1, mute: false, members: [{ kind: 'master' }],
 	})
-	const authored = createSoundscaperProjectV21({
+	const authored = createSoundscaperProject({
 		mixer,
 		automationLanes: [{
 			id: 'master-gain',

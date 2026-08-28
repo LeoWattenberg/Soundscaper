@@ -14,11 +14,11 @@ import {
 	NATIVE_MEDIA_CAPABILITY_IDS,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
 import { nativeMediaV14RequiresEvaluatedCarrier } from '../src/common/editor/native-media-v14-render-family.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 test('graceful V3 shutdown leaves active atomic work recoverable instead of cancelling it', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-v3-shutdown-'));
@@ -55,12 +55,13 @@ test('graceful V3 shutdown leaves active atomic work recoverable instead of canc
 		grantId, rootPath: root, volumeIdentity: 'volume-a', directoryIdentity: 'directory-a',
 		authorizedAtMs: ++now,
 	}, first.lease.lease(), now);
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-	const project = createFramescaperProjectV28(profile, framescaperV20Options());
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+	const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const record = createNativeQueueRecordV3({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'cd'.repeat(20), taskKind: 'encoded-export', plan,
 		projectId: String(project.id), projectRevision: Number(project.revision),
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],
@@ -79,7 +80,10 @@ test('graceful V3 shutdown leaves active atomic work recoverable instead of canc
 		databasePath, leaseId: 'lease-shutdown-second', instanceId: 'instance-shutdown-second',
 		processId: 72, runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		capabilities: renderQueueCapabilities,
-		watchProjectState: () => Object.freeze({ open: true, writable: true }),
+		watchProjectState: () => Object.freeze({
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			open: true, writable: true, binId: 'project-bin',
+		}),
 		now: () => now + 10_000,
 		revalidate: ({ rootAuthorized }) => ({
 			projectRevisionMatches: true, planFingerprintMatches: true,
@@ -93,6 +97,7 @@ test('graceful V3 shutdown leaves active atomic work recoverable instead of canc
 		assert.equal(second.queue.read(record.jobId)?.state, 'paused');
 		assert.equal(second.queue.read(record.jobId)?.lastFailureCode, 'awaiting-carrier-regeneration');
 		const resumed = await second.controller.resumeRegeneratedQueue({
+			schemaFamily: record.schemaFamily, schemaVersion: record.schemaVersion,
 			taskKind: record.taskKind, planVersion: record.planVersion,
 			derivedInputStageId: record.jobId, planFingerprint: record.planFingerprint,
 			planPayload: record.planPayload, projectId: record.projectId,
@@ -182,14 +187,15 @@ test('a rich-plan proxy restarts without waiting for renderer carrier regenerati
 	const grantId = 'ef'.repeat(16);
 	first.roots.authorize({ grantId, rootPath: root, volumeIdentity: 'volume-b',
 		directoryIdentity: 'directory-b', authorizedAtMs: ++now }, first.lease.lease(), now);
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-	const project = createFramescaperProjectV28(profile, framescaperV20Options());
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+	const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	assert.equal(nativeMediaV14RequiresEvaluatedCarrier(plan), true,
 		'the project plan is deliberately rich even though proxy work never consumes its carrier');
 	const record = createNativeQueueRecordV3({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '12'.repeat(20), taskKind: 'proxy-generation', plan,
 		projectId: String(project.id), projectRevision: Number(project.revision),
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],
@@ -344,7 +350,10 @@ test('explicit pathless root reauthorization replaces only an identical revoked 
 		instanceId: 'instance-reauthorize', processId: 75,
 		runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		capabilities: renderQueueCapabilities,
-		watchProjectState: () => Object.freeze({ open: true, writable: true }),
+		watchProjectState: () => Object.freeze({
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			open: true, writable: true, binId: 'project-bin',
+		}),
 		now: () => ++now,
 		selectRoot: async () => selection,
 		probeRoot: async (grant) => Object.freeze({
@@ -366,12 +375,13 @@ test('explicit pathless root reauthorization replaces only an identical revoked 
 		runtime.roots.authorize({ grantId: oldGrantId, rootPath: root,
 			volumeIdentity: 'volume-c', directoryIdentity: 'directory-c', authorizedAtMs: ++now,
 		}, runtime.lease.lease(), now);
-		const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-		const project = createFramescaperProjectV28(profile, framescaperV20Options());
-		const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-			profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+		const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+		const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
+		const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+			profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 		);
 		const row = runtime.queue.enqueue(createNativeQueueRecordV3({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: '78'.repeat(20), taskKind: 'encoded-export', plan,
 			projectId: String(project.id), projectRevision: Number(project.revision),
 			inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],
@@ -427,13 +437,14 @@ function enqueueCarrier(
 	runtime: ReturnType<typeof startFramescaperNativeServicesRuntimeV3>,
 	rootGrantId: string, jobId: string, atMs: number,
 ) {
-	const profile = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-	const project = createFramescaperProjectV28(profile, framescaperV20Options());
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		profile, project, createFramescaperNativeRenderPlanAuthorityV28(project),
+	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+	const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	assert.equal(nativeMediaV14RequiresEvaluatedCarrier(plan), true);
 	return runtime.queue.enqueue(createNativeQueueRecordV3({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId, taskKind: 'encoded-export', plan, projectId: String(project.id),
 		projectRevision: Number(project.revision),
 		inputFingerprints: [{ sourceId: 'video-source', sha256: '12'.repeat(32) }],

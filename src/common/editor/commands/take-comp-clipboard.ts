@@ -84,7 +84,7 @@ export function createTakeCompClipboardGroups(
 	options: ClipboardCopyOptions,
 ): readonly ClipboardTakeGroup[] {
 	const project = record(projectValue, 'project');
-	if (!isTakeCompProjectSchema(project.schemaVersion)) return Object.freeze([]);
+	if (!isTakeCompProjectSchema(project)) return Object.freeze([]);
 	const startFrame = nonNegativeInteger(options.startFrame, 'clipboard startFrame');
 	const endFrame = nonNegativeInteger(options.endFrame, 'clipboard endFrame');
 	if (endFrame <= startFrame) throw new RangeError('Clipboard take range must have positive extent.');
@@ -226,7 +226,7 @@ export function stageTakeCompClipboardPaste(
 		}
 		return () => undefined;
 	}
-	if (!isTakeCompProjectSchema(project.schemaVersion)) {
+	if (!isTakeCompProjectSchema(project)) {
 		throw new RangeError('Take-comp clipboard paste requires schema 17.');
 	}
 	const groups = normalizeTakeCompClipboardGroups(clipboard.takeGroups);

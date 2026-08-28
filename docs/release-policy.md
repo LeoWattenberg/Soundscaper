@@ -6,6 +6,20 @@ decision. The machine-readable source is
 Evidence in that file describes current controls; it is not by itself proof that
 a platform tier has passed qualification.
 
+## 1.0 release-candidate status
+
+`1.0.0-rc.1` freezes the independent Soundscaper-v1 and Framescaper-v1 project,
+archive, browser-storage, desktop-library, and project-coupled native identities
+recorded by [WP-9.0.0](wp-9.0.0-baseline-decision.md). Preview publication may
+use an exact `v*-rc.*` tag, as it may an exact beta tag. This admits an RC
+preview only: stable `v1.0.0` tags remain unsupported, and no baseline decision
+can override a missing Milestone 9 qualification, security, accessibility,
+licensing, signing, hardware, or platform result.
+
+Later RCs and stable 1.0 may fix implementation defects but may not introduce a
+second clean schema or storage break. The first supported successor of either
+project family must migrate from that family's v1 baseline.
+
 ## Release decision
 
 No open critical or high defects are permitted in a release. Unknown defects

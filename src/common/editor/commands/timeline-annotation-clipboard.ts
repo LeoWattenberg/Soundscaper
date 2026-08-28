@@ -71,7 +71,7 @@ export function createTimelineAnnotationClipboardDescriptors(
 	options: TimelineAnnotationClipboardCopyOptions,
 ): readonly AudioEditorClipboardAnnotation[] {
 	const project = projectRecord(projectValue);
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return Object.freeze([]);
+	if (!isTimelineAnnotationProjectSchema(project)) return Object.freeze([]);
 	const startFrame = nonNegativeSafeInteger(options.startFrame, 'clipboard range startFrame');
 	const endFrame = nonNegativeSafeInteger(options.endFrame, 'clipboard range endFrame');
 	if (endFrame <= startFrame) throw new RangeError('The clipboard range must have a positive duration.');
@@ -108,7 +108,7 @@ export function stageTimelineAnnotationInsertMutation(
 ): () => void {
 	const project = dataRecord(projectValue, 'project') as MutableClipboardAnnotationProject;
 	if (spanBySequenceId.size === 0) return () => undefined;
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return () => undefined;
+	if (!isTimelineAnnotationProjectSchema(project)) return () => undefined;
 	if (project.timelineAnnotations.length === 0) return () => undefined;
 	if (!isRuntimeProjectProjection(project)) {
 		throw new TypeError('Timeline annotation insertion requires a trusted runtime projection.');
@@ -140,7 +140,7 @@ export function stageTimelineAnnotationClipboardPaste(
 	const project = dataRecord(projectValue, 'project') as MutableClipboardAnnotationProject;
 	const command = dataRecord(commandValue, 'clipboard paste command');
 	const annotations = clipboard.schemaVersion >= 3 ? clipboard.annotations || [] : [];
-	if (annotations.length && !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+	if (annotations.length && !isTimelineAnnotationProjectSchema(project)) {
 		throw new RangeError('Timeline annotation paste requires schema 11 or 12.');
 	}
 	let maps: ValidatedAnnotationPasteMaps | null = null;
@@ -152,7 +152,7 @@ export function stageTimelineAnnotationClipboardPaste(
 		maps = validateCurrentMaps(project, clipboard, command);
 	}
 	const expands = mode === 'insert-all'
-		&& isTimelineAnnotationProjectSchema(project.schemaVersion)
+		&& isTimelineAnnotationProjectSchema(project)
 		&& project.timelineAnnotations.length > 0;
 	if (!annotations.length && !expands) return () => undefined;
 	if (!isRuntimeProjectProjection(project)) {

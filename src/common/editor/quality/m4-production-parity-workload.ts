@@ -79,7 +79,7 @@ export const M4_PRODUCTION_PARITY_SPECIFICATION: M4ProductionParitySpecification
 	videoHeight: 72,
 });
 
-/** Build the persisted V21 graph rendered by the registered browser workload. */
+/** Build the Soundscaper-v1 project rendered by the registered browser workload. */
 export function createM4ProductionParityEngineProject(
 	latencyFrames = PDC_LATENCY_FRAMES,
 ): EngineProject {
@@ -125,7 +125,7 @@ export function createM4ProductionParityEngineProject(
 		]),
 	});
 	return Object.freeze({
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		sampleRate: SAMPLE_RATE,
 		masterChannels: CHANNEL_COUNT,
 		clips: Object.freeze([

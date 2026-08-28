@@ -147,7 +147,7 @@ export function createRiffAnnotationImport(
 	markers: readonly RiffMarker[],
 	options: RiffAnnotationImportOptions,
 ): RiffAnnotationImportResult {
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+	if (!isTimelineAnnotationProjectSchema(project)) {
 		throw new RangeError('RIFF annotation import requires a maintained timeline-annotation project schema.');
 	}
 	if (!Array.isArray(markers)) throw new TypeError('RIFF annotation import markers must be an array.');
@@ -413,13 +413,13 @@ function markerSource(project: DataRecord, options: RiffAnnotationExportOptions)
 			throw new RangeError('markerSource must be timeline-annotations, label-track, or none.');
 		}
 		if (options.markerSource === 'timeline-annotations'
-			&& !isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+			&& !isTimelineAnnotationProjectSchema(project)) {
 			throw new RangeError('Timeline annotation RIFF export requires a maintained timeline-annotation project schema.');
 		}
 		return options.markerSource;
 	}
 	if (options.markerTrackId !== undefined) return 'label-track';
-	return isTimelineAnnotationProjectSchema(project.schemaVersion)
+	return isTimelineAnnotationProjectSchema(project)
 		? 'timeline-annotations'
 		: 'label-track';
 }

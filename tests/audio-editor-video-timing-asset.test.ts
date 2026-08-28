@@ -23,11 +23,19 @@ import {
 } from '../src/common/editor/scape-export-plan.ts';
 import { indexScapeProjectTimingAssets } from '../src/common/editor/scape-project-assets.ts';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+} from '../src/common/editor/project-schema-identity.ts';
+import { createBaselineAudioEditorProject } from './helpers/baseline-scape-runtime.ts';
 
 const SOURCE_SHA256 = '1'.repeat(64);
 const OTHER_SOURCE_SHA256 = '3'.repeat(64);
+const SCAPE_IDENTITY_OPTIONS = Object.freeze({
+	currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+	currentProjectSchemaVersion: PROJECT_SCHEMA_VERSION,
+});
 
 test('timing codec is canonical and derives the final frame from an explicit duration', () => {
 	const first = encodeVideoTimingAsset({
@@ -145,7 +153,7 @@ test('.scape export plans and admission preserve the exact timing-asset binding'
 		presentationTicks: [0n, 40n, 81n],
 		finalFrameDurationTicks: 39n,
 	});
-	const project = createCurrentAudioEditorProject({
+	const project = createBaselineAudioEditorProject({
 		sources: [{
 			id: 'video-source',
 			kind: 'video',
@@ -167,7 +175,7 @@ test('.scape export plans and admission preserve the exact timing-asset binding'
 			if (storageKey === reference.storageKey) return { size: reference.byteLength, sha256: reference.sha256 };
 			return null;
 		},
-	}, { output: 'blob' });
+	}, { output: 'blob', ...SCAPE_IDENTITY_OPTIONS });
 	assert.deepEqual(plan.assets.map(({ kind, sourceId, entry, encoding }) => ({ kind, sourceId, entry, encoding })), [
 		{ kind: 'video', sourceId: 'video-source', entry: 'media/video-source/original', encoding: 'original' },
 		{
@@ -203,7 +211,7 @@ test('.scape export deduplicates shared timing content and binds completed body 
 		sourceFrameCount: reference.frameCount, contentSha256: sourceSha256,
 		timingAsset: { ...reference, sourceSha256 },
 	});
-	const project = createCurrentAudioEditorProject({
+	const project = createBaselineAudioEditorProject({
 		sources: [
 			videoSource('video-a', 'video-original-a', SOURCE_SHA256),
 			videoSource('video-b', 'video-original-b', OTHER_SOURCE_SHA256),
@@ -215,7 +223,7 @@ test('.scape export deduplicates shared timing content and binds completed body 
 				? { size: reference.byteLength, sha256: reference.sha256 }
 				: { size: 12, sha256: storageKey.endsWith('-a') ? SOURCE_SHA256 : OTHER_SOURCE_SHA256 };
 		},
-	}, { output: 'blob' });
+	}, { output: 'blob', ...SCAPE_IDENTITY_OPTIONS });
 	assert.equal(plan.assets.filter(({ kind }) => kind === 'video-timing').length, 1);
 	const completed = plan.assets.map((asset) => completeScapeExportAsset(
 		asset,
@@ -242,7 +250,7 @@ test('.scape export rejects digest-consistent malformed timing before archive pu
 		timescale: 1_000,
 		finalFrameDurationTicks: '40',
 	} as const;
-	const project = createCurrentAudioEditorProject({
+	const project = createBaselineAudioEditorProject({
 		sources: [{
 			id: 'video-source', kind: 'video', storageKey: 'video-original', mimeType: 'video/mp4',
 			frameCount: 4_800, sampleRate: 48_000, width: 16, height: 16,
@@ -262,7 +270,7 @@ test('.scape export rejects digest-consistent malformed timing before archive pu
 				? new Blob([malformed])
 				: new Blob([Uint8Array.of(1, 2, 3, 4)]);
 		},
-	}), /timing|magic|codec/iu);
+	}, SCAPE_IDENTITY_OPTIONS), /timing|magic|codec/iu);
 });
 
 test('missing and corrupt timing assets degrade explicitly without fabricating CFR timing', async () => {

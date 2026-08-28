@@ -28,14 +28,20 @@ import {
 	type TransferStoreHomeSource,
 } from './transfer-store-federation.ts';
 import {
+	ProjectReimportRequiredError,
+	readProjectSchemaIdentity,
+	SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+	type ProjectSchemaFamily,
+	type ProjectSchemaIdentity,
+} from '../editor/project-schema-identity.ts';
+import {
 	discoverTransferStoreDatabases,
 	probeTransferStoreDatabases,
-	transferStoreGenerationsPresent,
-	TRANSFER_SHARED_EDITOR_STORE,
-	TRANSFER_STORE_GENERATIONS,
-	type TransferStoreGeneration,
+	transferStoreBaselinesPresent,
+	TRANSFER_STORE_BASELINES,
+	type TransferStoreBaseline,
 	type TransferStoreOpenOptions,
-} from './transfer-store-generations.ts';
+} from './transfer-store-baselines.ts';
 import type { TransferRuntime } from './transfer-session.ts';
 
 export interface TransferStoreSource {
@@ -79,11 +85,9 @@ export async function loadTransferRuntime(): Promise<TransferRuntime> {
  * `exportProjectTransferBundle()` hands the archive writer the one store it was
  * given, for every project in the run. That is right when there is one store
  * and wrong the moment there is more than one: `exportScapeProject()` reads the
- * project's media and sources *out of the store it is passed*, and each
- * generation keeps its own OPFS directory. Exporting a Framescaper V31 project
- * against the shared editor database does not fail - it produces an archive
- * whose sources are quietly missing, which is the one outcome a transfer must
- * never produce.
+ * project's media and sources *out of the store it is passed*, and each family
+ * keeps its own OPFS directory. Using the wrong family store could otherwise
+ * produce an archive whose sources are quietly missing.
  *
  * So the substitution happens here, in the seam that owns the archive writer,
  * rather than by asking the export layer to understand several stores. A store
@@ -117,36 +121,34 @@ export function exportFromOwningStore(
  * The name a receiving origin uses for an archive it has nowhere to put.
  *
  * Reported rather than thrown away: the record the visitor reads carries this
- * message, and "schema 33 is not a generation this build knows" is something
+ * message, and "this family/schema tuple has no home" is something
  * they can act on - by updating the receiving origin - in a way that "imported
  * 4 of 5" is not.
  */
 export class TransferArchiveHomeError extends Error {
+	readonly schemaFamily: ProjectSchemaFamily | null;
 	readonly schemaVersion: number | null;
 
-	constructor(message: string, schemaVersion: number | null) {
+	constructor(
+		message: string,
+		identity: Readonly<Partial<ProjectSchemaIdentity>> | null,
+	) {
 		super(message);
 		this.name = 'TransferArchiveHomeError';
-		this.schemaVersion = schemaVersion;
+		this.schemaFamily = identity?.schemaFamily ?? null;
+		this.schemaVersion = identity?.schemaVersion ?? null;
 	}
 }
 
 /**
  * Import every archive into the store its own editor will open, or refuse it.
  *
- * The mirror of `exportFromOwningStore()`, and the same defect in reverse. The
- * receiving page hands the import layer one store, and that store's writes went
- * to the shared `kw-media-audio-editor` database - which no live editor opens
- * for its projects. A visitor was told "imported 5 of 5" and then found their
- * editor empty, because five Framescaper projects had been written into a
- * database Framescaper never reads.
- *
  * A project has a home store, and both directions agree on which one. The sender
  * exports each project from the store that listed it; the receiver imports each
  * archive into the store the visitor's editor will open for that archive's
- * schema generation - creating that generation's database if this origin has
+ * family-qualified schema - creating that baseline database if this origin has
  * never had one, which is exactly what the editor's own first run would do. An
- * archive whose generation no store here claims is refused by name: there is no
+ * archive whose tuple no store here claims is refused by name: there is no
  * store it could be written into that anything would read it out of again.
  *
  * The archive is read twice: once with no store at all, to learn which schema it
@@ -174,7 +176,7 @@ export function importIntoHomeStore(
  * The import layer takes two decisions off this answer - "a project with this
  * identity is already present" and "this archive opens read-only in this build" -
  * and both are answers *about a store*. Inspecting against the shared database
- * while importing into a generation makes the first one meaningless: it probes a
+ * while importing into another family makes the first one meaningless: it probes a
  * database the project cannot be in.
  */
 export function inspectInHomeStore(
@@ -194,106 +196,89 @@ async function transferArchiveHome(
 	options: Readonly<{ signal?: AbortSignal }>,
 ): Promise<TransferStoreHome | null> {
 	if (!routesTransferArchivesHome(store)) return null;
-	const schemaVersion = await transferArchiveSchemaVersion(inspectProject, input, options);
-	const home = await transferStoreHomeForSchema(store, schemaVersion);
+	const identity = await transferArchiveSchemaIdentity(inspectProject, input, options);
+	const home = await transferStoreHomeForSchema(store, identity);
 	if (!home) {
 		throw new TransferArchiveHomeError(
-			`No project store on this origin holds schema ${schemaVersion} projects, so an archive`
-			+ ' of that generation has nowhere to be imported that its editor would find it.',
-			schemaVersion,
+			`No project store on this origin holds ${identity.schemaFamily} schema ${identity.schemaVersion}`
+			+ ' projects, so an archive'
+			+ ' has nowhere to be imported that its editor would find it.',
+			identity,
 		);
 	}
 	return home;
 }
 
 /**
- * The schema generation the archive itself declares.
+ * The schema tuple the archive itself declares.
  *
  * Read with no store, so the question costs no database access, and with an
  * owner that stops at the header: a probe that admitted the document would run
  * the whole asset index against a schema it has not chosen a store for yet.
  */
-async function transferArchiveSchemaVersion(
+async function transferArchiveSchemaIdentity(
 	inspectProject: TransferRuntime['inspectProject'],
 	input: unknown,
 	options: Readonly<{ signal?: AbortSignal }>,
-): Promise<number> {
+): Promise<Readonly<ProjectSchemaIdentity>> {
 	const probed = await inspectProject(input, null, transferArchiveOptions(options, {
-		migrateProject: readTransferArchiveHeader,
+		loadProject: readTransferArchiveHeader,
+		currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
 	}));
-	const schemaVersion = (probed as { schemaVersion?: unknown } | null)?.schemaVersion;
-	if (typeof schemaVersion !== 'number' || !Number.isSafeInteger(schemaVersion)) {
+	try {
+		return readProjectSchemaIdentity(probed);
+	} catch (error) {
+		if (error instanceof ProjectReimportRequiredError) throw error;
 		throw new TransferArchiveHomeError(
-			'This .scape archive does not name the project schema it was written from, so no store'
+			'This .scape archive does not name the project family and schema it was written from, so no store'
 			+ ' on this origin can be chosen for it.',
 			null,
 		);
 	}
-	return schemaVersion;
 }
 
 /** Stop at the header: `readOnly` is what makes the reader return without indexing. */
 function readTransferArchiveHeader(value: unknown): unknown {
-	const schemaVersion = (value as { schemaVersion?: unknown } | null)?.schemaVersion;
+	readProjectSchemaIdentity(value);
 	return {
 		project: value,
-		migrated: false,
-		fromVersion: typeof schemaVersion === 'number' ? schemaVersion : 0,
 		readOnly: true,
 		reason: 'transfer-home-probe',
 	};
 }
 
 /**
- * How the home store's own generation admits an arriving document.
- *
- * The `.scape` layer's default document owner is `migrateAudioEditorProject()`,
- * which is the shared V17 editor's owner and refuses every other generation as
- * `newer-schema` - so with no owner named here, an archive from any generation
- * arrives, is declared read-only and is skipped. That is the second half of the
- * same defect: the shared store was the only store that could be written *and*
- * the only schema that could be read.
- *
- * For the shared store the default owner is exactly right, and is left in place,
- * so a V17 document is still admitted by the rule its editor applies. For a
- * generation the owner lives in that product's chunk and cannot be reached from
- * this page, so the document is admitted as the archive stored it, and the
- * custody that replaces the owner's validation is an exact schema match: the
- * document is written to the generation whose number it carries, or not at all.
- * That is the stance the sending half already takes - it exports what the
- * generation stored, through the generic repository, without migrating it.
- *
- * Nothing else about how the archive is read changes, deliberately: the two
- * halves of one transfer must read and write an archive on the same terms, and
- * `currentProjectSchemaVersion` is left at the default the exporter used.
+ * How the home store admits an arriving document. The product domain owner is
+ * not imported into the transfer chunk, so exact tuple agreement provides the
+ * boundary custody and the document is stored without migration.
  */
 function homeArchiveOptions<Options extends Readonly<{ signal?: AbortSignal }>>(
 	options: Options,
 	home: TransferStoreHome,
 ): Options {
-	if (home.documentMigration === 'this-build') return options;
 	return transferArchiveOptions(options, {
-		migrateProject: admitStoredGeneration(home.schemaVersion),
+		loadProject: admitStoredBaseline(home),
+		currentProjectSchemaFamily: home.schemaFamily,
 	});
 }
 
-function admitStoredGeneration(schemaVersion: number): (value: unknown) => unknown {
+function admitStoredBaseline(identity: ProjectSchemaIdentity): (value: unknown) => unknown {
 	return (value: unknown) => {
-		const stored = (value as { schemaVersion?: unknown } | null)?.schemaVersion;
-		if (stored !== schemaVersion) {
+		const stored = readProjectSchemaIdentity(value);
+		if (stored.schemaFamily !== identity.schemaFamily
+			|| stored.schemaVersion !== identity.schemaVersion) {
 			// The header read and this one disagree, so the archive changed under
 			// the page. Refusing is the only answer that cannot write a document
-			// into a generation that is not its own.
+			// into a family store that is not its own.
 			throw new TransferArchiveHomeError(
-				`This .scape archive was read as schema ${schemaVersion} and now carries`
-				+ ` ${String(stored)}, so it cannot be admitted to either generation's store.`,
-				schemaVersion,
+				`This .scape archive was read as ${identity.schemaFamily} schema ${identity.schemaVersion}`
+					+ ` and now carries ${stored.schemaFamily} schema ${stored.schemaVersion}, so it cannot`
+					+ ' be admitted to either family store.',
+				identity,
 			);
 		}
 		return {
 			project: value,
-			migrated: false,
-			fromVersion: schemaVersion,
 			readOnly: false,
 			reason: null,
 		};
@@ -309,67 +294,24 @@ function admitStoredGeneration(schemaVersion: number): (value: unknown) => unkno
  */
 function transferArchiveOptions<Options extends Readonly<{ signal?: AbortSignal }>>(
 	options: Options,
-	added: Readonly<{ migrateProject: (value: unknown) => unknown }>,
+	added: Readonly<{
+		loadProject: (value: unknown) => unknown;
+		currentProjectSchemaFamily: ProjectSchemaFamily;
+	}>,
 ): Options {
 	return { ...options, ...added } as Options;
 }
 
 /**
- * Open every project store a visitor's projects can be in, as one store.
- *
- * The page used to open exactly one database: `createProjectStore()` with no
- * storage profile, which is `kw-media-audio-editor` and nothing else. Framescaper
- * does not keep projects there - every generation from V18 to V32 has its own
- * database, and Soundscaper's V21/V23/V29/V30 do too - so the transfer offered a
- * visitor the one store that could not hold the work they had come to move.
- *
- * What is opened, and when:
- *
- *   - **The shared editor store, always.** It is the store `app.js` composes
- *     with no profile override, and it is also where every write that is not an
- *     arriving archive goes (see `TransferStoreFederationOptions.writer`), so the
- *     page needs it open whether or not it lists anything.
- *   - **Every generation whose database exists**, discovered through
- *     `indexedDB.databases()` or, where the browser does not implement it, probed
- *     one at a time without creating any (`probeTransferStoreDatabases()`).
- *
- * Eagerly, all of them, rather than lazily per selected project: the first
- * question this page answers is "what do I have", and answering it needs a
- * listing from every store. Laziness would buy nothing at that point and would
- * cost a second open on every export.
- *
- * A generation that cannot be opened is reported as a store the page could not
- * read and the rest of the transfer proceeds. Refusing the whole transfer
- * because one dormant candidate's database is corrupt would strand every project
- * the visitor can actually still move.
- *
- * ## The order these are listed in, and why the shared store is last
- *
- * The listing order is the order a project id held twice is resolved: the first
- * store to claim an id keeps it, and every later copy is reported as shadowed
- * rather than sent (`buildTransferStoreInventory()`). So the order has to be
- * "whichever copy the visitor's editor opens", derived the same way twice:
- *
- *   - **Newest generation first.** A V27 project reimported into V28 keeps its
- *     identity in both databases, and the editor the visitor boots is the newer
- *     generation's, reading the newer database. That is the copy their work is
- *     actually in.
- *   - **The shared editor store last**, for the same reason rather than in spite
- *     of it: no generation-isolated editor ever opens `kw-media-audio-editor`.
- *     Only the pre-generation shell does, so a copy sitting in it is the oldest
- *     copy there is - and while it sat first in this list, it was the copy that
- *     crossed, while the one the visitor's editor opens stayed behind.
- *
- * The `homes` list is deliberately *not* filtered by what exists: it is where an
- * arriving archive of a given generation belongs, and on a receiving origin the
- * answer is a database that does not exist yet.
+ * Opens the existing Soundscaper and Framescaper baseline stores as one source.
+ * Retired database names are never enumerated or opened. Homes are not filtered
+ * by existence because an arriving v1 archive may create its family's fresh
+ * store exactly as the editor's first run would.
  */
 export interface OpenTransferStoreOptions {
 	/** Injected by tests; production reads the page's own `indexedDB`. */
 	readonly databases?: unknown;
-	readonly generations?: readonly TransferStoreGeneration[];
-	/** Injected by tests, so enumeration is exercisable without IndexedDB. */
-	readonly openSharedStore?: (options: TransferStoreOpenOptions) => Promise<unknown>;
+	readonly baselines?: readonly TransferStoreBaseline[];
 }
 
 const TRANSFER_STORE_OPEN_OPTIONS: TransferStoreOpenOptions = Object.freeze({ memoryFallback: false });
@@ -377,29 +319,27 @@ const TRANSFER_STORE_OPEN_OPTIONS: TransferStoreOpenOptions = Object.freeze({ me
 export async function openTransferStore(
 	options: OpenTransferStoreOptions = {},
 ): Promise<TransferStoreSource> {
-	const shared = await openStoreHandle(
-		options.openSharedStore ?? openSharedEditorStore,
-		TRANSFER_STORE_OPEN_OPTIONS,
-	);
+	const writer = Object.freeze({});
 	const sources: TransferStoreHandle[] = [];
 	const unreadable: TransferStoreFault[] = [];
-	const registered = options.generations ?? TRANSFER_STORE_GENERATIONS;
+	const registered = options.baselines ?? TRANSFER_STORE_BASELINES;
 	const factory = options.databases ?? (globalThis as { indexedDB?: unknown }).indexedDB;
 	const present = await discoverTransferStoreDatabases(factory)
 		?? await probeTransferStoreDatabases(factory, registered);
 	const opened = await Promise.all(
-		transferStoreGenerationsPresent(present, registered).map(async (generation) => {
+		transferStoreBaselinesPresent(present, registered).map(async (baseline) => {
 			try {
 				return {
-					id: generation.id,
-					label: generation.label,
-					schemaVersion: generation.schemaVersion,
-					store: await openStoreHandle(generation.open, TRANSFER_STORE_OPEN_OPTIONS),
+					id: baseline.id,
+					label: baseline.label,
+					schemaFamily: baseline.schemaFamily,
+					schemaVersion: baseline.schemaVersion,
+					store: await openStoreHandle(baseline.open, TRANSFER_STORE_OPEN_OPTIONS),
 				};
 			} catch (error) {
 				return Object.freeze({
-					storeId: generation.id,
-					storeLabel: generation.label,
+					storeId: baseline.id,
+					storeLabel: baseline.label,
 					reason: describeStoreOpenFailure(error),
 				});
 			}
@@ -409,16 +349,10 @@ export async function openTransferStore(
 		if ('store' in result) sources.push(result);
 		else unreadable.push(result);
 	}
-	sources.push({
-		id: TRANSFER_SHARED_EDITOR_STORE.id,
-		label: TRANSFER_SHARED_EDITOR_STORE.label,
-		schemaVersion: TRANSFER_SHARED_EDITOR_STORE.schemaVersion,
-		store: shared,
-	});
 	const federation = createTransferStoreFederation({
 		sources,
-		homes: transferStoreHomes(registered, shared),
-		writer: shared,
+		homes: transferStoreHomes(registered),
+		writer,
 		unreadable,
 	});
 	return Object.freeze({
@@ -432,38 +366,22 @@ export async function openTransferStore(
 }
 
 /**
- * Where an archive of each schema generation belongs, open or not.
- *
- * Every registered generation is a home, including the ones this device has no
- * database for: that is the ordinary case on a receiving origin, and opening one
- * creates exactly the database the editor would create on its first run. The
- * shared editor store is the home of the V17 document, and the only home whose
- * document owner this build can reach - see `TransferDocumentMigration`.
+ * Where an archive of each baseline tuple belongs, open or not.
  */
 function transferStoreHomes(
-	registered: readonly TransferStoreGeneration[],
-	shared: unknown,
+	registered: readonly TransferStoreBaseline[],
 ): readonly TransferStoreHomeSource[] {
-	return Object.freeze([
-		...registered.map((generation) => Object.freeze({
-			id: generation.id,
-			label: generation.label,
-			schemaVersion: generation.schemaVersion,
-			documentMigration: 'as-stored' as const,
-			open: () => openStoreHandle(generation.open, TRANSFER_STORE_OPEN_OPTIONS),
-		})),
-		Object.freeze({
-			id: TRANSFER_SHARED_EDITOR_STORE.id,
-			label: TRANSFER_SHARED_EDITOR_STORE.label,
-			schemaVersion: TRANSFER_SHARED_EDITOR_STORE.schemaVersion,
-			documentMigration: 'this-build' as const,
-			open: async () => shared,
-		}),
-	]);
+	return Object.freeze(registered.map((baseline) => Object.freeze({
+			id: baseline.id,
+		label: baseline.label,
+		schemaFamily: baseline.schemaFamily,
+		schemaVersion: baseline.schemaVersion,
+		open: () => openStoreHandle(baseline.open, TRANSFER_STORE_OPEN_OPTIONS),
+	})));
 }
 
 /**
- * Why one generation could not be opened, as prose.
+ * Why one baseline store could not be opened, as prose.
  *
  * Spelled here rather than imported from `transfer-archive-stream.ts`, which
  * says the same thing: that module belongs to the transfer page's own chunk, and
@@ -474,12 +392,6 @@ function describeStoreOpenFailure(error: unknown): string {
 	if (error instanceof Error) return error.message || error.name;
 	if (typeof error === 'string' && error) return error;
 	return 'The store could not be opened, for an unreported reason.';
-}
-
-/** The store both products' web sessions use for ordinary, unprofiled projects. */
-async function openSharedEditorStore(options: TransferStoreOpenOptions): Promise<unknown> {
-	const { createProjectStore } = await import('../editor/storage.js');
-	return createProjectStore(options);
 }
 
 async function openStoreHandle(

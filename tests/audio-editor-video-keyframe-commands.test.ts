@@ -276,6 +276,8 @@ test('removing a video effect takes its keyframe curves with it', () => {
 
 function projectFixture(): DataRecord {
 	return {
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		clips: [videoClip('video'), { id: 'audio', kind: 'audio' }],
 		projectBin: { clips: [videoClip('bin-video')] },
 	};

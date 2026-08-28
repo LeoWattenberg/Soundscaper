@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 
+import { createMemoryStore } from './helpers/audio-editor-memory-store-baseline.js';
+
 const assetLoader = `
 	export async function resolve(specifier, context, nextResolve) {
 		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
@@ -3101,73 +3103,6 @@ test('project flush serializes the latest snapshot and rejects persistence failu
 	await assert.rejects(() => controller.dispose(), /disk full/);
 	assert.equal(controller.getSnapshot().phase, 'disposed');
 });
-
-function createMemoryStore() {
-	const projects = new Map();
-	const settings = new Map();
-	const analysis = new Map();
-	const mediaAssets = new Map();
-	const videoDerivatives = new Map();
-	const audioSources = new Map();
-	return {
-		projects,
-		settings,
-		analysis,
-		mediaAssets,
-		videoDerivatives,
-		audioSources,
-		pruneCalls: [],
-		closeCalls: 0,
-		async ready() { return this; },
-		async cleanupTemporaryAssets() {},
-		async requestPersistentStorage() { return false; },
-		async loadSetting(key, fallback) { return settings.has(key) ? settings.get(key) : fallback; },
-		async saveSetting(key, value) { settings.set(key, structuredClone(value)); },
-		async saveProject(project) {
-			projects.set(project.id, structuredClone(project));
-			return structuredClone(project);
-		},
-		async loadProject(projectId) {
-			const project = projects.get(projectId);
-			return project ? structuredClone(project) : null;
-		},
-		async listProjects() { return [...projects.values()].map((project) => structuredClone(project)); },
-		async duplicateProject(projectId, options = {}) {
-			const source = projects.get(projectId);
-			const copy = { ...structuredClone(source), id: options.id || `${projectId}-copy`, title: options.title || `${source.title} copy` };
-			projects.set(copy.id, structuredClone(copy));
-			return copy;
-		},
-		async deleteProject(projectId) { projects.delete(projectId); },
-		async clear() { projects.clear(); settings.clear(); analysis.clear(); },
-		async loadAnalysis(key) { return analysis.has(key) ? structuredClone(analysis.get(key)) : null; },
-		async saveAnalysis(key, value) { analysis.set(key, structuredClone(value)); },
-		async beginSourceWrite() { throw new Error('The controller test store has no fixture PCM writer.'); },
-		async getSourceMetadata() { return null; },
-		async loadSourceAudioBuffer(sourceId, context) {
-			const channels = audioSources.get(sourceId);
-			if (!channels) throw new Error(`Missing test PCM source ${sourceId}.`);
-			const buffer = context.createBuffer(channels.length, channels[0].length, 48_000);
-			for (let channel = 0; channel < channels.length; channel += 1) {
-				buffer.copyToChannel(channels[channel], channel);
-			}
-			return buffer;
-		},
-		async loadMediaAsset(sourceId) { return mediaAssets.get(sourceId) || null; },
-		async listVideoDerivatives(sourceId) {
-			return (videoDerivatives.get(sourceId) || []).map(({ blob, ...descriptor }) => structuredClone(descriptor));
-		},
-		async loadVideoDerivative(sourceId, descriptor) {
-			const derivative = (videoDerivatives.get(sourceId) || []).find((candidate) => (
-				candidate.type === descriptor.type && candidate.timestamp === descriptor.timestamp
-			));
-			return derivative?.blob || null;
-		},
-		async pruneUnreferencedSources(options = {}) { this.pruneCalls.push(options); return { deletedSourceIds: [] }; },
-		async estimateStorage() { return { usage: 0, quota: 64 * 1024 * 1024 }; },
-		async close() { this.closeCalls += 1; },
-	};
-}
 
 function runtimeClip(project, clipId) {
 	return resolveRuntimeProjectProjection(project).clips.find(({ id }) => id === clipId);

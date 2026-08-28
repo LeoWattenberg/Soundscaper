@@ -35,6 +35,7 @@ const DIGEST = 'c'.repeat(64);
 
 test('a watch rule links, stays shallow, and generates no proxies by default', () => {
 	const rule = createWatchRuleV1({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: RULE_ID, grantId: GRANT_ID, projectId: 'project-1',
 		extensions: ['MP4', '.mov'], createdAtMs: 0,
 	});
@@ -265,6 +266,7 @@ function file(name: string): WatchDirectoryEntryV1 {
 
 function rule(overrides: Record<string, unknown> = {}): WatchRuleV1 {
 	return createWatchRuleV1({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: RULE_ID,
 		grantId: GRANT_ID,
 		projectId: 'project-1',

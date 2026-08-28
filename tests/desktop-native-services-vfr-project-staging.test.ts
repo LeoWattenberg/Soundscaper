@@ -11,7 +11,7 @@ import test from 'node:test';
 import type { HelperDataPlaneIoPort } from '../desktop/helper-data-plane-io.ts';
 import type { HelperJobRequest } from '../desktop/helper-supervisor.ts';
 import { FramescaperNativeProjectAuthority } from '../desktop/native-services-project-authority.ts';
-import { FramescaperNativeSelectedV20ProjectAuthority } from '../desktop/native-services-selected-v20-project-authority.ts';
+import { FramescaperNativeRenderInputProjectAuthority } from '../desktop/native-services-render-input-project-authority.ts';
 import {
 	authenticateNativeProjectPlanBodies,
 	authenticateNativeProjectTimingBodies,
@@ -28,7 +28,7 @@ test('carrierless V8 project preparation authenticates originals without a deriv
 		const scratchRoot = join(fixtureRoot, 'scratch');
 		const outputRoot = join(fixtureRoot, 'output');
 		await mkdir(outputRoot);
-		const sourceBytes = Buffer.from('selected V20 V8 exact original');
+		const sourceBytes = Buffer.from('baseline V8 exact original');
 		const sourceSha256 = digest(sourceBytes);
 		const plan = nativeQueueSmallStaticPlanV8();
 		const body = Object.freeze({
@@ -37,6 +37,7 @@ test('carrierless V8 project preparation authenticates originals without a deriv
 			byteLength: sourceBytes.byteLength, sha256: sourceSha256,
 		});
 		const record = createNativeQueueRecordV2({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: '8'.repeat(40), taskKind: 'encoded-export', plan,
 			projectId: 'v8-project', projectRevision: 1,
 			inputFingerprints: [{ sourceId: body.sourceId, sha256: body.sha256 }],
@@ -60,8 +61,11 @@ test('carrierless V8 project preparation authenticates originals without a deriv
 		const bodyReads: string[] = [];
 		const base = new FramescaperNativeProjectAuthority({
 			project: {
-				projectState: () => Object.freeze({ open: true, writable: true }),
+				schemaFamily: 'framescaper', schemaVersion: 1,
+				projectState: () => Object.freeze({ schemaFamily: 'framescaper' as const,
+					schemaVersion: 1 as const, open: true, writable: true }),
 				projectRecord: () => Object.freeze({
+					schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 					projectId: record.projectId, projectRevision: record.projectRevision,
 					projectSha256: 'a'.repeat(64), bodies: Object.freeze([body]),
 				}),
@@ -90,7 +94,7 @@ test('carrierless V8 project preparation authenticates originals without a deriv
 			scratchMatches: () => true,
 		});
 		const renderInputCalls: string[] = [];
-		const authority = new FramescaperNativeSelectedV20ProjectAuthority({
+		const authority = new FramescaperNativeRenderInputProjectAuthority({
 			project: base,
 			renderInputs: {
 				revalidate: async () => { renderInputCalls.push('revalidate'); return false; },
@@ -142,6 +146,7 @@ test('VFR queue preparation stages exact project timing bodies and mints dedicat
 		});
 		const bodies = Object.freeze([original, timing]);
 		const record = createNativeQueueRecordV2({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			jobId: '1'.repeat(40), taskKind: 'encoded-export', plan: fixture.plan,
 			timingSidecars: fixture.timingSidecars,
 			projectId: 'vfr-project', projectRevision: 1,
@@ -165,8 +170,11 @@ test('VFR queue preparation stages exact project timing bodies and mints dedicat
 		let maximumReadsInFlight = 0;
 		const authority = new FramescaperNativeProjectAuthority({
 			project: {
-				projectState: () => Object.freeze({ open: true, writable: true }),
+				schemaFamily: 'framescaper', schemaVersion: 1,
+				projectState: () => Object.freeze({ schemaFamily: 'framescaper' as const,
+					schemaVersion: 1 as const, open: true, writable: true }),
 				projectRecord: () => Object.freeze({
+					schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 					projectId: 'vfr-project', projectRevision: 1,
 					projectSha256: '3'.repeat(64), bodies,
 				}),

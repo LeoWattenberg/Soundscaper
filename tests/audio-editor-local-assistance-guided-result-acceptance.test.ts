@@ -435,7 +435,8 @@ function workflowFixture(
 		contractVersion: 1, jobId: JOB_ID, workflowId, recipeVersion: 1, settingsVersion: 1,
 		settings, stageIds: options.stageIds, models, inputs: options.inputs, outputs: options.outputs,
 		fence: {
-			fenceVersion: 1, projectId: 'project-a', schemaVersion: 31, revision: 8,
+			fenceVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', revision: 8,
 			sequenceId: 'sequence-a', transcriptBodySha256: null,
 			recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, options.stageIds),
 			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),
@@ -511,7 +512,8 @@ function claim<const Direction extends 'input' | 'output'>(
 
 function primitiveFence(workflow: AssistanceWorkflowV1) {
 	const range = workflow.fence.sourceRanges[0]!;
-	return { projectId: workflow.fence.projectId, schemaVersion: workflow.fence.schemaVersion,
+	return { projectId: workflow.fence.projectId, schemaFamily: workflow.fence.schemaFamily,
+		schemaVersion: workflow.fence.schemaVersion,
 		revision: workflow.fence.revision, sequenceId: workflow.fence.sequenceId,
 		occurrenceIds: range.occurrenceIds, sourceId: range.sourceId,
 		sourceSha256: range.sourceSha256, sourceStartFrame: range.sourceStartFrame,

@@ -38,7 +38,8 @@ type DataRecord = Readonly<Record<string, unknown>>;
 
 function fence(revision = 7, sourceStartFrame = 12_000, sourceEndFrame = 12_004) {
 	return Object.freeze({
-		projectId: 'project-1', schemaVersion: 30, revision,
+		schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+		projectId: 'project-1', revision,
 		sequenceId: 'main-sequence', occurrenceIds: Object.freeze(['dialogue-clip']),
 		sourceId: 'dialogue-source', sourceSha256: SOURCE_SHA256,
 		sourceStartFrame, sourceEndFrame,
@@ -73,7 +74,8 @@ function authority(revision = 7, options: Readonly<{
 		type: 'audio', id: 'dialogue-track', name: 'Dialogue', clipIds: Object.freeze([clip.id]),
 	});
 	const project = Object.freeze({
-		id: 'project-1', schemaVersion: 30, revision, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+		revision, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence', sources: Object.freeze([source]),
 		clips: Object.freeze([clip]), tracks: Object.freeze([track]),
 		projectBin: Object.freeze({ clips: Object.freeze([]) }),
@@ -285,7 +287,8 @@ test('the single acceptance command applies and undoes without losing the origin
 	};
 	let history = createEditorHistory(original) as CurrentHistory;
 	const selectedDependencies = {
-		getProject: () => history.present,
+		getProject: () => ({ ...history.present,
+			schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const }),
 		getSelectedClipId: () => originalClip.id,
 		captureProject: () => history.present,
 		assertProject: (token: unknown) => assert.strictEqual(token, history.present),

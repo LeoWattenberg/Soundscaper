@@ -8,6 +8,7 @@ on:
   push:
     tags:
       - 'v*-beta.*'
+      - 'v*-rc.*'
   # Main commits are packaged off their Quality run rather than off the push, so
   # the shared quality, browser and Firefox jobs are never run twice.
   workflow_run:
@@ -64,8 +65,9 @@ jobs:
         run: >-
           node --input-type=module -e
           "import pkg from './package.json' with { type: 'json' };
-          if (process.env.RELEASE_TAG !== 'v' + pkg.version || !pkg.version.includes('-beta.'))
-          throw new Error('Desktop preview tags must exactly match a beta package version.');"
+          if (process.env.RELEASE_TAG !== 'v' + pkg.version
+          || !/^\d+\.\d+\.\d+-(?:beta|rc)\.\d+$/u.test(pkg.version))
+          throw new Error('Desktop preview tags must exactly match a beta or RC package version.');"
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -812,7 +814,7 @@ jobs:
           retention-days: 14
 
   soundscaper-project-library-lease-matrix:
-    name: Soundscaper V11 + Framescaper V20 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       (github.event_name == 'push' && github.ref_type == 'tag')
       || github.event_name == 'schedule'
@@ -872,7 +874,7 @@ jobs:
           --runner-os=${{ runner.os }}
           --runner-arch=${{ runner.arch }}
 
-      - name: Build unpacked Soundscaper V11 and Framescaper V20 products
+      - name: Build unpacked Soundscaper v1 and Framescaper v1 products
         shell: bash
         run: |
           for product in soundscaper framescaper; do
@@ -911,12 +913,12 @@ jobs:
         env:
           SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SMOKE_XVFB: ${{ matrix.target.platform == 'linux' && 'true' || 'false' }}
-          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v11-framescaper-v20-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
 
       - name: Upload bounded lease-matrix result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: soundscaper-v11-framescaper-v20-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/soundscaper-v11-framescaper-v20-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          name: soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14

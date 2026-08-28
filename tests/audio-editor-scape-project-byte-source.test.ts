@@ -1,17 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 import {
 	exportScapeProject,
-	importScapeProject,
-	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 test('project inspection and import share the bounded archive byte-source path', async () => {
 	const sourceStore = memoryStore('scape-project-byte-source-export');

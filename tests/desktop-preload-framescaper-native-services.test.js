@@ -1,14 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 import { MessageChannel } from 'node:worker_threads';
-
 const JOB_ID = 'ab'.repeat(20);
-
+const PROJECT_IDENTITY = Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1 });
 test('the public v1 bridge exposes a pathless, frozen native-services snapshot', async () => {
 	const fixture = await loadPreload([capabilitySnapshot(), snapshot()]);
 	assert.equal(Object.isFrozen(fixture.bridge.nativeServices), true);
@@ -34,14 +32,12 @@ test('the public v1 bridge exposes a pathless, frozen native-services snapshot',
 		['framescaper:v1:native-services:snapshot', undefined],
 	]);
 });
-
 test('hostile native capability snapshots never become renderer state', async () => {
 	const malformed = capabilitySnapshot();
 	malformed.entries[0].secretPath = '/tmp/native-host';
 	const fixture = await loadPreload([malformed]);
 	await assert.rejects(() => fixture.bridge.nativeServices.capabilities(), /capability entry|fields/iu);
 });
-
 test('OpenFX frame offers preserve the exact renderer request capability nonce', async () => {
 	const requestNonce = '31'.repeat(20);
 	const sessionId = '42'.repeat(20);
@@ -90,6 +86,7 @@ test('queue enqueue accepts only a bounded exact-plan declaration', async () => 
 	const projection = snapshot().queue[0];
 	const fixture = await loadPreload(Array.from({ length: 7 }, () => projection));
 	const request = {
+		...PROJECT_IDENTITY,
 		taskKind: 'encoded-export', planVersion: 7, derivedInputStageId: JOB_ID,
 		planFingerprint: '12'.repeat(32),
 		planPayload: '{"version":7}', projectId: 'project-1', projectRevision: 1,
@@ -137,7 +134,8 @@ test('V8 audio-only input crosses preload through one digest-bound backpressured
 		inputs: [{ inputIndex: 0, role: 'staged-audio-mix', binding }],
 	}, { stageId: JOB_ID }]);
 	const result = await fixture.bridge.nativeServices.stageRenderInputs({
-		stageVersion: 1, planVersion: 8, planFingerprint: '12'.repeat(32),
+		stageVersion: 1, ...PROJECT_IDENTITY,
+		planVersion: 8, planFingerprint: '12'.repeat(32),
 		planPayload: '{"version":8,"inputs":[{"kind":"staged-audio-mix"}]}',
 		projectId: 'project-1', projectRevision: 1,
 		inputFingerprints: [{ sourceId: 'source-1', sha256: '34'.repeat(32) }],
@@ -150,7 +148,8 @@ test('V8 audio-only input crosses preload through one digest-bound backpressured
 		'framescaper:v1:native-services:render-inputs:finalize',
 	]);
 	await assert.rejects(() => fixture.bridge.nativeServices.stageRenderInputs({
-		stageVersion: 1, planVersion: 8, planFingerprint: '12'.repeat(32),
+		stageVersion: 1, ...PROJECT_IDENTITY,
+		planVersion: 8, planFingerprint: '12'.repeat(32),
 		planPayload: '{"version":8,"inputs":[{"kind":"staged-audio-mix"}]}',
 		projectId: 'project-1', projectRevision: 1,
 		inputFingerprints: [{ sourceId: 'source-1', sha256: '34'.repeat(32) }],
@@ -170,7 +169,8 @@ test('failed V7 staging preserves the primary transfer error while reporting aba
 		} }],
 	}, false]);
 	await assert.rejects(() => fixture.bridge.nativeServices.stageRenderInputs({
-		stageVersion: 1, planVersion: 7, planFingerprint: '12'.repeat(32),
+		stageVersion: 1, ...PROJECT_IDENTITY,
+		planVersion: 7, planFingerprint: '12'.repeat(32),
 		planPayload: '{"version":7}', projectId: 'project-1', projectRevision: 1,
 		inputFingerprints: [{ sourceId: 'source-1', sha256: '34'.repeat(32) }],
 		derivedInputs: [{ role: 'evaluated-rgba-frame-pack', byteLength: bytes.size, sha256, bytes }],
@@ -214,72 +214,82 @@ test('checkpoint control envelopes over 64 KiB are refused before IPC', async ()
 		sourceInventoryDigest: '56'.repeat(32),
 	}));
 	assert.throws(() => fixture.bridge.nativeServices.checkpoint({
-		jobId: JOB_ID, sourceInventoryDigest: '56'.repeat(32),
+		...PROJECT_IDENTITY, jobId: JOB_ID, sourceInventoryDigest: '56'.repeat(32),
 		plannedFrameCount: manifest.length, manifest,
 	}), /64 KiB|control|checkpoint/iu);
 	assert.equal(fixture.invocations.length, 0);
 });
 
-test('watch mutation crosses preload only as an exact pathless claim and completion', async () => {
+test('baseline watch mutation crosses preload only as an exact pathless claim and completion', async () => {
 	const claim = {
+		...PROJECT_IDENTITY,
 		claimId: '12'.repeat(16), projectId: 'project-1', projectRevision: 7,
+		binId: 'project-bin', generateProxies: true, existingSourceId: null,
 		importMode: 'link', locatorId: '34'.repeat(16), locatorRevision: '56'.repeat(16),
 		name: 'clip.mp4', size: 4, mimeType: 'video/mp4', lastModified: 8,
 		contentSha256: '78'.repeat(32),
 	};
 	const fixture = await loadPreload([claim, true]);
 	const result = await fixture.bridge.nativeServices.claimWatchImport({
-		projectId: 'project-1', projectRevision: 7,
+		...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 	});
 	assert.deepEqual({ ...result }, claim);
 	assert.equal(Object.hasOwn(result, 'path'), false);
 	assert.equal(await fixture.bridge.nativeServices.completeWatchImport({
-		claimId: claim.claimId, projectId: claim.projectId,
+		...PROJECT_IDENTITY, claimId: claim.claimId, projectId: claim.projectId,
+		binId: 'project-bin', sourceId: 'source-1', contentSha256: claim.contentSha256,
 		expectedProjectRevision: 7, committedProjectRevision: 8, success: true,
 	}), true);
 	assert.deepEqual(fixture.invocations.map(([channel, request]) => [channel, { ...request }]), [
-		['framescaper:v1:native-services:watch:claim', { projectId: 'project-1', projectRevision: 7 }],
+		['framescaper:v1:native-services:watch:claim', {
+			...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
+		}],
 		['framescaper:v1:native-services:watch:complete', {
-			claimId: claim.claimId, projectId: 'project-1', expectedProjectRevision: 7,
+			...PROJECT_IDENTITY, claimId: claim.claimId, projectId: 'project-1',
+			binId: 'project-bin', sourceId: 'source-1', contentSha256: claim.contentSha256,
+			expectedProjectRevision: 7,
 			committedProjectRevision: 8, success: true,
 		}],
 	]);
 	assert.throws(() => fixture.bridge.nativeServices.claimWatchImport({
-		projectId: 'project-1', projectRevision: 7, path: '/tmp/private.mp4',
+		...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
+		path: '/tmp/private.mp4',
 	}), /fields/iu);
 	const hostile = await loadPreload([{ ...claim, path: '/tmp/private.mp4' }]);
 	await assert.rejects(() => hostile.bridge.nativeServices.claimWatchImport({
-		projectId: 'project-1', projectRevision: 7,
+		...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 7,
 	}), /fields/iu);
 });
 
-for (const projectSchemaVersion of [28, 31]) test(`selected F${String(projectSchemaVersion)} watch mutation preserves exact target, source, and digest authority`, async () => {
+test('baseline watch mutation preserves exact target, source, and digest authority', async () => {
 	const claim = {
-		claimId: '12'.repeat(16), projectId: `project-${String(projectSchemaVersion)}`, projectRevision: 3,
-		projectSchemaVersion, binId: 'project-bin', generateProxies: true,
+		...PROJECT_IDENTITY,
+		claimId: '12'.repeat(16), projectId: 'project-1', projectRevision: 3,
+		binId: 'project-bin', generateProxies: true,
 		existingSourceId: null, importMode: 'link', locatorId: '34'.repeat(16),
 		locatorRevision: '56'.repeat(16), name: 'clip.mp4', size: 4,
 		mimeType: 'video/mp4', lastModified: 8, contentSha256: '78'.repeat(32),
 	};
 	const completion = {
-		claimId: claim.claimId, projectId: claim.projectId, projectSchemaVersion,
-		binId: 'project-bin', sourceId: `source-${String(projectSchemaVersion)}`, contentSha256: claim.contentSha256,
+		...PROJECT_IDENTITY,
+		claimId: claim.claimId, projectId: claim.projectId,
+		binId: 'project-bin', sourceId: 'source-1', contentSha256: claim.contentSha256,
 		expectedProjectRevision: 3, committedProjectRevision: 5, success: true,
 	};
 	const fixture = await loadPreload([claim, true]);
 	assert.deepEqual({ ...await fixture.bridge.nativeServices.claimWatchImport({
-		projectId: claim.projectId, projectRevision: 3,
+		...PROJECT_IDENTITY, projectId: claim.projectId, projectRevision: 3,
 	}) }, claim);
 	assert.equal(await fixture.bridge.nativeServices.completeWatchImport(completion), true);
 	assert.equal(JSON.stringify(fixture.invocations).includes('/private'), false);
 	assert.deepEqual({ ...fixture.invocations[1][1] }, completion);
 	const hostile = await loadPreload([{ ...claim, path: '/private/clip.mp4' }]);
 	await assert.rejects(() => hostile.bridge.nativeServices.claimWatchImport({
-		projectId: 'project-28', projectRevision: 3,
+		...PROJECT_IDENTITY, projectId: 'project-1', projectRevision: 3,
 	}), /fields/iu);
 	assert.throws(() => fixture.bridge.nativeServices.completeWatchImport({
 		...completion, binId: 'another-bin',
-	}), /selected|completion/iu);
+	}), /baseline|completion|bin/iu);
 });
 
 test('image-sequence selection crosses preload only as opaque files and exact ranges', async () => {
@@ -348,7 +358,7 @@ test('image-sequence publication uses exact control and a digest-bound pathless 
 		bytes,
 	]);
 	assert.deepEqual(await fixture.bridge.nativeServices.imageSequenceImport({
-		operation: 'begin', candidateGeneration: 28,
+		operation: 'begin', ...PROJECT_IDENTITY,
 		projectId: 'project-1', projectRevision: 4,
 	}), { operation: 'begun', transactionId });
 	assert.deepEqual(await fixture.bridge.nativeServices.writeImageSequenceImportChunk({
@@ -418,6 +428,7 @@ test('default-off native preferences cross only the authenticated pathless bridg
 test('root, watch, scratch, publication, checkpoint, and display lifecycle stay pathless', async () => {
 	const root = { grantId: 'cd'.repeat(8), displayName: 'Exports', revoked: false };
 	const watch = {
+		...PROJECT_IDENTITY,
 		ruleId: 'ef'.repeat(8), grantId: root.grantId, projectId: 'project-1',
 		binId: null,
 		extensions: ['mov'], importMode: 'link', generateProxies: false, enabled: true,
@@ -437,16 +448,19 @@ test('root, watch, scratch, publication, checkpoint, and display lifecycle stay 
 	assert.equal((await fixture.bridge.nativeServices.reauthorizeQueueRoot({ jobId: JOB_ID })).jobId, JOB_ID);
 	assert.equal(await fixture.bridge.nativeServices.revalidateRoot({ grantId: root.grantId }), true);
 	assert.equal(await fixture.bridge.nativeServices.revokeRoot({ grantId: root.grantId }), true);
-	assert.equal((await fixture.bridge.nativeServices.createWatch({ grantId: root.grantId, projectId: 'project-1',
+	assert.equal((await fixture.bridge.nativeServices.createWatch({
+		...PROJECT_IDENTITY, grantId: root.grantId, projectId: 'project-1',
 		binId: null, extensions: ['mov'], importMode: 'link', generateProxies: false })).ruleId, watch.ruleId);
 	assert.equal((await fixture.bridge.nativeServices.setWatchEnabled({ ruleId: watch.ruleId, enabled: false })).enabled, false);
 	assert.equal(await fixture.bridge.nativeServices.removeWatch({ ruleId: watch.ruleId }), true);
 	await fixture.bridge.nativeServices.reconcileWatch();
 	assert.deepEqual([...(await fixture.bridge.nativeServices.cleanupScratch())], [JOB_ID]);
 	assert.equal(await fixture.bridge.nativeServices.settleScratch({ jobId: JOB_ID }), 'released');
-	await fixture.bridge.nativeServices.publish({ jobId: JOB_ID, currentPlanFingerprint: '34'.repeat(32),
+	await fixture.bridge.nativeServices.publish({ ...PROJECT_IDENTITY,
+		jobId: JOB_ID, currentPlanFingerprint: '34'.repeat(32),
 		finalized: true, declaredByteLength: 12, declaredSha256: '12'.repeat(32) });
-	await fixture.bridge.nativeServices.checkpoint({ jobId: JOB_ID, sourceInventoryDigest: '56'.repeat(32),
+	await fixture.bridge.nativeServices.checkpoint({ ...PROJECT_IDENTITY,
+		jobId: JOB_ID, sourceInventoryDigest: '56'.repeat(32),
 		plannedFrameCount: 0, manifest: [] });
 	assert.equal((await fixture.bridge.nativeServices.externalDisplays()).displays[0].displayId, 'display-2');
 	await fixture.bridge.nativeServices.setExternalDisplay({ displayId: 'display-2' });
@@ -464,7 +478,8 @@ test('root, watch, scratch, publication, checkpoint, and display lifecycle stay 
 		'framescaper:v1:native-services:publication:checkpoint', 'framescaper:v1:native-services:display:list',
 		'framescaper:v1:native-services:display:set', 'framescaper:v1:native-services:display:frame-port',
 	]);
-	assert.throws(() => fixture.bridge.nativeServices.createWatch({ grantId: root.grantId, projectId: 'project-1',
+	assert.throws(() => fixture.bridge.nativeServices.createWatch({
+		...PROJECT_IDENTITY, grantId: root.grantId, projectId: 'project-1',
 		binId: null, extensions: ['mov'], importMode: 'link', generateProxies: false, recursive: true }), /fields/iu);
 	assert.throws(() => fixture.bridge.nativeServices.presentExternalDisplay({ sequence: -1 }), /frame|fields|integer/iu);
 });
@@ -488,7 +503,8 @@ test('clean-display frames larger than 16 MiB are transferred as sequential boun
 
 function openFxFrameRequest(requestNonce) {
 	return {
-		schemaVersion: 1, planPayload: '{}', planFingerprint: '12'.repeat(32),
+		protocolVersion: 1, ...PROJECT_IDENTITY,
+		planPayload: '{}', planFingerprint: '12'.repeat(32),
 		instanceId: 'effect-1', outputOrdinal: 0, requestedBackend: 'cpu',
 		transitionProgress: null, inputs: [], inputBinding: null, requestNonce,
 	};
@@ -500,7 +516,7 @@ function snapshot() {
 		runtimeAvailable: false,
 		nativeMediaEnabled: false,
 		queue: [{
-			jobId: JOB_ID,
+			...PROJECT_IDENTITY, jobId: JOB_ID,
 			taskKind: 'encoded-export',
 			projectId: 'project-1',
 			relativeDestination: 'exports/programme.mov',
@@ -512,6 +528,7 @@ function snapshot() {
 		}],
 		roots: [{ grantId: 'cd'.repeat(8), displayName: 'Exports', revoked: false, rootPath: '/secret' }],
 		watchRules: [{
+			...PROJECT_IDENTITY,
 			ruleId: 'ef'.repeat(8), grantId: 'cd'.repeat(8), projectId: 'project-1',
 			binId: null,
 			extensions: ['mov'], importMode: 'link', generateProxies: false, enabled: true,

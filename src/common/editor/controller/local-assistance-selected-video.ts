@@ -1,10 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /** Authenticated, frame-exact selected-video custody for explicit shot modes. */
-
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
-
 import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
@@ -17,7 +14,11 @@ import {
 	normalizeLocalAssistanceShotDetectionMode,
 	type LocalAssistanceShotDetectionMode,
 } from '../assistance/shot-detection-mode.ts';
-import { FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION } from '../project-schema-version.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 import {
 	canonicalMediaContentBlob,
 	digestMediaContent,
@@ -57,7 +58,6 @@ import {
 	loadVideoExportOriginal,
 	type VideoExportOriginalStore,
 } from './video-export-original-loader.ts';
-
 const HARD_MAXIMUM_INPUT_BYTES = 8 * 1024 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const SHOT_BOUNDARIES_MEDIA_TYPE = 'application/vnd.soundscaper.shot-boundaries+json';
@@ -74,12 +74,12 @@ const SELECTED_VIDEO_MODEL_OPERATIONS = new Set<LocalAssistanceSelectedVideoMode
 ]);
 const SELECTED_VIDEO_OPERATIONS = Object.freeze(
 	['shot-detection', ...SELECTED_VIDEO_MODEL_OPERATIONS] as const);
-
 type DataRecord = Readonly<Record<string, unknown>>;
 
 interface SelectedVideoProject extends DataRecord {
 	readonly id: string;
-	readonly schemaVersion: 31;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly revision: number;
 	readonly sampleRate: number;
 	readonly primarySequenceId: string;
@@ -92,7 +92,6 @@ interface SelectedVideoProject extends DataRecord {
 	readonly multicameraGroups: readonly DataRecord[];
 	readonly timelineAnnotations?: readonly unknown[];
 }
-
 export interface LocalAssistanceSelectedVideoPreparationDependencies {
 	readonly getProject: () => unknown;
 	readonly getSelectedClipId: () => string | null;
@@ -133,9 +132,7 @@ interface SelectedVideoAuthorityState {
 	readonly binding: LocalAssistanceSelectedVideoTimingBinding;
 	readonly timingAuthoritySha256: string;
 }
-
 const SELECTED_VIDEO_AUTHORITY_STATES = new WeakMap<object, SelectedVideoAuthorityState>();
-
 interface LocalAssistanceSelectedVideoShotPrepared {
 	readonly sourceId: string;
 	readonly operation: 'shot-detection';
@@ -476,18 +473,22 @@ function assertDependencies(value: unknown): asserts value is LocalAssistanceSel
 }
 
 function selectedVideoProject(value: unknown): SelectedVideoProject {
+	const identity = readProjectSchemaIdentity(value);
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('Selected-video preparation requires an active F31 project.');
+		throw new TypeError('Selected-video preparation requires an active Framescaper project.');
 	}
 	const project = value as Partial<SelectedVideoProject>;
-	if (project.schemaVersion !== FRAMESCAPER_PROJECT_V31_SCHEMA_VERSION
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION
 		|| !Array.isArray(project.sources) || !Array.isArray(project.clips)
 		|| !Array.isArray(project.tracks) || !Array.isArray(project.sequences)
 		|| !Array.isArray(project.subsequences) || !Array.isArray(project.multicameraGroups)) {
-		throw new TypeError('Selected-video preparation requires exact F31 media authority.');
+		throw new TypeError('Selected-video preparation requires exact Framescaper v1 media authority.');
 	}
 	return {
 		...(project as SelectedVideoProject),
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		id: identifier(project.id, 'project ID'),
 		revision: integer(project.revision, 0, 'project revision'),
 		sampleRate: integer(project.sampleRate, 1, 'project sample rate'),

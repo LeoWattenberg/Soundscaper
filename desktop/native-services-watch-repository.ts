@@ -26,6 +26,8 @@ const MAXIMUM_SWEEP_ENTRIES = 100_000;
 const SHA256 = /^[a-f0-9]{64}$/u;
 
 export interface FramescaperNativeWatchRuleInput {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly ruleId: string;
 	readonly grantId: string;
 	readonly projectId: string;
@@ -53,8 +55,11 @@ export interface FramescaperNativeWatchProbeResult {
 }
 
 export interface FramescaperNativeWatchProjectState {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly open: boolean;
 	readonly writable: boolean;
+	readonly binId: 'project-bin';
 }
 
 export interface FramescaperNativeWatchReconcilerOptions {
@@ -337,6 +342,7 @@ function decodeRule(row: Record<string, unknown>): WatchRuleV1 {
 		throw new Error('A stored native watch rule violates the non-recursive service contract.');
 	}
 	return createWatchRuleV1({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: row.rule_id as string,
 		grantId: row.grant_id as string,
 		projectId: row.project_id as string,

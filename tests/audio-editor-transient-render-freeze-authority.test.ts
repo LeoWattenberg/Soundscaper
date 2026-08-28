@@ -17,7 +17,7 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-20T12:00:00.000Z';
 const PUBLISHER_REQUIREMENT = Object.freeze({
@@ -72,7 +72,7 @@ function frozenProject() {
 	const automationLanes = [] as const;
 	const voice = frozenTrack('voice', automationLanes);
 	const music = frozenTrack('music', automationLanes);
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'transient-render-freeze', title: 'Transient render freeze', now: NOW,
 		sources: [...voice.sources, ...music.sources],
 		clips: [voice.clip, music.clip],

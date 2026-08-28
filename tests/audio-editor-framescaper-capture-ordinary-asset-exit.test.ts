@@ -17,34 +17,24 @@ import {
 } from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
 import type { AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
-import {
-	DESKTOP_SHARED_AUDIO_ENCODING,
-	DESKTOP_SHARED_VIDEO_ENCODING,
-	DESKTOP_SHARED_VIDEO_TIMING_ENCODING,
-	prepareDesktopSharedProjectMediaHandoff,
-	type DesktopSharedManagedSourceDescriptor,
-	type DesktopSharedSourceTransferBridge,
-} from '../src/common/editor/storage/desktop-shared-project-media-transfer.ts';
 import type {
 	LinkedVideoOriginalPort,
 } from '../src/common/editor/storage/linked-video-original-resolver.ts';
 import { createVideoExportPlan } from '../src/common/editor/video-export.js';
-import { createFramescaperPlaybackProjectServiceV19 } from '../src/framescaper/editor-project-playback-v19.ts';
-import { FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v19.ts';
-import { createFramescaperProjectStoreV19 } from '../src/framescaper/editor-project-store-v19.ts';
+import { createFramescaperPlaybackProjectService } from '../src/framescaper/editor-project-playback.ts';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
+import { createFramescaperProjectStore } from '../src/framescaper/editor-project-store.ts';
 import {
-	applyFramescaperProjectCommandV19,
-	type FramescaperProjectCommandV19,
-} from '../src/framescaper/editor-project-v19-commands.ts';
-import {
-	createFramescaperProjectV19,
-	validateFramescaperProjectV19,
-	type FramescaperProjectV19,
-} from '../src/framescaper/editor-project-v19.ts';
-import { createFramescaperScapeNativeRuntimeV19 } from '../src/framescaper/editor-scape-native-v19.ts';
-import { createFramescaperVideoExportStrategyV19 } from '../src/framescaper/video-export-strategy-v19.ts';
+	applyFramescaperProjectCommand,
+	type FramescaperProjectCommand,
+} from '../src/framescaper/editor-project-commands.ts';
+import type { FramescaperProjectComposition } from '../src/framescaper/editor-project-composition.ts';
+import { createFramescaperProject, validateFramescaperProject, type FramescaperProject } from
+	'../src/framescaper/editor-project.ts';
+import { createFramescaperScapeNativeRuntime } from '../src/framescaper/editor-scape-native.ts';
+import { createFramescaperVideoExportStrategy } from '../src/framescaper/video-export-strategy.ts';
 
-const PROFILE = FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
 const PROJECT_ID = 'capture-ordinary-exit-project';
 const SESSION_ID = 'capture-ordinary-exit-session';
 const CAMERA_SOURCE_ID = 'capture-camera-source';
@@ -59,12 +49,13 @@ const VIDEO_TIMING = Object.freeze({
 	presentationTicks: Object.freeze([0n, 500n]),
 	finalFrameDurationTicks: 500n,
 });
+type CaptureProject = FramescaperProject & FramescaperProjectComposition;
 
-test('capture-published assets traverse ordinary relink, edit, Scape, handoff, and delivery paths', async (context) => {
+test('capture-published assets traverse ordinary relink, edit, Scape, and delivery paths', async (context) => {
 	const fixture = await publishCapture(context);
 	const published = fixture.project;
-	assert.equal(validateFramescaperProjectV19(PROFILE, published), true);
-	assert.equal(published.schemaVersion, 19, 'capture provenance must not bump the project schema');
+	assert.equal(validateFramescaperProject(PROFILE, published), true);
+	assert.equal(published.schemaVersion, 1, 'capture provenance must not change the baseline project schema');
 	assert.deepEqual(captureProvenance(source(published, CAMERA_SOURCE_ID)), {
 		role: 'camera', streamId: 'camera-stream', recoveryProvenance: 'live',
 	});
@@ -106,19 +97,19 @@ test('capture-published assets traverse ordinary relink, edit, Scape, handoff, a
 		24_000,
 		() => requiredShift(splitIds),
 	);
-	const edited = applyFramescaperProjectCommandV19(
+	const edited = applyFramescaperProjectCommand(
 		PROFILE,
 		published,
-		splitCommand as unknown as FramescaperProjectCommandV19,
+		splitCommand as unknown as FramescaperProjectCommand,
 		{ now: '2026-08-20T12:02:00.000Z' },
-	);
-	assert.equal(validateFramescaperProjectV19(PROFILE, edited), true);
+	) as CaptureProject;
+	assert.equal(validateFramescaperProject(PROFILE, edited), true);
 	assert.equal(edited.clips.length, 4, 'the ordinary linked split creates two aligned A/V pairs');
 	assert.deepEqual(edited.sources, published.sources, 'an occurrence edit does not rewrite capture assets');
 	assert.equal(edited.clips.find(({ id }) => id === 'camera-right')?.avLinkId, 'capture-right-av-link');
 	assert.equal(edited.clips.find(({ id }) => id === 'microphone-right')?.avLinkId, 'capture-right-av-link');
 
-	const runtime = createFramescaperScapeNativeRuntimeV19(PROFILE);
+	const runtime = createFramescaperScapeNativeRuntime(PROFILE);
 	const exported = await runtime.exportScapeProject(edited, fixture.store);
 	assert.ok(exported.blob);
 	const inspection = await runtime.inspectScapeProject(
@@ -127,21 +118,21 @@ test('capture-published assets traverse ordinary relink, edit, Scape, handoff, a
 		{ signal: new AbortController().signal },
 		{ retain: () => undefined },
 	);
-	assert.equal(inspection.schemaVersion, 19);
+	assert.equal(inspection.schemaVersion, 1);
 	assert.equal(inspection.readOnly, false);
 
-	const recipient = createFramescaperProjectStoreV19(PROFILE, {
+	const recipient = createFramescaperProjectStore(PROFILE, {
 		indexedDB: null,
 		preferOpfs: false,
 	});
 	context.after(async () => { await recipient.close(); });
 	const imported = await runtime.importScapeProject(exported.blob, recipient, { collision: 'copy' });
 	assert.equal(imported.readOnly, false);
-	assert.equal(validateFramescaperProjectV19(PROFILE, imported.project), true);
+	assert.equal(validateFramescaperProject(PROFILE, imported.project), true);
 	const reopenedValue = await recipient.loadProject(edited.id);
 	assert.ok(reopenedValue);
-	const reopened = reopenedValue as FramescaperProjectV19;
-	assert.equal(validateFramescaperProjectV19(PROFILE, reopened), true);
+	const reopened = reopenedValue as unknown as CaptureProject;
+	assert.equal(validateFramescaperProject(PROFILE, reopened), true);
 	assert.deepEqual(reopened.clips, edited.clips);
 	assert.deepEqual(
 		captureProvenance(source(reopened, CAMERA_SOURCE_ID)),
@@ -155,41 +146,32 @@ test('capture-published assets traverse ordinary relink, edit, Scape, handoff, a
 	const timingStorageKey = timingAssetStorageKey(videoSource(reopened));
 	assert.ok(await recipient.getMediaAssetMetadata(timingStorageKey));
 
-	const playback = createFramescaperPlaybackProjectServiceV19(PROFILE, { timingStore: recipient });
+	const playback = createFramescaperPlaybackProjectService(PROFILE, { timingStore: recipient });
 	const delivery = playback.projectForVideoRenderedFallbackDelivery?.(reopened);
 	assert.ok(delivery);
 	assert.deepEqual(delivery.requiredAudioSourceIds, []);
 	assert.deepEqual(delivery.requiredVideoSourceIds, []);
 	const deliveryProject = delivery.project as unknown as AudioEditorProjectCurrent;
-	assert.equal(deliveryProject.schemaVersion, 17);
+	assert.equal(deliveryProject.schemaVersion, 1);
 	assert.deepEqual(
 		captureProvenance(source(deliveryProject, CAMERA_SOURCE_ID)),
 		captureProvenance(source(reopened, CAMERA_SOURCE_ID)),
 		'the ordinary runtime projection preserves bounded source provenance',
 	);
 
-	const handoff = handoffTransport(deliveryProject);
-	const descriptors = await prepareDesktopSharedProjectMediaHandoff(
-		deliveryProject,
-		handoff.bridge,
-		recipient,
-	);
-	assert.deepEqual(descriptors.map(({ kind }) => kind), ['video', 'video-timing', 'audio']);
-	assert.deepEqual(new Set(descriptors.map(({ sourceId }) => sourceId)), new Set([
-		CAMERA_SOURCE_ID, MICROPHONE_SOURCE_ID,
-	]));
-	assert.equal(handoff.aborts.length, 0);
-
-	const strategy = createFramescaperVideoExportStrategyV19(PROFILE);
+	const strategy = createFramescaperVideoExportStrategy(PROFILE);
 	const exportProject = strategy.createExportProject({ canonicalProject: reopened, delivery });
-	assert.equal(strategy.createPlan({
+	const baselinePlan = strategy.createPlan({
 		canonicalProject: reopened,
 		exportProject,
 		format: 'webm',
 		range: 'project',
 		includeAudio: true,
 		canvas: undefined,
-	}), null, 'capture uses the maintained ordinary V17 delivery planner');
+	});
+	assert.ok(baselinePlan, 'capture uses the maintained keyed baseline delivery planner');
+	assert.equal(baselinePlan.strategy, 'framescaper-keyframed-rgba-v1');
+	assert.deepEqual(baselinePlan.activeSourceIds, [CAMERA_SOURCE_ID]);
 	const deliveryPlan = createVideoExportPlan(exportProject, {
 		format: 'webm',
 		range: 'project',
@@ -208,7 +190,7 @@ test('capture-published assets traverse ordinary relink, edit, Scape, handoff, a
 
 interface CaptureExitFixture {
 	readonly locators: Map<string, Readonly<{ blob: Blob; locatorRevision: string }>>;
-	readonly project: FramescaperProjectV19;
+	readonly project: CaptureProject;
 	readonly publication: Awaited<ReturnType<ReturnType<
 		typeof createFramescaperCaptureCanonicalPublicationService
 	>['publish']>>;
@@ -233,14 +215,14 @@ async function publishCapture(context: TestContext): Promise<CaptureExitFixture>
 		linkedVideoOriginalPort,
 	});
 	context.after(async () => { await store.close(); });
-	let project = createFramescaperProjectV19(PROFILE, {
+	let project = createFramescaperProject(PROFILE, {
 		id: PROJECT_ID,
 		title: 'Capture ordinary exit',
 		now: '2026-08-20T12:00:00.000Z',
 		sampleRate: 48_000,
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
 		primarySequenceId: 'main-sequence',
-	});
+	}) as CaptureProject;
 	const coordinator = createFramescaperCaptureDurableSessionCoordinator({
 		encodedSpools: store.encodedCaptureSpoolRepository,
 		rawPcmSpools: store.rawPcmSpoolRepository,
@@ -250,7 +232,10 @@ async function publishCapture(context: TestContext): Promise<CaptureExitFixture>
 	const session = await coordinator.create({
 		sessionId: SESSION_ID,
 		generation: 1,
-		projectFence: { projectId: PROJECT_ID, baseRevision: project.revision, baseSha256: 'ab'.repeat(32) },
+		projectFence: {
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: PROJECT_ID, baseRevision: project.revision, baseSha256: 'ab'.repeat(32),
+		},
 		origin: { sequenceId: 'main-sequence', playheadMicroseconds: 0, destination: 'both' },
 		monotonicOriginMicroseconds: 0,
 		streams: [{
@@ -276,9 +261,9 @@ async function publishCapture(context: TestContext): Promise<CaptureExitFixture>
 		}),
 		assertProjectFence: () => undefined,
 		commitAtomic(command) {
-			project = applyFramescaperProjectCommandV19(
+			project = applyFramescaperProjectCommand(
 				PROFILE, project, command, { now: '2026-08-20T12:01:00.000Z' },
-			);
+			) as CaptureProject;
 			return { status: 'committed', value: project.revision };
 		},
 		recordRetryableRecovery: () => undefined,
@@ -347,70 +332,6 @@ function captureStore(store: AudioEditorProjectStore): FramescaperCaptureCanonic
 	};
 }
 
-function handoffTransport(project: AudioEditorProjectCurrent): Readonly<{
-	aborts: string[];
-	bridge: DesktopSharedSourceTransferBridge;
-}> {
-	type Declaration = Parameters<DesktopSharedSourceTransferBridge['beginSharedSourceWrite']>[0];
-	const sessions = new Map<string, Readonly<{ declaration: Declaration; chunks: Uint8Array[] }>>();
-	const aborts: string[] = [];
-	let nextWrite = 0;
-	const bridge: DesktopSharedSourceTransferBridge = {
-		async beginSharedSourceWrite(declaration) {
-			const writeId = `capture-handoff-${String(++nextWrite)}`;
-			sessions.set(writeId, { declaration, chunks: [] });
-			return { status: 'ready' as const, chunkSize: 3, writeId };
-		},
-		async writeSharedSourceChunk({ bytes, offset, writeId }) {
-			const session = requiredSession(sessions, writeId);
-			assert.equal(offset, session.chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0));
-			session.chunks.push(bytes.slice());
-			return { nextOffset: offset + bytes.byteLength };
-		},
-		async finishSharedSourceWrite({ sha256, writeId }) {
-			const session = requiredSession(sessions, writeId);
-			assert.equal(sha256, session.declaration.sha256);
-			return handoffDescriptor(project, session.declaration, sha256);
-		},
-		async abortSharedSourceWrite(writeId) { aborts.push(writeId); return true; },
-		async readSharedSourceChunk() { throw new Error('sender-only handoff must not read'); },
-	};
-	return Object.freeze({ aborts, bridge: Object.freeze(bridge) });
-}
-
-function handoffDescriptor(
-	project: AudioEditorProjectCurrent,
-	declaration: Parameters<DesktopSharedSourceTransferBridge['beginSharedSourceWrite']>[0],
-	sha256: string,
-): DesktopSharedManagedSourceDescriptor {
-	const source = project.sources.find(({ id }) => id === declaration.sourceId);
-	if (!source) throw new Error(`Missing handoff source ${declaration.sourceId}`);
-	const sourceId = requiredString(source.id, 'handoff source ID');
-	const storageKey = requiredString(source.storageKey, 'handoff source storage key');
-	if (declaration.encoding === DESKTOP_SHARED_AUDIO_ENCODING) return Object.freeze({
-		bindingId: `m${sha256}`, byteLength: declaration.byteLength,
-		encoding: declaration.encoding, kind: 'audio', sha256,
-		sourceId, storageKey,
-	});
-	if (declaration.encoding === DESKTOP_SHARED_VIDEO_ENCODING) return Object.freeze({
-		bindingId: `v${sha256}`, byteLength: declaration.byteLength,
-		encoding: declaration.encoding, kind: 'video', sha256,
-		sourceId, storageKey,
-	});
-	assert.equal(declaration.encoding, DESKTOP_SHARED_VIDEO_TIMING_ENCODING);
-	return Object.freeze({
-		bindingId: `t${sha256}`, byteLength: declaration.byteLength,
-		encoding: DESKTOP_SHARED_VIDEO_TIMING_ENCODING, kind: 'video-timing', sha256,
-		sourceId, storageKey: timingAssetStorageKey(source),
-	});
-}
-
-function requiredSession<Value>(sessions: ReadonlyMap<string, Value>, writeId: string): Value {
-	const session = sessions.get(writeId);
-	if (!session) throw new Error(`Missing handoff session ${writeId}`);
-	return session;
-}
-
 function source(
 	project: Readonly<{ readonly sources: readonly Readonly<Record<string, unknown>>[] }>,
 	id: string,
@@ -420,7 +341,7 @@ function source(
 	return value;
 }
 
-function videoSource(project: FramescaperProjectV19) {
+function videoSource(project: CaptureProject) {
 	const value = source(project, CAMERA_SOURCE_ID);
 	if (value.kind !== 'video') throw new TypeError('Expected the captured camera video source.');
 	return value as typeof value & Readonly<{
@@ -461,10 +382,5 @@ function snapshot(blob: Blob, locatorRevision: string) {
 function requiredShift(values: string[]): string {
 	const value = values.shift();
 	if (!value) throw new Error('Missing deterministic split identity.');
-	return value;
-}
-
-function requiredString(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value) throw new TypeError(`${name} is missing.`);
 	return value;
 }

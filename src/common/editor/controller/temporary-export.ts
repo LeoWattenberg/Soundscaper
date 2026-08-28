@@ -2,7 +2,7 @@ import { cloneProject } from '../project.js';
 import { normalizeAutomationLaneV21 } from '../automation-lane-v21.ts';
 import { normalizeMixerGraphV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
 import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
-import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
+import { isSoundscaperProductionProject } from '../project-schema-version.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -180,7 +180,7 @@ export function stemProject<Project extends object>(
 		cloneProject(mediaProject),
 	);
 	const mutable = snapshot as unknown as MutableStemProject;
-	const production = isSoundscaperProductionProjectSchema(mutable.schemaVersion);
+	const production = isSoundscaperProductionProject(mutable);
 	mutable.tracks = mutable.tracks.map((track) => track.id === trackId
 		? { ...track, mute: false, solo: false }
 		: { ...track, mute: true, solo: false, ...(production ? {} : { effects: [] }) });

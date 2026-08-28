@@ -68,7 +68,8 @@ test('primitive stage runner projects aggregate authority into operation-v1 with
 	assert.deepEqual(execution.request, {
 		contractVersion: 1, jobId: stage.request.jobId, operation: 'voice-activity-detection',
 		selectionFence: {
-			projectId: 'project-a', schemaVersion: 31, revision: 8, sequenceId: 'sequence-a',
+			projectId: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+			revision: 8, sequenceId: 'sequence-a',
 			occurrenceIds: ['occurrence-a'], sourceId: 'source-a', sourceSha256: '12'.repeat(32),
 			sourceStartFrame: 0, sourceEndFrame: 96_000,
 			linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '56'.repeat(32),

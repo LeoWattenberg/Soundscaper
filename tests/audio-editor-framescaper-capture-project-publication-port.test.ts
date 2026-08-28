@@ -11,6 +11,7 @@ import {
 
 interface Project extends Record<string, unknown> {
 	readonly id: string;
+	readonly schemaFamily: 'framescaper';
 	readonly schemaVersion: number;
 	readonly revision: number;
 	readonly updatedAt: string;
@@ -256,7 +257,7 @@ function publicationFixture(options: Readonly<{
 
 function project(revision: number, sources: readonly string[]): Project {
 	return Object.freeze({
-		id: 'project-a', schemaVersion: 19, revision,
+		id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1, revision,
 		updatedAt: '2026-08-20T10:00:00.000Z', sources: Object.freeze([...sources]),
 	});
 }

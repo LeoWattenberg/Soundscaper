@@ -23,7 +23,8 @@ test('OpenFX Interact crosses preload as exact normalized actions and copied 64 
 		frozenFallback: null,
 	};
 	const request = {
-		protocolVersion: 1, project: { id: 'project-1', revision: 7 },
+		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-1', revision: 7 },
 		pluginHandle: '8b'.repeat(20), effect, effectStateSha256: sha, context: 'filter',
 		target: 'custom-parameter', parameterName: 'parameter15',
 		events: [

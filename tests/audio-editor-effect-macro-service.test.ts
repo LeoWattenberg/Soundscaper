@@ -15,7 +15,7 @@ import {
 	executeSoundscaperProductionOperation,
 	type SoundscaperProductionControllerPort,
 } from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 function deferred<Value>() {
 	let resolve: (value: Value) => void = () => undefined;
@@ -233,7 +233,7 @@ test('current-project render failures report once and release processing ownersh
 });
 
 function v21MacroProject() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'project-a', title: 'Restoration render', now: '2026-08-14T12:00:00.000Z',
 		tracks: [
 			createAudioTrack({ id: 'track-a', name: 'A', clipIds: [] }),

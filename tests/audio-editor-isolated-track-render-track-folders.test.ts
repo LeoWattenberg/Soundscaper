@@ -10,7 +10,7 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * Rendering one track in isolation must work for a track that lives in a folder.
@@ -60,11 +60,11 @@ test('the isolated render neutralizes the folder audibility it inherited', () =>
 });
 
 function projectWithFolder() {
-	return createSoundscaperProjectV21(projectOptions({ folderMuted: false }));
+	return createSoundscaperProject(projectOptions({ folderMuted: false }));
 }
 
 function mutedFolderProject() {
-	return createSoundscaperProjectV21(projectOptions({ folderMuted: true }));
+	return createSoundscaperProject(projectOptions({ folderMuted: true }));
 }
 
 function projectOptions({ folderMuted }: { folderMuted: boolean }) {

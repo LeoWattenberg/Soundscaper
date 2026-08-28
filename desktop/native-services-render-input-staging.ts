@@ -1,13 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 /** Durable, main-owned admission for authenticated renderer-evaluated inputs. */
-
 import { constants as fsConstants } from 'node:fs';
 import {
 	copyFile, unlink, writeFile,
 } from 'node:fs/promises';
 import { isAbsolute, join, normalize } from 'node:path';
-
 import {
 	assertNativeQueueRecordV2,
 	type NativeQueueRecordV2,
@@ -70,7 +67,6 @@ import {
 	sameNativeRenderInputFileIdentity,
 	type FramescaperNativeRenderInputDescriptorV1,
 } from './native-services-render-input-validation.ts';
-
 export {
 	FRAMESCAPER_NATIVE_RENDER_INPUT_MAXIMUM_PENDING_STAGES,
 	FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_EXPIRY_MS,
@@ -86,7 +82,6 @@ export type {
 	FramescaperNativeDerivedRenderInputRole,
 	FramescaperNativeRenderInputDescriptorV1,
 } from './native-services-render-input-validation.ts';
-
 export interface FramescaperNativeDerivedRenderInputs {
 	readonly byteLength: number;
 	/** Exact durable/helper scratch authority required by these derived inputs. */
@@ -178,6 +173,7 @@ export class FramescaperNativeRenderInputStaging
 		);
 		const descriptors = nativeRenderInputDescriptorsForPlan(request.derivedInputs, envelope);
 		const identity = Object.freeze({
+			schemaFamily: request.schemaFamily, schemaVersion: request.schemaVersion,
 			planFingerprint: envelope.fingerprint,
 			projectId: nativeRenderInputIdentifier(request.projectId, 'project id'),
 			projectRevision: nativeRenderInputNonNegative(request.projectRevision, 'project revision'),
@@ -283,8 +279,16 @@ export class FramescaperNativeRenderInputStaging
 			}));
 		}
 		const manifest: NativeRenderInputStageManifest = Object.freeze({
-			stageVersion: 1, stageId: request.stageId, planVersion: stage.envelope.planVersion,
-			...stage.identity, files: Object.freeze(files),
+			stageVersion: 1,
+			stageId: request.stageId,
+			schemaFamily: stage.identity.schemaFamily,
+			schemaVersion: stage.identity.schemaVersion,
+			planVersion: stage.envelope.planVersion,
+			planFingerprint: stage.identity.planFingerprint,
+			projectId: stage.identity.projectId,
+			projectRevision: stage.identity.projectRevision,
+			inputFingerprints: stage.identity.inputFingerprints,
+			files: Object.freeze(files),
 		});
 		const payload = JSON.stringify(manifest);
 		await writeFile(join(stage.owned.directory, 'manifest.json'), payload, { flag: 'wx', mode: 0o600 });
@@ -485,6 +489,7 @@ export class FramescaperNativeRenderInputStaging
 			const owned = await readNativeRenderInputOwnedStage(this.#root, recordValue.jobId);
 			if (owned === null) return;
 			if (owned.ownership.identityDigest !== nativeRenderInputStageIdentityDigest(Object.freeze({
+				schemaFamily: recordValue.schemaFamily, schemaVersion: recordValue.schemaVersion,
 				planFingerprint: recordValue.planFingerprint,
 				projectId: recordValue.projectId,
 				projectRevision: recordValue.projectRevision,
@@ -537,6 +542,8 @@ function assertClaimIdentity(
 	request: ReturnType<typeof nativeRenderInputClaimRequest>,
 ): void {
 	if (identity.planFingerprint !== request.planFingerprint || identity.projectId !== request.projectId
+		|| identity.schemaFamily !== request.schemaFamily
+		|| identity.schemaVersion !== request.schemaVersion
 		|| identity.projectRevision !== request.projectRevision
 		|| JSON.stringify(identity.inputFingerprints) !== JSON.stringify(request.inputFingerprints)) {
 		throw new Error('The native render-input claim substituted its plan, project, or originals.');

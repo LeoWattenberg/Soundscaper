@@ -17,15 +17,15 @@ import type {
 import type { ExactGenerationProject } from './project-library-exact-generation-body-configuration.ts';
 import type { FramescaperDesktopProjectLibraryExactGenerationConfiguration } from './project-library-exact-generation-main.ts';
 import {
-	concatenateFramescaperDesktopProjectLibraryV12Chunks as concatenate,
-	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
-	framescaperDesktopProjectLibraryV12DenseArray as denseArray,
-	framescaperDesktopProjectLibraryV12Digest as digest,
-	framescaperDesktopProjectLibraryV12NonNegative as nonNegative,
-	framescaperDesktopProjectLibraryV12Positive as positive,
-	framescaperDesktopProjectLibraryV12Sha256 as sha256,
-	framescaperDesktopProjectLibraryV12Text as text,
-} from './project-library-v12-values.ts';
+	concatenateFramescaperDesktopProjectLibraryChunks as concatenate,
+	framescaperDesktopProjectLibraryClosedRecord as closedRecord,
+	framescaperDesktopProjectLibraryDenseArray as denseArray,
+	framescaperDesktopProjectLibraryDigest as digest,
+	framescaperDesktopProjectLibraryNonNegative as nonNegative,
+	framescaperDesktopProjectLibraryPositive as positive,
+	framescaperDesktopProjectLibrarySha256 as sha256,
+	framescaperDesktopProjectLibraryText as text,
+} from './framescaper-project-library-values.ts';
 
 const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const BODY_FIELDS = ['kind', 'encoding', 'sourceId', 'storageKey', 'mimeType', 'byteLength', 'sha256'] as const;
@@ -39,12 +39,12 @@ interface FramescaperDesktopExactProjectRow {
 	readonly metadataFile: string;
 	readonly preferredProduct: 'framescaper';
 	readonly updatedAtMs: number;
-	readonly projectSchemaVersion: number;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: number;
 	readonly projectRevision: number;
 	readonly byteLength: number;
 	readonly sha256: string;
 }
-
 export interface FramescaperDesktopExactBodyDescriptor {
 	readonly kind:
 		| 'video-original' | 'video-proxy' | 'video-timing'
@@ -170,7 +170,8 @@ export async function persistFramescaperDesktopExactPublication(
 			project: Object.freeze({
 				id: entryId, projectId: String(publication.project.id), name: String(publication.project.title),
 				metadataFile: documentFile, preferredProduct: 'framescaper', updatedAtMs,
-				projectSchemaVersion: configuration.projectSchemaVersion,
+				schemaFamily: configuration.schemaFamily ?? 'framescaper',
+				schemaVersion: configuration.schemaVersion,
 				projectRevision: publication.project.revision, byteLength: bytes.byteLength,
 				sha256: contentDigest,
 			}),
@@ -189,13 +190,15 @@ export async function persistFramescaperDesktopExactPublication(
 
 export function framescaperDesktopExactProjectRow(
 	row: FramescaperDesktopExactStoredProjectRow,
-	projectSchemaVersion: number,
+	schemaFamily: 'framescaper',
+	schemaVersion: number,
 ): Readonly<FramescaperDesktopExactProjectRow> {
 	return Object.freeze({
 		id: text(row.entry_id, 'entry id'), projectId: text(row.project_id, 'project id'),
 		name: text(row.title, 'title'), metadataFile: text(row.document_file, 'document file'),
 		preferredProduct: 'framescaper', updatedAtMs: nonNegative(row.updated_at_ms, 'timestamp'),
-		projectSchemaVersion, projectRevision: nonNegative(row.project_revision, 'project revision'),
+		schemaFamily,
+		schemaVersion, projectRevision: nonNegative(row.project_revision, 'project revision'),
 		byteLength: positive(row.byte_length, 'document byte length'), sha256: digest(row.sha256, 'document'),
 	});
 }

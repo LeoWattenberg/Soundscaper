@@ -33,7 +33,9 @@ export class FramescaperNativePublicationFenceService {
 		root: FramescaperNativeRootGrant,
 	): FramescaperNativePublicationFence {
 		const assert = () => this.#assert(record, root);
-		return Object.freeze({ beforePublication: assert, afterPublication: assert });
+		return Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			projectId: record.projectId, projectRevision: record.projectRevision,
+			beforePublication: assert, afterPublication: assert });
 	}
 
 	async #assert(record: NativeQueueRecordV2, root: FramescaperNativeRootGrant): Promise<void> {

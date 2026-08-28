@@ -24,22 +24,22 @@ import {
 	createVideoTimingAssetPublication,
 	validateVideoTimingAssetBytes,
 } from '../src/common/editor/video-timing-asset.ts';
-import { applyFramescaperProjectCommandV20 } from '../src/framescaper/editor-project-v20-commands.ts';
-import { reconcileFramescaperProjectFeatureRequirementsV20 } from '../src/framescaper/editor-project-feature-requirements-v20.ts';
+import { applyFramescaperProjectCommandRetime } from '../src/framescaper/editor-project-retime-commands.ts';
+import { reconcileFramescaperProjectFeatureRequirementsRetime } from '../src/framescaper/editor-project-feature-requirements-retime.ts';
 import {
-	createFramescaperVideoRetimeFreezeCommandV20,
-	createFramescaperVideoRetimeRampCommandV20,
-	createFramescaperVideoRetimeReverseCommandV20,
-} from '../src/framescaper/editor-project-v20-retime-command.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
+	createFramescaperVideoRetimeFreezeCommandRetime,
+	createFramescaperVideoRetimeRampCommandRetime,
+	createFramescaperVideoRetimeReverseCommandRetime,
+} from '../src/framescaper/editor-project-retime-retime-command.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
 import {
-	framescaperProjectForCommandConsumersV20,
-	framescaperProjectForRuntimeConsumersV20,
-} from '../src/framescaper/editor-project-v20-runtime.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+	framescaperProjectForCommandConsumersRetime,
+	framescaperProjectForRuntimeConsumersRetime,
+} from '../src/framescaper/editor-project-retime-runtime.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
+const PROFILE = FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE;
 const SAMPLE_RATE = 48_000;
 const NTSC = Object.freeze({ num: 30_000, den: 1_001 });
 
@@ -47,28 +47,28 @@ test('match-frame and source timecode consume exact CFR reverse, freeze, and ram
 	const cases = [
 		{
 			name: 'reverse', sample: 0, expected: 9,
-			command: createFramescaperVideoRetimeReverseCommandV20({
+			command: createFramescaperVideoRetimeReverseCommandRetime({
 				clipId: 'video-clip', expectedRetimeMap: null,
 			}),
 		},
 		{
 			name: 'freeze', sample: 24_000, expected: 4,
-			command: createFramescaperVideoRetimeFreezeCommandV20({
+			command: createFramescaperVideoRetimeFreezeCommandRetime({
 				clipId: 'video-clip', expectedRetimeMap: null, sourceFrame: rational(4),
 			}),
 		},
 		{
 			name: 'ramp', sample: 24_000, expected: 2,
-			command: createFramescaperVideoRetimeRampCommandV20({
+			command: createFramescaperVideoRetimeRampCommandRetime({
 				clipId: 'video-clip', expectedRetimeMap: null, direction: 'forward',
 				startVelocity: rational(0), endVelocity: rational(2), sourceStartFrame: rational(0),
 			}),
 		},
 	] as const;
 	for (const fixture of cases) {
-		const project = applyFramescaperProjectCommandV20(
+		const project = applyFramescaperProjectCommandRetime(
 			PROFILE,
-			createFramescaperProjectV20(PROFILE, framescaperV20Options()),
+			createFramescaperProjectRetime(PROFILE, framescaperV20Options()),
 			fixture.command,
 			{ now: '2026-08-23T18:00:00.000Z' },
 		);
@@ -88,10 +88,10 @@ test('match-frame and source timecode retain exact NTSC frame addressing', () =>
 		...(options.sequences as Record<string, unknown>[])[0],
 		rate: NTSC,
 	};
-	const project = applyFramescaperProjectCommandV20(
+	const project = applyFramescaperProjectCommandRetime(
 		PROFILE,
-		createFramescaperProjectV20(PROFILE, options),
-		createFramescaperVideoRetimeFreezeCommandV20({
+		createFramescaperProjectRetime(PROFILE, options),
+		createFramescaperVideoRetimeFreezeCommandRetime({
 			clipId: 'video-clip', expectedRetimeMap: null, sourceFrame: rational(4),
 		}),
 		{ now: '2026-08-23T18:01:00.000Z' },
@@ -218,10 +218,10 @@ test('the selected product resolver caches by document identity and absent route
 	let factoryCalls = 0;
 	const projectRuntime = {
 		projectForCommandConsumers: (project: unknown) => (
-			framescaperProjectForCommandConsumersV20(PROFILE, project)
+			framescaperProjectForCommandConsumersRetime(PROFILE, project)
 		),
 		projectForRuntimeConsumers: (project: unknown) => (
-			framescaperProjectForRuntimeConsumersV20(PROFILE, project)
+			framescaperProjectForRuntimeConsumersRetime(PROFILE, project)
 		),
 	};
 	const resolve = createVideoRetimeProgramStateResolver({
@@ -274,8 +274,8 @@ function selectedState(project: unknown): Readonly<{
 	readonly project: Readonly<Record<string, unknown>>;
 	readonly bridge: VideoRetimeProgramOrdinalBridge;
 }> {
-	const commandProject = framescaperProjectForCommandConsumersV20(PROFILE, project);
-	const runtimeProject = framescaperProjectForRuntimeConsumersV20(PROFILE, project);
+	const commandProject = framescaperProjectForCommandConsumersRetime(PROFILE, project);
+	const runtimeProject = framescaperProjectForRuntimeConsumersRetime(PROFILE, project);
 	return Object.freeze({
 		project: commandProject,
 		bridge: createVideoRetimeProgramOrdinalBridge(commandProject, runtimeProject),
@@ -283,10 +283,10 @@ function selectedState(project: unknown): Readonly<{
 }
 
 function reverseProject(now: string): unknown {
-	return applyFramescaperProjectCommandV20(
+	return applyFramescaperProjectCommandRetime(
 		PROFILE,
-		createFramescaperProjectV20(PROFILE, framescaperV20Options()),
-		createFramescaperVideoRetimeReverseCommandV20({
+		createFramescaperProjectRetime(PROFILE, framescaperV20Options()),
+		createFramescaperVideoRetimeReverseCommandRetime({
 			clipId: 'video-clip', expectedRetimeMap: null,
 		}),
 		{ now },
@@ -297,11 +297,11 @@ function vfrReverseProject(): Readonly<{
 	readonly project: unknown;
 	readonly publication: ReturnType<typeof createVideoTimingAssetPublication>;
 }> {
-	const canonical = createFramescaperProjectV20(PROFILE, framescaperV20Options());
-	const reversed = applyFramescaperProjectCommandV20(
+	const canonical = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
+	const reversed = applyFramescaperProjectCommandRetime(
 		PROFILE,
 		canonical,
-		createFramescaperVideoRetimeReverseCommandV20({
+		createFramescaperVideoRetimeReverseCommandRetime({
 			clipId: 'video-clip', expectedRetimeMap: null,
 		}),
 		{ now: '2026-08-23T18:02:00.000Z' },
@@ -316,7 +316,7 @@ function vfrReverseProject(): Readonly<{
 	source.frameRate = NTSC;
 	source.timingAsset = publication.reference;
 	source.timingDecision = { mode: 'exact', rate: NTSC, backend: 'demuxer' };
-	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsV20(PROFILE, project);
+	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsRetime(PROFILE, project);
 	return Object.freeze({ project, publication });
 }
 

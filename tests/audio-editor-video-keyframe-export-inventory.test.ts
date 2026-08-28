@@ -15,12 +15,12 @@ import {
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import {
-	reconcileFramescaperProjectFeatureRequirementsV20,
-} from '../src/framescaper/editor-project-feature-requirements-v20.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperProjectForRuntimeConsumersV20 } from '../src/framescaper/editor-project-v20-runtime.ts';
-import { opacityKeyframes } from './helpers/framescaper-v20-model-fixture.ts';
+	reconcileFramescaperProjectFeatureRequirementsRetime,
+} from '../src/framescaper/editor-project-feature-requirements-retime.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { framescaperProjectForRuntimeConsumersRetime } from '../src/framescaper/editor-project-retime-runtime.ts';
+import { opacityKeyframes } from './helpers/framescaper-model-fixture.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 const RATE = Object.freeze({ num: 10, den: 1 });
@@ -136,10 +136,10 @@ test('rejects missing, wrong-kind, duplicate, and multiply-linked graph identiti
 	}
 });
 
-test('retains detached materialized V20 occurrence IDs and their keyed runtime carriers', () => {
-	const project = nestedV20Project();
-	const runtime = framescaperProjectForRuntimeConsumersV20(
-		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+test('retains detached materialized nested occurrence IDs and their keyed runtime carriers', () => {
+	const project = nestedBaselineProject();
+	const runtime = framescaperProjectForRuntimeConsumersRetime(
+		FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE,
 		project,
 	);
 	const runtimeIds = runtime.clips.map(({ id }) => String(id));
@@ -225,8 +225,8 @@ function folderFixture(): ReturnType<typeof createCurrentAudioEditorProject> {
 	});
 }
 
-function nestedV20Project() {
-	const project = createFramescaperProjectV20(FRAMESCAPER_V20_PROJECT_MODEL_PROFILE, {
+function nestedBaselineProject() {
+	const project = createFramescaperProjectRetime(FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE, {
 		id: 'inventory-nested', title: 'Nested', now: NOW,
 		sources: [createVideoSource({
 			id: 'nested-source', name: 'Nested source', storageKey: 'nested-source', mimeType: 'video/mp4',
@@ -251,6 +251,6 @@ function nestedV20Project() {
 	});
 	(project.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes(10);
 	(project as unknown as Record<string, unknown>).featureRequirements =
-		reconcileFramescaperProjectFeatureRequirementsV20(FRAMESCAPER_V20_PROJECT_MODEL_PROFILE, project);
+		reconcileFramescaperProjectFeatureRequirementsRetime(FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE, project);
 	return project;
 }

@@ -16,7 +16,7 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 	assert.notEqual(control, undefined);
 	assert.match(
 		control.summary,
-		/schema 17 take groups.*mandatory closed canonical records.*sequence and audio-track ownership.*audio-source bounds.*canonical lane, take, region, and group ordering.*4,096.*160-character.*nonoverlap/iu,
+		/family v1 take groups.*mandatory closed canonical records.*sequence and audio-track ownership.*audio-source bounds.*canonical lane, take, region, and group ordering.*4,096.*160-character.*nonoverlap/iu,
 	);
 	assert.match(
 		control.summary,
@@ -32,7 +32,7 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 	);
 	assert.match(
 		control.summary,
-		/clipboard V4.*take-owned source roots.*independently identified graph.*current-format `\.scape` collision copy.*production-recovered cycle output.*only logical roots.*exact PCM.*source and storage identities.*take source IDs?.*recipient collisions untouched.*reopens.*fresh-recipient desktop handoff.*production-finalized cycle output.*managed PCM.*no missing sources/iu,
+		/clipboard V4.*take-owned source roots.*independently identified graph.*current-format `\.scape` collision copy.*production-recovered cycle output.*only logical roots.*exact PCM.*source and storage identities.*take source IDs?.*recipient collisions untouched.*reopens.*fresh Soundscaper family-v1 desktop-library reopen.*production-finalized cycle output.*managed PCM.*no missing sources.*no foreign-family editing or shared-catalog authority/iu,
 	);
 	assert.match(
 		control.summary,
@@ -55,11 +55,11 @@ test('take/comp security truth binds native Soundscaper to read-only Framescaper
 		'tests/helpers/cycle-produced-take-fixture.ts',
 		'tests/audio-editor-cycle-produced-take-fixture.test.ts',
 		'tests/audio-editor-scape-take-comp-roundtrip.test.ts',
-		'tests/desktop-project-library-take-comp-handoff.test.ts',
+		'tests/desktop-soundscaper-project-library-baseline.test.ts',
 	]) assert.equal(evidencePaths.has(path), true, path);
 
 	const threatModel = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.match(threatModel, /policy-narrative:take-comp-native-and-cross-product-preservation/iu);
 	assert.match(threatModel, /Soundscaper.*available\/native.*Framescaper.*unavailable\/bypassed.*intrinsically read-only/iu);
-	assert.match(threatModel, /current-format `\.scape` collision copy.*production-recovered cycle output.*fresh-recipient desktop handoff.*production-finalized cycle output.*durable-routed-take-cycle-capture-and-recovery/iu);
+	assert.match(threatModel, /current-format `\.scape` collision copy.*production-recovered cycle output.*fresh Soundscaper family-v1 desktop-library reopen.*production-finalized cycle output.*durable-routed-take-cycle-capture-and-recovery/iu);
 });

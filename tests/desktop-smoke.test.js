@@ -12,7 +12,7 @@ import {
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
 } from '../scripts/lib/desktop-smoke.mjs';
-import { FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY } from '../desktop/framescaper-v27-artifact-smoke.js';
+import { FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY } from '../desktop/framescaper-baseline-artifact-smoke.js';
 
 const EXPECTED_BRIDGE = DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const FRAMESCAPER_EXPECTED_BRIDGE = FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE;
@@ -21,12 +21,10 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 test('desktop smoke pins the complete sorted preload v1 bridge contract', () => {
 	assert.equal(Object.isFrozen(DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
 	assert.deepEqual(DESKTOP_SMOKE_EXPECTED_BRIDGE, [
-		'abortSharedSourceWrite',
 		'abortWrite',
 		'applyNativeTierControl',
 		'awaitVideoSourceProbe',
 		'beginDesktopVideoCodecOperation',
-		'beginSharedSourceWrite',
 		'beginVideoSourceProbe',
 		'beginWrite',
 		'bindNativeAudioSession',
@@ -48,13 +46,10 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'closeNativePluginInstance',
 		'closeNativePluginVendorUi',
 		'collectAssistanceModelGarbage',
-		'commitSharedProject',
 		'deleteDesktopVideoCodecOperation',
-		'deleteSharedProject',
 		'describeNativeAudioBackend',
 		'editText',
 		'executeDesktopVideoCodecOperation',
-		'finishSharedSourceWrite',
 		'finishWrite',
 		'getDesktopAudioCodecCapabilities',
 		'getDesktopVideoExportCapabilities',
@@ -67,7 +62,6 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'listAssistanceModelNotices',
 		'listAssistanceModels',
 		'listNativePlugins',
-		'listSharedProjects',
 		'loadLinkedAudioOriginal',
 		'loadLinkedVideoOriginal',
 		'localAssistance',
@@ -88,9 +82,6 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'probeHelperAvailability',
 		'readDesktopVideoCodecOutput',
 		'readNativeTierControls',
-		'readSharedProject',
-		'readSharedProjectBundle',
-		'readSharedSourceChunk',
 		'reconcileAssistanceModels',
 		'reconcileLinkedOriginals',
 		'reconcileLinkedVideoOriginals',
@@ -117,7 +108,6 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'statDesktopVideoCodecOutput',
 		'writeChunk',
 		'writeDesktopVideoCodecInput',
-		'writeSharedSourceChunk',
 	]);
 });
 
@@ -242,7 +232,7 @@ test('desktop smoke validates the application-reported platform and target archi
 	);
 });
 
-test('desktop smoke validates the closed Framescaper V27 UI, preload, and main readback witness', () => {
+test('desktop smoke validates the closed Framescaper baseline UI, preload, and main readback witness', () => {
 	const expected = {
 		arch: 'arm64',
 		bridge: FRAMESCAPER_EXPECTED_BRIDGE,
@@ -251,29 +241,29 @@ test('desktop smoke validates the closed Framescaper V27 UI, preload, and main r
 		title: 'Framescaper',
 		url: 'framescaper-app://bundle/',
 	};
-	const payload = validFramescaperV27Payload();
+	const payload = validFramescaperBaselinePayload();
 	assert.doesNotThrow(() => assertDesktopSmokePayload(payload, expected));
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
-			framescaperV27: {
-				...payload.framescaperV27,
+			framescaperBaseline: {
+				...payload.framescaperBaseline,
 				main: {
-					...payload.framescaperV27.main,
-					project: { ...payload.framescaperV27.main.project, sha256: 'cd'.repeat(32) },
+					...payload.framescaperBaseline.main,
+					project: { ...payload.framescaperBaseline.main.project, sha256: 'cd'.repeat(32) },
 				},
 			},
 		}, expected),
-		/V27.*match|readback/iu,
+		/baseline.*match|readback/iu,
 	);
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
-			framescaperV27: {
-				...payload.framescaperV27,
+			framescaperBaseline: {
+				...payload.framescaperBaseline,
 				main: {
-					...payload.framescaperV27.main,
-					project: { ...payload.framescaperV27.main.project, metadataFile: 'private/file.json' },
+					...payload.framescaperBaseline.main,
+					project: { ...payload.framescaperBaseline.main.project, metadataFile: 'private/file.json' },
 				},
 			},
 		}, expected),
@@ -301,11 +291,12 @@ test('packaged desktop smoke isolates both Chromium and shared library data', as
 	assert.match(source, /productId:\s*PRODUCT_ID/u);
 });
 
-function validFramescaperV27Payload() {
+function validFramescaperBaselinePayload() {
 	const project = {
-		projectId: 'framescaper-artifact-v27',
+		projectId: 'framescaper-artifact-baseline',
 		title: 'Untitled project',
-		projectSchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
+		schemaFamily: 'framescaper',
+		schemaVersion: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY.schemaVersion,
 		projectRevision: 0,
 		metadataRevision: 1,
 		byteLength: 4_096,
@@ -321,7 +312,7 @@ function validFramescaperV27Payload() {
 		saveOwnerReady: true,
 		title: 'Framescaper',
 		url: 'framescaper-app://bundle/',
-		framescaperV27: {
+		framescaperBaseline: {
 			preloadBridge: [
 				'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
 				'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
@@ -331,13 +322,14 @@ function validFramescaperV27Payload() {
 				kind: 'framescaper-project-library-handshake',
 				version: 1,
 				owner: 'framescaper',
-				projectSchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.projectSchemaVersion,
-				scapeFormatVersions: [1, 2],
-				attachedScapeFormatVersion: 2,
-				storageDatabaseName: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.storageDatabaseName,
-				desktopLibrarySchemaVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibrarySchemaVersion,
-				desktopDatabaseUserVersion: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopDatabaseUserVersion,
-				desktopLibraryScope: [...FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY.desktopLibraryScope],
+				schemaFamily: 'framescaper',
+				schemaVersion: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY.schemaVersion,
+				scapeFormatVersions: [1],
+				attachedScapeFormatVersion: 1,
+				storageDatabaseName: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY.storageDatabaseName,
+				desktopLibrarySchemaVersion: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY.desktopLibrarySchemaVersion,
+				desktopDatabaseUserVersion: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY.desktopDatabaseUserVersion,
+				desktopLibraryScope: [...FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY.desktopLibraryScope],
 			},
 			ui: { projectId: project.projectId, title: project.title, trackCount: 1, clipCount: 0 },
 			project,

@@ -10,7 +10,7 @@ import {
 	framescaperNativeProjectActionRuntimeFor,
 } from '../src/common/editor/ui/framescaper-native-project-actions.ts';
 
-test('the candidate action runtime snapshots an exact closed action surface', async () => {
+test('the baseline action runtime snapshots an exact closed action surface', async () => {
 	const calls: string[] = [];
 	const runtime = createFramescaperNativeProjectActionRuntime({
 		'image-sequence-import': async () => { calls.push('image-sequence-import'); },
@@ -49,8 +49,8 @@ test('an unsupported surface is rejected without invoking an action', async () =
 	assert.equal(calls, 0);
 });
 
-test('a candidate controller receives a nominal runtime without a public property', () => {
-	const controller = Object.freeze({ id: 'candidate-controller' });
+test('a baseline controller receives a nominal runtime without a public property', () => {
+	const controller = Object.freeze({ id: 'baseline-controller' });
 	const runtime = createFramescaperNativeProjectActionRuntime(completeActions());
 	bindFramescaperNativeProjectActionRuntime(controller, runtime);
 
@@ -59,7 +59,7 @@ test('a candidate controller receives a nominal runtime without a public propert
 	assert.equal(Object.hasOwn(controller, 'framescaperNativeProjectActions'), false);
 	assert.throws(
 		() => bindFramescaperNativeProjectActionRuntime(controller, { ...runtime } as never),
-		/exact Framescaper candidate action runtime/u,
+		/exact Framescaper project action runtime/u,
 	);
 });
 

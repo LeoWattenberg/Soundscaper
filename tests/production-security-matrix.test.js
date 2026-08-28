@@ -208,7 +208,7 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	assert.equal(archiveStructure.status, 'enforced');
 	assert.deepEqual(archiveStructure.residualRisks, []);
 	const sourceBijection = archiveStructure.currentControls.find(
-		({ id }) => id === 'migrated-project-source-bijection',
+		({ id }) => id === 'family-v1-project-source-bijection',
 	);
 	assert.ok(sourceBijection);
 	for (const path of [
@@ -239,7 +239,7 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 		`rendered fallback integrity needs evidence from ${path}`);
 	assert.match(
 		fallbackIntegrity.summary,
-		/exact schema 17.*claim.*relationship role.*target clip ID.*source ID.*kind.*SHA-256.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*accessors.*toJSON hooks.*without invocation.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*copy collision.*remaps.*source ID.*preserving.*target clip ID.*inspection.*does not hash.*asset bodies/iu,
+		/exact owning-family v1.*claim.*relationship role.*target clip ID.*source ID.*kind.*SHA-256.*canonical asset descriptor.*before.*collision.*storage.*export.*project root.*source records.*same sources.*accessors.*toJSON hooks.*without invocation.*completed.*digest.*before.*manifest.*commit.*import.*body.*SHA-256.*publication.*copy collision.*remaps.*source ID.*preserving.*target clip ID.*inspection.*does not hash.*asset bodies/iu,
 	);
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'enforced');

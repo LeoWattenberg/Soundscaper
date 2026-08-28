@@ -61,7 +61,7 @@ test('a ready that lands while the sender is still loading is not dropped', asyn
 		sender.opens = () => popup;
 
 		const sendingStore = new FakeStore([
-			{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 },
+			{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
 		] as never);
 		const receivingStore = new FakeStore();
 		const runtime = runtimeFor(createFakeArchive());
@@ -142,7 +142,9 @@ test('the receiving page reports a finished handshake as finished', async () => 
 	receiver.peer = opener;
 	receiver.opener = opener;
 
-	const sendingStore = new FakeStore([{ id: 'video-1', title: 'Interview cut', schemaVersion: 31 }] as never);
+	const sendingStore = new FakeStore([{
+		id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1,
+	}] as never);
 	const receivingStore = new FakeStore();
 	const runtime = runtimeFor(createFakeArchive());
 
@@ -195,9 +197,9 @@ test('the receiving page reports a finished handshake as finished', async () => 
 test('the download path holds exactly one archive at a time', async () => {
 	const scope = new FakeWindow(SOUNDSCAPER);
 	const store = new FakeStore([
-		{ id: 'video-1', title: 'One', schemaVersion: 31 },
-		{ id: 'video-2', title: 'Two', schemaVersion: 31 },
-		{ id: 'video-3', title: 'Three', schemaVersion: 31 },
+		{ id: 'video-1', title: 'One', schemaFamily: 'framescaper', schemaVersion: 1 },
+		{ id: 'video-2', title: 'Two', schemaFamily: 'framescaper', schemaVersion: 1 },
+		{ id: 'video-3', title: 'Three', schemaFamily: 'framescaper', schemaVersion: 1 },
 	] as never);
 
 	await mountTransferPage({
@@ -244,4 +246,3 @@ function runtimeFor(archive: ReturnType<typeof createFakeArchive>): TransferRunt
 		receiveTransfer: receiveProjectTransfer,
 	};
 }
-

@@ -61,7 +61,7 @@ export function createVideoRetimePreservationAdmission(
 	commandProjectionValue: unknown,
 ): Readonly<VideoRetimePreservationAdmission> {
 	const persistedBase = record(persistedBaseValue, 'persisted project');
-	if (!isVideoRetimeCurveProjectSchema(persistedBase.schemaVersion)) return NO_ADMISSION;
+	if (!isVideoRetimeCurveProjectSchema(persistedBase)) return NO_ADMISSION;
 	const commandProjection = record(commandProjectionValue, 'command project');
 	const persistedContext = createContext(persistedBase, false);
 	const rawContext = createContext(commandProjection, true);

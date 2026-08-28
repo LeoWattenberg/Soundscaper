@@ -12,9 +12,14 @@ import {
 import type { AssistanceVideoSourceTimeAuthorityV1 } from
 	'../src/common/editor/assistance/owned-video-highlight-transform-types-v1.ts';
 import type { AssistanceWorkflowV1 } from '../src/common/editor/assistance/workflow.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 const DESCRIPTOR_FIELDS = Object.freeze([
-	'schemaVersion', 'kind', 'projectId', 'projectRevision', 'sequenceId',
+	'descriptorVersion', 'kind', 'schemaFamily', 'schemaVersion',
+	'projectId', 'projectRevision', 'sequenceId',
 	'videoOccurrenceId', 'sourceId', 'sourceSha256', 'timingAuthoritySha256',
 	'sourceWidth', 'sourceHeight', 'sourceStartFrame', 'sourceEndFrame', 'sampleRate',
 	'timescale', 'selectionStartFrame', 'selectionEndFrame', 'frames',
@@ -27,8 +32,13 @@ export function materializeAssistanceSelectedVideoAuthorityV1(options: Readonly<
 	readonly videoClaim: Readonly<{ readonly role: string; readonly sha256: string }>;
 }>): AssistanceVideoSourceTimeAuthorityV1 {
 	const row = exactRecord(options.value, DESCRIPTOR_FIELDS, 'selected-video timing sidecar');
-	if (row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority') {
+	if (row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority') {
 		throw new TypeError('The selected-video timing sidecar identity is unsupported.');
+	}
+	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaFamily !== 'framescaper'
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new TypeError('The selected-video timing sidecar project identity is unsupported.');
 	}
 	const sourceId = identifier(row.sourceId, 'sidecar source ID');
 	const ranges = options.request.fence.sourceRanges.filter((range) => range.mediaKind === 'video'
@@ -41,6 +51,8 @@ export function materializeAssistanceSelectedVideoAuthorityV1(options: Readonly<
 	const sourceEndFrame = integer(row.sourceEndFrame, sourceStartFrame + 1, 0xffff_ffff,
 		'sidecar source end');
 	if (row.projectId !== options.request.fence.projectId
+		|| identity.schemaFamily !== options.request.fence.schemaFamily
+		|| identity.schemaVersion !== options.request.fence.schemaVersion
 		|| row.projectRevision !== options.request.fence.revision
 		|| row.sequenceId !== options.request.fence.sequenceId
 		|| row.sourceSha256 !== range.sourceSha256

@@ -63,7 +63,8 @@ function authority(
 	clipChange: Readonly<Record<string, unknown>> = {},
 ) {
 	const project = Object.freeze({
-		id: 'project-1', schemaVersion: 31, revision: 7, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'framescaper' as const, schemaVersion: 1,
+		revision: 7, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		selection: Object.freeze({ clipIds: Object.freeze(['video-clip']) }),
 		tempoMap: Object.freeze({

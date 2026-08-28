@@ -33,6 +33,7 @@ test('checkpoint IPC admission refuses a control envelope over 64 KiB before cop
 		sourceInventoryDigest: SHA_B,
 	}));
 	assert.throws(() => framescaperNativeCheckpointLifecycleRequest({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'ab'.repeat(20), sourceInventoryDigest: SHA_B,
 		plannedFrameCount: manifest.length, manifest,
 	}), /control.*64 KiB/iu);
@@ -133,6 +134,7 @@ function runningImageSequenceRecord(): NativeQueueRecordV2 {
 		includeAudio: false,
 	});
 	const queued = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'ab'.repeat(20),
 		taskKind: 'image-sequence-export',
 		plan,

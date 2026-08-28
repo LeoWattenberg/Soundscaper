@@ -3,8 +3,8 @@
 /**
  * Menu-only project mutations supplied by an exact Framescaper runtime.
  *
- * Selected V20 installs only render-queue enqueue. Dormant V25/V26 candidates
- * add their exact media and effect subsets. Keeping these calls renderer-owned
+ * The baseline composes independently owned render, media, and effect subsets.
+ * Keeping these calls renderer-owned
  * lets each controller commit through its validated history/store boundary
  * while desktop main owns only file, queue, and plug-in capabilities.
  */
@@ -47,7 +47,7 @@ export function createFramescaperNativeProjectActionRuntime(
 	);
 }
 
-/** Exact subset factory: selected V20 has one surface; candidates add their own. */
+/** Exact subset factory for one baseline action owner. */
 export function createFramescaperNativeProjectActionSubsetRuntime(
 	surfacesValue: readonly FramescaperNativeProjectActionSurface[],
 	actionsValue: Partial<FramescaperNativeProjectActions>,
@@ -62,7 +62,7 @@ export function createFramescaperNativeProjectActionSubsetRuntime(
 		): Promise<void> => {
 			const surface = exactSurface(surfaceValue);
 			const action = actions[surface];
-			if (!action) throw new Error(`Framescaper candidate action ${surface} is unavailable.`);
+			if (!action) throw new Error(`Framescaper project action ${surface} is unavailable.`);
 			await action(request);
 		},
 	});
@@ -143,7 +143,7 @@ export function bindFramescaperNativeProjectActionRuntime(
 ): void {
 	if (!owner || (typeof owner !== 'object' && typeof owner !== 'function')
 		|| !isFramescaperNativeProjectActionRuntime(runtime)) {
-		throw new TypeError('Only an exact Framescaper candidate action runtime can be bound.');
+		throw new TypeError('Only an exact Framescaper project action runtime can be bound.');
 	}
 	OWNER_RUNTIMES.set(owner, runtime);
 }
@@ -198,11 +198,11 @@ function exactSurfaces(
 ): readonly FramescaperNativeProjectActionSurface[] {
 	if (!Array.isArray(value) || value.length === 0 || value.length > SURFACE_SET.size
 		|| Reflect.ownKeys(value).length !== value.length + 1) {
-		throw new TypeError('Framescaper candidate action surfaces must be a bounded dense array.');
+		throw new TypeError('Framescaper project action surfaces must be a bounded dense array.');
 	}
 	const surfaces = value.map(exactSurface);
 	if (new Set(surfaces).size !== surfaces.length) {
-		throw new TypeError('Framescaper candidate action surfaces must be unique.');
+		throw new TypeError('Framescaper project action surfaces must be unique.');
 	}
 	return Object.freeze(surfaces);
 }

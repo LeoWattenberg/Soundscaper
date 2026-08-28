@@ -1,24 +1,24 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
-import { assertFramescaperProjectV25CandidateProfile } from './editor-project-runtime-profile-v25.ts';
+import { assertFramescaperProjectProfessionalMediaCandidateProfile } from './editor-domain-runtime-profile.ts';
 import {
-	normalizeFramescaperProfessionalVideoSourceV25,
-	validateFramescaperProjectV25,
-	type FramescaperProfessionalVideoSourceV25,
-	type FramescaperProjectV25,
-} from './editor-project-v25.ts';
+	normalizeFramescaperProfessionalVideoSourceProfessionalMedia,
+	validateFramescaperProjectProfessionalMedia,
+	type FramescaperProfessionalVideoSourceProfessionalMedia,
+	type FramescaperProjectProfessionalMedia,
+} from './editor-project-professional-media.ts';
 
 export interface FramescaperProfessionalMediaClipboardV9 {
 	readonly schemaVersion: 9;
 	readonly kind: 'framescaper-professional-media-fragment';
 	readonly originProjectId: string;
 	readonly originRevision: number;
-	readonly sources: readonly FramescaperProfessionalVideoSourceV25[];
+	readonly sources: readonly FramescaperProfessionalVideoSourceProfessionalMedia[];
 }
 
 export interface FramescaperProfessionalMediaClipboardPasteV9 {
-	readonly sources: readonly FramescaperProfessionalVideoSourceV25[];
+	readonly sources: readonly FramescaperProfessionalVideoSourceProfessionalMedia[];
 }
 
 const FIELDS = Object.freeze([
@@ -31,15 +31,15 @@ export function createFramescaperProfessionalMediaClipboardV9(
 	project: unknown,
 	sourceIdsValue: readonly string[],
 ): FramescaperProfessionalMediaClipboardV9 {
-	assertFramescaperProjectV25CandidateProfile(profile);
-	validateFramescaperProjectV25(profile, project);
+	assertFramescaperProjectProfessionalMediaCandidateProfile(profile);
+	validateFramescaperProjectProfessionalMedia(profile, project);
 	if (!Array.isArray(sourceIdsValue) || sourceIdsValue.length < 1) {
 		throw new RangeError('A professional-media clipboard selection cannot be empty.');
 	}
 	const sourceIds = sourceIdsValue.map((value) => stableId(value, 'clipboard source ID'));
 	if (new Set(sourceIds).size !== sourceIds.length) throw new RangeError('Clipboard source IDs must be unique.');
 	const selected = new Set(sourceIds);
-	const candidate = project as FramescaperProjectV25;
+	const candidate = project as FramescaperProjectProfessionalMedia;
 	const sources = candidate.sources.filter((source) => selected.has(String(source.id)));
 	if (sources.length !== selected.size || sources.some(({ kind }) => kind !== 'video')) {
 		throw new ReferenceError('The professional-media clipboard selection names a missing video source.');
@@ -63,7 +63,7 @@ export function normalizeFramescaperProfessionalMediaClipboardV9(
 	}
 	const sources = readClosedDomainArray(
 		field(input, 'sources'), 'V9 clipboard sources', 1, 100_000,
-	).map(normalizeFramescaperProfessionalVideoSourceV25);
+	).map(normalizeFramescaperProfessionalVideoSourceProfessionalMedia);
 	const ids = new Set<string>();
 	for (const source of sources) {
 		if (ids.has(source.id)) throw new RangeError(`Duplicate V9 clipboard source ID ${source.id}.`);
@@ -82,7 +82,7 @@ export function normalizeFramescaperProfessionalMediaClipboardV9(
 export function prepareFramescaperProfessionalMediaClipboardPasteV9(
 	clipboardValue: unknown,
 	options: Readonly<{ sourceIdMap: ReadonlyMap<string, string> }>,
-): readonly FramescaperProfessionalVideoSourceV25[] {
+): readonly FramescaperProfessionalVideoSourceProfessionalMedia[] {
 	const clipboard = normalizeFramescaperProfessionalMediaClipboardV9(clipboardValue);
 	const allocations = allocationMap(options?.sourceIdMap, 'sourceIdMap');
 	const used = new Set<string>();
@@ -99,7 +99,7 @@ export function prepareFramescaperProfessionalMediaClipboardPasteV9(
 		if (candidate.imageSequence !== null) {
 			(candidate.imageSequence as Record<string, unknown>).id = id;
 		}
-		return normalizeFramescaperProfessionalVideoSourceV25(candidate);
+		return normalizeFramescaperProfessionalVideoSourceProfessionalMedia(candidate);
 	});
 	assertNoUnusedAllocations(allocations, used, 'V9 source');
 	return Object.freeze(sources);

@@ -8,27 +8,27 @@ import { createVideoKeyframeExportPresentationAuthority } from '../src/common/ed
 import { createVideoRetimeWebCoreOrdinalAuthority } from '../src/common/editor/video-retime-web-core-ordinal-authority.ts';
 import { createVideoRetimeWebCorePreviewResolver } from '../src/common/editor/video-retime-web-core-preview.ts';
 import { resolveActiveVideoLayers } from '../src/common/editor/video-timeline.js';
-import { applyFramescaperProjectCommandV20 } from '../src/framescaper/editor-project-v20-commands.ts';
-import { createFramescaperVideoRetimeReverseCommandV20 } from '../src/framescaper/editor-project-v20-retime-command.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperProjectForRuntimeConsumersV20 } from '../src/framescaper/editor-project-v20-runtime.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { applyFramescaperProjectCommandRetime } from '../src/framescaper/editor-project-retime-commands.ts';
+import { createFramescaperVideoRetimeReverseCommandRetime } from '../src/framescaper/editor-project-retime-retime-command.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { framescaperProjectForRuntimeConsumersRetime } from '../src/framescaper/editor-project-retime-runtime.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 import { bindCfrTiming, bindVfrTiming, NTSC } from './helpers/video-retime-export-fixtures.ts';
 
-const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
+const PROFILE = FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE;
 
 test('web-core exact ordinal authority owns CFR, NTSC and random reverse seeks', () => {
-	const canonical = createFramescaperProjectV20(PROFILE, framescaperV20Options());
-	const retimed = applyFramescaperProjectCommandV20(
+	const canonical = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
+	const retimed = applyFramescaperProjectCommandRetime(
 		PROFILE,
 		canonical,
-		createFramescaperVideoRetimeReverseCommandV20({
+		createFramescaperVideoRetimeReverseCommandRetime({
 			clipId: 'video-clip', expectedRetimeMap: null,
 		}),
 		{ now: '2026-08-23T12:30:00.000Z' },
 	);
-	const project = framescaperProjectForRuntimeConsumersV20(PROFILE, retimed);
+	const project = framescaperProjectForRuntimeConsumersRetime(PROFILE, retimed);
 	const clip = project.clips.find(({ kind }) => kind === 'video')!;
 	const authority = createVideoRetimeWebCoreOrdinalAuthority({
 		project,
@@ -61,16 +61,16 @@ test('web-core exact ordinal authority owns CFR, NTSC and random reverse seeks',
 });
 
 test('web-core exact ordinal authority retains authenticated VFR source time', () => {
-	const canonical = createFramescaperProjectV20(PROFILE, framescaperV20Options());
-	const retimed = applyFramescaperProjectCommandV20(
+	const canonical = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
+	const retimed = applyFramescaperProjectCommandRetime(
 		PROFILE,
 		canonical,
-		createFramescaperVideoRetimeReverseCommandV20({
+		createFramescaperVideoRetimeReverseCommandRetime({
 			clipId: 'video-clip', expectedRetimeMap: null,
 		}),
 		{ now: '2026-08-23T12:31:00.000Z' },
 	);
-	const project = framescaperProjectForRuntimeConsumersV20(PROFILE, retimed);
+	const project = framescaperProjectForRuntimeConsumersRetime(PROFILE, retimed);
 	const clip = project.clips.find(({ kind }) => kind === 'video')!;
 	const authority = createVideoRetimeWebCoreOrdinalAuthority({
 		project,
@@ -90,16 +90,16 @@ test('web-core exact ordinal authority retains authenticated VFR source time', (
 });
 
 test('program preview consumes the same exact ordinal descriptor at random sample seeks', () => {
-	const canonical = createFramescaperProjectV20(PROFILE, framescaperV20Options());
-	const retimed = applyFramescaperProjectCommandV20(
+	const canonical = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
+	const retimed = applyFramescaperProjectCommandRetime(
 		PROFILE,
 		canonical,
-		createFramescaperVideoRetimeReverseCommandV20({
+		createFramescaperVideoRetimeReverseCommandRetime({
 			clipId: 'video-clip', expectedRetimeMap: null,
 		}),
 		{ now: '2026-08-23T12:33:00.000Z' },
 	);
-	const project = framescaperProjectForRuntimeConsumersV20(PROFILE, retimed);
+	const project = framescaperProjectForRuntimeConsumersRetime(PROFILE, retimed);
 	const preview = createVideoRetimeWebCorePreviewResolver({
 		project,
 		timingBySourceId: new Map([[

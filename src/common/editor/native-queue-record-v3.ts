@@ -23,6 +23,11 @@ import {
 	assertNativeQueueRecordV2,
 } from './native-queue-record.ts';
 import { assertUnifiedExactRenderPlanWithDeferredTimingReferences, type UnifiedExactRenderTimingSidecars } from './unified-exact-render-plan.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from './project-schema-identity.ts';
 
 export const NATIVE_QUEUE_RECORD_V3_VERSION = 3 as const;
 export const NATIVE_QUEUE_V3_CUSTODY_PLAN_VERSIONS = Object.freeze([6, 7, 8, 9, 10, 11, 12, 13] as const);
@@ -35,7 +40,8 @@ export interface NativeQueueRecordV3 extends Omit<NativeQueueRecordV1, 'planVers
 }
 
 const RECORD_FIELDS = Object.freeze([
-	'jobId', 'recordVersion', 'taskKind', 'planVersion', 'planFingerprint', 'planPayload',
+	'jobId', 'recordVersion', 'schemaFamily', 'schemaVersion', 'taskKind', 'planVersion',
+	'planFingerprint', 'planPayload',
 	'projectId', 'projectRevision', 'inputFingerprints', 'rootGrantId', 'relativeDestination',
 	'reservations', 'recoveryClass', 'state', 'position', 'progress', 'attempt',
 	'lastFailureCode', 'createdAtMs', 'updatedAtMs',
@@ -48,6 +54,8 @@ const FAILURE = /^[a-z][a-z0-9-]{0,63}$/u;
 
 export function createNativeQueueRecordV3(input: Readonly<{
 	readonly jobId: string;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly plan: unknown;
 	readonly timingSidecars?: UnifiedExactRenderTimingSidecars;
@@ -65,7 +73,8 @@ export function createNativeQueueRecordV3(input: Readonly<{
 	if (envelope.planVersion !== 14) throw new RangeError('New native queue V3 work must use selected plan V14.');
 	const record: NativeQueueRecordV3 = Object.freeze({
 		recordVersion: NATIVE_QUEUE_RECORD_V3_VERSION,
-		jobId: input.jobId, taskKind: input.taskKind, planVersion: 14,
+		jobId: input.jobId, schemaFamily: input.schemaFamily, schemaVersion: input.schemaVersion,
+		taskKind: input.taskKind, planVersion: 14,
 		planFingerprint: envelope.fingerprint,
 		planPayload: canonicalizeNativeMediaPlan(envelope.plan),
 		projectId: input.projectId, projectRevision: input.projectRevision,
@@ -96,6 +105,11 @@ export function migrateNativeQueueRecordV2ToV3(value: NativeQueueRecordV2): Nati
 }
 
 export function assertNativeQueueRecordV3(value: unknown): asserts value is NativeQueueRecordV3 {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('A native queue V3 record requires the current Framescaper project schema.');
+	}
 	const row = record(value, 'native queue V3 record');
 	exactKeys(row, RECORD_FIELDS);
 	if (row.recordVersion !== NATIVE_QUEUE_RECORD_V3_VERSION) throw new TypeError('Native queue recordVersion must be 3.');

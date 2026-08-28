@@ -91,7 +91,7 @@ function existingActiveAnnotationId(
 	project: ProjectSessionSelectionProject,
 	requestedAnnotationId: unknown,
 ): string | null {
-	if (!isActiveAudioEditorProjectSchema(project.schemaVersion)
+	if (!isActiveAudioEditorProjectSchema(project)
 		|| typeof requestedAnnotationId !== 'string'
 		|| !requestedAnnotationId) return null;
 	try {

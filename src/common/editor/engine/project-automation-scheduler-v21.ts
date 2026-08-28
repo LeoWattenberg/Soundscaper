@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeAutomationLaneV21 } from '../automation-lane-v21.ts';
-import { isProductionMixerProjectSchema } from '../project-schema-version.ts';
+import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import {
 	compileAutomationLaneEventsV21,
 	scheduleAutomationLaneV21,
@@ -24,7 +24,7 @@ export function scheduleProjectAutomationLanesV21(
 	registry: Pick<ScheduledParameterRegistry, 'get' | 'getSuspendedParameter'>,
 	options: ScheduleAutomationLaneOptionsV21,
 ): readonly ScheduledProjectAutomationLaneV21[] {
-	if (!isProductionMixerProjectSchema(project.schemaVersion)) return Object.freeze([]);
+	if (!hasProductionMixerProjectAuthority(project)) return Object.freeze([]);
 	if (!Array.isArray(project.automationLanes)) {
 		throw new TypeError('A V21 project requires an automationLanes array.');
 	}

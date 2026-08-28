@@ -4,40 +4,40 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { NativePluginRackEffect } from '../src/common/editor/native-plugin-effect.ts'
-import { createSoundscaperNativePluginActionsV29 } from '../src/soundscaper/editor-native-plugin-actions-v29.ts'
+import { createSoundscaperNativePluginActions } from '../src/soundscaper/editor-native-plugin-actions.ts'
 import {
-	createSoundscaperProjectHistoryV29,
-	executeSoundscaperProjectCommandV29,
-	redoSoundscaperProjectCommandV29,
-	undoSoundscaperProjectCommandV29,
-} from '../src/soundscaper/editor-project-v29-history.ts'
-import type { SoundscaperNativePluginBindingCommandV29 } from '../src/soundscaper/editor-project-v29-commands.ts'
-import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts'
+	createSoundscaperProjectHistory,
+	executeSoundscaperProjectCommand,
+	redoSoundscaperProjectCommand,
+	undoSoundscaperProjectCommand,
+} from '../src/soundscaper/editor-project-history.ts'
+import type { SoundscaperNativePluginBindingCommand } from '../src/soundscaper/editor-project-commands.ts'
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 
 const NOW = '2026-08-24T00:00:00.000Z'
 
 test('native plug-in authoring publishes the rack slot and state in one undoable V29 revision', () => {
 	const initial = project()
-	const history = createSoundscaperProjectHistoryV29(initial)
-	const authored = executeSoundscaperProjectCommandV29(history, binding('author'), { now: NOW })
+	const history = createSoundscaperProjectHistory(initial)
+	const authored = executeSoundscaperProjectCommand(history, binding('author'), { now: NOW })
 
 	assert.equal(authored.present.revision, initial.revision + 1)
 	assert.deepEqual(nativeEffects(authored.present), [effect()])
 	assert.deepEqual(authored.present.nativePluginStates, [state()])
 	assert.equal(authored.undoStack.length, 1)
 
-	const undone = undoSoundscaperProjectCommandV29(authored)
+	const undone = undoSoundscaperProjectCommand(authored)
 	assert.deepEqual(nativeEffects(undone.present), [])
 	assert.deepEqual(undone.present.nativePluginStates, [])
 	assert.equal(undone.undoStack.length, 0)
 
-	const redone = redoSoundscaperProjectCommandV29(undone)
+	const redone = redoSoundscaperProjectCommand(undone)
 	assert.deepEqual(nativeEffects(redone.present), [effect()])
 	assert.deepEqual(redone.present.nativePluginStates, [state()])
 })
 
 test('the product binding action dispatches exactly one playback-visible canonical commit', () => {
-	let history = createSoundscaperProjectHistoryV29(project())
+	let history = createSoundscaperProjectHistory(project())
 	const calls: Array<Readonly<{ command: unknown; options: unknown }>> = []
 	const controller = {
 		get project() { return history.present },
@@ -47,11 +47,11 @@ test('the product binding action dispatches exactly one playback-visible canonic
 			options: Readonly<{ skipPlaybackEngine?: boolean }>,
 		) => {
 			calls.push({ command, options })
-			history = executeSoundscaperProjectCommandV29(history, command as never, { now: NOW })
+			history = executeSoundscaperProjectCommand(history, command as never, { now: NOW })
 			return history.present
 		} } },
 	}
-	const actions = createSoundscaperNativePluginActionsV29(controller)
+	const actions = createSoundscaperNativePluginActions(controller)
 	const result = actions.commitBinding({
 		operation: 'author', trackId: 'track-1',
 		effect: effect() as unknown as Readonly<Record<string, unknown>>, state: state(),
@@ -66,7 +66,7 @@ test('the product binding action dispatches exactly one playback-visible canonic
 })
 
 test('a late native state failure cannot publish the otherwise valid rack mutation', () => {
-	const history = createSoundscaperProjectHistoryV29(project())
+	const history = createSoundscaperProjectHistory(project())
 	const invalid = binding('author', {
 		state: state({ stateBody: {
 			...state().stateBody,
@@ -75,7 +75,7 @@ test('a late native state failure cannot publish the otherwise valid rack mutati
 	})
 
 	assert.throws(
-		() => executeSoundscaperProjectCommandV29(history, invalid),
+		() => executeSoundscaperProjectCommand(history, invalid),
 		/derived from its SHA-256/iu,
 	)
 	assert.deepEqual(nativeEffects(history.present), [])
@@ -84,8 +84,8 @@ test('a late native state failure cannot publish the otherwise valid rack mutati
 })
 
 test('native plug-in restore updates the exact rack slot and state in one reversible revision', () => {
-	const authored = executeSoundscaperProjectCommandV29(
-		createSoundscaperProjectHistoryV29(project()), binding('author'), { now: NOW },
+	const authored = executeSoundscaperProjectCommand(
+		createSoundscaperProjectHistory(project()), binding('author'), { now: NOW },
 	)
 	const restoredEffect = effect({ bypassed: true, params: {
 		instanceId: 'native-instance-1', latencyFrames: 256,
@@ -93,7 +93,7 @@ test('native plug-in restore updates the exact rack slot and state in one revers
 	const restoredState = state({
 		stateBody: body('e'), bypassed: true, continuity: 'bypass', latencySamples: 256,
 	})
-	const restored = executeSoundscaperProjectCommandV29(authored, binding('restore', {
+	const restored = executeSoundscaperProjectCommand(authored, binding('restore', {
 		effect: restoredEffect, state: restoredState,
 	}), { now: '2026-08-24T00:00:01.000Z' })
 
@@ -102,17 +102,17 @@ test('native plug-in restore updates the exact rack slot and state in one revers
 	assert.deepEqual(restored.present.nativePluginStates, [restoredState])
 	assert.equal(restored.undoStack.length, authored.undoStack.length + 1)
 
-	const undone = undoSoundscaperProjectCommandV29(restored)
+	const undone = undoSoundscaperProjectCommand(restored)
 	assert.deepEqual(nativeEffects(undone.present), [effect()])
 	assert.deepEqual(undone.present.nativePluginStates, [state()])
 })
 
 test('a failed restore leaves both the prior rack projection and prior state untouched', () => {
-	const authored = executeSoundscaperProjectCommandV29(
-		createSoundscaperProjectHistoryV29(project()), binding('author'), { now: NOW },
+	const authored = executeSoundscaperProjectCommand(
+		createSoundscaperProjectHistory(project()), binding('author'), { now: NOW },
 	)
 	const before = JSON.stringify(authored)
-	assert.throws(() => executeSoundscaperProjectCommandV29(authored, binding('restore', {
+	assert.throws(() => executeSoundscaperProjectCommand(authored, binding('restore', {
 		effect: effect({ params: { instanceId: 'native-instance-1', latencyFrames: 256 } }),
 		state: state({ latencySamples: 128 }),
 	})), /runtime projection/iu)
@@ -122,26 +122,26 @@ test('a failed restore leaves both the prior rack projection and prior state unt
 })
 
 test('a state-only restore still owns one revision while an exact restore remains a no-op', () => {
-	const authored = executeSoundscaperProjectCommandV29(
-		createSoundscaperProjectHistoryV29(project()), binding('author'), { now: NOW },
+	const authored = executeSoundscaperProjectCommand(
+		createSoundscaperProjectHistory(project()), binding('author'), { now: NOW },
 	)
 	const restoredState = state({ stateBody: body('f') })
-	const restored = executeSoundscaperProjectCommandV29(authored, binding('restore', {
+	const restored = executeSoundscaperProjectCommand(authored, binding('restore', {
 		state: restoredState,
 	}), { now: '2026-08-24T00:00:01.000Z' })
 	assert.equal(restored.present.revision, authored.present.revision + 1)
 	assert.deepEqual(nativeEffects(restored.present), [effect()])
 	assert.deepEqual(restored.present.nativePluginStates, [restoredState])
 
-	const noOp = executeSoundscaperProjectCommandV29(restored, binding('restore', {
+	const noOp = executeSoundscaperProjectCommand(restored, binding('restore', {
 		state: restoredState,
 	}))
 	assert.equal(noOp, restored)
 })
 
 test('the narrow native binding command does not widen V29 generic mixed batches', () => {
-	const history = createSoundscaperProjectHistoryV29(project())
-	assert.throws(() => executeSoundscaperProjectCommandV29(history, {
+	const history = createSoundscaperProjectHistory(project())
+	assert.throws(() => executeSoundscaperProjectCommand(history, {
 		type: 'batch',
 		commands: [
 			{ type: 'effect/add', scope: 'track', trackId: 'track-1', effect: effect() },
@@ -153,20 +153,20 @@ test('the narrow native binding command does not widen V29 generic mixed batches
 })
 
 function project() {
-	return createSoundscaperProjectV29({
+	return createSoundscaperProject({
 		id: 'native-binding-v29', title: 'Atomic native binding', now: NOW,
 		tracks: [{ type: 'audio', id: 'track-1', name: 'Track' }],
 	} as never)
 }
 
 function binding(
-	operation: SoundscaperNativePluginBindingCommandV29['operation'],
+	operation: SoundscaperNativePluginBindingCommand['operation'],
 	overrides: Readonly<Record<string, unknown>> = {},
-): SoundscaperNativePluginBindingCommandV29 {
+): SoundscaperNativePluginBindingCommand {
 	return {
 		type: 'native-plugin/bind', operation, trackId: 'track-1',
 		effect: effect(), state: state(), ...overrides,
-	} as SoundscaperNativePluginBindingCommandV29
+	} as SoundscaperNativePluginBindingCommand
 }
 
 function effect(overrides: Readonly<Record<string, unknown>> = {}): NativePluginRackEffect {

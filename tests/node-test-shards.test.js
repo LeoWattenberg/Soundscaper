@@ -58,11 +58,11 @@ test('a test is shelved with the product whose own tree it reaches into', () => 
 		'a test importing src/framescaper belongs to the Framescaper shard',
 	);
 	assert.ok(
-		named('soundscaper', 'audio-editor-soundscaper-project-v29.test.ts'),
+		named('soundscaper', 'audio-editor-soundscaper-baseline.test.ts'),
 		'a test importing src/soundscaper belongs to the Soundscaper shard',
 	);
 	assert.ok(
-		named('common', 'audio-editor-soundscaper-v21-persistence-interchange.test.ts'),
+		named('common', 'audio-editor-mastering-sequence-capability.test.ts'),
 		'a test reaching into both products is cross-product work and belongs to the shared shard',
 	);
 	assert.ok(

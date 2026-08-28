@@ -15,11 +15,17 @@ import {
 	readLocalAssistanceSelectedVideoSourceBoundaryTick,
 	type LocalAssistanceSelectedVideoAuthority,
 } from './local-assistance-selected-video.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 export type LocalAssistanceSelectedVideoSourceTimeFrameV1 = AssistanceSourceTimeRowV1;
 
 export interface LocalAssistanceSelectedVideoSourceTimeDescriptorV1 {
-	readonly schemaVersion: 1;
+	readonly descriptorVersion: 1;
 	readonly kind: 'selected-video-source-time-authority';
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly sequenceId: string;
@@ -50,6 +56,11 @@ const REVIEWED_ROWS = new WeakMap<object, ReviewedAssistanceSourceTimeRowsV1>();
 export function createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
 	authority: LocalAssistanceSelectedVideoAuthority,
 ): LocalAssistanceSelectedVideoSourceTimeDescriptorV1 {
+	const identity = readProjectSchemaIdentity(authority?.project);
+	if (identity.schemaFamily !== 'framescaper'
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new TypeError('Selected-video source-time authority requires a current Framescaper project.');
+	}
 	const sourceStartFrame = integer(authority?.sourceStartFrame, 0, 'source start frame');
 	const sourceEndFrame = integer(authority?.sourceEndFrame, 1, 'source end frame');
 	if (sourceEndFrame <= sourceStartFrame) {
@@ -69,8 +80,9 @@ export function createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
 	if (first.sourceFrame !== sourceStartFrame || last.sourceFrame !== sourceEndFrame) {
 		throw new RangeError('Selected-video source-time authority cannot bind both endpoints.');
 	}
-	const descriptor = Object.freeze({ schemaVersion: 1 as const,
+	const descriptor = Object.freeze({ descriptorVersion: 1 as const,
 		kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: identifier(authority.project.id, 'project ID'),
 		projectRevision: integer(authority.project.revision, 0, 'project revision'),
 		sequenceId: identifier(authority.sequence.id, 'sequence ID'),
@@ -141,14 +153,20 @@ export function reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
 		throw new TypeError('The selected-video source-time descriptor must be one plain record.');
 	}
 	const row = value as Record<string, unknown>;
-	const fields = ['schemaVersion', 'kind', 'projectId', 'projectRevision', 'sequenceId',
+	const fields = ['descriptorVersion', 'kind', 'schemaFamily', 'schemaVersion',
+		'projectId', 'projectRevision', 'sequenceId',
 		'videoOccurrenceId', 'sourceId', 'sourceSha256', 'timingAuthoritySha256', 'sourceWidth',
 		'sourceHeight', 'sourceStartFrame', 'sourceEndFrame', 'sampleRate', 'timescale',
 		'selectionStartFrame', 'selectionEndFrame', 'frames'];
 	if (Object.keys(row).length !== fields.length
 		|| Object.keys(row).some((key) => !fields.includes(key))
-		|| row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority') {
+		|| row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority') {
 		throw new TypeError('The selected-video source-time descriptor fields are invalid.');
+	}
+	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaFamily !== 'framescaper'
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new TypeError('The selected-video source-time descriptor project identity is unsupported.');
 	}
 	const sourceStartFrame = integer(row.sourceStartFrame, 0, 'source start frame');
 	const sourceEndFrame = integer(row.sourceEndFrame, sourceStartFrame + 1, 'source end frame');
@@ -161,8 +179,9 @@ export function reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
 		|| frames.last.timelineFrame !== selectionEndFrame) {
 		throw new RangeError('The selected-video source-time rows do not bind exact endpoints.');
 	}
-	const descriptor = Object.freeze({ schemaVersion: 1 as const,
+	const descriptor = Object.freeze({ descriptorVersion: 1 as const,
 		kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: identifier(row.projectId, 'project ID'),
 		projectRevision: integer(row.projectRevision, 0, 'project revision'),
 		sequenceId: identifier(row.sequenceId, 'sequence ID'),

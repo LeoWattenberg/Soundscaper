@@ -137,6 +137,7 @@ function queueRecord(
 	}>,
 ) {
 	return createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: suffix.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [],
 		rootGrantId: 'f'.repeat(32), relativeDestination: `${suffix}.mov`, reservations,

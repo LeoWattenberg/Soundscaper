@@ -95,7 +95,8 @@ function importFixture(storageEvidence: Record<string, unknown> = {}) {
 	let committed: Record<string, unknown> | null = null;
 	let id = 0;
 	const project = {
-		id: 'project-1', schemaVersion: 30, revision: 4, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'soundscaper', schemaVersion: 1,
+		revision: 4, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence', sequences: [{ id: 'main-sequence',
 			rate: { num: 30, den: 1 } }], subsequences: [], multicameraGroups: [],
 		assistanceAssets: [], metadata: {}, sources: [], clips: [], tracks: [],

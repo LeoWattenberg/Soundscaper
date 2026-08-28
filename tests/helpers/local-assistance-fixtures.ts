@@ -20,7 +20,8 @@ export const OUTPUT_SHA256 = '44463f127fa35586d028e070ac4d510ba7d7d2e7411f0f3491
 export const MODEL_SHA256 = 'f'.repeat(64);
 
 export const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 30, revision: 2, sequenceId: 'sequence-1',
+	schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+	projectId: 'project-1', revision: 2, sequenceId: 'sequence-1',
 	occurrenceIds: Object.freeze(['occurrence-1']), sourceId: 'source-1',
 	sourceSha256: '1'.repeat(64), sourceStartFrame: 10, sourceEndFrame: 20,
 	linkMembershipSha256: '2'.repeat(64), timingAuthoritySha256: '3'.repeat(64),

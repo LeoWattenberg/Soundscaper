@@ -44,7 +44,8 @@ test('accepted Reframe derivatives retain the semantically reviewed draft and ex
 	const repository = derivativeRepository('accepted');
 	const record = await retainLocalAssistanceGuidedAcceptedReframePathV1({
 		workflow, result, repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 9 }),
+		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 9 }),
 	});
 	assert.equal(record.kind, 'reframe-path');
 	assert.equal(record.mediaType, 'application/vnd.soundscaper.accepted-reframe-path+json');
@@ -64,7 +65,8 @@ test('accepted Reframe retention refuses stale publication authority', async () 
 	const repository = derivativeRepository('stale');
 	await assert.rejects(retainLocalAssistanceGuidedAcceptedReframePathV1({
 		workflow: reframeWorkflow(), result: reframeResult(), repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 8 }),
+		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 8 }),
 	}), { name: 'AbortError' });
 	assert.deepEqual(await repository.listProject('project-a'), []);
 });
@@ -92,7 +94,8 @@ test('highlight preparation admits only one payload-authenticated, exact accepte
 	const repository = derivativeRepository('highlight');
 	const record = await retainLocalAssistanceGuidedAcceptedReframePathV1({
 		workflow, result: reframeResult(), repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 9 }),
+		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 9 }),
 	});
 	const video = createLocalAssistanceGuidedHighlightVideoSignalsV1({
 		authority: videoAuthority(), audioOccurrenceId: null,
@@ -193,7 +196,8 @@ export function reframeWorkflow(): AssistanceWorkflowV1 {
 			claim('output', 'plan-crops', 'reframe-path', 9),
 		],
 		fence: {
-			fenceVersion: 1, projectId: 'project-a', schemaVersion: 31, revision: 8,
+			fenceVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', revision: 8,
 			sequenceId: 'sequence-a', transcriptBodySha256: null,
 			recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, stageIds),
 			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),
@@ -237,7 +241,8 @@ function keyframe(
 
 function videoAuthority() {
 	return {
-		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		descriptorVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-a', projectRevision: 9, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 		sourceSha256: SOURCE_SHA256, timingAuthoritySha256: TIMING_SHA256,
@@ -249,7 +254,8 @@ function videoAuthority() {
 }
 
 function primitiveFence() {
-	return { projectId: 'project-a', schemaVersion: 31, revision: 9,
+	return { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+		projectId: 'project-a', revision: 9,
 		sequenceId: 'sequence-a', occurrenceIds: ['video-occurrence'], sourceId: 'video-source',
 		sourceSha256: SOURCE_SHA256, sourceStartFrame: 0, sourceEndFrame: 45,
 		linkMembershipSha256: LINK_SHA256, timingAuthoritySha256: TIMING_SHA256 };

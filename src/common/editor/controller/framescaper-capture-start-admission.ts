@@ -155,6 +155,8 @@ function sameCaptureOrigin(
 	right: Readonly<FramescaperCaptureStartOrigin>,
 ): boolean {
 	return left.projectFence.projectId === right.projectFence.projectId
+		&& left.projectFence.schemaFamily === right.projectFence.schemaFamily
+		&& left.projectFence.schemaVersion === right.projectFence.schemaVersion
 		&& left.projectFence.baseRevision === right.projectFence.baseRevision
 		&& left.projectFence.baseSha256 === right.projectFence.baseSha256
 		&& left.origin.sequenceId === right.origin.sequenceId

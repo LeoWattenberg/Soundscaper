@@ -12,7 +12,7 @@ import VideoKeyframeDialog from '../src/common/editor/ui/inspector/VideoKeyframe
 import { videoKeyframeTransferShortcut } from '../src/common/editor/ui/video-keyframe-transfer-shortcut.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
-test('the dormant keyframe dialog exposes exact curve editing, transfer, and accessible keyboard-native controls', () => {
+test('the baseline keyframe dialog exposes exact curve editing, transfer, and accessible keyboard-native controls', () => {
 	const markup = renderToStaticMarkup(<VideoKeyframeDialog
 		productId="framescaper"
 		capability
@@ -83,7 +83,7 @@ test('the German surface localizes both curve-creation and curve-editing interpo
 	assert.equal((markup.match(/<option value="bezier">Bézier<\/option>/gu) ?? []).length, 2);
 });
 
-test('keyframe UI stays lazy, menu-reached, and guarded by the dormant capability', async () => {
+test('keyframe UI stays lazy, menu-reached, and guarded by its capability', async () => {
 	const [menus, runtime, overlays, dialog] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/application-menus.js', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/workspace/workspace-application-menu-runtime.js', import.meta.url), 'utf8'),
@@ -120,7 +120,7 @@ test('English and German catalogs own all keyframe interaction and target copy',
 
 function project(locked = false) {
 	return {
-		schemaVersion: 20,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		clips: [{
 			id: 'video', kind: 'video', title: 'Picture', sequenceStartFrame: 0, sequenceFrameCount: 20,
 			videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION,

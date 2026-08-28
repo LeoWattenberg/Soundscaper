@@ -6,7 +6,7 @@ import {
 	type FramescaperUnifiedRenderFoundation,
 } from './editor-project-unified-render-core.ts';
 
-/** Project V25 source state projected onto complete V11 professional nodes. */
+/** Project professionalMedia source state projected onto complete V11 professional nodes. */
 export function createFramescaperUnifiedProfessionalRenderNodes(
 	foundation: FramescaperUnifiedRenderFoundation,
 ): readonly UnifiedExactRenderProfessionalMediaNode[] {
@@ -19,7 +19,7 @@ export function createFramescaperUnifiedProfessionalRenderNodes(
 		if (!sourceNodeId) throw new ReferenceError(`Professional source ${sourceId} has no exact input node.`);
 		if (!Object.hasOwn(source, 'characteristics') || !Object.hasOwn(source, 'imageSequence')
 			|| !Object.hasOwn(source, 'proxyAttachment')) {
-			throw new TypeError(`Professional source ${sourceId} is missing cumulative V25 authority.`);
+			throw new TypeError(`Professional source ${sourceId} is missing cumulative professionalMedia authority.`);
 		}
 		return Object.freeze({
 			kind: 'professional-media' as const,

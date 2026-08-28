@@ -36,7 +36,7 @@ export function createVideoRetimeDialogModel(
 ): Readonly<VideoRetimeDialogModel> {
 	if (input.productId !== 'framescaper' || !input.capability) return blocked('unsupported');
 	const project = record(input.project);
-	if (!isFramescaperVideoRetimeProjectSchema(integer(project?.schemaVersion))) {
+	if (!isFramescaperVideoRetimeProjectSchema(project)) {
 		return blocked('unsupported');
 	}
 	const clips = records(project?.clips);

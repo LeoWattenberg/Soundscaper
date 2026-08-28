@@ -9,7 +9,6 @@ import { BlobReader, ZipReader } from '@zip.js/zip.js';
 import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import { createScapeInspectionQuiescence } from '../src/common/editor/controller/scape-inspection-quiescence.ts';
 import { createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import type {
 	ScapeArchiveEntry,
 } from '../src/common/editor/scape-archive-envelope.ts';
@@ -18,8 +17,11 @@ import type {
 } from '../src/common/editor/scape-archive-reader.ts';
 import {
 	exportScapeProject,
-	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 interface InspectionOutcome {
 	readonly status: 'fulfilled' | 'rejected';
@@ -134,6 +136,7 @@ test('inspection quiescence retains a signal-ignoring collision lookup after pro
 	const service = createScapeInspectionService({
 		lifetime: new EditorControllerLifetime(),
 		scapeInspectionQuiescence: quiescence,
+		inspectScapeProject,
 		store: {
 			loadProject(id: string, options: Readonly<{ signal?: AbortSignal }> = {}) {
 				assert.equal(id, project.id);

@@ -2,11 +2,11 @@
 
 import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { assertOfxEffectStateV26, type OfxEffectStateV26 } from '../common/editor/native-ofx-state-v26.ts';
-import { framescaperVideoSourceCharacteristicsV24ProjectionV25 } from './editor-project-v25-foundation.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
-import type { FramescaperProjectCommandV28 } from './editor-project-v28-commands.ts';
-import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
-import { validateFramescaperProjectV28 } from './editor-project-v28.ts';
+import { framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia } from './editor-project-professional-media-foundation.ts';
+import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
+import type { FramescaperProjectCommandNativeMedia } from './editor-project-native-media-commands.ts';
+import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
+import { validateFramescaperProjectNativeMedia } from './editor-project-native-media.ts';
 import { prepareFramescaperSessionClipboardPasteCommandV11 } from './editor-session-clipboard-v11-controller.ts';
 import {
 	framescaperSessionClipboardV11FoundationV12,
@@ -16,21 +16,21 @@ import {
 type DataRecord = Record<string, unknown>;
 type IdFactory = (prefix?: string) => string;
 
-/** Prepare one atomic V28 paste, retaining professional rows and selected OFX instances. */
+/** Prepare one atomic nativeMedia paste, retaining professional rows and selected OFX instances. */
 export function prepareFramescaperSessionClipboardPasteCommandV12(
 	profile: unknown,
 	projectValue: unknown,
 	clipboardValue: unknown,
 	baseCommand: AudioEditorCommand,
 	createId: IdFactory,
-): FramescaperProjectCommandV28 {
-	validateFramescaperProjectV28(profile, projectValue);
+): FramescaperProjectCommandNativeMedia {
+	validateFramescaperProjectNativeMedia(profile, projectValue);
 	if (typeof createId !== 'function') throw new TypeError('V12 paste requires an ID factory.');
 	const clipboard = normalizeFramescaperSessionClipboardV12(clipboardValue);
 	const fullSources = sourceAdds(baseCommand);
 	const foundationCommand = prepareFramescaperSessionClipboardPasteCommandV11(
-		FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV27FoundationShapeV28(projectValue),
+		FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
+		framescaperProjectFinishingFoundationShapeNativeMedia(projectValue),
 		framescaperSessionClipboardV11FoundationV12(clipboard),
 		projectFoundationCommand(baseCommand),
 		createId,
@@ -79,7 +79,7 @@ function projectFoundationCommand(command: AudioEditorCommand): AudioEditorComma
 			const source = record(candidate.source, 'V12 source admission');
 			if (source.kind === 'video') {
 				delete source.imageSequence;
-				source.characteristics = framescaperVideoSourceCharacteristicsV24ProjectionV25(source);
+				source.characteristics = framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia(source);
 			}
 		}
 		return candidate;
@@ -98,9 +98,9 @@ function sourceAdds(command: unknown): ReadonlyMap<string, DataRecord> {
 }
 
 function restoreProfessionalSourceAdds(
-	command: FramescaperProjectCommandV28,
+	command: FramescaperProjectCommandNativeMedia,
 	sources: ReadonlyMap<string, DataRecord>,
-): FramescaperProjectCommandV28 {
+): FramescaperProjectCommandNativeMedia {
 	const restore = (value: unknown): unknown => {
 		const candidate = structuredClone(record(value, 'V12 prepared command'));
 		if (candidate.type === 'batch') {
@@ -113,7 +113,7 @@ function restoreProfessionalSourceAdds(
 		}
 		return candidate;
 	};
-	return restore(command) as FramescaperProjectCommandV28;
+	return restore(command) as FramescaperProjectCommandNativeMedia;
 }
 
 function findPaste(command: unknown): DataRecord {

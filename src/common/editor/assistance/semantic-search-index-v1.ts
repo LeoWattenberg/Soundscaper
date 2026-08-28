@@ -17,11 +17,17 @@ import {
 	type AssistanceProviderSearchHitV1,
 	type AssistanceSearchProviderV1,
 } from './visual-indexing-v1.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 
 export const ASSISTANCE_SEMANTIC_INDEX_VERSION = 1 as const;
 
 const INDEX_FIELDS = Object.freeze([
-	'indexVersion', 'projectId', 'projectRevision', 'transcript', 'visual', 'ocr',
+	'indexVersion', 'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision',
+	'transcript', 'visual', 'ocr',
 ]);
 const EMBEDDED_INDEX_FIELDS = Object.freeze(['matrix', 'rows']);
 const ROW_FIELDS = Object.freeze(['resultId', 'timelineFrame', 'label']);
@@ -45,6 +51,8 @@ export interface AssistanceEmbeddedSemanticIndexV1 {
 
 export interface AssistanceSemanticIndexV1 {
 	readonly indexVersion: typeof ASSISTANCE_SEMANTIC_INDEX_VERSION;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly transcript: AssistanceEmbeddedSemanticIndexV1;
@@ -86,6 +94,8 @@ interface ReviewedEmbeddedIndex {
 }
 
 interface ReviewedIndex {
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly transcript: ReviewedEmbeddedIndex;
@@ -110,7 +120,8 @@ export function createAssistanceSemanticIndexSearchProviderV1(
 	return Object.freeze({
 		async search(request: AssistanceAsyncSearchRequest): Promise<readonly AssistanceSemanticIndexResultV1[]> {
 			const session = validateAssistanceSemanticSearchSession(request?.session, now());
-			if (session.projectId !== index.projectId || session.projectRevision !== index.projectRevision) {
+			if (session.schemaFamily !== index.schemaFamily || session.schemaVersion !== index.schemaVersion
+				|| session.projectId !== index.projectId || session.projectRevision !== index.projectRevision) {
 				throw new Error('The semantic-search session disagrees with the index project authority or revision.');
 			}
 			if (request.maximumResults !== ASSISTANCE_ASYNC_SEARCH_RESULT_LIMIT
@@ -150,11 +161,17 @@ export function createAssistanceSemanticIndexSearchProviderV1(
 }
 
 function reviewIndex(value: unknown): ReviewedIndex {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('The semantic index requires a current project schema.');
+	}
 	const row = exactRecord(value, INDEX_FIELDS, 'semantic index');
 	if (row.indexVersion !== ASSISTANCE_SEMANTIC_INDEX_VERSION) {
 		throw new TypeError('The semantic index version is unsupported.');
 	}
 	return Object.freeze({
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: stableId(row.projectId, 'semantic index project ID'),
 		projectRevision: integer(row.projectRevision, 0, Number.MAX_SAFE_INTEGER,
 			'semantic index project revision'),

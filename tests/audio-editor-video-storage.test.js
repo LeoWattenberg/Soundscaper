@@ -122,10 +122,15 @@ test('media-only sources participate in project retention and cascade on source 
 	});
 	await store.saveProject({
 		id: 'video-project',
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		revision: 1,
 		updatedAt: '2026-07-18T00:00:00.000Z',
 		sources: [{ id: 'retained-video' }],
 		clips: [{ id: 'video-clip', sourceId: 'retained-video' }],
+		videoMotionAnalyses: [],
+		videoVisualPresentations: [],
+		videoFinishingPresets: [],
 	});
 
 	assert.equal((await store.getMediaAssetMetadata('retained-video')).pendingProjectUntil, undefined);

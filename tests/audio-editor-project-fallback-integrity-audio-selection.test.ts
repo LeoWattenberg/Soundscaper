@@ -10,7 +10,6 @@ import {
 } from '../src/common/editor/project-fallback-integrity.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
 } from '../src/common/editor/project-schema-version.ts';
 
 const AUDIO_CHUNKS = Object.freeze([
@@ -31,8 +30,11 @@ const AUDIO_SELECTOR: ProjectAudioFallbackIntegritySelector = Object.freeze({
 test('selected audio verifies only its exact canonical body and exposes a private provider', async () => {
 	let audioScans = 0;
 	let videoReads = 0;
-	const candidate = fallbackProject();
-	candidate.schemaVersion = FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION;
+	const candidate = {
+		...fallbackProject(),
+		schemaFamily: 'framescaper' as const,
+		schemaVersion: 1,
+	};
 	const admission = await verifyProjectFallbackIntegrity(candidate, {
 		async *readSourceChunks(sourceId) {
 			assert.equal(sourceId, 'audio-storage');
@@ -93,6 +95,7 @@ test('selected audio rejects selector mismatch, ambiguity, and future schemas be
 	);
 	await assert.rejects(
 		() => verifyProjectFallbackIntegrity({
+			schemaFamily: 'framescaper',
 			schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
 		}, store, { audioFallback: AUDIO_SELECTOR }),
 		/selected audio rendered fallback.*current project schema/iu,
@@ -205,6 +208,7 @@ test('default and selected-video admission behavior does not expose an audio pro
 });
 
 function fallbackProject(includeVideo = true): {
+	schemaFamily: 'framescaper';
 	schemaVersion: number;
 	sampleRate: number;
 	primarySequenceId: string;
@@ -213,7 +217,8 @@ function fallbackProject(includeVideo = true): {
 	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
 } {
 	return {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],

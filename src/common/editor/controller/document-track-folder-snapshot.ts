@@ -35,7 +35,7 @@ export function createDocumentTrackFolderSnapshot(value: unknown): DocumentTrack
 		tracks?: unknown;
 		sequences?: unknown;
 	}>;
-	if (!isActiveAudioEditorProjectSchema(candidate.schemaVersion)) return EMPTY_SNAPSHOT;
+	if (!isActiveAudioEditorProjectSchema(candidate)) return EMPTY_SNAPSHOT;
 	if (!Array.isArray(candidate.trackFolders) || candidate.trackFolders.length === 0) return EMPTY_SNAPSHOT;
 	if (!Array.isArray(candidate.sequences) || !Array.isArray(candidate.tracks)) return EMPTY_SNAPSHOT;
 	const projection = deriveTrackFolderStateProjectionV12(

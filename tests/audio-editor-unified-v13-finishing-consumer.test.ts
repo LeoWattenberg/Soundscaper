@@ -9,22 +9,19 @@ import {
 } from '../src/common/editor/unified-exact-render-finishing-consumers-v13.ts';
 import { analyzeVideoMotionV1 } from '../src/common/editor/video-motion-analysis-v27.ts';
 import { createGrayVideoFrameV1 } from '../src/common/editor/video-motion-processing-v27.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV27 } from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
-import { FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v20.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanFinishing } from '../src/framescaper/editor-project-unified-render-plan-finishing.ts';
+import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
 import {
-	createFramescaperProjectV27,
-	reimportFramescaperProjectV27,
-} from '../src/framescaper/editor-project-v27.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+	createFramescaperProjectFinishing,
+} from '../src/framescaper/editor-project-finishing.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 import { renderAuthority } from './helpers/framescaper-unified-render-project-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE;
 const SOURCE_SHA = '12'.repeat(32);
 
 test('preview and V13 export use the same managed-SDR grade and denoise resolver', async () => {
-	const project = createFramescaperProjectV27(PROFILE, {
+	const project = createFramescaperProjectFinishing(PROFILE, {
 		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
 		finishing: finishing({
 			processors: [{
@@ -38,7 +35,7 @@ test('preview and V13 export use the same managed-SDR grade and denoise resolver
 			},
 		}),
 	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+	const plan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, project, {
 		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
 	});
 	const input = rgba(3, 1, [0, 255, 0]);
@@ -58,10 +55,18 @@ test('preview and V13 export use the same managed-SDR grade and denoise resolver
 });
 
 test('preview and V13 export both refuse legacy unmanaged source color before processing', async () => {
-	const project = reimportFramescaperProjectV27(PROFILE, createFramescaperProjectV20(
-		FRAMESCAPER_V20_PROJECT_RUNTIME_PROFILE, framescaperV20Options(),
-	));
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+	const project = createFramescaperProjectFinishing(PROFILE, {
+		...framescaperV20Options(),
+		finishing: {
+			...finishing({ processors: [], grade: null }),
+			sourceColorInterpretations: [{
+				schemaVersion: 1, sourceId: 'video-source', sourceKind: 'video',
+				primaries: 'bt709', transfer: 'bt709', matrix: 'bt709', range: 'limited',
+				provenance: 'legacy-unmanaged-encoded',
+			}],
+		},
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, project, {
 		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
 	});
 	const request = {
@@ -104,14 +109,14 @@ test('similarity stabilization consumes only an authenticated fresh source-domai
 		processorStack: trackingStack,
 		frames: [{ frameNumber: 0, frame: before }, { frameNumber: 1, frame: after }],
 	});
-	const project = createFramescaperProjectV27(PROFILE, {
+	const project = createFramescaperProjectFinishing(PROFILE, {
 		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
 		finishing: {
 			...finishing({ processors: trackingStack.processors, grade: null }),
 			motionAnalyses: [analysis.reference],
 		},
 	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+	const plan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, project, {
 		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
 	});
 	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(plan);
@@ -164,13 +169,13 @@ test('temporal denoise requests an exact symmetric frame-addressed neighborhood'
 			frameNumber, frame: square(frameNumber, 0),
 		})),
 	});
-	const project = createFramescaperProjectV27(PROFILE, {
+	const project = createFramescaperProjectFinishing(PROFILE, {
 		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
 		finishing: {
 			...finishing({ processors, grade: null }), motionAnalyses: [analysis.reference],
 		},
 	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+	const plan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, project, {
 		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
 	});
 	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(plan);
@@ -198,7 +203,7 @@ test('canvas-readback frames decode as canvas sRGB while the file interpretation
 	// tuple applies limited-range expansion and the BT.709 EOTF a second
 	// time, crushing shadows and clipping highlights in preview and export
 	// alike.
-	const project = createFramescaperProjectV27(PROFILE, {
+	const project = createFramescaperProjectFinishing(PROFILE, {
 		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
 		finishing: {
 			...finishing({ processors: [], grade: null }),
@@ -211,7 +216,7 @@ test('canvas-readback frames decode as canvas sRGB while the file interpretation
 			processorStacks: [],
 		},
 	});
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, project, {
+	const plan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, project, {
 		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
 	});
 	const consumer = createUnifiedExactRenderFinishingExportConsumerV13(plan);
@@ -305,24 +310,24 @@ test('the V14 professional plan reaches the same finishing resolver', async () =
 	// container tuple V13 never admits. Every V14 finishing consumer threw
 	// before resolving a single frame; validation authority stays with V14 now.
 	const [
-		{ createFramescaperProjectUnifiedExactRenderPlanV28 },
-		{ createFramescaperNativeRenderPlanAuthorityV28 },
-		{ FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE },
-		{ createFramescaperProjectV28 },
+		{ createFramescaperProjectUnifiedExactRenderPlanNativeMedia },
+		{ createFramescaperNativeRenderPlanAuthorityNativeMedia },
+		{ FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE },
+		{ createFramescaperProjectNativeMedia },
 		{ createUnifiedExactRenderFinishingExportConsumerV14, createUnifiedExactRenderFinishingPreviewConsumerV14 },
 	] = await Promise.all([
-		import('../src/framescaper/editor-project-unified-render-plan-v28.ts'),
-		import('../src/framescaper/editor-native-render-plan-authority-v28.ts'),
-		import('../src/framescaper/editor-project-runtime-profile-v28.ts'),
-		import('../src/framescaper/editor-project-v28.ts'),
+		import('../src/framescaper/editor-project-unified-render-plan-native-media.ts'),
+		import('../src/framescaper/editor-native-render-plan-authority.ts'),
+		import('../src/framescaper/editor-domain-runtime-profile.ts'),
+		import('../src/framescaper/editor-project-native-media.ts'),
 		import('../src/common/editor/unified-exact-render-finishing-consumers-v14.ts'),
 	]);
-	const project = createFramescaperProjectV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, framescaperV20Options(),
+	const project = createFramescaperProjectNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, framescaperV20Options(),
 	);
-	const plan = createFramescaperProjectUnifiedExactRenderPlanV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-		createFramescaperNativeRenderPlanAuthorityV28(project),
+	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	assert.equal(plan.version, 14);
 	assert.equal(plan.format.container, 'mov');

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
+import { hasCoreEditingProjectAuthority, isActiveAudioEditorProjectSchema } from '../project-schema-version.ts';
 import { createClipSelectionNavigationService } from './clip-selection-navigation-service.ts';
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicitly named legacy ports keep the migration seam typo-safe while project shapes are narrowed. */
@@ -83,7 +83,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		if (clipId == null) {
 			state.selectedClipId = null;
 			state.selectedAnnotationId = null;
-			if (project?.schemaVersion >= 2 && (
+			if (hasCoreEditingProjectAuthority(project) && (
 				project.selection?.clipIds?.length
 				|| (hasActiveTimelineAnnotations(project) && project.selection?.annotationIds?.length)
 			)) {
@@ -105,7 +105,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const track = clip ? findClipTrack(project, clip.id) : null;
 		if (!clip || !track) throw new Error(copy.audioClipNotFound);
 		state.selectedAnnotationId = null;
-		if (project.schemaVersion < 2) {
+		if (!hasCoreEditingProjectAuthority(project)) {
 			state.selectedTrackId = track.id;
 			state.selectedClipId = clip.id;
 			synchronizeMicrophoneMeterTarget();
@@ -318,7 +318,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 
 	function setSnapSettings(settings: any = {}) {
 		const project = getProject();
-		if (!project || project.schemaVersion < 2) throw new Error(copy.v2Required);
+		if (!project || !hasCoreEditingProjectAuthority(project)) throw new Error(copy.v2Required);
 		return commit({ type: 'snap/set', settings });
 	}
 
@@ -327,7 +327,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const frame = Number(value);
 		if (!Number.isFinite(frame)) throw new TypeError(copy.timelineFramesFinite);
 		const rounded = Math.round(frame);
-		if (!project || project.schemaVersion < 2) return Math.max(0, rounded);
+		if (!project || !hasCoreEditingProjectAuthority(project)) return Math.max(0, rounded);
 		return snapAudioEditorFrameWithProject(rounded, project, { minimumFrame: 0, ...overrides });
 	}
 
@@ -368,6 +368,6 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 }
 
 function hasActiveTimelineAnnotations(project: any): boolean {
-	return isActiveAudioEditorProjectSchema(project?.schemaVersion)
+	return isActiveAudioEditorProjectSchema(project)
 		&& Array.isArray(project.timelineAnnotations);
 }

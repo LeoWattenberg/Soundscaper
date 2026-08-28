@@ -2,6 +2,10 @@
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
 import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
+import {
 	assistanceWorkflowStageGraph,
 	validateAssistanceWorkflow,
 	type AssistanceGuidedWorkflowId,
@@ -399,10 +403,15 @@ function primitivePrepared(
 
 function primitiveFence(value: unknown): PrimitiveFence {
 	const row = dataRecord(value, 'primitive selection fence');
+	const identity = readProjectSchemaIdentity(row);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Primitive selection requires the current project schema.');
+	}
 	const occurrenceIds = Array.isArray(row.occurrenceIds)
 		? row.occurrenceIds.map((id) => String(id)) : [];
 	if (occurrenceIds.length < 1) throw new TypeError('Primitive selection occurrences are unavailable.');
-	return Object.freeze({ projectId: String(row.projectId), schemaVersion: Number(row.schemaVersion),
+	return Object.freeze({ projectId: String(row.projectId), schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		revision: Number(row.revision), sequenceId: String(row.sequenceId),
 		occurrenceIds: Object.freeze(occurrenceIds), sourceId: String(row.sourceId),
 		sourceSha256: digest(row.sourceSha256), sourceStartFrame: positiveFrame(row.sourceStartFrame, 0),
@@ -504,7 +513,8 @@ function externalReason(slotId: string): LocalAssistanceGuidedPreparationUnavail
 function correlateSelectedVideoDescriptor(value: unknown, fence: PrimitiveFence): unknown {
 	const descriptor = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(value);
 	const row = dataRecord(descriptor, 'selected-video source-time descriptor');
-	if (row.schemaVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
+	if (row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
+		|| row.schemaFamily !== fence.schemaFamily || row.schemaVersion !== fence.schemaVersion
 		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
 		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
 		|| row.sourceSha256 !== fence.sourceSha256

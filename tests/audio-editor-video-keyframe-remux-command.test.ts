@@ -9,9 +9,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { admitVideoKeyframeEncoderWorkload } from '../src/common/editor/video-keyframe-encoder-admission.ts';
 import { createVideoKeyframeExportFrameSource } from '../src/common/editor/video-keyframe-export-frame-source.ts';
 import { resolveRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const CORE_JS = join(ROOT, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.js');
@@ -39,8 +39,8 @@ const FRAMES = 30;
 
 /** A frame source shaped only for the admission that builds the command. */
 function remuxFrameSource(frameRate: Readonly<{ num: number; den: number }>) {
-	const project = createFramescaperProjectV20(
-		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+	const project = createFramescaperProjectRetime(
+		FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE,
 		framescaperV20Options(),
 	);
 	const compatible = structuredClone(project) as Record<string, unknown>;

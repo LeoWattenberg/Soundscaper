@@ -9,7 +9,7 @@ const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
 ]);
 const EXACT_PRELOAD_BY_PRODUCT = Object.freeze({
-	soundscaper: 'soundscaper-project-library-v11-sandbox-preload.cjs',
+	soundscaper: 'soundscaper-project-library-sandbox-preload.cjs',
 });
 
 /** Selects exactly one main-owned library generation from the packaged product profile. */
@@ -26,87 +26,59 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 		throw new TypeError('Desktop project-library startup seams are invalid');
 	}
 	if (productId === 'framescaper') {
-		const [{ createFramescaperDesktopProjectLibraryV20Handshake },
-			{ FramescaperDesktopProjectLibraryV20Main },
-			{ registerFramescaperDesktopProjectLibraryV20MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/project-library-v20-contract.js'),
-			import('./project-library-runtime/desktop/project-library-v20-main.js'),
-			import('./project-library-runtime/desktop/project-library-v20-main-ipc.js'),
+		const [{ createFramescaperDesktopProjectLibraryHandshake },
+			{ FramescaperDesktopProjectLibraryMain },
+			{ registerFramescaperDesktopProjectLibraryMainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/framescaper-project-library-contract.js'),
+			import('./project-library-runtime/desktop/framescaper-project-library-main.js'),
+			import('./project-library-runtime/desktop/framescaper-project-library-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryV20Main.start({
+		const host = await FramescaperDesktopProjectLibraryMain.start({
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryV20Handshake(),
+			handshake: createFramescaperDesktopProjectLibraryHandshake(),
 			onLeaseLost: options.onLeaseLost,
 			qualification: framescaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryV20MainIpc({
+			register: (bridge) => registerFramescaperDesktopProjectLibraryMainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', 'V20'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', '1.0'),
 		});
 	}
 	if (productId === 'soundscaper') {
-		const [{ createSoundscaperDesktopProjectLibraryV11Handshake },
-			{ SoundscaperDesktopProjectLibraryV11Main },
-			{ registerSoundscaperDesktopProjectLibraryV11MainIpc }] = await Promise.all([
-			import('./project-library-runtime/desktop/soundscaper-project-library-v11-contract.js'),
-			import('./project-library-runtime/desktop/soundscaper-project-library-v11-main.js'),
-			import('./project-library-runtime/desktop/soundscaper-project-library-v11-main-ipc.js'),
+		const [{ createSoundscaperDesktopProjectLibraryHandshake },
+			{ SoundscaperDesktopProjectLibraryMain },
+			{ registerSoundscaperDesktopProjectLibraryMainIpc }] = await Promise.all([
+			import('./project-library-runtime/desktop/soundscaper-project-library-contract.js'),
+			import('./project-library-runtime/desktop/soundscaper-project-library-main.js'),
+			import('./project-library-runtime/desktop/soundscaper-project-library-main-ipc.js'),
 		]);
-		const host = await SoundscaperDesktopProjectLibraryV11Main.start({
+		const host = await SoundscaperDesktopProjectLibraryMain.start({
 			appDataPath,
 			owner,
-			handshake: createSoundscaperDesktopProjectLibraryV11Handshake(),
+			handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 			qualification: soundscaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
 			host,
-			register: (bridge) => registerSoundscaperDesktopProjectLibraryV11MainIpc({
+			register: (bridge) => registerSoundscaperDesktopProjectLibraryMainIpc({
 				handle: bridge.handle,
 				removeHandler: bridge.removeHandler,
 				ownerFor: bridge.ownerFor,
 				main: host,
 			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Soundscaper', 'V11'),
+			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Soundscaper', '1.0'),
 		});
 	}
-	const [{ registerDesktopProjectLibraryIpc }, { createDesktopProjectLibrarySmokeEvidence },
-		{ DesktopSharedProjectLibraryService }, { desktopSharedManagedSourceBindingKey },
-		{ DesktopProjectLibraryHost }, { createDesktopLibraryMediaBinding }] = await Promise.all([
-		import('./project-library-ipc.js'),
-		import('./project-library-smoke-evidence.js'),
-		import('./project-library-runtime/desktop/project-library-editor-service.js'),
-		import('./project-library-runtime/desktop/project-library-editor-media-service.js'),
-		import('./project-library-runtime/desktop/project-library-host.js'),
-		import('./project-library-runtime/desktop/project-library-media-binding.js'),
-	]);
-	const host = await DesktopProjectLibraryHost.start({
-		appDataPath,
-		owner,
-		onLeaseLost: options.onLeaseLost,
-	});
-	const service = new DesktopSharedProjectLibraryService(host);
-	return new DesktopProjectLibraryProductRuntime({
-		productId,
-		host,
-		register: (bridge) => registerDesktopProjectLibraryIpc({
-			handle: bridge.handle,
-			ownerFor: bridge.ownerFor,
-			service,
-		}),
-		smokeEvidence: (projectId) => createDesktopProjectLibrarySmokeEvidence(host, projectId, {
-			createMediaBinding: createDesktopLibraryMediaBinding,
-			sourceBindingKey: desktopSharedManagedSourceBindingKey,
-		}),
-	});
+	throw new RangeError(`Unsupported desktop project-library product ${productId}`);
 }
 
 function soundscaperQualification(value) {
@@ -124,7 +96,6 @@ function framescaperQualification(value) {
 		leaseTtlMs: value.leaseTtlMs,
 		renewIntervalMs: value.renewIntervalMs,
 		checkpoint: value.checkpoint,
-		importCheckpoint: null,
 	});
 }
 
@@ -158,7 +129,8 @@ async function createExactSmokeEvidence(host, projectId, productName, generation
 		project: Object.freeze({
 			projectId: bundle.project.projectId,
 			title: bundle.project.name,
-			projectSchemaVersion: bundle.project.projectSchemaVersion,
+			schemaFamily: bundle.project.schemaFamily,
+			schemaVersion: bundle.project.schemaVersion,
 			projectRevision: bundle.project.projectRevision,
 			metadataRevision: bundle.metadataRevision,
 			byteLength: bundle.project.byteLength,
@@ -200,7 +172,8 @@ class DesktopProjectLibraryProductRuntime {
 			|| typeof this.#host.readNativeBody !== 'function'
 			|| typeof this.#host.materializeNativeBody !== 'function') return null;
 		return Object.freeze({
-			projectSchemaVersion: this.#host.localHandshake.projectSchemaVersion,
+			schemaFamily: this.#host.localHandshake.schemaFamily,
+			schemaVersion: this.#host.localHandshake.schemaVersion,
 			projectState: (projectId) => this.#host.nativeProjectState(projectId),
 			projectRecord: (projectId) => this.#host.nativeProjectRecord(projectId),
 			readProjectBundle: (projectId) => this.#host.readNativeProjectBundle(projectId),

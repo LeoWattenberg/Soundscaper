@@ -1,6 +1,6 @@
 {
 	"name": "soundscaper",
-	"version": "0.2.0-beta.1",
+	"version": "1.0.0-rc.1",
 	"description": "A local-first multitrack audio editor for the web and desktop.",
 	"private": true,
 	"type": "module",
@@ -96,9 +96,7 @@
 		"desktop:smoke:scape-open": "node --import tsx scripts/desktop-scape-open-smoke.mjs",
 		"desktop:smoke:framescaper": "SCAPE_PRODUCT=framescaper node scripts/desktop-smoke.mjs",
 		"desktop:smoke:framescaper-web-vcr": "node scripts/framescaper-web-vcr-smoke.mjs",
-		"desktop:smoke:project-library-handoff": "node scripts/desktop-project-library-handoff-smoke.mjs",
 		"desktop:smoke:project-library-lease-matrix": "node --import tsx scripts/desktop-project-library-lease-matrix.mjs",
-		"desktop:smoke:project-library-source-bearing-handoff": "node scripts/desktop-project-library-source-bearing-handoff-smoke.mjs",
 		"desktop:release-assets": "node scripts/desktop-release-assets.mjs",
 		"release:1.0:admission": "node scripts/check-milestone-9-release-admission.mjs",
 		"release:1.0:admission:json": "node scripts/check-milestone-9-release-admission.mjs --json",

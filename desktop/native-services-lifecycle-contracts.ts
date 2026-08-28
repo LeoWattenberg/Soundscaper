@@ -7,6 +7,7 @@ import {
 	nativeRenderInputExactEnvelope,
 	nativeRenderInputStageRequired,
 } from './native-services-render-input-contract.ts';
+import { readProjectSchemaIdentity } from '../src/common/editor/project-schema-identity.ts';
 
 const OPAQUE_ID = /^[a-f0-9]{16,64}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -14,6 +15,8 @@ const CONTROL_MESSAGE_MAXIMUM_BYTES = 64 * 1024;
 const TEXT_ENCODER = new TextEncoder();
 
 export interface FramescaperNativeWatchCreateRequest {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly grantId: string;
 	readonly projectId: string;
 	readonly binId: string | null;
@@ -28,6 +31,8 @@ export interface FramescaperNativeWatchEnabledRequest {
 }
 
 export interface FramescaperNativeQueueEnqueueRequest {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly planVersion: 7 | 8 | 9 | 10 | 11 | 12 | 14;
 	readonly derivedInputStageId: string | null;
@@ -43,6 +48,8 @@ export interface FramescaperNativeQueueEnqueueRequest {
 }
 
 export interface FramescaperNativePublicationLifecycleRequest {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly jobId: string;
 	readonly currentPlanFingerprint: string;
 	readonly finalized: boolean;
@@ -51,6 +58,8 @@ export interface FramescaperNativePublicationLifecycleRequest {
 }
 
 export interface FramescaperNativeCheckpointLifecycleRequest {
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly jobId: string;
 	readonly sourceInventoryDigest: string;
 	readonly plannedFrameCount: number;
@@ -58,8 +67,10 @@ export interface FramescaperNativeCheckpointLifecycleRequest {
 }
 
 export function framescaperNativeWatchCreateRequest(value: unknown): FramescaperNativeWatchCreateRequest {
+	const identity = framescaperProjectIdentity(value, 'watch create request');
 	const request = closedRecord(value, [
-		'grantId', 'projectId', 'binId', 'extensions', 'importMode', 'generateProxies',
+		'schemaFamily', 'schemaVersion', 'grantId', 'projectId', 'binId',
+		'extensions', 'importMode', 'generateProxies',
 	], 'watch create request');
 	const extensions = denseStrings(request.extensions, 32, 'watch extensions');
 	if (extensions.length === 0) throw new TypeError('A watch create request requires extensions.');
@@ -70,6 +81,7 @@ export function framescaperNativeWatchCreateRequest(value: unknown): Framescaper
 		throw new TypeError('A watch create request must state proxy generation.');
 	}
 	return Object.freeze({
+		...identity,
 		grantId: opaqueId(request.grantId, 'watch grant id'),
 		projectId: boundedText(request.projectId, 'watch project id'),
 		binId: request.binId === null ? null : boundedText(request.binId, 'watch bin id'),
@@ -82,8 +94,10 @@ export function framescaperNativeWatchCreateRequest(value: unknown): Framescaper
 export function framescaperNativeQueueEnqueueRequest(
 	value: unknown,
 ): FramescaperNativeQueueEnqueueRequest {
+	const identity = framescaperProjectIdentity(value, 'queue enqueue request');
 	const request = closedRecord(value, [
-		'taskKind', 'planVersion', 'derivedInputStageId', 'planFingerprint', 'planPayload', 'projectId',
+		'schemaFamily', 'schemaVersion', 'taskKind', 'planVersion', 'derivedInputStageId',
+		'planFingerprint', 'planPayload', 'projectId',
 		'projectRevision', 'inputFingerprints', 'rootGrantId', 'relativeDestination',
 		'reservations', 'recoveryClass',
 	], 'queue enqueue request');
@@ -120,6 +134,7 @@ export function framescaperNativeQueueEnqueueRequest(
 		}
 	}
 	return Object.freeze({
+		...identity,
 		taskKind: request.taskKind as NativeQueueTaskKind,
 		planVersion: request.planVersion as FramescaperNativeQueueEnqueueRequest['planVersion'],
 		derivedInputStageId,
@@ -144,11 +159,14 @@ export function framescaperNativeWatchEnabledRequest(value: unknown): Framescape
 export function framescaperNativePublicationLifecycleRequest(
 	value: unknown,
 ): FramescaperNativePublicationLifecycleRequest {
+	const identity = framescaperProjectIdentity(value, 'publication request');
 	const request = closedRecord(value, [
-		'jobId', 'currentPlanFingerprint', 'finalized', 'declaredByteLength', 'declaredSha256',
+		'schemaFamily', 'schemaVersion', 'jobId', 'currentPlanFingerprint',
+		'finalized', 'declaredByteLength', 'declaredSha256',
 	], 'publication request');
 	if (typeof request.finalized !== 'boolean') throw new TypeError('A publication request must state finalization.');
 	return Object.freeze({
+		...identity,
 		jobId: jobId(request.jobId),
 		currentPlanFingerprint: digest(request.currentPlanFingerprint, 'current plan'),
 		finalized: request.finalized,
@@ -160,8 +178,10 @@ export function framescaperNativePublicationLifecycleRequest(
 export function framescaperNativeCheckpointLifecycleRequest(
 	value: unknown,
 ): FramescaperNativeCheckpointLifecycleRequest {
+	const identity = framescaperProjectIdentity(value, 'checkpoint request');
 	const request = closedRecord(value, [
-		'jobId', 'sourceInventoryDigest', 'plannedFrameCount', 'manifest',
+		'schemaFamily', 'schemaVersion', 'jobId', 'sourceInventoryDigest',
+		'plannedFrameCount', 'manifest',
 	], 'checkpoint request');
 	if (!Array.isArray(request.manifest) || request.manifest.length > 2_000_000) {
 		throw new TypeError('A checkpoint request requires a bounded manifest.');
@@ -171,6 +191,7 @@ export function framescaperNativeCheckpointLifecycleRequest(
 		throw new RangeError('A checkpoint control envelope exceeds 64 KiB.');
 	}
 	return Object.freeze({
+		...identity,
 		jobId: jobId(request.jobId),
 		sourceInventoryDigest: digest(request.sourceInventoryDigest, 'source inventory'),
 		plannedFrameCount: nonNegative(request.plannedFrameCount, 'planned frame count'),
@@ -208,6 +229,17 @@ export function nativeLifecycleOpaqueId(value: unknown, label: string): string {
 }
 
 export function nativeLifecycleJobId(value: unknown): string { return jobId(value); }
+
+function framescaperProjectIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: 'framescaper'; schemaVersion: 1 }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== 'framescaper' || identity.schemaVersion !== 1) {
+		throw new TypeError(`A native-services ${label} requires the exact Framescaper v1 project identity.`);
+	}
+	return Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1 });
+}
 
 function controlEnvelopeByteLength(value: unknown): number {
 	let serialized: string | undefined;

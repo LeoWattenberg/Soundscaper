@@ -69,11 +69,15 @@ test('a closed-project watch rule does not fail manual reconcile for the others'
 	}, lease, 0);
 	const watch = new FramescaperNativeWatchRepository(database);
 	watch.create({
-		ruleId: 'e'.repeat(32), grantId: GRANT_ID, projectId: 'project-open',
+		ruleId: 'e'.repeat(32), grantId: GRANT_ID,
+		schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'project-open',
+		binId: 'project-bin',
 		extensions: ['mov'], createdAtMs: 0,
 	}, lease, 0);
 	watch.create({
-		ruleId: 'f'.repeat(32), grantId: GRANT_ID, projectId: 'project-closed',
+		ruleId: 'f'.repeat(32), grantId: GRANT_ID,
+		schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'project-closed',
+		binId: 'project-bin',
 		extensions: ['mov'], createdAtMs: 0,
 	}, lease, 0);
 	let reconciliations = 0;
@@ -85,7 +89,9 @@ test('a closed-project watch rule does not fail manual reconcile for the others'
 		// The reconciler leaves closed-project ingests pending by contract, so
 		// the manual reconcile must run for the open rule instead of throwing.
 		projectState: (projectId: string) => ({
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			open: projectId === 'project-open', writable: projectId === 'project-open',
+			binId: 'project-bin' as const,
 		}),
 		capabilities: usableCapabilities,
 	} as never as ConstructorParameters<typeof FramescaperNativeServicesControllerV3>[0]);
@@ -152,6 +158,8 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 			removePublishedOutput: async (destination) => { files.delete(destination); },
 		}),
 		publicationFenceFor: () => ({
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 1,
 			beforePublication: async () => undefined,
 			afterPublication: async () => undefined,
 		}),
@@ -180,7 +188,10 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	const controller = new FramescaperNativeServicesController({
 		queue, roots, watch, lifecycle, lease: () => lease, now: () => 1_001,
 		runtimeAvailable: () => true, nativeMediaEnabled: () => true,
-		projectState: () => ({ open: true, writable: true }),
+		projectState: () => ({
+			schemaFamily: 'framescaper', schemaVersion: 1, open: true, writable: true,
+			binId: 'project-bin',
+		}),
 		capabilities: usableCapabilities,
 	});
 	const handlers = new Map<string, (event: unknown, request?: unknown) => unknown>();
@@ -223,15 +234,18 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	});
 	assert.equal(await bridge.revalidateRoot({ grantId: GRANT_ID }), true);
 	await assert.rejects(() => bridge.createWatch({
-		grantId: GRANT_ID, projectId: 'project-1', binId: null,
+		grantId: GRANT_ID, schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: 'project-1', binId: null,
 		extensions: ['mov'], importMode: 'link', generateProxies: true,
 	}), /watch-folder proxy generation is unavailable/u);
 	await assert.rejects(() => bridge.createWatch({
-		grantId: GRANT_ID, projectId: 'project-1', binId: 'bin-1',
+		grantId: GRANT_ID, schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: 'project-1', binId: 'bin-1',
 		extensions: ['mov'], importMode: 'link', generateProxies: false,
 	}), /watch-folder destination bins are unavailable/u);
 	const rule = await bridge.createWatch({
-		grantId: GRANT_ID, projectId: 'project-1', binId: null,
+		grantId: GRANT_ID, schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: 'project-1', binId: null,
 		extensions: ['mov'], importMode: 'link', generateProxies: false,
 	});
 	assert.equal(rule.ruleId, RULE_ID);
@@ -245,6 +259,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 
 	const planned = queueRecord();
 	const enqueued = await bridge.enqueue({
+		schemaFamily: planned.schemaFamily, schemaVersion: planned.schemaVersion,
 		taskKind: planned.taskKind,
 		planVersion: planned.planVersion as 7,
 		derivedInputStageId: JOB_ID,
@@ -265,7 +280,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	queue.control(JOB_ID, { kind: 'dispatch' }, lease, 1_003);
 	const sourceInventoryDigest = createHash('sha256').update('[]').digest('hex');
 	const checkpoint = await bridge.checkpoint({
-		jobId: JOB_ID,
+		schemaFamily: 'framescaper', schemaVersion: 1, jobId: JOB_ID,
 		sourceInventoryDigest,
 		plannedFrameCount: 30,
 		manifest: [{
@@ -277,6 +292,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.equal(checkpoint.complete, false);
 	assert.equal((storedCheckpoint as { manifest: unknown[] }).manifest.length, 1);
 	const published = await bridge.publish({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: JOB_ID, currentPlanFingerprint: queueRecord().planFingerprint,
 		finalized: true, declaredByteLength: 10, declaredSha256: SHA_B,
 	});
@@ -286,6 +302,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.deepEqual(removedRenderInputs, [JOB_ID]);
 	assert.equal(queue.read(JOB_ID), null);
 	const silentPlan = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: SILENT_JOB_ID, taskKind: 'encoded-export', plan: nativeQueueSmallStaticPlanV8(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [], rootGrantId: GRANT_ID,
 		relativeDestination: 'exports/silent.mp4', reservations: {
@@ -294,6 +311,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 		}, recoveryClass: 'atomic-restart', position: 0, createdAtMs: 1_004,
 	});
 	const silentEnqueued = await bridge.enqueue({
+		schemaFamily: silentPlan.schemaFamily, schemaVersion: silentPlan.schemaVersion,
 		taskKind: silentPlan.taskKind, planVersion: silentPlan.planVersion as 8,
 		derivedInputStageId: null, planFingerprint: silentPlan.planFingerprint,
 		planPayload: silentPlan.planPayload, projectId: silentPlan.projectId,
@@ -307,6 +325,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	assert.equal(await bridge.remove({ jobId: SILENT_JOB_ID }), true);
 	assert.deepEqual(removedRenderInputs, [JOB_ID, SILENT_JOB_ID]);
 	const unifiedPlan = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: SILENT_JOB_ID, taskKind: 'encoded-export',
 		plan: createUnifiedExactRenderPlan(unifiedExactPlanFixture(12)),
 		projectId: 'project-1', projectRevision: 1,
@@ -317,6 +336,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 		}, recoveryClass: 'atomic-restart', position: 0, createdAtMs: 1_005,
 	});
 	const unifiedEnqueued = await bridge.enqueue({
+		schemaFamily: unifiedPlan.schemaFamily, schemaVersion: unifiedPlan.schemaVersion,
 		taskKind: unifiedPlan.taskKind, planVersion: unifiedPlan.planVersion as 12,
 		derivedInputStageId: null, planFingerprint: unifiedPlan.planFingerprint,
 		planPayload: unifiedPlan.planPayload, projectId: unifiedPlan.projectId,
@@ -347,6 +367,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 	] as const) assert.equal(typeof bridge[method], 'function', method);
 	await assert.rejects(() => bridge.enqueue({
 		...{
+			schemaFamily: planned.schemaFamily, schemaVersion: planned.schemaVersion,
 			taskKind: planned.taskKind, derivedInputStageId: JOB_ID,
 			planFingerprint: planned.planFingerprint,
 			planPayload: planned.planPayload, projectId: planned.projectId,
@@ -363,6 +384,7 @@ test('the pathless lifecycle bridge owns roots, watch reconciliation, cleanup, p
 
 function queueRecord() {
 	return createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: JOB_ID,
 		taskKind: 'image-sequence-export',
 		plan: nativeQueueKeyedPlanV7(),

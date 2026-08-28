@@ -52,6 +52,7 @@ test('declarative timing inventory rejects duplicate and future-generation refer
 test('VFR queue records retain declarative timing identity and require authenticated tokens when created', () => {
 	const fixture = unifiedExactVfrPlanFixture(12);
 	const record = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '1'.repeat(40), taskKind: 'encoded-export', plan: fixture.plan,
 		timingSidecars: fixture.timingSidecars,
 		projectId: 'vfr-project', projectRevision: 1,
@@ -67,6 +68,7 @@ test('VFR queue records retain declarative timing identity and require authentic
 	assert.equal(record.planPayload.includes(fixture.publication.reference.sha256), true);
 	assert.equal(record.planPayload.includes('presentationTicks'), false);
 	assert.throws(() => createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '3'.repeat(40), taskKind: 'encoded-export', plan: fixture.plan,
 		projectId: 'vfr-project', projectRevision: 1,
 		inputFingerprints: [{ sourceId: 'vfr-source', sha256: fixture.publication.reference.sourceSha256 }],

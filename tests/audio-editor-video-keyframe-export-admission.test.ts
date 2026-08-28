@@ -10,20 +10,20 @@ import {
 	assertStaticVideoKeyframesForExport,
 } from '../src/common/editor/video-keyframe-export-admission.ts';
 import {
-	reconcileFramescaperProjectFeatureRequirementsV20,
-} from '../src/framescaper/editor-project-feature-requirements-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
+	reconcileFramescaperProjectFeatureRequirementsRetime,
+} from '../src/framescaper/editor-project-feature-requirements-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
 import {
 	framescaperV20Options,
 	opacityKeyframes,
-} from './helpers/framescaper-v20-model-fixture.ts';
+} from './helpers/framescaper-model-fixture.ts';
 import { CANONICAL_VIDEO_EXPORT_PLAN_VERSION } from '../src/common/editor/video-export-plan-version.ts';
 
-const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
+const PROFILE = FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE;
 
 test('V6 video export admits contextual empty V20 fields without changing static output', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const plan = createVideoExportPlan(exportRuntimeProject(project), {
 		includeAudio: false,
 		range: { startFrame: 0, endFrame: 48_000 },
@@ -33,10 +33,10 @@ test('V6 video export admits contextual empty V20 fields without changing static
 });
 
 test('V6 refuses authored keyframes before producing a static plan', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	(project.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();
 	(project as unknown as Record<string, unknown>).featureRequirements =
-		reconcileFramescaperProjectFeatureRequirementsV20(PROFILE, project);
+		reconcileFramescaperProjectFeatureRequirementsRetime(PROFILE, project);
 	assert.throws(
 		() => createVideoExportPlan(exportRuntimeProject(project), {
 			includeAudio: false,
@@ -49,7 +49,7 @@ test('V6 refuses authored keyframes before producing a static plan', () => {
 });
 
 test('keyed export classification returns detached ordered active clip IDs', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const first = project.clips[0] as unknown as Record<string, unknown>;
 	first.videoKeyframes = opacityKeyframes();
 	const second = structuredClone(first);
@@ -60,7 +60,7 @@ test('keyed export classification returns detached ordered active clip IDs', () 
 });
 
 test('export admission rejects disguised keyframe state without invoking accessors', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const clip = project.clips[0] as unknown as Record<string, unknown>;
 	let getterCalls = 0;
 	Object.defineProperty(clip, 'videoKeyframes', {
@@ -75,12 +75,12 @@ test('export admission rejects disguised keyframe state without invoking accesso
 });
 
 test('an authored clip outside the exported intervals does not block a static range', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const clip = project.clips[0] as unknown as Record<string, unknown>;
 	clip.sequenceStartFrame = 20;
 	clip.videoKeyframes = opacityKeyframes();
 	(project as unknown as Record<string, unknown>).featureRequirements =
-		reconcileFramescaperProjectFeatureRequirementsV20(PROFILE, project);
+		reconcileFramescaperProjectFeatureRequirementsRetime(PROFILE, project);
 	const plan = createVideoExportPlan(exportRuntimeProject(project), {
 		includeAudio: false,
 		range: { startFrame: 0, endFrame: 48_000 },

@@ -98,11 +98,11 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 		await beginStatusObservation(editor);
 		await focusWorkspace(editor);
 		await page.keyboard.press('L');
-		// The rung the second press advances from is the rate the first one reached, so
-		// waiting for it is what makes the pair a rung apart rather than a race. The
-		// press itself still has to be a real key event: a page-constructed one is
-		// untrusted and moved the shuttle on no CI engine at all.
-		await awaitObservedStatus(editor, /1(?:x|×)/u);
+		// Playwright completes each real key press after its synchronous handler, so the
+		// second press advances from the first without waiting across the process boundary.
+		// Waiting here can let this deliberately short programme reach its tail on a busy
+		// runner, resetting the shuttle before the second press. A page-constructed press
+		// remains untrusted and moved the shuttle on no CI engine at all.
 		await page.keyboard.press('L');
 		// Playwright cannot synthesise the repeat a held key emits, so that one is dispatched
 		// by hand. It must not advance a rung.
@@ -111,6 +111,7 @@ test.describe('3B-4a shuttle and edit-point navigation', () => {
 				bubbles: true, cancelable: true, key: 'l', repeat: true,
 			}));
 		});
+		await awaitObservedStatus(editor, /1(?:x|×)/u);
 		await expectObservedStatus(editor, /2(?:x|×)/u, /3(?:x|×)/u);
 		// The shuttle rung is reported in the status line rather than a menu check mark.
 		await page.keyboard.press('Escape');

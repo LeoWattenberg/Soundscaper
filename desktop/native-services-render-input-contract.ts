@@ -27,6 +27,11 @@ import {
 	type FramescaperNativeDerivedRenderInputRole,
 	type FramescaperNativeRenderInputDescriptorV1,
 } from './native-services-render-input-validation.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 export const FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_VERSION = 1;
 export const FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_MAXIMUM_BYTES = 16 * 1_024 ** 3;
@@ -40,6 +45,8 @@ const PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
 
 export interface FramescaperNativeRenderInputStageBeginRequestV1 {
 	readonly stageVersion: typeof FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_VERSION;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly planVersion: 7 | 8 | 14;
 	readonly planFingerprint: string;
 	readonly planPayload: string;
@@ -64,6 +71,8 @@ export interface FramescaperNativeRenderInputStageAdmissionV1 {
 }
 
 export interface FramescaperNativeRenderInputStageIdentity {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly planFingerprint: string;
 	readonly projectId: string;
 	readonly projectRevision: number;
@@ -73,8 +82,10 @@ export interface FramescaperNativeRenderInputStageIdentity {
 export function nativeRenderInputBeginRequest(
 	value: unknown,
 ): FramescaperNativeRenderInputStageBeginRequestV1 {
+	const identity = currentFramescaperIdentity(value, 'render-input stage begin request');
 	const row = nativeRenderInputClosedRecord(value, [
-		'stageVersion', 'planVersion', 'planFingerprint', 'planPayload', 'projectId',
+		'stageVersion', 'schemaFamily', 'schemaVersion', 'planVersion',
+		'planFingerprint', 'planPayload', 'projectId',
 		'projectRevision', 'inputFingerprints', 'derivedInputs',
 	], 'render-input stage begin request');
 	if (row.stageVersion !== 1 || ![7, 8, 14].includes(row.planVersion as number)
@@ -82,7 +93,7 @@ export function nativeRenderInputBeginRequest(
 		throw new TypeError('Native render-input staging admits only canonical selected V7/V8 or V14 plans.');
 	}
 	return Object.freeze({
-		stageVersion: 1, planVersion: row.planVersion as 7 | 8 | 14,
+		stageVersion: 1, ...identity, planVersion: row.planVersion as 7 | 8 | 14,
 		planFingerprint: nativeRenderInputDigestValue(row.planFingerprint, 'plan fingerprint'),
 		planPayload: row.planPayload,
 		projectId: nativeRenderInputIdentifier(row.projectId, 'project id'),
@@ -104,8 +115,10 @@ export function nativeRenderInputReceiveRequest(value: unknown) {
 }
 
 export function nativeRenderInputClaimRequest(value: unknown) {
+	const identity = currentFramescaperIdentity(value, 'render-input claim request');
 	const row = nativeRenderInputClosedRecord(value, [
-		'derivedInputStageId', 'planVersion', 'planFingerprint', 'planPayload',
+		'schemaFamily', 'schemaVersion', 'derivedInputStageId', 'planVersion',
+		'planFingerprint', 'planPayload',
 		'projectId', 'projectRevision', 'inputFingerprints',
 	], 'render-input claim request');
 	if (![7, 8, 14].includes(row.planVersion as number) || typeof row.planPayload !== 'string') {
@@ -117,6 +130,7 @@ export function nativeRenderInputClaimRequest(value: unknown) {
 		row.planVersion as 7 | 8 | 14,
 	);
 	return Object.freeze({
+		...identity,
 		derivedInputStageId: nativeRenderInputStageId(row.derivedInputStageId),
 		planVersion: envelope.planVersion,
 		planFingerprint: envelope.fingerprint,
@@ -125,6 +139,19 @@ export function nativeRenderInputClaimRequest(value: unknown) {
 		projectRevision: nativeRenderInputNonNegative(row.projectRevision, 'project revision'),
 		inputFingerprints: nativeRenderInputFingerprints(row.inputFingerprints),
 	});
+}
+
+function currentFramescaperIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: 'framescaper'; schemaVersion: 1 }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`A ${label} requires the current Framescaper project schema.`);
+	}
+	return Object.freeze({ schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION });
 }
 
 export function nativeRenderInputDescriptorsForPlan(

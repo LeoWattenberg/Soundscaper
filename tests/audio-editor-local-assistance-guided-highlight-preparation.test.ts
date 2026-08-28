@@ -152,7 +152,8 @@ test('guided highlight visual evidence derives semantic interest and duplication
 		[1, 0], [1, 0], [root, root], [root, root], [1, 0], [1, 0],
 	] });
 	const bytes = createAssistanceSemanticDerivativeBundleV1({
-		provider: 'visual', projectId: 'project-a', projectRevision: 7,
+		provider: 'visual', schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: 'project-a', projectRevision: 7,
 		sequenceId: 'sequence-a', sourceId: 'video-source', matrix,
 		rows: [5_000, 10_000, 20_000, 25_000, 35_000, 40_000].map((timelineFrame, index) => ({
 			resultId: `visual-${String(index)}`, timelineFrame, label: 'Authenticated visual sample',
@@ -161,7 +162,8 @@ test('guided highlight visual evidence derives semantic interest and duplication
 	const videoFence = { ...fence('video-source', VIDEO_SHA256, 0, 45, '78'.repeat(32)),
 		occurrenceIds: ['video-clip'] };
 	const descriptor = {
-		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		descriptorVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-a', projectRevision: 7, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: VIDEO_SHA256,
 		timingAuthoritySha256: videoFence.timingAuthoritySha256,
@@ -170,11 +172,14 @@ test('guided highlight visual evidence derives semantic interest and duplication
 		frames: [0, 15, 30, 45].map((sourceFrame) => ({ sourceFrame,
 			presentationTick: String(sourceFrame * 1_000), timelineFrame: sourceFrame * 1_000 })),
 	};
-	const records = [{ kind: 'visual-index', projectId: 'project-a',
+	const records = [{ recordVersion: 1, derivativeVersion: 1,
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			kind: 'visual-index', projectId: 'project-a',
 			mediaType: ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE,
 			payloadByteLength: bytes.byteLength, payloadSha256: bytesToHex(sha256(bytes)), bytes }];
 	const prepared = await prepareLocalAssistanceGuidedHighlightInputsV1({
-		project: { id: 'project-a', schemaVersion: 30, revision: 7, sampleRate: 1_000,
+		project: { id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+			revision: 7, sampleRate: 1_000,
 			sources: [{ id: 'video-source', kind: 'video', contentSha256: VIDEO_SHA256 }],
 			clips: [{ id: 'video-clip', kind: 'video', sourceId: 'video-source',
 				sequenceId: 'sequence-a', avLinkId: null, reversed: false, speedRatio: 1 }] },
@@ -249,7 +254,8 @@ function highlightFixture(transcript?: Readonly<{
 	const videoFence = fence('video-source', VIDEO_SHA256, 0, 15, '78'.repeat(32));
 	const audioFence = fence('audio-source', AUDIO_SHA256, 0, 480_000, '9a'.repeat(32));
 	const descriptor = {
-		schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		descriptorVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-a', projectRevision: 7, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-clip', sourceId: 'video-source', sourceSha256: VIDEO_SHA256,
 		timingAuthoritySha256: videoFence.timingAuthoritySha256,
@@ -277,7 +283,8 @@ function highlightFixture(transcript?: Readonly<{
 			sha256: transcript.transcriptSha256,
 		},
 	}] : [];
-	const project = { id: 'project-a', schemaVersion: 30, revision: 7,
+	const project = { id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 7,
 		sampleRate: 1_000, assistanceAssets,
 		sources: [{ id: 'video-source', kind: 'video', contentSha256: VIDEO_SHA256 },
 			{ id: 'audio-source', kind: 'audio', contentSha256: AUDIO_SHA256,
@@ -305,7 +312,8 @@ function fence(
 	sourceId: string, sourceSha256: string, sourceStartFrame: number,
 	sourceEndFrame: number, timingAuthoritySha256: string,
 ) {
-	return { projectId: 'project-a', schemaVersion: 30, revision: 7,
+	return { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+		projectId: 'project-a', revision: 7,
 		sequenceId: 'sequence-a', occurrenceIds: ['audio-clip', 'video-clip'], sourceId,
 		sourceSha256, sourceStartFrame, sourceEndFrame, linkMembershipSha256: LINK_SHA256,
 		timingAuthoritySha256 };

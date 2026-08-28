@@ -15,7 +15,7 @@ import {
 import type { OfxInteractEventV1 } from '../src/common/editor/native-ofx-host-contract.ts';
 import { resolveFramescaperNativeServicesCopy } from '../src/common/editor/ui/framescaper-native-services-copy.ts';
 import type { FramescaperNativeServicesBridge } from '../src/common/editor/ui/framescaper-native-services-bridge.ts';
-import type { FramescaperOpenFxInteractInstanceV28 } from '../src/framescaper/editor-native-openfx-action-v28.ts';
+import type { FramescaperOpenFxInteractInstanceNativeMedia } from '../src/framescaper/editor-native-openfx-action.ts';
 
 test('OpenFX Interact pointer geometry is clamped and modifier order is canonical', () => {
 	assert.deepEqual(normalizeOpenFxPointer(
@@ -74,21 +74,26 @@ test('the menu-owned OpenFX Interact panel declares an accessible offscreen surf
 	assert.match(markup, /No vendor window opens/u);
 });
 
-test('the panel request is bound to one authored V28 effect rather than an inventory plug-in demo', () => {
+test('the panel request is bound to one authored baseline effect rather than an inventory plug-in demo', () => {
 	const instance = authoredInstance();
 	const request = createFramescaperOpenFxInteractRequestV1(
 		instance, { target: 'overlay', parameterName: null }, [],
 	);
-	assert.deepEqual(request.project, { id: 'project-v28', revision: 12 });
+	assert.deepEqual(request.project, {
+		schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-v28', revision: 12,
+	});
 	assert.equal(request.effect.instanceId, 'authored-filter');
 	assert.equal(request.effect.parameters[0]?.value, true);
 	assert.equal(request.pluginHandle, '12'.repeat(20));
 });
 
-function authoredInstance(): FramescaperOpenFxInteractInstanceV28 {
+function authoredInstance(): FramescaperOpenFxInteractInstanceNativeMedia {
 	const sha = '11'.repeat(32);
 	return {
-		project: { id: 'project-v28', revision: 12 }, pluginHandle: '12'.repeat(20),
+		project: {
+			schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-v28', revision: 12,
+		},
+		pluginHandle: '12'.repeat(20),
 		label: 'net.example.Filter — clip-1 — authored-filter', customParameterNames: [],
 		effect: {
 			schemaVersion: 1, instanceId: 'authored-filter', pluginId: 'net.example.Filter',

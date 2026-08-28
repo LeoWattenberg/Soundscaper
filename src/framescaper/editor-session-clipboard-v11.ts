@@ -40,7 +40,7 @@ import {
 	type FramescaperClipboardClipBindingV11,
 	type FramescaperClipboardSelectionV11,
 } from './editor-session-clipboard-v11-selection.ts';
-import { validateFramescaperProjectV27, type FramescaperProjectV27 } from './editor-project-v27.ts';
+import { validateFramescaperProjectFinishing, type FramescaperProjectFinishing } from './editor-project-finishing.ts';
 
 export interface FramescaperSessionClipboardV11 {
 	readonly schemaVersion: 11;
@@ -110,21 +110,21 @@ const SESSION_FIELDS = Object.freeze([
 ]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
 
-/** Bind the maintained edit descriptor and its V27 finishing payload as one selected V11 clipboard. */
+/** Bind the maintained edit descriptor and its finishing finishing payload as one selected V11 clipboard. */
 export function createFramescaperSessionClipboardV11(
 	profile: unknown,
 	projectValue: unknown,
 	descriptor: AudioEditorClipboard,
 ): FramescaperSessionClipboardV11 {
-	validateFramescaperProjectV27(profile, projectValue);
-	const project = projectValue as FramescaperProjectV27;
-	if (records(project.subsequences, 'V27 clipboard subsequences').length > 0) {
+	validateFramescaperProjectFinishing(profile, projectValue);
+	const project = projectValue as FramescaperProjectFinishing;
+	if (records(project.subsequences, 'finishing clipboard subsequences').length > 0) {
 		throw new Error(
 			'The Framescaper V11 session clipboard cannot preserve a nested-sequence graph; '
 			+ 'use Scape copy-only preservation.',
 		);
 	}
-	if (records(project.multicameraGroups, 'V27 clipboard multicamera groups').length > 0) {
+	if (records(project.multicameraGroups, 'finishing clipboard multicamera groups').length > 0) {
 		throw new Error(
 			'The Framescaper V11 session clipboard cannot preserve a multicamera graph; '
 			+ 'use Scape copy-only preservation.',
@@ -180,8 +180,8 @@ export function createFramescaperFinishingClipboardV11(
 	projectValue: unknown,
 	descriptor: AudioEditorClipboard,
 ): FramescaperFinishingClipboardV11 {
-	validateFramescaperProjectV27(profile, projectValue);
-	const project = projectValue as FramescaperProjectV27;
+	validateFramescaperProjectFinishing(profile, projectValue);
+	const project = projectValue as FramescaperProjectFinishing;
 	const session = createAudioEditorSessionClipboard(project, { descriptor });
 	return finishingClipboardFromSelection(
 		project,
@@ -190,7 +190,7 @@ export function createFramescaperFinishingClipboardV11(
 }
 
 function finishingClipboardFromSelection(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	selection: FramescaperClipboardSelectionV11,
 ): FramescaperFinishingClipboardV11 {
 	const visual = normalizeFramescaperVisualClipboardV8({

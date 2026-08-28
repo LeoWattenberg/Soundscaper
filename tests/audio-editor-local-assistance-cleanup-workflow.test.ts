@@ -9,7 +9,8 @@ import {
 
 const MODEL_SHA256 = '12'.repeat(32);
 const FENCE = Object.freeze({
-	projectId: 'project-1', schemaVersion: 30, revision: 4,
+	schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+	projectId: 'project-1', revision: 4,
 	sequenceId: 'main-sequence', occurrenceIds: Object.freeze(['voice-clip']),
 	sourceId: 'voice-source', sourceSha256: 'ab'.repeat(32),
 	sourceStartFrame: 0, sourceEndFrame: 96_000,
@@ -42,7 +43,8 @@ test('result acceptance exposes explicit deterministic cleanup decisions without
 	let commits = 0;
 	const authority = Object.freeze({
 		project: Object.freeze({
-			id: 'project-1', schemaVersion: 30, revision: 4, sampleRate: 48_000,
+			id: 'project-1', schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+			revision: 4, sampleRate: 48_000,
 			tracks: Object.freeze([Object.freeze({
 				id: 'voice-track', type: 'audio', clipIds: Object.freeze(['voice-clip']),
 			})]),

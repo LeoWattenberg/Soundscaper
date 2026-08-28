@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * A removed folder takes its bus with it, on the production revisions too.
@@ -29,7 +29,7 @@ import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v
 const NOW = '2026-08-19T12:00:00.000Z';
 
 test('removing a folder retires the bus it owned and the routes into it', () => {
-	const foldered = applySoundscaperProjectCommandV21(project(), {
+	const foldered = applySoundscaperProjectCommand(project(), {
 		type: 'batch',
 		commands: [
 			{ type: 'track-folder/add', folder: { id: 'stems', name: 'Stems' }, sequenceId: 'main-sequence' },
@@ -42,7 +42,7 @@ test('removing a folder retires the bus it owned and the routes into it', () => 
 	assert.deepEqual(foldered.mixer.groups.map(({ id }) => id), ['stems']);
 	assert.ok(foldered.mixer.edges.some(({ id }) => id === 'assignment:track:voice:mixer-node:stems'));
 
-	const removed = applySoundscaperProjectCommandV21(foldered, {
+	const removed = applySoundscaperProjectCommand(foldered, {
 		type: 'track-folder/remove', folderId: 'stems', sequenceId: 'main-sequence',
 		disposition: 'promote',
 	} as never, { now: NOW });
@@ -61,7 +61,7 @@ test('removing a folder retires the bus it owned and the routes into it', () => 
 });
 
 test('removing one folder leaves another folder its bus', () => {
-	const foldered = applySoundscaperProjectCommandV21(project(), {
+	const foldered = applySoundscaperProjectCommand(project(), {
 		type: 'batch',
 		commands: [
 			{ type: 'track-folder/add', folder: { id: 'stems', name: 'Stems' }, sequenceId: 'main-sequence' },
@@ -78,7 +78,7 @@ test('removing one folder leaves another folder its bus', () => {
 	} as never, { now: NOW });
 	assert.deepEqual(foldered.mixer.groups.map(({ id }) => id).sort(), ['music', 'stems']);
 
-	const removed = applySoundscaperProjectCommandV21(foldered, {
+	const removed = applySoundscaperProjectCommand(foldered, {
 		type: 'track-folder/remove', folderId: 'stems', sequenceId: 'main-sequence',
 		disposition: 'promote',
 	} as never, { now: NOW });
@@ -88,7 +88,7 @@ test('removing one folder leaves another folder its bus', () => {
 });
 
 function project() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'folder-bus-removal', title: 'Folder bus removal', now: NOW,
 		tracks: [
 			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),

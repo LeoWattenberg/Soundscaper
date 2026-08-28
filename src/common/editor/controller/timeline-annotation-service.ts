@@ -491,9 +491,7 @@ function hasTimelineAnnotationSchema(value: unknown): value is Readonly<Record<s
 	return value !== null
 		&& typeof value === 'object'
 		&& !Array.isArray(value)
-		&& isTimelineAnnotationProjectSchema(
-			(value as Readonly<{ schemaVersion?: unknown }>).schemaVersion,
-		);
+		&& isTimelineAnnotationProjectSchema(value);
 }
 
 function annotationCollection(project: TimelineAnnotationControllerProject): readonly TimelineAnnotationV11[] {

@@ -137,6 +137,8 @@ function historicalInput(planVersion: number, planPayload: string, planFingerpri
 
 function baseInput(): Omit<Parameters<typeof createNativeQueueRecordV2>[0], 'plan'> {
 	return {
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		jobId: JOB_ID,
 		taskKind: 'encoded-export',
 		projectId: 'project-1',

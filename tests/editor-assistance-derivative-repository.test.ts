@@ -38,6 +38,7 @@ test('assistance derivative identities bind project, sources, timing, and exact 
 
 	for (const changed of [
 		() => { const value = workflow(); value.fence.projectId = 'project-b'; return value; },
+		() => { const value = workflow(); value.fence.schemaFamily = 'soundscaper'; return value; },
 		() => { const value = workflow(); value.fence.sourceRanges[0].sourceStartFrame = 1; return value; },
 		() => { const value = workflow(); value.fence.sourceRanges[0].sourceSampleRate = 44_100; return value; },
 		() => { const value = workflow(); value.fence.sourceRanges[0].timingAuthoritySha256 = SHA_D; return value; },
@@ -58,6 +59,10 @@ test('assistance derivative identities bind project, sources, timing, and exact 
 	assert.notEqual(createAssistanceDerivativeIdentityV1(base, 'recognized-text').key, identity.key);
 	assert.notEqual(createAssistanceDerivativeIdentityV1(base, 'visual-index').key, identity.key);
 	assert.match(identity.key, /^assistance-derivative-v1:[a-f0-9]{64}:[a-f0-9]{64}$/u);
+	assert.deepEqual({ derivativeVersion: identity.derivativeVersion,
+		schemaFamily: identity.schemaFamily, schemaVersion: identity.schemaVersion }, {
+		derivativeVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+	});
 });
 
 test('assistance derivatives round-trip authenticated bytes without entering project state', async () => {
@@ -192,7 +197,8 @@ function workflow() {
 		settings,
 		fence: {
 			fenceVersion: 1,
-			projectId: 'project-a', schemaVersion: 30, revision: 4, sequenceId: 'main',
+			projectId: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+			revision: 4, sequenceId: 'main',
 			sourceRanges: [{
 				slotId: 'audio', mediaKind: 'audio', sourceId: 'source-a', sourceSha256: SHA_A,
 				sourceSampleRate: 48_000, occurrenceIds: ['clip-a'],

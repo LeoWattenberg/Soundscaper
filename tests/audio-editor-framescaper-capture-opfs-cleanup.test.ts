@@ -176,6 +176,7 @@ function coordinatorRequest(): CreateFramescaperCaptureDurableSessionRequest {
 		sessionId: 'session-coordinator-tail',
 		generation: 1,
 		projectFence: {
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 			projectId: 'project-coordinator-tail', baseRevision: 1, baseSha256: 'ab'.repeat(32),
 		},
 		origin: { sequenceId: 'sequence-tail', playheadMicroseconds: 0, destination: 'both' },

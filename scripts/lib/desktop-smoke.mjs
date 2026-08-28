@@ -1,17 +1,15 @@
 import { resolve } from 'node:path';
 
 import { validateFramescaperCaptureArtifactEvidence } from '../../desktop/framescaper-capture-artifact-smoke.js';
-import { validateFramescaperV27ArtifactEvidence } from '../../desktop/framescaper-v27-artifact-smoke.js';
+import { validateFramescaperBaselineArtifactEvidence } from '../../desktop/framescaper-baseline-artifact-smoke.js';
 
 const SUPPORTED_ARCHITECTURES = new Set(['arm64', 'x64']);
 
 export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
-	'abortSharedSourceWrite',
 	'abortWrite',
 	'applyNativeTierControl',
 	'awaitVideoSourceProbe',
 	'beginDesktopVideoCodecOperation',
-	'beginSharedSourceWrite',
 	'beginVideoSourceProbe',
 	'beginWrite',
 	'bindNativeAudioSession',
@@ -33,13 +31,10 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'closeNativePluginInstance',
 	'closeNativePluginVendorUi',
 	'collectAssistanceModelGarbage',
-	'commitSharedProject',
 	'deleteDesktopVideoCodecOperation',
-	'deleteSharedProject',
 	'describeNativeAudioBackend',
 	'editText',
 	'executeDesktopVideoCodecOperation',
-	'finishSharedSourceWrite',
 	'finishWrite',
 	'getDesktopAudioCodecCapabilities',
 	'getDesktopVideoExportCapabilities',
@@ -52,7 +47,6 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'listAssistanceModelNotices',
 	'listAssistanceModels',
 	'listNativePlugins',
-	'listSharedProjects',
 	'loadLinkedAudioOriginal',
 	'loadLinkedVideoOriginal',
 	'localAssistance',
@@ -73,9 +67,6 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'probeHelperAvailability',
 	'readDesktopVideoCodecOutput',
 	'readNativeTierControls',
-	'readSharedProject',
-	'readSharedProjectBundle',
-	'readSharedSourceChunk',
 	'reconcileAssistanceModels',
 	'reconcileLinkedOriginals',
 	'reconcileLinkedVideoOriginals',
@@ -102,7 +93,6 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'statDesktopVideoCodecOutput',
 	'writeChunk',
 	'writeDesktopVideoCodecInput',
-	'writeSharedSourceChunk',
 ]);
 
 export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
@@ -166,10 +156,10 @@ export function assertDesktopSmokePayload(payload, expected) {
 	assertDesktopChrome(payload?.desktopChrome, expected.platform);
 	if (expected.productId === 'framescaper') {
 		validateFramescaperCaptureArtifactEvidence(payload?.framescaperCapture);
-		validateFramescaperV27ArtifactEvidence(payload?.framescaperV27);
+		validateFramescaperBaselineArtifactEvidence(payload?.framescaperBaseline);
 	} else {
 		assert(payload?.framescaperCapture === undefined, 'Soundscaper smoke emitted Framescaper capture evidence.');
-		assert(payload?.framescaperV27 === undefined, 'Soundscaper smoke emitted Framescaper V27 evidence.');
+		assert(payload?.framescaperBaseline === undefined, 'Soundscaper smoke emitted Framescaper baseline evidence.');
 	}
 }
 

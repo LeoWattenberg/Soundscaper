@@ -71,7 +71,7 @@ test('current take-only sources root logical metadata and physical storage throu
 	assert.deepEqual(project, original);
 });
 
-test('take source collection deduplicates clips and takes across every take-owning schema', () => {
+test('take source collection deduplicates current roots without traversing unsupported identities', () => {
 	const current = {
 		...currentLikeProject(),
 		clips: [{ id: 'clip', sourceId: 'take-only-source', kind: 'audio' as const }],
@@ -86,15 +86,22 @@ test('take source collection deduplicates clips and takes across every take-owni
 	assert.deepEqual([...collectProjectSourceIds(current)], [
 		'take-only-source', 'second-take-source',
 	]);
+	const baseline = {
+		...current,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
+	};
+	assert.deepEqual([...collectProjectSourceIds(baseline)], [
+		'take-only-source', 'second-take-source',
+	]);
 
 	const later = {
 		...current,
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 2,
 		clips: [],
 	};
-	assert.deepEqual([...collectProjectSourceIds(later)], [
-		'take-only-source', 'second-take-source',
-	]);
+	assert.deepEqual([...collectProjectSourceIds(later)], []);
 
 	const preTakeComp = {
 		...current,

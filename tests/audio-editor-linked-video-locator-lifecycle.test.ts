@@ -12,8 +12,6 @@ import {
 	linkedVideoOriginalBindingKey,
 } from '../src/common/editor/storage/linked-video-original-schema.ts';
 import { createStorageRepositories, type StorageRepositoryFactory } from '../src/common/editor/storage/repositories.ts';
-import type { ProjectRepositoryPort } from '../src/common/editor/storage/project-repository.ts';
-import type { DesktopSharedProjectBridge } from '../src/common/editor/storage/desktop-shared-project-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const LOCATOR_A = 'locator_0000000000000001';
@@ -205,65 +203,6 @@ test('an IndexedDB binding-delete failure rolls back the project and emits no re
 	assert.deepEqual(fixture.releases, []);
 });
 
-test('Desktop delete releases only after remote success and successful shadow cleanup', async (context) => {
-	let remoteFailure: Error | null = new Error('planned remote failure');
-	let localFailure: Error | null = null;
-	const localReports: unknown[] = [];
-	const successfulReleases: LinkedVideoOriginalLocatorReference[] = [];
-	const calls: string[] = [];
-	const fixture = await lifecycleFixture(context, 'memory', {
-		desktopProjectBridge: {
-			listSharedProjects: async () => [],
-			readSharedProject: async () => null,
-			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
-			deleteSharedProject: async () => {
-				calls.push('remote');
-				if (remoteFailure) throw remoteFailure;
-				return false;
-			},
-		},
-		repositoryFactory: shadowFailureFactory(() => localFailure, calls),
-		onDesktopCleanupError: (error) => { localReports.push(error); },
-		release: async (value) => { calls.push('release'); successfulReleases.push(value); return true; },
-	});
-	await fixture.store.bindLinkedVideoOriginal('project-a', source('source-a', 'storage-a'), LOCATOR_A);
-	await assert.rejects(fixture.store.deleteProject('project-a'), (error) => error === remoteFailure);
-	assert.deepEqual(successfulReleases, []);
-
-	remoteFailure = null;
-	localFailure = new Error('planned shadow failure');
-	await fixture.store.deleteProject('project-a');
-	assert.equal(localReports.length, 1);
-	assert.deepEqual(successfulReleases, []);
-	assert.ok(await fixture.store.getLinkedVideoOriginalBinding('project-a', 'source-a'));
-
-	localFailure = null;
-	await fixture.store.deleteProject('project-a');
-	assert.deepEqual(successfulReleases, [reference(LOCATOR_A, REVISION_A)]);
-	assert.deepEqual(calls.slice(-3), ['remote', 'local', 'release']);
-});
-
-test('Desktop clear releases local locators without deleting shared projects', async (context) => {
-	let remoteDeletes = 0;
-	const fixture = await lifecycleFixture(context, 'memory', {
-		desktopProjectBridge: {
-			listSharedProjects: async () => [{
-				id: 'shared-project', title: 'Shared', revision: 2, updatedAt: '2026-08-02T00:00:00.000Z',
-			}],
-			readSharedProject: async () => null,
-			commitSharedProject: async ({ document }) => ({ status: 'committed', document }),
-			deleteSharedProject: async () => { remoteDeletes += 1; return true; },
-		},
-	});
-	await fixture.store.bindLinkedVideoOriginal('shared-project', source('source-a', 'storage-a'), LOCATOR_A);
-
-	await fixture.store.clear();
-	assert.equal(fixture.store.preservesProjectsOnClear(), true);
-	assert.equal(remoteDeletes, 0);
-	assert.deepEqual((await fixture.store.listProjects()).map(({ id }) => id), ['shared-project']);
-	assert.deepEqual(fixture.releases, [reference(LOCATOR_A, REVISION_A)]);
-});
-
 test('clear failure before the local commit preserves bindings and only retries older cleanup', async (context) => {
 	const failure = new Error('planned precommit clear failure');
 	let locatorAAttempts = 0;
@@ -364,8 +303,6 @@ interface LifecycleFixtureOptions {
 	readonly load?: LinkedVideoOriginalPort['load'];
 	readonly release?: NonNullable<LinkedVideoOriginalPort['release']>;
 	readonly onCleanupError?: (error: unknown) => void;
-	readonly onDesktopCleanupError?: (error: unknown) => void;
-	readonly desktopProjectBridge?: DesktopSharedProjectBridge;
 	readonly repositoryFactory?: StorageRepositoryFactory;
 }
 
@@ -393,37 +330,12 @@ async function lifecycleFixture(
 		databaseName: `locator-lifecycle-${backend}-${Date.now()}-${Math.random()}`,
 		preferOpfs: false,
 		linkedVideoOriginalPort: port,
-		desktopProjectBridge: options.desktopProjectBridge,
 		repositoryFactory: options.repositoryFactory,
-		onDesktopSharedProjectLocalCleanupError: options.onDesktopCleanupError,
 		onLinkedVideoOriginalLocatorCleanupError: options.onCleanupError,
 	});
 	context.after(async () => { await store.close(); });
 	await store.ready();
 	return { store, releases, externalBodies };
-}
-
-function shadowFailureFactory(
-	failure: () => Error | null,
-	calls: string[],
-): StorageRepositoryFactory {
-	return (port, options) => {
-		const repositories = createStorageRepositories(port, options);
-		const shadow = repositories.projects;
-		const projects: ProjectRepositoryPort = {
-			save: (project) => shadow.save(project),
-			load: (projectId, loadOptions) => shadow.load(projectId, loadOptions),
-			list: () => shadow.list(),
-			listRevisions: (projectId) => shadow.listRevisions(projectId),
-			delete: async (projectId) => {
-				calls.push('local');
-				const error = failure();
-				if (error) throw error;
-				await shadow.delete(projectId);
-			},
-		};
-		return Object.freeze({ ...repositories, projects });
-	};
 }
 
 function clearFailureFactory(

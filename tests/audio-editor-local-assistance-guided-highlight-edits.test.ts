@@ -102,7 +102,9 @@ function sourceTimeAuthority(frames = [row(0, 0, 0), row(12, 12_000, 12_000),
 	row(48, 48_000, 48_000), row(96, 96_000, 96_000)]) {
 	const first = frames[0]!;
 	const last = frames.at(-1)!;
-	return { schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+	return { descriptorVersion: 1 as const,
+		kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-a', projectRevision: 1, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 		sourceSha256: '11'.repeat(32), timingAuthoritySha256: '22'.repeat(32),

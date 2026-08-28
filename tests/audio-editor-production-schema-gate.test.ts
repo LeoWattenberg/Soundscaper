@@ -6,20 +6,24 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	isSoundscaperProductionProjectSchema,
-	isProductionMixerProjectSchema,
+	hasProductionMixerProjectAuthority,
+	isSoundscaperProductionProject,
 } from '../src/common/editor/project-schema-version.ts';
 
-test('the production authority is asked about, not compared against a revision', () => {
-	assert.equal(isSoundscaperProductionProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
-	assert.equal(isProductionMixerProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
-	assert.equal(isProductionMixerProjectSchema(23), true);
-	assert.equal(isProductionMixerProjectSchema(27), true);
-	assert.equal(isProductionMixerProjectSchema(20), false);
+test('the production authority is family-qualified and capability-based', () => {
+	const soundscaper = {
+		schemaFamily: 'soundscaper', schemaVersion: 1, mixer: {}, automationLanes: [],
+	};
+	const framescaper = {
+		schemaFamily: 'framescaper', schemaVersion: 1, mixer: {}, automationLanes: [],
+	};
+	assert.equal(isSoundscaperProductionProject(soundscaper), true);
+	assert.equal(isSoundscaperProductionProject(framescaper), false);
+	assert.equal(hasProductionMixerProjectAuthority(soundscaper), true);
+	assert.equal(hasProductionMixerProjectAuthority(framescaper), true);
 	for (const value of [17, 19, 20, 12, 0, -21, 21.5, '21', null, undefined, {}, NaN]) {
 		assert.equal(
-			isSoundscaperProductionProjectSchema(value),
+			isSoundscaperProductionProject(value),
 			false,
 			`${String(value)} does not carry the production authority`,
 		);
@@ -42,7 +46,7 @@ test('the production authority is asked about, not compared against a revision',
  */
 test('no shared module gates behaviour on one exact production revision', () => {
 	const offenders: string[] = [];
-	const gate = /schemaVersion['"]?\s*\)?\s*[=!]==\s*(?:21\b|SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION)|[=!]==\s*SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION/u;
+	const gate = /\b(?:project|draft|snapshot|candidate|working)\??\.schemaVersion\s*[=!]==\s*(?:21\b|PROJECT_SCHEMA_VERSION)/u;
 
 	for (const file of sourceFiles('src/common')) {
 		// The predicate's own home is where the enumeration is allowed to live.
@@ -56,7 +60,7 @@ test('no shared module gates behaviour on one exact production revision', () => 
 	assert.deepEqual(
 		offenders,
 		[],
-		`Use isSoundscaperProductionProjectSchema instead of comparing against one revision:\n${offenders.join('\n')}`,
+		`Use family or capability authority instead of comparing against one revision:\n${offenders.join('\n')}`,
 	);
 });
 
@@ -72,7 +76,7 @@ test('the render path in particular asks the predicate', () => {
 	]) {
 		assert.match(
 			readFileSync(file, 'utf8'),
-			/isProductionMixerProjectSchema/u,
+			/hasProductionMixerProjectAuthority/u,
 			`${file} decides mixer behaviour and must ask the shared mixer predicate`,
 		);
 	}
@@ -82,7 +86,7 @@ test('the render path in particular asks the predicate', () => {
 	]) {
 		assert.match(
 			readFileSync(file, 'utf8'),
-			/isSoundscaperProductionProjectSchema/u,
+			/isSoundscaperProductionProject/u,
 			`${file} decides render behaviour and must ask the shared predicate`,
 		);
 	}

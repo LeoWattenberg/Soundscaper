@@ -14,29 +14,28 @@ import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-pl
 import { createVideoFreezeFallbackV1 } from '../src/common/editor/video-freeze-v24.ts';
 import type { VideoGeneratorDocumentV1 } from '../src/common/editor/video-visual-model-v24.ts';
 import {
-	createFramescaperProjectUnifiedExactRenderPlanV27,
-} from '../src/framescaper/editor-project-unified-render-plan-v27.ts';
-import { framescaperProjectV24FoundationV27 } from '../src/framescaper/editor-project-v27-validation.ts';
-import { applyFramescaperProjectCommandV27 } from '../src/framescaper/editor-project-v27-commands.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v27.ts';
+	createFramescaperProjectUnifiedExactRenderPlanFinishing,
+} from '../src/framescaper/editor-project-unified-render-plan-finishing.ts';
+import { framescaperProjectVisualFoundationFinishing } from '../src/framescaper/editor-project-finishing-validation.ts';
+import { applyFramescaperProjectCommandFinishing } from '../src/framescaper/editor-project-finishing-commands.ts';
+import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
 import {
-	createFramescaperProjectV27,
-	reimportFramescaperProjectV27,
-} from '../src/framescaper/editor-project-v27.ts';
+	createFramescaperProjectFinishing,
+} from '../src/framescaper/editor-project-finishing.ts';
 import {
 	renderAuthority,
 	freshness,
 	transitionProjectOptions,
 	videoFreezeState,
 	visualFreshness,
-	visualProject,
+	visualProjectOptions,
 } from './helpers/framescaper-unified-render-project-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE;
 
 test('preview and export share exact dissolve weights and a zero-omission visual ledger', () => {
-	const transitionProject = createFramescaperProjectV27(PROFILE, transitionProjectOptions());
-	const transitionPlan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, transitionProject, {
+	const transitionProject = createFramescaperProjectFinishing(PROFILE, transitionProjectOptions());
+	const transitionPlan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, transitionProject, {
 		...renderAuthority(transitionProject as unknown as Readonly<Record<string, unknown>>, 16),
 		visualFreshnessByModelId: new Map(),
 	});
@@ -50,16 +49,16 @@ test('preview and export share exact dissolve weights and a zero-omission visual
 		Object.freeze({ clipId: 'outgoing-clip', transitionId: 'transition', weight: 0.5 }),
 	]));
 
-	const foundation = visualProject();
-	const importedFoundation = {
-		...structuredClone(foundation),
-		videoVisualPresets: foundation.videoVisualPresets.map((preset, index) => index === 0 ? {
+	const importedOptions = visualProjectOptions();
+	const visualModel = importedOptions.visualModel as Record<string, unknown>;
+	const adjustmentLayers = visualModel.adjustmentLayers as readonly unknown[];
+	visualModel.presets = (visualModel.presets as readonly Record<string, unknown>[])
+		.map((preset, index) => index === 0 ? {
 			...preset,
-			authoredStateSha256: fingerprintNativeMediaPlan(foundation.videoAdjustmentLayers[0]).sha256,
-		} : preset),
-	};
-	const importedVisualProjectV27 = reimportFramescaperProjectV27(PROFILE, importedFoundation);
-	const visualProjectV27 = applyFramescaperProjectCommandV27(PROFILE, importedVisualProjectV27, {
+			authoredStateSha256: fingerprintNativeMediaPlan(adjustmentLayers[0]).sha256,
+		} : preset);
+	const importedVisualProject = createFramescaperProjectFinishing(PROFILE, importedOptions as never);
+	const visualProject = applyFramescaperProjectCommandFinishing(PROFILE, importedVisualProject, {
 		type: 'video-visual-presentation/set', presentationId: 'still-presentation',
 		expectedPresentation: null,
 		presentation: {
@@ -68,10 +67,10 @@ test('preview and export share exact dissolve weights and a zero-omission visual
 			processorStackId: null, maskMatteIds: [],
 		},
 	});
-	const visualPlan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, visualProjectV27, {
-		...renderAuthority(visualProjectV27 as unknown as Readonly<Record<string, unknown>>, 30),
+	const visualPlan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, visualProject, {
+		...renderAuthority(visualProject as unknown as Readonly<Record<string, unknown>>, 30),
 		visualFreshnessByModelId: visualFreshness(
-			framescaperProjectV24FoundationV27(PROFILE, visualProjectV27),
+			framescaperProjectVisualFoundationFinishing(PROFILE, visualProject),
 		),
 	});
 	const frame = createUnifiedExactRenderVisualPreviewConsumerV13(visualPlan)
@@ -91,8 +90,8 @@ test('preview and export share exact dissolve weights and a zero-omission visual
 test('visual execution honors exact track visibility and fresh video freeze authority', () => {
 	const hiddenOptions = transitionProjectOptions();
 	(hiddenOptions.tracks as Record<string, unknown>[])[0]!.hidden = true;
-	const hiddenProject = createFramescaperProjectV27(PROFILE, hiddenOptions);
-	const hiddenPlan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, hiddenProject, {
+	const hiddenProject = createFramescaperProjectFinishing(PROFILE, hiddenOptions);
+	const hiddenPlan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, hiddenProject, {
 		...renderAuthority(hiddenProject as unknown as Readonly<Record<string, unknown>>, 16),
 		visualFreshnessByModelId: new Map(),
 	});
@@ -105,14 +104,14 @@ test('visual execution honors exact track visibility and fresh video freeze auth
 
 	const freezeState = videoFreezeState('video-source');
 	const bound = freshness(freezeState);
-	const frozenFoundation = visualProject(createVideoFreezeFallbackV1({
+	const frozenOptions = visualProjectOptions(createVideoFreezeFallbackV1({
 		renderedSourceId: 'video-source', renderedAssetSha256: '12'.repeat(32), ...bound,
 	}));
-	const frozenProject = reimportFramescaperProjectV27(PROFILE, frozenFoundation);
-	const frozenPlan = createFramescaperProjectUnifiedExactRenderPlanV27(PROFILE, frozenProject, {
+	const frozenProject = createFramescaperProjectFinishing(PROFILE, frozenOptions as never);
+	const frozenPlan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, frozenProject, {
 		...renderAuthority(frozenProject as unknown as Readonly<Record<string, unknown>>, 30),
 		visualFreshnessByModelId: visualFreshness(
-			framescaperProjectV24FoundationV27(PROFILE, frozenProject),
+			framescaperProjectVisualFoundationFinishing(PROFILE, frozenProject),
 		),
 	});
 	const frozenFrame = createUnifiedExactRenderVisualPreviewConsumerV13(frozenPlan)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Strict selected-video authority and atomic F31 publication for reviewed reframes. */
+/** Strict selected-video authority and atomic assistance publication for reviewed reframes. */
 
 import {
 	reviewAssistanceOwnedVideoHighlightTransformResultV1,
@@ -33,17 +33,17 @@ import { mapVideoKeyframeVisiblePosition } from
 	'../common/editor/video-keyframe-time-domain.ts';
 import { compareRationals, type Rational } from '../common/editor/timeline-time.ts';
 import {
-	applyFramescaperProjectCommandV31,
-	type FramescaperProjectCommandV31,
-} from './editor-project-v31-commands.ts';
-import { normalizeFramescaperProjectCommandV19 } from './editor-project-v19-commands.ts';
+	applyFramescaperProjectCommandAssistance,
+	type FramescaperProjectCommandAssistance,
+} from './editor-project-assistance-commands.ts';
+import { normalizeFramescaperProjectCommandComposition } from './editor-project-composition-commands.ts';
 import {
-	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
-} from './editor-project-runtime-profile-v31.ts';
+	FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
+} from './editor-domain-runtime-profile.ts';
 import {
-	validateFramescaperProjectV31,
-	type FramescaperProjectV31,
-} from './editor-project-v31.ts';
+	validateFramescaperProjectAssistance,
+	type FramescaperProjectAssistance,
+} from './editor-project-assistance.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -57,7 +57,7 @@ export interface FramescaperAssistanceReframePublicationDependencies {
 	readonly currentAuthority: () => FramescaperAssistanceReframeAuthority;
 	readonly captureProject: () => unknown;
 	readonly assertProject: (token: unknown) => void;
-	readonly commit: (command: FramescaperProjectCommandV31) => Awaitable<void>;
+	readonly commit: (command: FramescaperProjectCommandAssistance) => Awaitable<void>;
 }
 
 export interface FramescaperAssistanceReframeAcceptanceRequest {
@@ -70,7 +70,7 @@ export interface FramescaperAssistanceReframePublication {
 }
 
 interface NormalizedAuthority {
-	readonly project: FramescaperProjectV31;
+	readonly project: FramescaperProjectAssistance;
 	readonly selection: LocalAssistanceSelectedVideoAuthority;
 	readonly fence: AssistanceWorkflowFenceV1;
 	readonly clip: DataRecord;
@@ -98,8 +98,8 @@ export function createFramescaperAssistanceReframePublication(
 		const request = reviewRequest(value);
 		const initial = normalizeAuthority(dependencies.currentAuthority(), request);
 		const command = publicationCommand(initial);
-		applyFramescaperProjectCommandV31(
-			FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+		applyFramescaperProjectCommandAssistance(
+			FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
 			initial.project,
 			command,
 			{ now: String(initial.project.updatedAt) },
@@ -131,16 +131,17 @@ function normalizeAuthority(
 	request: FramescaperAssistanceReframeAcceptanceRequest,
 ): NormalizedAuthority {
 	if (!value || typeof value !== 'object' || !value.selection) {
-		throw new TypeError('Reframe publication requires selected F31 video authority.');
+		throw new TypeError('Reframe publication requires selected assistance video authority.');
 	}
 	const currentFence = validateAssistanceWorkflowFenceV1(value.fence);
 	if (!same(currentFence, request.fence)) throw new AssistanceProposalStaleError();
-	validateFramescaperProjectV31(
-		FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
+	validateFramescaperProjectAssistance(
+		FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
 		value.selection.project,
 	);
-	const project = value.selection.project as unknown as FramescaperProjectV31;
-	if (project.id !== request.fence.projectId || project.schemaVersion !== request.fence.schemaVersion
+	const project = value.selection.project as unknown as FramescaperProjectAssistance;
+	if (project.schemaFamily !== request.fence.schemaFamily
+		|| project.id !== request.fence.projectId || project.schemaVersion !== request.fence.schemaVersion
 		|| project.revision !== request.fence.revision) throw new AssistanceProposalStaleError();
 	const selectedFence = validateAssistanceSelectionFence(value.selection.fence);
 	const ranges = request.fence.sourceRanges.filter(({ mediaKind }) => mediaKind === 'video');
@@ -201,7 +202,7 @@ function assertPathAuthority(
 	}
 }
 
-function publicationCommand(authority: NormalizedAuthority): FramescaperProjectCommandV31 {
+function publicationCommand(authority: NormalizedAuthority): FramescaperProjectCommandAssistance {
 	const clipId = identifier(authority.clip.id, 'selected video clip ID');
 	const duration = integer(authority.clip.sequenceFrameCount, 1, 'video clip duration');
 	const composition = normalizeVideoClipComposition(authority.clip.videoComposition,
@@ -224,7 +225,7 @@ function publicationCommand(authority: NormalizedAuthority): FramescaperProjectC
 		curves,
 	}, context, 'Reframe keyframes');
 	const keyframes = createSetVideoKeyframesCommand(clipId, current, next);
-	const compositionCommand = normalizeFramescaperProjectCommandV19({
+	const compositionCommand = normalizeFramescaperProjectCommandComposition({
 		type: 'video-composition/set', clipId,
 		expectedComposition: composition,
 		composition: nextComposition,
@@ -232,10 +233,10 @@ function publicationCommand(authority: NormalizedAuthority): FramescaperProjectC
 	return Object.freeze({
 		type: 'batch',
 		commands: Object.freeze([
-			keyframes as FramescaperProjectCommandV31,
-			compositionCommand as unknown as FramescaperProjectCommandV31,
+			keyframes as FramescaperProjectCommandAssistance,
+			compositionCommand as unknown as FramescaperProjectCommandAssistance,
 		]),
-	}) as FramescaperProjectCommandV31;
+	}) as FramescaperProjectCommandAssistance;
 }
 
 function mappedCrops(
@@ -311,7 +312,7 @@ function assertDependencies(
 		|| typeof (value as FramescaperAssistanceReframePublicationDependencies).captureProject !== 'function'
 		|| typeof (value as FramescaperAssistanceReframePublicationDependencies).assertProject !== 'function'
 		|| typeof (value as FramescaperAssistanceReframePublicationDependencies).commit !== 'function') {
-		throw new TypeError('Reframe publication requires exact F31 command ports.');
+		throw new TypeError('Reframe publication requires exact assistance command ports.');
 	}
 }
 

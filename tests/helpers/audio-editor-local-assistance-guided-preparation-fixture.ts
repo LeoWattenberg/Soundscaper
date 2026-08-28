@@ -24,7 +24,8 @@ type BindProducerRequest = Parameters<LocalAssistanceAggregateCustodyPort['bindP
 
 export interface FixtureProject {
 	readonly id: string;
-	readonly schemaVersion: number;
+	readonly schemaFamily: 'soundscaper' | 'framescaper';
+	readonly schemaVersion: 1;
 	readonly revision: number;
 	readonly clips: readonly Readonly<Record<string, unknown> & { id: string }>[];
 	readonly sources: readonly Readonly<Record<string, unknown> & { id: string }>[];
@@ -85,7 +86,8 @@ export function preparationFixture(
 		release: async () => { releases += 1; return true; },
 	});
 	const preparedFence = {
-		projectId: 'project-1', schemaVersion: 30, revision: 4, sequenceId: 'main-sequence',
+		schemaFamily: projectValue.schemaFamily, schemaVersion: projectValue.schemaVersion,
+		projectId: 'project-1', revision: 4, sequenceId: 'main-sequence',
 		occurrenceIds: projectValue.clips.map(({ id }) => id), sourceId: 'voice-source',
 		sourceSha256: SOURCE_SHA256, sourceStartFrame: 24_000, sourceEndFrame: 72_000,
 		linkMembershipSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
@@ -130,7 +132,8 @@ export function preparationFixture(
 
 export function project(): FixtureProject {
 	return {
-		id: 'project-1', schemaVersion: 30, revision: 4, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'soundscaper', schemaVersion: 1,
+		revision: 4, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence', subsequences: [], multicameraGroups: [],
 		assistanceAssets: [],
 		sources: [{ id: 'voice-source', kind: 'audio', contentSha256: SOURCE_SHA256 }],

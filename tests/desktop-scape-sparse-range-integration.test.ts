@@ -159,7 +159,7 @@ test('an historical 8 GiB sparse desktop Scape is range-inspected and rejected b
 		}),
 	}), (error: unknown) => Boolean(
 		error instanceof Error
-		&& error.name === 'AudioEditorProjectReimportRequiredError'
+		&& error.name === 'ProjectReimportRequiredError'
 		&& 'code' in error
 		&& error.code === 'REIMPORT_REQUIRED'
 	));

@@ -30,8 +30,36 @@ import {
 	videoBurnInCuesOverlap,
 	videoBurnInUndrawableCharacters,
 } from '../common/editor/video-caption-burn-in.ts';
-import type { FramescaperProjectUnifiedRenderDeliveryBundleV15 } from './editor-project-unified-render-delivery-v15.ts';
-import type { FramescaperCaptionDeliveryDocumentV28 } from './video-caption-delivery-v28.ts';
+import type { VideoBurnInStage } from '../common/editor/video-caption-burn-in.ts';
+
+interface FramescaperCaptionDeliveryDocument {
+	readonly text: string;
+	readonly sha256: string;
+}
+
+interface FramescaperCaptionDeliveryAdapter {
+	readonly delivery: UnifiedExactRenderCaptionDeliveryV15;
+	readonly muxDocument: FramescaperCaptionDeliveryDocument | null;
+	readonly sidecarDocument: FramescaperCaptionDeliveryDocument | null;
+	readonly burnInPlan: unknown | null;
+	readonly burnInStage: VideoBurnInStage | null;
+	readonly track: Readonly<{ readonly id: string }>;
+}
+
+interface FramescaperCompanionAudioPlanBundle {
+	readonly authority: unknown;
+	readonly authorityPayload: string;
+	readonly plan: unknown;
+	readonly planPayload: string;
+}
+
+interface FramescaperProjectUnifiedRenderDeliveryBundleV15 {
+	readonly envelope: NativeMediaPlanEnvelopeV3;
+	readonly plan: NativeMediaPlanEnvelopeV3['plan'];
+	readonly timingSidecars: UnifiedExactRenderTimingSidecars;
+	readonly captionAdapter: FramescaperCaptionDeliveryAdapter | null;
+	readonly companionAudioBundle: FramescaperCompanionAudioPlanBundle | null;
+}
 
 export type FramescaperNativeCaptionDispositionV1 =
 	| 'none' | 'sidecar' | 'mux' | 'burn-in'
@@ -252,7 +280,7 @@ function validateCaptionBundle(
 }
 
 function assertCaptionDocument(
-	document: FramescaperCaptionDeliveryDocumentV28 | null,
+	document: FramescaperCaptionDeliveryDocument | null,
 	expectedSha256: string | null,
 	label: string,
 ): void {

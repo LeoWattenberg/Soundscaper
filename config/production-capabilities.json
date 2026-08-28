@@ -1,6 +1,34 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-26",
+	"groundedAt": "2026-08-28",
+	"releaseCandidate": {
+		"version": "1.0.0-rc.1",
+		"previewTagPatterns": [
+			"v*-beta.*",
+			"v*-rc.*"
+		],
+		"stable1Admission": "blocked-on-remaining-milestone-9-evidence"
+	},
+	"projectSchemaBaselines": [
+		{
+			"schemaFamily": "soundscaper",
+			"schemaVersion": 1,
+			"scapeFormatVersions": [
+				1
+			],
+			"attachedScapeFormatVersion": 1,
+			"status": "rc-baseline"
+		},
+		{
+			"schemaFamily": "framescaper",
+			"schemaVersion": 1,
+			"scapeFormatVersions": [
+				1
+			],
+			"attachedScapeFormatVersion": 1,
+			"status": "rc-baseline"
+		}
+	],
 	"platformTiers": [
 		"web-core",
 		"web-enhanced",
@@ -41,19 +69,25 @@
 			"os": "windows",
 			"architecture": "x64",
 			"packageGate": "smoke-tested",
-			"evidence": [".github/workflows/desktop-preview.yml"]
+			"evidence": [
+				".github/workflows/desktop-preview.yml"
+			]
 		},
 		{
 			"os": "windows",
 			"architecture": "arm64",
 			"packageGate": "smoke-tested",
-			"evidence": [".github/workflows/desktop-preview.yml"]
+			"evidence": [
+				".github/workflows/desktop-preview.yml"
+			]
 		},
 		{
 			"os": "macos",
 			"architecture": "arm64",
 			"packageGate": "smoke-tested",
-			"evidence": [".github/workflows/desktop-preview.yml"]
+			"evidence": [
+				".github/workflows/desktop-preview.yml"
+			]
 		},
 		{
 			"os": "linux",
@@ -72,7 +106,9 @@
 			"os": "linux",
 			"architecture": "arm64",
 			"packageGate": "smoke-tested",
-			"evidence": [".github/workflows/desktop-preview.yml"]
+			"evidence": [
+				".github/workflows/desktop-preview.yml"
+			]
 		}
 	],
 	"products": {
@@ -82,7 +118,10 @@
 			"platforms": {
 				"web-core": {
 					"status": "available",
-					"evidence": ["src/soundscaper/product.js", "tests/browser/editor-products.spec.js"]
+					"evidence": [
+						"src/soundscaper/product.js",
+						"tests/browser/editor-products.spec.js"
+					]
 				},
 				"web-enhanced": {
 					"status": "partial",
@@ -108,75 +147,43 @@
 					"evidence": [
 						"desktop/main.mjs",
 						"desktop/preload.mjs",
-						"desktop/soundscaper-project-library-v11-contract.ts",
-						"desktop/soundscaper-project-library-v11-database.ts",
-						"desktop/soundscaper-project-library-v11-main.ts",
-						"src/soundscaper/desktop-project-library-v11-renderer.ts",
-						"src/soundscaper/desktop-project-library-v11-store-adapter.ts",
+						"desktop/soundscaper-project-library-contract.ts",
+						"desktop/soundscaper-project-library-database.ts",
+						"desktop/soundscaper-project-library-main.ts",
+						"src/soundscaper/desktop-project-library-renderer.ts",
+						"src/soundscaper/desktop-project-library-store-adapter.ts",
 						"desktop/native-audio-session-service.ts",
 						"desktop/plugin-host-service.ts",
 						"src/common/editor/ui/soundscaper-native-renderer-bridge.ts",
-						"src/soundscaper/editor-project-v30.ts",
-						"src/soundscaper/editor-project-v30-foundation.ts",
-						"src/soundscaper/editor-project-v29.ts",
 						"desktop/desktop-smoke.js",
-						"desktop/project-library-projects.ts",
-						"desktop/project-library-host.ts",
 						"desktop/project-library-lease-smoke.js",
-						"desktop/project-library-editor-media-service.ts",
-						"desktop/project-library-editor-service.ts",
-						"desktop/project-library-ipc.js",
-						"desktop/project-library-media-binding.ts",
-						"desktop/project-library-media-capacity.ts",
-						"desktop/project-library-media-inventory-reclamation.ts",
-						"desktop/project-library-media-inventory-schema.ts",
-						"desktop/project-library-media-inventory-store.ts",
-						"desktop/project-library-media-inventory.ts",
-						"desktop/project-library-media-reclamation.ts",
-						"desktop/project-library-media-reuse.ts",
-						"desktop/project-library-media.ts",
+						"desktop/soundscaper-project-library-main-ipc.ts",
+						"desktop/soundscaper-project-library-media-binding.ts",
+						"desktop/soundscaper-project-library-publication-contract.ts",
+						"desktop/soundscaper-project-library-publication-host.ts",
+						"src/framescaper/desktop-project-library-body-contract.ts",
+						"desktop/soundscaper-project-library-publication-persistence.ts",
+						"desktop/project-library-exact-generation-body-configuration.ts",
+						"desktop/project-library-exact-generation-storage.ts",
+						"desktop/soundscaper-project-library-transfer-service.ts",
+						"src/framescaper/desktop-project-library-body-transfer.ts",
 						"scripts/lib/desktop-project-library-runtime.mjs",
 						"scripts/lib/desktop-project-library-lease-matrix.mjs",
 						"scripts/lib/desktop-smoke.mjs",
 						"scripts/desktop-smoke.mjs",
-						"src/common/editor/storage/desktop-shared-project-media-acquisition.ts",
-						"src/common/editor/storage/desktop-shared-project-media-contract.ts",
-						"src/common/editor/storage/desktop-shared-project-media-sender.ts",
-						"src/common/editor/storage/desktop-shared-project-media-sources.ts",
-						"src/common/editor/storage/desktop-shared-project-media-transfer.ts",
-						"src/common/editor/storage/desktop-shared-project-repository.ts",
 						"src/common/editor/storage.js",
 						"src/common/editor/app.js",
-						"tests/desktop-project-library-handoff.test.ts",
-						"tests/desktop-project-library-editor-service.test.ts",
-						"tests/desktop-project-library-editor-media-freshness.test.ts",
-						"tests/desktop-project-library-editor-media-reuse-fallback.test.ts",
-						"tests/desktop-project-library-editor-media-service.test.ts",
-						"tests/desktop-project-library-editor-video-media-service.test.ts",
-						"tests/desktop-project-library-ipc.test.js",
-						"tests/desktop-project-library-media-capacity.test.ts",
-						"tests/desktop-project-library-media-inventory-store.test.ts",
-						"tests/desktop-project-library-media-inventory.test.ts",
-						"tests/desktop-project-library-media-reclamation.test.ts",
-						"tests/desktop-project-library-media-reuse.test.ts",
-						"tests/desktop-project-library-media.test.ts",
-						"tests/desktop-project-library-mixed-media-roundtrip.test.ts",
-						"tests/desktop-project-library-video-media.test.ts",
-						"tests/desktop-project-library-host.test.ts",
 						"tests/desktop-project-library-packaging.test.js",
-						"tests/audio-editor-desktop-shared-project-media-sender-video.test.ts",
-						"tests/audio-editor-desktop-shared-project-media-transfer-budget.test.ts",
-						"tests/audio-editor-desktop-shared-project-media-transfer-ownership.test.ts",
-						"tests/audio-editor-desktop-shared-project-media-transfer.test.ts",
-						"tests/audio-editor-desktop-shared-project-mixed-media-acquisition.test.ts",
-						"tests/audio-editor-desktop-shared-project-repository-handoff.test.ts",
-						"tests/audio-editor-desktop-shared-project-repository.test.ts",
-						"tests/desktop-project-library-editor-handoff.test.ts",
 						"tests/desktop-smoke.test.js",
 						"tests/desktop-smoke-probe.test.js",
 						"tests/desktop-project-library-lease-matrix.test.js",
 						"tests/desktop-project-library-lease-smoke.test.js",
-						".github/workflows/desktop-preview.yml"
+						".github/workflows/desktop-preview.yml",
+						"src/soundscaper/editor-project.ts",
+						"src/soundscaper/editor-project-runtime-profile.ts",
+						"src/soundscaper/editor-controller.ts",
+						"tests/desktop-soundscaper-project-library-baseline.test.ts",
+						"tests/desktop-project-library-baseline-staging.test.js"
 					]
 				},
 				"electron-only": {
@@ -295,6 +302,15 @@
 				"sourceCharacteristics": true,
 				"immersiveAdm": true,
 				"masteringSequences": true
+			},
+			"projectSchemaIdentity": {
+				"schemaFamily": "soundscaper",
+				"schemaVersion": 1,
+				"evidence": [
+					"src/soundscaper/editor-project.ts",
+					"src/soundscaper/editor-project-runtime-profile.ts",
+					"tests/audio-editor-soundscaper-baseline.test.ts"
+				]
 			}
 		},
 		"framescaper": {
@@ -321,7 +337,10 @@
 						"tests/audio-editor-framescaper-capture-session-service.test.ts",
 						"tests/audio-editor-framescaper-capture-ui.test.tsx",
 						"tests/browser/editor-products.spec.js",
-						"docs/framescaper-capture-privacy.md"
+						"docs/framescaper-capture-privacy.md",
+						"src/framescaper/editor-project.ts",
+						"src/framescaper/editor-controller.ts",
+						"tests/audio-editor-framescaper-baseline.test.ts"
 					]
 				},
 				"web-enhanced": {
@@ -329,10 +348,10 @@
 					"evidence": [
 						"src/common/editor/video-media.js",
 						"src/common/editor/controller/native-project-service.ts",
-						"src/framescaper/product-route-v31.ts",
-						"src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx",
-						"src/framescaper/editor-controller-v31.ts",
-						"src/framescaper/editor-project-environment-v31.ts",
+						"src/framescaper/product-route.ts",
+						"src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx",
+						"src/framescaper/editor-controller.ts",
+						"src/framescaper/editor-project-environment.ts",
 						"src/common/editor/controller/framescaper-capture-app-composition.ts",
 						"src/common/editor/controller/framescaper-browser-capture-source.ts",
 						"src/common/editor/controller/framescaper-capture-canonical-pcm.ts",
@@ -380,10 +399,7 @@
 						"src/framescaper/editor-captured-video-proxy-scheduler-state.ts",
 						"src/framescaper/editor-captured-video-proxy-scheduler.ts",
 						"src/framescaper/editor-captured-video-proxy-session-reconciliation.ts",
-						"src/framescaper/editor-controller-v20.ts",
 						"src/framescaper/editor-project-claim-cleanup-profile.ts",
-						"src/framescaper/editor-project-environment-v20.ts",
-						"src/framescaper/editor-video-proxy-attachment-capacity-v18.ts",
 						"src/common/editor/storage/opfs-repository.ts",
 						"src/common/editor/storage/opfs-sync-repository-bridge.ts",
 						"src/common/editor/storage/opfs-sync-worker-client.ts",
@@ -411,46 +427,21 @@
 						"tests/audio-editor-framescaper-capture-terminal-retirement.test.ts",
 						"tests/audio-editor-framescaper-capture-shared-timing.test.ts",
 						"tests/audio-editor-framescaper-capture-start-admission.test.ts",
-						"tests/audio-editor-framescaper-captured-video-proxy-final-fence.test.ts",
-						"tests/audio-editor-framescaper-captured-video-proxy-scheduler.test.ts",
-						"tests/audio-editor-framescaper-captured-video-proxy-reconciliation.test.ts",
 						"tests/audio-editor-project-services.test.ts",
 						"tests/audio-editor-project-switch-service.test.ts",
-						"tests/audio-editor-framescaper-project-v31.test.ts",
-						"tests/audio-editor-framescaper-v31-product-parity.test.tsx",
-						"tests/browser/framescaper-v19-capture.spec.js",
 						"tests/framescaper-capture-cloudflare-policy.test.js",
 						"tests/quality-budget-m8a-capture-collector.test.ts",
-						"docs/milestone-8a-plan.md"
+						"docs/milestone-8a-plan.md",
+						"src/framescaper/editor-project.ts",
+						"tests/audio-editor-framescaper-baseline.test.ts"
 					]
 				},
 				"electron-enhanced": {
 					"status": "partial",
 					"evidence": [
-						"desktop/project-library-v20-contract.ts",
-						"desktop/project-library-v20-database.ts",
-						"desktop/project-library-v20-import.ts",
-						"desktop/project-library-v20-main.ts",
-						"desktop/project-library-v20-main-ipc.ts",
-						"desktop/project-library-v20-writer.ts",
-						"src/framescaper/desktop-project-library-v20-renderer.ts",
-						"src/framescaper/desktop-project-library-v20-store-adapter.ts",
-						"src/framescaper/editor-project-v31.ts",
-						"src/framescaper/editor-project-environment-v31.ts",
-						"src/framescaper/editor-project-v31-foundation.ts",
-						"desktop/project-library-v19-contract.ts",
-						"desktop/project-library-v19-database.ts",
-						"desktop/project-library-v19-import.ts",
-						"desktop/project-library-v19-main.ts",
-						"desktop/project-library-v19-main-ipc.ts",
-						"desktop/project-library-v19-writer.ts",
-						"src/framescaper/desktop-project-library-v19-renderer.ts",
-						"src/framescaper/desktop-project-library-v19-store-adapter.ts",
+						"src/framescaper/editor-project-environment.ts",
 						"desktop/native-services-runtime-v3.ts",
 						"desktop/native-media-v14-executor.ts",
-						"src/framescaper/editor-project-v28.ts",
-						"src/framescaper/editor-native-render-queue-action-v28.ts",
-						"tests/desktop-project-library-v12-packaged.test.ts",
 						"desktop/main.mjs",
 						"desktop/framescaper-web-vcr-capture-authority.ts",
 						"desktop/framescaper-web-vcr-contract.ts",
@@ -541,88 +532,41 @@
 						"desktop/framescaper-capture-preload.ts",
 						"desktop/framescaper-capture-sandbox-preload.ts",
 						"desktop/framescaper-capture-registration.mjs",
-						"desktop/framescaper-capture-session-security.ts",
 						"desktop/framescaper-entitlements.mac.plist",
 						"electron-builder.config.cjs",
 						"desktop/desktop-smoke.js",
-						"desktop/framescaper-v18-artifact-smoke.js",
-						"desktop/framescaper-v20-artifact-smoke.js",
-						"desktop/framescaper-v27-artifact-smoke.js",
+						"desktop/framescaper-baseline-artifact-smoke.js",
 						"desktop/project-library-product-runtime.js",
-						"desktop/project-library-v10-contract.ts",
-						"desktop/project-library-v10-database.ts",
-						"desktop/project-library-v10-main.ts",
-						"desktop/project-library-v10-main-ipc.ts",
-						"desktop/project-library-v10-main-preload.ts",
-						"desktop/project-library-v10-main-session.ts",
-						"desktop/project-library-v10-lifecycle-host.ts",
-						"desktop/project-library-v10-publication-host.ts",
-						"desktop/project-library-v10-publication-transport.ts",
-						"desktop/project-library-v10-sandbox-preload.ts",
-						"desktop/project-library-v10-transfer-service.ts",
-						"desktop/project-library-v17-contract.ts",
-						"desktop/project-library-v17-database.ts",
-						"desktop/project-library-v17-import.ts",
-						"desktop/project-library-v17-main.ts",
-						"desktop/project-library-v17-main-ipc.ts",
-						"desktop/project-library-v17-writer.ts",
-						"desktop/project-library-v18-contract.ts",
-						"desktop/project-library-v18-database.ts",
-						"desktop/project-library-v18-import.ts",
-						"desktop/project-library-v18-main.ts",
-						"desktop/project-library-v18-main-ipc.ts",
-						"desktop/project-library-v18-writer.ts",
 						"scripts/lib/desktop-project-library-runtime.mjs",
 						"scripts/lib/desktop-project-library-lease-matrix.mjs",
 						"scripts/lib/desktop-smoke.mjs",
 						"scripts/desktop-smoke.mjs",
-						"src/framescaper/desktop-project-library-v10-delete-intents.ts",
-						"src/framescaper/desktop-project-library-v10-renderer-contract.ts",
-						"src/framescaper/desktop-project-library-v10-renderer-catalog.ts",
-						"src/framescaper/desktop-project-library-v10-renderer-lifecycle.ts",
-						"src/framescaper/desktop-project-library-v10-renderer.ts",
-						"src/framescaper/desktop-project-library-v10-store-adapter.ts",
-						"src/framescaper/desktop-project-library-v17-renderer.ts",
-						"src/framescaper/desktop-project-library-v17-store-adapter.ts",
-						"src/framescaper/desktop-project-library-v18-renderer.ts",
-						"src/framescaper/desktop-project-library-v18-store-adapter.ts",
 						"src/framescaper/editor-captured-video-proxy-desktop-publication.ts",
 						"src/framescaper/editor-captured-video-proxy-scheduler.ts",
-						"src/framescaper/editor-controller-v18.ts",
-						"src/framescaper/editor-project-environment-v18.ts",
-						"tests/audio-editor-framescaper-desktop-v10-renderer.test.ts",
-						"tests/audio-editor-framescaper-desktop-v10-ipc-recovery.test.ts",
-						"tests/audio-editor-framescaper-desktop-v10-lifecycle-recovery.test.ts",
-						"tests/audio-editor-framescaper-desktop-v10-store-adapter.test.ts",
 						"tests/audio-editor-framescaper-capture-app-composition.test.ts",
 						"tests/audio-editor-framescaper-capture-rollback-lock.test.ts",
 						"tests/audio-editor-framescaper-capture-terminal-retirement.test.ts",
-						"tests/audio-editor-framescaper-captured-video-proxy-final-fence.test.ts",
-						"tests/audio-editor-framescaper-captured-video-proxy-reconciliation.test.ts",
-						"tests/audio-editor-framescaper-captured-video-proxy-scheduler.test.ts",
-						"tests/desktop-framescaper-v18-artifact-smoke.test.js",
-						"tests/desktop-framescaper-v20-artifact-smoke.test.js",
-						"tests/desktop-framescaper-v27-artifact-smoke.test.js",
+						"tests/desktop-framescaper-baseline-artifact-smoke.test.js",
 						"tests/desktop-framescaper-capture-artifact-smoke.test.js",
 						"tests/desktop-framescaper-capture-desktop-port.test.ts",
 						"tests/desktop-framescaper-capture-preload.test.ts",
 						"tests/desktop-framescaper-capture-registration.test.js",
-						"tests/desktop-framescaper-capture-session-security.test.ts",
 						"tests/desktop-framescaper-capture-packaging.test.js",
 						"tests/desktop-framescaper-capture-protocol-policy.test.js",
 						"tests/desktop-project-library-packaging.test.js",
-						"tests/desktop-project-library-v10-lifecycle-host.test.ts",
-						"tests/desktop-project-library-v10-main.test.ts",
-						"tests/desktop-project-library-v10-maintained-composition.test.ts",
-						"tests/desktop-project-library-v10-publication-host.test.ts",
-						"tests/desktop-project-library-v17-main.test.ts",
-						"tests/desktop-project-library-v18-main.test.ts",
-						"tests/audio-editor-framescaper-desktop-v18-renderer.test.ts",
 						"tests/desktop-project-library-lease-matrix.test.js",
 						"tests/desktop-project-library-lease-smoke.test.js",
 						"tests/desktop-smoke.test.js",
 						"tests/desktop-smoke-probe.test.js",
-						".github/workflows/desktop-preview.yml"
+						".github/workflows/desktop-preview.yml",
+						"src/framescaper/editor-project.ts",
+						"src/framescaper/editor-controller.ts",
+						"src/framescaper/editor-project-runtime-profile.ts",
+						"src/framescaper/editor-native-render-input-stream-producer.ts",
+						"tests/audio-editor-framescaper-baseline.test.ts",
+						"desktop/framescaper-project-library-contract.ts",
+						"desktop/framescaper-project-library-main.ts",
+						"tests/desktop-framescaper-project-library-baseline.test.ts"
 					]
 				},
 				"electron-only": {
@@ -677,9 +621,12 @@
 						"desktop/native-services-controller-v3.ts",
 						"desktop/openfx-main-service.ts",
 						"src/common/editor/ui/framescaper-native-services-menu.ts",
-						"src/framescaper/editor-controller-v31-inherited-bindings.ts",
-						"src/framescaper/editor-project-v31-foundation.ts",
-						"src/framescaper/editor-project-v28.ts"
+						"src/framescaper/editor-project.ts",
+						"src/framescaper/editor-controller.ts",
+						"src/framescaper/editor-project-native-media.ts",
+						"src/framescaper/editor-native-render-queue-action.ts",
+						"src/framescaper/editor-native-openfx-action.ts",
+						"tests/audio-editor-framescaper-baseline.test.ts"
 					]
 				}
 			},
@@ -750,6 +697,15 @@
 				"sourceCharacteristics": true,
 				"immersiveAdm": false,
 				"masteringSequences": false
+			},
+			"projectSchemaIdentity": {
+				"schemaFamily": "framescaper",
+				"schemaVersion": 1,
+				"evidence": [
+					"src/framescaper/editor-project.ts",
+					"src/framescaper/editor-project-runtime-profile.ts",
+					"tests/audio-editor-framescaper-baseline.test.ts"
+				]
 			}
 		}
 	}

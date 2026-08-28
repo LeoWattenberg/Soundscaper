@@ -12,6 +12,8 @@ const NOW = 1_800_000_000_000;
 const SESSION = Object.freeze({
 	sessionVersion: 1,
 	sessionId: 'a'.repeat(40),
+	schemaFamily: 'soundscaper' as const,
+	schemaVersion: 1 as const,
 	projectId: 'project-1',
 	projectRevision: 12,
 	expiresAtEpochMs: NOW + 60_000,

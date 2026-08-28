@@ -58,13 +58,13 @@ const BACKEND_NOMINAL_RATES = Object.freeze({
 const STORAGE_PROFILES = Object.freeze({
 	soundscaper: Object.freeze({
 		productId: 'soundscaper',
-		databaseName: 'kw-media-soundscaper-editor-v30',
-		opfsDirectoryName: 'soundscaper-editor-v30-sources',
+		databaseName: 'kw-media-soundscaper-editor-v1',
+		opfsDirectoryName: 'soundscaper-editor-v1-sources',
 	}),
 	framescaper: Object.freeze({
 		productId: 'framescaper',
-		databaseName: 'kw-media-framescaper-editor-v31',
-		opfsDirectoryName: 'framescaper-editor-v31-sources',
+		databaseName: 'kw-media-framescaper-editor-v1',
+		opfsDirectoryName: 'framescaper-editor-v1-sources',
 	}),
 });
 
@@ -373,7 +373,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 
 	function desktopProjectLibraryBridge(globalScope, productId) {
 		return productId === 'soundscaper'
-			? globalScope.soundscaperProjectLibraryDesktop?.v11
+			? globalScope.soundscaperProjectLibraryDesktop?.v1
 			: globalScope.framescaperDesktop?.v1?.projectLibrary;
 	}
 
@@ -399,7 +399,7 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 	function publicationDiagnostic(projectId, before, after, status) {
 		const prior = before?.projects?.find((project) => project.id === projectId) ?? null;
 		const current = after?.projects?.find((project) => project.id === projectId) ?? null;
-		const desktopLibraryVersion = plan.productId === 'soundscaper' ? 'v11' : 'v19';
+		const desktopLibraryVersion = 'v1';
 		const normalizedStatus = status.toLowerCase();
 		const witnessFailure = normalizedStatus.includes(
 			`authoritative desktop ${desktopLibraryVersion} load witness`,
@@ -445,9 +445,9 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 		const framescaper = productId === 'framescaper';
 		if ((!framescaper && productId !== 'soundscaper') || profile.productId !== productId
 			|| profile.databaseName !== (framescaper
-				? 'kw-media-framescaper-editor-v31' : 'kw-media-soundscaper-editor-v30')
+				? 'kw-media-framescaper-editor-v1' : 'kw-media-soundscaper-editor-v1')
 			|| profile.opfsDirectoryName !== (framescaper
-				? 'framescaper-editor-v31-sources' : 'soundscaper-editor-v30-sources')) {
+				? 'framescaper-editor-v1-sources' : 'soundscaper-editor-v1-sources')) {
 			throw new TypeError('Desktop video timing-probe storage profile does not match its product');
 		}
 		return Object.freeze(profile);

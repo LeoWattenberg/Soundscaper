@@ -40,7 +40,7 @@ const HISTORICAL_WORKFLOWS = [
 	'crash-restart-recovery',
 ];
 
-test('current packaged lease qualification admits Soundscaper V11 and Framescaper V20', () => {
+test('current packaged lease qualification admits both product-family v1 baselines', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
 	const controlRoot = resolve('test-lease-control');
@@ -71,7 +71,11 @@ test('current packaged lease qualification admits Soundscaper V11 and Framescape
 	assert.deepEqual([
 		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('sound', 7, 'Sound', 'soundscaper')).schemaVersion,
 		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('frame', 8, 'Frame', 'framescaper')).schemaVersion,
-	], [30, 31]);
+	], [1, 1]);
+	assert.deepEqual([
+		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('sound', 7, 'Sound', 'soundscaper')).schemaFamily,
+		JSON.parse(createDesktopProjectLibraryLeaseMatrixDocument('frame', 8, 'Frame', 'framescaper')).schemaFamily,
+	], ['soundscaper', 'framescaper']);
 });
 
 // The closure register splits release-qualification evidence from automated test
@@ -119,7 +123,7 @@ test('desktop preview CI runs both selected products on every test-activated tar
 	assert.match(leaseJob, /for product in soundscaper framescaper/u);
 	assert.match(leaseJob, /release\/desktop-lease-matrix\/\$product/u);
 	assert.match(leaseJob, /desktop:smoke:project-library-lease-matrix/u);
-	assert.match(leaseJob, /soundscaper-v11-framescaper-v20-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	assert.match(leaseJob, /soundscaper-v1-framescaper-v1-lease-matrix-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.match(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]/u);
 	assert.match(runner, /for \(const productId of \['soundscaper', 'framescaper'\]\)/u);
 	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
@@ -268,7 +272,7 @@ test('a control file that never arrives reports the child rather than only its p
 });
 
 /**
- * Packaged Soundscaper V11 instances reduced to what the matrix decides on: one
+ * Packaged baseline instances reduced to what the matrix decides on: one
  * writer lease per process lifetime, a catalog main arbitrates, and the evidence
  * each child prints. Faults stage the misbehaviour each assertion exists to catch.
  */
@@ -282,7 +286,7 @@ function leaseInstances(faults = {}) {
 
 	const acquire = (productId) => {
 		if (lease && !faults.admitSecondInstance) {
-			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop V20' : 'Soundscaper desktop V11'} writer lease is busy`);
+			throw new Error(`${productId === 'framescaper' ? 'Framescaper desktop v1' : 'Soundscaper desktop v1'} writer lease is busy`);
 		}
 		issued += 1;
 		instances += 1;

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
+
 import type {
 	EngineChunkSourceInput,
 	EngineLoadProjectOptions,
@@ -81,7 +83,7 @@ export function createProjectBinPreviewService(
 		const project = dependencies.getProject();
 		const clip = findProjectBinClip(project, clipId);
 		if (!clip) throw new Error(dependencies.copy.audioClipNotFound);
-		const itemClips = project.schemaVersion >= 4
+		const itemClips = hasProjectBinMediaAuthority(project)
 			? projectBinClips(project).filter((candidate) => candidate.binItemId === clip.binItemId)
 			: [clip];
 		const videoClip = itemClips.find((candidate) => candidate.kind === 'video') ?? null;

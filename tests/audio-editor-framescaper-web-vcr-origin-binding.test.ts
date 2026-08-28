@@ -27,7 +27,8 @@ test('Web VCR keeps the clicked project and playhead protected across a backgrou
 	const restoreAudioContext = installPreviewAudioContext();
 	const binding = createFramescaperCaptureAppBinding({
 		adminInterlock,
-		productId: 'framescaper', routeSchemaVersion: 18, isDesktop: true, embedded: false,
+		productId: 'framescaper', schemaFamily: 'framescaper', schemaVersion: 1,
+		isDesktop: true, embedded: false,
 		store: desktopStore(first, second),
 		sessionController: sessionController(() => activeHistory),
 		projectRuntime: {
@@ -113,7 +114,7 @@ test('Web VCR keeps the clicked project and playhead protected across a backgrou
 
 function project(id: string, revision: number): FramescaperCaptureAppProject {
 	return Object.freeze({
-		id, schemaVersion: 18, revision, sampleRate: 48_000,
+		id, schemaFamily: 'framescaper', schemaVersion: 1, revision, sampleRate: 48_000,
 		primarySequenceId: 'sequence-a',
 		sequences: Object.freeze([Object.freeze({
 			id: 'sequence-a', rate: Object.freeze({ num: 30, den: 1 }), trackIds: Object.freeze([]),

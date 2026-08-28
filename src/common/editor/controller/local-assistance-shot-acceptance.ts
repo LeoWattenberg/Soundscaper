@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Transactional F31 marker acceptance for reviewed Fast and Accurate shot cuts. */
+/** Transactional baseline marker acceptance for reviewed Fast and Accurate shot cuts. */
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
@@ -33,6 +33,11 @@ import {
 	VIDEO_TIMING_ASSET_MAXIMUM_FRAMES,
 	VIDEO_TIMING_ASSET_MAXIMUM_TIMESCALE,
 } from '../video-timing-asset-reference.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 import {
 	mapLocalAssistanceSelectedVideoSourceBoundary,
 	type LocalAssistanceSelectedVideoAuthority,
@@ -311,12 +316,17 @@ function normalizeAuthority(value: LocalAssistanceSelectedVideoAuthority): Norma
 	if (!value || typeof value !== 'object') {
 		throw new TypeError('Shot acceptance requires selected-video authority.');
 	}
+	const identity = readProjectSchemaIdentity(value.project);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new AssistanceProposalStaleError();
+	}
 	const project = dataRecord(value.project, 'shot project');
 	const source = dataRecord(value.source, 'shot source');
 	const clip = dataRecord(value.clip, 'shot clip');
 	const sequence = dataRecord(value.sequence, 'shot sequence');
 	const fence = validateAssistanceSelectionFence(value.fence);
-	if (project.id !== fence.projectId || project.schemaVersion !== 31
+	if (project.id !== fence.projectId || project.schemaFamily !== fence.schemaFamily
 		|| project.schemaVersion !== fence.schemaVersion || project.revision !== fence.revision
 		|| source.id !== fence.sourceId || clip.id !== fence.occurrenceIds[0]
 		|| fence.occurrenceIds.length !== 1 || clip.sequenceId !== fence.sequenceId

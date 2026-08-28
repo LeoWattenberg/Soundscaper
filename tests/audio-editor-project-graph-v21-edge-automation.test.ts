@@ -56,7 +56,7 @@ test('the edge level node sits after the edge compensation delay', () => {
 		position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1],
 	});
 	const project = {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		sampleRate: SAMPLE_RATE,
 		masterChannels: 2,
 		tracks: [

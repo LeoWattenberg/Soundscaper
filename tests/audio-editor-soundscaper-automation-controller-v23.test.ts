@@ -8,16 +8,16 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import {
-	createSoundscaperAutomationControllerBindingV21,
-} from '../src/soundscaper/editor-automation-controller-v21.ts';
-import { applySoundscaperProjectCommandV23 } from '../src/soundscaper/editor-project-v23-commands.ts';
-import { validateSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23-validation.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+	createSoundscaperAutomationControllerBinding,
+} from '../src/soundscaper/editor-automation-controller.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * The automation binding is inherited by every later production revision.
  *
- * That is why it takes the validator as an option: asking `validateSoundscaperProjectV21`
+ * That is why it takes the validator as an option: asking `validateSoundscaperProject`
  * about a V23 document refuses it outright, because V23 carries a field the closed
  * V21 record does not know. The resolve and preview ports were threaded with the
  * injected validator; the readback restore was not, and it runs in the gesture's
@@ -36,8 +36,8 @@ const ADDRESS = Object.freeze({
 
 test('a V23 automation gesture completes and restores its readback', () => {
 	const host = createHost();
-	const binding = createSoundscaperAutomationControllerBindingV21(host.host, {
-		validateProject: validateSoundscaperProjectV23,
+	const binding = createSoundscaperAutomationControllerBinding(host.host, {
+		validateProject: validateSoundscaperProject,
 	});
 	binding.actions.setMode('touch', 'voice-gain');
 	host.startTransport();
@@ -56,8 +56,8 @@ test('a V23 automation gesture completes and restores its readback', () => {
 
 test('a cancelled V23 automation gesture restores its readback too', () => {
 	const host = createHost();
-	const binding = createSoundscaperAutomationControllerBindingV21(host.host, {
-		validateProject: validateSoundscaperProjectV23,
+	const binding = createSoundscaperAutomationControllerBinding(host.host, {
+		validateProject: validateSoundscaperProject,
 	});
 	binding.actions.setMode('latch', 'voice-gain');
 	host.startTransport();
@@ -100,7 +100,7 @@ function createHost() {
 		},
 		actions: { edit: { commit: (command: unknown) => {
 			commitCount += 1;
-			project = applySoundscaperProjectCommandV23(project, command as AudioEditorCommand, { now: NOW });
+			project = applySoundscaperProjectCommand(project, command as AudioEditorCommand, { now: NOW });
 			for (const listener of documentListeners) listener();
 			return project;
 		} } },
@@ -126,7 +126,7 @@ function createHost() {
 }
 
 function projectFixture() {
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'automation-v23-project',
 		title: 'Automation V23 project',
 		now: NOW,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { parseDesktopSmokeConfigurationWithProjectPlan } from './desktop-smoke-configuration.js';
+import { parseDesktopSmokeConfiguration as parseConfiguration } from './desktop-smoke-configuration.js';
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_MODE,
 	DESKTOP_DIRECT_WAV_SMOKE_PREFIX,
@@ -27,35 +27,19 @@ import {
 	validateScapeReopenSmokeResult,
 } from './scape-reopen-smoke.js';
 import {
-	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
-	DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX,
-} from './project-library-source-bearing-smoke.js';
-import {
-	FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
-	joinFramescaperV27ArtifactEvidence,
-	runFramescaperV27ArtifactRendererSmoke,
-} from './framescaper-v27-artifact-smoke.js';
+	FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY,
+	joinFramescaperBaselineArtifactEvidence,
+	runFramescaperBaselineArtifactRendererSmoke,
+} from './framescaper-baseline-artifact-smoke.js';
 import {
 	runFramescaperCaptureArtifactRendererSmoke,
 	validateFramescaperCaptureArtifactEvidence,
 } from './framescaper-capture-artifact-smoke.js';
 import {
-	createDesktopProjectLibrarySourceBearingSmokeSession,
-} from './project-library-source-bearing-smoke-session.js';
-import { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
-export { runProjectLibraryRendererSmoke } from './project-library-renderer-smoke.js';
-import {
 	createDesktopProjectLibraryLeaseSmokeSession,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 	DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX,
 } from './project-library-lease-smoke.js';
-import {
-	PROJECT_LIBRARY_MODE,
-	decodeDesktopSmokePlan,
-	requiredProduct,
-	requiredText,
-	strictRecord,
-} from './desktop-smoke-plan.js';
 import {
 	DESKTOP_VIDEO_TIMING_PROBE_MODE,
 	DESKTOP_VIDEO_TIMING_PROBE_PREFIX,
@@ -73,8 +57,6 @@ import {
 } from './framescaper-web-vcr-smoke-plan.js';
 import { createFramescaperWebVcrSmokeSession } from './framescaper-web-vcr-smoke-session.js';
 import { FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY } from './framescaper-web-vcr-renderer-smoke.js';
-
-export const DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_SMOKE';
 
 const ARTIFACT_SMOKE_SCRIPT = `(async () => ({
 	url: location.href,
@@ -132,7 +114,7 @@ export async function collectDesktopChromeArtifactWitness(scope) {
 }
 
 export function parseDesktopSmokeConfiguration(argv) {
-	return parseDesktopSmokeConfigurationWithProjectPlan(argv, decodeDesktopSmokePlan);
+	return parseConfiguration(argv);
 }
 
 export function createDesktopSmokeProbe(options) {
@@ -150,19 +132,11 @@ export function createDesktopSmokeProbe(options) {
 	const appOrigin = requiredText(options?.appOrigin, 'application origin');
 	const productId = requiredProduct(options?.productId);
 	const projectLibraryEvidence = options?.projectLibraryEvidence;
-	if (([PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
-		DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE].includes(configuration.mode)
+	if ((configuration.mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE
 		|| (configuration.mode === 'artifact' && productId === 'framescaper'))
 		&& typeof projectLibraryEvidence !== 'function') {
 		throw new TypeError('Project-library smoke requires a main-process evidence callback');
 	}
-	const sourceBearingSession = configuration.mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE
-		? createDesktopProjectLibrarySourceBearingSmokeSession({
-			plan: configuration.plan,
-			productId,
-			projectLibraryEvidence,
-		})
-		: null;
 	const leaseSession = configuration.mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE
 		? createDesktopProjectLibraryLeaseSmokeSession({
 			plan: configuration.plan,
@@ -254,10 +228,10 @@ export function createDesktopSmokeProbe(options) {
 		try {
 			const execution = productId === 'framescaper'
 				? await window.webContents.executeJavaScript(
-					`(${runFramescaperV27ArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
+					`(${runFramescaperBaselineArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
 						appName,
 						appOrigin,
-						library: FRAMESCAPER_ARTIFACT_SMOKE_LIBRARY_IDENTITY,
+						library: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY,
 					})})`,
 				)
 				: await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
@@ -274,9 +248,9 @@ export function createDesktopSmokeProbe(options) {
 					...execution,
 					desktopChrome,
 					framescaperCapture: validateFramescaperCaptureArtifactEvidence(captureExecution),
-					framescaperV27: joinFramescaperV27ArtifactEvidence(
-						execution?.framescaperV27,
-						await projectLibraryEvidence(execution?.framescaperV27?.project?.projectId),
+					framescaperBaseline: joinFramescaperBaselineArtifactEvidence(
+						execution?.framescaperBaseline,
+						await projectLibraryEvidence(execution?.framescaperBaseline?.project?.projectId),
 					),
 				}
 				: { ...execution, desktopChrome };
@@ -308,14 +282,12 @@ export function createDesktopSmokeProbe(options) {
 			await runArtifact(attachedWindow);
 			return;
 		}
-		const sourceBearing = configuration.mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE;
-		if (![PROJECT_LIBRARY_MODE, DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE,
-			DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
+		if (![DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE,
 			DESKTOP_DIRECT_WAV_SMOKE_MODE, DESKTOP_SCAPE_OPEN_SMOKE_MODE,
 			DESKTOP_SCAPE_REOPEN_SMOKE_MODE, DESKTOP_VIDEO_TIMING_PROBE_MODE,
 			FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE,
 			FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE].includes(configuration.mode)
-			|| finished || (started && !sourceBearing && !leaseSession)) return;
+			|| finished || (started && !leaseSession)) return;
 		started = true;
 		try {
 			if (!attachedWindow) throw new Error('Desktop smoke renderer became ready before window attachment');
@@ -331,13 +303,6 @@ export function createDesktopSmokeProbe(options) {
 				const payload = await leaseSession.rendererReady(attachedWindow.webContents);
 				if (payload === null) return;
 				log(`${DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX}${JSON.stringify(payload)}`);
-				await finish(0);
-				return;
-			}
-			if (sourceBearing) {
-				const payload = await sourceBearingSession.run(attachedWindow.webContents);
-				if (payload === null) return;
-				log(`${DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX}${JSON.stringify(payload)}`);
 				await finish(0);
 				return;
 			}
@@ -407,14 +372,7 @@ export function createDesktopSmokeProbe(options) {
 				await finish(0);
 				return;
 			}
-			const rendererResult = await attachedWindow.webContents.executeJavaScript(
-				`(${runProjectLibraryRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
-			);
-			const summary = validateSummary(rendererResult?.summary, plan.target);
-			const evidence = await projectLibraryEvidence(plan.target.id);
-			const payload = projectLibraryPayload(plan, summary, evidence);
-			log(`${DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX} ${JSON.stringify(payload)}`);
-			await finish(0);
+			throw new Error('Desktop smoke mode has no renderer workflow');
 		} catch (error) {
 			await fail(`${prefixFor(configuration.mode)} failed: ${cleanError(error)}`);
 		}
@@ -437,54 +395,22 @@ export function createDesktopSmokeProbe(options) {
 	});
 }
 
-function projectLibraryPayload(plan, summary, evidence) {
-	const host = evidence?.host;
-	const target = evidence?.target;
-	if (host?.owner?.product !== plan.productId) throw new Error('Project-library smoke host owner does not match the package');
-	const writer = host?.lastWriter;
-	if (!Number.isSafeInteger(writer?.fencingToken) || writer.fencingToken < 1) throw new Error('Project-library smoke fencing token is invalid');
-	if (writer.tookOverStaleLease !== false) throw new Error('Project-library smoke unexpectedly took over a stale lease');
-	if (writer.recovery?.outcome !== 'clean') throw new Error('Project-library smoke recovery was not clean');
-	if (!Number.isSafeInteger(evidence?.catalogRevision) || evidence.catalogRevision < 1) {
-		throw new Error('Project-library smoke catalog revision is invalid');
-	}
-	if (target?.projectId !== plan.target.id || target?.name !== plan.target.title
-		|| target?.projectRevision !== plan.target.revision || target?.sha256 !== plan.target.sha256) {
-		throw new Error('Project-library smoke catalog row does not match the target');
-	}
-	if (target.preferredProduct !== plan.productId) throw new Error('Project-library smoke preferred product is invalid');
-	return {
-		schemaVersion: 1,
-		mode: PROJECT_LIBRARY_MODE,
-		stage: plan.stage,
-		productId: plan.productId,
-		project: descriptorWithoutDocument(plan.target),
-		summary,
-		host: {
-			owner: { product: host.owner.product },
-			fencingToken: writer.fencingToken,
-			tookOverStaleLease: false,
-			recovery: { outcome: 'clean' },
-		},
-		preferredProduct: target.preferredProduct,
-		catalogRevision: evidence.catalogRevision,
-	};
-}
-
-function validateSummary(value, target) {
-	const summary = strictRecord(value, ['id', 'revision', 'title'], 'renderer smoke summary');
-	if (summary.id !== target.id || summary.title !== target.title || summary.revision !== target.revision) {
-		throw new Error('Renderer smoke summary does not match the target');
-	}
-	return Object.freeze({ id: summary.id, title: summary.title, revision: summary.revision });
-}
-
-function descriptorWithoutDocument(value) {
-	return { id: value.id, title: value.title, revision: value.revision, sha256: value.sha256 };
-}
-
 function requiredFunction(value, label) {
 	if (typeof value !== 'function') throw new TypeError(`Desktop smoke ${label} callback is required`);
+	return value;
+}
+
+function requiredText(value, label) {
+	if (typeof value !== 'string' || !value || value.includes('\0')) {
+		throw new TypeError(`Desktop smoke ${label} is invalid`);
+	}
+	return value;
+}
+
+function requiredProduct(value) {
+	if (value !== 'soundscaper' && value !== 'framescaper') {
+		throw new TypeError('Desktop smoke product is invalid');
+	}
 	return value;
 }
 
@@ -513,7 +439,6 @@ function assertMatchingScapeDescriptor(candidate, observed, plan) {
 
 function timeoutFor(mode) {
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS;
-	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) return 90_000;
 	if (mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE || mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) return 90_000;
 	if (mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) return DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS;
@@ -551,10 +476,6 @@ async function stalledStage(
 }
 
 function prefixFor(mode) {
-	if (mode === PROJECT_LIBRARY_MODE) return DESKTOP_PROJECT_LIBRARY_SMOKE_PREFIX;
-	if (mode === DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_MODE) {
-		return DESKTOP_PROJECT_LIBRARY_SOURCE_BEARING_OUTPUT_PREFIX.trimEnd();
-	}
 	if (mode === DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_MODE) return DESKTOP_PROJECT_LIBRARY_LEASE_SMOKE_PREFIX.trimEnd();
 	if (mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) return DESKTOP_DIRECT_WAV_SMOKE_PREFIX;
 	if (mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) return DESKTOP_SCAPE_OPEN_SMOKE_PREFIX;

@@ -6,24 +6,24 @@ import test from 'node:test';
 import type { ProductVideoExportStrategyEncodeRequest } from '../src/common/editor/controller/product-video-export-strategy.ts';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 import type { VideoKeyframeOfflineVideoExportRequest } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
-import { createSoundscaperProjectRuntimeV29Selection } from '../src/soundscaper/editor-project-runtime-v29-selection.ts';
-import { createSoundscaperProjectV29 } from '../src/soundscaper/editor-project-v29.ts';
+import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/editor-project-runtime-selection.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {
-	createSoundscaperDesktopVideoExportStrategyV29,
-	createSoundscaperVideoExportStrategyV29,
-} from '../src/soundscaper/video-export-strategy-v29.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+	createSoundscaperDesktopVideoExportStrategy,
+	createSoundscaperVideoExportStrategy,
+} from '../src/soundscaper/video-export-strategy.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 test('Soundscaper V29 keyed strategy reaches buffered and sink encoders with one exact active pair', async () => {
-	const runtime = createSoundscaperProjectRuntimeV29Selection();
-	const project = createSoundscaperProjectV29(framescaperV20Options() as never);
+	const runtime = createSoundscaperProjectRuntimeSelection();
+	const project = createSoundscaperProject(framescaperV20Options() as never);
 	const canonicalJson = JSON.stringify(project);
 	const canonicalSource = project.sources[0]!;
 	const canonicalTempoMap = project.tempoMap;
 	assert.equal(Object.isFrozen(canonicalSource), false);
 	assert.equal(Object.isFrozen(canonicalTempoMap), false);
 	const calls: Array<Readonly<Record<string, unknown>>> = [];
-	const strategy = createSoundscaperVideoExportStrategyV29(runtime, {
+	const strategy = createSoundscaperVideoExportStrategy(runtime, {
 		async encodeOffline(request: VideoKeyframeOfflineVideoExportRequest) {
 			calls.push(request as unknown as Readonly<Record<string, unknown>>);
 			return encoderResult('mp4');
@@ -63,9 +63,9 @@ test('Soundscaper V29 keyed strategy reaches buffered and sink encoders with one
 });
 
 test('Soundscaper V29 keyed strategy refuses fallback, caption, and detached plan authority', () => {
-	const runtime = createSoundscaperProjectRuntimeV29Selection();
-	const project = createSoundscaperProjectV29(framescaperV20Options() as never);
-	const strategy = createSoundscaperVideoExportStrategyV29(runtime, dependencies());
+	const runtime = createSoundscaperProjectRuntimeSelection();
+	const project = createSoundscaperProject(framescaperV20Options() as never);
+	const strategy = createSoundscaperVideoExportStrategy(runtime, dependencies());
 	assert.throws(() => strategy.createExportProject({
 		canonicalProject: project,
 		delivery: { ...fallbackFreeDelivery(project), videoRenderedFallback: {} },
@@ -84,12 +84,12 @@ test('Soundscaper V29 keyed strategy refuses fallback, caption, and detached pla
 });
 
 test('Soundscaper V29 controller strategy is desktop-only', () => {
-	const runtime = createSoundscaperProjectRuntimeV29Selection();
-	assert.equal(createSoundscaperDesktopVideoExportStrategyV29(runtime, { isDesktop: false }), undefined);
-	assert.equal(createSoundscaperDesktopVideoExportStrategyV29(runtime, {}), undefined);
-	assert.ok(createSoundscaperDesktopVideoExportStrategyV29(runtime, { isDesktop: true }));
+	const runtime = createSoundscaperProjectRuntimeSelection();
+	assert.equal(createSoundscaperDesktopVideoExportStrategy(runtime, { isDesktop: false }), undefined);
+	assert.equal(createSoundscaperDesktopVideoExportStrategy(runtime, {}), undefined);
+	assert.ok(createSoundscaperDesktopVideoExportStrategy(runtime, { isDesktop: true }));
 	const accessor = Object.defineProperty({}, 'isDesktop', { enumerable: true, get: () => true });
-	assert.equal(createSoundscaperDesktopVideoExportStrategyV29(runtime, accessor), undefined);
+	assert.equal(createSoundscaperDesktopVideoExportStrategy(runtime, accessor), undefined);
 });
 
 function fallbackFreeDelivery(project: Readonly<Record<string, unknown>>) {
@@ -120,7 +120,7 @@ function encoderResult(format: 'mp4' | 'webm') {
 function encodeRequest(
 	canonicalProject: Readonly<Record<string, unknown>>,
 	exportProject: Readonly<Record<string, unknown>>,
-	plan: NonNullable<ReturnType<ReturnType<typeof createSoundscaperVideoExportStrategyV29>['createPlan']>>,
+	plan: NonNullable<ReturnType<ReturnType<typeof createSoundscaperVideoExportStrategy>['createPlan']>>,
 ): ProductVideoExportStrategyEncodeRequest {
 	return {
 		canonicalProject, exportProject, plan, timingBySourceId: new Map(),

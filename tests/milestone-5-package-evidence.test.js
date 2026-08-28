@@ -21,7 +21,7 @@ import {
 import { createFixture } from './helpers/ffmpeg-runtime-fixture.mjs';
 import { createSoundscaperLinuxPackageFixture } from './helpers/milestone-5-linux-package-fixture.mjs';
 
-const VERSION = '0.2.0-beta.1';
+const VERSION = '1.0.0-rc.1';
 const APPIMAGE = `Soundscaper-${VERSION}-linux-x64.AppImage`;
 const DEBIAN = `Soundscaper-${VERSION}-linux-amd64.deb`;
 const MANIFEST = 'runtime-manifest-soundscaper-linux-x64.json';

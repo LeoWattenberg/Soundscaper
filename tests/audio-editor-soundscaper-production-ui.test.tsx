@@ -86,16 +86,17 @@ test('unsupported products and unavailable capabilities add no production surfac
 	assert.ok(Object.isFrozen(unavailable));
 });
 
-test('disabled and malformed menu states are inert while read-only inspectors remain reachable', () => {
+test('disabled read-only menu states are inert while inspectors remain reachable', () => {
 	const calls: unknown[][] = [];
 	const blocked = createSoundscaperProductionApplicationMenuItems({
 		productId: 'soundscaper', capabilities: CAPABILITIES,
-		project: { ...project(), schemaVersion: 20 }, selectedTrackId: 'voice',
+		project: project(), selectedTrackId: 'voice',
 		automationMode: 'write', editingBlocked: true, readOnly: true,
 		freezeStatus: 'none',
 	}, actions(calls));
 	const automation = blocked.tracks[0];
-	assert.equal(automation?.items?.[0]?.disabled, true);
+	assert.equal(automation?.items?.[0]?.disabled, false);
+	automation?.items?.[0]?.onClick?.();
 	for (const mode of automation?.items?.[1]?.items ?? []) {
 		assert.equal(mode.disabled, true);
 		mode.onClick?.();
@@ -106,6 +107,7 @@ test('disabled and malformed menu states are inert while read-only inspectors re
 	blocked.analyze[0]?.onClick?.();
 	blocked.tools[0]?.onClick?.();
 	assert.deepEqual(calls, [
+		['open', 'automation'], ['open', 'routing'],
 		['open', 'restoration'], ['open', 'metering'], ['open', 'reviewed-effects'],
 	]);
 });
@@ -477,7 +479,7 @@ function project(
 	effects: readonly Readonly<Record<string, unknown>>[] = [{ id: 'voice-filter', enabled: true }],
 ) {
 	return {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
 		sampleRate: 48_000,
 		tracks: [{
 			id: 'voice', type: 'audio', name: 'Voice', locked: false, clipIds, effects,

@@ -232,18 +232,20 @@ export class FramescaperNativeQueueRepository {
 function insertRecord(database: DatabaseSync, record: NativeQueueRecordV2): void {
 	database.prepare(`
 		INSERT INTO render_queue_jobs (
-			job_id, record_version, task_kind, plan_version, plan_fingerprint, plan_payload,
+			job_id, record_version, schema_family, schema_version,
+			task_kind, plan_version, plan_fingerprint, plan_payload,
 			project_id, project_revision, input_fingerprints, root_grant_id,
 			relative_destination, reservations, recovery_class, state, position, progress,
 			attempt, last_failure_code, created_at_ms, updated_at_ms
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`).run(...recordValues(record));
 }
 
 function updateRecord(database: DatabaseSync, record: NativeQueueRecordV2, previousUpdatedAtMs: number): void {
 	const result = database.prepare(`
 		UPDATE render_queue_jobs SET
-			record_version = ?, task_kind = ?, plan_version = ?, plan_fingerprint = ?, plan_payload = ?,
+			record_version = ?, schema_family = ?, schema_version = ?, task_kind = ?,
+			plan_version = ?, plan_fingerprint = ?, plan_payload = ?,
 			project_id = ?, project_revision = ?, input_fingerprints = ?, root_grant_id = ?,
 			relative_destination = ?, reservations = ?, recovery_class = ?, state = ?, position = ?,
 			progress = ?, attempt = ?, last_failure_code = ?, created_at_ms = ?, updated_at_ms = ?
@@ -254,7 +256,8 @@ function updateRecord(database: DatabaseSync, record: NativeQueueRecordV2, previ
 
 function recordValues(record: NativeQueueRecordV2): readonly SQLInputValue[] {
 	return [
-		record.jobId, record.recordVersion, record.taskKind, record.planVersion,
+		record.jobId, record.recordVersion, record.schemaFamily, record.schemaVersion,
+		record.taskKind, record.planVersion,
 		record.planFingerprint, record.planPayload, record.projectId, record.projectRevision,
 		JSON.stringify(record.inputFingerprints), record.rootGrantId, record.relativeDestination,
 		JSON.stringify(record.reservations), record.recoveryClass, record.state, record.position,
@@ -266,6 +269,8 @@ function decodeRecord(row: Record<string, unknown>): NativeQueueRecordV2 {
 	const record: NativeQueueRecordV2 = {
 		jobId: row.job_id as string,
 		recordVersion: row.record_version as 2,
+		schemaFamily: row.schema_family as 'framescaper',
+		schemaVersion: row.schema_version as 1,
 		taskKind: row.task_kind as NativeQueueRecordV2['taskKind'],
 		planVersion: row.plan_version as NativeQueueRecordV2['planVersion'],
 		planFingerprint: row.plan_fingerprint as string,

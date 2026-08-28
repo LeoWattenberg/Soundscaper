@@ -19,22 +19,21 @@ import {
 	normalizeVideoClipComposition,
 } from '../src/common/editor/video-clip-composition.ts';
 import {
-	FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v19.ts';
+	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-project-runtime-profile.ts';
 import {
-	createEditorProjectRuntimeV19Selection,
-} from '../src/framescaper/editor-project-runtime-v19-selection.ts';
+	createEditorProjectRuntimeSelection,
+} from '../src/framescaper/editor-project-runtime-selection.ts';
 import {
-	applyFramescaperProjectCommandV19,
-	type FramescaperProjectCommandV19,
-} from '../src/framescaper/editor-project-v19-commands.ts';
-import {
-	createFramescaperProjectV19,
-	type FramescaperProjectV19,
-} from '../src/framescaper/editor-project-v19.ts';
+	applyFramescaperProjectCommand,
+	type FramescaperProjectCommand,
+} from '../src/framescaper/editor-project-commands.ts';
+import type { FramescaperProjectComposition } from '../src/framescaper/editor-project-composition.ts';
+import { createFramescaperProject, type FramescaperProject } from '../src/framescaper/editor-project.ts';
 
 const CREATED = '2026-08-13T14:00:00.000Z';
 const EDITED = '2026-08-13T14:01:00.000Z';
+type BaselineCompositionProject = FramescaperProject & FramescaperProjectComposition;
 
 test('split detaches equal composition children and join retains one detached value', () => {
 	const project = projectFixture();
@@ -61,17 +60,17 @@ test('join refuses adjacent video clips whose canonical compositions differ', ()
 	const split = apply(projectFixture(), {
 		type: 'clip/split', clipId: 'video-clip', atFrame: 24_000, rightClipId: 'right-clip',
 	});
-	const changed = applyFramescaperProjectCommandV19(
-		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+	const changed = applyFramescaperProjectCommand(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 		split,
 		{
 			type: 'video-composition/set',
 			clipId: 'right-clip',
 			expectedComposition: authoredComposition(),
 			composition: DEFAULT_VIDEO_CLIP_COMPOSITION,
-		} as FramescaperProjectCommandV19,
+		} as FramescaperProjectCommand,
 		{ now: EDITED },
-	);
+	) as BaselineCompositionProject;
 	assert.throws(
 		() => apply(changed, { type: 'clip/join', clipIds: ['video-clip', 'right-clip'] }),
 		/different processing|composition/iu,
@@ -144,14 +143,14 @@ test('generic clip add and trim carriers retain canonical detached composition',
 	);
 });
 
-test('clipboard V5 copy and paste carry detached video composition', () => {
+test('clipboard V6 copy and paste carry detached video composition and baseline keyframes', () => {
 	const project = projectFixture();
-	const runtime = createEditorProjectRuntimeV19Selection(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE);
+	const runtime = createEditorProjectRuntimeSelection(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
 	const commandProject = runtime.projectForCommandConsumers(project);
 	const descriptor = createClipboardDescriptor(commandProject, {
 		startFrame: 0, endFrame: 48_000, trackIds: ['video-track'], clipIds: ['video-clip'],
 	});
-	assert.equal(descriptor.schemaVersion, 5);
+	assert.equal(descriptor.schemaVersion, 6);
 	const copied = descriptor.tracks[0]?.clips[0];
 	assert.deepEqual(copied?.videoComposition, authoredComposition());
 	assert.notStrictEqual(copied?.videoComposition, project.clips[0]?.videoComposition);
@@ -172,10 +171,10 @@ test('clipboard V5 copy and paste carry detached video composition', () => {
 	);
 });
 
-test('clipboard V5 requires composition only on video while V1 through V4 remain readable', () => {
+test('clipboard V5 and V6 require composition only on video while V1 through V4 remain readable', () => {
 	const descriptor = createClipboardDescriptor(
-		createEditorProjectRuntimeV19Selection(
-			FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+		createEditorProjectRuntimeSelection(
+			FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 		).projectForCommandConsumers(projectFixture()),
 		{ startFrame: 0, endFrame: 48_000, trackIds: ['video-track'] },
 	);
@@ -236,8 +235,8 @@ test('clipboard V5 requires composition only on video while V1 through V4 remain
 	}
 });
 
-function projectFixture(): FramescaperProjectV19 {
-	return createFramescaperProjectV19(FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE, {
+function projectFixture(): BaselineCompositionProject {
+	return createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 		id: 'composition-edit-preservation', title: 'Composition edit preservation', now: CREATED,
 		sources: [createVideoSource({
 			id: 'video-source', name: 'Video', storageKey: 'video-source', mimeType: 'video/mp4',
@@ -258,7 +257,7 @@ function projectFixture(): FramescaperProjectV19 {
 			id: 'main-sequence', rate: { num: 10, den: 1 }, trackIds: ['video-track'],
 		}],
 		primarySequenceId: 'main-sequence',
-	});
+	}) as BaselineCompositionProject;
 }
 
 function authoredComposition() {
@@ -273,16 +272,16 @@ function authoredComposition() {
 	});
 }
 
-function apply(project: FramescaperProjectV19, command: unknown): FramescaperProjectV19 {
-	return applyFramescaperProjectCommandV19(
-		FRAMESCAPER_V19_PROJECT_RUNTIME_PROFILE,
+function apply(project: BaselineCompositionProject, command: unknown): BaselineCompositionProject {
+	return applyFramescaperProjectCommand(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 		project,
-		command as FramescaperProjectCommandV19,
+		command as FramescaperProjectCommand,
 		{ now: EDITED },
-	);
+	) as BaselineCompositionProject;
 }
 
-function clip(project: FramescaperProjectV19, id: string): Readonly<Record<string, unknown>> {
+function clip(project: BaselineCompositionProject, id: string): Readonly<Record<string, unknown>> {
 	const result = project.clips.find((candidate) => candidate.id === id);
 	assert.ok(result);
 	return result;

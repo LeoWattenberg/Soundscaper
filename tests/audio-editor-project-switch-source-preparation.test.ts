@@ -365,7 +365,7 @@ function createFixture(options: Readonly<{
 		createProject: () => active, normalizeProjectSampleRate: () => 48_000,
 		createInitialAudioTrackCommand: () => ({ track: { id: 'initial-track', type: 'audio' } }), createHistory: (project: TestProject) => ({ present: project }),
 		executeCommand: (history: TestHistory) => history,
-		migrateProject: (project: unknown) => ({ project: project as TestProject, readOnly: false }),
+		loadProject: (project: unknown) => ({ project: project as TestProject, readOnly: false }),
 		verifyProjectFallbackIntegrity: () => ({
 			assertCurrent() {
 				currentnessChecks += 1;

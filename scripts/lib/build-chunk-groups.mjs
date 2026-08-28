@@ -36,7 +36,7 @@ const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
  * has not opened. Adding a name here is a deliberate claim that eager code reads it.
  */
 const editorEagerAssistanceModule = String.raw`(?:assistance-asset-command-v1|assistance-asset-reference-v1|operation|shots|transcript|transcript-scape-asset-extension-v1)`;
-const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-native-services-dialog-model\.ts|framescaper-v27-(?:caption-file-interchange|finishing-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
+const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-(?:caption-file-interchange|finishing-dialog-model|native-services-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
 const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/]ui[\\/]local-assistance-semantic-search-(?:bridge|source)\.ts$/;
 
@@ -85,34 +85,105 @@ export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]a
 const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)/;
 const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
-const framescaperProjectFoundationModule = String.raw`(?:editor-video-proxy-action-runtime-v20|editor-native-(?:openfx-authoring-model|project-action-requests|render-plan-authority)-v28|editor-selected-v27-authoring-controller|editor-project-(?:companion-audio-scope-v15|v25-source-command|v27-finishing-command|unified-render-(?:openfx|plan-v28|professional)|v(?:28|32)|v(?:25|28|31|32)-foundation|feature-requirements-v(?:25|26|28|32)|feature-capability-profile-v(?:25|26|28|32)|storage-profile-v(?:25|26|28|32)|runtime-profile-v(?:25|26|28|32)(?:-prerequisite)?|v(?:25|28|32)-validation|v28-openfx-validation))`;
+/**
+ * Dependency-closed Framescaper project model used during product startup.
+ *
+ * Keep high-level runtime selection, render orchestration, and authoring
+ * controllers with their consumers. Claiming those composition roots here made
+ * this chunk import the selected bootstrap, while captured proxy preservation in
+ * that bootstrap imported the project model back. Rolldown then evaluated the
+ * preservation initializer before its imported foundation initializer existed.
+ */
+const framescaperProjectFoundationModules = Object.freeze([
+	'editor-audio-dialogue-chain-finishing',
+	'editor-audio-finishing-finishing',
+	'editor-captured-video-proxy-preservation',
+	'editor-domain-runtime-profile',
+	'editor-native-openfx-authoring-model',
+	'editor-native-project-action-requests',
+	'editor-project-assistance-foundation',
+	'editor-project-assistance-validation',
+	'editor-project-assistance',
+	'editor-project-companion-audio-scope',
+	'editor-project-composition-validation',
+	'editor-project-composition',
+	'editor-project-feature-capabilities',
+	'editor-project-feature-capability-profile-assistance',
+	'editor-project-feature-capability-profile-composition',
+	'editor-project-feature-capability-profile-finishing',
+	'editor-project-feature-capability-profile-native-media',
+	'editor-project-feature-capability-profile-openfx',
+	'editor-project-feature-capability-profile-professional-media',
+	'editor-project-feature-capability-profile-retime',
+	'editor-project-feature-capability-profile-sequence',
+	'editor-project-feature-capability-profile-timeline-image',
+	'editor-project-feature-capability-profile-transitions',
+	'editor-project-feature-capability-profile-visual',
+	'editor-project-feature-requirements-assistance',
+	'editor-project-feature-requirements-composition',
+	'editor-project-feature-requirements-finishing',
+	'editor-project-feature-requirements-native-media',
+	'editor-project-feature-requirements-openfx',
+	'editor-project-feature-requirements-professional-media',
+	'editor-project-feature-requirements-retime',
+	'editor-project-feature-requirements-sequence',
+	'editor-project-feature-requirements-timeline-image',
+	'editor-project-feature-requirements-transitions',
+	'editor-project-feature-requirements-visual',
+	'editor-project-feature-requirements',
+	'editor-project-finishing-finishing-command',
+	'editor-project-finishing-validation',
+	'editor-project-finishing',
+	'editor-project-native-media-foundation',
+	'editor-project-native-media-openfx-validation',
+	'editor-project-native-media-validation',
+	'editor-project-native-media',
+	'editor-project-professional-media-foundation',
+	'editor-project-professional-media-source-command',
+	'editor-project-professional-media-validation',
+	'editor-project-retime-structural-admission',
+	'editor-project-retime-validation',
+	'editor-project-retime',
+	'editor-project-runtime-profile',
+	'editor-project-sequence-multicam',
+	'editor-project-sequence-subsequence',
+	'editor-project-sequence-validation',
+	'editor-project-sequence',
+	'editor-project-storage-profile',
+	'editor-project-timeline-image-foundation',
+	'editor-project-timeline-image-validation',
+	'editor-project-timeline-image',
+	'editor-project-transitions-validation',
+	'editor-project-transitions',
+	'editor-project-visual-validation',
+	'editor-project-visual',
+	'editor-project',
+	'editor-video-proxy-action-runtime',
+]);
 const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
-	`src[\\\\/]framescaper[\\\\/]${framescaperProjectFoundationModule}\\.ts$`,
+	`src[\\\\/]framescaper[\\\\/](?:${framescaperProjectFoundationModules.join('|')})\\.ts$`,
 );
 const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-v(?:8|11(?:-(?:controller|selection))?)\.ts$/;
 
 
 /**
- * The schema-number vocabulary, owned apart from the editor domain it lives in.
+ * The project identity tuple reader, owned apart from the editor domain it lives in.
  *
- * Project schema numbers are one global namespace: a number identifies exactly
- * one product's document generation, so there is exactly one module that says
- * which number means what, and a second copy of those predicates would be a
- * correctness hazard rather than a tidiness one. The transfer documents ask that
- * module which product wrote a stored project, and they are the reason it needs
- * an owner of its own.
+ * A project is identified only by (schemaFamily, schemaVersion). The transfer
+ * documents use the hardened reader to learn which product owns a stored row;
+ * a bare schema number is deliberately never product authority. That shared
+ * reader is the reason the identity module needs an owner of its own.
  *
- * `project-schema-version.ts` has no imports at all - it is constants and
- * predicates over a number - but chunks load whole. While the editor domain
- * group claimed it, the standalone transfer page's one call to
- * `isFramescaperSequenceProjectSchema` made it statically import an
+ * `project-schema-identity.ts` has no imports, but chunks load whole. While the
+ * editor domain group claimed it, the standalone transfer page's identity read
+ * made it statically import an
  * `editor-domain` chunk, and through that chunk's own imports the transfer
  * documents carried 62 modulepreloads totalling 5.29 MiB of editor code onto a
  * page that mounts no editor. Owning the leaf here emits it as its own small
  * chunk that both worlds can import without dragging the other's graph.
  */
-export const PROJECT_SCHEMA_VERSION_CHUNK_TEST = new RegExp(
-	`${editorPath}project-schema-version\\.ts$`,
+export const PROJECT_SCHEMA_IDENTITY_CHUNK_TEST = new RegExp(
+	`${editorPath}project-schema-identity\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
@@ -185,9 +256,9 @@ export const chunkGroups = [
 	{
 		// A dependency-free leaf both the editor and the standalone transfer pages
 		// read. Deliberately not named `editor-`: a transfer document loading it is
-		// loading the schema-number vocabulary, not the editor.
-		name: 'project-schema-versions',
-		test: PROJECT_SCHEMA_VERSION_CHUNK_TEST,
+		// loading the project identity tuple reader, not the editor.
+		name: 'project-schema-identity',
+		test: PROJECT_SCHEMA_IDENTITY_CHUNK_TEST,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -319,7 +390,7 @@ export const chunkGroups = [
 		// Framescaper feature slice. Keep it out of the selected bootstrap chunk while
 		// preserving one semantic owner for modules shared by its menu-opened surfaces.
 		name: 'framescaper-timeline-images',
-		test: /src[\\/]framescaper[\\/](?:editor-(?:image-(?:import-coordinator|placement)-v32|project-v32-image-command|selected-v32-image|session-clipboard-v13|timeline-image)|video-export-image-)/,
+		test: /src[\\/]framescaper[\\/](?:editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|session-clipboard-v13|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/,
 		priority: 64,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

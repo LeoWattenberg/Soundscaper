@@ -32,7 +32,7 @@ export function createFramescaperVideoProxyDialogModel(
 	input: FramescaperVideoProxyDialogModelInput,
 ): Readonly<FramescaperVideoProxyDialogModel> {
 	const project = record(input.project);
-	if (!project || !isFramescaperVideoProxyProjectSchema(project.schemaVersion)) {
+	if (!project || !isFramescaperVideoProxyProjectSchema(project)) {
 		return unsupported();
 	}
 	const sources = records(project.sources).filter((source) => (

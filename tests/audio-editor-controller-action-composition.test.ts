@@ -17,8 +17,8 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
-const { createSoundscaperProjectRuntimeV30Selection } = await import(
-	'../src/soundscaper/editor-project-runtime-v30-selection.ts'
+const { createSoundscaperProjectRuntimeSelection } = await import(
+	'../src/soundscaper/editor-project-runtime-selection.ts'
 );
 
 const COPY = Object.freeze({
@@ -69,7 +69,7 @@ test('common controller does not claim the selected product assistance command o
 });
 
 test('real controller accepts one reviewed transcript into storage and one undo step', async () => {
-	const projectRuntime = createSoundscaperProjectRuntimeV30Selection();
+	const projectRuntime = createSoundscaperProjectRuntimeSelection();
 	const store = projectRuntime.createProjectStore({ indexedDB: null, preferOpfs: false });
 	const controller = createController([], store, projectRuntime);
 	try {
@@ -150,7 +150,7 @@ test('real controller accepts one reviewed transcript into storage and one undo 
 });
 
 test('real controller exposes reviewed Parakeet cleanup as one explicit undoable edit', async () => {
-	const projectRuntime = createSoundscaperProjectRuntimeV30Selection();
+	const projectRuntime = createSoundscaperProjectRuntimeSelection();
 	const store = projectRuntime.createProjectStore({ indexedDB: null, preferOpfs: false });
 	const controller = createController([], store, projectRuntime);
 	try {
@@ -247,7 +247,7 @@ test('real Framescaper capture open action reveals Recording Setup without openi
 function createController(
 	saves: Array<Readonly<Record<string, unknown>>>,
 	store = createProjectStore({ indexedDB: null, preferOpfs: false }),
-	projectRuntime: ReturnType<typeof createSoundscaperProjectRuntimeV30Selection> | null = null,
+	projectRuntime: ReturnType<typeof createSoundscaperProjectRuntimeSelection> | null = null,
 ) {
 	return createAudioEditorController(null, {
 		headless: true,

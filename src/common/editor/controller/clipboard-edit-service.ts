@@ -7,6 +7,7 @@ import {
 	prepareSplitCommand as prepareLegacySplitCommand,
 } from '../commands/clip-link-runtime.js';
 import { createAddSourceCommand, createAddTrackCommand } from '../commands/factories.ts';
+import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import type {
 	AudioEditorClipboard,
 	AudioEditorClipboardTrack,
@@ -54,6 +55,7 @@ export interface ClipboardEditSource extends Readonly<Record<string, unknown>> {
 
 export interface ClipboardEditProject {
 	readonly id: string;
+	readonly schemaFamily?: 'soundscaper' | 'framescaper';
 	readonly schemaVersion: number;
 	readonly sampleRate: number;
 	readonly sources: readonly ClipboardEditSource[];
@@ -289,7 +291,7 @@ export function createClipboardEditService(
 			laneGroupId: string | null = null,
 		): ClipboardEditMediaTrack => {
 			const type = clipboardTrackType(clipboardTrack);
-			if (type === 'video' && project.schemaVersion < 4) {
+			if (type === 'video' && !hasProjectBinMediaAuthority(project)) {
 				throw new RangeError('Video clipboard tracks require an AudioEditorProjectV4 project.');
 			}
 			const trackId = dependencies.createId(type === 'video' ? 'video-track' : 'track');

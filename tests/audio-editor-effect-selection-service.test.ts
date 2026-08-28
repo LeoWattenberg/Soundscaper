@@ -9,10 +9,15 @@ import {
 	type EffectSelectionState,
 } from '../src/common/editor/controller/effect-selection-service.ts';
 
+const PROJECT_IDENTITY = Object.freeze({
+	schemaFamily: 'soundscaper' as const,
+	schemaVersion: 1 as const,
+});
+
 function createHarness(options: Readonly<{ genericRangeErrors?: boolean }> = {}) {
 	let project: EffectSelectionProject = {
+		...PROJECT_IDENTITY,
 		id: 'project-a',
-		schemaVersion: 5,
 		sampleRate: 48_000,
 		title: 'Project',
 		tracks: [
@@ -110,7 +115,7 @@ test('target resolution rejects missing focus, silent ranges, and invalid clip t
 
 	harness.state.selectedTrackId = 'track-b';
 	harness.setProject({
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000, title: 'Project',
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Project',
 		tracks: [{ id: 'track-b', name: 'B', type: 'audio', clipIds: [] }], clips: [],
 		selection: { startFrame: 10, endFrame: 20, trackIds: ['track-b'], clipIds: [] },
 		master: { effects: [] }, mixer: { groups: [], sends: [], routes: {} },
@@ -121,7 +126,7 @@ test('target resolution rejects missing focus, silent ranges, and invalid clip t
 	assert.deepEqual(harness.service.audacityEffectTargets(), []);
 	harness.state.selectedClipId = 'video-clip';
 	harness.setProject({
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000, title: 'Project',
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Project',
 		tracks: [{ id: 'video', name: 'Video', type: 'video', clipIds: ['video-clip'] }],
 		clips: [{
 			id: 'video-clip', kind: 'video', sourceId: 'source-video', title: 'Video',
@@ -137,7 +142,7 @@ test('multi-track range resolution preserves silent tracks only when requested',
 	harness.state.selectedClipId = null;
 	harness.setProject({
 		...({} as EffectSelectionProject),
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000, title: 'Project',
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Project',
 		tracks: [
 			{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'] },
 			{ id: 'track-b', name: 'B', type: 'audio', clipIds: [] },
@@ -160,7 +165,7 @@ test('spectral context treats parametric EQ as a time-only selection', () => {
 	const harness = createHarness();
 	harness.setProject({
 		...({} as EffectSelectionProject),
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000, title: 'Project',
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Project',
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'], spectrogram: { windowSize: 4_096 } }],
 		clips: [{
 			id: 'clip-a', kind: 'audio', sourceId: 'source-a', title: 'Clip',
@@ -283,7 +288,7 @@ test('selection details and range targets retain explicit track and frequency me
 	const harness = createHarness();
 	harness.state.selectedClipId = null;
 	harness.setProject({
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000, title: 'Project',
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Project',
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['clip-a'] }],
 		clips: [{
 			id: 'clip-a', kind: 'audio', sourceId: 'source-a', title: 'Clip',
@@ -326,7 +331,7 @@ test('legacy projects and non-audio focus are rejected before selection mutation
 	});
 	assert.throws(() => harness.service.setSpectralBoxSelection(), /Version 2/u);
 	harness.setProject({
-		id: 'project-a', schemaVersion: 5, sampleRate: 48_000, title: 'Video',
+		...PROJECT_IDENTITY, id: 'project-a', sampleRate: 48_000, title: 'Video',
 		tracks: [{ id: 'video', name: 'Video', type: 'video', clipIds: [] }], clips: [], selection: null,
 		master: { effects: [] }, mixer: { groups: [], sends: [], routes: {} },
 	});

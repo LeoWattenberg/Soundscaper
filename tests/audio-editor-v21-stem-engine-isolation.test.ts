@@ -11,7 +11,7 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const SAMPLE_RATE = 48_000;
 const FRAME_COUNT = 8;
@@ -72,7 +72,7 @@ test('V21 stem rendering excludes a non-target pre-fader route without rewriting
 });
 
 function fixture() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'v21-stem-engine-isolation',
 		title: 'V21 stem engine isolation',
 		now: NOW,

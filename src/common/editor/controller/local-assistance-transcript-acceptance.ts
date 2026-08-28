@@ -54,6 +54,7 @@ type Awaitable<Value> = PromiseLike<Value> | Value;
 export interface LocalAssistanceTranscriptAcceptanceAuthority {
 	readonly project: Readonly<{
 		readonly id: string;
+		readonly schemaFamily: AssistanceSelectionFence['schemaFamily'];
 		readonly schemaVersion: number;
 		readonly revision: number;
 		readonly sampleRate: number;
@@ -287,7 +288,8 @@ function normalizeAuthority(value: LocalAssistanceTranscriptAcceptanceAuthority)
 		throw new TypeError('Transcript acceptance requires selected-media authority.');
 	}
 	const fence = validateAssistanceSelectionFence(value.fence);
-	if (value.project.id !== fence.projectId || value.project.schemaVersion !== fence.schemaVersion
+	if (value.project.id !== fence.projectId || value.project.schemaFamily !== fence.schemaFamily
+		|| value.project.schemaVersion !== fence.schemaVersion
 		|| value.project.revision !== fence.revision) {
 		throw new AssistanceProposalStaleError();
 	}

@@ -4,10 +4,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { isNeutralAdmSignalPath } from '../src/common/editor/adm-passthrough-project.ts'
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts'
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts'
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 
 function projectWithAudioTrack() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'adm-v21',
 		title: 'ADM V21',
 		now: '2026-08-14T00:00:00.000Z',

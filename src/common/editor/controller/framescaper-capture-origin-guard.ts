@@ -1,5 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
+
 export const FRAMESCAPER_CAPTURE_ORIGIN_PROTECTED_CODE =
 	'FRAMESCAPER_CAPTURE_ORIGIN_PROTECTED' as const;
 
@@ -8,6 +14,8 @@ export type FramescaperCaptureOriginProtectedAction =
 export type FramescaperCaptureOriginReleaseOutcome = 'stopped' | 'discarded';
 
 export interface FramescaperCaptureOriginBinding {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly baseRevision: number;
 	readonly baseSha256: string;
@@ -159,8 +167,14 @@ export function createFramescaperCaptureOriginGuard(): FramescaperCaptureOriginG
 }
 
 function normalizeOrigin(value: unknown): Readonly<FramescaperCaptureOriginBinding> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Framescaper capture origin requires the current Framescaper schema.');
+	}
 	const origin = closedDataRecord(value, 'Framescaper capture origin', [
-		'projectId', 'baseRevision', 'baseSha256', 'sequenceId', 'playheadMicroseconds',
+		'schemaFamily', 'schemaVersion', 'projectId', 'baseRevision', 'baseSha256',
+		'sequenceId', 'playheadMicroseconds',
 	]);
 	const baseRevision = nonNegativeInteger(
 		origin.baseRevision,
@@ -171,6 +185,8 @@ function normalizeOrigin(value: unknown): Readonly<FramescaperCaptureOriginBindi
 		throw new TypeError('Framescaper capture base SHA-256 is invalid.');
 	}
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: stableId(origin.projectId, 'Framescaper capture projectId'),
 		baseRevision,
 		baseSha256,

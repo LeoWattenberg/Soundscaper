@@ -9,14 +9,24 @@ import {
 	validateAssistanceSemanticSearchSession,
 	type AssistanceSemanticSearchSession,
 } from '../src/common/editor/assistance/async-search-provider.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../src/common/editor/project-schema-identity.ts';
 
 const DEFAULT_SESSION_LIFETIME_MS = 5 * 60 * 1_000;
 const SESSION_BYTES = 20;
 const MAXIMUM_ID_ATTEMPTS = 8;
 const SESSION_ID = /^[a-f\d]{40}$/u;
 const PROJECT_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
-const OPEN_FIELDS = Object.freeze(['projectId', 'projectRevision', 'lifetimeMs']);
-const EXPECTED_FIELDS = Object.freeze(['projectId', 'projectRevision']);
+const OPEN_FIELDS = Object.freeze([
+	'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision', 'lifetimeMs',
+]);
+const EXPECTED_FIELDS = Object.freeze([
+	'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision',
+]);
+const PROJECT_FIELDS = Object.freeze(['schemaFamily', 'schemaVersion', 'projectId']);
 
 export interface AssistanceSemanticSearchSessionAuthorityOptions {
 	readonly now?: () => number;
@@ -25,12 +35,16 @@ export interface AssistanceSemanticSearchSessionAuthorityOptions {
 }
 
 export interface AssistanceSemanticSearchSessionOpenRequest {
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly lifetimeMs?: number;
 }
 
 export interface AssistanceSemanticSearchProjectAuthority {
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 }
@@ -54,6 +68,7 @@ export class AssistanceSemanticSearchSessionAuthority {
 
 	open(value: AssistanceSemanticSearchSessionOpenRequest): AssistanceSemanticSearchSession {
 		const fields = Object.hasOwn(value ?? {}, 'lifetimeMs') ? OPEN_FIELDS : EXPECTED_FIELDS;
+		const identity = currentIdentity(value, 'semantic-search session opening');
 		const row = exactRecord(value, fields, 'semantic-search session opening');
 		const projectId = projectIdValue(row.projectId);
 		const projectRevision = revision(row.projectRevision);
@@ -71,7 +86,7 @@ export class AssistanceSemanticSearchSessionAuthority {
 		}
 		if (sessionId === null) throw new Error('Semantic-search session entropy repeatedly collided.');
 		const session = validateAssistanceSemanticSearchSession({
-			sessionVersion: 1, sessionId, projectId, projectRevision,
+			sessionVersion: 1, sessionId, ...identity, projectId, projectRevision,
 			expiresAtEpochMs: now + lifetimeMs,
 		}, now);
 		this.#active.set(sessionId, session);
@@ -84,6 +99,7 @@ export class AssistanceSemanticSearchSessionAuthority {
 	): AssistanceSemanticSearchSession {
 		const expected = exactRecord(expectedValue, EXPECTED_FIELDS,
 			'semantic-search project authority');
+		const identity = currentIdentity(expectedValue, 'semantic-search project authority');
 		const projectId = projectIdValue(expected.projectId);
 		const projectRevision = revision(expected.projectRevision);
 		const now = timestamp(this.#now());
@@ -93,7 +109,9 @@ export class AssistanceSemanticSearchSessionAuthority {
 		if (!active || !sameSession(active, session)) {
 			throw new Error('The semantic-search bearer session is not active or was revoked.');
 		}
-		if (session.projectId !== projectId || session.projectRevision !== projectRevision) {
+		if (session.schemaFamily !== identity.schemaFamily
+			|| session.schemaVersion !== identity.schemaVersion
+			|| session.projectId !== projectId || session.projectRevision !== projectRevision) {
 			this.#active.delete(session.sessionId);
 			throw new Error('The semantic-search session is stale against current project revision authority.');
 		}
@@ -108,12 +126,15 @@ export class AssistanceSemanticSearchSessionAuthority {
 		return this.#active.delete(sessionIdValue);
 	}
 
-	revokeProject(projectIdInput: string): number {
-		const projectId = projectIdValue(projectIdInput);
+	revokeProject(value: Readonly<Pick<AssistanceSemanticSearchProjectAuthority,
+		'schemaFamily' | 'schemaVersion' | 'projectId'>>): number {
+		const identity = currentIdentity(value, 'semantic-search project revocation');
+		const row = exactRecord(value, PROJECT_FIELDS, 'semantic-search project revocation');
+		const projectId = projectIdValue(row.projectId);
 		this.#prune(timestamp(this.#now()));
 		let revoked = 0;
 		for (const [sessionId, session] of this.#active) {
-			if (session.projectId !== projectId) continue;
+			if (session.schemaFamily !== identity.schemaFamily || session.projectId !== projectId) continue;
 			this.#active.delete(sessionId);
 			revoked += 1;
 		}
@@ -129,8 +150,20 @@ export class AssistanceSemanticSearchSessionAuthority {
 
 function sameSession(left: AssistanceSemanticSearchSession, right: AssistanceSemanticSearchSession): boolean {
 	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
+		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
 		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
 		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
+}
+
+function currentIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: ProjectSchemaFamily; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} requires a current project schema.`);
+	}
+	return Object.freeze({ schemaFamily: identity.schemaFamily, schemaVersion: PROJECT_SCHEMA_VERSION });
 }
 
 function exactRecord(

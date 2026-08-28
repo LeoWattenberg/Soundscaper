@@ -30,9 +30,7 @@ const MEDIA_PROJECTION_CACHE = new WeakMap<object, { fingerprint: string; projec
  */
 export function projectTrackFolderMediaStateV12<Project extends object>(project: Project): Project {
 	const candidate = dataRecord(project, 'track folder media project');
-	if (!isActiveAudioEditorProjectSchema(
-		optionalOwnData(candidate, 'schemaVersion', 'track folder media project'),
-	)) return project;
+	if (!isActiveAudioEditorProjectSchema(candidate)) return project;
 	const marker = ownDescriptor(candidate, TRACK_FOLDER_STATE_PROJECTION_MARKER);
 	if (marker !== undefined) {
 		if (isTrackFolderMediaStateProjectionV12(candidate)) return project;
@@ -116,10 +114,9 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 	target: Project,
 ): Project {
 	const sourceRecord = dataRecord(source, 'track folder media projection source');
-	const sourceSchemaVersion = optionalOwnData(
-		sourceRecord, 'schemaVersion', 'track folder media projection source',
-	);
-	if (!isActiveAudioEditorProjectSchema(sourceSchemaVersion)) return target;
+	const sourceSchemaVersion = optionalOwnData(sourceRecord, 'schemaVersion', 'track folder media projection source');
+	const sourceSchemaFamily = optionalOwnData(sourceRecord, 'schemaFamily', 'track folder media projection source');
+	if (!isActiveAudioEditorProjectSchema(sourceRecord)) return target;
 	const sourceLineage = TRUSTED_MEDIA_PROJECTIONS.get(source);
 	if (!isTrackFolderMediaStateProjectionV12(source) || sourceLineage === undefined) {
 		if (ownDescriptor(sourceRecord, TRACK_FOLDER_STATE_PROJECTION_MARKER)) {
@@ -131,8 +128,9 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 	if (!hasExactMarker(candidate)) {
 		throw new TypeError('A derived track folder media projection must retain its exact marker.');
 	}
-	if (optionalOwnData(candidate, 'schemaVersion', 'track folder media projection target')
-		!== sourceSchemaVersion) {
+	if (optionalOwnData(candidate, 'schemaVersion', 'track folder media projection target') !== sourceSchemaVersion
+		|| optionalOwnData(candidate, 'schemaFamily', 'track folder media projection target')
+		!== sourceSchemaFamily) {
 		throw new TypeError('A derived track folder media projection must retain exact current schema.');
 	}
 	if (mediaProjectionLineage(candidate) !== sourceLineage) {
@@ -146,9 +144,7 @@ export function inheritTrackFolderMediaStateProjectionV12<Project extends object
 export function isTrackFolderMediaStateProjectionV12(value: unknown): boolean {
 	return Boolean(value && typeof value === 'object' && !Array.isArray(value)
 		&& TRUSTED_MEDIA_PROJECTIONS.has(value)
-		&& isActiveAudioEditorProjectSchema(optionalOwnData(
-			value as DataRecord, 'schemaVersion', 'track folder media projection',
-		))
+		&& isActiveAudioEditorProjectSchema(value)
 		&& hasExactMarker(value as DataRecord));
 }
 

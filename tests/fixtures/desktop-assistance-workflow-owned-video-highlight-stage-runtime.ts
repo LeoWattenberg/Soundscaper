@@ -208,7 +208,8 @@ function workflowFence(
 		linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '56'.repeat(32),
 		retimeKind: 'identity' as const };
 	return {
-		fenceVersion: 1 as const, projectId: 'project-a', schemaVersion: 31, revision: 1,
+		fenceVersion: 1 as const, schemaFamily: 'framescaper' as const,
+		projectId: 'project-a', schemaVersion: 1 as const, revision: 1,
 		sequenceId: 'sequence-a', sourceRanges: workflowId === 'make-highlights'
 			? [audioRange, videoRange] : [videoRange], transcriptBodySha256: null,
 		recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, stageIds),
@@ -245,7 +246,9 @@ export function digest(value: Uint8Array): string {
 }
 
 export function selectedVideoAuthority(sourceSha256 = '12'.repeat(32)) {
-	return { schemaVersion: 1 as const, kind: 'selected-video-source-time-authority' as const,
+	return { descriptorVersion: 1 as const,
+		kind: 'selected-video-source-time-authority' as const,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		projectId: 'project-a', projectRevision: 1, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 		sourceSha256, timingAuthoritySha256: '56'.repeat(32),

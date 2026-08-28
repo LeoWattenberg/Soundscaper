@@ -454,12 +454,13 @@ The archive verification fixtures are
 from the bytes a finished archive holds and then reports substitution,
 truncation, a missing member and an unlisted one as four distinct findings.
 
-The `.scape` handoff preservation sentence is witnessed by the browser specs
-that already own it: `tests/browser/audio-editor-scape-product-roundtrip.spec.js`
-for editable state across a product handoff, and
-`tests/browser/audio-editor-scape-fallback-return-roundtrip.spec.js` for
-fallbacks returning intact. Duplicating them here would add a second claim about
-the same bytes rather than a second check of them.
+At 6C closure, the `.scape` handoff preservation sentence was witnessed by
+browser fixtures for editable state and rendered fallbacks across pre-freeze
+product generations. Those fixtures are historical provenance, not family-v1
+admission evidence, and the retired fallback-return fixture is no longer part of
+the baseline tree. Current archive authority is
+`tests/audio-editor-scape-v1-baseline.test.ts`, including foreign-family opaque
+custody and byte-exact Save Copy.
 
 Interchange correctness runs entirely in ordinary CI; 6C claims no
 environment-gated numbers, and `delivery.unreportedConversions eq 0`

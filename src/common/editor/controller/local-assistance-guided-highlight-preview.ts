@@ -61,7 +61,8 @@ export function extractLocalAssistanceGuidedHighlightSourceTimeAuthorityV1(
 	const range = ranges[0]!;
 	const sourceSize = record(signals.sourceSize, 'highlight source size');
 	const authority = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1({
-		schemaVersion: 1, kind: 'selected-video-source-time-authority',
+		descriptorVersion: 1, kind: 'selected-video-source-time-authority',
+		schemaFamily: workflow.fence.schemaFamily, schemaVersion: workflow.fence.schemaVersion,
 		projectId: workflow.fence.projectId, projectRevision: workflow.fence.revision,
 		sequenceId: workflow.fence.sequenceId, videoOccurrenceId: signals.videoOccurrenceId,
 		sourceId: signals.sourceId, sourceSha256: range.sourceSha256,

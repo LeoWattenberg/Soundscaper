@@ -8,19 +8,19 @@ import {
 	projectNativeMediaV15FoundationForV14Verification,
 } from '../desktop/native-media-v15-foundation-projection.ts';
 import { createNativeMediaPlanEnvelopeV3 } from '../src/common/editor/native-media-plan-envelope-v3.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV15 } from '../src/framescaper/editor-project-unified-render-delivery-v15.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanV15 } from '../src/framescaper/editor-project-unified-render-delivery.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 const SHA_A = 'aa'.repeat(32);
 
 test('artifact-free V15 projects to a separately fingerprinted exact V14 verification foundation', () => {
-	const project = createFramescaperProjectV28(PROFILE, framescaperV20Options());
-	const authority = createFramescaperNativeRenderPlanAuthorityV28(project);
+	const project = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+	const authority = createFramescaperNativeRenderPlanAuthorityNativeMedia(project);
 	const source = createNativeMediaPlanEnvelopeV3(
 		createFramescaperProjectUnifiedExactRenderPlanV15(PROFILE, project, authority, {
 			deliveryProfile: 'encode-mov-prores-422-hq',
@@ -39,10 +39,10 @@ test('artifact-free V15 projects to a separately fingerprinted exact V14 verific
 });
 
 test('V15 verification projection refuses caption and companion artifacts before V14 reuse', () => {
-	const project = createFramescaperProjectV28(PROFILE, {
+	const project = createFramescaperProjectNativeMedia(PROFILE, {
 		...framescaperV20Options(), finishing: { captionTracks: [captionTrack()] },
 	});
-	const mov = createFramescaperNativeRenderPlanAuthorityV28(project);
+	const mov = createFramescaperNativeRenderPlanAuthorityNativeMedia(project);
 	const caption = createNativeMediaPlanEnvelopeV3(
 		createFramescaperProjectUnifiedExactRenderPlanV15(PROFILE, project, mov, {
 			deliveryProfile: 'encode-mov-prores-422-hq',
@@ -60,7 +60,7 @@ test('V15 verification projection refuses caption and companion artifacts before
 		kind: 'image-sequence' as const, format: 'png' as const,
 		frameRate: { num: 24, den: 1 }, preserveAlpha: true as const,
 	};
-	const image = createFramescaperNativeRenderPlanAuthorityV28(project, delivery);
+	const image = createFramescaperNativeRenderPlanAuthorityNativeMedia(project, delivery);
 	const companion = createNativeMediaPlanEnvelopeV3(
 		createFramescaperProjectUnifiedExactRenderPlanV15(PROFILE, project, image, {
 			deliveryProfile: 'encode-png-sequence',
@@ -102,7 +102,7 @@ test('V15 verification projection refuses caption and companion artifacts before
 	// A legitimate V3 envelope holding an exact V14 plan is refused as a
 	// non-V15 source rather than silently projected onto itself.
 	const v14Exact = createNativeMediaPlanEnvelopeV3(
-		createFramescaperProjectUnifiedExactRenderPlanV28(PROFILE, project, mov),
+		createFramescaperProjectUnifiedExactRenderPlanNativeMedia(PROFILE, project, mov),
 	);
 	assert.throws(
 		() => projectNativeMediaV15FoundationForV14Verification(v14Exact),
@@ -111,8 +111,8 @@ test('V15 verification projection refuses caption and companion artifacts before
 });
 
 test('V15 verification projection rejects another envelope generation and tampered metadata', () => {
-	const project = createFramescaperProjectV28(PROFILE, framescaperV20Options());
-	const authority = createFramescaperNativeRenderPlanAuthorityV28(project);
+	const project = createFramescaperProjectNativeMedia(PROFILE, framescaperV20Options());
+	const authority = createFramescaperNativeRenderPlanAuthorityNativeMedia(project);
 	const source = createNativeMediaPlanEnvelopeV3(
 		createFramescaperProjectUnifiedExactRenderPlanV15(PROFILE, project, authority, {
 			deliveryProfile: 'encode-mov-prores-422-hq',

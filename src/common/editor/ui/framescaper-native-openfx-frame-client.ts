@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Renderer half of the bounded, pathless selected-V28 OpenFX frame port. */
+/** Renderer half of the bounded, pathless baseline OpenFX frame port. */
 
 import {
 	canonicalizeNativeMediaPlan,
 	fingerprintNativeMediaPlan,
 } from '../native-media-plan-canonical-form.ts';
 import type {
-	FramescaperOpenFxFrameExecutionRequestV28,
-	FramescaperOpenFxFrameExecutionResultV28,
-} from '../../../framescaper/editor-openfx-frame-graph-v28.ts';
+	FramescaperOpenFxFrameExecutionRequestNativeMedia,
+	FramescaperOpenFxFrameExecutionResultNativeMedia,
+} from '../../../framescaper/editor-openfx-frame-graph-native-media.ts';
 
 const MAXIMUM_CHUNK_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_FRAME_SET_BYTES = 512 * 1024 * 1024;
@@ -33,8 +33,8 @@ export interface FramescaperOpenFxFramePortOfferV1 {
 
 export interface FramescaperOpenFxFramePortClient {
 	execute(
-		request: FramescaperOpenFxFrameExecutionRequestV28,
-	): Promise<FramescaperOpenFxFrameExecutionResultV28>;
+		request: FramescaperOpenFxFrameExecutionRequestNativeMedia,
+	): Promise<FramescaperOpenFxFrameExecutionResultNativeMedia>;
 	dispose(): void;
 }
 
@@ -74,7 +74,7 @@ export function createFramescaperOpenFxFramePortClient(options: Readonly<{
 		} catch { port.close(); }
 	});
 
-	async function execute(request: FramescaperOpenFxFrameExecutionRequestV28) {
+	async function execute(request: FramescaperOpenFxFrameExecutionRequestNativeMedia) {
 		if (disposed) throw new Error('OpenFX frame client is disposed.');
 		if (active) throw new Error('OpenFX frame client permits one in-flight frame.');
 		active = true;
@@ -135,7 +135,7 @@ export function createFramescaperOpenFxFramePortClient(options: Readonly<{
 	});
 }
 
-async function portRequest(request: FramescaperOpenFxFrameExecutionRequestV28, requestNonce: string) {
+async function portRequest(request: FramescaperOpenFxFrameExecutionRequestNativeMedia, requestNonce: string) {
 	if (!request || typeof request !== 'object' || !(request.signal instanceof AbortSignal)
 		|| !Array.isArray(request.inputs) || request.inputs.length > 16
 		|| (request.inputs.length === 0 && request.context !== 'generator')) {
@@ -168,7 +168,8 @@ async function portRequest(request: FramescaperOpenFxFrameExecutionRequestV28, r
 		maximumChunkBytes: MAXIMUM_CHUNK_BYTES, maximumInFlightChunks: 1,
 	});
 	const control = Object.freeze({
-		schemaVersion: 1, planPayload: canonicalizeNativeMediaPlan(request.plan),
+		protocolVersion: 1, schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+		planPayload: canonicalizeNativeMediaPlan(request.plan),
 		planFingerprint: fingerprint.sha256, instanceId: request.instanceId,
 		requestNonce,
 		outputOrdinal: request.outputOrdinal, requestedBackend: request.requestedBackend,
@@ -245,7 +246,7 @@ async function receiveOutput(
 	}
 }
 
-type WireResult = Exclude<FramescaperOpenFxFrameExecutionResultV28, { readonly mode: 'render' }> | Readonly<{
+type WireResult = Exclude<FramescaperOpenFxFrameExecutionResultNativeMedia, { readonly mode: 'render' }> | Readonly<{
 		mode: 'render'; width: number; height: number; backend: 'cpu' | 'opengl' | 'opencl' | 'cuda' | 'metal';
 		retriedOnCpu: boolean; reportsDegradation: boolean; outputBinding: unknown;
 	}>;

@@ -17,7 +17,8 @@ const BEAT_THIS_REVISION = '1.1.0';
 
 function fence(revision = 4) {
 	return {
-		projectId: 'project-1', schemaVersion: 30, revision,
+		schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+		projectId: 'project-1', revision,
 		sequenceId: 'main-sequence', occurrenceIds: ['music-clip'],
 		sourceId: 'music-source', sourceSha256: SOURCE_SHA256,
 		sourceStartFrame: 0, sourceEndFrame: 192_000,
@@ -75,7 +76,8 @@ function authority(options: Readonly<{
 	const endFrame = options.endFrame ?? startFrame + 192_000;
 	return {
 		project: {
-			id: 'project-1', schemaVersion: 30, revision, sampleRate: 48_000,
+			id: 'project-1', schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+			revision, sampleRate: 48_000,
 			tracks: options.tracks ?? [],
 			tempoMap: options.tempoMap ?? {
 				mode: 'musical', events: [

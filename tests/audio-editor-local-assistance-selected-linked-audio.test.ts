@@ -94,7 +94,8 @@ test('linked-audio Advanced acceptance revalidates the audio authority while vid
 
 function linkedProject() {
 	return {
-		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
+		id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 8, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		selection: { startFrame: 0, endFrame: 48_000,
 			clipIds: ['video-clip', 'audio-clip'], trackIds: ['video-track', 'audio-track'] },

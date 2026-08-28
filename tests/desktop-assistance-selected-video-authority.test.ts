@@ -22,13 +22,15 @@ test('desktop materializes compact authority beyond 100,000 rows without losing 
 				timelineFrame: sourceFrame * 2_000 };
 		}
 	})());
-	const value = { schemaVersion: 1, kind: 'selected-video-source-time-authority',
+	const value = { descriptorVersion: 1, kind: 'selected-video-source-time-authority',
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		projectId: 'project-a', projectRevision: 7, sequenceId: 'sequence-a',
 		videoOccurrenceId: 'video-occurrence', sourceId: 'video-source', sourceSha256,
 		timingAuthoritySha256, sourceWidth: 1_920, sourceHeight: 1_080,
 		sourceStartFrame: 0, sourceEndFrame, sampleRate: 48_000, timescale: 90_000,
 		selectionStartFrame: 0, selectionEndFrame: sourceEndFrame * 2_000, frames };
-	const request = { fence: { projectId: 'project-a', revision: 7, sequenceId: 'sequence-a',
+	const request = { fence: { projectId: 'project-a', schemaFamily: 'framescaper',
+		schemaVersion: 1, revision: 7, sequenceId: 'sequence-a',
 		sourceRanges: [{ mediaKind: 'video', sourceId: 'video-source', sourceSha256,
 			timingAuthoritySha256, sourceStartFrame: 0, sourceEndFrame,
 			occurrenceIds: ['video-occurrence'] }] } } as unknown as AssistanceWorkflowV1;
@@ -55,14 +57,16 @@ test('desktop refuses reordered compact source-time chunk custody', () => {
 	]);
 	const damaged = [{ ...chunks[0]!, firstSourceFrame: 1 }];
 	assert.throws(() => materializeAssistanceSelectedVideoAuthorityV1({
-		value: { schemaVersion: 1, kind: 'selected-video-source-time-authority',
+		value: { descriptorVersion: 1, kind: 'selected-video-source-time-authority',
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			projectId: 'project-a', projectRevision: 7, sequenceId: 'sequence-a',
 			videoOccurrenceId: 'video-occurrence', sourceId: 'video-source',
 			sourceSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
 			sourceWidth: 1, sourceHeight: 1, sourceStartFrame: 0, sourceEndFrame: 1,
 			sampleRate: 48_000, timescale: 1, selectionStartFrame: 0,
 			selectionEndFrame: 2_000, frames: damaged },
-		request: { fence: { projectId: 'project-a', revision: 7, sequenceId: 'sequence-a',
+		request: { fence: { projectId: 'project-a', schemaFamily: 'framescaper',
+			schemaVersion: 1, revision: 7, sequenceId: 'sequence-a',
 			sourceRanges: [{ mediaKind: 'video', sourceId: 'video-source',
 				sourceSha256: '12'.repeat(32), timingAuthoritySha256: '34'.repeat(32),
 				sourceStartFrame: 0, sourceEndFrame: 1,

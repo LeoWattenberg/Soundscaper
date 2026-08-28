@@ -28,6 +28,12 @@ import {
 	snapshotScapeProjectFallbackIntegrity,
 	type ScapeProjectFallbackClaim,
 } from './scape-project-assets.ts';
+import {
+	classifyProjectSchemaIdentity,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from './project-schema-identity.ts';
 import { serializeScapeProjectDocument } from './scape-project-document.ts';
 import {
 	normalizeVideoTimingAssetReference,
@@ -49,6 +55,7 @@ interface ScapeExportSource extends Partial<ScapeAudioSource> {
 }
 
 interface ScapeExportProject extends Record<string, unknown> {
+	schemaFamily?: unknown;
 	schemaVersion?: unknown;
 	sources?: readonly ScapeExportSource[];
 	featureRequirements?: unknown;
@@ -87,6 +94,7 @@ export interface ScapeExportPlanOptions {
 	readonly maximumBlobBytes?: unknown;
 	readonly output: 'blob' | 'stream';
 	readonly signal?: AbortSignal;
+	readonly currentProjectSchemaFamily?: ProjectSchemaFamily;
 	readonly currentProjectSchemaVersion?: number;
 	readonly additionalSourceKinds?: readonly string[];
 	readonly additionalAssets?: readonly PlannedScapeExportAsset[];
@@ -98,8 +106,21 @@ export async function prepareScapeExport(
 	options: ScapeExportPlanOptions,
 ): Promise<Readonly<ScapeExportPlan>> {
 	if (!isRecord(projectInput)) throw new TypeError('A project is required.');
+	const admittedIdentity = readProjectSchemaIdentity(projectInput);
+	const currentFamily = options.currentProjectSchemaFamily ?? admittedIdentity.schemaFamily;
+	if (options.currentProjectSchemaVersion !== undefined
+		&& options.currentProjectSchemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new TypeError(`The Scape baseline project schema version must be ${String(PROJECT_SCHEMA_VERSION)}.`);
+	}
+	if (classifyProjectSchemaIdentity(projectInput, currentFamily).disposition !== 'current') {
+		throw new RangeError('Scape export requires a current-family baseline project.');
+	}
 	const project = snapshotScapeExportProject(projectInput);
-	const projectSchemaVersion = positiveSafeInteger(project.schemaVersion, 'Project schema version');
+	const projectIdentity = readProjectSchemaIdentity(project);
+	if (projectIdentity.schemaFamily !== admittedIdentity.schemaFamily
+		|| projectIdentity.schemaVersion !== admittedIdentity.schemaVersion) {
+		throw new Error('The project schema identity changed during Scape export admission.');
+	}
 	const sourceInputs = project.sources ?? [];
 	if (!Array.isArray(sourceInputs)) throw new TypeError('Project sources must be an array.');
 	const sourceCount = sourceInputs.length;
@@ -107,7 +128,7 @@ export async function prepareScapeExport(
 	const additionalSourceKinds = normalizeAdditionalSourceKinds(options.additionalSourceKinds ?? []);
 	for (let index = 0; index < sourceCount; index += 1) {
 		sources.push(snapshotScapeExportSource(
-			sourceInputs[index], index, projectSchemaVersion, additionalSourceKinds,
+			sourceInputs[index], index, additionalSourceKinds,
 		));
 	}
 	const additionalAssets = normalizeAdditionalAssets(options.additionalAssets ?? []);
@@ -134,7 +155,9 @@ export async function prepareScapeExport(
 	const signal = options.signal;
 	throwIfScapeAborted(signal);
 	const fallbackSnapshot = snapshotScapeProjectFallbackIntegrity(project, {
-		currentProjectSchemaVersion: options.currentProjectSchemaVersion,
+		currentProjectSchemaFamily: projectIdentity.schemaFamily,
+		currentProjectSchemaVersion: options.currentProjectSchemaVersion
+			?? projectIdentity.schemaVersion,
 	});
 	if (fallbackSnapshot.featureRequirements) {
 		project.featureRequirements = fallbackSnapshot.featureRequirements;
@@ -147,7 +170,8 @@ export async function prepareScapeExport(
 	const projectDescriptor: ScapeProjectDescriptor = Object.freeze({
 		entry: SCAPE_PROJECT_ENTRY,
 		mimeType: 'application/json',
-		schemaVersion: projectSchemaVersion,
+		schemaFamily: projectIdentity.schemaFamily,
+		schemaVersion: projectIdentity.schemaVersion,
 		size: projectBytes.byteLength,
 		sha256: digestScapeBytes(projectBytes),
 	});
@@ -376,7 +400,6 @@ function snapshotScapeExportProject(value: Record<string, unknown>): ScapeExport
 function snapshotScapeExportSource(
 	value: unknown,
 	index: number,
-	projectSchemaVersion: number,
 	additionalSourceKinds: ReadonlySet<string>,
 ): ScapeExportSource {
 	const label = `Project source ${String(index + 1)}`;
@@ -392,9 +415,6 @@ function snapshotScapeExportSource(
 			throw new TypeError(`${label} kind must be audio or video.`);
 		}
 		throw new TypeError(`${label} kind must be owned by the Scape archive route.`);
-	}
-	if (projectSchemaVersion < 4 && snapshot.kind === 'video') {
-		throw new TypeError(`${label} cannot be video in project schema ${String(projectSchemaVersion)}.`);
 	}
 	if (snapshot.kind === 'audio') {
 		const layout = scapeAudioSourceLayout(snapshot as ScapeAudioSource);
@@ -487,13 +507,6 @@ function snapshotScapeExportRecord(value: Record<string, unknown>, label: string
 function nonEmptyString(value: unknown, field: string): string {
 	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${field} is required.`);
 	return value;
-}
-
-function positiveSafeInteger(value: unknown, field: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError(`${field} must be a positive safe integer.`);
-	}
-	return Number(value);
 }
 
 function nonNegativeSafeInteger(value: unknown, field: string): number {

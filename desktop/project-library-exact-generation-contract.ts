@@ -7,7 +7,8 @@ const HANDSHAKE_FIELDS = [
 	'kind',
 	'version',
 	'owner',
-	'projectSchemaVersion',
+	'schemaFamily',
+	'schemaVersion',
 	'scapeFormatVersions',
 	'attachedScapeFormatVersion',
 	'storageDatabaseName',
@@ -18,15 +19,13 @@ const HANDSHAKE_FIELDS = [
 
 export interface FramescaperDesktopProjectLibraryExactGenerationIdentity<
 	LibraryVersion extends number,
-	ProjectVersion extends number,
 	DatabaseVersion extends number,
-	ScopeVersion extends string,
 	StorageName extends string,
 > {
 	readonly librarySchemaVersion: LibraryVersion;
-	readonly projectSchemaVersion: ProjectVersion;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
 	readonly databaseUserVersion: DatabaseVersion;
-	readonly scopeVersion: ScopeVersion;
 	readonly storageDatabaseName: StorageName;
 }
 
@@ -45,21 +44,20 @@ export interface FramescaperDesktopProjectLibraryExactGenerationOwner {
 
 export interface FramescaperDesktopProjectLibraryExactGenerationHandshake<
 	LibraryVersion extends number,
-	ProjectVersion extends number,
 	DatabaseVersion extends number,
-	ScopeVersion extends string,
 	StorageName extends string,
 > {
 	readonly kind: 'framescaper-project-library-handshake';
 	readonly version: 1;
 	readonly owner: 'framescaper';
-	readonly projectSchemaVersion: ProjectVersion;
-	readonly scapeFormatVersions: readonly [1, 2];
-	readonly attachedScapeFormatVersion: 2;
+	readonly schemaFamily: 'framescaper';
+	readonly schemaVersion: 1;
+	readonly scapeFormatVersions: readonly [1];
+	readonly attachedScapeFormatVersion: 1;
 	readonly storageDatabaseName: StorageName;
 	readonly desktopLibrarySchemaVersion: LibraryVersion;
 	readonly desktopDatabaseUserVersion: DatabaseVersion;
-	readonly desktopLibraryScope: readonly ['kw.media', 'scape-project-library', ScopeVersion];
+	readonly desktopLibraryScope: readonly ['kw.media', 'framescaper-project-library', 'v1'];
 }
 
 /** Parameterized core for exact-generation filesystem isolation. */
@@ -71,11 +69,11 @@ export function createFramescaperDesktopProjectLibraryExactGenerationPaths(
 	if (typeof appDataRoot !== 'string' || appDataRoot.includes('\0') || !isAbsolute(appDataRoot)) {
 		throw new TypeError(`${label} requires an absolute appData path without NUL bytes`);
 	}
-	if (!/^v[1-9][0-9]*$/u.test(scopeVersion)) {
-		throw new TypeError(`${label} requires an exact generation scope`);
+	if (scopeVersion !== 'v1') {
+		throw new TypeError(`${label} requires the frozen v1 baseline scope`);
 	}
 	const normalizedRoot = normalize(appDataRoot);
-	const libraryRoot = resolve(normalizedRoot, 'kw.media', 'scape-project-library', scopeVersion);
+	const libraryRoot = resolve(normalizedRoot, 'kw.media', 'framescaper-project-library', 'v1');
 	assertDescendant(normalizedRoot, libraryRoot, label);
 	return Object.freeze({
 		libraryRoot,
@@ -88,61 +86,64 @@ export function createFramescaperDesktopProjectLibraryExactGenerationPaths(
 /** Parameterized core for exact-generation authenticated handshakes. */
 export function createFramescaperDesktopProjectLibraryExactGenerationHandshake<
 	LibraryVersion extends number,
-	ProjectVersion extends number,
 	DatabaseVersion extends number,
-	ScopeVersion extends string,
 	StorageName extends string,
 >(
 	identity: FramescaperDesktopProjectLibraryExactGenerationIdentity<
-		LibraryVersion, ProjectVersion, DatabaseVersion, ScopeVersion, StorageName
+		LibraryVersion, DatabaseVersion, StorageName
 	>,
 ): Readonly<FramescaperDesktopProjectLibraryExactGenerationHandshake<
-	LibraryVersion, ProjectVersion, DatabaseVersion, ScopeVersion, StorageName
+	LibraryVersion, DatabaseVersion, StorageName
 >> {
+	if (identity.schemaFamily !== 'framescaper' || identity.schemaVersion !== 1) {
+		throw new TypeError('Framescaper desktop library identity must be the exact v1 baseline');
+	}
 	return freezeHandshake({
 		kind: 'framescaper-project-library-handshake',
 		version: 1,
 		owner: 'framescaper',
-		projectSchemaVersion: identity.projectSchemaVersion,
-		scapeFormatVersions: [1, 2],
-		attachedScapeFormatVersion: 2,
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
+		scapeFormatVersions: [1],
+		attachedScapeFormatVersion: 1,
 		storageDatabaseName: identity.storageDatabaseName,
 		desktopLibrarySchemaVersion: identity.librarySchemaVersion,
 		desktopDatabaseUserVersion: identity.databaseUserVersion,
-		desktopLibraryScope: ['kw.media', 'scape-project-library', identity.scopeVersion],
+		desktopLibraryScope: ['kw.media', 'framescaper-project-library', 'v1'],
 	});
 }
 
 export function validateFramescaperDesktopProjectLibraryExactGenerationHandshake<
 	LibraryVersion extends number,
-	ProjectVersion extends number,
 	DatabaseVersion extends number,
-	ScopeVersion extends string,
 	StorageName extends string,
 >(
 	value: unknown,
 	identity: FramescaperDesktopProjectLibraryExactGenerationIdentity<
-		LibraryVersion, ProjectVersion, DatabaseVersion, ScopeVersion, StorageName
+		LibraryVersion, DatabaseVersion, StorageName
 	>,
 	label: string,
 ): Readonly<FramescaperDesktopProjectLibraryExactGenerationHandshake<
-	LibraryVersion, ProjectVersion, DatabaseVersion, ScopeVersion, StorageName
+	LibraryVersion, DatabaseVersion, StorageName
 >> {
 	const record = snapshotClosedRecord(value, HANDSHAKE_FIELDS, `${label} handshake`);
 	if (record.kind !== 'framescaper-project-library-handshake'
 		|| record.version !== 1
 		|| record.owner !== 'framescaper'
-		|| record.projectSchemaVersion !== identity.projectSchemaVersion
-		|| record.attachedScapeFormatVersion !== 2
+		|| record.schemaFamily !== 'framescaper'
+		|| record.schemaVersion !== 1
+		|| identity.schemaFamily !== 'framescaper'
+		|| identity.schemaVersion !== 1
+		|| record.attachedScapeFormatVersion !== 1
 		|| record.storageDatabaseName !== identity.storageDatabaseName
 		|| record.desktopLibrarySchemaVersion !== identity.librarySchemaVersion
 		|| record.desktopDatabaseUserVersion !== identity.databaseUserVersion) {
 		throw new TypeError(`${label} handshake identity is unsupported`);
 	}
-	exactDenseTuple(record.scapeFormatVersions, [1, 2], `${label} Scape format versions`);
+	exactDenseTuple(record.scapeFormatVersions, [1], `${label} Scape format versions`);
 	exactDenseTuple(
 		record.desktopLibraryScope,
-		['kw.media', 'scape-project-library', identity.scopeVersion],
+		['kw.media', 'framescaper-project-library', 'v1'],
 		`${label} desktop library scope`,
 	);
 	return createFramescaperDesktopProjectLibraryExactGenerationHandshake(identity);
@@ -194,22 +195,20 @@ export function validateFramescaperDesktopProjectLibraryExactGenerationOwner(
 
 function freezeHandshake<
 	LibraryVersion extends number,
-	ProjectVersion extends number,
 	DatabaseVersion extends number,
-	ScopeVersion extends string,
 	StorageName extends string,
 >(
 	value: FramescaperDesktopProjectLibraryExactGenerationHandshake<
-		LibraryVersion, ProjectVersion, DatabaseVersion, ScopeVersion, StorageName
+		LibraryVersion, DatabaseVersion, StorageName
 	>,
 ): Readonly<FramescaperDesktopProjectLibraryExactGenerationHandshake<
-	LibraryVersion, ProjectVersion, DatabaseVersion, ScopeVersion, StorageName
+	LibraryVersion, DatabaseVersion, StorageName
 >> {
 	return Object.freeze({
 		...value,
-		scapeFormatVersions: Object.freeze([1, 2]) as readonly [1, 2],
+		scapeFormatVersions: Object.freeze([1]) as readonly [1],
 		desktopLibraryScope: Object.freeze([...value.desktopLibraryScope]) as
-			readonly ['kw.media', 'scape-project-library', ScopeVersion],
+			readonly ['kw.media', 'framescaper-project-library', 'v1'],
 	});
 }
 

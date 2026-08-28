@@ -2,7 +2,7 @@
 
 import { createDefaultMixerGraphV21, type MixerGraphV21 } from '../mixer-graph-v21.ts';
 import {
-	isProductionMixerProjectSchema,
+	hasProductionMixerProjectAuthority,
 } from '../project-schema-version.ts';
 import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
 import {
@@ -42,7 +42,7 @@ export function createIsolatedTrackRenderProjectV21(
 	authored: IsolatedTrackRenderProjectV21,
 	request: IsolatedTrackRenderRequestV21,
 ): IsolatedTrackRenderProjectV21 {
-	if (!isProductionMixerProjectSchema(authored.schemaVersion)) {
+	if (!hasProductionMixerProjectAuthority(authored)) {
 		throw new TypeError('An exact production mixer V21 project is required.');
 	}
 	// Flatten folder state onto the leaves before narrowing to one track. The

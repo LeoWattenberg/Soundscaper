@@ -179,7 +179,8 @@ function workflow(
 	const settings = defaultAssistanceWorkflowSettingsV1(workflowId);
 	return { contractVersion: 1, jobId: JOB_ID, workflowId, recipeVersion: 1,
 		settingsVersion: 1, settings, stageIds, models, inputs, outputs,
-		fence: { fenceVersion: 1, projectId: 'project-a', schemaVersion: 31, revision: 8,
+		fence: { fenceVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', revision: 8,
 			sequenceId: 'sequence-a', sourceRanges, transcriptBodySha256: null,
 			recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, stageIds),
 			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),

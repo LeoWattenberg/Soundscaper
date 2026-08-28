@@ -199,8 +199,8 @@ export function createTakeCompService(
 	function validProject(): AudioEditorProjectV17 {
 		const project = dependencies.getProject();
 		const schemaVersion = (project as unknown as Readonly<Record<string, unknown>>).schemaVersion;
-		if (!isTakeCompProjectSchema(schemaVersion)) {
-			throw new RangeError(`Take comps require schema V17 or V21, received ${String(schemaVersion)}.`);
+		if (!isTakeCompProjectSchema(project)) {
+			throw new RangeError(`Take comps require the current project authority, received ${String(schemaVersion)}.`);
 		}
 		if (schemaVersion === 17) validateAudioEditorProjectV17(project);
 		else createTakeCompDocumentGroupsV17(

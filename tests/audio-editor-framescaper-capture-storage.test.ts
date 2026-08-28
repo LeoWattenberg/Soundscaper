@@ -132,7 +132,7 @@ test('encoded prefixes and session manifests reload from existing IndexedDB stor
 	assert.equal(persistedChunk.captureSpoolId, 'display-spool');
 	const session = manifest({
 		sessionId: 'session-reload',
-		projectFence: { projectId: 'project-reload', baseRevision: 1, baseSha256: 'cd'.repeat(32) },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-reload', baseRevision: 1, baseSha256: 'cd'.repeat(32) },
 		streams: [{
 			streamId: 'display-stream', role: 'display', required: true, playability: 'unknown',
 			timing: { firstPresentationMicroseconds: 0, lastPresentationEndMicroseconds: 1_000 },
@@ -426,6 +426,7 @@ function manifest(
 		state: 'capturing',
 		recoveryDecision: null,
 		projectFence: {
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 			projectId: 'project-session', baseRevision: 3, baseSha256: 'ab'.repeat(32),
 		},
 		origin: {

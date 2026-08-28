@@ -20,6 +20,11 @@
  */
 
 import { createNativeValidators } from './native-validation.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from './project-schema-identity.ts';
 
 export const NATIVE_WATCH_IMPORT_MODES = Object.freeze(['link', 'copy'] as const);
 
@@ -30,6 +35,8 @@ export const NATIVE_WATCH_MAXIMUM_DEPTH = 8;
 export const NATIVE_WATCH_DEFAULT_DEPTH = 4;
 
 export interface WatchRuleV1 {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly ruleId: string;
 	readonly grantId: string;
 	readonly projectId: string;
@@ -80,6 +87,8 @@ const { nonNegativeInteger, pattern } = createNativeValidators({
 });
 
 export function createWatchRuleV1(input: Readonly<{
+	schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	ruleId: string;
 	grantId: string;
 	projectId: string;
@@ -92,9 +101,16 @@ export function createWatchRuleV1(input: Readonly<{
 	enabled?: boolean;
 	createdAtMs: number;
 }>): WatchRuleV1 {
+	const identity = readProjectSchemaIdentity(input);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new NativeWatchRuleError('A watch rule requires the current Framescaper schema.');
+	}
 	const recursive = input.recursive === true;
 	const maximumDepth = resolveDepth(input.maximumDepth, recursive);
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		ruleId: pattern(input.ruleId, ID_PATTERN, 'ruleId'),
 		grantId: pattern(input.grantId, ID_PATTERN, 'grantId'),
 		projectId: pattern(input.projectId, IDENTIFIER_PATTERN, 'projectId'),

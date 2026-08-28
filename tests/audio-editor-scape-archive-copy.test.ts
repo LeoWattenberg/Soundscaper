@@ -10,6 +10,7 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
+import { SOUNDSCAPER_PROJECT_SCHEMA_FAMILY } from '../src/common/editor/project-schema-identity.ts';
 import { copyFutureScapeArchive } from '../src/common/editor/scape-archive-copy.ts';
 import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive-byte-source.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
@@ -22,12 +23,13 @@ import {
 
 const SOURCE_ID = 'copy-audio-source';
 
-test('a future V18 archive copies byte-for-byte from Blob and byte-source inputs', async (context) => {
+test('a future Soundscaper v2 archive copies byte-for-byte from Blob and byte-source inputs', async (context) => {
 	const future = await futureArchive(context);
 	const original = new Uint8Array(await future.arrayBuffer());
 
 	const fromBlob = await collectCopy(future);
-	assert.equal(fromBlob.result.schemaVersion, 18);
+	assert.equal(fromBlob.result.schemaFamily, 'soundscaper');
+	assert.equal(fromBlob.result.schemaVersion, 2);
 	assert.equal(fromBlob.result.byteLength, original.byteLength);
 	assert.deepEqual(fromBlob.bytes, original, 'the Blob copy must be the exact original bytes');
 	assert.equal(digestScapeBytes(fromBlob.bytes), digestScapeBytes(original));
@@ -42,11 +44,11 @@ test('a future V18 archive copies byte-for-byte from Blob and byte-source inputs
 
 test('current-schema and mismatched or unknown-format archives refuse the unchanged copy', async (context) => {
 	const current = await currentArchive(context);
-	await assert.rejects(collectCopy(current), /future-schema/iu);
+	await assert.rejects(collectCopy(current), /foreign-family|future-schema/iu);
 
 	const mismatched = await rewriteScapeManifest(
 		await futureArchive(context),
-		(manifest: { project: { schemaVersion: number } }) => { manifest.project.schemaVersion = 19; },
+		(manifest: { project: { schemaVersion: number } }) => { manifest.project.schemaVersion = 3; },
 	);
 	await assert.rejects(collectCopy(mismatched), /does not match its project document/u);
 
@@ -64,7 +66,9 @@ test('a tampered project document fails digest verification before any copy byte
 	});
 	const written: Uint8Array[] = [];
 	await assert.rejects(
-		copyFutureScapeArchive(tampered, (bytes) => { written.push(bytes); }),
+		copyFutureScapeArchive(tampered, (bytes) => { written.push(bytes); }, {
+			currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		}),
 		/SHA-256/u,
 	);
 	assert.deepEqual(written, [], 'a refused archive must emit no copy bytes');
@@ -76,7 +80,10 @@ test('cancellation stops the unchanged copy with the abort reason', async (conte
 	const reason = new Error('cancel unchanged archive copy');
 	controller.abort(reason);
 	await assert.rejects(
-		copyFutureScapeArchive(future, () => undefined, { signal: controller.signal }),
+		copyFutureScapeArchive(future, () => undefined, {
+			currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+			signal: controller.signal,
+		}),
 		(error: unknown) => error === reason,
 	);
 });
@@ -84,7 +91,7 @@ test('cancellation stops the unchanged copy with the abort reason', async (conte
 async function futureArchive(context: TestContext): Promise<Blob> {
 	return rewriteScapeProjectDocument(
 		await currentArchive(context),
-		(document: { schemaVersion: number }) => { document.schemaVersion = 18; },
+		(document: { schemaVersion: number }) => { document.schemaVersion = 2; },
 	);
 }
 
@@ -103,7 +110,8 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 	const clip = createAudioClip({
 		id: 'copy-clip', sourceId: SOURCE_ID, timelineStartFrame: 0, durationFrames: 4,
 	});
-	const project = createCurrentAudioEditorProject({
+	const project = {
+		...createCurrentAudioEditorProject({
 		id: 'scape-archive-copy-project',
 		title: 'Unchanged copy fixture',
 		now: '2026-08-08T17:00:00.000Z',
@@ -114,7 +122,10 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 		})],
 		clips: [clip],
 		tracks: [createAudioTrack({ id: 'copy-track', name: 'Copy', clipIds: [clip.id] })],
-	});
+		}),
+		schemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: 1,
+	};
 	const exported = await exportScapeProject(project, store);
 	if (!(exported.blob instanceof Blob)) throw new TypeError('Expected an assembled archive Blob.');
 	return exported.blob;
@@ -122,7 +133,9 @@ async function currentArchive(context: TestContext): Promise<Blob> {
 
 async function collectCopy(input: Blob | ReturnType<typeof createScapeArchiveByteSource>) {
 	const chunks: Uint8Array[] = [];
-	const result = await copyFutureScapeArchive(input, (bytes) => { chunks.push(bytes); });
+	const result = await copyFutureScapeArchive(input, (bytes) => { chunks.push(bytes); }, {
+		currentProjectSchemaFamily: SOUNDSCAPER_PROJECT_SCHEMA_FAMILY,
+	});
 	const bytes = new Uint8Array(result.byteLength);
 	let offset = 0;
 	for (const chunk of chunks) {

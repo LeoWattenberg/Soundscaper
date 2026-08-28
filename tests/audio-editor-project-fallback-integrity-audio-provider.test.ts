@@ -10,8 +10,6 @@ import {
 	verifyProjectFallbackIntegrity,
 	type ProjectAudioFallbackIntegritySelector,
 } from '../src/common/editor/project-fallback-integrity.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-
 const SOURCE_CHUNKS = [
 	storedChunk(0, [Float32Array.of(0.25, -0.5), Float32Array.of(0.75, -1)]),
 	storedChunk(1, [Float32Array.of(0.125), Float32Array.of(-0.25)]),
@@ -216,18 +214,26 @@ async function admissionWithSignal(
 }
 
 function project(): {
+	schemaFamily: 'soundscaper';
 	schemaVersion: number;
 	sampleRate: number;
 	primarySequenceId: string;
 	sequences: Array<Record<string, unknown>>;
 	sources: Array<Record<string, unknown>>;
+	clips: Array<Record<string, unknown>>;
+	tracks: Array<Record<string, unknown>>;
+	automationLanes: Array<Record<string, unknown>>;
 	featureRequirements: { schemaVersion: number; requirements: Array<Record<string, unknown>> };
 } {
 	return {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		sequences: [{ id: 'main-sequence', rate: { num: 30, den: 1 } }],
+		clips: [],
+		tracks: [],
+		automationLanes: [],
 		sources: [{
 			id: SELECTOR.sourceId,
 			kind: 'audio',

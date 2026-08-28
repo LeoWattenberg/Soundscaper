@@ -3,6 +3,7 @@
 import {
 	clipNeedsTimePitchRender as legacyClipNeedsTimePitchRender,
 } from '../clip-time-pitch-cache.js';
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { throwIfAborted } from './app-helpers.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 import type {
@@ -130,7 +131,7 @@ export function createClipTimePitchCacheService<
 	function projectTimePitchPairs(
 		snapshot: ClipTransformProject | null | undefined,
 	): readonly ClipTimePitchPair[] {
-		if (!snapshot || snapshot.schemaVersion < 2) return Object.freeze([]);
+		if (!snapshot || !hasCoreEditingProjectAuthority(snapshot)) return Object.freeze([]);
 		const pairs: ClipTimePitchPair[] = [];
 		for (const clip of snapshot.clips) {
 			if (clip.kind === 'video' || !clipNeedsTimePitchRender(clip)) continue;

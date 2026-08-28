@@ -65,7 +65,7 @@ test('linked PCM portability and handoff stay canonical and point-in-time', asyn
 		'tests/audio-editor-linked-audio-range-source-reader.test.ts',
 		'tests/audio-editor-linked-audio-scape-roundtrip.test.ts',
 	]) assert.ok(portable.evidence.includes(path) || handoff.evidence.includes(path), path);
-	assert.ok(handoff.evidence.includes('tests/desktop-project-library-managed-audio-handoff.test.ts'));
+	assert.ok(handoff.evidence.includes('tests/desktop-soundscaper-project-library-baseline.test.ts'));
 	for (const path of [
 		'src/common/editor/app.js',
 		'src/common/editor/controller/action-facade.ts',
@@ -137,7 +137,7 @@ test('linked PCM desktop security controls preserve the maintained AIFF profiles
 	assertLinkedAudioTargetAndRecovery(handoff.summary);
 	assert.match(
 		portability.summary,
-		/current-format exact-schema-17 `.scape`.*no owned sender PCM.*canonical Float32 chunks.*`audio-f32le-chunks-v1`.*external container bytes.*locator identity.*excluded.*fresh portless import.*owned PCM.*durable reopen/iu,
+		/current-format exact owning-family v1 `.scape`.*no owned sender PCM.*canonical Float32 chunks.*`audio-f32le-chunks-v1`.*external container bytes.*locator identity.*excluded.*fresh portless import.*owned PCM.*durable reopen/iu,
 	);
 	for (const control of [portability, range, handoff]) {
 		assert.match(control.summary, /not.*packaged|does not qualify.*packaged/iu);

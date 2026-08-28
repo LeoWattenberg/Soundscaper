@@ -16,7 +16,7 @@ test('a late packaged-metrics admission error cannot retain an earlier passing o
 		executablePath: '/opt/soundscaper-tests',
 		payloadRoot: '/opt/resources/nightly-tests',
 		outputRoot,
-		product: { id: 'soundscaper', name: 'Soundscaper', version: '0.2.0-beta.1' },
+		product: { id: 'soundscaper', name: 'Soundscaper', version: '1.0.0-rc.1' },
 		platform: 'linux',
 		arch: 'x64',
 		environment: {},

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
+import { hasSequenceHierarchyProjectAuthority } from '../project-schema-version.ts';
 import {
 	resolveTrackNodeSpanV12,
 	trackNodeLaneGroupsV12,
@@ -184,7 +185,7 @@ function alignedBlockStarts(
 function structuralBlocks(project: ControllerProject): readonly StructuralBlock[] {
 	const candidate = project as StructuralProject;
 	const sequences = candidate.sequences;
-	if (project.schemaVersion < 12 || !sequences || sequences.length === 0) {
+	if (!hasSequenceHierarchyProjectAuthority(project) || !sequences || sequences.length === 0) {
 		return legacyStructuralBlocks(project.tracks);
 	}
 	if (!Array.isArray(candidate.trackFolders)) {

@@ -5,8 +5,8 @@ export function createProjectStoreId(prefix: string): string {
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function reportDesktopSharedProjectLocalCleanupError(): void {
-	globalThis.console?.error?.('A deleted shared project could not be removed from this product local cache.');
+export function reportDesktopProjectLocalCleanupError(): void {
+	globalThis.console?.error?.('A deleted desktop project could not be removed from this product local cache.');
 }
 
 interface ProjectDuplicationStore<Result> {

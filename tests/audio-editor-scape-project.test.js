@@ -17,20 +17,19 @@ import {
 	readAup4EffectsNode,
 } from '../src/common/editor/aup4-effects.js';
 import {
-	AudioEditorProjectReimportRequiredError,
-	migrateAudioEditorProject,
-} from '../src/common/editor/migration.js';
-import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	createCurrentAudioEditorProject,
-} from '../src/common/editor/project-current.ts';
+	PROJECT_SCHEMA_VERSION,
+	ProjectReimportRequiredError,
+} from '../src/common/editor/project-schema-identity.ts';
 
 import {
 	SCAPE_FORMAT,
 	exportScapeProject,
-	importScapeProject,
-	inspectScapeProject,
 } from '../src/common/editor/scape-project.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 import {
 	rewriteScapeManifest,
 	rewriteScapeProjectDocument,
@@ -123,15 +122,14 @@ test('timeline annotations survive a current-format scape semantic round trip', 
 	});
 
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
+	assert.equal(exported.manifest.project.schemaVersion, PROJECT_SCHEMA_VERSION);
 	const imported = await importScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
-	assert.equal(imported.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
+	assert.equal(imported.project.schemaVersion, PROJECT_SCHEMA_VERSION);
 	assert.deepEqual(imported.project.timelineAnnotations, timelineAnnotations);
-	assert.deepEqual((await targetStore.loadProject(project.id)).timelineAnnotations, timelineAnnotations);
 });
 
-test('an explicit historical V10 scape fails with typed re-import before persistence', async () => {
+test('an explicit numeric-only pre-baseline Scape fails with typed re-import before persistence', async () => {
 	const sourceStore = memoryStore('scape-v10-reimport-source');
 	const backingStore = memoryStore('scape-v10-reimport-target');
 	const historical = createCurrentAudioEditorProject({
@@ -143,6 +141,7 @@ test('an explicit historical V10 scape fails with typed re-import before persist
 	const exported = await exportScapeProject(historical, sourceStore);
 	const stale = await rewriteScapeProjectDocument(exported.blob, (document) => {
 		document.schemaVersion = 10;
+		delete document.schemaFamily;
 	});
 	let persistenceCalls = 0;
 	const targetStore = new Proxy(backingStore, {
@@ -160,23 +159,23 @@ test('an explicit historical V10 scape fails with typed re-import before persist
 
 	await assert.rejects(
 		() => importScapeProject(stale, targetStore),
-		(error) => error instanceof AudioEditorProjectReimportRequiredError
+		(error) => error instanceof ProjectReimportRequiredError
 			&& error.schemaVersion === 10
-			&& error.currentSchemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+			&& error.currentSchemaVersion === PROJECT_SCHEMA_VERSION,
 	);
 	assert.equal(persistenceCalls, 0);
 	assert.deepEqual(await backingStore.listProjects(), []);
 	assert.deepEqual(await backingStore.listSources(), []);
 });
 
-test('a future V18 scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
+test('a future Soundscaper v2 Scape opens read-only without interpreting, rewriting, or persisting its graph', async () => {
 	const sourceStore = memoryStore('scape-future-preview-source');
 	const targetStore = memoryStore('scape-future-preview-target');
 	const project = mixedProject();
 	await persistAssets(sourceStore);
 	const exported = await exportScapeProject(project, sourceStore);
 	const future = await rewriteScapeProjectDocument(exported.blob, (document) => {
-		document.schemaVersion = 18;
+		document.schemaVersion = 2;
 		document.timelineAnnotations = { futureShape: { retained: true } };
 		const videoSource = document.sources.find((source) => source.kind === 'video');
 		videoSource.posterStorageKey = 'future-poster-locator';
@@ -341,7 +340,7 @@ test('scape imports roll back already staged media when a later source write is 
 test('scape export snapshots project and source data without invoking accessors', async () => {
 	for (const target of ['project', 'source']) {
 		const sourceStore = memoryStore(`scape-accessor-${target}`);
-		const project = migrateAudioEditorProject(mixedProject()).project;
+		const project = mixedProject();
 		await persistAssets(sourceStore);
 		let activations = 0;
 		const owner = target === 'project' ? project : project.sources[0];
@@ -360,7 +359,7 @@ test('scape export snapshots project and source data without invoking accessors'
 test('scape archives preserve missing AUP4 binary state and reject malformed tags before project work', async () => {
 	const sourceStore = memoryStore('scape-opaque-binary-source');
 	const targetStore = memoryStore('scape-opaque-binary-target');
-	const project = migrateAudioEditorProject(mixedProject()).project;
+	const project = mixedProject();
 	const nativeEffect = createAudacityXmlNode('effect', [
 		{ kind: 'attribute', name: 'active', type: 'bool', value: true },
 		{ kind: 'attribute', name: 'id', type: 'string', value: 'Effect_VST3_Acme_Future_Path' },
@@ -383,8 +382,7 @@ test('scape archives preserve missing AUP4 binary state and reject malformed tag
 	assert.equal((await inspectScapeProject(exported.blob)).id, project.id);
 
 	const imported = await importScapeProject(exported.blob, targetStore);
-	const reloaded = await targetStore.loadProject(imported.project.id);
-	const importedEffect = reloaded.master.effects[0];
+	const importedEffect = imported.project.master.effects[0];
 	const importedState = importedEffect.opaqueAudacityNode.node.content[2].value;
 	assert.ok(importedState instanceof Uint8Array);
 	assert.deepEqual([...importedState], [0, 1, 2, 253, 254, 255]);

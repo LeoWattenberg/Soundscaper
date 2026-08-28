@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
@@ -8,16 +8,21 @@ import test, { type TestContext } from 'node:test';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
-import { readPcm, writePcm } from './helpers/desktop-project-library-fallback-handoff-fixture.ts';
+import { readPcm, writePcm } from './helpers/project-store-pcm-fixture.ts';
 import {
 	createAudioWarpProjectFixture,
 	WARP_MAP,
 	WARP_SOURCE_ID,
 } from './helpers/audio-warp-cross-product-fixture.ts';
+import {
+	asBaselineSoundscaperProject,
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	importBaselineScapeProject as importScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 interface ScapeImportResult {
 	readonly project: AudioEditorProjectCurrent;
@@ -38,7 +43,7 @@ test('Scape collision copy remaps warped PCM while preserving native map authori
 	const collidingSource = { ...fixture.source, storageKey: fixture.source.id };
 	await writePcm(recipient, collidingSource, [[-1, 1, -1, 1, -1, 1, -1, 1]]);
 
-	const exported = await exportScapeProject(fixture.project, sender);
+	const exported = await exportScapeProject(asBaselineSoundscaperProject(fixture.project), sender);
 	const copied = await importScapeProject(exported.blob, recipient, { collision: 'copy' }) as ScapeImportResult;
 	assert.equal(copied.collision, 'copy');
 	assert.notEqual(copied.project.id, fixture.project.id);
@@ -66,7 +71,7 @@ test('Scape handoff keeps audio warp bypass-only in Framescaper and native on So
 	const soundReturn = memoryStore(context, 'scape-warp-sound-return');
 	await writePcm(soundSender, fixture.source, fixture.channels);
 
-	const outbound = await exportScapeProject(fixture.project, soundSender);
+	const outbound = await exportScapeProject(asBaselineSoundscaperProject(fixture.project), soundSender);
 	const inFrames = await importScapeProject(outbound.blob, frameRecipient) as ScapeImportResult;
 	assertWarpRequirement(inFrames.project, false);
 	assert.deepEqual((inFrames.project.clips[0] as Record<string, unknown>).warpMap, WARP_MAP);

@@ -23,6 +23,10 @@ import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fix
 const ROOT_ID = 'ab'.repeat(16);
 const RULE_ID = 'cd'.repeat(16);
 const JOB_ID = '12'.repeat(20);
+const PROJECT_IDENTITY = Object.freeze({
+	schemaFamily: 'framescaper' as const,
+	schemaVersion: 1 as const,
+});
 
 test('renderer lifecycle actions call only exact bridge methods and refresh authoritative state', async () => {
 	const fixture = lifecycleBridge();
@@ -32,6 +36,7 @@ test('renderer lifecycle actions call only exact bridge methods and refresh auth
 	await store.reauthorizeQueueRoot({ jobId: JOB_ID });
 	await store.revalidateRoot({ grantId: ROOT_ID });
 	await store.createWatch({
+		...PROJECT_IDENTITY,
 		grantId: ROOT_ID,
 		projectId: 'project-1',
 		binId: null,
@@ -66,6 +71,7 @@ test('renderer lifecycle requests reject stale/path-like or unsupported input be
 	const store = createFramescaperNativeServicesStore(fixture.bridge);
 
 	await assert.rejects(() => store.createWatch({
+		...PROJECT_IDENTITY,
 		grantId: ROOT_ID,
 		projectId: '../escape',
 		binId: null,
@@ -74,6 +80,7 @@ test('renderer lifecycle requests reject stale/path-like or unsupported input be
 		generateProxies: false,
 	}), /project id/iu);
 	await assert.rejects(() => store.createWatch({
+		...PROJECT_IDENTITY,
 		grantId: ROOT_ID,
 		projectId: 'project-1',
 		binId: null,
@@ -90,6 +97,7 @@ test('dialog action model owns watch, root, and scratch mutations', async () => 
 	const fixture = lifecycleBridge();
 	const store = createFramescaperNativeServicesStore(fixture.bridge);
 	const create = {
+		...PROJECT_IDENTITY,
 		type: 'watch-create' as const,
 		grantId: ROOT_ID,
 		projectId: 'project-1',
@@ -114,6 +122,7 @@ test('queue enqueue is exposed only for an exact canonical plan identity', async
 	const plan = nativeQueueKeyedPlanV7();
 	const fingerprint = fingerprintNativeMediaPlan(plan);
 	const request = {
+		...PROJECT_IDENTITY,
 		taskKind: 'encoded-export' as const,
 		planVersion: 7 as const,
 		derivedInputStageId: JOB_ID,
@@ -231,6 +240,7 @@ function snapshot(): FramescaperNativeServicesProjection {
 
 function watchRule() {
 	return {
+		...PROJECT_IDENTITY,
 		ruleId: RULE_ID,
 		grantId: ROOT_ID,
 		projectId: 'project-1',

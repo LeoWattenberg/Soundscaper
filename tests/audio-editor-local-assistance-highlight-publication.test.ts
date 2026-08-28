@@ -12,28 +12,28 @@ import {
 import {
 	reviewFramescaperAssistanceHighlightsV1,
 } from '../src/framescaper/editor-local-assistance-highlight-review.ts';
-import type { FramescaperProjectCommandV31 } from '../src/framescaper/editor-project-v31-commands.ts';
+import type { FramescaperProjectCommandAssistance } from '../src/framescaper/editor-project-assistance-commands.ts';
 import {
-	createFramescaperProjectHistoryV31,
-	executeFramescaperProjectCommandV31,
-	type FramescaperProjectHistoryV31,
-	undoFramescaperProjectCommandV31,
-} from '../src/framescaper/editor-project-v31-history.ts';
+	createFramescaperProjectHistoryAssistance,
+	executeFramescaperProjectCommandAssistance,
+	type FramescaperProjectHistoryAssistance,
+	undoFramescaperProjectCommandAssistance,
+} from '../src/framescaper/editor-project-assistance-history.ts';
 import {
-	createFramescaperProjectV31,
-	type FramescaperProjectV31,
-} from '../src/framescaper/editor-project-v31.ts';
+	createFramescaperProjectAssistance,
+	type FramescaperProjectAssistance,
+} from '../src/framescaper/editor-project-assistance.ts';
 import {
-	FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE,
-} from '../src/framescaper/editor-project-runtime-profile-v31.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+	FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE;
 const NOW = '2026-08-26T13:00:00.000Z';
 const VIDEO_SHA256 = '12'.repeat(32);
 const AUDIO_SHA256 = '34'.repeat(32);
 
-function project(linked = true): FramescaperProjectV31 {
+function project(linked = true): FramescaperProjectAssistance {
 	const options = structuredClone(framescaperV20Options());
 	options.id = 'highlight-project';
 	options.title = 'Highlight project';
@@ -51,15 +51,15 @@ function project(linked = true): FramescaperProjectV31 {
 	options.tracks = records(options.tracks).map((track) => ({
 		...track, laneGroupId: 'original-lane-group',
 	}));
-	return createFramescaperProjectV31(PROFILE, options as never);
+	return createFramescaperProjectAssistance(PROFILE, options as never);
 }
 
-function fence(value: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
+function fence(value: FramescaperProjectAssistance): AssistanceWorkflowFenceV1 {
 	const selected = selection(value).fence;
 	return {
-		fenceVersion: 1,
+		fenceVersion: 1, schemaFamily: 'framescaper',
 		projectId: String(value.id),
-		schemaVersion: Number(value.schemaVersion),
+		schemaVersion: 1,
 		revision: Number(value.revision),
 		sequenceId: 'main-sequence',
 		sourceRanges: [{
@@ -84,7 +84,7 @@ function fence(value: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
 	};
 }
 
-function review(value: FramescaperProjectV31, includeSecond = false) {
+function review(value: FramescaperProjectAssistance, includeSecond = false) {
 	return reviewFramescaperAssistanceHighlightsV1({
 		kind: 'highlight-proposals', schemaVersion: 1, workflowId: 'make-highlights',
 		fence: fence(value),
@@ -139,7 +139,7 @@ function cropKeyframe(
 }
 
 function harness(initial = project(), createId: (prefix: string) => string = incrementalIds()) {
-	let history = createFramescaperProjectHistoryV31(PROFILE, initial);
+	let history = createFramescaperProjectHistoryAssistance(PROFILE, initial);
 	let currentFence = fence(initial);
 	let commits = 0;
 	let authorityReads = 0;
@@ -153,15 +153,15 @@ function harness(initial = project(), createId: (prefix: string) => string = inc
 		createId,
 		commit: (command) => {
 			commits += 1;
-			history = executeFramescaperProjectCommandV31(
-				PROFILE, history, command as FramescaperProjectCommandV31, { now: NOW },
+			history = executeFramescaperProjectCommandAssistance(
+				PROFILE, history, command as FramescaperProjectCommandAssistance, { now: NOW },
 			);
 		},
 	});
 	return {
 		publication,
-		get history(): FramescaperProjectHistoryV31 { return history; },
-		set history(value: FramescaperProjectHistoryV31) { history = value; },
+		get history(): FramescaperProjectHistoryAssistance { return history; },
+		set history(value: FramescaperProjectHistoryAssistance) { history = value; },
 		get commits(): number { return commits; },
 		get authorityReads(): number { return authorityReads; },
 		set currentFence(value: AssistanceWorkflowFenceV1) { currentFence = value; },
@@ -273,7 +273,7 @@ test('one atomic F31 batch creates an editable linked A/V secondary sequence and
 	assert.deepEqual(session.history.present.sources, initial.sources,
 		'highlight sequences retain source custody instead of generating media');
 
-	session.history = undoFramescaperProjectCommandV31(PROFILE, session.history, { now: NOW });
+	session.history = undoFramescaperProjectCommandAssistance(PROFILE, session.history, { now: NOW });
 	assert.deepEqual(session.history.present.sequences, initial.sequences);
 	assert.deepEqual(session.history.present.tracks, initial.tracks);
 	assert.deepEqual(session.history.present.clips, initial.clips);
@@ -351,7 +351,7 @@ function incrementalIds(): (prefix: string) => string {
 	return (prefix) => `${prefix}-${String(next += 1)}`;
 }
 
-function selection(value: FramescaperProjectV31) {
+function selection(value: FramescaperProjectAssistance) {
 	return resolveLocalAssistanceSelectedVideoAuthority({
 		getProject: () => value, getSelectedClipId: () => 'video-clip',
 	});

@@ -7,7 +7,7 @@ import test from 'node:test';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('security policy separates all-schema JSON admission from exact-V17 binary decoding', async () => {
+test('security policy bounds owning-family-v1 JSON admission and leaves opaque custody uninterpreted', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const risk = matrix.risks.find(({ id }) => id === 'scape-archive-structure-integrity');
 	const control = risk?.currentControls.find(
@@ -24,7 +24,7 @@ test('security policy separates all-schema JSON admission from exact-V17 binary 
 	]) assert.ok(control.evidence.some((item) => item.path === path), path);
 	assert.match(
 		control.summary,
-		/every project schema.*structural scan.*before `?JSON\.parse`?.*101,536 JSON values.*depth 130/iu,
+		/every admitted owning-family-v1 project.*structural scan.*before `?JSON\.parse`?.*101,536 JSON values.*depth 130/iu,
 	);
 	assert.match(
 		control.summary,
@@ -32,7 +32,7 @@ test('security policy separates all-schema JSON admission from exact-V17 binary 
 	);
 	assert.match(
 		control.summary,
-		/exact-schema-17.*current-format export.*copies.*Uint8Array.*offset-view.*ArrayBuffer.*independent lower-only ceilings.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128/iu,
+		/exact owning-family v1.*current-format export.*copies.*Uint8Array.*offset-view.*ArrayBuffer.*independent lower-only ceilings.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128/iu,
 	);
 	assert.match(
 		control.summary,
@@ -40,20 +40,11 @@ test('security policy separates all-schema JSON admission from exact-V17 binary 
 	);
 	assert.match(
 		control.summary,
-		/tag-shaped future state.*structurally scanned and counted.*not decoded or interpreted/iu,
+		/known foreign-family and future-version projects.*opaque.*not decoded or interpreted/iu,
 	);
 
 	const threatModel = await readFile(threatModelUrl, 'utf8');
-	assert.match(
-		threatModel,
-		/every project schema.*structurally scanned.*before `JSON\.parse`.*101,536 JSON values.*depth 130.*six additional JSON values per payload.*two additional depth levels.*round-trip closed/isu,
-	);
-	assert.match(
-		threatModel,
-		/exact schema 17.*opaque `Uint8Array`.*offset-view.*`ArrayBuffer`.*reserved.*versioned JSON tag.*export.*independently.*256 payloads.*4 MiB.*8 MiB.*100,000 logical traversed nodes.*depth 128.*complete decoded budget/isu,
-	);
-	assert.match(
-		threatModel,
-		/before decoded-byte allocation.*collision lookup.*storage.*does not interpret or activate.*tag-shaped future state.*structurally scanned and counted.*not decoded or interpreted.*does not claim unchanged future-archive re-export/isu,
-	);
+	assert.match(threatModel, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaFamily:'framescaper'/isu);
+	assert.match(threatModel, /other known family.*later version.*opaque read-only custody.*not semantic validation/isu);
+	assert.match(threatModel, /no project migration, copy-forward, predecessor-validator dispatch/isu);
 });

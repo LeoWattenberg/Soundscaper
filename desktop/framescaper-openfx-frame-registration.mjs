@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Keep selected-V28 OpenFX frame authority out of the native-services composition root. */
+/** Keep baseline OpenFX frame authority out of the native-services composition root. */
 export async function createFramescaperOpenFxFrameRegistration(options, dependencies = {}) {
 	if (!options || typeof options.openFxService?.inventory !== 'function'
 		|| typeof options.openFxService.execute !== 'function'
@@ -29,20 +29,43 @@ export async function createFramescaperOpenFxFrameRegistration(options, dependen
 }
 
 export function createFramescaperOpenFxCurrentProjectAuthority(authority) {
-	return async ({ id, revision }, effect) => {
+	assertFramescaperIdentity(authority, 'OpenFX project authority');
+	return async (project, effect) => {
+		if (!currentFramescaperIdentity(project)) return false;
+		const { id, revision } = project;
 		const current = authority?.projectRecord(id);
-		if (current?.projectId !== id || current.projectRevision !== revision) return false;
+		if (!currentFramescaperIdentity(current) || current.projectId !== id
+			|| current.projectRevision !== revision) return false;
 		if (effect === undefined) return true;
 		const bundle = await authority.readProjectBundle(id);
-		if (bundle?.project?.projectRevision !== revision
+		if (!currentFramescaperIdentity(bundle?.project)
+			|| bundle.project.projectRevision !== revision
 			|| bundle.project.sha256 !== current.projectSha256
 			|| typeof bundle.document !== 'string') return false;
 		let document;
 		try { document = JSON.parse(bundle.document); } catch { return false; }
-		return document?.schemaVersion === 28 && document.id === id && document.revision === revision
+		return currentFramescaperIdentity(document) && document.id === id && document.revision === revision
 			&& Array.isArray(document.ofxEffects) && document.ofxEffects.filter((candidate) => (
 				candidate?.instanceId === effect.instanceId
 				&& JSON.stringify(candidate) === JSON.stringify(effect)
 			)).length === 1;
 	};
+}
+
+function currentFramescaperIdentity(value) {
+	try { assertFramescaperIdentity(value, 'OpenFX project'); return true; }
+	catch { return false; }
+}
+
+function assertFramescaperIdentity(value, label) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError(`${label} must carry a project schema identity.`);
+	}
+	const family = Object.getOwnPropertyDescriptor(value, 'schemaFamily');
+	const version = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
+	if (!family?.enumerable || !Object.hasOwn(family, 'value')
+		|| !version?.enumerable || !Object.hasOwn(version, 'value')
+		|| family.value !== 'framescaper' || version.value !== 1) {
+		throw new TypeError(`${label} requires the exact Framescaper v1 identity.`);
+	}
 }

@@ -11,23 +11,30 @@ import {
 	type ScapeArchiveLimits,
 } from './scape-archive-envelope.ts';
 import { verifyScapeAssetBytes } from './scape-archive-media.ts';
-import { AUDIO_EDITOR_PROJECT_SCHEMA_VERSION } from './project-schema-version.ts';
+import {
+	classifyProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+	type ProjectSchemaIdentity,
+} from './project-schema-identity.ts';
+import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import { withScapeProjectInput, type ScapeProjectInput } from './scape-project-input.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
 export interface ScapeArchiveCopyOptions {
 	readonly archiveLimits?: Partial<ScapeArchiveLimits>;
+	readonly currentProjectSchemaFamily: ProjectSchemaFamily;
 	readonly signal?: AbortSignal;
 }
 
 export interface ScapeArchiveCopyResult {
 	readonly byteLength: number;
+	readonly schemaFamily: ProjectSchemaFamily;
 	readonly schemaVersion: number;
 }
 
 /**
- * Stream a format-1 archive carrying a future project schema byte-for-byte to
+ * Stream a format-1 archive carrying a foreign-family or future project byte-for-byte to
  * the sink. Admission validates only the archive envelope and the digest-bound
  * project document's schema version scalar; the project and asset graph are
  * never traversed, rewritten, or repacked, so the copy is the exact original
@@ -37,18 +44,21 @@ export interface ScapeArchiveCopyResult {
 export async function copyFutureScapeArchive(
 	input: ScapeProjectInput,
 	write: (bytes: Uint8Array) => void | PromiseLike<void>,
-	options: ScapeArchiveCopyOptions = {},
+	options: ScapeArchiveCopyOptions,
 ): Promise<ScapeArchiveCopyResult> {
 	if (typeof write !== 'function') throw new TypeError('A Scape archive copy sink is required.');
+	if (!options || typeof options !== 'object') {
+		throw new TypeError('Scape archive copy options are required.');
+	}
 	const signal = options.signal;
-	const schemaVersion = await withScapeProjectInput(input, signal, async (entries) => {
+	const identity = await withScapeProjectInput(input, signal, async (entries) => {
 		const { manifest, projectText } = await readScapeArchiveEnvelope(
 			entries,
 			options.archiveLimits || {},
 			signal,
 		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
-		return futureSchemaVersion(manifest.project.schemaVersion, projectText);
+		return opaqueProjectIdentity(manifest.project, projectText, options.currentProjectSchemaFamily);
 	});
 	throwIfScapeAborted(signal);
 	const source = archiveByteSource(input);
@@ -64,7 +74,11 @@ export async function copyFutureScapeArchive(
 		offset += chunk.byteLength;
 	}
 	throwIfScapeAborted(signal);
-	return Object.freeze({ byteLength: offset, schemaVersion });
+	return Object.freeze({
+		byteLength: offset,
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: identity.schemaVersion,
+	});
 }
 
 function archiveByteSource(input: ScapeProjectInput): ScapeArchiveByteSource {
@@ -73,21 +87,21 @@ function archiveByteSource(input: ScapeProjectInput): ScapeArchiveByteSource {
 	return input;
 }
 
-function futureSchemaVersion(declared: number | undefined, projectText: string): number {
-	let document: unknown;
-	try {
-		document = JSON.parse(projectText);
-	} catch {
-		throw new Error('The Scape archive project document is not JSON.');
+function opaqueProjectIdentity(
+	declared: ProjectSchemaIdentity,
+	projectText: string,
+	currentFamily: ProjectSchemaFamily,
+): Readonly<ProjectSchemaIdentity> {
+	const document = parseOpaqueScapeProjectDocument(projectText, {
+		currentProjectSchemaFamily: currentFamily,
+	});
+	const classification = classifyProjectSchemaIdentity(document, currentFamily);
+	if (declared.schemaFamily !== classification.identity.schemaFamily
+		|| declared.schemaVersion !== classification.identity.schemaVersion) {
+		throw new Error('The Scape manifest project identity does not match its project document.');
 	}
-	const schemaVersion = document && typeof document === 'object'
-		? (document as Readonly<{ schemaVersion?: unknown }>).schemaVersion
-		: undefined;
-	if (!Number.isSafeInteger(schemaVersion) || (schemaVersion as number) <= AUDIO_EDITOR_PROJECT_SCHEMA_VERSION) {
-		throw new Error('Only a future-schema Scape archive can be saved as an unchanged copy.');
+	if (classification.disposition === 'current') {
+		throw new Error('Only an opaque foreign-family or future-schema Scape archive can be saved as an unchanged copy.');
 	}
-	if (declared !== undefined && declared !== schemaVersion) {
-		throw new Error('The Scape manifest schema version does not match its project document.');
-	}
-	return schemaVersion as number;
+	return classification.identity;
 }

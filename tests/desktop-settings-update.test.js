@@ -221,7 +221,7 @@ test('startup update checks are throttled for 24 hours even after an offline att
 		recordUpdateCheck: async (timestamp) => { state.lastUpdateCheck = new Date(timestamp).toISOString(); },
 	};
 	const checker = new ReleaseChecker({
-		currentVersion: '0.2.0-beta.1',
+		currentVersion: '1.0.0-rc.1',
 		settings,
 		now: () => now,
 		fetchImpl: async () => {

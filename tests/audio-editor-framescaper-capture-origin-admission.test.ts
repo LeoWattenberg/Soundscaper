@@ -26,6 +26,7 @@ test('start admission synchronously freezes and protects the clicked origin unti
 	assert.deepEqual(coordinator.snapshot, {
 		generation: 1,
 		origin: {
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			projectId: 'project-a', baseRevision: 4, baseSha256: SHA_A,
 			sequenceId: 'sequence-a', playheadMicroseconds: 500_000,
 		},
@@ -119,7 +120,10 @@ function origin(
 	playheadMicroseconds: number,
 ) {
 	return Object.freeze({
-		projectFence: Object.freeze({ projectId, baseRevision, baseSha256 }),
+		projectFence: Object.freeze({
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			projectId, baseRevision, baseSha256,
+		}),
 		origin: Object.freeze({ sequenceId, playheadMicroseconds, destination: 'both' as const }),
 	});
 }

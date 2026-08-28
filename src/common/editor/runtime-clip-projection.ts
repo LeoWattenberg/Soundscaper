@@ -9,7 +9,7 @@ import {
 	videoFrameToSampleFrame,
 } from './timeline-time.ts';
 import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
-import { isTimelineAnnotationProjectSchema } from './project-schema-version.ts';
+import { hasSequenceGeometryProjectAuthority } from './project-schema-version.ts';
 import {
 	resolveRuntimeTimelineAnnotationsInDocumentOrder,
 	assertRuntimeTimelineAnnotationsProjectionShape,
@@ -154,7 +154,7 @@ export function resolveRuntimeProjectProjection<Project extends RuntimeClipProje
 			clips: Object.freeze((Array.isArray(project.projectBin?.clips) ? project.projectBin.clips : [])
 				.map((clip) => resolveRuntimeClipProjection(project, clip, context))),
 		}),
-		...(isTimelineAnnotationProjectSchema(project.schemaVersion) ? {
+		...(hasTimelineAnnotationCapability(project) ? {
 			timelineAnnotations: resolveRuntimeTimelineAnnotationsInDocumentOrder(
 				project as unknown as RuntimeTimelineAnnotationProject,
 			),
@@ -196,13 +196,17 @@ function assertRuntimeProjectProjectionShape(project: RuntimeClipProject): void 
 			}
 		}
 	}
-	if (isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+	if (hasTimelineAnnotationCapability(project)) {
 		assertRuntimeTimelineAnnotationsProjectionShape(
 			project as unknown as RuntimeTimelineAnnotationProject,
 		);
-	} else if (project.timelineAnnotations !== undefined) {
-		throw new TypeError('Only a timeline-annotation project schema can contain timeline annotations.');
 	}
+}
+
+function hasTimelineAnnotationCapability(
+	project: RuntimeClipProject,
+): project is RuntimeClipProject & RuntimeTimelineAnnotationProject {
+	return Object.hasOwn(project, 'timelineAnnotations');
 }
 
 function isResolvedRuntimeClip(value: RuntimePersistedClip): boolean {
@@ -244,7 +248,7 @@ function resolveRuntimeTrackProjection(
 }
 
 function usesFoundationCoordinates(project: RuntimeClipProject, clip: RuntimePersistedClip): boolean {
-	return Number(project.schemaVersion) >= 10
+	return hasSequenceGeometryProjectAuthority(project)
 		|| clip.sequenceStartFrame !== undefined
 		|| clip.sourceInFrame !== undefined;
 }

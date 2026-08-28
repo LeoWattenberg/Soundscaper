@@ -4,15 +4,15 @@ import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import BrandSidebar from './BrandSidebar.jsx';
 import './site.css';
 
-const SoundscaperAudioEditorBootstrapV30 = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx'));
-const FramescaperAudioEditorBootstrapV31 = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx'));
+const SoundscaperAudioEditorBootstrap = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
+const FramescaperAudioEditorBootstrap = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'));
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledSiteCopyForLocale(locale);
 	const EditorBootstrap = productId !== 'framescaper'
-		? SoundscaperAudioEditorBootstrapV30
-		: FramescaperAudioEditorBootstrapV31;
+		? SoundscaperAudioEditorBootstrap
+		: FramescaperAudioEditorBootstrap;
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,

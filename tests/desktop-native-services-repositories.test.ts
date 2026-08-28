@@ -173,11 +173,13 @@ test('revoking a root atomically disables every dependent watch rule', () => {
 	roots.authorize(rootGrant(), lease, 0);
 	const watch = new FramescaperNativeWatchRepository(database);
 	watch.create({
-		ruleId: 'a'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		ruleId: 'a'.repeat(32), grantId: GRANT_ID,
+		schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'project-1',
 		extensions: ['mov'], enabled: true, createdAtMs: 0,
 	}, lease, 0);
 	watch.create({
-		ruleId: 'b'.repeat(32), grantId: GRANT_ID, projectId: 'project-2',
+		ruleId: 'b'.repeat(32), grantId: GRANT_ID,
+		schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'project-2',
 		extensions: ['mp4'], enabled: false, createdAtMs: 0,
 	}, lease, 0);
 
@@ -219,6 +221,7 @@ function queueRecord(
 	taskKind: 'encoded-export' | 'image-sequence-export' = 'encoded-export',
 ) {
 	return createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: jobId(byte), taskKind, plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1,
 		inputFingerprints: [{ sourceId: 'source-a', sha256: 'b'.repeat(64) }],

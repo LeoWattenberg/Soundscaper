@@ -23,8 +23,8 @@ export const STARTUP_GRAPH_BUDGETS = Object.freeze({
 });
 
 export const PRODUCT_BOOTSTRAPS = Object.freeze({
-	soundscaper: '/src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
-	framescaper: '/src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+	soundscaper: '/src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
+	framescaper: '/src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
 });
 
 export const BUDGETED_PRODUCT_IDS = Object.freeze(Object.keys(PRODUCT_BOOTSTRAPS));

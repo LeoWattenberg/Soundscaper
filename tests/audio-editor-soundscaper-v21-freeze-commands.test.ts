@@ -13,13 +13,13 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { resolveTerminalChannelWidths } from '../src/common/editor/terminal-channel-widths.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import {
-	createSoundscaperProjectHistoryV21,
-	executeSoundscaperProjectCommandV21,
-	undoSoundscaperProjectCommandV21,
-} from '../src/soundscaper/editor-project-v21-history.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+	createSoundscaperProjectHistory,
+	executeSoundscaperProjectCommand,
+	undoSoundscaperProjectCommand,
+} from '../src/soundscaper/editor-project-history.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const LIVE_DIGEST = 'ab'.repeat(32);
 const DERIVED_DIGEST = 'cd'.repeat(32);
@@ -27,7 +27,7 @@ const NOW = '2026-08-14T13:00:00.000Z';
 
 test('freeze install/remove commands reconcile exact fallback state and survive inherited edits/history', () => {
 	const { project, freeze, digests, derivedSource, sourceContentIdentities } = fixture();
-	const installed = applySoundscaperProjectCommandV21(project, {
+	const installed = applySoundscaperProjectCommand(project, {
 		type: 'audio-freeze/install',
 		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
 		sourceContentIdentities,
@@ -38,32 +38,32 @@ test('freeze install/remove commands reconcile exact fallback state and survive 
 	assert.equal(installed.sources.find(({ id }) => id === 'voice-live')?.contentSha256, LIVE_DIGEST);
 	assert.equal(freezeRequirements(installed)[0]?.disposition, 'rendered-fallback');
 
-	const stale = applySoundscaperProjectCommandV21(installed, {
+	const stale = applySoundscaperProjectCommand(installed, {
 		type: 'effect/add', scope: 'track', trackId: 'voice',
 		effect: { id: 'post-freeze-highpass', type: 'highpass', enabled: true, params: {} },
 	});
 	assert.equal(freezeRequirements(stale)[0]?.disposition, 'bypass');
 	assert.equal(freezeRequirements(stale)[0]?.fallback, null);
 
-	const renamed = applySoundscaperProjectCommandV21(installed, {
+	const renamed = applySoundscaperProjectCommand(installed, {
 		type: 'project/rename', title: 'Renamed while frozen',
 	});
 	assert.deepEqual(track(renamed).audioFreeze, freeze);
 	assert.equal(freezeRequirements(renamed).length, 1);
-	assert.throws(() => applySoundscaperProjectCommandV21(renamed, {
+	assert.throws(() => applySoundscaperProjectCommand(renamed, {
 		type: 'audio-freeze/install',
 		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
 		sourceContentIdentities,
 	}), /expected|changed|stale/iu);
 
-	const history = createSoundscaperProjectHistoryV21(renamed);
-	const removed = executeSoundscaperProjectCommandV21(history, {
+	const history = createSoundscaperProjectHistory(renamed);
+	const removed = executeSoundscaperProjectCommand(history, {
 		type: 'audio-freeze/remove', trackId: 'voice', expectedFreeze: freeze,
 	});
 	assert.equal(Object.hasOwn(track(removed.present), 'audioFreeze'), false);
 	assert.equal(removed.present.sources.some(({ id }) => id === 'voice-freeze'), false);
 	assert.deepEqual(freezeRequirements(removed.present), []);
-	const restored = undoSoundscaperProjectCommandV21(removed);
+	const restored = undoSoundscaperProjectCommand(removed);
 	assert.deepEqual(track(restored.present).audioFreeze, freeze);
 	assert.equal(restored.present.sources.some(({ id }) => id === 'voice-freeze'), true);
 	assert.equal(freezeRequirements(restored.present).length, 1);
@@ -77,14 +77,14 @@ test('freeze install/remove commands reconcile exact fallback state and survive 
 
 test('freeze commit is one undoable bake retaining strip/routing and retiring effect authority', () => {
 	const { project, freeze, digests, derivedSource, sourceContentIdentities } = fixture();
-	const initial = createSoundscaperProjectHistoryV21(project);
-	const installed = executeSoundscaperProjectCommandV21(initial, {
+	const initial = createSoundscaperProjectHistory(project);
+	const installed = executeSoundscaperProjectCommand(initial, {
 		type: 'audio-freeze/install',
 		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
 		sourceContentIdentities,
 	});
 	const before = installed.present;
-	const committed = executeSoundscaperProjectCommandV21(installed, {
+	const committed = executeSoundscaperProjectCommand(installed, {
 		type: 'audio-freeze/commit',
 		trackId: 'voice', expectedFreeze: freeze, operationDigests: digests,
 		derivedSourceContentSha256: DERIVED_DIGEST,
@@ -104,7 +104,7 @@ test('freeze commit is one undoable bake retaining strip/routing and retiring ef
 	assert.equal(committed.present.sources.some(({ id }) => id === 'voice-live'), false);
 	assert.equal(committed.present.sources.some(({ id }) => id === 'voice-freeze'), true);
 
-	const undone = undoSoundscaperProjectCommandV21(committed);
+	const undone = undoSoundscaperProjectCommand(committed);
 	assert.deepEqual(track(undone.present).audioFreeze, freeze);
 	assert.equal(undone.present.sources.some(({ id }) => id === 'voice-live'), true);
 	assert.equal(undone.present.sources.some(({ id }) => id === 'voice-freeze'), true);
@@ -113,7 +113,7 @@ test('freeze commit is one undoable bake retaining strip/routing and retiring ef
 
 test('a frozen track can be deleted, and its editable clips stay required until it is', () => {
 	const { project, freeze, derivedSource, sourceContentIdentities } = fixture();
-	const installed = applySoundscaperProjectCommandV21(project, {
+	const installed = applySoundscaperProjectCommand(project, {
 		type: 'audio-freeze/install',
 		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
 		sourceContentIdentities,
@@ -122,7 +122,7 @@ test('a frozen track can be deleted, and its editable clips stay required until 
 	// The freeze requirement names the frozen track, and it used to be renormalized
 	// against the post-command document before it could be re-derived, so removing the
 	// track was rejected for a fallback target the same command had just deleted.
-	const removed = applySoundscaperProjectCommandV21(installed, {
+	const removed = applySoundscaperProjectCommand(installed, {
 		type: 'track/remove', trackId: 'voice',
 	} as never);
 	assert.deepEqual(removed.tracks.map(({ id }) => id), []);
@@ -130,7 +130,7 @@ test('a frozen track can be deleted, and its editable clips stay required until 
 
 	// Retaining the editable material is the freeze contract, so emptying the track is
 	// still refused - but by the invariant that owns it, not by requirement ordering.
-	assert.throws(() => applySoundscaperProjectCommandV21(installed, {
+	assert.throws(() => applySoundscaperProjectCommand(installed, {
 		type: 'clip/remove-many', clipIds: ['voice-clip'], rippleMode: 'none',
 	} as never), /must retain editable clips/iu);
 });
@@ -140,11 +140,11 @@ test('committing a freeze drops lanes addressed to the sidechain edges it remove
 	// A sidechain into the frozen track's rack, and a lane addressing that edge. Both
 	// are first-class: the routing editor authors sidechain edges and lanes may address
 	// an edge as well as an effect.
-	const sourced = applySoundscaperProjectCommandV21(project, {
+	const sourced = applySoundscaperProjectCommand(project, {
 		type: 'track/add', track: createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 	} as never);
 	const sidechainId = 'sidechain:duck:voice:voice-fx';
-	const withSidechain = applySoundscaperProjectCommandV21(sourced, {
+	const withSidechain = applySoundscaperProjectCommand(sourced, {
 		type: 'mixer-graph/set',
 		expected: sourced.mixer,
 		mixer: {
@@ -159,7 +159,7 @@ test('committing a freeze drops lanes addressed to the sidechain edges it remove
 			}],
 		},
 	} as never);
-	const withLane = applySoundscaperProjectCommandV21(withSidechain, {
+	const withLane = applySoundscaperProjectCommand(withSidechain, {
 		type: 'automation-lane/set',
 		laneId: 'sidechain-level',
 		expected: null,
@@ -173,14 +173,14 @@ test('committing a freeze drops lanes addressed to the sidechain edges it remove
 	} as never);
 	assert.equal(withLane.automationLanes.some(({ id }) => id === 'sidechain-level'), true);
 
-	const installed = applySoundscaperProjectCommandV21(withLane, {
+	const installed = applySoundscaperProjectCommand(withLane, {
 		type: 'audio-freeze/install',
 		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
 		sourceContentIdentities,
 	} as never, { now: NOW });
 	// Commit removes the rack sidechain edges, so the lane addressing one has to go
 	// with them; leaving it dangling used to make the whole command fail validation.
-	const committed = applySoundscaperProjectCommandV21(installed, {
+	const committed = applySoundscaperProjectCommand(installed, {
 		type: 'audio-freeze/commit',
 		trackId: 'voice', expectedFreeze: freeze, operationDigests: digests,
 		derivedSourceContentSha256: DERIVED_DIGEST,
@@ -199,17 +199,17 @@ test('a freeze cannot narrow a track underneath the channel maps already aimed a
 	assert.equal(width(project), 6);
 	assert.deepEqual(busMap(project), [0, 1, 2, 3, 4, 5]);
 
-	assert.throws(() => applySoundscaperProjectCommandV21(project, {
+	assert.throws(() => applySoundscaperProjectCommand(project, {
 		type: 'audio-freeze/install', trackId: 'stem', expectedFreeze: null,
 		replacementFreeze: freeze, derivedSource: { ...derivedSource, channelCount: 2 },
 		sourceContentIdentities: identities,
 	} as never, { now: NOW }), /must keep audio track stem at 6 channels/u);
 
-	const installed = applySoundscaperProjectCommandV21(project, {
+	const installed = applySoundscaperProjectCommand(project, {
 		type: 'audio-freeze/install', trackId: 'stem', expectedFreeze: null,
 		replacementFreeze: freeze, derivedSource, sourceContentIdentities: identities,
 	} as never, { now: NOW });
-	const committed = applySoundscaperProjectCommandV21(installed, {
+	const committed = applySoundscaperProjectCommand(installed, {
 		type: 'audio-freeze/commit', trackId: 'stem', expectedFreeze: freeze,
 		operationDigests: digests, derivedSourceContentSha256: DERIVED_DIGEST,
 		derivedClip: createAudioClip({
@@ -225,11 +225,11 @@ test('a freeze cannot narrow a track underneath the channel maps already aimed a
 	assert.deepEqual(busMap(committed).filter((channel) => channel >= width(committed)), []);
 });
 
-function width(project: ReturnType<typeof createSoundscaperProjectV21>): number {
+function width(project: ReturnType<typeof createSoundscaperProject>): number {
 	return resolveTerminalChannelWidths(project as never, project.masterChannels).tracks.get('stem') ?? 0;
 }
 
-function busMap(project: ReturnType<typeof createSoundscaperProjectV21>): readonly number[] {
+function busMap(project: ReturnType<typeof createSoundscaperProject>): readonly number[] {
 	return project.mixer.edges
 		.find(({ id }) => id === 'assignment:track:stem:mixer-node:stems')?.channelMap ?? [];
 }
@@ -244,13 +244,13 @@ function wideFixture() {
 		id: 'stem-clip', sourceId: 'stem-live', title: 'Stem', timelineStartFrame: 0,
 		durationFrames: 512, sourceStartFrame: 0, sourceDurationFrames: 512,
 	});
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'freeze-width-project', title: 'Freeze width project', now: NOW, masterChannels: 2,
 		sources: [liveSource], clips: [liveClip],
 		tracks: [createAudioTrack({ id: 'stem', name: 'Stem', clipIds: ['stem-clip'] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['stem'] }], primarySequenceId: 'main-sequence',
 	} as never);
-	const project = applySoundscaperProjectCommandV21(base, {
+	const project = applySoundscaperProjectCommand(base, {
 		type: 'mixer-graph/set', expected: base.mixer,
 		mixer: {
 			...base.mixer,
@@ -327,7 +327,7 @@ function fixture() {
 		id: 'voice', name: 'Voice', gain: 0.8, pan: -0.2, clipIds: ['voice-clip'],
 		effects: [voiceEffect, automationEffect],
 	});
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'freeze-command-project', title: 'Freeze command project', now: NOW,
 		sources: [liveSource], clips: [liveClip], tracks: [voiceTrack],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }], primarySequenceId: 'main-sequence',

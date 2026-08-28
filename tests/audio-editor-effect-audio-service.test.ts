@@ -28,15 +28,17 @@ import {
 	v21RenderProject,
 } from './audio-editor-effect-audio-service-fixture.ts';
 
-test('dry rendering removes unrelated tracks, racks, mixer state, and unselected clips', async () => {
+test('dry rendering isolates the selected track, rack, mixer state, and clips', async () => {
 	const harness = createHarness();
 	await harness.service.renderDryTrackRange('track-a', 100, 200, 1, ['clip-a']);
 	const snapshot = harness.snapshots[0]!;
 	assert.deepEqual(snapshot.tracks.map((track) => track.id), ['track-a']);
 	assert.deepEqual(snapshot.tracks[0]?.effects, []);
 	assert.equal(snapshot.tracks[0]?.gain, 1);
-	assert.deepEqual(snapshot.master.effects, []);
-	assert.deepEqual(snapshot.mixer, { groups: [], sends: [], routes: {} });
+	assert.deepEqual(snapshot.master.effects.map(({ id }) => id), ['master']);
+	assert.equal(Object.hasOwn(snapshot.mixer, 'routes'), false);
+	assert.deepEqual((snapshot.mixer as { groups: unknown[] }).groups, []);
+	assert.deepEqual((snapshot.mixer as { sends: unknown[] }).sends, []);
 });
 
 test('V21 dry rendering reaches the exact graph compiler without fabricating legacy authority', async () => {
@@ -159,8 +161,8 @@ test('V21 dry rendering reaches the exact graph compiler without fabricating leg
 	});
 });
 
-test('F31 linked-audio dry rendering preserves the shared production mixer authority', async () => {
-	const project = { ...v21RenderProject(), schemaVersion: 31 };
+test('Framescaper baseline linked-audio dry rendering preserves shared production mixer authority', async () => {
+	const project = { ...v21RenderProject(), schemaFamily: 'framescaper' as const, schemaVersion: 1 as const };
 	const canonical = structuredClone(project);
 	const harness = createHarness({
 		project: project as unknown as EffectAudioProject,
@@ -174,7 +176,7 @@ test('F31 linked-audio dry rendering preserves the shared production mixer autho
 	await harness.service.renderDryTrackRange('track-a', 100, 200, 1, ['clip-a']);
 
 	const snapshot = harness.snapshots[0]!;
-	assert.equal(snapshot.schemaVersion, 31);
+	assert.deepEqual([snapshot.schemaFamily, snapshot.schemaVersion], ['framescaper', 1]);
 	assert.equal(Object.hasOwn(snapshot.mixer, 'routes'), false);
 	assert.deepEqual(project, canonical);
 });

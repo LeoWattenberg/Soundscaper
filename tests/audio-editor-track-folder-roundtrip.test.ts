@@ -19,8 +19,13 @@ import {
 	validateCurrentAudioEditorProject,
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import {
+	asBaselineSoundscaperProject,
+	importBaselineScapeProject,
+	validateBaselineSoundscaperProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-08-10T14:00:00.000Z';
 
@@ -101,18 +106,18 @@ test('mutated folder and bus state is byte-exact through clone, JSON, and the lo
 });
 
 test('mutated folder and bus state survives a .scape export and import byte-exactly', async () => {
-	const project = mutatedProject();
+	const project = asBaselineSoundscaperProject(mutatedProject());
 	const serialized = JSON.stringify(project);
 	const sourceStore = new AudioEditorProjectStore({ indexedDB: null, databaseName: 'v13-folder-mutated-scape-source' });
 	const targetStore = new AudioEditorProjectStore({ indexedDB: null, databaseName: 'v13-folder-mutated-scape-target' });
 
 	const exported = await exportScapeProject(project, sourceStore);
-	const imported = await importScapeProject(exported.blob, targetStore);
+	const imported = await importBaselineScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), serialized);
 	assert.deepEqual(mixerOf(imported.project).groups, mixerOf(project).groups);
 	assert.deepEqual(mixerOf(imported.project).routes, mixerOf(project).routes);
-	assert.equal(validateCurrentAudioEditorProject(imported.project), true);
+	assert.equal(validateBaselineSoundscaperProject(imported.project), true);
 });
 
 test('a further edit after reopening keeps the reconciled contract intact', async () => {

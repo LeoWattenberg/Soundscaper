@@ -165,7 +165,7 @@ export function createVideoKeyframeDialogModel(
 ): Readonly<VideoKeyframeDialogModel> {
 	if (input.productId !== 'framescaper' || !input.capability) return emptyModel('unsupported');
 	const project = ordinaryRecord(input.project);
-	if (!project || !isFramescaperVideoKeyframeProjectSchema(safeDataProperty(project, 'schemaVersion'))) return emptyModel('unsupported');
+	if (!project || !isFramescaperVideoKeyframeProjectSchema(project)) return emptyModel('unsupported');
 	let selected: Readonly<EditableModel> | null;
 	try {
 		selected = selectedVideo(project, input.snapshot.selectedClipId);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createCurrentAudioEditorProject, type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
+import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -9,8 +9,12 @@ import test from 'node:test';
 import {
 	createAudioSource,
 } from '../src/common/editor/project-media-factory.ts';
-import { exportScapeProject, inspectScapeProject } from '../src/common/editor/scape-project.js';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import {
+	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
+	inspectBaselineScapeProject as inspectScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-07-29T12:00:00.000Z';
 const FALLBACK_SOURCE_ID = 'rendered-fallback-source';
@@ -202,38 +206,47 @@ test('Scape export rejects a whitespace-only source storage key before store acc
 	);
 });
 
-test('Scape export rejects video classification in an audio-only retained schema before media access', async () => {
-	const project = {
-		schemaVersion: 2,
-		id: 'scape-feature-export-v2-video',
+test('the unified Scape v1 baseline exports video media bodies', async () => {
+	const project = createCurrentAudioEditorProject({
+		id: 'scape-v1-video',
+		title: 'Scape v1 video',
+		now: NOW,
 		sources: [{
-			id: FALLBACK_SOURCE_ID,
-			storageKey: FALLBACK_SOURCE_ID,
+			kind: 'video',
+			id: 'video-source',
+			storageKey: 'video-source',
+			name: 'picture.mp4',
+			mimeType: 'video/mp4',
 			frameCount: 4,
-			channelCount: 1,
+			sampleRate: 48_000,
+			width: 16,
+			height: 16,
+			frameRate: 30,
+			videoCodec: 'h264',
+			audioCodec: null,
+			hasAudio: false,
 		}],
-	} as unknown as AudioEditorProjectCurrent;
-	const source = (project.sources as readonly Readonly<Record<string, unknown>>[])[0];
-	assert.ok(source);
-	Reflect.set(source, 'kind', 'video');
+	});
 	let mediaReads = 0;
-	const backingStore = memoryStore('scape-feature-export-v2-video');
+	const backingStore = memoryStore('scape-v1-video');
 	const store = new Proxy(backingStore, {
 		get(target, property) {
 			if (property === 'getMediaAssetMetadata') return () => {
-				mediaReads += 1;
 				return { size: 1 };
+			};
+			if (property === 'loadMediaAsset') return () => {
+				mediaReads += 1;
+				return new Blob(['x']);
 			};
 			const value: unknown = Reflect.get(target, property, target);
 			return typeof value === 'function' ? value.bind(target) : value;
 		},
 	});
 
-	await assert.rejects(
-		() => exportScapeProject(project, store),
-		/Project source 1 cannot be video in project schema 2/iu,
-	);
-	assert.equal(mediaReads, 0);
+	const exported = await exportScapeProject(project, store);
+	assert.equal(exported.manifest.formatVersion, 1);
+	assert.equal(exported.manifest.assets[0]?.kind, 'video');
+	assert.equal(mediaReads, 1);
 });
 
 function featureProject(id: string, fallbackDigest = FALLBACK_DIGEST): AudioEditorProjectCurrent {

@@ -6,16 +6,16 @@ import { createUnreportedVideoSourceCharacteristicsV25 } from '../../src/common/
 import type { VideoFreezeFallbackV1 } from '../../src/common/editor/video-freeze-v24.ts';
 import { createDefaultDissolveVideoTransitionV1 } from '../../src/common/editor/video-transition-registry.ts';
 import type { VideoSourceTimingView } from '../../src/common/editor/video-source-timing-view.ts';
-import type { FramescaperUnifiedExactRenderAuthority } from '../../src/framescaper/editor-project-unified-render-plan-v22.ts';
-import { FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v22.ts';
-import { FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v24.ts';
-import { FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v25.ts';
-import { FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE } from '../../src/framescaper/editor-project-runtime-profile-v26.ts';
-import { createFramescaperProjectV22, type FramescaperProjectV22 } from '../../src/framescaper/editor-project-v22.ts';
-import { createFramescaperProjectV24, type FramescaperProjectV24 } from '../../src/framescaper/editor-project-v24.ts';
-import { createFramescaperProjectV25, type FramescaperProjectV25 } from '../../src/framescaper/editor-project-v25.ts';
-import { createFramescaperProjectV26 } from '../../src/framescaper/editor-project-v26.ts';
-import { framescaperV20Options } from './framescaper-v20-model-fixture.ts';
+import type { FramescaperUnifiedExactRenderAuthority } from '../../src/framescaper/editor-project-unified-render-authority.ts';
+import { FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE } from '../../src/framescaper/editor-domain-runtime-profile.ts';
+import { FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_PROFILE } from '../../src/framescaper/editor-domain-runtime-profile.ts';
+import { FRAMESCAPER_PROFESSIONAL_MEDIA_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-domain-runtime-profile.ts';
+import { FRAMESCAPER_OPENFX_PROJECT_CANDIDATE_PROFILE } from '../../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectTransitions, type FramescaperProjectTransitions } from '../../src/framescaper/editor-project-transitions.ts';
+import { createFramescaperProjectVisual, type FramescaperProjectVisual } from '../../src/framescaper/editor-project-visual.ts';
+import { createFramescaperProjectProfessionalMedia, type FramescaperProjectProfessionalMedia } from '../../src/framescaper/editor-project-professional-media.ts';
+import { createFramescaperProjectOpenFx } from '../../src/framescaper/editor-project-openfx.ts';
+import { framescaperV20Options } from './framescaper-model-fixture.ts';
 
 export const UNIFIED_RENDER_SHA_A = 'aa'.repeat(32);
 export const UNIFIED_RENDER_SHA_B = 'bb'.repeat(32);
@@ -23,9 +23,9 @@ export const UNIFIED_RENDER_SHA_C = 'cc'.repeat(32);
 export const UNIFIED_RENDER_SHA_D = 'dd'.repeat(32);
 const RATE_10 = Object.freeze({ num: 10, den: 1 });
 
-export function transitionProject(): FramescaperProjectV22 {
-	return createFramescaperProjectV22(
-		FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, transitionProjectOptions(),
+export function transitionProject(): FramescaperProjectTransitions {
+	return createFramescaperProjectTransitions(
+		FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE, transitionProjectOptions(),
 	);
 }
 
@@ -54,30 +54,40 @@ export function transitionProjectOptions(): Record<string, unknown> {
 export function candidateTransitionProject(generation: 22 | 24 | 25 | 26): unknown {
 	const options = transitionProjectOptions();
 	if (generation === 22) {
-		return createFramescaperProjectV22(FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE, options);
+		return createFramescaperProjectTransitions(FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE, options);
 	}
 	if (generation === 24) {
-		return createFramescaperProjectV24(FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE, options);
+		return createFramescaperProjectVisual(FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_PROFILE, options);
 	}
 	if (generation === 25) {
-		return createFramescaperProjectV25(FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE, options);
+		return createFramescaperProjectProfessionalMedia(FRAMESCAPER_PROFESSIONAL_MEDIA_PROJECT_RUNTIME_PROFILE, options);
 	}
-	return createFramescaperProjectV26(FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE, {
+	return createFramescaperProjectOpenFx(FRAMESCAPER_OPENFX_PROJECT_CANDIDATE_PROFILE, {
 		...options, ofxEffects: [],
 	});
 }
 
 export function candidateProfile(generation: 22 | 24 | 25 | 26): unknown {
-	if (generation === 22) return FRAMESCAPER_V22_PROJECT_CANDIDATE_PROFILE;
-	if (generation === 24) return FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE;
-	if (generation === 25) return FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE;
-	return FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE;
+	if (generation === 22) return FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE;
+	if (generation === 24) return FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_PROFILE;
+	if (generation === 25) return FRAMESCAPER_PROFESSIONAL_MEDIA_PROJECT_RUNTIME_PROFILE;
+	return FRAMESCAPER_OPENFX_PROJECT_CANDIDATE_PROFILE;
 }
 
 export function visualProject(
 	freezeFallback?: VideoFreezeFallbackV1,
 	repeatStill = false,
-): FramescaperProjectV24 {
+): FramescaperProjectVisual {
+	return createFramescaperProjectVisual(
+		FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_PROFILE,
+		visualProjectOptions(freezeFallback, repeatStill),
+	);
+}
+
+export function visualProjectOptions(
+	freezeFallback?: VideoFreezeFallbackV1,
+	repeatStill = false,
+): Record<string, unknown> {
 	const options = framescaperV20Options();
 	const still = stillSource();
 	const stillClip = visualClip('still', 'still-clip', 'still-source', 10);
@@ -101,7 +111,7 @@ export function visualProject(
 			'video-track', 'upper-track', 'audio-track',
 		];
 	}
-	return createFramescaperProjectV24(FRAMESCAPER_V24_PROJECT_CANDIDATE_PROFILE, {
+	return {
 		...options,
 		videoTransitionsByTrackId: { 'video-track': [] },
 		visualModel: {
@@ -109,10 +119,10 @@ export function visualProject(
 			adjustmentLayers: [adjustment()], presets: [preset()], maskMattes: [mask()],
 			freezeFallbacks: freezeFallback === undefined ? [] : [freezeFallback],
 		},
-	});
+	};
 }
 
-export function professionalProject(): FramescaperProjectV25 {
+export function professionalProject(): FramescaperProjectProfessionalMedia {
 	const options = framescaperV20Options();
 	const source = (options.sources as Record<string, unknown>[])[0]!;
 	const characteristics = createUnreportedVideoSourceCharacteristicsV25();
@@ -136,13 +146,13 @@ export function professionalProject(): FramescaperProjectV25 {
 		},
 		characteristics,
 	});
-	return createFramescaperProjectV25(FRAMESCAPER_V25_PROJECT_RUNTIME_PROFILE, {
+	return createFramescaperProjectProfessionalMedia(FRAMESCAPER_PROFESSIONAL_MEDIA_PROJECT_RUNTIME_PROFILE, {
 		...options, videoTransitionsByTrackId: { 'video-track': [] },
 	});
 }
 
 export function openFxProject(inputSourceId: string) {
-	return createFramescaperProjectV26(FRAMESCAPER_V26_PROJECT_CANDIDATE_PROFILE, {
+	return createFramescaperProjectOpenFx(FRAMESCAPER_OPENFX_PROJECT_CANDIDATE_PROFILE, {
 		...framescaperV20Options(),
 		videoTransitionsByTrackId: { 'video-track': [] },
 		ofxEffects: [{
@@ -190,7 +200,7 @@ export function renderAuthority(
 	};
 }
 
-export function visualFreshness(project: FramescaperProjectV24) {
+export function visualFreshness(project: FramescaperProjectVisual) {
 	const sourceById = new Map(project.sources.map((source) => [String(source.id), source]));
 	const states = new Map<string, unknown>();
 	for (const clip of project.clips) {

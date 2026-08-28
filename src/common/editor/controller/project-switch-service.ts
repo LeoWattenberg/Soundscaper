@@ -67,7 +67,7 @@ export function createProjectSwitchService<
 	}
 
 	async function openProject(value: unknown): Promise<void> {
-		const loaded = runtime.migrateProject(value);
+		const loaded = runtime.loadProject(value);
 		const readOnly = Boolean(loaded.readOnly || loaded.intrinsicReadOnly);
 		const readOnlyReason = !readOnly
 			? null
@@ -339,7 +339,10 @@ export function createProjectSwitchService<
 			runtime.state.projects = Object.freeze(await guard(runtime.listProjects()));
 			runtime.synchronizeMicrophoneMeterTarget();
 			runtime.publishProjectState();
-			await guard(openRecovery.deferGarbageCollection(() => runtime.garbageCollectSources()));
+			// Foreign/future custody is opaque; maintenance must not traverse or mutate it.
+			if (!runtime.state.readOnly) {
+				await guard(openRecovery.deferGarbageCollection(() => runtime.garbageCollectSources()));
+			}
 			if (!options.save && !runtime.state.readOnly) {
 				const isCurrentWritable = (): boolean => {
 					try { runtime.lifetime.assertActive(token); }

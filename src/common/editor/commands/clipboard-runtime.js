@@ -8,6 +8,9 @@ import {
 	normalizeFrameRange,
 } from '../project.js';
 import {
+	hasCoreEditingProjectAuthority,
+	hasProjectBinMediaAuthority,
+	hasSequenceGeometryProjectAuthority,
 	isTakeCompProjectSchema,
 	isTimelineAnnotationProjectSchema,
 } from '../project-schema-version.ts';
@@ -104,8 +107,8 @@ export function createClipboardDescriptor(project, options = {}) {
 			&& tracks[1].type === 'audio'
 		) pairedLaneGroupIds.add(laneGroupId);
 	}
-	const currentClipboard = isTimelineAnnotationProjectSchema(project.schemaVersion);
-	const takeClipboard = isTakeCompProjectSchema(project.schemaVersion);
+	const currentClipboard = isTimelineAnnotationProjectSchema(project);
+	const takeClipboard = isTakeCompProjectSchema(project);
 	const keyframeClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
 		.some((clip) => clip.kind === 'video' && Object.hasOwn(clip, 'videoKeyframes'));
 	const compositionClipboard = [...project.clips, ...(project.projectBin?.clips || [])]
@@ -256,7 +259,7 @@ export function pasteClipboard(project, command) {
 	const scale = project.sampleRate / clipboard.sampleRate;
 	if (!Number.isFinite(scale) || scale <= 0) throw new RangeError('The clipboard sample rate is invalid.');
 	const pastedDurationFrames = Math.max(1, Math.round(clipboard.durationFrames * scale));
-	const conformsToVideoGrid = project.schemaVersion >= 10 && clipboardContainsVideo(clipboard);
+	const conformsToVideoGrid = hasSequenceGeometryProjectAuthority(project) && clipboardContainsVideo(clipboard);
 	const conformedAnchorBySequenceId = conformedPasteAnchors(
 		project,
 		clipboard,
@@ -272,7 +275,7 @@ export function pasteClipboard(project, command) {
 	for (const clipboardTrack of clipboard.tracks || []) {
 		const targetTrack = requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId);
 		const sourceTrackType = clipboardTrack.sourceTrackType || clipboardTrack.clips?.[0]?.kind || 'audio';
-		if (project.schemaVersion >= 4 && targetTrack.type !== sourceTrackType) {
+		if (hasProjectBinMediaAuthority(project) && targetTrack.type !== sourceTrackType) {
 			throw new RangeError(`A ${sourceTrackType} clipboard track cannot be pasted into a ${targetTrack.type} track.`);
 		}
 		targetTracks.add(targetTrack);
@@ -295,7 +298,7 @@ export function pasteClipboard(project, command) {
 	const commitTakePaste = stageTakeCompClipboardPaste(
 		project, clipboard, command, mode, scale, pasteGeometry,
 	);
-	if (mode === 'overlap' && project.schemaVersion < 2) {
+	if (mode === 'overlap' && !hasCoreEditingProjectAuthority(project)) {
 		const range = normalizeFrameRange(atFrame, atFrame + pastedDurationFrames, 'paste overlap range');
 		for (const track of targetTracks) processTrackRange(
 			project,
@@ -359,7 +362,9 @@ export function pasteClipboard(project, command) {
 	const additions = [];
 	for (const clipboardTrack of clipboard.tracks || []) {
 		const targetTrack = requireTrack(project, command.trackMap?.[clipboardTrack.sourceTrackId] || clipboardTrack.sourceTrackId);
-		const targetSequence = project.schemaVersion >= 10 ? sequenceForTrack(project, targetTrack.id) : null;
+		const targetSequence = hasSequenceGeometryProjectAuthority(project)
+			? sequenceForTrack(project, targetTrack.id)
+			: null;
 		const conformedAnchor = targetSequence ? conformedAnchorBySequenceId.get(targetSequence.id) : null;
 		for (const descriptor of clipboardTrack.clips || []) {
 			const id = command.clipIds?.[descriptor.key];
@@ -400,13 +405,14 @@ export function pasteClipboard(project, command) {
 function preparePasteCollisionIds(project, command, idFactory) {
 	const scale = project.sampleRate / command.clipboard.sampleRate;
 	const durationFrames = Math.max(1, Math.round(command.clipboard.durationFrames * scale));
-	const conformsToVideoGrid = project.schemaVersion >= 10 && clipboardContainsVideo(command.clipboard);
+	const conformsToVideoGrid = hasSequenceGeometryProjectAuthority(project)
+		&& clipboardContainsVideo(command.clipboard);
 	const targetIds = new Set((command.clipboard.tracks || []).map((track) => command.trackMap?.[track.sourceTrackId] || track.sourceTrackId));
 	const targetTracks = command.mode === 'insert-all'
 		? project.tracks.filter((track) => Array.isArray(track.clipIds))
 		: project.tracks.filter((track) => targetIds.has(track.id) && Array.isArray(track.clipIds));
 	let baseClipIds;
-	if (command.mode === 'overlap' && project.schemaVersion >= 2) {
+	if (command.mode === 'overlap' && hasCoreEditingProjectAuthority(project)) {
 		const pastedVideoTrackIds = new Set((command.clipboard.tracks || [])
 			.filter((track) => (track.sourceTrackType || track.clips?.[0]?.kind || 'audio') === 'video')
 			.map((track) => command.trackMap?.[track.sourceTrackId] || track.sourceTrackId));

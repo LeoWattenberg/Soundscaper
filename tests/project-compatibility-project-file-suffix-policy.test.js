@@ -28,7 +28,7 @@ test('the compatibility register states the suffix each product writes and accep
 	assert.match(rule.currentBehavior, /routing hint only/u);
 	assert.match(rule.currentBehavior, /scape-range-v1 desktop read profile rather than bounded materialization/u);
 	assert.match(rule.currentBehavior, /neither shipping app claims \.liscape/u);
-	assert.match(rule.currentBehavior, /no migration or format-version bump/u);
+	assert.match(rule.currentBehavior, /manifest\/root schema-family tuple.*archive format.*remain authoritative/u);
 	assert.match(rule.currentBehavior, /application\/vnd\.soundscaper\.scape\+zip/u);
 	assert.match(rule.currentBehavior, /\.scapefx/u);
 });

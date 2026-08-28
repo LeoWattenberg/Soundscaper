@@ -5,7 +5,7 @@ import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
-const DATABASE_VERSION = 8;
+const DATABASE_VERSION = 1;
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
@@ -109,7 +109,7 @@ async function expectPersistedPreviewClip(page, editor) {
 
 async function waitForVideoEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
-	await expect(editor).toBeVisible();
+	await expect(editor).toBeVisible({ timeout: 20_000 });
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });

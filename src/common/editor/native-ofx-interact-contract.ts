@@ -18,12 +18,19 @@ import {
 	assertOfxEffectStateV26,
 	type OfxEffectStateV26,
 } from './native-ofx-state-v26.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from './project-schema-identity.ts';
 
 export const OFX_INTERACT_SURFACE_DIMENSION_V1 = 64;
 export const OFX_INTERACT_SURFACE_BYTES_V1 = 64 * 64 * 4;
 export const OFX_INTERACT_MAXIMUM_EVENTS_V1 = 256;
 
 export interface FramescaperOpenFxInteractProjectV1 {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly id: string;
 	readonly revision: number;
 }
@@ -242,6 +249,8 @@ function validateResultAuthority(
 	expected: FramescaperOpenFxInteractRequestV1,
 ): void {
 	if (result.project.id !== expected.project.id || result.project.revision !== expected.project.revision
+		|| result.project.schemaFamily !== expected.project.schemaFamily
+		|| result.project.schemaVersion !== expected.project.schemaVersion
 		|| result.instanceId !== expected.effect.instanceId
 		|| result.effectStateSha256 !== expected.effectStateSha256
 		|| result.target !== expected.target || result.parameterName !== expected.parameterName) {
@@ -269,13 +278,22 @@ function acceptedSequenceList(value: unknown): readonly number[] {
 }
 
 function projectIdentity(value: unknown, label: string): FramescaperOpenFxInteractProjectV1 {
+	let identity;
+	try { identity = readProjectSchemaIdentity(value); }
+	catch (cause) { throw contractError(errorMessage(cause, `The OpenFX Interact ${label} project identity is malformed.`)); }
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw contractError(`The OpenFX Interact ${label} requires the current Framescaper project schema.`);
+	}
 	const project = plainRecord(value, `OpenFX Interact ${label} project`);
-	exactKeys(project, ['id', 'revision'], `OpenFX Interact ${label} project`);
+	exactKeys(project, ['schemaFamily', 'schemaVersion', 'id', 'revision'],
+		`OpenFX Interact ${label} project`);
 	if (typeof project.id !== 'string' || !ID.test(project.id)
 		|| !Number.isSafeInteger(project.revision) || Number(project.revision) < 0) {
 		throw contractError(`The OpenFX Interact ${label} project identity is malformed.`);
 	}
-	return Object.freeze({ id: project.id, revision: Number(project.revision) });
+	return Object.freeze({ schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION, id: project.id, revision: Number(project.revision) });
 }
 
 function standardParameter(context: OfxContext, name: string): boolean {

@@ -18,7 +18,8 @@ import type {
 
 function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerProject {
 	return {
-		schemaVersion: 5,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		id: 'project',
 		title: 'Project',
 		sampleRate: 48_000,
@@ -343,7 +344,10 @@ test('transform guards reject incompatible tracks and return early for blocked o
 
 	fixture.setProject(projectFixture({ tracks: [mono] }));
 	await assert.rejects(fixture.service.makeStereoTrack('mono'), /Partner required/u);
-	fixture.setProject(projectFixture({ ...projectFixture(), schemaVersion: 1, tracks: [mono] }));
+	fixture.setProject({
+		...projectFixture({ tracks: [mono] }),
+		schemaFamily: undefined,
+	} as ControllerProject);
 	await assert.rejects(fixture.service.resampleTrack('mono'), /V2 required/u);
 	fixture.setProject(projectFixture({ tracks: [trackFixture({ id: 'label', type: 'label' })] }));
 	await assert.rejects(fixture.service.resampleTrack('label'), /Audio required/u);

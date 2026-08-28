@@ -21,10 +21,11 @@ import {
 	bindVideoSourceTimingView,
 	type VideoSourceTimingView,
 } from '../../src/common/editor/video-source-timing-view.ts';
-import { createFramescaperProjectV20 } from '../../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperProjectForRuntimeConsumersV20 } from '../../src/framescaper/editor-project-v20-runtime.ts';
-import { framescaperV20Options } from './framescaper-v20-model-fixture.ts';
+import { createFramescaperProject } from '../../src/framescaper/editor-project.ts';
+import type { FramescaperProjectComposition } from '../../src/framescaper/editor-project-composition.ts';
+import { framescaperProjectForRuntimeConsumers } from '../../src/framescaper/editor-project-runtime.ts';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-project-runtime-profile.ts';
+import { framescaperV20Options } from './framescaper-model-fixture.ts';
 
 export const RATE = Object.freeze({ num: 10, den: 1 });
 export const SOURCE_ID = 'video-source';
@@ -140,15 +141,16 @@ export async function exportFixture(options_: Readonly<{
 	};
 	if (options_.inactiveSources) addInactiveSources(options);
 	if (options_.trackFolders) addHiddenFolder(options);
-	const project = createFramescaperProjectV20(
-		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+	const project = createFramescaperProject(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 		options,
 	);
-	const runtimeProject = framescaperProjectForRuntimeConsumersV20(
-		FRAMESCAPER_V20_PROJECT_MODEL_PROFILE,
+	const runtimeProject = framescaperProjectForRuntimeConsumers(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 		project,
 	);
-	const source = project.sources.find((candidate) => candidate.id === SOURCE_ID)!;
+	const source = (project as unknown as FramescaperProjectComposition).sources
+		.find((candidate) => candidate.id === SOURCE_ID)!;
 	const view: VideoSourceTimingView = Object.freeze({ kind: 'cfr', rate: RATE, frameCount: 10 });
 	return Object.freeze({
 		blob,

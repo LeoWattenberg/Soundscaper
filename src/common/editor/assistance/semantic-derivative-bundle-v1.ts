@@ -9,6 +9,11 @@ import {
 	reviewAssistanceEmbeddingMatrixV1,
 	type ReviewedAssistanceEmbeddingMatrixV1,
 } from './binary-formats-v1.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 
 export const ASSISTANCE_SEMANTIC_DERIVATIVE_BUNDLE_VERSION = 1 as const;
 export const ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE =
@@ -20,7 +25,8 @@ const MAXIMUM_HEADER_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_MATRIX_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_ROWS = 100_000;
 const HEADER_FIELDS = Object.freeze([
-	'bundleVersion', 'provider', 'projectId', 'projectRevision', 'sequenceId', 'sourceId',
+	'bundleVersion', 'provider', 'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision',
+	'sequenceId', 'sourceId',
 	'matrixByteLength', 'matrixSha256', 'rows', 'ocr',
 ]);
 const ROW_FIELDS = Object.freeze(['resultId', 'timelineFrame', 'label']);
@@ -37,6 +43,8 @@ export interface AssistanceSemanticDerivativeRowV1 {
 
 export interface AssistanceSemanticDerivativeBundleDraftV1 {
 	readonly provider: 'transcript' | 'visual';
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly sequenceId: string;
@@ -49,6 +57,8 @@ export interface AssistanceSemanticDerivativeBundleDraftV1 {
 export interface ReviewedAssistanceSemanticDerivativeBundleV1 {
 	readonly bundleVersion: typeof ASSISTANCE_SEMANTIC_DERIVATIVE_BUNDLE_VERSION;
 	readonly provider: AssistanceSemanticDerivativeBundleDraftV1['provider'];
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly sequenceId: string;
@@ -63,8 +73,9 @@ export interface ReviewedAssistanceSemanticDerivativeBundleV1 {
 export function createAssistanceSemanticDerivativeBundleV1(
 	draft: AssistanceSemanticDerivativeBundleDraftV1,
 ): Uint8Array {
+	const identity = currentIdentity(draft, 'semantic derivative draft');
 	const matrixBytes = binaryBytes(draft?.matrix);
-	const reviewed = reviewParts({ ...draft, matrixBytes,
+	const reviewed = reviewParts({ ...draft, ...identity, matrixBytes,
 		matrixSha256: digest(matrixBytes), matrix: reviewAssistanceEmbeddingMatrixV1(matrixBytes) });
 	const header = headerOf(reviewed);
 	const headerBytes = UTF8.encode(JSON.stringify(header));
@@ -108,8 +119,10 @@ export function reviewAssistanceSemanticDerivativeBundleV1(
 	}
 	const matrixBytes = Uint8Array.from(bytes.subarray(PREFIX_BYTES + headerLength));
 	const header = exactRecord(headerValue, HEADER_FIELDS, 'semantic derivative header');
+	const identity = currentIdentity(header, 'semantic derivative header');
 	const reviewed = reviewParts({
 		provider: header.provider,
+		...identity,
 		projectId: header.projectId,
 		projectRevision: header.projectRevision,
 		sequenceId: header.sequenceId,
@@ -153,6 +166,7 @@ function reviewParts(value: Readonly<Record<string, unknown>> & Readonly<{
 	return Object.freeze({
 		bundleVersion: ASSISTANCE_SEMANTIC_DERIVATIVE_BUNDLE_VERSION,
 		provider,
+		...currentIdentity(value, 'semantic derivative authority'),
 		projectId: id(value.projectId, 'semantic derivative project ID'),
 		projectRevision: integer(value.projectRevision, 'semantic derivative project revision'),
 		sequenceId: id(value.sequenceId, 'semantic derivative sequence ID'),
@@ -163,11 +177,23 @@ function reviewParts(value: Readonly<Record<string, unknown>> & Readonly<{
 
 function headerOf(value: ReviewedAssistanceSemanticDerivativeBundleV1): unknown {
 	return {
-		bundleVersion: value.bundleVersion, provider: value.provider, projectId: value.projectId,
+		bundleVersion: value.bundleVersion, provider: value.provider,
+		schemaFamily: value.schemaFamily, schemaVersion: value.schemaVersion, projectId: value.projectId,
 		projectRevision: value.projectRevision, sequenceId: value.sequenceId, sourceId: value.sourceId,
 		matrixByteLength: value.matrixBytes.byteLength, matrixSha256: value.matrixSha256,
 		rows: value.rows, ocr: value.ocr,
 	};
+}
+
+function currentIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: ProjectSchemaFamily; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} requires a current project schema.`);
+	}
+	return Object.freeze({ schemaFamily: identity.schemaFamily, schemaVersion: PROJECT_SCHEMA_VERSION });
 }
 
 function reviewRows(value: unknown, label: string): readonly AssistanceSemanticDerivativeRowV1[] {

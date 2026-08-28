@@ -6,10 +6,6 @@ import test from 'node:test';
 import { applyEditorCommand } from '../src/common/editor/commands.js';
 
 import {
-	AudioEditorProjectReimportRequiredError,
-	migrateAudioEditorProject,
-} from '../src/common/editor/migration.js';
-import {
 	cloneCurrentAudioEditorProject,
 	createCurrentAudioEditorProject,
 	loadCurrentAudioEditorProject,
@@ -17,9 +13,6 @@ import {
 } from '../src/common/editor/project-current.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
 	isActiveAudioEditorProjectSchema,
 	isTakeCompProjectSchema,
 	isVideoRetimeCurveProjectSchema,
@@ -46,13 +39,13 @@ import { normalizeProjectFeatureRequirements } from '../src/common/editor/projec
 
 const NOW = '2026-08-12T10:00:00.000Z';
 
-test('active audio-authoring schemas admit V17 and Soundscaper V21/V23 only', () => {
-	assert.equal(isActiveAudioEditorProjectSchema(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION), true);
-	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION), true);
-	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION), true);
-	assert.equal(isActiveAudioEditorProjectSchema(16), false);
-	assert.equal(isActiveAudioEditorProjectSchema(FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION), false);
-	assert.equal(isActiveAudioEditorProjectSchema(SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION + 1), false);
+test('active audio-authoring authority requires a complete internal project or v1 tuple', () => {
+	assert.equal(isActiveAudioEditorProjectSchema(createAudioEditorProjectV17(options([]))), true);
+	assert.equal(isActiveAudioEditorProjectSchema({ schemaFamily: 'soundscaper', schemaVersion: 1 }), true);
+	assert.equal(isActiveAudioEditorProjectSchema({ schemaFamily: 'framescaper', schemaVersion: 1 }), true);
+	for (const numeric of [1, 16, 17, 19, 21, 23]) {
+		assert.equal(isActiveAudioEditorProjectSchema(numeric), false);
+	}
 });
 
 function options(takeGroups: readonly unknown[] = [group()]): Record<string, unknown> {
@@ -341,24 +334,18 @@ test('V17 clone, current aliases, and raw load preserve take/comp state without 
 	assert.deepEqual(loadCurrentAudioEditorProject(current), { project, readOnly: false, reason: null });
 });
 
-test('V17 is the sole current schema while V16 reimports and V18 remains opaque', () => {
+test('V17 remains the sole internal shared factory schema', () => {
 	assert.equal(AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION, 17);
 	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 17);
-	assert.equal(isTakeCompProjectSchema(17), true);
+	const predicateProject = createAudioEditorProjectV17({ id: 'predicate-v17', now: NOW });
+	assert.equal(isTakeCompProjectSchema(predicateProject), true);
+	assert.equal(isTakeCompProjectSchema(17), false);
 	assert.equal(isTakeCompProjectSchema(16), false);
-	assert.equal(isVideoRetimeCurveProjectSchema(17), true);
+	assert.equal(isVideoRetimeCurveProjectSchema(predicateProject), true);
 
-	const v16 = {
-		...createAudioEditorProjectV17({ id: 'historical-v16', now: NOW }),
-		schemaVersion: 16,
-	};
-	assert.throws(
-		() => migrateAudioEditorProject(v16),
-		(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError,
-	);
 	const project = createAudioEditorProjectV17(options());
 	const future = { ...project, schemaVersion: 18, future: { retained: true } };
-	assert.deepEqual(migrateAudioEditorProject(future), {
-		project: future, migrated: false, fromVersion: 18, readOnly: true, reason: 'newer-schema',
+	assert.deepEqual(loadAudioEditorProjectV17(future), {
+		project: future, readOnly: true, reason: 'newer-schema',
 	});
 });

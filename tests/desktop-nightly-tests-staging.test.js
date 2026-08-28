@@ -90,7 +90,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		name: 'soundscaper-nightly-tests',
 		productName: 'Soundscaper Nightly Tests',
 		desktopName: 'org.soundscaper.desktop.nightly-tests',
-		version: '0.2.0-beta.1',
+		version: '1.0.0-rc.1',
 		description: 'Portable Soundscaper Playwright browser test runner',
 		main: 'desktop/nightly-tests-main.mjs',
 		type: 'module',
@@ -154,7 +154,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	const manifest = await readJson(join(fixture.outputRoot, 'stage-manifest.json'));
 	assert.equal(manifest.schemaVersion, 1);
 	assert.equal(manifest.kind, 'soundscaper-desktop-nightly-tests');
-	assert.equal(manifest.applicationVersion, '0.2.0-beta.1');
+	assert.equal(manifest.applicationVersion, '1.0.0-rc.1');
 	assert.equal(manifest.sourceRevision, 'a'.repeat(40));
 	assert.deepEqual(manifest.target, { platform: 'linux', arch: 'x64' });
 	assert.deepEqual(manifest.browserRevisions, {
@@ -444,7 +444,7 @@ async function createFixture(context) {
 	const outputRoot = join(repositoryRoot, '.desktop-build/nightly-tests');
 	await writeFixtureFile(repositoryRoot, 'package.json', `${JSON.stringify({
 		name: 'soundscaper',
-		version: '0.2.0-beta.1',
+		version: '1.0.0-rc.1',
 	})}\n`);
 	for (const [path, body] of [
 		['LICENSE', 'AGPL fixture\n'],

@@ -9,15 +9,15 @@ import {
 } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { deriveUnifiedExactOfxAbsentFreshnessV26 } from '../src/common/editor/native-ofx-freshness-authority.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 import {
 	createFramescaperOpenFxFrameExecutionService,
 } from '../desktop/framescaper-openfx-frame-execution.ts';
 import type { FramescaperOpenFxExecutionRequestV1 } from '../desktop/openfx-main-execution-request.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const SHA = 'a7'.repeat(32);
 
@@ -118,7 +118,7 @@ test('a canonical same-revision forged effect is refused before missing-plugin f
 		...fixture.request,
 		planPayload: canonicalizeNativeMediaPlan(plan),
 		planFingerprint: fingerprintNativeMediaPlan(plan).sha256,
-	}), /current V28 project revision/iu);
+	}), /current baseline project revision/iu);
 	assert.equal(inventories, 0, 'fallback resolution cannot precede exact authored-effect authority');
 });
 
@@ -165,10 +165,10 @@ test('the missing-plugin frozen gate derives freshness from the plan, not the au
 				frameCount: 10, freshness,
 			},
 		}];
-		const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-		const original = createFramescaperProjectUnifiedExactRenderPlanV28(
-			FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-			createFramescaperNativeRenderPlanAuthorityV28(project),
+		const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
+		const original = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+			FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+			createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 		);
 		const raw = structuredClone(original) as unknown as Record<string, unknown>;
 		const output = raw.output as Record<string, unknown>;
@@ -177,6 +177,8 @@ test('the missing-plugin frozen gate derives freshness from the plan, not the au
 		return {
 			plan,
 			request: {
+				protocolVersion: 1 as const,
+				schemaFamily: 'framescaper' as const,
 				schemaVersion: 1 as const,
 				planPayload: canonicalizeNativeMediaPlan(plan),
 				planFingerprint: fingerprintNativeMediaPlan(plan).sha256,
@@ -216,10 +218,10 @@ function requestFixture() {
 		freshness: { authoredStateSha256: SHA, inputIdentitiesSha256: SHA,
 			renderPlanFingerprintSha256: SHA, nativeEffectFingerprintSha256: SHA }, frozenFallback: null,
 	}];
-	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-	const original = createFramescaperProjectUnifiedExactRenderPlanV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-		createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
+	const original = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const raw = structuredClone(original) as unknown as Record<string, unknown>;
 	const output = raw.output as Record<string, unknown>;
@@ -230,6 +232,7 @@ function requestFixture() {
 	return {
 		frameBytes: 16,
 		request: {
+			protocolVersion: 1 as const, schemaFamily: 'framescaper' as const,
 			schemaVersion: 1 as const, planPayload, planFingerprint, instanceId: 'ofx-1',
 			outputOrdinal: 0, requestedBackend: 'cpu' as const, transitionProgress: null,
 			inputs: [{ name: 'Source', sourceRef: 'video-source', width: 2, height: 2,

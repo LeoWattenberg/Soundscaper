@@ -10,26 +10,26 @@ import {
 	createFramescaperNativeDeliveryReportSeedV1,
 	sealFramescaperNativeDeliveryReportV1,
 } from '../src/framescaper/delivery-native-report-v1.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
 import {
 	createFramescaperProjectUnifiedRenderDeliveryBundleV15,
-} from '../src/framescaper/editor-project-unified-render-delivery-v15.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import type { FramescaperCaptionDeliveryRequestV28 } from '../src/framescaper/video-caption-delivery-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+} from '../src/framescaper/editor-project-unified-render-delivery.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import type { FramescaperCaptionDeliveryRequest } from '../src/framescaper/video-caption-delivery.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const SHA_B = 'bb'.repeat(32);
 const JOB_ID = 'ab'.repeat(20);
-const PROFILE = FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE;
-const PROJECT = createFramescaperProjectV28(PROFILE, {
+const PROFILE = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
+const PROJECT = createFramescaperProjectNativeMedia(PROFILE, {
 	...framescaperV20Options(),
 	finishing: { captionTracks: [captionTrack()] },
 });
-const AUTHORITY = createFramescaperNativeRenderPlanAuthorityV28(PROJECT);
+const AUTHORITY = createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT);
 const V14_ENVELOPE = createNativeMediaPlanEnvelopeV2(
-	createFramescaperProjectUnifiedExactRenderPlanV28(PROFILE, PROJECT, AUTHORITY),
+	createFramescaperProjectUnifiedExactRenderPlanNativeMedia(PROFILE, PROJECT, AUTHORITY),
 );
 const H264_ENVELOPE = h264Envelope();
 
@@ -281,7 +281,7 @@ test('native report sealing rejects unreported conversion errors and forged retr
 
 test('native delivery reports represent every selected caption delivery combination', () => {
 	const combinations: readonly [
-		Omit<FramescaperCaptionDeliveryRequestV28, 'trackId'>,
+		Omit<FramescaperCaptionDeliveryRequest, 'trackId'>,
 		string,
 	][] = [
 		[{ mux: true, burnIn: false, sidecar: null }, 'mux'],
@@ -321,7 +321,7 @@ test('image-sequence closure requires its tree and exact companion-audio artifac
 		frameRate: { num: 24, den: 1 },
 		preserveAlpha: true as const,
 	};
-	const authority = createFramescaperNativeRenderPlanAuthorityV28(PROJECT, delivery);
+	const authority = createFramescaperNativeRenderPlanAuthorityNativeMedia(PROJECT, delivery);
 	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(
 		PROFILE, PROJECT, authority, {
 			deliveryProfile: 'encode-png-sequence',
@@ -417,7 +417,7 @@ test('a burn-in delivery cannot seal while silent about what it cannot draw', ()
 	// The web delivery inventory names undrawable characters and overlapping
 	// cues; a native burn-in that stays silent about blanks in its own picture
 	// is exactly the hidden conversion the delivery gate forbids.
-	const project = createFramescaperProjectV28(PROFILE, {
+	const project = createFramescaperProjectNativeMedia(PROFILE, {
 		...framescaperV20Options(),
 		finishing: { captionTracks: [{
 			...captionTrack(),
@@ -430,7 +430,7 @@ test('a burn-in delivery cannot seal while silent about what it cannot draw', ()
 			}],
 		}] },
 	});
-	const authority = createFramescaperNativeRenderPlanAuthorityV28(project);
+	const authority = createFramescaperNativeRenderPlanAuthorityNativeMedia(project);
 	const bundle = createFramescaperProjectUnifiedRenderDeliveryBundleV15(PROFILE, project, authority, {
 		deliveryProfile: 'encode-mov-prores-422-hq',
 		captionRequest: { trackId: 'captions-en', mux: false, burnIn: true, sidecar: null },
@@ -481,7 +481,7 @@ function reportWithItems(items: readonly Readonly<{
 	return sealDeliveryReport(report);
 }
 
-function v15Bundle(request: FramescaperCaptionDeliveryRequestV28) {
+function v15Bundle(request: FramescaperCaptionDeliveryRequest) {
 	return createFramescaperProjectUnifiedRenderDeliveryBundleV15(
 		PROFILE, PROJECT, AUTHORITY, {
 			deliveryProfile: 'encode-mov-prores-422-hq', captionRequest: request,

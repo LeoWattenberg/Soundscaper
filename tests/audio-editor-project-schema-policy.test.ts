@@ -4,48 +4,26 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	AudioEditorProjectReimportRequiredError,
-	migrateAudioEditorProject,
-} from '../src/common/editor/migration.js';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+	PROJECT_SCHEMA_VERSION,
+	ProjectReimportRequiredError,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
-test('pre-release older raw schemas fail with a typed re-import requirement', () => {
-	for (let schemaVersion = 1; schemaVersion < AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION; schemaVersion += 1) {
+test('every numeric-only pre-release identity fails with the shared typed re-import requirement', () => {
+	for (const schemaVersion of [1, 17, 21, 30, 32]) {
 		assert.throws(
-			() => migrateAudioEditorProject({ schemaVersion }),
-			(error: unknown) => error instanceof AudioEditorProjectReimportRequiredError
+			() => readProjectSchemaIdentity({ schemaVersion }),
+			(error: unknown) => error instanceof ProjectReimportRequiredError
 				&& error.code === 'REIMPORT_REQUIRED'
 				&& error.schemaVersion === schemaVersion
-				&& error.currentSchemaVersion === AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+				&& error.currentSchemaVersion === PROJECT_SCHEMA_VERSION,
 		);
 	}
 });
 
-test('the current raw schema remains editable and a future schema remains opaque read-only', () => {
-	const current = createCurrentAudioEditorProject({
-		id: 'current',
-		title: 'Current',
-		now: '2026-08-09T00:00:00.000Z',
-	});
-	const loaded = migrateAudioEditorProject(current);
-	assert.equal(loaded.readOnly, false);
-	assert.equal(loaded.fromVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	assert.deepEqual(loaded.project, current);
-	assert.notStrictEqual(loaded.project, current);
-
-	const future = {
-		...current,
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
-		futureState: { preserved: true },
-	};
-	const futureLoaded = migrateAudioEditorProject(future);
-	assert.deepEqual(futureLoaded, {
-		project: future,
-		migrated: false,
-		fromVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
-		readOnly: true,
-		reason: 'newer-schema',
-	});
-	assert.notStrictEqual(futureLoaded.project, future);
+test('the identity reader returns the exact family tuple', () => {
+	assert.deepEqual(readProjectSchemaIdentity({
+		schemaFamily: 'soundscaper',
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+	}), { schemaFamily: 'soundscaper', schemaVersion: 1 });
 });

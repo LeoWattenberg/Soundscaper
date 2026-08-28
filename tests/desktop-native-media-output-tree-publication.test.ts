@@ -140,6 +140,8 @@ test('a lost post-rename fence removes the exact published tree before advertise
 	const phases: string[] = [];
 	await assert.rejects(() => publishVerifiedNativeMediaOutput(
 		publicationRequest(fixture), createFramescaperNativePublicationNodePort(fixture.root), {
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 0,
 			beforePublication: async () => { phases.push('before'); },
 			afterPublication: async () => {
 				phases.push('after');

@@ -16,18 +16,18 @@ import {
 	type UnifiedExactRenderPlanV14,
 } from '../src/common/editor/unified-exact-render-plan.ts';
 import { createFramescaperOpenFxFramePortClient } from '../src/common/editor/ui/framescaper-native-openfx-frame-client.ts';
-import { createFramescaperNativeOpenFxFrameRuntimeV28 } from '../src/common/editor/ui/framescaper-native-openfx-frame-runtime.ts';
-import { createFramescaperNativeRenderPlanAuthorityV28 } from '../src/framescaper/editor-native-render-plan-authority-v28.ts';
-import { createFramescaperProjectUnifiedExactRenderPlanV28 } from '../src/framescaper/editor-project-unified-render-plan-v28.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v28.ts';
-import { createFramescaperProjectV28 } from '../src/framescaper/editor-project-v28.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperNativeOpenFxFrameRuntimeNativeMedia } from '../src/common/editor/ui/framescaper-native-openfx-frame-runtime.ts';
+import { createFramescaperNativeRenderPlanAuthorityNativeMedia } from '../src/framescaper/editor-native-render-plan-authority.ts';
+import { createFramescaperProjectUnifiedExactRenderPlanNativeMedia } from '../src/framescaper/editor-project-unified-render-plan-native-media.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-domain-runtime-profile.ts';
+import { createFramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 test('the renderer runtime closes a forged same-window offer without throwing', () => {
 	const windowIdentity = {};
 	let receive: ((event: unknown) => void) | null = null;
 	let closes = 0;
-	const runtime = createFramescaperNativeOpenFxFrameRuntimeV28({
+	const runtime = createFramescaperNativeOpenFxFrameRuntimeNativeMedia({
 		openOpenFxFrameSession: async () => ({
 			protocolVersion: 1, sessionId: '00'.repeat(20), requestNonce: '11'.repeat(20),
 		}),
@@ -285,7 +285,8 @@ function control() {
 	const sha256 = '37'.repeat(32);
 	const exactPlan = plan();
 	return {
-		schemaVersion: 1, planPayload: canonicalizeNativeMediaPlan(exactPlan),
+		protocolVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+		planPayload: canonicalizeNativeMediaPlan(exactPlan),
 		planFingerprint: fingerprintNativeMediaPlan(exactPlan).sha256,
 		instanceId: 'effect-filter', outputOrdinal: 0, requestedBackend: 'cpu',
 		requestNonce: '04'.repeat(20),
@@ -313,10 +314,10 @@ function plan(): UnifiedExactRenderPlanV14 {
 			renderPlanFingerprintSha256: 'a7'.repeat(32), nativeEffectFingerprintSha256: 'a7'.repeat(32) },
 		frozenFallback: null,
 	}];
-	const project = createFramescaperProjectV28(FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, options);
-	const original = createFramescaperProjectUnifiedExactRenderPlanV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE, project,
-		createFramescaperNativeRenderPlanAuthorityV28(project),
+	const project = createFramescaperProjectNativeMedia(FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, options);
+	const original = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE, project,
+		createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
 	const raw = structuredClone(original);
 	return createUnifiedExactRenderPlan({

@@ -13,7 +13,7 @@ import {
 	validateDesktopReleasePackageInventory,
 } from '../scripts/desktop-release-assets.mjs';
 
-const VERSION = '0.2.0-beta.1';
+const VERSION = '1.0.0-rc.1';
 const PACKAGES = [
 	`Soundscaper-${VERSION}-linux-x64.AppImage`,
 	`Soundscaper-${VERSION}-linux-amd64.deb`,

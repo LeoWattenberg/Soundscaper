@@ -12,14 +12,6 @@ import {
 import {
 	createProjectFeatureCompatibilityService,
 } from '../src/common/editor/controller/project-feature-compatibility-service.ts';
-import {
-	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-	FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-	SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
-} from '../src/common/editor/project-schema-version.ts';
-
 type Requirement = Readonly<{
 	id: string;
 	featureId: string;
@@ -94,12 +86,12 @@ test('capability availability is a strict immutable construction-time snapshot',
 
 test('dormant and future project schemas remain opaque to feature compatibility evaluation', () => {
 	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION + 2,
-		SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION + 1,
+	for (const identity of [
+		{ schemaVersion: 22 },
+		{ schemaFamily: 'soundscaper', schemaVersion: 2 },
 	]) {
 		const unsupportedProject = {
-			schemaVersion,
+			...identity,
 			get featureRequirements(): never {
 				throw new Error('unsupported feature metadata was traversed');
 			},
@@ -110,17 +102,13 @@ test('dormant and future project schemas remain opaque to feature compatibility 
 
 test('selected product schemas retain feature compatibility evaluation after activation', () => {
 	const service = createProjectFeatureCompatibilityService(PRODUCT_PROFILES.soundscaper.capabilities);
-	for (const schemaVersion of [
-		FRAMESCAPER_PROJECT_V19_SCHEMA_VERSION,
-		FRAMESCAPER_PROJECT_V20_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
-		SOUNDSCAPER_PROJECT_V23_SCHEMA_VERSION,
-	]) {
+	for (const schemaFamily of ['framescaper', 'soundscaper'] as const) {
 		const report = service.evaluate({
 			...featureProject([
 				requirement('video-effects', PROJECT_FEATURE_CAPABILITY_IDS.videoEffects, 'Video effects'),
 			]),
-			schemaVersion,
+			schemaFamily,
+			schemaVersion: 1,
 		});
 		assert.equal(report?.items[0]?.availability, 'unavailable');
 	}
@@ -128,7 +116,8 @@ test('selected product schemas retain feature compatibility evaluation after act
 
 function featureProject(requirements: readonly Requirement[]) {
 	return {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper' as const,
+		schemaVersion: 1,
 		featureRequirements: { schemaVersion: 1, requirements },
 	};
 }

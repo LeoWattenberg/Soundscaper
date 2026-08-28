@@ -11,10 +11,12 @@ import {
 } from '../src/common/editor/assistance/semantic-derivative-bundle-v1.ts';
 
 const MATRIX = createAssistanceEmbeddingMatrixV1({ dimensions: 2, vectors: [[1, 0], [0, 1]] });
+const PROJECT_IDENTITY = Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const });
 
 test('semantic derivative bundles bind exact normalized matrices to revisioned searchable rows', () => {
 	const draft = {
-		provider: 'visual' as const, projectId: 'project-a', projectRevision: 8,
+		provider: 'visual' as const, ...PROJECT_IDENTITY,
+		projectId: 'project-a', projectRevision: 8,
 		sequenceId: 'sequence-a', sourceId: 'source-a', matrix: MATRIX,
 		rows: [
 			{ resultId: 'shot:1', timelineFrame: 10, label: 'speaker at desk' },
@@ -35,12 +37,12 @@ test('semantic derivative bundles bind exact normalized matrices to revisioned s
 
 test('semantic derivative bundles reject stale corruption, row drift, and provider substitutions', () => {
 	assert.throws(() => createAssistanceSemanticDerivativeBundleV1({
-		provider: 'transcript', projectId: 'project-a', projectRevision: 8,
+		provider: 'transcript', ...PROJECT_IDENTITY, projectId: 'project-a', projectRevision: 8,
 		sequenceId: 'sequence-a', sourceId: 'source-a', matrix: MATRIX,
 		rows: [{ resultId: 'chunk:1', timelineFrame: 0, label: 'Only one row' }], ocr: [],
 	}), /row|matrix|inventory/iu);
 	assert.throws(() => createAssistanceSemanticDerivativeBundleV1({
-		provider: 'transcript', projectId: 'project-a', projectRevision: 8,
+		provider: 'transcript', ...PROJECT_IDENTITY, projectId: 'project-a', projectRevision: 8,
 		sequenceId: 'sequence-a', sourceId: 'source-a', matrix: MATRIX,
 		rows: [
 			{ resultId: 'chunk:1', timelineFrame: 0, label: 'one' },
@@ -48,7 +50,7 @@ test('semantic derivative bundles reject stale corruption, row drift, and provid
 		], ocr: [{ resultId: 'chunk:1', timelineFrame: 0, label: 'forged' }],
 	}), /OCR|transcript/iu);
 	const valid = createAssistanceSemanticDerivativeBundleV1({
-		provider: 'transcript', projectId: 'project-a', projectRevision: 8,
+		provider: 'transcript', ...PROJECT_IDENTITY, projectId: 'project-a', projectRevision: 8,
 		sequenceId: 'sequence-a', sourceId: 'source-a', matrix: MATRIX,
 		rows: [
 			{ resultId: 'chunk:1', timelineFrame: 0, label: 'one' },

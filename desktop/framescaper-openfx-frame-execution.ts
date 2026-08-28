@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Main-owned pathless admission for one selected-V28 intermediate OpenFX frame. */
+/** Main-owned pathless admission for one baseline intermediate OpenFX frame. */
 
 import {
 	createNativeMediaPlanEnvelopeV2,
@@ -15,14 +15,19 @@ import type {
 	UnifiedExactRenderOpenFxNode,
 	UnifiedExactRenderPlanV14,
 } from '../src/common/editor/unified-exact-render-plan.ts';
-import { framescaperOpenFxTransitionProgressV28 } from '../src/framescaper/editor-openfx-frame-timing-v28.ts';
-import type { FramescaperOpenFxFrameExecutionResultV28 } from '../src/framescaper/editor-openfx-frame-graph-v28.ts';
+import { framescaperOpenFxTransitionProgressNativeMedia } from '../src/framescaper/editor-openfx-frame-timing-native-media.ts';
+import type { FramescaperOpenFxFrameExecutionResultNativeMedia } from '../src/framescaper/editor-openfx-frame-graph-native-media.ts';
 import { deriveUnifiedExactOfxAbsentFreshnessV26 } from '../src/common/editor/native-ofx-freshness-authority.ts';
 import { resolveOfxEffectStateV26 } from '../src/common/editor/native-ofx-state-v26.ts';
 import type { NativePlanVideoTimingAssetBytes } from './native-services-video-timing-staging.ts';
 import type { FramescaperOpenFxExecutionResultV1 } from './openfx-main-service.ts';
 import type { FramescaperOpenFxExecutionRequestV1 } from './openfx-main-execution-request.ts';
 import { createOpenFxMainRetimerSourceTimeV1 } from './openfx-main-retimer-source-time.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 const SHA256 = /^[a-f\d]{64}$/u;
 const ID = /^[A-Za-z0-9][A-Za-z0-9 ._:-]{0,127}$/u;
@@ -30,6 +35,8 @@ export const FRAMESCAPER_OPENFX_FRAME_MAXIMUM_PLAN_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_FRAME_SET_BYTES = 512 * 1024 * 1024;
 
 export interface FramescaperOpenFxFrameControlV1 {
+	readonly protocolVersion: 1;
+	readonly schemaFamily: 'framescaper';
 	readonly schemaVersion: 1;
 	readonly planPayload: string;
 	readonly planFingerprint: string;
@@ -66,7 +73,7 @@ export interface FramescaperOpenFxFrameExecutionPorts {
 }
 
 export interface FramescaperOpenFxFrameExecutionService {
-	execute(request: FramescaperOpenFxFrameMainRequestV1): Promise<FramescaperOpenFxFrameExecutionResultV28>;
+	execute(request: FramescaperOpenFxFrameMainRequestV1): Promise<FramescaperOpenFxFrameExecutionResultNativeMedia>;
 }
 
 export function createFramescaperOpenFxFrameExecutionService(
@@ -78,7 +85,7 @@ export function createFramescaperOpenFxFrameExecutionService(
 			const request = admitRequest(value);
 			const effect = effectNode(request.plan, request.instanceId);
 			if (!await ports.currentProject(request.plan, effect.state)) {
-				throw new Error('The pathless OpenFX frame plan is not the current V28 project revision.');
+				throw new Error('The pathless OpenFX frame plan is not the current baseline project revision.');
 			}
 			const resolvedPlugin = exactPlugin(ports.inventory(), effect);
 			assertContextInputs(effect, request.inputs);
@@ -87,7 +94,7 @@ export function createFramescaperOpenFxFrameExecutionService(
 			}
 			const plugin = resolvedPlugin.plugin;
 			const transitionProgress = effect.state.context === 'transition'
-				? framescaperOpenFxTransitionProgressV28(
+				? framescaperOpenFxTransitionProgressNativeMedia(
 					request.plan, effect.state.attachment.targetId, request.outputOrdinal,
 				) : null;
 			if (request.transitionProgress !== transitionProgress) {
@@ -121,14 +128,15 @@ export function createFramescaperOpenFxFrameExecutionService(
 export function admitFramescaperOpenFxFrameControlV1(
 	value: unknown,
 ): AdmittedFramescaperOpenFxFrameControlV1 {
+	const identity = currentFramescaperIdentity(value, 'OpenFX frame control');
 	const row = closed(value, [
-		'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
+		'protocolVersion', 'schemaFamily', 'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
 		'requestedBackend', 'transitionProgress',
 	], [
-		'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
+		'protocolVersion', 'schemaFamily', 'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
 		'requestedBackend', 'transitionProgress',
 	], 'OpenFX frame control');
-	if (row.schemaVersion !== 1 || typeof row.planPayload !== 'string'
+	if (row.protocolVersion !== 1 || typeof row.planPayload !== 'string'
 		|| new TextEncoder().encode(row.planPayload).byteLength > FRAMESCAPER_OPENFX_FRAME_MAXIMUM_PLAN_BYTES
 		|| typeof row.planFingerprint !== 'string' || !SHA256.test(row.planFingerprint)
 		|| typeof row.instanceId !== 'string' || !ID.test(row.instanceId)
@@ -155,7 +163,7 @@ export function admitFramescaperOpenFxFrameControlV1(
 		throw new RangeError('The OpenFX frame control exceeds its V14 output domain.');
 	}
 	return Object.freeze({
-		schemaVersion: 1 as const, planPayload: row.planPayload,
+		protocolVersion: 1 as const, ...identity, planPayload: row.planPayload,
 		planFingerprint: row.planFingerprint, plan, instanceId: row.instanceId,
 		outputOrdinal: row.outputOrdinal,
 		requestedBackend: row.requestedBackend as OfxRenderBackendV1 | 'qualified-preferred',
@@ -167,13 +175,14 @@ function admitRequest(value: unknown): FramescaperOpenFxFrameMainRequestV1 & Rea
 	readonly plan: UnifiedExactRenderPlanV14;
 }> {
 	const row = closed(value, [
-		'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
+		'protocolVersion', 'schemaFamily', 'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
 		'requestedBackend', 'transitionProgress', 'inputs', 'signal',
 	], [
-		'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
+		'protocolVersion', 'schemaFamily', 'schemaVersion', 'planPayload', 'planFingerprint', 'instanceId', 'outputOrdinal',
 		'requestedBackend', 'transitionProgress', 'inputs',
 	], 'OpenFX frame execution request');
 	const control = admitFramescaperOpenFxFrameControlV1({
+		protocolVersion: row.protocolVersion, schemaFamily: row.schemaFamily,
 		schemaVersion: row.schemaVersion, planPayload: row.planPayload,
 		planFingerprint: row.planFingerprint, instanceId: row.instanceId,
 		outputOrdinal: row.outputOrdinal, requestedBackend: row.requestedBackend,
@@ -211,6 +220,19 @@ function admitRequest(value: unknown): FramescaperOpenFxFrameMainRequestV1 & Rea
 		inputs: Object.freeze(inputs),
 		...(row.signal ? { signal: row.signal as AbortSignal } : {}),
 	});
+}
+
+function currentFramescaperIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: 'framescaper'; schemaVersion: 1 }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`${label} requires the current Framescaper project schema.`);
+	}
+	return Object.freeze({ schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION });
 }
 
 function exactPorts(value: unknown): FramescaperOpenFxFrameExecutionPorts {
@@ -259,7 +281,7 @@ function unavailableResult(
 	effect: UnifiedExactRenderOpenFxNode,
 	availability: 'missing' | 'fingerprint-changed',
 	observed: FramescaperOpenFxPluginProjectionV1 | null,
-): FramescaperOpenFxFrameExecutionResultV28 {
+): FramescaperOpenFxFrameExecutionResultNativeMedia {
 	// The freshness must be derived from current render authority, never fed
 	// back from the authored state — that made the frozen gate a tautology and
 	// served stale frozen frames after any timeline edit.
@@ -301,7 +323,7 @@ function projectResult(
 	result: FramescaperOpenFxExecutionResultV1,
 	plan: UnifiedExactRenderPlanV14,
 	forcedDegradation: boolean,
-): FramescaperOpenFxFrameExecutionResultV28 {
+): FramescaperOpenFxFrameExecutionResultNativeMedia {
 	if (result.mode !== 'render') return result.mode === 'frozen'
 		? Object.freeze({ mode: result.mode, availability: result.availability,
 			reportsDegradation: true as const, frozenFallback: result.frozenFallback })

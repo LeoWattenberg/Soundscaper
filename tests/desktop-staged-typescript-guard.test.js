@@ -54,10 +54,11 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 		await access(join(applicationDesktopRoot, '..', target));
 		await access(join(ROOT, repositoryPackage.imports[alias]));
 	}
-	for (const witness of ['project-library-fallback-role-witnesses.js', 'project-library-source-bearing-smoke.js']) {
-		const source = await readFile(join(applicationDesktopRoot, witness), 'utf8');
-		assert.match(source, /from '#desktop-runtime\/video-source-characteristics'/u,
-			`${witness} must reach video source characteristics through the staged package-imports alias`);
+	for (const retired of [
+		'project-library-fallback-role-witnesses.js',
+		'project-library-source-bearing-smoke.js',
+	]) {
+		await assert.rejects(access(join(applicationDesktopRoot, retired)), { code: 'ENOENT' });
 	}
 
 	const reintroducedRoot = join(temporaryRoot, 'desktop-reintroduced');

@@ -30,7 +30,7 @@ import { registerAssistanceSemanticSearchMainIpc } from './project-library-runti
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
 import { createFramescaperNativeServicesElectronPorts } from './framescaper-native-services-electron-ports.mjs';
 import { startFramescaperNativeServicesRegistration } from './framescaper-native-services-registration.mjs';
-import { FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY } from './framescaper-selected-v28-route-authorities.mjs';
+import { FRAMESCAPER_IMAGE_SEQUENCE_IMPORT_AUTHORITY } from './framescaper-route-authorities.mjs';
 import { framescaperWebVcrSmokeTrust } from './framescaper-web-vcr-smoke-plan.js';
 import { disposeDesktopNativeTier, registerDesktopNativeTier, revokeDesktopNativeTierOwner } from './native-tier-registration.mjs';
 import { registerHostAffordances } from './host-affordances.mjs';
@@ -180,7 +180,7 @@ if (!app.requestSingleInstanceLock()) {
 
 async function startApplication() {
 	await app.whenReady();
-	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-v1.json') });
+	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json') });
 	await linkedVideoLocators.ready();
 	if (applicationShutdown.requested) return;
 	const libraryStartup = startDesktopProjectLibraryProductRuntime({
@@ -213,7 +213,7 @@ async function startApplication() {
 		productId: PRODUCT_ID, userDataPath: app.getPath('userData'), instanceId: randomUUID(),
 		processId: process.pid, settings,
 		projectAuthority: projectLibraryRuntime.nativeServicesAuthority(),
-		imageSequenceImportAuthority: PRODUCT_ID === 'framescaper' ? FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY : null,
+		imageSequenceImportAuthority: PRODUCT_ID === 'framescaper' ? FRAMESCAPER_IMAGE_SEQUENCE_IMPORT_AUTHORITY : null,
 		watchImportAuthority: PRODUCT_ID === 'framescaper' ? Object.freeze({ currentOwner: currentRendererSaveOwner, isOwnerCurrent: isRendererSaveOwnerCurrent, locator: linkedVideoLocators.watchImportAuthority() }) : null,
 		onFenced: (error) => { console.error('Framescaper native services were fenced:', cleanError(error)); void exitApplication(1); },
 		...createFramescaperNativeServicesElectronPorts(settings, (error) => console.error('Framescaper native service failed:', cleanError(error))),

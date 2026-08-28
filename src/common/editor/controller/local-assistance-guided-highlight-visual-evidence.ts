@@ -14,6 +14,7 @@ import type { LocalAssistanceGuidedHighlightVideoSignalsV1 } from
 	'./local-assistance-guided-highlight-signals.ts';
 import type { LocalAssistanceGuidedPrimitiveFence } from
 	'./local-assistance-guided-transcript-context.ts';
+import { readProjectSchemaIdentity } from '../project-schema-identity.ts';
 
 const MAXIMUM_INDEX_RECORDS = 64;
 const MAXIMUM_MULTIPLY_ADDS = 10_000_000;
@@ -39,7 +40,13 @@ export function prepareLocalAssistanceGuidedHighlightVisualEvidenceV1(request: R
 	}
 	const candidates = request.records.flatMap((value) => {
 		const record = dataRecord(value, 'highlight visual-index record');
-		if (record.kind !== 'visual-index' || record.projectId !== request.fence.projectId) return [];
+		const identity = readProjectSchemaIdentity(record);
+		if (record.recordVersion !== 1 || record.derivativeVersion !== 1) {
+			throw new TypeError('Highlight visual-index record identity is unsupported.');
+		}
+		if (identity.schemaFamily !== request.fence.schemaFamily
+			|| identity.schemaVersion !== request.fence.schemaVersion
+			|| record.kind !== 'visual-index' || record.projectId !== request.fence.projectId) return [];
 		if (record.mediaType !== ASSISTANCE_SEMANTIC_DERIVATIVE_MEDIA_TYPE
 			|| !(record.bytes instanceof Uint8Array)
 			|| record.payloadByteLength !== record.bytes.byteLength
@@ -48,7 +55,9 @@ export function prepareLocalAssistanceGuidedHighlightVisualEvidenceV1(request: R
 			throw new Error('Highlight visual-index payload authentication failed.');
 		}
 		const bundle = reviewAssistanceSemanticDerivativeBundleV1(record.bytes);
-		if (bundle.provider !== 'visual' || bundle.projectId !== request.fence.projectId
+		if (bundle.provider !== 'visual' || bundle.schemaFamily !== request.fence.schemaFamily
+			|| bundle.schemaVersion !== request.fence.schemaVersion
+			|| bundle.projectId !== request.fence.projectId
 			|| bundle.projectRevision !== request.fence.revision
 			|| bundle.sequenceId !== request.fence.sequenceId
 			|| bundle.sourceId !== request.fence.sourceId

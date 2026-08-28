@@ -213,8 +213,8 @@ async function shellFixture(context, routes = ['en', 'embed/en', 'framescaper/en
 				isEntry: true,
 				imports: ['_shared.js'],
 				dynamicImports: [
-					'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx',
-					'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx',
+					'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
+					'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
 				],
 			},
 			'_shared.js': {
@@ -227,11 +227,11 @@ async function shellFixture(context, routes = ['en', 'embed/en', 'framescaper/en
 					'assets/runtime-codec.wasm',
 				],
 			},
-			'src/soundscaper/ui/SoundscaperAudioEditorBootstrapV30.tsx': {
+			'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx': {
 				file: 'assets/soundscaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
 				dynamicImports: ['_optional.js'],
 			},
-			'src/framescaper/ui/FramescaperAudioEditorBootstrapV31.tsx': {
+			'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx': {
 				file: 'assets/framescaper-core.js', imports: ['_shared.js'], isDynamicEntry: true,
 			},
 			'_optional.js': { file: 'assets/optional-dialog.js', isDynamicEntry: true },

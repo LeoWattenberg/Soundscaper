@@ -16,7 +16,7 @@ test('audio-warp project admission refuses semantic substitution and rendered fa
 	assert.ok(control);
 	assert.match(
 		control.summary,
-		/exact schema 17.*timeline and Project Bin.*2 through 4,096.*strictly increasing.*canonical reduced rational.*outer endpoints.*anchor extent.*source endpoints.*source extent.*forward mode only.*reversed clips.*reject/iu,
+		/exact owning-family v1.*timeline and Project Bin.*2 through 4,096.*strictly increasing.*canonical reduced rational.*outer endpoints.*anchor extent.*source endpoints.*source extent.*forward mode only.*reversed clips.*reject/iu,
 	);
 	assert.match(
 		control.summary,
@@ -39,7 +39,7 @@ test('audio-warp project admission refuses semantic substitution and rendered fa
 		'src/common/editor/audio-warp-clip-authority.ts',
 		'src/common/editor/audio-warp-runtime.ts',
 		'src/common/editor/audio-warp-render-parity.ts',
-		'src/common/editor/project-v17-validation.ts',
+		'src/soundscaper/editor-project-validation.ts',
 		'src/common/editor/runtime-clip-projection.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/project-feature-capabilities.ts',
@@ -47,14 +47,14 @@ test('audio-warp project admission refuses semantic substitution and rendered fa
 		'src/soundscaper/product.js',
 		'src/framescaper/product.js',
 		'tests/audio-editor-foundation-feature-registration.test.ts',
-		'tests/audio-editor-project-v17.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/audio-editor-project-bin-service.test.ts',
 		'tests/audio-editor-project-owned-feature-requirements.test.ts',
 		'tests/audio-editor-project-feature-audio-rendered-fallback.test.ts',
 		'tests/audio-editor-audio-warp-runtime.test.ts',
 		'tests/audio-editor-audio-warp-pcm-parity.test.ts',
 		'tests/audio-editor-scape-audio-warp-roundtrip.test.ts',
-		'tests/desktop-project-library-audio-warp-handoff.test.ts',
+		'tests/desktop-soundscaper-project-library-baseline.test.ts',
 		'tests/audio-editor-audio-warp-export-service.test.ts',
 		'tests/browser/audio-editor-audio-warp.spec.js',
 	]);

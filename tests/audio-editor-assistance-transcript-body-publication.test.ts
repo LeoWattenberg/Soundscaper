@@ -37,7 +37,8 @@ function request(
 		},
 		selectedMedia: {
 			selectionFence: {
-				projectId: 'project-1', schemaVersion: 30, revision: 7,
+				schemaFamily: 'soundscaper', schemaVersion: 1,
+				projectId: 'project-1', revision: 7,
 				sequenceId: 'sequence-1', occurrenceIds: ['clip-1'],
 				sourceId: 'source-1', sourceSha256: SOURCE_SHA256,
 				sourceStartFrame: 4_800, sourceEndFrame: 100_800,

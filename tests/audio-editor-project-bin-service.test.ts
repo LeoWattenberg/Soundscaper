@@ -523,7 +523,7 @@ function projectFixture(options: Readonly<{
 		...(options.projectBinClips ?? []).map((clip) => clip.sourceId),
 	]);
 	return {
-		schemaVersion: 5, revision: 0,
+		schemaVersion: 17, revision: 0,
 		id: options.id ?? 'project',
 		sampleRate: 48_000,
 		sources: options.sources ?? [...sourceIds].map((sourceId) => ({

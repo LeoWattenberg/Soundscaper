@@ -517,7 +517,8 @@ test('replacing and disposing video visuals revokes every owned URL exactly once
 function projectFixture() {
 	return {
 		id: 'project',
-		schemaVersion: 5,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		sampleRate: 48_000,
 		sources: [
 			{ id: 'audio', kind: 'audio', storageKey: 'audio' },
@@ -526,16 +527,23 @@ function projectFixture() {
 		],
 		clips: [
 			{ id: 'audio-clip', kind: 'audio', sourceId: 'audio', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
-			{ id: 'video-clip', kind: 'video', sourceId: 'video', timelineStartFrame: 200, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
+			{ id: 'video-clip', kind: 'video', sourceId: 'video', timelineStartFrame: 200, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+				sequenceId: 'main', sequenceStartFrame: 200, sequenceFrameCount: 100, sourceInFrame: 0, sourceFrameCount: 100 },
 			{ id: 'missing-clip', kind: 'audio', sourceId: 'missing', timelineStartFrame: 400, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
 		],
 		tracks: [
 			{ id: 'audio-track', type: 'audio', clipIds: ['audio-clip', 'missing-clip'] },
 			{ id: 'video-track', type: 'video', clipIds: ['video-clip'] },
 		],
+		primarySequenceId: 'main',
+		sequences: [{
+			id: 'main', rate: { num: 30, den: 1 },
+			trackIds: ['audio-track', 'video-track'], trackNodes: [],
+		}],
 		projectBin: {
 			clips: [
-				{ id: 'bin-video', kind: 'video', sourceId: 'video', binItemId: 'item', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
+				{ id: 'bin-video', kind: 'video', sourceId: 'video', binItemId: 'item', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100,
+					sequenceId: 'main', sequenceStartFrame: 0, sequenceFrameCount: 100, sourceInFrame: 0, sourceFrameCount: 100 },
 				{ id: 'bin-audio', kind: 'audio', sourceId: 'audio', binItemId: 'item', timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 100, durationFrames: 100 },
 			],
 		},

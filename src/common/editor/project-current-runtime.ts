@@ -4,6 +4,7 @@ import { normalizeProjectFeatureRequirements } from './project-feature-requireme
 import { reconcileProjectOwnedFeatureRequirements } from './project-owned-feature-requirements.ts';
 import {
 	AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	isBaselineFoundationProject,
 	isFoundationProjectSchema,
 	isSourceCharacteristicsProjectSchema,
 } from './project-schema-version.ts';
@@ -34,24 +35,24 @@ export function projectForRuntimeConsumers(project: RuntimeClipProject): Runtime
 
 /** Project the active authoring generation into the transient shape command consumers expect. */
 export function projectForCommandConsumers<Project extends DataRecord | null | undefined>(project: Project): Project {
-	return isFoundationProject(project)
+	return isFoundationProjectAuthority(project)
 		? projectForCommand(project) as Project
 		: project;
 }
 
 /** Restore authoritative coordinates and owned capability declarations after a command mutation. */
 export function preparePersistedProjectCommandDraft(draft: DataRecord, persistedBase: DataRecord): void {
-	if (isFoundationProject(draft)) {
+	if (isFoundationProjectAuthority(draft)) {
 		reconcileProjectCommandResult(draft, persistedBase);
 		reconcileVideoKeyframeCarriersAfterCommand(draft, persistedBase);
 	}
-	if (isSourceCharacteristicsProjectSchema(draft.schemaVersion)) {
+	if (isSourceCharacteristicsProjectSchema(draft)) {
 		reconcileVideoSourceCharacteristicsV14(draft);
 	}
 	const sources = recordArray(draft.sources, 'project.sources');
 	const clips = recordArray(draft.clips, 'project.clips');
 	const tracks = recordArray(draft.tracks, 'project.tracks');
-	const foundationContext = isFoundationProject(draft) ? {
+	const foundationContext = isFoundationProjectAuthority(draft) ? {
 		schemaVersion: draft.schemaVersion,
 		sampleRate: draft.sampleRate,
 		sequences: recordArray(draft.sequences, 'project.sequences'),
@@ -77,8 +78,10 @@ export function validateCurrentAudioEditorProject(project: unknown): boolean {
 		: false;
 }
 
-function isFoundationProject(project: DataRecord | null | undefined): project is DataRecord {
-	return isFoundationProjectSchema(project?.schemaVersion);
+export function isFoundationProjectAuthority(
+	project: DataRecord | null | undefined,
+): project is DataRecord {
+	return isBaselineFoundationProject(project) || isFoundationProjectSchema(project);
 }
 
 function recordArray(value: unknown, name: string): DataRecord[] {

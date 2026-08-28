@@ -9,12 +9,12 @@ import {
 	estimateProjectRevisionPublication,
 	projectRevisionPublicationCapacityRequirement,
 } from '../src/common/editor/project-publication-admission.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
 
 test('project revision publication counts exact canonical UTF-8 payloads twice', () => {
 	const project = {
-		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		id: 'project-non-ascii',
 		title: 'Grüße 🎛️',
 		opaqueExtensions: {
@@ -46,7 +46,8 @@ test('project revision publication counts exact canonical UTF-8 payloads twice',
 test('project revision publication enforces a non-raiseable document ceiling with a lower-only seam', () => {
 	assert.equal(MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES, 256 * 1024 * 1024);
 	const project = {
-		schemaVersion: 9,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		id: 'bounded-project',
 		title: 'bounded',
 	};

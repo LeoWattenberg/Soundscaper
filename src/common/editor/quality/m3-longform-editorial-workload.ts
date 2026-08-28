@@ -3,11 +3,11 @@
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { resolveRuntimeClipProjection } from '../runtime-clip-projection.ts';
 import { sampleFrameToVideoFrame } from '../timeline-time.ts';
-import { applySoundscaperProjectCommandV30 } from '../../../soundscaper/editor-project-v30-commands.ts';
+import { applySoundscaperProjectCommand } from '../../../soundscaper/editor-project-commands.ts';
 import {
-	createSoundscaperProjectV30,
-	type SoundscaperProjectV30,
-} from '../../../soundscaper/editor-project-v30.ts';
+	createSoundscaperProject,
+	type SoundscaperProject,
+} from '../../../soundscaper/editor-project.ts';
 
 export const M3_LONGFORM_EDITORIAL_WORKLOAD_ID = 'm3-longform-editorial';
 export const M3_LONGFORM_EDITORIAL_FIXTURE_ID = 'm3-longform-editorial-2h-v2';
@@ -95,12 +95,12 @@ export const M3_LONGFORM_EDITORIAL_SPECIFICATION: M3LongformEditorialSpecificati
 		DURATION_SAMPLES - SAMPLE_RATE,
 	]),
 	scrollFrameIntervalSampleCount: 240,
-	expectedProjectSha256: 'f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3',
+	expectedProjectSha256: 'efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e',
 	expectedEditPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 });
 
 /** Create the deterministic current-schema media graph before editorial commands. */
-export function createM3LongformEditorialBaseProject(): SoundscaperProjectV30 {
+export function createM3LongformEditorialBaseProject(): SoundscaperProject {
 	const sources: Record<string, unknown>[] = [];
 	const clips: Record<string, unknown>[] = [];
 	const tracks: Record<string, unknown>[] = [];
@@ -173,7 +173,7 @@ export function createM3LongformEditorialBaseProject(): SoundscaperProjectV30 {
 			clipIds: [clipId],
 		});
 	}
-	return createSoundscaperProjectV30({
+	return createSoundscaperProject({
 		id: M3_LONGFORM_EDITORIAL_FIXTURE_ID,
 		title: 'Milestone 3 two-hour editorial workload',
 		createdAt: '1970-01-01T00:00:00.000Z',
@@ -259,12 +259,12 @@ export function createM3LongformEditorialEditPlan(): M3LongformEditorialEditPlan
 
 /** Replay the complete plan through ordinary command batches with deterministic commit times. */
 export function applyM3LongformEditorialEditPlan(
-	project: SoundscaperProjectV30,
+	project: SoundscaperProject,
 	plan: M3LongformEditorialEditPlan,
-): SoundscaperProjectV30 {
+): SoundscaperProject {
 	let next = project;
 	for (let offset = 0; offset < plan.commands.length; offset += COMMANDS_PER_TRANSACTION) {
-		next = applySoundscaperProjectCommandV30(next, {
+		next = applySoundscaperProjectCommand(next, {
 			type: 'batch',
 			commands: plan.commands.slice(offset, offset + COMMANDS_PER_TRANSACTION),
 		}, { now: new Date(offset) });
@@ -274,7 +274,7 @@ export function applyM3LongformEditorialEditPlan(
 
 /** Compare the final persisted/runtime coordinates with the plan's independent oracle. */
 export function resolveM3LongformEditorialPositionChecks(
-	project: SoundscaperProjectV30,
+	project: SoundscaperProject,
 	plan: M3LongformEditorialEditPlan,
 ): readonly M3LongformEditorialPositionCheck[] {
 	const clipById = new Map(project.clips.map((clip) => [String(clip.id), clip]));
@@ -300,7 +300,7 @@ export function resolveM3LongformEditorialPositionChecks(
 export function createM3LongformEditorialWorkload(): Readonly<{
 	readonly specification: M3LongformEditorialSpecification;
 	readonly editPlan: M3LongformEditorialEditPlan;
-	readonly project: SoundscaperProjectV30;
+	readonly project: SoundscaperProject;
 	readonly positionChecks: readonly M3LongformEditorialPositionCheck[];
 }> {
 	const editPlan = createM3LongformEditorialEditPlan();

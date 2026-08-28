@@ -17,7 +17,7 @@ import { createAudioWarpApplicationMenuItems } from '../src/common/editor/ui/aud
 import { createAudioWarpDialogModel } from '../src/common/editor/ui/audio-warp-dialog-model.ts';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from '../src/common/i18n/canonical-extras.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-12T20:00:00.000Z';
 
@@ -37,7 +37,7 @@ test('audio warp menu is selected-audio-only, Soundscaper-only, and opens no def
 	assert.deepEqual(createAudioWarpApplicationMenuItems({ ...input, productId: 'framescaper' }), []);
 	assert.deepEqual(createAudioWarpApplicationMenuItems({ ...input, capability: false }), []);
 	assert.equal(createAudioWarpApplicationMenuItems({
-		...input, project: project(false, false, createSoundscaperProjectV21),
+		...input, project: project(false, false, createSoundscaperProject),
 	})[0]?.disabled, false);
 	assert.equal(createAudioWarpApplicationMenuItems({ ...input, selectedClipId: null })[0]?.disabled, true);
 	assert.equal(createAudioWarpApplicationMenuItems({ ...input, editingBlocked: true })[0]?.disabled, true);
@@ -83,7 +83,7 @@ test('dialog enablement derives only from the selected clip snapshot, edit block
 	}).clipId, null);
 	assert.equal(createAudioWarpDialogModel({
 		productId: 'soundscaper',
-		project: project(false, false, createSoundscaperProjectV21),
+		project: project(false, false, createSoundscaperProject),
 		snapshot: { selectedClipId: 'clip' },
 	}).operationsBlocked, false);
 });
@@ -156,7 +156,7 @@ function actionPorts() {
 function project(
 	locked = false,
 	withWarpMap = false,
-	createProject: typeof createAudioEditorProjectV17 | typeof createSoundscaperProjectV21 = createAudioEditorProjectV17,
+	createProject: typeof createAudioEditorProjectV17 | typeof createSoundscaperProject = createSoundscaperProject,
 ) {
 	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Warp source',

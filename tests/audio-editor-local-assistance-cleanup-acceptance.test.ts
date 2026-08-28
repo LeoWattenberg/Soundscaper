@@ -131,9 +131,10 @@ class CleanupFixture {
 
 	currentAuthority() {
 		const authority = resolveLocalAssistanceSelectedMediaAuthority({
-			getProject: () => projectForCommand(
+			getProject: () => ({ ...projectForCommand(
 				this.history.present as unknown as Record<string, unknown>,
-			),
+			), schemaFamily: this.history.present.clips.some((clip) => clip.kind === 'video')
+				? 'framescaper' : 'soundscaper', schemaVersion: 1 }),
 			getSelectedClipId: () => 'audio-clip',
 			captureProject: () => this.history.present,
 			assertProject: (token) => { assert.equal(token, this.history.present); },

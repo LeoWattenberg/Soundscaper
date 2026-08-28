@@ -21,7 +21,8 @@ test('reviewed PANNs windows are retained only in authenticated disposable proje
 	const repository = derivativeRepository();
 	const semantic = audioTags();
 	const record = await retainLocalAssistanceGuidedReactionScores({ workflow, repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 8 }),
+		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 8 }),
 		readOutput: async ({ claim }) => {
 			assert.equal(`${claim.stageId}:${claim.slotId}`, 'tag-reactions:audio-tags');
 			return new Blob([` ${JSON.stringify(semantic)} `], { type: MEDIA_TYPE });
@@ -38,10 +39,12 @@ test('reaction score retention refuses stale, malformed, and foreign workflow cu
 	const workflow = reactionWorkflow();
 	const repository = derivativeRepository();
 	const base = { workflow, repository,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 8 }),
+		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 8 }),
 		readOutput: async () => new Blob([JSON.stringify(audioTags())], { type: MEDIA_TYPE }) };
 	await assert.rejects(retainLocalAssistanceGuidedReactionScores({ ...base,
-		currentProject: () => ({ projectId: 'project-a', projectRevision: 9 }),
+		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-a', projectRevision: 9 }),
 	}), /stale|revision|authority/iu);
 	await assert.rejects(retainLocalAssistanceGuidedReactionScores({ ...base,
 		readOutput: async () => new Blob([JSON.stringify({ ...audioTags(), sampleRate: 16_000 })],

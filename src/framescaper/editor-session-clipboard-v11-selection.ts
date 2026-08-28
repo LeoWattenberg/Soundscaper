@@ -25,7 +25,7 @@ import type {
 	VideoFinishingPresetV1,
 	VideoVisualPresentationV1,
 } from '../common/editor/video-visual-presentation-v27.ts';
-import type { FramescaperProjectV27 } from './editor-project-v27.ts';
+import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
 
 type DataRecord = Record<string, unknown>;
 type VisualSource = VideoStillSourceV1 | VideoGeneratorSourceV1;
@@ -57,7 +57,7 @@ export interface FramescaperClipboardSelectionV11 {
 
 /** Walk only the selected descriptor graph; project-global presets/captions never hitchhike. */
 export function selectFramescaperClipboardGraphV11(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	descriptor: AudioEditorClipboard,
 ): FramescaperClipboardSelectionV11 {
 	const clipBindings = bindDescriptorClips(project, descriptor);
@@ -66,9 +66,9 @@ export function selectFramescaperClipboardGraphV11(
 	const selectedSequenceIds = new Set(descriptor.tracks.flatMap((track) => (
 		typeof track.sourceSequenceId === 'string' ? [track.sourceSequenceId] : []
 	)));
-	const sources = records(project.sources, 'V27 clipboard sources');
+	const sources = records(project.sources, 'finishing clipboard sources');
 	const sourceById = new Map(sources.map((source) => [id(source, 'source'), source]));
-	const clips = records(project.clips, 'V27 clipboard clips');
+	const clips = records(project.clips, 'finishing clipboard clips');
 	for (const clip of clips) {
 		if (selectedClipIds.has(id(clip, 'clip'))) selectedSourceIds.add(idRef(clip.sourceId, 'clip source'));
 	}
@@ -146,10 +146,10 @@ export function normalizeFramescaperClipboardClipBindingsV11(
 }
 
 function bindDescriptorClips(
-	project: FramescaperProjectV27,
+	project: FramescaperProjectFinishing,
 	descriptor: AudioEditorClipboard,
 ): readonly FramescaperClipboardClipBindingV11[] {
-	const tracks = new Map(records(project.tracks, 'V27 clipboard tracks').map((track) => [id(track, 'track'), track]));
+	const tracks = new Map(records(project.tracks, 'finishing clipboard tracks').map((track) => [id(track, 'track'), track]));
 	const result: FramescaperClipboardClipBindingV11[] = [];
 	for (const descriptorTrack of descriptor.tracks) {
 		const track = tracks.get(descriptorTrack.sourceTrackId);

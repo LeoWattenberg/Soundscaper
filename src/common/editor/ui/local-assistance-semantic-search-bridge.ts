@@ -12,6 +12,10 @@ import type {
 } from '../assistance/semantic-search-runtime-v1.ts';
 import { AssistanceSemanticSearchUnavailableError } from
 	'../assistance/semantic-search-runtime-v1.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../project-schema-identity.ts';
 
 const METHODS = Object.freeze(['open', 'authorize', 'revoke', 'query', 'cancelQuery'] as const);
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
@@ -64,6 +68,7 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 			const queryId = randomQueryId();
 			const raw = Object.freeze({
 				queryVersion: 1, queryId, session: request.session,
+				schemaFamily: request.schemaFamily, schemaVersion: request.schemaVersion,
 				projectId: request.projectId, projectRevision: request.projectRevision,
 				provider: request.provider, query: request.query,
 			});
@@ -91,6 +96,8 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 
 function embeddingRequest(value: unknown): Readonly<{
 	readonly session: AssistanceSemanticSearchSession;
+	readonly schemaFamily: AssistanceSemanticSearchProjectAuthorityV1['schemaFamily'];
+	readonly schemaVersion: 1;
 	readonly projectId: string;
 	readonly projectRevision: number;
 	readonly provider: 'transcript' | 'visual';
@@ -98,10 +105,12 @@ function embeddingRequest(value: unknown): Readonly<{
 	readonly signal: AbortSignal;
 }> {
 	const row = exactRecord(value, [
-		'session', 'projectId', 'projectRevision', 'provider', 'query', 'signal',
+		'session', 'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision',
+		'provider', 'query', 'signal',
 	], 'semantic-search query embedding');
 	const authorization = authorizationRequest({
-		session: row.session, projectId: row.projectId, projectRevision: row.projectRevision,
+		session: row.session, schemaFamily: row.schemaFamily, schemaVersion: row.schemaVersion,
+		projectId: row.projectId, projectRevision: row.projectRevision,
 	});
 	if (row.provider !== 'transcript' && row.provider !== 'visual'
 		|| typeof row.query !== 'string' || row.query.trim() === '' || row.query.length > 512
@@ -154,12 +163,15 @@ function randomQueryId(): string {
 
 function authorizationRequest(value: unknown): Readonly<{
 	readonly session: AssistanceSemanticSearchSession;
+	readonly schemaFamily: AssistanceSemanticSearchProjectAuthorityV1['schemaFamily'];
+	readonly schemaVersion: 1;
 	readonly projectId: string;
 	readonly projectRevision: number;
 }> {
-	const row = exactRecord(value, ['session', 'projectId', 'projectRevision'],
+	const row = exactRecord(value, ['session', 'schemaFamily', 'schemaVersion', 'projectId', 'projectRevision'],
 		'semantic-search authorization');
 	const authority = projectAuthority({
+		schemaFamily: row.schemaFamily, schemaVersion: row.schemaVersion,
 		projectId: row.projectId, projectRevision: row.projectRevision,
 	});
 	const session = validateAssistanceSemanticSearchSession(row.session);
@@ -168,13 +180,19 @@ function authorizationRequest(value: unknown): Readonly<{
 }
 
 function projectAuthority(value: unknown): AssistanceSemanticSearchProjectAuthorityV1 {
-	const row = exactRecord(value, ['projectId', 'projectRevision'],
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Semantic-search project authority requires a current project schema.');
+	}
+	const row = exactRecord(value, ['schemaFamily', 'schemaVersion', 'projectId', 'projectRevision'],
 		'semantic-search project authority');
 	if (typeof row.projectId !== 'string' || !ID.test(row.projectId)
 		|| !Number.isSafeInteger(row.projectRevision) || Number(row.projectRevision) < 0) {
 		throw new TypeError('Semantic-search project authority is invalid.');
 	}
 	return Object.freeze({
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: row.projectId,
 		projectRevision: Number(row.projectRevision),
 	});
@@ -184,7 +202,8 @@ function assertAuthority(
 	session: AssistanceSemanticSearchSession,
 	authority: AssistanceSemanticSearchProjectAuthorityV1,
 ): void {
-	if (session.projectId !== authority.projectId
+	if (session.schemaFamily !== authority.schemaFamily || session.schemaVersion !== authority.schemaVersion
+		|| session.projectId !== authority.projectId
 		|| session.projectRevision !== authority.projectRevision) {
 		throw new Error('Semantic-search session disagrees with current project authority.');
 	}
@@ -195,6 +214,7 @@ function sameSession(
 	right: AssistanceSemanticSearchSession,
 ): boolean {
 	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
+		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
 		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
 		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
 }

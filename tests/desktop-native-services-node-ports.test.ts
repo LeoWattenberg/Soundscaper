@@ -36,6 +36,7 @@ test('node ports bind roots, non-recursive scans, scratch cleanup, and publicati
 	assert.equal((await ports.probeRoot({ ...selection, revokedAtMs: null })).exists, true);
 
 	const entries = await ports.watchScan({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: '34'.repeat(8), grantId: selection.grantId, projectId: 'project-1', binId: null,
 		extensions: ['mov'], recursive: false, maximumDepth: 0, importMode: 'link', generateProxies: false,
 		enabled: true, createdAtMs: 5_000,
@@ -143,6 +144,7 @@ test('watch locator registration keeps the path main-private and rejects post-re
 	const root = await ports.selectRoot();
 	assert.ok(root);
 	const entries = await ports.watchScan({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: '34'.repeat(8), grantId: root.grantId, projectId: 'project-1', binId: null,
 		extensions: ['mp4'], recursive: false, maximumDepth: 0, importMode: 'link',
 		generateProxies: false, enabled: true, createdAtMs: 0,
@@ -156,6 +158,7 @@ test('watch locator registration keeps the path main-private and rejects post-re
 
 	await writeFile(videoPath, 'video-one');
 	const refreshed = await ports.watchScan({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		ruleId: '34'.repeat(8), grantId: root.grantId, projectId: 'project-1', binId: null,
 		extensions: ['mp4'], recursive: false, maximumDepth: 0, importMode: 'link',
 		generateProxies: false, enabled: true, createdAtMs: 0,

@@ -18,7 +18,8 @@ import { encodeWav } from '../src/common/editor/wav.js';
 const JOB_ID = 'ab'.repeat(20);
 const SOURCE_SHA256 = '1a'.repeat(32);
 const FENCE = Object.freeze({
-	projectId: 'project-advanced', schemaVersion: 30, revision: 7, sequenceId: 'sequence-main',
+	projectId: 'project-advanced', schemaFamily: 'soundscaper' as const, schemaVersion: 1,
+	revision: 7, sequenceId: 'sequence-main',
 	occurrenceIds: Object.freeze(['clip-a']), sourceId: 'source-a', sourceSha256: SOURCE_SHA256,
 	sourceStartFrame: 0, sourceEndFrame: 96_000,
 	linkMembershipSha256: '2b'.repeat(32), timingAuthoritySha256: '3c'.repeat(32),
@@ -142,7 +143,8 @@ function preparationFixture(operation: 'speech-enhancement' | 'source-separation
 			role: operation === 'speech-enhancement' ? 'enhanced-audio' : 'speaker-turns',
 			mediaType: operation === 'speech-enhancement' ? 'audio/wav' : 'application/json',
 			maximumByteLength: 68 }];
-	const project = Object.freeze({ id: 'project-advanced', schemaVersion: 30, revision: 7,
+	const project = Object.freeze({ id: 'project-advanced', schemaFamily: 'soundscaper' as const,
+		schemaVersion: 1, revision: 7,
 		clips: Object.freeze([{ id: 'clip-a', kind: 'audio', sourceId: 'source-a',
 			sequenceId: 'sequence-main', avLinkId: null, reversed: false, speedRatio: 1,
 			pitchCents: 0, stretchToTempo: false, warpMap: null }]),

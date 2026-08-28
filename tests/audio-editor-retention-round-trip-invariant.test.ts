@@ -19,14 +19,14 @@ import {
 	ProjectRepository,
 	type ProjectDocument,
 } from '../src/common/editor/storage/project-repository.ts';
-import { FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile-v18.ts';
 import {
-	createFramescaperProjectV18,
-	validateFramescaperProjectV18,
-} from '../src/framescaper/editor-project-v18.ts';
+	createFramescaperProject,
+	validateFramescaperProject,
+} from '../src/framescaper/editor-project.ts';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 
 const NOW = '2026-08-13T10:00:00.000Z';
-const PROFILE = FRAMESCAPER_V18_PROJECT_RUNTIME_PROFILE;
+const PROFILE = FRAMESCAPER_PROJECT_RUNTIME_PROFILE;
 const RENDER_SHA = 'ab'.repeat(32);
 const CAMERA_A_SHA = '12'.repeat(32);
 const CAMERA_B_SHA = '34'.repeat(32);
@@ -40,14 +40,14 @@ interface PersistableDocument {
 function persistableDocuments(): readonly PersistableDocument[] {
 	return [
 		{
-			name: 'current V17',
+			name: 'internal foundation',
 			project: currentProject() as unknown as Record<string, unknown>,
 			validate: (project) => validateCurrentAudioEditorProject(project),
 		},
 		{
-			name: 'Framescaper V18',
+			name: 'Framescaper baseline project',
 			project: framescaperProject() as unknown as Record<string, unknown>,
-			validate: (project) => validateFramescaperProjectV18(PROFILE, project),
+			validate: (project) => validateFramescaperProject(PROFILE, project),
 		},
 	];
 }
@@ -158,9 +158,9 @@ function takeGroup(): Record<string, unknown> {
 }
 
 function framescaperProject(): Record<string, unknown> {
-	return createFramescaperProjectV18(PROFILE, {
+	return createFramescaperProject(PROFILE, {
 		id: 'retention-round-trip-v18',
-		title: 'Retention round trip V18',
+		title: 'Retention round trip baseline',
 		now: NOW,
 		sources: [
 			videoSource('camera-a', CAMERA_A_SHA),

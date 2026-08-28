@@ -31,7 +31,8 @@ const TRANSCRIPT = new TextEncoder().encode(JSON.stringify({ schemaVersion: 1,
 		words: [], speaker: null }] }));
 const TRANSCRIPT_SHA256 = bytesToHex(sha256(TRANSCRIPT));
 const STORAGE_KEY = `assistance-transcript-sha256:${TRANSCRIPT_SHA256}`;
-const PRIMITIVE_FENCE = Object.freeze({ projectId: 'project-a', schemaVersion: 31,
+const PRIMITIVE_FENCE = Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+	projectId: 'project-a',
 	revision: 8, sequenceId: 'sequence-a', occurrenceIds: Object.freeze(['occurrence-a']),
 	sourceId: 'source-a', sourceSha256: SOURCE_SHA256, sourceStartFrame: 0,
 	sourceEndFrame: 96_000, linkMembershipSha256: LINK_SHA256,
@@ -83,7 +84,8 @@ test('a single-source aggregate retains the complete linked A/V occurrence autho
 	const linkedFence = Object.freeze({ ...PRIMITIVE_FENCE,
 		occurrenceIds: Object.freeze(['audio-occurrence', 'video-occurrence']) });
 	const project: Record<string, unknown> = {
-		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
+		id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 8, sampleRate: 48_000,
 		primarySequenceId: 'sequence-a', subsequences: [], multicameraGroups: [],
 		sources: [
 			{ id: 'source-a', kind: 'audio', sampleRate: 48_000,
@@ -110,7 +112,8 @@ test('a single-source aggregate retains the complete linked A/V occurrence autho
 
 test('video index publication reauthenticates the external original and exact video fence', async () => {
 	const project: Record<string, unknown> = {
-		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
+		id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 8, sampleRate: 48_000,
 		primarySequenceId: 'sequence-a', subsequences: [], multicameraGroups: [],
 		sources: [{ id: 'source-a', kind: 'video', contentSha256: SOURCE_SHA256 }],
 		clips: [{ id: 'occurrence-a', kind: 'video', sourceId: 'source-a',
@@ -231,7 +234,8 @@ function videoWorkflow(project: Record<string, unknown>) {
 
 function fixture() {
 	const project: Record<string, unknown> = {
-		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
+		id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 8, sampleRate: 48_000,
 		primarySequenceId: 'sequence-a', subsequences: [], multicameraGroups: [],
 		sources: [{ id: 'source-a', kind: 'audio', sampleRate: 48_000,
 			contentSha256: SOURCE_SHA256 }],

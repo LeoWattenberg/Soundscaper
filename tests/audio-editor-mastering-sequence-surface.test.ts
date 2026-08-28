@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {
 	createDocumentMasteringSequenceSnapshot,
 } from '../src/common/editor/controller/document-mastering-sequence-snapshot.ts';
@@ -20,12 +20,12 @@ function annotation(id: string, name: string, startFrame: number, endFrame: numb
 }
 
 function albumProject(entries: readonly unknown[], regionIds = ['r-one', 'r-two']) {
-	const base = createSoundscaperProjectV23({
+	const base = createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
 	} as never);
 	const sequenceId = base.primarySequenceId;
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
 		tracks: [{ type: 'audio', id: 'a1', name: 'A1' }],
 		primarySequenceId: sequenceId,

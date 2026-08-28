@@ -7,7 +7,7 @@ import {
 	createFramescaperImageFramePackV1,
 	type FramescaperImageFramePackPublicationV1,
 } from './timeline-image-frame-pack-v1.ts';
-import type { FramescaperImageTimingModeV1 } from './timeline-image-model-v32.ts';
+import type { FramescaperImageTimingModeV1 } from './timeline-image-model.ts';
 
 const FALLBACK_DURATION_MICROSECONDS = 5_000_000;
 const NATIVE_MIME_TYPES = Object.freeze(new Map<ReviewedImageFormat, string>([

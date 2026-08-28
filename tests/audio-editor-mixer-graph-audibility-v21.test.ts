@@ -8,8 +8,8 @@ import { createMixerGraphAudibilityV21 } from '../src/common/editor/mixer-graph-
 import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * What the routing graph silences, an exported edit list leaves out.
@@ -85,7 +85,7 @@ test('a document with no routing graph keeps the track-flag rule', () => {
 });
 
 function routedProject({ busMuted }: { busMuted: boolean }) {
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'graph-audibility', title: 'Graph audibility', now: NOW,
 		tracks: [
 			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
@@ -94,10 +94,10 @@ function routedProject({ busMuted }: { busMuted: boolean }) {
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
 	});
-	const withBus = applySoundscaperProjectCommandV21(base, {
+	const withBus = applySoundscaperProjectCommand(base, {
 		type: 'mixer/bus-add', busType: 'group', bus: { id: 'stems', name: 'Stems' },
 	} as never, { now: NOW });
-	const routed = applySoundscaperProjectCommandV21(withBus, {
+	const routed = applySoundscaperProjectCommand(withBus, {
 		type: 'mixer-graph/set',
 		expected: withBus.mixer,
 		mixer: {
@@ -120,7 +120,7 @@ function routedProject({ busMuted }: { busMuted: boolean }) {
 }
 
 function cueOnlyProject() {
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'graph-audibility-cue', title: 'Graph audibility cue', now: NOW,
 		tracks: [
 			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
@@ -129,7 +129,7 @@ function cueOnlyProject() {
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
 	});
-	return applySoundscaperProjectCommandV21(base, {
+	return applySoundscaperProjectCommand(base, {
 		type: 'mixer-graph/set',
 		expected: base.mixer,
 		mixer: {
@@ -163,7 +163,7 @@ function cueOnlyProject() {
 }
 
 function vcaProject() {
-	const base = createSoundscaperProjectV21({
+	const base = createSoundscaperProject({
 		id: 'graph-audibility-vca', title: 'Graph audibility VCA', now: NOW,
 		tracks: [
 			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
@@ -172,7 +172,7 @@ function vcaProject() {
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],
 		primarySequenceId: 'main-sequence',
 	});
-	return applySoundscaperProjectCommandV21(base, {
+	return applySoundscaperProjectCommand(base, {
 		type: 'mixer-graph/set',
 		expected: base.mixer,
 		mixer: {

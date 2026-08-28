@@ -30,7 +30,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				const framescaperVideoEffectIds = new Set([
 					'framescaper-video-effects', 'framescaper-video-transitions',
 					'framescaper-edit-video-mask-matte', 'framescaper-freeze-video',
-					'framescaper-v27-video-finishing',
+					'framescaper-video-finishing',
 				]);
 				return {
 					...menu,
@@ -43,7 +43,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 			}
 			if (menu.id === 'analyze' && !capabilities.audioAnalysis) {
 				const retainedAnalyzeItems = new Set([
-					'framescaper-v27-motion-tracking', 'local-assistance',
+					'framescaper-motion-tracking', 'local-assistance',
 					'local-assistance-indexed-search',
 				]);
 				return {

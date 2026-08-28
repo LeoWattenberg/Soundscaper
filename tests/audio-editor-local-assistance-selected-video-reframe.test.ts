@@ -162,7 +162,9 @@ test('selected-video exposes frozen exact source/timeline boundary authority', (
 		getProject: () => project, getSelectedClipId: () => 'video-clip',
 	});
 	const descriptor = createLocalAssistanceSelectedVideoSourceTimeDescriptorV1(authority);
-	assert.deepEqual({ kind: descriptor.kind, projectId: descriptor.projectId,
+	assert.deepEqual({ descriptorVersion: descriptor.descriptorVersion, kind: descriptor.kind,
+		schemaFamily: descriptor.schemaFamily, schemaVersion: descriptor.schemaVersion,
+		projectId: descriptor.projectId,
 		projectRevision: descriptor.projectRevision, sequenceId: descriptor.sequenceId,
 		videoOccurrenceId: descriptor.videoOccurrenceId, sourceId: descriptor.sourceId,
 		sourceWidth: descriptor.sourceWidth, sourceHeight: descriptor.sourceHeight,
@@ -170,7 +172,9 @@ test('selected-video exposes frozen exact source/timeline boundary authority', (
 		sampleRate: descriptor.sampleRate, timescale: descriptor.timescale,
 		selectionStartFrame: descriptor.selectionStartFrame,
 		selectionEndFrame: descriptor.selectionEndFrame }, {
-		kind: 'selected-video-source-time-authority', projectId: 'project-1', projectRevision: 7,
+		descriptorVersion: 1, kind: 'selected-video-source-time-authority',
+		schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: 'project-1', projectRevision: 7,
 		sequenceId: 'main-sequence', videoOccurrenceId: 'video-clip', sourceId: 'video-source',
 		sourceWidth: 1_920, sourceHeight: 1_080, sourceStartFrame: 20, sourceEndFrame: 120,
 		sampleRate: 48_000, timescale: 24, selectionStartFrame: 20_000,
@@ -352,7 +356,8 @@ function fixture(
 
 function baseProject() {
 	return {
-		id: 'project-1', schemaVersion: 31 as const, revision: 7, sampleRate: 48_000,
+		id: 'project-1', schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+		revision: 7, sampleRate: 48_000,
 		primarySequenceId: 'main-sequence',
 		selection: { startFrame: 0, endFrame: 200_000,
 			clipIds: ['video-clip'], trackIds: ['video-track'] },

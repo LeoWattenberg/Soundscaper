@@ -111,7 +111,7 @@ test('browser audio and video publication use the shared admission boundary', as
 	assert.doesNotMatch(video, /new Blob\(\[encoded\.bytes\]/u);
 });
 
-test('selected keyed V7 export reuses the frozen video Blob and direct route IDs', async () => {
+test('Framescaper family-v1 keyed export reuses the frozen video Blob and direct route IDs', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const videoRoutes = matrix.publicationRouteQualification.routes
 		.filter(({ id }: RouteRecord) => id.startsWith('video-')) as RouteRecord[];
@@ -124,7 +124,7 @@ test('selected keyed V7 export reuses the frozen video Blob and direct route IDs
 	assert.equal(matrix.publicationRouteQualification.routes.length, 15);
 	const keyedControl = matrix.risks
 		.flatMap(({ currentControls }: { currentControls: Array<{ id: string }> }) => currentControls)
-		.find(({ id }: { id: string }) => id === 'exact-v20-keyed-export-authority');
+		.find(({ id }: { id: string }) => id === 'framescaper-v1-keyed-export-authority');
 	assert.ok(keyedControl, 'the selected keyed strategy must have separate authority evidence');
 });
 

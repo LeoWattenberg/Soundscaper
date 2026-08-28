@@ -14,6 +14,12 @@ import type { AssistanceSemanticQueryExecutorV1 } from
 	'../desktop/assistance-semantic-query-executor.ts';
 
 const QUERY_ID = '1'.repeat(40);
+const PROJECT_AUTHORITY = Object.freeze({
+	schemaFamily: 'soundscaper' as const,
+	schemaVersion: 1 as const,
+	projectId: 'project-1',
+	projectRevision: 7,
+});
 
 function fixture(query: AssistanceSemanticQueryExecutorV1 = Object.freeze({ embed: async ({ provider }: Readonly<{
 	provider: 'transcript' | 'visual';
@@ -45,19 +51,18 @@ test('semantic-search IPC issues and reauthorizes only an owner-bound short sess
 	const owner = {};
 	const open = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open)!;
 	const authorize = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.authorize)!;
-	const session = open({ owner }, { projectId: 'project-1', projectRevision: 7 });
+	const session = open({ owner }, PROJECT_AUTHORITY);
 	assert.deepEqual(session, {
-		sessionVersion: 1, sessionId: 'aa'.repeat(20), projectId: 'project-1',
-		projectRevision: 7, expiresAtEpochMs: 1_800_000_300_000,
+		sessionVersion: 1, sessionId: 'aa'.repeat(20), ...PROJECT_AUTHORITY,
+		expiresAtEpochMs: 1_800_000_300_000,
 	});
-	assert.deepEqual(authorize({ owner }, {
-		session, projectId: 'project-1', projectRevision: 7,
-	}), session);
+	assert.deepEqual(authorize({ owner }, { session, ...PROJECT_AUTHORITY }), session);
 	assert.throws(() => authorize({ owner: {} }, {
-		session, projectId: 'project-1', projectRevision: 7,
+		session, ...PROJECT_AUTHORITY,
 	}), /owner|session/iu);
 	assert.throws(() => authorize({ owner }, {
-		session, projectId: 'project-1', projectRevision: 8,
+		session, schemaFamily: 'soundscaper', schemaVersion: 1,
+		projectId: 'project-1', projectRevision: 8,
 	}), /revision|stale|project/iu);
 });
 
@@ -66,9 +71,9 @@ test('semantic-search IPC revokes one session or every session for a renderer ow
 	const owner = {};
 	const open = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open)!;
 	const revoke = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.revoke)!;
-	const first = open({ owner }, { projectId: 'project-1', projectRevision: 7 }) as
+	const first = open({ owner }, PROJECT_AUTHORITY) as
 		Readonly<{ sessionId: string }>;
-	const second = open({ owner }, { projectId: 'project-1', projectRevision: 7 }) as
+	const second = open({ owner }, PROJECT_AUTHORITY) as
 		Readonly<{ sessionId: string }>;
 	assert.equal(await revoke({ owner }, first.sessionId), true);
 	assert.equal(await revoke({ owner }, first.sessionId), false);
@@ -80,8 +85,9 @@ test('semantic-search IPC revokes one session or every session for a renderer ow
 test('semantic-search IPC refuses malformed authority and removes every handler on disposal', async () => {
 	const { handlers, registration, removed } = fixture();
 	const open = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open)!;
-	assert.throws(() => open({}, { projectId: 'project-1', projectRevision: 7 }), /owner/iu);
+	assert.throws(() => open({}, PROJECT_AUTHORITY), /owner/iu);
 	assert.throws(() => open({ owner: {} }, {
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		projectId: '../escape', projectRevision: 7,
 	}));
 	await registration.dispose();
@@ -100,11 +106,11 @@ test('semantic-search IPC executes only an owner/session-bound pathless query', 
 	} }));
 	const owner = {};
 	const session = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open)!(
-		{ owner }, { projectId: 'project-1', projectRevision: 7 },
+		{ owner }, PROJECT_AUTHORITY,
 	);
 	const result = await handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.query)!(
 		{ owner }, { queryVersion: 1, queryId: QUERY_ID, session,
-			projectId: 'project-1', projectRevision: 7,
+			...PROJECT_AUTHORITY,
 			provider: 'transcript', query: 'red bicycle' },
 	);
 	assert.deepEqual(result, {
@@ -116,7 +122,7 @@ test('semantic-search IPC executes only an owner/session-bound pathless query', 
 	assert.equal((seen[0] as { signal: AbortSignal }).signal.aborted, false);
 	await assert.rejects(Promise.resolve(handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.query)!(
 		{ owner: {} }, { queryVersion: 1, queryId: '2'.repeat(40), session,
-			projectId: 'project-1', projectRevision: 7,
+			...PROJECT_AUTHORITY,
 			provider: 'transcript', query: 'red bicycle' },
 	)), /owner|session/iu);
 });
@@ -135,11 +141,11 @@ test('query cancellation aborts installed inference and waits for its completion
 	} }));
 	const owner = {};
 	const session = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open)!(
-		{ owner }, { projectId: 'project-1', projectRevision: 7 },
+		{ owner }, PROJECT_AUTHORITY,
 	);
 	const pending = Promise.resolve(handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.query)!(
 		{ owner }, { queryVersion: 1, queryId: QUERY_ID, session,
-			projectId: 'project-1', projectRevision: 7,
+			...PROJECT_AUTHORITY,
 			provider: 'visual', query: 'cancel me' },
 	));
 	await running;

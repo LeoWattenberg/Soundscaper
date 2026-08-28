@@ -64,7 +64,8 @@ test('primitive workflow stages execute through operation-v1 and record exact au
 	const validated = validateAssistanceOperationRequest(operationRequest);
 	assert.equal(validated.operation, 'speech-enhancement');
 	assert.deepEqual(validated.selectionFence, {
-		projectId: 'project-a', schemaVersion: 31, revision: 8, sequenceId: 'sequence-a',
+		projectId: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 8, sequenceId: 'sequence-a',
 		occurrenceIds: ['occurrence-a'], sourceId: 'source-a', sourceSha256: '12'.repeat(32),
 		sourceStartFrame: 0, sourceEndFrame: 96_000,
 		linkMembershipSha256: '34'.repeat(32), timingAuthoritySha256: '56'.repeat(32),

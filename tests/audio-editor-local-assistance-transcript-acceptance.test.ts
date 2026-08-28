@@ -44,7 +44,8 @@ interface TestAcceptanceCommand {
 
 function fence(revision = 4) {
 	return Object.freeze({
-		projectId: 'project-1', schemaVersion: 30, revision,
+		schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+		projectId: 'project-1', revision,
 		sequenceId: 'main-sequence', occurrenceIds: Object.freeze(['voice-clip']),
 		sourceId: 'voice-source', sourceSha256: SOURCE_SHA256,
 		sourceStartFrame: 36_000, sourceEndFrame: 84_000,
@@ -59,7 +60,8 @@ function authority(
 ) {
 	return Object.freeze({
 		project: Object.freeze({
-			id: 'project-1', schemaVersion: 30, revision, sampleRate: 48_000,
+			id: 'project-1', schemaFamily: 'soundscaper' as const, schemaVersion: 1 as const,
+			revision, sampleRate: 48_000,
 			assistanceAssets: Object.freeze([...assistanceAssets]),
 			tracks: Object.freeze([...tracks]),
 		}),

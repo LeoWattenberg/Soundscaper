@@ -14,13 +14,13 @@ import {
 	normalizeFramescaperImageClipV1,
 	normalizeFramescaperImageSourceV1,
 	type FramescaperImageSourceV1,
-} from '../common/editor/timeline-image-model-v32.ts';
+} from '../common/editor/timeline-image-model.ts';
 import { sampleFrameToVideoFrame, type RationalRate } from '../common/editor/timeline-time.ts';
-import { applyFramescaperProjectCommandV28 } from './editor-project-v28-commands.ts';
-import { FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v28.ts';
-import type { FramescaperProjectCommandV32 } from './editor-project-v32-commands.ts';
-import { framescaperProjectV28FoundationShapeV32 } from './editor-project-v32-foundation.ts';
-import { validateFramescaperProjectV32, type FramescaperProjectV32 } from './editor-project-v32.ts';
+import { applyFramescaperProjectCommandNativeMedia } from './editor-project-native-media-commands.ts';
+import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
+import type { FramescaperProjectCommandTimelineImage } from './editor-project-timeline-image-commands.ts';
+import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
+import { validateFramescaperProjectTimelineImage, type FramescaperProjectTimelineImage } from './editor-project-timeline-image.ts';
 import { prepareFramescaperSessionClipboardPasteCommandV12 } from './editor-session-clipboard-v12-controller.ts';
 import {
 	framescaperSessionClipboardV12FoundationV13,
@@ -39,7 +39,7 @@ export interface FramescaperImageClipboardBodyTransferV13 {
 }
 
 export interface FramescaperSessionClipboardPasteV13 {
-	readonly command: FramescaperProjectCommandV32;
+	readonly command: FramescaperProjectCommandTimelineImage;
 	readonly imageSourceIdMap: ReadonlyMap<string, string>;
 	readonly bodyTransfers: readonly FramescaperImageClipboardBodyTransferV13[];
 }
@@ -60,7 +60,7 @@ export interface FramescaperImageClipboardBodyStageV13 {
 	rollback(): Promise<void>;
 }
 
-/** Compose filtered V12 paste state and canonical image commands as one V32 history transaction. */
+/** Compose filtered V12 paste state and canonical image commands as one timelineImage history transaction. */
 export function prepareFramescaperSessionClipboardPasteV13(
 	profile: unknown,
 	projectValue: unknown,
@@ -68,9 +68,9 @@ export function prepareFramescaperSessionClipboardPasteV13(
 	baseCommand: AudioEditorCommand,
 	createId: IdFactory,
 ): FramescaperSessionClipboardPasteV13 {
-	validateFramescaperProjectV32(profile, projectValue);
+	validateFramescaperProjectTimelineImage(profile, projectValue);
 	if (typeof createId !== 'function') throw new TypeError('V13 paste requires an ID factory.');
-	const project = projectValue as FramescaperProjectV32;
+	const project = projectValue as FramescaperProjectTimelineImage;
 	const clipboard = normalizeFramescaperSessionClipboardV13(clipboardValue);
 	const paste = findPaste(baseCommand);
 	if (JSON.stringify(normalizeAudioEditorClipboardDescriptor(paste.clipboard))
@@ -82,17 +82,17 @@ export function prepareFramescaperSessionClipboardPasteV13(
 		imageClipIds.has(clipId) ? [descriptorKey] : []
 	)));
 	const foundationClipboard = framescaperSessionClipboardV12FoundationV13(clipboard);
-	const foundationProject = framescaperProjectV28FoundationShapeV32(project);
+	const foundationProject = framescaperProjectNativeMediaFoundationShapeTimelineImage(project);
 	const foundationCommand = prepareFramescaperSessionClipboardPasteCommandV12(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
 		foundationProject,
 		foundationClipboard,
 		sanitizeFoundationCommand(baseCommand, new Set(clipboard.images.sourceIds), imageKeys,
 			foundationClipboard.descriptor),
 		createId,
 	);
-	const afterFoundation = applyFramescaperProjectCommandV28(
-		FRAMESCAPER_V28_PROJECT_RUNTIME_PROFILE,
+	const afterFoundation = applyFramescaperProjectCommandNativeMedia(
+		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
 		foundationProject,
 		foundationCommand,
 	);
@@ -100,7 +100,7 @@ export function prepareFramescaperSessionClipboardPasteV13(
 	const targetSources = project.sources.filter((source): source is FramescaperImageSourceV1 => (
 		source.kind === 'image'
 	)).map(normalizeFramescaperImageSourceV1);
-	const sourceCommands: FramescaperProjectCommandV32[] = [];
+	const sourceCommands: FramescaperProjectCommandTimelineImage[] = [];
 	const bodyTransfers: FramescaperImageClipboardBodyTransferV13[] = [];
 	const sourceIdMap = new Map<string, string>();
 	const clipboardSourceById = new Map(clipboard.sources.filter((source): source is FramescaperImageSourceV1 => (
@@ -154,7 +154,7 @@ export function prepareFramescaperSessionClipboardPasteV13(
 		const sourceId = sourceIdMap.get(clip.sourceId);
 		if (!sourceId) throw new ReferenceError(`V13 pasted image source ${clip.sourceId} has no mapping.`);
 		const placed = placeImageClip(
-			afterFoundation as unknown as FramescaperProjectV32,
+			afterFoundation as unknown as FramescaperProjectTimelineImage,
 			clip,
 			descriptorClip,
 			clipboard.descriptor,
@@ -172,8 +172,8 @@ export function prepareFramescaperSessionClipboardPasteV13(
 			placement: Object.freeze({ scope: 'timeline' as const, trackId: targetTrackId }),
 		});
 	});
-	const commands: FramescaperProjectCommandV32[] = [
-		foundationCommand as FramescaperProjectCommandV32,
+	const commands: FramescaperProjectCommandTimelineImage[] = [
+		foundationCommand as FramescaperProjectCommandTimelineImage,
 		...sourceCommands,
 		...clipCommands,
 	];
@@ -292,7 +292,7 @@ function sanitizeFoundationCommand(
 }
 
 function placeImageClip(
-	project: FramescaperProjectV32,
+	project: FramescaperProjectTimelineImage,
 	clip: ReturnType<typeof normalizeFramescaperImageClipV1>,
 	descriptorClip: Readonly<Record<string, unknown>>,
 	descriptor: ReturnType<typeof normalizeAudioEditorClipboardDescriptor>,
@@ -399,7 +399,7 @@ function sameBodyAuthority(left: FramescaperImageSourceV1, right: FramescaperIma
 		&& left.conversionReceiptSha256 === right.conversionReceiptSha256;
 }
 
-function sequenceForTrack(project: FramescaperProjectV32, trackId: string): Readonly<{
+function sequenceForTrack(project: FramescaperProjectTimelineImage, trackId: string): Readonly<{
 	id: string;
 	rate: RationalRate;
 }> {
@@ -431,7 +431,7 @@ function findPaste(command: unknown): DataRecord {
 	return matches[0]!;
 }
 
-function collectProjectIdentities(project: FramescaperProjectV32): Set<string> {
+function collectProjectIdentities(project: FramescaperProjectTimelineImage): Set<string> {
 	return new Set<string>([
 		String(project.id),
 		...project.sources.map(({ id }) => String(id)),

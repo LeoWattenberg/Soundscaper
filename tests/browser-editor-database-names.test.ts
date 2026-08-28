@@ -22,23 +22,19 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // mounts them: the newest profile present is not the one that owns data.
 test('the browser workflows open the database the web Framescaper bootstrap mounts', async () => {
 	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
-	const mounted = /productId !== 'framescaper'[\s\S]*?:\s*FramescaperAudioEditorBootstrapV(\d+)/u
-		.exec(app);
-	assert.ok(
-		mounted,
-		'Could not tell which Framescaper bootstrap the web branch mounts from src/common/site/App.jsx.'
-		+ ' Browser workflows always run the web branch, so this audit has to follow that choice.',
-	);
+	assert.match(app,
+		/lazy\(\(\) => import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrap\.tsx'\)\)/u);
+	assert.match(app, /productId !== 'framescaper'[\s\S]*?:\s*FramescaperAudioEditorBootstrap/u);
 	const profile = await readFile(
-		resolve(ROOT, `src/framescaper/editor-project-storage-profile-v${mounted[1]}.ts`),
+		resolve(ROOT, 'src/framescaper/editor-project-storage-profile.ts'),
 		'utf8',
 	);
 	const databaseName = /databaseName: '([^']+)'/u.exec(profile);
-	assert.ok(databaseName, `The V${mounted[1]} storage profile declares no database name literal.`);
+	assert.ok(databaseName, 'The Framescaper baseline storage profile declares no database name literal.');
 	assert.equal(
 		FRAMESCAPER_DATABASE_NAME,
 		databaseName[1],
-		`The web Framescaper bootstrap mounts V${mounted[1]}, which persists to ${databaseName[1]}, but the`
+		`The web Framescaper baseline persists to ${databaseName[1]}, but the`
 		+ ` browser workflows open ${FRAMESCAPER_DATABASE_NAME}. Follow the mounted profile in`
 		+ ' tests/browser/helpers/editor-databases.js.',
 	);
@@ -46,18 +42,14 @@ test('the browser workflows open the database the web Framescaper bootstrap moun
 
 test('the browser workflows open the database the web Soundscaper bootstrap mounts', async () => {
 	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
-	const mounted = /productId !== 'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrapV(\d+)/u.exec(app);
-	assert.ok(mounted, 'Could not tell which Soundscaper bootstrap src/common/site/App.jsx mounts.');
-	const profile = await readFile(
-		resolve(ROOT, `src/soundscaper/editor-project-storage-profile-v${mounted[1]}.ts`),
-		'utf8',
-	);
+	assert.match(app, /productId !== 'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrap/u);
+	const profile = await readFile(resolve(ROOT, 'src/soundscaper/editor-project-storage-profile.ts'), 'utf8');
 	const databaseName = /databaseName: '([^']+)'/u.exec(profile);
-	assert.ok(databaseName, `The V${mounted[1]} Soundscaper storage profile declares no database name literal.`);
+	assert.ok(databaseName, 'The Soundscaper baseline storage profile declares no database name literal.');
 	assert.equal(
 		SOUNDSCAPER_DATABASE_NAME,
 		databaseName[1],
-		`The web Soundscaper bootstrap mounts V${mounted[1]}, which persists to ${databaseName[1]}, but the`
+		`The web Soundscaper baseline persists to ${databaseName[1]}, but the`
 		+ ` browser workflows open ${SOUNDSCAPER_DATABASE_NAME}. Follow the mounted profile in`
 		+ ' tests/browser/helpers/editor-databases.js.',
 	);

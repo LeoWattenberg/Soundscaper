@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
-import { isProductionMixerProjectSchema } from '../project-schema-version.ts';
+import { hasCoreEditingProjectAuthority, hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import type {
 	EffectSelection,
 	EffectSelectionFrequencyRange,
@@ -242,7 +242,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 			runtime.cloneProject(mediaProject),
 		) as unknown as MutableEffectAudioProject;
 		const clipIdSet = requestedClipIds?.length ? new Set(requestedClipIds) : null;
-		if (isProductionMixerProjectSchema(snapshot.schemaVersion)) {
+		if (hasProductionMixerProjectAuthority(snapshot)) {
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId, effects: [], clipIds: requestedClipIds,
 			}) as unknown as MutableEffectAudioProject;
@@ -294,7 +294,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 			const effectIndex = track.effects.findIndex((candidate) => candidate.id === effect.id);
 			if (effectIndex < 0) throw new Error(runtime.copy.rackEffectNotFound);
 			const prefix = track.effects.slice(0, effectIndex);
-			if (isProductionMixerProjectSchema(snapshot.schemaVersion)) {
+			if (hasProductionMixerProjectAuthority(snapshot)) {
 				snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 					trackId: requireTrackId(trackId), effects: prefix,
 				}) as unknown as MutableEffectAudioProject;
@@ -426,7 +426,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 			planSpectralEditWorkflowAdmission,
 		} = await loadDeferredSpectralEditAdmission();
 		const project = runtime.getProject();
-		if (project.schemaVersion < 2) throw new Error(runtime.copy.v2Required);
+		if (!hasCoreEditingProjectAuthority(project)) throw new Error(runtime.copy.v2Required);
 		const selection = runtime.activeSelection();
 		const frequencyRange = selection?.frequencyRange;
 		const targets = runtime.audacityEffectTargets();

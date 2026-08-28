@@ -37,7 +37,9 @@ const MAXIMUM_OPEN_CLAIMS = 8;
 const MAXIMUM_READ_BYTES = 16 * 1024 * 1024;
 
 interface ProjectAuthority {
-	projectState(projectId: string): Readonly<{ open: boolean; writable: boolean }>;
+	projectState(projectId: string): Readonly<{
+		schemaFamily: 'framescaper'; schemaVersion: 1; open: boolean; writable: boolean;
+	}>;
 	readProjectBundle(projectId: string): Promise<unknown>;
 }
 
@@ -155,6 +157,9 @@ export class FramescaperNativeImageSequenceDecodeAuthority {
 		owner: object,
 		request: Extract<FramescaperNativeImageSequenceDecodeRequest, { operation: 'decode' }>,
 	): Promise<unknown> {
+		if (request.schemaFamily !== 'framescaper' || request.schemaVersion !== 1) {
+			throw new TypeError('Image-sequence decode requires the current Framescaper project identity.');
+		}
 		if (!this.#options.runtimeAvailable()
 			|| !this.#options.mediaRuntime.available()) {
 			throw new Error('Native image-sequence decode is unavailable.');
@@ -226,11 +231,15 @@ export class FramescaperNativeImageSequenceDecodeAuthority {
 	}
 
 	async #admitSource(request: Readonly<{
+		schemaFamily: 'framescaper'; schemaVersion: 1;
 		projectId: string; projectRevision: number; sourceId: string;
 	}>) {
 		const state = this.#options.project.projectState(request.projectId);
-		if (!state?.open) throw new Error('Image-sequence decode requires the open project.');
+		if (state?.schemaFamily !== 'framescaper' || state.schemaVersion !== 1 || !state.open) {
+			throw new Error('Image-sequence decode requires the open current Framescaper project.');
+		}
 		return admitFramescaperNativeImageSequenceSource({
+			schemaFamily: request.schemaFamily, schemaVersion: request.schemaVersion,
 			root: this.#options.root, projectId: request.projectId,
 			projectRevision: request.projectRevision, sourceId: request.sourceId,
 			projectBundle: await this.#options.project.readProjectBundle(request.projectId),

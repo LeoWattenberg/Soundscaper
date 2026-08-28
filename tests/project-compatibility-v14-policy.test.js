@@ -4,49 +4,42 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
 
-test('the compatibility register binds exact V17 editing to current implementation evidence', async () => {
+test('the compatibility register binds the family-v1 baseline to current implementation evidence', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const threatModel = await readFile(threatModelUrl, 'utf8');
 	const rules = new Map(policy.rules.map((rule) => [rule.id, rule]));
-	const legacySchema = rules.get('legacy-schema-migration');
+	const legacySchema = rules.get('pre-release-reimport-required');
 	const currentSchema = rules.get('current-schema-editing');
 	const trackLocking = rules.get('current-track-locking');
 	const timelineAnnotations = rules.get('current-timeline-annotation-capability');
 	const trackFolders = rules.get('current-track-folder-capability');
 	const sourceCharacteristics = rules.get('current-source-characteristics-capability');
 
-	assert.equal(AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION, 17);
-	assert.deepEqual(policy.projectSchema, {
-		currentVersion: 17,
-		minimumReadableVersion: 17,
-		retainedMigrationSources: [],
+	assert.deepEqual(
+		policy.projectSchema.baselines.map(({ schemaFamily, currentVersion, retainedMigrationSources }) => ({
+			schemaFamily, currentVersion, retainedMigrationSources,
+		})),
+		[
+			{ schemaFamily: 'soundscaper', currentVersion: 1, retainedMigrationSources: [] },
+			{ schemaFamily: 'framescaper', currentVersion: 1, retainedMigrationSources: [] },
+		],
+	);
+	assert.deepEqual(policy.schemaRetirement.currentMinimumVersions, {
+		soundscaper: 1, framescaper: 1,
 	});
-	assert.equal(policy.schemaRetirement.currentMinimumVersion, 17);
-	assert.match(legacySchema.currentBehavior, /Schema 17.*Schemas 1 through 16.*historical V16.*REIMPORT_REQUIRED.*AUP4.*schema 17/iu);
-	assert.ok(legacySchema.evidence.includes('tests/audio-editor-project-schema-policy.test.ts'));
-	assert.match(currentSchema.currentBehavior, /Schema 17.*maintained writable raw-project schema.*cloned.*historical V16 video-retime V2 wire.*takeGroups.*Schema 16 and older.*V18 or later/iu);
+	assert.match(legacySchema.currentBehavior, /1\.0 baseline.*own enumerable data-property identities.*does not migrate, normalize, enumerate, copy forward, mutate, or delete.*pre-release Soundscaper or Framescaper.*future supported family schema.*v1 baseline/iu);
+	assert.ok(legacySchema.evidence.includes('tests/audio-editor-project-schema-identity.test.ts'));
+	assert.match(currentSchema.currentBehavior, /Soundscaper.*soundscaper.*schemaVersion:1.*writable.*Framescaper.*framescaper.*schemaVersion:1.*writable.*other known family.*later version.*opaque read-only.*without domain traversal.*Unknown families.*accessor-backed.*reject before project traversal/iu);
 	assert.deepEqual(currentSchema.evidence, [
-		'src/common/editor/project-current.ts',
-		'src/common/editor/project-v17.ts',
-		'src/common/editor/project-v17-validation.ts',
-		'src/common/editor/project-foundation-factory.ts',
-		'src/common/editor/project-media-factory.ts',
-		'src/common/editor/project-structure-factory.ts',
-		'src/common/editor/project-retime-factory.ts',
-		'src/common/editor/project-document-validation.ts',
-		'src/common/editor/project-foundation-validation.ts',
-		'src/common/editor/project-hierarchy-document-validation.ts',
-		'src/common/editor/project-track-lock-validation.ts',
-		'src/common/editor/timeline-annotation.ts',
-		'tests/audio-editor-project-v15.test.ts',
-		'tests/audio-editor-project-v16.test.ts',
-		'tests/audio-editor-project-v17.test.ts',
-		'tests/audio-editor-scape-project.test.js',
+		'src/common/editor/project-schema-identity.ts',
+		'src/soundscaper/editor-project.ts',
+		'src/framescaper/editor-project.ts',
+		'src/common/editor/scape-project.js',
+		'tests/audio-editor-project-schema-identity.test.ts',
+		'tests/audio-editor-scape-v1-baseline.test.ts',
 	]);
 	assert.equal(trackLocking.status, 'implemented');
 	assert.match(
@@ -55,7 +48,7 @@ test('the compatibility register binds exact V17 editing to current implementati
 	);
 	assert.match(
 		trackLocking.currentBehavior,
-		/Schema 17.*own boolean locked field.*audio, video, and label track.*Soundscaper and Framescaper.*default it false.*clone.*history.*browser and desktop persistence.*track control panel overflow Lock track and Unlock track.*shared low-level command boundary.*transaction-start lock authority.*arbitrary nested batches.*direct and indirect changes.*content.*timing.*media.*grouping.*lane and folder identity.*reconciled result.*before publication.*Selection.*header, mixer, view, and track-rack controls.*remain available.*does not hide, mute, bypass, or make a project read-only.*no capability ID.*owned requirement.*rendered fallback.*optional older-schema extension.*default-visible control/iu,
+		/family v1.*own boolean locked field.*audio, video, and label track.*Soundscaper and Framescaper.*default it false.*clone.*history.*browser and desktop persistence.*track control panel overflow Lock track and Unlock track.*shared low-level command boundary.*transaction-start lock authority.*arbitrary nested batches.*direct and indirect changes.*content.*timing.*media.*grouping.*lane and folder identity.*reconciled result.*before publication.*Selection.*header, mixer, view, and track-rack controls.*remain available.*does not hide, mute, bypass, or make a project read-only.*no capability ID.*owned requirement.*rendered fallback.*optional older-schema extension.*default-visible control/iu,
 	);
 	assert.deepEqual(trackLocking.evidence, [
 		'src/common/editor/project-structure-factory.ts',
@@ -63,32 +56,32 @@ test('the compatibility register binds exact V17 editing to current implementati
 		'src/common/editor/commands/track-lock-admission.ts',
 		'src/common/editor/commands.js',
 		'src/common/editor/ui/timeline/timeline-menu-model.js',
-		'tests/audio-editor-project-v15.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/audio-editor-track-lock-admission.test.ts',
 		'tests/audio-editor-track-lock-batch.test.ts',
 		'tests/audio-editor-track-lock-overflow-menu.test.tsx',
 		'tests/audio-editor-scape-project.test.js',
-		'tests/desktop-project-library-v12-folder-roundtrip.test.ts',
+		'tests/desktop-soundscaper-project-library-baseline.test.ts',
 		'tests/browser/audio-editor-track-lock.spec.js',
 	]);
 	assert.match(
 		threatModel.replace(/\s+/gu, ' '),
-		/Schema 17.*own enumerable boolean `locked` field.*audio, video, and label track.*shared command boundary.*transaction-start authority.*nested batches.*direct and indirect changes.*editorial content.*structure.*source bindings.*resolved timing.*reconciled result before publication.*locked later in the same transaction.*authority monotonically.*Selection.*header, mixer, view, and track-rack controls remain usable.*both products.*Lock track and Unlock track.*Tracks menu.*no capability, fallback, read-only compatibility state, or default-visible control.*does not imply mute, hidden, bypass, or whole-project read-only state/iu,
+		/family v1.*own enumerable boolean `locked` field.*audio, video, and label track.*shared command boundary.*transaction-start authority.*nested batches.*direct and indirect changes.*editorial content.*structure.*source bindings.*resolved timing.*reconciled result before publication.*locked later in the same transaction.*authority monotonically.*Selection.*header, mixer, view, and track-rack controls remain usable.*both products.*Lock track and Unlock track.*Tracks menu.*no capability, fallback, read-only compatibility state, or default-visible control.*does not imply mute, hidden, bypass, or whole-project read-only state/iu,
 	);
 	assert.match(
 		trackFolders.currentBehavior,
-		/schema 17.*trackFolders.*trackNodes.*trackIds.*exact hierarchy preorder.*soundscaper\.track-folders.*org\.soundscaper\.capability\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper registers the capability available.*available\/native.*Framescaper registers the capability known but unavailable.*unavailable\/bypassed.*excluded from both rendered-fallback.*audio or video fallback.*rejects.*mandatory root trackNodes.*add, remove, and within-sequence reorder.*nonempty hierarchy.*delegate to the folder-aware path.*adopts the parent folder.*lane partner.*whole structural blocks.*cross-sequence reorder.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*private trust.*forged projection marker.*before hierarchy traversal.*canonical folder state.*leaf-local state.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only.*clone.*undo\/redo.*local storage.*\.scape.*desktop-library V9.*track-folder\/add.*track-folder\/update.*track-folder\/remove.*promote or delete-contents.*track-node\/move.*execute natively in Soundscaper.*reject in Framescaper.*hierarchy preorder.*folder bus ownership.*mirrored bus identity.*one undoable command.*direct mixer edits.*reject.*ADM authored programme refuses.*change bus ownership.*at the command.*clipboard wire format is unchanged.*paste-created tracks join the folder of the paste anchor.*lane pair lands in one folder.*native tree UI ships in Soundscaper.*pointer, keyboard, and context-menu parity.*no audio or video fallback/iu,
+		/family v1.*trackFolders.*trackNodes.*trackIds.*exact hierarchy preorder.*soundscaper\.track-folders.*org\.soundscaper\.capability\.track-folders.*Nested track folders.*bypass.*no fallback.*Soundscaper registers the capability available.*available\/native.*Framescaper registers the capability known but unavailable.*unavailable\/bypassed.*excluded from both rendered-fallback.*audio or video fallback.*rejects.*mandatory root trackNodes.*add, remove, and within-sequence reorder.*nonempty hierarchy.*delegate to the folder-aware path.*adopts the parent folder.*lane partner.*whole structural blocks.*cross-sequence reorder.*reject.*before playback, audio render, video preview, or video export.*transient projection.*inherited folder mute, solo, and hidden.*leaf track flags.*before rendered-fallback.*private trust.*forged projection marker.*before hierarchy traversal.*canonical folder state.*leaf-local state.*routing.*history.*persistence unchanged.*collapsed and height.*UI-only.*clone.*undo\/redo.*local storage.*\.scape.*family-v1 desktop-library.*track-folder\/add.*track-folder\/update.*track-folder\/remove.*promote or delete-contents.*track-node\/move.*execute natively in Soundscaper.*reject in Framescaper.*hierarchy preorder.*folder bus ownership.*mirrored bus identity.*one undoable command.*direct mixer edits.*reject.*ADM authored programme refuses.*change bus ownership.*at the command.*clipboard wire format is unchanged.*paste-created tracks join the folder of the paste anchor.*lane pair lands in one folder.*native tree UI ships in Soundscaper.*pointer, keyboard, and context-menu parity.*no audio or video fallback/iu,
 	);
 	assert.equal(sourceCharacteristics.status, 'implemented');
 	assert.match(
 		sourceCharacteristics.currentBehavior,
-		/schema 17 video source carries a characteristics record.*reporting backend.*coded frame size.*rotation.*pixel aspect ratio.*field order.*alpha.*video codec.*colour primaries.*audio stream inventory.*source start timecode.*explicit null rather than a plausible default.*unknown rotation is not zero.*unreported audio inventory is not an empty one.*canonical normalized form.*reject rather than repair.*framescaper\.source-characteristics.*org\.soundscaper\.capability\.source-characteristics.*Probed source characteristics.*bypass.*no fallback.*both products.*register the capability available.*available\/native.*excluded from both rendered-fallback eligibility.*rejects at manifest admission.*disclosure and interchange, not conversion.*no deinterlacer.*no colour management.*no multi-stream audio import.*byte-exactly.*no re-import upgrade/iu,
+		/family v1 video source carries a characteristics record.*reporting backend.*coded frame size.*rotation.*pixel aspect ratio.*field order.*alpha.*video codec.*colour primaries.*audio stream inventory.*source start timecode.*explicit null rather than a plausible default.*unknown rotation is not zero.*unreported audio inventory is not an empty one.*canonical normalized form.*reject rather than repair.*framescaper\.source-characteristics.*org\.soundscaper\.capability\.source-characteristics.*Probed source characteristics.*bypass.*no fallback.*both products.*register the capability available.*available\/native.*excluded from both rendered-fallback eligibility.*rejects at manifest admission.*disclosure and interchange, not conversion.*no deinterlacer.*no colour management.*no multi-stream audio import.*byte-exactly.*no re-import upgrade/iu,
 	);
 	assert.deepEqual(sourceCharacteristics.evidence, [
 		'src/common/editor/video-source-characteristics.ts',
 		'src/common/editor/source-characteristics-v14.ts',
 		'src/common/editor/project-structure-factory.ts',
-		'src/common/editor/project-v17-validation.ts',
+		'src/soundscaper/editor-project-validation.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'tests/audio-editor-video-source-characteristics.test.ts',
 		'tests/audio-editor-source-characteristics-v14.test.ts',
@@ -119,7 +112,7 @@ test('the compatibility register binds exact V17 editing to current implementati
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/soundscaper/product.js',
 		'src/framescaper/product.js',
-		'tests/audio-editor-project-v15.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/audio-editor-track-hierarchy-mutation-v12.test.ts',
 		'tests/audio-editor-folder-bus-v13.test.ts',
 		'tests/audio-editor-track-folder-commands.test.ts',
@@ -130,13 +123,13 @@ test('the compatibility register binds exact V17 editing to current implementati
 		'tests/audio-editor-track-folder-service.test.ts',
 		'tests/audio-editor-track-folder-state-projection.test.ts',
 		'tests/audio-editor-track-folder-media-runtime.test.ts',
-		'tests/desktop-project-library-v12-folder-roundtrip.test.ts',
+		'tests/desktop-soundscaper-project-library-baseline.test.ts',
 	]);
 	assert.match(
 		timelineAnnotations.currentBehavior,
-		/non-empty schema 17 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper.*Framescaper F31.*available\/native.*command.*controller.*pointer and keyboard UI.*ripple-edit.*clipboard.*AUP\/AUP4.*RIFF.*reviewed shot acceptance.*source and selection authority.*owned in-selection markers.*historical Framescaper F18 through F28.*known but unavailable.*unavailable\/bypassed.*excluded from both audio and video rendered-fallback.*exact-V17.*runtime projection.*atomic command reconciliation.*`?\.scape`? persistence.*desktop handoff.*authoritative annotation coordinates.*stable IDs.*batch identity.*opaque extensions.*Audacity export reports losses.*RIFF export.*stable-ID.*no annotation contribution to playback rendering.*audio or video fallback.*manual qualification.*does not disable/iu,
+		/non-empty family v1 timelineAnnotations.*reserved soundscaper\.timeline-annotations.*org\.soundscaper\.capability\.timeline-annotations.*bypass.*no fallback.*Soundscaper.*Framescaper family v1.*available\/native.*command.*controller.*pointer and keyboard UI.*ripple-edit.*clipboard.*AUP\/AUP4.*RIFF.*reviewed shot acceptance.*source and selection authority.*owned in-selection markers.*Pre-release Framescaper profiles.*provenance only.*no family-v1 capability authority.*excluded from both audio and video rendered-fallback.*exact owning-family v1.*runtime projection.*atomic command reconciliation.*`?\.scape`? persistence.*desktop handoff.*authoritative annotation coordinates.*stable IDs.*batch identity.*opaque extensions.*Audacity export reports losses.*RIFF export.*stable-ID.*no annotation contribution to playback rendering.*audio or video fallback.*manual qualification.*does not disable/iu,
 	);
-	assert.deepEqual(timelineAnnotations.evidence, [
+	for (const path of [
 		'src/common/editor/project-feature-capabilities.ts',
 		'src/common/editor/project-owned-feature-requirements.ts',
 		'src/common/editor/timeline-annotation.ts',
@@ -154,10 +147,8 @@ test('the compatibility register binds exact V17 editing to current implementati
 		'src/common/editor/timeline-annotation-riff-interchange.ts',
 		'src/soundscaper/product.js',
 		'src/framescaper/product.js',
-		'src/framescaper/editor-project-feature-capability-profile-v31.ts',
 		'tests/audio-editor-timeline-annotation-command-integration.test.ts',
 		'tests/audio-editor-timeline-annotation-feature-registration.test.ts',
-		'tests/audio-editor-framescaper-project-v31.test.ts',
 		'tests/audio-editor-local-assistance-shot-acceptance.test.ts',
 		'tests/audio-editor-timeline-annotation-ripple.test.ts',
 		'tests/audio-editor-timeline-annotation-clipboard.test.ts',
@@ -166,7 +157,7 @@ test('the compatibility register binds exact V17 editing to current implementati
 		'tests/audio-editor-audacity-annotation-interchange.test.ts',
 		'tests/audio-editor-timeline-annotation-riff-interchange.test.ts',
 		'tests/audio-editor-scape-project.test.js',
-		'tests/desktop-project-library-handoff.test.ts',
+		'tests/audio-editor-soundscaper-baseline.test.ts',
 		'tests/browser/audio-editor-timeline-annotations.spec.js',
-	]);
+	]) assert.ok(timelineAnnotations.evidence.includes(path), path);
 });

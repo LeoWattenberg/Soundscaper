@@ -6,11 +6,13 @@ import test from 'node:test';
 import {
 	createFramescaperNestedSequenceMenuItems,
 } from '../src/common/editor/ui/framescaper-nested-sequence-menu.ts';
-import type { FramescaperProjectCommandV18 } from '../src/framescaper/editor-project-v18-subsequence.ts';
+import type { FramescaperProjectCommandSequence } from '../src/framescaper/editor-project-sequence-subsequence.ts';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { createWorkspaceApplicationMenus } from '../src/common/editor/ui/workspace/workspace-application-menu-runtime.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
-import { createFramescaperSequenceActionsV18 } from '../src/framescaper/editor-project-v18-sequence-actions.ts';
+import { createFramescaperSequenceActionsSequence } from '../src/framescaper/editor-project-sequence-sequence-actions.ts';
+import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
 
 const COPY = Object.freeze({
 	nestedSequences: 'Nested sequences',
@@ -63,12 +65,6 @@ test('Framescaper exposes sequence and placement authoring leaves with exact com
 	]);
 	assert.equal(Object.isFrozen(items), true);
 	assert.equal(Object.isFrozen(items.items), true);
-	assert.equal(createFramescaperNestedSequenceMenuItems({
-		productId: 'framescaper', project: { ...project(), schemaVersion: 19 }, editingBlocked: false, copy: COPY,
-	}, { execute: () => undefined })?.disabled, false);
-	assert.equal(createFramescaperNestedSequenceMenuItems({
-		productId: 'framescaper', project: { ...project(), schemaVersion: 20 }, editingBlocked: false, copy: COPY,
-	}, { execute: () => undefined })?.disabled, false);
 });
 
 test('a fresh Framescaper project can create its first secondary sequence while unsafe state stays inert', () => {
@@ -107,7 +103,7 @@ test('a fresh Framescaper project can create its first secondary sequence while 
 	assert.equal(calls.length, 1);
 });
 
-test('the existing Tracks submenu reaches the injected V18 controller actions only in Framescaper', () => {
+test('the existing Tracks submenu reaches the injected baseline controller actions only in Framescaper', () => {
 	const calls: unknown[] = [];
 	const controller = {
 		actions: { sequences: {
@@ -144,7 +140,7 @@ test('the existing Tracks submenu reaches the injected V18 controller actions on
 
 test('the product action owner snapshots strict exact commands before execution', () => {
 	const calls: unknown[] = [];
-	const actions = createFramescaperSequenceActionsV18((command: FramescaperProjectCommandV18) => calls.push(command));
+	const actions = createFramescaperSequenceActionsSequence((command: FramescaperProjectCommandSequence) => calls.push(command));
 	const subsequence = {
 		id: 'nested', sequenceId: 'main', sourceSequenceId: 'shared',
 		sequenceStartFrame: 0, sequenceFrameCount: 30, sourceInFrame: 0, sourceFrameCount: 24,
@@ -173,8 +169,9 @@ test('the product action owner snapshots strict exact commands before execution'
 });
 
 function project(): Record<string, unknown> {
-	return {
-		id: 'nested-menu', schemaVersion: 18, primarySequenceId: 'main',
+	return createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
+		id: 'nested-menu', title: 'Nested menu', now: '2026-08-28T00:00:00.000Z',
+		primarySequenceId: 'main',
 		sequences: [
 			sequence('main', 30),
 			sequence('shared', 24),
@@ -184,7 +181,7 @@ function project(): Record<string, unknown> {
 			sequenceStartFrame: 30, sequenceFrameCount: 30,
 			sourceInFrame: 0, sourceFrameCount: 24,
 		}],
-	};
+	});
 }
 
 function sequence(id: string, rate: number): Record<string, unknown> {

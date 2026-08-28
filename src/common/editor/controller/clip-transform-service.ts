@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { hasProjectBinMediaAuthority } from '../project-schema-version.ts';
+
 import {
 	collectClipTransformIds as collectLegacyClipTransformIds,
 	collectClipTrimIds as collectLegacyClipTrimIds,
@@ -93,7 +95,7 @@ export function createClipTransformService(
 		const clip = findClip(project, clipId);
 		const oldTrack = clip ? findClipTrack(project, clip.id) : null;
 		let targetTrack = trackId == null ? oldTrack : findTrack(project, trackId);
-		if (clip && targetTrack && project.schemaVersion >= 4
+		if (clip && targetTrack && hasProjectBinMediaAuthority(project)
 			&& targetTrack.type !== clip.kind && targetTrack.laneGroupId) {
 			targetTrack = project.tracks.find((track) => (
 				track.type === clip.kind && track.laneGroupId === targetTrack?.laneGroupId
@@ -177,7 +179,7 @@ export function createClipTransformService(
 			...(selection && movesClipSelection ? [selection.startFrame] : []),
 		);
 		const deltaFrames = Math.max(requestedDelta, -earliestMovingFrame);
-		if (project.schemaVersion >= 4 && clips.some((item) => item.kind === 'video')) {
+		if (hasProjectBinMediaAuthority(project) && clips.some((item) => item.kind === 'video')) {
 			return moveMediaClipsToNewTracks(
 				project, clip, sourceTrack, clips, clipSelection,
 				selection, movesClipSelection, deltaFrames,

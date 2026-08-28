@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import { randomBytes } from 'node:crypto';
 import { chmod, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-
 import {
 	framescaperDesktopProjectLibraryExactGenerationMetadataRevision as metadataRevision,
 	initializeFramescaperDesktopProjectLibraryExactGenerationDatabase as initializeDatabase,
@@ -26,14 +24,14 @@ import {
 } from './project-library-exact-generation-body-configuration.ts';
 import { DesktopProjectLibrarySessionAdmission } from './project-library-session-admission.ts';
 import {
-	framescaperDesktopProjectLibraryV12Binary as binary,
-	framescaperDesktopProjectLibraryV12ClosedRecord as closedRecord,
-	framescaperDesktopProjectLibraryV12NonNegative as nonNegative,
-	framescaperDesktopProjectLibraryV12Positive as positive,
-	framescaperDesktopProjectLibraryV12PublicationId as exactPublicationId,
-	framescaperDesktopProjectLibraryV12Sha256 as sha256,
-	framescaperDesktopProjectLibraryV12Text as text,
-} from './project-library-v12-values.ts';
+	framescaperDesktopProjectLibraryBinary as binary,
+	framescaperDesktopProjectLibraryClosedRecord as closedRecord,
+	framescaperDesktopProjectLibraryNonNegative as nonNegative,
+	framescaperDesktopProjectLibraryPositive as positive,
+	framescaperDesktopProjectLibraryPublicationId as exactPublicationId,
+	framescaperDesktopProjectLibrarySha256 as sha256,
+	framescaperDesktopProjectLibraryText as text,
+} from './framescaper-project-library-values.ts';
 import {
 	assertFramescaperDesktopExactExpectedProject as assertExpected,
 	framescaperDesktopExactMediaPath as mediaPath,
@@ -47,7 +45,6 @@ import {
 	type FramescaperDesktopExactPublication as Publication,
 	type FramescaperDesktopExactStoredProjectRow as StoredProjectRow,
 } from './project-library-exact-generation-storage.ts';
-
 const START_FIELDS = ['appDataPath', 'owner', 'handshake'] as const;
 const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
@@ -57,11 +54,11 @@ const DUPLICATE_FIELDS = [
 	'expectedMetadataRevision', 'expectedSource',
 ] as const;
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-
 export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration extends FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration {
 	readonly label: string;
+	readonly schemaFamily?: 'framescaper';
 	readonly librarySchemaVersion: number;
-	readonly projectSchemaVersion: number;
+	readonly schemaVersion: number;
 	readonly databaseUserVersion: number;
 	readonly createHandshake: () => unknown;
 	readonly validateHandshake: (value: unknown) => unknown;
@@ -69,7 +66,6 @@ export interface FramescaperDesktopProjectLibraryExactGenerationConfiguration ex
 	readonly validateOwner: (value: unknown) => Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
 	readonly validateProject: (value: unknown) => unknown;
 }
-
 export interface FramescaperDesktopProjectLibraryExactGenerationMainSnapshot {
 	readonly closed: boolean;
 	readonly fenced: boolean;
@@ -78,7 +74,6 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSnapshot {
 	readonly activePublication: boolean;
 	readonly writer?: unknown;
 }
-
 export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
 	listProjects(): Promise<unknown>;
 	readProjectBundle(projectId: string): Promise<unknown>;
@@ -92,7 +87,6 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
 	revoke(): Promise<void>;
 	close(): Promise<void>;
 }
-
 /** Parameterized persistence core; generation data never crosses the base desktop bridge. */
 export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	readonly localHandshake: unknown;
@@ -104,7 +98,6 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	readonly #sessions = new Set<ExactGenerationSession>();
 	readonly #activeProjects = new Map<ExactGenerationSession, string>();
 	#closed = false;
-
 	private constructor(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
@@ -119,7 +112,6 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		this.#owner = owner;
 		this.#lifecycle = lifecycle;
 	}
-
 	static async start(
 		configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
 		value: unknown,
@@ -157,7 +149,6 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			throw error;
 		}
 	}
-
 	snapshot(): Readonly<FramescaperDesktopProjectLibraryExactGenerationMainSnapshot> {
 		return Object.freeze({
 			closed: this.#closed,
@@ -198,6 +189,8 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	}
 
 	nativeProjectRecord(projectIdValue: string): Readonly<{
+		schemaFamily: 'framescaper';
+		schemaVersion: number;
 		projectId: string;
 		projectRevision: number;
 		projectSha256: string;
@@ -211,6 +204,8 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		`).get(projectId) as Record<string, unknown> | undefined;
 		if (!row) return null;
 		return Object.freeze({
+			schemaFamily: this.#configuration.schemaFamily ?? 'framescaper',
+			schemaVersion: this.#configuration.schemaVersion,
 			projectId: text(row.project_id, 'project id'),
 			projectRevision: nonNegative(row.project_revision, 'project revision'),
 			projectSha256: digestValue(row.sha256),
@@ -555,7 +550,11 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	}
 
 	async #bundle(row: StoredProjectRow): Promise<unknown> {
-		const project = projectRow(row, this.#configuration.projectSchemaVersion);
+		const project = projectRow(
+			row,
+			this.#configuration.schemaFamily ?? 'framescaper',
+			this.#configuration.schemaVersion,
+		);
 		const document = await readFile(join(this.#paths.projectsRoot, text(row.document_file, 'document file')), 'utf8');
 		if (new TextEncoder().encode(document).byteLength !== project.byteLength || sha256(document) !== project.sha256) {
 			throw new Error(`${this.#configuration.label} project document failed integrity validation`);

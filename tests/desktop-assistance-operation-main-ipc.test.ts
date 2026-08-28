@@ -135,7 +135,8 @@ function operationRequest() {
 		jobId: '1'.repeat(40),
 		operation: 'speech-recognition',
 		selectionFence: Object.freeze({
-			projectId: 'project-1', schemaVersion: 30, revision: 1, sequenceId: 'sequence-1',
+			projectId: 'project-1', schemaFamily: 'soundscaper' as const,
+			schemaVersion: 1, revision: 1, sequenceId: 'sequence-1',
 			occurrenceIds: Object.freeze(['occurrence-1']), sourceId: 'source-1', sourceSha256: '2'.repeat(64),
 			sourceStartFrame: 0, sourceEndFrame: 48_000,
 			linkMembershipSha256: '3'.repeat(64), timingAuthoritySha256: '4'.repeat(64),

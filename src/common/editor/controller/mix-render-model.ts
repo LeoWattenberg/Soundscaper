@@ -12,7 +12,7 @@ import {
 	type MixerGraphV21,
 } from '../mixer-graph-v21.ts';
 import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
-import { isSoundscaperProductionProjectSchema } from '../project-schema-version.ts';
+import { isSoundscaperProductionProject } from '../project-schema-version.ts';
 import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -99,7 +99,7 @@ export function createMixRenderSnapshot(
 	project: ControllerProject,
 	targetTracks: readonly ControllerTrack[],
 ): MutableControllerProject {
-	if (isSoundscaperProductionProjectSchema(project.schemaVersion)) {
+	if (isSoundscaperProductionProject(project)) {
 		return createMixRenderSnapshotV21(project, targetTracks);
 	}
 	const mediaProject = projectTrackFolderMediaStateV12(project);
@@ -240,7 +240,7 @@ export function prepareMixRenderCommit(
 		const resetChanges: Record<string, unknown> = {
 			gain: 1, pan: 0, mute: false, solo: false, armed: false,
 		};
-		if (!isSoundscaperProductionProjectSchema(project.schemaVersion)) resetChanges.envelope = [];
+		if (!isSoundscaperProductionProject(project)) resetChanges.envelope = [];
 		commands.push(
 			...v21StripLaneRemovalCommands(project, trackId),
 			...bottomTrack.clipIds.map((clipIdToRemove): AudioEditorCommand => ({
@@ -270,7 +270,7 @@ export function prepareMixRenderCommit(
 			clipIds: [],
 			opaqueExtensions: {},
 		};
-		if (!isSoundscaperProductionProjectSchema(project.schemaVersion)) mixedTrack.envelope = [];
+		if (!isSoundscaperProductionProject(project)) mixedTrack.envelope = [];
 		commands.push(
 			...targetTracks.map((track): AudioEditorCommand => ({ type: 'track/remove', trackId: track.id })),
 			{
@@ -406,7 +406,7 @@ function v21StripLaneRemovalCommands(
 	project: ControllerProject,
 	trackId: string,
 ): AudioEditorCommand[] {
-	if (!isSoundscaperProductionProjectSchema(project.schemaVersion)) return [];
+	if (!isSoundscaperProductionProject(project)) return [];
 	const lanes = (project as unknown as Readonly<Record<string, unknown>>).automationLanes;
 	if (!Array.isArray(lanes)) throw new TypeError('A V21 mix render requires automationLanes.');
 	return lanes.flatMap((lane): AudioEditorCommand[] => {

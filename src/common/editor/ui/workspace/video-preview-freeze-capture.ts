@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { FramescaperSelectedFreezeCaptureRequestV27 } from '../../../../framescaper/editor-selected-v27-visual-authoring-commands.ts';
+import type { FramescaperSelectedFreezeCaptureRequest } from '../../../../framescaper/editor-selected-finishing-visual-authoring-commands.ts';
 
 interface EvaluatedFrame {
 	readonly projectId: string;
@@ -14,7 +14,7 @@ interface CaptureFrame {
 	readonly rgba: Uint8Array;
 }
 
-export async function bindFramescaperV27PreviewFreezeCapture(input: Readonly<{
+export async function bindFramescaperPreviewFreezeCapture(input: Readonly<{
 	readonly owner: object;
 	readonly projectRef: Readonly<{ readonly current: unknown }>;
 	readonly evaluatedRef: Readonly<{ readonly current: EvaluatedFrame | null }>;
@@ -22,9 +22,9 @@ export async function bindFramescaperV27PreviewFreezeCapture(input: Readonly<{
 		captureEvaluatedRgba(): CaptureFrame | null;
 	}> | null }>;
 }>): Promise<() => void> {
-	const binding = await import('../../../../framescaper/editor-selected-v27-freeze-capture.ts');
-	return binding.bindFramescaperSelectedFreezeCaptureV27(input.owner, Object.freeze({
-		async capture(request: FramescaperSelectedFreezeCaptureRequestV27) {
+	const binding = await import('../../../../framescaper/editor-selected-finishing-freeze-capture.ts');
+	return binding.bindFramescaperSelectedFreezeCapture(input.owner, Object.freeze({
+		async capture(request: FramescaperSelectedFreezeCaptureRequest) {
 			assertCurrent(input, request);
 			const evaluated = input.compositorRef.current?.captureEvaluatedRgba() ?? null;
 			if (!evaluated) throw new Error('The exact evaluated preview frame is unavailable.');
@@ -41,7 +41,7 @@ export async function bindFramescaperV27PreviewFreezeCapture(input: Readonly<{
 function assertCurrent(
 	input: Readonly<{ readonly projectRef: Readonly<{ readonly current: unknown }>;
 		readonly evaluatedRef: Readonly<{ readonly current: EvaluatedFrame | null }> }>,
-	request: FramescaperSelectedFreezeCaptureRequestV27,
+	request: FramescaperSelectedFreezeCaptureRequest,
 ): void {
 	const project = record(input.projectRef.current, 'freeze preview project');
 	const evaluated = input.evaluatedRef.current;

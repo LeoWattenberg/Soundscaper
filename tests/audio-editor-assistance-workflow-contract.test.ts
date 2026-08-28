@@ -37,7 +37,8 @@ function fence(overrides: Record<string, unknown> = {}) {
 	return {
 		fenceVersion: ASSISTANCE_WORKFLOW_FENCE_VERSION,
 		projectId: 'project-a',
-		schemaVersion: 31,
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
 		revision: 8,
 		sequenceId: 'sequence-a',
 		sourceRanges: [{
@@ -477,6 +478,18 @@ test('the aggregate fence binds every source range and refuses ambiguous or unsu
 	assert.throws(
 		() => validateAssistanceWorkflowFenceV1({ ...fence(), path: '/private/project.scape' }),
 		/fence.*keys|schema keys/iu,
+	);
+	const numericOnly = { ...fence() };
+	delete (numericOnly as { schemaFamily?: unknown }).schemaFamily;
+	assert.throws(
+		() => validateAssistanceWorkflowFenceV1(numericOnly),
+		(error: unknown) => (error as { code?: string }).code === 'REIMPORT_REQUIRED',
+	);
+	assert.throws(
+		() => validateAssistanceWorkflowFenceV1(Object.defineProperty(
+			{ ...fence() }, 'schemaVersion', { enumerable: true, get: () => 1 },
+		)),
+		/data property/iu,
 	);
 });
 

@@ -47,6 +47,7 @@ import {
 } from './project-fallback-integrity-snapshot.ts';
 import {
 	isMaintainedRenderedFallbackProjectSchema,
+	isBaselineRenderedFallbackProject,
 } from './project-schema-version.ts';
 import {
 	canonicalMediaContentBlob,
@@ -127,10 +128,12 @@ export async function verifyProjectFallbackIntegrity(
 		throw new TypeError('Fallback integrity currentness must be a function.');
 	}
 	const captured = captureProjectFallbackIntegrity(project);
-	if (audioSelector && !isMaintainedRenderedFallbackProjectSchema(captured.schemaVersion)) {
+	if (audioSelector && !isBaselineRenderedFallbackProject(captured)
+		&& !isMaintainedRenderedFallbackProjectSchema(captured)) {
 		throw new Error('A selected audio rendered fallback requires the exact current project schema.');
 	}
-	if (videoSelector && !isMaintainedRenderedFallbackProjectSchema(captured.schemaVersion)) {
+	if (videoSelector && !isBaselineRenderedFallbackProject(captured)
+		&& !isMaintainedRenderedFallbackProjectSchema(captured)) {
 		throw new Error('A selected video rendered fallback requires the exact current project schema.');
 	}
 	const admissionState = snapshotAdmissionState(captured);
@@ -333,6 +336,7 @@ function snapshotAdmissionState(
 	captured: CapturedProjectFallbackIntegrity,
 ): CapturedProjectFallbackIntegrity {
 	return Object.freeze({
+		schemaFamily: captured.schemaFamily,
 		schemaVersion: captured.schemaVersion,
 		sampleRate: captured.sampleRate,
 		primarySequenceId: captured.primarySequenceId,

@@ -28,7 +28,8 @@ function audioClipboard(): AudioEditorClipboard {
 function project(overrides: Partial<ClipboardEditProject> = {}): ClipboardEditProject {
 	return {
 		id: 'project-a',
-		schemaVersion: 5,
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		sampleRate: 1_000,
 		sources: [{ id: 'source-a' }],
 		tracks: [{ id: 'track-a', name: 'Audio', type: 'audio', clipIds: ['clip-a'] }],
@@ -318,7 +319,7 @@ test('missing clipboard and legacy video paste fail before command publication',
 			clips: [{ key: 'video', kind: 'video', sourceId: 'video-source', offsetFrame: 0, sourceStartFrame: 0, durationFrames: 20 }],
 		}],
 	};
-	const legacy = createFixture(project({ schemaVersion: 3, sources: [], tracks: [], clips: [] }), {
+	const legacy = createFixture(project({ schemaFamily: undefined, schemaVersion: 3, sources: [], tracks: [], clips: [] }), {
 		session: {
 			setClipboard: (descriptor) => ({ clipboard: { descriptor, sources: [] } }),
 			clipboardForProject: () => ({ descriptor: videoClipboard, sources: [] }),

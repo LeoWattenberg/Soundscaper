@@ -3,18 +3,18 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import {
-	framescaperDesktopProjectLibraryV12NonNegative as nonNegative,
-} from './project-library-v12-values.ts';
+	framescaperDesktopProjectLibraryNonNegative as nonNegative,
+} from './framescaper-project-library-values.ts';
 
 export const FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_APPLICATION_ID = 0x46534350;
 
 export interface FramescaperDesktopProjectLibraryDatabaseIdentity {
 	readonly label: string;
+	readonly schemaFamily?: 'framescaper';
 	readonly librarySchemaVersion: number;
-	readonly projectSchemaVersion: number;
+	readonly schemaVersion: number;
 	readonly databaseUserVersion: number;
 }
-
 /** Initialize one isolated exact-generation database without admitting adjacent generations. */
 export function initializeFramescaperDesktopProjectLibraryExactGenerationDatabase(
 	database: DatabaseSync,
@@ -29,17 +29,24 @@ export function initializeFramescaperDesktopProjectLibraryExactGenerationDatabas
 		throw new Error(`Unsupported ${identity.label} database version`);
 	}
 	const library = exactPositive(identity.librarySchemaVersion, 'library schema version');
-	const project = exactPositive(identity.projectSchemaVersion, 'project schema version');
+	const project = exactPositive(identity.schemaVersion, 'project schema version');
 	const version = exactPositive(identity.databaseUserVersion, 'database user version');
+	const family = identity.schemaFamily ?? 'framescaper';
+	if (family !== 'framescaper') {
+		throw new TypeError('Framescaper desktop project schema family is invalid');
+	}
 	database.exec(`
 		BEGIN IMMEDIATE;
 		CREATE TABLE IF NOT EXISTS library_identity (
 			singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
 			schema_version INTEGER NOT NULL CHECK (schema_version = ${String(library)}),
+			project_schema_family TEXT NOT NULL CHECK (project_schema_family = '${family}'),
 			project_schema_version INTEGER NOT NULL CHECK (project_schema_version = ${String(project)}),
 			metadata_revision INTEGER NOT NULL CHECK (metadata_revision >= 0)
 		) STRICT;
-		INSERT OR IGNORE INTO library_identity VALUES (1, ${String(library)}, ${String(project)}, 0);
+		INSERT OR IGNORE INTO library_identity VALUES (
+			1, ${String(library)}, '${family}', ${String(project)}, 0
+		);
 		CREATE TABLE IF NOT EXISTS projects (
 			entry_id TEXT NOT NULL,
 			project_id TEXT PRIMARY KEY,
@@ -56,9 +63,11 @@ export function initializeFramescaperDesktopProjectLibraryExactGenerationDatabas
 		COMMIT;
 	`);
 	const stored = database.prepare(`
-		SELECT schema_version, project_schema_version FROM library_identity WHERE singleton = 1
+		SELECT schema_version, project_schema_family, project_schema_version
+		FROM library_identity WHERE singleton = 1
 	`).get() as Record<string, unknown> | undefined;
-	if (stored?.schema_version !== library || stored.project_schema_version !== project) {
+	if (stored?.schema_version !== library || stored.project_schema_family !== family
+		|| stored.project_schema_version !== project) {
 		throw new Error(`${identity.label} database identity is invalid`);
 	}
 }

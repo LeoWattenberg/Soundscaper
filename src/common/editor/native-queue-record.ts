@@ -39,6 +39,11 @@ import {
 	createNativeValidators,
 	NATIVE_SHA256_HEX_PATTERN,
 } from './native-validation.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from './project-schema-identity.ts';
 
 export const NATIVE_QUEUE_TASK_KINDS = Object.freeze([
 	'encoded-export',
@@ -94,6 +99,8 @@ export interface NativeQueueReservationsV1 {
 
 export interface NativeQueueRecordV1 {
 	readonly jobId: string;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly planVersion: number;
 	readonly planFingerprint: string;
@@ -139,7 +146,7 @@ export class NativeQueueRecordError extends Error {
 }
 
 const RECORD_V1_KEYS = Object.freeze([
-	'jobId', 'taskKind', 'planVersion', 'planFingerprint', 'planPayload',
+	'jobId', 'schemaFamily', 'schemaVersion', 'taskKind', 'planVersion', 'planFingerprint', 'planPayload',
 	'projectId', 'projectRevision', 'inputFingerprints', 'rootGrantId',
 	'relativeDestination', 'reservations', 'recoveryClass', 'state', 'position',
 	'progress', 'attempt', 'lastFailureCode', 'createdAtMs', 'updatedAtMs',
@@ -184,6 +191,11 @@ function assertNativeQueueRecord(
 	keys: readonly string[],
 	assertPlanVersion: (value: unknown) => number,
 ): Record<string, unknown> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new NativeQueueRecordError('A native queue record requires the current Framescaper project schema.');
+	}
 	const record = plainRecord(value, 'native queue record');
 	exactKeys(record, keys, 'native queue record');
 	const taskKind = member(record.taskKind, NATIVE_QUEUE_TASK_KINDS, 'taskKind');
@@ -218,6 +230,8 @@ function assertNativeQueueRecord(
 /** Build a freshly enqueued row in its canonical initial state. */
 export function createNativeQueueRecordV1(input: Readonly<{
 	jobId: string;
+	schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	taskKind: NativeQueueTaskKind;
 	planVersion: number;
 	planFingerprint: string;
@@ -234,6 +248,8 @@ export function createNativeQueueRecordV1(input: Readonly<{
 }>): NativeQueueRecordV1 {
 	const record: NativeQueueRecordV1 = Object.freeze({
 		jobId: input.jobId,
+		schemaFamily: input.schemaFamily,
+		schemaVersion: input.schemaVersion,
 		taskKind: input.taskKind,
 		planVersion: input.planVersion,
 		planFingerprint: input.planFingerprint,
@@ -263,6 +279,8 @@ export function createNativeQueueRecordV1(input: Readonly<{
 /** Build a new V2 row from one exact executable plan. */
 export function createNativeQueueRecordV2(input: Readonly<{
 	jobId: string;
+	schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	taskKind: NativeQueueTaskKind;
 	plan: unknown;
 	timingSidecars?: UnifiedExactRenderTimingSidecars;
@@ -430,6 +448,8 @@ function planAdmissionError(error: unknown): NativeQueueRecordError {
 function createQueueRecordFields(
 	input: Readonly<{
 		jobId: string;
+		schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+		schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 		taskKind: NativeQueueTaskKind;
 		projectId: string;
 		projectRevision: number;
@@ -445,6 +465,8 @@ function createQueueRecordFields(
 ): Omit<NativeQueueRecordV2, 'recordVersion'> {
 	return {
 		jobId: input.jobId,
+		schemaFamily: input.schemaFamily,
+		schemaVersion: input.schemaVersion,
 		taskKind: input.taskKind,
 		planVersion: plan.planVersion,
 		planFingerprint: plan.planFingerprint,

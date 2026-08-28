@@ -8,7 +8,7 @@ import { decodeAudacityProjectTree } from '../src/common/editor/aup4-conversion.
 import { createAup4ExportPlan } from '../src/common/editor/aup4-export.js';
 import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
-import { SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 
 const xmlChildren = audacityXmlChildren as unknown as (node: unknown, name: string) => unknown[];
 
@@ -75,12 +75,13 @@ test('AUP4 export projects musical clips and labels and reports the exact flatte
 	assert.equal(audacityXmlAttribute(label, 't1'), 4);
 	assert.equal(audacityXmlAttribute(tree, 'time_signature_tempo'), 120);
 	assert.equal(audacityXmlAttribute(tree, 'time_signature_upper'), 4);
-	const v21Plan = createAup4ExportPlan({
+	const baselinePlan = createAup4ExportPlan({
 		...project,
-		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper',
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 	});
-	const v21Clip = v21Plan.project.clips.find(({ id }: { id?: string }) => id === 'musical-clip');
-	assert.deepEqual([v21Clip.timelineStartFrame, v21Clip.durationFrames], [144_000, 48_000]);
+	const baselineClip = baselinePlan.project.clips.find(({ id }: { id?: string }) => id === 'musical-clip');
+	assert.deepEqual([baselineClip.timelineStartFrame, baselineClip.durationFrames], [144_000, 48_000]);
 });
 
 test('AUP4 round-trip recovers a bounded rational tempo from its native floating-point field', async () => {
@@ -98,9 +99,9 @@ test('AUP4 round-trip recovers a bounded rational tempo from its native floating
 	assert.deepEqual(decoded.project.tempoMap.events[0].bpm, { num: 100, den: 3 });
 });
 
-test('AUP4 export resolves inherited musical timing from exact Soundscaper V21', () => {
+test('AUP4 export resolves inherited musical timing from exact Soundscaper v1', () => {
 	const current = createCurrentAudioEditorProject({
-		id: 'musical-v21-aup4-export', now: '2026-08-09T00:00:00.000Z',
+		id: 'musical-baseline-aup4-export', now: '2026-08-09T00:00:00.000Z',
 		tempoMap: { mode: 'musical', events: [
 			{ id: 'tempo-0', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } },
 			{ id: 'tempo-1', beat: { num: 4, den: 1 }, bpm: { num: 60, den: 1 } },
@@ -108,7 +109,8 @@ test('AUP4 export resolves inherited musical timing from exact Soundscaper V21',
 	});
 	const plan = createAup4ExportPlan({
 		...current,
-		schemaVersion: SOUNDSCAPER_PROJECT_V21_SCHEMA_VERSION,
+		schemaFamily: 'soundscaper',
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 	});
 	assert.ok(plan.compatibilityReport.items.some(({ code }: { code?: string }) => code === 'TEMPO_MAP_FLATTENED'));
 });

@@ -79,7 +79,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(manifestRequests).toBe(1);
 	});
 
-	test('fails closed when exact V30 durable project storage is unavailable', async ({ page }) => {
+	test('fails closed when durable Soundscaper v1 project storage is unavailable', async ({ page }) => {
 		await page.addInitScript(() => {
 			Object.defineProperty(globalThis, 'indexedDB', {
 				configurable: true,
@@ -90,7 +90,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto('/embed/en/');
 		let failure = page.getByRole('alert');
 		await expect(failure).toContainText(
-			'Durable storage is required; memory V30 project storage is unsupported.',
+			'Durable storage is required; memory baseline project storage is unsupported.',
 		);
 		await expect(failure.getByRole('button')).toHaveCount(0);
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
@@ -98,7 +98,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.reload();
 		failure = page.getByRole('alert');
 		await expect(failure).toContainText(
-			'Durable storage is required; memory V30 project storage is unsupported.',
+			'Durable storage is required; memory baseline project storage is unsupported.',
 		);
 		await expect(failure.getByRole('button')).toHaveCount(0);
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);

@@ -196,47 +196,6 @@ test('durable startup without a linked-original port does not request a project 
 	assert.equal(projectLists, 0);
 });
 
-for (const mode of ['legacy-only', 'generic-reconcile-unavailable'] as const) {
-	test(`generic startup hook falls back to legacy video reconciliation (${mode})`, async (context) => {
-		const indexedDB = createInstrumentedIndexedDB();
-		const databaseName = `linked-video-shared-catalog-${mode}-${Date.now()}-${Math.random()}`;
-		const body = new Blob(['stale shadow linked video'], { type: 'video/mp4' });
-		const submitted: unknown[] = [];
-		let sharedCatalogReads = 0;
-		const store = createProjectStore({
-			indexedDB,
-			memoryFallback: false,
-			preferOpfs: false,
-			databaseName,
-			...(mode === 'generic-reconcile-unavailable' ? {
-				linkedOriginalPort: {
-					load() { throw new Error('generic reconciliation must not load media'); },
-				},
-			} : {}),
-			desktopProjectBridge: {
-				async listSharedProjects() { sharedCatalogReads += 1; return []; },
-				async readSharedProject() { return null; },
-				async commitSharedProject(document: string) { return document; },
-				async deleteSharedProject() { return true; },
-			},
-			linkedVideoOriginalPort: {
-				load: () => ({ blob: body, locatorRevision: LOCATOR_REVISION }),
-				reconcile(references: readonly unknown[]) { submitted.push(references); return 1; },
-			},
-		});
-		context.after(async () => { await store.close(); });
-		await store.ready();
-		indexedDB.seedRecord(databaseName, 'projects', { id: PROJECT_ID });
-		const source = videoSource();
-		assert.ok(await store.bindLinkedVideoOriginal(PROJECT_ID, source, LOCATOR_ID));
-
-		assert.equal(await store.reconcileLinkedOriginalLocators(), true);
-		assert.equal(sharedCatalogReads, 1);
-		assert.deepEqual(submitted, [[]]);
-		assert.equal(await store.getLinkedVideoOriginalBinding(PROJECT_ID, source.id), null);
-	});
-}
-
 test('committed orphan cleanup retries locator reconciliation after a main rejection', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB();
 	const databaseName = `linked-video-reconcile-retry-${Date.now()}-${Math.random()}`;

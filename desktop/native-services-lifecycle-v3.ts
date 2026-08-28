@@ -195,6 +195,7 @@ export class FramescaperNativeServicesLifecycleV3 {
 		const position = records.reduce((maximum, record) => Math.max(maximum, record.position), -1) + 1;
 		const record = createNativeQueueRecordV3({
 			jobId: request.derivedInputStageId ?? nativeLifecycleJobId(this.#mintJobId()),
+			schemaFamily: request.schemaFamily, schemaVersion: request.schemaVersion,
 			taskKind: request.taskKind,
 			plan,
 			projectId: request.projectId,
@@ -352,6 +353,9 @@ export class FramescaperNativeServicesLifecycleV3 {
 		const request = framescaperNativePublicationLifecycleRequest(value);
 		const job = this.#queue.read(request.jobId);
 		if (job === null) throw new Error('The native queue job does not exist.');
+		if (job.schemaFamily !== request.schemaFamily || job.schemaVersion !== request.schemaVersion) {
+			throw new Error('The native publication request changed project schema identity.');
+		}
 		if (job.state !== 'running') throw new Error('Only a running native queue job may publish.');
 		if (job.planFingerprint !== request.currentPlanFingerprint) {
 			throw new Error('The native publication request does not name the queued plan fingerprint.');
@@ -384,6 +388,9 @@ export class FramescaperNativeServicesLifecycleV3 {
 		const request = framescaperNativeCheckpointLifecycleRequest(value);
 		const job = this.#queue.read(request.jobId);
 		if (job === null) throw new Error('The native queue job does not exist.');
+		if (job.schemaFamily !== request.schemaFamily || job.schemaVersion !== request.schemaVersion) {
+			throw new Error('The native checkpoint request changed project schema identity.');
+		}
 		if (job.taskKind !== 'image-sequence-export'
 			|| job.recoveryClass !== 'verified-frame-checkpoint') {
 			throw new Error('Only a checkpointed image-sequence job may verify frames.');

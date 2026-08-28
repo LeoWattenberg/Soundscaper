@@ -21,7 +21,7 @@ import {
 import VideoCompositionDialog from '../src/common/editor/ui/inspector/VideoCompositionDialog.tsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
-test('video composition is capability-gated for writable Framescaper V19 and V20 video clips', () => {
+test('video composition is capability-gated for writable Framescaper v1 video clips', () => {
 	const opened: string[] = [];
 	const input = {
 		productId: 'framescaper', capability: true, project: project(),
@@ -42,8 +42,10 @@ test('video composition is capability-gated for writable Framescaper V19 and V20
 	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: project({ selection: ['video', 'audio'] }) })[0]?.disabled, false);
 	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: project({ selection: ['video', 'other-video'] }) })[0]?.disabled, true);
 	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, selectedClipId: 'audio' })[0]?.disabled, true);
-	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: { ...project(), schemaVersion: 18 } })[0]?.disabled, true);
-	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: { ...project(), schemaVersion: 20 } })[0]?.disabled, false);
+	assert.equal(createVideoCompositionApplicationMenuItems({
+		...input, project: { ...project(), schemaVersion: 2 },
+	})[0]?.disabled, true);
+	assert.equal(createVideoCompositionApplicationMenuItems({ ...input, project: project() })[0]?.disabled, false);
 });
 
 test('a linked A/V selection resolves the focused video clip as one composition owner', () => {
@@ -221,13 +223,14 @@ test('video composition copy is complete in English and German catalogs', () => 
 });
 
 function project(options: Readonly<{ locked?: boolean; selection?: readonly string[] }> = {}): {
+	schemaFamily: 'framescaper';
 	schemaVersion: number;
 	clips: Array<Record<string, unknown>>;
 	tracks: Array<Record<string, unknown>>;
 	selection: { clipIds: readonly string[] };
 } {
 	return {
-		schemaVersion: 19,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		clips: [
 			{ id: 'video', kind: 'video', title: 'Picture', videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION },
 			{ id: 'other-video', kind: 'video', title: 'Other picture', videoComposition: DEFAULT_VIDEO_CLIP_COMPOSITION },

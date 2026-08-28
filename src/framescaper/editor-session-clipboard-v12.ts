@@ -2,10 +2,10 @@
 
 import type { AudioEditorClipboard } from '../common/editor/commands/protocol.ts';
 import { assertOfxEffectStateV26, type OfxEffectStateV26 } from '../common/editor/native-ofx-state-v26.ts';
-import { normalizeFramescaperProfessionalVideoSourceV25 } from './editor-project-v25.ts';
-import { FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE } from './editor-project-runtime-profile-v27.ts';
-import { framescaperProjectV27FoundationShapeV28 } from './editor-project-v28-foundation.ts';
-import { validateFramescaperProjectV28, type FramescaperProjectV28 } from './editor-project-v28.ts';
+import { normalizeFramescaperProfessionalVideoSourceProfessionalMedia } from './editor-project-professional-media.ts';
+import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
+import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
+import { validateFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
 import {
 	createFramescaperSessionClipboardV11,
 	normalizeFramescaperSessionClipboardV11,
@@ -22,25 +22,25 @@ const FIELDS = Object.freeze([
 	'clipBindings', 'finishing', 'ofxEffects',
 ]);
 
-/** Snapshot one selected V28 edit graph, including professional source and OFX state. */
+/** Snapshot one selected nativeMedia edit graph, including professional source and OFX state. */
 export function createFramescaperSessionClipboardV12(
 	profile: unknown,
 	projectValue: unknown,
 	descriptor: AudioEditorClipboard,
 ): FramescaperSessionClipboardV12 {
-	validateFramescaperProjectV28(profile, projectValue);
-	const project = projectValue as FramescaperProjectV28;
+	validateFramescaperProjectNativeMedia(profile, projectValue);
+	const project = projectValue as FramescaperProjectNativeMedia;
 	const foundation = createFramescaperSessionClipboardV11(
-		FRAMESCAPER_V27_PROJECT_RUNTIME_PROFILE,
-		framescaperProjectV27FoundationShapeV28(project),
+		FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
+		framescaperProjectFinishingFoundationShapeNativeMedia(project),
 		descriptor,
 	);
 	const selectedSourceIds = new Set(foundation.sources.map(({ id }) => id));
-	const projectSources = new Map(records(project.sources, 'V28 clipboard sources').map((source) => [String(source.id), source]));
+	const projectSources = new Map(records(project.sources, 'nativeMedia clipboard sources').map((source) => [String(source.id), source]));
 	const sources = foundation.sources.map((source) => {
 		const selected = projectSources.get(source.id);
-		if (!selected) throw new ReferenceError(`V28 clipboard source ${source.id} disappeared.`);
-		return selected.kind === 'video' ? normalizeFramescaperProfessionalVideoSourceV25(selected) : structuredClone(source);
+		if (!selected) throw new ReferenceError(`nativeMedia clipboard source ${source.id} disappeared.`);
+		return selected.kind === 'video' ? normalizeFramescaperProfessionalVideoSourceProfessionalMedia(selected) : structuredClone(source);
 	});
 	const selectedClipIds = new Set(foundation.clipBindings.map(({ clipId }) => clipId));
 	const ofxEffects = project.ofxEffects.filter((effect) => effectBelongsToSelection(
@@ -62,7 +62,7 @@ export function normalizeFramescaperSessionClipboardV12(value: unknown): Framesc
 	const selectedSourceIds = new Set(foundation.sources.map(({ id }) => id));
 	const sources = foundation.sources.map((source) => {
 		if ((source as Readonly<Record<string, unknown>>).kind !== 'video') return structuredClone(source);
-		const normalized = normalizeFramescaperProfessionalVideoSourceV25(source);
+		const normalized = normalizeFramescaperProfessionalVideoSourceProfessionalMedia(source);
 		if (!selectedSourceIds.has(normalized.id)) throw new ReferenceError('V12 professional source is detached.');
 		return normalized;
 	});

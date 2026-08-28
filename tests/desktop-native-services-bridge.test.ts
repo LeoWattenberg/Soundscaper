@@ -46,6 +46,7 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	}, lease, 0);
 	const queue = new FramescaperNativeQueueRepository(database);
 	queue.enqueue(createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '1a'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-1', projectRevision: 1, inputFingerprints: [],
 		rootGrantId: 'f'.repeat(32), relativeDestination: 'exports/reel.mp4',
@@ -204,7 +205,10 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	assert.equal(await bridge.remove({ jobId: '1a'.repeat(20) }), true);
 	assert.equal((await bridge.snapshot()).queue.length, 0);
 	await assert.rejects(
-		() => bridge.claimWatchImport({ projectId: 'project-1', projectRevision: 1 }),
+		() => bridge.claimWatchImport({
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-1', projectRevision: 1,
+		}),
 		/disabled|unavailable|policy/u,
 	);
 	await assert.rejects(() => bridge.selectImageSequence(), /disabled|unavailable|policy/u);
@@ -219,7 +223,8 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 	})).state, 'enabled');
 	const interactEffect = openFxEffect();
 	const interactRequest = { protocolVersion: 1 as const,
-		project: { id: 'project-v28', revision: 3 }, pluginHandle: '8b'.repeat(20),
+		project: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+			id: 'project-v28', revision: 3 }, pluginHandle: '8b'.repeat(20),
 		effect: interactEffect,
 		effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(interactEffect),
 		context: 'filter' as const, target: 'overlay' as const, parameterName: null,
@@ -247,7 +252,8 @@ test('the authenticated pathless bridge reports blocked state and permits safe q
 		/unsupported fields/u,
 	);
 	await assert.rejects(
-		() => bridge.claimWatchImport({ projectId: 'project-1', projectRevision: 1, path: '/tmp/x' } as never),
+		() => bridge.claimWatchImport({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-1', projectRevision: 1, path: '/tmp/x' } as never),
 		/missing or unsupported fields/iu,
 	);
 	await assert.rejects(
@@ -287,6 +293,7 @@ test('direct queue reorder requires a writable owning project after capability a
 		volumeIdentity: 'volume-reorder', directoryIdentity: 'directory-reorder', authorizedAtMs: 0,
 	}, lease, 0);
 	queue.enqueue(createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: '8a'.repeat(20), taskKind: 'encoded-export', plan: nativeQueueKeyedPlanV7(),
 		projectId: 'project-closed', projectRevision: 1, inputFingerprints: [],
 		rootGrantId: '9b'.repeat(16), relativeDestination: 'exports/closed.mp4',
@@ -306,7 +313,8 @@ test('direct queue reorder requires a writable owning project after capability a
 		watch: new FramescaperNativeWatchRepository(database), lease: () => lease,
 		runtimeAvailable: () => true, nativeMediaEnabled: () => true,
 		capabilities: () => capabilities,
-		projectState: () => ({ open: true, writable: false }),
+		projectState: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+			open: true, writable: false, binId: 'project-bin' }),
 	});
 	assert.throws(() => controller.reorder({ jobId: '8a'.repeat(20), index: 0 }), /writable/iu);
 	assert.equal(queue.read('8a'.repeat(20))?.position, 0);

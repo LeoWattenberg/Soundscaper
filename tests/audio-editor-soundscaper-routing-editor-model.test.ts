@@ -11,7 +11,7 @@ import {
 	createSoundscaperRoutingEditorModel,
 	editSoundscaperRoutingGraph,
 } from '../src/common/editor/ui/soundscaper-routing-editor-model.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-14T13:00:00.000Z';
 
@@ -128,7 +128,7 @@ test('a draft that breaks the folder rules is refused before Apply, not after', 
 	// Folder authority owns a folder-derived group's name. The stored-document validator
 	// enforces that, so the editor has to as well: reporting a draft valid and then
 	// failing the commit leaves the user with no way to see what is wrong.
-	const foldered = createSoundscaperProjectV21({
+	const foldered = createSoundscaperProject({
 		id: 'foldered', title: 'Foldered', now: NOW,
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		trackFolders: [{ id: 'stems', name: 'Stems' }],

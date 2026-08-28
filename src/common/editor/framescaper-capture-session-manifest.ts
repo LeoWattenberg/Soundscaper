@@ -4,6 +4,11 @@ import type {
 	CaptureDestination,
 	CaptureSourceRole,
 } from './framescaper-capture-domain.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from './project-schema-identity.ts';
 
 const MAXIMUM_CAPTURE_STREAMS = 4;
 const MAXIMUM_PAUSE_SPANS = 4_096;
@@ -18,6 +23,8 @@ export type FramescaperCaptureRecoveryDecision = 'recover' | 'import-as-is' | 'd
 export type FramescaperCapturePlayability = 'unknown' | 'playable' | 'invalid';
 
 export interface FramescaperCaptureProjectFenceV1 {
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly projectId: string;
 	readonly baseRevision: number;
 	readonly baseSha256: string;
@@ -102,7 +109,7 @@ export function normalizeFramescaperCaptureSessionManifest(
 	if (record.version !== 1) throw new Error('Framescaper capture session manifest version is invalid.');
 	const state = manifestState(record.state);
 	const recoveryDecision = recoveryDecisionValue(record.recoveryDecision);
-	const projectFence = normalizeProjectFence(record.projectFence);
+	const projectFence = normalizeFramescaperCaptureProjectFence(record.projectFence);
 	const origin = normalizeOrigin(record.origin);
 	const clock = normalizeClock(record.clock);
 	const streams = denseArray(
@@ -156,11 +163,20 @@ export function decideFramescaperCaptureRecovery(
 	});
 }
 
-function normalizeProjectFence(value: unknown): FramescaperCaptureProjectFenceV1 {
+export function normalizeFramescaperCaptureProjectFence(
+	value: unknown,
+): FramescaperCaptureProjectFenceV1 {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('Framescaper capture requires the current Framescaper project schema.');
+	}
 	const record = dataRecord(value, 'Framescaper capture project fence', [
-		'projectId', 'baseRevision', 'baseSha256',
+		'schemaFamily', 'schemaVersion', 'projectId', 'baseRevision', 'baseSha256',
 	]);
 	return Object.freeze({
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
 		projectId: stableId(record.projectId, 'Framescaper capture projectId'),
 		baseRevision: nonNegativeInteger(record.baseRevision, 'Framescaper capture base revision'),
 		baseSha256: sha256(record.baseSha256, 'Framescaper capture base SHA-256'),

@@ -134,7 +134,7 @@ function manifest(): FramescaperCaptureSessionManifestV1 {
 		generation: 1,
 		state: 'capturing',
 		recoveryDecision: null,
-		projectFence: { projectId: 'project-a', baseRevision: 1, baseSha256: 'a'.repeat(64) },
+		projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: 'project-a', baseRevision: 1, baseSha256: 'a'.repeat(64) },
 		origin: { sequenceId: 'sequence-a', playheadMicroseconds: 0, destination: 'both' },
 		clock: { monotonicOriginMicroseconds: 10_000, pauseSpans: [] },
 		streams: [{

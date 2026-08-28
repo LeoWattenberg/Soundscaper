@@ -21,11 +21,11 @@ import {
 } from '../src/common/editor/video-keyframe-encoder-stream.ts';
 import { VideoKeyframeEncoderExitError } from '../src/common/editor/video-keyframe-execution-engine.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
+const PROFILE = FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE;
 
 test('encoder workload admission is exact, immutable, and owns one unambiguous RGBA input', () => {
 	const frameSource = source({ width: 40, height: 40, frameRate: 3 });
@@ -485,7 +485,7 @@ function encode(
 }
 
 function source(options: Readonly<{ width: number; height: number; frameRate: number }>) {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const compatible = structuredClone(project) as Record<string, unknown>;
 	compatible.schemaVersion = 17;
 	return createVideoKeyframeExportFrameSource({

@@ -14,7 +14,7 @@ import {
 	createVideoTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { projectTrackFolderMediaStateV12 } from '../src/common/editor/track-folder-media-runtime.ts';
-import { createSoundscaperProjectV23 } from '../src/soundscaper/editor-project-v23.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 /**
  * A folder's mute and hidden reach every consumer, or the file disagrees with
@@ -76,7 +76,7 @@ function edlRuntime(project: Readonly<Record<string, unknown>>) {
 }
 
 function audioProject({ folderMuted }: { folderMuted: boolean }) {
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'folder-consumers-audio', title: 'Folder consumers', now: NOW,
 		sources: [createAudioSource({
 			id: 'voice-source', storageKey: 'pcm:voice', frameCount: 480_000, channelCount: 1,
@@ -105,7 +105,7 @@ function videoProject(
 		folderHidden: boolean; trackHidden: boolean; trackSolo: boolean;
 	},
 ) {
-	return createSoundscaperProjectV23({
+	return createSoundscaperProject({
 		id: 'folder-consumers-video', title: 'Folder consumers', now: NOW,
 		sources: [createVideoSource({
 			id: 'cam', name: 'CAM', storageKey: 'media/cam.mp4', mimeType: 'video/mp4',

@@ -130,6 +130,7 @@ function operationFence(stage: AssistanceWorkflowStageExecutionV1) {
 	const fence = stage.request.fence;
 	return Object.freeze({
 		projectId: fence.projectId,
+		schemaFamily: fence.schemaFamily,
 		schemaVersion: fence.schemaVersion,
 		revision: fence.revision,
 		sequenceId: fence.sequenceId,

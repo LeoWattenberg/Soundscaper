@@ -11,14 +11,14 @@ import {
 	createVideoExactPictureExportFrameSource,
 	createVideoKeyframeExportFrameSource,
 } from '../src/common/editor/video-keyframe-export-frame-source.ts';
-import { createFramescaperProjectV20 } from '../src/framescaper/editor-project-v20.ts';
-import { FRAMESCAPER_V20_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-v20-profile.ts';
+import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
+import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
 import {
 	framescaperV20Options,
 	opacityKeyframes,
-} from './helpers/framescaper-v20-model-fixture.ts';
+} from './helpers/framescaper-model-fixture.ts';
 
-const PROFILE = FRAMESCAPER_V20_PROJECT_MODEL_PROFILE;
+const PROFILE = FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE;
 
 test('product picture frames use an exact authenticated clock without video layers', () => {
 	const source = createVideoExactPictureExportFrameSource({
@@ -36,7 +36,7 @@ test('product picture frames use an exact authenticated clock without video laye
 });
 
 test('frame source maps output indices exactly and evaluates shared keyed state lazily', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const clip = project.clips[0] as unknown as Record<string, unknown>;
 	clip.videoKeyframes = opacityKeyframes();
 	const runtime = runtimeProject(project);
@@ -60,7 +60,7 @@ test('frame source maps output indices exactly and evaluates shared keyed state 
 });
 
 test('frame source retains wide exact frame positions and static composition parity', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
 	const source = createVideoKeyframeExportFrameSource({
 		project: runtime,
@@ -104,7 +104,7 @@ test('static clips without keyed sequence geometry use the renderer-neutral fast
 });
 
 test('frame source binds exact presentation descriptors to keyed and static clip entries', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
 	const calls: Array<Readonly<Record<string, unknown>>> = [];
 	const descriptor = Object.freeze({ authority: 'exact-presentation' });
@@ -125,7 +125,7 @@ test('frame source binds exact presentation descriptors to keyed and static clip
 	assert.deepEqual(calls[0]?.localSequencePosition, { num: 10, den: 3 });
 	assert.equal(calls[0]?.outputOrdinal, 1);
 
-	const keyedProject = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const keyedProject = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	(keyedProject.clips[0] as unknown as Record<string, unknown>).videoKeyframes = opacityKeyframes();
 	const keyedSource = createVideoKeyframeExportFrameSource({
 		project: runtimeProject(keyedProject),
@@ -140,7 +140,7 @@ test('frame source binds exact presentation descriptors to keyed and static clip
 });
 
 test('frame source snapshots presentation authority without invoking accessors', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
 	let calls = 0;
 	const request: Record<string, unknown> = {
@@ -159,7 +159,7 @@ test('frame source snapshots presentation authority without invoking accessors',
 });
 
 test('frame source privately brands each lazy frame to its exact owning snapshot', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const request = {
 		project: runtimeProject(project),
 		canvas: { width: 320, height: 180, frameRate: 3 },
@@ -184,7 +184,7 @@ test('frame source privately brands each lazy frame to its exact owning snapshot
 });
 
 test('frame source owns an immutable project snapshot', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project) as unknown as {
 		tracks: Array<{ hidden?: boolean; clipIds: string[] }>;
 	};
@@ -201,7 +201,7 @@ test('frame source owns an immutable project snapshot', () => {
 });
 
 test('frame source preflights every advertised position and binary snapshot payload', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
 	assert.throws(
 		() => createVideoKeyframeExportFrameSource({
@@ -236,7 +236,7 @@ test('frame source preflights every advertised position and binary snapshot payl
 });
 
 test('frame source rejects hostile canvas accessors without invoking them', () => {
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const runtime = runtimeProject(project);
 	let calls = 0;
 	const canvas = { height: 180, frameRate: 30 } as Record<string, unknown>;
@@ -288,7 +288,7 @@ test('a keyed frame is placed by the fit its delivery canvas states', () => {
 	// green, and a 9:16 cover delivery would have letterboxed while the plan and
 	// the report both still said cover — the quieter of the two bugs commit
 	// b2b909bd was written about.
-	const project = createFramescaperProjectV20(PROFILE, framescaperV20Options());
+	const project = createFramescaperProjectRetime(PROFILE, framescaperV20Options());
 	const clip = project.clips[0] as unknown as Record<string, unknown>;
 	clip.videoKeyframes = opacityKeyframes();
 	const runtime = runtimeProject(project);

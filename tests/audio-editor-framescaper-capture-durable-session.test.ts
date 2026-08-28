@@ -457,6 +457,7 @@ function sessionRequest(
 		sessionId: 'session-capture',
 		generation: 1,
 		projectFence: {
+			schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 			projectId: 'project-capture', baseRevision: 3, baseSha256: 'ab'.repeat(32),
 		},
 		origin: {

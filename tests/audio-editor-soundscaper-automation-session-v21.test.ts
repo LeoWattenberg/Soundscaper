@@ -9,26 +9,26 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import {
-	createSoundscaperAutomationControllerBindingV21,
-	resolveSoundscaperAutomationTargetV21,
-} from '../src/soundscaper/editor-automation-controller-v21.ts';
+	createSoundscaperAutomationControllerBinding,
+	resolveSoundscaperAutomationTarget,
+} from '../src/soundscaper/editor-automation-controller.ts';
 import {
-	createSoundscaperAutomationSessionV21,
-	type SoundscaperAutomationAuthorityV21,
-	type SoundscaperAutomationGestureTokenV21,
-	type SoundscaperAutomationSessionV21,
-} from '../src/soundscaper/editor-automation-session-v21.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
+	createSoundscaperAutomationSession,
+	type SoundscaperAutomationAuthority,
+	type SoundscaperAutomationGestureToken,
+	type SoundscaperAutomationSession,
+} from '../src/soundscaper/editor-automation-session.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import {
-	createSoundscaperProjectHistoryV21,
-	executeSoundscaperProjectCommandV21,
-	redoSoundscaperProjectCommandV21,
-	undoSoundscaperProjectCommandV21,
-} from '../src/soundscaper/editor-project-v21-history.ts';
+	createSoundscaperProjectHistory,
+	executeSoundscaperProjectCommand,
+	redoSoundscaperProjectCommand,
+	undoSoundscaperProjectCommand,
+} from '../src/soundscaper/editor-project-history.ts';
 import {
-	createSoundscaperProjectV21,
-	type SoundscaperProjectV21,
-} from '../src/soundscaper/editor-project-v21.ts';
+	createSoundscaperProject,
+	type SoundscaperProject,
+} from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-14T12:00:00.000Z';
 const ADDRESS = Object.freeze({
@@ -50,6 +50,7 @@ test('the session coordinator applies every ownership mode across gestures and t
 		fixture.authority.positionFrame = 10;
 		fixture.coordinator.setMode(expected.mode, 'voice-gain');
 		const token = fixture.coordinator.beginGesture('voice-gain', 0.5);
+		assert.equal(token.type, 'soundscaper-automation-gesture-v21');
 		fixture.authority.positionFrame = 20;
 		const preview = fixture.coordinator.previewGesture(token, 0.8);
 		assert.equal(preview.owner, expected.gesture, expected.mode);
@@ -198,7 +199,7 @@ test('the product controller binding resolves exact targets and follows host lif
 		},
 		actions: { edit: { commit: (command: unknown) => {
 			commitCount += 1;
-			project = applySoundscaperProjectCommandV21(project, command as AudioEditorCommand, { now: NOW });
+			project = applySoundscaperProjectCommand(project, command as AudioEditorCommand, { now: NOW });
 			for (const listener of documentListeners) listener();
 			return project;
 		} } },
@@ -208,10 +209,10 @@ test('the product controller binding resolves exact targets and follows host lif
 			return () => documentListeners.delete(listener);
 		},
 	};
-	const target = resolveSoundscaperAutomationTargetV21(project, 'voice-gain');
+	const target = resolveSoundscaperAutomationTarget(project, 'voice-gain');
 	assert.equal(target?.controlValue, 1);
 	assert.deepEqual(target?.descriptor.address, target?.lane.address);
-	const binding = createSoundscaperAutomationControllerBindingV21(host);
+	const binding = createSoundscaperAutomationControllerBinding(host);
 	binding.actions.setMode('touch', 'voice-gain');
 	transportState = 'playing';
 	for (const listener of stateListeners) listener();
@@ -267,7 +268,7 @@ test('every writing mode cancels on each authority loss without entering history
 	}
 });
 
-interface MutableAuthority extends SoundscaperAutomationAuthorityV21 {
+interface MutableAuthority extends SoundscaperAutomationAuthority {
 	projectId: string | null;
 	projectRevision: number | null;
 	readOnly: boolean;
@@ -275,16 +276,16 @@ interface MutableAuthority extends SoundscaperAutomationAuthorityV21 {
 	transportState: string;
 	positionFrame: number;
 	sampleRate: number;
-	tempoMap?: SoundscaperAutomationAuthorityV21['tempoMap'];
+	tempoMap?: SoundscaperAutomationAuthority['tempoMap'];
 }
 
 function armWritingGesture<Result>(
 	fixture: Readonly<{
 		authority: MutableAuthority;
-		coordinator: SoundscaperAutomationSessionV21<Result>;
+		coordinator: SoundscaperAutomationSession<Result>;
 	}>,
 	mode: 'trim' | 'touch' | 'latch' | 'write',
-): SoundscaperAutomationGestureTokenV21 {
+): SoundscaperAutomationGestureToken {
 	fixture.coordinator.setMode(mode, 'voice-gain');
 	fixture.authority.positionFrame = 10;
 	fixture.authority.transportState = 'playing';
@@ -294,7 +295,7 @@ function armWritingGesture<Result>(
 
 function createHistoryFixture() {
 	const project = projectFixture();
-	let history = createSoundscaperProjectHistoryV21(project);
+	let history = createSoundscaperProjectHistory(project);
 	let commitCount = 0;
 	const authority: MutableAuthority = {
 		projectId: project.id,
@@ -306,7 +307,7 @@ function createHistoryFixture() {
 		sampleRate: project.sampleRate,
 		tempoMap: project.tempoMap,
 	};
-	const coordinator = createSoundscaperAutomationSessionV21<SoundscaperProjectV21>({
+	const coordinator = createSoundscaperAutomationSession<SoundscaperProject>({
 		captureAuthority: () => authority,
 		resolveTarget: (laneId) => {
 			const lane = history.present.automationLanes.find(({ id }) => id === laneId);
@@ -319,7 +320,7 @@ function createHistoryFixture() {
 		},
 		commit: (command) => {
 			commitCount += 1;
-			history = executeSoundscaperProjectCommandV21(
+			history = executeSoundscaperProjectCommand(
 				history,
 				command as AudioEditorCommand,
 				{ now: NOW },
@@ -335,11 +336,11 @@ function createHistoryFixture() {
 		get history() { return history; },
 		get commitCount() { return commitCount; },
 		undo() {
-			history = undoSoundscaperProjectCommandV21(history, { now: NOW });
+			history = undoSoundscaperProjectCommand(history, { now: NOW });
 			synchronizeRevision();
 		},
 		redo() {
-			history = redoSoundscaperProjectCommandV21(history, { now: NOW });
+			history = redoSoundscaperProjectCommand(history, { now: NOW });
 			synchronizeRevision();
 		},
 	};
@@ -362,7 +363,7 @@ function createFixture() {
 	let targetAvailable = true;
 	let targetLocked = false;
 	let restores = 0;
-	const coordinator = createSoundscaperAutomationSessionV21({
+	const coordinator = createSoundscaperAutomationSession({
 		captureAuthority: () => authority,
 		resolveTarget: (laneId) => targetAvailable && laneId === lane.id ? {
 			lane,
@@ -399,7 +400,7 @@ function createFixture() {
 }
 
 function projectFixture() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'automation-session-project',
 		title: 'Automation session project',
 		now: NOW,

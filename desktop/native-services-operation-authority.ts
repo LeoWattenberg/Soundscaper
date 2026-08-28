@@ -6,6 +6,7 @@ import {
 	type NativeMediaCapabilityRefV1,
 	type NativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
+import { readProjectSchemaIdentity } from '../src/common/editor/project-schema-identity.ts';
 
 export function assertFramescaperNativeOperationCapability(options: Readonly<{
 	runtimeAvailable: boolean;
@@ -27,10 +28,16 @@ export function assertFramescaperNativeOperationCapability(options: Readonly<{
 
 export function assertFramescaperNativeWritableProject(
 	projectId: unknown,
-	projectState: (projectId: string) => Readonly<{ open: boolean; writable: boolean }>,
+	projectState: (projectId: string) => Readonly<{
+		schemaFamily: 'framescaper'; schemaVersion: 1; open: boolean; writable: boolean;
+	}>,
 ): void {
 	if (typeof projectId !== 'string') throw new TypeError('A native service requires an exact project id.');
 	const project = projectState(projectId);
+	const identity = readProjectSchemaIdentity(project);
+	if (identity.schemaFamily !== 'framescaper' || identity.schemaVersion !== 1) {
+		throw new Error('Native services require the exact Framescaper v1 project authority.');
+	}
 	if (!project.open || !project.writable) {
 		throw new Error('Native services require the selected project to be open and writable.');
 	}

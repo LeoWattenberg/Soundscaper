@@ -13,7 +13,7 @@ import {
 	utilityGainPackageBytes,
 } from './utility-gain-package.ts';
 
-export const REVIEWED_EFFECT_CATALOG_RELEASE = 'soundscaper-0.2.0-beta.1' as const;
+export const REVIEWED_EFFECT_CATALOG_RELEASE = 'soundscaper-1.0.0-rc.1' as const;
 
 interface CatalogBase {
 	readonly catalogRelease: typeof REVIEWED_EFFECT_CATALOG_RELEASE;

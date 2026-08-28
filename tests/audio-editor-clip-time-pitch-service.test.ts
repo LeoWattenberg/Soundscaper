@@ -235,7 +235,7 @@ class MemoryCache implements ClipTimePitchCachePort {
 
 function projectFixture(overrides: Partial<ClipTransformProject> = {}): ClipTransformProject {
 	return {
-		schemaVersion: 4, id: 'project', title: 'Project', sampleRate: 48_000,
+		schemaFamily: 'soundscaper', schemaVersion: 1, id: 'project', title: 'Project', sampleRate: 48_000,
 		tracks: [{ id: 'track', name: 'Track', type: 'audio', clipIds: ['pitched', 'plain'] }, {
 			id: 'video-track', name: 'Video', type: 'video', clipIds: ['video'],
 		}],

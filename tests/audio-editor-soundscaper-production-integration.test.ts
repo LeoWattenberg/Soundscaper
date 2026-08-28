@@ -333,7 +333,7 @@ function capabilities(): Readonly<Record<string, boolean>> {
 
 function project(): Readonly<Record<string, unknown>> {
 	return Object.freeze({
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		tracks: Object.freeze([Object.freeze({
 			id: 'track-a', type: 'audio', name: 'Track A', locked: false,
 			clipIds: Object.freeze(['clip-a']), effects: Object.freeze([{ id: 'filter', enabled: true }]),

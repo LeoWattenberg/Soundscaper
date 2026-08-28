@@ -14,9 +14,9 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import {
-	createSoundscaperProjectV21,
-	validateSoundscaperProjectV21,
-} from '../src/soundscaper/editor-project-v21.ts';
+	createSoundscaperProject,
+	validateSoundscaperProject,
+} from '../src/soundscaper/editor-project.ts';
 
 const copy = {
 	temporaryExportClosed: 'temporary export closed',
@@ -230,7 +230,7 @@ test('V21 stem snapshots retain active control racks without retaining inactive 
 		effectsActive: false,
 		effects: [],
 	});
-	assert.doesNotThrow(() => validateSoundscaperProjectV21(snapshot));
+	assert.doesNotThrow(() => validateSoundscaperProject(snapshot));
 });
 
 test('a master-only V21 stem projection reconciles the features it removes', () => {
@@ -238,7 +238,7 @@ test('a master-only V21 stem projection reconciles the features it removes', () 
 		id: 'source', storageKey: 'pcm:source', contentSha256: 'c'.repeat(64),
 		frameCount: 100, sampleRate: 48_000, channelCount: 1,
 	});
-	const project = createSoundscaperProjectV21({
+	const project = createSoundscaperProject({
 		id: 'master-only-stem', title: 'Master-only stem', now: '2026-08-20T00:00:00.000Z',
 		sources: [source],
 		clips: [createAudioClip({
@@ -259,7 +259,7 @@ test('a master-only V21 stem projection reconciles the features it removes', () 
 	});
 	const snapshot = stemProject(project as never, 'voice') as unknown as typeof project;
 	assert.deepEqual(snapshot.automationLanes, []);
-	assert.doesNotThrow(() => validateSoundscaperProjectV21(snapshot));
+	assert.doesNotThrow(() => validateSoundscaperProject(snapshot));
 });
 
 function productionStemProject() {
@@ -271,7 +271,7 @@ function productionStemProject() {
 		id, sourceId, timelineStartFrame: 0, sourceStartFrame: 0,
 		durationFrames: 100, sourceDurationFrames: 100,
 	});
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'stem-v21', title: 'Stem V21', now: '2026-08-20T00:00:00.000Z',
 		sources: [source('voice-source'), source('control-source')],
 		clips: [clip('voice-clip', 'voice-source'), clip('control-clip', 'control-source')],

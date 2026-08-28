@@ -12,7 +12,8 @@ import {
 import type { ProjectAudioFallbackSource } from './project-fallback-integrity-audio.ts';
 import {
 	isMaintainedRenderedFallbackProjectSchema,
-	isSoundscaperProductionProjectSchema,
+	isBaselineRenderedFallbackProject,
+	isSoundscaperProductionProject,
 } from './project-schema-version.ts';
 import { snapshotInertJsonValue } from './inert-json-snapshot.ts';
 
@@ -28,6 +29,7 @@ export interface ProjectFallbackIntegritySource extends ProjectAudioFallbackSour
 }
 
 export interface CapturedProjectFallbackIntegrity {
+	readonly schemaFamily: unknown;
 	readonly schemaVersion: unknown;
 	readonly sampleRate: unknown;
 	readonly primarySequenceId: unknown;
@@ -42,9 +44,12 @@ export interface CapturedProjectFallbackIntegrity {
 
 export function captureProjectFallbackIntegrity(project: unknown): CapturedProjectFallbackIntegrity {
 	const candidate = objectRecord(project, 'The project fallback integrity candidate');
+	const schemaFamily = optionalOwnDataValue(candidate, 'schemaFamily', 'project');
 	const schemaVersion = ownDataValue(candidate, 'schemaVersion', 'project');
-	if (!isMaintainedRenderedFallbackProjectSchema(schemaVersion)) {
+	if (!isBaselineRenderedFallbackProject(candidate)
+		&& !isMaintainedRenderedFallbackProjectSchema(candidate)) {
 		return Object.freeze({
+			schemaFamily,
 			schemaVersion,
 			sampleRate: undefined,
 			primarySequenceId: undefined,
@@ -57,7 +62,8 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 			automationLanes: Object.freeze([]),
 		});
 	}
-	const freezeAuthority = isSoundscaperProductionProjectSchema(schemaVersion);
+	const freezeAuthority = isSoundscaperProductionProject(candidate);
+	const internalFoundationAuthority = !isBaselineRenderedFallbackProject(candidate);
 	const sources = snapshotArray(
 		ownDataValue(candidate, 'sources', 'project'),
 		'project.sources',
@@ -90,16 +96,17 @@ export function captureProjectFallbackIntegrity(project: unknown): CapturedProje
 	const featureRequirements = snapshotFeatureRequirements(
 		ownDataValue(candidate, 'featureRequirements', 'project'),
 	);
-	const snapshot = freezeAuthority
-		? soundscaperV21FallbackSnapshot({
+	const snapshot = freezeAuthority || internalFoundationAuthority
+		? snapshotNormalizedFallbackContract({
 			schemaVersion, sampleRate, primarySequenceId, sequences, sources, clips, tracks,
 			featureRequirements,
 		})
 		: snapshotScapeProjectFallbackIntegrity(Object.freeze({
-			schemaVersion, sampleRate, primarySequenceId, sequences, sources, clips, tracks,
+			schemaFamily, schemaVersion, sampleRate, primarySequenceId, sequences, sources, clips, tracks,
 			featureRequirements,
 		}), { currentProjectSchemaVersion: Number(schemaVersion) });
 	return Object.freeze({
+		schemaFamily,
 		schemaVersion,
 		sampleRate,
 		primarySequenceId,
@@ -117,7 +124,8 @@ export function sameCapturedProjectFallbackIntegrity(
 	left: CapturedProjectFallbackIntegrity,
 	right: CapturedProjectFallbackIntegrity,
 ): boolean {
-	if (left.schemaVersion !== right.schemaVersion
+	if (left.schemaFamily !== right.schemaFamily
+		|| left.schemaVersion !== right.schemaVersion
 		|| left.sampleRate !== right.sampleRate
 		|| left.primarySequenceId !== right.primarySequenceId
 		|| !sameSnapshotValue(left.sequences, right.sequences)
@@ -262,7 +270,7 @@ function snapshotRequirement(value: unknown, index: number): Readonly<Record<str
 	return Object.freeze(output);
 }
 
-function soundscaperV21FallbackSnapshot(context: Readonly<{
+function snapshotNormalizedFallbackContract(context: Readonly<{
 	readonly schemaVersion: unknown;
 	readonly sampleRate: unknown;
 	readonly primarySequenceId: unknown;

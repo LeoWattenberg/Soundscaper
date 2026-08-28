@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 
-import * as projectSchemaVersions from '../src/common/editor/project-schema-version.ts';
-import { SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-identity.ts';
 import { resolveRuntimeClipProjection } from '../src/common/editor/runtime-clip-projection.ts';
 import {
 	M3_LONGFORM_EDITORIAL_SPECIFICATION,
@@ -13,14 +12,14 @@ import {
 	createM3LongformEditorialWorkload,
 	resolveM3LongformEditorialPositionChecks,
 } from '../src/common/editor/quality/m3-longform-editorial-workload.ts';
-import { loadSoundscaperProjectV30 } from '../src/soundscaper/editor-project-v30.ts';
-import { validateSoundscaperProjectV30 } from '../src/soundscaper/editor-project-v30-validation.ts';
+import { loadSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 
 test('the milestone 3 long-form fixture has the exact two-hour editorial shape', () => {
 	const project = createM3LongformEditorialBaseProject();
-	validateSoundscaperProjectV30(project);
+	validateSoundscaperProject(project);
 
-	assert.equal(project.schemaVersion, SOUNDSCAPER_PROJECT_V30_SCHEMA_VERSION);
+	assert.equal(project.schemaVersion, PROJECT_SCHEMA_VERSION);
 	assert.equal(project.sampleRate, 48_000);
 	assert.equal(project.tracks.filter(({ type }) => type === 'audio').length, 24);
 	assert.equal(project.tracks.filter(({ type }) => type === 'video').length, 2);
@@ -61,7 +60,7 @@ test('the edit workload replays deterministically with exact audio and video pos
 	const plan = createM3LongformEditorialEditPlan();
 	const first = applyM3LongformEditorialEditPlan(createM3LongformEditorialBaseProject(), plan);
 	const second = applyM3LongformEditorialEditPlan(createM3LongformEditorialBaseProject(), plan);
-	validateSoundscaperProjectV30(first);
+	validateSoundscaperProject(first);
 
 	assert.deepEqual(second, first);
 	assert.equal(first.revision, 40, '250 edits are committed in each deterministic transaction');
@@ -99,16 +98,13 @@ test('the complete generated workload remains byte deterministic and specificati
 // broken while nothing ran the benchmark: keep it pinned to the newest declared
 // Soundscaper schema so the next schema bump fails here instead of in a nightly.
 test('the long-form fixture is generated at the newest declared Soundscaper schema', () => {
-	const declared = Object.entries(projectSchemaVersions)
-		.filter(([name]) => /^SOUNDSCAPER_PROJECT_V\d+_SCHEMA_VERSION$/u.test(name))
-		.map(([, value]) => value as number);
-	assert.ok(declared.length >= 2, 'the schema module must declare the Soundscaper project versions');
 	const project = createM3LongformEditorialBaseProject();
-	assert.equal(project.schemaVersion, Math.max(...declared));
+	assert.equal(project.schemaFamily, 'soundscaper');
+	assert.equal(project.schemaVersion, PROJECT_SCHEMA_VERSION);
 });
 
 test('the maintained Soundscaper loader opens the long-form fixture without migration', () => {
-	const loaded = loadSoundscaperProjectV30(createM3LongformEditorialWorkload().project);
+	const loaded = loadSoundscaperProject(createM3LongformEditorialWorkload().project);
 	assert.equal(loaded.readOnly, false);
 	assert.equal(loaded.intrinsicReadOnly, false);
 	assert.equal(loaded.reason, null);

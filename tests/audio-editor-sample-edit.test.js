@@ -291,7 +291,14 @@ test('sample edit failure preserves provider cleanup errors and leaves backing d
 function sampleEditServiceFixture({ activationFailure, cleanupFailure = null }) {
 	const derivedSourceId = 'sample-edit-source';
 	const track = { id: 'track', displayMode: 'waveform', clipIds: [CLIP.id] };
-	const project = { id: 'project', schemaVersion: 2, sources: [SOURCE], clips: [CLIP], tracks: [track] };
+	const project = {
+		id: 'project',
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
+		sources: [SOURCE],
+		clips: [CLIP],
+		tracks: [track],
+	};
 	const providers = new SourceChunkProviderRegistry();
 	const state = {
 		selectedClipId: CLIP.id,

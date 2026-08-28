@@ -61,7 +61,7 @@ test('pending human checks block only the explicit stable 1.0 release decision',
 	assert.equal(result.admitted, false);
 	assert.equal(result.counts.pending, 152);
 	assert.ok(result.reasons.includes('152 human checks remain pending.'));
-	assert.ok(result.reasons.includes('7 required campaign identity fields remain pending.'));
+	assert.ok(result.reasons.includes('6 required campaign identity fields remain pending.'));
 	assert.ok(result.reasons.includes('No execution ledger entries are recorded.'));
 	assert.ok(result.reasons.includes('The Stable 1.0 release conclusion is not pass.'));
 });

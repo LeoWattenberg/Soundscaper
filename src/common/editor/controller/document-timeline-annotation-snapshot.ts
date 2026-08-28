@@ -19,8 +19,6 @@ function isActiveAnnotationProject(value: unknown): value is Readonly<Record<str
 	return value !== null
 		&& typeof value === 'object'
 		&& !Array.isArray(value)
-		&& isActiveAudioEditorProjectSchema(
-			(value as Readonly<{ schemaVersion?: unknown }>).schemaVersion,
-		)
+		&& isActiveAudioEditorProjectSchema(value)
 		&& Array.isArray((value as Readonly<{ timelineAnnotations?: unknown }>).timelineAnnotations);
 }

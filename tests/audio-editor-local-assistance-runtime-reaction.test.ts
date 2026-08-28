@@ -101,7 +101,8 @@ function reactionWorkflow(fence: ReturnType<typeof resolveLocalAssistanceSelecte
 		outputs: [claim('output', 'tag-reactions', 'audio-tags', 3),
 			claim('output', 'merge-reaction-ranges', 'reaction-ranges', 4)],
 		fence: {
-			fenceVersion: 1, projectId: fence.projectId, schemaVersion: fence.schemaVersion,
+			fenceVersion: 1, schemaFamily: fence.schemaFamily, schemaVersion: fence.schemaVersion,
+			projectId: fence.projectId,
 			revision: fence.revision, sequenceId: fence.sequenceId, transcriptBodySha256: null,
 			recipeSha256: assistanceWorkflowRecipeSha256V1(workflowId, 1, stageIds),
 			settingsSha256: assistanceWorkflowSettingsSha256V1(settings),
@@ -118,7 +119,8 @@ function reactionWorkflow(fence: ReturnType<typeof resolveLocalAssistanceSelecte
 
 function audioProject() {
 	return {
-		id: 'project-a', schemaVersion: 31, revision: 8, sampleRate: 48_000,
+		id: 'project-a', schemaFamily: 'framescaper', schemaVersion: 1,
+		revision: 8, sampleRate: 48_000,
 		primarySequenceId: 'sequence-a',
 		selection: { startFrame: 0, endFrame: 48_000, clipIds: ['voice-clip'],
 			trackIds: ['voice-track'] },

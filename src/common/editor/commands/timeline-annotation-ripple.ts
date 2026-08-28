@@ -45,7 +45,7 @@ export function createTimelineAnnotationRippleOperations(
 	targetClipIdsValue: readonly string[],
 ): readonly TimelineAnnotationRippleOperation[] {
 	const project = dataRecord(projectValue, 'project');
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) return Object.freeze([]);
+	if (!isTimelineAnnotationProjectSchema(project)) return Object.freeze([]);
 	const sampleRate = positiveSafeInteger(project.sampleRate, 'project.sampleRate');
 	const tempoMap = dataRecord(project.tempoMap, 'project.tempoMap') as HoldTempoMap & DataRecord;
 	const tracks = recordArray(project.tracks, 'project.tracks');
@@ -86,7 +86,7 @@ export function stageTimelineAnnotationRippleMutation(
 	const project = dataRecord(projectValue, 'project') as MutableRippleProject;
 	const command = dataRecord(commandValue, 'range ripple-delete command');
 	const ownsOperations = Object.hasOwn(command, 'annotationRippleOperations');
-	if (!isTimelineAnnotationProjectSchema(project.schemaVersion)) {
+	if (!isTimelineAnnotationProjectSchema(project)) {
 		if (ownsOperations) {
 			throw new RangeError('Annotation ripple operations are only valid for a schema 11 or 12 ripple delete.');
 		}

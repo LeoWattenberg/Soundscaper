@@ -6,7 +6,10 @@ import test from 'node:test';
 import { createLocalAssistanceLazySemanticSearchSourceV1 } from
 	'../src/common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
 
-const AUTHORITY = Object.freeze({ projectId: 'project-1', projectRevision: 7 });
+const AUTHORITY = Object.freeze({
+	schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+	projectId: 'project-1', projectRevision: 7,
+});
 
 test('menu-only source defers bridge and disposable-custody access until open', async () => {
 	let listed = 0;

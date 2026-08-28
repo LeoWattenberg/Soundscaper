@@ -159,7 +159,7 @@ test('production strip analysers preserve channel geometry and expose one analys
 	}
 });
 
-test('shared production mixer schemas inherit the master width used by their default channel maps', () => {
+test('both family-v1 mixer projects inherit the master width used by their default channel maps', () => {
 	const channels = [0, 1, 2, 3, 4, 5];
 	const foundation = {
 		sampleRate: 48_000,
@@ -188,15 +188,15 @@ test('shared production mixer schemas inherit the master width used by their def
 		},
 		automationLanes: [],
 	};
-	for (const schemaVersion of [21, 23, 27]) {
+	for (const schemaFamily of ['soundscaper', 'framescaper'] as const) {
 		const context = new FakeContext();
 		const graph = buildProjectGraph(
 			context as unknown as BaseAudioContext,
 			context.destination as unknown as AudioNode,
-			{ ...foundation, schemaVersion } as EngineProject,
+			{ ...foundation, schemaFamily, schemaVersion: 1 } as EngineProject,
 			{ metering: false },
 		);
-		assert.ok(graph.mixerEdgeGainParams, `schema ${String(schemaVersion)} uses the explicit mixer graph`);
+		assert.ok(graph.mixerEdgeGainParams, `${schemaFamily} v1 uses the explicit mixer graph`);
 	}
 });
 
@@ -444,7 +444,7 @@ function productionProjectV21(): EngineProject {
 		channelMap: readonly number[] = [0, 1],
 	) => ({ id, kind, source, destination, position, level: 1, enabled: true, channelMap });
 	return {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		sampleRate: 48_000,
 		masterChannels: 2,
 		tracks: [
@@ -527,7 +527,7 @@ function trackSidechainProjectV21(): EngineProject {
 		level, enabled: true, channelMap: [0, 1],
 	});
 	return {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		sampleRate: 48_000,
 		masterChannels: 2,
 		tracks: [track('program', 20), track('control', 7)],
@@ -549,6 +549,7 @@ function trackSidechainProjectV21(): EngineProject {
 				edge('master-main', 'assignment', { kind: 'master' }, { kind: 'output', id: 'main' }),
 			],
 		},
+		automationLanes: [],
 	} as EngineProject;
 }
 
@@ -559,7 +560,7 @@ function automationProjectV21(
 	rack: Readonly<Record<string, unknown>> = {},
 ): EngineProject {
 	return {
-		schemaVersion: 21,
+		schemaFamily: 'soundscaper', schemaVersion: 1,
 		sampleRate: 48_000,
 		masterChannels: channelCount,
 		metadata,

@@ -152,8 +152,8 @@
 				"stem-archive-electron",
 				"direct-video-file-system-access",
 				"direct-video-electron",
-				"electron-shared-project",
-				"electron-managed-media",
+				"electron-family-v1-project-catalogs",
+				"electron-framescaper-v1-managed-bodies",
 				"linked-binding-indexeddb",
 				"offline-shell-cache"
 			],

@@ -17,53 +17,36 @@ import { framescaperCaptureProjectFence } from '../src/common/editor/controller/
 import { completeFramescaperCaptureRuntimeProbe } from '../src/common/editor/controller/framescaper-capture-runtime-probe.ts';
 import type { FramescaperCaptureSessionManifestV1 } from '../src/common/editor/framescaper-capture-session-manifest.ts';
 
-test('the app binding exists only on exact maintained Framescaper routes', () => {
+test('the app binding exists only for the exact Framescaper v1 identity', () => {
 	assert.equal(createFramescaperCaptureAppBinding({
-		productId: 'soundscaper', routeSchemaVersion: 19, isDesktop: false,
-	} as never), null);
-	assert.equal(createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 18, isDesktop: false,
-	} as never), null);
-	assert.equal(createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: true,
-	} as never), null);
-	assert.equal(createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 27, isDesktop: false,
-	} as never), null);
-	assert.equal(createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 27, isDesktop: true,
+		productId: 'soundscaper', schemaFamily: 'soundscaper', schemaVersion: 1, isDesktop: false,
 	} as never), null);
 	assert.throws(() => createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: false,
-	} as never), /dependencies are incomplete/iu);
+		productId: 'framescaper', schemaVersion: 1, isDesktop: false,
+	} as never), /re-import|schemaFamily/iu);
 	assert.throws(() => createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 20, isDesktop: false,
-	} as never), /dependencies are incomplete/iu);
+		productId: 'framescaper', schemaFamily: 'soundscaper', schemaVersion: 1, isDesktop: false,
+	} as never), /Framescaper.*current project schema identity/iu);
 	assert.throws(() => createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 20, isDesktop: true,
-	} as never), /dependencies are incomplete/iu);
-	assert.throws(() => createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 31, isDesktop: false,
-	} as never), /dependencies are incomplete/iu);
-	assert.throws(() => createFramescaperCaptureAppBinding({
-		productId: 'framescaper', routeSchemaVersion: 31, isDesktop: true,
+		productId: 'framescaper', schemaFamily: 'framescaper', schemaVersion: 1, isDesktop: true,
 	} as never), /dependencies are incomplete/iu);
 });
 
-test('the selected V27 route never reaches capture runtime probing', async () => {
+test('a foreign family never reaches capture runtime probing', async () => {
 	assert.deepEqual(await completeFramescaperCaptureRuntimeProbe({
-		productId: 'framescaper', routeSchemaVersion: 27, desktop: null,
+		productId: 'framescaper', schemaFamily: 'soundscaper', schemaVersion: 1, desktop: null,
 	} as never), {
 		status: 'unavailable', reason: 'unsupported-platform', detail: null,
 	});
 });
 
 test('desktop binding without its capture bridge remains available as a truthful unavailable runtime', async () => {
-	let activeProject = project(18, 4);
+	let activeProject = project(4);
 	let activeHistory = history(activeProject);
 	const binding = createFramescaperCaptureAppBinding({
 		adminInterlock: createFramescaperCaptureAdminInterlock(),
-		productId: 'framescaper', routeSchemaVersion: 18, isDesktop: true, embedded: false,
+		productId: 'framescaper', schemaFamily: 'framescaper', schemaVersion: 1,
+		isDesktop: true, embedded: false,
 		store: {
 			async loadProject() { return activeProject; },
 			async saveProject(value: FramescaperCaptureAppProject) { return value; },
@@ -90,14 +73,14 @@ test('desktop binding without its capture bridge remains available as a truthful
 	assert.ok(binding);
 	await binding.initialize();
 	assert.deepEqual(binding.snapshot.availability, {
-		status: 'unavailable', reason: 'unsupported-platform', detail: null,
+		status: 'unavailable', reason: 'media-devices-unavailable', detail: null,
 	});
 	await binding.dispose();
 });
 
 test('desktop project CAS uses the authoritative public store and propagates indeterminate saves', async () => {
-	const base = project(18, 4);
-	const target = project(18, 5);
+	const base = project(4);
+	const target = project(5);
 	let current = base;
 	let localSaves = 0;
 	let publicSaves = 0;
@@ -124,7 +107,7 @@ test('desktop project CAS uses the authoritative public store and propagates ind
 	assert.deepEqual(await repository.saveIfCurrent(base, target), target);
 	assert.equal(publicSaves, 1);
 	assert.equal(localSaves, 0);
-	assert.equal(await repository.saveIfCurrent(base, project(18, 6)), null);
+	assert.equal(await repository.saveIfCurrent(base, project(6)), null);
 	assert.equal(publicSaves, 1);
 
 	current = base;
@@ -137,12 +120,12 @@ test('desktop project CAS uses the authoritative public store and propagates ind
 });
 
 test('publication context reloads the exact inactive origin base and freezes its geometry', async () => {
-	const base = project(19, 4, 'project-a');
-	const advanced = project(19, 5, 'project-a');
+	const base = project(4, 'project-a');
+	const advanced = project(5, 'project-a');
 	const loads: unknown[] = [];
 	const captures: string[] = [];
 	const context = await deriveFramescaperCaptureAppPublicationContext({
-		routeSchemaVersion: 19,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		sessionController: {
 			captureProjectHistory(projectId: string) {
 				captures.push(projectId);
@@ -169,11 +152,11 @@ test('publication context reloads the exact inactive origin base and freezes its
 });
 
 test('closed recovery origins open as inactive history owners before recovery is exposed', async () => {
-	const active = project(19, 4, 'project-active');
-	const recovered = project(19, 7, 'project-recovered');
+	const active = project(4, 'project-active');
+	const recovered = project(7, 'project-recovered');
 	const tabs = [{ projectId: active.id }];
 	const openings: Readonly<Record<string, unknown>>[] = [];
-	await ensureFramescaperCaptureRecoveryOrigin({ routeSchemaVersion: 19,
+	await ensureFramescaperCaptureRecoveryOrigin({ schemaFamily: 'framescaper', schemaVersion: 1,
 		sessionController: {
 			getSnapshot: () => ({ tabs }),
 			openProject(value: FramescaperCaptureAppProject, options: Readonly<Record<string, unknown>>) {
@@ -197,7 +180,7 @@ test('binding initialization is media-cold and start reserves one writable origi
 	let reenterStart = false;
 	let reenteredStart: Promise<void> | null = null;
 	let reenteredDispose: Promise<void> | null = null;
-	let activeProject = project(19, 4);
+	let activeProject = project(4);
 	let activeHistory = history(activeProject);
 	let countdownEntered!: () => void;
 	const enteredCountdown = new Promise<void>((resolve) => { countdownEntered = resolve; });
@@ -206,7 +189,8 @@ test('binding initialization is media-cold and start reserves one writable origi
 	let binding: ReturnType<typeof createFramescaperCaptureAppBinding> = null;
 	binding = createFramescaperCaptureAppBinding({
 		adminInterlock,
-		productId: 'framescaper', routeSchemaVersion: 19, isDesktop: false, embedded: false,
+		productId: 'framescaper', schemaFamily: 'framescaper', schemaVersion: 1,
+		isDesktop: false, embedded: false,
 		store,
 		sessionController: sessionController(() => activeHistory),
 		projectRuntime: {
@@ -230,7 +214,7 @@ test('binding initialization is media-cold and start reserves one writable origi
 			await new Promise<void>((resolve) => { releasePreparation = resolve; });
 			if (preparationFails) throw new Error('project flush failed');
 			if (mutateDuringPreparation) {
-				activeProject = project(19, mutateDuringPreparation === 'edit' ? 5 : 4,
+				activeProject = project(mutateDuringPreparation === 'edit' ? 5 : 4,
 					mutateDuringPreparation === 'edit' ? 'project-a' : 'project-b');
 				activeHistory = history(activeProject);
 			}
@@ -304,13 +288,13 @@ test('binding initialization is media-cold and start reserves one writable origi
 	releasePreparation();
 	await assert.rejects(changedStart, /origin changed during start admission/iu);
 	assert.equal(binding.originSnapshot('project-a').active, false);
-	activeProject = project(19, 4);
+	activeProject = project(4);
 	activeHistory = history(activeProject);
 	mutateDuringPreparation = 'switch';
 	const switchedStart = binding.actions.start();
 	releasePreparation();
 	await assert.rejects(switchedStart, /origin changed during start admission/iu);
-	activeProject = project(19, 4);
+	activeProject = project(4);
 	activeHistory = history(activeProject);
 	mutateDuringPreparation = null;
 	events.length = 0;
@@ -346,12 +330,12 @@ test('binding initialization is media-cold and start reserves one writable origi
 });
 
 function project(
-	schemaVersion: 18 | 19 | 20 | 31,
 	revision: number,
 	id = 'project-a',
 ): FramescaperCaptureAppProject {
 	return Object.freeze({
-		id, schemaVersion, revision, updatedAt: '2026-08-20T10:00:00.000Z',
+		id, schemaFamily: 'framescaper', schemaVersion: 1, revision,
+		updatedAt: '2026-08-20T10:00:00.000Z',
 		title: 'Capture origin', sampleRate: 48_000,
 		primarySequenceId: 'sequence-a',
 		sequences: Object.freeze([Object.freeze({

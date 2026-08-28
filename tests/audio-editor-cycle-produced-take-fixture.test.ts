@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
-import { readPcm } from './helpers/desktop-project-library-fallback-handoff-fixture.ts';
+import { readPcm } from './helpers/project-store-pcm-fixture.ts';
 import { createCycleProducedTakeFixture } from './helpers/cycle-produced-take-fixture.ts';
 
 for (const productionPath of ['finalize', 'recovery'] as const) {

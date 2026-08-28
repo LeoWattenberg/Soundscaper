@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	isMasteringSequenceProjectSchema,
-	isSoundscaperProductionProjectSchema,
+	hasMasteringSequenceProjectAuthority,
+	isSoundscaperProductionProject,
 } from '../project-schema-version.ts';
 import {
 	createDocumentMasteringSequenceSnapshot,
@@ -328,11 +328,11 @@ function resolveBlockReason(value: Readonly<{
 }>): SoundscaperProductionDialogBlockReason {
 	if (value.surface === null || value.project === null) return 'unsupported';
 	if ((value.surface === 'automation' || value.surface === 'routing')
-		&& !isSoundscaperProductionProjectSchema(own(value.project, 'schemaVersion'))) return 'wrong-schema';
+		&& !isSoundscaperProductionProject(value.project)) return 'wrong-schema';
 	// Narrower than the production authority: a V21 document carries that but has
 	// nowhere to put a sequence, so every edit this surface offers would fail.
 	if (value.surface === 'mastering-sequences'
-		&& !isMasteringSequenceProjectSchema(own(value.project, 'schemaVersion'))) return 'wrong-schema';
+		&& !hasMasteringSequenceProjectAuthority(value.project)) return 'wrong-schema';
 	if (value.input.readOnly === true) return 'read-only';
 	if (value.input.editingBlocked === true) return 'busy';
 	const automationTarget = normalizeAutomationTarget(

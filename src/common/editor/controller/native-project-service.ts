@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isProjectFileName } from '../../project-file-extensions.ts';
+import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
 import {
@@ -28,7 +29,6 @@ import type {
 } from './native-project-types.ts';
 
 export type { NativeProjectServiceRuntime, OpenScapeOptions, SaveAup4Options, SaveScapeOptions } from './native-project-types.ts';
-
 const READ_ONLY_AUP4_ISSUES = new Set(['EDITABLE_LIMIT_EXCEEDED']);
 
 /**
@@ -200,7 +200,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			assertOwnership(operation.task, operation.projectToken);
 			const importedProject = runtime.adaptAudacityProject
 				? await runtime.adaptAudacityProject(decoded.project)
-				: runtime.migrateProject(decoded.project).project;
+				: runtime.loadProject(decoded.project).project;
 			const decodedBytes = decoded.sources.reduce((total, source) => total + source.channels.reduce(
 				(channelTotal, channel) => channelTotal + channel.byteLength,
 				0,
@@ -264,7 +264,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		cancelled: true;
 	}>> {
 		let snapshot = requireProject();
-		if (snapshot.schemaVersion < 2) throw new Error(runtime.copy.aup4OnlyV2);
+		if (!hasCoreEditingProjectAuthority(snapshot)) throw new Error(runtime.copy.aup4OnlyV2);
 		if (runtime.hasMissingTimelineSources(snapshot, { audioOnly: true })) {
 			throw new Error(runtime.copy.missingSourcesPreventSave);
 		}

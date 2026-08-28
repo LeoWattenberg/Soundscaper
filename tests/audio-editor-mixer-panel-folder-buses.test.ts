@@ -11,8 +11,8 @@ import {
 	mixerAudibilityAuthority,
 	removableMixerBuses,
 } from '../src/common/editor/ui/workspace/mixer-panel-model.ts';
-import { createSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21.ts';
-import { applySoundscaperProjectCommandV21 } from '../src/soundscaper/editor-project-v21-commands.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 
 /**
  * The mixer offers what a folder-owned strip can actually do.
@@ -57,7 +57,7 @@ test('a project with no folders leaves every bus a user bus', () => {
 });
 
 function folderedProject() {
-	return applySoundscaperProjectCommandV21(plainProject(), {
+	return applySoundscaperProjectCommand(plainProject(), {
 		type: 'batch',
 		commands: [
 			{ type: 'track-folder/add', folder: { id: 'stems', name: 'Stems' }, sequenceId: 'main-sequence' },
@@ -70,7 +70,7 @@ function folderedProject() {
 }
 
 function plainProject() {
-	return createSoundscaperProjectV21({
+	return createSoundscaperProject({
 		id: 'mixer-folder-buses', title: 'Mixer folder buses', now: NOW,
 		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],

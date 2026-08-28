@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -7,7 +6,6 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-
 import type { HelperDataPlaneIoPort } from '../desktop/helper-data-plane-io.ts';
 import { sendHelperDataPlaneFile } from '../desktop/helper-data-plane-io.ts';
 import { framescaperNativeQueueEnqueueRequest } from '../desktop/native-services-lifecycle.ts';
@@ -27,7 +25,6 @@ import {
 	nativeQueueSmallStaticPlanV8,
 } from './helpers/native-queue-plan-fixture.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
-
 const STAGE_ID = 'ab'.repeat(20);
 const OWNER = Object.freeze({ generation: 20 });
 
@@ -464,7 +461,7 @@ function beginRequest(
 	derivedInputs: readonly ReturnType<typeof input>[],
 ) {
 	return Object.freeze({
-		stageVersion: 1 as const,
+		stageVersion: 1 as const, schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
 		planVersion: envelope.planVersion as 7 | 8,
 		planFingerprint: envelope.fingerprint,
 		planPayload: JSON.stringify(envelope.plan),
@@ -483,7 +480,7 @@ function claimRequest(
 	derivedInputStageId = STAGE_ID,
 ) {
 	return Object.freeze({
-		derivedInputStageId,
+		schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, derivedInputStageId,
 		planVersion: envelope.planVersion as 7 | 8, planFingerprint: envelope.fingerprint,
 		planPayload: JSON.stringify(envelope.plan), projectId: 'project-1', projectRevision: 7,
 		inputFingerprints: Object.freeze([{ sourceId: 'source-1', sha256: '12'.repeat(32) }]),
@@ -512,6 +509,7 @@ async function stageExact(
 
 function queueRecord(envelope: ReturnType<typeof createNativeMediaPlanEnvelopeV1>) {
 	return createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: STAGE_ID, taskKind: 'encoded-export', plan: envelope.plan,
 		projectId: 'project-1', projectRevision: 7,
 		inputFingerprints: [{ sourceId: 'source-1', sha256: '12'.repeat(32) }],
@@ -529,6 +527,7 @@ function queueEnqueueRequest(
 	derivedInputStageId: string | null,
 ) {
 	return Object.freeze({
+		schemaFamily: record.schemaFamily, schemaVersion: record.schemaVersion,
 		taskKind: record.taskKind, planVersion: record.planVersion, derivedInputStageId,
 		planFingerprint: record.planFingerprint, planPayload: record.planPayload,
 		projectId: record.projectId, projectRevision: record.projectRevision,

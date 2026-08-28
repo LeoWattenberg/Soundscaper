@@ -9,16 +9,16 @@ import {
 import { verifyProjectFallbackIntegrity } from '../src/common/editor/project-fallback-integrity.ts'
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts'
 import {
-	importSoundscaperAudacityProjectV21,
-} from '../src/soundscaper/editor-audacity-project-import-v21.ts'
+	importSoundscaperAudacityProject,
+} from '../src/soundscaper/editor-audacity-project-import.ts'
 import {
-	loadSoundscaperProjectV21,
-} from '../src/soundscaper/editor-project-v21.ts'
-import { validateSoundscaperProjectV21 } from '../src/soundscaper/editor-project-v21-validation.ts'
+	loadSoundscaperProject,
+} from '../src/soundscaper/editor-project.ts'
+import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts'
 
 const NOW = '2026-08-14T10:00:00.000Z'
 
-test('Audacity interchange promotes exact V17 output into V21 without widening native project migration', async () => {
+test('Audacity interchange promotes exact V17 output into the baseline without widening native migration', async () => {
 	const decoded = createAudioEditorProjectV17({
 		id: 'audacity-import',
 		title: 'Audacity import',
@@ -37,10 +37,10 @@ test('Audacity interchange promotes exact V17 output into V21 without widening n
 	})
 	const original = structuredClone(decoded)
 
-	assert.throws(() => loadSoundscaperProjectV21(decoded), /requires re-import/iu)
-	const imported = importSoundscaperAudacityProjectV21(decoded)
+	assert.throws(() => loadSoundscaperProject(decoded), /re-import/iu)
+	const imported = importSoundscaperAudacityProject(decoded)
 
-	assert.equal(imported.schemaVersion, 21)
+	assert.deepEqual([imported.schemaFamily, imported.schemaVersion], ['soundscaper', 1])
 	assert.equal(imported.id, decoded.id)
 	assert.equal(imported.title, decoded.title)
 	assert.equal(imported.revision, decoded.revision)
@@ -54,7 +54,7 @@ test('Audacity interchange promotes exact V17 output into V21 without widening n
 		'assignment:track:voice:master',
 		'assignment:master:output:main',
 	])
-	assert.equal(validateSoundscaperProjectV21(imported), true)
+	assert.equal(validateSoundscaperProject(imported), true)
 	const admission = await verifyProjectFallbackIntegrity(imported, {})
 	assert.doesNotThrow(() => admission.assertCurrent(imported))
 	const changedOpaqueState = structuredClone(imported)
@@ -64,7 +64,7 @@ test('Audacity interchange promotes exact V17 output into V21 without widening n
 	opaque.nativeTrackId = 43
 	assert.throws(() => admission.assertCurrent(changedOpaqueState), /admission changed/iu)
 	assert.deepEqual(decoded, original)
-	assert.throws(() => importSoundscaperAudacityProjectV21({ ...decoded, schemaVersion: 16 }), /V17|schema/iu)
+	assert.throws(() => importSoundscaperAudacityProject({ ...decoded, schemaVersion: 16 }), /V17|schema/iu)
 })
 
 function nestedOpaqueState(depth: number): Readonly<Record<string, unknown>> {

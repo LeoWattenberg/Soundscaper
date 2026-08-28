@@ -9,7 +9,7 @@ import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../src/common/editor/contr
 import { SCAPE_INSPECTION_TASK, createScapeInspectionService } from '../src/common/editor/controller/scape-inspection-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from '../src/common/editor/controller/scape-open-request-service.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
+import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-identity.ts';
 import { createFixture, deferred, lock, project } from './helpers/audio-editor-project-switch-fixture.ts';
 
 test('project activation resets scoped state and publishes only after sources are loaded', async () => {
@@ -392,15 +392,15 @@ test('a lock acquired after terminal disposal is released without activating the
 	assert.ok(fixture.events.includes('clear-source-caches'));
 });
 
-test('new and migrated projects preserve preparation and read-only semantics', async () => {
+test('new and loaded projects preserve preparation and read-only semantics', async () => {
 	const fixture = createFixture();
 	await fixture.service.newProject({ title: '   ', sampleRate: 44_100 });
 	assert.deepEqual([fixture.getProject()?.title, fixture.getProject()?.sampleRate, fixture.getProject()?.tracks[0]?.name], ['Untitled', 44_100, 'Track 1']);
 	assert.equal(Object.hasOwn(fixture.getProject()?.tracks[0] ?? {}, 'schemaVersion'), false);
 	assert.deepEqual(fixture.assignedTracks, ['prepared-track']);
 
-	fixture.setMigrationReadOnly(true);
-	const future = { ...project('future-project'), schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION + 1,
+	fixture.setLoadReadOnly(true);
+	const future = { ...project('future-project'), schemaVersion: PROJECT_SCHEMA_VERSION + 1,
 		get featureRequirements(): never { throw new Error('future feature metadata was traversed'); } };
 	await fixture.service.openProject(future);
 	assert.equal(fixture.getProject(), future);
@@ -411,6 +411,20 @@ test('new and migrated projects preserve preparation and read-only semantics', a
 	assert.equal(fixture.getProject(), future);
 	assert.equal(fixture.state.readOnly, true);
 	assert.equal(fixture.events.includes('maintain-opened:future-project'), false);
+});
+test('read-only foreign custody never enters source garbage collection', async () => {
+	const fixture = createFixture();
+	fixture.setLoadReadOnly(true);
+	const foreign = {
+		...project('foreign-project'),
+		schemaFamily: 'framescaper' as const,
+	};
+
+	await fixture.service.openProject(foreign);
+
+	assert.equal(fixture.state.readOnly, true);
+	assert.equal(fixture.getProject(), foreign);
+	assert.equal(fixture.events.includes('gc'), false);
 });
 test('new selected-schema projects use create-only initial publication', async () => {
 	const fixture = createFixture(undefined, { createOnly: true });
@@ -425,7 +439,7 @@ test('new selected-schema projects use create-only initial publication', async (
 test('feature compatibility transiently bypasses affected audio effects before engine activation', async () => {
 	const fixture = createFixture({ audioEffects: false, videoEffects: false });
 	const effect = { id: 'compressor-a', type: 'compressor', enabled: true, bypassed: false, params: { threshold: -24 } };
-	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+	const next = { ...project('feature-project', [{ id: 'audio-a', type: 'audio', effectsActive: true, effects: [effect] }]), schemaVersion: PROJECT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: [{
 			id: 'audio-effects', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects, displayName: 'Audio effects', disposition: 'bypass', fallback: null,
 		}],
@@ -457,7 +471,7 @@ test('feature compatibility transiently bypasses affected audio effects before e
 test('malformed current feature metadata rejects before project activation side effects', async () => {
 	const fixture = createFixture();
 	const malformed = {
-		...project('malformed-feature-project'), schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION,
+		...project('malformed-feature-project'), schemaVersion: PROJECT_SCHEMA_VERSION,
 		featureRequirements: { schemaVersion: 1, requirements: {} },
 	};
 	await assert.rejects(fixture.service.switchProject(malformed), /requirements must be an array/iu);

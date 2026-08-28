@@ -2,7 +2,7 @@
 
 export const DESKTOP_SCAPE_REOPEN_SMOKE_MODE = 'scape-persistent-reopen-v1';
 export const DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_SCAPE_REOPEN_SMOKE';
-export const SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION = 30;
+export const SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION = 1;
 
 const MAXIMUM_PLAN_BYTES = 16 * 1024;
 const TOKEN = /^[a-f\d]{32}$/u;
@@ -10,7 +10,7 @@ const PLAN_FIELDS = Object.freeze(['mode', 'productId', 'project', 'schemaVersio
 const PROJECT_FIELDS = Object.freeze(['clipId', 'id', 'revision', 'sourceId', 'title', 'trackId']);
 const EXECUTION_FIELDS = Object.freeze(['playback', 'renderer', 'sharedProject']);
 const SHARED_PROJECT_FIELDS = Object.freeze([
-	'clipCount', 'revision', 'schemaVersion', 'sourceCount', 'trackCount',
+	'clipCount', 'revision', 'schemaFamily', 'schemaVersion', 'sourceCount', 'trackCount',
 ]);
 const RENDERER_FIELDS = Object.freeze([
 	'activeTabTitle', 'alertCount', 'clipCount', 'clipId', 'dialogCount', 'projectId',
@@ -98,7 +98,8 @@ export function validateScapeReopenRendererResult(value, expectedPlan) {
 	const plan = validateScapeReopenSmokePlan(expectedPlan);
 	assertClosedRecord(value, EXECUTION_FIELDS, 'Scape persisted-reopen renderer execution');
 	assertClosedRecord(value.sharedProject, SHARED_PROJECT_FIELDS, 'Scape persisted-reopen shared project result');
-	if (value.sharedProject.schemaVersion !== CURRENT_PROJECT_SCHEMA_VERSION
+	if (value.sharedProject.schemaFamily !== 'soundscaper'
+		|| value.sharedProject.schemaVersion !== CURRENT_PROJECT_SCHEMA_VERSION
 		|| value.sharedProject.revision !== plan.project.revision
 		|| value.sharedProject.sourceCount !== 1
 		|| value.sharedProject.trackCount !== 1
@@ -137,6 +138,7 @@ export function validateScapeReopenRendererResult(value, expectedPlan) {
 	}
 	return deepFreeze({
 		sharedProject: {
+			schemaFamily: 'soundscaper',
 			schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
 			revision: plan.project.revision,
 			sourceCount: 1,
@@ -189,9 +191,9 @@ export function validateScapeReopenSmokeResult(value, expectedPlan = null) {
 }
 
 export async function runScapeReopenRendererSmoke(scope, plan) {
-	const currentProjectSchemaVersion = 30;
+	const currentProjectSchemaVersion = 1;
 	const document = scope?.document;
-	const api = scope?.soundscaperProjectLibraryDesktop?.v11;
+	const api = scope?.soundscaperProjectLibraryDesktop?.v1;
 	if (!document || typeof document.querySelectorAll !== 'function'
 		|| typeof scope?.setTimeout !== 'function'
 		|| typeof scope?.requestAnimationFrame !== 'function'
@@ -222,6 +224,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		throw new Error('Persisted shared project is not canonical JSON');
 	}
 	if (!project || typeof project !== 'object' || Array.isArray(project)
+		|| project.schemaFamily !== 'soundscaper'
 		|| project.schemaVersion !== currentProjectSchemaVersion || project.id !== plan.project.id
 		|| project.title !== plan.project.title || project.revision !== plan.project.revision
 		|| !Array.isArray(project.timelineAnnotations)) {
@@ -390,6 +393,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 				const playback = await provePlayback(root);
 				return {
 					sharedProject: {
+						schemaFamily: 'soundscaper',
 						schemaVersion: currentProjectSchemaVersion,
 						revision: plan.project.revision,
 						sourceCount: 1,

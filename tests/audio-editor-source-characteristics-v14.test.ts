@@ -23,11 +23,15 @@ import {
 	validateCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
-import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
-import { exportScapeProject, importScapeProject } from '../src/common/editor/scape-project.js';
+import { PROJECT_SCHEMA_VERSION } from '../src/common/editor/project-schema-identity.ts';
+import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { createUnreportedVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
+import {
+	asBaselineSoundscaperProject,
+	importBaselineScapeProject,
+} from './helpers/baseline-scape-runtime.ts';
 
 const NOW = '2026-08-10T09:00:00.000Z';
 const RATE = { num: 30_000, den: 1_001 };
@@ -192,7 +196,7 @@ test('an unreported codec leaves the legacy field to the importer that knew it',
 });
 
 test('a current .scape round trip preserves probed characteristics byte-exactly', async () => {
-	const project = currentSourceProject();
+	const project = asBaselineSoundscaperProject(currentSourceProject());
 	const sourceStore = new AudioEditorProjectStore({
 		indexedDB: null,
 		databaseName: 'v14-characteristics-scape-source',
@@ -206,8 +210,9 @@ test('a current .scape round trip preserves probed characteristics byte-exactly'
 		mimeType: 'video/mp4',
 	});
 	const exported = await exportScapeProject(project, sourceStore);
-	assert.equal(exported.manifest.project.schemaVersion, AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION);
-	const imported = await importScapeProject(exported.blob, targetStore);
+	assert.equal(exported.manifest.project.schemaFamily, 'soundscaper');
+	assert.equal(exported.manifest.project.schemaVersion, PROJECT_SCHEMA_VERSION);
+	const imported = await importBaselineScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
 	assert.deepEqual(persistedCharacteristics(imported.project), REPORTED);

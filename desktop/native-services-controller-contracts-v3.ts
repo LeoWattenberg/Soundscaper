@@ -15,6 +15,11 @@ import {
 	assertFramescaperNativeWatchProjection,
 	type FramescaperNativeWatchProjection,
 } from './native-services-watch-controller-contract.ts';
+import {
+	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+} from '../src/common/editor/project-schema-identity.ts';
 
 export const FRAMESCAPER_NATIVE_SERVICES_SNAPSHOT_VERSION = 1;
 export const FRAMESCAPER_NATIVE_SERVICE_PREFERENCES = Object.freeze([
@@ -32,6 +37,8 @@ export interface FramescaperNativeServicePreferences {
 
 export interface FramescaperNativeQueueProjection {
 	readonly jobId: string;
+	readonly schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly taskKind: NativeQueueTaskKind;
 	readonly projectId: string;
 	readonly relativeDestination: string;
@@ -140,12 +147,15 @@ export function assertFramescaperNativeServicesSnapshot(
 }
 
 export function framescaperNativeQueueProjection(record: Readonly<{
-	jobId: string; taskKind: NativeQueueTaskKind; projectId: string; relativeDestination: string;
+	jobId: string; schemaFamily: typeof FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
+	schemaVersion: typeof PROJECT_SCHEMA_VERSION;
+	taskKind: NativeQueueTaskKind; projectId: string; relativeDestination: string;
 	state: NativeQueueState; position: number; progress: number | null; attempt: number;
 	lastFailureCode: string | null;
 }>): FramescaperNativeQueueProjection {
 	return Object.freeze({
-		jobId: record.jobId, taskKind: record.taskKind, projectId: record.projectId,
+		jobId: record.jobId, schemaFamily: record.schemaFamily, schemaVersion: record.schemaVersion,
+		taskKind: record.taskKind, projectId: record.projectId,
 		relativeDestination: record.relativeDestination, state: record.state,
 		position: record.position, progress: record.progress, attempt: record.attempt,
 		lastFailureCode: record.lastFailureCode,
@@ -163,8 +173,13 @@ export function framescaperNativeCommonRootGrant(grant: FramescaperNativeRootGra
 export function assertFramescaperNativeQueueProjection(
 	value: unknown,
 ): asserts value is FramescaperNativeQueueProjection {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaFamily !== FRAMESCAPER_PROJECT_SCHEMA_FAMILY
+		|| identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError('A native queue projection requires the current Framescaper schema.');
+	}
 	const row = closedRecord(value, [
-		'jobId', 'taskKind', 'projectId', 'relativeDestination', 'state',
+		'jobId', 'schemaFamily', 'schemaVersion', 'taskKind', 'projectId', 'relativeDestination', 'state',
 		'position', 'progress', 'attempt', 'lastFailureCode',
 	], 'native queue projection');
 	exactJobId(row.jobId);

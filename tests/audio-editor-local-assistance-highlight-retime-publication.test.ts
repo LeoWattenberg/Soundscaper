@@ -23,19 +23,19 @@ import {
 	createFramescaperAssistanceHighlightPublication,
 } from '../src/framescaper/editor-local-assistance-highlight-publication.ts';
 import {
-	createFramescaperProjectHistoryV31,
-	executeFramescaperProjectCommandV31,
-	undoFramescaperProjectCommandV31,
-} from '../src/framescaper/editor-project-v31-history.ts';
-import type { FramescaperProjectCommandV31 } from
-	'../src/framescaper/editor-project-v31-commands.ts';
+	createFramescaperProjectHistoryAssistance,
+	executeFramescaperProjectCommandAssistance,
+	undoFramescaperProjectCommandAssistance,
+} from '../src/framescaper/editor-project-assistance-history.ts';
+import type { FramescaperProjectCommandAssistance } from
+	'../src/framescaper/editor-project-assistance-commands.ts';
 import {
-	createFramescaperProjectV31,
-	type FramescaperProjectV31,
-} from '../src/framescaper/editor-project-v31.ts';
-import { FRAMESCAPER_V31_PROJECT_RUNTIME_PROFILE as PROFILE } from
-	'../src/framescaper/editor-project-runtime-profile-v31.ts';
-import { framescaperV20Options } from './helpers/framescaper-v20-model-fixture.ts';
+	createFramescaperProjectAssistance,
+	type FramescaperProjectAssistance,
+} from '../src/framescaper/editor-project-assistance.ts';
+import { FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE as PROFILE } from
+	'../src/framescaper/editor-domain-runtime-profile.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const NOW = '2026-08-27T09:00:00.000Z';
 const VIDEO_SHA256 = '12'.repeat(32);
@@ -90,7 +90,7 @@ test('highlight publication slices a monotonic forward retime into one undoable 
 			{ num: 0, den: 1 }, { num: 5, den: 1 },
 		]);
 
-		session.history = undoFramescaperProjectCommandV31(PROFILE, session.history, { now: NOW });
+		session.history = undoFramescaperProjectCommandAssistance(PROFILE, session.history, { now: NOW });
 		assert.deepEqual(session.history.present.sequences, initial.sequences);
 		assert.deepEqual(session.history.present.tracks, initial.tracks);
 		assert.deepEqual(session.history.present.clips, initial.clips);
@@ -159,7 +159,7 @@ test('edited ramp highlight trims expose and publish only exact round-trip bound
 	});
 });
 
-function retimedProject(middleSourceFrame = 2): FramescaperProjectV31 {
+function retimedProject(middleSourceFrame = 2): FramescaperProjectAssistance {
 	const options = structuredClone(framescaperV20Options());
 	options.id = 'retimed-highlight-project';
 	options.title = 'Retimed highlight project';
@@ -185,10 +185,10 @@ function retimedProject(middleSourceFrame = 2): FramescaperProjectV31 {
 	options.tracks = records(options.tracks).map((track) => ({
 		...track, laneGroupId: 'source-lane-group',
 	}));
-	return createFramescaperProjectV31(PROFILE, options as never);
+	return createFramescaperProjectAssistance(PROFILE, options as never);
 }
 
-function rampRetimedProject(): FramescaperProjectV31 {
+function rampRetimedProject(): FramescaperProjectAssistance {
 	const options = structuredClone(framescaperV20Options());
 	options.id = 'ramp-highlight-project';
 	options.title = 'Ramp highlight project';
@@ -216,7 +216,7 @@ function rampRetimedProject(): FramescaperProjectV31 {
 	options.tracks = records(options.tracks).map((track) => ({
 		...track, laneGroupId: 'source-lane-group',
 	}));
-	return createFramescaperProjectV31(PROFILE, options as never);
+	return createFramescaperProjectAssistance(PROFILE, options as never);
 }
 
 function rampProposals() {
@@ -240,14 +240,14 @@ function rampCrop(sourceFrame: number) {
 		crop: { left: 0.341796875, top: 0, right: 0.341796875, bottom: 0 } };
 }
 
-function selected(project: FramescaperProjectV31) {
+function selected(project: FramescaperProjectAssistance) {
 	return resolveLocalAssistanceSelectedVideoAuthority({
 		getProject: () => project,
 		getSelectedClipId: () => 'video-clip',
 	});
 }
 
-function fence(project: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
+function fence(project: FramescaperProjectAssistance): AssistanceWorkflowFenceV1 {
 	const authority = selected(project);
 	const held = authority.fence;
 	const videoSource = records(project.sources).find(({ id }) => id === 'video-source')!;
@@ -256,7 +256,8 @@ function fence(project: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
 	const audioStart = Number(audioClip.sourceStartFrame);
 	const audioEnd = audioStart + Number(audioClip.sourceDurationFrames);
 	return {
-		fenceVersion: 1, projectId: String(project.id), schemaVersion: Number(project.schemaVersion),
+		fenceVersion: 1, schemaFamily: 'framescaper', schemaVersion: 1,
+		projectId: String(project.id),
 		revision: Number(project.revision), sequenceId: 'main-sequence',
 		sourceRanges: [{
 			slotId: 'primary-audio', mediaKind: 'audio', sourceId: 'audio-source',
@@ -277,7 +278,7 @@ function fence(project: FramescaperProjectV31): AssistanceWorkflowFenceV1 {
 	};
 }
 
-function review(project: FramescaperProjectV31) {
+function review(project: FramescaperProjectAssistance) {
 	return {
 		kind: 'highlight-proposals', schemaVersion: 1, workflowId: 'make-highlights',
 		fence: fence(project), proposals: [{
@@ -297,8 +298,8 @@ function crop(sourceFrame: number) {
 		crop: { left: 0.25, top: 0, right: 0.25, bottom: 0 } };
 }
 
-function harness(initial: FramescaperProjectV31) {
-	let history = createFramescaperProjectHistoryV31(PROFILE, initial);
+function harness(initial: FramescaperProjectAssistance) {
+	let history = createFramescaperProjectHistoryAssistance(PROFILE, initial);
 	let current = initial;
 	let commits = 0;
 	const expectedFence = fence(initial);
@@ -309,8 +310,8 @@ function harness(initial: FramescaperProjectV31) {
 		createId: incrementalIds(),
 		commit: (command) => {
 			commits += 1;
-			history = executeFramescaperProjectCommandV31(
-				PROFILE, history, command as FramescaperProjectCommandV31, { now: NOW },
+			history = executeFramescaperProjectCommandAssistance(
+				PROFILE, history, command as FramescaperProjectCommandAssistance, { now: NOW },
 			);
 		},
 	});

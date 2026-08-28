@@ -21,7 +21,8 @@ const SHA256 = '12'.repeat(32);
 
 const SELECTION_FENCE = Object.freeze({
 	projectId: 'project-1',
-	schemaVersion: 30,
+	schemaFamily: 'soundscaper' as const,
+	schemaVersion: 1,
 	revision: 7,
 	sequenceId: 'sequence-1',
 	occurrenceIds: Object.freeze(['occurrence-1']),

@@ -40,7 +40,7 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	let mediaAvailable = false;
 	let authorityOptions;
 	let renderInputOptions;
-	let selectedV28AuthorityOptions;
+	let projectMediaAuthorityOptions;
 	let queueCapacityOptions;
 	let queueReservationOptions;
 	let brokerOptions;
@@ -114,7 +114,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		}),
 		prepare: async () => prepared,
 		projectState: () => Object.freeze({ open: true, writable: true }),
-		watchProject: () => Object.freeze({ schemaVersion: 20, projectId: 'project-1', projectRevision: 1, open: true, writable: true }),
+		watchProject: () => Object.freeze({ schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId: 'project-1', projectRevision: 1, open: true, writable: true }),
 		watchImportAlreadyPresent: async () => false,
 		watchImportState: async (projectId, binId, contentSha256) => Object.freeze({
 			projectId, projectRevision: 1, binId, sourceId: 'source-1',
@@ -141,10 +142,13 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	const registrationInput = options('framescaper');
 	const authoredEffect = Object.freeze({ instanceId: 'authored-effect', state: 'current' });
 	registrationInput.projectAuthority.projectRecord = (projectId) => projectId === 'project-1'
-		? { projectId, projectRevision: 7, projectSha256: 'a'.repeat(64) } : null;
+		? { schemaFamily: 'framescaper', schemaVersion: 1,
+			projectId, projectRevision: 7, projectSha256: 'a'.repeat(64) } : null;
 	registrationInput.projectAuthority.readProjectBundle = async (projectId) => projectId === 'project-1'
-		? { project: { projectRevision: 7, sha256: 'a'.repeat(64) }, document: JSON.stringify({
-			schemaVersion: 28, id: 'project-1', revision: 7, ofxEffects: [authoredEffect],
+		? { project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			projectRevision: 7, sha256: 'a'.repeat(64) }, document: JSON.stringify({
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-1', revision: 7, ofxEffects: [authoredEffect],
 		}) } : null;
 	const registration = await startFramescaperNativeServicesRegistration(registrationInput, {
 		modules: {
@@ -181,8 +185,8 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 			createCapabilityReport: (value) => Object.freeze({ value }),
 			createProjectAuthority: (value) => { authorityOptions = value; return projectAuthorityRuntime; },
 			createRenderInputStaging: (value) => { renderInputOptions = value; return renderInputStaging; },
-			createSelectedV28ProjectAuthority: (value) => {
-				selectedV28AuthorityOptions = value;
+			createProjectMediaAuthority: (value) => {
+				projectMediaAuthorityOptions = value;
 				return projectAuthorityRuntime;
 			},
 			createWatchImportBroker: (value) => { brokerOptions = value; return watchImportBroker; },
@@ -208,13 +212,13 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	});
 	assert.ok(registration);
-	assert.match(runtimeOptions.databasePath, /framescaper-native-services\.sqlite$/u);
+	assert.match(runtimeOptions.databasePath, /framescaper-native-services-v1\.sqlite$/u);
 	assert.equal(runtimeOptions.runtimeAvailable(), false);
 	assert.equal(renderInputReclaims, 1);
 	mediaAvailable = true;
 	assert.equal(runtimeOptions.runtimeAvailable(), true);
 	assert.equal(runtimeOptions.nativeQueueExecution.pool, undefined,
-		'selected V28 jobs execute through the prepared V14 authority, not a legacy raw helper request');
+		'baseline plan-V14 jobs execute through the prepared authority, not a legacy raw helper request');
 	assert.equal(runtimeOptions.nativeQueueExecution.capacity, queueCapacity);
 	assert.equal(runtimeOptions.reserveQueue, reserveQueue);
 	assert.equal(queueReservationOptions.platform, 'linux');
@@ -245,8 +249,9 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(attestedCapabilities.value.media.selectedV20RenderSelfTestPassed, true);
 	assert.equal(attestedCapabilities.value.media.selectedV28V14RenderSelfTestPassed, true);
 	assert.equal(attestedCapabilities.value.imageSequenceImportMounted, true,
-		'the selected V28 route mounts only after its main-owned authority recovers');
-	assert.equal(imageSequenceImportOptions.route.candidateGeneration, 28);
+		'the baseline route mounts only after its main-owned authority recovers');
+	assert.equal(imageSequenceImportOptions.route.schemaFamily, 'framescaper');
+	assert.equal(imageSequenceImportOptions.route.schemaVersion, 1);
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
 	assert.equal('policyCleared' in imageSequenceImportOptions, false);
@@ -258,31 +263,38 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		helperBuildMatches: false, scratchIdentityMatches: true,
 	});
 	assert.equal(authorityOptions.project, registrationInput.projectAuthority);
-	assert.equal(selectedV28AuthorityOptions.projectSchemaVersion, 31);
-	assert.equal(await openFxServiceOptions.currentProject({ id: 'project-1', revision: 7 }), true);
+	assert.equal('projectSchemaVersion' in projectMediaAuthorityOptions, false);
 	assert.equal(await openFxServiceOptions.currentProject(
-		{ id: 'project-1', revision: 7 }, structuredClone(authoredEffect),
+		{ schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-1', revision: 7 },
 	), true);
 	assert.equal(await openFxServiceOptions.currentProject(
-		{ id: 'project-1', revision: 7 }, { ...authoredEffect, state: 'stale' },
+		{ schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-1', revision: 7 },
+		structuredClone(authoredEffect),
+	), true);
+	assert.equal(await openFxServiceOptions.currentProject(
+		{ schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-1', revision: 7 },
+		{ ...authoredEffect, state: 'stale' },
 	), false);
 	assert.equal(await openFxServiceOptions.currentProject(
-		{ id: 'project-1', revision: 8 }, structuredClone(authoredEffect),
+		{ schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-1', revision: 8 },
+		structuredClone(authoredEffect),
 	), false);
 	assert.equal(await openFxFrameOptions.currentProject(
-		{ project: { id: 'project-1', revision: 7 } }, structuredClone(authoredEffect),
+		{ project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-1', revision: 7 } }, structuredClone(authoredEffect),
 	), true);
 	assert.equal(await openFxFrameOptions.currentProject(
-		{ project: { id: 'project-1', revision: 7 } }, { ...authoredEffect, state: 'stale' },
+		{ project: { schemaFamily: 'framescaper', schemaVersion: 1,
+			id: 'project-1', revision: 7 } }, { ...authoredEffect, state: 'stale' },
 	), false);
 	assert.equal(authorityOptions.checkpointStore, nodePorts.checkpointStore);
 	assert.equal(authorityOptions.checkpointInspectFor, nodePorts.checkpointInspectFor);
 	assert.match(renderInputOptions.root, /framescaper-native-render-inputs$/u);
 	assert.equal(renderInputOptions.mintStageId, nodePorts.mintOpaqueId);
 	assert.equal(typeof renderInputOptions.storageAdmission, 'function');
-	assert.equal(selectedV28AuthorityOptions.project, registrationInput.projectAuthority);
-	assert.equal(selectedV28AuthorityOptions.watch, projectAuthorityRuntime);
-	assert.equal(selectedV28AuthorityOptions.renderInputs, renderInputStaging);
+	assert.equal(projectMediaAuthorityOptions.project, registrationInput.projectAuthority);
+	assert.equal(projectMediaAuthorityOptions.watch, projectAuthorityRuntime);
+	assert.equal(projectMediaAuthorityOptions.renderInputs, renderInputStaging);
 	assert.equal(runtimeOptions.checkpointStore, nodePorts.checkpointStore);
 	assert.equal(nodePortOptions.watchLocator, registrationInput.watchImportAuthority.locator);
 	assert.equal(runtimeOptions.nativeMediaEnabled(), false);
@@ -399,7 +411,7 @@ test('a runtime startup failure releases the session display subscription', asyn
 			createRenderInputStaging: () => ({
 				mountOpenFxTransformFactory: () => undefined,
 			}),
-			createSelectedV28ProjectAuthority: ({ project }) => project,
+			createProjectMediaAuthority: ({ project }) => project,
 			createWatchImportBroker: () => ({ dispose: async () => undefined }),
 			startRuntime: (value) => {
 				assert.equal(value.nativeQueueExecution, undefined);
@@ -418,15 +430,15 @@ test('a runtime startup failure releases the session display subscription', asyn
 test('desktop main mounts the Framescaper registration after settings and includes it in shutdown', async () => {
 	const source = await readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8');
 	const routes = await readFile(new URL(
-		'../desktop/framescaper-selected-v28-route-authorities.mjs', import.meta.url,
+		'../desktop/framescaper-route-authorities.mjs', import.meta.url,
 	), 'utf8');
 	assert.match(source, /startFramescaperNativeServicesRegistration/u);
 	assert.match(source, /native services['"],\s*run:\s*\(\)\s*=>\s*nativeServices\?\.dispose/u);
 	assert.match(source, /nativeServices\?\.registerRendererBridge/u);
 	assert.match(source, /watchImportAuthority:[\s\S]*currentRendererSaveOwner[\s\S]*watchImportAuthority\(\)/u);
-	assert.match(source, /imageSequenceImportAuthority:[\s\S]*FRAMESCAPER_SELECTED_V28_IMAGE_SEQUENCE_IMPORT_AUTHORITY/u);
-	assert.match(routes, /candidateGeneration:\s*28[\s\S]*projectMutationSurface:\s*'image-sequence-import'/u,
-		'the selected main composition must attest only the exact V28 project mutation route');
+	assert.match(source, /imageSequenceImportAuthority:[\s\S]*FRAMESCAPER_IMAGE_SEQUENCE_IMPORT_AUTHORITY/u);
+	assert.match(routes, /schemaFamily:\s*'framescaper'[\s\S]*schemaVersion:\s*1[\s\S]*projectMutationSurface:\s*'image-sequence-import'/u,
+		'the main composition must attest only the exact baseline project mutation route');
 	assert.ok(
 		source.indexOf('await settings.load') < source.indexOf('startFramescaperNativeServicesRegistration({'),
 		'native service settings authority must be loaded before its runtime starts',
@@ -435,9 +447,9 @@ test('desktop main mounts the Framescaper registration after settings and includ
 		'native watch claims must release their locator before the locator store closes');
 });
 
-test('only an exact routed V25/V26/V28 mutation authority mounts image-sequence import', () => {
+test('only an exact routed Framescaper v1 authority mounts image-sequence import', () => {
 	const authority = Object.freeze({
-		candidateGeneration: 25,
+		schemaFamily: 'framescaper', schemaVersion: 1,
 		projectMutationSurface: 'image-sequence-import',
 		professionalCharacteristicsContract: 'video-source-characteristics-v25',
 		isRouted: () => true,
@@ -445,13 +457,10 @@ test('only an exact routed V25/V26/V28 mutation authority mounts image-sequence 
 	assert.equal(framescaperImageSequenceImportAuthorityMounted(null), false);
 	assert.equal(framescaperImageSequenceImportAuthorityMounted(authority), true);
 	assert.equal(framescaperImageSequenceImportAuthorityMounted({
-		...authority, candidateGeneration: 28,
-	}), true);
-	assert.equal(framescaperImageSequenceImportAuthorityMounted({
 		...authority, isRouted: () => false,
 	}), false);
 	assert.throws(() => framescaperImageSequenceImportAuthorityMounted({
-		...authority, candidateGeneration: 20,
+		...authority, schemaVersion: 2,
 	}), /authority is invalid/iu);
 	assert.throws(() => framescaperImageSequenceImportAuthorityMounted({
 		...authority, extra: true,
@@ -481,15 +490,17 @@ function options(productId) {
 		selectImageSequenceFiles: async () => null,
 		selectOpenFxPluginBinary: async () => null,
 		imageSequenceImportAuthority: productId === 'framescaper' ? Object.freeze({
-			candidateGeneration: 28,
+			schemaFamily: 'framescaper', schemaVersion: 1,
 			projectMutationSurface: 'image-sequence-import',
 			professionalCharacteristicsContract: 'video-source-characteristics-v25',
 			isRouted: () => true,
 		}) : null,
 		createMessageChannel: () => ({ hostPort: {}, helperPort: {} }),
 		projectAuthority: {
-			projectSchemaVersion: 31,
-			projectState: () => ({ open: true, writable: true }),
+			schemaFamily: 'framescaper',
+			schemaVersion: 1,
+			projectState: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
+				open: true, writable: true }),
 			projectRecord: () => null,
 			readProjectBundle: async () => null,
 			readBody: async () => new Uint8Array(),

@@ -13,10 +13,15 @@ import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from './operation.ts';
+import {
+	PROJECT_SCHEMA_VERSION,
+	readProjectSchemaIdentity,
+	type ProjectSchemaFamily,
+} from '../project-schema-identity.ts';
 
 export type { AssistanceOperation } from './operation.ts';
 const FENCE_FIELDS = Object.freeze([
-	'projectId', 'schemaVersion', 'revision', 'sequenceId', 'occurrenceIds',
+	'projectId', 'schemaFamily', 'schemaVersion', 'revision', 'sequenceId', 'occurrenceIds',
 	'sourceId', 'sourceSha256', 'sourceStartFrame', 'sourceEndFrame',
 	'linkMembershipSha256', 'timingAuthoritySha256',
 ] as const);
@@ -29,7 +34,8 @@ const MAX_ASSISTANCE_ASSETS = 1024;
 
 export interface AssistanceSelectionFence {
 	readonly projectId: string;
-	readonly schemaVersion: number;
+	readonly schemaFamily: ProjectSchemaFamily;
+	readonly schemaVersion: typeof PROJECT_SCHEMA_VERSION;
 	readonly revision: number;
 	readonly sequenceId: string;
 	readonly occurrenceIds: readonly string[];
@@ -164,6 +170,7 @@ export function createAssistanceProposalSession(
 
 /** Normalize the exact authority shared by inference and proposal acceptance. */
 export function validateAssistanceSelectionFence(value: unknown): AssistanceSelectionFence {
+	const identity = currentProjectIdentity(value, 'assistance selection fence');
 	const record = exactRecord(value, FENCE_FIELDS, 'assistance selection fence fields');
 	const sourceStartFrame = integer(record.sourceStartFrame, 0, 'source start frame');
 	const sourceEndFrame = integer(record.sourceEndFrame, 1, 'source end frame');
@@ -180,7 +187,7 @@ export function validateAssistanceSelectionFence(value: unknown): AssistanceSele
 	}
 	return Object.freeze({
 		projectId: id(record.projectId, 'project ID'),
-		schemaVersion: integer(record.schemaVersion, 1, 'schema version'),
+		...identity,
 		revision: integer(record.revision, 0, 'project revision'),
 		sequenceId: id(record.sequenceId, 'sequence ID'),
 		occurrenceIds,
@@ -246,6 +253,7 @@ function normalizeDecision(
 
 function sameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFence): boolean {
 	return left.projectId === right.projectId
+		&& left.schemaFamily === right.schemaFamily
 		&& left.schemaVersion === right.schemaVersion
 		&& left.revision === right.revision
 		&& left.sequenceId === right.sequenceId
@@ -257,6 +265,20 @@ function sameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFen
 		&& left.timingAuthoritySha256 === right.timingAuthoritySha256
 		&& left.occurrenceIds.length === right.occurrenceIds.length
 		&& left.occurrenceIds.every((value, index) => value === right.occurrenceIds[index]);
+}
+
+function currentProjectIdentity(
+	value: unknown,
+	label: string,
+): Readonly<{ schemaFamily: ProjectSchemaFamily; schemaVersion: typeof PROJECT_SCHEMA_VERSION }> {
+	const identity = readProjectSchemaIdentity(value);
+	if (identity.schemaVersion !== PROJECT_SCHEMA_VERSION) {
+		throw new RangeError(`The ${label} must bind the current project schema version.`);
+	}
+	return Object.freeze({
+		schemaFamily: identity.schemaFamily,
+		schemaVersion: PROJECT_SCHEMA_VERSION,
+	});
 }
 
 function exactRecord<const Field extends string>(

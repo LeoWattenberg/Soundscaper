@@ -17,7 +17,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.requiredOutcome,
-		/exact-schema-17 current project.*every retained revision.*timeline.*Project Bin.*feature fallback.*durable roots.*first- or third-party provenance/iu,
+		/exact owning-family v1 current project.*every retained revision.*timeline.*Project Bin.*feature fallback.*durable roots.*first- or third-party provenance/iu,
 	);
 	assert.match(
 		rule.requiredOutcome,
@@ -63,7 +63,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	);
 	assert.match(
 		rule.currentBehavior,
-		/current exact-schema-17 document.*every retained exact-schema-17 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*without provenance gating.*at most 64.*100,000.*128.*fails? closed.*no binding deletion/iu,
+		/current exact owning-family v1 document.*every retained exact owning-family v1 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*without provenance gating.*at most 64.*100,000.*128.*fails? closed.*no binding deletion/iu,
 	);
 	assert.match(
 		rule.currentBehavior,
@@ -99,7 +99,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 		'src/common/editor/controller/project-retention-service.ts',
 		'src/common/editor/controller/project-save-service.ts',
 		'src/common/editor/controller/project-switch-service.ts',
-		'src/common/editor/storage/desktop-shared-project-repository.ts',
+		'src/soundscaper/desktop-project-library-renderer.ts',
 		'src/common/editor/storage/linked-original-lifecycle-coordinator.ts',
 		'src/common/editor/storage/linked-original-pair-writer.ts',
 		'src/common/editor/storage/linked-original-project-binding-prune.ts',
@@ -120,7 +120,7 @@ test('linked-original compatibility policy qualifies bounded save and activation
 		'tests/audio-editor-linked-original-provisional-root-writers.test.ts',
 		'tests/audio-editor-linked-original-provisional-root.test.ts',
 		'tests/audio-editor-linked-original-transient-binding-reference.test.ts',
-		'tests/audio-editor-desktop-shared-project-mutation-serialization.test.ts',
+		'tests/audio-editor-linked-video-project-save-lifecycle.test.ts',
 		'tests/audio-editor-project-switch-playback-apply.test.ts',
 		'tests/audio-editor-project-switch-service.test.ts',
 		'tests/audio-editor-project-retention-service.test.ts',
@@ -135,43 +135,14 @@ test('linked-original compatibility policy qualifies bounded save and activation
 	const documentation = (await readFile(documentationUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.match(
 		documentation,
-		/opt-in maintained controller save.*terminal successful writable activation.*queued autosaves, flushes, inactive-tab saves, and project-switch or analysis explicit saves.*queued write executes.*activation.*lifecycle and latest-project-mutation.*active project and write-lock identity.*roots.*inside.*serialized.*kindful.*Undo.*Redo.*clipboard.*recording.*render-cache.*direct store callers.*no destructive source-level cleanup/iu,
+		/1\.0 family baselines.*owning product opens its exact family v1 writable.*other known family.*opaque read-only custody/isu,
 	);
 	assert.match(
 		documentation,
-		/same textual source ID.*audio and video.*distinct.*wrong-kind.*does not retain.*protectedLinkedVideoSourceIds.*compatibility facade/iu,
+		/Both v1 stores are fresh.*never opens, enumerates, migrates, mutates, or deletes a pre-release browser database, desktop library, or project-coupled native store/isu,
 	);
 	assert.match(
 		documentation,
-		/current exact-schema-17 project.*every retained exact-schema-17 revision.*timeline clips, Project Bin clips, and every feature-requirement fallback.*first-party or third-party provenance.*64 retained revisions.*100,000.*128/iu,
-	);
-	assert.match(
-		documentation,
-		/Desktop.*exact canonical remote acknowledgement.*successful activation.*latest-project-mutation lock.*provisional root.*prune failure.*project save or activation remains successful.*later opted-in save or writable activation.*retry/iu,
-	);
-	assert.match(
-		documentation,
-		/closed scalar.*project.*kind.*source.*binding token.*same compensated memory.*IndexedDB.*exact unlink.*pair.*same-database bind-before-canonical-import.*independent cleanup/iu,
-	);
-	assert.match(
-		documentation,
-		/durable current or retained graph.*exact owner token.*consume.*caller wildcard.*does not consume.*stale owner.*replacement root.*suppressed (?:or|and) failed.*consume no root/iu,
-	);
-	assert.match(
-		documentation,
-		/startup.*no owner token.*catalog-live rooted.*(?:retained|remains).*unreachable.*unverifiable.*durable.*consumes.*catalog(?:-absent| absence).*pair/iu,
-	);
-	assert.match(documentation, /roots have no time expiry.*bounded metadata leak.*version-8 upgrade.*does not backfill.*pre-root binding rows/iu);
-	assert.match(
-		documentation,
-		/before exact release.*re-inventories.*same-store bindings.*surviving.*alias suppresses.*previously failed pending exact release.*rejects again.*not starve unrelated activation pruning/iu,
-	);
-	assert.match(
-		documentation,
-		/memory and IndexedDB.*no-owned-PCM linked WAV.*last durable revision.*live audio root.*canonically readable.*last root disappears.*exact locator.*once.*external WAV.*untouched/iu,
-	);
-	assert.match(
-		documentation,
-		/same IndexedDB database.*independent browser connections.*different databases or profiles.*project catalog.*main locator registry.*crash windows.*do not qualify.*hostile-row.*not one cross-boundary transaction/iu,
+		/Version-bearing S21–S30, F18–F32.*implementation provenance.*old project, store, migration, and package identities are not supported/isu,
 	);
 });

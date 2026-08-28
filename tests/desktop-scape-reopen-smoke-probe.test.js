@@ -16,7 +16,7 @@ import {
 } from '../desktop/scape-reopen-smoke.js';
 import {
 	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
-} from '../desktop/soundscaper-project-library-v11-contract.ts';
+} from '../desktop/soundscaper-project-library-contract.ts';
 import {
 	createDesktopSmokeProbe,
 	parseDesktopSmokeConfiguration,
@@ -93,6 +93,7 @@ test('renderer rereads the canonical source-bearing project and proves its exact
 	assert.equal(fixture.animationFrames, 2);
 	assert.deepEqual(validateScapeReopenRendererResult(result, PLAN), result);
 	for (const invalid of [
+		{ ...result, sharedProject: { ...result.sharedProject, schemaFamily: 'framescaper' } },
 		{ ...result, sharedProject: { ...result.sharedProject, sourceCount: 2 } },
 		{ ...result, renderer: { ...result.renderer, projectId: 'other-project' } },
 		{ ...result, renderer: { ...result.renderer, waveformRenderer: 'canvas' } },
@@ -123,6 +124,7 @@ test('renderer rejects missing, noncanonical, drifted, and relationally invalid 
 	for (const [document, pattern] of [
 		[null, /persisted shared project.*unavailable/iu],
 		[` ${valid}`, /canonical/iu],
+		[sharedProjectDocument(PLAN, { schemaFamily: 'framescaper' }), /identity|descriptor/iu],
 		[sharedProjectDocument(PLAN, { title: 'Drifted title' }), /identity|descriptor/iu],
 		[sharedProjectDocument(PLAN, { sources: [] }), /exactly one source/iu],
 		[sharedProjectDocument(PLAN, { clips: [{ id: PLAN.project.clipId, sourceId: 'other-source', type: 'audio' }] }), /clip.*source/iu],
@@ -245,6 +247,7 @@ function smokeArgv(encoded = encodeScapeReopenSmokePlan(PLAN)) {
 function rendererResult() {
 	return {
 		sharedProject: {
+			schemaFamily: 'soundscaper',
 			schemaVersion: SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 			revision: PLAN.project.revision,
 			sourceCount: 1,
@@ -280,6 +283,7 @@ function smokeResult() {
 
 function sharedProjectDocument(plan, overrides = {}) {
 	return JSON.stringify({
+		schemaFamily: 'soundscaper',
 		schemaVersion: SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 		id: plan.project.id,
 		title: plan.project.title,
@@ -420,15 +424,7 @@ function rendererFixture(plan, {
 			},
 		},
 		soundscaperProjectLibraryDesktop: {
-			v10: Object.freeze({
-				async connect() {
-					throw new Error('Historical V10 bridge must stay dormant in the selected smoke');
-				},
-				async readProjectBundle() {
-					throw new Error('Historical V10 bridge must stay dormant in the selected smoke');
-				},
-			}),
-			v11: {
+			v1: {
 				async connect() {
 					connectCalls += 1;
 				},
