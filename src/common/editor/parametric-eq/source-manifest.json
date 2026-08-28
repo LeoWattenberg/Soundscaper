@@ -34,9 +34,9 @@
 		{ "path": "parameters.js", "sha256": "bc67b327acb5f696ff0c37cca8301e83fe26c16ecb507d7dcf78f0d38ddb7327" },
 		{ "path": "protocol.js", "sha256": "7cedc5bc5e89f39fd5b53176881c80c7fbe2c846101e14018a8473662d8c6468" },
 		{ "path": "response.js", "sha256": "3700ecfe45ce08f33f5358f5a5517576a07c7759566a3df68d5782ac20fb433e" },
-		{ "path": "wasm-loader.js", "sha256": "fd313bf9a7b3acb6f685c86072b62ec156a40cf0cdf7ae7a26355a0f92909f31" },
+		{ "path": "wasm-loader.js", "sha256": "584658887c2cee51e696e67b262c4e2686ec90ed871e583cc1f193551594db6d" },
 		{ "path": "wasm-runtime.js", "sha256": "17595a6977f1423624204e3cf6dcceb374ffa62743177795767d8760e56b3ef2" },
-		{ "path": "worker.js", "sha256": "31251b848c7e2447e78786d23494c08c18ee22705dfa1f97369ab920f3eb52d5" },
+		{ "path": "worker.js", "sha256": "86057c7a4909166b56edfa8e01d5c85f4f9ff176b208425d905180890302cc32" },
 		{ "path": "worklet.js", "sha256": "bd6811feb350316e8addf14740a1bba3ff515f568f8166c6c7d2072f969b0617" }
 	],
 	"compiledSources": [
