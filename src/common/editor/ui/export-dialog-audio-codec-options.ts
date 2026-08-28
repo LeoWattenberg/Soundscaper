@@ -122,6 +122,26 @@ export function exportDialogSampleFormats(format: unknown, desktop: boolean): re
 	return Object.freeze([...(descriptor.sampleFormats ?? [])]);
 }
 
+export function exportDialogDefaultSampleFormat(
+	format: unknown,
+	desktop: boolean,
+	fallback: unknown,
+): string {
+	let descriptor: Readonly<{ defaults?: Readonly<{ sampleFormat?: unknown }> }>;
+	try {
+		descriptor = getMediaExportFormat(String(format)) as Readonly<{
+			defaults?: Readonly<{ sampleFormat?: unknown }>;
+		}>;
+	} catch {
+		return typeof fallback === 'string' ? fallback : '';
+	}
+	const supported = exportDialogSampleFormats(format, desktop);
+	const preferred = descriptor.defaults?.sampleFormat;
+	return typeof preferred === 'string' && supported.includes(preferred)
+		? preferred
+		: supported[0] ?? (typeof fallback === 'string' ? fallback : '');
+}
+
 export function exportDialogCompressionLevels(format: unknown, desktop: boolean): readonly number[] {
 	if (String(format) === 'flac') return Object.freeze(Array.from({ length: 9 }, (_, level) => level));
 	if (String(format) !== 'wavpack') return Object.freeze([]);

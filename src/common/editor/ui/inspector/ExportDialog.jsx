@@ -37,7 +37,7 @@ import {
 import {
 	constrainExportDialogSampleRate, exportDialogBitRateOptions,
 	exportDialogBitRateSelectionReason, exportDialogCompressionLevels,
-	exportDialogMaximumAudioSampleRate, exportDialogMetadata, exportDialogMetadataAvailable,
+	exportDialogDefaultSampleFormat, exportDialogMaximumAudioSampleRate, exportDialogMetadata, exportDialogMetadataAvailable,
 	exportDialogOutputChannelCount, exportDialogSampleFormats, exportDialogSampleRateSuggestions,
 	exportDialogVorbisQualityOptions, normalizeExportDialogAudioSettings,
 } from '../export-dialog-audio-codec-options.ts';
@@ -275,8 +275,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			range: passthrough ? 'project' : current.range,
 			sampleFormat: passthrough
 				? `int${current.adm.geometry.bitDepth}`
-				: exportDialogSampleFormats(format, desktop)[0]
-					|| MEDIA_EXPORT_FORMATS[format]?.defaults?.sampleFormat || current.sampleFormat,
+				: exportDialogDefaultSampleFormat(format, desktop, current.sampleFormat),
 			sampleRate: passthrough
 				? String(current.adm.geometry.sampleRate)
 				: constrainExportDialogSampleRate(current.sampleRate, format, desktop),

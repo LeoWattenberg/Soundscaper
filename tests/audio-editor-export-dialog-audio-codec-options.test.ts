@@ -8,6 +8,7 @@ import {
 	exportDialogBitRateOptions,
 	exportDialogBitRateSelectionReason,
 	exportDialogCompressionLevels,
+	exportDialogDefaultSampleFormat,
 	exportDialogMaximumAudioSampleRate,
 	exportDialogMetadata,
 	exportDialogMetadataAvailable,
@@ -35,6 +36,10 @@ test('desktop dialog audio choices stay inside the main-process contract', () =>
 	assert.equal(exportDialogMaximumAudioSampleRate('opus', false), 48_000);
 	assert.deepEqual(exportDialogSampleFormats('flac', false), ['int24']);
 	assert.deepEqual(exportDialogSampleFormats('wavpack', false), ['float32']);
+	assert.equal(exportDialogDefaultSampleFormat('bwf', false, 'int16'), 'int24');
+	assert.equal(exportDialogDefaultSampleFormat('aif', false, 'int16'), 'int24');
+	assert.equal(exportDialogDefaultSampleFormat('wavpack', false, 'int24'), 'float32');
+	assert.equal(exportDialogDefaultSampleFormat('video-mp4', false, 'int24'), 'int24');
 	assert.deepEqual(exportDialogCompressionLevels('wavpack', false), [2]);
 });
 
