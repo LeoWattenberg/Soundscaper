@@ -239,13 +239,16 @@ test('one deterministic budgeted scheduler covers 128 strips without analyzing h
 test('analysis scheduling validates hostile candidates and skips work that cannot fit the shared budget', () => {
 	const scheduler = createStripAnalysisScheduler({ maximumStripsPerTick: 2, maximumFramesPerTick: 1_000 });
 	const plan = scheduler.plan([
-		{ strip: track('too-large'), visible: true, armed: false, costFrames: 1_001 },
-		{ strip: track('fits'), visible: true, armed: false, costFrames: 1_000 },
+		{ strip: track('fits'), visible: true, armed: false, costFrames: 600 },
+		{ strip: track('waits'), visible: true, armed: false, costFrames: 500 },
 		{ strip: track('hidden'), visible: false, armed: false, costFrames: 1 },
 	]);
 	assert.deepEqual(plan.scheduled.map(({ strip }) => strip), [track('fits')]);
-	assert.equal(plan.usedFrames, 1_000);
+	assert.equal(plan.usedFrames, 600);
 	assert.deepEqual(plan.deferred.map(({ reason }) => reason), ['over-budget']);
+	assert.throws(() => scheduler.plan([
+		{ strip: track('impossible'), visible: true, armed: false, costFrames: 1_001 },
+	]), /costFrames must be an integer from 1 through 1000/iu);
 
 	let reads = 0;
 	const hostile = Object.create(null) as Record<string, unknown>;

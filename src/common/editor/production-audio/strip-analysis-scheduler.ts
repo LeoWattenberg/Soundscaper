@@ -67,7 +67,7 @@ export function createStripAnalysisScheduler(optionsValue: unknown): StripAnalys
 
 	return Object.freeze({
 		plan(candidatesValue: unknown): StripAnalysisPlan {
-			const candidates = normalizeCandidates(candidatesValue);
+			const candidates = normalizeCandidates(candidatesValue, maximumFrames);
 			if (candidates.length === 0) return emptyPlan(maximumStrips, maximumFrames);
 			const start = cursor % candidates.length;
 			const scheduled: ScheduledStripAnalysis[] = [];
@@ -108,7 +108,7 @@ export function createStripAnalysisScheduler(optionsValue: unknown): StripAnalys
 	});
 }
 
-function normalizeCandidates(value: unknown): readonly StripAnalysisCandidate[] {
+function normalizeCandidates(value: unknown, maximumFrames: number): readonly StripAnalysisCandidate[] {
 	const values = readClosedDomainArray(value, 'strip analysis candidates', 0, MAXIMUM_CANDIDATES);
 	const keys = new Set<string>();
 	return Object.freeze(values.map((candidateValue, index) => {
@@ -127,7 +127,7 @@ function normalizeCandidates(value: unknown): readonly StripAnalysisCandidate[] 
 			readClosedDomainField(record, 'costFrames', name),
 			`${name}.costFrames`,
 			1,
-			MAXIMUM_FRAMES_PER_TICK,
+			maximumFrames,
 		);
 		return Object.freeze({ strip, visible, armed, costFrames });
 	}));
