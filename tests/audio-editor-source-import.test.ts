@@ -80,6 +80,19 @@ test('video import reuses both members of an existing lane group', async () => {
 	assert.equal(fixture.calls.includes('writer-commit'), true);
 });
 
+test('video import uses browser container audio before the standalone codec fallback', async () => {
+	const fixture = createFixture();
+	fixture.options.decodeMode = 'container';
+	const result = await createImportVideoFile(fixture.runtime)(videoFile('linked.webm'), {
+		destination: 'timeline', trackId: null, timelineStartFrame: 0,
+	});
+
+	assert.match(String(result.audioSourceId), /^source-/u);
+	assert.equal(fixture.calls.includes('decode-container'), true);
+	assert.equal(fixture.calls.includes('decode-ffmpeg'), false);
+	assert.equal(fixture.addedSources.filter(({ kind }) => kind === 'audio').length, 1);
+});
+
 test('project-bin video import tolerates missing audio and disposable preview failures', async () => {
 	const fixture = createFixture();
 	fixture.options.decodeMode = 'none';

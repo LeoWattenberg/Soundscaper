@@ -21,6 +21,7 @@ import { publishVideoTimingAsset } from '../video-timing-storage.ts';
 import { planVideoImportTiming } from './video-import-timing.ts';
 import { createImportedAudioContentIdentityWriter, rollbackImportedAudioContentIdentityWriter,
 	type ImportedAudioContentIdentity } from './imported-audio-content-identity.ts';
+import { decodeImportedVideoAudio } from './video-import-audio-decode.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,18 +244,16 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 
 			const context = await engine.getAudioContext({ resume: false });
 			try {
-				let decodedAudio;
-				let declaredAudioSampleRate = null;
-				try {
-					// The browser has already decoded this container for thumbnails,
-					// and native Web Audio handles AAC tracks that may be unavailable
-					// to a particular FFmpeg core build.
-					const encoded = await canonicalVideoFile.arrayBuffer();
-					declaredAudioSampleRate = inspectEncodedAudioSampleRate(encoded);
-					decodedAudio = await engine.decodeAudioData(encoded);
-				} catch {
-					decodedAudio = await ffmpeg.decode(canonicalVideoFile, { sampleRate });
-				}
+				const { decodedAudio, declaredAudioSampleRate } = await decodeImportedVideoAudio({
+					file: canonicalVideoFile,
+					projectSampleRate: sampleRate,
+					durationSeconds: timelineDurationFrames / sampleRate,
+					signal: importOptions.signal,
+					inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
+					decodeNative: (encoded) => engine.decodeAudioData(encoded),
+					decodeContainerAudio: runtime.decodeContainerAudio,
+					decodeFfmpeg: (video, options) => ffmpeg.decode(video, options),
+				});
 				const decodedChannels = decodedAudio?.channels?.length
 					? decodedAudio.channels
 					: decodedAudio?.numberOfChannels
@@ -272,6 +271,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 					canonicalAudio = fitAudioBufferToFrames(resampled, timelineDurationFrames, context);
 				}
 			} catch {
+				throwIfImportAborted(importOptions.signal);
 				canonicalAudio = null;
 			}
 

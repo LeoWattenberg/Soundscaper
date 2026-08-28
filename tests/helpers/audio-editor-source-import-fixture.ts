@@ -98,7 +98,7 @@ export function createFixture() {
 	const sourceBuffers = new Map<string, unknown>();
 	const sourcePeaks = new Map<string, unknown>();
 	const options = {
-		decodeMode: 'native' as 'native' | 'fallback' | 'none',
+		decodeMode: 'native' as 'native' | 'container' | 'fallback' | 'none',
 		posterFails: false,
 		posterSourceAdmissionFails: false,
 		thumbnailAdmissionFailure: null as number | null,
@@ -219,8 +219,14 @@ export function createFixture() {
 				};
 			},
 		},
+		decodeContainerAudio: async () => {
+			calls.push('decode-container');
+			if (options.decodeMode !== 'container') throw new Error('container decode failed');
+			return { channels: canonicalAudio.channels, sampleRate: 48_000 };
+		},
 		ffmpeg: {
 			decode: async () => {
+				calls.push('decode-ffmpeg');
 				if (options.decodeMode === 'none') throw new Error('no audio');
 				return { channels: canonicalAudio.channels, sampleRate: 44_100 };
 			},
