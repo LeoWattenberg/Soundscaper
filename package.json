@@ -48,7 +48,7 @@
 		"check:notices": "node scripts/check-third-party-notices.mjs",
 		"test": "node scripts/run-node-tests.mjs",
 		"test:shard": "node scripts/run-node-tests.mjs --coverage-directory=coverage/v8-shard",
-		"test:coverage": "c8 --check-coverage node scripts/run-node-tests.mjs",
+		"test:coverage": "node scripts/run-node-tests.mjs --coverage-directory=coverage/v8-all && node scripts/compact-v8-coverage.mjs coverage/v8-all coverage/all/all.json && node scripts/check-coverage.mjs coverage/all",
 		"coverage:compact": "node scripts/compact-v8-coverage.mjs coverage/v8-shard",
 		"coverage:check": "node scripts/check-shard-coverage.mjs",
 		"provision:interchange-conformance": "node scripts/provision-interchange-conformance.mjs",

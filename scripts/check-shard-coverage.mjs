@@ -3,8 +3,8 @@
 
 import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 
+import { runCoverageGate } from './lib/coverage-gate-runner.mjs';
 import { NODE_TEST_SHARD_IDS } from './lib/node-test-shards.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -27,17 +27,4 @@ if (missing.length > 0) {
 	process.exit(1);
 }
 
-// The merge stays on c8's synchronous path: --merge-async is order-sensitive and
-// has been seen to shift branch counts with the directory listing order, and the
-// shards arrive pre-merged, so there is nothing here for it to save.
-const result = spawnSync(resolve(root, 'node_modules/.bin/c8'), [
-	'report',
-	`--temp-directory=${shardDirectory}`,
-	'--reporter=text-summary',
-	'--reporter=lcov',
-	'--check-coverage',
-], { cwd: root, env: process.env, stdio: 'inherit' });
-
-if (result.error) throw result.error;
-if (result.signal) throw new Error(`The coverage report terminated with ${result.signal}.`);
-process.exitCode = result.status ?? 1;
+process.exitCode = runCoverageGate(root, shardDirectory) ? 0 : 1;

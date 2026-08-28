@@ -1,15 +1,28 @@
 {
 	"all": true,
+	"extension": [".js", ".cjs", ".mjs", ".ts", ".cts", ".mts", ".jsx", ".tsx"],
 	"include": [
-		"src/common/editor/**/*.js",
-		"src/common/editor/**/*.cjs",
-		"src/common/editor/**/*.mjs",
-		"src/common/editor/**/*.ts",
-		"src/common/editor/**/*.cts",
-		"src/common/editor/**/*.mts"
+		"desktop/**/*.js",
+		"desktop/**/*.cjs",
+		"desktop/**/*.mjs",
+		"desktop/**/*.ts",
+		"desktop/**/*.cts",
+		"desktop/**/*.mts",
+		"desktop/**/*.jsx",
+		"desktop/**/*.tsx",
+		"src/**/*.js",
+		"src/**/*.cjs",
+		"src/**/*.mjs",
+		"src/**/*.ts",
+		"src/**/*.cts",
+		"src/**/*.mts",
+		"src/**/*.jsx",
+		"src/**/*.tsx"
 	],
-	"exclude": ["src/common/editor/**/native/**"],
-	"lines": 80,
-	"branches": 70,
-	"functions": 80
+	"exclude": [
+		"**/*.d.ts",
+		"**/*.d.cts",
+		"**/*.d.mts",
+		"src/common/editor/**/native/**"
+	]
 }
