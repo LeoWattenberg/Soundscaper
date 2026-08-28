@@ -346,7 +346,12 @@ function serializeTimed(labels, context, format) {
 	labels.forEach((label, index) => {
 		if (context.includeCueIdentifiers) lines.push(String(format === 'srt' ? index + 1 : label.opaqueExtensions?.cueIdentifier || index + 1));
 		lines.push(`${formatTimestamp(label.startFrame, context.sampleRate, format)} --> ${formatTimestamp(label.endFrame, context.sampleRate, format)}`);
-		const titleLines = label.title.replace(/\r\n?/g, '\n').split('\n');
+		// Timed-text cues need a payload line distinct from their blank block
+		// separator. Preserve an unnamed label as visually empty with the same
+		// single-space placeholder used by the maintained caption exporter.
+		const titleLines = label.title.length === 0
+			? [' ']
+			: label.title.replace(/\r\n?/g, '\n').split('\n');
 		lines.push(...titleLines, '');
 	});
 	let text = lines.join(context.lineEnding);

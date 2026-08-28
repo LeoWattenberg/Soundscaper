@@ -151,6 +151,20 @@ test('SubRip serialization uses millisecond rounding and round-trips ranges', ()
 	]);
 });
 
+test('timed serialization gives an unnamed label a distinct cue payload line', () => {
+	const labels = [
+		{ id: 'empty', title: '', startFrame: 0, endFrame: 1_000 },
+		{ id: 'named', title: 'Second', startFrame: 2_000, endFrame: 3_000 },
+	];
+	const srt = serializeSubRipLabels(labels, { sampleRate: 1_000 });
+	const vtt = serializeWebVttLabels(labels, { sampleRate: 1_000 });
+
+	assert.equal(srt, '1\n00:00:00,000 --> 00:00:01,000\n \n\n2\n00:00:02,000 --> 00:00:03,000\nSecond\n');
+	assert.equal(vtt, 'WEBVTT\n\n1\n00:00:00.000 --> 00:00:01.000\n \n\n2\n00:00:02.000 --> 00:00:03.000\nSecond\n');
+	assert.deepEqual(parseSubRipLabels(srt).labels.map(({ title }) => title), ['', 'Second']);
+	assert.deepEqual(parseWebVttLabels(vtt).labels.map(({ title }) => title), ['', 'Second']);
+});
+
 test('WebVTT import supports cue identifiers, settings, hourless timestamps, and metadata blocks', () => {
 	const input = [
 		'WEBVTT Kind: captions',
