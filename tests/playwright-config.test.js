@@ -75,12 +75,18 @@ function assertBrowserQualification(workflow, label) {
 	assert.doesNotMatch(qualityJob, /test:browser|playwright install/u, `${label} quality must not share a browser budget`);
 	assert.ok(browserJob.includes('name: Browser / ${{ matrix.project }}'));
 	assert.match(browserJob, /needs: quality/u);
-	assert.match(browserJob, /strategy:\n\s+fail-fast: false\n\s+matrix:\n\s+project: \[chromium, webkit\]/u);
+	assert.match(browserJob, /matrix:\n\s+project: \[chromium, webkit\]/u);
 	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e\n\s+options: --user 1001/u);
 	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
 	assert.match(browserJob, /name: verified-site-build/u);
-	assert.ok(browserJob.includes('npm run test:browser:built -- --project=${{ matrix.project }}'));
-	assert.ok(browserJob.includes('name: browser-diagnostics-${{ matrix.project }}'));
+	assertEngineIsSharded(browserJob, `${label} browser`, 'npm run test:browser:built -- --project=${{ matrix.project }}');
+
+	// The handbook suite has its own Playwright config, so `--shard` cannot
+	// divide it alongside the site suite. It has to be pinned to one leg of the
+	// matrix or the shards would each run the whole of it.
+	const handbookLegs = [...browserJob.matchAll(/^\s+if: (?<condition>matrix\.project == 'chromium'.*)$/gmu)];
+	assert.equal(handbookLegs.length, 1, `${label} must run the handbook suite from exactly one job`);
+	assert.match(handbookLegs[0].groups.condition, /matrix\.shard == 1/u, `${label} must not run the handbook suite once per shard`);
 
 	assert.match(firefoxJob, /name: Browser \/ firefox/u);
 	assert.match(firefoxJob, /needs: quality/u);
@@ -91,11 +97,44 @@ function assertBrowserQualification(workflow, label) {
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
 	assert.match(firefoxJob, /name: verified-site-build/u);
-	assert.match(firefoxJob, /npm run test:browser:built -- --project=firefox/u);
-	assert.match(firefoxJob, /name: browser-diagnostics-firefox/u);
+	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox');
 	assert.ok(
 		firefoxJob.indexOf('ci-firefox-audio-clock.mjs')
 			< firefoxJob.indexOf('test:browser:built -- --project=firefox'),
 		`${label} must probe the real audio clock before Firefox qualification`,
+	);
+}
+
+/**
+ * Playwright is the pipeline's long pole, so every engine is split across
+ * runners with `--shard`. Three things have to agree for that to qualify the
+ * same tests the unsharded job did, and each is silent when it does not: the
+ * `/N` denominator has to equal the number of matrix legs, or the shards the
+ * matrix never runs take their tests with them; the job name has to say which
+ * leg it is, or a red check cannot be read; and the diagnostics artifact name
+ * has to carry the shard, or the legs collide on upload.
+ */
+function assertEngineIsSharded(job, label, runCommand) {
+	const axis = job.match(/^\s+shard: \[(?<legs>[^\]]+)\]$/mu);
+	assert.ok(axis, `${label} must shard Playwright across runners`);
+	const legs = axis.groups.legs.split(',').map((leg) => leg.trim());
+	assert.deepEqual(legs, ['1', '2', '3'], `${label} shard ids must be 1..N`);
+
+	const total = legs.length;
+	assert.ok(
+		job.includes(`${runCommand} --shard=\${{ matrix.shard }}/${total}`),
+		`${label} must run \`${runCommand}\` under --shard=\${{ matrix.shard }}/${total}`,
+	);
+	assert.match(
+		job,
+		new RegExp(`^\\s+name: Browser /.*\\$\\{\\{ matrix\\.shard \\}\\}/${total}$`, 'mu'),
+		`${label} job name must name its shard`,
+	);
+
+	const artifact = job.match(/^\s+name: (?<artifact>browser-diagnostics-.+)$/mu);
+	assert.ok(artifact, `${label} must upload browser diagnostics`);
+	assert.ok(
+		artifact.groups.artifact.includes('${{ matrix.shard }}'),
+		`${label} diagnostics artifact name must include the shard or the legs collide on upload`,
 	);
 }
