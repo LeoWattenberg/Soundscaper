@@ -64,7 +64,7 @@ test('the established editor threshold and conservative new thresholds are expli
 		{
 			editor: { lines: 80, branches: 70, functions: 80 },
 			desktop: { lines: 80, branches: 70, functions: 85 },
-			framescaper: { lines: 45, branches: 65, functions: 55 },
+			framescaper: { lines: 46, branches: 65, functions: 55 },
 			soundscaper: { lines: 60, branches: 68, functions: 80 },
 			'common-transfer': { lines: 90, branches: 80, functions: 90 },
 			'common-site': { lines: 50, branches: 80, functions: 70 },

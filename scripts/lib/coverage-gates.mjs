@@ -7,7 +7,7 @@ const COVERAGE_METRICS = Object.freeze(['lines', 'branches', 'functions']);
 export const COVERAGE_SCOPES = Object.freeze([
 	coverageScope('editor', 'Editor', { lines: 80, branches: 70, functions: 80 }),
 	coverageScope('desktop', 'Desktop', { lines: 80, branches: 70, functions: 85 }),
-	coverageScope('framescaper', 'Framescaper', { lines: 45, branches: 65, functions: 55 }),
+	coverageScope('framescaper', 'Framescaper', { lines: 46, branches: 65, functions: 55 }),
 	coverageScope('soundscaper', 'Soundscaper', { lines: 60, branches: 68, functions: 80 }),
 	coverageScope('common-transfer', 'Common transfer', { lines: 90, branches: 80, functions: 90 }),
 	coverageScope('common-site', 'Common site', { lines: 50, branches: 80, functions: 70 }),
