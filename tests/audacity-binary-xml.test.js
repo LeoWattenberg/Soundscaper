@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	AUDACITY_BINARY_XML_FIELDS,
 	AudacityBinaryXmlError,
 	audacityXmlAttribute,
 	audacityXmlAttributes,
@@ -101,6 +102,11 @@ test('Audacity binary XML rejects corrupt lengths and unbalanced tags', () => {
 	}]));
 	assert.throws(
 		() => decodeAudacityBinaryXml(nested.dictionary, nested.document, { maxDepth: 2 }),
+		(error) => error instanceof AudacityBinaryXmlError && error.code === 'DEPTH_LIMIT',
+	);
+	const nameScopeOverflow = new Uint8Array(3).fill(AUDACITY_BINARY_XML_FIELDS.PUSH);
+	assert.throws(
+		() => decodeAudacityBinaryXml(valid.dictionary, nameScopeOverflow, { maxDepth: 2 }),
 		(error) => error instanceof AudacityBinaryXmlError && error.code === 'DEPTH_LIMIT',
 	);
 });

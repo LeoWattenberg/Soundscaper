@@ -53,6 +53,7 @@ export function decodeAudacityBinaryXml(dictionary, document, options = {}) {
 		nameStack: [],
 		fieldCount: 0,
 		maxFields: positiveLimit(options.maxFields, MAX_BINARY_XML_FIELDS),
+		maxDepth: positiveLimit(options.maxDepth, MAX_BINARY_XML_DEPTH),
 	};
 	const dictionaryTokens = decodeTokens(dictionaryBytes, state, { dictionary: true });
 	if (![1, 2, 4].includes(state.charSize)) {
@@ -65,7 +66,7 @@ export function decodeAudacityBinaryXml(dictionary, document, options = {}) {
 	if (state.nameStack.length) {
 		throw new AudacityBinaryXmlError('The Audacity document has unbalanced name scopes.', 'INVALID_DOCUMENT');
 	}
-	const roots = buildTree(documentTokens, options);
+	const roots = buildTree(documentTokens, state.maxDepth);
 	return {
 		charSize: state.charSize,
 		dictionaryTokens,
@@ -182,6 +183,9 @@ function decodeTokens(bytes, state, { dictionary }) {
 			continue;
 		}
 		if (field === FIELD.PUSH) {
+			if (state.nameStack.length >= state.maxDepth) {
+				throw new AudacityBinaryXmlError('The Audacity name scopes are nested too deeply.', 'DEPTH_LIMIT');
+			}
 			state.nameStack.push(new Map(state.names));
 			state.names.clear();
 			tokens.push({ kind: 'push', field });
@@ -252,10 +256,9 @@ function decodeTokens(bytes, state, { dictionary }) {
 	return tokens;
 }
 
-function buildTree(tokens, options) {
+function buildTree(tokens, maxDepth) {
 	const roots = [];
 	const nodes = [];
-	const maxDepth = positiveLimit(options.maxDepth, MAX_BINARY_XML_DEPTH);
 	for (const token of tokens) {
 		if (token.kind === 'start-tag') {
 			if (nodes.length >= maxDepth) throw new AudacityBinaryXmlError('The Audacity document is nested too deeply.', 'DEPTH_LIMIT');
