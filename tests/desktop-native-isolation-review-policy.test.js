@@ -14,7 +14,7 @@ import {
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 
-test('checked-in native isolation trust stays independent and fail-closed', () => {
+test('checked-in external technical-review trust stays optional and fail-closed', () => {
 	const policy = JSON.parse(readFileSync(
 		resolve(repositoryRoot, MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH),
 		'utf8',
@@ -23,6 +23,8 @@ test('checked-in native isolation trust stays independent and fail-closed', () =
 	assert.equal(admitted.algorithm, 'Ed25519');
 	assert.deepEqual(admitted.trustedKeys, []);
 	assert.ok(admitted.blockedBy.length >= 64);
+	assert.match(admitted.blockedBy,
+		/repository owner review replaces the independent-reviewer and trust-key requirement/iu);
 	assert.equal(resolveNativeIsolationReviewPublicKey(policy, {
 		usage: 'framescaper-openfx-production-readiness',
 		target: 'linux-x64',

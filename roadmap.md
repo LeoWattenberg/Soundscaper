@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-25. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
+> Grounded against the repository on 2026-08-28. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
 
 Soundscaper and Framescaper are two focused products over one local-first, mixed-media editor and one canonical Scape project format. The destination is an end-to-end professional workflow for recording, editing, mixing, picture editorial, finishing, and delivery on the web and in Electron. It is not parity with every specialist creative suite.
 
@@ -166,8 +166,8 @@ Known architectural constraints that drive later work:
 | Milestone | Status | Purpose |
 | --- | --- | --- |
 | 1. Baseline contracts | **Implemented for build/test; automated reference evidence pending** | Close reproducible machine quality evidence; human platform checks belong to milestone 9. |
-| 2. Shared platform/storage/media | **In progress — current priority; implemented routes enabled across the maintained test matrix, automated evidence pending** | Finish safe scale, handoff, media ownership, and compatibility foundations. |
-| 3. Editorial foundations | **In progress — parallel tracks** | Add professional time, arrangement, and editorial models. |
+| 2. Shared platform/storage/media | **Implementation active; lease evidence gate partial** | Maintained behavior and the complete automated lease matrix are active; accepted packaged evidence remains open. |
+| 3. Editorial foundations | **Software implementation active; qualification belongs to milestone 9** | The selected Soundscaper and Framescaper editorial routes are enabled; packaged and external evidence remains open. |
 | 4. Production surfaces | **Local implementation enabled; human qualification belongs to milestone 9** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — implemented routes enabled for testing; target payloads open** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Implemented targets enabled; exact machine executors and payloads remain open** | Add professional masters, queues, exchange, and archives. |
@@ -175,7 +175,7 @@ Known architectural constraints that drive later work:
 | 8. Capture and MIDI | **8A active; 8B planned, not implemented** | Selected Framescaper F31 activates recording on web and desktop; real-device, owner-lab, and MIDI design reviews are milestone-9 stable 1.0 checks. |
 | 8+I. Framescaper timeline images | **Browser-native vertical slice implemented; converter and qualification work open** | Import retained raster assets as authenticated timeline media; FFmpeg, ImageMagick, multipage, and extended color/format tiers remain open. |
 | 8+. Framescaper Web VCR | **Implemented and enabled for testing** | Expose the default-hidden Record-menu surface with `framescaperWebVcr: true`; keep 4K unavailable and move human qualification to milestone 9. |
-| 8+C. Framescaper product origin | **Planned** | Move Framescaper to its own origin and make cross-product project movement a durable archive handoff, while pre-release clean breaks remain legal. |
+| 8+C. Framescaper product origin | **In progress — separate-origin builds and transfer ceremony implemented; cutover/retirement open** | Finish the first-class product action, old-scope redirect, and dated retirement. |
 | 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extensions, and release matrix. |
 | 9+. Installable distribution | **Planned** | Install both products from Chrome for Android as independent apps, with an optional Google Play Trusted Web Activity track. |
 
@@ -242,7 +242,11 @@ new platform, distribution, schema, or security boundary.
 qualification belongs to milestone 9 and does not block milestone-2 build,
 test, or closure; machine-verifiable dependencies remain fail-closed.
 
-**Status:** **In progress — current priority.**
+**Status:** **Implementation active; lease evidence gate partial.** Every
+maintained route and the complete automated two-product lease matrix are
+enabled. The frozen inventory remains formally partial because no accepted
+Framescaper V20 packaged result is checked in; stable-release human review
+belongs to milestone 9.
 
 **Goal:** make large, capability-varying projects safe and usable across both
 products before adding new editorial models or native engines.
@@ -352,9 +356,9 @@ priority, dependency, or status changes.
 proceeds while milestone 2's last lease-matrix evidence stays open, but
 milestone 3 cannot close first.
 
-**Status:** **In progress.** The serialized 3.0 foundation is complete and is
-the implementation baseline; the 3A and 3B product tracks run in parallel over
-it.
+**Status:** **Software implementation active on selected Soundscaper S30 and
+Framescaper F31; qualification belongs to milestone 9.** The serialized 3.0
+foundation and both product tracks are the maintained implementation baseline.
 
 **Goal:** establish professional time, arrangement, and editorial models before
 adding broader production surfaces.
@@ -452,8 +456,8 @@ Packet boundaries, dependencies, and acceptance are owned by
 
 Soundscaper packets 3A-1 through 3A-7 are implemented and enabled for testing.
 Their human qualification belongs to milestone 9 and does not block the current
-work. Milestone 3 remains **In progress** while the parallel Framescaper track
-reaches its machine-verifiable implementation exit gate.
+work. The parallel Framescaper track below is also implemented and active; its
+remaining rows concern qualification evidence rather than missing software.
 
 ### Framescaper track (3B, parallel after 3.0)
 
@@ -463,7 +467,7 @@ Packet boundaries, dependencies, and acceptance are owned by
 - **Shared / Web Core — Implemented:** rational sequence rates independent of
   audio sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
   timecode, frame stepping/snapping, and explicit rounding.
-- **Shared / Web Core — In progress:** probe and preserve exact frame/VFR timing,
+- **Shared / Web Core — Selected implementation active; qualification open:** probe and preserve exact frame/VFR timing,
   rotation, aspect, fields, alpha, codec, color, audio streams, and timecode.
   Ingest now persists every one of them as probed truth or as an explicitly
   unreported value, the workspace reads the source timecode and discloses what
@@ -522,9 +526,11 @@ Packet boundaries, dependencies, and acceptance are owned by
   state.
 
 The retired `m3-framescaper-v18-exit` workload is no longer an M3 gate.
-Selected F31 route activation is current, but fixed-GPU, Safari, Windows,
-signing, guided-manual, and other external rows remain independent open
-qualification work. Milestone-7/8A activation does not relabel those rows.
+Selected S30 and F31 implementation and route activation are current. The
+remaining fixed-GPU, packaged timing-probe, Safari, Windows, signing,
+guided-manual, and other external rows are milestone-9 qualification work and
+do not disable the software surfaces. Milestone-7/8A activation does not
+relabel those rows.
 
 ### Shared exit gate
 
@@ -638,7 +644,7 @@ integration waits for the owning shared contract.
 
 **Status:** **In progress — selected Soundscaper S30/V11 and Framescaper F31/V14/V20 routes are implemented and enabled for testing.** S30 inherits its established native behavior through exact S29; F31 delegates through its immutable V28/V14 foundation. Native media, plug-in, and OpenFX menus no longer consult human licensing, signing, readiness, lab, or cohort results. Those results are milestone-9 stable 1.0 admission evidence only. The source audit authenticates 0/10 exact archive/extracted-tree inputs until a cache is provisioned with `npm run provision:milestone-5-native-sources`; all five Soundscaper professional rows are `pending-external`, both Framescaper payload manifests are empty, and every row is `pending-external`. The checked-in product therefore reports exact machine payload unavailability today rather than fabricating a runnable native target. Per-OS launcher source/contracts/tests exist, and a future built target must still pass exact payload, platform, containment, consent, quarantine, resource, and integrity admission before execution.
 
-Licensing/patent/corresponding-source/notices/trademark clearance, signing/notarization identities and keys, manual runs, readiness signatures, and native-lab cohorts remain open as milestone-9 stable 1.0 blockers. They do not block building, packaging, or testing. Target toolchains, exact payloads, platform compatibility, and enforced containment remain machine prerequisites. The qualification audit reports `qualificationReady: false`, `pending-external`, and zero accepted cohorts without disabling an implemented surface.
+The 2026-08-28 owner legal review records the native audio, plug-in, hardware, operating-system, and user-installed provider positions. It does not approve bundled FFmpeg or a redistributed native FFmpeg media host. Target-specific corresponding-source and notice delivery, signing/notarization, manual runs, technical readiness evidence, and native-lab cohorts remain open as milestone-9 stable 1.0 blockers. They do not block building, packaging, or testing. Target toolchains, exact payloads, platform compatibility, and enforced containment remain machine prerequisites. The qualification audit reports `qualificationReady: false`, `pending-external`, and zero accepted cohorts without disabling an implemented surface.
 
 **Goal:** make Electron materially more capable without weakening the renderer sandbox or creating a second editor engine.
 
@@ -681,6 +687,12 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
 ## 6. Professional delivery and interchange
 
 **Depends on:** milestones 4 and 5.
+
+**Status:** **Web delivery and interchange are implemented and active; exact
+native executors and payloads remain open.** Soundscaper continues to use its
+menu-reached in-session queue because no main/preload persistent-job binding
+exists, and the selected Framescaper native executor still admits V14 rather
+than V15 delivery artifacts.
 
 **Goal:** produce reproducible masters, exchanges, archives, and batches without
 hidden conversions.
@@ -730,8 +742,9 @@ invariants, and the bounded work packets are owned by the
   so those targets remain machine-unavailable until that executor and exact
   payload exist. Licensing, signing, and native-lab reviews are milestone-9
   stable 1.0 inputs and do not hide the catalog or block implementation.
-- **Shared — In progress:** EDL, OTIO, and FCPXML profiles itemize conversions;
-  consolidate, checksums, and lossless trim-media are done; relink is Planned.
+- **Shared — Implemented:** EDL, OTIO, and FCPXML export profiles itemize every
+  conversion; consolidate, checksums, lossless trim-media, and the maintained
+  linked-media relink lifecycle are active.
 
 ### Shared exit gate
 
@@ -754,7 +767,7 @@ The optional milestone-7 assistance helper uses the milestone-5 supervision and 
 Conditional workers cover Whisper/alignment, DeepFilterNet enhancement, TIGER separation, PANNs reactions, Beat This beats, TransNetV2 accurate shots, nomic/SigLIP search, OCR, subject/saliency reframe, deterministic highlights, and bounded Qwen editorial output. VAD feeds either selected ASR; automatic-language Whisper preserves optional wav2vec2 alignment and admits it only for detected English. Long DeepFilter/TIGER runs spool bounded chunks while retaining one whole-selection fence. Strict review binds every audition/preview asset to its exact stage, slot, length, and digest; acceptance revalidates the aggregate fence before one undoable publication.
 Disposable custody retains normalized indexes, OCR/tags, shot tables, saliency/tracker state, accepted reframe evidence, and ranking checkpoints for deterministic reuse. Reframe and highlight review provide editable crops and transport/audition; accepted highlights reuse authenticated reframe paths and may retain only sanitized bounded Qwen title/hook/chapter/explanation metadata, never raw or unselected model output.
 The repository now includes hash-locked runnable conversion/parity tooling for TIGER, PANNs, Beat This `small0`, and TransNetV2, plus a fail-closed local collector for the registered privacy workload's authenticated real-path trace evidence. No converted artifact, live parity result, packaged privacy/canary result, or owner-lab result is claimed. Externally signed catalog entries, all five target closures for ONNX Runtime/whisper.cpp/llama.cpp, the Windows-arm64 Sherpa Node addon, live EU R2 publication and full-digest public read-back, five-target packaged canaries, accepted privacy evidence, and owner-lab results remain pending-external. Authenticated preseed remains the established zero-network path.
-Catalog signature, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, explicit consent, and external-FFmpeg machine admission remain fail-closed execution checks. Licensing, manual, and owner-lab review remains pending, is reported by milestone 9, and blocks stable 1.0 admission only; it never disables build, packaging, catalog visibility, or testing.
+Catalog signature, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, explicit consent, and external-FFmpeg machine admission remain fail-closed execution checks. Owner human licensing review is recorded in `config/production-legal-review.json`; candidate versioned-download notices and hashes, manual review, and owner-lab review remain pending milestone-9 stable 1.0 gates. None disables build, packaging, catalog visibility, or testing.
 
 Sequencing, runtime and model-catalog decisions, lifecycle invariants, and bounded work packets
 are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
@@ -918,10 +931,13 @@ milestone-9 compatibility review both pass.
 
 ## 8+C. Framescaper product origin and cross-product storage
 
-**Status:** **Planned.** No packet has started. The topology decision — separate
-origins versus sibling paths on one origin — is the first packet and gates every
-other one; its outcome and the dated retirement window belong in this status
-line.
+**Status:** **In progress — the landed implementation selects separate origins,
+builds Framescaper at `framescaper.org`, and enables the standalone archive
+transfer ceremony for testing.** The Soundscaper build still emits the legacy
+`/framescaper/` product and service-worker scope, the normal web editor does not
+yet expose the first-class cross-product action in both products, and a dated
+retirement window is not yet recorded. Redirect and final retirement therefore
+remain open.
 
 **Depends on:** the maintained `.scape` archive, Project Bin, and per-route
 response-policy contracts only. It does not wait for milestone 8, 8+I, or 8+.
@@ -940,25 +956,27 @@ than an accident of shared browser storage.
 Sequencing, the topology decision, and the bounded work packets are owned by the
 [product origins plan](docs/post-milestone-8c-product-origins-plan.md).
 
-- **Shared — Planned:** a frozen round-trip contract naming exactly what
-  survives a Soundscaper/Framescaper `.scape` round trip in both directions and
-  which omissions must be surfaced rather than silently dropped.
-- **Shared — Planned:** a user-initiated "send to the other product" action in
-  both products, built on the existing archive paths. This is the durable
-  replacement for shared storage and is worth shipping whether or not the origin
-  moves.
-- **Web Core — Planned:** the second origin served with the full response-policy
-  set duplicated from `public/_headers`, generated from the same product table
-  rather than forked, with `crossOriginIsolated` asserted true on every editor
-  route instead of inspected.
-- **Web Core — Planned:** a bulk cutover ceremony — an enumerate-and-export
-  route on the old origin and a receiver popup on the new one, both on dedicated
-  routes that need no cross-origin isolation — idempotent, resumable, and honest
-  about partial completion. Manual `.scape` export and import remains the
-  fallback that assumes no platform behavior at all.
-- **Web Core — Planned:** redirects, service-worker scope retirement, and the
-  installable re-mint, with the transfer route excluded from the redirect for
-  the whole published retention window.
+- **Shared — In progress:** the transfer bundle reuses the current `.scape`
+  archive and reports per-project acceptance, duplication, refusal, and manual
+  fallback. The exact cross-product round-trip contract still needs its
+  compatibility-register row and maintained browser acceptance workflow.
+- **Shared / Web Core — In progress:** both standalone transfer pages provide a
+  user-initiated multi-project action, but the ordinary web-editor File menu
+  still disables **Edit in the other product**. The desktop-only shared-library
+  action is not the durable cross-origin replacement.
+- **Web Core — Implemented for build/test:** `SCAPE_PRODUCT=framescaper` emits
+  Framescaper at its own origin root with generated product-specific documents,
+  manifest, service-worker scope, offline shell, capture policy, and shared
+  cross-origin isolation. Both product builds and deploy preflights pass.
+- **Web Core — Implemented for testing:** `/transfer/send/` enumerates every
+  maintained store generation and moves bounded `.scape` archives to the exact
+  receiver origin. The session is idempotent and resumable, reports partial
+  success, preserves sender projects, and offers manual downloads when popup or
+  import transport fails.
+- **Web Core — In progress:** the old Framescaper worker tombstone and
+  per-product install re-mint are implemented, but Soundscaper still emits the
+  legacy Framescaper routes. Redirect publication, the retained transfer window,
+  and scheduled removal have not landed.
 - **Shared — Deferred:** continuous cross-origin shared storage. Third-party
   storage is partitioned by top-level site and `COEP: credentialless` gives an
   embedded cross-origin document an ephemeral bucket, so no broker origin,

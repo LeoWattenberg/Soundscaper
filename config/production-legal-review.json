@@ -1,0 +1,134 @@
+{
+	"schemaVersion": 1,
+	"recordId": "kw-media-production-legal-review-2026-08-28",
+	"status": "approved-with-open-items",
+	"reviewedAt": "2026-08-28",
+	"approvalAuthority": "repository-owner-record",
+	"reviewer": {
+		"organization": "kw.media",
+		"capacity": "owner-and-sole-contributor",
+		"legalInformationUrl": "https://kw.media/impressum/"
+	},
+	"scope": {
+		"products": ["soundscaper", "framescaper"],
+		"territories": "global",
+		"distributionChannels": [
+			"cloudflare-web-application-and-assets",
+			"direct-electron-downloads"
+		],
+		"excludedDistributionChannels": ["application-stores"],
+		"commercialStatus": "commercial-use-permitted"
+	},
+	"checklist": {
+		"path": "docs/legalchecklist.md",
+		"sha256": "e13656e8ab0f8e9ed12baaab09ba5c6002a5b86bf9c05c07def31fbaca550afb",
+		"satisfiedCount": 65,
+		"openCount": 8,
+		"checkedMeaning": "satisfied",
+		"uncheckedMeaning": "not-satisfied",
+		"commentPrefix": "--"
+	},
+	"approvedSubjects": [
+		"agpl-3.0-only-application-licensing-and-network-source-obligations",
+		"gpl-to-agpl-compatibility-direction",
+		"repository-owned-contributor-and-asset-rights",
+		"aggregate-third-party-notice-sufficiency",
+		"current-distribution-surface-license-notice-and-source-delivery-posture",
+		"export-control-and-sanctions-review",
+		"agpl-as-the-sole-end-user-license",
+		"audacity-derived-code-fixtures-translations-trademark-and-attribution",
+		"audacity-design-system-and-musescore-font-metadata-risk",
+		"musescore-gpl-icon-code-adaptation",
+		"seven-bundled-desktop-audio-codecs-license-source-lgpl-and-patent-posture",
+		"electron-alternate-libffmpeg-risk",
+		"operating-system-audio-codec-risk",
+		"user-installed-ffmpeg-use-and-disclosure",
+		"juce-agpl-arm-and-native-audio-backends",
+		"asio-gpl-and-trademark-posture",
+		"vst3-clap-audio-units-lv2-and-openfx-hosting",
+		"user-installed-plugin-non-redistribution-policy",
+		"local-model-records-and-owner-accepted-model-license-risk",
+		"eu-r2-model-mirroring-and-offline-notices",
+		"local-first-privacy-claim-with-documented-network-exceptions",
+		"cloudflare-operational-logs-as-personal-data",
+		"capture-web-vcr-retention-and-local-assistance-disclosures"
+	],
+	"conditions": {
+		"nativeMediaCodecExecution": {
+			"status": "approved-with-conditions",
+			"allowedProviders": ["webcodecs", "operating-system", "user-installed-ffmpeg"],
+			"disallowedDistribution": ["bundled-ffmpeg"],
+			"effect": "The review does not clear any row that redistributes FFmpeg or a native FFmpeg media host."
+		},
+		"modelLicenseAmbiguity": {
+			"status": "risk-accepted",
+			"modelIds": ["spleeter", "demucs-v4-htdemucs", "transnetv2"],
+			"effect": "The owner accepts the recorded upstream ambiguity; missing mirrored artifacts, hashes, notices, conversion evidence, and catalog authority remain blockers."
+		},
+		"userConduct": {
+			"status": "no-additional-product-legal-condition-required",
+			"subjects": [
+				"third-party-plugin-license-compliance",
+				"recording-consent-compliance",
+				"third-party-site-recording-compliance",
+				"model-generated-content-use"
+			]
+		},
+		"independentNativeReadinessKey": {
+			"required": false,
+			"replacement": "repository-owner-record",
+			"boundary": "The repository owner record satisfies the human approval requirement without an independent reviewer or trust key. Artifact identity, platform signing, notarization, isolation, and per-target technical evidence remain separate release controls, but those controls do not require an independent human signing key."
+		}
+	},
+	"openReleaseItems": [
+		{
+			"id": "web-legal-notices-content-placement",
+			"status": "open",
+			"blocker": "The stable web legal-notices content and placement are not approved."
+		},
+		{
+			"id": "web-notice-engineering-gate",
+			"status": "open",
+			"blocker": "The legal review cannot clear the absent web notice route or its release verification."
+		},
+		{
+			"id": "web-versioned-runtime-notice-delivery",
+			"status": "open",
+			"blocker": "Matching notices are not yet approved and delivered with every versioned runtime or model asset."
+		}
+	],
+	"deferredItems": [
+		{
+			"id": "android-google-play-review",
+			"status": "not-satisfied",
+			"scope": "future-only"
+		},
+		{
+			"id": "externally-authored-web-effects-review",
+			"status": "not-satisfied",
+			"scope": "future-only"
+		},
+		{
+			"id": "legacy-web-ffmpeg-reactivation-review",
+			"status": "not-satisfied",
+			"scope": "future-only"
+		},
+		{
+			"id": "lightscaper-third-party-assets-review",
+			"status": "not-satisfied",
+			"scope": "future-only"
+		},
+		{
+			"id": "refused-model-exclusion-review",
+			"status": "not-satisfied",
+			"scope": "not-required-for-launch"
+		}
+	],
+	"evidence": [
+		"docs/legalchecklist.md",
+		"src/common/site/privacy-policy.js",
+		"config/production-licensing-matrix.json",
+		"docs/production-licensing-policy.md",
+		"THIRD_PARTY_LICENSES.md"
+	]
+}

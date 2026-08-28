@@ -33,7 +33,7 @@ export const PLATFORM_DELIVERY_LICENSING_ROWS: readonly PlatformDeliveryLicensin
 	Object.freeze({
 		id: "codec-native-ffmpeg-current-set",
 		status: "blocked",
-		blocker: "Milestone-9 stable 1.0 corresponding-source, notices, patent, signing, and target review remains incomplete. The authenticated native FFmpeg 9.0.1 recipe, payload staging, and exact package exception are enabled for build and testing now.",
+		blocker: "The 2026-08-28 owner review approves WebCodecs, operating-system providers, and user-installed FFmpeg but does not approve bundled FFmpeg or a redistributed native FFmpeg media host. Corresponding-source, notices, signing, payload, and target evidence also remain incomplete. The authenticated native FFmpeg 9.0.1 recipe remains enabled for build and testing only.",
 	}),
 	Object.freeze({
 		id: "codec-hardware-acceleration",

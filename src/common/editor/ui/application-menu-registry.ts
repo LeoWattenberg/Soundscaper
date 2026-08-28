@@ -38,6 +38,10 @@ export const AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS = Object.freeze({
 	aboutAudacity: 'about',
 } as const);
 
+export const AUDIO_EDITOR_APPLICATION_MENU_UTILITY_IDS = Object.freeze({
+	privacyPolicy: 'privacy-policy',
+} as const);
+
 export type AudioEditorApplicationMenuActionId =
 	typeof AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS[keyof typeof AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS];
 

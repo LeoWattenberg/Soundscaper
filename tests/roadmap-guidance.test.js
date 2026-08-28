@@ -31,12 +31,24 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.match(roadmap, /### Agent operating rules/iu);
 	assert.match(roadmap, /earliest incomplete prerequisite/iu);
 	assert.match(roadmap, /implementation evidence.*owning modules.*focused tests/isu);
-	assert.match(roadmap, /2\. Shared platform\/storage\/media.*current priority/iu);
+	assert.match(
+		roadmap,
+		/2\. Shared platform\/storage\/media.*implementation active.*lease evidence gate partial/iu,
+	);
+	assert.match(
+		roadmap,
+		/3\. Editorial foundations.*software implementation active.*qualification belongs to milestone 9/iu,
+	);
+	assert.match(
+		roadmap,
+		/8\+C\. Framescaper product origin.*In progress.*separate-origin builds.*transfer ceremony implemented.*cutover\/retirement open/iu,
+	);
 	assert.match(roadmap, /### Frozen closure scope/iu);
 	assert.match(roadmap, /config\/milestone-2-closure\.json/iu);
 	assert.match(roadmap, /Unnamed work\s+cannot block closure/iu);
 	assert.match(roadmap, /scopeRevision.*milestone 3 or\s+later/isu);
 	assert.match(roadmap, /### Open closure items, in priority order/iu);
+	assert.match(roadmap, /Soundscaper build still emits.*\/framescaper\/.*retirement window.*not yet recorded/isu);
 	assert.match(roadmap, /## 2\. Shared platform, storage, and media foundation.*### Exit gate/isu);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);

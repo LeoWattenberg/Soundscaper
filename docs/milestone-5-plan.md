@@ -17,10 +17,11 @@
 > All five Soundscaper professional payload rows are `pending-external`;
 > both five-target Framescaper payload manifests are empty and every row is
 > `pending-external`. Per-OS launcher source/contracts/tests exist, but
-> authenticated target payloads do not. Independently signed readiness,
-> licensing and redistribution clearance, signing/notarization identities and
-> keys, accepted packages/manual runs, and native-lab cohorts are also absent;
-> those human records block stable 1.0 admission in Milestone 9, not current
+> authenticated target payloads do not. Owner legal review is recorded in
+> `config/production-legal-review.json`, without an independent reviewer or
+> trust key. Per-target technical readiness evidence, signing/notarization
+> identities and keys, accepted packages/manual runs, and native-lab cohorts
+> are absent; those remaining records block stable 1.0 admission in Milestone 9, not current
 > build, test, package, catalog visibility, or otherwise machine-admitted use.
 
 > Owning source for milestone-5 sequencing, the helper-contract and
@@ -225,10 +226,12 @@ five plug-in-format rows as implemented, and the six professional source rows
 back pending closer review, so the four FFmpeg external libraries — x264, x265,
 libvpx and libopus — stay activation-blocked with them. Nothing ships as a
 result: activation additionally requires an authenticated source audit at
-runtime, and plug-in formats require an enforced OS launcher plus a
-production-readiness statement signed by a key in
-`config/milestone-5-native-isolation-review-policy.json`, whose `trustedKeys`
-list is still empty. Every per-target payload row remains `pending-external`.
+runtime, and plug-in formats require an enforced OS launcher plus per-target
+technical readiness evidence. The repository owner record replaces the former
+independent-reviewer/key requirement in
+`config/milestone-5-native-isolation-review-policy.json`; its empty optional
+`trustedKeys` list is not a blocker. Every per-target payload row remains
+`pending-external` because the technical evidence and payloads are absent.
 
 JUCE 9 plus the direct CLAP ABI are the 5A integration decision and their
 source acquisition rows are pinned and provisionable, but authenticating a

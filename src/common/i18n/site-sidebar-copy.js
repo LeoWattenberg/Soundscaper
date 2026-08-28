@@ -12,7 +12,7 @@ const SITE_SIDEBAR_COPY_ENTRIES = Object.freeze([
 	['audioEditorLink', 'Audio editor', 'Audio-Editor'],
 	['moreToolsLink', 'More kw.media tools', 'Weitere kw.media Tools'],
 	['audacityGuidesLink', 'Audacity guides', 'Audacity-Ratgeber'],
-	['legalLink', 'Privacy & legal notice', 'Datenschutz & Impressum'],
+	['legalLink', 'Privacy policy', 'Datenschutzerklärung'],
 	['reportIssueLink', 'Report an issue', 'Ein Problem melden'],
 	['githubProjectLink', 'GitHub project', 'GitHub-Projekt'],
 	['themeToggle', 'Switch color theme', 'Farbschema wechseln'],

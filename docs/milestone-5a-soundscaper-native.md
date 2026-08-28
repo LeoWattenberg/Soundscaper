@@ -30,10 +30,11 @@ because they are the ones most easily read as better than they are:
 3. **Every third-party plug-in format remains fail-closed.** The owner's
    2026-08-26 review moved the VST3, CLAP, Audio Units and LV2 licensing rows to
    `implemented` under the enabled `native-plugins` gate, but no format
-   activates: `pluginFormat` additionally requires an enforced OS launcher and a
-   production-readiness statement signed by a key in
-   `config/milestone-5-native-isolation-review-policy.json`, whose `trustedKeys`
-   list is empty. The scanner, registry, quarantine and host machinery is proven
+   activates: `pluginFormat` additionally requires an enforced OS launcher and
+   per-target technical readiness evidence. The repository owner record replaces
+   the former independent-reviewer/key requirement in
+   `config/milestone-5-native-isolation-review-policy.json`; its empty optional
+   `trustedKeys` list is not a blocker. The scanner, registry, quarantine and host machinery is proven
    against a benign fixture format that is this project's own code, exactly as
    5A-3 asks; the scanner reports real formats it finds as seen-and-not-enabled
    rather than skipping them. The format waits; the gate does not bend.
@@ -148,19 +149,19 @@ The implemented route and remaining gates are explicit:
    source/contracts/tests now exist. The launcher source implements Linux
    namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer target
    contracts. No authenticated built launcher or professional target payload,
-   independently signed isolation-readiness review, professional package/manual
+   per-target isolation-readiness evidence, professional package/manual
    run, accepted cohort, or provisioned native lab exists. Signing/notarization
    identities, release keys, and target toolchains are likewise absent. These
-   human records remain pending for Milestone 9 stable-release admission and
-   are neither promoted nor consulted by current execution.
+   technical records remain pending for Milestone 9 stable-release admission and are
+   neither promoted nor consulted by current execution.
 
 The entry rule is therefore exact: external source acquisition, target builds,
 payload identity, platform compatibility, containment, consent, quarantine,
 and capacity cannot be simulated. There is no remaining in-repository 5A
 software packet; third-party execution is enabled for testing when an
 authenticated per-OS launcher and exact target payload pass those machine
-checks. Licensing/patent/notices/trademark clearance, signing/notarization,
-independent isolation review, and physical qualification are Milestone 9
+checks. The owner licensing/patent/notices/trademark review is recorded;
+signing/notarization, per-target isolation evidence, and physical qualification are Milestone 9
 stable-1.0 release inputs and never execution inputs. No machine or release
 evidence may be inferred from a neighbouring target.
 
@@ -352,7 +353,7 @@ evidence may be inferred from a neighbouring target.
    review are Milestone 9 stable-1.0 release gates only.
 7. **5A-4 — Evidence software complete; release qualification open.** The collector,
    verifier, and correctness/fault suites exist. Five-target packaged fixtures,
-   independently signed readiness, and the no-retry native-lab cohort remain
+   per-target technical readiness evidence, and the no-retry native-lab cohort remain
    pending-external for Milestone 9 and do not disable current testing.
 
 5A-1 and 5A-2 may run in parallel only after their applicable 5A-0 exits. 5A-3

@@ -16,6 +16,8 @@ export function useMediaQuery(query) {
 
 export function desktopExternalDestination(url) {
 	if (String(url).startsWith('mailto:')) return 'support';
+	if (/\/privacy\/de\/$/u.test(String(url))) return 'privacy-de';
+	if (/\/privacy\/en\/$/u.test(String(url))) return 'privacy-en';
 	if (String(url).includes('support.audacityteam.org')) return 'manual';
 	return 'homepage';
 }

@@ -62,15 +62,16 @@ The native-source audit authenticates 0 of 10 required exact
 archive/extracted-tree inputs. Both five-target 5B payload manifests are empty,
 every target is `pending-external`, and every OpenFX target has null production
 readiness. Per-OS launcher source/contracts/tests exist, but authenticated built
-launchers do not. Independently signed readiness is a Milestone 9 stable-1.0
-release input, not a test activation input. Source execution tests therefore
+launchers do not. Per-target technical readiness evidence is a Milestone 9 stable-1.0
+release input, not a test activation input; the repository owner record replaces
+the former independent-reviewer/key requirement. Source execution tests therefore
 create no release, performance, GPU, or platform-support claim.
 
 For this implementation branch, milestones 1 through 4 are accepted as
 formally validated prerequisites. Milestone 5.0 acceptance; codec/container,
 hardware, FFmpeg corresponding-source/patent/notices, OpenFX, and trademark
 clearance; payload and target toolchains; signed/notarized packages and release
-keys; independent isolation review; readiness signatures; manual runs; and
+keys; per-target isolation evidence; technical readiness evidence; manual runs; and
 native-lab qualification remain independent and open as Milestone 9 stable-1.0
 release inputs. No accepted cohort or manual package exists, but those facts do
 not disable build, test, packaging, visibility, or execution. Native media,

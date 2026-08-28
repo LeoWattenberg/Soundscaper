@@ -1,5 +1,6 @@
 import { otherProductId } from '../../../products.js';
 import { productHref } from '../../../product-web-links.js';
+import { privacyPolicyUrl } from '../../../site/privacy-policy-links.js';
 import { documentationUrl } from '../../documentation-links.ts';
 import { framescaperVideoProxyActionRuntimeFor } from '../../framescaper-video-proxy-action-runtime-registry.ts';
 import { isSelectedFramescaperProjectSchema } from '../../project-schema-version.ts';
@@ -390,6 +391,7 @@ export function createWorkspaceApplicationMenus({
 					togglePanel: toggleWorkspacePanel,
 					manual: () => openExternal(documentationUrl(productId, 'manual')),
 					tutorials: () => openExternal(documentationUrl(productId, 'tutorials')),
+					privacyPolicy: () => openExternal(privacyPolicyUrl(productId, locale)),
 					support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),

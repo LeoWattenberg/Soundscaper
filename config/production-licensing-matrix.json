@@ -1,7 +1,13 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-27",
+	"groundedAt": "2026-08-28",
 	"policyDocument": "docs/production-licensing-policy.md",
+	"humanLegalReview": {
+		"status": "approved-with-open-items",
+		"record": "config/production-legal-review.json",
+		"reviewedAt": "2026-08-28",
+		"reviewer": "kw.media owner and sole contributor"
+	},
 	"lockfile": {
 		"path": "package-lock.json",
 		"lockfileVersion": 3,
@@ -1043,7 +1049,7 @@
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
 			"redistribution": "An exact target-built Framescaper media host may enter its authenticated runtime payload manifest and a test package before human review completes; general-purpose FFmpeg programs, WebAssembly, archives, and loose libav payloads remain forbidden. Each desktop package also contains Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into an artifact. Stable 1.0 redistribution still requires the milestone-9 corresponding-source, notices, patent, signing, and target review.",
 			"status": "blocked",
-			"blocker": "Milestone-9 stable 1.0 corresponding-source, notices, patent, signing, and target review remains incomplete. The authenticated native FFmpeg 9.0.1 recipe, payload staging, and exact package exception are enabled for build and testing now.",
+			"blocker": "The 2026-08-28 owner review approves WebCodecs, operating-system providers, and user-installed FFmpeg but does not approve bundled FFmpeg or a redistributed native FFmpeg media host. Corresponding-source, notices, signing, payload, and target evidence also remain incomplete. The authenticated native FFmpeg 9.0.1 recipe remains enabled for build and testing only.",
 			"testActivation": "enabled",
 			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
@@ -1562,11 +1568,11 @@
 			"weightsLicense": "MIT",
 			"attributionRequired": false,
 			"distributionStatus": "blocked",
-			"blockedBy": ["versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "unresolved", "summary": "The repository is MIT and ships its pretrained models from its own releases, but the licence text addresses the code and upstream question deezer/spleeter#898 asks whether it covers the weights. Recorded as unresolved until upstream answers or a license review concludes otherwise." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The repository is MIT and ships its pretrained models from its own releases, while upstream question deezer/spleeter#898 records ambiguity over whether that licence covers the weights. The kw.media owner accepted that documented ambiguity as a distribution risk on 2026-08-28; this is an explicit risk decision, not an upstream clarification." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream describes training on an internal music corpus it does not publish; that absence is the recorded provenance." },
-				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No use restriction is stated beyond the repository licence, which is the item under review." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No use restriction is stated beyond the repository licence. The owner accepted the unresolved weight-licence scope as recorded in the separate licence-review requirement." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
 			},
 			"provenanceSources": ["https://github.com/deezer/spleeter", "https://github.com/deezer/spleeter/issues/898"],
@@ -1580,11 +1586,11 @@
 			"weightsLicense": "Unstated by upstream",
 			"attributionRequired": false,
 			"distributionStatus": "blocked",
-			"blockedBy": ["versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "unresolved", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025, so no upstream clarification is expected. Recorded as unresolved rather than assumed to follow the code licence." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025. The kw.media owner accepted that missing weight grant as a distribution risk on 2026-08-28; this records the decision without representing that upstream supplied terms." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names a public music separation corpus plus additional unpublished data for the fine-tuned variants; that description is the recorded provenance." },
-				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No model card use restriction is published; the weights licence itself is the open item." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No model-card use restriction is published. The missing weight terms and the owner's risk acceptance remain explicit in the licence-review requirement." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
 			},
 			"provenanceSources": ["https://github.com/facebookresearch/demucs"],
@@ -1699,6 +1705,114 @@
 			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
 		},
 		{
+			"id": "wav2vec2-base-960h",
+			"purpose": "English word alignment after an English Whisper transcription.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned facebook/wav2vec2-base-960h repository declares Apache-2.0 for the model and weights. The kw.media owner approved the recorded code/weight posture on 2026-08-28." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The model card identifies LibriSpeech 960 hours as the English fine-tuning corpus and the wav2vec2 family documentation as the pretraining authority." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model card states no additional use restriction beyond Apache-2.0. Soundscaper restricts this artifact to English alignment as a product contract, not a licence condition." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The upstream ONNX artifact is digest-pinned, but no immutable product mirror read-back, externally signed catalog entry, or matching offline notice for the distributed artifact is recorded." }
+			},
+			"provenanceSources": ["https://huggingface.co/facebook/wav2vec2-base-960h"],
+			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+		},
+		{
+			"id": "tiger-dnr",
+			"purpose": "Dialog, music, and effects source separation.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned TIGER source repository is MIT and the author-published TIGER-DnR weight repository declares Apache-2.0. The kw.media owner approved that combined posture on 2026-08-28." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream repository, model card, and paper document DnR separation evaluation and the related EchoSet data; no complete per-file training manifest is published, and that limitation is accepted as recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT and Apache-2.0 terms add no use restriction, and the model card states none." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint is pinned, but the repository-owned ONNX output, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+			},
+			"provenanceSources": ["https://github.com/JusperLee/TIGER", "https://huggingface.co/JusperLee/TIGER-DnR"],
+			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+		},
+		{
+			"id": "panns-cnn10",
+			"purpose": "AudioSet reaction and sound-event tagging.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The source repository carries MIT terms and publishes the pinned pretrained Cnn10 checkpoint through its documented Zenodo record without separate checkpoint terms. The kw.media owner approved treating the checkpoint under the repository MIT posture on 2026-08-28." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream states that PANNs is trained on AudioSet and documents the 527-class label map. Availability drift in the underlying YouTube-derived corpus is part of the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Upstream publishes no additional model-card use restriction beyond the MIT repository posture; the owner accepted the absence of separate checkpoint terms." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and class map are pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+			},
+			"provenanceSources": ["https://github.com/qiuqiangkong/audioset_tagging_cnn", "https://zenodo.org/records/3987831"],
+			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+		},
+		{
+			"id": "beat-this-small0",
+			"purpose": "Baseline beat and downbeat tracking.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT. The kw.media owner approved that posture on 2026-08-28." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. The owner accepted that recorded training-data risk for use of the released weights." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The released model carries MIT terms with no additional use restriction; upstream's training-file warning is retained as provenance rather than converted into a weight-use restriction." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The small0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+			},
+			"provenanceSources": ["https://github.com/CPJKU/beat_this"],
+			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+		},
+		{
+			"id": "beat-this-final0",
+			"purpose": "Optional-quality beat and downbeat tracking.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "MIT",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT. The kw.media owner approved that posture on 2026-08-28." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. The owner accepted that recorded training-data risk for use of the released weights." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The released model carries MIT terms with no additional use restriction; upstream's training-file warning is retained as provenance rather than converted into a weight-use restriction." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The final0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+			},
+			"provenanceSources": ["https://github.com/CPJKU/beat_this"],
+			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+		},
+		{
+			"id": "qwen3-4b-q4-k-m",
+			"purpose": "Optional bounded editorial text over already selected highlight candidates.",
+			"runtimeFormat": "gguf",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["versioned-download-notices-and-hashes"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The exact Qwen3-4B-GGUF repository and pinned Q4_K_M weights carry Apache-2.0. The kw.media owner approved that posture on 2026-08-28." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The model card and Qwen3 technical report describe the training stages and data categories without publishing a complete corpus inventory; that limitation is accepted as the recorded provenance." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The repository carries Apache-2.0 and states no additional model-use restriction. Soundscaper's constrained local editorial role is a product boundary, not a licence condition." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The GGUF artifact is digest-pinned, but no immutable product mirror read-back, externally signed catalog entry, packaged runtime canary, or matching offline notice is recorded." }
+			},
+			"provenanceSources": ["https://huggingface.co/Qwen/Qwen3-4B-GGUF"],
+			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+		},
+		{
 			"id": "transnetv2",
 			"purpose": "Accurate shot-boundary detection, held back from the launch set behind the ffmpeg scene-score mode.",
 			"runtimeFormat": "onnx",
@@ -1706,12 +1820,12 @@
 			"weightsLicense": "MIT",
 			"attributionRequired": false,
 			"distributionStatus": "blocked",
-			"blockedBy": ["versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "unresolved", "summary": "The originating repository is MIT and publishes its weights for the TensorFlow and PyTorch runtimes, neither of which this product can load. No ONNX build is published by the authors, and the only public redistribution of a converted build asserts GPL-3.0 over MIT upstream material and ships a CoreML package rather than ONNX, so its terms conflict with upstream and its bytes are unusable here regardless. Recorded as unresolved until an ONNX build with a licence traceable to the MIT upstream exists, whether published by upstream or produced and documented in this repository." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating repository is MIT and publishes its TensorFlow and PyTorch weights. No author-published ONNX build exists, and a third-party CoreML redistribution states conflicting terms. The kw.media owner accepted producing a repository-owned ONNX conversion directly from the pinned MIT upstream as a distribution risk on 2026-08-28; no third-party conversion bytes are accepted." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names the public shot-transition corpora it trains and evaluates on in its paper; that documentation is the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT terms carry no use restriction; the open item is which converted bytes may be shipped, not what they may be used for." },
-				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet and none may be until the licence review resolves, so no byte length, SHA-256, or offline notice exists." }
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No repository-owned converted artifact, parity evidence, immutable mirror read-back, signed catalog entry, or exact offline notice is recorded yet." }
 			},
 			"provenanceSources": ["https://github.com/soCzech/TransNetV2"],
 			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]

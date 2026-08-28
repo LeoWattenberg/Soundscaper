@@ -27,7 +27,7 @@ test('static web routes receive product-specific install manifests and Apple tou
 	assert.doesNotMatch(framescaper, /manifest-soundscaper|soundscaper-180/u);
 	// Every build also emits the two cross-origin transfer documents: they
 	// belong to the origin rather than to a product, so both builds carry them.
-	assert.equal(await documentCount(outputRoot), 1 + ROUTE_LOCALES.length * 4 + TRANSFER_ROUTES.length);
+	assert.equal(await documentCount(outputRoot), 1 + ROUTE_LOCALES.length * 4 + TRANSFER_ROUTES.length + 2);
 	assert.match(soundscaper, /<link rel="canonical" href="https:\/\/soundscaper\.org\/en\/" \/>/u);
 	assert.match(framescaper, /<link rel="canonical" href="https:\/\/soundscaper\.org\/framescaper\/en\/" \/>/u);
 });
@@ -35,7 +35,7 @@ test('static web routes receive product-specific install manifests and Apple tou
 test('a Framescaper build serves its own origin root and never the transitional prefix', async (context) => {
 	const outputRoot = await generateRoutes(context, { SCAPE_PRODUCT: 'framescaper' });
 
-	assert.equal(await documentCount(outputRoot), 1 + ROUTE_LOCALES.length * 2 + TRANSFER_ROUTES.length);
+	assert.equal(await documentCount(outputRoot), 1 + ROUTE_LOCALES.length * 2 + TRANSFER_ROUTES.length + 2);
 	assert.equal(await readFile(join(outputRoot, 'framescaper/en/index.html'), 'utf8').catch(() => null), null);
 	const root = await readFile(join(outputRoot, 'index.html'), 'utf8');
 	const framescaper = await readFile(join(outputRoot, 'en/index.html'), 'utf8');

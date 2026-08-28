@@ -35,6 +35,7 @@ test('the Soundscaper build assigns exactly one product- and route-specific docu
 	assert.deepEqual(policyRules.map(({ pattern }) => pattern), [
 		'/', '/:locale/', '/embed/:locale/',
 		'/framescaper/:locale/', '/framescaper/embed/:locale/',
+		'/privacy/:locale/',
 	]);
 	assertExactPolicies(rules, [
 		['/', SOUNDSCAPER_POLICY],
@@ -42,6 +43,7 @@ test('the Soundscaper build assigns exactly one product- and route-specific docu
 		['/embed/en/', SOUNDSCAPER_POLICY],
 		['/framescaper/en/', FRAMESCAPER_POLICY],
 		['/framescaper/embed/en/', EMBEDDED_FRAMESCAPER_POLICY],
+		['/privacy/en/', EMBEDDED_FRAMESCAPER_POLICY],
 	]);
 	assert.deepEqual(workerRules(rules), [
 		['/service-worker.js', '/'],
@@ -52,12 +54,15 @@ test('the Soundscaper build assigns exactly one product- and route-specific docu
 test('the Framescaper build moves the same capture policies to its own origin root', async () => {
 	const rules = parseHeaderRules(await productHeaders('framescaper'));
 	const policyRules = rules.filter(({ headers }) => headers.has('permissions-policy'));
-	assert.deepEqual(policyRules.map(({ pattern }) => pattern), ['/', '/:locale/', '/embed/:locale/']);
+	assert.deepEqual(policyRules.map(({ pattern }) => pattern), [
+		'/', '/:locale/', '/embed/:locale/', '/privacy/:locale/',
+	]);
 	assertExactPolicies(rules, [
 		['/', FRAMESCAPER_POLICY],
 		['/en/', FRAMESCAPER_POLICY],
 		['/de/', FRAMESCAPER_POLICY],
 		['/embed/en/', EMBEDDED_FRAMESCAPER_POLICY],
+		['/privacy/en/', EMBEDDED_FRAMESCAPER_POLICY],
 	]);
 	assert.deepEqual(workerRules(rules), [['/service-worker.js', '/']]);
 	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/framescaper/')), false);

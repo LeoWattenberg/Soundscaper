@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n
 import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref } from '../product-web-links.js';
 import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
+import { privacyPolicyUrl } from './privacy-policy-links.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
@@ -126,7 +127,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 						<a className="sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
-						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/legal/`}>{copy.legal}</a>
+						<a className="sidebar-link" href={privacyPolicyUrl(productId, locale)} target="_blank" rel="noreferrer">{copy.legal}</a>
 						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
 						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
 				</nav>

@@ -155,6 +155,7 @@ function documentRules(plans) {
 		rules.push(documentRule(`${plan.basePath}/:locale/`, plan.policies.standard));
 		rules.push(documentRule(`${plan.basePath}/embed/:locale/`, plan.policies.embedded));
 	}
+	rules.push(documentRule('/privacy/:locale/', SEALED_CAPTURE_POLICY));
 	return rules.join('\n\n');
 }
 

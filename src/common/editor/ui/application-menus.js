@@ -13,6 +13,7 @@ import { createClipSelectionNavigationMenuModel } from './clip-selection-navigat
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';
 import { createPitchAndTempoApplicationMenuItems } from './pitch-tempo-application-menu.ts';
+import { createPrivacyPolicyMenuItem } from './privacy-policy-menu.ts';
 import { projectTrackFolderMediaStateV12 } from '../track-folder-media-runtime.ts';
 import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
 import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts';
@@ -573,6 +574,7 @@ export default function createApplicationMenus({
 			items: [
 				{ id: 'tutorials', label: copy.tutorials, onClick: actions.tutorials },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.onlineHandbook, label: copy.manual, onClick: actions.manual },
+				createPrivacyPolicyMenuItem(copy, actions.privacyPolicy),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.support, label: copy.support, onClick: actions.support },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.revertFactory, label: copy.revertFactorySettings, onClick: actions.revertFactorySettings },
 				divider(),

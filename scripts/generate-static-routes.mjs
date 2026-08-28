@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { bundledCopyForLocale } from '../src/common/i18n/catalogs.js';
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
 import { productProfile } from '../src/common/products.js';
+import { privacyPolicyPath, renderPrivacyPolicyDocument } from '../src/common/site/privacy-policy.js';
 import {
 	renderTransferDocument,
 	TRANSFER_PAGE_DEV_MODULE_URL,
@@ -36,6 +37,15 @@ for (const plan of routing.plans) {
 	}
 }
 await writeFile(resolve(outputRoot, 'index.html'), rootDocument(template, rootPlan), 'utf8');
+for (const locale of ['en', 'de']) {
+	const output = resolve(outputRoot, `.${privacyPolicyPath(locale)}index.html`);
+	await mkdir(dirname(output), { recursive: true });
+	await writeFile(output, renderPrivacyPolicyDocument({
+		productId: routing.productId,
+		locale,
+		canonicalOrigin: site.origin,
+	}), 'utf8');
+}
 await writeFile(
 	resolve(outputRoot, '_headers'),
 	composeProductHeaders(await readFile(resolve(outputRoot, '_headers'), 'utf8'), routing),
@@ -59,7 +69,7 @@ for (const route of TRANSFER_ROUTES) {
 
 console.log(
 	`Generated ${routeCount} localized ${routing.productId} routes canonical to ${site.origin}`
-	+ ` and ${TRANSFER_ROUTES.length} transfer routes from ${transferAssets.moduleUrl}.`,
+	+ `, 2 privacy routes and ${TRANSFER_ROUTES.length} transfer routes from ${transferAssets.moduleUrl}.`,
 );
 
 /**

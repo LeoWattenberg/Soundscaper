@@ -260,6 +260,8 @@ export const IPC = Object.freeze({
 
 export const EXTERNAL_DESTINATIONS = Object.freeze({
 	homepage: PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/' : 'https://soundscaper.org/',
+	'privacy-en': PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/privacy/en/' : 'https://soundscaper.org/privacy/en/',
+	'privacy-de': PRODUCT_ID === 'framescaper' ? 'https://framescaper.org/privacy/de/' : 'https://soundscaper.org/privacy/de/',
 	help: 'https://github.com/LeoWattenberg/Soundscaper#readme',
 	manual: 'https://support.audacityteam.org/au4',
 	tutorials: 'https://support.audacityteam.org/au4',

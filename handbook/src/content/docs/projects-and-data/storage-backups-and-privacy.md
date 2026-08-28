@@ -42,3 +42,7 @@ Scape project copy.
 
 This handbook is served as static files and uses browser-local search. The V1
 site does not add an analytics service or an AI/search backend.
+
+The full [Soundscaper and Framescaper privacy policy](https://soundscaper.org/privacy/en/)
+also covers application delivery, device permissions, optional downloads,
+desktop update checks, and Framescaper Web VCR connections.

@@ -31,7 +31,11 @@ Soundscaper features:
 
 ## Privacy
 
-I don't want anything to do with your data. Soundscaper works entirely locally on your machine. There is no sync and no account. 
+Soundscaper is local-first: projects, recordings, imported media, and media
+processing stay on your device. There is no sync and no account. Limited
+network connections deliver the application and optional assets, check for
+desktop updates, or support features you deliberately open. See the
+[privacy policy](https://soundscaper.org/privacy/en/) for the complete details.
 
 ## Credits
 

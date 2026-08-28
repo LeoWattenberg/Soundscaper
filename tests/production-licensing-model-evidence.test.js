@@ -173,15 +173,16 @@ test('a distributable model cites the exact bytes it ships in the notices', asyn
 	}
 });
 
-test('upstream ambiguity is recorded as unresolved rather than resolved optimistically', async () => {
+test('owner-accepted upstream ambiguity is recorded without fabricating artifact evidence', async () => {
 	const matrix = await readJson(matrixUrl);
 	const byId = new Map(matrix.localModelEvidence.map((record) => [record.id, record]));
 
-	for (const id of ['spleeter', 'demucs-v4-htdemucs']) {
+	for (const id of ['spleeter', 'demucs-v4-htdemucs', 'transnetv2']) {
 		const record = byId.get(id);
 		assert.ok(record, `${id} must be recorded rather than silently omitted`);
-		assert.equal(record.requirements['weights-and-code-license-review'].status, 'unresolved');
-		assert.ok(record.blockedBy.includes('weights-and-code-license-review'));
+		assert.equal(record.requirements['weights-and-code-license-review'].status, 'recorded');
+		assert.deepEqual(record.blockedBy, ['versioned-download-notices-and-hashes']);
+		assert.equal(record.distributionStatus, 'blocked');
 	}
 });
 

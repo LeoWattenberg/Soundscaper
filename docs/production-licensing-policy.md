@@ -8,13 +8,48 @@ It records evidence and fail-closed release state; it is not legal advice, a
 patent opinion, or a declaration that any component is legally cleared for
 every product, territory, or distribution channel.
 
-Human licensing, patent, provenance, reviewer, and signature decisions are
-Milestone 9 stable 1.0 admission inputs. Their pending state does not disable
-build, test, package, or runtime access to an implemented surface. Machine
-artifact identity, payload presence, platform compatibility, containment,
-consent, and resource checks remain fail closed at the point of use. A missing
-implementation or machine payload therefore remains unavailable for its exact
-technical reason; a pending human review cannot be used as that reason.
+Human licensing checks are Milestone 9 stable 1.0 admission inputs. Their
+pending state does not disable build, test, package, or runtime access to an
+implemented surface. Machine artifact identity, payload presence, platform
+compatibility, containment, consent, and resource checks remain fail closed at
+the point of use. A missing implementation or machine payload therefore remains
+unavailable for its exact technical reason; a pending human review cannot be
+used as that reason.
+
+## Recorded owner legal review
+
+On 2026-08-28 the kw.media owner and sole contributor recorded the human legal
+review in `config/production-legal-review.json`. The record is bound by SHA-256
+to `docs/legalchecklist.md`: checked items mean satisfied, unchecked items mean
+not satisfied, and `--` lines preserve the owner's conditions. Its scope is
+global distribution of Soundscaper and Framescaper through the Cloudflare web
+application/assets and direct Electron downloads; application stores are out
+of scope. The application remains AGPL-3.0-only and no separate EULA is selected.
+
+That review approves the recorded current copyright, copyleft, notice,
+corresponding-source, patent-risk, trademark, native-audio, plug-in-hosting,
+local-model, capture, Web VCR, retention, export-control, and operational-privacy
+positions subject to the exact conditions in the record. The English and German
+privacy policy publication is recorded as satisfied. The unchecked web-notice
+route, content, placement, and versioned-asset delivery questions remain open,
+so the web notice gate remains blocked. The refused-model review and all named
+future-only reviews remain not satisfied.
+
+Native codec approval is provider-conditional: WebCodecs, operating-system
+providers, and user-installed FFmpeg are approved, while redistribution of
+FFmpeg or a bundled native FFmpeg media host is not. Consequently every native
+FFmpeg tuple stays blocked despite the broader codec and patent-risk decisions.
+The owner accepted the recorded Spleeter, Demucs, TransNetV2, PANNs, and other
+model-license ambiguities, but no missing converted artifact, parity result,
+mirror read-back, catalog signature, notice, or runtime evidence is fabricated
+or cleared by that acceptance.
+
+No independently controlled cryptographic key is required to authenticate this
+human legal decision; the repository record is its authority. Existing package,
+platform-signing, notarization, payload-identity, isolation-readiness, and
+per-target technical-evidence controls are separate release controls. They do
+not create a second legal approver and cannot override or broaden the recorded
+legal scope.
 
 ## Dependency closure
 
@@ -424,9 +459,13 @@ Each requirement is `recorded`, `pending`, or `unresolved`, and only `recorded`
 satisfies stable 1.0 distribution review. `pending` marks evidence this
 milestone cannot hold yet, naming the stage that will produce it; `unresolved`
 marks upstream evidence that is missing, conflicting, or unanswered and may
-never resolve. A model's `blockedBy` list and its `distributionStatus` are
-derived from those statuses and verified against the authored values, so an
-incomplete record cannot be converted into a stable-release approval.
+never resolve. The 2026-08-28 owner review explicitly accepts the documented
+Spleeter, Demucs, TransNetV2, and PANNs licensing ambiguities as risks, so those
+license-review requirements are now `recorded` without representing that an
+upstream clarification occurred. A model's `blockedBy` list and its
+`distributionStatus` are derived from the remaining statuses and verified
+against the authored values, so an incomplete artifact record cannot be
+converted into a stable-release approval.
 
 The `local-models` gate records the stable-release disposition of individually
 reviewed records. Gate enablement is not runtime authority: an implemented
@@ -443,14 +482,17 @@ repository paths only.
 
 A source pin, direct artifact digest, conversion recipe, parity-fixture shape,
 or locally generated catalog candidate is not an executable machine payload.
+The owner has completed the human license, training-data, and model-card review
+for wav2vec2, TIGER-DnR, PANNs Cnn10, Beat This small0/final0, TransNetV2, and
+Qwen3. Each row still records `versioned-download-notices-and-hashes` as pending.
 TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain technically unavailable
 until their converted artifact digests and source-framework parity evidence are
 recorded; wav2vec2 and Qwen remain candidates until executable catalog entries
-land. Externally signed entries and distribution review are Milestone 9 release
-inputs. Cataloged byte lengths and hashes authenticate downloads and offline
-preseed, but do not assert that an EU R2 write or public read-back occurred. The
-release publisher must complete public HEAD, Range, and full SHA-256 read-back
-before a catalog is handed to the external signer.
+land. Externally signed entries and artifact notice/read-back evidence remain
+Milestone 9 release inputs. Cataloged byte lengths and hashes authenticate
+downloads and offline preseed, but do not assert that an EU R2 write or public
+read-back occurred. The release publisher must complete public HEAD, Range, and
+full SHA-256 read-back before a catalog is handed to the external signer.
 
 Opaque placeholders do not make an unimplemented native feature available, and
 a loader must not accept a missing, changed, wrong-platform, uncontained, or
