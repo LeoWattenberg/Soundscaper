@@ -100,8 +100,8 @@
 		},
 		{
 			"path": "src/gpu_runtime.cpp",
-			"byteLength": 27372,
-			"sha256": "3c8b322d3f0cc46140c457881f01687bd52a3a7b8f5c3d50bc4ac8f152aefe8a"
+			"byteLength": 30244,
+			"sha256": "4065925a50cb7397855170fcd4fd21cc6f9b7dde43f92f425e8bd75cd7311d53"
 		},
 		{
 			"path": "src/gpu_runtime.hpp",

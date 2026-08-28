@@ -11,6 +11,7 @@
 #include <limits>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -68,6 +69,20 @@ private:
 	void* handle_{};
 };
 
+template <typename Release>
+class PendingResource final {
+public:
+	explicit PendingResource(Release release) noexcept : release_{std::move(release)} {}
+	~PendingResource() noexcept { if (armed_) release_(); }
+	PendingResource(const PendingResource&) = delete;
+	PendingResource& operator=(const PendingResource&) = delete;
+	void dismiss() noexcept { armed_ = false; }
+
+private:
+	Release release_;
+	bool armed_{true};
+};
+
 class FixtureSession final : public GpuRenderSession {
 public:
 	FixtureSession(const Backend backend, const std::vector<GpuFrameBinding>& frames)
@@ -111,43 +126,12 @@ private:
 
 class OpenClSession final : public GpuRenderSession {
 public:
-	OpenClSession(const std::vector<GpuFrameBinding>& frames)
-		: library_({
-#ifdef _WIN32
-			"OpenCL.dll"
-#elif defined(__APPLE__)
-			"/System/Library/Frameworks/OpenCL.framework/OpenCL", "libOpenCL.dylib"
-#else
-			"libOpenCL.so.1", "libOpenCL.so"
-#endif
-		}) {
-		load_api();
-		unsigned platform_count = 0;
-		if (get_platforms_(0, nullptr, &platform_count) != 0 || platform_count == 0) unavailable();
-		std::vector<void*> platforms(platform_count);
-		if (get_platforms_(platform_count, platforms.data(), nullptr) != 0) unavailable();
-		for (auto* platform : platforms) {
-			unsigned count = 0;
-			if (get_devices_(platform, 1U << 2U, 0, nullptr, &count) != 0 || count == 0) continue;
-			std::vector<void*> devices(count);
-			if (get_devices_(platform, 1U << 2U, count, devices.data(), nullptr) == 0) {
-				device_ = devices.front(); break;
-			}
-		}
-		if (device_ == nullptr) unavailable();
-		int error = 0;
-		const void* selected_device = device_;
-		context_ = create_context_(nullptr, 1, &selected_device, nullptr, nullptr, &error);
-		if (context_ == nullptr || error != 0) failed();
-		queue_ = create_queue_(context_, device_, 0, &error);
-		if (queue_ == nullptr || error != 0) failed();
-		for (const auto& binding : frames) {
-			void* host = binding.output ? nullptr : binding.frame->rgba.data();
-			const auto flags = 1ULL | (host == nullptr ? 0ULL : 1ULL << 5U);
-			auto* buffer = create_buffer_(context_, flags, binding.frame->rgba.size(), host, &error);
-			if (buffer == nullptr || error != 0) failed();
-			buffers_.emplace(binding.frame, Buffer{buffer, binding.output});
-		}
+	[[nodiscard]] static std::unique_ptr<OpenClSession> create(
+		const std::vector<GpuFrameBinding>& frames
+	) {
+		auto session = std::unique_ptr<OpenClSession>{new OpenClSession{}};
+		session->initialize(frames);
+		return session;
 	}
 	~OpenClSession() override { release(); }
 	void* image_data(RgbaFrame& frame) override { return buffers_.at(&frame).handle; }
@@ -176,13 +160,64 @@ public:
 			const std::size_t length = std::strlen(source);
 			int error = 0; const char* sources[]{source}; const std::size_t lengths[]{length};
 			auto* program = create_program_(context_, 1, sources, lengths, &error);
+			if (program == nullptr) return kOfxStatGPURenderFailed;
+			PendingResource pending{[this, program]() noexcept { release_program_(program); }};
 			const void* selected_device = device_;
-			if (program == nullptr || error != 0 || build_program_(program, 1, &selected_device, "", nullptr, nullptr) != 0) return kOfxStatGPURenderFailed;
-			programs_.push_back(program); *static_cast<void**>(result) = program; return kOfxStatOK;
+			if (error != 0 || build_program_(program, 1, &selected_device, "", nullptr, nullptr) != 0) return kOfxStatGPURenderFailed;
+			programs_.push_back(program); pending.dismiss();
+			*static_cast<void**>(result) = program; return kOfxStatOK;
 		} catch (...) { return kOfxStatGPURenderFailed; }
 	}
 
 private:
+	OpenClSession()
+		: library_({
+#ifdef _WIN32
+			"OpenCL.dll"
+#elif defined(__APPLE__)
+			"/System/Library/Frameworks/OpenCL.framework/OpenCL", "libOpenCL.dylib"
+#else
+			"libOpenCL.so.1", "libOpenCL.so"
+#endif
+		}) {
+		load_api();
+	}
+	void initialize(const std::vector<GpuFrameBinding>& frames) {
+		buffers_.reserve(frames.size());
+		unsigned platform_count = 0;
+		if (get_platforms_(0, nullptr, &platform_count) != 0 || platform_count == 0) unavailable();
+		std::vector<void*> platforms(platform_count);
+		if (get_platforms_(platform_count, platforms.data(), nullptr) != 0) unavailable();
+		for (auto* platform : platforms) {
+			unsigned count = 0;
+			if (get_devices_(platform, 1U << 2U, 0, nullptr, &count) != 0 || count == 0) continue;
+			std::vector<void*> devices(count);
+			if (get_devices_(platform, 1U << 2U, count, devices.data(), nullptr) == 0) {
+				device_ = devices.front(); break;
+			}
+		}
+		if (device_ == nullptr) unavailable();
+		int error = 0;
+		const void* selected_device = device_;
+		context_ = create_context_(nullptr, 1, &selected_device, nullptr, nullptr, &error);
+		if (context_ == nullptr || error != 0) failed();
+		queue_ = create_queue_(context_, device_, 0, &error);
+		if (queue_ == nullptr || error != 0) failed();
+		for (const auto& binding : frames) {
+			void* host = binding.output ? nullptr : binding.frame->rgba.data();
+			const auto flags = 1ULL | (host == nullptr ? 0ULL : 1ULL << 5U);
+			auto* buffer = create_buffer_(context_, flags, binding.frame->rgba.size(), host, &error);
+			if (buffer == nullptr) failed();
+			PendingResource pending{[this, buffer]() noexcept { release_memory_(buffer); }};
+			if (error != 0) failed();
+			const auto [iterator, inserted] = buffers_.emplace(
+				binding.frame, Buffer{buffer, binding.output}
+			);
+			static_cast<void>(iterator);
+			if (!inserted) failed();
+			pending.dismiss();
+		}
+	}
 	struct Buffer { void* handle{}; bool output{}; };
 	using GetPlatforms = int (*)(unsigned, void**, unsigned*);
 	using GetDevices = int (*)(void*, unsigned long long, unsigned, void**, unsigned*);
@@ -222,23 +257,12 @@ private:
 
 class CudaSession final : public GpuRenderSession {
 public:
-	CudaSession(const std::vector<GpuFrameBinding>& frames)
-		: library_({
-#ifdef _WIN32
-			"nvcuda.dll"
-#else
-			"libcuda.so.1", "libcuda.so"
-#endif
-		}) {
-		load_api(); int device = 0;
-		if (initialize_(0) != 0 || get_device_(&device, 0) != 0) unavailable();
-		if (create_context_(&context_, 0, device) != 0 || create_stream_(&stream_, 0) != 0) failed();
-		for (const auto& binding : frames) {
-			std::uintptr_t allocation = 0;
-			if (allocate_(&allocation, binding.frame->rgba.size()) != 0) failed();
-			if (!binding.output && copy_to_(allocation, binding.frame->rgba.data(), binding.frame->rgba.size()) != 0) failed();
-			buffers_.emplace(binding.frame, Buffer{allocation, binding.output});
-		}
+	[[nodiscard]] static std::unique_ptr<CudaSession> create(
+		const std::vector<GpuFrameBinding>& frames
+	) {
+		auto session = std::unique_ptr<CudaSession>{new CudaSession{}};
+		session->initialize(frames);
+		return session;
 	}
 	~CudaSession() override { release(); }
 	void* image_data(RgbaFrame& frame) override { return reinterpret_cast<void*>(buffers_.at(&frame).address); }
@@ -260,6 +284,37 @@ public:
 	Backend backend() const noexcept override { return Backend::cuda; }
 
 private:
+	CudaSession()
+		: library_({
+#ifdef _WIN32
+			"nvcuda.dll"
+#else
+			"libcuda.so.1", "libcuda.so"
+#endif
+		}) {
+		load_api();
+	}
+	void initialize(const std::vector<GpuFrameBinding>& frames) {
+		buffers_.reserve(frames.size());
+		int device = 0;
+		if (initialize_(0) != 0 || get_device_(&device, 0) != 0) unavailable();
+		if (create_context_(&context_, 0, device) != 0 || create_stream_(&stream_, 0) != 0) failed();
+		for (const auto& binding : frames) {
+			std::uintptr_t allocation = 0;
+			const auto status = allocate_(&allocation, binding.frame->rgba.size());
+			PendingResource pending{[this, allocation]() noexcept {
+				if (allocation != 0) free_(allocation);
+			}};
+			if (status != 0) failed();
+			if (!binding.output && copy_to_(allocation, binding.frame->rgba.data(), binding.frame->rgba.size()) != 0) failed();
+			const auto [iterator, inserted] = buffers_.emplace(
+				binding.frame, Buffer{allocation, binding.output}
+			);
+			static_cast<void>(iterator);
+			if (!inserted) failed();
+			pending.dismiss();
+		}
+	}
 	struct Buffer { std::uintptr_t address{}; bool output{}; };
 	using Initialize = int (*)(unsigned); using GetDevice = int (*)(int*, int);
 	using CreateContext = int (*)(void**, unsigned, int); using DestroyContext = int (*)(void*);
@@ -288,28 +343,12 @@ private:
 
 class EglOpenGlSession final : public GpuRenderSession {
 public:
-	explicit EglOpenGlSession(const std::vector<GpuFrameBinding>& frames)
-		: egl_({
-#ifdef _WIN32
-			"libEGL.dll", "EGL.dll"
-#elif defined(__APPLE__)
-			"libEGL.dylib"
-#else
-			"libEGL.so.1", "libEGL.so"
-#endif
-		}) {
-		load_egl(); display_ = get_display_(nullptr);
-		int major = 0; int minor = 0;
-		if (display_ == nullptr || initialize_(display_, &major, &minor) == 0 || bind_api_(0x30A2U) == 0) unavailable();
-		const int attributes[]{0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3021, 8, 0x3033, 1, 0x3040, 8, 0x3038};
-		void* config = nullptr; int count = 0;
-		if (choose_config_(display_, attributes, &config, 1, &count) == 0 || count != 1) unavailable();
-		const int pbuffer[]{0x3057, 1, 0x3056, 1, 0x3038};
-		surface_ = create_surface_(display_, config, pbuffer);
-		context_ = create_context_(display_, config, nullptr, nullptr);
-		if (surface_ == nullptr || context_ == nullptr || make_current_(display_, surface_, surface_, context_) == 0) failed();
-		load_gl();
-		for (const auto& binding : frames) create_texture(binding);
+	[[nodiscard]] static std::unique_ptr<EglOpenGlSession> create(
+		const std::vector<GpuFrameBinding>& frames
+	) {
+		auto session = std::unique_ptr<EglOpenGlSession>{new EglOpenGlSession{}};
+		session->initialize(frames);
+		return session;
 	}
 	~EglOpenGlSession() override { release(); }
 	void* image_data(RgbaFrame&) override { return nullptr; }
@@ -344,13 +383,42 @@ public:
 		if (display_ != nullptr && context_ != nullptr) make_current_(display_, surface_, surface_, context_);
 		for (const auto& [frame, texture] : textures_) { static_cast<void>(frame); delete_textures_(1, &texture.index); }
 		textures_.clear(); if (framebuffer_ != 0) delete_framebuffers_(1, &framebuffer_);
-		if (display_ != nullptr) { make_current_(display_, nullptr, nullptr, nullptr); if (context_ != nullptr) destroy_context_(display_, context_); if (surface_ != nullptr) destroy_surface_(display_, surface_); terminate_(display_); }
+		if (display_ != nullptr && initialized_) { make_current_(display_, nullptr, nullptr, nullptr); if (context_ != nullptr) destroy_context_(display_, context_); if (surface_ != nullptr) destroy_surface_(display_, surface_); terminate_(display_); }
 		display_ = nullptr; context_ = nullptr; surface_ = nullptr; released_ = true;
 	}
 	bool released() const noexcept override { return released_; }
 	Backend backend() const noexcept override { return Backend::opengl; }
 
 private:
+	EglOpenGlSession()
+		: egl_({
+#ifdef _WIN32
+			"libEGL.dll", "EGL.dll"
+#elif defined(__APPLE__)
+			"libEGL.dylib"
+#else
+			"libEGL.so.1", "libEGL.so"
+#endif
+		}) {
+		load_egl();
+	}
+	void initialize(const std::vector<GpuFrameBinding>& frames) {
+		textures_.reserve(frames.size());
+		display_ = get_display_(nullptr);
+		int major = 0; int minor = 0;
+		if (display_ == nullptr || initialize_(display_, &major, &minor) == 0) unavailable();
+		initialized_ = true;
+		if (bind_api_(0x30A2U) == 0) unavailable();
+		const int attributes[]{0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3021, 8, 0x3033, 1, 0x3040, 8, 0x3038};
+		void* config = nullptr; int count = 0;
+		if (choose_config_(display_, attributes, &config, 1, &count) == 0 || count != 1) unavailable();
+		const int pbuffer[]{0x3057, 1, 0x3056, 1, 0x3038};
+		surface_ = create_surface_(display_, config, pbuffer);
+		context_ = create_context_(display_, config, nullptr, nullptr);
+		if (surface_ == nullptr || context_ == nullptr || make_current_(display_, surface_, surface_, context_) == 0) failed();
+		load_gl();
+		for (const auto& binding : frames) create_texture(binding);
+	}
 	struct Texture { std::uint32_t index{}; bool output{}; };
 	using GetDisplay = void* (*)(void*); using Initialize = unsigned (*)(void*, int*, int*);
 	using BindApi = unsigned (*)(unsigned); using ChooseConfig = unsigned (*)(void*, const int*, void**, int, int*);
@@ -377,37 +445,36 @@ private:
 	}
 	void create_texture(const GpuFrameBinding& binding) {
 		std::uint32_t texture = 0; gen_textures_(1, &texture); bind_texture_(0x0DE1U, texture);
+		PendingResource pending{[this, texture]() noexcept {
+			if (texture != 0) delete_textures_(1, &texture);
+		}};
 		tex_parameter_(0x0DE1U, 0x2801U, 0x2600); tex_parameter_(0x0DE1U, 0x2800U, 0x2600);
 		std::vector<unsigned char> packed; const void* bytes = nullptr;
 		if (!binding.output) { packed.resize(binding.frame->layout.width * binding.frame->layout.height * 4U); for (std::size_t row = 0; row < binding.frame->layout.height; ++row) std::copy_n(binding.frame->rgba.data() + row * binding.frame->layout.row_bytes, binding.frame->layout.width * 4U, packed.data() + row * binding.frame->layout.width * 4U); bytes = packed.data(); }
 		tex_image_(0x0DE1U, 0, 0x8058, static_cast<int>(binding.frame->layout.width), static_cast<int>(binding.frame->layout.height), 0, 0x1908U, 0x1401U, bytes);
-		textures_.emplace(binding.frame, Texture{texture, binding.output});
+		const auto [iterator, inserted] = textures_.emplace(
+			binding.frame, Texture{texture, binding.output}
+		);
+		static_cast<void>(iterator);
+		if (!inserted) failed();
+		pending.dismiss();
 		if (binding.output) { gen_framebuffers_(1, &framebuffer_); bind_framebuffer_(0x8D40U, framebuffer_); frame_texture_(0x8D40U, 0x8CE0U, 0x0DE1U, texture, 0); }
 		if (get_error_() != 0) failed();
 	}
 	RuntimeLibrary egl_; GetDisplay get_display_{}; Initialize initialize_{}; BindApi bind_api_{}; ChooseConfig choose_config_{}; CreateSurface create_surface_{}; CreateContext create_context_{}; MakeCurrent make_current_{}; Destroy destroy_context_{}; Destroy destroy_surface_{}; Terminate terminate_{}; GetProc get_proc_{};
 	Gen gen_textures_{}; Delete delete_textures_{}; Bind bind_texture_{}; TexParameter tex_parameter_{}; TexImage tex_image_{}; Gen gen_framebuffers_{}; Delete delete_framebuffers_{}; Bind bind_framebuffer_{}; FrameTexture frame_texture_{}; ReadPixels read_pixels_{}; Finish finish_{}; GetError get_error_{};
-	void* display_{}; void* surface_{}; void* context_{}; std::uint32_t framebuffer_{}; std::unordered_map<RgbaFrame*, Texture> textures_; bool released_{};
+	void* display_{}; void* surface_{}; void* context_{}; std::uint32_t framebuffer_{}; std::unordered_map<RgbaFrame*, Texture> textures_; bool initialized_{}; bool released_{};
 };
 
 #ifdef __APPLE__
 class MetalSession final : public GpuRenderSession {
 public:
-	explicit MetalSession(const std::vector<GpuFrameBinding>& frames)
-		: metal_({"/System/Library/Frameworks/Metal.framework/Metal"}), objc_({"/usr/lib/libobjc.A.dylib"}) {
-		device_ = metal_.require<void* (*)()>("MTLCreateSystemDefaultDevice")();
-		selector_ = objc_.require<void* (*)(const char*)>("sel_registerName"); retain_object_ = objc_.require<void* (*)(void*)>("objc_retain"); release_object_ = objc_.require<void (*)(void*)>("objc_release");
-		message0_ = objc_.require<void* (*)(void*, void*)>("objc_msgSend");
-		message_bytes_ = objc_.require<void* (*)(void*, void*, const void*, std::size_t, std::uint64_t)>("objc_msgSend");
-		message_length_ = objc_.require<void* (*)(void*, void*, std::size_t, std::uint64_t)>("objc_msgSend"); message_void_ = objc_.require<void (*)(void*, void*)>("objc_msgSend");
-		if (device_ == nullptr) failed();
-		device_ = retain_object_(device_);
-		if (device_ == nullptr || (queue_ = message0_(device_, selector_("newCommandQueue"))) == nullptr) failed();
-		for (const auto& binding : frames) {
-			auto* buffer = binding.output ? message_length_(device_, selector_("newBufferWithLength:options:"), binding.frame->rgba.size(), 0)
-				: message_bytes_(device_, selector_("newBufferWithBytes:length:options:"), binding.frame->rgba.data(), binding.frame->rgba.size(), 0);
-			if (buffer == nullptr) failed(); buffers_.emplace(binding.frame, Buffer{buffer, binding.output});
-		}
+	[[nodiscard]] static std::unique_ptr<MetalSession> create(
+		const std::vector<GpuFrameBinding>& frames
+	) {
+		auto session = std::unique_ptr<MetalSession>{new MetalSession{}};
+		session->initialize(frames);
+		return session;
 	}
 	~MetalSession() override { release(); }
 	void* image_data(RgbaFrame& frame) override { return buffers_.at(&frame).handle; }
@@ -417,13 +484,44 @@ public:
 		message_void_(command, selector_("commit")); message_void_(command, selector_("waitUntilCompleted"));
 	}
 	void complete() override { flush(); for (const auto& [frame, buffer] : buffers_) if (buffer.output) { auto* bytes = message0_(buffer.handle, selector_("contents")); if (bytes == nullptr) failed(); std::memcpy(frame->rgba.data(), bytes, frame->rgba.size()); } }
-	void release() noexcept override { if (released_) return; for (const auto& [frame, buffer] : buffers_) { static_cast<void>(frame); release_object_(buffer.handle); } buffers_.clear(); if (queue_ != nullptr) release_object_(queue_); if (device_ != nullptr) release_object_(device_); queue_ = nullptr; device_ = nullptr; released_ = true; }
+	void release() noexcept override { if (released_) return; for (const auto& [frame, buffer] : buffers_) { static_cast<void>(frame); if (buffer.handle != nullptr) release_object_(buffer.handle); } buffers_.clear(); if (queue_ != nullptr) release_object_(queue_); if (device_ != nullptr) release_object_(device_); queue_ = nullptr; device_ = nullptr; released_ = true; }
 	bool released() const noexcept override { return released_; }
 	Backend backend() const noexcept override { return Backend::metal; }
+
 private:
+	using CreateDevice = void* (*)();
+	MetalSession()
+		: metal_({"/System/Library/Frameworks/Metal.framework/Metal"}), objc_({"/usr/lib/libobjc.A.dylib"}) {
+		create_device_ = metal_.require<CreateDevice>("MTLCreateSystemDefaultDevice");
+		selector_ = objc_.require<void* (*)(const char*)>("sel_registerName"); retain_object_ = objc_.require<void* (*)(void*)>("objc_retain"); release_object_ = objc_.require<void (*)(void*)>("objc_release");
+		message0_ = objc_.require<void* (*)(void*, void*)>("objc_msgSend");
+		message_bytes_ = objc_.require<void* (*)(void*, void*, const void*, std::size_t, std::uint64_t)>("objc_msgSend");
+		message_length_ = objc_.require<void* (*)(void*, void*, std::size_t, std::uint64_t)>("objc_msgSend"); message_void_ = objc_.require<void (*)(void*, void*)>("objc_msgSend");
+	}
+	void initialize(const std::vector<GpuFrameBinding>& frames) {
+		buffers_.reserve(frames.size());
+		auto* device = create_device_();
+		if (device == nullptr) failed();
+		device_ = retain_object_(device);
+		if (device_ == nullptr) failed();
+		queue_ = message0_(device_, selector_("newCommandQueue"));
+		if (queue_ == nullptr) failed();
+		for (const auto& binding : frames) {
+			auto* buffer = binding.output ? message_length_(device_, selector_("newBufferWithLength:options:"), binding.frame->rgba.size(), 0)
+				: message_bytes_(device_, selector_("newBufferWithBytes:length:options:"), binding.frame->rgba.data(), binding.frame->rgba.size(), 0);
+			if (buffer == nullptr) failed();
+			PendingResource pending{[this, buffer]() noexcept { release_object_(buffer); }};
+			const auto [iterator, inserted] = buffers_.emplace(
+				binding.frame, Buffer{buffer, binding.output}
+			);
+			static_cast<void>(iterator);
+			if (!inserted) failed();
+			pending.dismiss();
+		}
+	}
 	struct Buffer { void* handle{}; bool output{}; };
 	[[noreturn]] static void failed() { throw gpu_runtime_error{"gpu-execution-failed", "The Metal render context failed."}; }
-	RuntimeLibrary metal_; RuntimeLibrary objc_; void* (*selector_)(const char*){}; void* (*retain_object_)(void*){}; void (*release_object_)(void*){}; void* (*message0_)(void*, void*){}; void* (*message_bytes_)(void*, void*, const void*, std::size_t, std::uint64_t){}; void* (*message_length_)(void*, void*, std::size_t, std::uint64_t){}; void (*message_void_)(void*, void*){}; void* device_{}; void* queue_{}; std::unordered_map<RgbaFrame*, Buffer> buffers_; bool released_{};
+	RuntimeLibrary metal_; RuntimeLibrary objc_; CreateDevice create_device_{}; void* (*selector_)(const char*){}; void* (*retain_object_)(void*){}; void (*release_object_)(void*){}; void* (*message0_)(void*, void*){}; void* (*message_bytes_)(void*, void*, const void*, std::size_t, std::uint64_t){}; void* (*message_length_)(void*, void*, std::size_t, std::uint64_t){}; void (*message_void_)(void*, void*){}; void* device_{}; void* queue_{}; std::unordered_map<RgbaFrame*, Buffer> buffers_; bool released_{};
 };
 #endif
 
@@ -441,11 +539,11 @@ std::unique_ptr<GpuRenderSession> GpuRenderSession::create(
 			|| frame.frame->rgba.size() != frame.frame->layout.byte_length;
 	})) throw gpu_runtime_error{"gpu-execution-failed", "The GPU frame set is invalid."};
 	if (conformance_fixture_execution()) return std::make_unique<FixtureSession>(backend, frames);
-	if (backend == Backend::opengl) return std::make_unique<EglOpenGlSession>(frames);
-	if (backend == Backend::opencl) return std::make_unique<OpenClSession>(frames);
-	if (backend == Backend::cuda) return std::make_unique<CudaSession>(frames);
+	if (backend == Backend::opengl) return EglOpenGlSession::create(frames);
+	if (backend == Backend::opencl) return OpenClSession::create(frames);
+	if (backend == Backend::cuda) return CudaSession::create(frames);
 #ifdef __APPLE__
-	if (backend == Backend::metal) return std::make_unique<MetalSession>(frames);
+	if (backend == Backend::metal) return MetalSession::create(frames);
 #endif
 	throw gpu_runtime_error{"unsupported-backend", "The requested qualified GPU provider is unavailable on this host."};
 }

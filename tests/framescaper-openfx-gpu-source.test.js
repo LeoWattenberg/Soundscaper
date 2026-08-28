@@ -10,11 +10,18 @@ import {
 	buildOpenFxNativeContractFixture,
 	cleanupOpenFxNativeContractFixture,
 } from './helpers/openfx-native-scanner-fixture.js';
+import {
+	buildOpenFxGpuDriverFixture,
+	cleanupOpenFxGpuDriverFixture,
+} from './helpers/openfx-gpu-driver-fixture.js';
 
 const root = resolve(import.meta.dirname, '..');
 const nativeRoot = join(root, 'native/framescaper-openfx-host');
 
-test.after(cleanupOpenFxNativeContractFixture);
+test.after(() => {
+	cleanupOpenFxGpuDriverFixture();
+	cleanupOpenFxNativeContractFixture();
+});
 
 test('the native host contains real standard GPU context providers and no vendor suite shortcut', () => {
 	const runtime = readFileSync(join(nativeRoot, 'src/gpu_runtime.cpp'), 'utf8');
@@ -48,4 +55,82 @@ test('a qualified GPU setup failure is typed and can never report false native s
 		message: 'The conformance GPU setup failed as requested.',
 	});
 	assert.equal(result.stdout, '');
+});
+
+test('OpenCL construction releases a created context and failed queue handle', (context) => {
+	const fixture = buildOpenFxGpuDriverFixture(context);
+	if (fixture === null) return;
+	const observed = fixture.run('opencl', 'opencl-queue');
+	assert.deepEqual({
+		caught: observed.caught,
+		contexts: [observed.contextsCreated, observed.contextsReleased],
+		queues: [observed.queuesCreated, observed.queuesReleased],
+	}, { caught: 1, contexts: [1, 1], queues: [1, 1] });
+});
+
+test('OpenCL construction releases prior buffers and the failing buffer handle', (context) => {
+	const fixture = buildOpenFxGpuDriverFixture(context);
+	if (fixture === null) return;
+	const observed = fixture.run('opencl', 'opencl-buffer-2');
+	assert.deepEqual({
+		caught: observed.caught,
+		contexts: [observed.contextsCreated, observed.contextsReleased],
+		queues: [observed.queuesCreated, observed.queuesReleased],
+		buffers: [observed.buffersCreated, observed.buffersReleased],
+	}, { caught: 1, contexts: [1, 1], queues: [1, 1], buffers: [2, 2] });
+});
+
+test('CUDA construction records and frees an allocation before a failed host copy', (context) => {
+	const fixture = buildOpenFxGpuDriverFixture(context);
+	if (fixture === null) return;
+	const observed = fixture.run('cuda', 'cuda-copy');
+	assert.deepEqual({
+		caught: observed.caught,
+		contexts: [observed.contextsCreated, observed.contextsReleased],
+		queues: [observed.queuesCreated, observed.queuesReleased],
+		buffers: [observed.buffersCreated, observed.buffersReleased],
+	}, { caught: 1, contexts: [1, 1], queues: [1, 1], buffers: [1, 1] });
+});
+
+test('EGL construction destroys its context and surface after make-current fails', (context) => {
+	const fixture = buildOpenFxGpuDriverFixture(context);
+	if (fixture === null) return;
+	const observed = fixture.run('opengl', 'egl-make-current');
+	assert.deepEqual({
+		caught: observed.caught,
+		contexts: [observed.contextsCreated, observed.contextsReleased],
+		surfaces: [observed.surfacesCreated, observed.surfacesReleased],
+		displaysTerminated: observed.displaysTerminated,
+	}, { caught: 1, contexts: [1, 1], surfaces: [1, 1], displaysTerminated: 1 });
+});
+
+test('a failed OpenCL kernel build releases the unadopted program', (context) => {
+	const fixture = buildOpenFxGpuDriverFixture(context);
+	if (fixture === null) return;
+	const observed = fixture.run('opencl', 'opencl-program-build', 'compile');
+	assert.deepEqual({
+		caught: observed.caught,
+		compileStatus: observed.compileStatus,
+		programs: [observed.programsCreated, observed.programsReleased],
+	}, { caught: 0, compileStatus: 1002, programs: [1, 1] });
+});
+
+test('an OpenCL program returned with a creation error is still released', (context) => {
+	const fixture = buildOpenFxGpuDriverFixture(context);
+	if (fixture === null) return;
+	const observed = fixture.run('opencl', 'opencl-program-create', 'compile');
+	assert.deepEqual({
+		caught: observed.caught,
+		compileStatus: observed.compileStatus,
+		programs: [observed.programsCreated, observed.programsReleased],
+	}, { caught: 0, compileStatus: 1002, programs: [1, 1] });
+});
+
+test('the Apple-only Metal backend initializes only after the session is owned', () => {
+	const runtime = readFileSync(join(nativeRoot, 'src/gpu_runtime.cpp'), 'utf8');
+	const metal = runtime.slice(runtime.indexOf('class MetalSession'), runtime.indexOf('#endif', runtime.indexOf('class MetalSession')));
+	assert.doesNotMatch(metal, /MetalSession\(const std::vector<GpuFrameBinding>& frames\)/u);
+	assert.match(metal, /void initialize\(const std::vector<GpuFrameBinding>& frames\)/u);
+	assert.match(metal, /PendingResource pending\{\[this, buffer\]/u);
+	assert.match(runtime, /MetalSession::create\(frames\)/u);
 });
