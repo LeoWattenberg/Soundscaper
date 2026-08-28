@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 
+import { collectMaintainedSourceFiles } from './lib/maintained-source-files.mjs';
 import {
 	MAINTAINED_SOURCE_ROOTS,
-	isMaintainedSourceFile,
 } from './lib/maintained-source-policy.mjs';
 import { sourceLineCount } from './lib/source-line-count.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const configPath = join(root, 'config', 'maintainability-allowlist.json');
 const config = JSON.parse(readFileSync(configPath, 'utf8'));
-const ignoredSegments = new Set(['native', 'node_modules', 'test-results']);
 const browserSpecPattern = /^tests\/browser\/.*\.spec\.[cm]?[jt]sx?$/u;
 
 if (config.schemaVersion !== 1
@@ -26,7 +25,9 @@ if (config.schemaVersion !== 1
 	throw new Error('Unsupported maintainability allowlist schema.');
 }
 
-const files = MAINTAINED_SOURCE_ROOTS.flatMap((directory) => walk(join(root, directory))).sort();
+const files = MAINTAINED_SOURCE_ROOTS
+	.flatMap((directory) => collectMaintainedSourceFiles(join(root, directory)))
+	.sort();
 const observed = new Set();
 const findings = [];
 
@@ -59,12 +60,3 @@ for (const repositoryPath of Object.keys(config.allow)) {
 
 if (findings.length) throw new Error(`Maintainability size guard failed:\n${findings.join('\n')}`);
 console.log(`Checked ${files.length} maintained source files (${config.defaultMaxLines} lines; ${config.browserSpecMaxLines} for browser specs).`);
-
-function walk(directory) {
-	return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-		if (entry.isDirectory() && ignoredSegments.has(entry.name)) return [];
-		const path = join(directory, entry.name);
-		if (entry.isDirectory()) return walk(path);
-		return entry.isFile() && isMaintainedSourceFile(entry.name) ? [path] : [];
-	});
-}
