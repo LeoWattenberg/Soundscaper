@@ -5,6 +5,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const repositoryUrl = new URL('../', import.meta.url);
+const IMPLEMENTATION_COMMIT = '573579b65852148d121e8f73046c57700ac93757';
+const IMPLEMENTATION_TIMESTAMP = '2026-08-28T18:34:28+02:00';
 
 async function json(path) {
 	return JSON.parse(await readFile(new URL(path, repositoryUrl), 'utf8'));
@@ -44,14 +46,8 @@ test('WP-9.0.0 freezes exactly two independent family-v1 project baselines', asy
 	assert.equal(decision.workPackage, 'WP-9.0.0');
 	assert.equal(decision.approver, 'Leo Wattenberg');
 	assert.equal(decision.decisionDate, '2026-08-28');
-	assert.ok(
-		/^[0-9a-f]{40}$/u.test(decision.commit)
-			|| /^PENDING_[A-Z0-9_]+$/u.test(decision.commit),
-	);
-	assert.ok(
-		/^2026-08-28T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/u.test(decision.commitTimestamp)
-			|| /^PENDING_[A-Z0-9_]+$/u.test(decision.commitTimestamp),
-	);
+	assert.equal(decision.commit, IMPLEMENTATION_COMMIT);
+	assert.equal(decision.commitTimestamp, IMPLEMENTATION_TIMESTAMP);
 	assert.match(decision.stableReleaseAdmission, /^blocked-/u);
 });
 
@@ -87,10 +83,8 @@ test('the decision and release guidance record the freeze while every stable row
 	]);
 
 	assert.match(decision, /Leo Wattenberg/u);
-	assert.match(
-		decision,
-		/(?:2026-08-28T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}|PENDING_[A-Z0-9_]+)/u,
-	);
+	assert.ok(decision.includes(IMPLEMENTATION_COMMIT));
+	assert.ok(decision.includes(IMPLEMENTATION_TIMESTAMP));
 	assert.match(decision, /exactly two independent/u);
 	assert.match(decision, /stable 1\.0 admission remains\s+blocked/iu);
 	const releaseRows = guided.split('\n').filter((line) => /^\| REL-\d{2} \|/u.test(line));

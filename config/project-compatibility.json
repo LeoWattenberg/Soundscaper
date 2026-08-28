@@ -7,8 +7,8 @@
 		"status": "approved",
 		"approver": "Leo Wattenberg",
 		"decisionDate": "2026-08-28",
-		"commit": "PENDING_IMPLEMENTATION_COMMIT_SHA",
-		"commitTimestamp": "PENDING_IMPLEMENTATION_COMMIT_RFC3339_TIMESTAMP",
+		"commit": "573579b65852148d121e8f73046c57700ac93757",
+		"commitTimestamp": "2026-08-28T18:34:28+02:00",
 		"record": "docs/wp-9.0.0-baseline-decision.md",
 		"stableReleaseAdmission": "blocked-on-remaining-milestone-9-evidence"
 	},

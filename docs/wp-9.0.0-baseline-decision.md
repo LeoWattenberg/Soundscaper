@@ -8,8 +8,8 @@ blocked on the outstanding Milestone 9 evidence.
 | Work package | WP-9.0.0 |
 | Approver | Leo Wattenberg |
 | Decision date | 2026-08-28 |
-| Source commit | `PENDING_IMPLEMENTATION_COMMIT_SHA` |
-| Source commit timestamp | `PENDING_IMPLEMENTATION_COMMIT_RFC3339_TIMESTAMP` |
+| Source commit | `573579b65852148d121e8f73046c57700ac93757` |
+| Source commit timestamp | `2026-08-28T18:34:28+02:00` |
 | Candidate | `1.0.0-rc.1` |
 
 The first-release project baseline consists of exactly two independent
