@@ -18,6 +18,16 @@ test('iXML preserves safe unknown extensions through its bounded raw representat
 	assert.throws(() => parseIxmlPayload(new TextEncoder().encode('<!DOCTYPE x><BWFXML/>')), /Active XML/u);
 });
 
+test('iXML decodes standard character references and preserves text-field whitespace', () => {
+	const xml = '<BWFXML><PROJECT>  Bob&apos;s &quot;Caf&#233;&quot; &#x2713; &amp; crew  </PROJECT><CIRCLED> TRUE </CIRCLED><TRACK_LIST><TRACK><CHANNEL_INDEX> 2 </CHANNEL_INDEX><NAME>  Plant mic  </NAME></TRACK></TRACK_LIST><SYNC_POINT_LIST><SYNC_POINT><POINT_TYPE> ABSOLUTE </POINT_TYPE><SAMPLE_COUNT> 48000 </SAMPLE_COUNT><FUNCTION>  Slate &#x2713;  </FUNCTION></SYNC_POINT></SYNC_POINT_LIST></BWFXML>';
+	const parsed = parseIxmlPayload(new TextEncoder().encode(xml));
+	assert.equal(parsed.project, '  Bob\'s "Café" ✓ & crew  ');
+	assert.equal(parsed.circled, true);
+	assert.deepEqual(parsed.tracks, [{ channelIndex: 2, name: '  Plant mic  ', function: '' }]);
+	assert.deepEqual(parsed.syncPoints, [{ type: 'ABSOLUTE', sampleCount: '48000', function: '  Slate ✓  ' }]);
+	assert.equal(new TextDecoder().decode(encodeIxmlPayload(parsed)), xml);
+});
+
 test('iXML rejects malformed and excessively deep XML without rescanning unclosed fields', () => {
 	const malformed = `<BWFXML>${'<TRACK>'.repeat(4_096)}</BWFXML>`;
 	assert.throws(

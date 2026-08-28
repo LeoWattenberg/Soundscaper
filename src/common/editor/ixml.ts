@@ -70,19 +70,19 @@ export function parseIxmlPayload(bytes: Uint8Array): IxmlMetadata {
 	const xml = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0+$/u, '');
 	const parsed = parseIxmlDocument(xml);
 	const tracks = parsed.tracks.map((track) => ({
-		channelIndex: Number(track.channelIndex) || 1,
+		channelIndex: Number(track.channelIndex?.trim()) || 1,
 		name: track.name ?? '',
 		function: track.function ?? '',
 	}));
 	const syncPoints = parsed.syncPoints.map((point) => ({
-		type: point.type === 'ABSOLUTE' ? 'ABSOLUTE' as const : 'RELATIVE' as const,
-		sampleCount: point.sampleCount || '0',
+		type: point.type?.trim() === 'ABSOLUTE' ? 'ABSOLUTE' as const : 'RELATIVE' as const,
+		sampleCount: point.sampleCount?.trim() || '0',
 		function: point.function ?? '',
 	}));
 	return normalizeIxmlMetadata({
 		project: parsed.document.project ?? '', scene: parsed.document.scene ?? '', take: parsed.document.take ?? '', tape: parsed.document.tape ?? '',
-		note: parsed.document.note ?? '', circled: parsed.document.circled?.toUpperCase() === 'TRUE', timecodeRate: parsed.document.timecodeRate ?? '',
-		timecodeFlag: (parsed.document.timecodeFlag ?? '') as IxmlMetadata['timecodeFlag'], fileSetId: parsed.document.fileSetId ?? '', tracks, syncPoints, rawXml: xml,
+		note: parsed.document.note ?? '', circled: parsed.document.circled?.trim().toUpperCase() === 'TRUE', timecodeRate: parsed.document.timecodeRate ?? '',
+		timecodeFlag: (parsed.document.timecodeFlag?.trim() ?? '') as IxmlMetadata['timecodeFlag'], fileSetId: parsed.document.fileSetId ?? '', tracks, syncPoints, rawXml: xml,
 	});
 }
 
@@ -218,7 +218,7 @@ function ixmlDocumentField(name: string): DocumentField | null {
 }
 
 function applyCapturedText(capture: TextCapture, document: Partial<Record<DocumentField, string>>): void {
-	const value = capture.parts.join('').trim();
+	const value = capture.parts.join('');
 	if (capture.target.kind === 'document') document[capture.target.field] = value;
 	else if (capture.target.kind === 'track') capture.target.record[capture.target.field] = value;
 	else capture.target.record[capture.target.field] = value;
