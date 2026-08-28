@@ -145,3 +145,12 @@ test('thumbnail timestamps stay on the reusable five-second source grid and thin
 	assert.deepEqual(timestamps.map((thumbnail) => thumbnail.sourceTimeSeconds), [2, 10]);
 	assert.deepEqual(timestamps.map((thumbnail) => thumbnail.timelineTimeSeconds), [0, 16]);
 });
+
+test('thumbnail interval rounding tolerates floating error at integral grid ratios', () => {
+	assert.equal(videoThumbnailIntervalSeconds({
+		baseIntervalSeconds: 1,
+		playbackRate: 1,
+		pixelsPerSecond: 0.1,
+		minimumSpacingPixels: 0.6000000000000001,
+	}), 6);
+});

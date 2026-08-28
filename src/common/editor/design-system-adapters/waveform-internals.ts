@@ -272,6 +272,7 @@ export function prepareAudacityWaveformRendering(
 
 	const columnCount = Math.max(1, Math.ceil(options.pixelWidth));
 	const sourceSamplesPerPixel = 1 / pixelsPerSample;
+	const lastVisibleSourceFrame = Math.ceil(visibleSourceEnd) - 1;
 	return {
 		...common,
 		channels: sourceChannels.map((_, channel) => {
@@ -285,7 +286,7 @@ export function prepareAudacityWaveformRendering(
 				let bucketEnd = clamp(Math.round(rawEnd), 0, options.sourceDurationFrames);
 				if (bucketEnd <= bucketStart) {
 					bucketStart = clamp(
-						Math.floor(Math.min(rawStart, visibleSourceEnd - Number.EPSILON)),
+						Math.min(Math.floor(rawStart), lastVisibleSourceFrame),
 						0,
 						options.sourceDurationFrames - 1,
 					);

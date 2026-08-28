@@ -127,6 +127,22 @@ test('summary plans retain a continuous complete min/max column for every CSS pi
 	}
 });
 
+test('degenerate summary columns stay inside the visible source window', () => {
+	const source = Array(100).fill(0);
+	source[9] = 0.25;
+	source[10] = 1;
+	const result = prepareBoundedWaveformWindow([source], clip(source.length), {
+		startFrame: 0,
+		endFrame: 10,
+		maxSamples: 2,
+		pixelWidth: 3.0000000000000004,
+		reuseSummaryForCompatibility: true,
+	});
+
+	assert.equal(result.rendering.mode, 'summary');
+	assert.deepEqual([...result.rendering.channels[0].maximum], [0, 0, 0.25, 0.25]);
+});
+
 test('summary plans cover a resized canvas instead of painting only a stale prefix', () => {
 	const context = recordingContext();
 	drawAudacityWaveformChannel(context, {

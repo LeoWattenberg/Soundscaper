@@ -220,9 +220,13 @@ export function videoThumbnailIntervalSeconds(options: Readonly<Record<string, u
 		'minimumSpacingPixels',
 	);
 	const baseGridPixels = baseIntervalSeconds / playbackRate * pixelsPerSecond;
+	const spacingRatio = minimumSpacingPixels / baseGridPixels;
+	const spacingTolerance = Number.isFinite(spacingRatio)
+		? Number.EPSILON * Math.max(1, spacingRatio) * 4
+		: 0;
 	return baseIntervalSeconds * Math.max(
 		1,
-		Math.ceil(minimumSpacingPixels / baseGridPixels - Number.EPSILON),
+		Math.ceil(spacingRatio - spacingTolerance),
 	);
 }
 

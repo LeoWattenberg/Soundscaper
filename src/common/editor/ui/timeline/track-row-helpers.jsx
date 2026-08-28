@@ -9,7 +9,7 @@ import {
 export function samplePointAtPointer(event, lane, clip, source, frameAtClientX, lockedChannel = null) {
 	const rect = lane.getBoundingClientRect();
 	const channelCount = Math.max(1, Number(source.channelCount) || 1);
-	const localY = Math.max(0, Math.min(Math.max(1, rect.height) - Number.EPSILON, event.clientY - rect.top));
+	const localY = Math.max(0, Math.min(Math.max(1, rect.height), event.clientY - rect.top));
 	const channelHeight = Math.max(1, rect.height / channelCount);
 	const channel = lockedChannel == null
 		? Math.max(0, Math.min(channelCount - 1, Math.floor(localY / channelHeight)))

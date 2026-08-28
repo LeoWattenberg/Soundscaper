@@ -234,8 +234,8 @@ function renderChannel(
 		let high = Number.NEGATIVE_INFINITY;
 		let squareSum = 0;
 		let count = 0;
+		const sourceSpan = Math.max(Number.EPSILON, sourceEnd - sourceStart);
 		for (let sourceFrame = sampleStart; sourceFrame < sampleEnd; sourceFrame += 1) {
-			const sourceSpan = Math.max(Number.EPSILON, sourceEnd - sourceStart);
 			const position = Math.max(0, Math.min(1, (sourceFrame - sourceStart) / sourceSpan));
 			const timelineFrame = localStart + (localEnd - localStart) * position;
 			const scale = gain * fadeEnvelope(timelineFrame, clip.durationFrames, fadeInFrames, fadeOutFrames);
