@@ -64,7 +64,7 @@ SHA-256 that retained execution evidence must repeat.
 The repository-owned installable module is under
 `scripts/models/milestone-7-conversion-tool/`. Create the external CPython 3.12
 environment from its exact `uv.lock` (SHA-256
-`388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef`)
+`b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a`)
 with frozen/hash verification, then install or invoke only that locked module
 without resolving a neighbouring dependency:
 

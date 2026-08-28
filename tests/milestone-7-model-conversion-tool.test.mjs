@@ -38,6 +38,49 @@ function floats(values) {
 	return body;
 }
 
+test('the locked conversion frameworks stay outside every open advisory range', () => {
+	const result = spawnSync('python3', ['-B', '-c', `
+import json
+from pathlib import Path
+import tomllib
+
+root = Path.cwd()
+project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+lock = tomllib.loads((root / "uv.lock").read_text(encoding="utf-8"))
+direct = {}
+for dependency in project["project"]["dependencies"]:
+    name, separator, version = dependency.partition("==")
+    if separator:
+        direct[name] = version
+locked = {}
+for package in lock["package"]:
+    locked.setdefault(package["name"], []).append(package["version"])
+print(json.dumps({"direct": direct, "locked": locked}, sort_keys=True))
+`], {
+		cwd: fileURLToPath(TOOL_ROOT), encoding: 'utf8',
+	});
+	assert.equal(result.status, 0, result.stderr);
+	const inventory = JSON.parse(result.stdout);
+	assert.deepEqual(Object.fromEntries([
+		'onnx', 'protobuf', 'tensorflow-cpu', 'tf2onnx', 'torch', 'torchaudio', 'torchvision',
+	].map((name) => [name, inventory.direct[name]])), {
+		onnx: '1.22.0',
+		protobuf: '5.29.6',
+		'tensorflow-cpu': '2.20.0',
+		tf2onnx: '1.17.0',
+		torch: '2.13.0',
+		torchaudio: '2.11.0',
+		torchvision: '0.28.0',
+	});
+	assert.deepEqual(inventory.locked.onnx, ['1.22.0']);
+	assert.deepEqual(inventory.locked.protobuf, ['5.29.6']);
+	assert.deepEqual(inventory.locked['tensorflow-cpu'], ['2.20.0']);
+	assert.deepEqual(inventory.locked.tf2onnx, ['1.17.0']);
+	assert.deepEqual(inventory.locked.torch, ['2.13.0', '2.13.0+cpu']);
+	assert.deepEqual(inventory.locked.torchaudio, ['2.11.0', '2.11.0+cpu']);
+	assert.deepEqual(inventory.locked.torchvision, ['0.28.0', '0.28.0+cpu']);
+});
+
 async function pannsParityWorkspace(context) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-m7-tool-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

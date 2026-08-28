@@ -11,13 +11,15 @@ import tomllib
 
 from .contract import ContractError, relative_path, sha256_file
 
-TOOLCHAIN_LOCK_SHA256 = "388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef"
+TOOLCHAIN_LOCK_SHA256 = "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
 MAXIMUM_LOCK_BYTES = 4 * 1024 * 1024
 
 _COMMON = (
     {"name": "numpy", "version": "1.26.4"},
+    {"name": "onnx", "version": "1.22.0"},
     {"name": "onnxruntime", "version": "1.20.1"},
-    {"name": "torch", "version": "2.5.1"},
+    {"name": "protobuf", "version": "5.29.6"},
+    {"name": "torch", "version": "2.13.0"},
 )
 
 REQUIRED_DISTRIBUTIONS = {
@@ -34,15 +36,14 @@ REQUIRED_DISTRIBUTIONS = {
         *_COMMON,
         {"name": "einops", "version": "0.8.0"},
         {"name": "rotary-embedding-torch", "version": "0.8.5"},
-        {"name": "torchaudio", "version": "2.5.1"},
+        {"name": "torchaudio", "version": "2.11.0"},
     ],
     "transnetv2": [
         *_COMMON,
-        {"name": "onnx", "version": "1.17.0"},
         {"name": "onnx2torch", "version": "1.5.15"},
-        {"name": "tensorflow-cpu", "version": "2.16.1"},
-        {"name": "tf2onnx", "version": "1.16.1"},
-        {"name": "torchvision", "version": "0.20.1"},
+        {"name": "tensorflow-cpu", "version": "2.20.0"},
+        {"name": "tf2onnx", "version": "1.17.0"},
+        {"name": "torchvision", "version": "0.28.0"},
     ],
 }
 

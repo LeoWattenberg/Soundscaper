@@ -16,7 +16,7 @@ import {
 const SHA256 = /^[a-f\d]{64}$/u;
 const MAXIMUM_FILE_BYTES = 16 * 1024 ** 3;
 const MAXIMUM_EVIDENCE_BYTES = 64 * 1024 ** 3;
-const TOOLCHAIN_LOCK_SHA256 = '388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef';
+const TOOLCHAIN_LOCK_SHA256 = 'b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a';
 const ADMITTED_REGISTERS = new WeakSet();
 
 const EXECUTION_POLICY = Object.freeze({

@@ -19,12 +19,12 @@ import {
 
 const SHA256 = 'ab'.repeat(32);
 const OTHER_SHA256 = 'cd'.repeat(32);
-const TOOLCHAIN_SHA256 = '388a9bdc8ccac14f5e16b0ea6cb2fb399c0af59b1dadd0385af7738d7ec139ef';
+const TOOLCHAIN_SHA256 = 'b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a';
 const EXPECTED_PLAN_SHA256 = Object.freeze({
-	'tiger-dnr-neural-core': 'b76fc6a4e917988bc7cf72432d4b34487649424e7f2aabd3944fb888ac35470d',
-	'panns-cnn10': '2c58822ed2fd8c59e477e5ffe42fc275cea2db606f8e3d7911638bca8a1b2423',
-	'beat-this': '2b886cc72ab4ef322cd4190edf4f3463e6a5135b5127a2b98793f57120efff76',
-	transnetv2: '2bc7ca9d964e1ac1b4c91eeccc0d8cf459835d477eebc728b6e2eb95d1bdf8b6',
+	'tiger-dnr-neural-core': '83c625591151d8c73975ba32022ac7068b73cfd9dfee03eee379d6611d08cb28',
+	'panns-cnn10': '03f4d0feb664ac4a409a126b6eb81efc94231475e9d1354fce5d3f725f4724fc',
+	'beat-this': '3d9f0a1a130fece450c64c01cfc6393aef9b2ab02a6af9114709e553322b9497',
+	transnetv2: '220564344d458cdf44ad5c10e7194e9469609735d4ec63a8617086daed9570eb',
 });
 
 function clone(value) {

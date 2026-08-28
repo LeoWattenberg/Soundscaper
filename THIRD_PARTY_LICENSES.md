@@ -625,7 +625,8 @@ small0/final0, TransNetV2, and Qwen3-4B Q4_K_M. Those pins are conversion and
 review inputs, not a redistribution notice. TIGER, PANNs, Beat This, and
 TransNetV2 now have a repository-owned CPython 3.12 conversion/parity runner.
 Its direct environment (`einops`, `huggingface-hub`, `librosa`, `numpy`,
-`onnx`, `onnx2torch`, `onnxruntime`, `rotary-embedding-torch`, `safetensors`,
+`onnx`, `onnx2torch`, `onnxruntime`, `protobuf`,
+`rotary-embedding-torch`, `safetensors`,
 `scipy`, `soundfile`, `soxr`, `tensorflow-cpu`, `tf2onnx`, `torch`,
 `torchaudio`, `torchlibrosa`, and `torchvision`) and transitive artifacts are
 version- and hash-locked in the conversion tool's `pyproject.toml` and
