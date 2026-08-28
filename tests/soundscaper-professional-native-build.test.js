@@ -273,7 +273,7 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(professional, /dispatchJuceMessageTask/u);
 });
 
-test('target builds select concrete Linux, macOS Seatbelt and Windows AppContainer launchers', async () => {
+test('target builds select concrete Linux, fail-closed macOS Seatbelt and Windows AppContainer launchers', async () => {
 	const [cmake, mac, windows, runtime, windowsAuthority, macProfile, windowsProfile] = await Promise.all([
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/CMakeLists.txt'), 'utf8'),
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/src/macos_launcher.mm'), 'utf8'),
@@ -283,15 +283,28 @@ test('target builds select concrete Linux, macOS Seatbelt and Windows AppContain
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/profiles/macos-v1.sb'), 'utf8'),
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/profiles/windows-v1.json'), 'utf8'),
 	]);
+	assert.match(cmake, /set\(CMAKE_CXX_STANDARD 17\)/u);
+	assert.match(cmake, /set\(CMAKE_CXX_STANDARD_REQUIRED ON\)/u);
+	assert.match(cmake, /set\(CMAKE_CXX_EXTENSIONS OFF\)/u);
+	assert.match(cmake, /set\(CMAKE_OBJCXX_STANDARD 17\)/u);
+	assert.match(cmake, /set\(CMAKE_OBJCXX_STANDARD_REQUIRED ON\)/u);
+	assert.match(cmake, /set\(CMAKE_OBJCXX_EXTENSIONS OFF\)/u);
 	assert.match(cmake, /elseif\(APPLE\)[\s\S]*macos_launcher\.mm[\s\S]*-lsandbox/u);
 	assert.match(cmake, /elseif\(WIN32\)[\s\S]*windows_launcher\.cpp[\s\S]*advapi32 userenv/u);
+	assert.match(mac, /#include <cstdint>/u);
+	assert.match(mac, /#include <utility>/u);
+	assert.match(windows, /#include <utility>/u);
 	assert.match(mac, /F_GETPATH/u);
 	assert.match(mac, /sandbox_init/u);
-	assert.match(mac, /fexecve/u);
+	assert.match(mac, /allow process-exec \(literal [\s\S]*pathFor\(value\.executableFd\)/u);
+	assert.match(mac, /const auto policy = profile\(value\);[\s\S]*exactText\(value\.brokerFd, 4096u\) != expectedBroker[\s\S]*enterSandbox\(policy\)/u);
+	assert.match(mac, /Darwin has no supported atomic executable-FD operation[\s\S]*machine availability must remain false/u);
+	assert.doesNotMatch(mac, /\bsameFile\b/u);
+	assert.doesNotMatch(mac, /\b(?:fexecve|execve|posix_spawn)\s*\(/u);
+	assert.doesNotMatch(mac, /\bwrite\s*\(\s*value\.attestationFd/u);
+	assert.match(mac, /diagnostic ignored "-Wdeprecated-declarations"/u);
 	assert.match(mac, /setrlimit\(RLIMIT_AS/u);
 	assert.match(mac, /--extra-input-fd=/u);
-	assert.match(mac, /dup2\(value\.extraInputFd, 3\)/u);
-	assert.match(mac, /close\(grant\.fd\)/u);
 	assert.match(macProfile, /\(deny default\)/u);
 	assert.doesNotMatch(macProfile, /coreaudiod/u);
 	assert.match(windows, /DeriveAppContainerSidFromAppContainerName/u);

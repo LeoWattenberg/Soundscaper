@@ -12,6 +12,7 @@
 #include <cstring>
 #include <cwchar>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -181,7 +182,7 @@ int wmain(int argc, wchar_t **argv)
 			|| exactFd(option, L"--executable-fd=", values.executable)
 			|| exactFd(option, L"--extra-input-fd=", values.extraInput)
 			|| authorityProfile(option, values.authorityProfile)) continue;
-		for (const auto [prefix, access] : std::array{
+		for (const auto &[prefix, access] : std::array{
 			std::pair{L"--read-only-fd=", Access::readOnly},
 			std::pair{L"--read-execute-fd=", Access::readExecute},
 			std::pair{L"--write-only-fd=", Access::writeOnly},
@@ -209,7 +210,9 @@ int wmain(int argc, wchar_t **argv)
 
 	const auto executable = finalPath(values.executable);
 	std::wstring command = quote(executable);
-	for (size_t index = 1u; index < child.size(); ++index) command += L" " + quote(child[index]);
+	for (size_t childIndex = 1u; childIndex < child.size(); ++childIndex) {
+		command += L" " + quote(child[childIndex]);
+	}
 	PSID sid = appContainerSid(values.authorityProfile);
 	grantExactAccess(values.executable, sid, Access::readExecute);
 	for (const auto &grant : values.grants) grantExactAccess(grant.handle, sid, grant.access);

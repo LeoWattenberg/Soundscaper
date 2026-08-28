@@ -10,16 +10,16 @@
 
 #include <algorithm>
 #include <array>
-#include <cerrno>
 #include <climits>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 constexpr size_t maximumGrants = 64u;
-constexpr char attestation[] = "M5_NATIVE_ISOLATION_ENFORCED_V1\n";
 constexpr char expectedBroker[] = "{\"schemaVersion\":1,\"id\":\"milestone5-macos-seatbelt-broker-v1\","
 	"\"maximumGrants\":64,\"pathAuthority\":\"fcntl-f-getpath-from-inherited-fd\","
 	"\"filesystem\":\"seatbelt-exact-literals\",\"network\":\"denied\","
@@ -65,7 +65,7 @@ Request request(int argc, char **argv)
 			|| singleton(argv[index], "--extra-input-fd=", result.extraInputFd)
 			|| number(argv[index], "--maximum-duration-ms=", result.durationMs)
 			|| number(argv[index], "--maximum-rss-bytes=", result.rssBytes)) continue;
-		for (const auto [prefix, access] : std::array{
+		for (const auto &[prefix, access] : std::array{
 			std::pair{"--read-only-fd=", Access::readOnly},
 			std::pair{"--read-execute-fd=", Access::readExecute},
 			std::pair{"--write-only-fd=", Access::writeOnly},
@@ -131,6 +131,21 @@ std::string profile(const Request &value)
 	}
 	return output;
 }
+
+bool enterSandbox(const std::string &policy)
+{
+	char *error = nullptr;
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+	const int status = sandbox_init(policy.c_str(), 0u, &error);
+	if (status != 0 && error != nullptr) sandbox_free_error(error);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+	return status == 0;
+}
 }
 
 int main(int argc, char **argv)
@@ -142,16 +157,10 @@ int main(int argc, char **argv)
 	struct rlimit memory{ value.rssBytes, value.rssBytes };
 	struct rlimit cpu{ (value.durationMs + 999u) / 1000u, (value.durationMs + 999u) / 1000u };
 	if (setrlimit(RLIMIT_AS, &memory) != 0 || setrlimit(RLIMIT_CPU, &cpu) != 0) return 125;
-	char *error = nullptr; const auto policy = profile(value);
+	const auto policy = profile(value);
 	if (exactText(value.brokerFd, 4096u) != expectedBroker) return 125;
-	if (sandbox_init(policy.c_str(), 0u, &error) != 0) { sandbox_free_error(error); return 125; }
-	if (write(value.attestationFd, attestation, sizeof(attestation) - 1u) != sizeof(attestation) - 1u
-		|| close(value.attestationFd) != 0) return 125;
-	if (value.extraInputFd >= 0 && (dup2(value.extraInputFd, 3) != 3 || close(value.extraInputFd) != 0)) return 125;
-	for (const int fd : { value.profileFd, value.brokerFd }) (void)close(fd);
-	for (const auto &grant : value.grants) (void)close(grant.fd);
-	if (fcntl(value.executableFd, F_SETFD, FD_CLOEXEC) != 0) return 125;
-	const char *environment[] = { "LANG=C", "LC_ALL=C", "PATH=", "HOME=/nonexistent", nullptr };
-	fexecve(value.executableFd, value.childArgv, const_cast<char *const *>(environment));
-	return errno == 0 ? 125 : 125;
+	if (!enterSandbox(policy)) return 125;
+	// Darwin has no supported atomic executable-FD operation. A path launch cannot
+	// preserve the authenticated descriptor identity, so machine availability must remain false.
+	return 125;
 }
