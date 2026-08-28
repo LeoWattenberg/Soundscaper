@@ -48,7 +48,7 @@ for (const workflowName of workflowNames) {
 		}
 		assert.match(tests, /npm run coverage:compact -- coverage\/shards\//u,
 			'a shard has to hand its coverage on, or the merged threshold check is measuring less than the suite');
-		assert.match(coverage, /^\s+needs: tests$/mu,
+		assert.match(coverage, /^\s+needs: (?:tests|\[[^\]\n]*\btests\b[^\]\n]*\])$/mu,
 			'the thresholds may only be checked once every shard has reported');
 	});
 

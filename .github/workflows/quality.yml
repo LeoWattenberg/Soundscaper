@@ -69,6 +69,77 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  native-platform-compile:
+    name: Native compile / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    needs: quality
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - runner: windows-2025
+            platform: win
+            arch: x64
+            node_arch: x64
+            cmake_arch: x64
+          - runner: windows-11-arm
+            platform: win
+            arch: arm64
+            node_arch: x64
+            cmake_arch: ARM64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test the authenticated target-native OS audio codec host
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+
+      - name: Configure the Windows isolation launcher
+        if: runner.os == 'Windows'
+        run: >-
+          cmake -S native/milestone-5-native-isolation-launcher
+          -B "${{ runner.temp }}/native-isolation-launcher"
+          -A ${{ matrix.target.cmake_arch }}
+
+      - name: Configure the macOS isolation launcher
+        if: runner.os == 'macOS'
+        run: >-
+          cmake -S native/milestone-5-native-isolation-launcher
+          -B "${{ runner.temp }}/native-isolation-launcher"
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Compile the target-native isolation launcher
+        run: >-
+          cmake --build "${{ runner.temp }}/native-isolation-launcher"
+          --config Release --parallel
+          --target milestone5-native-isolation-launcher
+
   tests:
     name: Tests / ${{ matrix.shard }}
     needs: quality
@@ -125,7 +196,7 @@ jobs:
         run: npm run provision:interchange-conformance
 
       - name: Run the ${{ matrix.shard }} Node test shard
-        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }}
+        run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native
         env:
           # The headroom the suite has always run under. Nothing here merges
           # coverage — the shard only records raw V8 profiles — but a few tests
@@ -150,7 +221,10 @@ jobs:
 
   coverage:
     name: Coverage
-    needs: tests
+    # Keep this established aggregate check red/skipped when a target-native
+    # compile fails, even on repositories whose branch rules predate the new
+    # matrix job and require only the existing Coverage status.
+    needs: [tests, native-platform-compile]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -316,7 +390,7 @@ jobs:
     # the three browser jobs are the only proof the built site actually runs.
     # Cloudflare's own git integration builds on push with no knowledge of any
     # of this, so it must be turned off in both projects or it will race us.
-    needs: [coverage, browser, firefox]
+    needs: [coverage, browser, firefox, native-platform-compile]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30

@@ -212,6 +212,32 @@ test('all OS-capable package paths build the codec host while Linux receives no 
 	assert.doesNotMatch(ciEntry, /console[^\n]*SIGNING_IDENTITY|JSON\.stringify[^\n]*SIGNING_IDENTITY/u);
 });
 
+test('pull-request quality compiles every supported Windows and macOS native target', async () => {
+	const workflow = await readFile(join(ROOT, '.github/workflows/quality.yml'), 'utf8');
+	const compileJob = jobSource(workflow, 'native-platform-compile', 'tests');
+	assert.match(compileJob, /needs: quality/u);
+	assert.match(compileJob, /runner: windows-2025[\s\S]*platform: win[\s\S]*arch: x64[\s\S]*node_arch: x64/u);
+	assert.match(compileJob, /runner: windows-11-arm[\s\S]*platform: win[\s\S]*arch: arm64[\s\S]*node_arch: x64/u);
+	assert.match(compileJob, /runner: macos-15[\s\S]*platform: mac[\s\S]*arch: arm64[\s\S]*node_arch: arm64/u);
+	assert.doesNotMatch(compileJob, /runner: ubuntu|platform: linux/u);
+	assert.match(compileJob, /node scripts\/ci-build-os-audio-codec-host\.mjs/u);
+	for (const argument of [
+		'--desktop-platform=${{ matrix.target.platform }}',
+		'--desktop-arch=${{ matrix.target.arch }}',
+		'--runner-os=${{ runner.os }}',
+		'--runner-arch=${{ runner.arch }}',
+	]) assert.match(compileJob, new RegExp(escapeRegExp(argument), 'u'), argument);
+	assert.match(compileJob,
+		/cmake -S native\/milestone-5-native-isolation-launcher[\s\S]*-A \$\{\{ matrix\.target\.cmake_arch \}\}/u);
+	assert.match(compileJob,
+		/-DCMAKE_OSX_ARCHITECTURES=arm64[\s\S]*--target milestone5-native-isolation-launcher/u);
+
+	const coverageJob = jobSource(workflow, 'coverage', 'browser');
+	assert.match(coverageJob, /needs: \[tests, native-platform-compile\]/u);
+	const deployJob = jobSource(workflow, 'deploy', null);
+	assert.match(deployJob, /needs: \[[^\]]*native-platform-compile[^\]]*\]/u);
+});
+
 test('the macOS SDK alias resolves to the versioned directory it names', async (context) => {
 	// xcrun reports .../SDKs/MacOSX.sdk, which Xcode ships as a symbolic alias for
 	// the versioned SDK. Rejecting the alias outright failed the macOS codec build

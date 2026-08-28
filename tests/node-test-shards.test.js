@@ -130,6 +130,10 @@ for (const workflowName of SHARDED_WORKFLOWS) {
 			[...NODE_TEST_SHARD_IDS].sort(),
 			`${workflowName} must run every shard the classifier can produce, and only those`,
 		);
-		assert.match(job, /npm run test:shard -- --shard=\$\{\{ matrix\.shard \}\}/u);
+		assert.match(
+			job,
+			/npm run test:shard -- --shard=\$\{\{ matrix\.shard \}\} --require-linux-native/u,
+			`${workflowName} must turn native prerequisite skips into failures`,
+		);
 	});
 }
