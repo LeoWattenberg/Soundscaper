@@ -146,6 +146,7 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 /** Leaf modules whose package imports must be closed into the staged runtime. */
 export const DESKTOP_RUNTIME_BUNDLED_LEAF_FILES = Object.freeze([
 	'src/common/editor/audio-track-freeze-v21.js',
+	'src/common/editor/ixml.js',
 	'src/common/editor/native-media-image-sequence-rgba8-admission.js',
 	'src/common/editor/native-media-image-sequence-pack-v25.js',
 	'src/common/editor/native-media-image-sequence-v25.js',
