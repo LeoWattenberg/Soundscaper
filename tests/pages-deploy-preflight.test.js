@@ -429,33 +429,37 @@ test('a deployed origin is never mistaken for one that was never deployed', asyn
 	);
 });
 
-test('the Framescaper deploy audits its own project rather than a hostname serving another product', async () => {
-	// framescaper.org is not pointed at the framescaper project yet, so that
-	// hostname answers with Soundscaper: auditing it would pass or fail on the
-	// wrong product's content. The project's own hostname is named explicitly
-	// instead, and it already carries a deployment — so no cold start may be
-	// declared here either. A declaration on a live origin would let an outage
-	// of the origin the deploy is replacing pass as "never deployed", which is
-	// exactly the failure the declaration exists to make impossible.
+test('each deploy audits the hostname people actually load', async () => {
+	// framescaper.org is attached to the framescaper Pages project and already
+	// carries a deployment, so nothing may stand between the gate and it.
+	// Naming the project's *.pages.dev hostname would leave the custom domain —
+	// the one with the zone settings and the one visitors reach — unaudited,
+	// and a cold-start declaration on a live origin would let an outage of the
+	// deployment being replaced pass as "never deployed", which is exactly the
+	// failure that declaration exists to make impossible.
 	const workflow = await readFile('.github/workflows/quality.yml', 'utf8');
 	const section = (name, next) => workflow.slice(workflow.indexOf(`- name: Build ${name}`), workflow.indexOf(`- name: Deploy ${next}`));
-	assert.match(section('Framescaper', 'Framescaper'), /SCAPE_DEPLOY_AUDIT_ORIGIN: https:\/\/framescaper\.pages\.dev/u);
-	assert.doesNotMatch(section('Framescaper', 'Framescaper'), /SCAPE_PAGES_COLD_START/u);
-	assert.doesNotMatch(section('Soundscaper', 'Soundscaper'), /SCAPE_PAGES_COLD_START/u);
-	assert.doesNotMatch(section('Soundscaper', 'Soundscaper'), /SCAPE_DEPLOY_AUDIT_ORIGIN/u);
+	for (const product of ['Soundscaper', 'Framescaper']) {
+		assert.doesNotMatch(section(product, product), /SCAPE_PAGES_COLD_START/u);
+		assert.doesNotMatch(section(product, product), /SCAPE_DEPLOY_AUDIT_ORIGIN/u);
+	}
 });
 
-test('the zone browser cache TTL excuses no-cache and nothing else', async () => {
-	// soundscaper.org carries a four-hour Browser Cache TTL on the zone, so
-	// every route `_headers` marks `no-cache` reaches a browser as
-	// `max-age=14400` and the `no-cache` token is gone. That is a deliberate
-	// tradeoff for a large editor shell, so the audit expects the delivered
-	// value — on that origin only, and in place of `no-cache` only.
-	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+test('the zone browser cache TTL excuses no-cache on either product origin, and nothing else', async () => {
+	// Both product zones set a four-hour Browser Cache TTL, which Cloudflare
+	// applies to whatever it caches that names no lifetime of its own. Which
+	// routes that covers is the zone's decision: soundscaper.org caches its
+	// documents and rewrites all of them, framescaper.org caches only the
+	// artwork and still serves its documents `no-cache`. Both are legitimate on
+	// those origins, so both are admitted for a `no-cache` route — and nothing
+	// else is.
+	const soundscaper = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	const framescaper = webBuildRouting({ SCAPE_PRODUCT: 'framescaper' });
 	const assetPath = '/assets/site-entry-AbCd1234.js';
-	const zone = liveDeployment({ routing, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
+
+	const rewritten = liveDeployment({ routing: soundscaper, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
 	assert.deepEqual(
-		[...zone.served].filter(([, { cacheControl }]) => cacheControl === ZONE_BROWSER_TTL).map(([path]) => path).sort(),
+		[...rewritten.served].filter(([, { cacheControl }]) => cacheControl === ZONE_BROWSER_TTL).map(([path]) => path).sort(),
 		[
 			'/',
 			'/embed/en/',
@@ -470,38 +474,56 @@ test('the zone browser cache TTL excuses no-cache and nothing else', async () =>
 			'/offline-icons/framescaper-180.png',
 			'/offline-icons/soundscaper-180.png',
 		],
-		'the documents and the installed artwork are the routes with no lifetime of their own',
+		'the documents and the installed artwork are the routes that name no lifetime of their own',
 	);
+	assert.deepEqual(await verifyLivePagesCachePolicy({ routing: soundscaper, fetchImpl: rewritten.fetchImpl }), {
+		verifiedRouteCount: rewritten.descriptors.length,
+		assetPath,
+		coldStart: false,
+	});
 
-	// Expecting the rewrite is not the same as accepting any lifetime.
-	zone.served.get('/en/').cacheControl = 'max-age=60';
+	// framescaper.org caches the artwork and not the documents, so one live
+	// deployment carries both values at once and still has to pass.
+	const mixed = liveDeployment({ routing: framescaper, assetPath });
+	for (const path of ['/logo/framescaper-icon.svg', '/offline-icons/framescaper-180.png']) {
+		mixed.served.get(path).cacheControl = ZONE_BROWSER_TTL;
+	}
+	assert.deepEqual(await verifyLivePagesCachePolicy({ routing: framescaper, fetchImpl: mixed.fetchImpl }), {
+		verifiedRouteCount: mixed.descriptors.length,
+		assetPath,
+		coldStart: false,
+	});
+
+	// Admitting the rewrite is not the same as admitting any lifetime.
+	mixed.served.get('/en/').cacheControl = 'max-age=60';
 	await assert.rejects(
-		() => verifyLivePagesCachePolicy({ routing, fetchImpl: zone.fetchImpl }),
-		/Cache-Control is invalid for \/en\/: expected max-age=14400, received max-age=60/u,
+		() => verifyLivePagesCachePolicy({ routing: framescaper, fetchImpl: mixed.fetchImpl }),
+		/Cache-Control is invalid for \/en\/: expected no-cache or max-age=14400, received max-age=60/u,
 	);
-	zone.served.get('/en/').cacheControl = ZONE_BROWSER_TTL;
+	mixed.served.get('/en/').cacheControl = 'no-cache';
 
-	// A `no-store` response is uncacheable, so the zone never touches it: a
+	// A `no-store` response is never cacheable, so the zone never touches it: a
 	// service worker handed a browser TTL is a real fault, not the rewrite.
-	zone.served.get('/service-worker.js').cacheControl = ZONE_BROWSER_TTL;
+	mixed.served.get('/service-worker.js').cacheControl = ZONE_BROWSER_TTL;
 	await assert.rejects(
-		() => verifyLivePagesCachePolicy({ routing, fetchImpl: zone.fetchImpl }),
+		() => verifyLivePagesCachePolicy({ routing: framescaper, fetchImpl: mixed.fetchImpl }),
 		/Cache-Control is invalid for \/service-worker\.js: expected no-store, received max-age=14400/u,
 	);
 
-	// The rule belongs to one zone. framescaper.pages.dev is not on it and
-	// serves the checked-in value verbatim, so the same rewrite is a change
-	// there and has to fail.
-	const previewRouting = webBuildRouting({ SCAPE_PRODUCT: 'framescaper' });
+	// The setting belongs to the two product zones. framescaper.pages.dev is on
+	// neither, so the same rewrite there is a change and has to fail.
 	const origin = 'https://framescaper.pages.dev';
-	const preview = liveDeployment({ routing: previewRouting, assetPath });
-	assert.deepEqual(
-		await verifyLivePagesCachePolicy({ routing: previewRouting, origin, fetchImpl: preview.fetchImpl }),
-		{ verifiedRouteCount: preview.descriptors.length, assetPath, coldStart: false },
-	);
-	const rewrittenPreview = liveDeployment({ routing: previewRouting, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
+	const preview = liveDeployment({ routing: framescaper, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
 	await assert.rejects(
-		() => verifyLivePagesCachePolicy({ routing: previewRouting, origin, fetchImpl: rewrittenPreview.fetchImpl }),
+		() => verifyLivePagesCachePolicy({ routing: framescaper, origin, fetchImpl: preview.fetchImpl }),
 		/Cache-Control is invalid for \/: expected no-cache, received max-age=14400/u,
+	);
+	assert.deepEqual(
+		await verifyLivePagesCachePolicy({
+			routing: framescaper,
+			origin,
+			fetchImpl: liveDeployment({ routing: framescaper, assetPath }).fetchImpl,
+		}),
+		{ verifiedRouteCount: preview.descriptors.length, assetPath, coldStart: false },
 	);
 });

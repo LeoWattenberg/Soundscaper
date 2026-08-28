@@ -69,31 +69,36 @@ const REVALIDATE_CACHE_CONTROL = 'no-cache';
 /**
  * Zones that rewrite `no-cache` on the way out, and what a browser gets instead.
  *
- * Cloudflare's zone-level Browser Cache TTL applies to any cacheable response
- * whose own headers name no freshness lifetime. `no-store` is not cacheable and
- * `public, max-age=31536000, immutable` names a lifetime of its own, so the
- * service workers, `/offline-shell.json` and the content-hashed bundles all
- * reach a browser exactly as `_headers` wrote them. Every route `_headers` marks
- * `no-cache` — the documents and the installed artwork — names no lifetime, so
- * on soundscaper.org it arrives as `max-age=14400` and the `no-cache` token is
- * gone entirely.
+ * Both product zones set a four-hour Browser Cache TTL, and Cloudflare applies
+ * it to any response it caches whose own headers name no freshness lifetime.
+ * `no-store` is never cacheable and `public, max-age=31536000, immutable` names
+ * a lifetime of its own, so the workers, `/offline-shell.json` and the
+ * content-hashed bundles always reach a browser exactly as `_headers` wrote
+ * them. Only the `no-cache` routes — the documents and the installed artwork —
+ * can come back rewritten.
  *
- * That rewrite is deliberate, and it is configured on the zone rather than in
- * this repository. The editor shell is large, and a returning visitor opening a
- * possibly-stale copy at once is preferred to one blocked on a revalidation.
- * `_headers` keeps saying `no-cache` because that is what holds Cloudflare to
- * revalidating against the origin: the edge picks a deploy up immediately and
- * the staleness a visitor can see is bounded by the browser TTL alone.
+ * Which of them actually do is the zone's decision, not the deployment's, and
+ * the two zones already differ: soundscaper.org caches its documents and hands
+ * a browser `max-age=14400` for every one of them, while framescaper.org caches
+ * only the artwork and still serves its documents `no-cache`. That split
+ * follows Cloudflare's cache rules and its default eligibility by file
+ * extension, both of which live outside this repository and can change without
+ * a deploy. So on these origins the audit admits either value for a `no-cache`
+ * route and nothing else — an unexpected lifetime is still a failure, and a
+ * rewritten `no-store` route still is too.
  *
- * Origins are listed one at a time because the rewrite belongs to a zone and not
- * to a build. framescaper.pages.dev is not on this zone and serves `no-cache`
- * verbatim, so auditing it against the override would hide a real change. An
- * origin absent from this table is held to `_headers` exactly — which is also
- * what will make moving framescaper.org onto a zone of its own fail here until
- * its entry is added.
+ * The rewrite is deliberate where it lands. The editor shell is large, and a
+ * returning visitor opening a possibly-stale copy at once beats one blocked on
+ * a revalidation. `_headers` keeps saying `no-cache` because that is what holds
+ * the edge to revalidating against the origin.
+ *
+ * Origins are listed one at a time because the setting belongs to a zone and
+ * not to a build: framescaper.pages.dev is not on one of these zones and is
+ * held to `_headers` exactly.
  */
 const ZONE_BROWSER_CACHE_CONTROL = Object.freeze({
 	'https://soundscaper.org': 'max-age=14400',
+	'https://framescaper.org': 'max-age=14400',
 });
 
 /** A content-hashed bundle, which is the only kind of object the immutable rule covers. */
@@ -222,9 +227,9 @@ export async function verifyLivePagesCachePolicy({
 		const response = await fetchImpl(url.href, auditRequest());
 		assert(response instanceof Response && response.status === 200,
 			`Pages cache-policy audit received HTTP ${String(response?.status)} for ${descriptor.path}`);
-		const expected = deliveredCacheControl(descriptor, auditOrigin.origin);
-		assert(response.headers.get('cache-control') === expected,
-			`Pages cache-policy Cache-Control is invalid for ${descriptor.path}: expected ${expected}, `
+		const accepted = acceptableCacheControl(descriptor, auditOrigin.origin);
+		assert(accepted.includes(response.headers.get('cache-control')),
+			`Pages cache-policy Cache-Control is invalid for ${descriptor.path}: expected ${accepted.join(' or ')}, `
 			+ `received ${response.headers.get('cache-control') ?? '<missing>'}`);
 		if (descriptor.serviceWorkerAllowed) {
 			assert(response.headers.get('service-worker-allowed') === descriptor.serviceWorkerAllowed,
@@ -328,12 +333,12 @@ async function verifyRetiredRedirect(fetchImpl, url, descriptor) {
 	await response.arrayBuffer();
 }
 
-/** What a browser is actually handed for one descriptor on one audited origin. */
-function deliveredCacheControl(descriptor, origin) {
+/** Every `Cache-Control` a browser may be handed for one descriptor on one audited origin. */
+function acceptableCacheControl(descriptor, origin) {
 	const rewritten = ZONE_BROWSER_CACHE_CONTROL[origin];
 	return rewritten !== undefined && descriptor.cacheControl === REVALIDATE_CACHE_CONTROL
-		? rewritten
-		: descriptor.cacheControl;
+		? [descriptor.cacheControl, rewritten]
+		: [descriptor.cacheControl];
 }
 
 function served(path, cacheControl, serviceWorkerAllowed) {
