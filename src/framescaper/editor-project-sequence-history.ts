@@ -122,7 +122,7 @@ export function undoFramescaperProjectCommandSequence(
 	const entry = valid.undoStack.at(-1)!;
 	return restore(profile, valid, entry, valid.undoStack.slice(0, -1), [
 		...valid.redoStack,
-		{ project: valid.present, command: entry.command },
+		{ project: valid.present, command: structuredClone(entry.command) },
 	].slice(-valid.limit), options);
 }
 
@@ -137,7 +137,7 @@ export function redoFramescaperProjectCommandSequence(
 	const entry = valid.redoStack.at(-1)!;
 	return restore(profile, valid, entry, [
 		...valid.undoStack,
-		{ project: valid.present, command: entry.command },
+		{ project: valid.present, command: structuredClone(entry.command) },
 	].slice(-valid.limit), valid.redoStack.slice(0, -1), options);
 }
 

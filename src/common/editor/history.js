@@ -1,4 +1,5 @@
 import { applyEditorCommand } from './commands.js';
+import { snapshotInertEditorCommand } from './commands/editor-command-snapshot.ts';
 import { cloneProject, validateAudioEditorProject } from './project.js';
 
 export const AUDIO_EDITOR_HISTORY_LIMIT = 200;
@@ -29,7 +30,10 @@ export function executeEditorCommand(history, command, options = {}) {
 	return {
 		...history,
 		present: nextProject,
-		undoStack: [...history.undoStack, { project: history.present, command }].slice(-history.limit),
+		undoStack: [...history.undoStack, {
+			project: history.present,
+			command: snapshotInertEditorCommand(command),
+		}].slice(-history.limit),
 		redoStack: [],
 	};
 }
@@ -42,7 +46,10 @@ export function undoEditorCommand(history, options = {}) {
 		...history,
 		present: restored,
 		undoStack: history.undoStack.slice(0, -1),
-		redoStack: [...history.redoStack, { project: history.present, command: entry.command }].slice(-history.limit),
+		redoStack: [...history.redoStack, {
+			project: history.present,
+			command: snapshotInertEditorCommand(entry.command),
+		}].slice(-history.limit),
 	};
 }
 
@@ -53,7 +60,10 @@ export function redoEditorCommand(history, options = {}) {
 	return {
 		...history,
 		present: restored,
-		undoStack: [...history.undoStack, { project: history.present, command: entry.command }].slice(-history.limit),
+		undoStack: [...history.undoStack, {
+			project: history.present,
+			command: snapshotInertEditorCommand(entry.command),
+		}].slice(-history.limit),
 		redoStack: history.redoStack.slice(0, -1),
 	};
 }

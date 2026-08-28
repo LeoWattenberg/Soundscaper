@@ -112,7 +112,7 @@ export function undoSoundscaperProductionCommand(
 	const entry = valid.undoStack.at(-1)!;
 	return restore(valid, entry, valid.undoStack.slice(0, -1), [
 		...valid.redoStack,
-		{ project: revision.cloneProject(valid.present), command: entry.command },
+		{ project: revision.cloneProject(valid.present), command: revision.snapshotCommand(entry.command) },
 	].slice(-valid.limit), revision, options);
 }
 
@@ -127,7 +127,7 @@ export function redoSoundscaperProductionCommand(
 	const entry = valid.redoStack.at(-1)!;
 	return restore(valid, entry, [
 		...valid.undoStack,
-		{ project: revision.cloneProject(valid.present), command: entry.command },
+		{ project: revision.cloneProject(valid.present), command: revision.snapshotCommand(entry.command) },
 	].slice(-valid.limit), valid.redoStack.slice(0, -1), revision, options);
 }
 
