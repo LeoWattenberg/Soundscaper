@@ -98,17 +98,33 @@ test('Pages CLI verifies only the deployed Pages cache policy', async () => {
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 /**
+ * The `Cache-Control` a browser is handed on soundscaper.org where `_headers`
+ * says `no-cache`, because the zone carries a four-hour Browser Cache TTL.
+ */
+const ZONE_BROWSER_TTL = 'max-age=14400';
+
+/**
  * A fake live deployment.
  *
  * It answers every `served` descriptor with the metadata the audit demands and
  * publishes its own asset inventory at `/offline-shell.json`, which is where the
  * audit learns which content-hashed asset that deployment actually has.
+ *
+ * `zoneBrowserTtl` models a zone that rewrites `no-cache` on the way out, which
+ * is what soundscaper.org does and what a browser therefore observes. It is
+ * named by the caller rather than derived from the module under test, so the
+ * delivered value is stated by the test rather than agreed with itself.
  */
-function liveDeployment({ routing, assetPath, inventory = [assetPath], redirects = new Map() }) {
+function liveDeployment({ routing, assetPath, inventory = [assetPath], redirects = new Map(), zoneBrowserTtl }) {
 	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
 	const served = new Map(descriptors
 		.filter(({ expectation }) => expectation === 'served')
-		.map((descriptor) => [descriptor.path, { ...descriptor }]));
+		.map((descriptor) => [descriptor.path, {
+			...descriptor,
+			cacheControl: zoneBrowserTtl !== undefined && descriptor.cacheControl === 'no-cache'
+				? zoneBrowserTtl
+				: descriptor.cacheControl,
+		}]));
 	const bodies = new Map();
 	const requests = [];
 	const fetchImpl = async (url, init) => {
@@ -146,7 +162,7 @@ function liveBody(pathname, descriptor, inventory) {
 test('live Pages policy preserves checked-in browser TTLs for stable routes and immutable assets', async () => {
 	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
 	const assetPath = '/assets/site-entry-AbCd1234.js';
-	const live = liveDeployment({ routing, assetPath });
+	const live = liveDeployment({ routing, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
 
 	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl }), {
 		verifiedRouteCount: live.descriptors.length,
@@ -285,7 +301,7 @@ test('a retired product path redirects its documents but keeps serving its tombs
 	const redirects = new Map(descriptors
 		.filter(({ expectation }) => expectation === 'redirected')
 		.map(({ path, location }) => [path, location]));
-	const live = liveDeployment({ routing, assetPath, redirects });
+	const live = liveDeployment({ routing, assetPath, redirects, zoneBrowserTtl: ZONE_BROWSER_TTL });
 	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl }), {
 		verifiedRouteCount: descriptors.length,
 		assetPath,
@@ -427,4 +443,65 @@ test('the Framescaper deploy audits its own project rather than a hostname servi
 	assert.doesNotMatch(section('Framescaper', 'Framescaper'), /SCAPE_PAGES_COLD_START/u);
 	assert.doesNotMatch(section('Soundscaper', 'Soundscaper'), /SCAPE_PAGES_COLD_START/u);
 	assert.doesNotMatch(section('Soundscaper', 'Soundscaper'), /SCAPE_DEPLOY_AUDIT_ORIGIN/u);
+});
+
+test('the zone browser cache TTL excuses no-cache and nothing else', async () => {
+	// soundscaper.org carries a four-hour Browser Cache TTL on the zone, so
+	// every route `_headers` marks `no-cache` reaches a browser as
+	// `max-age=14400` and the `no-cache` token is gone. That is a deliberate
+	// tradeoff for a large editor shell, so the audit expects the delivered
+	// value — on that origin only, and in place of `no-cache` only.
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	const assetPath = '/assets/site-entry-AbCd1234.js';
+	const zone = liveDeployment({ routing, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
+	assert.deepEqual(
+		[...zone.served].filter(([, { cacheControl }]) => cacheControl === ZONE_BROWSER_TTL).map(([path]) => path).sort(),
+		[
+			'/',
+			'/embed/en/',
+			'/en/',
+			'/framescaper/embed/en/',
+			'/framescaper/en/',
+			'/logo/framescaper-icon.svg',
+			'/logo/logo-klein-schwarz.svg',
+			'/logo/logo-klein-weiß.svg',
+			'/manifest-framescaper.webmanifest',
+			'/manifest-soundscaper.webmanifest',
+			'/offline-icons/framescaper-180.png',
+			'/offline-icons/soundscaper-180.png',
+		],
+		'the documents and the installed artwork are the routes with no lifetime of their own',
+	);
+
+	// Expecting the rewrite is not the same as accepting any lifetime.
+	zone.served.get('/en/').cacheControl = 'max-age=60';
+	await assert.rejects(
+		() => verifyLivePagesCachePolicy({ routing, fetchImpl: zone.fetchImpl }),
+		/Cache-Control is invalid for \/en\/: expected max-age=14400, received max-age=60/u,
+	);
+	zone.served.get('/en/').cacheControl = ZONE_BROWSER_TTL;
+
+	// A `no-store` response is uncacheable, so the zone never touches it: a
+	// service worker handed a browser TTL is a real fault, not the rewrite.
+	zone.served.get('/service-worker.js').cacheControl = ZONE_BROWSER_TTL;
+	await assert.rejects(
+		() => verifyLivePagesCachePolicy({ routing, fetchImpl: zone.fetchImpl }),
+		/Cache-Control is invalid for \/service-worker\.js: expected no-store, received max-age=14400/u,
+	);
+
+	// The rule belongs to one zone. framescaper.pages.dev is not on it and
+	// serves the checked-in value verbatim, so the same rewrite is a change
+	// there and has to fail.
+	const previewRouting = webBuildRouting({ SCAPE_PRODUCT: 'framescaper' });
+	const origin = 'https://framescaper.pages.dev';
+	const preview = liveDeployment({ routing: previewRouting, assetPath });
+	assert.deepEqual(
+		await verifyLivePagesCachePolicy({ routing: previewRouting, origin, fetchImpl: preview.fetchImpl }),
+		{ verifiedRouteCount: preview.descriptors.length, assetPath, coldStart: false },
+	);
+	const rewrittenPreview = liveDeployment({ routing: previewRouting, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
+	await assert.rejects(
+		() => verifyLivePagesCachePolicy({ routing: previewRouting, origin, fetchImpl: rewrittenPreview.fetchImpl }),
+		/Cache-Control is invalid for \/: expected no-cache, received max-age=14400/u,
+	);
 });

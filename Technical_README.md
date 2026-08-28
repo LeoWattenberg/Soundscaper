@@ -374,11 +374,17 @@ variables have already been exported into its process environment.
    that repository.
 4. Use production branch `main`, the Vite framework preset, gated build command
 	`npm run build:pages`, and output directory `dist`. Leave the root directory
-	empty. This command verifies that the live Pages hostname preserves
-	the checked-in no-cache/no-store headers for stable documents, product artwork,
-	manifests, offline audit data, and both workers while keeping hashed assets
-	immutable. The check runs before Pages can publish either a production or preview
-	deployment; do not replace it with the ungated `npm run build`.
+	empty. This command verifies that the live Pages hostname still delivers the
+	cache policy this repository checks in for stable documents, product artwork,
+	manifests, offline audit data, and both workers, and that hashed assets stay
+	immutable. Where a zone sets its own Browser Cache TTL, that value is what a
+	browser receives for every route `_headers` marks `no-cache`, and the audit
+	holds the origin to the delivered value: soundscaper.org rewrites `no-cache`
+	to `max-age=14400`, which is named in `ZONE_BROWSER_CACHE_CONTROL` in
+	[`scripts/lib/pages-deploy-preflight.mjs`](scripts/lib/pages-deploy-preflight.mjs)
+	and has to be updated there whenever the zone setting changes. The check runs
+	before Pages can publish either a production or preview deployment;
+	do not replace it with the ungated `npm run build`.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
 6. Repeat steps 1–5 for a second Pages project named `framescaper`, connected to
    the same repository and the same production branch `main`, with build command
