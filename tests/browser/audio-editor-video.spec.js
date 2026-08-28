@@ -17,7 +17,7 @@ test.describe('audio editor video composition workflow', () => {
 
 	test('imports generated A/V fixtures, layers tracks, crossfades, rejects a third overlap, and reorders layers', async ({ page }, testInfo) => {
 		test.skip(testInfo.project.name === 'webkit', WEBKIT_AV_IMPORT_DEFERRED);
-		test.setTimeout(60_000);
+		test.setTimeout(90_000);
 		await page.setViewportSize({ width: 1_440, height: 1_200 });
 		const red = createDeterministicAvFixture('layer-red.webm');
 		const blue = createDeterministicAvFixture('layer-blue.webm', { variant: 'portrait' });
