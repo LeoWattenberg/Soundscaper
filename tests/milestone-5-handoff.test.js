@@ -16,6 +16,7 @@ import {
 	isAssembledMilestone5Handoff,
 	validateMilestone5QualificationRevisionCompatibility,
 } from '../scripts/lib/milestone-5-handoff.mjs';
+import { auditDesktopPackageArtifactContent } from '../scripts/lib/desktop-package-artifact-extractor.mjs';
 import { createSoundscaperLinuxPackageFixture } from './helpers/milestone-5-linux-package-fixture.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
@@ -203,7 +204,18 @@ test('repository assembly binds an exact package and rejects a drifted staged pa
 	});
 	const { manifestName, runtimeManifest: manifest } = fixture;
 	const options = { packageRoot, productId: 'soundscaper', targetId: 'linux-x64' };
-	const handoff = await assembleMilestone5Handoff(repositoryRoot, undefined, options);
+	const dependencies = {
+		auditPackageArtifactContent: (artifactOptions) => auditDesktopPackageArtifactContent(
+			artifactOptions,
+			{
+				appImageCompatibilityLibraryAuthority:
+					fixture.appImageCompatibilityLibraryAuthority,
+			},
+		),
+	};
+	const handoff = await assembleMilestone5Handoff(
+		repositoryRoot, undefined, options, dependencies,
+	);
 	assert.deepEqual(handoff.assessmentScope, {
 		kind: 'package-cell', productId: 'soundscaper', targetId: 'linux-x64',
 	});
@@ -234,7 +246,7 @@ test('repository assembly binds an exact package and rejects a drifted staged pa
 	manifest.nativeAddons.payload.sha256 = '0'.repeat(64);
 	await writeJson(join(packageRoot, manifestName), manifest);
 	await assert.rejects(
-		assembleMilestone5Handoff(repositoryRoot, undefined, options),
+		assembleMilestone5Handoff(repositoryRoot, undefined, options, dependencies),
 		/package native-addon target disagrees|runtime manifest|embedded and adjacent/iu,
 	);
 });

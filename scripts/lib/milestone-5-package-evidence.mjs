@@ -144,7 +144,7 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 	const packages = [];
 	try {
 		for (const { label, name } of selected) {
-			const snapshotPath = resolve(snapshotRoot, name);
+			const snapshotPath = resolve(canonicalSnapshotRoot, name);
 			const file = await readAndDescribeRegularFile({
 				canonicalRoot,
 				label: `Milestone 5 ${label}`,
@@ -186,7 +186,7 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 			});
 		}
 		for (const descriptor of packages) {
-			const snapshotPath = resolve(snapshotRoot, descriptor.name);
+			const snapshotPath = resolve(canonicalSnapshotRoot, descriptor.name);
 			const content = await auditPackageArtifactContent({
 				packagePath: snapshotPath,
 				repositoryRoot,
@@ -199,7 +199,7 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 				label: `Milestone 5 authenticated ${descriptor.label} snapshot`,
 				maximumBytes: MAXIMUM_PACKAGE_BYTES,
 				name: descriptor.name,
-				packageRoot: snapshotRoot,
+				packageRoot: canonicalSnapshotRoot,
 				retainBytes: false,
 			});
 			if (after.byteLength !== descriptor.byteLength || after.sha256 !== descriptor.sha256) {
@@ -236,7 +236,7 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 			packages,
 		});
 	} finally {
-		await rm(snapshotRoot, { recursive: true, force: true });
+		await rm(canonicalSnapshotRoot, { recursive: true, force: true });
 	}
 }
 

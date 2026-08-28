@@ -12,6 +12,11 @@ import {
 } from './desktop-codec-policy.mjs';
 import { assertAssistanceNativeRuntimeClosure } from './desktop-package-assistance-closure.mjs';
 import { assertDesktopPackageOsAudioCodecClosure } from './desktop-package-os-audio-codec-closure.mjs';
+import {
+	normalizeDesktopPackageInstalledClosure,
+	validateDesktopPackageInstalledLayout,
+	validateDesktopPackageSpecificResources,
+} from './desktop-package-format-layout.mjs';
 import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
 
@@ -37,7 +42,7 @@ export async function writeDesktopPackageContentManifest({
 		'desktop runtime manifest');
 	const runtimeManifest = canonicalJson(runtimeManifestBytes, 'desktop runtime manifest');
 	validateRuntimeManifest(runtimeManifest, productId, targetId);
-	const files = await collectClosure(root, DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME);
+	const files = await collectClosure(root, [DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME]);
 	assertRuntimePayloadClosure(runtimeManifest, files);
 	const closureSha256 = digest(Buffer.from(JSON.stringify(files), 'utf8'));
 	const value = {
@@ -75,10 +80,11 @@ export async function writeDesktopPackageContentManifest({
 }
 export async function auditExtractedDesktopPackageContent({
 	extractedRoot,
+	packageFormat = null,
 	runtimeManifestBytes,
 	productId,
 	targetId,
-}) {
+}, dependencies = {}) {
 	identity(productId, targetId);
 	const extraction = await canonicalDirectory(extractedRoot, 'extracted desktop package root');
 	const adjacentBytes = boundedBytes(runtimeManifestBytes, MAXIMUM_MANIFEST_BYTES,
@@ -91,7 +97,12 @@ export async function auditExtractedDesktopPackageContent({
 	}
 	const contentPath = matches[0];
 	const resourcesRoot = dirname(contentPath);
-	const layout = await validateInstalledLayout({ extraction, resourcesRoot, productId, targetId });
+	const layout = await validateDesktopPackageInstalledLayout({
+		extraction, packageFormat, resourcesRoot, productId, targetId,
+	});
+	const packageResourceExclusions = await validateDesktopPackageSpecificResources({
+		packageFormat, productId, resourcesRoot, targetId,
+	});
 	const contentBytes = await boundedRead(contentPath, MAXIMUM_MANIFEST_BYTES,
 		'embedded package-content manifest');
 	const content = canonicalJson(contentBytes, 'embedded package-content manifest');
@@ -101,7 +112,10 @@ export async function auditExtractedDesktopPackageContent({
 		|| JSON.stringify(content.runtimeManifest.value) !== JSON.stringify(adjacent)) {
 		throw new Error('The embedded and adjacent desktop runtime manifests disagree.');
 	}
-	const files = await collectClosure(resourcesRoot, DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME);
+	const files = await collectClosure(resourcesRoot, [
+		DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME,
+		...packageResourceExclusions,
+	]);
 	assertRuntimePayloadClosure(adjacent, files);
 	if (JSON.stringify(files) !== JSON.stringify(content.files)
 		|| content.fileCount !== files.length
@@ -110,7 +124,19 @@ export async function auditExtractedDesktopPackageContent({
 		throw new Error('The extracted desktop resource closure disagrees with its embedded manifest.');
 	}
 	await assertExecutableArchitecture(layout.executable, targetId);
-	const installedFiles = await collectInstalledClosure(layout.applicationRoot);
+	const installedFiles = await normalizeDesktopPackageInstalledClosure(
+		await collectInstalledClosure(layout.applicationRoot),
+		{
+			appImageCompatibilityLibraryAuthority:
+				dependencies.appImageCompatibilityLibraryAuthority,
+			applicationRoot: layout.applicationRoot,
+			applicationVersion: content.applicationVersion,
+			packageFormat,
+			productId,
+			packageResourceExclusions,
+			targetId,
+		},
+	);
 	const installedClosureSha256 = digest(Buffer.from(JSON.stringify(installedFiles), 'utf8'));
 	return deepFreeze({
 		status: content.status,
@@ -169,6 +195,7 @@ async function collectInstalledClosure(root) {
 	await visit(root, '');
 	return files;
 }
+
 function assertRuntimePayloadClosure(runtime, files) {
 	const inventory = new Map(files.map((file) => [file.path, file]));
 	const expectedByPrefix = new Map();
@@ -310,14 +337,15 @@ function assertRuntimePayloadClosure(runtime, files) {
 		}
 	}
 }
-async function collectClosure(root, excludedName) {
+async function collectClosure(root, excludedNames) {
+	const excluded = new Set(excludedNames);
 	const files = [];
 	let totalBytes = 0;
 	async function visit(directory, prefix) {
 		const entries = await readdir(directory, { withFileTypes: true });
 		entries.sort((left, right) => left.name.localeCompare(right.name, 'en'));
 		for (const entry of entries) {
-			if (prefix === '' && entry.name === excludedName) continue;
+			if (prefix === '' && excluded.has(entry.name)) continue;
 			assertPortableSegment(entry.name);
 			const path = resolve(directory, entry.name);
 			const name = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
@@ -388,43 +416,6 @@ async function findManifest(root) {
 	}
 	await visit(root);
 	return matches;
-}
-
-async function validateInstalledLayout({ extraction, resourcesRoot, productId, targetId }) {
-	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
-	let executable;
-	let applicationRoot;
-	if (targetId.startsWith('linux-')) {
-		if (basename(resourcesRoot) !== 'resources') throw new Error('The Linux package resource layout is invalid.');
-		applicationRoot = dirname(resourcesRoot);
-		const relativeRoot = portableRelative(extraction, applicationRoot);
-		if (relativeRoot !== `usr/lib/${productId}` && relativeRoot !== `opt/${productName}`) {
-			throw new Error('The Linux package application layout is invalid.');
-		}
-		executable = resolve(applicationRoot, productId);
-	} else if (targetId.startsWith('win-')) {
-		if (basename(resourcesRoot) !== 'resources') throw new Error('The Windows package resource layout is invalid.');
-		applicationRoot = dirname(resourcesRoot);
-		const relativeRoot = portableRelative(extraction, applicationRoot);
-		if (relativeRoot !== '' && relativeRoot !== productName) {
-			throw new Error('The Windows package application layout is invalid.');
-		}
-		executable = resolve(applicationRoot, `${productName}.exe`);
-	} else {
-		const contents = dirname(resourcesRoot);
-		applicationRoot = dirname(contents);
-		if (basename(resourcesRoot) !== 'Resources' || basename(contents) !== 'Contents'
-			|| basename(dirname(contents)) !== `${productName}.app`
-			|| portableRelative(extraction, resourcesRoot) !== `${productName}.app/Contents/Resources`) {
-			throw new Error('The macOS package resource layout is invalid.');
-		}
-		executable = resolve(contents, 'MacOS', productName);
-	}
-	const metadata = await lstat(executable).catch(() => null);
-	if (!metadata?.isFile() || metadata.isSymbolicLink() || metadata.size < 1) {
-		throw new Error('The extracted package does not bind the resource closure to its product executable.');
-	}
-	return { applicationRoot, executable };
 }
 
 async function assertExecutableArchitecture(path, targetId) {
@@ -547,7 +538,6 @@ function identity(productId, targetId) {
 	}
 }
 
-function portableRelative(root, path) { return relative(root, path).split(sep).join('/'); }
 function contained(root, candidate) {
 	const path = relative(root, candidate);
 	return path !== '' && path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path);

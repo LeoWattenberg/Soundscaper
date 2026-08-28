@@ -169,6 +169,7 @@ export async function assembleMilestone5Handoff(
 	repositoryRoot,
 	sourceRevision,
 	packageOptions = null,
+	dependencies = {},
 ) {
 	const observedHeadRevision = currentRevision(repositoryRoot);
 	const sourceRevisionBinding = sourceRevision === undefined
@@ -209,6 +210,7 @@ export async function assembleMilestone5Handoff(
 			productId: packageOptions.productId,
 			targetId: packageOptions.targetId,
 		}, {
+			auditPackageArtifactContent: dependencies.auditPackageArtifactContent,
 			releaseAuthenticationPolicyBytes:
 				inputBytes[MILESTONE_5_HANDOFF_INPUT_PATHS.releaseAuthenticationPolicy],
 		});

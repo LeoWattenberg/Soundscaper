@@ -24,22 +24,23 @@ export async function auditDesktopPackageArtifactContent({
 	runtimeManifestBytes,
 	productId,
 	targetId,
-}) {
+}, dependencies = {}) {
 	const artifact = await canonicalFile(packagePath, 'desktop package artifact');
 	const root = await canonicalDirectory(repositoryRoot, 'desktop package repository root');
 	const extension = extname(artifact).toLowerCase();
 	assertFormatTarget(extension, targetId);
-	const temporaryRoot = await mkdtemp(join(tmpdir(), 'm5-package-extract-'));
+	const temporaryRoot = await realpath(await mkdtemp(join(tmpdir(), 'm5-package-extract-')));
 	try {
 		if (extension === '.dmg') {
 			if (process.platform === 'darwin') {
 				return await withMountedDmg(artifact, async (mountedRoot) => (
 					auditExtractedDesktopPackageContent({
 						extractedRoot: mountedRoot,
+						packageFormat: extension,
 						runtimeManifestBytes,
 						productId,
 						targetId,
-					})
+					}, dependencies)
 				));
 			}
 			const extractedRoot = join(temporaryRoot, 'content');
@@ -48,14 +49,15 @@ export async function auditDesktopPackageArtifactContent({
 			], 'DMG extraction');
 			return await auditExtractedDesktopPackageContent({
 				extractedRoot,
+				packageFormat: extension,
 				runtimeManifestBytes,
 				productId,
 				targetId,
-			});
+			}, dependencies);
 		}
 		const extractedRoot = join(temporaryRoot, 'content');
 		if (extension === '.appimage') {
-			const offset = await appImageSquashfsOffset(artifact);
+			const offset = await appImageSquashfsOffset(artifact, targetId);
 			await run('unsquashfs', [
 				'-no-progress', '-offset', String(offset), '-d', extractedRoot, artifact,
 			], 'AppImage extraction');
@@ -75,24 +77,26 @@ export async function auditDesktopPackageArtifactContent({
 					'NSIS application extraction');
 				return await auditExtractedDesktopPackageContent({
 					extractedRoot: applicationRoot,
+					packageFormat: extension,
 					runtimeManifestBytes,
 					productId,
 					targetId,
-				});
+				}, dependencies);
 			}
 		}
 		return await auditExtractedDesktopPackageContent({
 			extractedRoot,
+			packageFormat: extension,
 			runtimeManifestBytes,
 			productId,
 			targetId,
-		});
+		}, dependencies);
 	} finally {
 		await rm(temporaryRoot, { recursive: true, force: true });
 	}
 }
 
-export async function appImageSquashfsOffset(path) {
+export async function appImageSquashfsOffset(path, targetId = null) {
 	let handle;
 	try {
 		handle = await open(path, 'r');
@@ -108,6 +112,14 @@ export async function appImageSquashfsOffset(path) {
 		const byteOrder = header[5];
 		if (![1, 2].includes(elfClass) || ![1, 2].includes(byteOrder)) {
 			throw new Error('The AppImage ELF class or byte order is unsupported.');
+		}
+		if (targetId !== null) {
+			const expectedMachine = targetId === 'linux-x64' ? 62
+				: targetId === 'linux-arm64' ? 183 : null;
+			if (expectedMachine === null || elfClass !== 2 || byteOrder !== 1
+				|| header.readUInt16LE(18) !== expectedMachine) {
+				throw new Error('The AppImage runtime has the wrong target architecture.');
+			}
 		}
 		const littleEndian = byteOrder === 1;
 		const sectionOffset = elfClass === 2

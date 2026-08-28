@@ -16,6 +16,11 @@ test('AppImage extraction derives the payload from ELF structure and ignores dec
 	bytes.set(Buffer.from('hsqs'), 128);
 	await writeFile(path, bytes);
 	assert.equal(await appImageSquashfsOffset(path), 4_096);
+	assert.equal(await appImageSquashfsOffset(path, 'linux-x64'), 4_096);
+	await assert.rejects(
+		appImageSquashfsOffset(path, 'linux-arm64'),
+		/AppImage runtime.*wrong target architecture/iu,
+	);
 
 	bytes.set(Buffer.from('nope'), 4_096);
 	await writeFile(path, bytes);

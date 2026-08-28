@@ -3,8 +3,9 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import {
-	cp, mkdir, readFile, rename, rm, symlink, writeFile,
+	cp, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile,
 } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
@@ -32,17 +33,22 @@ test('a genuine package audit binds one exact target manifest and every packaged
 }, async (context) => {
 	const fixture = await createPackageFixture(context);
 	let unauthenticatedExtractionCalls = 0;
-	const audit = await auditMilestone5PackageEvidence({
-		repositoryRoot: fixture.root,
-		packageRoot: fixture.packageRoot,
-		productId: 'soundscaper',
-		targetId: 'linux-x64',
-	}, {
-		auditPackageArtifactContent: async (options) => {
-			unauthenticatedExtractionCalls += 1;
-			return auditDesktopPackageArtifactContent(options);
-		},
+	const auditFixtureArtifact = (options) => auditDesktopPackageArtifactContent(options, {
+		appImageCompatibilityLibraryAuthority: fixture.appImageCompatibilityLibraryAuthority,
 	});
+	const audit = await withAliasedTemporaryDirectory(context, () => (
+		auditMilestone5PackageEvidence({
+			repositoryRoot: fixture.root,
+			packageRoot: fixture.packageRoot,
+			productId: 'soundscaper',
+			targetId: 'linux-x64',
+		}, {
+			auditPackageArtifactContent: async (options) => {
+				unauthenticatedExtractionCalls += 1;
+				return auditFixtureArtifact(options);
+			},
+		})
+	));
 
 	assert.equal(isAuditedMilestone5PackageEvidence(audit), true);
 	assert.equal(isAuditedMilestone5PackageEvidence(structuredClone(audit)), false);
@@ -143,6 +149,8 @@ test('a genuine package audit binds one exact target manifest and every packaged
 		packageRoot: fixture.packageRoot,
 		productId: 'soundscaper',
 		targetId: 'linux-x64',
+	}, {
+		auditPackageArtifactContent: auditFixtureArtifact,
 	});
 	assert.equal(authenticatedAudit.releaseAuthentication.status, 'authenticated');
 	assert.equal(authenticatedAudit.releaseAuthentication.keyId, 'fixture-release-review');
@@ -170,6 +178,8 @@ test('a genuine package audit binds one exact target manifest and every packaged
 		packageRoot: fixture.packageRoot,
 		productId: 'soundscaper',
 		targetId: 'linux-x64',
+	}, {
+		auditPackageArtifactContent: auditFixtureArtifact,
 	});
 	assert.equal(invalidHumanAudit.status, 'release-authentication-invalid-report-only');
 	assert.equal(invalidHumanAudit.releaseAuthentication.status, 'invalid-report-only');
@@ -308,20 +318,38 @@ async function createPackageFixture(context) {
 	projectPackage.version = VERSION;
 	await writeJson(projectPackagePath, projectPackage);
 	const packageRoot = join(fixture.root, 'release/desktop');
-	await createSoundscaperLinuxPackageFixture({
+	const packageFixture = await createSoundscaperLinuxPackageFixture({
 		applicationVersion: VERSION,
 		context,
 		packageRoot,
 		repositoryRoot: fixture.root,
 		sourceRevision: SOURCE_REVISION,
 	});
-	return { ...fixture, packageRoot };
+	return { ...fixture, ...packageFixture, packageRoot };
 }
 
 async function clonePackageFixture(fixture, label) {
 	const packageRoot = join(fixture.root, 'release', label);
 	await cp(fixture.packageRoot, packageRoot, { recursive: true, errorOnExist: true });
 	return { ...fixture, packageRoot };
+}
+
+async function withAliasedTemporaryDirectory(context, operation) {
+	const target = await mkdtemp(join(tmpdir(), 'm5-canonical-temp-target-'));
+	const alias = `${target}-alias`;
+	await symlink(target, alias, 'dir');
+	context.after(async () => {
+		await rm(alias, { force: true });
+		await rm(target, { recursive: true, force: true });
+	});
+	const previous = process.env.TMPDIR;
+	process.env.TMPDIR = alias;
+	try {
+		return await operation();
+	} finally {
+		if (previous === undefined) delete process.env.TMPDIR;
+		else process.env.TMPDIR = previous;
+	}
 }
 
 async function writeJson(path, value) {
@@ -342,6 +370,8 @@ async function signedPackageDescriptors(fixture, descriptors) {
 			runtimeManifestBytes,
 			productId: 'soundscaper',
 			targetId: 'linux-x64',
+		}, {
+			appImageCompatibilityLibraryAuthority: fixture.appImageCompatibilityLibraryAuthority,
 		});
 		return {
 			label,

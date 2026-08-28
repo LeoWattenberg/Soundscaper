@@ -3,15 +3,18 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-	chmod, mkdir, mkdtemp, readFile, rm, writeFile,
+	chmod, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
+import appImageUtil from 'app-builder-lib/out/targets/appimage/appImageUtil.js';
+
 import assistanceNativeRuntimeManifest from '../../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { DESKTOP_CODEC_POLICY } from '../../scripts/lib/desktop-codec-policy.mjs';
+import { createPngFixture } from './png-fixture.mjs';
 import { writeDesktopPackageContentManifest } from '../../scripts/lib/desktop-package-content-manifest.mjs';
 import {
 	nativeAddonPayloadStageSummary,
@@ -82,7 +85,7 @@ export async function createSoundscaperLinuxPackageFixture({
 	const runtimeManifestPath = join(packageRoot, manifestName);
 	await writeJson(runtimeManifestPath, runtimeManifest);
 
-	const applicationRoot = join(workRoot, 'tree/usr/lib/soundscaper');
+	const applicationRoot = join(workRoot, 'tree/opt/Soundscaper');
 	const resourcesRoot = join(applicationRoot, 'resources');
 	await writeBytes(join(resourcesRoot, 'app.asar'), Buffer.from('authenticated fixture application'));
 	const nativeRoot = join(resourcesRoot, `runtime/native/${TARGET_ID}`);
@@ -114,15 +117,100 @@ export async function createSoundscaperLinuxPackageFixture({
 
 	const appImageName = `Soundscaper-${applicationVersion}-linux-x64.AppImage`;
 	const debianName = `Soundscaper-${applicationVersion}-linux-amd64.deb`;
-	await buildAppImage(join(workRoot, 'tree'), join(packageRoot, appImageName), workRoot);
+	// electron-builder places the installed application itself at the AppImage
+	// SquashFS root; only the Debian package wraps it in /opt or /usr/lib.
+	const appImageRoot = join(workRoot, 'appimage-root');
+	await cp(applicationRoot, appImageRoot, { recursive: true });
+	const appImageCompatibilityLibraryAuthority = await stageAppImageWrapper(
+		appImageRoot, applicationVersion,
+	);
+	await buildAppImage(appImageRoot, join(packageRoot, appImageName), workRoot);
+	await writeBytes(
+		join(applicationRoot, 'resources/apparmor-profile'),
+		Buffer.from(`abi <abi/4.0>,\ninclude <tunables/global>\n\nprofile "soundscaper" "/opt/Soundscaper/soundscaper" flags=(unconfined) {\n  userns,\n\n  # Site-specific additions and overrides. See local/README for details.\n  include if exists <local/soundscaper>\n}`),
+	);
 	await buildDebian(join(workRoot, 'tree'), join(packageRoot, debianName), applicationVersion);
 	return {
 		appImageName,
+		appImageCompatibilityLibraryAuthority,
 		debianName,
 		manifestName,
 		runtimeManifest,
 		runtimeManifestPath,
 	};
+}
+
+async function stageAppImageWrapper(root, applicationVersion) {
+	const icon = 'usr/share/icons/hicolor/512x512/apps/soundscaper.png';
+	await writeBytes(
+		join(root, 'AppRun'),
+		Buffer.from(appImageUtil.generateAppRunScript({ ExecutableName: 'soundscaper' })),
+	);
+	await chmod(join(root, 'AppRun'), 0o755);
+	await writeBytes(
+		join(root, 'org.soundscaper.desktop'),
+		Buffer.from(`${[
+			'[Desktop Entry]',
+			'Name=Soundscaper',
+			'Exec=AppRun --no-sandbox %U',
+			'Terminal=false',
+			'Type=Application',
+			'Icon=soundscaper',
+			'StartupWMClass=org.soundscaper',
+			`X-AppImage-Version=${applicationVersion}`,
+			'Comment=Soundscaper is a local-first multitrack audio editor with offline project and media export support.',
+			'MimeType=application/vnd.soundscaper.scape+zip;application/vnd.soundscaper.scape+zip;application/x-audacity-project;',
+			'Categories=AudioVideo;Audio;',
+		].join('\n')}\n`),
+	);
+	for (const size of [16, 24, 32, 48, 64, 128, 256, 512]) {
+		await writeBytes(
+			join(root, `usr/share/icons/hicolor/${size}x${size}/apps/soundscaper.png`),
+			createPngFixture(size),
+		);
+	}
+	const libraries = {};
+	for (const name of [
+		'libXss.so.1', 'libXtst.so.6', 'libappindicator.so.1',
+		'libgconf-2.so.4', 'libindicator.so.7', 'libnotify.so.4',
+	]) {
+		const bytes = linuxSharedLibraryHeader();
+		await writeBytes(join(root, `usr/lib/${name}`), bytes);
+		libraries[name] = descriptor(bytes);
+	}
+	await writeBytes(
+		join(root, 'usr/share/mime/packages/soundscaper.xml'),
+		Buffer.from([
+			'<?xml version="1.0"?>',
+			'<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">',
+			'<mime-type type="application/vnd.soundscaper.scape+zip">',
+			'  <comment>Soundscaper document</comment>',
+			'  <glob pattern="*.sscape"/>',
+			'  <generic-icon name="x-office-document"/>',
+			'</mime-type>',
+			'<mime-type type="application/vnd.soundscaper.scape+zip">',
+			'  <comment>Soundscaper document</comment>',
+			'  <glob pattern="*.scape"/>',
+			'  <generic-icon name="x-office-document"/>',
+			'</mime-type>',
+			'<mime-type type="application/x-audacity-project">',
+			'  <comment>Soundscaper document</comment>',
+			'  <glob pattern="*.aup3"/>',
+			'  <glob pattern="*.aup4"/>',
+			'  <generic-icon name="x-office-document"/>',
+			'</mime-type>',
+			'</mime-info>',
+		].join('\n')),
+	);
+	await symlink(icon, join(root, '.DirIcon'));
+	await symlink(icon, join(root, 'soundscaper.png'));
+	return { 'linux-x64': libraries, 'linux-arm64': {} };
+}
+
+function linuxSharedLibraryHeader() {
+	const bytes = linuxExecutableHeader();
+	bytes.writeUInt16LE(3, 16);
+	return bytes;
 }
 
 async function stageAssistanceFiles(resourcesRoot, summary) {
