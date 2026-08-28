@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { SaxesParser, type SaxesTagPlain } from 'saxes';
+
 const MAX_IXML_BYTES = 4 * 1024 * 1024;
+const MAX_IXML_ELEMENTS = 100_000;
+const MAX_IXML_DEPTH = 128;
 
 export interface IxmlTrack { readonly channelIndex: number; readonly name: string; readonly function: string; }
 export interface IxmlSyncPoint { readonly type: 'RELATIVE' | 'ABSOLUTE'; readonly sampleCount: string; readonly function: string; }
@@ -64,27 +68,165 @@ export function createRiffIxmlChunk(input: IxmlMetadataInput | null | undefined)
 export function parseIxmlPayload(bytes: Uint8Array): IxmlMetadata {
 	if (bytes.byteLength > MAX_IXML_BYTES) throw new RangeError('The iXML payload exceeds 4 MiB.');
 	const xml = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0+$/u, '');
-	validatedXmlBytes(xml);
-	if (!/<BWFXML(?:\s|>)/u.test(xml)) throw new Error('The iXML payload has no BWFXML root.');
-	const tracks = blocks(xml, 'TRACK').map((block) => ({ channelIndex: Number(tag(block, 'CHANNEL_INDEX')) || 1, name: tag(block, 'NAME'), function: tag(block, 'FUNCTION') }));
-	const syncPoints = blocks(xml, 'SYNC_POINT').map((block) => ({ type: tag(block, 'POINT_TYPE') === 'ABSOLUTE' ? 'ABSOLUTE' as const : 'RELATIVE' as const, sampleCount: tag(block, 'SAMPLE_COUNT') || '0', function: tag(block, 'FUNCTION') }));
+	const parsed = parseIxmlDocument(xml);
+	const tracks = parsed.tracks.map((track) => ({
+		channelIndex: Number(track.channelIndex) || 1,
+		name: track.name ?? '',
+		function: track.function ?? '',
+	}));
+	const syncPoints = parsed.syncPoints.map((point) => ({
+		type: point.type === 'ABSOLUTE' ? 'ABSOLUTE' as const : 'RELATIVE' as const,
+		sampleCount: point.sampleCount || '0',
+		function: point.function ?? '',
+	}));
 	return normalizeIxmlMetadata({
-		project: tag(xml, 'PROJECT'), scene: tag(xml, 'SCENE'), take: tag(xml, 'TAKE'), tape: tag(xml, 'TAPE'),
-		note: tag(xml, 'NOTE'), circled: tag(xml, 'CIRCLED').toUpperCase() === 'TRUE', timecodeRate: tag(xml, 'TIMECODE_RATE'),
-		timecodeFlag: tag(xml, 'TIMECODE_FLAG') as IxmlMetadata['timecodeFlag'], fileSetId: tag(xml, 'FAMILY_UID'), tracks, syncPoints, rawXml: xml,
+		project: parsed.document.project ?? '', scene: parsed.document.scene ?? '', take: parsed.document.take ?? '', tape: parsed.document.tape ?? '',
+		note: parsed.document.note ?? '', circled: parsed.document.circled?.toUpperCase() === 'TRUE', timecodeRate: parsed.document.timecodeRate ?? '',
+		timecodeFlag: (parsed.document.timecodeFlag ?? '') as IxmlMetadata['timecodeFlag'], fileSetId: parsed.document.fileSetId ?? '', tracks, syncPoints, rawXml: xml,
 	});
 }
 
 function validatedXmlBytes(xml: string): Uint8Array {
-	if (/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet/iu.test(xml)) throw new Error('Active XML constructs are not allowed in iXML.');
 	const bytes = new TextEncoder().encode(xml);
 	if (bytes.byteLength > MAX_IXML_BYTES) throw new RangeError('The iXML payload exceeds 4 MiB.');
+	parseIxmlDocument(xml);
 	return bytes;
 }
-function tag(xml: string, name: string): string { const match = new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'iu').exec(xml); return unescape(match?.[1]?.trim() || ''); }
-function blocks(xml: string, name: string): string[] { return [...xml.matchAll(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, 'giu'))].flatMap((match) => match[1] === undefined ? [] : [match[1]]); }
+
+type DocumentField = 'project' | 'scene' | 'take' | 'tape' | 'note' | 'circled' | 'timecodeRate' | 'timecodeFlag' | 'fileSetId';
+type TrackField = 'channelIndex' | 'name' | 'function';
+type SyncPointField = 'type' | 'sampleCount' | 'function';
+type TrackFields = Partial<Record<TrackField, string>>;
+type SyncPointFields = Partial<Record<SyncPointField, string>>;
+type TextCapture = {
+	readonly depth: number;
+	readonly parts: string[];
+	readonly target:
+		| { readonly kind: 'document'; readonly field: DocumentField }
+		| { readonly kind: 'track'; readonly field: TrackField; readonly record: TrackFields }
+		| { readonly kind: 'syncPoint'; readonly field: SyncPointField; readonly record: SyncPointFields };
+};
+
+function parseIxmlDocument(xml: string): {
+	readonly document: Partial<Record<DocumentField, string>>;
+	readonly tracks: readonly TrackFields[];
+	readonly syncPoints: readonly SyncPointFields[];
+} {
+	if (/<!\s*(?:DOCTYPE|ENTITY)\b/iu.test(xml)) {
+		throw new IxmlValidationError('Active XML and external declarations are not allowed in iXML.');
+	}
+	const document: Partial<Record<DocumentField, string>> = {};
+	const tracks: TrackFields[] = [];
+	const syncPoints: SyncPointFields[] = [];
+	const elementNames: string[] = [];
+	let activeTrack: { readonly depth: number; readonly fields: TrackFields } | null = null;
+	let activeSyncPoint: { readonly depth: number; readonly fields: SyncPointFields } | null = null;
+	let capture: TextCapture | null = null;
+	let elementCount = 0;
+	let attributeCount = 0;
+	const parser = new SaxesParser({ xmlns: false, position: false });
+
+	parser.on('doctype', () => {
+		throw new IxmlValidationError('Active XML and external declarations are not allowed in iXML.');
+	});
+	parser.on('processinginstruction', () => {
+		throw new IxmlValidationError('Active XML processing instructions are not allowed in iXML.');
+	});
+	parser.on('opentag', (tag: SaxesTagPlain) => {
+		if (capture !== null) throw new IxmlValidationError('iXML metadata fields must contain text only.');
+		elementCount += 1;
+		if (elementCount > MAX_IXML_ELEMENTS) throw new RangeError('iXML exceeds the element-count safety limit.');
+		if (elementNames.length >= MAX_IXML_DEPTH) throw new RangeError('iXML exceeds the maximum XML depth.');
+		attributeCount += Object.keys(tag.attributes).length;
+		if (attributeCount > MAX_IXML_ELEMENTS * 4) throw new RangeError('iXML exceeds the attribute-count safety limit.');
+		if (elementNames.length === 0 && tag.name !== 'BWFXML') {
+			throw new IxmlValidationError('The iXML payload has no BWFXML root.');
+		}
+		elementNames.push(tag.name);
+		const name = tag.name.toUpperCase();
+		if (name === 'TRACK') {
+			if (activeTrack !== null || activeSyncPoint !== null) throw new IxmlValidationError('iXML record elements cannot be nested.');
+			activeTrack = { depth: elementNames.length, fields: {} };
+		} else if (name === 'SYNC_POINT') {
+			if (activeTrack !== null || activeSyncPoint !== null) throw new IxmlValidationError('iXML record elements cannot be nested.');
+			activeSyncPoint = { depth: elementNames.length, fields: {} };
+		}
+		const target = captureTarget(name, document, activeTrack?.fields ?? null, activeSyncPoint?.fields ?? null);
+		if (target !== null) capture = { depth: elementNames.length, parts: [], target };
+	});
+	const appendText = (text: string): void => {
+		if (capture !== null) capture.parts.push(text);
+	};
+	parser.on('text', appendText);
+	parser.on('cdata', appendText);
+	parser.on('closetag', () => {
+		const depth = elementNames.length;
+		if (capture?.depth === depth) {
+			applyCapturedText(capture, document);
+			capture = null;
+		}
+		if (activeTrack?.depth === depth) {
+			tracks.push(activeTrack.fields);
+			activeTrack = null;
+		}
+		if (activeSyncPoint?.depth === depth) {
+			syncPoints.push(activeSyncPoint.fields);
+			activeSyncPoint = null;
+		}
+		elementNames.pop();
+	});
+	try {
+		parser.write(xml).close();
+	} catch (error) {
+		if (error instanceof IxmlValidationError || error instanceof RangeError) throw error;
+		throw new Error('The iXML payload does not contain a well-formed XML document.', { cause: error });
+	}
+	if (elementCount === 0) throw new IxmlValidationError('The iXML payload has no BWFXML root.');
+	return { document, tracks, syncPoints };
+}
+
+function captureTarget(
+	name: string,
+	document: Partial<Record<DocumentField, string>>,
+	track: TrackFields | null,
+	syncPoint: SyncPointFields | null,
+): TextCapture['target'] | null {
+	const documentField = ixmlDocumentField(name);
+	if (documentField !== null && document[documentField] === undefined) return { kind: 'document', field: documentField };
+	if (track !== null) {
+		const field = name === 'CHANNEL_INDEX' ? 'channelIndex' : name === 'NAME' ? 'name' : name === 'FUNCTION' ? 'function' : null;
+		if (field !== null && track[field] === undefined) return { kind: 'track', field, record: track };
+	}
+	if (syncPoint !== null) {
+		const field = name === 'POINT_TYPE' ? 'type' : name === 'SAMPLE_COUNT' ? 'sampleCount' : name === 'FUNCTION' ? 'function' : null;
+		if (field !== null && syncPoint[field] === undefined) return { kind: 'syncPoint', field, record: syncPoint };
+	}
+	return null;
+}
+
+function ixmlDocumentField(name: string): DocumentField | null {
+	if (name === 'PROJECT') return 'project';
+	if (name === 'SCENE') return 'scene';
+	if (name === 'TAKE') return 'take';
+	if (name === 'TAPE') return 'tape';
+	if (name === 'NOTE') return 'note';
+	if (name === 'CIRCLED') return 'circled';
+	if (name === 'TIMECODE_RATE') return 'timecodeRate';
+	if (name === 'TIMECODE_FLAG') return 'timecodeFlag';
+	if (name === 'FAMILY_UID') return 'fileSetId';
+	return null;
+}
+
+function applyCapturedText(capture: TextCapture, document: Partial<Record<DocumentField, string>>): void {
+	const value = capture.parts.join('').trim();
+	if (capture.target.kind === 'document') document[capture.target.field] = value;
+	else if (capture.target.kind === 'track') capture.target.record[capture.target.field] = value;
+	else capture.target.record[capture.target.field] = value;
+}
+
+class IxmlValidationError extends Error {}
+
 function escape(value: string): string { return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'); }
-function unescape(value: string): string { return value.replace(/&lt;/gu, '<').replace(/&gt;/gu, '>').replace(/&amp;/gu, '&'); }
 function string(value: unknown): string { if (value == null) return ''; if (typeof value !== 'string') throw new TypeError('iXML text fields must be strings.'); if (value.includes('\0')) throw new RangeError('iXML text cannot contain NUL.'); return value; }
 function positive(value: unknown, name: string): number { const number = Number(value); if (!Number.isSafeInteger(number) || number < 1) throw new RangeError(`${name} must be positive.`); return number; }
 function uint64(value: unknown): string { const text = String(value); if (!/^\d+$/u.test(text) || BigInt(text) > 0xffff_ffff_ffff_ffffn) throw new RangeError('iXML sample counts must be unsigned 64-bit integers.'); return BigInt(text).toString(); }

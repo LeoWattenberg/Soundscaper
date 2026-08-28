@@ -11,8 +11,34 @@ test('iXML production metadata round-trips tracks, file family, timecode, and sy
 });
 
 test('iXML preserves safe unknown extensions through its bounded raw representation', () => {
-	const xml = '<BWFXML><PROJECT>X</PROJECT><VENDOR_PRIVATE foo="bar">value</VENDOR_PRIVATE></BWFXML>';
+	const xml = '<?xml version="1.0" encoding="UTF-8"?><BWFXML><PROJECT>X &amp; Y</PROJECT><VENDOR_PRIVATE foo="bar">value</VENDOR_PRIVATE></BWFXML>';
 	const parsed = parseIxmlPayload(new TextEncoder().encode(xml));
+	assert.equal(parsed.project, 'X & Y');
 	assert.equal(new TextDecoder().decode(encodeIxmlPayload(parsed)), xml);
 	assert.throws(() => parseIxmlPayload(new TextEncoder().encode('<!DOCTYPE x><BWFXML/>')), /Active XML/u);
+});
+
+test('iXML rejects malformed and excessively deep XML without rescanning unclosed fields', () => {
+	const malformed = `<BWFXML>${'<TRACK>'.repeat(4_096)}</BWFXML>`;
+	assert.throws(
+		() => parseIxmlPayload(new TextEncoder().encode(malformed)),
+		/record elements cannot be nested|maximum XML depth|well-formed XML/iu,
+	);
+	const tooDeep = `<BWFXML>${'<VENDOR>'.repeat(128)}${'</VENDOR>'.repeat(128)}</BWFXML>`;
+	assert.throws(() => parseIxmlPayload(new TextEncoder().encode(tooDeep)), /maximum XML depth/iu);
+	assert.throws(
+		() => parseIxmlPayload(new TextEncoder().encode('<BWFXML><PROJECT>X</BWFXML>')),
+		/well-formed XML/iu,
+	);
+});
+
+test('iXML refuses processing instructions as well as active DTD constructs', () => {
+	assert.throws(
+		() => parseIxmlPayload(new TextEncoder().encode('<?transform href="https://example.invalid/style"?><BWFXML></BWFXML>')),
+		/processing instructions/iu,
+	);
+	assert.throws(
+		() => parseIxmlPayload(new TextEncoder().encode('<!DOCTYPE BWFXML [<!ENTITY exfil SYSTEM "file:///etc/passwd">]><BWFXML><PROJECT>&exfil;</PROJECT></BWFXML>')),
+		/Active XML|external XML declarations/iu,
+	);
 });
