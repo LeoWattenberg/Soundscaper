@@ -139,7 +139,7 @@ function assertSharedTemplate(shared) {
 }
 
 function replaceMarker(text, marker, replacement) {
-	const lines = text.split('\n');
+	const lines = text.split(/\r?\n/u);
 	const positions = lines.reduce((found, line, index) => line === marker ? [...found, index] : found, []);
 	if (positions.length !== 1) {
 		throw new Error(`Cloudflare header template must carry ${marker} exactly once; found ${String(positions.length)}.`);

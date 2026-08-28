@@ -68,6 +68,16 @@ test('the Framescaper build moves the same capture policies to its own origin ro
 	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/framescaper/')), false);
 });
 
+test('a Windows CRLF checkout composes the same deterministic product headers as LF', async () => {
+	const checkedIn = await readFile('public/_headers', 'utf8');
+	const lf = checkedIn.replace(/\r?\n/gu, '\n');
+	const crlf = lf.replace(/\n/gu, '\r\n');
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const routing = webBuildRouting({ SCAPE_PRODUCT: productId });
+		assert.equal(composeProductHeaders(crlf, routing), composeProductHeaders(lf, routing), productId);
+	}
+});
+
 test('both builds share one unmoved cross-origin isolation rule that no document loses', async () => {
 	for (const productId of ['soundscaper', 'framescaper']) {
 		const composed = await productHeaders(productId);
