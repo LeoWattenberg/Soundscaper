@@ -133,16 +133,30 @@ test.describe('audio editor video composition workflow', () => {
 		expect(incomingOpacity).toBeLessThan(0.7);
 		expect(outgoingOpacity + incomingOpacity).toBeCloseTo(1, 6);
 
-		const previewTimesBeforePlayback = await preview.locator('[data-video-preview-clip]')
-			.evaluateAll((videos) => videos.map((video) => video.currentTime));
+		await expect(preview).toHaveAttribute('data-video-preview-renderer', /^(ready|fallback)$/);
+		const previewRenderer = await preview.getAttribute('data-video-preview-renderer');
+		const sequenceTimecode = editor.locator('[data-sequence-timecode]');
+		const sequenceTimecodeBeforePlayback = await sequenceTimecode
+			.getAttribute('data-sequence-timecode');
+		const previewTimesBeforePlayback = previewRenderer === 'fallback' ? []
+			: await preview.locator('[data-video-preview-clip]')
+				.evaluateAll((videos) => videos.map((video) => video.currentTime));
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-		await expect.poll(() => preview.locator('[data-video-preview-clip]').evaluateAll(
-			(videos, before) => videos.some((video, index) => (
-				!video.paused || video.currentTime > (before[index] ?? 0) + 0.001
-			)),
-			previewTimesBeforePlayback,
-		), { timeout: 10_000 }).toBe(true);
+		const playbackProgress = previewRenderer === 'fallback'
+			// Exact composed identities stay paused and hidden without WebGL2; the
+			// sequence clock remains the authoritative observable for transport.
+			? expect.poll(() => sequenceTimecode.getAttribute('data-sequence-timecode'))
+				.not.toBe(sequenceTimecodeBeforePlayback)
+			: expect.poll(() => preview.locator('[data-video-preview-clip]').evaluateAll(
+				(videos, before) => videos.some((video, index) => (
+					!video.paused || video.currentTime > (before[index] ?? 0) + 0.001
+				)),
+				previewTimesBeforePlayback,
+			), { timeout: 10_000 }).toBe(true);
+		await Promise.all([
+			expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible(),
+			playbackProgress,
+		]);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 
 		await thirdVideo.locator('.audio-editor-video-track-controls__title button').click();
