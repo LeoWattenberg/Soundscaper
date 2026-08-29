@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { createVideoPreviewPresentedFrameGate } from '../../controller/video-preview-presented-frame.ts';
 import { synchronizeVideoPreviewMedia } from './video-preview-retime.ts';
 
 export default function VideoPreviewClip({
@@ -15,27 +16,54 @@ export default function VideoPreviewClip({
 	hideIdentityFallback,
 }) {
 	const videoRef = useRef(null);
+	const onFrameReadyRef = useRef(onFrameReady);
+	const presentedFrameGateRef = useRef(null);
+	if (!presentedFrameGateRef.current) {
+		presentedFrameGateRef.current = createVideoPreviewPresentedFrameGate();
+	}
+	onFrameReadyRef.current = onFrameReady;
+	const cancelPresentedFrameCallback = useCallback(() => {
+		presentedFrameGateRef.current.cancel();
+	}, []);
 	const setVideoRef = useCallback((element) => {
+		if (videoRef.current !== element) cancelPresentedFrameCallback();
 		videoRef.current = element;
 		onVideoElement?.(entry.clipId, element);
-	}, [entry.clipId, onVideoElement]);
+	}, [cancelPresentedFrameCallback, entry.clipId, onVideoElement]);
 	const syncVideo = useCallback(() => {
 		const video = videoRef.current;
 		if (!video) return;
 		synchronizeVideoPreviewMedia(video, entry, transportPlaybackRate, transportState);
 	}, [entry, transportPlaybackRate, transportState]);
+	const presentedFrameKey = useMemo(() => Object.freeze({
+		sourceUrl: entry.sourceUrl,
+		sourceTimeSeconds: Math.max(0, Number(entry.sourceTimeSeconds) || 0),
+	}), [entry.sourceTimeSeconds, entry.sourceUrl]);
+	const requestFrameWhenPresented = useCallback(() => {
+		const video = videoRef.current;
+		if (!video) return;
+		presentedFrameGateRef.current.request(
+			video, presentedFrameKey, () => onFrameReadyRef.current?.(),
+		);
+	}, [presentedFrameKey]);
 	const handleMediaReady = useCallback(() => {
+		requestFrameWhenPresented();
 		syncVideo();
-		onFrameReady?.();
-	}, [onFrameReady, syncVideo]);
+	}, [requestFrameWhenPresented, syncVideo]);
 	const handleMediaError = useCallback(() => {
 		const video = videoRef.current;
 		video?.pause?.();
 		onMediaError?.(entry.clipId, entry.sourceId, entry.sourceUrl, video);
 	}, [entry.clipId, entry.sourceId, entry.sourceUrl, onMediaError]);
 
-	useEffect(() => { syncVideo(); }, [syncVideo]);
-	useEffect(() => () => { videoRef.current?.pause?.(); }, []);
+	useEffect(() => {
+		requestFrameWhenPresented();
+		syncVideo();
+	}, [requestFrameWhenPresented, syncVideo]);
+	useEffect(() => () => {
+		cancelPresentedFrameCallback();
+		videoRef.current?.pause?.();
+	}, [cancelPresentedFrameCallback]);
 
 	const opacity = Math.max(0, Math.min(1, Number(entry.opacity) || 0));
 	return (
@@ -61,7 +89,7 @@ export default function VideoPreviewClip({
 			onLoadedMetadata={handleMediaReady}
 			onLoadedData={handleMediaReady}
 			onCanPlay={handleMediaReady}
-			onSeeked={onFrameReady}
+			onSeeked={requestFrameWhenPresented}
 			onError={handleMediaError}
 		/>
 	);
