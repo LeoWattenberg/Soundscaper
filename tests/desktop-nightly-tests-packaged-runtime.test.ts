@@ -116,14 +116,16 @@ test('packaged-runtime tests reuse one Electron process per product worker', asy
 	assert.match(source, /auto: true/u);
 });
 
-test('packaged video benchmark drives localized controls through stable hooks', async () => {
+test('packaged video benchmark seeds exact effects and drives localized controls through stable hooks', async () => {
 	const source = await readFile(
 		resolve(ROOT, 'tests/browser/audio-editor-video-preview-benchmark.spec.js'),
 		'utf8',
 	);
 
-	assert.match(source, /\[data-clip-properties-dialog\]/u);
-	assert.match(source, /\[data-video-effect-add\]/u);
+	assert.match(source, /createVideoEffect\(type/u);
+	assert.match(source, /seedPreviewBenchmarkEffectStack\(page, editor, EFFECT_STACK\)/u);
+	assert.match(source, /FRAMESCAPER_DATABASE_NAME/u);
+	assert.match(source, /validateFramescaperProject\(/u);
 	assert.match(source, /\[data-transport="play"\]/u);
 	assert.match(source, /\[data-transport="stop"\]/u);
 	assert.match(source, /runtimeBrowser\.newContext\(/u);
