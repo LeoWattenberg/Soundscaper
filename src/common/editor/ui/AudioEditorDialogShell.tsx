@@ -11,6 +11,7 @@ import React, {
 import { DialogHeader } from '@soundscaper/design-system/DialogHeader';
 
 import AudioEditorResizableSurface from './AudioEditorResizableSurface.jsx';
+import { retainAudioEditorDialogEscapeOwner } from './dialog-escape-ownership.ts';
 import { resolveEditorReturnFocus } from './focus-restoration.ts';
 
 interface ResizableSurfaceProps extends React.HTMLAttributes<HTMLElement> {
@@ -150,6 +151,13 @@ export default function AudioEditorDialogShell({
 	}, [isOpen, stopDragging]);
 
 	useLayoutEffect(() => {
+		if (!isOpen || !closeOnEscape) return undefined;
+		const ownerDocument = panelRef.current?.ownerDocument;
+		if (!ownerDocument) return undefined;
+		return retainAudioEditorDialogEscapeOwner(ownerDocument, () => onCloseRef.current?.());
+	}, [closeOnEscape, isOpen]);
+
+	useLayoutEffect(() => {
 		if (!isOpen) return undefined;
 		const previouslyFocused = resolveEditorReturnFocus(document, document.activeElement);
 		const panel = panelRef.current;
@@ -160,11 +168,6 @@ export default function AudioEditorDialogShell({
 			(resolveInitialFocus(panel, initialFocus, focusableElements) || panel)?.focus({ preventScroll: true });
 		});
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape' && closeOnEscape) {
-				event.preventDefault();
-				onCloseRef.current?.();
-				return;
-			}
 			if (!modal || event.key !== 'Tab' || !panel) return;
 			const focusable = focusableElements();
 			if (!focusable.length) {
@@ -193,7 +196,7 @@ export default function AudioEditorDialogShell({
 				previouslyFocused.focus({ preventScroll: true });
 			}
 		};
-	}, [closeOnEscape, initialFocus, isOpen, modal]);
+	}, [initialFocus, isOpen, modal]);
 
 	if (!isOpen) return null;
 	const overlayClasses = overlayClassName || [

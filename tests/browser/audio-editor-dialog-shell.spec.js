@@ -94,6 +94,32 @@ test.describe('shared audio editor dialog behavior', () => {
 		await page.keyboard.press('Escape');
 		await expect(dialog).toBeHidden();
 	});
+
+	test('dismisses only the topmost dialog when modal and nonmodal dialogs are stacked', async ({ page }) => {
+		const editor = await bootEditor(page);
+		const track = editor.locator('[data-track-row]').first();
+		await track.getByRole('button', { name: 'Effects', exact: true }).click();
+		const effectsPanel = editor.locator('[data-workspace-panel="effects"]');
+		await effectsPanel.locator('[data-effect-rack]')
+			.getByRole('button', { name: 'Effects', exact: true })
+			.first()
+			.click();
+		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
+		await picker.getByRole('menuitem', { name: 'Reverb', exact: true }).click();
+		const reverb = page.getByRole('dialog', { name: 'Reverb', exact: true });
+		await expect(reverb).toBeVisible();
+
+		await chooseCommand(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await expect(preferences).toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(preferences).toBeHidden();
+		await expect(reverb).toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(reverb).toBeHidden();
+	});
 });
 
 async function bootEditor(page) {
