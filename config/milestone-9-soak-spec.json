@@ -30,7 +30,6 @@
 		{ "id": "soundscaper-render", "productId": "soundscaper", "kind": "render" },
 		{ "id": "framescaper-export", "productId": "framescaper", "kind": "export" },
 		{ "id": "framescaper-capture", "productId": "framescaper", "kind": "capture" },
-		{ "id": "soundscaper-midi-checkpoint", "productId": "soundscaper", "kind": "midi" },
 		{ "id": "framescaper-queue-recovery", "productId": "framescaper", "kind": "recovery" }
 	],
 	"schedule": [
@@ -42,7 +41,6 @@
 		{ "operationId": "soundscaper-render", "cadenceSeconds": 1200, "offsetSeconds": 360 },
 		{ "operationId": "framescaper-export", "cadenceSeconds": 1200, "offsetSeconds": 600 },
 		{ "operationId": "framescaper-capture", "cadenceSeconds": 600, "offsetSeconds": 180 },
-		{ "operationId": "soundscaper-midi-checkpoint", "cadenceSeconds": 720, "offsetSeconds": 420 },
 		{ "operationId": "framescaper-queue-recovery", "cadenceSeconds": 1800, "offsetSeconds": 900 }
 	],
 	"repeatabilityBands": [
@@ -61,16 +59,16 @@
 	],
 	"generatedArtifacts": {
 		"qualification": {
-			"byteLength": 239885,
-			"sha256": "338f5092cbbf3ebd2fdfc9a9e8d4176c92a21debdafd7095099d006ef90cfec1",
-			"scheduleSha256": "487a818f2840cda54b00383d8d5a7001fc676e6d0d9b083360a8d3dac5c795b9",
-			"eventCount": 1336
+			"byteLength": 232406,
+			"sha256": "15b5a0b40a10469a460f15a48a42e7fcdcfbe266ff91cd6ae29e16bee047cacc",
+			"scheduleSha256": "d6401d428fc0cdd72456c82fe2e38fd7195205ee400907c3b15c6a0f0a8a513b",
+			"eventCount": 1296
 		},
 		"contract": {
-			"byteLength": 3641,
-			"sha256": "bd682985551c77cbf136dccb7b14c095fddb529ab87c1590ee6e62d04209fffd",
-			"scheduleSha256": "4cc377403b1afea8f2b47c2b4267917d63a6045b5e588733f4750c906cf81686",
-			"eventCount": 10
+			"byteLength": 3456,
+			"sha256": "5422fbc54a909cee111868682b072a77be6ce35ea4d7991ae5360048586a1e9e",
+			"scheduleSha256": "bebc2bd0d45f5107d161cdd78da8cd7b10d961ee9f19fdb1ec162083d9530671",
+			"eventCount": 9
 		}
 	}
 }

@@ -1430,9 +1430,9 @@
 				"requiredDesktopPassRatio": 1,
 				"generatorRevision": 1,
 				"seed": "soundscaper-framescaper-stable-1.0-complete-system-soak-v1",
-				"artifactSha256": "338f5092cbbf3ebd2fdfc9a9e8d4176c92a21debdafd7095099d006ef90cfec1",
-				"scheduleSha256": "487a818f2840cda54b00383d8d5a7001fc676e6d0d9b083360a8d3dac5c795b9",
-				"eventCount": 1336,
+				"artifactSha256": "15b5a0b40a10469a460f15a48a42e7fcdcfbe266ff91cd6ae29e16bee047cacc",
+				"scheduleSha256": "d6401d428fc0cdd72456c82fe2e38fd7195205ee400907c3b15c6a0f0a8a513b",
+				"eventCount": 1296,
 				"contractDurationSeconds": 120
 			},
 			"limitation": "The generator and collector contracts are repository-owned and digest-pinned. The 120-second mode is contract-only and can never publish qualification. Stable-release qualification still requires two consecutive real eight-hour runs on every provisioned release-matrix cell.",

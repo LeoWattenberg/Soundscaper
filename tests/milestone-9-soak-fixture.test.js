@@ -39,6 +39,8 @@ test('the pinned generator deterministically authors the complete eight-hour sch
 		new Set(first.schedule.map(({ operationId }) => operationId)),
 		new Set(spec.operations.map(({ id }) => id)),
 	);
+	assert.equal(spec.operations.some(({ id, kind }) => /midi/iu.test(`${id}:${kind}`)), false,
+		'MIDI has no stable-1.0 soak qualification cell');
 });
 
 test('the short contract schedule covers every operation but cannot claim qualification', async () => {
@@ -77,7 +79,7 @@ test('the generator CLI checks pins without writing an eight-hour artifact', asy
 		process.execPath, ['scripts/generate-m9-soak-fixture.mjs', '--check'],
 		{ cwd: new URL('.', ROOT), encoding: 'utf8' },
 	);
-	assert.match(output, /qualification.*1336.*contract.*10/isu);
+	assert.match(output, /qualification.*1296.*contract.*9/isu);
 });
 
 function sha256(bytes) {
