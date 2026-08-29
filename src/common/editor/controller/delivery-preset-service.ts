@@ -64,31 +64,46 @@ export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntim
 			listDeliveryPresets(runtime.state.deliveryPresets, kind),
 		apply: (presetId: string): DeliveryPreset =>
 			applyDeliveryPreset(runtime.state.deliveryPresets, presetId),
-		save(options: {
+		async save(options: {
 			id?: string;
 			label: string;
 			kind: DeliveryPresetKind;
 			format: string;
 			settings?: Readonly<Record<string, unknown>>;
+			licensingRowId?: string | null;
+			fallbackPresetId?: string | null;
+			now?: string;
 		}): Promise<DeliveryPreset> {
-			return enqueueMutation(async () => {
+			const snapshot = Object.freeze({
+				id: options.id,
+				label: options.label,
+				kind: options.kind,
+				format: options.format,
+				settings: options.settings === undefined ? undefined : structuredClone(options.settings),
+				licensingRowId: options.licensingRowId,
+				fallbackPresetId: options.fallbackPresetId,
+				now: options.now,
+			});
+			return await enqueueMutation(async () => {
 				const result = saveDeliveryPresetToState(runtime.state.deliveryPresets, {
-					...options,
+					...snapshot,
 					idFactory,
 				});
 				await commit(result.state);
 				return result.preset;
 			});
 		},
-		delete(presetId: string): Promise<true> {
-			return enqueueMutation(async () => {
-				await commit(deleteDeliveryPreset(runtime.state.deliveryPresets, presetId));
+		async delete(presetId: string): Promise<true> {
+			const id = presetId;
+			return await enqueueMutation(async () => {
+				await commit(deleteDeliveryPreset(runtime.state.deliveryPresets, id));
 				return true as const;
 			});
 		},
-		import(input: unknown): Promise<readonly DeliveryPreset[]> {
-			return enqueueMutation(async () => {
-				await commit(importDeliveryPresets(runtime.state.deliveryPresets, input, { idFactory }));
+		async import(input: unknown): Promise<readonly DeliveryPreset[]> {
+			const snapshot = importDeliveryPresets(createDeliveryPresetState(), input);
+			return await enqueueMutation(async () => {
+				await commit(importDeliveryPresets(runtime.state.deliveryPresets, snapshot, { idFactory }));
 				return listDeliveryPresets(runtime.state.deliveryPresets);
 			});
 		},

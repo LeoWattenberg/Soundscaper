@@ -227,7 +227,14 @@ test('overlapping preset saves serialize required writes and retain both durable
 
 	const first = harness.service.saveEffectPreset({ name: 'First', now: '2025-01-01T00:00:00Z' });
 	await Promise.resolve();
-	const second = harness.service.saveEffectPreset({ name: 'Second', now: '2025-01-02T00:00:00Z' });
+	const secondOptions = {
+		name: 'Second',
+		now: '2025-01-02T00:00:00Z',
+		params: { bands: [], outputGain: 1 },
+	};
+	const second = harness.service.saveEffectPreset(secondOptions);
+	secondOptions.name = 'Changed after invocation';
+	secondOptions.params.outputGain = 9;
 	await Promise.resolve();
 	const writesBeforeRelease = writeCount;
 	firstWrite.resolve();
@@ -236,11 +243,16 @@ test('overlapping preset saves serialize required writes and retain both durable
 	assert.equal(writesBeforeRelease, 1, 'the second mutation waits for the first required write');
 	assert.deepEqual(harness.state.effectPresets.presets.map(({ name }) => name), ['First', 'Second']);
 	assert.deepEqual(durable[0]?.presets.map(({ name }) => name), ['First', 'Second']);
+	assert.equal(harness.state.effectPresets.presets[1]?.params.outputGain, 1);
 	assert.equal(harness.publications, 2);
 });
 
 test('invalid controller targets fail synchronously and silent preview cancellation can skip publication', async () => {
 	const harness = createHarness();
+	await assert.rejects(
+		() => harness.service.deleteEffectPreset(null as never),
+		/presetId must be a non-empty string/u,
+	);
 	assert.throws(() => harness.service.setAudacityEffectType('not-an-effect'), /Unsupported/u);
 	assert.throws(() => harness.service.setAudacityControlTrack('missing'), /Control track missing/u);
 	assert.throws(

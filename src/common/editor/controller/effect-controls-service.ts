@@ -209,8 +209,9 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		return normalized;
 	}
 
-	function persistEffectPresets(next: unknown): Promise<EffectPresetCollection> {
-		return enqueuePresetMutation(() => commitEffectPresets(next));
+	async function persistEffectPresets(next: unknown): Promise<EffectPresetCollection> {
+		const snapshot = (createAudioEditorEffectPresets as (value: unknown) => unknown)(next) as EffectPresetCollection;
+		return await enqueuePresetMutation(() => commitEffectPresets(snapshot));
 	}
 
 	function applyEffectPreset(presetId: string): EffectPreset {
@@ -222,15 +223,19 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		return preset;
 	}
 
-	function saveEffectPreset(options: string | EffectPresetSaveOptions = {}): Promise<EffectPreset> {
+	async function saveEffectPreset(options: string | EffectPresetSaveOptions = {}): Promise<EffectPreset> {
 		const request: EffectPresetSaveOptions = typeof options === 'string' ? { name: options } : options;
 		const effectType = request.effectType || runtime.state.audacityEffectType;
-		const params = request.params || currentAudacityEffectParams(effectType);
-		return enqueuePresetMutation(async () => {
+		const snapshot = Object.freeze({
+			id: request.id,
+			name: request.name,
+			effectType,
+			params: structuredClone(request.params || currentAudacityEffectParams(effectType)),
+			now: request.now instanceof Date ? new Date(request.now.getTime()) : request.now,
+		});
+		return await enqueuePresetMutation(async () => {
 			const result = saveAudioEditorEffectPreset(runtime.state.effectPresets, {
-				...request,
-				effectType,
-				params,
+				...snapshot,
 				idFactory: () => runtime.createId('preset'),
 			}) as Readonly<{ state: EffectPresetCollection; preset: EffectPreset }>;
 			await commitEffectPresets(result.state);
@@ -238,16 +243,21 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		});
 	}
 
-	function deleteEffectPreset(presetId: string): Promise<true> {
-		return enqueuePresetMutation(async () => {
-			await commitEffectPresets(deleteAudioEditorEffectPreset(runtime.state.effectPresets, presetId));
+	async function deleteEffectPreset(presetId: string): Promise<true> {
+		const id = presetId;
+		return await enqueuePresetMutation(async () => {
+			await commitEffectPresets(deleteAudioEditorEffectPreset(runtime.state.effectPresets, id));
 			return true as const;
 		});
 	}
 
-	function importEffectPresets(input: unknown): Promise<readonly EffectPreset[]> {
-		return enqueuePresetMutation(async () => {
-			const next = importAudioEditorEffectPresets(runtime.state.effectPresets, input, {
+	async function importEffectPresets(input: unknown): Promise<readonly EffectPreset[]> {
+		const snapshot = importAudioEditorEffectPresets(
+			(createAudioEditorEffectPresets as (value?: unknown) => unknown)(),
+			input,
+		) as EffectPresetCollection;
+		return await enqueuePresetMutation(async () => {
+			const next = importAudioEditorEffectPresets(runtime.state.effectPresets, snapshot, {
 				idFactory: () => runtime.createId('preset'),
 			});
 			await commitEffectPresets(next);

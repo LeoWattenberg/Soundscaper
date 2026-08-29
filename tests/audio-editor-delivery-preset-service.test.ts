@@ -160,7 +160,12 @@ test('overlapping delivery preset saves retain both changes in required storage'
 
 	const first = service.save({ label: 'First', kind: 'audio', format: 'wav' });
 	await Promise.resolve();
-	const second = service.save({ label: 'Second', kind: 'audio', format: 'flac' });
+	const secondOptions = {
+		label: 'Second', kind: 'audio' as const, format: 'flac', settings: { quality: 5 },
+	};
+	const second = service.save(secondOptions);
+	secondOptions.label = 'Changed after invocation';
+	secondOptions.settings.quality = 9;
 	await Promise.resolve();
 	const writesBeforeRelease = writeCount;
 	firstWrite.resolve();
@@ -168,9 +173,16 @@ test('overlapping delivery preset saves retain both changes in required storage'
 
 	assert.equal(writesBeforeRelease, 1, 'the second mutation waits for the first required write');
 	assert.deepEqual(service.list().map(({ label }) => label), ['First', 'Second']);
-	assert.deepEqual(createDeliveryPresetState(durable as never).presets.map(({ label }) => label), ['First', 'Second']);
+	const persisted = createDeliveryPresetState(durable as never);
+	assert.deepEqual(persisted.presets.map(({ label }) => label), ['First', 'Second']);
+	assert.equal(persisted.presets[1]?.settings.quality, 5);
 });
 
 test('the service requires controller state rather than inventing its own', () => {
 	assert.throws(() => createDeliveryPresetService({} as never), /requires controller state/u);
+});
+
+test('delete preserves the preset-id validator for invalid runtime callers', async () => {
+	const { service } = harness();
+	await assert.rejects(() => service.delete(null as never), /presetId must be a non-empty string/u);
 });
