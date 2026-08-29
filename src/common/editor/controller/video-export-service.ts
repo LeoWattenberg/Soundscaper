@@ -139,9 +139,12 @@ export function createEditorVideoExportAction(
 
 	return async function exportVideo(requestedSettings: RuntimeValue = {}) {
 		if (state.exportAbort) return null;
+		const preparationGeneration = state.exportGeneration;
 		const formatValue = videoExportPlanFormat(requestedSettings.format || 'video-mp4');
 		await assertDesktopVideoExportAvailable(fileService, formatValue);
+		if (state.exportAbort || state.exportGeneration !== preparationGeneration || state.disposed) return null;
 		if (typeof runtime.prepareProjectForExport === 'function') await runtime.prepareProjectForExport('video-export');
+		if (state.exportAbort || state.exportGeneration !== preparationGeneration || state.disposed) return null;
 		const canonicalProject = getProject();
 		const delivery = projectForVideoRenderedFallbackExport(canonicalProject, playbackProjects);
 		const deliveredProject = projectTrackFolderMediaStateV12(delivery.project);
