@@ -61,6 +61,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		updateSelection,
 		seek: (frame) => { engine.seek(frame); },
 	});
+	let zeroCrossingGeneration = 0;
 
 	function selectTrack(trackId: any) {
 		const project = getProject();
@@ -284,6 +285,7 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 		const selection = activeSelection();
 		if (!selection || state.analysisProcessing) return null;
 		const projectAtStart = getProject();
+		const generation = ++zeroCrossingGeneration;
 		const radius = Math.max(1, Math.round(projectSampleRate() * 0.01));
 		const renderStart = Math.max(0, selection.startFrame - radius);
 		const renderEnd = Math.min(projectDurationFrames(projectAtStart), selection.endFrame + radius);
@@ -308,11 +310,14 @@ export function createSelectionViewService(runtime: SelectionViewServiceRuntime)
 			setStatus(copy.zeroCrossingsAligned, 'success');
 			return next.selection;
 		} catch (error) {
-			handleError(error);
+			if (generation === zeroCrossingGeneration && getProject() === projectAtStart) handleError(error);
 			return null;
 		} finally {
-			state.analysisProcessing = false;
-			publishDocumentSnapshot();
+			if (generation === zeroCrossingGeneration
+				&& getProject()?.id === projectAtStart.id) {
+				state.analysisProcessing = false;
+				publishDocumentSnapshot();
+			}
 		}
 	}
 

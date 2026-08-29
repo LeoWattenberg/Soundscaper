@@ -55,8 +55,10 @@ function createFixture() {
 		],
 		selection: { startFrame: 10, endFrame: 30, trackIds: ['track-a'], clipIds: [] },
 	};
-	let resolveRender: (value: unknown) => void = () => undefined;
-	let rejectRender: (reason?: unknown) => void = () => undefined;
+	const renderRequests: Array<{
+		resolve(value: unknown): void;
+		reject(reason?: unknown): void;
+	}> = [];
 	let commits = 0;
 	let publishes = 0;
 	let projectPublishes = 0;
@@ -123,8 +125,7 @@ function createFixture() {
 		publishDocumentSnapshot: () => { publishes += 1; },
 		publishProjectState: () => { projectPublishes += 1; },
 		renderSnapshot: () => new Promise((resolve, reject) => {
-			resolveRender = resolve;
-			rejectRender = reject;
+			renderRequests.push({ resolve, reject });
 		}),
 		resetRoutedInputMeter: () => { meterResets += 1; },
 		setStatus: (message, status) => { statuses.push([message, status]); },
@@ -158,12 +159,13 @@ function createFixture() {
 		},
 		replaceProject() {
 			project = { ...project, id: 'project-b' };
+			state.analysisProcessing = false;
 		},
-		resolveRender(value: unknown) {
-			resolveRender(value);
+		resolveRender(value: unknown, requestIndex = 0) {
+			renderRequests[requestIndex]?.resolve(value);
 		},
-		rejectRender(reason: unknown) {
-			rejectRender(reason);
+		rejectRender(reason: unknown, requestIndex = 0) {
+			renderRequests[requestIndex]?.reject(reason);
 		},
 	};
 }
@@ -193,7 +195,27 @@ test('selection async completion cannot publish into a replacement project', asy
 	assert.equal(await pending, null);
 	assert.equal(fixture.commits(), 0);
 	assert.equal(fixture.state.analysisProcessing, false);
-	assert.equal(fixture.publishes(), 2);
+	assert.equal(fixture.publishes(), 1);
+});
+
+test('retired zero-crossing cleanup cannot release a newer project analysis', async () => {
+	const fixture = createFixture();
+	const retired = fixture.service.selectAtZeroCrossings();
+	fixture.replaceProject();
+	const current = fixture.service.selectAtZeroCrossings();
+	assert.equal(fixture.state.analysisProcessing, true);
+
+	fixture.resolveRender({}, 0);
+	assert.equal(await retired, null);
+	assert.equal(
+		fixture.state.analysisProcessing,
+		true,
+		'the retired project must not clear the current project analysis owner',
+	);
+
+	fixture.resolveRender({}, 1);
+	assert.ok(await current);
+	assert.equal(fixture.state.analysisProcessing, false);
 });
 
 test('view toggles share durable preference publication behavior', () => {
