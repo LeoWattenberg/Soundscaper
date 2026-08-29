@@ -103,7 +103,7 @@ export function assertNativeMediaPlanEnvelopeV3(
 			nativeMediaPlanViolation('malformed', `Envelope V3 ${field} is not derived.`);
 		}
 	}
-	if (semantic(candidate.summary) !== semantic(derived.summary)) {
+	if (!sameSemantics(candidate.summary, derived.summary)) {
 		nativeMediaPlanViolation('malformed', 'Envelope V3 summary does not describe its own plan.');
 	}
 }
@@ -116,7 +116,7 @@ export function divergentNativeMediaPlanEnvelopeV3Fields(
 	for (const field of ['planVersion', 'strategy', 'fingerprint', 'canonicalByteLength'] as const) {
 		if (left[field] !== right[field]) fields.push(field);
 	}
-	if (semantic(left.summary) !== semantic(right.summary)) fields.push('summary');
+	if (!sameSemantics(left.summary, right.summary)) fields.push('summary');
 	return Object.freeze(fields);
 }
 
@@ -151,6 +151,11 @@ function planVersion(value: unknown): NativeMediaPlanVersionV3 {
 	return version as NativeMediaPlanVersionV3;
 }
 
+/** A value no canonical form can describe states nothing, so it agrees with nothing. */
+function sameSemantics(left: unknown, right: unknown): boolean {
+	const declared = semantic(left);
+	return declared !== null && declared === semantic(right);
+}
 function semantic(value: unknown): string | null {
 	try { return canonicalizeNativeMediaSummaryValue(value); } catch { return null; }
 }
