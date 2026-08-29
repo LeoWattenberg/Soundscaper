@@ -33,24 +33,71 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const [presetName, setPresetName] = useState('');
 	const [presetsExpanded, setPresetsExpanded] = useState(false);
 	const presetFileRef = useRef(null);
+	const projectIdentity = project?.id ?? null;
+	const currentProjectIdentity = useRef(projectIdentity);
+	const stateProjectIdentity = useRef(projectIdentity);
+	const activeOperation = useRef(null);
+	if (currentProjectIdentity.current !== projectIdentity) {
+		currentProjectIdentity.current = projectIdentity;
+		activeOperation.current = null;
+	}
 
 	useEffect(() => {
-		if (!snapshot.effects) return;
+		const projectChanged = stateProjectIdentity.current !== projectIdentity;
+		if (projectChanged) {
+			stateProjectIdentity.current = projectIdentity;
+			activeOperation.current = null;
+			setMessage('');
+			setSelectedPresetId('');
+			setPresetName('');
+			setPresetsExpanded(false);
+		}
+		if (!snapshot.effects) {
+			if (projectChanged) {
+				const nextType = audacityEffectTypes()[0];
+				setSelectionType(nextType);
+				setSelectionParams(audacityEffectDefaults(nextType));
+				setControlTrackId('');
+			}
+			return;
+		}
 		const nextType = snapshot.effects.selectionType || audacityEffectTypes()[0];
 		setSelectionType(nextType);
 		setSelectionParams(snapshot.effects.selectionParams || audacityEffectDefaults(nextType));
 		setControlTrackId(snapshot.effects.controlTrackId || '');
-		if (!snapshot.effects.presets?.some((preset) => preset.id === selectedPresetId && preset.effectType === nextType)) {
+		if (!projectChanged && selectedPresetId
+			&& !snapshot.effects.presets?.some((preset) => preset.id === selectedPresetId && preset.effectType === nextType)) {
 			setSelectedPresetId('');
 			setPresetName('');
 		}
-	}, [selectedPresetId, snapshot.effects]);
+	}, [projectIdentity, selectedPresetId, snapshot.effects]);
+	useEffect(() => () => { activeOperation.current = null; }, []);
 
-	const run = (work) => {
+	const liveProjectIdentity = () => ('project' in controller
+		? controller.project?.id ?? null
+		: currentProjectIdentity.current);
+	const run = (work, onSuccess) => {
+		if (stateProjectIdentity.current !== projectIdentity
+			|| liveProjectIdentity() !== projectIdentity) return Promise.resolve();
+		const operation = { projectIdentity };
+		activeOperation.current = operation;
+		const ownsOperation = () => activeOperation.current === operation
+			&& currentProjectIdentity.current === operation.projectIdentity
+			&& stateProjectIdentity.current === operation.projectIdentity
+			&& liveProjectIdentity() === operation.projectIdentity;
 		setMessage('');
-		return Promise.resolve().then(work).catch((cause) => {
-			setMessage(cause instanceof Error ? cause.message : String(cause));
-		});
+		return Promise.resolve()
+			.then(() => ownsOperation() ? work(ownsOperation) : undefined)
+			.then((result) => {
+				if (!ownsOperation()) return;
+				onSuccess?.(result);
+				if (activeOperation.current === operation) activeOperation.current = null;
+			})
+			.catch((cause) => {
+				if (!ownsOperation()) return;
+				activeOperation.current = null;
+				setMessage(cause instanceof Error ? cause.message : String(cause));
+			});
 	};
 	const updateSelectionParams = (changes) => {
 		setSelectionParams((current) => ({ ...current, ...changes }));
@@ -59,27 +106,28 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const selectionDefinition = AUDACITY_EFFECT_DEFINITIONS[selectionType];
 	const selectionControlTracks = (project?.tracks || []).filter((track) => track.id !== selectedTrack?.id);
 	const effectPresets = (snapshot.effects?.presets || []).filter((preset) => preset.effectType === selectionType);
-	const applyPreset = (id = selectedPresetId) => run(() => {
-		if (!id) return;
-		const preset = controller.actions.effects.presets.apply(id);
+	const applyPreset = (id = selectedPresetId) => run(() => (
+		id ? controller.actions.effects.presets.apply(id) : null
+	), (preset) => {
+		if (!preset) return;
 		setSelectedPresetId(preset.id);
 		setSelectionType(preset.effectType);
 		setSelectionParams(preset.params);
 		setPresetName(preset.name);
 	});
-	const savePreset = (id = null) => run(async () => {
-		const preset = await controller.actions.effects.presets.save({
-			...(id ? { id } : {}),
-			effectType: selectionType,
-			name: presetName,
-			params: selectionParams,
-		});
+	const savePreset = (id = null) => run(() => controller.actions.effects.presets.save({
+		...(id ? { id } : {}),
+		effectType: selectionType,
+		name: presetName,
+		params: selectionParams,
+	}), (preset) => {
 		setSelectedPresetId(preset.id);
 		setPresetName(preset.name);
 	});
-	const importPreset = (file) => run(async () => {
+	const importPreset = (file) => run(async (ownsOperation) => {
 		if (!file) return;
-		await controller.actions.effects.presets.import(await file.text());
+		const encoded = await file.text();
+		if (ownsOperation()) await controller.actions.effects.presets.import(encoded);
 	});
 	const exportPreset = () => run(async () => {
 		const encoded = controller.actions.effects.presets.export(selectedPresetId);
@@ -90,11 +138,13 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			text: encoded,
 		});
 	});
-	const deletePreset = () => run(async () => {
-		await controller.actions.effects.presets.delete(selectedPresetId);
-		setSelectedPresetId('');
-		setPresetName('');
-	});
+	const deletePreset = () => run(
+		() => controller.actions.effects.presets.delete(selectedPresetId),
+		() => {
+			setSelectedPresetId('');
+			setPresetName('');
+		},
+	);
 	const presetChoices = effectPresetChoices(effectPresets, copy.noEffectPreset);
 	const selectedPresetChoice = presetChoices.find((choice) => choice.id === selectedPresetId);
 
@@ -183,14 +233,11 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 								<Button
 									variant="primary"
 									disabled={blocked || !selectedTrack}
-									onClick={() => run(async () => {
-										await controller.actions.effects.applySelection({
-											type: selectionType,
-											params: selectionParams,
-											controlTrackId: controlTrackId || null,
-										});
-										onClose?.();
-									})}
+									onClick={() => run(() => controller.actions.effects.applySelection({
+										type: selectionType,
+										params: selectionParams,
+										controlTrackId: controlTrackId || null,
+									}), () => onClose?.())}
 								>{copy.applyAudacityEffect}</Button>
 							</span>
 						</>
