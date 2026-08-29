@@ -19,7 +19,7 @@ const FALLBACK_SOURCE_ID = 'ofx-frozen-source';
 interface ProjectSource { readonly id: string; readonly storageKey?: string; readonly contentSha256?: string }
 
 /** The fixture project with a frozen fallback bound to media of its own. */
-function projectWithFrozenFallback() {
+function projectWithFrozenFallback(): Record<string, unknown> {
 	const project = openFxProject('video-source') as Record<string, unknown>;
 	const sources = project.sources as readonly ProjectSource[];
 	const video = sources.find((source) => source.id === 'video-source');
