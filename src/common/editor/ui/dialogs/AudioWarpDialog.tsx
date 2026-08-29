@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import '../audio-editor-design-system/27-audio-warp.css';
 
@@ -49,6 +49,9 @@ export default function AudioWarpDialog({
 		productId, project: snapshot.project, snapshot,
 	}), [productId, snapshot]);
 	const runtime = controller.actions.audioWarp.view();
+	const projectIdValue = dataRecord(snapshot.project)?.id;
+	const projectId = typeof projectIdValue === 'string' ? projectIdValue : null;
+	const activeOperationRef = useRef<symbol | null>(null);
 	const [pending, setPending] = useState<string | null>(null);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
@@ -63,10 +66,13 @@ export default function AudioWarpDialog({
 	const [grooveStrengthPercent, setGrooveStrengthPercent] = useState(50);
 
 	useEffect(() => {
+		activeOperationRef.current = null;
+		setPending(null);
 		setTransientCount(null);
 		setStatus('');
 		setError('');
-	}, [model.clipId]);
+		return () => { activeOperationRef.current = null; };
+	}, [model.clipId, projectId]);
 
 	const disabled = model.operationsBlocked || pending !== null;
 	const gridValid = Number.isSafeInteger(gridOrigin)
@@ -88,15 +94,27 @@ export default function AudioWarpDialog({
 		success: string,
 		onSuccess?: (result: unknown) => void,
 	): void => {
+		if (activeOperationRef.current !== null) return;
+		const operationId = Symbol(name);
+		activeOperationRef.current = operationId;
 		setPending(name);
 		setError('');
 		void Promise.resolve()
 			.then(() => run(operation))
-			.then((result) => { onSuccess?.(result); setStatus(success); })
+			.then((result) => {
+				if (activeOperationRef.current !== operationId) return;
+				onSuccess?.(result);
+				setStatus(success);
+			})
 			.catch((operationError: unknown) => {
+				if (activeOperationRef.current !== operationId) return;
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
 			})
-			.finally(() => { setPending(null); });
+			.finally(() => {
+				if (activeOperationRef.current !== operationId) return;
+				activeOperationRef.current = null;
+				setPending(null);
+			});
 	};
 	const exactStrength = (percent: number): RationalInput => ({ num: percent, den: 100 });
 	const quantizeOptions = () => ({
