@@ -23,3 +23,13 @@ export function canonicalJson(value) {
 export function canonicalJsonDocument(value) {
 	return `${canonicalJson(value)}\n`;
 }
+
+/**
+ * The same code-unit ordering as a comparator, for the release orderings that
+ * are not object keys - audit rows, locale tables and the file list a release
+ * writes. Host collation would order those differently on different machines
+ * for exactly the reason above, and their bytes are hashed too.
+ */
+export function compareCodeUnits(left, right) {
+	return left < right ? -1 : left > right ? 1 : 0;
+}

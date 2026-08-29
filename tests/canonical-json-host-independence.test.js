@@ -17,6 +17,7 @@ import { canonicalJsonDocument as releaseCanonicalJson } from '../scripts/lib/ca
 import { canonicalJson as manifestCanonicalJson } from '../scripts/lib/verified-manifest-helpers.mjs';
 import { canonicalJson as hostBuildCanonicalJson } from '../scripts/lib/framescaper-media-host-build.mjs';
 import { canonicalJson as provenanceCanonicalJson } from '../scripts/docs-ai/provenance.mjs';
+import { encodeCanonicalJson as translationCanonicalJson } from '../scripts/audacity-qt-translations.mjs';
 
 const DIVERGENT = Object.freeze({ audiob: 1, audioX: 2 });
 
@@ -32,6 +33,7 @@ test('every canonical serializer orders object keys by code unit', () => {
 	assert.equal(manifestCanonicalJson(DIVERGENT), expected);
 	assert.equal(hostBuildCanonicalJson(DIVERGENT), expected);
 	assert.equal(provenanceCanonicalJson(DIVERGENT), expected);
+	assert.equal(String(translationCanonicalJson(DIVERGENT)).trimEnd(), expected);
 });
 
 test('the serializers agree on nested values, arrays and primitives', () => {
@@ -44,5 +46,6 @@ test('the serializers agree on nested values, arrays and primitives', () => {
 	assert.equal(releaseCanonicalJson(value).trimEnd(), expected);
 	assert.equal(hostBuildCanonicalJson(value), expected);
 	assert.equal(provenanceCanonicalJson(value), expected);
+	assert.equal(String(translationCanonicalJson(value)).trimEnd(), expected);
 	assert.deepEqual(JSON.parse(expected), value, 'canonical bytes must still parse back to the value');
 });

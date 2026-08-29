@@ -12,6 +12,7 @@ import {
 	AUDACITY_QT_MAPPING_VERSION,
 } from '../src/common/i18n/audacity-qt-mapping.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { compareCodeUnits } from './lib/canonical-json.mjs';
 import { AUDACITY_TO_BCP47, LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
 import {
 	DEFAULT_TRANSLATION_ARCHIVE_LIMITS,
@@ -295,7 +296,7 @@ export function auditQtMappingCandidates(englishCopy, sourceCatalog, mapping = A
 	}
 	const ambiguous = [];
 	const skipped = [];
-	for (const [key, value] of Object.entries(englishCopy).sort(([left], [right]) => left.localeCompare(right))) {
+	for (const [key, value] of Object.entries(englishCopy).sort(([left], [right]) => compareCodeUnits(left, right))) {
 		if (selectedKeys.has(key)) continue;
 		const normalized = normalizedCandidateText(value);
 		const identities = sourceByValue.get(normalized);
@@ -388,7 +389,7 @@ export function buildAudacityTranslationRelease(options) {
 	const files = new Map();
 	const localeDescriptors = {};
 	const localeAudit = {};
-	for (const [locale, result] of [...conversionByLocale].sort(([left], [right]) => left.localeCompare(right))) {
+	for (const [locale, result] of [...conversionByLocale].sort(([left], [right]) => compareCodeUnits(left, right))) {
 		const pack = {
 			schemaVersion: TRANSLATION_PACK_SCHEMA_VERSION,
 			locale,
@@ -521,7 +522,7 @@ export async function prepareAudacityTranslationRelease(options) {
 	const outputDirectory = path.resolve(options.outputDirectory);
 	await ensureEmptyOutputDirectory(outputDirectory);
 	const release = buildAudacityTranslationRelease(options);
-	for (const [relativePath, bytes] of [...release.files].sort(([left], [right]) => left.localeCompare(right))) {
+	for (const [relativePath, bytes] of [...release.files].sort(([left], [right]) => compareCodeUnits(left, right))) {
 		const destination = safeOutputPath(outputDirectory, relativePath);
 		await mkdir(path.dirname(destination), { recursive: true });
 		await writeFile(destination, bytes, { flag: 'wx' });
@@ -645,7 +646,7 @@ function retainPreviousLocales({ currentMappingVersion, currentMappingSha256, fi
 	if (!previousLocales || typeof previousLocales !== 'object' || !(previousRelease.packs instanceof Map)) {
 		fail('PREVIOUS_RELEASE_SHAPE', 'Previous release must provide latest metadata and referenced pack bytes.');
 	}
-	for (const [rawLocale, previous] of Object.entries(previousLocales).sort(([left], [right]) => left.localeCompare(right))) {
+	for (const [rawLocale, previous] of Object.entries(previousLocales).sort(([left], [right]) => compareCodeUnits(left, right))) {
 		if (!previous?.eligible) continue;
 		const locale = normalizeQtLocale(rawLocale);
 		const current = localeDescriptors[locale];
@@ -860,13 +861,12 @@ function qtIdentity(context, source, comment) {
 }
 
 function compareAuditEntry(left, right) {
-	return left.key.localeCompare(right.key) || left.reason.localeCompare(right.reason);
+	return compareCodeUnits(left.key, right.key) || compareCodeUnits(left.reason, right.reason);
 }
 
 function compareCandidateIdentity(left, right) {
-	return left.context.localeCompare(right.context)
-		|| left.source.localeCompare(right.source)
-		|| left.comment.localeCompare(right.comment);
+	return compareCodeUnits(left.context, right.context)
+		|| compareCodeUnits(left.source, right.source) || compareCodeUnits(left.comment, right.comment);
 }
 
 function normalizedCandidateText(value) {
@@ -900,14 +900,14 @@ function sha256(bytes) {
 }
 
 function sortRecord(record) {
-	return Object.fromEntries(Object.entries(record).sort(([left], [right]) => left.localeCompare(right)));
+	return Object.fromEntries(Object.entries(record).sort(([left], [right]) => compareCodeUnits(left, right)));
 }
 
 function sortJsonValue(value) {
 	if (Array.isArray(value)) return value.map(sortJsonValue);
 	if (value && typeof value === 'object') {
 		return Object.fromEntries(Object.entries(value)
-			.sort(([left], [right]) => left.localeCompare(right))
+			.sort(([left], [right]) => compareCodeUnits(left, right))
 			.map(([key, child]) => [key, sortJsonValue(child)]));
 	}
 	if (typeof value === 'number' && !Number.isFinite(value)) fail('JSON_NUMBER', 'Canonical JSON cannot contain non-finite numbers.');
