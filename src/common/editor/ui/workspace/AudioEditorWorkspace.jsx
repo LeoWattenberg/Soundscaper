@@ -97,7 +97,7 @@ export default function AudioEditorWorkspace({
 		project && projectForRuntimeConsumers ? projectForRuntimeConsumers(project) : null
 	), [project, projectForRuntimeConsumers]);
 	const preferences = snapshot.preferences;
-	useWorkspaceThemePreference(preferences?.appearance?.theme);
+	useWorkspaceThemePreference(preferences?.appearance?.theme, productId);
 	const isVideoEditorWorkspace = preferences?.workspace?.activeId === 'video-editor';
 	const projectBinPreferenceVisible = preferences?.workspace?.panels?.['project-bin']?.visible === true;
 	const projectBinEffectivelyOpen = projectBinPreferenceVisible

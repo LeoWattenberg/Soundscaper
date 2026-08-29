@@ -20,11 +20,25 @@ export function productThemeKey(productId) {
  */
 export function applyDocumentTheme(root, productId, scope = globalThis) {
 	rememberActiveProduct(productId, scope);
-	const theme = storedDocumentTheme(productId, scope)
-		|| (prefersDarkTheme(scope) ? 'dark' : 'light');
+	const theme = resolveDocumentTheme(productId, scope);
+	paintDocumentTheme(root, theme);
+	return theme;
+}
+
+/**
+ * The theme a visit resolves to: the choice this visitor stored, and only
+ * failing that the system preference. Callers that repaint the document later -
+ * the editor's own appearance preference among them - read it rather than the
+ * media query alone, so a stored choice is never quietly discarded.
+ */
+export function resolveDocumentTheme(productId, scope = globalThis) {
+	return storedDocumentTheme(productId, scope) || (prefersDarkTheme(scope) ? 'dark' : 'light');
+}
+
+/** Paint a resolved theme onto a document root. */
+export function paintDocumentTheme(root, theme) {
 	root.dataset.theme = theme;
 	root.style.colorScheme = theme;
-	return theme;
 }
 
 /**
