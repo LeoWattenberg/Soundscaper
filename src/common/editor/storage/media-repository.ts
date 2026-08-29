@@ -85,7 +85,7 @@ export class MediaRepository {
 		const blob = canonicalMediaContentBlob(input);
 		const previous = await this.getAssetMetadata(id);
 		throwIfAborted(signal);
-		if (previous) throw new Error(`Immutable media asset ${id} cannot be overwritten.`);
+		if (previous) throw immutableMediaAssetError(id);
 		const sha256 = (await digestMediaContent(blob, { signal })).toLowerCase();
 		throwIfAborted(signal);
 		const provenance = freshVerifiedMediaContentDigest(sha256);
@@ -107,8 +107,7 @@ export class MediaRepository {
 		try {
 			const database = await this.#port.database();
 			throwIfAborted(signal);
-			if (!database) this.#port.memory.mediaAssets.set(id, clone(record));
-			else await transact(database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => { mediaAssets.put(record); });
+			await publishImmutableMediaAsset(this.#port, record, database, signal);
 		} catch (error) {
 			if (storedFile) await this.#opfs.deletePath(storedFile.path);
 			throw error;
@@ -231,6 +230,53 @@ function asStorageRecord(value: unknown): StorageRecord | null {
 
 function isStorageRecord(value: StorageRecord | null): value is StorageRecord {
 	return value !== null;
+}
+
+async function publishImmutableMediaAsset(
+	port: StorageRepositoryPort,
+	record: StorageRecord,
+	database: IDBDatabase | null,
+	signal?: AbortSignal,
+): Promise<void> {
+	const sourceId = record.sourceId as string;
+	if (!database) {
+		if (port.memory.mediaAssets.has(sourceId)) throw immutableMediaAssetError(sourceId);
+		throwIfAborted(signal);
+		port.memory.mediaAssets.set(sourceId, clone(record));
+		return;
+	}
+	const created = await transact(database, 'mediaAssets', 'readwrite', ({ mediaAssets }) => {
+		throwIfAborted(signal);
+		return addMediaAssetIfAbsent(mediaAssets, record);
+	});
+	if (!created) throw immutableMediaAssetError(sourceId);
+}
+
+function addMediaAssetIfAbsent(store: IDBObjectStore, record: StorageRecord): Promise<boolean> {
+	return new Promise((resolve, reject) => {
+		let insertion: IDBRequest<IDBValidKey>;
+		try {
+			insertion = store.add(record);
+		} catch (error) {
+			reject(error);
+			return;
+		}
+		insertion.onsuccess = () => { resolve(true); };
+		insertion.onerror = (event) => {
+			const error = insertion.error || new Error('Could not publish the immutable media asset.');
+			if (error.name !== 'ConstraintError') {
+				reject(error);
+				return;
+			}
+			event.preventDefault();
+			event.stopPropagation();
+			resolve(false);
+		};
+	});
+}
+
+function immutableMediaAssetError(sourceId: string): Error {
+	return new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
 }
 
 function clone<Value>(value: Value): Value {

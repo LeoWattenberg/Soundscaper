@@ -77,6 +77,38 @@ test('memory storage persists immutable media assets and timestamped video deriv
 });
 
 for (const backend of ['memory', 'indexeddb', 'opfs']) {
+	test(`${backend} concurrent direct media writes publish one immutable winner`, async () => {
+		const files = new Map();
+		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const databaseName = uniqueDatabaseName(`concurrent-media-${backend}`);
+		const directory = createOpfsDirectory(files);
+		const store = createProjectStore({
+			indexedDB,
+			memoryFallback: backend !== 'indexeddb',
+			preferOpfs: backend === 'opfs',
+			databaseName,
+			storageManager: backend === 'opfs' ? {
+				async getDirectory() { return { async getDirectoryHandle() { return directory; } }; },
+			} : null,
+		});
+		const results = await Promise.allSettled([
+			store.writeMediaAsset('shared-id', new Blob(['first']), { candidate: 'first' }),
+			store.writeMediaAsset('shared-id', new Blob(['second']), { candidate: 'second' }),
+		]);
+		const fulfilled = results.filter((result) => result.status === 'fulfilled');
+		const rejected = results.filter((result) => result.status === 'rejected');
+
+		assert.equal(fulfilled.length, 1);
+		assert.equal(rejected.length, 1);
+		assert.match(String(rejected[0].reason), /immutable media asset shared-id cannot be overwritten/iu);
+		const winner = fulfilled[0].value.candidate;
+		assert.equal(await (await store.loadMediaAsset('shared-id')).text(), winner);
+		if (backend === 'indexeddb') assert.equal(indexedDB.recordCount(databaseName, 'mediaAssets'), 1);
+		if (backend === 'opfs') assert.equal(files.size, 1, 'the losing staged OPFS payload is removed');
+	});
+}
+
+for (const backend of ['memory', 'indexeddb', 'opfs']) {
 	test(`${backend} retained-media digests use the Blob's stored bytes instead of overridden readers`, async () => {
 		const files = new Map();
 		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;

@@ -242,6 +242,20 @@ class FakeObjectStore {
 		});
 	}
 
+	add(value) {
+		return fakeRequest(this.transaction, () => {
+			const failure = this.transaction.database.takeRequestFailure('add', this.data.name);
+			if (failure) throw failure;
+			const stored = clone(value);
+			const key = stored[this.data.keyPath];
+			if (this.data.records.has(key)) {
+				throw new DOMException(`Store ${this.data.name} already contains ${String(key)}.`, 'ConstraintError');
+			}
+			this.data.records.set(key, stored);
+			return key;
+		});
+	}
+
 	createIndex(name, keyPath) {
 		if (this.data.indexes.has(name)) throw new DOMException(`Index ${name} already exists.`, 'ConstraintError');
 		this.data.indexes.set(name, keyPath);
