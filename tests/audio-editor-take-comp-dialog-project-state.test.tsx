@@ -70,6 +70,57 @@ test('take-comp work from another project cannot retain or publish dialog state'
 	}
 });
 
+test('a successful remove reports after its own group leaves the project', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const removal = deferred<void>();
+	const controller = {
+		actions: { takeComp: {
+			auditionTake: () => undefined,
+			auditionLane: () => undefined,
+			stopAudition: () => undefined,
+			promoteTake: () => undefined,
+			editCompBoundary: () => undefined,
+			editSharedCompBoundary: () => undefined,
+			flatten: () => undefined,
+			removeGroup: () => removal.promise,
+		} },
+	};
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const populatedProject = project('project-a');
+	const renderDialog = (currentProject: unknown) => <TakeCompDialog
+		productId="soundscaper"
+		controller={controller}
+		snapshot={{ project: currentProject }}
+		copy={ENGLISH_COPY}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>;
+	try {
+		await act(async () => root.render(renderDialog(populatedProject)));
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, ENGLISH_COPY.takeCompRemoveGroup)).onClick({});
+			await Promise.resolve();
+		});
+		await act(async () => root.render(renderDialog({ ...populatedProject, takeGroups: [] })));
+		await act(async () => {
+			removal.resolve();
+			await removal.promise;
+			await Promise.resolve();
+		});
+
+		assert.equal(dom.container.textContent.includes(ENGLISH_COPY.takeCompRemoveComplete), true);
+	} finally {
+		removal.resolve();
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function project(id: string) {
 	const sources = [
 		createAudioSource({

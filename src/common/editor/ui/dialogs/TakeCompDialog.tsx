@@ -98,7 +98,7 @@ export default function TakeCompDialog({
 		setStatus('');
 		setError('');
 		return () => { activeOperationRef.current = null; };
-	}, [group?.id, projectId]);
+	}, [projectId]);
 	const draftIdentity = JSON.stringify([projectId, takeCompDialogDraftIdentity(group)]);
 	const draftedIdentity = useRef(draftIdentity);
 	useEffect(() => {
@@ -124,6 +124,13 @@ export default function TakeCompDialog({
 		: model.blockReason === 'locked'
 			? copy.takeCompLocked
 			: model.blockReason === 'busy' ? copy.takeCompBusy : '';
+	const selectGroup = (nextGroupId: string): void => {
+		activeOperationRef.current = null;
+		setPending(null);
+		setStatus('');
+		setError('');
+		setGroupId(nextGroupId);
+	};
 
 	const perform = (name: string, operation: () => unknown, success = copy.takeCompOperationComplete): void => {
 		if (activeOperationRef.current !== null) return;
@@ -168,7 +175,7 @@ export default function TakeCompDialog({
 					<select
 						data-take-comp-group
 						value={group?.id ?? ''}
-						onChange={(event) => setGroupId(event.currentTarget.value)}
+						onChange={(event) => selectGroup(event.currentTarget.value)}
 					>
 						{model.groups.map((candidate) => <option key={candidate.id} value={candidate.id}>
 							{candidate.trackName} · {formatExtent(copy, candidate.startSample, candidate.endSample)}
