@@ -20,6 +20,7 @@ import {
 	type LocalAssistanceSnapshot,
 } from '../src/common/editor/ui/local-assistance-session-store.ts';
 import {
+	localAssistanceReviewIdentity,
 	LocalAssistanceDialogView,
 } from '../src/common/editor/ui/dialogs/LocalAssistanceDialog.tsx';
 import {
@@ -187,7 +188,8 @@ test('one explicit run stages Blob input, validates output, and releases custody
 	assert.equal(snapshot.canReview, true);
 	assert.equal(snapshot.canAccept, false);
 	const markup = renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced" reviewOpen onClose={() => undefined}
+		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced"
+		reviewedResultIdentity={localAssistanceReviewIdentity(snapshot)} onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined}
 		onRun={() => undefined} onCancel={() => undefined}
@@ -283,16 +285,31 @@ test('reviewed speech output enables one explicit controller-owned acceptance', 
 	await store.run();
 	const reviewable = store.getSnapshot();
 	assert.equal(reviewable.canAccept, true);
-	const view = (reviewOpen: boolean) => renderToStaticMarkup(<LocalAssistanceDialogView
-		copy={ENGLISH_COPY} snapshot={reviewable} surface="advanced"
-		reviewOpen={reviewOpen} onClose={() => undefined}
+	const reviewedResultIdentity = localAssistanceReviewIdentity(reviewable);
+	const view = (reviewedIdentity: string | null, snapshot = reviewable) => renderToStaticMarkup(
+		<LocalAssistanceDialogView
+		copy={ENGLISH_COPY} snapshot={snapshot} surface="advanced"
+		reviewedResultIdentity={reviewedIdentity} onClose={() => undefined}
 		onSelectSource={() => undefined} onSelectOperation={() => undefined}
 		onSelectModel={() => undefined} onConsentChange={() => undefined}
 		onRun={() => undefined} onCancel={() => undefined}
 		onReview={() => undefined} onAccept={() => undefined}
 	/>);
-	assert.match(view(false), /<button type="button" disabled="">Accept proposal<\/button>/u);
-	assert.match(view(true), /<button type="button">Accept proposal<\/button>/u);
+	assert.match(view(null), /<button type="button" disabled="">Accept proposal<\/button>/u);
+	assert.match(view(reviewedResultIdentity), /<button type="button">Accept proposal<\/button>/u);
+	const replacement = Object.freeze({
+		...reviewable,
+		result: reviewable.result && Object.freeze({
+			...reviewable.result,
+			outputs: Object.freeze(reviewable.result.outputs.map((output) => Object.freeze({
+				...output,
+				claim: Object.freeze({ ...output.claim, jobId: 'd'.repeat(40) }),
+			}))),
+		}),
+	});
+	assert.match(view(reviewedResultIdentity, replacement),
+		/<button type="button" disabled="">Accept proposal<\/button>/u,
+		'a prior job review must not authorize a replacement result');
 	await store.accept();
 	assert.equal(store.getSnapshot().phase, 'accepted');
 	assert.equal(store.getSnapshot().canAccept, false);

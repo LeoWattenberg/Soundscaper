@@ -42,7 +42,7 @@ export interface LocalAssistanceDialogViewProps {
 	readonly snapshot: LocalAssistanceSnapshot;
 	readonly guided?: LocalAssistanceGuidedSnapshot;
 	readonly surface?: LocalAssistanceDialogSurface;
-	readonly reviewOpen?: boolean;
+	readonly reviewedResultIdentity?: string | null;
 	readonly onClose: () => void;
 	readonly onSurfaceChange?: (surface: LocalAssistanceDialogSurface) => unknown;
 	readonly onSelectWorkflow?: (workflowId: AssistanceGuidedWorkflowId) => unknown;
@@ -84,7 +84,7 @@ export default function LocalAssistanceDialog({
 	const guidedStore = useMemo(() => createLocalAssistanceGuidedSessionStore({
 		bridge, preparation,
 	}), [bridge, preparation]);
-	const [reviewOpen, setReviewOpen] = useState(false);
+	const [reviewedResultIdentity, setReviewedResultIdentity] = useState<string | null>(null);
 	const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 	const guided = useSyncExternalStore(
 		guidedStore.subscribe, guidedStore.getSnapshot, guidedStore.getSnapshot,
@@ -101,7 +101,7 @@ export default function LocalAssistanceDialog({
 		copy={copy}
 		snapshot={snapshot}
 		guided={guided}
-		reviewOpen={reviewOpen}
+		reviewedResultIdentity={reviewedResultIdentity}
 		onClose={onClose}
 		onSurfaceChange={guidedStore.selectSurface}
 		onSelectWorkflow={guidedStore.selectWorkflow}
@@ -123,8 +123,9 @@ export default function LocalAssistanceDialog({
 		onRun={() => store.run()}
 		onCancel={() => store.cancel()}
 		onReview={() => {
-			setReviewOpen(true);
-			if (store.getSnapshot().canPrepareTranscriptCleanup) {
+			const current = store.getSnapshot();
+			setReviewedResultIdentity(localAssistanceReviewIdentity(current));
+			if (current.canPrepareTranscriptCleanup) {
 				return store.prepareTranscriptCleanup();
 			}
 		}}
@@ -138,7 +139,7 @@ export default function LocalAssistanceDialog({
 
 export function LocalAssistanceDialogView({
 	copy, snapshot, guided = INITIAL_LOCAL_ASSISTANCE_GUIDED_SNAPSHOT,
-	surface, reviewOpen = false, onClose,
+	surface, reviewedResultIdentity = null, onClose,
 	onSurfaceChange = () => undefined, onSelectWorkflow = () => undefined,
 	onGuidedSettingsChange = () => undefined,
 	onRunGuided = () => undefined, onCancelGuided = () => undefined,
@@ -164,6 +165,8 @@ export function LocalAssistanceDialogView({
 		? localAssistanceModelTaskSlots(snapshot.selectedOperation, shotDetectionMode)
 		: EMPTY_MODEL_TASK_SLOTS;
 	const message = phaseMessage(copy, snapshot);
+	const reviewOpen = localAssistanceReviewIdentity(snapshot) !== null
+		&& reviewedResultIdentity === localAssistanceReviewIdentity(snapshot);
 	return <AudioEditorDialogShell
 		title={text(copy, 'localAssistance', 'Local Assistance')}
 		onClose={onClose}
@@ -292,6 +295,20 @@ export function LocalAssistanceDialogView({
 			'Project acceptance is enabled in a separate review step.')}</p>
 		</section>}
 	</AudioEditorDialogShell>;
+}
+
+export function localAssistanceReviewIdentity(snapshot: LocalAssistanceSnapshot): string | null {
+	if (!snapshot.result || snapshot.result.outputs.length === 0) return null;
+	return JSON.stringify([snapshot.result.operation, ...snapshot.result.outputs.map((output) => [
+		output.slotId ?? null,
+		output.claim.claimVersion,
+		output.claim.claimId,
+		output.claim.jobId,
+		output.claim.role,
+		output.claim.mediaType,
+		output.claim.byteLength,
+		output.claim.sha256,
+	])]);
 }
 
 function Progress({ copy, progress }: Readonly<{
