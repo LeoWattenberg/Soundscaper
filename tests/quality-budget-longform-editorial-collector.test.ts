@@ -7,6 +7,7 @@ import {
 	parseM3LongformEditorialDiagnostic,
 	writeM3LongformEditorialResult,
 } from '../scripts/collect-m3-longform-editorial-quality.mjs';
+import { M3_LONGFORM_EDITORIAL_SPECIFICATION } from '../src/common/editor/quality/m3-longform-editorial-workload.ts';
 
 const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
@@ -41,7 +42,7 @@ const expectedFixture = Object.freeze({
 		selectionChanges: 2_500,
 		trackMixChanges: 2_500,
 	}),
-	projectSha256: 'f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3',
+	projectSha256: 'efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e',
 	editPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 });
 
@@ -103,6 +104,22 @@ function makeDiagnostic() {
 function reporterOutput(value: unknown): string {
 	return `✔ local diagnostic\nℹ ${JSON.stringify(value)}\nℹ tests 1\n`;
 }
+
+test('the registered fixture digests match the maintained deterministic generator', () => {
+	const quality = config as {
+		fixtures: Array<{ id: string; specification: Record<string, unknown> }>;
+	};
+	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v2');
+	assert.ok(fixture);
+	assert.equal(
+		fixture.specification.projectSha256,
+		M3_LONGFORM_EDITORIAL_SPECIFICATION.expectedProjectSha256,
+	);
+	assert.equal(
+		fixture.specification.editPlanSha256,
+		M3_LONGFORM_EDITORIAL_SPECIFICATION.expectedEditPlanSha256,
+	);
+});
 
 test('the long-form collector recomputes every metric with the frozen sampling policy', () => {
 	const result = createPendingM3LongformEditorialResult(makeDiagnostic(), config);

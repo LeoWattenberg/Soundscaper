@@ -60,11 +60,11 @@ const CASE_DEFINITIONS = Object.freeze([
 	caseDefinition('opacity-eased', 'eased', [0.15, 0.5, 0.85]),
 	caseDefinition(
 		'opacity-bezier', 'bezier', [0.1, 0.50625, 0.95],
-		'framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70',
+		'framescaper-flat-clip-4f2ad5b3a72f098f3878c158c7025f70',
 	),
 ]);
 const FIXTURE = Object.freeze({
-	generatorRevision: 2,
+	generatorRevision: 3,
 	seed: 1_801_382_864,
 	width: 128,
 	height: 72,

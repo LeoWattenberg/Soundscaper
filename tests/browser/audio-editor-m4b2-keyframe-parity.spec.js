@@ -4,7 +4,7 @@ import { expect, test } from './helpers/nightly-packaged-electron.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { transform } from 'esbuild';
+import { build, transform } from 'esbuild';
 
 import {
 	M4B2_KEYFRAME_PARITY_FIXTURE_ID,
@@ -81,7 +81,9 @@ test('collects keyed preview/offline RGBA and exact dual-consumer ledgers withou
 				: cfrProject(definition.id);
 			if (prepared.runtime.clips.length !== 1
 				|| prepared.runtime.clips[0].id !== definition.evidenceClipId) {
-				throw new Error(`${definition.id} did not resolve its frozen evidence occurrence.`);
+				throw new Error(
+					`${definition.id} did not resolve its frozen evidence occurrence; received ${prepared.runtime.clips.map(({ id }) => id).join(', ') || 'no clips'}.`,
+				);
 			}
 			const boundTiming = timingViewModule.bindVideoSourceTimingView(
 				new Map([[prepared.sourceId, prepared.timingView]]),
@@ -451,6 +453,9 @@ async function installRoutes(page) {
 		body: 'export default function unavailablePffft(){throw new Error("PFFFT is outside the keyed parity workload.")}',
 		contentType: 'text/javascript',
 	});
+	routes.set(`${ROOT}/shims/saxes.js`, {
+		body: await bundleSaxesParser(), contentType: 'text/javascript',
+	});
 	const nobleRoot = new URL('../../node_modules/@noble/hashes/', import.meta.url);
 	for (const name of NOBLE_HASH_FILES) {
 		routes.set(`${ROOT}/noble/${name}`, {
@@ -464,7 +469,7 @@ async function installRoutes(page) {
 				status: 200,
 				contentType: 'text/html',
 				body: `<!doctype html><meta charset="utf-8">
-					<script type="importmap">{"imports":{"@noble/hashes/sha2.js":"${ROOT}/noble/sha2.js","@noble/hashes/utils.js":"${ROOT}/noble/utils.js","@echogarden/pffft-wasm/simd":"${ROOT}/shims/pffft.js"}}</script>
+					<script type="importmap">{"imports":{"@noble/hashes/sha2.js":"${ROOT}/noble/sha2.js","@noble/hashes/utils.js":"${ROOT}/noble/utils.js","@echogarden/pffft-wasm/simd":"${ROOT}/shims/pffft.js","saxes":"${ROOT}/shims/saxes.js"}}</script>
 					<title>M4B2 keyed parity</title>`,
 			});
 			return;
@@ -474,6 +479,26 @@ async function installRoutes(page) {
 			? { status: 404, body: `Unknown keyed parity path ${pathname}` }
 			: { status: 200, ...descriptor });
 	});
+}
+
+async function bundleSaxesParser() {
+	const result = await build({
+		stdin: {
+			contents: 'export { SaxesParser } from "saxes";',
+			loader: 'js',
+			resolveDir: fileURLToPath(new URL('../..', import.meta.url)),
+			sourcefile: 'm4b2-saxes-entry.js',
+		},
+		bundle: true,
+		format: 'esm',
+		platform: 'browser',
+		sourcemap: 'inline',
+		target: 'es2022',
+		write: false,
+	});
+	const output = result.outputFiles?.[0];
+	if (output === undefined) throw new Error('Could not bundle the Saxes browser dependency.');
+	return output.text;
 }
 
 async function transpileSourceModules() {

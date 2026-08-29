@@ -69,12 +69,12 @@ const CASES: readonly M4B2KeyframeParityCase[] = Object.freeze([
 	parityCase('opacity-eased', 'eased', 0.15, 0.85, [0.15, 0.5, 0.85]),
 	parityCase(
 		'opacity-bezier', 'bezier', 0.1, 0.95, [0.1, 0.50625, 0.95],
-		'framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70',
+		'framescaper-flat-clip-4f2ad5b3a72f098f3878c158c7025f70',
 	),
 ]);
 
 export const M4B2_KEYFRAME_PARITY_SPECIFICATION = Object.freeze({
-	generatorRevision: 2 as const,
+	generatorRevision: 3 as const,
 	seed: SOURCE_SEED,
 	width: WIDTH,
 	height: HEIGHT,
