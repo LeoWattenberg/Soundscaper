@@ -11,6 +11,7 @@ import {
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import { takeSelectedFile } from '../file-input-selection.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
@@ -79,7 +80,6 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const importPreset = (file) => run(async () => {
 		if (!file) return;
 		await controller.actions.effects.presets.import(await file.text());
-		if (presetFileRef.current) presetFileRef.current.value = '';
 	});
 	const exportPreset = () => run(async () => {
 		const encoded = controller.actions.effects.presets.export(selectedPresetId);
@@ -149,7 +149,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={deletePreset}>{copy.deleteEffectPreset}</Button>
 								<Button variant="secondary" disabled={blocked} onClick={() => presetFileRef.current?.click()}>{copy.importEffectPreset}</Button>
 								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={exportPreset}>{copy.exportEffectPreset}</Button>
-								<input ref={presetFileRef} type="file" accept="application/json,.json" hidden onChange={(event) => importPreset(event.currentTarget.files?.[0])} />
+								<input ref={presetFileRef} type="file" accept="application/json,.json" hidden data-effect-preset-file onChange={(event) => { void importPreset(takeSelectedFile(event.currentTarget)); }} />
 							</div>
 						</div>
 					)}

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
+import { takeSelectedFile } from '../file-input-selection.ts';
 import { LabeledDropdown } from './inspector-controls.jsx';
 import { runDeliveryPresetAction } from '../export-preset-model.ts';
 
@@ -82,9 +83,8 @@ export default function ExportPresetSection({
 					hidden
 					data-delivery-preset-file
 					onChange={(event) => {
-						const file = event.target.files?.[0];
+						const file = takeSelectedFile(event.currentTarget);
 						if (file) guard(() => onImport(file));
-						if (fileRef.current) fileRef.current.value = '';
 					}}
 				/>
 			</div>

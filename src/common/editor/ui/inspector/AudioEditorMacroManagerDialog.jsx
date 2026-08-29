@@ -10,6 +10,7 @@ import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../ef
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
+import { takeSelectedFile } from '../file-input-selection.ts';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
 import { resolveSupportedEffectType, safeEffectLabel } from './effect-helpers.ts';
@@ -136,8 +137,6 @@ export function AudioEditorMacroManagerDialog({
 			showMessage(/no supported effects/i.test(detail)
 				? copy.macroImportEmpty
 				: copy.macroImportFailed.replace('{message}', detail), 'error');
-		} finally {
-			if (fileInputRef.current) fileInputRef.current.value = '';
 		}
 	};
 	const exportMacro = async () => {
@@ -251,7 +250,7 @@ export function AudioEditorMacroManagerDialog({
 					</div>
 					{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
 					{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
-					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden onChange={(event) => importMacro(event.currentTarget.files?.[0])} />
+					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden data-macro-import-file onChange={(event) => { void importMacro(takeSelectedFile(event.currentTarget)); }} />
 				</section>
 			</AudioEditorDialogShell>
 
