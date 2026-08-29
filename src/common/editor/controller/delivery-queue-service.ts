@@ -201,7 +201,11 @@ export function createDeliveryQueueService(runtime: DeliveryQueueServiceRuntime)
 		},
 		retry: (jobId: string) => runner.retry(jobId),
 		reorder: (jobId: string, position: number) => runner.reorder(jobId, position),
-		recover: () => runner.recover(),
+		recover: () => {
+			const running = runner.activeJobId() !== null;
+			if (running) runtime.handleExportAction('cancel');
+			runner.recover();
+		},
 		settled: () => runner.settled(),
 	});
 }

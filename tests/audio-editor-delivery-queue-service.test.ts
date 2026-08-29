@@ -299,7 +299,7 @@ test('a batch killed mid-flight publishes nothing partial and returns the member
 	// restart: the member that was rendering when the session died published
 	// nothing, and the report says it was not delivered rather than that it was.
 	let inFlight: (() => void) | null = null;
-	const { service } = harness((settings) => {
+	const { service, calls } = harness((settings) => {
 		if ((settings as { format?: string })?.format !== 'mp3') return { fileName: 'member.out' };
 		return new Promise<void>((resolve) => { inFlight = resolve; });
 	});
@@ -319,6 +319,8 @@ test('a batch killed mid-flight publishes nothing partial and returns the member
 		assert.equal(service.batchReport('batch-1').items[1].data.fileName, null);
 
 		service.recover();
+		assert.equal(calls.filter(([action]) => action === 'cancel').length, 1,
+			'recovering a live queue must cancel the export whose row was re-queued');
 		assert.deepEqual(service.list().entries.map(({ state }) => state), [
 			'completed', 'queued', 'queued',
 		], 'the interrupted member returns whole, never half-done');

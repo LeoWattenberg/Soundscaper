@@ -160,6 +160,7 @@ export function createDeliveryQueueRunner(runtime: DeliveryQueueRunnerRuntime) {
 		},
 		/** Rebuild as a fresh session would see it; an interrupted job returns whole. */
 		recover(): void {
+			activeAbort?.abort();
 			publish(recoverDeliveryQueueAfterRestart(queue));
 		},
 		/** Resolves once the current drain settles, so callers need no polling. */

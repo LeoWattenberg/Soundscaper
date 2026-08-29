@@ -158,12 +158,21 @@ test('retry re-runs a failed job from the start as a new attempt', async () => {
 
 test('recovery after a kill returns the interrupted job whole', async () => {
 	const gate = deferred();
-	const runner = createDeliveryQueueRunner({ runJob: async () => { await gate.promise; } });
+	let activeSignal: AbortSignal | null = null;
+	let attempts = 0;
+	const runner = createDeliveryQueueRunner({
+		runJob: async (_entry, { signal }) => {
+			attempts += 1;
+			activeSignal = signal;
+			if (attempts === 1) await gate.promise;
+		},
+	});
 	runner.enqueue(job('a'));
 	await Promise.resolve();
 	assert.equal(runner.getQueue().entries[0].state, 'running');
 
 	runner.recover();
+	assert.equal(activeSignal?.aborted, true, 'the interrupted executor must lose its live ownership');
 	assert.equal(
 		runner.getQueue().entries[0].state,
 		'queued',
@@ -171,6 +180,7 @@ test('recovery after a kill returns the interrupted job whole', async () => {
 	);
 	gate.resolve();
 	await runner.settled();
+	assert.equal(attempts, 2, 'the recovered job restarts exactly once from the beginning');
 });
 
 test('every change is published so a view never has to poll', async () => {
