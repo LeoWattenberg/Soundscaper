@@ -137,42 +137,28 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
 	) {
 		const active = project?.id === projectId;
-		if (tab.dirty && closeOptions.discard !== true) {
-			if (active) {
-				if (!state.readOnly) await saveNow();
-			} else if (!tab.readOnly) {
-				await store.saveProject(tab.history.present, {
-					protectedLinkedOriginalSourceReferences: Object.freeze([
-						...liveSessionLinkedOriginalSourceReferences(),
-					]),
+		if (active) {
+			const tabs = sessionController.getSnapshot().tabs;
+			const index = tabs.findIndex((candidate: any) => candidate.projectId === projectId);
+			if (index < 0) throw new Error(copy.projectNotFound);
+			const nextTab = tabs[index + 1] ?? tabs[index - 1] ?? null;
+			if (nextTab) {
+				await switchProject(nextTab.history.present, {
+					skipFlush: closeOptions.discard === true,
 				});
-				sessionController.markProjectSaved(projectId);
-			}
+			} else await newProject({ skipFlush: closeOptions.discard === true });
+		} else if (tab.dirty && closeOptions.discard !== true && !tab.readOnly) {
+			await store.saveProject(tab.history.present, {
+				protectedLinkedOriginalSourceReferences: Object.freeze([
+					...liveSessionLinkedOriginalSourceReferences(),
+				]),
+			});
+			sessionController.markProjectSaved(projectId);
 		}
 		interlock?.assertCurrent();
 		const result = sessionController.closeProject(projectId, { force: true });
 		if (!result.closed) return result;
-		if (!active) {
-			clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
-			evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
-			publishDocumentSnapshot();
-			await garbageCollectSources();
-			return result;
-		}
-
-		projectSaveService.cancelScheduled();
-		await releaseProjectLock();
-		engine.stop();
-		state.history = null;
-		setProject(null);
-		state.selectedTrackId = null;
-		state.selectedClipId = null;
-		state.selectedAnnotationId = null;
-		state.missingSourceIds.clear();
-		const nextTab = result.activeProjectId ? sessionTab(result.activeProjectId) : null;
-		if (nextTab) await switchProject(nextTab.history.present, { skipFlush: true });
-		else await newProject({ skipFlush: true });
-		state.projects = Object.freeze(await store.listProjects());
+		if (active) state.projects = Object.freeze(await store.listProjects());
 		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
 		publishDocumentSnapshot();

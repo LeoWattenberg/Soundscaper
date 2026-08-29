@@ -89,7 +89,7 @@ export function createFixture() {
 		projects: [] as readonly Project[],
 		selectedTrackId: 'track',
 		selectedClipId: 'clip',
-		selectedAnnotationId: 'annotation',
+		selectedAnnotationId: 'annotation' as string | null,
 	};
 	const projectSaveService = {
 		cancelScheduled: () => { calls.push('cancel-save'); },
@@ -253,7 +253,14 @@ export function createFixture() {
 		stopProjectBinPreview: async (options) => { assert.equal(options.dispose, true); calls.push('stop-bin-preview'); },
 		stopRecording: () => stopRecording(),
 		store,
-		switchProject: async (value: Project) => { calls.push(`switch:${value.id}`); },
+		switchProject: async (value: Project, options: { skipFlush?: boolean } = {}) => {
+			if (!options.skipFlush && project && project.id !== value.id
+				&& tabs.get(project.id)?.dirty && !state.readOnly) calls.push('save');
+			projectSaveService.cancelScheduled();
+			calls.push(`switch:${value.id}`);
+			project = value;
+			state.selectedAnnotationId = null;
+		},
 	} as ProjectAdminServiceRuntime & {
 		readonly projectGeneration: Readonly<{ activate(projectId: string): void; invalidate(): void }>;
 	};

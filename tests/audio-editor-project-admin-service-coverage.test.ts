@@ -77,8 +77,38 @@ test('closing the active tab saves it and selects the next session project', asy
 	assert.equal(fixture.calls.includes('save'), true);
 	assert.equal(fixture.calls.includes('cancel-save'), true);
 	assert.equal(fixture.calls.includes('switch:project-b'), true);
-	assert.equal(fixture.project(), null);
+	assert.equal(fixture.project()?.id, next.id);
 	assert.equal(fixture.state.selectedAnnotationId, null);
+});
+
+test('closing the active tab admits its successor before a later project activation', async () => {
+	const fixture = createFixture();
+	const next = { id: 'project-b', title: 'Project B', revision: 1 };
+	const later = { id: 'project-c', title: 'Project C', revision: 1 };
+	fixture.tabs.set(next.id, {
+		projectId: next.id, dirty: false, readOnly: false, history: { present: next },
+	});
+	fixture.closeResult({ closed: true, activeProjectId: next.id });
+	const admissions: string[] = [];
+	let activationQueue = Promise.resolve();
+	const runtime = {
+		...fixture.runtime,
+		switchProject(value: typeof next) {
+			admissions.push(value.id);
+			const activation = activationQueue.then(() => { fixture.setProject(value); });
+			activationQueue = activation.catch(() => undefined);
+			return activation;
+		},
+	} satisfies ProjectAdminServiceRuntime;
+	fixture.setCloseObserver(() => {
+		queueMicrotask(() => { void runtime.switchProject(later); });
+	});
+
+	await createProjectAdminService(runtime).closeProjectTab('project-a', { discard: true });
+	await activationQueue;
+
+	assert.deepEqual(admissions, [next.id, later.id]);
+	assert.equal(fixture.project()?.id, later.id);
 });
 
 test('close validation and refusal leave project state untouched', async () => {

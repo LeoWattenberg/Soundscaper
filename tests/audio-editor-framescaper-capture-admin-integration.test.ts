@@ -69,13 +69,18 @@ test('deferred dirty close owns its exact project until the close lifecycle sett
 	const tab = fixture.tabs.get('project-a');
 	assert.ok(tab);
 	tab.dirty = true;
+	const saveCurrent = async () => {
+		fixture.calls.push('save:pending');
+		saveStarted.resolve();
+		await saveGate.promise;
+	};
 	const runtime = {
 		...fixture.runtime,
 		beginCaptureInterlockedAdminOperation: interlock.beginAdminOperation,
-		async saveNow() {
-			fixture.calls.push('save:pending');
-			saveStarted.resolve();
-			await saveGate.promise;
+		saveNow: saveCurrent,
+		async newProject(options: Readonly<{ skipFlush?: boolean }> = {}) {
+			if (!options.skipFlush) await saveCurrent();
+			return fixture.runtime.newProject({ skipFlush: true });
 		},
 	} satisfies ProjectAdminServiceRuntime;
 	const closing = createProjectAdminService(runtime).closeProjectTab('project-a');
