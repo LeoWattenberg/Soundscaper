@@ -45,6 +45,18 @@ test('an open bus leaves the track it carries in the file', () => {
 	assert.equal(audibility?.audibleTrack('voice'), true);
 });
 
+test('an explicit channel map with no routed channels is silent in the file', () => {
+	const project = routedProject({ busMuted: false, voiceChannelMap: [-1, -1] });
+	const audibility = createMixerGraphAudibilityV21(project);
+	assert.ok(audibility);
+	assert.equal(audibility.audibleTrack('voice'), false);
+	assert.equal(audibility.reason('voice'), 'routed-to-silence');
+
+	const visibility = createInterchangeVisibility(project.tracks as never, project);
+	assert.equal(visibility.contributes(track(project, 'voice') as never), false);
+	assert.equal(visibility.contributes(track(project, 'music') as never), true);
+});
+
 test('a muted VCA silences the strips it holds', () => {
 	const project = vcaProject();
 	const audibility = createMixerGraphAudibilityV21(project);
@@ -84,7 +96,13 @@ test('a document with no routing graph keeps the track-flag rule', () => {
 	assert.equal(visibility.contributes(legacy.tracks[1] as never), false);
 });
 
-function routedProject({ busMuted }: { busMuted: boolean }) {
+function routedProject({
+	busMuted,
+	voiceChannelMap = [],
+}: {
+	readonly busMuted: boolean;
+	readonly voiceChannelMap?: readonly number[];
+}) {
 	const base = createSoundscaperProject({
 		id: 'graph-audibility', title: 'Graph audibility', now: NOW,
 		tracks: [
@@ -111,7 +129,8 @@ function routedProject({ busMuted }: { busMuted: boolean }) {
 					id: 'assignment:track:voice:mixer-node:stems', kind: 'assignment',
 					source: { kind: 'track', id: 'voice' },
 					destination: { kind: 'mixer-node', id: 'stems' },
-					position: 'post-fader', level: 1, enabled: true, channelMap: [],
+					position: 'post-fader', level: 1, enabled: true,
+					channelMap: voiceChannelMap,
 				},
 			],
 		},

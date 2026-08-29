@@ -56,6 +56,7 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 	const adjacency = new Map<string, Set<string>>();
 	for (const edge of records(graph.edges)) {
 		if (edge.enabled === false) continue;
+		if (!channelMapCarriesSignal(edge.channelMap)) continue;
 		const destination = edge.destination as DataRecord | undefined;
 		if (destination?.kind === 'effect-sidechain') continue;
 		const source = endpointKey(edge.source);
@@ -110,6 +111,10 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 			return 'routed-to-silence';
 		},
 	});
+}
+
+function channelMapCarriesSignal(value: unknown): boolean {
+	return !Array.isArray(value) || value.length === 0 || value.some((source) => source !== -1);
 }
 
 function reaches(
