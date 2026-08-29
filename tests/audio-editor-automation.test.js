@@ -89,5 +89,13 @@ test('clip automation moves with clips and is trimmed in timeline coordinates', 
 		sourceStartFrame: 10_000,
 		durationFrames: 20_000,
 	});
-	assert.deepEqual(project.clips[0].envelope, [{ frame: 10_000, value: 0.25 }]);
+	// A trim keeps the gain over the material it retains, so both new edges carry
+	// the value the envelope described there: the new start sits a third of the
+	// way from 0.5 down to 0.25, and the new end two thirds of the way from 0.25
+	// up to 1.
+	const trimmed = project.clips[0].envelope;
+	assert.deepEqual(trimmed.map(({ frame }) => frame), [0, 10_000, 20_000]);
+	assert.ok(Math.abs(trimmed[0].value - 5 / 12) < 1e-12, `${trimmed[0].value} is not 5/12`);
+	assert.equal(trimmed[1].value, 0.25);
+	assert.equal(trimmed[2].value, 0.75);
 });

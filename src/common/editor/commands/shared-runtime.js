@@ -235,11 +235,9 @@ function sourceRangeForSegment(clip, segmentStartFrame, segmentEndFrame, sourceD
 	};
 }
 
+/** A trimmed extent is a segment of the same clip, so it keeps the same gain. */
 export function envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames) {
-	const offsetFrames = timelineStartFrame - clip.timelineStartFrame;
-	return (clip.envelope || [])
-		.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
-		.map((point) => ({ ...point, frame: point.frame - offsetFrames }));
+	return segmentEnvelope(clip, timelineStartFrame - clip.timelineStartFrame, durationFrames) ?? [];
 }
 
 export function assertClipSourceBounds(project, clip) {
