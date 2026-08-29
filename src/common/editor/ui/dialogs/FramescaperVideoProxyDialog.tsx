@@ -66,6 +66,8 @@ export default function FramescaperVideoProxyDialog({
 	const [changedRelink, setChangedRelink] = useState<FramescaperVideoProxyOriginalRelinkCandidate | null>(null);
 	const abortRef = useRef<AbortController | null>(null);
 	const existingFileRef = useRef<HTMLInputElement | null>(null);
+	const modeGenerationRef = useRef(0);
+	const modeMutationRef = useRef<Promise<void>>(Promise.resolve());
 	const selected = model.sources.find(({ id }) => id === selectedSourceId) ?? null;
 	const previewTrust = selected && runtime ? runtime.previewTrust(selected.id) : 'unverified';
 
@@ -75,10 +77,36 @@ export default function FramescaperVideoProxyDialog({
 		}
 	}, [model, selectedSourceId]);
 	useEffect(() => {
+		modeGenerationRef.current += 1;
 		setMode(selectedSourceId && runtime ? runtime.mode(selectedSourceId) : 'auto');
 		setChangedRelink(null);
 	}, [runtime, selectedSourceId]);
-	useEffect(() => () => { abortRef.current?.abort(); }, []);
+	useEffect(() => () => {
+		abortRef.current?.abort();
+		modeGenerationRef.current += 1;
+	}, []);
+
+	const changeMode = (value: string): void => {
+		const next = previewMode(value);
+		setMode(next);
+		if (!runtime || !selectedSourceId) return;
+		const generation = ++modeGenerationRef.current;
+		const sourceId = selectedSourceId;
+		setStatus('');
+		setError('');
+		const mutation = modeMutationRef.current.then(() => (
+			Promise.resolve(run(() => runtime.setMode(sourceId, next))).then(() => undefined)
+		));
+		modeMutationRef.current = mutation.catch(() => undefined);
+		void mutation.then(() => {
+			if (modeGenerationRef.current !== generation) return;
+			setStatus(label(copy, 'videoProxyModeUpdated',
+				'Preview mode updated and proxy trust refreshed.'));
+		}, (operationError: unknown) => {
+			if (modeGenerationRef.current !== generation) return;
+			setError(operationError instanceof Error ? operationError.message : String(operationError));
+		});
+	};
 
 	const perform = (
 		kind: 'generate' | 'attach' | 'regenerate' | 'detach',
@@ -213,27 +241,16 @@ export default function FramescaperVideoProxyDialog({
 			{model.sources.length > 0 && <>
 				<label><span>{label(copy, 'videoProxySource', 'Video source')}</span>
 					<select data-video-proxy-source value={selectedSourceId ?? ''}
-						onChange={(event) => { setSelectedSourceId(event.currentTarget.value || null); }}>
+						onChange={(event) => {
+							modeGenerationRef.current += 1;
+							setSelectedSourceId(event.currentTarget.value || null);
+						}}>
 						{model.sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
 					</select>
 				</label>
 				<label><span>{label(copy, 'videoProxyPreviewMode', 'Preview media')}</span>
 					<select value={mode} disabled={!runtime || pending !== null}
-							onChange={(event) => {
-								const next = previewMode(event.currentTarget.value);
-								if (runtime && selectedSourceId) {
-									void Promise.resolve(run(() => runtime.setMode(selectedSourceId, next)))
-										.then(() => {
-											setStatus(label(copy, 'videoProxyModeUpdated',
-												'Preview mode updated and proxy trust refreshed.'));
-											setError('');
-										}, (operationError: unknown) => {
-											setError(operationError instanceof Error
-												? operationError.message : String(operationError));
-										});
-								}
-							setMode(next);
-						}}>
+						onChange={(event) => changeMode(event.currentTarget.value)}>
 						<option value="original">{label(copy, 'videoProxyModeOriginal', 'Original')}</option>
 						<option value="proxy">{label(copy, 'videoProxyModeProxy', 'Proxy')}</option>
 						<option value="auto">{label(copy, 'videoProxyModeAuto', 'Auto')}</option>
