@@ -179,27 +179,38 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await stableControl.focus();
-		const samples = await stableControl.evaluate(async (control) => {
+		// A loaded runner delivers far fewer animation frames per millisecond, so
+		// the sampler runs until it has actually observed the advancing playhead
+		// and the live meter rather than for a fixed slice of wall-clock time.
+		// The 8-second tone leaves the deadline far short of the end of playback.
+		const samples = await stableControl.evaluate(async (control, stoppedMeter) => {
 			const row = control.closest('[data-track-row]');
 			const liveMeter = row?.querySelector('.track-meter');
 			const playhead = document.querySelector('[data-playhead] .playhead-cursor__line');
 			const values = [];
+			const positions = new Set();
+			let meterAdvanced = false;
 			const startedAt = performance.now();
 			await new Promise((resolve) => {
 				const sample = () => {
+					const playheadX = playhead?.getBoundingClientRect().x || 0;
+					const meterPosition = liveMeter?.style.getPropertyValue('--tm-volume-position') || '';
 					values.push({
 						focused: document.activeElement === control,
-						meterPosition: liveMeter?.style.getPropertyValue('--tm-volume-position') || '',
-						playheadX: playhead?.getBoundingClientRect().x || 0,
+						meterPosition,
+						playheadX,
 						stable: control === globalThis.__stableTelemetryControl,
 					});
-					if (performance.now() - startedAt >= 400) resolve();
+					positions.add(playheadX.toFixed(1));
+					meterAdvanced ||= meterPosition !== stoppedMeter;
+					const observed = positions.size > 5 && meterAdvanced;
+					if (observed || performance.now() - startedAt >= 4_000) resolve();
 					else requestAnimationFrame(sample);
 				};
 				requestAnimationFrame(sample);
 			});
 			return values;
-		});
+		}, stoppedMeterPosition);
 
 		expect(samples.every((sample) => sample.focused && sample.stable)).toBe(true);
 		expect(new Set(samples.map((sample) => sample.playheadX.toFixed(1))).size).toBeGreaterThan(5);
