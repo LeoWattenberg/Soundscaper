@@ -166,7 +166,8 @@ function dynamicsResponsePath(type, parameters) {
 	const ratio = Math.max(1, Number(parameters.ratio) || (type === 'limiter' ? 100 : 4));
 	const makeup = Number(parameters.makeupGainDb ?? parameters.makeupGain ?? 0) || 0;
 	const limiterTarget = Number(parameters.makeupTargetDb ?? parameters.ceiling ?? threshold);
-	const rangeDb = Math.min(0, Number(parameters.rangeDb ?? -80) || -80);
+	const requestedRangeDb = Number(parameters.rangeDb ?? -80);
+	const rangeDb = Math.min(0, Number.isFinite(requestedRangeDb) ? requestedRangeDb : -80);
 	return sampledPath((progress) => {
 		const input = -100 + progress * 100;
 		let output;
