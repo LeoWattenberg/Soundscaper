@@ -381,12 +381,37 @@ test('preview playback rejects late completion after disposal without a late pub
 	assert.equal(previewEngine.disposeCalls, 1);
 });
 
+test('a retired preview engine cannot overwrite its replacement with a late state event', async () => {
+	const firstEngine = createPreviewEngine(Promise.resolve()), secondEngine = createPreviewEngine(Promise.resolve());
+	const engines = [firstEngine, secondEngine];
+	const project = projectFixture({ projectBinClips: [
+			clipFixture({ id: 'first-preview', sourceId: 'first-source', binItemId: 'first-item' }),
+			clipFixture({ id: 'second-preview', sourceId: 'second-source', binItemId: 'second-item' }),
+	] });
+	const harness = createHarness(project, {
+		createPreviewEngine: ({ onState }) => {
+			const engine = engines.shift();
+			assert.ok(engine);
+			engine.setOnState(onState);
+			return engine;
+		},
+	});
+	await harness.service.playPauseProjectBinClip('first-preview');
+	await harness.service.stopProjectBinPreview({ dispose: true });
+	await harness.service.playPauseProjectBinClip('second-preview');
+	firstEngine.emit('stopped');
+	assert.equal(harness.preview?.clipId, 'second-preview');
+	assert.equal(harness.preview?.state, 'playing');
+	secondEngine.emit('paused');
+	assert.equal(harness.preview?.state, 'paused');
+});
 interface HarnessOptions {
 	readonly importProjectBinFile?: ProjectBinServiceDependencies['importProjectBinFile'];
 	readonly revokeVideoVisual?: ProjectBinServiceDependencies['revokeVideoVisual'];
 	readonly sourceChunkProviders?: ProjectBinServiceDependencies['sourceChunkProviders'];
 	readonly retireSourceChunkProvider?: ProjectBinServiceDependencies['retireSourceChunkProvider'];
 	readonly previewEngine?: ReturnType<typeof createPreviewEngine>;
+	readonly createPreviewEngine?: ProjectBinServiceDependencies['createPreviewEngine'];
 	readonly editingBlocked?: () => boolean;
 	readonly getPositionFrames?: ProjectBinServiceDependencies['getPositionFrames'];
 	readonly playbackState?: string;
@@ -444,10 +469,10 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 			deleteMediaAsset: async (sourceId) => { deletedMedia.push(sourceId); },
 			getLinkedOriginalBinding: async () => null, getSourceMetadata: async () => null, relinkLinkedAudioOriginal: async () => { throw new Error('Unexpected linked-audio relink.'); }, releaseLinkedOriginalLocator: async () => true, getLinkedVideoOriginalBinding: async () => null, relinkLinkedVideoOriginal: async () => { throw new Error('Unexpected linked-video relink.'); }, releaseLinkedVideoOriginalLocator: async () => true,
 		},
-		createPreviewEngine: ({ onState }) => {
+		createPreviewEngine: options.createPreviewEngine ?? (({ onState }) => {
 			previewEngine.setOnState(onState);
 			return previewEngine;
-		},
+		}),
 		createId: (prefix) => `${prefix}-${++id}`,
 		captureProject: () => projects.capture(project.id),
 		assertProject: (token) => projects.assertCurrent(token),

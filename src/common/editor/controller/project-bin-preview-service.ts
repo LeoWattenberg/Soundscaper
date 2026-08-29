@@ -115,7 +115,7 @@ export function createProjectBinPreviewService(
 		}
 		const task = dependencies.lifetime.startTask(PROJECT_BIN_PREVIEW_TASK);
 		try {
-			previewEngine ??= dependencies.createPreviewEngine({ onState: handlePreviewState });
+			previewEngine ??= createOwnedPreviewEngine();
 			previewEngine.setSourceResolver?.(dependencies.sourceResolver);
 			const previewTrackId = dependencies.createId('project-bin-preview-track');
 			const previewClip = {
@@ -204,9 +204,18 @@ export function createProjectBinPreviewService(
 		return changed;
 	}
 
-	function handlePreviewState(state: string): void {
+	function createOwnedPreviewEngine(): ProjectBinPreviewEngine {
+		let engine: ProjectBinPreviewEngine | null = null;
+		engine = dependencies.createPreviewEngine({
+			onState: (state) => { handlePreviewState(engine, state); },
+		});
+		return engine;
+	}
+
+	function handlePreviewState(engine: ProjectBinPreviewEngine | null, state: string): void {
 		const active = dependencies.getPreview();
-		if (dependencies.lifetime.inactive || !active || active.kind !== 'audio' || state === 'playing') return;
+		if (!engine || previewEngine !== engine || dependencies.lifetime.inactive
+			|| !active || active.kind !== 'audio' || state === 'playing') return;
 		dependencies.setPreview(Object.freeze({
 			...active,
 			state: state === 'paused' ? 'paused' : 'stopped',
