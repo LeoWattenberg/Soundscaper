@@ -95,7 +95,10 @@ export function createAudioWarpControllerComposition(
 		editingBlocked: dependencies.editingBlocked,
 		commit: dependencies.commit,
 	});
-	let analysisDepth = 0;
+	let analysisProcessingScope: Readonly<{
+		projectToken: EditorProjectToken;
+	}> | null = null;
+	let disposed = false;
 	return Object.freeze({
 		view,
 		analyzeSelected,
@@ -110,7 +113,7 @@ export function createAudioWarpControllerComposition(
 	});
 
 	function view(): Readonly<AudioWarpControllerView> {
-		dependencies.lifetime.assertActive();
+		assertUsable();
 		const project = dependencies.getProject();
 		const selectedClipId = dependencies.getSelectedClipId();
 		const clip = selectedAudioClip(project, selectedClipId);
@@ -207,13 +210,20 @@ export function createAudioWarpControllerComposition(
 	async function analyzeWithProcessing(
 		clipId: string,
 	): Promise<Readonly<ClipTransientAnalysisOutcome>> {
-		analysisDepth += 1;
-		if (analysisDepth === 1) setAnalysisProcessing(true);
+		const projectToken = dependencies.captureProject();
+		const previousScope = analysisProcessingScope;
+		const scope = Object.freeze({ projectToken });
+		analysisProcessingScope = scope;
+		if (!previousScope || !sameProjectToken(previousScope.projectToken, projectToken)) {
+			setAnalysisProcessing(true);
+		}
 		try {
 			return await analysisService().analyzeClip(clipId);
 		} finally {
-			analysisDepth -= 1;
-			if (analysisDepth === 0) setAnalysisProcessing(false);
+			if (analysisProcessingScope === scope) {
+				analysisProcessingScope = null;
+				if (processingScopeIsCurrent(scope.projectToken)) setAnalysisProcessing(false);
+			}
 		}
 	}
 
@@ -236,6 +246,9 @@ export function createAudioWarpControllerComposition(
 	}
 
 	function dispose(): void {
+		if (disposed) return;
+		disposed = true;
+		analysisProcessingScope = null;
 		pcmAccess?.dispose();
 	}
 
@@ -245,7 +258,7 @@ export function createAudioWarpControllerComposition(
 	}
 
 	function requireSelectedAudioClip(): string {
-		dependencies.lifetime.assertActive();
+		assertUsable();
 		const clipId = dependencies.getSelectedClipId();
 		const project = dependencies.getProject();
 		if (!selectedAudioClip(project, clipId)) {
@@ -259,11 +272,32 @@ export function createAudioWarpControllerComposition(
 	}
 
 	function assertStillSelected(clipId: string): void {
+		assertUsable();
 		if (dependencies.getSelectedClipId() !== clipId
 			|| !selectedAudioClip(dependencies.getProject(), clipId)) {
 			throw new Error('The selected audio clip changed before warp authoring completed.');
 		}
 	}
+
+	function assertUsable(): void {
+		if (disposed) throw new Error('The audio warp controller is disposed.');
+		dependencies.lifetime.assertActive();
+	}
+
+	function processingScopeIsCurrent(projectToken: EditorProjectToken): boolean {
+		if (disposed) return false;
+		try {
+			dependencies.lifetime.assertActive();
+			dependencies.assertProject(projectToken);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+}
+
+function sameProjectToken(left: EditorProjectToken, right: EditorProjectToken): boolean {
+	return left.generation === right.generation && left.projectId === right.projectId;
 }
 
 export function identityWarpMap(

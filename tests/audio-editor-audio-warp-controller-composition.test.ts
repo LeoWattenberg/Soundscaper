@@ -27,6 +27,12 @@ const TEMPO_MAP = {
 	events: [{ id: 'tempo', beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
 };
 
+function deferred() {
+	let resolve: () => void = () => undefined;
+	const promise = new Promise<void>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
 test('selected digestless audio analyzes through the composed PCM and worker seams', async () => {
 	const fixture = compositionFixture();
 
@@ -137,6 +143,126 @@ test('late analysis cannot author a clip after selection authority changes', asy
 	assert.deepEqual(fixture.commands, []);
 });
 
+test('replacement-project analysis owns processing when clip ids collide', async () => {
+	const firstStarted = deferred();
+	const secondStarted = deferred();
+	const firstGate = deferred();
+	const secondGate = deferred();
+	let analysisCalls = 0;
+	const fixture = compositionFixture({
+		analyze: async (channels, options) => {
+			analysisCalls += 1;
+			if (analysisCalls === 1) {
+				firstStarted.resolve();
+				await firstGate.promise;
+			} else {
+				secondStarted.resolve();
+				await secondGate.promise;
+			}
+			return detectPcmTransients(channels, options);
+		},
+	});
+	const origin = fixture.service.quantizeSelected({
+		grid: { origin: 0, interval: 25 }, strength: 1,
+	});
+	await firstStarted.promise;
+	assert.equal(fixture.processingState(), true);
+	fixture.switchProject('replacement-project');
+	assert.equal(fixture.processingState(), false);
+	const replacement = fixture.service.applyGrooveSelected({
+		grid: { origin: 0, interval: 25 },
+		strength: 1,
+		template: { offsets: [0] },
+	});
+	await secondStarted.promise;
+	try {
+		assert.equal(fixture.processingState(), true);
+		secondGate.resolve();
+		await replacement;
+		assert.equal(fixture.processingState(), false);
+		assert.deepEqual(fixture.processing, [true, true, false]);
+		const settledProcessing = [...fixture.processing];
+
+		firstGate.resolve();
+		await assert.rejects(origin, /superseded|changed/iu);
+		assert.deepEqual(fixture.processing, settledProcessing);
+		assert.deepEqual(fixture.commands.map(({ type }) => type), [
+			'audio-warp/set', 'audio-warp/quantize',
+		]);
+	} finally {
+		firstGate.resolve();
+		secondGate.resolve();
+		await Promise.allSettled([origin, replacement]);
+	}
+});
+
+test('newest overlapping warp request retires processing without waiting for its cancelled predecessor', async () => {
+	const firstStarted = deferred();
+	const secondStarted = deferred();
+	const firstGate = deferred();
+	const secondGate = deferred();
+	let analysisCalls = 0;
+	const fixture = compositionFixture({
+		analyze: async (channels, options) => {
+			analysisCalls += 1;
+			if (analysisCalls === 1) {
+				firstStarted.resolve();
+				await firstGate.promise;
+			} else {
+				secondStarted.resolve();
+				await secondGate.promise;
+			}
+			return detectPcmTransients(channels, options);
+		},
+	});
+	const predecessor = fixture.service.analyzeSelected();
+	await firstStarted.promise;
+	const newest = fixture.service.quantizeSelected({
+		grid: { origin: 0, interval: 25 }, strength: 1,
+	});
+	await secondStarted.promise;
+	try {
+		secondGate.resolve();
+		await newest;
+		assert.equal(fixture.processingState(), false);
+		assert.deepEqual(fixture.processing, [true, false]);
+		const settledProcessing = [...fixture.processing];
+
+		firstGate.resolve();
+		await assert.rejects(predecessor, /superseded/iu);
+		assert.deepEqual(fixture.processing, settledProcessing);
+	} finally {
+		firstGate.resolve();
+		secondGate.resolve();
+		await Promise.allSettled([predecessor, newest]);
+	}
+});
+
+test('dispose retires pending warp authoring without a late processing publication', async () => {
+	const analysisStarted = deferred();
+	const analysisGate = deferred();
+	const fixture = compositionFixture({
+		analyze: async (channels, options) => {
+			analysisStarted.resolve();
+			await analysisGate.promise;
+			return detectPcmTransients(channels, options);
+		},
+	});
+	const pending = fixture.service.quantizeSelected({
+		grid: { origin: 0, interval: 25 }, strength: 1,
+	});
+	await analysisStarted.promise;
+	assert.deepEqual(fixture.processing, [true]);
+	fixture.service.dispose();
+	fixture.service.dispose();
+	assert.throws(() => fixture.service.view(), /disposed/iu);
+
+	analysisGate.resolve();
+	await assert.rejects(pending, /disposed/iu);
+	assert.deepEqual(fixture.commands, []);
+	assert.deepEqual(fixture.processing, [true]);
+});
+
 test('controller admission blocks no-selection, read-only/busy, video, and locked-track edits', async () => {
 	const noSelection = compositionFixture();
 	noSelection.select(null);
@@ -188,6 +314,7 @@ function compositionFixture(options: Readonly<{
 	const cache = new Map<string, unknown>();
 	const pcmEvents: string[] = [];
 	const processing: boolean[] = [];
+	let analysisProcessing = false;
 	let resolveRangeStarted!: () => void;
 	const rangeStarted = new Promise<void>((resolve) => { resolveRangeStarted = resolve; });
 	const analysisStore = {
@@ -234,19 +361,33 @@ function compositionFixture(options: Readonly<{
 			path: 'exact-offline', realtimeAcceleration: false,
 			exactOfflineAvailable: true, fallback: true,
 		}),
-		setAnalysisProcessing(value) { processing.push(value); },
+		setAnalysisProcessing(value) {
+			analysisProcessing = value;
+			processing.push(value);
+		},
 		publish: () => undefined,
 	});
 	lifetime.markReady();
 	return {
 		service, commands, pcmEvents, processing, rangeStarted,
 		present: () => present,
+		processingState: () => analysisProcessing,
 		select: (clipId: string | null) => { selectedClipId = clipId; },
 		setBlocked: (value: boolean) => { blocked = value; },
+		switchProject(projectId: string) {
+			generation.invalidate();
+			present = project(Boolean(options.locked), options.selectedClipKind, projectId);
+			generation.activate(present.id);
+			analysisProcessing = false;
+		},
 	};
 }
 
-function project(locked: boolean, selectedClipKind: 'audio' | 'video' = 'audio'): AudioEditorProjectCurrent {
+function project(
+	locked: boolean,
+	selectedClipKind: 'audio' | 'video' = 'audio',
+	projectId = 'warp-project',
+): AudioEditorProjectCurrent {
 	const source = createAudioSource({
 		id: 'source', storageKey: 'source', name: 'Source',
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
@@ -258,7 +399,7 @@ function project(locked: boolean, selectedClipKind: 'audio' | 'video' = 'audio')
 		warpMap: null,
 	});
 	const result = createCurrentAudioEditorProject({
-		id: 'warp-project', now: NOW, tempoMap: TEMPO_MAP,
+		id: projectId, now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrack({ id: 'track', name: 'Track', locked, clipIds: ['clip'] })],
 	});
