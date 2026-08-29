@@ -840,6 +840,33 @@ test('ending a rapid scrub invalidates pending audio scheduling without resettin
 	await engine.dispose();
 });
 
+test('stopping while AudioContext resume is pending cannot resurrect playback', async () => {
+	const context = new MockAudioContext();
+	let signalResumeRequested;
+	const resumeRequested = new Promise((resolve) => { signalResumeRequested = resolve; });
+	let allowResume;
+	const resumeGate = new Promise((resolve) => { allowResume = resolve; });
+	context.resume = () => {
+		signalResumeRequested();
+		return resumeGate;
+	};
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
+	engine.loadProject(createProject(), new Map([
+		['source-1', new MockAudioBuffer(1, 48_000, 48_000)],
+	]));
+
+	const pending = engine.play();
+	await resumeRequested;
+	engine.stop();
+	allowResume();
+	await pending;
+
+	assert.equal(engine.getState().state, 'stopped');
+	assert.equal(engine.graph, null);
+	assert.equal(context.bufferSources.length, 0);
+	await engine.dispose();
+});
+
 test('play at speed couples naive interpolation to project-time transport timing', async () => {
 	const context = new MockAudioContext();
 	const project = createProject();

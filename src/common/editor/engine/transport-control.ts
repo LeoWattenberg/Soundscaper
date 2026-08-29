@@ -64,15 +64,21 @@ function isAbortError(error: unknown): boolean {
 	return Boolean(error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');
 }
 
+function playbackRequestIsCurrent(engine: EngineRuntimeHost, generation: number): boolean {
+	return !engine.disposed && engine.project !== null && engine.scrubGeneration === generation;
+}
+
 export const engineTransportControlMethods = {
 async play() {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
 		if (this.state === 'playing') return;
 		this[ENGINE_CANCEL_SCRUB]();
+		const generation = this.scrubGeneration;
 		this.playbackRate = 1;
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
+		if (!playbackRequestIsCurrent(this, generation)) return;
 		if (this.positionFrame >= this.playbackDurationFrames) this.positionFrame = 0;
 		if (this.loop.enabled && (this.positionFrame < this.loop.startFrame || this.positionFrame >= this.loop.endFrame)) this.positionFrame = this.loop.startFrame;
 		if (projectHasAuthoredAudioWarp(this.project)
@@ -85,14 +91,18 @@ async play() {
 				this.positionFrame,
 				this.loop.enabled ? this.loop.endFrame : this.durationFrames,
 			);
+			if (!playbackRequestIsCurrent(this, generation)) return;
 			this.playbackMode = 'audio-warp-exact';
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+			if (!playbackRequestIsCurrent(this, generation)) return;
 			await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, context.currentTime);
 			return;
 		}
 		this.playbackMode = 'normal';
 		await ensureProjectWorklets(context, this.project);
+		if (!playbackRequestIsCurrent(this, generation)) return;
 		await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		if (!playbackRequestIsCurrent(this, generation)) return;
 		await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, context.currentTime);
 	},
 
@@ -214,8 +224,8 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 
 pause() {
 		this[ENGINE_ASSERT_ACTIVE]();
-		if (this.state !== 'playing') return;
 		this[ENGINE_CANCEL_SCRUB]();
+		if (this.state !== 'playing') return;
 		this.positionFrame = this.getPositionFrames();
 		this[ENGINE_HALT_GRAPH]();
 		this.masterLoudnessMeter?.setRunning(false);
