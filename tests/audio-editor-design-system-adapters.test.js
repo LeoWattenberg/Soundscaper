@@ -17,6 +17,7 @@ import {
 	rightmostVisibleClip,
 	secondsToFrames,
 } from '../src/common/editor/design-system-adapters.js';
+import { WAVEFORM_PEAKS_VERSION } from '../src/common/editor/waveform-peak-contract.ts';
 
 function closeTo(actual, expected, tolerance = 1e-10) {
 	assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} should be within ${tolerance} of ${expected}`);
@@ -387,7 +388,7 @@ test('bounded waveform preprocessing clamps windows and validates channel/source
 
 test('peak-pyramid waveform rendering selects the finest bounded viewport level without source PCM', () => {
 	const peaks = {
-		version: 4,
+		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: 2,
 		levels: [
 			{
@@ -479,7 +480,7 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 
 test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gain, and viewport windows', () => {
 	const peaks = {
-		version: 4,
+		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: 1,
 		levels: [{
 			blockSize: 4,
@@ -512,18 +513,18 @@ test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gai
 
 test('peak-pyramid waveform rendering validates cache geometry and clip source bounds', () => {
 	const valid = {
-		version: 4,
+		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: 1,
 		levels: [{
 			blockSize: 4,
 			channels: [{ minimums: Float32Array.of(-1), maximums: Float32Array.of(1) }],
 		}],
 	};
-	assert.throws(() => preparePeakPyramidWaveformWindow({ version: 4, channelCount: 1, levels: [] }, clip({
+	assert.throws(() => preparePeakPyramidWaveformWindow({ version: WAVEFORM_PEAKS_VERSION, channelCount: 1, levels: [] }, clip({
 		durationFrames: 4,
 	}), { pixelWidth: 1 }), /at least one level/);
 	assert.throws(() => preparePeakPyramidWaveformWindow({
-		version: 4,
+		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: 1,
 		levels: [{
 			blockSize: 4,

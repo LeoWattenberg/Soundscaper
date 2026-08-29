@@ -19,6 +19,7 @@ register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.
 const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const { createCurrentAudioEditorProject } = await import('../src/common/editor/project-current.ts');
 const { createProjectStore } = await import('../src/common/editor/storage.js');
+const { WAVEFORM_PEAKS_VERSION } = await import('../src/common/editor/waveform-peak-contract.ts');
 
 test('Mix-down to renders whole selected tracks, replaces them atomically, and round-trips undo', async () => {
 	const store = createTestStore('multi');
@@ -443,7 +444,7 @@ test('a centered track with a stereo source persists a stereo Mix-down', async (
 		await controller.ready;
 		assert.equal(await store.loadAnalysis('audio-editor-peaks-v1:stereo-source'), null);
 		const regeneratedPeaks = await store.loadAnalysis('audio-editor-peaks-v2:stereo-source');
-		assert.equal(regeneratedPeaks.version, 4);
+		assert.equal(regeneratedPeaks.version, WAVEFORM_PEAKS_VERSION);
 		assert.equal(regeneratedPeaks.channelCount, 2);
 		assert.deepEqual(regeneratedPeaks.levels.map(({ blockSize }) => blockSize), [
 			8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536,
@@ -458,7 +459,7 @@ test('a centered track with a stereo source persists a stereo Mix-down', async (
 		assert.equal(await storedSample(store, result.sourceId, 0, 4), renderedLeft[4]);
 		assert.equal(await storedSample(store, result.sourceId, 1, 4), renderedRight[4]);
 		const peaks = await store.loadAnalysis(`audio-editor-peaks-v2:${result.sourceId}`);
-		assert.equal(peaks.version, 4);
+		assert.equal(peaks.version, WAVEFORM_PEAKS_VERSION);
 		assert.equal(peaks.channelCount, 2);
 		assert.equal(peaks.levels[0].channels.length, 2);
 		assert.equal(peaks.levels[0].channels[0].maximums[0], renderedLeft[5]);
@@ -559,7 +560,7 @@ test('oversized Mix-down streams stereo packets directly into canonical storage'
 		}, { frameCount: 8, channelCount: 2, chunkFrames: 65_536, chunkCount: 1 });
 		assert.deepEqual(controller.sourceBufferCacheStats, { byteLength: 0, maxBytes: 0, entryCount: 0 });
 		const peaks = await store.loadAnalysis(`audio-editor-peaks-v2:${result.sourceId}`);
-		assert.equal(peaks.version, 4);
+		assert.equal(peaks.version, WAVEFORM_PEAKS_VERSION);
 		assert.equal(peaks.channelCount, 2);
 		assert.equal(peaks.levels[0].channels[0].maximums[0], left[7]);
 		assert.equal(peaks.levels[0].channels[1].minimums[0], right[7]);

@@ -7,6 +7,7 @@ import {
 	prepareAudioWarpPeakPyramidWaveformWindow,
 	prepareAudioWarpWaveformWindow,
 } from '../src/common/editor/ui/timeline/audio-warp-waveform.ts';
+import { WAVEFORM_PEAKS_VERSION } from '../src/common/editor/waveform-peak-contract.ts';
 
 test('warped waveform columns consume the shared source map instead of linear clip stretch', () => {
 	const project = {
@@ -69,7 +70,7 @@ test('warped summary columns aggregate persisted peak blocks through the exact m
 	};
 	const values = Float32Array.from({ length: 8 }, (_, index) => index / 10);
 	const prepared = prepareAudioWarpPeakPyramidWaveformWindow(project, clip, {
-		version: 4,
+		version: WAVEFORM_PEAKS_VERSION,
 		channelCount: 1,
 		levels: [{
 			blockSize: 1,

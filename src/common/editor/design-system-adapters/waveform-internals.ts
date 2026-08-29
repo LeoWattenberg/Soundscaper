@@ -1,4 +1,5 @@
 import { audacityWaveformMode } from '../audacity-waveform-renderer.js';
+import { WAVEFORM_PEAKS_VERSION } from '../waveform-peak-contract.ts';
 import type {
 	NumericChannel,
 	PreparedWaveformWindow,
@@ -14,7 +15,6 @@ import {
 	positiveSafeInteger,
 } from './validation.ts';
 
-const WAVEFORM_PEAKS_VERSION = 4;
 
 interface WaveformCompatibility {
 	readonly channels: Float32Array[];
