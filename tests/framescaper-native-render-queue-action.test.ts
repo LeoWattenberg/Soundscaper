@@ -1,0 +1,163 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test, { type TestContext } from 'node:test';
+
+import {
+	createNativeMediaCapabilitySnapshotV1,
+} from '../src/common/editor/native-media-capability-snapshot.ts';
+import {
+	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE as PROFILE,
+} from '../src/framescaper/editor-domain-runtime-profile.ts';
+import {
+	createFramescaperNativeRenderQueueActionRuntimeNativeMedia as createRuntime,
+} from '../src/framescaper/editor-native-render-queue-action.ts';
+import {
+	createFramescaperProjectNativeMedia,
+} from '../src/framescaper/editor-project-native-media.ts';
+import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
+
+type Data = Record<string, unknown>;
+
+const QUEUE_ENTRY = Object.freeze({
+	domain: 'queue',
+	id: 'persistent-render-queue',
+	policyCleared: true,
+	buildSupported: true,
+	probeSucceeded: true,
+	selfTestPassed: true,
+	userEnabled: true,
+});
+
+function owner(): Data {
+	return {
+		project: createFramescaperProjectNativeMedia(
+			PROFILE,
+			framescaperV20Options() as never,
+		),
+	};
+}
+
+function services(overrides: Data = {}, queueEnabled = true): Data {
+	return {
+		snapshot: async () => ({
+			snapshotVersion: 1, runtimeAvailable: true, nativeMediaEnabled: true,
+			queue: [], roots: [], watchRules: [],
+		}),
+		control: async () => undefined,
+		reorder: async () => undefined,
+		remove: async () => undefined,
+		capabilities: async () => createNativeMediaCapabilitySnapshotV1({
+			masterEnabled: queueEnabled,
+			entries: queueEnabled ? [QUEUE_ENTRY] : [],
+		} as never),
+		...overrides,
+	};
+}
+
+function installBridge(context: TestContext, overrides: Data = {}, queueEnabled = true): void {
+	const scope = globalThis as unknown as Data;
+	const previous = scope.framescaperDesktop;
+	scope.framescaperDesktop = { v1: { nativeServices: services(overrides, queueEnabled) } };
+	context.after(() => {
+		if (previous === undefined) delete scope.framescaperDesktop;
+		else scope.framescaperDesktop = previous;
+	});
+}
+
+function enqueue(runtime: Data, request?: unknown): Promise<void> {
+	return (runtime.run as (surface: string, request: unknown) => Promise<void>)(
+		'render-queue-enqueue',
+		request,
+	);
+}
+
+test('the render queue runtime registers exactly its enqueue surface', () => {
+	assert.deepEqual(createRuntime(PROFILE, owner() as never).surfaces, ['render-queue-enqueue']);
+});
+
+test('a render queue runtime requires a controller owner', () => {
+	for (const value of [null, undefined, 'owner', 42]) {
+		assert.throws(() => createRuntime(PROFILE, value as never), TypeError);
+	}
+});
+
+test('an unsupported delivery format is refused before any bridge is consulted', async () => {
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.rejects(
+		() => enqueue(runtime, { kind: 'quicktime-ish' }),
+		/delivery format is unsupported/u,
+	);
+});
+
+test('an image-sequence delivery that would drop alpha is refused', async () => {
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.rejects(
+		() => enqueue(runtime, {
+			kind: 'image-sequence', format: 'png',
+			frameRate: { num: 24, den: 1 }, preserveAlpha: false,
+		}),
+		/must preserve alpha/u,
+	);
+});
+
+test('a delivery request carrying unknown fields is refused', async () => {
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.rejects(
+		() => enqueue(runtime, { kind: 'encoded-mov', extra: 1 }),
+		/invalid closed shape/u,
+	);
+});
+
+test('enqueueing without an authenticated desktop bridge is refused', async () => {
+	const scope = globalThis as unknown as Data;
+	const previous = scope.framescaperDesktop;
+	delete scope.framescaperDesktop;
+	try {
+		const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+		await assert.rejects(() => enqueue(runtime), /desktop bridge is unavailable/u);
+	} finally {
+		if (previous !== undefined) scope.framescaperDesktop = previous;
+	}
+});
+
+test('a runtime whose render queue capability is not enabled refuses to enqueue', async (context) => {
+	installBridge(context, {}, false);
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.rejects(() => enqueue(runtime), /render queue is unavailable or not enabled/u);
+});
+
+test('a bridge without the root and enqueue ports refuses to enqueue', async (context) => {
+	installBridge(context);
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.rejects(() => enqueue(runtime), /cannot enqueue selected V14 renders/u);
+});
+
+test('an operator who declines the destination root leaves nothing enqueued', async (context) => {
+	let enqueued = 0;
+	installBridge(context, {
+		selectRoot: async () => null,
+		revalidateRoot: async () => true,
+		enqueue: async () => { enqueued += 1; return { jobId: 'job-1' }; },
+	});
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.doesNotReject(() => enqueue(runtime));
+	assert.equal(enqueued, 0, 'a declined root must not queue work');
+});
+
+test('a destination root that fails its projection is refused', async (context) => {
+	installBridge(context, {
+		selectRoot: async () => ({ grantId: 'grant-1', path: '/out', revoked: false }),
+		revalidateRoot: async () => true,
+		enqueue: async () => ({ jobId: 'job-1' }),
+	});
+	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
+
+	await assert.rejects(() => enqueue(runtime), /destination root projection is invalid/u);
+});
