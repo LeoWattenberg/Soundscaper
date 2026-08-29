@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
 	isNativeMediaCapabilityUsable,
@@ -32,14 +32,34 @@ export default function FramescaperOpenFxManagePanel({
 	const [plugins, setPlugins] = useState<readonly FramescaperOpenFxPluginProjectionV1[]>([]);
 	const [working, setWorking] = useState(false);
 	const [message, setMessage] = useState('');
+	const mounted = useRef(false);
+	const refreshSequence = useRef(0);
+	useEffect(() => {
+		mounted.current = true;
+		return () => {
+			mounted.current = false;
+			refreshSequence.current += 1;
+		};
+	}, []);
 	const refresh = useCallback(async (): Promise<void> => {
-		if (!bridge.listOpenFxPlugins) return;
-		setPlugins(Object.freeze((await bridge.listOpenFxPlugins()).map(
-			framescaperOpenFxPluginProjectionV1,
-		)));
+		const sequence = ++refreshSequence.current;
+		if (!bridge.listOpenFxPlugins) {
+			if (mounted.current) setPlugins([]);
+			return;
+		}
+		let next: readonly FramescaperOpenFxPluginProjectionV1[];
+		try {
+			next = Object.freeze((await bridge.listOpenFxPlugins()).map(
+				framescaperOpenFxPluginProjectionV1,
+			));
+		} catch (error: unknown) {
+			if (!mounted.current || sequence !== refreshSequence.current) return;
+			throw error;
+		}
+		if (mounted.current && sequence === refreshSequence.current) setPlugins(next);
 	}, [bridge]);
 	useEffect(() => { void refresh().catch((error: unknown) => {
-		setMessage(error instanceof Error ? error.message : String(error));
+		if (mounted.current) setMessage(error instanceof Error ? error.message : String(error));
 	}); }, [refresh]);
 	const run = (operation: () => Promise<void>): void => {
 		setWorking(true);

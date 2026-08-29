@@ -5,7 +5,13 @@ import test from 'node:test';
 
 import React, { act } from 'react';
 
+import type { FramescaperOpenFxPluginProjectionV1 } from '../src/common/editor/native-ofx-service-contract.ts';
+import FramescaperOpenFxManagePanel from '../src/common/editor/ui/dialogs/FramescaperOpenFxManagePanel.tsx';
 import FramescaperNativeProjectActionPanel from '../src/common/editor/ui/dialogs/FramescaperNativeProjectActionPanel.tsx';
+import type {
+	FramescaperNativeServicesBridge,
+	FramescaperNativeServicesRendererSnapshot,
+} from '../src/common/editor/ui/framescaper-native-services-bridge.ts';
 import { FRAMESCAPER_NATIVE_SERVICES_COPY } from '../src/common/editor/ui/framescaper-native-services-copy.ts';
 import { createFramescaperNativeProjectActionSubsetRuntime } from '../src/common/editor/ui/framescaper-native-project-actions.ts';
 
@@ -59,6 +65,81 @@ test('mounted delivery form submits exact 60000/1001 intent and reports alpha re
 		dom.restore();
 	}
 });
+
+test('mounted OpenFX manager ignores an older list response after a scan refresh', async () => {
+	const dom = installTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const initial = deferred<readonly FramescaperOpenFxPluginProjectionV1[]>();
+	const scanned = deferred<readonly FramescaperOpenFxPluginProjectionV1[]>();
+	let listCalls = 0;
+	const bridge = {
+		listOpenFxPlugins: () => (++listCalls === 1 ? initial.promise : scanned.promise),
+		scanOpenFxPlugin: async () => null,
+		controlOpenFxPlugin: async () => undefined,
+	} as unknown as FramescaperNativeServicesBridge;
+	const snapshot = {
+		services: { snapshotVersion: 1, runtimeAvailable: false, nativeMediaEnabled: false,
+			queue: [], roots: [], watchRules: [] },
+		capabilitySnapshot: null,
+		preferences: { nativeMediaEnabled: false, hardwareDecodeEnabled: false,
+			hardwareEncodeEnabled: false, ofxConsentEnabled: false },
+		controllablePreferences: [], externalDisplays: [], activeExternalDisplayId: null,
+	} satisfies FramescaperNativeServicesRendererSnapshot;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<FramescaperOpenFxManagePanel bridge={bridge}
+			copy={FRAMESCAPER_NATIVE_SERVICES_COPY} snapshot={snapshot} busy={false}
+			setConsent={() => undefined} />));
+		assert.equal(listCalls, 1);
+		await act(async () => {
+			props(dom.one('[data-framescaper-openfx-scan="true"]')).onClick();
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(listCalls, 2);
+		await act(async () => {
+			scanned.resolve([openFxPlugin('22', 'net.example.Fresh')]);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /net\.example\.Fresh/u);
+		await act(async () => {
+			initial.resolve([openFxPlugin('11', 'net.example.Stale')]);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /net\.example\.Fresh/u);
+		assert.doesNotMatch(dom.container.textContent, /net\.example\.Stale/u);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+function openFxPlugin(
+	handleByte: string,
+	pluginId: string,
+): FramescaperOpenFxPluginProjectionV1 {
+	return {
+		pluginHandle: handleByte.repeat(20), pluginId, vendor: 'Example', version: { major: 1, minor: 0 },
+		binarySha256: handleByte.repeat(32), supportedContexts: ['filter'], parameters: [],
+		components: ['RGBA'], pixelDepths: ['byte'], threading: 'fully-safe',
+		state: 'consented', quarantined: false,
+	};
+}
+
+function deferred<Value>(): Readonly<{
+	readonly promise: Promise<Value>;
+	readonly resolve: (value: Value) => void;
+}> {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((accept) => { resolve = accept; });
+	return Object.freeze({ promise, resolve });
+}
 
 async function change(node: TestElement, value: string): Promise<void> {
 	await act(async () => {
