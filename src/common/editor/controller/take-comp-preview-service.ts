@@ -98,7 +98,7 @@ export function createTakeCompPreviewService(
 		const task = dependencies.lifetime.startTask(TAKE_COMP_PREVIEW_TASK);
 		try {
 			dependencies.stopPlayback();
-			engine ??= dependencies.createPreviewEngine({ onState: handleEngineState });
+			engine ??= createOwnedPreviewEngine();
 			engine.setSourceResolver?.(dependencies.sourceResolver);
 			engine.loadProject(previewProject(project, group, selectedTakes, dependencies.createId), dependencies.sourceBuffers, {
 				chunkSources: dependencies.sourceChunkProviders,
@@ -152,8 +152,16 @@ export function createTakeCompPreviewService(
 		await owned?.dispose?.();
 	}
 
-	function handleEngineState(state: string): void {
-		if (!active || state === 'playing') return;
+	function createOwnedPreviewEngine(): TakeCompPreviewEngine {
+		let owned: TakeCompPreviewEngine | null = null;
+		owned = dependencies.createPreviewEngine({
+			onState: (state) => { handleEngineState(owned, state); },
+		});
+		return owned;
+	}
+
+	function handleEngineState(source: TakeCompPreviewEngine | null, state: string): void {
+		if (!source || engine !== source || !active || state === 'playing') return;
 		active = Object.freeze({
 			...active,
 			state: state === 'paused' ? 'paused' : 'stopped',

@@ -50,6 +50,24 @@ test('take and lane audition use an isolated exact-source preview and toggle wit
 	assert.equal(fixture.previewEngines[0]!.disposeCount, 1);
 });
 
+test('a retired take-comp preview engine cannot overwrite its replacement with a late state event', async () => {
+	const fixture = compositionFixture();
+	await fixture.composition.auditionTake('group-a', 'take-b');
+	const retired = fixture.previewEngines[0]!;
+	await fixture.composition.dispose();
+
+	await fixture.composition.auditionTake('group-a', 'take-b');
+	const replacement = fixture.previewEngines[1]!;
+	retired.emit('stopped');
+	const paused = await fixture.composition.auditionTake('group-a', 'take-b');
+
+	assert.equal(paused.state, 'paused');
+	assert.equal(replacement.pauseCount, 1);
+	assert.equal(replacement.playCount, 1);
+	assert.equal(replacement.loaded.length, 1);
+	await fixture.composition.dispose();
+});
+
 test('range promotion supplies exact split identities and boundary edits remain one command each', () => {
 	const fixture = compositionFixture();
 	fixture.composition.promoteTake('group-a', {
@@ -133,6 +151,7 @@ interface PreviewEngineFixture {
 	pauseCount: number;
 	stopCount: number;
 	disposeCount: number;
+	emit(state: string): void;
 }
 
 function compositionFixture(options: Readonly<{
@@ -192,9 +211,10 @@ function compositionFixture(options: Readonly<{
 		assertProject: (token) => {
 			if (token.projectId !== current.id) throw new Error('project changed');
 		},
-		createPreviewEngine() {
+		createPreviewEngine({ onState }) {
 			const fixture: PreviewEngineFixture = {
 				loaded: [], playCount: 0, pauseCount: 0, stopCount: 0, disposeCount: 0,
+				emit: onState,
 			};
 			previewEngines.push(fixture);
 			return {
