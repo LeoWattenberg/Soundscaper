@@ -156,6 +156,29 @@ test('audio export awaits product-owned live state capture before reading the pr
 	assert.equal((await createEditorExportService(runtime).handleExportAction('export')).fileName, 'mix.wav');
 });
 
+test('audio export admits only one request while product-owned state capture is pending', async () => {
+	const fixture = createFixture();
+	let releasePreparation: (() => void) | null = null;
+	const preparation = new Promise<void>((resolve) => { releasePreparation = resolve; });
+	let preparationCalls = 0;
+	const service = createEditorExportService({
+		...fixture.runtime,
+		prepareProjectForExport: async () => {
+			preparationCalls += 1;
+			await preparation;
+		},
+	});
+
+	const first = service.handleExportAction('export');
+	const second = service.handleExportAction('export');
+	await Promise.resolve();
+	assert.equal(preparationCalls, 1);
+	releasePreparation?.();
+	assert.equal((await first).fileName, 'mix.wav');
+	assert.equal(await second, undefined);
+	assert.equal(fixture.downloads.length, 1);
+});
+
 test('offline WAV and AIFF exports replace prior output and chain cleanup', async () => {
 	const fixture = createFixture();
 	fixture.state.outputUrl = 'blob:old';

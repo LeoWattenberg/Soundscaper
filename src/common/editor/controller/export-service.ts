@@ -46,6 +46,7 @@ const NO_TASK_PROGRESS = Object.freeze({
 });
 
 export function createEditorExportService(runtime: ExportServiceRuntime) {
+	let audioExportPreparing = false;
 	const {
 		abortError, applyMediaChannelMapping, audioBufferChannels,
 		copy, createAiffStreamEncoder, createCacheAwareRenderEngine, createExportPlan,
@@ -84,8 +85,17 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 		if (isVideoExportRequestFormat(requestedSettings?.format)) {
 			return exportVideo(requestedSettings);
 		}
-		if (state.exportAbort) return;
-		if (typeof runtime.prepareProjectForExport === 'function') await runtime.prepareProjectForExport('audio-export');
+		if (state.exportAbort || audioExportPreparing) return;
+		const preparationGeneration = state.exportGeneration;
+		audioExportPreparing = true;
+		try {
+			if (typeof runtime.prepareProjectForExport === 'function') {
+				await runtime.prepareProjectForExport('audio-export');
+			}
+		} finally {
+			audioExportPreparing = false;
+		}
+		if (state.exportAbort || state.exportGeneration !== preparationGeneration || state.disposed) return;
 		const canonicalProject = getProject();
 		const delivery = projectForAudioRenderedFallbackExport(canonicalProject, playbackProjects);
 		let settings: RuntimeValue;
