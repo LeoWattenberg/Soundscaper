@@ -33,7 +33,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.match(roadmap, /implementation evidence.*owning modules.*focused tests/isu);
 	assert.match(
 		roadmap,
-		/2\. Shared platform\/storage\/media.*implementation active.*lease evidence gate partial/iu,
+		/2\. Shared platform\/storage\/media.*implemented.*release qualification belongs to milestone 9/iu,
 	);
 	assert.match(
 		roadmap,

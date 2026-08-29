@@ -7467,7 +7467,75 @@
 				},
 				{
 					"id": "packaged-cross-platform-electron-lease-matrix",
-					"summary": "The Soundscaper and Framescaper family-v1 desktop libraries each hold one renewable process-lifetime main-owned writer lease in a separate fresh root and user_version 1 database with a persistently monotonic fencing token. Startup recovers journals before renderer admission; renewal loss fences new work; shutdown drains admitted operations and releases only the exact owned lease. The closed matrix exercises same-project contention, cross-product isolation, lease transfer and takeover, conflicting commits, renderer loss, orderly restart, and crash recovery for both products. Its five target rows remain pending-external, so this control remains partial and stable 1.0 admission stays fail-closed.",
+					"summary": "The Soundscaper and Framescaper family-v1 desktop libraries each hold one renewable process-lifetime main-owned writer lease in a separate fresh root and user_version 1 database with a persistently monotonic fencing token. Startup recovers journals before renderer admission; renewal loss fences new work; shutdown drains admitted operations and releases only the exact owned lease. The closed matrix exercises same-project contention, cross-product isolation, lease transfer and takeover, conflicting commits, renderer loss, orderly restart, and crash recovery for both products. A reviewed no-retry cohort from GitHub Actions run 33261286048 at revision e7c76c7013f94f14834c13a5fa25c261cd754627 accepted all five maintained targets, each with fourteen product-specific cases plus paired scope isolation and no losing managed-media publication. The unrelated Soundscaper Linux x64 packaging failure is outside the accepted scope; Milestone 9 human stable-release qualification remains separate.",
+					"acceptedResultCohort": {
+						"id": "hosted-ci-family-v1-lease-matrix-e7c76c70",
+						"acceptedAt": "2026-08-29",
+						"runId": 33261286048,
+						"runUrl": "https://github.com/LeoWattenberg/Soundscaper/actions/runs/33261286048",
+						"sourceRevision": "e7c76c7013f94f14834c13a5fa25c261cd754627",
+						"attemptCount": 1,
+						"retryCount": 0,
+						"enclosingRunConclusion": "failure",
+						"scopeDisposition": "accepted-five-successful-lease-matrix-jobs-only-unrelated-packaging-failure-excluded",
+						"retention": "hosted-run-artifacts-with-checked-in-byte-length-and-sha256",
+						"resultSchemaVersion": 1,
+						"resultMode": "project-library-lease-matrix-v1",
+						"workflowCount": 8,
+						"caseCountPerTarget": 15,
+						"artifacts": [
+							{
+								"targetId": "windows-x64",
+								"jobId": 99125946674,
+								"artifactId": 9717648019,
+								"artifactName": "soundscaper-v1-framescaper-v1-lease-matrix-win-x64",
+								"archiveByteLength": 1290,
+								"archiveSha256": "c57ae77e05ef29b6277f634567ec2468450a5a8ef0525b62743e5a5583419866",
+								"resultByteLength": 4152,
+								"resultSha256": "bd27fe7335e2006bcc197bae22f4ab270f16d6a93e3b9754ca8ec59b0df65e32"
+							},
+							{
+								"targetId": "windows-arm64",
+								"jobId": 99125946663,
+								"artifactId": 9717722269,
+								"artifactName": "soundscaper-v1-framescaper-v1-lease-matrix-win-arm64",
+								"archiveByteLength": 1297,
+								"archiveSha256": "f6aeaa5d81aa3f06e1faff58951b04054ac6724c9f616beac917bdbd81820914",
+								"resultByteLength": 4154,
+								"resultSha256": "77e4aceecc785207c6d97d87ff09dabc3dd4af23d3097a092b375403616f2778"
+							},
+							{
+								"targetId": "macos-arm64",
+								"jobId": 99125946656,
+								"artifactId": 9717635037,
+								"artifactName": "soundscaper-v1-framescaper-v1-lease-matrix-mac-arm64",
+								"archiveByteLength": 1295,
+								"archiveSha256": "ce3f90f61904faf712376b60d7ba2569268673a44c2c5944602699276bf39e93",
+								"resultByteLength": 4155,
+								"resultSha256": "fe52b5d24a3208159b9289e77c747c1c5225ab81532169dff10d4ede108de332"
+							},
+							{
+								"targetId": "linux-x64",
+								"jobId": 99125946681,
+								"artifactId": 9717617341,
+								"artifactName": "soundscaper-v1-framescaper-v1-lease-matrix-linux-x64",
+								"archiveByteLength": 1298,
+								"archiveSha256": "90f84ee8de0f3cd57f66f9597c1540858de479a20317624458c83e91ecfebe73",
+								"resultByteLength": 4152,
+								"resultSha256": "90015fb25a07e69080ee3fdbe94990c02a065af5ba95f8f32553634a1e722a05"
+							},
+							{
+								"targetId": "linux-arm64",
+								"jobId": 99125946654,
+								"artifactId": 9717612971,
+								"artifactName": "soundscaper-v1-framescaper-v1-lease-matrix-linux-arm64",
+								"archiveByteLength": 1299,
+								"archiveSha256": "7e5d1eff66247db4c94a5545ef377a2c8364e270e151cecc79fec1135416af5c",
+								"resultByteLength": 4154,
+								"resultSha256": "cf74d3d93a748884dc2554713adbf8953be5ec5e434896efb063ad679db6e388"
+							}
+						]
+					},
 					"evidence": [
 						{
 							"kind": "implementation",

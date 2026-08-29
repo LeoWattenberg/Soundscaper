@@ -56,7 +56,7 @@ test('historical Milestone 3 prose remains provenance while stable qualification
 	const matrix = await json('config/milestone-3-timing-probe-matrix.json');
 	assert.deepEqual(new Set(matrix.electronRows.map(({ status }) => status)), new Set(['pending-external']));
 	const compatibility = await json('config/project-compatibility.json');
-	assert.equal(compatibility.rules.find(({ id }) => id === 'current-desktop-electron-lease-protections').status, 'partial');
+	assert.equal(compatibility.rules.find(({ id }) => id === 'current-desktop-electron-lease-protections').status, 'implemented');
 });
 
 async function json(path) {

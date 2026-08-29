@@ -168,7 +168,7 @@ Known architectural constraints that drive later work:
 | Milestone | Status | Purpose |
 | --- | --- | --- |
 | 1. Baseline contracts | **Implemented for build/test; automated reference evidence pending** | Close reproducible machine quality evidence; human platform checks belong to milestone 9. |
-| 2. Shared platform/storage/media | **Implementation active; lease evidence gate partial** | Maintained behavior and the complete automated lease matrix are active; accepted packaged evidence remains open. |
+| 2. Shared platform/storage/media | **Implemented; release qualification belongs to milestone 9** | The frozen milestone-2 inventory and all six gates are implemented; stable-release human qualification stays separate. |
 | 3. Editorial foundations | **Software implementation active; qualification belongs to milestone 9** | The selected Soundscaper and Framescaper editorial routes are enabled; packaged and external evidence remains open. |
 | 4. Production surfaces | **Local implementation enabled; human qualification belongs to milestone 9** | Complete automation, routing, compositing, captions, and finishing. |
 | 5. Electron-native services | **In progress — implemented routes enabled for testing; target payloads open** | Add isolated native media, audio, render, and plug-in services. |
@@ -248,11 +248,10 @@ new platform, distribution, schema, or security boundary.
 qualification belongs to milestone 9 and does not block milestone-2 build,
 test, or closure; machine-verifiable dependencies remain fail-closed.
 
-**Status:** **Implementation active; lease evidence gate partial.** Every
-maintained route and the complete automated two-product lease matrix are
-enabled. The frozen inventory remains formally partial because no accepted
-Framescaper V20 packaged result is checked in; stable-release human review
-belongs to milestone 9.
+**Status:** **Implemented; release qualification belongs to milestone 9.** Every
+item in the frozen closure inventory and all six exit gates are implemented.
+The family-v1 packaged lease matrix completed on all five maintained desktop
+targets. Stable-release human review remains a separate milestone-9 gate.
 
 **Goal:** make large, capability-varying projects safe and usable across both
 products before adding new editorial models or native engines.
@@ -299,26 +298,23 @@ later. Revision 2 (2026-08-09, user-approved) historically deferred WebKit and
 ARM64 qualification and retired the deprecated `macos-x64` desktop target. That
 qualified evidence set remains Chromium and Firefox plus `windows-x64` and
 `linux-x64`; its human checkpoints now belong to milestone 9. Current automated
-test activation includes WebKit and all five maintained desktop targets.
+test activation includes WebKit and all five maintained desktop targets. The
+accepted family-v1 lease cohort covers those five desktop targets without
+changing the frozen historical platform set.
 
 Implementation details and evidence belong in each item's `ownerRefs`. Agents
 update an item's status only after its listed acceptance conditions pass.
 
 ### Open closure items, in priority order
 
-- `m2-electron-lease-matrix`
+None.
 
-The selected owners are Soundscaper desktop-library V11 and Framescaper
-desktop-library V20. Soundscaper V11 owns schema 30, SQLite `user_version` 13 and
-scope `v11`; Framescaper V20 owns schema 31, SQLite `user_version` 22 and scope
-`v20`. V20 opens only a settled V19 source read-only, explicitly reimports its
-exact V28 documents into F31, and copy-forwards managed bodies without rewriting
-V19 or its inherited V18/V17/V12 lineage. The executable matrix runs seven
-product-specific workflows against V11 and V20, with
-`cross-product-simultaneous-open` once across those packages. Automated tests
-run on all five maintained desktop targets. Human qualification for their ten
-product/target rows belongs to milestone 9; no accepted V20 packaged result is
-checked in, so the gate is **Partial**.
+`m2-electron-lease-matrix` is implemented. The family-v1 executable matrix runs
+seven product-specific workflows for both Soundscaper and Framescaper, then
+runs `cross-product-simultaneous-open` once for the paired packages. A reviewed
+packaged cohort covers all five maintained desktop targets. Exact evidence
+identity lives in the closure inventory and owning security policy; milestone-9
+human release qualification remains separate.
 
 The closed compatibility items fix the fallback role set at exactly
 `project-audio-mix-v1`, `audio-track-render-v1`, `project-video-render-v1`,
@@ -349,18 +345,17 @@ API or runtime capability.
 | `m2-gate-bounded-pipelines` | **Implemented** | `m2-pipeline-route-qualification`, `m2-pipeline-resource-qualification`, `m2-opfs-worker-boundary` |
 | `m2-gate-feature-compatibility` | **Implemented** | `m2-compatibility-affected-objects`, `m2-compatibility-bypass`, `m2-compatibility-fallback-roles`, `m2-compatibility-future-archive`, `m2-compatibility-less-capable-roundtrip` |
 | `m2-gate-crash-safe-publication` | **Implemented** | `m2-publication-fault-matrix`, `m2-browser-durability-matrix` |
-| `m2-gate-electron-concurrency` | **Partial** | `m2-electron-lease-matrix` |
+| `m2-gate-electron-concurrency` | **Implemented** | `m2-electron-lease-matrix` |
 | `m2-gate-cache-cleanup` | **Implemented** | `m2-cache-root-safety` |
 
-Milestone 2 closes only when every inventory item and gate is **Implemented**.
+Milestone 2 is closed because every inventory item and gate is **Implemented**.
 Evidence updates its owning policy first; this roadmap changes only when scope,
 priority, dependency, or status changes.
 
 ## 3. Parallel editorial foundations
 
-**Builds on:** milestone 2 and a green canonical quality gate. Implementation
-proceeds while milestone 2's last lease-matrix evidence stays open, but
-milestone 3 cannot close first.
+**Builds on:** completed milestone 2 and a green canonical quality gate.
+Milestone-9 human release qualification remains separate from this dependency.
 
 **Status:** **Software implementation active on selected Soundscaper S30 and
 Framescaper F31; qualification belongs to milestone 9.** The serialized 3.0

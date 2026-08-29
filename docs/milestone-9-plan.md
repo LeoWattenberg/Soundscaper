@@ -425,11 +425,10 @@ unprovisioned-but-claimed environment row, or any relabeled pending row
   gates: MIDI evidence activates only after the 8B entry gate, exactly as
   the blocked workload already records
   (config/quality-budgets.json:1080-1094).
-- **The m2 lease matrix is still open** (`m2-gate-electron-concurrency`
-  Partial, roadmap.md:326); milestone-9 desktop evidence assumes it
-  closed long before pickup, but the campaign re-runs it on the final
-  matrix regardless — release qualification repeats, it does not
-  inherit.
+- **The m2 lease matrix is closed** (`m2-gate-electron-concurrency`
+  Implemented). Its reviewed family-v1 packaged cohort covers all five
+  maintained desktop targets. The campaign still re-runs it on the final
+  release matrix — release qualification repeats, it does not inherit.
 - **Provisioning is capital, not code.** Four environments need hardware,
   and the plan deliberately front-loads them in 9.0 because every
   parallel track blocks on at least one.

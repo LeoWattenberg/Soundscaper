@@ -54,7 +54,7 @@
 		},
 		{
 			"id": "m2-gate-electron-concurrency",
-			"status": "partial",
+			"status": "implemented",
 			"itemIds": ["m2-electron-lease-matrix"]
 		},
 		{
@@ -320,7 +320,7 @@
 		{
 			"id": "m2-electron-lease-matrix",
 			"gateId": "m2-gate-electron-concurrency",
-			"status": "partial",
+			"status": "implemented",
 			"workflowIds": [
 				"same-project-simultaneous-open",
 				"cross-product-simultaneous-open",
@@ -331,8 +331,20 @@
 				"orderly-process-restart",
 				"crash-restart-recovery"
 			],
+			"completedWorkflowIds": [
+				"same-project-simultaneous-open",
+				"cross-product-simultaneous-open",
+				"writer-lease-transfer",
+				"stale-lease-takeover",
+				"conflicting-canonical-commit",
+				"renderer-loss-during-operation",
+				"orderly-process-restart",
+				"crash-restart-recovery"
+			],
+			"qualifiedDesktopTargets": ["windows-x64", "windows-arm64", "macos-arm64", "linux-x64", "linux-arm64"],
+			"acceptedResultCohortId": "hosted-ci-family-v1-lease-matrix-e7c76c70",
 			"acceptance": [
-				"The seven product-specific workflow IDs retain historical qualification evidence for both Soundscaper and Framescaper packages on each platformSet.desktopTarget, and cross-product-simultaneous-open retains one result per paired package set. Current automated testing runs every testActivation.desktopTarget; human qualification of the historically deferred targets belongs to milestone 9. macos-x64 remains retired.",
+				"The seven product-specific workflow IDs retain one accepted family-v1 packaged result for both Soundscaper and Framescaper on every testActivation.desktopTarget, and cross-product-simultaneous-open retains one accepted result per paired package set. Stable-release human qualification remains a separate milestone-9 gate. macos-x64 remains retired.",
 				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]

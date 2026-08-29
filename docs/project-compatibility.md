@@ -1462,9 +1462,11 @@ The Soundscaper and Framescaper family-v1 libraries use distinct roots, SQLite
 application IDs, user_version 1 databases, v1 IPC namespaces, and monotonic
 lease tokens. Startup recovers journals before renderer admission; renewal loss
 fences new work; shutdown drains admitted operations and releases only the exact
-owned lease. The cross-platform matrix remains partial and stable 1.0 stays
-blocked on all pending external target rows. No pre-release library is opened,
-copied forward, enumerated, mutated, or deleted.
+owned lease. The accepted packaged matrix ran fourteen per-product cases plus
+paired cross-product isolation on all five maintained desktop targets, closing
+m2-electron-lease-matrix. Stable 1.0 qualification in Milestone 9 remains
+separate and blocked on its pending human rows. No pre-release library is
+opened, copied forward, enumerated, mutated, or deleted.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->
