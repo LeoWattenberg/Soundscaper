@@ -112,7 +112,7 @@ export default function SoundscaperMasteringSequenceEditor({
 			<section aria-label={copy.masteringEntries}>
 				<h4>{copy.masteringEntries}</h4>
 				{sequence.entries.map((entry, index) => <EntryEditor
-					key={entry.id}
+					key={entryFormKey(sequence.id, entry)}
 					copy={copy}
 					entry={entry}
 					index={index}
@@ -138,6 +138,13 @@ export default function SoundscaperMasteringSequenceEditor({
 			</div>}
 		</>}
 	</fieldset>;
+}
+
+function entryFormKey(sequenceId: string, entry: DocumentMasteringSequenceEntrySnapshot): string {
+	return JSON.stringify([
+		sequenceId, entry.id, entry.annotationId, entry.title, entry.titleOverride, entry.durationFrames,
+		entry.gapBeforeFrames, entry.fadeInFrames, entry.fadeOutFrames, entry.metadata,
+	]);
 }
 
 function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }: Readonly<{

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
@@ -27,6 +27,7 @@ import {
 	executeSoundscaperProductionOperation,
 	soundscaperProductionSurface,
 } from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
+import { installReactTestDom, ReactTestElement } from './helpers/react-test-dom.ts';
 
 const NOW = '2026-08-18T00:00:00.000Z';
 const CAPABILITIES = Object.freeze({
@@ -156,6 +157,69 @@ test('the title field holds the override, not the region name it falls back to',
 	assert.match(titleInput, /value=""/u,
 		'and the field itself is empty, so Apply stores no override the operator never asked for');
 });
+
+test('an entry form refreshes when the document updates the same entry id', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const initial = createDocumentMasteringSequenceSnapshot(albumProject());
+	const entry = initial.sequences[0]!.entries[0]!;
+	const updated = Object.freeze({
+		...initial,
+		sequences: Object.freeze([Object.freeze({
+			...initial.sequences[0]!,
+			entries: Object.freeze([Object.freeze({
+				...entry,
+				title: 'Document title',
+				titleOverride: 'Document title',
+				gapBeforeFrames: 37,
+			})]),
+		})]),
+	});
+	const props = {
+		copy: SOUNDSCAPER_PRODUCTION_COPY,
+		disabled: false,
+		regions: initial.regions,
+		primarySequenceId: initial.primarySequenceId,
+		createId: () => 'generated',
+		onOperation: () => undefined,
+	};
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperMasteringSequenceEditor
+			{...props}
+			sequences={initial.sequences}
+		/>));
+		const staleTitle = namedControl(dom.container, 'title');
+		staleTitle.value = 'Unsubmitted local title';
+
+		await act(async () => root.render(<SoundscaperMasteringSequenceEditor
+			{...props}
+			sequences={updated.sequences}
+		/>));
+
+		assert.equal(namedControl(dom.container, 'title').value, 'Document title',
+			'a same-id document update must not leave an old uncontrolled value ready to overwrite it');
+		assert.notEqual(namedControl(dom.container, 'title'), staleTitle,
+			'the updated document owns a fresh form rather than the stale same-id form');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+function namedControl(root: ReactTestElement, name: string): ReactTestElement {
+	const pending = [...root.childNodes];
+	while (pending.length > 0) {
+		const node = pending.shift()!;
+		if (node instanceof ReactTestElement && node.name === name) return node;
+		pending.unshift(...node.childNodes);
+	}
+	throw new Error(`Missing mounted control ${name}`);
+}
 
 test('the New sequence button states the sequence the new one orders', () => {
 	// A mastering sequence names the timeline sequence it orders, and the panel is
