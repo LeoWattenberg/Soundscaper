@@ -452,9 +452,12 @@ async function withReadCleanup(readIds, release, operation) {
 
 function createNamedFile(blob, descriptor, scope) {
 	const FileConstructor = scope.File || globalThis.File;
+	const descriptorTimestamp = Number(descriptor.lastModified);
 	const options = {
 		type: descriptor.mimeType || blob.type || 'application/octet-stream',
-		lastModified: Number(descriptor.lastModified) || Date.now(),
+		lastModified: Number.isSafeInteger(descriptorTimestamp) && descriptorTimestamp >= 0
+			? descriptorTimestamp
+			: Date.now(),
 	};
 	if (typeof FileConstructor === 'function') {
 		const file = new FileConstructor([blob], descriptor.name || 'desktop-file', options);

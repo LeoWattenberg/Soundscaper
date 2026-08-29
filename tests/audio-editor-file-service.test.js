@@ -353,7 +353,7 @@ test('direct-save streams abort without publishing when their admitted maximum i
 	assert.deepEqual(aborted, ['write-limit']);
 });
 
-test('desktop read descriptors become named files and are always released', async () => {
+test('desktop read descriptors preserve epoch timestamps and are always released', async () => {
 	const released = [];
 	const service = createAudioEditorFileService({
 		bridge: { async releaseRead(id) { released.push(id); } },
@@ -369,11 +369,11 @@ test('desktop read descriptors become named files and are always released', asyn
 		name: 'Session.aup4',
 		size: 15,
 		mimeType: 'application/x-audacity-project',
-		lastModified: 123,
+		lastModified: 0,
 	});
 
 	assert.equal(file.name, 'Session.aup4');
-	assert.equal(file.lastModified, 123);
+	assert.equal(file.lastModified, 0);
 	assert.equal(await file.text(), 'SQLite format 3');
 	assert.deepEqual(released, ['read-1']);
 });
