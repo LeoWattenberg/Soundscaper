@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,6 +11,7 @@ import {
 	evaluateMilestone9ReleaseAdmission,
 	parseMilestone9GuidedVerification,
 } from '../scripts/lib/milestone-9-release-admission.mjs';
+import { runMilestone9ReleaseAdmissionCli } from '../scripts/check-milestone-9-release-admission.mjs';
 import {
 	expandMilestone9BehaviorEnvironmentRequirements,
 	validateMilestone9BehaviorEnvironmentMatrix,
@@ -23,6 +24,21 @@ const PASS_ROW = /^(\| (?<id>[A-Z]{2,3}-\d{2}) \| .*? \| pass \| ).*?( \| .*? \|
 const BEHAVIOR_MATRIX = validateMilestone9BehaviorEnvironmentMatrix(JSON.parse(
 	await readFile(new URL('config/milestone-9-behavior-environments.json', ROOT), 'utf8'),
 ));
+const QUALIFICATION_READY = Object.freeze({
+	passed: true,
+	qualificationReady: true,
+	status: 'accepted',
+	workloadId: 'm9-complete-system-soak',
+	matrixId: 'stable-1-0-full-browser-five-desktop-native-v1',
+	requiredCellCount: 11,
+	requiredRunCount: 22,
+	auditedRunCount: 22,
+	blockers: Object.freeze([]),
+});
+
+function admissionOptions(options = {}) {
+	return { qualificationEvidenceAudit: QUALIFICATION_READY, ...options };
+}
 
 function passingRecord(markdown) {
 	const withRowsAndIdentity = markdown
@@ -76,18 +92,52 @@ test('pending human checks block only the explicit stable 1.0 release decision',
 
 test('all observed passes plus the explicit conclusion admit stable 1.0', async () => {
 	const markdown = passingRecord(await readFile(RECORD_URL, 'utf8'));
-	const result = evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(markdown));
+	const result = evaluateMilestone9ReleaseAdmission(
+		parseMilestone9GuidedVerification(markdown), admissionOptions(),
+	);
 	assert.equal(result.admitted, true);
 	assert.deepEqual(result.reasons, []);
 	assert.equal(result.counts.pass, 152);
 	assert.deepEqual(result.referencedRunIds, ['M9-RUN-001']);
+	assert.deepEqual(result.qualificationEvidence, QUALIFICATION_READY);
+});
+
+test('a passing human record remains blocked until qualification evidence is ready', async () => {
+	const parsed = parseMilestone9GuidedVerification(
+		passingRecord(await readFile(RECORD_URL, 'utf8')),
+	);
+	const pending = {
+		passed: true,
+		qualificationReady: false,
+		status: 'pending-external',
+		workloadId: 'm9-complete-system-soak',
+		matrixId: 'stable-1-0-full-browser-five-desktop-native-v1',
+		requiredCellCount: 11,
+		requiredRunCount: 22,
+		auditedRunCount: 0,
+		blockers: ['No release-runtime cell has its required run pair.'],
+	};
+	const missingResult = evaluateMilestone9ReleaseAdmission(parsed);
+	assert.equal(missingResult.admitted, false);
+	assert.match(missingResult.reasons.join('\n'), /qualification evidence audit is missing/iu);
+	const pendingResult = evaluateMilestone9ReleaseAdmission(parsed, {
+		qualificationEvidenceAudit: pending,
+	});
+	assert.equal(pendingResult.admitted, false);
+	assert.deepEqual(pendingResult.qualificationEvidence, pending);
+	assert.match(
+		pendingResult.reasons.join('\n'),
+		/qualification evidence is not ready.*No release-runtime cell/iu,
+	);
 });
 
 test('pass rows must cite a recorded execution from the same campaign', async () => {
 	const passing = passingRecord(await readFile(RECORD_URL, 'utf8'));
 	const unknownRun = passing.replace('run:M9-RUN-001', 'run:M9-RUN-999');
 	assert.match(
-		evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(unknownRun)).reasons.join('\n'),
+		evaluateMilestone9ReleaseAdmission(
+			parseMilestone9GuidedVerification(unknownRun), admissionOptions(),
+		).reasons.join('\n'),
 		/run:M9-RUN-999.*execution ledger/iu,
 	);
 });
@@ -118,14 +168,22 @@ test('failures, blockers, and undocumented scope reductions remain release block
 	const failed = passing.replace('| pass | run:M9-RUN-001 | — |', '| fail | run:M9-RUN-001 | issue:123 |');
 	const blocked = passing.replace('| pass | run:M9-RUN-001 | — |', '| blocked | blocker:missing-lab | — |');
 	const undocumented = passing.replace('| pass | run:M9-RUN-001 | — |', '| not-applicable | scope reduced | — |');
-	assert.equal(evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(failed)).admitted, false);
-	assert.equal(evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(blocked)).admitted, false);
+	assert.equal(evaluateMilestone9ReleaseAdmission(
+		parseMilestone9GuidedVerification(failed), admissionOptions(),
+	).admitted, false);
+	assert.equal(evaluateMilestone9ReleaseAdmission(
+		parseMilestone9GuidedVerification(blocked), admissionOptions(),
+	).admitted, false);
 	assert.match(
-		evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(undocumented)).reasons.join('\n'),
+		evaluateMilestone9ReleaseAdmission(
+			parseMilestone9GuidedVerification(undocumented), admissionOptions(),
+		).reasons.join('\n'),
 		/not-applicable.*decision:/iu,
 	);
 	const approved = undocumented.replace('scope reduced', 'decision:release-scope-17');
-	assert.equal(evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(approved)).admitted, true);
+	assert.equal(evaluateMilestone9ReleaseAdmission(
+		parseMilestone9GuidedVerification(approved), admissionOptions(),
+	).admitted, true);
 });
 
 test('the opt-in CLI is read-only, exits nonzero for the checked-in record, and is absent from normal gates', async () => {
@@ -140,13 +198,31 @@ test('the opt-in CLI is read-only, exits nonzero for the checked-in record, and 
 	const path = join(directory, 'record.md');
 	const passing = passingBehaviorRecord(passingRecord(await readFile(RECORD_URL, 'utf8')));
 	await writeFile(path, passing, 'utf8');
-	const output = execFileSync(
-		process.execPath,
-		['scripts/check-milestone-9-release-admission.mjs', '--record', path, '--json'],
-		{ cwd: new URL('.', ROOT), encoding: 'utf8' },
-	);
-	assert.equal(JSON.parse(output).admitted, true);
+	const pendingQualification = spawnSync(process.execPath, [
+		'scripts/check-milestone-9-release-admission.mjs', '--record', path, '--json',
+	], { cwd: new URL('.', ROOT), encoding: 'utf8' });
+	assert.equal(pendingQualification.status, 1);
+	const result = JSON.parse(pendingQualification.stdout);
+	assert.equal(result.admitted, false);
+	assert.equal(result.counts.pass, 152);
+	assert.equal(result.qualificationEvidence.qualificationReady, false);
+	assert.equal(result.qualificationEvidence.requiredRunCount, 22);
+	assert.match(result.reasons.join('\n'), /qualification evidence is not ready/iu);
 	assert.equal(await readFile(path, 'utf8'), passing);
+
+	const written = [];
+	const admittedExitCode = await runMilestone9ReleaseAdmissionCli(
+		['--record', path, '--json'],
+		{
+			auditMilestone9QualificationEvidence: () => QUALIFICATION_READY,
+			writeOutput: (value) => { written.push(value); },
+		},
+	);
+	assert.equal(admittedExitCode, 0);
+	assert.equal(written.length, 1);
+	const admitted = JSON.parse(written[0]);
+	assert.equal(admitted.admitted, true);
+	assert.deepEqual(admitted.qualificationEvidence, QUALIFICATION_READY);
 
 	const checkedIn = spawnSync(process.execPath, ['scripts/check-milestone-9-release-admission.mjs'], {
 		cwd: new URL('.', ROOT),

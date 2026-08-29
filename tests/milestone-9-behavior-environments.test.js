@@ -20,6 +20,17 @@ const ROOT = new URL('../', import.meta.url);
 const MATRIX_URL = new URL('config/milestone-9-behavior-environments.json', ROOT);
 const RECORD_URL = new URL('docs/milestone-9-guided-verification.md', ROOT);
 const CHECK_ROW = /^(\| (?<id>[A-Z]{2,3}-\d{2}) \| .*? \| )pending( \| )pending( \| .*? \|)$/gmu;
+const QUALIFICATION_READY = Object.freeze({
+	passed: true,
+	qualificationReady: true,
+	status: 'accepted',
+	workloadId: 'm9-complete-system-soak',
+	matrixId: 'stable-1-0-full-browser-five-desktop-native-v1',
+	requiredCellCount: 11,
+	requiredRunCount: 22,
+	auditedRunCount: 22,
+	blockers: Object.freeze([]),
+});
 
 test('the behavior matrix expands every canonical check over the approved release cells', async () => {
 	const matrix = validateMilestone9BehaviorEnvironmentMatrix(
@@ -57,12 +68,16 @@ test('stable admission requires a cited execution for every applicable behavior 
 	assert.equal(coverage.missingCells.length, 0);
 	assert.equal(evaluateMilestone9ReleaseAdmission(parsed, {
 		behaviorEnvironmentMatrix: matrix,
+		qualificationEvidenceAudit: QUALIFICATION_READY,
 	}).admitted, true);
 
 	const missing = complete.replace('run:M9-browser-chromium-current ', '');
 	const result = evaluateMilestone9ReleaseAdmission(
 		parseMilestone9GuidedVerification(missing),
-		{ behaviorEnvironmentMatrix: matrix },
+		{
+			behaviorEnvironmentMatrix: matrix,
+			qualificationEvidenceAudit: QUALIFICATION_READY,
+		},
 	);
 	assert.equal(result.admitted, false);
 	assert.match(result.reasons.join('\n'), /SB-01.*browser-chromium-current/iu);

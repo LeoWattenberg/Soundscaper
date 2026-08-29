@@ -131,6 +131,54 @@ function addCountReason(reasons, count, singular, plural) {
 	if (count > 0) reasons.push(`${count} ${count === 1 ? singular : plural}`);
 }
 
+function evaluateQualificationEvidenceAudit(value) {
+	if (value === undefined) {
+		return {
+			summary: null,
+			reasons: ['Milestone 9 qualification evidence audit is missing.'],
+		};
+	}
+	if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+		return {
+			summary: null,
+			reasons: ['Milestone 9 qualification evidence audit is invalid.'],
+		};
+	}
+	const blockers = Array.isArray(value.blockers)
+		&& value.blockers.every((blocker) => typeof blocker === 'string' && blocker.length > 0)
+		? [...value.blockers]
+		: [];
+	const summary = {
+		passed: value.passed === true,
+		qualificationReady: value.qualificationReady === true,
+		status: typeof value.status === 'string' ? value.status : null,
+		workloadId: typeof value.workloadId === 'string' ? value.workloadId : null,
+		matrixId: typeof value.matrixId === 'string' ? value.matrixId : null,
+		requiredCellCount: Number.isSafeInteger(value.requiredCellCount) ? value.requiredCellCount : null,
+		requiredRunCount: Number.isSafeInteger(value.requiredRunCount) ? value.requiredRunCount : null,
+		auditedRunCount: Number.isSafeInteger(value.auditedRunCount) ? value.auditedRunCount : null,
+		blockers,
+	};
+	const reasons = [];
+	if (!summary.passed) reasons.push('Milestone 9 qualification evidence audit did not pass.');
+	if (!summary.qualificationReady) {
+		const progress = summary.auditedRunCount !== null && summary.requiredRunCount !== null
+			? `; ${summary.auditedRunCount}/${summary.requiredRunCount} required runs audited`
+			: '';
+		const detail = blockers.length > 0 ? `: ${blockers.join(' ')}` : '.';
+		reasons.push(`Milestone 9 qualification evidence is not ready${progress}${detail}`);
+	} else if (summary.status !== 'accepted'
+		|| summary.workloadId !== 'm9-complete-system-soak'
+		|| summary.matrixId === null
+		|| !Number.isSafeInteger(summary.requiredCellCount) || summary.requiredCellCount < 1
+		|| summary.requiredRunCount !== summary.requiredCellCount * 2
+		|| summary.auditedRunCount !== summary.requiredRunCount
+		|| blockers.length > 0) {
+		reasons.push('Milestone 9 qualification-ready audit summary is inconsistent.');
+	}
+	return { summary, reasons };
+}
+
 export function evaluateMilestone9ReleaseAdmission(parsed, options = {}) {
 	const reasons = [];
 	const counts = resultCounts(parsed.rows);
@@ -201,12 +249,17 @@ export function evaluateMilestone9ReleaseAdmission(parsed, options = {}) {
 		);
 		reasons.push(...behaviorEnvironmentCoverage.reasons);
 	}
+	const qualificationEvidence = evaluateQualificationEvidenceAudit(
+		options.qualificationEvidenceAudit,
+	);
+	reasons.push(...qualificationEvidence.reasons);
 	return {
 		releaseVersion: MILESTONE_9_RELEASE_VERSION,
 		admitted: reasons.length === 0,
 		counts,
 		referencedRunIds,
 		behaviorEnvironmentCoverage,
+		qualificationEvidence: qualificationEvidence.summary,
 		reasons,
 	};
 }

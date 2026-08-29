@@ -3,14 +3,16 @@
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
 	evaluateMilestone9ReleaseAdmission,
 	parseMilestone9GuidedVerification,
 } from './lib/milestone-9-release-admission.mjs';
 import { validateMilestone9BehaviorEnvironmentMatrix } from './lib/milestone-9-behavior-environments.mjs';
+import { auditMilestone9QualificationEvidence } from './lib/milestone-9-qualification-evidence.mjs';
 
+const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const DEFAULT_RECORD = new URL('../docs/milestone-9-guided-verification.md', import.meta.url);
 const DEFAULT_BEHAVIOR_ENVIRONMENTS = new URL(
 	'../config/milestone-9-behavior-environments.json', import.meta.url,
@@ -43,7 +45,10 @@ function parseArguments(argv) {
 	return { json, record, behaviorEnvironments };
 }
 
-export async function runMilestone9ReleaseAdmissionCli(argv = process.argv.slice(2)) {
+export async function runMilestone9ReleaseAdmissionCli(
+	argv = process.argv.slice(2),
+	dependencies = {},
+) {
 	const { json, record, behaviorEnvironments } = parseArguments(argv);
 	const [markdown, behaviorMatrixBytes] = await Promise.all([
 		readFile(record, 'utf8'),
@@ -52,16 +57,27 @@ export async function runMilestone9ReleaseAdmissionCli(argv = process.argv.slice
 	const behaviorEnvironmentMatrix = validateMilestone9BehaviorEnvironmentMatrix(
 		JSON.parse(behaviorMatrixBytes),
 	);
-	const result = evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(markdown), {
+	const auditQualificationEvidence = dependencies.auditMilestone9QualificationEvidence
+		?? auditMilestone9QualificationEvidence;
+	const writeOutput = dependencies.writeOutput ?? ((value) => process.stdout.write(value));
+	if (typeof auditQualificationEvidence !== 'function' || typeof writeOutput !== 'function') {
+		throw new TypeError('Milestone 9 release-admission dependencies are invalid.');
+	}
+	const qualificationEvidenceAudit = await auditQualificationEvidence({
+		repositoryRoot: REPOSITORY_ROOT,
 		behaviorEnvironmentMatrix,
 	});
+	const result = evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(markdown), {
+		behaviorEnvironmentMatrix,
+		qualificationEvidenceAudit,
+	});
 	if (json) {
-		process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+		writeOutput(`${JSON.stringify(result, null, 2)}\n`);
 	} else {
 		const state = result.admitted ? 'admitted' : 'blocked';
-		process.stdout.write(`Stable 1.0 release is ${state} by the Milestone 9 human-check record.\n`);
-		process.stdout.write(`Results: ${Object.entries(result.counts).map(([name, count]) => `${name}=${count}`).join(', ')}\n`);
-		for (const reason of result.reasons) process.stdout.write(`- ${reason}\n`);
+		writeOutput(`Stable 1.0 release is ${state} by the Milestone 9 human-check record.\n`);
+		writeOutput(`Results: ${Object.entries(result.counts).map(([name, count]) => `${name}=${count}`).join(', ')}\n`);
+		for (const reason of result.reasons) writeOutput(`- ${reason}\n`);
 	}
 	return result.admitted ? 0 : 1;
 }
