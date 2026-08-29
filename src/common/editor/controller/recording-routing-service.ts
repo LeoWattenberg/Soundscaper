@@ -18,6 +18,7 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		recordingRoutingSettingKey, setRecordingSourceOffset, setRecordingTrackInput, state,
 		stopMicrophoneMetering, store, updatePreferences,
 	} = runtime;
+	let outputDeviceSelectionGeneration = 0;
 	async function loadRecordingRouting(currentProject: RuntimeValue = getProject()) {
 		if (!currentProject) {
 			state.recordingRouting = normalizeRecordingRouting();
@@ -210,40 +211,46 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		if (normalized && !state.audioOutputDevices.some((device: RuntimeValue) => device.deviceId === normalized)) {
 			throw new Error('The selected audio output is unavailable.');
 		}
+		const generation = ++outputDeviceSelectionGeneration;
 		const previous = state.preferredOutputDeviceId;
 		if (normalized.startsWith('native:')) {
 			state.preferredOutputDeviceId = normalized;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = 'available';
 			await persistAudioDevicePreferences();
-			publishDocumentSnapshot();
+			if (generation === outputDeviceSelectionGeneration) publishDocumentSnapshot();
 			return normalized;
 		}
 		try {
 			const result = await Promise.resolve(engine.setOutputDevice?.(normalized));
+			if (generation !== outputDeviceSelectionGeneration) return normalized;
 			state.preferredOutputDeviceId = normalized;
 			state.activeOutputDeviceId = result?.activeDeviceId ?? normalized;
 			state.audioOutputStatus = normalized ? 'active' : 'default';
 			await persistAudioDevicePreferences();
-			publishDocumentSnapshot();
+			if (generation === outputDeviceSelectionGeneration) publishDocumentSnapshot();
 			return normalized;
 		} catch (error) {
-			const errorName = (error as Readonly<{ name?: string }> | null)?.name;
-			state.preferredOutputDeviceId = previous;
-			state.audioOutputStatus = errorName === 'NotSupportedError'
-				? 'unsupported'
-				: errorName === 'NotAllowedError' || errorName === 'SecurityError'
-					? 'denied'
-					: 'error';
-			publishDocumentSnapshot();
+			if (generation === outputDeviceSelectionGeneration) {
+				const errorName = (error as Readonly<{ name?: string }> | null)?.name;
+				state.preferredOutputDeviceId = previous;
+				state.audioOutputStatus = errorName === 'NotSupportedError'
+					? 'unsupported'
+					: errorName === 'NotAllowedError' || errorName === 'SecurityError'
+						? 'denied'
+						: 'error';
+				publishDocumentSnapshot();
+			}
 			throw error;
 		}
 	}
 
 	async function reconcilePreferredOutputDevice() {
+		const generation = outputDeviceSelectionGeneration;
 		const preferred = state.preferredOutputDeviceId;
 		if (!preferred) {
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
+			if (generation !== outputDeviceSelectionGeneration) return;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = 'default';
 			return;
@@ -251,6 +258,7 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		const available = state.audioOutputDevices.some((device: RuntimeValue) => device.deviceId === preferred);
 		if (!available) {
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
+			if (generation !== outputDeviceSelectionGeneration) return;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = 'unavailable';
 			return;
@@ -262,11 +270,14 @@ export function createRecordingRoutingService(runtime: RecordingRoutingServiceRu
 		}
 		try {
 			const result = await Promise.resolve(engine.setOutputDevice?.(preferred));
+			if (generation !== outputDeviceSelectionGeneration) return;
 			state.activeOutputDeviceId = result?.activeDeviceId ?? preferred;
 			state.audioOutputStatus = 'active';
 		} catch (error) {
+			if (generation !== outputDeviceSelectionGeneration) return;
 			const errorName = (error as Readonly<{ name?: string }> | null)?.name;
 			await Promise.resolve(engine.setOutputDevice?.('')).catch(() => undefined);
+			if (generation !== outputDeviceSelectionGeneration) return;
 			state.activeOutputDeviceId = '';
 			state.audioOutputStatus = errorName === 'NotSupportedError' ? 'unsupported' : 'denied';
 		}

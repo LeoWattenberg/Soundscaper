@@ -259,6 +259,123 @@ test('audio output failures restore the preference and classify browser errors',
 	}
 });
 
+test('an older audio output completion cannot overwrite a newer persisted selection', async () => {
+	const speakerA = deferred<unknown>();
+	const speakerB = deferred<unknown>();
+	const fixture = createFixture({
+		setOutputDevice: (deviceId) => deviceId === 'speaker-a' ? speakerA.promise : speakerB.promise,
+	});
+	fixture.state.audioOutputDevices = [
+		{ deviceId: 'speaker-a' },
+		{ deviceId: 'speaker-b' },
+	];
+
+	const olderSelection = fixture.service.setAudioOutputDevice('speaker-a');
+	const newerSelection = fixture.service.setAudioOutputDevice('speaker-b');
+	speakerB.resolve({ activeDeviceId: 'speaker-b' });
+	assert.equal(await newerSelection, 'speaker-b');
+	speakerA.resolve({ activeDeviceId: 'speaker-a' });
+	assert.equal(await olderSelection, 'speaker-a');
+
+	assert.equal(fixture.state.preferredOutputDeviceId, 'speaker-b');
+	assert.equal(fixture.state.activeOutputDeviceId, 'speaker-b');
+	assert.equal(fixture.state.audioOutputStatus, 'active');
+	assert.deepEqual(fixture.persistCalls, [[
+		'audio-devices',
+		{ inputDeviceId: 'default', inputChannelCount: 1, outputDeviceId: 'speaker-b' },
+		undefined,
+	]]);
+	assert.equal(fixture.publishes(), 1);
+});
+
+test('a stale audio output failure still rejects without replacing the newer success', async () => {
+	const speakerA = deferred<unknown>();
+	const speakerB = deferred<unknown>();
+	const fixture = createFixture({
+		setOutputDevice: (deviceId) => deviceId === 'speaker-a' ? speakerA.promise : speakerB.promise,
+	});
+	fixture.state.audioOutputDevices = [
+		{ deviceId: 'speaker-a' },
+		{ deviceId: 'speaker-b' },
+	];
+
+	const olderSelection = fixture.service.setAudioOutputDevice('speaker-a');
+	const newerSelection = fixture.service.setAudioOutputDevice('speaker-b');
+	speakerB.resolve({ activeDeviceId: 'speaker-b' });
+	await newerSelection;
+	const staleError = Object.assign(new Error('Speaker A access was revoked.'), { name: 'NotAllowedError' });
+	speakerA.reject(staleError);
+
+	await assert.rejects(olderSelection, (error) => error === staleError);
+	assert.equal(fixture.state.preferredOutputDeviceId, 'speaker-b');
+	assert.equal(fixture.state.activeOutputDeviceId, 'speaker-b');
+	assert.equal(fixture.state.audioOutputStatus, 'active');
+	assert.equal(fixture.persistCalls.length, 1);
+	assert.equal(fixture.publishes(), 1);
+});
+
+test('an older audio output success cannot erase the newer selection error', async () => {
+	const speakerA = deferred<unknown>();
+	const speakerB = deferred<unknown>();
+	const fixture = createFixture({
+		setOutputDevice: (deviceId) => deviceId === 'speaker-a' ? speakerA.promise : speakerB.promise,
+	});
+	fixture.state.audioOutputDevices = [
+		{ deviceId: 'speaker-a' },
+		{ deviceId: 'speaker-b' },
+	];
+	fixture.state.preferredOutputDeviceId = 'previous';
+	fixture.state.activeOutputDeviceId = 'previous';
+
+	const olderSelection = fixture.service.setAudioOutputDevice('speaker-a');
+	const newerSelection = fixture.service.setAudioOutputDevice('speaker-b');
+	const selectionError = Object.assign(new Error('Speaker B access was denied.'), { name: 'NotAllowedError' });
+	speakerB.reject(selectionError);
+	await assert.rejects(newerSelection, (error) => error === selectionError);
+	speakerA.resolve({ activeDeviceId: 'speaker-a' });
+	await olderSelection;
+
+	assert.equal(fixture.state.preferredOutputDeviceId, 'previous');
+	assert.equal(fixture.state.activeOutputDeviceId, 'previous');
+	assert.equal(fixture.state.audioOutputStatus, 'denied');
+	assert.deepEqual(fixture.persistCalls, []);
+	assert.equal(fixture.publishes(), 1);
+});
+
+test('a manual output selection retires an older device reconciliation', async () => {
+	const speakerA = deferred<unknown>();
+	const speakerB = deferred<unknown>();
+	const sinkCalls: string[] = [];
+	const fixture = createFixture({
+		setOutputDevice: (deviceId) => {
+			sinkCalls.push(deviceId);
+			if (deviceId === 'speaker-a') return speakerA.promise;
+			if (deviceId === 'speaker-b') return speakerB.promise;
+			return Promise.resolve({ activeDeviceId: '' });
+		},
+	});
+	fixture.state.audioOutputDevices = [
+		{ deviceId: 'speaker-a' },
+		{ deviceId: 'speaker-b' },
+	];
+	fixture.state.preferredOutputDeviceId = 'speaker-a';
+	fixture.state.activeOutputDeviceId = 'speaker-a';
+
+	const reconciliation = fixture.service.reconcilePreferredOutputDevice();
+	const selection = fixture.service.setAudioOutputDevice('speaker-b');
+	speakerB.resolve({ activeDeviceId: 'speaker-b' });
+	await selection;
+	speakerA.reject(Object.assign(new Error('Speaker A disappeared.'), { name: 'NotAllowedError' }));
+	await reconciliation;
+
+	assert.deepEqual(sinkCalls, ['speaker-a', 'speaker-b']);
+	assert.equal(fixture.state.preferredOutputDeviceId, 'speaker-b');
+	assert.equal(fixture.state.activeOutputDeviceId, 'speaker-b');
+	assert.equal(fixture.state.audioOutputStatus, 'active');
+	assert.equal(fixture.persistCalls.length, 1);
+	assert.equal(fixture.publishes(), 1);
+});
+
 test('input release is guarded while active and invalidates idle microphone metering', () => {
 	const fixture = createFixture();
 	fixture.state.recorder = {};
@@ -369,3 +486,13 @@ test('pool synchronization publishes sources before reconciling route health', (
 		true,
 	);
 });
+
+function deferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((onResolve, onReject) => {
+		resolve = onResolve;
+		reject = onReject;
+	});
+	return { promise, resolve, reject };
+}
