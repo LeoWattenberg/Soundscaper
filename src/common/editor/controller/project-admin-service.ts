@@ -144,6 +144,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		const active = project?.id === projectId;
 		const discard = closeOptions.discard === true;
 		let projectSaveSuspended = false;
+		let inactiveCloseReservation: Readonly<{ release(): boolean }> | null = null;
 		if (discard) {
 			projectSaveService.suspendProject(projectId);
 			projectSaveSuspended = true;
@@ -162,7 +163,11 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 					await switchProject(nextTab.history.present, { skipFlush: discard });
 				} else await newProject({ skipFlush: discard });
 			} else if (tab.dirty && !discard && !tab.readOnly) {
-				await store.saveProject(tab.history.present, {
+				const historyCapture = sessionController.captureProjectHistory(projectId);
+				inactiveCloseReservation = sessionController.beginProjectActivation(projectId, {
+					expectedHistoryToken: historyCapture.token,
+				});
+				await store.saveProject(historyCapture.history.present, {
 					protectedLinkedOriginalSourceReferences: Object.freeze([
 						...liveSessionLinkedOriginalSourceReferences(),
 					]),
@@ -170,6 +175,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 				sessionController.markProjectSaved(projectId);
 			}
 			interlock?.assertCurrent();
+			inactiveCloseReservation?.release();
+			inactiveCloseReservation = null;
 			const result = sessionController.closeProject(projectId, { force: true });
 			if (!result.closed) return result;
 			if (active) state.projects = Object.freeze(await store.listProjects());
@@ -179,6 +186,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			await garbageCollectSources();
 			return result;
 		} finally {
+			inactiveCloseReservation?.release();
 			if (projectSaveSuspended) projectSaveService.resumeProject(projectId);
 		}
 	}
