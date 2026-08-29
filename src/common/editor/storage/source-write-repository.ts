@@ -106,11 +106,39 @@ export class SourceWriteRepository {
 		let storedBytes = 0;
 		let wavpackChunkCount = 0;
 		let rawChunkCount = 0;
-		let state: 'open' | 'committing' | 'committed' | 'aborted' = 'open';
+		let state: 'open' | 'committing' | 'committed' | 'aborting' | 'aborted' = 'open';
+		let activeWrite: Promise<void> | null = null;
+		let abortPromise: Promise<void> | null = null;
 		const options = this.#options;
 		const discardPending = async (): Promise<void> => {
 			if (opfsWriter) await opfsWriter.abort();
 			else await options.records.deleteChunks(token);
+		};
+		const assertWriteOpen = (): void => {
+			if (state !== 'open') throw new Error('The source writer was closed during an active write.');
+		};
+		const abortOpenWriter = (): Promise<void> => {
+			if (abortPromise) return abortPromise;
+			if (state === 'committing' || state === 'committed' || state === 'aborted') return Promise.resolve();
+			state = 'aborting';
+			const pendingWrite = activeWrite;
+			abortPromise = (async () => {
+				try {
+					if (pendingWrite) await pendingWrite.catch(() => undefined);
+					await discardPending();
+				} finally {
+					state = 'aborted';
+				}
+			})();
+			return abortPromise;
+		};
+		const failClosed = async (error: Error): Promise<never> => {
+			try {
+				await abortOpenWriter();
+			} catch (cleanupError) {
+				throw cleanupFailure(error, cleanupError);
+			}
+			throw error;
 		};
 
 		return {
@@ -118,76 +146,98 @@ export class SourceWriteRepository {
 			get framesWritten() { return totalFrames; },
 			async write(inputChannels, { signal } = {}) {
 				throwIfAborted(signal);
+				if (state === 'aborting') {
+					await failClosed(new Error('The source writer is closed.'));
+				}
 				if (state !== 'open') throw new Error('The source writer is closed.');
-				const channels = normalizeChannels(inputChannels);
-				if (!channels.length) return;
-				const frameLength = channels[0].length;
-				if (channels.some((channel) => channel.length !== frameLength)) {
-					throw new Error('All source channels must contain the same number of frames.');
+				if (activeWrite) {
+					await failClosed(new Error('Concurrent source writes are not supported.'));
 				}
-				if (channelCount === null) channelCount = channels.length;
-				if (channels.length !== channelCount) throw new Error('Source channel count changed during a write.');
-				if (nominalChunkFrames === null) nominalChunkFrames = frameLength;
-				else if (previousChunkFrames !== nominalChunkFrames || frameLength > nominalChunkFrames) regularChunkLayout = false;
-				previousChunkFrames = frameLength;
-				let storedChunk: StoredChunk;
-				if (persistEncodedChunks) {
-					storedChunk = await options.pcm.encode(packPlanarFloat32(channels), {
+				let finishWrite!: () => void;
+				activeWrite = new Promise<void>((resolve) => { finishWrite = resolve; });
+				try {
+					const channels = normalizeChannels(inputChannels);
+					if (!channels.length) return;
+					const frameLength = channels[0].length;
+					if (channels.some((channel) => channel.length !== frameLength)) {
+						throw new Error('All source channels must contain the same number of frames.');
+					}
+					if (channelCount === null) channelCount = channels.length;
+					if (channels.length !== channelCount) throw new Error('Source channel count changed during a write.');
+					if (nominalChunkFrames === null) nominalChunkFrames = frameLength;
+					else if (previousChunkFrames !== nominalChunkFrames || frameLength > nominalChunkFrames) regularChunkLayout = false;
+					previousChunkFrames = frameLength;
+					let storedChunk: StoredChunk;
+					if (persistEncodedChunks) {
+						storedChunk = await options.pcm.encode(packPlanarFloat32(channels), {
+							frames: frameLength,
+							channelCount,
+							sampleRate: writeSampleRate,
+							priority: 'foreground',
+							signal,
+							allowRawOnFailure: true,
+						});
+						throwIfAborted(signal);
+						assertWriteOpen();
+					} else {
+						const snapshots = channels.map((channel) => channel.slice());
+						const rawBytes = snapshots.reduce((sum, channel) => sum + channel.byteLength, 0);
+						storedChunk = {
+							encoding: null,
+							channels: snapshots.map((channel) => channel.buffer as ArrayBuffer),
+							pcmCrc32: crc32(packPlanarFloat32(snapshots)),
+							uncompressedBytes: rawBytes,
+							storedBytes: rawBytes,
+						};
+					}
+					const record: SourceChunkRecord = {
+						key: `${token}:${String(chunkIndex).padStart(10, '0')}`,
+						sourceToken: token,
+						index: chunkIndex,
 						frames: frameLength,
-						channelCount,
-						sampleRate: writeSampleRate,
-						priority: 'foreground',
-						signal,
-						allowRawOnFailure: true,
-					});
-					throwIfAborted(signal);
-				} else {
-					const snapshots = channels.map((channel) => channel.slice());
-					const rawBytes = snapshots.reduce((sum, channel) => sum + channel.byteLength, 0);
-					storedChunk = {
-						encoding: null,
-						channels: snapshots.map((channel) => channel.buffer as ArrayBuffer),
-						pcmCrc32: crc32(packPlanarFloat32(snapshots)),
-						uncompressedBytes: rawBytes,
-						storedBytes: rawBytes,
+						...(storedChunk.encoding
+							? { encoding: storedChunk.encoding, payload: storedChunk.payload, pcmCrc32: storedChunk.pcmCrc32 }
+							: { channels: storedChunk.channels }),
+						createdAt: Date.now(),
 					};
+					if (opfsWriter) {
+						const writerChunkFrames = positiveInteger(declaredChunkFrames ?? nominalChunkFrames, 0);
+						if (!writerChunkFrames) throw new RangeError('A positive source chunk size is required.');
+						if (opfsChunkFrames === null) opfsChunkFrames = writerChunkFrames;
+						await opfsWriter.write({
+							...storedChunk,
+							frames: frameLength,
+							channelCount,
+							sampleRate: writeSampleRate,
+							chunkFrames: opfsChunkFrames,
+						});
+						throwIfAborted(signal);
+						assertWriteOpen();
+					} else {
+						await options.records.writeChunk(record);
+						throwIfAborted(signal);
+						assertWriteOpen();
+					}
+					chunkIndex += 1;
+					totalFrames += frameLength;
+					uncompressedBytes += storedChunk.uncompressedBytes;
+					storedBytes += storedChunk.storedBytes;
+					if (storedChunk.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
+					else rawChunkCount += 1;
+				} finally {
+					activeWrite = null;
+					finishWrite();
 				}
-				const record: SourceChunkRecord = {
-					key: `${token}:${String(chunkIndex).padStart(10, '0')}`,
-					sourceToken: token,
-					index: chunkIndex,
-					frames: frameLength,
-					...(storedChunk.encoding
-						? { encoding: storedChunk.encoding, payload: storedChunk.payload, pcmCrc32: storedChunk.pcmCrc32 }
-						: { channels: storedChunk.channels }),
-					createdAt: Date.now(),
-				};
-				if (opfsWriter) {
-					const writerChunkFrames = positiveInteger(declaredChunkFrames ?? nominalChunkFrames, 0);
-					if (!writerChunkFrames) throw new RangeError('A positive source chunk size is required.');
-					if (opfsChunkFrames === null) opfsChunkFrames = writerChunkFrames;
-					await opfsWriter.write({
-						...storedChunk,
-						frames: frameLength,
-						channelCount,
-						sampleRate: writeSampleRate,
-						chunkFrames: opfsChunkFrames,
-					});
-					throwIfAborted(signal);
-				} else {
-					await options.records.writeChunk(record);
-					throwIfAborted(signal);
-				}
-				chunkIndex += 1;
-				totalFrames += frameLength;
-				uncompressedBytes += storedChunk.uncompressedBytes;
-				storedBytes += storedChunk.storedBytes;
-				if (storedChunk.encoding === PCM_ENCODING_WAVPACK_F32_V1) wavpackChunkCount += 1;
-				else rawChunkCount += 1;
 			},
 			async commit(extraMetadata = {}, { signal, ifAbsent = false } = {}) {
 				throwIfAborted(signal);
+				if (state === 'aborting') {
+					await failClosed(new Error('The source writer is closed.'));
+				}
 				if (state !== 'open') throw new Error('The source writer is closed.');
+				if (activeWrite) {
+					await failClosed(new Error('A source cannot be committed while a write is active.'));
+				}
 				if (!chunkIndex || !channelCount || !totalFrames) {
 					throw new Error('A persisted audio source must contain at least one PCM frame.');
 				}
@@ -281,10 +331,8 @@ export class SourceWriteRepository {
 				if (previous) await options.deleteStoredSource(previous).catch(() => undefined);
 				return clone(record);
 			},
-			async abort() {
-				if (state !== 'open') return;
-				state = 'aborted';
-				await discardPending();
+			abort() {
+				return abortOpenWriter();
 			},
 		};
 	}
@@ -388,10 +436,19 @@ export class SourceWriteRepository {
 			committedAt: new Date().toISOString(),
 			pendingProjectUntil: new Date(Date.now() + PENDING_SOURCE_RETENTION_MS).toISOString(),
 		};
+		let definitelyRefused = false;
 		try {
-			await this.#options.records.putMetadata(record);
+			if (!await this.#options.records.putMetadataIfAbsent(record)) {
+				definitelyRefused = true;
+				throw new Error(`Immutable source ${sourceId} already exists and cannot be overwritten.`);
+			}
 		} catch (error) {
-			await this.#options.records.deleteChunks(token);
+			try {
+				if (!definitelyRefused) await this.#options.records.deleteMetadataIfCurrent(record);
+				await this.#options.records.deleteChunks(token);
+			} catch (cleanupError) {
+				throw cleanupFailure(error, cleanupError);
+			}
 			throw error;
 		}
 		return clone(record);

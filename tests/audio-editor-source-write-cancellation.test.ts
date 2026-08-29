@@ -10,8 +10,9 @@ import {
 import { SourceWriteRepository } from '../src/common/editor/storage/source-write-repository.ts';
 
 interface FixtureHooks {
-	onGetMetadata?: (record: StorageRecord | null) => PromiseLike<void> | void;
+	onGetMetadata?: (record: StorageRecord | null, sourceId: string) => PromiseLike<void> | void;
 	onPutMetadata?: (record: StorageRecord) => PromiseLike<void> | void;
+	onWriteChunk?: (record: Record<string, unknown>) => PromiseLike<void> | void;
 	onDeleteStored?: (record: StorageRecord) => PromiseLike<void> | void;
 }
 
@@ -164,6 +165,103 @@ test('failure to collect an overwritten payload does not turn a published source
 	assert.ok(fixture.chunkTokens().includes(String(committed.sourceToken)));
 });
 
+test('concurrent writes fail closed without publishing duplicate chunk indices or leaving staging', async () => {
+	const enteredFirstWrite = deferred<void>();
+	const releaseFirstWrite = deferred<void>();
+	let writeCalls = 0;
+	const fixture = sourceWriterFixture({
+		onWriteChunk: async () => {
+			writeCalls += 1;
+			if (writeCalls !== 1) return;
+			enteredFirstWrite.resolve();
+			await releaseFirstWrite.promise;
+		},
+	});
+	const writer = await fixture.repository.begin('source-a', sourceMetadata());
+	const first = writer.write([Float32Array.of(0.1, -0.1)]);
+	await enteredFirstWrite.promise;
+	const second = writer.write([Float32Array.of(0.2, -0.2)]);
+	releaseFirstWrite.resolve();
+
+	const results = await Promise.allSettled([first, second]);
+	assert.equal(results.every((result) => result.status === 'rejected'), true);
+	assert.equal(writeCalls, 1);
+	assert.deepEqual(fixture.chunkTokens(), []);
+	await assert.rejects(writer.commit(), /closed|concurrent/iu);
+});
+
+test('abort waits for an active write and removes the chunk persisted after abort began', async () => {
+	const enteredWrite = deferred<void>();
+	const releaseWrite = deferred<void>();
+	const fixture = sourceWriterFixture({
+		onWriteChunk: async () => {
+			enteredWrite.resolve();
+			await releaseWrite.promise;
+		},
+	});
+	const writer = await fixture.repository.begin('source-a', sourceMetadata());
+	const writing = writer.write([Float32Array.of(0.3, -0.3)]);
+	await enteredWrite.promise;
+	const aborting = writer.abort();
+	releaseWrite.resolve();
+
+	await assert.rejects(writing, /closed|aborted/iu);
+	await aborting;
+	assert.deepEqual(fixture.chunkTokens(), []);
+	await assert.rejects(writer.commit(), /closed/iu);
+});
+
+test('commit racing an active write closes the writer and cannot publish partial metadata', async () => {
+	const enteredWrite = deferred<void>();
+	const releaseWrite = deferred<void>();
+	const fixture = sourceWriterFixture({
+		onWriteChunk: async () => {
+			enteredWrite.resolve();
+			await releaseWrite.promise;
+		},
+	});
+	const writer = await fixture.repository.begin('source-a', sourceMetadata());
+	const writing = writer.write([Float32Array.of(0.35, -0.35)]);
+	await enteredWrite.promise;
+	const committing = writer.commit();
+	releaseWrite.resolve();
+
+	await assert.rejects(writing, /closed|aborted/iu);
+	await assert.rejects(committing, /write is active/iu);
+	assert.equal(fixture.metadata.has('source-a'), false);
+	assert.deepEqual(fixture.chunkTokens(), []);
+});
+
+test('concurrent derived-source publication keeps one immutable winner and deletes loser chunks', async () => {
+	const bothCheckedTarget = deferred<void>();
+	const releaseTargetChecks = deferred<void>();
+	let targetChecks = 0;
+	const fixture = sourceWriterFixture({
+		onGetMetadata: async (record, sourceId) => {
+			if (sourceId !== 'derived-source' || record) return;
+			targetChecks += 1;
+			if (targetChecks === 2) bothCheckedTarget.resolve();
+			await releaseTargetChecks.promise;
+		},
+	});
+	fixture.seedBase();
+	const replacement = [{ index: 0, channels: [Float32Array.of(0.4, -0.4)] }];
+	const first = fixture.repository.writeDerived('derived-source', 'base-source', replacement);
+	const second = fixture.repository.writeDerived('derived-source', 'base-source', replacement);
+	await bothCheckedTarget.promise;
+	releaseTargetChecks.resolve();
+
+	const results = await Promise.allSettled([first, second]);
+	const fulfilled = results.filter((result) => result.status === 'fulfilled');
+	const rejected = results.filter((result) => result.status === 'rejected');
+	assert.equal(fulfilled.length, 1);
+	assert.equal(rejected.length, 1);
+	assert.match(String((rejected[0] as PromiseRejectedResult).reason), /immutable|already exists/iu);
+	const winner = (fulfilled[0] as PromiseFulfilledResult<StorageRecord>).value;
+	assert.deepEqual(fixture.metadata.get('derived-source'), winner);
+	assert.deepEqual(fixture.chunkTokens(), [String(winner.sourceToken)]);
+});
+
 function sourceWriterFixture(hooks: FixtureHooks) {
 	const metadata = new Map<string, StorageRecord>();
 	const chunks = new Map<string, Record<string, unknown>>();
@@ -181,7 +279,7 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 	const records = {
 		async getMetadata(sourceId: string) {
 			const record = metadata.get(sourceId) ?? null;
-			await hooks.onGetMetadata?.(record);
+			await hooks.onGetMetadata?.(record, sourceId);
 			return record ? structuredClone(record) : null;
 		},
 		async putMetadata(record: StorageRecord) {
@@ -208,6 +306,7 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 			return true;
 		},
 		async writeChunk(record: Record<string, unknown>) {
+			await hooks.onWriteChunk?.(record);
 			chunks.set(String(record.key), structuredClone(record));
 		},
 		async deleteChunks(token: string) {
@@ -234,6 +333,19 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 		seedPrevious() {
 			metadata.set('source-a', structuredClone(previous));
 			chunks.set('old-token:0000000000', { key: 'old-token:0000000000', sourceToken: 'old-token' });
+		},
+		seedBase() {
+			metadata.set('base-source', {
+				id: 'base-source',
+				storage: 'indexeddb-chunks',
+				sourceToken: 'base-token',
+				frameCount: 2,
+				frameLength: 2,
+				channelCount: 1,
+				sampleRate: 48_000,
+				chunkFrames: 2,
+				chunkCount: 1,
+			});
 		},
 	};
 }
