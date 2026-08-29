@@ -227,7 +227,8 @@ test.describe('audio editor React/design-system workflows', () => {
 				'Sample data import',
 				'Sample data export',
 			]],
-			['Help', ['Diagnostics', 'Check for updates']],
+			// Diagnostics is implemented and covered by its own spec; it is not omitted.
+			['Help', ['Check for updates']],
 		]) {
 			await menubar.getByRole('menuitem', { name: menuName, exact: true }).click();
 			const menu = page.getByRole('menu', { name: menuName, exact: true });
