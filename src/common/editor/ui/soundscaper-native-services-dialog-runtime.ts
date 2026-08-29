@@ -29,19 +29,17 @@ export function createSoundscaperNativeServicesDialogRuntime(
 	initialState: SoundscaperNativeServicesDialogState = EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
 ): SoundscaperNativeServicesDialogRuntime {
 	let state = initialState;
+	let operationTail: Promise<SoundscaperNativeServicesDialogState> | null = null;
 	const listeners = new Set<() => void>();
 	const publish = (next: SoundscaperNativeServicesDialogState): void => {
 		if (next === state) return;
 		state = next;
 		for (const listener of listeners) listener();
 	};
-	return Object.freeze({
-		getState: () => state,
-		subscribe: (listener: () => void) => {
-			listeners.add(listener);
-			return () => { listeners.delete(listener); };
-		},
-		perform: async (action: SoundscaperNativeServicesDialogAction) => {
+	const perform = (
+		action: SoundscaperNativeServicesDialogAction,
+	): Promise<SoundscaperNativeServicesDialogState> => {
+		const execute = async (): Promise<SoundscaperNativeServicesDialogState> => {
 			publish(reduceSoundscaperNativeServicesDialog(state, { type: 'begin', action }));
 			const event = await runSoundscaperNativeServicesAction(bridge, action);
 			publish(reduceSoundscaperNativeServicesDialog(state, event));
@@ -49,6 +47,24 @@ export function createSoundscaperNativeServicesDialogRuntime(
 				await soundscaperNativeServicesStoreFor(bridge).refresh().catch(() => null);
 			}
 			return state;
+		};
+		const operation = operationTail === null
+			? execute()
+			: operationTail.then(execute, execute);
+		operationTail = operation;
+		void operation.then(clearTail, clearTail);
+		return operation;
+
+		function clearTail(): void {
+			if (operationTail === operation) operationTail = null;
+		}
+	};
+	return Object.freeze({
+		getState: () => state,
+		subscribe: (listener: () => void) => {
+			listeners.add(listener);
+			return () => { listeners.delete(listener); };
 		},
+		perform,
 	});
 }
