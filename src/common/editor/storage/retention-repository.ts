@@ -34,6 +34,7 @@ import type { OpfsPreferredEncodedCaptureChunkPort } from './opfs-preferred-enco
 import type { StorageRepositoryPort } from './repository-port.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
+import type { SourceWriteMaintenance } from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import type { AssistanceDerivativeRepositoryPort } from './deferred-assistance-derivative-repository.ts';
 
@@ -121,6 +122,12 @@ export class RetentionRepository {
 
 	admitClear(): LocalStoreClearAdmission {
 		const maintenance = this.#options.media.beginAssetMaintenance();
+		let sourceWriteMaintenance: SourceWriteMaintenance;
+		try { sourceWriteMaintenance = this.#options.sources.beginWriteMaintenance(); }
+		catch (error) {
+			maintenance.release();
+			throw error;
+		}
 		let databasePromise: Promise<IDBDatabase | null>;
 		try { databasePromise = this.#options.port.database(); }
 		catch (error) { databasePromise = Promise.reject(error); }
@@ -130,24 +137,26 @@ export class RetentionRepository {
 			begin: () => {
 				if (!pending) throw new Error('The retention clear admission is no longer current.');
 				pending = false;
-				return this.#beginClear(maintenance, databasePromise);
+				return this.#beginClear(maintenance, sourceWriteMaintenance, databasePromise);
 			},
 			cancel: () => {
 				if (!pending) return;
 				pending = false;
 				maintenance.release();
+				sourceWriteMaintenance.release();
 			},
 		});
 	}
 
 	#beginClear(
 		maintenance: ReturnType<MediaRepository['beginAssetMaintenance']>,
+		sourceWriteMaintenance: SourceWriteMaintenance,
 		databasePromise: Promise<IDBDatabase | null>,
 	): LocalStoreClearOperation {
 		let committed = false;
 		let resolveLocalCommit!: (value: boolean) => void;
 		const localCommit = new Promise<boolean>((resolve) => { resolveLocalCommit = resolve; });
-		const completion = this.#clear(maintenance, databasePromise, () => {
+		const completion = this.#clear(maintenance, sourceWriteMaintenance, databasePromise, () => {
 			committed = true;
 			resolveLocalCommit(true);
 		});
@@ -160,11 +169,12 @@ export class RetentionRepository {
 
 	async #clear(
 		maintenance: ReturnType<MediaRepository['beginAssetMaintenance']>,
+		sourceWriteMaintenance: SourceWriteMaintenance,
 		databasePromise: Promise<IDBDatabase | null>,
 		onLocalCommit: () => void,
 	): Promise<void> {
 		try {
-			await maintenance.abortActive();
+			await abortStoreWriters(maintenance, sourceWriteMaintenance);
 			await this.#options.sources.stopBackgroundWork();
 			const opfsRecords: StorageRecord[] = [];
 			const stagedPaths = new Set<string>();
@@ -221,6 +231,7 @@ export class RetentionRepository {
 			for (const path of stagedPaths) await this.#options.opfs.deletePath(path);
 		} finally {
 			maintenance.release();
+			sourceWriteMaintenance.release();
 		}
 	}
 
@@ -405,6 +416,23 @@ export class RetentionRepository {
 			for (const revision of revisionUpdates) revisions.put(revision);
 			return { removedSources, removedBinaryRecords, removedSourceIds };
 		});
+	}
+}
+
+async function abortStoreWriters(
+	mediaMaintenance: ReturnType<MediaRepository['beginAssetMaintenance']>,
+	sourceWriteMaintenance: SourceWriteMaintenance,
+): Promise<void> {
+	const results = await Promise.allSettled([
+		mediaMaintenance.abortActive(),
+		sourceWriteMaintenance.abortActive(),
+	]);
+	const failures = results
+		.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+		.map(({ reason }) => reason);
+	if (failures.length === 1) throw failures[0];
+	if (failures.length > 1) {
+		throw new AggregateError(failures, 'Project storage writer cleanup failed.');
 	}
 }
 

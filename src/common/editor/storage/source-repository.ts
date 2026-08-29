@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../wavpack/index.js';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import type { KeyValueRepository } from './key-value-repository.ts';
 import type { MediaRepository } from './media-repository.ts';
@@ -13,6 +14,10 @@ import type {
 	OwnedAudioSourceWriter,
 	SourceWriteRepository,
 } from './source-write-repository.ts';
+import {
+	SourceWriteLifecycleCoordinator,
+	type SourceWriteMaintenance,
+} from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
@@ -29,16 +34,25 @@ export interface SourceRepositoryOptions {
 	readonly pcm: PcmRepository;
 }
 
+function normalizePcmChunkFrames(value: unknown): number {
+	const frames = Number(value);
+	if (!Number.isSafeInteger(frames) || frames < 1 || frames > WAVPACK_PCM_MAXIMUM_FRAMES) {
+		throw new RangeError(`PCM chunk size must be an integer between 1 and ${WAVPACK_PCM_MAXIMUM_FRAMES} frames.`);
+	}
+	return frames;
+}
+
 /** Public source domain assembled from bounded write and read ports. */
 export class SourceRepository {
 	readonly #options: SourceRepositoryOptions;
+	readonly #writeLifecycle = new SourceWriteLifecycleCoordinator();
 
 	constructor(options: SourceRepositoryOptions) {
 		this.#options = options;
 	}
 
 	beginWrite(sourceId: string, metadata: Record<string, unknown> = {}): Promise<OwnedAudioSourceWriter> {
-		return this.#options.writer.begin(sourceId, metadata);
+		return this.#writeLifecycle.begin(() => this.#options.writer.begin(sourceId, metadata));
 	}
 
 	createStageReceipt(sourceId: string): AudioSourceStageReceipt {
@@ -49,8 +63,10 @@ export class SourceRepository {
 		receipt: AudioSourceStageReceipt,
 		metadata: Record<string, unknown> = {},
 	): Promise<OwnedAudioSourceWriter> {
-		return this.#options.writer.beginOwned(receipt, metadata);
+		return this.#writeLifecycle.begin(() => this.#options.writer.beginOwned(receipt, metadata));
 	}
+
+	beginWriteMaintenance(): SourceWriteMaintenance { return this.#writeLifecycle.beginMaintenance(); }
 
 	discardStageIfCurrent(receipt: AudioSourceStageReceipt): Promise<boolean> {
 		return this.#options.writer.discardStageIfCurrent(receipt);
@@ -62,16 +78,41 @@ export class SourceRepository {
 		replacementChunks: readonly unknown[],
 		metadata: Record<string, unknown> = {},
 	): Promise<StorageRecord> {
-		return this.#options.writer.writeDerived(sourceId, baseSourceId, replacementChunks, metadata);
+		return this.#writeLifecycle.runPublication(
+			() => this.#options.writer.writeDerived(sourceId, baseSourceId, replacementChunks, metadata),
+		);
 	}
 
-	writeAudioBuffer(
+	async writeAudioBuffer(
 		sourceId: string,
 		audioBuffer: AudioBuffer,
 		metadata: Record<string, unknown> = {},
 		options: { readonly chunkFrames?: number } = {},
 	): Promise<StorageRecord> {
-		return this.#options.writer.writeAudioBuffer(sourceId, audioBuffer, metadata, options);
+		if (!audioBuffer?.numberOfChannels || !audioBuffer?.length || !audioBuffer?.getChannelData) {
+			throw new TypeError('A non-empty AudioBuffer is required.');
+		}
+		const chunkFrames = normalizePcmChunkFrames(options.chunkFrames ?? 65_536);
+		const writer = await this.beginWrite(sourceId, {
+			...metadata,
+			sampleRate: audioBuffer.sampleRate,
+			channelCount: audioBuffer.numberOfChannels,
+			chunkFrames,
+		});
+		try {
+			for (let offset = 0; offset < audioBuffer.length; offset += chunkFrames) {
+				const end = Math.min(audioBuffer.length, offset + chunkFrames);
+				const channels = Array.from(
+					{ length: audioBuffer.numberOfChannels },
+					(_, channel) => audioBuffer.getChannelData(channel).subarray(offset, end),
+				);
+				await writer.write(channels);
+			}
+			return await writer.commit();
+		} catch (error) {
+			await writer.abort();
+			throw error;
+		}
 	}
 
 	getMetadata(sourceId: string): Promise<StorageRecord | null> {
