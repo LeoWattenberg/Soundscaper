@@ -399,7 +399,8 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 									meter?.push(routedChannels, (reading) => {
 										if (!isCurrent()) return;
 										state.inputMeter = reading;
-										state.inputMeterDb = Math.max(-60, Number(reading.dbfs) || -60);
+										const dbfs = Number(reading.dbfs);
+										state.inputMeterDb = Number.isFinite(dbfs) ? Math.max(-60, dbfs) : -60;
 									});
 								}
 								const peak = recordingCapturePeak(routedChannels);

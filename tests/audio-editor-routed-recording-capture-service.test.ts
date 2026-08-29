@@ -202,6 +202,36 @@ test('routed display capture supports ranges, channel fallback, meters, and time
 	assert.equal(fixture.stopCalls(), 1);
 });
 
+test('routed capture preserves a delayed full-scale loudness reading', async () => {
+	let publishLoudness: ((reading: Readonly<{ readonly dbfs?: number }>) => void) | null = null;
+	const fixture = createRecordingCaptureFixture({
+		createLoudnessMeter: () => ({
+			push: (_channels, publish) => { publishLoudness = publish; },
+			snapshot: () => ({ dbfs: -60 }),
+		}),
+	});
+	fixture.state.recordingRouting = {
+		routes: {
+			'track-1': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 },
+		},
+		offsets: {},
+	};
+	await createRoutedRecordingCaptureService(fixture.runtime).capture(
+		{ trackId: 'track-1' },
+		createScope(() => true),
+	);
+	const recorderOptions = fixture.recorderOptions();
+	assert.ok(recorderOptions);
+	await recorderOptions.onChunk({
+		frameStart: 0,
+		frames: 2,
+		channels: [Float32Array.from([0.25, -0.25])],
+	});
+	assert.ok(publishLoudness);
+	publishLoudness({ dbfs: 0 });
+	assert.equal(fixture.state.inputMeterDb, 0);
+});
+
 test('routed count-in shares a deferred playback start with every recorder', async () => {
 	const fixture = createRecordingCaptureFixture({
 		selection: { startFrame: 144_000, endFrame: 192_000 },

@@ -109,6 +109,7 @@ export function createScope(current: () => boolean): RecordingStartScope {
 interface RuntimeOptions {
 	readonly acquireHardware?: () => Promise<RecordingMediaStream>;
 	readonly acquireDisplay?: () => Promise<RecordingMediaStream>;
+	readonly createLoudnessMeter?: RoutedRecordingCaptureRuntime['createLoudnessMeter'];
 	readonly createRecorder?: (
 		options: RecordingControllerFactoryOptions,
 	) => Promise<RecordingCaptureControllerLike>;
@@ -295,10 +296,10 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		updateTransportState: () => {},
 		recordingRouteSourceKey: (route) => route.kind === 'display' ? 'display' : `device:${route.deviceId}`,
 		createRoutedController: (sessions) => createRoutedRecordingController(sessions),
-		createLoudnessMeter: () => ({
+		createLoudnessMeter: options.createLoudnessMeter ?? (() => ({
 			push: (_channels, publish) => publish({ dbfs: -12 }),
 			snapshot: () => ({ dbfs: -60 }),
-		}),
+		})),
 		getLoudnessMeter: () => ({ meter: loudnessMeter, key: loudnessMeterKey }),
 		setLoudnessMeter: (meter, key) => {
 			loudnessMeter = meter;
