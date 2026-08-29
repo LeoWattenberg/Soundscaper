@@ -16,19 +16,38 @@ function AnalysisContent({ mode, controller, snapshot, copy, fileService }) {
 	const result = snapshot.analysis;
 	const report = snapshot.analysisReport;
 	const blocked = !snapshot.ready || !snapshot.project?.clips?.length || snapshot.importing || snapshot.recording || snapshot.exporting || snapshot.analysisProcessing || snapshot.missingSourceIds?.length > 0;
-	const [error, setError] = useState('');
+	const ownershipKey = `${snapshot.project?.id || ''}:${mode}`;
+	const [errorState, setErrorState] = useState(null);
+	const activeOperationRef = useRef(null);
 	const requestedContentRef = useRef('');
+	const error = errorState?.ownershipKey === ownershipKey ? errorState.message : '';
+	useEffect(() => () => {
+		activeOperationRef.current = null;
+	}, [ownershipKey]);
+	const perform = useCallback((operation) => {
+		const operationId = Symbol('analysis-panel-operation');
+		activeOperationRef.current = operationId;
+		setErrorState(null);
+		const publishFailure = (cause) => {
+			if (activeOperationRef.current !== operationId) return;
+			setErrorState({
+				ownershipKey,
+				message: cause instanceof Error ? cause.message : String(cause),
+			});
+		};
+		try {
+			Promise.resolve(operation()).catch(publishFailure);
+		} catch (cause) {
+			publishFailure(cause);
+		}
+	}, [ownershipKey]);
 	const run = useCallback((scope) => {
-		setError('');
-		const action = mode === 'spectrum'
-			? controller.actions.analysis.plotSpectrum(scope)
-			: mode === 'clipping'
-				? controller.actions.analysis.findClipping(scope)
-				: controller.actions.analysis.run(scope);
-		Promise.resolve(action).catch((cause) => {
-			setError(cause instanceof Error ? cause.message : String(cause));
+		perform(() => {
+			if (mode === 'spectrum') return controller.actions.analysis.plotSpectrum(scope);
+			if (mode === 'clipping') return controller.actions.analysis.findClipping(scope);
+			return controller.actions.analysis.run(scope);
 		});
-	}, [controller, mode]);
+	}, [controller, mode, perform]);
 	const selectedTrackIsAudio = snapshot.project?.tracks?.some((track) => (
 		track.id === snapshot.selectedTrackId && track.type === 'audio'
 	));
@@ -49,14 +68,10 @@ function AnalysisContent({ mode, controller, snapshot, copy, fileService }) {
 		return () => clearTimeout(timeout);
 	}, [blocked, contentKey, mode, run, selectedTrackIsAudio]);
 	const captureContrast = (role) => {
-		setError('');
 		const scope = snapshot.selectedTrackId ? 'track' : 'master';
-		Promise.resolve(controller.actions.analysis.contrast(role, scope)).catch((cause) => {
-			setError(cause instanceof Error ? cause.message : String(cause));
-		});
+		perform(() => controller.actions.analysis.contrast(role, scope));
 	};
 	const exportReport = () => {
-		setError('');
 		const payload = JSON.stringify({
 			schemaVersion: 1,
 			project: {
@@ -68,12 +83,12 @@ function AnalysisContent({ mode, controller, snapshot, copy, fileService }) {
 			result,
 			report,
 		}, null, 2);
-		Promise.resolve((fileService || createFallbackFileService()).saveFile({
+		perform(() => (fileService || createFallbackFileService()).saveFile({
 			purpose: 'report',
 			suggestedName: `${macroFileName(snapshot.project?.title || 'soundscaper')}-analysis.json`,
 			mimeType: 'application/json',
 			text: payload,
-		})).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
+		}));
 	};
 	const values = [
 		['peak', copy.peak, formatDb(result?.peakDbfs, 'dBFS')],
