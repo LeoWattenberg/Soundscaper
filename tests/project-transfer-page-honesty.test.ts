@@ -488,11 +488,13 @@ function rejectingRuntime(
 }
 
 function fakeArchiveFile(project: { id: string; title: string }, seen: string[]) {
+	const bytes = archiveBytes(project);
 	return {
 		name: `${project.title}.scape`,
+		size: bytes.byteLength,
 		async arrayBuffer(): Promise<ArrayBuffer> {
 			seen.push(project.id);
-			return archiveBytes(project).buffer;
+			return bytes.buffer;
 		},
 	};
 }
@@ -508,6 +510,7 @@ function importRow(
 		reason: null,
 		residue: 'none' as const,
 		...seed,
+		conversionReport: seed.conversionReport ?? null,
 	});
 }
 

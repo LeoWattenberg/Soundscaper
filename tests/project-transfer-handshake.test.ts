@@ -135,7 +135,10 @@ function entryMessage(
 	byteLength = 1,
 	payload: Uint8Array<ArrayBufferLike> = new Uint8Array(byteLength),
 ): WireMessage {
-	return { ...envelope(), kind: 'entry', sequence, entryId, name: `${entryId}.scape`, byteLength, payload };
+	return {
+		...envelope(), kind: 'entry', sequence, entryId, name: `${entryId}.scape`, byteLength, payload,
+		conversionReportSidecar: null,
+	};
 }
 
 function ackMessage(sequence: number, entryId: string, status = 'stored'): WireMessage {
@@ -144,7 +147,7 @@ function ackMessage(sequence: number, entryId: string, status = 'stored'): WireM
 
 function entry(entryId: string, byte: number, byteLength = 4): ProjectTransferEntry {
 	const payload = new Uint8Array(byteLength).fill(byte);
-	return { entryId, name: `${entryId}.scape`, byteLength, payload };
+	return { entryId, name: `${entryId}.scape`, byteLength, payload, conversionReportSidecar: null };
 }
 
 async function settle(): Promise<void> {
@@ -262,11 +265,12 @@ test('a completed transfer carries per-entry failures back to the sender', async
 
 test('the sender refuses a protocol version it does not implement', async () => {
 	const { peer, sender } = senderAgainstPeer();
-	peer.post({ ...envelope(SESSION, 2), kind: 'ready', maxEntries: 4, maxEntryBytes: 1024 });
+	const unsupported = PROJECT_TRANSFER_PROTOCOL_VERSION + 1;
+	peer.post({ ...envelope(SESSION, unsupported), kind: 'ready', maxEntries: 4, maxEntryBytes: 1024 });
 
 	const failure = await failureFrom(sender);
 	assert.equal(failure.code, 'PROTOCOL_VERSION');
-	assert.match(failure.message, /version 2/u);
+	assert.match(failure.message, new RegExp(`version ${String(unsupported)}`, 'u'));
 	const told = await peer.next();
 	assert.equal(told.kind, 'abort');
 	assert.match(String(told.reason), /PROTOCOL_VERSION/u);
@@ -474,7 +478,10 @@ test('a stalled peer fails the transfer on the await timeout', async () => {
 test('a SharedArrayBuffer payload is refused on both sides of the wire', async () => {
 	const shared = new Uint8Array(new SharedArrayBuffer(4));
 	const offered = senderAgainstPeer({
-		entries: [{ entryId: 'alpha', name: 'alpha.scape', byteLength: 4, payload: shared }],
+		entries: [{
+			entryId: 'alpha', name: 'alpha.scape', byteLength: 4, payload: shared,
+			conversionReportSidecar: null,
+		}],
 	});
 	assert.equal((await failureFrom(offered.sender)).code, 'SHARED_MEMORY_FORBIDDEN');
 

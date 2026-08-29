@@ -52,6 +52,7 @@ const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const TRANSFER_PAGE_ENTRY = fileURLToPath(new URL('../src/common/transfer/transfer-page-entry.ts', import.meta.url));
 const TRANSFER_DIRECTORY = 'src/common/transfer/';
 const SCHEMA_IDENTITY_MODULE = 'src/common/editor/project-schema-identity.ts';
+const HANDOFF_INTENT_MODULE = 'src/common/cross-product-handoff-intent.ts';
 
 /**
  * Modules outside the transfer world that the mounted page statically reaches.
@@ -60,7 +61,7 @@ const SCHEMA_IDENTITY_MODULE = 'src/common/editor/project-schema-identity.ts';
  * list is a deliberate claim - and the module named has to have an owner that no
  * editor chunk shares.
  */
-const EXPECTED_SHARED_MODULES = [SCHEMA_IDENTITY_MODULE];
+const EXPECTED_SHARED_MODULES = [HANDOFF_INTENT_MODULE, SCHEMA_IDENTITY_MODULE];
 
 test('the transfer page statically reaches only the transfer world and named shared modules', () => {
 	const shared = [...staticImportClosure(TRANSFER_PAGE_ENTRY)]
@@ -81,8 +82,9 @@ test('no editor chunk owns a module the transfer page statically reaches', () =>
 	assert.deepEqual(editorOwned, [], 'these modules put a whole editor chunk in the transfer preload set');
 });
 
-test('the project identity reader is an owned dependency-free leaf', () => {
+test('the project identity and handoff intent form one dependency-closed chunk', () => {
 	assert.equal(chunkOwner(SCHEMA_IDENTITY_MODULE), 'project-schema-identity');
+	assert.equal(chunkOwner(HANDOFF_INTENT_MODULE), 'project-schema-identity');
 	const group = chunkGroups.find((candidate) => candidate.name === 'project-schema-identity');
 	assert.ok(group, 'project-schema-identity must exist');
 	assert.equal(group.minSize, 0, 'a shared leaf must not be merged back into a larger chunk');
@@ -97,6 +99,11 @@ test('the project identity reader is an owned dependency-free leaf', () => {
 		staticImports(resolve(REPOSITORY_ROOT, SCHEMA_IDENTITY_MODULE)),
 		[],
 		'the schema vocabulary must stay dependency-free, or its chunk stops being small',
+	);
+	assert.deepEqual(
+		staticImports(resolve(REPOSITORY_ROOT, HANDOFF_INTENT_MODULE)),
+		[resolve(REPOSITORY_ROOT, SCHEMA_IDENTITY_MODULE)],
+		'the launch intent may depend only on the identity vocabulary in its own chunk',
 	);
 });
 
@@ -156,16 +163,24 @@ function requireBuiltTransferDocuments(): void {
  * the ownership rule above: an editor group appearing here is the 5 MB
  * regression that this whole file exists to catch.
  */
-const ADMITTED_PRELOAD_GROUPS = ['project-schema-identity', 'rolldown-runtime', 'site-entry'];
+const ADMITTED_PRELOAD_GROUPS = [
+	'cross-product-handoff-report-sidecar',
+	'cross-product-handoff-root-contract',
+	'project-schema-identity',
+	'rolldown-runtime',
+	'site-entry',
+	'transfer-manual-refusal',
+	'vendor',
+];
 
 /**
  * The most the transfer documents may preload, in bytes.
  *
- * Comfortably above what they cost today (five chunks, 221,559 bytes) and far
+ * Above what they cost today (nine chunks, about 302,000 bytes) and far
  * below what one editor chunk would add, so this bounds the cost without
  * re-recording it on every rebuild.
  */
-const PRELOAD_BYTE_CEILING = 320_000;
+const PRELOAD_BYTE_CEILING = 360_000;
 
 /** Strings only the React runtime or its DOM renderer leaves in a built chunk. */
 const REACT_RUNTIME_MARK = /Minified React error|react\.transitional\.element|react-dom/u;

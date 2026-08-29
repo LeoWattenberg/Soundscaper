@@ -58,6 +58,11 @@ import {
 } from './transfer-refusal.ts';
 
 export * from './transfer-archive-stream.ts';
+export { importTransferArchiveFiles } from './transfer-manual-import.ts';
+export type {
+	ImportTransferArchiveFilesOptions,
+	TransferArchiveSource,
+} from './transfer-manual-import.ts';
 export * from './transfer-refusal.ts';
 export { bufferTransferPort };
 export type { TransferSendPending };
@@ -198,6 +203,7 @@ export async function sendTransferArchives(
 			name: event.entry.fileName,
 			byteLength: event.entry.byteLength,
 			payload: event.entry.bytes,
+			conversionReportSidecar: event.entry.conversionReportSidecar ?? null,
 		}));
 		titles.set(event.entry.projectId, event.entry.title);
 	}
@@ -340,6 +346,7 @@ function refusedImportRecord(
 		reason: stopped?.reason ?? 'The archive import reported no outcome for this entry.',
 		// The refusal came before the write, so there is nothing to have left.
 		residue: 'none' as const,
+		conversionReport: null,
 	});
 }
 
@@ -412,6 +419,7 @@ export async function receiveTransferArchives(
 						projectId: entry.entryId,
 						title: transferArchiveTitle(entry.name),
 						bytes: entry.payload as Uint8Array<ArrayBuffer>,
+						conversionReportSidecar: entry.conversionReportSidecar,
 					}],
 					signal: signal ?? undefined,
 				});
@@ -426,7 +434,11 @@ export async function receiveTransferArchives(
 			// Renumbered by position in this receive run: each entry is imported
 			// as its own one-entry bundle, so every record arrives as index 0 and
 			// a page counting them would report "archive 1" for all of them.
-			const numbered = Object.freeze({ ...record, index: records.length });
+			const numbered = Object.freeze({
+				...record,
+				index: records.length,
+				conversionReport: record.conversionReport ?? null,
+			});
 			records.push(numbered);
 			options.onRecord?.(numbered);
 			if (numbered.outcome === 'failed') {
@@ -462,58 +474,4 @@ export async function receiveTransferArchives(
 			stopped,
 		});
 	}
-}
-
-export interface TransferArchiveSource {
-	readonly name: string;
-	read(): Promise<Uint8Array>;
-}
-
-export interface ImportTransferArchiveFilesOptions {
-	readonly runtime: TransferRuntime;
-	readonly store: Bundle.ProjectTransferImportStore;
-	readonly files: Iterable<TransferArchiveSource>;
-	readonly maximumEntries?: number;
-	readonly maximumEntryBytes?: number;
-	readonly signal?: AbortSignal;
-	readonly onProgress?: (progress: Bundle.ProjectTransferProgress) => void;
-}
-
-/**
- * The other half of the fallback: import archives the visitor downloaded.
- *
- * Files are read one at a time through an async iterable rather than up front,
- * so a folder of large archives never has to be resident at once.
- */
-export async function importTransferArchiveFiles(
-	options: ImportTransferArchiveFilesOptions,
-): Promise<Bundle.ProjectTransferImportResult> {
-	const { runtime, store } = requireTransferRuntime(options, 'importing transfer archives');
-	const files = options.files;
-	if (files === null || typeof files !== 'object' || typeof (files as Iterable<unknown>)[Symbol.iterator] !== 'function') {
-		throw new TypeError('Importing transfer archives needs an iterable of files.');
-	}
-	async function* entries(): AsyncGenerator<unknown, void> {
-		for (const file of files) {
-			options.signal?.throwIfAborted();
-			if (typeof file?.read !== 'function') {
-				throw new TypeError('Every transfer archive file must expose a read() function.');
-			}
-			const bytes = await file.read();
-			yield {
-				title: transferArchiveTitle(file.name),
-				bytes,
-			};
-		}
-	}
-	return runtime.importBundle({
-		store,
-		importProject: runtime.importProject,
-		inspectProject: runtime.inspectProject,
-		entries: entries(),
-		maximumEntries: options.maximumEntries,
-		maximumEntryBytes: options.maximumEntryBytes,
-		signal: options.signal,
-		onProgress: options.onProgress,
-	});
 }

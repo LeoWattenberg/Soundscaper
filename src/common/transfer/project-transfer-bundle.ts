@@ -26,6 +26,18 @@
 
 import { throwIfScapeAborted } from '../editor/scape-abort.ts';
 import {
+	isAcceptedProjectFileExtension,
+	withProjectFileExtension,
+} from '../project-file-extensions.ts';
+import {
+	boundCrossProductHandoffArchiveFileName,
+	createCrossProductHandoffReportSidecar,
+} from './cross-product-handoff-report-sidecar.ts';
+import {
+	crossProductHandoffProvenanceMatchesReport,
+	readCrossProductHandoffProvenance,
+} from './cross-product-handoff-provenance.ts';
+import {
 	admitProjectTransferBytes,
 	admitProjectTransferEntry,
 	admitProjectTransferExportRequest,
@@ -46,6 +58,7 @@ import {
 	type AdmittedProjectTransferExportRequest,
 	type AdmittedProjectTransferImportRequest,
 	type ProjectTransferEntry,
+	type ProjectTransferArchiveExportResult,
 	type ProjectTransferExportEvent,
 	type ProjectTransferExportRequest,
 	type ProjectTransferImportRecord,
@@ -155,14 +168,45 @@ async function exportOneProject(
 	}
 	const bytes = new Uint8Array(await blob.arrayBuffer());
 	admitProjectTransferBytes(bytes, maximumEntryBytes, `The .scape archive for ${project.id}`);
-	const title = admittedProjectTransferTitle(project.title) ?? project.id;
+	const exportedIdentity = result as ProjectTransferArchiveExportResult;
+	const projectId = exportedIdentity.projectId === undefined
+		? project.id : admittedProjectTransferId(exportedIdentity.projectId);
+	if (!projectId) {
+		throw new ProjectTransferRefusalError('store-contract',
+			'The archive exporter returned an invalid converted project identity.');
+	}
+	const title = exportedIdentity.title === undefined
+		? admittedProjectTransferTitle(project.title) ?? projectId
+		: admittedProjectTransferTitle(exportedIdentity.title) ?? projectId;
+	const defaultFileName = projectTransferFileName(title, projectId);
+	let fileName = exportedIdentity.fileExtension === undefined
+		? defaultFileName
+		: isAcceptedProjectFileExtension(exportedIdentity.fileExtension)
+			? withProjectFileExtension(defaultFileName, exportedIdentity.fileExtension)
+			: (() => { throw new ProjectTransferRefusalError('store-contract',
+				'The archive exporter returned an invalid product project-file extension.'); })();
+	let conversionReportSidecar = null;
+	if (exportedIdentity.conversionReport !== undefined) {
+		try {
+			fileName = boundCrossProductHandoffArchiveFileName(fileName);
+			conversionReportSidecar = createCrossProductHandoffReportSidecar({
+				entryId: projectId,
+				archive: bytes,
+				report: exportedIdentity.conversionReport,
+			});
+		} catch (error) {
+			throw new ProjectTransferRefusalError('store-contract',
+				`The archive exporter returned an invalid conversion report: ${describeProjectTransferError(error)}`);
+		}
+	}
 	return Object.freeze({
-		projectId: project.id,
+		projectId,
 		title,
-		fileName: projectTransferFileName(title, project.id),
+		fileName,
 		mimeType: PROJECT_TRANSFER_ENTRY_MIME_TYPE,
 		byteLength: bytes.byteLength,
 		bytes,
+		conversionReportSidecar,
 	});
 }
 
@@ -224,7 +268,10 @@ async function importOneEntry(
 	let inspected: Record<string, unknown>;
 	try {
 		inspected = asProjectTransferRecord(await admitted.inspectProject(
-			admitted.toArchiveInput(entry.bytes), store, { ...(signal ? { signal } : {}) },
+			admitted.toArchiveInput(entry.bytes), store, {
+				...(signal ? { signal } : {}),
+				...(entry.conversionReportSidecar === null ? {} : { canonicalProjectDigest: true }),
+			},
 		));
 	} catch (error) {
 		throwIfScapeAborted(signal);
@@ -248,12 +295,72 @@ async function importOneEntry(
 			residue: 'none',
 		});
 	}
+	if (entry.conversionReportSidecar !== null
+		&& entry.conversionReportSidecar.entryId !== projectId) {
+		return transferRecord({
+			index, outcome: 'failed', projectId, title, byteLength,
+			reasonCode: 'archive-identity',
+			reason: 'The conversion report sidecar names a different project than the archive.',
+			residue: 'none',
+		});
+	}
+	if (entry.conversionReportSidecar !== null
+		&& (!inspected.featureRequirementsCompatibility
+			|| typeof inspected.featureRequirementsCompatibility !== 'object'
+			|| (inspected.featureRequirementsCompatibility as Record<string, unknown>).compatible !== true)) {
+		return transferRecord({
+			index, outcome: 'failed', projectId, title, byteLength,
+			reasonCode: 'archive-identity',
+			reason: 'The conversion destination is not independently feature-compatible and editable.',
+			residue: 'none',
+		});
+	}
+	if (entry.conversionReportSidecar !== null
+		&& inspected.projectCanonicalSha256 !== entry.conversionReportSidecar.report.destination?.sha256) {
+		return transferRecord({
+			index, outcome: 'failed', projectId, title, byteLength,
+			reasonCode: 'archive-identity',
+			reason: 'The conversion report does not describe the exact project document in its archive.',
+			residue: 'none',
+		});
+	}
+	if (entry.conversionReportSidecar !== null
+		&& (inspected.schemaFamily !== entry.conversionReportSidecar.report.destination?.schemaFamily
+			|| inspected.schemaVersion !== entry.conversionReportSidecar.report.destination?.schemaVersion
+			|| !crossProductHandoffProvenanceMatchesReport(
+				inspected.projectCrossProductHandoffProvenance,
+				entry.conversionReportSidecar.report,
+			)
+			|| !conversionDestinationRootsMatch(
+				entry.conversionReportSidecar.report,
+				inspected.projectCanonicalRootSha256,
+			))) {
+		return transferRecord({
+			index, outcome: 'failed', projectId, title, byteLength,
+			reasonCode: 'archive-identity',
+			reason: 'The conversion report destination identity or root digests do not match its archive.',
+			residue: 'none',
+		});
+	}
 	if (inspected.exists === true) {
+		if (entry.conversionReportSidecar !== null
+			&& !crossProductHandoffProvenanceMatchesReport(
+				inspected.existingProjectCrossProductHandoffProvenance,
+				entry.conversionReportSidecar.report,
+			)) {
+			return transferRecord({
+				index, outcome: 'failed', projectId, title, byteLength,
+				reasonCode: 'archive-identity',
+				reason: 'The existing project does not match this conversion retry.',
+				residue: 'none',
+			});
+		}
 		return transferRecord({
 			index, outcome: 'skipped', projectId, title, byteLength,
 			reasonCode: 'already-present',
 			reason: 'A project with this identity is already present in the receiving store.',
 			residue: 'none',
+			...recognizedConversionReport(entry),
 		});
 	}
 	if (inspected.readOnly === true) {
@@ -266,6 +373,26 @@ async function importOneEntry(
 		});
 	}
 	return importAdmittedArchive(entry, index, admitted, { projectId, title, byteLength });
+}
+
+function recognizedConversionReport(
+	entry: AdmittedProjectTransferEntry,
+): Readonly<{ conversionReport: ProjectTransferImportRecord['conversionReport'] }> {
+	return Object.freeze({ conversionReport: entry.conversionReportSidecar?.report ?? null });
+}
+
+function conversionDestinationRootsMatch(
+	report: NonNullable<AdmittedProjectTransferEntry['conversionReportSidecar']>['report'],
+	value: unknown,
+): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+	const digests = value as Readonly<Record<string, unknown>>;
+	return report.roots.every(({ root, destinationSha256 }) => {
+		const destinationOwnsRoot = Object.hasOwn(digests, root);
+		return destinationSha256 === null
+			? !destinationOwnsRoot
+			: destinationOwnsRoot && digests[root] === destinationSha256;
+	});
 }
 
 async function importAdmittedArchive(
@@ -297,6 +424,13 @@ async function importAdmittedArchive(
 			});
 		}
 		const imported = asProjectTransferRecord(result.project);
+		if (entry.conversionReportSidecar !== null
+			&& !crossProductHandoffProvenanceMatchesReport(
+				readCrossProductHandoffProvenance(imported),
+				entry.conversionReportSidecar.report,
+			)) {
+			throw new Error('The imported editable copy did not retain its closed invocation provenance.');
+		}
 		return transferRecord({
 			index,
 			outcome: 'imported',
@@ -306,6 +440,7 @@ async function importAdmittedArchive(
 			reasonCode: null,
 			reason: null,
 			residue: 'none',
+			...recognizedConversionReport(entry),
 		});
 	} catch (error) {
 		throwIfScapeAborted(signal);
@@ -387,6 +522,9 @@ async function clearTransferResidue(
 	return { residue: 'cleared', note: ' The project this transfer created was removed.' };
 }
 
-function transferRecord(record: ProjectTransferImportRecord): ProjectTransferImportRecord {
-	return Object.freeze({ ...record });
+function transferRecord(
+	record: Omit<ProjectTransferImportRecord, 'conversionReport'>
+		& Partial<Pick<ProjectTransferImportRecord, 'conversionReport'>>,
+): ProjectTransferImportRecord {
+	return Object.freeze({ ...record, conversionReport: record.conversionReport ?? null });
 }

@@ -27,7 +27,7 @@ function change(input: FakeElement): void {
 }
 
 function archive(name: string) {
-	return { name, arrayBuffer: async () => new ArrayBuffer(0) };
+	return { name, size: 0, arrayBuffer: async () => new ArrayBuffer(0) };
 }
 
 test('the archive picker is re-armed as it is read, so the same file can be chosen again', async () => {

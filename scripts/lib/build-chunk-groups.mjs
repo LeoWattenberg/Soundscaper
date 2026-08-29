@@ -21,10 +21,10 @@
  */
 
 const editorPath = String.raw`src[\\/]common[\\/]editor[\\/]`;
-const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-transaction|project-source-remap)|scape-project)`;
+const editorOptionalArchiveModule = String.raw`(?:aup-legacy(?:-block-budget|-conversion|-xml)?|aup4-(?:client|opaque-persistence|profile|sanitization)|audacity-(?:annotation-interchange|tempo-import)|scape-(?:archive-(?:copy|layout(?:-witness)?|manifest|reader)|export-destination|import-transaction|project-source-remap)|scape-project(?:-canonical-inspection)?)`;
 const editorOptionalExecutionModule = String.raw`(?:analysis|browser-(?:dedicated-audio-worker-client|webcodecs-aac)|pffft|selection-effects-runtime|spectral-edit(?:-admission)?|video-(?:keyframe-mediabunny-execution|mediabunny-muxer))`;
 const editorOptionalExportControllerModule = String.raw`(?:audio-export-render-orchestration|audio-realtime-encoded-export|audio-rendered-fallback-export|delivery-conformance-action|desktop-audio-export-capability|direct-(?:aiff-export|audio-render-plan|broadcast-wave-export|bw64-export|bwf-export|compressed-export|compressed-plan|compressed-stem-archive-plan|export-dispatch|mp3-export|native-stem-archive-plan|offline-compressed-export|offline-pcm-export|pcm-export|stem-archive-export|video-export|video-plan-contract|wav-export)|export-render-project|export-service|realtime-export-pcm-transform|rendered-audio-encoding|video-export-service|video-rendered-fallback-export)`;
-const editorOptionalControllerModule = String.raw`(?:analysis-service|${editorOptionalExportControllerModule})`;
+const editorOptionalControllerModule = String.raw`(?:analysis-service|cross-product-handoff-action|${editorOptionalExportControllerModule})`;
 const editorOptionalAssistanceModule = String.raw`local-assistance-[^\\/]+`;
 /**
  * Assistance domain modules the eagerly loaded shell and controller genuinely share.
@@ -39,6 +39,8 @@ const editorEagerAssistanceModule = String.raw`(?:assistance-asset-command-v1|as
 const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-model\.ts)|framescaper-(?:caption-file-interchange|finishing-dialog-model|native-services-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview)\.tsx)`;
 const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/]ui[\\/]local-assistance-semantic-search-(?:bridge|source)\.ts$/;
+const EDITOR_COPY_CHUNK_TEST =
+	/src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|canonical-extras|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js$/;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
 export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
@@ -53,6 +55,11 @@ export const EDITOR_PFFFT_RUNTIME_CHUNK_TEST = new RegExp(
 /** Selection dispatcher and its destructive parametric-EQ implementation. */
 export const EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:selection-effects-runtime|parametric-eq[\\/]destructive)\\.js$`,
+);
+
+/** Shared session-only production metering used by the engine and product UI. */
+export const EDITOR_PRODUCTION_METER_CHUNK_TEST = new RegExp(
+	`${editorPath}production-audio[\\/](?:loudness-history-session|strip-analysis-scheduler|strip-meter-session)\\.ts$`,
 );
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
@@ -163,11 +170,65 @@ const framescaperProjectFoundationModules = Object.freeze([
 const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
 	`src[\\\\/]framescaper[\\\\/](?:${framescaperProjectFoundationModules.join('|')})\\.ts$`,
 );
-const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-v(?:8|11(?:-(?:controller|selection))?)\.ts$/;
+/**
+ * The layered Framescaper project-command authority, from base commands through
+ * timeline images and assistance.
+ *
+ * Leaving these modules to reachability split the upper assistance command from
+ * the timeline-image command it calls while the timeline-image chunk called back
+ * into the native-media command placed beside assistance. The source graph was
+ * acyclic, but the two emitted chunks were not and the peer editor could observe
+ * an uninitialized command initializer during a cross-product handoff.
+ */
+const framescaperProjectCommandModules = Object.freeze([
+	'editor-audio-finishing-reconciliation-finishing',
+	'editor-project-assistance-commands',
+	'editor-project-assistance-transition-allocation',
+	'editor-project-composition-commands',
+	'editor-project-finishing-command-inheritance',
+	'editor-project-finishing-commands',
+	'editor-project-finishing-inherited-state',
+	'editor-project-finishing-transition-allocation',
+	'editor-project-native-media-commands',
+	'editor-project-native-media-transition-allocation',
+	'editor-project-openfx-commands',
+	'editor-project-openfx-validation',
+	'editor-project-professional-media-command-inheritance',
+	'editor-project-professional-media-commands',
+	'editor-project-professional-media',
+	'editor-project-retime-av-link-command-segmentation',
+	'editor-project-retime-batch-command',
+	'editor-project-retime-command-admission',
+	'editor-project-retime-commands',
+	'editor-project-retime-fresh-video-command',
+	'editor-project-retime-retime-command',
+	'editor-project-retime-retime-state',
+	'editor-project-sequence-commands',
+	'editor-project-sequence-sequence',
+	'editor-project-timeline-image-commands',
+	'editor-project-timeline-image-image-command',
+	'editor-project-timeline-image-transition-allocation',
+	'editor-project-transitions-commands',
+	'editor-project-visual-command-inheritance',
+	'editor-project-visual-commands',
+	'editor-project-visual-visual-command',
+	'editor-session-clipboard-v9',
+	'editor-video-proxy-attachment-retention-sequence',
+	'editor-video-proxy-command-retime',
+]);
+export const FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST = new RegExp(
+	`src[\\\\/]framescaper[\\\\/](?:${framescaperProjectCommandModules.join('|')})\\.ts$`,
+);
+const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor-session-clipboard-v(?:8|11(?:-(?:controller|selection))?|12(?:-controller)?|13(?:-paste)?)\.ts$/;
+
+/** Timeline-image feature modules plus the runtime projection chain they extend. */
+export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
+	/src[\\/]framescaper[\\/](?:editor-project-(?:native-media|assistance)-runtime|editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/;
 
 
 /**
- * The project identity tuple reader, owned apart from the editor domain it lives in.
+ * The project identity tuple reader and closed handoff intent, owned apart
+ * from the editor domain they serve.
  *
  * A project is identified only by (schemaFamily, schemaVersion). The transfer
  * documents use the hardened reader to learn which product owns a stored row;
@@ -183,7 +244,7 @@ const FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST = /src[\\/]framescaper[\\/]editor
  * chunk that both worlds can import without dragging the other's graph.
  */
 export const PROJECT_SCHEMA_IDENTITY_CHUNK_TEST = new RegExp(
-	`${editorPath}project-schema-identity\\.ts$`,
+	`(?:${editorPath}project-schema-identity|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
@@ -254,9 +315,9 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		// A dependency-free leaf both the editor and the standalone transfer pages
-		// read. Deliberately not named `editor-`: a transfer document loading it is
-		// loading the project identity tuple reader, not the editor.
+		// Dependency-closed identity leaves both the editor and standalone transfer
+		// pages read. Deliberately not named `editor-`: these are tuple and launch
+		// intent contracts, not the editor.
 		name: 'project-schema-identity',
 		test: PROJECT_SCHEMA_IDENTITY_CHUNK_TEST,
 		priority: 99,
@@ -265,9 +326,31 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
+		// These engine helpers are also typed by product UI. An explicit owner keeps
+		// Rolldown from placing them inside a selected product bootstrap and making
+		// the engine import its own importer during standalone transfer-page startup.
+		name: 'editor-production-meter',
+		test: EDITOR_PRODUCTION_METER_CHUNK_TEST,
+		priority: 91,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'editor-optional-execution',
 		test: EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
 		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// The product bootstrap and eager editor controller both read the complete
+		// catalog. Give that dependency closure a shared owner instead of letting a
+		// product bootstrap absorb it and making the editor import its own importer.
+		// The small site-only catalog remains in the static entry graph.
+		name: 'editor-copy',
+		test: EDITOR_COPY_CHUNK_TEST,
+		priority: 97,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},
@@ -334,6 +417,14 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
+		name: 'framescaper-project-commands',
+		test: FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST,
+		priority: 98,
+		minSize: 0,
+		maxSize: 490_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'framescaper-session-clipboard',
 		test: FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST,
 		priority: 98,
@@ -370,7 +461,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!editor-dialog-model\\.js$)|inspector[\\\\/]))`),
+		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!editor-dialog-model\\.js$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/]url\\.ts$)`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
@@ -390,7 +481,7 @@ export const chunkGroups = [
 		// Framescaper feature slice. Keep it out of the selected bootstrap chunk while
 		// preserving one semantic owner for modules shared by its menu-opened surfaces.
 		name: 'framescaper-timeline-images',
-		test: /src[\\/]framescaper[\\/](?:editor-(?:image-(?:import-coordinator|placement)-timeline-image|project-[^\\/]*timeline-image[^\\/]*|scape-[^\\/]*timeline-image|selected-timeline-image|session-clipboard-v13|timeline-image)|video-export-(?:image|strategy-timeline-image)-)/,
+		test: FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST,
 		priority: 64,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

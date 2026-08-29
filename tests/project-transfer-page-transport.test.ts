@@ -21,6 +21,7 @@ import test from 'node:test';
 import {
 	PROJECT_TRANSFER_DEFAULT_TIMEOUT_MILLISECONDS,
 	PROJECT_TRANSFER_MAX_TIMEOUT_MILLISECONDS,
+	PROJECT_TRANSFER_PROTOCOL_VERSION,
 	receiveProjectTransfer,
 	sendProjectTransfer,
 	type ProjectTransferPort,
@@ -153,11 +154,11 @@ test('both roles ask the protocol for an import-sized acknowledgement budget', a
 		...runtime,
 		sendTransfer: async (options: { timeoutMilliseconds?: number }) => {
 			asked.push(options.timeoutMilliseconds);
-			return { sessionId: 's', protocolVersion: 1, entryCount: 0, storedCount: 0, failedCount: 0, entries: [] };
+			return { sessionId: 's', protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION, entryCount: 0, storedCount: 0, failedCount: 0, entries: [] };
 		},
 		receiveTransfer: async (options: { timeoutMilliseconds?: number }) => {
 			asked.push(options.timeoutMilliseconds);
-			return { sessionId: 's', protocolVersion: 1, entryCount: 0, storedCount: 0, failedCount: 0, entries: [] };
+			return { sessionId: 's', protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION, entryCount: 0, storedCount: 0, failedCount: 0, entries: [] };
 		},
 	} as unknown as Session.TransferRuntime;
 	const channel = { port: silentPort(), targetOrigin: FRAMESCAPER, allowedOrigins: [SOUNDSCAPER, FRAMESCAPER] };
@@ -316,6 +317,25 @@ test('a transfer larger than the aggregate cap is refused by name, mid-stream', 
 	assert.equal(entries.length, 1, 'the cap must bite before the second archive is held as well');
 	assert.deepEqual(archive.exportCalls, ['p1', 'p2'], 'and before a third project is even read');
 	assert.ok(TRANSFER_MAX_TOTAL_BYTES > Session.TRANSFER_MAX_ARCHIVE_BYTES);
+});
+
+test('the one-at-a-time download stream explicitly opts out of the resident handshake cap', async () => {
+	const store = new FakeStore([
+		{ id: 'p1', title: 'One' },
+		{ id: 'p2', title: 'Two' },
+		{ id: 'p3', title: 'Three' },
+	]);
+	const archive = createFakeArchive({
+		bytesFor: (project) => new Uint8Array(600).fill(project.id.charCodeAt(1)),
+	});
+	const entries: unknown[] = [];
+	for await (const event of streamTransferArchives({
+		runtime: runtimeFor(archive), store, maximumTotalBytes: null,
+	})) {
+		if (event.kind === 'entry') entries.push(event.entry);
+	}
+	assert.equal(entries.length, 3);
+	assert.deepEqual(archive.exportCalls, ['p1', 'p2', 'p3']);
 });
 
 test('the handshake path streams the export straight into the offer', async () => {

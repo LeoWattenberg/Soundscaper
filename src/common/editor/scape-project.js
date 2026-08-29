@@ -50,6 +50,7 @@ import { withScapeProjectInput } from './scape-project-input.ts';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
 import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
+import { inspectScapeCanonicalEvidence } from './scape-project-canonical-inspection.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 import {
 	normalizeVideoTimingAssetReference,
@@ -538,7 +539,7 @@ function joinScapeTimingChunks(chunks, expectedBytes) {
  *   options?: Readonly<{ signal?: AbortSignal }>,
  * ) => PromiseLike<unknown> | unknown } | null} store
  * @param {{ signal?: AbortSignal,
- *   loadProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
+ *   canonicalProjectDigest?: boolean, loadProject?: (project: unknown) => { project: Record<string, unknown>, readOnly: boolean },
  *   currentProjectSchemaFamily?: import('./project-schema-identity.ts').ProjectSchemaFamily,
  *   currentProjectSchemaVersion?: number,
  *   projectFeatureCompatibility?: { evaluate: (project: unknown) => unknown },
@@ -588,6 +589,9 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 			exists: Boolean(existing),
 			manifest,
 			featureRequirementsCompatibility,
+			...inspectScapeCanonicalEvidence(
+				options.canonicalProjectDigest && !loaded.readOnly ? loaded.project : null,
+				options.canonicalProjectDigest && existing ? existing : null),
 		});
 	}, {
 		blob: options.archiveReaderFactory,

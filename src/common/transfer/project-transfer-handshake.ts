@@ -157,6 +157,7 @@ async function sendOneEntry(
 		name: entry.name,
 		byteLength: entry.byteLength,
 		payload: entry.payload,
+		conversionReportSidecar: entry.conversionReportSidecar,
 	});
 	const ack = await expectProjectTransferKind(channel, 'ack');
 	// One entry is in flight at a time, so the only acknowledgement that can
@@ -207,6 +208,7 @@ async function receiveOneEntry(context: ReceiveEntryContext): Promise<ProjectTra
 		name: message.name,
 		byteLength: message.byteLength,
 		payload: message.payload,
+		conversionReportSidecar: message.conversionReportSidecar,
 	});
 	let status: ProjectTransferStatus = 'stored';
 	let reason = '';
@@ -300,7 +302,15 @@ function reconcileFinalReport(
 				'outcomes',
 			);
 		}
-		return Object.freeze({ ...acked, reason: outcome.reason });
+		if (outcome.name !== acked.name || outcome.byteLength !== acked.byteLength
+			|| outcome.reason !== acked.reason) {
+			throw projectTransferError(
+				'INVALID_FIELD',
+				`The final report for ${acked.entryId} does not exactly match its acknowledgement.`,
+				'outcomes',
+			);
+		}
+		return acked;
 	});
 	return buildTransferReport(sessionId, entries);
 }

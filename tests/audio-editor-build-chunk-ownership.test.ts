@@ -16,6 +16,7 @@ import {
 	EDITOR_OPTIONAL_EXPORT_CHUNK_TEST,
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
+	EDITOR_PRODUCTION_METER_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 	workerChunkGroups,
 	WORKER_XML_VENDOR_CHUNK_TEST,
@@ -136,6 +137,16 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 	// loaded when it is opened rather than when the editor boots.
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/inspector/ExportDialog.jsx'), null);
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/AudioEditorMenuBar.jsx'), 'editor-shell');
+	assert.equal(chunkGroupForModulePath('src/common/url.ts'), 'editor-shell');
+	for (const path of [
+		'src/common/i18n/catalogs.js',
+		'src/common/i18n/runtime.js',
+		'src/common/i18n/report-copy.js',
+		'src/common/i18n/framescaper-capture-copy.js',
+	]) {
+		assert.equal(chunkGroupForModulePath(path), 'editor-copy', path);
+	}
+	assert.equal(chunkGroupForModulePath('src/common/i18n/site-copy.js'), null);
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/ui/local-assistance-semantic-search-source.ts'),
 		'editor-assistance-semantic-search-runtime',
@@ -148,6 +159,26 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 		chunkGroupForModulePath('src/common/editor/ui/local-assistance-lazy-semantic-search-source.ts'),
 		'editor-shell',
 	);
+});
+
+test('production meter session helpers have a shared non-recursive owner', () => {
+	for (const path of [
+		'src/common/editor/production-audio/loudness-history-session.ts',
+		'src/common/editor/production-audio/strip-analysis-scheduler.ts',
+		'src/common/editor/production-audio/strip-meter-session.ts',
+	]) {
+		assert.ok(EDITOR_PRODUCTION_METER_CHUNK_TEST.test(path), path);
+		assert.equal(chunkGroupForModulePath(path), 'editor-production-meter', path);
+	}
+	assert.equal(
+		EDITOR_PRODUCTION_METER_CHUNK_TEST.test(
+			'src/common/editor/production-audio/restoration-workflow.ts',
+		),
+		false,
+	);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-production-meter');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
 });
 
 test('the domain group sits below the groups whose modules it would otherwise claim', () => {
@@ -166,6 +197,7 @@ test('the domain group sits below the groups whose modules it would otherwise cl
 
 test('editor groups never absorb shared application dependencies recursively', () => {
 	for (const name of [
+		'editor-copy',
 		'editor-engine',
 		'editor-storage-model',
 		'editor-timeline',

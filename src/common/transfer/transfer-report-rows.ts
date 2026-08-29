@@ -20,6 +20,8 @@ import {
 	type TransferImportRecord,
 	type TransferSendReport,
 } from './transfer-session.ts';
+import type { CrossProductHandoffConversionReportV1 } from
+	'./cross-product-handoff-conversion.ts';
 
 export type TransferRowOutcome = 'ok' | 'skipped' | 'failed';
 
@@ -33,6 +35,31 @@ export interface TransferResultReport {
 	readonly rows: readonly TransferResultRow[];
 	readonly summary: string;
 	readonly complete: boolean;
+}
+
+/** Attach the conversion ledger to the ordinary transport result without hiding either layer. */
+export function withCrossProductHandoffReports(
+	report: TransferResultReport,
+	conversions: readonly Readonly<CrossProductHandoffConversionReportV1>[],
+): TransferResultReport {
+	if (conversions.length === 0) return report;
+	const rows = [
+		...report.rows,
+		...conversions.flatMap((conversion) => conversion.roots.map((root) => ({
+			label: `${conversion.source.projectId} / ${root.root}`,
+			detail: `${root.disposition}: ${root.reason} Source ${root.sourceSha256}`
+				+ (root.destinationSha256 === null ? '' : `; destination ${root.destinationSha256}`),
+			outcome: (root.disposition === 'refuse' ? 'failed'
+				: root.disposition === 'omit-with-report' ? 'skipped' : 'ok') as TransferRowOutcome,
+		}))),
+	];
+	const refused = conversions.some(({ refused }) => refused);
+	return Object.freeze({
+		rows: Object.freeze(rows),
+		summary: `${report.summary} Conversion ledger: ${conversions.length} invocation`
+			+ `${conversions.length === 1 ? '' : 's'}, ${rows.length - report.rows.length} classified roots.`,
+		complete: report.complete && !refused,
+	});
 }
 
 export function formatTransferBytes(byteLength: unknown): string {
@@ -67,11 +94,17 @@ export function describeTransferDownload(
 			label: record.title || record.projectId,
 			detail: record.outcome === 'saved'
 				? `Saved as ${record.fileName} (${formatTransferBytes(record.byteLength)})`
-				: `Could not be saved: ${record.reason ?? 'no reason reported'}`,
+					+ (record.conversionReportFileName
+						? ` with ${record.conversionReportFileName}` : '')
+				: record.outcome === 'partial'
+					? `Saved archive as ${record.fileName} (${formatTransferBytes(record.byteLength)}),`
+						+ ` but not its complete companion set: ${record.reason ?? 'no reason reported'}`
+					: `Could not be saved: ${record.reason ?? 'no reason reported'}`,
 			outcome: (record.outcome === 'saved' ? 'ok' : 'failed') as TransferRowOutcome,
 		})),
 		...exportFailureRows(failures),
 	];
+	const partial = report.partial ?? 0;
 	const failed = report.failed + failures.length;
 	// Nothing reached the saver and nothing failed on the way, so the run never
 	// had a project in it. "Downloaded 0 of 0 projects." is true by arithmetic
@@ -83,11 +116,13 @@ export function describeTransferDownload(
 		summary: empty
 			? 'No projects were downloaded: nothing in this run reached the exporter.'
 				+ ' Nothing on this origin was changed.'
-			: failed === 0
+			: failed === 0 && partial === 0
 				? `Downloaded ${report.saved} of ${report.saved} projects. Nothing on this origin was changed.`
-				: `Downloaded ${report.saved} project${report.saved === 1 ? '' : 's'};`
-					+ ` ${failed} could not be downloaded. Nothing on this origin was changed.`,
-		complete: failed === 0 && !empty,
+				: `Downloaded ${report.saved} complete project${report.saved === 1 ? '' : 's'};`
+					+ (partial ? ` ${partial} left an archive without its confirmed companion;` : '')
+					+ (failed ? ` ${failed} could not be downloaded.` : '')
+					+ ' Nothing on this origin was changed.',
+		complete: failed === 0 && partial === 0 && !empty,
 	});
 }
 
@@ -353,7 +388,7 @@ export function describeTransferImport(result: TransferImportOutcome): TransferR
 	const counted = `Imported ${result.imported} of ${result.total} archive${result.total === 1 ? '' : 's'}`
 		+ `${result.skipped ? `, skipped ${result.skipped}` : ''}`
 		+ `${result.failed ? `, ${result.failed} failed` : ''}.`;
-	return Object.freeze({
+	const base = Object.freeze({
 		rows: Object.freeze(rows),
 		summary: stopped
 			? `${counted} The import stopped at archive ${stopped.index + 1} and the rest were not read:`
@@ -361,6 +396,12 @@ export function describeTransferImport(result: TransferImportOutcome): TransferR
 			: counted,
 		complete: result.completed && result.failed === 0 && absent === 0,
 	});
+	const conversions = result.entries.flatMap((record) => {
+		const recognized = record.outcome === 'imported'
+			|| (record.outcome === 'skipped' && record.reasonCode === 'already-present');
+		return recognized && record.conversionReport ? [record.conversionReport] : [];
+	});
+	return withCrossProductHandoffReports(base, conversions);
 }
 
 function importRowOutcome(outcome: TransferImportRecord['outcome']): TransferRowOutcome {

@@ -227,5 +227,6 @@ export function transferEntries(entries: readonly ProjectTransferEntry[]): reado
 		title: entry.title,
 		bytes: entry.bytes,
 		byteLength: entry.byteLength,
+		conversionReportSidecar: entry.conversionReportSidecar,
 	}));
 }

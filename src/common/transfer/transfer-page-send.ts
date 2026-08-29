@@ -54,6 +54,11 @@ import {
 import type { TransferChoiceHandle } from './transfer-page-view.ts';
 import type { TransferPageContext } from './transfer-page-context.ts';
 import { readProjectSchemaIdentity } from '../editor/project-schema-identity.ts';
+import {
+	parseCrossProductHandoffLaunchIntent,
+	type CrossProductHandoffLaunchIntentV1,
+} from '../cross-product-handoff-intent.ts';
+import { createEditableCopyTransferRuntime } from './cross-product-handoff-transfer-runtime.ts';
 
 type ExportStore = Parameters<typeof streamTransferArchives>[0]['store'];
 
@@ -64,52 +69,75 @@ type ExportStore = Parameters<typeof streamTransferArchives>[0]['store'];
 export async function mountSender(context: TransferPageContext): Promise<void> {
 	const { configuration, view } = context;
 	const peerProduct = transferProductForOrigin(configuration.peerOrigin);
+	const intent = parseCrossProductHandoffLaunchIntent(context.scope.location.search);
+	if (intent && peerProduct !== null && intent.destination.schemaFamily !== peerProduct) {
+		throw new RangeError('The editable-copy launch destination does not match this transfer peer.');
+	}
 	let offers: readonly TransferProjectOffer[] = [];
 	let choices: TransferChoiceHandle | null = null;
+	let activeSend: Promise<void> | null = null;
+	const archiveSaver = createArchiveSaver(context.scope);
 
 	const download = view.action('Download the ticked archives', async () => {
-		const chosen = requireChosen(context, choices, offers);
+		const chosen = requireChosen(context, choices, offers, intent);
 		if (!chosen) return;
-		await runSenderDownload(context, chosen);
+		await runSenderDownload(context, chosen, archiveSaver);
 	});
 	const send = view.action(`Send the ticked projects to ${configuration.peerOrigin}`, async () => {
-		const chosen = requireChosen(context, choices, offers);
+		if (activeSend !== null) {
+			view.status('A project transfer is already awaiting confirmation or in progress.', 'error');
+			return;
+		}
+		const chosen = requireChosen(context, choices, offers, intent);
 		if (!chosen) return;
 		// Confirmed by name before anything is read, let alone posted - and
 		// counted over what can actually cross. A ticked row this page cannot
 		// move is still listed below with its reason, but it is not one of the
 		// projects being sent, and counting it as one overstates the consent.
 		const sending = transferableChoices(chosen).length;
-		view.confirm({
-			heading: `Send ${sending} project${sending === 1 ? '' : 's'}`
-				+ ` to ${configuration.peerOrigin}? Nothing is removed from this origin.`,
-			lines: chosen.map((offer) => `${offer.title} — ${describeTransferProduct(offer)}`),
-			confirmLabel: `Yes, send ${sending === 1 ? 'it' : 'these'}`,
-			cancelLabel: 'Cancel',
-			// Read back a second time, at the moment consent is actually given.
-			// The confirmation is a panel on the page, not a modal that takes the
-			// boxes away, so the set ticked when Send was clicked is not
-			// necessarily the set the visitor means now - and the set they mean
-			// now is the only one this page is entitled to read. Still
-			// synchronous, because the popup below has to open inside this click.
-			confirm: async () => {
-				const confirmed = requireChosen(context, choices, offers);
-				if (!confirmed) return;
-				await runSenderHandshake(context, confirmed, choices);
-			},
-		});
+		let finish!: () => void;
+		activeSend = new Promise<void>((resolve) => { finish = resolve; });
+		try {
+			view.confirm({
+				heading: `Send ${sending} project${sending === 1 ? '' : 's'}`
+					+ ` to ${configuration.peerOrigin}? Nothing is removed from this origin.`,
+				lines: chosen.map((offer) => `${offer.title} — ${describeTransferProduct(offer)}`),
+				confirmLabel: `Yes, send ${sending === 1 ? 'it' : 'these'}`,
+				cancelLabel: 'Cancel',
+				cancel: finish,
+				// Read back a second time, at the moment consent is actually given.
+				// The confirmation is a panel on the page, not a modal that takes the
+				// boxes away, so the set ticked when Send was clicked is not
+				// necessarily the set the visitor means now - and the set they mean
+				// now is the only one this page is entitled to read. Still
+				// synchronous, because the popup below has to open inside this click.
+				confirm: async () => {
+					try {
+						const confirmed = requireChosen(context, choices, offers, intent);
+						if (!confirmed) return;
+						await runSenderHandshake(context, confirmed, choices);
+					} finally {
+						finish();
+					}
+				},
+			});
+			await activeSend;
+		} finally {
+			activeSend = null;
+		}
 	});
 	download.disabled = true;
 	send.disabled = true;
 
-	view.action('Find my projects', async () => {
+	const findProjects = async (): Promise<void> => {
 		view.status('Reading this origin\'s project list…');
 		const source = await context.dependencies.openStore();
 		try {
-			offers = await listTransferProjects({
+			const listed = await listTransferProjects({
 				store: source.store as Parameters<typeof listTransferProjects>[0]['store'],
 				product: peerProduct,
 			});
+			offers = intent ? bindOffersToIntent(listed, intent) : listed;
 		} finally {
 			await source.close().catch(() => undefined);
 		}
@@ -141,7 +169,22 @@ export async function mountSender(context: TransferPageContext): Promise<void> {
 			unreadable.length === 0 ? 'info' : 'error');
 		download.disabled = offers.length === 0;
 		send.disabled = offers.length === 0;
-	});
+	};
+	view.action('Find my projects', findProjects);
+	if (intent) await findProjects();
+}
+
+function bindOffersToIntent(
+	offers: readonly TransferProjectOffer[],
+	intent: Readonly<CrossProductHandoffLaunchIntentV1>,
+): readonly TransferProjectOffer[] {
+	return Object.freeze(offers.map((offer) => Object.freeze({
+		...offer,
+		preselected: offer.refusal === null
+			&& offer.schemaFamily === intent.source.schemaFamily
+			&& offer.schemaVersion === intent.source.schemaVersion
+			&& offer.storeProjectId === intent.source.projectId,
+	})));
 }
 
 /** The one fact a total cannot carry: some of this origin's storage is opaque. */
@@ -158,6 +201,7 @@ function requireChosen(
 	context: TransferPageContext,
 	choices: TransferChoiceHandle | null,
 	offers: readonly TransferProjectOffer[],
+	intent: Readonly<CrossProductHandoffLaunchIntentV1> | null,
 ): readonly TransferProjectOffer[] | null {
 	if (!choices) {
 		context.view.status('Find your projects first.', 'error');
@@ -167,6 +211,13 @@ function requireChosen(
 	const chosen = offers.filter((offer) => ticked.has(offer.projectId));
 	if (chosen.length === 0) {
 		context.view.status('Nothing is ticked, so there is nothing to send.', 'error');
+		return null;
+	}
+	if (intent && (chosen.length !== 1
+		|| chosen[0].schemaFamily !== intent.source.schemaFamily
+		|| chosen[0].schemaVersion !== intent.source.schemaVersion
+		|| chosen[0].storeProjectId !== intent.source.projectId)) {
+		context.view.status('This editable-copy launch is bound to exactly its named source project.', 'error');
 		return null;
 	}
 	return chosen;
@@ -213,8 +264,9 @@ function refusedChoices(chosen: readonly TransferProjectOffer[]): readonly Trans
 async function runSenderDownload(
 	context: TransferPageContext,
 	chosen: readonly TransferProjectOffer[],
+	saver: ReturnType<typeof createArchiveSaver>,
 ): Promise<void> {
-	const { scope, view } = context;
+	const { view } = context;
 	const refused = refusedChoices(chosen);
 	const transferable = transferableChoices(chosen);
 	if (transferable.length === 0) {
@@ -226,17 +278,19 @@ async function runSenderDownload(
 	view.status(`Exporting and saving ${transferable.length}`
 		+ ` archive${transferable.length === 1 ? '' : 's'}…`);
 	const runtime = await context.dependencies.loadRuntime();
+	const exportingRuntime = editableRuntime(runtime, context);
 	const source = await context.dependencies.openStore();
-	const saveArchive = createArchiveSaver(scope);
 	try {
 		const report = await downloadTransferArchives({
 			archives: streamTransferArchives({
-				runtime,
+				runtime: exportingRuntime,
 				store: source.store as ExportStore,
 				select: selectionPredicate(transferable),
+				maximumTotalBytes: null,
 				onProgress: (progress) => view.status(exportProgressText(progress)),
 			}),
-			save: (entry) => saveArchive(entry.bytes, entry.fileName, entry.mimeType),
+			save: (entry) => saver.saveArchive(entry.bytes, entry.fileName, entry.mimeType),
+			saveSidecar: (file) => saver.saveCompanion(file.bytes, file.fileName, file.mimeType),
 		});
 		view.report(withRefusedTransferChoices(describeTransferDownload(report), refused));
 	} finally {
@@ -271,30 +325,32 @@ async function runSenderHandshake(
 		}
 		throw error;
 	}
-	choices?.freeze(true);
 	const windowPort = createWindowTransferPort({
 		peer: popup,
 		listener: scope,
 		allowedOrigins: configuration.allowedOrigins,
 		expectedSource: popup,
 	});
-	// Subscribed here, in the same turn the popup was opened and before either
-	// await below. The popup is loading right now and announces `ready` the
-	// moment it mounts; an unsubscribed port drops that message, and the only
-	// symptom is this page waiting out its whole acknowledgement budget while
-	// the other origin sits idle. Moving this line below an await reintroduces
-	// exactly that race.
-	const port = bufferTransferPort(windowPort);
-	view.status(`Waiting for ${configuration.peerOrigin} to accept the transfer…`);
-	const runtime = await context.dependencies.loadRuntime();
-	const source = await context.dependencies.openStore();
+	let source: Awaited<ReturnType<TransferPageContext['dependencies']['openStore']>> | null = null;
 	try {
+		// Subscribed here, in the same turn the popup was opened and before either
+		// await below. The popup is loading right now and announces `ready` the
+		// moment it mounts; an unsubscribed port drops that message, and the only
+		// symptom is this page waiting out its whole acknowledgement budget while
+		// the other origin sits idle. Moving this line below an await reintroduces
+		// exactly that race.
+		const port = bufferTransferPort(windowPort);
+		choices?.freeze(true);
+		view.status(`Waiting for ${configuration.peerOrigin} to accept the transfer…`);
+		const runtime = await context.dependencies.loadRuntime();
+		const exportingRuntime = editableRuntime(runtime, context);
+		source = await context.dependencies.openStore();
 		const report = await sendTransferArchives({
-			runtime,
+			runtime: exportingRuntime,
 			// Streamed, not collected: the archives reach the offer one at a
 			// time and the aggregate ceiling is what bounds the whole transfer.
 			archives: streamTransferArchives({
-				runtime,
+				runtime: exportingRuntime,
 				store: source.store as ExportStore,
 				select: selectionPredicate(transferable),
 				onProgress: (progress) => view.status(exportProgressText(progress)),
@@ -317,8 +373,16 @@ async function runSenderHandshake(
 	} finally {
 		windowPort.close();
 		choices?.freeze(false);
-		await source.close().catch(() => undefined);
+		await source?.close().catch(() => undefined);
 	}
+}
+
+function editableRuntime(
+	runtime: Awaited<ReturnType<TransferPageContext['dependencies']['loadRuntime']>>,
+	context: TransferPageContext,
+): Awaited<ReturnType<TransferPageContext['dependencies']['loadRuntime']>> {
+	const intent = parseCrossProductHandoffLaunchIntent(context.scope.location.search);
+	return intent === null ? runtime : createEditableCopyTransferRuntime(runtime, intent);
 }
 
 function exportProgressText(progress: { completed: number; total: number | null; title: string | null }): string {
@@ -337,33 +401,35 @@ function exportProgressText(progress: { completed: number; total: number | null;
 const TRANSFER_DOWNLOAD_URL_LIFETIME_MILLISECONDS = 60_000;
 
 /**
- * Hand archives to the browser one at a time, holding one at a time.
+ * Hand archives to the browser one at a time, holding one archive/companion group at a time.
  *
  * The download path is the transport that streams, and the reason it needs no
- * aggregate byte ceiling is that it never holds more than the archive currently
- * being saved. An object URL is a strong reference to its Blob, so revoking
+ * aggregate byte ceiling is that it never holds more than the archive and its
+ * optional companion currently being saved. An object URL is a strong reference to its Blob, so revoking
  * each one only on a 60-second timer quietly broke that: a library of thirty
  * archives saved in under a minute kept all thirty resident, and the transport
  * that was supposed to be the safe fallback for an enormous library was the one
  * with no bound at all.
  *
- * So the previous archive is released as the next one is created - deliberately
- * not on a timer, which a run of resolved promises can starve - and only the
- * last archive of a run waits out the backstop above.
+ * So the previous group gets one browser task to consume its click, then is
+ * released before the next archive is created. Only the last group of a run
+ * waits out the backstop above.
  */
 function createArchiveSaver(
 	scope: Window & typeof globalThis,
-): (bytes: Uint8Array, fileName: string, mimeType: string) => void {
-	let held: { url: string; timer: unknown } | null = null;
+): Readonly<{
+	saveArchive(bytes: Uint8Array, fileName: string, mimeType: string): Promise<void>;
+	saveCompanion(bytes: Uint8Array, fileName: string, mimeType: string): void;
+}> {
+	let held: { urls: readonly string[]; timer: unknown } | null = null;
 	const release = (): void => {
 		if (!held) return;
-		const { url, timer } = held;
+		const { urls, timer } = held;
 		held = null;
 		scope.clearTimeout(timer as ReturnType<typeof setTimeout>);
-		scope.URL.revokeObjectURL(url);
+		for (const url of urls) scope.URL.revokeObjectURL(url);
 	};
-	return (bytes, fileName, mimeType) => {
-		release();
+	const save = (bytes: Uint8Array, fileName: string, mimeType: string): void => {
 		const url = scope.URL.createObjectURL(new Blob([bytes as unknown as BlobPart], { type: mimeType }));
 		try {
 			const anchor = scope.document.createElement('a');
@@ -374,7 +440,21 @@ function createArchiveSaver(
 			anchor.click();
 			anchor.remove();
 		} finally {
-			held = { url, timer: scope.setTimeout(release, TRANSFER_DOWNLOAD_URL_LIFETIME_MILLISECONDS) };
+			const urls = [...held?.urls ?? [], url];
+			if (held) scope.clearTimeout(held.timer as ReturnType<typeof setTimeout>);
+			held = { urls, timer: scope.setTimeout(release, TRANSFER_DOWNLOAD_URL_LIFETIME_MILLISECONDS) };
 		}
 	};
+	return Object.freeze({
+		saveArchive: async (bytes, fileName, mimeType) => {
+			if (held) {
+				// Let the browser consume both clicks from the previous group before
+				// their object URLs are revoked, without retaining another archive.
+				await new Promise<void>((resolve) => { scope.setTimeout(resolve, 0); });
+				release();
+			}
+			save(bytes, fileName, mimeType);
+		},
+		saveCompanion: (bytes, fileName, mimeType) => save(bytes, fileName, mimeType),
+	});
 }

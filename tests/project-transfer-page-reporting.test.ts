@@ -376,6 +376,7 @@ function importRecord(record: ImportRecordSeed): ProjectTransferImportRecord {
 		reason: null,
 		residue: 'none' as const,
 		...record,
+		conversionReport: record.conversionReport ?? null,
 	});
 }
 

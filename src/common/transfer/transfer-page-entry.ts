@@ -209,8 +209,12 @@ function importTallyText(tally: { imported: number; skipped: number; failed: num
 
 async function mountReceiver(context: TransferPageContext): Promise<void> {
 	const { configuration, scope, view } = context;
-	view.files('Import downloaded .scape archives', '.scape', async (files) => {
-		view.status(`Importing ${files.length} archive${files.length === 1 ? '' : 's'}…`);
+	const { ACCEPTED_PROJECT_FILE_EXTENSION_LIST } = await import('../project-file-extensions.ts');
+	view.files(
+		'Import downloaded project archives and conversion-report sidecars',
+		`${ACCEPTED_PROJECT_FILE_EXTENSION_LIST},.json`,
+		async (files) => {
+		view.status(`Reading ${files.length} selected file${files.length === 1 ? '' : 's'}…`);
 		const runtime = await context.dependencies.loadRuntime();
 		const source = await context.dependencies.openStore();
 		try {
@@ -224,7 +228,8 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
 		} finally {
 			await source.close().catch(() => undefined);
 		}
-	});
+		},
+	);
 
 	let opener: TransferMessageTarget;
 	try {
@@ -243,10 +248,6 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
 		allowedOrigins: configuration.allowedOrigins,
 		expectedSource: opener,
 	});
-	const port = bufferTransferPort(windowPort);
-	const runtime = await context.dependencies.loadRuntime();
-	const source = await context.dependencies.openStore();
-	view.status(`Accepting a transfer from ${configuration.peerOrigin}…`);
 	// One tally, kept as the records arrive and reused for the final report:
 	// the live line and the summary have to be counting the same thing, and two
 	// tallies is how they came to disagree.
@@ -258,7 +259,12 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
 	// reads the records only off a resolved result throws away, one layer up,
 	// exactly what the layer below took care to keep.
 	const landed: TransferImportRecord[] = [];
+	let source: Awaited<ReturnType<TransferPageContext['dependencies']['openStore']>> | null = null;
 	try {
+		const port = bufferTransferPort(windowPort);
+		const runtime = await context.dependencies.loadRuntime();
+		source = await context.dependencies.openStore();
+		view.status(`Accepting a transfer from ${configuration.peerOrigin}…`);
 		const received = await receiveTransferArchives({
 			runtime,
 			store: source.store as Parameters<typeof receiveTransferArchives>[0]['store'],
@@ -308,7 +314,7 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
 		}));
 	} finally {
 		windowPort.close();
-		await source.close().catch(() => undefined);
+		await source?.close().catch(() => undefined);
 	}
 }
 
@@ -320,4 +326,3 @@ async function mountReceiver(context: TransferPageContext): Promise<void> {
  * open for the length of a whole transfer.
  */
 void autoMountTransferPage();
-

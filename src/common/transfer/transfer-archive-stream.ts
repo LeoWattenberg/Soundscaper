@@ -20,6 +20,14 @@
 
 import type * as Bundle from './project-transfer-bundle.ts';
 import type * as Handshake from './project-transfer-handshake.ts';
+import type { CrossProductHandoffConversionReportV1 } from './cross-product-handoff-conversion.ts';
+import type { CrossProductHandoffLaunchIntentV1 } from '../cross-product-handoff-intent.ts';
+import {
+	CROSS_PRODUCT_HANDOFF_REPORT_SIDECAR_MIME_TYPE,
+	crossProductHandoffReportSidecarFileName,
+	encodeCrossProductHandoffReportSidecar,
+	type CrossProductHandoffReportSidecarV1,
+} from './cross-product-handoff-report-sidecar.ts';
 
 /**
  * Mirrors `PROJECT_TRANSFER_MAX_ENTRY_BYTES` in the handshake module.
@@ -68,6 +76,21 @@ export class TransferBudgetError extends Error {
 
 export interface TransferRuntime {
 	readonly exportProject: Bundle.ProjectTransferArchiveExport;
+	readonly exportEditableCopy?: (
+		project: Bundle.ProjectTransferProject,
+		store: unknown,
+		options: Readonly<{
+			intent: CrossProductHandoffLaunchIntentV1;
+			signal?: AbortSignal;
+			maximumBlobBytes: number;
+		}>,
+	) => PromiseLike<Readonly<{
+		readonly blob: unknown;
+		readonly conversionReport: CrossProductHandoffConversionReportV1;
+		readonly projectId: string;
+		readonly title: string;
+		readonly fileExtension: '.sscape' | '.fscape';
+	}>>;
 	readonly inspectProject: Bundle.ProjectTransferArchiveInspect;
 	readonly importProject: Bundle.ProjectTransferArchiveImport;
 	readonly exportBundle: typeof Bundle.exportProjectTransferBundle;
@@ -111,7 +134,8 @@ export interface CollectTransferArchivesOptions {
 	readonly maximumEntries?: number;
 	readonly maximumEntryBytes?: number;
 	/** Aggregate ceiling for the whole run; defaults to `TRANSFER_MAX_TOTAL_BYTES`. */
-	readonly maximumTotalBytes?: number;
+	/** `null` is reserved for the one-at-a-time browser download transport. */
+	readonly maximumTotalBytes?: number | null;
 	readonly signal?: AbortSignal;
 	readonly onProgress?: (progress: Bundle.ProjectTransferProgress) => void;
 }
@@ -130,7 +154,8 @@ export async function* streamTransferArchives(
 	options: CollectTransferArchivesOptions,
 ): AsyncGenerator<TransferStreamEvent, void> {
 	const { runtime, store } = requireTransferRuntime(options, 'streaming transfer archives');
-	const maximumTotalBytes = admitTotalByteCeiling(options.maximumTotalBytes);
+	const maximumTotalBytes = options.maximumTotalBytes === null
+		? null : admitTotalByteCeiling(options.maximumTotalBytes);
 	let total = 0;
 	let exported = 0;
 	let failed = 0;
@@ -151,7 +176,9 @@ export async function* streamTransferArchives(
 			byteLength += event.entry.byteLength;
 			// Checked before the archive is yielded: past the ceiling the caller
 			// must not receive it, because receiving it is what makes it resident.
-			if (byteLength > maximumTotalBytes) throw new TransferBudgetError(byteLength, maximumTotalBytes);
+			if (maximumTotalBytes !== null && byteLength > maximumTotalBytes) {
+				throw new TransferBudgetError(byteLength, maximumTotalBytes);
+			}
 			exported += 1;
 			yield Object.freeze({ kind: 'entry' as const, entry: event.entry, index: event.index, total });
 			continue;
@@ -262,21 +289,33 @@ export interface TransferDownloadRecord {
 	readonly title: string;
 	readonly fileName: string;
 	readonly byteLength: number;
-	readonly outcome: 'saved' | 'failed';
+	readonly outcome: 'saved' | 'partial' | 'failed';
 	readonly reason: string | null;
+	readonly conversionReportFileName?: string;
 }
 
 export interface TransferDownloadReport {
 	readonly records: readonly TransferDownloadRecord[];
 	readonly exportFailures: readonly TransferExportFailure[];
 	readonly saved: number;
+	readonly partial?: number;
 	readonly failed: number;
 }
 
 export interface DownloadTransferArchivesOptions extends TransferArchiveSourceOptions {
 	/** Injected so this module never touches `URL.createObjectURL` or the DOM. */
 	readonly save: (entry: Bundle.ProjectTransferEntry) => Promise<void> | void;
+	/** Required whenever an entry carries a conversion report; omission is reported as failure. */
+	readonly saveSidecar?: (file: TransferConversionReportDownload) => Promise<void> | void;
 	readonly signal?: AbortSignal;
+}
+
+export interface TransferConversionReportDownload {
+	readonly entryId: string;
+	readonly fileName: string;
+	readonly mimeType: typeof CROSS_PRODUCT_HANDOFF_REPORT_SIDECAR_MIME_TYPE;
+	readonly bytes: Uint8Array<ArrayBuffer>;
+	readonly sidecar: Readonly<CrossProductHandoffReportSidecarV1>;
 }
 
 /**
@@ -312,23 +351,32 @@ export async function downloadTransferArchives(
 		if (event.kind !== 'entry') continue;
 		try {
 			await save(event.entry);
-			records.push(downloadRecord(event.entry, 'saved', null));
 		} catch (error) {
 			records.push(downloadRecord(event.entry, 'failed', describeTransferError(error)));
+			continue;
+		}
+		try {
+			const conversionReportFileName = await saveConversionReportSidecar(event.entry, options.saveSidecar);
+			records.push(downloadRecord(event.entry, 'saved', null, conversionReportFileName));
+		} catch (error) {
+			records.push(downloadRecord(event.entry, 'partial',
+				`The archive was saved, but its conversion report was not confirmed: ${describeTransferError(error)}`));
 		}
 	}
 	return Object.freeze({
 		records: Object.freeze(records),
 		exportFailures: Object.freeze(exportFailures),
 		saved: records.filter(({ outcome }) => outcome === 'saved').length,
+		partial: records.filter(({ outcome }) => outcome === 'partial').length,
 		failed: records.filter(({ outcome }) => outcome === 'failed').length,
 	});
 }
 
 function downloadRecord(
 	entry: Bundle.ProjectTransferEntry,
-	outcome: 'saved' | 'failed',
+	outcome: 'saved' | 'partial' | 'failed',
 	reason: string | null,
+	conversionReportFileName?: string,
 ): TransferDownloadRecord {
 	return Object.freeze({
 		projectId: entry.projectId,
@@ -337,14 +385,37 @@ function downloadRecord(
 		byteLength: entry.byteLength,
 		outcome,
 		reason,
+		...(conversionReportFileName === undefined ? {} : { conversionReportFileName }),
 	});
+}
+
+async function saveConversionReportSidecar(
+	entry: Bundle.ProjectTransferEntry,
+	save: DownloadTransferArchivesOptions['saveSidecar'],
+): Promise<string | undefined> {
+	if (!entry.conversionReportSidecar) return undefined;
+	if (typeof save !== 'function') {
+		throw new Error('The conversion report sidecar could not be saved beside its archive.');
+	}
+	const fileName = crossProductHandoffReportSidecarFileName(entry.fileName);
+	await save(Object.freeze({
+		entryId: entry.projectId,
+		fileName,
+		mimeType: CROSS_PRODUCT_HANDOFF_REPORT_SIDECAR_MIME_TYPE,
+		bytes: encodeCrossProductHandoffReportSidecar(entry.conversionReportSidecar),
+		sidecar: entry.conversionReportSidecar,
+	}));
+	return fileName;
 }
 
 /** `"Field recording.scape"` names a project called `"Field recording"`. */
 export function transferArchiveTitle(fileName: unknown): string {
 	const name = typeof fileName === 'string' ? fileName.trim() : '';
 	if (!name) return 'Untitled project';
-	const trimmed = name.toLowerCase().endsWith('.scape') ? name.slice(0, -'.scape'.length) : name;
+	// Mirrors the closed accepted-extension registry without pulling the editor's
+	// archive-format graph into the standalone transfer page's preload closure.
+	const extension = /\.(?:sscape|fscape|liscape|scape)$/iu.exec(name)?.[0] ?? null;
+	const trimmed = extension === null ? name : name.slice(0, -extension.length);
 	return trimmed.trim() || 'Untitled project';
 }
 

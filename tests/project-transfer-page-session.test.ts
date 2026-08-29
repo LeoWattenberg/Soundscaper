@@ -371,12 +371,14 @@ test('the manual fallback imports downloaded archives file by file', async () =>
 	const store = new FakeStore([{ id: 'p1', title: 'Already here' }]);
 	const runtime = runtimeFor(createFakeArchive());
 	const reads: string[] = [];
+	const first = archiveBytes({ id: 'p1', title: 'Already here' });
+	const second = archiveBytes({ id: 'p2', title: 'New one' });
 	const result = await importTransferArchiveFiles({
 		runtime,
 		store,
 		files: [
-			{ name: 'Already here.scape', read: async () => { reads.push('p1'); return archiveBytes({ id: 'p1', title: 'Already here' }); } },
-			{ name: 'New one.scape', read: async () => { reads.push('p2'); return archiveBytes({ id: 'p2', title: 'New one' }); } },
+			{ name: 'Already here.scape', byteLength: first.byteLength, read: async () => { reads.push('p1'); return first; } },
+			{ name: 'New one.scape', byteLength: second.byteLength, read: async () => { reads.push('p2'); return second; } },
 		],
 	});
 	assert.deepEqual(reads, ['p1', 'p2']);

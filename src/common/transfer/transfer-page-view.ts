@@ -41,6 +41,7 @@ export interface TransferConfirmation {
 	readonly confirmLabel: string;
 	readonly cancelLabel: string;
 	confirm(): Promise<void>;
+	cancel(): void;
 }
 
 export interface TransferView {
@@ -81,6 +82,13 @@ export function createTransferView(document: Document, title: string, summary: s
 	const summaryLine = document.createElement('p');
 	const list = document.createElement('ul');
 	root.append(heading, lede, notes, actions, chooser, confirmation, status, summaryLine, list);
+	let pendingConfirmation: TransferConfirmation | null = null;
+	const dismissConfirmation = (): void => {
+		const pending = pendingConfirmation;
+		pendingConfirmation = null;
+		confirmation.replaceChildren();
+		pending?.cancel();
+	};
 
 	const busy = (value: boolean): void => {
 		for (const button of actions.querySelectorAll('button')) button.dataset.busy = value ? 'true' : '';
@@ -131,6 +139,7 @@ export function createTransferView(document: Document, title: string, summary: s
 			input.addEventListener('change', () => {
 				const files = [...input.files ?? []].map((file) => ({
 					name: file.name,
+					byteLength: file.size,
 					read: async () => new Uint8Array(await file.arrayBuffer()),
 				}));
 				// A file input only raises `change` when its value changes, so the
@@ -172,10 +181,11 @@ export function createTransferView(document: Document, title: string, summary: s
 			};
 		},
 		confirm(request) {
+			dismissConfirmation();
 			if (!request) {
-				confirmation.replaceChildren();
 				return;
 			}
+			pendingConfirmation = request;
 			const heading = document.createElement('p');
 			heading.textContent = request.heading;
 			const listing = document.createElement('ul');
@@ -191,23 +201,26 @@ export function createTransferView(document: Document, title: string, summary: s
 			cancel.type = 'button';
 			cancel.textContent = request.cancelLabel;
 			cancel.addEventListener('click', () => {
-				confirmation.replaceChildren();
+				if (pendingConfirmation !== request) return;
+				dismissConfirmation();
 				view.status('Nothing was sent.');
 			});
 			accept.addEventListener('click', () => {
+				if (pendingConfirmation !== request) return;
+				pendingConfirmation = null;
 				accept.disabled = true;
 				cancel.disabled = true;
+				confirmation.replaceChildren();
 				// The popup has to open inside this click: a window.open() on a
 				// later turn is blocked, so `confirm()` opens it before it awaits.
 				request.confirm()
-					.catch((error) => view.status(describeTransferError(error), 'error'))
-					.finally(() => confirmation.replaceChildren());
+					.catch((error) => view.status(describeTransferError(error), 'error'));
 			});
 			confirmation.replaceChildren(heading, listing, accept, cancel);
 		},
 		list: renderRows,
 		report(report) {
-			confirmation.replaceChildren();
+			dismissConfirmation();
 			summaryLine.textContent = report.summary;
 			summaryLine.dataset.complete = report.complete ? 'true' : 'false';
 			renderRows(report.rows);

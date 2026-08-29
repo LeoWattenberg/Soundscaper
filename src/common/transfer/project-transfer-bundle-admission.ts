@@ -8,6 +8,14 @@
  */
 
 import { SCAPE_MIME_TYPE } from '../editor/scape-project-format.ts';
+import type {
+	CrossProductHandoffConversionReportV1,
+} from './cross-product-handoff-conversion.ts';
+import {
+	admitCrossProductHandoffReportSidecar,
+	type CrossProductHandoffReportSidecarV1,
+} from './cross-product-handoff-report-sidecar.ts';
+import { TransferManualImportRefusalError } from './transfer-manual-refusal.ts';
 
 /** Mirrors SCAPE_FILE_EXTENSION without importing the archive implementation. */
 export const PROJECT_TRANSFER_ENTRY_EXTENSION = '.scape';
@@ -20,7 +28,9 @@ const MAXIMUM_PROJECT_ID_LENGTH = 256;
 const MAXIMUM_TITLE_LENGTH = 512;
 const MAXIMUM_FILE_NAME_LENGTH = 255;
 const MAXIMUM_REASON_LENGTH = 512;
-const ENTRY_FIELDS = new Set(['bytes', 'byteLength', 'fileName', 'mimeType', 'projectId', 'title']);
+const ENTRY_FIELDS = new Set([
+	'bytes', 'byteLength', 'conversionReportSidecar', 'fileName', 'mimeType', 'projectId', 'title',
+]);
 
 export type ProjectTransferRefusalCode =
 	| 'entry-limit'
@@ -52,6 +62,7 @@ export interface ProjectTransferEntry {
 	readonly mimeType: string;
 	readonly byteLength: number;
 	readonly bytes: Uint8Array<ArrayBuffer>;
+	readonly conversionReportSidecar: Readonly<CrossProductHandoffReportSidecarV1> | null;
 }
 
 export interface ProjectTransferProgress {
@@ -75,14 +86,25 @@ export type ProjectTransferArchiveExport = (
 	project: ProjectTransferProject,
 	store: unknown,
 	options: Readonly<{ signal?: AbortSignal; maximumBlobBytes: number }>,
-) => PromiseLike<{ readonly blob?: unknown } | null | undefined>
-	| { readonly blob?: unknown } | null | undefined;
+) => PromiseLike<ProjectTransferArchiveExportResult | null | undefined>
+	| ProjectTransferArchiveExportResult | null | undefined;
+
+export interface ProjectTransferArchiveExportResult {
+	readonly blob?: unknown;
+	/** Optional archive-owned identity for a converted copy. */
+	readonly projectId?: unknown;
+	readonly title?: unknown;
+	/** Product-native manual fallback suffix; ordinary exports retain `.scape`. */
+	readonly fileExtension?: unknown;
+	/** Separate custody metadata; never embedded in the native archive. */
+	readonly conversionReport?: unknown;
+}
 
 /** The archive reader seam: inspectScapeProject(input, store, options). */
 export type ProjectTransferArchiveInspect = (
 	input: unknown,
 	store: unknown,
-	options: Readonly<{ signal?: AbortSignal }>,
+	options: Readonly<{ signal?: AbortSignal; canonicalProjectDigest?: boolean }>,
 ) => PromiseLike<unknown> | unknown;
 
 /** The archive import seam: importScapeProject(input, store, options). */
@@ -193,6 +215,8 @@ export interface ProjectTransferImportRecord {
 	readonly reasonCode: ProjectTransferSkipReasonCode | ProjectTransferFailureCode | null;
 	readonly reason: string | null;
 	readonly residue: 'none' | 'cleared' | 'retained';
+	/** Non-null only after this origin imported or already recognized the bound archive. */
+	readonly conversionReport: Readonly<CrossProductHandoffConversionReportV1> | null;
 }
 
 /** Why a run stopped before its entries ran out. */
@@ -250,6 +274,9 @@ export function projectTransferImportStop(
 	if (error instanceof ProjectTransferRefusalError) {
 		return Object.freeze({ code: error.code, index, reason: describeProjectTransferError(error) });
 	}
+	if (error instanceof TransferManualImportRefusalError) {
+		return Object.freeze({ code: error.code, index, reason: describeProjectTransferError(error) });
+	}
 	if (signal?.aborted) {
 		return Object.freeze({ code: 'aborted' as const, index, reason: describeProjectTransferError(error) });
 	}
@@ -282,6 +309,7 @@ export interface AdmittedProjectTransferEntry {
 	readonly projectId: string | null;
 	readonly title: string | null;
 	readonly bytes: Uint8Array<ArrayBuffer>;
+	readonly conversionReportSidecar: Readonly<CrossProductHandoffReportSidecarV1> | null;
 }
 
 export function admitProjectTransferExportRequest(
@@ -367,10 +395,27 @@ export function admitProjectTransferEntry(
 		throw new ProjectTransferRefusalError('malformed-entry',
 			`Project transfer entry ${index} declares a byte length its payload does not match.`);
 	}
+	const projectId = admitOptionalText(value.projectId, MAXIMUM_PROJECT_ID_LENGTH, index, 'projectId');
+	let conversionReportSidecar: Readonly<CrossProductHandoffReportSidecarV1> | null = null;
+	if (value.conversionReportSidecar !== undefined && value.conversionReportSidecar !== null) {
+		if (projectId === null) {
+			throw new ProjectTransferRefusalError('malformed-entry',
+				`Project transfer entry ${index} cannot bind a conversion report without a projectId.`);
+		}
+		try {
+			conversionReportSidecar = admitCrossProductHandoffReportSidecar(
+				value.conversionReportSidecar, { entryId: projectId, archive: bytes },
+			);
+		} catch (error) {
+			throw new ProjectTransferRefusalError('malformed-entry',
+				`Project transfer entry ${index} has an invalid conversion report sidecar: ${describeProjectTransferError(error)}`);
+		}
+	}
 	return Object.freeze({
-		projectId: admitOptionalText(value.projectId, MAXIMUM_PROJECT_ID_LENGTH, index, 'projectId'),
+		projectId,
 		title: admitOptionalText(value.title, MAXIMUM_TITLE_LENGTH, index, 'title'),
 		bytes,
+		conversionReportSidecar,
 	});
 }
 

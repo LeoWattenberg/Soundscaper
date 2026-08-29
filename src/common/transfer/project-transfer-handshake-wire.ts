@@ -14,8 +14,13 @@
  * because it arrived from an allowlisted origin, never because it claimed one.
  */
 
+import {
+	admitCrossProductHandoffReportSidecar,
+	type CrossProductHandoffReportSidecarV1,
+} from './cross-product-handoff-report-sidecar.ts';
+
 export const PROJECT_TRANSFER_PROTOCOL_ID = 'kw-project-transfer';
-export const PROJECT_TRANSFER_PROTOCOL_VERSION = 1;
+export const PROJECT_TRANSFER_PROTOCOL_VERSION = 2;
 export const PROJECT_TRANSFER_MAX_PROTOCOL_VERSION = 0xffff;
 export const PROJECT_TRANSFER_MAX_ENTRIES = 512;
 export const PROJECT_TRANSFER_MAX_ENTRY_BYTES = 256 * 1024 * 1024;
@@ -66,6 +71,7 @@ export interface ProjectTransferEntry {
 	readonly name: string;
 	readonly byteLength: number;
 	readonly payload: Uint8Array;
+	readonly conversionReportSidecar: Readonly<CrossProductHandoffReportSidecarV1> | null;
 }
 
 export interface ProjectTransferOutcome {
@@ -98,6 +104,7 @@ export type ProjectTransferBeginMessage = Envelope
 export type ProjectTransferEntryMessage = Envelope & Readonly<{
 	kind: 'entry'; sequence: number; entryId: string;
 	name: string; byteLength: number; payload: Uint8Array;
+	conversionReportSidecar: Readonly<CrossProductHandoffReportSidecarV1> | null;
 }>;
 export type ProjectTransferAckMessage = Envelope & Readonly<{
 	kind: 'ack'; sequence: number; entryId: string;
@@ -124,7 +131,7 @@ const MESSAGE_KEYS = Object.freeze({
 	ready: ['kind', 'maxEntries', 'maxEntryBytes', 'protocol', 'protocolVersion', 'sessionId'],
 	begin: ['entryCount', 'kind', 'protocol', 'protocolVersion', 'sessionId'],
 	entry: [
-		'byteLength', 'entryId', 'kind', 'name', 'payload',
+		'byteLength', 'conversionReportSidecar', 'entryId', 'kind', 'name', 'payload',
 		'protocol', 'protocolVersion', 'sequence', 'sessionId',
 	],
 	ack: ['entryId', 'kind', 'protocol', 'protocolVersion', 'reason', 'sequence', 'sessionId', 'status'],
@@ -134,7 +141,9 @@ const MESSAGE_KEYS = Object.freeze({
 } as const);
 
 const OUTCOME_KEYS = Object.freeze(['byteLength', 'entryId', 'name', 'reason', 'status']);
-const ENTRY_KEYS = Object.freeze(['byteLength', 'entryId', 'name', 'payload']);
+const ENTRY_KEYS = Object.freeze([
+	'byteLength', 'conversionReportSidecar', 'entryId', 'name', 'payload',
+]);
 
 const MESSAGE_KEY_SETS: Readonly<Record<string, ReadonlySet<string>>> = Object.freeze(
 	Object.fromEntries(
@@ -195,11 +204,16 @@ function admitMessageBody(
 		fields.entryCount = admitProjectTransferInteger(read('entryCount'), 'entryCount', 0, PROJECT_TRANSFER_MAX_ENTRIES);
 	} else if (kind === 'entry') {
 		fields.sequence = admitSequence(read('sequence'));
-		fields.entryId = admitProjectTransferId(read('entryId'), 'entryId');
+		const entryId = admitProjectTransferId(read('entryId'), 'entryId');
+		fields.entryId = entryId;
 		fields.name = admitProjectTransferText(read('name'), 'name');
 		const byteLength = admitProjectTransferInteger(read('byteLength'), 'byteLength', 0, PROJECT_TRANSFER_MAX_ENTRY_BYTES);
 		fields.byteLength = byteLength;
-		fields.payload = admitProjectTransferPayload(read('payload'), byteLength, 'payload');
+		const payload = admitProjectTransferPayload(read('payload'), byteLength, 'payload');
+		fields.payload = payload;
+		fields.conversionReportSidecar = admitWireConversionReportSidecar(
+			read('conversionReportSidecar'), entryId, payload,
+		);
 	} else if (kind === 'ack') {
 		fields.sequence = admitSequence(read('sequence'));
 		fields.entryId = admitProjectTransferId(read('entryId'), 'entryId');
@@ -225,12 +239,33 @@ export function admitProjectTransferEntry(value: unknown, maximumBytes: number):
 	if (byteLength > maximumBytes) {
 		throw projectTransferError('PAYLOAD_TOO_LARGE', `Entry ${entryId} is ${byteLength} bytes, over the ${maximumBytes} byte limit.`, 'byteLength');
 	}
+	const payload = admitProjectTransferPayload(record.payload, byteLength, 'payload');
 	return Object.freeze({
 		entryId,
 		name,
 		byteLength,
-		payload: admitProjectTransferPayload(record.payload, byteLength, 'payload'),
+		payload,
+		conversionReportSidecar: admitWireConversionReportSidecar(
+			record.conversionReportSidecar, entryId, payload,
+		),
 	});
+}
+
+function admitWireConversionReportSidecar(
+	value: unknown,
+	entryId: string,
+	payload: Uint8Array,
+): Readonly<CrossProductHandoffReportSidecarV1> | null {
+	if (value === null) return null;
+	try {
+		return admitCrossProductHandoffReportSidecar(value, { entryId, archive: payload });
+	} catch (error) {
+		throw projectTransferError(
+			'INVALID_FIELD',
+			`conversionReportSidecar is invalid: ${describeProjectTransferReason(error)}`,
+			'conversionReportSidecar',
+		);
+	}
 }
 
 export function admitProjectTransferPayload(

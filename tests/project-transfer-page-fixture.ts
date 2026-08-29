@@ -74,7 +74,7 @@ export interface FakeMessageEvent {
 export class FakeWindow {
 	readonly listeners = new Set<(event: FakeMessageEvent) => void>();
 	readonly document = new FakeDocument();
-	readonly location: { pathname: string; origin: string };
+	readonly location: { pathname: string; origin: string; search: string };
 	readonly crypto = { randomUUID: () => 'fake-session-id' };
 	readonly saved: string[] = [];
 	readonly blobs = new BlobLedger();
@@ -85,7 +85,7 @@ export class FakeWindow {
 	opened = 0;
 
 	constructor(readonly origin: string) {
-		this.location = { pathname: '/transfer/send/', origin };
+		this.location = { pathname: '/transfer/send/', origin, search: '' };
 		this.document.onDownload = (fileName) => this.saved.push(fileName);
 	}
 

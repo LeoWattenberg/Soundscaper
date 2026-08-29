@@ -43,6 +43,11 @@ import {
 	type TransferStoreOpenOptions,
 } from './transfer-store-baselines.ts';
 import type { TransferRuntime } from './transfer-session.ts';
+import {
+	createFamilyOwnedTransferArchiveRuntime,
+	type TransferFamilyArchiveRuntime,
+} from './transfer-family-owned-runtime.ts';
+import { convertCrossProductEditableCopy } from './cross-product-handoff-conversion.ts';
 
 export interface TransferStoreSource {
 	/** Stable identifier, used in the page's own reporting. */
@@ -57,25 +62,89 @@ export interface TransferStoreSource {
 }
 
 export async function loadTransferRuntime(): Promise<TransferRuntime> {
-	const [archive, bundle, handshake] = await Promise.all([
+	const [archive, bundle, handshake, soundscaper, framescaper, framescaperProfile] = await Promise.all([
 		import('../editor/scape-project.js'),
 		import('./project-transfer-bundle.ts'),
 		import('./project-transfer-handshake.ts'),
+		import('../../soundscaper/editor-scape-native.ts'),
+		import('../../framescaper/editor-scape-native.ts'),
+		import('../../framescaper/editor-project-runtime-profile.ts'),
 	]);
-	const inspectProject = archive.inspectScapeProject as TransferRuntime['inspectProject'];
-	return Object.freeze({
-		exportProject: exportFromOwningStore(
-			archive.exportScapeProject as TransferRuntime['exportProject'],
+	const genericInspect = archive.inspectScapeProject as TransferRuntime['inspectProject'];
+	const familyOwned = createFamilyOwnedTransferArchiveRuntime({
+		probeArchiveIdentity: (input, options) => transferArchiveSchemaIdentity(
+			genericInspect, input, options,
 		),
-		inspectProject: inspectInHomeStore(inspectProject),
+		runtimes: {
+			soundscaper: adaptNativeArchiveRuntime(
+				soundscaper.createSoundscaperScapeNativeRuntime(),
+			),
+			framescaper: adaptNativeArchiveRuntime(
+				framescaper.createFramescaperScapeNativeRuntime(
+					framescaperProfile.FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+				),
+			),
+		},
+	});
+	return Object.freeze({
+		exportProject: exportFromOwningStore(familyOwned.exportProject),
+		exportEditableCopy: editableCopyExporter(familyOwned.exportProject),
+		inspectProject: inspectInHomeStore(familyOwned.inspectProject),
 		importProject: importIntoHomeStore(
-			archive.importScapeProject as TransferRuntime['importProject'],
-			inspectProject,
+			familyOwned.importProject,
+			familyOwned.inspectProject,
 		),
 		exportBundle: bundle.exportProjectTransferBundle,
 		importBundle: bundle.importProjectTransferBundle,
 		sendTransfer: handshake.sendProjectTransfer,
 		receiveTransfer: handshake.receiveProjectTransfer,
+	});
+}
+
+function editableCopyExporter(
+	exportProject: TransferFamilyArchiveRuntime['exportProject'],
+): NonNullable<TransferRuntime['exportEditableCopy']> {
+	return async (project, store, options) => {
+		const owner = transferStoreForProject(store, project);
+		if (!owner && isTransferStoreFederation(store)) {
+			throw new Error('The editable-copy source was not listed by any project store on this origin.');
+		}
+		const converted = convertCrossProductEditableCopy({
+			intent: options.intent,
+			sourceProject: project,
+		});
+		const exported = await exportProject(converted.project, owner ?? store, {
+			...(options.signal ? { signal: options.signal } : {}),
+			maximumBlobBytes: options.maximumBlobBytes,
+		});
+		if (!(exported?.blob instanceof Blob)) {
+			throw new TypeError('The destination-family Scape exporter did not produce an archive Blob.');
+		}
+		return Object.freeze({
+			blob: exported.blob,
+			conversionReport: converted.report,
+			projectId: converted.project.id,
+			title: typeof converted.project.title === 'string'
+				? converted.project.title : converted.project.id,
+			fileExtension: options.intent.destination.schemaFamily === 'soundscaper'
+				? '.sscape' as const : '.fscape' as const,
+		});
+	};
+}
+
+function adaptNativeArchiveRuntime(runtime: Readonly<{
+	readonly exportScapeProject: unknown;
+	readonly inspectScapeProject: unknown;
+	readonly importScapeProject: unknown;
+}>): TransferFamilyArchiveRuntime {
+	const inspect = runtime.inspectScapeProject as TransferRuntime['inspectProject'];
+	const inspectProject: TransferRuntime['inspectProject'] = (input, store, options) => (
+		inspect(input, store, options)
+	);
+	return Object.freeze({
+		exportProject: runtime.exportScapeProject as TransferRuntime['exportProject'],
+		inspectProject,
+		importProject: runtime.importScapeProject as TransferRuntime['importProject'],
 	});
 }
 

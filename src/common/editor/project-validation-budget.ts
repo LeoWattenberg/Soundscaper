@@ -2,6 +2,13 @@
 
 import { SCAPE_PROJECT_BINARY_HARD_LIMITS } from './scape-project-document.ts';
 
+const ARRAY_BUFFER_BYTE_LENGTH_GETTER = requiredGetter<number>(ArrayBuffer.prototype, 'byteLength');
+const ARRAY_BUFFER_SLICE = requiredMethod(ArrayBuffer.prototype, 'slice');
+const TYPED_ARRAY_PROTOTYPE = Object.getPrototypeOf(Uint8Array.prototype) as object;
+const TYPED_ARRAY_BUFFER_GETTER = requiredGetter<object>(TYPED_ARRAY_PROTOTYPE, 'buffer');
+const TYPED_ARRAY_BYTE_LENGTH_GETTER = requiredGetter<number>(TYPED_ARRAY_PROTOTYPE, 'byteLength');
+const TYPED_ARRAY_SLICE = requiredMethod(TYPED_ARRAY_PROTOTYPE, 'slice');
+
 export interface AudioEditorProjectValidationLimits {
 	readonly maximumTraversalNodes: number;
 	readonly maximumTraversalDepth: number;
@@ -83,7 +90,7 @@ export function admitAudioEditorProjectValidationStructure(
 			admitJsonScalar(candidate);
 			continue;
 		}
-		if (candidate instanceof Uint8Array || candidate instanceof ArrayBuffer) continue;
+		if (admitSupportedBinary(candidate)) continue;
 		if (ArrayBuffer.isView(candidate)) {
 			throw new TypeError('Audio editor projects support only Uint8Array and ArrayBuffer binary values.');
 		}
@@ -96,6 +103,81 @@ export function admitAudioEditorProjectValidationStructure(
 		}
 		admitObject(stack, candidate, work.depth, budget);
 	}
+}
+
+function admitSupportedBinary(value: object): boolean {
+	if (value instanceof Uint8Array) {
+		admitUint8Array(value);
+		return true;
+	}
+	if (value instanceof ArrayBuffer) {
+		admitArrayBuffer(value);
+		return true;
+	}
+	return false;
+}
+
+function admitUint8Array(value: Uint8Array): void {
+	if (Object.getPrototypeOf(value) !== Uint8Array.prototype) {
+		throw new TypeError('Audio editor project Uint8Array values must use the ordinary binary prototype.');
+	}
+	const byteLength = intrinsicByteLength(TYPED_ARRAY_BYTE_LENGTH_GETTER, value);
+	const buffer = intrinsicObject(TYPED_ARRAY_BUFFER_GETTER, value);
+	if (!(buffer instanceof ArrayBuffer) || Object.getPrototypeOf(buffer) !== ArrayBuffer.prototype) {
+		throw new TypeError('Audio editor project Uint8Array values require an ordinary ArrayBuffer.');
+	}
+	intrinsicByteLength(ARRAY_BUFFER_BYTE_LENGTH_GETTER, buffer);
+	if (Reflect.ownKeys(value).length !== byteLength) {
+		throw new TypeError('Audio editor project binary values cannot carry extra properties.');
+	}
+	probeBinarySlice(TYPED_ARRAY_SLICE, value);
+}
+
+function admitArrayBuffer(value: ArrayBuffer): void {
+	if (Object.getPrototypeOf(value) !== ArrayBuffer.prototype) {
+		throw new TypeError('Audio editor project ArrayBuffer values must use the ordinary binary prototype.');
+	}
+	intrinsicByteLength(ARRAY_BUFFER_BYTE_LENGTH_GETTER, value);
+	if (Reflect.ownKeys(value).length !== 0) {
+		throw new TypeError('Audio editor project binary values cannot carry extra properties.');
+	}
+	probeBinarySlice(ARRAY_BUFFER_SLICE, value);
+}
+
+function probeBinarySlice(method: (this: object, ...args: unknown[]) => unknown, value: object): void {
+	try {
+		Reflect.apply(method, value, [0, 0]);
+	} catch (error) {
+		throw new TypeError('Audio editor project binary value is detached or out of bounds.', { cause: error });
+	}
+}
+
+function intrinsicByteLength(getter: (this: object) => number, value: object): number {
+	try {
+		return Reflect.apply(getter, value, []) as number;
+	} catch (error) {
+		throw new TypeError('Audio editor project binary value has an invalid intrinsic brand.', { cause: error });
+	}
+}
+
+function intrinsicObject(getter: (this: object) => object, value: object): object {
+	try {
+		return Reflect.apply(getter, value, []) as object;
+	} catch (error) {
+		throw new TypeError('Audio editor project binary value has an invalid intrinsic brand.', { cause: error });
+	}
+}
+
+function requiredGetter<Result>(target: object, key: string): (this: object) => Result {
+	const getter = Object.getOwnPropertyDescriptor(target, key)?.get;
+	if (!getter) throw new Error(`Missing intrinsic ${key} getter.`);
+	return getter as (this: object) => Result;
+}
+
+function requiredMethod(target: object, key: string): (this: object, ...args: unknown[]) => unknown {
+	const method = Object.getOwnPropertyDescriptor(target, key)?.value as unknown;
+	if (typeof method !== 'function') throw new Error(`Missing intrinsic ${key} method.`);
+	return method as (this: object, ...args: unknown[]) => unknown;
 }
 
 function admitJsonScalar(value: unknown): void {

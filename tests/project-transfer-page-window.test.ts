@@ -130,6 +130,72 @@ test('a ready that lands while the sender is still loading is not dropped', asyn
 	});
 });
 
+test('one sender confirmation owns the popup until its run settles and always releases its port', async () => {
+	const sender = new FakeWindow(SOUNDSCAPER);
+	const popup = new FakeWindow(FRAMESCAPER);
+	sender.peer = popup;
+	popup.peer = sender;
+	sender.opens = () => popup;
+	const store = new FakeStore([
+		{ id: 'video-1', title: 'Interview cut', schemaFamily: 'framescaper', schemaVersion: 1 },
+	] as never);
+	let rejectRuntime!: (error: Error) => void;
+	const arrival = new Promise<TransferRuntime>((_resolve, reject) => { rejectRuntime = reject; });
+
+	await mountTransferPage({
+		scope: sender as never,
+		role: 'send',
+		configuration: CONFIGURATION as never,
+		dependencies: {
+			loadRuntime: () => arrival,
+			openStore: async () => ({
+				id: 'fake', label: 'Fake', store, close: async () => undefined,
+			}) as never,
+		},
+	});
+	await settle();
+	await sender.document.clickButton('Find my projects');
+	await settle();
+
+	await sender.document.clickButton(/^Send /u);
+	await settle();
+	await sender.document.clickButton(/^Send /u);
+	await settle();
+	assert.match(sender.document.statusText(), /already.*confirmation|already.*progress/iu);
+	assert.equal(confirmationButtons(sender, /^Yes, send/u).length, 1);
+	await sender.document.clickButton('Cancel');
+	await settle();
+
+	await sender.document.clickButton(/^Send /u);
+	await settle();
+	await sender.document.clickButton(/^Yes, send/u);
+	await settle();
+	assert.equal(sender.opened, 1);
+	assert.equal(sender.listeners.size, 1);
+	await sender.document.clickButton(/^Send /u);
+	await settle();
+	assert.match(sender.document.statusText(), /already.*confirmation|already.*progress/iu);
+	assert.equal(
+		confirmationButtons(sender, /^Yes, send/u).filter(({ disabled }) => !disabled).length,
+		0,
+		'a running handshake must not install a second enabled confirmation',
+	);
+	assert.equal(sender.opened, 1);
+
+	rejectRuntime(new Error('runtime unavailable'));
+	await settle();
+	await settle();
+	assert.equal(sender.listeners.size, 0, 'runtime setup failure must detach the sender listener');
+	assert.equal(
+		sender.document.body.querySelector('[data-transfer-choice]')?.disabled,
+		false,
+		'runtime setup failure must restore the source selection',
+	);
+	await sender.document.clickButton(/^Send /u);
+	await settle();
+	assert.equal(confirmationButtons(sender, /^Yes, send/u).length, 1, 'the failed run releases single-flight');
+});
+
 /* ------------------------------------------------------------------ */
 /* The receiving page reports what its own transfer actually did.      */
 /* ------------------------------------------------------------------ */
@@ -190,6 +256,28 @@ test('the receiving page reports a finished handshake as finished', async () => 
 	assert.doesNotMatch(receiver.document.summaryText(), /stopped/iu);
 });
 
+test('receiver setup failure detaches the opener listener before reporting the stop', async () => {
+	const opener = new FakeWindow(SOUNDSCAPER);
+	const receiver = new FakeWindow(FRAMESCAPER);
+	receiver.location.pathname = '/transfer/receive/';
+	opener.peer = receiver;
+	receiver.peer = opener;
+	receiver.opener = opener;
+
+	await mountTransferPage({
+		scope: receiver as never,
+		role: 'receive',
+		configuration: { ...CONFIGURATION, selfOrigin: FRAMESCAPER, peerOrigin: SOUNDSCAPER } as never,
+		dependencies: {
+			loadRuntime: async () => { throw new Error('receiver runtime unavailable'); },
+			openStore: async () => assert.fail('a failed runtime load must not open destination storage'),
+		},
+	});
+
+	assert.equal(receiver.listeners.size, 0);
+	assert.match(receiver.document.statusText(), /receiver runtime unavailable/iu);
+});
+
 /* ------------------------------------------------------------------ */
 /* The download transport holds one archive, not a library of them.    */
 /* ------------------------------------------------------------------ */
@@ -219,10 +307,11 @@ test('the download path holds exactly one archive at a time', async () => {
 	await settle();
 	await scope.document.clickButton('Download the ticked archives');
 	await settle();
+	await settle();
 
 	assert.deepEqual(scope.saved, ['One.scape', 'Two.scape', 'Three.scape']);
-	// Nothing has been given a chance to fire: every release below happened
-	// because the next archive was created, not because a timer came due.
+	// Only the zero-delay browser-consumption handoff tasks have fired; the
+	// 60-second final-group backstop has not.
 	assert.equal(
 		scope.blobs.peak,
 		1,
@@ -245,4 +334,8 @@ function runtimeFor(archive: ReturnType<typeof createFakeArchive>): TransferRunt
 		sendTransfer: sendProjectTransfer,
 		receiveTransfer: receiveProjectTransfer,
 	};
+}
+
+function confirmationButtons(scope: FakeWindow, label: RegExp) {
+	return scope.document.body.querySelectorAll('button').filter((button) => label.test(button.textContent));
 }

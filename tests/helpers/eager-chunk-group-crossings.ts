@@ -24,10 +24,12 @@ const REPOSITORY_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-codec-foundations',
+	'editor-copy',
 	'editor-controller-core',
 	'editor-domain',
 	'editor-effect-contracts',
 	'editor-engine',
+	'editor-production-meter',
 	'editor-shell',
 	'editor-shell-design-components',
 	'editor-storage-model',

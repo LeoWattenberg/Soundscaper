@@ -18,6 +18,7 @@ import {
 	type AudioEditorProjectCurrent,
 } from '../src/common/editor/project-current.ts';
 import {
+	admitAudioEditorProjectValidationStructure,
 	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
 	resolveAudioEditorProjectValidationLimits,
 } from '../src/common/editor/project-validation-budget.ts';
@@ -259,6 +260,107 @@ test('current validation admits inert structure before semantic traversal', () =
 	const executable = mutableClone(createCurrentAudioEditorProject({ id: 'executable', now: NOW }));
 	record(record(executable.view, 'view').panelState, 'view.panelState').callback = () => undefined;
 	assert.throws(() => validateCurrentAudioEditorProject(executable), /JSON-serializable scalar/iu);
+});
+
+test('structural admission rejects forged binary intrinsic brands', () => {
+	for (const [name, value] of [
+		['Uint8Array', Object.create(Uint8Array.prototype)],
+		['ArrayBuffer', Object.create(ArrayBuffer.prototype)],
+	] as const) {
+		assert.throws(
+			() => admitAudioEditorProjectValidationStructure(
+				{ opaque: value },
+				AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+			),
+			/invalid.*binary|binary.*invalid|supported binary/iu,
+			`${name} prototype impostor must not pass structural admission`,
+		);
+	}
+});
+
+test('structural admission requires ordinary closed binary authority', () => {
+	assert.doesNotThrow(() => admitAudioEditorProjectValidationStructure(
+		{ bytes: new Uint8Array([1, 2]), buffer: new ArrayBuffer(2) },
+		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+	));
+
+	const customUint8Array = new Uint8Array(1);
+	Object.setPrototypeOf(customUint8Array, Object.create(Uint8Array.prototype));
+	const customArrayBuffer = new ArrayBuffer(1);
+	Object.setPrototypeOf(customArrayBuffer, Object.create(ArrayBuffer.prototype));
+	for (const value of [customUint8Array, customArrayBuffer]) {
+		assert.throws(
+			() => admitAudioEditorProjectValidationStructure(
+				{ opaque: value },
+				AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+			),
+			/ordinary.*binary prototype|custom prototype/iu,
+		);
+	}
+	assert.throws(
+		() => admitAudioEditorProjectValidationStructure(
+			{ opaque: new Uint8Array(new SharedArrayBuffer(1)) },
+			AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+		),
+		/ordinary ArrayBuffer/iu,
+	);
+
+	const authoredBytes = new Uint8Array([1]);
+	Object.defineProperty(authoredBytes, 'authored', {
+		value: true,
+		enumerable: true,
+		configurable: true,
+		writable: true,
+	});
+	const authoredBuffer = new ArrayBuffer(1);
+	Object.defineProperty(authoredBuffer, 'authored', {
+		value: true,
+		enumerable: true,
+		configurable: true,
+		writable: true,
+	});
+	for (const value of [authoredBytes, authoredBuffer]) {
+		assert.throws(
+			() => admitAudioEditorProjectValidationStructure(
+				{ opaque: value },
+				AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+			),
+			/binary.*extra propert/iu,
+		);
+	}
+});
+
+test('structural admission rejects detached and out-of-bounds binary authority', () => {
+	const detachedBuffer = new ArrayBuffer(1);
+	structuredClone(detachedBuffer, { transfer: [detachedBuffer] });
+
+	const detachedBacking = new ArrayBuffer(1);
+	const detachedView = new Uint8Array(detachedBacking);
+	structuredClone(detachedBacking, { transfer: [detachedBacking] });
+
+	const ResizableArrayBuffer = ArrayBuffer as unknown as new(
+		byteLength: number,
+		options: Readonly<{ maxByteLength: number }>,
+	) => ArrayBuffer & { resize(byteLength: number): void };
+	const resizable = new ResizableArrayBuffer(4, { maxByteLength: 8 });
+	const outOfBounds = new Uint8Array(resizable, 2, 2);
+	resizable.resize(1);
+
+	for (const [name, value] of [
+		['detached ArrayBuffer', detachedBuffer],
+		['detached Uint8Array', detachedView],
+		['out-of-bounds Uint8Array', outOfBounds],
+	] as const) {
+		assert.throws(
+			() => admitAudioEditorProjectValidationStructure(
+				{ opaque: value },
+				AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
+			),
+			(error: unknown) => error instanceof TypeError
+				&& /binary.*detached or out of bounds/iu.test(error.message),
+			`${name} must fail structural admission`,
+		);
+	}
 });
 
 test('the neutral hierarchy validator closure excludes retired and executable runtimes', () => {
