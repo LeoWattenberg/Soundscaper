@@ -72,6 +72,7 @@ Product availability follows each product profile’s command filters. “—”
 | Delete and close gap per track | `delete-per-track-ripple` | Backspace | Edit > Delete | Soundscaper, Framescaper | Audacity |
 | Delete and leave gap | `delete-leave-gap` | Delete | Edit > Delete | Soundscaper, Framescaper | Audacity |
 | Delete preset | `action://effects/presets/delete` | — | Effect dialog > Presets | Soundscaper | Audacity |
+| Diagnostics | `menu-diagnostics` | — | Help | Soundscaper, Framescaper | Audacity |
 | Duplicate | `duplicate` | Ctrl+D | Edit | Soundscaper, Framescaper | Audacity |
 | Duplicate track | `duplicate-track` | — | Tracks; Track context | Soundscaper, Framescaper | Audacity |
 | Effects | `toggle-effects` | — | View | Soundscaper, Framescaper | Audacity |
