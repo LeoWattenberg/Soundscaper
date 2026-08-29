@@ -90,7 +90,7 @@ export class SourceWriteLifecycleCoordinator {
 				},
 				abort: abortWriter,
 			};
-			return Object.freeze(managed);
+			return managed;
 		}, (error: unknown) => {
 			settleBegin(null);
 			release();
