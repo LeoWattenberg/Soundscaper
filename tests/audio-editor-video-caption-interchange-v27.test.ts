@@ -395,6 +395,41 @@ test('text sidecars reject active cue markup outside the passive maintained subs
 	);
 });
 
+test('WebVTT keeps an ampersand that an entity scan could mistake for a reference', () => {
+	// Escaping turns `AT&T` into `AT&amp;T`, and once decoded that ampersand is
+	// indistinguishable from the start of an entity, so scanning the decoded text
+	// rejected the exporter's own output and every conforming sidecar naming a
+	// brand like M&Ms.
+	const source = captionTrack({
+		styles: [], regions: [], speakers: [],
+		cues: [{
+			schemaVersion: 1,
+			id: 'cue-brand',
+			startFrame: 48_000,
+			endFrame: 96_000,
+			text: 'AT&T, M&Ms and R&B',
+			styleId: null,
+			regionId: null,
+			speakerId: null,
+			words: [],
+		}],
+	});
+	const exported = exportVideoCaptionTrackV1(source, { format: 'webvtt', sampleRate: 48_000 });
+	assert.match(exported.text, /AT&amp;T, M&amp;Ms and R&amp;B/u);
+	const imported = importVideoCaptionTrackV1(exported.text, {
+		format: 'webvtt', sampleRate: 48_000, ...IMPORT_IDENTITY,
+	});
+	assert.equal(imported.track.cues[0]?.text, 'AT&T, M&Ms and R&B');
+
+	// An entity the passive subset does not carry is still refused.
+	assertInterchangeError(
+		() => importVideoCaptionTrackV1('WEBVTT\n\ncue\n00:00:00.000 --> 00:00:01.000\nhard&nbsp;space\n', {
+			format: 'webvtt', sampleRate: 48_000, ...IMPORT_IDENTITY,
+		}),
+		'ACTIVE_CONTENT',
+	);
+});
+
 test('interchange hard-bounds UTF-8 bytes, XML elements/depth, and cue counts', () => {
 	const oneCue = minimalImsc('<p xml:id="cue-1" begin="0t" end="1t">é</p>', 48_000);
 	const bytes = new TextEncoder().encode(oneCue).byteLength;

@@ -461,12 +461,18 @@ function escapePassiveText(value: string): string {
 function decodePassiveText(value: string): string {
 	if (/[<>]/u.test(value)) throw interchangeError('Caption cue markup is outside the passive maintained subset.', 'ACTIVE_CONTENT');
 	let invalid = false;
-	const decoded = value.replace(/&(?:#(\d+)|#x([a-f0-9]+)|(amp|lt|gt|quot|apos));/giu, (_entity, decimal: string, hexadecimal: string, named: string) => {
-		if (decimal) return passiveCodePoint(decimal, 10);
-		if (hexadecimal) return passiveCodePoint(hexadecimal, 16);
-		return PASSIVE_ENTITIES[named.toLowerCase()] ?? '';
+	// Every entity-shaped run has to be classified while it is still in the
+	// source. Once decoding has run, an ampersand it produced is indistinguishable
+	// from one that opens an entity: escaping `AT&T` gives `AT&amp;T`, so scanning
+	// the decoded text refused this exporter's own output.
+	const decoded = value.replace(/&(#x?[\da-z]*|[a-z][\da-z]*);/giu, (_entity, body: string) => {
+		const reference = body.toLowerCase();
+		if (reference.startsWith('#x')) return passiveCodePoint(reference.slice(2), 16);
+		if (reference.startsWith('#')) return passiveCodePoint(reference.slice(1), 10);
+		const replacement = PASSIVE_ENTITIES[reference];
+		if (replacement === undefined) invalid = true;
+		return replacement ?? '';
 	});
-	if (/&(?:#|[A-Za-z])/u.test(decoded)) invalid = true;
 	if (invalid) throw interchangeError('Caption cue contains an unsupported entity.', 'ACTIVE_CONTENT');
 	return decoded;
 }
