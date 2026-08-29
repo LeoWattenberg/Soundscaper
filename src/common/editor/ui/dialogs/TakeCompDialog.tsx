@@ -60,9 +60,11 @@ export default function TakeCompDialog({
 	run,
 	onClose,
 }: TakeCompDialogProps) {
+	const projectId = projectIdOf(snapshot.project);
 	const firstModel = useMemo(() => createTakeCompDialogModel({
 		productId, project: snapshot.project, snapshot,
 	}), [productId, snapshot]);
+	const initialGroupId = firstModel.selectedGroup?.id ?? null;
 	const [groupId, setGroupId] = useState<string | null>(firstModel.selectedGroup?.id ?? null);
 	const model = useMemo(() => createTakeCompDialogModel({
 		productId, project: snapshot.project, snapshot, selectedGroupId: groupId,
@@ -78,12 +80,26 @@ export default function TakeCompDialog({
 	const [pending, setPending] = useState<string | null>(null);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
+	const activeOperationRef = useRef<symbol | null>(null);
+	const draftedProjectId = useRef(projectId);
 
 	useEffect(() => {
 		if (groupId && model.groups.some(({ id }) => id === groupId)) return;
 		setGroupId(model.groups[0]?.id ?? null);
 	}, [groupId, model.groups]);
-	const draftIdentity = takeCompDialogDraftIdentity(group);
+	useEffect(() => {
+		if (draftedProjectId.current === projectId) return;
+		draftedProjectId.current = projectId;
+		setGroupId(initialGroupId);
+	}, [initialGroupId, projectId]);
+	useEffect(() => {
+		activeOperationRef.current = null;
+		setPending(null);
+		setStatus('');
+		setError('');
+		return () => { activeOperationRef.current = null; };
+	}, [group?.id, projectId]);
+	const draftIdentity = JSON.stringify([projectId, takeCompDialogDraftIdentity(group)]);
 	const draftedIdentity = useRef(draftIdentity);
 	useEffect(() => {
 		if (draftedIdentity.current === draftIdentity) return;
@@ -110,15 +126,26 @@ export default function TakeCompDialog({
 			: model.blockReason === 'busy' ? copy.takeCompBusy : '';
 
 	const perform = (name: string, operation: () => unknown, success = copy.takeCompOperationComplete): void => {
+		if (activeOperationRef.current !== null) return;
+		const operationId = Symbol(name);
+		activeOperationRef.current = operationId;
 		setPending(name);
 		setError('');
 		void Promise.resolve()
 			.then(() => run(operation))
-			.then(() => { setStatus(success); })
+			.then(() => {
+				if (activeOperationRef.current !== operationId) return;
+				setStatus(success);
+			})
 			.catch((operationError: unknown) => {
+				if (activeOperationRef.current !== operationId) return;
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
 			})
-			.finally(() => { setPending(null); });
+			.finally(() => {
+				if (activeOperationRef.current !== operationId) return;
+				activeOperationRef.current = null;
+				setPending(null);
+			});
 	};
 	const close = (): void => {
 		run(() => controller.actions.takeComp.stopAudition());
@@ -379,4 +406,10 @@ function sharedBoundaryKey(leftRegionId: string, rightRegionId: string): string 
 
 function formatExtent(copy: Readonly<Record<string, string>>, start: number, end: number): string {
 	return formatLocalizedTemplate(copy.takeCompExtent, { start, end });
+}
+
+function projectIdOf(value: unknown): string | null {
+	if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+	const id = (value as Readonly<Record<string, unknown>>).id;
+	return typeof id === 'string' ? id : null;
 }
