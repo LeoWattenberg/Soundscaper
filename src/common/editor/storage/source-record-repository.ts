@@ -21,6 +21,13 @@ export interface SourceChunkRecord extends Record<string, unknown> {
 	readonly index: number;
 }
 
+export type DerivedSourcePublicationResult = 'published' | 'base-changed' | 'target-exists';
+
+export type SourceMetadataDeletionResult =
+	| { readonly status: 'missing' }
+	| { readonly status: 'retained'; readonly dependentSourceId: string }
+	| { readonly status: 'deleted'; readonly record: StorageRecord };
+
 /** Metadata and chunk records for immutable PCM sources. */
 export class SourceRecordRepository {
 	readonly #port: StorageRepositoryPort;
@@ -64,6 +71,60 @@ export class SourceRecordRepository {
 			if (await request(sources.get(record.id as string)) !== undefined) return false;
 			sources.put(record);
 			return true;
+		});
+	}
+
+	async putDerivedMetadataIfBaseCurrent(
+		record: StorageRecord,
+		expectedBase: StorageRecord,
+	): Promise<DerivedSourcePublicationResult> {
+		if (!record.id || !expectedBase.id || record.baseSourceId !== expectedBase.id) {
+			throw new TypeError('Derived source metadata requires its expected base source identity.');
+		}
+		const database = await this.#port.database();
+		if (!database) {
+			const target = this.#port.memory.sources.get(record.id) as StorageRecord | undefined;
+			if (target) return 'target-exists';
+			const base = this.#port.memory.sources.get(expectedBase.id) as StorageRecord | undefined;
+			if (!sameStoredSourceIdentity(base, expectedBase)) return 'base-changed';
+			this.#port.memory.sources.set(record.id, clone(record));
+			return 'published';
+		}
+		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
+			const [target, base] = await Promise.all([
+				request(sources.get(record.id as string)),
+				request(sources.get(expectedBase.id as string)),
+			]);
+			if (target !== undefined) return 'target-exists';
+			if (!sameStoredSourceIdentity(base as StorageRecord | undefined, expectedBase)) return 'base-changed';
+			sources.put(record);
+			return 'published';
+		});
+	}
+
+	async deleteMetadataIfUnreferenced(sourceId: string): Promise<SourceMetadataDeletionResult> {
+		const database = await this.#port.database();
+		if (!database) {
+			const current = this.#port.memory.sources.get(sourceId) as StorageRecord | undefined;
+			if (!current) return { status: 'missing' };
+			const dependent = [...this.#port.memory.sources.values()]
+				.map((value) => value as StorageRecord)
+				.find((candidate) => candidate.baseSourceId === sourceId);
+			if (dependent) {
+				return { status: 'retained', dependentSourceId: String(dependent.id) };
+			}
+			this.#port.memory.sources.delete(sourceId);
+			return { status: 'deleted', record: clone(current) };
+		}
+		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
+			const [current, dependentSourceId] = await Promise.all([
+				request(sources.get(sourceId)),
+				findDependentSourceId(sources, sourceId),
+			]);
+			if (current === undefined) return { status: 'missing' };
+			if (dependentSourceId !== null) return { status: 'retained', dependentSourceId };
+			sources.delete(sourceId);
+			return { status: 'deleted', record: clone(current as StorageRecord) };
 		});
 	}
 
@@ -229,6 +290,23 @@ function deleteChunkTail(index: IDBIndex, token: string, firstIndex: number): Pr
 			if (!cursor) { resolve(); return; }
 			const record = asChunk(cursor.value);
 			if (record && record.index >= firstIndex) cursor.delete();
+			cursor.continue();
+		};
+	});
+}
+
+function findDependentSourceId(sources: IDBObjectStore, baseSourceId: string): Promise<string | null> {
+	return new Promise((resolve, reject) => {
+		const cursorRequest = sources.openCursor();
+		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate source metadata.'));
+		cursorRequest.onsuccess = () => {
+			const cursor = cursorRequest.result;
+			if (!cursor) { resolve(null); return; }
+			const candidate = cursor.value as StorageRecord;
+			if (candidate.baseSourceId === baseSourceId) {
+				resolve(String(candidate.id ?? cursor.primaryKey));
+				return;
+			}
 			cursor.continue();
 		};
 	});

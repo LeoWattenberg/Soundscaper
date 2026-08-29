@@ -438,9 +438,14 @@ export class SourceWriteRepository {
 		};
 		let definitelyRefused = false;
 		try {
-			if (!await this.#options.records.putMetadataIfAbsent(record)) {
+			const publication = await this.#options.records.putDerivedMetadataIfBaseCurrent(record, base);
+			if (publication === 'target-exists') {
 				definitelyRefused = true;
 				throw new Error(`Immutable source ${sourceId} already exists and cannot be overwritten.`);
+			}
+			if (publication === 'base-changed') {
+				definitelyRefused = true;
+				throw new Error('The immutable base source changed or could not be found before derived source publication.');
 			}
 		} catch (error) {
 			try {

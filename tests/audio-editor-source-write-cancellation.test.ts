@@ -7,6 +7,7 @@ import {
 	sameStoredSourceIdentity,
 	type StorageRecord,
 } from '../src/common/editor/storage/media-records.ts';
+import { SourceRepository } from '../src/common/editor/storage/source-repository.ts';
 import { SourceWriteRepository } from '../src/common/editor/storage/source-write-repository.ts';
 
 interface FixtureHooks {
@@ -262,6 +263,38 @@ test('concurrent derived-source publication keeps one immutable winner and delet
 	assert.deepEqual(fixture.chunkTokens(), [String(winner.sourceToken)]);
 });
 
+test('base deletion fences a derived source whose replacement payload is still staging', async () => {
+	const enteredChunkWrite = deferred<void>();
+	const releaseChunkWrite = deferred<void>();
+	const fixture = sourceWriterFixture({
+		onWriteChunk: async () => {
+			enteredChunkWrite.resolve();
+			await releaseChunkWrite.promise;
+		},
+	});
+	fixture.seedBase();
+	const sources = new SourceRepository({
+		records: fixture.records as never,
+		writer: fixture.repository,
+		reader: {} as never,
+		media: { deleteAsset: async () => undefined } as never,
+		analysis: { delete: async () => undefined } as never,
+		opfs: {} as never,
+		pcm: {} as never,
+	});
+	const publishing = sources.writeDerived('derived-source', 'base-source', [{
+		index: 0,
+		channels: [Float32Array.of(0.4, -0.4)],
+	}]);
+	await enteredChunkWrite.promise;
+	await sources.delete('base-source');
+	releaseChunkWrite.resolve();
+
+	await assert.rejects(publishing, /base source.*changed|could not be found/iu);
+	assert.equal(fixture.metadata.has('derived-source'), false);
+	assert.deepEqual(fixture.chunkTokens(), []);
+});
+
 function sourceWriterFixture(hooks: FixtureHooks) {
 	const metadata = new Map<string, StorageRecord>();
 	const chunks = new Map<string, Record<string, unknown>>();
@@ -292,6 +325,24 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 			await hooks.onPutMetadata?.(record);
 			return true;
 		},
+		async putDerivedMetadataIfBaseCurrent(record: StorageRecord, expectedBase: StorageRecord) {
+			const currentBase = metadata.get(String(expectedBase.id));
+			if (!sameStoredSourceIdentity(currentBase, expectedBase)) return 'base-changed' as const;
+			if (metadata.has(String(record.id))) return 'target-exists' as const;
+			metadata.set(String(record.id), structuredClone(record));
+			await hooks.onPutMetadata?.(record);
+			return 'published' as const;
+		},
+		async deleteMetadataIfUnreferenced(sourceId: string) {
+			const current = metadata.get(sourceId);
+			if (!current) return { status: 'missing' } as const;
+			const dependent = [...metadata.values()].find((candidate) => candidate.baseSourceId === sourceId);
+			if (dependent) {
+				return { status: 'retained', dependentSourceId: String(dependent.id) } as const;
+			}
+			metadata.delete(sourceId);
+			return { status: 'deleted', record: structuredClone(current) } as const;
+		},
 		async deleteMetadata(sourceId: string) { metadata.delete(sourceId); },
 		async deleteMetadataIfCurrent(expected: StorageRecord) {
 			const current = metadata.get(String(expected.id));
@@ -314,6 +365,7 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 				if (record.sourceToken === token) chunks.delete(key);
 			}
 		},
+		async list() { return [...metadata.values()].map((record) => structuredClone(record)); },
 	};
 	const repository = new SourceWriteRepository({
 		records: records as never,
@@ -329,6 +381,7 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 		chunkTokens: () => [...new Set([...chunks.values()].map((record) => String(record.sourceToken)))].sort(),
 		metadata,
 		previous,
+		records,
 		repository,
 		seedPrevious() {
 			metadata.set('source-a', structuredClone(previous));

@@ -40,6 +40,56 @@ test('source metadata put-if-absent and delete-if-current are atomic in every ba
 	}
 });
 
+test('derived publication and base deletion are atomic in every backend', async (context) => {
+	for (const backend of ['memory', 'indexeddb'] as const) {
+		await context.test(backend, async (nested) => {
+			const databaseName = `source-dependency-ownership-${backend}-${Date.now()}-${Math.random()}`;
+			const database = backend === 'indexeddb'
+				? await openDatabase(createInstrumentedIndexedDB() as unknown as IDBFactory, databaseName)
+				: null;
+			nested.after(() => { database?.close(); });
+			const records = new SourceRecordRepository({
+				memory: getMemoryDatabase(databaseName),
+				database: async () => database,
+			});
+			const base: StorageRecord = {
+				id: 'base-first', storage: 'indexeddb-chunks', sourceToken: 'base-first-token',
+			};
+			const derived: StorageRecord = {
+				id: 'derived-first', storage: 'copy-on-write', sourceToken: 'derived-first-token',
+				baseSourceId: 'base-first',
+			};
+
+			await records.putMetadata(base);
+			assert.equal(await records.putDerivedMetadataIfBaseCurrent(derived, base), 'published');
+			assert.deepEqual(await records.deleteMetadataIfUnreferenced('base-first'), {
+				status: 'retained',
+				dependentSourceId: 'derived-first',
+			});
+			assert.deepEqual(await records.getMetadata('base-first'), base);
+
+			const deletedDerived = await records.deleteMetadataIfUnreferenced('derived-first');
+			assert.equal(deletedDerived.status, 'deleted');
+			const deletedBase = await records.deleteMetadataIfUnreferenced('base-first');
+			assert.equal(deletedBase.status, 'deleted');
+
+			const deletedBeforePublication: StorageRecord = {
+				id: 'deleted-first', storage: 'indexeddb-chunks', sourceToken: 'deleted-first-token',
+			};
+			await records.putMetadata(deletedBeforePublication);
+			assert.equal(
+				(await records.deleteMetadataIfUnreferenced('deleted-first')).status,
+				'deleted',
+			);
+			assert.equal(await records.putDerivedMetadataIfBaseCurrent({
+				id: 'orphan-refused', storage: 'copy-on-write', sourceToken: 'orphan-token',
+				baseSourceId: 'deleted-first',
+			}, deletedBeforePublication), 'base-changed');
+			assert.equal(await records.getMetadata('orphan-refused'), null);
+		});
+	}
+});
+
 test('discard-if-current deletes only the exact owned OPFS path payload', async () => {
 	const databaseName = `source-path-ownership-${Date.now()}-${Math.random()}`;
 	const records = new SourceRecordRepository({

@@ -105,13 +105,11 @@ export class SourceRepository {
 	}
 
 	async delete(sourceId: string): Promise<void> {
-		const source = await this.#options.records.getMetadata(sourceId);
-		if (source) {
-			const dependent = (await this.list()).find((candidate) => candidate.baseSourceId === sourceId);
-			if (dependent) throw new Error(`Source ${sourceId} is retained by derived source ${String(dependent.id)}.`);
-			await this.#options.records.deleteMetadata(sourceId);
-			await this.deleteStored(source);
+		const deletion = await this.#options.records.deleteMetadataIfUnreferenced(sourceId);
+		if (deletion.status === 'retained') {
+			throw new Error(`Source ${sourceId} is retained by derived source ${deletion.dependentSourceId}.`);
 		}
+		if (deletion.status === 'deleted') await this.deleteStored(deletion.record);
 		await this.#options.media.deleteAsset(sourceId);
 		// Cache payloads are disposable. Their cleanup can be retried and must
 		// never change the already-committed authoritative source deletion.
