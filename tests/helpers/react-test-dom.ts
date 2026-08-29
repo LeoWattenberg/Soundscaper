@@ -121,6 +121,9 @@ export class ReactTestElement extends ReactTestNode {
 	get options(): ReactTestElement[] {
 		return descendants(this).filter((node) => node.tagName === 'OPTION');
 	}
+	querySelector(selector: string): ReactTestElement | null {
+		return descendants(this).find((node) => matches(node, selector)) ?? null;
+	}
 	setAttribute(name: string, value: string): void {
 		this.attributes.set(name, String(value));
 		if (name === 'value') this.value = String(value);
@@ -172,6 +175,9 @@ function descendants(root: ReactTestNode): ReactTestElement[] {
 
 function matches(node: ReactTestElement, selector: string): boolean {
 	const attribute = /^\[([^=]+)="([^"]*)"\]$/u.exec(selector);
-	return attribute ? node.getAttribute(attribute[1]!) === attribute[2]!
-		: node.tagName.toLowerCase() === selector.toLowerCase();
+	if (attribute) return node.getAttribute(attribute[1]!) === attribute[2]!;
+	if (selector.startsWith('.')) {
+		return (node.getAttribute('class') ?? '').split(/\s+/u).includes(selector.slice(1));
+	}
+	return node.tagName.toLowerCase() === selector.toLowerCase();
 }

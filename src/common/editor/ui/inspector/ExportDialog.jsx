@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { ProgressBar } from '@soundscaper/design-system/ProgressBar';
@@ -11,12 +11,13 @@ import BextMetadataFields from '../BextMetadataFields.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import MetadataEditorTabs from '../MetadataEditorTabs.tsx';
 import VideoDeliveryFields from '../VideoDeliveryFields.jsx';
-import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import {
 	dialogSettingsFromDeliveryTarget, dialogSettingsFromPreset, presetFormatFromDialog,
 	presetSettingsFromDialog, statedVideoCanvas, statedVideoDeliveryTarget,
 } from '../export-preset-model.ts';
-import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
+import {
+	createExportDialogInitialSettings, exportDialogProjectIdentity,
+} from '../export-dialog-initial-settings.ts';
 import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
 	createExportDialogRequest,
@@ -49,48 +50,9 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const exportProgress = useAudioEditorTelemetrySelector(controller, (telemetry) => telemetry.exportProgress);
 	const [metadataOpen, setMetadataOpen] = useState(false);
 	const [metadataTab, setMetadataTab] = useState('general');
-	const [settings, setSettings] = useState({
-		mode: 'mix',
-		range: 'project',
-		format: 'wav',
-		sampleFormat: 'int24',
-		bitRate: '192',
-		compressionLevel: '5',
-		sampleRate: String(snapshot.project?.sampleRate || 48_000),
-		channelMapping: 'preserve',
-		channelMatrix: '',
-		dither: 'triangular',
-		loudnessNormalization: '',
-		quality: '5',
-		metadataTitle: snapshot.project?.metadata?.title || snapshot.project?.title || '',
-		metadataArtist: snapshot.project?.metadata?.artist || '',
-		metadataAlbum: snapshot.project?.metadata?.album || '',
-		metadataTrack: snapshot.project?.metadata?.trackNumber || '',
-		metadataYear: snapshot.project?.metadata?.year || '',
-		metadataGenre: snapshot.project?.metadata?.genre || '',
-		metadataComments: snapshot.project?.metadata?.comments || '',
-		metadataCopyright: snapshot.project?.metadata?.copyright || '',
-		metadataCustom: JSON.stringify(snapshot.project?.metadata?.tags || {}, null, 2),
-		bext: createBextMetadataEditorValue(snapshot.project),
-		adm: createProjectAdmEditorValue(snapshot.project),
-		customExtension: '',
-		customMimeType: 'application/octet-stream',
-		customArguments: '',
-		includeTail: true,
-		binaural: false,
-		masteringSequenceId: '',
-		canvasWidth: '',
-		canvasHeight: '',
-		canvasFit: 'contain',
-		canvasFrameRate: '',
-		canvasBackgroundColor: '',
-		videoQuality: 'balanced',
-		videoAudioLayout: 'preserve',
-		captionTrackId: '',
-		captionDelivery: 'mux',
-		captionBurnIn: false,
-		deliveryTarget: '',
-	});
+	const projectIdentity = exportDialogProjectIdentity(snapshot.project);
+	const settingsProjectIdentity = useRef(projectIdentity);
+	const [settings, setSettings] = useState(() => createExportDialogInitialSettings(snapshot.project));
 	const [error, setError] = useState('');
 	const [presetId, setPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
@@ -184,6 +146,15 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			? { ...current, range: 'project', masteringSequenceId: value.slice('mastering-sequence:'.length) }
 			: { ...current, range: value, masteringSequenceId: '' }
 	));
+
+	useEffect(() => {
+		if (settingsProjectIdentity.current === projectIdentity) return;
+		settingsProjectIdentity.current = projectIdentity;
+		setSettings(createExportDialogInitialSettings(snapshot.project));
+		setError('');
+		setPresetId('');
+		setPresetName('');
+	}, [projectIdentity, snapshot.project]);
 
 	useEffect(() => {
 		if (!isOpen || !desktopCodecQuery) { setDesktopCodecStatus(null); return undefined; }
