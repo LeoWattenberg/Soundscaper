@@ -9,7 +9,22 @@ import {
 	type EffectPresetCollection,
 } from '../src/common/editor/controller/effect-controls-service.ts';
 
-function createHarness() {
+interface HarnessOptions {
+	readonly createId?: (prefix: string) => string;
+	readonly persistSetting?: (
+		key: string,
+		value: EffectPresetCollection,
+		options: Readonly<{ policy: 'required' }>,
+	) => Promise<unknown> | unknown;
+}
+
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
+function createHarness(options: HarnessOptions = {}) {
 	const configured: unknown[] = [];
 	const persistence: Array<readonly [string, EffectPresetCollection, string]> = [];
 	const statuses: string[] = [];
@@ -47,7 +62,7 @@ function createHarness() {
 			ready: 'Ready',
 			selectionEffectUnsupported: 'Unsupported effect',
 		},
-		createId: () => 'preset-1',
+		createId: options.createId ?? (() => 'preset-1'),
 		getProject: () => ({
 			id: 'project-a',
 			tracks: [{
@@ -55,8 +70,9 @@ function createHarness() {
 			}],
 			master: { effects: [] },
 		}),
-		persistSetting: async (key, value, options) => {
-			persistence.push([key, value, options.policy]);
+		persistSetting: async (key, value, persistenceOptions) => {
+			persistence.push([key, value, persistenceOptions.policy]);
+			if (options.persistSetting) return options.persistSetting(key, value, persistenceOptions);
 			return value;
 		},
 		publishDocumentSnapshot: () => { publications += 1; },
@@ -167,6 +183,60 @@ test('preset import, export, and deletion round-trip through required storage', 
 	assert.equal(imported.length, 1);
 	assert.equal(imported[0]?.id, 'preset-1');
 	assert.equal(harness.persistence.length, 3);
+});
+
+test('a rejected required preset write leaves state unchanged without poisoning later mutations', async () => {
+	const failure = new Error('settings unavailable');
+	let shouldFail = true;
+	const harness = createHarness({
+		persistSetting: async () => {
+			if (shouldFail) {
+				shouldFail = false;
+				throw failure;
+			}
+		},
+	});
+	const before = harness.state.effectPresets;
+
+	await assert.rejects(
+		() => harness.service.saveEffectPreset({ name: 'Must persist', now: '2025-01-01T00:00:00Z' }),
+		(error: unknown) => error === failure,
+	);
+
+	assert.strictEqual(harness.state.effectPresets, before);
+	assert.equal(harness.publications, 0);
+
+	await harness.service.saveEffectPreset({ name: 'Retry', now: '2025-01-02T00:00:00Z' });
+	assert.deepEqual(harness.state.effectPresets.presets.map(({ name }) => name), ['Retry']);
+	assert.equal(harness.publications, 1);
+});
+
+test('overlapping preset saves serialize required writes and retain both durable changes', async () => {
+	const firstWrite = deferred();
+	let writeCount = 0;
+	const durable: EffectPresetCollection[] = [];
+	let nextId = 0;
+	const harness = createHarness({
+		createId: () => `preset-${++nextId}`,
+		persistSetting: async (_key, value) => {
+			writeCount += 1;
+			if (writeCount === 1) await firstWrite.promise;
+			durable[0] = value;
+		},
+	});
+
+	const first = harness.service.saveEffectPreset({ name: 'First', now: '2025-01-01T00:00:00Z' });
+	await Promise.resolve();
+	const second = harness.service.saveEffectPreset({ name: 'Second', now: '2025-01-02T00:00:00Z' });
+	await Promise.resolve();
+	const writesBeforeRelease = writeCount;
+	firstWrite.resolve();
+	await Promise.all([first, second]);
+
+	assert.equal(writesBeforeRelease, 1, 'the second mutation waits for the first required write');
+	assert.deepEqual(harness.state.effectPresets.presets.map(({ name }) => name), ['First', 'Second']);
+	assert.deepEqual(durable[0]?.presets.map(({ name }) => name), ['First', 'Second']);
+	assert.equal(harness.publications, 2);
 });
 
 test('invalid controller targets fail synchronously and silent preview cancellation can skip publication', async () => {

@@ -119,6 +119,14 @@ export interface EffectControlsServiceRuntime {
 }
 
 export function createEffectControlsService(runtime: EffectControlsServiceRuntime) {
+	let presetMutationTail: Promise<void> = Promise.resolve();
+
+	function enqueuePresetMutation<Result>(operation: () => Promise<Result>): Promise<Result> {
+		const result = presetMutationTail.then(operation);
+		presetMutationTail = result.then(() => undefined, () => undefined);
+		return result;
+	}
+
 	function currentAudacityEffectParams(type = runtime.state.audacityEffectType): EffectControlParameters {
 		if (!runtime.state.audacityEffectParams[type]) {
 			runtime.state.audacityEffectParams[type] = audioSelectionEffectDefaults(type) as EffectControlParameters;
@@ -193,12 +201,16 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		return resolved;
 	}
 
-	async function persistEffectPresets(next: unknown): Promise<EffectPresetCollection> {
+	async function commitEffectPresets(next: unknown): Promise<EffectPresetCollection> {
 		const normalized = (createAudioEditorEffectPresets as (value: unknown) => unknown)(next) as EffectPresetCollection;
-		runtime.state.effectPresets = normalized;
 		await runtime.persistSetting('audio-editor-effect-presets-v1', normalized, { policy: 'required' });
+		runtime.state.effectPresets = normalized;
 		runtime.publishDocumentSnapshot();
 		return normalized;
+	}
+
+	function persistEffectPresets(next: unknown): Promise<EffectPresetCollection> {
+		return enqueuePresetMutation(() => commitEffectPresets(next));
 	}
 
 	function applyEffectPreset(presetId: string): EffectPreset {
@@ -210,36 +222,43 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		return preset;
 	}
 
-	async function saveEffectPreset(options: string | EffectPresetSaveOptions = {}): Promise<EffectPreset> {
+	function saveEffectPreset(options: string | EffectPresetSaveOptions = {}): Promise<EffectPreset> {
 		const request: EffectPresetSaveOptions = typeof options === 'string' ? { name: options } : options;
 		const effectType = request.effectType || runtime.state.audacityEffectType;
-		const result = saveAudioEditorEffectPreset(runtime.state.effectPresets, {
-			...request,
-			effectType,
-			params: request.params || currentAudacityEffectParams(effectType),
-			idFactory: () => runtime.createId('preset'),
-		}) as Readonly<{ state: EffectPresetCollection; preset: EffectPreset }>;
-		await persistEffectPresets(result.state);
-		return result.preset;
-	}
-
-	async function deleteEffectPreset(presetId: string): Promise<true> {
-		await persistEffectPresets(deleteAudioEditorEffectPreset(runtime.state.effectPresets, presetId));
-		return true;
-	}
-
-	async function importEffectPresets(input: unknown): Promise<readonly EffectPreset[]> {
-		const next = importAudioEditorEffectPresets(runtime.state.effectPresets, input, {
-			idFactory: () => runtime.createId('preset'),
+		const params = request.params || currentAudacityEffectParams(effectType);
+		return enqueuePresetMutation(async () => {
+			const result = saveAudioEditorEffectPreset(runtime.state.effectPresets, {
+				...request,
+				effectType,
+				params,
+				idFactory: () => runtime.createId('preset'),
+			}) as Readonly<{ state: EffectPresetCollection; preset: EffectPreset }>;
+			await commitEffectPresets(result.state);
+			return result.preset;
 		});
-		await persistEffectPresets(next);
-		return (listAudioEditorEffectPresets as (
-			state: EffectPresetCollection,
-			effectType: string | null,
-		) => unknown)(
-			runtime.state.effectPresets,
-			runtime.state.audacityEffectType,
-		) as readonly EffectPreset[];
+	}
+
+	function deleteEffectPreset(presetId: string): Promise<true> {
+		return enqueuePresetMutation(async () => {
+			await commitEffectPresets(deleteAudioEditorEffectPreset(runtime.state.effectPresets, presetId));
+			return true as const;
+		});
+	}
+
+	function importEffectPresets(input: unknown): Promise<readonly EffectPreset[]> {
+		return enqueuePresetMutation(async () => {
+			const next = importAudioEditorEffectPresets(runtime.state.effectPresets, input, {
+				idFactory: () => runtime.createId('preset'),
+			});
+			await commitEffectPresets(next);
+			return (listAudioEditorEffectPresets as (
+				state: EffectPresetCollection,
+				effectType: string | null,
+			) => unknown)(
+				runtime.state.effectPresets,
+				runtime.state.audacityEffectType,
+			) as readonly EffectPreset[];
+		});
 	}
 
 	function exportEffectPreset(presetId: string): string {

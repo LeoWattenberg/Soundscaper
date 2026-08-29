@@ -43,11 +43,18 @@ export interface DeliveryPresetServiceRuntime {
 export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntime) {
 	if (!runtime?.state) throw new TypeError('A delivery preset service requires controller state.');
 	const idFactory = () => runtime.createId?.('delivery-preset') ?? `delivery-preset-${Math.random().toString(36).slice(2)}`;
+	let mutationTail: Promise<void> = Promise.resolve();
 
-	async function persist(next: DeliveryPresetState): Promise<DeliveryPresetState> {
+	function enqueueMutation<Result>(operation: () => Promise<Result>): Promise<Result> {
+		const result = mutationTail.then(operation);
+		mutationTail = result.then(() => undefined, () => undefined);
+		return result;
+	}
+
+	async function commit(next: DeliveryPresetState): Promise<DeliveryPresetState> {
 		const normalized = createDeliveryPresetState(next);
-		runtime.state.deliveryPresets = normalized;
 		await runtime.persistSetting(DELIVERY_PRESETS_SETTING_KEY, normalized, { policy: 'required' });
+		runtime.state.deliveryPresets = normalized;
 		runtime.publishDocumentSnapshot?.();
 		return normalized;
 	}
@@ -57,27 +64,33 @@ export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntim
 			listDeliveryPresets(runtime.state.deliveryPresets, kind),
 		apply: (presetId: string): DeliveryPreset =>
 			applyDeliveryPreset(runtime.state.deliveryPresets, presetId),
-		async save(options: {
+		save(options: {
 			id?: string;
 			label: string;
 			kind: DeliveryPresetKind;
 			format: string;
 			settings?: Readonly<Record<string, unknown>>;
 		}): Promise<DeliveryPreset> {
-			const result = saveDeliveryPresetToState(runtime.state.deliveryPresets, {
-				...options,
-				idFactory,
+			return enqueueMutation(async () => {
+				const result = saveDeliveryPresetToState(runtime.state.deliveryPresets, {
+					...options,
+					idFactory,
+				});
+				await commit(result.state);
+				return result.preset;
 			});
-			await persist(result.state);
-			return result.preset;
 		},
-		async delete(presetId: string): Promise<true> {
-			await persist(deleteDeliveryPreset(runtime.state.deliveryPresets, presetId));
-			return true;
+		delete(presetId: string): Promise<true> {
+			return enqueueMutation(async () => {
+				await commit(deleteDeliveryPreset(runtime.state.deliveryPresets, presetId));
+				return true as const;
+			});
 		},
-		async import(input: unknown): Promise<readonly DeliveryPreset[]> {
-			await persist(importDeliveryPresets(runtime.state.deliveryPresets, input, { idFactory }));
-			return listDeliveryPresets(runtime.state.deliveryPresets);
+		import(input: unknown): Promise<readonly DeliveryPreset[]> {
+			return enqueueMutation(async () => {
+				await commit(importDeliveryPresets(runtime.state.deliveryPresets, input, { idFactory }));
+				return listDeliveryPresets(runtime.state.deliveryPresets);
+			});
 		},
 		export: (presetId: string): string =>
 			exportDeliveryPreset(runtime.state.deliveryPresets, presetId),

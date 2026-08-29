@@ -23,6 +23,12 @@ function harness() {
 	return { service, state, persisted, published: () => published };
 }
 
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((complete) => { resolve = complete; });
+	return { promise, resolve };
+}
+
 test('saving persists under its own key and publishes once', async () => {
 	const { service, persisted, published } = harness();
 	const preset = await service.save({
@@ -103,6 +109,66 @@ test('a rejected preset never reaches the persisted state', async () => {
 	);
 	assert.equal(persisted.length, 0, 'a refused import must not write anything');
 	assert.deepEqual(service.list(), []);
+});
+
+test('a failed required write stays invisible and does not poison the mutation queue', async () => {
+	const failure = new Error('settings unavailable');
+	let published = 0;
+	let shouldFail = true;
+	const state: { deliveryPresets?: unknown } = {};
+	const service = createDeliveryPresetService({
+		state,
+		persistSetting: async () => {
+			if (shouldFail) {
+				shouldFail = false;
+				throw failure;
+			}
+		},
+		publishDocumentSnapshot: () => { published += 1; },
+		createId: () => 'delivery-preset-1',
+	});
+
+	await assert.rejects(
+		() => service.save({ label: 'Must persist', kind: 'audio', format: 'wav' }),
+		(error: unknown) => error === failure,
+	);
+
+	assert.deepEqual(service.list(), []);
+	assert.equal(state.deliveryPresets, undefined);
+	assert.equal(published, 0);
+
+	await service.save({ label: 'Retry', kind: 'audio', format: 'wav' });
+	assert.deepEqual(service.list().map(({ label }) => label), ['Retry']);
+	assert.equal(published, 1);
+});
+
+test('overlapping delivery preset saves retain both changes in required storage', async () => {
+	const firstWrite = deferred();
+	let writeCount = 0;
+	let durable: unknown = null;
+	let nextId = 0;
+	const state: { deliveryPresets?: unknown } = {};
+	const service = createDeliveryPresetService({
+		state,
+		persistSetting: async (_key, value) => {
+			writeCount += 1;
+			if (writeCount === 1) await firstWrite.promise;
+			durable = value;
+		},
+		createId: () => `delivery-preset-${++nextId}`,
+	});
+
+	const first = service.save({ label: 'First', kind: 'audio', format: 'wav' });
+	await Promise.resolve();
+	const second = service.save({ label: 'Second', kind: 'audio', format: 'flac' });
+	await Promise.resolve();
+	const writesBeforeRelease = writeCount;
+	firstWrite.resolve();
+	await Promise.all([first, second]);
+
+	assert.equal(writesBeforeRelease, 1, 'the second mutation waits for the first required write');
+	assert.deepEqual(service.list().map(({ label }) => label), ['First', 'Second']);
+	assert.deepEqual(createDeliveryPresetState(durable as never).presets.map(({ label }) => label), ['First', 'Second']);
 });
 
 test('the service requires controller state rather than inventing its own', () => {
