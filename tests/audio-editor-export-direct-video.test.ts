@@ -122,6 +122,52 @@ test('direct video publication cleans prior output, closes before commit, and to
 	assert.equal(fixture.errors.length, 0);
 });
 
+test('cancelling while a direct video caption sidecar saves cannot publish stale success', async () => {
+	const sidecarStarted = deferred<void>();
+	const releaseSidecar = deferred<void>();
+	const fixture = createDesktopFixture({
+		captionSidecar: true,
+		async saveLabel() {
+			sidecarStarted.resolve();
+			await releaseSidecar.promise;
+		},
+	});
+	const exporting = fixture.exportVideo();
+	await sidecarStarted.promise;
+	fixture.state.exportAbort?.abort();
+	releaseSidecar.resolve();
+	const result = await exporting;
+
+	assert.equal(result?.method, 'desktop', 'the already committed direct file remains the caller result');
+	assert.equal(fixture.state.exportOutput, null, 'the cancelled task cannot republish success state');
+	assert.equal(fixture.statuses.some(([status]) => status === 'Done'), false);
+});
+
+test('cancelling while a browser video caption sidecar saves retires its pending URL', async () => {
+	const sidecarStarted = deferred<void>();
+	const releaseSidecar = deferred<void>();
+	const fixture = createDesktopFixture({
+		captionSidecar: true,
+		directTarget: false,
+		downloadCleanup: true,
+		async saveLabel() {
+			sidecarStarted.resolve();
+			await releaseSidecar.promise;
+		},
+	});
+	const exporting = fixture.exportVideo();
+	await sidecarStarted.promise;
+	fixture.state.exportAbort?.abort();
+	releaseSidecar.resolve();
+
+	assert.equal(await exporting, null);
+	assert.equal(fixture.state.exportOutput, null);
+	assert.equal(fixture.state.outputUrl, null);
+	assert.equal(fixture.state.outputCleanup, null);
+	assert.equal(fixture.events.filter((event) => event === 'download-cleanup').length, 1);
+	assert.equal(fixture.statuses.some(([status]) => status === 'Done'), false);
+});
+
 test('direct video rejects plan drift and count disagreement with one rollback and no commit', async (context) => {
 	const drift = createDesktopFixture({
 		afterOpen(plan) { plan.mimeType = 'video/webm'; },
@@ -232,10 +278,12 @@ interface FixtureOptions {
 	readonly abortSynchronously?: boolean;
 	readonly afterOpen?: (plan: ReturnType<typeof videoPlan>) => void;
 	readonly closeFailure?: Error;
+	readonly captionSidecar?: boolean;
 	readonly commitFailure?: Error;
 	readonly desktop?: boolean;
 	readonly desktopVideoCapabilities?: unknown;
 	readonly directTarget?: boolean;
+	readonly downloadCleanup?: boolean;
 	readonly emittedByteLength?: number;
 	readonly format?: Format;
 	readonly invalidPlan?: 'legacy' | 'alias' | 'underspecified';
@@ -243,6 +291,7 @@ interface FixtureOptions {
 	readonly prepared?: Readonly<Record<string, unknown>>;
 	readonly priorOutput?: boolean;
 	readonly renderedFallback?: boolean;
+	readonly saveLabel?: () => Promise<void>;
 	readonly writeFailure?: Error;
 }
 
@@ -259,6 +308,9 @@ function createFixture(options: FixtureOptions = {}) {
 	const canonical = project(false);
 	const projected = project(true);
 	const plan = videoPlan(format, options.renderedFallback ? 'fallback-video' : 'original-video');
+	if (options.captionSidecar) {
+		plan.captions = { trackId: 'caption-track', sidecarFormat: 'vtt' };
+	}
 	if (options.invalidPlan === 'legacy') plan.version = 5;
 	if (options.invalidPlan === 'alias') {
 		(plan as { format: string }).format = format === 'mp4' ? 'h264' : 'vp9';
@@ -339,7 +391,14 @@ function createFixture(options: FixtureOptions = {}) {
 			async createDownload(request: Record<string, unknown>) {
 				events.push('download');
 				downloads.push(request);
-				return { cancelled: false, url: 'blob:legacy-video', method: 'object-url' };
+				return {
+					cancelled: false, url: 'blob:legacy-video', method: 'object-url',
+					...(options.downloadCleanup ? { cleanup: async () => { events.push('download-cleanup'); } } : {}),
+				};
+			},
+			async saveFile() {
+				events.push('sidecar');
+				await options.saveLabel?.();
 			},
 		},
 		findClip: (value: ReturnType<typeof project>, id: string) => value.clips.find((clip) => clip.id === id),
@@ -460,6 +519,7 @@ function videoPlan(format: Format, sourceId = 'original-video') {
 		],
 		filterPlan: { audio: { strategy: 'staged-mix', inputIndex: 1 } },
 		range: { startFrame: 0, endFrame: 48_000, durationFrames: 48_000 },
+		captions: null as null | { trackId: string; sidecarFormat: 'vtt' },
 	};
 }
 
@@ -472,6 +532,7 @@ function project(fallback: boolean) {
 		tracks: [
 			{ id: videoTrackId, type: 'video', clipIds: [videoClipId] },
 			{ id: 'audio-track', type: 'audio', clipIds: ['audio-clip'] },
+			{ id: 'caption-track', type: 'label', labels: [{ startFrame: 0, endFrame: 24_000, title: 'Caption' }] },
 		],
 		clips: [
 			{ id: videoClipId, kind: 'video', sourceId: videoId },
@@ -482,6 +543,12 @@ function project(fallback: boolean) {
 			{ id: 'fallback-video', storageKey: 'fallback-video-storage', opaqueExtensions: { byteLength: 3 } },
 		],
 	};
+}
+
+function deferred<Value>() {
+	let resolve!: (value: Value | PromiseLike<Value>) => void;
+	const promise = new Promise<Value>((accept) => { resolve = accept; });
+	return { promise, resolve };
 }
 
 function renderedFallbackProjection(projected: ReturnType<typeof project>) {

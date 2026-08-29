@@ -457,6 +457,7 @@ export function createEditorVideoExportAction(
 				});
 				try { assertVideoExportCurrent(); } catch { return result; }
 				await deliverCaptionSidecar(plan, exportProject, projectSampleRate(), fileName, fileService);
+				try { assertVideoExportCurrent(); } catch { return result; }
 				state.exportOutput = result;
 				setStatus(copy.done, 'success');
 				publishDocumentSnapshot();
@@ -480,12 +481,15 @@ export function createEditorVideoExportAction(
 			});
 			await assertVideoExportPublicationCurrent(published, assertVideoExportCurrent);
 			if (published.cancelled) return published;
-			state.outputCleanup = published.cleanup || null;
-			pendingCleanup = state.outputCleanup;
-			state.outputUrl = published.url || null;
+			const publishedCleanup = published.cleanup || null;
+			const publishedUrl = published.url || null;
+			pendingCleanup = publishedCleanup;
 			await deliverCaptionSidecar(plan, exportProject, projectSampleRate(), fileName, fileService);
+			assertVideoExportCurrent();
+			state.outputCleanup = publishedCleanup;
+			state.outputUrl = publishedUrl;
 			state.exportOutput = Object.freeze({
-				url: state.outputUrl,
+				url: publishedUrl,
 				fileName: published.fileName || fileName,
 				mimeType: encoded.mimeType,
 				size: blob.size,
