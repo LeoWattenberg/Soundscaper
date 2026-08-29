@@ -12,6 +12,7 @@ import { createVideoTrimActionFacade } from './video-trim-action-facade.ts';
 import { snapshotProductActionExtensions } from './product-action-extensions.ts';
 import { createExportActionGroup } from './export-action-group.ts';
 import { createProjectMediaActionGroup } from './project-media-action-group.ts';
+import { createStoredProjectOpenActions } from './stored-project-open-actions.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -115,6 +116,9 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			: direction === 'previous' ? copy.noPreviousEdit : copy.noNextEdit, found ? 'success' : 'info');
 		return result;
 	};
+	const storedProjectOpenActions = createStoredProjectOpenActions({
+		copy, state, store, sessionTab, switchProject, openProject,
+	});
 	const yieldProgramPlayhead = (operation: RuntimeValue) => (...args: RuntimeValue) => {
 		if (capabilities.videoCompositing) videoNavigationService.shuttleStop();
 		return operation(...args);
@@ -130,17 +134,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 		project: Object.freeze({
 			create: (projectOptions: RuntimeValue) => newProject(projectOptions),
 			open: (value: RuntimeValue) => openProject(value),
-			openRecent: async (projectId: RuntimeValue = null) => {
-				if (projectId == null) return state.recentProjectIds
-					.map((id: RuntimeValue) => state.projects.find((candidate: RuntimeValue) => candidate.id === id))
-					.filter(Boolean);
-				if (!state.recentProjectIds.includes(projectId)) throw new Error(copy.projectNotFound);
-				const openTab = sessionTab(projectId);
-				if (openTab) return switchProject(openTab.history.present);
-				const saved = await store.loadProject(projectId);
-				if (!saved) throw new Error(copy.projectNotFound);
-				return openProject(saved);
-			},
+			openRecent: storedProjectOpenActions.openRecent,
 			clearRecent: clearRecentProjects,
 			openAudacityProject,
 			openAup4,
@@ -152,13 +146,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			saveAs: saveScape,
 			dismissAup4CompatibilitySummary,
 			close: closeProjectTab,
-			openById: async (projectId: RuntimeValue) => {
-				const openTab = sessionTab(projectId);
-				if (openTab) return switchProject(openTab.history.present);
-				const saved = await store.loadProject(projectId);
-				if (!saved) throw new Error(copy.projectNotFound);
-				return openProject(saved);
-			},
+			openById: storedProjectOpenActions.openById,
 			list: listProjects,
 			save: saveNow,
 			flush: flushProject,
