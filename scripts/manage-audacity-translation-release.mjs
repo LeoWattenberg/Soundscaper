@@ -81,11 +81,19 @@ function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
-function canonicalJson(value) {
+/**
+ * The same value has to serialize to the same bytes on every machine that runs
+ * this tooling, because the digests taken over the result are pinned and
+ * compared across hosts. Keys are therefore ordered by code unit - the default
+ * array sort, and what the other canonical serializers use - never by host
+ * collation, which compares letters case-insensitively first and so would
+ * order `audioX` after `audiob` on one machine and before it on another.
+ */
+export function canonicalJson(value) {
 	const serialize = (entry) => {
 		if (entry === null || typeof entry !== 'object') return JSON.stringify(entry);
 		if (Array.isArray(entry)) return `[${entry.map(serialize).join(',')}]`;
-		return `{${Object.keys(entry).sort((left, right) => left.localeCompare(right))
+		return `{${Object.keys(entry).sort()
 			.map((key) => `${JSON.stringify(key)}:${serialize(entry[key])}`).join(',')}}`;
 	};
 	return `${serialize(value)}\n`;
