@@ -73,9 +73,10 @@ export function useAudioEditorWorkspaceLifecycle({
 
 	const onError = useCallback((error) => {
 		if (isExpectedWorkspaceCancellation(error)) return;
+		controller.recordLocalDiagnosticError?.(error, 'workspace');
 		const message = error instanceof Error ? error.message : String(error || copy.unknownError);
 		setLocalError(copy.genericError.replace('{message}', message));
-	}, [copy.genericError, copy.unknownError]);
+	}, [controller, copy.genericError, copy.unknownError]);
 	useEffect(() => {
 		if (requestedProjectOpenedRef.current) return;
 		requestedProjectOpenedRef.current = true;

@@ -35,6 +35,7 @@ const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDia
 const RegularIntervalAnnotationDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
 const LocalModelManagerDialog = React.lazy(() => import('../dialogs/LocalModelManagerDialog.tsx'));
 const LocalAssistanceDialog = React.lazy(() => import('../dialogs/LocalAssistanceDialogSurface.tsx'));
+const LocalDiagnosticsDialog = React.lazy(() => import('../dialogs/LocalDiagnosticsDialog.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -87,6 +88,20 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		&& isCurrentProjectSchemaIdentity(snapshot.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
 	return <>
 			<SoundscaperProductionWorkspaceOverlay model={model} />
+			{activeSurface === 'local-diagnostics' && (
+				<div data-editor-surface="local-diagnostics">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<LocalDiagnosticsDialog
+							controller={controller}
+							copy={copy}
+							fileService={fileService}
+							locale={locale}
+							productId={productId}
+							onClose={() => setActiveSurface(null)}
+						/>
+					</React.Suspense>
+				</div>
+			)}
 
 			{capabilities.audioEffects && effectWindow && (
 				<div data-effects-window-host>

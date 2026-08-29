@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorControllerPhase } from './lifecycle.ts';
+import { createLocalDiagnosticsErrorJournal } from '../local-diagnostics-error-journal.ts';
 import { createInitialStorageCapacitySnapshot } from './storage-capacity-service.ts';
 import type { TakeCyclePendingOpenRecovery } from './take-cycle-capture-orchestrator.ts';
 
@@ -37,6 +38,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 	preferredInputDeviceId,
 }: EditorControllerStateOptions<Preferences, RecordingRouting, EffectPresets>) {
 	return {
+		localDiagnostics: createLocalDiagnosticsErrorJournal(),
 		history: null,
 		preferences,
 		preferencesReadOnly: false,

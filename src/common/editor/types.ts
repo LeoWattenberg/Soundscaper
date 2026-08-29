@@ -18,6 +18,7 @@ import type { SoundActivationPolicySnapshot } from './controller/sound-activatio
 import type { TakeCyclePendingOpenRecovery } from './controller/take-cycle-capture-orchestrator.ts';
 import type { FramescaperCaptureSessionSnapshot } from './controller/framescaper-capture-session-types.ts';
 import type { FramescaperWebVcrUiSnapshot } from './controller/framescaper-web-vcr-controller-types.ts';
+import type { LocalDiagnosticsErrorSnapshot, LocalDiagnosticsErrorSource } from './local-diagnostics-error-journal.ts';
 
 export type { EditorTaskProgress, EditorTaskProgressKind } from './controller/task-progress.ts';
 export type { SoundActivationPolicySnapshot } from './controller/sound-activation-policy-service.ts';
@@ -306,5 +307,7 @@ export interface EditorController {
 	subscribe(listener: () => void): () => void;
 	getTelemetrySnapshot(): EditorTelemetrySnapshot;
 	subscribeTelemetry(listener: () => void): () => void;
+	getLocalDiagnosticsSnapshot(): Readonly<LocalDiagnosticsErrorSnapshot>;
+	recordLocalDiagnosticError(error: unknown, source: LocalDiagnosticsErrorSource): void;
 	dispose(): Promise<void>;
 }

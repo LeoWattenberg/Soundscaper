@@ -9,3 +9,4 @@ interface ImportMeta {
 }
 
 declare const __SCAPE_PRODUCT__: 'soundscaper' | 'framescaper';
+declare const __SCAPE_VERSION__: string;

@@ -574,7 +574,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			dtmf: () => openGenerator('dtmf'),
 			noise: () => openGenerator('noise'),
 		},
-		help: {
+		help: { openDiagnostics: () => openSurface('local-diagnostics'),
 			openTutorials: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'tutorials')),
 			openManual: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'manual')),
 			openSupport: () => ui.openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),

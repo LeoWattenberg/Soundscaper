@@ -155,6 +155,7 @@ export function createWorkspaceApplicationMenus({
 			uiFlags,
 			actionRuntime: parityRuntime.actions,
 			actions: {
+				openDiagnostics: () => openSurface('local-diagnostics'),
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
 				openLocalAssistance: fileService.isDesktop ? () => openSurface('local-assistance') : undefined,
 				openLocalAssistanceIndexedSearch: fileService.isDesktop && project

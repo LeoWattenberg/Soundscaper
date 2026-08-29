@@ -449,7 +449,7 @@ const definitions = [
 	excluded('check-update', 'Check for updates', ['Help'], EXCLUDED_REASONS.os, { source: UPSTREAM.menu }),
 	excluded('about-qt', 'About Qt', ['Help'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
 	excluded('menu-extra', 'Extra', ['Application menu'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
-	excluded('menu-diagnostics', 'Diagnostics', ['Help'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
+	implemented('menu-diagnostics', 'Diagnostics', ['Help'], 'help.openDiagnostics', { source: UPSTREAM.menu }),
 	excluded('benchmark', 'Benchmark', ['Extra'], EXCLUDED_REASONS.developer),
 	excluded('diagnostic-show-actions', 'Show actions', ['Diagnostics'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),
 	excluded('diagnostic-show-paths', 'Show paths', ['Diagnostics'], EXCLUDED_REASONS.developer, { source: UPSTREAM.menu }),

@@ -316,7 +316,7 @@ test('Audacity Mix-down to is a concrete destructive track action', () => {
 	assert.equal(audacityActionDefinition('mix-render-new'), null);
 });
 
-test('cloud, installable plugins, OS audio, MIDI tracks, Extra, diagnostics, and updates are audit-only exclusions', () => {
+test('cloud, installable plugins, OS audio, MIDI tracks, Extra, developer diagnostics, and updates remain excluded', () => {
 	const excluded = [
 		'file-save-to-cloud',
 		'file-share-audio',
@@ -328,7 +328,6 @@ test('cloud, installable plugins, OS audio, MIDI tracks, Extra, diagnostics, and
 		'rescan-devices',
 		'local://midi-track',
 		'menu-extra',
-		'menu-diagnostics',
 		'check-update',
 	];
 
@@ -339,7 +338,7 @@ test('cloud, installable plugins, OS audio, MIDI tracks, Extra, diagnostics, and
 	}
 
 	for (const definition of Object.values(AUDACITY_ACTION_MANIFEST)) {
-		if (/cloud|audio\.com|plugin|diagnostic|rescan-devices|audio-setup/.test(
+		if (definition.id !== 'menu-diagnostics' && /cloud|audio\.com|plugin|diagnostic|rescan-devices|audio-setup/.test(
 			`${definition.id} ${definition.label}`.toLowerCase(),
 		)) {
 			assert.notEqual(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, definition.id);

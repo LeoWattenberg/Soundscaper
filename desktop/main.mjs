@@ -381,7 +381,7 @@ async function registerIpcHandlers(desktopSession) {
 		version: app.getVersion(),
 		development: !app.isPackaged,
 		locale: settings.snapshot().locale,
-		supportedLocales: [...SUPPORTED_LOCALES],
+		supportedLocales: [...SUPPORTED_LOCALES], runtimeVersions: { electron: process.versions.electron, chromium: process.versions.chrome, node: process.versions.node },
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
 	}));
 	handle(IPC.chooseFiles, (event, value) => chooseFiles(event, value));

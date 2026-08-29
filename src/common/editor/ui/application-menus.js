@@ -576,6 +576,7 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.onlineHandbook, label: copy.manual, onClick: actions.manual },
 				createPrivacyPolicyMenuItem(copy, actions.privacyPolicy),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.support, label: copy.support, onClick: actions.support },
+				{ id: 'diagnostics', label: copy.diagnostics, onClick: actions.openDiagnostics },
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.revertFactory, label: copy.revertFactorySettings, onClick: actions.revertFactorySettings },
 				divider(),
 				{ id: 'debug-storage', label: copy.debugStorage, checked: uiFlags.storagePanel, onClick: actions.toggleStoragePanel },

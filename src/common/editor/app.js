@@ -1894,8 +1894,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		get headless() { return true; },
 		getSnapshot,
 		subscribe: (listener) => documentChannel.subscribe(listener),
-		getTelemetrySnapshot,
-		subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
+		getTelemetrySnapshot, subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
+		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData,
 		getProjectBinClipVisualData, selectedMediaPreparation: effectAudioService.selectedMediaPreparation,
 		actions,
@@ -1904,7 +1904,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			lifetime.beginDisposal();
 			scapeInspectionQuiescence.close(lifetime.signal.reason);
 			taskProgress.clear();
-			state.disposed = true;
+			state.disposed = true; state.localDiagnostics.clear();
 			state.phase = lifetime.phase;
 			publishDocumentSnapshot({ force: true });
 			disposePromise = disposeController();
@@ -2888,7 +2888,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	function handleError(error) {
-		setStatus(copy.genericError.replace('{message}', errorDiagnosticMessage(error, copy.unknownError)), 'error');
+		state.localDiagnostics.record(error, 'controller'); setStatus(copy.genericError.replace('{message}', errorDiagnosticMessage(error, copy.unknownError)), 'error');
 		return null;
 	}
 

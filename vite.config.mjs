@@ -1,4 +1,5 @@
 // @ts-check
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import react from '@vitejs/plugin-react';
@@ -16,6 +17,7 @@ import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-s
 import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities.js';
 
 const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
+const applicationVersion = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 
@@ -107,6 +109,7 @@ export default defineConfig({
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	define: {
 		__SCAPE_PRODUCT__: JSON.stringify(productId),
+		__SCAPE_VERSION__: JSON.stringify(applicationVersion),
 	},
 	worker: {
 		format: 'es',

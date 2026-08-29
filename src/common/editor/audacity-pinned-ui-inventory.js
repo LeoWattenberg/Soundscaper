@@ -341,7 +341,7 @@ export const AUDACITY_PINNED_APP_MENU_CONTAINER_POLICY = deepFreeze({
 	'menu-images': excludedContainer('Hidden Extra/developer menu scaffolding is excluded.'),
 	'menu-settings': excludedContainer('Hidden Extra/developer menu scaffolding is excluded.'),
 	'menu-extra': excludedContainer('The hidden Extra menu is excluded.'),
-	'menu-diagnostics': excludedContainer('Diagnostic and developer menus are excluded.'),
+	'menu-diagnostics': implementedContainer(),
 	'menu-help': implementedContainer(),
 	'menu-system': excludedContainer('Diagnostic and developer menus are excluded.'),
 	'menu-actions': excludedContainer('Diagnostic and developer menus are excluded.'),
