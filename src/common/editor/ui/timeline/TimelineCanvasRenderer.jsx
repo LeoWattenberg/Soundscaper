@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 
 import { boundedCanvasDimensions } from '../../design-system-adapters.js';
@@ -15,6 +15,7 @@ import {
 } from '../../pffft-spectrogram.js';
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
 import { createAnimationFrameCoalescer } from './animation-frame-coalescer.ts';
+import { spectrogramCanvasDrawKey } from './spectrogram-canvas-options.ts';
 
 export function AudacityWaveformCanvases({
 	rootRef,
@@ -25,16 +26,37 @@ export function AudacityWaveformCanvases({
 	showRms,
 	halfWave,
 	verticalZoom,
-	spectrogramScale,
+	spectrogramOptions,
 }) {
 	const { theme } = useTheme();
 	const themeDrawKey = `${theme.background.canvas.default}|${theme.foreground.text.primary}`;
+	const {
+		scale,
+		minFreq,
+		maxFreq,
+		fftWindowSize,
+		windowType,
+		gainDb,
+		rangeDb,
+		sampleRate,
+	} = spectrogramOptions;
+	const renderSpectrogramOptions = useMemo(() => ({
+		scale,
+		minFreq,
+		maxFreq,
+		fftWindowSize,
+		windowType,
+		gainDb,
+		rangeDb,
+		sampleRate,
+	}), [fftWindowSize, gainDb, maxFreq, minFreq, rangeDb, sampleRate, scale, windowType]);
+	const spectrogramDrawKey = spectrogramCanvasDrawKey(renderSpectrogramOptions);
 	const [spectrogramRevision, setSpectrogramRevision] = useState(pffftSpectrogramRevision);
 	useEffect(() => subscribePffftSpectrogram(setSpectrogramRevision), []);
 	useEffect(() => {
 		if (displayMode !== 'spectrogram' && displayMode !== 'multiview') return;
-		preparePffftSpectrogram(64).catch(() => {});
-	}, [displayMode]);
+		preparePffftSpectrogram(renderSpectrogramOptions.fftWindowSize).catch(() => {});
+	}, [displayMode, renderSpectrogramOptions.fftWindowSize]);
 	useLayoutEffect(() => {
 		const root = rootRef.current;
 		if (!root) return undefined;
@@ -47,7 +69,7 @@ export function AudacityWaveformCanvases({
 				showRms,
 				halfWave,
 				verticalZoom,
-				spectrogramScale,
+				spectrogramDrawKey,
 				spectrogramRevision,
 				themeDrawKey,
 				editorRoot?.dataset.editorTheme || '',
@@ -75,7 +97,7 @@ export function AudacityWaveformCanvases({
 						showRms,
 						halfWave,
 						verticalZoom,
-						spectrogramScale,
+						spectrogramOptions: renderSpectrogramOptions,
 						bounds,
 					});
 					if (drawn) {
@@ -105,7 +127,7 @@ export function AudacityWaveformCanvases({
 			resizeObserver?.disconnect();
 			scheduler.dispose();
 		};
-	}, [clips, displayMode, halfWave, pixelsPerSecond, rootRef, showRms, spectrogramRevision, spectrogramScale, themeDrawKey, timeSelection, verticalZoom]);
+	}, [clips, displayMode, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom]);
 	return null;
 }
 
@@ -213,7 +235,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 			height: splitY,
 			backgroundColor: cssColor(style, '--spectrogram-background', '#010101'),
 			dividerColor: divider,
-			scale: options.spectrogramScale,
+			...options.spectrogramOptions,
 		});
 	} else delete canvas.dataset.spectrogramRenderer;
 	if (waveformHeight > 0 && selection.end > selection.start) {
@@ -266,10 +288,15 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 	if (!channels?.length || !channels[0]?.length) return;
 	const spectrogramOptions = {
 		frequencyBands: 16,
-		fftWindowSize: 64,
-		intensityMultiplier: 1.5,
+		fftWindowSize: options.fftWindowSize,
 		pixelSkip: 4,
 		scale: options.scale,
+		minFreq: options.minFreq,
+		maxFreq: options.maxFreq,
+		windowType: options.windowType,
+		gainDb: options.gainDb,
+		rangeDb: options.rangeDb,
+		sampleRate: options.sampleRate,
 	};
 	const channelCount = Math.min(2, channels.length);
 	const channelHeight = options.height / channelCount;

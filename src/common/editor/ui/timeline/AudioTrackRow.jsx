@@ -8,9 +8,7 @@ import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
-import {
-	normalizeSpectrogramScale,
-} from './geometry.ts';
+import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
 import { clipGroups, focusFirst } from './timeline-navigation.js';
 import { renderAmplitudeRulers } from './track-row-helpers.jsx';
 import { useAudioTrackRowNavigation } from './useAudioTrackRowNavigation.js';
@@ -77,7 +75,8 @@ export function AudioTrackRow({
 	const trackWindowRef = useRef(null);
 	const trackHeight = visualHeight;
 	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
-	const spectrogramScale = normalizeSpectrogramScale(track.spectrogram?.scale);
+	const spectrogramOptions = createSpectrogramCanvasOptions(track.spectrogram, sampleRate);
+	const spectrogramScale = spectrogramOptions.scale;
 	const {
 		projection,
 		projectedClips,
@@ -196,6 +195,8 @@ export function AudioTrackRow({
 				data-spectrogram-minimum-frequency={track.spectrogram?.minimumFrequency ?? 0}
 				data-spectrogram-maximum-frequency={track.spectrogram?.maximumFrequency ?? sampleRate / 2}
 				data-spectrogram-window-size={track.spectrogram?.windowSize ?? 2048}
+				data-spectrogram-window-type={track.spectrogram?.windowType ?? 'hann'}
+				data-spectrogram-gain={track.spectrogram?.gain ?? 20}
 				data-spectrogram-range={track.spectrogram?.range ?? 80}
 				aria-label={track.name}
 				data-selected={selectedTrackId === track.id}
@@ -315,7 +316,7 @@ export function AudioTrackRow({
 						showRms={showRms}
 						halfWave={displayMode === 'half-wave'}
 						verticalZoom={waveformZoom}
-						spectrogramScale={spectrogramScale}
+						spectrogramOptions={spectrogramOptions}
 					/>
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
 					{spectralBrushEnabled && selectedTrackId === track.id
