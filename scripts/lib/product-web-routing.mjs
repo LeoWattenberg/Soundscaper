@@ -71,10 +71,20 @@ export function webBuildRouting(environment = process.env) {
 		scope: plan.scope,
 		scriptUrl: `${plan.basePath}/service-worker.js`,
 		fallbacks: Object.freeze({ standard: `${plan.scope}en/`, embedded: `${plan.scope}embed/en/` }),
-		foreignScopes: Object.freeze(plans
-			.filter(({ scope }) => scope !== plan.scope && scope.startsWith(plan.scope))
-			.map(({ scope }) => scope)
-			.sort()),
+		// Scopes this worker must decline. A retired product prefix belongs here
+		// as much as a co-hosted product's does: the origin answers it with a
+		// redirect, and without it the offline navigation fallback reads the
+		// prefix as a locale segment and mounts this product's shell under the
+		// other product's path, where it reports the wrong product and cannot
+		// boot. Declining leaves an honest network error instead.
+		foreignScopes: Object.freeze([
+			...plans
+				.filter(({ scope }) => scope !== plan.scope && scope.startsWith(plan.scope))
+				.map(({ scope }) => scope),
+			...Object.entries(RETIRED_PRODUCT_BASE_PATHS[plan.productId])
+				.filter(([productId]) => !plans.some((hosted) => hosted.productId === productId))
+				.map(([, basePath]) => `${basePath}/`),
+		].sort()),
 		root: plan.root,
 	}));
 	return Object.freeze({

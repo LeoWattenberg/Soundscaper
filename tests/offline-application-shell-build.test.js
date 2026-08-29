@@ -137,12 +137,15 @@ test('a Framescaper build installs one root-scoped worker and manifest for its o
 	);
 });
 
-test('the Soundscaper build owns one root worker and no foreign scope', async (context) => {
+test('the Soundscaper build owns one root worker that declines the retired prefix', async (context) => {
 	const outputRoot = await shellFixture(context);
 	await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.'), environment: {} });
 	const audit = JSON.parse(await readFile(join(outputRoot, 'offline-shell.json'), 'utf8'));
 
-	assert.deepEqual(audit.workers.soundscaper.foreignScopes, []);
+	// The origin answers `/framescaper/` with a redirect, so its worker must
+	// decline that prefix: the navigation fallback would otherwise read
+	// `framescaper` as a locale segment and serve this product's shell there.
+	assert.deepEqual(audit.workers.soundscaper.foreignScopes, ['/framescaper/']);
 	assert.equal(audit.workers.soundscaper.scriptUrl, '/service-worker.js');
 	assert.deepEqual(Object.keys(audit.workers), ['soundscaper']);
 });

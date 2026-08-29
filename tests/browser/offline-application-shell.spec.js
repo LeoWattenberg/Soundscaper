@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
-test('offline-shell-upgrade replaces a prior shell, isolates products, and keeps both usable offline', async ({ browserName, context, page }) => {
+test('offline-shell-upgrade replaces a prior shell, isolates products, and keeps this one usable offline', async ({ browserName, context, page }) => {
 	test.skip(browserName === 'webkit', 'Playwright WebKit cannot reliably reload a service-worker page in offline emulation.');
 	const staleCacheName = `soundscaper-application-shell-v1-${'0'.repeat(64)}`;
 	await page.goto('/logo/logo-klein-schwarz.svg');
@@ -25,44 +25,41 @@ test('offline-shell-upgrade replaces a prior shell, isolates products, and keeps
 		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v2-soundscaper-'))
 	))).toHaveLength(1);
 	expect(await page.evaluate(async (cacheName) => (await caches.keys()).includes(cacheName), staleCacheName)).toBe(false);
-	const soundscaperCacheHasFramescaperDocument = await page.evaluate(async () => {
+	// One origin serves one product. The retired `/framescaper/` document routes
+	// leave the origin as redirects, so this shell must never hold one of them and
+	// there is no second worker or second shell cache for it to install.
+	const foreign = await page.evaluate(async () => {
 		const cacheName = (await caches.keys())
 			.find((name) => name.startsWith('soundscaper-application-shell-v2-soundscaper-'));
 		if (!cacheName) throw new Error('Soundscaper application-shell cache is missing.');
-		const response = await (await caches.open(cacheName)).match('/framescaper/en/');
-		return response !== undefined;
+		const cache = await caches.open(cacheName);
+		return {
+			document: (await cache.match('/framescaper/en/')) !== undefined,
+			shells: (await caches.keys()).filter((name) => (
+				name.startsWith('soundscaper-application-shell-v2-') && !name.includes('-soundscaper-')
+			)),
+			workers: (await navigator.serviceWorker.getRegistrations())
+				.map((registration) => new URL(registration.active?.scriptURL ?? '', location.origin).pathname),
+		};
 	});
-	expect(soundscaperCacheHasFramescaperDocument).toBe(false);
-	await context.setOffline(true);
-	if (browserName === 'chromium') {
-		// Playwright's Firefox offline emulation does not apply to navigations: the request
-		// still reaches the preview server, so only Chromium can observe that a product
-		// document this shell never cached is unreachable while the network is down.
-		await expect(page.goto('/framescaper/en/', { waitUntil: 'domcontentloaded', timeout: 5_000 })).rejects.toThrow();
-	}
-	await context.setOffline(false);
-
-	await page.goto('/framescaper/en/');
-	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
-	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-framescaper.webmanifest');
-	await page.evaluate(async () => {
-		await navigator.serviceWorker.ready;
-		if (navigator.serviceWorker.controller?.scriptURL.endsWith('/framescaper/service-worker.js')) return;
-		await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
-	});
-	await expect.poll(() => page.evaluate(async () => (
-		(await caches.keys()).filter((name) => name.startsWith('soundscaper-application-shell-v2-framescaper-'))
-	))).toHaveLength(1);
+	expect(foreign.document).toBe(false);
+	expect(foreign.shells).toEqual([]);
+	expect(foreign.workers).toEqual(['/service-worker.js']);
 
 	await context.setOffline(true);
 	await page.goto('/en/', { waitUntil: 'domcontentloaded' });
 	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
 	await expect(page.locator('html')).toHaveAttribute('data-product', 'soundscaper');
+	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-soundscaper.webmanifest');
 
-	await page.goto('/framescaper/en/', { waitUntil: 'domcontentloaded' });
-	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
-	await expect(page.locator('html')).toHaveAttribute('data-product', 'framescaper');
-	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-framescaper.webmanifest');
+	if (browserName === 'chromium') {
+		// Playwright's Firefox offline emulation does not apply to navigations: the request
+		// still reaches the preview server, so only Chromium can observe that a retired
+		// product document this origin no longer serves is unreachable while the network
+		// is down, rather than answered by this product's shell. It goes last because the
+		// rejected navigation leaves the page on an error document.
+		await expect(page.goto('/framescaper/en/', { waitUntil: 'domcontentloaded', timeout: 5_000 })).rejects.toThrow();
+	}
 });
 
 test('allowlisted optional assets are verified once and reused offline', async ({ browserName, context, page }) => {
