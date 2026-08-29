@@ -36,14 +36,30 @@ export function SourcePropertiesPanel({ source, copy, onReprobe = null, disabled
 	);
 	const [outcome, setOutcome] = React.useState(null);
 	const inspectedId = view ? view.sourceId : null;
+	const inspectedIdRef = React.useRef(inspectedId);
+	const reprobeSequence = React.useRef(0);
+	if (inspectedIdRef.current !== inspectedId) {
+		inspectedIdRef.current = inspectedId;
+		reprobeSequence.current += 1;
+	}
 	// A result describes one source; inspecting another leaves it behind.
-	React.useEffect(() => setOutcome(null), [inspectedId]);
+	React.useEffect(() => {
+		setOutcome(null);
+		return () => { reprobeSequence.current += 1; };
+	}, [inspectedId]);
 	const reprobe = async () => {
+		const sourceId = inspectedId;
+		const sequence = ++reprobeSequence.current;
 		setOutcome({ state: 'busy' });
 		try {
-			setOutcome({ state: 'done', result: await onReprobe(inspectedId) });
+			const result = await onReprobe(sourceId);
+			if (sequence === reprobeSequence.current && inspectedIdRef.current === sourceId) {
+				setOutcome({ state: 'done', result });
+			}
 		} catch (error) {
-			setOutcome({ state: 'refused', error });
+			if (sequence === reprobeSequence.current && inspectedIdRef.current === sourceId) {
+				setOutcome({ state: 'refused', error });
+			}
 		}
 	};
 	if (!view) {
@@ -107,7 +123,7 @@ export function SourcePropertiesPanel({ source, copy, onReprobe = null, disabled
 				type="button"
 				data-source-reprobe={view.sourceId}
 				disabled={disabled || outcome?.state === 'busy'}
-				onClick={reprobe}
+				onClick={() => { void reprobe(); }}
 			>{outcome?.state === 'busy' ? copy.reprobeBusy : copy.reprobeSource}</button>
 			{outcome && outcome.state !== 'busy' && <ReprobeOutcome outcome={outcome} copy={copy} />}
 		</div>}
