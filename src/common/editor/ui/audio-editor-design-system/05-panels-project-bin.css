@@ -136,6 +136,10 @@
 	color: var(--kw-editor-muted);
 }
 
+#kw-audio-editor-design-system [data-workspace-panel='source-monitor'] .kw-audio-editor__panel-empty {
+	color: var(--kw-editor-text);
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__panel-actions-inline {
 	display: flex;
 	gap: 6px;
@@ -210,7 +214,7 @@
 	max-width: 32ch;
 	padding: 24px;
 	text-align: center;
-	color: var(--text-secondary, #aeb6c3);
+	color: var(--kw-editor-text);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__video-preview-status {

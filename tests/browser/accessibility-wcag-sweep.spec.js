@@ -27,7 +27,7 @@ const CONDITIONS = Object.freeze([
 	{ id: 'reduced-motion', viewport: { width: 1_280, height: 800 }, media: { reducedMotion: 'reduce' } },
 ]);
 
-test('the maintained routes fail exactly the recorded WCAG 2.2 AA violations', async ({ page, browserName }) => {
+test('the maintained routes match the recorded WCAG 2.2 AA baseline', async ({ page, browserName }) => {
 	// Computed style, layout rounding and the accessibility tree all differ by
 	// engine, so one recorded baseline can only describe one of them. Chromium
 	// carries it; Firefox and WebKit keep their own per-feature axe assertions.

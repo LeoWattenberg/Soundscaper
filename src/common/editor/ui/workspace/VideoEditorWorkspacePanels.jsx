@@ -43,7 +43,10 @@ export default function VideoEditorWorkspacePanels({
 							onClick={() => onTogglePanel(panelId)}
 						>×</button>
 					</header>
-					<div className="kw-audio-editor__workspace-panel-content">
+					<div
+						className="kw-audio-editor__workspace-panel-content"
+						tabIndex={panelId === 'source-monitor' ? 0 : undefined}
+					>
 						<WorkspacePanelContent
 							panelId={panelId}
 							controller={controller}

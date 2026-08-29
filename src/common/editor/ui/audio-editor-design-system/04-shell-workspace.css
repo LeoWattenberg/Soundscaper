@@ -461,6 +461,18 @@
 	border-bottom: 1px solid var(--kw-editor-line);
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__panel-dock--left .kw-audio-editor__workspace-panel-header {
+	padding-right: 17px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__panel-dock--right .kw-audio-editor__workspace-panel-header {
+	padding-left: 17px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__panel-dock--bottom .kw-audio-editor__workspace-panel-header {
+	padding-top: 9px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__workspace-panel-header h2 {
 	min-width: 0;
 	flex: 1;
