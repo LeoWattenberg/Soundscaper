@@ -27,6 +27,7 @@ function createFixture() {
 	let duplicateCalls = 0;
 	let openCalls = 0;
 	let releaseCalls = 0;
+	let flushCalls = 0;
 	const handoffCalls: string[] = [];
 	let flush: () => Promise<void> = async () => undefined;
 	let prepareHandoff: () => Promise<void> = async () => undefined;
@@ -62,7 +63,10 @@ function createFixture() {
 		editorHistoryProjects: () => [],
 		engine: { stop: noop },
 		evictUnreferencedSourceCaches: noop,
-		flushProject: () => flush(),
+		flushProject: () => {
+			flushCalls += 1;
+			return flush();
+		},
 		getProject: () => project,
 		handleError: noop,
 		liveSessionClipIds: () => new Set<string>(),
@@ -130,10 +134,12 @@ function createFixture() {
 		duplicateCalls: () => duplicateCalls,
 		openCalls: () => openCalls,
 		releaseCalls: () => releaseCalls,
+		flushCalls: () => flushCalls,
 		handoffCalls,
 		maintenanceCalls: () => maintenanceCalls,
 		prunedProtectedSourceIds: () => prunedProtectedSourceIds,
 		replaceProject() { project = { id: 'project-b', title: 'Project B', revision: 1 }; },
+		reviseProject(revision: number) { if (project) project.revision = revision; },
 		setFlush(value: () => Promise<void>) { flush = value; },
 		setPrepareHandoff(value: () => Promise<void>) { prepareHandoff = value; },
 	};
@@ -161,6 +167,36 @@ test('handoff checks project ownership again after its flush', async () => {
 	fixture.setFlush(async () => { fixture.replaceProject(); });
 	await assert.rejects(() => fixture.service.prepareProjectHandoff(), /not found/u);
 	assert.equal(fixture.releaseCalls(), 0);
+});
+
+test('handoff preflight validates ownership without preparing storage or releasing the lock', () => {
+	const fixture = createFixture();
+	fixture.service.assertProjectHandoffAllowed();
+	assert.equal(fixture.releaseCalls(), 0);
+	assert.deepEqual(fixture.handoffCalls, []);
+});
+
+test('handoff refuses a stale expected source before flushing or releasing the lock', async () => {
+	const fixture = createFixture();
+	await assert.rejects(
+		() => fixture.service.prepareProjectHandoff({ projectId: 'project-a', revision: 2 }),
+		/project changed while preparing/iu,
+	);
+	assert.equal(fixture.flushCalls(), 0);
+	assert.equal(fixture.releaseCalls(), 0);
+	assert.deepEqual(fixture.handoffCalls, []);
+});
+
+test('handoff rechecks the expected source revision before preparing storage', async () => {
+	const fixture = createFixture();
+	fixture.setFlush(async () => { fixture.reviseProject(4); });
+	await assert.rejects(
+		() => fixture.service.prepareProjectHandoff({ projectId: 'project-a', revision: 3 }),
+		/project changed while preparing/iu,
+	);
+	assert.equal(fixture.flushCalls(), 1);
+	assert.equal(fixture.releaseCalls(), 0);
+	assert.deepEqual(fixture.handoffCalls, []);
 });
 
 test('handoff prepares durable media before lock release and returns a frozen identity', async () => {

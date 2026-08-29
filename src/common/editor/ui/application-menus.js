@@ -19,6 +19,7 @@ import { createVisibleVideoTrackPredicate } from '../video-track-visibility.js';
 import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts';
 import { createLocalAssistanceMenuItems } from './local-assistance-menu.ts';
 import { resolveProjectExtensionCopy } from './project-extension-copy.ts';
+import { createCrossProductHandoffMenuItems } from './cross-product-handoff-menu.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -200,15 +201,10 @@ export default function createApplicationMenus({
 					resolve: () => ({ disabled: blocked && !snapshot.readOnly }),
 					onClick: actions.saveScape,
 				},
-				{
-					id: 'switch-product',
-					label: productId === 'framescaper' ? copy.editInSoundscaper : copy.editInFramescaper,
-					disabled: handoffBlocked || !crossProductHandoffAvailable,
-					disabledReason: crossProductHandoffAvailable
-						? undefined
-						: projectFileCopy.crossProductHandoffUnavailable,
-					onClick: actions.switchProduct,
-				},
+				...createCrossProductHandoffMenuItems({
+					productId, copy: { ...copy, ...projectFileCopy }, handoffBlocked,
+					available: crossProductHandoffAvailable, actions,
+				}),
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
 				...productItems.fileImport,

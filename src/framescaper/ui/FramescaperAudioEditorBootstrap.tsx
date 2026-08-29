@@ -169,7 +169,7 @@ export default function FramescaperAudioEditorBootstrap({
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
 			assistanceSearchSource={ASSISTANCE_SEARCH_SOURCES.get(runtime) ?? null}
-			crossProductHandoffAvailable={false}
+			crossProductHandoffAvailable={true}
 		/>
 	</Suspense>;
 }

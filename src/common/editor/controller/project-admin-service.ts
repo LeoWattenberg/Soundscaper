@@ -68,6 +68,11 @@ export interface ProjectAdminServiceRuntime {
 	readonly switchProject: LegacyPort;
 }
 
+export interface ProjectHandoffExpectation {
+	readonly projectId: string;
+	readonly revision: number;
+}
+
 export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	const {
 		beginCaptureInterlockedAdminOperation,
@@ -94,10 +99,11 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		return state.projects;
 	}
 
-	async function prepareProjectHandoff() {
+	function projectHandoffPreflight(expected?: Readonly<ProjectHandoffExpectation>) {
 		if (recoveryBlocked()) throw new Error(copy.projectReadOnly);
 		const project = getProject();
 		if (!project) throw new Error(copy.projectNotFound);
+		assertExpectedHandoffProject(project, expected);
 		const metadata = sessionTab(project.id)?.metadata;
 		const featureRequirementReadOnly = Boolean(
 			state.readOnly
@@ -110,17 +116,38 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (state.projectLock?.readOnly || (state.readOnly && !featureRequirementReadOnly)) {
 			throw new Error(copy.projectReadOnly);
 		}
+		return Object.freeze({ project, featureRequirementReadOnly });
+	}
+
+	function assertProjectHandoffAllowed(): void {
+		void projectHandoffPreflight();
+	}
+
+	async function prepareProjectHandoff(expected?: Readonly<ProjectHandoffExpectation>) {
+		const { project, featureRequirementReadOnly } = projectHandoffPreflight(expected);
 		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'handoff', projectId: project.id });
 		try {
 			if (!featureRequirementReadOnly) await flushProject();
 			if (getProject() !== project) throw new Error(copy.projectNotFound);
+			assertExpectedHandoffProject(project, expected);
 			await store.prepareProjectHandoff?.(project);
 			if (getProject() !== project) throw new Error(copy.projectNotFound);
+			assertExpectedHandoffProject(project, expected);
 			interlock?.assertCurrent();
 			await releaseProjectLock();
 			return Object.freeze({ projectId: project.id, revision: project.revision });
 		} finally {
 			interlock?.release();
+		}
+	}
+
+	function assertExpectedHandoffProject(
+		project: Readonly<{ id?: unknown; revision?: unknown }>,
+		expected?: Readonly<ProjectHandoffExpectation>,
+	): void {
+		if (expected === undefined) return;
+		if (project.id !== expected.projectId || project.revision !== expected.revision) {
+			throw new Error('The project changed while preparing its editable-copy handoff. Try again.');
 		}
 	}
 
@@ -435,6 +462,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		duplicateProject,
 		garbageCollectSources,
 		listProjects,
+		assertProjectHandoffAllowed,
 		prepareProjectHandoff,
 		renameProject,
 		sessionHistoryProjects,

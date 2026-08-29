@@ -22,6 +22,6 @@ export default function DefaultAudioEditorWorkspace({ locale, copy, productId = 
 		productId={productId}
 		controller={controller}
 		fileService={fileService}
-		crossProductHandoffAvailable={fileService.isDesktop}
+		crossProductHandoffAvailable={true}
 	/>;
 }

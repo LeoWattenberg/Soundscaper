@@ -45,13 +45,13 @@ test('the locale segment is encoded rather than interpolated raw', () => {
 	assert.equal(productHref('soundscaper', 'a/b', { builtProductId: 'framescaper' }), 'https://soundscaper.org/a%2Fb/');
 });
 
-test('the sidebar and the application menu both route through the origin-aware helper', async () => {
+test('the sidebar links origins while the editable-copy menu uses the permanent sender route', async () => {
 	const [sidebar, menu] = await Promise.all([
 		source('src/common/site/BrandSidebar.jsx'),
 		source('src/common/editor/ui/workspace/workspace-application-menu-runtime.js'),
 	]);
-	for (const [name, text] of [['BrandSidebar', sidebar], ['application menu runtime', menu]]) {
-		assert.match(text, /productHref\(/u, name);
-		assert.doesNotMatch(text, /productLocalePath\(/u, `${name} must not emit a same-origin product path`);
-	}
+	assert.match(sidebar, /productHref\(/u);
+	assert.doesNotMatch(sidebar, /productLocalePath\(/u);
+	assert.doesNotMatch(menu, /productHref\(|productLocalePath\(/u);
+	assert.match(menu, /\/transfer\/send\/\?\$\{serializeCrossProductHandoffLaunchIntent\(intent\)\}/u);
 });

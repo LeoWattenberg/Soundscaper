@@ -1,5 +1,4 @@
 import { otherProductId } from '../../../products.js';
-import { productHref } from '../../../product-web-links.js';
 import { privacyPolicyUrl } from '../../../site/privacy-policy-links.js';
 import { documentationUrl } from '../../documentation-links.ts';
 import { framescaperVideoProxyActionRuntimeFor } from '../../framescaper-video-proxy-action-runtime-registry.ts';
@@ -248,10 +247,36 @@ export function createWorkspaceApplicationMenus({
 				deleteProject: () => setDialog('delete'),
 				clearData: () => setDialog('clear'),
 				switchProduct: () => run(async () => {
-					const handoff = await controller.actions.project.prepareHandoff();
+					const {
+						createCrossProductHandoffLaunchIntent,
+						serializeCrossProductHandoffLaunchIntent,
+					} = await import('../../../cross-product-handoff-intent.ts');
 					const destination = otherProductId(productId);
-					globalThis.location.assign(`${productHref(destination, locale)}?project=${encodeURIComponent(handoff.projectId)}`);
+					const intent = createCrossProductHandoffLaunchIntent({
+						sourceProject: project, destinationFamily: destination,
+					});
+					if (fileService.isDesktop) {
+						await controller.actions.project.saveCrossProductCopy(intent);
+						return;
+					}
+					const prepared = await controller.actions.project.prepareHandoff({
+						projectId: intent.source.projectId,
+						revision: intent.sourceRevision,
+					});
+					if (prepared?.projectId !== intent.source.projectId
+						|| prepared.revision !== intent.sourceRevision) {
+						throw new Error('The project changed while preparing its editable-copy handoff. Try again.');
+					}
+					globalThis.location.assign(`/transfer/send/?${serializeCrossProductHandoffLaunchIntent(intent)}`);
 				}),
+				...(fileService.isDesktop ? {
+					cancelCrossProductCopy: () => run(() => (
+						controller.actions.project.cancelCrossProductCopy()
+					)),
+					crossProductCopyActive: () => (
+						controller.actions.project.crossProductCopyActive()
+					),
+				} : {}),
 				executeEdit,
 				openLabels: () => openWorkspacePanel('labels'),
 				openMetadata: () => openWorkspacePanel('metadata'),

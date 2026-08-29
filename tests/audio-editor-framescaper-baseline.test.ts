@@ -308,7 +308,7 @@ test('Framescaper baseline retains selected image commands, runtime projection, 
 	)), true);
 });
 
-test('Framescaper baseline runtime exposes no pre-release reimport or cross-product handoff route', async () => {
+test('Framescaper baseline keeps reimport absent and exposes the permanent cross-product handoff', async () => {
 	const runtime = createEditorProjectRuntimeSelection(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
 	assert.equal(Object.hasOwn(runtime, 'reimportProject'), false);
 	assert.deepEqual(runtime.createProject().schemaFamily, 'framescaper');
@@ -324,7 +324,7 @@ test('Framescaper baseline runtime exposes no pre-release reimport or cross-prod
 	const bootstrap = await readFile(new URL(
 		'../src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx', import.meta.url,
 	), 'utf8');
-	assert.match(bootstrap, /crossProductHandoffAvailable=\{false\}/u);
+	assert.match(bootstrap, /crossProductHandoffAvailable=\{true\}/u);
 	assert.doesNotMatch(bootstrap, /crossProductHandoffAvailable=\{runtime\.fileService\.isDesktop\}/u);
 });
 

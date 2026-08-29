@@ -138,6 +138,75 @@ test('the existing Tracks submenu reaches the injected baseline controller actio
 	), null);
 });
 
+test('the File menu creates one strict browser intent and delegates desktop fallback without schema flipping', async () => {
+	const assigned: string[] = [];
+	const previousLocation = Reflect.get(globalThis, 'location');
+	Reflect.set(globalThis, 'location', { assign: (value: string) => assigned.push(value) });
+	try {
+		const prepared: string[] = [];
+		const browser = workspaceInput('framescaper', {
+			actions: { project: {
+				prepareHandoff: async (expected: { projectId: string; revision: number }) => {
+					prepared.push(`${expected.projectId}:${String(expected.revision)}`);
+					return { projectId: 'nested-menu', revision: 0 };
+				},
+				saveCrossProductCopy: async () => assert.fail('browser must use its transfer page'),
+			} },
+		}) as never as Record<string, unknown>;
+		browser.crossProductHandoffAvailable = true;
+		await menuItem(createWorkspaceApplicationMenus(browser as never), 'switch-product').onClick?.();
+		assert.deepEqual(prepared, ['nested-menu:0']);
+		assert.equal(assigned.length, 1);
+		const launched = new URL(assigned[0], 'https://framescaper.org');
+		assert.equal(launched.pathname, '/transfer/send/');
+		const intent = JSON.parse(launched.searchParams.get('handoff') ?? '{}') as Record<string, unknown>;
+		assert.equal((intent.source as { schemaFamily?: unknown }).schemaFamily, 'framescaper');
+		assert.equal((intent.destination as { schemaFamily?: unknown }).schemaFamily, 'soundscaper');
+		assert.equal(intent.sourceRevision, 0);
+		assert.equal(findMenuItem(createWorkspaceApplicationMenus(browser as never), 'cancel-switch-product'), null);
+
+		const changed = workspaceInput('framescaper', {
+			actions: { project: {
+				prepareHandoff: async () => ({ projectId: 'nested-menu', revision: 1 }),
+				saveCrossProductCopy: async () => assert.fail('browser must use its transfer page'),
+			} },
+		}) as never as Record<string, unknown>;
+		changed.crossProductHandoffAvailable = true;
+		await assert.rejects(
+			Promise.resolve(menuItem(createWorkspaceApplicationMenus(changed as never), 'switch-product').onClick?.()),
+			/project changed while preparing/iu,
+		);
+		assert.equal(assigned.length, 1, 'a changed snapshot must not navigate to the transfer route');
+
+		const saved: unknown[] = [];
+		let copyActive = true;
+		let cancelled = 0;
+		const desktop = workspaceInput('framescaper', {
+			actions: { project: {
+				prepareHandoff: async () => assert.fail('desktop preparation belongs to the action'),
+				saveCrossProductCopy: async (value: unknown) => { saved.push(value); },
+				cancelCrossProductCopy: () => { cancelled += 1; copyActive = false; },
+				crossProductCopyActive: () => copyActive,
+			} },
+		}) as never as Record<string, unknown>;
+		desktop.crossProductHandoffAvailable = true;
+		desktop.fileService = { isDesktop: true };
+		desktop.desktopHostRuntime = null;
+		const desktopMenus = createWorkspaceApplicationMenus(desktop as never);
+		await menuItem(desktopMenus, 'switch-product').onClick?.();
+		assert.equal(saved.length, 1);
+		assert.equal((saved[0] as { destination: { schemaFamily: string } }).destination.schemaFamily, 'soundscaper');
+		const cancel = menuItem(desktopMenus, 'cancel-switch-product');
+		assert.equal(cancel.resolve?.().disabled, false);
+		await cancel.onClick?.();
+		assert.equal(cancelled, 1);
+		assert.equal(cancel.resolve?.().disabled, true);
+	} finally {
+		if (previousLocation === undefined) Reflect.deleteProperty(globalThis, 'location');
+		else Reflect.set(globalThis, 'location', previousLocation);
+	}
+});
+
 test('the product action owner snapshots strict exact commands before execution', () => {
 	const calls: unknown[] = [];
 	const actions = createFramescaperSequenceActionsSequence((command: FramescaperProjectCommandSequence) => calls.push(command));
@@ -197,6 +266,7 @@ interface MenuItem {
 	readonly id?: unknown;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: () => unknown;
+	readonly resolve?: () => Readonly<{ readonly disabled: boolean }>;
 }
 
 function workspaceInput(productId: string, controller: object) {

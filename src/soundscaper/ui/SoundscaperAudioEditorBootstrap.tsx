@@ -160,7 +160,7 @@ export default function SoundscaperAudioEditorBootstrap({
 			fileService={runtime.fileService}
 			projectForRuntimeConsumers={runtimeProjector(runtime)}
 			assistanceSearchSource={RUNTIME_ASSISTANCE_SEARCH.get(runtime) ?? null}
-			crossProductHandoffAvailable={false}
+			crossProductHandoffAvailable={true}
 		/>
 	</Suspense>;
 }

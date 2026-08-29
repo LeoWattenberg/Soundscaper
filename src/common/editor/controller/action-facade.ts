@@ -13,6 +13,7 @@ import { snapshotProductActionExtensions } from './product-action-extensions.ts'
 import { createExportActionGroup } from './export-action-group.ts';
 import { createProjectMediaActionGroup } from './project-media-action-group.ts';
 import { createStoredProjectOpenActions } from './stored-project-open-actions.ts';
+import { createCrossProductHandoffActionFacade } from './cross-product-handoff-action-facade.ts';
 
 export interface EditorActionRuntime {
 	// The runtime composition root is JavaScript while it is being decomposed.
@@ -130,6 +131,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 	const sequenceExtensions = snapshotProductActionExtensions<RuntimeValue>(scope, 'productSequenceActions', [
 		'label', 'setActive', 'stepFrame', 'seekLabel',
 	]);
+	const crossProductHandoffActions = createCrossProductHandoffActionFacade(scope as never);
 	return Object.freeze({
 		project: Object.freeze({
 			create: (projectOptions: RuntimeValue) => newProject(projectOptions),
@@ -151,6 +153,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			save: saveNow,
 			flush: flushProject,
 			prepareHandoff: prepareProjectHandoff,
+			...crossProductHandoffActions,
 			claimLock: claimProjectLock,
 			rename: (title: RuntimeValue) => renameProject(title),
 			duplicate: (title: RuntimeValue) => duplicateProject(title),

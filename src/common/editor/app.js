@@ -1840,7 +1840,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
 		openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
-		prepareProjectBinReplacement, prepareProjectHandoff, previewAudacityEffectFromController, previewParametricEq,
+		prepareProjectBinReplacement, prepareProjectHandoff, assertProjectHandoffAllowed: () => { if (project) framescaperCapture?.assertOriginHandoffAllowed(project.id); projectAdminService.assertProjectHandoffAllowed(); }, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,
 		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
@@ -2101,9 +2101,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectAdminService.listProjects();
 	}
 
-	async function prepareProjectHandoff() {
+	async function prepareProjectHandoff(expected) {
 		if (project) framescaperCapture?.assertOriginHandoffAllowed(project.id);
-		return projectAdminService.prepareProjectHandoff();
+		return projectAdminService.prepareProjectHandoff(expected);
 	}
 
 	async function clearRecentProjects() {

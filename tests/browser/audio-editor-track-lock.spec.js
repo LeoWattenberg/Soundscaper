@@ -59,11 +59,10 @@ test.describe('persisted shared track locking', () => {
 		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 
 		await restored.getByRole('menuitem', { name: 'File', exact: true }).click();
-		const unavailableHandoff = page.getByRole('menu', { name: 'File', exact: true })
+		const availableHandoff = page.getByRole('menu', { name: 'File', exact: true })
 			.getByRole('menuitem', { name: /^Edit in Framescaper/u });
-		await expect(unavailableHandoff).toHaveAttribute('aria-disabled', 'true');
-		await expect(unavailableHandoff.locator('[data-disabled-reason]'))
-			.toHaveAttribute('data-disabled-reason', /Cross-product editing is unavailable/u);
+		await expect(availableHandoff).toBeEnabled();
+		await expect(availableHandoff.locator('[data-disabled-reason]')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await expectPersistedLock(page, projectId, trackId, true, SOUNDSCAPER_DATABASE_NAME);
 		await expect(restored).toHaveAttribute('data-product', 'soundscaper');
