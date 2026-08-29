@@ -133,6 +133,12 @@ export function createTransferView(document: Document, title: string, summary: s
 					name: file.name,
 					read: async () => new Uint8Array(await file.arrayBuffer()),
 				}));
+				// A file input only raises `change` when its value changes, so the
+				// control is re-armed as it is read. Otherwise the retry after a
+				// failed import - the same archive, picked again - is silently
+				// dropped, and the page looks dead. The chosen files are already
+				// captured above, so clearing the control costs the import nothing.
+				input.value = '';
 				if (!files.length) return;
 				run(files).catch((error) => view.status(describeTransferError(error), 'error'));
 			});
