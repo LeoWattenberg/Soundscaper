@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createEnvelopeValueEvaluator } from '../automation.js';
 import {
 	assertFrame,
 	normalizeFrameRange,
@@ -365,7 +366,7 @@ function replaceProjectBinMedia(project, command) {
 				color: targetColor,
 				fadeInFrames: Math.min(clip.fadeInFrames || 0, template.durationFrames),
 				fadeOutFrames: Math.min(clip.fadeOutFrames || 0, template.durationFrames),
-				envelope: (clip.envelope || []).filter((point) => point.frame <= template.durationFrames),
+				envelope: truncatedEnvelope(clip.envelope, clip.durationFrames, template.durationFrames),
 				trimStartFrames: Math.min(clip.trimStartFrames || 0, template.sourceStartFrame),
 				trimEndFrames: Math.min(
 					clip.trimEndFrames || 0,
@@ -412,6 +413,21 @@ function replaceProjectBinMedia(project, command) {
 	}
 }
 
+/**
+ * Truncate an envelope onto a shortened clip without changing the gain over what
+ * the clip still holds. Dropping the points past the new end is not enough,
+ * because the evaluator holds the last surviving point after it: the retained
+ * material would flatten out instead of continuing toward the point that was
+ * cut off. The new end therefore keeps the value the envelope described there.
+ */
+function truncatedEnvelope(envelope, originalDurationFrames, durationFrames) {
+	if (!Array.isArray(envelope) || envelope.length === 0) return [];
+	const kept = envelope.filter((point) => point.frame <= durationFrames);
+	if (kept.length === envelope.length || kept.some((point) => point.frame === durationFrames)) return kept;
+	const valueAt = createEnvelopeValueEvaluator(envelope, Math.max(1, originalDurationFrames));
+	return [...kept, { frame: durationFrames, value: valueAt(durationFrames) }];
+}
+
 function remapReplacementClip(project, clip, oldSource, newSource) {
 	const oldRate = Math.max(1, Number(oldSource.sampleRate) || project.sampleRate);
 	const newRate = Math.max(1, Number(newSource.sampleRate) || project.sampleRate);
@@ -430,7 +446,7 @@ function remapReplacementClip(project, clip, oldSource, newSource) {
 		durationFrames,
 		fadeInFrames: Math.min(clip.fadeInFrames || 0, durationFrames),
 		fadeOutFrames: Math.min(clip.fadeOutFrames || 0, durationFrames),
-		envelope: (clip.envelope || []).filter((point) => point.frame <= durationFrames),
+		envelope: truncatedEnvelope(clip.envelope, clip.durationFrames, durationFrames),
 		trimStartFrames: Math.min(clip.trimStartFrames || 0, sourceStartFrame),
 		trimEndFrames: Math.min(
 			clip.trimEndFrames || 0,
