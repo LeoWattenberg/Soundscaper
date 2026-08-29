@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -13,13 +13,31 @@ import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 
 export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose }) {
 	const tracks = useMemo(() => listLabelExportTracks(snapshot.project), [snapshot.project]);
+	const projectIdentity = snapshot.project?.id ?? null;
+	const currentProjectIdentity = useRef(projectIdentity);
+	const stateProjectIdentity = useRef(projectIdentity);
+	const activeSubmission = useRef(null);
 	const [format, setFormat] = useState('txt');
 	const [trackIds, setTrackIds] = useState(() => tracks.map(({ id }) => id));
 	const [exporting, setExporting] = useState(false);
 	const [error, setError] = useState('');
 	const selectedTrackIds = new Set(trackIds);
+	currentProjectIdentity.current = projectIdentity;
+
+	useEffect(() => {
+		if (stateProjectIdentity.current === projectIdentity) return;
+		stateProjectIdentity.current = projectIdentity;
+		activeSubmission.current = null;
+		setFormat('txt');
+		setTrackIds(tracks.map(({ id }) => id));
+		setExporting(false);
+		setError('');
+	}, [projectIdentity, tracks]);
+
+	useEffect(() => () => { activeSubmission.current = null; }, []);
 
 	const start = () => {
+		if (activeSubmission.current?.projectIdentity === projectIdentity) return;
 		let request;
 		try {
 			request = createLabelExportRequest(format, trackIds, tracks);
@@ -29,10 +47,29 @@ export function LabelExportDialog({ isOpen, controller, snapshot, copy, onClose 
 		}
 		setError('');
 		setExporting(true);
-		Promise.resolve(controller.actions.labels.export(request)).then((result) => {
+		const submission = { projectIdentity };
+		activeSubmission.current = submission;
+		const ownsSubmission = () => activeSubmission.current === submission
+			&& currentProjectIdentity.current === submission.projectIdentity;
+		let operation;
+		try {
+			operation = controller.actions.labels.export(request);
+		} catch (cause) {
+			if (ownsSubmission()) {
+				activeSubmission.current = null;
+				setExporting(false);
+				setError(cause instanceof Error ? cause.message : String(cause));
+			}
+			return;
+		}
+		Promise.resolve(operation).then((result) => {
+			if (!ownsSubmission()) return;
+			activeSubmission.current = null;
 			setExporting(false);
 			if (!result?.cancelled) onClose?.();
 		}, (cause) => {
+			if (!ownsSubmission()) return;
+			activeSubmission.current = null;
 			setExporting(false);
 			setError(cause instanceof Error ? cause.message : String(cause));
 		});
