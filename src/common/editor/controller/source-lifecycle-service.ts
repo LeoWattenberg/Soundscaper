@@ -7,6 +7,7 @@ import {
 	type PreparedProjectSourceEntry,
 	type PreparedRequiredProjectSources,
 } from './prepared-project-sources.ts';
+import { resolveWaveformPcmWindowRequest } from './waveform-pcm-window-request.ts';
 import { audioWarpSourceWindowRange } from '../audio-warp-runtime.ts';
 
 export type {
@@ -132,12 +133,9 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		const source = clip ? findSource(projectAtStart, clip.sourceId) : null;
 		if (!clip || !source || source.kind === 'video' || source.kind === 'image' || sourceBuffers.has(source.id)) return null;
 		const cacheKey = String(clip.id);
-		const startFrame = Math.max(0, Math.min(clip.durationFrames, Math.round(Number(options.startFrame) || 0)));
-		const endFrame = Math.max(startFrame, Math.min(
-			clip.durationFrames,
-			Math.round(Number(options.endFrame) || clip.durationFrames),
-		));
-		if (endFrame <= startFrame) return null;
+		const requestedRange = resolveWaveformPcmWindowRequest(options, clip.durationFrames);
+		if (!requestedRange) return null;
+		const { startFrame, endFrame } = requestedRange;
 		const range = clip.warpMap == null
 			? clipSourceWindowRange(clip, startFrame, endFrame, source.frameCount)
 			: audioWarpSourceWindowRange(projectAtStart, clip, {
