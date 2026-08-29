@@ -40,3 +40,21 @@ export async function restoreStoreProjectSnapshot(
 	}
 	return repository.restore(projectId, snapshot);
 }
+
+export function restoreStoreProjectSnapshotIfCurrent(
+	repository: ProjectRepositoryPort,
+	projectId: string,
+	expected: Readonly<{ readonly id: string;[field: string]: unknown }>,
+	snapshot: Readonly<{
+		readonly current: Readonly<{ readonly id: string;[field: string]: unknown }> | null;
+		readonly revisions: readonly Readonly<{
+			readonly revision: number;
+			readonly project: Readonly<{ readonly id: string;[field: string]: unknown }>;
+		}>[];
+	}>,
+): Promise<boolean> {
+	if (typeof repository.restoreIfCurrent !== 'function') {
+		throw new Error('Exact-current project snapshot restore is unavailable.');
+	}
+	return repository.restoreIfCurrent(projectId, expected, snapshot);
+}

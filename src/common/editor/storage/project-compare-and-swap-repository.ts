@@ -60,6 +60,15 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return restore.call(this.#delegate, projectId, snapshot);
 	}
 
+	restoreIfCurrent(projectId: string, expected: ProjectDocument, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly ProjectRevision[];
+	}>): Promise<boolean> {
+		const restore = this.#delegate.restoreIfCurrent;
+		if (!restore) throw new Error('Exact-current project snapshot restore is unavailable.');
+		return restore.call(this.#delegate, projectId, expected, snapshot);
+	}
+
 	async saveIfCurrent(
 		expectedValue: ProjectDocument,
 		projectValue: ProjectDocument,

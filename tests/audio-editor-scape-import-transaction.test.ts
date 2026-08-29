@@ -10,6 +10,7 @@ import {
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { OwnedMediaAssetPublication } from '../src/common/editor/storage/media-asset-write-contract.ts';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('replace-import rollback preserves linked-original bindings and their locators', async () => {
 	// A rollback restores the captured documents; it must never pass through
@@ -66,6 +67,38 @@ test('replace-import rollback preserves linked-original bindings and their locat
 	);
 	assert.deepEqual(releases, [], 'no platform locator grant was released during rollback');
 });
+
+for (const backend of ['memory', 'indexeddb'] as const) {
+	test(`replace-import rollback preserves a project saved after its publication in ${backend}`, async () => {
+		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const options = {
+			indexedDB: indexedDB as unknown as IDBFactory | null,
+			preferOpfs: false,
+			databaseName: `scape-rollback-concurrent-project-${backend}`,
+		};
+		const store = createProjectStore(options);
+		const concurrentStore = createProjectStore(options);
+		await Promise.all([store.ready(), concurrentStore.ready()]);
+		await store.saveProject({ id: 'p1', revision: 0, title: 'Original', sources: [] });
+
+		const importStore: unknown = store;
+		assertScapeImportStore(importStore);
+		const transaction = new ScapeImportTransaction(importStore);
+		await transaction.captureProject('p1');
+		await transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] });
+		await concurrentStore.saveProject({
+			id: 'p1', revision: 2, title: 'Concurrent edit', sources: [],
+		});
+
+		const primary = new Error('archive closure failed after a later save');
+		await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
+		assert.equal((await store.loadProject('p1'))?.title, 'Concurrent edit');
+		assert.deepEqual(
+			(await store.listProjectRevisions('p1')).map(({ revision }) => revision),
+			[2, 1, 0],
+		);
+	});
+}
 
 test('Scape rollback discards exact owned media publications and PCM sources', async () => {
 	const cleanup: string[] = [];
@@ -166,6 +199,7 @@ test('Scape routes a captured existing target through ordinary repository update
 		async createProjectIfAbsent() { throw new Error('updates must not use create-only publication'); },
 		async deleteProjectIfCurrent() { throw new Error('unused'); },
 		async saveProject(value: typeof replacement) { events.push('save'); assert.equal(value, replacement); },
+		async restoreProjectSnapshotIfCurrent() { throw new Error('completed imports do not roll back'); },
 		async deleteProject() { throw new Error('unused'); },
 		async deleteSource() {},
 	};

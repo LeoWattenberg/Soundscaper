@@ -55,6 +55,10 @@ export interface ScapeImportStore {
 		readonly current: ScapeProjectDocument | null;
 		readonly revisions: readonly ScapeProjectRevision[];
 	}>): PromiseLike<unknown>;
+	restoreProjectSnapshotIfCurrent?(projectId: string, expected: ScapeProjectDocument, snapshot: Readonly<{
+		readonly current: ScapeProjectDocument | null;
+		readonly revisions: readonly ScapeProjectRevision[];
+	}>): PromiseLike<boolean>;
 }
 
 interface ProjectSnapshot {
@@ -71,6 +75,7 @@ export class ScapeImportTransaction {
 	#projectId: string | null = null;
 	#projectSnapshot: ProjectSnapshot | null = null;
 	#createdProject: ScapeProjectDocument | null = null;
+	#publishedProject: ScapeProjectDocument | null = null;
 	#createOnlyPublicationAttempted = false;
 	#projectWriteAttempted = false;
 	#complete = false;
@@ -127,7 +132,12 @@ export class ScapeImportTransaction {
 			throwIfScapeAborted(this.#signal);
 			return;
 		}
-		await this.#store.saveProject(project);
+		if (typeof this.#store.restoreProjectSnapshotIfCurrent !== 'function') {
+			throw new TypeError('Replace-import publication requires exact-current snapshot rollback.');
+		}
+		this.#publishedProject = project;
+		const published = await this.#store.saveProject(project);
+		if (isScapeProjectDocument(published, project.id)) this.#publishedProject = published;
 		throwIfScapeAborted(this.#signal);
 	}
 
@@ -176,19 +186,25 @@ export class ScapeImportTransaction {
 		}
 		// A failed create-only comparison did not publish the captured absent target.
 		if (snapshot.current === null && this.#createOnlyPublicationAttempted) return true;
-		if (typeof this.#store.restoreProjectSnapshot === 'function') {
-			// The atomic restore preserves linked-original bindings and their
-			// locator grants, which the full delete lifecycle would destroy.
-			await this.#store.restoreProjectSnapshot(projectId, snapshot);
-			return true;
+		if (this.#publishedProject) {
+			if (typeof this.#store.restoreProjectSnapshotIfCurrent !== 'function') {
+				throw new TypeError('Replace-import rollback lost its exact-current restore capability.');
+			}
+			// The exact atomic restore preserves both linked-original bindings and
+			// any project document a later writer published after the import.
+			return this.#store.restoreProjectSnapshotIfCurrent(
+				projectId,
+				this.#publishedProject,
+				snapshot,
+			);
 		}
-		await this.#store.deleteProject(projectId);
-		const revisions = [...snapshot.revisions]
-			.sort((left, right) => left.revision - right.revision);
-		for (const revision of revisions) await this.#store.saveProject(revision.project);
-		if (snapshot.current) await this.#store.saveProject(snapshot.current);
-		return true;
+		return false;
 	}
+}
+
+function isScapeProjectDocument(value: unknown, projectId: string): value is ScapeProjectDocument {
+	return Boolean(value && typeof value === 'object'
+		&& 'id' in value && value.id === projectId);
 }
 
 export function assertScapeImportStore(value: unknown): asserts value is ScapeImportStore {

@@ -9,7 +9,7 @@ import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
 import { createStoreProjectIfAbsent, createStoreScapeProjectIfAbsent, deleteStoreProjectIfCurrent } from './storage/project-create-only-publication.ts';
 import { duplicateStoreProject } from './storage/project-store-defaults.ts';
-import { restoreStoreProjectSnapshot } from './storage/project-snapshot-restore.ts';
+import { restoreStoreProjectSnapshot, restoreStoreProjectSnapshotIfCurrent } from './storage/project-snapshot-restore.ts';
 
 const DEFAULT_DATABASE_NAME = 'kw-media-audio-editor';
 
@@ -159,6 +159,7 @@ export class AudioEditorProjectStore {
 
 	/** Binding-preserving replace-import rollback; see restoreStoreProjectSnapshot. */
 	restoreProjectSnapshot(projectId, snapshot) { return restoreStoreProjectSnapshot(this, this.projectRepository, projectId, snapshot); }
+	restoreProjectSnapshotIfCurrent(projectId, expected, snapshot) { return restoreStoreProjectSnapshotIfCurrent(this.projectRepository, projectId, expected, snapshot); }
 
 	async prepareProjectHandoff(project, { signal } = {}) {
 		void project;

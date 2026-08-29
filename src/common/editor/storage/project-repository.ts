@@ -23,6 +23,10 @@ import {
 } from './linked-original-provisional-root.ts';
 import { publishSource } from './media-records.ts';
 import { sameProjectSnapshot } from './project-snapshot-equality.ts';
+import {
+	restoreProjectSnapshot,
+	restoreProjectSnapshotIfCurrent,
+} from './project-snapshot-restoration-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import {
 	applyMemoryMutations,
@@ -81,6 +85,10 @@ export interface ProjectRepositoryPort {
 			readonly project: ProjectDocument;
 		}>[];
 	}>): Promise<void>;
+	restoreIfCurrent?(projectId: string, expected: ProjectDocument, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly ProjectRevision[];
+	}>): Promise<boolean>;
 }
 /** Durable project snapshots and their bounded revision history. */
 export class ProjectRepository implements ProjectRepositoryPort {
@@ -339,38 +347,16 @@ export class ProjectRepository implements ProjectRepositoryPort {
 	 */
 	async restore(projectId: string, snapshot: Readonly<{
 		readonly current: ProjectDocument | null;
-		readonly revisions: readonly Readonly<{
-			readonly revision: number;
-			readonly project: ProjectDocument;
-		}>[];
+		readonly revisions: readonly ProjectRevision[];
 	}>): Promise<void> {
-		const rows: ProjectRevisionRecord[] = snapshot.revisions.map(({ revision, project }) => {
-			const document = compactProjectSourceMetadata(clone(project)) as ProjectDocument;
-			const value = nonNegativeInteger(revision, 0);
-			return { key: revisionKey(projectId, value), projectId, revision: value, project: document };
-		});
-		const current = snapshot.current === null
-			? null : compactProjectSourceMetadata(clone(snapshot.current)) as ProjectDocument;
-		const database = await this.#port.database();
-		if (!database) {
-			const memory = this.#port.memory;
-			const mutations: MemoryMutation[] = [deleteMemoryMutation(memory.projects, projectId)];
-			for (const [key, value] of memory.revisions) {
-				if (asRevision(value)?.projectId === projectId) {
-					mutations.push(deleteMemoryMutation(memory.revisions, key));
-				}
-			}
-			for (const row of rows) mutations.push(setMemoryMutation(memory.revisions, row.key, row));
-			if (current) mutations.push(setMemoryMutation(memory.projects, projectId, current));
-			applyMemoryMutations(mutations);
-			return;
-		}
-		await transact(database, ['projects', 'revisions'], 'readwrite', async ({ projects, revisions }) => {
-			projects.delete(projectId);
-			await deleteByIndex(revisions.index('projectId'), projectId);
-			for (const row of rows) revisions.put(row);
-			if (current) projects.put(current);
-		});
+		return restoreProjectSnapshot(this.#port, projectId, snapshot);
+	}
+
+	restoreIfCurrent(projectId: string, expected: ProjectDocument, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly ProjectRevision[];
+	}>): Promise<boolean> {
+		return restoreProjectSnapshotIfCurrent(this.#port, projectId, expected, snapshot);
 	}
 
 	async delete(projectId: string): Promise<void> {
