@@ -327,14 +327,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
-		const startingProjectId = getProject()?.id ?? null;
-		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
-		const startingProjectToken = hasProjectToken ? captureProject() : null;
-		const assertImportProjectCurrent = () => {
-			try { if (hasProjectToken) assertProject(startingProjectToken); }
-			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
-			if ((getProject()?.id ?? null) !== startingProjectId) throw new Error('The project changed during audio import.');
-		};
 		const normalizedImportOptions = await normalizedImportOptionsForUse(importOptions);
 		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(normalizedImportOptions);
 		const legacyFile = isLegacyAupFile(file);
@@ -356,6 +348,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (linkedOriginalLocator?.kind === 'audio') {
 			return importLinkedAudio(file, normalizedImportOptions, linkedOriginalLocator);
 		}
+		const startingProjectId = getProject()?.id ?? null;
+		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
+		const startingProjectToken = hasProjectToken ? captureProject() : null;
+		const assertImportProjectCurrent = () => {
+			try { if (hasProjectToken) assertProject(startingProjectToken); }
+			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
+			if ((getProject()?.id ?? null) !== startingProjectId) throw new Error('The project changed during audio import.');
+		};
 		assertImportProjectCurrent();
 		validateImportTimelineTrack(normalizedImportOptions);
 		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
