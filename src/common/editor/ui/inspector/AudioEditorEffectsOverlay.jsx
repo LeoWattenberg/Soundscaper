@@ -46,6 +46,7 @@ export function AudioEditorEffectsOverlay({
 	renderDialogs = true,
 }) {
 	const project = snapshot.project;
+	const projectIdentity = project?.id ?? null;
 	const selectedTrack = scope === 'track' && project ? findTrack(project, trackId || snapshot.selectedTrackId) : null;
 	const selectedBus = scope === 'group'
 		? project?.mixer?.groups?.find((bus) => bus.id === trackId) || null
@@ -75,6 +76,35 @@ export function AudioEditorEffectsOverlay({
 	const [stackMenu, setStackMenu] = useState(null);
 	const rackRef = useRef(null);
 	const stackMenuTriggerRef = useRef(null);
+	const operationSessionRef = useRef(null);
+	const activeOperationRef = useRef(null);
+	const mountedRef = useRef(false);
+	const stateProjectIdentityRef = useRef(projectIdentity);
+	if (operationSessionRef.current?.projectIdentity !== projectIdentity
+		|| operationSessionRef.current?.isOpen !== isOpen) {
+		operationSessionRef.current = { projectIdentity, isOpen };
+		activeOperationRef.current = null;
+	}
+
+	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+			activeOperationRef.current = null;
+		};
+	}, []);
+
+	useEffect(() => {
+		if (stateProjectIdentityRef.current === projectIdentity) return;
+		stateProjectIdentityRef.current = projectIdentity;
+		activeOperationRef.current = null;
+		setPicker(null);
+		setSelectedEffect(null);
+		setRackPresetId('');
+		setMessage('');
+		setStackMenu(null);
+		stackMenuTriggerRef.current = null;
+	}, [projectIdentity, setSelectedEffect]);
 
 	useEffect(() => {
 		if (!selectedEffect) return;
@@ -103,9 +133,22 @@ export function AudioEditorEffectsOverlay({
 		}
 	}, [copy.effectStackOptions, isOpen, channel?.id]);
 
+	const liveProjectIdentity = () => controller.project?.id ?? null;
 	const run = (work) => {
+		const session = operationSessionRef.current;
+		if (!session?.isOpen || session.projectIdentity === null
+			|| liveProjectIdentity() !== session.projectIdentity) return Promise.resolve();
+		const operation = { session };
+		activeOperationRef.current = operation;
+		const ownsOperation = () => mountedRef.current
+			&& activeOperationRef.current === operation
+			&& operationSessionRef.current === operation.session
+			&& liveProjectIdentity() === operation.session.projectIdentity;
 		setMessage('');
-		return Promise.resolve().then(work).catch((cause) => {
+		return Promise.resolve().then(() => (
+			ownsOperation() ? work(ownsOperation) : undefined
+		)).catch((cause) => {
+			if (!ownsOperation()) return;
 			setMessage(cause instanceof Error ? cause.message : String(cause));
 		});
 	};
@@ -226,9 +269,11 @@ export function AudioEditorEffectsOverlay({
 	const menuEffects = stackMenu?.scope === 'master' ? masterEffects : channelEffects;
 	const menuTrackId = stackMenu?.scope === 'master' ? null : targetId;
 	const closeStackMenu = () => {
+		const session = operationSessionRef.current;
 		const trigger = stackMenuTriggerRef.current;
 		setStackMenu(null);
 		requestAnimationFrame(() => {
+			if (operationSessionRef.current !== session) return;
 			const active = document.activeElement;
 			if (isOpen && trigger?.isConnected && (!active || active === document.body)) {
 				trigger.focus({ preventScroll: true });
@@ -240,16 +285,18 @@ export function AudioEditorEffectsOverlay({
 		setMessage(copy.effectsCopied);
 		closeStackMenu();
 	};
-	const pasteStack = () => run(() => {
+	const pasteStack = () => run((ownsOperation) => {
+		if (!ownsOperation()) return;
 		controller.actions.effects.pasteStack(stackMenu.scope, menuTrackId);
+		if (!ownsOperation()) return;
 		setMessage(copy.effectsPasted);
 		closeStackMenu();
 	});
-	const exportStack = () => run(async () => {
+	const exportStack = () => run(async (ownsOperation) => {
 		const encoded = serializeAudacityEffectMacro(menuEffects.filter((candidate) => candidate.type !== 'missing'));
 		const name = stackMenu.scope === 'master' ? copy.master : channel?.name;
 		const saved = await downloadTextFile(encoded, `${macroFileName(name || copy.untitledMacro)}.txt`, fileService, 'macro');
-		if (saved?.cancelled) return;
+		if (!ownsOperation() || saved?.cancelled) return;
 		setMessage(copy.macroExported);
 		closeStackMenu();
 	});
@@ -453,7 +500,8 @@ export function AudioEditorEffectsOverlay({
 					flyout={picker.flyout}
 					anchor={picker.anchor}
 					onClose={() => setPicker(null)}
-					onChoose={(type) => run(async () => {
+					onChoose={(type) => run(async (ownsOperation) => {
+						if (!ownsOperation()) return;
 						if (picker.replaceId) {
 							const rack = picker.scope === 'master' ? masterEffects : channelEffects;
 							const current = rack.find((candidate) => candidate.id === picker.replaceId);
@@ -465,10 +513,11 @@ export function AudioEditorEffectsOverlay({
 								busId: picker.scope === 'master' ? null : targetId,
 								type,
 							});
-							if (id && effectHasEditableSettings(type)) {
+							if (ownsOperation() && id && effectHasEditableSettings(type)) {
 								setSelectedEffect({ scope: picker.scope, id });
 							}
 						}
+						if (!ownsOperation()) return;
 						setPicker(null);
 					})}
 				/>
