@@ -63,6 +63,7 @@ export interface ProjectBinServiceDependencies extends ProjectBinReplacementDepe
 	readonly copy: ProjectBinCopy;
 	readonly trackColors: readonly string[];
 	readonly playbackEngine: ProjectBinPlaybackEngine;
+	readonly retireTimelinePlayback: ProjectBinPreviewDependencies['retireTimelinePlayback'];
 	readonly sourceBuffers: Map<string, AudioBuffer>;
 	readonly sourceChunkProviders: ProjectBinChunkProviderCachePort;
 	readonly sourcePeaks: Map<string, unknown>;
@@ -437,7 +438,7 @@ function previewDependencies(
 	return {
 		lifetime: dependencies.lifetime,
 		copy: dependencies.copy,
-		playbackEngine: dependencies.playbackEngine,
+		retireTimelinePlayback: dependencies.retireTimelinePlayback,
 		sourceBuffers: dependencies.sourceBuffers as EngineSourceBufferInput,
 		sourceChunkProviders: dependencies.sourceChunkProviders as EngineChunkSourceInput,
 		sourceResolver: dependencies.sourceResolver,

@@ -451,7 +451,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 			track: 'Track',
 			projectBinReplacementIncompatible: 'Replacement incompatible.',
 		},
-		trackColors: ['blue', 'green'],
+		trackColors: ['blue', 'green'], retireTimelinePlayback: () => { playbackStopCount += 1; },
 		playbackEngine: {
 			getState: () => ({ state: options.playbackState ?? 'stopped' }),
 			stop: () => { playbackStopCount += 1; },

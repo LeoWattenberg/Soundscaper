@@ -957,7 +957,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		});
 	const {
 		setPlayAtSpeedRate,
-		cancelPlayAtSpeedPreparation,
+		cancelPlayAtSpeedPreparation, retireTimelinePlayback,
 		handlePlayAtSpeed,
 		handleTransport,
 		clearLoopRegion,
@@ -1528,7 +1528,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const projectBinService = createProjectBinService({
 		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS,
-		playbackEngine: engine, sourceBuffers, sourceChunkProviders, sourcePeaks,
+		playbackEngine: engine, retireTimelinePlayback, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		missingSourceIds: state.missingSourceIds,
 		sourceResolver: clipTimePitchSourceResolver, store, activateVideoSource,
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),

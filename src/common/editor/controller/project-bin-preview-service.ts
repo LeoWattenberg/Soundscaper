@@ -47,7 +47,7 @@ export interface ProjectBinPreviewEngine {
 export interface ProjectBinPreviewDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: Pick<ProjectBinCopy, 'audioClipNotFound' | 'localSourcesMissing'>;
-	readonly playbackEngine: ProjectBinPlaybackEngine;
+	retireTimelinePlayback(): unknown;
 	readonly sourceBuffers: EngineSourceBufferInput;
 	readonly sourceChunkProviders: EngineChunkSourceInput;
 	readonly sourceResolver?: EngineSourceResolver | null;
@@ -93,7 +93,7 @@ export function createProjectBinPreviewService(
 		await stopProjectBinPreview();
 		const projectToken = dependencies.captureProject();
 		dependencies.assertProject(projectToken);
-		if (dependencies.playbackEngine.getState().state === 'playing') dependencies.playbackEngine.stop();
+		dependencies.retireTimelinePlayback();
 		if (videoClip) {
 			const visual = dependencies.getVisualData(clipId);
 			const preview = Object.freeze({

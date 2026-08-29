@@ -50,6 +50,12 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		return Boolean(active);
 	}
 
+	function retireTimelinePlayback() {
+		cancelPlaybackCachePreparation();
+		cancelPlayAtSpeedPreparation();
+		return engine.stop();
+	}
+
 	async function handlePlayAtSpeed(requestedRate: RuntimeValue = state.playAtSpeedRate) {
 		if (state.recordingStarting || state.timedRecordingPreparing || state.timedRecording || state.recorder) return false;
 		if (hasMissingTimelineSources()) throw new Error(copy.localSourcesMissing);
@@ -372,6 +378,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	return Object.freeze({
 		setPlayAtSpeedRate,
 		cancelPlayAtSpeedPreparation,
+		retireTimelinePlayback,
 		handlePlayAtSpeed,
 		handleTransport,
 		clearLoopRegion,
