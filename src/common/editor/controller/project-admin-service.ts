@@ -38,7 +38,10 @@ export interface ProjectAdminServiceRuntime {
 	readonly openProject: LegacyPort;
 	readonly persistSetting: LegacyPort;
 	readonly projectSaveService: any;
-	readonly projectGeneration: Readonly<{ invalidate(): void }>;
+	readonly projectGeneration: Readonly<{
+		activate(projectId: string): unknown;
+		invalidate(): void;
+	}>;
 	readonly projectMaintenanceRuntime?: Readonly<{
 		reconcileAndCollectStorageRoots(request: Readonly<{
 			currentProject: unknown;
@@ -357,7 +360,10 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	async function clearLocalDataReserved(
 		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
 	) {
+		const originProject = getProject();
+		const originHistory = state.history;
 		let replacementEstablished = false;
+		let originRestorable = true;
 		projectSaveService.suspend();
 		projectGeneration.invalidate();
 		state.history = null;
@@ -367,6 +373,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			interlock?.assertCurrent();
 			await projectSaveService.drain();
 			cancelPlaybackCachePreparation();
+			originRestorable = false;
 			await releaseProjectLock();
 			engine.stop();
 			await stopProjectBinPreview({ dispose: true });
@@ -390,6 +397,12 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			state.projects = Object.freeze(store.preservesProjectsOnClear?.() ? await store.listProjects() : []);
 			publishDocumentSnapshot();
 		} finally {
+			if (!replacementEstablished && originRestorable && originProject && originHistory) {
+				state.history = originHistory;
+				setProject(originProject);
+				projectGeneration.activate(originProject.id);
+				replacementEstablished = true;
+			}
 			if (replacementEstablished) projectSaveService.resume();
 		}
 	}

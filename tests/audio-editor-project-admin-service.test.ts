@@ -72,7 +72,7 @@ function createFixture() {
 		openProject: async () => { openCalls += 1; },
 		persistSetting: async () => undefined,
 		projectSaveService: { cancelScheduled: noop, pendingSnapshots: [] },
-		projectGeneration: { invalidate: noop },
+		projectGeneration: { activate: noop, invalidate: noop },
 		projectMaintenanceRuntime: {
 			async reconcileAndCollectStorageRoots(request: unknown) {
 				maintenanceCalls += 1;
@@ -371,4 +371,35 @@ test('only the newest overlapping garbage collection owns the follow-up timer', 
 		secondGate.resolve();
 		await Promise.allSettled([first, second]);
 	}
+});
+
+test('a failed pre-clear save drain restores project mutation and save admission', async () => {
+	const fixture = createAdminFixture();
+	const origin = fixture.project();
+	const originHistory = fixture.state.history;
+	const drainStarted = deferred();
+	const drainGate = deferred();
+	const failure = new Error('queued save failed');
+	fixture.runtime.projectSaveService.drain = async () => {
+		fixture.calls.push('drain-save:pending');
+		drainStarted.resolve();
+		await drainGate.promise;
+		throw failure;
+	};
+	const service = createProjectAdminService(fixture.runtime);
+	const clearing = service.clearLocalData();
+	await drainStarted.promise;
+	assert.equal(fixture.project(), null);
+	assert.equal(fixture.saveSuspended(), true);
+
+	drainGate.resolve();
+	await assert.rejects(clearing, (error: unknown) => error === failure);
+	assert.strictEqual(fixture.project(), origin);
+	assert.strictEqual(fixture.state.history, originHistory);
+	assert.equal(fixture.captureProjectGeneration().projectId, origin?.id);
+	assert.equal(fixture.saveSuspended(), false);
+	assert.equal(fixture.runtime.projectSaveService.scheduleAutosave(), true);
+	assert.equal(fixture.calls.includes('clear-store'), false);
+	await service.renameProject('Recovered project');
+	assert.equal(fixture.calls.includes('rename:Recovered project'), true);
 });
