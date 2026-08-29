@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
@@ -9,19 +9,45 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 	const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId && candidate.type === 'audio') || null;
 	const nyquist = Math.max(1, (project?.sampleRate || 48_000) / 2);
 	const existing = snapshot.selection?.frequencyRange;
-	const [minimumFrequency, setMinimumFrequency] = useState(existing?.minimumFrequency ?? track?.spectrogram?.minimumFrequency ?? 0);
-	const [maximumFrequency, setMaximumFrequency] = useState(existing?.maximumFrequency ?? track?.spectrogram?.maximumFrequency ?? Math.min(20_000, nyquist));
+	const projectIdentity = project?.id ?? null;
+	const defaultMinimumFrequency = existing?.minimumFrequency ?? track?.spectrogram?.minimumFrequency ?? 0;
+	const defaultMaximumFrequency = existing?.maximumFrequency ?? track?.spectrogram?.maximumFrequency ?? Math.min(20_000, nyquist);
+	const currentProjectOwnership = useRef({ projectIdentity });
+	const stateProjectIdentity = useRef(projectIdentity);
+	if (currentProjectOwnership.current?.projectIdentity !== projectIdentity) {
+		currentProjectOwnership.current = { projectIdentity };
+	}
+	const [minimumFrequency, setMinimumFrequency] = useState(defaultMinimumFrequency);
+	const [maximumFrequency, setMaximumFrequency] = useState(defaultMaximumFrequency);
 	const [gainDb, setGainDb] = useState(6);
+
+	useEffect(() => {
+		if (stateProjectIdentity.current === projectIdentity) return;
+		stateProjectIdentity.current = projectIdentity;
+		setMinimumFrequency(defaultMinimumFrequency);
+		setMaximumFrequency(defaultMaximumFrequency);
+		setGainDb(6);
+	}, [defaultMaximumFrequency, defaultMinimumFrequency, projectIdentity]);
+	useEffect(() => {
+		currentProjectOwnership.current ??= { projectIdentity: stateProjectIdentity.current };
+		return () => { currentProjectOwnership.current = null; };
+	}, []);
 
 	const selectionOptions = () => ({
 		minimumFrequency: Number(minimumFrequency),
 		maximumFrequency: Number(maximumFrequency),
 	});
 	const submit = (operation) => {
+		const projectOwnership = currentProjectOwnership.current;
+		if (!projectIdentity || stateProjectIdentity.current !== projectIdentity || !projectOwnership) return;
+		const options = selectionOptions();
+		const requestedGainDb = Number(gainDb);
 		run(async () => {
-			controller.actions.spectral.boxSelect(selectionOptions());
+			if (currentProjectOwnership.current !== projectOwnership) return;
+			controller.actions.spectral.boxSelect(options);
+			if (currentProjectOwnership.current !== projectOwnership) return;
 			if (operation === 'delete') await controller.actions.spectral.delete();
-			if (operation === 'amplify') await controller.actions.spectral.amplify(Number(gainDb));
+			if (operation === 'amplify') await controller.actions.spectral.amplify(requestedGainDb);
 		});
 		onClose();
 	};
