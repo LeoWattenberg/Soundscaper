@@ -409,7 +409,6 @@ export async function importScapeProject(input, store, options = {}) {
 					}
 					if (abortFailed) throw abortFailure;
 				} else {
-					transaction.trackProvisionalSource(finalSourceId);
 					if (asset.encoding !== AUDIO_ENCODING) throw new Error(`Unsupported audio asset encoding: ${asset.encoding}.`);
 					throwIfScapeAborted(signal);
 					const sourceWriter = await store.beginSourceWrite(finalSourceId, {
@@ -430,10 +429,20 @@ export async function importScapeProject(input, store, options = {}) {
 							audioChunkBudget,
 						);
 						verifyScapeExtractedAsset(asset, extracted.digest, extracted.size, source.name || source.id);
-						await awaitScapeOperation(sourceWriter.commit({
-							sampleRate: source.sampleRate,
-							channelCount: source.channelCount,
-						}, { signal }), signal);
+						// Retain the exact PCM generation before observing a cancellation
+						// that can arrive concurrently with durable publication.
+						let sourcePublication;
+						try {
+							sourcePublication = await sourceWriter.commit({
+								sampleRate: source.sampleRate,
+								channelCount: source.channelCount,
+							}, { signal });
+						} catch (commitError) {
+							throwIfScapeAborted(signal);
+							throw commitError;
+						}
+						transaction.trackProvisionalSource(sourcePublication);
+						throwIfScapeAborted(signal);
 					} catch (error) {
 						try {
 							await sourceWriter.abort();

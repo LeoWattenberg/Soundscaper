@@ -167,7 +167,7 @@ class CountingSha256ImportStore implements ScapeImportStore {
 	beginMediaAssetWriteCalls = 0;
 	saveProjectCalls = 0;
 	deleteProjectCalls = 0;
-	deleteSourceCalls = 0;
+	discardSourceCalls = 0;
 	mediaWriter: CountingSha256MediaWriter | null = null;
 	publishedProject: ImportedProjectDocument | null = null;
 	mediaMetadata: PersistedMediaMetadata | null = null;
@@ -255,14 +255,18 @@ class CountingSha256ImportStore implements ScapeImportStore {
 		this.events.push('project-published');
 	}
 
+	async restoreProjectSnapshotIfCurrent(): Promise<boolean> {
+		return false;
+	}
+
 	async deleteProject(): Promise<void> {
 		this.deleteProjectCalls += 1;
 		this.publishedProject = null;
 	}
 
-	async deleteSource(): Promise<void> {
-		this.deleteSourceCalls += 1;
-		this.mediaMetadata = null;
+	async discardSourceIfCurrent(): Promise<boolean> {
+		this.discardSourceCalls += 1;
+		return true;
 	}
 }
 
@@ -424,7 +428,7 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 	assert.equal(importStore.beginMediaAssetWriteCalls, 1);
 	assert.equal(importStore.saveProjectCalls, 1);
 	assert.equal(importStore.deleteProjectCalls, 0);
-	assert.equal(importStore.deleteSourceCalls, 0);
+	assert.equal(importStore.discardSourceCalls, 0);
 	assert.equal(importCalls, 1);
 	assert.equal(decisionCalls, 0);
 	assert.equal(materializedOpenCalls, 0);

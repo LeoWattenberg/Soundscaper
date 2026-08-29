@@ -10,6 +10,7 @@ import {
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { LinkedOriginalPort } from '../src/common/editor/storage/linked-original-resolver.ts';
 import type { OwnedMediaAssetPublication } from '../src/common/editor/storage/media-asset-write-contract.ts';
+import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('replace-import rollback preserves linked-original bindings and their locators', async () => {
@@ -100,6 +101,37 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 	});
 }
 
+for (const backend of ['memory', 'indexeddb'] as const) {
+	test(`Scape rollback preserves a newer same-ID PCM generation in ${backend}`, async () => {
+		const store = createProjectStore({
+			indexedDB: backend === 'indexeddb' ? createInstrumentedIndexedDB() : null,
+			memoryFallback: backend === 'memory',
+			preferOpfs: false,
+			databaseName: `scape-rollback-concurrent-source-${backend}-${Date.now()}-${Math.random()}`,
+		});
+		try {
+			const importStore: unknown = store;
+			assertScapeImportStore(importStore);
+			const transaction = new ScapeImportTransaction(importStore);
+			const importedWriter = await store.beginSourceWrite('shared-source', sourceMetadata());
+			await importedWriter.write([Float32Array.of(0.25, -0.5)]);
+			const imported = await importedWriter.commit();
+			transaction.trackProvisionalSource(imported);
+
+			const newerWriter = await store.beginSourceWrite('shared-source', sourceMetadata());
+			await newerWriter.write([Float32Array.of(0.75, -0.125)]);
+			const newer = await newerWriter.commit();
+			assert.notEqual(imported.sourceToken, newer.sourceToken);
+
+			const primary = new Error('import lost a later project publication race');
+			await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
+			assert.equal((await store.getSourceMetadata('shared-source'))?.sourceToken, newer.sourceToken);
+		} finally {
+			await store.close();
+		}
+	});
+}
+
 test('Scape rollback discards exact owned media publications and PCM sources', async () => {
 	const cleanup: string[] = [];
 	const store = {
@@ -112,11 +144,11 @@ test('Scape rollback discards exact owned media publications and PCM sources', a
 		async beginMediaAssetWrite() { throw new Error('unused'); },
 		async saveProject() { throw new Error('unused'); },
 		async deleteProject() { cleanup.push('project'); },
-		async deleteSource(sourceId: string) { cleanup.push(`source:${sourceId}`); },
+		async discardSourceIfCurrent(source: StorageRecord) { cleanup.push(`source:${source.id}`); return true; },
 	};
 	const transaction = new ScapeImportTransaction(store);
 	await transaction.captureProject('project-1');
-	transaction.trackProvisionalSource('audio-1');
+	transaction.trackProvisionalSource(sourcePublication('audio-1'));
 	transaction.trackProvisionalMedia(publication('video-1', cleanup));
 	transaction.trackProvisionalMedia(publication('timing-1', cleanup));
 	const primary = new Error('later import failure');
@@ -147,7 +179,7 @@ test('Scape publishes an absent target create-only and rolls it back by exact ow
 		},
 		async saveProject() { throw new Error('ordinary save must not create'); },
 		async deleteProject() { throw new Error('broad delete must not remove a created target'); },
-		async deleteSource() {},
+		async discardSourceIfCurrent() { return true; },
 	};
 	const transaction = new ScapeImportTransaction(store);
 	await transaction.captureProject(project.id);
@@ -173,11 +205,11 @@ test('Scape preserves project assets when a later writer defeats exact create ro
 		async deleteProjectIfCurrent() { cleanup.push('project-preserved'); return false; },
 		async saveProject() { throw new Error('ordinary save must not create'); },
 		async deleteProject() { throw new Error('broad delete must not remove an adopted target'); },
-		async deleteSource(sourceId: string) { cleanup.push(`source:${sourceId}`); },
+		async discardSourceIfCurrent(source: StorageRecord) { cleanup.push(`source:${source.id}`); return true; },
 	};
 	const transaction = new ScapeImportTransaction(store);
 	await transaction.captureProject(project.id);
-	transaction.trackProvisionalSource('audio-1');
+	transaction.trackProvisionalSource(sourcePublication('audio-1'));
 	transaction.trackProvisionalMedia(publication('video-1', cleanup));
 	await transaction.publishProject(project);
 	const primary = new Error('archive closure failed');
@@ -201,7 +233,7 @@ test('Scape routes a captured existing target through ordinary repository update
 		async saveProject(value: typeof replacement) { events.push('save'); assert.equal(value, replacement); },
 		async restoreProjectSnapshotIfCurrent() { throw new Error('completed imports do not roll back'); },
 		async deleteProject() { throw new Error('unused'); },
-		async deleteSource() {},
+		async discardSourceIfCurrent() { return true; },
 	};
 	const transaction = new ScapeImportTransaction(store);
 	await transaction.captureProject(existing.id);
@@ -217,5 +249,17 @@ function publication(
 	return Object.freeze({
 		metadata: Object.freeze({ sourceId }),
 		async discardIfCurrent() { cleanup.push(`media:${sourceId}`); return true; },
+	});
+}
+
+function sourceMetadata(): Record<string, unknown> {
+	return { sampleRate: 48_000, channelCount: 1, chunkFrames: 2 };
+}
+
+function sourcePublication(sourceId: string): StorageRecord {
+	return Object.freeze({
+		id: sourceId,
+		storage: 'indexeddb-chunks',
+		sourceToken: `${sourceId}:pending:test-generation`,
 	});
 }

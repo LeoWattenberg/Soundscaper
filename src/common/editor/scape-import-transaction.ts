@@ -3,6 +3,7 @@
 import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
 import type { ScapeVideoWriter } from './scape-archive-video.ts';
 import type { OwnedMediaAssetPublication } from './storage/media-asset-write-contract.ts';
+import type { StorageRecord } from './storage/media-records.ts';
 
 interface ScapeProjectDocument {
 	readonly id: string;
@@ -45,7 +46,7 @@ export interface ScapeImportStore {
 	deleteProjectIfCurrent?(project: ScapeProjectDocument): PromiseLike<boolean>;
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
-	deleteSource(sourceId: string): PromiseLike<unknown>;
+	discardSourceIfCurrent(source: StorageRecord): PromiseLike<boolean>;
 	/**
 	 * Replace only the project's document and revision rows with a captured
 	 * snapshot, preserving linked-original bindings and skipping publication
@@ -70,7 +71,7 @@ interface ProjectSnapshot {
 export class ScapeImportTransaction {
 	readonly #store: ScapeImportStore;
 	readonly #signal?: AbortSignal;
-	readonly #sourceIds: string[] = [];
+	readonly #sourcePublications: StorageRecord[] = [];
 	readonly #mediaPublications: OwnedMediaAssetPublication[] = [];
 	#projectId: string | null = null;
 	#projectSnapshot: ProjectSnapshot | null = null;
@@ -85,9 +86,16 @@ export class ScapeImportTransaction {
 		this.#signal = signal;
 	}
 
-	trackProvisionalSource(sourceId: string): void {
+	trackProvisionalSource(source: StorageRecord): void {
 		if (this.#complete) throw new Error('The Scape import transaction is already complete.');
-		if (!this.#sourceIds.includes(sourceId)) this.#sourceIds.push(sourceId);
+		if (!isOwnedScapeSource(source)) {
+			throw new TypeError('A Scape provisional PCM source requires exact storage ownership.');
+		}
+		if (!this.#sourcePublications.some((candidate) => (
+			candidate.id === source.id && candidate.sourceToken === source.sourceToken
+		))) {
+			this.#sourcePublications.push(Object.freeze({ ...source }));
+		}
 	}
 
 	trackProvisionalMedia(publication: OwnedMediaAssetPublication): void {
@@ -166,9 +174,9 @@ export class ScapeImportTransaction {
 					cleanupErrors.push(error);
 				}
 			}
-			for (const sourceId of [...this.#sourceIds].reverse()) {
+			for (const source of [...this.#sourcePublications].reverse()) {
 				try {
-					await this.#store.deleteSource(sourceId);
+					await this.#store.discardSourceIfCurrent(source);
 				} catch (error) {
 					cleanupErrors.push(error);
 				}
@@ -207,6 +215,12 @@ function isScapeProjectDocument(value: unknown, projectId: string): value is Sca
 		&& 'id' in value && value.id === projectId);
 }
 
+function isOwnedScapeSource(value: unknown): value is StorageRecord {
+	return Boolean(value && typeof value === 'object'
+		&& 'id' in value && typeof value.id === 'string' && value.id.length
+		&& 'sourceToken' in value && typeof value.sourceToken === 'string' && value.sourceToken.length);
+}
+
 export function assertScapeImportStore(value: unknown): asserts value is ScapeImportStore {
 	const store = value as Partial<ScapeImportStore> | null;
 	for (const method of [
@@ -218,7 +232,7 @@ export function assertScapeImportStore(value: unknown): asserts value is ScapeIm
 		'beginMediaAssetWrite',
 		'saveProject',
 		'deleteProject',
-		'deleteSource',
+		'discardSourceIfCurrent',
 	] as const) {
 		if (typeof store?.[method] !== 'function') throw new TypeError('A transactional project store is required.');
 	}

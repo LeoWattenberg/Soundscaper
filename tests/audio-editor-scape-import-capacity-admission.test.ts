@@ -122,13 +122,18 @@ class CapacityProbeStore implements ScapeImportStore {
 		this.#project = structuredClone(project);
 	}
 
+	async restoreProjectSnapshotIfCurrent(): Promise<boolean> {
+		return false;
+	}
+
 	async deleteProject(): Promise<void> {
 		this.events.push('project-deleted');
 		this.#project = null;
 	}
 
-	async deleteSource(): Promise<void> {
-		this.events.push('source-deleted');
+	async discardSourceIfCurrent(): Promise<boolean> {
+		this.events.push('source-deleted-exact');
+		return true;
 	}
 }
 
