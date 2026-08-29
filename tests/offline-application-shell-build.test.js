@@ -28,7 +28,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	const urls = audit.assets.map(({ url }) => url);
 
 	assert.equal(audit.schemaVersion, 2);
-	assert.deepEqual(Object.keys(audit.workers), ['framescaper', 'soundscaper']);
+	assert.deepEqual(Object.keys(audit.workers), ['soundscaper']);
 	assert.deepEqual(urls, [...urls].sort());
 	assert.deepEqual(urls.filter((url) => url.endsWith('/') || url.endsWith('.js')), [
 		'/',
@@ -40,8 +40,6 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		'/assets/soundscaper-core.js',
 		'/embed/en/',
 		'/en/',
-		'/framescaper/embed/en/',
-		'/framescaper/en/',
 	]);
 	assert.equal(urls.includes('/_headers'), false);
 	assert.equal(urls.includes('/assets/application-abc.js.map'), false);
@@ -52,28 +50,19 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	assert.equal(await readFile(join(outputRoot, '.offline-build-manifest.json'), 'utf8').catch(() => null), null);
 
 	const soundWorker = audit.workers.soundscaper;
-	const frameWorker = audit.workers.framescaper;
 	assert.deepEqual(soundWorker.fallbacks, { standard: '/en/', embedded: '/embed/en/' });
-	assert.deepEqual(frameWorker.fallbacks, {
-		standard: '/framescaper/en/', embedded: '/framescaper/embed/en/',
-	});
 	assert.deepEqual(
 		soundWorker.installUrls.filter((url) => url.endsWith('.js')),
 		['/assets/application-abc.js', '/assets/shared.js', '/assets/soundscaper-core.js'],
 	);
-	assert.deepEqual(
-		frameWorker.installUrls.filter((url) => url.endsWith('.js')),
-		['/assets/application-abc.js', '/assets/framescaper-core.js', '/assets/shared.js'],
-	);
 	assert.equal(soundWorker.installUrls.includes('/assets/optional-dialog.js'), false);
-	assert.equal(frameWorker.installUrls.includes('/assets/soundscaper-core.js'), false);
 	for (const optionalAsset of [
 		'/assets/core-font.woff2',
 		'/assets/output-worklet.js',
 		'/assets/plugin.ny',
 		'/assets/runtime-codec.wasm',
 	]) assert.equal(urls.includes(optionalAsset), true, optionalAsset);
-	for (const worker of [soundWorker, frameWorker]) {
+	for (const worker of [soundWorker]) {
 		assert.equal(worker.installUrls.includes('/assets/core-icon.png'), true);
 		for (const optionalAsset of [
 			'/assets/core-font.woff2',
@@ -83,7 +72,6 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		]) assert.equal(worker.installUrls.includes(optionalAsset), false, optionalAsset);
 	}
 	assert.ok(soundWorker.installAssetCount < audit.assets.length);
-	assert.ok(frameWorker.installAssetCount < audit.assets.length);
 
 	for (const descriptor of audit.assets) {
 		const path = descriptor.url.endsWith('/')
@@ -95,26 +83,23 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	}
 
 	const soundscaper = JSON.parse(await readFile(join(outputRoot, 'manifest-soundscaper.webmanifest'), 'utf8'));
-	const framescaper = JSON.parse(await readFile(join(outputRoot, 'manifest-framescaper.webmanifest'), 'utf8'));
 	assert.deepEqual(
 		{ id: soundscaper.id, scope: soundscaper.scope, startUrl: soundscaper.start_url },
 		{ id: '/soundscaper', scope: '/', startUrl: '/en/' },
 	);
-	assert.deepEqual(
-		{ id: framescaper.id, scope: framescaper.scope, startUrl: framescaper.start_url },
-		{ id: '/framescaper', scope: '/framescaper/', startUrl: '/framescaper/en/' },
-	);
-	for (const manifest of [soundscaper, framescaper]) {
+	for (const manifest of [soundscaper]) {
 		assert.equal(manifest.display, 'standalone');
 		assert.deepEqual(manifest.icons.map(({ sizes }) => sizes), ['192x192', '512x512']);
 		for (const icon of manifest.icons) assert.equal((await readFile(join(outputRoot, icon.src))).subarray(1, 4).toString(), 'PNG');
 	}
-	for (const productId of ['soundscaper', 'framescaper']) {
+	for (const productId of ['soundscaper']) {
 		const appleIcon = await readFile(join(outputRoot, 'offline-icons', `${productId}-180.png`));
 		assert.equal(appleIcon.subarray(1, 4).toString(), 'PNG');
 	}
 	assert.match(await readFile(join(outputRoot, 'service-worker.js'), 'utf8'), new RegExp(soundWorker.releaseId, 'u'));
-	assert.match(await readFile(join(outputRoot, 'framescaper/service-worker.js'), 'utf8'), new RegExp(frameWorker.releaseId, 'u'));
+	assert.equal(await readFile(join(outputRoot, 'framescaper/service-worker.js'), 'utf8').catch(() => null), null);
+	assert.equal(await readFile(join(outputRoot, 'manifest-framescaper.webmanifest'), 'utf8').catch(() => null), null);
+	assert.equal(await readFile(join(outputRoot, 'logo/framescaper-icon.svg'), 'utf8').catch(() => null), null);
 
 	const second = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
 	assert.deepEqual(second.releaseIds, first.releaseIds, 'identical output produces identical release IDs');
@@ -152,15 +137,14 @@ test('a Framescaper build installs one root-scoped worker and manifest for its o
 	);
 });
 
-test('the Soundscaper build keeps the root worker from claiming the Framescaper prefix', async (context) => {
+test('the Soundscaper build owns one root worker and no foreign scope', async (context) => {
 	const outputRoot = await shellFixture(context);
 	await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.'), environment: {} });
 	const audit = JSON.parse(await readFile(join(outputRoot, 'offline-shell.json'), 'utf8'));
 
-	assert.deepEqual(audit.workers.soundscaper.foreignScopes, ['/framescaper/']);
-	assert.deepEqual(audit.workers.framescaper.foreignScopes, []);
+	assert.deepEqual(audit.workers.soundscaper.foreignScopes, []);
 	assert.equal(audit.workers.soundscaper.scriptUrl, '/service-worker.js');
-	assert.equal(audit.workers.framescaper.scriptUrl, '/framescaper/service-worker.js');
+	assert.deepEqual(Object.keys(audit.workers), ['soundscaper']);
 });
 
 test('one changed shell byte produces a different release without considering control or source-map files', async (context) => {
@@ -186,7 +170,7 @@ test('generation rejects an install-core descriptor above the in-flight byte cei
 	);
 });
 
-async function shellFixture(context, routes = ['en', 'embed/en', 'framescaper/en', 'framescaper/embed/en']) {
+async function shellFixture(context, routes = ['en', 'embed/en']) {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-offline-shell-test-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	await Promise.all([

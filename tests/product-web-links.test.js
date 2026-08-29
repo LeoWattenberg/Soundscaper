@@ -18,12 +18,12 @@ test('every built product has a web origin of its own', () => {
 	assert.equal(PRODUCT_WEB_ORIGINS.framescaper, 'https://framescaper.org');
 });
 
-test('a Soundscaper build keeps both products on the same-origin paths it serves today', () => {
+test('a Soundscaper build stays on its origin and crosses origins for Framescaper', () => {
 	const built = { builtProductId: 'soundscaper' };
 	assert.equal(productHref('soundscaper', 'en', built), '/en/');
 	assert.equal(productHref('soundscaper', 'de', { ...built, embedded: true }), '/embed/de/');
-	assert.equal(productHref('framescaper', 'de', built), '/framescaper/de/');
-	assert.equal(productHref('framescaper', 'en', { ...built, embedded: true }), '/framescaper/embed/en/');
+	assert.equal(productHref('framescaper', 'de', built), 'https://framescaper.org/de/');
+	assert.equal(productHref('framescaper', 'en', { ...built, embedded: true }), 'https://framescaper.org/embed/en/');
 });
 
 test('a Framescaper build serves itself from its origin root and crosses origins for its peer', () => {

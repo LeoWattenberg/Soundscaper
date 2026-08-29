@@ -33,22 +33,16 @@ test('the Soundscaper build assigns exactly one product- and route-specific docu
 	const rules = parseHeaderRules(await productHeaders('soundscaper'));
 	const policyRules = rules.filter(({ headers }) => headers.has('permissions-policy'));
 	assert.deepEqual(policyRules.map(({ pattern }) => pattern), [
-		'/', '/:locale/', '/embed/:locale/',
-		'/framescaper/:locale/', '/framescaper/embed/:locale/',
-		'/privacy/:locale/',
+		'/', '/:locale/', '/embed/:locale/', '/privacy/:locale/',
 	]);
 	assertExactPolicies(rules, [
 		['/', SOUNDSCAPER_POLICY],
 		['/en/', SOUNDSCAPER_POLICY],
 		['/embed/en/', SOUNDSCAPER_POLICY],
-		['/framescaper/en/', FRAMESCAPER_POLICY],
-		['/framescaper/embed/en/', EMBEDDED_FRAMESCAPER_POLICY],
 		['/privacy/en/', EMBEDDED_FRAMESCAPER_POLICY],
 	]);
-	assert.deepEqual(workerRules(rules), [
-		['/service-worker.js', '/'],
-		['/framescaper/service-worker.js', '/framescaper/'],
-	]);
+	assert.deepEqual(workerRules(rules), [['/service-worker.js', '/']]);
+	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/framescaper/')), false);
 });
 
 test('the Framescaper build moves the same capture policies to its own origin root', async () => {

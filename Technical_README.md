@@ -315,17 +315,19 @@ bundle to `framescaper.org`. Any other value — including a case variant such a
 | Build command | `npm run build:pages` | `SCAPE_PRODUCT=framescaper npm run build:pages` |
 | Custom domain | `soundscaper.org` | `framescaper.org` |
 | Editor routes | `/`, `/:locale/`, `/embed/:locale/` | `/`, `/:locale/`, `/embed/:locale/` |
-| Also serves | Framescaper under `/framescaper/…` for the cutover | — |
-| Service worker | `/service-worker.js` scope `/` (plus `/framescaper/service-worker.js` scope `/framescaper/`) | `/service-worker.js` scope `/` |
+| Also serves | Permanent `/transfer/send/` and `/transfer/receive/` documents | Permanent `/transfer/send/` and `/transfer/receive/` documents |
+| Service worker | `/service-worker.js` scope `/` | `/service-worker.js` scope `/` |
 | Web app manifest | `manifest-soundscaper.webmanifest`, scope `/` | `manifest-framescaper.webmanifest`, scope `/`, `start_url` `/en/` |
 | Canonical base | `SOUNDSCAPER_SITE` | `FRAMESCAPER_SITE` |
 
 Both products build into `./dist`, so builds and deploys are sequential, never
-concurrent. During the cutover the Soundscaper deployment keeps serving
-Framescaper under `/framescaper/` exactly as it does today; the deploy that
-finally drops those documents is the same deploy that must add their permanent
-redirects to `framescaper.org`, and `scripts/preflight-pages-deploy.mjs` audits
-them as redirects from that point on rather than expecting a document.
+concurrent. Framescaper is built, deployed, and verified first. Soundscaper then
+deploys its root-only application plus finite permanent redirects for the old
+localized `/framescaper/` document routes. It emits no foreign manifest, install
+icons, or nested service worker; the old worker URL returns the generated 404
+document instead of redirecting as JavaScript. The pre-deploy gate audits stable
+routes on the predecessor, and `npm run verify:pages` verifies the complete
+intended route set immediately after each deployment.
 
 ### 1. Retained legacy FFmpeg publication tooling
 
@@ -391,7 +393,7 @@ variables have already been exported into its process environment.
 	`npm run build:pages`, and output directory `dist`. Leave the root directory
 	empty. This command verifies that the live Pages hostname still delivers the
 	cache policy this repository checks in for stable documents, product artwork,
-	manifests, offline audit data, and both workers, and that hashed assets stay
+	manifest, offline audit data, and the root worker, and that hashed assets stay
 	immutable. Both product zones set a four-hour Browser Cache TTL, which
 	Cloudflare applies to whatever it caches that names no lifetime of its own,
 	so a route `_headers` marks `no-cache` may reach a browser as
@@ -400,8 +402,10 @@ variables have already been exported into its process environment.
 	TTL is named in `ZONE_BROWSER_CACHE_CONTROL` in
 	[`scripts/lib/pages-deploy-preflight.mjs`](scripts/lib/pages-deploy-preflight.mjs)
 	and has to be updated there whenever the zone setting changes. The check runs
-	before Pages can publish either a production or preview deployment;
-	do not replace it with the ungated `npm run build`.
+	before Pages can publish either a production or preview deployment; do not
+	replace it with the ungated `npm run build`. Direct deployments must also run
+	`npm run verify:pages` afterward so retired redirects and missing paths are
+	checked against the new deployment rather than its predecessor.
 5. Attach `soundscaper.org` under the Pages project's custom domains.
 6. Repeat steps 1–5 for a second Pages project named `framescaper`, connected to
    the same repository and the same production branch `main`, with build command

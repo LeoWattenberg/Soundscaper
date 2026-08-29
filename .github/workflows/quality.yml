@@ -423,23 +423,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Both products build into ./dist, so each is built and shipped in turn
-      # rather than in parallel. `build:pages` is the gated build: it runs the
-      # same checks as `build` and then audits the live origin it is about to
-      # replace. Everything that can fail for a reason unrelated to a live
-      # origin has already run in the jobs this one needs, so the only way the
-      # second product's build fails here is that its own origin is wrong.
-      - name: Build Soundscaper
-        run: npm run build:pages
-        env:
-          SCAPE_PRODUCT: soundscaper
-
-      - name: Deploy Soundscaper
-        run: npx wrangler pages deploy dist --project-name=soundscaper --branch=main
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
+      # Both products build into ./dist, so each is built, shipped, and verified
+      # in turn rather than in parallel. Framescaper goes first: Soundscaper's
+      # retired document routes may point at the peer only after its root
+      # receiver and editor have been verified live.
+      #
       # framescaper.org is attached to the framescaper Pages project as its
       # custom domain and already carries a deployment, so this build audits it
       # directly: no SCAPE_DEPLOY_AUDIT_ORIGIN pointing the gate at the
@@ -459,3 +447,24 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify Framescaper deployment
+        run: npm run verify:pages
+        env:
+          SCAPE_PRODUCT: framescaper
+
+      - name: Build Soundscaper
+        run: npm run build:pages
+        env:
+          SCAPE_PRODUCT: soundscaper
+
+      - name: Deploy Soundscaper
+        run: npx wrangler pages deploy dist --project-name=soundscaper --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify Soundscaper deployment
+        run: npm run verify:pages
+        env:
+          SCAPE_PRODUCT: soundscaper

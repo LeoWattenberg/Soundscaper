@@ -10,11 +10,6 @@ import {
 	offlineServiceWorkerTemplateSha256,
 	renderOfflineServiceWorker,
 } from './offline-service-worker.mjs';
-import {
-	renderTombstoneServiceWorker,
-	retiredWebWorkers,
-	tombstoneServiceWorkerTemplateSha256,
-} from './offline-tombstone-worker.mjs';
 import { webBuildRouting } from './product-web-routing.mjs';
 
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
@@ -25,6 +20,7 @@ export const MAXIMUM_INSTALL_ASSET_COUNT = 128;
 const BUILD_MANIFEST = '.offline-build-manifest.json';
 const STATIC_CONTROL_FILES = Object.freeze([
 	BUILD_MANIFEST,
+	'404.html',
 	'_headers',
 	'_redirects',
 	'offline-shell.json',
@@ -47,15 +43,19 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 		source: 'public/logo/logo-klein-schwarz.svg',
 	}),
 });
+const PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS = Object.freeze({
+	framescaper: Object.freeze(['logo/framescaper-icon.svg']),
+	soundscaper: Object.freeze([]),
+});
 
 export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot, environment = process.env }) {
 	const root = resolve(outputRoot);
 	const repository = resolve(repositoryRoot);
 	const routing = webBuildRouting(environment);
-	const retired = new Map(retiredWebWorkers(routing, environment).map((entry) => [entry.productId, entry]));
 	const previousAudit = await readJsonIfPresent(resolve(root, 'offline-shell.json'));
 	const buildManifestPath = resolve(root, BUILD_MANIFEST);
 	const buildManifest = await readJsonIfPresent(buildManifestPath);
+	await removeUnservedProductArtifacts(root, routing);
 	await generateProductArtifacts({ outputRoot: root, repositoryRoot: repository, routing });
 	const assets = await collectShellAssets(root, controlFiles(routing));
 	const workerSha256 = offlineServiceWorkerTemplateSha256();
@@ -63,12 +63,6 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 	const releaseIds = {};
 	for (const worker of routing.workers) {
 		const productId = worker.productId;
-		const tombstone = retired.get(productId);
-		if (tombstone) {
-			workers[productId] = await writeRetiredWorker({ outputRoot: root, tombstone, worker });
-			releaseIds[productId] = workers[productId].releaseId;
-			continue;
-		}
 		const installUrls = buildManifest
 			? productInstallUrls({ assets, buildManifest, productId, worker })
 			: previousInstallUrls({ assets, previousAudit, productId });
@@ -113,26 +107,18 @@ export async function generateOfflineApplicationShell({ outputRoot, repositoryRo
 	return Object.freeze({ releaseIds: Object.freeze(releaseIds), assetCount: assets.length });
 }
 
-/**
- * Serves the retired product's script URL with a tombstone instead of an offline
- * shell. The retired product keeps its documents, manifest and icons for the
- * retention window; only the worker that would answer them from Cache Storage is
- * replaced, because that worker is what hides the cutover from the visitors it
- * is for.
- */
-async function writeRetiredWorker({ outputRoot, tombstone, worker }) {
-	const source = renderTombstoneServiceWorker(tombstone.configuration);
-	const output = resolve(outputRoot, `.${worker.scriptUrl}`);
-	await mkdir(dirname(output), { recursive: true });
-	await writeFile(output, source, 'utf8');
-	return Object.freeze({
-		scriptUrl: worker.scriptUrl,
-		scope: worker.scope,
-		retired: true,
-		targetOrigin: tombstone.configuration.targetOrigin,
-		releaseId: sha256(Buffer.from(source)),
-		workerSha256: tombstoneServiceWorkerTemplateSha256(),
-	});
+async function removeUnservedProductArtifacts(outputRoot, routing) {
+	const served = new Set(routing.plans.map(({ productId }) => productId));
+	for (const productId of Object.keys(PRODUCT_INSTALL_ARTIFACTS)) {
+		if (served.has(productId)) continue;
+		for (const relativePath of [
+			`manifest-${productId}.webmanifest`,
+			...PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS[productId],
+			...[180, 192, 512].map((size) => `offline-icons/${productId}-${String(size)}.png`),
+		]) await unlink(resolve(outputRoot, relativePath)).catch((error) => {
+			if (error?.code !== 'ENOENT') throw error;
+		});
+	}
 }
 
 function productInstallUrls({ assets, buildManifest, productId, worker }) {

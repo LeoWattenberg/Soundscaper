@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { normalizeProductId, productIdentity } from '../product-identities.js';
+import { normalizeProductId } from '../product-identities.js';
 import { BUILT_PRODUCT_ID } from '../site/route.js';
 
 interface OfflineServiceWorkerContainer {
@@ -44,11 +44,8 @@ export type OfflineApplicationShellRegistrationResult =
  * A worker script bounds the maximum scope it can control, so where the script
  * lives is decided by the build, not by the product alone: this is the runtime
  * mirror of `webBuildRouting` in `scripts/lib/product-web-routing.mjs`, and the
- * registration side of `productHref`. Only the Soundscaper build serves two
- * products from one origin — soundscaper.org keeps Framescaper under
- * `/framescaper/` for the whole cutover — so only there does a product base
- * path survive. Every other build serves one product from its origin root and
- * emits exactly `/service-worker.js` at scope `/`.
+ * registration side of `productHref`. Every build serves one product from its
+ * origin root and emits exactly `/service-worker.js` at scope `/`.
  *
  * It fails closed rather than guessing: a build that emits no worker for the
  * requested product registers nothing, because a wrongly scoped registration
@@ -60,11 +57,10 @@ export function resolveOfflineApplicationShellTarget(
 ): OfflineApplicationShellTarget {
 	const built = normalizeProductId(builtProductId);
 	const target = normalizeProductId(productId);
-	if (built !== 'soundscaper' && target !== built) {
+	if (target !== built) {
 		throw new Error(`The ${built} build serves no ${target} document, so it registers no ${target} worker.`);
 	}
-	const basePath = built === 'soundscaper' ? String(productIdentity(target).basePath) : '';
-	return Object.freeze({ scriptUrl: `${basePath}/service-worker.js`, scope: `${basePath}/` });
+	return Object.freeze({ scriptUrl: '/service-worker.js', scope: '/' });
 }
 
 /** Registers the generated web-only worker without making app startup depend on it. */

@@ -14,7 +14,12 @@ import {
 	TRANSFER_ROUTES,
 } from '../src/common/transfer/transfer-routes.js';
 
-import { composeProductHeaders, documentRoute, webBuildRouting } from './lib/product-web-routing.mjs';
+import {
+	composeProductHeaders,
+	documentRoute,
+	renderProductRedirects,
+	webBuildRouting,
+} from './lib/product-web-routing.mjs';
 
 const BUILD_MANIFEST = '.offline-build-manifest.json';
 const outputRoot = resolve(process.argv[2] || 'dist');
@@ -51,6 +56,12 @@ await writeFile(
 	composeProductHeaders(await readFile(resolve(outputRoot, '_headers'), 'utf8'), routing),
 	'utf8',
 );
+await writeFile(
+	resolve(outputRoot, '_redirects'),
+	renderProductRedirects(routing, ROUTE_LOCALES.map(({ locale }) => locale)),
+	'utf8',
+);
+await writeFile(resolve(outputRoot, '404.html'), notFoundDocument(), 'utf8');
 
 // The two transfer documents belong to the origin, not to a product: both
 // builds emit them, because a project crosses between soundscaper.org and
@@ -190,4 +201,10 @@ function escapeHtml(value) {
 		.replaceAll('"', '&quot;')
 		.replaceAll('<', '&lt;')
 		.replaceAll('>', '&gt;');
+}
+
+function notFoundDocument() {
+	return '<!doctype html>\n<html lang="en" dir="ltr"><head><meta charset="UTF-8" />'
+		+ '<meta name="robots" content="noindex, nofollow" /><title>Not found</title></head>'
+		+ '<body><main><h1>Not found</h1><p>This route is no longer available.</p></main></body></html>\n';
 }

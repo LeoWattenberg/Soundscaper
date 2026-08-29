@@ -11,9 +11,10 @@
  * they canonicalize to, where each worker lives, and which per-route Cloudflare
  * rules accompany them.
  *
- * The `SCAPE_PRODUCT=soundscaper` build still emits the Framescaper documents
- * under `/framescaper/`: that prefix only disappears at the end of the cutover,
- * once framescaper.org serves them.
+ * Each product now owns the root of its own origin. The retired
+ * `/framescaper/` document routes are emitted only as finite permanent
+ * redirects by the Soundscaper build; no build emits another product's
+ * documents, install metadata, or service worker.
  */
 
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
@@ -21,6 +22,11 @@ const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
 const PRODUCT_SITES = Object.freeze({
 	soundscaper: Object.freeze({ variable: 'SOUNDSCAPER_SITE', origin: 'https://soundscaper.org' }),
 	framescaper: Object.freeze({ variable: 'FRAMESCAPER_SITE', origin: 'https://framescaper.org' }),
+});
+
+const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
+	soundscaper: Object.freeze({ framescaper: '/framescaper' }),
+	framescaper: Object.freeze({}),
 });
 
 const EDITOR_CAPTURE_POLICY =
@@ -59,9 +65,7 @@ export function webBuildProductId(environment = process.env) {
 /** Resolves everything one product's web build emits: documents, site, workers and header rules. */
 export function webBuildRouting(environment = process.env) {
 	const productId = webBuildProductId(environment);
-	const plans = productId === 'framescaper'
-		? [documentPlan('framescaper', '')]
-		: [documentPlan('soundscaper', ''), documentPlan('framescaper', '/framescaper')];
+	const plans = [documentPlan(productId, '')];
 	const workers = plans.map((plan) => Object.freeze({
 		productId: plan.productId,
 		scope: plan.scope,
@@ -79,6 +83,66 @@ export function webBuildRouting(environment = process.env) {
 		plans: Object.freeze(plans),
 		workers: Object.freeze(workers),
 	});
+}
+
+/**
+ * Finite link-hygiene redirects for documents a product origin retired.
+ *
+ * Service-worker and asset paths are deliberately absent. Pages applies a
+ * redirect before serving a same-path asset, and redirecting an old worker
+ * would prevent the browser from observing its removal. A top-level 404
+ * document makes those retired non-document paths fail closed instead.
+ */
+export function retiredProductRedirects(routing, locales) {
+	if (!routing || !PRODUCT_IDS.includes(routing.productId)) {
+		throw new TypeError('Retired product redirects require a valid web-build routing descriptor.');
+	}
+	if (!Array.isArray(locales) || locales.length < 1) {
+		throw new TypeError('Retired product redirects require at least one locale.');
+	}
+	const normalizedLocales = locales.map((locale) => {
+		const value = String(locale);
+		if (!/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(value)) {
+			throw new TypeError(`Retired product redirect locale is invalid: ${value}.`);
+		}
+		return value;
+	});
+	if (new Set(normalizedLocales).size !== normalizedLocales.length) {
+		throw new TypeError('Retired product redirect locales must be unique.');
+	}
+	const hosted = new Set(routing.plans.map(({ productId }) => productId));
+	const retired = RETIRED_PRODUCT_BASE_PATHS[routing.productId];
+	return Object.freeze(Object.entries(retired)
+		.filter(([productId]) => !hosted.has(productId))
+		.flatMap(([productId, basePath]) => {
+			const origin = PRODUCT_SITES[productId].origin;
+			return [
+				Object.freeze({ source: basePath, destination: `${origin}/`, status: 301 }),
+				Object.freeze({ source: `${basePath}/`, destination: `${origin}/`, status: 301 }),
+				...normalizedLocales.flatMap((locale) => [
+					Object.freeze({
+						source: `${basePath}/${locale}/`,
+						destination: `${origin}/${locale}/`,
+						status: 301,
+					}),
+					Object.freeze({
+						source: `${basePath}/embed/${locale}/`,
+						destination: `${origin}/embed/${locale}/`,
+						status: 301,
+					}),
+				]),
+			];
+		}));
+}
+
+/** Renders the static Cloudflare Pages `_redirects` file for one build. */
+export function renderProductRedirects(routing, locales) {
+	const redirects = retiredProductRedirects(routing, locales);
+	return redirects.length === 0
+		? '# This product origin has no retired document routes.\n'
+		: `${redirects.map(({ source, destination, status }) => (
+			`${source} ${destination} ${String(status)}`
+		)).join('\n')}\n`;
 }
 
 /** The absolute path of one emitted document. */

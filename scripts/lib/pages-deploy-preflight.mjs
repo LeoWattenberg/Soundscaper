@@ -40,28 +40,11 @@ const PRODUCT_INSTALL_ARTWORK = Object.freeze({
  * documents — is what stops the cutover deploy from being blocked by its own
  * change, and stops the old URLs from being silently abandoned instead.
  */
-const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
-	soundscaper: Object.freeze({ framescaper: '/framescaper' }),
-	framescaper: Object.freeze({}),
-});
-
 /** The documents a retired base path kept, relative to that base path. */
 const RETIRED_DOCUMENT_SUFFIXES = Object.freeze(['/en/', '/embed/en/']);
 
-/**
- * The retired worker's script path, and the marker proving the tombstone — not
- * the worker it replaces — is what answers there.
- *
- * This path must keep answering 200 for the whole retention window and must
- * never be redirected. A browser refuses a redirected service-worker script
- * both at registration and at every update check, so a 301 here would freeze
- * the retired worker in place: it would go on answering navigations out of its
- * own Cache Storage and would never fetch the replacement that unregisters it,
- * which is the exact opposite of retiring it. The documents move; the script
- * URL belongs to the tombstone until the window closes.
- */
+/** A retired worker path must disappear instead of redirecting as JavaScript. */
 const RETIRED_WORKER_SUFFIX = '/service-worker.js';
-const TOMBSTONE_BODY_MARKER = 'const RETIRED_SHELL =';
 
 /** The `Cache-Control` a route carries when the origin wants a browser to revalidate before reuse. */
 const REVALIDATE_CACHE_CONTROL = 'no-cache';
@@ -177,7 +160,7 @@ export async function preflightPagesDeployment({
  * must not redirect; a `redirected` descriptor must answer a permanent redirect
  * to the named absolute URL and must not serve a document.
  */
-export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), assetPath }) {
+export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), assetPath, includeRetired = true }) {
 	assert(typeof assetPath === 'string' && /^\/assets\/[\w.-]+$/u.test(assetPath),
 		'Pages cache-policy asset path must name one emitted asset.');
 	const noCache = [];
@@ -191,7 +174,7 @@ export function pagesCachePolicyDescriptors({ routing = webBuildRouting(), asset
 		served('/offline-shell.json', 'no-store'),
 		...routing.workers.map(({ scriptUrl, scope }) => served(scriptUrl, 'no-store', scope)),
 		served(assetPath, 'public, max-age=31536000, immutable'),
-		...retiredRoutes(routing),
+		...includeRetired ? retiredRoutes(routing) : [],
 	];
 	const paths = new Set(descriptors.map(({ path }) => path));
 	assert(paths.size === descriptors.length, 'Pages cache-policy audit lists a route twice.');
@@ -203,6 +186,7 @@ export async function verifyLivePagesCachePolicy({
 	origin = routing.site.origin,
 	coldStart = false,
 	fetchImpl = fetch,
+	includeRetired = true,
 }) {
 	const auditOrigin = normalizedOrigin(origin, 'Pages cache-policy origin');
 	if (!await originAnswers(fetchImpl, auditOrigin)) {
@@ -217,11 +201,15 @@ export async function verifyLivePagesCachePolicy({
 		+ 'Remove it from the deploy job: it exists only for the first deployment an origin ever receives, '
 		+ 'and while it is set an origin that vanished would be mistaken for one that was never deployed.');
 	const assetPath = await liveImmutableAssetPath(fetchImpl, auditOrigin);
-	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
+	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath, includeRetired });
 	for (const descriptor of descriptors) {
 		const url = new URL(descriptor.path, auditOrigin);
 		if (descriptor.expectation === 'redirected') {
 			await verifyRetiredRedirect(fetchImpl, url, descriptor);
+			continue;
+		}
+		if (descriptor.expectation === 'missing') {
+			await verifyRetiredMissing(fetchImpl, url, descriptor);
 			continue;
 		}
 		const response = await fetchImpl(url.href, auditRequest());
@@ -235,11 +223,7 @@ export async function verifyLivePagesCachePolicy({
 			assert(response.headers.get('service-worker-allowed') === descriptor.serviceWorkerAllowed,
 				`Pages cache-policy Service-Worker-Allowed is invalid for ${descriptor.path}`);
 		}
-		const body = await response.text();
-		if (descriptor.bodyIncludes) {
-			assert(body.includes(descriptor.bodyIncludes),
-				`Pages cache-policy audit found that ${descriptor.path} does not carry the retired-product tombstone`);
-		}
+		await response.arrayBuffer();
 	}
 	return Object.freeze({ verifiedRouteCount: descriptors.length, assetPath, coldStart: false });
 }
@@ -333,6 +317,15 @@ async function verifyRetiredRedirect(fetchImpl, url, descriptor) {
 	await response.arrayBuffer();
 }
 
+async function verifyRetiredMissing(fetchImpl, url, descriptor) {
+	const response = await fetchImpl(url.href, auditRequest());
+	assert(response instanceof Response && response.status === 404,
+		`Pages cache-policy audit requires HTTP 404 for ${descriptor.path}; received HTTP ${String(response?.status)}`);
+	assert(response.headers.get('location') === null,
+		`Pages cache-policy audit forbids redirecting retired path ${descriptor.path}`);
+	await response.arrayBuffer();
+}
+
 /** Every `Cache-Control` a browser may be handed for one descriptor on one audited origin. */
 function acceptableCacheControl(descriptor, origin) {
 	const rewritten = ZONE_BROWSER_CACHE_CONTROL[origin];
@@ -349,7 +342,9 @@ function served(path, cacheControl, serviceWorkerAllowed) {
 
 function retiredRoutes(routing) {
 	const hosted = new Set(routing.plans.map(({ productId }) => productId));
-	const retired = RETIRED_PRODUCT_BASE_PATHS[routing.productId];
+	const retired = routing.productId === 'soundscaper'
+		? Object.freeze({ framescaper: '/framescaper' })
+		: Object.freeze({});
 	assert(retired !== undefined, `Pages cache-policy audit has no retired-route table for ${routing.productId}.`);
 	return Object.entries(retired)
 		.filter(([productId]) => !hosted.has(productId))
@@ -361,10 +356,7 @@ function retiredRoutes(routing) {
 			})),
 			Object.freeze({
 				path: `${basePath}${RETIRED_WORKER_SUFFIX}`,
-				expectation: 'served',
-				cacheControl: 'no-store',
-				serviceWorkerAllowed: `${basePath}/`,
-				bodyIncludes: TOMBSTONE_BODY_MARKER,
+				expectation: 'missing',
 			}),
 		]);
 }

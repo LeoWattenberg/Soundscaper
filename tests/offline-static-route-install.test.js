@@ -18,18 +18,19 @@ test('static web routes receive product-specific install manifests and Apple tou
 
 	const root = await readFile(join(outputRoot, 'index.html'), 'utf8');
 	const soundscaper = await readFile(join(outputRoot, 'en/index.html'), 'utf8');
-	const framescaper = await readFile(join(outputRoot, 'framescaper/en/index.html'), 'utf8');
-	const framescaperEmbed = await readFile(join(outputRoot, 'framescaper/embed/en/index.html'), 'utf8');
 	assertInstallLinks(root, 'soundscaper');
 	assertInstallLinks(soundscaper, 'soundscaper');
-	assertInstallLinks(framescaper, 'framescaper');
-	assertInstallLinks(framescaperEmbed, 'framescaper');
-	assert.doesNotMatch(framescaper, /manifest-soundscaper|soundscaper-180/u);
+	assert.equal(await readFile(join(outputRoot, 'framescaper/en/index.html'), 'utf8').catch(() => null), null);
 	// Every build also emits the two cross-origin transfer documents: they
 	// belong to the origin rather than to a product, so both builds carry them.
-	assert.equal(await documentCount(outputRoot), 1 + ROUTE_LOCALES.length * 4 + TRANSFER_ROUTES.length + 2);
+	assert.equal(await documentCount(outputRoot), 1 + ROUTE_LOCALES.length * 2 + TRANSFER_ROUTES.length + 2);
 	assert.match(soundscaper, /<link rel="canonical" href="https:\/\/soundscaper\.org\/en\/" \/>/u);
-	assert.match(framescaper, /<link rel="canonical" href="https:\/\/soundscaper\.org\/framescaper\/en\/" \/>/u);
+	const redirects = await readFile(join(outputRoot, '_redirects'), 'utf8');
+	assert.match(redirects, /^\/framescaper https:\/\/framescaper\.org\/ 301$/mu);
+	assert.match(redirects, /^\/framescaper\/en\/ https:\/\/framescaper\.org\/en\/ 301$/mu);
+	assert.match(redirects, /^\/framescaper\/embed\/de\/ https:\/\/framescaper\.org\/embed\/de\/ 301$/mu);
+	assert.doesNotMatch(redirects, /service-worker|manifest|offline-icons|logo/u);
+	assert.match(await readFile(join(outputRoot, '404.html'), 'utf8'), /<meta name="robots" content="noindex, nofollow" \/>/u);
 });
 
 test('a Framescaper build serves its own origin root and never the transitional prefix', async (context) => {
@@ -56,6 +57,10 @@ test('a Framescaper build self-canonicalizes to its own origin on every locale a
 	assert.match(framescaper, /<link rel="canonical" href="https:\/\/framescaper\.org\/en\/" \/>/u);
 	assert.match(embedded, /<link rel="canonical" href="https:\/\/framescaper\.org\/embed\/en\/" \/>/u);
 	assert.doesNotMatch(framescaper, /soundscaper\.org/u);
+	assert.equal(
+		await readFile(join(outputRoot, '_redirects'), 'utf8'),
+		'# This product origin has no retired document routes.\n',
+	);
 	const alternates = Array.from(framescaper.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)" \/>/gu));
 	assert.equal(alternates.length, ROUTE_LOCALES.length + 1);
 	for (const [, hreflang, href] of alternates) {
@@ -77,8 +82,8 @@ test('a configured Framescaper site overrides the default origin without disturb
 		/<link rel="canonical" href="https:\/\/preview\.framescaper\.org\/en\/" \/>/u,
 	);
 	assert.match(
-		await readFile(join(soundscaperRoot, 'framescaper/en/index.html'), 'utf8'),
-		/<link rel="canonical" href="https:\/\/preview\.soundscaper\.org\/framescaper\/en\/" \/>/u,
+		await readFile(join(soundscaperRoot, 'en/index.html'), 'utf8'),
+		/<link rel="canonical" href="https:\/\/preview\.soundscaper\.org\/en\/" \/>/u,
 	);
 });
 
@@ -97,7 +102,7 @@ test('stable install metadata and icon URLs require revalidation', async (contex
 
 	const soundscaper = await readFile(join(await generateRoutes(context, {}), '_headers'), 'utf8');
 	assert.match(soundscaper, /\/service-worker\.js\n\tCache-Control: no-store\n\tService-Worker-Allowed: \/\n/u);
-	assert.match(soundscaper, /\/framescaper\/service-worker\.js\n\tCache-Control: no-store\n\tService-Worker-Allowed: \/framescaper\//u);
+	assert.doesNotMatch(soundscaper, /\/framescaper\/service-worker\.js/u);
 
 	const framescaper = await readFile(
 		join(await generateRoutes(context, { SCAPE_PRODUCT: 'framescaper' }), '_headers'),

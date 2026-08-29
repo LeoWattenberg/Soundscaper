@@ -74,9 +74,10 @@ test('legacy runtime publication preflight accepts only exact content-addressed 
 	);
 });
 
-test('Pages CLI verifies only the deployed Pages cache policy', async () => {
-	const [source, packageMetadata, documentation] = await Promise.all([
+test('Pages CLI separates predecessor preflight from intended post-deploy verification', async () => {
+	const [source, verifier, packageMetadata, documentation] = await Promise.all([
 		readFile('scripts/preflight-pages-deploy.mjs', 'utf8'),
+		readFile('scripts/verify-pages-deploy.mjs', 'utf8'),
 		readFile('package.json', 'utf8').then(JSON.parse),
 		readFile('Technical_README.md', 'utf8'),
 	]);
@@ -89,10 +90,28 @@ test('Pages CLI verifies only the deployed Pages cache policy', async () => {
 	assert.match(source, /admitPagesColdStart\(process\.env\)/u, 'a cold start is declared, never inferred');
 	assert.match(source, /SCAPE_DEPLOY_AUDIT_ORIGIN/u, 'the project hostname may be named explicitly');
 	assert.match(source, /coldStart/u);
+	assert.match(source, /includeRetired: false/u);
+	assert.match(verifier, /includeRetired: true/u);
 	assert.match(packageMetadata.scripts['build:pages'], /npm run build.*preflight-pages-deploy\.mjs/u);
+	assert.match(packageMetadata.scripts['verify:pages'], /verify-pages-deploy\.mjs/u);
 	assert.match(packageMetadata.scripts.deploy, /^npm run build:pages && wrangler pages deploy/u);
 	assert.match(documentation, /gated build command\s+`npm run build:pages`/u);
-	assert.match(documentation, /do not replace it with the ungated `npm run build`/u);
+	assert.match(documentation, /do not\s+replace it with the ungated `npm run build`/u);
+	const workflow = await readFile('.github/workflows/quality.yml', 'utf8');
+	const orderedSteps = [
+		'Build Framescaper',
+		'Deploy Framescaper',
+		'Verify Framescaper deployment',
+		'Build Soundscaper',
+		'Deploy Soundscaper',
+		'Verify Soundscaper deployment',
+	];
+	let preceding = -1;
+	for (const step of orderedSteps) {
+		const position = workflow.indexOf(`- name: ${step}`);
+		assert.ok(position > preceding, `${step} must follow the prior Pages cutover step`);
+		preceding = position;
+	}
 });
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
@@ -115,8 +134,18 @@ const ZONE_BROWSER_TTL = 'max-age=14400';
  * named by the caller rather than derived from the module under test, so the
  * delivered value is stated by the test rather than agreed with itself.
  */
-function liveDeployment({ routing, assetPath, inventory = [assetPath], redirects = new Map(), zoneBrowserTtl }) {
-	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
+function liveDeployment({
+	routing,
+	assetPath,
+	inventory = [assetPath],
+	redirects: configuredRedirects,
+	zoneBrowserTtl,
+	includeRetired = true,
+}) {
+	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath, includeRetired });
+	const redirects = configuredRedirects ?? new Map(descriptors
+		.filter(({ expectation }) => expectation === 'redirected')
+		.map(({ path, location }) => [path, location]));
 	const served = new Map(descriptors
 		.filter(({ expectation }) => expectation === 'served')
 		.map((descriptor) => [descriptor.path, {
@@ -162,9 +191,9 @@ function liveBody(pathname, descriptor, inventory) {
 test('live Pages policy preserves checked-in browser TTLs for stable routes and immutable assets', async () => {
 	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
 	const assetPath = '/assets/site-entry-AbCd1234.js';
-	const live = liveDeployment({ routing, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL });
+	const live = liveDeployment({ routing, assetPath, zoneBrowserTtl: ZONE_BROWSER_TTL, includeRetired: false });
 
-	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl }), {
+	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl, includeRetired: false }), {
 		verifiedRouteCount: live.descriptors.length,
 		assetPath,
 		coldStart: false,
@@ -174,15 +203,9 @@ test('live Pages policy preserves checked-in browser TTLs for stable routes and 
 		'/assets/site-entry-AbCd1234.js',
 		'/embed/en/',
 		'/en/',
-		'/framescaper/embed/en/',
-		'/framescaper/en/',
-		'/framescaper/service-worker.js',
-		'/logo/framescaper-icon.svg',
 		'/logo/logo-klein-schwarz.svg',
 		'/logo/logo-klein-weiß.svg',
-		'/manifest-framescaper.webmanifest',
 		'/manifest-soundscaper.webmanifest',
-		'/offline-icons/framescaper-180.png',
 		'/offline-icons/soundscaper-180.png',
 		'/offline-shell.json',
 		'/service-worker.js',
@@ -190,7 +213,7 @@ test('live Pages policy preserves checked-in browser TTLs for stable routes and 
 
 	live.served.get('/en/').cacheControl = 'public, max-age=14400';
 	await assert.rejects(
-		() => verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl }),
+		() => verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl, includeRetired: false }),
 		/Cache-Control is invalid.*\/en\//u,
 	);
 });
@@ -271,31 +294,14 @@ test('a Framescaper deployment audits its own origin and its own root routes', a
 	assert.equal(requests.every((href) => href.startsWith('https://framescaper.org/')), true, requests.join(' '));
 });
 
-test('a retired product path redirects its documents but keeps serving its tombstone worker', async () => {
-	// A browser refuses a redirected service-worker script both at registration
-	// and at every update check, so a 301 on the script URL would freeze the
-	// retired worker in place: it would keep answering navigations out of its own
-	// Cache Storage and would never fetch the tombstone that unregisters it —
-	// the exact opposite of retiring it. The documents move; the script URL has
-	// to keep answering 200 with the tombstone until the retention window closes.
-	const full = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
-	const routing = Object.freeze({
-		...full,
-		plans: full.plans.filter(({ root }) => root),
-		workers: full.workers.filter(({ root }) => root),
-	});
+test('a retired product path redirects its documents and returns 404 for its old worker', async () => {
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
 	const assetPath = '/assets/site-entry-AbCd1234.js';
 	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath });
 	assert.deepEqual(descriptors.filter(({ path }) => path.startsWith('/framescaper/')), [
 		{ path: '/framescaper/en/', expectation: 'redirected', location: 'https://framescaper.org/en/' },
 		{ path: '/framescaper/embed/en/', expectation: 'redirected', location: 'https://framescaper.org/embed/en/' },
-		{
-			path: '/framescaper/service-worker.js',
-			expectation: 'served',
-			cacheControl: 'no-store',
-			serviceWorkerAllowed: '/framescaper/',
-			bodyIncludes: 'const RETIRED_SHELL =',
-		},
+		{ path: '/framescaper/service-worker.js', expectation: 'missing' },
 	]);
 
 	const redirects = new Map(descriptors
@@ -311,16 +317,15 @@ test('a retired product path redirects its documents but keeps serving its tombs
 	redirects.set('/framescaper/service-worker.js', 'https://framescaper.org/service-worker.js');
 	await assert.rejects(
 		() => verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl }),
-		/received HTTP 301 for \/framescaper\/service-worker\.js/u,
+		/requires HTTP 404 for \/framescaper\/service-worker\.js.*301/u,
 	);
 	redirects.delete('/framescaper/service-worker.js');
-
-	live.bodies.set('/framescaper/service-worker.js', 'const OFFLINE_SHELL = {"releaseId":"stale"};');
+	live.served.set('/framescaper/service-worker.js', { path: '/framescaper/service-worker.js', cacheControl: 'no-store' });
 	await assert.rejects(
 		() => verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl }),
-		/\/framescaper\/service-worker\.js does not carry the retired-product tombstone/u,
+		/requires HTTP 404 for \/framescaper\/service-worker\.js.*200/u,
 	);
-	live.bodies.delete('/framescaper/service-worker.js');
+	live.served.delete('/framescaper/service-worker.js');
 
 	redirects.set('/framescaper/en/', 'https://soundscaper.org/en/');
 	await assert.rejects(
@@ -464,14 +469,9 @@ test('the zone browser cache TTL excuses no-cache on either product origin, and 
 			'/',
 			'/embed/en/',
 			'/en/',
-			'/framescaper/embed/en/',
-			'/framescaper/en/',
-			'/logo/framescaper-icon.svg',
 			'/logo/logo-klein-schwarz.svg',
 			'/logo/logo-klein-weiß.svg',
-			'/manifest-framescaper.webmanifest',
 			'/manifest-soundscaper.webmanifest',
-			'/offline-icons/framescaper-180.png',
 			'/offline-icons/soundscaper-180.png',
 		],
 		'the documents and the installed artwork are the routes that name no lifetime of their own',

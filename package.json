@@ -148,6 +148,7 @@
 		"benchmark:spectrogram": "node scripts/benchmark-spectrogram.mjs",
 		"benchmark:fft": "node scripts/benchmark-spectrogram.mjs",
 		"build:pages": "npm run build && node scripts/preflight-pages-deploy.mjs",
+		"verify:pages": "node scripts/verify-pages-deploy.mjs",
 		"deploy": "npm run build:pages && wrangler pages deploy dist --project-name soundscaper",
 		"deploy:docs": "npm run test:docs:browser && wrangler pages deploy dist --project-name soundscaper-docs --cwd handbook",
 		"deploy:runtime": "node scripts/configure-ffmpeg-runtime-cache.mjs && node scripts/publish-runtime-assets.mjs"

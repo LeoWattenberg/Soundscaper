@@ -34,19 +34,18 @@ test('production web registration uses the stable root worker and bypasses HTTP 
 	]]);
 });
 
-test('the Soundscaper build keeps registering the nested Framescaper worker', async () => {
+test('the Soundscaper build refuses to register a Framescaper worker', async () => {
 	const calls: unknown[][] = [];
-	await registerOfflineApplicationShell({
+	const result = await registerOfflineApplicationShell({
 		desktop: false,
 		builtProductId: 'soundscaper',
 		productId: 'framescaper',
 		location: new URL('https://soundscaper.org/framescaper/de/'),
 		serviceWorker: { register: async (...args: unknown[]) => { calls.push(args); return {}; } },
 	});
-	assert.deepEqual(calls, [[
-		'/framescaper/service-worker.js',
-		{ scope: '/framescaper/', type: 'classic', updateViaCache: 'none' },
-	]]);
+	assert.equal(result.status, 'failed');
+	assert.match(String((result as { error: unknown }).error), /serves no framescaper document/u);
+	assert.deepEqual(calls, []);
 });
 
 test('the Framescaper build registers the root worker its own origin serves', async () => {

@@ -57,8 +57,6 @@ const WELL_KNOWN_EDITOR_DOCUMENTS = [
 	'/',
 	'/en/',
 	'/embed/en/',
-	'/framescaper/en/',
-	'/framescaper/embed/en/',
 ];
 
 /** The opener policy each transfer document must receive, and no other document may. */

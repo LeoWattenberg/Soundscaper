@@ -26,7 +26,10 @@ try {
 	// when this is set, so the declaration can only excuse an origin that has
 	// no deployment at all.
 	const coldStart = admitPagesColdStart(process.env);
-	const pages = await verifyLivePagesCachePolicy({ routing, origin, coldStart });
+	// Retired paths describe the build being deployed, not the predecessor this
+	// pre-deploy gate is reading. They are verified after deployment by the same
+	// fail-closed verifier; stable live routes remain a pre-deploy requirement.
+	const pages = await verifyLivePagesCachePolicy({ routing, origin, coldStart, includeRetired: false });
 	console.log(pages.coldStart
 		? `Nothing answers ${origin} yet, so there is no live ${routing.productId} deployment to audit; `
 			+ 'this build is that origin\'s first.'
