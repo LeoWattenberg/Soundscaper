@@ -49,7 +49,10 @@ export function createSourcePcmReadSession(
 				if (closed) throw closedError;
 				return value;
 			} catch (error) {
-				if (!isRequestCancellation(error, signal) && !closed) {
+				if (isRequestCancellation(error, signal)) {
+					throw requestCancellationReason(error, signal);
+				}
+				if (!closed) {
 					closed = true;
 					primaryFailure = error;
 					lifetime.abort(error);
@@ -61,7 +64,9 @@ export function createSourcePcmReadSession(
 		});
 		queue = operation.then(() => undefined, () => undefined);
 		return operation.catch(async (error: unknown) => {
-			if (isRequestCancellation(error, signal)) throw error;
+			if (isRequestCancellation(error, signal)) {
+				throw requestCancellationReason(error, signal);
+			}
 			try {
 				await release();
 			} catch (cleanupError) {
@@ -122,7 +127,21 @@ async function releaseSession(
 }
 
 function isRequestCancellation(error: unknown, signal?: AbortSignal): boolean {
-	return Boolean(signal?.aborted && error === signal.reason);
+	return Boolean(signal?.aborted && (
+		error === signal.reason
+		|| isAbortError(error)
+	));
+}
+
+function isAbortError(error: unknown): boolean {
+	return typeof error === 'object'
+		&& error !== null
+		&& 'name' in error
+		&& error.name === 'AbortError';
+}
+
+function requestCancellationReason(error: unknown, signal?: AbortSignal): unknown {
+	return signal?.reason === undefined ? error : signal.reason;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
