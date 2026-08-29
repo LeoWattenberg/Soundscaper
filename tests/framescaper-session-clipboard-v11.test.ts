@@ -75,7 +75,7 @@ function pasteCommand(board: Data): Data {
 	};
 }
 
-function createId(prefix: string): string {
+function createId(prefix = 'id'): string {
 	return `${prefix}-1`;
 }
 

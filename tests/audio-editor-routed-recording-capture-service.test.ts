@@ -203,7 +203,8 @@ test('routed display capture supports ranges, channel fallback, meters, and time
 });
 
 test('routed capture preserves a delayed full-scale loudness reading', async () => {
-	let publishLoudness: ((reading: Readonly<{ readonly dbfs?: number }>) => void) | null = null;
+	type LoudnessPublisher = (reading: Readonly<{ readonly dbfs?: number }>) => void;
+	let publishLoudness: LoudnessPublisher | null = null;
 	const fixture = createRecordingCaptureFixture({
 		createLoudnessMeter: () => ({
 			push: (_channels, publish) => { publishLoudness = publish; },
@@ -227,8 +228,9 @@ test('routed capture preserves a delayed full-scale loudness reading', async () 
 		frames: 2,
 		channels: [Float32Array.from([0.25, -0.25])],
 	});
-	assert.ok(publishLoudness);
-	publishLoudness({ dbfs: 0 });
+	const publisher = publishLoudness as LoudnessPublisher | null;
+	assert.ok(publisher);
+	publisher({ dbfs: 0 });
 	assert.equal(fixture.state.inputMeterDb, 0);
 });
 
