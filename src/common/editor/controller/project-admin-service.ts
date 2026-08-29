@@ -81,6 +81,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	const recoveryBlocked = () => Boolean(
 		state.takeCycleRecovery || state.takeCycleRecoveryInspecting,
 	);
+	let clearLocalDataOperation: Promise<void> | null = null;
 
 	async function listProjects() {
 		await saveNow();
@@ -337,42 +338,57 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			.flatMap((tab: any) => editorHistoryProjects(tab.history));
 	}
 
-	async function clearLocalData() {
-		if (recoveryBlocked()) return;
+	function clearLocalData(): Promise<void> {
+		if (clearLocalDataOperation) return clearLocalDataOperation;
+		if (recoveryBlocked()) return Promise.resolve();
 		const interlock = beginCaptureInterlockedAdminOperation?.({ kind: 'clear', projectId: null });
-		try { await clearLocalDataReserved(interlock); }
-		finally { interlock?.release(); }
+		const operation = clearLocalDataReserved(interlock);
+		const trackedOperation = operation.finally(() => {
+			interlock?.release();
+			if (clearLocalDataOperation === trackedOperation) clearLocalDataOperation = null;
+		});
+		clearLocalDataOperation = trackedOperation;
+		return trackedOperation;
 	}
 
 	async function clearLocalDataReserved(
 		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
 	) {
-		await stopRecording();
-		interlock?.assertCurrent();
-		cancelPlaybackCachePreparation();
-		await releaseProjectLock();
-		engine.stop();
-		await stopProjectBinPreview({ dispose: true });
-		await disposeRenderEngines();
-		sourceChunkProviders.clear();
-		await sourceChunkProviders.drain?.();
-		await Promise.resolve(clipTimePitchCache.clear?.());
-		sourceBuffers.clear();
-		sourcePeaks.clear();
-		clearWaveformPcmWindows();
-		await revokeVideoVisuals();
-		interlock?.assertCurrent();
-		await store.clear();
-		sessionController.clearClipboard();
-		for (const tab of [...sessionController.getSnapshot().tabs]) {
-			sessionController.closeProject(tab.projectId, { force: true });
-		}
+		let replacementEstablished = false;
+		projectSaveService.suspend();
+		projectGeneration.invalidate();
 		state.history = null;
 		setProject(null);
-		state.selectedAnnotationId = null;
-		await newProject({ skipFlush: true });
-		state.projects = Object.freeze(store.preservesProjectsOnClear?.() ? await store.listProjects() : []);
-		publishDocumentSnapshot();
+		try {
+			await stopRecording();
+			interlock?.assertCurrent();
+			await projectSaveService.drain();
+			cancelPlaybackCachePreparation();
+			await releaseProjectLock();
+			engine.stop();
+			await stopProjectBinPreview({ dispose: true });
+			await disposeRenderEngines();
+			sourceChunkProviders.clear();
+			await sourceChunkProviders.drain?.();
+			await Promise.resolve(clipTimePitchCache.clear?.());
+			sourceBuffers.clear();
+			sourcePeaks.clear();
+			clearWaveformPcmWindows();
+			await revokeVideoVisuals();
+			interlock?.assertCurrent();
+			await store.clear();
+			sessionController.clearClipboard();
+			for (const tab of [...sessionController.getSnapshot().tabs]) {
+				sessionController.closeProject(tab.projectId, { force: true });
+			}
+			state.selectedAnnotationId = null;
+			await newProject({ skipFlush: true });
+			replacementEstablished = true;
+			state.projects = Object.freeze(store.preservesProjectsOnClear?.() ? await store.listProjects() : []);
+			publishDocumentSnapshot();
+		} finally {
+			if (replacementEstablished) projectSaveService.resume();
+		}
 	}
 
 	return Object.freeze({

@@ -7,6 +7,11 @@ import {
 	createProjectAdminService,
 	type ProjectAdminServiceRuntime,
 } from '../src/common/editor/controller/project-admin-service.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/project-save-service.ts';
+import {
+	createFixture as createAdminFixture,
+	type Project,
+} from './audio-editor-project-admin-service-fixture.ts';
 
 function deferred() {
 	let resolve: () => void = () => undefined;
@@ -175,4 +180,141 @@ test('handoff preparation failure retains the shared project lock', async () => 
 	await assert.rejects(() => fixture.service.prepareProjectHandoff(), (error) => error === failure);
 	assert.equal(fixture.releaseCalls(), 0);
 	assert.deepEqual(fixture.handoffCalls, ['prepare']);
+});
+
+test('local reset closes save admission synchronously and drains an admitted autosave before clearing storage', async () => {
+	const fixture = createAdminFixture();
+	const origin = fixture.project();
+	assert.ok(origin);
+	let project: Project | null = origin;
+	const replacement: Project = { id: 'replacement', title: 'Replacement', revision: 0 };
+	const catalog = new Map<string, Project>([[origin.id, origin]]);
+	const timers = new Map<number, () => void>();
+	const saveStarted = deferred();
+	const saveGate = deferred();
+	let nextTimer = 1;
+	let dirty = true;
+	let saveCompleted = false;
+	let clearCalls = 0;
+	const saveState = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<Project>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'dirty',
+	};
+	const projectSaveService = createProjectSaveService<Project>({
+		state: saveState,
+		getProject: () => project,
+		hasHistory: () => project !== null,
+		hasUnsavedProjectChanges: () => dirty,
+		isReadOnly: () => false,
+		cloneProject: structuredClone,
+		admitProjectPublication: async () => undefined,
+		async saveProject(snapshot) {
+			saveStarted.resolve();
+			await saveGate.promise;
+			catalog.set(snapshot.id, snapshot);
+			saveCompleted = true;
+		},
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: (projectId) => project?.id === projectId,
+		hasSessionTab: () => true,
+		markProjectSaved: () => { dirty = false; },
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: () => undefined,
+		scheduleTimer(callback) {
+			const handle = nextTimer++;
+			timers.set(handle, callback);
+			return handle;
+		},
+		clearTimer: (handle) => { timers.delete(handle); },
+	});
+
+	assert.equal(projectSaveService.scheduleAutosave(), true);
+	const admittedTimer = saveState.autosaveTimer;
+	const admittedCallback = timers.get(admittedTimer);
+	assert.ok(admittedCallback);
+	timers.delete(admittedTimer);
+	admittedCallback();
+	await saveStarted.promise;
+	dirty = true;
+	assert.equal(projectSaveService.scheduleAutosave(), true);
+	assert.equal(timers.size, 1);
+
+	const runtime: ProjectAdminServiceRuntime = {
+		...fixture.runtime,
+		getProject: () => project,
+		setProject: (value: Project | null) => { project = value; },
+		projectSaveService,
+		store: {
+			...fixture.runtime.store,
+			async clear() {
+				clearCalls += 1;
+				assert.equal(saveCompleted, true);
+				catalog.clear();
+			},
+		},
+		async newProject() {
+			project = replacement;
+			fixture.state.history = {};
+			catalog.set(replacement.id, replacement);
+		},
+	};
+	const clearing = createProjectAdminService(runtime).clearLocalData();
+	try {
+		assert.equal(project, null, 'the old project must reject mutation before reset yields');
+		assert.equal(timers.size, 0, 'the pending autosave must be cancelled before reset yields');
+		assert.equal(projectSaveService.scheduleAutosave(), false);
+		assert.equal(clearCalls, 0, 'storage clear must wait for the admitted save');
+
+		saveGate.resolve();
+		await clearing;
+		assert.deepEqual([...catalog.keys()], [replacement.id]);
+		dirty = true;
+		assert.equal(projectSaveService.scheduleAutosave(), true, 'save admission resumes for the replacement');
+	} finally {
+		saveGate.resolve();
+		await clearing.catch(() => undefined);
+	}
+});
+
+test('concurrent local resets share one clear and one replacement project', async () => {
+	const fixture = createAdminFixture();
+	const clearStarted = deferred();
+	const clearGate = deferred();
+	let clearCalls = 0;
+	let replacementCalls = 0;
+	const runtime: ProjectAdminServiceRuntime = {
+		...fixture.runtime,
+		store: {
+			...fixture.runtime.store,
+			async clear() {
+				clearCalls += 1;
+				clearStarted.resolve();
+				await clearGate.promise;
+			},
+		},
+		async newProject() {
+			replacementCalls += 1;
+			fixture.setProject({ id: 'replacement', title: 'Replacement', revision: 0 });
+			fixture.state.history = {};
+		},
+	};
+	const service = createProjectAdminService(runtime);
+	const first = service.clearLocalData();
+	await clearStarted.promise;
+	const second = service.clearLocalData();
+	try {
+		assert.strictEqual(second, first);
+		clearGate.resolve();
+		await Promise.all([first, second]);
+		assert.equal(clearCalls, 1);
+		assert.equal(replacementCalls, 1);
+	} finally {
+		clearGate.resolve();
+		await Promise.allSettled([first, second]);
+	}
 });
