@@ -1,3 +1,4 @@
+import { releaseDownloadObjectUrl } from '../../object-url-revoke.ts';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 
 export type InspectorCopy = Readonly<Record<string, string>>;
@@ -77,12 +78,27 @@ export async function downloadTextFile(
 		text,
 	});
 	const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+	if (!globalThis.document?.createElement || !globalThis.URL?.createObjectURL) {
+		return { method: 'blob', fileName: name, size: blob.size };
+	}
 	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement('a');
-	anchor.href = url;
-	anchor.download = name;
-	anchor.click();
-	setTimeout(() => URL.revokeObjectURL(url), 0);
+	try {
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = name;
+		anchor.hidden = true;
+		// A detached anchor downloads nothing in browsers that require the click
+		// target to be in the document, which is why the file service attaches
+		// its own and why this fallback has to as well.
+		document.body?.append(anchor);
+		anchor.click();
+		anchor.remove();
+	} finally {
+		releaseDownloadObjectUrl(url, {
+			revoke: (value) => { URL.revokeObjectURL(value); },
+			setTimer: globalThis.setTimeout?.bind(globalThis),
+		});
+	}
 	return { method: 'download', fileName: name, size: blob.size };
 }
 
