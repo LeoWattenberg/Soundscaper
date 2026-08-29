@@ -114,7 +114,10 @@ function NodeCollectionEditor({ copy, collection, label, nodes, onEdit }: Readon
 }>) {
 	return <section aria-label={label}>
 		<h4>{label}</h4>
-		{nodes.map((node) => <NodeForm key={node.id} copy={copy} collection={collection} node={node} onEdit={onEdit} />)}
+		{nodes.map((node) => <NodeForm
+			key={formKey(node.id, node.name, node.channelCount)}
+			copy={copy} collection={collection} node={node} onEdit={onEdit}
+		/>)}
 		<NodeForm copy={copy} collection={collection} node={null} onEdit={onEdit} />
 	</section>;
 }
@@ -155,7 +158,10 @@ function OutputEditor({ copy, outputs, onEdit }: Readonly<{
 }>) {
 	return <section aria-labelledby="soundscaper-routing-outputs-heading">
 		<h3 id="soundscaper-routing-outputs-heading">{copy.mixerOutputs}</h3>
-		{outputs.map((output) => <OutputForm key={output.id} copy={copy} output={output} onEdit={onEdit} />)}
+		{outputs.map((output) => <OutputForm
+			key={formKey(output.id, output.name, output.role, output.channelCount)}
+			copy={copy} output={output} onEdit={onEdit}
+		/>)}
 		<OutputForm copy={copy} output={null} onEdit={onEdit} />
 	</section>;
 }
@@ -200,7 +206,10 @@ function VcaEditor({ copy, vcas, members, onEdit }: Readonly<{
 }>) {
 	return <section aria-labelledby="soundscaper-routing-vcas-heading">
 		<h3 id="soundscaper-routing-vcas-heading">{copy.mixerVcas}</h3>
-		{vcas.map((vca) => <VcaForm key={vca.id} copy={copy} vca={vca} members={members} onEdit={onEdit} />)}
+		{vcas.map((vca) => <VcaForm
+			key={formKey(vca.id, vca.name, vca.gain, vca.mute, vca.members)}
+			copy={copy} vca={vca} members={members} onEdit={onEdit}
+		/>)}
 		<VcaForm copy={copy} vca={null} members={members} onEdit={onEdit} />
 	</section>;
 }
@@ -248,7 +257,13 @@ function EdgeEditor({ copy, edges, sources, destinations, onEdit }: Readonly<{
 }>) {
 	return <section aria-labelledby="soundscaper-routing-edges-heading">
 		<h3 id="soundscaper-routing-edges-heading">{copy.mixerEdges}</h3>
-		{edges.map((edge) => <EdgeForm key={edge.id} copy={copy} edge={edge} sources={sources} destinations={destinations} onEdit={onEdit} />)}
+		{edges.map((edge) => <EdgeForm
+			key={formKey(
+				edge.id, edge.kind, edge.source, edge.destination, edge.position,
+				edge.level, edge.enabled, edge.channelMap,
+			)}
+			copy={copy} edge={edge} sources={sources} destinations={destinations} onEdit={onEdit}
+		/>)}
 		<EdgeForm copy={copy} edge={null} sources={sources} destinations={destinations} onEdit={onEdit} />
 	</section>;
 }
@@ -346,6 +361,10 @@ function endpointValue(endpoint: SoundscaperRoutingSource | SoundscaperRoutingDe
 
 function fill(template: string, name: string): string {
 	return template.replace('{name}', name).replace('{collection}', name);
+}
+
+function formKey(...values: readonly unknown[]): string {
+	return JSON.stringify(values);
 }
 
 function errorMessage(error: unknown): string {
