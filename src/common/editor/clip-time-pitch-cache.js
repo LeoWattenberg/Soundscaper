@@ -16,6 +16,15 @@ import {
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import { checkedPublicationByteSum, estimatePcmRenderPublication } from './publication-byte-estimates.ts';
 import { estimateClipTimePitchRenderAdmission, normalizeClipTimePitchRenderMaximumBytes } from './clip-time-pitch-render-admission.ts';
+import { ClipTimePitchCacheSessionFence } from './clip-time-pitch-cache-session.ts';
+import {
+	finiteRange,
+	integerRange,
+	nonEmptyString,
+	nonNegativeInteger,
+	positiveFinite,
+	positiveInteger,
+} from './clip-time-pitch-cache-validation.ts';
 export const CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION = 1;
 export const CLIP_TIME_PITCH_CACHE_ALGORITHM_REVISION = STAFFPAD_ALGORITHM_VERSION;
 export const CLIP_TIME_PITCH_CACHE_PREFIX = 'audio-editor-time-pitch-v1';
@@ -262,7 +271,12 @@ export class ClipTimePitchRenderCacheCoordinator {
 		this.requestSequence = 0;
 		this.inFlight = new Map();
 		this.renderTail = Promise.resolve();
-		this.disposed = false;
+		this.sessionFence = new ClipTimePitchCacheSessionFence({
+			createAbortError: abortError,
+			createDisposedError: () => cacheError(
+				'DISPOSED', 'The clip time-and-pitch cache coordinator is disposed.',
+			),
+		});
 	}
 
 	describe(clip, source, options = {}) {
@@ -285,13 +299,17 @@ export class ClipTimePitchRenderCacheCoordinator {
 	 */
 	async requestClipRender(clip, source, options = {}) {
 		this.#assertActive();
+		const sessionEpoch = this.sessionFence.capture();
 		throwIfAborted(options.signal);
 		const plan = await this.plan(clip, source, options);
+		this.#assertSession(sessionEpoch);
 		throwIfAborted(options.signal);
 		for (const warning of plan.warnings) this.onWarning?.(warning, { clip, source, plan });
+		this.#assertSession(sessionEpoch);
 		const sequence = ++this.requestSequence;
 		this.desiredByClip.set(plan.clipId, { key: plan.finalKey, sequence });
-		const exact = await this.#findCommitted(plan);
+		const exact = await this.#findCommitted(plan, sessionEpoch);
+		this.#assertSession(sessionEpoch);
 		throwIfAborted(options.signal);
 		if (exact) {
 			this.#publishForClip(plan.clipId, sequence, exact);
@@ -380,12 +398,12 @@ export class ClipTimePitchRenderCacheCoordinator {
 		return this.getProtectedSourceIds();
 	}
 
-	/** Reset one controller session without disposing its long-lived StaffPad worker. */
+	/** Reset one controller session and drain work that was already in flight. */
 	clear() {
-		for (const job of this.inFlight.values()) {
-			job.interests.clear();
-			job.controller.abort();
-		}
+		return this.sessionFence.clear(this.inFlight.values(), () => this.#resetSessionState());
+	}
+
+	#resetSessionState() {
 		this.inFlight.clear();
 		this.committedByKey.clear();
 		this.lastCommittedByClip.clear();
@@ -447,23 +465,29 @@ export class ClipTimePitchRenderCacheCoordinator {
 	}
 
 	dispose() {
-		if (this.disposed) return;
-		this.disposed = true;
-		this.clear();
-		if (this.ownsClient) this.client.dispose?.();
+		return this.sessionFence.dispose(
+			this.inFlight.values(),
+			() => this.#resetSessionState(),
+			this.ownsClient ? () => this.client.dispose?.() : undefined,
+		);
 	}
 
 	#assertActive() {
-		if (this.disposed) throw cacheError('DISPOSED', 'The clip time-and-pitch cache coordinator is disposed.');
+		this.sessionFence.assertActive();
 	}
 
-	async #findCommitted(plan) {
+	#assertSession(sessionEpoch) {
+		this.sessionFence.assertCurrent(sessionEpoch);
+	}
+
+	async #findCommitted(plan, sessionEpoch) {
 		const memoryEntry = this.committedByKey.get(plan.finalKey);
 		if (memoryEntry) {
 			this.#touchResidentChannels(memoryEntry);
 			return memoryEntry;
 		}
 		const metadata = await this.store.getSourceMetadata(plan.cacheSourceId);
+		this.#assertSession(sessionEpoch);
 		if (!metadata || metadata.cacheKey !== plan.finalKey
 			|| metadata.cacheSchemaVersion !== CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION
 			|| metadata.algorithmRevision !== plan.algorithmRevision
@@ -481,6 +505,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 		const controller = new AbortController();
 		job = {
 			key: plan.finalKey,
+			sessionEpoch: this.sessionFence.capture(),
 			controller,
 			interests: new Map(),
 			subscribers: new Set(),
@@ -495,6 +520,8 @@ export class ClipTimePitchRenderCacheCoordinator {
 		}));
 		this.renderTail = render.then(() => undefined, () => undefined);
 		job.promise = render.then((entry) => {
+			this.#assertSession(job.sessionEpoch);
+			throwIfAborted(job.controller.signal);
 			job.result = entry;
 			this.committedByKey.set(plan.finalKey, entry);
 			for (const [clipId, sequence] of job.interests) this.#publishForClip(clipId, sequence, entry);
@@ -660,7 +687,8 @@ export class ClipTimePitchRenderCacheCoordinator {
 			const metadata = await writer.commit({
 				frameCount: plan.outputFrames,
 				outputBytes: plan.outputBytes,
-			});
+			}, { signal: options.signal });
+			throwIfAborted(options.signal);
 			const entry = createCommittedEntry(plan, metadata);
 			this.#retainResidentChannels(entry, channels);
 			return entry;
@@ -856,40 +884,4 @@ function cloneJson(value) {
 	if (value == null) return value;
 	if (typeof structuredClone === 'function') return structuredClone(value);
 	return JSON.parse(JSON.stringify(value));
-}
-function nonEmptyString(value, name) {
-	const result = String(value ?? '').trim();
-	if (!result) throw new TypeError(`${name} must be a non-empty string.`);
-	return result;
-}
-function positiveFinite(value, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number <= 0) throw new RangeError(`${name} must be finite and positive.`);
-	return number;
-}
-function finiteRange(value, minimum, maximum, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number < minimum || number > maximum) {
-		throw new RangeError(`${name} must be between ${minimum} and ${maximum}.`);
-	}
-	return number;
-}
-function positiveInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
-	return number;
-}
-
-function nonNegativeInteger(value, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
-	return number;
-}
-
-function integerRange(value, minimum, maximum, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < minimum || number > maximum) {
-		throw new RangeError(`${name} must be an integer between ${minimum} and ${maximum}.`);
-	}
-	return number;
 }

@@ -1959,7 +1959,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await cleanup(() => clipTimePitchCacheService.disposeRenderEngines(), true);
 			await cleanup(() => Promise.resolve(ffmpeg.dispose()));
 			await cleanup(() => nativeProjectService.dispose());
-			clipTimePitchCache.dispose?.();
+			await cleanup(() => Promise.resolve(clipTimePitchCache.dispose?.()), true);
 			await cleanup(() => Promise.resolve(sessionController.dispose?.()));
 			await cleanup(() => Promise.resolve(engine.dispose()), true);
 			if (!sourceRetirementError) {

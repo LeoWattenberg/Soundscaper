@@ -364,7 +364,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		await disposeRenderEngines();
 		sourceChunkProviders.clear();
 		await sourceChunkProviders.drain?.();
-		clipTimePitchCache.clear?.();
+		await Promise.resolve(clipTimePitchCache.clear?.());
 		sourceBuffers.clear();
 		sourcePeaks.clear();
 		clearWaveformPcmWindows();
