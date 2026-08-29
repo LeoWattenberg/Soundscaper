@@ -31,6 +31,7 @@ export function collectProjectSourceIds(project, target = new Set()) {
 		collectMulticameraMemberSourceIds(project, target);
 		collectVideoFreezeFallbackSourceIds(project, target);
 		collectOpenFxFrozenFallbackSourceIds(project, target);
+		collectVisualGraphInputSourceIds(project, target);
 	}
 	return target;
 }
@@ -71,6 +72,33 @@ function collectVideoFreezeFallbackSourceIds(project, target) {
 	for (const freeze of freezes) {
 		const sourceId = freeze?.renderedSourceId;
 		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
+	}
+}
+
+/**
+ * A visual graph consumes media the timeline never places: a mask matte's input,
+ * an external generator's input, and an OpenFX named input each reach a source no
+ * clip carries. A named input may also address a clip or a track, so only the
+ * references that name an actual source are counted.
+ */
+function collectVisualGraphInputSourceIds(project, target) {
+	const sources = Array.isArray(project?.sources) ? project.sources : [];
+	const sourceIds = new Set(sources.map((source) => source?.id).filter((id) => typeof id === 'string' && id));
+	if (sourceIds.size === 0) return;
+	const collectInputs = (inputs) => {
+		for (const input of Array.isArray(inputs) ? inputs : []) {
+			const sourceRef = input?.sourceRef;
+			if (typeof sourceRef === 'string' && sourceIds.has(sourceRef)) target.add(sourceRef);
+		}
+	};
+	for (const graph of Array.isArray(project?.videoMaskMattes) ? project.videoMaskMattes : []) {
+		collectInputs(graph?.inputs);
+	}
+	for (const effect of Array.isArray(project?.ofxEffects) ? project.ofxEffects : []) {
+		collectInputs(effect?.inputs);
+	}
+	for (const source of sources) {
+		if (source?.kind === 'generator') collectInputs(source?.generator?.inputs);
 	}
 }
 
