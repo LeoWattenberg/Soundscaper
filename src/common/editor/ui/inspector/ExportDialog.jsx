@@ -57,6 +57,13 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	const [presetId, setPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
 	const [desktopCodecStatus, setDesktopCodecStatus] = useState(null);
+	const operationOwner = useMemo(
+		() => ({ controller, isOpen, projectIdentity }),
+		[controller, isOpen, projectIdentity],
+	);
+	const currentOperationOwner = useRef(operationOwner);
+	const activeExportSubmission = useRef(null);
+	currentOperationOwner.current = operationOwner;
 	const desktop = fileService?.isDesktop === true;
 	const projectChannelCount = snapshot.project?.masterChannels || 2;
 	const desktopVideoCapabilities = useDesktopVideoExportCapabilities(fileService, isOpen);
@@ -146,6 +153,12 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			? { ...current, range: 'project', masteringSequenceId: value.slice('mastering-sequence:'.length) }
 			: { ...current, range: value, masteringSequenceId: '' }
 	));
+
+	useEffect(() => {
+		activeExportSubmission.current = null;
+		setError('');
+		return () => { activeExportSubmission.current = null; };
+	}, [operationOwner]);
 
 	useEffect(() => {
 		if (settingsProjectIdentity.current === projectIdentity) return;
@@ -264,6 +277,15 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	});
 	const metadataAvailable = exportDialogMetadataAvailable(settings.format, desktop);
 	const start = () => {
+		const submission = { owner: operationOwner };
+		activeExportSubmission.current = submission;
+		const ownsSubmission = () => activeExportSubmission.current === submission
+			&& currentOperationOwner.current === submission.owner;
+		const failSubmission = (cause) => {
+			if (!ownsSubmission()) return;
+			activeExportSubmission.current = null;
+			setError(cause instanceof Error ? cause.message : String(cause));
+		};
 		try {
 			setError('');
 			if (desktopFormatRefusal) throw new Error(desktopFormatRefusal);
@@ -293,11 +315,11 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 						? parseJsonChannelMapping(admittedSettings.channelMatrix, copy.customChannelMapping, copy)
 						: admittedSettings.channelMapping,
 			});
-			Promise.resolve(controller.actions.export.start(request)).catch((cause) => {
-				setError(cause instanceof Error ? cause.message : String(cause));
-			});
+			Promise.resolve(controller.actions.export.start(request)).then(() => {
+				if (ownsSubmission()) activeExportSubmission.current = null;
+			}, failSubmission);
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : String(cause));
+			failSubmission(cause);
 		}
 	};
 
