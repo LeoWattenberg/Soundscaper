@@ -6,6 +6,7 @@ import test from 'node:test';
 import React, { act } from 'react';
 
 import type { FramescaperOpenFxPluginProjectionV1 } from '../src/common/editor/native-ofx-service-contract.ts';
+import FramescaperOpenFxAddPanel from '../src/common/editor/ui/dialogs/FramescaperOpenFxAddPanel.tsx';
 import FramescaperOpenFxManagePanel from '../src/common/editor/ui/dialogs/FramescaperOpenFxManagePanel.tsx';
 import FramescaperNativeProjectActionPanel from '../src/common/editor/ui/dialogs/FramescaperNativeProjectActionPanel.tsx';
 import type {
@@ -14,6 +15,8 @@ import type {
 } from '../src/common/editor/ui/framescaper-native-services-bridge.ts';
 import { FRAMESCAPER_NATIVE_SERVICES_COPY } from '../src/common/editor/ui/framescaper-native-services-copy.ts';
 import { createFramescaperNativeProjectActionSubsetRuntime } from '../src/common/editor/ui/framescaper-native-project-actions.ts';
+import type { FramescaperNativeOpenFxAuthoringRuntimeNativeMedia } from '../src/framescaper/editor-native-openfx-action.ts';
+import type { FramescaperOpenFxAuthoringModelNativeMedia } from '../src/framescaper/editor-native-openfx-authoring-model.ts';
 
 test('mounted delivery form submits exact 60000/1001 intent and reports alpha refusal', async () => {
 	const dom = installTestDom();
@@ -119,6 +122,69 @@ test('mounted OpenFX manager ignores an older list response after a scan refresh
 		dom.restore();
 	}
 });
+
+test('mounted OpenFX authoring retires the prior runtime model while its replacement loads', async () => {
+	const dom = installTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const replacement = deferred<FramescaperOpenFxAuthoringModelNativeMedia>();
+	const firstRuntime = openFxRuntime(Promise.resolve(openFxAuthoringModel('11', 'Old effect')));
+	const replacementRuntime = openFxRuntime(replacement.promise);
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => {
+			root.render(<FramescaperOpenFxAddPanel runtime={firstRuntime}
+				copy={FRAMESCAPER_NATIVE_SERVICES_COPY} />);
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /Old effect/u);
+
+		await act(async () => {
+			root.render(<FramescaperOpenFxAddPanel runtime={replacementRuntime}
+				copy={FRAMESCAPER_NATIVE_SERVICES_COPY} />);
+		});
+		assert.doesNotMatch(dom.container.textContent, /Old effect/u);
+		assert.match(dom.container.textContent, /loading/iu);
+
+		await act(async () => {
+			replacement.resolve(openFxAuthoringModel('22', 'Replacement effect'));
+			await replacement.promise;
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /Replacement effect/u);
+		assert.doesNotMatch(dom.container.textContent, /Old effect/u);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+function openFxRuntime(
+	modelPromise: Promise<FramescaperOpenFxAuthoringModelNativeMedia>,
+): FramescaperNativeOpenFxAuthoringRuntimeNativeMedia {
+	return {
+		model: () => modelPromise,
+		author: async () => undefined,
+		interactModel: async () => ({ instances: [] }),
+		commitInteract: async () => { throw new Error('Interact is not used by this fixture.'); },
+	};
+}
+
+function openFxAuthoringModel(
+	handleByte: string,
+	pluginId: string,
+): FramescaperOpenFxAuthoringModelNativeMedia {
+	return {
+		plugins: [openFxPlugin(handleByte, pluginId)],
+		targets: [{
+			context: 'filter', targetId: `${pluginId}-target`, label: `${pluginId} target`,
+			instanceId: null, inputs: [{ name: 'Source', sourceRef: `${pluginId}-source` }],
+		}],
+	};
+}
 
 function openFxPlugin(
 	handleByte: string,

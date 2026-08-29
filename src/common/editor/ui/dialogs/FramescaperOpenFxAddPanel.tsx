@@ -28,20 +28,32 @@ export interface FramescaperOpenFxFormState {
 	readonly customEncodings: Readonly<Record<string, string>>;
 }
 
+interface FramescaperOpenFxModelLoad {
+	readonly runtime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia;
+	readonly model: FramescaperOpenFxAuthoringModelNativeMedia | null;
+	readonly error: string;
+}
+
 export default function FramescaperOpenFxAddPanel({ runtime, copy }: Readonly<{
 	runtime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia;
 	copy: FramescaperNativeServicesCopy;
 }>) {
-	const [model, setModel] = useState<FramescaperOpenFxAuthoringModelNativeMedia | null>(null);
-	const [error, setError] = useState('');
+	const [loaded, setLoaded] = useState<FramescaperOpenFxModelLoad>(() => ({
+		runtime, model: null, error: '',
+	}));
 	useEffect(() => {
 		let live = true;
+		setLoaded({ runtime, model: null, error: '' });
 		void runtime.model().then(
-			(value) => { if (live) setModel(value); },
-			(failure: unknown) => { if (live) setError(message(failure)); },
+			(value) => { if (live) setLoaded({ runtime, model: value, error: '' }); },
+			(failure: unknown) => {
+				if (live) setLoaded({ runtime, model: null, error: message(failure) });
+			},
 		);
 		return () => { live = false; };
 	}, [runtime]);
+	const model = loaded.runtime === runtime ? loaded.model : null;
+	const error = loaded.runtime === runtime ? loaded.error : '';
 	if (error) return <p role="alert">{error}</p>;
 	if (model === null) return <p role="status" aria-live="polite">{copy.ofxLoading}</p>;
 	if (model.plugins.length === 0 || model.targets.length === 0) {
