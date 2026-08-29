@@ -124,6 +124,23 @@ export function replaceClipSource(project, clipId, sourceId) {
 	replaceClip(project, updated);
 }
 
+/**
+ * Scale a neighbour's envelope onto its rewritten duration. Compression can put
+ * two points on one frame, and clamping the tail can put several on the last
+ * one, but a project envelope must use strictly increasing frames - so an
+ * unmerged collision failed validation and refused the whole effect. A
+ * collision keeps the later point, which is the value the material carries out
+ * of the region that collapsed.
+ */
+function scaledEnvelope(envelope, ratio, durationFrames) {
+	const scaled = new Map();
+	for (const point of envelope || []) {
+		const frame = Math.min(durationFrames, Math.round(point.frame * ratio));
+		scaled.set(frame, { ...point, frame });
+	}
+	return [...scaled.values()].sort((left, right) => left.frame - right.frame);
+}
+
 export function replaceRenderedClips(project, command) {
 	if (!Array.isArray(command.entries) || !command.entries.length) {
 		throw new TypeError('Rendered clip replacement entries are required.');
@@ -199,10 +216,7 @@ export function replaceRenderedClips(project, command) {
 					speedRatio: (current.sourceDurationFrames || current.durationFrames) / durationFrames,
 					fadeInFrames: Math.min(current.fadeInFrames || 0, durationFrames),
 					fadeOutFrames: Math.min(current.fadeOutFrames || 0, durationFrames),
-					envelope: (current.envelope || []).map((point) => ({
-						...point,
-						frame: Math.min(durationFrames, Math.round(point.frame * component.ratio)),
-					})),
+					envelope: scaledEnvelope(current.envelope, component.ratio, durationFrames),
 					renderCacheRevision: (current.renderCacheRevision || 0) + 1,
 					id: current.id,
 				});
