@@ -7,7 +7,9 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 export default function NyquistDialog({ controller, snapshot, copy, target, run, onClose }) {
 	const plugin = target?.pluginId ? getNyquistPlugin(target.pluginId) : null;
 	const prompt = !plugin;
+	const targetIdentity = plugin?.id || 'prompt';
 	const submissionRef = useRef(null);
+	const targetIdentityRef = useRef(targetIdentity);
 	const [source, setSource] = useState(() => loadNyquistPromptSource(copy.nyquistPromptDefault));
 	const [language, setLanguage] = useState('lisp');
 	const [debug, setDebug] = useState(false);
@@ -16,11 +18,20 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
+		if (targetIdentityRef.current !== targetIdentity) {
+			targetIdentityRef.current = targetIdentity;
+			if (submissionRef.current) {
+				submissionRef.current.abort();
+				submissionRef.current = null;
+				controller.actions.nyquist.cancel();
+				setBusy(false);
+			}
+		}
 		setControls(nyquistControlDefaults(plugin));
 		setOutput('');
 		setDebug(Boolean(plugin?.debugEnabled));
 		if (prompt) setSource(loadNyquistPromptSource(copy.nyquistPromptDefault));
-	}, [copy.nyquistPromptDefault, plugin, prompt]);
+	}, [controller, copy.nyquistPromptDefault, plugin, prompt, targetIdentity]);
 	useEffect(() => {
 		if (prompt) storeNyquistPromptSource(source);
 	}, [prompt, source]);

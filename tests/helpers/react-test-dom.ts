@@ -66,6 +66,12 @@ class ReactTestNode {
 	constructor(readonly nodeType: number, readonly nodeName: string) {}
 	get firstChild(): ReactTestNode | null { return this.childNodes[0] ?? null; }
 	get lastChild(): ReactTestNode | null { return this.childNodes.at(-1) ?? null; }
+	get isConnected(): boolean {
+		return this.parentNode ? this.parentNode.isConnected : this.nodeType === 9;
+	}
+	contains(candidate: unknown): boolean {
+		return candidate === this || this.childNodes.some((child) => child.contains(candidate));
+	}
 	appendChild<Value extends ReactTestNode>(child: Value): Value { return this.insertBefore(child, null); }
 	insertBefore<Value extends ReactTestNode>(child: Value, before: ReactTestNode | null): Value {
 		child.parentNode?.removeChild(child);
@@ -122,7 +128,14 @@ export class ReactTestElement extends ReactTestNode {
 		return descendants(this).filter((node) => node.tagName === 'OPTION');
 	}
 	querySelector(selector: string): ReactTestElement | null {
-		return descendants(this).find((node) => matches(node, selector)) ?? null;
+		return this.querySelectorAll(selector)[0] ?? null;
+	}
+	querySelectorAll(selector: string): ReactTestElement[] {
+		return descendants(this).filter((node) => matchesSelectorList(node, selector));
+	}
+	closest(selector: string): ReactTestElement | null {
+		if (matchesSelectorList(this, selector)) return this;
+		return this.parentNode instanceof ReactTestElement ? this.parentNode.closest(selector) : null;
 	}
 	setAttribute(name: string, value: string): void {
 		this.attributes.set(name, String(value));
@@ -174,10 +187,18 @@ function descendants(root: ReactTestNode): ReactTestElement[] {
 }
 
 function matches(node: ReactTestElement, selector: string): boolean {
+	const negated = /^(.*):not\((.*)\)$/u.exec(selector);
+	if (negated) return matches(node, negated[1]!) && !matches(node, negated[2]!);
 	const attribute = /^\[([^=]+)="([^"]*)"\]$/u.exec(selector);
 	if (attribute) return node.getAttribute(attribute[1]!) === attribute[2]!;
+	const presentAttribute = /^\[([^\]]+)\]$/u.exec(selector);
+	if (presentAttribute) return node.hasAttribute(presentAttribute[1]!);
 	if (selector.startsWith('.')) {
 		return (node.getAttribute('class') ?? '').split(/\s+/u).includes(selector.slice(1));
 	}
 	return node.tagName.toLowerCase() === selector.toLowerCase();
+}
+
+function matchesSelectorList(node: ReactTestElement, selectors: string): boolean {
+	return selectors.split(',').some((selector) => matches(node, selector.trim()));
 }
