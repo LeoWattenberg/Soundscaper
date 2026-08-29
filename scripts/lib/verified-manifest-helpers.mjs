@@ -5,6 +5,9 @@ import { lstat, readFile, writeFile } from 'node:fs/promises';
 import { basename, posix, resolve } from 'node:path';
 
 import { renameIntoPlaceExclusively } from './exclusive-rename.mjs';
+import { canonicalJson } from './canonical-json.mjs';
+
+export { canonicalJson };
 
 export function assert(condition, message) {
 	if (!condition) throw new Error(message);
@@ -46,13 +49,6 @@ export function assertSortedUnique(values, label) {
 	assert(canonicalJson(values) === canonicalJson(normalized), `${label} must be sorted and unique`);
 }
 
-export function canonicalJson(value) {
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	if (value && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 export function deepFreeze(value) {
 	if (!value || typeof value !== 'object' || ArrayBuffer.isView(value) || Object.isFrozen(value)) return value;

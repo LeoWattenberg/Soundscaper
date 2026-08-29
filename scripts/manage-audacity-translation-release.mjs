@@ -11,6 +11,7 @@ import {
 } from '../src/common/i18n/audacity-qt-mapping.js';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { COMMITTED_LOCALE_TAGS, LOCALE_BY_TAG } from '../src/common/i18n/locales.js';
+import { canonicalJsonDocument as canonicalJson } from './lib/canonical-json.mjs';
 import { R2Client, rfc3986, safeRelativePath, strongEntityTag } from './lib/r2-client.mjs';
 
 const AUDACITY = Object.freeze({
@@ -81,23 +82,6 @@ function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
-/**
- * The same value has to serialize to the same bytes on every machine that runs
- * this tooling, because the digests taken over the result are pinned and
- * compared across hosts. Keys are therefore ordered by code unit - the default
- * array sort, and what the other canonical serializers use - never by host
- * collation, which compares letters case-insensitively first and so would
- * order `audioX` after `audiob` on one machine and before it on another.
- */
-export function canonicalJson(value) {
-	const serialize = (entry) => {
-		if (entry === null || typeof entry !== 'object') return JSON.stringify(entry);
-		if (Array.isArray(entry)) return `[${entry.map(serialize).join(',')}]`;
-		return `{${Object.keys(entry).sort()
-			.map((key) => `${JSON.stringify(key)}:${serialize(entry[key])}`).join(',')}}`;
-	};
-	return `${serialize(value)}\n`;
-}
 
 function parseJson(bytes, label) {
 	try {

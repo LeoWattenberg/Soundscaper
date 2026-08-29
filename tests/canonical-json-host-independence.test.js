@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { canonicalJson as releaseCanonicalJson } from '../scripts/manage-audacity-translation-release.mjs';
+import { canonicalJsonDocument as releaseCanonicalJson } from '../scripts/lib/canonical-json.mjs';
 import { canonicalJson as manifestCanonicalJson } from '../scripts/lib/verified-manifest-helpers.mjs';
 import { canonicalJson as hostBuildCanonicalJson } from '../scripts/lib/framescaper-media-host-build.mjs';
 import { canonicalJson as provenanceCanonicalJson } from '../scripts/docs-ai/provenance.mjs';

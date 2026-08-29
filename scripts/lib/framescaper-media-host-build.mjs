@@ -12,6 +12,9 @@ import {
 } from './boost-header-closure.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
 import { listNativeSourceTree } from './native-source-tree.mjs';
+import { canonicalJson } from './canonical-json.mjs';
+
+export { canonicalJson };
 
 export const FRAMESCAPER_MEDIA_HOST_ROOT = 'native/framescaper-media-host';
 export const FRAMESCAPER_MEDIA_HOST_SOURCE_MANIFEST =
@@ -362,15 +365,6 @@ export function framescaperMediaHostTargetForRuntime(platform, architecture) {
 	) ?? null;
 }
 
-export function canonicalJson(value) {
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	if (value !== null && typeof value === 'object') {
-		return `{${Object.keys(value).sort().map(
-			(key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`,
-		).join(',')}}`;
-	}
-	return JSON.stringify(value);
-}
 
 function auditBuiltTarget(root, manifest, target, record) {
 	const findings = [];
