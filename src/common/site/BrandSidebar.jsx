@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE_TAGS, getLocaleDescriptor, ROUTE_LOCALES } from '../i18n
 import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref } from '../product-web-links.js';
 import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
+import { storeDocumentTheme } from './document-theme.js';
 import { privacyPolicyUrl } from './privacy-policy-links.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
@@ -95,7 +96,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 		setTheme(next);
 		document.documentElement.dataset.theme = next;
 		document.documentElement.style.colorScheme = next;
-		try { localStorage.setItem(`${productId}_theme`, next); } catch {}
+		storeDocumentTheme(productId, next);
 	};
 	const selectWorkspace = (event) => {
 		window.dispatchEvent(new CustomEvent('scape:workspace-request', {

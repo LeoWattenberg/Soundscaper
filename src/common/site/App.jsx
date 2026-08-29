@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import BrandSidebar from './BrandSidebar.jsx';
+import { applyDocumentTheme } from './document-theme.js';
 import './site.css';
 
 const SoundscaperAudioEditorBootstrap = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
@@ -52,15 +53,7 @@ export function applyDocumentRoute(route) {
 	else delete root.dataset.embedded;
 	if (route.desktop) root.dataset.desktop = 'true';
 	else delete root.dataset.desktop;
-	try {
-		localStorage.setItem('scape_last_active_product', route.productId);
-		const stored = localStorage.getItem(`${route.productId}_theme`) || localStorage.getItem('soundscaper_theme');
-		const theme = stored === 'light' || stored === 'dark'
-			? stored
-			: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-		root.dataset.theme = theme;
-		root.style.colorScheme = theme;
-	} catch {}
+	applyDocumentTheme(root, route.productId);
 	updateProductHead(route.productId);
 }
 
