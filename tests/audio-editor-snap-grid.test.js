@@ -127,6 +127,56 @@ test('musical snapping follows authoritative tempo and signature event maps', ()
 	assert.equal(snapAudioEditorProjectFrame(230_000, 'bar', { ...project, mode: 'next' }), 288_000);
 });
 
+test('a rounded grid line stays on the grid in every snap mode', () => {
+	// 174 bpm at 44.1 kHz puts a bar at 60827.586 frames, so every line is rounded
+	// to a whole frame. A rounded line still has to count as being on the grid:
+	// otherwise the directional modes read it as belonging to the cell before or
+	// after it, and snapping an already-snapped frame walks a whole bar.
+	const context = { sampleRate: 44_100, tempo: { bpm: 174, numerator: 7, denominator: 8 } };
+	for (const mode of ['nearest', 'previous', 'next']) {
+		for (let frame = 0; frame <= 400_000; frame += 4_099) {
+			const once = snapAudioEditorProjectFrame(frame, 'bar', { ...context, mode });
+			const twice = snapAudioEditorProjectFrame(once, 'bar', { ...context, mode });
+			assert.equal(twice, once, `${mode} moved ${frame} to ${once} and then to ${twice}`);
+			if (mode === 'previous') assert.ok(once <= frame, `previous moved ${frame} forward to ${once}`);
+			if (mode === 'next') assert.ok(once >= frame, `next moved ${frame} back to ${once}`);
+		}
+	}
+	assert.equal(snapAudioEditorProjectFrame(126_704, 'bar', { ...context, mode: 'previous' }), 121_655);
+	assert.equal(snapAudioEditorProjectFrame(121_655, 'bar', { ...context, mode: 'previous' }), 121_655);
+	assert.equal(snapAudioEditorProjectFrame(126_704, 'bar', { ...context, mode: 'next' }), 182_483);
+	assert.equal(snapAudioEditorProjectFrame(182_483, 'bar', { ...context, mode: 'next' }), 182_483);
+});
+
+test('a rounded tempo-map grid line stays on the grid in every snap mode', () => {
+	// The same hazard on the tempo-map path: a bar line stored as a whole frame
+	// resolves to a beat just short of the boundary, so the bar it falls in reads
+	// as the one before it and "previous" walks back a whole bar - or, once it has
+	// walked, all the way to the project start.
+	const project = {
+		sampleRate: 44_100,
+		tempoMap: {
+			mode: 'musical',
+			events: [
+				{ id: 'a', beat: { num: 0, den: 1 }, bpm: { num: 174, den: 1 } },
+				{ id: 'b', beat: { num: 7, den: 1 }, bpm: { num: 61, den: 1 } },
+			],
+		},
+		signatureMap: { events: [{ id: 'seven-eight', bar: 0, numerator: 7, denominator: 8 }] },
+	};
+	for (const grid of ['bar', '1/4', '1/16', '1/128']) {
+		for (const mode of ['nearest', 'previous', 'next']) {
+			for (let frame = 0; frame <= 300_000; frame += 4_099) {
+				const once = snapAudioEditorProjectFrame(frame, grid, { ...project, mode });
+				const twice = snapAudioEditorProjectFrame(once, grid, { ...project, mode });
+				assert.equal(twice, once, `${grid} ${mode} moved ${frame} to ${once} and then to ${twice}`);
+				if (mode === 'previous') assert.ok(once <= frame, `${grid} previous moved ${frame} forward`);
+				if (mode === 'next') assert.ok(once >= frame, `${grid} next moved ${frame} back`);
+			}
+		}
+	}
+});
+
 test('video and CDDA grids use rational rates without incremental drift', () => {
 	const context = { sampleRate: 44_100 };
 	assert.equal(audioEditorSnapStepFrames('video-24', context), 1_837.5);

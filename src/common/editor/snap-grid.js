@@ -156,13 +156,28 @@ export function snapAudioEditorProjectFrame(frame, gridValue, context = {}) {
 		return boundedFrame(snapMusicalFrame(inputFrame, gridValue, context, grid, mode), context);
 	}
 	const step = audioEditorSnapStepRational(gridValue, context);
-	const gridIndex = roundRational(
-		BigInt(inputFrame) * BigInt(step.den),
-		BigInt(step.num),
+	const stepNumerator = BigInt(step.num);
+	const stepDenominator = BigInt(step.den);
+	const lineAt = (index) => roundRational(index * stepNumerator, stepDenominator, 'point');
+	let gridIndex = BigInt(roundRational(
+		BigInt(inputFrame) * stepDenominator,
+		stepNumerator,
 		mode === 'nearest' ? 'point' : 'directional',
 		mode === 'nearest' ? undefined : mode,
-	);
-	const result = roundRational(BigInt(gridIndex) * BigInt(step.num), BigInt(step.den), 'point');
+	));
+	// A grid line only ever exists as a whole frame, so the directional modes have
+	// to compare against the rounded lines rather than the exact ratio. A line
+	// that rounded down otherwise reads as belonging to the cell before it, and
+	// snapping an already-snapped frame walks a whole cell. Rounding moves a line
+	// by at most half a frame, so one step of correction is always enough.
+	if (mode === 'previous') {
+		if (gridIndex > 0n && lineAt(gridIndex) > inputFrame) gridIndex -= 1n;
+		else if (lineAt(gridIndex + 1n) <= inputFrame) gridIndex += 1n;
+	} else if (mode === 'next') {
+		if (lineAt(gridIndex) < inputFrame) gridIndex += 1n;
+		else if (gridIndex > 0n && lineAt(gridIndex - 1n) >= inputFrame) gridIndex -= 1n;
+	}
+	const result = lineAt(gridIndex);
 	if (!Number.isSafeInteger(result)) throw new RangeError('The snapped frame is outside the safe integer range.');
 	return boundedFrame(result, context);
 }
@@ -209,19 +224,33 @@ function snapMusicalFrame(frame, gridValue, context, grid, mode) {
 	const beat = sampleFrameToBeat(frame, tempoMap, sampleRate);
 	if (!grid.bar) {
 		const unit = musicalDivision(gridValue, context, grid);
-		const index = roundRational(
+		const lineAt = (index) => beatToSampleFrame(multiplyRationals(unit, index), tempoMap, sampleRate, 'point');
+		let index = roundRational(
 			BigInt(beat.num) * BigInt(unit.den),
 			BigInt(beat.den) * BigInt(unit.num),
 			mode === 'nearest' ? 'point' : 'directional',
 			mode === 'nearest' ? undefined : mode,
 		);
-		return beatToSampleFrame(multiplyRationals(unit, index), tempoMap, sampleRate, 'point');
+		// A line exists only as a whole frame, and reading that frame back gives a
+		// beat just short of the boundary, so the directional modes have to compare
+		// rounded frames. One step of correction always suffices.
+		if (mode === 'previous') {
+			if (index > 0 && lineAt(index) > frame) index -= 1;
+			else if (lineAt(index + 1) <= frame) index += 1;
+		} else if (mode === 'next') {
+			if (lineAt(index) < frame) index += 1;
+			else if (index > 0 && lineAt(index - 1) >= frame) index -= 1;
+		}
+		return lineAt(index);
 	}
 	const boundaries = surroundingBarBoundaries(beat, projectSignatureMap(context));
 	const lowerFrame = beatToSampleFrame(boundaries.lowerBeat, tempoMap, sampleRate, 'point');
-	if (mode === 'previous' || (mode === 'next' && lowerFrame === frame)) return lowerFrame;
 	const upperFrame = beatToSampleFrame(boundaries.upperBeat, tempoMap, sampleRate, 'point');
-	if (mode === 'next') return upperFrame;
+	// The bar this frame reports can be the one before the line it already sits
+	// on, so each direction takes the neighbouring boundary when that boundary is
+	// the one on its own side of the frame.
+	if (mode === 'previous') return upperFrame <= frame ? upperFrame : lowerFrame;
+	if (mode === 'next') return lowerFrame >= frame ? lowerFrame : upperFrame;
 	return frame - lowerFrame < upperFrame - frame ? lowerFrame : upperFrame;
 }
 
