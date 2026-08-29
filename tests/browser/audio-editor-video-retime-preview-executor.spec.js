@@ -286,7 +286,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		expect(result.sourceError).toMatch(/current|source|changed|stale/iu);
 	});
 
-	test('accepts a validated already-current frame after a missed seeked notification', async ({ page }) => {
+	test('reuses a validated already-current frame after a missed seeked notification', async ({ page }) => {
 		await installHarnessRoutes(page, { strictModules: true });
 		await page.goto(`${HARNESS_ROOT}/index.html`);
 		const result = await page.evaluate(async ({ fixturePath, root }) => {
@@ -340,19 +340,23 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 				assertCurrent: () => {},
 				timeoutMs: 1_000,
 			});
-			const presented = await port.present(Object.freeze({
+			const request = Object.freeze({
 				drawableSourceFrame: 0,
 				intervalStartSeconds: 0,
 				intervalEndSeconds: 0.04,
 				targetSeconds: 0.02,
 				signal: new AbortController().signal,
-			}));
+			});
+			const presented = await port.present(request);
+			const cached = await port.present(request);
 			video.remove();
-			return { presented, suppressedSeekedListeners };
+			return { presented, cached, frameCallbackId, suppressedSeekedListeners };
 		}, { fixturePath: FIXTURE_PATH, root: HARNESS_ROOT });
 
 		expect(result).toEqual({
 			presented: { mediaTime: 0 },
+			cached: { mediaTime: 0 },
+			frameCallbackId: 1,
 			suppressedSeekedListeners: 1,
 		});
 	});

@@ -95,6 +95,10 @@ export function createVideoRetimeHtmlVideoSeekPort(
 	const pauseVideo = video.pause.bind(video);
 	let active: ActiveSeek | null = null;
 	let terminalError: Error | null = null;
+	let cachedPresentation: Readonly<{
+		readonly request: ActiveSeek['request'];
+		readonly mediaTime: number;
+	}> | null = null;
 
 	const assertCurrent = (): void => {
 		if (terminalError !== null) throw terminalError;
@@ -128,6 +132,17 @@ export function createVideoRetimeHtmlVideoSeekPort(
 		if (!Number.isFinite(duration) || duration <= 0 || request.targetSeconds >= duration) {
 			throw new RangeError('The retime preview target would be clamped by the media duration.');
 		}
+		// rVFC reports newly presented frames only. A repeated paused-frame
+		// request can therefore reuse the last compositor-authenticated result
+		// when both the exact request and the media element still name that frame.
+		if (cachedPresentation !== null
+			&& !video.seeking
+			&& video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+			&& samePresentationRequest(cachedPresentation.request, request)
+			&& video.currentTime === request.targetSeconds) {
+			return Promise.resolve(Object.freeze({ mediaTime: cachedPresentation.mediaTime }));
+		}
+		cachedPresentation = null;
 
 		return new Promise<Readonly<{ readonly mediaTime: number }>>((resolve, reject) => {
 			const seek = createActiveSeek(request, resolve, reject);
@@ -272,6 +287,7 @@ export function createVideoRetimeHtmlVideoSeekPort(
 
 	function finishSuccess(seek: ActiveSeek, mediaTime: number): void {
 		if (!beginSettlement(seek)) return;
+		cachedPresentation = Object.freeze({ request: seek.request, mediaTime });
 		seek.resolve(Object.freeze({ mediaTime }));
 	}
 
@@ -308,6 +324,13 @@ function mediaTimeInRequestedInterval(mediaTime: number, request: ActiveSeek['re
 	return Number.isFinite(mediaTime)
 		&& mediaTime >= request.intervalStartSeconds
 		&& mediaTime < request.intervalEndSeconds;
+}
+
+function samePresentationRequest(left: ActiveSeek['request'], right: ActiveSeek['request']): boolean {
+	return left.drawableSourceFrame === right.drawableSourceFrame
+		&& left.intervalStartSeconds === right.intervalStartSeconds
+		&& left.intervalEndSeconds === right.intervalEndSeconds
+		&& left.targetSeconds === right.targetSeconds;
 }
 
 function presentationRequest(value: unknown): ActiveSeek['request'] {
