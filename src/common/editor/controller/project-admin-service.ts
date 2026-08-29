@@ -82,6 +82,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		state.takeCycleRecovery || state.takeCycleRecoveryInspecting,
 	);
 	let clearLocalDataOperation: Promise<void> | null = null;
+	let sourceGarbageCollectionGeneration = 0;
 
 	async function listProjects() {
 		await saveNow();
@@ -292,6 +293,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 	async function garbageCollectSources() {
 		if (recoveryBlocked()) return;
 		if (!store.pruneUnreferencedSources) return;
+		const generation = ++sourceGarbageCollectionGeneration;
 		clearScheduledTimer(state.sourceGcTimer);
 		state.sourceGcTimer = 0;
 		const protectedSourceIds = liveSessionSourceIds();
@@ -324,7 +326,8 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 			state.missingSourceIds.delete(sourceId);
 		}
 		await sourceChunkProviders.drain?.();
-		if (result.nextEligibleAt != null && !state.disposed) {
+		if (result.nextEligibleAt != null && !state.disposed
+			&& generation === sourceGarbageCollectionGeneration) {
 			const delay = Math.max(1_000, Math.min(2_147_000_000, result.nextEligibleAt - currentTimeMs() + 50));
 			state.sourceGcTimer = scheduleTimer(() => {
 				state.sourceGcTimer = 0;

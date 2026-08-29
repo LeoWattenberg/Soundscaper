@@ -318,3 +318,57 @@ test('concurrent local resets share one clear and one replacement project', asyn
 		await Promise.allSettled([first, second]);
 	}
 });
+
+test('only the newest overlapping garbage collection owns the follow-up timer', async () => {
+	const fixture = createAdminFixture();
+	const firstStarted = deferred();
+	const secondStarted = deferred();
+	const firstGate = deferred();
+	const secondGate = deferred();
+	const timers = new Map<number, Readonly<{ callback: () => void; delay: number }>>();
+	let pruneCalls = 0;
+	let nextTimer = 10;
+	const runtime: ProjectAdminServiceRuntime = {
+		...fixture.runtime,
+		clearScheduledTimer: (handle: number) => { timers.delete(handle); },
+		scheduleTimer(callback: () => void, delay: number) {
+			const handle = nextTimer++;
+			timers.set(handle, { callback, delay });
+			return handle;
+		},
+		store: {
+			...fixture.runtime.store,
+			async pruneUnreferencedSources() {
+				pruneCalls += 1;
+				if (pruneCalls === 1) {
+					firstStarted.resolve();
+					await firstGate.promise;
+					return { nextEligibleAt: 9_000 };
+				}
+				secondStarted.resolve();
+				await secondGate.promise;
+				return { nextEligibleAt: 2_000 };
+			},
+		},
+	};
+	const service = createProjectAdminService(runtime);
+	const first = service.garbageCollectSources();
+	await firstStarted.promise;
+	const second = service.garbageCollectSources();
+	await secondStarted.promise;
+	try {
+		secondGate.resolve();
+		await second;
+		const newestTimer = fixture.state.sourceGcTimer;
+		assert.equal(timers.get(newestTimer)?.delay, 1_050);
+
+		firstGate.resolve();
+		await first;
+		assert.equal(fixture.state.sourceGcTimer, newestTimer);
+		assert.deepEqual([...timers.keys()], [newestTimer]);
+	} finally {
+		firstGate.resolve();
+		secondGate.resolve();
+		await Promise.allSettled([first, second]);
+	}
+});
