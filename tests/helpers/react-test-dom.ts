@@ -21,6 +21,8 @@ export function installReactTestDom(): ReactTestDom {
 	for (const [key, value] of Object.entries({
 		window, document, Node: ReactTestNode, Element: ReactTestElement,
 		HTMLElement: ReactTestElement, navigator: { userAgent: 'node-test' },
+		requestAnimationFrame: (): number => 1,
+		cancelAnimationFrame: (_handle: number): void => undefined,
 	})) {
 		prior.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
 		Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -54,7 +56,7 @@ export function reactProps(
 		typeof candidate === 'string' && candidate.startsWith('__reactProps$')
 	));
 	assert.equal(typeof key, 'string');
-	return node[key as keyof ReactTestElement] as Readonly<Record<string, (...args: unknown[]) => unknown>>;
+	return node[key as keyof ReactTestElement] as unknown as Readonly<Record<string, (...args: unknown[]) => unknown>>;
 }
 
 class ReactTestNode {
@@ -102,7 +104,7 @@ class ReactTestText extends ReactTestNode {
 export class ReactTestElement extends ReactTestNode {
 	readonly tagName: string;
 	readonly namespaceURI = 'http://www.w3.org/1999/xhtml';
-	readonly style: Record<string, unknown> = {};
+	readonly style = new ReactTestStyle();
 	readonly attributes = new Map<string, string>();
 	value = '';
 	checked = false;
@@ -129,6 +131,16 @@ export class ReactTestElement extends ReactTestNode {
 	getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
 	hasAttribute(name: string): boolean { return this.attributes.has(name); }
 	focus(): void { this.ownerDocument.activeElement = this; }
+}
+
+class ReactTestStyle {
+	readonly values = new Map<string, string>();
+	setProperty(name: string, value: string): void { this.values.set(name, value); }
+	removeProperty(name: string): string {
+		const value = this.values.get(name) ?? '';
+		this.values.delete(name);
+		return value;
+	}
 }
 
 class ReactTestDocument extends ReactTestNode {

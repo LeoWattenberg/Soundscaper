@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/raw-pcm-import.ts';
 import type { RegularIntervalAnnotationOptions } from '../../controller/regular-interval-annotation-service.ts';
@@ -32,6 +32,8 @@ export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonPro
 	const [sampleRate, setSampleRate] = useState(44_100);
 	const [channelCount, setChannelCount] = useState(1);
 	const [offsetBytes, setOffsetBytes] = useState(0);
+	const [importing, setImporting] = useState(false);
+	const importingRef = useRef(false);
 	return <AudioEditorDialogShell
 		title={copy.audacityParityLabelImportRawData}
 		onClose={onClose}
@@ -40,13 +42,20 @@ export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonPro
 	>
 		<form className="kw-audio-editor-dialog__form" onSubmit={(event) => {
 			event.preventDefault();
-			if (!file) return;
+			if (!file || importingRef.current) return;
+			importingRef.current = true;
+			setImporting(true);
 			run(async () => {
-				const wav = await prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes });
-				await controller.actions.project.importFiles([wav]);
+				try {
+					const wav = await prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes });
+					await controller.actions.project.importFiles([wav]);
+				} finally {
+					importingRef.current = false;
+					setImporting(false);
+				}
 				onClose();
 			});
-		}}>
+		}} aria-busy={importing}>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.rawPcmFile}</span><input required type="file" accept=".raw,.pcm,application/octet-stream" onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)} /></label>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.rawPcmSampleFormat}</span><select value={sampleFormat} onChange={(event) => setSampleFormat(event.currentTarget.value as RawPcmSampleFormat)}>
 				<option value="uint8">{copy.rawPcmUint8}</option><option value="int16">{copy.rawPcmInt16}</option><option value="int24">{copy.rawPcmInt24}</option><option value="int32">{copy.rawPcmInt32}</option><option value="float32">{copy.rawPcmFloat32}</option>
@@ -57,7 +66,7 @@ export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonPro
 			<NumberField label={copy.sampleRate} value={sampleRate} minimum={1} maximum={384_000} onChange={setSampleRate} />
 			<NumberField label={copy.rawPcmChannelCount} value={channelCount} minimum={1} maximum={32} onChange={setChannelCount} />
 			<NumberField label={copy.rawPcmByteOffset} value={offsetBytes} minimum={0} maximum={Number.MAX_SAFE_INTEGER} onChange={setOffsetBytes} />
-			<div className="kw-audio-editor-dialog__actions"><button type="button" onClick={onClose}>{copy.cancel}</button><button type="submit" disabled={!file}>{copy.importFile}</button></div>
+			<div className="kw-audio-editor-dialog__actions"><button type="button" onClick={onClose}>{copy.cancel}</button><button type="submit" disabled={!file || importing}>{copy.importFile}</button></div>
 		</form>
 	</AudioEditorDialogShell>;
 }
