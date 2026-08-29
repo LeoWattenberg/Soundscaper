@@ -1,30 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 
 import { expect, test } from '@playwright/test';
-import { transform } from 'esbuild';
 
 import {
 	createVideoRetimePreviewOrdinalRgb,
 	decodedRgbaMatchesOracle,
 	videoRetimePreviewMedia,
 } from './fixtures/video-retime-preview-media.js';
-
-const HARNESS_ROOT = '/__video-retime-preview__';
-const FIXTURE_PATH = `${HARNESS_ROOT}/video-retime-vfr-ordinal.mp4`;
-const MODULE_SOURCES = Object.freeze([
-	Object.freeze({
-		name: 'video-retime-preview-executor',
-		file: new URL('../../src/common/editor/video-retime-preview-executor.ts', import.meta.url),
-	}),
-	Object.freeze({
-		name: 'video-retime-html-video-seek-port',
-		file: new URL('../../src/common/editor/video-retime-html-video-seek-port.ts', import.meta.url),
-	}),
-]);
+import {
+	FIXTURE_PATH,
+	HARNESS_ROOT,
+	installHarnessRoutes,
+} from './helpers/video-retime-preview-harness.js';
 
 test.describe('3B-5f-b paused retime preview qualification', () => {
 	test('pins and decoder-qualifies every unequal VFR interval including the final ordinal', async ({
@@ -358,9 +347,63 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 			presented: { mediaTime: 0 },
 			cached: { mediaTime: 0 },
 			frameCallbackId: 1,
-			seekingEvents: 0,
+			seekingEvents: 1,
 			suppressedSeekedListeners: 1,
 		});
+	});
+
+	test('presents an interval the paused clock already occupies through a real frame callback', async ({
+		page,
+	}) => {
+		await installHarnessRoutes(page, { strictModules: true });
+		await page.goto(`${HARNESS_ROOT}/index.html`);
+		const result = await page.evaluate(async ({ fixturePath, root }) => {
+			const { createVideoRetimeHtmlVideoSeekPort } = await import(
+				`${root}/video-retime-html-video-seek-port.js`
+			);
+			const video = document.createElement('video');
+			Object.assign(video, { muted: true, preload: 'auto' });
+			video.src = fixturePath;
+			document.body.append(video);
+			await new Promise((resolve, reject) => {
+				video.addEventListener('loadeddata', resolve, { once: true });
+				video.addEventListener('error', () => reject(video.error), { once: true });
+			});
+			// A paused element publishes no further frame callback for the picture it
+			// already presents, so the first request for that picture must still seek.
+			await new Promise((resolve) => {
+				const id = video.requestVideoFrameCallback(() => resolve());
+				setTimeout(() => { video.cancelVideoFrameCallback(id); resolve(); }, 2_000);
+			});
+			const port = createVideoRetimeHtmlVideoSeekPort(video, {
+				assertCurrent: () => {},
+				timeoutMs: 4_000,
+			});
+			const request = Object.freeze({
+				drawableSourceFrame: 0,
+				intervalStartSeconds: 0,
+				intervalEndSeconds: 0.04,
+				targetSeconds: 0.02,
+				signal: new AbortController().signal,
+			});
+			const clockBefore = video.currentTime;
+			let presentedError = null;
+			let presented = null;
+			try {
+				presented = await port.present(request);
+			} catch (error) {
+				presentedError = error instanceof Error ? error.message : String(error);
+			}
+			video.remove();
+			return {
+				clockBefore,
+				presentedError,
+				inInterval: presented !== null
+					&& presented.mediaTime >= 0 && presented.mediaTime < 0.04,
+			};
+		}, { fixturePath: FIXTURE_PATH, root: HARNESS_ROOT });
+
+		expect(result).toEqual({ clockBefore: 0, presentedError: null, inInterval: true });
 	});
 
 	test('ignores a stale presented frame queued before the active seek', async ({ page }) => {
@@ -738,63 +781,4 @@ function expectDecodedRgba(actual, expected, label) {
 		decodedRgbaMatchesOracle(actual, expected),
 		`${label}: expected ${expected.join(',')}, received ${actual.join(',')}`,
 	).toBe(true);
-}
-
-async function installHarnessRoutes(page, options = {}) {
-	const strictModules = options.strictModules === true ? await transpileStrictModules() : new Map();
-	await page.route(`**${HARNESS_ROOT}/**`, async (route) => {
-		const pathname = new URL(route.request().url()).pathname;
-		if (pathname === `${HARNESS_ROOT}/index.html`) {
-			await route.fulfill({
-				status: 200,
-				contentType: 'text/html',
-				body: '<!doctype html><meta charset="utf-8"><title>retime preview qualification</title>',
-			});
-			return;
-		}
-		if (pathname === FIXTURE_PATH) {
-			const bytes = videoRetimePreviewMedia.file.buffer;
-			const range = route.request().headers().range;
-			const match = range?.match(/^bytes=(\d+)-(\d*)$/u);
-			const start = match ? Number(match[1]) : 0;
-			const requestedEnd = match?.[2] ? Number(match[2]) : bytes.byteLength - 1;
-			const end = Math.min(requestedEnd, bytes.byteLength - 1);
-			const body = bytes.subarray(start, end + 1);
-			await route.fulfill({
-				status: match ? 206 : 200,
-				contentType: videoRetimePreviewMedia.file.mimeType,
-				headers: {
-					'Accept-Ranges': 'bytes',
-					'Content-Length': String(body.byteLength),
-					...(match ? { 'Content-Range': `bytes ${String(start)}-${String(end)}/${String(bytes.byteLength)}` } : {}),
-				},
-				body,
-			});
-			return;
-		}
-		const module = strictModules.get(pathname);
-		if (module !== undefined) {
-			await route.fulfill({ status: 200, contentType: 'text/javascript', body: module });
-			return;
-		}
-		await route.fulfill({ status: 404, body: 'Unknown retime preview harness resource.' });
-	});
-}
-
-async function transpileStrictModules() {
-	const routes = new Map();
-	for (const descriptor of MODULE_SOURCES) {
-		const filename = fileURLToPath(descriptor.file);
-		const source = await readFile(descriptor.file, 'utf8');
-		const transformed = await transform(source, {
-			sourcefile: filename,
-			loader: 'ts',
-			format: 'esm',
-			target: 'es2022',
-			sourcemap: 'inline',
-		});
-		routes.set(`${HARNESS_ROOT}/${descriptor.name}.js`, transformed.code);
-		routes.set(`${HARNESS_ROOT}/${descriptor.name}.ts`, transformed.code);
-	}
-	return routes;
 }

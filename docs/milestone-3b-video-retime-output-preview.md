@@ -230,10 +230,12 @@ any later source/generation change before or after work. It exclusively owns
 that `HTMLVideoElement`, requires
 `requestVideoFrameCallback` and its cancellation peer, keeps playback paused,
 registers `seeked`, error, abort, timeout, and frame-presentation evidence
-before assigning exact midpoint `currentTime` when the paused clock lies outside
-the requested interval, and cleans every resource on all paths. Success requires
-completion of any required seek and a callback from that request generation whose
-finite `mediaTime` is in the requested half-open interval.
+before assigning exact midpoint `currentTime`, and cleans every resource on all
+paths. A paused element presents no further frame for the picture it already
+shows, so every uncached request seeks; only the cached-presentation fast path,
+keyed by the exact request and an unmoved in-interval clock, skips one. Success
+requires both the seek and a callback from that request generation whose finite
+`mediaTime` is in the requested half-open interval.
 Reject source/currentness change, setter failure, timeout, decode error, absent
 rVFC, or an out-of-interval picture. rVFC is the picture authority; harmless
 media-clock quantization is not rejected independently. There is no
