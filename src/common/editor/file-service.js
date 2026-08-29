@@ -16,6 +16,7 @@ import { createDesktopScapeArchiveByteSource } from './desktop-scape-archive-byt
 import { createDesktopHelperVideoTimingProbe } from './desktop-helper-video-timing-probe.ts';
 import { createDesktopLinkedOriginalAccess } from './desktop-linked-original-port.ts';
 import { registerDesktopReadCapability } from './desktop-read-capability-registry.ts';
+import { releaseDownloadObjectUrl } from './object-url-revoke.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
@@ -336,8 +337,10 @@ export function createAudioEditorFileService(options = {}) {
 			anchor.click();
 			anchor.remove?.();
 		} finally {
-			if (typeof setTimer === 'function') setTimer(() => urlApi.revokeObjectURL?.(url), 30_000);
-			else urlApi.revokeObjectURL?.(url);
+			releaseDownloadObjectUrl(url, {
+				revoke: urlApi.revokeObjectURL ? (value) => urlApi.revokeObjectURL(value) : null,
+				setTimer,
+			});
 		}
 		return { method: 'download', fileName, size: blob.size };
 	}

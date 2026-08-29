@@ -1,3 +1,4 @@
+import { releaseDownloadObjectUrl } from '../object-url-revoke.ts';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 
 interface NamedFile {
@@ -212,7 +213,10 @@ export async function saveLabelExport(
 		anchor.click();
 		anchor.remove();
 	} finally {
-		URL.revokeObjectURL(url);
+		releaseDownloadObjectUrl(url, {
+			revoke: (value) => { URL.revokeObjectURL(value); },
+			setTimer: globalThis.setTimeout?.bind(globalThis),
+		});
 	}
 	return { ...result, blob };
 }
