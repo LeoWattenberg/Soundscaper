@@ -158,7 +158,7 @@ test('audio export awaits product-owned live state capture before reading the pr
 
 test('audio export admits only one request while product-owned state capture is pending', async () => {
 	const fixture = createFixture();
-	let releasePreparation: (() => void) | null = null;
+	let releasePreparation!: () => void;
 	const preparation = new Promise<void>((resolve) => { releasePreparation = resolve; });
 	let preparationCalls = 0;
 	const service = createEditorExportService({
@@ -173,7 +173,7 @@ test('audio export admits only one request while product-owned state capture is 
 	const second = service.handleExportAction('export');
 	await Promise.resolve();
 	assert.equal(preparationCalls, 1);
-	releasePreparation?.();
+	releasePreparation();
 	assert.equal((await first).fileName, 'mix.wav');
 	assert.equal(await second, undefined);
 	assert.equal(fixture.downloads.length, 1);
