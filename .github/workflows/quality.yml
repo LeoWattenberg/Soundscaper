@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Stale pull-request results can be discarded. Main runs may deploy, and
+  # manually dispatched work should not be interrupted by a later invocation.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:

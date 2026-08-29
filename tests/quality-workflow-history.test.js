@@ -19,6 +19,17 @@ const GATE_JOBS = ['quality', 'tests', 'coverage'];
 // checks the thresholds over the union of what the shards recorded.
 const SHARDED_EQUIVALENT = new Map([['test:coverage', ['test:shard', 'coverage:check']]]);
 
+test('quality only cancels superseded pull-request runs', async () => {
+	const workflow = await readWorkflow('quality.yml');
+	const header = workflow.slice(0, workflow.indexOf('\njobs:\n'));
+
+	assert.match(
+		header,
+		/^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/mu,
+		'main and manually dispatched runs must queue so a newer run cannot interrupt their work',
+	);
+});
+
 for (const workflowName of workflowNames) {
 	test(`${workflowName} runs every part of npm run check across its gate jobs`, async () => {
 		const { scripts } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
