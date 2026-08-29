@@ -8,6 +8,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		adm: {},
 		admEnabled: false,
 		admLayout: 'stereo',
+		admLayoutCommits: 0,
 		admRouteLabels: [],
 		admRouteQueries: 0,
 		admRouteWaitsAfterCommit: 0,
@@ -208,9 +209,10 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	const admLayout = element({
 		value: 'stereo',
 		dispatch(event) {
-			if (!['input', 'change'].includes(event.type)) return;
+			if (event.type !== 'change') return;
 			const value = this.value;
 			const commit = () => {
+				fixture.admLayoutCommits += 1;
 				fixture.admLayout = value;
 				setAdmRouteState(value);
 			};

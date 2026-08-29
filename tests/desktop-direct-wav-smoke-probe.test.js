@@ -442,6 +442,7 @@ test('renderer smoke targets the imported six-channel ADM routes after the autho
 	const result = await serializedRoutine(scope, PLAN);
 	assert.equal(result.bw64Completed, true);
 	assert.equal(scope.document.fixture.admLayout, '5.1');
+	assert.equal(scope.document.fixture.admLayoutCommits, 1);
 	assert.deepEqual(scope.document.fixture.admRoutes.slice(0, 2), ['L', 'R']);
 	assert.deepEqual(scope.document.fixture.admRoutes.slice(2), ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
 	assert.deepEqual(scope.document.fixture.admRoutesAtStart[4], ['L', 'R', 'L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
