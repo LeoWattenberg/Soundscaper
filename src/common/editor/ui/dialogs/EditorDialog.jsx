@@ -23,6 +23,7 @@ import {
 
 export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
 	const cancelTimedRecordingOnClose = useRef(false);
+	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
 	const closeDialog = () => {
 		if (cancelTimedRecordingOnClose.current) run(() => controller.actions.recording.cancelScheduled());
@@ -266,7 +267,13 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							<div className="kw-audio-editor-dialog__actions">
 								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
 								<Button onClick={() => {
-									run(() => type === 'delete' ? controller.actions.project.remove() : controller.actions.project.clear());
+									if (type === 'delete' && snapshot.project?.id !== projectIdAtOpen.current) {
+										onClose();
+										return;
+									}
+									run(() => type === 'delete'
+										? controller.actions.project.remove(projectIdAtOpen.current)
+										: controller.actions.project.clear());
 									onClose();
 								}}>{type === 'delete' ? copy.confirmDelete : copy.clearData}</Button>
 							</div>

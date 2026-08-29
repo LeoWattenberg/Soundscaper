@@ -10,7 +10,7 @@ import { registerHooks } from 'node:module';
 
 const STYLE_EXTENSIONS = /\.css$/u;
 // Assets resolve to a default string export, mirroring Vite's asset modules.
-const ASSET_EXTENSIONS = /\.(?:ttf|otf|woff2?|png|jpe?g|gif|webp|svg|avif)$/u;
+const ASSET_EXTENSIONS = /\.(?:ttf|otf|woff2?|png|jpe?g|gif|webp|svg|avif|md)$/u;
 
 function pathnameOf(url) {
 	try {
