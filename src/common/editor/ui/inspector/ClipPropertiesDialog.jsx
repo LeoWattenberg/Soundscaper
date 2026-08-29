@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
@@ -55,8 +55,20 @@ function ClipProperties({ controller, snapshot, copy }) {
 	const disabled = blocked || !clip;
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = useState('');
+	const projectIdentity = project?.id ?? null;
+	const clipIdentity = clip?.id ?? null;
+	const currentTarget = useRef({ projectIdentity, clipIdentity });
+	const activeOperation = useRef(null);
+	if (currentTarget.current.projectIdentity !== projectIdentity
+		|| currentTarget.current.clipIdentity !== clipIdentity) {
+		currentTarget.current = { projectIdentity, clipIdentity };
+		activeOperation.current = null;
+	}
 
-	useEffect(() => setError(''), [clip?.id]);
+	useEffect(() => {
+		setError('');
+		return () => { activeOperation.current = null; };
+	}, [clipIdentity, projectIdentity]);
 
 	const commitField = (name, rawValue) => {
 		if (!clip || !track || disabled) return;
@@ -100,8 +112,26 @@ function ClipProperties({ controller, snapshot, copy }) {
 
 	const run = (action) => {
 		if (!clip || disabled) return;
+		const target = currentTarget.current;
+		if (activeOperation.current?.target === target) return;
+		const operation = { target };
+		activeOperation.current = operation;
+		const liveProjectIdentity = () => ('project' in controller
+			? controller.project?.id ?? null
+			: currentTarget.current.projectIdentity);
+		const ownsOperation = () => activeOperation.current === operation
+			&& currentTarget.current === target
+			&& liveProjectIdentity() === target.projectIdentity;
 		setError('');
-		Promise.resolve(action(clip.id)).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
+		void Promise.resolve()
+			.then(() => ownsOperation() ? action(clip.id) : undefined)
+			.then(() => {
+				if (ownsOperation()) activeOperation.current = null;
+			}, (cause) => {
+				if (!ownsOperation()) return;
+				activeOperation.current = null;
+				setError(cause instanceof Error ? cause.message : String(cause));
+			});
 	};
 
 	return (
