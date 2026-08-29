@@ -166,16 +166,26 @@ test('overlapping delivery preset saves retain both changes in required storage'
 	const second = service.save(secondOptions);
 	secondOptions.label = 'Changed after invocation';
 	secondOptions.settings.quality = 9;
+	const importedSize = { width: 1_080, height: 1_920 };
+	const imported = service.import({
+		schemaVersion: 1,
+		presets: [{
+			schemaVersion: 1, id: 'imported', label: 'Imported', kind: 'video', format: 'mp4',
+			settings: { size: importedSize },
+		}],
+	});
+	importedSize.width = 320;
 	await Promise.resolve();
 	const writesBeforeRelease = writeCount;
 	firstWrite.resolve();
-	await Promise.all([first, second]);
+	await Promise.all([first, second, imported]);
 
 	assert.equal(writesBeforeRelease, 1, 'the second mutation waits for the first required write');
-	assert.deepEqual(service.list().map(({ label }) => label), ['First', 'Second']);
+	assert.deepEqual(service.list().map(({ label }) => label), ['First', 'Second', 'Imported']);
 	const persisted = createDeliveryPresetState(durable as never);
-	assert.deepEqual(persisted.presets.map(({ label }) => label), ['First', 'Second']);
+	assert.deepEqual(persisted.presets.map(({ label }) => label), ['First', 'Second', 'Imported']);
 	assert.equal(persisted.presets[1]?.settings.quality, 5);
+	assert.deepEqual(persisted.presets[2]?.settings.size, { width: 1_080, height: 1_920 });
 });
 
 test('the service requires controller state rather than inventing its own', () => {

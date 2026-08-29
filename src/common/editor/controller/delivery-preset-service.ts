@@ -101,7 +101,8 @@ export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntim
 			});
 		},
 		async import(input: unknown): Promise<readonly DeliveryPreset[]> {
-			const snapshot = importDeliveryPresets(createDeliveryPresetState(), input);
+			const capturedInput = typeof input === 'string' ? input : structuredClone(input);
+			const snapshot = importDeliveryPresets(createDeliveryPresetState(), capturedInput);
 			return await enqueueMutation(async () => {
 				await commit(importDeliveryPresets(runtime.state.deliveryPresets, snapshot, { idFactory }));
 				return listDeliveryPresets(runtime.state.deliveryPresets);

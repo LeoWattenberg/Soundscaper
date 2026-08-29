@@ -210,7 +210,9 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 	}
 
 	async function persistEffectPresets(next: unknown): Promise<EffectPresetCollection> {
-		const snapshot = (createAudioEditorEffectPresets as (value: unknown) => unknown)(next) as EffectPresetCollection;
+		const snapshot = (createAudioEditorEffectPresets as (value: unknown) => unknown)(
+			structuredClone(next),
+		) as EffectPresetCollection;
 		return await enqueuePresetMutation(() => commitEffectPresets(snapshot));
 	}
 
@@ -252,9 +254,10 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 	}
 
 	async function importEffectPresets(input: unknown): Promise<readonly EffectPreset[]> {
+		const capturedInput = typeof input === 'string' ? input : structuredClone(input);
 		const snapshot = importAudioEditorEffectPresets(
 			(createAudioEditorEffectPresets as (value?: unknown) => unknown)(),
-			input,
+			capturedInput,
 		) as EffectPresetCollection;
 		return await enqueuePresetMutation(async () => {
 			const next = importAudioEditorEffectPresets(runtime.state.effectPresets, snapshot, {
