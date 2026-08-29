@@ -418,6 +418,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await display.getByRole('menu').getByRole('menuitem', { name: 'Multi-view', exact: true }).click();
 		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
 		await expect(waveform).toHaveAttribute('data-waveform-owner', 'audacity');
+		// The multi-view top half stays a single background colour until PFFFT has
+		// loaded and drawn it, and the owner attribute is already 'audacity' from
+		// the waveform-only pass, so only the spectrogram's own renderer attribute
+		// says the bands are on the canvas.
+		await expect(waveform).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 		const spectrogramColors = await waveform.evaluate((canvas) => {
 			const context = canvas.getContext('2d');
 			const { data, width, height } = context.getImageData(0, 0, canvas.width, Math.floor(canvas.height / 2));
