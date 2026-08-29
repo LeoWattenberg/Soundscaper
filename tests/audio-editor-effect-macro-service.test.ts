@@ -26,6 +26,7 @@ function deferred<Value>() {
 
 function createHarness(options: Readonly<{
 	blocked?: boolean;
+	deferPersistence?: boolean;
 	memoryLimitBytes?: number;
 	target?: boolean;
 	audacityRack?: boolean;
@@ -51,12 +52,16 @@ function createHarness(options: Readonly<{
 	const projectGeneration = new EditorProjectGeneration();
 	projectGeneration.activate(project.id);
 	const render = deferred<{ channels: readonly Float32Array[] }>();
+	const persistence = deferred<void>();
+	const persistenceStarted = deferred<void>();
 	const persisted: unknown[] = [];
+	const persistedProjects: string[] = [];
 	const statuses: Array<readonly [string, string | undefined]> = [];
 	const errors: unknown[] = [];
 	const snapshots: Readonly<Record<string, unknown>>[] = [];
 	let processing = false;
 	let publications = 0;
+	let persistenceCommits = 0;
 	const service = createEffectMacroService({
 		lifetime,
 		projectGeneration,
@@ -99,18 +104,35 @@ function createHarness(options: Readonly<{
 		},
 		audioBufferChannels: (buffer) => [...buffer.channels as readonly Float32Array[]],
 		matchAudacitySelectionChannels: (channels) => [...channels],
-		persistAudacityEffectResult: async (...args) => { persisted.push(args); },
+		persistAudacityEffectResult: async (...args) => {
+			persisted.push(args);
+			if (options.deferPersistence) {
+				persistenceStarted.resolve(undefined);
+				await persistence.promise;
+			}
+			const persistenceOptions = args[3] as Readonly<{ assertCurrent?: () => void }>;
+			persistenceOptions.assertCurrent?.();
+			persistenceCommits += 1;
+			persistedProjects.push(project.id);
+		},
 		handleError: (error) => { errors.push(error); },
 	});
 	return {
 		errors,
 		get processing() { return processing; },
 		get publications() { return publications; },
+		persistence,
+		get persistenceCommits() { return persistenceCommits; },
+		persistenceStarted,
 		persisted,
+		persistedProjects,
 		render,
 		service,
 		snapshots,
 		statuses,
+		supersedeMacroTask() {
+			return lifetime.startTask('selection-effect-macro');
+		},
 		switchProject() {
 			project = { ...project, id: 'project-b' };
 			projectGeneration.invalidate();
@@ -197,6 +219,45 @@ test('macro completion from a switched project cannot persist or publish success
 	assert.equal(harness.processing, false);
 	assert.equal(harness.publications, publicationsBeforeSwitch);
 	assert.equal(harness.errors.length, 0);
+});
+
+test('project switching during macro persistence fences stale commit and publication', async () => {
+	const harness = createHarness({ deferPersistence: true });
+	const pending = harness.service.runEffectMacro(REQUEST);
+	harness.render.resolve({ channels: [new Float32Array([0.25])] });
+	await harness.persistenceStarted.promise;
+	const publicationsBeforeSwitch = harness.publications;
+
+	harness.switchProject();
+	harness.persistence.resolve(undefined);
+
+	await assert.rejects(pending, { code: 'PROJECT_CHANGED' });
+	assert.equal(harness.persistenceCommits, 0);
+	assert.deepEqual(harness.persistedProjects, []);
+	assert.equal(harness.processing, false);
+	assert.equal(harness.publications, publicationsBeforeSwitch);
+	assert.notDeepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+	assert.equal(harness.errors.length, 0);
+});
+
+test('a superseding macro task fences stale persistence and cleanup publication', async () => {
+	const harness = createHarness({ deferPersistence: true });
+	const pending = harness.service.runEffectMacro(REQUEST);
+	harness.render.resolve({ channels: [new Float32Array([0.25])] });
+	await harness.persistenceStarted.promise;
+	const publicationsBeforeSupersession = harness.publications;
+
+	const successor = harness.supersedeMacroTask();
+	harness.persistence.resolve(undefined);
+
+	await assert.rejects(pending, { name: 'AbortError' });
+	assert.equal(harness.persistenceCommits, 0);
+	assert.deepEqual(harness.persistedProjects, []);
+	assert.equal(harness.processing, true);
+	assert.equal(harness.publications, publicationsBeforeSupersession);
+	assert.notDeepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+	assert.equal(harness.errors.length, 0);
+	successor.finish();
 });
 
 test('empty and disabled macro inventories fail before claiming async ownership', async () => {

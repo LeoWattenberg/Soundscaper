@@ -132,7 +132,7 @@ export interface EffectMacroServiceRuntime {
 		target: EffectTarget,
 		type: null,
 		channels: readonly Float32Array[],
-		options: Readonly<{ effectName: string }>,
+		options: Readonly<{ effectName: string; assertCurrent?: () => void }>,
 	) => Promise<unknown>;
 	readonly handleError: (error: unknown) => void;
 }
@@ -219,7 +219,10 @@ export function createEffectMacroService(runtime: EffectMacroServiceRuntime) {
 			const effectName = String(request.name || runtime.copy.untitledMacro || runtime.copy.macroManager).trim()
 				|| runtime.copy.untitledMacro
 				|| runtime.copy.macroManager;
-			await runtime.persistAudacityEffectResult(target, null, channels, { effectName });
+			await runtime.persistAudacityEffectResult(target, null, channels, {
+				assertCurrent: () => assertOwnership(runtime, ownership),
+				effectName,
+			});
 			assertOwnership(runtime, ownership);
 			runtime.setStatus(runtime.copy.macroApplied || runtime.copy.audacityApplied, 'success');
 			return true;
