@@ -66,8 +66,11 @@ Focused tests must first fail for each missing contract field or invalid trial
 shape, then cover accepted results, malformed samples, insufficient trials,
 incorrect GC counts, incomplete environment identity, and fixture-digest
 drift. After local gates pass, rerun the owner RTX 3090 workload. Safari,
-supported OS/architecture claims, the M3 long-form workload, and M4B2 evidence
-remain qualification-open until fresh external artifacts exist.
+supported OS/architecture claims, M1/M3 timing, and all owner-host packaged
+profiles remain qualification-open until their own external artifacts exist.
+The M4 production and M4B-2 exact-media workload rows are qualified separately
+by the reviewed hosted lower-bound cohort; that does not close any of those
+platform, timing, or owner-host profile gates.
 
 ## Milestone 2 — desktop writer leases
 

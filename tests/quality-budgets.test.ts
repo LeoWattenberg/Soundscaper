@@ -446,19 +446,39 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.equal(keyedWorkload?.status, 'qualified');
 	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), true);
 	const keyedCohort = config.qualification.acceptedResultCohorts
-		.find(({ id }) => id === 'hosted-ci-render-parity-d41c5cb1') as undefined | Readonly<{
-			artifacts: readonly Readonly<{ workloadId: string }>[];
-			attemptCount: number;
-			environmentId: string;
-			retryCount: number;
+		.find(({ id }) => id === 'hosted-ci-render-parity-c87838f9') as undefined | Readonly<{
+			artifacts: readonly Readonly<{
+				rawByteLength: number; rawSha256: string;
+				resultByteLength: number; resultSha256: string;
+				workloadId: string;
+			}>[];
+			attemptCount: number; budgetSha256: string; environmentId: string;
+			retryCount: number; sourceRevision: string;
 		}>;
 	assert.ok(keyedCohort, 'the hosted render-parity cohort must be registered');
+	assert.equal(keyedCohort.sourceRevision, 'c87838f9db45594b65cda433f61ace035773a1e4');
+	assert.equal(
+		keyedCohort.budgetSha256,
+		'82df7c8576350a3d5a360e6505bb3c3e8bab44d50ee099a0c8a96553542a40ed',
+	);
 	assert.equal(keyedCohort.environmentId, 'github-ubuntu-playwright-1.62.1');
 	assert.equal(keyedCohort.attemptCount, 1);
 	assert.equal(keyedCohort.retryCount, 0);
-	assert.deepEqual(keyedCohort.artifacts.map(({ workloadId }) => workloadId), [
-		'm4-production-render-parity',
-		'm4b2-keyframe-render-parity',
+	assert.deepEqual(keyedCohort.artifacts, [
+		{
+			workloadId: 'm4-production-render-parity',
+			resultByteLength: 1_126,
+			resultSha256: 'e4064e69f07945c96f3566cbc7a3954c1554e75d36f5a48a2eab5a1373617414',
+			rawByteLength: 3_076,
+			rawSha256: '25b0d8ca23fac61b8d8a79fa772e07b3a2a23f0b7020f90dd9e04458250e7416',
+		},
+		{
+			workloadId: 'm4b2-keyframe-render-parity',
+			resultByteLength: 1_101,
+			resultSha256: 'c1ebfd1f371d7744436c364855fce95e04dd315f617a88fc82a95c09a2c1918d',
+			rawByteLength: 3_103,
+			rawSha256: 'c82069526758d68f6feaa12888685ae03a3130f95a19f9f0e9c365f1613d7d6f',
+		},
 	]);
 
 	await assertEvidenceExists([

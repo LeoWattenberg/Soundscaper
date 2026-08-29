@@ -25,7 +25,9 @@ The owner-designated Windows x64 RTX 3090 run passed the then-current 4A-7 M4
 production-parity thresholds, but the retained artifact lacks the driver,
 device, power, and display identity now required by the packaged-runtime
 fingerprint. It remains diagnostic audit evidence and the current fixed-GPU row
-is `pending-external`. The 4A hosted, manual, and release rows remain open.
+is `pending-external`. A reviewed no-retry hosted cohort on the registered
+hardware lower bound now qualifies the exact M4 production workload. The
+owner-host packaged profile, manual, and release rows remain open.
 Shared phase 4.0 remains implemented provisionally, and
 milestone 3 remains **In progress** with its manual and packaged-runtime rows
 unchanged. None of those rows is waived, relabelled, or cited as passing
@@ -54,7 +56,7 @@ registration, browser and desktop storage, `.scape`, clipboard, history,
 fixtures, and product selection fences. The complete native workflows passed
 their local technical gates together, so the Soundscaper App/runtime/storage
 route and its three capabilities are selected. That selection does not waive
-the still-open hosted, manual, or release evidence.
+the still-open owner-host packaged profile, manual, or release evidence.
 
 ## Packet map
 
@@ -86,9 +88,9 @@ The implementation landed in this order:
    revocation, security, and licensing evidence landed atomically.
 8. **4A-7 — Exit evidence: Implemented (provisional).** The complete local
    automated surface is green against the registered production-parity
-   workload. The historical owner-host package is diagnostic-only, and the
-   current packaged M4 row remains `pending-external`. Hosted no-retry, manual,
-   and release rows remain open and are not promoted.
+   workload. The reviewed hosted lower-bound cohort qualifies the exact M4 row.
+   The historical owner-host package remains diagnostic-only for its separate
+   profile, while that profile and the manual/release rows remain open.
 
 The V21 domain kernel did not become a partial product route: nested buses were
 kept unavailable until per-path PDC passed, and tracks could not author
@@ -706,7 +708,7 @@ through 4A-3 passed their complete local native workflows, and enabled
 shared automation and mixer surfaces under its exact project profile while
 keeping `audioTrackFreeze` unavailable. These were
 technical route-selection gates, not waivers of the still-open manual,
-hosted no-retry, release, or other named qualification
+owner-host packaged-profile, release, or other named qualification
 evidence. The capability flip was atomic with the selected
 App/runtime/storage route.
 
@@ -847,16 +849,17 @@ Run the selected Soundscaper V23 surface, retaining V21 production state, throug
 channel MAE at most `6/255`, and silently omitted effects exactly zero. The
 owner-designated 2026-08-21 fixed-GPU reference run passes these thresholds.
 The retained 2026-08-22 packaged artifact lacks the complete current runtime
-fingerprint and remains diagnostic-only; a fresh owner-host run is required to
-accept the M4 workload formally. Record hosted no-retry runs as correctness
-evidence, and keep manual, release, and milestone-3 rows at their observed
-states until their own acceptance is complete.
+fingerprint and remains diagnostic-only for the owner-host profile. A reviewed
+no-retry hosted cohort on the registered hardware lower bound formally
+qualifies the exact M4 workload. A fresh owner-host run is still required to
+close its separate packaged profile; manual, release, and milestone-3 rows stay
+at their observed states until their own acceptance is complete.
 
 Packets 4A-1 through 4A-6 and the complete native workflows are locally
 implemented, and 4A-7's local automated acceptance is green. V23 is therefore
 the selected maintained Soundscaper route, retaining V21 as its automation,
 PDC and freeze foundation, and is a complete local implementation candidate.
-Its fixed-GPU packaged M4 row remains `pending-external`, and the 4A hosted,
+Its exact M4 workload row is qualified, while its fixed-GPU packaged profile,
 manual, and release evidence remain open, as do the
 parallel 4B exit gate and the overall milestone-4 exit gate.
 

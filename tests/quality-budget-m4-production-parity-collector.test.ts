@@ -385,7 +385,7 @@ test('CLI parsing accepts one output directory and rejects the removed reference
 	assert.throws(() => parseM4ProductionParityCliOptions(['/one', '/two']), /one output/iu);
 });
 
-test('quality config binds M4 qualification to the current owner host and formal nightly verifier', () => {
+test('quality config separates qualified M4 evidence from the open owner-host profile', () => {
 	const quality = config as QualityConfig;
 	const fixture = quality.fixtures.find(({ id }) => id === 'm4-production-parity-v1');
 	const workload = quality.workloads.find(({ id }) => id === 'm4-production-render-parity');

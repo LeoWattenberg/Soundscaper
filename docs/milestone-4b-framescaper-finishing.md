@@ -35,9 +35,10 @@ desktop-V17/SQLite-19/`v17` authority, copy-forwards the immutable desktop-V12
 library on first open, and does not migrate the historical V18/desktop-V10
 library. The owner-designated Windows
 x64 RTX 3090 run passed the historical golden and keyed-parity diagnostics.
-The new formal M4B-2 profile requires a fresh post-V20-selection packaged
-nightly artifact, and manual/release qualification is still open; therefore
-neither this packet nor milestone 4B is complete.
+The reviewed hosted lower-bound cohort now qualifies the current M4B-2
+exact-media workload. Its owner-host packaged profile still requires a fresh
+post-V20-selection nightly artifact, and manual/release qualification remains
+open; therefore neither this packet nor milestone 4B is complete.
 
 The selected 4B-2 route now includes the exact V20 keyframe domain, bounded
 stale-safe commands/history, clipboard V6 and edit-carrier preservation,
@@ -50,14 +51,17 @@ occurrence-scoped HTML-video seeking, a bounded offline WebGL RGBA renderer,
 linked A/V muxing, bounded SharedArrayBuffer FFmpeg inputs, and both Blob and
 direct-sink delivery. The V20 product export strategy and lifecycle acceptance,
 security controls, semantic preview/offline parity collector, and
-provisional keyed quality registration have also landed. Real Chromium
+qualified keyed quality registration backed by the reviewed hosted lower-bound
+cohort have also landed. Real Chromium
 witnesses cover seeking, WebGL orientation/composition, backpressure, MP4
 output, and the selected product lifecycle.
 
-4B-2 remains **In progress** because formal packaged, manual, and release
-qualification is incomplete. The 2026-08-21 owner-designated fixed-GPU run
-remains a passing historical keyed-parity diagnostic, but its artifact predates
-the formal profile and current budget digest and is not backfilled. Product and
+4B-2 remains **In progress** because its owner-host packaged profile, manual,
+and release qualification are incomplete. The 2026-08-21 owner-designated
+fixed-GPU run remains a passing historical keyed-parity diagnostic, but its
+artifact predates the formal profile and current budget digest and is not
+backfilled. The exact-media workload is qualified separately by the reviewed
+hosted lower-bound cohort. Product and
 project profiles now advertise
 `videoKeyframes`, both App branches authenticate V20, and the real browser and
 packaged-desktop lifecycle tests replace the former dormant source-rewriting
@@ -69,9 +73,10 @@ gate for Framescaper 4B against the current maintained base. That clearance is
 implementation authority, not completion or qualification evidence: milestone
 3 remains recorded **In progress**, and its manual and packaged-runtime
 qualifications remain open or `pending-external`. Soundscaper's M4 production
-and Framescaper's M4B-2 formal rows both await fresh owner-host runs; the
-historical results remain diagnostic-only, and no unrelated row is relabelled
-or waived by this pickup.
+and Framescaper's M4B-2 exact-media rows are qualified by the reviewed hosted
+lower-bound cohort. Their owner-host packaged profiles remain open, their
+historical owner-host results remain diagnostic-only, and no unrelated row is
+relabelled or waived by this pickup.
 
 The shared 4.0 interpolation, parameter-address, and hosted parity foundations
 are implemented. The interpolation vocabulary stores exact clip-relative

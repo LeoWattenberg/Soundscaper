@@ -199,17 +199,20 @@ licensing, Audacity-action, MIDI-fence, and Playwright matrices linked above.
 On 2026-08-21 the owner designated the Windows x64 RTX 3090 machine as the
 fixed-GPU reference; its zero-retry M1 preview, M4 production parity, and M4B-2
 keyed parity passed their then-current diagnostics. The corrected packaged-
-runtime fingerprint requires driver, power, and display identity that the
-retained artifact does not contain alongside its recorded device identity. The historical result remains audit
-evidence, but closes no current formal row: M1, M3 long-form, M4 production
-parity, and M4B-2 are all `pending-external` until a fresh owner-host run.
-That reference pass does not close milestone 1 or milestone 4.
+runtime fingerprint requires driver, device, power, and display identity that
+the retained artifact does not contain. The historical result remains audit
+evidence but closes no current packaged-runtime profile. A reviewed hosted
+hardware-lower-bound cohort now qualifies the current M4 production and M4B-2
+exact-media workloads. M1 preview and M3 long-form timing remain
+`pending-external`, and all four owner-host packaged-runtime profiles remain
+open. Neither the hosted qualification nor the historical reference pass closes
+milestone 1 or milestone 4.
 Details live in `docs/quality-budgets.md`.
 
 ### Remaining work
 
-1. Record the named milestone workloads, including Soundscaper M4 production
-   render parity, on their required reference environments without software
+1. Record M1 preview and M3 long-form timing on the owner-designated reference,
+   then complete all four fixed-GPU packaged-runtime profiles without software
    rendering or environment drift.
 2. Record the provisional Safari and supported-OS human qualification claims in
    milestone 9 for the stable 1.0 Web Core release guarantee.
@@ -232,9 +235,10 @@ new platform, distribution, schema, or security boundary.
   job.
 - Every Audacity action remains implemented, planned, blocked, or justified
   excluded.
-- Current owner-host fixed-GPU qualification for M1, M3 long-form, M4
-  production parity, and M4B-2 is recorded as accepted rather than
-  `pending-external`.
+- Current M4 production and M4B-2 exact-media workloads remain qualified through
+  reviewed no-retry evidence on the registered hosted hardware lower bound.
+- Current owner-host M1 and M3 timing plus all four fixed-GPU packaged-runtime
+  profiles are recorded as accepted rather than `pending-external`.
 - Required Safari qualification is recorded by the milestone-9 stable 1.0
   admission campaign; it is not a milestone-1 build or test gate.
 
@@ -560,7 +564,7 @@ relabel those rows.
 ## 4. Parallel production surfaces
 
 **Depends on:** milestone 3.
-**Status:** **In progress — selected Soundscaper S30 and Framescaper F31 software routes are active, while external and guided-manual qualification remains open.** S30 inherits the implemented production surface through exact S29. F31 delegates through immutable exact V28 to the maintained V20 retime/proxy and V24 visual lineages without inheriting dormant V25/V26 candidate authority. The historical RTX 3090 diagnostics remain audit evidence, but the corrected packaged-runtime fingerprint requires driver, device, power, and display identity, so fixed-GPU profiles require a fresh owner-host run. Windows, Safari, signing, guided-manual, and whole-milestone qualification remain open; Milestone-7/8A activation does not close them.
+**Status:** **In progress — selected Soundscaper S30 and Framescaper F31 software routes are active and the current M4/M4B-2 exact-media workloads are qualified, while external and guided-manual qualification remains open.** S30 inherits the implemented production surface through exact S29. F31 delegates through immutable exact V28 to the maintained V20 retime/proxy and V24 visual lineages without inheriting dormant V25/V26 candidate authority. The reviewed hosted hardware lower bound qualifies deterministic render parity. All four fixed-GPU packaged-runtime profiles still require a fresh owner-host run with complete driver, device, power, and display identity. Windows, Safari, signing, guided-manual, and whole-milestone qualification remain open; Milestone-7/8A activation does not close them.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
@@ -630,8 +634,8 @@ clearance does not close either track or milestone exit gate.
 
 - Automation, routing, freeze, compositing, keyframes, transitions, captions,
   and color state survive all edit primitives and cross-platform round trips.
-- Preview and final render match deterministic audio vectors and calibrated
-  video frames.
+- **Qualified exact-media outcome:** preview and final render match deterministic
+  audio vectors and calibrated video frames.
 - Unsupported GPU operations visibly fall back without mutating project state
   or silently omitting export work.
 - Framescaper can edit, mix, caption, grade, and export a complete imported-media

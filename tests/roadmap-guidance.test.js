@@ -72,7 +72,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.doesNotMatch(roadmap, /observed .* seconds/iu);
 });
 
-test('roadmap records the owner-designated Windows fixed-GPU reference pass', async () => {
+test('roadmap separates hosted exact-media qualification from open owner-host profiles', async () => {
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	assert.match(
 		roadmap,
@@ -80,7 +80,11 @@ test('roadmap records the owner-designated Windows fixed-GPU reference pass', as
 	);
 	assert.match(
 		roadmap,
-		/historical result remains audit\s+evidence, but closes no current formal row: M1, M3 long-form, M4 production\s+parity, and M4B-2 are all `pending-external`/isu,
+		/reviewed hosted\s+hardware-lower-bound cohort.*qualifies.*current M4 production.*M4B-2\s+exact-media workloads/isu,
+	);
+	assert.match(
+		roadmap,
+		/M1 preview and M3 long-form timing.*remain\s+`pending-external`.*all four owner-host packaged-runtime profiles.*remain\s+open/isu,
 	);
 });
 

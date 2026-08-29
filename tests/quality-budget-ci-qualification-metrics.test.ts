@@ -351,7 +351,7 @@ test('collection rebuilds a run root that Playwright cleared while the specs ran
 	assert.equal(summary.kind, 'soundscaper-hosted-ci-metrics');
 });
 
-// The five numbers the 2026-08-27 hosted run measured for the keyed compositor.
+// The five numbers the 2026-08-29 hosted run measured for the keyed compositor.
 const KEYFRAME_METRICS = Object.freeze({
 	'keyframes.videoMinimumSsim': 0.999855387171781,
 	'keyframes.videoMaximumChannelMae': 0.0006510416666666666,

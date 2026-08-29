@@ -53,8 +53,11 @@ qualification rows remain open or `pending-external`. Shared 4.0 hosted
 correctness is green. On 2026-08-21 the owner-designated Windows x64 RTX 3090
 reference run passed M1 preview, M4 production parity, and M4B-2 keyed parity.
 The retained artifact lacks the complete current packaged-runtime fingerprint
-and is diagnostic-only. M1, M3 long-form, M4 production parity, and M4B-2 need
-fresh owner-host runs before their `pending-external` formal rows can close.
+and remains diagnostic-only for the owner-host profiles. A reviewed, no-retry
+hosted cohort on the registered hardware lower bound now qualifies the M4
+production and M4B-2 exact-media workload rows. M1 and M3 long-form timing, and
+all four owner-host `packagedRuntimeQualification` profiles, still require a
+fresh owner-host run.
 
 On 2026-08-13 the project owner explicitly cleared the milestone-3
 implementation sequencing gate for the Framescaper 4B track. On 2026-08-14 the
@@ -86,9 +89,11 @@ route is V23. Framescaper transitions begin at dormant V22.
   implementation candidate is complete and the maintained Soundscaper
   App/runtime/storage route is selected. Packets 4A-1 through 4A-6 are
   implemented provisionally and 4A-7's local automated acceptance is green;
-  its reference-GPU row has passed, while hosted, packaged-runtime, and manual
-  qualification remain open. Neither track is complete, and both track exit
-  gates and the overall milestone-4 exit gate remain open.
+  its historical reference-GPU diagnostic passed, and the reviewed hosted
+  lower-bound cohort now qualifies its exact-media workload. The owner-host
+  packaged profile and manual/release qualification remain open. Neither track
+  is complete, and both track exit gates and the overall milestone-4 exit gate
+  remain open.
 - Automation uses one timebase per lane, a 4,096-point persisted cap, and
   deterministic adaptive thinning that preserves endpoints, discontinuities,
   mode boundaries, and the highest-error extrema.
@@ -421,9 +426,10 @@ per the standing duties (roadmap.md:844-846).
 | 4B | Parallel track | Framescaper finishing: transforms/keyframes, transitions, new kinds and inspector, color/motion, styled captions, Framescaper audio finishing |
 
 **Historical implementation status (2026-08-22):** shared phase 4.0 is implemented and
-its hosted correctness acceptance is green. Formal qualification for
-Soundscaper M4 production and M4B-2 remains `pending-external`, and
-milestone 3 remains recorded **In progress** with its
+its hosted correctness acceptance is green. At that date formal qualification
+for Soundscaper M4 production and M4B-2 remained `pending-external`; the later
+reviewed hosted lower-bound cohort now qualifies both exact-media workload rows.
+Milestone 3 remains recorded **In progress** with its
 manual/external evidence unchanged. The project owner explicitly cleared the
 Framescaper implementation sequencing gate. That historical V20 packet record
 is superseded by the implementation-complete V27 activation candidate under the
@@ -434,8 +440,9 @@ is **Implemented (provisional)**
 under the [4A pickup contract](milestone-4a-soundscaper-production.md), and the
 maintained Soundscaper App/runtime/storage route is selected. Packets 4A-1
 through 4A-6 are locally implemented and 4A-7 local automated acceptance is
-green. The historical fixed-GPU M4 result is diagnostic-only and its current
-formal row remains open; hosted, manual, M4B-2 formal, and release rows also
+green. The historical fixed-GPU results remain diagnostic-only for the
+owner-host profiles. The current M4 production and M4B-2 exact-media rows are
+qualified; their owner-host packaged profiles, manual checks, and release rows
 stay open, so neither track is complete and the
 overall milestone-4 exit gate remains open.
 
@@ -492,8 +499,9 @@ each written at pickup before feature publication
 ### WP-4.0.2 — Production parity harness
 
 - **Status:** implemented; local automated acceptance is green. The historical
-  owner-host packaged result is diagnostic-only, the current M4 production row
-  remains `pending-external`, and hosted diagnostics remain provisional.
+  owner-host packaged result remains diagnostic-only for that profile. The
+  reviewed hosted lower-bound cohort qualifies the current M4 production
+  exact-media workload; the owner-host packaged profile remains open.
 - **Outcome:** `m4-production-parity-v1` now pins one second of 48 kHz stereo
   Float32 input/reference vectors and exact impulse, PDC, and automation
   landmarks beside the existing calibrated 128×72 RGBA fixture. The focused
@@ -512,11 +520,13 @@ each written at pickup before feature publication
   production work. Renderer failure remains an independent report field, and
   effect fallback does not stop a healthy compositor's playback loop.
 - **Invariants:** fixtures are deterministic and digest-pinned before any
-  4A/4B feature cites them; hosted-CI runs remain correctness evidence only.
-  Standalone local, hosted, and packaged diagnostics can emit only pending or
-  failed evidence. Formal acceptance belongs solely to the packaged-nightly
-  verifier, which pins the owner-host identity, source revision, budget digest,
-  attempt/retry policy, and complete registered threshold verdicts.
+  4A/4B feature cites them. Hosted CI may publish formal exact-media evidence
+  only through a registered qualification-eligible lower bound, complete
+  threshold verdicts, one attempt, zero retries, and a reviewed digest-bound
+  cohort. Standalone local diagnostics remain pending or failed. Owner-host
+  packaged-profile acceptance belongs solely to the packaged-nightly verifier,
+  which pins the complete owner-host identity as well as source, budget, and
+  attempt/retry policy.
 - **Acceptance:** the focused Chromium/FFmpeg harness passes against today's
   features; a deliberately unsupported effect is the sole omitted ID, and
   collector tests prove one omitted or fallback-rendered effect trips the
@@ -586,8 +596,9 @@ suite are in
   package requiring JavaScript import or same-origin access.
 - **4A-7 — Exit evidence. Status: Implemented locally (provisional).** The local
   automated 4A surface passes the parity workload and registered budgets. The
-  4A hosted no-retry, packaged-runtime, manual, and reference-GPU evidence
-  remains open and no unprovisioned row is relabelled.
+  reviewed hosted lower-bound cohort qualifies the exact M4 workload. The
+  owner-host packaged profile, manual, and release evidence remains open, and
+  no unprovisioned row is relabelled.
 
 ### 4B packets (Framescaper track; pickup contract active)
 
@@ -653,9 +664,11 @@ and acceptance suite are in
   `parity.silentlyOmittedEffects eq 0`
   (config/quality-budgets.json:992-1006), against the hosted container and the
   registered, currently unprovisioned
-  `owner-qualified-windows-x64-rtx3090-01` profile. Local and hosted runs are
-  development evidence; only the exact owner-host packaged verifier can publish
-  formal acceptance, and it never admits a software renderer.
+  `owner-qualified-windows-x64-rtx3090-01` profile. The hosted environment is a
+  registered hardware lower bound, and its reviewed no-retry cohort formally
+  qualifies this exact-media workload. Local runs remain development evidence;
+  only the exact owner-host packaged verifier can close the separate owner-host
+  profile, and that verifier never admits a software renderer.
 - Bundle gates are untouched: the 500,000-byte chunk and 25 MiB Pages
   ceilings stay independent (docs/quality-budgets.md:33-35); new UI
   keeps the canonical check green; file-size ratchets and command
@@ -697,8 +710,10 @@ gates.
 
 ## Watch items (not gates yet)
 
-- A fresh owner-host nightly run for the new M4B-2 formal profile and budget
-  digest; its older keyed diagnostic remains historical correctness evidence.
+- A fresh owner-host nightly run for the M4B-2
+  `packagedRuntimeQualification` profile; the exact-media workload row is
+  already qualified by the reviewed hosted lower-bound cohort, while the older
+  keyed owner-host diagnostic remains historical correctness evidence.
 - The milestone-7 packets that name m4 upgrade targets (7A-1 captions,
   7B-3 crops): if milestone 7 runs first, their proposal-side data
   migrates onto the m4 schemas when these land — coordination is a

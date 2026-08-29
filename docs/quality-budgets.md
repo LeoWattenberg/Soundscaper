@@ -39,13 +39,15 @@ fixture, environment, metric, and threshold identifiers.
   no-retry collector with `npm run quality:collect:m4-production-parity`.
   Local, hosted, and packaged runs identify their observed execution surface;
   the standalone collector writes only `pending-external` or `failed` evidence
-  and has no acceptance mode. `nightly-with-tests` is the sole formal
-  publisher: it independently verifies the complete packaged diagnostic,
-  owner-host Chromium/WebGL fingerprint, one-attempt/no-retry policy, registered
-  threshold verdicts, source revision, and exact budget digest before writing
-  `packaged-runtime/qualification.json`. A metric or identity mismatch rejects
-  that workload without preventing an independently complete workload in the
-  same run from being assessed.
+  and has no acceptance mode. `nightly-with-tests` is the sole formal publisher
+  for the packaged-runtime owner-host profile: it independently verifies the
+  complete packaged diagnostic, Chromium/WebGL fingerprint,
+  one-attempt/no-retry policy, registered threshold verdicts, source revision,
+  and exact budget digest before writing `packaged-runtime/qualification.json`.
+  Independently, the `Qualification metrics` workflow can publish accepted
+  pairs for workloads admitted by its registered lower-bound environment. A
+  metric or identity mismatch rejects that workload without preventing an
+  independently complete workload in the same run from being assessed.
 - Historical fixed-GPU reference run, 2026-08-21: the project owner designated
   the Windows x64 downloadable-nightly machine at revision
   `657e2d67d57070b31bbfe7c8a2b76b5a54bbe082` as the reference. Its NVIDIA
@@ -64,23 +66,34 @@ fixture, environment, metric, and threshold identifiers.
   `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
   These retained artifacts predate the complete driver/device/power/display
   identity contract and therefore do not close a current formal row.
-- Hosted qualification run, 2026-08-27: the `Qualification metrics` job at
-  revision `d41c5cb1779920282427c9144a805e9f5bdfccf8` ran the three attemptable
-  metric specs on `github-ubuntu-playwright-1.62.1` with one worker, one
-  attempt, and zero retries. `m4-production-render-parity` reported maximum
-  audio sample error `0`, PDC error `0`, minimum video SSIM
-  `0.9818532248014168`, maximum normalized channel MAE
-  `0.020215907543572983`, and silently omitted effects `0`.
+- Hosted qualification run, 2026-08-29: [Qualification metrics run
+  33250892992](https://github.com/LeoWattenberg/Soundscaper/actions/runs/33250892992)
+  at revision `c87838f9db45594b65cda433f61ace035773a1e4` ran the three
+  attemptable metric specs on `github-ubuntu-playwright-1.62.1` with one
+  worker, one attempt, and zero retries. Its exact quality-budget SHA-256 was
+  `82df7c8576350a3d5a360e6505bb3c3e8bab44d50ee099a0c8a96553542a40ed`.
+  `m4-production-render-parity` reported maximum audio sample error `0`, PDC
+  error `0`, minimum video SSIM `0.9818532248014168`, maximum normalized
+  channel MAE `0.020215907543572983`, and silently omitted effects `0`.
   `m4b2-keyframe-render-parity` reported minimum SSIM `0.999855387171781`,
   maximum channel MAE `0.0006510416666666666`, and zero omitted, substituted,
   or fallback operations. Both met every registered threshold, so the
-  lower-bound rule qualifies them and the `hosted-ci-render-parity-d41c5cb1`
-  cohort binds their retained accepted and raw artifacts by byte length and
-  SHA-256. `m3-longform-editorial` met both position counters and its drift
-  budget and missed seek p95 (`243.3` ms against 200 ms) and scroll interval
-  p95 (`50.1` ms against 33.34 ms) under llvmpipe, which is what the weaker
-  runner is expected to do; it stays an observation.
-  `m1-video-preview-12fx-720p` was not attempted.
+  lower-bound rule qualifies them and the `hosted-ci-render-parity-c87838f9`
+  cohort binds their retained accepted and raw artifacts. The M4 accepted/raw
+  pair is `1126` bytes with SHA-256
+  `e4064e69f07945c96f3566cbc7a3954c1554e75d36f5a48a2eab5a1373617414`
+  and `3076` bytes with SHA-256
+  `25b0d8ca23fac61b8d8a79fa772e07b3a2a23f0b7020f90dd9e04458250e7416`;
+  the M4B-2 pair is `1101` bytes with SHA-256
+  `c1ebfd1f371d7744436c364855fce95e04dd315f617a88fc82a95c09a2c1918d`
+  and `3103` bytes with SHA-256
+  `c82069526758d68f6feaa12888685ae03a3130f95a19f9f0e9c365f1613d7d6f`.
+  `m3-longform-editorial` met both position counters, drift, seek p95, and
+  retained-heap budgets. Its sole miss was scroll-frame interval p95
+  (`33.400000000001455` ms against `33.34` ms) under SwiftShader, which is what
+  the weaker runner is expected to do; it stays an observation.
+  `m1-video-preview-12fx-720p` was not attempted because the hosted runner has
+  no hardware renderer.
 - The 12-effect 1280x720 preview test records timing and heap data against a
   repository-owned, digest-pinned, six-second synthetic VP8 fixture. The active
   `deterministic-video-preview-12fx-v2` collector hashes the actual runtime
@@ -142,8 +155,8 @@ fixture limitation below remains in force. The composite
 set and remains planned. The `m2-direct-observed-f3d11cb3` cohort binds the
 remaining three workloads to fresh no-retry evidence after their collector
 stopped publishing fixture specification constants as observations. The
-`hosted-ci-render-parity-d41c5cb1` cohort binds the two milestone-4
-render-parity workloads to the 2026-08-27 hosted run, whose exact media
+`hosted-ci-render-parity-c87838f9` cohort binds the two milestone-4
+render-parity workloads to the 2026-08-29 hosted run, whose exact media
 comparisons met every threshold on the registered lower-bound runner.
 
 ## Measurement procedure
@@ -223,9 +236,13 @@ editorial, M4 render parity, and M4B-2 keyed parity. Each admission is
 independent of other results in the same run. All four profiles are now
 `pending-external`: the retained artifact records the GPU device identity but
 omitted GPU-driver, power-mode, and display-mode identity and cannot be
-promoted under the corrected contract. A fresh owner-host run and reviewed descriptor are required before any
-formal row can close. M1 additionally requires the v2 raw fixture digest and
-five-trial cadence/heap samples.
+promoted under the corrected contract. A fresh owner-host run and reviewed
+descriptor are required before any of those four packaged-runtime profile rows
+can close. Independently, the M4 production and M4B-2 exact-media workloads are
+qualified through the
+`hosted-ci-render-parity-c87838f9` lower-bound cohort; that qualification does
+not fill either workload's fixed-GPU profile. M1 additionally requires the v2
+raw fixture digest and five-trial cadence/heap samples.
 
 Future formal runs must exactly match the profile's browser version, platform,
 architecture, WebGL vendor and renderer, GPU driver version and device ID,
@@ -309,26 +326,26 @@ frame mismatches, and an export that requests no crop must remain byte-stable.
 
 ## Milestone 4B keyed render parity
 
-`m4b2-keyframe-render-parity` is registered only as a provisional correctness
-workload. Its deterministic 128x72 RGBA fixture evaluates hold, linear, eased,
-and Bezier opacity curves at exact segment starts, interiors, and ends. Each of
-the 12 operations must be rendered by both the preview and offline consumers;
-the collector independently recomputes their frame comparisons and requires a
-minimum SSIM of `0.98`, maximum normalized channel MAE of `6/255`, and exactly
-zero omitted, substituted, or fallback operations.
+`m4b2-keyframe-render-parity` is a qualified exact-media workload over a
+provisional deterministic 128x72 RGBA fixture. The fixture evaluates hold,
+linear, eased, and Bezier opacity curves at exact segment starts, interiors,
+and ends. Each of the 12 operations must be rendered by both the preview and
+offline consumers; the collector independently recomputes their frame
+comparisons and requires a minimum SSIM of `0.98`, maximum normalized channel
+MAE of `6/255`, and exactly zero omitted, substituted, or fallback operations.
 
 Run the opt-in no-retry diagnostic with `node
-scripts/collect-m4b2-keyframe-parity-quality.mjs`. Ordinary local and hosted
-Playwright results remain correctness evidence only, and the standalone
-collector cannot publish acceptance. The project owner's 2026-08-21 Windows
-RTX 3090 metrics artifact remains a passing historical diagnostic: all 12 keyed
-operations passed, with no omitted, substituted, or fallback operation. The
-registered packaged-runtime profile now makes formal M4B-2 qualification
-repeatable, but that profile and its new budget digest require a fresh
-owner-host nightly artifact; the historical result is not backfilled. The
-selected V27 activation candidate delegates the maintained V20 keyed route,
-while guided-local, owner-host, and release qualification remain separate open
-gates.
+scripts/collect-m4b2-keyframe-parity-quality.mjs`. The standalone collector
+cannot publish acceptance, and an ordinary hosted Playwright result qualifies
+only when the runner is the registered lower bound, every metric passes, and a
+reviewed cohort binds the retained no-retry evidence. The 2026-08-29 hosted run
+met that contract and `hosted-ci-render-parity-c87838f9` qualifies the workload.
+The project owner's 2026-08-21 Windows RTX 3090 artifact remains a passing
+historical diagnostic, while the separate packaged-runtime profile still
+requires a fresh owner-host nightly artifact with its complete fingerprint.
+The selected V27 activation candidate delegates the maintained V20 keyed route,
+while guided-local, owner-host-profile, and release qualification remain
+separate open gates.
 
 ## Fixtures and project sizes
 
@@ -839,10 +856,9 @@ What the run does with each number follows the measurement procedure above:
   meets them, but a shared runner misses them under load without anything being
   wrong, so a miss cannot fail the job.
 - `m1-video-preview-12fx-720p` is **not attempted**. It measures presented
-  frames through a twelve-effect 1280x720 WebGL stack, and llvmpipe delivers
-  roughly one frame every eleven seconds, so the spec times out short of its
-  121 frames after eight minutes without producing a number worth reading. The
-  summary records the skip and its reason rather than a failure.
+  frames through a twelve-effect 1280x720 WebGL stack and requires a hardware
+  renderer, which the hosted environment does not provide. The summary records
+  the skip and its reason rather than a failure.
 
 Generated results belong under ignored `test-results/` and should be uploaded as
 CI artifacts. An accepted summary can be reviewed and versioned separately, but
@@ -896,7 +912,7 @@ counts, edit count and transaction size, and the identical 10,000-command edit
 plan whose `editPlanSha256` is unchanged, because the plan is commands and never
 depended on the project schema. What changed is that the generator builds and
 replays through the V30 project owner, so `generatorRevision` is `2` and
-`projectSha256` is `f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3`.
+`projectSha256` is `efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e`.
 No threshold moved, and the workload stays `provisional`; the fixed-GPU profile
 that admits it remains `pending-external`.
 
