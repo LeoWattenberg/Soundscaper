@@ -260,6 +260,48 @@ test('install cancellation stays explicit and clears activity only after acknowl
 	assert.equal(store.getSnapshot().error, null);
 });
 
+test('pending cancellation blocks replacement installs and model maintenance', async () => {
+	const fixture = bridgeFixture();
+	const cancellation = deferred<unknown>();
+	let installCalls = 0;
+	let garbageCollectionCalls = 0;
+	const store = createLocalModelManagerStore({
+		...fixture.bridge,
+		installAssistanceModel: () => {
+			installCalls += 1;
+			return installCalls === 1 ? fixture.install.promise : Promise.resolve(INSTALLED_MODEL);
+		},
+		cancelAssistanceModelInstall: (modelId) => {
+			fixture.install.reject(new Error('Local-model installation was cancelled.'));
+			return cancellation.promise.then(() => ({
+				contractVersion: 1 as const, modelId, outcome: 'cancelled' as const,
+			}));
+		},
+		collectAssistanceModelGarbage: async () => {
+			garbageCollectionCalls += 1;
+			return {
+				reclaimedBlobBytes: 0, discardedManifestCount: 0, discardedPartialCount: 0,
+				discardedPartialBytes: 0, reclaimedBytes: 0,
+			};
+		},
+	});
+	await store.load();
+
+	const installing = store.install(INSTALLABLE_MODEL.modelId);
+	const cancelling = store.cancelInstall(INSTALLABLE_MODEL.modelId);
+	await installing;
+	assert.deepEqual(store.getSnapshot().cancellingModelIds, [INSTALLABLE_MODEL.modelId]);
+	assert.deepEqual(store.getSnapshot().busyModelIds, [INSTALLABLE_MODEL.modelId]);
+
+	await store.install(INSTALLABLE_MODEL.modelId);
+	await store.garbageCollect();
+	assert.equal(installCalls, 1, 'the cancelling model cannot be installed again');
+	assert.equal(garbageCollectionCalls, 0, 'maintenance must wait for cancellation acknowledgement');
+
+	cancellation.resolve(undefined);
+	await cancelling;
+});
+
 test('offline seeds and maintenance operations run only when explicitly requested', async () => {
 	const fixture = bridgeFixture();
 	const store = createLocalModelManagerStore(fixture.bridge);

@@ -217,10 +217,10 @@ function ModelRow({
 				? text(copy, 'localModelsRemoving', 'Removing…')
 				: text(copy, 'localModelsRemove', 'Remove')}</button>}
 			{!installed && !installing && <>
-				<button type="button" disabled={maintenanceBusy} onClick={() => { void onInstall(model.modelId); }}>
+				<button type="button" disabled={busy || maintenanceBusy} onClick={() => { void onInstall(model.modelId); }}>
 					{text(copy, 'localModelsInstall', 'Install')}
 				</button>
-				<button type="button" disabled={maintenanceBusy} onClick={() => { void onInstallPreseeded(model.modelId); }}>
+				<button type="button" disabled={busy || maintenanceBusy} onClick={() => { void onInstallPreseeded(model.modelId); }}>
 					{text(copy, 'localModelsInstallFromFolder', 'Install from folder…')}
 				</button>
 			</>}

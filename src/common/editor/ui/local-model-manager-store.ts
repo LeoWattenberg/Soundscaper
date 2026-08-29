@@ -106,7 +106,9 @@ export function createLocalModelManagerStore(
 	const publishOperationState = (
 		error: LocalModelManagerError | null = snapshot.error,
 	): void => publish({
-		busyModelIds: Object.freeze([...activeModels.keys()].sort()),
+		busyModelIds: Object.freeze([...new Set([
+			...activeModels.keys(), ...cancellingModels,
+		])].sort(compareCodeUnits)),
 		installingModelIds: Object.freeze([...activeModels]
 			.filter(([, operation]) => operation !== 'remove')
 			.map(([modelId]) => modelId).sort()),
@@ -145,7 +147,8 @@ export function createLocalModelManagerStore(
 	const install = async (rawModelId: string): Promise<void> => {
 		const modelId = localModelId(rawModelId);
 		const model = actionableModel(snapshot.models, modelId, 'installable');
-		if (!model || activeModels.has(modelId) || maintenanceOperation) return;
+		if (!model || activeModels.has(modelId) || cancellingModels.has(modelId)
+			|| maintenanceOperation) return;
 		activeModels.set(modelId, 'install');
 		progressByModelId.delete(modelId);
 		publishOperationState(null);
@@ -164,7 +167,8 @@ export function createLocalModelManagerStore(
 	const installPreseeded = async (rawModelId: string): Promise<void> => {
 		const modelId = localModelId(rawModelId);
 		const model = actionableModel(snapshot.models, modelId, 'installable');
-		if (!model || activeModels.has(modelId) || maintenanceOperation) return;
+		if (!model || activeModels.has(modelId) || cancellingModels.has(modelId)
+			|| maintenanceOperation) return;
 		activeModels.set(modelId, 'preseed');
 		progressByModelId.delete(modelId);
 		publishOperationState(null);
@@ -205,7 +209,8 @@ export function createLocalModelManagerStore(
 	const remove = async (rawModelId: string): Promise<void> => {
 		const modelId = localModelId(rawModelId);
 		const model = actionableModel(snapshot.models, modelId, 'installed');
-		if (!model || activeModels.has(modelId) || maintenanceOperation) return;
+		if (!model || activeModels.has(modelId) || cancellingModels.has(modelId)
+			|| maintenanceOperation) return;
 		activeModels.set(modelId, 'remove');
 		publishOperationState(null);
 		try {
@@ -220,7 +225,8 @@ export function createLocalModelManagerStore(
 		}
 	};
 
-	const canMaintain = (): boolean => maintenanceOperation === null && activeModels.size === 0;
+	const canMaintain = (): boolean => maintenanceOperation === null
+		&& activeModels.size === 0 && cancellingModels.size === 0;
 
 	const reconcile = async (): Promise<void> => {
 		if (!canMaintain()) return;
