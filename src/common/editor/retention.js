@@ -30,6 +30,7 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	if (isSelectedFramescaperProjectSchema(project)) {
 		collectMulticameraMemberSourceIds(project, target);
 		collectVideoFreezeFallbackSourceIds(project, target);
+		collectOpenFxFrozenFallbackSourceIds(project, target);
 	}
 	return target;
 }
@@ -69,6 +70,20 @@ function collectVideoFreezeFallbackSourceIds(project, target) {
 	const freezes = Array.isArray(project?.videoFreezeFallbacks) ? project.videoFreezeFallbacks : [];
 	for (const freeze of freezes) {
 		const sourceId = freeze?.renderedSourceId;
+		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
+	}
+}
+
+/**
+ * A frozen OpenFX fallback stands in for a native plugin that cannot run, and it
+ * names external video media no clip reaches. Loading the project checks that the
+ * media is still there and that its digest matches, so dropping it here would
+ * leave a document that no longer opens.
+ */
+function collectOpenFxFrozenFallbackSourceIds(project, target) {
+	const effects = Array.isArray(project?.ofxEffects) ? project.ofxEffects : [];
+	for (const effect of effects) {
+		const sourceId = effect?.frozenFallback?.externalMediaSourceId;
 		if (typeof sourceId === 'string' && sourceId) target.add(sourceId);
 	}
 }
