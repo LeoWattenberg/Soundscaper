@@ -53,6 +53,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	useEffect(() => {
 		linkedAudioRelinkRequestRef.current += 1;
 		setItemMenu(null);
+		setRemoveConfirmation(null);
 		const relinkScope = Object.freeze({ projectId, projectRevision });
 		linkedAudioRelinkProjectRef.current = relinkScope;
 		return () => {

@@ -36,6 +36,13 @@ test('the Project Bin resolves placement at click time without subscribing the p
 	assert.doesNotThrow(() => renderProjectBin(ENGLISH_COPY, false));
 });
 
+test('a project change retires a destructive Project Bin confirmation', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+	const projectEffect = /useEffect\(\(\) => \{([\s\S]*?)\n\t\}, \[fileService, projectId, projectRevision, run\]\);/u.exec(source);
+	assert.ok(projectEffect, 'the project-identity effect is present');
+	assert.match(projectEffect[1]!, /setRemoveConfirmation\(null\)/u);
+});
+
 test('the linked-WAV Project Bin action forwards only the chosen File and opaque locator snapshot', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
 	const importAction = source.slice(source.indexOf('const chooseLinkedAudio'), source.indexOf('const relinkLinkedAudio'));
