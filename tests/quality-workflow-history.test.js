@@ -26,7 +26,23 @@ test('quality only cancels superseded pull-request runs', async () => {
 	assert.match(
 		header,
 		/^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/mu,
-		'main and manually dispatched runs must queue so a newer run cannot interrupt their work',
+		'running main and manually dispatched work must not be interrupted by a newer invocation',
+	);
+});
+
+test('desktop preview only supersedes automatic workflow-run packaging', async () => {
+	const workflow = await readWorkflow('desktop-preview.yml');
+	const header = workflow.slice(0, workflow.indexOf('\njobs:\n'));
+
+	assert.match(
+		header,
+		/^ {2}group: desktop-preview-and-nightly-\$\{\{ github\.event_name == 'workflow_run' && 'workflow-run' \|\| github\.run_id \}\}$/mu,
+		'manual, scheduled, and tagged runs need unique groups so automatic runs cannot cancel them',
+	);
+	assert.match(
+		header,
+		/^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'workflow_run' \}\}$/mu,
+		'only automatic workflow-run packaging may cancel an older automatic packaging run',
 	);
 });
 

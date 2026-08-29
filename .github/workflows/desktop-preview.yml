@@ -31,10 +31,10 @@ permissions:
   packages: read
 
 concurrency:
-  group: desktop-preview-and-nightly-${{ github.ref }}
-  # Main commits supersede each other: only the newest one is worth packaging,
-  # and the matrix is too long to let a queue build up. Tag, schedule and
-  # dispatch runs still always finish.
+  group: desktop-preview-and-nightly-${{ github.event_name == 'workflow_run' && 'workflow-run' || github.run_id }}
+  # Automatic runs triggered by Quality may supersede only each other. Tag,
+  # schedule and dispatch runs use their unique run ID, so automatic packaging
+  # cannot cancel or replace them even when both resolve to the default branch.
   cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
 
 env:
