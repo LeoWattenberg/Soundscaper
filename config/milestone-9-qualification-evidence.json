@@ -8,7 +8,7 @@
 	"blockedBy": "The full release matrix is not provisioned and has no two-consecutive-run eight-hour evidence.",
 	"sourceRevision": null,
 	"budgetSha256": null,
-	"soakSpecSha256": "c28c0d12d051bc0c2783d82325fc1adb405b50167933769f9f92a773684193d7",
+	"soakSpecSha256": "fc65b454a8c3823deed222174f0a8be22cef22b7c90f1ae332c06a548b8d503d",
 	"cells": [
 		{ "cellId": "browser-chromium-current", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
 		{ "cellId": "browser-chromium-previous", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
