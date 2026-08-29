@@ -8,6 +8,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 
 interface DialogController {
 	readonly project: null | Readonly<{
+		readonly id: string;
 		readonly primarySequenceId: string;
 		readonly sampleRate: number;
 		readonly clips: readonly Readonly<{ readonly timelineStartFrame: number; readonly durationFrames: number }>[];
@@ -43,12 +44,16 @@ export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonPro
 		<form className="kw-audio-editor-dialog__form" onSubmit={(event) => {
 			event.preventDefault();
 			if (!file || importingRef.current) return;
+			const projectId = controller.project?.id ?? null;
+			const projectIsCurrent = (): boolean => (controller.project?.id ?? null) === projectId;
 			importingRef.current = true;
 			setImporting(true);
 			run(async () => {
 				try {
 					const wav = await prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes });
+					if (!projectIsCurrent()) return;
 					await controller.actions.project.importFiles([wav]);
+					if (!projectIsCurrent()) return;
 				} finally {
 					importingRef.current = false;
 					setImporting(false);
