@@ -26,6 +26,11 @@ const SPLIT = 500;
 
 interface EnvelopePoint { readonly frame: number; readonly value: number }
 
+type TimelineAudioClip = Extract<
+	ReturnType<typeof projectWith>['clips'][number],
+	{ readonly kind: 'audio' }
+> & { readonly timelineStartFrame: number; readonly durationFrames: number };
+
 function projectWith(envelope: readonly EnvelopePoint[], fades = true) {
 	return createAudioEditorProjectV17({
 		id: 'split-envelope',
@@ -53,8 +58,11 @@ function projectWith(envelope: readonly EnvelopePoint[], fades = true) {
 
 /** The gain the engine schedules for one timeline frame, envelope and fades together. */
 function gainAt(current: ReturnType<typeof projectWith>, timelineFrame: number): number {
-	const clip = current.clips.find((candidate) => (
-		timelineFrame >= candidate.timelineStartFrame
+	const clip = current.clips.find((candidate): candidate is TimelineAudioClip => (
+		candidate.kind === 'audio'
+		&& candidate.timelineStartFrame !== undefined
+		&& candidate.durationFrames !== undefined
+		&& timelineFrame >= candidate.timelineStartFrame
 		&& timelineFrame < candidate.timelineStartFrame + candidate.durationFrames
 	));
 	assert.ok(clip, `no clip covers timeline frame ${timelineFrame}`);
@@ -69,7 +77,10 @@ function gainAt(current: ReturnType<typeof projectWith>, timelineFrame: number):
 }
 
 function split(current: ReturnType<typeof projectWith>) {
-	return applyEditorCommand(current, prepareSplitCommand('clip', SPLIT, () => 'right-clip'), { now: NOW });
+	const command = prepareSplitCommand('clip', SPLIT, () => 'right-clip') as (
+		ReturnType<typeof prepareSplitCommand> & { readonly type: 'clip/split' }
+	);
+	return applyEditorCommand(current, command, { now: NOW });
 }
 
 test('a split between two envelope points leaves the scheduled gain unchanged', () => {
