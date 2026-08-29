@@ -432,6 +432,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 				<div data-editor-surface="local-assistance">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<LocalAssistanceDialog
+							projectId={snapshot.project?.id ?? null}
 							bridgeScope={fileService.bridge}
 							preparation={selectedMediaPreparation}
 							copy={copy}

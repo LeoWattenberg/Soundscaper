@@ -31,6 +31,7 @@ import './LocalAssistanceDialog.css';
 type Copy = Readonly<Record<string, string | undefined>>;
 
 export interface LocalAssistanceDialogProps {
+	readonly projectId: string | null;
 	readonly bridge: LocalAssistanceBridge | null;
 	readonly preparation: LocalAssistanceSelectedMediaPreparationPort | null;
 	readonly copy: Copy;
@@ -76,6 +77,12 @@ export interface LocalAssistanceDialogViewProps {
 }
 
 export default function LocalAssistanceDialog({
+	projectId, ...props
+}: LocalAssistanceDialogProps) {
+	return <LocalAssistanceProjectSession key={projectId ?? 'no-project'} {...props} projectId={projectId} />;
+}
+
+function LocalAssistanceProjectSession({
 	bridge, preparation, copy, onClose,
 }: LocalAssistanceDialogProps) {
 	const store = useMemo(() => createLocalAssistanceAdvancedWorkflowSessionStore({
