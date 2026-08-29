@@ -304,12 +304,13 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 			const initialSeeked = new Promise((resolve) => {
 				video.addEventListener('seeked', resolve, { once: true });
 			});
-			video.currentTime = 0.02;
+			video.currentTime = 0.01;
 			await initialSeeked;
 
 			const nativeAdd = video.addEventListener.bind(video);
 			const nativeRemove = video.removeEventListener.bind(video);
-			let suppressedSeekedListeners = 0;
+			let suppressedSeekedListeners = 0, seekingEvents = 0;
+			nativeAdd('seeking', () => { seekingEvents += 1; });
 			video.addEventListener = (type, listener, options) => {
 				if (type === 'seeked') {
 					suppressedSeekedListeners += 1;
@@ -350,13 +351,14 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 			const presented = await port.present(request);
 			const cached = await port.present(request);
 			video.remove();
-			return { presented, cached, frameCallbackId, suppressedSeekedListeners };
+			return { presented, cached, frameCallbackId, seekingEvents, suppressedSeekedListeners };
 		}, { fixturePath: FIXTURE_PATH, root: HARNESS_ROOT });
 
 		expect(result).toEqual({
 			presented: { mediaTime: 0 },
 			cached: { mediaTime: 0 },
 			frameCallbackId: 1,
+			seekingEvents: 0,
 			suppressedSeekedListeners: 1,
 		});
 	});
@@ -369,11 +371,11 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 				`${root}/video-retime-html-video-seek-port.js`
 			);
 			const video = document.createElement('video');
-			video.muted = true;
+			Object.assign(video, { muted: true, preload: 'auto' });
 			video.src = fixturePath;
 			document.body.append(video);
 			await new Promise((resolve, reject) => {
-				video.addEventListener('loadedmetadata', resolve, { once: true });
+				video.addEventListener('loadeddata', resolve, { once: true });
 				video.addEventListener('error', () => reject(video.error), { once: true });
 			});
 			let frameCallbackCount = 0;

@@ -132,6 +132,10 @@ export function createVideoRetimeHtmlVideoSeekPort(
 		if (!Number.isFinite(duration) || duration <= 0 || request.targetSeconds >= duration) {
 			throw new RangeError('The retime preview target would be clamped by the media duration.');
 		}
+		// The exact interval, not its interior targeting point, identifies the
+		// drawable frame. Preserve an already-current clock so Firefox cannot turn
+		// a redundant same-frame assignment into a seek with no new presentation.
+		const requiresSeek = video.seeking || !mediaTimeInRequestedInterval(video.currentTime, request);
 		// rVFC reports newly presented frames only. A repeated paused-frame
 		// request can therefore reuse the last compositor-authenticated result
 		// when both the exact request and the media element still name that frame.
@@ -139,16 +143,17 @@ export function createVideoRetimeHtmlVideoSeekPort(
 			&& !video.seeking
 			&& video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
 			&& samePresentationRequest(cachedPresentation.request, request)
-			&& video.currentTime === request.targetSeconds) {
+			&& mediaTimeInRequestedInterval(video.currentTime, request)) {
 			return Promise.resolve(Object.freeze({ mediaTime: cachedPresentation.mediaTime }));
 		}
 		cachedPresentation = null;
 
 		return new Promise<Readonly<{ readonly mediaTime: number }>>((resolve, reject) => {
 			const seek = createActiveSeek(request, resolve, reject);
+			seek.seekComplete = !requiresSeek;
 			active = seek;
 			const requestPresentedFrame = (): void => {
-				const mayPrecedeTargetAssignment = !seek.seekIssued;
+				const mayPrecedeTargetAssignment = requiresSeek && !seek.seekIssued;
 				const frameCallbackId = requestFrame((_now, metadata) => {
 					if (seek.settled) return;
 					const mediaTime = metadata.mediaTime;
@@ -205,6 +210,7 @@ export function createVideoRetimeHtmlVideoSeekPort(
 				}, timeoutMs);
 				assertCurrent();
 				if (seek.settled) return;
+				if (!requiresSeek) return;
 				seek.seekIssued = true;
 				video.currentTime = request.targetSeconds;
 			} catch (error) {
