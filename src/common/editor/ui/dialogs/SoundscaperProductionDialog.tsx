@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import React, { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 
 import type { SessionLoudnessHistorySnapshot } from '../../production-audio/loudness-history-session.ts';
 import type { RestorationWorkflow } from '../../production-audio/restoration-workflow.ts';
@@ -18,6 +18,7 @@ import {
 	resolveSoundscaperProductionCopy,
 	type SoundscaperProductionCopy,
 } from '../soundscaper-production-copy.ts';
+import { useSoundscaperProductionDialogOperation } from '../soundscaper-production-dialog-operation.ts';
 import type {
 	MasteringSequenceCommandPayloads,
 	MasteringSequenceCommandType,
@@ -120,13 +121,6 @@ export default function SoundscaperProductionDialog({
 	onClose,
 }: SoundscaperProductionDialogProps) {
 	const copy = useMemo(() => resolveSoundscaperProductionCopy(hostCopy), [hostCopy]);
-	const projectIdentity = soundscaperProductionProjectIdentity(snapshot.project);
-	const currentProjectIdentityRef = useRef(projectIdentity);
-	const activeOperationRef = useRef<object | null>(null);
-	if (currentProjectIdentityRef.current !== projectIdentity) {
-		currentProjectIdentityRef.current = projectIdentity;
-		activeOperationRef.current = null;
-	}
 	const [surface, setSurface] = useState<SoundscaperProductionSurface>(initialSurface);
 	const [laneId, setLaneId] = useState<string | null>(snapshot.selectedLaneId ?? null);
 	const [mode, setMode] = useState<SoundscaperAutomationMode>(automationMode);
@@ -150,20 +144,19 @@ export default function SoundscaperProductionDialog({
 	const [utilityGain, setUtilityGain] = useState(1);
 	const [automationValue, setAutomationValue] = useState(() => laneDocumentValue(model.selectedLaneText));
 	const [automationGestureActive, setAutomationGestureActive] = useState(false);
-	const [pending, setPending] = useState<string | null>(null);
-	const [status, setStatus] = useState('');
-	const [error, setError] = useState('');
+	const {
+		disabled, pending, status, error, clearFeedback, perform,
+	} = useSoundscaperProductionDialogOperation({
+		project: snapshot.project,
+		blocked: model.operationsBlocked,
+		success: copy.operationComplete,
+		execute: (operation: SoundscaperProductionDialogOperation) => actions.execute(operation),
+		run,
+		onProjectChange: () => { setAutomationGestureActive(false); },
+	});
 	const noiseProfileReady = snapshot.noiseProfileReady === true;
 	const enabledNoiseReduction = noiseProfileReady && noiseReduction;
 
-	useEffect(() => {
-		activeOperationRef.current = null;
-		setPending(null);
-		setStatus('');
-		setError('');
-		setAutomationGestureActive(false);
-		return () => { activeOperationRef.current = null; };
-	}, [projectIdentity]);
 	useEffect(() => {
 		if (model.surface && model.surface !== surface) setSurface(model.surface);
 	}, [model.surface, surface]);
@@ -176,44 +169,9 @@ export default function SoundscaperProductionDialog({
 	}, [automationGestureActive, model.selectedLaneText]);
 	useEffect(() => { setMixerDraft(model.mixerGraphText); }, [model.mixerGraphText]);
 
-	const disabled = model.operationsBlocked || pending !== null;
-	const perform = (
-		name: string,
-		operation: () => SoundscaperProductionDialogOperation,
-		onSuccess?: () => void,
-		onSettled?: () => void,
-	): void => {
-		if (disabled || activeOperationRef.current !== null) return;
-		const ownership = Object.freeze({ projectIdentity });
-		const ownsOperation = (): boolean => activeOperationRef.current === ownership
-			&& currentProjectIdentityRef.current === projectIdentity;
-		activeOperationRef.current = ownership;
-		setPending(name);
-		setError('');
-		void Promise.resolve()
-			.then(() => ownsOperation()
-				? run(() => ownsOperation() ? actions.execute(operation()) : undefined)
-				: undefined)
-			.then(() => {
-				if (!ownsOperation()) return;
-				onSuccess?.();
-				setStatus(copy.operationComplete);
-			})
-			.catch((operationError: unknown) => {
-				if (!ownsOperation()) return;
-				setError(operationError instanceof Error ? operationError.message : String(operationError));
-			})
-			.finally(() => {
-				if (!ownsOperation()) return;
-				activeOperationRef.current = null;
-				onSettled?.();
-				setPending(null);
-			});
-	};
 	const selectSurface = (next: SoundscaperProductionSurface): void => {
 		setSurface(next);
-		setStatus('');
-		setError('');
+		clearFeedback();
 	};
 	const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>): void => {
 		const index = model.surfaces.indexOf(surface);
@@ -357,12 +315,6 @@ export default function SoundscaperProductionDialog({
 			</div>
 		</div>
 	</AudioEditorDialogShell>;
-}
-
-function soundscaperProductionProjectIdentity(project: unknown): unknown {
-	if (project === null || typeof project !== 'object' || Array.isArray(project)) return null;
-	const id = (project as Readonly<Record<string, unknown>>).id;
-	return typeof id === 'string' ? id : project;
 }
 
 function RestorationEditor({
