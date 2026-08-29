@@ -347,12 +347,13 @@ function serializeTimed(labels, context, format) {
 		if (context.includeCueIdentifiers) lines.push(String(format === 'srt' ? index + 1 : label.opaqueExtensions?.cueIdentifier || index + 1));
 		lines.push(`${formatTimestamp(label.startFrame, context.sampleRate, format)} --> ${formatTimestamp(label.endFrame, context.sampleRate, format)}`);
 		// Timed-text cues need a payload line distinct from their blank block
-		// separator. Preserve an unnamed label as visually empty with the same
-		// single-space placeholder used by the maintained caption exporter.
-		const titleLines = label.title.length === 0
-			? [' ']
-			: label.title.replace(/\r\n?/g, '\n').split('\n');
-		lines.push(...titleLines, '');
+		// separator, so a blank line anywhere in a title would end the cue early
+		// and split the label in two. Drop blank, leading and trailing cue lines
+		// and fall back to the single-space placeholder exactly as the maintained
+		// caption exporter does, which keeps an unnamed label visually empty.
+		const titleLines = label.title.replace(/\r\n?/g, '\n').split('\n')
+			.filter((line) => line.trim().length > 0);
+		lines.push(...(titleLines.length ? titleLines : [' ']), '');
 	});
 	let text = lines.join(context.lineEnding);
 	if (format === 'vtt' && labels.length === 0) text += context.lineEnding;

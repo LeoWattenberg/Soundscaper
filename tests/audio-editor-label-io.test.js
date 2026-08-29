@@ -165,6 +165,27 @@ test('timed serialization gives an unnamed label a distinct cue payload line', (
 	assert.deepEqual(parseWebVttLabels(vtt).labels.map(({ title }) => title), ['', 'Second']);
 });
 
+test('timed serialization keeps a blank title line out of the cue block separator', () => {
+	// A blank line ends a cue, so a title that contains one used to split its own
+	// label in two and produce a file this parser - and every other subtitle
+	// reader - rejects. The maintained caption exporter drops blank, leading and
+	// trailing cue lines rather than emitting them, and labels follow it.
+	const labels = [
+		{ id: 'gapped', title: '\nFirst\n\n   \nThird\n', startFrame: 0, endFrame: 1_000 },
+		{ id: 'named', title: 'Second', startFrame: 2_000, endFrame: 3_000 },
+	];
+	const srt = serializeSubRipLabels(labels, { sampleRate: 1_000 });
+	const vtt = serializeWebVttLabels(labels, { sampleRate: 1_000 });
+
+	assert.equal(srt, '1\n00:00:00,000 --> 00:00:01,000\nFirst\nThird\n\n2\n00:00:02,000 --> 00:00:03,000\nSecond\n');
+	assert.equal(vtt, 'WEBVTT\n\n1\n00:00:00.000 --> 00:00:01.000\nFirst\nThird\n\n2\n00:00:02.000 --> 00:00:03.000\nSecond\n');
+	for (const [text, parse] of [[srt, parseSubRipLabels], [vtt, parseWebVttLabels]]) {
+		const parsed = parse(text, { sampleRate: 1_000 }).labels;
+		assert.deepEqual(parsed.map(({ title }) => title), ['First\nThird', 'Second']);
+		assert.deepEqual(parsed.map(({ startFrame, endFrame }) => [startFrame, endFrame]), [[0, 1_000], [2_000, 3_000]]);
+	}
+});
+
 test('WebVTT import supports cue identifiers, settings, hourless timestamps, and metadata blocks', () => {
 	const input = [
 		'WEBVTT Kind: captions',
