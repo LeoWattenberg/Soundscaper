@@ -74,6 +74,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	let suspended = false;
 	let scheduledProjectId: string | null = null;
 	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
+	const projectSaveEpochs = new Map<string, number>();
 
 	return Object.freeze({
 		scheduleAutosave,
@@ -83,6 +84,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		resume: () => { suspended = false; },
 		suspendProject,
 		resumeProject,
+		retireProjectSaves,
 		cancelScheduled,
 		drain: () => state.saveQueue,
 		get pendingSnapshots(): ReadonlySet<Project> {
@@ -102,13 +104,14 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		state.saveGeneration += 1;
 		const generation = state.saveGeneration;
 		const snapshot = dependencies.cloneProject(project);
+		const projectSaveEpoch = currentProjectSaveEpoch(project.id);
 		state.saveState = 'saving';
 		dependencies.publish();
 		scheduledProjectId = project.id;
 		state.autosaveTimer = scheduleTimer(() => {
 			state.autosaveTimer = 0;
 			scheduledProjectId = null;
-			void enqueueSaveSnapshot(snapshot, generation).catch(() => undefined);
+			void enqueueSaveSnapshot(snapshot, generation, projectSaveEpoch).catch(() => undefined);
 		}, autosaveDelayMs);
 		return true;
 	}
@@ -149,6 +152,18 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		return true;
 	}
 
+	/** Retire captured snapshots while the caller holds project-scoped save suspension. */
+	function retireProjectSaves(projectId: string): void {
+		if (typeof projectId !== 'string' || !projectId) {
+			throw new TypeError('Retiring project saves requires a project ID.');
+		}
+		if (!suspendedProjects.has(projectId)) {
+			throw new Error('Project save admission must be suspended before retirement.');
+		}
+		projectSaveEpochs.set(projectId, currentProjectSaveEpoch(projectId) + 1);
+		if (scheduledProjectId === projectId) cancelScheduled();
+	}
+
 	function flushProject(options: ProjectFlushOptions = {}): Promise<unknown> | undefined {
 		return flushCurrentProject(false, options.forceCurrentSnapshot === true);
 	}
@@ -181,21 +196,41 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		cancelScheduled();
 		if (!project) return undefined;
 		const generation = state.saveGeneration;
-		return enqueueSaveSnapshot(dependencies.cloneProject(project), generation);
+		return enqueueSaveSnapshot(
+			dependencies.cloneProject(project),
+			generation,
+			currentProjectSaveEpoch(project.id),
+		);
 	}
 
-	function enqueueSaveSnapshot(snapshot: Project, generation: number): Promise<unknown> {
+	function enqueueSaveSnapshot(
+		snapshot: Project,
+		generation: number,
+		projectSaveEpoch: number,
+	): Promise<unknown> {
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation));
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch));
 		state.saveQueue = operation;
 		return operation;
 	}
 
-	async function saveSnapshot(snapshotValue: Project, generation: number): Promise<void> {
-		const snapshot = dependencies.prepareSnapshot
-			? await dependencies.prepareSnapshot(snapshotValue)
-			: snapshotValue;
+	async function saveSnapshot(
+		snapshotValue: Project,
+		generation: number,
+		projectSaveEpoch: number,
+	): Promise<void> {
+		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
+		let snapshot: Project;
+		try {
+			snapshot = dependencies.prepareSnapshot
+				? await dependencies.prepareSnapshot(snapshotValue)
+				: snapshotValue;
+		} catch (error) {
+			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
+			throw error;
+		}
+		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
 		if (!snapshot || snapshot.id !== snapshotValue.id) {
 			throw new Error('Project save preparation changed the project identity.');
 		}
@@ -209,15 +244,25 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 				}) ?? undefined
 				: undefined;
 			await dependencies.saveProject(snapshot, {
-				admitProjectPublication: dependencies.admitProjectPublication,
+				admitProjectPublication: async (bytes) => {
+					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) {
+						throw new DOMException('The project save was retired.', 'AbortError');
+					}
+					await dependencies.admitProjectPublication(bytes);
+					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) {
+						throw new DOMException('The project save was retired.', 'AbortError');
+					}
+				},
 				...(protectedLinkedOriginalSourceReferences
 					? { protectedLinkedOriginalSourceReferences }
 					: {}),
 			});
 			state.pendingSaveSnapshots.delete(snapshot);
+			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
 			if (dependencies.isCurrentProject(snapshot.id)) {
 				await dependencies.persistActiveProjectId(snapshot.id);
 			}
+			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
 			if (dependencies.isCurrentProject(snapshot.id) && generation === state.saveGeneration) {
 				if (dependencies.hasSessionTab(snapshot.id)) dependencies.markProjectSaved(snapshot.id);
 				state.saveState = 'saved';
@@ -226,6 +271,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			await dependencies.garbageCollect();
 			await dependencies.refreshStorageUsage();
 		} catch (error) {
+			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
 			state.saveState = 'dirty';
 			dependencies.publish();
 			dependencies.handleError(error);
@@ -233,5 +279,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		} finally {
 			state.pendingSaveSnapshots.delete(snapshot);
 		}
+	}
+
+	function currentProjectSaveEpoch(projectId: string): number {
+		return projectSaveEpochs.get(projectId) ?? 0;
+	}
+
+	function ownsProjectSaveEpoch(projectId: string, epoch: number): boolean {
+		return currentProjectSaveEpoch(projectId) === epoch;
 	}
 }

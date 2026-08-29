@@ -50,6 +50,7 @@ export function createFixture() {
 	const calls: string[] = [];
 	let stopRecording = async () => { calls.push('stop-recording'); };
 	let saveSuspended = false;
+	const suspendedProjectSaves = new Set<string>();
 	let saveAdmissions = 0;
 	let projectGeneration = 1;
 	let activeGenerationProjectId: string | null = 'project-a';
@@ -101,12 +102,17 @@ export function createFixture() {
 			return Promise.resolve();
 		},
 		pendingSnapshots: [{ id: 'pending' }],
+		retireProjectSaves: (projectId: string) => { calls.push(`retire-save:${projectId}`); },
 		resume: () => {
 			calls.push('resume-save');
 			saveSuspended = false;
 		},
+		resumeProject: (projectId: string) => {
+			calls.push(`resume-project-save:${projectId}`);
+			return suspendedProjectSaves.delete(projectId);
+		},
 		scheduleAutosave: () => {
-			if (saveSuspended) return false;
+			if (saveSuspended || (project && suspendedProjectSaves.has(project.id))) return false;
 			saveAdmissions += 1;
 			calls.push('autosave-admitted');
 			return true;
@@ -115,6 +121,10 @@ export function createFixture() {
 			calls.push('suspend-save');
 			saveSuspended = true;
 			calls.push('cancel-save');
+		},
+		suspendProject: (projectId: string) => {
+			calls.push(`suspend-project-save:${projectId}`);
+			suspendedProjectSaves.add(projectId);
 		},
 	};
 	const sessionController = {

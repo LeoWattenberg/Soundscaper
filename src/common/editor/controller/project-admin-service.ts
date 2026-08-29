@@ -142,33 +142,45 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		interlock: Readonly<FramescaperCaptureAdminInterlockLease> | undefined,
 	) {
 		const active = project?.id === projectId;
-		if (active) {
-			const tabs = sessionController.getSnapshot().tabs;
-			const index = tabs.findIndex((candidate: any) => candidate.projectId === projectId);
-			if (index < 0) throw new Error(copy.projectNotFound);
-			const nextTab = tabs[index + 1] ?? tabs[index - 1] ?? null;
-			if (nextTab) {
-				await switchProject(nextTab.history.present, {
-					skipFlush: closeOptions.discard === true,
-				});
-			} else await newProject({ skipFlush: closeOptions.discard === true });
-		} else if (tab.dirty && closeOptions.discard !== true && !tab.readOnly) {
-			await store.saveProject(tab.history.present, {
-				protectedLinkedOriginalSourceReferences: Object.freeze([
-					...liveSessionLinkedOriginalSourceReferences(),
-				]),
-			});
-			sessionController.markProjectSaved(projectId);
+		const discard = closeOptions.discard === true;
+		let projectSaveSuspended = false;
+		if (discard) {
+			projectSaveService.suspendProject(projectId);
+			projectSaveSuspended = true;
 		}
-		interlock?.assertCurrent();
-		const result = sessionController.closeProject(projectId, { force: true });
-		if (!result.closed) return result;
-		if (active) state.projects = Object.freeze(await store.listProjects());
-		clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
-		evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
-		publishDocumentSnapshot();
-		await garbageCollectSources();
-		return result;
+		try {
+			if (discard) {
+				projectSaveService.retireProjectSaves(projectId);
+				await projectSaveService.drain();
+			}
+			if (active) {
+				const tabs = sessionController.getSnapshot().tabs;
+				const index = tabs.findIndex((candidate: any) => candidate.projectId === projectId);
+				if (index < 0) throw new Error(copy.projectNotFound);
+				const nextTab = tabs[index + 1] ?? tabs[index - 1] ?? null;
+				if (nextTab) {
+					await switchProject(nextTab.history.present, { skipFlush: discard });
+				} else await newProject({ skipFlush: discard });
+			} else if (tab.dirty && !discard && !tab.readOnly) {
+				await store.saveProject(tab.history.present, {
+					protectedLinkedOriginalSourceReferences: Object.freeze([
+						...liveSessionLinkedOriginalSourceReferences(),
+					]),
+				});
+				sessionController.markProjectSaved(projectId);
+			}
+			interlock?.assertCurrent();
+			const result = sessionController.closeProject(projectId, { force: true });
+			if (!result.closed) return result;
+			if (active) state.projects = Object.freeze(await store.listProjects());
+			clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
+			evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
+			publishDocumentSnapshot();
+			await garbageCollectSources();
+			return result;
+		} finally {
+			if (projectSaveSuspended) projectSaveService.resumeProject(projectId);
+		}
 	}
 
 	async function renameProject(requestedTitle: any) {

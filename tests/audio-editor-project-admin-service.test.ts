@@ -182,6 +182,103 @@ test('handoff preparation failure retains the shared project lock', async () => 
 	assert.deepEqual(fixture.handoffCalls, ['prepare']);
 });
 
+test('discarding an active tab retires an admitted autosave before activating its successor', async () => {
+	const fixture = createAdminFixture();
+	const origin = fixture.project();
+	assert.ok(origin);
+	const successor: Project = { id: 'project-b', title: 'Project B', revision: 1 };
+	fixture.tabs.get(origin.id)!.dirty = true;
+	fixture.tabs.set(successor.id, {
+		projectId: successor.id,
+		dirty: false,
+		readOnly: false,
+		history: { present: successor },
+	});
+	const timers = new Map<number, () => void>();
+	const admissionStarted = deferred();
+	const admissionGate = deferred();
+	const staleFailure = new Error('stale project post-publication failure');
+	const publications: Project[] = [];
+	const errors: unknown[] = [];
+	const events: string[] = [];
+	let nextTimer = 1;
+	let project: Project | null = origin;
+	const saveState = {
+		autosaveTimer: 0,
+		saveGeneration: 0,
+		pendingSaveSnapshots: new Set<Project>(),
+		saveQueue: Promise.resolve<unknown>(undefined),
+		saveState: 'saved',
+	};
+	const projectSaveService = createProjectSaveService<Project>({
+		state: saveState,
+		getProject: () => project,
+		hasHistory: () => project !== null,
+		hasUnsavedProjectChanges: () => Boolean(project && fixture.tabs.get(project.id)?.dirty),
+		isReadOnly: () => false,
+		cloneProject: structuredClone,
+		async admitProjectPublication() {
+			events.push('admission:start');
+			admissionStarted.resolve();
+			await admissionGate.promise;
+			events.push('admission:released');
+		},
+		async saveProject(snapshot, options) {
+			await options.admitProjectPublication(1);
+			publications.push(snapshot);
+			events.push(`publication:${snapshot.id}`);
+			throw staleFailure;
+		},
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: (projectId) => project?.id === projectId,
+		hasSessionTab: (projectId) => fixture.tabs.has(projectId),
+		markProjectSaved: (projectId) => { fixture.tabs.get(projectId)!.dirty = false; },
+		publish: () => undefined,
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: (error) => { errors.push(error); },
+		scheduleTimer(callback) {
+			const handle = nextTimer++;
+			timers.set(handle, callback);
+			return handle;
+		},
+		clearTimer: (handle) => { timers.delete(handle); },
+	});
+	const runtime: ProjectAdminServiceRuntime = {
+		...fixture.runtime,
+		getProject: () => project,
+		setProject: (value: Project | null) => { project = value; },
+		projectSaveService,
+		async switchProject(value: Project, options: Readonly<{ skipFlush?: boolean }> = {}) {
+			assert.equal(options.skipFlush, true);
+			events.push(`switch:${value.id}`);
+			project = value;
+			saveState.saveState = 'saved';
+		},
+	};
+
+	assert.equal(projectSaveService.scheduleAutosave(), true);
+	const callback = timers.get(saveState.autosaveTimer);
+	assert.ok(callback);
+	timers.delete(saveState.autosaveTimer);
+	callback();
+	await admissionStarted.promise;
+	const closing = createProjectAdminService(runtime).closeProjectTab(origin.id, { discard: true });
+	try {
+		admissionGate.resolve();
+		await closing;
+		await projectSaveService.drain();
+		assert.deepEqual(publications, []);
+		assert.deepEqual(errors, []);
+		assert.equal(saveState.saveState, 'saved');
+		assert.ok(events.indexOf('admission:released') < events.indexOf(`switch:${successor.id}`));
+		assert.equal(project?.id, successor.id);
+	} finally {
+		admissionGate.resolve();
+		await Promise.allSettled([closing, projectSaveService.drain()]);
+	}
+});
+
 test('local reset closes save admission synchronously and drains an admitted autosave before clearing storage', async () => {
 	const fixture = createAdminFixture();
 	const origin = fixture.project();
