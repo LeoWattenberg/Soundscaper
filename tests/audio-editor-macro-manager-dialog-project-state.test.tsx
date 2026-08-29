@@ -1,0 +1,262 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import React, { act, useState } from 'react';
+
+import AudioEditorMacroManagerDialog from '../src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx';
+import { createEffect } from '../src/common/editor/effects.js';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import {
+	installReactTestDom, reactProps, type ReactTestElement,
+} from './helpers/react-test-dom.ts';
+
+test('a project switch retires an in-flight macro run before the next project can run', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button(ENGLISH_COPY.runMacro));
+		assert.equal(fixture.runs.length, 1);
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
+
+		await fixture.render(macroSnapshot('project-b'));
+		assert.equal(
+			fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'),
+			false,
+			'project A must not retain project B\'s run admission',
+		);
+		await click(fixture.button(ENGLISH_COPY.runMacro));
+		assert.deepEqual(fixture.runs.map(({ projectId }) => projectId), ['project-a', 'project-b']);
+
+		await act(async () => {
+			fixture.runs[0]!.settlement.reject(new Error('project A was replaced'));
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
+		assert.equal(fixture.message(), ENGLISH_COPY.macroProcessing);
+
+		await act(async () => {
+			fixture.runs[1]!.settlement.resolve(true);
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), false);
+		assert.equal(fixture.message(), ENGLISH_COPY.macroApplied);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('a macro import started for a replaced project cannot overwrite the surviving draft', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	const importedText = deferred<string>();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await changeFile(fixture.importInput(), {
+			name: 'project-a-chain.txt',
+			size: 42,
+			text: () => importedText.promise,
+		} as File);
+
+		await fixture.render(macroSnapshot('project-b'));
+		await changeText(fixture.nameInput(), 'Project B chain');
+		await act(async () => {
+			importedText.resolve('Echo:Delay="0.4" Decay="0.5"\n');
+			await importedText.promise;
+			await Promise.resolve();
+		});
+
+		assert.equal(fixture.nameInput().value, 'Project B chain');
+		assert.deepEqual(fixture.effectNames(), ['Invert']);
+		assert.equal(fixture.message(), '');
+	} finally {
+		importedText.resolve('Invert:\n');
+		await fixture.cleanup();
+	}
+});
+
+test('a stale macro export cannot replace the current project completion message', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button(ENGLISH_COPY.exportMacro));
+		assert.equal(fixture.exports.length, 1);
+
+		await fixture.render(macroSnapshot('project-b'));
+		await click(fixture.button(ENGLISH_COPY.exportMacro));
+		assert.equal(fixture.exports.length, 2);
+		await act(async () => {
+			fixture.exports[1]!.settlement.resolve({ cancelled: false });
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(fixture.message(), ENGLISH_COPY.macroExported);
+
+		await act(async () => {
+			fixture.exports[0]!.settlement.reject(new Error('project A destination failed'));
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(fixture.message(), ENGLISH_COPY.macroExported);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+type MacroProject = ReturnType<typeof macroProject>;
+
+async function mountedMacroManagerFixture() {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	Object.assign(globalThis.window, {
+		getComputedStyle: () => ({ display: '', visibility: '' }),
+	});
+	let currentProject: MacroProject | null = null;
+	const runs: Array<Readonly<{
+		readonly projectId: string | null;
+		readonly settlement: ReturnType<typeof deferred<true>>;
+	}>> = [];
+	const exports: Array<Readonly<{
+		readonly projectId: string | null;
+		readonly settlement: ReturnType<typeof deferred<Readonly<{ cancelled: boolean }>>>;
+	}>> = [];
+	const controller = {
+		get project() { return currentProject; },
+		actions: {
+			macros: {
+				run: () => {
+					const settlement = deferred<true>();
+					runs.push({ projectId: currentProject?.id ?? null, settlement });
+					return settlement.promise;
+				},
+			},
+		},
+	};
+	const fileService = {
+		saveFile: () => {
+			const settlement = deferred<Readonly<{ cancelled: boolean }>>();
+			exports.push({ projectId: currentProject?.id ?? null, settlement });
+			return settlement.promise;
+		},
+	};
+	function Host({ snapshot }: Readonly<{ snapshot: ReturnType<typeof macroSnapshot> }>) {
+		const [draft, setDraft] = useState(() => ({
+			name: 'Portable chain',
+			effects: [createEffect('audacity-invert', { id: 'macro-effect-1' })],
+		}));
+		return <AudioEditorMacroManagerDialog
+			isOpen
+			controller={controller}
+			snapshot={snapshot}
+			copy={ENGLISH_COPY}
+			locale="en"
+			fileService={fileService}
+			draft={draft}
+			onDraftChange={setDraft}
+			onClose={() => undefined}
+		/>;
+	}
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	return {
+		runs,
+		exports,
+		button: (label: string) => buttonByLabel(dom.container, label),
+		effectNames: () => dom.container.querySelectorAll('.effect-slot__name-text').map(({ textContent }) => textContent),
+		importInput: () => dom.one('[data-macro-import-file]'),
+		message: () => dom.find('[role="status"]')?.textContent
+			?? dom.find('[role="alert"]')?.textContent
+			?? '',
+		nameInput: () => {
+			const input = dom.container.querySelectorAll('label').find((label) => (
+				label.textContent.includes(ENGLISH_COPY.macroName)
+			))?.querySelector('input');
+			assert.ok(input, 'Missing macro name input.');
+			return input;
+		},
+		render: async (snapshot: ReturnType<typeof macroSnapshot>) => {
+			currentProject = snapshot.project;
+			await act(async () => root.render(<Host snapshot={snapshot} />));
+		},
+		settlePending: () => {
+			for (const run of runs) run.settlement.resolve(true);
+			for (const exported of exports) exported.settlement.resolve({ cancelled: true });
+		},
+		cleanup: async () => {
+			await act(async () => root.unmount());
+			actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+			if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+			else Reflect.deleteProperty(globalThis, 'React');
+			dom.restore();
+		},
+	};
+}
+
+function macroSnapshot(id: string) {
+	return {
+		project: macroProject(id),
+		selection: { startFrame: 0, endFrame: 480 },
+		selectedClipId: null,
+		selectedTrackId: `${id}-track`,
+	};
+}
+
+function macroProject(id: string) {
+	return {
+		id,
+		revision: 1,
+		sampleRate: 48_000,
+		tracks: [{ id: `${id}-track`, type: 'audio' }],
+	};
+}
+
+async function click(button: ReactTestElement): Promise<void> {
+	await act(async () => {
+		void reactProps(button).onClick({});
+		await Promise.resolve();
+	});
+}
+
+async function changeFile(input: ReactTestElement, file: File): Promise<void> {
+	await act(async () => {
+		void reactProps(input).onChange({ currentTarget: { files: [file], value: file.name } });
+		await Promise.resolve();
+	});
+}
+
+async function changeText(input: ReactTestElement, value: string): Promise<void> {
+	await act(async () => {
+		void reactProps(input).onChange({ target: { value }, currentTarget: { value } });
+		await Promise.resolve();
+	});
+}
+
+function buttonByLabel(root: ReactTestElement, label: string): ReactTestElement {
+	const button = root.querySelectorAll('button').find((candidate) => (
+		candidate.getAttribute('aria-label') === label || candidate.textContent.endsWith(label)
+	));
+	assert.ok(button, `Missing button ${label}.`);
+	return button;
+}
+
+function deferred<Value>(): Readonly<{
+	readonly promise: Promise<Value>;
+	readonly resolve: (value: Value) => void;
+	readonly reject: (cause: unknown) => void;
+}> {
+	let resolve!: (value: Value) => void;
+	let reject!: (cause: unknown) => void;
+	const promise = new Promise<Value>((accept, decline) => {
+		resolve = accept;
+		reject = decline;
+	});
+	return Object.freeze({ promise, resolve, reject });
+}

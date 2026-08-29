@@ -31,6 +31,7 @@ export function AudioEditorMacroManagerDialog({
 	onClose,
 }) {
 	const project = snapshot.project;
+	const projectIdentity = project?.id ?? null;
 	const effects = draft?.effects || EMPTY_EFFECTS;
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
@@ -42,7 +43,16 @@ export function AudioEditorMacroManagerDialog({
 	const [isRunning, setIsRunning] = useState(false);
 	const fileInputRef = useRef(null);
 	const macroStackRef = useRef(null);
-	const runningRef = useRef(false);
+	const mountedRef = useRef(false);
+	const operationSessionRef = useRef(null);
+	const activeImportRef = useRef(null);
+	const activeExportRef = useRef(null);
+	const runningRef = useRef(null);
+	const stateProjectIdentityRef = useRef(projectIdentity);
+	if (operationSessionRef.current?.projectIdentity !== projectIdentity
+		|| operationSessionRef.current?.isOpen !== isOpen) {
+		operationSessionRef.current = { projectIdentity, isOpen };
+	}
 	const selectedEffect = effects.find((effect) => effect.id === selectedEffectId) || null;
 	const macroTabGroup = useContainerTabGroup({
 		containerRef: macroStackRef,
@@ -58,12 +68,37 @@ export function AudioEditorMacroManagerDialog({
 	}, [selectedEffect, selectedEffectId]);
 
 	useEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+			activeImportRef.current = null;
+			activeExportRef.current = null;
+			runningRef.current = null;
+		};
+	}, []);
+
+	useEffect(() => {
 		if (!isOpen) {
+			activeImportRef.current = null;
+			activeExportRef.current = null;
+			runningRef.current = null;
 			setPicker(null);
 			setSelectedEffectId(null);
 			setMessage('');
+			setIsRunning(false);
 		}
 	}, [isOpen]);
+
+	useLayoutEffect(() => {
+		if (stateProjectIdentityRef.current === projectIdentity) return;
+		stateProjectIdentityRef.current = projectIdentity;
+		activeImportRef.current = null;
+		activeExportRef.current = null;
+		runningRef.current = null;
+		setMessage('');
+		setMessageState('info');
+		setIsRunning(false);
+	}, [projectIdentity]);
 
 	useLayoutEffect(() => {
 		if (isOpen && !selectedEffect && !picker) initMacroTabIndices();
@@ -81,6 +116,16 @@ export function AudioEditorMacroManagerDialog({
 		setMessage(value);
 		setMessageState(state);
 	};
+	const startOperation = (activeRef) => {
+		const operation = { session: operationSessionRef.current };
+		activeRef.current = operation;
+		return operation;
+	};
+	const ownsOperation = (activeRef, operation) => mountedRef.current
+		&& activeRef.current === operation
+		&& operationSessionRef.current === operation.session
+		&& operation.session?.isOpen === true
+		&& (controller.project?.id ?? null) === operation.session.projectIdentity;
 	const updateEffect = (effectId, changes) => setEffects((current) => current.map((effect) => {
 		if (effect.id !== effectId) return effect;
 		const type = changes.type || effect.type;
@@ -118,21 +163,28 @@ export function AudioEditorMacroManagerDialog({
 	};
 	const importMacro = async (file) => {
 		if (!file) return;
+		const operation = startOperation(activeImportRef);
 		try {
 			if (file.size > MAX_MACRO_IMPORT_BYTES) {
 				throw new RangeError('File exceeds the 1 MiB macro import limit.');
 			}
 			const parsed = parseAudacityEffectMacro(await file.text());
-			setDraft((current) => ({
-				...current,
-				name: file.name.replace(/\.txt$/i, '') || copy.untitledMacro,
-				effects: [...parsed.effects],
-			}));
+			if (!ownsOperation(activeImportRef, operation)) return;
+			setDraft((current) => {
+				if (!ownsOperation(activeImportRef, operation)) return current;
+				return {
+					...current,
+					name: file.name.replace(/\.txt$/i, '') || copy.untitledMacro,
+					effects: [...parsed.effects],
+				};
+			});
+			if (!ownsOperation(activeImportRef, operation)) return;
 			const warning = parsed.ignoredCommands.length
 				? ` ${copy.macroUnsupportedCommands.replace('{commands}', parsed.ignoredCommands.join(', '))}`
 				: '';
 			showMessage(`${copy.macroImported}${warning}`, parsed.ignoredCommands.length ? 'warning' : 'success');
 		} catch (cause) {
+			if (!ownsOperation(activeImportRef, operation)) return;
 			const detail = cause instanceof Error ? cause.message : String(cause);
 			showMessage(/no supported effects/i.test(detail)
 				? copy.macroImportEmpty
@@ -140,19 +192,22 @@ export function AudioEditorMacroManagerDialog({
 		}
 	};
 	const exportMacro = async () => {
+		const operation = startOperation(activeExportRef);
 		try {
 			const encoded = serializeAudacityEffectMacro(effects);
 			const saved = await downloadTextFile(encoded, `${macroFileName(draft?.name || copy.untitledMacro)}.txt`, fileService, 'macro');
+			if (!ownsOperation(activeExportRef, operation)) return;
 			if (saved?.cancelled) return;
 			showMessage(copy.macroExported, 'success');
 		} catch (cause) {
+			if (!ownsOperation(activeExportRef, operation)) return;
 			const detail = cause instanceof Error ? cause.message : String(cause);
 			showMessage(copy.macroExportFailed.replace('{message}', detail), 'error');
 		}
 	};
 	const runMacro = async () => {
 		if (runningRef.current) return;
-		runningRef.current = true;
+		const operation = startOperation(runningRef);
 		setIsRunning(true);
 		showMessage(copy.macroProcessing);
 		try {
@@ -160,13 +215,17 @@ export function AudioEditorMacroManagerDialog({
 				name: draft?.name || copy.untitledMacro,
 				effects,
 			});
+			if (!ownsOperation(runningRef, operation)) return;
 			if (applied) showMessage(copy.macroApplied, 'success');
 		} catch (cause) {
+			if (!ownsOperation(runningRef, operation)) return;
 			const detail = cause instanceof Error ? cause.message : String(cause);
 			showMessage(copy.macroRunFailed.replace('{message}', detail), 'error');
 		} finally {
-			runningRef.current = false;
-			setIsRunning(false);
+			if (ownsOperation(runningRef, operation)) {
+				runningRef.current = null;
+				setIsRunning(false);
+			}
 		}
 	};
 
