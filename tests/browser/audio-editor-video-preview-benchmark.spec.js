@@ -1,12 +1,20 @@
 import { createHash } from 'node:crypto';
 
+import { createVideoEffect } from '../../src/common/editor/video-effects.js';
+import { FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE } from '../../src/framescaper/editor-domain-runtime-profile.ts';
+import {
+	reconcileFramescaperProjectFeatureRequirementsAssistance,
+} from '../../src/framescaper/editor-project-feature-requirements-assistance.ts';
+import { validateFramescaperProject } from '../../src/framescaper/editor-project.ts';
 import { expect, test } from './helpers/nightly-packaged-electron.js';
 
 import {
 	createVideoPreviewBenchmarkFixture,
 	videoPreviewBenchmarkMedia,
 } from './fixtures/video-preview-benchmark-media.js';
+import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
+import { waitForPreviewFrameSample } from './helpers/preview-frame-sampling.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WARMUP_TRIAL_COUNT = 1;
@@ -14,20 +22,23 @@ const MEASURED_TRIAL_COUNT = 5;
 const MEASURED_FRAMES_PER_TRIAL = 121;
 const MEASURED_INTERVALS_PER_TRIAL = MEASURED_FRAMES_PER_TRIAL - 1;
 const FORCED_COLLECTIONS_PER_SNAPSHOT = 3;
-const EFFECT_LABELS = Object.freeze([
-	'Color Adjust',
-	'Pixelate',
-	'Vignette',
-	'Gaussian Blur',
-	'Sharpen',
-	'RGB Split',
-	'Chroma Key',
-	'Luma Key',
-	'Spill Suppression',
-	'Glow',
-	'Outline',
-	'Drop Shadow',
+const EFFECT_TYPES = Object.freeze([
+	'color-adjust',
+	'pixelate',
+	'vignette',
+	'gaussian-blur',
+	'sharpen',
+	'rgb-split',
+	'chroma-key',
+	'luma-key',
+	'spill-suppression',
+	'glow',
+	'outline',
+	'drop-shadow',
 ]);
+const EFFECT_STACK = Object.freeze(EFFECT_TYPES.map((type, index) => createVideoEffect(type, {
+	id: `m1-video-effect-${String(index + 1)}`,
+})));
 
 test('benchmarks the complete 720p video preview effect stack', async ({ runtimeBrowser, runtimeBaseURL }) => {
 	test.skip(
@@ -75,7 +86,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 		fixture: {
 			width: videoPreviewBenchmarkMedia.display.width,
 			height: videoPreviewBenchmarkMedia.display.height,
-			effectCount: EFFECT_LABELS.length,
+			effectCount: EFFECT_TYPES.length,
 			measuredIntervals: MEASURED_INTERVALS_PER_TRIAL,
 			sourceFrameRate: videoPreviewBenchmarkMedia.frameRate,
 			sourceFrameCount: videoPreviewBenchmarkMedia.frameCount,
@@ -121,9 +132,13 @@ async function runPreviewTrial({ runtimeBrowser, runtimeBaseURL, fixture, measur
 		const page = await context.newPage();
 		await installBenchmarkRoutes(page);
 		await page.goto(new URL('/framescaper/de/', runtimeBaseURL).href);
-		const editor = await bootVideoEditor(page);
+		let editor = await bootVideoEditor(page);
 		await importTimelineFiles(editor, [fixture]);
-		const canvas = await configureEffectStack(page, editor);
+		await seedPreviewBenchmarkEffectStack(page, editor, EFFECT_STACK);
+		await page.reload();
+		editor = await bootVideoEditor(page);
+		await enablePreviewBenchmarkLoop(editor);
+		const canvas = await configurePreviewViewport(editor);
 		const renderer = await previewRenderer(canvas);
 		const cdp = measured ? await context.newCDPSession(page) : null;
 		if (cdp !== null) await cdp.send('HeapProfiler.enable');
@@ -134,18 +149,20 @@ async function runPreviewTrial({ runtimeBrowser, runtimeBaseURL, fixture, measur
 			globalThis.__soundscaperPreviewFrameTimes.length = 0;
 			globalThis.__soundscaperMeasurePreviewFrames = true;
 		});
-		await editor.locator('[data-transport="play"] .kw-audio-editor__split-button-main button')
-			.evaluate((button) => button.click());
-		await expect.poll(
-			() => canvas.evaluate(() => globalThis.__soundscaperPreviewFrameTimes.length),
-			{ timeout: 240_000 },
-		).toBeGreaterThanOrEqual(MEASURED_FRAMES_PER_TRIAL);
-		const frameTimestampsMs = await canvas.evaluate((_element, frameCount) => {
-			globalThis.__soundscaperMeasurePreviewFrames = false;
-			const timestamps = globalThis.__soundscaperPreviewFrameTimes.slice(0, frameCount);
-			globalThis.__soundscaperPreviewFrameTimes.length = 0;
-			return timestamps;
-		}, MEASURED_FRAMES_PER_TRIAL);
+		const play = await startPreviewBenchmarkPlayback(editor);
+		const playElement = await play.elementHandle();
+		if (!playElement) throw new Error('The preview benchmark transport control is unavailable.');
+		let frameTimestampsMs;
+		try {
+			frameTimestampsMs = await canvas.evaluate(waitForPreviewFrameSample, {
+				transportButton: playElement,
+				frameCount: MEASURED_FRAMES_PER_TRIAL,
+				pollIntervalMs: 100,
+				stallTimeoutMs: 10_000,
+			});
+		} finally {
+			await playElement.dispose();
+		}
 		await editor.locator('[data-transport="stop"] button').evaluate((button) => button.click());
 		if (cdp === null) return Object.freeze({ renderer });
 		const heapAfter = await usedHeapAfterCollections(cdp, FORCED_COLLECTIONS_PER_SNAPSHOT);
@@ -161,6 +178,24 @@ async function runPreviewTrial({ runtimeBrowser, runtimeBaseURL, fixture, measur
 	} finally {
 		await context.close();
 	}
+}
+
+async function enablePreviewBenchmarkLoop(editor) {
+	const loop = editor.locator('.kw-audio-editor__transport-state button');
+	await expect(loop, 'one full-stack preview loop control').toHaveCount(1);
+	if (await loop.getAttribute('aria-pressed') !== 'true') await loop.click();
+	await expect(loop).toHaveAttribute('aria-pressed', 'true');
+}
+
+async function startPreviewBenchmarkPlayback(editor) {
+	const play = editor.locator(
+		'[data-transport="play"] .kw-audio-editor__split-button-main button',
+	);
+	if (await play.getAttribute('aria-pressed') !== 'true') {
+		await play.evaluate((button) => button.click());
+	}
+	await expect(play).toHaveAttribute('aria-pressed', 'true');
+	return play;
 }
 
 async function installBenchmarkRoutes(page) {
@@ -217,26 +252,7 @@ async function bootVideoEditor(page) {
 	return editor;
 }
 
-async function configureEffectStack(page, editor) {
-	const videoClip = editor.locator('[data-clip-kind="video"]').first();
-	await videoClip.click({ button: 'right' });
-	const clipMenu = page.locator('.audio-editor-clip-context-menu');
-	await expect(clipMenu).toBeVisible();
-	await clipMenu.locator('[data-action-id="clip-properties"]').click();
-	const dialog = page.locator('[data-clip-properties-dialog]');
-	await expect(dialog).toBeVisible();
-	const rack = dialog.locator('[data-video-effect-rack]');
-	const picker = rack.locator('[data-video-effect-picker]');
-	const addEffect = rack.locator('[data-video-effect-add] button');
-	for (let index = 0; index < EFFECT_LABELS.length; index += 1) {
-		await picker.getByRole('button').click();
-		await page.locator('[role="option"]:visible').nth(index).click();
-		await addEffect.click();
-		await expect(rack.locator('[data-video-effect-id]')).toHaveCount(index + 1);
-	}
-	await page.keyboard.press('Escape');
-	await expect(dialog).toBeHidden();
-
+async function configurePreviewViewport(editor) {
 	const preview = editor.locator('[data-video-preview]');
 	const canvas = preview.locator('[data-video-preview-canvas]');
 	await preview.evaluate((element) => {
@@ -248,10 +264,65 @@ async function configureEffectStack(page, editor) {
 		element.style.zIndex = '9999';
 		element.style.pointerEvents = 'none';
 	});
-	await expect(preview).toHaveAttribute('data-active-video-effect-count', String(EFFECT_LABELS.length));
+	await expect(preview).toHaveAttribute('data-active-video-effect-count', String(EFFECT_TYPES.length));
 	await expect(preview).toHaveAttribute('data-video-preview-renderer', 'ready', { timeout: 30_000 });
-	await expect.poll(() => canvas.evaluate((element) => [element.width, element.height])).toEqual([1_280, 720]);
+	await expect.poll(
+		() => canvas.evaluate((element) => [element.width, element.height]),
+		{ timeout: 30_000 },
+	).toEqual([1_280, 720]);
 	return canvas;
+}
+
+async function seedPreviewBenchmarkEffectStack(page, editor, effects) {
+	const projectId = await editor.getAttribute('data-project-id');
+	if (!projectId) throw new Error('The preview benchmark project identity is unavailable.');
+	const project = await page.evaluate(async ({ databaseName, id }) => {
+		const request = (value) => new Promise((resolve, reject) => {
+			value.onsuccess = () => resolve(value.result);
+			value.onerror = () => reject(value.error);
+		});
+		const database = await request(indexedDB.open(databaseName));
+		try {
+			return await request(
+				database.transaction('projects', 'readonly').objectStore('projects').get(id),
+			);
+		} finally {
+			database.close();
+		}
+	}, {
+		databaseName: FRAMESCAPER_DATABASE_NAME,
+		id: projectId,
+	});
+	if (!project) throw new Error(`Preview benchmark project ${projectId} was not found.`);
+	const clip = project.clips?.find((candidate) => candidate.kind === 'video');
+	if (!clip) throw new Error(`Preview benchmark project ${projectId} has no video clip.`);
+	clip.videoEffects = structuredClone(effects);
+	project.revision += 1;
+	project.updatedAt = new Date().toISOString();
+	project.featureRequirements = reconcileFramescaperProjectFeatureRequirementsAssistance(
+		FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE,
+		project,
+	);
+	validateFramescaperProject(FRAMESCAPER_ASSISTANCE_PROJECT_RUNTIME_PROFILE, project);
+	await page.evaluate(async ({ databaseName, document }) => {
+		const request = (value) => new Promise((resolve, reject) => {
+			value.onsuccess = () => resolve(value.result);
+			value.onerror = () => reject(value.error);
+		});
+		const database = await request(indexedDB.open(databaseName));
+		try {
+			const transaction = database.transaction('projects', 'readwrite');
+			const completion = new Promise((resolve, reject) => {
+				transaction.oncomplete = resolve;
+				transaction.onerror = () => reject(transaction.error);
+				transaction.onabort = () => reject(transaction.error);
+			});
+			transaction.objectStore('projects').put(document);
+			await completion;
+		} finally {
+			database.close();
+		}
+	}, { databaseName: FRAMESCAPER_DATABASE_NAME, document: project });
 }
 
 async function previewRenderer(canvas) {
@@ -281,6 +352,7 @@ async function importTimelineFiles(editor, files) {
 	}
 	await editor.locator('[data-import-input]').setInputFiles(files);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
 }
 
 function nearestRankP95(samples) {

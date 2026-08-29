@@ -37,6 +37,7 @@ import {
 	shouldHideVideoPreviewIdentityFallback,
 } from './video-preview-fallback.ts';
 import { publishEvaluatedVideoPreviewFrame } from './video-preview-external-display.ts';
+import { shouldRenderExactProductVideoPreview } from './video-preview-exact-render-policy.ts';
 import { bindFramescaperPreviewFreezeCapture } from './video-preview-freeze-capture.ts';
 import { resolveRegisteredVideoRetimePreview } from './video-preview-retime.ts';
 import {
@@ -307,7 +308,7 @@ export default function VideoPreviewPanel({ controller, snapshot, copy, run }) {
 		try {
 			const visualSession = visualSessionRef.current;
 			const productFrame = visualSession?.resolve(timelineFrame) ?? null;
-			if (visualSession?.renderExact) {
+			if (shouldRenderExactProductVideoPreview(visualSession, playhead.transportState)) {
 				if (exactRenderActiveRef.current) return;
 				exactRenderActiveRef.current = true;
 				void visualSession.renderExact({

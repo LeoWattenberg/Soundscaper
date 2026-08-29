@@ -47,8 +47,22 @@ test('the preview benchmark uses fresh-context trials without synchronously drai
 	assert.match(source, /runtimeBrowser\.newContext\(/u);
 	assert.match(source, /trialIndex < MEASURED_TRIAL_COUNT/u);
 	assert.match(source, /usedHeapAfterCollections\([^,]+, FORCED_COLLECTIONS_PER_SNAPSHOT\)/u);
-	assert.match(source, /canvas\.evaluate\(\(_element, frameCount\) =>/u);
+	assert.match(source, /canvas\.evaluate\(waitForPreviewFrameSample/u);
 	assert.doesNotMatch(source, /\.finish\s*\(/u);
+});
+
+test('the preview benchmark loops its pinned source and fails fast with partial sampling evidence', () => {
+	const source = readFileSync(
+		new URL('browser/audio-editor-video-preview-benchmark.spec.js', import.meta.url),
+		'utf8',
+	);
+
+	assert.match(source, /enablePreviewBenchmarkLoop\(editor\)/u);
+	assert.match(source, /seedPreviewBenchmarkEffectStack\(page, editor/u);
+	assert.match(source, /page\.reload\(\)/u);
+	assert.match(source, /configurePreviewViewport\(editor\)[\s\S]*startPreviewBenchmarkPlayback/u);
+	assert.match(source, /waitForPreviewFrameSample/u);
+	assert.doesNotMatch(source, /timeout:\s*240_000/u);
 });
 
 test('the quality-budget fixture registration pins the shipped benchmark media', () => {

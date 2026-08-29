@@ -17,6 +17,10 @@ import {
 import { TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import { deterministicAvMedia } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import {
+	armInteractionToAttributeLatencyProbe,
+	readInteractionToAttributeLatencyProbe,
+} from './helpers/interaction-to-attribute-latency.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
@@ -311,11 +315,15 @@ async function persistedPositionChecks(page, expectedPositions) {
 
 async function seekOnTimeline(page, timeline, ruler, playhead, checkpointSample) {
 	if (checkpointSample === 0) {
-		const startedAt = await page.evaluate(() => performance.now());
 		await playhead.focus();
-		await page.keyboard.press('Home');
-		await expect(playhead).toHaveAttribute('aria-valuenow', '0');
-		const elapsedMs = await page.evaluate((start) => performance.now() - start, startedAt);
+		const elapsedMs = await measureInteractionToPlayheadState({
+			page,
+			actionTarget: playhead,
+			playhead,
+			eventType: 'keydown',
+			expectedValue: '0',
+			action: () => page.keyboard.press('Home'),
+		});
 		return { checkpointSample, observedAudioSample: 0, observedVideoFrame: 0, elapsedMs };
 	}
 	const clickX = await timeline.evaluate((element, options) => new Promise((resolve) => {
@@ -331,10 +339,17 @@ async function seekOnTimeline(page, timeline, ruler, playhead, checkpointSample)
 		pixelsPerSecond: PIXELS_PER_SECOND,
 		contentOffset: CLIP_CONTENT_OFFSET,
 	});
-	const startedAt = await page.evaluate(() => performance.now());
-	await ruler.click({ position: { x: clickX, y: 28 } });
-	await expect(playhead).toHaveAttribute('aria-valuenow', String(checkpointSample));
-	const elapsedMs = await page.evaluate((start) => performance.now() - start, startedAt);
+	const expectedValue = String(checkpointSample);
+	const elapsedMs = await measureInteractionToPlayheadState({
+		page,
+		actionTarget: ruler,
+		playhead,
+		// The timeline commits this click from a window-capture pointerup handler;
+		// arm at interaction onset so the renderer clock always precedes that commit.
+		eventType: 'pointerdown',
+		expectedValue,
+		action: () => ruler.click({ position: { x: clickX, y: 28 } }),
+	});
 	const observedAudioSample = Number(await playhead.getAttribute('aria-valuenow'));
 	return {
 		checkpointSample,
@@ -342,6 +357,43 @@ async function seekOnTimeline(page, timeline, ruler, playhead, checkpointSample)
 		observedVideoFrame: observedAudioSample / VIDEO_FRAME_SAMPLES,
 		elapsedMs,
 	};
+}
+
+async function measureInteractionToPlayheadState({
+	page,
+	actionTarget,
+	playhead,
+	eventType,
+	expectedValue,
+	action,
+}) {
+	const actionElement = await actionTarget.elementHandle();
+	const playheadElement = await playhead.elementHandle();
+	if (!actionElement || !playheadElement) {
+		await actionElement?.dispose();
+		await playheadElement?.dispose();
+		throw new Error('The long-form seek latency targets are unavailable.');
+	}
+	try {
+		const probeId = await page.evaluate(armInteractionToAttributeLatencyProbe, {
+			actionTarget: actionElement,
+			observedTarget: playheadElement,
+			eventType,
+			attributeName: 'aria-valuenow',
+			expectedValue,
+		});
+		await action();
+		const elapsedMs = await page.evaluate(readInteractionToAttributeLatencyProbe, {
+			observedTarget: playheadElement,
+			probeId,
+			timeoutMs: 5_000,
+		});
+		await expect(playhead).toHaveAttribute('aria-valuenow', expectedValue);
+		return elapsedMs;
+	} finally {
+		await actionElement.dispose();
+		await playheadElement.dispose();
+	}
 }
 
 async function measureTimelineScrollFrames(timeline, sampleCount) {
