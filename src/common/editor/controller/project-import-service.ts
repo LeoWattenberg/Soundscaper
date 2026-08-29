@@ -327,6 +327,14 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function importFile(file: RuntimeValue, importOptions: RuntimeValue = normalizeImportOptions()) {
+		const startingProjectId = getProject()?.id ?? null;
+		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
+		const startingProjectToken = hasProjectToken ? captureProject() : null;
+		const assertImportProjectCurrent = () => {
+			try { if (hasProjectToken) assertProject(startingProjectToken); }
+			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
+			if ((getProject()?.id ?? null) !== startingProjectId) throw new Error('The project changed during audio import.');
+		};
 		const normalizedImportOptions = await normalizedImportOptionsForUse(importOptions);
 		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(normalizedImportOptions);
 		const legacyFile = isLegacyAupFile(file);
@@ -348,32 +356,39 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		if (linkedOriginalLocator?.kind === 'audio') {
 			return importLinkedAudio(file, normalizedImportOptions, linkedOriginalLocator);
 		}
+		assertImportProjectCurrent();
 		validateImportTimelineTrack(normalizedImportOptions);
 		const wavSignature = await inspectWavContainerSignature(file, isWavFile);
+		assertImportProjectCurrent();
 		const wavDescriptor: RuntimeValue = await inspectWavForImport(
 			file, isWavFile, inspectWavBlobPcm, wavSignature,
 		);
+		assertImportProjectCurrent();
 		if (wavDescriptor) admitAudioImportChannelCount(wavDescriptor.channelCount);
 		const wavMetadata = prepareWavImportMetadata(wavDescriptor, normalizedImportOptions);
 		const requireChunkStream = Boolean(wavDescriptor
 			&& isAudioEditorEngineSupported?.() === false);
 		if (wavSignature === 'RF64' || wavSignature === 'BW64') {
 			if (!wavDescriptor) throw new Error(`The ${wavSignature} WAV file could not be inspected incrementally.`);
-			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata,
+				{ requireChunkStream }, { assertCurrent: assertImportProjectCurrent });
 		}
 		const desktopPcmDescriptor = await inspectDesktopStandalonePcm(file, ffmpeg, wavDescriptor);
+		assertImportProjectCurrent();
 		if (desktopPcmDescriptor) {
 			const pcmMetadata = desktopPcmDescriptor === wavDescriptor
 				? wavMetadata
 				: prepareWavImportMetadata(desktopPcmDescriptor, normalizedImportOptions);
 			return importIncrementalPcm(file, desktopPcmDescriptor, pcmMetadata.importOptions, pcmMetadata, {
 				requireChunkStream: true,
-			});
+			}, { assertCurrent: assertImportProjectCurrent });
 		}
 		if (requireChunkStream || isIncrementalWav(wavDescriptor)) {
-			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata, { requireChunkStream });
+			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata,
+				{ requireChunkStream }, { assertCurrent: assertImportProjectCurrent });
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
+		assertImportProjectCurrent();
 		const { context, decoded, originalSampleRate } = await decodeStandaloneAudioForImport({
 			file, codecRuntime: ffmpeg, sampleRate: projectSampleRate(),
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
@@ -384,10 +399,12 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			),
 			inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
 		});
+		assertImportProjectCurrent();
 		const canonical = await canonicalizeBuffer(decoded, context, null, copy);
+		assertImportProjectCurrent();
 		await preflightStorage(canonical.length * canonical.numberOfChannels * Float32Array.BYTES_PER_ELEMENT, 'import');
-		const sourceId = createStableId('source');
-		const clipId = createStableId('clip');
+		assertImportProjectCurrent();
+		const sourceId = createStableId('source'), clipId = createStableId('clip');
 		const trackName = stripExtension(file.name) || `${copy.track} ${getProject().tracks.length + 1}`;
 		const sourceName = file.name;
 		const mimeType = file.type || 'audio/wav';
@@ -399,52 +416,59 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			chunkFrames: SOURCE_CHUNK_FRAMES,
 		}), SOURCE_CHUNK_FRAMES);
 		let contentIdentity: ImportedAudioContentIdentity;
+		let importedResult: RuntimeValue;
 		try {
+			assertImportProjectCurrent();
 			await writeBuffer(writer, canonical);
+			assertImportProjectCurrent();
 			await writer.commit({ sampleRate: canonical.sampleRate, channelCount: canonical.numberOfChannels });
+			assertImportProjectCurrent();
 			contentIdentity = writer.contentIdentity(canonical.length);
 		} catch (error) {
 			return rollbackImportedAudioContentIdentityWriter(
 				writer, () => store.deleteSource(sourceId), error,
 			);
 		}
-
-		const prepared = prepareImportedMediaCommand({
-			sampleFormat: 'float32',
-			chunkFrames: SOURCE_CHUNK_FRAMES,
-			id: sourceId,
-			storageKey: sourceId,
-			name: sourceName,
-			mimeType,
-			frameCount: canonical.length,
-			channelCount: canonical.numberOfChannels,
-			sampleRate: canonical.sampleRate,
-			originalSampleRate: originalSampleRate || decoded.sampleRate,
-			contentSha256: contentIdentity.contentSha256,
-			byteLength: contentIdentity.byteLength,
-			...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
-				...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
-				...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
-				...(wavMetadata.sourceCart ? { cart: wavMetadata.sourceCart } : {}),
-				...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
-			} } : {}),
-		}, {
-			title: trackName,
-			sourceDurationFrames: canonical.length,
-			id: clipId,
-			sourceId,
-			timelineStartFrame: 0,
-			sourceStartFrame: 0,
+		try {
+			assertImportProjectCurrent();
+			const prepared = prepareImportedMediaCommand({
+				sampleFormat: 'float32',
+				chunkFrames: SOURCE_CHUNK_FRAMES,
+				id: sourceId,
+				storageKey: sourceId,
+				name: sourceName,
+				mimeType,
+				frameCount: canonical.length,
+				channelCount: canonical.numberOfChannels,
+				sampleRate: canonical.sampleRate,
+				originalSampleRate: originalSampleRate || decoded.sampleRate,
+				contentSha256: contentIdentity.contentSha256,
+				byteLength: contentIdentity.byteLength,
+				...((wavMetadata.sourceBext || wavMetadata.sourceIxml || wavMetadata.sourceCart || wavMetadata.sourceAdm) ? { opaqueExtensions: {
+					...(wavMetadata.sourceBext ? { bext: wavMetadata.sourceBext } : {}),
+					...(wavMetadata.sourceIxml ? { ixml: wavMetadata.sourceIxml } : {}),
+					...(wavMetadata.sourceCart ? { cart: wavMetadata.sourceCart } : {}),
+					...(wavMetadata.sourceAdm ? { adm: wavMetadata.sourceAdm } : {}),
+				} } : {}),
+			}, {
+				title: trackName,
+				sourceDurationFrames: canonical.length,
+				id: clipId,
+				sourceId,
+				timelineStartFrame: 0,
+				sourceStartFrame: 0,
 				durationFrames: Math.max(1, scaleSampleFrame(
 					canonical.length, canonical.sampleRate, projectSampleRate(), 'point',
 				)),
-		}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, wavDescriptor);
-		cacheSourceBuffer(sourceId, canonical);
-		try {
+			}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, wavDescriptor);
+			cacheSourceBuffer(sourceId, canonical);
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
+			assertImportProjectCurrent();
 			sourcePeaks.set(sourceId, peaks);
 			await store.saveAnalysis(peakCacheKey(sourceId), peaks);
+			assertImportProjectCurrent();
 			commit(prepared.command, prepared.selection);
+			importedResult = prepared.result;
 		} catch (error) {
 			sourceBuffers.delete(sourceId);
 			sourcePeaks.delete(sourceId);
@@ -452,19 +476,17 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			throw error;
 		}
 		warnEnvelope();
-		return importResultWithWarnings(prepared.result, wavMetadata.warnings);
+		return importResultWithWarnings(importedResult, wavMetadata.warnings);
 	}
 
 	function isIncrementalWav(descriptor: RuntimeValue) {
 		return Boolean(descriptor
 			&& sourcePcmBytes(descriptor) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES);
 	}
-
 	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
 		return prepareImportedWavMetadata({ descriptor, importOptions, project: getProject(),
 			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
 	}
-
 	function importResultWithWarnings(result: RuntimeValue, warnings: readonly RuntimeValue[]) {
 		if (!warnings.length) return result;
 		const messages = [...new Set(warnings.map((warning) => {

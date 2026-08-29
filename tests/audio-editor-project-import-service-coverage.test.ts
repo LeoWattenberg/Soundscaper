@@ -26,6 +26,12 @@ function file(name: string, type = 'audio/wav', size = 16): TestFile {
 	return { ...value, slice: () => value };
 }
 
+function deferred<Value>() {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((accept) => { resolve = accept; });
+	return { promise, resolve };
+}
+
 function bextMetadata(timeReference = '0') {
 	return Object.freeze({
 		description: 'Location recording',
@@ -66,7 +72,10 @@ function createFixture() {
 		ffmpegFails: false,
 		writerFails: false,
 		peakFails: false,
+		decodeGate: null as Promise<void> | null,
+		peakGate: null as Promise<void> | null,
 		activateFails: false,
+		activationGate: null as Promise<void> | null,
 		inspectThrows: false,
 		incrementalDescriptor: null as null | {
 			channelCount: number;
@@ -95,6 +104,7 @@ function createFixture() {
 		tracks: [{ id: 'target', type: 'audio' }, { id: 'after', type: 'audio' }],
 		sources: [],
 	};
+	let projectGeneration = 0;
 	let nextId = 0;
 	const sourceBuffers = new Map<string, unknown>();
 	const sourceChunkProviders = new Map<string, unknown>();
@@ -135,6 +145,7 @@ function createFixture() {
 		SOURCE_CHUNK_FRAMES: 65_536,
 		activateStoredSource: async (source: { id: string }) => {
 			calls.push(`activate:${source.id}`);
+			if (options.activationGate) await options.activationGate;
 			if (options.activateFails) throw new Error('activate failed');
 			sourceChunkProviders.set(source.id, {});
 		},
@@ -190,6 +201,8 @@ function createFixture() {
 		engine: {
 			getAudioContext: async () => ({}),
 			decodeAudioData: async () => {
+				calls.push('decode-started');
+				if (options.decodeGate) await options.decodeGate;
 				if (options.decodeFails) throw new Error('native decode failed');
 				return audio;
 			},
@@ -205,6 +218,8 @@ function createFixture() {
 		),
 		formatLegacyAupWarning: (warning: string) => warning === 'ignored' ? '' : `Warning: ${warning}.`,
 		generateWaveformPeaks: async () => {
+			calls.push('peaks-started');
+			if (options.peakGate) await options.peakGate;
 			if (options.peakFails) throw new Error('peaks failed');
 			return { levels: [] };
 		},
@@ -226,6 +241,10 @@ function createFixture() {
 		peakCacheKey: (sourceId: string) => `peaks:${sourceId}`,
 		preflightStorage: async (bytes: number, purpose: string) => { calls.push(`preflight:${purpose}:${bytes}`); },
 		getProject: () => currentProject,
+		captureProject: () => projectGeneration,
+		assertProject: (generation: number) => {
+			if (generation !== projectGeneration) throw new Error('stale project generation');
+		},
 		projectSampleRate: () => 48_000,
 		publishDocumentSnapshot: () => { calls.push('publish'); },
 		retireSourceChunkProvider: (sourceId: string) => { sourceChunkProviders.delete(sourceId); },
@@ -250,6 +269,7 @@ function createFixture() {
 		switchProject: async (project: Record<string, unknown>) => {
 			calls.push(`switch:${String(project.id)}`);
 			currentProject = project;
+			projectGeneration += 1;
 		},
 		warnEnvelope: () => { calls.push('warn-envelope'); },
 		writeBuffer: async (target: ReturnType<typeof writer>) => { await target.write(audio.channels); },
@@ -261,7 +281,10 @@ function createFixture() {
 		options,
 		placements,
 		runtime,
-		setProject: (value: Record<string, unknown>) => { currentProject = value; },
+		setProject: (value: Record<string, unknown>) => {
+			currentProject = value;
+			projectGeneration += 1;
+		},
 		sourceBuffers,
 		sourceChunkProviders,
 		sourcePeaks,
@@ -287,6 +310,36 @@ test('audio imports support existing tracks, project-bin placement, and decoder 
 	assert.equal(bin.destination, 'project-bin');
 	assert.equal(bin.trackId, null);
 	assert.equal(fixture.calls.filter((entry) => entry === 'warn-envelope').length, 2);
+});
+
+test('decoded audio imports cannot cross projects while decoding or after persistence', async () => {
+	const decoding = createFixture();
+	const decodeGate = deferred<void>();
+	decoding.options.decodeGate = decodeGate.promise;
+	const decodeOperation = createProjectImportService(decoding.runtime).importFile(
+		file('deferred.mp3', 'audio/mpeg'),
+	);
+	while (!decoding.calls.includes('decode-started')) await Promise.resolve();
+	decoding.setProject({ id: 'replacement', tracks: [], sources: [] });
+	decodeGate.resolve();
+	await assert.rejects(decodeOperation, /project changed during audio import/iu);
+	assert.equal(decoding.commands.length, 0);
+	assert.deepEqual(decoding.deletedSources, []);
+
+	const persisted = createFixture();
+	const peakGate = deferred<void>();
+	persisted.options.peakGate = peakGate.promise;
+	const persistedOperation = createProjectImportService(persisted.runtime).importFile(
+		file('persisted.mp3', 'audio/mpeg'),
+	);
+	while (!persisted.calls.includes('peaks-started')) await Promise.resolve();
+	persisted.setProject({ id: 'replacement', tracks: [], sources: [] });
+	peakGate.resolve();
+	await assert.rejects(persistedOperation, /project changed during audio import/iu);
+	assert.equal(persisted.commands.length, 0);
+	assert.deepEqual(persisted.deletedSources, ['source-1']);
+	assert.equal(persisted.sourceBuffers.size, 0);
+	assert.equal(persisted.sourcePeaks.size, 0);
 });
 
 test('audio imports create indexed tracks and clean persisted data after analysis failure', async () => {
@@ -327,6 +380,24 @@ test('incremental WAV imports stream PCM and roll back activation failures', asy
 	fixture.options.writerFails = true;
 	await assert.rejects(() => service.importFile(file('stream-write.wav')), /write failed/u);
 	assert.equal(fixture.calls.includes('writer-abort'), true);
+});
+
+test('incremental PCM imports cannot cross projects after persistence', async () => {
+	const fixture = createFixture();
+	fixture.options.incrementalDescriptor = {
+		channelCount: 2, frameCount: 64, sampleRate: 48_000, pcmBytes: 512,
+	};
+	const activationGate = deferred<void>();
+	fixture.options.activationGate = activationGate.promise;
+	const operation = createProjectImportService(fixture.runtime).importFile(file('large.wav'));
+	while (!fixture.calls.includes('activate:source-1')) await Promise.resolve();
+	fixture.setProject({ id: 'replacement', tracks: [], sources: [] });
+	activationGate.resolve();
+
+	await assert.rejects(operation, /project changed during audio import/iu);
+	assert.equal(fixture.commands.length, 0);
+	assert.deepEqual(fixture.deletedSources, ['source-1']);
+	assert.equal(fixture.sourceChunkProviders.size, 0);
 });
 
 test('small, multichannel, invalid, and unsliceable WAVs use the regular decoder path', async () => {
