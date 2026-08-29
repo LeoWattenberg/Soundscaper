@@ -43,6 +43,14 @@ const APPIMAGE_COMPATIBILITY_LIBRARY_AUTHORITY = Object.freeze({
 	}),
 	'linux-arm64': Object.freeze({}),
 });
+// electron-builder 26.15.6 copies this helper from its SHA-256-pinned
+// nsis-3.0.4.1 toolset after afterPack has sealed the application resources.
+// It is package machinery, not application content, so authenticate it before
+// excluding it from the normalized NSIS-installed closure.
+const NSIS_ELEVATE_HELPER_AUTHORITY = Object.freeze({
+	byteLength: 107_520,
+	sha256: '9b1fbf0c11c520ae714af8aa9af12cfd48503eedecd7398d8992ee94d1b4dc37',
+});
 const APPIMAGE_ICON_SIZES = Object.freeze([16, 24, 32, 48, 64, 128, 256, 512]);
 const MAXIMUM_WRAPPER_FILE_BYTES = 64 * 1024 * 1024;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
@@ -99,8 +107,26 @@ export async function validateDesktopPackageInstalledLayout({
 }
 
 export async function validateDesktopPackageSpecificResources({
+	nsisElevateHelperAuthority = NSIS_ELEVATE_HELPER_AUTHORITY,
 	packageFormat, productId, resourcesRoot, targetId,
 }) {
+	if (packageFormat === '.exe') {
+		desktopProductName(productId);
+		if (!targetId.startsWith('win-')) {
+			throw new Error('Only Windows NSIS packages may carry the elevate helper.');
+		}
+		const authority = authenticatedFileAuthority(
+			nsisElevateHelperAuthority, 'NSIS elevate helper',
+		);
+		const bytes = await directRegularBytes(
+			resourcesRoot, 'elevate.exe', 1024 * 1024, null, 'NSIS elevate helper',
+		);
+		if (bytes.byteLength !== authority.byteLength || digest(bytes) !== authority.sha256) {
+			throw new Error('The Windows package does not contain the pinned NSIS elevate helper.');
+		}
+		assertPe32ElevateHelper(bytes);
+		return ['elevate.exe'];
+	}
 	if (packageFormat !== '.deb') return [];
 	if (!targetId.startsWith('linux-')) {
 		throw new Error('Only Linux Debian packages may carry AppArmor package metadata.');
@@ -258,9 +284,12 @@ async function directRegularBytes(root, name, maximum, expectedMode, label) {
 	const path = resolve(root, name);
 	if (dirname(path) !== root) throw new Error(`The ${label} path is invalid.`);
 	const before = await lstat(path);
+	const wrongMode = expectedMode !== null && (before.mode & 0o777) !== expectedMode;
 	if (!before.isFile() || before.isSymbolicLink() || before.size < 1 || before.size > maximum
-		|| (before.mode & 0o777) !== expectedMode) {
-		throw new Error(`The ${label} is not an admitted regular file with mode 0644.`);
+		|| wrongMode) {
+		throw new Error(expectedMode === null
+			? `The ${label} is not an admitted regular file.`
+			: `The ${label} is not an admitted regular file with mode 0644.`);
 	}
 	let handle;
 	try {
@@ -274,6 +303,25 @@ async function directRegularBytes(root, name, maximum, expectedMode, label) {
 		return await handle.readFile();
 	} finally {
 		await handle?.close();
+	}
+}
+
+function authenticatedFileAuthority(value, label) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| !Number.isSafeInteger(value.byteLength) || value.byteLength < 1
+		|| typeof value.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(value.sha256)) {
+		throw new TypeError(`The ${label} authority is invalid.`);
+	}
+	return value;
+}
+
+function assertPe32ElevateHelper(bytes) {
+	const peOffset = bytes.length >= 0x40 ? bytes.readUInt32LE(0x3c) : -1;
+	if (bytes.length < 0x40 || bytes.subarray(0, 2).toString('ascii') !== 'MZ'
+		|| peOffset < 0x40 || peOffset > bytes.length - 6
+		|| bytes.subarray(peOffset, peOffset + 4).toString('ascii') !== 'PE\0\0'
+		|| bytes.readUInt16LE(peOffset + 4) !== 0x014c) {
+		throw new Error('The NSIS elevate helper is not the expected 32-bit x86 PE executable.');
 	}
 }
 

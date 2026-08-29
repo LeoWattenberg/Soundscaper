@@ -21,16 +21,22 @@ test('desktop packaging replaces Electron proprietary codecs with its alternate 
 	assert.equal(configuration.downloadAlternateFFmpeg, true);
 });
 
-test('macOS packaging preserves the authenticated pre-signed OS codec addon bytes', () => {
+test('macOS packaging preserves every authenticated pre-signed native runtime payload', () => {
 	const configuration = require('../electron-builder.config.cjs');
 	assert.equal(typeof configuration.mac.signIgnore, 'string');
 	const ignored = new RegExp(configuration.mac.signIgnore, 'u');
-	assert.equal(ignored.test(
+	for (const path of [
 		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec.node',
-	), true);
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libonnxruntime.dylib',
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libsherpa-onnx-c-api.dylib',
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libsherpa-onnx-cxx-api.dylib',
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/sherpa-onnx.node',
+	]) assert.equal(ignored.test(path), true, path);
 	for (const path of [
 		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/other.node',
 		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/mac-arm64/addon.node',
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/other.node',
+		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-node/sherpa-onnx.js',
 		'/tmp/Soundscaper.app/Contents/Frameworks/Electron Framework.framework/Electron Framework',
 	]) assert.equal(ignored.test(path), false, path);
 });

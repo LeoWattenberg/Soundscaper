@@ -1,3 +1,5 @@
+const assistanceNativeRuntimeManifest = require('./config/assistance-native-runtime-manifest.json');
+
 const framescaper = process.env.SCAPE_PRODUCT === 'framescaper';
 const productName = framescaper ? 'Framescaper' : 'Soundscaper';
 // The signing chain is enacted but identity-gated: with no acquired signing
@@ -11,10 +13,22 @@ const macSigned = macSigningIdentity !== '-';
 const macEntitlements = framescaper
 	? 'desktop/framescaper-entitlements.mac.plist'
 	: 'desktop/soundscaper-entitlements.mac.plist';
-// The codec-only addon is signed and verified before its digest enters the
-// stage manifest. Re-signing it here would change those authenticated bytes.
-const macPreSignedOsCodecAddon =
-	'/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec\\.node$';
+// These Mach-O payloads already carry signatures when their exact digests
+// enter the stage manifest. Re-signing them here would change authenticated
+// runtime bytes and make both package and runtime verification reject them.
+const macAssistancePackage = assistanceNativeRuntimeManifest.targets['mac-arm64'].package;
+const macAssistanceNativeFiles = Object.keys(macAssistancePackage.files)
+	.filter((name) => name.endsWith('.dylib') || name.endsWith('.node'))
+	.map(regexEscape)
+	.join('|');
+const macPreAuthenticatedRuntimePayload = [
+	'/Contents/Resources/runtime/(?:',
+	'native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec\\.node',
+	'|',
+	`${regexEscape(assistanceNativeRuntimeManifest.runtimePrefix)}/node_modules/`,
+	`${regexEscape(macAssistancePackage.name)}/(?:${macAssistanceNativeFiles})`,
+	')$',
+].join('');
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
@@ -95,7 +109,7 @@ module.exports = {
 		hardenedRuntime: macSigned,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
-		signIgnore: macPreSignedOsCodecAddon,
+		signIgnore: macPreAuthenticatedRuntimePayload,
 		notarize: macSigned && process.env.SOUNDSCAPER_MAC_NOTARIZE === 'true',
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
@@ -131,3 +145,7 @@ module.exports = {
 	},
 	publish: null,
 };
+
+function regexEscape(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}

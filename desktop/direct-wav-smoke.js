@@ -28,10 +28,10 @@ export const DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY = '__scapeDirectWavSmokeStage';
 // fully green matrix lost its last job. Three times the measured cost still
 // fires long before the job's own hour.
 export const DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS = 30 * 60 * 1000;
-export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_751_798;
+export const DIRECT_AIFF_SMOKE_FILE_BYTES = 202_752_054;
 export const DIRECT_BW64_SMOKE_FILE_BYTES = 202_755_508;
-export const DIRECT_BWF_SMOKE_FILE_BYTES = 202_752_510;
-export const DIRECT_WAV_SMOKE_FILE_BYTES = 202_751_788;
+export const DIRECT_BWF_SMOKE_FILE_BYTES = 202_752_766;
+export const DIRECT_WAV_SMOKE_FILE_BYTES = 202_752_044;
 
 const SMOKE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_MODE_PREFIX = '--soundscaper-smoke-mode=';

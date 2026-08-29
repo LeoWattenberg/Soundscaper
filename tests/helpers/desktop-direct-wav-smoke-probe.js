@@ -28,9 +28,9 @@ export function validDesktopDirectWavNativeEvidence({
 } = {}) {
 	return {
 		selectionPurposes: [...selectionPurposes],
-		completedBytes: 202_751_788,
-		completedAiffBytes: 202_751_798,
-		completedBwfBytes: 202_752_510,
+		completedBytes: 202_752_044,
+		completedAiffBytes: 202_752_054,
+		completedBwfBytes: 202_752_766,
 		completedBw64Bytes: 202_755_508,
 		aiffChoiceValidated: true,
 		bwfChoiceValidated: true,

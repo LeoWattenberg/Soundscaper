@@ -13,9 +13,9 @@ export const DESKTOP_DIRECT_WAV_SMOKE_FIXTURE = Object.freeze({
 		sampleRate: 384_000,
 		channelCount: 16,
 		bitDepth: 16,
-		frameCount: 6_335_992,
-		dataBytes: 202_751_744,
-		byteLength: 202_751_788,
+		frameCount: 6_336_000,
+		dataBytes: 202_752_000,
+		byteLength: 202_752_044,
 	}),
 });
 

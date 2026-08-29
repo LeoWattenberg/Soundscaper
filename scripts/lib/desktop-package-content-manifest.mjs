@@ -101,6 +101,7 @@ export async function auditExtractedDesktopPackageContent({
 		extraction, packageFormat, resourcesRoot, productId, targetId,
 	});
 	const packageResourceExclusions = await validateDesktopPackageSpecificResources({
+		nsisElevateHelperAuthority: dependencies.nsisElevateHelperAuthority,
 		packageFormat, productId, resourcesRoot, targetId,
 	});
 	const contentBytes = await boundedRead(contentPath, MAXIMUM_MANIFEST_BYTES,

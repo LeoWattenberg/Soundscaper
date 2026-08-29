@@ -106,7 +106,7 @@ test('PCM signal analyzer rejects incomplete and excess frame streams', () => {
 	assert.throws(() => excess.push(new Uint8Array(0)), /finished/iu);
 });
 
-test('reference signal limits admit the observed 6,335,992-frame tone evidence', () => {
+test('reference signal limits admit exact-frame desktop PCM tone evidence', () => {
 	assert.deepEqual(DESKTOP_DIRECT_WAV_SIGNAL_LIMITS, {
 		minimumNonzeroFrames: 6_300_000,
 		minimumPositiveFrames: 3_100_000,
@@ -119,7 +119,7 @@ test('reference signal limits admit the observed 6,335,992-frame tone evidence',
 		minimumRmsSample: 6_554,
 		maximumRmsSample: 7_373,
 	});
-	const geometry = { channelCount: 16, bitDepth: 16, frameCount: 6_335_992 };
+	const geometry = { channelCount: 16, bitDepth: 16, frameCount: 6_336_000 };
 	const signal = {
 		frameCount: geometry.frameCount,
 		channelComparisons: geometry.frameCount * 15,
@@ -132,8 +132,8 @@ test('reference signal limits admit the observed 6,335,992-frame tone evidence',
 		peakAbsoluteSample: 9_830,
 		sampleSum: 2_612,
 		sampleSquareSum: 306_120_561_101_570,
-		meanSample: 0.000_412_247_995_262_620_3,
-		rmsSample: 6_950.866_384_869_063,
+		meanSample: 0.000_412_247_474_747_474_76,
+		rmsSample: 6_950.861_996_694_455,
 	};
 	assert.deepEqual(validateDesktopDirectWavPcmSignalEvidence(signal, geometry), signal);
 });

@@ -13,6 +13,10 @@ import {
 } from '../scripts/lib/desktop-package-content-manifest.mjs';
 import { ASSISTANCE_TARGET_STATUSES } from '../desktop/assistance-native-runtime-payload.mjs';
 import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
+import {
+	addOsCodecPayload,
+	osCodecPackageTree,
+} from './helpers/desktop-package-os-codec-fixture.js';
 
 const REVISION = 'a'.repeat(40);
 
@@ -144,6 +148,40 @@ test('package-content authority binds the codec-only OS payload for every suppor
 	}
 });
 
+test('NSIS audit authenticates and normalizes the elevate helper added after afterPack', async (context) => {
+	const fixture = await osCodecPackageTree(context, 'win-x64');
+	const applicationRoot = dirname(fixture.resourcesRoot);
+	await writeFile(join(applicationRoot, 'Soundscaper.exe'), peExecutable(0x8664));
+	const written = await writeDesktopPackageContentManifest({
+		resourcesRoot: fixture.resourcesRoot,
+		runtimeManifestPath: fixture.runtimeManifestPath,
+		productId: 'soundscaper',
+		targetId: 'win-x64',
+	});
+	const helper = peExecutable(0x014c);
+	await writeFile(join(fixture.resourcesRoot, 'elevate.exe'), helper);
+	const nsisElevateHelperAuthority = descriptor(helper);
+	const audit = await auditExtractedDesktopPackageContent({
+		extractedRoot: applicationRoot,
+		packageFormat: '.exe',
+		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
+		productId: 'soundscaper',
+		targetId: 'win-x64',
+	}, { nsisElevateHelperAuthority });
+	assert.equal(audit.closureSha256, written.closureSha256);
+
+	const changed = Buffer.from(helper);
+	changed[changed.byteLength - 1] ^= 1;
+	await writeFile(join(fixture.resourcesRoot, 'elevate.exe'), changed);
+	await assert.rejects(auditExtractedDesktopPackageContent({
+		extractedRoot: applicationRoot,
+		packageFormat: '.exe',
+		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
+		productId: 'soundscaper',
+		targetId: 'win-x64',
+	}, { nsisElevateHelperAuthority }), /pinned NSIS elevate helper/iu);
+});
+
 test('package-content authority rejects changed codec evidence and unexpected subtree content', async (context) => {
 	const changed = await osCodecPackageTree(context, 'win-x64');
 	changed.runtimeManifest.osAudioCodecNative.payload.sha256 = '0'.repeat(64);
@@ -261,95 +299,24 @@ async function makeMediaHostPending(fixture) {
 		`${JSON.stringify(fixture.runtimeManifest, null, 2)}\n`);
 }
 
-async function osCodecPackageTree(context, target) {
-	const root = await mkdtemp(join(tmpdir(), 'desktop-package-os-codec-'));
-	context.after(() => rm(root, { recursive: true, force: true }));
-	const resourcesRoot = join(root, 'resources');
-	const nativePrefix = `runtime/native/${target}`;
-	const professionalPrefix = `runtime/native/soundscaper-professional-host/${target}`;
-	const payloads = {
-		'app.asar': Buffer.from('authenticated application'),
-		[`${nativePrefix}/native-addon-payload-manifest.json`]: Buffer.from('native manifest'),
-		[`${professionalPrefix}/soundscaper-professional-native-payload-manifest.json`]:
-			Buffer.from('professional manifest'),
-		[`${professionalPrefix}/milestone-5-native-isolation-review-policy.json`]:
-			Buffer.from('professional review policy'),
-	};
-	for (const [path, bytes] of Object.entries(payloads)) {
-		await mkdir(dirname(join(resourcesRoot, path)), { recursive: true });
-		await writeFile(join(resourcesRoot, path), bytes);
-	}
-	const descriptor = (path) => ({
-		byteLength: payloads[path].byteLength,
-		sha256: createHash('sha256').update(payloads[path]).digest('hex'),
-	});
-	const [platform, arch] = target.split('-');
-	const runtimeManifest = {
-		schemaVersion: 1,
-		productId: 'soundscaper',
-		applicationVersion: '1.0.0-rc.1',
-		sourceRevision: REVISION,
-		target: { platform, arch },
-		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
-		nativeAddons: {
-			target, status: 'pending-external', payload: null,
-			payloadManifest: { sha256: descriptor(`${nativePrefix}/native-addon-payload-manifest.json`).sha256 },
-		},
-		soundscaperProfessionalNative: {
-			target, status: 'pending-external', payload: null, productionReadiness: null,
-			payloadManifest: descriptor(
-				`${professionalPrefix}/soundscaper-professional-native-payload-manifest.json`,
-			),
-			reviewPolicy: {
-				name: 'milestone-5-native-isolation-review-policy.json',
-				...descriptor(`${professionalPrefix}/milestone-5-native-isolation-review-policy.json`),
-			},
-		},
-		assistanceNativeRuntime: { target, status: 'unsupported', payload: null },
-		framescaperNativeHosts: null,
-		translations: {},
-	};
-	const runtimeManifestPath = join(root, 'runtime-manifest.json');
-	const fixture = { resourcesRoot, runtimeManifest, runtimeManifestPath, payloads };
-	await addOsCodecPayload(fixture, target);
-	return fixture;
-}
-
-async function addOsCodecPayload(fixture, target) {
-	const prefix = `runtime/native/soundscaper-os-audio-codec/${target}`;
-	const manifestPath = `${prefix}/os-audio-codec-native-payload-manifest.json`;
-	const payloadPath = `${prefix}/soundscaper_os_audio_codec.node`;
-	fixture.payloads ??= {};
-	fixture.payloads[manifestPath] = Buffer.from(`authenticated codec manifest ${target}`);
-	fixture.payloads[payloadPath] = Buffer.from(`authenticated codec payload ${target}`);
-	for (const path of [manifestPath, payloadPath]) {
-		await mkdir(dirname(join(fixture.resourcesRoot, path)), { recursive: true });
-		await writeFile(join(fixture.resourcesRoot, path), fixture.payloads[path]);
-	}
-	const descriptor = (path) => ({
-		byteLength: fixture.payloads[path].byteLength,
-		sha256: createHash('sha256').update(fixture.payloads[path]).digest('hex'),
-	});
-	fixture.runtimeManifest.osAudioCodecNative = {
-		target, status: 'built',
-		payloadManifest: {
-			id: 'soundscaper-os-audio-codec-native-1.0.0',
-			name: 'os-audio-codec-native-payload-manifest.json',
-			...descriptor(manifestPath),
-		},
-		payload: { name: 'soundscaper_os_audio_codec.node', ...descriptor(payloadPath) },
-		sourceRevision: '3'.repeat(64),
-		buildPlanSha256: '4'.repeat(64),
-		nativeCanary: 'passed',
-		signing: target === 'mac-arm64'
-			? { mode: 'ad-hoc', identitySha256: '5'.repeat(64), verificationStatus: 'passed' }
-			: { mode: 'not-applicable', identitySha256: null, verificationStatus: 'not-applicable' },
-	};
-	await writeJson(fixture.runtimeManifestPath, fixture.runtimeManifest);
-}
-
 async function writeJson(path, value) {
 	await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function descriptor(bytes) {
+	return {
+		byteLength: bytes.byteLength,
+		sha256: createHash('sha256').update(bytes).digest('hex'),
+	};
+}
+
+function peExecutable(machine) {
+	const bytes = Buffer.alloc(512);
+	bytes.write('MZ', 0);
+	bytes.writeUInt32LE(0x80, 0x3c);
+	bytes.write('PE\0\0', 0x80);
+	bytes.writeUInt16LE(machine, 0x84);
+	return bytes;
 }
 
 async function packageTree(context) {

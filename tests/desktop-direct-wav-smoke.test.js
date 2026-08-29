@@ -60,14 +60,20 @@ test('direct-WAV packaged smoke plans are strict canonical token-only JSON', () 
 			sampleRate: 384_000,
 			channelCount: 16,
 			bitDepth: 16,
-			frameCount: 6_335_992,
-			dataBytes: 202_751_744,
-			byteLength: 202_751_788,
+			frameCount: 6_336_000,
+			dataBytes: 202_752_000,
+			byteLength: 202_752_044,
 		},
 	});
+	assert.equal(
+		DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.frameCount,
+		DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.input.frameCount
+			* DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.sampleRate
+			/ DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.input.sampleRate,
+	);
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output), true);
-	assert.equal(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength, 202_751_798);
-	assert.equal(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength, 202_752_510);
+	assert.equal(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output.byteLength, 202_752_054);
+	assert.equal(DESKTOP_DIRECT_BWF_SMOKE_FIXTURE.output.byteLength, 202_752_766);
 	assert.equal(DESKTOP_DIRECT_BW64_SMOKE_FIXTURE.output.byteLength, 202_755_508);
 
 	const encoded = encodeDesktopDirectWavSmokePlan(plan);
@@ -389,8 +395,8 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, BW64, and cancellati
 			riffId: 'RIFF', riffBytes: DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output.byteLength,
 			waveId: 'WAVE', formatId: 'fmt ', formatBytes: 16, formatTag: 1,
 			channelCount: 16, sampleRate: 384_000, byteRate: 12_288_000,
-			blockAlign: 32, bitsPerSample: 16, dataId: 'data', dataBytes: 202_751_744,
-			frameCount: 6_335_992,
+			blockAlign: 32, bitsPerSample: 16, dataId: 'data', dataBytes: 202_752_000,
+			frameCount: 6_336_000,
 		},
 	};
 	const aggregate = createDesktopDirectWavSmokeAggregate({
@@ -413,7 +419,7 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, BW64, and cancellati
 		},
 	});
 	assert.equal(aggregate.file.sha256, 'a'.repeat(64));
-	assert.equal(aggregate.file.riff.dataBytes, 202_751_744);
+	assert.equal(aggregate.file.riff.dataBytes, 202_752_000);
 	assert.equal(aggregate.file.signal.channelMismatchSamples, 0);
 	assert.equal(aggregate.aiffFile.aiff.typeId, 'AIFF');
 	assert.equal(aggregate.aiffFile.signal.channelMismatchSamples, 0);
@@ -423,7 +429,7 @@ test('direct-WAV aggregate surfaces bounded WAV, AIFF, BWF, BW64, and cancellati
 		aggregate.bwfFile.bext.umid,
 		'060a2b340101010501010d00130000000123456789abcdef0123456789abcdef112233445566778899aabbccddeeff00ffeeddccbbaa99887766554433221100',
 	);
-	assert.equal(aggregate.bwfFile.signal.channelComparisons, 95_039_880);
+	assert.equal(aggregate.bwfFile.signal.channelComparisons, 95_040_000);
 	assert.equal(aggregate.bw64File.riff.riffId, 'BW64');
 	assert.equal(aggregate.bw64File.bext.timeReference, '48000');
 	assert.equal(aggregate.bw64File.axml.layout, '5.1');

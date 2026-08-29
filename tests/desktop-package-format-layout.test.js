@@ -155,6 +155,44 @@ test('Debian AppArmor metadata binds exact product bytes and mode before exclusi
 	}), /installed product identity/iu);
 });
 
+test('NSIS elevate helper is authenticated as a package-only resource before exclusion', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'desktop-package-nsis-helper-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const resourcesRoot = join(root, 'resources');
+	const path = join(resourcesRoot, 'elevate.exe');
+	const helper = pe32Executable(0x014c);
+	const authority = descriptor(helper);
+	await writeFixtureFile(path, helper);
+	assert.deepEqual(await validateDesktopPackageSpecificResources({
+		nsisElevateHelperAuthority: authority,
+		packageFormat: '.exe', productId: 'soundscaper', resourcesRoot, targetId: 'win-arm64',
+	}), ['elevate.exe']);
+	assert.deepEqual(await validateDesktopPackageSpecificResources({
+		nsisElevateHelperAuthority: authority,
+		packageFormat: '.zip', productId: 'soundscaper', resourcesRoot, targetId: 'win-arm64',
+	}), []);
+
+	const changed = Buffer.from(helper);
+	changed[changed.byteLength - 1] ^= 1;
+	await writeFixtureFile(path, changed);
+	await assert.rejects(validateDesktopPackageSpecificResources({
+		nsisElevateHelperAuthority: authority,
+		packageFormat: '.exe', productId: 'soundscaper', resourcesRoot, targetId: 'win-arm64',
+	}), /pinned NSIS elevate helper/iu);
+
+	const wrongArchitecture = pe32Executable(0x8664);
+	await writeFixtureFile(path, wrongArchitecture);
+	await assert.rejects(validateDesktopPackageSpecificResources({
+		nsisElevateHelperAuthority: descriptor(wrongArchitecture),
+		packageFormat: '.exe', productId: 'soundscaper', resourcesRoot, targetId: 'win-x64',
+	}), /32-bit x86/iu);
+
+	await assert.rejects(validateDesktopPackageSpecificResources({
+		nsisElevateHelperAuthority: descriptor(wrongArchitecture),
+		packageFormat: '.exe', productId: 'soundscaper', resourcesRoot, targetId: 'linux-x64',
+	}), /Windows NSIS/iu);
+});
+
 async function appImageFixture(context, targetId) {
 	const root = await mkdtemp(join(tmpdir(), 'desktop-package-format-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
@@ -246,6 +284,15 @@ function elfSharedLibrary(machine) {
 	bytes.set([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1]);
 	bytes.writeUInt16LE(3, 16);
 	bytes.writeUInt16LE(machine, 18);
+	return bytes;
+}
+
+function pe32Executable(machine) {
+	const bytes = Buffer.alloc(512);
+	bytes.write('MZ', 0);
+	bytes.writeUInt32LE(0x80, 0x3c);
+	bytes.write('PE\0\0', 0x80);
+	bytes.writeUInt16LE(machine, 0x84);
 	return bytes;
 }
 

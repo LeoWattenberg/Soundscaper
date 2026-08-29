@@ -42,10 +42,10 @@ test('direct WAV smoke plans are canonical, bounded, token-only base64url JSON',
 	assert.equal(Object.isFrozen(decodeDirectWavSmokePlan(encoded)), true);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_MODE, PLAN.mode);
 	assert.equal(DESKTOP_DIRECT_WAV_SMOKE_PREFIX, 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE');
-	assert.equal(DIRECT_AIFF_SMOKE_FILE_BYTES, 202_751_798);
+	assert.equal(DIRECT_AIFF_SMOKE_FILE_BYTES, 202_752_054);
 	assert.equal(DIRECT_BW64_SMOKE_FILE_BYTES, 202_755_508);
-	assert.equal(DIRECT_BWF_SMOKE_FILE_BYTES, 202_752_510);
-	assert.equal(DIRECT_WAV_SMOKE_FILE_BYTES, 202_751_788);
+	assert.equal(DIRECT_BWF_SMOKE_FILE_BYTES, 202_752_766);
+	assert.equal(DIRECT_WAV_SMOKE_FILE_BYTES, 202_752_044);
 
 	for (const invalid of [
 		null,
@@ -241,7 +241,7 @@ test('direct WAV target harness reports bounded directory state when native evid
 	await assert.rejects(
 		harness.evidence(),
 		(error) => /native evidence timed out/iu.test(error.message)
-			&& error.message.includes('completed.wav","size":202751788')
+			&& error.message.includes('completed.wav","size":202752044')
 			&& error.message.includes('cancelled.wav","size":48')
 			&& error.message.includes('soundscaper-part","size":4096'),
 	);

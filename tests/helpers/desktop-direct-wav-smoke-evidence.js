@@ -40,14 +40,18 @@ export function validDesktopDirectWavPayload(invocation) {
 }
 
 export function validDesktopDirectWavSignalEvidence() {
+	const output = DESKTOP_DIRECT_WAV_SMOKE_FIXTURE.output;
+	const sampleSum = 2_612;
+	const sampleSquareSum = 306_120_561_101_570;
 	return {
-		frameCount: 6_335_992, channelComparisons: 95_039_880,
+		frameCount: output.frameCount,
+		channelComparisons: output.frameCount * (output.channelCount - 1),
 		channelMismatchSamples: 0, maximumCarryBytes: 20,
 		nonzeroFrames: 6_335_333, positiveFrames: 3_167_671,
 		negativeFrames: 3_167_662, zeroCrossings: 7_259,
-		peakAbsoluteSample: 9_830, sampleSum: 2_612,
-		sampleSquareSum: 306_120_561_101_570, meanSample: 0.000_412_247_995_262_620_3,
-		rmsSample: 6_950.866_384_869_063,
+		peakAbsoluteSample: 9_830, sampleSum,
+		sampleSquareSum, meanSample: sampleSum / output.frameCount,
+		rmsSample: Math.sqrt(sampleSquareSum / output.frameCount),
 	};
 }
 

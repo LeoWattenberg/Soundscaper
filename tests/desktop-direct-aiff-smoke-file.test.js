@@ -46,10 +46,10 @@ test('direct-AIFF completed geometry is one exact integer FORM contract', () => 
 			sampleRateHex: '4011bb80000000000000',
 			channelCount: 16,
 			bitDepth: 16,
-			frameCount: 6_335_992,
+			frameCount: 6_336_000,
 			headerBytes: 54,
-			dataBytes: 202_751_744,
-			byteLength: 202_751_798,
+			dataBytes: 202_752_000,
+			byteLength: 202_752_054,
 		},
 	});
 	assert.equal(Object.isFrozen(DESKTOP_DIRECT_AIFF_SMOKE_FIXTURE.output), true);
