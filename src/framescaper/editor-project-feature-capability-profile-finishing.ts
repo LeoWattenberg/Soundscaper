@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import {
 	createEditorProjectFeatureCapabilityProfile,
 	editorProjectFeatureCapabilityProfileDefinition,
@@ -40,5 +41,5 @@ export const FRAMESCAPER_FINISHING_PROJECT_FEATURE_CAPABILITY_PROFILE =
 			...Object.entries(FRAMESCAPER_FINISHING_FEATURE_IDS).map(([key, featureId]) => ({
 				key, featureId, available: true,
 			})),
-		].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0),
+		].sort((left, right) => compareCodeUnits(left.key, right.key)),
 	});

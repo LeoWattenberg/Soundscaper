@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import {
 	createEditorProjectFeatureCapabilityProfile,
 	editorProjectFeatureCapabilityProfileDefinition,
@@ -28,5 +29,5 @@ export const FRAMESCAPER_ASSISTANCE_PROJECT_FEATURE_CAPABILITY_PROFILE = createE
 		available: registration.key === 'assistanceAssets' || registration.key === 'timelineAnnotations'
 			? true
 			: registration.available,
-	})).sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0),
+	})).sort((left, right) => compareCodeUnits(left.key, right.key)),
 });

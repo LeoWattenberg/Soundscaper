@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature-capabilities.ts';
 import {
 	createEditorProjectFeatureCapabilityProfile,
@@ -20,5 +21,5 @@ export const FRAMESCAPER_TIMELINE_IMAGE_PROJECT_FEATURE_CAPABILITY_PROFILE =
 				featureId: PROJECT_FEATURE_CAPABILITY_IDS.timelineImages,
 				available: true,
 			},
-		].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0),
+		].sort((left, right) => compareCodeUnits(left.key, right.key)),
 	});

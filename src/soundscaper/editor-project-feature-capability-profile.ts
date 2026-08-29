@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import { createEditorProjectFeatureCapabilityProfile } from
 	'../common/editor/project-feature-capability-profile.ts';
 import {
@@ -22,7 +23,7 @@ export const SOUNDSCAPER_PROJECT_FEATURE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'soundscaper',
 		registrations: Object.entries(PROJECT_FEATURE_CAPABILITY_IDS)
-			.sort(([left], [right]) => left.localeCompare(right))
+			.sort(([left], [right]) => compareCodeUnits(left, right))
 			.map(([key, featureId]) => ({
 				key,
 				featureId,
