@@ -2464,6 +2464,53 @@ test('master EBU metering stays post-master and persists across transport graph 
 	}
 });
 
+test('an EBU master meter that resolves after engine disposal is retired without publishing', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	let releaseModule;
+	let signalModuleRequested;
+	const moduleRequested = new Promise((resolve) => { signalModuleRequested = resolve; });
+	const moduleGate = new Promise((resolve) => { releaseModule = resolve; });
+	context.audioWorklet.addModule = async (url) => {
+		context.audioWorkletModules.push(String(url));
+		if (!String(url).endsWith('/ebu-r128-worklet.js')) return;
+		signalModuleRequested();
+		await moduleGate;
+	};
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		onMeter() {},
+		meterInterval: 1_000,
+	});
+	try {
+		engine.loadProject(createProject(), new Map([
+			['source-1', new MockAudioBuffer(1, 48_000, 48_000)],
+		]));
+		const playback = engine.play();
+		await moduleRequested;
+		await engine.dispose();
+		releaseModule();
+		await playback;
+
+		const meter = context.workletNodes.find(({ name }) => name === 'kw-ebu-r128-meter');
+		assert.ok(meter);
+		assert.equal(meter.disconnected, true);
+		assert.equal(engine.masterLoudnessMeter, null);
+		meter.port.onmessage?.({
+			data: { type: 'meter', meter: { loudness: { integratedLufs: -18 } } },
+		});
+		assert.equal(engine.latestMasterLoudnessMeter, null);
+		assert.equal(engine.getState().state, 'disposed');
+		assert.equal(engine.graph, null);
+	} finally {
+		releaseModule?.();
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 function createProject() {
 	return {
 		id: 'project-1',

@@ -295,6 +295,10 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		if (!this.meterListeners.size || this.masterLoudnessMeter || this.masterLoudnessMeterError) {
 			return this.masterLoudnessMeter;
 		}
+		const lifecycleGeneration = this.lifecycleGeneration;
+		const requestIsCurrent = (): boolean => !this.disposed
+			&& this.lifecycleGeneration === lifecycleGeneration
+			&& this.context === context;
 		try {
 			const requestedChannels = Math.max(1, Math.min(8, Number(this.project?.masterChannels) || 2));
 			const nativeSurround = requestedChannels > 2
@@ -304,16 +308,21 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				passthrough: true,
 				running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
 				onMeter: (reading: unknown) => {
+					if (!requestIsCurrent()) return;
 					this.latestMasterLoudnessMeter = reading && typeof reading === 'object'
 						? reading as Readonly<{ loudness?: unknown }>
 						: null;
 				},
 			});
+			if (!requestIsCurrent()) {
+				meter.dispose();
+				return null;
+			}
 			meter.node.connect(soundscaperNativeAudioDestination(context, context.destination));
 			this.masterLoudnessMeter = meter;
 			return meter;
 		} catch (error) {
-			this.masterLoudnessMeterError = error;
+			if (requestIsCurrent()) this.masterLoudnessMeterError = error;
 			return null;
 		}
 	},
