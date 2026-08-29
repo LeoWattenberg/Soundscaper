@@ -12,6 +12,7 @@ import {
 	createVideoPreviewBenchmarkFixture,
 	videoPreviewBenchmarkMedia,
 } from './fixtures/video-preview-benchmark-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
 import { waitForPreviewFrameSample } from './helpers/preview-frame-sampling.js';
@@ -131,7 +132,10 @@ async function runPreviewTrial({ runtimeBrowser, runtimeBaseURL, fixture, measur
 	try {
 		const page = await context.newPage();
 		await installBenchmarkRoutes(page);
-		await page.goto(new URL('/framescaper/de/', runtimeBaseURL).href);
+		const productUrl = resolveBrowserProductTestUrl('/framescaper/de/');
+		await page.goto(/^https?:\/\//u.test(productUrl)
+			? productUrl
+			: new URL(productUrl, runtimeBaseURL).href);
 		let editor = await bootVideoEditor(page);
 		await importTimelineFiles(editor, [fixture]);
 		await seedPreviewBenchmarkEffectStack(page, editor, EFFECT_STACK);

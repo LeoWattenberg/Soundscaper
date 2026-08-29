@@ -6,6 +6,7 @@ import {
 } from '../../src/common/editor/video-source-presentation.ts';
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
 import { openExportDialog } from './audio-editor-test-helpers.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -167,7 +168,7 @@ async function addToTimeline(editor, fixture) {
 }
 
 async function openFramescaper(page) {
-	await page.goto('/framescaper/en/');
+	await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');

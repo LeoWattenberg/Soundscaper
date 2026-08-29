@@ -63,11 +63,23 @@ jobs:
         env:
           SOUNDSCAPER_TRANSFER_BUILD_REQUIRED: '1'
 
+      - name: Build and verify the Framescaper browser site
+        run: npm run build:browser:framescaper
+
       - name: Upload the verified website build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: verified-site-build
           path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload the verified Framescaper website build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-framescaper-site-build
+          path: .wrangler/browser-products/framescaper/
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
 
@@ -308,8 +320,18 @@ jobs:
           name: verified-site-build
           path: dist
 
+      - name: Download the verified Framescaper website build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-framescaper-site-build
+          path: .wrangler/browser-products/framescaper
+
       - name: Run browser workflows against the existing build
         run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/3
+
+      - name: Run the reciprocal-origin editable-copy workflow
+        if: matrix.project == 'chromium' && matrix.shard == 1
+        run: npm run test:browser:dual-origin
 
       - name: Run handbook browser workflows
         # The handbook suite is its own config and half a minute long, so it
@@ -375,6 +397,12 @@ jobs:
         with:
           name: verified-site-build
           path: dist
+
+      - name: Download the verified Framescaper website build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-framescaper-site-build
+          path: .wrangler/browser-products/framescaper
 
       - name: Run Firefox workflows against the existing build
         run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/3

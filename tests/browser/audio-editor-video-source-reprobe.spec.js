@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -208,7 +209,7 @@ async function clipPlacement(page) {
 }
 
 async function openFramescaper(page) {
-	await page.goto('/framescaper/en/');
+	await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 	return bindEditor(page);
 }
 

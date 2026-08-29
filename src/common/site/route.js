@@ -20,13 +20,11 @@ export const BUILT_PRODUCT_ID = typeof __SCAPE_PRODUCT__ === 'string' && PRODUCT
 /**
  * Which product, locale, and embedding a web pathname names.
  *
- * The built product wins, and it decides whether the path may name a product at
- * all. Only the Soundscaper build serves two products from one origin —
- * soundscaper.org keeps Soundscaper at `/` and Framescaper at `/framescaper/`
- * unchanged for the whole cutover — so only that build reads a leading
- * `framescaper` segment as a product. Every other build serves exactly one
- * product from its origin root, where the first segment is `embed` or the
- * locale; a product segment there would be a locale, not a product.
+ * The built product is the only product authority. Each origin serves exactly
+ * one product from its root; the retired `/framescaper/` Soundscaper paths are
+ * finite redirects emitted by the static routing build, never a second runtime
+ * product selector. If a development fallback or stale shell reaches one of
+ * those paths, it therefore remains a Soundscaper route.
  *
  * @param {string | undefined} pathname
  * @param {string} builtProductId
@@ -35,11 +33,9 @@ export function resolveWebRoute(pathname, builtProductId = BUILT_PRODUCT_ID) {
 	const segments = String(pathname || '/')
 		.split('/')
 		.filter(Boolean);
-	const pathProduct = builtProductId === 'soundscaper' && segments[0] === 'framescaper' ? 'framescaper' : null;
-	if (pathProduct) segments.shift();
 	const embedded = segments[0] === 'embed';
 	if (embedded) segments.shift();
-	return { productId: pathProduct || builtProductId, locale: segments[0] || 'en', embedded };
+	return { productId: builtProductId, locale: segments[0] || 'en', embedded };
 }
 
 export async function resolveApplicationRoute(scope = globalThis) {

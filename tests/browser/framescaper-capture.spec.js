@@ -14,6 +14,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const SOURCE_LABELS = Object.freeze({
@@ -208,7 +209,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 			});
 			const beforeReopen = await captureHarnessState(page);
 
-			await page.goto(`/framescaper/en/?project=${encodeURIComponent(projectId)}`);
+			await page.goto(resolveBrowserProductTestUrl(`/framescaper/en/?project=${encodeURIComponent(projectId)}`));
 		editor = await waitForEditor(page);
 		await expect(editor).toHaveAttribute('data-project-id', projectId);
 		await expect(trackNameText(editor).filter({ hasText: /^Microphone$/u })).toHaveCount(1);
@@ -265,7 +266,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 				projectBinClipCount: 4,
 			});
 
-		await page.goto(`/framescaper/en/?project=${encodeURIComponent(projectId)}`);
+		await page.goto(resolveBrowserProductTestUrl(`/framescaper/en/?project=${encodeURIComponent(projectId)}`));
 		editor = await waitForEditor(page);
 		panel = await openRecordingSetup(page, editor);
 		await expectCapturePhase(panel, 'inactive');
@@ -350,7 +351,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 			state: 'sealed', retainedPresentationRangeCount: 1,
 		});
 
-		await page.goto(`/framescaper/en/?project=${encodeURIComponent(projectId)}`);
+		await page.goto(resolveBrowserProductTestUrl(`/framescaper/en/?project=${encodeURIComponent(projectId)}`));
 		editor = await waitForEditor(page);
 		await expect(editor).toHaveAttribute('data-project-id', projectId, { timeout: 30_000 });
 		panel = await openRecordingSetup(page, editor);

@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
+
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
 test('Framescaper v1 owns visual authoring only through existing menus', async ({ page }) => {
 	await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({ status: 404, body: '' }));
-	await page.goto('/framescaper/en/');
+	await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');

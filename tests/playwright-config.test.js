@@ -32,6 +32,139 @@ test('Playwright runs the maintained evergreen browser-engine matrix', async () 
 		assert.equal(project.use.launchOptions?.firefoxUserPrefs, undefined);
 	}
 	assert.equal(config.use.serviceWorkers, 'block', 'ordinary browser tests must not install the offline shell');
+	assert.ok(config.testIgnore.includes('dual-origin/**'),
+		'the ordinary suite must not accidentally run the separately served dual-origin workflow');
+});
+
+test('ordinary Playwright previews separately built Soundscaper and Framescaper origins', async () => {
+	delete process.env.CI;
+	process.env.PLAYWRIGHT_PORT = '4372';
+	process.env.PLAYWRIGHT_FRAMESCAPER_PORT = '4379';
+	try {
+		const [{ default: config }, packageText, prepareScript] = await Promise.all([
+			import('../playwright.config.mjs?product-sites'),
+			readFile(new URL('../package.json', import.meta.url), 'utf8'),
+			readFile(new URL('../scripts/prepare-browser-product-sites.mjs', import.meta.url), 'utf8'),
+		]);
+		const scripts = JSON.parse(packageText).scripts;
+
+		assert.equal(config.use.baseURL, 'http://127.0.0.1:4372');
+		assert.equal(config.use.ignoreHTTPSErrors, undefined);
+		assert.ok(Array.isArray(config.webServer));
+		assert.equal(config.webServer.length, 2);
+		for (const [server, product, port] of [
+			[config.webServer[0], 'soundscaper', '4372'],
+			[config.webServer[1], 'framescaper', '4379'],
+		]) {
+			assert.equal(server.url, `http://127.0.0.1:${port}/en/`);
+			assert.match(server.command, /^node node_modules\/vite\/bin\/vite\.js preview /u);
+			assert.ok(server.command.includes(`.wrangler/browser-products/${product}`));
+			assert.ok(server.command.includes(`--port ${port}`));
+			assert.ok(server.command.includes('--host 127.0.0.1'));
+			assert.ok(server.command.includes('--strictPort'));
+			assert.equal(server.ignoreHTTPSErrors, undefined);
+			assert.equal(server.reuseExistingServer, false);
+		}
+
+		assert.equal(scripts['build:browser:framescaper'],
+			'node scripts/build-browser-product-site.mjs framescaper');
+		assert.equal(scripts['prepare:browser:products'],
+			'node scripts/prepare-browser-product-sites.mjs');
+		assert.equal(scripts['pretest:browser'],
+			'npm run build && npm run build:browser:framescaper && npm run prepare:browser:products');
+		assert.equal(scripts['pretest:browser:built'], 'npm run prepare:browser:products');
+		assert.match(prepareScript, /verifyBrowserProductSite/u,
+			'the prebuilt Framescaper artifact must be authenticated before Playwright starts');
+		assert.doesNotMatch(prepareScript, /localizeRetiredFramescaperRedirects/u,
+			'the disposable fixture must preserve the production redirect artifact');
+	} finally {
+		delete process.env.PLAYWRIGHT_PORT;
+		delete process.env.PLAYWRIGHT_FRAMESCAPER_PORT;
+	}
+});
+
+test('the dual-origin Playwright harness serves two reciprocal built Pages sites', async () => {
+	delete process.env.CI;
+	delete process.env.PLAYWRIGHT_DUAL_ORIGIN_OUTPUT_DIR;
+	const [{ default: config }, packageText, buildScript] = await Promise.all([
+		import('../playwright.dual-origin.config.mjs?dual-origin-sites'),
+		readFile(new URL('../package.json', import.meta.url), 'utf8'),
+		readFile(new URL('../scripts/build-dual-origin-browser-sites.mjs', import.meta.url), 'utf8'),
+	]);
+	const packageDocument = JSON.parse(packageText);
+	const scripts = packageDocument.scripts;
+
+	assert.equal(config.testDir, './tests/browser/dual-origin');
+	assert.equal(config.fullyParallel, false);
+	assert.equal(config.workers, 1);
+	assert.equal(config.retries, 0);
+	assert.equal(config.use.baseURL, 'http://127.0.0.1:4332');
+	assert.equal(config.use.serviceWorkers, 'block');
+	assert.deepEqual(config.projects.map(({ name }) => name), ['chromium']);
+	assert.equal(config.outputDir, 'test-results/dual-origin');
+	assert.ok(Array.isArray(config.webServer));
+	assert.equal(config.webServer.length, 2);
+
+	const [soundscaper, framescaper] = config.webServer;
+	assert.equal(soundscaper.url, 'http://127.0.0.1:4332/transfer/send/');
+	assert.equal(framescaper.url, 'http://127.0.0.1:4333/transfer/receive/');
+	for (const [server, product, port] of [
+		[soundscaper, 'soundscaper', '4332'],
+		[framescaper, 'framescaper', '4333'],
+	]) {
+		assert.match(server.command, /^node node_modules\/wrangler\/bin\/wrangler\.js pages dev /u);
+		assert.ok(server.command.includes(`.wrangler/dual-origin-browser/${product}`));
+		assert.ok(server.command.includes(`--port ${port}`));
+		assert.ok(server.command.includes(`--persist-to .wrangler/dual-origin-browser/state/${product}`));
+		assert.ok(server.command.includes('--show-interactive-dev-session=false'));
+		assert.equal(server.reuseExistingServer, false);
+	}
+
+	assert.equal(scripts['pretest:browser:dual-origin'], 'node scripts/build-dual-origin-browser-sites.mjs');
+	assert.equal(scripts['test:browser:dual-origin'],
+		'playwright test --config playwright.dual-origin.config.mjs');
+	assert.equal(packageDocument.devDependencies.wrangler, '4.114.0');
+	assert.match(buildScript, /SCAPE_PRODUCT: 'soundscaper'/u);
+	assert.match(buildScript, /SOUNDSCAPER_SITE: 'http:\/\/127\.0\.0\.1:4332'/u);
+	assert.match(buildScript, /PUBLIC_TRANSFER_PEER_ORIGIN: 'http:\/\/127\.0\.0\.1:4333'/u);
+	assert.match(buildScript, /SCAPE_PRODUCT: 'framescaper'/u);
+	assert.match(buildScript, /FRAMESCAPER_SITE: 'http:\/\/127\.0\.0\.1:4333'/u);
+	assert.match(buildScript, /PUBLIC_TRANSFER_PEER_ORIGIN: 'http:\/\/127\.0\.0\.1:4332'/u);
+});
+
+test('each site-qualifying workflow runs the dual-origin proof exactly once', async () => {
+	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
+		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
+		const browserJob = extractJob(workflow, 'browser');
+		assert.equal(
+			workflow.match(/npm run test:browser:dual-origin/gu)?.length,
+			1,
+			`${workflowName} must invoke the dual-origin proof once`,
+		);
+		assert.match(browserJob,
+			/if: matrix\.project == 'chromium' && matrix\.shard == 1\n\s+run: npm run test:browser:dual-origin/u);
+	}
+});
+
+test('each site-qualifying workflow publishes and consumes a verified Framescaper browser build', async () => {
+	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
+		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
+		const qualityJob = extractJob(workflow, 'quality');
+		const browserJob = extractJob(workflow, 'browser');
+		const firefoxJob = extractJob(workflow, 'firefox');
+		const buildIndex = qualityJob.indexOf('run: npm run build:browser:framescaper');
+		const uploadIndex = qualityJob.indexOf('name: verified-framescaper-site-build');
+		assert.ok(buildIndex >= 0, `${workflowName} must build the Framescaper site once in quality`);
+		assert.ok(uploadIndex > buildIndex,
+			`${workflowName} must upload Framescaper only after its build verifies successfully`);
+		assert.match(qualityJob,
+			/name: verified-framescaper-site-build\n\s+path: \.wrangler\/browser-products\/framescaper\/\n\s+include-hidden-files: true/u);
+		for (const [job, label] of [[browserJob, 'browser'], [firefoxJob, 'firefox']]) {
+			assert.match(job,
+				/name: verified-framescaper-site-build\n\s+path: \.wrangler\/browser-products\/framescaper/u,
+				`${workflowName} ${label} must download the verified Framescaper build`);
+		}
+	}
 });
 
 test('desktop verification isolates browser engines and qualifies packages with every engine', async () => {
@@ -84,7 +217,9 @@ function assertBrowserQualification(workflow, label) {
 	// The handbook suite has its own Playwright config, so `--shard` cannot
 	// divide it alongside the site suite. It has to be pinned to one leg of the
 	// matrix or the shards would each run the whole of it.
-	const handbookLegs = [...browserJob.matchAll(/^\s+if: (?<condition>matrix\.project == 'chromium'.*)$/gmu)];
+	const handbookLegs = [...browserJob.matchAll(
+		/^\s+if: (?<condition>matrix\.project == 'chromium'.*)\n\s+run: npm run test:docs:browser$/gmu,
+	)];
 	assert.equal(handbookLegs.length, 1, `${label} must run the handbook suite from exactly one job`);
 	assert.match(handbookLegs[0].groups.condition, /matrix\.shard == 1/u, `${label} must not run the handbook suite once per shard`);
 

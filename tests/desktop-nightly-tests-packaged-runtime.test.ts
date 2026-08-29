@@ -129,7 +129,8 @@ test('packaged video benchmark seeds exact effects and drives localized controls
 	assert.match(source, /\[data-transport="play"\]/u);
 	assert.match(source, /\[data-transport="stop"\]/u);
 	assert.match(source, /runtimeBrowser\.newContext\(/u);
-	assert.match(source, /new URL\('\/framescaper\/de\/', runtimeBaseURL\)/u);
+	assert.match(source, /resolveBrowserProductTestUrl\('\/framescaper\/de\/'\)/u);
+	assert.match(source, /new URL\(productUrl, runtimeBaseURL\)/u);
 	assert.doesNotMatch(source, /name: '(?:Clip properties|Add effect|Play|Stop)'/u);
 });
 

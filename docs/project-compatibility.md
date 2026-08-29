@@ -70,6 +70,27 @@ Read-only means commands, autosave, overwrite, migration publication, feature
 activation, and native authority remain disabled. Save Copy may not silently
 turn a foreign or future identity into the current identity.
 
+An explicit **File > Edit in the other product** action is a separate
+conversion boundary, not an exception to foreign-family open custody. It first
+validates an exact owning family-v1 source, leaves that source unchanged, and
+asks the destination family to construct and validate a newly identified v1
+copy. One digest-bound report classifies every persisted source root as copied,
+materialized, omitted with a report, or refused. A root remains classified as a
+copy only when its source and destination digests agree; unsupported audible
+authority refuses before archive export or receiver publication. The bounded
+Scape transfer routes carry the new archive permanently. A closed companion
+JSON ledger is bound to that archive's entry identity, byte length, and SHA-256
+digest; receivers show it only after a recognized import or a resident closed
+invocation identity proves an exact retry. Download, matching manual import,
+and desktop fallback use the same artifact; a manual archive selected without
+its companion publishes no inferred ledger. Desktop cancellation uses the live
+export signal and does not release the source project's lock. Browser route
+transition releases its lock only after flush and binds export to that exact
+source revision. A committed desktop or browser archive whose separate
+companion save then fails is reported as partial without mutating either
+library. An ordinary foreign-family archive still opens only as opaque
+read-only custody.
+
 The manifest advertises `scapeFormatVersions: [1]` and
 `attachedScapeFormatVersion: 1`. Independently versioned clipboard, render,
 native, helper, OpenFX, assistance, and public `*Desktop.v1` protocols keep

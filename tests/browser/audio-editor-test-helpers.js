@@ -7,7 +7,10 @@ import {
 } from './audio-editor-test-fixtures.js';
 import { projectFileExtensionForProduct } from '../../src/common/project-file-extensions.ts';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
+
+export { resolveBrowserProductTestUrl };
 
 // Re-exported so every spec keeps reaching its page stubs through one helper.
 export {
@@ -44,7 +47,7 @@ export function registerAudioEditorHooks() {
 }
 
 export async function bootEditor(page, path) {
-	await page.goto(path);
+	await page.goto(resolveBrowserProductTestUrl(path));
 	const editor = await waitForEditor(page);
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();

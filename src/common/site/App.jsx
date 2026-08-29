@@ -5,15 +5,18 @@ import BrandSidebar from './BrandSidebar.jsx';
 import { applyDocumentTheme } from './document-theme.js';
 import './site.css';
 
-const SoundscaperAudioEditorBootstrap = lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
-const FramescaperAudioEditorBootstrap = lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'));
+// Vite replaces this value with a literal before Rolldown constructs the module
+// graph. The unselected branch is therefore absent from the production bundle,
+// rather than becoming a dormant bootstrap for a product this origin cannot
+// serve. The final bundle assertion in startup-graph-budget.mjs enforces that
+// output property for both product builds.
+const EditorBootstrap = __SCAPE_PRODUCT__ === 'framescaper'
+	? lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'))
+	: lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledSiteCopyForLocale(locale);
-	const EditorBootstrap = productId !== 'framescaper'
-		? SoundscaperAudioEditorBootstrap
-		: FramescaperAudioEditorBootstrap;
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,

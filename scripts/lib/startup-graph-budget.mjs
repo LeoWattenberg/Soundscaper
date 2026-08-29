@@ -55,6 +55,9 @@ export function normalizeBudgetedProduct(product) {
  */
 export function assertProductionStartupGraphs(bundle, product) {
 	const builtProduct = normalizeBudgetedProduct(product);
+	assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct);
+	assertFramescaperBootstrapChunkIsAcyclic(bundle);
+	assertFramescaperProjectCommandChunkIsAcyclic(bundle);
 	const entry = Object.values(bundle).find((output) => output.type === 'chunk'
 		&& output.isEntry
 		&& (
@@ -97,6 +100,74 @@ export function assertProductionStartupGraphs(bundle, product) {
 		);
 	}
 	return Object.freeze(graphs);
+}
+
+/**
+ * One deployed origin owns one editor bootstrap. A dormant peer bootstrap is
+ * still shipped code and can be revived by a future runtime selector, so this
+ * assertion examines the complete final bundle rather than only the selected
+ * product's reachable startup graph.
+ *
+ * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
+ * @param {keyof typeof PRODUCT_BOOTSTRAPS} builtProduct
+ */
+function assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct) {
+	const otherProduct = builtProduct === 'framescaper' ? 'soundscaper' : 'framescaper';
+	const otherBootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
+		&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS[otherProduct]));
+	if (otherBootstrap) {
+		throw new Error(
+			`${builtProduct} build emitted the ${otherProduct} bootstrap ${otherBootstrap.fileName}; `
+			+ 'select the editor bootstrap from the compile-time product only.',
+		);
+	}
+}
+
+/**
+ * The selected bootstrap may import the timeline-image feature chunk, but that
+ * feature chunk must never import the bootstrap back. Cross-product transfer
+ * loads the peer bootstrap from a different dynamic entry order than the editor
+ * page and makes an otherwise latent uninitialized binding observable.
+ *
+ * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
+ */
+export function assertFramescaperBootstrapChunkIsAcyclic(bundle) {
+	const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
+		&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS.framescaper));
+	if (!bootstrap) return;
+	for (const importedName of bootstrap.imports) {
+		const imported = bundle[importedName];
+		if (imported?.type !== 'chunk' || !imported.imports.includes(bootstrap.fileName)) continue;
+		throw new Error(
+			`Framescaper bootstrap chunk ${bootstrap.fileName} reciprocally imports ${imported.fileName}; `
+			+ 'give the shared feature boundary one dependency-closed semantic owner.',
+		);
+	}
+}
+
+/**
+ * Reject a generated import cycle around the Framescaper command authority.
+ *
+ * Source imports are layered, but a command module placed by reachability can
+ * share a chunk with a lower layer. A feature chunk that imports that lower
+ * layer then imports the command chunk, while the upper command imports the
+ * feature chunk back. The binding failure exists only after code splitting, so
+ * this assertion deliberately reads the final emitted chunk graph.
+ *
+ * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
+ */
+export function assertFramescaperProjectCommandChunkIsAcyclic(bundle) {
+	const commandChunk = Object.values(bundle).find((output) => output.type === 'chunk'
+		&& chunkOwnsModule(output, '/src/framescaper/editor-project-assistance-commands.ts'));
+	if (!commandChunk) return;
+	for (const importedName of commandChunk.imports) {
+		const imported = bundle[importedName];
+		if (imported?.type !== 'chunk' || !imported.imports.includes(commandChunk.fileName)) continue;
+		throw new Error(
+			`Framescaper project-command chunk ${commandChunk.fileName} reciprocally imports `
+			+ `${imported.fileName}; keep the command inheritance in one non-recursive semantic owner.`,
+		);
+	}
 }
 
 export function assertProductGraphOwnership(product, graph) {

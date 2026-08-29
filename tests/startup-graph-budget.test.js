@@ -6,6 +6,8 @@ import test from 'node:test';
 import {
 	PRODUCT_BOOTSTRAPS,
 	STARTUP_GRAPH_BUDGETS,
+	assertFramescaperBootstrapChunkIsAcyclic,
+	assertFramescaperProjectCommandChunkIsAcyclic,
 	assertProductGraphOwnership,
 	assertProductionStartupGraphs,
 	collectStartupGraph,
@@ -67,6 +69,59 @@ test('each product-ready graph excludes the other product tree', () => {
 	);
 });
 
+test('the emitted Framescaper project-command chunk cannot reciprocally import a feature chunk', () => {
+	const bundle = fixtureBundle();
+	bundle['assets/framescaper-project-commands.js'] = chunk({
+		fileName: 'assets/framescaper-project-commands.js',
+		imports: ['assets/framescaper-timeline-images.js'],
+		modules: {
+			'/workspace/src/framescaper/editor-project-assistance-commands.ts': {},
+			'/workspace/src/framescaper/editor-project-native-media-commands.ts': {},
+		},
+	});
+	bundle['assets/framescaper-timeline-images.js'] = chunk({
+		fileName: 'assets/framescaper-timeline-images.js',
+		imports: ['assets/framescaper-project-commands.js'],
+		modules: {
+			'/workspace/src/framescaper/editor-project-timeline-image-commands.ts': {},
+			'/workspace/src/framescaper/editor-project-timeline-image-transition-allocation.ts': {},
+		},
+	});
+	assert.throws(
+		() => assertFramescaperProjectCommandChunkIsAcyclic(bundle),
+		/Framescaper project-command chunk.*reciprocally imports.*framescaper-timeline-images/iu,
+	);
+
+	bundle['assets/framescaper-project-commands.js'].imports = [];
+	assert.doesNotThrow(() => assertFramescaperProjectCommandChunkIsAcyclic(bundle));
+});
+
+test('the emitted Framescaper bootstrap cannot reciprocally import its timeline-image chunk', () => {
+	const bundle = fixtureBundle();
+	bundle['assets/framescaper-bootstrap.js'] = chunk({
+		fileName: 'assets/framescaper-bootstrap.js',
+		imports: ['assets/framescaper-timeline-images.js'],
+		modules: {
+			'/workspace/src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx': {},
+			'/workspace/src/framescaper/editor-project-assistance-runtime.ts': {},
+		},
+	});
+	bundle['assets/framescaper-timeline-images.js'] = chunk({
+		fileName: 'assets/framescaper-timeline-images.js',
+		imports: ['assets/framescaper-bootstrap.js'],
+		modules: {
+			'/workspace/src/framescaper/editor-project-timeline-image-runtime.ts': {},
+		},
+	});
+	assert.throws(
+		() => assertFramescaperBootstrapChunkIsAcyclic(bundle),
+		/Framescaper bootstrap chunk.*reciprocally imports.*framescaper-timeline-images/iu,
+	);
+
+	bundle['assets/framescaper-timeline-images.js'].imports = [];
+	assert.doesNotThrow(() => assertFramescaperBootstrapChunkIsAcyclic(bundle));
+});
+
 test('approved graph ceilings remain hard limits', () => {
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.initial, {
 		requests: 10,
@@ -124,8 +179,21 @@ test('a build whose own bootstrap is absent fails instead of asserting nothing',
 	addProductBootstrap(otherProductOnly, 'soundscaper');
 	assert.throws(
 		() => assertProductionStartupGraphs(otherProductOnly, 'framescaper'),
-		/no framescaper product-ready budget/iu,
+		/framescaper build emitted the soundscaper bootstrap/iu,
 	);
+});
+
+test('a production build refuses to emit the other product bootstrap', () => {
+	for (const product of ['soundscaper', 'framescaper']) {
+		const otherProduct = product === 'soundscaper' ? 'framescaper' : 'soundscaper';
+		const bundle = fixtureBundle();
+		addProductBootstrap(bundle, product);
+		addProductBootstrap(bundle, otherProduct);
+		assert.throws(
+			() => assertProductionStartupGraphs(bundle, product),
+			new RegExp(`${product} build emitted the ${otherProduct} bootstrap`, 'iu'),
+		);
+	}
 });
 
 test('the enforcement plugin carries the built product into the assertion', () => {

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import {
 	FRAMESCAPER_DATABASE_NAME,
 	FRAMESCAPER_OPFS_DIRECTORY_NAME,
@@ -29,7 +30,7 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 	}) => {
 		test.setTimeout(60_000);
 
-		await page.goto('/framescaper/en/');
+		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const editor = page.locator('[data-audio-editor]');
 		await expect(editor).toBeVisible();
 		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');

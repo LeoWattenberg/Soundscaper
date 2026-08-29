@@ -3,6 +3,7 @@ import {
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -11,7 +12,7 @@ test.describe('editor storage publication', () => {
 	registerAudioEditorHooks();
 
 	test('serializes binding and provisional-root publication before a second connection can inspect it', async ({ page }) => {
-		await page.goto('/framescaper/embed/en/');
+		await page.goto(resolveBrowserProductTestUrl('/framescaper/embed/en/'));
 		await waitForEditor(page);
 		const result = await page.evaluate(async (databaseName) => {
 			const open = () => new Promise((resolve, reject) => {

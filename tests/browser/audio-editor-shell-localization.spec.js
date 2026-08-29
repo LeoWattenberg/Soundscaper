@@ -18,6 +18,7 @@ import {
 	trackNameText,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -105,7 +106,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('uses the Framescaper video workspace from the site sidebar', async ({ page }) => {
-		await page.goto('/framescaper/en/');
+		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const editor = await waitForEditor(page);
 		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
 		const settingsSection = page.locator('[data-sidebar] .sidebar-settings');
@@ -167,7 +168,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			Object.defineProperty(globalThis, 'webkitAudioContext', { configurable: true, value: undefined });
 		});
 		const errors = collectClientErrors(page);
-		await page.goto('/framescaper/en/');
+		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const editor = await waitForEditor(page);
 		await importFiles(editor, [toneA]);
 

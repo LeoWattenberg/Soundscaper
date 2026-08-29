@@ -24,7 +24,7 @@ test('the browser workflows open the database the web Framescaper bootstrap moun
 	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
 	assert.match(app,
 		/lazy\(\(\) => import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrap\.tsx'\)\)/u);
-	assert.match(app, /productId !== 'framescaper'[\s\S]*?:\s*FramescaperAudioEditorBootstrap/u);
+	assert.match(app, /__SCAPE_PRODUCT__ === 'framescaper'[\s\S]*FramescaperAudioEditorBootstrap/u);
 	const profile = await readFile(
 		resolve(ROOT, 'src/framescaper/editor-project-storage-profile.ts'),
 		'utf8',
@@ -42,7 +42,7 @@ test('the browser workflows open the database the web Framescaper bootstrap moun
 
 test('the browser workflows open the database the web Soundscaper bootstrap mounts', async () => {
 	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
-	assert.match(app, /productId !== 'framescaper'\s*\?\s*SoundscaperAudioEditorBootstrap/u);
+	assert.match(app, /__SCAPE_PRODUCT__ === 'framescaper'[\s\S]*SoundscaperAudioEditorBootstrap/u);
 	const profile = await readFile(resolve(ROOT, 'src/soundscaper/editor-project-storage-profile.ts'), 'utf8');
 	const databaseName = /databaseName: '([^']+)'/u.exec(profile);
 	assert.ok(databaseName, 'The Soundscaper baseline storage profile declares no database name literal.');

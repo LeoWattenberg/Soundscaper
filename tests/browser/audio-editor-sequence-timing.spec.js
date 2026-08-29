@@ -4,6 +4,7 @@ import {
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
 test.describe('sequence timing surfaces', () => {
 	registerAudioEditorHooks();
@@ -110,7 +111,7 @@ async function openSequenceTiming(page, editor) {
 }
 
 async function bootVideoEditor(page) {
-	await page.goto('/framescaper/en/');
+	await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 	return waitForVideoEditor(page);
 }
 

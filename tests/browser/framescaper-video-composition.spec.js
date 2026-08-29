@@ -10,6 +10,7 @@ import {
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
 
@@ -104,7 +105,9 @@ test.describe('Framescaper v1 video composition authoring', () => {
 			timeout: 15_000,
 		});
 
-		await page.goto(`/framescaper/en/?project=${encodeURIComponent(projectId)}`);
+		await page.goto(resolveBrowserProductTestUrl(
+			`/framescaper/en/?project=${encodeURIComponent(projectId)}`,
+		));
 		const reopened = await waitForFramescaperEditor(page, projectId);
 		await selectOnlyVideoClip(reopened);
 		await openCompositionDialog(page, reopened);

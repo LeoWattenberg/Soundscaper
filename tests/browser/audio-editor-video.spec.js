@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -382,7 +383,7 @@ test.describe('audio editor video composition workflow', () => {
 });
 
 async function bootVideoEditor(page) {
-	await page.goto('/framescaper/en/');
+	await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 	return waitForVideoEditor(page);
 }
 

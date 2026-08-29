@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
@@ -45,7 +46,7 @@ test.describe('dedicated OPFS storage worker', () => {
 		page.on('request', (request) => {
 			if (request.url().includes('opfs-sync-worker')) workerRequests.push(request.url());
 		});
-		await page.goto('/framescaper/en/');
+		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		let editor = await waitForVideoEditor(page);
 		const fixture = createDeterministicAvFixture('opfs-worker-video.webm');
 		await importVideo(editor, fixture);
@@ -77,7 +78,7 @@ test.describe('dedicated OPFS storage worker', () => {
 			headers: { 'Access-Control-Allow-Origin': '*' },
 			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
 		}));
-		await secondPage.goto('/framescaper/en/');
+		await secondPage.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const second = await waitForVideoEditor(secondPage);
 		await expectPersistedPreviewClip(secondPage, second);
 		const firstAddTrack = editor.getByRole('button', { name: 'Add track', exact: true });

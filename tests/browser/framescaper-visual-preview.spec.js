@@ -13,6 +13,7 @@ import {
 	importFiles,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
 
@@ -291,7 +292,10 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		);
 		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
-		await installProductionIsolationHeaders(page, '/framescaper/en/');
+		await installProductionIsolationHeaders(
+			page,
+			resolveBrowserProductTestUrl('/framescaper/en/'),
+		);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		expect(await page.evaluate(() => ({
 			crossOriginIsolated: globalThis.crossOriginIsolated,
@@ -376,8 +380,9 @@ test.describe('Framescaper v1 visual state without WebGL2', () => {
 	});
 });
 
-async function installProductionIsolationHeaders(page, path) {
-	await page.route(`**${path}`, async (route) => {
+async function installProductionIsolationHeaders(page, documentUrl) {
+	const routeMatcher = /^https?:\/\//u.test(documentUrl) ? documentUrl : `**${documentUrl}`;
+	await page.route(routeMatcher, async (route) => {
 		const response = await route.fetch();
 		await route.fulfill({
 			response,

@@ -9,14 +9,15 @@ test('a bundle built without the product define serves Soundscaper', () => {
 	assert.equal(BUILT_PRODUCT_ID, 'soundscaper');
 });
 
-test('the Soundscaper build keeps routing both products by path segment', () => {
-	// soundscaper.org must keep serving Framescaper under /framescaper/ for the
-	// whole cutover, so this build still reads the product off the path.
+test('the Soundscaper build never revives Framescaper from its retired path prefix', () => {
+	// Cloudflare emits the finite redirects for these paths. If a stale shell or
+	// a development fallback reaches this parser anyway, the build remains the
+	// only product authority and cannot mount the retired product locally.
 	assert.deepEqual(resolveWebRoute('/en/', 'soundscaper'), { productId: 'soundscaper', locale: 'en', embedded: false });
 	assert.deepEqual(resolveWebRoute('/de/', 'soundscaper'), { productId: 'soundscaper', locale: 'de', embedded: false });
 	assert.deepEqual(resolveWebRoute('/embed/de/', 'soundscaper'), { productId: 'soundscaper', locale: 'de', embedded: true });
-	assert.deepEqual(resolveWebRoute('/framescaper/en/', 'soundscaper'), { productId: 'framescaper', locale: 'en', embedded: false });
-	assert.deepEqual(resolveWebRoute('/framescaper/embed/de/', 'soundscaper'), { productId: 'framescaper', locale: 'de', embedded: true });
+	assert.equal(resolveWebRoute('/framescaper/en/', 'soundscaper').productId, 'soundscaper');
+	assert.equal(resolveWebRoute('/framescaper/embed/de/', 'soundscaper').productId, 'soundscaper');
 	assert.deepEqual(resolveWebRoute('/', 'soundscaper'), { productId: 'soundscaper', locale: 'en', embedded: false });
 });
 
@@ -50,10 +51,10 @@ test('the built product decides the desktop route', async () => {
 test('the web route resolves through the built product', async () => {
 	const route = await resolveApplicationRoute({ location: { pathname: '/framescaper/embed/de/' } });
 	assert.deepEqual(route, {
-		productId: 'framescaper',
-		locale: 'de',
+		productId: 'soundscaper',
+		locale: 'en',
 		direction: 'ltr',
-		embedded: true,
+		embedded: false,
 		desktop: false,
 	});
 });

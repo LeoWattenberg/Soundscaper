@@ -1,11 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const port = Number(process.env.PLAYWRIGHT_PORT ?? 4322);
-const baseURL = `http://127.0.0.1:${port}`;
+import {
+	ordinaryBrowserProductSitePlan,
+	vitePreviewServer,
+} from './scripts/lib/browser-product-test-sites.mjs';
+
+const sitePlan = ordinaryBrowserProductSitePlan();
+const [soundscaper, framescaper] = sitePlan.sites;
+const baseURL = soundscaper.origin;
+process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({
+	soundscaper: soundscaper.origin,
+	framescaper: framescaper.origin,
+});
 
 export default defineConfig({
 	testDir: './tests/browser',
-	testIgnore: ['handbook/**'],
+	testIgnore: ['handbook/**', 'dual-origin/**'],
 	timeout: 30000,
 	expect: { timeout: 5000 },
 	fullyParallel: true,
@@ -17,12 +27,7 @@ export default defineConfig({
 		? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
 		: 'list',
 	outputDir: 'test-results',
-	webServer: {
-		command: `npm run preview -- --host 127.0.0.1 --port ${port}`,
-		url: baseURL,
-		reuseExistingServer: false,
-		timeout: 30000,
-	},
+	webServer: [vitePreviewServer(soundscaper), vitePreviewServer(framescaper)],
 	use: {
 		baseURL,
 		serviceWorkers: 'block',

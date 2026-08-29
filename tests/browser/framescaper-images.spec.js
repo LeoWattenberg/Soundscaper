@@ -12,6 +12,7 @@ import {
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const PNG = Buffer.from(
@@ -29,7 +30,10 @@ test.describe('Framescaper selected timeline images', () => {
 		);
 		test.setTimeout(360_000);
 		const clientErrors = collectClientErrors(page);
-		await installProductionIsolationHeaders(page, '/framescaper/en/');
+		await installProductionIsolationHeaders(
+			page,
+			resolveBrowserProductTestUrl('/framescaper/en/'),
+		);
 		let editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
@@ -129,8 +133,9 @@ test.describe('Framescaper selected timeline images', () => {
 	});
 });
 
-async function installProductionIsolationHeaders(page, path) {
-	await page.route(`**${path}`, async (route) => {
+async function installProductionIsolationHeaders(page, documentUrl) {
+	const routeMatcher = /^https?:\/\//u.test(documentUrl) ? documentUrl : `**${documentUrl}`;
+	await page.route(routeMatcher, async (route) => {
 		const response = await route.fetch();
 		await route.fulfill({
 			response,

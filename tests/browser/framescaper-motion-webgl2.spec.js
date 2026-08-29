@@ -4,6 +4,8 @@ import { expect, test } from '@playwright/test';
 import { buildSync } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
+import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
+
 const HARNESS_ROUTE = '/__framescaper-v27-motion-webgl2__/harness.js';
 const HARNESS_SOURCE = buildHarness();
 
@@ -13,7 +15,7 @@ test('the V27 temporal denoise inherited by V28 matches CPU through a real WebGL
 	await page.route(`**${HARNESS_ROUTE}`, async (route) => {
 		await route.fulfill({ status: 200, contentType: 'text/javascript', body: HARNESS_SOURCE });
 	});
-	await page.goto('/framescaper/embed/en/');
+	await page.goto(resolveBrowserProductTestUrl('/framescaper/embed/en/'));
 	const result = await page.evaluate(async (harnessRoute) => {
 		const motion = await import(harnessRoute);
 		const width = 8;

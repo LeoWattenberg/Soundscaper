@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-28",
+	"groundedAt": "2026-08-29",
 	"releaseCandidate": "1.0.0-rc.1",
 	"baselineDecision": {
 		"workPackage": "WP-9.0.0",
@@ -754,6 +754,31 @@
 				"currentBehavior": "Historical pre-V18 desktop-library V9 and shared schema 17 evidence ran the two frozen Electron workflows as six sequential packaged executable processes: Soundscaper to Framescaper to Soundscaper and Framescaper to Soundscaper to Framescaper. The current CI job is retired and no longer runs these incompatible workflows against Framescaper V18/V10. In that historical evidence, each workflow owns isolated shared appData and separate product profiles, then returns to its origin profile. Its fixed exact schema 17 project contains one canonical PCM audio track and clip plus one retained-original VP8 WebM video track and clip that is also represented in the Project Bin. The origin publishes both exact managed bodies. A fresh recipient follows the normal project route into editor activation, hashes the exact Project Bin Blob, starts and stops transport, edits the audio track name through native input, waits for the shared revision 2 save, and invokes the visible Edit in the other product action. The origin return reactivates the exact edited revision and both media bindings. Before the editable recipient project, each fresh recipient also activates two additional exact-schema-17 role witnesses from the same shared library. The Soundscaper-to-Framescaper workflow witnesses project-audio-mix-v1 and audio-track-render-v1; the reverse workflow witnesses project-video-render-v1 and video-clip-render-v1. Each witness carries one canonical source and one manifest-only digest-bound fallback source. On the less-capable recipient it is intrinsically read-only, reaches the role-specific compatibility indicator, starts and stops editor transport, and invokes the visible cross-product handoff. Feature-requirement read-only is the only read-only state admitted by that menu action; a busy editor or read-only project lock remains blocked. The origin return opens both role witnesses before the editable mixed-media project, proves the compatibility indicator absent, opens an enabled track-name editor and cancels it without mutation, and starts and stops transport. The paired aggregate owns audio-whole-mix-electron-roundtrip, audio-track-render-electron-roundtrip, video-full-project-electron-roundtrip, and video-clip-render-electron-roundtrip and requires exact feature, project, requirement, relationship role and fallback source identity plus unchanged canonical-document, canonical-source-body, and fallback-body SHA-256 across recipient and origin. Main-owned evidence also binds every handoff navigation, the mixed-media document digest and binding IDs and digests, and strictly increasing catalog revisions and fencing tokens across all six processes. This qualifies only the electron-soundscaper-to-framescaper-to-soundscaper-library and electron-framescaper-to-soundscaper-to-framescaper-library workflow IDs plus those four exact role-return workflow IDs; the web `.scape` workflow matrix is qualified separately. The evidence uses fixed small first-party fixtures on Linux x64 with muted audio. It qualifies packaged activation, fallback playback, unchanged project handoff, and editable origin return only for the four frozen rendered-fallback roles; it does not qualify packaged rendered-media delivery, fallback authoring or other relationships, audible or device-output fidelity, general browser or codec coverage, linked or unmanaged media, installers or file associations, concurrent opens, crash or power-loss behavior, or Windows, macOS, or ARM64. This is legacy desktop-library-v9, shared-schema-17 pre-V18 evidence; it does not authorize Framescaper V17 activation after the V18 selector lands, and cross-product V18 transfer is copy-only preservation until separately qualified."
 			},
 			"policyAuthority": "historical-provenance-only"
+		},
+		{
+			"id": "family-v1-cross-product-editable-copy",
+			"status": "implemented",
+			"requiredOutcome": "An explicit cross-product action leaves the exact owning family-v1 source unchanged and creates one independently identified, writable destination-family v1 project through a closed copy, materialize-fallback, omit-with-report, or refuse decision for every persisted root.",
+			"currentBehavior": "Both products expose Edit in the other product from the File menu. One versioned launch intent binds the exact source tuple and revision, invocation identity, and newly minted destination tuple; retrying that intent reuses its destination identity while a later invocation mints another. The owning family validates the source, the destination family constructs and validates a new project without relabelling schemaFamily, and the bounded Scape archive transport preserves sender storage. Browser preparation flushes before its lock-releasing route transition and refuses if the bound revision changes before export; desktop flushes without relinquishing its live project lock, exports the same converted archive under the destination-native suffix, and exposes File-menu cancellation backed by the export signal. Every source root receives one digest-bound disposition. Shared roots remain copies only when their source and destination digests agree; destination normalization is reported as materialization, the reserved closed retry provenance replaces only prior provenance, visual-only state with no supported destination members is reported as omitted, and unsupported audible authority refuses before archive export or receiver publication. A closed companion JSON ledger is bound to the exact entry ID, archive byte length, and SHA-256 digest; live, download, matching manual, and desktop paths use the identical artifact, and a receiver exposes it only after a recognized import or resident invocation provenance proves an exact retry. Manual import infers no ledger when its companion is absent. If an external archive commits before its separate companion write fails, the operation reports the named partial save without mutating either project library. This contract does not share project identity, revision history, undo history, or storage between products, and it grants no native payload, codec, or release-qualification authority.",
+			"evidence": [
+				"docs/wp-8c-cutover-decision.md",
+				"src/common/cross-product-handoff-intent.ts",
+				"src/common/transfer/cross-product-handoff-conversion.ts",
+				"src/common/transfer/cross-product-handoff-provenance.ts",
+				"src/common/transfer/cross-product-handoff-report-sidecar.ts",
+				"src/common/transfer/cross-product-handoff-transfer-runtime.ts",
+				"src/common/editor/controller/cross-product-handoff-action-facade.ts",
+				"src/common/editor/controller/cross-product-handoff-action.ts",
+				"src/common/editor/ui/cross-product-handoff-menu.ts",
+				"src/common/editor/ui/workspace/workspace-application-menu-runtime.js",
+				"tests/project-transfer-editable-copy.test.ts",
+				"tests/project-transfer-editable-copy-page.test.ts",
+				"tests/project-transfer-conversion-report-custody.test.ts",
+				"tests/project-transfer-family-owned-runtime.test.ts",
+				"tests/project-transfer-routes.test.ts",
+				"tests/browser/editor-products.spec.js"
+			],
+			"policyAuthority": "family-v1-active"
 		},
 		{
 			"id": "current-web-scape-mixed-media-handoff",

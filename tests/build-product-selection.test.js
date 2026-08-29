@@ -36,7 +36,7 @@ test('the built product reaches the startup-graph budget plugin', async () => {
 	const soundscaperBudgets = budgetPlugin(await loadViteConfig(undefined, 'plugin-soundscaper'));
 	assert.throws(
 		() => soundscaperBudgets.generateBundle.handler({}, bundleWithBootstrap('framescaper')),
-		/no soundscaper product-ready budget/iu,
+		/soundscaper build emitted the framescaper bootstrap/iu,
 	);
 	assert.doesNotThrow(
 		() => soundscaperBudgets.generateBundle.handler({}, bundleWithBootstrap('soundscaper')),
