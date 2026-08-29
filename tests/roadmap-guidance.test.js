@@ -41,7 +41,7 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	assert.match(
 		roadmap,
-		/8\+C\. Framescaper product origin.*In progress.*separate-origin builds.*transfer ceremony implemented.*cutover\/retirement open/iu,
+		/8\+C\. Framescaper product origin.*Implemented for family-v1.*immediate no-legacy cutover.*permanent transfer routes/iu,
 	);
 	assert.match(
 		roadmap,
@@ -57,13 +57,21 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	);
 	const postRelease = roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions'));
 	assert.doesNotMatch(milestoneNine, /\bMIDI\b/iu);
+	assert.match(
+		milestoneNine,
+		/11 dual-product soak runtime cells.*22 real eight-hour\s+runs/isu,
+		'Milestone 9 must distinguish soak cells from product/environment behavior cells',
+	);
 	assert.match(postRelease, /### 8B\. MIDI.*legacy packet identifier.*excluded from stable 1\.0/isu);
 	assert.match(roadmap, /### Frozen closure scope/iu);
 	assert.match(roadmap, /config\/milestone-2-closure\.json/iu);
 	assert.match(roadmap, /Unnamed work\s+cannot block closure/iu);
 	assert.match(roadmap, /scopeRevision.*milestone 3 or\s+later/isu);
 	assert.match(roadmap, /### Open closure items, in priority order/iu);
-	assert.match(roadmap, /Soundscaper build still emits.*\/framescaper\/.*retirement window.*not yet recorded/isu);
+	assert.match(
+		roadmap,
+		/Soundscaper no longer emits.*old Framescaper app.*no legacy user\s+population.*transfer routes.*remain\s+permanent/isu,
+	);
 	assert.match(roadmap, /## 2\. Shared platform, storage, and media foundation.*### Exit gate/isu);
 	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
 	assert.match(roadmap, /docs\/project-compatibility\.md/iu);

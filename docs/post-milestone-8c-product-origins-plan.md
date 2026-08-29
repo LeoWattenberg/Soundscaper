@@ -4,35 +4,34 @@
 > handoff that replaces shared browser storage, and the bounded work packets
 > for both. The [roadmap](../roadmap.md#8c-framescaper-product-origin-and-cross-product-storage)
 > owns scope and status; the compatibility policy, the threat model, and the
-> quality budgets own their claims. Grounded against the repository on
-> 2026-08-27 at commit `707be3e5` with file:line verification. This is a
-> post-milestone-8 extension, not milestone-9 work: it is numbered 8+C so that
-> it lands *before* milestone 9's WP-9.0.0 baseline freeze, which is the
-> one-way door this plan must stay on the near side of. Milestone 9 therefore
-> depends on this plan and not the reverse. Re-ground every citation at
-> pickup.
+> quality budgets own their claims. Re-grounded against the implementation on
+> 2026-08-29. This is a post-milestone-8 extension, not milestone-9 work: the
+> product-origin cutover and durable handoff are complete before stable
+> qualification. Milestone 9 depends on this plan and not the reverse.
+
+> **Implementation disposition (2026-08-29):** the user-approved
+> [cutover decision](wp-8c-cutover-decision.md) selects separate origins and an
+> immediate cutover. There is no legacy user population, retained pre-release
+> store, retention interval, removal date, or worker tombstone. Finite old
+> document URLs redirect; old worker URLs return not found; the sender and
+> receiver routes remain permanent product features. The File-menu action
+> creates a destination-family editable copy and never mutates the source.
+> Family-v1 and Scape format v1 are frozen, so this implementation does not
+> create or authorize a second schema, storage, or archive clean break.
 
 ## Goals and ordering principle
 
-1. **Primary: move before the baseline freezes, and the numbering says so.**
-   This work is 8+C rather than a milestone-9 packet precisely so the
-   ordering is structural instead of aspirational. WP-9.0.0
-   freezes the first-release schema baseline and reinstates retained
-   migration (docs/milestone-9-plan.md:165-178). Until that happens, the
-   product deliberately carries no data guarantees — the IndexedDB backend
-   drops every object store on a version bump and says so in a comment
-   (src/common/editor/storage/indexeddb-backend.ts:78-84). That window is
-   the cheapest moment in the product's life to change origin, because the
-   one thing an origin change destroys is precisely the thing the project
-   has already declared it does not yet promise. **Sequencing the cutover
-   before WP-9.0.0 converts this plan's hardest problem into a courtesy.**
-   After the freeze it becomes a data-loss event requiring a proven
-   transfer for every affected user. Nothing in milestones 8, 8+I, or 8+
-   gates this extension, so there is no reason for it to wait.
+1. **Primary: make the origin split before stable qualification.** The
+   separate-origin deployment is complete and Soundscaper no longer emits the
+   Framescaper app or worker scope. Because no legacy population or retained
+   pre-release store exists, the cutover is immediate rather than a staged
+   migration. This does not weaken the family-v1 baseline: any future supported
+   family version must retain its own v1 source, and no second clean break is
+   allowed on the RC or stable line.
 2. **Secondary: the handoff outlives the cutover.** Cross-product project
    movement is wanted permanently, not once. A one-time migration script is
-   therefore the wrong shape. Build the durable handoff, and let the cutover
-   be its first invocation.
+   therefore the wrong shape. The sender and receiver routes are permanent,
+   explicit product surfaces.
 3. **Tertiary: do not weaken the security posture to buy convenience.**
    `Cross-Origin-Opener-Policy: same-origin` and
    `Cross-Origin-Embedder-Policy: credentialless` (public/_headers:3-4) are
@@ -41,11 +40,10 @@
    depends on them. No packet here relaxes either on a route that renders the
    editor.
 
-## The decision this plan does not make
+## Recorded topology decision
 
-Two topologies satisfy the installability requirement that motivated the
-move. This plan is written for the second, on request, but the first must be
-recorded because it is strictly cheaper and its cost is only branding.
+Two topologies were evaluated for the installability requirement. The recorded
+decision selects the second:
 
 - **Sibling paths on one origin.** Move Soundscaper to `/soundscaper/` so
   the two scopes are siblings rather than nested. Chrome then mints two
@@ -53,13 +51,13 @@ recorded because it is strictly cheaper and its cost is only branding.
   packet in the "storage compatibility" half of this plan disappears.
   Cost: every public Soundscaper URL changes, and Framescaper never gets its
   own domain.
-- **Separate origins.** Framescaper moves to `framescaper.org`. Cost: the
-  browser storage partition is per-origin, so every Framescaper project held
-  under `soundscaper.org` becomes unreachable from the new host, and the
-  cross-product handoff must be built rather than inherited.
+- **Separate origins — selected and implemented.** Framescaper lives at
+  `framescaper.org`. Browser storage is origin-partitioned, so cross-product
+  movement is an explicit editable-copy handoff rather than shared storage.
 
-Record the choice in the roadmap §8+C status line before any packet starts.
-Everything below assumes separate origins.
+The [roadmap §8+C status](../roadmap.md#8c-framescaper-product-origin-and-cross-product-storage)
+and cutover decision are the authority. Everything below assumes separate
+origins.
 
 ## What the platform will not give us (verified constraints)
 
@@ -92,7 +90,7 @@ neither can be engineered around without giving up cross-origin isolation.
   supplies the `frame-src` fallback and `frame-ancestors` is
   `'self' https://kw.media` (public/_headers:2).
 
-**Conclusion, and the design this plan builds on:** *continuous* shared
+**Conclusion, and the implemented design:** *continuous* shared
 storage across two origins is not achievable under this project's own
 security posture and should not be pursued. A *transfer* between them is,
 and it need not be manual: each origin reads its own storage first-party in
@@ -104,13 +102,11 @@ uses already exists.
 
 ## What already exists (do not re-plan)
 
-- **`.scape` is already the interchange format** and both products already
-  read and write it, with an envelope, a file envelope, an export planner
-  and archive-manifest handling (src/framescaper/scape-project-envelope-v18.ts,
-  src/framescaper/scape-project-file-export-v18.ts,
-  src/common/editor/scape-export-plan.ts,
-  src/common/editor/scape-archive-envelope.ts). The handoff does not need a
-  new container.
+- **Scape format v1 is the interchange container** and both products read and
+  write their owning family archive. The handoff does not add an archive
+  version: it converts into the destination family's editable v1 project and
+  transports that ordinary archive. The digest-bound conversion report is
+  custody metadata, not a schema or archive-envelope widening.
 - **A cross-product compatibility register exists**
   (config/project-compatibility.json) together with its documentation
   (docs/project-compatibility.md), and milestone 9 already owns the
@@ -129,66 +125,67 @@ uses already exists.
 
 ## Campaign decisions
 
-### The cutover lands before the baseline freeze
+### The cutover is immediate and has no legacy-retention phase
 
-This extension exists ahead of milestone 9 so that the origin change ships
-while pre-release clean breaks are still legal
-(docs/milestone-9-plan.md:176-178). That is the whole reason for the 8+C
-number, and it is the one sequencing constraint the roadmap records rather
-than this document. If the extension is nevertheless deferred and WP-9.0.0
-freezes first, the transfer ceremony stops being a courtesy and becomes a
-gate: no cutover may proceed until evidence shows every affected project
-survives, and the retention window in WP-8+C.6 becomes a release-blocking
-commitment rather than a policy choice. Confirm at pickup that the baseline
-has not frozen; if it has, re-scope before starting.
+The origin split is implemented with no legacy user population and no retained
+pre-release storage promise. Soundscaper therefore stops serving the old
+Framescaper app and worker scope immediately. Finite old document routes
+redirect to Framescaper; old worker URLs return not found. No old-worker
+tombstone, migration census, retention interval, scheduled removal, or
+telemetry is introduced. This is not permission for another clean break:
+family-v1 and Scape format v1 remain the frozen RC/stable baseline.
 
 ### The handoff is an archive, not a channel
 
-Projects cross as `.scape` archives through the existing export and import
-paths. No new wire protocol, no broker origin, no relaxed COOP or CSP on an
-editor route. The cost is that the handoff is explicit and user-initiated
-rather than ambient; that is the honest shape given the constraints above,
-and it is also the shape that keeps working when a user moves between
-devices, browsers, or the desktop products.
+Projects cross as destination-family Scape v1 archives through the maintained
+export and import paths. The bounded transport carries a digest-bound report
+whose archive identity and root dispositions must verify before publication.
+There is no broker origin and no relaxed COOP or CSP on an editor route. The
+handoff is explicit, menu-reached, cancellable, and user-initiated rather than
+ambient; the exact source project remains unchanged.
 
-### No new envelope, therefore no new schema number
+### No new envelope, schema number, or second clean break
 
-The transfer moves N discrete `.scape` archives, not one bundle-of-projects
-container. This is deliberate: a new envelope would have to claim a project
-schema number, and those numbers are a single global namespace in which a
-number identifies exactly one product. Reusing `.scape` keeps this plan
-entirely out of that namespace. If a bundle container ever becomes
-necessary, it claims its number at merge time and not before.
+The transfer moves discrete Scape v1 archives and does not introduce a new
+project or archive version. Each action mints a distinct destination-family v1
+identity; a retry of that same intent reuses it. The conversion report is a
+closed sidecar bound to the entry and archive digest. It cannot carry opaque
+authored state or relabel a source-family document as destination-family state.
+Any future supported schema must migrate from its own family v1 baseline.
 
-### The retirement window is a published commitment
+### The transfer routes are permanent product surfaces
 
-`soundscaper.org` keeps serving the Framescaper transfer route for a stated
-period after cutover, and that period is recorded in the roadmap status line
-rather than left to judgement. Removing it early strands anyone who has not
-opened the app in the interim.
+`/transfer/send/` and `/transfer/receive/` remain available on both origins as
+the browser handoff transport and manual recovery fallback. They are not a
+legacy window and have no scheduled retirement. This permanence does not retain
+the old Framescaper app, worker scope, or store under the Soundscaper origin.
 
 ## Phase structure
 
-- **8+C.0** decides topology and records it.
-- **8+C.1–8+C.2** build the durable handoff, which is useful with or without
-  the move.
-- **8+C.3–8+C.5** perform the cutover.
-- **8+C.6** retires the old surface on a stated schedule.
+- **8+C.0 — Implemented:** separate origins and immediate no-legacy cutover.
+- **8+C.1–8+C.2 — Implemented:** destination-family editable-copy contract,
+  digest-bound report custody, and menu-reached browser/desktop actions.
+- **8+C.3–8+C.5 — Implemented:** dedicated origin, finite redirects, install
+  re-mint, and permanent transfer routes.
+- **8+C.6 — Not applicable:** no retained legacy surface or retirement window
+  exists; the permanent transfer routes are not removed.
 
 ## Work packets
 
 ### WP-8+C.0 — Topology decision and its record
 
-- **Outcome:** The user-approved topology (sibling paths versus separate
-  origins) recorded in one bounded roadmap §8+C edit, together with the
-  retirement-window commitment and a confirmation that WP-9.0.0's baseline
-  freeze has not yet landed.
+- **Disposition:** Implemented by the
+  [cutover decision](wp-8c-cutover-decision.md).
+- **Outcome:** Separate origins, immediate cutover, no legacy population,
+  retention interval, removal date, tombstone, or telemetry, and permanent
+  transfer routes recorded in the roadmap. Family-v1 and Scape format v1 stay
+  frozen.
 - **Invariants:** Roadmap anchors referenced by machine-readable policies
   survive (tests/roadmap-guidance.test.js); the roadmap stays within its
   line ceiling; no code changes in this packet.
-- **Acceptance:** `npm test` green over `roadmap-guidance`; the chosen
-  topology is stated in the §8+C status line; if separate origins are chosen,
-  the retirement window is a date range and not an adjective.
+- **Acceptance:** `roadmap-guidance` remains green and the §8+C status states
+  the selected topology, immediate no-legacy cutover, and permanent route
+  lifetime without claiming stable qualification.
 - **Non-goals:** No manifest change, no redirect, no storage work.
 - **Stop condition:** Stop if the decision cannot be made — every packet
   below depends on it, and building the handoff against an undecided
@@ -196,11 +193,11 @@ opened the app in the interim.
 
 ### WP-8+C.1 — Freeze the cross-product handoff contract
 
-- **Outcome:** A written contract stating exactly what must survive a
-  Soundscaper→Framescaper and Framescaper→Soundscaper archive round trip,
-  and what is permitted to be dropped with an explicit, surfaced omission.
-  Grounded in what the existing `.scape` paths already carry, and expressed
-  as a fixture matrix rather than prose.
+- **Disposition:** Implemented for both family-v1 directions.
+- **Outcome:** The compatibility register and fixtures state exactly how each
+  persisted root is copied, materialized, omitted with a surfaced report, or
+  refused. The destination family validates a new editable v1 project; the
+  owning source stays authoritative and unchanged.
 - **Invariants:** The contract never silently drops authored state; an
   omission is reported the way the interchange exports already report
   omitted caption tracks, not discarded; no product-specific state is
@@ -211,21 +208,24 @@ opened the app in the interim.
   explicit assertions on each permitted omission; the register in
   config/project-compatibility.json names the contract.
 - **Non-goals:** No new schema version; no widening of what `.scape` holds.
-- **Stop condition:** Stop if the matrix shows a category of authored state
-  that cannot cross without a new schema number — that is a milestone-9
-  compatibility decision, not a packet-level one.
+- **Stop condition:** Refuse before receiver publication if a required root
+  cannot be authenticated or safely materialized. Do not add a schema or Scape
+  archive version to make the conversion appear successful.
 
 ### WP-8+C.2 — "Send to the other product" as a first-class action
 
-- **Outcome:** A user-initiated handoff in both products that exports the
-  current project through the WP-8+C.1 contract and hands it to the other
-  product, with a receiving import that reports exactly what it accepted and
-  what it omitted. This is the durable replacement for shared storage and
-  ships whether or not the origin moves.
+- **Disposition:** Implemented on web and desktop.
+- **Outcome:** The File menu in each product exports a destination-family
+  editable copy through the WP-8+C.1 contract. Browser handoff uses the
+  permanent sender/receiver routes; desktop saves the destination-family file
+  and identical digest-bound report. The receiving import surfaces exactly
+  what was accepted, materialized, and omitted.
 - **Invariants:** The action is discoverable from at least one surface
   without adding permanently-visible main-UI chrome; it never blocks on
   network; it is cancellable; a failed import leaves the receiving library
-  unchanged rather than partially populated.
+  unchanged rather than partially populated. A browser launch is revision-bound
+  across its lock-releasing route transition. A desktop archive committed before
+  its companion save fails is named as partial rather than reported as rollback.
 - **Acceptance:** A browser spec drives the round trip in both directions
   and asserts the reported omission set matches the fixture matrix; an
   aborted import leaves no residue; the existing quota preflight governs the
@@ -237,6 +237,7 @@ opened the app in the interim.
 
 ### WP-8+C.3 — The second origin, served correctly
 
+- **Disposition:** Implemented at `framescaper.org`.
 - **Outcome:** `framescaper.org` serves the Framescaper product with the
   full response-policy set duplicated from public/_headers — CSP, COOP,
   COEP, Referrer-Policy, `X-Content-Type-Options`, and the Framescaper
@@ -258,11 +259,16 @@ opened the app in the interim.
 
 ### WP-8+C.4 — The cutover transfer route
 
-- **Outcome:** A route on `soundscaper.org` that enumerates the Framescaper
-  projects held in that origin's storage, exports them through the WP-8+C.1
-  contract, and hands them to the new origin; and its receiver on
-  `framescaper.org`. Idempotent, resumable, and honest about partial
-  completion.
+- **Disposition:** Implemented as permanent sender and receiver routes on both
+  product origins. The legacy-store migration branch is not applicable because
+  no legacy population or retained pre-release store exists.
+- **Outcome:** Each product can enumerate its own first-party projects, export
+  bounded family-owned archives through the WP-8+C.1 contract, and hand them to
+  the exact peer receiver. Sessions are idempotent, resumable, and honest about
+  partial completion; manual archive plus report download remains available.
+  Manual import exposes a conversion ledger only when the exact matching
+  companion was selected and verified; an archive selected alone remains an
+  ordinary product-native import and does not acquire inferred conversion facts.
 - **Invariants:** The exporting origin never deletes anything as a
   side-effect of transfer — removal is a separate, explicit user action
   after a verified import; a project already present on the receiver is
@@ -280,56 +286,54 @@ opened the app in the interim.
 
 ### WP-8+C.5 — Redirects, scope retirement, and the installable re-mint
 
-- **Outcome:** `soundscaper.org/framescaper/*` redirects to the new origin
-  except for the transfer route; the Soundscaper service-worker scope and
-  manifest no longer claim the Framescaper path; the Framescaper manifest
-  `id` and scope are re-minted on the new origin.
-- **Invariants:** A previously installed Framescaper app is not left
-  pointing at a redirect loop; the Soundscaper shell's cached Framescaper
-  routes are invalidated rather than served stale; the transfer route is
-  explicitly excluded from the redirect for the whole retention window; the
-  live document cache TTL is measured before the cutover window is announced,
-  because a stale document delays the redirect's arrival for exactly that TTL.
-- **Acceptance:** A spec installs the old Framescaper app, deploys the
-  cutover, and asserts the user reaches either the new origin or the
-  transfer route — never a loop and never a blank shell; the offline shell
-  inventory no longer lists retired routes.
+- **Disposition:** Implemented as an immediate cutover.
+- **Outcome:** Finite old `soundscaper.org/framescaper/*` document routes
+  redirect to the new origin; the permanent transfer routes are served at
+  their product-origin locations. The Soundscaper service-worker scope and
+  manifest no longer claim the Framescaper path, and the Framescaper manifest
+  `id` and scope are re-minted on the new origin. Old worker URLs return not
+  found rather than retaining a tombstone.
+- **Invariants:** Finite document redirects do not loop; the Soundscaper shell
+  cannot serve a stale Framescaper route; neither transfer route is classified
+  as a redirect or retention exception.
+- **Acceptance:** Route and offline-shell inventories contain no old product or
+  worker scope, finite document routes target the exact peer origin, old worker
+  URLs return not found, and permanent transfer pages remain reachable.
 - **Non-goals:** No change to Soundscaper's own URLs unless the sibling-path
   topology was chosen in WP-8+C.0.
-- **Stop condition:** Stop if an installed old app cannot be routed
-  somewhere useful; stranding an installed user is the failure this whole
-  plan exists to avoid.
+- **Stop condition:** Stop if any old finite document route loops, if the old
+  worker or app shell remains live, or if cutover removes a permanent transfer
+  endpoint.
 
 ### WP-8+C.6 — Retirement and its evidence
 
-- **Outcome:** The transfer route is removed on the committed schedule, with
-  recorded evidence that the window was served for its full duration and
-  that the retirement was announced on the surface a returning user reaches
-  first.
-- **Invariants:** The window is not shortened; removal is a deliberate,
-  dated change and not a cleanup.
-- **Acceptance:** The removal commit cites the committed window; the
-  compatibility register records the retired route.
+- **Disposition:** Not applicable. The decision records no legacy population,
+  retained pre-release store, or retirement window.
+- **Outcome:** No retirement job, removal date, worker tombstone, or telemetry
+  is created. The old product surface is already absent; `/transfer/send/` and
+  `/transfer/receive/` remain permanent product routes.
+- **Invariants:** A cleanup may not misclassify either transfer route as a
+  cutover artifact. Family-owned source projects are never deleted as a side
+  effect of handoff.
+- **Acceptance:** The roadmap and compatibility record describe the permanent
+  route lifetime and contain no pending retirement claim.
 - **Non-goals:** No telemetry is introduced to measure who transferred —
   the project's diagnostics posture is local and without telemetry
   (docs/milestone-9-plan.md:205-218), and this packet does not change it.
-- **Stop condition:** Stop if the only way to know whether the window was
-  long enough is to add telemetry. Choose a generous window instead.
+- **Stop condition:** Stop if closure would require inventing a legacy
+  population, retention evidence, or telemetry that the recorded decision says
+  does not exist.
 
 ## Known constraints this plan absorbs
 
-- The cheapest topology is the one this plan does not build. That is
-  recorded, not litigated, in WP-8+C.0.
-- Without telemetry there is no way to observe how many users the cutover
-  affects. The plan compensates with a generous, published retention window
-  rather than with measurement.
+- The cheaper sibling-path topology was rejected; separate origins are the
+  implemented and recorded decision.
+- There is no legacy population to measure and no retention window to tune.
+  Telemetry is neither added nor needed for cutover closure.
 - The handoff is explicit, not ambient. Two products on two origins cannot
   see one library, and no packet here pretends otherwise.
-- The deliberate cache policy of the primary origin (public/_headers versus
-  the zone TTL) delays the redirect's arrival by exactly the TTL. The
-  installable-distribution plan is later scope and cannot be relied on to
-  reconcile it first, so WP-8+C.5 measures the live document TTL and plans
-  the cutover window around it.
+- The transfer routes are permanent even though the old Framescaper app and
+  worker surface under Soundscaper are not retained.
 
 ## Non-goals and fences
 
@@ -338,6 +342,8 @@ opened the app in the interim.
   renders an editor.
 - No background or automatic synchronization between the products, and no
   server-side project storage. The product remains local-first.
-- No new project schema number, and no new archive envelope.
+- No new project schema number or archive envelope; family-v1 and Scape format
+  v1 remain frozen, and no second clean break is allowed.
+- No MIDI state or qualification row; MIDI remains post-1.0 scope.
 - No change to the desktop products' shared project library.
 - No telemetry, in this plan or as a condition of closing it.

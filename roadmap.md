@@ -177,7 +177,7 @@ Known architectural constraints that drive later work:
 | 8. Framescaper capture | **Implemented and active; qualification belongs to milestone 9** | Selected Framescaper F31 records on web and desktop; MIDI moves to post-1.0 milestone 9+. |
 | 8+I. Framescaper timeline images | **Browser-native vertical slice implemented; converter and qualification work open** | Import retained raster assets as authenticated timeline media; FFmpeg, ImageMagick, multipage, and extended color/format tiers remain open. |
 | 8+. Framescaper Web VCR | **Implemented and enabled for testing** | Expose the default-hidden Record-menu surface with `framescaperWebVcr: true`; keep 4K unavailable and move human qualification to milestone 9. |
-| 8+C. Framescaper product origin | **In progress — separate-origin builds and transfer ceremony implemented; cutover/retirement open** | Finish the first-class product action, old-scope redirect, and dated retirement. |
+| 8+C. Framescaper product origin | **Implemented for family-v1 — immediate no-legacy cutover; permanent transfer routes** | Keep the first-class editable-copy action and permanent cross-origin transfer ceremony qualified without reopening the frozen family. |
 | 9. Final qualification | **In progress — family-v1 baseline frozen; qualification campaign open** | Qualify the stable-1.0 product scope and release matrix. |
 | 9+. Post-1.0 extensions | **Planned — MIDI and installable distribution** | Add MIDI after stable 1.0 and install both products from Chrome for Android as independent apps, with an optional Google Play Trusted Web Activity track. |
 
@@ -884,23 +884,23 @@ or packaged no-device smoke:
 
 ## 8+C. Framescaper product origin and cross-product storage
 
-**Status:** **In progress — the landed implementation selects separate origins,
-builds Framescaper at `framescaper.org`, and enables the standalone archive
-transfer ceremony for testing.** The Soundscaper build still emits the legacy
-`/framescaper/` product and service-worker scope, the normal web editor does not
-yet expose the first-class cross-product action in both products, and a dated
-retirement window is not yet recorded. Redirect and final retirement therefore
-remain open.
+**Status:** **Implemented for the family-v1 release line.** Framescaper is served
+from `framescaper.org`; Soundscaper no longer emits the old Framescaper app or
+service-worker scope. The cutover was immediate because there is no legacy user
+population, retained pre-release storage promise, retention window, or worker
+tombstone to operate. Finite old document URLs redirect to the equivalent
+Framescaper route, while `/transfer/send/` and `/transfer/receive/` remain
+permanent product routes rather than cutover-retention surfaces. The governing
+[cutover decision](docs/wp-8c-cutover-decision.md) records that boundary.
 
 **Depends on:** the maintained `.scape` archive, Project Bin, and per-route
 response-policy contracts only. It does not wait for milestone 8, 8+I, or 8+.
-It is numbered here, ahead of milestone 9, because the ordering is the design:
-until WP-9.0.0 freezes the first-release baseline the product deliberately
-carries no data guarantees and the IndexedDB backend still drops every object
-store on a version bump, so an origin change destroys only what the product has
-not yet promised. Landing the cutover in this extension keeps the transfer a
-courtesy; landing it after the freeze turns the same work into a data-loss event
-with a release-blocking retention commitment.
+It is numbered here, ahead of milestone 9, because the origin boundary is an
+input to stable qualification. The recorded no-legacy decision makes the
+cutover immediate rather than a retained-store migration. It does not relax the
+now-frozen baseline: any future supported family version must migrate from its
+own family v1, and no second clean project, storage, or archive break is allowed
+on the RC or stable line.
 
 **Goal:** give Framescaper its own origin without stranding a single project,
 and make movement between the two products a durable first-class action rather
@@ -909,27 +909,32 @@ than an accident of shared browser storage.
 Sequencing, the topology decision, and the bounded work packets are owned by the
 [product origins plan](docs/post-milestone-8c-product-origins-plan.md).
 
-- **Shared — In progress:** the transfer bundle reuses the current `.scape`
-  archive and reports per-project acceptance, duplication, refusal, and manual
-  fallback. The exact cross-product round-trip contract still needs its
-  compatibility-register row and maintained browser acceptance workflow.
-- **Shared / Web Core — In progress:** both standalone transfer pages provide a
-  user-initiated multi-project action, but the ordinary web-editor File menu
-  still disables **Edit in the other product**. The desktop-only shared-library
-  action is not the durable cross-origin replacement.
-- **Web Core — Implemented for build/test:** `SCAPE_PRODUCT=framescaper` emits
+- **Shared — Implemented:** the compatibility register fixes the editable-copy
+  contract in both directions. The owning family reads the unchanged source;
+  the destination family creates and validates a distinct family-v1 project,
+  and a digest-bound report records every accepted, materialized, omitted, or
+  refused root. Family-v1 and Scape format v1 remain frozen: this work does not
+  authorize a second schema, storage, or archive clean break.
+- **Shared / Web Core — Implemented:** both products expose **Edit in
+  Framescaper** or **Edit in Soundscaper** through the File menu. Browser
+  handoff uses the permanent dual-origin transfer routes; desktop saves the
+  destination-family archive and matching report. Cancellation and failure do
+  not mutate either library, and every successful invocation leaves the source
+  project unchanged.
+- **Web Core — Implemented:** `SCAPE_PRODUCT=framescaper` emits
   Framescaper at its own origin root with generated product-specific documents,
   manifest, service-worker scope, offline shell, capture policy, and shared
   cross-origin isolation. Both product builds and deploy preflights pass.
-- **Web Core — Implemented for testing:** `/transfer/send/` enumerates every
+- **Web Core — Implemented:** `/transfer/send/` enumerates every
   maintained store generation and moves bounded `.scape` archives to the exact
   receiver origin. The session is idempotent and resumable, reports partial
   success, preserves sender projects, and offers manual downloads when popup or
   import transport fails.
-- **Web Core — In progress:** the old Framescaper worker tombstone and
-  per-product install re-mint are implemented, but Soundscaper still emits the
-  legacy Framescaper routes. Redirect publication, the retained transfer window,
-  and scheduled removal have not landed.
+- **Web Core — Implemented:** the product-specific install identity was
+  re-minted at the Framescaper origin, the old product scope was retired
+  immediately, finite old document routes redirect, and old worker URLs return
+  not found. No tombstone or scheduled-retirement machinery exists because
+  there is no legacy population or retention promise.
 - **Shared — Deferred:** continuous cross-origin shared storage. Third-party
   storage is partitioned by top-level site and `COEP: credentialless` gives an
   embedded cross-origin document an ephemeral bucket, so no broker origin,
@@ -938,26 +943,36 @@ Sequencing, the topology decision, and the bounded work packets are owned by the
 
 ### Exit gate
 
-- The chosen topology and a dated retirement window are recorded in this status
-  line before any packet after the decision starts.
+- The separate-origin topology and explicit no-legacy/no-retention decision are
+  recorded before stable qualification.
 - A fixture project per product round-trips in both directions with every
   permitted omission asserted, and `config/project-compatibility.json` names the
   contract.
 - A multi-project transfer survives a killed receiver, resumes, leaves exactly
   one copy of each project, and transfers nothing new on a second run; the
   exporting origin deletes nothing as a side effect of transfer.
-- An installed pre-cutover Framescaper app reaches either the new origin or the
-  transfer route — never a redirect loop and never a blank shell.
-- The transfer route is removed only on the committed schedule, and no telemetry
-  is added to decide whether the window was long enough.
+- Old finite document URLs reach the new origin without a redirect loop; old
+  worker URLs do not retain a product shell or tombstone.
+- Both transfer routes remain permanent. No telemetry or retained legacy store
+  is added to justify their lifetime.
 
 ## 9. Final convergence and qualification
 
 **Depends on:** milestones 1–6, milestone-8 capture, every accepted Web VCR
 platform tier above, and the 8+C cutover.
 
-**Status:** **In progress — WP-9.0.0 approved the family-v1 baseline for
-`1.0.0-rc.1`; the qualification campaign remains open.**
+**Status:** **In progress — the family-v1 baseline, 152-check campaign matrix,
+deterministic eight-hour soak/collector infrastructure, dedicated run profiles,
+and local exportable diagnostics are implemented; stable qualification is not.**
+The soak register has 11 dual-product soak runtime cells—six browser
+engine/version cells and five desktop-platform cells—and all 22 real eight-hour
+runs (two per cell) remain pending. The guided campaign executions, rehearsal,
+and full-matrix evidence also remain pending. The
+complete native tier remains mandatory and fail-closed on external legal,
+payload, lab, hardware-identity, signing, and notarization evidence; no missing
+native row is converted into a reduced claim. The governing
+[campaign-matrix decision](docs/wp-9-campaign-matrix-decision.md) fixes the
+required cells and evidence rules.
 
 **Goal:** qualify the complete products as coherent systems.
 
@@ -967,21 +982,33 @@ human checkpoint is centralized in the [guided verification record](docs/milesto
 and gates only stable 1.0 admission; ordinary build, test, package, and enabled
 feature routes never consume its result.
 
-- **Shared — Planned:** every migration retained from the first shipped release
-	through current save/reopen, plus future-schema read-only and opaque-state
-	round trips.
-- **Web Core — Planned:** current and previous supported Chromium, Firefox, and
-  Safari releases, including every fallback.
-- **Electron Enhanced — Planned:** supported Windows, macOS, and Linux x64/ARM64
-  packages, helpers, crash, upgrade/downgrade, signing, notarization, and
-  uninstall preservation.
-- **Shared — Planned:** keyboard, screen reader, zoom/reflow, contrast, motion,
-  localization, RTL, and WCAG 2.2 AA review for every critical workflow.
-- **Shared — Planned:** long-session audio, video, capture, autosave,
-  handoff, proxy, plug-in, and render-queue soaks under resource pressure.
-- **Shared — Planned:** local exportable diagnostics without telemetry or media
-  content, plus recovery, compatibility, migration, keyboard, codec, plug-in,
-  and backup documentation.
+- **Shared — Campaign pending:** every migration retained from the first shipped
+  release through current save/reopen, plus future-schema read-only and
+  opaque-state round trips.
+- **Web Core — Matrix fixed; evidence pending:** both products on current and
+  previous Chrome, Firefox, and Safari releases, including every fallback (12
+  exact browser cells; Playwright WebKit is not Safari qualification).
+- **Electron Enhanced — Matrix fixed; evidence pending:** both products on
+  Windows x64, Windows ARM64, macOS ARM64, Linux x64, and Linux ARM64 (10 exact
+  desktop cells), including packages, helpers, crash, upgrade/downgrade,
+  signing, notarization, and uninstall preservation.
+- **Native — Mandatory; externally blocked:** all 11 Soundscaper and all 7
+  Framescaper native OS lab profiles remain in the stable matrix. Source and
+  payload custody, notices/legal review, exact lab fingerprints, signing, and
+  notarization must be real and accepted; synthetic evidence and scope
+  reduction are forbidden.
+- **Shared — Campaign pending:** keyboard, screen reader, zoom/reflow, contrast,
+  motion, localization, RTL, and WCAG 2.2 AA review for every critical workflow.
+- **Shared — Infrastructure implemented; evidence pending:** the deterministic
+  `m9-complete-system-soak-8h-v1` workload and collectors cover long-session
+  audio, video, capture, autosave, handoff, proxy, plug-in, and render queues.
+  Contract mode proves the collector only; qualification requires the exact 22
+  eight-hour, zero-retry runs over the 11 dual-product cells, with each cell's
+  pair inside the repeatability band.
+- **Shared — Implemented:** menu-reached local exportable diagnostics contain no
+  telemetry or media content and do not mutate the project. Their release-cell
+  qualification and the remaining recovery, compatibility, migration,
+  keyboard, codec, plug-in, and backup documentation evidence remain open.
 
 ### Exit gate
 
@@ -994,6 +1021,9 @@ feature routes never consume its result.
   product, returns with fallbacks, and renders without losing editable state.
 - Release artifacts pass notices, hashes, provenance, codec/plug-in licensing,
   package smoke, signatures, and update/recovery gates.
+- All 152 guided checks cite an exact accepted execution for every applicable
+  cell, and the rehearsal plus full-matrix campaign complete without retries,
+  substitutions, or relabeled pending evidence.
 
 ## 9+. Post-1.0 extensions
 

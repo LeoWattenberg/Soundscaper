@@ -97,6 +97,14 @@ test('the milestone-9 record preserves every one of the 152 stable row IDs', () 
 	assert.equal(seen.size, 152);
 });
 
+test('stable qualification checks only the MIDI absence fence, never future MIDI design', () => {
+	const row = markdown.split('\n').find((line) => line.startsWith('| GAT-01 |'));
+	assert.ok(row, 'GAT-01 must remain in the closed 152-row inventory');
+	assert.match(row, /stable-1\.0 MIDI absence fence/iu);
+	assert.match(row, /future MIDI.*post-1\.0.*cannot block stable/iu);
+	assert.doesNotMatch(row, /review a public pinned Audacity design|migration and opaque-preservation plans/iu);
+});
+
 test('every canonical check table declares the same five columns', () => {
 	const headers = markdown.match(/^\| ID \| Check \| Result \| Notes \| Issue \|$/gmu) ?? [];
 	const separators = markdown.match(/^\| --- \| --- \| --- \| --- \| --- \|$/gmu) ?? [];
