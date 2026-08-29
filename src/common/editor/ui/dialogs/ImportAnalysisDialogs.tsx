@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/raw-pcm-import.ts';
 import type { RegularIntervalAnnotationOptions } from '../../controller/regular-interval-annotation-service.ts';
@@ -78,21 +78,39 @@ export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonPro
 
 export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose }: CommonProps) {
 	const project = controller.project;
-	const duration = Math.max(1, ...(project?.clips.map((clip) => clip.timelineStartFrame + clip.durationFrames) ?? [1]));
-	const [kind, setKind] = useState<'marker' | 'region'>('marker');
-	const [startFrame, setStartFrame] = useState(0);
-	const [endFrame, setEndFrame] = useState(duration);
-	const [intervalFrames, setIntervalFrames] = useState(Math.max(1, Math.round((project?.sampleRate ?? 48_000))));
-	const [namePrefix, setNamePrefix] = useState('Cue');
+	const projectIdentity = project?.id ?? null;
+	const defaults = regularIntervalDialogDefaults(project);
+	const stateProjectIdentity = useRef(projectIdentity);
+	const [kind, setKind] = useState<'marker' | 'region'>(defaults.kind);
+	const [startFrame, setStartFrame] = useState(defaults.startFrame);
+	const [endFrame, setEndFrame] = useState(defaults.endFrame);
+	const [intervalFrames, setIntervalFrames] = useState(defaults.intervalFrames);
+	const [namePrefix, setNamePrefix] = useState(defaults.namePrefix);
+	useEffect(() => {
+		if (stateProjectIdentity.current === projectIdentity) return;
+		stateProjectIdentity.current = projectIdentity;
+		setKind(defaults.kind);
+		setStartFrame(defaults.startFrame);
+		setEndFrame(defaults.endFrame);
+		setIntervalFrames(defaults.intervalFrames);
+		setNamePrefix(defaults.namePrefix);
+	}, [defaults.endFrame, defaults.intervalFrames, defaults.kind, defaults.namePrefix, defaults.startFrame, projectIdentity]);
 	return <AudioEditorDialogShell title={copy.regularIntervalLabels} onClose={onClose} width={560} dataAttributes={{ 'data-annotation-surface': 'regular-interval' }}>
 		<form className="kw-audio-editor-dialog__form" onSubmit={(event) => {
 			event.preventDefault();
-			if (!project) return;
-			run(() => controller.actions.timelineAnnotations.regularInterval({
+			if (!project
+				|| stateProjectIdentity.current !== projectIdentity
+				|| controller.project?.id !== project.id) return;
+			const projectId = project.id;
+			const request: RegularIntervalAnnotationOptions = {
 				kind, anchor: 'sample', sequenceId: project.primarySequenceId, startFrame, endFrame,
 				intervalFrames, namePrefix, color: 'auto',
-			}));
-			onClose();
+			};
+			run(() => {
+				if (controller.project?.id !== projectId) return undefined;
+				return controller.actions.timelineAnnotations.regularInterval(request);
+			});
+			if (controller.project?.id === projectId) onClose();
 		}}>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalKind}</span><select value={kind} onChange={(event) => setKind(event.currentTarget.value as 'marker' | 'region')}><option value="marker">{copy.regularIntervalMarker}</option><option value="region">{copy.regularIntervalRegion}</option></select></label>
 			<NumberField label={copy.regularIntervalStartFrame} value={startFrame} minimum={0} maximum={Number.MAX_SAFE_INTEGER} onChange={setStartFrame} />
@@ -102,6 +120,16 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 			<div className="kw-audio-editor-dialog__actions"><button type="button" onClick={onClose}>{copy.cancel}</button><button type="submit" disabled={!project}>{copy.regularIntervalCreate}</button></div>
 		</form>
 	</AudioEditorDialogShell>;
+}
+
+function regularIntervalDialogDefaults(project: DialogController['project']) {
+	return {
+		kind: 'marker' as const,
+		startFrame: 0,
+		endFrame: Math.max(1, ...(project?.clips.map((clip) => clip.timelineStartFrame + clip.durationFrames) ?? [1])),
+		intervalFrames: Math.max(1, Math.round(project?.sampleRate ?? 48_000)),
+		namePrefix: 'Cue',
+	};
 }
 
 function NumberField({ label, value, minimum, maximum, onChange }: Readonly<{
