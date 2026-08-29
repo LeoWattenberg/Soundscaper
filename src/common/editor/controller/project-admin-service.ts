@@ -177,11 +177,17 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 		if (recoveryBlocked()) return null;
 		const project = getProject();
 		if (!project) return;
+		const recordingRouting = structuredClone(state.recordingRouting);
 		await saveNow();
 		if (getProject() !== project) return null;
 		const title = String(requestedTitle || `${project.title} ${copy.projectCopySuffix}`).trim();
 		const duplicated = await store.duplicateProject(project.id, { title });
-		await persistSetting(recordingRoutingSettingKey(duplicated.id), state.recordingRouting, { policy: 'required' });
+		await persistSetting(recordingRoutingSettingKey(duplicated.id), recordingRouting, { policy: 'required' });
+		if (getProject() !== project) {
+			state.projects = Object.freeze(await store.listProjects());
+			publishDocumentSnapshot();
+			return duplicated;
+		}
 		await openProject(duplicated);
 		return duplicated;
 	}

@@ -34,6 +34,47 @@ test('project administration lists, renames, duplicates, and clears recents', as
 	assert.equal(await service.duplicateProject('Unused'), undefined);
 });
 
+test('duplicate completion preserves initiating routing without replacing a later activation', async () => {
+	const fixture = createFixture();
+	const duplicateStarted = deferred();
+	const duplicateGate = deferred();
+	const duplicated = { id: 'project-copy', title: 'Project A copy', revision: 1 };
+	const later = { id: 'project-c', title: 'Project C', revision: 1 };
+	const catalog = Object.freeze([later, duplicated]);
+	const persisted: Array<Readonly<{ key: string; value: unknown; policy: unknown }>> = [];
+	const opened: string[] = [];
+	fixture.state.recordingRouting = { input: 'device-a' };
+	const runtime = {
+		...fixture.runtime,
+		store: {
+			...fixture.runtime.store,
+			async duplicateProject() {
+				duplicateStarted.resolve();
+				await duplicateGate.promise;
+				return duplicated;
+			},
+			async listProjects() { return catalog; },
+		},
+		async persistSetting(key: string, value: unknown, options: Readonly<{ policy?: unknown }> = {}) {
+			persisted.push(Object.freeze({ key, value: structuredClone(value), policy: options.policy }));
+		},
+		async openProject(value: Readonly<{ id: string }>) { opened.push(value.id); },
+	} satisfies ProjectAdminServiceRuntime;
+	const pending = createProjectAdminService(runtime).duplicateProject('Project A copy');
+	await duplicateStarted.promise;
+	fixture.setProject(later);
+	fixture.state.recordingRouting = { input: 'device-c' };
+	duplicateGate.resolve();
+
+	assert.equal(await pending, duplicated);
+	assert.deepEqual(persisted, [{
+		key: 'routing:project-copy', value: { input: 'device-a' }, policy: 'required',
+	}]);
+	assert.deepEqual(opened, []);
+	assert.deepEqual(fixture.state.projects, catalog);
+	assert.equal(Object.isFrozen(fixture.state.projects), true);
+});
+
 test('closing inactive tabs persists dirty history and prunes session-only sources', async () => {
 	const fixture = createFixture();
 	const other = { id: 'project-b', title: 'Project B', revision: 2 };
