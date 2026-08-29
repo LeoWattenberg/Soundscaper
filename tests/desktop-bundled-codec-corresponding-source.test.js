@@ -121,6 +121,39 @@ test('corresponding-source ZIPs are deterministic, self-describing, and exclude 
 	assert.equal(Object.keys(entries).some((path) => path.endsWith('.wasm')), false);
 });
 
+test('the checkout closure orders its files by code unit, not by host collation', async () => {
+	const result = await validateDesktopBundledCodecSourceCheckout({ repositoryRoot: ROOT });
+	const paths = result.files.map(({ path }) => path);
+	assert.notDeepEqual(
+		[...paths].sort(), [...paths].sort((left, right) => left.localeCompare(right)),
+		'if collation ever agrees on this closure the hazard is gone, not the requirement',
+	);
+	assert.deepEqual(paths, [...paths].sort());
+});
+
+test('corresponding-source ZIPs order their entries by code unit, not by host collation', () => {
+	const paths = ['config/closure.json', 'LICENSE', 'README.md', 'src/codec/NOTICE.md', 'src/codec/native/wrap.c'];
+	const byCodeUnit = [...paths].sort();
+	assert.notDeepEqual(byCodeUnit, [...paths].sort((left, right) => left.localeCompare(right)),
+		'if collation ever agrees on these paths the hazard is gone, not the requirement');
+	const built = createDesktopBundledCodecCorrespondingSourceZip({
+		applicationVersion: '1.2.3',
+		codecs: [{
+			id: 'codec',
+			buildScriptSha256: '2'.repeat(64),
+			sourceManifestSha256: '3'.repeat(64),
+			wasm: { path: 'codec.wasm', byteLength: 7, sha256: '1'.repeat(64) },
+		}],
+		files: paths.map((path) => ({ path, bytes: Buffer.from(path) })),
+	});
+	const root = 'Soundscaper-1.2.3-bundled-codecs-corresponding-source';
+	assert.deepEqual(built.receipt.files.map(({ path }) => path), byCodeUnit);
+	assert.deepEqual(
+		Object.keys(unzipSync(built.bytes)).filter((entry) => !entry.endsWith('/BUNDLE-MANIFEST.json')),
+		byCodeUnit.map((path) => `${root}/${path}`),
+	);
+});
+
 test('desktop release assembly emits source before computing release checksums', async () => {
 	const script = await readFile(resolve(ROOT, 'scripts/desktop-release-assets.mjs'), 'utf8');
 	const sourceOffset = script.indexOf('await stageDesktopBundledCodecCorrespondingSource');

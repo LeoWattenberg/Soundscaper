@@ -170,7 +170,7 @@ export function createDesktopBundledCodecCorrespondingSourceZip({
 	if (orderedFiles.length > 256 || totalBytes > MAXIMUM_BUNDLE_BYTES) {
 		throw new Error('Corresponding-source ZIP exceeds its admission budget.');
 	}
-	const orderedCodecs = codecs.map(validateReceiptCodec).sort((a, b) => a.id.localeCompare(b.id));
+	const orderedCodecs = codecs.map(validateReceiptCodec).sort((a, b) => compareCodeUnits(a.id, b.id));
 	assertUnique(orderedCodecs.map(({ id }) => id), 'Corresponding-source codec');
 	const receipt = {
 		schemaVersion: 1,
@@ -578,12 +578,20 @@ function plainRecord(value) {
 	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+// A reproducible release asset cannot order anything by host collation, which
+// compares letters case-insensitively first: `LICENSE` precedes `config/` by
+// code unit and follows it by locale, so the archive bytes - and the checksum
+// published over them - would otherwise depend on the builder's `LANG`.
+function compareCodeUnits(a, b) {
+	return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function comparePath(a, b) {
-	return a.path.localeCompare(b.path);
+	return compareCodeUnits(a.path, b.path);
 }
 
 function compareFileName(a, b) {
-	return a.fileName.localeCompare(b.fileName);
+	return compareCodeUnits(a.fileName, b.fileName);
 }
 
 function sha256(bytes) {
