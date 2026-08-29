@@ -50,7 +50,10 @@ export interface FfmpegMediaFileOperationOptions {
 }
 
 export interface FfmpegMediaFileOperationHost {
-	run<Output>(operation: (instance: RawFfmpegInstance) => Awaitable<Output>): Promise<Output>;
+	run<Output>(
+		operation: (instance: RawFfmpegInstance) => Awaitable<Output>,
+		beforeLoad?: () => void,
+	): Promise<Output>;
 	terminateRuntime(): void;
 }
 
@@ -74,6 +77,7 @@ export function runFfmpegMediaFileOperation<Output>(
 	if (signal?.aborted) return Promise.reject(signal.reason ?? abortError());
 	const prefix = String(options.prefix || 'editor-media');
 	return host.run(async (instance) => {
+		if (signal?.aborted) throw signal.reason ?? abortError();
 		const logs: string[] = [];
 		const handleLog = ({ message = '' }: { message?: string }) => {
 			if (typeof message === 'string') logs.push(message);
@@ -120,6 +124,8 @@ export function runFfmpegMediaFileOperation<Output>(
 			signal?.removeEventListener('abort', onAbort);
 			try { instance.off('log', handleLog); } catch { /* the runtime may be gone */ }
 		}
+	}, () => {
+		if (signal?.aborted) throw signal.reason ?? abortError();
 	});
 }
 

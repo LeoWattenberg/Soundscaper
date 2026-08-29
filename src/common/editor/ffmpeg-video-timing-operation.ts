@@ -26,7 +26,7 @@ type Awaitable<Value> = PromiseLike<Value> | Value;
 export interface FfmpegVideoTimingProbeOptions {
 	readonly file: Blob;
 	readonly signal?: AbortSignal;
-	run<Output>(operation: (instance: never) => Awaitable<Output>): Promise<Output>;
+	run<Output>(operation: (instance: never) => Awaitable<Output>, beforeLoad?: () => void): Promise<Output>;
 	terminateRuntime(): void;
 	workerFsType(): unknown;
 }
@@ -40,10 +40,11 @@ export async function probeFfmpegVideoTiming(
 	const file = options.file;
 	const run = options.run as unknown as (
 		operation: (instance: RawInstance) => Promise<VideoTimingProbeResult>,
+		beforeLoad?: () => void,
 	) => Promise<VideoTimingProbeResult>;
 	const terminateRuntime = options.terminateRuntime;
-	const workerFsType = options.workerFsType();
 	return run(async (instance) => {
+		if (signal?.aborted) throw signal.reason ?? abortError();
 		const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 		const mountPoint = `/editor-probe-${stamp}`;
 		let input = `editor-probe-${stamp}`;
@@ -61,6 +62,7 @@ export async function probeFfmpegVideoTiming(
 		instance.on('log', handleLog);
 		signal?.addEventListener('abort', onAbort, { once: true });
 		try {
+			const workerFsType = options.workerFsType();
 			if (typeof File !== 'undefined' && file instanceof File && workerFsType) {
 				const inputName = safeFfmpegFileName(file.name, `video-${stamp}`);
 				await instance.createDir(mountPoint);
@@ -85,6 +87,8 @@ export async function probeFfmpegVideoTiming(
 				await instance.deleteDir(mountPoint).catch(() => undefined);
 			} else await instance.deleteFile(input).catch(() => undefined);
 		}
+	}, () => {
+		if (signal?.aborted) throw signal.reason ?? abortError();
 	});
 }
 

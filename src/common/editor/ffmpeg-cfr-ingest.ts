@@ -16,7 +16,10 @@ interface FfmpegCfrInstance {
 export interface FfmpegCfrIngestOptions {
 	readonly file: Blob;
 	readonly rate: RationalRate;
-	readonly run: <Value>(task: (instance: FfmpegCfrInstance) => PromiseLike<Value>) => Promise<Value>;
+	readonly run: <Value>(
+		task: (instance: FfmpegCfrInstance) => PromiseLike<Value>,
+		beforeLoad?: () => void,
+	) => Promise<Value>;
 	readonly workerFsType: () => unknown;
 	readonly terminateRuntime: () => void;
 	readonly signal?: AbortSignal;
@@ -29,6 +32,7 @@ export async function conformFfmpegVideoToCfr(options: FfmpegCfrIngestOptions): 
 	if (rate.num <= 0) throw new RangeError('CFR ingest requires a positive rational rate.');
 	throwIfAborted(options.signal);
 	return options.run(async (instance) => {
+		throwIfAborted(options.signal);
 		const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 		const mountPoint = `/editor-cfr-${stamp}`;
 		const inputName = `input-${stamp}`;
@@ -72,7 +76,7 @@ export async function conformFfmpegVideoToCfr(options: FfmpegCfrIngestOptions): 
 				await instance.deleteDir(mountPoint).catch(() => undefined);
 			} else await instance.deleteFile(inputName).catch(() => undefined);
 		}
-	});
+	}, () => throwIfAborted(options.signal));
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

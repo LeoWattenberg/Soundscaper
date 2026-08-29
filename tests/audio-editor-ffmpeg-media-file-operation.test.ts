@@ -109,3 +109,43 @@ test('an abort takes the runtime away rather than merely rejecting', async () =>
 		(error: Error) => error.name === 'AbortError',
 	);
 });
+
+test('an abort while queued refuses the operation before it acquires the runtime', async () => {
+	const harness = createHost();
+	const gate = deferred();
+	let operationCalls = 0;
+	let runtimeAcquisitions = 0;
+	const controller = new AbortController();
+	const reason = new DOMException('queued operation cancelled', 'AbortError');
+	const operation = runFfmpegMediaFileOperation({
+		...harness.host,
+		async run<Output>(
+			task: (value: never) => Output | PromiseLike<Output>,
+			beforeLoad?: () => void,
+		): Promise<Output> {
+			await gate.promise;
+			beforeLoad?.();
+			runtimeAcquisitions += 1;
+			return harness.host.run(task);
+		},
+	}, async () => {
+		operationCalls += 1;
+		return 'ran';
+	}, { signal: controller.signal });
+
+	controller.abort(reason);
+	gate.resolve();
+	await assert.rejects(operation, (error: unknown) => error === reason);
+	assert.equal(operationCalls, 0);
+	assert.equal(runtimeAcquisitions, 0);
+	assert.equal(harness.terminatedCount(), 0, 'queued cancellation has no active runtime to terminate');
+});
+
+function deferred(): {
+	readonly promise: Promise<void>;
+	readonly resolve: () => void;
+} {
+	let resolve!: () => void;
+	const promise = new Promise<void>((accept) => { resolve = accept; });
+	return { promise, resolve };
+}

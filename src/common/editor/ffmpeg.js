@@ -244,9 +244,10 @@ export function createEditorFfmpeg(options = {}) {
 		assertMediaExportAvailable(normalizedFormat, settings.capabilities || capabilities);
 		const normalized = normalizeMediaExportSettings(normalizedFormat, { ...settings, capabilities: settings.capabilities || capabilities });
 		const signal = settings.signal;
-		if (signal?.aborted) throw abortError();
+		throwIfAborted(signal);
 
 		return run(async (instance) => {
+			throwIfAborted(signal);
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const input = `editor-${stamp}.wav`;
 			const output = `editor-${stamp}.${normalized.extension}`;
@@ -273,7 +274,7 @@ export function createEditorFfmpeg(options = {}) {
 				await instance.deleteFile(input).catch(() => undefined);
 				await instance.deleteFile(output).catch(() => undefined);
 			}
-		});
+		}, () => throwIfAborted(signal));
 	}
 
 	async function encodeFile(file, format, settings = {}) {
@@ -286,8 +287,9 @@ export function createEditorFfmpeg(options = {}) {
 		const normalized = normalizeMediaExportSettings(normalizedFormat, { ...settings, capabilities: settings.capabilities || capabilities });
 		if (!(file instanceof Blob)) throw new TypeError('Expected a staged WAV Blob.');
 		const signal = settings.signal;
-		if (signal?.aborted) throw abortError();
+		throwIfAborted(signal);
 		return run(async (instance) => {
+			throwIfAborted(signal);
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const mountPoint = `/editor-encode-${stamp}`;
 			const inputName = typeof File !== 'undefined' && file instanceof File
@@ -295,13 +297,17 @@ export function createEditorFfmpeg(options = {}) {
 				: `editor-${stamp}.wav`;
 			const output = `editor-${stamp}.${normalized.extension}`;
 			const onAbort = () => terminateRuntime();
+			let createdMountPoint = false;
+			let mounted = false;
 			signal?.addEventListener('abort', onAbort, { once: true });
-			await instance.createDir(mountPoint);
 			try {
+				await instance.createDir(mountPoint);
+				createdMountPoint = true;
 				const mountOptions = typeof File !== 'undefined' && file instanceof File
 					? { files: [file] }
 					: { blobs: [{ name: inputName, data: file }] };
 				await instance.mount(module.FFFSType.WORKERFS, mountOptions, mountPoint);
+				mounted = true;
 				const code = await instance.exec(encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
 					...normalized,
 					applyDither: settings.applyDither === true,
@@ -318,10 +324,10 @@ export function createEditorFfmpeg(options = {}) {
 			} finally {
 				signal?.removeEventListener('abort', onAbort);
 				await instance.deleteFile(output).catch(() => undefined);
-				await instance.unmount(mountPoint).catch(() => undefined);
-				await instance.deleteDir(mountPoint).catch(() => undefined);
+				if (mounted) await instance.unmount(mountPoint).catch(() => undefined);
+				if (createdMountPoint) await instance.deleteDir(mountPoint).catch(() => undefined);
 			}
-		});
+		}, () => throwIfAborted(signal));
 	}
 
 	async function encodeFileToSink(file, format, sink, settings = {}) {
@@ -382,7 +388,7 @@ export function createEditorFfmpeg(options = {}) {
 						await cleanupFfmpegOutputRuntime(cleanupSteps, terminateRuntime, operationError);
 					}
 				}
-			});
+			}, () => assertFfmpegOutputReady(settings));
 			assertFfmpegOutputReady(settings);
 			return result;
 		} catch (error) {
@@ -395,12 +401,16 @@ export function createEditorFfmpeg(options = {}) {
 	async function decode(file, settings = {}) {
 		const signal = settings.signal;
 		if (settings.sampleRate != null) normalizeMediaDecodeSampleRate(settings.sampleRate);
+		throwIfAborted(signal);
 		return run(async (instance) => {
+			throwIfAborted(signal);
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const mountPoint = `/editor-input-${stamp}`;
 			const output = `editor-decoded-${stamp}.wav`;
 			let input = `editor-input-${stamp}`;
 			let mounted = false;
+			const onAbort = () => terminateRuntime();
+			signal?.addEventListener('abort', onAbort, { once: true });
 
 			try {
 				if (typeof File !== 'undefined' && file instanceof File && module?.FFFSType) {
@@ -425,7 +435,11 @@ export function createEditorFfmpeg(options = {}) {
 				const raw = await instance.readFile(output, undefined, { signal });
 				if (!(raw instanceof Uint8Array)) throw new Error('FFmpeg returned invalid PCM data');
 				return decodeFloatWave(raw, signal);
+			} catch (error) {
+				if (signal?.aborted) throw signal.reason ?? abortError();
+				throw error;
 			} finally {
+				signal?.removeEventListener('abort', onAbort);
 				await instance.deleteFile(output).catch(() => undefined);
 				if (mounted) {
 					await instance.unmount(mountPoint).catch(() => undefined);
@@ -434,7 +448,7 @@ export function createEditorFfmpeg(options = {}) {
 					await instance.deleteFile(input).catch(() => undefined);
 				}
 			}
-		});
+		}, () => throwIfAborted(signal));
 	}
 
 	function probeVideoTiming(file, settings = {}) {
@@ -578,4 +592,9 @@ function abortError() {
 	return typeof DOMException === 'function'
 		? new DOMException('The operation was aborted', 'AbortError')
 		: Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
+}
+
+function throwIfAborted(signal) {
+	if (!signal?.aborted) return;
+	throw signal.reason ?? abortError();
 }

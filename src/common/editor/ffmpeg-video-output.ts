@@ -97,7 +97,10 @@ export interface FfmpegVideoJobInstance extends FfmpegOutputFileSource {
 }
 
 interface FfmpegVideoJobRuntime {
-	readonly run: <Value>(task: (instance: FfmpegVideoJobInstance) => Promise<Value>) => Promise<Value>;
+	readonly run: <Value>(
+		task: (instance: FfmpegVideoJobInstance) => Promise<Value>,
+		beforeLoad?: () => void,
+	) => Promise<Value>;
 	readonly workerFsType: () => unknown;
 	readonly terminateRuntime: () => void;
 	readonly isRuntimeTerminated: (instance: FfmpegVideoJobInstance) => boolean;
@@ -141,9 +144,9 @@ export async function encodeFfmpegVideoBytes(
 		options.settings.burnInFonts ?? null,
 	);
 	const signal = options.settings.signal;
-	if (signal?.aborted) throw abortError();
+	throwIfAborted(signal);
 	return options.run(async (instance) => {
-		if (signal?.aborted) throw abortError();
+		throwIfAborted(signal);
 		const job = createJob(staged);
 		let mounted = false;
 		const onAbort = () => options.terminateRuntime();
@@ -180,7 +183,7 @@ export async function encodeFfmpegVideoBytes(
 				await Promise.resolve(instance.deleteDir(job.mountPoint)).catch(() => undefined);
 			}
 		}
-	});
+	}, () => throwIfAborted(signal));
 }
 
 /** Stream one finalized FFmpeg video output through exact, bounded ranges into a caller-owned sink. */
@@ -248,7 +251,7 @@ export async function encodeFfmpegVideoToSink<Output>(
 					);
 				}
 			}
-		});
+		}, () => assertFfmpegOutputReady(options.settings));
 		assertFfmpegOutputReady(options.settings);
 		return result;
 	} catch (error) {
@@ -410,4 +413,9 @@ function abortError(): Error {
 	return typeof DOMException === 'function'
 		? new DOMException('The operation was aborted', 'AbortError')
 		: Object.assign(new Error('The operation was aborted'), { name: 'AbortError' });
+}
+
+function throwIfAborted(signal: AbortSignal | null | undefined): void {
+	if (!signal?.aborted) return;
+	throw signal.reason ?? abortError();
 }

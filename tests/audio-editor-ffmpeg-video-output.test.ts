@@ -193,6 +193,52 @@ test('FFmpeg video sink output uses cancellation as primary and aborts before la
 	assert.equal(stale.runCalls, 0);
 });
 
+test('queued video outputs cancel before runtime acquisition and preserve their reason', async () => {
+	const bytesRuntime = new VideoJobRuntime(Uint8Array.of(1));
+	const bytesGate = deferred();
+	const bytesController = new AbortController();
+	const bytesReason = new DOMException('queued byte export cancelled', 'AbortError');
+	let byteAcquisitions = 0;
+	const bytes = encodeFfmpegVideoBytes({
+		videoBlobsBySourceId: new Map(), audioMix: null, plan: silentMp4Plan(),
+		settings: { signal: bytesController.signal },
+		...bytesRuntime.options(),
+		async run(task, beforeLoad) {
+			await bytesGate.promise;
+			beforeLoad?.();
+			byteAcquisitions += 1;
+			return task(bytesRuntime.instance);
+		},
+	});
+	bytesController.abort(bytesReason);
+	bytesGate.resolve();
+	await assert.rejects(bytes, (error: unknown) => error === bytesReason);
+	assert.equal(byteAcquisitions, 0);
+
+	const sinkRuntime = new VideoJobRuntime(Uint8Array.of(1));
+	const sinkGate = deferred();
+	const sinkController = new AbortController();
+	const sinkReason = new DOMException('queued sink export cancelled', 'AbortError');
+	const sink = new RecordingSink();
+	let sinkAcquisitions = 0;
+	const streamed = encodeFfmpegVideoToSink({
+		videoBlobsBySourceId: new Map(), audioMix: null, plan: silentMp4Plan(), sink,
+		settings: { signal: sinkController.signal },
+		...sinkRuntime.options(),
+		async run(task, beforeLoad) {
+			await sinkGate.promise;
+			beforeLoad?.();
+			sinkAcquisitions += 1;
+			return task(sinkRuntime.instance);
+		},
+	});
+	sinkController.abort(sinkReason);
+	sinkGate.resolve();
+	await assert.rejects(streamed, (error: unknown) => error === sinkReason);
+	assert.equal(sinkAcquisitions, 0);
+	assert.deepEqual(sink.abortReasons, [sinkReason]);
+});
+
 class RecordingSink implements FfmpegOutputSink<TestSinkOutput> {
 	readonly abortReasons: unknown[] = [];
 	readonly events: string[] = [];
@@ -216,7 +262,11 @@ class VideoJobRuntime {
 
 	options() {
 		return {
-			run: async <Value>(task: (instance: FfmpegVideoJobInstance) => Promise<Value>) => {
+			run: async <Value>(
+				task: (instance: FfmpegVideoJobInstance) => Promise<Value>,
+				beforeLoad?: () => void,
+			) => {
+				beforeLoad?.();
 				this.runCalls += 1;
 				return task(this.instance);
 			},
@@ -276,6 +326,12 @@ function patternedBytes(byteLength: number): Uint8Array {
 	const bytes = new Uint8Array(byteLength);
 	for (let index = 0; index < bytes.byteLength; index += 1) bytes[index] = index & 0xff;
 	return bytes;
+}
+
+function deferred(): Readonly<{ promise: Promise<void>; resolve: () => void }> {
+	let resolve!: () => void;
+	const promise = new Promise<void>((accept) => { resolve = accept; });
+	return Object.freeze({ promise, resolve });
 }
 
 function silentMp4Plan() {

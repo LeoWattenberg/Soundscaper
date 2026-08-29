@@ -50,3 +50,39 @@ test('CFR fallback never publishes an empty or failed FFmpeg output', async () =
 		},
 	}), /no media bytes/iu);
 });
+
+test('CFR fallback refuses cancellation received while its runtime lease is queued', async () => {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => { release = resolve; });
+	let taskCalls = 0;
+	let runtimeCalls = 0;
+	let terminationCalls = 0;
+	const controller = new AbortController();
+	const reason = new DOMException('queued CFR cancelled', 'AbortError');
+	const operation = conformFfmpegVideoToCfr({
+		file: new Blob(['video']),
+		rate: { num: 25, den: 1 },
+		workerFsType: () => null,
+		terminateRuntime() { terminationCalls += 1; },
+		async run(task, beforeLoad) {
+			await gate;
+			beforeLoad?.();
+			taskCalls += 1;
+			return task({
+				async createDir() { runtimeCalls += 1; }, async mount() { runtimeCalls += 1; },
+				async unmount() { runtimeCalls += 1; }, async deleteDir() { runtimeCalls += 1; },
+				async writeFile() { runtimeCalls += 1; },
+				async readFile() { runtimeCalls += 1; return Uint8Array.of(1); },
+				async deleteFile() { runtimeCalls += 1; }, async exec() { runtimeCalls += 1; return 0; },
+			});
+		},
+		signal: controller.signal,
+	});
+
+	controller.abort(reason);
+	release();
+	await assert.rejects(operation, (error: unknown) => error === reason);
+	assert.equal(taskCalls, 0, 'queued cancellation is refused before acquiring a runtime lease');
+	assert.equal(runtimeCalls, 0);
+	assert.equal(terminationCalls, 0, 'queued cancellation has no active runtime to terminate');
+});

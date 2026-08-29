@@ -7,6 +7,7 @@ import {
 	buildFfmpegVideoTimingProbeArgs,
 	parseFfmpegVideoTimingLogs,
 } from '../src/common/editor/ffmpeg-video-timing-probe.ts';
+import { probeFfmpegVideoTiming } from '../src/common/editor/ffmpeg-video-timing-operation.ts';
 import { VIDEO_TIMING_ASSET_MAXIMUM_FRAMES } from '../src/common/editor/video-timing-asset-reference.ts';
 
 test('FFmpeg probes one frame beyond the timing-asset ceiling to reject truncation', () => {
@@ -62,4 +63,64 @@ test('FFmpeg timing parsing rejects missing, discontinuous, and backward PTS evi
 		'[showinfo] n: 0 pts: 10 pts_time:0.01',
 		'[showinfo] n: 1 pts: 9 pts_time:0.009',
 	]), /strictly increasing/iu);
+});
+
+test('a first-generation timing probe resolves WORKERFS after its runtime loads', async () => {
+	const events: string[] = [];
+	let loaded = false;
+	let logListener: ((entry: { message?: string }) => void) | null = null;
+	const result = await probeFfmpegVideoTiming({
+		file: new File([Uint8Array.of(1, 2, 3)], '../unsafe/video.mp4', { type: 'video/mp4' }),
+		workerFsType: () => loaded ? 'WORKERFS' : null,
+		terminateRuntime() {},
+		async run(task, beforeLoad) {
+			beforeLoad?.();
+			loaded = true;
+			return task({
+				async createDir() { events.push('mkdir'); },
+				async mount(type: unknown, options: unknown) {
+					events.push(`mount:${String(type)}:${String((options as { blobs: Blob[] }).blobs.length)}`);
+				},
+				async unmount() { events.push('unmount'); },
+				async deleteDir() { events.push('rmdir'); },
+				async deleteFile() { events.push('delete-file'); },
+				async writeFile() { throw new Error('copied the whole File into MEMFS'); },
+				async exec() {
+					logListener?.({ message: '[Parsed_showinfo_0] config in time_base: 1/1000, frame_rate: 25/1' });
+					logListener?.({ message: '[Parsed_showinfo_0] n: 0 pts: 0 duration: 40 fmt:yuv420p sar:1/1 s:1920x1080 i:P' });
+					return 0;
+				},
+				on(_event: string, listener: (entry: { message?: string }) => void) { logListener = listener; },
+				off() { logListener = null; },
+			} as never);
+		},
+	});
+
+	assert.equal(result.timescale, 1_000);
+	assert.deepEqual(events, ['mkdir', 'mount:WORKERFS:1', 'unmount', 'rmdir']);
+});
+
+test('a queued timing probe cancels before acquiring a runtime', async () => {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => { release = resolve; });
+	let runtimeAcquisitions = 0;
+	const controller = new AbortController();
+	const reason = new DOMException('queued timing probe cancelled', 'AbortError');
+	const probing = probeFfmpegVideoTiming({
+		file: new Blob(['video']),
+		signal: controller.signal,
+		workerFsType: () => null,
+		terminateRuntime() {},
+		async run(task, beforeLoad) {
+			await gate;
+			beforeLoad?.();
+			runtimeAcquisitions += 1;
+			return task({} as never);
+		},
+	});
+
+	controller.abort(reason);
+	release();
+	await assert.rejects(probing, (error: unknown) => error === reason);
+	assert.equal(runtimeAcquisitions, 0);
 });
