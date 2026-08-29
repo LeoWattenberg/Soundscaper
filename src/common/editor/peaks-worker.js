@@ -47,8 +47,8 @@ self.onmessage = ({ data = {} }) => {
 function createChannelLevel() {
 	return {
 		count: 0,
-		minimum: 1,
-		maximum: -1,
+		minimum: Number.POSITIVE_INFINITY,
+		maximum: Number.NEGATIVE_INFINITY,
 		squareSum: 0,
 		minimums: [],
 		maximums: [],
@@ -70,7 +70,7 @@ function flushLevel(level) {
 	level.maximums.push(level.maximum);
 	level.rms.push(Math.sqrt(level.squareSum / level.count));
 	level.count = 0;
-	level.minimum = 1;
-	level.maximum = -1;
+	level.minimum = Number.POSITIVE_INFINITY;
+	level.maximum = Number.NEGATIVE_INFINITY;
 	level.squareSum = 0;
 }

@@ -166,8 +166,10 @@ export async function generateStoredWaveformPeaksFallback(
 	const levels = WAVEFORM_PEAK_BLOCK_SIZES.map((blockSize) => ({
 		blockSize,
 		channels: Array.from({ length: source.channelCount }, () => ({
-			minimums: new Float32Array(Math.ceil(source.frameCount / blockSize)).fill(1),
-			maximums: new Float32Array(Math.ceil(source.frameCount / blockSize)).fill(-1),
+			minimums: new Float32Array(Math.ceil(source.frameCount / blockSize))
+				.fill(Number.POSITIVE_INFINITY),
+			maximums: new Float32Array(Math.ceil(source.frameCount / blockSize))
+				.fill(Number.NEGATIVE_INFINITY),
 			squareSums: new Float64Array(Math.ceil(source.frameCount / blockSize)),
 			counts: new Uint32Array(Math.ceil(source.frameCount / blockSize)),
 		})),
@@ -197,8 +199,8 @@ export async function generateStoredWaveformPeaksFallback(
 		levels: levels.map(({ blockSize, channels }) => ({
 			blockSize,
 			channels: channels.map(({ minimums, maximums, squareSums, counts }) => ({
-				minimums,
-				maximums,
+				minimums: Float32Array.from(minimums, (value, block) => (counts[block] ? value : 0)),
+				maximums: Float32Array.from(maximums, (value, block) => (counts[block] ? value : 0)),
 				rms: Float32Array.from(squareSums, (squareSum, block) => (
 					counts[block] ? Math.sqrt(squareSum / counts[block]!) : 0
 				)),
@@ -279,8 +281,8 @@ export function generateWaveformPeaksFallback(channels: Float32Array[]): Wavefor
 				const maximums = new Float32Array(count);
 				const rms = new Float32Array(count);
 				for (let block = 0; block < count; block += 1) {
-					let minimum = 1;
-					let maximum = -1;
+					let minimum = Number.POSITIVE_INFINITY;
+					let maximum = Number.NEGATIVE_INFINITY;
 					let squareSum = 0;
 					let sampleCount = 0;
 					for (let frame = block * blockSize; frame < Math.min(channel.length, (block + 1) * blockSize); frame += 1) {
@@ -290,8 +292,8 @@ export function generateWaveformPeaksFallback(channels: Float32Array[]): Wavefor
 						squareSum += sample * sample;
 						sampleCount += 1;
 					}
-					minimums[block] = minimum;
-					maximums[block] = maximum;
+					minimums[block] = sampleCount ? minimum : 0;
+					maximums[block] = sampleCount ? maximum : 0;
 					rms[block] = sampleCount ? Math.sqrt(squareSum / sampleCount) : 0;
 				}
 				return { minimums, maximums, rms };
