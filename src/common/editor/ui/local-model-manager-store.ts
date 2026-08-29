@@ -89,6 +89,7 @@ export function createLocalModelManagerStore(
 ): LocalModelManagerStore {
 	let snapshot = EMPTY_SNAPSHOT;
 	let loadOperation: Promise<void> | null = null;
+	let refreshGeneration = 0;
 	let connectionCount = 0;
 	let unsubscribeProgress: (() => void) | null = null;
 	const listeners = new Set<() => void>();
@@ -117,14 +118,17 @@ export function createLocalModelManagerStore(
 	});
 
 	const refresh = async (announceLoading: boolean): Promise<void> => {
+		const generation = ++refreshGeneration;
 		if (announceLoading) publish({ phase: 'loading', error: null });
 		try {
 			const status = normalizeLocalModelManagerStatus(await bridge.listAssistanceModels());
+			if (generation !== refreshGeneration) return;
 			publish({
 				phase: 'ready', runtimeAvailable: status.runtimeAvailable,
 				runtimeReason: status.runtimeReason, models: status.models, error: null,
 			});
 		} catch (error) {
+			if (generation !== refreshGeneration) return;
 			publish({
 				phase: announceLoading ? 'error' : snapshot.phase,
 				error: managerError(null, error),

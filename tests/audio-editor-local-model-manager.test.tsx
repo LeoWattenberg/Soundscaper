@@ -38,6 +38,19 @@ const INSTALLED_MODEL = Object.freeze({
 	installedBytes: 661_190_513,
 });
 
+const SECOND_INSTALLABLE_MODEL = Object.freeze({
+	...INSTALLABLE_MODEL,
+	modelId: 'silero-vad-v5',
+	version: '5.1.2',
+	downloadBytes: 2_327_752,
+});
+
+const SECOND_INSTALLED_MODEL = Object.freeze({
+	...SECOND_INSTALLABLE_MODEL,
+	availability: 'installed' as const,
+	installedBytes: 2_327_752,
+});
+
 function status(models: readonly LocalModelManagerModel[] = [INSTALLABLE_MODEL]) {
 	return Object.freeze({
 		runtimeAvailable: true,
@@ -185,6 +198,46 @@ test('explicit installs accept only progress correlated to their active model', 
 	assert.equal(store.getSnapshot().models[0]?.availability, 'installed');
 	assert.deepEqual(store.getSnapshot().progress, []);
 	disconnect();
+});
+
+test('an older concurrent install refresh cannot replace a newer model inventory', async () => {
+	const fixture = bridgeFixture();
+	const firstInstall = deferred<unknown>();
+	const secondInstall = deferred<unknown>();
+	const firstRefresh = deferred<unknown>();
+	const secondRefresh = deferred<unknown>();
+	let listCount = 0;
+	const store = createLocalModelManagerStore({
+		...fixture.bridge,
+		listAssistanceModels: () => {
+			listCount += 1;
+			if (listCount === 1) return Promise.resolve(status([
+				INSTALLABLE_MODEL, SECOND_INSTALLABLE_MODEL,
+			]));
+			if (listCount === 2) return firstRefresh.promise;
+			if (listCount === 3) return secondRefresh.promise;
+			throw new Error('Unexpected model inventory refresh.');
+		},
+		installAssistanceModel: (modelId) => modelId === INSTALLABLE_MODEL.modelId
+			? firstInstall.promise
+			: secondInstall.promise,
+	});
+	await store.load();
+
+	const firstOperation = store.install(INSTALLABLE_MODEL.modelId);
+	const secondOperation = store.install(SECOND_INSTALLABLE_MODEL.modelId);
+	firstInstall.resolve(INSTALLED_MODEL);
+	await Promise.resolve();
+	secondInstall.resolve(SECOND_INSTALLED_MODEL);
+	await Promise.resolve();
+	assert.equal(listCount, 3);
+
+	secondRefresh.resolve(status([INSTALLED_MODEL, SECOND_INSTALLED_MODEL]));
+	await secondOperation;
+	firstRefresh.resolve(status([INSTALLED_MODEL, SECOND_INSTALLABLE_MODEL]));
+	await firstOperation;
+
+	assert.deepEqual(store.getSnapshot().models, [INSTALLED_MODEL, SECOND_INSTALLED_MODEL]);
 });
 
 test('install cancellation stays explicit and clears activity only after acknowledgement', async () => {
