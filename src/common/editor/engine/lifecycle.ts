@@ -107,6 +107,7 @@ export function initializeEngineRuntime(
 	engine.preferredOutputDeviceId = '';
 	engine.activeOutputDeviceId = '';
 	engine.outputDeviceError = null;
+	engine.outputDeviceGeneration = 0;
 	engine.positionFrame = 0;
 	engine.playbackStartFrame = 0;
 	engine.playbackStartTime = 0;
@@ -321,12 +322,14 @@ async getAudioContext({ resume = true } = {}) {
 async setOutputDevice(deviceId = '') {
 		this[ENGINE_ASSERT_ACTIVE]();
 		const normalized = normalizeOutputDeviceId(deviceId);
-		if (!this.context) {
+		const generation = ++this.outputDeviceGeneration;
+		const context = this.context;
+		if (!context) {
 			this.preferredOutputDeviceId = normalized;
 			this.outputDeviceError = null;
 			return this.getOutputDeviceState();
 		}
-		if (typeof this.context.setSinkId !== 'function') {
+		if (typeof context.setSinkId !== 'function') {
 			if (normalized) throw outputDeviceError('NotSupportedError', 'Audio output selection is not supported by this browser.');
 			this.preferredOutputDeviceId = '';
 			this.activeOutputDeviceId = '';
@@ -336,16 +339,21 @@ async setOutputDevice(deviceId = '') {
 		const previousPreferred = this.preferredOutputDeviceId;
 		const previousActive = this.activeOutputDeviceId;
 		try {
-			await this.context.setSinkId(normalized);
+			await context.setSinkId(normalized);
 			this[ENGINE_ASSERT_ACTIVE]();
+			if (context !== this.context || generation !== this.outputDeviceGeneration) {
+				return this.getOutputDeviceState();
+			}
 			this.preferredOutputDeviceId = normalized;
 			this.activeOutputDeviceId = normalized;
 			this.outputDeviceError = null;
 			return this.getOutputDeviceState();
 		} catch (error) {
-			this.preferredOutputDeviceId = previousPreferred;
-			this.activeOutputDeviceId = previousActive;
-			this.outputDeviceError = error;
+			if (context === this.context && generation === this.outputDeviceGeneration) {
+				this.preferredOutputDeviceId = previousPreferred;
+				this.activeOutputDeviceId = previousActive;
+				this.outputDeviceError = error;
+			}
 			throw error;
 		}
 	},
@@ -413,21 +421,26 @@ async [ENGINE_GET_CONTEXT]() {
 		}
 		const preferredOutputDeviceId = this.preferredOutputDeviceId;
 		if (preferredOutputDeviceId) {
+			const outputDeviceGeneration = this.outputDeviceGeneration;
 			try {
 				if (typeof context.setSinkId !== 'function') {
 					throw outputDeviceError('NotSupportedError', 'Audio output selection is not supported by this browser.');
 				}
 				await context.setSinkId(preferredOutputDeviceId);
 				this[ENGINE_ASSERT_ACTIVE]();
-				this.activeOutputDeviceId = preferredOutputDeviceId;
+				if (context === this.context && outputDeviceGeneration === this.outputDeviceGeneration) {
+					this.activeOutputDeviceId = preferredOutputDeviceId;
+				}
 			} catch (error) {
 				if (this.disposed || generation !== this.lifecycleGeneration) {
 					if (context?.state !== 'closed') await context?.close?.();
 					throw new AudioEditorEngineDisposedError();
 				}
-				this.outputDeviceError = error;
-				this.activeOutputDeviceId = '';
-				try { await context.setSinkId?.(''); } catch { /* The system output remains the browser fallback. */ }
+				if (context === this.context && outputDeviceGeneration === this.outputDeviceGeneration) {
+					this.outputDeviceError = error;
+					this.activeOutputDeviceId = '';
+					try { await context.setSinkId?.(''); } catch { /* The system output remains the browser fallback. */ }
+				}
 			}
 		}
 		this[ENGINE_ASSERT_ACTIVE]();

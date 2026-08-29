@@ -48,6 +48,65 @@ test('an AudioContext still loading during disposal is closed and never installe
 	assert.ok(contexts[0].closeCalls >= 1);
 });
 
+test('a stale output-device request cannot overwrite a newer completed switch', async () => {
+	const switches = new Map([
+		['speaker-a', deferred()],
+		['speaker-b', deferred()],
+	]);
+	const context = createContext({
+		setSinkId(deviceId) {
+			return switches.get(deviceId).promise;
+		},
+	});
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
+	await engine.getAudioContext({ resume: false });
+
+	const olderSwitch = engine.setOutputDevice('speaker-a');
+	const newerSwitch = engine.setOutputDevice('speaker-b');
+	switches.get('speaker-b').resolve();
+	assert.equal((await newerSwitch).activeDeviceId, 'speaker-b');
+	switches.get('speaker-a').resolve();
+
+	assert.equal((await olderSwitch).activeDeviceId, 'speaker-b');
+	assert.deepEqual(engine.getOutputDeviceState(), {
+		preferredDeviceId: 'speaker-b',
+		activeDeviceId: 'speaker-b',
+		supported: true,
+		error: null,
+	});
+	await engine.dispose();
+});
+
+test('a stale output-device failure rejects without replacing the newer device state', async () => {
+	const switches = new Map([
+		['speaker-a', deferred()],
+		['speaker-b', deferred()],
+	]);
+	const context = createContext({
+		setSinkId(deviceId) {
+			return switches.get(deviceId).promise;
+		},
+	});
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
+	await engine.getAudioContext({ resume: false });
+
+	const olderSwitch = engine.setOutputDevice('speaker-a');
+	const newerSwitch = engine.setOutputDevice('speaker-b');
+	switches.get('speaker-b').resolve();
+	await newerSwitch;
+	const staleError = new DOMException('Speaker A permission was revoked.', 'NotAllowedError');
+	switches.get('speaker-a').reject(staleError);
+
+	await assert.rejects(olderSwitch, (error) => error === staleError);
+	assert.deepEqual(engine.getOutputDeviceState(), {
+		preferredDeviceId: 'speaker-b',
+		activeDeviceId: 'speaker-b',
+		supported: true,
+		error: null,
+	});
+	await engine.dispose();
+});
+
 function createContext(overrides = {}) {
 	return {
 		state: 'suspended',
