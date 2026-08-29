@@ -30,7 +30,7 @@ interface ActiveSeek {
 	readonly resolve: (result: Readonly<{ readonly mediaTime: number }>) => void;
 	readonly reject: (error: Error) => void;
 	seekIssued: boolean;
-	seeked: boolean;
+	seekComplete: boolean;
 	presentedMediaTime: number | null;
 	failure: Error | null;
 	settled: boolean;
@@ -144,15 +144,17 @@ export function createVideoRetimeHtmlVideoSeekPort(
 				const frameCallbackId = requestFrame((_now, metadata) => {
 					if (seek.settled) return;
 					const mediaTime = metadata.mediaTime;
-					if (!Number.isFinite(mediaTime)
-						|| mediaTime < request.intervalStartSeconds
-						|| mediaTime >= request.intervalEndSeconds) {
+					if (!mediaTimeInRequestedInterval(mediaTime, request)) {
 						requestFailure(seek, new RangeError(
 							'The presented video frame is outside its requested half-open source interval.',
 						));
 						return;
 					}
 					seek.presentedMediaTime = mediaTime;
+					// A compositor-authenticated frame after the media element has
+					// stopped seeking is sufficient even when Firefox omits `seeked`
+					// for an assignment within the frame that is already current.
+					seek.seekComplete ||= !video.seeking;
 					maybeSettle(seek);
 				});
 				if (seek.settled) {
@@ -163,7 +165,7 @@ export function createVideoRetimeHtmlVideoSeekPort(
 				seek.timer = setTimeout(() => {
 					if (seek.settled) return;
 					const error = new Error(`The retime preview seek timed out after ${String(timeoutMs)} ms.`);
-					if (seek.seekIssued && video.seeking && !seek.seeked) terminalError = error;
+					if (seek.seekIssued && video.seeking && !seek.seekComplete) terminalError = error;
 					finishRejection(seek, error);
 				}, timeoutMs);
 				assertCurrent();
@@ -191,7 +193,7 @@ export function createVideoRetimeHtmlVideoSeekPort(
 			resolve,
 			reject,
 			seekIssued: false,
-			seeked: false,
+			seekComplete: false,
 			presentedMediaTime: null,
 			failure: null,
 			settled: false,
@@ -199,7 +201,7 @@ export function createVideoRetimeHtmlVideoSeekPort(
 			timer: null,
 			onSeeked: () => {
 				if (seek.settled) return;
-				seek.seeked = true;
+				seek.seekComplete = true;
 				maybeSettle(seek);
 			},
 			onMediaError: () => {
@@ -229,16 +231,16 @@ export function createVideoRetimeHtmlVideoSeekPort(
 			cancelFrame(seek.frameCallbackId);
 			seek.frameCallbackId = null;
 		}
-		if (!seek.seekIssued || seek.seeked || !video.seeking) finishRejection(seek, error);
+		if (!seek.seekIssued || !video.seeking) finishRejection(seek, error);
 	}
 
 	function maybeSettle(seek: ActiveSeek): void {
 		if (seek.settled) return;
 		if (seek.failure !== null) {
-			if (seek.seeked || !seek.seekIssued || !video.seeking) finishRejection(seek, seek.failure);
+			if (!seek.seekIssued || !video.seeking) finishRejection(seek, seek.failure);
 			return;
 		}
-		if (!seek.seeked || seek.presentedMediaTime === null) return;
+		if (!seek.seekComplete || video.seeking || seek.presentedMediaTime === null) return;
 		try {
 			assertCurrent();
 		} catch (error) {
@@ -280,6 +282,12 @@ export function createVideoRetimeHtmlVideoSeekPort(
 
 	assertCurrent();
 	return Object.freeze({ pause, assertCurrent, present });
+}
+
+function mediaTimeInRequestedInterval(mediaTime: number, request: ActiveSeek['request']): boolean {
+	return Number.isFinite(mediaTime)
+		&& mediaTime >= request.intervalStartSeconds
+		&& mediaTime < request.intervalEndSeconds;
 }
 
 function presentationRequest(value: unknown): ActiveSeek['request'] {
