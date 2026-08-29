@@ -350,7 +350,9 @@ export function createClipboardEditService(
 		}
 		commands.push(preparePaste(clipboard, project, atFrame, trackMap, mode));
 		const command: AudioEditorCommand = commands.length === 1 ? commands[0]! : { type: 'batch', commands };
-		if (!editSessionClipboard || !dependencies.prepareEditClipboardPasteCommand) return command;
+		if (!editSessionClipboard
+			|| !sameClipboardDescriptor(editSessionClipboard.descriptor, clipboard)
+			|| !dependencies.prepareEditClipboardPasteCommand) return command;
 		return dependencies.prepareEditClipboardPasteCommand(
 			project,
 			editSessionClipboard,
@@ -463,6 +465,12 @@ export function createClipboardEditService(
 			dependencies.createId,
 		) as Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
 	}
+}
+
+function sameClipboardDescriptor(left: AudioEditorClipboard, right: AudioEditorClipboard): boolean {
+	if (left === right) return true;
+	try { return JSON.stringify(left) === JSON.stringify(right); }
+	catch { return false; }
 }
 
 function findClip(project: ClipboardEditProject, clipId: string | null | undefined): ClipboardEditClip | null {

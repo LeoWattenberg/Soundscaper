@@ -261,6 +261,53 @@ test('product clipboard carrier survives copy and composes the next paste atomic
 	}
 });
 
+test('a project switch cannot compose a replacement clipboard with the previous carrier', () => {
+	const first = audioClipboard();
+	const replacement: AudioEditorClipboard = {
+		...audioClipboard(),
+		tracks: [{
+			...audioClipboard().tracks[0]!,
+			sourceTrackId: 'replacement-origin',
+			clips: [{
+				...audioClipboard().tracks[0]!.clips[0]!,
+				key: 'replacement:0:20',
+				sourceId: 'replacement-source',
+			}],
+		}],
+	};
+	const firstCarrier = Object.freeze({ descriptor: first, productToken: 'project-a' });
+	let sessionClipboard = first;
+	let composedCarrier: unknown = null;
+	const fixture = createFixture(project(), {
+		createEditSessionClipboard: () => firstCarrier,
+		prepareEditClipboardPasteCommand: (_project, carrier, command) => {
+			composedCarrier = carrier;
+			return command;
+		},
+		session: {
+			setClipboard: (descriptor) => ({ clipboard: { descriptor, sources: [] } }),
+			clipboardForProject: () => ({ descriptor: sessionClipboard, sources: [] }),
+		},
+	});
+	const service = createClipboardEditService(fixture.dependencies);
+	service.setSessionClipboard(first);
+
+	fixture.replaceProject(project({ id: 'project-b', sources: [], tracks: [], clips: [], selection: null }));
+	fixture.state.selectedTrackId = null;
+	fixture.state.selectedClipId = null;
+	sessionClipboard = replacement;
+	fixture.state.clipboard = replacement;
+	const command = service.prepareControllerPaste('overlap', 40);
+
+	assert.equal(composedCarrier, null);
+	const paste = command.type === 'batch'
+		? command.commands.find((entry) => entry.type === 'clipboard/paste')
+		: command;
+	assert.ok(paste);
+	assert.equal(paste.type, 'clipboard/paste');
+	if (paste.type === 'clipboard/paste') assert.deepEqual(paste.clipboard, replacement);
+});
+
 test('blocked and out-of-range splits do not create history entries', () => {
 	const blocked = createFixture(project(), { editingBlocked: () => true });
 	const blockedService = createClipboardEditService(blocked.dependencies);
