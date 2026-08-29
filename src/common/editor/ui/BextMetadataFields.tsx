@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
 	normalizeBextMetadataEditorValue,
 	type BextMetadataEditorValue,
 } from './bext-metadata-editor-model.ts';
+import {
+	cancelDraftEditOnEscape,
+	createDraftBlurCommitGuard,
+	draftBlurShouldCommit,
+} from './draft-blur-commit.ts';
 
 type BextTextFieldName = 'description' | 'originator' | 'originatorReference'
 	| 'originationDate' | 'originationTime' | 'timeReference' | 'umid' | 'codingHistory';
@@ -50,14 +55,19 @@ function DraftField({
 }: DraftFieldProps) {
 	const presentedValue = displayValue(value);
 	const [draft, setDraft] = useState(presentedValue);
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => setDraft(presentedValue), [presentedValue]);
 	const commit = () => {
+		if (!draftBlurShouldCommit(blurCommitGuard)) return;
 		if (draft !== presentedValue) onCommit(draft);
 	};
 	const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
 		if (event.key === 'Escape') {
-			setDraft(presentedValue);
-			event.currentTarget.blur();
+			cancelDraftEditOnEscape(
+				blurCommitGuard,
+				event,
+				() => setDraft(presentedValue),
+			);
 		} else if (!multiline && event.key === 'Enter') event.currentTarget.blur();
 	};
 	return (

@@ -71,6 +71,33 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await expect(projectMetadata.locator('input[name="description"]')).not.toHaveValue('One-off delivery');
 	});
 
+	test('Escape cancels a BEXT field draft while Enter still commits it', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		let panel = editor.locator('[data-workspace-panel="metadata"]');
+		await panel.getByRole('tab', { name: 'BEXT', exact: true }).click();
+		let description = panel.locator('input[name="description"]');
+		const original = await description.inputValue();
+
+		await description.fill('Cancelled description');
+		await description.press('Escape');
+		await expect(description).toHaveValue(original);
+		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		panel = editor.locator('[data-workspace-panel="metadata"]');
+		await panel.getByRole('tab', { name: 'BEXT', exact: true }).click();
+		description = panel.locator('input[name="description"]');
+		await expect(description).toHaveValue(original);
+
+		await description.fill('Committed description');
+		await description.press('Enter');
+		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
+		panel = editor.locator('[data-workspace-panel="metadata"]');
+		await panel.getByRole('tab', { name: 'BEXT', exact: true }).click();
+		await expect(panel.locator('input[name="description"]')).toHaveValue('Committed description');
+	});
+
 	test('downloads an offline BWF with authored BEXT v2 metadata and canonical coding history', async ({ page }) => {
 		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);

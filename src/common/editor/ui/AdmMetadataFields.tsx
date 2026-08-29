@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import './audio-editor-design-system/15-adm.css';
@@ -26,6 +26,11 @@ import {
 } from './adm-metadata-editor-model.ts';
 import { ADM_AUTHORED_MAXIMUM_CHANNELS } from '../adm-authored-objects.ts';
 import { createStableId } from '../stable-id.js';
+import {
+	cancelDraftEditOnEscape,
+	createDraftBlurCommitGuard,
+	draftBlurShouldCommit,
+} from './draft-blur-commit.ts';
 
 interface AdmMetadataFieldsProps {
 	readonly value: AdmProjectMetadata | null;
@@ -49,8 +54,10 @@ interface DraftFieldProps {
 
 function DraftField({ name, label, value, disabled, maxLength = 512, pattern, onCommit }: DraftFieldProps) {
 	const [draft, setDraft] = useState(value);
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => setDraft(value), [value]);
 	const commit = (input: HTMLInputElement) => {
+		if (!draftBlurShouldCommit(blurCommitGuard)) return;
 		if (!input.checkValidity()) return;
 		if (draft !== value) onCommit(draft);
 	};
@@ -67,8 +74,11 @@ function DraftField({ name, label, value, disabled, maxLength = 512, pattern, on
 				onBlur={(event) => commit(event.currentTarget)}
 				onKeyDown={(event) => {
 					if (event.key === 'Escape') {
-						setDraft(value);
-						event.currentTarget.blur();
+						cancelDraftEditOnEscape(
+							blurCommitGuard,
+							event,
+							() => setDraft(value),
+						);
 					} else if (event.key === 'Enter') event.currentTarget.blur();
 				}}
 			/>

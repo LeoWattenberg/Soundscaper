@@ -1,9 +1,14 @@
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
+import {
+	cancelDraftEditOnEscape,
+	createDraftBlurCommitGuard,
+	draftBlurShouldCommit,
+} from '../draft-blur-commit.ts';
 
 export function LabelManagerRow({ label, sampleRate, controller, copy, disabled, run }) {
 	const [title, setTitle] = useState(label.title || '');
@@ -59,8 +64,10 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 
 export function MetadataEditorField({ name, label, value, disabled, onCommit }) {
 	const [draft, setDraft] = useState(value);
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => setDraft(value), [value]);
 	const commit = () => {
+		if (!draftBlurShouldCommit(blurCommitGuard)) return;
 		if (draft !== value) onCommit(draft);
 	};
 	return (
@@ -75,8 +82,11 @@ export function MetadataEditorField({ name, label, value, disabled, onCommit }) 
 				onKeyDown={(event) => {
 					if (event.key === 'Enter') event.currentTarget.blur();
 					else if (event.key === 'Escape') {
-						setDraft(value);
-						event.currentTarget.blur();
+						cancelDraftEditOnEscape(
+							blurCommitGuard,
+							event,
+							() => setDraft(value),
+						);
 					}
 				}}
 			/>

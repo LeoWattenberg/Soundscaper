@@ -7,6 +7,11 @@ import {
 	createProjectBinDragPayload,
 } from '../../project-bin-dnd.js';
 import {
+	cancelDraftEditOnEscape,
+	createDraftBlurCommitGuard,
+	draftBlurShouldCommit,
+} from '../draft-blur-commit.ts';
+import {
 	formatProjectBinDuration,
 	formatProjectBinSource,
 	projectBinTransformBadges,
@@ -317,8 +322,10 @@ function ProjectBinVisualThumbnail({ state }) {
 
 function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
 	const [draft, setDraft] = useState(name);
+	const blurCommitGuard = useRef(createDraftBlurCommitGuard()).current;
 	useEffect(() => setDraft(name), [clip.id, name]);
 	const commit = () => {
+		if (!draftBlurShouldCommit(blurCommitGuard)) return;
 		const nextName = draft.trim();
 		if (!nextName) {
 			setDraft(name);
@@ -339,9 +346,11 @@ function ProjectBinNameEditor({ clip, name, copy, disabled, onCommit }) {
 				onKeyDown={(event) => {
 					if (event.key === 'Enter') event.currentTarget.blur();
 					else if (event.key === 'Escape') {
-						event.preventDefault();
-						setDraft(name);
-						event.currentTarget.blur();
+						cancelDraftEditOnEscape(
+							blurCommitGuard,
+							event,
+							() => setDraft(name),
+						);
 					}
 				}}
 			/>
