@@ -276,15 +276,17 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 		const stops = root.querySelectorAll(stopSelector);
 		const playheads = root.querySelectorAll(playheadSelector);
 		const meters = root.querySelectorAll(meterSelector);
+		const projections = root.querySelectorAll('.audio-editor-timeline-panel');
 		if (plays.length !== 1 || plays[0].disabled !== false
 			|| plays[0].getAttribute('aria-pressed') !== 'false'
 			|| stops.length !== 1 || stops[0].disabled !== false
-			|| playheads.length !== 1 || meters.length !== 1) {
+			|| playheads.length !== 1 || meters.length !== 1 || projections.length !== 1) {
 			throw new Error('Packaged Scape persisted-reopen playback controls or evidence are incomplete');
 		}
 		const playhead = playheads[0];
 		const meter = meters[0];
-		const initialPlayheadX = Number.parseFloat(playhead.style.getPropertyValue('--playhead-x'));
+		const projection = projections[0];
+		const initialPlayheadX = Number.parseFloat(projection.style.getPropertyValue('--timeline-playhead-x'));
 		const initialPlayheadFrame = Number(playhead.getAttribute('aria-valuenow'));
 		const meterFloor = Number(meter.getAttribute('aria-valuemin'));
 		const initialMeterValue = Number(meter.getAttribute('aria-valuenow'));
@@ -320,7 +322,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 				&& pauses[0].getAttribute('aria-pressed') === 'true';
 			if (active) {
 				transportEntered = true;
-				const currentX = Number.parseFloat(playhead.style.getPropertyValue('--playhead-x'));
+				const currentX = Number.parseFloat(projection.style.getPropertyValue('--timeline-playhead-x'));
 				if (Number.isFinite(currentX) && currentX > initialPlayheadX) playheadAdvanced = true;
 				const meterValue = Number(meter.getAttribute('aria-valuenow'));
 				if (Number.isFinite(meterValue) && meterValue > initialMeterValue) meterAboveFloor = true;

@@ -362,7 +362,6 @@ function rendererFixture(plan, {
 		},
 	};
 	const playhead = {
-		style: { getPropertyValue: (name) => name === '--playhead-x' ? `${playheadX}px` : '' },
 		getAttribute: (name) => name === 'aria-valuenow' ? String(playheadFrame) : null,
 	};
 	const meter = {
@@ -382,6 +381,9 @@ function rendererFixture(plan, {
 	};
 	const tab = attribute({ role: 'tab', 'aria-selected': 'true' }, plan.project.title);
 	const status = attribute({ 'data-editor-status': '', 'data-state': 'success' }, 'Ready');
+	const timeline = {
+		style: { getPropertyValue: (name) => name === '--timeline-playhead-x' ? `${playheadX}px` : '' },
+	};
 	const root = {
 		...attribute({
 			'data-project-id': plan.project.id,
@@ -390,6 +392,7 @@ function rendererFixture(plan, {
 		}),
 		querySelectorAll(selector) {
 			if (!currentReady) return [];
+			if (selector === '.audio-editor-timeline-panel') return [timeline];
 			if (selector === '.kw-audio-editor__project-tabs [role="tab"][aria-selected="true"]') return [tab];
 			if (selector === '.kw-audio-editor__zoom-actions button[aria-label="Zoom in"]') return [zoomIn];
 			if (selector === `[data-track-row][data-track-id="${plan.project.trackId}"]`) return [track];
