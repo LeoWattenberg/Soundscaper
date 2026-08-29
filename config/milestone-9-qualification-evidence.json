@@ -1,0 +1,25 @@
+{
+	"schemaVersion": 1,
+	"workloadId": "m9-complete-system-soak",
+	"fixtureId": "m9-complete-system-soak-8h-v1",
+	"behaviorMatrixId": "stable-1-0-full-browser-five-desktop-native-v1",
+	"evidenceRoot": "qualification/milestone-9",
+	"status": "pending-external",
+	"blockedBy": "The full release matrix is not provisioned and has no two-consecutive-run eight-hour evidence.",
+	"sourceRevision": null,
+	"budgetSha256": null,
+	"soakSpecSha256": "c28c0d12d051bc0c2783d82325fc1adb405b50167933769f9f92a773684193d7",
+	"cells": [
+		{ "cellId": "browser-chromium-current", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "browser-chromium-previous", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "browser-firefox-current", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "browser-firefox-previous", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "browser-safari-current", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "browser-safari-previous", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "desktop-windows-x64", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "desktop-windows-arm64", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "desktop-macos-arm64", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "desktop-linux-x64", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } },
+		{ "cellId": "desktop-linux-arm64", "status": "pending-external", "runs": [{ "sequence": 1, "path": null, "byteLength": null, "sha256": null }, { "sequence": 2, "path": null, "byteLength": null, "sha256": null }], "cohort": { "path": null, "byteLength": null, "sha256": null } }
+	]
+}

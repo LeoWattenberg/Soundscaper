@@ -1,23 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-const EXPECTED_PREFIX_COUNTS = Object.freeze({
-	SB: 9,
-	FB: 17,
-	SD: 5,
-	FD: 6,
-	PI: 4,
-	SW: 5,
-	FW: 6,
-	PW: 4,
-	SN: 12,
-	FN: 14,
-	SDL: 9,
-	FDL: 10,
-	LA: 17,
-	CAP: 10,
-	REL: 14,
-	GAT: 10,
-});
+import { evaluateMilestone9BehaviorEnvironmentCoverage } from './milestone-9-behavior-environments.mjs';
+import { MILESTONE_9_EXPECTED_CHECK_IDS } from './milestone-9-check-inventory.mjs';
 const ALLOWED_RESULTS = Object.freeze([
 	'pending',
 	'pass',
@@ -61,10 +45,7 @@ const RUN_REFERENCES = /(?:^|\s)run:(?<id>[A-Za-z0-9._-]+)/gu;
 const DECISION_REFERENCE = /(?:^|\s)decision:[A-Za-z0-9._:/-]+(?:\s|$)/u;
 
 export const MILESTONE_9_RELEASE_VERSION = '1.0.0';
-export const MILESTONE_9_EXPECTED_CHECK_IDS = Object.freeze(
-	Object.entries(EXPECTED_PREFIX_COUNTS).flatMap(([prefix, count]) =>
-		Array.from({ length: count }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`)),
-);
+export { MILESTONE_9_EXPECTED_CHECK_IDS } from './milestone-9-check-inventory.mjs';
 
 function section(markdown, title) {
 	const marker = `## ${title}`;
@@ -150,7 +131,7 @@ function addCountReason(reasons, count, singular, plural) {
 	if (count > 0) reasons.push(`${count} ${count === 1 ? singular : plural}`);
 }
 
-export function evaluateMilestone9ReleaseAdmission(parsed) {
+export function evaluateMilestone9ReleaseAdmission(parsed, options = {}) {
 	const reasons = [];
 	const counts = resultCounts(parsed.rows);
 	addCountReason(reasons, parsed.missingIds.length, 'required human-check ID is missing.', 'required human-check IDs are missing.');
@@ -213,11 +194,19 @@ export function evaluateMilestone9ReleaseAdmission(parsed) {
 	if (parsed.completion.get('Stable 1.0 release conclusion') !== 'pass') {
 		reasons.push('The Stable 1.0 release conclusion is not pass.');
 	}
+	let behaviorEnvironmentCoverage = null;
+	if (options.behaviorEnvironmentMatrix !== undefined) {
+		behaviorEnvironmentCoverage = evaluateMilestone9BehaviorEnvironmentCoverage(
+			parsed, options.behaviorEnvironmentMatrix,
+		);
+		reasons.push(...behaviorEnvironmentCoverage.reasons);
+	}
 	return {
 		releaseVersion: MILESTONE_9_RELEASE_VERSION,
 		admitted: reasons.length === 0,
 		counts,
 		referencedRunIds,
+		behaviorEnvironmentCoverage,
 		reasons,
 	};
 }

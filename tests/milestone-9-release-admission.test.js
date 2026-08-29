@@ -11,10 +11,18 @@ import {
 	evaluateMilestone9ReleaseAdmission,
 	parseMilestone9GuidedVerification,
 } from '../scripts/lib/milestone-9-release-admission.mjs';
+import {
+	expandMilestone9BehaviorEnvironmentRequirements,
+	validateMilestone9BehaviorEnvironmentMatrix,
+} from '../scripts/lib/milestone-9-behavior-environments.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const RECORD_URL = new URL('docs/milestone-9-guided-verification.md', ROOT);
 const CHECK_ROW = /^(\| [A-Z]{2,3}-\d{2} \| .*? \| )pending( \| )pending( \| .*? \|)$/gmu;
+const PASS_ROW = /^(\| (?<id>[A-Z]{2,3}-\d{2}) \| .*? \| pass \| ).*?( \| .*? \|)$/gmu;
+const BEHAVIOR_MATRIX = validateMilestone9BehaviorEnvironmentMatrix(JSON.parse(
+	await readFile(new URL('config/milestone-9-behavior-environments.json', ROOT), 'utf8'),
+));
 
 function passingRecord(markdown) {
 	const withRowsAndIdentity = markdown
@@ -84,6 +92,27 @@ test('pass rows must cite a recorded execution from the same campaign', async ()
 	);
 });
 
+function passingBehaviorRecord(markdown) {
+	const requirements = expandMilestone9BehaviorEnvironmentRequirements(BEHAVIOR_MATRIX);
+	const runIds = new Map();
+	for (const cellIds of requirements.values()) {
+		for (const cellId of cellIds) runIds.set(cellId, `M9-${cellId}`);
+	}
+	return markdown
+		.replace(PASS_ROW, (...arguments_) => {
+			const groups = arguments_.at(-1);
+			const [, leading, , trailing] = arguments_;
+			const notes = requirements.get(groups.id).map((cellId) => `run:${runIds.get(cellId)}`).join(' ');
+			return `${leading}${notes}${trailing}`;
+		})
+		.replace(
+			/^\| M9-RUN-001 \| .*$/mu,
+			[...runIds].map(([cellId, runId]) => (
+				`| ${runId} | 2026-08-27T12:00:00Z | Verifier | abcdef0 / package-1 | both | cell:${cellId} | exact hardware | evidence:${runId} |`
+			)).join('\n'),
+		);
+}
+
 test('failures, blockers, and undocumented scope reductions remain release blockers', async () => {
 	const passing = passingRecord(await readFile(RECORD_URL, 'utf8'));
 	const failed = passing.replace('| pass | run:M9-RUN-001 | — |', '| fail | run:M9-RUN-001 | issue:123 |');
@@ -109,7 +138,7 @@ test('the opt-in CLI is read-only, exits nonzero for the checked-in record, and 
 
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m9-admission-'));
 	const path = join(directory, 'record.md');
-	const passing = passingRecord(await readFile(RECORD_URL, 'utf8'));
+	const passing = passingBehaviorRecord(passingRecord(await readFile(RECORD_URL, 'utf8')));
 	await writeFile(path, passing, 'utf8');
 	const output = execFileSync(
 		process.execPath,

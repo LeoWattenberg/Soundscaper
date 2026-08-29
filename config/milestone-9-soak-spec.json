@@ -1,0 +1,76 @@
+{
+	"schemaVersion": 1,
+	"fixtureId": "m9-complete-system-soak-8h-v1",
+	"workloadId": "m9-complete-system-soak",
+	"generator": {
+		"id": "m9-seeded-complete-system-generator",
+		"revision": 1,
+		"seed": "soundscaper-framescaper-stable-1.0-complete-system-soak-v1",
+		"sourcePath": "scripts/lib/m9-soak-fixture.mjs",
+		"sourceSha256": "a28287adace24edc3a73d8d02e2dbec5dc88c9547ff498952bd553c5b1aa1ee0"
+	},
+	"qualification": {
+		"durationSeconds": 28800,
+		"warmupSeconds": 1800,
+		"sampleIntervalSeconds": 300,
+		"qualificationEligible": true
+	},
+	"contract": {
+		"durationSeconds": 120,
+		"warmupSeconds": 30,
+		"sampleIntervalSeconds": 30,
+		"qualificationEligible": false
+	},
+	"operations": [
+		{ "id": "soundscaper-edit", "productId": "soundscaper", "kind": "edit" },
+		{ "id": "framescaper-edit", "productId": "framescaper", "kind": "edit" },
+		{ "id": "soundscaper-autosave", "productId": "soundscaper", "kind": "autosave" },
+		{ "id": "framescaper-autosave", "productId": "framescaper", "kind": "autosave" },
+		{ "id": "cross-product-handoff", "productId": "soundscaper", "kind": "handoff" },
+		{ "id": "soundscaper-render", "productId": "soundscaper", "kind": "render" },
+		{ "id": "framescaper-export", "productId": "framescaper", "kind": "export" },
+		{ "id": "framescaper-capture", "productId": "framescaper", "kind": "capture" },
+		{ "id": "soundscaper-midi-checkpoint", "productId": "soundscaper", "kind": "midi" },
+		{ "id": "framescaper-queue-recovery", "productId": "framescaper", "kind": "recovery" }
+	],
+	"schedule": [
+		{ "operationId": "soundscaper-edit", "cadenceSeconds": 60, "offsetSeconds": 0 },
+		{ "operationId": "framescaper-edit", "cadenceSeconds": 60, "offsetSeconds": 30 },
+		{ "operationId": "soundscaper-autosave", "cadenceSeconds": 300, "offsetSeconds": 120 },
+		{ "operationId": "framescaper-autosave", "cadenceSeconds": 300, "offsetSeconds": 150 },
+		{ "operationId": "cross-product-handoff", "cadenceSeconds": 900, "offsetSeconds": 240 },
+		{ "operationId": "soundscaper-render", "cadenceSeconds": 1200, "offsetSeconds": 360 },
+		{ "operationId": "framescaper-export", "cadenceSeconds": 1200, "offsetSeconds": 600 },
+		{ "operationId": "framescaper-capture", "cadenceSeconds": 600, "offsetSeconds": 180 },
+		{ "operationId": "soundscaper-midi-checkpoint", "cadenceSeconds": 720, "offsetSeconds": 420 },
+		{ "operationId": "framescaper-queue-recovery", "cadenceSeconds": 1800, "offsetSeconds": 900 }
+	],
+	"repeatabilityBands": [
+		{ "metricId": "soak.retainedJsHeapDeltaBytes", "maximumAbsoluteDifference": 33554432 },
+		{ "metricId": "soak.postWarmupHeapSlopeMibPerHour", "maximumAbsoluteDifference": 1 },
+		{ "metricId": "soak.electronRssDeltaBytes", "maximumAbsoluteDifference": 134217728 },
+		{ "metricId": "soak.audioDropoutFrames", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "soak.unreportedDroppedFrames", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "soak.avDriftMaximumMs", "maximumAbsoluteDifference": 5 },
+		{ "metricId": "soak.failedAutosaves", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "soak.unrecoveredJobs", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "qualification.browserPassRatio", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "qualification.desktopPassRatio", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "qualification.migrationPassRatio", "maximumAbsoluteDifference": 0 },
+		{ "metricId": "qualification.releaseBlockingDefects", "maximumAbsoluteDifference": 0 }
+	],
+	"generatedArtifacts": {
+		"qualification": {
+			"byteLength": 239885,
+			"sha256": "338f5092cbbf3ebd2fdfc9a9e8d4176c92a21debdafd7095099d006ef90cfec1",
+			"scheduleSha256": "487a818f2840cda54b00383d8d5a7001fc676e6d0d9b083360a8d3dac5c795b9",
+			"eventCount": 1336
+		},
+		"contract": {
+			"byteLength": 3641,
+			"sha256": "bd682985551c77cbf136dccb7b14c095fddb529ab87c1590ee6e62d04209fffd",
+			"scheduleSha256": "4cc377403b1afea8f2b47c2b4267917d63a6045b5e588733f4750c906cf81686",
+			"eventCount": 10
+		}
+	}
+}

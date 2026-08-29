@@ -554,7 +554,12 @@
 				"desktopMatrixRevision": null,
 				"deviceMatrixRevision": null
 			},
-			"evidence": ["roadmap.md#9-final-convergence-and-qualification"]
+			"eligibleWorkloadIds": ["m9-complete-system-soak"],
+			"evidence": [
+				"roadmap.md#9-final-convergence-and-qualification",
+				"config/milestone-9-soak-spec.json",
+				"scripts/lib/m9-soak-evidence.mjs"
+			]
 		}
 	],
 	"fixtures": [
@@ -1417,14 +1422,28 @@
 		{
 			"id": "m9-complete-system-soak-8h-v1",
 			"milestones": ["9"],
-			"status": "planned",
-			"kind": "planned-cross-platform-soak-project",
+			"status": "provisional",
+			"kind": "deterministic-generator",
 			"specification": {
 				"durationSeconds": 28800,
 				"requiredBrowserPassRatio": 1,
-				"requiredDesktopPassRatio": 1
+				"requiredDesktopPassRatio": 1,
+				"generatorRevision": 1,
+				"seed": "soundscaper-framescaper-stable-1.0-complete-system-soak-v1",
+				"artifactSha256": "338f5092cbbf3ebd2fdfc9a9e8d4176c92a21debdafd7095099d006ef90cfec1",
+				"scheduleSha256": "487a818f2840cda54b00383d8d5a7001fc676e6d0d9b083360a8d3dac5c795b9",
+				"eventCount": 1336,
+				"contractDurationSeconds": 120
 			},
-			"evidence": ["roadmap.md#9-final-convergence-and-qualification"]
+			"limitation": "The generator and collector contracts are repository-owned and digest-pinned. The 120-second mode is contract-only and can never publish qualification. Stable-release qualification still requires two consecutive real eight-hour runs on every provisioned release-matrix cell.",
+			"evidence": [
+				"roadmap.md#9-final-convergence-and-qualification",
+				"config/milestone-9-soak-spec.json",
+				"scripts/lib/m9-soak-fixture.mjs",
+				"scripts/lib/m9-soak-evidence.mjs",
+				"tests/milestone-9-soak-fixture.test.js",
+				"tests/milestone-9-soak-evidence.test.js"
+			]
 		},
 		{
 			"id": "m5b-native-media-parity-and-longform-v1",
@@ -1873,7 +1892,7 @@
 		{
 			"id": "m9-complete-system-soak",
 			"milestone": "9",
-			"status": "planned",
+			"status": "provisional",
 			"fixtureIds": ["m9-complete-system-soak-8h-v1"],
 			"environmentIds": ["release-qualification-matrix"],
 			"thresholds": [
@@ -1890,7 +1909,13 @@
 				{ "metricId": "qualification.migrationPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
 				{ "metricId": "qualification.releaseBlockingDefects", "comparison": "eq", "value": 0, "unit": "count" }
 			],
-			"evidence": ["roadmap.md#9-final-convergence-and-qualification"]
+			"evidence": [
+				"roadmap.md#9-final-convergence-and-qualification",
+				"config/milestone-9-soak-spec.json",
+				"scripts/lib/m9-soak-evidence.mjs",
+				"scripts/collect-m9-soak-quality.mjs",
+				"tests/milestone-9-soak-evidence.test.js"
+			]
 		},
 		{
 			"id": "m5b-native-media-plan-parity-and-decode",

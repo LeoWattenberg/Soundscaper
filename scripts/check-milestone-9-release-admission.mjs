@@ -9,12 +9,17 @@ import {
 	evaluateMilestone9ReleaseAdmission,
 	parseMilestone9GuidedVerification,
 } from './lib/milestone-9-release-admission.mjs';
+import { validateMilestone9BehaviorEnvironmentMatrix } from './lib/milestone-9-behavior-environments.mjs';
 
 const DEFAULT_RECORD = new URL('../docs/milestone-9-guided-verification.md', import.meta.url);
+const DEFAULT_BEHAVIOR_ENVIRONMENTS = new URL(
+	'../config/milestone-9-behavior-environments.json', import.meta.url,
+);
 
 function parseArguments(argv) {
 	let json = false;
 	let record = DEFAULT_RECORD;
+	let behaviorEnvironments = DEFAULT_BEHAVIOR_ENVIRONMENTS;
 	for (let index = 0; index < argv.length; index += 1) {
 		const argument = argv[index];
 		if (argument === '--json') {
@@ -27,15 +32,29 @@ function parseArguments(argv) {
 			record = pathToFileURL(resolve(value));
 			continue;
 		}
+		if (argument === '--behavior-environments') {
+			const value = argv[index += 1];
+			if (!value) throw new Error('--behavior-environments requires a JSON path.');
+			behaviorEnvironments = pathToFileURL(resolve(value));
+			continue;
+		}
 		throw new Error(`Unexpected argument: ${argument}`);
 	}
-	return { json, record };
+	return { json, record, behaviorEnvironments };
 }
 
 export async function runMilestone9ReleaseAdmissionCli(argv = process.argv.slice(2)) {
-	const { json, record } = parseArguments(argv);
-	const markdown = await readFile(record, 'utf8');
-	const result = evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(markdown));
+	const { json, record, behaviorEnvironments } = parseArguments(argv);
+	const [markdown, behaviorMatrixBytes] = await Promise.all([
+		readFile(record, 'utf8'),
+		readFile(behaviorEnvironments, 'utf8'),
+	]);
+	const behaviorEnvironmentMatrix = validateMilestone9BehaviorEnvironmentMatrix(
+		JSON.parse(behaviorMatrixBytes),
+	);
+	const result = evaluateMilestone9ReleaseAdmission(parseMilestone9GuidedVerification(markdown), {
+		behaviorEnvironmentMatrix,
+	});
 	if (json) {
 		process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 	} else {
