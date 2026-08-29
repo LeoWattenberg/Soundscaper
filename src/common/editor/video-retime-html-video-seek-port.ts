@@ -132,19 +132,28 @@ export function createVideoRetimeHtmlVideoSeekPort(
 		return new Promise<Readonly<{ readonly mediaTime: number }>>((resolve, reject) => {
 			const seek = createActiveSeek(request, resolve, reject);
 			active = seek;
-			try {
-				addVideoListener('seeked', seek.onSeeked);
-				addVideoListener('error', seek.onMediaError);
-				addVideoListener('abort', seek.onMediaAbort);
-				request.signal.addEventListener('abort', seek.onSignalAbort, { once: true });
-				if (request.signal.aborted) {
-					seek.onSignalAbort();
-					return;
-				}
+			const requestPresentedFrame = (): void => {
+				const mayPrecedeTargetAssignment = !seek.seekIssued;
 				const frameCallbackId = requestFrame((_now, metadata) => {
 					if (seek.settled) return;
 					const mediaTime = metadata.mediaTime;
 					if (!mediaTimeInRequestedInterval(mediaTime, request)) {
+						// The callback is armed before currentTime is assigned so a pending
+						// presentation may still report the preceding frame. Only that
+						// pre-assignment callback may be discarded; a replacement callback
+						// must authenticate the requested interval or fail closed.
+						if (mayPrecedeTargetAssignment) {
+							cancelFrame(frameCallbackId);
+							if (seek.frameCallbackId === frameCallbackId) seek.frameCallbackId = null;
+							try {
+								requestPresentedFrame();
+							} catch (error) {
+								requestFailure(seek, errorValue(
+									error, 'The retime preview frame request failed.',
+								));
+							}
+							return;
+						}
 						requestFailure(seek, new RangeError(
 							'The presented video frame is outside its requested half-open source interval.',
 						));
@@ -162,6 +171,17 @@ export function createVideoRetimeHtmlVideoSeekPort(
 					return;
 				}
 				seek.frameCallbackId = frameCallbackId;
+			};
+			try {
+				addVideoListener('seeked', seek.onSeeked);
+				addVideoListener('error', seek.onMediaError);
+				addVideoListener('abort', seek.onMediaAbort);
+				request.signal.addEventListener('abort', seek.onSignalAbort, { once: true });
+				if (request.signal.aborted) {
+					seek.onSignalAbort();
+					return;
+				}
+				requestPresentedFrame();
 				seek.timer = setTimeout(() => {
 					if (seek.settled) return;
 					const error = new Error(`The retime preview seek timed out after ${String(timeoutMs)} ms.`);

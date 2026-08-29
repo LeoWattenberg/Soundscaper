@@ -357,6 +357,64 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		});
 	});
 
+	test('ignores a stale presented frame queued before the active seek', async ({ page }) => {
+		await installHarnessRoutes(page, { strictModules: true });
+		await page.goto(`${HARNESS_ROOT}/index.html`);
+		const result = await page.evaluate(async ({ fixturePath, root }) => {
+			const { createVideoRetimeHtmlVideoSeekPort } = await import(
+				`${root}/video-retime-html-video-seek-port.js`
+			);
+			const video = document.createElement('video');
+			video.muted = true;
+			video.src = fixturePath;
+			document.body.append(video);
+			await new Promise((resolve, reject) => {
+				video.addEventListener('loadedmetadata', resolve, { once: true });
+				video.addEventListener('error', () => reject(video.error), { once: true });
+			});
+			let frameCallbackCount = 0;
+			video.requestVideoFrameCallback = (callback) => {
+				frameCallbackCount += 1;
+				const id = frameCallbackCount;
+				if (frameCallbackCount === 1) {
+					setTimeout(() => callback(performance.now(), {
+						mediaTime: 0,
+						presentedFrames: 1,
+					}), 0);
+					return id;
+				}
+				const publishAfterDecoderDrain = () => {
+					if (video.seeking) {
+						setTimeout(publishAfterDecoderDrain, 0);
+						return;
+					}
+					callback(performance.now(), { mediaTime: 0.04, presentedFrames: 2 });
+				};
+				setTimeout(publishAfterDecoderDrain, 0);
+				return id;
+			};
+			video.cancelVideoFrameCallback = () => {};
+			const port = createVideoRetimeHtmlVideoSeekPort(video, {
+				assertCurrent: () => {},
+				timeoutMs: 1_000,
+			});
+			const presented = await port.present(Object.freeze({
+				drawableSourceFrame: 1,
+				intervalStartSeconds: 0.04,
+				intervalEndSeconds: 0.13,
+				targetSeconds: 0.085,
+				signal: new AbortController().signal,
+			}));
+			video.remove();
+			return { presented, frameCallbackCount };
+		}, { fixturePath: FIXTURE_PATH, root: HARNESS_ROOT });
+
+		expect(result).toEqual({
+			presented: { mediaTime: 0.04 },
+			frameCallbackCount: 2,
+		});
+	});
+
 	test('keeps only the latest real seek and fences a stale completed picture', async ({
 		browserName,
 		page,
