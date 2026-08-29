@@ -31,6 +31,9 @@ export interface BrowserAacEncodeRequest {
 
 const AUDIO_SAMPLE_FRAMES = 2_048;
 const AAC_LC_CODEC_PROFILE = 'mp4a.40.2';
+const AAC_LC_ACCESS_UNIT_FRAMES = 1_024;
+const AAC_LC_ENCODER_PRIMING_FRAMES = AAC_LC_ACCESS_UNIT_FRAMES;
+const AAC_LC_MAXIMUM_FINAL_PADDING_FRAMES = AAC_LC_ACCESS_UNIT_FRAMES - 1;
 
 export async function probeBrowserAacEncoding(
 	encoder: BrowserAudioEncoderProbe | undefined = (
@@ -197,9 +200,21 @@ export async function validateBrowserAacM4aOutput(
 			);
 		}
 		const requestedDuration = expectation.frameCount / expectation.sampleRate;
-		const durationTolerance = Math.max(1 / expectation.sampleRate, Number.EPSILON);
+		const minimumDuration = requestedDuration - 1 / expectation.sampleRate;
+		// Chromium exposes one AAC-LC access unit of encoder priming. Its final
+		// partial access unit can also remain padded in the MP4 timing table.
+		const maximumDuration = (
+			expectation.frameCount
+			+ AAC_LC_ENCODER_PRIMING_FRAMES
+			+ AAC_LC_MAXIMUM_FINAL_PADDING_FRAMES
+		) / expectation.sampleRate;
+		const floatingPointTolerance = Math.max(
+			Number.EPSILON,
+			maximumDuration * Number.EPSILON * 4,
+		);
 		if (!Number.isFinite(durationSeconds) || durationSeconds <= 0
-			|| Math.abs(durationSeconds - requestedDuration) > durationTolerance) {
+			|| durationSeconds < minimumDuration
+			|| durationSeconds > maximumDuration + floatingPointTolerance) {
 			throw new BrowserAacM4aValidationError(
 				'Browser AAC output duration does not match the requested PCM duration.',
 			);

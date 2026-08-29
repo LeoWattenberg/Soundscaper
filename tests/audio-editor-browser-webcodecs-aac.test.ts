@@ -4,6 +4,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	BufferSource,
+	BufferTarget,
+	EncodedAudioPacketSource,
+	EncodedPacket,
+	EncodedPacketSink,
+	Input,
+	MP4,
+	Mp4OutputFormat,
+	Output,
+} from 'mediabunny';
+
+import {
 	BrowserAacM4aValidationError,
 	encodeBrowserAacM4a,
 	probeBrowserAacEncoding,
@@ -17,6 +29,7 @@ const EXPECTED_M4A_GEOMETRY = Object.freeze({
 	sampleRate: 48_000,
 	channelCount: 2,
 });
+const AAC_LC_ACCESS_UNIT_FRAMES = 1_024;
 
 test('AAC capability uses the browser exact WebCodecs configuration probe', async () => {
 	const seen: unknown[] = [];
@@ -72,6 +85,22 @@ test('AAC output validation demuxes an exact AAC-LC audio-only MP4', async () =>
 		codec: 'aac', codecProfile: 'mp4a.40.2', sampleRate: 48_000,
 		channelCount: 2, durationSeconds: 0.05,
 	});
+});
+
+test('AAC output validation accepts encoder priming and final access-unit padding', async () => {
+	const bytes = await aacLcM4aAccessUnitFixture(4);
+	assert.deepEqual(await validateBrowserAacM4aOutput(bytes, EXPECTED_M4A_GEOMETRY), {
+		codec: 'aac', codecProfile: 'mp4a.40.2', sampleRate: 48_000,
+		channelCount: 2, durationSeconds: 4_096 / 48_000,
+	});
+});
+
+test('AAC output validation rejects duration beyond priming and final access-unit padding', async () => {
+	const bytes = await aacLcM4aAccessUnitFixture(5);
+	await assert.rejects(
+		() => validateBrowserAacM4aOutput(bytes, EXPECTED_M4A_GEOMETRY),
+		/duration.*requested/iu,
+	);
 });
 
 test('AAC output validation rejects unreadable bytes and non-LC profiles', async () => {
@@ -181,6 +210,39 @@ test('AAC file generation observes cancellation while its exact support probe is
 		restoreGlobalProperty('AudioEncoder', previous);
 	}
 });
+
+async function aacLcM4aAccessUnitFixture(packetCount: number): Promise<Uint8Array<ArrayBuffer>> {
+	const fixtureInput = new Input({ source: new BufferSource(aacLcM4a48_000Fixture()), formats: [MP4] });
+	try {
+		const [fixtureTrack] = await fixtureInput.getAudioTracks();
+		assert.ok(fixtureTrack);
+		const [fixturePacket, decoderConfig] = await Promise.all([
+			new EncodedPacketSink(fixtureTrack).getPacket(0),
+			fixtureTrack.getDecoderConfig(),
+		]);
+		assert.ok(fixturePacket);
+		assert.ok(decoderConfig);
+
+		const target = new BufferTarget();
+		const output = new Output({ format: new Mp4OutputFormat(), target });
+		const source = new EncodedAudioPacketSource('aac');
+		output.addAudioTrack(source);
+		await output.start();
+		for (let packetIndex = 0; packetIndex < packetCount; packetIndex += 1) {
+			await source.add(new EncodedPacket(
+				fixturePacket.data,
+				fixturePacket.type,
+				packetIndex * AAC_LC_ACCESS_UNIT_FRAMES / EXPECTED_M4A_GEOMETRY.sampleRate,
+				AAC_LC_ACCESS_UNIT_FRAMES / EXPECTED_M4A_GEOMETRY.sampleRate,
+			), packetIndex === 0 ? { decoderConfig } : undefined);
+		}
+		await output.finalize();
+		assert.ok(target.buffer instanceof ArrayBuffer);
+		return new Uint8Array(target.buffer);
+	} finally {
+		fixtureInput.dispose();
+	}
+}
 
 function restoreGlobalProperty(key: string, descriptor: PropertyDescriptor | undefined): void {
 	if (descriptor) Object.defineProperty(globalThis, key, descriptor);
