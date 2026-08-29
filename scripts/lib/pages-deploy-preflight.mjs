@@ -88,6 +88,10 @@ const ZONE_BROWSER_CACHE_CONTROL = Object.freeze({
 const IMMUTABLE_ASSET_PATTERN = /^\/assets\/[\w.-]+\.(?:css|js)$/u;
 
 /** Names the build's declaration that this origin has never had a deployment. */
+/** How long a just-published deployment may take to reach its custom domain. */
+export const PAGES_PROPAGATION_TIMEOUT_MS = 180_000;
+const PAGES_PROPAGATION_INTERVAL_MS = 5_000;
+
 export const COLD_START_VARIABLE = 'SCAPE_PAGES_COLD_START';
 
 /**
@@ -226,6 +230,38 @@ export async function verifyLivePagesCachePolicy({
 		await response.arrayBuffer();
 	}
 	return Object.freeze({ verifiedRouteCount: descriptors.length, assetPath, coldStart: false });
+}
+
+/**
+ * Audit a deployment that was just published, allowing for propagation.
+ *
+ * A Pages upload completes seconds before the custom domain serves it, and
+ * until it does the origin still answers with the previous deployment. That is
+ * invisible for a build that only changed asset hashes and fatal for one that
+ * changed routing: the retired document routes this audit checks are exactly
+ * the ones the previous deployment still serves as documents, so a single
+ * immediate read fails every deploy that moves them.
+ *
+ * The preflight keeps its one strict pass — it audits the deployment that is
+ * already live, where there is nothing to wait for. Only the post-deploy gate
+ * polls, and only until its deadline: a misconfiguration still fails, with the
+ * last observation as its reason.
+ */
+export async function verifyPublishedPagesCachePolicy(options, schedule = {}) {
+	const timeoutMs = schedule.timeoutMs ?? PAGES_PROPAGATION_TIMEOUT_MS;
+	const intervalMs = schedule.intervalMs ?? PAGES_PROPAGATION_INTERVAL_MS;
+	const now = schedule.now ?? (() => Date.now());
+	const sleep = schedule.sleep ?? ((delayMs) => new Promise((resolve) => { setTimeout(resolve, delayMs); }));
+	const deadline = now() + timeoutMs;
+	for (let attempt = 1; ; attempt += 1) {
+		try {
+			return await verifyLivePagesCachePolicy(options);
+		} catch (error) {
+			if (now() >= deadline) throw error;
+			schedule.onRetry?.({ attempt, error, intervalMs });
+			await sleep(intervalMs);
+		}
+	}
 }
 
 /**

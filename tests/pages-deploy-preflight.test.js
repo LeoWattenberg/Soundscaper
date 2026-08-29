@@ -11,6 +11,7 @@ import {
 	pagesCachePolicyDescriptors,
 	preflightPagesDeployment,
 	verifyLivePagesCachePolicy,
+	verifyPublishedPagesCachePolicy,
 } from '../scripts/lib/pages-deploy-preflight.mjs';
 import { webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
 import { runtimePointer } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
@@ -92,6 +93,11 @@ test('Pages CLI separates predecessor preflight from intended post-deploy verifi
 	assert.match(source, /coldStart/u);
 	assert.match(source, /includeRetired: false/u);
 	assert.match(verifier, /includeRetired: true/u);
+	assert.match(
+		verifier,
+		/verifyPublishedPagesCachePolicy/u,
+		'the post-deploy gate tolerates propagation; the preflight does not',
+	);
 	assert.match(packageMetadata.scripts['build:pages'], /npm run build.*preflight-pages-deploy\.mjs/u);
 	assert.match(packageMetadata.scripts['verify:pages'], /verify-pages-deploy\.mjs/u);
 	assert.match(packageMetadata.scripts.deploy, /^npm run build:pages && wrangler pages deploy/u);
@@ -216,6 +222,70 @@ test('live Pages policy preserves checked-in browser TTLs for stable routes and 
 		() => verifyLivePagesCachePolicy({ routing, fetchImpl: live.fetchImpl, includeRetired: false }),
 		/Cache-Control is invalid.*\/en\//u,
 	);
+});
+
+test('the post-deploy audit waits for a just-published deployment to reach its domain', async () => {
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	const assetPath = '/assets/site-entry-AbCd1234.js';
+	const live = liveDeployment({ routing, assetPath });
+	const retired = [...live.redirects.keys()][0];
+	// Until the upload reaches the custom domain the origin still answers with
+	// the previous deployment, which served the retired route as a document.
+	let staleReads = 2;
+	const fetchImpl = async (url, init) => {
+		if (decodeURIComponent(new URL(url).pathname) === retired && staleReads > 0) {
+			staleReads -= 1;
+			return new Response('previous deployment', {
+				status: 200,
+				headers: { 'cache-control': 'no-cache' },
+			});
+		}
+		return live.fetchImpl(url, init);
+	};
+	const waits = [];
+	let clock = 0;
+	const schedule = {
+		now: () => clock,
+		sleep: async (delayMs) => { waits.push(delayMs); clock += delayMs; },
+		timeoutMs: 30_000,
+		intervalMs: 1_000,
+	};
+
+	const result = await verifyPublishedPagesCachePolicy(
+		{ routing, origin: routing.site.origin, fetchImpl, includeRetired: true },
+		schedule,
+	);
+
+	assert.equal(result.verifiedRouteCount, live.descriptors.length);
+	assert.deepEqual(waits, [1_000, 1_000]);
+	assert.equal(staleReads, 0);
+});
+
+test('the post-deploy audit still fails once propagation has had its deadline', async () => {
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	const live = liveDeployment({ routing, assetPath: '/assets/site-entry-AbCd1234.js' });
+	const retired = [...live.redirects.keys()][0];
+	const fetchImpl = async (url, init) => (
+		decodeURIComponent(new URL(url).pathname) === retired
+			? new Response('previous deployment', { status: 200, headers: { 'cache-control': 'no-cache' } })
+			: live.fetchImpl(url, init)
+	);
+	const waits = [];
+	let clock = 0;
+
+	await assert.rejects(
+		() => verifyPublishedPagesCachePolicy(
+			{ routing, origin: routing.site.origin, fetchImpl, includeRetired: true },
+			{
+				now: () => clock,
+				sleep: async (delayMs) => { waits.push(delayMs); clock += delayMs; },
+				timeoutMs: 10_000,
+				intervalMs: 1_000,
+			},
+		),
+		/requires a permanent redirect/u,
+	);
+	assert.equal(waits.length, 10);
 });
 
 test('the immutable-asset rule is audited against an asset the live deployment actually has', async () => {
