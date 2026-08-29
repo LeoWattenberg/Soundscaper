@@ -127,7 +127,8 @@ export function createLocalModelManagerStore(
 			if (generation !== refreshGeneration) return;
 			publish({
 				phase: 'ready', runtimeAvailable: status.runtimeAvailable,
-				runtimeReason: status.runtimeReason, models: status.models, error: null,
+				runtimeReason: status.runtimeReason, models: status.models,
+				error: announceLoading ? null : snapshot.error,
 			});
 		} catch (error) {
 			if (generation !== refreshGeneration) return;
