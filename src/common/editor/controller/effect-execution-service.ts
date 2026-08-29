@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { EditorProjectToken, EditorTaskScope } from './lifecycle.ts';
+
+const SELECTION_EFFECT_TASK = 'selection-effect-apply';
+
 export interface SelectionEffectExecutionRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -206,14 +210,21 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			});
 		}
 		if (estimatedPeakBytes > AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES) throw audacityEffectMemoryError(copy);
+		const ownership = beginSelectionEffectOwnership(runtime);
+		const renderCurrentDryTrackRange = async (...args: RuntimeValue[]) => {
+			const channels = await renderDryTrackRange(...args);
+			assertSelectionEffectOwnership(runtime, ownership);
+			return channels;
+		};
 		state.audacityEffectProcessing = true;
 		setStatus(copy.audacityProcessing);
 		publishDocumentSnapshot();
 		try {
 			await preflightStorage(estimatedOutputBytes, 'effect');
+			assertSelectionEffectOwnership(runtime, ownership);
 			const dryResults = [];
 			for (const target of targets) {
-				const channels = await renderDryTrackRange(
+				const channels = await renderCurrentDryTrackRange(
 					target.track.id,
 					target.startFrame,
 					target.endFrame,
@@ -228,7 +239,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				dryResults.flatMap(({ channels }: RuntimeValue) => channels),
 			);
 			const controlChannels = definition.requiresControlTrack && !targets.some((target: RuntimeValue) => target.clipId)
-				? await renderDryTrackRange(
+				? await renderCurrentDryTrackRange(
 					state.audacityControlTrackId,
 					targets[0].startFrame,
 					targets[0].endFrame,
@@ -244,6 +255,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 				const result = await runSelectionEffectWorker({
 					operation: 'apply', effectType: type, channels: linkedChannels, sampleRate, params, context: {},
 				});
+				assertSelectionEffectOwnership(runtime, ownership);
 				const processedChannels = Array.isArray(result.channels) ? result.channels : [];
 				let channelOffset = 0;
 				results = dryResults.map(({ target, channels }: RuntimeValue) => {
@@ -258,7 +270,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					const spectralSelection = spectralSelections.get(target.track.id);
 					if (spectralSelection) effectContext.spectralSelection = spectralSelection;
 					if (definition.requiresControlTrack) {
-						effectContext.controlChannels = controlChannels || await renderDryTrackRange(
+						effectContext.controlChannels = controlChannels || await renderCurrentDryTrackRange(
 							state.audacityControlTrackId,
 							target.startFrame,
 							target.endFrame,
@@ -268,25 +280,28 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 					if (contextFrames > 0) {
 						const beforeStart = Math.max(0, target.startFrame - contextFrames);
 						effectContext.beforeChannels = beforeStart < target.startFrame
-							? await renderDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
+							? await renderCurrentDryTrackRange(target.track.id, beforeStart, target.startFrame, target.channelCount, target.clipIds)
 							: channels.map(() => new Float32Array(0));
 						if (afterContextFrames > 0) {
 							const afterEnd = Math.min(projectDurationFrames(getProject()), target.endFrame + afterContextFrames);
 							effectContext.afterChannels = target.endFrame < afterEnd
-								? await renderDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
+								? await renderCurrentDryTrackRange(target.track.id, target.endFrame, afterEnd, target.channelCount, target.clipIds)
 								: channels.map(() => new Float32Array(0));
 						}
 					}
 					const result = await runSelectionEffectWorker({
 						operation: 'apply', effectType: type, channels, sampleRate, params, context: effectContext,
 					});
+					assertSelectionEffectOwnership(runtime, ownership);
 					results.push({ target, channels: result.channels });
 				}
 			}
 			await persistAudacityEffectResults(results, type, {
 				allowIndependentLengths: type === 'audacity-truncate-silence' && params.independent === true,
+				assertCurrent: () => assertSelectionEffectOwnership(runtime, ownership),
 				selectionDetails: audacityEffectSelectionDetails(selection, targets),
 			});
+			assertSelectionEffectOwnership(runtime, ownership);
 			state.lastAudacityEffect = {
 				type,
 				params: structuredClone(params),
@@ -294,8 +309,7 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 			};
 			setStatus(copy.audacityApplied, 'success');
 		} finally {
-			state.audacityEffectProcessing = false;
-			publishDocumentSnapshot();
+			finishSelectionEffectProcessing(runtime, ownership);
 		}
 	}
 
@@ -442,4 +456,47 @@ export function createSelectionEffectExecutionService(runtime: SelectionEffectEx
 		previewAudacityEffectFromController,
 		runNyquistEvaluation,
 	});
+}
+
+interface SelectionEffectOwnership {
+	readonly task: EditorTaskScope;
+	readonly project: EditorProjectToken;
+}
+
+function beginSelectionEffectOwnership(runtime: SelectionEffectExecutionRuntime): SelectionEffectOwnership {
+	return {
+		task: runtime.lifetime.startTask(SELECTION_EFFECT_TASK),
+		project: runtime.captureProject(),
+	};
+}
+
+function assertSelectionEffectOwnership(
+	runtime: SelectionEffectExecutionRuntime,
+	ownership: SelectionEffectOwnership,
+): void {
+	ownership.task.assertCurrent();
+	runtime.assertProject(ownership.project);
+}
+
+function finishSelectionEffectProcessing(
+	runtime: SelectionEffectExecutionRuntime,
+	ownership: SelectionEffectOwnership,
+): void {
+	const taskCurrent = selectionEffectTaskIsCurrent(ownership.task);
+	if (taskCurrent) runtime.state.audacityEffectProcessing = false;
+	if (taskCurrent && selectionEffectProjectIsCurrent(runtime, ownership.project)) {
+		runtime.publishDocumentSnapshot();
+	}
+	ownership.task.finish();
+}
+
+function selectionEffectTaskIsCurrent(task: EditorTaskScope): boolean {
+	try { task.assertCurrent(); return true; } catch { return false; }
+}
+
+function selectionEffectProjectIsCurrent(
+	runtime: SelectionEffectExecutionRuntime,
+	token: EditorProjectToken,
+): boolean {
+	try { runtime.assertProject(token); return true; } catch { return false; }
 }

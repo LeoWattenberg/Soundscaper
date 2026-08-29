@@ -6,6 +6,11 @@ import test from 'node:test';
 import type { EffectAudioProject } from '../src/common/editor/controller/effect-audio-service.ts';
 import { createEffectControlsService } from '../src/common/editor/controller/effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from '../src/common/editor/controller/effect-execution-service.ts';
+import {
+	EditorControllerLifetime,
+	EditorProjectGeneration,
+	type EditorProjectToken,
+} from '../src/common/editor/controller/lifecycle.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 import {
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
@@ -24,6 +29,7 @@ import {
 } from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
 import {
 	createHarness,
+	deferred,
 	folderedLegacyProject,
 	v21RenderProject,
 } from './audio-editor-effect-audio-service-fixture.ts';
@@ -66,6 +72,10 @@ test('V21 dry rendering reaches the exact graph compiler without fabricating leg
 		lastAudacityEffect: null,
 	};
 	let applySelected = async (): Promise<unknown> => undefined;
+	const lifetime = new EditorControllerLifetime();
+	lifetime.markReady();
+	const projectGeneration = new EditorProjectGeneration();
+	projectGeneration.activate(project.id);
 	const controls = createEffectControlsService({
 		state,
 		copy: {
@@ -81,6 +91,9 @@ test('V21 dry rendering reaches the exact graph compiler without fabricating leg
 		captureRackNoiseProfile: async () => undefined,
 	});
 	const execution = createSelectionEffectExecutionService({
+		lifetime,
+		captureProject: () => projectGeneration.capture(project.id),
+		assertProject: (token: EditorProjectToken) => projectGeneration.assertCurrent(token),
 		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES: 1_000_000_000,
 		AUDIO_SELECTION_EFFECT_DEFINITIONS,
 		activeSelection: () => null,
@@ -159,6 +172,99 @@ test('V21 dry rendering reaches the exact graph compiler without fabricating leg
 			},
 		],
 	});
+});
+
+test('project switching during selection-effect persistence fences stale commit and publication', async () => {
+	let project = { id: 'project-a' };
+	const lifetime = new EditorControllerLifetime();
+	lifetime.markReady();
+	const projectGeneration = new EditorProjectGeneration();
+	projectGeneration.activate(project.id);
+	const persistenceStarted = deferred<void>();
+	const persistence = deferred<void>();
+	const persistedProjects: string[] = [];
+	const statuses: string[] = [];
+	let publications = 0;
+	const state = {
+		audacityEffectType: 'audacity-invert',
+		audacityEffectParams: {},
+		audacityEffectTouchedParams: new Map<string, Set<string>>(),
+		audacityPreviewSource: null,
+		audacityPreviewAuditionBandId: null,
+		audacityPreviewGeneration: 0,
+		audacityControlTrackId: null,
+		audacityNoiseProfile: null,
+		audacityEffectProcessing: false,
+		effectPresets: { schemaVersion: 1 as const, presets: [] },
+		lastAudacityEffect: null,
+	};
+	const target = {
+		track: { id: 'track-a', name: 'Track' },
+		startFrame: 0,
+		endFrame: 4,
+		durationFrames: 4,
+		channelCount: 1,
+		hasAudio: true,
+	};
+	const execution = createSelectionEffectExecutionService({
+		lifetime,
+		captureProject: () => projectGeneration.capture(project.id),
+		assertProject: (token: EditorProjectToken) => projectGeneration.assertCurrent(token),
+		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES: 1_000_000_000,
+		AUDIO_SELECTION_EFFECT_DEFINITIONS,
+		activeSelection: () => null,
+		audacityEffectMemoryError: () => new Error('Too large'),
+		audacityEffectSelectionDetails: () => ({ trackIds: ['track-a'], clipIds: [], frequencyRange: null }),
+		audacityEffectTargets: () => [target],
+		audacitySpectralEffectContext: () => null,
+		copy: {
+			audacityApplied: 'Applied', audacityProcessing: 'Processing', audacitySelectionHint: 'Select audio',
+			autoDuckControlTrack: 'Select control track', effectChannelLayoutChanged: 'Channel layout changed',
+			noiseProfileMissing: 'Capture noise profile',
+		},
+		currentAudacityEffectParams: () => ({}),
+		editingBlocked: () => false,
+		estimateAudioSelectionEffectOutputFrames,
+		estimateAudioSelectionEffectPeakBytes,
+		getProject: () => project,
+		normalizeAudioSelectionEffectParams,
+		persistAudacityEffectResults: async (
+			_results: unknown,
+			_type: unknown,
+			options: Readonly<{ assertCurrent?: () => void }>,
+		) => {
+			persistenceStarted.resolve(undefined);
+			await persistence.promise;
+			options.assertCurrent?.();
+			persistedProjects.push(project.id);
+		},
+		preflightStorage: async () => undefined,
+		projectDurationFrames: () => 4,
+		projectSampleRate: () => 1_000,
+		publishDocumentSnapshot: () => { publications += 1; },
+		renderDryTrackRange: async () => [new Float32Array([0.1, -0.2, 0.3, -0.4])],
+		resolveInteractiveAudacityParams: (_type: unknown, params: unknown) => params,
+		runSelectionEffectWorker: async (request: Readonly<{ channels: Float32Array[] }>) => ({
+			channels: request.channels,
+		}),
+		setStatus: (message: string) => { statuses.push(message); },
+		state,
+	});
+
+	const pending = execution.applySelectedAudacityEffect();
+	await persistenceStarted.promise;
+	const publicationsBeforeSwitch = publications;
+	project = { id: 'project-b' };
+	projectGeneration.invalidate();
+	projectGeneration.activate(project.id);
+	persistence.resolve(undefined);
+
+	await assert.rejects(pending, { code: 'PROJECT_CHANGED' });
+	assert.deepEqual(persistedProjects, []);
+	assert.equal(publications, publicationsBeforeSwitch);
+	assert.equal(state.lastAudacityEffect, null);
+	assert.notEqual(statuses.at(-1), 'Applied');
+	assert.equal(state.audacityEffectProcessing, false);
 });
 
 test('Framescaper baseline linked-audio dry rendering preserves shared production mixer authority', async () => {

@@ -1405,7 +1405,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		previewAudacityEffectFromController,
 		runNyquistEvaluation: runNyquistEvaluationOperation,
 	} = createSelectionEffectExecutionService({
-		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES, abortError,
+		AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES, AUDIO_SELECTION_EFFECT_DEFINITIONS, NYQUIST_AGGREGATE_AUDIO_LIMIT_BYTES, abortError, lifetime, captureProject: () => projectGeneration.capture(project?.id ?? null), assertProject: (token) => projectGeneration.assertCurrent(token),
 		activeSelection, assertAudacityEffectOutput, audacityEffectMemoryError, audacityEffectSelectionDetails,
 		audacityEffectTarget, audacityEffectTargets, audacitySpectralEffectContext, bufferFromChannels,
 		cancelAudacityEffectPreview, copy, currentAudacityEffectParams, editingBlocked,
