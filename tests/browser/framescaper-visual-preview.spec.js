@@ -22,6 +22,9 @@ const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v
 const VISUAL_READINESS_TIMEOUT = 120_000;
 const VISUAL_OPERATION_TIMEOUT = 120_000;
 const VISUAL_WORKFLOW_TIMEOUT = 600_000;
+// The full menu-authored workflow has exceeded 600s on loaded WebKit CI;
+// keep enough headroom for its slow software-rendered interactions.
+const WEBKIT_VISUAL_WORKFLOW_TIMEOUT = 720_000;
 const VISUAL_COMMAND_OPTIONS = { timeout: VISUAL_READINESS_TIMEOUT };
 const VISUAL_FFMPEG_OPTIONS = { timeout: 120_000 };
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
@@ -41,8 +44,11 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		}));
 	});
 
-	test('menu-authored generator, preset, presentation, and mask change pixels, reopen, and reach video export', async ({ page }) => {
-		test.setTimeout(VISUAL_WORKFLOW_TIMEOUT);
+	test('menu-authored generator, preset, presentation, and mask change pixels, reopen, and reach video export', async ({
+		browserName,
+		page,
+	}) => {
+		test.setTimeout(browserName === 'webkit' ? WEBKIT_VISUAL_WORKFLOW_TIMEOUT : VISUAL_WORKFLOW_TIMEOUT);
 		const clientErrors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/framescaper/embed/en/');
 		test.skip(!await page.evaluate(hasWebGl2Capability), WEBGL2_COMPOSITED_PREVIEW_REQUIRED);
