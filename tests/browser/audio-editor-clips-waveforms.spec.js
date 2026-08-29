@@ -1,3 +1,4 @@
+import { WAVEFORM_PEAKS_VERSION } from '../../src/common/editor/waveform-peak-contract.ts';
 import {
 	asymmetricStereoTone,
 	expect,
@@ -273,7 +274,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [asymmetricStereoTone]);
 		const peaks = await sourcePeakChannels(page, asymmetricStereoTone.name);
-		expect(peaks.version).toBe(4);
+		expect(peaks.version).toBe(WAVEFORM_PEAKS_VERSION);
 		expect(peaks.channelCount).toBe(2);
 		expect(peaks.blockSizes).toEqual([8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536]);
 		expect(peaks.channels).toHaveLength(2);
