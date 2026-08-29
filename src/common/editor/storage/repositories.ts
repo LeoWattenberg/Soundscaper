@@ -37,6 +37,7 @@ import { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { SourceReadRepository } from './source-read-repository.ts';
+import { SourceDeletionRepository } from './source-deletion-repository.ts';
 import { SourceRecordRepository } from './source-record-repository.ts';
 import { SourceRepository } from './source-repository.ts';
 import { SourceWriteRepository } from './source-write-repository.ts';
@@ -116,6 +117,7 @@ export function createStorageRepositories(
 		codecFactory: options.pcmCodecFactory,
 	});
 	const sourceRecords = new SourceRecordRepository(port);
+	const sourceDeletion = new SourceDeletionRepository(port);
 	const analysis = new KeyValueRepository(port, 'analysis');
 	const transientAnalysisCache = new TransientAnalysisCacheRepository(analysis, {
 		limits: options.transientAnalysisCacheLimits,
@@ -162,6 +164,7 @@ export function createStorageRepositories(
 	});
 	const sources = new SourceRepository({
 		records: sourceRecords,
+		deletion: sourceDeletion,
 		writer,
 		reader,
 		media,

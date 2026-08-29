@@ -7,6 +7,7 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceReadOptions, SourceReadRepository } from './source-read-repository.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
+import type { SourceDeletionRepository } from './source-deletion-repository.ts';
 import type {
 	AudioSourceStageReceipt,
 	OwnedAudioSourceWriter,
@@ -18,6 +19,7 @@ const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'a
 
 export interface SourceRepositoryOptions {
 	readonly records: SourceRecordRepository;
+	readonly deletion?: SourceDeletionRepository;
 	readonly writer: SourceWriteRepository;
 	readonly reader: SourceReadRepository;
 	readonly media: MediaRepository;
@@ -105,6 +107,7 @@ export class SourceRepository {
 	}
 
 	async delete(sourceId: string): Promise<void> {
+		if (this.#options.deletion) return this.#deleteAtomically(sourceId);
 		const deletion = await this.#options.records.deleteMetadataIfUnreferenced(sourceId);
 		if (deletion.status === 'retained') {
 			throw new Error(`Source ${sourceId} is retained by derived source ${deletion.dependentSourceId}.`);
@@ -117,6 +120,36 @@ export class SourceRepository {
 		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) {
 			await this.#options.analysis.delete(`${prefix}${sourceId}`);
 		}
+	}
+
+	async #deleteAtomically(sourceId: string): Promise<void> {
+		const deletion = await this.#options.deletion!.detachIfUnreferenced(sourceId);
+		if (deletion.status === 'retained') {
+			throw new Error(`Source ${sourceId} is retained by derived source ${deletion.dependentSourceId}.`);
+		}
+		// This cache namespace is content-addressed and disposable. Purge it before
+		// payload cleanup yields so a same-store replacement queues after maintenance.
+		await this.#options.transientAnalysisCache?.purge().catch(() => undefined);
+		const cleanup = [
+			deletion.source && isOpfsPcmStorage(deletion.source.storage) && deletion.source.path
+				? this.#options.opfs.deletePath(deletion.source.path)
+				: Promise.resolve(),
+			this.#deleteDetachedMedia(deletion.mediaAsset, deletion.derivatives),
+		];
+		const failures = (await Promise.allSettled(cleanup))
+			.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+			.map(({ reason }) => reason);
+		if (failures.length) throw new AggregateError(failures, `Source ${sourceId} payload cleanup failed.`);
+	}
+
+	async #deleteDetachedMedia(
+		mediaAsset: StorageRecord | null,
+		derivatives: readonly StorageRecord[],
+	): Promise<void> {
+		const disposable = mediaAsset
+			? await this.#options.media.prepareDetachedPayloadDisposal(mediaAsset)
+			: null;
+		await this.#options.opfs.deleteBinaryRecords([disposable, ...derivatives]);
 	}
 
 	async discardIfCurrent(source: StorageRecord): Promise<boolean> {
