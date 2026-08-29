@@ -160,7 +160,7 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 
 	const capture = roadmap.slice(
 		roadmap.indexOf('### 8A. Framescaper recording setup'),
-		roadmap.indexOf('### 8B. MIDI'),
+		roadmap.indexOf('## 8+. Post-milestone-8 Framescaper Web VCR extension'),
 	);
 	assert.match(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*manual qualification.*milestone 9.*framescaperWebVcr: true/isu);
 	assert.doesNotMatch(roadmap, /Blocked until milestone 8:\*\*[^\n]*(?:Framescaper camera|Framescaper capture)/iu);
@@ -172,7 +172,10 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 	const environment = quality.environments.find(({ id }) => id === 'capture-os-browser-lab-matrix');
 	assert.equal(environment?.status, 'unprovisioned');
 	assert.equal(environment?.qualificationEligible, false);
-	assert.match(roadmap.slice(roadmap.indexOf('### 8B.')), /Status:.*Planned.*not implemented.*Audacity.*milestone 9/isu);
+	assert.match(
+		roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions')),
+		/### 8B\. MIDI.*Status:.*Planned.*not implemented.*excluded from stable 1\.0.*Audacity.*post-1\.0/isu,
+	);
 	assert.match(plan, /capture-only proxy route landed in commit `4f4d9d5a`.*framescaper-capture-canonical-publication\.ts.*editor-captured-video-proxy-scheduler\.ts.*captured-video-proxy-final-fence\.test\.ts/isu);
 	assert.match(plan, /crash-safe creation and append protocol landed in commit `917add78`.*framescaper-capture-app-composition\.ts.*capture-spool-append-intent-repository\.ts.*capture-spool-operation-lock\.ts.*capture-rollback-lock\.test\.ts.*capture-terminal-retirement\.test\.ts/isu);
 	assert.match(plan, /Commit `15a50dcb`.*framescaper-capture-stream-timing\.ts.*numeric.*null.*capture-shared-timing\.test\.ts/isu);

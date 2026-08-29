@@ -1,6 +1,6 @@
 # Soundscaper and Framescaper production roadmap
 
-> Grounded against the repository on 2026-08-28. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
+> Grounded against the repository on 2026-08-29. Milestones are ordered by dependency and close only when their exit gates pass. They are not release-date promises.
 
 Soundscaper and Framescaper are two focused products over one local-first, mixed-media editor and one canonical Scape project format. The destination is an end-to-end professional workflow for recording, editing, mixing, picture editorial, finishing, and delivery on the web and in Electron. It is not parity with every specialist creative suite.
 
@@ -94,21 +94,23 @@ The following are not completion requirements:
 
 ## Deferred-capability fences
 
-Through milestones 1–7:
+Through stable 1.0:
 
 - `export-midi`, `midi-device-info`, and `local://midi-track` remain disabled,
   excluded, and inert;
 - add no MIDI schema, ports, capability flags, dependencies, imports, exports,
-  UI placeholders, event input, instruments, or device enumeration; and
+  UI placeholders, event input, instruments, or device enumeration.
+
+Through milestones 1–7:
+
 - add no Framescaper recording capability, command, schema, adapter, IPC,
   permission expansion, or UI. Existing Soundscaper microphone and desktop
   recording may be maintained.
 
-Framescaper capture starts in milestone 8A. MIDI implementation belongs to
-milestone 8B; Audacity design review is a milestone-9 stable 1.0 admission
-check, not permission to build or test it. The enabled Framescaper Web VCR
-extension reuses milestone-8A capture contracts and adds no parallel recording
-path.
+Framescaper capture starts in milestone 8A. MIDI implementation and its
+Audacity design review belong to post-1.0 milestone 9+ and close no stable-1.0
+gate. The enabled Framescaper Web VCR extension reuses milestone-8A capture
+contracts and adds no parallel recording path.
 
 ## Status and platform notation
 
@@ -172,17 +174,17 @@ Known architectural constraints that drive later work:
 | 5. Electron-native services | **In progress — implemented routes enabled for testing; target payloads open** | Add isolated native media, audio, render, and plug-in services. |
 | 6. Delivery/interchange | **Implemented targets enabled; exact machine executors and payloads remain open** | Add professional masters, queues, exchange, and archives. |
 | 7. Local assistance | **Complete workflow layer implemented; model-backed execution depends only on authenticated machine payloads; human qualification belongs to milestone 9** | Add removable on-device assistance without becoming a dependency. |
-| 8. Capture and MIDI | **8A active; 8B planned, not implemented** | Selected Framescaper F31 activates recording on web and desktop; real-device, owner-lab, and MIDI design reviews are milestone-9 stable 1.0 checks. |
+| 8. Framescaper capture | **Implemented and active; qualification belongs to milestone 9** | Selected Framescaper F31 records on web and desktop; MIDI moves to post-1.0 milestone 9+. |
 | 8+I. Framescaper timeline images | **Browser-native vertical slice implemented; converter and qualification work open** | Import retained raster assets as authenticated timeline media; FFmpeg, ImageMagick, multipage, and extended color/format tiers remain open. |
 | 8+. Framescaper Web VCR | **Implemented and enabled for testing** | Expose the default-hidden Record-menu surface with `framescaperWebVcr: true`; keep 4K unavailable and move human qualification to milestone 9. |
 | 8+C. Framescaper product origin | **In progress — separate-origin builds and transfer ceremony implemented; cutover/retirement open** | Finish the first-class product action, old-scope redirect, and dated retirement. |
-| 9. Final qualification | **Planned** | Requalify the complete product, including the accepted post-milestone-8 extensions, and release matrix. |
-| 9+. Installable distribution | **Planned** | Install both products from Chrome for Android as independent apps, with an optional Google Play Trusted Web Activity track. |
+| 9. Final qualification | **In progress — family-v1 baseline frozen; qualification campaign open** | Qualify the stable-1.0 product scope and release matrix. |
+| 9+. Post-1.0 extensions | **Planned — MIDI and installable distribution** | Add MIDI after stable 1.0 and install both products from Chrome for Android as independent apps, with an optional Google Play Trusted Web Activity track. |
 
 Earlier milestones may ship independently. The complete roadmap does not close
 until milestone 8, the Web VCR extension, the 8+C origin move, and milestone 9
-close. Milestone 7 may be skipped, and 9+ is post-release scope that closes no
-milestone-9 gate.
+close. Milestone 7 may be skipped. MIDI and all other 9+ work are post-release
+scope and close no milestone-9 gate.
 
 ## 1. Baseline contracts and quality budgets
 
@@ -654,13 +656,15 @@ The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared 
 
 - **Electron Enhanced — Enabled for testing; payload-dependent:** contract v1 closes jobs/grants, supervision, 64 KiB control and authenticated data planes. Launcher source/contracts/tests implement Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer; an exact authenticated built launcher is still required to execute.
 - **Electron Enhanced — Menu-opt-in and active:** default-off routes enforce resource, custody, and publication bounds; payloads are reverified at staging, pack, and spawn, and helpers cannot publish project revisions.
-- **Electron Only — Enabled for testing:** scanning, quarantine, isolated hosting, continuity, and helper-owned vendor windows are fixture-tested. VST3, CLAP, AU, LV2, and OFX are platform-visible and defer execution to exact machine payload and containment checks; instruments wait for an implementation in 8B.
+- **Electron Only — Enabled for testing:** scanning, quarantine, isolated hosting, continuity, and helper-owned vendor windows are fixture-tested. VST3, CLAP, AU, LV2, and OFX are platform-visible and defer execution to exact machine payload and containment checks; instruments wait for post-1.0 milestone 9+ (legacy packet 8B).
 
 ### Soundscaper native tier
 
 - **Electron Enhanced — Product route enabled for testing:** S30 inherits its exact S29 native-audio implementation: a persistent helper and direct `MessagePort` to an `AudioWorklet`; input feeds canonical recording publication, output feeds playback/monitoring, and loss preserves Web Core fallback. CoreAudio/WASAPI/PipeWire/ALSA are implemented; JACK stays discovery-only. Exact target payload and backend probes remain machine gates.
 - **Electron Only — Platform formats enabled for testing:** S30 delegates through exact S29 and inserts user-consented `native-plugin` effects with persistent RPC, real-time/offline render, exact V21 PDC, bounded state, bypass/frozen continuity, and helper-owned vendor windows. A scan or host operation still requires the exact authenticated payload, OS launcher, plug-in digest, consent, and quarantine state. Licensing, signed readiness, and lab review are milestone-9 stable 1.0 inputs, not execution gates.
-- **Planned for milestone 8B:** MIDI, instruments, control surfaces, clock, and MTC are not implemented.
+- **Planned for post-1.0 milestone 9+ (legacy packet 8B):** MIDI,
+  instruments, control surfaces, clock, and MTC are not implemented and do not
+  block stable 1.0.
 
 ### Framescaper native tier
 
@@ -703,8 +707,8 @@ invariants, and the bounded work packets are owned by the
 
 ### Soundscaper delivery
 
-- **Planned for milestone 8B:** MIDI import/export remains outside this
-  milestone.
+- **Planned for post-1.0 milestone 9+ (legacy packet 8B):** MIDI import/export
+  remains outside this milestone and the stable-1.0 scope.
 - **Shared / Web Core — Implemented:** mastering sequences, named regions,
   per-region metadata, order, gaps, fades, and validation.
 - **Web Core — Implemented:** queued mixes, selections, loops, regions, stems,
@@ -791,10 +795,10 @@ are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
 - Deterministic non-AI editing and delivery remain complete without this
   milestone.
 
-## 8. Final deferred capability milestone
+## 8. Framescaper capture
 
-**Depends on:** milestones 1–6. Capture is sub-phase 8A; MIDI is the final
-product sub-phase 8B.
+**Depends on:** milestones 1–6. Milestone 8 contains only the implemented
+Framescaper capture sub-phase 8A; MIDI has moved to post-1.0 milestone 9+.
 
 ### 8A. Framescaper recording setup
 
@@ -858,56 +862,6 @@ or packaged no-device smoke:
   unsupported states.
 - Recorded media follows the same relink, proxy, edit, Scape, handoff, and
   delivery paths as imported media.
-
-### 8B. MIDI
-
-**Status:** **Planned, not implemented.** Audacity design review is recorded in
-milestone 9 for stable 1.0 admission; it does not block implementation or test
-work.
-
-No MIDI schema, event type, track type, port, piano roll, instrument, import,
-export, or native bridge exists yet. Stable 1.0 admission requires:
-
-1. the relevant Audacity design and source revision are public and pinned;
-2. its project model, events, editor UX, tempo interaction, routing, plug-in
-   delivery, and AUP4 form are reviewable;
-3. a written compatibility decision maps it to Scape and records deliberate
-   divergences; and
-4. migration and opaque-preservation plans are approved before allocating a
-   schema version.
-
-Record the review outcome in the canonical milestone-9 campaign. Development
-may implement and test the planned surface before that human review completes.
-
-Planned implementation:
-
-- **Shared / Web Core — Planned:** reviewed MIDI project, track, clip/event,
-  selection, history, clipboard, tempo, quantization, and interchange semantics.
-- **Web Core — Planned:** accessible Audacity-aligned event editing,
-  velocity/controllers, navigation, and bounce/freeze.
-- **Web Enhanced — Planned:** permission-aware Web MIDI with a complete
-  file/editor fallback.
-- **Shared / Web Core — Planned:** a focused reviewed built-in instrument and
-  sampler only after event/timing stability.
-- **Electron Only — Planned:** native MIDI, MPE where supported, instruments,
-  control surfaces, MIDI clock, and MTC through isolated services.
-- **Shared — Planned:** visible missing-instrument/device placeholders with
-  frozen audio and preserved editable state.
-
-#### MIDI exit gate
-
-- The pinned-design compatibility matrix has no unresolved model question.
-- Audacity/AUP4 and Scape fixtures preserve representable state and report
-  conversions.
-- Audio and MIDI meet the timing budget through playback, record, tempo, loops,
-  freeze, export, and reopen.
-- Web without Web MIDI remains a complete file-based editor; Electron adds
-  devices and instruments without forking the project model.
-
-Until implementation lands, the actions remain inert and menu-hidden because
-there is no MIDI runtime—not because a human checkpoint withholds activation.
-The roadmap may not claim the full DAW goal before the implementation and its
-milestone-9 compatibility review both pass.
 
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
@@ -1000,7 +954,11 @@ Sequencing, the topology decision, and the bounded work packets are owned by the
 
 ## 9. Final convergence and qualification
 
-**Depends on:** milestones 1–6, both milestone-8 sub-phases, every accepted Web VCR platform tier above, and the 8+C cutover, which is sequenced deliberately ahead of WP-9.0.0's baseline freeze.
+**Depends on:** milestones 1–6, milestone-8 capture, every accepted Web VCR
+platform tier above, and the 8+C cutover.
+
+**Status:** **In progress — WP-9.0.0 approved the family-v1 baseline for
+`1.0.0-rc.1`; the qualification campaign remains open.**
 
 **Goal:** qualify the complete products as coherent systems.
 
@@ -1020,7 +978,7 @@ feature routes never consume its result.
   uninstall preservation.
 - **Shared — Planned:** keyboard, screen reader, zoom/reflow, contrast, motion,
   localization, RTL, and WCAG 2.2 AA review for every critical workflow.
-- **Shared — Planned:** long-session audio, video, capture, MIDI, autosave,
+- **Shared — Planned:** long-session audio, video, capture, autosave,
   handoff, proxy, plug-in, and render-queue soaks under resource pressure.
 - **Shared — Planned:** local exportable diagnostics without telemetry or media
   content, plus recovery, compatibility, migration, keyboard, codec, plug-in,
@@ -1038,7 +996,61 @@ feature routes never consume its result.
 - Release artifacts pass notices, hashes, provenance, codec/plug-in licensing,
   package smoke, signatures, and update/recovery gates.
 
-## 9+. Installable distribution (PWA and Trusted Web Activity)
+## 9+. Post-1.0 extensions
+
+MIDI and installable distribution are explicitly post-release scope. Neither
+can block the stable-1.0 candidate, milestone-9 qualification, or release.
+
+### 8B. MIDI
+
+The `8B` name is retained only as a legacy packet identifier so existing
+machine-readable evidence links remain stable.
+
+**Status:** **Planned, not implemented, and explicitly excluded from stable 1.0.**
+Audacity design review, compatibility decisions, implementation, and
+qualification all move together into post-1.0 milestone 9+.
+
+No MIDI schema, event type, track type, port, piano roll, instrument, import,
+export, or native bridge exists yet. Post-1.0 implementation begins only after:
+
+1. the relevant Audacity design and source revision are public and pinned;
+2. its project model, events, editor UX, tempo interaction, routing, plug-in
+   delivery, and AUP4 form are reviewable;
+3. a written compatibility decision maps it to Scape and records deliberate
+   divergences; and
+4. migration and opaque-preservation plans are approved before allocating a
+   schema version.
+
+Planned implementation:
+
+- **Shared / Web Core — Planned:** reviewed MIDI project, track, clip/event,
+  selection, history, clipboard, tempo, quantization, and interchange semantics.
+- **Web Core — Planned:** accessible Audacity-aligned event editing,
+  velocity/controllers, navigation, and bounce/freeze.
+- **Web Enhanced — Planned:** permission-aware Web MIDI with a complete
+  file/editor fallback.
+- **Shared / Web Core — Planned:** a focused reviewed built-in instrument and
+  sampler only after event/timing stability.
+- **Electron Only — Planned:** native MIDI, MPE where supported, instruments,
+  control surfaces, MIDI clock, and MTC through isolated services.
+- **Shared — Planned:** visible missing-instrument/device placeholders with
+  frozen audio and preserved editable state.
+
+#### MIDI exit gate
+
+- The pinned-design compatibility matrix has no unresolved model question.
+- Audacity/AUP4 and Scape fixtures preserve representable state and report
+  conversions.
+- Audio and MIDI meet the timing budget through playback, record, tempo, loops,
+  freeze, export, and reopen.
+- Web without Web MIDI remains a complete file-based editor; Electron adds
+  devices and instruments without forking the project model.
+
+Until implementation lands, the actions remain inert and menu-hidden because
+there is no MIDI runtime. The full DAW goal is a post-1.0 claim and closes only
+after this packet's implementation and compatibility review pass.
+
+### 9+. Installable distribution (PWA and Trusted Web Activity)
 
 **Status:** **Planned.** Phase 0 measures real devices and changes no product
 code; roughly ten load-bearing questions here are empirical and are answered
@@ -1115,7 +1127,10 @@ Sequencing, the vehicle decision, and the bounded work packets are owned by the
 - Project evolution covers rational video time, tempo maps, markers, takes,
   automation/keyframes, sequences, media links, native-effect state, feature
   requirements, and rendered fallbacks.
-- Capture contracts are designed only in milestone 8A; Web VCR registers one capture-source adapter but no new clock, persistence model, generic remote IPC, or project schema. MIDI contracts belong to milestone 8B, while their human compatibility review belongs to milestone 9.
+- Capture contracts are designed only in milestone 8A; Web VCR registers one
+  capture-source adapter but no new clock, persistence model, generic remote
+  IPC, or project schema. MIDI contracts and their compatibility review belong
+  to post-1.0 milestone 9+ (legacy packet 8B).
 - The 8+C cross-product transfer moves discrete `.scape` archives and claims no
   project schema number and no new archive envelope; a bundle container, if one
   ever becomes necessary, claims its number at merge time and not before.
@@ -1135,7 +1150,7 @@ Sequencing, the vehicle decision, and the bounded work packets are owned by the
 | Native isolation | Malformed IPC/media/plug-ins, timeout, crash, quarantine, restart, permission revocation, and Web Core fallback. |
 | Framescaper capture | Permissions, supported source combinations, long-recording sync, device loss, recovery, and normal media handoff. |
 | Framescaper Web VCR | Record-dropdown-only availability, isolated persistent HTTPS browsing, target/manual crop, local-mute independence, background capture, quit recovery, capability-gated resolution, cropped-only retention, and normal recorded-media handoff. |
-| MIDI | Tests derived from pinned Audacity design: migration, timing, fallback, instruments, accessibility, Scape, and AUP4. |
+| MIDI (post-1.0 9+) | Tests derived from pinned Audacity design: migration, timing, fallback, instruments, accessibility, Scape, and AUP4. |
 | Framescaper origin transfer | Multi-project cutover across origins: resumable after a killed receiver, exactly one copy per project, reported omissions matching the round-trip fixture matrix, no side-effect deletion, and no redirect loop for an installed pre-cutover app. |
 | Installable distribution | Distinct installable apps with disjoint scopes, touch operation at the recorded tablet viewports, cross-origin isolation on installed and shell-served navigations, screen-off export or its enforced refusal, offline localized open/effect/export, and survival of a product-version bump. |
 | Accessibility | Keyboard and assistive-technology completion at supported zoom, contrast, locale, and direction. |
@@ -1168,5 +1183,5 @@ Revalidate platform assumptions when the owning milestone starts:
   packet with outcome, invariants, acceptance, non-goals, and stop condition.
 - Promote a platform tier only when the supported matrix proves the stronger
   contract.
-- Keep absent MIDI actions marked planned until their implementation lands;
-  track Audacity compatibility review only in milestone 9.
+- Keep absent MIDI actions marked planned until their post-1.0 implementation
+  lands; the Audacity compatibility review belongs to the same 9+ packet.

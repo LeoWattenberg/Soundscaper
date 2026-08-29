@@ -43,6 +43,21 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		roadmap,
 		/8\+C\. Framescaper product origin.*In progress.*separate-origin builds.*transfer ceremony implemented.*cutover\/retirement open/iu,
 	);
+	assert.match(
+		roadmap,
+		/8\. Framescaper capture.*Implemented and active.*MIDI moves to post-1\.0 milestone 9\+/iu,
+	);
+	assert.match(
+		roadmap,
+		/9\+\. Post-1\.0 extensions.*MIDI and installable distribution/iu,
+	);
+	const milestoneNine = roadmap.slice(
+		roadmap.indexOf('## 9. Final convergence and qualification'),
+		roadmap.indexOf('## 9+. Post-1.0 extensions'),
+	);
+	const postRelease = roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions'));
+	assert.doesNotMatch(milestoneNine, /\bMIDI\b/iu);
+	assert.match(postRelease, /### 8B\. MIDI.*legacy packet identifier.*excluded from stable 1\.0/isu);
 	assert.match(roadmap, /### Frozen closure scope/iu);
 	assert.match(roadmap, /config\/milestone-2-closure\.json/iu);
 	assert.match(roadmap, /Unnamed work\s+cannot block closure/iu);
