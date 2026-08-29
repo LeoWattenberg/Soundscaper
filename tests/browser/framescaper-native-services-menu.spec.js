@@ -81,7 +81,7 @@ test('Framescaper v1 exposes native work only through menus and retains its watc
 
 test('a Framescaper bridge cannot surface Framescaper native menus in Soundscaper', async ({ page }) => {
 	await installNativeServicesFixture(page);
-	const editor = await bootEditor(page, '/soundscaper/embed/en/');
+	const editor = await bootEditor(page, '/embed/en/');
 
 	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
 	for (const label of ['Background jobs…', 'Watch folders…', 'Native media and scratch…']) {

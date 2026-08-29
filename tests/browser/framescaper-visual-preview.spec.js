@@ -247,8 +247,9 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await expect(preview).toHaveAttribute(
 			'data-video-preview-omitted-effect-count', '0', VISUAL_COMMAND_OPTIONS,
 		);
-		const afterAdjustment = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
-		expect(afterAdjustment).not.toBe(beforeAdjustment);
+		await expect.poll(() => screenshotDigest(editor.locator('[data-video-preview-canvas]')), {
+			timeout: VISUAL_READINESS_TIMEOUT,
+		}).not.toBe(beforeAdjustment);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { adjustmentCount: 0 });
