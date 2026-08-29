@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createEnvelopeValueEvaluator } from '../automation.js';
 import { compareCodeUnits } from '../code-unit-order.ts';
 import {
 	clipEndFrame,
@@ -79,6 +80,35 @@ export function requireMixerBus(project, type, busId) {
 	return bus;
 }
 
+/**
+ * Carry the gain a clip already described across the segment's own range.
+ * Keeping only the points that fall inside it is not enough, because the
+ * evaluator supplies its own values outside them: it ramps up from unity before
+ * the first point and holds the last one after it. A cut between two points
+ * would therefore flatten the left half and start the right half at full gain,
+ * so a boundary the clip has no point on gains one holding the interpolated
+ * value. A boundary that is also the clip's own edge keeps the evaluator's
+ * existing behaviour and is left alone, so a full-extent segment is unchanged.
+ */
+function segmentEnvelope(clip, offsetFrames, durationFrames) {
+	if (!Array.isArray(clip.envelope)) return undefined;
+	if (clip.envelope.length === 0) return [];
+	const endFrame = offsetFrames + durationFrames;
+	const inside = clip.envelope.filter((point) => point.frame >= offsetFrames && point.frame <= endFrame);
+	const valueAt = createEnvelopeValueEvaluator(clip.envelope, Math.max(1, clip.durationFrames));
+	const boundaries = [];
+	if (offsetFrames > 0 && !inside.some((point) => point.frame === offsetFrames)) {
+		boundaries.push({ frame: offsetFrames, value: valueAt(offsetFrames) });
+	}
+	if (durationFrames > 0 && endFrame < clip.durationFrames
+		&& !inside.some((point) => point.frame === endFrame)) {
+		boundaries.push({ frame: endFrame, value: valueAt(endFrame) });
+	}
+	return [...inside, ...boundaries]
+		.sort((left, right) => left.frame - right.frame)
+		.map((point) => ({ ...point, frame: point.frame - offsetFrames }));
+}
+
 export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame, timelineStartFrame, id, videoEffectIds = undefined) {
 	const offsetFrames = segmentStartFrame - clip.timelineStartFrame;
 	const durationFrames = segmentEndFrame - segmentStartFrame;
@@ -98,11 +128,7 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 		&& (segmentStartFrame !== clip.timelineStartFrame || segmentEndFrame !== clipEndFrame(clip))
 		? trimAudioWarpClipToTimelineRange(project, clip, segmentStartFrame, segmentEndFrame)
 		: null;
-	const envelope = Array.isArray(clip.envelope)
-		? clip.envelope
-			.filter((point) => point.frame >= offsetFrames && point.frame <= offsetFrames + durationFrames)
-			.map((point) => ({ ...point, frame: point.frame - offsetFrames }))
-		: undefined;
+	const envelope = segmentEnvelope(clip, offsetFrames, durationFrames);
 	let value = detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
 		...clip,
 		id,
