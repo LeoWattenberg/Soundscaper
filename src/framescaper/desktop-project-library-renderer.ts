@@ -104,9 +104,11 @@ interface RendererPublicationRequest {
 export interface FramescaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<FramescaperDesktopProjectLibraryProjectSummary>[]>;
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProject | null>;
+	createScapeProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
 	publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
 	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<FramescaperProject | null>;
 	deleteProject(projectId: string): Promise<void>;
+	deleteProjectIfCurrent(project: unknown): Promise<boolean>;
 	duplicateProject(sourceProjectId: string, options: Readonly<{
 		readonly id: string;
 		readonly title: string;
@@ -192,6 +194,14 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		return this.#publishProject(request);
 	}
 
+	createScapeProjectIfAbsent(projectValue: unknown): Promise<FramescaperProject | null> {
+		const project = cloneFramescaperProject(this.#profile, projectValue);
+		if (project.revision !== 0) {
+			throw new Error('Framescaper desktop Scape creation requires revision zero.');
+		}
+		return this.#publishProject({ project }, undefined, true);
+	}
+
 	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown): Promise<FramescaperProject | null> {
 		const expected = cloneFramescaperProject(this.#profile, expectedValue);
 		return this.#publishProject({ project: projectValue }, expected);
@@ -202,7 +212,10 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		request: Readonly<RendererPublicationRequest>, expected: FramescaperProject,
 	): Promise<FramescaperProject | null>;
 	#publishProject(
-		request: Readonly<RendererPublicationRequest>, expected?: FramescaperProject,
+		request: Readonly<RendererPublicationRequest>, expected: undefined, requireAbsent: true,
+	): Promise<FramescaperProject | null>;
+	#publishProject(
+		request: Readonly<RendererPublicationRequest>, expected?: FramescaperProject, requireAbsent = false,
 	): Promise<FramescaperProject | null> {
 		return this.#exclusive(async () => {
 			const project = cloneFramescaperProject(this.#profile, request.project);
@@ -216,6 +229,7 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 				this.#bridge.readProjectBundle(projectId),
 			]);
 			const current = currentRaw === null ? null : validateBundle(this.#profile, currentRaw, projectId);
+			if (requireAbsent && current) return null;
 			if (expected && (!current || !sameFramescaperDesktopProject(current.project, expected))) return null;
 			if (current && !isStrictlyHigherProjectRevision(project.revision, current.project.revision)) {
 				throw new Error('Framescaper desktop publication requires a strictly higher revision.');
@@ -290,19 +304,20 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 				await this.#store.shadow.deleteCommittedProject(projectId);
 				return;
 			}
+			await this.#deleteCurrentProject(projectId, validateBundle(this.#profile, raw, projectId));
+		});
+	}
+
+	deleteProjectIfCurrent(projectValue: unknown): Promise<boolean> {
+		const expected = cloneFramescaperProject(this.#profile, projectValue);
+		const projectId = projectIdValue_(String(expected.id));
+		return this.#exclusive(async () => {
+			const raw = await this.#bridge.readProjectBundle(projectId);
+			if (raw === null) return false;
 			const current = validateBundle(this.#profile, raw, projectId);
-			const result = exactRecord(await this.#bridge.deleteProject({
-				projectId,
-				expectedMetadataRevision: current.bundle.metadataRevision,
-				expectedProject: {
-					projectRevision: current.project.revision,
-					projectSha256: current.bundle.project.sha256,
-				},
-			}), ['projectId', 'metadataRevision', 'deleted'], 'delete result');
-			if (result.projectId !== projectId || result.deleted !== true) {
-				throw new Error('Framescaper delete acknowledgement changed.');
-			}
-			await this.#store.shadow.deleteCommittedProject(projectId);
+			if (!sameFramescaperDesktopProject(current.project, expected)) return false;
+			await this.#deleteCurrentProject(projectId, current);
+			return true;
 		});
 	}
 
@@ -343,6 +358,24 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		const result = this.#tail.then(operation, operation);
 		this.#tail = result.then(() => undefined, () => undefined);
 		return result;
+	}
+
+	async #deleteCurrentProject(projectId: string, current: Readonly<{
+		readonly project: FramescaperProject;
+		readonly bundle: Bundle;
+	}>): Promise<void> {
+		const result = exactRecord(await this.#bridge.deleteProject({
+			projectId,
+			expectedMetadataRevision: current.bundle.metadataRevision,
+			expectedProject: {
+				projectRevision: current.project.revision,
+				projectSha256: current.bundle.project.sha256,
+			},
+		}), ['projectId', 'metadataRevision', 'deleted'], 'delete result');
+		if (result.projectId !== projectId || result.deleted !== true) {
+			throw new Error('Framescaper delete acknowledgement changed.');
+		}
+		await this.#store.shadow.deleteCommittedProject(projectId);
 	}
 }
 

@@ -81,6 +81,20 @@ test('Framescaper desktop conditional saves publish and compare against main aut
 		}), false);
 		assert.deepEqual(await store.loadProject(PROJECT_ID), shadowBeforeRefusedRestore);
 		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), concurrent);
+
+		const imported = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
+			id: `${PROJECT_ID}-scape`, title: 'Imported', now: '2026-08-30T11:04:00.000Z',
+		});
+		const created = await adapter.createScapeProjectIfAbsent(imported);
+		assert.deepEqual(created, imported);
+		assert.deepEqual(await authoritativeProject(session, String(imported.id)), imported);
+		assert.equal(await adapter.createScapeProjectIfAbsent(imported), null);
+		assert.equal(await adapter.deleteProjectIfCurrent(
+			advance(imported, 1, 'Changed', '2026-08-30T11:05:00.000Z'),
+		), false);
+		assert.deepEqual(await authoritativeProject(session, String(imported.id)), imported);
+		assert.equal(await adapter.deleteProjectIfCurrent(created), true);
+		assert.equal(await session.readProjectBundle(String(imported.id)), null);
 	} finally {
 		if (priorDesktop) Object.defineProperty(globalThis, 'framescaperDesktop', priorDesktop);
 		else Reflect.deleteProperty(globalThis, 'framescaperDesktop');

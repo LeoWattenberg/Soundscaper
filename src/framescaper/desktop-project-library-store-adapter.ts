@@ -17,6 +17,7 @@ const SAVE_FIELDS = [
 	'admitProjectPublication', 'protectedLinkedOriginalSourceReferences', 'protectedLinkedVideoSourceIds',
 ] as const;
 const LABEL = 'Framescaper desktop';
+const SCAPE_CREATION_FENCE_LOST = Symbol('Framescaper Scape creation fence lost');
 
 export interface FramescaperDesktopProjectStoreLocal {
 	readonly backend: unknown;
@@ -32,6 +33,8 @@ export interface FramescaperDesktopProjectStoreLocal {
 
 export type FramescaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
 	createProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
+	createScapeProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
+	deleteProjectIfCurrent(project: unknown): Promise<boolean>;
 	saveProjectIfCurrent(expected: unknown, project: unknown, options?: unknown): Promise<FramescaperProject | null>;
 	restoreProjectSnapshotIfCurrent(projectId: string, expected: unknown, snapshot: unknown): Promise<false>;
 }>;
@@ -94,6 +97,25 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			if (project.revision !== 0) throw new Error(`${LABEL} create requires revision zero.`);
 			if (await renderer.readProject(String(project.id)) !== null) return null;
 			return renderer.publishProject({ project });
+		},
+		createScapeProjectIfAbsent: (projectValue: unknown) => (
+			renderer.createScapeProjectIfAbsent(cloneFramescaperProject(profile, projectValue))
+		),
+		deleteProjectIfCurrent: async (projectValue: unknown) => {
+			const project = cloneFramescaperProject(profile, projectValue);
+			const lifecycle = localStore.linkedOriginalStoreService;
+			if (typeof lifecycle?.deleteProject !== 'function') {
+				return renderer.deleteProjectIfCurrent(project);
+			}
+			try {
+				return await lifecycle.deleteProject(String(project.id), async () => {
+					if (!await renderer.deleteProjectIfCurrent(project)) throw SCAPE_CREATION_FENCE_LOST;
+					return true;
+				});
+			} catch (error) {
+				if (error === SCAPE_CREATION_FENCE_LOST) return false;
+				throw error;
+			}
 		},
 		deleteProject: async (projectId: string) => {
 			const lifecycle = localStore.linkedOriginalStoreService;
