@@ -135,13 +135,17 @@ test('main carries one pathless offscreen Interact replay through the isolated h
 			index === 0 ? { ...parameter, value: [2] } : parameter
 		)),
 	});
-	await assert.rejects(() => fixture.service.interact({
-		protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
-			...fixture.plan.project }, pluginHandle: scanned.pluginHandle,
-		effect: stale, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(stale),
-		context: 'filter', target: 'overlay', parameterName: null, events: [],
-	}), /current project|authority|stale/iu);
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		await assert.rejects(() => fixture.service.interact({
+			protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+				...fixture.plan.project }, pluginHandle: scanned.pluginHandle,
+			effect: stale, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(stale),
+			context: 'filter', target: 'overlay', parameterName: null, events: [],
+		}), /current project|authority|stale/iu);
+	}
 	assert.equal(fixture.hostJobs, 1);
+	assert.deepEqual(fixture.service.inventory().map(({ state, quarantined }) => ({ state, quarantined })),
+		[{ state: 'enabled', quarantined: false }]);
 });
 
 test('main resolves VFR timing authority before staging a dormant Retimer attempt', async (context) => {

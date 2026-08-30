@@ -320,16 +320,20 @@ export class FramescaperOpenFxMainService {
 				},
 			}) as HelperOfxInteractJobGrantV1;
 			await this.#assertInteractAuthority(plugin, epoch, manager, request);
-			const result = await manager.interact(fingerprint, Object.freeze({
-				kind: 'ofx-host' as const,
-				grant,
-				signal: abort.signal,
-				dataPlaneTransfers: Object.freeze([]),
-			}));
+			let result;
+			try {
+				result = await manager.interact(fingerprint, Object.freeze({
+					kind: 'ofx-host' as const, grant, signal: abort.signal,
+					dataPlaneTransfers: Object.freeze([]),
+				}));
+			} catch (error) {
+				if (!abort.signal.aborted) this.#recordRuntimeFailure(plugin, error); throw error;
+			}
 			await this.#assertInteractAuthority(plugin, epoch, manager, request);
-			return framescaperOpenFxInteractResultV1(result.interact, request);
-		} catch (error) {
-			if (!abort.signal.aborted) this.#recordRuntimeFailure(plugin, error); throw error;
+			try { return framescaperOpenFxInteractResultV1(result.interact, request); }
+			catch (error) {
+				if (!abort.signal.aborted) this.#recordRuntimeFailure(plugin, error); throw error;
+			}
 		} finally {
 			plugin.activeExecutions.delete(abort);
 			if (base !== null) await rm(base, { recursive: true, force: true });
