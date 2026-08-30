@@ -129,19 +129,44 @@ function inspectIsoMediaSampleRate(bytes) {
 	const topLevel = isoBoxes(bytes, 0, bytes.byteLength);
 	const moov = topLevel.find((box) => box.type === 'moov');
 	if (!moov) return null;
+	const view = dataView(bytes);
 	for (const track of isoBoxes(bytes, moov.payload, moov.end).filter((box) => box.type === 'trak')) {
 		const mdia = isoBoxes(bytes, track.payload, track.end).find((box) => box.type === 'mdia');
 		if (!mdia) continue;
 		const mediaBoxes = isoBoxes(bytes, mdia.payload, mdia.end);
 		const handler = mediaBoxes.find((box) => box.type === 'hdlr');
 		if (!handler || handler.payload + 12 > handler.end || ascii(bytes, handler.payload + 8, 4) !== 'soun') continue;
-		const header = mediaBoxes.find((box) => box.type === 'mdhd');
-		if (!header || header.payload + 16 > header.end) continue;
-		const version = bytes[header.payload];
-		const timescaleOffset = version === 1 ? header.payload + 20 : header.payload + 12;
-		if (timescaleOffset + 4 > header.end) continue;
-		const rate = sampleRate(dataView(bytes).getUint32(timescaleOffset, false));
-		if (rate) return rate;
+		const minf = mediaBoxes.find((box) => box.type === 'minf');
+		if (!minf) continue;
+		const stbl = isoBoxes(bytes, minf.payload, minf.end).find((box) => box.type === 'stbl');
+		if (!stbl) continue;
+		const stsd = isoBoxes(bytes, stbl.payload, stbl.end).find((box) => box.type === 'stsd');
+		if (!stsd || stsd.payload + 8 > stsd.end || bytes[stsd.payload] !== 0) continue;
+		const entryCount = view.getUint32(stsd.payload + 4, false);
+		if (entryCount < 1 || entryCount > MAX_CONTAINER_BOXES) continue;
+		const entries = isoBoxes(bytes, stsd.payload + 8, stsd.end);
+		if (entries.length < entryCount) continue;
+		for (let index = 0; index < entryCount; index += 1) {
+			const rate = inspectIsoAudioSampleEntryRate(entries[index], view);
+			if (rate) return rate;
+		}
+	}
+	return null;
+}
+
+function inspectIsoAudioSampleEntryRate(entry, view) {
+	// AudioSampleEntry versions 0 and 1 carry a 16.16 rate in the fixed header;
+	// QuickTime version 2 replaces it with the extension's 64-bit float.
+	if (!entry || entry.payload + 28 > entry.end) return null;
+	const version = view.getUint16(entry.payload + 8, false);
+	if (version === 0) return sampleRate(view.getUint32(entry.payload + 24, false) / 65_536);
+	if (version === 1) {
+		if (entry.payload + 44 > entry.end) return null;
+		return sampleRate(view.getUint32(entry.payload + 24, false) / 65_536);
+	}
+	if (version === 2) {
+		if (entry.payload + 64 > entry.end) return null;
+		return sampleRate(view.getFloat64(entry.payload + 32, false));
 	}
 	return null;
 }

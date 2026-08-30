@@ -19,15 +19,31 @@ test('encoded audio metadata preserves rates from common native decode container
 	assert.equal(inspectEncodedAudioSampleRate(adts(44_100)), 44_100);
 });
 
-test('ISO media inspection chooses the audio track instead of the video timescale', () => {
+test('ISO media inspection reads the audio sample entry instead of a track timescale', () => {
 	const media = concatenate(
 		box('ftyp', asciiBytes('isom0000')),
 		box('moov', concatenate(
 			track('vide', 90_000),
-			track('soun', 44_100),
+			track('soun', 1_000, 48_000),
 		)),
 	);
-	assert.equal(inspectEncodedAudioSampleRate(media), 44_100);
+	assert.equal(inspectEncodedAudioSampleRate(media), 48_000);
+});
+
+test('ISO media inspection validates versioned MP4A sample-entry bounds', () => {
+	assert.equal(inspectEncodedAudioSampleRate(isoMedia(track('soun', 1_000, 44_100, { version: 1 }))), 44_100);
+	assert.equal(inspectEncodedAudioSampleRate(isoMedia(track('soun', 1_000, 96_000, { version: 2 }))), 96_000);
+	for (const [version, payloadBytes] of [[0, 27], [1, 43], [2, 63]]) {
+		assert.equal(
+			inspectEncodedAudioSampleRate(isoMedia(track('soun', 1_000, 48_000, { version, payloadBytes }))),
+			null,
+		);
+	}
+});
+
+test('ISO sound tracks read the shared rate header from non-AAC sample entries', () => {
+	assert.equal(inspectEncodedAudioSampleRate(isoMedia(track('soun', 1_000, 44_100, { entryType: 'alac' }))), 44_100);
+	assert.equal(inspectEncodedAudioSampleRate(isoMedia(track('soun', 1_000, 48_000, { entryType: 'enca' }))), 48_000);
 });
 
 test('fallback-oriented WavPack and WMA headers expose their source rates', () => {
@@ -130,15 +146,39 @@ function adts(rate) {
 	return Uint8Array.of(0xff, 0xf1, 0x50, 0x80, 0, 0, 0);
 }
 
-function track(handler, rate) {
+function track(handler, timescale, audioSampleRate = null, options = {}) {
 	const mediaHeader = new Uint8Array(24);
-	new DataView(mediaHeader.buffer).setUint32(12, rate, false);
+	new DataView(mediaHeader.buffer).setUint32(12, timescale, false);
 	const handlerPayload = new Uint8Array(12);
 	handlerPayload.set(asciiBytes(handler), 8);
+	const mediaInformation = audioSampleRate === null
+		? new Uint8Array()
+		: box('minf', box('stbl', sampleDescription(audioSampleRate, options)));
 	return box('trak', box('mdia', concatenate(
 		box('hdlr', handlerPayload),
 		box('mdhd', mediaHeader),
+		mediaInformation,
 	)));
+}
+
+function sampleDescription(rate, { entryType = 'mp4a', payloadBytes = null, version = 0 }) {
+	const requiredPayloadBytes = version === 1 ? 44 : version === 2 ? 64 : 28;
+	const audioSampleEntry = new Uint8Array(payloadBytes ?? requiredPayloadBytes);
+	const view = new DataView(audioSampleEntry.buffer);
+	view.setUint16(8, version, false);
+	view.setUint16(16, 2, false);
+	view.setUint16(18, 16, false);
+	if (version === 2 && audioSampleEntry.byteLength >= 40) view.setFloat64(32, rate, false);
+	else if (audioSampleEntry.byteLength >= 28) view.setUint32(24, rate * 65_536, false);
+	const entry = box(entryType, audioSampleEntry);
+	const description = new Uint8Array(8 + entry.byteLength);
+	new DataView(description.buffer).setUint32(4, 1, false);
+	description.set(entry, 8);
+	return box('stsd', description);
+}
+
+function isoMedia(...tracks) {
+	return concatenate(box('ftyp', asciiBytes('isom0000')), box('moov', concatenate(...tracks)));
 }
 
 function box(type, payload) {
