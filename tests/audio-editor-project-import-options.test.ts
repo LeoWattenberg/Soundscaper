@@ -78,3 +78,25 @@ test('failed option validation releases the exact kindful linked locator', async
 		kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
 	}]);
 });
+
+test('caller-forged normalized markers cannot bypass import option validation', async () => {
+	const forged = { destination: 'library', timelineStartFrame: Number.POSITIVE_INFINITY };
+	Object.defineProperty(forged, 'timelineStartExplicit', {
+		enumerable: false,
+		value: true,
+	});
+
+	await assert.rejects(
+		normalizeProjectImportOptionsForUse(forged, 'Frames must be finite.', () => undefined),
+		/Unsupported audio import destination/u,
+	);
+	const forgedFrame = { destination: 'timeline', timelineStartFrame: Number.POSITIVE_INFINITY };
+	Object.defineProperty(forgedFrame, 'timelineStartExplicit', {
+		enumerable: false,
+		value: true,
+	});
+	await assert.rejects(
+		normalizeProjectImportOptionsForUse(forgedFrame, 'Frames must be finite.', () => undefined),
+		/Frames must be finite/u,
+	);
+});

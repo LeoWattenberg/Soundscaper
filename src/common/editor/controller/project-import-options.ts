@@ -19,6 +19,7 @@ export interface LinkedOriginalImportLocatorReference {
 }
 
 const OPAQUE_LINKED_ORIGINAL_LOCATOR_PATTERN = /^[a-z0-9][a-z0-9_-]{15,127}$/iu;
+const NORMALIZED_PROJECT_IMPORT_OPTIONS = new WeakSet<object>();
 
 export function normalizeProjectImportOptions(
 	value: unknown,
@@ -96,7 +97,9 @@ export function freezeProjectImportOptions(
 		value: timelineStartExplicit,
 		writable: false,
 	});
-	return Object.freeze(value);
+	const normalized = Object.freeze(value);
+	NORMALIZED_PROJECT_IMPORT_OPTIONS.add(normalized);
+	return normalized;
 }
 
 export function normalizeProjectImportTimelineStartFrame(
@@ -197,7 +200,7 @@ function opaqueLocatorToken(value: unknown): value is string {
 }
 
 function isNormalizedProjectImportOptions(value: unknown): value is Readonly<ImportOptionsRecord> {
-	return Boolean(value && typeof value === 'object' && Object.hasOwn(value, 'timelineStartExplicit'));
+	return Boolean(value && typeof value === 'object' && NORMALIZED_PROJECT_IMPORT_OPTIONS.has(value));
 }
 
 function optionRecord(value: unknown): ImportOptionsRecord {
