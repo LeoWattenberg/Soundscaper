@@ -14,6 +14,9 @@ import {
 	fetchVerifiedDesktopBundledCodecSource,
 	validateDesktopBundledCodecSourceCheckout,
 } from '../scripts/lib/desktop-bundled-codec-corresponding-source.mjs';
+import {
+	collectDesktopBundledCodecBuildDependencies,
+} from '../scripts/lib/desktop-bundled-codec-build-dependencies.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CODECS = Object.freeze(['flac', 'lame', 'mpg123', 'opus', 'twolame', 'vorbis', 'wavpack']);
@@ -58,6 +61,38 @@ test('the desktop corresponding-source checkout fails closed on a pinned input d
 	await assert.rejects(
 		validateDesktopBundledCodecSourceCheckout({ repositoryRoot: ROOT, closure: changed }),
 		/reviewed evidence|digest/iu,
+	);
+});
+
+test('corresponding-source build dependencies cover every ESM import form', () => {
+	assert.deepEqual(collectDesktopBundledCodecBuildDependencies(
+		'scripts/build-codec-wasm.mjs',
+		[
+			'import "./lib/default.mjs";',
+			'import value from "./lib/named.mjs";',
+			"export { value } from './lib/exported.mjs';",
+			"await import('../desktop/dynamic.mjs');",
+			"import fs from 'node:fs';",
+		].join('\n'),
+	), [
+		'desktop/dynamic.mjs',
+		'scripts/lib/default.mjs',
+		'scripts/lib/exported.mjs',
+		'scripts/lib/named.mjs',
+	]);
+	assert.throws(
+		() => collectDesktopBundledCodecBuildDependencies(
+			'scripts/build-codec-wasm.mjs',
+			"await import('./lib/' + helperName);",
+		),
+		/non-literal dynamic import/iu,
+	);
+	assert.throws(
+		() => collectDesktopBundledCodecBuildDependencies(
+			'scripts/build-codec-wasm.mjs',
+			"import helper from 'unreviewed-package';",
+		),
+		/unsupported module authority/iu,
 	);
 });
 

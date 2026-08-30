@@ -7,6 +7,7 @@ import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import { zipSync } from 'fflate';
 
 import closureAdmission from '../../config/desktop-bundled-codec-corresponding-source.json' with { type: 'json' };
+import { validateDesktopBundledCodecBuildImports } from './desktop-bundled-codec-build-dependencies.mjs';
 import {
 	DESKTOP_BUNDLED_FLAC_WASM,
 	DESKTOP_BUNDLED_LAME_WASM,
@@ -92,7 +93,13 @@ export async function validateDesktopBundledCodecSourceCheckout({
 		const codecArchives = codec.archives.map((admission) => (
 			archiveDescriptor(codec.id, manifest, admission)
 		));
-		validateBuildImports(codec.id, buildInput.bytes, closure.supportFiles, codecArchives);
+		validateDesktopBundledCodecBuildImports({
+			codecId: codec.id,
+			scriptPath: codec.buildScript.path,
+			bytes: buildInput.bytes,
+			supportFiles: closure.supportFiles,
+			archives: codecArchives,
+		});
 		validateArchiveClosure(codec.id, manifest, codecArchives);
 		for (const archive of codecArchives) mergeArchive(archivesByName, archive, codec.id);
 		codecs.push(Object.freeze({
@@ -406,25 +413,6 @@ function mergeArchive(archives, descriptor, codecId) {
 	archives.set(descriptor.fileName, Object.freeze({
 		...descriptor, codecs: Object.freeze([...existing.codecs, codecId].sort()),
 	}));
-}
-
-function validateBuildImports(codecId, bytes, supportFiles, archives) {
-	const source = String(bytes);
-	const imports = [...source.matchAll(/from '\.\/lib\/([^']+)'/gu)]
-		.map((match) => `scripts/lib/${match[1]}`).sort();
-	const admitted = new Set(supportFiles.map(({ path }) => path));
-	if (imports.some((path) => !admitted.has(path))) {
-		throw new Error(`${codecId} build script has an unbundled local dependency.`);
-	}
-	const expectedImports = codecId === 'wavpack'
-		? ['scripts/lib/wavpack-wasm-toolchain.mjs']
-		: ['scripts/lib/bundled-codec-source-input.mjs'];
-	if (JSON.stringify(imports) !== JSON.stringify(expectedImports)) {
-		throw new Error(`${codecId} build script dependency closure is invalid.`);
-	}
-	if (archives.some(({ fileName }) => !source.includes(`'${fileName}'`))) {
-		throw new Error(`${codecId} build script does not select its bundled source filename.`);
-	}
 }
 
 async function validateRepositoryRoot(value) {
