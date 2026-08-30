@@ -267,9 +267,13 @@ export function validateSoundscaperDesktopBundle(
 		throw new Error('The Soundscaper desktop  project disagrees with its metadata.');
 	}
 	const expectedBodies = soundscaperDesktopBodiesForProject(profile, project, row.sha256).bodies;
+	const legacyBodies = bodiesForProject(profile, project, row.sha256, true);
 	const bodies = denseArray(bundle.bodies, 'Soundscaper desktop  freeze bodies', MAXIMUM_BODIES)
 		.map(bodyDescriptor);
-	if (JSON.stringify(bodies) !== JSON.stringify(expectedBodies)) {
+	if (bodies.length !== expectedBodies.length || bodies.some((body, index) => (
+		JSON.stringify(body) !== JSON.stringify(expectedBodies[index])
+			&& JSON.stringify(body) !== JSON.stringify(legacyBodies[index])
+	))) {
 		throw new Error('The Soundscaper desktop  freeze body set is incomplete or changed.');
 	}
 	return Object.freeze({
@@ -299,7 +303,17 @@ export function soundscaperDesktopBodiesForProject(
 	projectValue: SoundscaperProject,
 	projectSha256: string,
 ): Readonly<{ readonly bodies: readonly Readonly<SoundscaperDesktopBody>[] }> {
+	return Object.freeze({ bodies: bodiesForProject(profile, projectValue, projectSha256, false) });
+}
+
+function bodiesForProject(
+	profile: EditorProjectRuntimeProfile,
+	projectValue: SoundscaperProject,
+	projectSha256: string,
+	legacy: boolean,
+): readonly Readonly<SoundscaperDesktopBody>[] {
 	const project = soundscaperProjectClone(profile, projectValue);
+	const projectDigest = digest(projectSha256, 'project');
 	const sources = project.sources as readonly Readonly<Record<string, unknown>>[];
 	const bodies = project.tracks.flatMap((trackValue) => {
 		const track = trackValue as Readonly<Record<string, unknown>>;
@@ -308,21 +322,27 @@ export function soundscaperDesktopBodiesForProject(
 		const matches = sources.filter(({ id }) => id === freeze.derivedSourceId);
 		if (matches.length !== 1) throw new Error('A freeze source is missing or ambiguous.');
 		const source = matches[0]!;
+		const sourceId = identity(source.id, 'source id');
+		const storageKey = identity(source.storageKey, 'storage key');
+		const byteLength = scapeAudioSourceLayout(source as unknown as ScapeAudioSource).archiveBytes;
+		const sha256 = digest(source.contentSha256, 'freeze source');
 		return [Object.freeze({
 			kind: 'audio-freeze' as const,
 			encoding: SOUNDSCAPER_DESKTOP_FREEZE_ENCODING,
-			bindingId: freezeBindingId(
-				String(project.id), String(source.id), String(source.storageKey),
-				Number(project.revision), digest(projectSha256, 'project'),
-			),
-			sourceId: identity(source.id, 'source id'),
-			storageKey: identity(source.storageKey, 'storage key'),
+			bindingId: legacy
+				? legacyFreezeBindingId(
+					String(project.id), sourceId, storageKey,
+					Number(project.revision), projectDigest,
+				)
+				: freezeBindingId(sourceId, storageKey, byteLength, sha256),
+			sourceId,
+			storageKey,
 			mimeType: SOUNDSCAPER_DESKTOP_FREEZE_MIME_TYPE,
-			byteLength: scapeAudioSourceLayout(source as unknown as ScapeAudioSource).archiveBytes,
-			sha256: digest(source.contentSha256, 'freeze source'),
+			byteLength,
+			sha256,
 		})];
 	});
-	return Object.freeze({ bodies: Object.freeze(bodies) });
+	return Object.freeze(bodies);
 }
 
 export function validateSoundscaperDesktopBodyChunk(value: unknown, length: number): Uint8Array {
@@ -431,7 +451,19 @@ function bodyDescriptor(value: unknown): Readonly<SoundscaperDesktopBody> {
 	});
 }
 
-function freezeBindingId(projectId: string, sourceId: string, storageKey: string, revision: number, projectSha256: string): string {
+function freezeBindingId(sourceId: string, storageKey: string, byteLength: number, contentSha256: string): string {
+	return `f${digestBytes(new TextEncoder().encode(JSON.stringify([
+		SOUNDSCAPER_DESKTOP_FREEZE_ENCODING, sourceId, storageKey, byteLength, contentSha256,
+	])))}`;
+}
+
+function legacyFreezeBindingId(
+	projectId: string,
+	sourceId: string,
+	storageKey: string,
+	revision: number,
+	projectSha256: string,
+): string {
 	return `f${digestBytes(new TextEncoder().encode(JSON.stringify([
 		SOUNDSCAPER_DESKTOP_FREEZE_ENCODING, projectId, revision, projectSha256,
 		JSON.stringify([sourceId, storageKey]),

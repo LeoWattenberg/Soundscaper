@@ -17,6 +17,42 @@ export interface SoundscaperDesktopLibraryFreezeMediaBinding {
 }
 
 export function createSoundscaperDesktopLibraryFreezeMediaBinding(
+	sourceId: string,
+	storageKey: string,
+	byteLength: number,
+	contentSha256: string,
+): Readonly<SoundscaperDesktopLibraryFreezeMediaBinding> {
+	const sourceIdentity = boundedIdentity(
+		sourceId,
+		'Soundscaper desktop baseline freeze source identity',
+	);
+	const freezeStorageKey = boundedIdentity(
+		storageKey,
+		'Soundscaper desktop baseline freeze storage key',
+	);
+	const length = positiveSafeInteger(byteLength);
+	if (typeof contentSha256 !== 'string' || !DIGEST.test(contentSha256)) {
+		throw new TypeError('Soundscaper desktop baseline freeze content digest is invalid');
+	}
+	const digest = createHash('sha256')
+		.update(JSON.stringify([
+			SOUNDSCAPER_DESKTOP_LIBRARY_FREEZE_MEDIA_ENCODING,
+			sourceIdentity,
+			freezeStorageKey,
+			length,
+			contentSha256,
+		]), 'utf8')
+		.digest('hex');
+	const id = `f${digest}`;
+	return Object.freeze({
+		id,
+		relativeFile: freezeRelativeFileForSoundscaperDesktopLibraryBinding(id),
+		category: 'audio-freeze',
+	});
+}
+
+/** Read compatibility for freeze bodies published before content addressing. */
+export function createLegacySoundscaperDesktopLibraryFreezeMediaBinding(
 	projectId: string,
 	storageKey: string,
 	projectRevision: number,
@@ -81,4 +117,10 @@ function nonNegativeSafeInteger(value: unknown): number {
 		throw new RangeError('Soundscaper desktop baseline freeze revision must be a non-negative safe integer');
 	}
 	return value;
+}
+
+function positiveSafeInteger(value: unknown): number {
+	const result = nonNegativeSafeInteger(value);
+	if (result === 0) throw new RangeError('Soundscaper desktop baseline freeze byte length must be positive');
+	return result;
 }

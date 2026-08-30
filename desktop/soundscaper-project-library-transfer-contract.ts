@@ -10,6 +10,7 @@ import {
 } from './soundscaper-project-library-current-project.ts';
 import {
 	createSoundscaperDesktopLibraryFreezeMediaBinding,
+	createLegacySoundscaperDesktopLibraryFreezeMediaBinding,
 	isSoundscaperDesktopLibraryFreezeMediaBindingId,
 	SOUNDSCAPER_DESKTOP_LIBRARY_FREEZE_MEDIA_ENCODING,
 	SOUNDSCAPER_DESKTOP_LIBRARY_FREEZE_MEDIA_MIME_TYPE,
@@ -191,6 +192,14 @@ export function createSoundscaperDesktopProjectLibraryTransferBodies(
 	projectValue: unknown,
 	projectSha256Value: unknown,
 ): readonly Readonly<SoundscaperDesktopProjectLibraryTransferBody>[] {
+	return createTransferBodies(projectValue, projectSha256Value, false);
+}
+
+function createTransferBodies(
+	projectValue: unknown,
+	projectSha256Value: unknown,
+	legacy: boolean,
+): readonly Readonly<SoundscaperDesktopProjectLibraryTransferBody>[] {
 	const project = validateSoundscaperDesktopCurrentProject(projectValue);
 	const projectSha256 = digest(projectSha256Value, 'project');
 	const sources = project.sources as readonly Readonly<Record<string, unknown>>[];
@@ -201,21 +210,32 @@ export function createSoundscaperDesktopProjectLibraryTransferBodies(
 		const matches = sources.filter(({ id }) => id === freeze.derivedSourceId);
 		if (matches.length !== 1) throw new Error('Soundscaper freeze body source is missing or ambiguous');
 		const source = matches[0]!;
-		const binding = createSoundscaperDesktopLibraryFreezeMediaBinding(
-			String(project.id),
-			JSON.stringify([source.id, source.storageKey]),
-			Number(project.revision),
-			projectSha256,
-		);
+		const sourceId = bodyIdentity(source.id, 'source identity');
+		const storageKey = bodyIdentity(source.storageKey, 'storage key');
+		const byteLength = scapeAudioSourceLayout(source as unknown as ScapeAudioSource).archiveBytes;
+		const sha256 = digest(source.contentSha256, 'freeze source');
+		const binding = legacy
+			? createLegacySoundscaperDesktopLibraryFreezeMediaBinding(
+				String(project.id),
+				JSON.stringify([source.id, source.storageKey]),
+				Number(project.revision),
+				projectSha256,
+			)
+			: createSoundscaperDesktopLibraryFreezeMediaBinding(
+				sourceId,
+				storageKey,
+				byteLength,
+				sha256,
+			);
 		return [Object.freeze({
 			kind: 'audio-freeze' as const,
 			encoding: SOUNDSCAPER_DESKTOP_LIBRARY_FREEZE_MEDIA_ENCODING,
 			bindingId: binding.id,
-			sourceId: bodyIdentity(source.id, 'source identity'),
-			storageKey: bodyIdentity(source.storageKey, 'storage key'),
+			sourceId,
+			storageKey,
 			mimeType: SOUNDSCAPER_DESKTOP_LIBRARY_FREEZE_MEDIA_MIME_TYPE,
-			byteLength: scapeAudioSourceLayout(source as unknown as ScapeAudioSource).archiveBytes,
-			sha256: digest(source.contentSha256, 'freeze source'),
+			byteLength,
+			sha256,
 		})];
 	}));
 }
@@ -244,10 +264,12 @@ function validatedBundle(
 		throw new Error('Soundscaper desktop baseline project document disagrees with its metadata');
 	}
 	const expected = createSoundscaperDesktopProjectLibraryTransferBodies(current, project.sha256);
+	const legacy = createTransferBodies(current, project.sha256, true);
 	const bodies = denseArray(bodiesValue, 'Soundscaper desktop baseline freeze bodies', MAXIMUM_BODY_DESCRIPTORS)
 		.map(validateSoundscaperDesktopProjectLibraryTransferBody);
 	if (bodies.length !== expected.length || bodies.some((body, index) => (
 		!sameSoundscaperDesktopProjectLibraryTransferBody(body, expected[index]!)
+			&& !sameSoundscaperDesktopProjectLibraryTransferBody(body, legacy[index]!)
 	))) throw new Error('Soundscaper desktop baseline freeze body set is incomplete or conflicts with the document');
 	if (metadata) {
 		for (const body of bodies) {
