@@ -313,7 +313,27 @@ function applyInheritedCommand(
 ): SoundscaperProject {
 	const applied = applySoundscaperProjectFoundationCommand(project, command, options);
 	assertNoNewNativePluginRackBindings(project, applied);
+	assertNoNewSidechainsIntoFrozenRacks(project, applied);
 	return applied;
+}
+
+function assertNoNewSidechainsIntoFrozenRacks(
+	previous: SoundscaperProject,
+	next: SoundscaperProject,
+): void {
+	const frozenTrackIds = new Set(next.tracks
+		.filter((track) => track.type === 'audio' && track.audioFreeze !== undefined)
+		.map(({ id }) => id));
+	if (frozenTrackIds.size === 0) return;
+	const previousEdges = new Map(previous.mixer.edges.map((edge) => [edge.id, JSON.stringify(edge)]));
+	for (const edge of next.mixer.edges) {
+		if (!edge.enabled || edge.destination.kind !== 'effect-sidechain'
+			|| previousEdges.get(edge.id) === JSON.stringify(edge)) continue;
+		const strip = edge.destination.strip;
+		if (strip.kind === 'track' && frozenTrackIds.has(strip.id)) {
+			throw new RangeError(`Cannot route a sidechain into frozen track ${strip.id}.`);
+		}
+	}
 }
 
 function assertNoNewNativePluginRackBindings(

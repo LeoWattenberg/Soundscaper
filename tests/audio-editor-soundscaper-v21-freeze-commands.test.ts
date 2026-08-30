@@ -190,6 +190,34 @@ test('committing a freeze drops lanes addressed to the sidechain edges it remove
 	assert.equal(committed.automationLanes.some(({ id }) => id === 'sidechain-level'), false);
 });
 
+test('an enabled sidechain cannot be authored into an already frozen rack', () => {
+	const { project, freeze, derivedSource, sourceContentIdentities } = fixture();
+	const installed = applySoundscaperProjectCommand(project, {
+		type: 'audio-freeze/install',
+		trackId: 'voice', expectedFreeze: null, replacementFreeze: freeze, derivedSource,
+		sourceContentIdentities,
+	} as never, { now: NOW });
+	const sourced = applySoundscaperProjectCommand(installed, {
+		type: 'track/add', track: createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
+	} as never);
+
+	assert.throws(() => applySoundscaperProjectCommand(sourced, {
+		type: 'mixer-graph/set',
+		expected: sourced.mixer,
+		mixer: {
+			...sourced.mixer,
+			edges: [...sourced.mixer.edges, {
+				id: 'sidechain:duck:voice:voice-fx', kind: 'sidechain',
+				source: { kind: 'track', id: 'music' },
+				destination: {
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-fx',
+				},
+				position: 'post-fader', level: 1, enabled: true, channelMap: [],
+			}],
+		},
+	} as never), /cannot route a sidechain into frozen track voice/iu);
+});
+
 test('a freeze cannot narrow a track underneath the channel maps already aimed at it', () => {
 	// A 5.1 stem in a stereo delivery, routed through a 6-wide bus. The offline renderer
 	// used to size its output from masterChannels, so committing that render dropped the
