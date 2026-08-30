@@ -45,6 +45,7 @@ test('an authenticated product proxy makes an offline video visual available wit
 		mediaUrl: 'blob:proxy', posterUrl: null, thumbnails: [], mediaKind: 'proxy',
 	});
 	assert.equal(service.getClipVisualData('clip')?.available, true);
+	assert.equal(service.getClipVisualData('clip')?.mediaKind, 'proxy');
 	assert.deepEqual(service.getVideoSourceVisualData('video'), {
 		source, available: true, mediaUrl: 'blob:proxy', posterUrl: null, thumbnails: [], mediaKind: 'proxy',
 	});

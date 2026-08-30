@@ -123,6 +123,7 @@ export interface ClipVisualData {
 	readonly mediaUrl?: string | null;
 	readonly posterUrl?: string | null;
 	readonly thumbnails?: readonly VideoThumbnail[];
+	readonly mediaKind?: 'proxy';
 	readonly pcmWindow?: unknown;
 	readonly itemClips?: readonly ProjectVisualClip[];
 	readonly videoClip?: ProjectVisualClip;
@@ -216,6 +217,7 @@ export function createProjectVisualService(
 			mediaUrl: video?.mediaUrl ?? null,
 			posterUrl: video?.posterUrl ?? null,
 			thumbnails: video?.thumbnails ?? Object.freeze([]),
+			...(video?.mediaKind ? { mediaKind: video.mediaKind } : {}),
 			...(pcmWindow === undefined ? {} : { pcmWindow }),
 		});
 	}
@@ -244,6 +246,7 @@ export function createProjectVisualService(
 				mediaUrl: video?.mediaUrl ?? null,
 				posterUrl: video?.posterUrl ?? null,
 				thumbnails: video?.thumbnails ?? Object.freeze([]),
+				...(video?.mediaKind ? { mediaKind: video.mediaKind } : {}),
 			} : {}),
 		});
 	}
