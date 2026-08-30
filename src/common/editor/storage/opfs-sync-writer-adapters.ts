@@ -23,6 +23,7 @@ interface SyncPcmWriter {
 }
 
 interface ContainerWriterInstance {
+	readonly writableReleased: boolean;
 	write(chunk: SyncPcmChunk): Promise<void>;
 	close(): Promise<Record<string, unknown>>;
 	statistics(): Record<string, unknown>;
@@ -102,7 +103,7 @@ export function syncPcmWriter(
 			if (!finalized) {
 				writeClosed = true;
 				finalized = true;
-				await writer.abort();
+				if (!container?.writableReleased) await writer.abort();
 			}
 			invalidate();
 			await remove();

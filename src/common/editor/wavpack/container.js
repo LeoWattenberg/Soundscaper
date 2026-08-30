@@ -45,6 +45,7 @@ export class PcmContainerWriter {
 		this.closed = false;
 		this.finalized = false;
 		this.finalization = null;
+		this.writableReleased = false;
 		this.uncompressedBytes = 0;
 		this.storedBytes = 0;
 		this.wavpackChunkCount = 0;
@@ -114,12 +115,14 @@ export class PcmContainerWriter {
 			await this.writable.write(index);
 			await this.writable.write(footer);
 			await this.writable.close();
+			this.writableReleased = true;
 			this.finalized = true;
 			return this.statistics();
 		} catch (error) {
 			try {
 				if (typeof this.writable.abort === 'function') await this.writable.abort(error);
 				else await this.writable.close();
+				this.writableReleased = true;
 			} catch { /* Best-effort release; preserve the finalization failure. */ }
 			throw error;
 		}

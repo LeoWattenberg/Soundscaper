@@ -66,6 +66,7 @@ export interface OpfsBinaryWriterPlan {
 }
 
 interface ContainerWriterInstance {
+	readonly writableReleased: boolean;
 	write(chunk: StoredPcmChunk): Promise<void>;
 	close(): Promise<Record<string, unknown>>;
 	statistics(): Record<string, unknown>;
@@ -310,8 +311,10 @@ export class OpfsRepository {
 					if (!finalized) {
 						writeClosed = true;
 						finalized = true;
-						if (typeof writable.abort === 'function') await writable.abort();
-						else await writable.close();
+						if (!container?.writableReleased) {
+							if (typeof writable.abort === 'function') await writable.abort();
+							else await writable.close();
+						}
 					}
 					invalidate();
 					try { await directory.removeEntry(path); } catch { /* Already absent. */ }
