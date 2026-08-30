@@ -20,6 +20,7 @@ const MAXIMUM_COMMAND_OUTPUT_BYTES = 4 * 1024 * 1024;
 const MAXIMUM_RUNTIME_FILES = 48;
 const SHA256 = /^[a-f\d]{64}$/u;
 const VIRTUAL_LIBRARY = 'linux-vdso.so.1';
+const ANONYMOUS_LINK_MAP = /^\(0x[a-f\d]+\)$/iu;
 
 interface ArtifactDescriptor {
 	readonly path: string;
@@ -146,6 +147,7 @@ export function parseSoundscaperProfessionalLinuxLoaderList(
 		throw new TypeError('The ELF loader list must be bounded text.');
 	}
 	const rows = [];
+	let anonymousLinkMap = false;
 	for (const raw of value.split(/\r?\n/u)) {
 		const line = raw.trim();
 		if (line === '') continue;
@@ -154,6 +156,10 @@ export function parseSoundscaperProfessionalLinuxLoaderList(
 		const linked = /^([^\s]+)\s+=>\s+(\/[^\s]+)\s+\(0x[a-f\d]+\)$/iu.exec(line);
 		const direct = /^(\/[^\s]+)\s+\(0x[a-f\d]+\)$/iu.exec(line);
 		if (!linked && !direct) {
+			if (target === 'linux-arm64' && !anonymousLinkMap && ANONYMOUS_LINK_MAP.test(line)) {
+				anonymousLinkMap = true;
+				continue;
+			}
 			if (new RegExp(`^${VIRTUAL_LIBRARY.replaceAll('.', '\\.')} \\(0x[a-f\\d]+\\)$`, 'iu')
 				.test(line)) continue;
 			throw new Error(`The ELF loader returned an unsupported row: ${line}`);
@@ -172,6 +178,9 @@ export function parseSoundscaperProfessionalLinuxLoaderList(
 			throw new Error(`The ELF loader admitted an unreviewed system dependency ${String(name)}.`);
 		}
 		rows.push(Object.freeze({ name, path }));
+	}
+	if (!rows.some(({ name }) => name === soundscaperProfessionalLinuxLoaderName(target))) {
+		throw new Error('The ELF loader omitted its explicit interpreter row.');
 	}
 	if (rows.length < 1 || rows.length > MAXIMUM_RUNTIME_FILES
 		|| new Set(rows.map(({ name }) => name)).size !== rows.length) {

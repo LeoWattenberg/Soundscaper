@@ -24,6 +24,14 @@ const LINUX_ARCHITECTURE = Object.freeze({
 	machine: 'EM_X86_64',
 });
 
+const LINUX_ARM64_ARCHITECTURE = Object.freeze({
+	schemaVersion: 1,
+	target: 'linux-arm64',
+	architecture: 'arm64',
+	format: 'elf64-le',
+	machine: 'EM_AARCH64',
+});
+
 test('Linux dependency inspection reads both GNU readelf RPATH labels', () => {
 	assert.deepEqual(parseSoundscaperProfessionalLinuxDynamicSection(`
  0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
@@ -76,4 +84,22 @@ test('Linux dependency closure admits only slash-free case-sensitive system SONA
 		/ambient runtime dependency \/opt\/attacker\/libc\.so\.6/u);
 	await assert.rejects(validate(['libx11.so.6']),
 		/undeclared runtime dependency libx11\.so\.6/u);
+});
+
+test('Linux arm64 dependency closure admits only its exact loader SONAME', async () => {
+	const artifacts = [{
+		path: 'payload/soundscaper_professional_peer', absolutePath: '/unused',
+	}];
+	const validate = (imports) => validateSoundscaperProfessionalNativeDependencyClosure({
+		target: 'linux-arm64', artifacts, runtimeArtifacts: [], root: '/candidate',
+		inspectDependencies: async () => ({
+			architecture: LINUX_ARM64_ARCHITECTURE, imports, rpaths: ['$ORIGIN/runtime'],
+		}),
+	});
+	const admitted = await validate(['ld-linux-aarch64.so.1']);
+	assert.deepEqual(admitted[0].imports, ['ld-linux-aarch64.so.1']);
+	await assert.rejects(validate(['ld-linux-x86-64.so.2']),
+		/undeclared runtime dependency ld-linux-x86-64\.so\.2/u);
+	await assert.rejects(validate(['/lib/ld-linux-aarch64.so.1']),
+		/ambient runtime dependency \/lib\/ld-linux-aarch64\.so\.1/u);
 });

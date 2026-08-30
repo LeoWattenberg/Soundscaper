@@ -43,6 +43,35 @@ test('the host loader inventory parser admits only reviewed absolute system libr
 	), /unavailable/u);
 });
 
+test('the arm64 loader parser admits one anonymous link-map row only with its explicit loader', () => {
+	const explicitLoader =
+		'/lib/ld-linux-aarch64.so.1 => /usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1'
+		+ ' (0x0000ffff00001000)';
+	assert.deepEqual(parseSoundscaperProfessionalLinuxLoaderList([
+		' (0x0000ffff00000000)',
+		'linux-vdso.so.1 (0x0000ffff00002000)',
+		'libc.so.6 => /usr/lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff00003000)',
+		explicitLoader,
+	].join('\n'), 'linux-arm64'), [
+		{
+			name: 'ld-linux-aarch64.so.1',
+			path: '/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1',
+		},
+		{ name: 'libc.so.6', path: '/usr/lib/aarch64-linux-gnu/libc.so.6' },
+	]);
+	assert.throws(() => parseSoundscaperProfessionalLinuxLoaderList([
+		'(0x00007f0000000000)',
+		'/lib64/ld-linux-x86-64.so.2 (0x00007f0000001000)',
+	].join('\n'), 'linux-x64'), /unsupported row/u);
+	assert.throws(() => parseSoundscaperProfessionalLinuxLoaderList([
+		'(0x0000ffff00000000)', '(0x0000ffff00000001)', explicitLoader,
+	].join('\n'), 'linux-arm64'), /unsupported row/u);
+	assert.throws(() => parseSoundscaperProfessionalLinuxLoaderList([
+		'(0x0000ffff00000000)',
+		'libc.so.6 => /usr/lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff00003000)',
+	].join('\n'), 'linux-arm64'), /interpreter|loader/u);
+});
+
 test('the host resolver rejects a packaged Linux runtime before loader inspection', async () => {
 	const artifact = Object.freeze({
 		path: '/professional-peer', byteLength: 1, sha256: '0'.repeat(64),
