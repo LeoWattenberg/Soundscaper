@@ -54,7 +54,7 @@ const REQUIRED_PROJECT_CAPABILITIES = Object.freeze([
 	'projectBin', 'sourceCharacteristics', 'videoImport',
 ] as const);
 const SELECTION_KEYS = Object.freeze([
-	'sourceId', 'projectBinClipId', 'name', 'frameRate', 'files',
+	'sourceId', 'projectBinClipId', 'name', 'frameRate', 'files', 'release',
 ]);
 const FILE_KEYS = Object.freeze(['name', 'byteLength', 'chunks']);
 const ADMISSION_RESPONSE_KEYS = Object.freeze([
@@ -75,6 +75,7 @@ export interface FramescaperImageSequenceSelection {
 	readonly name: string;
 	readonly frameRate: NativeMediaImageSequenceRateV1;
 	readonly files: readonly FramescaperSelectedImageSequenceFile[];
+	readonly release: () => Awaitable<void>;
 }
 
 export interface FramescaperImageSequenceNativeAdmissionRequest {
@@ -131,6 +132,7 @@ export async function composeFramescaperImageSequenceImport(
 	const selectedValue = await options.select();
 	if (selectedValue === null) return;
 	const selected = selection(selectedValue);
+	await settleImageSequenceSelection((async () => {
 	const resolved = resolveNativeMediaImageSequence({
 		fileNames: selected.files.map(({ name }) => name),
 		frameRate: selected.frameRate,
@@ -201,6 +203,25 @@ export async function composeFramescaperImageSequenceImport(
 			failures, 'Image-sequence import and rollback failed.', { cause: error });
 		throw error;
 	}
+	})(), selected.release);
+}
+
+async function settleImageSequenceSelection(
+	operation: Promise<void>,
+	release: () => Awaitable<void>,
+): Promise<void> {
+	try { await operation; }
+	catch (error) {
+		try { await release(); }
+		catch (releaseError) {
+			throw new AggregateError(
+				[error, releaseError], 'Image-sequence import selection release failed.',
+				{ cause: releaseError },
+			);
+		}
+		throw error;
+	}
+	await release();
 }
 
 function assertProjectCapabilities(profile: unknown): void {
@@ -229,12 +250,16 @@ function selection(value: unknown): FramescaperImageSequenceSelection {
 		|| Reflect.ownKeys(record.files).length !== record.files.length + 1) {
 		throw new TypeError('A selected image sequence requires a bounded dense file list.');
 	}
+	if (typeof record.release !== 'function') {
+		throw new TypeError('A selected image sequence requires an explicit release capability.');
+	}
 	return Object.freeze({
 		sourceId: stableId(record.sourceId, 'source ID'),
 		projectBinClipId: stableId(record.projectBinClipId, 'Project Bin clip ID'),
 		name: stableId(record.name, 'source name'),
 		frameRate: record.frameRate as NativeMediaImageSequenceRateV1,
 		files: Object.freeze(record.files.map(selectedFile)),
+		release: record.release as () => Awaitable<void>,
 	});
 }
 

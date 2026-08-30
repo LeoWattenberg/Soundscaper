@@ -69,6 +69,7 @@ export async function selectFramescaperDesktopImageSequenceProfessionalMedia(
 		projectBinClipId,
 		name,
 		frameRate,
+		release,
 		files: Object.freeze(selection.files.map((file, index) => Object.freeze({
 			name: file.name,
 			byteLength: file.byteLength,
