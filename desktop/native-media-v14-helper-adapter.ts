@@ -113,9 +113,6 @@ async function executeProxy(
 	const stagingRoot = await mkdtemp(join(scratchRoot, 'proxy-v14-'));
 	let transfer: Promise<unknown> | null = null;
 	const transferAbort = new AbortController();
-	const relayAbort = (): void => transferAbort.abort(request.signal?.reason);
-	if (request.signal?.aborted) relayAbort();
-	else request.signal?.addEventListener('abort', relayAbort, { once: true });
 	try {
 		const prepared = await prepareProxy(options.descriptor, stagingRoot, request);
 		const channel = options.createMessageChannel();
@@ -123,23 +120,16 @@ async function executeProxy(
 			binding: prepared.planBinding, port: channel.hostPort,
 			path: prepared.planPath, signal: transferAbort.signal,
 		});
-		const running = options.runJob(Object.freeze({
+		const job = Object.freeze({
 			kind: 'media-proxy' as const,
 			grant: prepared.grant,
 			dataPlaneTransfers: Object.freeze([Object.freeze({
 				streamId: prepared.planBinding.streamId, port: channel.helperPort,
 			})]),
 			resourcePolicy: prepared.resourcePolicy,
-			...(request.signal ? { signal: request.signal } : {}),
 			onProgress: request.onProgress,
-		}));
-		let result: unknown;
-		try { [result] = await Promise.all([running, transfer]); }
-		catch (error) {
-			transferAbort.abort();
-			await transfer.catch(() => undefined);
-			throw error;
-		}
+		});
+		const result = await runJobWithTransfer(options, job, transfer, transferAbort, request.signal);
 		const output = helperOutput(result, prepared.grant.output);
 		return Object.freeze({
 			planFingerprint: request.envelope.fingerprint,
@@ -147,7 +137,6 @@ async function executeProxy(
 			publication: 'verified-temporary',
 		});
 	} finally {
-		request.signal?.removeEventListener('abort', relayAbort);
 		transferAbort.abort();
 		await transfer?.catch(() => undefined);
 		await rm(stagingRoot, { recursive: true, force: true });
@@ -164,9 +153,6 @@ async function execute(
 	const stagingRoot = await mkdtemp(join(scratchRoot, 'v14-'));
 	let transfer: Promise<unknown> | null = null;
 	const transferAbort = new AbortController();
-	const relayAbort = (): void => transferAbort.abort(request.attempt.signal?.reason);
-	if (request.attempt.signal?.aborted) relayAbort();
-	else request.attempt.signal?.addEventListener('abort', relayAbort, { once: true });
 	try {
 		const prepared = await prepare(options.descriptor, stagingRoot, request);
 		const channel = options.createMessageChannel();
@@ -174,23 +160,18 @@ async function execute(
 			binding: prepared.planBinding, port: channel.hostPort,
 			path: prepared.planPath, signal: transferAbort.signal,
 		});
-		const running = options.runJob(Object.freeze({
+		const job = Object.freeze({
 			kind: 'media-render' as const,
 			grant: prepared.grant,
 			dataPlaneTransfers: Object.freeze([Object.freeze({
 				streamId: prepared.planBinding.streamId, port: channel.helperPort,
 			}), ...prepared.dataPlaneTransfers]),
 			resourcePolicy: prepared.resourcePolicy,
-			...(request.attempt.signal ? { signal: request.attempt.signal } : {}),
 			onProgress: request.onProgress,
-		}));
-		let result: unknown;
-		try { [result] = await Promise.all([running, transfer]); }
-		catch (error) {
-			transferAbort.abort();
-			await transfer.catch(() => undefined);
-			throw error;
-		}
+		});
+		const result = await runJobWithTransfer(
+			options, job, transfer, transferAbort, request.attempt.signal,
+		);
 		const output = helperOutput(result, prepared.grant.output);
 		return Object.freeze({
 			planFingerprint: request.attempt.envelope.fingerprint,
@@ -198,13 +179,40 @@ async function execute(
 			...('tree' in output ? { tree: output.tree } : {}),
 		});
 	} finally {
-		request.attempt.signal?.removeEventListener('abort', relayAbort);
 		transferAbort.abort();
 		await transfer?.catch(() => undefined);
 		await rm(stagingRoot, { recursive: true, force: true });
 	}
 }
-
+async function runJobWithTransfer(
+	options: NativeMediaV14HelperAdapterOptions,
+	request: NativeMediaHelperPoolJobRequest,
+	transfer: Promise<unknown>,
+	transferAbort: AbortController,
+	signal?: AbortSignal,
+): Promise<unknown> {
+	const jobAbort = new AbortController();
+	const abort = (reason?: unknown): void => {
+		jobAbort.abort(reason);
+		transferAbort.abort(reason);
+	};
+	const relayAbort = (): void => abort(signal?.reason);
+	if (signal?.aborted) relayAbort();
+	else signal?.addEventListener('abort', relayAbort, { once: true });
+	const running = Promise.resolve().then(() => options.runJob(Object.freeze({
+		...request, signal: jobAbort.signal,
+	})));
+	try {
+		const [result] = await Promise.all([running, transfer]);
+		return result;
+	} catch (error) {
+		abort(error);
+		await Promise.allSettled([running, transfer]);
+		throw error;
+	} finally {
+		signal?.removeEventListener('abort', relayAbort);
+	}
+}
 async function prepare(
 	descriptor: FramescaperMediaHostDescriptor,
 	stagingRoot: string,

@@ -177,6 +177,52 @@ test('V14 proxy adapter grants one exact original and ProRes Proxy MOV recipe to
 	}
 });
 
+test('a plan transfer failure cancels and settles the helper before removing its staging files', async () => {
+	const directory = await mkdtemp(join(tmpdir(), 'framescaper-v14-transfer-failure-'));
+	try {
+		const descriptor = await mediaHostDescriptor(directory);
+		const root = join(directory, 'exports'); await mkdir(root);
+		const rootDetails = await lstat(root, { bigint: true });
+		const envelope = proxyEnvelope();
+		let stagedSource = '';
+		let helperSettled = false;
+		let stagingPresentWhenAborted = false;
+		const adapter = createNativeMediaV14HelperAdapter({
+			descriptor, scratchRoot: join(directory, 'scratch'),
+			createMessageChannel: () => ({ hostPort: new FailingPort(), helperPort: new Port() }),
+			runJob: (request) => {
+				const source = (request.grant as HelperMediaProxyJobGrant).source;
+				if (source.type !== 'file') throw new Error('The proxy source must be staged.');
+				stagedSource = source.path;
+				return new Promise((_resolve, reject) => {
+					request.signal?.addEventListener('abort', () => { void (async () => {
+						stagingPresentWhenAborted = (await lstat(stagedSource)).isFile();
+						helperSettled = true;
+						reject(new Error('helper cancelled'));
+					})(); }, { once: true });
+				});
+			},
+		});
+		await assert.rejects(adapter.executeProxy({
+			adapterVersion: 1, envelope,
+			sourceBody: { grantId: 'ab'.repeat(20), sourceId: 'video-source',
+				contentSha256: digest(SOURCE_BYTES), mimeType: 'video/mp4', byteLength: SOURCE_BYTES.byteLength,
+				materialize: async (path) => { await writeFile(path, SOURCE_BYTES, { flag: 'wx' });
+					return { byteLength: SOURCE_BYTES.byteLength, sha256: digest(SOURCE_BYTES) }; } },
+			timingBodies: [], recipe: { id: 'framescaper-native-prores-proxy-mov-v1', width: 1_280, height: 720 },
+			destination: { jobId: 'cd'.repeat(20), rootPath: root,
+				volumeIdentity: `device:${rootDetails.dev.toString(16)}`,
+				directoryIdentity: `device:${rootDetails.dev.toString(16)}:inode:${rootDetails.ino.toString(16)}`,
+				relativeDestination: 'proxies/video-source.mov',
+				temporaryRelativePath: 'proxies/video-source.mov.cdcdcdcdcdcdcdcd.partial' },
+			onProgress: () => undefined,
+		}), /plan transfer failed/u);
+		assert.equal(helperSettled, true);
+		assert.equal(stagingPresentWhenAborted, true);
+		await assert.rejects(lstat(stagedSource), /ENOENT/u);
+	} finally { await rm(directory, { recursive: true, force: true }); }
+});
+
 test('V14 evaluated-carrier execution never materializes whole project originals into helper scratch', async () => {
 	const directory = await mkdtemp(join(tmpdir(), 'framescaper-v14-live-adapter-'));
 	try {
@@ -525,6 +571,10 @@ class Port extends EventEmitter implements HelperDataPlaneIoPort {
 	postMessage(message: unknown): void { queueMicrotask(() => this.peer?.emit('message', { data: message })); }
 	start(): void {}
 	close(): void {}
+}
+
+class FailingPort extends Port {
+	override postMessage(): void { throw new Error('plan transfer failed'); }
 }
 
 function portPair(): readonly [Port, Port] {
