@@ -132,7 +132,7 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 		'vendor-mediabunny',
 	);
 	assert.equal(chunkGroupForModulePath('src/common/editor/history.js'), 'editor-storage-model');
-	assert.equal(chunkGroupForModulePath('src/common/editor/video-timeline.js'), 'editor-timeline');
+	assert.equal(chunkGroupForModulePath('src/common/editor/video-timeline.js'), 'editor-domain');
 	// A dialog stays outside every path-matched group, so it can be split off and
 	// loaded when it is opened rather than when the editor boots.
 	assert.equal(chunkGroupForModulePath('src/common/editor/ui/inspector/ExportDialog.jsx'), null);
@@ -143,6 +143,7 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 		'src/common/i18n/runtime.js',
 		'src/common/i18n/report-copy.js',
 		'src/common/i18n/framescaper-capture-copy.js',
+		'src/soundscaper/framescaper-capture-copy.js',
 	]) {
 		assert.equal(chunkGroupForModulePath(path), 'editor-copy', path);
 	}
@@ -452,6 +453,7 @@ test('effect parameter surfaces share one cycle-free lazy owner', () => {
 
 test('small product-ready foundations have non-recursive semantic owners', () => {
 	for (const [path, owner] of [
+		['src/common/editor/controller/deferred-archive-runtime.ts', 'project-interchange-foundations'],
 		['desktop/desktop-video-codec-operation-contract.ts', 'editor-codec-foundations'],
 		['src/common/editor/wavpack/pcm.js', 'editor-codec-foundations'],
 		['src/common/editor/staffpad/parameters.js', 'editor-codec-foundations'],
@@ -459,6 +461,17 @@ test('small product-ready foundations have non-recursive semantic owners', () =>
 		['src/common/i18n/action-parity.js', 'editor-effect-contracts'],
 		['src/common/editor/audacity-effects/live-capabilities.js', 'editor-effect-contracts'],
 		['src/common/editor/reviewed-effects/selection-effect-contract.ts', 'editor-effect-contracts'],
+		['src/soundscaper/editor-native-plugin-playback.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-native-plugin-state-scape.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-native-plugin-state.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-project-feature-capability-profile.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-project-feature-compatibility.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-project-feature-requirements.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-project-production-validation.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-project-validation.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-project.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-scape-assets.ts', 'soundscaper-project-foundations'],
+		['src/soundscaper/editor-scape-native.ts', 'soundscaper-project-foundations'],
 		['src/framescaper/editor-captured-video-proxy-preservation.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-assistance.ts', 'framescaper-project-foundations'],
@@ -496,8 +509,10 @@ test('small product-ready foundations have non-recursive semantic owners', () =>
 		'framescaper-timeline-images',
 	);
 	for (const name of [
+		'project-interchange-foundations',
 		'editor-codec-foundations',
 		'editor-effect-contracts',
+		'soundscaper-project-foundations',
 		'framescaper-project-foundations',
 	]) {
 		const group = chunkGroups.find((candidate) => candidate.name === name);
@@ -563,14 +578,12 @@ test('design-system foundations stay vendor-owned while components follow eager 
 	assert.ok(components);
 	assert.equal(components.includeDependenciesRecursively, false);
 });
-
 function flatEditorModules(): readonly string[] {
 	return readdirSync(EDITOR_DIRECTORY, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))
 		.map((entry) => `src/common/editor/${entry.name}`)
 		.sort();
 }
-
 function assistanceDomainModules(): readonly string[] {
 	return readdirSync(ASSISTANCE_DIRECTORY, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && MODULE_PATTERN.test(entry.name))

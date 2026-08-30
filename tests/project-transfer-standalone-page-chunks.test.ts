@@ -51,6 +51,7 @@ import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk
 const REPOSITORY_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const TRANSFER_PAGE_ENTRY = fileURLToPath(new URL('../src/common/transfer/transfer-page-entry.ts', import.meta.url));
 const TRANSFER_DIRECTORY = 'src/common/transfer/';
+const DEFERRED_ARCHIVE_MODULE = 'src/common/editor/controller/deferred-archive-runtime.ts';
 const SCHEMA_IDENTITY_MODULE = 'src/common/editor/project-schema-identity.ts';
 const HANDOFF_INTENT_MODULE = 'src/common/cross-product-handoff-intent.ts';
 
@@ -82,11 +83,12 @@ test('no editor chunk owns a module the transfer page statically reaches', () =>
 	assert.deepEqual(editorOwned, [], 'these modules put a whole editor chunk in the transfer preload set');
 });
 
-test('the project identity and handoff intent form one dependency-closed chunk', () => {
-	assert.equal(chunkOwner(SCHEMA_IDENTITY_MODULE), 'project-schema-identity');
-	assert.equal(chunkOwner(HANDOFF_INTENT_MODULE), 'project-schema-identity');
-	const group = chunkGroups.find((candidate) => candidate.name === 'project-schema-identity');
-	assert.ok(group, 'project-schema-identity must exist');
+test('project interchange facades form one dependency-closed chunk', () => {
+	assert.equal(chunkOwner(DEFERRED_ARCHIVE_MODULE), 'project-interchange-foundations');
+	assert.equal(chunkOwner(SCHEMA_IDENTITY_MODULE), 'project-interchange-foundations');
+	assert.equal(chunkOwner(HANDOFF_INTENT_MODULE), 'project-interchange-foundations');
+	const group = chunkGroups.find((candidate) => candidate.name === 'project-interchange-foundations');
+	assert.ok(group, 'project-interchange-foundations must exist');
 	assert.equal(group.minSize, 0, 'a shared leaf must not be merged back into a larger chunk');
 	assert.equal(group.includeDependenciesRecursively, false);
 	const domain = chunkGroups.find((candidate) => candidate.name === 'editor-domain');
@@ -104,6 +106,11 @@ test('the project identity and handoff intent form one dependency-closed chunk',
 		staticImports(resolve(REPOSITORY_ROOT, HANDOFF_INTENT_MODULE)),
 		[resolve(REPOSITORY_ROOT, SCHEMA_IDENTITY_MODULE)],
 		'the launch intent may depend only on the identity vocabulary in its own chunk',
+	);
+	assert.deepEqual(
+		staticImports(resolve(REPOSITORY_ROOT, DEFERRED_ARCHIVE_MODULE)),
+		[],
+		'the archive facade may use only erased types and dynamic implementation imports',
 	);
 });
 
@@ -166,7 +173,7 @@ function requireBuiltTransferDocuments(): void {
 const ADMITTED_PRELOAD_GROUPS = [
 	'cross-product-handoff-report-sidecar',
 	'cross-product-handoff-root-contract',
-	'project-schema-identity',
+	'project-interchange-foundations',
 	'rolldown-runtime',
 	'site-entry',
 	'transfer-manual-refusal',

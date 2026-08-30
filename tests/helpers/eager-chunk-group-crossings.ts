@@ -36,9 +36,9 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-timeline',
 	'framescaper-project-foundations',
 	// Owned apart from `editor-domain` so the standalone transfer pages can read the
-	// identity tuple without loading an editor chunk. The leaf imports nothing itself,
-	// and the editor shell loads it at startup, so it belongs on the eager side.
-	'project-schema-identity',
+	// identity tuple without loading an editor chunk. These facades have no static
+	// editor dependencies, and the shell loads them at startup, so they are eager.
+	'project-interchange-foundations',
 	'vendor-design-system',
 	'vendor-react',
 ]);

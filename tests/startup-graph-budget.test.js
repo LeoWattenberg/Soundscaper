@@ -10,6 +10,7 @@ import {
 	assertFramescaperProjectCommandChunkIsAcyclic,
 	assertProductGraphOwnership,
 	assertProductionStartupGraphs,
+	assertTransferArchiveRuntimeDoesNotReachProductBootstrap,
 	collectStartupGraph,
 	enforceStartupGraphBudgets,
 } from '../scripts/lib/startup-graph-budget.mjs';
@@ -122,6 +123,29 @@ test('the emitted Framescaper bootstrap cannot reciprocally import its timeline-
 	assert.doesNotThrow(() => assertFramescaperBootstrapChunkIsAcyclic(bundle));
 });
 
+test('the emitted transfer archive runtime cannot statically reach a product bootstrap', () => {
+	for (const product of ['soundscaper', 'framescaper']) {
+		const bundle = fixtureBundle();
+		const bootstrap = addProductBootstrap(bundle, product);
+		bundle['assets/transfer-archive-runtime.js'] = chunk({
+			fileName: 'assets/transfer-archive-runtime.js',
+			imports: ['assets/project-domain.js'],
+			modules: { '/workspace/src/common/transfer/transfer-archive-runtime.ts': {} },
+		});
+		bundle['assets/project-domain.js'] = chunk({
+			fileName: 'assets/project-domain.js',
+			imports: [bootstrap.fileName],
+			modules: { '/workspace/src/common/editor/project-v17-validation.ts': {} },
+		});
+		assert.throws(
+			() => assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle),
+			new RegExp(`transfer archive runtime.*${product} bootstrap.*project-domain`, 'iu'),
+		);
+		bundle['assets/project-domain.js'].imports = [];
+		assert.doesNotThrow(() => assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle));
+	}
+});
+
 test('approved graph ceilings remain hard limits', () => {
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.initial, {
 		requests: 10,
@@ -215,7 +239,7 @@ function addProductBootstrap(bundle, product) {
 		facadeModuleId: `/workspace${PRODUCT_BOOTSTRAPS[product]}`,
 		modules: { [`/workspace${PRODUCT_BOOTSTRAPS[product]}`]: {} },
 	});
-	return bundle;
+	return bundle[fileName];
 }
 
 function fixtureBundle() {

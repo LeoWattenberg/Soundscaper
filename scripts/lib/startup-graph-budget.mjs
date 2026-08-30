@@ -58,6 +58,7 @@ export function assertProductionStartupGraphs(bundle, product) {
 	assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct);
 	assertFramescaperBootstrapChunkIsAcyclic(bundle);
 	assertFramescaperProjectCommandChunkIsAcyclic(bundle);
+	assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle);
 	const entry = Object.values(bundle).find((output) => output.type === 'chunk'
 		&& output.isEntry
 		&& (
@@ -167,6 +168,47 @@ export function assertFramescaperProjectCommandChunkIsAcyclic(bundle) {
 			`Framescaper project-command chunk ${commandChunk.fileName} reciprocally imports `
 			+ `${imported.fileName}; keep the command inheritance in one non-recursive semantic owner.`,
 		);
+	}
+}
+
+/**
+ * Keep the standalone transfer archive runtime outside either editor UI graph.
+ *
+ * Product-selected aliases and reachability placement can create multi-chunk
+ * cycles that no reciprocal-edge check sees. Transfer pages initialize archive
+ * authority before an editor bootstrap, so reaching one statically exposes an
+ * uninitialized binding even when the normal editor entry happens to work.
+ *
+ * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
+ */
+export function assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle) {
+	const transfer = Object.values(bundle).find((output) => output.type === 'chunk'
+		&& chunkOwnsModule(output, '/src/common/transfer/transfer-archive-runtime.ts'));
+	if (!transfer) return;
+	const bootstrapProducts = new Map();
+	for (const [product, moduleId] of Object.entries(PRODUCT_BOOTSTRAPS)) {
+		const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
+			&& chunkOwnsModule(output, moduleId));
+		if (bootstrap) bootstrapProducts.set(bootstrap.fileName, product);
+	}
+	const pending = [{ fileName: transfer.fileName, path: [transfer.fileName] }];
+	const seen = new Set();
+	while (pending.length) {
+		const { fileName, path } = pending.pop();
+		if (seen.has(fileName)) continue;
+		seen.add(fileName);
+		const product = bootstrapProducts.get(fileName);
+		if (product) {
+			throw new Error(
+				`Transfer archive runtime statically reaches the ${product} bootstrap through `
+				+ path.join(' -> ') + '.',
+			);
+		}
+		const output = bundle[fileName];
+		if (output?.type !== 'chunk') continue;
+		for (const imported of output.imports) {
+			pending.push({ fileName: imported, path: [...path, imported] });
+		}
 	}
 }
 

@@ -40,7 +40,7 @@ const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.j
 const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/]ui[\\/]local-assistance-semantic-search-(?:bridge|source)\.ts$/;
 const EDITOR_COPY_CHUNK_TEST =
-	/src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|canonical-extras|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js$/;
+	/(?:src[\\/]common[\\/]i18n[\\/](?:catalogs|runtime|canonical-extras|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)|src[\\/]soundscaper[\\/]framescaper-capture-copy)\.js$/;
 
 /** Archive/interchange implementation modules owned only by lazy file-menu actions. */
 export const EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST = new RegExp(
@@ -74,7 +74,7 @@ export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
 
 /** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
 export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\/]assistance-derivative-repository)\\.ts$`,
+	`(?:${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\/]assistance-derivative-repository)|src[\\/]soundscaper[\\/]local-assistance-deferred-publication)\\.ts$`,
 );
 
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
@@ -95,6 +95,30 @@ const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]a
 // that bootstrap back, so it needs the same non-recursive owner as codec leaves.
 const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-video-codec-operation-contract\.ts$)/;
 const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
+/**
+ * Soundscaper family-v1 project and archive authority shared with transfer pages.
+ *
+ * Without an owner these modules follow the editor composition root into the
+ * selected product bootstrap. The standalone transfer runtime then imports that
+ * UI bootstrap to validate or archive a project, closing an emitted init cycle
+ * through file-service and leaving its initializer undefined.
+ */
+const soundscaperProjectFoundationModules = Object.freeze([
+	'editor-native-plugin-playback',
+	'editor-native-plugin-state-scape',
+	'editor-native-plugin-state',
+	'editor-project-feature-capability-profile',
+	'editor-project-feature-compatibility',
+	'editor-project-feature-requirements',
+	'editor-project-production-validation',
+	'editor-project-validation',
+	'editor-project',
+	'editor-scape-assets',
+	'editor-scape-native',
+]);
+const SOUNDSCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
+	`src[\\\\/]soundscaper[\\\\/](?:${soundscaperProjectFoundationModules.join('|')})\\.ts$`,
+);
 /**
  * Dependency-closed Framescaper project model used during product startup.
  *
@@ -230,13 +254,12 @@ export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
 
 
 /**
- * The project identity tuple reader and closed handoff intent, owned apart
- * from the editor domain they serve.
+ * Dependency-free interchange facades shared by transfer pages and editors.
  *
  * A project is identified only by (schemaFamily, schemaVersion). The transfer
  * documents use the hardened reader to learn which product owns a stored row;
  * a bare schema number is deliberately never product authority. That shared
- * reader is the reason the identity module needs an owner of its own.
+ * reader is the reason these modules need an owner apart from editor domains.
  *
  * `project-schema-identity.ts` has no imports, but chunks load whole. While the
  * editor domain group claimed it, the standalone transfer page's identity read
@@ -244,10 +267,12 @@ export const FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST =
  * `editor-domain` chunk, and through that chunk's own imports the transfer
  * documents carried 62 modulepreloads totalling 5.29 MiB of editor code onto a
  * page that mounts no editor. Owning the leaf here emits it as its own small
- * chunk that both worlds can import without dragging the other's graph.
+ * chunk that both worlds can import without dragging the other's graph. The
+ * archive facade adds only erased type imports and dynamic implementation
+ * imports, so sharing this owner does not grow the mounted transfer graph.
  */
-export const PROJECT_SCHEMA_IDENTITY_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}project-schema-identity|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
+export const PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST = new RegExp(
+	`(?:${editorPath}(?:project-schema-identity|controller[\\\\/]deferred-archive-runtime)|src[\\\\/]common[\\\\/]cross-product-handoff-intent)\\.ts$`,
 );
 
 /** Flat editor modules and `assistance/` domain modules shared by the shell and dialogs. */
@@ -318,11 +343,10 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
-		// Dependency-closed identity leaves both the editor and standalone transfer
-		// pages read. Deliberately not named `editor-`: these are tuple and launch
-		// intent contracts, not the editor.
-		name: 'project-schema-identity',
-		test: PROJECT_SCHEMA_IDENTITY_CHUNK_TEST,
+		// Dependency-closed interchange leaves shared by editors and transfer pages.
+		// Deliberately not named `editor-`: these contracts belong to both worlds.
+		name: 'project-interchange-foundations',
+		test: PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
@@ -413,6 +437,13 @@ export const chunkGroups = [
 		includeDependenciesRecursively: false,
 	},
 	{
+		name: 'soundscaper-project-foundations',
+		test: SOUNDSCAPER_PROJECT_FOUNDATION_CHUNK_TEST,
+		priority: 98,
+		maxSize: 490_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		name: 'framescaper-project-foundations',
 		test: FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST,
 		priority: 98,
@@ -450,7 +481,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-timeline',
-		test: new RegExp(`${editorPath}(?:ui[\\\\/](?:AudioEditorTimeline|AudioEditorSampleTools)|video-timeline\\.js|audacity-waveform-renderer\\.js)`),
+		test: new RegExp(`${editorPath}(?:ui[\\\\/](?:AudioEditorTimeline|AudioEditorSampleTools)|audacity-waveform-renderer\\.js)`),
 		priority: 80,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
@@ -464,7 +495,7 @@ export const chunkGroups = [
 	},
 	{
 		name: 'editor-shell',
-		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!editor-dialog-model\\.js$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/]url\\.ts$)`),
+		test: new RegExp(`(?:${editorPath}(?!${editorOptionalSurfaceModule}$)ui[\\\\/](?!(?:dialogs[\\\\/](?!editor-dialog-model\\.js$)|inspector[\\\\/]))|src[\\\\/]common[\\\\/]url\\.ts$|src[\\\\/]soundscaper[\\\\/](?:editor-capture-toolbar-control|editor-framescaper-overlay-model|editor-video-preview-product-runtime|editor-application-menu-product-runtime|editor-workspace-application-menu-runtime|editor-workspace-panel-runtime)\\.(?:js|tsx?)$)`),
 		priority: 70,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
