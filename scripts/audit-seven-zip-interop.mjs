@@ -84,21 +84,22 @@ async function generateGoldenArchive() {
 
 async function auditSevenZip(archivePath, expectedEntries) {
 	const executable = process.env.SEVEN_ZIP_BIN || '7zz';
+	let information;
 	try {
-		const information = await run(executable, ['i']);
-		await run(executable, ['t', '-bd', '-y', archivePath]);
-		const extractionDirectory = join(temporaryDirectory, 'seven-zip');
-		await mkdir(extractionDirectory);
-		await run(executable, ['x', '-bd', '-y', `-o${extractionDirectory}`, archivePath]);
-		await assertExtractedEntries(extractionDirectory, expectedEntries);
-		return {
-			status: 'passed',
-			version: information.split('\n').find((line) => line.trim())?.trim() || executable,
-		};
+		information = await run(executable, ['i']);
 	} catch (error) {
 		if (!isUnavailable(error)) throw error;
 		return { status: 'unavailable', reason: String(error.message || error) };
 	}
+	await run(executable, ['t', '-bd', '-y', archivePath]);
+	const extractionDirectory = join(temporaryDirectory, 'seven-zip');
+	await mkdir(extractionDirectory);
+	await run(executable, ['x', '-bd', '-y', `-o${extractionDirectory}`, archivePath]);
+	await assertExtractedEntries(extractionDirectory, expectedEntries);
+	return {
+		status: 'passed',
+		version: information.split('\n').find((line) => line.trim())?.trim() || executable,
+	};
 }
 
 async function auditLibarchive(archivePath, expectedEntries) {
