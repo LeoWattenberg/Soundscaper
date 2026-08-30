@@ -74,6 +74,29 @@ test('orders clips and first-use sources by visible runtime track encounter rath
 	assert.deepEqual(inventory.activeSourceIds, ['visible-source', 'encounter-source']);
 });
 
+test('ignores product visual clips carried by video tracks', () => {
+	const project = folderFixture() as unknown as Record<string, unknown>;
+	const clips = project.clips as Record<string, unknown>[];
+	const sources = project.sources as Record<string, unknown>[];
+	const visibleTrack = (project.tracks as Record<string, unknown>[])
+		.find(({ id }) => id === 'visible-track')!;
+	for (const kind of ['still', 'generator', 'image']) {
+		const sourceId = `${kind}-source`;
+		const clipId = `${kind}-clip`;
+		sources.push({ id: sourceId, kind });
+		clips.push({
+			id: clipId, kind, sourceId, title: kind,
+			timelineStartFrame: 0, durationFrames: 48_000,
+			sourceStartFrame: 0, sourceDurationFrames: 48_000,
+		});
+		(visibleTrack.clipIds as string[]).push(clipId);
+	}
+
+	const inventory = createVideoKeyframeExportInventory({ project, startFrame: 0, endFrame: 48_000 });
+	assert.deepEqual(inventory.activeClipIds, ['visible-clip', 'shared-clip']);
+	assert.deepEqual(inventory.activeSourceIds, ['visible-source']);
+});
+
 test('excludes hidden folders, hidden tracks, out-of-range clips, and Project Bin-only media', () => {
 	const inventory = createVideoKeyframeExportInventory({
 		project: folderFixture(),

@@ -167,7 +167,9 @@ function selectActiveMedia(
 			linked.set(clipId, trackId);
 			const clip = project.clipById.get(clipId);
 			if (!clip) throw new ReferenceError(`Video track ${trackId} references missing clip ${clipId}.`);
-			if (data(clip, 'kind', `video keyframe export clip ${clipId}`) !== 'video') {
+			const kind = data(clip, 'kind', `video keyframe export clip ${clipId}`);
+			if (kind === 'still' || kind === 'generator' || kind === 'image') continue;
+			if (kind !== 'video') {
 				throw new TypeError(`Video track ${trackId} contains non-video clip ${clipId}.`);
 			}
 			const sourceId = bindVideoSource(project.sourceById, clip, clipId);
