@@ -7,6 +7,8 @@ import {
 	createEditorExportService,
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
+import { createAiffStreamEncoder } from '../src/common/editor/aiff.js';
+import { createWavStreamEncoder } from '../src/common/editor/wav.js';
 
 interface FailureOptions {
 	readonly abort?: Error;
@@ -17,11 +19,15 @@ interface FailureOptions {
 	readonly render?: Error;
 	readonly rendererDispose?: Error;
 	readonly rendererSetup?: Error;
+	readonly sinkWrite?: Error;
 }
 
 interface FixtureOptions extends FailureOptions {
 	readonly emptyEncodedOutput?: boolean;
-	readonly format?: 'mp3' | 'wav';
+	readonly format?: 'aiff' | 'mp3' | 'wav';
+	readonly realStreamEncoder?: boolean;
+	readonly renderChunkCount?: number;
+	readonly sinkWriteFailureAt?: number;
 }
 
 test('a post-encode staging removal failure cleans the untransferred output', async () => {
@@ -154,6 +160,41 @@ test('a missing encoded result cannot pass as a successful realtime export', asy
 	assert.match(String(fixture.errors[0]), /produced no encoded output/iu);
 });
 
+test('realtime staged PCM export surfaces a sink rejection before accepting another PCM block', async () => {
+	for (const format of ['wav', 'aiff'] as const) {
+		const sinkFailure = new Error(`staged ${format} sink failed`);
+		const fixture = ownershipFixture({
+			format,
+			realStreamEncoder: true,
+			renderChunkCount: 2,
+			sinkWrite: sinkFailure,
+		});
+
+		assert.equal(await fixture.exportAudio(), undefined, format);
+		assert.equal(fixture.renderedChunks(), 1, format);
+		assert.equal(fixture.sinkWrites(), 2, `${format}: only the header and first PCM block reach the sink`);
+		assert.equal(fixture.encoderSettlements(), 0, `${format}: encoder pending promises are not scanned`);
+		assert.equal(fixture.errors[0], sinkFailure, format);
+		assert.equal(fixture.counts().aborts, 1, format);
+
+		const headerFailure = new Error(`staged ${format} header failed`);
+		const headerFixture = ownershipFixture({
+			format,
+			realStreamEncoder: true,
+			renderChunkCount: 2,
+			sinkWrite: headerFailure,
+			sinkWriteFailureAt: 1,
+		});
+
+		assert.equal(await headerFixture.exportAudio(), undefined, format);
+		assert.equal(headerFixture.renderedChunks(), 0, `${format}: rendering waits for its header`);
+		assert.equal(headerFixture.sinkWrites(), 1, `${format}: no PCM is emitted after its header fails`);
+		assert.equal(headerFixture.encoderSettlements(), 0, format);
+		assert.equal(headerFixture.errors[0], headerFailure, format);
+		assert.equal(headerFixture.counts().aborts, 1, format);
+	}
+});
+
 function ownershipFixture(options: FixtureOptions) {
 	const failures = Object.freeze({
 		abort: options.abort,
@@ -164,35 +205,42 @@ function ownershipFixture(options: FixtureOptions) {
 		render: options.render,
 		rendererDispose: options.rendererDispose,
 		rendererSetup: options.rendererSetup,
+		sinkWrite: options.sinkWrite,
 	});
 	const format = options.format ?? 'mp3';
-	const native = format === 'wav';
+	const native = format === 'wav' || format === 'aiff';
+	const nativeMimeType = format === 'aiff' ? 'audio/aiff' : 'audio/wav';
+	const renderChunkCount = options.renderChunkCount ?? 1;
 	const errors: unknown[] = [];
 	let aborts = 0;
 	let downloads = 0;
 	let encodedCleanups = 0;
+	let encoderSettlements = 0;
 	let removes = 0;
+	let renderedChunks = 0;
 	let rendererDisposals = 0;
+	let sinkWrites = 0;
+	let sinkWriteTail = Promise.resolve();
 	const project = {
 		id: 'project', title: 'Session', sampleRate: 48_000, masterChannels: 2,
 		tracks: [], clips: [{ id: 'clip', kind: 'audio', sourceId: 'source' }], sources: [],
 	};
 	const plan = {
-		mode: 'mix', format, mimeType: native ? 'audio/wav' : 'audio/mpeg', archive: null,
+		mode: 'mix', format, mimeType: native ? nativeMimeType : 'audio/mpeg', archive: null,
 		sampleRate: 48_000, channelCount: 2,
 		channelMapping: { mode: 'preserve', inputChannelCount: 2, outputChannelCount: 2 },
 		encoding: {
-			backend: native ? 'native-wav' : 'ffmpeg', extension: format,
-			mimeType: native ? 'audio/wav' : 'audio/mpeg', sampleRate: 48_000,
+			backend: native ? `native-${format}` : 'ffmpeg', extension: format,
+			mimeType: native ? nativeMimeType : 'audio/mpeg', sampleRate: 48_000,
 			inputChannelCount: 2, channelCount: 2,
 			channelMapping: { mode: 'preserve', inputChannelCount: 2, outputChannelCount: 2 },
 			bitRate: 192, sampleFormat: null, bitDepth: null, floatingPoint: false,
 			dither: 'none', metadata: {},
 		},
 		dither: false, ditherMode: 'none', metadata: {},
-		outputFrames: 1, outputBytesPerRender: 8, outputFileBytesPerRender: null,
+		outputFrames: renderChunkCount, outputBytesPerRender: 8 * renderChunkCount, outputFileBytesPerRender: null,
 		requiredTemporaryBytes: 8,
-		range: { startFrame: 0, endFrame: 1, durationFrames: 1 }, tailFrames: 0,
+		range: { startFrame: 0, endFrame: renderChunkCount, durationFrames: renderChunkCount }, tailFrames: 0,
 		render: { strategy: 'realtime-stream', fast: false, reason: 'output-memory' },
 		outputs: [{
 			kind: 'mix', fileName: `session.${format}`, trackId: null,
@@ -204,6 +252,13 @@ function ownershipFixture(options: FixtureOptions) {
 		outputCleanup: null, exportOutput: null, disposed: false,
 	};
 	const abortError = () => Object.assign(new Error('aborted'), { name: 'AbortError' });
+	const observeEncoderSettlements = <Encoder extends { settled(): Promise<void> }>(encoder: Encoder): Encoder => ({
+		...encoder,
+		async settled() {
+			encoderSettlements += 1;
+			await encoder.settled();
+		},
+	}) as Encoder;
 	const runtime: ExportServiceRuntime = {
 		abortError,
 		applyMediaChannelMapping: (channels: readonly Float32Array[]) => channels,
@@ -214,20 +269,27 @@ function ownershipFixture(options: FixtureOptions) {
 			largeProjectRealtimeExport: 'realtime', realtimeExportFallback: 'fallback',
 			realtimeStorageRequired: 'storage',
 		},
-		createAiffStreamEncoder: () => { throw new Error('unexpected AIFF encoder'); },
+		createAiffStreamEncoder: options.realStreamEncoder
+			? (encoderOptions: Parameters<typeof createAiffStreamEncoder>[0]) => (
+				observeEncoderSettlements(createAiffStreamEncoder(encoderOptions))
+			)
+			: () => { throw new Error('unexpected AIFF encoder'); },
 		createCacheAwareRenderEngine: () => {
 			if (failures.rendererSetup) throw failures.rendererSetup;
 			return {
 				loadProject: () => undefined,
 				async renderMixRealtime(options: Readonly<Record<string, unknown>>) {
 					if (failures.render) throw failures.render;
-					await (options.onChunk as (
-						channels: readonly Float32Array[],
-						metadata: Readonly<Record<string, unknown>>,
-					) => PromiseLike<unknown> | unknown)(
-						[Float32Array.of(0.25), Float32Array.of(-0.25)],
-						{ sampleRate: 48_000 },
-					);
+					for (let chunk = 0; chunk < renderChunkCount; chunk += 1) {
+						renderedChunks += 1;
+						await (options.onChunk as (
+							channels: readonly Float32Array[],
+							metadata: Readonly<Record<string, unknown>>,
+						) => PromiseLike<unknown> | unknown)(
+							[Float32Array.of(0.25), Float32Array.of(-0.25)],
+							{ sampleRate: 48_000 },
+						);
+					}
 				},
 				async dispose() {
 					rendererDisposals += 1;
@@ -244,7 +306,15 @@ function ownershipFixture(options: FixtureOptions) {
 		}),
 		createTemporaryFileSink: async () => ({
 			persistent: true,
-			write: async () => undefined,
+			write: () => {
+				const writeNumber = ++sinkWrites;
+				sinkWriteTail = sinkWriteTail.then(() => {
+					if (failures.sinkWrite && writeNumber === (options.sinkWriteFailureAt ?? 2)) {
+						throw failures.sinkWrite;
+					}
+				});
+				return sinkWriteTail;
+			},
 			close: async () => new Blob([Uint8Array.of(1)], { type: 'audio/wav' }),
 			async remove() {
 				removes += 1;
@@ -255,14 +325,18 @@ function ownershipFixture(options: FixtureOptions) {
 				if (failures.abort) throw failures.abort;
 			},
 		}),
-		createWavStreamEncoder: () => {
-			if (failures.encoderSetup) throw failures.encoderSetup;
-			return {
-				write: () => undefined,
-				finalize: () => undefined,
-				settled: async () => undefined,
-			};
-		},
+		createWavStreamEncoder: options.realStreamEncoder
+			? (encoderOptions: Parameters<typeof createWavStreamEncoder>[0]) => (
+				observeEncoderSettlements(createWavStreamEncoder(encoderOptions))
+			)
+			: () => {
+				if (failures.encoderSetup) throw failures.encoderSetup;
+				return {
+					write: () => undefined,
+					finalize: () => undefined,
+					settled: async () => undefined,
+				};
+			},
 		encodeAiff: () => { throw new Error('unexpected AIFF encoding'); },
 		encodeWav: () => { throw new Error('unexpected WAV encoding'); },
 		ffmpeg: {
@@ -321,7 +395,10 @@ function ownershipFixture(options: FixtureOptions) {
 		exportAudio: () => createEditorExportService(runtime).handleExportAction(
 			'export', { mode: 'mix', format, includeTail: false },
 		),
+		encoderSettlements: () => encoderSettlements,
 		failures,
+		renderedChunks: () => renderedChunks,
+		sinkWrites: () => sinkWrites,
 	};
 }
 

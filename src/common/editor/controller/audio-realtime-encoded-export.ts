@@ -62,6 +62,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 		? null
 		: await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
 	const outputTransform: { current: RealtimeExportPcmTransform | null } = { current: null };
+	let stagedWrite = Promise.resolve();
 	let renderedSampleRate = renderSampleRate;
 	let directCompressedHandoff = false;
 	let renderEngine: RuntimeValue = null;
@@ -100,13 +101,14 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			? createAiffStreamEncoder({
 				...encoderOptions,
 				collect: false,
-				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
+				onChunk: (chunk: RuntimeValue) => { stagedWrite = Promise.resolve(sink.write(chunk)); },
 			})
 			: createWavStreamEncoder({
 				...encoderOptions,
 				collect: false,
-				onChunk: (chunk: RuntimeValue) => sink.write(chunk),
+				onChunk: (chunk: RuntimeValue) => { stagedWrite = Promise.resolve(sink.write(chunk)); },
 			}));
+		if (encoder) await stagedWrite;
 		renderEngine = createCacheAwareRenderEngine();
 		if (renderSources.chunkSources === null) renderEngine.loadProject(snapshot, renderSources.sourceMap);
 		else renderEngine.loadProject(snapshot, renderSources.sourceMap, {
@@ -134,7 +136,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 				if (!outputChannels[0]?.length) return undefined;
 				if (directEncoder) return directEncoder.write(outputChannels);
 				encoder.write(outputChannels);
-				return undefined;
+				return stagedWrite;
 			},
 		});
 		if (!outputTransform.current) throw new Error('Realtime export produced no PCM chunks.');
@@ -146,7 +148,7 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			ownedOutput = { blob: null, bytes: null, byteLength, mimeType: plan.mimeType, directDestination };
 		} else {
 			encoder.finalize();
-			await encoder.settled();
+			await stagedWrite;
 			const stagingFile = await sink.close(nativeAiff ? 'audio/aiff' : 'audio/wav');
 			if (nativePcm) {
 				ownedOutput = { blob: stagingFile, bytes: null, mimeType: plan.mimeType, cleanup: () => sink.remove() };
