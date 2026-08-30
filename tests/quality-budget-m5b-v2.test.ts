@@ -198,3 +198,24 @@ test('the current collector routes V2 records to the digest-bound V2 writer', as
 	assert.equal((written as { directory: string }).directory, '/unused');
 	assert.equal((written as { profileId: string }).profileId, 'native-media');
 });
+
+test('the current collector refuses a null workload diagnostic measurement as data', async () => {
+	const pipeline = M5B_QUALITY_PIPELINES['native-media'];
+	await assert.rejects(collectM5bQualityCurrent('native-media', {
+		measurementPath: null,
+		workloadCommand: { executable: '/lab/native-media-workload', arguments: [] } as never,
+		outputDirectory: '/unused',
+	}, {
+		config,
+		processEnvironment: {},
+		fingerprintExecutable: async () => '4'.repeat(64),
+		runWorkload: async () => ({
+			schemaVersion: 2,
+			diagnosticType: 'soundscaper.m5b-quality-workload-diagnostic',
+			profileId: 'native-media',
+			workloadId: pipeline.workloadId,
+			fixtureId: pipeline.fixtureId,
+			measurement: null,
+		}),
+	}), /workload diagnostic measurement must be a plain record/iu);
+});

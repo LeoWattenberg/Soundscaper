@@ -21,7 +21,7 @@ import {
 	fingerprintM5bWorkloadExecutable,
 	runM5bQualityWorkload,
 } from './m5b-quality-workload-runner.mjs';
-import { exactRecord } from './measurement-admission.mjs';
+import { exactRecord, requireRecord } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 const CONFIG_URL = new URL('../../config/quality-budgets.json', import.meta.url);
@@ -116,7 +116,7 @@ function measurementFromDiagnostic(profileId, value) {
 		|| diagnostic.fixtureId !== pipeline.fixtureId) {
 		throw new Error(`${profileId} workload diagnostic names the wrong pipeline.`);
 	}
-	return diagnostic.measurement;
+	return requireRecord(diagnostic.measurement, `${profileId} workload diagnostic measurement`);
 }
 
 async function readMeasurement(path) {
