@@ -130,7 +130,7 @@ test('primitive stage runner refuses ambiguous source-range authority', async ()
 		} }),
 	});
 
-	await assert.rejects(runner(primitiveStage(ambiguousRequest)), /exactly one source-range/u);
+	await assert.rejects(async () => runner(primitiveStage(ambiguousRequest)), /exactly one source-range/u);
 	assert.equal(executions, 0);
 });
 
