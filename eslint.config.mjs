@@ -118,7 +118,7 @@ export default tseslint.config(
 		},
 	},
 	{
-		files: ['src/common/editor/ui/**/*.{ts,tsx}'],
+		files: ['src/common/editor/ui/**/*.{js,jsx,ts,tsx}'],
 		rules: {
 			'no-restricted-syntax': [
 				'error',

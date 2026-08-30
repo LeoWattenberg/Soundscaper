@@ -35,6 +35,30 @@ test('TypeScript receives the core recommended ESLint rules and the typed unused
 	assert.equal(config.rules?.['@typescript-eslint/no-unused-vars']?.[0], 2);
 });
 
+test('JavaScript UI components receive localization and DOM-adaptation restrictions', async () => {
+	const eslint = new ESLint({ cwd: ROOT });
+	const config = await eslint.calculateConfigForFile(
+		'src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx',
+	);
+
+	assert.equal(config.rules?.['no-restricted-syntax']?.[0], 2);
+});
+
+test('a new JavaScript UI localization violation is not hidden by the legacy baseline', async () => {
+	const eslint = new ESLint({ cwd: ROOT, applySuppressions: true });
+	const [result] = await eslint.lintText(
+		'export default function Example() { return <button aria-label="Hard coded">Click me</button>; }\n',
+		{ filePath: 'src/common/editor/ui/AudioEditorSplitButton.jsx' },
+	);
+	const messages = result.messages.filter(message => message.ruleId === 'no-restricted-syntax');
+
+	assert.equal(messages.length, 2);
+	assert.equal(
+		result.suppressedMessages.some(message => message.ruleId === 'no-restricted-syntax'),
+		false,
+	);
+});
+
 test('a new TypeScript core-recommended violation is not hidden by the legacy baseline', async () => {
 	const eslint = new ESLint({ cwd: ROOT, applySuppressions: true });
 	const [result] = await eslint.lintText(

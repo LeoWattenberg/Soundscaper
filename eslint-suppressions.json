@@ -918,11 +918,22 @@
     }
   },
   "src/common/editor/ui/AudioEditorMenuBar.jsx": {
+    "no-restricted-syntax": {
+      "count": 3
+    },
     "no-useless-assignment": {
       "count": 1
     }
   },
+  "src/common/editor/ui/DesignSystemRuntime.jsx": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "src/common/editor/ui/ParametricEqEditor.jsx": {
+    "no-restricted-syntax": {
+      "count": 7
+    },
     "no-unused-vars": {
       "count": 1
     }
@@ -932,9 +943,24 @@
       "count": 1
     }
   },
+  "src/common/editor/ui/dialogs/EditorDialog.jsx": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "src/common/editor/ui/dialogs/GeneratorDialog.jsx": {
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
   "src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx": {
     "no-useless-assignment": {
       "count": 1
+    }
+  },
+  "src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx": {
+    "no-restricted-syntax": {
+      "count": 2
     }
   },
   "src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": {
@@ -942,6 +968,26 @@
       "count": 1
     },
     "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/inspector/AnalysisPanel.jsx": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "src/common/editor/ui/inspector/AudacityEffectHeader.jsx": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "src/common/editor/ui/inspector/inspector-controls.jsx": {
+    "no-restricted-syntax": {
       "count": 1
     }
   },
@@ -957,6 +1003,56 @@
   },
   "src/common/editor/ui/soundscaper-routing-editor-model.ts": {
     "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/timeline/TimelineAnnotationLaneActions.jsx": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "src/common/editor/ui/timeline/TrackFolderRow.jsx": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "src/common/editor/ui/timeline/timeline-navigation.js": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/timeline/useAudioTrackRowViewModel.js": {
+    "no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "src/common/editor/ui/timeline/useTimelineHitTesting.js": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/toolbar/AudioEditorMeterControls.jsx": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/toolbar/AudioEditorMeters.jsx": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx": {
+    "no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "src/common/editor/ui/workspace/AudioEditorMixerPanel.jsx": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "src/common/editor/ui/workspace/ProjectBinPanel.jsx": {
+    "no-restricted-syntax": {
       "count": 1
     }
   },
