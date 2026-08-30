@@ -65,11 +65,10 @@ export class NativeDeviceIoProcessor extends ProcessorBase {
 		if (message.type !== NATIVE_DEVICE_IO_CONTROL.attach) return;
 		const peer = ports.length === 1 ? ports[0] : null;
 		const generation = integer(message.generation, 1, Number.MAX_SAFE_INTEGER, 0);
-		if (!peer || typeof peer.postMessage !== 'function' || generation <= this.generation) {
+		if (!peer || typeof peer.postMessage !== 'function' || generation <= this.generation || this.portPeer) {
 			try { peer?.close(); } catch { /* invalid offer */ }
 			return this.#post({ type: NATIVE_DEVICE_IO_CONTROL.fault, reason: 'invalid-attach' });
 		}
-		this.#close('replaced');
 		this.generation = generation;
 		this.portPeer = peer;
 		peer.onmessage = (event) => this.#message(event?.data);
@@ -126,6 +125,7 @@ export class NativeDeviceIoProcessor extends ProcessorBase {
 
 	#read(output) {
 		for (const channel of output) channel.fill(0);
+		if (!this.portPeer) return;
 		let written = 0;
 		const frames = output[0]?.length || 0;
 		while (written < frames) {

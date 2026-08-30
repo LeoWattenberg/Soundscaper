@@ -49,6 +49,20 @@ test('the renderer node refuses calibration outside one attached duplex generati
 	await assert.rejects(() => duplex.calibrate({ maxFrames: 128, timeoutMs: 1_000 }), /bound/iu);
 });
 
+test('the renderer requires revocation before attaching a newer device generation', async () => {
+	const handle = await createNativeDeviceIoWorkletNode(context(), {
+		AudioWorkletNode: FakeAudioWorkletNode,
+		direction: 'output', channelCount: 2, periodFrames: 128, queueCapacity: 4,
+	});
+	handle.attach({ postMessage() {}, close() {} }, { generation: 1 });
+	assert.throws(
+		() => handle.attach({ postMessage() {}, close() {} }, { generation: 2 }),
+		/revoke/iu,
+	);
+	assert.equal(handle.revoke(), 1);
+	assert.equal(handle.attach({ postMessage() {}, close() {} }, { generation: 2 }), 2);
+});
+
 function context() {
 	return { audioWorklet: { addModule: async () => undefined } };
 }

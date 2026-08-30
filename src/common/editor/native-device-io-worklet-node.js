@@ -34,6 +34,7 @@ export async function createNativeDeviceIoWorkletNode(context, options) {
 		},
 	});
 	let generation = 0;
+	let attached = false;
 	let disposed = false;
 	let calibrationSequence = 0;
 	let calibration = null;
@@ -45,6 +46,7 @@ export async function createNativeDeviceIoWorkletNode(context, options) {
 		} else if (data.type === NATIVE_DEVICE_IO_CONTROL.calibrationResult) settleCalibration(data);
 		else if (data.type === NATIVE_DEVICE_IO_CONTROL.calibrationFailed) settleCalibration(data);
 		else if (data.type === NATIVE_DEVICE_IO_CONTROL.closed) {
+			if (data.generation === generation) attached = false;
 			failCalibration(new Error('The native audio device closed during calibration.'));
 			options.onClose?.(data);
 		} else if (data.type === NATIVE_DEVICE_IO_CONTROL.fault) {
@@ -58,17 +60,19 @@ export async function createNativeDeviceIoWorkletNode(context, options) {
 		attach(port, config) {
 			if (disposed) throw new Error('The native device node is disposed.');
 			if (!port || typeof port.postMessage !== 'function') throw new TypeError('A transferred native device port is required.');
+			if (attached) throw new Error('Revoke the attached native device generation before replacing it.');
 			if (!Number.isSafeInteger(config.generation) || config.generation <= generation) throw new RangeError('The device generation must increase.');
 			generation = config.generation;
+			attached = true;
 			node.port.postMessage({ type: NATIVE_DEVICE_IO_CONTROL.attach, generation }, [port]);
 			return generation;
 		},
 		revoke(reason = 'cancelled') {
-			if (!generation) return 0;
+			if (!attached) return 0;
 			failCalibration(new Error('Native audio calibration was cancelled.'), true);
 			const previous = generation;
 			node.port.postMessage({ type: NATIVE_DEVICE_IO_CONTROL.revoke, generation, reason });
-			generation = 0;
+			attached = false;
 			return previous;
 		},
 		notifyPeerLoss() { return this.revoke('peer-loss'); },
@@ -78,7 +82,7 @@ export async function createNativeDeviceIoWorkletNode(context, options) {
 				if (direction !== 'duplex') throw new Error('Latency calibration requires a duplex native route.');
 				const maxFrames = boundedInteger(config?.maxFrames, 1, 1_048_576, 'calibration frame window');
 				const timeoutMs = boundedInteger(config?.timeoutMs, 100, 5_000, 'calibration timeout');
-				if (!generation) throw new Error('Latency calibration requires a bound native route.');
+				if (!attached) throw new Error('Latency calibration requires a bound native route.');
 				if (calibration) throw new Error('Native audio calibration is already running.');
 				const requestId = ++calibrationSequence;
 				return new Promise((resolve, reject) => {
@@ -97,8 +101,8 @@ export async function createNativeDeviceIoWorkletNode(context, options) {
 			if (disposed) return;
 			disposed = true;
 			failCalibration(new Error('The native device node was disposed.'), true);
-			if (generation) node.port.postMessage({ type: NATIVE_DEVICE_IO_CONTROL.revoke, generation, reason: 'cancelled' });
-			generation = 0;
+			if (attached) node.port.postMessage({ type: NATIVE_DEVICE_IO_CONTROL.revoke, generation, reason: 'cancelled' });
+			attached = false;
 			node.port.onmessage = null;
 			try { node.disconnect(); } catch { /* already disconnected */ }
 		},

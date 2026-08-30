@@ -66,6 +66,55 @@ test('a peer port that closes underneath the worklet reports peer loss', async (
 	assert.equal(processor.port.posted.at(-1).reason, 'peer-loss');
 });
 
+test('a live generation rejects replacement without closing or corrupting its packet pool', async (context) => {
+	const original = globalThis.AudioWorkletProcessor;
+	class ProcessorBase {
+		constructor() {
+			this.port = { posted: [], postMessage(value) { this.posted.push(value); }, start() {}, onmessage: null };
+		}
+	}
+	globalThis.AudioWorkletProcessor = ProcessorBase;
+	context.after(() => { globalThis.AudioWorkletProcessor = original; });
+	const { NativeDeviceIoProcessor } = await import(
+		`../src/common/editor/native-device-io-worklet.js?replacement=${String(Date.now())}`
+	);
+	const processor = new NativeDeviceIoProcessor({ processorOptions: {
+		direction: 'output', channelCount: 2, periodFrames: 128, queueCapacity: 2,
+	} });
+	const active = messagePort();
+	const replacement = messagePort();
+	processor.port.onmessage({ data: { type: 'native-device-attach', generation: 1 }, ports: [active] });
+	processor.port.onmessage({ data: { type: 'native-device-attach', generation: 2 }, ports: [replacement] });
+	assert.equal(active.closed, false);
+	assert.equal(replacement.closed, true);
+	assert.deepEqual(processor.port.posted.at(-1), {
+		type: 'native-device-fault', reason: 'invalid-attach',
+	});
+	processor.process([[new Float32Array(128), new Float32Array(128)]], [[]]);
+	assert.equal(active.posted.at(-1).kind, 'audio');
+});
+
+test('capture silence before attachment does not report phantom frame loss', async (context) => {
+	const original = globalThis.AudioWorkletProcessor;
+	class ProcessorBase {
+		constructor() {
+			this.port = { posted: [], postMessage(value) { this.posted.push(value); }, start() {}, onmessage: null };
+		}
+	}
+	globalThis.AudioWorkletProcessor = ProcessorBase;
+	context.after(() => { globalThis.AudioWorkletProcessor = original; });
+	const { NativeDeviceIoProcessor } = await import(
+		`../src/common/editor/native-device-io-worklet.js?unbound-capture=${String(Date.now())}`
+	);
+	const processor = new NativeDeviceIoProcessor({ processorOptions: {
+		direction: 'input', channelCount: 2, periodFrames: 128, queueCapacity: 2,
+	} });
+	for (let quantum = 0; quantum < 32; quantum += 1) {
+		processor.process([[]], [[new Float32Array(128), new Float32Array(128)]]);
+	}
+	assert.deepEqual(processor.port.posted, []);
+});
+
 test('duplex calibration injects one bounded impulse and reports only its frame offset', async (context) => {
 	const original = globalThis.AudioWorkletProcessor;
 	class ProcessorBase {
@@ -167,7 +216,7 @@ test('calibration is duplex-only, cancellable and bounded by captured frames', a
 
 function messagePort() {
 	return {
-		posted: [], onmessage: null, onmessageerror: null,
-		postMessage(value) { this.posted.push(value); }, start() {}, close() {},
+		posted: [], onmessage: null, onmessageerror: null, closed: false,
+		postMessage(value) { this.posted.push(value); }, start() {}, close() { this.closed = true; },
 	};
 }
