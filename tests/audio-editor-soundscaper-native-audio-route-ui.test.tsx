@@ -148,10 +148,11 @@ test('a device handle reused by another backend receives that backend route defa
 		await act(async () => {
 			reactProps(dom.one('[data-native-audio-open="shared-handle"]')).onClick({});
 		});
-		assert.equal(actions.at(-1)?.type, 'open-audio-session');
-		if (actions.at(-1)?.type === 'open-audio-session') {
-			assert.equal(actions.at(-1).request.mode, 'exclusive');
-			assert.equal(actions.at(-1).request.direction, 'input');
+		const action = actions.at(-1);
+		assert.equal(action?.type, 'open-audio-session');
+		if (action?.type === 'open-audio-session') {
+			assert.equal(action.request.mode, 'exclusive');
+			assert.equal(action.request.direction, 'input');
 		}
 	} finally {
 		await act(async () => root.unmount());

@@ -349,7 +349,9 @@ test('a same-project revision cannot cancel an active workspace automation gestu
 	};
 	try {
 		await renderProject('project-a', 1);
-		runtime?.execute(operation({
+		const activeRuntime = runtime as NonNullable<ReturnType<typeof useSoundscaperProductionWorkspace>> | null;
+		assert.ok(activeRuntime);
+		activeRuntime.execute(operation({
 			type: 'automation-gesture/begin', laneId: 'lane-a', controlValue: 0.5,
 		}));
 
