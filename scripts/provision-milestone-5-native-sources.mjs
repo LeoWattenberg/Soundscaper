@@ -114,7 +114,7 @@ async function provision(source) {
 			? readLocalArchive(source)
 			: await downloadArchive(source, staging);
 		authenticateArchiveBytes(source, archiveBytes);
-		const evidence = materializeMilestone5SourceArchive({
+		const evidence = await materializeMilestone5SourceArchive({
 			archiveBytes,
 			archiveName: source.archive.fileName,
 			expectedTree: source.extractedTree,

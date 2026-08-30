@@ -47,11 +47,12 @@ export async function renameIntoPlaceExclusively(destination, label, fill) {
  * outcome this module exists to prevent. A regular file is therefore claimed
  * with `link`, which fails with EEXIST instead of replacing. A directory has no
  * portable no-replace rename, but `rename` already refuses a directory holding
- * anything, so the only entry it can still replace is an empty one, which no
- * completed publication ever leaves behind.
+ * anything. The destination is checked again at the claim boundary so even an
+ * empty directory that appeared during staging is refused.
  */
 export async function claimPathExclusively(staged, destination, label) {
 	if ((await lstat(staged)).isDirectory()) {
+		await assertPathMissing(destination, label);
 		await rename(staged, destination);
 		return;
 	}

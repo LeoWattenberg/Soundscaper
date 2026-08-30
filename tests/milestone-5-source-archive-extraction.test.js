@@ -12,6 +12,7 @@ import {
 	authenticateMilestone5SourceArchiveExtraction,
 	materializeMilestone5SourceArchive,
 } from '../scripts/lib/milestone-5-source-archive-extraction.mjs';
+import { claimPathExclusively } from '../scripts/lib/exclusive-rename.mjs';
 
 test('ZIP source authentication safely extracts UTF-8 vendor paths into the pinned tree', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'm5-source-zip-'));
@@ -71,27 +72,38 @@ test('materialization leaves an authenticated tree and never a partial destinati
 	))));
 
 	const destination = join(root, 'source');
-	const evidence = materializeMilestone5SourceArchive({
+	const evidence = await materializeMilestone5SourceArchive({
 		archiveBytes: archive, archiveName: 'fixture.zip', expectedTree, destinationRoot: destination,
 	});
 	assert.equal(evidence.sha256, expectedTree.sha256);
 	assert.equal(collectExtractedSourceTree(destination).sha256, expectedTree.sha256);
 	assert.equal(await readFile(join(destination, 'include/api.h'), 'utf8'), 'authenticated api\n');
 
-	assert.throws(() => materializeMilestone5SourceArchive({
+	await assert.rejects(() => materializeMilestone5SourceArchive({
 		archiveBytes: archive, archiveName: 'fixture.zip', expectedTree, destinationRoot: destination,
 	}), /already exists/iu, 'an existing destination is never overwritten');
 
 	const drifted = join(root, 'drifted');
-	assert.throws(() => materializeMilestone5SourceArchive({
+	await assert.rejects(() => materializeMilestone5SourceArchive({
 		archiveBytes: archive,
 		archiveName: 'fixture.zip',
 		expectedTree: { ...expectedTree, sha256: '0'.repeat(64) },
 		destinationRoot: drifted,
 	}), /drifted from its pinned portable tree identity/iu);
 	assert.equal(existsSync(drifted), false, 'a refused archive leaves no destination behind');
+
+	const raced = join(root, 'raced');
+	await assert.rejects(() => materializeMilestone5SourceArchive({
+		archiveBytes: archive, archiveName: 'fixture.zip', expectedTree, destinationRoot: raced,
+	}, {
+		async claim(stagedPath, destinationPath, label) {
+			await mkdir(destinationPath);
+			await claimPathExclusively(stagedPath, destinationPath, label);
+		},
+	}), /already exists/iu);
+	assert.deepEqual(await readdir(raced), [], 'a concurrent empty-directory claim is retained');
 	assert.deepEqual(
-		(await readdir(root)).sort(), ['source', 'staged'],
+		(await readdir(root)).sort(), ['raced', 'source', 'staged'],
 		'no staging directory survives a refused or an accepted materialization',
 	);
 });

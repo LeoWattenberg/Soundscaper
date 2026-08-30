@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
 import {
 	existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync,
-	realpathSync, renameSync, rmSync, unlinkSync, writeFileSync,
+	realpathSync, rmSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
@@ -14,6 +14,7 @@ import { basename, dirname, extname, isAbsolute, posix, relative, resolve, sep }
 import { extract as extractTar, list as listTar } from 'tar';
 
 import { collectExtractedSourceTree } from '../../native/framescaper-media-host/build/source-authentication.mjs';
+import { claimPathExclusively } from './exclusive-rename.mjs';
 
 const MAXIMUM_ENTRIES = 100_000;
 const MAXIMUM_FILE_BYTES = 512 * 1024 * 1024;
@@ -42,7 +43,10 @@ export function authenticateMilestone5SourceArchiveExtraction(request) {
  * same-filesystem move: a cache never holds a half-written tree, and an
  * existing destination is never overwritten.
  */
-export function materializeMilestone5SourceArchive({ destinationRoot: destinationValue, ...request }) {
+export async function materializeMilestone5SourceArchive(
+	{ destinationRoot: destinationValue, ...request },
+	{ claim = claimPathExclusively } = {},
+) {
 	if (typeof destinationValue !== 'string' || !isAbsolute(destinationValue)) {
 		throw new TypeError('Milestone 5 source materialization requires one absolute destination root.');
 	}
@@ -58,7 +62,7 @@ export function materializeMilestone5SourceArchive({ destinationRoot: destinatio
 	const staging = mkdtempSync(`${destinationRoot}.staging-`);
 	try {
 		const { evidence, extractionRoot } = extractAuthenticatedSourceArchive(request, staging);
-		renameSync(extractionRoot, destinationRoot);
+		await claim(extractionRoot, destinationRoot, 'Milestone 5 source destination');
 		const tree = collectExtractedSourceTree(destinationRoot);
 		if (tree.algorithm !== evidence.algorithm || tree.fileCount !== evidence.fileCount
 			|| tree.sha256 !== evidence.sha256) {

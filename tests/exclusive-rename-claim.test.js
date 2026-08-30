@@ -52,6 +52,21 @@ test('claiming a directory refuses a destination that already holds a publicatio
 	assert.equal(await readFile(join(destination, 'runtime.bin'), 'utf8'), 'already published bytes');
 });
 
+test('claiming a directory refuses an empty destination claimed concurrently', async (context) => {
+	const root = scratchRoot(context);
+	const staged = join(root, 'staged');
+	const destination = join(root, 'published');
+	await mkdir(staged);
+	await writeFile(join(staged, 'runtime.bin'), 'staged bytes');
+	await mkdir(destination);
+
+	await assert.rejects(
+		() => claimPathExclusively(staged, destination, 'runtime output'),
+		/runtime output already exists/u,
+	);
+	assert.deepEqual(await readFile(join(staged, 'runtime.bin'), 'utf8'), 'staged bytes');
+});
+
 test('a published file is never replaced by a later staging of the same destination', async (context) => {
 	const root = scratchRoot(context);
 	const destination = join(root, 'runtime', 'notice.txt');
