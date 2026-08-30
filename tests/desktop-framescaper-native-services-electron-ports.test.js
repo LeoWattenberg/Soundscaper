@@ -14,10 +14,26 @@ export const dialog = {
 		return answers.openDialog;
 	},
 };
-export class BrowserWindow { constructor() { throw new Error('No window is created by a picker.'); } }
+export const windowCalls = [];
+export class BrowserWindow {
+	constructor(options) {
+		windowCalls.push(options);
+		this.webContents = {
+			setWindowOpenHandler: () => undefined,
+			on: () => undefined,
+			postMessage: () => undefined,
+		};
+	}
+	once() {}
+	async loadFile() {}
+	show() {}
+	close() {}
+	isDestroyed() { return false; }
+	setBounds() {}
+}
 export class MessageChannelMain { constructor() { throw new Error('No channel is created by a picker.'); } }
 export const ipcMain = {
-	on: () => { throw new Error('No IPC listener is created by a picker.'); },
+	on: () => undefined,
 	removeListener: () => undefined,
 };
 export const screen = {
@@ -71,4 +87,30 @@ test('the Electron OpenFX picker is lazy, file-only, singular, and main-owned', 
 	}
 	assert.equal(JSON.stringify(ports).includes('/private/plugins'), false,
 		'the internal selected path must not become renderer-visible port state');
+});
+
+test('the external-display sink maps controller bounds into BrowserWindow placement', () => {
+	const ports = createFramescaperNativeServicesElectronPorts(
+		{ snapshot: () => ({ nativeMediaEnabled: true }) },
+		() => undefined,
+	);
+	ports.externalDisplay.createWindow({
+		bounds: { x: 1_920, y: -120, width: 3_840, height: 2_160 },
+		show: false,
+		frame: false,
+		backgroundColor: '#000000',
+		webPreferences: {
+			sandbox: true,
+			contextIsolation: true,
+			nodeIntegration: false,
+			webSecurity: true,
+			allowRunningInsecureContent: false,
+		},
+	});
+	const constructed = electron.windowCalls.at(-1);
+	assert.equal(Object.hasOwn(constructed, 'bounds'), false);
+	assert.deepEqual(
+		[constructed.x, constructed.y, constructed.width, constructed.height],
+		[1_920, -120, 3_840, 2_160],
+	);
 });

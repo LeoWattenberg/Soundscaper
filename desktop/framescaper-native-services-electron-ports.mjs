@@ -91,10 +91,15 @@ function subscribe(listener) {
 }
 
 function createWindow(options, reportError) {
+	const { bounds, ...windowOptions } = options;
 	const window = new BrowserWindow({
-		...options,
+		...windowOptions,
+		x: bounds.x,
+		y: bounds.y,
+		width: bounds.width,
+		height: bounds.height,
 		webPreferences: {
-			...options.webPreferences,
+			...windowOptions.webPreferences,
 			partition: SESSION_PARTITION,
 			webviewTag: false,
 			preload: SINK_PRELOAD,
