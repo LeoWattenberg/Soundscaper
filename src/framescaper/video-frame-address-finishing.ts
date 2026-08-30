@@ -4,6 +4,10 @@
 
 import type { UnifiedExactRenderRgbaFrameV13 } from '../common/editor/unified-exact-render-finishing-consumers-v13.ts';
 import {
+	VIDEO_PREVIEW_CAPTURE_MAXIMUM_HEIGHT,
+	VIDEO_PREVIEW_CAPTURE_MAXIMUM_WIDTH,
+} from '../common/editor/video-preview-capture-admission.ts';
+import {
 	videoBoundaryTime,
 	type VideoSourceTimingView,
 } from '../common/editor/video-source-timing-view.ts';
@@ -145,7 +149,10 @@ async function defaultDecoder(
 	return Object.freeze({
 		async capture(request: Parameters<FrameDecoderFinishing['capture']>[0]) {
 			const captured = await extractor.capture(request.timestampSeconds, {
-				maximumWidth: request.width, maximumHeight: request.height,
+				// This extractor owns a bounded analysis raster. resolve() retains the
+				// returned geometry and performs the requested output resize explicitly.
+				maximumWidth: Math.max(2, Math.min(request.width, VIDEO_PREVIEW_CAPTURE_MAXIMUM_WIDTH)),
+				maximumHeight: Math.max(2, Math.min(request.height, VIDEO_PREVIEW_CAPTURE_MAXIMUM_HEIGHT)),
 				mimeType: 'image/png', alpha: true, signal: request.signal,
 			});
 			return decodeImage(captured.blob, request.signal);
