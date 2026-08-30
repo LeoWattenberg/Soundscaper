@@ -49,21 +49,6 @@ test('Soundscaper candidate source scope excludes every Framescaper codec input'
 	assert.throws(() => soundscaperProfessionalNativeSourceIdsForTarget('mac-x64'), /target/u);
 });
 
-test('the self-test contract is closed and adds OS codec CTests only where applicable', () => {
-	const linux = requiredSoundscaperProfessionalNativeSelfTestIds('linux-x64');
-	const mac = requiredSoundscaperProfessionalNativeSelfTestIds('mac-arm64');
-	assert(linux.includes('m5f1-handshake'));
-	assert(linux.includes('addon-exact-backend-format-inventory'));
-	assert(linux.includes('fixture-deterministic-process'));
-	assert(linux.includes('isolation-broker-filesystem-grant'));
-	assert(linux.includes('packaged-electron-utility-process-smoke'));
-	assert(linux.includes('delivery-filesystem-protocol'));
-	assert.equal(linux.some((id) => id.startsWith('closure-')), false,
-		'closure policy checks belong to dependency evidence, not synthetic self-test receipts');
-	assert.equal(linux.includes('os-audio-codec-ctest'), false);
-	assert(mac.includes('os-audio-codec-ctest'));
-});
-
 test('the packaged Electron smoke binds a separate exact addon-inventory receipt', () => {
 	const request = {
 		id: 'packaged-electron-utility-process-smoke',

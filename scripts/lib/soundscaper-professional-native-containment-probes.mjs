@@ -18,6 +18,11 @@ const SCENARIOS = Object.freeze({
 		argument: 'child-process',
 		stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE child-process denied\n',
 	}),
+	'isolation-rss-ceiling': Object.freeze({
+		argument: 'rss-ceiling',
+		stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n',
+		maximumRssBytes: 128 * 1024 ** 2,
+	}),
 });
 
 export async function runSoundscaperProfessionalNativeContainmentProbe(options, dependencies = {}) {
@@ -76,12 +81,16 @@ export async function runSoundscaperProfessionalNativeContainmentProbe(options, 
 			framedControl: null,
 			resourcePolicy: Object.freeze({
 				maximumJobDurationMs: 30_000,
-				maximumRssBytes: 512 * 1024 ** 2,
+				maximumRssBytes: SCENARIOS[scenario].maximumRssBytes ?? 512 * 1024 ** 2,
 			}),
 		});
 		if (launch?.enforcement?.kind !== 'native-child-os-isolation-enforced') {
 			launch?.kill?.('SIGKILL');
 			throw new Error('The hostile containment probe did not traverse enforced target isolation.');
+		}
+		if (scenario === 'isolation-rss-ceiling' && launch.enforcement.target !== 'mac-arm64') {
+			launch.kill?.('SIGKILL');
+			throw new Error('The RSS ceiling probe did not traverse the macOS isolation launcher.');
 		}
 		const completion = await launch.completion;
 		if (scenario === 'isolation-network-denial') {
@@ -105,6 +114,13 @@ export async function runSoundscaperProfessionalNativeContainmentProbe(options, 
 export function assertSoundscaperProfessionalContainmentProbeResult(scenarioValue_, completion) {
 	const scenario = scenarioValue(scenarioValue_);
 	const expected = SCENARIOS[scenario];
+	if (scenario === 'isolation-rss-ceiling') {
+		if (!completion || completion.exitCode !== 128 || completion.signal !== 'SIGKILL'
+			|| completion.stdout !== expected.stdout || completion.stderr !== '') {
+			throw new Error('The hostile containment probe observed no RSS ceiling termination.');
+		}
+		return Object.freeze({ scenario, status: 'observed-terminated' });
+	}
 	if (!completion || completion.exitCode !== 0 || completion.signal !== null
 		|| completion.stdout !== expected.stdout || completion.stderr !== '') {
 		throw new Error(`The ${scenario} hostile containment probe emitted no observed denial.`);

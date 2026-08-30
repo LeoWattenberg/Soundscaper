@@ -463,6 +463,22 @@ int childProcessProbe(int argc)
 	return denied("child-process");
 }
 
+#if defined(__APPLE__)
+int residentMemoryProbe(int argc)
+{
+	if (argc != 2 || std::fputs(
+		"SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n", stdout) < 0
+		|| std::fflush(stdout) != 0) return 125;
+	constexpr size_t pressureBytes = 256u * 1024u * 1024u;
+	std::vector<uint8_t> pressure(pressureBytes);
+	volatile uint8_t *resident = pressure.data();
+	for (size_t offset = 0u; offset < pressure.size(); offset += 4096u) resident[offset] = 0x5au;
+	(void)sleep(1u);
+	return std::fputs("SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling survived\n", stdout) >= 0
+		&& std::fflush(stdout) == 0 ? 126 : 125;
+}
+#endif
+
 int containmentProbe(int argc, char **argv)
 {
 	if (argc == 1) return -1;
@@ -472,6 +488,9 @@ int containmentProbe(int argc, char **argv)
 	if (std::strcmp(scenario, "filesystem") == 0) return filesystemProbe(argc, argv);
 	if (std::strcmp(scenario, "network") == 0) return networkProbe(argc, argv);
 	if (std::strcmp(scenario, "child-process") == 0) return childProcessProbe(argc);
+#if defined(__APPLE__)
+	if (std::strcmp(scenario, "rss-ceiling") == 0) return residentMemoryProbe(argc);
+#endif
 	return 125;
 }
 

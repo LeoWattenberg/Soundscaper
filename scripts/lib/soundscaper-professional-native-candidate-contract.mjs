@@ -63,6 +63,7 @@ export function requiredSoundscaperProfessionalNativeSelfTestIds(targetValue) {
 	const target = targetId(targetValue);
 	return Object.freeze([
 		...COMMON_SELF_TEST_IDS,
+		...(target === 'mac-arm64' ? ['isolation-rss-ceiling'] : []),
 		...(['mac-arm64', 'win-x64', 'win-arm64'].includes(target)
 			? ['os-audio-codec-ctest'] : []),
 	].sort());
