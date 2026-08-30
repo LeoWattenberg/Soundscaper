@@ -83,6 +83,21 @@ test('Soundscaper V29 keyed strategy refuses fallback, caption, and detached pla
 	}), /owned|authority/iu);
 });
 
+test('Soundscaper V29 keyed strategy refuses a stale export projection after canonical mutation', () => {
+	const runtime = createSoundscaperProjectRuntimeSelection();
+	const project = createSoundscaperProject(framescaperV20Options() as never);
+	const strategy = createSoundscaperVideoExportStrategy(runtime, dependencies());
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project, delivery: fallbackFreeDelivery(project),
+	});
+	(project as unknown as { title: string }).title = 'Advanced after projection';
+
+	assert.throws(() => strategy.createPlan({
+		canonicalProject: project, exportProject, format: 'webm', range: 'project',
+		includeAudio: false, canvas: undefined,
+	}), /diverge|stale|snapshot/iu);
+});
+
 test('Soundscaper V29 controller strategy is desktop-only', () => {
 	const runtime = createSoundscaperProjectRuntimeSelection();
 	assert.equal(createSoundscaperDesktopVideoExportStrategy(runtime, { isDesktop: false }), undefined);
