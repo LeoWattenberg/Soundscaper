@@ -13,6 +13,7 @@ import type { FramescaperProjectNativeMedia } from './editor-project-native-medi
 import { framescaperProjectNativeMediaFoundationShapeAssistance } from './editor-project-assistance-foundation.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import { createFramescaperOpenFxExecutionForFoundationNativeMedia } from './selected-native-media-openfx-execution.ts';
+import type { CreateFramescaperOpenFxExactExecutionNativeMedia } from './video-export-exact-execution-finishing.ts';
 
 /** Bind the selected nativeMedia preview implementation to assistance's detached foundation. */
 export function bindFramescaperSelectedVisualPreviewControllerAssistance(options: Readonly<{
@@ -28,6 +29,7 @@ export function bindFramescaperSelectedVisualPreviewControllerAssistance(options
 	const projectNativeMedia = (project: unknown): FramescaperProjectNativeMedia => (
 		framescaperProjectNativeMediaFoundationShapeAssistance(foundationInput(project))
 	);
+	const openFxExecute = options.openFxExecute;
 	const inherited = <Request extends Readonly<{ readonly project: unknown }>>(request: Request) => ({
 		...request,
 		project: framescaperProjectFinishingFoundationShapeNativeMedia(projectNativeMedia(request.project)),
@@ -39,11 +41,12 @@ export function bindFramescaperSelectedVisualPreviewControllerAssistance(options
 			const module = await import('./editor-selected-finishing-visual-preview.ts');
 			return module.createFramescaperSelectedVisualPreviewSessionFinishing({
 				...inherited(request),
-				...(options.openFxExecute ? { createOpenFxExecution: ({ foundationPlan, timingViews }) => (
+				...(openFxExecute ? { createOpenFxExecution: ({ foundationPlan, timingViews }:
+					Parameters<CreateFramescaperOpenFxExactExecutionNativeMedia>[0]) => (
 					createFramescaperOpenFxExecutionForFoundationNativeMedia({
 						profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
 						project: projectNativeMedia(request.project), foundationPlan, timingViews,
-						execute: options.openFxExecute!,
+						execute: openFxExecute,
 					})
 				) } : {}),
 			});
@@ -54,7 +57,17 @@ export function bindFramescaperSelectedVisualPreviewControllerAssistance(options
 		},
 		async (request) => {
 			const module = await import('./editor-selected-finishing-timeline-filmstrip.ts');
-			return module.createFramescaperSelectedTimelineFilmstripFinishing(inherited(request) as never);
+			return module.createFramescaperSelectedTimelineFilmstripFinishing({
+				...inherited(request),
+				...(openFxExecute ? { createOpenFxExecution: ({ foundationPlan, timingViews }:
+					Parameters<CreateFramescaperOpenFxExactExecutionNativeMedia>[0]) => (
+					createFramescaperOpenFxExecutionForFoundationNativeMedia({
+						profile: FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
+						project: projectNativeMedia(request.project), foundationPlan, timingViews,
+						execute: openFxExecute,
+					})
+				) } : {}),
+			} as never);
 		},
 	));
 }

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -130,4 +131,15 @@ test('a cancelled filmstrip surfaces the caller abort reason in either product',
 
 test('an image filmstrip requires the authenticated runtime profile', async () => {
 	await assert.rejects(() => image({ profile: {} }), TypeError);
+});
+
+test('the finishing filmstrip receives the same selected OpenFX execution as the main preview', async () => {
+	const [filmstripSource, controllerSource] = await Promise.all([
+		readFile(new URL('../src/framescaper/editor-selected-finishing-timeline-filmstrip.ts', import.meta.url), 'utf8'),
+		readFile(new URL('../src/framescaper/editor-selected-assistance-visual-preview-controller.ts', import.meta.url), 'utf8'),
+	]);
+	assert.match(filmstripSource,
+		/createFramescaperSelectedVisualPreviewSessionFinishing\(\{[\s\S]*createOpenFxExecution: options\.createOpenFxExecution/u);
+	assert.match(controllerSource,
+		/createFramescaperSelectedTimelineFilmstripFinishing\(\{[\s\S]*createOpenFxExecution/u);
 });

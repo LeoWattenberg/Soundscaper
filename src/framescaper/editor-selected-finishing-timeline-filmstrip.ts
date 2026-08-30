@@ -14,6 +14,7 @@ import { resolveVideoKeyframePreviewState } from '../common/editor/video-keyfram
 import { resolveVideoSourceDisplaySize } from '../common/editor/video-source-presentation.ts';
 import { resolveActiveVideoLayers } from '../common/editor/video-timeline.js';
 import { createFramescaperSelectedVisualPreviewSessionFinishing } from './editor-selected-finishing-visual-preview.ts';
+import type { CreateFramescaperOpenFxExactExecutionNativeMedia } from './video-export-exact-execution-finishing.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -35,6 +36,7 @@ export interface FramescaperSelectedTimelineFilmstripOptionsFinishing
 	extends ProductVideoTimelineFilmstripRequest {
 	readonly profile: unknown;
 	readonly store: AudioEditorProjectStore;
+	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
 	/** Test seam; selected production routes always use browser image decode. */
 	readonly decodeSource?: DecodeFilmstripSourceFinishing;
 }
@@ -57,6 +59,9 @@ export async function createFramescaperSelectedTimelineFilmstripFinishing(
 		store: options.store,
 		width,
 		height,
+		...(options.createOpenFxExecution ? {
+			createOpenFxExecution: options.createOpenFxExecution,
+		} : {}),
 	});
 	if (session === null) return null;
 	if (typeof session.renderExact !== 'function') {
