@@ -118,9 +118,19 @@ jobs:
         with:
           node-version: 26.5.0
           architecture: ${{ matrix.node_arch }}
+          package-manager-cache: false
       - name: Pin target-native npm
         if: matrix.tooling_node_arch != matrix.node_arch
         run: npm install --global npm@12.0.1
+      - name: Verify target-native Node.js
+        if: matrix.tooling_node_arch != matrix.node_arch
+        shell: bash
+        env:
+          SOUNDSCAPER_EXPECTED_NODE_ARCH: ${{ matrix.node_arch }}
+        run: |
+          set -euo pipefail
+          node -e 'if (process.arch !== process.env.SOUNDSCAPER_EXPECTED_NODE_ARCH) process.exit(1)'
+          test "$(npm --version)" = "12.0.1"
       - name: Build, install, close, self-test, and seal candidate
         if: runner.os != 'macOS'
         shell: bash

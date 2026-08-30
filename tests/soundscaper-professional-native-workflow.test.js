@@ -29,9 +29,18 @@ test('reusable professional candidate workflow closes all five Soundscaper targe
 	assert.match(source, /npm run milestone5a:promote-native-candidate/u);
 	assert.match(source, /architecture: \$\{\{ matrix\.tooling_node_arch \}\}/u);
 	assert.match(source,
-		/name: Activate target-native Node\.js[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*architecture: \$\{\{ matrix\.node_arch \}\}/u);
+		/name: Activate target-native Node\.js[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*architecture: \$\{\{ matrix\.node_arch \}\}[\s\S]*package-manager-cache: false/u);
 	assert.match(source,
 		/name: Pin target-native npm[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*npm install --global npm@12\.0\.1/u);
+	assert.match(source,
+		/name: Verify target-native Node\.js[\s\S]*SOUNDSCAPER_EXPECTED_NODE_ARCH: \$\{\{ matrix\.node_arch \}\}[\s\S]*process\.arch !== process\.env\.SOUNDSCAPER_EXPECTED_NODE_ARCH[\s\S]*npm --version/u);
+	const packagedBuild = source.indexOf('- name: Build target packaged Electron utility-process harness');
+	const targetRuntime = source.indexOf('- name: Activate target-native Node.js');
+	const runtimeCheck = source.indexOf('- name: Verify target-native Node.js');
+	const candidateBuild = source.indexOf('- name: Build, install, close, self-test, and seal candidate');
+	assert(packagedBuild >= 0 && packagedBuild < targetRuntime
+		&& targetRuntime < runtimeCheck && runtimeCheck < candidateBuild,
+	'the x64 tooling phase must finish before target-native candidate orchestration');
 	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.platform \}\}/u);
 	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.arch \}\}/u);
 	assert.match(source,
