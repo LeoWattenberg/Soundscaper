@@ -114,8 +114,51 @@ export function formatDesktopProjectLibraryLeaseMatrix(value) {
 async function runCase(runtime, workflowId, order) {
 	const caseRoot = join(runtime.smokeRoot, `${workflowId}-${order.join('-')}`);
 	await mkdir(caseRoot, { recursive: true });
-	const scope = { ...runtime, caseRoot, appDataPath: join(caseRoot, 'application-data'), childIndex: 0 };
-	return runDesktopProjectLibraryLeaseMatrixCase({ driver: createChildDriver(scope), workflowId, order });
+	const children = new Set();
+	const scope = {
+		...runtime, caseRoot, appDataPath: join(caseRoot, 'application-data'), childIndex: 0, children,
+	};
+	let result;
+	let failure = null;
+	try {
+		result = await runDesktopProjectLibraryLeaseMatrixCase({
+			driver: createChildDriver(scope), workflowId, order,
+		});
+	} catch (error) {
+		failure = error;
+	}
+	try {
+		await cleanupDesktopProjectLibraryLeaseMatrixChildren(children, scope.platform);
+	} catch (cleanupError) {
+		if (failure !== null) {
+			throw new AggregateError(
+				[failure, cleanupError], 'Lease matrix case and child cleanup both failed', { cause: failure },
+			);
+		}
+		throw cleanupError;
+	}
+	if (failure !== null) throw failure;
+	return result;
+}
+
+export async function cleanupDesktopProjectLibraryLeaseMatrixChildren(
+	children,
+	platform,
+	terminate = terminateTree,
+) {
+	const failures = [];
+	for (const launched of [...children]) {
+		try {
+			await terminate(launched.child, platform);
+			await launched.exit;
+		} catch (error) {
+			failures.push(error);
+		}
+	}
+	children.clear();
+	if (failures.length > 0) {
+		throw new AggregateError(failures, 'Lease matrix child cleanup failed');
+	}
 }
 
 export async function runDesktopProjectLibraryLeaseMatrixCase({ driver, workflowId, order }) {
@@ -398,7 +441,13 @@ async function launch(scope, productId, action, projectId, commitRequest) {
 		child.once('error', reject);
 		child.once('exit', (code, signal) => resolveExit({ code, signal, get output() { return output; } }));
 	});
-	return { child, control, exit, get output() { return output; } };
+	const launched = { child, control, exit, get output() { return output; } };
+	scope.children.add(launched);
+	void exit.then(
+		() => scope.children.delete(launched),
+		() => scope.children.delete(launched),
+	);
+	return launched;
 }
 
 async function expectCleanExit(process) {

@@ -9,6 +9,7 @@ import test from 'node:test';
 
 import {
 	awaitLeaseMatrixControlFile,
+	cleanupDesktopProjectLibraryLeaseMatrixChildren,
 	createDesktopProjectLibraryLeaseMatrixDocument,
 	createDesktopProjectLibraryLeaseMatrixPlan,
 	DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS,
@@ -41,6 +42,23 @@ const HISTORICAL_WORKFLOWS = [
 	'orderly-process-restart',
 	'crash-restart-recovery',
 ];
+
+test('lease-matrix cleanup terminates every child retained by a failed case', async () => {
+	const first = {};
+	const second = {};
+	const children = new Set([
+		{ child: first, exit: Promise.resolve({ code: null, signal: 'SIGKILL' }) },
+		{ child: second, exit: Promise.resolve({ code: null, signal: 'SIGKILL' }) },
+	]);
+	const terminated = [];
+	await cleanupDesktopProjectLibraryLeaseMatrixChildren(
+		children,
+		'linux',
+		async (child, platform) => { terminated.push([child, platform]); },
+	);
+	assert.deepEqual(terminated, [[first, 'linux'], [second, 'linux']]);
+	assert.equal(children.size, 0);
+});
 
 test('current packaged lease qualification admits both product-family v1 baselines', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
