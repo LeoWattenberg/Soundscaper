@@ -3,6 +3,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { thirdPartyNoticeRecordsVersion } from './lib/third-party-notice-version.mjs';
+
 const root = resolve(import.meta.dirname, '..');
 const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const packageLock = JSON.parse(readFileSync(resolve(root, 'package-lock.json'), 'utf8'));
@@ -43,11 +45,8 @@ const trackedVersions = [
 const findings = [];
 for (const dependency of trackedVersions) {
 	const expected = exactInstalledVersion(dependency);
-	const noticeMarker = dependency === 'electron'
-		? `Electron ${expected}`
-		: `\`${dependency}\` ${expected}`;
 	if (!expected) findings.push(`${dependency}: missing exact lockfile version.`);
-	else if (!notices.includes(noticeMarker)) {
+	else if (!thirdPartyNoticeRecordsVersion(notices, dependency, expected)) {
 		findings.push(`${dependency}: THIRD_PARTY_LICENSES.md does not record locked version ${expected}.`);
 	}
 }
