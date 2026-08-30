@@ -5,7 +5,10 @@ import test from 'node:test';
 
 import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
 import type { SoundscaperNativeServicesBridge } from '../src/common/editor/ui/soundscaper-native-services-bridge.ts';
-import { createSoundscaperNativeServicesSurfaceHost } from '../src/common/editor/ui/workspace/SoundscaperNativeServicesSurface.tsx';
+import {
+	createSoundscaperNativeServicesSurfaceHost,
+	releaseSoundscaperNativeServicesOwnedHost,
+} from '../src/common/editor/ui/workspace/SoundscaperNativeServicesSurface.tsx';
 
 test('menu close preserves bound audio and an authored effect until explicit lifetime actions', async () => {
 	const fixture = lifetimeFixture();
@@ -67,6 +70,81 @@ test('workspace teardown closes retained audio and project plug-in sessions', as
 		['closeNativeAudioSession', 'audio-session-1'],
 		['closeNativePluginInstance', 'plugin-instance-1'],
 	]);
+});
+
+test('a failed surface disposal retains ownership and can be retried', async () => {
+	const failure = new Error('planned surface unmount failure');
+	let unmounts = 0;
+	const container = { dataset: {}, remove: () => undefined } as unknown as HTMLElement;
+	const documentValue = {
+		activeElement: null,
+		defaultView: null,
+		createElement: () => container,
+		body: { append: () => undefined },
+		querySelector: () => null,
+	} as unknown as Document;
+	const host = createSoundscaperNativeServicesSurfaceHost({
+		bridge: {} as SoundscaperNativeServicesBridge,
+		documentValue,
+		createHostRoot: () => ({
+			render: () => undefined,
+			unmount: () => {
+				unmounts += 1;
+				if (unmounts === 1) throw failure;
+			},
+		}),
+	});
+	host.open('native-effect-manage');
+	const owner = {};
+	const hosts = new WeakMap<object, Readonly<{ host: typeof host }>>([
+		[owner, Object.freeze({ host })],
+	]);
+
+	await assert.rejects(() => releaseSoundscaperNativeServicesOwnedHost(hosts, owner), failure);
+	assert.equal(hosts.has(owner), true,
+		'a failed disposal must retain the only handle that can retry its cleanup');
+	await releaseSoundscaperNativeServicesOwnedHost(hosts, owner);
+	assert.equal(unmounts, 2);
+	assert.equal(hosts.has(owner), false, 'only a successful retry retires host ownership');
+});
+
+test('an in-flight failed disposal never hides or overwrites a replacement host', async () => {
+	const failure = new Error('planned deferred disposal failure');
+	let rejectDisposal: (reason?: unknown) => void = () => undefined;
+	const disposal = new Promise<void>((_resolve, reject) => { rejectDisposal = reject; });
+	const owner = {};
+	const closing = Object.freeze({ host: Object.freeze({ dispose: () => disposal }) });
+	let replacementDisposals = 0;
+	const replacement = Object.freeze({ host: Object.freeze({
+		dispose: () => { replacementDisposals += 1; return Promise.resolve(); },
+	}) });
+	const hosts = new WeakMap<object, typeof closing | typeof replacement>([[owner, closing]]);
+
+	const release = releaseSoundscaperNativeServicesOwnedHost(hosts, owner, closing);
+	const rejected = assert.rejects(release, failure);
+	assert.equal(hosts.has(owner), false,
+		'a closing host must yield its slot so resolution cannot reuse it');
+	hosts.set(owner, replacement);
+	rejectDisposal(failure);
+	await rejected;
+	assert.equal(hosts.get(owner), replacement,
+		'a failed old disposal must not overwrite the replacement installed while it awaited');
+	assert.equal(replacementDisposals, 0);
+});
+
+test('a stale lifecycle cleanup cannot release a replacement host', async () => {
+	const owner = {};
+	let replacementDisposals = 0;
+	const previous = Object.freeze({ host: Object.freeze({ dispose: () => Promise.resolve() }) });
+	const replacement = Object.freeze({ host: Object.freeze({
+		dispose: () => { replacementDisposals += 1; return Promise.resolve(); },
+	}) });
+	const hosts = new WeakMap<object, typeof previous | typeof replacement>([[owner, replacement]]);
+
+	await releaseSoundscaperNativeServicesOwnedHost(hosts, owner, previous);
+	assert.equal(hosts.get(owner), replacement);
+	assert.equal(replacementDisposals, 0,
+		'an old bridge cleanup must be conditional on the host identity it captured');
 });
 
 function lifetimeFixture() {

@@ -174,7 +174,8 @@ export function createSoundscaperNativeServicesSurfaceHost(
 		},
 		close,
 		dispose: () => {
-			disposal ??= (async () => {
+			if (disposal !== null) return disposal;
+			const operation = (async () => {
 				root?.unmount();
 				root = null;
 				openSurface = null;
@@ -185,7 +186,11 @@ export function createSoundscaperNativeServicesSurfaceHost(
 				restorationResult = null;
 				await renderer?.dispose();
 			})();
-			return disposal;
+			disposal = operation;
+			void operation.catch(() => {
+				if (disposal === operation) disposal = null;
+			});
+			return operation;
 		},
 	});
 }
@@ -233,8 +238,13 @@ export function useSoundscaperNativeServicesMenuRefresh(input: Readonly<{
 	useEffect(() => {
 		if (bridge === null) return undefined;
 		const owner = hostOwner(controller, bridge);
-		return () => { void releaseOwnedHost(owner).catch(reportRuntimeReleaseFailure); };
-	}, [bridge, controller]);
+		// Render may install a replacement under the same controller before this
+		// lifecycle cleans up, so release only the host this effect observed.
+		const owned = HOSTS.get(owner);
+		return () => {
+			if (owned) void releaseOwnedHost(owner, owned).catch(reportRuntimeReleaseFailure);
+		};
+	}, [bridge, controller, input.engine]);
 }
 
 /**
@@ -280,11 +290,22 @@ export function releaseSoundscaperNativeServicesWorkspaceRuntime(owner: object):
 	void releaseOwnedHost(owner).catch(reportRuntimeReleaseFailure);
 }
 
-async function releaseOwnedHost(owner: object): Promise<void> {
-	const owned = HOSTS.get(owner);
-	if (!owned) return;
-	HOSTS.delete(owner);
-	await owned.host.dispose();
+async function releaseOwnedHost(owner: object, expected: OwnedHost | null = null): Promise<void> {
+	return releaseSoundscaperNativeServicesOwnedHost(HOSTS, owner, expected);
+}
+
+export async function releaseSoundscaperNativeServicesOwnedHost<Owned extends Readonly<{
+	host: Pick<SoundscaperNativeServicesSurfaceHost, 'dispose'>;
+}>>(hosts: WeakMap<object, Owned>, owner: object, expected: Owned | null = null): Promise<void> {
+	const owned = hosts.get(owner);
+	if (!owned || (expected !== null && owned !== expected)) return;
+	hosts.delete(owner);
+	try {
+		await owned.host.dispose();
+	} catch (error) {
+		if (!hosts.has(owner)) hosts.set(owner, owned);
+		throw error;
+	}
 }
 
 function reportRuntimeReleaseFailure(error: unknown): void {
