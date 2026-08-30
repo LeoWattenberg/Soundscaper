@@ -61,11 +61,13 @@
 			"external-project-document-validation",
 			"external-media-parser-bounds",
 			"scape-archive-structure-integrity",
+			"cross-origin-project-transfer",
 			"shared-desktop-project-library-integrity"
 		],
 		"archive-expansion": [
 			"scape-archive-structure-integrity",
-			"scape-archive-expansion"
+			"scape-archive-expansion",
+			"cross-origin-project-transfer"
 		],
 		"native-helpers": [
 			"native-helper-processes"
@@ -83,7 +85,8 @@
 			"shared-desktop-project-library-integrity"
 		],
 		"job-cancellation": [
-			"long-job-cancellation"
+			"long-job-cancellation",
+			"cross-origin-project-transfer"
 		]
 	},
 	"publicationRouteQualification": {
@@ -96,6 +99,13 @@
 				"finalRendererBlob": true,
 				"maximumBytes": 536870912,
 				"controlId": "bounded-direct-archive-publication"
+			},
+			{
+				"id": "project-transfer-browser-blob",
+				"publicationMode": "browser-blob",
+				"finalRendererBlob": true,
+				"maximumBytes": 536870912,
+				"controlId": "origin-authenticated-bounded-project-transfer"
 			},
 			{
 				"id": "scape-file-system-access",
@@ -363,6 +373,111 @@
 							{
 								"kind": "test",
 								"path": "tests/browser/audio-editor-opfs-worker.spec.js"
+							}
+						]
+					}
+				}
+			},
+			{
+				"id": "web-cross-origin-project-transfer-import",
+				"faults": {
+					"cancel-before-stage": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/project-transfer-handshake.test.ts"
+							}
+						]
+					},
+					"cancel-during-body": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/project-transfer-bundle.test.ts"
+							},
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-scape-cancellation.test.ts"
+							}
+						]
+					},
+					"renderer-loss": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/project-transfer-page-window.test.ts"
+							},
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-storage-lifecycle.test.js"
+							}
+						]
+					},
+					"helper-loss": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-opfs-worker-client.test.ts"
+							},
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-opfs-worker-repository.test.ts"
+							}
+						]
+					},
+					"quota-or-disk-full": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-scape-import-capacity-admission.test.ts"
+							},
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-streaming-media-storage.test.ts"
+							}
+						]
+					},
+					"commit-failure": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/project-transfer-bundle.test.ts"
+							},
+							{
+								"kind": "test",
+								"path": "tests/project-transfer-receive-store-homes.test.ts"
+							}
+						]
+					},
+					"restart-after-staged-write": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-cross-context-media-lifecycle.test.ts"
+							},
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-streaming-media-lifecycle.test.ts"
+							}
+						]
+					},
+					"restart-after-commit": {
+						"outcome": "witnessed",
+						"evidence": [
+							{
+								"kind": "test",
+								"path": "tests/browser/dual-origin/editable-copy-handoff.spec.js"
+							},
+							{
+								"kind": "test",
+								"path": "tests/audio-editor-linked-audio-scape-roundtrip.test.ts"
 							}
 						]
 					}
@@ -1494,6 +1609,58 @@
 				{
 					"kind": "test",
 					"path": "tests/audio-editor-storage-lifecycle.test.js"
+				}
+			]
+		},
+		{
+			"id": "browser-origin-to-peer-project-store",
+			"from": "Soundscaper or Framescaper transfer origin and manual archive picker",
+			"to": "The peer origin transfer page and its product-family project stores",
+			"data": "Origin-authenticated versioned handshake messages, bounded .scape archive bytes, family-qualified project documents and media, and digest-bound conversion-report sidecars",
+			"entryPoints": [
+				"src/common/transfer/transfer-window-port.ts",
+				"src/common/transfer/project-transfer-handshake.ts",
+				"src/common/transfer/transfer-manual-import.ts",
+				"src/common/transfer/project-transfer-bundle-admission.ts",
+				"src/common/transfer/cross-product-handoff-report-sidecar.ts",
+				"src/common/transfer/transfer-page-send.ts"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "src/common/transfer/transfer-window-port.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/transfer/project-transfer-handshake.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/transfer/project-transfer-bundle-admission.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/transfer/transfer-manual-import.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "src/common/transfer/cross-product-handoff-report-sidecar.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/project-transfer-page-session.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/project-transfer-handshake.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/project-transfer-bundle.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/browser/dual-origin/editable-copy-handoff.spec.js"
 				}
 			]
 		},
@@ -4849,6 +5016,92 @@
 				"status": "satisfied",
 				"requiredControlIds": []
 			}
+		},
+		{
+			"id": "cross-origin-project-transfer",
+			"title": "Cross-origin project transfer admits forged, oversized, or partially published archives",
+			"boundaryIds": [
+				"browser-origin-to-peer-project-store"
+			],
+			"assets": [
+				"same-origin project confidentiality",
+				"project and source integrity",
+				"local storage capacity",
+				"renderer availability"
+			],
+			"actor": "A hostile window, compromised peer origin, or manually selected archive attempts to impersonate a transfer peer, amplify work, or publish malformed state.",
+			"impact": "high",
+			"status": "partial",
+			"releaseDisposition": "conditional",
+			"ownerMilestone": "2",
+			"currentControls": [
+				{
+					"id": "origin-authenticated-bounded-project-transfer",
+					"summary": "The production transfer route admits only messages from an exact origin in the configured Soundscaper/Framescaper pair and the exact peer window identity. Its versioned wire binds one random session identifier, strict sequence and acknowledgement state, one-shot terminal settlement, exact target origins, closed record shapes, and bounded text. Production defaults admit at most 512 entries and 512 MiB per archive; declared and actual lengths must agree, SharedArrayBuffer-backed data is refused, and each archive receives ordinary Scape identity, envelope, capacity, import-transaction, and family-store admission before publication. Manual import preflights file names, counts, declared sizes, and digest-bound conversion-report sidecars before reading one archive at a time. Download publication constructs and retains only one archive and optional companion group at a time, revokes the previous object URLs before the next archive, and leaves the sending origin unchanged.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "src/common/transfer/transfer-window-port.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/transfer/project-transfer-handshake.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/transfer/project-transfer-bundle-admission.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/transfer/project-transfer-bundle.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/transfer/transfer-manual-import.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "src/common/transfer/transfer-page-send.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/project-transfer-page-session.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/project-transfer-handshake.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/project-transfer-bundle.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/project-transfer-page-transport.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/project-transfer-page-window.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/browser/dual-origin/editable-copy-handoff.spec.js"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "cross-origin-transfer-resource-and-crash-qualification",
+					"exposure": "The route bounds archive count and each complete archive but does not qualify the aggregate structured-clone, Scape parser, decompression, decoded media, IndexedDB/OPFS, browser heap, worker memory, RSS, GC, CPU, or elapsed-time cost of a maximum transfer. The 8 GiB lower-only programmatic ceiling is outside the production default. Orderly simulated loss and storage reopen evidence does not qualify abrupt process death, power loss, browser-specific popup lifecycle differences, or concurrent transfers across tabs.",
+					"requiredControl": "Before broader scale or crash-safety claims, qualify aggregate receiver working set and execution time at the production limits, reserve storage across concurrent imports, and run abrupt-loss and durable-reopen evidence across supported browsers and product origins.",
+					"ownerMilestone": "2",
+					"acceptanceCriteria": [
+						"Reference-scale dual-origin evidence measures aggregate heap and storage amplification, proves bounded cancellation and concurrent admission, and reopens only complete projects after abrupt sender, receiver, worker, browser, and power-loss faults."
+					]
+				}
+			]
 		},
 		{
 			"id": "electron-renderer-ipc-boundary",

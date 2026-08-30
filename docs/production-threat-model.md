@@ -70,6 +70,7 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 | --- | --- | --- | --- |
 | `external-input-to-parser` | User-selected files and collaborator-supplied bytes | Project, archive, media, and metadata parsers | Reject invalid structure and resource amplification before persistent publication. |
 | `archive-reader-to-storage` | ZIP entries and admitted family-v1 project records | IndexedDB/OPFS projects and sources | A failed or cancelled import does not publish a project or leave staged sources. |
+| `browser-origin-to-peer-project-store` | Soundscaper or Framescaper transfer origin and manually selected archives | Peer-origin transfer page and its product-family stores | Admit only the configured origin and peer window, a closed bounded handshake, and ordinary family-qualified Scape publication. |
 | `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
 | `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
 | `electron-main-to-shared-project-library` | Soundscaper or Framescaper Electron main-process host | Product-isolated family-v1 appData catalog, project-document tree, and managed-media tree | The family-qualified handshake and current fenced lease must agree before project use; only the current lease may publish state, exact-absent managed bodies receive point-in-time catalog and destination-capacity admission before body work, immutable bodies are complete and digest-bound before catalog publication, and recovery roots remain protected before host exposure. |
@@ -539,14 +540,18 @@ The Framescaper family-v1 keyed browser encoder admits exact generated RGBA at n
 <!-- /policy-narrative:bounded-keyed-rgba-av-encoding -->
 
 The frozen milestone-2 publication-route register remains implemented for exactly
-15 route IDs. `scape-browser-blob`, `audio-mix-browser-blob`,
-`audio-stems-browser-blob`, and `video-browser-blob` are the four retained
-browser-Blob fallbacks under one non-raiseable 512 MiB final-output ceiling.
+16 route IDs. `scape-browser-blob`, `project-transfer-browser-blob`,
+`audio-mix-browser-blob`, `audio-stems-browser-blob`, and `video-browser-blob`
+are the five retained browser-Blob fallbacks under one non-raiseable 512 MiB
+final-output ceiling.
 Scape rechecks its completed archive. Browser compressed audio admits complete
 browser-native file bytes from the dedicated providers or WebCodecs plus
 Mediabunny, and keyed video admits one complete Mediabunny MP4/WebM container,
-before final Blob construction and before download publication. No browser
-route stats or reads FFmpeg MEMFS because production browser FFmpeg is absent.
+before final Blob construction and before download publication. Project
+transfer publishes one bounded Scape archive and optional report companion at a
+time, releasing the preceding object URLs before producing the next archive.
+No browser route stats or reads FFmpeg MEMFS because production browser FFmpeg
+is absent.
 
 The other eleven IDs remain direct publication routes:
 `scape-file-system-access`, `scape-electron`,
@@ -565,6 +570,21 @@ does not imply streaming codec generation. This route-level qualification does
 not add browser heap, codec worker or Mediabunny memory, RSS, GC-headroom, CPU,
 elapsed-time, reference-scale, quota, crash, power-loss, durability,
 native-picker, packaged, or cross-platform claims.
+
+### Cross-origin project transfer
+
+`cross-origin-project-transfer` is **partial** at the
+`browser-origin-to-peer-project-store` boundary.
+
+<!-- policy-narrative:origin-authenticated-bounded-project-transfer -->
+The production transfer route admits only messages from an exact origin in the configured Soundscaper/Framescaper pair and the exact peer window identity. Its versioned wire binds one random session identifier, strict sequence and acknowledgement state, one-shot terminal settlement, exact target origins, closed record shapes, and bounded text. Production defaults admit at most 512 entries and 512 MiB per archive; declared and actual lengths must agree, SharedArrayBuffer-backed data is refused, and each archive receives ordinary Scape identity, envelope, capacity, import-transaction, and family-store admission before publication. Manual import preflights file names, counts, declared sizes, and digest-bound conversion-report sidecars before reading one archive at a time. Download publication constructs and retains only one archive and optional companion group at a time, revokes the previous object URLs before the next archive, and leaves the sending origin unchanged.
+<!-- /policy-narrative:origin-authenticated-bounded-project-transfer -->
+
+The download side is the `project-transfer-browser-blob` publication route.
+The receiver's persistent write is separately registered as
+`web-cross-origin-project-transfer-import` in the publication fault matrix.
+Reference-scale aggregate memory and elapsed-time evidence, abrupt browser and
+power loss, and cross-tab concurrent reservation remain unqualified.
 
 ### Electron renderer, IPC, and filesystem capabilities
 
@@ -1403,8 +1423,8 @@ The required cancellation contract is end-to-end: one signal flows from the user
 
 `publicationFaultQualification` in `config/production-security-matrix.json`
 records one explicit outcome for every publication-path and fault-class
-combination in the milestone-2 closure inventory: fourteen publication paths
-crossed with eight fault classes, one hundred twelve cells in total. A
+combination in the milestone-2 closure inventory: fifteen publication paths
+crossed with eight fault classes, one hundred twenty cells in total. A
 `witnessed` cell carries automated evidence that the previous commit is
 preserved or a recoverable journal is exposed and that no partial destination
 is advertised. An `inapplicable` cell records why the fault class has no

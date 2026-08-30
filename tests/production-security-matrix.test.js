@@ -141,6 +141,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'external-media-parser-bounds': 'partial',
 		'scape-archive-structure-integrity': 'enforced',
 		'scape-archive-expansion': 'enforced',
+		'cross-origin-project-transfer': 'partial',
 		'electron-renderer-ipc-boundary': 'enforced',
 		'desktop-static-resource-paths': 'enforced',
 		'desktop-read-path-capabilities': 'enforced',

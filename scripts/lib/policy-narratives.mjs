@@ -244,6 +244,15 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
+		marker: 'origin-authenticated-bounded-project-transfer',
+		register: 'config/production-security-matrix.json',
+		riskId: 'cross-origin-project-transfer',
+		controlId: 'origin-authenticated-bounded-project-transfer',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+	}),
+	Object.freeze({
 		marker: 'timeline-annotation-capability',
 		register: 'config/project-compatibility.json',
 		ruleId: 'current-timeline-annotation-capability',

@@ -81,6 +81,7 @@
 			"status": "implemented",
 			"routeIds": [
 				"scape-browser-blob",
+				"project-transfer-browser-blob",
 				"scape-file-system-access",
 				"scape-electron",
 				"audio-mix-browser-blob",
@@ -144,6 +145,7 @@
 			"publicationPathIds": [
 				"web-project-indexeddb",
 				"web-project-opfs",
+				"web-cross-origin-project-transfer-import",
 				"scape-file-system-access",
 				"scape-electron",
 				"direct-audio-file-system-access",

@@ -12,6 +12,7 @@ const matrixUrl = new URL('../config/production-security-matrix.json', import.me
 
 const ROUTE_CONTROL = Object.freeze({
 	'scape-browser-blob': 'bounded-direct-archive-publication',
+	'project-transfer-browser-blob': 'origin-authenticated-bounded-project-transfer',
 	'scape-file-system-access': 'bounded-direct-archive-publication',
 	'scape-electron': 'bounded-direct-archive-publication',
 	'audio-mix-browser-blob': 'bounded-browser-export-blob-publication',
@@ -30,6 +31,7 @@ const ROUTE_CONTROL = Object.freeze({
 
 const BROWSER_BLOB_ROUTES = Object.freeze([
 	'scape-browser-blob',
+	'project-transfer-browser-blob',
 	'audio-mix-browser-blob',
 	'audio-stems-browser-blob',
 	'video-browser-blob',
@@ -121,7 +123,7 @@ test('Framescaper family-v1 keyed export reuses the frozen video Blob and direct
 		'video-direct-mp4',
 		'video-direct-webm',
 	]);
-	assert.equal(matrix.publicationRouteQualification.routes.length, 15);
+	assert.equal(matrix.publicationRouteQualification.routes.length, 16);
 	const keyedControl = matrix.risks
 		.flatMap(({ currentControls }: { currentControls: Array<{ id: string }> }) => currentControls)
 		.find(({ id }: { id: string }) => id === 'framescaper-v1-keyed-export-authority');
@@ -138,7 +140,7 @@ test('the threat model owns the route-level claim without promoting resource qua
 	}
 	assert.match(
 		documentation,
-		/four retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*complete\s+browser-native.*before final Blob construction.*before download publication/isu,
+		/five retained\s+browser-Blob fallbacks.*non-raiseable 512 MiB.*complete\s+browser-native.*before final Blob construction.*before download publication/isu,
 	);
 	assert.match(
 		documentation,
