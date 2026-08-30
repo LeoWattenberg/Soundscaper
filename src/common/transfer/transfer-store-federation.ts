@@ -352,6 +352,9 @@ export function createTransferStoreFederation(
 		if (!opening) {
 			opening = home.open();
 			state.opened.set(home.id, opening);
+			void opening.catch(() => {
+				if (state.opened.get(home.id) === opening) state.opened.delete(home.id);
+			});
 		}
 		return frozenHome(home, await opening);
 	};

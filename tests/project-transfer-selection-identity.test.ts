@@ -142,6 +142,35 @@ test('a duplicate within one family is offered, refused, and named', async () =>
 	await federation.close();
 });
 
+test('a transient home-open failure is retried for the next arriving archive', async () => {
+	let attempts = 0;
+	const destination = {};
+	const federation = createTransferStoreFederation({
+		writer: {},
+		sources: [],
+		homes: [{
+			id: 'framescaper-v1',
+			label: 'Framescaper v1 project storage',
+			schemaFamily: 'framescaper',
+			schemaVersion: 1,
+			open: async () => {
+				attempts += 1;
+				if (attempts === 1) throw new Error('database upgrade temporarily blocked');
+				return destination;
+			},
+		}],
+	});
+	const resolveHome = (federation.store as {
+		transferStoreHome(identity: unknown): Promise<{ store: unknown } | null>;
+	}).transferStoreHome;
+	const identity = { schemaFamily: 'framescaper', schemaVersion: 1 };
+
+	await assert.rejects(resolveHome(identity), /temporarily blocked/u);
+	assert.equal((await resolveHome(identity))?.store, destination);
+	assert.equal(attempts, 2);
+	await federation.close();
+});
+
 test('a store the page could not read is a row of its own, not a silence', async () => {
 	const shared = store([{
 		id: 'audio-1', title: 'Field recording', schemaFamily: 'soundscaper', schemaVersion: 1,
