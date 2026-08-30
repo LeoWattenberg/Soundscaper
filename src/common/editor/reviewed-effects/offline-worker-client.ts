@@ -3,7 +3,10 @@
 import { resolveReviewedEffectCatalogEntry } from './catalog.ts';
 import { ReviewedEffectError, reviewedEffectError } from './errors.ts';
 import { reviewedEffectPackageKey } from './manifest.ts';
-import { REVIEWED_EFFECT_WORKER_REQUEST } from './offline-worker-runtime.ts';
+import {
+	REVIEWED_EFFECT_WORKER_PREPARE,
+	REVIEWED_EFFECT_WORKER_REQUEST,
+} from './offline-worker-runtime.ts';
 import {
 	admitReviewedEffectProcess,
 	deserializeReviewedEffectError,
@@ -30,6 +33,7 @@ export interface ReviewedEffectOfflineOptions {
 }
 
 let requestSequence = 0;
+const WORKER_PREPARATION_TIMEOUT_MS = 10_000;
 
 /** Process one block in a terminating dedicated worker with catalog-fixed limits. */
 export function processReviewedEffectOffline(
@@ -49,6 +53,7 @@ export function processReviewedEffectOffline(
 	]));
 	const transfer = channels.map((channel) => channel.buffer as ArrayBuffer);
 	const requestId = `reviewed-effect-${(++requestSequence).toString(36)}`;
+	const packageKey = reviewedEffectPackageKey(descriptor.manifest);
 	let worker: ReviewedEffectWorkerPort;
 	try {
 		worker = (options.workerFactory ?? defaultWorkerFactory)();
@@ -57,7 +62,16 @@ export function processReviewedEffectOffline(
 	}
 	return new Promise<readonly Float32Array[]>((resolve, reject) => {
 		let settled = false;
+		let processingStarted = false;
 		let timer: TimerHandle | null = null;
+		const armTimer = (milliseconds: number, message: string): void => {
+			if (timer != null) globalThis.clearTimeout(timer);
+			timer = globalThis.setTimeout(() => settle(() => reject(reviewedEffectError(
+				'TIMEOUT',
+				message,
+			))), milliseconds);
+			unrefTimer(timer);
+		};
 		const cleanup = (): void => {
 			if (timer != null) globalThis.clearTimeout(timer);
 			options.signal?.removeEventListener('abort', onAbort);
@@ -84,6 +98,41 @@ export function processReviewedEffectOffline(
 				settle(() => reject(deserializeReviewedEffectError(response.error)));
 				return;
 			}
+			if (response.type === 'ready') {
+				if (processingStarted || response.packageKey !== packageKey) {
+					settle(() => reject(reviewedEffectError(
+						response.packageKey === packageKey ? 'WORKER_PROTOCOL' : 'CATALOG_MISMATCH',
+						response.packageKey === packageKey
+							? 'Reviewed effect worker sent duplicate readiness.'
+							: 'Reviewed effect worker prepared a different catalog package.',
+					)));
+					return;
+				}
+				processingStarted = true;
+				armTimer(
+					descriptor.manifest.resources.processingTimeoutMs,
+					`Reviewed effect exceeded its ${String(descriptor.manifest.resources.processingTimeoutMs)} ms processing deadline.`,
+				);
+				try {
+					worker.postMessage({
+						type: REVIEWED_EFFECT_WORKER_REQUEST,
+						requestId,
+						sampleRate: admitted.sampleRate,
+						channels,
+						parameters,
+					}, transfer);
+				} catch (error) {
+					settle(() => reject(error));
+				}
+				return;
+			}
+			if (!processingStarted) {
+				settle(() => reject(reviewedEffectError(
+					'WORKER_PROTOCOL',
+					'Reviewed effect worker returned a result before package preparation.',
+				)));
+				return;
+			}
 			if (response.type !== 'result') {
 				settle(() => reject(reviewedEffectError('WORKER_PROTOCOL', 'Reviewed effect worker response type is invalid.')));
 				return;
@@ -91,7 +140,7 @@ export function processReviewedEffectOffline(
 			try {
 				const result = validateResult(
 					response,
-					reviewedEffectPackageKey(descriptor.manifest),
+					packageKey,
 					admitted.channels.length,
 					admitted.frameCount,
 					descriptor.manifest.resources.maximumOutputBytes,
@@ -116,27 +165,23 @@ export function processReviewedEffectOffline(
 		worker.addEventListener('messageerror', onMessageError);
 		worker.addEventListener('error', onWorkerError);
 		options.signal?.addEventListener('abort', onAbort, { once: true });
-		timer = globalThis.setTimeout(() => settle(() => reject(reviewedEffectError(
-			'TIMEOUT',
-			`Reviewed effect exceeded its ${String(descriptor.manifest.resources.processingTimeoutMs)} ms deadline.`,
-		))), descriptor.manifest.resources.processingTimeoutMs);
-		unrefTimer(timer);
+		armTimer(
+			WORKER_PREPARATION_TIMEOUT_MS,
+			`Reviewed effect worker preparation exceeded ${String(WORKER_PREPARATION_TIMEOUT_MS)} ms.`,
+		);
 		if (options.signal?.aborted) {
 			onAbort();
 			return;
 		}
 		try {
 			worker.postMessage({
-				type: REVIEWED_EFFECT_WORKER_REQUEST,
+				type: REVIEWED_EFFECT_WORKER_PREPARE,
 				requestId,
 				package: {
 					id: descriptor.manifest.id,
 					version: descriptor.manifest.version,
 				},
-				sampleRate: admitted.sampleRate,
-				channels,
-				parameters,
-			}, transfer);
+			});
 		} catch (error) {
 			settle(() => reject(error));
 		}

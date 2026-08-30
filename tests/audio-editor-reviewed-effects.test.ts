@@ -16,7 +16,9 @@ import {
 	type ReviewedEffectWorkerPort,
 } from '../src/common/editor/reviewed-effects/offline-worker-client.ts';
 import {
-	executeReviewedEffectWorkerRequest,
+	createReviewedEffectWorkerRuntime,
+	REVIEWED_EFFECT_WORKER_PREPARE,
+	REVIEWED_EFFECT_WORKER_REQUEST,
 } from '../src/common/editor/reviewed-effects/offline-worker-runtime.ts';
 import {
 	createReviewedEffectRealtimeNode,
@@ -167,10 +169,16 @@ test('runtime rejects oversized and malformed PCM before entering WASM', async (
 });
 
 test('closed worker runtime processes Utility Gain without package JavaScript', async () => {
-	const response = await executeReviewedEffectWorkerRequest({
-		type: 'reviewed-effect-process/v1',
+	const runtime = createReviewedEffectWorkerRuntime();
+	const ready = await runtime.execute({
+		type: REVIEWED_EFFECT_WORKER_PREPARE,
 		requestId: 'utility-worker',
 		package: utilityGainReference,
+	});
+	assert.equal(ready.type, 'ready');
+	const response = await runtime.execute({
+		type: REVIEWED_EFFECT_WORKER_REQUEST,
+		requestId: 'utility-worker',
 		sampleRate: 48_000,
 		channels: [Float32Array.of(0.5, -0.25)],
 		parameters: { gain: 3 },
@@ -178,13 +186,10 @@ test('closed worker runtime processes Utility Gain without package JavaScript', 
 	assert.equal(response.type, 'result');
 	if (response.type === 'result') assert.deepEqual([...response.channels[0]!], [1.5, -0.75]);
 
-	const malformed = await executeReviewedEffectWorkerRequest({
-		type: 'reviewed-effect-process/v1',
+	const malformed = await createReviewedEffectWorkerRuntime().execute({
+		type: REVIEWED_EFFECT_WORKER_PREPARE,
 		requestId: 'unknown-field',
 		package: utilityGainReference,
-		sampleRate: 48_000,
-		channels: [Float32Array.of(1)],
-		parameters: {},
 		url: 'https://example.invalid/effect.wasm',
 	});
 	assert.equal(malformed.type, 'error');
@@ -192,13 +197,7 @@ test('closed worker runtime processes Utility Gain without package JavaScript', 
 });
 
 test('dedicated-worker-capable port returns bounded offline processing and terminates', async () => {
-	const port = new FakeWorkerPort((message, currentPort) => {
-		queueMicrotask(() => {
-			void executeReviewedEffectWorkerRequest(message).then((response) => currentPort.emit('message', {
-				data: response,
-			}));
-		});
-	});
+	const port = runtimeWorkerPort();
 	const output = await processReviewedEffectOffline(utilityGainReference, {
 		sampleRate: 44_100,
 		channels: [Float32Array.of(0.25, -0.5)],
@@ -219,14 +218,7 @@ test('selection integration splits long input across terminating dedicated worke
 		{
 			onProgress: (value) => progress.push(value),
 			workerFactory: () => {
-				const port = new FakeWorkerPort((message, currentPort) => {
-					queueMicrotask(() => {
-						void executeReviewedEffectWorkerRequest(message).then((response) => currentPort.emit(
-							'message',
-							{ data: response },
-						));
-					});
-				});
+				const port = runtimeWorkerPort();
 				ports.push(port);
 				return port;
 			},
@@ -245,7 +237,7 @@ test('selection integration splits long input across terminating dedicated worke
 });
 
 test('offline client rejects oversized worker output and terminates the port', async () => {
-	const port = new FakeWorkerPort((message, currentPort) => {
+	const port = preparedWorkerPort((message, currentPort) => {
 		const request = message as Readonly<{ requestId: string }>;
 		queueMicrotask(() => currentPort.emit('message', {
 			data: {
@@ -264,11 +256,44 @@ test('offline client rejects oversized worker output and terminates the port', a
 });
 
 test('offline client enforces the release-catalog processing timeout', async () => {
-	const port = new FakeWorkerPort(() => undefined);
+	const port = preparedWorkerPort(() => undefined);
 	await assert.rejects(processReviewedEffectOffline(utilityGainReference, {
 		sampleRate: 48_000,
 		channels: [Float32Array.of(1)],
 	}, { workerFactory: () => port }), (error: unknown) => isCode(error, 'TIMEOUT'));
+	assert.equal(port.terminateCount, 1);
+});
+
+test('offline processing deadline starts after worker package preparation', async () => {
+	let prepared = false;
+	const port = new FakeWorkerPort((message, currentPort) => {
+		const request = message as Readonly<{ type: string; requestId: string }>;
+		if (request.type === REVIEWED_EFFECT_WORKER_PREPARE) {
+			globalThis.setTimeout(() => {
+				prepared = true;
+				currentPort.emit('message', {
+					data: {
+						type: 'ready', requestId: request.requestId,
+						packageKey: 'org.soundscaper.utility-gain@1.0.0',
+					},
+				});
+			}, UTILITY_GAIN_MANIFEST.resources.processingTimeoutMs + 25);
+			return;
+		}
+		if (!prepared) return;
+		queueMicrotask(() => currentPort.emit('message', {
+			data: {
+				type: 'result', requestId: request.requestId,
+				packageKey: 'org.soundscaper.utility-gain@1.0.0',
+				channels: [Float32Array.of(2)],
+			},
+		}));
+	});
+	const output = await processReviewedEffectOffline(utilityGainReference, {
+		sampleRate: 48_000,
+		channels: [Float32Array.of(1)],
+	}, { workerFactory: () => port });
+	assert.deepEqual([...output[0]!], [2]);
 	assert.equal(port.terminateCount, 1);
 });
 
@@ -283,7 +308,7 @@ test('offline client terminates on cancellation and rejects catalog-mismatched o
 	await assert.rejects(cancelled, (error: unknown) => isCode(error, 'REQUEST_ABORTED'));
 	assert.equal(cancelledPort.terminateCount, 1);
 
-	const mismatchPort = new FakeWorkerPort((message, currentPort) => {
+	const mismatchPort = preparedWorkerPort((message, currentPort) => {
 		const request = message as Readonly<{ requestId: string }>;
 		queueMicrotask(() => currentPort.emit('message', {
 			data: {
@@ -370,6 +395,34 @@ test('realtime host uses its static source and prevalidated catalog module', asy
 
 type FakeWorkerEvent = Readonly<{ data?: unknown; error?: unknown; message?: string }>;
 type FakeWorkerListener = (event: FakeWorkerEvent) => void;
+
+function runtimeWorkerPort(): FakeWorkerPort {
+	const runtime = createReviewedEffectWorkerRuntime();
+	return new FakeWorkerPort((message, currentPort) => {
+		queueMicrotask(() => {
+			void runtime.execute(message).then((response) => currentPort.emit('message', { data: response }));
+		});
+	});
+}
+
+function preparedWorkerPort(
+	onProcess: (message: unknown, port: FakeWorkerPort) => void,
+): FakeWorkerPort {
+	return new FakeWorkerPort((message, currentPort) => {
+		const request = message as Readonly<{ type: string; requestId: string }>;
+		if (request.type === REVIEWED_EFFECT_WORKER_PREPARE) {
+			queueMicrotask(() => currentPort.emit('message', {
+				data: {
+					type: 'ready',
+					requestId: request.requestId,
+					packageKey: 'org.soundscaper.utility-gain@1.0.0',
+				},
+			}));
+			return;
+		}
+		onProcess(message, currentPort);
+	});
+}
 
 class FakeWorkerPort implements ReviewedEffectWorkerPort {
 	readonly listeners = new Map<string, Set<FakeWorkerListener>>();

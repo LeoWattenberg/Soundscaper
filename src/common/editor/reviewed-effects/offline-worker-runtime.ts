@@ -8,8 +8,13 @@ import {
 } from './runtime.ts';
 
 export const REVIEWED_EFFECT_WORKER_REQUEST = 'reviewed-effect-process/v1' as const;
+export const REVIEWED_EFFECT_WORKER_PREPARE = 'reviewed-effect-prepare/v1' as const;
 
 export type ReviewedEffectWorkerResponse = Readonly<{
+	type: 'ready';
+	requestId: string;
+	packageKey: string;
+}> | Readonly<{
 	type: 'result';
 	requestId: string;
 	packageKey: string;
@@ -20,48 +25,87 @@ export type ReviewedEffectWorkerResponse = Readonly<{
 	error: Readonly<{ name: string; code: string; message: string }>;
 }>;
 
-const REQUEST_KEYS = new Set(['type', 'requestId', 'package', 'sampleRate', 'channels', 'parameters']);
+const PREPARE_KEYS = new Set(['type', 'requestId', 'package']);
+const PROCESS_KEYS = new Set(['type', 'requestId', 'sampleRate', 'channels', 'parameters']);
 
-/** Resolve, verify, instantiate, and process one closed request inside a worker. */
-export async function executeReviewedEffectWorkerRequest(
-	value: unknown,
-): Promise<ReviewedEffectWorkerResponse> {
-	let requestId: string | null = null;
-	try {
-		const request = closedRecord(value, REQUEST_KEYS, 'reviewed effect worker request');
-		requestId = boundedRequestId(request.requestId);
-		if (request.type !== REVIEWED_EFFECT_WORKER_REQUEST) {
-			throw reviewedEffectError('WORKER_PROTOCOL', 'Reviewed effect worker request type is unsupported.');
-		}
-		if (!Array.isArray(request.channels)) {
-			throw reviewedEffectError('INPUT_LIMIT', 'Reviewed effect worker channels must be an array.');
-		}
-		const channels = request.channels.map((channel) => {
-			if (!(channel instanceof Float32Array)) {
-				throw reviewedEffectError('INPUT_LIMIT', 'Reviewed effect worker channels must contain Float32Array values.');
+export interface ReviewedEffectWorkerRuntime {
+	execute(value: unknown): Promise<ReviewedEffectWorkerResponse>;
+}
+
+type PreparedRuntime = Readonly<{
+	requestId: string;
+	packageKey: string;
+	runtime: ReviewedEffectWasmRuntime;
+}>;
+
+/** Create the single-use, two-phase runtime owned by one terminating worker. */
+export function createReviewedEffectWorkerRuntime(): ReviewedEffectWorkerRuntime {
+	let prepared: PreparedRuntime | null = null;
+	return Object.freeze({
+		async execute(value: unknown): Promise<ReviewedEffectWorkerResponse> {
+			let requestId: string | null = null;
+			try {
+				const type = closedRecordType(value);
+				if (type === REVIEWED_EFFECT_WORKER_PREPARE) {
+					const request = closedRecord(value, PREPARE_KEYS, 'reviewed effect worker preparation');
+					requestId = boundedRequestId(request.requestId);
+					if (prepared !== null) {
+						throw reviewedEffectError('WORKER_PROTOCOL', 'Reviewed effect worker is already prepared.');
+					}
+					const loadedPackage = await loadReviewedEffectPackage(request.package);
+					prepared = Object.freeze({
+						requestId,
+						packageKey: loadedPackage.key,
+						runtime: new ReviewedEffectWasmRuntime(loadedPackage),
+					});
+					return Object.freeze({ type: 'ready', requestId, packageKey: loadedPackage.key });
+				}
+				if (type !== REVIEWED_EFFECT_WORKER_REQUEST) {
+					throw reviewedEffectError('WORKER_PROTOCOL', 'Reviewed effect worker request type is unsupported.');
+				}
+				const request = closedRecord(value, PROCESS_KEYS, 'reviewed effect worker request');
+				requestId = boundedRequestId(request.requestId);
+				if (prepared === null || prepared.requestId !== requestId) {
+					throw reviewedEffectError('WORKER_PROTOCOL', 'Reviewed effect worker was not prepared for this request.');
+				}
+				if (!Array.isArray(request.channels)) {
+					throw reviewedEffectError('INPUT_LIMIT', 'Reviewed effect worker channels must be an array.');
+				}
+				const channels = request.channels.map((channel) => {
+					if (!(channel instanceof Float32Array)) {
+						throw reviewedEffectError('INPUT_LIMIT', 'Reviewed effect worker channels must contain Float32Array values.');
+					}
+					return channel;
+				});
+				const admitted = prepared;
+				prepared = null;
+				const result = admitted.runtime.process({
+					sampleRate: request.sampleRate as number,
+					channels,
+					parameters: request.parameters as ReviewedEffectProcessRequest['parameters'],
+				});
+				return Object.freeze({
+					type: 'result',
+					requestId,
+					packageKey: admitted.packageKey,
+					channels: result,
+				});
+			} catch (error) {
+				return Object.freeze({
+					type: 'error',
+					requestId,
+					error: serializeError(error),
+				});
 			}
-			return channel;
-		});
-		const loadedPackage = await loadReviewedEffectPackage(request.package);
-		const runtime = new ReviewedEffectWasmRuntime(loadedPackage);
-		const result = runtime.process({
-			sampleRate: request.sampleRate as number,
-			channels,
-			parameters: request.parameters as ReviewedEffectProcessRequest['parameters'],
-		});
-		return Object.freeze({
-			type: 'result',
-			requestId,
-			packageKey: loadedPackage.key,
-			channels: result,
-		});
-	} catch (error) {
-		return Object.freeze({
-			type: 'error',
-			requestId,
-			error: serializeError(error),
-		});
+		},
+	});
+}
+
+function closedRecordType(value: unknown): unknown {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw reviewedEffectError('WORKER_PROTOCOL', 'reviewed effect worker request must be an object.');
 	}
+	return Object.getOwnPropertyDescriptor(value, 'type')?.value;
 }
 
 export function reviewedEffectResponseTransferables(
