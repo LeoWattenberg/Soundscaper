@@ -248,7 +248,45 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 	onCrop: (proposalId: string, sourceFrame: number,
 		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>) => unknown;
 }>) {
+	const [editError, setEditError] = useState('');
+	const applyEdit = (
+		operation: () => unknown,
+		onAccepted?: () => void,
+		onRejected?: () => void,
+	): void => {
+		setEditError('');
+		const reject = (failure: unknown): void => {
+			onRejected?.();
+			setEditError(failure instanceof Error ? failure.message : String(failure));
+		};
+		try {
+			const outcome = operation();
+			if (isPromiseLike(outcome)) {
+				void Promise.resolve(outcome).then(() => onAccepted?.(), reject);
+			} else onAccepted?.();
+		} catch (failure) {
+			reject(failure);
+		}
+	};
+	const applyTrim = (
+		input: HTMLInputElement,
+		proposal: AssistanceOwnedHighlightProposalsV1['proposals'][number],
+		edge: 'start' | 'end',
+	): void => {
+		let frame = edge === 'start' ? proposal.startFrame : proposal.endFrame;
+		applyEdit(() => {
+			frame = snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
+				authority, proposal, edge, Number(input.value),
+			);
+			return edge === 'start'
+				? onTrim(proposal.id, frame, proposal.endFrame)
+				: onTrim(proposal.id, proposal.startFrame, frame);
+		}, () => { input.value = String(frame); }, () => {
+			input.value = String(edge === 'start' ? proposal.startFrame : proposal.endFrame);
+		});
+	};
 	return <div className="kw-local-assistance__highlight-proposals">
+		{editError === '' ? null : <p role="alert" aria-live="polite">{editError}</p>}
 		{draft.proposals.map((proposal, index) => <article key={proposal.id}
 			aria-label={`${text(copy, 'localAssistanceHighlightProposal', 'Highlight proposal')} ${String(index + 1)}`}>
 			<button type="button" aria-pressed={activeId === proposal.id}
@@ -258,7 +296,12 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 			</button>
 			<label>{text(copy, 'localAssistanceHighlightTitle', 'Title')}<input type="text"
 				key={proposal.title} defaultValue={proposal.title} minLength={1} maxLength={160} required
-				onBlur={(event) => { void onTitle(proposal.id, event.currentTarget.value); }} /></label>
+				onBlur={(event) => {
+					const input = event.currentTarget;
+					applyEdit(() => onTitle(proposal.id, input.value), undefined, () => {
+						input.value = proposal.title;
+					});
+				}} /></label>
 			{proposal.hook === null ? null : <p><strong>
 				{text(copy, 'localAssistanceHighlightHook', 'Hook')}:</strong> {proposal.hook}</p>}
 			{proposal.chapters.length === 0 ? null : <div><strong>
@@ -273,24 +316,12 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 					<input type="number" key={`start:${String(proposal.startFrame)}`}
 					min={proposal.startFrame} max={proposal.endFrame - 1}
 					step={1} defaultValue={proposal.startFrame}
-					onBlur={(event) => {
-						const frame = snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
-							authority, proposal, 'start', Number(event.currentTarget.value),
-						);
-						event.currentTarget.value = String(frame);
-						void onTrim(proposal.id, frame, proposal.endFrame);
-					}} /></label>
+					onBlur={(event) => applyTrim(event.currentTarget, proposal, 'start')} /></label>
 				<label>{text(copy, 'localAssistanceHighlightEndFrame', 'End frame')}
 					<input type="number" key={`end:${String(proposal.endFrame)}`}
 					min={proposal.startFrame + 1} max={proposal.endFrame}
 					step={1} defaultValue={proposal.endFrame}
-					onBlur={(event) => {
-						const frame = snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
-							authority, proposal, 'end', Number(event.currentTarget.value),
-						);
-						event.currentTarget.value = String(frame);
-						void onTrim(proposal.id, proposal.startFrame, frame);
-					}} /></label>
+					onBlur={(event) => applyTrim(event.currentTarget, proposal, 'end')} /></label>
 			</div>
 			<small>{text(copy, 'localAssistanceHighlightTrimSnap',
 				'Trim values snap inward to exact admitted source-time boundaries.')}</small>
@@ -305,12 +336,17 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 					{String(keyframe.sourceFrame)}</legend>
 				<DraggableCropOverlay crop={keyframe.crop}
 					label={text(copy, 'localAssistanceHighlightCropOverlay', 'Draggable crop overlay')}
-					onCrop={(crop) => onCrop(proposal.id, keyframe.sourceFrame, crop)} />
+					onCrop={(crop) => applyEdit(() => onCrop(proposal.id, keyframe.sourceFrame, crop))} />
 				<CropPositionControls copy={copy} crop={keyframe.crop}
-					onCrop={(crop) => onCrop(proposal.id, keyframe.sourceFrame, crop)} />
+					onCrop={(crop) => applyEdit(() => onCrop(proposal.id, keyframe.sourceFrame, crop))} />
 			</fieldset>)}
 		</article>)}
 	</div>;
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+	return value !== null && (typeof value === 'object' || typeof value === 'function')
+		&& typeof (value as Readonly<{ then?: unknown }>).then === 'function';
 }
 
 interface EditorialCandidate {
