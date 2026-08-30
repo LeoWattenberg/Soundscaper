@@ -90,6 +90,12 @@ function normalizeAuthored(value: AdmAuthoredMetadata): AdmAuthoredMetadata {
 	return normalizeAdmProjectMetadata(value) as AdmAuthoredMetadata;
 }
 
+function validNumberInput(input: HTMLInputElement): number | null {
+	if (!input.checkValidity() || input.value.trim() === '') return null;
+	const value = Number(input.value);
+	return Number.isFinite(value) ? value : null;
+}
+
 export function AdmMetadataFields({
 	value,
 	project,
@@ -197,11 +203,15 @@ export function AdmMetadataFields({
 							aria-label={`${source.label} ${copy.gain}`}
 							value={assignment?.gain ?? 1}
 							disabled={disabled || !assignment}
-							onChange={(event) => onCommit(setAdmEditorAssignment(authored, {
-								...source,
-								bedChannel: assignment?.bedChannel ?? null,
-								gain: Number(event.currentTarget.value),
-							}))}
+							onChange={(event) => {
+								const gain = validNumberInput(event.currentTarget);
+								if (gain == null) return;
+								onCommit(setAdmEditorAssignment(authored, {
+									...source,
+									bedChannel: assignment?.bedChannel ?? null,
+									gain,
+								}));
+							}}
 						/>
 					</div>
 				);
@@ -270,9 +280,13 @@ function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, o
 								step={coordinate === 'distance' ? 0.01 : 1}
 								value={object.position[coordinate]}
 								disabled={disabled}
-								onChange={(event) => onCommit(setAdmEditorObject(authored, object.id, {
-									position: { ...object.position, [coordinate]: Number(event.currentTarget.value) },
-								}))}
+								onChange={(event) => {
+									const value = validNumberInput(event.currentTarget);
+									if (value == null) return;
+									onCommit(setAdmEditorObject(authored, object.id, {
+										position: { ...object.position, [coordinate]: value },
+									}));
+								}}
 							/>
 						</label>
 					))}
@@ -282,9 +296,11 @@ function AdmObjectFields({ authored, copy, disabled, sourceChannels, createId, o
 							type="number" min="0" max="4" step="0.01"
 							value={object.gain}
 							disabled={disabled}
-							onChange={(event) => onCommit(setAdmEditorObject(authored, object.id, {
-								gain: Number(event.currentTarget.value),
-							}))}
+							onChange={(event) => {
+								const gain = validNumberInput(event.currentTarget);
+								if (gain == null) return;
+								onCommit(setAdmEditorObject(authored, object.id, { gain }));
+							}}
 						/>
 					</label>
 					<Button
