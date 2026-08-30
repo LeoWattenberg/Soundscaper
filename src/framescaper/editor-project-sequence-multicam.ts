@@ -338,7 +338,7 @@ function validateGroupOwnership(index: ProjectIndex, group: FramescaperMulticame
 		throw new RangeError('A multicamera output clip must preserve exact one-to-one group time.');
 	}
 	const owners = (index.project.tracks as readonly Readonly<Record<string, unknown>>[]).filter((track) =>
-		(track.clipIds as readonly string[]).includes(group.outputClipId));
+		track.type === 'video' && (track.clipIds as readonly string[]).includes(group.outputClipId));
 	if (owners.length !== 1 || owners[0]?.type !== 'video') {
 		throw new RangeError(`Multicamera output clip ${group.outputClipId} requires exactly one video track owner.`);
 	}
