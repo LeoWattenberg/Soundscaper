@@ -65,6 +65,26 @@ test('OpenFX form request parsing refuses malformed vectors and stale targets', 
 	}), /target|stale/iu);
 });
 
+test('OpenFX form excludes plug-ins without a compatible project target', () => {
+	const compatible = model();
+	const incompatible = Object.freeze({
+		...compatible.plugins[0]!,
+		pluginHandle: '34'.repeat(20),
+		pluginId: 'net.example.Incompatible',
+		supportedContexts: Object.freeze(['filter'] as const),
+	});
+	const mixed = Object.freeze({
+		...compatible,
+		plugins: Object.freeze([incompatible, ...compatible.plugins]),
+	});
+	const markup = renderToStaticMarkup(<FramescaperOpenFxAddForm
+		model={mixed}
+		onAuthor={() => undefined}
+	/>);
+	assert.doesNotMatch(markup, /net\.example\.Incompatible/u);
+	assert.match(markup, /net\.example\.AllParameters/u);
+});
+
 function model(): FramescaperOpenFxAuthoringModelNativeMedia {
 	return Object.freeze({
 		plugins: Object.freeze([Object.freeze({

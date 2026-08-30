@@ -56,19 +56,30 @@ export default function FramescaperOpenFxAddPanel({ runtime, copy }: Readonly<{
 	const error = loaded.runtime === runtime ? loaded.error : '';
 	if (error) return <p role="alert">{error}</p>;
 	if (model === null) return <p role="status" aria-live="polite">{copy.ofxLoading}</p>;
-	if (model.plugins.length === 0 || model.targets.length === 0) {
+	const compatibleModel = compatibleAuthoringModel(model);
+	if (compatibleModel.plugins.length === 0 || compatibleModel.targets.length === 0) {
 		return <p role="status">{copy.ofxNoCompatibleTarget}</p>;
 	}
-	return <FramescaperOpenFxAddForm model={model} copy={copy}
+	return <FramescaperOpenFxAddForm model={compatibleModel} copy={copy}
 		onAuthor={(request) => runtime.author(request)} />;
 }
 
-export function FramescaperOpenFxAddForm({ model, onAuthor,
-	copy = FRAMESCAPER_NATIVE_SERVICES_COPY }: Readonly<{
+type FramescaperOpenFxAddFormProps = Readonly<{
 	model: FramescaperOpenFxAuthoringModelNativeMedia;
 	onAuthor: (request: FramescaperOpenFxAuthoringRequestNativeMedia) => PromiseLike<void> | void;
 	copy?: FramescaperNativeServicesCopy;
-}>) {
+}>;
+
+export function FramescaperOpenFxAddForm(props: FramescaperOpenFxAddFormProps) {
+	const copy = props.copy ?? FRAMESCAPER_NATIVE_SERVICES_COPY;
+	const model = compatibleAuthoringModel(props.model);
+	if (model.plugins.length === 0 || model.targets.length === 0) {
+		return <p role="status">{copy.ofxNoCompatibleTarget}</p>;
+	}
+	return <CompatibleFramescaperOpenFxAddForm {...props} model={model} copy={copy} />;
+}
+
+function CompatibleFramescaperOpenFxAddForm({ model, onAuthor, copy }: Required<FramescaperOpenFxAddFormProps>) {
 	const initial = useMemo(() => createFramescaperOpenFxFormState(model), [model]);
 	const [state, setState] = useState(initial);
 	const [status, setStatus] = useState<'ready' | 'working' | 'complete'>('ready');
@@ -80,8 +91,12 @@ export function FramescaperOpenFxAddForm({ model, onAuthor,
 	const targets = model.targets.filter(({ context }) => context === state.context);
 	const target = targets.find(({ targetId }) => targetId === state.targetId) ?? null;
 	const selectPlugin = (pluginHandle: string): void => {
-		setState(stateForPlugin(model, pluginHandle));
-		setStatus('ready'); setError('');
+		try {
+			setState(stateForPlugin(model, pluginHandle));
+			setStatus('ready'); setError('');
+		} catch (failure) {
+			setError(message(failure));
+		}
 	};
 	const selectContext = (contextValue: string): void => {
 		const context = plugin.supportedContexts.find((candidate) => candidate === contextValue);
@@ -153,6 +168,19 @@ export function FramescaperOpenFxAddForm({ model, onAuthor,
 		<p><button type="submit" disabled={status === 'working'}
 			data-framescaper-openfx-author="true">{copy.ofxAuthor}</button></p>
 	</form>;
+}
+
+function compatibleAuthoringModel(
+	model: FramescaperOpenFxAuthoringModelNativeMedia,
+): FramescaperOpenFxAuthoringModelNativeMedia {
+	const contexts = new Set(model.targets.map(({ context }) => context));
+	const plugins = model.plugins.filter(({ supportedContexts }) => (
+		supportedContexts.some((context) => contexts.has(context))
+	));
+	return plugins.length === model.plugins.length ? model : Object.freeze({
+		...model,
+		plugins: Object.freeze(plugins),
+	});
 }
 
 function ParameterControl({
