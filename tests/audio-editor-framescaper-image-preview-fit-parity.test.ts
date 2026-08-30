@@ -46,3 +46,14 @@ test('the baseline image preview composites through the delivery fit, as the exp
 	assert.match(preview, /previewCanvas\(options\?\.width, options\?\.height, options\?\.fit\)/u);
 	assert.match(preview, /\.\.\.\(fit === undefined \? \{\} : \{ fit \}\)/u);
 });
+
+test('the finishing visual preview preserves the selected delivery fit', async () => {
+	const preview = await readFile(
+		new URL('src/framescaper/editor-selected-finishing-visual-preview.ts', ROOT),
+		'utf8',
+	);
+
+	assert.match(preview, /previewCanvas\(options\.width, options\.height, options\.fit\)/u);
+	assert.match(preview, /\.\.\.\(fit === undefined \? \{\} : \{ fit \}\)/u);
+	assert.doesNotMatch(preview, /canvas: \{ \.\.\.canvas, fit: 'contain'/u);
+});

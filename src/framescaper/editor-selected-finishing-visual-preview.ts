@@ -18,6 +18,7 @@ import type {
 	UnifiedExactRenderPlanV13,
 	UnifiedExactRenderVisualNode,
 } from '../common/editor/unified-exact-render-plan.ts';
+import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import type { VideoFreezeFreshnessInputV1 } from '../common/editor/video-freeze-v24.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
@@ -84,7 +85,7 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 	validateFramescaperProjectFinishing(options.profile, options?.project);
 	const project = record(options.project, 'Selected finishing visual preview project');
 	if (!hasExecutableVisualState(project)) return null;
-	const canvas = previewCanvas(options.width, options.height);
+	const canvas = previewCanvas(options.width, options.height, options.fit);
 	const timingViews = previewTimingViews(project);
 	const plan = createPreviewPlan(options.profile, project, canvas, timingViews);
 	const consumer = createUnifiedExactRenderVisualPreviewConsumerV13(
@@ -230,7 +231,7 @@ export async function createFramescaperSelectedProjectBinThumbnailFinishing(
 function createPreviewPlan(
 	profile: unknown,
 	project: Data,
-	canvas: Readonly<{ width: number; height: number }>,
+	canvas: Readonly<{ width: number; height: number; fit?: VideoCanvasFit }>,
 	timingViews: ReadonlyMap<string, VideoSourceTimingView>,
 ): UnifiedExactRenderPlanV13 {
 	const sequence = primarySequence(project);
@@ -252,7 +253,7 @@ function createPreviewPlan(
 			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null,
 			pixelFormat: 'yuv420p',
 		},
-		canvas: { ...canvas, fit: 'contain', pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		canvas: { ...canvas, pixelFormat: 'yuv420p', backgroundColor: '#000000' },
 		quality: 'balanced',
 		includeAudio: false,
 		audioLayout: null,
@@ -303,7 +304,7 @@ function previewTimingViews(project: Data): ReadonlyMap<string, VideoSourceTimin
 function previewVisualFreshness(
 	project: Data,
 	sequenceId: string,
-	canvas: Readonly<{ width: number; height: number }>,
+	canvas: Readonly<{ width: number; height: number; fit?: VideoCanvasFit }>,
 ): ReadonlyMap<string, VideoFreezeFreshnessInputV1> {
 	const sources = new Map(records(project.sources, 'Selected finishing sources')
 		.map((source) => [stableId(source.id, 'source ID'), source]));
@@ -387,7 +388,7 @@ async function materializeDrawables(
 function visualCompositorEntry(
 	entry: UnifiedExactRenderVisualFrameEntryV13,
 	video: DrawableVideo,
-	canvas: Readonly<{ width: number; height: number }>,
+	canvas: Readonly<{ width: number; height: number; fit?: VideoCanvasFit }>,
 ): Readonly<Record<string, unknown>> {
 	const source = 'source' in entry.authoredState ? entry.authoredState.source : null;
 	return Object.freeze({
@@ -521,12 +522,20 @@ function projectBinModelKind(source: Data): UnifiedExactRenderVisualNode['modelK
 	return generator.kind as UnifiedExactRenderVisualNode['modelKind'];
 }
 
-function previewCanvas(widthValue: number, heightValue: number): Readonly<{ width: number; height: number }> {
+function previewCanvas(
+	widthValue: number,
+	heightValue: number,
+	fit: VideoCanvasFit | undefined,
+): Readonly<{ width: number; height: number; fit?: VideoCanvasFit }> {
 	const even = (value: number, name: string) => {
 		const dimension = positiveInteger(value, name);
 		return Math.max(2, dimension - dimension % 2);
 	};
-	return Object.freeze({ width: even(widthValue, 'preview width'), height: even(heightValue, 'preview height') });
+	return Object.freeze({
+		width: even(widthValue, 'preview width'),
+		height: even(heightValue, 'preview height'),
+		...(fit === undefined ? {} : { fit }),
+	});
 }
 
 function safeEnd(clip: Data): number {
