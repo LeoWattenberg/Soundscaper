@@ -2,10 +2,11 @@
 
 import { normalizeStaffPadRenderRequest } from './parameters.js';
 import { loadStaffPadWasm, renderStaffPad } from './runtime.js';
+import { createStaffPadRuntimeLoader } from './runtime-loader.js';
 
 const jobs = new Map();
 let renderQueue = Promise.resolve();
-let runtimePromise;
+const getRuntime = createStaffPadRuntimeLoader(loadStaffPadWasm);
 
 self.addEventListener('message', (event) => {
 	const message = event.data;
@@ -60,11 +61,6 @@ async function runRender(message, job) {
 	} finally {
 		jobs.delete(id);
 	}
-}
-
-function getRuntime(wasmUrl) {
-	if (!runtimePromise) runtimePromise = loadStaffPadWasm(wasmUrl || undefined);
-	return runtimePromise;
 }
 
 function serializeError(error) {
