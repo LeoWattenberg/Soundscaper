@@ -9,6 +9,11 @@ import { lstat, open, realpath } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, parse, resolve } from 'node:path';
 
 import {
+	canonicalNativeChildFileIdentity,
+	nativeChildFileIdentityFromStat,
+	type CanonicalNativeChildFileIdentity,
+} from './native-child-file-identity.ts';
+import {
 	isSoundscaperProfessionalLinuxRuntimeLibrary,
 	soundscaperProfessionalLinuxInterpreter,
 	soundscaperProfessionalLinuxLoaderName,
@@ -26,7 +31,7 @@ interface ArtifactDescriptor {
 	readonly path: string;
 	readonly byteLength: number;
 	readonly sha256: string;
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
+	readonly identity: CanonicalNativeChildFileIdentity;
 }
 
 interface CommandResult {
@@ -195,14 +200,15 @@ async function authenticatedPeerBytes(value: ArtifactDescriptor): Promise<Buffer
 	}
 	const handle = await open(value.path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
 	try {
-		const metadata = await handle.stat();
-		if (!metadata.isFile() || metadata.size !== value.byteLength
-			|| metadata.size > MAXIMUM_ARTIFACT_BYTES) {
+		const metadata = await handle.stat({ bigint: true });
+		const identity = nativeChildFileIdentityFromStat(metadata);
+		if (!metadata.isFile() || metadata.size !== BigInt(value.byteLength)
+			|| metadata.size > BigInt(MAXIMUM_ARTIFACT_BYTES)) {
 			throw new Error('The professional peer changed before ELF runtime resolution.');
 		}
 		const bytes = await handle.readFile();
-		if (!metadata.isFile() || Number(metadata.dev) !== value.identity.dev
-			|| Number(metadata.ino) !== value.identity.ino || bytes.byteLength !== value.byteLength
+		if (!metadata.isFile() || identity.dev !== value.identity.dev
+			|| identity.ino !== value.identity.ino || bytes.byteLength !== value.byteLength
 			|| sha256(bytes) !== value.sha256) {
 			throw new Error('The professional peer changed before ELF runtime resolution.');
 		}
@@ -218,22 +224,22 @@ async function authenticatedSystemArtifact(value: string, label: string): Promis
 	await rootOwnedPath(path, label);
 	const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
 	try {
-		const before = await handle.stat();
-		if (!before.isFile() || before.uid !== 0 || (before.mode & 0o022) !== 0
-			|| before.size < 1 || before.size > MAXIMUM_ARTIFACT_BYTES) {
+		const before = await handle.stat({ bigint: true });
+		if (!before.isFile() || before.uid !== 0n || (before.mode & 0o022n) !== 0n
+			|| before.size < 1n || before.size > BigInt(MAXIMUM_ARTIFACT_BYTES)) {
 			throw new Error(`The ${label} is not one bounded root-owned system file.`);
 		}
 		const bytes = await handle.readFile();
-		const after = await handle.stat();
+		const after = await handle.stat({ bigint: true });
 		if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size
-			|| before.mtimeMs !== after.mtimeMs || bytes.byteLength !== before.size) {
+			|| before.mtimeMs !== after.mtimeMs || BigInt(bytes.byteLength) !== before.size) {
 			throw new Error(`The ${label} is not one stable root-owned system file.`);
 		}
 		return Object.freeze({
 			path,
 			byteLength: bytes.byteLength,
 			sha256: sha256(bytes),
-			identity: Object.freeze({ dev: Number(before.dev), ino: Number(before.ino) }),
+			identity: nativeChildFileIdentityFromStat(before),
 		});
 	} finally { await handle.close(); }
 }
@@ -313,11 +319,19 @@ function artifact(value: unknown, label: string): ArtifactDescriptor {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| typeof record?.path !== 'string' || !isAbsolute(record.path) || resolve(record.path) !== record.path
 		|| !Number.isSafeInteger(record.byteLength) || Number(record.byteLength) < 1
-		|| !SHA256.test(String(record.sha256)) || !record.identity
-		|| !Number.isSafeInteger(record.identity.dev) || !Number.isSafeInteger(record.identity.ino)) {
+		|| typeof record.sha256 !== 'string' || !SHA256.test(record.sha256)) {
 		throw new TypeError(`The ${label} descriptor is invalid.`);
 	}
-	return record as ArtifactDescriptor;
+	try {
+		return Object.freeze({
+			path: record.path,
+			byteLength: Number(record.byteLength),
+			sha256: record.sha256,
+			identity: canonicalNativeChildFileIdentity(record.identity),
+		});
+	} catch {
+		throw new TypeError(`The ${label} descriptor is invalid.`);
+	}
 }
 
 function artifactArray(value: unknown): readonly ArtifactDescriptor[] {

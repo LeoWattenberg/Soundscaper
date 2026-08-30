@@ -268,7 +268,9 @@ async function runtimeArtifact(location, manifest, target, descriptor, readFileI
 		? join(location.resourcesPath, 'runtime', manifest.staging.runtimePrefix, target,
 			descriptor.path.slice(prefix.length))
 		: join(location.applicationRoot, descriptor.path);
-	const [bytes, metadata, canonical] = await Promise.all([readFileImpl(path), lstat(path), realpath(path)]);
+	const [bytes, metadata, canonical] = await Promise.all([
+		readFileImpl(path), lstat(path, { bigint: true }), realpath(path),
+	]);
 	if (!metadata.isFile() || metadata.isSymbolicLink() || canonical !== path
 		|| bytes.byteLength !== descriptor.byteLength || digest(bytes) !== descriptor.sha256) {
 		throw new Error(`The professional native artifact at ${path} failed exact authentication.`);
@@ -276,7 +278,10 @@ async function runtimeArtifact(location, manifest, target, descriptor, readFileI
 	if (inspect !== null) inspect(bytes);
 	return Object.freeze({
 		path, byteLength: descriptor.byteLength, sha256: descriptor.sha256,
-		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
+		identity: Object.freeze({
+			dev: BigInt.asUintN(64, metadata.dev).toString(10),
+			ino: BigInt.asUintN(64, metadata.ino).toString(10),
+		}),
 	});
 }
 

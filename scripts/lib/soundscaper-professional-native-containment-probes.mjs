@@ -5,6 +5,8 @@
 import { createServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 
+import { canonicalNativeChildFileIdentity } from '../../desktop/native-child-file-identity.ts';
+
 const SCENARIOS = Object.freeze({
 	'isolation-broker-filesystem-grant': Object.freeze({
 		argument: 'filesystem',
@@ -131,10 +133,11 @@ export function assertSoundscaperProfessionalContainmentProbeResult(scenarioValu
 function artifact(value, label) {
 	if (!value || typeof value !== 'object' || typeof value.path !== 'string'
 		|| !Number.isSafeInteger(value.byteLength) || value.byteLength < 1
-		|| !/^[a-f\d]{64}$/u.test(String(value.sha256))
-		|| !Number.isSafeInteger(value.identity?.dev) || !Number.isSafeInteger(value.identity?.ino)) {
+		|| !/^[a-f\d]{64}$/u.test(String(value.sha256))) {
 		throw new TypeError(`The ${label} hostile-probe artifact is invalid.`);
 	}
+	try { canonicalNativeChildFileIdentity(value.identity); }
+	catch { throw new TypeError(`The ${label} hostile-probe artifact is invalid.`); }
 	return value;
 }
 

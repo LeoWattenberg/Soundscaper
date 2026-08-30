@@ -13,6 +13,14 @@ import {
 	bindNativeChildProcess,
 	type NativeChildFramedControlBinding,
 } from './native-child-framed-control.ts';
+import {
+	nativeChildEnforcementFailure,
+	waitForNativeChildEnforcement,
+} from './native-child-enforcement-handshake.ts';
+import {
+	canonicalNativeChildFileIdentity,
+	nativeChildFileIdentityFromStat,
+} from './native-child-file-identity.ts';
 import type {
 	EnforcedNativeChildLaunch,
 	NativeChildIsolationArtifactDescriptor,
@@ -51,7 +59,6 @@ const TARGET_LAUNCHER_IDS = Object.freeze({
 	'win-x64': Object.freeze(['soundscaper-windows-appcontainer-job-v1', 'framescaper-windows-appcontainer-job-v1']),
 	'win-arm64': Object.freeze(['soundscaper-windows-appcontainer-job-v1', 'framescaper-windows-appcontainer-job-v1']),
 });
-const ENFORCEMENT_FRAME = Buffer.from('M5_NATIVE_ISOLATION_ENFORCED_V1\n');
 const MAXIMUM_ARGUMENTS = 128;
 const MAXIMUM_GRANTS = 64;
 const MAXIMUM_ARGUMENT_BYTES = 32_768;
@@ -168,7 +175,8 @@ async function launchTargetChild(options: Readonly<{
 	const artifactHandles: FileHandle[] = [];
 	let child: ChildProcess | null = null;
 	let completion: Promise<NativeChildIsolationCompletion> | null = null;
-	let drainedCompletion: Promise<void> | null = null;
+	let settledCompletion: Promise<NativeChildIsolationCompletion | null> | null = null;
+	let enforcementHandshakeFailed = false;
 	try {
 		artifactHandles.push(
 			await openAuthenticatedFile(options.artifacts.launcher),
@@ -219,12 +227,17 @@ async function launchTargetChild(options: Readonly<{
 		const processBinding = bindNativeChildProcess(child, request.framedControl);
 		completion = options.target.startsWith('linux-') ? processBinding.completion
 			: wallTimeBound(processBinding.completion, child, request.resourcePolicy.maximumJobDurationMs);
-		drainedCompletion = completion.then(() => undefined, () => undefined);
+		settledCompletion = completion.then((value) => value, () => null);
 		const attestation = child.stdio?.[3];
 		if (!attestation || typeof (attestation as Readable).on !== 'function') {
 			throw new Error('The native isolation launcher exposed no enforcement pipe.');
 		}
-		await enforcementFrame(attestation as Readable, options.enforcementTimeoutMs);
+		try {
+			await waitForNativeChildEnforcement(attestation as Readable, options.enforcementTimeoutMs);
+		} catch (error) {
+			enforcementHandshakeFailed = true;
+			throw error;
+		}
 		if (!Number.isSafeInteger(child.pid) || Number(child.pid) < 1) {
 			throw new Error('The enforced native child has no process identity.');
 		}
@@ -249,34 +262,14 @@ async function launchTargetChild(options: Readonly<{
 		});
 	} catch (error) {
 		child?.kill('SIGKILL');
-		if (drainedCompletion) await Promise.race([
-			drainedCompletion,
-			new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+		const outcome = settledCompletion === null ? null : await Promise.race([
+			settledCompletion,
+			new Promise<null>((resolve) => setTimeout(() => resolve(null), 1_000)),
 		]);
-		throw error;
+		throw enforcementHandshakeFailed ? nativeChildEnforcementFailure(error, outcome) : error;
 	} finally {
 		await closeAll(artifactHandles);
 	}
-}
-
-function enforcementFrame(stream: Readable, timeoutMs: number): Promise<void> {
-	return new Promise((resolve, reject) => {
-		let bytes = Buffer.alloc(0);
-		const timer = setTimeout(() => settle(new Error('The isolation launcher enforcement handshake timed out.')), timeoutMs);
-		const settle = (error: Error | null) => {
-			clearTimeout(timer);
-			stream.off('data', onData); stream.off('error', onError); stream.off('end', onEnd);
-			if (error) reject(error); else resolve();
-		};
-		const onData = (chunk: Buffer) => {
-			bytes = Buffer.concat([bytes, Buffer.from(chunk)]);
-			if (bytes.byteLength > ENFORCEMENT_FRAME.byteLength) settle(new Error('The enforcement handshake is malformed.'));
-		};
-		const onError = (error: Error) => { settle(error); };
-		const onEnd = () => settle(bytes.equals(ENFORCEMENT_FRAME)
-			? null : new Error('The enforcement handshake ended early.'));
-		stream.on('data', onData); stream.once('error', onError); stream.once('end', onEnd);
-	});
 }
 
 async function openAuthenticatedFile(value: NativeChildIsolationArtifactDescriptor): Promise<FileHandle> {
@@ -284,10 +277,11 @@ async function openAuthenticatedFile(value: NativeChildIsolationArtifactDescript
 	const handle = await open(descriptor.path, constants.O_RDONLY
 		| (constants.O_NOFOLLOW ?? 0) | (process.platform === 'linux' ? LINUX_O_CLOEXEC : 0));
 	try {
-		const metadata = await handle.stat();
+		const metadata = await handle.stat({ bigint: true });
+		const identity = nativeChildFileIdentityFromStat(metadata);
 		const bytes = await handle.readFile();
-		if (!metadata.isFile() || Number(metadata.dev) !== descriptor.identity.dev
-			|| Number(metadata.ino) !== descriptor.identity.ino || bytes.byteLength !== descriptor.byteLength
+		if (!metadata.isFile() || identity.dev !== descriptor.identity.dev
+			|| identity.ino !== descriptor.identity.ino || bytes.byteLength !== descriptor.byteLength
 			|| createHash('sha256').update(bytes).digest('hex') !== descriptor.sha256) {
 			throw new Error(`The authenticated launcher artifact ${descriptor.path} changed identity, bytes, or digest.`);
 		}
@@ -302,9 +296,10 @@ async function openPathGrant(value: NativeChildIsolationPathGrant): Promise<File
 		| (constants.O_NOFOLLOW ?? 0)
 		| (directory ? constants.O_DIRECTORY : 0));
 	try {
-		const metadata = await handle.stat();
+		const metadata = await handle.stat({ bigint: true });
+		const identity = nativeChildFileIdentityFromStat(metadata);
 		if ((directory ? !metadata.isDirectory() : !metadata.isFile())
-			|| Number(metadata.dev) !== grant.identity.dev || Number(metadata.ino) !== grant.identity.ino) {
+			|| identity.dev !== grant.identity.dev || identity.ino !== grant.identity.ino) {
 			throw new Error('A native isolation path grant changed identity or kind.');
 		}
 		return handle;
@@ -473,7 +468,7 @@ function artifactSet(value: unknown) {
 
 function artifactDescriptor(value: unknown): NativeChildIsolationArtifactDescriptor {
 	const record = closed(value, ['path', 'byteLength', 'sha256', 'identity']);
-	const identity = fileIdentity(record.identity);
+	const identity = canonicalNativeChildFileIdentity(record.identity);
 	if (typeof record.path !== 'string' || !isAbsolute(record.path) || record.path.includes('\0')
 		|| !Number.isSafeInteger(record.byteLength) || Number(record.byteLength) < 1 || !digest(record.sha256)) {
 		throw new TypeError('A native isolation artifact descriptor is invalid.');
@@ -499,14 +494,8 @@ function pathGrant(value: unknown): NativeChildIsolationPathGrant {
 		|| (record.kind !== 'file' && record.kind !== 'directory')) {
 		throw new TypeError('A native child path grant is invalid.');
 	}
-	return Object.freeze({ path: record.path, kind: record.kind, identity: fileIdentity(record.identity) });
-}
-
-function fileIdentity(value: unknown) {
-	const record = closed(value, ['dev', 'ino']);
 	return Object.freeze({
-		dev: boundedInteger(record.dev, 0, Number.MAX_SAFE_INTEGER, 'file device'),
-		ino: boundedInteger(record.ino, 0, Number.MAX_SAFE_INTEGER, 'file inode'),
+		path: record.path, kind: record.kind, identity: canonicalNativeChildFileIdentity(record.identity),
 	});
 }
 

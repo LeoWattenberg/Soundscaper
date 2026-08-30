@@ -32,6 +32,8 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/native-media-filesystem-lease.js',
 	'desktop/native-media-helper-output.js',
 	'desktop/native-media-output-tree.js',
+	'desktop/native-child-enforcement-handshake.js',
+	'desktop/native-child-file-identity.js',
 	'desktop/native-child-isolation-contract.js',
 	'desktop/native-child-isolation-launcher.js',
 	'desktop/native-child-windows-authority.js',

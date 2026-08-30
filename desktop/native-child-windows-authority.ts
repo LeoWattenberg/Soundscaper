@@ -4,19 +4,16 @@
 
 import { createHash } from 'node:crypto';
 
-interface NativeChildWindowsFileIdentity {
-	readonly dev: number;
-	readonly ino: number;
-}
+import type { NativeChildFileIdentity } from './native-child-file-identity.ts';
 
 interface NativeChildWindowsAuthorityArtifact {
 	readonly sha256: string;
-	readonly identity: NativeChildWindowsFileIdentity;
+	readonly identity: NativeChildFileIdentity;
 }
 
 interface NativeChildWindowsAuthorityGrant {
 	readonly kind: 'file' | 'directory';
-	readonly identity: NativeChildWindowsFileIdentity;
+	readonly identity: NativeChildFileIdentity;
 }
 
 export interface NativeChildWindowsAuthorityProfileInput {

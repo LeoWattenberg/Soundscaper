@@ -9,6 +9,7 @@ import { existsSync } from 'node:fs';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 
+import { nativeChildFileIdentityFromStat } from '../desktop/native-child-file-identity.ts';
 import {
 	createNativeChildIsolationLauncher,
 } from '../desktop/native-child-isolation-launcher.ts';
@@ -103,7 +104,7 @@ async function isolatedProfessionalPeerSmoke(roots_, target_) {
 	});
 	const fixtureMetadata = await lstat(fixture.path);
 	const context = Object.freeze({
-		identity: fixture.identity,
+		identity: Object.freeze({ dev: Number(fixtureMetadata.dev), ino: Number(fixtureMetadata.ino) }),
 		byteLength: fixture.byteLength,
 		sha256: fixture.sha256,
 		resourcePolicy: Object.freeze({
@@ -325,7 +326,7 @@ async function effectiveIsolationRuntime(target_, peer, packagedRuntimeClosure) 
 
 async function descriptor(path) {
 	const canonical = await realpath(path);
-	const [metadata, bytes] = await Promise.all([lstat(canonical), readFile(canonical)]);
+	const [metadata, bytes] = await Promise.all([lstat(canonical, { bigint: true }), readFile(canonical)]);
 	if (canonical !== path || !metadata.isFile() || metadata.isSymbolicLink()) {
 		throw new Error(`The self-test artifact ${path} is not canonical.`);
 	}
@@ -333,7 +334,7 @@ async function descriptor(path) {
 		path: canonical,
 		byteLength: bytes.byteLength,
 		sha256: createHash('sha256').update(bytes).digest('hex'),
-		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
+		identity: nativeChildFileIdentityFromStat(metadata),
 	});
 }
 

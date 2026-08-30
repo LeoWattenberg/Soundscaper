@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -28,6 +29,20 @@ struct Values {
 	std::wstring authorityProfile;
 	SIZE_T rss = 0u; uint64_t durationMs = 0u;
 };
+
+[[noreturn]] void nativeFailure(const char *stage, DWORD code)
+{
+	std::array<char, 160> message{};
+	const int length = std::snprintf(message.data(), message.size(),
+		"M5_NATIVE_ISOLATION_FAILURE_V1 windows %s %lu\n", stage, static_cast<unsigned long>(code));
+	const HANDLE error = GetStdHandle(STD_ERROR_HANDLE);
+	DWORD written = 0u;
+	if (length > 0 && static_cast<size_t>(length) < message.size()
+		&& error != nullptr && error != INVALID_HANDLE_VALUE) {
+		(void)WriteFile(error, message.data(), static_cast<DWORD>(length), &written, nullptr);
+	}
+	ExitProcess(125u);
+}
 
 bool exactFd(const std::wstring &value, const wchar_t *prefix, HANDLE &output,
 	int *descriptor = nullptr)
@@ -106,10 +121,15 @@ std::wstring appContainerName(const std::wstring &profile)
 
 PSID appContainerSid(const std::wstring &profile)
 {
-	PSID sid = nullptr;
 	const auto name = appContainerName(profile);
-	const HRESULT status = DeriveAppContainerSidFromAppContainerName(name.c_str(), &sid);
-	if (FAILED(status) || sid == nullptr) ExitProcess(125u);
+	PSID sid = nullptr;
+	HRESULT status = CreateAppContainerProfile(name.c_str(), name.c_str(), name.c_str(), nullptr, 0u, &sid);
+	if (status == HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS)) {
+		status = DeriveAppContainerSidFromAppContainerName(name.c_str(), &sid);
+	}
+	if (FAILED(status) || sid == nullptr) {
+		nativeFailure("appcontainer-profile", static_cast<DWORD>(status));
+	}
 	return sid;
 }
 
@@ -161,15 +181,17 @@ std::vector<unsigned char> crtDescriptors(HANDLE extraInput)
 	const int count = extraInput == nullptr ? 3 : 4;
 	std::vector<unsigned char> bytes(sizeof(int) + static_cast<size_t>(count)
 		+ static_cast<size_t>(count) * sizeof(intptr_t), 0u);
-	*reinterpret_cast<int *>(bytes.data()) = count;
+	std::memcpy(bytes.data(), &count, sizeof(count));
 	auto *flags = bytes.data() + sizeof(int);
-	auto *handles = reinterpret_cast<intptr_t *>(flags + count);
+	const size_t handleOffset = sizeof(int) + static_cast<size_t>(count);
 	for (int index = 0; index < count; ++index) {
 		const DWORD selector = index == 0 ? STD_INPUT_HANDLE : index == 1 ? STD_OUTPUT_HANDLE : STD_ERROR_HANDLE;
 		const HANDLE handle = index < 3 ? GetStdHandle(selector) : extraInput;
 		if (handle == nullptr || handle == INVALID_HANDLE_VALUE
 			|| !SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)) ExitProcess(125u);
-		flags[index] = 0x09u; handles[index] = reinterpret_cast<intptr_t>(handle);
+		flags[index] = 0x09u;
+		const auto raw = reinterpret_cast<intptr_t>(handle);
+		std::memcpy(bytes.data() + handleOffset + static_cast<size_t>(index) * sizeof(raw), &raw, sizeof(raw));
 	}
 	return bytes;
 }
@@ -230,18 +252,27 @@ int wmain(int argc, wchar_t **argv)
 	SIZE_T bytes = 0u; InitializeProcThreadAttributeList(nullptr, 2u, 0u, &bytes);
 	std::vector<unsigned char> storage(bytes);
 	auto *attributes = reinterpret_cast<PPROC_THREAD_ATTRIBUTE_LIST>(storage.data());
-	if (!InitializeProcThreadAttributeList(attributes, 2u, 0u, &bytes)
-		|| !UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
-			&capabilities, sizeof(capabilities), nullptr, nullptr)
-		|| !UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-			inherited.data(), inherited.size() * sizeof(HANDLE), nullptr, nullptr)) return 125;
+	if (!InitializeProcThreadAttributeList(attributes, 2u, 0u, &bytes)) {
+		nativeFailure("initialize-attributes", GetLastError());
+	}
+	if (!UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
+		&capabilities, sizeof(capabilities), nullptr, nullptr)) {
+		nativeFailure("security-capabilities", GetLastError());
+	}
+	if (!UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+		inherited.data(), inherited.size() * sizeof(HANDLE), nullptr, nullptr)) {
+		nativeFailure("inherited-handles", GetLastError());
+	}
 	HANDLE job = CreateJobObjectW(nullptr, nullptr);
 	JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
 	limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 		| JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_PROCESS_MEMORY | JOB_OBJECT_LIMIT_PROCESS_TIME;
 	limits.BasicLimitInformation.ActiveProcessLimit = 1u; limits.ProcessMemoryLimit = values.rss;
 	limits.BasicLimitInformation.PerProcessUserTimeLimit.QuadPart = static_cast<LONGLONG>(values.durationMs) * 10000ll;
-	if (job == nullptr || !SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) return 125;
+	if (job == nullptr) nativeFailure("create-job", GetLastError());
+	if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) {
+		nativeFailure("configure-job", GetLastError());
+	}
 	STARTUPINFOEXW startup{}; startup.StartupInfo.cb = sizeof(startup); startup.lpAttributeList = attributes;
 	startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
 	startup.StartupInfo.hStdInput = inherited[0]; startup.StartupInfo.hStdOutput = inherited[1];
@@ -250,8 +281,14 @@ int wmain(int argc, wchar_t **argv)
 	PROCESS_INFORMATION process{};
 	if (!CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, TRUE,
 		CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
-		nullptr, nullptr, &startup.StartupInfo, &process)
-		|| !AssignProcessToJobObject(job, process.hProcess)) return 125;
+		nullptr, nullptr, &startup.StartupInfo, &process)) {
+		nativeFailure("create-process", GetLastError());
+	}
+	if (!AssignProcessToJobObject(job, process.hProcess)) {
+		const DWORD code = GetLastError();
+		(void)TerminateProcess(process.hProcess, 125u);
+		nativeFailure("assign-job", code);
+	}
 	DWORD written = 0u;
 	if (!WriteFile(values.attestation, attestation, sizeof(attestation) - 1u, &written, nullptr)
 		|| written != sizeof(attestation) - 1u || _close(values.attestationFd) != 0) return 125;
