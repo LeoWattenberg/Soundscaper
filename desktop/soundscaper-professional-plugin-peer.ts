@@ -111,6 +111,9 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 			admittedFormat(formats, format);
 			const session = await openSession(options.launcher, executable, entryExecutable, entryArguments,
 				runtimeReadExecute, path, context);
+			let scanCompleted = false;
+			let operationFailed = false;
+			let operationError: unknown;
 			try {
 				const answer = await session.request(OPERATION.scan, (writer) => {
 					writer.text(format); writer.text(session.pluginPath);
@@ -119,11 +122,25 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 				if (count < 1 || count > 256) throw new Error('The isolated peer returned an ambiguous descriptor set.');
 				const descriptions = Array.from({ length: count }, () => readDescription(answer));
 				answer.done();
+				scanCompleted = true;
 				if (new Set(descriptions.map(({ stableId }) => stableId)).size !== descriptions.length) {
 					throw new Error('The isolated peer returned duplicate stable plug-in IDs.');
 				}
 				return Object.freeze(descriptions);
-			} finally { await session.close(); }
+			} catch (error) {
+				operationFailed = true;
+				operationError = error;
+				throw error;
+			} finally {
+				try { await session.close(); }
+				catch (closeError) {
+					if (operationFailed) throw new AggregateError(
+						[operationError, closeError],
+						`The isolated professional scan and shutdown both failed; scan-completed=${String(scanCompleted)}.`,
+					);
+					throw closeError;
+				}
+			}
 		},
 		openPluginInstance: async (
 			path: string, sampleRate: number, maximumFrames: number, format: HelperPluginFormat,
@@ -262,12 +279,19 @@ async function openSession(
 	};
 	const close = async () => {
 		if (closed) return;
-		try { const answer = await request(OPERATION.close); answer.done(); }
+		let closeAcknowledged = false;
+		try {
+			const answer = await request(OPERATION.close); answer.done();
+			closeAcknowledged = true;
+		}
 		finally {
 			closed = true;
 			try {
 				const completion = await launch.completion;
-				if (completion.exitCode !== 0) throw new Error(`The isolated professional peer exited ${String(completion.exitCode)}.`);
+				if (completion.exitCode !== 0) throw new Error(
+					`The isolated professional peer exited ${String(completion.exitCode)}; `
+					+ `signal=${completion.signal ?? 'none'}; close-acknowledged=${String(closeAcknowledged)}.`,
+				);
 			} finally { await snapshot.dispose(); }
 		}
 	};

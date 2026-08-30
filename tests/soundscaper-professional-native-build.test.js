@@ -371,6 +371,14 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(dispatcher, /ScopedJuceInitialiser_GUI/u);
 	assert.match(dispatcher, /runDispatchLoop/u);
 	assert.match(dispatcher, /maximumPendingTasks/u);
+	assert.match(dispatcher, /current->stopDispatchLoop\(\);/u);
+	assert.doesNotMatch(dispatcher,
+		/callAsync\([^;]*stopDispatchLoop/u,
+		'teardown must post JUCE\'s quit message directly before joining its worker');
+	assert.match(dispatcher, /shutdownJuceMessageDispatcher[\s\S]*value->shutdown\(\)/u);
+	assert.match(peer,
+		/writeFrame\(answer\)[\s\S]*peer\.finished\(\)[\s\S]*shutdownJuceMessageDispatcher\(\)/u,
+		'the successful close frame must precede explicit bounded-lifetime JUCE teardown');
 	for (const method of [
 		'describe', 'enumerateAudioBackends', 'openAudioDevice', 'writeAudioDevice',
 		'readAudioDevice', 'closeAudioDevice', 'listPluginCandidates',

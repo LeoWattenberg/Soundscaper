@@ -3,6 +3,7 @@
 /** Persistent binary RPC peer; all third-party plug-in code stays in this process. */
 
 #include "professional_host_api.h"
+#include "juce_message_dispatcher.h"
 
 #if defined(__APPLE__)
 #include "professional_host_macos_bootstrap.hpp"
@@ -513,6 +514,9 @@ int main(int argc, char **argv)
 		const FrameReadStatus status = readFrame(request);
 		if (status != FrameReadStatus::ready) return status == FrameReadStatus::cleanEof ? 0 : 125;
 		if (!peer.dispatch(request, answer) || !writeFrame(answer)) return 125;
-		if (peer.finished()) return 0;
+		if (peer.finished()) {
+			soundscaper::shutdownJuceMessageDispatcher();
+			return 0;
+		}
 	}
 }

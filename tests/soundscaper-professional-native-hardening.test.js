@@ -233,6 +233,15 @@ test('desktop preparation executes the professional native release policy before
 		'desktop preparation must gate the exact release before replacing its build tree');
 });
 
+test('peer completion failures retain bounded trusted shutdown phase evidence', async () => {
+	const source = await readFile(resolve(import.meta.dirname,
+		'../desktop/soundscaper-professional-plugin-peer.ts'), 'utf8');
+	assert.match(source, /closeAcknowledged = true/u);
+	assert.match(source, /signal=.*close-acknowledged=/u);
+	assert.match(source, /scan-completed=/u);
+	assert.match(source, /new AggregateError\(\s*\[operationError, closeError\]/u);
+});
+
 async function packagedAppFixture(context, sourceRevision = REVISION) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-authority-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
