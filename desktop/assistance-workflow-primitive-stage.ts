@@ -150,7 +150,8 @@ function primaryRange(stage: AssistanceWorkflowStageExecutionV1): AssistanceWork
 		: inputSlots.has('video') || inputSlots.has('frame-pack') ? 'video' : null;
 	const matches = preferredKind === null ? stage.request.fence.sourceRanges
 		: stage.request.fence.sourceRanges.filter(({ mediaKind }) => mediaKind === preferredKind);
-	const range = matches[0] ?? stage.request.fence.sourceRanges[0];
-	if (!range) throw new TypeError('A workflow primitive stage has no source-range authority.');
-	return range;
+	if (matches.length !== 1) {
+		throw new TypeError('A workflow primitive stage requires exactly one source-range authority.');
+	}
+	return matches[0]!;
 }

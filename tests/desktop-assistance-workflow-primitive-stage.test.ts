@@ -108,8 +108,35 @@ test('primitive stage runner preserves model-unavailable and never substitutes r
 	}
 });
 
-function primitiveStage(): AssistanceWorkflowStageExecutionV1 {
+test('primitive stage runner refuses ambiguous source-range authority', async () => {
 	const request = assistanceWorkflowFixture();
+	const firstRange = request.fence.sourceRanges[0]!;
+	const ambiguousRequest = assistanceWorkflowFixture({
+		fence: Object.freeze({ ...request.fence, sourceRanges: Object.freeze([
+			firstRange,
+			Object.freeze({ ...firstRange, slotId: 'secondary-audio', sourceId: 'source-b',
+				sourceSha256: '78'.repeat(32), occurrenceIds: Object.freeze(['occurrence-b']) }),
+		]) }),
+	});
+	let executions = 0;
+	const runner = createAssistanceWorkflowPrimitiveStageRunner({
+		custody: Object.freeze({
+			preparePrimitiveStage: async () => primitiveClaims(),
+			bindPrimitiveOutputs: async () => undefined,
+		}),
+		operations: Object.freeze({ executeStaged: async () => {
+			executions += 1;
+			throw new Error('The ambiguous stage must not execute.');
+		} }),
+	});
+
+	await assert.rejects(runner(primitiveStage(ambiguousRequest)), /exactly one source-range/u);
+	assert.equal(executions, 0);
+});
+
+function primitiveStage(
+	request = assistanceWorkflowFixture(),
+): AssistanceWorkflowStageExecutionV1 {
 	const stage = assistanceWorkflowStageGraph(request.workflowId)[0]!;
 	const binding = Object.freeze({ request, stage, stageIndex: 0, stageCount: request.stageIds.length,
 		inputs: Object.freeze(request.inputs.filter(({ stageId }) => stageId === stage.stageId)),
