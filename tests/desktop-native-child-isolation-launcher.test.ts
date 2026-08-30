@@ -45,6 +45,29 @@ test('macOS rejects machine workloads whose peer has no pre-work Seatbelt bootst
 	}), /only the professional peer has an authenticated pre-work Seatbelt bootstrap/iu);
 });
 
+test('the professional peer accepts explicit empty entry arguments for a direct executable', () => {
+	const executable = Object.freeze({
+		path: '/fixture/professional-peer', byteLength: 1, sha256: 'a'.repeat(64),
+		identity: Object.freeze({ dev: 1, ino: 1 }),
+	});
+	assert.doesNotThrow(() => createSoundscaperProfessionalPluginPeer({
+		launcher: {} as never,
+		peerExecutable: executable,
+		entryExecutable: executable,
+		entryArguments: [],
+		runtimeReadExecute: [],
+		pluginFormats: ['vst3'],
+	}));
+	assert.throws(() => createSoundscaperProfessionalPluginPeer({
+		launcher: {} as never,
+		peerExecutable: executable,
+		entryExecutable: Object.freeze({ ...executable, path: '/fixture/dynamic-loader' }),
+		entryArguments: [],
+		runtimeReadExecute: [],
+		pluginFormats: ['vst3'],
+	}), /loader arguments are invalid/iu);
+});
+
 test('Linux launches an exact child only after namespaces, Landlock, and seccomp are enforced', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
