@@ -45,8 +45,13 @@ test('the inspector exposes exact stock LAME gapless and bitrate geometry', asyn
 
 test('valid tags, protected frames, lower MPEG versions, and chaining fall through', () => {
 	const mp3 = testMpegAudioStream({ layer: 3 });
+	const id3v24Footer = concatenate(
+		Uint8Array.of(0x49, 0x44, 0x33, 4, 0, 0x10, 0, 0, 0, 0),
+		Uint8Array.of(0x33, 0x44, 0x49, 4, 0, 0x10, 0, 0, 0, 0),
+		mp3,
+	);
 	const unsupported = [
-		withId3v2(mp3), withId3v1(mp3),
+		withId3v2(mp3), id3v24Footer, withId3v1(mp3),
 		testMpegAudioStream({ layer: 3, crcProtected: true }),
 		testMpegAudioStream({ layer: 3, mpegVersion: 2, sampleRate: 44_100 }),
 		concatenate(testMpegAudioFrame({ layer: 3, sampleRate: 44_100 }),

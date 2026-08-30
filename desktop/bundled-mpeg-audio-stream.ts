@@ -247,7 +247,8 @@ function id3v2End(bytes: Uint8Array): number {
 		if (bytes[index]! & 0x80) fail();
 		size = size << 7 | bytes[index]!;
 	}
-	const end = 10 + size;
+	const footerBytes = version === 4 && (flags & 0x10) !== 0 ? 10 : 0;
+	const end = 10 + size + footerBytes;
 	if (!Number.isSafeInteger(end) || end > bytes.byteLength) fail();
 	return end;
 }
