@@ -119,6 +119,12 @@ test('renderer uses the exact bounded Zoom In control if summary peaks precede P
 	assert.equal(fixture.polls, 8);
 });
 
+test('renderer keeps polling while the bound editor has not rendered its waveform', async () => {
+	const fixture = rendererFixture(PLAN, { ready: true, waveformReadyAfterPolls: 1 });
+	assert.deepEqual(await runScapeReopenRendererSmoke(fixture.scope, PLAN), rendererResult());
+	assert.equal(fixture.polls, 1);
+});
+
 test('renderer rejects missing, noncanonical, drifted, and relationally invalid shared projects', async () => {
 	const valid = sharedProjectDocument(PLAN);
 	for (const [document, pattern] of [
@@ -312,6 +318,7 @@ function rendererFixture(plan, {
 	naturalEndFrame = null,
 	initialMeterValue = -60,
 	initialPlayheadFrame = 0,
+	waveformReadyAfterPolls = 0,
 } = {}) {
 	let currentReady = ready;
 	let polls = 0;
@@ -373,7 +380,8 @@ function rendererFixture(plan, {
 	};
 	const clip = {
 		...attribute({ 'data-clip-id': plan.project.clipId }),
-		querySelectorAll: (selector) => selector === 'canvas.clip-body__waveform' ? [waveform] : [],
+		querySelectorAll: (selector) => selector === 'canvas.clip-body__waveform'
+			&& polls >= waveformReadyAfterPolls ? [waveform] : [],
 	};
 	const track = {
 		...attribute({ 'data-track-id': plan.project.trackId, 'data-track-row': '' }),

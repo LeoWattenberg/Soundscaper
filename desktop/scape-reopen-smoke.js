@@ -366,7 +366,7 @@ export async function runScapeReopenRendererSmoke(scope, plan) {
 				: [];
 			const statuses = root.querySelectorAll('[data-editor-status][data-state="success"]');
 			const waveform = waveforms.length === 1 ? waveforms[0] : null;
-			if (waveform?.getAttribute('data-waveform-error') !== null) {
+			if (waveform && waveform.getAttribute('data-waveform-error') !== null) {
 				throw new Error('Packaged Scape persisted-reopen UI exposed a waveform error');
 			}
 			const identityReady = root.getAttribute('data-project-id') === plan.project.id
