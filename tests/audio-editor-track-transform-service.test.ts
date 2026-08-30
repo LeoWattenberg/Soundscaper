@@ -294,6 +294,38 @@ test('stereo splitting creates left and right tracks, sources, clips, and indepe
 	assert.notEqual(rightEffects?.[0]?.id, 'effect');
 });
 
+test('stereo splitting detaches a media lane and its A/V links without removing video', async () => {
+	const source = sourceFixture('stereo-source', { channelCount: 2 });
+	const audioClip = clipFixture('audio-clip', source.id, { avLinkId: 'av-link' });
+	const videoClip = clipFixture('video-clip', 'video-source', {
+		kind: 'video',
+		avLinkId: 'av-link',
+	});
+	const video = trackFixture({
+		id: 'video', type: 'video', laneGroupId: 'media-lane', clipIds: [videoClip.id],
+	});
+	const audio = trackFixture({
+		id: 'audio', channelCount: 2, laneGroupId: 'media-lane', clipIds: [audioClip.id],
+	});
+	const fixture = createTransformFixture(projectFixture({
+		tracks: [video, audio], clips: [videoClip, audioClip], sources: [source],
+	}));
+
+	await fixture.service.splitStereoTrack('audio');
+	const batch = fixture.calls.commits[0]?.command;
+	assert.equal(batch?.type, 'batch');
+	if (batch?.type !== 'batch') assert.fail('Expected a split batch.');
+	assert.deepEqual(batch.commands.slice(2, 5), [
+		{ type: 'track/update', trackId: 'video', changes: { laneGroupId: null } },
+		{ type: 'track/update', trackId: 'audio', changes: { laneGroupId: null } },
+		{ type: 'clip/unlink-av', clipId: 'audio-clip' },
+	]);
+	const trackAdds = batch.commands.filter((command) => command.type === 'track/add');
+	assert.ok(trackAdds.every((command) => command.track.laneGroupId === null));
+	const clipAdds = batch.commands.filter((command) => command.type === 'clip/add');
+	assert.ok(clipAdds.every((command) => command.clip.avLinkId === null));
+});
+
 test('joining mono tracks renders their shared range and uses a synthetic source template when needed', async () => {
 	const leftClip = clipFixture('left-clip', 'missing-left', { timelineStartFrame: 10, durationFrames: 20 });
 	const rightClip = clipFixture('right-clip', 'missing-right', { timelineStartFrame: 5, durationFrames: 40 });

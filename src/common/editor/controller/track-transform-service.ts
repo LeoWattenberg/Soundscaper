@@ -243,15 +243,29 @@ export function createTrackTransformService(
 					...track,
 					id: rightTrackId,
 					clipIds: [],
+					laneGroupId: null,
 					name: `${track.name} — ${dependencies.copy.rightChannel}`,
 					pan: panChannels ? 1 : 0,
 					armed: false,
 					effects: (track.effects || []).map((effect) => ({ ...effect, id: dependencies.createId('effect') })),
 				};
+				const laneTracks = track.laneGroupId == null ? [] : project.tracks
+					.filter((candidate) => candidate.laneGroupId === track.laneGroupId);
+				const avLinkClipIds = new Map(clips.flatMap((clip) => (
+					typeof clip.avLinkId === 'string' && clip.avLinkId
+						? [[clip.avLinkId, clip.id] as const]
+						: []
+				)));
 				const commands: AudioEditorCommand[] = [
 					...derived.map(({ source }) => createAddSourceCommand(source)),
+					...laneTracks.map((candidate): AudioEditorCommand => ({
+						type: 'track/update', trackId: candidate.id, changes: { laneGroupId: null },
+					})),
+					...[...avLinkClipIds.values()].map((linkedClipId): AudioEditorCommand => ({
+						type: 'clip/unlink-av', clipId: linkedClipId,
+					})),
 					{ type: 'track/remove', trackId: track.id },
-					{ ...createAddTrackCommand(leftTrack), index: trackIndex },
+					{ ...createAddTrackCommand({ ...leftTrack, laneGroupId: null }), index: trackIndex },
 					{ ...createAddTrackCommand(rightTrack), index: trackIndex + 1 },
 				];
 				for (const clip of clips) addSplitClipCommands(commands, track, rightTrackId, clip, sourcePairs);
@@ -447,12 +461,13 @@ export function createTrackTransformService(
 		const pair = pairs.get(clip.sourceId);
 		if (!pair) return;
 		commands.push(
-			createAddClipCommand(track.id, { ...clip, sourceId: pair.left.id }),
+			createAddClipCommand(track.id, { ...clip, sourceId: pair.left.id, avLinkId: null }),
 			createAddClipCommand(rightTrackId, {
 				...clip,
 				id: dependencies.createId('clip'),
 				sourceId: pair.right.id,
 				title: `${clip.title} — ${dependencies.copy.rightChannel}`,
+				avLinkId: null,
 			}),
 		);
 	}

@@ -155,12 +155,12 @@ function updateTrack(project, trackId, changes = {}) {
 		return;
 	}
 	if (track.type === 'video') {
-		const allowed = new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height', 'locked']);
+		const allowed = new Set(['name', 'mute', 'solo', 'hidden', 'collapsed', 'height', 'locked', 'laneGroupId']);
 		for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Video track field cannot be updated: ${key}.`);
 		Object.assign(track, normalizeTrackForProject(project, { ...track, ...changes, clipIds: track.clipIds }));
 		return;
 	}
-	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive', 'locked']);
+	const allowed = new Set(['name', 'gain', 'pan', 'mute', 'solo', 'armed', 'effectsActive', 'locked', 'laneGroupId']);
 	for (const key of ['displayMode', 'color', 'spectrogram', 'envelope', 'collapsed', 'height']) allowed.add(key);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Track field cannot be updated: ${key}.`);
 	const updated = normalizeTrackForProject(project, { ...track, ...changes, effects: track.effects, clipIds: track.clipIds });
