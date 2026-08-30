@@ -439,10 +439,17 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 		'the verifier must not race the kernel between publishing SSTOP and completing task suspension');
 	assert.match(mac, /PROC_PIDLISTFDS/u,
 		'the trusted verifier must close the complete descriptor snapshot rather than scan an unbounded limit');
-	assert.match(mac, /POSIX_SPAWN_SETEXEC[\s\S]*POSIX_SPAWN_START_SUSPENDED[\s\S]*POSIX_SPAWN_CLOEXEC_DEFAULT/u);
-	assert.match(mac, /posix_spawn_file_actions_addinherit_np/u);
+	assert.match(mac, /POSIX_SPAWN_SETEXEC[\s\S]*POSIX_SPAWN_START_SUSPENDED/u);
+	assert.doesNotMatch(mac, /POSIX_SPAWN_CLOEXEC_DEFAULT|posix_spawn_file_actions_/u,
+		'the single-threaded SETEXEC parent must not rely on Darwin spawn file actions');
 	assert.match(mac, /F_DUPFD_CLOEXEC/u,
 		'the fixed bootstrap descriptors must be sourced from collision-free private duplicates');
+	assert.match(mac,
+		/mapBootstrapDescriptors\([\s\S]*closefrom\(6\)/u,
+		'the parent must close everything above the exact bootstrap descriptor set');
+	assert.match(mac,
+		/fork\(\)[\s\S]*mapBootstrapDescriptors\([\s\S]*posix_spawn\(nullptr,[\s\S]*nullptr, &attributes/u,
+		'the verifier must retain authority before the parent maps and closes the exact peer descriptor set');
 	assert.match(mac, /kill\([^,]+, SIGCONT\)[\s\S]*exactWrite/u,
 		'the exact stopped peer must resume before a maximum-size policy can fill the pipe');
 	assert.match(mac, /kill\([^,]+, SIGKILL\)/u);
@@ -515,7 +522,8 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(runtime, /windowsAuthorityProfile[\s\S]*brand[\s\S]*workloadPayload[\s\S]*runtimeClosure/u);
 	assert.match(windowsAuthority,
 		/brand: input\.brand[\s\S]*workloadPayload: artifactBinding[\s\S]*runtimeClosure: sortedBindings[\s\S]*value\.sha256/u);
-	assert.match(windowsProfile, /brand-and-machine-workload-payload-bound-appcontainer-low-integrity/u);
+	assert.match(windowsProfile,
+		/brand-and-machine-workload-payload-bound-less-privileged-appcontainer-low-integrity/u);
 	assert.doesNotMatch(runtime, /if \(!target\.startsWith\('linux-'\)/u);
 });
 

@@ -5,9 +5,12 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
-const SOURCE = await readFile(resolve(
-	'native/milestone-5-native-isolation-launcher/src/windows_launcher.cpp',
-), 'utf8');
+const ROOT = resolve('native/milestone-5-native-isolation-launcher');
+const [SOURCE, PROFILE, BROKER] = await Promise.all([
+	readFile(resolve(ROOT, 'src/windows_launcher.cpp'), 'utf8'),
+	readFile(resolve(ROOT, 'profiles/windows-v1.json'), 'utf8'),
+	readFile(resolve(ROOT, 'profiles/windows-broker-v1.json'), 'utf8'),
+]);
 
 test('Windows registers the exact AppContainer profile before creating its process', () => {
 	assert.match(SOURCE,
@@ -31,4 +34,19 @@ test('Windows reports a bounded pre-attestation API stage without merging guards
 	assert.match(SOURCE,
 		/if \(!AssignProcessToJobObject\([\s\S]*TerminateProcess\([\s\S]*nativeFailure\("assign-job"/u,
 		'the unassigned suspended child must be terminated before the launcher exits');
+});
+
+test('Windows opts the peer out of ambient all-application-package access', () => {
+	assert.match(SOURCE, /PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT/u,
+		'the peer must use a less-privileged AppContainer token');
+	assert.match(SOURCE, /PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY/u,
+		'ambient All Application Packages ACLs must not broaden exact broker grants');
+	assert.match(SOURCE,
+		/PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT[\s\S]*UpdateProcThreadAttribute\(attributes,[\s\S]*PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY[\s\S]*nativeFailure\("all-application-packages-policy"[\s\S]*PROC_THREAD_ATTRIBUTE_HANDLE_LIST/u,
+		'the LPAC policy must fail closed before inherited handles and process creation');
+	assert.match(SOURCE,
+		/InitializeProcThreadAttributeList\(nullptr, 3u,[\s\S]*InitializeProcThreadAttributeList\(attributes, 3u,/u,
+		'the LPAC policy must occupy its own process attribute slot');
+	assert.match(PROFILE, /less-privileged-appcontainer-low-integrity/u);
+	assert.match(BROKER, /persistent-exact-less-privileged-appcontainer-policy/u);
 });

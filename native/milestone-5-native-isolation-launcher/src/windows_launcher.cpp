@@ -245,19 +245,25 @@ int wmain(int argc, wchar_t **argv)
 	grantExactAccess(values.executable, sid, Access::readExecute);
 	for (const auto &grant : values.grants) grantExactAccess(grant.handle, sid, grant.access);
 	SECURITY_CAPABILITIES capabilities{ sid, nullptr, 0u, 0u };
+	DWORD allApplicationPackagesPolicy = PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
 	const auto crt = crtDescriptors(values.extraInput);
 	std::vector<HANDLE> inherited{ GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE),
 		GetStdHandle(STD_ERROR_HANDLE) };
 	if (values.extraInput != nullptr) inherited.push_back(values.extraInput);
-	SIZE_T bytes = 0u; InitializeProcThreadAttributeList(nullptr, 2u, 0u, &bytes);
+	SIZE_T bytes = 0u; InitializeProcThreadAttributeList(nullptr, 3u, 0u, &bytes);
 	std::vector<unsigned char> storage(bytes);
 	auto *attributes = reinterpret_cast<PPROC_THREAD_ATTRIBUTE_LIST>(storage.data());
-	if (!InitializeProcThreadAttributeList(attributes, 2u, 0u, &bytes)) {
+	if (!InitializeProcThreadAttributeList(attributes, 3u, 0u, &bytes)) {
 		nativeFailure("initialize-attributes", GetLastError());
 	}
 	if (!UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
 		&capabilities, sizeof(capabilities), nullptr, nullptr)) {
 		nativeFailure("security-capabilities", GetLastError());
+	}
+	if (!UpdateProcThreadAttribute(attributes, 0u,
+		PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY,
+		&allApplicationPackagesPolicy, sizeof(allApplicationPackagesPolicy), nullptr, nullptr)) {
+		nativeFailure("all-application-packages-policy", GetLastError());
 	}
 	if (!UpdateProcThreadAttribute(attributes, 0u, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
 		inherited.data(), inherited.size() * sizeof(HANDLE), nullptr, nullptr)) {

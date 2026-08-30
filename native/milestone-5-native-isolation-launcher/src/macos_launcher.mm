@@ -323,25 +323,44 @@ std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bo
 	verifierFailure(parent);
 }
 
-bool inheritOrDuplicate(posix_spawn_file_actions_t &actions, int source, int destination)
+int failureCode()
 {
-	return source == destination ? posix_spawn_file_actions_addinherit_np(&actions, source) == 0
-		: posix_spawn_file_actions_adddup2(&actions, source, destination) == 0;
+	return errno > 0 ? errno : EIO;
 }
 
-bool spawnActions(
-	posix_spawn_file_actions_t &actions,
+int makeInheritable(int descriptor)
+{
+	const int flags = fcntl(descriptor, F_GETFD);
+	if (flags < 0) return failureCode();
+	if ((flags & FD_CLOEXEC) != 0 && fcntl(descriptor, F_SETFD, flags & ~FD_CLOEXEC) != 0) {
+		return failureCode();
+	}
+	return 0;
+}
+
+int mapBootstrapDescriptors(
 	int attestationSource,
 	int policySource,
 	int extraInputSource)
 {
-	for (int descriptor = 0; descriptor < 3; ++descriptor) {
-		if (posix_spawn_file_actions_addinherit_np(&actions, descriptor) != 0) return false;
+	if (dup2(attestationSource, bootstrap::attestationDescriptor) != bootstrap::attestationDescriptor
+		|| dup2(policySource, bootstrap::policyDescriptor) != bootstrap::policyDescriptor) {
+		return failureCode();
 	}
-	return inheritOrDuplicate(actions, attestationSource, bootstrap::attestationDescriptor)
-		&& inheritOrDuplicate(actions, policySource, bootstrap::policyDescriptor)
-		&& (extraInputSource < 0
-			|| inheritOrDuplicate(actions, extraInputSource, bootstrap::extraInputDescriptor));
+	if (extraInputSource >= 0) {
+		if (dup2(extraInputSource, bootstrap::extraInputDescriptor) != bootstrap::extraInputDescriptor) {
+			return failureCode();
+		}
+	} else if (close(bootstrap::extraInputDescriptor) != 0 && errno != EBADF) {
+		return failureCode();
+	}
+	const int lastDescriptor = extraInputSource >= 0
+		? bootstrap::extraInputDescriptor : bootstrap::policyDescriptor;
+	for (int descriptor = 0; descriptor <= lastDescriptor; ++descriptor) {
+		if (const int status = makeInheritable(descriptor); status != 0) return status;
+	}
+	closefrom(6);
+	return 0;
 }
 
 } // namespace
@@ -371,21 +390,14 @@ int main(int argc, char **argv)
 	const int extraInputSource = value.extraInputFd < 0
 		? -1 : fcntl(value.extraInputFd, F_DUPFD_CLOEXEC, 6);
 	if (attestationSource < 0 || policySource < 0 || (value.extraInputFd >= 0 && extraInputSource < 0)) return 125;
-	posix_spawn_file_actions_t actions{};
 	posix_spawnattr_t attributes{};
-	if (posix_spawn_file_actions_init(&actions) != 0) {
+	if (posix_spawnattr_init(&attributes) != 0) {
 		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
 		return 125;
 	}
-	if (!spawnActions(actions, attestationSource, policySource, extraInputSource)
-		|| posix_spawnattr_init(&attributes) != 0) {
-		(void)posix_spawn_file_actions_destroy(&actions);
-		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
-		return 125;
-	}
-	constexpr short flags = POSIX_SPAWN_SETEXEC | POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_CLOEXEC_DEFAULT;
+	constexpr short flags = POSIX_SPAWN_SETEXEC | POSIX_SPAWN_START_SUSPENDED;
 	if (posix_spawnattr_setflags(&attributes, flags) != 0) {
-		(void)posix_spawnattr_destroy(&attributes); (void)posix_spawn_file_actions_destroy(&actions);
+		(void)posix_spawnattr_destroy(&attributes);
 		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
 		return 125;
 	}
@@ -398,18 +410,21 @@ int main(int argc, char **argv)
 	if (verifier == 0) verifyAndRelease(parent, value.rssBytes, value.executableFd,
 		policyPipe[1], openDescriptors,
 		launcherIdentity, executableIdentity, header, policy);
+	const int transportStatus = mapBootstrapDescriptors(attestationSource, policySource, extraInputSource);
+	if (transportStatus != 0) {
+		(void)kill(verifier, SIGKILL);
+		while (waitpid(verifier, nullptr, 0) < 0 && errno == EINTR) {}
+		nativeFailure("transport-fds", transportStatus);
+	}
 	char language[] = "LANG=C";
 	char locale[] = "LC_ALL=C";
 	char path[] = "PATH=";
 	char home[] = "HOME=/nonexistent";
 	char *environment[]{ language, locale, path, home, nullptr };
-	const int status = posix_spawn(nullptr, executablePath.c_str(), &actions, &attributes,
+	const int status = posix_spawn(nullptr, executablePath.c_str(), nullptr, &attributes,
 		value.childArgv, environment);
 	(void)kill(verifier, SIGKILL);
 	while (waitpid(verifier, nullptr, 0) < 0 && errno == EINTR) {}
-	(void)posix_spawnattr_destroy(&attributes); (void)posix_spawn_file_actions_destroy(&actions);
-	(void)close(policyPipe[0]); (void)close(policyPipe[1]);
-	(void)close(attestationSource); (void)close(policySource);
-	if (extraInputSource >= 0) (void)close(extraInputSource);
+	(void)posix_spawnattr_destroy(&attributes);
 	nativeFailure("posix-spawn", status);
 }
