@@ -174,8 +174,11 @@ function unsigned64(bytes, offset, littleEndian) {
 	return Number(value);
 }
 
-async function withMountedDmg(artifact, operation) {
-	const { stdout } = await run('hdiutil', [
+export async function withMountedDmg(artifact, operation, {
+	runCommand = run,
+	resolveRealpath = realpath,
+} = {}) {
+	const { stdout } = await runCommand('hdiutil', [
 		'attach', '-readonly', '-nobrowse', '-noverify', '-plist', artifact,
 	], 'DMG attachment');
 	const mountPoints = [...stdout.matchAll(
@@ -184,12 +187,30 @@ async function withMountedDmg(artifact, operation) {
 	if (mountPoints.length !== 1 || !isAbsolute(mountPoints[0])) {
 		throw new Error('The DMG attachment did not produce one mounted volume.');
 	}
-	const mountedRoot = await realpath(mountPoints[0]);
+	const mountedRoot = await resolveRealpath(mountPoints[0]);
+	let operationError;
+	let result;
 	try {
-		return await operation(mountedRoot);
-	} finally {
-		await run('hdiutil', ['detach', mountedRoot], 'DMG detachment');
+		result = await operation(mountedRoot);
+	} catch (error) {
+		operationError = error;
 	}
+	let detachmentError;
+	try {
+		await runCommand('hdiutil', ['detach', mountedRoot], 'DMG detachment');
+	} catch (error) {
+		detachmentError = error;
+	}
+	if (operationError !== undefined && detachmentError !== undefined) {
+		throw new AggregateError(
+			[operationError, detachmentError],
+			'DMG package audit and detachment both failed.',
+			{ cause: operationError },
+		);
+	}
+	if (operationError !== undefined) throw operationError;
+	if (detachmentError !== undefined) throw detachmentError;
+	return result;
 }
 
 async function sevenZipExecutable(repositoryRoot) {

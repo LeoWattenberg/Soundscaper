@@ -11,10 +11,34 @@ import test from 'node:test';
 import {
 	appImageSquashfsOffset,
 	extractDmgWithSevenZip,
+	withMountedDmg,
 } from '../scripts/lib/desktop-package-artifact-extractor.mjs';
 
 const DMG_VOLUME = 'Soundscaper 1.0.0-rc.1-arm64';
 const DMG_APPLICATIONS_LINK = `${DMG_VOLUME}/Applications`;
+
+test('DMG cleanup retains both the package-audit and detach failures', async () => {
+	const auditError = new Error('package content mismatch');
+	const detachError = new Error('volume remained busy');
+	let calls = 0;
+	await assert.rejects(() => withMountedDmg('/fixture/package.dmg', async () => {
+		throw auditError;
+	}, {
+		runCommand: async () => {
+			calls += 1;
+			if (calls === 1) return {
+				stdout: '<key>mount-point</key><string>/Volumes/Fixture</string>', stderr: '',
+			};
+			throw detachError;
+		},
+		resolveRealpath: async (value) => value,
+	}), (error) => (
+		error instanceof AggregateError
+		&& error.cause === auditError
+		&& error.errors[0] === auditError
+		&& error.errors[1] === detachError
+	));
+});
 
 test('foreign-platform DMG extraction authenticates the installer alias and volume root', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-dmg-extraction-'));
