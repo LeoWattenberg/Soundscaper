@@ -17,6 +17,7 @@ const DIGEST = /^[a-f0-9]{64}$/u;
 const MAXIMUM_SOURCE_FILES = 100_000;
 const MAXIMUM_SOURCE_FILE_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_SOURCE_TREE_BYTES = 4 * 1024 * 1024 * 1024;
+const MAXIMUM_SOURCE_FILE_BYTES_BIGINT = BigInt(MAXIMUM_SOURCE_FILE_BYTES);
 
 export function collectExtractedSourceTree(sourceRoot) {
 	const root = canonicalDirectory(sourceRoot, 'extracted source root');
@@ -110,7 +111,7 @@ function collectFiles(root, prefix, files, budget) {
 		assertPortableSourceSegment(name);
 		const path = prefix === '' ? name : `${prefix}/${name}`;
 		const absolute = join(root, ...path.split('/'));
-		const info = lstatSync(absolute);
+		const info = lstatSync(absolute, { bigint: true });
 		if (info.isDirectory()) {
 			if (info.isSymbolicLink() || realpathSync(absolute) !== absolute) {
 				throw new Error(`Extracted source directory ${path} is not canonical.`);
@@ -121,10 +122,10 @@ function collectFiles(root, prefix, files, budget) {
 		if (!info.isFile() || info.isSymbolicLink() || realpathSync(absolute) !== absolute) {
 			throw new Error(`Extracted source entry ${path} is not one canonical regular file.`);
 		}
-		if (info.size > MAXIMUM_SOURCE_FILE_BYTES) {
+		if (info.size > MAXIMUM_SOURCE_FILE_BYTES_BIGINT) {
 			throw new Error(`Extracted source entry ${path} exceeds its file limit.`);
 		}
-		const inode = info.ino === 0 ? null : `${String(info.dev)}:${String(info.ino)}`;
+		const inode = info.ino === 0n ? null : `${String(info.dev)}:${String(info.ino)}`;
 		if (inode !== null && budget.inodes.has(inode)) {
 			throw new Error(`Extracted source entry ${path} is a hard-linked duplicate.`);
 		}
@@ -141,9 +142,9 @@ function collectFiles(root, prefix, files, budget) {
 function describeCanonicalFile(absolute, path, before) {
 	const handle = openSync(absolute, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
 	try {
-		const opened = fstatSync(handle);
+		const opened = fstatSync(handle, { bigint: true });
 		if (!opened.isFile() || opened.size !== before.size
-			|| (before.ino !== 0 && opened.ino !== 0
+			|| (before.ino !== 0n && opened.ino !== 0n
 				&& (before.dev !== opened.dev || before.ino !== opened.ino))) {
 			throw new Error(`Extracted source entry ${path} changed while opening.`);
 		}
@@ -159,9 +160,9 @@ function describeCanonicalFile(absolute, path, before) {
 			}
 			hash.update(buffer.subarray(0, bytesRead));
 		}
-		const after = fstatSync(handle);
-		if (byteLength !== opened.size || after.size !== opened.size
-			|| after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) {
+		const after = fstatSync(handle, { bigint: true });
+		if (BigInt(byteLength) !== opened.size || after.size !== opened.size
+			|| after.mtimeNs !== opened.mtimeNs || after.ctimeNs !== opened.ctimeNs) {
 			throw new Error(`Extracted source entry ${path} changed while hashing.`);
 		}
 		return { path, type: 'file', byteLength, sha256: hash.digest('hex') };
