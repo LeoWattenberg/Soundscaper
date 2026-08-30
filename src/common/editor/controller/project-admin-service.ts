@@ -450,7 +450,7 @@ export function createProjectAdminService(runtime: ProjectAdminServiceRuntime) {
 				projectGeneration.activate(originProject.id);
 				replacementEstablished = true;
 			}
-			if (replacementEstablished) projectSaveService.resume();
+			projectSaveService.resume();
 		}
 	}
 

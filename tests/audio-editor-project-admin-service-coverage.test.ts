@@ -449,6 +449,9 @@ test('provider cleanup failure prevents project deletion and local storage reset
 		);
 		assert.equal(providers.size, 0);
 		assert.equal(fixture.calls.includes(operation === 'delete' ? 'delete:project-a' : 'clear-store'), false);
+		if (operation === 'clear') {
+			assert.equal(fixture.saveSuspended(), false);
+		}
 	}
 });
 
