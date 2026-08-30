@@ -10,8 +10,10 @@ import {
 	desktopProductConfigFiles,
 	desktopProductRuntimeFiles,
 	desktopProductSourceIncluded,
+	soundscaperAssistanceRegistrationSource,
 	soundscaperConstantsSource,
 	soundscaperDesktopCodecSource,
+	soundscaperDesktopSmokeSource,
 	soundscaperMainSource,
 	soundscaperNativeTierSource,
 	soundscaperPreloadSource,
@@ -113,6 +115,24 @@ test('Soundscaper staged entry sources have no callable Framescaper product surf
 			['desktop/preload.mjs', stagedPreload],
 		]),
 	));
+});
+
+test('Soundscaper staged entry transforms accept Windows CRLF checkouts', async () => {
+	const entries = [
+		['desktop/assistance-registration.mjs', soundscaperAssistanceRegistrationSource],
+		['desktop/main.mjs', soundscaperMainSource],
+		['desktop/native-tier-registration.mjs', soundscaperNativeTierSource],
+		['desktop/constants.js', soundscaperConstantsSource],
+		['desktop/desktop-codec-main-integration.mjs', soundscaperDesktopCodecSource],
+		['desktop/project-library-product-runtime.js', soundscaperProjectRuntimeSource],
+		['desktop/protocol.js', soundscaperProtocolSource],
+		['desktop/desktop-smoke.js', soundscaperDesktopSmokeSource],
+		['desktop/preload.mjs', soundscaperPreloadSource],
+	];
+	for (const [path, transform] of entries) {
+		const source = (await readFile(path, 'utf8')).replaceAll('\r\n', '\n').replaceAll('\n', '\r\n');
+		assert.doesNotMatch(transform(source), /\r/u, path);
+	}
 });
 
 test('Soundscaper package audit rejects callable bridge and native-service markers', () => {

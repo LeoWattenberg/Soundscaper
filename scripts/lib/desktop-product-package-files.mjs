@@ -426,7 +426,7 @@ function packagePath(value, label) {
 
 function textSource(value, label) {
 	if (typeof value !== 'string' || value.length === 0) throw new TypeError(`${label} source is invalid.`);
-	return value;
+	return value.replaceAll('\r\n', '\n');
 }
 
 function replaceRange(source, start, end, replacement, label) {
