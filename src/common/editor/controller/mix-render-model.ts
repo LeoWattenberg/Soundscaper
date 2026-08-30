@@ -424,7 +424,7 @@ function mixerStrips(project: ControllerProject): readonly ControllerMixerStrip[
 
 type ControllerMixerStrip = ControllerProject['mixer']['groups'][number];
 
-function v21StripLaneRemovalCommands(
+export function v21StripLaneRemovalCommands(
 	project: ControllerProject,
 	trackId: string,
 ): AudioEditorCommand[] {

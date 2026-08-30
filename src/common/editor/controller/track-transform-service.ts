@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+import { hasCoreEditingProjectAuthority, isSoundscaperProductionProject } from '../project-schema-version.ts';
 
 import {
 	createAddClipCommand,
@@ -11,6 +11,7 @@ import {
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import type { DerivedSourceService } from './derived-source-service.ts';
+import { v21StripLaneRemovalCommands } from './mix-render-model.ts';
 import type {
 	EditorControllerLifetime,
 	EditorProjectToken,
@@ -79,6 +80,9 @@ export interface TrackTransformServiceDependencies {
 		startFrame: number,
 		endFrame: number,
 		channelCount: number,
+		requestedClipIds?: readonly string[] | null,
+		signal?: AbortSignal | null,
+		processing?: 'dry' | 'authored',
 	): Promise<Float32Array[]>;
 }
 
@@ -311,8 +315,8 @@ export function createTrackTransformService(
 			const derived: DerivedSourceRecord[] = [];
 			try {
 				const [leftChannels, rightChannels] = await Promise.all([
-					dependencies.renderDryTrackRange(track.id, startFrame, endFrame, 1),
-					dependencies.renderDryTrackRange(partner.id, startFrame, endFrame, 1),
+					dependencies.renderDryTrackRange(track.id, startFrame, endFrame, 1, null, null, 'authored'),
+					dependencies.renderDryTrackRange(partner.id, startFrame, endFrame, 1, null, null, 'authored'),
 				]);
 				assertOwned(ownership);
 				const sourceRate = dependencies.projectSampleRate();
@@ -326,11 +330,25 @@ export function createTrackTransformService(
 				assertOwned(ownership);
 				const clipId = dependencies.createId('clip');
 				const insertIndex = Math.min(trackIndex, partnerIndex);
+				const mergedTrack: Record<string, unknown> = {
+					...track,
+					clipIds: [],
+					gain: 1,
+					pan: 0,
+					mute: false,
+					solo: false,
+					effectsActive: true,
+					effects: [],
+				};
+				if (isSoundscaperProductionProject(project)) delete mergedTrack.envelope;
+				else mergedTrack.envelope = [];
 				const commands: AudioEditorCommand[] = [
 					createAddSourceCommand(stereo.source),
+					...v21StripLaneRemovalCommands(project, track.id),
+					...v21StripLaneRemovalCommands(project, partner.id),
 					{ type: 'track/remove', trackId: track.id },
 					{ type: 'track/remove', trackId: partner.id },
-					{ ...createAddTrackCommand({ ...track, clipIds: [], pan: 0 }), index: insertIndex },
+					{ ...createAddTrackCommand(mergedTrack), index: insertIndex },
 					createAddClipCommand(track.id, {
 						id: clipId,
 						sourceId: stereo.source.id,

@@ -47,6 +47,16 @@ test('dry rendering isolates the selected track, rack, mixer state, and clips', 
 	assert.deepEqual((snapshot.mixer as { sends: unknown[] }).sends, []);
 });
 
+test('authored track rendering preserves strip processing and only its V21 automation', async () => {
+	const project = v21RenderProject();
+	const harness = createHarness({ project: project as unknown as EffectAudioProject });
+	await harness.service.renderDryTrackRange('track-a', 0, 8, 1, null, null, 'authored');
+	const snapshot = harness.snapshots[0]! as EffectAudioProject & { automationLanes: unknown[] };
+	assert.deepEqual(snapshot.tracks.map((track) => track.id), ['track-a']);
+	assert.deepEqual(snapshot.tracks[0]?.effects?.map(({ id }) => id), ['before', 'noise']);
+	assert.deepEqual(snapshot.automationLanes, project.automationLanes);
+});
+
 test('V21 dry rendering reaches the exact graph compiler without fabricating legacy authority', async () => {
 	const project = v21RenderProject();
 	const canonical = structuredClone(project);

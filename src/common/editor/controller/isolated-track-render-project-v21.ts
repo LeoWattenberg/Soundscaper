@@ -31,6 +31,7 @@ export interface IsolatedTrackRenderRequestV21 {
 	readonly trackId: string;
 	readonly effects: readonly Readonly<Record<string, unknown>>[];
 	readonly clipIds?: readonly string[] | null;
+	readonly preserveTrackProcessing?: boolean;
 }
 
 /**
@@ -55,7 +56,12 @@ export function createIsolatedTrackRenderProjectV21(
 	if (!selected) throw new ReferenceError(`The V21 render track ${request.trackId} does not exist.`);
 	const widths = resolveTerminalChannelWidths(project, project.masterChannels).tracks;
 	const requestedClipIds = request.clipIds?.length ? new Set(request.clipIds) : null;
-	const track: Record<string, unknown> = {
+	const track: Record<string, unknown> = request.preserveTrackProcessing ? {
+		...selected,
+		clipIds: requestedClipIds
+			? selected.clipIds.filter((clipId) => requestedClipIds.has(clipId))
+			: [...selected.clipIds],
+	} : {
 		...selected,
 		clipIds: requestedClipIds
 			? selected.clipIds.filter((clipId) => requestedClipIds.has(clipId))
@@ -67,13 +73,15 @@ export function createIsolatedTrackRenderProjectV21(
 		effectsActive: request.effects.length > 0,
 		effects: request.effects.map((effect) => ({ ...effect })),
 	};
-	delete track.envelope;
+	if (!request.preserveTrackProcessing) delete track.envelope;
 	const isolated = {
 		...project,
 		tracks: [track as IsolatedTrackRenderTrackV21],
-		// Every authored lane either targets removed authority or could reactivate
-		// a neutral strip/edge. The engine-only graph therefore owns no lanes.
-		automationLanes: [],
+		// A dry projection owns no lanes; an authored projection keeps only the
+		// selected strip's processing and cannot address removed mixer authority.
+		automationLanes: request.preserveTrackProcessing
+			? project.automationLanes.filter((lane) => laneTargetsTrack(lane, request.trackId))
+			: [],
 		mixer: createDefaultMixerGraphV21([{
 			id: request.trackId,
 			channelCount: widths.get(request.trackId) ?? project.masterChannels,
@@ -81,4 +89,14 @@ export function createIsolatedTrackRenderProjectV21(
 	};
 	projectTransientRenderFeatures(isolated);
 	return inheritTrackFolderMediaStateProjectionV12(project, isolated);
+}
+
+function laneTargetsTrack(value: unknown, trackId: string): boolean {
+	if (!value || typeof value !== 'object') return false;
+	const address = (value as Readonly<{ address?: unknown }>).address;
+	if (!address || typeof address !== 'object') return false;
+	const candidate = address as Readonly<{ kind?: unknown; strip?: unknown }>;
+	if (candidate.kind !== 'strip' && candidate.kind !== 'effect') return false;
+	const strip = candidate.strip as Readonly<{ kind?: unknown; id?: unknown }> | null;
+	return strip?.kind === 'track' && strip.id === trackId;
 }

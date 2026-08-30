@@ -231,6 +231,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		requestedChannelCount: number | null = null,
 		requestedClipIds: readonly string[] | null = null,
 		signal: AbortSignal | null = null,
+		processing: 'dry' | 'authored' = 'dry',
 	): Promise<Float32Array[]> {
 		signal?.throwIfAborted();
 		const project = runtime.getProject();
@@ -251,6 +252,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		if (hasProductionMixerProjectAuthority(snapshot)) {
 			snapshot = createIsolatedTrackRenderProjectV21(snapshot as never, {
 				trackId, effects: [], clipIds: requestedClipIds,
+				preserveTrackProcessing: processing === 'authored',
 			}) as unknown as MutableEffectAudioProject;
 		} else {
 			snapshot.tracks = snapshot.tracks
@@ -258,12 +260,9 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 				.map((candidate) => ({
 					...candidate,
 					...(clipIdSet ? { clipIds: candidate.clipIds.filter((clipId) => clipIdSet.has(clipId)) } : {}),
-					gain: 1,
-					pan: 0,
-					mute: false,
-					solo: false,
-					effects: [],
-					envelope: [],
+					...(processing === 'authored' ? {} : {
+						gain: 1, pan: 0, mute: false, solo: false, effects: [], envelope: [],
+					}),
 				}));
 			snapshot.master = { gain: 1, effects: [] };
 			snapshot.mixer = { groups: [], sends: [], routes: {} };

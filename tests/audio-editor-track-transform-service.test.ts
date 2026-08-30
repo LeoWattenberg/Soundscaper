@@ -28,8 +28,9 @@ function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerP
 		sources: [],
 		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: [] },
 		mixer: { groups: [], sends: [], routes: {} },
+		automationLanes: [],
 		...overrides,
-	};
+	} as ControllerProject;
 }
 
 function trackFixture(overrides: Partial<ControllerTrack> = {}): ControllerTrack {
@@ -340,8 +341,8 @@ test('joining mono tracks renders their shared range and uses a synthetic source
 	assert.equal(await fixture.service.makeStereoTrack('left'), 'left');
 	assert.deepEqual(fixture.calls.preflights, [320]);
 	assert.deepEqual(fixture.calls.renders, [
-		['left', 5, 45, 1],
-		['right', 5, 45, 1],
+		['left', 5, 45, 1, null, null, 'authored'],
+		['right', 5, 45, 1, null, null, 'authored'],
 	]);
 	assert.equal(fixture.calls.persisted[0]?.template.id, 'stereo-template');
 	assert.equal(fixture.calls.persisted[0]?.channels.length, 2);
@@ -354,6 +355,50 @@ test('joining mono tracks renders their shared range and uses a synthetic source
 	assert.deepEqual(fixture.calls.commits[0]?.selection, {
 		selectTrackId: 'left',
 		selectClipId: batch.commands[4]?.type === 'clip/add' ? batch.commands[4].clip.id : null,
+	});
+});
+
+test('joining mono tracks bakes each authored strip and resets the merged strip', async () => {
+	const leftClip = clipFixture('left-clip', 'left-source');
+	const rightClip = clipFixture('right-clip', 'right-source');
+	const left = trackFixture({
+		id: 'left', clipIds: [leftClip.id], gain: 0.5,
+		effects: [{ id: 'left-effect', type: 'gain' }], envelope: [{ frame: 0, value: 0.5 }],
+	});
+	const right = trackFixture({
+		id: 'right', clipIds: [rightClip.id], gain: 0.25,
+		effects: [{ id: 'right-effect', type: 'gain' }], envelope: [{ frame: 0, value: 0.25 }],
+	});
+	const fixture = createTransformFixture(projectFixture({
+		tracks: [left, right], clips: [leftClip, rightClip],
+		sources: [sourceFixture('left-source'), sourceFixture('right-source')],
+		automationLanes: [
+			{ id: 'left-gain', address: { kind: 'strip', strip: { kind: 'track', id: 'left' } } },
+			{ id: 'right-gain', address: { kind: 'strip', strip: { kind: 'track', id: 'right' } } },
+		],
+	}));
+
+	await fixture.service.makeStereoTrack('left', 'right');
+	assert.ok(fixture.calls.renders.every((args) => args.at(-1) === 'authored'));
+	const batch = fixture.calls.commits[0]?.command;
+	assert.equal(batch?.type, 'batch');
+	if (batch?.type !== 'batch') assert.fail('Expected a stereo join batch.');
+	assert.deepEqual(batch.commands.filter((command) => command.type === 'automation-lane/set')
+		.map((command) => command.laneId), ['left-gain', 'right-gain']);
+	const added = batch.commands.find((command) => command.type === 'track/add');
+	assert.equal(added?.type, 'track/add');
+	if (added?.type !== 'track/add') assert.fail('Expected a neutral merged track.');
+	assert.deepEqual({
+		gain: added.track.gain,
+		pan: added.track.pan,
+		mute: added.track.mute,
+		solo: added.track.solo,
+		effectsActive: added.track.effectsActive,
+		effects: added.track.effects,
+		envelope: added.track.envelope,
+	}, {
+		gain: 1, pan: 0, mute: false, solo: false,
+		effectsActive: true, effects: [], envelope: [],
 	});
 });
 
