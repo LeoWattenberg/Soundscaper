@@ -31,7 +31,8 @@ test('macOS maps its exact peer descriptor closure before SETEXEC', () => {
 	assert.match(LAUNCHER_SOURCE,
 		/dup2\(attestationSource, bootstrap::attestationDescriptor\)[\s\S]*dup2\(policySource, bootstrap::policyDescriptor\)/u);
 	assert.match(LAUNCHER_SOURCE,
-		/makeInheritable\([\s\S]*FD_CLOEXEC[\s\S]*closefrom\(6\)/u);
+		/makeInheritable\([\s\S]*FD_CLOEXEC[\s\S]*for \(const int descriptor : openDescriptors\)[\s\S]*close\(descriptor\) != 0/u);
+	assert.doesNotMatch(LAUNCHER_SOURCE, /closefrom\(/u);
 	assert.match(LAUNCHER_SOURCE,
 		/const pid_t verifier = fork\(\)[\s\S]*mapBootstrapDescriptors\([\s\S]*posix_spawn\(nullptr,[\s\S]*nullptr, &attributes/u,
 		'the verifier must retain authenticated descriptors before the SETEXEC parent closes its private sources');
