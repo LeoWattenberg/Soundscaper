@@ -228,6 +228,35 @@ test('restart recovery reclaims unreferenced transactions and retains referenced
 	assert.equal((await filesBelow(fixture.root)).some((path) => path.includes(retained.pack.sha256)), true);
 });
 
+test('asset authority persists recovery ownership before publishing an object link', async () => {
+	let root = '';
+	let persistedReference = false;
+	const fixture = await authorityFixture(true, {
+		linkAsset: async () => {
+			const manifestPath = (await filesBelow(root)).find((path) => path.endsWith('manifest.json'))!;
+			const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as
+				Readonly<{ pack?: { sha256?: string } | null }>;
+			persistedReference = manifest.pack?.sha256 === assets.pack.sha256;
+			throw new Error('simulated link interruption');
+		},
+	});
+	root = fixture.root;
+	const assets = await sequenceAssets(['orphan']);
+	const begun = await fixture.authority.request(OWNER, {
+		operation: 'begin', ...PROJECT_IDENTITY,
+		projectId: 'candidate-project', projectRevision: 4,
+	}) as { transactionId: string };
+	await fixture.authority.request(OWNER, {
+		operation: 'write', transactionId: begun.transactionId, asset: 'pack', offset: 0,
+		bytes: assets.packBytes,
+	});
+	await assert.rejects(fixture.authority.request(OWNER, {
+		operation: 'commit', transactionId: begun.transactionId, asset: 'pack', reference: assets.pack,
+	}), /simulated link interruption/u);
+	assert.equal(persistedReference, true,
+		'recovery authority must be durable before the final object can appear');
+});
+
 test('default-off capability and wrong owner fail before durable or native work', async () => {
 	const blocked = await authorityFixture(false);
 	await assert.rejects(() => blocked.authority.request(OWNER, {
@@ -293,13 +322,16 @@ test('recovery refuses a re-authenticated manifest with a traversal asset identi
 	assert.equal(await readFile(victim, 'utf8'), 'must survive');
 });
 
-async function authorityFixture(usable: boolean) {
+async function authorityFixture(usable: boolean, options: Readonly<{
+	linkAsset?: (source: string, destination: string) => PromiseLike<void> | void;
+}> = {}) {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-sequence-import-'));
 	const project = { revision: 4, storageKeys: new Set<string>() };
 	let id = 0;
 	let probedFrames = 0;
 	const createAuthority = () => new FramescaperNativeImageSequenceImportAuthority({
 		root,
+		linkAsset: options.linkAsset,
 		mintOpaqueId: () => `${(++id).toString(16).padStart(40, '0')}`,
 		capabilities: () => capabilitySnapshot(usable),
 		runtimeAvailable: () => usable,

@@ -97,6 +97,7 @@ export interface FramescaperNativeImageSequenceImportAuthorityOptions {
 	}>) => Awaitable<boolean>;
 	readonly assetReferenced: (storageKey: string, projectId?: string) => Awaitable<boolean>;
 	readonly mediaRuntime: Pick<FramescaperNativeMediaRuntime, 'available' | 'runJob'>;
+	readonly linkAsset?: (source: string, destination: string) => Awaitable<void>;
 }
 
 interface AssetState {
@@ -350,14 +351,14 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		}
 		const destination = this.#assetPath(reference);
 		await mkdir(join(this.#options.root, 'objects'), { recursive: true, mode: 0o700 });
-		try { await link(asset.temporaryPath, destination); }
+		asset.reference = reference;
+		await this.#persist(transaction);
+		try { await (this.#options.linkAsset ?? link)(asset.temporaryPath, destination); }
 		catch (error) {
 			if (!imageSequenceFsErrorHasCode(error, 'EEXIST')) throw error;
 			await assertImageSequenceReferenceFile(destination, reference);
 		}
 		await unlink(asset.temporaryPath);
-		asset.reference = reference;
-		await this.#persist(transaction);
 		return Object.freeze({ operation: 'committed', transactionId: transaction.id, asset: asset.kind, reference });
 	}
 
