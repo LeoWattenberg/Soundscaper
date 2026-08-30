@@ -82,6 +82,24 @@ test('cancelling a running row aborts its ordinary export before main settles th
 	await composition.dispose();
 });
 
+test('a failed project-authority transition does not wedge later project changes', async () => {
+	const fixture = compositionFixture({ entries: [] });
+	const composition = createSoundscaperPersistentDeliveryControllerComposition(fixture.runtime);
+	assert.ok(composition);
+	await composition.ready;
+	fixture.failNextAuthorityClear();
+	fixture.project.revision += 1;
+	fixture.publish();
+	await fixture.backgroundFailure;
+	fixture.project.revision += 1;
+	fixture.publish();
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	assert.ok(fixture.calls.openProjectBindings.filter((projectId) => projectId === null).length >= 2,
+		'a later project transition must retry clearing stale main authority');
+	await composition.dispose();
+});
+
 function compositionFixture(options: Readonly<{
 	entries: readonly SoundscaperPersistentDeliverySummary[];
 }>) {
@@ -90,8 +108,11 @@ function compositionFixture(options: Readonly<{
 	let rejectExecution: ((error: unknown) => void) | null = null;
 	let signalExecuting: (() => void) | null = null;
 	let signalReleased: (() => void) | null = null;
+	let signalBackgroundFailure: (() => void) | null = null;
+	let authorityClearFailure: Error | null = null;
 	const executing = new Promise<void>((resolve) => { signalExecuting = resolve; });
 	const released = new Promise<void>((resolve) => { signalReleased = resolve; });
+	const backgroundFailure = new Promise<void>((resolve) => { signalBackgroundFailure = resolve; });
 	const project = { id: 'project-1', revision: 7, title: 'Album' };
 	const projectGeneration = 1;
 	const calls = {
@@ -104,6 +125,11 @@ function compositionFixture(options: Readonly<{
 		reauthorizeDestination: async ({ grantId }: { grantId: string }) => ({ grantId }),
 		currentProjectIdentity: async ({ projectId }: { projectId: string | null }) => {
 			calls.openProjectBindings.push(projectId);
+			if (projectId === null && authorityClearFailure) {
+				const failure = authorityClearFailure;
+				authorityClearFailure = null;
+				throw failure;
+			}
 			return projectId === null ? null : PROJECT_IDENTITY;
 		},
 		enqueueBatch: async () => entries,
@@ -146,7 +172,11 @@ function compositionFixture(options: Readonly<{
 	};
 	return {
 		calls,
+		backgroundFailure,
 		executing,
+		failNextAuthorityClear: () => {
+			authorityClearFailure = new Error('planned authority-clear failure');
+		},
 		project,
 		publish: () => listener?.(),
 		released,
@@ -177,6 +207,7 @@ function compositionFixture(options: Readonly<{
 				rejectExecution?.(new DOMException('Project changed.', 'AbortError'));
 			},
 			publishDocumentSnapshot: () => listener?.(),
+			onBackgroundError: () => { signalBackgroundFailure?.(); },
 			subscribe: (next: () => void) => {
 				listener = next;
 				return () => { calls.unsubscribe += 1; listener = null; };

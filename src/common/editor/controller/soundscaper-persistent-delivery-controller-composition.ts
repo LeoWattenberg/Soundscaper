@@ -97,17 +97,20 @@ export function createSoundscaperPersistentDeliveryControllerComposition(
 	const background = (operation: PromiseLike<unknown>): void => {
 		void Promise.resolve(operation).catch((error: unknown) => runtime.onBackgroundError?.(error));
 	};
+	const transitionProjectAuthority = async (): Promise<void> => {
+		await managedBridge.currentProjectIdentity({ projectId: null });
+		await worker.projectChanged();
+		await synchronizeOpenProject();
+		await ui.refresh();
+		await worker.wake();
+	};
 	const unsubscribe = runtime.subscribe?.(() => {
 		const next = openProjectToken(runtime);
 		if (next === projectToken) return;
 		projectToken = next;
-		authorityTransition = authorityTransition.then(async () => {
-			await managedBridge.currentProjectIdentity({ projectId: null });
-			await worker.projectChanged();
-			await synchronizeOpenProject();
-			await ui.refresh();
-			await worker.wake();
-		});
+		authorityTransition = authorityTransition.then(
+			transitionProjectAuthority, transitionProjectAuthority,
+		);
 		background(authorityTransition);
 	}) ?? (() => undefined);
 	const ready = synchronizeOpenProject().then(() => ui.refresh()).then(() => worker.wake());
