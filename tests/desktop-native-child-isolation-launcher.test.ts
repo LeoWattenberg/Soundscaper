@@ -302,6 +302,7 @@ test('human review metadata and a launcher that never attests cannot mount execu
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 	} as never), /unsupported fields/iu);
 	let childProcess: ChildProcess | null = null;
+	let spawnedEnvironment: NodeJS.ProcessEnv | undefined;
 	let killedBySignal = false;
 	let closed!: () => void;
 	const processClosed = new Promise<void>((resolve) => { closed = resolve; });
@@ -309,7 +310,8 @@ test('human review metadata and a launcher that never attests cannot mount execu
 		target: 'linux-x64', machineWorkload: machineWorkload(launcherArtifact),
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 		enforcementTimeoutMs: 100,
-		spawn: ((_command: string, _arguments: readonly string[], _options: unknown) => {
+		spawn: ((_command: string, _arguments: readonly string[], options: { env?: NodeJS.ProcessEnv }) => {
+			spawnedEnvironment = options.env;
 			childProcess = nodeSpawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
 				stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
 			});
@@ -323,6 +325,8 @@ test('human review metadata and a launcher that never attests cannot mount execu
 		resourcePolicy: policy(), framedControl: null,
 	}), /handshake timed out/iu);
 	await processClosed;
+	assert.equal(Object.hasOwn(spawnedEnvironment ?? {}, 'NODE_V8_COVERAGE'), true);
+	assert.equal(spawnedEnvironment?.NODE_V8_COVERAGE, undefined);
 	assert.equal(killedBySignal, true);
 });
 
