@@ -16,6 +16,7 @@ import {
 import { webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
 import { runtimePointer } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import { createFixture } from './helpers/ffmpeg-runtime-fixture.mjs';
+import { livePagesDeployment as liveDeployment } from './helpers/pages-live-deployment-fixture.mjs';
 
 test('legacy runtime publication preflight accepts only exact content-addressed objects', async (context) => {
 	const fixture = await createFixture(context);
@@ -127,77 +128,6 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
  * says `no-cache`, because the zone carries a four-hour Browser Cache TTL.
  */
 const ZONE_BROWSER_TTL = 'max-age=14400';
-
-/**
- * A fake live deployment.
- *
- * It answers every `served` descriptor with the metadata the audit demands and
- * publishes its own asset inventory at `/offline-shell.json`, which is where the
- * audit learns which content-hashed asset that deployment actually has.
- *
- * `zoneBrowserTtl` models a zone that rewrites `no-cache` on the way out, which
- * is what soundscaper.org does and what a browser therefore observes. It is
- * named by the caller rather than derived from the module under test, so the
- * delivered value is stated by the test rather than agreed with itself.
- */
-function liveDeployment({
-	routing,
-	assetPath,
-	inventory = [assetPath],
-	redirects: configuredRedirects,
-	zoneBrowserTtl,
-	includeRetired = true,
-}) {
-	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath, includeRetired });
-	const redirects = configuredRedirects ?? new Map(descriptors
-		.filter(({ expectation }) => expectation === 'redirected')
-		.map(({ path, location }) => [path, location]));
-	const served = new Map(descriptors
-		.filter(({ expectation }) => expectation === 'served')
-		.map((descriptor) => [descriptor.path, {
-			...descriptor,
-			cacheControl: zoneBrowserTtl !== undefined && descriptor.cacheControl === 'no-cache'
-				? zoneBrowserTtl
-				: descriptor.cacheControl,
-		}]));
-	const bodies = new Map();
-	const requests = [];
-	const fetchImpl = async (url, init) => {
-		const pathname = decodeURIComponent(new URL(url).pathname);
-		requests.push({ pathname, redirect: init.redirect });
-		if (redirects.has(pathname)) {
-			// Cloudflare appends the request's query string to a redirect target
-			// that carries none, so the fixture does too.
-			const search = new URL(url).search;
-			return Response.redirect(`${redirects.get(pathname)}${search}`, 301);
-		}
-		const descriptor = served.get(pathname);
-		if (!descriptor) return new Response(null, { status: 404 });
-		return new Response(bodies.get(pathname) ?? liveBody(pathname, descriptor, inventory), {
-			status: 200,
-			headers: {
-				'cache-control': descriptor.cacheControl,
-				...(descriptor.serviceWorkerAllowed ? { 'service-worker-allowed': descriptor.serviceWorkerAllowed } : {}),
-			},
-		});
-	};
-	return {
-		descriptors,
-		served,
-		redirects,
-		bodies,
-		requests,
-		fetchImpl,
-		paths: () => requests.map(({ pathname }) => pathname),
-	};
-}
-
-function liveBody(pathname, descriptor, inventory) {
-	if (pathname === '/offline-shell.json') return JSON.stringify({ assets: inventory.map((url) => ({ url })) });
-	return descriptor.bodyIncludes
-		? `/* SPDX-License-Identifier: AGPL-3.0-only */\n${descriptor.bodyIncludes} {};\n`
-		: 'ok';
-}
 
 test('live Pages policy preserves checked-in browser TTLs for stable routes and immutable assets', async () => {
 	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
