@@ -332,10 +332,16 @@ function createMixRenderSnapshotV21(
 		cloneProject(project),
 	) as MutableMixRenderProjectV21;
 	const targetIds = new Set(targetTracks.map(({ id }) => id));
+	const graph = normalizeMixerGraphV21(snapshot.mixer);
+	const controlTrackIds = v21AutoDuckControlTrackIds(snapshot, graph, targetTracks);
+	const renderTrackIds = new Set([...targetIds, ...controlTrackIds]);
 	snapshot.tracks = snapshot.tracks
-		.filter((track) => track.type === 'audio' && targetIds.has(track.id))
+		.filter((track) => track.type === 'audio' && renderTrackIds.has(track.id))
 		.map((track) => {
-			const result = { ...track, mute: false, solo: false } as Record<string, unknown>;
+			const result = (targetIds.has(track.id)
+				? { ...track, mute: false, solo: false }
+				: { ...track, gain: 0, pan: 0, mute: false, solo: false, effects: [] }
+			) as Record<string, unknown>;
 			delete result.envelope;
 			return result as unknown as ControllerTrack;
 		});
@@ -347,8 +353,7 @@ function createMixRenderSnapshotV21(
 		...snapshot.selection,
 		startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null,
 	};
-	const graph = normalizeMixerGraphV21(snapshot.mixer);
-	if (targetTracks.length === 1) {
+	if (targetTracks.length === 1 && controlTrackIds.size === 0) {
 		const widths = resolveTerminalChannelWidths(snapshot as never, snapshot.masterChannels).tracks;
 		snapshot.mixer = createDefaultMixerGraphV21([{
 			id: targetTracks[0]!.id,
@@ -360,7 +365,7 @@ function createMixRenderSnapshotV21(
 		return reconcileMixRenderRequirementsV21(snapshot);
 	}
 	const edges = graph.edges.filter((edge) => {
-		if (edge.source.kind === 'track' && !targetIds.has(edge.source.id)) return false;
+		if (edge.source.kind === 'track' && !renderTrackIds.has(edge.source.id)) return false;
 		if (edge.destination.kind === 'effect-sidechain'
 			&& edge.destination.strip.kind === 'master') return false;
 		return edge.destination.kind !== 'effect-sidechain'
@@ -372,7 +377,7 @@ function createMixRenderSnapshotV21(
 		...graph,
 		vcas: graph.vcas.map((vca) => ({
 			...vca,
-			members: vca.members.filter((member) => member.kind !== 'track' || targetIds.has(member.id)),
+			members: vca.members.filter((member) => member.kind !== 'track' || renderTrackIds.has(member.id)),
 		})),
 		edges,
 	}) as MutableMixRenderProjectV21['mixer'];
@@ -385,6 +390,23 @@ function createMixRenderSnapshotV21(
 		laneSurvivesMixSnapshot(lane, targetIds, nodeIds, edgeIds)
 	));
 	return reconcileMixRenderRequirementsV21(snapshot);
+}
+
+function v21AutoDuckControlTrackIds(
+	project: MutableMixRenderProjectV21,
+	graph: MixerGraphV21,
+	targetTracks: readonly ControllerTrack[],
+): ReadonlySet<string> {
+	const targets = new Set(targetTracks.flatMap((track) => track.effectsActive === false ? []
+		: (track.effects || []).filter(isActiveAutoDuckEffect)
+			.map((effect) => `${track.id}\0${String(effect.id)}`)));
+	return new Set(graph.edges.flatMap((edge) => {
+		if (edge.source.kind !== 'track' || edge.destination.kind !== 'effect-sidechain'
+			|| edge.destination.strip.kind !== 'track'
+			|| !targets.has(`${edge.destination.strip.id}\0${edge.destination.effectId}`)
+			|| findControllerTrack(project, edge.source.id)?.type !== 'audio') return [];
+		return [edge.source.id];
+	}));
 }
 
 function reconcileMixRenderRequirementsV21(

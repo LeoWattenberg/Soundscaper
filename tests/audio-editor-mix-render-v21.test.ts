@@ -71,6 +71,21 @@ test('single-track V21 mix uses a closed direct graph and removes baked strip au
 	assert.equal(Object.hasOwn(trackUpdate.changes, 'envelope'), false);
 });
 
+test('V21 mix retains an unselected Auto Duck control track and sidechain', async () => {
+	const project = autoDuckFixture();
+	const voice = project.tracks.find(({ id }) => id === 'voice') as unknown as ControllerTrack;
+	const snapshot = createMixRenderSnapshot(project as unknown as ControllerProject, [voice]);
+	assert.deepEqual(snapshot.tracks.map(({ id }) => id), ['voice', 'music']);
+	assert.equal((snapshot.mixer as unknown as typeof project.mixer).edges
+		.some(({ id }) => id === 'music-voice-duck'), true);
+	const engine = createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null });
+	try {
+		assert.doesNotThrow(() => { engine.loadProject(snapshot as never, new Map()); });
+	} finally {
+		await engine.dispose();
+	}
+});
+
 test('V21 mix snapshots reconcile owned requirements after pruning master-only automation', () => {
 	for (const project of [singleTrackMasterAutomationFixture(), fixture(false)]) {
 		const targets = project.tracks.filter(({ type }) => type === 'audio') as unknown as readonly ControllerTrack[];
@@ -203,6 +218,23 @@ function singleTrackMasterAutomationFixture() {
 			segments: [],
 		}],
 	});
+}
+
+function autoDuckFixture() {
+	const project = fixture();
+	return createSoundscaperProject({
+		...project,
+		tracks: project.tracks.map((track) => track.id === 'voice' ? {
+			...track,
+			effectsActive: true,
+			effects: [{ id: 'voice-duck', type: 'audacity-auto-duck', enabled: true,
+				params: {}, context: { controlTrackId: 'music' } }],
+		} : track),
+		mixer: { ...project.mixer, edges: [...project.mixer.edges,
+			routingEdge('music-voice-duck', 'sidechain', { kind: 'track', id: 'music' }, {
+				kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-duck',
+			})] },
+	} as never);
 }
 
 function routingEdge(id: string, kind: string, source: unknown, destination: unknown) {
