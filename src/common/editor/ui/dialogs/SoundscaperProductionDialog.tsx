@@ -128,6 +128,7 @@ export default function SoundscaperProductionDialog({
 	onClose,
 }: SoundscaperProductionDialogProps) {
 	const copy = useMemo(() => resolveSoundscaperProductionCopy(hostCopy), [hostCopy]);
+	const projectIdentity = soundscaperProductionDialogProjectIdentity(snapshot.project);
 	const [surface, setSurface] = useState<SoundscaperProductionSurface>(initialSurface);
 	const [laneId, setLaneId] = useState<string | null>(snapshot.selectedLaneId ?? null);
 	const [mode, setMode] = useState<SoundscaperAutomationMode>(automationMode);
@@ -167,14 +168,15 @@ export default function SoundscaperProductionDialog({
 	useEffect(() => {
 		if (model.surface && model.surface !== surface) setSurface(model.surface);
 	}, [model.surface, surface]);
+	useEffect(() => { setMode(automationMode); }, [automationMode, projectIdentity]);
 	useEffect(() => {
 		if (model.selectedLaneId !== laneId) setLaneId(model.selectedLaneId);
 		setLaneDraft(model.selectedLaneText);
-	}, [laneId, model.selectedLaneId, model.selectedLaneText]);
+	}, [laneId, model.selectedLaneId, model.selectedLaneText, projectIdentity]);
 	useEffect(() => {
 		if (!automationGestureActive) setAutomationValue(laneDocumentValue(model.selectedLaneText));
-	}, [automationGestureActive, model.selectedLaneText]);
-	useEffect(() => { setMixerDraft(model.mixerGraphText); }, [model.mixerGraphText]);
+	}, [automationGestureActive, model.selectedLaneText, projectIdentity]);
+	useEffect(() => { setMixerDraft(model.mixerGraphText); }, [model.mixerGraphText, projectIdentity]);
 
 	const selectSurface = (next: SoundscaperProductionSurface): void => {
 		setSurface(next);
@@ -582,4 +584,10 @@ function tabId(surface: SoundscaperProductionSurface): string {
 
 function panelId(surface: SoundscaperProductionSurface): string {
 	return `soundscaper-production-panel-${surface}`;
+}
+
+function soundscaperProductionDialogProjectIdentity(project: unknown): unknown {
+	if (project === null || typeof project !== 'object' || Array.isArray(project)) return null;
+	const id = (project as Readonly<Record<string, unknown>>).id;
+	return typeof id === 'string' ? id : project;
 }

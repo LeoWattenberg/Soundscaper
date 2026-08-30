@@ -137,6 +137,51 @@ test('a failed automation release remains active so the user can retry or cancel
 	}
 });
 
+test('an automation draft cannot cross into a replacement project with identical lane data', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const renderDialog = (projectId: string, mode: 'read' | 'touch' = 'touch') => <SoundscaperProductionDialog
+		productId="soundscaper"
+		capabilities={{ audioAutomation: true }}
+		snapshot={{
+			project: automationProject(projectId), selectedTrackId: 'voice', selectedLaneId: 'voice-gain',
+		}}
+		initialSurface="automation"
+		automationMode={mode}
+		actions={{ execute: () => undefined }}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>;
+	try {
+		await act(async () => root.render(renderDialog('project-a')));
+		const projectADraft = JSON.stringify({
+			...automationProject('project-a').automationLanes[0],
+			points: [{ id: 'point-1', position: 0, value: 2 }],
+		}, null, '\t');
+		await act(async () => {
+			reactProps(dom.one('textarea')).onChange({ currentTarget: { value: projectADraft } });
+		});
+		assert.equal(dom.one('textarea').value, projectADraft);
+
+		await act(async () => root.render(renderDialog('project-b', 'read')));
+		assert.equal(reactProps(automationModeControl(dom.container)).value, 'read',
+			'project B must receive its own controller automation mode');
+		const replacementDraft = JSON.parse(String(dom.one('textarea').value)) as {
+			readonly points: readonly Readonly<{ readonly value: number }>[];
+		};
+		assert.equal(replacementDraft.points[0]?.value, 1,
+			'project B must receive its canonical lane instead of project A\'s unsubmitted draft');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function project(id: string) {
 	return {
 		id,
@@ -147,9 +192,9 @@ function project(id: string) {
 	};
 }
 
-function automationProject() {
+function automationProject(id = 'automation-project') {
 	return {
-		...project('automation-project'),
+		...project(id),
 		tracks: [{
 			id: 'voice', type: 'audio', name: 'Voice', locked: false, clipIds: [], effects: [],
 		}],
@@ -177,4 +222,13 @@ function buttonWithText(root: ReactTestElement, text: string): ReactTestElement 
 	const button = root.querySelectorAll('button').find((candidate) => candidate.textContent === text);
 	if (!button) throw new Error(`Missing button ${text}.`);
 	return button;
+}
+
+function automationModeControl(root: ReactTestElement): ReactTestElement {
+	const modes = new Set(['read', 'trim', 'touch', 'latch', 'write']);
+	const control = root.querySelectorAll('select').find((candidate) => (
+		modes.has(String(reactProps(candidate).value))
+	));
+	if (!control) throw new Error('Missing automation mode control.');
+	return control;
 }
