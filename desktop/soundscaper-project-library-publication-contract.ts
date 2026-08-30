@@ -15,6 +15,7 @@ import {
 } from './soundscaper-project-library-media-binding.ts';
 import {
 	validateSoundscaperDesktopLibraryMetadata,
+	type SoundscaperDesktopLibraryMedia,
 	type SoundscaperDesktopLibraryMetadata,
 } from './soundscaper-project-library-metadata.ts';
 import {
@@ -22,6 +23,8 @@ import {
 	type SoundscaperDesktopProjectLibraryLease,
 } from './soundscaper-project-library-persistence-codecs.ts';
 import {
+	createSoundscaperDesktopProjectLibraryTransferBodies,
+	sameSoundscaperDesktopProjectLibraryTransferBody,
 	validateSoundscaperDesktopProjectLibraryTransferBody,
 	validateSoundscaperDesktopProjectLibraryTransferBundle,
 	type SoundscaperDesktopProjectLibraryTransferBody,
@@ -120,6 +123,7 @@ export function planSoundscaperDesktopProjectLibraryPublication(
 	currentMetadataValue: unknown,
 	newEntryId: string,
 	now: number,
+	retainedMediaValue: unknown,
 ): Readonly<SoundscaperDesktopProjectLibraryPublicationPlan> {
 	const request = snapshotClosedRecord(value, REQUEST_FIELDS, 'Soundscaper desktop baseline publication');
 	const lease = validateSoundscaperDesktopProjectLibraryLeaseToken(
@@ -139,6 +143,13 @@ export function planSoundscaperDesktopProjectLibraryPublication(
 	const bodyInputs = denseArray(request.bodies, 'Soundscaper desktop baseline publication bodies', MAXIMUM_BODIES)
 		.map(normalizeBodyInput);
 	const currentMetadata = validateSoundscaperDesktopLibraryMetadata(currentMetadataValue);
+	const retainedMedia = validateSoundscaperDesktopLibraryMetadata({
+		...currentMetadata,
+		media: retainedMediaValue,
+	}).media;
+	if (retainedMedia.some((candidate) => !currentMetadata.media.some(
+		(currentMedia) => sameMedia(currentMedia, candidate),
+	))) throw new Error('Soundscaper desktop baseline retained media is outside current metadata');
 	if (currentMetadata.revision !== expectedMetadataRevision) {
 		throw new SoundscaperDesktopProjectLibraryPublicationRefusal(
 			'compare-and-swap',
@@ -172,6 +183,10 @@ export function planSoundscaperDesktopProjectLibraryPublication(
 	}
 	const projectBytes = new TextEncoder().encode(document);
 	const projectSha256 = createHash('sha256').update(projectBytes).digest('hex');
+	const expectedBodies = createSoundscaperDesktopProjectLibraryTransferBodies(project, projectSha256);
+	if (bodyInputs.length !== expectedBodies.length || bodyInputs.some(({ descriptor }, index) => (
+		!sameSoundscaperDesktopProjectLibraryTransferBody(descriptor, expectedBodies[index]!)
+	))) throw new Error('Soundscaper desktop baseline publication requires content-addressed freeze bodies');
 	const entryId = current[0]?.id ?? newEntryId;
 	const projectRelativeFile = `${entryId}/${String(project.revision)}-${projectSha256}.json`;
 	const projectRow = {
@@ -193,7 +208,7 @@ export function planSoundscaperDesktopProjectLibraryPublication(
 		descriptor,
 		chunks,
 	})));
-	const media = [...currentMetadata.media];
+	const media = [...retainedMedia];
 	for (const { descriptor } of bodies) {
 		const candidate = {
 			id: descriptor.bindingId,
@@ -233,6 +248,13 @@ export function planSoundscaperDesktopProjectLibraryPublication(
 		bundle,
 		bodies,
 	});
+}
+
+function sameMedia(
+	left: Readonly<SoundscaperDesktopLibraryMedia>,
+	right: Readonly<SoundscaperDesktopLibraryMedia>,
+): boolean {
+	return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function normalizeExpectedProject(

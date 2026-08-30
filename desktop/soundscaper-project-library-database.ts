@@ -129,6 +129,11 @@ export function initializeSoundscaperDesktopProjectLibraryDatabase(
 			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
 			completed_at_ms INTEGER
 		) STRICT;
+		CREATE TABLE IF NOT EXISTS storage_reclamation (
+			relative_file TEXT PRIMARY KEY,
+			role TEXT NOT NULL CHECK (role IN ('project', 'media')),
+			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0)
+		) STRICT;
 		`);
 		const empty = emptySoundscaperDesktopLibraryMetadata();
 		const json = JSON.stringify(empty);

@@ -12,6 +12,9 @@ import {
 	assertSoundscaperDesktopProjectLibraryDatabaseIdentity,
 } from './soundscaper-project-library-database.ts';
 import {
+	validateSoundscaperDesktopCurrentProject,
+} from './soundscaper-project-library-current-project.ts';
+import {
 	createSoundscaperDesktopProjectLibraryHandshakeGate,
 	type SoundscaperDesktopProjectLibraryHandshakeState,
 } from './soundscaper-project-library-handshake-gate.ts';
@@ -40,6 +43,14 @@ import {
 	settleSoundscaperDesktopProjectLibraryPublication,
 } from './soundscaper-project-library-publication-persistence.ts';
 import type { SoundscaperDesktopProjectLibraryLease } from './soundscaper-project-library-persistence-codecs.ts';
+import {
+	reclaimSoundscaperDesktopProjectLibraryStorage,
+	selectSoundscaperDesktopProjectLibraryCurrentMedia,
+} from './soundscaper-project-library-retention.ts';
+import type {
+	SoundscaperDesktopLibraryMedia,
+	SoundscaperDesktopLibraryMetadata,
+} from './soundscaper-project-library-metadata.ts';
 import {
 	sameSoundscaperDesktopProjectLibraryTransferBody,
 	validateSoundscaperDesktopProjectLibraryProjectId,
@@ -123,6 +134,21 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		return this.#gate.accept(value);
 	}
 
+	currentMedia(
+		metadata: Readonly<SoundscaperDesktopLibraryMetadata>,
+		excludedProjectId?: string,
+	): readonly Readonly<SoundscaperDesktopLibraryMedia>[] {
+		this.#assertOperational();
+		return selectSoundscaperDesktopProjectLibraryCurrentMedia(
+			this.#database, metadata, excludedProjectId,
+		);
+	}
+
+	reclaimStorage() {
+		this.#assertOperational();
+		return reclaimSoundscaperDesktopProjectLibraryStorage(this.#database, this.paths);
+	}
+
 	async publish(
 		value: unknown,
 		signal?: AbortSignal,
@@ -133,12 +159,15 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 			const now = this.#timestamp();
 			assertSoundscaperDesktopProjectLibraryDatabaseIdentity(this.#database);
 			const current = readSoundscaperDesktopProjectLibraryMetadataSnapshot(this.#database);
+			const projectId = publicationProjectId(value);
+			const retainedMedia = this.currentMedia(current.metadata, projectId);
 			const entryId = this.#newId();
 			const plan = planSoundscaperDesktopProjectLibraryPublication(
 				value,
 				current.metadata,
 				entryId,
 				now,
+				retainedMedia,
 			);
 			assertSoundscaperDesktopProjectLibraryPublicationLease(
 				this.#database,
@@ -207,6 +236,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 					now,
 				);
 				this.#checkpoint('complete');
+				await this.reclaimStorage().catch(() => undefined);
 				return plan.bundle;
 			} catch (error) {
 				if (!committed && signal?.aborted === true) {
@@ -274,6 +304,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 				);
 				this.#checkpoint('complete');
 			}
+			await this.reclaimStorage().catch(() => undefined);
 			return freezeRecovery('committed', publication);
 		});
 	}
@@ -493,6 +524,17 @@ function positiveInteger(value: unknown, label: string): number {
 	const result = nonNegativeInteger(value, label);
 	if (result === 0) throw new RangeError(`Soundscaper desktop baseline ${label} must be positive`);
 	return result;
+}
+
+function publicationProjectId(value: unknown): string {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('Soundscaper desktop baseline publication must be a plain record');
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(value, 'project');
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError('Soundscaper desktop baseline publication.project must be an own enumerable data property');
+	}
+	return String(validateSoundscaperDesktopCurrentProject(descriptor.value).id);
 }
 
 function throwIfAborted(signal?: AbortSignal): void { signal?.throwIfAborted(); }

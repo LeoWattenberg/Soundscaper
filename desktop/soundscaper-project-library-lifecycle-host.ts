@@ -103,27 +103,30 @@ export class SoundscaperDesktopProjectLibraryLifecycleHost {
 		});
 	}
 
-	deleteProject(value: unknown): Readonly<SoundscaperDesktopProjectLibraryDeleteResult> {
+	async deleteProject(value: unknown): Promise<Readonly<SoundscaperDesktopProjectLibraryDeleteResult>> {
 		const request = validateSoundscaperDesktopProjectLibraryDeleteRequest(value);
 		const metadata = this.#catalog.readMetadata();
 		assertMetadataRevision(metadata, request.expectedMetadataRevision);
 		const current = exactProject(metadata, request.projectId);
 		assertExpectedProject(current, request.expectedProject, 'delete');
+		const projects = metadata.projects.filter(({ projectId }) => projectId !== request.projectId);
 		const published = this.#catalog.publishMetadata({
 			expectedRevision: request.expectedMetadataRevision,
 			lease: this.#lease,
 			metadata: {
 				schemaVersion: 1,
 				revision: increment(request.expectedMetadataRevision, 'metadata revision'),
-				projects: metadata.projects.filter(({ projectId }) => projectId !== request.projectId),
-				media: metadata.media,
+				projects,
+				media: this.#host.currentMedia(metadata, request.projectId),
 			},
 		});
-		return validateSoundscaperDesktopProjectLibraryDeleteResult({
+		const result = validateSoundscaperDesktopProjectLibraryDeleteResult({
 			projectId: request.projectId,
 			metadataRevision: published.revision,
 			deleted: true,
 		});
+		await this.#host.reclaimStorage().catch(() => undefined);
+		return result;
 	}
 
 	async duplicateProject(

@@ -179,6 +179,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 				{ waitMs: leaseTtlMs + 1_000 },
 			);
 			const recovery = await recoverPending(database, catalog, host, lease);
+			await host.reclaimStorage().catch(() => undefined);
 			const lifecycle = SoundscaperDesktopProjectLibraryLifecycleHost.create({
 				catalog,
 				host,
