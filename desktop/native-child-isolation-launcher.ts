@@ -161,6 +161,10 @@ async function launchTargetChild(options: Readonly<{
 }>): Promise<NativeChildIsolationLaunch> {
 	const request = launchRequest(options.request);
 	assertMachineWorkload(options.containment.workload, request);
+	if (options.target === 'mac-arm64'
+		&& request.executable.sha256 !== options.containment.launcher.peerPayloadSha256) {
+		throw new Error('The macOS SETEXEC target is not the authenticated professional peer.');
+	}
 	const artifactHandles: FileHandle[] = [];
 	let child: ChildProcess | null = null;
 	let completion: Promise<NativeChildIsolationCompletion> | null = null;
@@ -400,6 +404,9 @@ function machineContainmentAuthority(
 	const row = closed(value, fields);
 	if (row.kind !== 'soundscaper' && row.kind !== 'media' && row.kind !== 'openfx') {
 		throw new TypeError('A native isolation machine workload kind is invalid.');
+	}
+	if (target === 'mac-arm64' && row.kind !== 'soundscaper') {
+		throw new TypeError('Only the professional peer has an authenticated pre-work Seatbelt bootstrap.');
 	}
 	const payloads = artifactArray(row.payloads);
 	const expectedPayloads = row.kind === 'openfx' ? 2 : 1;

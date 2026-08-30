@@ -386,10 +386,16 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(professional, /dispatchJuceMessageTask/u);
 });
 
-test('target builds select concrete Linux, fail-closed macOS Seatbelt and Windows AppContainer launchers', async () => {
-	const [cmake, mac, windows, runtime, windowsAuthority, macProfile, windowsProfile] = await Promise.all([
+test('target builds select concrete Linux, identity-preserving macOS Seatbelt and Windows AppContainer launchers', async () => {
+	const [cmake, mac, macBroker, macBootstrap, macBootstrapHeader, professionalCmake, peer, windows, runtime,
+		windowsAuthority, macProfile, windowsProfile] = await Promise.all([
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/CMakeLists.txt'), 'utf8'),
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/src/macos_launcher.mm'), 'utf8'),
+		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/profiles/macos-broker-v1.json'), 'utf8'),
+		readFile(join(ROOT, 'native/soundscaper-professional-host/src/professional_host_macos_bootstrap.mm'), 'utf8'),
+		readFile(join(ROOT, 'native/soundscaper-professional-host/src/professional_host_macos_bootstrap.hpp'), 'utf8'),
+		readFile(join(ROOT, 'native/soundscaper-professional-host/CMakeLists.txt'), 'utf8'),
+		readFile(join(ROOT, 'native/soundscaper-professional-host/src/professional_host_peer.cpp'), 'utf8'),
 		readFile(join(ROOT, 'native/milestone-5-native-isolation-launcher/src/windows_launcher.cpp'), 'utf8'),
 		readFile(join(ROOT, 'desktop/native-child-isolation-launcher.ts'), 'utf8'),
 		readFile(join(ROOT, 'desktop/native-child-windows-authority.ts'), 'utf8'),
@@ -402,22 +408,52 @@ test('target builds select concrete Linux, fail-closed macOS Seatbelt and Window
 	assert.match(cmake, /set\(CMAKE_OBJCXX_STANDARD 17\)/u);
 	assert.match(cmake, /set\(CMAKE_OBJCXX_STANDARD_REQUIRED ON\)/u);
 	assert.match(cmake, /set\(CMAKE_OBJCXX_EXTENSIONS OFF\)/u);
-	assert.match(cmake, /elseif\(APPLE\)[\s\S]*macos_launcher\.mm[\s\S]*-lsandbox/u);
+	assert.match(cmake, /elseif\(APPLE\)[\s\S]*macos_launcher\.mm[\s\S]*"-lproc"/u);
 	assert.match(cmake, /elseif\(WIN32\)[\s\S]*windows_launcher\.cpp[\s\S]*advapi32 userenv/u);
 	assert.match(mac, /#include <cstdint>/u);
 	assert.match(mac, /#include <utility>/u);
 	assert.match(windows, /#include <utility>/u);
 	assert.match(mac, /F_GETPATH/u);
-	assert.match(mac, /sandbox_init/u);
 	assert.match(mac, /allow process-exec \(literal [\s\S]*pathFor\(value\.executableFd\)/u);
-	assert.match(mac, /const auto policy = profile\(value\);[\s\S]*exactText\(value\.brokerFd, 4096u\) != expectedBroker[\s\S]*enterSandbox\(policy\)/u);
-	assert.match(mac, /Darwin has no supported atomic executable-FD operation[\s\S]*machine availability must remain false/u);
-	assert.doesNotMatch(mac, /\bsameFile\b/u);
-	assert.doesNotMatch(mac, /\b(?:fexecve|execve|posix_spawn)\s*\(/u);
-	assert.doesNotMatch(mac, /\bwrite\s*\(\s*value\.attestationFd/u);
-	assert.match(mac, /diagnostic ignored "-Wdeprecated-declarations"/u);
+	assert.match(mac, /PROC_PIDREGIONPATHINFO/u);
+	assert.doesNotMatch(mac, /PROC_PIDREGIONPATHINFO2/u,
+		'the exact-vnode verifier must stay on the public macOS process-info API');
+	assert.match(mac, /vst_dev[\s\S]*vst_ino[\s\S]*vst_size/u);
+	assert.match(mac, /pri_protection[\s\S]*VM_PROT_EXECUTE/u);
+	assert.match(mac, /pbi_status[\s\S]*SSTOP[\s\S]*PROC_FLAG_EXEC/u,
+		'the verifier must not race the kernel between publishing SSTOP and completing task suspension');
+	assert.match(mac, /PROC_PIDLISTFDS/u,
+		'the trusted verifier must close the complete descriptor snapshot rather than scan an unbounded limit');
+	assert.match(mac, /POSIX_SPAWN_SETEXEC[\s\S]*POSIX_SPAWN_START_SUSPENDED[\s\S]*POSIX_SPAWN_CLOEXEC_DEFAULT/u);
+	assert.match(mac, /posix_spawn_file_actions_addinherit_np/u);
+	assert.match(mac, /F_DUPFD_CLOEXEC/u,
+		'the fixed bootstrap descriptors must be sourced from collision-free private duplicates');
+	assert.match(mac, /kill\([^,]+, SIGCONT\)[\s\S]*exactWrite/u,
+		'the exact stopped peer must resume before a maximum-size policy can fill the pipe');
+	assert.match(mac, /kill\([^,]+, SIGKILL\)/u);
+	assert.match(mac, /"LANG=C"[\s\S]*"LC_ALL=C"[\s\S]*"PATH="[\s\S]*"HOME=\/nonexistent"/u);
+	assert.match(mac, /const int status = posix_spawn[\s\S]*\(void\)status;[\s\S]*return 125;/u,
+		'a successful SETEXEC cannot return, so every return path must fail closed');
+	assert.doesNotMatch(mac, /sandbox_init/u,
+		'the exact peer, not the pre-exec launcher image, must enter Seatbelt');
 	assert.match(mac, /setrlimit\(RLIMIT_AS/u);
 	assert.match(mac, /--extra-input-fd=/u);
+	for (const protocol of [mac, macBootstrapHeader]) {
+		assert.match(protocol, /attestationDescriptor\s*=\s*3/u);
+		assert.match(protocol, /policyDescriptor\s*=\s*4/u);
+		assert.match(protocol, /extraInputDescriptor\s*=\s*5/u);
+		assert.match(protocol, /'M', '5', 'M', 'A', 'C', 'S', 'B', '1'/u);
+	}
+	assert.match(macBroker, /"attestation":"peer-post-sandbox-bootstrap-pipe-v1"/u);
+	assert.match(professionalCmake,
+		/soundscaper_professional_peer[\s\S]*professional_host_macos_bootstrap\.mm[\s\S]*"-lsandbox"/u);
+	assert.match(professionalCmake,
+		/soundscaper_professional_peer PROPERTIES[\s\S]*OBJCXX_STANDARD 20[\s\S]*OBJCXX_STANDARD_REQUIRED YES/u);
+	assert.match(macBootstrap, /sandbox_init[\s\S]*exactWrite[\s\S]*close\([^)]*attestation/u);
+	assert.match(macBootstrap, /dup2\(extraInputDescriptor, attestationDescriptor\)/u);
+	assert.match(peer,
+		/int main\(int argc, char \*\*argv\)[\s\S]*soundscaperProfessionalMacosBootstrap\(\)[\s\S]*containmentProbe/u,
+		'the macOS sandbox bootstrap must precede containment probes and framed protocol work');
 	assert.match(macProfile, /\(deny default\)/u);
 	assert.doesNotMatch(macProfile, /coreaudiod/u);
 	assert.match(windows, /DeriveAppContainerSidFromAppContainerName/u);
@@ -438,6 +474,9 @@ test('target builds select concrete Linux, fail-closed macOS Seatbelt and Window
 		'the enforcement pipe must reach EOF before the child waits for framed input');
 	assert.match(windowsProfile, /appcontainer-low-integrity/u);
 	assert.match(runtime, /soundscaper-macos-seatbelt-broker-v1/u);
+	assert.match(runtime,
+		/target === 'mac-arm64'[\s\S]*request\.executable\.sha256[\s\S]*peerPayloadSha256/u,
+		'the macOS SETEXEC target must be the exact bootstrap-capable professional peer');
 	assert.match(runtime, /soundscaper-windows-appcontainer-job-v1/u);
 	assert.match(runtime, /windowsAuthorityProfile[\s\S]*brand[\s\S]*workloadPayload[\s\S]*runtimeClosure/u);
 	assert.match(windowsAuthority,

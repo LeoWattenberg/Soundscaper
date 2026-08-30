@@ -231,7 +231,13 @@ if(WIN32)
 	target_link_libraries(soundscaper_professional_peer PRIVATE ws2_32)
 endif()
 if(APPLE)
+	target_sources(soundscaper_professional_peer PRIVATE
+		src/professional_host_macos_bootstrap.mm)
+	target_link_libraries(soundscaper_professional_peer PRIVATE "-lsandbox")
 	set_target_properties(soundscaper_professional_peer PROPERTIES
+		OBJCXX_STANDARD 20
+		OBJCXX_STANDARD_REQUIRED YES
+		OBJCXX_EXTENSIONS NO
 		BUILD_RPATH "@loader_path/runtime"
 		INSTALL_RPATH "@loader_path/runtime"
 	)

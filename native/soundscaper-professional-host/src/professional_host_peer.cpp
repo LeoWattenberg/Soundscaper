@@ -4,6 +4,10 @@
 
 #include "professional_host_api.h"
 
+#if defined(__APPLE__)
+#include "professional_host_macos_bootstrap.hpp"
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -474,6 +478,9 @@ int containmentProbe(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+#if defined(__APPLE__)
+	if (!soundscaper::professional::macosBootstrap::soundscaperProfessionalMacosBootstrap()) return 125;
+#endif
 	const int probe = containmentProbe(argc, argv);
 	if (probe >= 0) return probe;
 #if defined(_WIN32)

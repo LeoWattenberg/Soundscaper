@@ -1,30 +1,53 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-#include <sandbox.h>
 #include <fcntl.h>
+#include <libproc.h>
+#include <mach/vm_prot.h>
+#include <signal.h>
+#include <spawn.h>
+#include <sys/proc.h>
+#include <sys/proc_info.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace {
+
+namespace bootstrap {
+constexpr int attestationDescriptor = 3;
+constexpr int policyDescriptor = 4;
+constexpr int extraInputDescriptor = 5;
+constexpr size_t maximumPolicyBytes = 512u * 1024u;
+constexpr std::array<uint8_t, 8> policyMagic{ 'M', '5', 'M', 'A', 'C', 'S', 'B', '1' };
+constexpr size_t policyHeaderBytes = 16u;
+}
+
 constexpr size_t maximumGrants = 64u;
+constexpr size_t maximumMappedRegions = 16384u;
+constexpr size_t verifierAttempts = 500u;
 constexpr char expectedBroker[] = "{\"schemaVersion\":1,\"id\":\"milestone5-macos-seatbelt-broker-v1\","
 	"\"maximumGrants\":64,\"pathAuthority\":\"fcntl-f-getpath-from-inherited-fd\","
 	"\"filesystem\":\"seatbelt-exact-literals\",\"network\":\"denied\","
 	"\"childProcesses\":\"fork-denied-exec-peer-only\",\"environment\":\"fixed-empty\","
-	"\"attestation\":\"post-sandbox-pre-exec-pipe-v1\"}\n";
+	"\"executionIdentity\":\"posix-spawn-setexec-stopped-public-proc-region-vnode-v1\","
+	"\"sandboxEntry\":\"peer-bootstrap-before-work-v1\","
+	"\"attestation\":\"peer-post-sandbox-bootstrap-pipe-v1\"}\n";
+
 enum class Access { readOnly, readExecute, writeOnly };
 struct Grant { int fd; Access access; };
 struct Request {
@@ -34,6 +57,7 @@ struct Request {
 	std::vector<Grant> grants;
 	char **childArgv = nullptr;
 };
+struct FileIdentity { uint64_t device = 0u, inode = 0u, size = 0u; };
 
 bool singleton(const char *value, const char *prefix, int &output)
 {
@@ -132,21 +156,157 @@ std::string profile(const Request &value)
 	return output;
 }
 
-bool enterSandbox(const std::string &policy)
+bool exactWrite(int descriptor, const void *input, size_t length)
 {
-	char *error = nullptr;
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-	const int status = sandbox_init(policy.c_str(), 0u, &error);
-	if (status != 0 && error != nullptr) sandbox_free_error(error);
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
-	return status == 0;
+	const auto *bytes = static_cast<const uint8_t *>(input);
+	size_t offset = 0u;
+	while (offset < length) {
+		const ssize_t written = write(descriptor, bytes + offset, length - offset);
+		if (written > 0) { offset += static_cast<size_t>(written); continue; }
+		if (written < 0 && errno == EINTR) continue;
+		return false;
+	}
+	return true;
 }
+
+bool descriptorIdentity(int descriptor, FileIdentity &output)
+{
+	struct stat metadata{};
+	if (fstat(descriptor, &metadata) != 0 || !S_ISREG(metadata.st_mode) || metadata.st_size < 1) return false;
+	output = { static_cast<uint64_t>(metadata.st_dev), static_cast<uint64_t>(metadata.st_ino),
+		static_cast<uint64_t>(metadata.st_size) };
+	return true;
 }
+
+bool firstMappedVnode(pid_t process, FileIdentity &output)
+{
+	uint64_t address = 0u;
+	for (size_t count = 0u; count < maximumMappedRegions; ++count) {
+		proc_regionwithpathinfo region{};
+		if (proc_pidinfo(process, PROC_PIDREGIONPATHINFO, address, &region, sizeof(region))
+			!= static_cast<int>(sizeof(region))) return false;
+		const auto &mapping = region.prp_prinfo;
+		const auto &status = region.prp_vip.vip_vi.vi_stat;
+		if ((mapping.pri_protection & VM_PROT_EXECUTE) != 0u
+			&& S_ISREG(status.vst_mode) && status.vst_ino != 0u && status.vst_size > 0) {
+			output = { static_cast<uint64_t>(status.vst_dev), static_cast<uint64_t>(status.vst_ino),
+				static_cast<uint64_t>(status.vst_size) };
+			return true;
+		}
+		if (mapping.pri_size == 0u
+			|| mapping.pri_address > std::numeric_limits<uint64_t>::max() - mapping.pri_size) return false;
+		const uint64_t next = mapping.pri_address + mapping.pri_size;
+		if (next <= address) return false;
+		address = next;
+	}
+	return false;
+}
+
+bool snapshotOpenDescriptors(std::vector<int> &output)
+{
+	const int required = proc_pidinfo(getpid(), PROC_PIDLISTFDS, 0u, nullptr, 0);
+	if (required <= 0 || required % static_cast<int>(sizeof(proc_fdinfo)) != 0) return false;
+	std::vector<proc_fdinfo> rows(static_cast<size_t>(required) / sizeof(proc_fdinfo));
+	const int received = proc_pidinfo(getpid(), PROC_PIDLISTFDS, 0u,
+		rows.data(), static_cast<int>(rows.size() * sizeof(proc_fdinfo)));
+	if (received <= 0 || received % static_cast<int>(sizeof(proc_fdinfo)) != 0) return false;
+	const size_t count = static_cast<size_t>(received) / sizeof(proc_fdinfo);
+	output.reserve(count);
+	for (size_t index = 0u; index < count; ++index) output.push_back(rows[index].proc_fd);
+	return true;
+}
+
+bool sameIdentity(const FileIdentity &left, const FileIdentity &right)
+{
+	return left.device == right.device && left.inode == right.inode && left.size == right.size;
+}
+
+bool stopped(pid_t process)
+{
+	proc_bsdinfo information{};
+	return proc_pidinfo(process, PROC_PIDTBSDINFO, 0u, &information, sizeof(information))
+		== static_cast<int>(sizeof(information)) && information.pbi_status == SSTOP
+		&& (information.pbi_flags & PROC_FLAG_EXEC) != 0u;
+}
+
+std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bool hasExtraInput)
+{
+	std::array<uint8_t, bootstrap::policyHeaderBytes> result{};
+	std::copy(bootstrap::policyMagic.begin(), bootstrap::policyMagic.end(), result.begin());
+	const auto encoded = static_cast<uint32_t>(length);
+	for (uint32_t index = 0u; index < 4u; ++index) {
+		result[bootstrap::policyMagic.size() + index] = static_cast<uint8_t>(encoded >> (index * 8u));
+	}
+	result[12] = hasExtraInput ? 1u : 0u;
+	return result;
+}
+
+[[noreturn]] void verifierFailure(pid_t parent)
+{
+	(void)kill(parent, SIGKILL);
+	_exit(125);
+}
+
+[[noreturn]] void verifyAndRelease(
+	pid_t parent,
+	int executableFd,
+	int policyWriteFd,
+	const std::vector<int> &openDescriptors,
+	const FileIdentity &launcherIdentity,
+	const FileIdentity &executableIdentity,
+	const std::array<uint8_t, bootstrap::policyHeaderBytes> &header,
+	const std::string &policy)
+{
+	if (dup2(executableFd, 0) != 0 || dup2(policyWriteFd, 1) != 1) verifierFailure(parent);
+	for (const int descriptor : openDescriptors) {
+		if (descriptor > 1 && close(descriptor) != 0) verifierFailure(parent);
+	}
+	struct sigaction ignoreBrokenPipe{};
+	ignoreBrokenPipe.sa_handler = SIG_IGN;
+	if (sigemptyset(&ignoreBrokenPipe.sa_mask) != 0
+		|| sigaction(SIGPIPE, &ignoreBrokenPipe, nullptr) != 0) verifierFailure(parent);
+	const timespec interval{ 0, 10'000'000 };
+	for (size_t attempt = 0u; attempt < verifierAttempts; ++attempt) {
+		if (getppid() != parent) _exit(125);
+		FileIdentity mapped{};
+		if (firstMappedVnode(parent, mapped) && !sameIdentity(mapped, launcherIdentity)) {
+			if (!sameIdentity(mapped, executableIdentity)) verifierFailure(parent);
+			if (stopped(parent)) {
+				if (!exactWrite(1, header.data(), header.size()) || kill(parent, SIGCONT) != 0) {
+					verifierFailure(parent);
+				}
+				if (!exactWrite(1, policy.data(), policy.size()) || close(1) != 0) verifierFailure(parent);
+				(void)close(0);
+				_exit(0);
+			}
+		}
+		(void)nanosleep(&interval, nullptr);
+	}
+	verifierFailure(parent);
+}
+
+bool inheritOrDuplicate(posix_spawn_file_actions_t &actions, int source, int destination)
+{
+	return source == destination ? posix_spawn_file_actions_addinherit_np(&actions, source) == 0
+		: posix_spawn_file_actions_adddup2(&actions, source, destination) == 0;
+}
+
+bool spawnActions(
+	posix_spawn_file_actions_t &actions,
+	int attestationSource,
+	int policySource,
+	int extraInputSource)
+{
+	for (int descriptor = 0; descriptor < 3; ++descriptor) {
+		if (posix_spawn_file_actions_addinherit_np(&actions, descriptor) != 0) return false;
+	}
+	return inheritOrDuplicate(actions, attestationSource, bootstrap::attestationDescriptor)
+		&& inheritOrDuplicate(actions, policySource, bootstrap::policyDescriptor)
+		&& (extraInputSource < 0
+			|| inheritOrDuplicate(actions, extraInputSource, bootstrap::extraInputDescriptor));
+}
+
+} // namespace
 
 int main(int argc, char **argv)
 {
@@ -158,9 +318,59 @@ int main(int argc, char **argv)
 	struct rlimit cpu{ (value.durationMs + 999u) / 1000u, (value.durationMs + 999u) / 1000u };
 	if (setrlimit(RLIMIT_AS, &memory) != 0 || setrlimit(RLIMIT_CPU, &cpu) != 0) return 125;
 	const auto policy = profile(value);
-	if (exactText(value.brokerFd, 4096u) != expectedBroker) return 125;
-	if (!enterSandbox(policy)) return 125;
-	// Darwin has no supported atomic executable-FD operation. A path launch cannot
-	// preserve the authenticated descriptor identity, so machine availability must remain false.
+	if (policy.empty() || policy.size() > bootstrap::maximumPolicyBytes
+		|| exactText(value.brokerFd, 4096u) != expectedBroker) return 125;
+	FileIdentity launcherIdentity{}, executableIdentity{};
+	if (!firstMappedVnode(getpid(), launcherIdentity)
+		|| !descriptorIdentity(value.executableFd, executableIdentity)
+		|| sameIdentity(launcherIdentity, executableIdentity)) return 125;
+	const auto executablePath = pathFor(value.executableFd);
+	int policyPipe[2]{ -1, -1 };
+	if (pipe(policyPipe) != 0) return 125;
+	const int attestationSource = fcntl(value.attestationFd, F_DUPFD_CLOEXEC, 6);
+	const int policySource = fcntl(policyPipe[0], F_DUPFD_CLOEXEC, 6);
+	const int extraInputSource = value.extraInputFd < 0
+		? -1 : fcntl(value.extraInputFd, F_DUPFD_CLOEXEC, 6);
+	if (attestationSource < 0 || policySource < 0 || (value.extraInputFd >= 0 && extraInputSource < 0)) return 125;
+	posix_spawn_file_actions_t actions{};
+	posix_spawnattr_t attributes{};
+	if (posix_spawn_file_actions_init(&actions) != 0) {
+		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
+		return 125;
+	}
+	if (!spawnActions(actions, attestationSource, policySource, extraInputSource)
+		|| posix_spawnattr_init(&attributes) != 0) {
+		(void)posix_spawn_file_actions_destroy(&actions);
+		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
+		return 125;
+	}
+	constexpr short flags = POSIX_SPAWN_SETEXEC | POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_CLOEXEC_DEFAULT;
+	if (posix_spawnattr_setflags(&attributes, flags) != 0) {
+		(void)posix_spawnattr_destroy(&attributes); (void)posix_spawn_file_actions_destroy(&actions);
+		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
+		return 125;
+	}
+	std::vector<int> openDescriptors;
+	if (!snapshotOpenDescriptors(openDescriptors)) return 125;
+	const auto header = policyHeader(policy.size(), value.extraInputFd >= 0);
+	const pid_t parent = getpid();
+	const pid_t verifier = fork();
+	if (verifier < 0) return 125;
+	if (verifier == 0) verifyAndRelease(parent, value.executableFd, policyPipe[1], openDescriptors,
+		launcherIdentity, executableIdentity, header, policy);
+	char language[] = "LANG=C";
+	char locale[] = "LC_ALL=C";
+	char path[] = "PATH=";
+	char home[] = "HOME=/nonexistent";
+	char *environment[]{ language, locale, path, home, nullptr };
+	const int status = posix_spawn(nullptr, executablePath.c_str(), &actions, &attributes,
+		value.childArgv, environment);
+	(void)kill(verifier, SIGKILL);
+	while (waitpid(verifier, nullptr, 0) < 0 && errno == EINTR) {}
+	(void)posix_spawnattr_destroy(&attributes); (void)posix_spawn_file_actions_destroy(&actions);
+	(void)close(policyPipe[0]); (void)close(policyPipe[1]);
+	(void)close(attestationSource); (void)close(policySource);
+	if (extraInputSource >= 0) (void)close(extraInputSource);
+	(void)status;
 	return 125;
 }

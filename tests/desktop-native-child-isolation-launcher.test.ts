@@ -33,6 +33,18 @@ test('human review metadata cannot construct a native-child execution authority'
 	} as never), /unsupported fields/iu);
 });
 
+test('macOS rejects machine workloads whose peer has no pre-work Seatbelt bootstrap', () => {
+	const artifact = Object.freeze({
+		path: '/fixture/native-artifact', byteLength: 1, sha256: 'a'.repeat(64),
+		identity: Object.freeze({ dev: 1, ino: 1 }),
+	});
+	assert.throws(() => createNativeChildIsolationLauncher({
+		target: 'mac-arm64',
+		machineWorkload: Object.freeze({ kind: 'media', payloads: [artifact], runtimeLibraries: [] }),
+		artifacts: { launcher: artifact, sandboxProfile: artifact, brokerPolicy: artifact },
+	}), /only the professional peer has an authenticated pre-work Seatbelt bootstrap/iu);
+});
+
 test('Linux launches an exact child only after namespaces, Landlock, and seccomp are enforced', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
