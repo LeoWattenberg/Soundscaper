@@ -182,13 +182,16 @@ test('isolation configuration selects one exact native generator architecture', 
 	]);
 });
 
-test('test orchestration permits only native Node or Windows x64 on its ARM64 OS target', () => {
+test('test orchestration permits only target-native Node', () => {
 	assert.deepEqual(resolveSoundscaperNativeTestRuntime({
 		requestedTarget: 'linux-arm64', platform: 'linux', architecture: 'arm64',
 	}), { target: 'linux-arm64', orchestration: 'target-native-node' });
-	assert.deepEqual(resolveSoundscaperNativeTestRuntime({
+	assert.throws(() => resolveSoundscaperNativeTestRuntime({
 		requestedTarget: 'win-arm64', platform: 'win32', architecture: 'x64',
-	}), { target: 'win-arm64', orchestration: 'windows-x64-node-on-arm64-runner' });
+	}), /cannot orchestrate win-arm64/u);
+	assert.deepEqual(resolveSoundscaperNativeTestRuntime({
+		requestedTarget: 'win-arm64', platform: 'win32', architecture: 'arm64',
+	}), { target: 'win-arm64', orchestration: 'target-native-node' });
 	for (const request of [
 		{ requestedTarget: 'linux-arm64', platform: 'linux', architecture: 'x64' },
 		{ requestedTarget: 'mac-arm64', platform: 'darwin', architecture: 'x64' },

@@ -15,7 +15,7 @@ test('reusable professional candidate workflow closes all five Soundscaper targe
 		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64', 'arm64'],
 		['mac-arm64', 'macos-15', 'mac', 'arm64', 'arm64'],
 		['win-x64', 'windows-2025', 'win', 'x64', 'x64'],
-		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'x64'],
+		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'arm64'],
 	]) {
 		const row = [
 			`target: ${target}`, `runner: ${runner}`, `platform: ${platform}`,
@@ -56,6 +56,37 @@ test('reusable professional candidate workflow closes all five Soundscaper targe
 		'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
 		'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
 	]) assert(source.includes(pin));
+});
+
+test('reusable professional candidate workflow installs the JUCE Linux header closure', async () => {
+	const source = await readFile(resolve(ROOT,
+		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
+	const step = /^ {6}- name: Install JUCE Linux development dependencies\n[\s\S]*?(?=^ {6}- )/mu
+		.exec(source)?.[0];
+	assert.ok(step, 'the reusable candidate job needs one JUCE dependency step');
+	assert.match(step, /^ {8}if: runner\.os == 'Linux'$/mu);
+	assert.match(step, /^ {8}timeout-minutes: 10$/mu);
+	assert.match(step, /^ {10}bash scripts\/ci-apt-install\.sh$/mu);
+	for (const packageName of [
+		'libasound2-dev',
+		'libfontconfig-dev', 'libfreetype-dev',
+		'libx11-dev', 'libxcomposite-dev', 'libxcursor-dev', 'libxext-dev',
+		'libxinerama-dev', 'libxi-dev', 'libxrandr-dev', 'libxrender-dev',
+	]) {
+		assert.match(step, new RegExp(`^ {10}${packageName}$`, 'mu'),
+			`${packageName} is required by the enabled JUCE modules`);
+	}
+});
+
+test('reusable professional candidate workflow enables Linux user namespaces', async () => {
+	const source = await readFile(resolve(ROOT,
+		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
+	const step = /^ {6}- name: Allow unprivileged user namespaces for the native isolation launcher\n[\s\S]*?(?=^ {6}- )/mu
+		.exec(source)?.[0];
+	assert.ok(step, 'the target-native Linux runners need an AppArmor setup step');
+	assert.match(step, /^ {8}if: runner\.os == 'Linux'$/mu);
+	assert.match(step,
+		/^ {8}run: sudo sysctl -w kernel\.apparmor_restrict_unprivileged_userns=0$/mu);
 });
 
 test('dispatch workflow produces and passes one authenticated Soundscaper-only source cache', async () => {

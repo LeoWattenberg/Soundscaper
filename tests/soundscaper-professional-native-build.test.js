@@ -324,7 +324,11 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(cmake, /SOUNDSCAPER_PRO_BUILD=1/u);
 	assert.match(cmake, /add_library\(soundscaper_professional_node MODULE/u);
 	assert.match(cmake, /target_link_libraries\(soundscaper_professional_node PRIVATE soundscaper_professional_audio\)/u);
+	assert.match(cmake,
+		/target_link_libraries\(soundscaper_professional_node PRIVATE soundscaper_professional_audio\)\nif\(APPLE\)\n\ttarget_link_options\(soundscaper_professional_node PRIVATE[\s\S]*"LINKER:-undefined,dynamic_lookup"/u);
 	assert.match(cmake, /target_link_libraries\(soundscaper_professional_peer PRIVATE soundscaper_professional_plugin\)/u);
+	assert.match(cmake,
+		/"-framework AudioToolbox" "-framework CoreFoundation"\)\n\ttarget_link_libraries\(soundscaper_professional_plugin PRIVATE "-framework CoreAudioKit"\)/u);
 	assert.match(cmake, /SOUNDSCAPER_NODE_API_INCLUDE/u);
 	assert.match(cmake, /OUTPUT_NAME "soundscaper_professional"[\s\S]*SUFFIX "\.node"/u);
 	assert.match(cmake, /pipewire_session\.c/u);
@@ -429,6 +433,9 @@ test('target builds select concrete Linux, fail-closed macOS Seatbelt and Window
 	assert.match(windows, /--extra-input-fd=/u);
 	assert.match(windows, /JOB_OBJECT_LIMIT_ACTIVE_PROCESS/u);
 	assert.match(windows, /AssignProcessToJobObject/u);
+	assert.match(windows,
+		/WriteFile\(values\.attestation[\s\S]*_close\(values\.attestationFd\)[\s\S]*values\.attestationFd = -1[\s\S]*values\.attestation = nullptr[\s\S]*ResumeThread/u,
+		'the enforcement pipe must reach EOF before the child waits for framed input');
 	assert.match(windowsProfile, /appcontainer-low-integrity/u);
 	assert.match(runtime, /soundscaper-macos-seatbelt-broker-v1/u);
 	assert.match(runtime, /soundscaper-windows-appcontainer-job-v1/u);

@@ -12,11 +12,6 @@ export function resolveSoundscaperNativeTestRuntime(options) {
 	if (observed === target) {
 		return Object.freeze({ target, orchestration: 'target-native-node' });
 	}
-	if (target === 'win-arm64' && observed === 'win-x64') {
-		return Object.freeze({
-			target, orchestration: 'windows-x64-node-on-arm64-runner',
-		});
-	}
 	throw new Error(`The ${observed} Node runtime cannot orchestrate ${target}.`);
 }
 

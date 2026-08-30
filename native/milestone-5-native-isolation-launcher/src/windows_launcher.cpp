@@ -22,13 +22,15 @@ enum class Access { readOnly, readExecute, writeOnly };
 struct Grant { HANDLE handle; Access access; };
 struct Values {
 	HANDLE attestation = nullptr, profile = nullptr, broker = nullptr, executable = nullptr;
+	int attestationFd = -1;
 	HANDLE extraInput = nullptr;
 	std::vector<Grant> grants;
 	std::wstring authorityProfile;
 	SIZE_T rss = 0u; uint64_t durationMs = 0u;
 };
 
-bool exactFd(const std::wstring &value, const wchar_t *prefix, HANDLE &output)
+bool exactFd(const std::wstring &value, const wchar_t *prefix, HANDLE &output,
+	int *descriptor = nullptr)
 {
 	const size_t length = std::wcslen(prefix);
 	if (value.rfind(prefix, 0u) != 0u) return false;
@@ -37,6 +39,10 @@ bool exactFd(const std::wstring &value, const wchar_t *prefix, HANDLE &output)
 	if (end == nullptr || *end != L'\0' || raw < 3u || raw > 4095u) ExitProcess(125u);
 	const intptr_t handle = _get_osfhandle(static_cast<int>(raw));
 	if (handle == -1) ExitProcess(125u);
+	if (descriptor != nullptr) {
+		if (*descriptor >= 0) ExitProcess(125u);
+		*descriptor = static_cast<int>(raw);
+	}
 	output = reinterpret_cast<HANDLE>(handle); return true;
 }
 
@@ -176,7 +182,7 @@ int wmain(int argc, wchar_t **argv)
 		const std::wstring option(argv[index]);
 		if (separator) { child.push_back(option); continue; }
 		if (option == L"--") { separator = true; continue; }
-		if (exactFd(option, L"--attestation-fd=", values.attestation)
+		if (exactFd(option, L"--attestation-fd=", values.attestation, &values.attestationFd)
 			|| exactFd(option, L"--profile-fd=", values.profile)
 			|| exactFd(option, L"--broker-policy-fd=", values.broker)
 			|| exactFd(option, L"--executable-fd=", values.executable)
@@ -248,7 +254,10 @@ int wmain(int argc, wchar_t **argv)
 		|| !AssignProcessToJobObject(job, process.hProcess)) return 125;
 	DWORD written = 0u;
 	if (!WriteFile(values.attestation, attestation, sizeof(attestation) - 1u, &written, nullptr)
-		|| written != sizeof(attestation) - 1u || ResumeThread(process.hThread) == static_cast<DWORD>(-1)) return 125;
+		|| written != sizeof(attestation) - 1u || _close(values.attestationFd) != 0) return 125;
+	values.attestationFd = -1;
+	values.attestation = nullptr;
+	if (ResumeThread(process.hThread) == static_cast<DWORD>(-1)) return 125;
 	WaitForSingleObject(process.hProcess, INFINITE);
 	DWORD exitCode = 125u; GetExitCodeProcess(process.hProcess, &exitCode);
 	CloseHandle(process.hThread); CloseHandle(process.hProcess); CloseHandle(job); FreeSid(sid);

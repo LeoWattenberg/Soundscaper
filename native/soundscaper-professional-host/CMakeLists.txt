@@ -112,6 +112,7 @@ if(APPLE)
 	target_sources(soundscaper_professional_audio PRIVATE src/os_audio_codec_mac.mm)
 	target_link_libraries(soundscaper_professional_audio PRIVATE
 		"-framework AudioToolbox" "-framework CoreFoundation")
+	target_link_libraries(soundscaper_professional_plugin PRIVATE "-framework CoreAudioKit")
 	target_compile_definitions(soundscaper_professional_audio PRIVATE
 		JUCE_ASIO=0 SOUNDSCAPER_COREAUDIO_STREAMING=1)
 	target_compile_definitions(soundscaper_professional_plugin PRIVATE
@@ -206,6 +207,10 @@ target_include_directories(soundscaper_professional_node PRIVATE
 )
 target_compile_definitions(soundscaper_professional_node PRIVATE NAPI_VERSION=8)
 target_link_libraries(soundscaper_professional_node PRIVATE soundscaper_professional_audio)
+if(APPLE)
+	target_link_options(soundscaper_professional_node PRIVATE
+		"LINKER:-undefined,dynamic_lookup")
+endif()
 set_target_properties(soundscaper_professional_node PROPERTIES
 	PREFIX ""
 	OUTPUT_NAME "soundscaper_professional"
