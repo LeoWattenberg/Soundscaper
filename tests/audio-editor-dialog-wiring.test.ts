@@ -28,18 +28,25 @@ test('custom track-rate dialog retains the track whose submenu opened it', async
 	assert.match(menus, /openTrackRate: \(\) => openTrackRate\(selectedAudioTrack\)/u);
 	assert.match(parity, /openTrackRate\(selectedTrack\)/u);
 
-	const { applyTrackRateDialog } = await import(
+	const { applyTrackRateDialog, TRACK_RATE_DIALOG_MISSING_TRACK } = await import(
 		'../src/common/editor/ui/dialogs/editor-dialog-model.js'
 	);
 	const calls: unknown[][] = [];
+	const updated = Promise.resolve('updated');
 	const applied = applyTrackRateDialog({
 		trackId: 'menu-track-b',
 		value: '96000',
 		run: (operation: () => unknown) => operation(),
-		setRate: (...args: unknown[]) => { calls.push(args); },
+		setRate: (...args: unknown[]) => { calls.push(args); return updated; },
 	});
-	assert.equal(applied, true);
+	assert.equal(applied, updated, 'the dialog model must preserve async action settlement');
 	assert.deepEqual(calls, [['menu-track-b', 96_000]]);
+	assert.equal(applyTrackRateDialog({
+		trackId: null,
+		value: '48000',
+		run: () => { throw new Error('missing tracks must not run'); },
+		setRate: () => undefined,
+	}), TRACK_RATE_DIALOG_MISSING_TRACK);
 });
 
 test('workspace overlays forward the product-specific About label to the dialog', async () => {

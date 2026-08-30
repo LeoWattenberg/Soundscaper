@@ -20,6 +20,7 @@ import {
 	formatDeliveryReportSummary,
 	deliveryReportItems,
 	recordingOffsetSources,
+	TRACK_RATE_DIALOG_MISSING_TRACK,
 } from './editor-dialog-model.js';
 
 export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
@@ -212,13 +213,12 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 					{type === 'track-rate' && (
 						<form onSubmit={(event) => {
 							event.preventDefault();
-							if (!trackId) return;
 							runThenClose(
 								() => applyTrackRateDialog({ trackId, value,
 									run: (operation) => operation(),
 									setRate: controller.actions.track.setRate,
 								}),
-								Boolean,
+								(result) => result !== TRACK_RATE_DIALOG_MISSING_TRACK,
 							);
 						}}>
 							<label className="kw-audio-editor-dialog__field">

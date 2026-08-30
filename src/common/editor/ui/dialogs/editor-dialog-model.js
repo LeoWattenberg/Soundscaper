@@ -12,10 +12,11 @@ export function formatAup4CompatibilitySummary(report, copy) {
 		.replace('{omitted}', String(count('omitted')));
 }
 
+export const TRACK_RATE_DIALOG_MISSING_TRACK = Symbol('track-rate-dialog-missing-track');
+
 export function applyTrackRateDialog({ trackId, value, run, setRate }) {
-	if (!trackId) return false;
-	run(() => setRate(trackId, Number(value)));
-	return true;
+	if (!trackId) return TRACK_RATE_DIALOG_MISSING_TRACK;
+	return run(() => setRate(trackId, Number(value)));
 }
 
 export function aup4CompatibilityItems(report) {
