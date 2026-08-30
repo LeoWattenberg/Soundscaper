@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 /** Durable, main-owned admission for authenticated renderer-evaluated inputs. */
-import { constants as fsConstants } from 'node:fs';
 import {
-	copyFile, unlink, writeFile,
+	unlink, writeFile,
 } from 'node:fs/promises';
 import { isAbsolute, join, normalize } from 'node:path';
 import {
@@ -61,12 +60,12 @@ import {
 	type NativeRenderInputStageManifest,
 } from './native-services-render-input-manifest.ts';
 import {
-	inspectExactNativeRenderInputFile,
 	inspectNativeRenderDerivedFile,
 	nativeRenderInputFileIdentity,
 	sameNativeRenderInputFileIdentity,
 	type FramescaperNativeRenderInputDescriptorV1,
 } from './native-services-render-input-validation.ts';
+import { materializeNativeRenderInputFiles } from './native-services-render-input-materialization.ts';
 export {
 	FRAMESCAPER_NATIVE_RENDER_INPUT_MAXIMUM_PENDING_STAGES,
 	FRAMESCAPER_NATIVE_RENDER_INPUT_STAGE_EXPIRY_MS,
@@ -460,21 +459,12 @@ export class FramescaperNativeRenderInputStaging
 		const byteLength = nativeRenderInputDeclaredBytes(manifest.files);
 		return Object.freeze({
 			byteLength,
-			materialize: async (targetValue: string) => {
+			materialize: async (targetValue: string, signal?: AbortSignal) => {
 				const target = await requireNativeRenderInputRoot(absolutePath(targetValue), false);
-				const grants: HelperNativeInputGrant[] = [];
-				for (const [index, file] of manifest.files.entries()) {
-					const source = join(owned.directory, file.name);
-					const path = join(target,
-						`derived-${String(index).padStart(2, '0')}${file.role === 'staged-audio-mix' ? '.wav' : '.frames'}`);
-					await copyFile(source, path, fsConstants.COPYFILE_EXCL);
-					await inspectExactNativeRenderInputFile(path, file);
-					grants.push(Object.freeze({
-						type: 'file', role: file.role, path, bytes: file.byteLength,
-						sha256: file.sha256, identity: await nativeRenderInputFileIdentity(path),
-					}));
-				}
-				return Object.freeze(grants);
+				return materializeNativeRenderInputFiles({
+					sourceDirectory: owned.directory, targetDirectory: target,
+					files: manifest.files, signal,
+				});
 			},
 		});
 	}
