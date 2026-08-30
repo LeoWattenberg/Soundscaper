@@ -345,6 +345,17 @@ test('a retired product path redirects its documents and returns 404 for its old
 	);
 });
 
+test('the retired-route audit refuses a product without an explicit route table', () => {
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	assert.throws(
+		() => pagesCachePolicyDescriptors({
+			routing: { ...routing, productId: 'future-product' },
+			assetPath: '/assets/site-entry-AbCd1234.js',
+		}),
+		/has no retired-route table for future-product/u,
+	);
+});
+
 test('the deploy preflight presents the deploying origin to the runtime bucket CORS policy', async (context) => {
 	const fixture = await createFixture(context);
 	const release = await verifyFfmpegRuntimeManifest({

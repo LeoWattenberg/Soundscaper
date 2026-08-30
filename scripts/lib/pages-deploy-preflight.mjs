@@ -41,6 +41,11 @@ const PRODUCT_INSTALL_ARTWORK = Object.freeze({
  * documents — is what stops the cutover deploy from being blocked by its own
  * change, and stops the old URLs from being silently abandoned instead.
  */
+const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
+	soundscaper: Object.freeze({ framescaper: '/framescaper' }),
+	framescaper: Object.freeze({}),
+});
+
 /** The documents a retired base path kept, relative to that base path. */
 const RETIRED_DOCUMENT_SUFFIXES = Object.freeze(['/en/', '/embed/en/']);
 
@@ -412,9 +417,7 @@ function served(path, cacheControl, serviceWorkerAllowed) {
 
 function retiredRoutes(routing) {
 	const hosted = new Set(routing.plans.map(({ productId }) => productId));
-	const retired = routing.productId === 'soundscaper'
-		? Object.freeze({ framescaper: '/framescaper' })
-		: Object.freeze({});
+	const retired = RETIRED_PRODUCT_BASE_PATHS[routing.productId];
 	assert(retired !== undefined, `Pages cache-policy audit has no retired-route table for ${routing.productId}.`);
 	return Object.entries(retired)
 		.filter(([productId]) => !hosted.has(productId))
