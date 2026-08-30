@@ -58,6 +58,7 @@ export interface EffectAudioProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
 	readonly schemaVersion: number;
 	readonly sampleRate: number;
+	readonly masterChannels: number;
 	readonly tracks: readonly EffectAudioTrack[];
 	readonly clips: readonly EffectAudioClip[];
 	readonly selection?: EffectSelection | null;
@@ -82,6 +83,7 @@ interface MutableEffectAudioProject extends Record<string, unknown> {
 	id: string;
 	schemaVersion: number;
 	sampleRate: number;
+	masterChannels: number;
 	tracks: MutableEffectAudioTrack[];
 	clips: EffectAudioClip[];
 	selection: EffectSelection | null;
@@ -323,7 +325,10 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 				? await engine.renderTrack(requireTrackId(trackId), { startFrame, endFrame, includeTrackPan: false })
 				: await engine.renderMix({ startFrame, endFrame, includeMaster: true, respectMuteSolo: true });
 			runtime.assertProject(token);
-			channels = runtime.matchAudacitySelectionChannels(runtime.audioBufferChannels(rendered), channelCount);
+			const renderedChannels = runtime.audioBufferChannels(rendered);
+			channels = scope === 'master'
+				? copyMasterNoiseProfileChannels(renderedChannels, channelCount)
+				: runtime.matchAudacitySelectionChannels(renderedChannels, channelCount);
 		} finally {
 			await engine.dispose();
 		}
@@ -383,7 +388,9 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		if (scope === 'track' && (!selectionTarget || selectionTarget.track.id !== requestedTrackId)) {
 			throw new Error(runtime.copy.audacitySelectionHint);
 		}
-		const channelCount = scope === 'track' ? selectionTarget!.channelCount : 2;
+		const channelCount = scope === 'track'
+			? selectionTarget!.channelCount
+			: masterNoiseProfileChannelCount(project.masterChannels);
 		const estimatedPeakBytes = runtime.estimateAudacityEffectPeakBytes(
 			'audacity-noise-reduction', durationFrames, effect.params, { channelCount, sampleRate },
 		);
@@ -577,4 +584,27 @@ function findClip(project: EffectAudioProject, clipId: string | null): EffectAud
 function requireTrackId(trackId: string | null): string {
 	if (!trackId) throw new TypeError('A track id is required.');
 	return trackId;
+}
+
+function masterNoiseProfileChannelCount(value: unknown): number {
+	if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 32) {
+		throw new RangeError('The master noise profile requires a project channel count from 1 to 32.');
+	}
+	return value;
+}
+
+function copyMasterNoiseProfileChannels(
+	channels: readonly Float32Array[],
+	expectedChannelCount: number,
+): Float32Array[] {
+	if (!Array.isArray(channels) || channels.length !== expectedChannelCount) {
+		throw new RangeError(`The master noise profile expected ${String(expectedChannelCount)} rendered channels.`);
+	}
+	const frameCount = channels[0]?.length;
+	if (!Number.isSafeInteger(frameCount) || channels.some((channel) => (
+		!(channel instanceof Float32Array) || channel.length !== frameCount
+	))) {
+		throw new RangeError('The master noise profile render produced mismatched PCM channels.');
+	}
+	return channels.map((channel) => channel.slice());
 }

@@ -493,3 +493,14 @@ test('master noise profiling commits a master-scoped effect update', async () =>
 	assert.equal((harness.commands[0] as { scope: string }).scope, 'master');
 	assert.equal(harness.state.audacityEffectProcessing, false);
 });
+
+test('master noise profiling includes every authored output channel', async () => {
+	const harness = createHarness({ masterChannels: 6 });
+	await harness.service.captureRackNoiseProfile(
+		{ id: 'master', type: 'audacity-noise-reduction', params: {}, enabled: false }, 'master', null,
+	);
+	assert.deepEqual(
+		harness.noiseProfileWorkerChannels[0]?.map((channel) => channel[0]),
+		[1, 2, 3, 4, 5, 6],
+	);
+});

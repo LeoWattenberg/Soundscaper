@@ -5,6 +5,7 @@ import {
 	type EffectAudioProject,
 	type EffectAudioState,
 } from '../src/common/editor/controller/effect-audio-service.ts';
+import { matchAudacitySelectionChannels } from '../src/common/editor/audacity-selection.js';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
 import { createEffect } from '../src/common/editor/effects.js';
@@ -23,6 +24,7 @@ export function createHarness(options: Readonly<{
 	deferPersistence?: boolean;
 	deferWorker?: boolean;
 	loadFailure?: boolean;
+	masterChannels?: number;
 	memoryLimitBytes?: number;
 	project?: EffectAudioProject;
 	spectralRenderFrameDelta?: number;
@@ -30,7 +32,7 @@ export function createHarness(options: Readonly<{
 	spectralWorkerFrameDelta?: number;
 	validateRenderSnapshot?: (project: EffectAudioProject) => void;
 }> = {}) {
-	let project: EffectAudioProject = options.project ?? baselineHarnessProject();
+	let project: EffectAudioProject = options.project ?? baselineHarnessProject(options.masterChannels);
 	const state: EffectAudioState = {
 		selectedTrackId: 'track-a',
 		selectedClipId: 'clip-a',
@@ -61,6 +63,7 @@ export function createHarness(options: Readonly<{
 	const persisted: unknown[] = [];
 	const preflightBytes: number[] = [];
 	const statuses: string[] = [];
+	const noiseProfileWorkerChannels: Float32Array[][] = [];
 	let publications = 0;
 	let persistenceCommits = 0;
 	let prefixDisposals = 0;
@@ -110,15 +113,21 @@ export function createHarness(options: Readonly<{
 				if (options.loadFailure) throw new Error('load failed');
 			},
 			renderTrack: async () => ({ channels: [new Float32Array([0.3])] }),
-			renderMix: async () => ({ channels: [new Float32Array([0.3]), new Float32Array([0.3])] }),
+			renderMix: async () => ({
+				channels: Array.from(
+					{ length: Number(project.masterChannels) || 2 },
+					(_, index) => new Float32Array([index + 1]),
+				),
+			}),
 			dispose: async () => { prefixDisposals += 1; },
 		}),
 		sourceBuffers: new Map(),
 		audioBufferChannels: (buffer) => [...buffer.channels ?? []],
-		matchAudacitySelectionChannels: (channels, channelCount) => channels.slice(0, channelCount),
-		runSelectionEffectWorker: async () => options.deferWorker
-			? worker.promise
-			: { profile: { bins: [1, 2] } },
+		matchAudacitySelectionChannels,
+		runSelectionEffectWorker: async ({ channels }) => {
+			noiseProfileWorkerChannels.push(channels.map((channel) => channel.slice()));
+			return options.deferWorker ? worker.promise : { profile: { bins: [1, 2] } };
+		},
 		runSpectralEditWorker: async (channels) => {
 			spectralWorkerCalls += 1;
 			return channels.map((channel) => new Float32Array(
@@ -143,6 +152,7 @@ export function createHarness(options: Readonly<{
 	return {
 		commands,
 		get prefixDisposals() { return prefixDisposals; },
+		noiseProfileWorkerChannels,
 		get publications() { return publications; },
 		persistence,
 		get persistenceCommits() { return persistenceCommits; },
@@ -166,7 +176,7 @@ export function createHarness(options: Readonly<{
 	};
 }
 
-function baselineHarnessProject(): EffectAudioProject {
+function baselineHarnessProject(masterChannels = 2): EffectAudioProject {
 	const source = createAudioSource({
 		id: 'source-a', storageKey: 'pcm:a', name: 'Source', mimeType: 'audio/wav',
 		frameCount: 4_000, channelCount: 1, sampleRate: 48_000,
@@ -178,6 +188,7 @@ function baselineHarnessProject(): EffectAudioProject {
 	});
 	const project = createSoundscaperProject({
 		id: 'project-a', title: 'Effect fixture', now: '2026-08-28T12:00:00.000Z',
+		masterChannels,
 		sources: [source], clips: [clip],
 		tracks: [
 			createAudioTrack({
