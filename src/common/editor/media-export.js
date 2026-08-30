@@ -299,7 +299,7 @@ export function normalizeMediaChannelMapping(inputChannelCount, value = 'preserv
 	}
 	if (value === 'stereo') {
 		if (inputCount === 1) return freezeMapping(inputCount, 'stereo', [0, 0].map(() => ({ inputs: [{ channel: 0, gain: 1 }] })));
-		return freezeMapping(inputCount, 'stereo', [0, 1].map((channel) => ({ inputs: [{ channel, gain: 1 }] })));
+		return freezeMapping(inputCount, 'stereo', stereoFoldInputs(inputCount));
 	}
 
 	const rawChannels = Array.isArray(value) ? value : value?.channels;
@@ -308,6 +308,30 @@ export function normalizeMediaChannelMapping(inputChannelCount, value = 'preserv
 	}
 	const channels = rawChannels.map((channel, outputIndex) => normalizeOutputChannel(channel, inputCount, outputIndex));
 	return freezeMapping(inputCount, 'custom', channels);
+}
+
+function stereoFoldInputs(inputCount) {
+	const left = [{ channel: 0, gain: 1 }];
+	const right = [{ channel: 1, gain: 1 }];
+	if (inputCount === 2) return [{ inputs: left }, { inputs: right }];
+	if (inputCount === 3 || inputCount >= 5) {
+		left.push({ channel: 2, gain: Math.SQRT1_2 });
+		right.push({ channel: 2, gain: Math.SQRT1_2 });
+	} else {
+		left.push({ channel: 2, gain: Math.SQRT1_2 });
+		right.push({ channel: 3, gain: Math.SQRT1_2 });
+	}
+	if (inputCount === 5) {
+		left.push({ channel: 3, gain: Math.SQRT1_2 });
+		right.push({ channel: 4, gain: Math.SQRT1_2 });
+	} else if (inputCount >= 6) {
+		left.push({ channel: 3, gain: 0.5 }, { channel: 4, gain: Math.SQRT1_2 });
+		right.push({ channel: 3, gain: 0.5 }, { channel: 5, gain: Math.SQRT1_2 });
+		for (let channel = 6; channel < inputCount; channel += 1) {
+			(channel % 2 === 0 ? left : right).push({ channel, gain: 0.5 });
+		}
+	}
+	return [{ inputs: left }, { inputs: right }];
 }
 
 export function mediaChannelMappingToFfmpegFilter(mapping) {

@@ -135,6 +135,16 @@ test('channel mapping uses an explicit matrix for native PCM and FFmpeg pan filt
 		normalizeMediaChannelMapping(1, 'stereo').channels.map((channel) => channel.inputs[0].channel),
 		[0, 0],
 	);
+	const surround = normalizeMediaChannelMapping(6, 'stereo');
+	assert.deepEqual(
+		surround.channels.map((channel) => channel.inputs.map(({ channel: input }) => input)),
+		[[0, 2, 3, 4], [1, 2, 3, 5]],
+	);
+	assert.deepEqual(
+		applyMediaChannelMapping([1, 2, 3, 4, 5, 6].map((value) => Float32Array.of(value)), surround)
+			.map((channel) => [...channel]),
+		[[Math.fround(3 + 8 * Math.SQRT1_2)], [Math.fround(4 + 9 * Math.SQRT1_2)]],
+	);
 	assert.throws(() => normalizeMediaChannelMapping(2, [[1]]), /one finite gain per input/);
 });
 
