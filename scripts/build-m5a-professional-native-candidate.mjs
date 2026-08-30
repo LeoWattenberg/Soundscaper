@@ -7,8 +7,9 @@ import { spawnSync } from 'node:child_process';
 import {
 	lstatSync, mkdirSync, realpathSync,
 } from 'node:fs';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
+import { normalizeAbsoluteCliPath } from './lib/absolute-cli-path.mjs';
 import {
 	createSoundscaperProfessionalNativeCandidatePipelinePlan,
 	executeSoundscaperProfessionalNativeCandidatePipeline,
@@ -173,7 +174,5 @@ function absentPath(value, label) {
 }
 
 function absolutePath(value, label) {
-	if (typeof value !== 'string' || !isAbsolute(value) || resolve(value) !== value
-		|| value.includes('\0')) throw new TypeError(`The ${label} must be an absolute normalized path.`);
-	return value;
+	return normalizeAbsoluteCliPath(value, label);
 }

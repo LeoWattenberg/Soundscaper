@@ -282,7 +282,9 @@ function assertExtractedJuceVst3Closure(juceRoot) {
 	const closure = resolve(juceRoot, JUCE_VST3_SDK_CLOSURE);
 	assert(existsSync(closure), 'JUCE 9.0.1 embedded VST3 SDK closure is missing.');
 	const versionHeader = readFileSync(resolve(juceRoot, JUCE_VST3_VERSION_HEADER));
-	assert(/^#define kVstVersionString\s+"VST 3\.8\.0"\s*$/mu.test(versionHeader.toString('utf8')),
+	const version = /^[\t ]*#[\t ]*define[\t ]+kVstVersionString[\t ]+"([^"\r\n]+)"[\t ]*(?:\/\/[^\r\n]*)?$/mu
+		.exec(versionHeader.toString('utf8'))?.[1];
+	assert(version === 'VST 3.8.0',
 		'The JUCE embedded VST3 SDK is not exact API version 3.8.0.');
 	return Object.freeze({
 		root: closure,

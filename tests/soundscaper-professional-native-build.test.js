@@ -117,7 +117,7 @@ async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3
 	]) {
 		await mkdir(dirname(path), { recursive: true });
 		await writeFile(path, path.endsWith('vsttypes.h')
-			? `#define kVstVersionString\t"VST ${embeddedVst3Version}"\n`
+			? `#define kVstVersionString\t"VST ${embeddedVst3Version}"\t///< SDK version for PClassInfo2\n`
 			: 'authenticated fixture\n');
 	}
 	const register = JSON.parse(await readFile(
@@ -173,7 +173,9 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 		kind: 'juce-embedded-sdk',
 		root: join(linux.sourceSnapshotRoot, 'juce', JUCE_VST3_SDK_CLOSURE),
 		version: '3.8.0',
-		versionHeaderSha256: sha256(Buffer.from('#define kVstVersionString\t"VST 3.8.0"\n')),
+		versionHeaderSha256: sha256(Buffer.from(
+			'#define kVstVersionString\t"VST 3.8.0"\t///< SDK version for PClassInfo2\n',
+		)),
 		provenanceOnlySourceId: 'vst3-sdk',
 		commit: '9fad9770f2ae8542ab1a548a68c1ad1ac690abe0',
 	});
