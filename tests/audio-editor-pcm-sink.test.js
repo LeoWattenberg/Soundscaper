@@ -199,7 +199,7 @@ test('realtime engine drains serialized sink writes before completing', async ()
 		});
 		await firstStarted;
 		assert.equal(writes.length, 1);
-		assert.deepEqual(contexts[0].capture.messages, [], 'credit remains owned while the sink is pending');
+		assert.deepEqual(contexts[0].capture.messages.filter(({ type }) => type === 'release-chunk'), [], 'credit remains owned while the sink is pending');
 		releaseFirst();
 		assert.deepEqual(await pending, {
 			sampleRate: 48_000,
@@ -216,7 +216,7 @@ test('realtime engine drains serialized sink writes before completing', async ()
 		assert.equal(contexts.length, 1);
 		assert.equal(contexts[0].closed, true);
 		assert.equal(contexts[0].modules.length, 1);
-		assert.deepEqual(contexts[0].capture.messages, [
+		assert.deepEqual(contexts[0].capture.messages.filter(({ type }) => type === 'release-chunk'), [
 			{ type: 'release-chunk' },
 			{ type: 'release-chunk' },
 		]);

@@ -283,6 +283,50 @@ test('a realtime render banks the deepest queue both stream ends admit', async (
 	}
 });
 
+test('realtime setup freezes the clock, arms capture from the scheduled start, and pins its width', async () => {
+	const previousAudioContext = globalThis.AudioContext;
+	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
+	const context = new MockRealtimeAudioContext();
+	context.state = 'running';
+	const streams = new ClockAdvancingChunkStreamClient(context);
+	let engine: WebAudioEditorEngine | null = null;
+	globalThis.AudioContext = function MockAudioContextFactory() { return context; } as unknown as typeof AudioContext;
+	globalThis.AudioWorkletNode = MockCaptureNode as unknown as typeof AudioWorkletNode;
+	try {
+		engine = createAudioEditorEngine({
+			chunkStreamClient: streams as never,
+			chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+		});
+		engine.loadProject(streamProject(), new Map(), {
+			chunkSources: new Map([['source-1', chunkSource()]]),
+		});
+		const rendering = engine.renderMixRealtime({
+			startFrame: 0, endFrame: 1, outputFrames: 1, onChunk: () => undefined,
+		});
+		await context.captureDone.promise;
+		streams.complete();
+		await rendering;
+		assert.equal(context.suspendCalls, 1);
+		assert.equal(context.currentTime, 0, 'async priming cannot consume the scheduled lead while suspended');
+		assert.deepEqual(context.capture?.options && {
+			channelCount: context.capture.options.channelCount,
+			channelCountMode: context.capture.options.channelCountMode,
+			channelInterpretation: context.capture.options.channelInterpretation,
+		}, { channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+		assert.equal(Object.hasOwn(context.capture?.options.processorOptions ?? {}, 'startFrame'), false);
+		assert.deepEqual(context.capture?.posted.find(({ type }) => type === 'start-capture'), {
+			type: 'start-capture', startFrame: 3_840,
+		});
+	} finally {
+		streams.complete();
+		await engine?.dispose();
+		if (previousAudioContext === undefined) Reflect.deleteProperty(globalThis, 'AudioContext');
+		else globalThis.AudioContext = previousAudioContext;
+		if (previousAudioWorkletNode === undefined) Reflect.deleteProperty(globalThis, 'AudioWorkletNode');
+		else globalThis.AudioWorkletNode = previousAudioWorkletNode;
+	}
+});
+
 class MockChunkStreamClient {
 	readonly opened = deferred<void>();
 	readonly completion = deferred<void>();
@@ -308,6 +352,20 @@ class MockChunkStreamClient {
 	dispose(): void {}
 }
 
+class ClockAdvancingChunkStreamClient extends MockChunkStreamClient {
+	constructor(private readonly context: MockRealtimeAudioContext) { super(); }
+
+	override open(options: StreamOpenOptions) {
+		const handle = super.open(options);
+		return {
+			...handle,
+			primed: handle.primed.then(() => {
+				if (this.context.state === 'running') this.context.currentTime = 1;
+			}),
+		};
+	}
+}
+
 class MockParam {
 	value = 1;
 	setValueAtTime(value: number): void { this.value = value; }
@@ -327,7 +385,7 @@ class MockChunkNode extends MockNode {
 
 class MockRealtimeAudioContext {
 	readonly sampleRate = 48_000;
-	readonly currentTime = 0;
+	currentTime = 0;
 	readonly destination = new MockNode();
 	readonly audioWorklet = { addModule: async () => undefined };
 	readonly captureDone = deferred<void>();
@@ -379,6 +437,8 @@ class PendingResumeAudioContext extends MockRealtimeAudioContext {
 }
 
 class MockCaptureNode extends MockNode {
+	readonly options: Readonly<Record<string, unknown>> & { processorOptions?: Readonly<Record<string, unknown>> };
+	readonly posted: Readonly<Record<string, unknown>>[] = [];
 	readonly port: {
 		onmessage: ((event: { data: Readonly<Record<string, unknown>> }) => void) | null;
 		postMessage(message: Readonly<Record<string, unknown>>): void;
@@ -386,9 +446,14 @@ class MockCaptureNode extends MockNode {
 	};
 	onprocessorerror: (() => void) | null = null;
 
-	constructor(context: MockRealtimeAudioContext) {
+	constructor(
+		context: MockRealtimeAudioContext,
+		_name: string,
+		options: MockCaptureNode['options'],
+	) {
 		super();
-		this.port = { onmessage: null, postMessage() {}, start() {} };
+		this.options = options;
+		this.port = { onmessage: null, postMessage: (message) => { this.posted.push(message); }, start() {} };
 		context.capture = this;
 	}
 

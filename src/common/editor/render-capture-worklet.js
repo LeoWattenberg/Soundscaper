@@ -9,7 +9,9 @@ class RenderCaptureProcessor extends WorkletProcessor {
 	constructor(options = {}) {
 		super();
 		const settings = options.processorOptions || {};
-		this.startFrame = Math.max(0, Math.floor(settings.startFrame || 0));
+		this.startFrame = Number.isFinite(settings.startFrame)
+			? Math.max(0, Math.floor(settings.startFrame))
+			: null;
 		this.totalFrames = Math.max(1, Math.floor(settings.totalFrames || 1));
 		this.chunkFrames = Math.max(128, Math.min(16_384, Math.floor(settings.chunkFrames || 4096)));
 		this.channelCount = Math.max(1, Math.min(32, Math.floor(settings.channelCount || 2)));
@@ -24,6 +26,10 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		this.finished = false;
 		this.buffers = Array.from({ length: this.channelCount }, () => new Float32Array(this.chunkFrames));
 		this.port.onmessage = ({ data = {} } = {}) => {
+			if (data?.type === 'start-capture' && this.startFrame === null
+				&& Number.isFinite(data.startFrame)) {
+				this.startFrame = Math.max(0, Math.floor(data.startFrame));
+			}
 			if (data?.type === 'release-chunk' && this.inFlightChunks > 0) {
 				this.inFlightChunks -= 1;
 			}
@@ -34,6 +40,7 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		const input = inputs[0] || [];
 		for (const channel of outputs[0] || []) channel.fill(0);
 		if (this.finished) return false;
+		if (this.startFrame === null) return true;
 		const blockFrames = input[0]?.length || outputs[0]?.[0]?.length || 128;
 		const blockStart = Number.isFinite(globalThis.currentFrame) ? globalThis.currentFrame : 0;
 		if (blockStart + blockFrames <= this.startFrame) return true;
@@ -42,7 +49,7 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		const last = Math.min(blockFrames, first + remaining);
 		for (let frame = first; frame < last && this.capturedFrames < this.totalFrames; frame += 1) {
 			for (let channel = 0; channel < this.channelCount; channel += 1) {
-				const source = input[Math.min(channel, Math.max(0, input.length - 1))];
+				const source = input[channel];
 				this.buffers[channel][this.writeOffset] = source?.[frame] || 0;
 			}
 			this.writeOffset += 1;

@@ -253,11 +253,13 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let streamedClips = 0;
 		let outputFrames = 0;
 		let startTime = 0;
+		let captureLeadFrames = 0;
 		let capture = null;
 		let silent = null;
 		let graph: ProjectGraph | null = null;
 		let nativeRuntimes: Awaited<ReturnType<typeof prepareNativePluginOfflineRuntimes>> | null = null;
 		try {
+			if (context.state === 'running') await context.suspend();
 			await context.audioWorklet.addModule(new URL('../render-capture-worklet.js', import.meta.url));
 			await ensureProjectWorklets(context, this.project);
 			nativeRuntimes = await prepareNativePluginOfflineRuntimes(context, this.project, { trackId, includeMaster });
@@ -266,11 +268,9 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 						toFrame - fromFrame + tailFrames, this.sampleRate, context.sampleRate, 'point',
 					))
 				: positiveInteger(requestedOutputFrames, 1);
-			startTime = context.currentTime + 0.08;
-			const warmupContextFrames = scaleSampleFrame(
+			captureLeadFrames = scaleSampleFrame(
 				warmupProjectFrames, this.sampleRate, context.sampleRate, 'point',
-			);
-			const processingLatencyFrames = projectGraphLatencyFrames(this.project, {
+			) + projectGraphLatencyFrames(this.project, {
 				trackId,
 				includeMaster,
 				sampleRate: context.sampleRate,
@@ -279,8 +279,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				numberOfInputs: 1,
 				numberOfOutputs: 1,
 				outputChannelCount: [outputChannelCount],
+				channelCount: outputChannelCount,
+				channelCountMode: 'explicit',
+				channelInterpretation: 'speakers',
 				processorOptions: {
-					startFrame: Math.ceil(startTime * context.sampleRate) + warmupContextFrames + processingLatencyFrames,
 					totalFrames: outputFrames,
 					chunkFrames: sinkAdmission.chunkFrames,
 					channelCount: outputChannelCount,
@@ -322,6 +324,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			failStreamedRender?.(streamUnderrunFailure);
 		};
 		try {
+			startTime = context.currentTime + 0.08;
 			const scheduled = await scheduleProjectClips({
 				context,
 				project: this.project,
@@ -346,6 +349,12 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				onStreamUnderrun,
 				streamQueuePackets: AUDIO_EDITOR_RENDER_STREAM_QUEUE_PACKETS,
 				streamPrebufferPackets: AUDIO_EDITOR_RENDER_STREAM_PREBUFFER_PACKETS,
+				deferStartUntilPrimed: true,
+			});
+			startTime = scheduled.contextStartTime;
+			capture.port.postMessage({
+				type: 'start-capture',
+				startFrame: Math.ceil(startTime * context.sampleRate) + captureLeadFrames,
 			});
 			waitForStreamedClips = scheduled.waitForStreamedClips;
 			streamedClips = scheduled.streamedClips;

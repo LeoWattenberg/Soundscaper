@@ -91,6 +91,41 @@ test('realtime capture worklet transfers tight full and final-partial packets', 
 	});
 });
 
+test('realtime capture stays unarmed until scheduling supplies its start frame', () => {
+	withCurrentFrame(() => {
+		const processor = new RenderCaptureProcessor({
+			processorOptions: {
+				totalFrames: 128, chunkFrames: 128, channelCount: 1,
+				maximumInFlightChunks: 1,
+			},
+		});
+		const messages = captureMessages(processor);
+		assert.equal(processor.process(inputBlock(1), outputBlock(1)), true);
+		assert.deepEqual(messages, []);
+		processor.port.onmessage?.({ data: { type: 'start-capture', startFrame: 128 } });
+		setCurrentFrame(128);
+		assert.equal(processor.process(inputBlock(1), outputBlock(1)), false);
+		assert.deepEqual(messages.map(({ type }) => type), ['audio-chunk', 'done']);
+	});
+});
+
+test('realtime capture zero-fills missing explicit input channels', () => {
+	withCurrentFrame(() => {
+		const processor = new RenderCaptureProcessor({
+			processorOptions: {
+				startFrame: 0, totalFrames: 1, chunkFrames: 128, channelCount: 6,
+				maximumInFlightChunks: 1,
+			},
+		});
+		const messages = captureMessages(processor);
+		const left = new Float32Array(128).fill(0.25);
+		const right = new Float32Array(128).fill(0.5);
+		assert.equal(processor.process([[left, right]], outputBlock(6)), false);
+		const chunk = messages.find(({ type }) => type === 'audio-chunk');
+		assert.deepEqual(chunk?.channels?.map((channel) => channel[0]), [0.25, 0.5, 0, 0, 0, 0]);
+	});
+});
+
 function captureMessages(processor: RenderCaptureProcessor): WorkletMessage[] {
 	const messages: WorkletMessage[] = [];
 	processor.port.postMessage = (message: WorkletMessage) => { messages.push(message); };
