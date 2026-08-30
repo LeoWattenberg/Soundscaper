@@ -418,8 +418,9 @@ function decodeFormat(file: Blob | ArrayBuffer | ArrayBufferView, bytes: Uint8Ar
 	if (explicit !== undefined) return desktopFormat(explicit);
 	const fileName = typeof File === 'function' && file instanceof File ? file.name : '';
 	const extension = /\.([A-Za-z0-9]+)$/u.exec(fileName)?.[1]?.toLowerCase();
-	if (extension && EXTENSION_FORMATS[extension]) return EXTENSION_FORMATS[extension];
 	const signature = signatureFormat(bytes);
+	if ((extension === 'ogg' || extension === 'oga') && signature === 'opus') return signature;
+	if (extension && EXTENSION_FORMATS[extension]) return EXTENSION_FORMATS[extension];
 	if (signature !== null) return signature;
 	const mimeType = file instanceof Blob ? file.type.split(';', 1)[0]?.trim().toLowerCase() : '';
 	if (mimeType && MIME_FORMATS[mimeType]) return MIME_FORMATS[mimeType];

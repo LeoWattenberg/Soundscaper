@@ -189,6 +189,19 @@ test('decode infers all seven file formats and converts exact interleaved result
 	);
 });
 
+test('decode recognizes Opus content in a generically named Ogg container', async () => {
+	const formats: DesktopAudioCodecFormat[] = [];
+	const runtime = createDesktopAudioCodecRuntime(successBridge((request) => {
+		formats.push(request.format);
+		return interleavedBytes([0, 0]);
+	}));
+	const oggOpus = new Uint8Array(64);
+	oggOpus.set(new TextEncoder().encode('OggS'), 0);
+	oggOpus.set(new TextEncoder().encode('OpusHead'), 28);
+	await runtime.decode(new File([oggOpus], 'track.ogg'), { sampleRate: 48_000, channelCount: 2 });
+	assert.deepEqual(formats, ['opus']);
+});
+
 test('encoded bridge bytes stream to the existing sink in chunks no larger than 1 MiB', async () => {
 	const outputBytes = new Uint8Array(2 * 1_024 * 1_024 + 17).fill(7);
 	const runtime = createDesktopAudioCodecRuntime(successBridge(() => outputBytes));
