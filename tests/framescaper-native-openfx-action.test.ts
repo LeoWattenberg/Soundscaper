@@ -16,6 +16,8 @@ import {
 import {
 	createFramescaperProjectNativeMedia,
 } from '../src/framescaper/editor-project-native-media.ts';
+import { applyFramescaperProjectCommandNativeMedia } from
+	'../src/framescaper/editor-project-native-media-commands.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 type Data = Record<string, unknown>;
@@ -149,3 +151,80 @@ test('the interact model applies the same inventory bound as the authoring model
 		/must be a bounded dense array/u,
 	);
 });
+
+test('all mutating OpenFX entry points share one save-and-rollback queue', async () => {
+	const projectOptions = framescaperV20Options() as Data;
+	let project = createFramescaperProjectNativeMedia(PROFILE, {
+		...projectOptions,
+		selection: {
+			...(projectOptions.selection as Data), clipIds: ['video-clip'], trackIds: ['video-track'],
+		},
+	} as never);
+	const history: typeof project[] = [];
+	const firstSave = deferred<void>();
+	const firstSaveStarted = deferred<void>();
+	let saveCount = 0;
+	let commitCount = 0;
+	const controller = {
+		get project() { return project; },
+		actions: {
+			edit: {
+				commit: async (command: unknown) => {
+					history.push(project);
+					commitCount += 1;
+					project = applyFramescaperProjectCommandNativeMedia(
+						PROFILE, project, command, { now: `2026-08-31T12:00:0${String(commitCount)}.000Z` },
+					);
+				},
+				undo: async () => { project = history.pop()!; },
+			},
+			project: {
+				save: async () => {
+					saveCount += 1;
+					if (saveCount === 1) {
+						firstSaveStarted.resolve();
+						await firstSave.promise;
+					}
+				},
+			},
+		},
+	};
+	const plugin = {
+		pluginHandle: '12'.repeat(20), pluginId: 'net.example.Filter', vendor: 'Example',
+		version: { major: 1, minor: 0 }, binarySha256: 'ab'.repeat(32),
+		supportedContexts: ['filter'], parameters: [], components: ['RGBA'], pixelDepths: ['byte'],
+		threading: 'instance-safe', state: 'enabled', quarantined: false,
+	};
+	let mint = 0;
+	const built = composition({
+		owner: controller,
+		bridge: bridge({ listOpenFxPlugins: async () => [plugin] }),
+		mintId: () => `ofx-${String(++mint)}`,
+	});
+	const author = authoring(built);
+	const model = await (author.model as () => Promise<Data>)();
+	const target = (model.targets as Data[]).find(({ context }) => context === 'filter')!;
+	const first = (built.actionRuntime as { run(surface: 'ofx-add'): Promise<void> }).run('ofx-add');
+	await Promise.race([
+		firstSaveStarted.promise,
+		first.then(() => { throw new Error('first OpenFX operation ended before save'); }),
+	]);
+	const second = (author.author as (request: unknown) => Promise<void>)({
+		pluginHandle: plugin.pluginHandle, context: 'filter', targetId: target.targetId,
+		inputs: target.inputs, parameters: [], customEncodings: {},
+	});
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	const commitsBeforeRollback = commitCount;
+	firstSave.reject(new Error('first save failed'));
+	await assert.rejects(first, /first save failed/u);
+	await second;
+	assert.equal(commitsBeforeRollback, 1,
+		'a second entry point must not commit while the first save can still roll back');
+});
+
+function deferred<Value>() {
+	let resolve!: (value: Value | PromiseLike<Value>) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<Value>((accept, refuse) => { resolve = accept; reject = refuse; });
+	return { promise, resolve, reject };
+}

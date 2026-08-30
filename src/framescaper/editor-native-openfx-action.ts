@@ -139,22 +139,20 @@ function createOpenFxActionRuntimeComposition(
 	options: BindFramescaperNativeOpenFxActionNativeMediaOptions,
 ): FramescaperNativeOpenFxActionRuntimeCompositionNativeMedia {
 	const mintId = options.mintId ?? (() => `ofx-${globalThis.crypto.randomUUID()}`);
-	const author = serializeRequest((request: FramescaperOpenFxAuthoringRequestNativeMedia) => (
-		authorEffect(options, mintId, request)
-	));
+	const enqueue = createOpenFxOperationQueue();
+	const author = (request: FramescaperOpenFxAuthoringRequestNativeMedia) => enqueue(
+		() => authorEffect(options, mintId, request));
 	const authoringRuntime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia = Object.freeze({
 		model: () => loadAuthoringModel(options),
 		author,
 		interactModel: () => loadInteractModel(options),
-		commitInteract: serializeOperation((
+		commitInteract: (
 			request: FramescaperOpenFxInteractRequestV1,
 			result: FramescaperOpenFxInteractResultV1,
-		) => (
-			commitInteractResult(options, request, result)
-		)),
+		) => enqueue(() => commitInteractResult(options, request, result)),
 	});
 	const actionRuntime = createFramescaperNativeProjectActionSubsetRuntime(SURFACES, {
-		'ofx-add': serialize(() => addSelectedFilter(options, mintId)),
+		'ofx-add': () => enqueue(() => addSelectedFilter(options, mintId)),
 	});
 	return Object.freeze({ actionRuntime, authoringRuntime });
 }
@@ -499,34 +497,10 @@ function deepFreeze<Value>(value: Value): Value {
 	return value;
 }
 
-function serialize(operation: () => Promise<void>): () => Promise<void> {
+function createOpenFxOperationQueue(): <Value>(operation: () => Promise<Value>) => Promise<Value> {
 	let tail = Promise.resolve();
-	return () => {
+	return (operation) => {
 		const current = tail.then(operation, operation);
-		tail = current.then(() => undefined, () => undefined);
-		return current;
-	};
-}
-
-function serializeRequest<Request>(
-	operation: (request: Request) => Promise<void>,
-): (request: Request) => Promise<void> {
-	let tail = Promise.resolve();
-	return (request) => {
-		const current = tail.then(() => operation(request), () => operation(request));
-		tail = current.then(() => undefined, () => undefined);
-		return current;
-	};
-}
-
-function serializeOperation<Request, Result>(
-	operation: (request: Request, result: FramescaperOpenFxInteractResultV1) => Promise<Result>,
-): (request: Request, result: FramescaperOpenFxInteractResultV1) => Promise<Result> {
-	let tail = Promise.resolve();
-	return (request, result) => {
-		const current = tail.then(
-			() => operation(request, result), () => operation(request, result),
-		);
 		tail = current.then(() => undefined, () => undefined);
 		return current;
 	};
