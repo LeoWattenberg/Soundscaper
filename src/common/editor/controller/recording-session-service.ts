@@ -481,8 +481,6 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 			else if (snapshot.entries) {
 				await runtime.performRoutedFinalization({ ...snapshot, entries: snapshot.entries });
 			} else await runtime.performLegacyFinalization(snapshot);
-		} catch (error) {
-			handleError(error);
 		} finally {
 			resetFinalizedState();
 		}
@@ -514,7 +512,20 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		} catch (error) {
 			stopError = error;
 		}
-		await finalizeRecording();
+		let finalizationError: unknown = null;
+		try {
+			await finalizeRecording();
+		} catch (error) {
+			finalizationError = error;
+		}
+		if (stopError && finalizationError) {
+			throw new AggregateError(
+				[stopError, finalizationError],
+				'Recording stop and finalization both failed.',
+				{ cause: stopError },
+			);
+		}
+		if (finalizationError) throw finalizationError;
 		if (stopError) throw stopError;
 		return undefined;
 	}

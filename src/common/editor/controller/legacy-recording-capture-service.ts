@@ -171,7 +171,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 					if (recordingState === 'stopped' && ownsStart()
 						&& state.recorder && !state.recordingFinishing) {
 						soundActivation?.cancel();
-						void runtime.finalizeRecording();
+						void runtime.finalizeRecording().catch(runtime.handleError);
 					}
 				},
 			});

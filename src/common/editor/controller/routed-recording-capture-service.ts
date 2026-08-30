@@ -127,7 +127,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				&& sourceSessions.length
 				&& sourceSessions.every((source) => source.stopped)
 				&& !state.recordingFinishing) {
-				void runtime.finalizeRecording();
+				void runtime.finalizeRecording().catch(runtime.handleError);
 			}
 		};
 		const disconnectSession = (session: RoutedRecordingSourceSession) => {
@@ -434,7 +434,9 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 							session.stopped = true;
 							if (state.recorder === routedRecorder
 								&& sourceSessions.every((source) => source.stopped)
-								&& !state.recordingFinishing) void runtime.finalizeRecording();
+								&& !state.recordingFinishing) {
+								void runtime.finalizeRecording().catch(runtime.handleError);
+							}
 						},
 					});
 					session.controller = soundActivation.wrapController(createdController);

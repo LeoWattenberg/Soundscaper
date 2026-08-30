@@ -132,7 +132,7 @@ import { createProjectStore } from './storage.js'; import { createWavStreamEncod
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import { ENGLISH_COPY } from '../i18n/catalogs.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
+import { EDITOR_PROJECT_CHANGED_CODE, EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/lifecycle.ts';
 import { deferredArchiveRuntime } from './controller/deferred-archive-runtime.ts';
 import { deferredEffectRuntime } from './controller/deferred-effect-runtime.ts';
 import { connectProductNativeRenderInputAuthority } from './controller/product-native-render-input-authority.ts'; import { renderProductNativeAudioToSink } from './controller/product-native-render-audio-stream.ts';
@@ -1946,7 +1946,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			await cleanup(() => scapeInspectionDrain);
 			await cleanup(() => state.projectQueue);
 			await cleanup(() => projectSaveService.terminalFlush());
-			await cleanup(() => stopRecording());
+			await cleanup(() => stopRecording().catch((error) => { if (error?.code !== EDITOR_PROJECT_CHANGED_CODE) throw error; }));
 			await cleanup(() => Promise.resolve(recordingCapturePool.dispose?.()));
 			await cleanup(() => releaseProjectLock());
 			if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
