@@ -27,6 +27,12 @@ test('generated workers retain only the verified application shell runtime', () 
 	assert.doesNotMatch(source, /soundscaper-ffmpeg-runtime|runtime\/ffmpeg/iu);
 });
 
+test('generated worker configuration preserves dollar-bearing asset URLs literally', () => {
+	const configuration = { assetUrl: '/assets/chunk-$&-$$.js' };
+	const source = renderOfflineServiceWorker(configuration);
+	assert.equal(source.includes(JSON.stringify(configuration)), true);
+});
+
 test('a partial shell install deletes only its candidate and leaves the prior release intact', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const priorId = 'a'.repeat(64);

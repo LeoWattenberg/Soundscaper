@@ -21,7 +21,7 @@ export function offlineServiceWorkerTemplateSha256() {
 export function renderOfflineServiceWorker(configuration) {
 	const template = serviceWorkerTemplate();
 	if (!template.includes(CONFIGURATION_TOKEN)) throw new Error('Offline service worker template token is missing.');
-	return template.replace(CONFIGURATION_TOKEN, JSON.stringify(configuration));
+	return template.replace(CONFIGURATION_TOKEN, () => JSON.stringify(configuration));
 }
 
 export async function handleOfflineShellFetch({
