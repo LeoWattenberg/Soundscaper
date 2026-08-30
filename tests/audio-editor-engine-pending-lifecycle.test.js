@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
+import { ENGINE_ENSURE_MASTER_LOUDNESS_METER } from '../src/common/editor/engine/runtime-symbols.ts';
 import {
 	MockAudioBuffer,
 	MockAudioContext,
@@ -84,6 +85,60 @@ test('an EBU master meter that resolves after engine disposal is retired without
 	}
 });
 
+test('concurrent EBU master meter requests share one connected worklet', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	const moduleRequested = deferred();
+	const moduleGate = deferred();
+	context.audioWorklet.addModule = async (url) => {
+		context.audioWorkletModules.push(String(url));
+		if (!String(url).endsWith('/ebu-r128-worklet.js')) return;
+		moduleRequested.resolve();
+		await moduleGate.promise;
+	};
+	const engine = loadedEngine(context, { onMeter() {} });
+	engine.context = context;
+	try {
+		const first = engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		await moduleRequested.promise;
+		const second = engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		moduleGate.resolve();
+		const [firstMeter, secondMeter] = await Promise.all([first, second]);
+
+		assert.strictEqual(secondMeter, firstMeter);
+		assert.equal(context.workletNodes.filter(({ name }) => name === 'kw-ebu-r128-meter').length, 1);
+	} finally {
+		moduleGate.resolve();
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
+test('loading a project with a different native master width rebuilds its EBU meter', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	context.destination.maxChannelCount = 8;
+	const engine = loadedEngine(context, { onMeter() {} });
+	engine.context = context;
+	try {
+		const stereoMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		assert.equal(stereoMeter.node.options.channelCount, 2);
+
+		engine.loadProject(project(6), engine.sources);
+		assert.equal(stereoMeter.node.disconnected, true);
+		assert.equal(engine.masterLoudnessMeter, null);
+		const surroundMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		assert.equal(surroundMeter.node.options.channelCount, 6);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 function pendingResumeFixture() {
 	const context = new MockAudioContext();
 	const resumeRequested = deferred();
@@ -108,9 +163,9 @@ function loadedEngine(context, options = {}) {
 	return engine;
 }
 
-function project() {
+function project(masterChannels = 2) {
 	return {
-		id: 'pending-lifecycle', sampleRate: 48_000,
+		id: 'pending-lifecycle', sampleRate: 48_000, masterChannels,
 		clips: [{
 			id: 'clip-1', sourceId: 'source-1', timelineStartFrame: 0,
 			sourceStartFrame: 0, durationFrames: 48_000, gain: 1,

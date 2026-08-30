@@ -23,6 +23,17 @@ export function configureNativeSurroundDestination(
 	}
 }
 
+export function configureMasterLoudnessMeterChannelCount(
+	destination: SurroundDestination | null | undefined,
+	masterChannels: unknown,
+): number {
+	const requestedChannels = Math.max(1, Math.min(8, Number(masterChannels) || 2));
+	return requestedChannels > 2
+		&& configureNativeSurroundDestination(destination, requestedChannels)
+		? requestedChannels
+		: 2;
+}
+
 export function downmixSurroundToStereo(
 	input: readonly Float32Array[],
 ): readonly [Float32Array, Float32Array] {

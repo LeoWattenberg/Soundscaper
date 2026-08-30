@@ -15,7 +15,10 @@ import {
 	normalizeChunkSource,
 	normalizeSourceResolver,
 } from './clip-schedule-plan.ts';
-import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
+import {
+	configureMasterLoudnessMeterChannelCount,
+	configureNativeSurroundDestination,
+} from '../surround-monitoring.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
@@ -138,6 +141,8 @@ export function initializeEngineRuntime(
 	engine.stateListeners = new Set(onState ? [onState] : []);
 	engine.parametricEqErrorListeners = new Set(onParametricEqError ? [onParametricEqError] : []);
 	engine.masterLoudnessMeter = null;
+	engine.masterLoudnessMeterChannelCount = null;
+	engine.masterLoudnessMeterPromise = null;
 	engine.masterLoudnessMeterError = null;
 	engine.latestMasterLoudnessMeter = null;
 	engine.loudnessMeasurementManuallyPaused = false;
@@ -243,6 +248,17 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		this.project = runtimeProject || null;
 		if (this.context && runtimeProject) {
 			configureNativeSurroundDestination(this.context.destination, Number(runtimeProject.masterChannels) || 2);
+		}
+		const meterChannelCount = this.context && runtimeProject
+			? configureMasterLoudnessMeterChannelCount(this.context.destination, runtimeProject.masterChannels)
+			: null;
+		if (this.masterLoudnessMeterChannelCount !== null
+			&& this.masterLoudnessMeterChannelCount !== meterChannelCount) {
+			this.masterLoudnessMeter?.dispose();
+			this.masterLoudnessMeter = null;
+			this.masterLoudnessMeterChannelCount = null;
+			this.masterLoudnessMeterPromise = null;
+			this.masterLoudnessMeterError = null;
 		}
 		this.sources = sourceBuffers instanceof Map ? new Map(sourceBuffers) : new Map(Object.entries(sourceBuffers || {}));
 		if (options.chunkSources !== undefined) this.setChunkSources(options.chunkSources);
@@ -393,6 +409,8 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		clearPreparedAudioWarpPlayback(this);
 		this.masterLoudnessMeter?.dispose();
 		this.masterLoudnessMeter = null;
+		this.masterLoudnessMeterChannelCount = null;
+		this.masterLoudnessMeterPromise = null;
 		this.latestMasterLoudnessMeter = null;
 		this.masterLoudnessMeterError = null;
 		const context = this.context;

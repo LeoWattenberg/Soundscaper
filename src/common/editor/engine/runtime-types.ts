@@ -128,6 +128,8 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	stateListeners: Set<(state: string) => void>;
 	parametricEqErrorListeners: Set<(error: unknown) => void>;
 	masterLoudnessMeter: EngineLoudnessMeter | null;
+	masterLoudnessMeterChannelCount: number | null;
+	masterLoudnessMeterPromise: Promise<EngineLoudnessMeter | null> | null;
 	masterLoudnessMeterError: unknown;
 	latestMasterLoudnessMeter: Readonly<{ loudness?: unknown }> | null;
 	loudnessMeasurementManuallyPaused: boolean;

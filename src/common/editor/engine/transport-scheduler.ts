@@ -3,7 +3,7 @@
 import {
 	createEbuR128MeterNode,
 } from '../ebu-r128-node.js';
-import { configureNativeSurroundDestination } from '../surround-monitoring.ts';
+import { configureMasterLoudnessMeterChannelCount } from '../surround-monitoring.ts';
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import {
@@ -292,38 +292,64 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 	},
 
 async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
-		if (!this.meterListeners.size || this.masterLoudnessMeter || this.masterLoudnessMeterError) {
+		if (!this.meterListeners.size) return this.masterLoudnessMeter;
+		const meterChannelCount = configureMasterLoudnessMeterChannelCount(
+			context.destination,
+			this.project?.masterChannels,
+		);
+		if (this.masterLoudnessMeterChannelCount !== null
+			&& this.masterLoudnessMeterChannelCount !== meterChannelCount) {
+			this.masterLoudnessMeter?.dispose();
+			this.masterLoudnessMeter = null;
+			this.masterLoudnessMeterChannelCount = null;
+			this.masterLoudnessMeterPromise = null;
+			this.masterLoudnessMeterError = null;
+		}
+		if (this.masterLoudnessMeter || this.masterLoudnessMeterError) {
 			return this.masterLoudnessMeter;
 		}
+		if (this.masterLoudnessMeterPromise) return this.masterLoudnessMeterPromise;
+		this.masterLoudnessMeterChannelCount = meterChannelCount;
 		const lifecycleGeneration = this.lifecycleGeneration;
 		const requestIsCurrent = (): boolean => !this.disposed
 			&& this.lifecycleGeneration === lifecycleGeneration
-			&& this.context === context;
-		try {
-			const requestedChannels = Math.max(1, Math.min(8, Number(this.project?.masterChannels) || 2));
-			const nativeSurround = requestedChannels > 2
-				&& configureNativeSurroundDestination(context.destination, requestedChannels);
-			const meter = await createEbuR128MeterNode(context, {
-				channelCount: nativeSurround ? requestedChannels : 2,
-				passthrough: true,
-				running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
-				onMeter: (reading: unknown) => {
-					if (!requestIsCurrent()) return;
-					this.latestMasterLoudnessMeter = reading && typeof reading === 'object'
-						? reading as Readonly<{ loudness?: unknown }>
-						: null;
-				},
-			});
-			if (!requestIsCurrent()) {
-				meter.dispose();
+			&& this.context === context
+			&& this.masterLoudnessMeterChannelCount === meterChannelCount;
+		const pending = (async () => {
+			try {
+				const meter = await createEbuR128MeterNode(context, {
+					channelCount: meterChannelCount,
+					passthrough: true,
+					running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
+					onMeter: (reading: unknown) => {
+						if (!requestIsCurrent()) return;
+						this.latestMasterLoudnessMeter = reading && typeof reading === 'object'
+							? reading as Readonly<{ loudness?: unknown }>
+							: null;
+					},
+				});
+				if (!requestIsCurrent()) {
+					meter.dispose();
+					return null;
+				}
+				if (this.masterLoudnessMeter) {
+					meter.dispose();
+					return this.masterLoudnessMeter;
+				}
+				meter.node.connect(soundscaperNativeAudioDestination(context, context.destination));
+				this.masterLoudnessMeterError = null;
+				this.masterLoudnessMeter = meter;
+				return meter;
+			} catch (error) {
+				if (requestIsCurrent() && !this.masterLoudnessMeter) this.masterLoudnessMeterError = error;
 				return null;
 			}
-			meter.node.connect(soundscaperNativeAudioDestination(context, context.destination));
-			this.masterLoudnessMeter = meter;
-			return meter;
-		} catch (error) {
-			if (requestIsCurrent()) this.masterLoudnessMeterError = error;
-			return null;
+		})();
+		this.masterLoudnessMeterPromise = pending;
+		try {
+			return await pending;
+		} finally {
+			if (this.masterLoudnessMeterPromise === pending) this.masterLoudnessMeterPromise = null;
 		}
 	},
 
