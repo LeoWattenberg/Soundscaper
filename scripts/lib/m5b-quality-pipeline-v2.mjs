@@ -153,7 +153,7 @@ export function createM5bQualityResultV2(
 	}, environment, measurement);
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const accepted = metricGatePassed && blockers.length === 0;
+	const accepted = metricGatePassed && evaluation.passed && blockers.length === 0;
 	return deepFreeze({
 		schemaVersion: 2,
 		qualificationScope: 'single-profile',

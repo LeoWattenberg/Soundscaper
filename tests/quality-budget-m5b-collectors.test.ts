@@ -115,6 +115,20 @@ test('a provisioned exact lab can produce digest-bound accepted target evidence'
 	}
 });
 
+test('a software renderer cannot satisfy a provisioned hardware-renderer budget', () => {
+	const profileId = 'persistent-services';
+	const measurement = makeMeasurement(profileId);
+	measurement.rendererClass = 'software';
+	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint);
+	const environment = provisioned.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
+	environment.rendererRequirement = 'hardware';
+	measurement.budgetSha256 = m5bQualityBudgetSha256(provisioned);
+	const result = createM5bQualityResult(profileId, measurement, provisioned);
+	assert.notEqual(result.status, 'accepted');
+	assert.equal(result.evaluation.passed, false);
+	assert.match(result.evaluation.failures.join('\n'), /hardware renderer.*software/iu);
+});
+
 test('accepted evidence requires the exact registered target fingerprint', () => {
 	const profileId = 'native-media';
 	const measurement = makeMeasurement(profileId);

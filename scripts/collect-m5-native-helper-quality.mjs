@@ -106,7 +106,8 @@ export function createM5NativeHelperResult(
 	});
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const accepted = isV2 && metricGatePassed && qualification.blockers.length === 0;
+	const accepted = isV2 && metricGatePassed && evaluation.passed
+		&& qualification.blockers.length === 0;
 	const failures = [...new Set([...evaluation.failures, ...qualification.blockers])];
 	return Object.freeze({
 		schemaVersion: isV2 ? 2 : 1,
