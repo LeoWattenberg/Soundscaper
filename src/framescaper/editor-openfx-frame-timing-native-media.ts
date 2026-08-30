@@ -38,19 +38,24 @@ export function framescaperOpenFxTransitionProgressNativeMedia(
 	if (!transition) throw new ReferenceError('The OpenFX Transition attachment is unavailable.');
 	if (!Number.isSafeInteger(outputOrdinal) || outputOrdinal < 0
 		|| outputOrdinal >= plan.output.frameCount) throw new RangeError('The OpenFX output ordinal is invalid.');
-	const sample = BigInt(plan.timebase.sampleStart) + BigInt(outputOrdinal)
-		* BigInt(plan.timebase.sampleRate) * BigInt(plan.output.frameRate.den)
-		/ BigInt(plan.output.frameRate.num);
+	const sample = BigInt(plan.timebase.sampleStart) + roundPoint(
+		BigInt(outputOrdinal) * BigInt(plan.timebase.sampleRate) * BigInt(plan.output.frameRate.den),
+		BigInt(plan.output.frameRate.num),
+	);
 	const rate = plan.timebase.sequenceRate;
 	let frame = sample * BigInt(rate.num)
 		/ (BigInt(rate.den) * BigInt(plan.timebase.sampleRate));
 	const boundary = (value: bigint) => {
 		const numerator = value * BigInt(rate.den) * BigInt(plan.timebase.sampleRate);
 		const denominator = BigInt(rate.num);
-		return numerator / denominator + ((numerator % denominator) * 2n >= denominator ? 1n : 0n);
+		return roundPoint(numerator, denominator);
 	};
 	while (frame > 0n && boundary(frame) > sample) frame -= 1n;
 	while (boundary(frame + 1n) <= sample) frame += 1n;
 	if (frame > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('OpenFX Transition frame exceeds safe domain.');
 	return resolveVideoTransitionV1(transition.transition, transition.edges, Number(frame)).progress;
+}
+
+function roundPoint(numerator: bigint, denominator: bigint): bigint {
+	return numerator / denominator + ((numerator % denominator) * 2n >= denominator ? 1n : 0n);
 }
