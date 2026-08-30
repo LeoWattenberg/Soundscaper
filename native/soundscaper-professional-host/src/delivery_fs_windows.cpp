@@ -19,9 +19,9 @@
 #include <cwctype>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <span>
 #include <string>
-#include <vector>
 
 namespace soundscaper::delivery_fs {
 namespace {
@@ -59,7 +59,23 @@ bool unsupported(DWORD error) {
 
 using nt_create_file = NTSTATUS (NTAPI*)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES,
 	PIO_STATUS_BLOCK, PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+using nt_set_information_file = NTSTATUS (NTAPI*)(HANDLE, PIO_STATUS_BLOCK, PVOID, ULONG,
+	FILE_INFORMATION_CLASS);
 using rtl_status_to_error = ULONG (WINAPI*)(NTSTATUS);
+
+// The desktop Windows SDK does not expose the kernel FILE_LINK_INFORMATION
+// declaration. Keep this wire-compatible layout local to the one native call.
+struct file_link_information {
+	union {
+		BOOLEAN replace_if_exists;
+		ULONG flags;
+	};
+	HANDLE root_directory;
+	ULONG file_name_length;
+	WCHAR file_name[1];
+};
+
+constexpr auto file_link_information_class = static_cast<FILE_INFORMATION_CLASS>(11);
 
 DWORD status_error(NTSTATUS status) {
 	const auto module = GetModuleHandleW(L"ntdll.dll");
@@ -246,15 +262,26 @@ public:
 	publication_result publish() override {
 		assert_root_identity();
 		const auto name_bytes = final_name_.size() * sizeof(wchar_t);
-		std::vector<std::byte> storage(offsetof(FILE_LINK_INFO, FileName) + name_bytes);
-		auto* link = reinterpret_cast<FILE_LINK_INFO*>(storage.data());
-		link->ReplaceIfExists = FALSE;
-		link->RootDirectory = root_.get();
-		link->FileNameLength = static_cast<DWORD>(name_bytes);
-		std::memcpy(link->FileName, final_name_.data(), name_bytes);
-		if (!SetFileInformationByHandle(file_.get(), FileLinkInfo, link,
-			static_cast<DWORD>(storage.size()))) {
-			const auto error = GetLastError();
+		const auto storage_size = std::max(sizeof(file_link_information),
+			offsetof(file_link_information, file_name) + name_bytes);
+		auto storage = std::make_unique<std::byte[]>(storage_size);
+		auto* link = new (storage.get()) file_link_information {};
+		link->replace_if_exists = FALSE;
+		link->root_directory = root_.get();
+		link->file_name_length = static_cast<ULONG>(name_bytes);
+		std::memcpy(link->file_name, final_name_.data(), name_bytes);
+		const auto module = GetModuleHandleW(L"ntdll.dll");
+		const auto set_information = module == nullptr ? nullptr
+			: reinterpret_cast<nt_set_information_file>(
+				GetProcAddress(module, "NtSetInformationFile"));
+		if (set_information == nullptr) {
+			fail_windows("unsupported-filesystem", "publish-link", false, ERROR_PROC_NOT_FOUND);
+		}
+		IO_STATUS_BLOCK status_block {};
+		const auto status = set_information(file_.get(), &status_block, link,
+			static_cast<ULONG>(storage_size), file_link_information_class);
+		if (status < 0) {
+			const auto error = status_error(status);
 			if (error == ERROR_FILE_EXISTS || error == ERROR_ALREADY_EXISTS) {
 				fail_windows("publication-conflict", "publish-link", false, error);
 			}
