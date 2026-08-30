@@ -410,7 +410,7 @@ export function AccessibleSelectionToolbar({
 		const toolbar = root.querySelector('.selection-toolbar');
 		if (toolbar) {
 			toolbar.setAttribute('role', 'toolbar');
-			toolbar.setAttribute('aria-label', 'Selection toolbar');
+			toolbar.setAttribute('aria-label', copy.selectionToolbar);
 		}
 		const status = root.querySelector('.selection-toolbar__status-text');
 		if (status) {
