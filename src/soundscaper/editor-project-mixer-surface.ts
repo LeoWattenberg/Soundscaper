@@ -98,21 +98,26 @@ function removeBus(
 		throw new ReferenceError(`Unknown ${kind} mixer node: ${command.busId}.`);
 	}
 	const widths = resolveTerminalChannelWidths(project as never, project.masterChannels).tracks;
-	const reroutedTracks = new Set<string>();
+	const reroutedTracks = new Map<string, boolean>();
 	for (const edge of graph.edges) {
 		if (edge.kind === 'assignment' && edge.source.kind === 'track'
 			&& edge.destination.kind === 'mixer-node' && edge.destination.id === command.busId) {
-			reroutedTracks.add(edge.source.id);
+			reroutedTracks.set(
+				edge.source.id,
+				(reroutedTracks.get(edge.source.id) ?? false) || edge.enabled,
+			);
 		}
 	}
 	const edges = graph.edges.filter((edge) => !edgeTouchesNode(edge, command.busId));
-	for (const trackId of reroutedTracks) {
-		edges.push(trackAssignment(
+	for (const [trackId, enabled] of reroutedTracks) {
+		const fallback = trackAssignment(
 			trackId,
 			{ kind: 'master' },
 			widths.get(trackId) ?? project.masterChannels,
 			project.masterChannels,
-		));
+			enabled,
+		);
+		if (!edges.some(({ id }) => id === fallback.id)) edges.push(fallback);
 	}
 	return normalizeMixerGraphV21({
 		...graph,
@@ -222,12 +227,13 @@ function trackAssignment(
 	destination: { readonly kind: 'master' } | { readonly kind: 'mixer-node'; readonly id: string },
 	sourceChannels: number,
 	destinationChannels: number,
+	enabled = true,
 ): MixerEdgeV21 {
 	const suffix = destination.kind === 'master' ? 'master' : `mixer-node:${destination.id}`;
 	return {
 		id: `assignment:track:${trackId}:${suffix}`, kind: 'assignment',
 		source: { kind: 'track', id: trackId }, destination,
-		position: 'post-fader', level: 1, enabled: true,
+		position: 'post-fader', level: 1, enabled,
 		channelMap: defaultMixerChannelMapV21(sourceChannels, destinationChannels),
 	};
 }

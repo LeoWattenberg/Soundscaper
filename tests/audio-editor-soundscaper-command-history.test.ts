@@ -506,6 +506,32 @@ test('mixed batches are one baseline transaction and mixer surface gestures auth
 	)), true);
 });
 
+test('removing a bus keeps one existing parallel master assignment', () => {
+	const withBus = applySoundscaperProjectCommand(fixture(), {
+		type: 'mixer/bus-add', busType: 'group', bus: { id: 'dialogue', name: 'Dialogue' },
+	} as AudioEditorCommand);
+	const parallel = applySoundscaperProjectCommand(withBus, {
+		type: 'mixer-graph/set', expected: withBus.mixer,
+		mixer: {
+			...withBus.mixer,
+			edges: [...withBus.mixer.edges, {
+				id: 'assignment:track:voice:mixer-node:dialogue', kind: 'assignment',
+				source: { kind: 'track', id: 'voice' },
+				destination: { kind: 'mixer-node', id: 'dialogue' },
+				position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1],
+			}],
+		},
+	} as AudioEditorCommand);
+
+	const removed = applySoundscaperProjectCommand(parallel, {
+		type: 'mixer/bus-remove', busType: 'group', busId: 'dialogue',
+	} as AudioEditorCommand);
+	assert.deepEqual(removed.mixer.groups, []);
+	assert.equal(removed.mixer.edges.filter(({ id }) => (
+		id === 'assignment:track:voice:master'
+	)).length, 1);
+});
+
 test('inherited send-rack commands retain exact baseline graph authority', () => {
 	const withSend = applySoundscaperProjectCommand(fixture(), {
 		type: 'mixer/bus-add', busType: 'send', bus: { id: 'reverb', name: 'Reverb' },
