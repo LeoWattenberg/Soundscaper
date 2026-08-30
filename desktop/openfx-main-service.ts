@@ -14,6 +14,7 @@ import { executeUnifiedExactOfxNodeV1,
 	type OfxUnifiedNodeExecutionResultV1 } from './openfx-unified-render-execution.ts';
 import { prepareOpenFxMainAttemptV1,
 	type PreparedOpenFxMainAttemptV1 } from './openfx-main-attempt.ts';
+import { authenticateOpenFxScanDescriptor } from './openfx-scan-authentication.ts';
 import {
 	framescaperOpenFxExecutionRequestV1,
 	type FramescaperOpenFxExecutionPlan,
@@ -40,7 +41,6 @@ import {
 } from './openfx-plugin-bundle-custody.ts';
 import {
 	ofxPluginFingerprint,
-	type OfxPluginDescriptorV1,
 } from '../src/common/editor/native-ofx-descriptor.ts';
 import {
 	framescaperOpenFxInteractRequestV1,
@@ -174,29 +174,22 @@ export class FramescaperOpenFxMainService {
 					reservationId: opaqueId(), maximumBytes:
 						pluginBinary.bytes + SCAN_DESCRIPTOR_MAXIMUM_BYTES },
 			}) as HelperOfxScanJobGrant;
-			let descriptor: OfxPluginDescriptorV1;
-			try {
-				const scanning = manager.scan({
+			const descriptor = await authenticateOpenFxScanDescriptor({
+				scanning: manager.scan({
 					kind: 'ofx-scan', grant, signal: abort.signal,
 					dataPlaneTransfers: Object.freeze([Object.freeze({
 						streamId, port: channel.helperPort,
 					})]),
-				});
-				const [result, completed] = await Promise.all([scanning, receiving]);
-				if (result.descriptor.byteLength !== completed.byteLength
-					|| result.descriptor.sha256 !== completed.sha256) {
-					throw new Error('The OpenFX scanner control and data planes disagree.');
-				}
-				descriptor = framescaperOpenFxScannedDescriptor(
-					await readFile(descriptorPath), pluginBinary.sha256,
-				);
-			}
-			catch (error) {
-				if (!abort.signal.aborted && epoch === this.#authorityEpoch) {
-					this.#scanQuarantinedBinarySha256.add(pluginBinary.sha256);
-				}
-				throw error;
-			}
+				}),
+				receiving,
+				readDescriptor: async () => new Uint8Array(await readFile(descriptorPath)),
+				parseDescriptor: (bytes) => framescaperOpenFxScannedDescriptor(bytes, pluginBinary.sha256),
+				quarantine: () => {
+					if (!abort.signal.aborted && epoch === this.#authorityEpoch) {
+						this.#scanQuarantinedBinarySha256.add(pluginBinary.sha256);
+					}
+				},
+			});
 			this.#admitOperation();
 			if (abort.signal.aborted || epoch !== this.#authorityEpoch) {
 				throw new Error('OpenFX scan authority changed before registration.');

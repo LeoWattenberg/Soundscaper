@@ -313,6 +313,15 @@ test('scan cancellation and malformed descriptors leave no registration or scrat
 	assert.deepEqual(await readdir(malformed.scratchRoot), []);
 });
 
+test('a transient host descriptor read failure does not quarantine the plug-in binary', async (context) => {
+	const fixture = await createFixture(context, { removeFirstScanDescriptor: true });
+	fixture.preferences.nativeMediaEnabled = true;
+	fixture.preferences.ofxConsentEnabled = true;
+	await assert.rejects(() => fixture.service.scan(), /ENOENT|no such file/iu);
+	assert.ok(await fixture.service.scan(), 'a host-side staging failure permits a fresh isolated scan');
+	assert.equal(fixture.scanJobs, 2);
+});
+
 test('pre-aborted execution and staged transfer failure clean every attempt', async (context) => {
 	const fixture = await createFixture(context);
 	fixture.preferences.nativeMediaEnabled = true;
@@ -339,6 +348,7 @@ test('pre-aborted execution and staged transfer failure clean every attempt', as
 
 interface FixtureOptions {
 	readonly beforeScanResult?: () => Promise<void>;
+	readonly removeFirstScanDescriptor?: boolean;
 	readonly scanDescriptor?: unknown;
 	readonly descriptorContext?: 'filter' | 'retimer';
 	readonly plan?: UnifiedExactRenderPlanV12;
@@ -386,6 +396,11 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 				byteLength: descriptor.byteLength, sha256: digest(descriptor) };
 			await sendHelperDataPlaneReservedFile({ reservation: grant.descriptor, completion,
 				port: request.dataPlaneTransfers![0]!.port as never, path });
+			if (options.removeFirstScanDescriptor && scanJobs === 1) {
+				const staged = (await readdir(join(root, 'scratch'), { recursive: true }))
+					.find((entry) => entry.endsWith('descriptor.json'));
+				if (staged) await rm(join(root, 'scratch', staged));
+			}
 			return { descriptor: completion };
 		}),
 		createRuntime: () => worker(async (request) => {
