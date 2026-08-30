@@ -351,6 +351,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const mixRenderMemoryLimitBytes = normalizeByteLimit(options.mixRenderMemoryLimitBytes, AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES);
 	const sourceChunkProviders = new SourceChunkProviderRegistry();
 	const sourcePeaks = new Map();
+	const stagedProjectBinSourceIds = new Set();
 	const clipWaveformPcmWindows = new Map();
 	const clipWaveformPcmRequests = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
@@ -650,6 +651,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		editorHistoryProjects,
 		allProjectClips,
 		clipCache: clipTimePitchCache,
+		getProtectedSourceIds: () => stagedProjectBinSourceIds,
 		sourceBuffers,
 		sourcePeaks,
 		evictSourceCaches: evictUnreferencedSourceCaches,
@@ -1525,6 +1527,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const projectBinService = createProjectBinService({
 		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS,
+		protectedSourceIds: stagedProjectBinSourceIds,
 		playbackEngine: engine, retireTimelinePlayback, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		missingSourceIds: state.missingSourceIds,
 		sourceResolver: clipTimePitchSourceResolver, store, activateVideoSource,

@@ -53,6 +53,8 @@ export interface ProjectBinChunkProviderCachePort extends Map<string, unknown> {
 export interface ProjectBinReplacementDependencies {
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: Pick<ProjectBinCopy, 'audioClipNotFound' | 'projectBinReplacementIncompatible'>;
+	/** Shared with project retention so staged imports remain live until settlement. */
+	readonly protectedSourceIds: Set<string>;
 	readonly sourceBuffers: ProjectBinCachePort;
 	readonly sourcePeaks: ProjectBinCachePort;
 	readonly missingSourceIds: ProjectBinCachePort;
@@ -112,14 +114,18 @@ export function createProjectBinReplacementService(
 		const projectToken = dependencies.captureProject();
 		const task = dependencies.lifetime.startTask(PROJECT_BIN_REPLACEMENT_TASK);
 		let restored = false;
+		let protectedSources: readonly ProjectBinSource[] = [];
+		let protectionTransferred = false;
 		dependencies.setImporting(true);
 		dependencies.publish();
 		try {
 			const result = await dependencies.importProjectBinFile(file, { signal: task.signal });
 			assertCurrent(task, projectToken);
 			const importedProject = dependencies.getProject();
-			restoreBaseDocument(baseDocument);
-			if (!result) return null;
+			if (!result) {
+				restoreBaseDocument(baseDocument);
+				return null;
+			}
 			const importedClip = findProjectBinClip(importedProject, result.clipId);
 			const importedItemClips = importedClip && hasProjectBinMediaAuthority(importedProject)
 				? projectBinClips(importedProject).filter((clip) => clip.binItemId === importedClip.binItemId)
@@ -132,8 +138,11 @@ export function createProjectBinReplacementService(
 			const importedSources = importedItemClips
 				.map((clip) => findProjectBinSource(importedProject, clip.sourceId))
 				.filter((source): source is ProjectBinSource => Boolean(source));
+			protectedSources = importedSources;
+			for (const source of importedSources) dependencies.protectedSourceIds.add(source.id);
+			restoreBaseDocument(baseDocument);
 			if (!sameKinds(importedKinds, targetKinds) || importedSources.length !== targetItemClips.length) {
-				await discardImportedReplacement(importedSources);
+				await discardImportedReplacement(importedSources, true);
 				assertCurrent(task, projectToken);
 				throw new Error(dependencies.copy.projectBinReplacementIncompatible
 					|| 'The replacement file is not compatible with this Project Bin item.');
@@ -170,12 +179,16 @@ export function createProjectBinReplacementService(
 				sources: Object.freeze(importedSources),
 				templates: Object.freeze(importedItemClips),
 			}));
+			protectionTransferred = true;
 			return Object.freeze({
 				token,
 				requiresChoice: shortenedClipIds.some((id) => baseProject.clips.some((clip) => clip.id === id)),
 				shortenedClipIds: Object.freeze(shortenedClipIds),
 			});
 		} finally {
+			if (!protectionTransferred) {
+				for (const source of protectedSources) dependencies.protectedSourceIds.delete(source.id);
+			}
 			if (!restored && taskOwnsWork(task)) {
 				let projectIsCurrent = true;
 				try {
@@ -224,6 +237,7 @@ export function createProjectBinReplacementService(
 		];
 		dependencies.commit({ type: 'batch', commands });
 		stages.delete(token);
+		for (const source of stage.sources) dependencies.protectedSourceIds.delete(source.id);
 		return stage.clipId;
 	}
 
@@ -231,7 +245,7 @@ export function createProjectBinReplacementService(
 		const stage = stages.get(token);
 		if (!stage) return false;
 		stages.delete(token);
-		await discardImportedReplacement(stage.sources);
+		await discardImportedReplacement(stage.sources, true);
 		return true;
 	}
 
@@ -240,31 +254,40 @@ export function createProjectBinReplacementService(
 		for (const token of [...stages.keys()]) await cancelProjectBinReplacement(token);
 	}
 
-	async function discardImportedReplacement(sources: readonly ProjectBinSource[]): Promise<void> {
-		for (const source of sources) {
-			if (source.kind === 'video') await dependencies.revokeVideoVisual(source.id);
-		}
-		for (const source of sources) {
-			await dependencies.retireSourceChunkProvider(source.id);
-		}
-		for (const source of sources) {
-			dependencies.sourceBuffers.delete(source.id);
-			dependencies.sourcePeaks.delete(source.id);
-			dependencies.missingSourceIds.delete(source.id);
-		}
-		for (const source of sources) {
-			if (source.kind === 'video') {
-				try {
-					await dependencies.store.deleteMediaAsset?.(source.id);
-				} catch {
-					// Replacement staging is best-effort cleanup of an unreferenced asset.
+	async function discardImportedReplacement(
+		sources: readonly ProjectBinSource[],
+		releaseProtection = false,
+	): Promise<void> {
+		try {
+			for (const source of sources) {
+				if (source.kind === 'video') await dependencies.revokeVideoVisual(source.id);
+			}
+			for (const source of sources) {
+				await dependencies.retireSourceChunkProvider(source.id);
+			}
+			for (const source of sources) {
+				dependencies.sourceBuffers.delete(source.id);
+				dependencies.sourcePeaks.delete(source.id);
+				dependencies.missingSourceIds.delete(source.id);
+			}
+			for (const source of sources) {
+				if (source.kind === 'video') {
+					try {
+						await dependencies.store.deleteMediaAsset?.(source.id);
+					} catch {
+						// Replacement staging is best-effort cleanup of an unreferenced asset.
+					}
+				} else {
+					try {
+						await dependencies.store.deleteSource(source.id);
+					} catch {
+						// Replacement staging is best-effort cleanup of an unreferenced source.
+					}
 				}
-			} else {
-				try {
-					await dependencies.store.deleteSource(source.id);
-				} catch {
-					// Replacement staging is best-effort cleanup of an unreferenced source.
-				}
+			}
+		} finally {
+			if (releaseProtection) {
+				for (const source of sources) dependencies.protectedSourceIds.delete(source.id);
 			}
 		}
 	}

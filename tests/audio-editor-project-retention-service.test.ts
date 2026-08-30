@@ -91,6 +91,7 @@ test('retention compaction preserves clipboard roots and updates the active tab 
 		clipCache: {
 			getProtectedSourceIds: () => ['render-source'],
 		},
+		getProtectedSourceIds: () => ['staged-project-bin-source'],
 		sourceBuffers,
 		sourcePeaks,
 		evictSourceCaches(_buffers, _peaks, sourceIds) {
@@ -101,7 +102,9 @@ test('retention compaction preserves clipboard roots and updates the active tab 
 	assert.equal(service.compactLiveSourceState(true), compacted);
 	assert.deepEqual([...compactPreserve], ['clipboard-source']);
 	assert.deepEqual(sessionUpdate, { projectId: 'project', history, dirty: true });
-	assert.deepEqual([...evictedWith].sort(), ['recording-source', 'render-source', 'tab-source']);
+	assert.deepEqual([...evictedWith].sort(), [
+		'recording-source', 'render-source', 'staged-project-bin-source', 'tab-source',
+	]);
 	assert.equal(project, compacted);
 });
 

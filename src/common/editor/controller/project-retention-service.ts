@@ -89,6 +89,7 @@ export interface ProjectRetentionServiceDependencies<
 	readonly editorHistoryProjects: (history: History) => readonly Project[];
 	readonly allProjectClips: (project: Project) => readonly RetentionClip[];
 	readonly clipCache: ClipRetentionCache;
+	readonly getProtectedSourceIds?: () => Iterable<string>;
 	readonly sourceBuffers: ReadonlyMap<string, unknown>;
 	readonly sourcePeaks: ReadonlyMap<string, unknown>;
 	readonly evictSourceCaches: (
@@ -183,6 +184,7 @@ export function createProjectRetentionService<
 			}
 		}
 		for (const sourceId of transientAudioSourceIds()) sourceIds.add(sourceId);
+		for (const sourceId of dependencies.getProtectedSourceIds?.() || []) sourceIds.add(sourceId);
 		return sourceIds;
 	}
 

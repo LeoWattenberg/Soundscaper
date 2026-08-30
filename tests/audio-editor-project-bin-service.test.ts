@@ -141,7 +141,11 @@ test('replacement staging restores the active document and applies compatible me
 		}],
 	});
 	const harnessRef: { current?: ReturnType<typeof createHarness> } = {};
+	const protectedSourceIds = new Set<string>();
+	const protectedDuringRestore: string[][] = [];
 	const harness = createHarness(base, {
+		protectedSourceIds,
+		projectChanged: () => { protectedDuringRestore.push([...protectedSourceIds]); },
 		importProjectBinFile: async () => {
 			harnessRef.current?.replaceImportedDocument(imported);
 			return { clipId: 'imported-bin' };
@@ -153,6 +157,8 @@ test('replacement staging restores the active document and applies compatible me
 	assert.equal(harness.project, base);
 	assert.equal(harness.importing, false);
 	assert.equal(harness.restoreCount, 1);
+	assert.deepEqual(protectedDuringRestore, [['new-source']]);
+	assert.deepEqual([...protectedSourceIds], ['new-source']);
 	assert.deepEqual(prepared?.shortenedClipIds, ['instance', 'bin']);
 	assert.equal(prepared?.requiresChoice, true);
 	assert.equal(harness.service.applyProjectBinReplacement(prepared?.token ?? ''), 'bin');
@@ -162,6 +168,7 @@ test('replacement staging restores the active document and applies compatible me
 	assert.deepEqual(applied.commands.map((command) => command.type), [
 		'source/add', 'project-bin/replace-media',
 	]);
+	assert.deepEqual([...protectedSourceIds], []);
 });
 
 test('late replacement completion cannot restore or publish into a switched project', async () => {
@@ -416,6 +423,8 @@ interface HarnessOptions {
 	readonly getPositionFrames?: ProjectBinServiceDependencies['getPositionFrames'];
 	readonly playbackState?: string;
 	readonly visualMediaUrl?: string | null;
+	readonly projectChanged?: ProjectBinServiceDependencies['projectChanged'];
+	readonly protectedSourceIds?: Set<string>;
 }
 
 function createHarness(initialProject: ProjectBinProject, options: HarnessOptions = {}) {
@@ -452,6 +461,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 			projectBinReplacementIncompatible: 'Replacement incompatible.',
 		},
 		trackColors: ['blue', 'green'], retireTimelinePlayback: () => { playbackStopCount += 1; },
+		protectedSourceIds: options.protectedSourceIds ?? new Set<string>(),
 		playbackEngine: {
 			getState: () => ({ state: options.playbackState ?? 'stopped' }),
 			stop: () => { playbackStopCount += 1; },
@@ -502,7 +512,7 @@ function createHarness(initialProject: ProjectBinProject, options: HarnessOption
 		},
 		setImporting: (value) => { importing = value; },
 		importProjectBinFile: options.importProjectBinFile ?? (async () => null),
-		projectChanged: () => undefined,
+		projectChanged: options.projectChanged ?? (() => undefined),
 		publish: () => { publishCount += 1; },
 		revokeVideoVisual: options.revokeVideoVisual ?? (() => undefined),
 	};
