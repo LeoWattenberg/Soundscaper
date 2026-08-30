@@ -179,7 +179,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		const sourceGeneration = /\.aup3$/i.test(file.name) ? 'aup3' : 'aup4';
 		const nativeId = sanitizeNativeId(runtime.createStableId('audacity-project'));
 		const persistedSourceIds: string[] = [];
-		let activated = false;
+		let importedProject: NativeProjectDocument | null = null, activated = false;
 		beginImport(operation.task);
 		runtime.setStatus(runtime.copy.aup4Validating);
 		try {
@@ -198,7 +198,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				},
 			});
 			assertOwnership(operation.task, operation.projectToken);
-			const importedProject = runtime.adaptAudacityProject
+			importedProject = runtime.adaptAudacityProject
 				? await runtime.adaptAudacityProject(decoded.project)
 				: runtime.loadProject(decoded.project).project;
 			const decodedBytes = decoded.sources.reduce((total, source) => total + source.channels.reduce(
@@ -217,9 +217,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				readOnlyReason: readOnlyIssue?.message,
 				save: !opened.readOnly,
 			});
+			activated = true;
 			operation.task.assertCurrent();
 			runtime.projectGeneration.capture(importedProject.id);
-			activated = true;
 			const rawCompatibilityValue = decoded.compatibilityReport
 				|| decoded.validation?.compatibilityReport
 				|| opened.validation?.compatibilityReport;
@@ -243,9 +243,9 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 				compatibilityReport,
 			});
 		} catch (error) {
-			if (!activated) await deleteSources(
-				(sourceId) => runtime.store.deleteSource(sourceId),
-				persistedSourceIds,
+			const importedProjectIsCurrent = importedProject !== null && runtime.getProject()?.id === importedProject.id;
+			if (!activated && !importedProjectIsCurrent) await deleteSources(
+				(sourceId) => runtime.store.deleteSource(sourceId), persistedSourceIds,
 			);
 			throw error;
 		} finally {

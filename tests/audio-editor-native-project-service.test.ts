@@ -220,6 +220,43 @@ test('failed AUP4 source staging rolls back committed PCM and closes the native 
 	assert.equal(fixture.state.importing, false);
 });
 
+test('failed AUP4 activation retains PCM when the imported project is already current', async () => {
+	const imported: NativeProjectDocument = {
+		...project('imported'),
+		sources: [{ kind: 'audio', id: 'source-a', storageKey: 'source-a', name: 'A', mimeType: 'audio/wav',
+			frameCount: 1, channelCount: 1, sampleRate: 48_000 }],
+	};
+	let activeProject = project();
+	let activateProject = (_projectId: string) => undefined;
+	const fixture = createFixture({
+		getProject: () => activeProject,
+		switchProject: async (nextProject) => {
+			activeProject = nextProject; activateProject(nextProject.id);
+			throw new Error('late activation failed');
+		},
+		createAup4Client: () => ({
+			initialize: async () => ({ opfs: false }),
+			create: async () => undefined,
+			openFile: async () => ({ readOnly: false, validation: { issues: [] } }),
+			decode: async () => ({
+				project: imported,
+				sources: [{ sourceId: 'source-a', channels: [Float32Array.of(1)] }],
+			}),
+			writeSnapshot: async () => ({}),
+			commit: async () => undefined,
+			export: async () => ({ bytes: Uint8Array.of(1) }),
+			inspect: async () => ({}),
+			delete: async () => undefined,
+		}),
+		loadProject: () => ({ project: imported }),
+	});
+	activateProject = (projectId) => { fixture.projectGeneration.activate(projectId); };
+	const service = createNativeProjectService(fixture.runtime);
+	await assert.rejects(service.openAup4(nativeFile('late-failure.aup4', 20)), /late activation failed/u);
+	assert.equal(activeProject.id, imported.id);
+	assert.deepEqual(fixture.deletedSources, []);
+});
+
 test('disposing during AUP4 initialization is terminal and cannot resurrect the client', async () => {
 	const initialization = deferred<Readonly<{ opfs: boolean }>>();
 	let createCalls = 0;
