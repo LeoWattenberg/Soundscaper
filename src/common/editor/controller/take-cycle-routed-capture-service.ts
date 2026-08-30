@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { TakeCycleRecordingOptions } from './take-cycle-recording-service.ts';
-import type {
-	TakeCycleLiveCaptureSession,
-	TakeCycleLiveLaneCapture,
-} from './take-cycle-live-capture-session.ts';
 import { selectRoutedRecordingChannels } from './recording-capture-channels.ts';
 import { planRoutedRecordingSources } from './routed-recording-capture-service.ts';
-import {
-	createTakeCycleRoutedPcmStream,
-	type TakeCycleRoutedPcmStream,
-} from './take-cycle-routed-pcm-stream.ts';
+import { observeTakeCycleRoutedCaptureLifetime } from './take-cycle-routed-capture-lifetime.ts';
+import { createTakeCycleRoutedPcmStream } from './take-cycle-routed-pcm-stream.ts';
+import type {
+	TakeCycleRoutedActiveCapture as ActiveCapture,
+	TakeCycleRoutedCaptureFailure as CaptureFailure,
+	TakeCycleRoutedLiveLane as LiveLane,
+	TakeCycleRoutedLiveSource as LiveSource,
+} from './take-cycle-routed-capture-state.ts';
 import {
 	assertTakeCycleRoutedStartRequest,
 	assertTakeCycleRoutedStartScope,
@@ -36,7 +36,6 @@ import type {
 } from './take-cycle-routed-capture-types.ts';
 import type {
 	RecordingCaptureChunk,
-	RecordingMediaStream,
 	RecordingRoute,
 	RecordingTrack,
 } from './recording-transaction-types.ts';
@@ -61,42 +60,6 @@ export type {
 	TakeCycleRoutedLaneResult,
 	TakeCycleRoutedStartedLane,
 } from './take-cycle-routed-capture-types.ts';
-interface PlannedLane {
-	readonly track: RecordingTrack;
-	readonly route: RecordingRoute;
-	readonly sourceKey: string;
-	readonly groupId: string;
-	readonly sequenceId: string;
-}
-interface LiveLane extends PlannedLane {
-	capture: TakeCycleLiveLaneCapture | null;
-	pcm: TakeCycleRoutedPcmStream | null;
-	status: 'capturing' | 'sealed' | 'failed';
-	error: unknown | null;
-}
-
-interface LiveSource {
-	readonly sourceKey: string;
-	readonly kind: 'device' | 'display';
-	readonly stream: RecordingMediaStream;
-	readonly channelCount: number;
-	readonly lanes: LiveLane[];
-	controller: RecordingCaptureControllerLike | null;
-	tail: Promise<void>;
-	accepting: boolean;
-	expectedFrameStart: number | null;
-}
-
-interface ActiveCapture {
-	readonly projectId: string;
-	readonly publicationGeneration: number;
-	readonly scope: RecordingStartScope;
-	readonly session: TakeCycleLiveCaptureSession;
-	readonly lanes: LiveLane[];
-	readonly sources: LiveSource[];
-	abortReason: unknown | null;
-	abortPromise: Promise<void> | null;
-}
 
 /** Dedicated continuous-loop capture over the existing routed input/controller ports. */
 export function createTakeCycleRoutedCaptureService(
@@ -149,6 +112,13 @@ export function createTakeCycleRoutedCaptureService(
 	}
 
 	function stop(options: TakeCycleRecordingOptions = {}): Promise<TakeCycleRoutedCaptureResult> {
+		return stopCapture(options, null);
+	}
+
+	function stopCapture(
+		options: TakeCycleRecordingOptions = {},
+		failure: CaptureFailure | null = null,
+	): Promise<TakeCycleRoutedCaptureResult> {
 		if (stopPromise) return stopPromise;
 		if (phase === 'idle' && lastResult) return Promise.resolve(lastResult);
 		if (phase !== 'active' || !activeCapture) {
@@ -161,7 +131,7 @@ export function createTakeCycleRoutedCaptureService(
 		} catch (error) {
 			return rejectAfterRollback(capture, error);
 		}
-		stopPromise = settleCapture(capture, options).catch(async (error: unknown) => {
+		stopPromise = settleCapture(capture, options, failure).catch(async (error: unknown) => {
 			await rollbackCaptureOnce(capture, error);
 			throw error;
 		}).finally(() => {
@@ -250,7 +220,7 @@ export function createTakeCycleRoutedCaptureService(
 		const pending: ActiveCapture = {
 			projectId: project.id,
 			publicationGeneration: session.publicationGeneration,
-			scope, session, lanes, sources, abortReason: null, abortPromise: null,
+			scope, session, lanes, sources, cleanupLifetime() {}, abortReason: null, abortPromise: null,
 		};
 		try {
 			for (const source of sources) for (const lane of source.lanes) {
@@ -295,7 +265,14 @@ export function createTakeCycleRoutedCaptureService(
 						inputGain: source.kind === 'device' ? finiteTakeCycleRoutedGain(runtime.inputGain ?? 1) : 1,
 						onChunk: (chunk) => enqueueChunk(pending, source, chunk),
 						onError: (error) => { enqueueSourceFailure(pending, source, error); },
-						onState() {},
+						onState(recordingState) {
+							if ((recordingState === 'stopping' || recordingState === 'stopped'
+								|| recordingState === 'failed') && !source.stopping) {
+								interruptCapture(pending, new Error(
+									`Take cycle routed recorder ${source.sourceKey} ${recordingState} unexpectedly.`,
+								), source);
+							}
+						},
 					});
 					assertCaptureCurrent(pending);
 				} catch (error) {
@@ -306,6 +283,12 @@ export function createTakeCycleRoutedCaptureService(
 			}
 			const controlled = sources.filter((source) => source.controller !== null);
 			if (!controlled.length) throw new Error('No routed take cycle recorders are available.');
+			pending.cleanupLifetime = observeTakeCycleRoutedCaptureLifetime({
+				context, sources: controlled,
+				isLive: (stream, kind) => runtime.recordingStreamIsLive(stream, kind),
+				onInterrupted: (error, source) => interruptCapture(pending, error, source),
+			});
+			assertCaptureCurrent(pending);
 			const scheduledTime = context.currentTime + 0.08;
 			runtime.engine.setLoop({
 				enabled: true,
@@ -348,7 +331,7 @@ export function createTakeCycleRoutedCaptureService(
 		return acquired.map((source) => ({
 			...source,
 			lanes: source.lanes.map(({ track }) => laneFor(track.id)),
-			controller: null, tail: Promise.resolve(), accepting: true, expectedFrameStart: null,
+			controller: null, tail: Promise.resolve(), accepting: true, stopping: false, expectedFrameStart: null,
 		}));
 	}
 
@@ -432,13 +415,19 @@ export function createTakeCycleRoutedCaptureService(
 		}
 	}
 
-	async function settleCapture(capture: ActiveCapture, options: TakeCycleRecordingOptions): Promise<
+	async function settleCapture(
+		capture: ActiveCapture,
+		options: TakeCycleRecordingOptions,
+		failure: CaptureFailure | null,
+	): Promise<
 		TakeCycleRoutedCaptureResult
 	> {
 		pauseTransport();
+		for (const source of capture.sources) source.stopping = true;
 		await settleControllerOperations(capture.sources, (controller) => controller?.stop());
 		assertCaptureCurrent(capture);
 		for (const source of capture.sources) source.accepting = false;
+		capture.cleanupLifetime();
 		await Promise.all(capture.sources.map((source) => source.tail));
 		assertCaptureCurrent(capture);
 		await settleControllerOperations(
@@ -446,6 +435,7 @@ export function createTakeCycleRoutedCaptureService(
 			(controller) => controller?.dispose?.({ stopTracks: false }),
 		);
 		assertCaptureCurrent(capture);
+		if (failure) for (const lane of failure.source?.lanes ?? capture.lanes) await failLane(lane, failure.reason);
 		for (const lane of capture.lanes) {
 			if (!isCapturingLane(lane)) continue;
 			try {
@@ -491,6 +481,8 @@ export function createTakeCycleRoutedCaptureService(
 
 	async function rollbackCapture(capture: ActiveCapture, reason: unknown): Promise<void> {
 		pauseTransport();
+		capture.cleanupLifetime();
+		for (const source of capture.sources) source.stopping = true;
 		await settleControllerOperations(capture.sources, (controller) => controller?.stop());
 		for (const source of capture.sources) source.accepting = false;
 		await Promise.allSettled(capture.sources.map((source) => source.tail));
@@ -534,7 +526,18 @@ export function createTakeCycleRoutedCaptureService(
 	}
 
 	function assertCaptureCurrent(capture: ActiveCapture): void {
+		if (capture.abortReason) throw capture.abortReason;
 		assertScopeCurrent(capture.scope, capture.projectId);
+	}
+
+	function interruptCapture(capture: ActiveCapture, reason: unknown, source: LiveSource | null): void {
+		if (capture.abortReason || phase === 'stopping') return;
+		if (activeCapture !== capture || phase !== 'active') {
+			capture.abortReason = reason;
+			return;
+		}
+		reportError(reason);
+		void stopCapture({}, { reason, source }).catch(reportError);
 	}
 
 	function captureCurrentError(capture: ActiveCapture): unknown | null {
