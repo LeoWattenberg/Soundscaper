@@ -46,5 +46,9 @@ function normalized(num: number, den: number, maximumDenominator: number): Ratio
 	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || den <= 0) {
 		throw new RangeError('The bounded rational exceeds the safe integer domain.');
 	}
+	// A value under half of 1/maximumDenominator rounds to the nearest bounded
+	// rational of zero, which callers go on to divide by. The nearest bounded
+	// rational that this function may return is the smallest positive one.
+	if (num === 0) return normalizeRational({ num: 1, den: maximumDenominator }, { maximumDenominator });
 	return normalizeRational({ num, den }, { maximumDenominator });
 }
