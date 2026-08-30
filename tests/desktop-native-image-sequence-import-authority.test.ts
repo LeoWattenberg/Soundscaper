@@ -174,6 +174,39 @@ test('tampered durable bytes fail admission and discard removes authenticated as
 	assert.equal((await filesBelow(fixture.root)).some((path) => /\.(pack|inventory)$/u.test(path)), false);
 });
 
+test('a failed data-plane receive is handled and permits a same-asset retry', async () => {
+	const fixture = await authorityFixture(true);
+	const begun = await fixture.authority.request(OWNER, {
+		operation: 'begin', ...PROJECT_IDENTITY,
+		projectId: 'candidate-project', projectRevision: 4,
+	}) as { transactionId: string };
+	const first = importBinding('a'.repeat(40));
+	await fixture.authority.request(OWNER, {
+		operation: 'prepare-write', transactionId: begun.transactionId,
+		asset: 'pack', offset: 0, binding: first,
+	});
+	const channel = new MessageChannel();
+	const receiving = fixture.authority.receiveChunk(OWNER, {
+		transactionId: begun.transactionId, asset: 'pack', offset: 0, binding: first,
+	}, channel.port1 as never);
+	channel.port2.postMessage({ invalid: true });
+	await assert.rejects(receiving, /data-plane|message|record|type/iu);
+
+	const retry = importBinding('b'.repeat(40));
+	await fixture.authority.request(OWNER, {
+		operation: 'prepare-write', transactionId: begun.transactionId,
+		asset: 'pack', offset: 0, binding: retry,
+	});
+	const awaiting = assert.rejects(fixture.authority.request(OWNER, {
+		operation: 'await-write', transactionId: begun.transactionId,
+		asset: 'pack', offset: 0, streamId: retry.streamId,
+	}), /discarded/iu);
+	await fixture.authority.request(OWNER, {
+		operation: 'discard', transactionId: begun.transactionId,
+	});
+	await awaiting;
+});
+
 test('restart recovery reclaims unreferenced transactions and retains referenced project bodies', async () => {
 	const fixture = await authorityFixture(true);
 	const orphan = await sequenceAssets(['orphan']);
@@ -296,6 +329,16 @@ async function authorityFixture(usable: boolean) {
 		root, project, authority, createAuthority,
 		get probedFrames() { return probedFrames; },
 	};
+}
+
+function importBinding(streamId: string) {
+	const bytes = Uint8Array.of(1);
+	return Object.freeze({
+		dataPlaneVersion: 1 as const, transport: 'message-port' as const, streamId,
+		direction: 'host-to-helper' as const, byteLength: bytes.byteLength,
+		sha256: imageSequenceStorageSha256(String.fromCharCode(...bytes)),
+		maximumChunkBytes: 4 * 1024 * 1024, maximumInFlightChunks: 1,
+	});
 }
 
 async function sequenceAssets(contents: readonly string[]) {

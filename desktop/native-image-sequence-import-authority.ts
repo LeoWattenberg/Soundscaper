@@ -195,6 +195,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 			pending.resolve(result);
 		} catch (error) {
 			pending.reject(error);
+			if (this.#pendingTransfers.get(key) === pending) this.#pendingTransfers.delete(key);
 			throw error;
 		} finally { await rm(ingress, { force: true }); }
 	}
@@ -273,6 +274,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 		const completion = new Promise<unknown>((resolveValue, rejectValue) => {
 			resolve = resolveValue; reject = rejectValue;
 		});
+		void completion.catch(() => undefined);
 		this.#pendingTransfers.set(key, {
 			owner, transaction, asset: asset.kind, offset: request.offset,
 			binding, completion, resolve, reject,
