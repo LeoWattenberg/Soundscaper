@@ -87,6 +87,43 @@ test('ADM editor exposes the width that is routed into a terminal bus', () => {
 	]);
 });
 
+test('ADM editor offers only master-fed strips from a production mixer graph', () => {
+	const project = {
+		...PROJECT,
+		schemaVersion: 21,
+		masterChannels: 6,
+		sources: [{ id: 'source-1', channelCount: 6 }],
+		mixer: {
+			schemaVersion: 1,
+			groups: [{ id: 'group', name: 'Dialogue bus', channelCount: 6 }],
+			sends: [], cues: [], vcas: [],
+			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 6 }],
+			edges: [
+				{
+					id: 'track-to-group', kind: 'assignment',
+					source: { kind: 'track', id: 'track-1' },
+					destination: { kind: 'mixer-node', id: 'group' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
+				},
+				{
+					id: 'group-to-master', kind: 'assignment',
+					source: { kind: 'mixer-node', id: 'group' }, destination: { kind: 'master' },
+					position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
+				},
+			],
+		},
+	};
+
+	assert.deepEqual(listAdmEditorSourceChannels(project).map(({ label }) => label), [
+		'Dialogue bus — channel 1',
+		'Dialogue bus — channel 2',
+		'Dialogue bus — channel 3',
+		'Dialogue bus — channel 4',
+		'Dialogue bus — channel 5',
+		'Dialogue bus — channel 6',
+	]);
+});
+
 test('ADM editor leaves surplus multichannel sources unassigned in a smaller bed', () => {
 	const project = {
 		...PROJECT,

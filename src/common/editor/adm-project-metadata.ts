@@ -153,7 +153,7 @@ export interface AdmRoutingIssue {
 	readonly message: string;
 }
 
-interface RoutingProject {
+export interface RoutingProject {
 	readonly masterChannels: number;
 	readonly sources?: readonly Readonly<Record<string, unknown>>[];
 	readonly clips?: readonly Readonly<Record<string, unknown>>[];
@@ -164,6 +164,12 @@ interface RoutingProject {
 		routes?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 		edges?: readonly unknown[];
 	}>;
+}
+
+export interface AdmTerminalStrip {
+	readonly kind: AdmTerminalStripKind;
+	readonly id: string;
+	readonly channelCount: number;
 }
 
 const MAX_ADM_WARNINGS = 100;
@@ -289,6 +295,11 @@ export function validateAdmAuthoredRouting(
 		}));
 	}
 	return Object.freeze(issues);
+}
+
+/** Resolve the exact terminal strips accepted by ADM routing validation. */
+export function listAdmTerminalStrips(project: RoutingProject): readonly AdmTerminalStrip[] {
+	return Object.freeze([...collectTerminalStrips(project).values()].map((strip) => Object.freeze({ ...strip })));
 }
 
 /** Check one strip reference, reporting what is wrong and returning its key when it is not. */

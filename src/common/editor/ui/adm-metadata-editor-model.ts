@@ -4,17 +4,15 @@ import type { AdmAuthoredObject } from '../adm-authored-objects.ts';
 import {
 	ADM_BED_CHANNEL_ORDER,
 	admBedChannelCount,
+	listAdmTerminalStrips,
 	normalizeAdmProjectMetadata,
 	type AdmAuthoredMetadata,
 	type AdmBedChannel,
 	type AdmBedLayout,
 	type AdmProjectMetadata,
 	type AdmTerminalStripKind,
+	type RoutingProject,
 } from '../adm-project-metadata.ts';
-import {
-	resolveTerminalChannelWidths,
-	type TerminalWidthProject,
-} from '../terminal-channel-widths.ts';
 
 type UnknownRecord = Readonly<Record<string, unknown>>;
 
@@ -61,30 +59,21 @@ export function listAdmEditorSourceChannels(
 ): readonly AdmEditorSourceChannel[] {
 	const project = record(projectValue);
 	const mixer = record(project.mixer);
-	const routes = record(mixer.routes);
-	const widths = resolveTerminalChannelWidths(project as TerminalWidthProject);
 	const channels: AdmEditorSourceChannel[] = [];
-	for (const track of records(project.tracks)) {
-		if (track.type !== 'audio' || typeof track.id !== 'string') continue;
-		if (record(routes[track.id]).groupId != null) continue;
+	const stripsByKind = {
+		track: records(project.tracks),
+		group: records(mixer.groups),
+		send: records(mixer.sends),
+	};
+	for (const terminal of listAdmTerminalStrips(project as unknown as RoutingProject)) {
+		const strip = stripsByKind[terminal.kind].find(({ id }) => id === terminal.id);
 		appendStripChannels(
 			channels,
-			'track',
-			track.id,
-			String(track.name || track.id),
-			widths.tracks.get(track.id) ?? 2,
+			terminal.kind,
+			terminal.id,
+			String(strip?.name || terminal.id),
+			terminal.channelCount,
 		);
-	}
-	for (const [kind, key] of [['group', 'groups'], ['send', 'sends']] as const) {
-		for (const strip of records(mixer[key])) if (typeof strip.id === 'string') {
-			appendStripChannels(
-				channels,
-				kind,
-				strip.id,
-				String(strip.name || strip.id),
-				(kind === 'group' ? widths.groups : widths.sends).get(strip.id) ?? 2,
-			);
-		}
 	}
 	return Object.freeze(channels.map((channel) => Object.freeze(channel)));
 }
