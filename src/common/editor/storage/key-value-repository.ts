@@ -218,6 +218,42 @@ export class KeyValueRepository {
 		});
 	}
 
+	/** Atomically delete one exact row while advancing a distinct exact same-store inventory row. */
+	async deleteIfCurrentAndUpdate(
+		key: string,
+		expected: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): Promise<boolean> {
+		if (key === inventoryKey) throw new Error('An inventoried key/value deletion needs distinct keys.');
+		const expectedValue = canonicalComparisonValue(expected);
+		const expectedInventoryValue = canonicalComparisonValue(expectedInventory);
+		const inventoryRecord = { key: inventoryKey, value: clone(nextInventory) };
+		const database = await this.#port.database();
+		if (!database) {
+			if (!sameStoredValue(this.#port.memory[this.#storeName].get(key), expectedValue)
+				|| !sameStoredValue(
+					this.#port.memory[this.#storeName].get(inventoryKey), expectedInventoryValue,
+				)) return false;
+			this.#port.memory[this.#storeName].delete(key);
+			this.#port.memory[this.#storeName].set(inventoryKey, inventoryRecord);
+			return true;
+		}
+		return transact(database, this.#storeName, 'readwrite', async (stores) => {
+			const store = stores[this.#storeName];
+			const [current, inventory] = await Promise.all([
+				request(store.get(key)),
+				request(store.get(inventoryKey)),
+			]);
+			if (!sameStoredValue(current, expectedValue)
+				|| !sameStoredValue(inventory, expectedInventoryValue)) return false;
+			store.delete(key);
+			store.put(inventoryRecord);
+			return true;
+		});
+	}
+
 	async get(key: string): Promise<unknown> {
 		const database = await this.#port.database();
 		const value = !database
