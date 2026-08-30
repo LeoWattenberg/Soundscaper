@@ -189,6 +189,21 @@ export function prepareSoundscaperDesktopProjectLibraryPublication(
 	});
 }
 
+export function abandonSoundscaperDesktopProjectLibraryPublication(
+	database: DatabaseSync,
+	transactionId: string,
+	lease: SoundscaperDesktopProjectLibraryLease,
+	now: number,
+): boolean {
+	return transaction(database, () => {
+		assertSoundscaperDesktopProjectLibraryPublicationLease(database, lease, now);
+		return database.prepare(`
+			DELETE FROM publication_journal
+			WHERE transaction_id = ? AND state IN ('prepared', 'materialized')
+		`).run(transactionId).changes === 1;
+	});
+}
+
 export function markSoundscaperDesktopProjectLibraryPublicationMaterialized(
 	database: DatabaseSync,
 	transactionId: string,

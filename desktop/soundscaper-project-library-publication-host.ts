@@ -29,6 +29,7 @@ import {
 	type SoundscaperDesktopProjectLibraryPublicationStage,
 } from './soundscaper-project-library-publication-files.ts';
 import {
+	abandonSoundscaperDesktopProjectLibraryPublication,
 	assertSoundscaperDesktopProjectLibraryPublicationLease,
 	commitSoundscaperDesktopProjectLibraryPublication,
 	markSoundscaperDesktopProjectLibraryPublicationMaterialized,
@@ -372,21 +373,15 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		lease: SoundscaperDesktopProjectLibraryLease,
 		stages: readonly Readonly<SoundscaperDesktopProjectLibraryPublicationStage>[],
 	): Promise<void> {
-		if (this.#holdsLease(lease)) {
-			this.#database.prepare(`
-				DELETE FROM publication_journal
-				WHERE transaction_id = ? AND state IN ('prepared', 'materialized')
-			`).run(transactionId);
-		}
+		let abandoned = false;
+		try {
+			abandoned = abandonSoundscaperDesktopProjectLibraryPublication(
+				this.#database, transactionId, lease, this.#timestamp(),
+			);
+		} catch { return; }
+		if (!abandoned) return;
 		await cleanupSoundscaperDesktopProjectLibraryStages(this.paths.libraryRoot, stages)
 			.catch(() => undefined);
-	}
-
-	#holdsLease(lease: SoundscaperDesktopProjectLibraryLease): boolean {
-		try {
-			assertSoundscaperDesktopProjectLibraryPublicationLease(this.#database, lease, this.#timestamp());
-			return true;
-		} catch { return false; }
 	}
 
 	#assertOperational(): void {
