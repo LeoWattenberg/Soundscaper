@@ -274,6 +274,8 @@ export function createTrackTransformService(
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const track = requireMonoTrack(project, trackId);
+		if (track.laneGroupId != null) throw new Error(dependencies.copy.compatibleMonoTrackRequired
+			|| dependencies.copy.monoTrackRequired || dependencies.copy.audioTrackRequired);
 		const trackIndex = project.tracks.findIndex((candidate) => candidate.id === track.id);
 		const partner = findMonoPartner(project, track, trackIndex, partnerTrackId);
 		if (!partner) throw new Error(dependencies.copy.compatibleMonoTrackRequired
@@ -462,15 +464,24 @@ export function createTrackTransformService(
 		partnerTrackId: string | null,
 	): ControllerTrack | null {
 		const requested = findControllerTrack(project, partnerTrackId);
-		if (requested) return requested;
-		return project.tracks.find((candidate, index) => candidate.id !== track.id
-			&& candidate.type === 'audio'
-			&& dependencies.audioTrackChannelCount(project, candidate) === 1
+		if (partnerTrackId !== null) return compatibleMonoPartner(project, track, requested)
+			? requested : null;
+		return project.tracks.find((candidate, index) => compatibleMonoPartner(project, track, candidate)
 			&& index > trackIndex)
-			|| project.tracks.find((candidate) => candidate.id !== track.id
-				&& candidate.type === 'audio'
-				&& dependencies.audioTrackChannelCount(project, candidate) === 1)
+			|| project.tracks.find((candidate) => compatibleMonoPartner(project, track, candidate))
 			|| null;
+	}
+
+	function compatibleMonoPartner(
+		project: ControllerProject,
+		track: ControllerTrack,
+		candidate: ControllerTrack | null,
+	): candidate is ControllerTrack {
+		return candidate !== null
+			&& candidate.id !== track.id
+			&& candidate.type === 'audio'
+			&& candidate.laneGroupId == null
+			&& dependencies.audioTrackChannelCount(project, candidate) === 1;
 	}
 }
 

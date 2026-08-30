@@ -325,6 +325,30 @@ test('joining mono tracks renders their shared range and uses a synthetic source
 	});
 });
 
+test('joining mono tracks never removes either member of a linked media lane', async () => {
+	const left = trackFixture({ id: 'left' });
+	const video = trackFixture({ id: 'video', type: 'video', laneGroupId: 'media-lane' });
+	const linkedAudio = trackFixture({ id: 'linked-audio', laneGroupId: 'media-lane' });
+	const right = trackFixture({ id: 'right' });
+	const fixture = createTransformFixture(projectFixture({ tracks: [left, video, linkedAudio, right] }));
+
+	const merged = await fixture.service.makeStereoTrack('left');
+	assert.equal((merged as AudioEditorCommand).type, 'batch');
+	assert.deepEqual(fixture.calls.commits[0]?.command, {
+		type: 'batch',
+		commands: [
+			{ type: 'track/update', trackId: 'left', changes: { pan: 0 } },
+			{ type: 'track/remove', trackId: 'right' },
+		],
+	});
+
+	await assert.rejects(
+		fixture.service.makeStereoTrack('linked-audio', 'right'),
+		/Partner required/u,
+	);
+	assert.equal(fixture.calls.commits.length, 1);
+});
+
 test('transform guards reject incompatible tracks and return early for blocked or redundant work', async () => {
 	const monoSource = sourceFixture('mono');
 	const monoClip = clipFixture('mono-clip', monoSource.id);
