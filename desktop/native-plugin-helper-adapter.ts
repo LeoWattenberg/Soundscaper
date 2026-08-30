@@ -191,16 +191,21 @@ function waitForConfiguration(
 		}
 		const timer = setTimeout(() => settle(() => reject(new Error('The plug-in helper did not configure in time.'))), timeoutMs)
 		const listener = (event: unknown) => {
-			const record = plainRecord(messageData(event), 'plug-in configuration response')
-			if (record.kind === 'fault') return settle(() => reject(new Error(boundedText(record.detail ?? record.code))))
-			if (record.kind !== 'configured') return
-			if (record.protocolVersion !== 1 || record.status !== 'opened') {
-				return settle(() => reject(new Error('The plug-in helper returned a malformed configuration.')))
+			try {
+				const record = plainRecord(messageData(event), 'plug-in configuration response')
+				if (record.kind === 'fault') return settle(() => reject(new Error(boundedText(record.detail ?? record.code))))
+				if (record.kind !== 'configured') return
+				if (record.protocolVersion !== 1 || record.status !== 'opened') {
+					return settle(() => reject(new Error('The plug-in helper returned a malformed configuration.')))
+				}
+				const answer = Object.freeze({
+					format: boundedText(record.format),
+					reportedLatencyFrames: integer(record.reportedLatencyFrames, 0, 1_048_576, 'reported latency'),
+				})
+				settle(() => resolve(answer))
+			} catch (error) {
+				settle(() => reject(error))
 			}
-			settle(() => resolve(Object.freeze({
-				format: boundedText(record.format),
-				reportedLatencyFrames: integer(record.reportedLatencyFrames, 0, 1_048_576, 'reported latency'),
-			})))
 		}
 		add(port, listener)
 		void completion.catch((error) => settle(() => reject(error)))

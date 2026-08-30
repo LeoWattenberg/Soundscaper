@@ -480,3 +480,34 @@ test('plug-in main adapters admit exact offline results and transfer no binary p
 	assert.equal(JSON.stringify(publicHandshake).includes('d'.repeat(64)), false)
 	await session.close()
 })
+
+test('a malformed plug-in configuration rejects and closes instead of hanging', async () => {
+	const link = channel()
+	let helperAborted = false
+	const opening = openNativePersistentPluginSession({
+		supervisor: { runJob: (request: Record<string, unknown>) => {
+			const port = (request.dataPlaneTransfers as { port: FakePort }[])[0].port
+			port.on('message', ({ data }) => {
+				if ((data as { kind?: string }).kind === 'configure') port.postMessage({
+					protocolVersion: 1, kind: 'configured', status: 'opened', format: 'fixture',
+				})
+			})
+			return new Promise((_resolve, reject) => {
+				(request.signal as AbortSignal).addEventListener('abort', () => {
+					helperAborted = true
+					reject(new Error('cancelled'))
+				}, { once: true })
+			})
+		} } as never,
+		grant: PLUGIN_GRANT, createChannel: () => link,
+		sampleRate: 48_000, maximumFrames: 1_024, mintStreamId: () => '3'.repeat(40),
+		configureTimeoutMs: 25,
+	})
+	const outcome = await Promise.race([
+		opening.then(() => 'opened', () => 'rejected'),
+		new Promise<'timed-out'>((resolve) => setTimeout(() => resolve('timed-out'), 100)),
+	])
+	assert.equal(outcome, 'rejected')
+	assert.equal(helperAborted, true)
+	assert.equal(link.port2.closed, true)
+})
