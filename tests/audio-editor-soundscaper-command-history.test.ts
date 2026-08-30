@@ -521,7 +521,7 @@ test('removing a bus keeps one existing parallel master assignment', () => {
 				position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1],
 			}],
 		},
-	} as AudioEditorCommand);
+	} as unknown as AudioEditorCommand);
 
 	const removed = applySoundscaperProjectCommand(parallel, {
 		type: 'mixer/bus-remove', busType: 'group', busId: 'dialogue',

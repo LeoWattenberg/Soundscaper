@@ -109,7 +109,8 @@ test('Soundscaper V29 keyed strategy renders the delivery effect-bypass projecti
 	const deliveryProject = structuredClone(project);
 	const deliveredTrack = deliveryProject.tracks.find(({ id }) => id === 'audio-track')!;
 	if (deliveredTrack.type !== 'audio') throw new Error('Expected the audio fixture track.');
-	deliveredTrack.effects[0] = { ...deliveredTrack.effects[0]!, bypassed: true, params: {} };
+	const deliveredEffects = deliveredTrack.effects as Record<string, unknown>[];
+	deliveredEffects[0] = { ...deliveredEffects[0]!, bypassed: true, params: {} };
 	const strategy = createSoundscaperVideoExportStrategy(
 		createSoundscaperProjectRuntimeSelection(), dependencies(),
 	);
