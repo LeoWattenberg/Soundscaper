@@ -1,5 +1,3 @@
-import type { Readable, Writable } from 'node:stream';
-
 export interface DesktopNightlyTestsEnvironment {
 	readonly [key: string]: string | undefined;
 }
@@ -98,11 +96,6 @@ export function createDesktopNightlyTestsRunDirectory(options: {
 export function startDesktopNightlyTestsStaticServer(options: {
 	readonly root: string;
 }): Promise<DesktopNightlyTestsStaticServer>;
-
-export function pipeDesktopNightlyTestsStaticResponse(
-	stream: Readable,
-	response: Writable,
-): void;
 
 export function resolveDesktopNightlyTestsEsbuildBinary(options: {
 	readonly payloadRoot: string;

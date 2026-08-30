@@ -7,6 +7,7 @@ import { createServer } from 'node:http';
 import { extname, isAbsolute, join, posix, win32 } from 'node:path';
 import { startDesktopNightlyTestsProductSites } from './desktop-nightly-tests-product-sites.mjs';
 import { resolveDesktopNightlyTestsStaticRequestFile, StaticRequestError } from './desktop-nightly-tests-static-route.mjs';
+import { pipeDesktopNightlyTestsStaticResponse } from './desktop-nightly-tests-static-response.mjs';
 import { runDesktopNightlyTestsMetricsPhase } from './desktop-nightly-tests-metrics.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS, runDesktopNightlyTestsPackagedMetricsPhase } from './desktop-nightly-tests-packaged-runtime.mjs';
 
@@ -371,14 +372,6 @@ async function serveStaticRequest({ request, response, staticRoot }) {
 			response.destroy();
 		}
 	}
-}
-
-export function pipeDesktopNightlyTestsStaticResponse(stream, response) {
-	const destroyStream = () => stream.destroy();
-	response.once('close', destroyStream);
-	stream.once('close', () => response.off('close', destroyStream));
-	stream.once('error', () => response.destroy());
-	stream.pipe(response);
 }
 
 function cacheControlFor(relativePath) {
