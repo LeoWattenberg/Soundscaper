@@ -207,7 +207,9 @@ function clipBindings(
 	const result = new Map<string, ClipBinding[]>();
 	for (const sequence of sequences.values()) for (const trackId of sequence.trackIds) {
 		const track = tracks.get(trackId)!;
-		for (const clipId of track.clipIds as readonly string[]) {
+		const clipIds = Object.getOwnPropertyDescriptor(track, 'clipIds')?.value;
+		if (!Array.isArray(clipIds)) continue;
+		for (const clipId of clipIds as readonly string[]) {
 			const values = result.get(sequence.id) ?? [];
 			values.push({ clip: clips.get(clipId)!, trackId });
 			result.set(sequence.id, values);
