@@ -56,12 +56,18 @@ test('the self-test contract is closed and adds OS codec CTests only where appli
 	assert(linux.includes('addon-exact-backend-format-inventory'));
 	assert(linux.includes('fixture-deterministic-process'));
 	assert(linux.includes('isolation-broker-filesystem-grant'));
+	assert.equal(linux.includes('isolation-rss-ceiling'), false);
 	assert(linux.includes('packaged-electron-utility-process-smoke'));
 	assert(linux.includes('delivery-filesystem-protocol'));
 	assert.equal(linux.some((id) => id.startsWith('closure-')), false,
 		'closure policy checks belong to dependency evidence, not synthetic self-test receipts');
 	assert.equal(linux.includes('os-audio-codec-ctest'), false);
 	assert(mac.includes('os-audio-codec-ctest'));
+	assert(mac.includes('isolation-rss-ceiling'));
+	assert(requiredPipelineSoundscaperProfessionalNativeSelfTestIds('mac-arm64')
+		.includes('isolation-rss-ceiling'));
+	assert.equal(requiredSoundscaperProfessionalNativeSelfTestIds('win-arm64')
+		.includes('isolation-rss-ceiling'), false);
 });
 
 test('the packaged Electron smoke binds a separate exact addon-inventory receipt', () => {

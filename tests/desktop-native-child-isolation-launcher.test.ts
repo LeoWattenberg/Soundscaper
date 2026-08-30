@@ -3,9 +3,11 @@
 import assert from 'node:assert/strict';
 import { execFile, spawn as nodeSpawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import { chmod, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { PassThrough } from 'node:stream';
 import { promisify } from 'node:util';
 import test from 'node:test';
 
@@ -14,6 +16,7 @@ import {
 	isEnforcedNativeChildLaunch,
 	type NativeChildIsolationArtifactDescriptor,
 } from '../desktop/native-child-isolation-launcher.ts';
+import { bindNativeChildProcess } from '../desktop/native-child-framed-control.ts';
 import { createSoundscaperProfessionalPluginPeer } from '../desktop/soundscaper-professional-plugin-peer.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -66,6 +69,21 @@ test('the professional peer accepts explicit empty entry arguments for a direct 
 		runtimeReadExecute: [],
 		pluginFormats: ['vst3'],
 	}), /loader arguments are invalid/iu);
+});
+
+test('native-child completion preserves SIGKILL while normalizing its absent exit code', async () => {
+	const child = Object.assign(new EventEmitter(), {
+		stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(),
+		kill: () => true,
+	}) as unknown as ChildProcess;
+	const binding = bindNativeChildProcess(child, null);
+	child.stdout?.end('SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n');
+	child.stderr?.end();
+	child.emit('close', null, 'SIGKILL');
+	assert.deepEqual(await binding.completion, {
+		exitCode: 128, signal: 'SIGKILL',
+		stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n', stderr: '',
+	});
 });
 
 test('Linux launches an exact child only after namespaces, Landlock, and seccomp are enforced', {
