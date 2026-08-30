@@ -10,6 +10,7 @@ type KeyValueStoreName = 'settings' | 'analysis';
 const KEY_VALUE_INVENTORY_PAGE_SIZE = 64;
 const MAXIMUM_KEY_VALUE_INVENTORY_RECORDS = 65_536;
 const MAXIMUM_KEY_VALUE_PREFIX_RECORDS = 4_096;
+const MAXIMUM_KEY_VALUE_ATOMIC_KEYS = 4_096;
 const COMPARISON_UTF8 = new TextEncoder();
 
 export interface KeyValuePrefixRecord {
@@ -254,6 +255,34 @@ export class KeyValueRepository {
 		});
 	}
 
+	/** Atomically retire bounded inventory-owned keys without materializing their stored values. */
+	async deleteKeysIfCurrentAndUpdate(
+		keys: readonly string[],
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): Promise<boolean> {
+		const deletionKeys = boundedDistinctKeys(keys, inventoryKey);
+		const expectedInventoryValue = canonicalComparisonValue(expectedInventory);
+		const inventoryRecord = { key: inventoryKey, value: clone(nextInventory) };
+		const database = await this.#port.database();
+		if (!database) {
+			if (!sameStoredValue(
+				this.#port.memory[this.#storeName].get(inventoryKey), expectedInventoryValue,
+			)) return false;
+			for (const key of deletionKeys) this.#port.memory[this.#storeName].delete(key);
+			this.#port.memory[this.#storeName].set(inventoryKey, inventoryRecord);
+			return true;
+		}
+		return transact(database, this.#storeName, 'readwrite', async (stores) => {
+			const store = stores[this.#storeName];
+			if (!sameStoredValue(await request(store.get(inventoryKey)), expectedInventoryValue)) return false;
+			for (const key of deletionKeys) store.delete(key);
+			store.put(inventoryRecord);
+			return true;
+		});
+	}
+
 	async get(key: string): Promise<unknown> {
 		const database = await this.#port.database();
 		const value = !database
@@ -422,6 +451,17 @@ function assertPrefixBound(count: number): void {
 	if (count > MAXIMUM_KEY_VALUE_PREFIX_RECORDS) {
 		throw new RangeError('Key/value prefix inventory exceeds its result bound.');
 	}
+}
+
+function boundedDistinctKeys(keys: readonly string[], excludedKey: string): readonly string[] {
+	if (!Array.isArray(keys) || keys.length < 1 || keys.length > MAXIMUM_KEY_VALUE_ATOMIC_KEYS) {
+		throw new RangeError('A key/value atomic key set is outside its supported bound.');
+	}
+	if (typeof excludedKey !== 'string' || keys.some((key) => typeof key !== 'string'
+		|| key === excludedKey) || new Set(keys).size !== keys.length) {
+		throw new TypeError('A key/value atomic key set must contain distinct non-inventory keys.');
+	}
+	return Object.freeze([...keys]);
 }
 
 function sameStoredValue(value: unknown, expected: string): boolean {

@@ -48,3 +48,27 @@ test('key/value CAS atomically deletes a binary row while advancing its inventor
 	assert.equal(await values.get('payload'), undefined);
 	assert.deepEqual(await values.get('inventory'), emptyInventory);
 });
+
+test('key/value inventory fencing can retire a bounded set without reading its binary values', async () => {
+	const values = new KeyValueRepository({
+		memory: getMemoryDatabase(`binary-inventory-retirement-${crypto.randomUUID()}`),
+		database: async () => null,
+	}, 'analysis');
+	const inventory = { version: 1, keys: ['payload-a', 'payload-b'] };
+	const emptyInventory = { version: 1, keys: [] };
+	await values.put('payload-a', { bytes: Uint8Array.of(1) });
+	await values.put('payload-b', { bytes: Uint8Array.of(2) });
+	await values.put('inventory', inventory);
+
+	assert.equal(await values.deleteKeysIfCurrentAndUpdate(
+		['payload-a', 'payload-b'], 'inventory', emptyInventory, emptyInventory,
+	), false);
+	assert.ok(await values.get('payload-a'));
+	assert.ok(await values.get('payload-b'));
+	assert.equal(await values.deleteKeysIfCurrentAndUpdate(
+		['payload-a', 'payload-b'], 'inventory', inventory, emptyInventory,
+	), true);
+	assert.equal(await values.get('payload-a'), undefined);
+	assert.equal(await values.get('payload-b'), undefined);
+	assert.deepEqual(await values.get('inventory'), emptyInventory);
+});
