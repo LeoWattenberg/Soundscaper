@@ -45,6 +45,7 @@ import {
 	type FramescaperDesktopExactPublication as Publication,
 	type FramescaperDesktopExactStoredProjectRow as StoredProjectRow,
 } from './project-library-exact-generation-storage.ts';
+import { ProjectLibraryVerifiedBodyReader } from './project-library-native-body-materialization.ts';
 const START_FIELDS = ['appDataPath', 'owner', 'handshake'] as const;
 const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
@@ -273,6 +274,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	readonly #onActiveProject: (projectId: string | null) => void;
 	readonly #onClose: () => void;
 	readonly #admission: DesktopProjectLibrarySessionAdmission;
+	readonly #bodyReader = new ProjectLibraryVerifiedBodyReader();
 	#publication: Publication | null = null;
 
 	constructor(
@@ -330,11 +332,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			if (length > MAXIMUM_CHUNK_BYTES || offset > body.byteLength - length) {
 				throw new RangeError(`${this.#configuration.label} body read leaves its declared range`);
 			}
-			const bytes = await readFile(mediaPath(this.#paths, body));
-			if (bytes.byteLength !== body.byteLength || sha256(bytes) !== body.sha256) {
-				throw new Error(`${this.#configuration.label} managed body failed integrity validation`);
-			}
-			return new Uint8Array(bytes.buffer, bytes.byteOffset + offset, length).slice();
+			return this.#bodyReader.read(mediaPath(this.#paths, body), body, offset, length,
+				MAXIMUM_CHUNK_BYTES);
 		});
 	}
 
@@ -495,9 +494,6 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			const admitted = exactGenerationProject(project, this.#configuration.label);
 			const document = JSON.stringify(admitted);
 			const bodies = configuredBodies(this.#configuration, admitted, sha256(document), sourceBundle.bodies);
-			const chunks = await Promise.all(bodies.map(async (body) => [
-				new Uint8Array(await readFile(mediaPath(this.#paths, body))),
-			]));
 			return persistPublication(this.#configuration, this.#database, this.#paths, {
 				publicationId: randomBytes(24).toString('hex'),
 				expectedMetadataRevision,
@@ -505,7 +501,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 				project: admitted,
 				document,
 				bodies,
-				chunks,
+				chunks: bodies.map(() => []),
 				offsets: bodies.map(({ byteLength }) => byteLength),
 			}, this.#lifecycle, () => this.#assertAdmitted());
 		});
@@ -519,6 +515,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		return this.#admission.close(async () => {
 			this.#publication = null;
 			if (publicationId) await this.#lifecycle?.abortPublication(publicationId);
+			await this.#bodyReader.close();
 			this.#onActiveProject(null);
 			this.#onClose();
 		});

@@ -2,12 +2,16 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rename, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { materializeProjectLibraryNativeBody } from '../desktop/project-library-native-body-materialization.ts';
+import {
+	materializeProjectLibraryNativeBody,
+	ProjectLibraryVerifiedBodyReader,
+	verifyProjectLibraryNativeBody,
+} from '../desktop/project-library-native-body-materialization.ts';
 
 test('native project bodies materialize through a bounded authenticated copy', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-native-body-'));
@@ -45,6 +49,23 @@ test('native body materialization rejects links, digest changes, and cancelled c
 		byteLength: bytes.byteLength, sha256: digest(bytes),
 	}, abort.signal), /cancelled by test/u);
 	await assert.rejects(readFile(destination), /ENOENT/u);
+});
+
+test('verified range reads authenticate once and retain the opened body identity', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-native-body-ranges-'));
+	context.after(async () => { await import('node:fs/promises').then(({ rm }) => rm(root, { recursive: true })); });
+	const source = join(root, 'source.media');
+	const displaced = join(root, 'displaced.media');
+	const original = Uint8Array.of(1, 2, 3, 4, 5, 6);
+	await writeFile(source, original);
+	const identity = { byteLength: original.byteLength, sha256: digest(original) };
+	const reader = new ProjectLibraryVerifiedBodyReader();
+	assert.deepEqual(await reader.read(source, identity, 0, 3, 4), original.slice(0, 3));
+	await rename(source, displaced);
+	await writeFile(source, Uint8Array.of(6, 5, 4, 3, 2, 1));
+	assert.deepEqual(await reader.read(source, identity, 3, 3, 4), original.slice(3));
+	await reader.close();
+	await assert.rejects(verifyProjectLibraryNativeBody(source, identity), /digest/iu);
 });
 
 function digest(bytes: Uint8Array): string {

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
@@ -26,6 +26,7 @@ import {
 	framescaperDesktopProjectLibrarySha256 as sha256,
 	framescaperDesktopProjectLibraryText as text,
 } from './framescaper-project-library-values.ts';
+import { verifyProjectLibraryNativeBody } from './project-library-native-body-materialization.ts';
 
 const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const BODY_FIELDS = ['kind', 'encoding', 'sourceId', 'storageKey', 'mimeType', 'byteLength', 'sha256'] as const;
@@ -114,19 +115,17 @@ export async function persistFramescaperDesktopExactPublication(
 		await lifecycle?.preparePublication(declaration);
 		await writeFile(temporaryDocument, bytes, { mode: 0o600, flag: 'wx' });
 		for (const [index, body] of publication.bodies.entries()) {
-			const bodyBytes = concatenate(publication.chunks[index]!, body.byteLength);
-			if (sha256(bodyBytes) !== body.sha256) {
-				throw new Error(`${configuration.label} publication body digest changed`);
-			}
 			const final = framescaperDesktopExactMediaPath(paths, body);
 			await mkdir(join(final, '..'), { recursive: true, mode: 0o700 });
 			try {
-				const existing = await stat(final);
-				if (existing.size !== body.byteLength || sha256(await readFile(final)) !== body.sha256) {
-					throw new Error(`${configuration.label} managed body conflicts with existing bytes`);
-				}
+				await verifyProjectLibraryNativeBody(final, body);
+				continue;
 			} catch (error) {
 				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+				const bodyBytes = concatenate(publication.chunks[index]!, body.byteLength);
+				if (sha256(bodyBytes) !== body.sha256) {
+					throw new Error(`${configuration.label} publication body digest changed`);
+				}
 				const temporary = `${final}.tmp-${randomBytes(8).toString('hex')}`;
 				await writeFile(temporary, bodyBytes, { mode: 0o600, flag: 'wx' });
 				temporaryBodies.push({ temporary, final });
