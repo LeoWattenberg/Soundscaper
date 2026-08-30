@@ -127,6 +127,45 @@ test('an authenticated payload stays dormant until the user enables native media
 	}
 });
 
+test('a rapid disable and re-enable retries a superseded activation', async () => {
+	const fixture = await runtimeFixture();
+	try {
+		let enabled = false;
+		let releaseFirstSelfTest: () => void = () => undefined;
+		const firstSelfTest = new Promise<void>((resolve) => { releaseFirstSelfTest = resolve; });
+		let hostSelfTests = 0;
+		const runtime = await startFramescaperNativeMediaRuntime({
+			location: fixture.location,
+			payloadPorts: fixture.payloadPorts,
+			enabled: () => enabled,
+			runHostSelfTest: async () => {
+				hostSelfTests += 1;
+				if (hostSelfTests === 1) await firstSelfTest;
+				return SELF_TEST;
+			},
+			runSelectedV20RenderSelfTest: async () => SELECTED_V20_RENDER_SELF_TEST,
+			runSelectedV28V14RenderSelfTest: async () => SELECTED_V28_V14_RENDER_SELF_TEST,
+			spawnHelper: () => new Channel(),
+		});
+		enabled = true;
+		const superseded = runtime.activate();
+		while (hostSelfTests === 0) await new Promise<void>((resolve) => setImmediate(resolve));
+		enabled = false;
+		runtime.deactivate();
+		enabled = true;
+		const retried = runtime.activate();
+		releaseFirstSelfTest();
+
+		assert.equal(await superseded, false);
+		assert.equal(await retried, true);
+		assert.equal(hostSelfTests, 2);
+		assert.equal(runtime.available(), true);
+		runtime.dispose();
+	} finally {
+		await fixture.dispose();
+	}
+});
+
 test('empty manifests and failed self-tests remain unavailable without spawning a helper', async () => {
 	const repository = await startFramescaperNativeMediaRuntime({
 		location: {

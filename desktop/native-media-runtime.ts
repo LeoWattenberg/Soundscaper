@@ -230,6 +230,7 @@ function dormantRuntime(
 ): FramescaperNativeMediaRuntime {
 	let active: FramescaperNativeMediaRuntime | null = null;
 	let activation: Promise<boolean> | null = null;
+	let activationGeneration = -1;
 	let disposed = false;
 	let generation = 0;
 	let reason: string | null = 'native-media-disabled';
@@ -249,7 +250,13 @@ function dormantRuntime(
 			return false;
 		}
 		if (active?.available() === true) return true;
-		if (activation !== null) return activation;
+		if (activation !== null) {
+			if (activationGeneration === generation) return activation;
+			const superseded = activation;
+			await superseded.catch(() => false);
+			if (activation === superseded) activation = null;
+			return activate();
+		}
 		const expectedGeneration = generation;
 		const currentActivation = (async () => {
 			const candidate = await startActiveFramescaperNativeMediaRuntime(options);
@@ -263,10 +270,14 @@ function dormantRuntime(
 			return candidate.available();
 		})();
 		activation = currentActivation;
+		activationGeneration = expectedGeneration;
 		try {
 			return await currentActivation;
 		} finally {
-			if (activation === currentActivation) activation = null;
+			if (activation === currentActivation) {
+				activation = null;
+				activationGeneration = -1;
+			}
 		}
 	};
 	return Object.freeze({
