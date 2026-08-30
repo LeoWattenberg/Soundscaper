@@ -137,6 +137,7 @@ export function observeTransferAcknowledgements(
 		if (!message || !allowedOrigins.includes(message.origin)) return;
 		const ack = message.data as Partial<Handshake.ProjectTransferAckMessage> | null;
 		if (!ack || typeof ack !== 'object' || ack.kind !== 'ack' || typeof ack.entryId !== 'string') return;
+		if (!posted.has(ack.entryId)) return;
 		const entry = offered.get(ack.entryId);
 		if (!entry) return;
 		offered.delete(ack.entryId);

@@ -40,6 +40,7 @@ import {
 	createWindowTransferPort,
 	type TransferMessageEventLike,
 } from '../src/common/transfer/transfer-window-port.ts';
+import { observeTransferAcknowledgements } from '../src/common/transfer/transfer-send-watch.ts';
 import { archiveBytes, createFakeArchive, FakeStore } from './project-transfer-bundle-fixture.ts';
 
 const SOUNDSCAPER = 'https://soundscaper.org';
@@ -243,6 +244,50 @@ test('a peer that never answers fails the transfer instead of hanging it', async
 		`and the archive's row says which of the two it is; saw ${JSON.stringify(described.rows)}`,
 	);
 	assert.deepEqual(store.deletions, [], 'and the sending origin still loses nothing');
+});
+
+test('the fallback watch ignores acknowledgements for entries not yet posted', () => {
+	let receive: ((message: {
+		origin: string;
+		data: Record<string, unknown>;
+	}) => void) | null = null;
+	const watch = observeTransferAcknowledgements({
+		post: () => undefined,
+		subscribe: (listener) => {
+			receive = listener;
+			return () => undefined;
+		},
+	}, [{
+		entryId: 'p1',
+		name: 'One.sscape',
+		byteLength: 4,
+		payload: new Uint8Array(4),
+		conversionReportSidecar: null,
+	}], [FRAMESCAPER]);
+	watch.port.subscribe(() => undefined);
+	const acknowledge = () => receive?.({
+		origin: FRAMESCAPER,
+		data: {
+			protocol: 'soundscaper-project-transfer',
+			version: PROJECT_TRANSFER_PROTOCOL_VERSION,
+			sessionId: 'early-ack',
+			kind: 'ack',
+			sequence: 1,
+			entryId: 'p1',
+			status: 'stored',
+			reason: '',
+		},
+	});
+
+	acknowledge();
+	assert.deepEqual(watch.outcomes, []);
+	assert.deepEqual(watch.unsent.map(({ entryId }) => entryId), ['p1']);
+	watch.port.post({
+		kind: 'entry',
+		entryId: 'p1',
+	}, FRAMESCAPER);
+	acknowledge();
+	assert.deepEqual(watch.outcomes.map(({ entryId }) => entryId), ['p1']);
 });
 
 /* ------------------------------------------------------------------ */
