@@ -78,6 +78,24 @@ test('containment receipts require observed hostile-operation denial, not policy
 			stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE network allowed\n', stderr: '',
 		},
 	), /observed denial|hostile containment probe/iu);
+	assert.deepEqual(assertSoundscaperProfessionalContainmentProbeResult(
+		'isolation-rss-ceiling', {
+			exitCode: 128, signal: 'SIGKILL',
+			stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n', stderr: '',
+		},
+	), { scenario: 'isolation-rss-ceiling', status: 'observed-terminated' });
+	for (const completion of [{
+		exitCode: 126, signal: null,
+		stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n'
+			+ 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling survived\n', stderr: '',
+	}, {
+		exitCode: 128, signal: 'SIGTERM',
+		stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n', stderr: '',
+	}]) {
+		assert.throws(() => assertSoundscaperProfessionalContainmentProbeResult(
+			'isolation-rss-ceiling', completion,
+		), /RSS ceiling|hostile containment probe/iu);
+	}
 });
 
 test('hostile probes traverse the enforced peer path with only the intended broker grant', async () => {
@@ -122,6 +140,42 @@ test('hostile probes traverse the enforced peer path with only the intended brok
 	}
 });
 
+test('the macOS RSS probe reaches the authenticated peer then requires supervisor SIGKILL', async () => {
+	const peer = probeArtifact(resolve(tmpdir(), 'soundscaper-rss-probe-peer'));
+	let request = null;
+	const result = await runSoundscaperProfessionalNativeContainmentProbe({
+		scenario: 'isolation-rss-ceiling',
+		launcher: {
+			launch: async (value) => {
+				request = value;
+				return {
+					enforcement: {
+						kind: 'native-child-os-isolation-enforced',
+						target: 'mac-arm64',
+						launcherId: 'soundscaper-macos-seatbelt-broker-v1',
+					},
+					completion: Promise.resolve({
+						exitCode: 128, signal: 'SIGKILL',
+						stdout: 'SOUNDSCAPER_CONTAINMENT_PROBE rss-ceiling pressure-started\n',
+						stderr: '',
+					}),
+				};
+			},
+		},
+		peer,
+		runtimeClosure: [],
+	});
+	assert.equal(result.status, 'observed-terminated');
+	assert.equal(request.executable, peer);
+	assert.equal(request.workloadPayload, peer);
+	assert.deepEqual(request.arguments, ['--soundscaper-containment-probe=rss-ceiling']);
+	assert.equal(request.resourcePolicy.maximumRssBytes, 128 * 1024 ** 2);
+	assert.equal(request.resourcePolicy.maximumJobDurationMs, 30_000);
+	assert.deepEqual(request.readOnly, []);
+	assert.deepEqual(request.readExecute, []);
+	assert.deepEqual(request.writeOnly, []);
+});
+
 test('the target peer contains purpose-built filesystem, network, and child-process attempts', async () => {
 	const source = await readFile(resolve(import.meta.dirname,
 		'../native/soundscaper-professional-host/src/professional_host_peer.cpp'), 'utf8');
@@ -129,6 +183,11 @@ test('the target peer contains purpose-built filesystem, network, and child-proc
 	assert.match(source, /(?:fopen|ifstream)/u);
 	assert.match(source, /\bconnect\s*\(/u);
 	assert.match(source, /\b(?:fork|CreateProcessW)\s*\(/u);
+	assert.match(source,
+		/rss-ceiling pressure-started[\s\S]*256u \* 1024u \* 1024u[\s\S]*volatile/u,
+		'the target peer must make resident memory pressure after its sandbox attestation');
+	assert.match(source, /rss-ceiling survived/u,
+		'the target peer must make a missing supervisor termination observable');
 });
 
 test('desktop preparation invokes the stable native gate only for Soundscaper stable selection', () => {
