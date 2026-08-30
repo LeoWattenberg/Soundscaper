@@ -219,12 +219,13 @@ export async function acquireFramescaperDesktopCoreBodies(
 	try {
 		for (const body of bodies) {
 			throwIfScapeAborted(signal);
+			if (!missing.has(bodyKey(body))) continue;
 			const reference = references.get(bodyKey(body))!;
-			activeWriter = missing.has(bodyKey(body)) ? await store.beginMediaAssetWrite(
+			activeWriter = await store.beginMediaAssetWrite(
 				body.storageKey,
 				{ kind: body.kind, encoding: body.encoding, mimeType: body.mimeType, name: reference.name },
 				{ expectedBytes: body.byteLength, expectedSha256: body.sha256, signal },
-			) : null;
+			);
 			const digest = sha256.create();
 			const timingChunks: Uint8Array[] | null = reference.timing ? [] : null;
 			for (let offset = 0; offset < body.byteLength;) {

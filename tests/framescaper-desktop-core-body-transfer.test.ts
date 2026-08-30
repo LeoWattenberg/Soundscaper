@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
+import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
+import {
+	acquireFramescaperDesktopBodies,
+} from '../src/framescaper/desktop-project-library-body-transfer.ts';
 import {
 	FRAMESCAPER_DESKTOP_CORE_MAXIMUM_BODY_CHUNK_BYTES as MAXIMUM_CHUNK_BYTES,
 	prepareFramescaperDesktopCorePublicationBodies as prepareBodies,
@@ -92,4 +97,38 @@ test('a proxy body carries a binding identity the other kinds do not', () => {
 		() => validate([body({ bindingId: 'binding-1' })]),
 		/missing or unsupported fields/u,
 	);
+});
+
+test('acquisition does not fetch a body that was already verified locally', async () => {
+	const bytes = new TextEncoder().encode('already retained video body');
+	const sha256 = createHash('sha256').update(bytes).digest('hex');
+	const storageKey = `media-sha256:${sha256}`;
+	const source = createVideoSource({
+		id: 'retained-video', name: 'retained.mp4', storageKey, mimeType: 'video/mp4',
+		contentSha256: sha256, sampleFrameCount: 48_000, sourceFrameCount: 30,
+		frameRate: { num: 30, den: 1 }, width: 640, height: 360, videoCodec: 'h264',
+	});
+	const candidate = createFramescaperProject(PROFILE, { sources: [source] } as never);
+	const descriptor = Object.freeze({
+		kind: 'video-original', encoding: 'framescaper-video-original-v1',
+		sourceId: storageKey, storageKey, mimeType: 'video/mp4',
+		byteLength: bytes.byteLength, sha256,
+	});
+	let readCount = 0;
+	await acquireFramescaperDesktopBodies(candidate, SHA256, [descriptor], {
+		async readBodyChunk() {
+			readCount += 1;
+			throw new Error('an already retained body must not cross the desktop bridge');
+		},
+	}, {
+		getMediaAssetMetadata: () => ({
+			sourceId: storageKey, mimeType: descriptor.mimeType,
+			size: bytes.byteLength, sha256,
+		}),
+		loadMediaAsset: () => new Blob([bytes]),
+		beginMediaAssetWrite: async () => {
+			throw new Error('an already retained body must not be rewritten');
+		},
+	} as never);
+	assert.equal(readCount, 0);
 });
