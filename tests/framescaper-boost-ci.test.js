@@ -57,6 +57,12 @@ test('the Boost downloader publishes only exact URL, length, and digest bytes', 
 	});
 	assert.equal(downloaded.path, destination);
 	assert.equal(String(await readFile(destination)), 'closure');
+	const preexisting = join(temporary, 'preexisting.tar.bz2');
+	await writeFile(preexisting, 'owned by another operation');
+	await assert.rejects(downloadPinnedFramescaperBoost({
+		destination: preexisting, admission, fetchImpl,
+	}), /EEXIST|exist/iu);
+	assert.equal(String(await readFile(preexisting)), 'owned by another operation');
 
 	async function rejectsAndRemoves(name, options, pattern) {
 		const rejected = join(temporary, `${name}.tar.bz2`);

@@ -104,8 +104,10 @@ export async function downloadPinnedFramescaperBoost({
 	}
 
 	let handle;
+	let created = false;
 	try {
 		handle = await open(path, 'wx', 0o600);
+		created = true;
 		const hash = createHash('sha256');
 		let byteLength = 0;
 		for await (const value of response.body) {
@@ -124,7 +126,7 @@ export async function downloadPinnedFramescaperBoost({
 	} catch (error) {
 		await handle?.close().catch(() => {});
 		handle = undefined;
-		await rm(path, { force: true });
+		if (created) await rm(path, { force: true });
 		throw error;
 	} finally {
 		await handle?.close();
