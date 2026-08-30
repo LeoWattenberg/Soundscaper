@@ -99,7 +99,7 @@ export async function createFramescaperNativeImageSequenceRegistration(
 		mintOpaqueId: options.mintOpaqueId,
 		runtimeAvailable: options.runtimeAvailable,
 	});
-	await authority.recover();
+	await Promise.all([authority.recover(), decodeAuthority.recover()]);
 	let importIpc: ReturnType<typeof registerFramescaperNativeImageSequenceImportMainIpc> | null = null;
 	let decodeIpc: ReturnType<typeof registerFramescaperNativeImageSequenceDecodeMainIpc> | null = null;
 	return Object.freeze({

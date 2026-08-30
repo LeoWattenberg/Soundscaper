@@ -105,6 +105,18 @@ export class FramescaperNativeImageSequenceDecodeAuthority {
 		});
 	}
 
+	async recover(): Promise<void> {
+		this.#assertOpen();
+		if (this.#active.size !== 0 || this.#claims.size !== 0) {
+			throw new Error('Image-sequence decode recovery requires an idle authority.');
+		}
+		await Promise.all([
+			rm(join(this.#options.root, 'decoded-claims'), { recursive: true, force: true }),
+			rm(join(this.#options.root, 'decode-plans'), { recursive: true, force: true }),
+			rm(this.#options.scratchRoot, { recursive: true, force: true }),
+		]);
+	}
+
 	request(ownerValue: object, request: FramescaperNativeImageSequenceDecodeRequest): Promise<unknown> {
 		this.#assertOpen();
 		const owner = exactOwner(ownerValue);

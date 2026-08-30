@@ -71,6 +71,29 @@ test('real authority decode retains exact 60000/1001 source, grant, pack, and cl
 	await fixture.authority.dispose();
 });
 
+test('restart recovery removes decoded claims, plans, and helper scratch reservations', async (t) => {
+	const fixture = await authorityFixture(t);
+	const claimPath = join(fixture.root, 'decoded-claims', 'orphan.rgba-pack');
+	const planPath = join(fixture.root, 'decode-plans', 'orphan.json');
+	const scratchPath = join(fixture.scratchRoot, 'orphan', 'output.rgba-pack');
+	await Promise.all([
+		mkdir(join(fixture.root, 'decoded-claims'), { recursive: true }),
+		mkdir(join(fixture.root, 'decode-plans'), { recursive: true }),
+		mkdir(join(fixture.scratchRoot, 'orphan'), { recursive: true }),
+	]);
+	await Promise.all([
+		writeFile(claimPath, 'claim'), writeFile(planPath, 'plan'), writeFile(scratchPath, 'scratch'),
+	]);
+
+	await fixture.authority.recover();
+
+	await Promise.all([
+		assert.rejects(lstat(claimPath), { code: 'ENOENT' }),
+		assert.rejects(lstat(planPath), { code: 'ENOENT' }),
+		assert.rejects(lstat(scratchPath), { code: 'ENOENT' }),
+	]);
+});
+
 test('owner revocation waits for in-flight admission settlement and prevents helper work', async (t) => {
 	const readStarted = deferred<void>();
 	const releaseRead = deferred<void>();
@@ -197,6 +220,7 @@ interface Claim {
 interface Fixture {
 	readonly directory: string;
 	readonly root: string;
+	readonly scratchRoot: string;
 	readonly decoded: Uint8Array;
 	readonly bundle: Readonly<Record<string, unknown>>;
 	readonly authority: FramescaperNativeImageSequenceDecodeAuthority;
@@ -297,7 +321,9 @@ async function authorityFixture(t: TestContext,
 		mintOpaqueId: () => (++opaqueId).toString(16).padStart(40, '0'),
 		runtimeAvailable: () => true,
 	});
-	const fixture = Object.freeze({ directory, root, decoded, bundle, authority, jobs: () => jobCount });
+	const fixture = Object.freeze({
+		directory, root, scratchRoot, decoded, bundle, authority, jobs: () => jobCount,
+	});
 	return fixture;
 }
 
