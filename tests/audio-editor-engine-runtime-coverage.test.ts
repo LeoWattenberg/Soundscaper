@@ -36,6 +36,7 @@ import {
 } from '../src/common/editor/engine/project-effects.ts';
 import { ENGINE_SCHEDULE_CURRENT_PLAYBACK } from '../src/common/editor/engine/runtime-symbols.ts';
 import type { EngineRuntimeHost } from '../src/common/editor/engine/runtime-types.ts';
+import { createStreamingWindowedSincResampler } from '../src/common/editor/resample.js';
 import type {
 	EngineChunkSource,
 	EngineProject,
@@ -231,6 +232,47 @@ test('reversed offline chunk scheduling reads cross-chunk ranges in reverse orde
 		}),
 		mode: 'offline',
 	}), /missing channels/u);
+});
+
+test('offline time-stretched chunks use one phase-continuous resample', async () => {
+	const context = new TestAudioContext(8);
+	const input = Float32Array.from({ length: 20 }, (_, frame) => Math.sin(frame * 0.7));
+	const reads: number[] = [];
+	const provider: EngineChunkSource = {
+		channelCount: 1, frameCount: 20, chunkFrames: 4, sampleRate: 8,
+		readStorageChunk(index) {
+			reads.push(index);
+			return [input.slice(index * 4, Math.min(input.length, (index + 1) * 4))];
+		},
+	};
+	await scheduleProjectClips({
+		context: context as unknown as BaseAudioContext,
+		project: {
+			sampleRate: 8,
+			clips: [{
+				id: 'clip', sourceId: 'source', timelineStartFrame: 0,
+				durationFrames: 8, sourceStartFrame: 0, sourceDurationFrames: 13,
+			}],
+			tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'] }],
+		},
+		sources: new Map(), chunkSources: new Map([['source', provider]]),
+		trackInputs: new Map([['track', new TestAudioNode() as unknown as AudioNode]]),
+		fromFrame: 1, toFrame: 8, contextStartTime: 0, sampleRate: 8,
+		reversedBuffers: new WeakMap(), sourceResolver: null,
+		activeSources: new Set(), allNodes: [] as AudioNode[], mode: 'offline',
+	});
+	assert.deepEqual(reads, [0, 1, 2, 3, 4]);
+	assert.deepEqual(context.buffers.map(({ length }) => length), [7]);
+	assert.equal(context.sources.length, 1);
+	const resampler = createStreamingWindowedSincResampler(11.375, 7, 1, {
+		initialInputPosition: 1.625,
+	}) as unknown as {
+		push(channels: Float32Array[]): Float32Array[];
+		finish(frames: number): Float32Array[];
+	};
+	const first = resampler.push([input])[0] as Float32Array;
+	const tail = resampler.finish(7)[0] as Float32Array;
+	assert.deepEqual([...context.buffers[0]!.getChannelData(0)], [...first, ...tail]);
 });
 
 test('effect rack and project helpers cover invalid and inactive graph paths', () => {

@@ -38,6 +38,7 @@ import type {
 } from './types.ts';
 import { scheduleProjectAutomationLanesV21 } from './project-automation-scheduler-v21.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
+import { createOfflineChunkResampleBuffer } from './offline-chunk-resample.ts';
 
 const STREAM_RESAMPLE_RADIUS = 24;
 
@@ -503,12 +504,13 @@ async function scheduleOfflineChunkPlan({
 }: OfflineChunkPlanOptions): Promise<void> {
 	if (!plan.chunkSource) throw longSourceError('The long-source clip provider is unavailable.');
 	const provider = plan.reversed ? createReversedChunkSource(plan.chunkSource) : plan.chunkSource;
-	const sourceEndFrame = Math.min(
-		provider.frameCount,
-		plan.offsetFrame + plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate,
-	);
-	const firstChunk = Math.floor(plan.offsetFrame / provider.chunkFrames);
-	const lastChunk = Math.max(firstChunk, Math.ceil(sourceEndFrame / provider.chunkFrames) - 1);
+	const requestedInputFrames = plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate;
+	const outputFrameCount = Math.round(plan.segmentDuration * context.sampleRate);
+	const roundedStart = Math.round(plan.offsetFrame);
+	const roundedInputFrames = Math.round(requestedInputFrames);
+	const direct = Math.abs(roundedStart - plan.offsetFrame) <= 1e-9
+		&& Math.abs(roundedInputFrames - requestedInputFrames) <= 1e-9
+		&& roundedInputFrames === outputFrameCount;
 	const chain = createClipGainChain(context, plan.trackInput, allNodes);
 	const clipStartTime = contextStartTime + (plan.segmentStart - fromFrame) / sampleRate;
 	scheduleClipGain(
@@ -523,6 +525,28 @@ async function scheduleOfflineChunkPlan({
 		sampleRate,
 		plan,
 	);
+	if (!direct) {
+		const buffer = await createOfflineChunkResampleBuffer({
+			context, source: provider, inputOffsetFrame: plan.offsetFrame,
+			inputFrameCount: requestedInputFrames, outputFrameCount, signal,
+			onInputFrames: onChunkLoaded,
+		});
+		const source = addNode(allNodes, context.createBufferSource());
+		source.buffer = buffer;
+		connect(source, chain.input);
+		setParam(source.playbackRate, 1, clipStartTime);
+		try {
+			source.start(clipStartTime, 0, outputFrameCount / context.sampleRate);
+			activeSources.add(source);
+		} catch { /* Web Audio range errors skip only this segment. */ }
+		return;
+	}
+	const sourceEndFrame = Math.min(
+		provider.frameCount,
+		plan.offsetFrame + requestedInputFrames,
+	);
+	const firstChunk = Math.floor(plan.offsetFrame / provider.chunkFrames);
+	const lastChunk = Math.max(firstChunk, Math.ceil(sourceEndFrame / provider.chunkFrames) - 1);
 	for (let chunkIndex = firstChunk; chunkIndex <= lastChunk; chunkIndex += 1) {
 		throwIfAborted(signal);
 		const value = await provider.readStorageChunk(chunkIndex, { signal });
