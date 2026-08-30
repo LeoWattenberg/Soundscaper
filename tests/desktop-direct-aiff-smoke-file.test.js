@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { appendFile, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -74,6 +74,15 @@ test('completed AIFF file evidence validation admits only the exact verifier sha
 		mutation(evidence);
 		assert.throws(() => validateDesktopDirectAiffFileEvidence(evidence), /AIFF|PCM/iu);
 	}
+});
+
+test('AIFF verification rechecks mutation metadata and the completed path identity', async () => {
+	const source = await readFile(new URL('../scripts/lib/desktop-direct-aiff-smoke-file.mjs', import.meta.url), 'utf8');
+	assert.match(source, /current\.isSymbolicLink\(\)/u);
+	assert.match(source, /current\.mtimeMs !== expected\.mtimeMs/u);
+	assert.match(source, /current\.ctimeMs !== expected\.ctimeMs/u);
+	assert.match(source, /afterPath = await lstat\(path\)/u);
+	assert.match(source, /assertStableIdentity\(afterPath, pathMetadata, 'during path validation'\)/u);
 });
 
 test('generic PCM signal aliases preserve little endian and opt into big endian explicitly', () => {

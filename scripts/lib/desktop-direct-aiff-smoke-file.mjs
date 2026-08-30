@@ -74,6 +74,13 @@ export async function verifyDesktopDirectAiffFile(filePath, {
 		if (byteLength !== geometry.byteLength) throw new Error('Completed direct-AIFF EOF changed during validation');
 		const after = await handle.stat();
 		assertStableIdentity(after, metadata, 'during validation');
+		let afterPath;
+		try {
+			afterPath = await lstat(path);
+		} catch (error) {
+			throw new Error('Completed direct-AIFF output path identity changed during validation', { cause: error });
+		}
+		assertStableIdentity(afterPath, pathMetadata, 'during path validation');
 		const signal = validateDesktopDirectPcmSignalEvidence(analyzer.finish(), geometry, signalLimits);
 		return deepFreeze({
 			byteLength,
@@ -232,8 +239,10 @@ function validateExpectedGeometry(value) {
 }
 
 function assertStableIdentity(current, expected, phase) {
-	if (!current.isFile() || current.dev !== expected.dev || current.ino !== expected.ino
-		|| current.size !== expected.size) {
+	if (!current.isFile() || current.isSymbolicLink()
+		|| current.dev !== expected.dev || current.ino !== expected.ino
+		|| current.size !== expected.size || current.mtimeMs !== expected.mtimeMs
+		|| current.ctimeMs !== expected.ctimeMs) {
 		throw new Error(`Completed direct-AIFF output identity changed ${phase}`);
 	}
 }
