@@ -437,6 +437,7 @@ async function main() {
 		?? fileURLToPath(new URL('../test-results/quality/m3-longform-editorial', import.meta.url)));
 	const collected = await collectM3LongformEditorialDiagnostic({ outputDirectory });
 	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
+	if (collected.result.status === 'failed') process.exitCode = 1;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) await main();

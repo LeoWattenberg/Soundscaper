@@ -420,6 +420,7 @@ async function main() {
 		?? fileURLToPath(new URL('../test-results/quality/m4b2-keyframe-render-parity', import.meta.url)));
 	const collected = await collectM4B2KeyframeParityDiagnostic({ outputDirectory });
 	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
+	if (collected.result.status === 'failed') process.exitCode = 1;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) await main();
