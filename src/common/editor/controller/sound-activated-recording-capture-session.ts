@@ -134,7 +134,10 @@ export function createSoundActivatedRecordingCaptureSession(
 				const previous = gate.state;
 				if (!gate.arm()) throw new Error('The sound activation gate could not be armed.');
 				scheduledStartFrame = startFrame;
-				expectedNextFrame = startFrame;
+				// The worklet can observe this message after the scheduled frame has
+				// passed. Its first delivered chunk establishes the capture epoch;
+				// subsequent chunks must still be exactly contiguous.
+				expectedNextFrame = null;
 				publishState(previous);
 				try {
 					controller.start(options);

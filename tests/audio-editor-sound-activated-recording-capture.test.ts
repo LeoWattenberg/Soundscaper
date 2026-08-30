@@ -399,6 +399,36 @@ test('capture admission rejects channel drift, non-finite PCM, and non-contiguou
 	assert.equal(session.state, 'armed');
 });
 
+test('a late first worklet chunk establishes the contiguous sound-activation epoch', () => {
+	const session = createSoundActivatedRecordingCaptureSession({
+		getSettings: () => SETTINGS,
+		setState: () => undefined,
+	}, {
+		sourceKey: 'device:mic',
+		kind: 'device',
+		sampleRate: 48_000,
+		channelCount: 1,
+	}, () => true);
+	const controller = session.wrapController(createStatefulCaptureController().controller);
+	controller.start({ startFrame: 100 });
+
+	assert.doesNotThrow(() => session.process({
+		frameStart: 104,
+		frames: 1,
+		channels: [Float32Array.of(0.5)],
+	}));
+	assert.doesNotThrow(() => session.process({
+		frameStart: 105,
+		frames: 1,
+		channels: [Float32Array.of(0)],
+	}));
+	assert.throws(() => session.process({
+		frameStart: 107,
+		frames: 1,
+		channels: [Float32Array.of(0)],
+	}), /contiguous/iu);
+});
+
 test('non-finite recorder PCM is rejected before meters, persistence, preview, or sequence advance', async () => {
 	const fixture = createRecordingCaptureFixture({
 		soundActivationSettings: SETTINGS,
