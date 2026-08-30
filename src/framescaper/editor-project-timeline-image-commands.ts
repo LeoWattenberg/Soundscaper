@@ -138,13 +138,51 @@ function applyInherited(
 	options: FramescaperProjectCommandOptionsTimelineImage,
 ): Record<string, unknown> {
 	const images = captureImages(project);
+	const imageClipIds = new Set(
+		[...images.timelineClips, ...images.binClips].map(({ id }) => String(id)),
+	);
+	const selection = projectInheritedImageSelection(command, imageClipIds);
 	const applied = applyFramescaperProjectCommandNativeMedia(
 		FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE,
 		framescaperProjectNativeMediaFoundationShapeTimelineImage(project),
-		command,
+		selection.command,
 		options,
 	) as unknown as Record<string, unknown>;
-	return restoreImages(applied, images);
+	return restoreImages(
+		applied,
+		images,
+		selection.selectedClipIds ?? images.selectedClipIds,
+	);
+}
+
+interface InheritedImageSelectionProjection {
+	readonly command: FramescaperProjectCommandNativeMedia;
+	readonly selectedClipIds: ReadonlySet<string> | null;
+}
+
+function projectInheritedImageSelection(
+	command: FramescaperProjectCommandNativeMedia,
+	imageClipIds: ReadonlySet<string>,
+): InheritedImageSelectionProjection {
+	let selectedClipIds: ReadonlySet<string> | null = null;
+	const visit = (value: FramescaperProjectCommandNativeMedia): FramescaperProjectCommandNativeMedia => {
+		if (value.type === 'batch') {
+			const batch = value as unknown as Readonly<{
+				readonly commands: readonly FramescaperProjectCommandNativeMedia[];
+			}>;
+			return { type: 'batch', commands: batch.commands.map(visit) };
+		}
+		if (value.type !== 'selection/set') return value;
+		const selection = value as unknown as Readonly<Record<string, unknown>>;
+		if (!Array.isArray(selection.clipIds)) return value;
+		const clipIds = selection.clipIds.map(String);
+		selectedClipIds = new Set(clipIds.filter((id) => imageClipIds.has(id)));
+		return {
+			...selection,
+			clipIds: clipIds.filter((id) => !imageClipIds.has(id)),
+		} as unknown as FramescaperProjectCommandNativeMedia;
+	};
+	return Object.freeze({ command: visit(command), selectedClipIds });
 }
 
 interface ImageState {
@@ -174,7 +212,11 @@ function captureImages(project: FramescaperProjectTimelineImage): ImageState {
 	});
 }
 
-function restoreImages(project: Record<string, unknown>, images: ImageState): Record<string, unknown> {
+function restoreImages(
+	project: Record<string, unknown>,
+	images: ImageState,
+	selectedClipIds: ReadonlySet<string>,
+): Record<string, unknown> {
 	project.schemaVersion =  1;
 	// A timeline image belongs to exactly one video track. When the inherited
 	// command removed that track the image goes with it: restoring it would
@@ -199,7 +241,7 @@ function restoreImages(project: Record<string, unknown>, images: ImageState): Re
 	const selection = record(project.selection, 'selection');
 	if (Array.isArray(selection.clipIds)) selection.clipIds = [
 		...selection.clipIds,
-		...[...images.selectedClipIds].filter((id) => restoredIds.has(id)),
+		...[...selectedClipIds].filter((id) => restoredIds.has(id)),
 	];
 	return project;
 }
