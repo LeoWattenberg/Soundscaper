@@ -180,7 +180,7 @@ function AudioDevicePanel({ copy, state, disabled, perform }: Readonly<{
 				? <p>{copy.noDevices}</p>
 				: <ul aria-label={copy.audioDevices}>
 					{routes.map((route) => <AudioRouteControl
-						key={route.handle}
+						key={audioRouteIdentity(devices.inventory.backend, route)}
 						copy={copy}
 						backend={devices.inventory.backend}
 						route={route}
@@ -245,6 +245,10 @@ interface AudioRoute {
 	readonly maximumChannels: Readonly<Partial<Record<
 		NativeAudioSessionOpenRequestV1['direction'], number
 	>>>;
+}
+
+function audioRouteIdentity(backend: string, route: AudioRoute): string {
+	return JSON.stringify([backend, route.handle, route.directions, route.maximumChannels]);
 }
 
 function AudioRouteControl({ copy, backend, route, preference, availableBackends, disabled, perform }: Readonly<{

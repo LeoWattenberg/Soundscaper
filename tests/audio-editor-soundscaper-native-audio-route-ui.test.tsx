@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import type {
@@ -12,10 +12,16 @@ import type {
 import {
 	EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
 	runSoundscaperNativeServicesAction,
+	type SoundscaperNativeServicesDialogAction,
+	type SoundscaperNativeServicesDialogState,
 } from '../src/common/editor/ui/soundscaper-native-services-dialog-model.ts';
+import type {
+	SoundscaperNativeServicesDialogRuntime,
+} from '../src/common/editor/ui/soundscaper-native-services-dialog-runtime.ts';
 import SoundscaperNativeServicesDialog, {
 	createNativeAudioRouteOpenRequest,
 } from '../src/common/editor/ui/dialogs/SoundscaperNativeServicesDialog.tsx';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 const bridge = {} as SoundscaperNativeServicesBridge;
 
@@ -94,6 +100,64 @@ test('asymmetric duplex handles preserve the channel limit of each selected dire
 	const output = renderRoute(preference('output', 2));
 	assert.match(output, /data-native-audio-direction="studio-interface"[^>]*>[^]*value="output" selected=""/iu);
 	assert.match(output, /max="2"[^>]*data-native-audio-channel-count="studio-interface"[^>]*value="2"/iu);
+});
+
+test('a device handle reused by another backend receives that backend route defaults', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const listeners = new Set<() => void>();
+	const actions: SoundscaperNativeServicesDialogAction[] = [];
+	let state = routeState('wasapi');
+	const runtime: SoundscaperNativeServicesDialogRuntime = {
+		getState: () => state,
+		subscribe: (listener) => {
+			listeners.add(listener);
+			return () => { listeners.delete(listener); };
+		},
+		perform: (action) => {
+			actions.push(action);
+			return Promise.resolve(state);
+		},
+	};
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperNativeServicesDialog
+			bridge={bridge}
+			runtime={runtime}
+			initialSurface="native-audio-device"
+			onClose={() => undefined}
+		/>));
+		assert.equal(reactProps(dom.one('[data-native-audio-mode="shared-handle"]')).value, 'shared');
+		actions.length = 0;
+
+		await act(async () => {
+			state = routeState('asio');
+			for (const listener of listeners) listener();
+		});
+		assert.equal(reactProps(dom.one('[data-native-audio-mode="shared-handle"]')).value, 'exclusive',
+			'an ASIO route must not inherit the shared mode from a same-handle WASAPI route');
+		await act(async () => {
+			state = routeState('asio', 'input');
+			for (const listener of listeners) listener();
+		});
+		assert.equal(reactProps(dom.one('[data-native-audio-direction="shared-handle"]')).value, 'input',
+			'a refreshed handle must not retain a direction the new inventory no longer offers');
+		await act(async () => {
+			reactProps(dom.one('[data-native-audio-open="shared-handle"]')).onClick({});
+		});
+		assert.equal(actions.at(-1)?.type, 'open-audio-session');
+		if (actions.at(-1)?.type === 'open-audio-session') {
+			assert.equal(actions.at(-1).request.mode, 'exclusive');
+			assert.equal(actions.at(-1).request.direction, 'input');
+		}
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('route controls resolve every user-visible label through the host copy catalog', () => {
@@ -200,3 +264,21 @@ test('restored route values and changed controls issue the exact request through
 	assert.throws(() => createNativeAudioRouteOpenRequest({ ...preference, mode: 'shared' }), /selection/iu);
 	assert.throws(() => createNativeAudioRouteOpenRequest({ ...preference, channelCount: 33 }), /bounds/iu);
 });
+
+function routeState(
+	backend: 'wasapi' | 'asio',
+	direction: 'input' | 'output' = 'output',
+): SoundscaperNativeServicesDialogState {
+	return {
+		...EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
+		audio: {
+			enabled: true, quarantined: false,
+			payload: { status: 'available', reason: null, detail: '' }, backends: [backend],
+		},
+		devices: { status: 'described', inventory: {
+			backend, status: 'ready', detail: '', devices: [{
+				handle: 'shared-handle', label: 'Shared handle', direction, channelCount: 2,
+			}],
+		} },
+	};
+}
