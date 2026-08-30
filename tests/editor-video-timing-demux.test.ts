@@ -91,25 +91,31 @@ test('the container demuxer reads the pinned irregular WebM timing exactly', asy
 });
 
 test('Matroska BlockDuration belongs to its enclosing block group and never leaks to simple blocks', async () => {
-	const explicitLast = await demuxMatroskaVideoTiming(createVideoTimingDemuxReader(new Blob([
+	const explicitLast = await demuxMatroskaVideoTiming(createVideoTimingDemuxReader(fixtureBlob(
 		matroskaTimingFixture([
 			block(0, 'simple'),
 			block(10, 'group', 7),
 		]),
-	])));
+	)));
 	assert.equal(explicitLast?.finalFrameDurationTicks, 7n,
 		'a duration written after Block still belongs to that BlockGroup');
 
-	const followedBySimpleBlocks = await demuxMatroskaVideoTiming(createVideoTimingDemuxReader(new Blob([
+	const followedBySimpleBlocks = await demuxMatroskaVideoTiming(createVideoTimingDemuxReader(fixtureBlob(
 		matroskaTimingFixture([
 			block(0, 'group', 7),
 			block(10, 'simple'),
 			block(20, 'simple'),
 		]),
-	])));
+	)));
 	assert.equal(followedBySimpleBlocks?.finalFrameDurationTicks, 10n,
 		'a later SimpleBlock derives its own duration instead of inheriting the group duration');
 });
+
+function fixtureBlob(bytes: Uint8Array): Blob {
+	const copy = new Uint8Array(bytes.byteLength);
+	copy.set(bytes);
+	return new Blob([copy.buffer]);
+}
 
 test('the container demuxer reports coded geometry separately from rotation and sample aspect', async () => {
 	for (const fixture of videoSourceGeometryMedia) {
