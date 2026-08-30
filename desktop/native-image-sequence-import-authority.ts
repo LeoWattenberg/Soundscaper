@@ -60,13 +60,12 @@ import type {
 import {
 	assertImageSequenceReferenceFile,
 	assertImageSequenceReferenceHandle,
-	assertImageSequenceRegularFile,
-	digestImageSequencePath,
 	imageSequenceFsErrorHasCode,
 	imageSequenceStorageSha256,
 	readImageSequenceRange,
 	referenceFromImageSequenceStorageKey,
 } from './native-image-sequence-import-storage.ts';
+import { NativeImageSequenceVerifiedBodyReader } from './native-image-sequence-body-reader.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
@@ -149,6 +148,7 @@ export class FramescaperNativeImageSequenceImportAuthority {
 	readonly #options: FramescaperNativeImageSequenceImportAuthorityOptions;
 	readonly #transactions = new Map<string, Transaction>();
 	readonly #pendingTransfers = new Map<string, PendingTransfer>();
+	readonly #bodyReader = new NativeImageSequenceVerifiedBodyReader();
 	constructor(options: FramescaperNativeImageSequenceImportAuthorityOptions) {
 		if (!options.root || !isAbsolute(options.root)) {
 			throw new TypeError('The image-sequence authority requires an absolute main-owned root.');
@@ -232,23 +232,10 @@ export class FramescaperNativeImageSequenceImportAuthority {
 
 	async readProjectBody(input: Readonly<{ storageKey: string; offset: number; length: number }>): Promise<Uint8Array> {
 		const reference = referenceFromImageSequenceStorageKey(input.storageKey);
-		const path = this.#assetPath(reference);
-		await assertImageSequenceRegularFile(path);
-		const actual = await digestImageSequencePath(path);
-		if (actual.digest !== reference.sha256) throw new Error('The project body changed after publication.');
-		if (!Number.isSafeInteger(input.offset) || !Number.isSafeInteger(input.length)
-			|| input.offset < 0 || input.length < 1
-			|| input.length > NATIVE_MEDIA_IMAGE_SEQUENCE_PACK_MAXIMUM_CHUNK_BYTES
-			|| input.offset + input.length > actual.length) {
-			throw new RangeError('The project-body read is outside its bounded published asset.');
-		}
-		const handle = await open(path, 'r');
-		try {
-			const bytes = new Uint8Array(input.length);
-			const result = await handle.read(bytes, 0, bytes.byteLength, input.offset);
-			if (result.bytesRead !== bytes.byteLength) throw new Error('The project-body read was short.');
-			return bytes;
-		} finally { await handle.close(); }
+		return this.#bodyReader.read(
+			this.#assetPath(reference), reference.sha256, input.offset, input.length,
+			NATIVE_MEDIA_IMAGE_SEQUENCE_PACK_MAXIMUM_CHUNK_BYTES,
+		);
 	}
 
 	async revokeOwner(owner: object): Promise<void> {
