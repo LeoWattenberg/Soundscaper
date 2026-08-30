@@ -69,6 +69,7 @@ import {
 	framescaperSupplementalPictureIdentityFinishing,
 	validatedFramescaperSupplementalPictureIdsFinishing,
 } from './selected-finishing-supplemental-picture-authority.ts';
+import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
 type Data = Readonly<Record<string, unknown>>;
 export interface FramescaperSelectedExactFrameExecutionFinishing {
 	render(request: Readonly<{
@@ -209,7 +210,7 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 			);
 			const rawVisuals = new Map(await materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 				visualEntries.filter(({ modelId }) => !supplementalPictureIds.has(modelId)), visualAssets.stills,
-				width, height, signal, openFxPlanes,
+				width, height, options.plan.output.canvas.fit, signal, openFxPlanes,
 			));
 			if (supplementalPictureIds.size > 0) {
 				const transparent = Object.freeze({
@@ -427,13 +428,19 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 		for (const entry of entries) {
 			const raw = requiredVisual(maskInputs, entry.modelId);
 			const linear = gradeVisual(finishing, entry, raw, finishingAssets.luts, signal);
+			const placement = resolveFramescaperVisualPlacementFinishing(entry, {
+				width, height, fit: options.plan.output.canvas.fit,
+			});
+			if (linear.width !== placement.width || linear.height !== placement.height) {
+				throw new RangeError(`Selected finishing visual ${entry.modelId} changed materialized geometry.`);
+			}
 			const mask = entry.masks.length === 0 ? undefined
 				: combinedGraphs(entry.masks, width, height, maskInputs);
 			let placed = placeUnifiedExactLinearRgbaFrameV13({
-				frame: linear, displayWidth: width, displayHeight: height,
+				frame: linear, displayWidth: placement.width, displayHeight: placement.height,
 				outputWidth: width, outputHeight: height,
-				renderDescription: identityDescription(width, height, entry.blendMode),
-				opacity: entry.opacity, ...(mask ? { mask } : {}),
+				renderDescription: placement.renderDescription,
+				...(mask ? { mask } : {}),
 			});
 			if (openFx && 'source' in entry.authoredState) {
 				placed = await openFx.visual(placed, entry.modelId, entry.authoredState.source.id);

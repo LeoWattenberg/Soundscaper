@@ -18,8 +18,6 @@ import type {
 	UnifiedExactRenderVisualNode,
 } from '../common/editor/unified-exact-render-plan.ts';
 import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
-import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
-import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 import { registeredVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import {
 	bindVideoSourceTimingView,
@@ -52,6 +50,7 @@ import {
 	type FramescaperProjectFinishing,
 } from './editor-project-finishing.ts';
 import { createFramescaperVideoExportVisualFreshnessFinishing } from './video-export-visual-freshness-finishing.ts';
+import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -325,7 +324,7 @@ async function materializeDrawables(
 		const entry = consumer.resolveFrame({ sequencePosition: node.authoredState.clip.sequenceStartFrame })
 			.layers.flatMap(({ entries }) => entries).find(({ modelId }) => modelId === node.modelId);
 		if (!entry) throw new ReferenceError(`Active V13 visual ${node.modelId} was not resolved.`);
-		const size = previewSourceSize(node, canvas);
+		const size = resolveFramescaperVisualPlacementFinishing(entry, canvas);
 		const frame = entry.modelKind === 'external-generator' ? Object.freeze({
 			width: size.width, height: size.height, pixels: new Uint8Array(size.width * size.height * 4),
 		}) : await materializeUnifiedExactRenderVisualEntryV13(entry, {
@@ -345,6 +344,10 @@ function visualCompositorEntry(
 	canvas: Readonly<{ width: number; height: number; fit?: VideoCanvasFit }>,
 ): Readonly<Record<string, unknown>> {
 	const source = 'source' in entry.authoredState ? entry.authoredState.source : null;
+	const placement = resolveFramescaperVisualPlacementFinishing(entry, canvas);
+	if (video.videoWidth !== placement.width || video.videoHeight !== placement.height) {
+		throw new RangeError(`V13 visual ${entry.modelId} changed its materialized geometry.`);
+	}
 	return Object.freeze({
 		kind: entry.modelKind,
 		role: 'single',
@@ -357,12 +360,7 @@ function visualCompositorEntry(
 		opacity: entry.opacity,
 		displayWidth: video.videoWidth,
 		displayHeight: video.videoHeight,
-		renderDescription: resolveVideoRenderDescription({
-			composition: DEFAULT_VIDEO_CLIP_COMPOSITION,
-			sourceDisplaySize: { width: video.videoWidth, height: video.videoHeight },
-			canvas,
-			opacityStart: entry.opacity,
-		}),
+		renderDescription: placement.renderDescription,
 	});
 }
 
@@ -425,19 +423,6 @@ function exactEffectsById(plan: UnifiedExactRenderPlanV13): ReadonlyMap<string, 
 		}
 	}
 	return effects;
-}
-
-function previewSourceSize(
-	node: UnifiedExactRenderVisualNode,
-	canvas: Readonly<{ width: number; height: number }>,
-): Readonly<{ width: number; height: number }> {
-	if (!('source' in node.authoredState)) throw new TypeError('A placed visual node is required.');
-	const source = node.authoredState.source;
-	const scale = Math.min(1, canvas.width / source.width, canvas.height / source.height);
-	return Object.freeze({
-		width: Math.max(1, Math.round(source.width * scale)),
-		height: Math.max(1, Math.round(source.height * scale)),
-	});
 }
 
 function sequencePosition(plan: UnifiedExactRenderPlanV13, sample: number) {

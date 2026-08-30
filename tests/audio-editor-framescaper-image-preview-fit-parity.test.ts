@@ -7,6 +7,8 @@ import test from 'node:test';
 import { VIDEO_CANVAS_FIT_MODES } from '../src/common/editor/video-canvas-fit.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
 import { resolveVideoRenderDescription } from '../src/common/editor/video-render-description.ts';
+import { placeUnifiedExactLinearRgbaFrameV13 } from '../src/common/editor/unified-exact-linear-rgba-v13.ts';
+import { resolveFramescaperVisualPlacementFinishing } from '../src/framescaper/visual-placement-finishing.ts';
 
 const ROOT = new URL('../', import.meta.url);
 
@@ -56,4 +58,46 @@ test('the finishing visual preview preserves the selected delivery fit', async (
 	assert.match(preview, /previewCanvas\(options\.width, options\.height, options\.fit\)/u);
 	assert.match(preview, /\.\.\.\(fit === undefined \? \{\} : \{ fit \}\)/u);
 	assert.doesNotMatch(preview, /canvas: \{ \.\.\.canvas, fit: 'contain'/u);
+});
+
+test('finishing playback, exact preview, and export share one visual placement', async () => {
+	const [playback, exact, exportExecution] = await Promise.all([
+		readFile(new URL('src/framescaper/editor-selected-finishing-visual-preview.ts', ROOT), 'utf8'),
+		readFile(new URL('src/framescaper/selected-finishing-exact-frame-execution.ts', ROOT), 'utf8'),
+		readFile(new URL('src/framescaper/video-export-visual-execution-finishing.ts', ROOT), 'utf8'),
+	]);
+
+	for (const source of [playback, exact, exportExecution]) {
+		assert.match(source, /resolveFramescaperVisualPlacementFinishing/u);
+	}
+	assert.doesNotMatch(exact, /renderDescription: identityDescription\(width, height, entry\.blendMode\)/u);
+	assert.doesNotMatch(exportExecution, /renderDescription: identityDescription\(width, height, entry\.blendMode\)/u);
+});
+
+test('the shared finishing placement preserves portrait geometry for exact output', () => {
+	const entry = {
+		modelKind: 'still', opacity: 1, blendMode: 'normal',
+		authoredState: { source: { width: 2, height: 4 } },
+	} as never;
+	const frame = Object.freeze({
+		width: 2, height: 4,
+		pixels: new Uint8Array(2 * 4 * 4).fill(255),
+	});
+	const alphaAt = (fit: 'contain' | 'cover' | 'stretch', x: number, y: number) => {
+		const placement = resolveFramescaperVisualPlacementFinishing(entry, { width: 8, height: 4, fit });
+		const output = placeUnifiedExactLinearRgbaFrameV13({
+			frame,
+			displayWidth: placement.width,
+			displayHeight: placement.height,
+			outputWidth: 8,
+			outputHeight: 4,
+			renderDescription: placement.renderDescription,
+		});
+		return output.pixels[(y * 8 + x) * 4 + 3];
+	};
+
+	assert.equal(alphaAt('contain', 0, 0), 0, 'contain must retain side bars');
+	assert.equal(alphaAt('contain', 3, 0), 1, 'contain must retain the portrait pixels');
+	assert.equal(alphaAt('cover', 0, 0), 1, 'cover must fill by cropping');
+	assert.equal(alphaAt('stretch', 0, 0), 1, 'stretch must fill by reframing');
 });

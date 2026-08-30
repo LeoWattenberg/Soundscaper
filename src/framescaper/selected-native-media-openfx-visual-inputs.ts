@@ -7,15 +7,18 @@ import type {
 	UnifiedExactRenderVisualFrameEntryV13,
 	UnifiedExactRenderVisualFrameLayerV13,
 } from '../common/editor/unified-exact-render-visual-consumers-v13.ts';
+import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import type { FramescaperVideoFrameAddressFinishing } from './video-frame-address-finishing.ts';
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import type { createFramescaperSelectedOpenFxExactPlanesNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
+import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
 
 export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 	entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
 	stills: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 	width: number,
 	height: number,
+	fit: VideoCanvasFit,
 	signal: AbortSignal,
 	openFx: ReturnType<typeof createFramescaperSelectedOpenFxExactPlanesNativeMedia> | null,
 ): Promise<ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>> {
@@ -26,12 +29,15 @@ export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 		if (external && !openFx?.has('generator', sourceId) && !openFx?.has('general', sourceId)) {
 			throw new Error('An external generator requires an exact selected nativeMedia OpenFX node.');
 		}
+		const placement = resolveFramescaperVisualPlacementFinishing(entry, { width, height, fit });
 		const raw = external ? Object.freeze({
-			width, height, pixels: new Uint8Array(width * height * 4),
+			width: placement.width,
+			height: placement.height,
+			pixels: new Uint8Array(placement.width * placement.height * 4),
 		}) : await materializeUnifiedExactRenderVisualEntryV13(Object.freeze({
 			...entry, masks: Object.freeze([]),
 		}), {
-			targetWidth: width, targetHeight: height,
+			targetWidth: placement.width, targetHeight: placement.height,
 			decodeStill: (source) => Promise.resolve(required(stills, source.id)),
 			signal,
 		});

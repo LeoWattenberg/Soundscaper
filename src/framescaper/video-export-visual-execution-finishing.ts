@@ -15,7 +15,6 @@ import {
 	backgroundLinear,
 	combinedGraphs,
 	decodeEncodedPicture,
-	identityDescription,
 	managedVisualFrame,
 	sourceState,
 } from './video-export-visual-linear-finishing.ts';
@@ -49,6 +48,10 @@ import {
 	type FramescaperVideoExportVisualAssetStoreFinishing,
 } from './video-export-visual-assets-finishing.ts';
 import { createFramescaperVideoExportVisualFreshnessFinishing } from './video-export-visual-freshness-finishing.ts';
+import {
+	resolveFramescaperVisualPlacementFinishing,
+	type FramescaperVisualPlacementFinishing,
+} from './visual-placement-finishing.ts';
 
 export type { FramescaperVideoExportVisualAssetStoreFinishing } from './video-export-visual-assets-finishing.ts';
 
@@ -156,17 +159,22 @@ export async function createFramescaperVideoExportVisualExecutionFinishing(
 		assertTransitionInputs(frame, resolved.transitionWeights);
 		const maskInputs = new Map<string, UnifiedExactRenderVisualRgbaV13>();
 		const rawByEntry = new Map<UnifiedExactRenderVisualFrameEntryV13, UnifiedExactRenderVisualRgbaV13>();
+		const placementByEntry = new Map<UnifiedExactRenderVisualFrameEntryV13, FramescaperVisualPlacementFinishing>();
 		for (const layer of resolved.layers) for (const entry of layer.entries) {
+			const placement = resolveFramescaperVisualPlacementFinishing(entry, {
+				width, height, fit: exactPlan.output.canvas.fit,
+			});
 			const raw = await materializeUnifiedExactRenderVisualEntryV13(Object.freeze({
 				...entry, masks: Object.freeze([]),
 			}), {
-				targetWidth: width, targetHeight: height,
+				targetWidth: placement.width, targetHeight: placement.height,
 				decodeStill: (source) => Promise.resolve(requiredStill(assets.stills, source.id)),
 				signal: executionSignal,
 			});
 			const source = sourceState(entry);
 			maskInputs.set(String(source.id), raw);
 			rawByEntry.set(entry, raw);
+			placementByEntry.set(entry, placement);
 		}
 		// Playback and export are the same render: everything composites in the
 		// linear premultiplied working space and encodes exactly once, matching
@@ -186,14 +194,16 @@ export async function createFramescaperVideoExportVisualExecutionFinishing(
 				assertReady(request);
 				const raw = rawByEntry.get(entry);
 				if (!raw) throw new ReferenceError(`finishing visual entry ${entry.modelId} was not materialized.`);
+				const placement = placementByEntry.get(entry);
+				if (!placement) throw new ReferenceError(`finishing visual entry ${entry.modelId} has no placement.`);
 				const graded = managedVisualFrame(finishing, entry, raw, assets.luts, executionSignal);
 				const mask = entry.masks.length === 0 ? undefined
 					: combinedGraphs(entry.masks, width, height, maskInputs);
 				addUnifiedExactLinearCompositionEntryV13(list, placeUnifiedExactLinearRgbaFrameV13({
-					frame: graded, displayWidth: width, displayHeight: height,
+					frame: graded, displayWidth: placement.width, displayHeight: placement.height,
 					outputWidth: width, outputHeight: height,
-					renderDescription: identityDescription(width, height, entry.blendMode),
-					opacity: entry.opacity, ...(mask ? { mask } : {}),
+					renderDescription: placement.renderDescription,
+					...(mask ? { mask } : {}),
 				}), entry.blendMode);
 			}
 		}
