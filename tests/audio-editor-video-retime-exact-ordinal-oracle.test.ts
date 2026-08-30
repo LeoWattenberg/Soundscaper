@@ -40,6 +40,16 @@ test('computes every V16 mode picture ordinal lazily with exact rational arithme
 	assert.strictEqual(oracle.frameAt(9), oracle.frameAt(9), 'only the last requested ordinal may be cached');
 });
 
+test('accepts authenticated timing for clips that contribute no serialized intersection row', () => {
+	const curveTiming = bindCfrTiming('curve-source', 20, { num: 1, den: 1 });
+	const unusedTiming = bindCfrTiming('zero-row-source', 4, { num: 1, den: 1 });
+	const oracle = createVideoRetimeExactOrdinalOracle(createFiveModeIntent(), new Map([
+		['curve-source', curveTiming],
+		['zero-row-source', unusedTiming],
+	]));
+	assert.equal(oracle.frameAt(0).pictures[0]?.sourceId, 'curve-source');
+});
+
 test('resolves null-retime VFR wall-clock source time through exact boundary ownership', () => {
 	const timing = bindVfrTiming('vfr-source', [0n, 1n, 3n, 6n], 4n, 1);
 	const intent = createVideoRetimeExportIntentV6(baseInput({
@@ -200,6 +210,13 @@ test('rejects forged timing, mismatched sources, malformed intent and out-of-dom
 			'curve-source', { sourceId: 'curve-source', frameCount: 20, kind: 'cfr' },
 		]])),
 		/authenticated|bind|timing/iu,
+	);
+	assert.throws(
+		() => createVideoRetimeExactOrdinalOracle(intent, new Map([
+			['curve-source', bindCfrTiming('curve-source', 20, { num: 1, den: 1 })],
+			['extra-key', bindCfrTiming('different-source', 1, { num: 1, den: 1 })],
+		])),
+		/source binding|inconsistent/iu,
 	);
 	assert.throws(
 		() => createVideoRetimeExactOrdinalOracle({ ...intent, extension: true }, new Map()),

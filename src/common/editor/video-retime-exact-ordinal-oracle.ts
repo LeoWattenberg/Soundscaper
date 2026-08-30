@@ -428,9 +428,6 @@ function captureTiming(
 	if (!(value instanceof Map)) throw new TypeError('Video retime ordinal timing must be an actual Map.');
 	const requiredSources = new Map<string, number>();
 	for (const row of rows) requiredSources.set(row.sourceId, Math.max(requiredSources.get(row.sourceId) ?? 0, row.sourceOutFrame));
-	const sizeGetter = Object.getOwnPropertyDescriptor(Map.prototype, 'size')?.get;
-	const size = Number(sizeGetter?.call(value));
-	if (size !== requiredSources.size) throw new RangeError('Video retime ordinal timing must contain exactly its sources.');
 	const result = new Map<string, BoundVideoSourceTimingView>();
 	for (const [key, token] of Map.prototype.entries.call(value) as MapIterator<[
 		string,
@@ -438,10 +435,15 @@ function captureTiming(
 	]>) {
 		const info = boundVideoSourceTimingViewInfo(token);
 		const requiredEnd = requiredSources.get(key);
-		if (requiredEnd === undefined || info.sourceId !== key || info.frameCount < requiredEnd) {
+		if (info.sourceId !== key || (requiredEnd !== undefined && info.frameCount < requiredEnd)) {
 			throw new RangeError('Video retime ordinal timing source binding is inconsistent.');
 		}
 		result.set(key, token);
+	}
+	for (const sourceId of requiredSources.keys()) {
+		if (!result.has(sourceId)) {
+			throw new RangeError('Video retime ordinal timing omits a required source binding.');
+		}
 	}
 	return result;
 }
