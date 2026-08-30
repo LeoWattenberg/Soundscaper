@@ -63,7 +63,7 @@ function macSigningIdentity(value, target) {
 	closed(value, ['schemaVersion', 'status', 'target', 'signing', 'commands', 'artifacts'],
 		'candidate mac signing evidence');
 	closed(value.signing, ['mode', 'identitySha256'], 'candidate mac signing identity');
-	if (value.schemaVersion !== 1 || value.status !== 'signatures-verified'
+	if (value.schemaVersion !== 2 || value.status !== 'signatures-verified'
 		|| value.target !== target || !['ad-hoc', 'developer-id'].includes(value.signing.mode)
 		|| !SHA256.test(String(value.signing.identitySha256))
 		|| !Array.isArray(value.artifacts)) {

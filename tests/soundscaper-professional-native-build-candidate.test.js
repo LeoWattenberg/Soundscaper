@@ -372,23 +372,23 @@ test('mac candidates require, receipt-bind, and promote the OS audio codec addon
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
 	}), /mac signing evidence.*payload-misbound/iu);
-	const candidate = await createSoundscaperProfessionalNativeCandidate({
-		...mac.options,
+	const candidate = await createSoundscaperProfessionalNativeCandidate({ ...mac.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
 	});
 	assert.equal(candidate.receipt.osAudioCodec.path, 'payload/soundscaper_os_audio_codec.node');
-	assert.equal(candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'build')
-		.evidence.macSigning.status, 'signatures-verified');
-	assert.deepEqual(candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'build')
-		.evidence.macSigning, mac.options.macSigningEvidence);
-	assert(candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'installed-files')
-		.evidence.files.some(({ path }) => path === candidate.receipt.osAudioCodec.path));
-	await promoteSoundscaperProfessionalNativeCandidate({
-		candidateRoot: mac.candidateRoot, repositoryRoot: repository.root,
-	});
-	const manifest = JSON.parse(await readFile(join(repository.root,
-		'config/soundscaper-professional-native-payload-manifest.json'), 'utf8'));
+	const signing = candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'build').evidence.macSigning;
+	assert(signing.schemaVersion === 2 && signing.status === 'signatures-verified');
+	assert.deepEqual(signing, mac.options.macSigningEvidence);
+	for (const artifact of signing.artifacts) {
+		const peer = artifact.path === 'payload/soundscaper_professional_peer';
+		assert.equal(artifact.libraryValidation.expectation, peer ? 'present' : 'absent');
+		assert.equal(artifact.libraryValidation.entitlements?.path ?? null, peer
+			? 'native/soundscaper-professional-host/soundscaper-professional-peer-entitlements.mac.plist' : null);
+	}
+	assert(candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'installed-files').evidence.files.some(({ path }) => path === candidate.receipt.osAudioCodec.path));
+	await promoteSoundscaperProfessionalNativeCandidate({ candidateRoot: mac.candidateRoot, repositoryRoot: repository.root });
+	const manifest = JSON.parse(await readFile(join(repository.root, 'config/soundscaper-professional-native-payload-manifest.json'), 'utf8'));
 	const row = manifest.targets.find(({ id }) => id === 'mac-arm64');
 	assert.match(row.osAudioCodec.path, /prebuilt\/mac-arm64\/soundscaper_os_audio_codec\.node$/u);
 	assert.equal(await readFile(join(repository.root, row.osAudioCodec.path), 'utf8'), 'os-codec');

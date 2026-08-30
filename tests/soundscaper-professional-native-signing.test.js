@@ -1,21 +1,31 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
 	createSoundscaperProfessionalNativeMacSigningPlan,
 	executeSoundscaperProfessionalNativeMacSigningPlan,
+	validateSoundscaperProfessionalNativeMacSigningEvidence,
 } from '../scripts/lib/soundscaper-professional-native-macos-signing.mjs';
+
+const ROOT = resolve(import.meta.dirname, '..');
+const PEER_ENTITLEMENTS_PATH =
+	'native/soundscaper-professional-host/soundscaper-professional-peer-entitlements.mac.plist';
+const LIBRARY_VALIDATION_KEY = 'com.apple.security.cs.disable-library-validation';
+const PEER_REQUIREMENT = `=entitlement["${LIBRARY_VALIDATION_KEY}"] exists`;
+const NON_PEER_REQUIREMENT = `=! entitlement["${LIBRARY_VALIDATION_KEY}"] exists`;
 
 test('mac candidate signing covers runtime dependencies before every consumer and verifies each', async (context) => {
 	const fixture = await signingFixture(context);
 	const plan = await createSoundscaperProfessionalNativeMacSigningPlan({
 		...fixture, target: 'mac-arm64', signingIdentity: '-',
 	});
+	assert.equal(plan.schemaVersion, 2);
 	assert.deepEqual(plan.signing, {
 		mode: 'ad-hoc', identitySha256: '3973e022e93220f9212c18d0d0c543ae7c309e46640da93a4a0314de999f5112',
 	});
@@ -28,29 +38,87 @@ test('mac candidate signing covers runtime dependencies before every consumer an
 		'payload/soundscaper_delivery_fs',
 		'payload/milestone5-native-isolation-launcher',
 	]);
+	const entitlementBytes = await readFile(resolve(ROOT, PEER_ENTITLEMENTS_PATH));
+	assert.deepEqual(plan.peerEntitlements.descriptor, {
+		path: PEER_ENTITLEMENTS_PATH,
+		byteLength: 259,
+		sha256: '8387b5ab44a8a8cae94acb84289378e0725cdbee8304961c691d44c199181796',
+	});
+	assert.equal(entitlementBytes.byteLength, plan.peerEntitlements.descriptor.byteLength);
+	assert.equal(createHash('sha256').update(entitlementBytes).digest('hex'),
+		plan.peerEntitlements.descriptor.sha256);
+	const entitlementText = String(entitlementBytes);
+	assert.equal([...entitlementText.matchAll(/<key>/gu)].length, 1);
+	assert.match(entitlementText,
+		/<key>com\.apple\.security\.cs\.disable-library-validation<\/key>\s*<true\s*\/>/u);
+	assert.deepEqual(plan.artifacts.map(({ entitlements }) => entitlements),
+		plan.artifacts.map(({ candidatePath }) => candidatePath === 'payload/soundscaper_professional_peer'
+			? plan.peerEntitlements.descriptor : null));
 	const calls = [];
 	const evidence = await executeSoundscaperProfessionalNativeMacSigningPlan(plan, {
 		run(command, argv) {
 			calls.push({ command, argv });
-			return { status: 0, signal: null, stdout: `${argv[0]} passed`, stderr: '' };
+			return successfulCodesignResult(argv);
 		},
 	});
-	assert.equal(calls.length, plan.artifacts.length * 2);
+	assert.equal(calls.length, plan.artifacts.length * 3);
 	for (let index = 0; index < plan.artifacts.length; index += 1) {
-		assert.deepEqual(calls[index * 2], {
+		const artifact = plan.artifacts[index];
+		const peer = artifact.candidatePath === 'payload/soundscaper_professional_peer';
+		assert.deepEqual(calls[index * 3], {
 			command: 'codesign',
-			argv: ['--force', '--sign', '-', plan.artifacts[index].absolutePath],
+			argv: peer
+				? ['--force', '--entitlements', plan.peerEntitlements.absolutePath,
+					'--sign', '-', artifact.absolutePath]
+				: ['--force', '--sign', '-', artifact.absolutePath],
 		});
-		assert.deepEqual(calls[index * 2 + 1], {
+		assert.deepEqual(calls[index * 3 + 1], {
 			command: 'codesign',
-			argv: ['--verify', '--strict', '--verbose=2', plan.artifacts[index].absolutePath],
+			argv: ['--verify', '--strict', '--verbose=2', artifact.absolutePath],
+		});
+		assert.deepEqual(calls[index * 3 + 2], {
+			command: 'codesign',
+			argv: ['--verify', '--verbose=2', '--test-requirement',
+				peer ? PEER_REQUIREMENT : NON_PEER_REQUIREMENT, artifact.absolutePath],
 		});
 	}
+	assert.equal(evidence.schemaVersion, 2);
 	assert.equal(evidence.status, 'signatures-verified');
 	assert.deepEqual(evidence.artifacts.map(({ path }) => path),
 		plan.artifacts.map(({ candidatePath }) => candidatePath));
-	assert(evidence.artifacts.every(({ signOutputSha256, verificationOutputSha256 }) =>
-		/^[a-f\d]{64}$/u.test(signOutputSha256) && /^[a-f\d]{64}$/u.test(verificationOutputSha256)));
+	assert(evidence.artifacts.every(({ signOutputSha256, verificationOutputSha256,
+		libraryValidation }) => /^[a-f\d]{64}$/u.test(signOutputSha256)
+		&& /^[a-f\d]{64}$/u.test(verificationOutputSha256)
+		&& /^[a-f\d]{64}$/u.test(libraryValidation.outputSha256)));
+	assert.deepEqual(evidence.artifacts.map(({ path, libraryValidation }) => ({
+		path,
+		expectation: libraryValidation.expectation,
+		entitlements: libraryValidation.entitlements,
+	})), evidence.artifacts.map(({ path }) => ({
+		path,
+		expectation: path === 'payload/soundscaper_professional_peer' ? 'present' : 'absent',
+		entitlements: path === 'payload/soundscaper_professional_peer'
+			? plan.peerEntitlements.descriptor : null,
+	})));
+	assert.equal(validateSoundscaperProfessionalNativeMacSigningEvidence(
+		evidence, candidateForEvidence(evidence),
+	), evidence);
+	const tampered = structuredClone(evidence);
+	tampered.artifacts.find(({ path }) => path === 'payload/soundscaper_professional_peer')
+		.libraryValidation.entitlements.sha256 = 'f'.repeat(64);
+	assert.throws(() => validateSoundscaperProfessionalNativeMacSigningEvidence(
+		tampered, candidateForEvidence(evidence),
+	), /entitlement|payload-misbound/iu);
+	const extended = structuredClone(evidence);
+	extended.artifacts[0].libraryValidation.unreviewed = true;
+	assert.throws(() => validateSoundscaperProfessionalNativeMacSigningEvidence(
+		extended, candidateForEvidence(evidence),
+	), /exact record/iu);
+	const legacy = structuredClone(evidence);
+	legacy.schemaVersion = 1;
+	assert.throws(() => validateSoundscaperProfessionalNativeMacSigningEvidence(
+		legacy, candidateForEvidence(evidence),
+	), /identity/iu);
 });
 
 test('production mac candidate signing uses hardened runtime and a timestamp without leaking identity', async (context) => {
@@ -65,11 +133,17 @@ test('production mac candidate signing uses hardened runtime and a timestamp wit
 	await executeSoundscaperProfessionalNativeMacSigningPlan(plan, {
 		run(command, argv) {
 			calls.push({ command, argv });
-			return { status: 0, signal: null, stdout: '', stderr: '' };
+			return successfulCodesignResult(argv);
 		},
 	});
 	assert.deepEqual(calls[0].argv.slice(0, -1), [
 		'--force', '--timestamp', '--options', 'runtime', '--sign', identity,
+	]);
+	const peerSign = calls.find(({ argv }) => argv.includes('--sign')
+		&& argv.at(-1).endsWith('/soundscaper_professional_peer'));
+	assert.deepEqual(peerSign.argv.slice(0, -1), [
+		'--force', '--timestamp', '--options', 'runtime', '--entitlements',
+		plan.peerEntitlements.absolutePath, '--sign', identity,
 	]);
 	assert.throws(() => createSoundscaperProfessionalNativeMacSigningPlan({
 		...fixture, target: 'mac-arm64', signingIdentity: 'not-a-developer-id',
@@ -88,6 +162,25 @@ test('mac candidate signing refuses failed verification', async (context) => {
 			return { status: calls === 2 ? 1 : 0, signal: null, stdout: '', stderr: 'invalid' };
 		},
 	}), /signature verification failed/iu);
+});
+
+test('mac candidate signing proves the entitlement is peer-only', async (context) => {
+	const fixture = await signingFixture(context);
+	const plan = createSoundscaperProfessionalNativeMacSigningPlan({
+		...fixture, target: 'mac-arm64', signingIdentity: '-',
+	});
+	await assert.rejects(() => executeSoundscaperProfessionalNativeMacSigningPlan(plan, {
+		run(_command, argv) {
+			return argv.includes('--test-requirement') && argv.includes(NON_PEER_REQUIREMENT)
+				? codesignResult('', 1) : codesignResult('');
+		},
+	}), /non-peer entitlement verification failed/iu);
+	await assert.rejects(() => executeSoundscaperProfessionalNativeMacSigningPlan(plan, {
+		run(_command, argv) {
+			return argv.includes('--test-requirement') && argv.includes(PEER_REQUIREMENT)
+				? codesignResult('', 1) : codesignResult('');
+		},
+	}), /peer entitlement verification failed/iu);
 });
 
 async function signingFixture(context) {
@@ -110,4 +203,26 @@ async function signingFixture(context) {
 		await writeFile(path, `mach-o:${path}`);
 	}
 	return { professionalInstallRoot, isolationInstallRoot, osAudioCodecInstallRoot, runtimeRoot };
+}
+
+function successfulCodesignResult(argv) {
+	return codesignResult(`${argv[0]} passed`);
+}
+
+function codesignResult(stderr, status = 0) {
+	return { status, signal: null, stdout: '', stderr };
+}
+
+function candidateForEvidence(evidence) {
+	const artifact = (path) => evidence.artifacts.find((entry) => entry.path === path);
+	return {
+		payload: artifact('payload/soundscaper_professional.node'),
+		osAudioCodec: artifact('payload/soundscaper_os_audio_codec.node'),
+		pluginPeer: artifact('payload/soundscaper_professional_peer'),
+		deliveryFilesystem: artifact('payload/soundscaper_delivery_fs'),
+		isolation: {
+			launcher: artifact('payload/milestone5-native-isolation-launcher'),
+			runtimeClosure: evidence.artifacts.filter(({ path }) => path.startsWith('payload/runtime/')),
+		},
+	};
 }

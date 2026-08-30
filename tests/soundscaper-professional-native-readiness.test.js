@@ -92,6 +92,14 @@ test('candidate readiness authority comes from exact canonical candidate and bui
 	assert.throws(() => parseSoundscaperProfessionalNativeCandidateReadinessBindings(
 		Buffer.from(`${JSON.stringify(stale, null, '\t')}\n`), 'mac-arm64',
 	), /misbound/iu);
+	const legacy = structuredClone(candidate);
+	legacy.evidenceReceipts[0].evidence.macSigning.schemaVersion = 1;
+	legacy.evidenceReceipts = [bindEvidenceReceipt(
+		'build', 'mac-arm64', legacy.evidenceReceipts[0].evidence,
+	)];
+	assert.throws(() => parseSoundscaperProfessionalNativeCandidateReadinessBindings(
+		Buffer.from(`${JSON.stringify(legacy, null, '\t')}\n`), 'mac-arm64',
+	), /mac signing authority/iu);
 });
 
 function signedReadiness(bindings, mutate = null) {
@@ -172,7 +180,7 @@ function candidateReceipt(target) {
 		status: 'passed', sourceRevision, buildPlanSha256,
 		packagedAppAuthority: {}, tests: [],
 		macSigning: target === 'mac-arm64' ? {
-			schemaVersion: 1, status: 'signatures-verified', target,
+			schemaVersion: 2, status: 'signatures-verified', target,
 			signing: { mode: 'developer-id', identitySha256: '9'.repeat(64) },
 			commands: {}, artifacts: [],
 		} : null,
