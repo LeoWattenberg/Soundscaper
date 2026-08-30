@@ -146,6 +146,14 @@ export interface ProjectTransferWriteWitness {
 	created(): unknown;
 }
 
+interface ProjectTransferWriteWitnessState {
+	readonly projectId: string;
+	readonly facades: WeakMap<object, ProjectTransferImportStore>;
+	created: unknown;
+}
+
+const PROJECT_TRANSFER_WRITE_WITNESSES = new WeakMap<object, ProjectTransferWriteWitnessState>();
+
 /**
  * Hand the archive import a facade over the receiving store that remembers the
  * exact document the store published for this identity.
@@ -159,8 +167,33 @@ export function witnessProjectTransferWrites(
 	store: ProjectTransferImportStore,
 	projectId: string,
 ): ProjectTransferWriteWitness {
-	let created: unknown = null;
-	const facade = new Proxy(store as object, {
+	const state: ProjectTransferWriteWitnessState = {
+		projectId,
+		facades: new WeakMap(),
+		created: null,
+	};
+	const facade = witnessStore(store as object, state);
+	return Object.freeze({ store: facade, created: () => state.created });
+}
+
+/**
+ * Preserve a transfer write witness when archive routing substitutes a family
+ * home for the federation the import layer originally wrapped.
+ */
+export function projectTransferWitnessedHomeStore(store: unknown, homeStore: unknown): unknown {
+	if (store === null || typeof store !== 'object'
+		|| homeStore === null || typeof homeStore !== 'object') return homeStore;
+	const state = PROJECT_TRANSFER_WRITE_WITNESSES.get(store);
+	return state ? witnessStore(homeStore, state) : homeStore;
+}
+
+function witnessStore(
+	store: object,
+	state: ProjectTransferWriteWitnessState,
+): ProjectTransferImportStore {
+	const existing = state.facades.get(store);
+	if (existing) return existing;
+	const facade = new Proxy(store, {
 		get(target, property) {
 			const value = Reflect.get(target, property, target);
 			if (typeof value !== 'function') return value;
@@ -171,12 +204,16 @@ export function witnessProjectTransferWrites(
 			return async (...args: unknown[]) => {
 				const published = await method.apply(target, args);
 				const identity = asProjectTransferRecord(published).id;
-				if (published && admittedProjectTransferId(identity) === projectId) created = published;
+				if (published && admittedProjectTransferId(identity) === state.projectId) {
+					state.created = published;
+				}
 				return published;
 			};
 		},
 	}) as ProjectTransferImportStore;
-	return Object.freeze({ store: facade, created: () => created });
+	state.facades.set(store, facade);
+	PROJECT_TRANSFER_WRITE_WITNESSES.set(facade as object, state);
+	return facade;
 }
 
 export interface ProjectTransferExportRequest {

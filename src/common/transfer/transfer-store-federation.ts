@@ -370,12 +370,27 @@ export function createTransferStoreFederation(
 		}
 		return null;
 	};
+	const deleteProjectIfCurrent = async (project: unknown): Promise<unknown> => {
+		let identity: ProjectSchemaIdentity;
+		try {
+			identity = readProjectSchemaIdentity(project);
+		} catch {
+			return false;
+		}
+		const home = await resolveHome(identity);
+		if (!home) return false;
+		const remove = (home.store as { deleteProjectIfCurrent?: unknown }).deleteProjectIfCurrent;
+		if (typeof remove !== 'function') return false;
+		return (remove as (value: unknown) => PromiseLike<unknown> | unknown)
+			.call(home.store, project);
+	};
 	const store = new Proxy(writer as object, {
 		get(target, property) {
 			if (property === 'listProjects') return listProjects;
 			if (property === 'listTransferInventory') return listTransferInventory;
 			if (property === 'transferStoreHome') return resolveHome;
 			if (property === 'loadProject') return loadProject;
+			if (property === 'deleteProjectIfCurrent') return deleteProjectIfCurrent;
 			const value = Reflect.get(target, property, target);
 			if (typeof value !== 'function') return value;
 			// Applied to the real store, never to this proxy: a store built on

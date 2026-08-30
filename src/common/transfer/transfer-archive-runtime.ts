@@ -48,6 +48,7 @@ import {
 	type TransferFamilyArchiveRuntime,
 } from './transfer-family-owned-runtime.ts';
 import { convertCrossProductEditableCopy } from './cross-product-handoff-conversion.ts';
+import { projectTransferWitnessedHomeStore } from './project-transfer-bundle-admission.ts';
 
 export interface TransferStoreSource {
 	/** Stable identifier, used in the page's own reporting. */
@@ -235,7 +236,11 @@ export function importIntoHomeStore(
 	return async (input, store, options) => {
 		const home = await transferArchiveHome(inspectProject, input, store, options);
 		if (!home) return importProject(input, store, options);
-		return importProject(input, home.store, homeArchiveOptions(options, home));
+		return importProject(
+			input,
+			projectTransferWitnessedHomeStore(store, home.store),
+			homeArchiveOptions(options, home),
+		);
 	};
 }
 

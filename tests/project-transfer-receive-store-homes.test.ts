@@ -248,6 +248,41 @@ test('a fresh family store opens on demand once and closes with the federation',
 	assert.equal(framescaper.closed, true);
 });
 
+test('a failed routed import clears its witnessed family-store publication before retry', async () => {
+	const framescaper = new FakeFamilyStore('framescaper');
+	const source = await openTransferStore({
+		databases: { databases: async () => [] },
+		baselines: [fakeBaseline(FRAMESCAPER_PROJECT_SCHEMA_FAMILY, async () => framescaper)],
+	});
+	const reader = fakeScapeReader();
+	const entry = archiveEntry(document(FRAMESCAPER_PROJECT_SCHEMA_FAMILY, 'retryable'));
+	const failed = await importProjectTransferBundle({
+		store: source.store as Parameters<typeof importProjectTransferBundle>[0]['store'],
+		inspectProject: inspectInHomeStore(reader.inspectProject),
+		importProject: importIntoHomeStore(async (input, store, options) => {
+			await reader.importProject(input, store, options);
+			throw new Error('Post-publication validation failed.');
+		}, reader.inspectProject),
+		entries: [entry],
+	});
+
+	assert.deepEqual(
+		failed.entries.map(({ outcome, residue }) => [outcome, residue]),
+		[['failed', 'cleared']],
+	);
+	assert.deepEqual([...framescaper.projects], []);
+
+	const retried = await importProjectTransferBundle({
+		store: source.store as Parameters<typeof importProjectTransferBundle>[0]['store'],
+		inspectProject: inspectInHomeStore(reader.inspectProject),
+		importProject: importIntoHomeStore(reader.importProject, reader.inspectProject),
+		entries: [entry],
+	});
+	assert.equal(retried.entries[0].outcome, 'imported');
+	assert.equal(framescaper.projects.get('retryable')?.id, 'retryable');
+	await source.close();
+});
+
 test('a future schema of a known family has no writable home', async () => {
 	const framescaper = new FakeFamilyStore('framescaper');
 	const source = await openTransferStore({
