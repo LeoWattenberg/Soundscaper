@@ -93,7 +93,7 @@ test('professional utility smoke exposes bounded sanitized child diagnostics', a
 	const { child, running } = utilitySmoke([], { stdout, stderr });
 	queueMicrotask(() => {
 		stdout.end(`${'x'.repeat(64 * 1024)}\nstdout-tail\n`);
-		stderr.end('\u001b[31mloader failed\u001b[0m\nAuthorization: Bearer github_pat_fixture\nstderr-tail\n');
+		stderr.end('\u001b[31mloader\u0000 failed\u001b[0m\nAuthorization: Bearer github_pat_fixture\nstderr-tail\n');
 		child.emit('exit', 1);
 	});
 	await assert.rejects(running, (error) => {
@@ -103,10 +103,100 @@ test('professional utility smoke exposes bounded sanitized child diagnostics', a
 		assert.match(error.message, /stderr-tail/u);
 		assert.doesNotMatch(error.message, /github_pat_fixture/iu);
 		assert(!error.message.includes('\u001b'));
+		assert(!error.message.includes('\u0000'));
 		assert(Buffer.byteLength(error.message) <= 20 * 1024);
 		return true;
 	});
 });
+
+test('professional utility smoke redacts a secret spanning the diagnostic tail cut', async () => {
+	const name = 'SOUNDSCAPER_UTILITY_BOUNDARY_SECRET';
+	const previous = process.env[name];
+	const secret = 'boundary-secret-value-8a9c6e71';
+	const suffix = secret.slice(12);
+	process.env[name] = secret;
+	try {
+		const stdout = new PassThrough();
+		const { child, running } = utilitySmoke([], { stdout });
+		queueMicrotask(() => {
+			stdout.end(`${'x'.repeat(8 * 1024)}${secret}${'t'.repeat(4 * 1024 - suffix.length)}`);
+			child.emit('exit', 1, null);
+		});
+		await assert.rejects(running, (error) => {
+			assert.doesNotMatch(error.message, new RegExp(suffix, 'u'));
+			assert(Buffer.byteLength(error.message) <= 20 * 1024);
+			return true;
+		});
+	} finally {
+		if (previous === undefined) delete process.env[name];
+		else process.env[name] = previous;
+	}
+});
+
+test('professional utility smoke drops a generic token suffix spanning the raw capture cut',
+	async () => {
+		const stdout = new PassThrough();
+		const { child, running } = utilitySmoke([], { stdout });
+		queueMicrotask(() => {
+			stdout.end(`prefix\ngithub_pat_${'g'.repeat(128 * 1024)}\nvisible-tail\n`);
+			child.emit('exit', 1, null);
+		});
+		await assert.rejects(running, (error) => {
+			assert.match(error.message, /visible-tail/u);
+			assert.doesNotMatch(error.message, /g{32}/u);
+			assert(Buffer.byteLength(error.message) <= 20 * 1024);
+			return true;
+		});
+	});
+
+test('professional utility smoke keeps repeated short-secret redaction bounded', async () => {
+	const name = 'SOUNDSCAPER_UTILITY_REPEATED_SECRET';
+	const previous = process.env[name];
+	process.env[name] = 'aaaa';
+	try {
+		const stderr = new PassThrough();
+		const { child, running } = utilitySmoke([], { stderr });
+		queueMicrotask(() => {
+			stderr.end('aaaa'.repeat(1024));
+			child.emit('exit', 1, null);
+		});
+		await assert.rejects(running, (error) => {
+			assert.doesNotMatch(error.message, /aaaa/u);
+			assert(Buffer.byteLength(error.message) <= 20 * 1024);
+			return true;
+		});
+	} finally {
+		if (previous === undefined) delete process.env[name];
+		else process.env[name] = previous;
+	}
+});
+
+test('professional utility smoke suppresses diagnostics when a secret exceeds its capture cap',
+	async () => {
+		const name = 'SOUNDSCAPER_UTILITY_OVERSIZED_SECRET';
+		const previous = process.env[name];
+		const secret = `oversized-secret-${'s'.repeat(128 * 1024)}`;
+		const suffix = secret.slice(-2 * 1024);
+		process.env[name] = secret;
+		try {
+			const stderr = new PassThrough();
+			const { child, running } = utilitySmoke([], { stderr });
+			queueMicrotask(() => {
+				stderr.end(`${secret}\ntail that must also be suppressed\n`);
+				child.emit('exit', 1, null);
+			});
+			await assert.rejects(running, (error) => {
+				assert.match(error.message, /exited 1/u);
+				assert.doesNotMatch(error.message, new RegExp(suffix, 'u'));
+				assert.doesNotMatch(error.message, /tail that must also be suppressed/u);
+				assert(Buffer.byteLength(error.message) <= 20 * 1024);
+				return true;
+			});
+		} finally {
+			if (previous === undefined) delete process.env[name];
+			else process.env[name] = previous;
+		}
+	});
 
 test('professional utility smoke keeps UTF-8 diagnostics inside the byte ceiling', async () => {
 	const stdout = new PassThrough();
