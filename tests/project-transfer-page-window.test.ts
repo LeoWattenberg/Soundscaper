@@ -172,6 +172,25 @@ test('one sender confirmation owns the popup until its run settles and always re
 	await settle();
 	assert.equal(sender.opened, 1);
 	assert.equal(sender.listeners.size, 1);
+	const receivingRuntime = runtimeFor(createFakeArchive());
+	const receiving = receiveTransferArchives({
+		runtime: receivingRuntime,
+		store: new FakeStore(),
+		port: createWindowTransferPort({
+			peer: sender,
+			listener: popup,
+			allowedOrigins: [...CONFIGURATION.allowedOrigins],
+			expectedSource: sender,
+		}),
+		sessionId: 'sender-runtime-failure',
+		targetOrigin: SOUNDSCAPER,
+		allowedOrigins: [...CONFIGURATION.allowedOrigins],
+		clock: {
+			setTimeout: () => Object.freeze({}),
+			clearTimeout: () => undefined,
+		},
+	});
+	await settle();
 	await sender.document.clickButton(/^Send /u);
 	await settle();
 	assert.match(sender.document.statusText(), /already.*confirmation|already.*progress/iu);
@@ -185,6 +204,19 @@ test('one sender confirmation owns the popup until its run settles and always re
 	rejectRuntime(new Error('runtime unavailable'));
 	await settle();
 	await settle();
+	let deadline: ReturnType<typeof setTimeout> | undefined;
+	const received = await Promise.race([
+		receiving,
+		new Promise<never>((_resolve, reject) => {
+			deadline = setTimeout(
+				() => reject(new Error('The receiver was left waiting after sender setup failed.')),
+				100,
+			);
+		}),
+	]);
+	clearTimeout(deadline);
+	assert.equal(received.stopped?.code, 'PEER_ABORTED');
+	assert.match(received.stopped?.reason ?? '', /runtime unavailable/iu);
 	assert.equal(sender.listeners.size, 0, 'runtime setup failure must detach the sender listener');
 	assert.equal(
 		sender.document.body.querySelector('[data-transfer-choice]')?.disabled,

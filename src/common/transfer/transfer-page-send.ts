@@ -40,6 +40,11 @@ import {
 	streamTransferArchives,
 } from './transfer-session.ts';
 import {
+	envelopeFor,
+	type ProjectTransferPort,
+} from './project-transfer-handshake-channel.ts';
+import { describeProjectTransferReason } from './project-transfer-handshake-wire.ts';
+import {
 	describeTransferDownload,
 	describeTransferSend,
 	withRefusedTransferChoices,
@@ -331,6 +336,7 @@ async function runSenderHandshake(
 		allowedOrigins: configuration.allowedOrigins,
 		expectedSource: popup,
 	});
+	let port: ProjectTransferPort | null = null;
 	let source: Awaited<ReturnType<TransferPageContext['dependencies']['openStore']>> | null = null;
 	try {
 		// Subscribed here, in the same turn the popup was opened and before either
@@ -339,7 +345,7 @@ async function runSenderHandshake(
 		// symptom is this page waiting out its whole acknowledgement budget while
 		// the other origin sits idle. Moving this line below an await reintroduces
 		// exactly that race.
-		const port = bufferTransferPort(windowPort);
+		port = bufferTransferPort(windowPort);
 		choices?.freeze(true);
 		view.status(`Waiting for ${configuration.peerOrigin} to accept the transfer…`);
 		const runtime = await context.dependencies.loadRuntime();
@@ -361,6 +367,7 @@ async function runSenderHandshake(
 		});
 		view.report(withRefusedTransferChoices(describeTransferSend(report), refused));
 	} catch (error) {
+		notifyTransferPeerOfSenderFailure(port, configuration.peerOrigin, error);
 		view.status(
 			`The transfer did not complete: ${describeTransferError(error)}.`
 			+ ' Nothing was removed from this origin - download the archives instead.',
@@ -374,6 +381,24 @@ async function runSenderHandshake(
 		windowPort.close();
 		choices?.freeze(false);
 		await source?.close().catch(() => undefined);
+	}
+}
+
+function notifyTransferPeerOfSenderFailure(
+	port: ProjectTransferPort | null,
+	targetOrigin: string,
+	error: unknown,
+): void {
+	if (!port) return;
+	try {
+		port.post({
+			...envelopeFor(''),
+			kind: 'abort',
+			reason: describeProjectTransferReason(error)
+				|| 'The sending origin could not prepare the transfer.',
+		}, targetOrigin);
+	} catch {
+		// The popup may already have closed; the sending page still reports locally.
 	}
 }
 
