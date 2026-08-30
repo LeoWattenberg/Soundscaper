@@ -70,6 +70,10 @@ function errorCode(error: unknown): string | undefined {
 		: undefined;
 }
 
+export function isLocalModelDirectorySyncErrorBenign(error: unknown): boolean {
+	return ['EINVAL', 'ENOTSUP', 'EISDIR', 'EPERM'].includes(errorCode(error) ?? '');
+}
+
 function assertModelId(value: unknown): string {
 	if (typeof value !== 'string' || !MODEL_ID_PATTERN.test(value)) {
 		throw new TypeError('A local model id must be lowercase, dot or dash separated.');
@@ -174,7 +178,7 @@ async function syncDirectory(path: string): Promise<void> {
 		handle = await open(path, 'r');
 		await handle.sync();
 	} catch (error) {
-		if (errorCode(error) !== 'EISDIR' && errorCode(error) !== 'EPERM') throw error;
+		if (!isLocalModelDirectorySyncErrorBenign(error)) throw error;
 	} finally {
 		await handle?.close().catch(() => undefined);
 	}

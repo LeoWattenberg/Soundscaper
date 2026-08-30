@@ -12,10 +12,18 @@ import {
 	DEFAULT_LOCAL_MODEL_DIRECTORY_NAME,
 	FileLocalModelStore,
 	LOCAL_MODEL_MANIFEST_SCHEMA_VERSION,
+	isLocalModelDirectorySyncErrorBenign,
 	localModelBlobName,
 	resolveLocalModelRoot,
 	type LocalModelArtifact,
 } from '../desktop/local-model-store.ts';
+
+test('directory sync portability errors are benign but storage failures are not', () => {
+	for (const code of ['EINVAL', 'ENOTSUP', 'EISDIR', 'EPERM']) {
+		assert.equal(isLocalModelDirectorySyncErrorBenign(Object.assign(new Error(code), { code })), true);
+	}
+	assert.equal(isLocalModelDirectorySyncErrorBenign(Object.assign(new Error('I/O'), { code: 'EIO' })), false);
+});
 
 async function createStore(): Promise<{ store: FileLocalModelStore; root: string }> {
 	const root = await mkdtemp(join(tmpdir(), 'scape-local-models-'));

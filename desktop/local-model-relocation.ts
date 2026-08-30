@@ -15,7 +15,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { LocalModelCapacity } from './local-model-capacity.ts';
-import { FileLocalModelStore } from './local-model-store.ts';
+import { FileLocalModelStore, isLocalModelDirectorySyncErrorBenign } from './local-model-store.ts';
 
 const STORE_DIRECTORIES = Object.freeze(['blobs', 'manifests', 'staging'] as const);
 const BLOB_NAME_PATTERN = /^sha256-([a-f\d]{64})$/u;
@@ -102,7 +102,7 @@ async function syncPath(path: string): Promise<void> {
 		handle = await open(path, 'r');
 		await handle.sync();
 	} catch (error) {
-		if (errorCode(error) !== 'EISDIR' && errorCode(error) !== 'EPERM') throw error;
+		if (!isLocalModelDirectorySyncErrorBenign(error)) throw error;
 	} finally {
 		await handle?.close().catch(() => undefined);
 	}
