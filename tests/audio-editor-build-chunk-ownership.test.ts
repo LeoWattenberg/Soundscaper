@@ -373,6 +373,8 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 		'src/common/editor/assistance/workflow.ts',
 		'src/common/editor/controller/local-assistance-selected-video-frame-pack.ts',
 		'src/common/editor/controller/local-assistance-selected-video-timing.ts',
+		'src/common/editor/storage/assistance-derivative-codec.ts',
+		'src/common/editor/storage/assistance-derivative-key-value-port.ts',
 		'src/common/editor/storage/assistance-derivative-repository.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST.test(path), `${path} must be optional assistance`);

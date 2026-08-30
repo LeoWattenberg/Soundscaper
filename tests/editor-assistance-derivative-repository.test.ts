@@ -88,6 +88,106 @@ test('assistance derivatives round-trip authenticated bytes without entering pro
 	}), /deterministic|disagree|collision/iu);
 });
 
+test('assistance derivative payload publication atomically advances its durable inventory', async () => {
+	const values = new InventoryObservingPort();
+	const repository = new AssistanceDerivativeRepository(values);
+	await repository.save(workflow(), 'embeddings', payload([1, 2, 3]));
+
+	assert.equal(values.plainPayloadPuts, 0);
+	assert.equal(values.atomicPayloadPuts, 1);
+});
+
+test('warm assistance derivative operations never enumerate cached payload records', async () => {
+	const values = new InventoryObservingPort();
+	const firstRepository = new AssistanceDerivativeRepository(values);
+	const first = workflow();
+	const otherProject = workflow();
+	otherProject.fence.projectId = 'project-b';
+	await firstRepository.save(first, 'embeddings', payload([1]));
+	await firstRepository.save(otherProject, 'embeddings', payload([2]));
+
+	values.resetObservations();
+	const reopenedRepository = new AssistanceDerivativeRepository(values);
+	assert.ok(await reopenedRepository.load(first, 'embeddings'));
+	assert.deepEqual((await reopenedRepository.listProject('project-a')).map(({ bytes }) => [...bytes]), [[1]]);
+	const second = workflow();
+	second.fence.sourceRanges[0].sourceStartFrame = 10;
+	second.fence.sourceRanges[0].sourceEndFrame = 110;
+	await reopenedRepository.save(second, 'visual-index', payload([3]));
+
+	assert.deepEqual(values.payloadPrefixListings, [],
+		'a durable metadata inventory replaces cache-wide payload enumeration after bootstrap');
+});
+
+test('legacy assistance derivative rows are inventoried by one bounded migration scan', async () => {
+	const values = new InventoryObservingPort();
+	const repository = new AssistanceDerivativeRepository(values);
+	await repository.save(workflow(), 'embeddings', payload([1]));
+	values.dropInventory();
+	values.resetObservations();
+
+	const reopenedRepository = new AssistanceDerivativeRepository(values);
+	assert.equal((await reopenedRepository.listProject('project-a')).length, 1);
+	assert.deepEqual(values.payloadPrefixListings, ['assistance-derivative-v1:']);
+	values.resetObservations();
+	assert.ok(await reopenedRepository.load(workflow(), 'embeddings'));
+	assert.equal((await reopenedRepository.listProject('project-a')).length, 1);
+	assert.deepEqual(values.payloadPrefixListings, []);
+});
+
+test('concurrent assistance derivative publishers cannot lose durable inventory entries', async () => {
+	const values = new InventoryObservingPort();
+	const firstRepository = new AssistanceDerivativeRepository(values);
+	const secondRepository = new AssistanceDerivativeRepository(values);
+	const secondWorkflow = workflow();
+	secondWorkflow.fence.sourceRanges[0].sourceStartFrame = 10;
+	secondWorkflow.fence.sourceRanges[0].sourceEndFrame = 110;
+
+	await Promise.all([
+		firstRepository.save(workflow(), 'embeddings', payload([1])),
+		secondRepository.save(secondWorkflow, 'visual-index', payload([2])),
+	]);
+	assert.deepEqual((await firstRepository.listProject('project-a')).map(({ bytes }) => [...bytes]), [[1], [2]]);
+});
+
+test('assistance derivative eviction retires inventory-owned rows without reopening their payloads', async () => {
+	let now = 1_000;
+	const values = new InventoryObservingPort();
+	const repository = new AssistanceDerivativeRepository(values, {
+		limits: { maximumBytes: 16, maximumEntries: 1, maximumAgeMs: 30_000 },
+		now: () => now,
+	});
+	const first = await repository.save(workflow(), 'embeddings', payload([1]));
+	const secondWorkflow = workflow();
+	secondWorkflow.fence.sourceRanges[0].sourceStartFrame = 10;
+	secondWorkflow.fence.sourceRanges[0].sourceEndFrame = 110;
+	now += 1;
+	values.resetObservations();
+	await repository.save(secondWorkflow, 'embeddings', payload([2]));
+
+	assert.ok(!values.payloadGets.includes(first.key),
+		'metadata ownership is sufficient to evict a payload without cloning or hashing it');
+});
+
+test('stale assistance derivative eviction cannot delete a concurrently refreshed entry', async () => {
+	let now = 1_000;
+	const values = new InventoryObservingPort();
+	const repository = new AssistanceDerivativeRepository(values, {
+		limits: { maximumBytes: 16, maximumEntries: 1, maximumAgeMs: 30_000 },
+		now: () => now,
+	});
+	const firstWorkflow = workflow();
+	const first = await repository.save(firstWorkflow, 'embeddings', payload([1]));
+	const secondWorkflow = workflow();
+	secondWorkflow.fence.sourceRanges[0].sourceStartFrame = 10;
+	secondWorkflow.fence.sourceRanges[0].sourceEndFrame = 110;
+	now += 1;
+	values.refreshBeforeNextRetirement(first.key, new Date(now + 1_000).toISOString());
+
+	await assert.rejects(repository.save(secondWorkflow, 'embeddings', payload([2])), /cannot fit|limit/iu);
+	assert.deepEqual((await repository.load(firstWorkflow, 'embeddings'))?.bytes, Uint8Array.of(1));
+});
+
 test('a second-row publication failure rolls back the complete assistance derivative batch', async () => {
 	const values = new SecondPutFailurePort();
 	const repository = new AssistanceDerivativeRepository(values);
@@ -227,13 +327,43 @@ class SecondPutFailurePort implements AssistanceDerivativeKeyValuePort {
 	readonly #values = new Map<string, unknown>();
 	#puts = 0;
 
-	get size(): number { return this.#values.size; }
+	get size(): number {
+		return [...this.#values.keys()].filter((key) => key.startsWith('assistance-derivative-v1:')).length;
+	}
 	get(key: string): unknown { return this.#values.get(key); }
 	putIfAbsent(key: string, value: unknown): boolean {
-		this.#puts += 1;
-		if (this.#puts === 2) throw new Error('planned second-row failure');
 		if (this.#values.has(key)) return false;
 		this.#values.set(key, value);
+		return true;
+	}
+	putIfAbsentAndUpdate(
+		key: string,
+		value: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown | undefined,
+		nextInventory: unknown,
+	): boolean {
+		this.#puts += 1;
+		if (this.#puts === 2) throw new Error('planned second-row failure');
+		if (this.#values.has(key) || this.#values.get(inventoryKey) !== expectedInventory) return false;
+		this.#values.set(key, value);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
+	}
+	replaceIfCurrent(key: string, expected: unknown, replacement: unknown): boolean {
+		if (this.#values.get(key) !== expected) return false;
+		this.#values.set(key, replacement);
+		return true;
+	}
+	replaceIfCurrentWhenCurrent(
+		fenceKey: string,
+		expectedFence: unknown,
+		key: string,
+		expected: unknown,
+		replacement: unknown,
+	): boolean {
+		if (this.#values.get(fenceKey) !== expectedFence || this.#values.get(key) !== expected) return false;
+		this.#values.set(key, replacement);
 		return true;
 	}
 	delete(key: string): void { this.#values.delete(key); }
@@ -241,8 +371,146 @@ class SecondPutFailurePort implements AssistanceDerivativeKeyValuePort {
 		if (this.#values.get(key) !== expected) return false;
 		return this.#values.delete(key);
 	}
+	deleteIfCurrentAndUpdate(
+		key: string,
+		expected: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.get(key) !== expected
+			|| this.#values.get(inventoryKey) !== expectedInventory) return false;
+		this.#values.delete(key);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
+	}
+	deleteKeysIfCurrentAndUpdate(
+		keys: readonly string[],
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.get(inventoryKey) !== expectedInventory) return false;
+		for (const key of keys) this.#values.delete(key);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
+	}
 	listByPrefix(prefix: string) {
 		return [...this.#values.entries()].filter(([key]) => key.startsWith(prefix))
 			.map(([key, value]) => ({ key, projectId: '', value }));
+	}
+}
+
+class InventoryObservingPort implements AssistanceDerivativeKeyValuePort {
+	readonly #values = new Map<string, unknown>();
+	#retirementRefresh: Readonly<{ key: string; committedAt: string }> | null = null;
+	plainPayloadPuts = 0;
+	atomicPayloadPuts = 0;
+	readonly payloadPrefixListings: string[] = [];
+	readonly payloadGets: string[] = [];
+
+	get(key: string): unknown {
+		if (key.startsWith('assistance-derivative-v1:')) this.payloadGets.push(key);
+		return this.#values.get(key);
+	}
+	putIfAbsent(key: string, value: unknown): boolean {
+		if (this.#values.has(key)) return false;
+		if (key.startsWith('assistance-derivative-v1:')) this.plainPayloadPuts += 1;
+		this.#values.set(key, value);
+		return true;
+	}
+	putIfAbsentAndUpdate(
+		key: string,
+		value: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown | undefined,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.has(key) || this.#values.get(inventoryKey) !== expectedInventory) return false;
+		this.#values.set(key, value);
+		this.#values.set(inventoryKey, nextInventory);
+		if (key.startsWith('assistance-derivative-v1:')) this.atomicPayloadPuts += 1;
+		return true;
+	}
+	replaceIfCurrent(key: string, expected: unknown, replacement: unknown): boolean {
+		if (this.#values.get(key) !== expected) return false;
+		this.#values.set(key, replacement);
+		return true;
+	}
+	replaceIfCurrentWhenCurrent(
+		fenceKey: string,
+		expectedFence: unknown,
+		key: string,
+		expected: unknown,
+		replacement: unknown,
+	): boolean {
+		if (this.#values.get(fenceKey) !== expectedFence || this.#values.get(key) !== expected) return false;
+		this.#values.set(key, replacement);
+		return true;
+	}
+	delete(key: string): void { this.#values.delete(key); }
+	deleteIfCurrent(key: string, expected: unknown): boolean {
+		if (this.#values.get(key) !== expected) return false;
+		return this.#values.delete(key);
+	}
+	deleteIfCurrentAndUpdate(
+		key: string,
+		expected: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.get(key) !== expected
+			|| this.#values.get(inventoryKey) !== expectedInventory) return false;
+		this.#values.delete(key);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
+	}
+	deleteKeysIfCurrentAndUpdate(
+		keys: readonly string[],
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): boolean {
+		this.#applyRetirementRefresh(inventoryKey);
+		if (this.#values.get(inventoryKey) !== expectedInventory) return false;
+		for (const key of keys) this.#values.delete(key);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
+	}
+	listByPrefix(prefix: string) {
+		if (prefix.startsWith('assistance-derivative-v1:')) this.payloadPrefixListings.push(prefix);
+		return [...this.#values.entries()].filter(([key]) => key.startsWith(prefix))
+			.map(([key, value]) => ({ key, projectId: '', value }));
+	}
+	resetObservations(): void {
+		this.payloadPrefixListings.length = 0;
+		this.payloadGets.length = 0;
+		this.plainPayloadPuts = 0;
+		this.atomicPayloadPuts = 0;
+	}
+	dropInventory(): void {
+		this.#values.delete('assistance-derivative-inventory-v1');
+	}
+	refreshBeforeNextRetirement(key: string, committedAt: string): void {
+		this.#retirementRefresh = Object.freeze({ key, committedAt });
+	}
+	#applyRetirementRefresh(inventoryKey: string): void {
+		const refresh = this.#retirementRefresh;
+		if (!refresh) return;
+		this.#retirementRefresh = null;
+		const value = this.#values.get(refresh.key) as Readonly<Record<string, unknown>> | undefined;
+		const inventory = this.#values.get(inventoryKey) as Readonly<{
+			inventoryVersion: number;
+			entries: readonly Readonly<Record<string, unknown>>[];
+		}> | undefined;
+		if (!value || !inventory) return;
+		this.#values.set(refresh.key, { ...value, committedAt: refresh.committedAt });
+		this.#values.set(inventoryKey, {
+			...inventory,
+			entries: inventory.entries.map((entry) => entry.key === refresh.key
+				? { ...entry, committedAt: refresh.committedAt }
+				: entry),
+		});
 	}
 }

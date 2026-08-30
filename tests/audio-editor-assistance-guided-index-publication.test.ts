@@ -288,19 +288,73 @@ class FirstPutHookPort implements AssistanceDerivativeKeyValuePort {
 	#puts = 0;
 
 	constructor(afterFirstPut: () => void) { this.#afterFirstPut = afterFirstPut; }
-	get size(): number { return this.#values.size; }
+	get size(): number {
+		return [...this.#values.keys()].filter((key) => key.startsWith('assistance-derivative-v1:')).length;
+	}
 	get(key: string): unknown { return this.#values.get(key); }
 	putIfAbsent(key: string, value: unknown): boolean {
 		if (this.#values.has(key)) return false;
 		this.#values.set(key, value);
+		return true;
+	}
+	putIfAbsentAndUpdate(
+		key: string,
+		value: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown | undefined,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.has(key) || this.#values.get(inventoryKey) !== expectedInventory) return false;
+		this.#values.set(key, value);
+		this.#values.set(inventoryKey, nextInventory);
 		this.#puts += 1;
 		if (this.#puts === 1) this.#afterFirstPut();
+		return true;
+	}
+	replaceIfCurrent(key: string, expected: unknown, replacement: unknown): boolean {
+		if (this.#values.get(key) !== expected) return false;
+		this.#values.set(key, replacement);
+		return true;
+	}
+	replaceIfCurrentWhenCurrent(
+		fenceKey: string,
+		expectedFence: unknown,
+		key: string,
+		expected: unknown,
+		replacement: unknown,
+	): boolean {
+		if (this.#values.get(fenceKey) !== expectedFence || this.#values.get(key) !== expected) return false;
+		this.#values.set(key, replacement);
 		return true;
 	}
 	delete(key: string): void { this.#values.delete(key); }
 	deleteIfCurrent(key: string, expected: unknown): boolean {
 		if (this.#values.get(key) !== expected) return false;
 		return this.#values.delete(key);
+	}
+	deleteIfCurrentAndUpdate(
+		key: string,
+		expected: unknown,
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.get(key) !== expected
+			|| this.#values.get(inventoryKey) !== expectedInventory) return false;
+		this.#values.delete(key);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
+	}
+	deleteKeysIfCurrentAndUpdate(
+		keys: readonly string[],
+		inventoryKey: string,
+		expectedInventory: unknown,
+		nextInventory: unknown,
+	): boolean {
+		if (this.#values.get(inventoryKey) !== expectedInventory) return false;
+		for (const key of keys) this.#values.delete(key);
+		this.#values.set(inventoryKey, nextInventory);
+		return true;
 	}
 	listByPrefix(prefix: string) {
 		return [...this.#values.entries()].filter(([key]) => key.startsWith(prefix))
