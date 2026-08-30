@@ -29,6 +29,7 @@ export async function createFramescaperOpenFxFrameRegistration(options, dependen
 }
 
 export function createFramescaperOpenFxCurrentProjectAuthority(authority) {
+	if (authority === null) return async () => false;
 	assertFramescaperIdentity(authority, 'OpenFX project authority');
 	return async (project, effect) => {
 		if (!currentFramescaperIdentity(project)) return false;

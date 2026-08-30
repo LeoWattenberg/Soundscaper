@@ -4,8 +4,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createFramescaperOpenFxCurrentProjectAuthority,
 	createFramescaperOpenFxFrameRegistration,
 } from '../desktop/framescaper-openfx-frame-registration.mjs';
+
+test('an unavailable project authority keeps OpenFX current-project checks fail closed', async () => {
+	const currentProject = createFramescaperOpenFxCurrentProjectAuthority(null);
+	assert.equal(await currentProject({
+		schemaFamily: 'framescaper', schemaVersion: 1, id: 'project-1', revision: 1,
+	}), false);
+	assert.equal(await currentProject(null), false);
+});
 
 test('frame registration forwards exact effect identity into current-project authority', async () => {
 	let executionPorts;
