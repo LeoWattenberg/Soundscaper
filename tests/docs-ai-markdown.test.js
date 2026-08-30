@@ -62,6 +62,12 @@ test('restoration rejects dropped, duplicated, or invented protection tokens', (
 	);
 });
 
+test('restoration treats dollar replacement sequences as literal protected Markdown', () => {
+	const literal = "```sh\npid=$$ whole=$& prefix=$` suffix=$'\n```\n";
+	const protectedDocument = protectMarkdown(literal);
+	assert.equal(restoreMarkdown(protectedDocument.markdown, protectedDocument.tokens), literal);
+});
+
 test('chunk validation rejects reordered protection tokens before caching', () => {
 	const protectedDocument = protectMarkdown(source);
 	const [first, second] = [...protectedDocument.tokens.keys()];

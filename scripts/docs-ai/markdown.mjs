@@ -57,7 +57,7 @@ export function restoreMarkdown(markdown, tokens) {
 	}
 	assert.deepEqual(returnedTokens, [...tokens.keys()], 'Model changed the order of protected Markdown tokens.');
 	let restored = markdown;
-	for (const [token, value] of tokens) restored = restored.replace(token, value);
+	for (const [token, value] of tokens) restored = restored.replace(token, () => value);
 	return restored;
 }
 
