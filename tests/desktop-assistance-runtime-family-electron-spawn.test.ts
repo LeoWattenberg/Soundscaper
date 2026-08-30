@@ -81,6 +81,7 @@ async function spawnReady(rig: ReturnType<typeof harness>) {
 	await until(() => rig.children.length === 1 && rig.children[0]!.sent.length === 1);
 	const child = rig.children[0]!;
 	assert.deepEqual(child.sent[0], { protocolVersion: 1, type: 'initialize', descriptor: descriptor() });
+	child.emit('spawn');
 	child.emit('message', {
 		protocolVersion: 1, type: 'ready', familyId: 'onnxruntime-node', runtimeVersion: '1.29.0',
 	});
@@ -190,6 +191,31 @@ test('the spawned inference process is dropped to background priority as soon as
 	const rig = harness({ applyBackgroundPriority: (pid: number) => priorities.push(pid) });
 	await spawnReady(rig);
 	assert.deepEqual(priorities, [123]);
+});
+
+test('an Electron child without a pid is admitted until its spawn event publishes one', async () => {
+	const child = new FakeChild();
+	(child as unknown as { pid: number | undefined }).pid = undefined;
+	const priorities: number[] = [];
+	const rssPids: number[] = [];
+	const spawns = createAssistanceRuntimeFamilyElectronSpawns({
+		helperPath: '/app/assistance-runtime-family-helper-process.js',
+		fork: () => child,
+		applyBackgroundPriority: (pid) => priorities.push(pid),
+		sampleRss: (pid) => { rssPids.push(pid); return 42; },
+		handshakeTimeoutMs: 50,
+	});
+	const spawning = spawns['onnxruntime-node'](descriptor());
+	assert.deepEqual(priorities, []);
+	(child as unknown as { pid: number | undefined }).pid = 456;
+	child.emit('spawn');
+	assert.deepEqual(priorities, [456]);
+	child.emit('message', {
+		protocolVersion: 1, type: 'ready', familyId: 'onnxruntime-node', runtimeVersion: '1.29.0',
+	});
+	const process = await spawning;
+	assert.equal(process.sampleRss(), 42);
+	assert.deepEqual(rssPids, [456]);
 });
 
 test('an operating system that refuses background priority still yields a usable process', async () => {

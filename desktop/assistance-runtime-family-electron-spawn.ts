@@ -24,7 +24,8 @@ import {
 } from './assistance-runtime-family-process-protocol.ts';
 
 export interface AssistanceRuntimeFamilyElectronChild {
-	readonly pid: number;
+	/** Electron publishes this only after the asynchronous `spawn` event. */
+	readonly pid: number | undefined;
 	postMessage(message: unknown): void;
 	on(event: string, listener: (...values: unknown[]) => void): void;
 	off(event: string, listener: (...values: unknown[]) => void): void;
@@ -90,11 +91,6 @@ async function spawnFamily(
 	const child = inspectChild(options.fork(options.helperPath, [], {
 		serviceName: `soundscaper-assistance-${familyId}`,
 	}));
-	// Inference yields to the editor the user is driving. The child is already live,
-	// so an operating system that refuses the change keeps the inherited priority
-	// rather than leaking the process.
-	try { options.applyBackgroundPriority?.(child.pid); }
-	catch { /* Scheduling etiquette never blocks an admitted runtime. */ }
 	const handshakeTimeoutMs = boundedMilliseconds(
 		options.handshakeTimeoutMs, DEFAULT_HANDSHAKE_TIMEOUT_MS, 10_000, 'handshake timeout',
 	);
@@ -111,6 +107,14 @@ async function spawnFamily(
 	let processTermination: Promise<void> | null = null;
 	const exitListeners = new Set<(code: number | null) => void>();
 	const exitWaiters = new Set<Readonly<{ resolve(): void; reject(error: Error): void }>>();
+	const onSpawn = (): void => {
+		const pid = childPid(child.pid);
+		if (pid === null) return;
+		// Inference yields to the editor the user is driving. An operating system
+		// that refuses the change keeps the inherited priority without blocking it.
+		try { options.applyBackgroundPriority?.(pid); }
+		catch { /* Scheduling etiquette never blocks an admitted runtime. */ }
+	};
 	let resolveHandshake!: (process: AssistanceRuntimeFamilyProcess) => void;
 	let rejectHandshake!: (error: Error) => void;
 	const handshake = new Promise<AssistanceRuntimeFamilyProcess>((resolveHandshake_, rejectHandshake_) => {
@@ -164,6 +168,7 @@ async function spawnFamily(
 		exited = true;
 		exitCode = Number.isSafeInteger(value) ? Number(value) : null;
 		clearTimeoutImpl(handshakeTimer);
+		child.off('spawn', onSpawn);
 		child.off('message', onMessage);
 		child.off('exit', onExit);
 		const error = protocolFailure ?? new Error(
@@ -308,13 +313,16 @@ async function spawnFamily(
 		sampleRss(): number | null {
 			if (exited || options.sampleRss === undefined) return null;
 			try {
-				const value = options.sampleRss(child.pid);
+				const pid = childPid(child.pid);
+				if (pid === null) return null;
+				const value = options.sampleRss(pid);
 				return value === null || Number.isSafeInteger(value) && value >= 0 ? value : null;
 			} catch { return null; }
 		},
 		terminate: terminateProcess,
 	});
 
+	child.on('spawn', onSpawn);
 	child.on('message', onMessage);
 	child.on('exit', onExit);
 	try {
@@ -329,11 +337,14 @@ async function spawnFamily(
 
 function inspectChild(value: AssistanceRuntimeFamilyElectronChild): AssistanceRuntimeFamilyElectronChild {
 	if (!value || typeof value.postMessage !== 'function' || typeof value.on !== 'function'
-		|| typeof value.off !== 'function' || typeof value.kill !== 'function'
-		|| !Number.isSafeInteger(value.pid) || value.pid < 1) {
+		|| typeof value.off !== 'function' || typeof value.kill !== 'function') {
 		throw new TypeError('Electron returned an invalid runtime-family utility process.');
 	}
 	return value;
+}
+
+function childPid(value: number | undefined): number | null {
+	return Number.isSafeInteger(value) && value !== undefined && value >= 1 ? value : null;
 }
 
 function validateOptions(options: AssistanceRuntimeFamilyElectronSpawnOptions): void {

@@ -179,7 +179,10 @@ export function registerAssistance({
 				},
 			);
 			child = forked;
-			assistanceBackgroundPriority(forked.pid);
+			forked.once('spawn', () => {
+				try { assistanceBackgroundPriority(forked.pid); }
+				catch { /* Scheduling etiquette never blocks an admitted helper. */ }
+			});
 			return Object.freeze({
 				postMessage: (message, transfer = []) => forked.postMessage(message, transfer),
 				onMessage: (listener) => forked.on('message', listener),

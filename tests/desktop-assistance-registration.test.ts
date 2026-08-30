@@ -103,8 +103,8 @@ test('every assistance helper is composed as background work the machine can pau
 		/for \(const event of POWER_ETIQUETTE_EVENTS\) powerMonitor\.off\(event, listener\);/u,
 		'a released hold must remove exactly the listeners it added');
 	assert.match(registration,
-		/child = forked;\s*assistanceBackgroundPriority\(forked\.pid\);/u,
-		'the Sherpa speech helper runs below the editor too');
+		/child = forked;\s*forked\.once\('spawn', \(\) => \{[\s\S]*?assistanceBackgroundPriority\(forked\.pid\);[\s\S]*?\}\);/u,
+		'the Sherpa speech helper drops priority only after Electron publishes its pid');
 	assert.match(registration,
 		/createAssistanceRuntimeFamilyDesktopStartup\(\{[\s\S]*?applyBackgroundPriority: assistanceBackgroundPriority,[\s\S]*?powerEtiquette: assistancePowerEtiquette\(\),/u);
 });
