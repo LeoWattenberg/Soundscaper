@@ -2,12 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdtemp, mkdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import { createFramescaperNativeServicesNodePorts } from '../desktop/native-services-node-ports.ts';
+import { createFramescaperNativePublicationNodePort } from '../desktop/native-services-publication-node-port.ts';
 
 const JOB_ID = 'ab'.repeat(20);
 const PLAN = 'cd'.repeat(32);
@@ -112,6 +113,29 @@ test('node ports reject a selected symlink and never follow a symlink publicatio
 	await symlink(join(durableRoot, 'real'), join(durableRoot, 'alias'));
 	await assert.rejects(() => ports.publicationPortFor({ ...selection, revokedAtMs: null })
 		.inspect('alias/output.mov'), /symbolic link/iu);
+});
+
+test('file publication falls back to same-filesystem rename when hard links are unsupported', async (t) => {
+	const rootPath = await mkdtemp(join(tmpdir(), 'framescaper-native-no-links-'));
+	t.after(() => rm(rootPath, { recursive: true, force: true }));
+	const rootStat = await lstat(rootPath, { bigint: true });
+	const grant = Object.freeze({
+		grantId: 'ef'.repeat(16), rootPath,
+		volumeIdentity: `device:${rootStat.dev.toString(16)}`,
+		directoryIdentity: `device:${rootStat.dev.toString(16)}:inode:${rootStat.ino.toString(16)}`,
+		authorizedAtMs: 1, revokedAtMs: null,
+	});
+	const temporary = `output.mov.${'a'.repeat(16)}.partial`;
+	await writeFile(join(rootPath, temporary), 'finished');
+	let renamed = false;
+	const publication = createFramescaperNativePublicationNodePort(grant, {
+		linkFile: async () => { throw Object.assign(new Error('links unsupported'), { code: 'ENOTSUP' }); },
+		renameFile: async (source, destination) => { renamed = true; await rename(source, destination); },
+	});
+	await publication.renameTemporarySibling(temporary, 'output.mov');
+	assert.equal(renamed, true);
+	assert.equal(await readFile(join(rootPath, 'output.mov'), 'utf8'), 'finished');
+	assert.equal(await publication.inspect(temporary), null);
 });
 
 test('watch locator registration keeps the path main-private and rejects post-registration tamper', async (t) => {

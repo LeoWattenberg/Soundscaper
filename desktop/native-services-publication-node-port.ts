@@ -23,6 +23,8 @@ import type {
 export interface FramescaperNativePublicationNodePortOptions {
 	/** Test seam; production always uses Node's same-filesystem rename. */
 	readonly renameDirectory?: (source: string, destination: string) => Promise<void>;
+	readonly renameFile?: (source: string, destination: string) => Promise<void>;
+	readonly linkFile?: (source: string, destination: string) => Promise<void>;
 }
 
 /**
@@ -38,6 +40,8 @@ export function createFramescaperNativePublicationNodePort(
 	options: FramescaperNativePublicationNodePortOptions = {},
 ): FramescaperNativePublicationPort {
 	const renameDirectory = options.renameDirectory ?? rename;
+	const renameFile = options.renameFile ?? rename;
+	const linkFile = options.linkFile ?? link;
 	return Object.freeze({
 		inspect: (relativePath: string) => inspectFramescaperGrantedFile(grant, relativePath),
 		renameTemporarySibling: async (temporaryRelativePath: string, relativeDestination: string) => {
@@ -49,7 +53,12 @@ export function createFramescaperNativePublicationNodePort(
 				throw new Error('Native publication requires a regular-file temporary sibling.');
 			}
 			await assertAbsent(destination);
-			await link(temporary, destination);
+			try { await linkFile(temporary, destination); }
+			catch (error) {
+				if (!linkUnsupported(error)) throw error;
+				await renameFile(temporary, destination);
+				return;
+			}
 			await unlink(temporary);
 		},
 		removePublishedOutput: async (
@@ -251,4 +260,9 @@ function sameOutputTree(
 function missing(error: unknown): boolean {
 	return Boolean(error && typeof error === 'object' && 'code' in error
 		&& (error.code === 'ENOENT' || error.code === 'ENOTDIR'));
+}
+
+function linkUnsupported(error: unknown): boolean {
+	return Boolean(error && typeof error === 'object' && 'code' in error
+		&& ['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV'].includes(String(error.code)));
 }
