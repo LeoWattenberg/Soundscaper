@@ -15,6 +15,9 @@ test('professional native self-test authorities retain Git blob bytes on Windows
 		'/scripts/self-test-soundscaper-delivery-fs.mjs',
 		'/scripts/lib/soundscaper-professional-packaged-app-authority.mjs',
 		'/scripts/lib/soundscaper-native-test-runtime.mjs',
+		'/scripts/lib/soundscaper-professional-native-containment-probes.mjs',
+		'/desktop/soundscaper-professional-linux-system-libraries.ts',
+		'/desktop/soundscaper-professional-linux-system-runtime.ts',
 	]) {
 		assert(rules.has(`${path} text eol=lf`),
 			`${path} must be pinned to LF for byte-for-byte Git authentication`);

@@ -23,6 +23,19 @@ const DELIVERY_FILESYSTEM_DRIVER_PATH = 'scripts/self-test-soundscaper-delivery-
 const PACKAGED_AUTHORITY_PATH =
 	'scripts/lib/soundscaper-professional-packaged-app-authority.mjs';
 const TEST_RUNTIME_AUTHORITY_PATH = 'scripts/lib/soundscaper-native-test-runtime.mjs';
+const CONTAINMENT_PROBES_PATH =
+	'scripts/lib/soundscaper-professional-native-containment-probes.mjs';
+const LINUX_SYSTEM_LIBRARIES_PATH =
+	'desktop/soundscaper-professional-linux-system-libraries.ts';
+const LINUX_SYSTEM_RUNTIME_PATH =
+	'desktop/soundscaper-professional-linux-system-runtime.ts';
+const COMMON_AUTHORITY_SOURCE_PATHS = Object.freeze([
+	DRIVER_PATH,
+	DELIVERY_FILESYSTEM_DRIVER_PATH,
+	PACKAGED_AUTHORITY_PATH,
+	TEST_RUNTIME_AUTHORITY_PATH,
+	CONTAINMENT_PROBES_PATH,
+]);
 const LOCALLY_EXECUTED_IDS = new Set([
 	'addon-exact-backend-format-inventory', 'm5f1-malformed-frame', 'launcher-refusal',
 	'delivery-filesystem-protocol',
@@ -60,16 +73,10 @@ export function createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan(opt
 	if (gitText(repositoryRoot, ['status', '--porcelain=v1', '--untracked-files=all']) !== '') {
 		throw new Error('The professional self-test working tree is not a clean HEAD.');
 	}
-	const driver = authenticatedGitFile(repositoryRoot, sourceRevision, DRIVER_PATH);
-	const deliveryFilesystemDriver = authenticatedGitFile(
-		repositoryRoot, sourceRevision, DELIVERY_FILESYSTEM_DRIVER_PATH,
-	);
-	const packagedAuthorityImplementation = authenticatedGitFile(
-		repositoryRoot, sourceRevision, PACKAGED_AUTHORITY_PATH,
-	);
-	const testRuntimeAuthority = authenticatedGitFile(
-		repositoryRoot, sourceRevision, TEST_RUNTIME_AUTHORITY_PATH,
-	);
+	const authoritySourcePaths = selfTestAuthoritySourcePaths(target);
+	const authorityFiles = authoritySourcePaths.map((path) =>
+		authenticatedGitFile(repositoryRoot, sourceRevision, path));
+	const driver = authorityFiles[0];
 	const packagedApp = authenticateSoundscaperProfessionalPackagedApp({
 		packagedAppRoot: roots.packagedAppRoot, sourceRevision, target,
 	});
@@ -102,8 +109,7 @@ export function createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan(opt
 		packagedAppRoot: roots.packagedAppRoot,
 		authority: {
 			status: 'authenticated-clean-head',
-			files: [driver, deliveryFilesystemDriver, packagedAuthorityImplementation,
-				testRuntimeAuthority].map(
+			files: authorityFiles.map(
 				({ path, byteLength, sha256 }) => ({ path, byteLength, sha256 })),
 			packagedApp,
 		},
@@ -126,8 +132,7 @@ export function verifyAuthenticatedSoundscaperProfessionalNativeSelfTestPlan(val
 		|| gitText(plan.repositoryRoot, ['status', '--porcelain=v1', '--untracked-files=all']) !== '') {
 		throw new Error('The professional self-test authority changed from its clean HEAD.');
 	}
-	for (const path of [DRIVER_PATH, DELIVERY_FILESYSTEM_DRIVER_PATH, PACKAGED_AUTHORITY_PATH,
-		TEST_RUNTIME_AUTHORITY_PATH]) {
+	for (const path of selfTestAuthoritySourcePaths(plan.target)) {
 		const observed = authenticatedGitFile(plan.repositoryRoot, plan.sourceRevision, path);
 		const expected = plan.authority.files.find((entry) => entry.path === path);
 		if (!expected || observed.byteLength !== expected.byteLength || observed.sha256 !== expected.sha256) {
@@ -142,6 +147,14 @@ export function verifyAuthenticatedSoundscaperProfessionalNativeSelfTestPlan(val
 		});
 	}
 	return plan;
+}
+
+function selfTestAuthoritySourcePaths(target) {
+	return target.startsWith('linux-') ? Object.freeze([
+		...COMMON_AUTHORITY_SOURCE_PATHS,
+		LINUX_SYSTEM_LIBRARIES_PATH,
+		LINUX_SYSTEM_RUNTIME_PATH,
+	]) : COMMON_AUTHORITY_SOURCE_PATHS;
 }
 
 function authenticatedGitFile(repositoryRoot, sourceRevision, path) {

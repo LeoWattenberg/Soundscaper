@@ -80,24 +80,23 @@ test('the packaged Electron smoke binds a separate exact addon-inventory receipt
 	assert.equal(receipts[0].outputSha256, receipts[1].outputSha256);
 	assert.notEqual(receipts[0].commandSha256, receipts[1].commandSha256);
 });
-
 test('self-test commands are closed, clean-HEAD authorities and refuse a changed implementation', async (context) => {
 	const repositoryRoot = await mkdtemp(join(tmpdir(), 'soundscaper-pro-self-test-authority-'));
 	context.after(() => rm(repositoryRoot, { recursive: true, force: true }));
-	const driverPath = join(repositoryRoot,
-		'scripts/self-test-soundscaper-professional-native-runtime.mjs');
-	await mkdir(dirname(driverPath), { recursive: true });
-	await writeFile(driverPath, '#!/usr/bin/env node\nprocess.exitCode = 0;\n');
-	const deliveryFilesystemDriverPath = join(repositoryRoot,
-		'scripts/self-test-soundscaper-delivery-fs.mjs');
-	await writeFile(deliveryFilesystemDriverPath, '#!/usr/bin/env node\nprocess.exitCode = 0;\n');
-	await writeFile(join(dirname(driverPath), 'lib-placeholder'), 'unused');
-	const packagedAuthorityPath = join(repositoryRoot,
-		'scripts/lib/soundscaper-professional-packaged-app-authority.mjs');
-	await mkdir(dirname(packagedAuthorityPath), { recursive: true });
-	await writeFile(packagedAuthorityPath, 'export const authority = true;\n');
-	await writeFile(join(repositoryRoot, 'scripts/lib/soundscaper-native-test-runtime.mjs'),
-		'export const runtime = true;\n');
+	const authoritySources = [
+		['scripts/self-test-soundscaper-professional-native-runtime.mjs', '#!/usr/bin/env node\nprocess.exitCode = 0;\n'],
+		['scripts/self-test-soundscaper-delivery-fs.mjs', '#!/usr/bin/env node\nprocess.exitCode = 0;\n'],
+		['scripts/lib/soundscaper-professional-packaged-app-authority.mjs', 'export const authority = true;\n'],
+		['scripts/lib/soundscaper-native-test-runtime.mjs', 'export const runtime = true;\n'],
+		['scripts/lib/soundscaper-professional-native-containment-probes.mjs', 'export const containment = true;\n'],
+		['desktop/soundscaper-professional-linux-system-libraries.ts', 'export const libraries = true;\n'],
+		['desktop/soundscaper-professional-linux-system-runtime.ts', 'export const runtime = true;\n'],
+	];
+	await Promise.all(['scripts/lib', 'desktop'].map((path) =>
+		mkdir(join(repositoryRoot, path), { recursive: true })));
+	await Promise.all(authoritySources.map(([path, source]) =>
+		writeFile(join(repositoryRoot, path), source)));
+	const driverPath = join(repositoryRoot, authoritySources[0][0]);
 	execFileSync('git', ['init', '-q'], { cwd: repositoryRoot });
 	execFileSync('git', ['add', '.'], { cwd: repositoryRoot });
 	execFileSync('git', ['-c', 'user.name=Soundscaper Tests', '-c', 'user.email=test@soundscaper.invalid',
@@ -128,6 +127,8 @@ test('self-test commands are closed, clean-HEAD authorities and refuse a changed
 		'scripts/self-test-soundscaper-delivery-fs.mjs',
 		'scripts/lib/soundscaper-professional-packaged-app-authority.mjs',
 		'scripts/lib/soundscaper-native-test-runtime.mjs',
+		'scripts/lib/soundscaper-professional-native-containment-probes.mjs',
+		'desktop/soundscaper-professional-linux-system-libraries.ts', 'desktop/soundscaper-professional-linux-system-runtime.ts',
 	]);
 	assert.throws(() => assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan({ ...plan }),
 		/authenticated self-test plan/iu);

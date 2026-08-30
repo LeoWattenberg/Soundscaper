@@ -323,12 +323,31 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 		'./project-library-runtime/desktop/native-child-isolation-launcher.js')).createNativeChildIsolationLauncher;
 	const createPeer = ports.createPeer ?? (await import(
 		'./project-library-runtime/desktop/soundscaper-professional-plugin-peer.js')).createSoundscaperProfessionalPluginPeer;
+	let entryExecutable = descriptor.isolation.entrypoint;
+	let entryArguments = Object.freeze([]);
+	let runtimeClosure = descriptor.isolation.runtimeClosure;
+	if (descriptor.target.startsWith('linux-')) {
+		const resolveLinuxSystemRuntime = ports.resolveLinuxSystemRuntime ?? (await import(
+			'./project-library-runtime/desktop/soundscaper-professional-linux-system-runtime.js'
+		)).resolveSoundscaperProfessionalLinuxSystemRuntime;
+		const systemRuntime = await resolveLinuxSystemRuntime({
+			target: descriptor.target, peer: descriptor.pluginPeer,
+			runtimeClosure: descriptor.isolation.runtimeClosure,
+		});
+		if (systemRuntime?.schemaVersion !== 1
+			|| systemRuntime.policy !== 'host-system-elf-runtime-v1') {
+			throw new Error('The professional Linux host-system runtime policy is invalid.');
+		}
+		entryExecutable = systemRuntime.entryExecutable;
+		entryArguments = systemRuntime.loaderArguments;
+		runtimeClosure = systemRuntime.runtimeClosure;
+	}
 	const launcher = createLauncher({
 		target: descriptor.target,
 		machineWorkload: Object.freeze({
 			kind: 'soundscaper',
 			payloads: Object.freeze([descriptor.pluginPeer]),
-			runtimeClosure: descriptor.isolation.runtimeClosure,
+			runtimeClosure,
 		}),
 		artifacts: {
 			launcher: descriptor.isolation.launcher,
@@ -343,8 +362,8 @@ export async function createProfessionalNativeHelperRoleSeams(location, role, po
 	const formats = descriptor.target.startsWith('mac-') ? ['vst3', 'clap', 'au']
 		: descriptor.target.startsWith('linux-') ? ['vst3', 'clap', 'lv2'] : ['vst3', 'clap'];
 	const peer = createPeer({
-		launcher, peerExecutable: descriptor.pluginPeer, entryExecutable: descriptor.isolation.entrypoint,
-		runtimeReadExecute: descriptor.isolation.runtimeClosure, pluginFormats: formats,
+		launcher, peerExecutable: descriptor.pluginPeer, entryExecutable, entryArguments,
+		runtimeReadExecute: runtimeClosure, pluginFormats: formats,
 	});
 	return { addonPath: descriptor.pluginPeer.path, addonSha256: descriptor.pluginPeer.sha256,
 		loadAddon: async () => peer };

@@ -5,6 +5,9 @@
 import { spawnSync } from 'node:child_process';
 import { basename } from 'node:path';
 
+import { isSoundscaperProfessionalLinuxSystemLibrary } from
+'../../desktop/soundscaper-professional-linux-system-libraries.ts';
+
 import {
 	assertSoundscaperNativeBinaryArchitecture,
 	inspectSoundscaperNativeBinaryFile,
@@ -17,13 +20,6 @@ import {
 } from './soundscaper-professional-native-candidate-contract.mjs';
 
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
-const LINUX_SYSTEM_LIBRARIES = new Set([
-	'ld-linux-aarch64.so.1', 'ld-linux-x86-64.so.2', 'libasound.so.2', 'libc.so.6',
-	'libdl.so.2', 'libfontconfig.so.1', 'libfreetype.so.6', 'libgcc_s.so.1',
-	'libm.so.6', 'libpthread.so.0', 'librt.so.1', 'libstdc++.so.6',
-	'libX11.so.6', 'libXcursor.so.1', 'libXext.so.6', 'libXinerama.so.1',
-	'libXrandr.so.2', 'libXrender.so.1',
-]);
 const WINDOWS_SYSTEM_LIBRARIES = new Set([
 	'advapi32.dll', 'avrt.dll', 'bcrypt.dll', 'cfgmgr32.dll', 'comctl32.dll',
 	'comdlg32.dll', 'd2d1.dll', 'd3d11.dll', 'dcomp.dll', 'dwrite.dll', 'dwmapi.dll',
@@ -58,6 +54,9 @@ export async function validateSoundscaperProfessionalNativeDependencyClosure({
 		validateSoundscaperNativeBinaryArchitectureReceipt(architecture, target);
 		validateRpaths(target, artifact.path, rpaths);
 		for (const imported of imports) {
+			if (target.startsWith('linux-') && imported.replaceAll('\\', '/').includes('/')) {
+				throw new Error(`${artifact.path} has ambient runtime dependency ${imported}.`);
+			}
 			if (systemLibrary(target, imported)) continue;
 			if (ambientDependency(imported)) {
 				throw new Error(`${artifact.path} has ambient runtime dependency ${imported}.`);
@@ -250,7 +249,9 @@ function systemLibrary(target, imported) {
 	if (target === 'mac-arm64') {
 		return imported.startsWith('/System/Library/') || imported.startsWith('/usr/lib/');
 	}
+	if (target.startsWith('linux-')) {
+		return isSoundscaperProfessionalLinuxSystemLibrary(imported);
+	}
 	const name = basename(imported.replaceAll('\\', '/')).toLowerCase();
-	return target.startsWith('win-') ? WINDOWS_SYSTEM_LIBRARIES.has(name)
-		: LINUX_SYSTEM_LIBRARIES.has(name);
+	return target.startsWith('win-') && WINDOWS_SYSTEM_LIBRARIES.has(name);
 }

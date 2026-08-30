@@ -3,8 +3,7 @@
 /** Addon-shaped async proxy for the actually isolated professional plug-in peer. */
 
 import { lstat, readdir, realpath } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 import type { HelperFileIdentity, HelperPluginFormat } from './helper-job-grant.ts';
 import {
@@ -88,12 +87,16 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 	readonly launcher: ProfessionalPluginPeerLauncher;
 	readonly peerExecutable: NativeChildIsolationArtifactDescriptor;
 	readonly entryExecutable?: NativeChildIsolationArtifactDescriptor;
+	readonly entryArguments?: readonly string[];
 	readonly runtimeReadExecute: readonly NativeChildIsolationArtifactDescriptor[];
 	readonly pluginFormats: readonly Exclude<HelperPluginFormat, 'fixture'>[];
 }>) {
 	const formats = pluginFormats(options.pluginFormats);
 	const executable = options.peerExecutable;
 	const entryExecutable = options.entryExecutable ?? executable;
+	const entryArguments = options.entryArguments === undefined
+		? (entryExecutable.path === executable.path ? [] : ['--library-path', dirname(entryExecutable.path)])
+		: loaderArguments(options.entryArguments);
 	const runtimeReadExecute = Object.freeze([...options.runtimeReadExecute]);
 	return Object.freeze({
 		describe: async () => Object.freeze({
@@ -103,7 +106,7 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 		listPluginCandidates,
 		inspectPluginCandidate: async (path: string, format: HelperPluginFormat, context: ProfessionalPluginPeerContext) => {
 			admittedFormat(formats, format);
-			const session = await openSession(options.launcher, executable, entryExecutable,
+			const session = await openSession(options.launcher, executable, entryExecutable, entryArguments,
 				runtimeReadExecute, path, context);
 			try {
 				const answer = await session.request(OPERATION.scan, (writer) => {
@@ -124,7 +127,7 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 			stableId: string, context: ProfessionalPluginPeerContext,
 		) => {
 			admittedFormat(formats, format);
-			const session = await openSession(options.launcher, executable, entryExecutable,
+			const session = await openSession(options.launcher, executable, entryExecutable, entryArguments,
 				runtimeReadExecute, path, context);
 			try {
 				const answer = await session.request(OPERATION.open, (writer) => {
@@ -214,6 +217,7 @@ async function openSession(
 	launcher: ProfessionalPluginPeerLauncher,
 	peerExecutable: NativeChildIsolationArtifactDescriptor,
 	entryExecutable: NativeChildIsolationArtifactDescriptor,
+	entryArguments: readonly string[],
 	runtimeReadExecute: readonly NativeChildIsolationArtifactDescriptor[],
 	pluginPath: string,
 	context: ProfessionalPluginPeerContext,
@@ -223,7 +227,7 @@ async function openSession(
 	try {
 		const pluginGrant = await exactPathGrant(snapshot.path, snapshot.authentication.identity);
 		const arguments_ = entryExecutable.path === peerExecutable.path ? []
-			: ['--library-path', dirname(entryExecutable.path), peerExecutable.path];
+			: [...entryArguments, peerExecutable.path];
 		launch = await launcher.launch({
 			executable: entryExecutable, workloadPayload: peerExecutable, arguments: arguments_,
 			readOnly: [], readExecute: [pluginGrant], writeOnly: [],
@@ -265,6 +269,16 @@ async function openSession(
 		}
 	};
 	return Object.freeze({ launch, pluginPath: snapshot.path, request, close });
+}
+
+function loaderArguments(value: readonly string[]): readonly string[] {
+	if (!Array.isArray(value) || value.length !== 3 || value[0] !== '--inhibit-cache'
+		|| value[1] !== '--library-path' || typeof value[2] !== 'string'
+		|| value[2].length < 1 || value[2].length > 32_768 || value[2].includes('\0')
+		|| value[2].split(':').length > 48 || value[2].split(':').some((path) => (
+			path.length < 1 || resolve(path) !== path
+		))) throw new TypeError('The professional peer loader arguments are invalid.');
+	return Object.freeze([...value]);
 }
 
 async function listPluginCandidates(root: string, suffix: string): Promise<readonly string[]> {

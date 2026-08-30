@@ -17,6 +17,9 @@ import {
 import {
 	createSoundscaperProfessionalPluginPeer,
 } from './project-library-runtime/desktop/soundscaper-professional-plugin-peer.js';
+import {
+	resolveSoundscaperProfessionalLinuxSystemRuntime,
+} from './project-library-runtime/desktop/soundscaper-professional-linux-system-runtime.js';
 
 const arguments_ = namedArguments(process.argv.slice(2));
 if (!parentPort) throw new Error('Invalid professional utility smoke request.');
@@ -64,10 +67,12 @@ async function isolatedFixtureCanary(roots_, target_) {
 		descriptor(resolve(roots_.professional, 'self-test', 'soundscaper_professional_fixture.clap')),
 		runtimeDescriptors(roots_.runtime),
 	]);
+	const isolationRuntime = await effectiveIsolationRuntime(target_, peer, runtimeClosure);
 	const launcherAuthority = createNativeChildIsolationLauncher({
 		target: target_,
 		machineWorkload: Object.freeze({
-			kind: 'soundscaper', payloads: Object.freeze([peer]), runtimeClosure,
+			kind: 'soundscaper', payloads: Object.freeze([peer]),
+			runtimeClosure: isolationRuntime.runtimeClosure,
 		}),
 		artifacts: Object.freeze({ launcher, sandboxProfile, brokerPolicy }),
 	});
@@ -76,7 +81,9 @@ async function isolatedFixtureCanary(roots_, target_) {
 	const plugin = createSoundscaperProfessionalPluginPeer({
 		launcher: launcherAuthority,
 		peerExecutable: peer,
-		runtimeReadExecute: runtimeClosure,
+		entryExecutable: isolationRuntime.entryExecutable,
+		entryArguments: isolationRuntime.entryArguments,
+		runtimeReadExecute: isolationRuntime.runtimeClosure,
 		pluginFormats: ['clap'],
 	});
 	const fixtureMetadata = await lstat(fixture.path);
@@ -155,6 +162,26 @@ async function runtimeDescriptors(root) {
 	await visit(root);
 	assert(output.length <= 128, 'The runtime closure exceeds 128 files.');
 	return Object.freeze(output.sort((left, right) => left.path.localeCompare(right.path, 'en')));
+}
+
+async function effectiveIsolationRuntime(target_, peer, packagedRuntimeClosure) {
+	if (!target_.startsWith('linux-')) {
+		return Object.freeze({
+			entryExecutable: peer,
+			entryArguments: Object.freeze([]),
+			runtimeClosure: packagedRuntimeClosure,
+		});
+	}
+	const system = await resolveSoundscaperProfessionalLinuxSystemRuntime({
+		target: target_, peer, runtimeClosure: packagedRuntimeClosure,
+	});
+	assert(system.schemaVersion === 1 && system.policy === 'host-system-elf-runtime-v1',
+		'The Linux host-system runtime policy is not authenticated.');
+	return Object.freeze({
+		entryExecutable: system.entryExecutable,
+		entryArguments: system.loaderArguments,
+		runtimeClosure: system.runtimeClosure,
+	});
 }
 
 async function descriptor(path) {

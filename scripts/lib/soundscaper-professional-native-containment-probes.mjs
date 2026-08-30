@@ -3,6 +3,7 @@
 /** Hostile probes whose receipts depend on observed target isolation denial. */
 
 import { createServer } from 'node:net';
+import { dirname, resolve } from 'node:path';
 
 const SCENARIOS = Object.freeze({
 	'isolation-broker-filesystem-grant': Object.freeze({
@@ -26,9 +27,23 @@ export async function runSoundscaperProfessionalNativeContainmentProbe(options, 
 		throw new TypeError('The hostile containment probe requires the installed isolation launcher.');
 	}
 	const peer = artifact(options?.peer, 'professional peer');
+	const entryExecutable = artifact(options?.entryExecutable ?? peer,
+		'professional entry executable');
+	const entryArguments = Object.freeze([...(options?.entryArguments ?? [])]);
+	if (entryArguments.length > 0 && (entryArguments.length !== 3
+		|| entryArguments[0] !== '--inhibit-cache' || entryArguments[1] !== '--library-path'
+		|| typeof entryArguments[2] !== 'string' || entryArguments[2].length > 32_768
+		|| entryArguments[2].includes('\0') || entryArguments[2].split(':').length > 48
+		|| entryArguments[2].split(':').some((path) => resolve(path) !== path))) {
+		throw new TypeError('The hostile containment probe loader arguments are invalid.');
+	}
 	const runtimeClosure = Object.freeze((options?.runtimeClosure ?? [])
 		.map((entry) => artifact(entry, 'runtime closure')));
 	const arguments_ = [`--soundscaper-containment-probe=${SCENARIOS[scenario].argument}`];
+	if (entryExecutable.path !== peer.path) {
+		arguments_.unshift(...(entryArguments.length === 0
+			? ['--library-path', dirname(entryExecutable.path)] : entryArguments), peer.path);
+	}
 	let readOnly = [];
 	let server = null;
 	let networkAccepted = false;
@@ -50,7 +65,7 @@ export async function runSoundscaperProfessionalNativeContainmentProbe(options, 
 			arguments_.push(`--loopback-port=${String(address.port)}`);
 		}
 		const launch = await authority.launch({
-			executable: peer,
+			executable: entryExecutable,
 			workloadPayload: peer,
 			arguments: Object.freeze(arguments_),
 			readOnly: Object.freeze(readOnly),

@@ -16,6 +16,14 @@ const WINDOWS_ARCHITECTURE = Object.freeze({
 	machine: 'IMAGE_FILE_MACHINE_AMD64',
 });
 
+const LINUX_ARCHITECTURE = Object.freeze({
+	schemaVersion: 1,
+	target: 'linux-x64',
+	architecture: 'x64',
+	format: 'elf64-le',
+	machine: 'EM_X86_64',
+});
+
 test('Linux dependency inspection reads both GNU readelf RPATH labels', () => {
 	assert.deepEqual(parseSoundscaperProfessionalLinuxDynamicSection(`
  0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
@@ -50,4 +58,22 @@ test('Windows dependency closure admits the exact JUCE GUI system libraries', as
 			architecture: WINDOWS_ARCHITECTURE, imports: ['foreign.dll'], rpaths: [],
 		}),
 	}), /undeclared runtime dependency foreign\.dll/iu);
+});
+
+test('Linux dependency closure admits only slash-free case-sensitive system SONAMEs', async () => {
+	const artifacts = [{
+		path: 'payload/soundscaper_professional_peer', absolutePath: '/unused',
+	}];
+	const validate = (imports) => validateSoundscaperProfessionalNativeDependencyClosure({
+		target: 'linux-x64', artifacts, runtimeArtifacts: [], root: '/candidate',
+		inspectDependencies: async () => ({
+			architecture: LINUX_ARCHITECTURE, imports, rpaths: ['$ORIGIN/runtime'],
+		}),
+	});
+	const admitted = await validate(['libX11.so.6', 'libXcursor.so.1']);
+	assert.deepEqual(admitted[0].imports, ['libX11.so.6', 'libXcursor.so.1']);
+	await assert.rejects(validate(['/opt/attacker/libc.so.6']),
+		/ambient runtime dependency \/opt\/attacker\/libc\.so\.6/u);
+	await assert.rejects(validate(['libx11.so.6']),
+		/undeclared runtime dependency libx11\.so\.6/u);
 });

@@ -108,6 +108,15 @@ test('professional scanner and host roles derive machine containment and select 
 		path, byteLength: 10, sha256: 'a'.repeat(64), identity: Object.freeze({ dev: 1, ino: 2 }),
 	});
 	const peer = Object.freeze({ describe: async () => ({ pluginFormats: ['vst3'] }) });
+	const systemLoader = artifact('/lib64/ld-linux-x86-64.so.2');
+	const systemLibrary = artifact('/lib/x86_64-linux-gnu/libc.so.6');
+	const systemRuntime = Object.freeze({
+		schemaVersion: 1,
+		policy: 'host-system-elf-runtime-v1',
+		entryExecutable: systemLoader,
+		loaderArguments: Object.freeze(['--inhibit-cache', '--library-path', '/lib/x86_64-linux-gnu']),
+		runtimeClosure: Object.freeze([systemLoader, systemLibrary]),
+	});
 	const descriptor = Object.freeze({
 		target: 'linux-x64', path: '/trusted-audio.node', sha256: 'b'.repeat(64),
 		m9ReleaseReview: Object.freeze({ scope: 'stable-1.0-release', status: 'pending' }),
@@ -124,6 +133,11 @@ test('professional scanner and host roles derive machine containment and select 
 	for (const role of ['plugin-scanner', 'plugin-host']) {
 		const seams = await createProfessionalNativeHelperRoleSeams({}, role, {
 			verifyPayload: async () => descriptor,
+			resolveLinuxSystemRuntime: async ({ target, peer: requestedPeer }) => {
+				assert.equal(target, descriptor.target);
+				assert.equal(requestedPeer, descriptor.pluginPeer);
+				return systemRuntime;
+			},
 			createLauncher: (options) => {
 				launcherOptions = options;
 				return { machineReady: async () => ({ status: 'ready' }) };
@@ -133,10 +147,13 @@ test('professional scanner and host roles derive machine containment and select 
 		assert.equal(await seams.loadAddon(), peer);
 		assert.equal(seams.addonPath, descriptor.pluginPeer.path);
 		assert.deepEqual(launcherOptions.machineWorkload, {
-			kind: 'soundscaper', payloads: [descriptor.pluginPeer], runtimeClosure: [],
+			kind: 'soundscaper', payloads: [descriptor.pluginPeer],
+			runtimeClosure: systemRuntime.runtimeClosure,
 		});
 		assert.equal(peerOptions.peerExecutable, descriptor.pluginPeer);
-		assert.equal(peerOptions.entryExecutable, descriptor.isolation.entrypoint);
+		assert.equal(peerOptions.entryExecutable, systemRuntime.entryExecutable);
+		assert.equal(peerOptions.entryArguments, systemRuntime.loaderArguments);
+		assert.equal(peerOptions.runtimeReadExecute, systemRuntime.runtimeClosure);
 	}
 });
 

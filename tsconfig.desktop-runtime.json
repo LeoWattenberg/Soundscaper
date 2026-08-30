@@ -93,6 +93,8 @@
 		"desktop/native-helper-lab-diagnostic.ts",
 		"desktop/native-child-isolation-launcher.ts",
 		"desktop/native-child-framed-control.ts",
+		"desktop/soundscaper-professional-linux-system-libraries.ts",
+		"desktop/soundscaper-professional-linux-system-runtime.ts",
 		"desktop/soundscaper-professional-plugin-peer.ts",
 		"desktop/plugin-candidate-snapshot.mjs",
 		"desktop/plugin-candidate-authentication.mjs",

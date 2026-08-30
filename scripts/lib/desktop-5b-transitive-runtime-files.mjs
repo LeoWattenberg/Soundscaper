@@ -36,6 +36,8 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/native-child-windows-authority.js',
 	'desktop/native-child-framed-control.js',
 	'desktop/soundscaper-professional-native-readiness.mjs',
+	'desktop/soundscaper-professional-linux-system-libraries.js',
+	'desktop/soundscaper-professional-linux-system-runtime.js',
 	'desktop/soundscaper-professional-plugin-peer.js',
 	'desktop/plugin-candidate-snapshot.mjs',
 	'desktop/plugin-candidate-authentication.mjs',
