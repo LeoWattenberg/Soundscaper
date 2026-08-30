@@ -73,6 +73,25 @@ test('explicit reconciliation discards manifests whose authenticated bodies were
 	assert.equal(await store.hasBlob(changed.sha256), false, 'the now-unreferenced corrupt blob is collected');
 });
 
+test('a transient artifact read error aborts collection without uninstalling the model', async (t) => {
+	const { store } = await fixture(t);
+	const expected = artifact('healthy.onnx', 'healthy model');
+	await publish(store, expected, 'healthy model');
+	await store.commitInstall({ modelId: 'healthy-model', version: '1', artifacts: [expected] });
+	const verifyArtifact = store.verifyArtifact.bind(store);
+	store.verifyArtifact = async () => {
+		throw Object.assign(new Error('The model blob is temporarily busy.'), { code: 'EBUSY' });
+	};
+
+	await assert.rejects(
+		collectLocalModelGarbage({ store, offeredArtifacts: [expected] }),
+		(error: unknown) => (error as { code?: unknown }).code === 'EBUSY',
+	);
+	store.verifyArtifact = verifyArtifact;
+	assert.equal((await store.readManifest('healthy-model'))?.modelId, 'healthy-model');
+	assert.equal(await store.hasBlob(expected.sha256), true);
+});
+
 test('a valid catalog partial is discarded once its published blob exists', async (t) => {
 	const { root, store } = await fixture(t);
 	const expected = artifact('model.onnx', 'published model');

@@ -45,14 +45,21 @@ async function discardDamagedManifests(store: FileLocalModelStore): Promise<numb
 		const modelId = entry.name.endsWith('.json') ? entry.name.slice(0, -5) : '';
 		let authenticated = entry.isFile() && !entry.isSymbolicLink() && MODEL_ID_PATTERN.test(modelId);
 		if (authenticated) {
+			let manifest: Awaited<ReturnType<FileLocalModelStore['readManifest']>> | undefined;
 			try {
-				const manifest = await store.readManifest(modelId);
-				authenticated = manifest !== null && manifest.modelId === modelId;
-				for (const artifact of manifest?.artifacts ?? []) {
-					if (!await store.verifyArtifact(artifact)) authenticated = false;
-				}
-			} catch {
+				manifest = await store.readManifest(modelId);
+			} catch (error) {
+				// A schema/JSON exception proves the manifest itself is damaged. A
+				// filesystem error says nothing about its bytes and must stop cleanup.
+				if (errorCode(error) !== undefined) throw error;
 				authenticated = false;
+			}
+			authenticated = authenticated && manifest !== null && manifest !== undefined
+				&& manifest.modelId === modelId;
+			for (const artifact of authenticated ? manifest?.artifacts ?? [] : []) {
+				// `false` proves absence or mismatch; an I/O exception remains transient
+				// and propagates before either the manifest or its blobs can be removed.
+				if (!await store.verifyArtifact(artifact)) authenticated = false;
 			}
 		}
 		if (authenticated) continue;
