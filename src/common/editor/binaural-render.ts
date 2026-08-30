@@ -98,11 +98,25 @@ export function renderBinaural(
 			}
 			continue;
 		}
-		for (const [ear, output] of [[1, left], [-1, right]] as const) {
-			const angle = earAngleRadians(source.azimuth, source.elevation, ear);
-			const delaySamples = earDelaySeconds(angle) * sampleRate;
-			maximumDelaySamples = Math.max(maximumDelaySamples, delaySamples);
-			mixShadowedEar(output, source.channel, delaySamples, shadowGain(angle), distanceGain, sampleRate);
+		const ears = ([
+			{ angle: earAngleRadians(source.azimuth, source.elevation, 1), output: left },
+			{ angle: earAngleRadians(source.azimuth, source.elevation, -1), output: right },
+		] as const).map((ear) => ({
+			...ear,
+			delaySamples: earDelaySeconds(ear.angle) * sampleRate,
+		}));
+		// Woodworth expresses arrival relative to the centre of the head, so the
+		// near ear can have a negative delay. A finite delivery cannot read before
+		// its first frame: use the earliest ear as this source's causal origin and
+		// retain the exact ear-to-ear difference.
+		const firstArrival = Math.min(...ears.map(({ delaySamples }) => delaySamples));
+		for (const { angle, delaySamples, output } of ears) {
+			const causalDelaySamples = delaySamples - firstArrival;
+			maximumDelaySamples = Math.max(maximumDelaySamples, causalDelaySamples);
+			mixShadowedEar(
+				output, source.channel, causalDelaySamples,
+				shadowGain(angle), distanceGain, sampleRate,
+			);
 		}
 	}
 

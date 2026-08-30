@@ -65,6 +65,25 @@ test('a source to the left reaches the left ear first, and louder', () => {
 	assert.ok(Math.abs(energy(mirrored[1]) - energy(left)) < 1e-9);
 });
 
+test('a lateral source beginning at the delivery boundary reaches its near ear', () => {
+	const atBoundary = impulse(256, 0);
+	const result = renderBinaural([
+		{ ...source(), channel: atBoundary, azimuth: 90 },
+	], SAMPLE_RATE);
+	const [left, right] = result.channels;
+
+	assert.ok(energy(left) > energy(right), 'the near ear is not erased by a negative delay');
+	assert.equal(left.findIndex((sample) => sample !== 0), 0, 'the earliest arrival stays on the boundary');
+	assert.ok(right.findIndex((sample) => sample !== 0) > 0, 'the far ear retains the authored ITD');
+	assert.ok(result.decision.maximumInterauralDelayMs > 0.6, 'the decision reports ear-to-ear delay');
+
+	const mirrored = renderBinaural([
+		{ ...source(), channel: atBoundary, azimuth: -90 },
+	], SAMPLE_RATE).channels;
+	assert.deepEqual([...mirrored[1]], [...left], 'boundary handling remains symmetric');
+	assert.deepEqual([...mirrored[0]], [...right]);
+});
+
 test('the interaural delay grows with the angle and never exceeds the head', () => {
 	let previous = 0;
 	for (const azimuth of [0, 15, 30, 45, 60, 75, 90]) {
