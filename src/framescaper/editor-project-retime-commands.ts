@@ -499,10 +499,10 @@ function keyframeContext(clip: DataRecord, name: string): Readonly<Record<string
 	});
 }
 
-
 function assertClipTrackUnlocked(project: FramescaperProjectRetime, clipId: string): void {
 	for (const trackValue of project.tracks) {
 		const track = dataRecord(trackValue, 'Framescaper retime track');
+		if (!Object.hasOwn(track, 'clipIds')) continue;
 		const clipIds = dataProperty(track, 'clipIds', 'Framescaper retime track');
 		if (!Array.isArray(clipIds) || !clipIds.includes(clipId)) continue;
 		if (dataProperty(track, 'locked', 'Framescaper retime track') === true) {
