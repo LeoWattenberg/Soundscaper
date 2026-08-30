@@ -162,6 +162,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.equal(gates.size, matrix.releaseGates.length, 'release gate IDs must be unique');
 	assert.equal(gates.get('desktop-notice-delivery').status, 'implemented');
 	assert.equal(gates.get('desktop-bundled-codec-corresponding-source').status, 'implemented');
+	assert.equal(gates.get('web-bundled-codec-corresponding-source').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').status, 'implemented');
 	assert.equal(gates.get('web-notice-delivery').status, 'blocked');
 	assert.equal(gates.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
@@ -188,6 +189,8 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.match(gates.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
 	assert.match(gates.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);
 	assert.match(gates.get('web-notice-delivery').blocker, /web route|web artifact/u);
+	assert.match(gates.get('web-bundled-codec-corresponding-source').blocker,
+		/preferred corresponding source.*relink/iu);
 	assert.equal(matrix.npmProductionClosure.some(({ name }) => name.startsWith('@ffmpeg/')), false);
 	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, []);
 	assert.equal(
@@ -291,7 +294,11 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		'flac-1-5-0-desktop-wasm', 'opus-1-6-1-ogg-1-3-6-desktop-wasm',
 		'vorbis-1-3-7-ogg-1-3-6-desktop-wasm', 'mpg123-1-33-7-desktop-wasm',
 		'lame-4-0-desktop-wasm', 'twolame-0-4-0-desktop-wasm',
-	]) assert.equal(provenance.get(id).status, 'documented', id);
+	]) {
+		assert.equal(provenance.get(id).status, 'documented', id);
+		assert.deepEqual(provenance.get(id).artifactSurfaces,
+			['web-pages-bundle', 'electron-renderer', 'electron-runtime-assets', 'desktop-release-assets'], id);
+	}
 	assert.deepEqual(provenance.get('wavpack-wasm'), {
 		id: 'wavpack-wasm',
 		status: 'documented',
@@ -394,6 +401,23 @@ test('only the evidenced local-model surface is enabled among future distributio
 		'src/common/editor/reviewed-effects/utility-gain-package.ts',
 		'tests/audio-editor-reviewed-effects.test.ts',
 	]) assert.ok(gates.get('web-effect-packages').evidence.includes(path));
+});
+
+test('reviewed browser codec notices name the web and Electron renderer surfaces', async () => {
+	const notices = await readFile(noticesUrl, 'utf8');
+	for (const heading of [
+		'libFLAC 1.5.0 WebAssembly',
+		'libopus 1.6.1 and libogg 1.3.6 WebAssembly',
+		'libvorbis 1.3.7 and libogg 1.3.6 WebAssembly',
+		'LAME 4.0 WebAssembly',
+		'mpg123 1.33.7 WebAssembly',
+		'TwoLAME 0.4.0 WebAssembly',
+	]) {
+		const start = notices.indexOf(`## ${heading}`);
+		assert.ok(start >= 0, `${heading} notice is missing`);
+		const next = notices.indexOf('\n## ', start + 4);
+		assert.match(notices.slice(start, next < 0 ? undefined : next), /Web\s+and\s+Electron\s+renderer/u, heading);
+	}
 });
 
 test('native policy rows separate stable-release review from test activation', async () => {

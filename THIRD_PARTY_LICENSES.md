@@ -125,9 +125,9 @@ Audacity is a registered trademark. This project is not affiliated with or endor
 ## libFLAC 1.5.0 WebAssembly
 
 Soundscaper distributes one exact memory-only Emscripten build of libFLAC
-1.5.0 under the BSD-3-Clause license as a desktop bundled `.flac`
-encode/decode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64.
-macOS x64 is unsupported.
+1.5.0 under the BSD-3-Clause license in the Web and Electron renderer. The same
+bytes are also staged as the desktop bundled `.flac` encode/decode provider on
+Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported.
 
 - upstream: <https://github.com/xiph/flac/tree/1.5.0>
 - pinned commit: `1507800de4b70e21be71f38caa0d9079d0bc6e45`
@@ -151,8 +151,9 @@ do not establish absence of patent exposure or patent clearance.
 ## libopus 1.6.1 and libogg 1.3.6 WebAssembly
 
 Soundscaper distributes one exact memory-only Emscripten build of libopus
-1.6.1 and libogg 1.3.6 as a desktop bundled Ogg Opus encode/decode provider on
-Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported.
+1.6.1 and libogg 1.3.6 in the Web and Electron renderer. The same bytes are also
+staged as the desktop bundled Ogg Opus encode/decode provider on Linux
+x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported.
 
 - libopus upstream: <https://github.com/xiph/opus/tree/v1.6.1>
 - pinned libopus commit: `22244de5a79bd1d6d623c32e72bf1954b56235be`
@@ -185,9 +186,10 @@ clearance or non-infringement for any use or territory.
 ## libvorbis 1.3.7 and libogg 1.3.6 WebAssembly
 
 Soundscaper distributes one exact memory-only Emscripten build of libvorbis
-1.3.7 and libogg 1.3.6 under their retained BSD-style terms as a desktop
-bundled Ogg Vorbis encode/decode provider on Linux x64/ARM64, macOS ARM64, and
-Windows x64/ARM64. macOS x64 is unsupported.
+1.3.7 and libogg 1.3.6 under their retained BSD-style terms in the Web and
+Electron renderer. The same bytes are also staged as the desktop bundled Ogg
+Vorbis encode/decode provider on Linux x64/ARM64, macOS ARM64, and Windows
+x64/ARM64. macOS x64 is unsupported.
 
 - libvorbis upstream: <https://gitlab.xiph.org/xiph/vorbis/-/tree/v1.3.7>
 - pinned libvorbis commit: `0657aee69dec8508a0011f47f3b69d7538e9d262`
@@ -216,10 +218,11 @@ or non-infringement for any use or territory.
 ## LAME 4.0 WebAssembly
 
 Soundscaper distributes one exact Emscripten build of the LAME 4.0
-`libmp3lame` encoder under LGPL-2.0-or-later terms. It is a desktop bundled MP3
-encode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS
-x64 is unsupported. No LAME decoder, command-line frontend, filesystem,
-network, thread, SIMD, or VBR support is included.
+`libmp3lame` encoder under LGPL-2.0-or-later terms in the Web and Electron
+renderer. The same bytes are also staged as the desktop bundled MP3 encode
+provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is
+unsupported. No LAME decoder, command-line frontend, filesystem, network,
+thread, SIMD, or VBR support is included.
 
 - official upstream release: <https://lame.sourceforge.io/>
 - exact source archive: <https://downloads.sourceforge.net/project/lame/lame/4.0/lame-4.0.tar.gz>
@@ -246,10 +249,11 @@ non-infringement for any use or territory.
 ## mpg123 1.33.7 WebAssembly
 
 Soundscaper distributes one exact memory-fed Emscripten build of the reusable
-libmpg123 decoder from mpg123 1.33.7 under LGPL-2.1-only terms. It is a desktop
-bundled MPEG-1 Layer II (MP2) and Layer III (MP3) decode provider on Linux
-x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported. No
-mpg123 encoder is included.
+libmpg123 decoder from mpg123 1.33.7 under LGPL-2.1-only terms in the Web and
+Electron renderer. The same bytes are also staged as the desktop bundled
+MPEG-1 Layer II (MP2) and Layer III (MP3) decode provider on Linux x64/ARM64,
+macOS ARM64, and Windows x64/ARM64. macOS x64 is unsupported. No mpg123 encoder
+is included.
 
 - official upstream release: <https://www.mpg123.de/download.shtml>
 - source archive SHA-256:
@@ -288,10 +292,11 @@ for any use or territory.
 ## TwoLAME 0.4.0 WebAssembly
 
 Soundscaper distributes one exact Emscripten build of the TwoLAME 0.4.0
-MPEG-1 Layer II encoder under LGPL-2.1-or-later terms. It is a desktop bundled
-MP2 encode provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64.
-macOS x64 is unsupported. No decoder, command-line frontend, filesystem,
-network, thread, SIMD, or VBR support is included.
+MPEG-1 Layer II encoder under LGPL-2.1-or-later terms in the Web and Electron
+renderer. The same bytes are also staged as the desktop bundled MP2 encode
+provider on Linux x64/ARM64, macOS ARM64, and Windows x64/ARM64. macOS x64 is
+unsupported. No decoder, command-line frontend, filesystem, network, thread,
+SIMD, or VBR support is included.
 
 - official upstream release: <https://www.twolame.org/>
 - exact source archive: <https://downloads.sourceforge.net/project/twolame/twolame/0.4.0/twolame-0.4.0.tar.gz>
