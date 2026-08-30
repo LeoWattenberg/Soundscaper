@@ -452,6 +452,7 @@ test('effect parameter surfaces share one cycle-free lazy owner', () => {
 
 test('small product-ready foundations have non-recursive semantic owners', () => {
 	for (const [path, owner] of [
+		['desktop/desktop-video-codec-operation-contract.ts', 'editor-codec-foundations'],
 		['src/common/editor/wavpack/pcm.js', 'editor-codec-foundations'],
 		['src/common/editor/staffpad/parameters.js', 'editor-codec-foundations'],
 		['src/common/editor/parametric-eq/wasm-loader.js', 'editor-codec-foundations'],
