@@ -113,6 +113,17 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	assert.equal(reopenedPlayback.getFreezeStatus(reopenedStale, 'voice'), 'stale');
 	assert.equal(projectedClip(reopenedPlayback.projectForPlayback(reopenedStale).project).sourceId, 'voice-source');
 	reopenedPlayback.dispose();
+	const missingFreezeAuthority = await store.getSourceMetadata('voice-freeze-1');
+	assert.ok(missingFreezeAuthority);
+	assert.equal(await store.discardSourceIfCurrent(missingFreezeAuthority), true);
+	const degradedPlayback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(), store,
+	);
+	await degradedPlayback.prepareProjectForActivation?.(current);
+	assert.equal(degradedPlayback.getFreezeStatus(current, 'voice'), 'unknown');
+	assert.equal(projectedClip(degradedPlayback.projectForPlayback(current).project).sourceId, 'voice-source');
+	degradedPlayback.dispose();
+	store.seed('voice-freeze-1', [Float32Array.from({ length: 8 }, (_, index) => (index + 1) / 8)]);
 	current = applySoundscaperProjectCommand(current, {
 		type: 'effect/add', scope: 'track', trackId: 'voice',
 		effect: { id: 'live-stale-highpass', type: 'highpass', enabled: true, params: {} },

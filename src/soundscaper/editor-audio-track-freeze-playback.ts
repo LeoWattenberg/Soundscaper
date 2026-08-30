@@ -98,24 +98,28 @@ export function createSoundscaperAudioTrackFreezePlaybackService(
 		const prepared: VerifiedSoundscaperAudioTrackFreeze[] = [];
 		for (const track of dataArray(candidate.tracks, 'project.tracks')) {
 			if (!Object.hasOwn(track, 'audioFreeze')) continue;
-			const trackId = stableId(track.id, 'frozen audio track');
-			const freeze = normalizeAudioTrackFreezeV1(track.audioFreeze);
-			const identities = await sourceIdentities(projectId, candidate, track, options.signal);
-			computeAudioTrackFreezeDigestsV1({
-				sampleRate: candidate.sampleRate as number,
-				renderStartFrame: freeze.renderStartFrame,
-				renderFrameCount: freeze.renderFrameCount,
-				track,
-				clips: dataArray(candidate.clips, 'project.clips'),
-				sourceContentIdentities: identities,
-				automationLanes: dataArray(candidate.automationLanes, 'project.automationLanes'),
-				tempoMap: candidate.tempoMap ?? null,
-			});
-			const derivedSource = exactRecordById(
-				dataArray(candidate.sources, 'project.sources'), freeze.derivedSourceId, 'derived source',
-			);
-			await hashSourceContent(projectId, derivedSource, options.signal);
-			prepared.push({ project, trackId, freeze, derivedSource, sourceContentIdentities: identities });
+			try {
+				const trackId = stableId(track.id, 'frozen audio track');
+				const freeze = normalizeAudioTrackFreezeV1(track.audioFreeze);
+				const identities = await sourceIdentities(projectId, candidate, track, options.signal);
+				computeAudioTrackFreezeDigestsV1({
+					sampleRate: candidate.sampleRate as number,
+					renderStartFrame: freeze.renderStartFrame,
+					renderFrameCount: freeze.renderFrameCount,
+					track,
+					clips: dataArray(candidate.clips, 'project.clips'),
+					sourceContentIdentities: identities,
+					automationLanes: dataArray(candidate.automationLanes, 'project.automationLanes'),
+					tempoMap: candidate.tempoMap ?? null,
+				});
+				const derivedSource = exactRecordById(
+					dataArray(candidate.sources, 'project.sources'), freeze.derivedSourceId, 'derived source',
+				);
+				await hashSourceContent(projectId, derivedSource, options.signal);
+				prepared.push({ project, trackId, freeze, derivedSource, sourceContentIdentities: identities });
+			} catch (error) {
+				if (options.signal?.aborted) throw options.signal.reason ?? error;
+			}
 		}
 		for (const admission of prepared) admitVerifiedFreeze(admission);
 	}
