@@ -151,6 +151,107 @@ test('native route preparation disposes its transport when graph construction fa
 	await renderer.dispose();
 });
 
+test('renderer disposal waits for and revokes a route still being prepared', async () => {
+	const events: unknown[] = [];
+	const sink = Object.assign(audioNode('sink', events), { gain: { value: 1 } });
+	const context = {
+		sampleRate: 48_000,
+		destination: audioNode('destination', events),
+		createGain: () => sink,
+	} as unknown as AudioContext;
+	let disposals = 0;
+	const transport = {
+		node: audioNode('device', events) as unknown as AudioNode,
+		attach: (_port: unknown, value: { generation: number }) => value.generation,
+		revoke: () => 1,
+		notifyPeerLoss: () => 1,
+		calibrate: async () => 0,
+		dispose: () => { disposals += 1; },
+	};
+	const creation = deferred<typeof transport>();
+	const started = deferred<void>();
+	const renderer = createSoundscaperNativeAudioRenderer({
+		engine: {
+			getAudioContext: async () => context,
+			getState: () => ({ state: 'stopped' }),
+			pause() {},
+			play: async () => undefined,
+		},
+		windowValue: null,
+		createNode: async () => { started.resolve(); return creation.promise; },
+	});
+	const preparing = renderer.prepare('session-pending', {
+		candidates: [{ backend: 'alsa', deviceHandle: 'opaque-device' }],
+		direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 128, channelCount: 2,
+	});
+	await started.promise;
+	const rejectedPreparation = assert.rejects(preparing, /disposed/u);
+	let disposalSettled = false;
+	const disposal = renderer.dispose().then(() => { disposalSettled = true; });
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	const settledBeforeCreation = disposalSettled;
+	creation.resolve(transport);
+	const settlements = await Promise.allSettled([rejectedPreparation, disposal]);
+	assert.equal(settledBeforeCreation, false, 'disposal must own pending route construction');
+	assert.equal(settlements[0]?.status, 'fulfilled');
+	assert.equal(settlements[1]?.status, 'fulfilled');
+	assert.equal(disposals, 1, 'the late worklet transport is revoked exactly once');
+});
+
+test('an older route preparation cannot overwrite a newer completed route', async () => {
+	const events: unknown[] = [];
+	const context = {
+		sampleRate: 48_000,
+		destination: audioNode('destination', events),
+		createGain: () => Object.assign(audioNode('sink', events), { gain: { value: 1 } }),
+	} as unknown as AudioContext;
+	const disposals = [0, 0];
+	const transports = [0, 1].map((index) => ({
+		node: audioNode(`device-${String(index)}`, events) as unknown as AudioNode,
+		attach: (_port: unknown, value: { generation: number }) => value.generation,
+		revoke: () => 1,
+		notifyPeerLoss: () => 1,
+		calibrate: async () => 0,
+		dispose: () => { disposals[index] += 1; },
+	}));
+	const firstCreation = deferred<(typeof transports)[number]>();
+	const firstStarted = deferred<void>();
+	let creation = 0;
+	const renderer = createSoundscaperNativeAudioRenderer({
+		engine: {
+			getAudioContext: async () => context,
+			getState: () => ({ state: 'stopped' }),
+			pause() {},
+			play: async () => undefined,
+		},
+		windowValue: null,
+		createNode: async () => {
+			const index = creation++;
+			if (index === 0) {
+				firstStarted.resolve();
+				return firstCreation.promise;
+			}
+			return transports[1];
+		},
+	});
+	const first = renderer.prepare('session-old', {
+		candidates: [{ backend: 'alsa', deviceHandle: 'old-device' }],
+		direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 128, channelCount: 2,
+	});
+	await firstStarted.promise;
+	await renderer.prepare('session-new', {
+		candidates: [{ backend: 'alsa', deviceHandle: 'new-device' }],
+		direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 128, channelCount: 2,
+	});
+	const stale = assert.rejects(first, /superseded/u);
+	firstCreation.resolve(transports[0]);
+	const staleSettlement = await Promise.allSettled([stale]);
+	await renderer.release('session-new');
+	await renderer.dispose();
+	assert.equal(staleSettlement[0]?.status, 'fulfilled');
+	assert.deepEqual(disposals, [1, 1], 'both the stale and current transports retire exactly once');
+});
+
 function audioNode(name: string, events: unknown[]) {
 	return {
 		name,
@@ -190,4 +291,13 @@ function workletNode(events: unknown[]) {
 		connect(destination: { name?: string }) { events.push(['connect', 'recorder', destination.name]); },
 		disconnect() { events.push(['disconnect', 'recorder']); },
 	};
+}
+
+function deferred<Value>(): Readonly<{
+	promise: Promise<Value>;
+	resolve(value: Value): void;
+}> {
+	let settle: (value: Value) => void = () => undefined;
+	const promise = new Promise<Value>((resolve) => { settle = resolve; });
+	return Object.freeze({ promise, resolve: (value: Value) => settle(value) });
 }

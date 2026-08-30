@@ -51,6 +51,9 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 	const createNode = options.createNode ?? createNativeDeviceIoWorkletNode;
 	let prepared: PreparedSession | null = null;
 	let listening = false;
+	let disposed = false;
+	let preparationGeneration = 0;
+	const preparations = new Set<Promise<void>>();
 
 	const receive = (event: Event): void => {
 		const message = event as MessageEvent<unknown>;
@@ -95,71 +98,102 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 		await restartIfPlaying(options.engine);
 	};
 
-	return Object.freeze({
-		async prepare(sessionId: string, request: NativeAudioSessionOpenRequestV1, route?: Readonly<{
-			backend: string; deviceHandle: string;
-		}>): Promise<void> {
-			await release();
-			listen();
-			const context = await options.engine.getAudioContext({ resume: true });
-			// The worklet copies frames one-to-one between the engine graph and
-			// the native device, so a route at any other rate would repitch
-			// playback against the export render and mis-clock capture. The
-			// contract forbids silent substitution: the open refuses instead.
-			if (context.sampleRate !== request.sampleRate) {
-				throw new Error(`The engine audio context runs at ${String(context.sampleRate)} Hz; `
-					+ `a native route at ${String(request.sampleRate)} Hz must be opened at the context rate.`);
-			}
-			let capture: PreparedSession['capture'] = null;
-			const lost = (value: Readonly<{ reason?: unknown }>, fallback: string): void => {
-				if (prepared?.sessionId !== sessionId) return;
-				const reason = nativeAudioLossReason(value.reason, fallback);
-				capture?.revoke(String(value.reason || fallback));
-				void (async () => {
-					await release(sessionId);
-					await options.onDeviceLoss?.(sessionId, reason);
-				})().catch(() => undefined);
-			};
-			const transport = await createNode(context, {
-				direction: request.direction,
-				channelCount: request.channelCount,
-				periodFrames: request.periodFrames,
-				queueCapacity: 8,
-				onTransfer: (value: Readonly<{ framesTransferred: number; lostFrames: number }>) => {
-					if (prepared?.sessionId === sessionId) options.onTransfer?.(sessionId, value);
-				},
-				onClose: (value: Readonly<{ reason?: unknown }>) => lost(value, 'device-loss'),
-				onFault: (value: Readonly<{ reason?: unknown }>) => lost(value, 'device-fault'),
+	const prepare = (sessionId: string, request: NativeAudioSessionOpenRequestV1, route?: Readonly<{
+		backend: string; deviceHandle: string;
+	}>): Promise<void> => {
+		assertOpen();
+		const generation = ++preparationGeneration;
+		const pending = prepareRoute(sessionId, request, route, generation);
+		preparations.add(pending);
+		const settled = (): void => { preparations.delete(pending); };
+		void pending.then(settled, settled);
+		return pending;
+	};
+
+	async function prepareRoute(
+		sessionId: string,
+		request: NativeAudioSessionOpenRequestV1,
+		route: Readonly<{ backend: string; deviceHandle: string }> | undefined,
+		generation: number,
+	): Promise<void> {
+		await release();
+		assertCurrent(generation);
+		listen();
+		const context = await options.engine.getAudioContext({ resume: true });
+		assertCurrent(generation);
+		// The worklet copies frames one-to-one between the engine graph and
+		// the native device, so a route at any other rate would repitch
+		// playback against the export render and mis-clock capture. The
+		// contract forbids silent substitution: the open refuses instead.
+		if (context.sampleRate !== request.sampleRate) {
+			throw new Error(`The engine audio context runs at ${String(context.sampleRate)} Hz; `
+				+ `a native route at ${String(request.sampleRate)} Hz must be opened at the context rate.`);
+		}
+		let capture: PreparedSession['capture'] = null;
+		const lost = (value: Readonly<{ reason?: unknown }>, fallback: string): void => {
+			if (prepared?.sessionId !== sessionId) return;
+			const reason = nativeAudioLossReason(value.reason, fallback);
+			capture?.revoke(String(value.reason || fallback));
+			void (async () => {
+				await release(sessionId);
+				await options.onDeviceLoss?.(sessionId, reason);
+			})().catch(() => undefined);
+		};
+		const transport = await createNode(context, {
+			direction: request.direction,
+			channelCount: request.channelCount,
+			periodFrames: request.periodFrames,
+			queueCapacity: 8,
+			onTransfer: (value: Readonly<{ framesTransferred: number; lostFrames: number }>) => {
+				if (prepared?.sessionId === sessionId) options.onTransfer?.(sessionId, value);
+			},
+			onClose: (value: Readonly<{ reason?: unknown }>) => lost(value, 'device-loss'),
+			onFault: (value: Readonly<{ reason?: unknown }>) => lost(value, 'device-fault'),
+		});
+		let sink: GainNode | null = null;
+		try {
+			assertCurrent(generation);
+			sink = context.createGain();
+			sink.gain.value = 0;
+			transport.node.connect(sink);
+			sink.connect(context.destination);
+			if (request.direction !== 'output') capture = claimSoundscaperNativeAudioCapture({
+				sessionId, context, node: transport.node,
+				channelCount: request.channelCount, sampleRate: request.sampleRate,
+				deviceId: route ? nativeAudioDeviceId(route.backend, 'audio-input', route.deviceHandle) : undefined,
 			});
-			let sink: GainNode | null = null;
-			try {
-				sink = context.createGain();
-				sink.gain.value = 0;
-				transport.node.connect(sink);
-				sink.connect(context.destination);
-				if (request.direction !== 'output') capture = claimSoundscaperNativeAudioCapture({
-					sessionId, context, node: transport.node,
-					channelCount: request.channelCount, sampleRate: request.sampleRate,
-					deviceId: route ? nativeAudioDeviceId(route.backend, 'audio-input', route.deviceHandle) : undefined,
-				});
-				prepared = Object.freeze({
-					sessionId, context, node: transport.node, direction: request.direction,
-					sink, capture, calibrate: transport.calibrate,
-					client: createNativeRealtimeClient({
-						transport,
-						request: {
-							sampleRate: request.sampleRate, channelCount: request.channelCount,
-							frameCount: request.periodFrames, queueCapacity: 8,
-						},
-					}),
-				});
-			} catch (error) {
-				capture?.revoke('session-closed');
-				try { sink?.disconnect(); } catch { /* partially connected */ }
-				transport.dispose();
-				throw error;
-			}
-		},
+			prepared = Object.freeze({
+				sessionId, context, node: transport.node, direction: request.direction,
+				sink, capture, calibrate: transport.calibrate,
+				client: createNativeRealtimeClient({
+					transport,
+					request: {
+						sampleRate: request.sampleRate, channelCount: request.channelCount,
+						frameCount: request.periodFrames, queueCapacity: 8,
+					},
+				}),
+			});
+		} catch (error) {
+			capture?.revoke('session-closed');
+			try { sink?.disconnect(); } catch { /* partially connected */ }
+			transport.dispose();
+			throw error;
+		}
+	}
+
+	function assertOpen(): void {
+		if (disposed) throw new Error('The native audio renderer has been disposed.');
+	}
+
+	function assertCurrent(generation: number): void {
+		assertOpen();
+		if (generation !== preparationGeneration) {
+			throw new Error('The native audio route preparation was superseded.');
+		}
+	}
+
+	return Object.freeze({
+		prepare,
 		async calibrate(sessionId: string): Promise<number> {
 			if (!prepared || prepared.sessionId !== sessionId) {
 				throw new Error('That native audio session is not prepared in this renderer.');
@@ -173,8 +207,10 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 		},
 		release,
 		async dispose(): Promise<void> {
+			disposed = true;
 			if (listening) windowValue?.removeEventListener('message', receive);
 			listening = false;
+			await Promise.allSettled([...preparations]);
 			await release();
 		},
 	});
