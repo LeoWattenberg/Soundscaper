@@ -119,7 +119,7 @@ export interface NativeRetainedScapeArchive {
 export async function saveNativeScapeArchiveCopy(
 	runtime: Pick<NativeProjectServiceRuntime,
 	'copy' | 'copyFutureScapeArchive' | 'ensureProjectFileName' | 'fileService'
-	| 'projectFileExtension' | 'scapeMimeType' | 'setStatus'>,
+	| 'projectFileExtension' | 'publishDocumentSnapshot' | 'scapeMimeType' | 'setStatus' | 'state'>,
 	request: Readonly<{
 		assertReady(): void;
 		fallbackFileName: unknown;
@@ -146,7 +146,8 @@ export async function saveNativeScapeArchiveCopy(
 
 /** Save a retained future-schema archive as an exact byte copy, never re-serializing. */
 export async function publishNativeScapeArchiveCopy(
-	runtime: Pick<NativeProjectServiceRuntime, 'copyFutureScapeArchive' | 'fileService' | 'scapeMimeType'>,
+	runtime: Pick<NativeProjectServiceRuntime,
+	'copyFutureScapeArchive' | 'fileService' | 'publishDocumentSnapshot' | 'scapeMimeType' | 'state'>,
 	request: Readonly<{
 		archive: Blob;
 		assertReadyToCommit(): void;
@@ -160,6 +161,10 @@ export async function publishNativeScapeArchiveCopy(
 }>> {
 	const prepared = request.prepared;
 	if (prepared.mode === 'stream') {
+		let publication: Readonly<{
+			copied: Readonly<{ byteLength: number; schemaVersion: number }>;
+			saved: NativeSavedFile;
+		}> | null = null;
 		try {
 			const writable = await prepared.createWritable(request.archive.size);
 			const writer = writable.getWriter();
@@ -181,7 +186,7 @@ export async function publishNativeScapeArchiveCopy(
 			}
 			request.assertReadyToCommit();
 			const saved = await prepared.commit();
-			return { copied, saved };
+			publication = { copied, saved };
 		} catch (error) {
 			try {
 				await prepared.abort(error);
@@ -193,6 +198,10 @@ export async function publishNativeScapeArchiveCopy(
 			}
 			throw error;
 		}
+		await recordScapeArchiveManifest(runtime, {
+			archive: request.archive, fileName: request.fileName, signal: request.signal,
+		});
+		return publication;
 	}
 	let validatedBytes = 0;
 	const copied = await runtime.copyFutureScapeArchive(
@@ -214,11 +223,15 @@ export async function publishNativeScapeArchiveCopy(
 		signal: request.signal,
 	});
 	if (saved.cancelled) throw new DOMException('The file save was cancelled.', 'AbortError');
+	await recordScapeArchiveManifest(runtime, {
+		archive: request.archive, fileName: request.fileName, signal: request.signal,
+	});
 	return { copied, saved };
 }
 
 async function publishDirectScape(
-	runtime: Pick<NativeProjectServiceRuntime, 'exportScapeProject' | 'store'>,
+	runtime: Pick<NativeProjectServiceRuntime,
+	'exportScapeProject' | 'publishDocumentSnapshot' | 'state' | 'store'>,
 	request: Readonly<{
 		assertReadyToCommit(): void;
 		fileName: string;
@@ -230,6 +243,7 @@ async function publishDirectScape(
 	exported: ScapeExportResult;
 	saved: NativeSavedFile;
 }>> {
+	let publication: Readonly<{ exported: ScapeExportResult; saved: NativeSavedFile }> | null = null;
 	try {
 		const exported = await runtime.exportScapeProject(request.project, runtime.store, {
 			createWritable: (maximumBytes) => request.prepared.createWritable(maximumBytes),
@@ -242,7 +256,7 @@ async function publishDirectScape(
 		}
 		request.assertReadyToCommit();
 		const saved = await request.prepared.commit();
-		return { exported, saved };
+		publication = { exported, saved };
 	} catch (error) {
 		try {
 			await request.prepared.abort(error);
@@ -254,4 +268,11 @@ async function publishDirectScape(
 		}
 		throw error;
 	}
+	await recordScapeArchiveManifest(runtime, {
+		archive: null,
+		fileName: request.fileName,
+		projectTitle: String(request.project?.title ?? '') || null,
+		signal: request.signal,
+	});
+	return publication;
 }

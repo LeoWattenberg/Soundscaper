@@ -93,7 +93,9 @@ test('direct Scape publication stages with the admitted maximum and commits afte
 		async commit() { events.push('commit'); return { method: 'direct', size: 17 }; },
 		async abort() { events.push('abort'); },
 	};
+	const state = { archiveManifest: { manifest: { stale: true }, fileName: 'old.scape' } };
 	const runtime = {
+		state,
 		store: {},
 		scapeMimeType: 'application/vnd.soundscaper.scape+zip',
 		fileService: { saveFile: async () => { throw new Error('must not save a Blob'); } },
@@ -118,6 +120,8 @@ test('direct Scape publication stages with the admitted maximum and commits afte
 	assert.deepEqual(events, ['open:99', 'export', 'ownership', 'commit']);
 	assert.equal(result.exported.blob, null);
 	assert.deepEqual(result.saved, { method: 'direct', size: 17 });
+	assert.equal((state.archiveManifest as { manifest: unknown }).manifest, null);
+	assert.equal((state.archiveManifest as { fileName: string }).fileName, 'project.scape');
 });
 
 test('direct Scape publication aborts staging when ownership fails before commit', async () => {
@@ -317,7 +321,9 @@ test('stream archive copy writes exact retained bytes and commits after ownershi
 		async commit() { events.push('commit'); return { method: 'direct', size: staged }; },
 		async abort() { events.push('abort'); },
 	};
+	const state = { archiveManifest: { manifest: { stale: true }, fileName: 'old.scape' } };
 	const runtime = {
+		state,
 		scapeMimeType: 'application/vnd.soundscaper.scape+zip',
 		fileService: { saveFile: async () => { throw new Error('must not save a Blob'); } },
 		async copyFutureScapeArchive(input: Blob, write: (bytes: Uint8Array) => Promise<unknown>) {
@@ -336,6 +342,8 @@ test('stream archive copy writes exact retained bytes and commits after ownershi
 	assert.deepEqual(events, ['open:5', 'copied', 'sealed', 'ownership', 'commit']);
 	assert.deepEqual(result.copied, { byteLength: 5, schemaVersion: 16 });
 	assert.deepEqual(result.saved, { method: 'direct', size: 5 });
+	assert.equal((state.archiveManifest as { manifest: unknown }).manifest, null);
+	assert.equal((state.archiveManifest as { fileName: string }).fileName, 'future.scape');
 });
 
 test('stream archive copy aborts once when a staged write is refused', async () => {
