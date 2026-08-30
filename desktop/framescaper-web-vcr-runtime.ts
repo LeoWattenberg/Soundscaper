@@ -417,7 +417,17 @@ export function createFramescaperWebVcrRuntimeV1(
 		contents.on('will-redirect', preventUnsafeNavigation);
 		contents.on('render-process-gone', () => failSession(state, 'Web VCR guest process was lost.'));
 		contents.on('did-fail-load', (...args) => {
-			if (args[4] === true) failSession(state, 'Web VCR navigation failed.');
+			if (args[4] !== true) return;
+			if (webVcrNavigationWasAborted(args[1])) {
+				const failedUrl = args[3];
+				if (current === state && typeof failedUrl === 'string'
+					&& state.navigation.url === failedUrl) {
+					state.navigation = navigationState(state, { isLoading: false });
+					emit(state, snapshot(state));
+				}
+				return;
+			}
+			failSession(state, 'Web VCR navigation failed.');
 		});
 		contents.on('did-start-navigation', (...args) => observeNavigationStart(state, args));
 		contents.on('did-navigate', (...args) => observeNavigationCommit(state, args, false));
@@ -455,6 +465,12 @@ export function createFramescaperWebVcrRuntimeV1(
 		state.target = null;
 		try { await state.window.loadURL(url); }
 		catch (error) {
+			if (webVcrNavigationWasAborted(error)) {
+				if (current === state && state.navigation.url === url) {
+					state.navigation = navigationState(state, { isLoading: false });
+				}
+				return;
+			}
 			failSession(state, 'Web VCR navigation failed.');
 			throw error;
 		}
@@ -596,4 +612,12 @@ export function createFramescaperWebVcrRuntimeV1(
 		if (disposed) throw new Error('Web VCR runtime is disposed.');
 	}
 
+}
+
+function webVcrNavigationWasAborted(value: unknown): boolean {
+	if (value === -3) return true;
+	if (value === null || typeof value !== 'object') return false;
+	const error = value as Readonly<{ code?: unknown; errno?: unknown; message?: unknown }>;
+	return error.code === 'ERR_ABORTED' || error.code === -3 || error.errno === -3
+		|| typeof error.message === 'string' && /(?:^|\W)ERR_ABORTED(?:\W|$)/u.test(error.message);
 }

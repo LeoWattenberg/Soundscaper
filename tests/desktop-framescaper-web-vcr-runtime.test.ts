@@ -274,6 +274,27 @@ test('top-level loading clears the old target and cannot arm capture or survive 
 	assert.equal(rejected.snapshots.at(-1)?.target, null);
 });
 
+test('an aborted main-frame navigation leaves the Web VCR session usable', async () => {
+	const harness = runtime();
+	const opened = await harness.value.open(OWNER, { resolution: '1080p' });
+	const reference = referenceFor(opened);
+	harness.windows[0]?.emitContent(
+		'did-fail-load', {}, -3, 'ERR_ABORTED', 'https://example.com/superseded', true, 1, 1,
+	);
+	assert.equal(harness.snapshots.at(-1)?.phase, 'ready');
+	assert.equal(harness.windows[0]?.destroyed, false);
+
+	harness.windows[0]!.abortNextLoad = true;
+	const result = await harness.value.dispatch(OWNER, {
+		...reference, kind: 'navigate', url: 'https://example.com/first',
+	});
+	assert.equal(result.kind, 'snapshot');
+	if (result.kind !== 'snapshot') assert.fail('snapshot expected');
+	assert.equal(result.snapshot.phase, 'ready');
+	assert.equal(result.snapshot.navigation.isLoading, false);
+	assert.equal(harness.windows[0]?.destroyed, false);
+});
+
 test('the committed final HTTPS redirect remains authoritative after loadURL resolves', async () => {
 	const harness = runtime();
 	const opened = await harness.value.open(OWNER, { resolution: '1080p' });

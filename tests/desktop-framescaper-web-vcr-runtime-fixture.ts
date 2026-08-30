@@ -119,6 +119,7 @@ function fakeWindow(name: string, events: string[], failLoad = false) {
 		name,
 		destroyed: false,
 		failNextLoad: failLoad,
+		abortNextLoad: false,
 		redirectNextTo: null as string | null,
 		loaded: [] as string[],
 		input: [] as unknown[],
@@ -149,6 +150,13 @@ function fakeWindow(name: string, events: string[], failLoad = false) {
 		loadURL: async (url: string) => {
 			for (const listener of contentListeners.get('did-start-navigation') ?? []) {
 				listener({}, url, false, true, 1, 1);
+			}
+			if (value.abortNextLoad) {
+				value.abortNextLoad = false;
+				throw Object.assign(new Error('ERR_ABORTED (-3) loading a superseded navigation.'), {
+					code: 'ERR_ABORTED',
+					errno: -3,
+				});
 			}
 			if (value.failNextLoad) {
 				value.failNextLoad = false;
