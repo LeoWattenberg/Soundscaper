@@ -32,6 +32,7 @@ test('the lease renderer smoke creates, observes, advances, and reports conflict
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 921, instanceId: 'lease-renderer-main' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
 		qualification: null,
 	});
 	context.after(() => main.close());
@@ -96,6 +97,7 @@ test('the lease renderer smoke refuses a create whose destination already exists
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 922, instanceId: 'lease-renderer-create' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
 		qualification: null,
 	});
 	context.after(() => main.close());
@@ -126,6 +128,7 @@ test('the lease renderer smoke publishes a contender against the base it was han
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 923, instanceId: 'lease-renderer-contend' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
 		qualification: null,
 	});
 	context.after(() => main.close());

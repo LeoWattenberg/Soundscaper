@@ -32,6 +32,7 @@ import {
 import {
 	acquireSoundscaperDesktopProjectLibraryLeaseWithWait,
 } from '../desktop/soundscaper-project-library-lease-wait.ts'
+import { SoundscaperDesktopProjectLibraryCatalog } from '../desktop/soundscaper-project-library-catalog.ts'
 import {
 	createSoundscaperDesktopProjectLibraryMainPreloadBridge,
 } from '../desktop/soundscaper-project-library-main-preload.ts'
@@ -140,6 +141,48 @@ test('Soundscaper desktop baseline initializes only exact SSCP user_version 1 da
 	retired.close()
 })
 
+test('an expired but still-owned writer lease renews after event-loop suspension', () => {
+	const database = new DatabaseSync(':memory:')
+	initializeSoundscaperDesktopProjectLibraryDatabase(database)
+	let now = 10
+	const catalog = SoundscaperDesktopProjectLibraryCatalog.create({
+		database,
+		owner: { product: 'soundscaper', processId: 930, instanceId: 'suspended-writer' },
+		now: () => now,
+		randomId: () => 'a'.repeat(48),
+	})
+	catalog.acceptHandshake(createSoundscaperDesktopProjectLibraryHandshake())
+	const lease = catalog.acquireLease({ ttlMs: 1_000 })
+	now = 1_011
+	const renewed = catalog.renewLease(lease, { ttlMs: 1_000 })
+	assert.equal(renewed.leaseId, lease.leaseId)
+	assert.equal(renewed.fencingToken, lease.fencingToken)
+	assert.equal(renewed.expiresAtMs, 2_011)
+	database.close()
+})
+
+test('Soundscaper main reports a writer-lease loss exactly once', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-lease-loss-'))
+	context.after(() => rm(root, { recursive: true, force: true }))
+	const losses: unknown[] = []
+	const main = await SoundscaperDesktopProjectLibraryMain.start({
+		appDataPath: root,
+		owner: { product: 'soundscaper', processId: 931, instanceId: 'lease-loss' },
+		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: (error: unknown) => { losses.push(error) },
+		qualification: { leaseTtlMs: 1_000, renewIntervalMs: 1, checkpoint: null },
+	})
+	const database = new DatabaseSync(createSoundscaperDesktopProjectLibraryPaths(root).databasePath)
+	database.prepare('UPDATE library_lease SET lease_id = ? WHERE singleton = 1').run('f'.repeat(48))
+	database.close()
+	for (let attempt = 0; attempt < 50 && losses.length === 0; attempt += 1) {
+		await new Promise((resolve) => setTimeout(resolve, 2))
+	}
+	assert.equal(main.snapshot().fenced, true)
+	assert.equal(losses.length, 1)
+	await main.close()
+})
+
 test('Soundscaper baseline never opens or changes either pre-release desktop library', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-baseline-isolation-'))
 	context.after(() => rm(root, { recursive: true, force: true }))
@@ -162,6 +205,7 @@ test('Soundscaper baseline never opens or changes either pre-release desktop lib
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 932, instanceId: 'baseline-isolation' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
 		qualification: null,
 	})
 	await main.close()

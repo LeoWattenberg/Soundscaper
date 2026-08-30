@@ -64,6 +64,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			appDataPath,
 			owner,
 			handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+			onLeaseLost: options.onLeaseLost,
 			qualification: soundscaperQualification(options.leaseQualification),
 		});
 		return new DesktopProjectLibraryProductRuntime({

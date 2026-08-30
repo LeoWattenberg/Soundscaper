@@ -33,6 +33,7 @@ test('Soundscaper desktop conditional saves publish and compare against main aut
 		appDataPath: root,
 		owner: { product: 'soundscaper', processId: 971, instanceId: 'conditional-publication' },
 		handshake,
+		onLeaseLost: () => undefined,
 		qualification: null,
 	});
 	const session = main.openSession(handshake);

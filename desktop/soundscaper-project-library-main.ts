@@ -45,7 +45,7 @@ import {
 	type SoundscaperNativePluginStateBodyRecord,
 } from './soundscaper-native-plugin-state-store.ts';
 
-const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'qualification'] as const;
+const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'onLeaseLost', 'qualification'] as const;
 const QUALIFICATION_FIELDS = ['leaseTtlMs', 'renewIntervalMs', 'checkpoint'] as const;
 const LEASE_TTL_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
@@ -81,6 +81,7 @@ interface StartOptions {
 	readonly appDataPath: string;
 	readonly owner: SoundscaperDesktopProjectLibraryOwner;
 	readonly handshake: SoundscaperDesktopProjectLibraryHandshake;
+	readonly onLeaseLost: (error: unknown) => void;
 	readonly qualification: Readonly<SoundscaperDesktopProjectLibraryQualification> | null;
 }
 
@@ -92,6 +93,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 	readonly #host: SoundscaperDesktopProjectLibraryPublicationHost;
 	readonly #lifecycle: SoundscaperDesktopProjectLibraryLifecycleHost;
 	readonly #owner: Readonly<SoundscaperDesktopProjectLibraryOwner>;
+	readonly #onLeaseLost: (error: unknown) => void;
 	readonly #pluginStates: SoundscaperNativePluginStateStore;
 	readonly #paths: Readonly<SoundscaperDesktopProjectLibraryPaths>;
 	readonly #sessions: SoundscaperDesktopProjectLibraryMainSessionService;
@@ -112,6 +114,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 		lifecycle: SoundscaperDesktopProjectLibraryLifecycleHost,
 		lease: SoundscaperDesktopProjectLibraryLease,
 		owner: Readonly<SoundscaperDesktopProjectLibraryOwner>,
+		onLeaseLost: (error: unknown) => void,
 		writer: Readonly<SoundscaperDesktopProjectLibraryMainWriter>,
 		renewIntervalMs: number,
 		leaseTtlMs: number,
@@ -125,6 +128,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 		this.#lifecycle = lifecycle;
 		this.#lease = lease;
 		this.#owner = owner;
+		this.#onLeaseLost = onLeaseLost;
 		this.#pluginStates = new SoundscaperNativePluginStateStore(database);
 		const transfer = SoundscaperDesktopProjectLibraryTransferService.create({ host });
 		this.#sessions = new SoundscaperDesktopProjectLibraryMainSessionService(
@@ -188,6 +192,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 				lifecycle,
 				lease,
 				options.owner,
+				options.onLeaseLost,
 				Object.freeze({
 					fencingToken: lease.fencingToken,
 					tookOverStaleLease: lease.tookOverStaleLease,
@@ -270,7 +275,10 @@ export class SoundscaperDesktopProjectLibraryMain {
 			this.#sessions.updateLease(this.#lease);
 		} catch (error) {
 			this.#fenced = error;
+			if (this.#renewTimer) clearInterval(this.#renewTimer);
+			this.#renewTimer = null;
 			this.#fencePromise = this.#sessions.fence(error);
+			try { this.#onLeaseLost(error); } catch { /* The fence remains authoritative. */ }
 		}
 	}
 }
@@ -314,10 +322,14 @@ function validateStartOptions(value: unknown): Readonly<StartOptions> {
 	if (typeof record.appDataPath !== 'string') {
 		throw new TypeError('Soundscaper desktop baseline main appDataPath must be a string');
 	}
+	if (typeof record.onLeaseLost !== 'function') {
+		throw new TypeError('Soundscaper desktop baseline main onLeaseLost must be a function');
+	}
 	return Object.freeze({
 		appDataPath: record.appDataPath,
 		owner: validateSoundscaperDesktopProjectLibraryOwner(record.owner),
 		handshake: validateSoundscaperDesktopProjectLibraryHandshake(record.handshake),
+		onLeaseLost: record.onLeaseLost as (error: unknown) => void,
 		qualification: validateQualification(record.qualification),
 	});
 }

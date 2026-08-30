@@ -170,7 +170,9 @@ export class SoundscaperDesktopProjectLibraryCatalog {
 		const ttlMs = leaseTtl(record.ttlMs);
 		return this.#transaction(() => {
 			const now = this.#timestamp();
-			const current = this.#assertLeaseOwned(token, now);
+			const row = this.#leaseRow();
+			if (!row.active || !row.lease || !sameLease(row.lease, token)) throw leaseLost();
+			const current = row.lease;
 			const expiresAtMs = checkedAdd(now, ttlMs, 'baseline lease expiry');
 			const result = this.#database.prepare(`
 				UPDATE library_lease SET expires_at_ms = ?
