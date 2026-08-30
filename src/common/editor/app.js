@@ -2775,11 +2775,11 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return timedRecordingService.scheduleTimedRecording(startTime, options);
 	}
 
-	async function activatePreparedTimedRecording() {
-		for (const entry of state.recordingEntries || []) state.recordingRouteHealth[entry.trackId] = 'recording';
+	async function activatePreparedTimedRecording(_scheduled, scope) {
 		await engine.play();
-		setStatus(copy.recording);
-		updateTransportState('recording');
+		try { scope.assertCurrent(); } catch (error) { engine.stop(); throw error; }
+		for (const entry of state.recordingEntries || []) state.recordingRouteHealth[entry.trackId] = 'recording';
+		setStatus(copy.recording); updateTransportState('recording');
 		publishDocumentSnapshot();
 	}
 

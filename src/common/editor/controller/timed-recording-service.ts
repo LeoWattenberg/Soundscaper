@@ -27,6 +27,10 @@ export interface TimedRecordingPreparationScope {
 	assertCurrent(): void;
 }
 
+export interface TimedRecordingActivationScope {
+	assertCurrent(): void;
+}
+
 export interface TimedRecordingDescriptor {
 	readonly generation: number;
 	readonly projectId: string | null;
@@ -88,6 +92,7 @@ export interface TimedRecordingServiceRuntime<TimerHandle = unknown> {
 	readonly finalizeRecording: () => Promise<void>;
 	readonly activatePreparedRecording: (
 		scheduled: TimedRecordingDescriptor,
+		scope: TimedRecordingActivationScope,
 	) => MaybePromise<void>;
 	readonly scheduleTimer: (callback: () => unknown, delayMs: number) => TimerHandle;
 	readonly clearTimer: (handle: TimerHandle) => void;
@@ -124,6 +129,10 @@ export function createTimedRecordingService<TimerHandle>(
 		'The timed recording was superseded.',
 		'AbortError',
 	));
+	let activating: Readonly<{
+		readonly recorder: RecordingControllerLike;
+		readonly scheduled: TimedRecordingDescriptor;
+	}> | null = null;
 
 	function isAbortError(error: unknown): boolean {
 		return Boolean(error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');
@@ -161,20 +170,36 @@ export function createTimedRecordingService<TimerHandle>(
 			cancelTimedRecording();
 			return null;
 		}
+		const activation = Object.freeze({ recorder: state.recorder, scheduled });
+		activating = activation;
 		state.timedRecording = null;
 		state.timedRecordingTimer = null;
+		const scope = Object.freeze({
+			assertCurrent(): void {
+				assertScheduledGeneration(scheduled.generation, scheduled.projectId);
+				if (activating !== activation || state.recorder !== activation.recorder) throw abortError();
+			},
+		});
 		try {
-			await runtime.activatePreparedRecording(scheduled);
+			await runtime.activatePreparedRecording(scheduled, scope);
+			scope.assertCurrent();
 			return true;
 		} catch (error) {
-			handleError(error);
-			void discardPreparedTimedRecording();
+			if (activating === activation) {
+				handleError(error);
+				state.recordingDiscardRequested = true;
+				state.timedRecordingCancelling = true;
+				void discardPreparedTimedRecording(activation.recorder);
+			}
 			return null;
+		} finally {
+			if (activating === activation) activating = null;
 		}
 	}
 
-	async function discardPreparedTimedRecording(): Promise<void> {
-		const recorder = state.recorder;
+	async function discardPreparedTimedRecording(
+		recorder: RecordingControllerLike | null = state.recorder,
+	): Promise<void> {
 		try {
 			if (recorder && state.recorder === recorder) {
 				try {
@@ -182,7 +207,7 @@ export function createTimedRecordingService<TimerHandle>(
 				} catch (error) {
 					handleError(error);
 				}
-				await runtime.finalizeRecording();
+				if (state.recorder === recorder) await runtime.finalizeRecording();
 			}
 		} catch (error) {
 			handleError(error);
@@ -199,18 +224,21 @@ export function createTimedRecordingService<TimerHandle>(
 		const hadTimer = Boolean(
 			state.timedRecording
 			|| state.timedRecordingPreparing
-			|| state.timedRecordingTimer !== null,
+			|| state.timedRecordingTimer !== null
+			|| activating,
 		);
 		const hadPreparedRecorder = Boolean(hadTimer && state.recorder);
+		const preparedRecorder = hadPreparedRecorder ? state.recorder : null;
 		state.timedRecordingGeneration += 1;
 		if (state.timedRecordingTimer !== null) runtime.clearTimer(state.timedRecordingTimer);
 		state.timedRecordingTimer = null;
 		state.timedRecording = null;
 		state.timedRecordingPreparing = false;
+		activating = null;
 		state.timedRecordingCancelling = hadPreparedRecorder;
 		if (hadPreparedRecorder) state.recordingDiscardRequested = true;
 		if (state.recordingStarting) runtime.cancelRecordingStart();
-		if (hadPreparedRecorder) void discardPreparedTimedRecording();
+		if (hadPreparedRecorder) void discardPreparedTimedRecording(preparedRecorder);
 		if (hadTimer && options.releaseInputs !== false) {
 			releaseInputs({ force: true });
 			state.recordingReleaseAfterStop = false;

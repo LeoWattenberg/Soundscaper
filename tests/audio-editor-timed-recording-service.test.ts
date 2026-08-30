@@ -269,6 +269,60 @@ test('cancelling an armed recorder still finalizes after its stop rejects', asyn
 	assert.equal(state.timedRecordingCancelling, false);
 });
 
+test('cancelling while scheduled activation awaits invalidates and discards the recorder', async () => {
+	const recorder = createRecorder();
+	const state = createState();
+	const activationGate = deferred<void>();
+	const timers: Array<() => unknown> = [];
+	let activations = 0;
+	let finalizations = 0;
+	let now = 1_000;
+	const service = createTimedRecordingService({
+		state,
+		getProjectId: () => 'project-1',
+		normalizeStartTime: Number,
+		currentTimeMs: () => now,
+		prepareInputs: async () => ({ inputKeys: ['device:default'] }),
+		prepareContext: async () => {},
+		startRecording: async () => { state.recorder = recorder; },
+		cancelRecordingStart: () => false,
+		finalizeRecording: async () => {
+			finalizations += 1;
+			state.recorder = null;
+		},
+		activatePreparedRecording: async (
+			_scheduled,
+			scope?: Readonly<{ assertCurrent(): void }>,
+		) => {
+			await activationGate.promise;
+			scope?.assertCurrent();
+			activations += 1;
+		},
+		scheduleTimer: (callback) => {
+			timers.push(callback);
+			return timers.length;
+		},
+		clearTimer: () => {},
+		messages: messages(),
+	});
+
+	await service.scheduleTimedRecording(5_000);
+	now = 5_000;
+	const activating = Promise.resolve(timers[0]!());
+	await settle();
+
+	assert.equal(service.cancelTimedRecording(), true, 'activation remains owned and cancellable');
+	activationGate.resolve();
+	assert.equal(await activating, null);
+	await settle();
+	assert.equal(activations, 0, 'the stale activation cannot publish recording state');
+	assert.equal(state.recordingDiscardRequested, true, 'the stale prepared take is finalized as a discard');
+	assert.equal(recorder.stopCalls, 1);
+	assert.equal(finalizations, 1);
+	assert.equal(state.recorder, null);
+	assert.equal(state.timedRecordingCancelling, false);
+});
+
 function messages() {
 	return {
 		projectReadOnly: 'read only',
