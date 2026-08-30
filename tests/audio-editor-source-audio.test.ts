@@ -364,6 +364,21 @@ test('canonicalization preserves simple buffers and downmixes multichannel input
 	assert.equal(resampled.length, 1);
 });
 
+test('canonicalization uses the declared L/R/C/LFE/Ls/Rs layout for 5.1 input', async () => {
+	const centre = await canonicalizeBuffer(bufferFixture([
+		Float32Array.of(0), Float32Array.of(0), Float32Array.of(1),
+		Float32Array.of(0), Float32Array.of(0), Float32Array.of(0),
+	]), audioContextFixture(), null, copy);
+	assert.ok(Math.abs(centre.getChannelData(0)[0]! - Math.SQRT1_2 * 0.5) < 1e-7);
+	assert.ok(Math.abs(centre.getChannelData(1)[0]! - Math.SQRT1_2 * 0.5) < 1e-7);
+
+	const lfe = await canonicalizeBuffer(bufferFixture([
+		Float32Array.of(0), Float32Array.of(0), Float32Array.of(0),
+		Float32Array.of(1), Float32Array.of(0), Float32Array.of(0),
+	]), audioContextFixture(), null, copy);
+	assert.deepEqual([...lfe.getChannelData(0), ...lfe.getChannelData(1)], [0, 0]);
+});
+
 test('channel buffers validate shape and support both copy APIs', async () => {
 	await assert.rejects(bufferFromChannels([], 48_000, audioContextFixture(), copy), /empty/u);
 	await assert.rejects(bufferFromChannels(

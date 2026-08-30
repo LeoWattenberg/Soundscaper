@@ -1,6 +1,7 @@
 import { createPlanarPcmChunkCoalescer } from '../pcm-chunks.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 import { createStreamingWindowedSincResampler } from '../resample.js';
+import { downmixSurroundToStereo } from '../surround-monitoring.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { abortError, throwIfAborted } from './app-helpers.ts';
 
@@ -287,6 +288,10 @@ export async function canonicalizeBuffer(
 	let channels: Float32Array[];
 	if (input.numberOfChannels <= 2) {
 		channels = Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel));
+	} else if (input.numberOfChannels === 6) {
+		channels = [...downmixSurroundToStereo(
+			Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel)),
+		)];
 	} else {
 		const left = new Float32Array(input.length);
 		const right = new Float32Array(input.length);
