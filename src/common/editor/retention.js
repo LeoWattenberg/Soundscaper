@@ -11,8 +11,20 @@ import {
 } from './project-schema-version.ts';
 import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
 
-const MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS = 16_384;
+const MAXIMUM_FRAMESCAPER_PROJECT_ASSET_ROOTS = 16_384;
 const SHA256 = /^[a-f0-9]{64}$/u;
+const FRAMESCAPER_IMAGE_SEQUENCE_FIELDS = Object.freeze([
+	'kind', 'sourceType', 'version', 'id', 'name', 'stem', 'extension', 'frameNumberWidth',
+	'firstFrameNumber', 'lastFrameNumber', 'frameCount', 'frameRate', 'inventory',
+	'sourcePack', 'characteristics',
+]);
+const FRAMESCAPER_IMAGE_SEQUENCE_INVENTORY_FIELDS = Object.freeze([
+	'kind', 'version', 'storageKey', 'sha256', 'byteLength', 'frameCount',
+	'firstFrameNumber', 'lastFrameNumber',
+]);
+const FRAMESCAPER_IMAGE_SEQUENCE_SOURCE_PACK_FIELDS = Object.freeze([
+	'kind', 'storageKey', 'sha256', 'byteLength',
+]);
 
 export function collectProjectSourceIds(project, target = new Set()) {
 	if (!isFoundationProjectSchema(project)) return target;
@@ -125,18 +137,18 @@ function collectAssistanceAssetSourceIds(project, target) {
 }
 
 /**
- * Collect content-addressed Framescaper finishing bodies without exposing a partial
+ * Collect content-addressed Framescaper project bodies without exposing a partial
  * result if an alias, malformed identity, or root bound is encountered.
  */
 export function collectFramescaperProjectAssetStorageKeys(
 	project,
 	target = new Set(),
-	{ maximumRoots = MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS } = {},
+	{ maximumRoots = MAXIMUM_FRAMESCAPER_PROJECT_ASSET_ROOTS } = {},
 ) {
-	if (!(target instanceof Set)) throw new TypeError('Framescaper finishing asset target must be a Set.');
+	if (!(target instanceof Set)) throw new TypeError('Framescaper project asset target must be a Set.');
 	if (!Number.isSafeInteger(maximumRoots) || maximumRoots < 1
-		|| maximumRoots > MAXIMUM_FRAMESCAPER_FINISHING_ASSET_ROOTS) {
-		throw new RangeError('Framescaper finishing asset root limit is invalid.');
+		|| maximumRoots > MAXIMUM_FRAMESCAPER_PROJECT_ASSET_ROOTS) {
+		throw new RangeError('Framescaper project asset root limit is invalid.');
 	}
 	if (!isSelectedFramescaperProjectSchema(project)) return target;
 
@@ -156,14 +168,15 @@ export function collectFramescaperProjectAssetStorageKeys(
 		const identity = `${kind}\u0000${sha256}\u0000${String(byteLength)}`;
 		const existing = identities.get(storageKey);
 		if (existing !== undefined && existing !== identity) {
-			throw new RangeError(`Framescaper finishing asset alias ${storageKey} has conflicting identity.`);
+			throw new RangeError(`Framescaper project asset alias ${storageKey} has conflicting identity.`);
 		}
 		identities.set(storageKey, identity);
 		if (identities.size > maximumRoots) {
-			throw new RangeError('Framescaper finishing asset root limit was exceeded.');
+			throw new RangeError('Framescaper project asset root limit was exceeded.');
 		}
 	};
 
+	collectFramescaperImageSequenceAssetIdentities(project, add);
 	for (const analysis of requiredArray(project, 'videoMotionAnalyses')) {
 		add('motion', analysis, 'motion-sha256:');
 	}
@@ -206,6 +219,88 @@ function requiredArray(project, field) {
 	const value = project?.[field];
 	if (!Array.isArray(value)) throw new TypeError(`Framescaper ${field} must be an array.`);
 	return value;
+}
+
+function collectFramescaperImageSequenceAssetIdentities(project, add) {
+	const sources = Array.isArray(project?.sources) ? project.sources : [];
+	const retainedSourceIds = collectProjectSourceIds(project);
+	for (const [index, source] of sources.entries()) {
+		if (!source || typeof source !== 'object' || Array.isArray(source)) continue;
+		const descriptor = Object.getOwnPropertyDescriptor(source, 'imageSequence');
+		if (descriptor === undefined) continue;
+		if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(
+				`Framescaper source ${String(index)} imageSequence must be an own enumerable data property.`,
+			);
+		}
+		if (descriptor.value === null) continue;
+		const sequence = closedFramescaperAssetRecord(
+			descriptor.value,
+			FRAMESCAPER_IMAGE_SEQUENCE_FIELDS,
+			`source ${String(index)} image-sequence descriptor`,
+		);
+		const inventory = closedFramescaperAssetRecord(
+			sequence.inventory,
+			FRAMESCAPER_IMAGE_SEQUENCE_INVENTORY_FIELDS,
+			`source ${String(index)} image-sequence inventory`,
+		);
+		const sourcePack = closedFramescaperAssetRecord(
+			sequence.sourcePack,
+			FRAMESCAPER_IMAGE_SEQUENCE_SOURCE_PACK_FIELDS,
+			`source ${String(index)} image-sequence source pack`,
+		);
+		if (sequence.kind !== 'video' || sequence.sourceType !== 'image-sequence' || sequence.version !== 1
+			|| inventory.kind !== 'image-sequence-inventory' || inventory.version !== 1
+			|| sourcePack.kind !== 'image-sequence-source-pack') {
+			throw new RangeError(`Framescaper source ${String(index)} image-sequence identity is unsupported.`);
+		}
+		const sourceKind = framescaperAssetDataProperty(source, 'kind', index);
+		const sourceId = framescaperAssetDataProperty(source, 'id', index);
+		const storageKey = framescaperAssetDataProperty(source, 'storageKey', index);
+		const contentSha256 = framescaperAssetDataProperty(source, 'contentSha256', index);
+		if (sourceKind !== 'video' || typeof sourceId !== 'string' || !sourceId
+			|| sequence.id !== sourceId || sourcePack.storageKey !== storageKey
+			|| sourcePack.sha256 !== contentSha256
+			|| inventory.frameCount !== sequence.frameCount
+			|| inventory.firstFrameNumber !== sequence.firstFrameNumber
+			|| inventory.lastFrameNumber !== sequence.lastFrameNumber) {
+			throw new RangeError(`Framescaper source ${String(index)} image-sequence authority is inconsistent.`);
+		}
+		if (!retainedSourceIds.has(sourceId)) continue;
+		add('image-sequence inventory', inventory, 'image-sequence-inventory-sha256:');
+		add('image-sequence source pack', sourcePack, 'image-sequence-pack-sha256:');
+	}
+}
+
+function closedFramescaperAssetRecord(value, fields, name) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
+		throw new TypeError(`Framescaper ${name} must be a plain record.`);
+	}
+	const actual = Reflect.ownKeys(value);
+	if (actual.length !== fields.length
+		|| actual.some((field) => typeof field !== 'string' || !fields.includes(field))) {
+		throw new TypeError(`Framescaper ${name} has unsupported or missing fields.`);
+	}
+	const snapshot = Object.create(null);
+	for (const field of fields) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, field);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`Framescaper ${name}.${field} must be an own enumerable data property.`);
+		}
+		snapshot[field] = descriptor.value;
+	}
+	return snapshot;
+}
+
+function framescaperAssetDataProperty(source, field, index) {
+	const descriptor = Object.getOwnPropertyDescriptor(source, field);
+	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+		throw new TypeError(
+			`Framescaper source ${String(index)} ${field} must be an own enumerable data property.`,
+		);
+	}
+	return descriptor.value;
 }
 
 export function editorHistoryProjects(history) {

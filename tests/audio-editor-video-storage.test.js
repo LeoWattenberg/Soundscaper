@@ -192,6 +192,93 @@ test('media-only sources participate in project retention and cascade on source 
 	assert.deepEqual(await store.listVideoDerivatives('media-only'), []);
 });
 
+test('Framescaper image-sequence retention follows clip reachability for both bodies', async () => {
+	const packSha256 = '4862f447f2c7f272fa2f4aaf89dadb3b1ac09105bd5864f8d1a0c9452bb0a226';
+	const inventorySha256 = 'b11a85b296a90afc460430434a504e7acb04b064575b7277724688af0e59d189';
+	const packStorageKey = `image-sequence-pack-sha256:${packSha256}`;
+	const inventoryStorageKey = `image-sequence-inventory-sha256:${inventorySha256}`;
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: uniqueDatabaseName('image-sequence-retention'),
+	});
+	await store.writeMediaAsset(packStorageKey, new Blob(['pack']));
+	await store.writeMediaAsset(inventoryStorageKey, new Blob(['inventory']));
+	const project = {
+		id: 'image-sequence-project',
+		schemaFamily: 'framescaper',
+		schemaVersion: 1,
+		revision: 1,
+		updatedAt: '2026-08-30T00:00:00.000Z',
+		sources: [{
+			kind: 'video',
+			id: 'image-sequence-source',
+			name: 'Image sequence',
+			storageKey: packStorageKey,
+			contentSha256: packSha256,
+			imageSequence: {
+				kind: 'video',
+				sourceType: 'image-sequence',
+				version: 1,
+				id: 'image-sequence-source',
+				name: 'Image sequence',
+				stem: 'frame_',
+				extension: 'png',
+				frameNumberWidth: 4,
+				firstFrameNumber: 1,
+				lastFrameNumber: 1,
+				frameCount: 1,
+				frameRate: { num: 24, den: 1 },
+				inventory: {
+					kind: 'image-sequence-inventory',
+					version: 1,
+					storageKey: inventoryStorageKey,
+					sha256: inventorySha256,
+					byteLength: 9,
+					frameCount: 1,
+					firstFrameNumber: 1,
+					lastFrameNumber: 1,
+				},
+				sourcePack: {
+					kind: 'image-sequence-source-pack',
+					storageKey: packStorageKey,
+					sha256: packSha256,
+					byteLength: 4,
+				},
+				characteristics: {},
+			},
+		}],
+		clips: [{ id: 'image-sequence-clip', sourceId: 'image-sequence-source' }],
+		videoMotionAnalyses: [],
+		videoVisualPresentations: [],
+		videoFinishingPresets: [],
+	};
+	await store.saveProject(project);
+
+	assert.equal((await store.getMediaAssetMetadata(packStorageKey)).pendingProjectUntil, undefined);
+	assert.equal((await store.getMediaAssetMetadata(inventoryStorageKey)).pendingProjectUntil, undefined);
+	let result = await store.pruneUnreferencedSources({
+		minimumAgeMs: 0,
+		now: Date.now() + 2 * 24 * 60 * 60 * 1000,
+	});
+	assert.deepEqual(result.deletedSourceIds, []);
+	assert.equal(await (await store.loadMediaAsset(packStorageKey)).text(), 'pack');
+	assert.equal(await (await store.loadMediaAsset(inventoryStorageKey)).text(), 'inventory');
+
+	await store.deleteProject(project.id);
+	result = await store.pruneUnreferencedSources({
+		protectedProjects: [{ ...project, clips: [] }],
+		minimumAgeMs: 0,
+		now: Date.now() + 2 * 24 * 60 * 60 * 1000,
+	});
+	assert.deepEqual(
+		[...result.deletedSourceIds].sort(),
+		[inventoryStorageKey, packStorageKey].sort(),
+	);
+	assert.equal(await store.loadMediaAsset(packStorageKey), null);
+	assert.equal(await store.loadMediaAsset(inventoryStorageKey), null);
+});
+
 test('deleting a media asset leaves PCM intact while deleting its media derivatives', async () => {
 	const store = createProjectStore({
 		indexedDB: null,
