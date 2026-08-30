@@ -39,6 +39,40 @@ export function masteringSequenceAddOperation(
 	};
 }
 
+export function masteringSequenceEntryApplyOperation(input: Readonly<{
+	sequenceId: string;
+	entryId: string;
+	title: string | null;
+	gapBeforeFrames: number;
+	fadeInFrames: number;
+	fadeOutFrames: number;
+	metadata: Readonly<Record<string, string>>;
+}>): MasteringSequenceDialogOperation {
+	const entry = Object.freeze({ sequenceId: input.sequenceId, entryId: input.entryId });
+	return Object.freeze({
+		type: 'batch',
+		commands: Object.freeze([
+			Object.freeze({
+				type: 'mastering-sequence/entry-retitle' as const,
+				...entry,
+				title: input.title,
+			}),
+			Object.freeze({
+				type: 'mastering-sequence/entry-timing' as const,
+				...entry,
+				gapBeforeFrames: input.gapBeforeFrames,
+				fadeInFrames: input.fadeInFrames,
+				fadeOutFrames: input.fadeOutFrames,
+			}),
+			Object.freeze({
+				type: 'mastering-sequence/entry-metadata' as const,
+				...entry,
+				metadata: Object.freeze({ ...input.metadata }),
+			}),
+		]),
+	});
+}
+
 interface SoundscaperMasteringSequenceEditorProps {
 	readonly copy: SoundscaperProductionCopy;
 	readonly disabled: boolean;
@@ -165,31 +199,23 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }:
 			event.preventDefault();
 			const form = new FormData(event.currentTarget);
 			const title = String(form.get('title') ?? '').trim();
-			onOperation({
-				type: 'mastering-sequence/entry-retitle',
-				sequenceId,
-				entryId: entry.id,
-				// An emptied title returns the entry to the region's own name rather
-				// than pinning the region's current name as an override.
-				title: title === '' ? null : title,
-			});
-			onOperation({
-				type: 'mastering-sequence/entry-timing',
-				sequenceId,
-				entryId: entry.id,
-				gapBeforeFrames: frames(form.get('gapBeforeFrames')),
-				fadeInFrames: frames(form.get('fadeInFrames')),
-				fadeOutFrames: frames(form.get('fadeOutFrames')),
-			});
 			const metadata = parseMetadata(form.get('metadata'));
 			if (metadata === null) {
 				setMetadataError(copy.masteringEntryMetadataInvalid);
 				return;
 			}
 			setMetadataError('');
-			onOperation({
-				type: 'mastering-sequence/entry-metadata', sequenceId, entryId: entry.id, metadata,
-			});
+			onOperation(masteringSequenceEntryApplyOperation({
+				sequenceId,
+				entryId: entry.id,
+				// An emptied title returns the entry to the region's own name rather
+				// than pinning the region's current name as an override.
+				title: title === '' ? null : title,
+				gapBeforeFrames: frames(form.get('gapBeforeFrames')),
+				fadeInFrames: frames(form.get('fadeInFrames')),
+				fadeOutFrames: frames(form.get('fadeOutFrames')),
+				metadata,
+			}));
 		}}
 	>
 		<h5>{entry.title}</h5>

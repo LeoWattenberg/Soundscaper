@@ -277,15 +277,13 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 }
 
 /**
- * Mastering-sequence operations are already the commands, so they go to the
- * ordinary command path unchanged: the editor names the edit, and the command
- * layer decides whether it is allowed and how it undoes, exactly as it does for
- * every other document edit.
+ * Mastering-sequence operations are already ordinary commands, including the
+ * batch used to apply all fields of one entry atomically.
  */
 function isMasteringSequenceOperation(
 	operation: SoundscaperProductionDialogOperation,
 ): operation is MasteringSequenceDialogOperation {
-	return operation.type.startsWith('mastering-sequence/');
+	return operation.type === 'batch' || operation.type.startsWith('mastering-sequence/');
 }
 
 function isAutomationGestureOperation(

@@ -16,6 +16,7 @@ import {
 } from '../src/common/editor/ui/soundscaper-production-dialog-model.ts';
 import SoundscaperMasteringSequenceEditor, {
 	masteringSequenceAddOperation,
+	masteringSequenceEntryApplyOperation,
 } from '../src/common/editor/ui/dialogs/SoundscaperMasteringSequenceEditor.tsx';
 import {
 	createDocumentMasteringSequenceSnapshot,
@@ -304,4 +305,48 @@ test('editor operations are the ordinary commands, committed through the ordinar
 		'mastering-sequence/entry-reorder',
 		'mastering-sequence/entry-timing',
 	]);
+});
+
+test('applying one entry submits title, timing, and metadata as one atomic command', () => {
+	const operation = masteringSequenceEntryApplyOperation({
+		sequenceId: 'album-order',
+		entryId: 'e1',
+		title: 'Overture',
+		gapBeforeFrames: 48_000,
+		fadeInFrames: 2_400,
+		fadeOutFrames: 4_800,
+		metadata: { isrc: 'GBAYE0000123' },
+	});
+	assert.deepEqual(operation, {
+		type: 'batch',
+		commands: [
+			{
+				type: 'mastering-sequence/entry-retitle',
+				sequenceId: 'album-order', entryId: 'e1', title: 'Overture',
+			},
+			{
+				type: 'mastering-sequence/entry-timing',
+				sequenceId: 'album-order', entryId: 'e1',
+				gapBeforeFrames: 48_000, fadeInFrames: 2_400, fadeOutFrames: 4_800,
+			},
+			{
+				type: 'mastering-sequence/entry-metadata',
+				sequenceId: 'album-order', entryId: 'e1', metadata: { isrc: 'GBAYE0000123' },
+			},
+		],
+	});
+
+	const committed: unknown[] = [];
+	executeSoundscaperProductionOperation({
+		actions: { edit: { commit: (command) => { committed.push(command); return command; } } },
+	}, operation, () => undefined);
+	assert.deepEqual(committed, [operation], 'the dialog operation lock sees one commit, not three competing calls');
+
+	const updated = applySoundscaperProjectCommand(albumProject(), operation as never, { now: NOW });
+	const entry = updated.masteringSequences[0]!.entries[0]!;
+	assert.equal(entry.title, 'Overture');
+	assert.equal(entry.gapBeforeFrames, 48_000);
+	assert.equal(entry.fadeInFrames, 2_400);
+	assert.equal(entry.fadeOutFrames, 4_800);
+	assert.deepEqual(entry.metadata, { isrc: 'GBAYE0000123' });
 });

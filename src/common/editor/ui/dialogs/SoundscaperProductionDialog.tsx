@@ -35,11 +35,18 @@ const MAXIMUM_RENDERED_LOUDNESS_HISTORY_ENTRIES = 6_000;
  * vocabulary that has to be translated: the editor names the edit, and the
  * ordinary command path decides whether it is allowed and how it undoes.
  */
-export type MasteringSequenceDialogOperation = {
+type MasteringSequenceCommandOperation = {
 	readonly [Type in MasteringSequenceCommandType]: Readonly<
 		{ readonly type: Type } & MasteringSequenceCommandPayloads[Type]
 	>;
 }[MasteringSequenceCommandType];
+
+export type MasteringSequenceDialogOperation =
+	| MasteringSequenceCommandOperation
+	| Readonly<{
+		readonly type: 'batch';
+		readonly commands: readonly MasteringSequenceCommandOperation[];
+	}>;
 
 export type SoundscaperProductionDialogOperation =
 	| Readonly<{
