@@ -28,6 +28,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 		setSelection, setStatus, startRecording, state,
 		stopProjectBinPreview, stopRecording, throwIfAborted,
 	} = runtime;
+	let metronomeSchedulerGeneration = 0;
 	function setPlayAtSpeedRate(value: RuntimeValue) {
 		const rate = Number(value);
 		if (!Number.isFinite(rate) || rate < 0.5 || rate > 2) {
@@ -258,22 +259,28 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	 * just scheduled. Nothing carried a cursor between wake-ups, so the error never
 	 * corrected.
 	 */
-	async function runMetronomeScheduler() {
-		if (!metronomeRunning()) return;
+	async function runMetronomeScheduler(generation = metronomeSchedulerGeneration) {
+		if (!metronomeSchedulerIsCurrent(generation)) return;
 		try {
 			const context = await engine.getAudioContext?.({ resume: false });
-			if (context?.createOscillator && context?.createGain && context.destination) {
+			if (metronomeSchedulerIsCurrent(generation)
+				&& context?.createOscillator && context?.createGain && context.destination) {
 				scheduleMetronomeWindow(context);
 			}
 		} catch {
 			// A missing oscillator API must not interrupt transport or recording.
 		}
-		if (!metronomeRunning()) return;
-		state.metronomeTimer = globalThis.setTimeout(() => {
-			state.metronomeTimer = 0;
-			void runMetronomeScheduler();
+		if (!metronomeSchedulerIsCurrent(generation)) return;
+		const timer = globalThis.setTimeout(() => {
+			if (state.metronomeTimer === timer) state.metronomeTimer = 0;
+			void runMetronomeScheduler(generation);
 		}, METRONOME_TICK_MS);
-		state.metronomeTimer?.unref?.();
+		state.metronomeTimer = timer;
+		(timer as unknown as { unref?: () => void }).unref?.();
+	}
+
+	function metronomeSchedulerIsCurrent(generation: number) {
+		return generation === metronomeSchedulerGeneration && metronomeRunning();
 	}
 
 	function scheduleMetronomeWindow(context: RuntimeValue) {
@@ -347,6 +354,7 @@ export function createEditorTransportService(runtime: TransportServiceRuntime) {
 	}
 
 	function stopMetronome() {
+		metronomeSchedulerGeneration += 1;
 		globalThis.clearTimeout(state.metronomeTimer);
 		state.metronomeTimer = 0;
 		state.metronomeAnchor = null;

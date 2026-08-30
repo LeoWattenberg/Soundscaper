@@ -388,3 +388,81 @@ test('metronome scheduling drives and cleans up a Web Audio click without owning
 	assert.equal(fixture.service.projectSampleRate(), 44_100);
 	assert.throws(() => fixture.service.normalizePlaybackFrame(Number.NaN), /finite/u);
 });
+
+test('turning the metronome off fences an in-flight audio-context lookup', async () => {
+	const fixture = createTransportFixture();
+	let resolveContext!: (value: unknown) => void;
+	const openingContext = new Promise<unknown>((resolve) => { resolveContext = resolve; });
+	const starts: number[] = [];
+	fixture.setAudioContext(openingContext);
+	fixture.state.metronomeEnabled = true;
+	fixture.state.transportState = 'playing';
+	const scheduling = fixture.service.runMetronomeScheduler();
+	await Promise.resolve();
+
+	assert.equal(fixture.service.toggleMetronome(), false);
+	resolveContext(metronomeContext((when) => { starts.push(when); }));
+	await scheduling;
+
+	assert.deepEqual(starts, []);
+	assert.equal(fixture.state.metronomeTimer, 0);
+});
+
+test('restarting during audio-context lookup cannot overlap metronome schedulers', async () => {
+	const fixture = createTransportFixture();
+	let resolveContext!: (value: unknown) => void;
+	const openingContext = new Promise<unknown>((resolve) => { resolveContext = resolve; });
+	const starts: number[] = [];
+	let scheduledTimers = 0;
+	const realSetTimeout = globalThis.setTimeout;
+	const realClearTimeout = globalThis.clearTimeout;
+	globalThis.setTimeout = (() => {
+		scheduledTimers += 1;
+		return scheduledTimers as unknown as ReturnType<typeof setTimeout>;
+	}) as unknown as typeof globalThis.setTimeout;
+	globalThis.clearTimeout = (() => undefined) as typeof globalThis.clearTimeout;
+	fixture.setAudioContext(openingContext);
+	fixture.state.metronomeEnabled = true;
+	fixture.state.transportState = 'playing';
+	try {
+		const staleScheduling = fixture.service.runMetronomeScheduler();
+		await Promise.resolve();
+
+		assert.equal(fixture.service.toggleMetronome(), false);
+		assert.equal(fixture.service.toggleMetronome(), true);
+		resolveContext(metronomeContext((when) => { starts.push(when); }));
+		await staleScheduling;
+		await Promise.resolve();
+		assert.equal(fixture.service.toggleMetronome(), false);
+
+		assert.ok(starts.length > 0);
+		assert.equal(new Set(starts).size, starts.length, 'each audio-clock pulse is scheduled once');
+		assert.equal(scheduledTimers, 1, 'only the replacement scheduler owns a timer');
+	} finally {
+		globalThis.setTimeout = realSetTimeout;
+		globalThis.clearTimeout = realClearTimeout;
+	}
+});
+
+function metronomeContext(onStart: (when: number) => void) {
+	return {
+		currentTime: 1,
+		destination: {},
+		createOscillator: () => ({
+			frequency: { setValueAtTime: () => undefined },
+			connect: () => undefined,
+			disconnect: () => undefined,
+			start: onStart,
+			stop: () => undefined,
+			set onended(_callback: (() => void) | null) { /* retained by the runtime */ },
+		}),
+		createGain: () => ({
+			gain: {
+				setValueAtTime: () => undefined,
+				exponentialRampToValueAtTime: () => undefined,
+			},
+			connect: () => undefined,
+			disconnect: () => undefined,
+		}),
+	};
+}
