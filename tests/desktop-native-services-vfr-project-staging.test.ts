@@ -118,6 +118,76 @@ test('carrierless V8 project preparation authenticates originals without a deriv
 	}
 });
 
+test('proxy grant refusal happens before opening the plan data plane', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'framescaper-proxy-refusal-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const scratchRoot = join(root, 'scratch');
+	const outputRoot = join(root, 'output');
+	await mkdir(outputRoot);
+	const sourceBytes = Buffer.from('proxy source');
+	const sourceSha256 = digest(sourceBytes);
+	const body = Object.freeze({
+		kind: 'video-original' as const, encoding: 'framescaper-video-original-v1',
+		sourceId: 'source-1', storageKey: 'source-1', mimeType: 'video/mp4',
+		byteLength: sourceBytes.byteLength, sha256: sourceSha256,
+	});
+	const record = createNativeQueueRecordV2({
+		schemaFamily: 'framescaper', schemaVersion: 1, jobId: '4'.repeat(40),
+		taskKind: 'proxy-generation', plan: nativeQueueSmallStaticPlanV8(),
+		projectId: 'proxy-project', projectRevision: 1,
+		inputFingerprints: [{ sourceId: body.sourceId, sha256: body.sha256 }],
+		rootGrantId: '5'.repeat(32), relativeDestination: 'proxy.mov',
+		reservations: { cpuCores: 1, processTreeRssBytes: 128 * 1_024 * 1_024,
+			scratchBytes: 32 * 1_024 * 1_024, minimumFreeBytes: 0, hardwareBackend: null },
+		position: 0, createdAtMs: 1,
+	});
+	const rootGrant = Object.freeze({
+		grantId: record.rootGrantId, rootPath: outputRoot,
+		volumeIdentity: 'proxy-volume', directoryIdentity: 'proxy-directory',
+		authorizedAtMs: 1, revokedAtMs: null,
+	});
+	const executablePath = join(root, 'framescaper-media-host');
+	const executableBytes = Buffer.from('authenticated media host');
+	await writeFile(executablePath, executableBytes, { mode: 0o700 });
+	const executableIdentity = await identity(executablePath);
+	let channelCreations = 0;
+	const settlements: string[] = [];
+	const authority = new FramescaperNativeProjectAuthority({
+		project: {
+			schemaFamily: 'framescaper', schemaVersion: 1,
+			projectState: () => ({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+				open: true, writable: true }),
+			projectRecord: () => ({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const,
+				projectId: record.projectId, projectRevision: 1,
+				projectSha256: '6'.repeat(64), bodies: [body] }),
+			readProjectBundle: async () => ({
+				project: { projectRevision: 1, sha256: '6'.repeat(64) },
+				document: '{', bodies: [body],
+			}),
+			readBody: async () => sourceBytes,
+		},
+		scratchRoot,
+		executable: () => ({ path: executablePath, byteLength: executableBytes.byteLength,
+			sha256: digest(executableBytes), identity: executableIdentity }),
+		createMessageChannel: () => {
+			channelCreations += 1;
+			const pair = portPair();
+			return { hostPort: pair[0], helperPort: pair[1] };
+		},
+		probeRoot: async () => ({ exists: true, directory: true, symbolicLink: false,
+			canonicalPath: outputRoot, volumeIdentity: rootGrant.volumeIdentity,
+			directoryIdentity: rootGrant.directoryIdentity }),
+		publicationPortFor: () => { throw new Error('must not publish'); },
+		publicationFenceFor: () => { throw new Error('must not fence'); },
+		reserveScratch: () => undefined,
+		settleScratch: async (_jobId, outcome) => { settlements.push(outcome); },
+		scratchMatches: () => true,
+	});
+	await assert.rejects(authority.prepare(record, rootGrant), /expected|json|position/iu);
+	assert.equal(channelCreations, 0, 'a rejected grant must not start a plan transfer');
+	assert.deepEqual(settlements, ['failed']);
+});
+
 test('VFR queue preparation stages exact project timing bodies and mints dedicated helper grants', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-vfr-project-stage-'));
 	try {

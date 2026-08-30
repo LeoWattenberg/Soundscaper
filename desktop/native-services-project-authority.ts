@@ -272,11 +272,6 @@ export class FramescaperNativeProjectAuthority {
 		const output = await outputGrant(root, publication, maximumOutputBytes(envelope));
 		const scratchIdentity = await directoryIdentity(directory.path);
 		const planBinding = dataBinding(record, envelope);
-		const channel = this.#options.createMessageChannel();
-		const transferAbort = new AbortController();
-		const transfer = sendHelperDataPlaneFile({
-			binding: planBinding, port: channel.hostPort, path: planPath, signal: transferAbort.signal,
-		});
 		const base = {
 			executable: Object.freeze({
 				role: 'ffmpeg' as const, path: executable.path, bytes: executable.byteLength,
@@ -298,6 +293,11 @@ export class FramescaperNativeProjectAuthority {
 				proxyRecipe: proxyRecipe(bundle, record.inputFingerprints[0]?.sourceId),
 			})
 			: Object.freeze({ ...base, backend: 'native-cpu' as const, sources: Object.freeze(sources) });
+		const channel = this.#options.createMessageChannel();
+		const transferAbort = new AbortController();
+		const transfer = sendHelperDataPlaneFile({
+			binding: planBinding, port: channel.hostPort, path: planPath, signal: transferAbort.signal,
+		});
 		const request = Object.freeze({
 			kind,
 			grant,
