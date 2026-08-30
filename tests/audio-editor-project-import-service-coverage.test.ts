@@ -305,6 +305,34 @@ test('structured legacy AUP imports persist PCM chunks, progress, and warnings',
 	assert.equal(legacy.statuses.some(([message]) => message === 'Importing AUP 0%'), true);
 });
 
+test('legacy AUP imports cannot cross projects while decoding or after persistence', async () => {
+	const decoding = createFixture();
+	const decodeGate = deferred<void>();
+	decoding.options.legacyDecodeGate = decodeGate.promise;
+	const decodeOperation = createProjectImportService(decoding.runtime).importFile(file('session.aup'));
+	while (!decoding.calls.includes('legacy-decode-started')) await Promise.resolve();
+	decoding.setProject({ id: 'replacement', tracks: [], sources: [] });
+	decodeGate.resolve();
+
+	await assert.rejects(decodeOperation, /project changed during Audacity project import/iu);
+	assert.equal(decoding.calls.includes('save-project'), false);
+	assert.equal(decoding.calls.some((entry) => entry.startsWith('switch:')), false);
+	assert.deepEqual(decoding.deletedSources, []);
+
+	const persisted = createFixture();
+	const peakGate = deferred<void>();
+	persisted.options.peakGate = peakGate.promise;
+	const persistedOperation = createProjectImportService(persisted.runtime).importFile(file('session.aup'));
+	while (!persisted.calls.includes('peaks-started')) await Promise.resolve();
+	persisted.setProject({ id: 'replacement', tracks: [], sources: [] });
+	peakGate.resolve();
+
+	await assert.rejects(persistedOperation, /project changed during Audacity project import/iu);
+	assert.equal(persisted.calls.includes('save-project'), false);
+	assert.equal(persisted.calls.some((entry) => entry.startsWith('switch:')), false);
+	assert.deepEqual(persisted.deletedSources, ['structured-source']);
+});
+
 test('legacy AUP imports reject malformed descriptors and clean completed source writes', async () => {
 	const malformed = createFixture();
 	malformed.options.structuredDecoded = { warnings: [], sources: [] };

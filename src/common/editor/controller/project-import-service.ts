@@ -25,6 +25,7 @@ import {
 } from './imported-audio-content-identity.ts';
 import { createLinkedAudioImportAdmission } from './linked-audio-import-admission.ts';
 import { createLinkedPcmImporter } from './linked-wav-import-service.ts';
+import { persistDecodedLegacyAupProject } from './legacy-aup-project-persistence.ts';
 import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
 import { createAddTimelineAnnotationCommand } from '../commands/factories.ts';
 import {
@@ -334,7 +335,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			return rejectLinkedOriginalLocator(linkedOriginalLocator);
 		}
 		if (legacyFile) {
-			await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 			return importLegacyAudacityProject(file);
 		}
 		const videoFile = isAudioEditorVideoFile(file);
@@ -513,13 +513,32 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 	}
 
 	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
+		const assertImportProjectCurrent = captureImportProjectCurrentAssertion(
+			'The project changed during Audacity project import.',
+		);
+		assertImportProjectCurrent();
+		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
+		assertImportProjectCurrent();
 		setStatus(copy.aupImporting);
 		const structure = await decodeLegacyAupProject(file, legacyDataFiles, { onProgress: updateLegacyAupImportProgress });
+		assertImportProjectCurrent();
 		const decoded = await convertLegacyAupToProject(structure, {
 			title: stripExtension(file.name),
 			projectId: createStableId('project'),
 		});
-		const importedProject = await persistImportedProject(decoded);
+		assertImportProjectCurrent();
+		const importedProject = await persistDecodedLegacyAupProject({
+			decoded,
+			assertCurrent: assertImportProjectCurrent,
+			sourceChunkFrames: SOURCE_CHUNK_FRAMES,
+			copy,
+			generateWaveformPeaks,
+			getProject,
+			peakCacheKey,
+			preflightStorage,
+			store,
+			switchProject,
+		});
 		const detail = decoded.warnings.map(formatLegacyAupWarning).filter(Boolean).join(' ');
 		return {
 			project: importedProject,
@@ -528,58 +547,16 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		};
 	}
 
-	async function persistImportedProject(decoded: RuntimeValue) {
-		if (!decoded?.project || !Array.isArray(decoded.sources)) throw new TypeError(copy.structuredProjectRequired);
-		const importedProject = decoded.project;
-		const sourceById: RuntimeValue = new Map(importedProject.sources.map((source: RuntimeValue) => [source.id, source]));
-		const totalBytes = decoded.sources.reduce((sum: RuntimeValue, source: RuntimeValue) => (
-			sum + (source.channels || []).reduce((channelSum: RuntimeValue, channel: RuntimeValue) => channelSum + (channel?.byteLength || 0), 0)
-		), 0);
-		await preflightStorage(totalBytes, 'import');
-		const persistedSourceIds = [];
-		let projectSaved = false;
-		try {
-			for (const sourceAudio of decoded.sources) {
-				const source = sourceById.get(sourceAudio.sourceId);
-				if (!source) throw new Error(copy.importedSourceDescriptorMissing.replace('{source}', sourceAudio.sourceId));
-				const channels = sourceAudio.channels;
-				if (!Array.isArray(channels) || channels.length !== source.channelCount
-					|| !channels.every((channel: RuntimeValue) => channel instanceof Float32Array && channel.length === source.frameCount)) {
-					throw new Error(copy.importedSourcePcmInvalid.replace('{source}', source.name || source.id));
-				}
-				const writer = await store.beginSourceWrite(source.id, {
-					name: source.name,
-					mimeType: source.mimeType,
-					sampleRate: source.sampleRate,
-					channelCount: source.channelCount,
-					chunkFrames: SOURCE_CHUNK_FRAMES,
-				});
-				try {
-					for (let offset = 0; offset < source.frameCount; offset += SOURCE_CHUNK_FRAMES) {
-						const end = Math.min(source.frameCount, offset + SOURCE_CHUNK_FRAMES);
-						await writer.write(channels.map((channel: RuntimeValue) => channel.subarray(offset, end)));
-					}
-					await writer.commit({ sampleRate: source.sampleRate, channelCount: source.channelCount });
-					persistedSourceIds.push(source.id);
-					await store.saveAnalysis(peakCacheKey(source.id), await generateWaveformPeaks(channels, copy));
-				} catch (error) {
-					await writer.abort();
-					throw error;
-				}
-			}
-			await store.saveProject(importedProject);
-			projectSaved = true;
-			await switchProject(importedProject, { save: false });
-			return importedProject;
-		} catch (error) {
-			if (projectSaved && getProject()?.id !== importedProject.id) {
-				await store.deleteProject(importedProject.id).catch(() => undefined);
-			}
-			if (getProject()?.id !== importedProject.id) {
-				for (const sourceId of persistedSourceIds) await store.deleteSource(sourceId).catch(() => undefined);
-			}
-			throw error;
-		}
+	function captureImportProjectCurrentAssertion(message: string) {
+		const hasProjectIdentity = typeof getProject === 'function';
+		const startingProjectId = hasProjectIdentity ? getProject()?.id ?? null : null;
+		const hasProjectToken = typeof captureProject === 'function' && typeof assertProject === 'function';
+		const startingProjectToken = hasProjectToken ? captureProject() : null;
+		return () => {
+			try { if (hasProjectToken) assertProject(startingProjectToken); }
+			catch (error) { throw new Error(message, { cause: error }); }
+			if (hasProjectIdentity && (getProject()?.id ?? null) !== startingProjectId) throw new Error(message);
+		};
 	}
 
 	function updateLegacyAupImportProgress(progress: RuntimeValue) {

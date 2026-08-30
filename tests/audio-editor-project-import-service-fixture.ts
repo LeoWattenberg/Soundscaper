@@ -69,6 +69,7 @@ export function createFixture() {
 		writerFails: false,
 		peakFails: false,
 		decodeGate: null as Promise<void> | null,
+		legacyDecodeGate: null as Promise<void> | null,
 		peakGate: null as Promise<void> | null,
 		activateFails: false,
 		activationGate: null as Promise<void> | null,
@@ -191,6 +192,8 @@ export function createFixture() {
 			decodeOptions: { onProgress: (value: unknown) => void },
 		) => {
 			decodeOptions.onProgress({ progress: -0.5 });
+			calls.push('legacy-decode-started');
+			if (options.legacyDecodeGate) await options.legacyDecodeGate;
 			return decodedStructure();
 		},
 		editingBlocked: () => options.blocked,
