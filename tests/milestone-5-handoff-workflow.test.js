@@ -36,7 +36,10 @@ test('desktop packaging retains ten nightly cells while product tags select one 
 	assert.match(aggregateJob, /needs: \[quality, package\]/u);
 	assert.match(aggregateJob, /needs\.package\.result == 'success'/u);
 	assert.match(aggregateJob, /ref: \$\{\{ github\.sha \}\}/u);
-	assert.match(aggregateJob, /Set up Node\.js[\s\S]*?run: npm ci[\s\S]*?Install cross-format package inspectors/u);
+	assert.match(
+		aggregateJob,
+		/Set up Node\.js[\s\S]*?name: Pin npm\s+run: npm install --global npm@12\.0\.1[\s\S]*?run: npm ci[\s\S]*?Install cross-format package inspectors/u,
+	);
 	assert.match(aggregateJob, /ci-apt-install\.sh p7zip-full squashfs-tools/u);
 	assert.match(aggregateJob, /actions\/download-artifact@[a-f\d]{40}[\s\S]*?pattern: nightly-\$\{\{ needs\.quality\.outputs\.release-product-pattern \}\}-\*[\s\S]*?milestone-5-packages/u);
 	assert.doesNotMatch(aggregateJob, /merge-multiple: true/u);
