@@ -465,7 +465,22 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 		'a successful SETEXEC cannot return, so every return path must fail closed');
 	assert.doesNotMatch(mac, /sandbox_init/u,
 		'the exact peer, not the pre-exec launcher image, must enter Seatbelt');
-	assert.match(mac, /setrlimit\(RLIMIT_AS/u);
+	assert.doesNotMatch(mac, /setrlimit\(RLIMIT_AS/u,
+		'Darwin counts its multi-gigabyte dyld shared region against RLIMIT_AS');
+	assert.match(mac, /setrlimit\(RLIMIT_CPU/u);
+	assert.match(mac,
+		/proc_pid_rusage\([^,]+, RUSAGE_INFO_V2,\s*reinterpret_cast<rusage_info_t \*>\(&usage\)\)/u,
+		'the trusted verifier must sample the SETEXEC peer through the public libproc API');
+	assert.match(mac, /usage\.ri_resident_size > maximumRssBytes/u);
+	assert.match(mac,
+		/monitorResidentMemory\([\s\S]*timespec interval\{ 0, 10'000'000 \}/u,
+		'the trusted RSS supervisor must mirror the Linux launcher polling interval');
+	assert.match(mac,
+		/proc_pid_rusage\([\s\S]*!= 0\)[\s\S]*getppid\(\) != parent\) _exit\(0\);[\s\S]*verifierFailure\(parent\)/u,
+		'a sampling failure must kill a still-live peer but must not signal a reused process identifier');
+	assert.match(mac,
+		/exactWrite\(1, policy\.data\(\), policy\.size\(\)\)[\s\S]*monitorResidentMemory\(parent, maximumRssBytes\)/u,
+		'the trusted verifier must remain alive as the RSS supervisor after releasing the peer');
 	assert.match(mac, /--extra-input-fd=/u);
 	for (const protocol of [mac, macBootstrapHeader]) {
 		assert.match(protocol, /attestationDescriptor\s*=\s*3/u);
@@ -474,6 +489,7 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 		assert.match(protocol, /'M', '5', 'M', 'A', 'C', 'S', 'B', '1'/u);
 	}
 	assert.match(macBroker, /"attestation":"peer-post-sandbox-bootstrap-pipe-v1"/u);
+	assert.match(macBroker, /"memory":"trusted-verifier-rss-poll-10ms-v1"/u);
 	assert.match(professionalCmake,
 		/soundscaper_professional_peer[\s\S]*professional_host_macos_bootstrap\.mm[\s\S]*"-lsandbox"/u);
 	assert.match(professionalCmake,

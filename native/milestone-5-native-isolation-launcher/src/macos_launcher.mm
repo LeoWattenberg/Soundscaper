@@ -46,6 +46,7 @@ constexpr char expectedBroker[] = "{\"schemaVersion\":1,\"id\":\"milestone5-maco
 	"\"childProcesses\":\"fork-denied-exec-peer-only\",\"environment\":\"fixed-empty\","
 	"\"executionIdentity\":\"posix-spawn-setexec-stopped-public-proc-region-vnode-v1\","
 	"\"sandboxEntry\":\"peer-bootstrap-before-work-v1\","
+	"\"memory\":\"trusted-verifier-rss-poll-10ms-v1\","
 	"\"attestation\":\"peer-post-sandbox-bootstrap-pipe-v1\"}\n";
 
 enum class Access { readOnly, readExecute, writeOnly };
@@ -243,12 +244,29 @@ std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bo
 
 [[noreturn]] void verifierFailure(pid_t parent)
 {
-	(void)kill(parent, SIGKILL);
+	if (getppid() == parent) (void)kill(parent, SIGKILL);
 	_exit(125);
+}
+
+[[noreturn]] void monitorResidentMemory(pid_t parent, uint64_t maximumRssBytes)
+{
+	const timespec interval{ 0, 10'000'000 };
+	for (;;) {
+		if (getppid() != parent) _exit(0);
+		rusage_info_v2 usage{};
+		if (proc_pid_rusage(parent, RUSAGE_INFO_V2,
+			reinterpret_cast<rusage_info_t *>(&usage)) != 0) {
+			if (getppid() != parent) _exit(0);
+			verifierFailure(parent);
+		}
+		if (usage.ri_resident_size > maximumRssBytes) verifierFailure(parent);
+		if (nanosleep(&interval, nullptr) != 0 && errno != EINTR) verifierFailure(parent);
+	}
 }
 
 [[noreturn]] void verifyAndRelease(
 	pid_t parent,
+	uint64_t maximumRssBytes,
 	int executableFd,
 	int policyWriteFd,
 	const std::vector<int> &openDescriptors,
@@ -277,7 +295,7 @@ std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bo
 				}
 				if (!exactWrite(1, policy.data(), policy.size()) || close(1) != 0) verifierFailure(parent);
 				(void)close(0);
-				_exit(0);
+				monitorResidentMemory(parent, maximumRssBytes);
 			}
 		}
 		(void)nanosleep(&interval, nullptr);
@@ -314,9 +332,10 @@ int main(int argc, char **argv)
 	if (value.attestationFd < 0 || value.profileFd < 0 || value.brokerFd < 0 || value.executableFd < 0
 		|| value.durationMs == 0u || value.rssBytes == 0u || value.childArgv == nullptr
 		|| value.childArgv[0] == nullptr || !valid(value)) return 125;
-	struct rlimit memory{ value.rssBytes, value.rssBytes };
+	// Darwin charges its multi-gigabyte dyld shared region to RLIMIT_AS; the
+	// trusted verifier below therefore supervises the peer's actual RSS.
 	struct rlimit cpu{ (value.durationMs + 999u) / 1000u, (value.durationMs + 999u) / 1000u };
-	if (setrlimit(RLIMIT_AS, &memory) != 0 || setrlimit(RLIMIT_CPU, &cpu) != 0) return 125;
+	if (setrlimit(RLIMIT_CPU, &cpu) != 0) return 125;
 	const auto policy = profile(value);
 	if (policy.empty() || policy.size() > bootstrap::maximumPolicyBytes
 		|| exactText(value.brokerFd, 4096u) != expectedBroker) return 125;
@@ -356,7 +375,8 @@ int main(int argc, char **argv)
 	const pid_t parent = getpid();
 	const pid_t verifier = fork();
 	if (verifier < 0) return 125;
-	if (verifier == 0) verifyAndRelease(parent, value.executableFd, policyPipe[1], openDescriptors,
+	if (verifier == 0) verifyAndRelease(parent, value.rssBytes, value.executableFd,
+		policyPipe[1], openDescriptors,
 		launcherIdentity, executableIdentity, header, policy);
 	char language[] = "LANG=C";
 	char locale[] = "LC_ALL=C";
