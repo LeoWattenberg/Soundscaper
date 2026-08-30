@@ -255,13 +255,14 @@ truncate the existing WebM fixture to make it pass.
 The qualified recipe uses four 64×32 RGB ordinal frames and exact timescale
 1,000 PTS `[0, 40, 130, 200]` with final duration 70 ticks: intervals are
 40/90/70/70 ms and media end is 270 ms. Pinned FFmpeg must use VFR mode,
-`settb=1/1000`, the explicit PTS expression, all-I H.264, and
+`settb=1/1000`, the explicit PTS expression, all-I Constrained Baseline H.264
+with `-profile:v baseline -crf 1 -pix_fmt yuv420p`, and
 `-enc_time_base 1/1000 -video_track_timescale 1000`; omitting encoder time base
 silently quantizes the intended PTS and refuses qualification. Midpoint rVFC
 times must be `0/.04/.13/.2`, with the four encoded color/bit ordinals. The raw
 RGB SHA-256 is `191afca830eff27f7bb057e46256b775e64fa5c143abc7e17f38ec394bc65203`;
-the three-times-reproduced 5,435-byte MP4 SHA-256 is
-`8fa48c25f2f209d69c67e0409dd4b163e744ddfe8511e860f70f7eb2b9829e5e`.
+the three-times-reproduced 3,967-byte MP4 SHA-256 is
+`8800d170f366faadbf9e8b28523e1294c8ec5cbf470f957698d95259a0450205`.
 
 The focused spec
 `tests/browser/audio-editor-video-retime-preview-executor.spec.js` remains

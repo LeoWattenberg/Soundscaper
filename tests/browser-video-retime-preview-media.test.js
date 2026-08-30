@@ -8,6 +8,25 @@ import {
 	videoRetimePreviewMedia,
 } from './browser/fixtures/video-retime-preview-media.js';
 
+test('the VFR fixture uses a broadly supported 8-bit AVC profile', () => {
+	const bytes = videoRetimePreviewMedia.file.buffer;
+	const avcConfigurationOffset = bytes.indexOf(Buffer.from('avcC'));
+	assert.notEqual(avcConfigurationOffset, -1);
+	assert.equal(bytes[avcConfigurationOffset + 4], 1, 'AVCDecoderConfigurationRecord version');
+	assert.equal(bytes[avcConfigurationOffset + 5], 66, 'Constrained Baseline profile_idc');
+
+	const arguments_ = videoRetimePreviewMedia.generation.arguments;
+	const profileOption = arguments_.indexOf('-profile:v');
+	assert.notEqual(profileOption, -1);
+	assert.equal(arguments_[profileOption + 1], 'baseline');
+	const pixelFormatOption = arguments_.indexOf('-pix_fmt');
+	assert.notEqual(pixelFormatOption, -1);
+	assert.equal(arguments_[pixelFormatOption + 1], 'yuv420p');
+	const crfOption = arguments_.indexOf('-crf');
+	assert.notEqual(crfOption, -1);
+	assert.notEqual(arguments_[crfOption + 1], '0', 'lossless x264 selects High 4:4:4 Predictive');
+});
+
 test('the VFR decoder oracle admits only its documented per-channel conversion variance', () => {
 	const [red, green, blue, yellow] = videoRetimePreviewMedia.pixelOracle;
 	assert.equal(videoRetimePreviewMedia.decoderChannelTolerance, 2);
