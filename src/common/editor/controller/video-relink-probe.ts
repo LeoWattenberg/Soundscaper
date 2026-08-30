@@ -29,7 +29,7 @@ export interface ChangedContentVideoCandidateRuntime {
 export interface ChangedContentVideoCandidateSource {
 	readonly width: number;
 	readonly height: number;
-	readonly frameCount: number;
+	readonly sampleFrameCount: number;
 	readonly sampleRate: number;
 }
 
@@ -53,7 +53,7 @@ export async function admitChangedContentVideoCandidate(
 			throw new Error('The selected video does not match the linked source frame size.');
 		}
 		const durationFrames = Math.max(1, Math.round(durationSeconds * source.sampleRate));
-		if (durationFrames !== source.frameCount) {
+		if (durationFrames !== source.sampleFrameCount) {
 			throw new Error('The selected video does not match the linked source duration.');
 		}
 	} finally {

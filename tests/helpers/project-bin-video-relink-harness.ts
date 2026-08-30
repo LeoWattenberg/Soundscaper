@@ -141,19 +141,19 @@ function projectFixture() {
 			Object.freeze({ id: 'audio-source', kind: 'audio' as const, frameCount: 48_000 }),
 			Object.freeze({
 				id: 'video-source', kind: 'video' as const, storageKey: 'video-storage',
-				mimeType: 'video/mp4', frameCount: 48_000, sampleRate: 48_000,
+				mimeType: 'video/mp4', sampleFrameCount: 48_000, sampleRate: 48_000,
 				width: 1_920, height: 1_080, frameRate: 30,
 				videoCodec: 'h264', audioCodec: null, hasAudio: false,
 			}),
 			Object.freeze({
 				id: 'video-solo-source', kind: 'video' as const, storageKey: 'video-solo-storage',
-				mimeType: 'video/mp4', frameCount: 24_000, sampleRate: 48_000,
+				mimeType: 'video/mp4', sampleFrameCount: 24_000, sampleRate: 48_000,
 				width: 1_280, height: 720, frameRate: 30,
 				videoCodec: 'h264', audioCodec: null, hasAudio: false,
 			}),
 			Object.freeze({
 				id: 'video-audible-source', kind: 'video' as const, storageKey: 'video-audible-storage',
-				mimeType: 'video/mp4', frameCount: 24_000, sampleRate: 48_000,
+				mimeType: 'video/mp4', sampleFrameCount: 24_000, sampleRate: 48_000,
 				width: 1_280, height: 720, frameRate: 30,
 				videoCodec: 'h264', audioCodec: 'aac', hasAudio: true,
 			}),
