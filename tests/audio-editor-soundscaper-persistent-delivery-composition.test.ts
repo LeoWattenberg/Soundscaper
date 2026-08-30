@@ -100,8 +100,20 @@ test('a failed project-authority transition does not wedge later project changes
 	await composition.dispose();
 });
 
+test('workspace disposal clears authority after an in-flight startup binding settles', async () => {
+	const fixture = compositionFixture({ entries: [], deferInitialAuthority: true });
+	const composition = createSoundscaperPersistentDeliveryControllerComposition(fixture.runtime);
+	assert.ok(composition);
+	const disposal = composition.dispose();
+	fixture.releaseInitialAuthority();
+	await Promise.all([composition.ready, disposal]);
+	assert.equal(fixture.calls.settledProjectBindings.at(-1), null,
+		'startup must not restore main authority after workspace disposal clears it');
+});
+
 function compositionFixture(options: Readonly<{
 	entries: readonly SoundscaperPersistentDeliverySummary[];
+	deferInitialAuthority?: boolean;
 }>) {
 	let entries = [...options.entries];
 	let listener: (() => void) | null = null;
@@ -110,15 +122,20 @@ function compositionFixture(options: Readonly<{
 	let signalReleased: (() => void) | null = null;
 	let signalBackgroundFailure: (() => void) | null = null;
 	let authorityClearFailure: Error | null = null;
+	let releaseInitialAuthority: () => void = () => undefined;
 	const executing = new Promise<void>((resolve) => { signalExecuting = resolve; });
 	const released = new Promise<void>((resolve) => { signalReleased = resolve; });
 	const backgroundFailure = new Promise<void>((resolve) => { signalBackgroundFailure = resolve; });
+	const initialAuthority = options.deferInitialAuthority
+		? new Promise<void>((resolve) => { releaseInitialAuthority = resolve; })
+		: Promise.resolve();
 	const project = { id: 'project-1', revision: 7, title: 'Album' };
 	const projectGeneration = 1;
 	const calls = {
 		list: 0, cancelExport: 0, complete: 0, unsubscribe: 0,
 		releases: [] as string[], cancelJobs: [] as string[],
 		openProjectBindings: [] as Array<string | null>,
+		settledProjectBindings: [] as Array<string | null>,
 	};
 	const bridge = {
 		selectDestination: async () => ({ grantId: 'cd'.repeat(24) }),
@@ -130,6 +147,8 @@ function compositionFixture(options: Readonly<{
 				authorityClearFailure = null;
 				throw failure;
 			}
+			if (projectId !== null) await initialAuthority;
+			calls.settledProjectBindings.push(projectId);
 			return projectId === null ? null : PROJECT_IDENTITY;
 		},
 		enqueueBatch: async () => entries,
@@ -179,6 +198,7 @@ function compositionFixture(options: Readonly<{
 		},
 		project,
 		publish: () => listener?.(),
+		releaseInitialAuthority,
 		released,
 		runtime: {
 			bridge,

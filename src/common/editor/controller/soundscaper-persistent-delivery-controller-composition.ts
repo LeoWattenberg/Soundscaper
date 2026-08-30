@@ -113,7 +113,8 @@ export function createSoundscaperPersistentDeliveryControllerComposition(
 		);
 		background(authorityTransition);
 	}) ?? (() => undefined);
-	const ready = synchronizeOpenProject().then(() => ui.refresh()).then(() => worker.wake());
+	const startupAuthority = synchronizeOpenProject();
+	const ready = startupAuthority.then(() => ui.refresh()).then(() => worker.wake());
 	background(ready);
 
 	async function currentProjectIdentity(): Promise<SoundscaperDeliveryProjectIdentityV1 | null> {
@@ -158,6 +159,7 @@ export function createSoundscaperPersistentDeliveryControllerComposition(
 			if (disposed) return;
 			disposed = true;
 			unsubscribe();
+			await startupAuthority.catch(() => undefined);
 			await authorityTransition.catch(() => undefined);
 			await managedBridge.currentProjectIdentity({ projectId: null }).catch(() => undefined);
 			await worker.dispose();
