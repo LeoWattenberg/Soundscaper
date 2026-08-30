@@ -6,6 +6,8 @@ import type {
 } from '../common/editor/controller/playback-project-service.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY, classifyProjectSchemaIdentity } from
 	'../common/editor/project-schema-identity.ts';
+import { projectTrackFolderMediaStateV12 } from
+	'../common/editor/track-folder-media-runtime.ts';
 import type { VideoTimingMediaStore } from '../common/editor/video-timing-storage.ts';
 import { createFramescaperPlaybackProjectServiceAssistance } from './editor-project-playback-assistance.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
@@ -55,9 +57,13 @@ export function createFramescaperPlaybackProjectService(
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		if (!isCurrent(project)) return opaque(project);
-		return baselineProjection(selected.projectForPlayback(
+		const projection = baselineProjection(selected.projectForPlayback(
 			project,
 		)) as PlaybackProjectProjection<Project>;
+		return Object.freeze({
+			...projection,
+			project: projectTrackFolderMediaStateV12(projection.project),
+		});
 	}
 
 	function projectForDelivery<Project extends object>(project: Project) {
