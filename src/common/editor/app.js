@@ -350,8 +350,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const sourceBuffers = createSourceBufferCache({ maxBytes: options.sourceBufferCacheMaxBytes });
 	const mixRenderMemoryLimitBytes = normalizeByteLimit(options.mixRenderMemoryLimitBytes, AUDACITY_EFFECT_PEAK_MEMORY_LIMIT_BYTES);
 	const sourceChunkProviders = new SourceChunkProviderRegistry();
-	const sourcePeaks = new Map();
-	const stagedProjectBinSourceIds = new Set();
+	const sourcePeaks = new Map(), stagedProjectBinSourceIds = new Set();
 	const clipWaveformPcmWindows = new Map();
 	const clipWaveformPcmRequests = new Map();
 	const sessionController = options.sessionController || createAudioEditorSessionController();
@@ -650,8 +649,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getSessionTabs: () => sessionController.getSnapshot().tabs,
 		editorHistoryProjects,
 		allProjectClips,
-		clipCache: clipTimePitchCache,
-		getProtectedSourceIds: () => stagedProjectBinSourceIds,
+		clipCache: clipTimePitchCache, getProtectedSourceIds: () => stagedProjectBinSourceIds,
 		sourceBuffers,
 		sourcePeaks,
 		evictSourceCaches: evictUnreferencedSourceCaches,
@@ -1526,8 +1524,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		store, stripExtension, warnEnvelope, writeBuffer,
 	});
 	const projectBinService = createProjectBinService({
-		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS,
-		protectedSourceIds: stagedProjectBinSourceIds,
+		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS, protectedSourceIds: stagedProjectBinSourceIds,
 		playbackEngine: engine, retireTimelinePlayback, sourceBuffers, sourceChunkProviders, sourcePeaks,
 		missingSourceIds: state.missingSourceIds,
 		sourceResolver: clipTimePitchSourceResolver, store, activateVideoSource,
