@@ -361,8 +361,7 @@ async function serveStaticRequest({ request, response, staticRoot }) {
 			return;
 		}
 		const stream = createReadStream(file.path);
-		stream.once('error', () => response.destroy());
-		stream.pipe(response);
+		pipeDesktopNightlyTestsStaticResponse(stream, response);
 	} catch (error) {
 		const statusCode = error instanceof StaticRequestError ? error.statusCode : 500;
 		if (!response.headersSent) {
@@ -372,6 +371,14 @@ async function serveStaticRequest({ request, response, staticRoot }) {
 			response.destroy();
 		}
 	}
+}
+
+export function pipeDesktopNightlyTestsStaticResponse(stream, response) {
+	const destroyStream = () => stream.destroy();
+	response.once('close', destroyStream);
+	stream.once('close', () => response.off('close', destroyStream));
+	stream.once('error', () => response.destroy());
+	stream.pipe(response);
 }
 
 function cacheControlFor(relativePath) {

@@ -12,6 +12,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
+import { PassThrough } from 'node:stream';
 import test from 'node:test';
 
 import {
@@ -19,6 +20,7 @@ import {
 	createDesktopNightlyTestsResultEnvelope,
 	createDesktopNightlyTestsRunDirectory,
 	mapDesktopNightlyTestsExit,
+	pipeDesktopNightlyTestsStaticResponse,
 	resolveDesktopNightlyTestsEsbuildBinary,
 	resolveDesktopNightlyTestsOutputRoot,
 	runDesktopNightlyTests,
@@ -36,6 +38,14 @@ const PRODUCT = Object.freeze({
 	version: '1.0.0-rc.1',
 });
 const PACKAGED_ENVIRONMENT = Object.freeze({ PATH: '/usr/bin', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204', SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac', SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct' });
+
+test('the nightly static server destroys a file stream when its response closes', () => {
+	const stream = new PassThrough();
+	const response = new PassThrough();
+	pipeDesktopNightlyTestsStaticResponse(stream, response);
+	response.emit('close');
+	assert.equal(stream.destroyed, true);
+});
 
 function productServerStub(firstPort: number, onClose = () => undefined) {
 	let offset = 0;
