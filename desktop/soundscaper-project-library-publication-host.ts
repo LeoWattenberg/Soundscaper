@@ -24,7 +24,7 @@ import {
 	cleanupSoundscaperDesktopProjectLibraryStages,
 	materializeSoundscaperDesktopProjectLibraryPublication,
 	readSoundscaperDesktopProjectLibraryFile,
-	readSoundscaperDesktopProjectLibraryFileRange,
+	SoundscaperDesktopProjectLibraryFileRangeReader,
 	stageSoundscaperDesktopProjectLibraryPublication,
 	type SoundscaperDesktopProjectLibraryPublicationStage,
 } from './soundscaper-project-library-publication-files.ts';
@@ -81,6 +81,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 	readonly #gate = createSoundscaperDesktopProjectLibraryHandshakeGate();
 	readonly #now: () => number;
 	readonly #randomId: () => string;
+	readonly #rangeReader = new SoundscaperDesktopProjectLibraryFileRangeReader();
 	#operationActive = false;
 
 	private constructor(options: CreateOptions) {
@@ -348,7 +349,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		if (signal !== undefined && !(signal instanceof AbortSignal)) {
 			throw new TypeError('Soundscaper desktop baseline body read signal is invalid');
 		}
-		return readSoundscaperDesktopProjectLibraryFileRange(
+		return this.#rangeReader.read(
 			this.paths.libraryRoot,
 			`media/${row.relativeFile}`,
 			body.byteLength,

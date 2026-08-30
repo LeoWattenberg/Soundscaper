@@ -18,6 +18,7 @@ import {
 
 const CREATE_FIELDS = ['host'] as const;
 const MAXIMUM_ACTIVE_READS = 4;
+const MAXIMUM_CACHED_PROJECTS = 16;
 
 export interface SoundscaperDesktopProjectLibraryTransferHost {
 	readProjectBundle(projectId: string, signal?: AbortSignal): Promise<unknown>;
@@ -56,6 +57,19 @@ export class SoundscaperDesktopProjectLibraryTransferService {
 		validateSoundscaperDesktopProjectLibraryHandshake(value);
 		const host = validateHost(this.#hostValue);
 		let activeReads = 0;
+		const snapshots = new Map<string, Readonly<SoundscaperDesktopProjectLibraryTransferBundle>>();
+		const remember = (
+			projectId: string,
+			bundle: Readonly<SoundscaperDesktopProjectLibraryTransferBundle>,
+		): void => {
+			snapshots.delete(projectId);
+			snapshots.set(projectId, bundle);
+			while (snapshots.size > MAXIMUM_CACHED_PROJECTS) {
+				const oldest = snapshots.keys().next().value as string | undefined;
+				if (oldest === undefined) break;
+				snapshots.delete(oldest);
+			}
+		};
 		const readProjectBundle = async (
 			projectIdValue: string,
 			signal?: AbortSignal,
@@ -64,9 +78,13 @@ export class SoundscaperDesktopProjectLibraryTransferService {
 			const projectId = validateSoundscaperDesktopProjectLibraryProjectId(projectIdValue);
 			const value = await host.readProjectBundle(projectId, signal);
 			throwIfAborted(signal);
-			return value === null
-				? null
-				: validateSoundscaperDesktopProjectLibraryHostBundle(value, projectId);
+			if (value === null) {
+				snapshots.delete(projectId);
+				return null;
+			}
+			const bundle = validateSoundscaperDesktopProjectLibraryHostBundle(value, projectId);
+			remember(projectId, bundle);
+			return bundle;
 		};
 		return Object.freeze({
 			readProjectBundle,
@@ -81,7 +99,10 @@ export class SoundscaperDesktopProjectLibraryTransferService {
 				}
 				activeReads += 1;
 				try {
-					const current = await readProjectBundle(request.projectId, request.signal);
+					const cached = snapshots.get(request.projectId);
+					const current = cached && sameSnapshot(cached, request)
+						? cached
+						: await readProjectBundle(request.projectId, request.signal);
 					if (!current || !sameSnapshot(current, request)) {
 						throw new Error('Soundscaper desktop baseline project snapshot changed before body transfer');
 					}

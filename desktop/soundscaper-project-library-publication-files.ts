@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { constants as fileConstants } from 'node:fs';
+import { constants as fileConstants, type Stats } from 'node:fs';
 import {
 	copyFile,
 	link,
@@ -32,6 +32,94 @@ export interface SoundscaperDesktopProjectLibraryPublicationStage {
 }
 
 const READ_CHUNK_BYTES = 1024 * 1024;
+const MAXIMUM_VERIFIED_RANGE_FILES = 256;
+
+export interface SoundscaperDesktopProjectLibraryFileSnapshot {
+	readonly dev: number;
+	readonly ino: number;
+	readonly size: number;
+	readonly mtimeMs: number;
+	readonly ctimeMs: number;
+	readonly byteLength: number;
+	readonly sha256: string;
+}
+
+export type SoundscaperDesktopProjectLibraryFileVerifier = (
+	path: string,
+	byteLength: number,
+	sha256: string,
+	signal?: AbortSignal,
+) => Promise<Readonly<SoundscaperDesktopProjectLibraryFileSnapshot>>;
+
+/** Reuses a bounded authenticated snapshot while checking file identity for every range. */
+export class SoundscaperDesktopProjectLibraryFileRangeReader {
+	readonly #snapshots = new Map<string, Readonly<SoundscaperDesktopProjectLibraryFileSnapshot>>();
+	readonly #verify: SoundscaperDesktopProjectLibraryFileVerifier;
+
+	constructor(verify: SoundscaperDesktopProjectLibraryFileVerifier = verifySoundscaperDesktopProjectLibraryFile) {
+		this.#verify = verify;
+	}
+
+	async read(
+		libraryRoot: string,
+		relativeFile: string,
+		byteLength: number,
+		sha256: string,
+		offset: number,
+		length: number,
+		signal?: AbortSignal,
+	): Promise<Uint8Array> {
+		const path = scopedPath(libraryRoot, relativeFile);
+		if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1
+			|| offset >= byteLength || length > byteLength - offset) {
+			throw new RangeError('Soundscaper desktop baseline body read leaves its immutable file range');
+		}
+		throwIfAborted(signal);
+		const entry = await lstat(path);
+		let snapshot = this.#snapshots.get(path);
+		if (!snapshot || snapshot.byteLength !== byteLength || snapshot.sha256 !== sha256
+			|| !sameFileSnapshot(snapshot, entry)) {
+			snapshot = await this.#verify(path, byteLength, sha256, signal);
+			this.#remember(path, snapshot);
+		} else {
+			this.#snapshots.delete(path);
+			this.#snapshots.set(path, snapshot);
+		}
+		const handle = await openRegular(path);
+		try {
+			const opened = await handle.stat();
+			if (!sameFileSnapshot(snapshot, opened)) {
+				this.#snapshots.delete(path);
+				throw new Error('Soundscaper desktop baseline immutable file identity changed before bounded read');
+			}
+			const bytes = new Uint8Array(length);
+			let written = 0;
+			while (written < bytes.byteLength) {
+				throwIfAborted(signal);
+				const result = await handle.read(bytes, written, bytes.byteLength - written, offset + written);
+				if (result.bytesRead <= 0) throw new Error('Soundscaper desktop baseline body ended during bounded read');
+				written += result.bytesRead;
+			}
+			if (!sameFileSnapshot(snapshot, await handle.stat())) {
+				this.#snapshots.delete(path);
+				throw new Error('Soundscaper desktop baseline immutable file identity changed during bounded read');
+			}
+			return bytes;
+		} finally {
+			await handle.close();
+		}
+	}
+
+	#remember(path: string, snapshot: Readonly<SoundscaperDesktopProjectLibraryFileSnapshot>): void {
+		this.#snapshots.delete(path);
+		this.#snapshots.set(path, snapshot);
+		while (this.#snapshots.size > MAXIMUM_VERIFIED_RANGE_FILES) {
+			const oldest = this.#snapshots.keys().next().value as string | undefined;
+			if (oldest === undefined) break;
+			this.#snapshots.delete(oldest);
+		}
+	}
+}
 
 export async function stageSoundscaperDesktopProjectLibraryPublication(
 	paths: Readonly<SoundscaperDesktopProjectLibraryPaths>,
@@ -151,26 +239,9 @@ export async function readSoundscaperDesktopProjectLibraryFileRange(
 	length: number,
 	signal?: AbortSignal,
 ): Promise<Uint8Array> {
-	const path = scopedPath(libraryRoot, relativeFile);
-	await verifySoundscaperDesktopProjectLibraryFile(path, byteLength, sha256, signal);
-	if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1
-		|| offset >= byteLength || length > byteLength - offset) {
-		throw new RangeError('Soundscaper desktop baseline body read leaves its immutable file range');
-	}
-	const handle = await openRegular(path);
-	try {
-		const bytes = new Uint8Array(length);
-		let written = 0;
-		while (written < bytes.byteLength) {
-			throwIfAborted(signal);
-			const result = await handle.read(bytes, written, bytes.byteLength - written, offset + written);
-			if (result.bytesRead <= 0) throw new Error('Soundscaper desktop baseline body ended during bounded read');
-			written += result.bytesRead;
-		}
-		return bytes;
-	} finally {
-		await handle.close();
-	}
+	return new SoundscaperDesktopProjectLibraryFileRangeReader().read(
+		libraryRoot, relativeFile, byteLength, sha256, offset, length, signal,
+	);
 }
 
 export async function verifySoundscaperDesktopProjectLibraryFile(
@@ -178,7 +249,7 @@ export async function verifySoundscaperDesktopProjectLibraryFile(
 	byteLength: number,
 	sha256: string,
 	signal?: AbortSignal,
-): Promise<void> {
+): Promise<Readonly<SoundscaperDesktopProjectLibraryFileSnapshot>> {
 	const handle = await openRegular(path);
 	try {
 		const before = await handle.stat();
@@ -204,9 +275,34 @@ export async function verifySoundscaperDesktopProjectLibraryFile(
 			|| hash.digest('hex') !== sha256) {
 			throw new Error('Soundscaper desktop baseline immutable file failed SHA-256 snapshot verification');
 		}
+		return fileSnapshot(after, byteLength, sha256);
 	} finally {
 		await handle.close();
 	}
+}
+
+function fileSnapshot(
+	stat: Stats,
+	byteLength: number,
+	sha256: string,
+): Readonly<SoundscaperDesktopProjectLibraryFileSnapshot> {
+	return Object.freeze({
+		dev: stat.dev,
+		ino: stat.ino,
+		size: stat.size,
+		mtimeMs: stat.mtimeMs,
+		ctimeMs: stat.ctimeMs,
+		byteLength,
+		sha256,
+	});
+}
+
+function sameFileSnapshot(
+	snapshot: Readonly<SoundscaperDesktopProjectLibraryFileSnapshot>,
+	stat: Stats,
+): boolean {
+	return snapshot.dev === stat.dev && snapshot.ino === stat.ino && snapshot.size === stat.size
+		&& snapshot.mtimeMs === stat.mtimeMs && snapshot.ctimeMs === stat.ctimeMs;
 }
 
 function stageDescriptor(
