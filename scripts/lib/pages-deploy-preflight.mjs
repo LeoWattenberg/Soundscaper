@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { productWebOrigin } from '../../src/common/product-web-links.js';
 import { snapshotVerifiedFfmpegRuntime } from './ffmpeg-runtime-manifest.mjs';
@@ -8,6 +8,7 @@ import { runtimePointer } from './ffmpeg-runtime-publisher.mjs';
 import { webBuildRouting } from './product-web-routing.mjs';
 
 const MAXIMUM_OBJECT_BYTES = 64 * 1024 * 1024;
+const AUDIT_CACHE_KEY = 'pages-deploy-audit';
 
 /**
  * The artwork, icon and manifest each product installs, by product.
@@ -193,7 +194,8 @@ export async function verifyLivePagesCachePolicy({
 	includeRetired = true,
 }) {
 	const auditOrigin = normalizedOrigin(origin, 'Pages cache-policy origin');
-	if (!await originAnswers(fetchImpl, auditOrigin)) {
+	const token = auditToken();
+	if (!await originAnswers(fetchImpl, auditOrigin, token)) {
 		assert(coldStart,
 			`Pages cache-policy audit found no deployment answering ${auditOrigin.origin}. `
 			+ `If that origin has genuinely never been deployed, set ${COLD_START_VARIABLE}=1 on this build; `
@@ -204,12 +206,12 @@ export async function verifyLivePagesCachePolicy({
 		`${COLD_START_VARIABLE} is set but ${auditOrigin.origin} is already answering. `
 		+ 'Remove it from the deploy job: it exists only for the first deployment an origin ever receives, '
 		+ 'and while it is set an origin that vanished would be mistaken for one that was never deployed.');
-	const assetPath = await liveImmutableAssetPath(fetchImpl, auditOrigin);
+	const assetPath = await liveImmutableAssetPath(fetchImpl, auditOrigin, token);
 	const descriptors = pagesCachePolicyDescriptors({ routing, assetPath, includeRetired });
 	for (const descriptor of descriptors) {
-		const url = new URL(descriptor.path, auditOrigin);
+		const url = auditUrl(descriptor.path, auditOrigin, token);
 		if (descriptor.expectation === 'redirected') {
-			await verifyRetiredRedirect(fetchImpl, url, descriptor);
+			await verifyRetiredRedirect(fetchImpl, url, descriptor, token);
 			continue;
 		}
 		if (descriptor.expectation === 'missing') {
@@ -280,10 +282,10 @@ export async function verifyPublishedPagesCachePolicy(options, schedule = {}) {
  * deployment with a broken root is precisely what this gate exists to catch. A
  * redirect counts as an answer too, which is why the probe never follows one.
  */
-async function originAnswers(fetchImpl, origin) {
+async function originAnswers(fetchImpl, origin, token) {
 	let response;
 	try {
-		response = await fetchImpl(new URL('/', origin).href, auditRequest());
+		response = await fetchImpl(auditUrl('/', origin, token).href, auditRequest());
 	} catch (error) {
 		if (error instanceof TypeError) return false;
 		throw error;
@@ -307,8 +309,8 @@ async function originAnswers(fetchImpl, origin) {
  * publishes its own asset inventory at `/offline-shell.json`, so the rule is
  * audited against an asset that deployment actually has.
  */
-async function liveImmutableAssetPath(fetchImpl, origin) {
-	const url = new URL('/offline-shell.json', origin);
+async function liveImmutableAssetPath(fetchImpl, origin, token) {
+	const url = auditUrl('/offline-shell.json', origin, token);
 	const response = await fetchImpl(url.href, auditRequest());
 	assert(response instanceof Response && response.status === 200,
 		`Pages cache-policy audit received HTTP ${String(response?.status)} for /offline-shell.json`);
@@ -328,6 +330,31 @@ async function liveImmutableAssetPath(fetchImpl, origin) {
 }
 
 /**
+ * Address one path so the answer comes from the deployment, not from the CDN's
+ * memory of the one before it.
+ *
+ * Cloudflare fronts a Pages origin with its own cache and does not honour a
+ * client's `Cache-Control: no-cache`, so reading a bare URL can be answered from
+ * an entry the previous deployment left behind — for as long as that entry's
+ * `s-maxage`, which is a week for immutable assets and four hours for documents.
+ * A retired path is exactly where that lands: the previous deployment served it,
+ * this one must not, and the audit reads the previous answer and calls a correct
+ * deploy broken. Waiting cannot help, because the entry outlives any deadline a
+ * deploy job can hold. A query string is part of the cache key, so a token no
+ * earlier deployment ever used reaches the origin.
+ */
+function auditUrl(path, origin, token) {
+	const url = new URL(path, origin);
+	url.searchParams.set(AUDIT_CACHE_KEY, token);
+	return url;
+}
+
+/** One token per audit pass, so a retry never reads its own earlier attempt. */
+function auditToken() {
+	return `${Date.now().toString(36)}${randomUUID().replaceAll('-', '')}`;
+}
+
+/**
  * One audit request.
  *
  * Redirects are never followed and never turned into a transport error: an
@@ -344,11 +371,18 @@ function auditRequest() {
 	};
 }
 
-async function verifyRetiredRedirect(fetchImpl, url, descriptor) {
+async function verifyRetiredRedirect(fetchImpl, url, descriptor, token) {
 	const response = await fetchImpl(url.href, auditRequest());
 	assert(response instanceof Response && response.status === 301,
 		`Pages cache-policy audit requires a permanent redirect for ${descriptor.path}; received HTTP ${String(response?.status)}`);
-	assert(response.headers.get('location') === descriptor.location,
+	// Cloudflare carries the request's query onto the redirect target, so the
+	// cache-busting token the audit added comes back on the Location it reads.
+	const suffix = `?${AUDIT_CACHE_KEY}=${token}`;
+	const location = response.headers.get('location');
+	const target = typeof location === 'string' && location.endsWith(suffix)
+		? location.slice(0, -suffix.length)
+		: location;
+	assert(target === descriptor.location,
 		`Pages cache-policy redirect target is invalid for ${descriptor.path}; expected ${descriptor.location}`);
 	await response.arrayBuffer();
 }

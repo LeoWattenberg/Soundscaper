@@ -165,7 +165,12 @@ function liveDeployment({
 	const fetchImpl = async (url, init) => {
 		const pathname = decodeURIComponent(new URL(url).pathname);
 		requests.push({ pathname, redirect: init.redirect });
-		if (redirects.has(pathname)) return Response.redirect(redirects.get(pathname), 301);
+		if (redirects.has(pathname)) {
+			// Cloudflare appends the request's query string to a redirect target
+			// that carries none, so the fixture does too.
+			const search = new URL(url).search;
+			return Response.redirect(`${redirects.get(pathname)}${search}`, 301);
+		}
 		const descriptor = served.get(pathname);
 		if (!descriptor) return new Response(null, { status: 404 });
 		return new Response(bodies.get(pathname) ?? liveBody(pathname, descriptor, inventory), {
@@ -471,7 +476,8 @@ test('an origin that has never been deployed passes only when the build declared
 		assetPath: null,
 		coldStart: true,
 	});
-	assert.deepEqual(requests, ['https://framescaper.org/'], 'a cold start probes the origin once and stops');
+	assert.equal(requests.length, 1, 'a cold start probes the origin once and stops');
+	assert.match(requests[0], /^https:\/\/framescaper\.org\/\?pages-deploy-audit=[a-z0-9]+$/u);
 
 	await assert.rejects(
 		() => verifyLivePagesCachePolicy({ routing, fetchImpl: silent }),
@@ -596,4 +602,48 @@ test('the zone browser cache TTL excuses no-cache on either product origin, and 
 		}),
 		{ verifiedRouteCount: preview.descriptors.length, assetPath, coldStart: false },
 	);
+});
+
+test('an audit reads the deployment, not the CDN entry the previous one left behind', async () => {
+	// Cloudflare fronts a Pages origin with its own cache and does not honour a
+	// client's Cache-Control: no-cache, so a path the previous deployment served
+	// keeps answering from that entry for as long as its s-maxage — four hours for
+	// a document and a week for an immutable asset. Retired paths are exactly the
+	// ones a cutover deploy stops serving, so the audit read the answer the
+	// previous deployment had left and called a correct deploy broken. Waiting
+	// cannot reach past that TTL; only a cache key no earlier deployment used can.
+	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
+	const assetPath = '/assets/site-entry-AbCd1234.js';
+	const live = liveDeployment({ routing, assetPath });
+	const seen = [];
+	// The stand-in CDN: any URL whose key an earlier deployment already populated
+	// is answered from that deployment, which served every retired path.
+	const fetchImpl = async (url, init) => {
+		seen.push(String(url));
+		if (!new URL(url).searchParams.has('pages-deploy-audit')) {
+			return new Response('previous deployment', {
+				status: 200,
+				headers: { 'cache-control': 'public, max-age=14400, s-maxage=604800' },
+			});
+		}
+		return live.fetchImpl(url, init);
+	};
+
+	assert.deepEqual(await verifyLivePagesCachePolicy({ routing, fetchImpl }), {
+		verifiedRouteCount: live.descriptors.length,
+		assetPath,
+		coldStart: false,
+	});
+	assert.ok(seen.length > 0);
+	for (const url of seen) {
+		assert.match(url, /[?&]pages-deploy-audit=[a-z0-9]+/u, `${url} was addressed without a fresh cache key`);
+	}
+	const first = new URL(seen[0]).searchParams.get('pages-deploy-audit');
+	assert.ok(seen.every((url) => new URL(url).searchParams.get('pages-deploy-audit') === first),
+		'one pass uses one token, so a run reads one deployment');
+
+	// A retry must not be answered by whatever its own earlier attempt cached.
+	seen.length = 0;
+	await verifyLivePagesCachePolicy({ routing, fetchImpl });
+	assert.notEqual(new URL(seen[0]).searchParams.get('pages-deploy-audit'), first);
 });
