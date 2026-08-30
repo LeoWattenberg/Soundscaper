@@ -245,7 +245,7 @@ export function setNativePluginBypassed(instanceId, bypassed, contextTime = null
 			...(atContextFrame === null ? {} : { atContextFrame }),
 		});
 	});
-	notify(instanceId, bypassed ? 0 : null, bypassed ? 'bypass' : 'active');
+	notify(instanceId, reportedLatencies.get(instanceId) ?? null, bypassed ? 'bypass' : 'active');
 }
 
 /** Vendor state remains on the helper/worklet RPC path; callers never author it. */

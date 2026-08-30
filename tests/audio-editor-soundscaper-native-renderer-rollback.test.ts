@@ -113,6 +113,24 @@ test('workspace teardown waits for an in-flight open before snapshotting ownersh
 	assert.equal(fixture.audioCloses.length, 2);
 });
 
+test('native bypass transitions retain latency and enforce a faulted project override everywhere', async (context) => {
+	const worklet = useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const instance = await renderer.bridge.instantiateNativePlugin({ installationId: 'installation-1', instanceId: null });
+	await renderer.bridge.setNativePluginBypassed({ instanceId: instance.instanceId, bypassed: true });
+	await renderer.bridge.setNativePluginBypassed({ instanceId: instance.instanceId, bypassed: false });
+	assert.equal(fixture.effect().bypassed, false, 'an ordinary un-bypass must not fault the plug-in');
+	assert.equal(fixture.effect().params.latencyFrames, 512, 'a control transition is not a latency report');
+
+	worklet.faultPlugin();
+	await renderer.bridge.setNativePluginBypassed({ instanceId: instance.instanceId, bypassed: false });
+	assert.equal(fixture.effect().bypassed, true, 'the faulted project keeps the slot bypassed');
+	assert.equal(fixture.pluginBypasses.at(-1)?.bypassed, true, 'main receives the admitted override');
+	assert.equal(worklet.bypassMessages().at(-1)?.bypassed, true, 'the realtime worklet receives it too');
+	await renderer.dispose();
+});
+
 let fixtureSequence = 0;
 
 function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
@@ -124,6 +142,7 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 	const plugins = new Set<string>();
 	const audioCloses: string[] = [];
 	const pluginCloses: string[] = [];
+	const pluginBypasses: Array<{ readonly instanceId: string; readonly bypassed: boolean }> = [];
 	const listeners = new Set<(event: Event) => void>();
 	let audioCloseFailure = false;
 	let pluginCloseFailure = false;
@@ -180,6 +199,10 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 			});
 			return pluginProjection(instanceId);
 		},
+		setNativePluginBypassed: async (request: { readonly instanceId: string; readonly bypassed: boolean }) => {
+			pluginBypasses.push(request);
+			return pluginProjection(request.instanceId, { bypassed: request.bypassed });
+		},
 		persistNativePluginState: async ({ instanceId }: Readonly<{ instanceId: string }>) => ({
 			outcome: { status: 'persisted' },
 			projectState: initialPersistenceRefused ? null : pluginState(instanceId),
@@ -209,7 +232,12 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 		project,
 		getSnapshot: () => ({ selectedTrackId: 'track-1' }),
 		actions: {
-			effects: { update() {} },
+			effects: {
+				update(_scope: string, _trackId: string, effectId: string, changes: Record<string, unknown>) {
+					const effect = project.tracks[0]!.effects.find(({ id }) => id === effectId);
+					if (effect) Object.assign(effect, changes);
+				},
+			},
 			nativePlugins: {
 				commitBinding(request: Readonly<{
 					operation: 'author' | 'restore'; effect: Readonly<Record<string, unknown>>; state: unknown;
@@ -227,7 +255,10 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 	};
 	return {
 		active: () => ({ audio: [...audio], plugins: [...plugins] }),
-		audioCloses, audioContext, bridge, controller, engine, pluginCloses, project,
+		audioCloses, audioContext, bridge, controller, engine, pluginBypasses, pluginCloses, project,
+		effect: () => project.tracks[0]!.effects[0] as unknown as {
+			bypassed: boolean; params: { latencyFrames: number };
+		},
 		windowValue: {
 			window: FIXTURE_WINDOW_SOURCE,
 			addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
@@ -256,13 +287,17 @@ function createRenderer(fixture: ReturnType<typeof rollbackFixture>, withControl
 	});
 }
 
-function useFakeAudioWorklet(context: Readonly<{ after(callback: () => void): void }>): void {
+function useFakeAudioWorklet(context: Readonly<{ after(callback: () => void): void }>) {
 	const original = globalThis.AudioWorkletNode;
+	const nodes: FakeAudioWorkletNode[] = [];
 	class FakeAudioWorkletNode {
+		readonly name: string;
 		readonly port = {
 			onmessage: null as ((event: { data: Record<string, unknown> }) => void) | null,
+			posted: [] as Record<string, unknown>[],
 			start() {},
 			postMessage: (message: Record<string, unknown>) => {
+				this.port.posted.push(message);
 				if (message.type === 'native-plugin-attach') queueMicrotask(() => this.port.onmessage?.({
 					data: { type: 'native-plugin-attached', generation: 1 },
 				}));
@@ -277,11 +312,20 @@ function useFakeAudioWorklet(context: Readonly<{ after(callback: () => void): vo
 				}));
 			},
 		};
+		constructor(_context: unknown, name: string) { this.name = name; nodes.push(this); }
 		connect(): void {}
 		disconnect(): void {}
 	}
 	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
 	context.after(() => { globalThis.AudioWorkletNode = original; });
+	return {
+		faultPlugin() {
+			const node = nodes.find(({ name }) => name === 'soundscaper-native-plugin-v1');
+			node?.port.onmessage?.({ data: { type: 'native-plugin-fault', reason: 'test fault' } });
+		},
+		bypassMessages: () => nodes.find(({ name }) => name === 'soundscaper-native-plugin-v1')
+			?.port.posted.filter(({ type }) => type === 'native-plugin-bypass') ?? [],
+	};
 }
 
 const FIXTURE_WINDOW_SOURCE = {} as Window;
@@ -315,11 +359,11 @@ function deferred(): Readonly<{ promise: Promise<void>; resolve(): void }> {
 	return Object.freeze({ promise, resolve: () => settle() });
 }
 
-function pluginProjection(instanceId: string) {
+function pluginProjection(instanceId: string, overrides: Readonly<Record<string, unknown>> = {}) {
 	return {
 		instanceId, entryId: 'entry-1', stablePluginId: 'org.example.effect', format: 'clap' as const,
 		binarySha256: 'a'.repeat(64), inputChannels: 2, outputChannels: 2,
-		state: 'hosted' as const, enabled: true, bypassed: false, latencySamples: 0,
+		state: 'hosted' as const, enabled: true, bypassed: false, latencySamples: 0, ...overrides,
 	};
 }
 

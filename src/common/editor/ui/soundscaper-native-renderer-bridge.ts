@@ -250,9 +250,10 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			return withTransportLatency(instance);
 		}),
 		async setNativePluginBypassed(request: Readonly<{ instanceId: string; bypassed: boolean }>) {
-			const instance = await options.bridge.setNativePluginBypassed(request);
-			const transition = project?.setBypassed(request.instanceId, request.bypassed);
-			setNativePluginBypassed(request.instanceId, request.bypassed, transition?.contextTime);
+			const bypassed = project?.admitBypassed(request.instanceId, request.bypassed) ?? request.bypassed;
+			const instance = await options.bridge.setNativePluginBypassed({ ...request, bypassed });
+			const update = project?.setBypassed(request.instanceId, bypassed);
+			setNativePluginBypassed(request.instanceId, update?.bypassed ?? bypassed, update?.transition?.contextTime);
 			return instance;
 		},
 		async persistNativePluginState(request: Readonly<{ instanceId: string; generation: number }>) {
@@ -306,8 +307,8 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			finally { return options.bridge.closeNativePluginVendorUi(request); }
 		},
 		async closeNativePluginInstance(request: Readonly<{ instanceId: string }>) {
-			const transition = project?.setBypassed(request.instanceId, true);
-			setNativePluginBypassed(request.instanceId, true, transition?.contextTime);
+			const update = project?.setBypassed(request.instanceId, true);
+			setNativePluginBypassed(request.instanceId, true, update?.transition?.contextTime);
 			return closeOwnedPluginInstance(request.instanceId);
 		},
 	}) satisfies SoundscaperNativeServicesBridge;

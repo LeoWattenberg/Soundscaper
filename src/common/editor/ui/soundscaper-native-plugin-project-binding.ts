@@ -93,21 +93,23 @@ export function createSoundscaperNativePluginProjectBinding(
 			reconcilePlan(instance.instanceId)
 		},
 		persist(state: NativePluginProjectStateV1): void { controller.actions.nativePlugins.upsert(state) },
+		admitBypassed(instanceId: string, bypassed: boolean): boolean {
+			return bypassed || locations.get(instanceId)?.faulted === true
+		},
 		setBypassed(instanceId: string, bypassed: boolean) {
+			bypassed ||= locations.get(instanceId)?.faulted === true
 			const location = locations.get(instanceId)
 			let transition = null
 			if (location) {
 				location.bypassed = bypassed
 				transition = reconcilePlan(instanceId)
-				const admitted = ledger?.authoritative.instanceStates.get(instanceId) !== 'faulted'
-				bypassed ||= !admitted
 				controller.actions.effects.update(
 					'track', location.trackId, location.effectId, { bypassed }, { skipPlaybackEngine: true },
 				)
 			}
 			try { controller.actions.nativePlugins.setBypassed(instanceId, bypassed) }
 			catch { /* An instance has no V29 state until its first authenticated save. */ }
-			return transition
+			return Object.freeze({ bypassed, transition })
 		},
 		runtime(instanceId: string, latencyFrames: number | null, state: string) {
 			const location = locations.get(instanceId)
@@ -126,7 +128,7 @@ export function createSoundscaperNativePluginProjectBinding(
 				try { controller.actions.nativePlugins.setBypassed(instanceId, true) } catch { /* no saved state */ }
 				return null
 			}
-			if (!location || latencyFrames === location.latencyFrames) return null
+			if (!location || latencyFrames === null || latencyFrames === location.latencyFrames) return null
 			const now = Date.now()
 			location.changes = location.changes.filter(
 				(stamp) => now - stamp < NATIVE_EFFECT_LATENCY_STABILITY_WINDOW_MS,
