@@ -36,26 +36,31 @@ jobs:
             runner: ubuntu-24.04
             platform: linux
             arch: x64
+            tooling_node_arch: x64
             node_arch: x64
           - target: linux-arm64
             runner: ubuntu-24.04-arm
             platform: linux
             arch: arm64
+            tooling_node_arch: arm64
             node_arch: arm64
           - target: mac-arm64
             runner: macos-15
             platform: mac
             arch: arm64
+            tooling_node_arch: arm64
             node_arch: arm64
           - target: win-x64
             runner: windows-2025
             platform: win
             arch: x64
+            tooling_node_arch: x64
             node_arch: x64
           - target: win-arm64
             runner: windows-11-arm
             platform: win
             arch: arm64
+            tooling_node_arch: x64
             node_arch: arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -87,7 +92,7 @@ jobs:
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: 26.5.0
-          architecture: ${{ matrix.node_arch }}
+          architecture: ${{ matrix.tooling_node_arch }}
           cache: npm
       - run: npm install --global npm@12.0.1
       - run: npm ci
@@ -107,6 +112,15 @@ jobs:
             --${{ matrix.platform }} --${{ matrix.arch }} --dir --publish never
           mkdir -p "$RUNNER_TEMP/soundscaper-packaged-app"
           cp -a release/desktop/. "$RUNNER_TEMP/soundscaper-packaged-app/"
+      - name: Activate target-native Node.js
+        if: matrix.tooling_node_arch != matrix.node_arch
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: 26.5.0
+          architecture: ${{ matrix.node_arch }}
+      - name: Pin target-native npm
+        if: matrix.tooling_node_arch != matrix.node_arch
+        run: npm install --global npm@12.0.1
       - name: Build, install, close, self-test, and seal candidate
         if: runner.os != 'macOS'
         shell: bash

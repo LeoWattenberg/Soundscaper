@@ -10,23 +10,28 @@ const ROOT = resolve(import.meta.dirname, '..');
 test('reusable professional candidate workflow closes all five Soundscaper targets', async () => {
 	const source = await readFile(resolve(ROOT,
 		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	for (const [target, runner, platform, arch, nodeArch] of [
-		['linux-x64', 'ubuntu-24.04', 'linux', 'x64', 'x64'],
-		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64', 'arm64'],
-		['mac-arm64', 'macos-15', 'mac', 'arm64', 'arm64'],
-		['win-x64', 'windows-2025', 'win', 'x64', 'x64'],
-		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'arm64'],
+	for (const [target, runner, platform, arch, toolingNodeArch, nodeArch] of [
+		['linux-x64', 'ubuntu-24.04', 'linux', 'x64', 'x64', 'x64'],
+		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64', 'arm64', 'arm64'],
+		['mac-arm64', 'macos-15', 'mac', 'arm64', 'arm64', 'arm64'],
+		['win-x64', 'windows-2025', 'win', 'x64', 'x64', 'x64'],
+		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'x64', 'arm64'],
 	]) {
 		const row = [
 			`target: ${target}`, `runner: ${runner}`, `platform: ${platform}`,
-			`arch: ${arch}`, `node_arch: ${nodeArch}`,
+			`arch: ${arch}`, `tooling_node_arch: ${toolingNodeArch}`,
+			`node_arch: ${nodeArch}`,
 		].join('\\n\\s+');
 		assert.equal([...source.matchAll(new RegExp(row, 'gu'))].length, 1);
 	}
 	assert.match(source, /workflow_call:/u);
 	assert.match(source, /npm run milestone5a:native-candidate/u);
 	assert.match(source, /npm run milestone5a:promote-native-candidate/u);
-	assert.match(source, /architecture: \$\{\{ matrix\.node_arch \}\}/u);
+	assert.match(source, /architecture: \$\{\{ matrix\.tooling_node_arch \}\}/u);
+	assert.match(source,
+		/name: Activate target-native Node\.js[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*architecture: \$\{\{ matrix\.node_arch \}\}/u);
+	assert.match(source,
+		/name: Pin target-native npm[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*npm install --global npm@12\.0\.1/u);
 	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.platform \}\}/u);
 	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.arch \}\}/u);
 	assert.match(source,
@@ -49,7 +54,7 @@ test('reusable professional candidate workflow closes all five Soundscaper targe
 		'production-capable candidate commands must not hard-code ad-hoc signing');
 	assert.doesNotMatch(source, /framescaper/iu);
 	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
-	assert.equal([...source.matchAll(/npm install --global npm@12\.0\.1/gu)].length, 2);
+	assert.equal([...source.matchAll(/npm install --global npm@12\.0\.1/gu)].length, 3);
 	for (const pin of [
 		'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd',
 		'actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f',
