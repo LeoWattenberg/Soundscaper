@@ -14,6 +14,7 @@ import {
 	readClosedDomainField,
 	readClosedDomainRecord,
 } from './closed-domain-value.ts';
+import { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 
 export const MAXIMUM_AUDIO_GROOVE_STEPS = 128;
 
@@ -112,11 +113,28 @@ export function interpolateAudioWarpRational(
 	return addRationals(start, multiplyRationals(subtractRationals(end, start), strength));
 }
 
+/** Read a value the warp wire format stores, which keeps the compact denominator. */
 export function normalizeAudioWarpRational(value: unknown, name: string): Rational {
-	if (typeof value === 'number') return normalizeRational(value);
+	return readWarpRational(value, name, undefined);
+}
+
+/**
+ * Read a value that is a timeline coordinate rather than a stored warp anchor.
+ * Anchors keep the compact denominator the wire format admits, but a coordinate
+ * the editor derives — a clip's beat start, or a position interpolated inside a
+ * warp span — carries whatever denominator the tempo and project rate produce,
+ * and the project document already admits that whole domain.
+ */
+export function normalizeAudioWarpCoordinate(value: unknown, name: string): Rational {
+	return readWarpRational(value, name, AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR);
+}
+
+function readWarpRational(value: unknown, name: string, maximumDenominator?: number): Rational {
+	const bound = maximumDenominator === undefined ? {} : { maximumDenominator };
+	if (typeof value === 'number') return normalizeRational(value, bound);
 	const record = readClosedDomainRecord(value, name, ['num', 'den']);
 	const num = readClosedDomainField(record, 'num', name);
 	const den = readClosedDomainField(record, 'den', name);
 	if (typeof num !== 'number' || typeof den !== 'number') throw new TypeError(`${name} must be rational.`);
-	return normalizeRational({ num, den });
+	return normalizeRational({ num, den }, bound);
 }

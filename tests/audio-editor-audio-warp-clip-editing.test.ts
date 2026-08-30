@@ -16,7 +16,10 @@ import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.
 import { createClipTransformService } from '../src/common/editor/controller/clip-transform-service.ts';
 import { createEditorEditService } from '../src/common/editor/controller/edit-service.ts';
 import { findClip, findClipTrack, findTrack } from '../src/common/editor/project.js';
+import { createAudioWarpClipAuthority } from '../src/common/editor/audio-warp-clip-authority.ts';
 import { normalizeAudioWarpMap } from '../src/common/editor/audio-warp-domain.ts';
+import { resolveAudioWarpEditFrame } from '../src/common/editor/audio-warp-clip-edit.ts';
+import { sampleFrameToBeat } from '../src/common/editor/timeline-tempo-inverse.ts';
 import { projectForCommandConsumers } from '../src/common/editor/project-current-runtime.ts';
 import {
 	createCurrentAudioEditorProject,
@@ -317,6 +320,36 @@ test('a long warp span refuses an unusable boundary by naming it, not the ration
 	assert.deepEqual([right.sourceStartFrame, right.sourceDurationFrames], [1_200_001, 1_200_001]);
 });
 
+test('a musical warped clip survives the beat position the projection writes for it', () => {
+	// Moving a musically anchored clip makes the projection layer restate its start
+	// as sampleFrameToBeat, whose denominator is the project rate over the tempo:
+	// 2880000 at 137 bpm and 48 kHz. That is an ordinary project coordinate, but
+	// the warp layer read it in the compact domain the stored warp anchors use, so
+	// the clip's own persisted start made every warp edit throw a rational-domain
+	// error.
+	const project = oddTempoMusicalProject();
+	const clip = (project as AudioEditorProjectCurrent).clips[0]!;
+	assert.deepEqual(clip.musicalStartBeat, { num: 6_576_137, den: 2_880_000 });
+
+	const authority = createAudioWarpClipAuthority(
+		project as unknown as Parameters<typeof createAudioWarpClipAuthority>[0],
+		'clip',
+	);
+	assert.deepEqual(authority.outerStart, { num: 6_576_137, den: 2_880_000 });
+	assert.deepEqual(authority.outerExtent, { num: 2, den: 1 });
+	// The map puts a hundred source samples under the whole clip, so the frame
+	// nearest this request that it can cut on is the clip's own start. What matters
+	// is that the request resolves at all.
+	assert.equal(
+		resolveAudioWarpEditFrame(
+			project as unknown as Parameters<typeof resolveAudioWarpEditFrame>[0],
+			clip as Parameters<typeof resolveAudioWarpEditFrame>[1],
+			48_050,
+		),
+		48_001,
+	);
+});
+
 function orderedClips(project: object): Readonly<Record<string, unknown>>[] {
 	return [...(project as AudioEditorProjectCurrent).clips]
 		.sort((left, right) => Number(left.timelineStartFrame) - Number(right.timelineStartFrame));
@@ -492,6 +525,34 @@ function longSpanProject(): AudioEditorProjectCurrent {
 	});
 	return createCurrentAudioEditorProject({
 		id: 'long-span-warp-project', now: NOW, tempoMap: TEMPO_MAP,
+		sources: [source], clips: [clip],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
+	});
+}
+
+/** A musically anchored warped clip at a tempo whose beat positions do not reduce. */
+function oddTempoMusicalProject(): AudioEditorProjectCurrent {
+	const tempoMap = {
+		mode: 'musical' as const,
+		events: [{ id: 'tempo', beat: { num: 0, den: 1 }, bpm: { num: 137, den: 1 } }],
+	};
+	const source = createAudioSource({
+		id: 'source', storageKey: 'source', frameCount: 100_000, channelCount: 1, sampleRate: 48_000,
+	});
+	const clip = createAudioClip({
+		id: 'clip', sourceId: source.id, anchor: 'musical',
+		musicalStartBeat: sampleFrameToBeat(48_001, tempoMap, 48_000),
+		musicalExtent: 'beat', musicalDurationBeats: 2,
+		sourceStartFrame: 0, sourceDurationFrames: 100,
+		warpMap: {
+			feature: 'audio-warp', points: [
+				{ outer: 0, source: 0, mode: 'forward' },
+				{ outer: 2, source: 100, mode: 'forward' },
+			],
+		},
+	}, { projectSampleRate: 48_000, tempoMap });
+	return createCurrentAudioEditorProject({
+		id: 'odd-tempo-warp-project', now: NOW, tempoMap,
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});

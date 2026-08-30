@@ -6,7 +6,6 @@ import {
 	divideRationals,
 	evaluateBreakpointMap,
 	multiplyRationals,
-	normalizeRational,
 	roundRational,
 	subtractRationals,
 	validateBreakpointMap,
@@ -18,6 +17,7 @@ import {
 	applyAudioGrooveTemplate,
 	interpolateAudioWarpRational,
 	normalizeAudioGrooveTemplate,
+	normalizeAudioWarpCoordinate,
 	normalizeAudioWarpGrid,
 	normalizeAudioWarpRational,
 	normalizeAudioWarpStrength,
@@ -85,30 +85,13 @@ export function validateAudioWarpMap(value: unknown): true {
 /** Evaluate outer clip-anchor units to absolute source samples through the shared wire evaluator. */
 export function evaluateAudioWarpMap(mapValue: unknown, outer: RationalInput): Rational {
 	const map = normalizeAudioWarpMap(mapValue);
-	return evaluateBreakpointMap(map as BreakpointMap, queryPosition(outer, 'audio warp outer position'));
+	return evaluateBreakpointMap(map as BreakpointMap, normalizeAudioWarpCoordinate(outer, 'audio warp outer position'));
 }
 
 /** Invert a valid audio map; strict monotonicity makes the inverse unique. */
 export function evaluateAudioWarpMapAtSource(mapValue: unknown, source: RationalInput): Rational {
 	const map = normalizeAudioWarpMap(mapValue);
-	return evaluateNormalizedAtSource(map, queryPosition(source, 'audio warp source position'));
-}
-
-/**
- * A position to evaluate at is a coordinate, not a stored map anchor. Anchors
- * carry the bounded denominator the persisted domain admits, but interpolating
- * inside a span puts that span in the denominator of the result, so a long span
- * reaches positions no anchor could hold. Holding a query to the anchor domain
- * meant a map could not be evaluated at a position it had itself just returned.
- */
-function queryPosition(value: unknown, name: string): Rational {
-	const bound = { maximumDenominator: Number.MAX_SAFE_INTEGER };
-	if (typeof value === 'number') return normalizeRational(value, bound);
-	const record = readClosedDomainRecord(value, name, ['num', 'den']);
-	const num = readClosedDomainField(record, 'num', name);
-	const den = readClosedDomainField(record, 'den', name);
-	if (typeof num !== 'number' || typeof den !== 'number') throw new TypeError(`${name} must be rational.`);
-	return normalizeRational({ num, den }, bound);
+	return evaluateNormalizedAtSource(map, normalizeAudioWarpCoordinate(source, 'audio warp source position'));
 }
 
 /**

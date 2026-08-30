@@ -15,7 +15,7 @@ import {
 	type RuntimePersistedClip,
 } from './runtime-clip-projection.ts';
 import {
-	normalizeAudioWarpRational,
+	normalizeAudioWarpCoordinate,
 } from './audio-groove-template.ts';
 import type { HoldTempoMap, Rational } from './timeline-time.ts';
 
@@ -103,7 +103,7 @@ export function normalizeAudioWarpClipAuthority(value: unknown): Readonly<AudioW
 		trackId: stableId(readClosedDomainField(record, 'trackId', name), 'audio warp track ID'),
 		sourceId: stableId(readClosedDomainField(record, 'sourceId', name), 'audio warp source ID'),
 		anchor,
-		outerStart: normalizeAudioWarpRational(
+		outerStart: normalizeAudioWarpCoordinate(
 			readClosedDomainField(record, 'outerStart', name),
 			'audio warp clip authority outer start',
 		),
@@ -160,8 +160,8 @@ function audioWarpClipAuthorityContext(
 		sourceId: stableId((clip as DataRecord).sourceId, 'audio warp source ID'),
 		anchor: clip.anchor,
 		outerStart: clip.anchor === 'musical'
-			? normalizeAudioWarpRational(clip.musicalStartBeat, 'audio warp musical start')
-			: normalizeAudioWarpRational(runtime.timelineStartFrame, 'audio warp sample start'),
+			? normalizeAudioWarpCoordinate(clip.musicalStartBeat, 'audio warp musical start')
+			: normalizeAudioWarpCoordinate(runtime.timelineStartFrame, 'audio warp sample start'),
 		outerExtent: clip.anchor === 'musical'
 			? positiveRational(clip.musicalDurationBeats, 'audio warp musical duration')
 			: positiveRational(runtime.durationFrames, 'audio warp sample duration'),
@@ -178,7 +178,7 @@ function audioWarpClipAuthorityContext(
 }
 
 function positiveRational(value: unknown, name: string): Rational {
-	const result = normalizeAudioWarpRational(value, name);
+	const result = normalizeAudioWarpCoordinate(value, name);
 	if (result.num <= 0) throw new RangeError(`${name} must be positive.`);
 	return result;
 }

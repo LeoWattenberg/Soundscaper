@@ -8,7 +8,7 @@ import {
 	normalizeAudioWarpMapForClip,
 	type AudioWarpAuthorityProject,
 } from './audio-warp-clip-authority.ts';
-import { normalizeAudioWarpRational } from './audio-groove-template.ts';
+import { normalizeAudioWarpCoordinate } from './audio-groove-template.ts';
 import {
 	resolveRuntimeClipProjection,
 	type RuntimeClipProjection,
@@ -124,7 +124,7 @@ function outerAtTimelineFrame(context: AudioWarpEditContext, timelineFrame: numb
 	if (timelineFrame === runtime.timelineStartFrame) return map.points[0]!.outer;
 	if (timelineFrame === runtime.timelineEndFrame) return map.points.at(-1)!.outer;
 	if (clip.anchor !== 'musical') {
-		return normalizeAudioWarpRational(
+		return normalizeAudioWarpCoordinate(
 			timelineFrame - runtime.timelineStartFrame,
 			'audio warp sample outer position',
 		);
@@ -134,7 +134,7 @@ function outerAtTimelineFrame(context: AudioWarpEditContext, timelineFrame: numb
 	}
 	const outer = subtractRationals(
 		sampleFrameToBeat(timelineFrame, context.project.tempoMap, context.project.sampleRate),
-		normalizeAudioWarpRational(clip.musicalStartBeat, 'audio warp musical start'),
+		normalizeAudioWarpCoordinate(clip.musicalStartBeat, 'audio warp musical start'),
 	);
 	if (compareRationals(outer, 0) <= 0) {
 		throw new RangeError('Audio warp musical trim must retain a positive outer position.');
