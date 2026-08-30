@@ -56,7 +56,20 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 			current: await store.loadProject(projectId),
 			revisions: await store.listProjectRevisions(projectId),
 		};
-		const importStore: unknown = store;
+		const primary = new Error('project persistence failed after its local write');
+		const importStore: unknown = new Proxy(store, {
+			get(target, property, receiver) {
+				if (property === 'saveProjectIfCurrent') return async (
+					expected: Parameters<typeof target.saveProjectIfCurrent>[0],
+					candidate: Parameters<typeof target.saveProjectIfCurrent>[1],
+				) => {
+					await target.saveProjectIfCurrent(expected, candidate);
+					throw primary;
+				};
+				const value = Reflect.get(target, property, receiver) as unknown;
+				return typeof value === 'function' ? value.bind(target) : value;
+			},
+		});
 		assertScapeImportStore(importStore);
 		const transaction = new ScapeImportTransaction(importStore);
 		await transaction.captureProject(projectId);
@@ -66,9 +79,10 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 			revision: 1,
 			now: '2026-08-30T12:01:00.000Z',
 		});
-		await transaction.publishProject(replacement);
-
-		const primary = new Error('archive validation failed after publication');
+		await assert.rejects(
+			transaction.publishProject(replacement),
+			(error: unknown) => error === primary,
+		);
 		await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
 		assert.deepEqual(await store.loadProject(projectId), snapshot.current);
 		assert.deepEqual(await store.listProjectRevisions(projectId), snapshot.revisions);
