@@ -9,12 +9,12 @@ threshold on the hosted runner registered as a hardware lower bound for the
 owner-designated host. On 2026-08-21 the project
 owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
 reference and retained its then-current M1 preview, M4 production-parity, and
-M4B-2 keyed-parity results. The packaged collector contract now requires the
-GPU driver and device identity plus the power and display modes. Because those
-fields were absent from the historical run, every fixed-GPU profile is
-`pending-external`; the result remains audit evidence but is not current formal
-qualification. Other timing, heap/RSS, third-party codec-memory, device,
-durability, and release-platform workloads remain open.
+M4B-2 keyed-parity results. The packaged formal-qualification contract now
+requires the GPU driver and device identity plus the power and display modes.
+Because those fields were absent from the historical run, every fixed-GPU
+profile is `pending-external`; the result remains audit evidence but is not
+current formal qualification. Other timing, heap/RSS, third-party codec-memory,
+device, durability, and release-platform workloads remain open.
 
 The source of truth is
 [`config/quality-budgets.json`](../config/quality-budgets.json). The roadmap
@@ -247,8 +247,18 @@ raw fixture digest and five-trial cadence/heap samples.
 Future formal runs must exactly match the profile's browser version, platform,
 architecture, WebGL vendor and renderer, GPU driver version and device ID,
 power mode, display mode, and required hardware renderer class. The packaged
-runner refuses to start without all four owner-recorded fields. SwiftShader,
-llvmpipe, another renderer, or an unknown renderer cannot satisfy the gate.
+runner accepts a complete owner identity only when
+`SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION`,
+`SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID`,
+`SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE`, and
+`SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE` are all non-empty. Supplying only a
+subset is an incomplete configuration and fails before collection. Supplying
+none selects diagnostic mode: all four recorded fields become `not-recorded`,
+the packaged-runtime checks still run, and their non-authoritative fingerprint
+is rejected by formal qualification. Supplying all four retains the exact
+values and makes the evidence eligible for the remaining exact-match gates; it
+does not bypass them. SwiftShader, llvmpipe, another renderer, or an unknown
+renderer cannot satisfy the gate.
 Workloads not listed in this host's `eligibleWorkloadIds` remain unqualified
 until their own formal profile and accepted run exist.
 

@@ -75,8 +75,8 @@ test('packaged-runtime metrics run through the bundled Playwright driver', () =>
 	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
 });
 
-test('packaged-runtime qualification refuses an incomplete owner environment identity', () => {
-	assert.throws(() => createDesktopNightlyTestsPackagedMetricsPlan({
+test('packaged-runtime diagnostics record an explicitly non-authoritative identity when none is supplied', () => {
+	const plan = createDesktopNightlyTestsPackagedMetricsPlan({
 		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
 		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
 		runRoot: '/tmp/Soundscaper-playwright-run',
@@ -84,7 +84,27 @@ test('packaged-runtime qualification refuses an incomplete owner environment ide
 		platform: 'linux',
 		arch: 'x64',
 		environment: { PATH: '/usr/bin' },
-	}), /GPU driver version.*required/iu);
+	});
+
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION, 'not-recorded');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID, 'not-recorded');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE, 'not-recorded');
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE, 'not-recorded');
+});
+
+test('packaged-runtime qualification refuses a partially supplied owner environment identity', () => {
+	assert.throws(() => createDesktopNightlyTestsPackagedMetricsPlan({
+		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
+		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+		runRoot: '/tmp/Soundscaper-playwright-run',
+		baseURL: 'http://127.0.0.1:45678',
+		platform: 'linux',
+		arch: 'x64',
+		environment: {
+			PATH: '/usr/bin',
+			SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02',
+		},
+	}), /owner environment identity.*incomplete/iu);
 });
 
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {

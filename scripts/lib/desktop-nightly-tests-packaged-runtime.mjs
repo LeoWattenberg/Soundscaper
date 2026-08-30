@@ -9,6 +9,13 @@ const PRODUCTS = Object.freeze({
 	soundscaper: Object.freeze({ executable: 'Soundscaper', linuxExecutable: 'soundscaper' }),
 	framescaper: Object.freeze({ executable: 'Framescaper', linuxExecutable: 'framescaper' }),
 });
+const OWNER_IDENTITY_ENVIRONMENT_NAMES = Object.freeze([
+	'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION',
+	'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID',
+	'SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE',
+	'SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE',
+]);
+const NON_AUTHORITATIVE_IDENTITY = 'not-recorded';
 
 export const PACKAGED_RUNTIME_ARTIFACT_PATHS = Object.freeze({
 	packagedRuntimeConsoleLog: 'packaged-runtime/console.log',
@@ -68,10 +75,7 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 	assertLoopback(baseURL);
 	if (!['linux', 'win32', 'darwin'].includes(platform)) throw new TypeError('Packaged runtime platform is invalid.');
 	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Packaged runtime architecture is invalid.');
-	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION', 'GPU driver version');
-	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID', 'GPU device ID');
-	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE', 'power mode');
-	requireEnvironmentIdentity(environment, 'SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE', 'display mode');
+	const ownerIdentity = resolveOwnerEnvironmentIdentity(environment);
 	return Object.freeze({
 		command: executablePath,
 		args: Object.freeze([
@@ -83,6 +87,7 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 		cwd: payloadRoot,
 		env: Object.freeze({
 			...environment,
+			...ownerIdentity,
 			ELECTRON_RUN_AS_NODE: '1',
 			PLAYWRIGHT_BROWSERS_PATH: join(payloadRoot, '.local-browsers'),
 			PLAYWRIGHT_HTML_OPEN: 'never',
@@ -108,10 +113,19 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 	});
 }
 
-function requireEnvironmentIdentity(environment, name, label) {
-	if (typeof environment?.[name] !== 'string' || environment[name].length < 1) {
-		throw new Error(`Packaged runtime ${label} is required in ${name}.`);
+function resolveOwnerEnvironmentIdentity(environment) {
+	const suppliedCount = OWNER_IDENTITY_ENVIRONMENT_NAMES.filter((name) => environment?.[name] !== undefined).length;
+	if (suppliedCount === 0) {
+		return Object.freeze(Object.fromEntries(OWNER_IDENTITY_ENVIRONMENT_NAMES.map((name) => [
+			name, NON_AUTHORITATIVE_IDENTITY,
+		])));
 	}
+	if (suppliedCount !== OWNER_IDENTITY_ENVIRONMENT_NAMES.length
+		|| OWNER_IDENTITY_ENVIRONMENT_NAMES.some((name) => typeof environment?.[name] !== 'string'
+			|| environment[name].length < 1)) {
+		throw new Error(`Packaged runtime owner environment identity is incomplete; set all four variables: ${OWNER_IDENTITY_ENVIRONMENT_NAMES.join(', ')}.`);
+	}
+	return Object.freeze(Object.fromEntries(OWNER_IDENTITY_ENVIRONMENT_NAMES.map((name) => [name, environment[name]])));
 }
 
 export async function runDesktopNightlyTestsPackagedMetricsPhase(options, dependencies = {}) {

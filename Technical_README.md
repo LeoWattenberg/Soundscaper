@@ -231,6 +231,27 @@ directory contains `metrics/summary.json` with evaluated metric gates,
 `metrics/junit.xml` for machine-readable test results, `metrics/console.log`,
 `metrics/playwright-report/index.html`, and `metrics/test-results/`.
 
+The portable runner has separate diagnostic and formal owner-host identity
+modes. When none of the owner identity variables is set, it records the
+explicit non-authoritative value `not-recorded` in all four fingerprint fields
+and still runs the packaged applications. That evidence is useful for
+correctness diagnostics, but its fingerprint necessarily fails formal
+qualification. A formal owner-host assessment must set all four variables in
+the launcher's environment:
+
+- `SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION` — the exact installed GPU
+  driver version;
+- `SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID` — the stable vendor/device ID;
+- `SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE` — the controlled host power mode;
+- `SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE` — the resolution, refresh rate,
+  and scale identity.
+
+Supplying only some of those variables is treated as an incomplete identity
+and ends the launcher with exit code 2 before packaged-runtime collection.
+Supplying all four preserves their exact values in the diagnostic fingerprint;
+formal admission still requires that complete fingerprint and every other
+registered condition to match the owner-designated profile.
+
 The runner then launches the bundled hardened Soundscaper and Framescaper
 executables and attaches Playwright over an ephemeral loopback-only Chromium
 debugging endpoint. It repeats M1 in Framescaper, M4 in Soundscaper, and M4B2
