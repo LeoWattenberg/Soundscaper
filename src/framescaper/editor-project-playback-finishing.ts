@@ -13,6 +13,7 @@ import {
 	createFramescaperProjectFeatureCompatibilityServiceFinishing,
 } from './editor-project-feature-requirements-finishing.ts';
 import { createFramescaperPlaybackProjectServiceRetime } from './editor-project-playback-retime.ts';
+import { inheritFramescaperPlaybackAdmission } from './editor-project-playback-admission.ts';
 import { hasFramescaperProjectIdentity } from './editor-project-identity.ts';
 import {
 	framescaperProjectForRuntimeConsumersFinishing,
@@ -63,7 +64,12 @@ export function createFramescaperPlaybackProjectServiceFinishing(
 	function projectForAdmission<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		if (!hasFramescaperProjectIdentity(project)) return opaque(project);
 		validateFramescaperProjectFinishing(profile, project);
-		return projection(project, compatibility.evaluate(project));
+		const foundation = framescaperProjectRetimeFoundationFinishing(
+			profile, project as unknown as FramescaperProjectFinishing);
+		return inheritFramescaperPlaybackAdmission(
+			projection(project, compatibility.evaluate(project)),
+			retime.projectForActivationAdmission!(foundation),
+		);
 	}
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {

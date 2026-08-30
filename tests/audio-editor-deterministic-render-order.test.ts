@@ -32,6 +32,7 @@ import {
 import {
 	createFramescaperPlaybackProjectServiceRetime,
 } from '../src/framescaper/editor-project-playback-retime.ts';
+import { createFramescaperPlaybackProjectService } from '../src/framescaper/editor-project-playback.ts';
 import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
 import { applyVideoPresentationLinear } from '../src/framescaper/video-export-visual-linear-finishing.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
@@ -156,6 +157,14 @@ test('retime playback and finishing export source closure use code-unit order', 
 	);
 	assert.deepEqual(
 		playback.projectForActivationAdmission!(retimeProject).requiredVideoSourceIds,
+		['Z-source', 'alpha-source'],
+	);
+	const facadeProject = createFramescaperProject(
+		FRAMESCAPER_PROJECT_RUNTIME_PROFILE, structuredClone(retimeOptions) as never,
+	);
+	assert.deepEqual(
+		createFramescaperPlaybackProjectService(FRAMESCAPER_PROJECT_RUNTIME_PROFILE)
+			.projectForActivationAdmission!(facadeProject).requiredVideoSourceIds,
 		['Z-source', 'alpha-source'],
 	);
 

@@ -13,6 +13,7 @@ import {
 	createFramescaperProjectFeatureCompatibilityServiceAssistance,
 } from './editor-project-feature-requirements-assistance.ts';
 import { createFramescaperPlaybackProjectServiceNativeMedia } from './editor-project-playback-native-media.ts';
+import { inheritFramescaperPlaybackAdmission } from './editor-project-playback-admission.ts';
 import { hasFramescaperProjectIdentity } from './editor-project-identity.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { assertFramescaperProjectAssistanceProfile } from './editor-domain-runtime-profile.ts';
@@ -61,7 +62,11 @@ export function createFramescaperPlaybackProjectServiceAssistance(
 	function projectForAdmission<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		if (!hasFramescaperProjectIdentity(project)) return opaque(project);
 		validateFramescaperProjectAssistance(profile, project);
-		return projection(project, compatibility.evaluate(project));
+		const foundation = framescaperProjectNativeMediaFoundationShapeAssistance(project);
+		return inheritFramescaperPlaybackAdmission(
+			projection(project, compatibility.evaluate(project)),
+			nativeMedia.projectForActivationAdmission!(foundation),
+		);
 	}
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {

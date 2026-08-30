@@ -11,6 +11,7 @@ import { projectFeatureVideoRenderedFallbackPlayback } from '../common/editor/pr
 import type { VideoTimingMediaStore } from '../common/editor/video-timing-storage.ts';
 import { createFramescaperProjectFeatureCompatibilityServiceNativeMedia } from './editor-project-feature-requirements-native-media.ts';
 import { createFramescaperPlaybackProjectServiceFinishing } from './editor-project-playback-finishing.ts';
+import { inheritFramescaperPlaybackAdmission } from './editor-project-playback-admission.ts';
 import { hasFramescaperProjectIdentity } from './editor-project-identity.ts';
 import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { framescaperProjectForRuntimeConsumersNativeMedia } from './editor-project-native-media-runtime.ts';
@@ -59,7 +60,12 @@ export function createFramescaperPlaybackProjectServiceNativeMedia(
 	function projectForAdmission<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		if (!hasFramescaperProjectIdentity(project)) return opaque(project);
 		validateFramescaperProjectNativeMedia(profile, project);
-		return projection(project, compatibility.evaluate(project));
+		const foundation = framescaperProjectFinishingFoundationShapeNativeMedia(
+			project as unknown as FramescaperProjectNativeMedia);
+		return inheritFramescaperPlaybackAdmission(
+			projection(project, compatibility.evaluate(project)),
+			finishing.projectForActivationAdmission!(foundation),
+		);
 	}
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
