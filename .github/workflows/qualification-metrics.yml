@@ -52,6 +52,9 @@ jobs:
       - name: Build the application the collector measures
         run: npm run build
 
+      - name: Build and verify the Framescaper browser peer
+        run: npm run build:browser:framescaper
+
       - name: Collect the hosted qualification metrics
         run: npm run quality:collect:ci-metrics
 

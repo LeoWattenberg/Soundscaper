@@ -21,9 +21,14 @@ test('the hosted job builds the application and then collects its metrics', () =
 	const job = extractJob(workflow, 'hosted-metrics');
 	const runs = npmScriptsRunBy(job);
 	assert.ok(runs.has('build'), 'the collector measures a build, so the job must produce one');
+	assert.ok(runs.has('build:browser:framescaper'),
+		'the ordinary browser configuration requires a verified Framescaper peer build');
 	assert.ok(runs.has('quality:collect:ci-metrics'), 'the job must run the hosted collector');
 	assert.ok(job.indexOf('npm run build') < job.indexOf('npm run quality:collect:ci-metrics'),
 		'the build must precede collection');
+	assert.ok(job.indexOf('npm run build:browser:framescaper')
+		< job.indexOf('npm run quality:collect:ci-metrics'),
+		'the Framescaper peer build must precede collection');
 	assert.deepEqual(expandNpmScript(scripts, 'quality:collect:ci-metrics'), ['quality:collect:ci-metrics']);
 	assert.match(scripts['quality:collect:ci-metrics'], /^node scripts\/collect-ci-qualification-metrics\.mjs$/u);
 });
