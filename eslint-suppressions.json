@@ -1,4 +1,154 @@
 {
+  "desktop/assistance-onnx-ocr-worker.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/assistance-runtime-family-process-protocol.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "desktop/assistance-semantic-query-executor.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/assistance-semantic-search-main-ipc.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/desktop-audio-external-ffmpeg-contract-adapter.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/framescaper-capture-desktop-port.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/framescaper-media-production-readiness.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/framescaper-project-library-writer.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "desktop/framescaper-web-vcr-runtime.ts": {
+    "no-case-declarations": {
+      "count": 3
+    }
+  },
+  "desktop/framescaper-web-vcr-security-policy.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/linked-original-locator-validation.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/linked-video-locator-registry.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "desktop/linked-video-locator-store.ts": {
+    "preserve-caught-error": {
+      "count": 3
+    }
+  },
+  "desktop/local-model-garbage-collection.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "desktop/local-model-relocation.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "desktop/native-child-isolation-launcher.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "desktop/native-image-sequence-decode-authority.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "desktop/native-media-helper-job.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "desktop/native-services-project-media-authority.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "desktop/native-services-publication.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "desktop/openfx-production-readiness.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/plugin-consent.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/project-library-exact-generation-storage.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-delivery-filesystem-process.ts": {
+    "no-unused-private-class-members": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-delivery-main-ipc.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-delivery-root.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-delivery-worker-port.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-professional-plugin-peer.ts": {
+    "no-unsafe-finally": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-project-library-main.ts": {
+    "no-unused-private-class-members": {
+      "count": 1
+    }
+  },
+  "desktop/soundscaper-project-library-publication-host.ts": {
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
   "desktop/validation.js": {
     "no-control-regex": {
       "count": 1
@@ -14,14 +164,107 @@
       "count": 1
     }
   },
+  "src/common/cross-product-handoff-intent.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/adm-axml-document.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/adm-normalization-guards.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
   "src/common/editor/app.js": {
     "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/async-search-provider.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/ctc-forced-alignment-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/editorial-generation-v1.ts": {
+    "no-control-regex": {
+      "count": 2
+    },
+    "no-useless-escape": {
+      "count": 16
+    }
+  },
+  "src/common/editor/assistance/m7-semantic-results.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/owned-transform-validation-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/panns-cnn10-postprocess-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/semantic-derivative-bundle-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/semantic-search-index-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/siglip2-tokenizer-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/subject-tracker-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/visual-search-records-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/visual-semantic-results-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/assistance/wav2vec2-english-tokenizer-v1.ts": {
+    "no-control-regex": {
       "count": 1
     }
   },
   "src/common/editor/audacity-action-runtime.js": {
     "no-extra-boolean-cast": {
       "count": 1
+    }
+  },
+  "src/common/editor/audio-track-freeze-coordinator-v21.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/aup-legacy-xml.ts": {
+    "no-useless-escape": {
+      "count": 3
     }
   },
   "src/common/editor/aup4-client.js": {
@@ -39,6 +282,339 @@
       "count": 1
     }
   },
+  "src/common/editor/controller/app-helpers.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "src/common/editor/controller/clip-time-pitch-service.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/derived-source-service.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/direct-audio-render-plan.ts": {
+    "no-extra-boolean-cast": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/direct-compressed-stem-archive-plan.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "no-extra-boolean-cast": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/direct-native-stem-archive-plan.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "no-extra-boolean-cast": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/direct-offline-compressed-export.ts": {
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "src/common/editor/controller/direct-pcm-export.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/direct-video-export.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/export-service.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-admin-interlock.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-app-binding.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-canonical-assets.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-derivative-scheduler.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-durable-session.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 3
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-metrics.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-origin-guard.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-project-publication-port.ts": {
+    "no-unsafe-finally": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-project-write-authority.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-publication-plan.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-publication-service.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-recovery-admission.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/framescaper-capture-source-adapter-router.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "src/common/editor/controller/linked-audio-import-admission.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/linked-wav-import-service.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/local-assistance-audio-publication.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/local-assistance-transcript-acceptance.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/native-scape-save.ts": {
+    "no-useless-assignment": {
+      "count": 2
+    },
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/controller/playback-project-service.ts": {
+    "no-unsafe-finally": {
+      "count": 2
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/preferences-service.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/prepared-project-sources.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/product-native-render-audio-stream.ts": {
+    "no-unsafe-finally": {
+      "count": 2
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/project-admin-service.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/project-import-service.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/project-switch-service.ts": {
+    "no-unsafe-finally": {
+      "count": 2
+    }
+  },
+  "src/common/editor/controller/sample-edit-service.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/sequential-seven-zip-copy.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/soundscaper-delivery-publication-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/soundscaper-persistent-delivery-private-transport.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/soundscaper-persistent-delivery-ui-service.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/source-import.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/source-lifecycle-service.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/stem-archive.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-capture-orchestrator.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-capture-spool-manifest.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-capture-spool.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-live-capture-request.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-live-capture-session.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-live-capture-spool.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-recording-repository-composition.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-recording-service.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/take-cycle-routed-capture-validation.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/timeline-annotation-service.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/transient-analysis-pcm-access.ts": {
+    "no-unsafe-finally": {
+      "count": 2
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/video-proxy-candidate-composition.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/common/editor/controller/video-relink-probe.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/delivery-preset-store.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/desktop-linked-original-port.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 3
+    }
+  },
+  "src/common/editor/desktop-read-profile.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/desktop-video-export-capability.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
   "src/common/editor/effect-macros.js": {
     "preserve-caught-error": {
       "count": 2
@@ -49,7 +625,40 @@
       "count": 1
     }
   },
+  "src/common/editor/engine/native-effect-latency-v21.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/engine/rendering.ts": {
+    "no-unsafe-finally": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "src/common/editor/engine/scheduled-parameter-registry.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/file-save-stream.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
   "src/common/editor/file-service.js": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/framescaper-capture-domain.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/framescaper-capture-session-manifest.ts": {
     "no-control-regex": {
       "count": 1
     }
@@ -57,6 +666,245 @@
   "src/common/editor/media-export.js": {
     "no-control-regex": {
       "count": 2
+    }
+  },
+  "src/common/editor/native-media-atomic-publication.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/project-fallback-integrity-audio.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/reviewed-effects/wasm-abi.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/scape-archive-reader.ts": {
+    "no-unsafe-finally": {
+      "count": 2
+    }
+  },
+  "src/common/editor/scape-video-proxy-archive-plan.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/common/editor/soundscaper-delivery-contract-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/soundscaper-persistent-delivery-plan-v1.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/soundscaper-persistent-delivery-save-target.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/assistance-derivative-repository.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/capture-spool-append-intent-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/capture-spool-creation-fence.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/capture-spool-operation-lock.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/capture-spool-tail-cleanup-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/desktop-linked-original-range-reader.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/desktop-linked-video-original-port.ts": {
+    "no-control-regex": {
+      "count": 2
+    },
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/storage/encoded-capture-spool-create.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/encoded-capture-spool-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/framescaper-capture-creation-admission.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/framescaper-capture-session-creation-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/framescaper-capture-session-manifest-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/linked-audio-original-source-reader.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/storage/linked-original-project-binding-prune.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/linked-original-range-lease.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/media-asset-write-repository.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/opfs-preferred-encoded-capture-chunk-port.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/opfs-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/opfs-sync-repository-bridge.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/opfs-sync-worker-runtime.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/project-duplication.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/storage/project-repository-support.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/raw-pcm-spool-create.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/raw-pcm-spool-global-inventory.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/raw-pcm-spool-record.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/raw-pcm-spool-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/source-pcm-read-session.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/common/editor/storage/source-read-repository.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/source-write-lifecycle.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/source-write-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/take-cycle-recovery-envelope-repository.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/storage/video-derivative-repository.ts": {
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "src/common/editor/storage/video-proxy-claim-staging-repository.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/take-comp-document-v17.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/take-comp-domain.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/take-cycle-recovery-envelope-validation.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/take-media-recovery-journal.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/timeline-image-model.ts": {
+    "no-control-regex": {
+      "count": 1
     }
   },
   "src/common/editor/ui/AudacityEffectLayout.jsx": {
@@ -84,14 +932,374 @@
       "count": 1
     }
   },
+  "src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/local-assistance-semantic-search-bridge.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/soundscaper-native-renderer-bridge.ts": {
+    "no-unsafe-finally": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/soundscaper-routing-editor-model.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/ui/workspace/linked-audio-choice-handoff.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/unified-exact-render-visual-materializer-v13.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-caption-track-v27.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-delivery-encoder-tier.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-keyframe-encoder-stream.ts": {
+    "no-useless-assignment": {
+      "count": 3
+    }
+  },
+  "src/common/editor/video-keyframe-mediabunny-execution.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-keyframe-video-encoder.ts": {
+    "no-ex-assign": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-proxy-attachment-v18.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-proxy-candidate-observation.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-proxy-original-mime-type.ts": {
+    "no-useless-escape": {
+      "count": 3
+    }
+  },
+  "src/common/editor/video-proxy-relationship-lease.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-timing-storage.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/common/editor/video-visual-model-v24.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/editor/web-vcr-domain.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "src/common/offline/ffmpeg-runtime-cache.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
   "src/common/site/App.jsx": {
     "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/common/transfer/cross-product-handoff-provenance.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/common/transfer/cross-product-handoff-report-sidecar.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "src/common/transfer/project-transfer-handshake-channel.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/common/transfer/project-transfer-handshake-wire.ts": {
+    "no-control-regex": {
+      "count": 2
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-bodies.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-controller-fence.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-desktop-publication.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-indeterminate-reconciliation.ts": {
+    "no-unsafe-finally": {
+      "count": 3
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-landed-reconciliation.ts": {
+    "no-unsafe-finally": {
+      "count": 2
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-scheduler.ts": {
+    "no-unsafe-finally": {
+      "count": 3
+    }
+  },
+  "src/framescaper/editor-captured-video-proxy-session-reconciliation.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-cube-lut-actions-finishing.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-motion-analysis-actions-finishing.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/framescaper/editor-motion-analysis-frame-provider-finishing.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-native-image-sequence-action.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-native-openfx-action.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-native-prores-proxy-generator.ts": {
+    "no-unsafe-finally": {
+      "count": 3
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-native-render-audio-carrier.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-native-render-input-stream-core.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-native-render-queue-action.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/framescaper/editor-native-render-source-resolver.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-project-environment.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-project-unified-render-visual.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-selected-finishing-authoring-controller.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-session-clipboard-v13-paste.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-timeline-image-publication-timeline-image.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/framescaper/editor-video-proxy-actions-retime.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/framescaper/editor-video-proxy-reattestation-contract-sequence.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/soundscaper/desktop-project-library-freeze-media.ts": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/soundscaper/desktop-project-library-renderer-catalog.ts": {
+    "no-useless-catch": {
+      "count": 1
+    }
+  },
+  "src/soundscaper/desktop-project-library-renderer.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/soundscaper/editor-project-environment.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx": {
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "tests/audio-editor-adm-metadata.test.ts": {
+    "no-regex-spaces": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-assistance-editorial-generation-v1.test.ts": {
+    "no-useless-escape": {
+      "count": 2
+    }
+  },
+  "tests/audio-editor-edl-export.test.ts": {
+    "no-regex-spaces": {
+      "count": 3
+    }
+  },
+  "tests/audio-editor-export-direct-video.test.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-native-media-plan-envelope.test.ts": {
+    "no-sparse-arrays": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-project-fallback-integrity.test.ts": {
+    "no-unsafe-finally": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-scape-archive-layout.test.ts": {
+    "require-yield": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-scape-cancellation.test.ts": {
+    "require-yield": {
+      "count": 1
+    }
+  },
+  "tests/audio-editor-scape-inspection-controller.test.ts": {
+    "require-yield": {
+      "count": 4
+    }
+  },
+  "tests/audio-editor-scape-inspection-storage-cancellation.test.ts": {
+    "require-yield": {
       "count": 1
     }
   },
   "tests/browser/audio-editor-video-effects-parity.spec.js": {
     "no-unused-vars": {
       "count": 2
+    }
+  },
+  "tests/desktop-assistance-helper-runtime.test.ts": {
+    "require-yield": {
+      "count": 1
+    }
+  },
+  "tests/desktop-assistance-staging-registry.test.ts": {
+    "require-yield": {
+      "count": 1
+    }
+  },
+  "tests/desktop-soundscaper-delivery-adversarial.test.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "tests/helpers/interchange-reference.ts": {
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "tests/helpers/sparse-scape-zip64-fixture.ts": {
+    "no-useless-assignment": {
+      "count": 1
     }
   }
 }
