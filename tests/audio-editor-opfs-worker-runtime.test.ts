@@ -16,6 +16,7 @@ interface AccessCall {
 
 class FakeSyncAccessHandle {
 	readonly calls: AccessCall[] = [];
+	flushError: unknown = null;
 	#bytes: Uint8Array;
 
 	constructor(bytes: Uint8Array) { this.#bytes = bytes.slice(); }
@@ -50,7 +51,10 @@ class FakeSyncAccessHandle {
 		this.calls.push({ type: 'truncate', length: size });
 	}
 
-	flush(): void { this.calls.push({ type: 'flush' }); }
+	flush(): void {
+		this.calls.push({ type: 'flush' });
+		if (this.flushError !== null) throw this.flushError;
+	}
 	close(): void { this.calls.push({ type: 'close' }); }
 	bytes(): Uint8Array { return this.#bytes.slice(); }
 }
@@ -172,6 +176,29 @@ test('OPFS worker runtime writes sequential chunks and flushes before close', as
 		runtime.handle({ id: 'late', type: 'write', writerId, bytes: Uint8Array.of(7).buffer }),
 		/unknown OPFS writer/u,
 	);
+});
+
+test('OPFS worker runtime releases a writer whose flush fails', async () => {
+	const fixture = fakeDirectory();
+	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });
+	await runtime.handle({ id: 'init', type: 'initialize', directory: fixture.directory });
+	const { writerId } = await runtime.handle({
+		id: 'open', type: 'open-writer', operationId: 'media-asset-chunk-write', path: 'failed.blob',
+	});
+	const failure = new Error('quota flush failure');
+	fixture.files.get('failed.blob')!.flushError = failure;
+
+	await assert.rejects(
+		runtime.handle({ id: 'close', type: 'close-writer', writerId }),
+		(error: unknown) => error === failure,
+	);
+	assert.deepEqual(fixture.files.get('failed.blob')?.calls, [
+		{ type: 'truncate', length: 0 },
+		{ type: 'flush' },
+		{ type: 'close' },
+	]);
+	await runtime.handle({ id: 'remove', type: 'remove', path: 'failed.blob' });
+	assert.deepEqual(fixture.removals, ['failed.blob']);
 });
 
 test('OPFS worker runtime aborts a mid-body writer and preserves committed siblings', async () => {

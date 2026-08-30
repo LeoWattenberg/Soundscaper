@@ -175,9 +175,16 @@ export class OpfsSyncWorkerRuntime {
 	#closeWriter(request: WorkerRequest, requestIdValue: string): Record<string, unknown> {
 		const writer = this.#writer(request.writerId);
 		this.#throwIfCancelled(requestIdValue);
-		writer.access.flush();
-		writer.access.close();
+		let flushError: unknown;
+		let closeError: unknown;
+		try { writer.access.flush(); } catch (error) { flushError = error; }
+		try { writer.access.close(); } catch (error) { closeError = error; }
 		this.#writers.delete(writer.id);
+		if (flushError !== undefined && closeError !== undefined) throw new AggregateError(
+			[flushError, closeError], 'OPFS writer flush and close both failed.', { cause: flushError },
+		);
+		if (flushError !== undefined) throw flushError;
+		if (closeError !== undefined) throw closeError;
 		return Object.freeze({ size: writer.offset });
 	}
 
