@@ -64,7 +64,10 @@ test('the target-native delivery helper source admits only handle-anchored publi
 	assert.match(linux, /AT_SYMLINK_FOLLOW/u);
 	assert.doesNotMatch(linux, /O_CREAT/u);
 	assert.match(windows, /CreateFileW/u);
-	assert.match(windows, /FileLinkInfo/u);
+	assert.match(windows, /GetProcAddress\(module, "NtSetInformationFile"\)/u);
+	assert.match(windows, /static_cast<FILE_INFORMATION_CLASS>\(11\)/u);
+	assert.match(windows, /struct file_link_information/u);
+	assert.doesNotMatch(windows, /\bFILE_LINK_INFO\b|\bFileLinkInfo\b/u);
 	assert.match(windows, /FileDispositionInfo/u);
 	assert.doesNotMatch(windows, /CreateHardLinkW/u);
 	assert.match(macos, /NSItemReplacementDirectory/u);
