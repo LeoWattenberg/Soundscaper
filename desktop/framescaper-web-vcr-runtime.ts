@@ -51,6 +51,7 @@ import {
 	framescaperWebVcrCommittedNavigation as committedNavigation,
 	framescaperWebVcrCaptureIsActive as captureIsActive,
 	framescaperWebVcrCaptureSetupLocked as captureSetupLocked,
+	framescaperWebVcrFailedLoadDisposition as failedLoadDisposition,
 	framescaperWebVcrNavigationState as navigationState,
 	framescaperWebVcrPreventableNavigation as preventableNavigation,
 	framescaperWebVcrReference as reference,
@@ -58,6 +59,7 @@ import {
 	framescaperWebVcrStartedNavigation as startedNavigation,
 	liveFramescaperWebVcrPopupCount as livePopupCount,
 	markFramescaperWebVcrNavigationPending as markNavigationPending,
+	loadFramescaperWebVcrNavigation,
 	validateFramescaperWebVcrRuntimeOptionsV1 as runtimeOptions,
 	type FramescaperWebVcrRuntimeOptionsV1 as RuntimeOptions,
 	type FramescaperWebVcrRuntimeSessionV1 as RuntimeSession,
@@ -417,17 +419,9 @@ export function createFramescaperWebVcrRuntimeV1(
 		contents.on('will-redirect', preventUnsafeNavigation);
 		contents.on('render-process-gone', () => failSession(state, 'Web VCR guest process was lost.'));
 		contents.on('did-fail-load', (...args) => {
-			if (args[4] !== true) return;
-			if (webVcrNavigationWasAborted(args[1])) {
-				const failedUrl = args[3];
-				if (current === state && typeof failedUrl === 'string'
-					&& state.navigation.url === failedUrl) {
-					state.navigation = navigationState(state, { isLoading: false });
-					emit(state, snapshot(state));
-				}
-				return;
-			}
-			failSession(state, 'Web VCR navigation failed.');
+			const disposition = failedLoadDisposition(state, args, current === state);
+			if (disposition === 'failed') failSession(state, 'Web VCR navigation failed.');
+			else if (disposition === 'aborted') emit(state, snapshot(state));
 		});
 		contents.on('did-start-navigation', (...args) => observeNavigationStart(state, args));
 		contents.on('did-navigate', (...args) => observeNavigationCommit(state, args, false));
@@ -455,26 +449,12 @@ export function createFramescaperWebVcrRuntimeV1(
 	}
 
 	async function navigate(state: RuntimeSession, urlValue: string): Promise<void> {
-		const url = admitFramescaperWebVcrUrl(urlValue).url;
-		state.navigation = navigationState(state, {
-			generation: state.navigation.url === url && state.navigation.isLoading
-				? state.navigation.generation : state.navigation.generation + 1,
-			url,
-			isLoading: true,
-		});
-		state.target = null;
-		try { await state.window.loadURL(url); }
-		catch (error) {
-			if (webVcrNavigationWasAborted(error)) {
-				if (current === state && state.navigation.url === url) {
-					state.navigation = navigationState(state, { isLoading: false });
-				}
-				return;
-			}
-			failSession(state, 'Web VCR navigation failed.');
-			throw error;
-		}
-		state.navigation = navigationState(state, { isLoading: false });
+		await loadFramescaperWebVcrNavigation(
+			state,
+			urlValue,
+			() => current === state,
+			() => failSession(state, 'Web VCR navigation failed.'),
+		);
 	}
 
 	function observeNavigationStart(state: RuntimeSession, args: readonly unknown[]): void {
@@ -612,12 +592,4 @@ export function createFramescaperWebVcrRuntimeV1(
 		if (disposed) throw new Error('Web VCR runtime is disposed.');
 	}
 
-}
-
-function webVcrNavigationWasAborted(value: unknown): boolean {
-	if (value === -3) return true;
-	if (value === null || typeof value !== 'object') return false;
-	const error = value as Readonly<{ code?: unknown; errno?: unknown; message?: unknown }>;
-	return error.code === 'ERR_ABORTED' || error.code === -3 || error.errno === -3
-		|| typeof error.message === 'string' && /(?:^|\W)ERR_ABORTED(?:\W|$)/u.test(error.message);
 }

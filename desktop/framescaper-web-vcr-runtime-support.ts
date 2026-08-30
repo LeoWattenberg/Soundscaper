@@ -20,6 +20,7 @@ import type {
 	FramescaperWebVcrTargetObserverV1,
 	createFramescaperWebVcrTargetObserverV1,
 } from './framescaper-web-vcr-target-observer.ts';
+import { admitFramescaperWebVcrUrl } from './framescaper-web-vcr-security-policy.ts';
 
 export interface FramescaperWebVcrRuntimeOptionsV1 {
 	readonly productId: string;
@@ -204,6 +205,56 @@ export function framescaperWebVcrNavigationState(
 		canGoBack: state.window.webContents.navigationHistory.canGoBack(),
 		canGoForward: state.window.webContents.navigationHistory.canGoForward(),
 	});
+}
+
+export function framescaperWebVcrFailedLoadDisposition(
+	state: FramescaperWebVcrRuntimeSessionV1,
+	args: readonly unknown[],
+	isCurrent: boolean,
+): 'ignored' | 'aborted' | 'failed' {
+	if (args[4] !== true) return 'ignored';
+	if (!webVcrNavigationWasAborted(args[1])) return 'failed';
+	const failedUrl = args[3];
+	if (isCurrent && typeof failedUrl === 'string' && state.navigation.url === failedUrl) {
+		state.navigation = framescaperWebVcrNavigationState(state, { isLoading: false });
+	}
+	return 'aborted';
+}
+
+export async function loadFramescaperWebVcrNavigation(
+	state: FramescaperWebVcrRuntimeSessionV1,
+	urlValue: string,
+	isCurrent: () => boolean,
+	onFailure: () => void,
+): Promise<void> {
+	const url = admitFramescaperWebVcrUrl(urlValue).url;
+	state.navigation = framescaperWebVcrNavigationState(state, {
+		generation: state.navigation.url === url && state.navigation.isLoading
+			? state.navigation.generation : state.navigation.generation + 1,
+		url,
+		isLoading: true,
+	});
+	state.target = null;
+	try { await state.window.loadURL(url); }
+	catch (error) {
+		if (webVcrNavigationWasAborted(error)) {
+			if (isCurrent() && state.navigation.url === url) {
+				state.navigation = framescaperWebVcrNavigationState(state, { isLoading: false });
+			}
+			return;
+		}
+		onFailure();
+		throw error;
+	}
+	state.navigation = framescaperWebVcrNavigationState(state, { isLoading: false });
+}
+
+function webVcrNavigationWasAborted(value: unknown): boolean {
+	if (value === -3) return true;
+	if (value === null || typeof value !== 'object') return false;
+	const error = value as Readonly<{ code?: unknown; errno?: unknown; message?: unknown }>;
+	return error.code === 'ERR_ABORTED' || error.code === -3 || error.errno === -3
+		|| typeof error.message === 'string' && /(?:^|\W)ERR_ABORTED(?:\W|$)/u.test(error.message);
 }
 
 export function markFramescaperWebVcrNavigationPending(
