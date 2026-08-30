@@ -311,6 +311,37 @@ test('shared Web Locks serialize tab commits without sweeping another tab candid
 	);
 });
 
+test('runtime cleanup reclaims abandoned candidates while preserving a live tab transaction', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const lockManager = new MemoryLockManager();
+	const staleName = `${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}candidate-abandoned`;
+	await cacheStorage.open(staleName);
+	const liveStore = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager,
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'live-tab',
+	});
+	const committingStore = createBrowserFfmpegRuntimeStore({
+		cacheStorage,
+		lockManager,
+		origin: 'https://soundscaper.org',
+		randomUUID: () => 'committing-tab',
+	});
+	const liveTransaction = await liveStore.begin(release('b'));
+
+	await install(committingStore, release('c'));
+
+	assert.equal(cacheStorage.keysSync().includes(staleName), false);
+	assert.equal(
+		cacheStorage.keysSync().includes(
+			`${BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX}candidate-live-tab`,
+		),
+		true,
+	);
+	await liveTransaction.rollback();
+});
+
 test('a same-release commit reuses the complete referenced cache without deleting or rewriting it', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const store = createBrowserFfmpegRuntimeStore({
@@ -559,30 +590,34 @@ class MemoryCache {
 }
 
 class MemoryLockManager implements BrowserRuntimeLockManager {
-	#tail: Promise<void> = Promise.resolve();
-	#concurrentCallbacks = 0;
+	readonly #tails = new Map<string, Promise<void>>();
+	readonly #concurrentCallbacks = new Map<string, number>();
 	maximumConcurrentCallbacks = 0;
 
 	async request<T>(
 		name: string,
-		options: Readonly<{ mode: 'exclusive' }>,
+		options: Readonly<{ mode: 'exclusive'; ifAvailable?: boolean }>,
 		callback: (lock: object | null) => Promise<T>,
 	): Promise<T> {
 		assert.equal(options.mode, 'exclusive');
-		const predecessor = this.#tail;
+		const predecessor = this.#tails.get(name);
+		if (options.ifAvailable && predecessor) return callback(null);
 		let release: () => void = () => undefined;
-		this.#tail = new Promise<void>((resolve) => { release = resolve; });
+		const tail = new Promise<void>((resolve) => { release = resolve; });
+		this.#tails.set(name, tail);
 		await predecessor;
-		this.#concurrentCallbacks += 1;
+		const concurrent = (this.#concurrentCallbacks.get(name) ?? 0) + 1;
+		this.#concurrentCallbacks.set(name, concurrent);
 		this.maximumConcurrentCallbacks = Math.max(
 			this.maximumConcurrentCallbacks,
-			this.#concurrentCallbacks,
+			concurrent,
 		);
 		try {
 			return await callback(Object.freeze({ name, mode: 'exclusive' }));
 		} finally {
-			this.#concurrentCallbacks -= 1;
+			this.#concurrentCallbacks.set(name, concurrent - 1);
 			release();
+			if (this.#tails.get(name) === tail) this.#tails.delete(name);
 		}
 	}
 }

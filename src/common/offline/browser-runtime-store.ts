@@ -49,7 +49,7 @@ interface BrowserRuntimeState {
 export interface BrowserRuntimeLockManager {
 	request<T>(
 		name: string,
-		options: Readonly<{ mode: 'exclusive' }>,
+		options: Readonly<{ mode: 'exclusive'; ifAvailable?: boolean }>,
 		callback: (lock: object | null) => Promise<T>,
 	): Promise<T>;
 }
@@ -143,8 +143,15 @@ export function createBrowserFfmpegRuntimeStore(
 			throw new Error('Runtime candidate identifier is invalid.');
 		}
 		const candidateName = `${CANDIDATE_CACHE_PREFIX}${candidateId}`;
-		await cacheStorage.delete(candidateName);
-		const candidate = await cacheStorage.open(candidateName);
+		const releaseCandidateLock = await holdRuntimeCandidateLock(lockManager, candidateName);
+		let candidate: RuntimeCache;
+		try {
+			await cacheStorage.delete(candidateName);
+			candidate = await cacheStorage.open(candidateName);
+		} catch (error) {
+			await releaseCandidateLock();
+			throw error;
+		}
 		const stored = new Set<string>();
 		let status: 'open' | 'committing' | 'settled' = 'open';
 
@@ -203,7 +210,7 @@ export function createBrowserFfmpegRuntimeStore(
 							}
 							published = true;
 							status = 'settled';
-							await cleanupAfterCommit(cacheStorage, candidateName, new Set([
+							await cleanupAfterCommit(cacheStorage, lockManager, candidateName, new Set([
 								STATE_CACHE_NAME,
 								releaseCacheName(release.releaseId),
 								...(retainedPrevious ? [releaseCacheName(retainedPrevious.releaseId)] : []),
@@ -232,29 +239,66 @@ export function createBrowserFfmpegRuntimeStore(
 							await cacheStorage.delete(finalName).catch(() => false);
 							throw error;
 						}
-						await cleanupAfterCommit(cacheStorage, candidateName, new Set([
+						await cleanupAfterCommit(cacheStorage, lockManager, candidateName, new Set([
 							STATE_CACHE_NAME,
 							finalName,
 							...(prior ? [releaseCacheName(prior.releaseId)] : []),
 						]));
 					});
 				} catch (error) {
-					if (published) return;
+					if (published) {
+						await releaseCandidateLock();
+						return;
+					}
 					status = 'open';
 					throw error;
 				}
+				await releaseCandidateLock();
 			},
 			rollback: async () => {
 				if (status === 'settled') return;
 				assertOpen();
 				status = 'settled';
-				await cacheStorage.delete(candidateName);
+				try {
+					await cacheStorage.delete(candidateName);
+				} finally {
+					await releaseCandidateLock();
+				}
 			},
 		};
 		return transaction;
 	}
 
 	return Object.freeze({ readActive, begin });
+}
+
+async function holdRuntimeCandidateLock(
+	lockManager: BrowserRuntimeLockManager,
+	candidateName: string,
+): Promise<() => Promise<void>> {
+	let resolveAcquired: () => void = () => undefined;
+	let rejectAcquired: (error: unknown) => void = () => undefined;
+	let releaseHold: () => void = () => undefined;
+	const acquired = new Promise<void>((resolve, reject) => {
+		resolveAcquired = resolve;
+		rejectAcquired = reject;
+	});
+	const held = lockManager.request(candidateName, { mode: 'exclusive' }, async (lock) => {
+		if (!lock) throw new Error('The runtime candidate lock was not acquired.');
+		await new Promise<void>((resolve) => {
+			releaseHold = resolve;
+			resolveAcquired();
+		});
+	});
+	void held.catch(rejectAcquired);
+	await acquired;
+	let released = false;
+	return async () => {
+		if (released) return;
+		released = true;
+		releaseHold();
+		await held;
+	};
 }
 
 async function probeStreamBackedCachePut(cache: RuntimeCache, key: string): Promise<boolean> {
@@ -392,22 +436,31 @@ async function writeState(
 
 async function cleanupRuntimeCaches(
 	cacheStorage: RuntimeCacheStorage,
+	lockManager: BrowserRuntimeLockManager,
 	retained: ReadonlySet<string>,
 ): Promise<void> {
 	for (const cacheName of await cacheStorage.keys()) {
-		if (cacheName.startsWith(BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX)
-			&& !cacheName.startsWith(CANDIDATE_CACHE_PREFIX) && !retained.has(cacheName)) {
+		if (!cacheName.startsWith(BROWSER_FFMPEG_RUNTIME_CACHE_PREFIX)
+			|| retained.has(cacheName)) continue;
+		if (!cacheName.startsWith(CANDIDATE_CACHE_PREFIX)) {
 			await cacheStorage.delete(cacheName).catch(() => false);
+			continue;
 		}
+		await lockManager.request(
+			cacheName,
+			{ mode: 'exclusive', ifAvailable: true },
+			async (lock) => lock ? cacheStorage.delete(cacheName) : false,
+		).catch(() => false);
 	}
 }
 
 async function cleanupAfterCommit(
 	cacheStorage: RuntimeCacheStorage,
+	lockManager: BrowserRuntimeLockManager,
 	candidateName: string,
 	retained: ReadonlySet<string>,
 ): Promise<void> {
-	await cleanupRuntimeCaches(cacheStorage, retained).catch(() => undefined);
+	await cleanupRuntimeCaches(cacheStorage, lockManager, retained).catch(() => undefined);
 	await cacheStorage.delete(candidateName).catch(() => false);
 }
 
