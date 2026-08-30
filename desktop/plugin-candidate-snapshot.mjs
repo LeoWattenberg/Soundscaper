@@ -12,12 +12,17 @@ const SHA256 = /^[a-f\d]{64}$/u;
 
 export async function snapshotAuthenticatedPluginCandidate(path, expected, ports = {}) {
 	const copy = ports.copy ?? cp;
-	const snapshotParent = ports.snapshotParent ?? tmpdir();
+	const configuredSnapshotParent = ports.snapshotParent;
+	const requestedSnapshotParent = configuredSnapshotParent ?? tmpdir();
 	const first = await authenticatePluginCandidate(path);
 	assertExpected(first, expected, true);
-	if (await realpath(snapshotParent) !== resolve(snapshotParent)) {
+	const canonicalSnapshotParent = await realpath(requestedSnapshotParent);
+	if (configuredSnapshotParent !== undefined
+		&& canonicalSnapshotParent !== resolve(requestedSnapshotParent)) {
 		throw new Error('The plug-in snapshot parent must remain canonical.');
 	}
+	const snapshotParent = configuredSnapshotParent === undefined
+		? canonicalSnapshotParent : requestedSnapshotParent;
 	const container = await mkdtemp(join(snapshotParent, 'soundscaper-plugin-snapshot-'));
 	let disposed = false;
 	try {
