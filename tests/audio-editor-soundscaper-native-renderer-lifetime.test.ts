@@ -14,16 +14,9 @@ import type {
 import { createSoundscaperNativeRendererBridge } from '../src/common/editor/ui/soundscaper-native-renderer-bridge.ts';
 
 test('the workspace renderer releases sessions on disable, explicit close, and workspace teardown only', async (t) => {
-	const originalNode = globalThis.AudioWorkletNode;
-	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	useFakeAudioWorklet(t);
 	const fixture = rendererFixture();
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge,
-		engine: fixture.engine,
-		controller: fixture.controller,
-		windowValue: fixture.windowValue,
-	});
+	const renderer = createRenderer(fixture);
 
 	await renderer.bridge.openNativeAudioSession(audioRequest('audio-session-1'));
 	fixture.offerAudio('audio-session-1');
@@ -59,15 +52,63 @@ test('the workspace renderer releases sessions on disable, explicit close, and w
 	]);
 });
 
-test('a port offer from a foreign window source never attaches audio authority', async (t) => {
-	const originalNode = globalThis.AudioWorkletNode;
-	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+test('failed explicit native closes remain owned so workspace teardown can retry them', async (t) => {
+	useFakeAudioWorklet(t);
 	const fixture = rendererFixture();
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge, engine: fixture.engine,
-		controller: fixture.controller, windowValue: fixture.windowValue,
+	const renderer = createRenderer(fixture);
+	const opened = await renderer.bridge.openNativeAudioSession(audioRequest('audio-retry'));
+	assert.equal(opened.status, 'opened');
+	if (opened.status !== 'opened') return;
+	const instance = await renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
 	});
+	const audioFailure = new Error('planned native audio close failure');
+	const pluginFailure = new Error('planned native plug-in close failure');
+	fixture.failNextAudioClose(audioFailure);
+	fixture.failNextPluginClose(pluginFailure);
+	await assert.rejects(
+		() => renderer.bridge.closeNativeAudioSession({ sessionId: opened.sessionId }),
+		audioFailure,
+	);
+	await assert.rejects(
+		() => renderer.bridge.closeNativePluginInstance({ instanceId: instance.instanceId }),
+		pluginFailure,
+	);
+	assert.deepEqual(fixture.active(), {
+		audio: [opened.sessionId], plugins: [instance.instanceId],
+	}, 'main still owns both failed closes');
+	await renderer.dispose();
+	assert.deepEqual(fixture.active(), { audio: [], plugins: [] }, 'teardown retries both closes');
+	assert.deepEqual(fixture.closes, [
+		['audio', opened.sessionId], ['plugin', instance.instanceId],
+		['audio', opened.sessionId], ['plugin', instance.instanceId],
+	]);
+});
+
+test('workspace teardown closes main audio ownership after a local release failure', async (t) => {
+	useFakeAudioWorklet(t);
+	const failure = new Error('planned playback restart failure');
+	const fixture = rendererFixture({ engineState: 'playing', playFailure: failure });
+	const renderer = createRenderer(fixture);
+	const opened = await renderer.bridge.openNativeAudioSession(audioRequest('audio-release-failure'));
+	assert.equal(opened.status, 'opened');
+	if (opened.status !== 'opened') return;
+	const instance = await renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	await assert.rejects(renderer.dispose(), failure);
+	assert.deepEqual(fixture.active().audio, [], 'main closes even when local graph restart reports failure');
+	assert.deepEqual(fixture.active().plugins, [], 'later plug-in teardown is not skipped after that failure');
+	assert.deepEqual(fixture.closes, [
+		['audio', opened.sessionId],
+		['plugin', instance.instanceId],
+	]);
+});
+
+test('a port offer from a foreign window source never attaches audio authority', async (t) => {
+	useFakeAudioWorklet(t);
+	const fixture = rendererFixture();
+	const renderer = createRenderer(fixture);
 	await renderer.bridge.openNativeAudioSession(audioRequest('foreign'));
 	// An embedded frame can post a well-formed offer with a transferred port;
 	// accepting it would route playback into the sender's port and publish the
@@ -82,16 +123,9 @@ test('a port offer from a foreign window source never attaches audio authority',
 });
 
 test('a native route at a different rate than the engine context refuses instead of repitching', async (t) => {
-	const originalNode = globalThis.AudioWorkletNode;
-	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	useFakeAudioWorklet(t);
 	const fixture = rendererFixture();
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge,
-		engine: fixture.engine,
-		controller: fixture.controller,
-		windowValue: fixture.windowValue,
-	});
+	const renderer = createRenderer(fixture);
 	// The fixture context runs at 48 kHz; a 44.1 kHz route would play ~8.8 %
 	// fast against the export render, so the open must refuse and close the
 	// session main just granted.
@@ -107,16 +141,9 @@ test('a native route at a different rate than the engine context refuses instead
 });
 
 test('project reconciliation restores rack projection and native state through one binding action', async (t) => {
-	const originalNode = globalThis.AudioWorkletNode;
-	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	useFakeAudioWorklet(t);
 	const fixture = rendererFixture({ initialInstanceId: 'plugin-instance-restored' });
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge,
-		engine: fixture.engine,
-		controller: fixture.controller,
-		windowValue: fixture.windowValue,
-	});
+	const renderer = createRenderer(fixture);
 
 	assert.deepEqual(await renderer.restoreProjectNativePlugins(), [{
 		instanceId: 'plugin-instance-restored', status: 'restored',
@@ -133,10 +160,7 @@ test('described native inventories accumulate in routing and disabling clears th
 	}, {
 		handle: 'relative/device', label: 'Path-shaped device', direction: 'input', channelCount: 2,
 	}] });
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge, engine: fixture.engine,
-		controller: fixture.controller, windowValue: fixture.windowValue,
-	});
+	const renderer = createRenderer(fixture);
 	await renderer.bridge.describeNativeAudioBackend({ backend: 'wasapi' });
 	assert.equal(fixture.nativeRefreshes.length, 1);
 	assert.equal(fixture.nativeRefreshes[0].probe, false);
@@ -160,14 +184,9 @@ test('described native inventories accumulate in routing and disabling clears th
 });
 
 test('calibration refuses every busy renderer state before impulse and persists only the measured offset', async (t) => {
-	const originalNode = globalThis.AudioWorkletNode;
-	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	useFakeAudioWorklet(t);
 	const fixture = rendererFixture();
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge, engine: fixture.engine,
-		controller: fixture.controller, windowValue: fixture.windowValue,
-	});
+	const renderer = createRenderer(fixture);
 	const request = { ...audioRequest('duplex'), direction: 'duplex' as const };
 	const opened = await renderer.bridge.openNativeAudioSession(request);
 	assert.equal(opened.status, 'opened');
@@ -189,14 +208,9 @@ test('calibration refuses every busy renderer state before impulse and persists 
 });
 
 test('worklet transfer and loss reports reach main in order before the local route disappears', async (t) => {
-	const originalNode = globalThis.AudioWorkletNode;
-	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
-	t.after(() => { globalThis.AudioWorkletNode = originalNode; });
+	useFakeAudioWorklet(t);
 	const fixture = rendererFixture();
-	const renderer = createSoundscaperNativeRendererBridge({
-		bridge: fixture.bridge, engine: fixture.engine,
-		controller: fixture.controller, windowValue: fixture.windowValue,
-	});
+	const renderer = createRenderer(fixture);
 	const opened = await renderer.bridge.openNativeAudioSession(audioRequest('loss'));
 	assert.equal(opened.status, 'opened');
 	if (opened.status !== 'opened') return;
@@ -259,9 +273,24 @@ class FakeAudioWorkletNode {
 /** Stands in for the window the preload relay posts to; offers carry it as their source. */
 const FIXTURE_WINDOW_SOURCE = {} as Window;
 
+function useFakeAudioWorklet(context: Readonly<{ after(callback: () => void): void }>): void {
+	const original = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = FakeAudioWorkletNode as unknown as typeof AudioWorkletNode;
+	context.after(() => { globalThis.AudioWorkletNode = original; });
+}
+
+function createRenderer(fixture: ReturnType<typeof rendererFixture>) {
+	return createSoundscaperNativeRendererBridge({
+		bridge: fixture.bridge, engine: fixture.engine,
+		controller: fixture.controller, windowValue: fixture.windowValue,
+	});
+}
+
 function rendererFixture(options: Readonly<{
 	initialInstanceId?: string;
 	nativeDevices?: readonly Readonly<Record<string, unknown>>[];
+	engineState?: string;
+	playFailure?: Error;
 }> = {}) {
 	const audio = new Set<string>();
 	const plugins = new Set<string>();
@@ -277,6 +306,8 @@ function rendererFixture(options: Readonly<{
 	const transfers: unknown[] = [];
 	const losses: unknown[] = [];
 	const audioRequests = new Map<string, NativeAudioSessionOpenRequestV1>();
+	let audioCloseFailure: Error | null = null;
+	let pluginCloseFailure: Error | null = null;
 	let stateUpserts = 0;
 	const initialInstanceId = options.initialInstanceId ?? null;
 	const project = {
@@ -349,6 +380,11 @@ function rendererFixture(options: Readonly<{
 		}>) => { losses.push(request); return audioProjection(request.sessionId); },
 		closeNativeAudioSession: async ({ sessionId }: Readonly<{ sessionId: string }>) => {
 			closes.push(['audio', sessionId]);
+			if (audioCloseFailure) {
+				const failure = audioCloseFailure;
+				audioCloseFailure = null;
+				throw failure;
+			}
 			return audio.delete(sessionId);
 		},
 		reviewNativePluginInstallation: async () => ({ entries: [] }),
@@ -374,17 +410,22 @@ function rendererFixture(options: Readonly<{
 		closeNativePluginVendorUi: async () => false,
 		closeNativePluginInstance: async ({ instanceId }: Readonly<{ instanceId: string }>) => {
 			closes.push(['plugin', instanceId]);
+			if (pluginCloseFailure) {
+				const failure = pluginCloseFailure;
+				pluginCloseFailure = null;
+				throw failure;
+			}
 			return plugins.delete(instanceId);
 		},
 	} as unknown as SoundscaperNativeServicesBridge;
 	const engine = {
 		sampleRate: 48_000,
 		getAudioContext: async () => context,
-		getState: () => ({ state: 'stopped' }),
+		getState: () => ({ state: options.engineState ?? 'stopped' }),
 		getPositionFrames: () => 0,
 		commitNativeEffectPdcRevision: () => ({ contextTime: null, publicationDelayMs: 0 }),
 		pause() {},
-		play: async () => undefined,
+		play: async () => { if (options.playFailure) throw options.playFailure; },
 	} as unknown as EnginePublicApi;
 	const controller = {
 		project,
@@ -464,6 +505,8 @@ function rendererFixture(options: Readonly<{
 			}
 		},
 		active: () => ({ audio: [...audio], plugins: [...plugins] }),
+		failNextAudioClose: (error: Error) => { audioCloseFailure = error; },
+		failNextPluginClose: (error: Error) => { pluginCloseFailure = error; },
 		effect: () => project.tracks[0]!.effects[0] as Readonly<{ bypassed: boolean }>,
 		nativeState: () => project.nativePluginStates[0] as Readonly<{ instanceId: string }>,
 		projectCommits: () => ({ bindings: bindingCommits.length, stateUpserts }),
