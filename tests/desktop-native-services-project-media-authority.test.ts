@@ -96,13 +96,14 @@ test('the baseline routes its exact evaluated carrier only through native encode
 	let materializations = 0;
 	let renderInputRevalidations = 0;
 	let inspectFailure = false;
+	let malformedProjectRecord = false;
 	let inspectedInputs = derivedInputs;
 	const settlements: string[] = [];
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
 			projectState: () => Object.freeze({ ...PROJECT_IDENTITY, open: true, writable: true }),
-			projectRecord: () => Object.freeze({
+			projectRecord: () => malformedProjectRecord ? ({ malformed: true } as never) : Object.freeze({
 				...PROJECT_IDENTITY, projectId, projectRevision, projectSha256,
 				bodies: Object.freeze([body]),
 			}),
@@ -183,6 +184,11 @@ test('the baseline routes its exact evaluated carrier only through native encode
 	assert.equal(recovery.scratchIdentityMatches, true);
 	assert.equal(renderInputRevalidations, 0,
 		'only the absent process-local carrier stage is exempt while durable source authority is rechecked');
+	malformedProjectRecord = true;
+	const blocked = await authority.revalidate(record, ROOT, true);
+	assert.equal(blocked.projectRevisionMatches, false);
+	assert.equal(blocked.inputFingerprintsMatch, false);
+	malformedProjectRecord = false;
 	settlements.length = 0;
 	inspectFailure = true;
 	await assert.rejects(() => authority.prepare(record, ROOT), /injected inspect failure/iu);

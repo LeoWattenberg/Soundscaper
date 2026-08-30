@@ -206,6 +206,7 @@ export class FramescaperNativeProjectMediaAuthority {
 		let planMatches = false;
 		let inputsMatch = false;
 		let requiresCarrier = false;
+		let projectRevisionMatches = false;
 		try {
 			const plan = storedV14Plan(record);
 			requiresCarrier = record.taskKind !== 'proxy-generation'
@@ -214,6 +215,7 @@ export class FramescaperNativeProjectMediaAuthority {
 				this.#options.hardwareEncodeEnabled?.() ?? true);
 			planMatches = true;
 			const project = framescaperNativeProjectMediaRecord(this.#options.project.projectRecord(record.projectId));
+			projectRevisionMatches = project?.projectRevision === record.projectRevision;
 			const awaitingCarrier = record.state === 'paused'
 				&& record.lastFailureCode === 'awaiting-carrier-regeneration'
 				&& requiresCarrier;
@@ -223,10 +225,9 @@ export class FramescaperNativeProjectMediaAuthority {
 						: framescaperNativeProjectPlanBodyMetadataMatches(plan, record.inputFingerprints, project.bodies))
 					&& (awaitingCarrier || await this.#options.renderInputs.revalidate(record));
 		} catch { /* recovery turns malformed/obsolete authority into a visible block */ }
-		const project = framescaperNativeProjectMediaRecord(this.#options.project.projectRecord(record.projectId));
 		const rootValid = rootAuthorized && root !== null && await this.#rootValid(root);
 		return Object.freeze({
-			projectRevisionMatches: project?.projectRevision === record.projectRevision,
+			projectRevisionMatches,
 			planFingerprintMatches: planMatches,
 			inputFingerprintsMatch: inputsMatch,
 			rootGrantAuthorized: rootAuthorized, rootGrantValid: rootValid,
