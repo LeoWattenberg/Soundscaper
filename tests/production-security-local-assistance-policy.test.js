@@ -35,7 +35,7 @@ test('Milestone 7 policy records conditional workflow activation and its externa
 	const externalExecutableRisk = matrix.risks.flatMap(({ residualRisks }) => residualRisks)
 		.find(({ id }) => id === 'external-ffmpeg-selected-executable-authority');
 
-	assert.equal(matrix.groundedAt, '2026-08-28');
+	assert.equal(matrix.groundedAt, '2026-08-30');
 	assert.ok(control);
 	assert.match(control.summary,
 		/Parakeet.*speech-recognition.*Silero.*voice-activity-detection.*Pyannote.*ERes2Net.*speaker-diarization.*authenticated Sherpa/isu);
