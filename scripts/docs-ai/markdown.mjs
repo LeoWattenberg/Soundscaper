@@ -37,7 +37,11 @@ export function protectMarkdown(markdown) {
 	protectMatches(state, /(?<![\w/])\.[a-z][a-z0-9]{1,9}\b/giu);
 	TOKEN_PATTERN.lastIndex = 0;
 	state.tokens = new Map(
-		[...state.markdown.matchAll(TOKEN_PATTERN)].map((match) => [match[0], state.tokens.get(match[0])]),
+		[...state.markdown.matchAll(TOKEN_PATTERN)].flatMap((match) => (
+			state.tokens.has(match[0])
+				? [[match[0], expandProtectedValue(match[0], state.tokens, new Set())]]
+				: []
+		)),
 	);
 	return state;
 }
@@ -58,7 +62,18 @@ export function restoreMarkdown(markdown, tokens) {
 	assert.deepEqual(returnedTokens, [...tokens.keys()], 'Model changed the order of protected Markdown tokens.');
 	let restored = markdown;
 	for (const [token, value] of tokens) restored = restored.replace(token, () => value);
+	TOKEN_PATTERN.lastIndex = 0;
+	if (TOKEN_PATTERN.test(restored)) throw new Error('Restored Markdown still contains a protection token.');
 	return restored;
+}
+
+function expandProtectedValue(token, tokens, visiting) {
+	if (visiting.has(token)) throw new Error(`Protection token cycle detected: ${token}`);
+	if (!tokens.has(token)) throw new Error(`Unknown nested protection token: ${token}`);
+	const nextVisiting = new Set(visiting).add(token);
+	return String(tokens.get(token)).replace(/<docs-ai-token id="\d{4,}"\/>/gu, (nested) => (
+		expandProtectedValue(nested, tokens, nextVisiting)
+	));
 }
 
 function protectionTokenSequence(markdown) {

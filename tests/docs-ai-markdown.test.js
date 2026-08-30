@@ -68,6 +68,13 @@ test('restoration treats dollar replacement sequences as literal protected Markd
 	assert.equal(restoreMarkdown(protectedDocument.markdown, protectedDocument.tokens), literal);
 });
 
+test('restoration resolves protection tokens nested inside a protected link destination', () => {
+	const nested = 'See [the guide](<https://example.test/a b>) for details.';
+	const protectedDocument = protectMarkdown(nested);
+
+	assert.equal(restoreMarkdown(protectedDocument.markdown, protectedDocument.tokens), nested);
+});
+
 test('chunk validation rejects reordered protection tokens before caching', () => {
 	const protectedDocument = protectMarkdown(source);
 	const [first, second] = [...protectedDocument.tokens.keys()];
