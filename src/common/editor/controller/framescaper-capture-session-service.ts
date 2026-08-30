@@ -303,7 +303,14 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			for (const entry of recorders) await entry.recorder.start(sharedStartActiveTimeUs);
 			notify();
 		} catch (error) {
-			if (signal.aborted && machine.snapshot.phase === 'finalizing') return;
+			if (signal.aborted && machine.snapshot.phase === 'finalizing') {
+				const abandoned = durableSession;
+				if (abandoned) {
+					await options.durable.discard(abandoned);
+					if (durableSession === abandoned) durableSession = null;
+				}
+				return;
+			}
 			if (durableSession) await recoverActive(error, 'encoder-failed');
 			else await failBeforeDurability(error);
 			throw error;

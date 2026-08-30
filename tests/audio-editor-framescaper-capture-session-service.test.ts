@@ -14,6 +14,7 @@ import type {
 	FramescaperCaptureRecorderRequest,
 } from '../src/common/editor/controller/framescaper-capture-session-types.ts';
 import type { CapturePacket, CaptureSourceRole } from '../src/common/editor/framescaper-capture-domain.ts';
+import { deferred, remainsPending, waitForEvent } from './helpers/async-test-control.ts';
 
 const SHA = 'ab'.repeat(32);
 
@@ -249,6 +250,22 @@ test('dispose joins a start already admitted to durable preparation before recov
 	await Promise.all([starting, disposal]);
 	assert.equal(harness.service.snapshot.phase, 'recovery');
 	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 1);
+});
+
+test('stopping during durable setup discards the empty session without offering recovery', async () => {
+	const prepared = deferred<void>();
+	const harness = serviceHarness({ prepareGate: prepared.promise });
+	await harness.service.initialize();
+	await harness.service.actions.requestPreview(['camera']);
+	harness.service.actions.arm({ destination: 'timeline', countdownMs: 0 });
+	const starting = harness.service.actions.start();
+	await waitForEvent(harness.events, 'durable:prepare');
+	const stopping = harness.service.actions.stop();
+	prepared.resolve();
+	await Promise.all([starting, stopping]);
+	assert.equal(harness.service.snapshot.phase, 'inactive');
+	assert.equal(harness.events.filter((event) => event === 'durable:discard').length, 1);
+	assert.equal(harness.events.includes('finalize:live'), false);
 });
 
 test('dispose joins permission opening and releases its late preview lease', async () => {
@@ -546,28 +563,6 @@ function serviceHarness(options: Readonly<{
 		},
 		settled: () => service.settled(),
 	};
-}
-
-async function waitForEvent(events: readonly string[], expected: string): Promise<void> {
-	for (let attempt = 0; attempt < 20 && !events.includes(expected); attempt += 1) {
-		await new Promise<void>((resolve) => { setImmediate(resolve); });
-	}
-	assert.equal(events.includes(expected), true, `Expected event ${expected}.`);
-}
-
-function deferred<Value>() {
-	let resolve!: (value: Value | PromiseLike<Value>) => void;
-	let reject!: (reason?: unknown) => void;
-	const promise = new Promise<Value>((accept, decline) => { resolve = accept; reject = decline; });
-	return { promise, resolve, reject };
-}
-
-async function remainsPending(operation: Promise<unknown>): Promise<boolean> {
-	const marker = Symbol('pending');
-	return await Promise.race([
-		operation.then(() => false, () => false),
-		new Promise<typeof marker>((resolve) => { setImmediate(() => { resolve(marker); }); }),
-	]) === marker;
 }
 
 function recoverySession(projectId = 'project-a') {
