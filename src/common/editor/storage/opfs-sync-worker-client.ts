@@ -37,6 +37,7 @@ export interface OpfsSyncWriter {
 
 export interface OpfsSyncStoragePort {
 	initialize(directory: FileSystemDirectoryHandle): Promise<boolean>;
+	isAvailable?(): boolean;
 	read(
 		operationId: OpfsSyncOperationId,
 		path: string,
@@ -92,6 +93,10 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 		if (this.#closed) return Promise.resolve(false);
 		if (!this.#initializePromise) this.#initializePromise = this.#initialize(directory);
 		return this.#initializePromise;
+	}
+
+	isAvailable(): boolean {
+		return !this.#closed && this.#supported && this.#worker !== null;
 	}
 
 	async read(

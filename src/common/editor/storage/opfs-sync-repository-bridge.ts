@@ -34,7 +34,12 @@ export class OpfsSyncRepositoryBridge {
 		signal?: AbortSignal,
 	): Promise<Blob | null> {
 		if (!await this.available(directory)) return null;
-		return this.#client!.snapshot(operationId, path, signal);
+		try {
+			return await this.#client!.snapshot(operationId, path, signal);
+		} catch (error) {
+			if (!this.#workerIsAvailable()) return null;
+			throw error;
+		}
 	}
 
 	async readable(
@@ -44,8 +49,13 @@ export class OpfsSyncRepositoryBridge {
 		signal?: AbortSignal,
 	): Promise<BlobLike | null> {
 		if (!await this.available(directory)) return null;
-		const initial = await this.#client!.read(operationId, path, { offset: 0, length: 0 }, signal);
-		return new OpfsSyncReadableBlob(this.#client!, operationId, path, initial.size, 0, initial.size, signal);
+		try {
+			const initial = await this.#client!.read(operationId, path, { offset: 0, length: 0 }, signal);
+			return new OpfsSyncReadableBlob(this.#client!, operationId, path, initial.size, 0, initial.size, signal);
+		} catch (error) {
+			if (!this.#workerIsAvailable()) return null;
+			throw error;
+		}
 	}
 
 	async writeBlob(
@@ -56,7 +66,13 @@ export class OpfsSyncRepositoryBridge {
 		signal?: AbortSignal,
 	): Promise<boolean> {
 		if (!await this.available(directory)) return false;
-		const writer = await this.#client!.openWriter(operationId, path, signal);
+		let writer: OpfsSyncWriter;
+		try {
+			writer = await this.#client!.openWriter(operationId, path, signal);
+		} catch (error) {
+			if (!this.#workerIsAvailable()) return false;
+			throw error;
+		}
 		try {
 			for (let offset = 0; offset < blob.size; offset += MAXIMUM_OPFS_SYNC_CHUNK_BYTES) {
 				throwIfAborted(signal);
@@ -69,9 +85,12 @@ export class OpfsSyncRepositoryBridge {
 			await writer.close(signal);
 			return true;
 		} catch (error) {
-			try { await writer.abort(); } catch (cleanupError) {
-				throw new AggregateError([error, cleanupError], 'OPFS worker Blob write and cleanup both failed.');
-			}
+			let cleanupError: unknown = null;
+			try { await writer.abort(); } catch (failure) { cleanupError = failure; }
+			if (!this.#workerIsAvailable()) return false;
+			if (cleanupError !== null) throw new AggregateError(
+				[error, cleanupError], 'OPFS worker Blob write and cleanup both failed.',
+			);
 			throw error;
 		}
 	}
@@ -93,17 +112,26 @@ export class OpfsSyncRepositoryBridge {
 
 	async remove(directory: FileSystemDirectoryHandle, path: string): Promise<boolean> {
 		if (!await this.available(directory)) return false;
-		await this.#client!.remove(path);
-		return true;
+		try {
+			await this.#client!.remove(path);
+			return true;
+		} catch (error) {
+			if (!this.#workerIsAvailable()) return false;
+			throw error;
+		}
 	}
 
-	available(directory: FileSystemDirectoryHandle): Promise<boolean> {
-		if (!this.#client) return Promise.resolve(false);
-		this.#availability ??= this.#client.initialize(directory);
-		return this.#availability;
+	async available(directory: FileSystemDirectoryHandle): Promise<boolean> {
+		if (!this.#client) return false;
+		this.#availability ??= this.#client.initialize(directory).catch(() => false);
+		return await this.#availability && this.#workerIsAvailable();
 	}
 
 	close(): void { this.#client?.close(); }
+
+	#workerIsAvailable(): boolean {
+		return this.#client?.isAvailable?.() ?? true;
+	}
 }
 
 class OpfsSyncReadableBlob implements BlobLike {

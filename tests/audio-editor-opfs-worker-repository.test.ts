@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { crc32, PCM_ENCODING_RAW_F32LE } from '../src/common/editor/wavpack/index.js';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
+import { OpfsSyncRepositoryBridge } from '../src/common/editor/storage/opfs-sync-repository-bridge.ts';
 import { syncPcmWriter } from '../src/common/editor/storage/opfs-sync-writer-adapters.ts';
 import type {
 	OpfsSyncReadResult,
@@ -200,6 +201,42 @@ test('OPFS repository preserves the asynchronous correctness path when the worke
 	assert.equal(await blobText(await repository.loadBinaryRecord(
 		{ storage: 'opfs', path: storedFile.path }, 'missing',
 	)), 'fallback');
+});
+
+test('OPFS bridge degrades every operation after its initialized worker fails', async () => {
+	const directory = {} as FileSystemDirectoryHandle;
+	for (const operation of ['snapshot', 'readable', 'write', 'remove'] as const) {
+		let available = true;
+		const failure = new Error(`${operation} worker failed`);
+		const client: OpfsSyncStoragePort & { isAvailable(): boolean } = {
+			async initialize() { return true; },
+			isAvailable() { return available; },
+			async read() { available = false; throw failure; },
+			async snapshot() { available = false; throw failure; },
+			async openWriter() {
+				return {
+					async write() { available = false; throw failure; },
+					async close() {},
+					async abort() {},
+				};
+			},
+			async remove() { available = false; throw failure; },
+			close() {},
+		};
+		const bridge = new OpfsSyncRepositoryBridge({ client });
+		if (operation === 'snapshot') {
+			assert.equal(await bridge.snapshot(directory, 'media-asset-chunk-read', 'body'), null);
+		} else if (operation === 'readable') {
+			assert.equal(await bridge.readable(directory, 'media-asset-chunk-read', 'body'), null);
+		} else if (operation === 'write') {
+			assert.equal(await bridge.writeBlob(
+				directory, 'media-asset-chunk-write', 'body', new Blob(['body']),
+			), false);
+		} else {
+			assert.equal(await bridge.remove(directory, 'body'), false);
+		}
+		assert.equal(await bridge.available(directory), false);
+	}
 });
 
 test('PCM writer abort remains available after container close fails', async () => {
