@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import { evaluateQualityBudget } from '../quality-budget-evaluator.mjs';
@@ -78,6 +78,7 @@ const QUALIFICATION_FIELDS = Object.freeze([
 ]);
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SOURCE_REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u;
+const MATRIX_CELL_ID = /^[a-z0-9][a-z0-9-]{0,127}$/u;
 const RENDERER_CLASSES = Object.freeze(['hardware', 'software', 'unknown']);
 const RELEASE_BLOCKING_SEVERITIES = new Set(['critical', 'high', 'unclassified']);
 
@@ -107,6 +108,7 @@ export function validateM9SoakRawEvidence(value, specValue, authorityContext) {
 		throw new Error('M9 source revision or budget digest is invalid.');
 	}
 	boundedString(raw.matrixCellId, 1, 128, 'M9 matrixCellId');
+	if (!MATRIX_CELL_ID.test(raw.matrixCellId)) throw new Error('M9 matrixCellId is invalid.');
 	if (!RENDERER_CLASSES.includes(raw.rendererClass)) throw new Error('M9 renderer class is invalid.');
 	const fingerprint = validateFingerprint(raw.environmentFingerprint);
 	const fixture = generateM9SoakFixture(spec, raw.mode);
@@ -330,7 +332,9 @@ export async function writeM9SoakEvidence(outputDirectoryValue, values, contextV
 		throw new Error('A single M9 run can publish contract evidence only.');
 	}
 	const suffix = values.length === 1 ? 'contract-only' : 'cohort.accepted';
-	const path = join(outputDirectory, `${evidence.matrixCellId}.${suffix}.json`);
+	const fileName = `${evidence.matrixCellId}.${suffix}.json`;
+	if (basename(fileName) !== fileName) throw new Error('M9 evidence filename is invalid.');
+	const path = join(outputDirectory, fileName);
 	const bytes = Buffer.from(`${JSON.stringify(evidence, null, '\t')}\n`, 'utf8');
 	await mkdir(outputDirectory, { recursive: true });
 	await writeFile(path, bytes, { flag: 'wx' });

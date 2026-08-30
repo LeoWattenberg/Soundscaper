@@ -72,6 +72,16 @@ test('qualification evidence is closed, wall-clock, no-retry, and summary-free',
 	}
 });
 
+test('matrix cell identifiers cannot escape the evidence output directory', () => {
+	const context = qualificationContext();
+	const raw = rawEvidence('contract', null, context);
+	raw.matrixCellId = '../outside';
+	assert.throws(
+		() => validateM9SoakRawEvidence(raw, SPEC),
+		/matrixCellId/iu,
+	);
+});
+
 test('the short mode exercises the contract without publishing qualification', () => {
 	const context = qualificationContext();
 	const raw = rawEvidence('contract', null, context);
