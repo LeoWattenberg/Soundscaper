@@ -18,6 +18,7 @@
 #include <array>
 #include <cerrno>
 #include <climits>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -59,6 +60,25 @@ struct Request {
 	char **childArgv = nullptr;
 };
 struct FileIdentity { uint64_t device = 0u, inode = 0u, size = 0u; };
+
+[[noreturn]] void nativeFailure(const char *stage, int code)
+{
+	std::array<char, 128> message{};
+	const auto boundedCode = static_cast<unsigned int>(code > 0 ? code : 1);
+	const int length = std::snprintf(message.data(), message.size(),
+		"M5_NATIVE_ISOLATION_FAILURE_V1 macos %s %u\n", stage, boundedCode);
+	if (length > 0 && static_cast<size_t>(length) < message.size()) {
+		size_t offset = 0u;
+		while (offset < static_cast<size_t>(length)) {
+			const ssize_t written = write(STDERR_FILENO, message.data() + offset,
+				static_cast<size_t>(length) - offset);
+			if (written > 0) { offset += static_cast<size_t>(written); continue; }
+			if (written < 0 && errno == EINTR) continue;
+			break;
+		}
+	}
+	_exit(125);
+}
 
 bool singleton(const char *value, const char *prefix, int &output)
 {
@@ -391,6 +411,5 @@ int main(int argc, char **argv)
 	(void)close(policyPipe[0]); (void)close(policyPipe[1]);
 	(void)close(attestationSource); (void)close(policySource);
 	if (extraInputSource >= 0) (void)close(extraInputSource);
-	(void)status;
-	return 125;
+	nativeFailure("posix-spawn", status);
 }
