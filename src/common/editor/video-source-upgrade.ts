@@ -6,6 +6,10 @@ import {
 	type VideoSourceCharacteristics,
 } from './video-source-characteristics.ts';
 import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
+import {
+	normalizeVideoSourceCharacteristicsV25,
+	type VideoSourceCharacteristicsV25,
+} from './video-source-professional-characteristics-v25.ts';
 import { normalizeVideoTimingAssetReference } from './video-timing-asset-reference.ts';
 import type { ResolvedVideoTimingProbe } from './video-timing-probe.ts';
 
@@ -258,9 +262,31 @@ function upgradeCharacteristics(
 		source.characteristics ?? null,
 		{ rate },
 	);
-	return sameValue(reading, historicalCharacteristicsProjection(existing, rate))
-		? existing
-		: reading;
+	if (sameValue(reading, historicalCharacteristicsProjection(existing, rate))) return existing;
+	if (!Object.hasOwn(existing, 'bitDepth')) return reading;
+	return preserveProfessionalCharacteristics(reading, existing, rate);
+}
+
+function preserveProfessionalCharacteristics(
+	reading: VideoSourceCharacteristics,
+	existing: VideoSourceCharacteristics,
+	rate: RationalRate,
+): VideoSourceCharacteristicsV25 {
+	const professional = normalizeVideoSourceCharacteristicsV25(existing, { rate });
+	const preserveAlpha = reading.hasAlpha !== false;
+	return normalizeVideoSourceCharacteristicsV25({
+		...reading,
+		bitDepth: professional.bitDepth,
+		pixelFormat: professional.pixelFormat,
+		chromaFormat: professional.chromaFormat,
+		alphaMode: preserveAlpha ? professional.alphaMode : null,
+		alphaInterpretation: preserveAlpha ? professional.alphaInterpretation : null,
+		colour: {
+			...reading.colour,
+			masteringDisplay: professional.colour.masteringDisplay,
+			contentLight: professional.colour.contentLight,
+		},
+	}, { rate });
 }
 
 /** Compare V14 probe output with only the inherited fields of the in-place V25 extension. */

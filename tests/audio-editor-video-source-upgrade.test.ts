@@ -316,6 +316,55 @@ test('an agreeing historical probe preserves the source\'s V25 professional fact
 	assert.equal(plan.upgraded, false);
 });
 
+test('a corrected probe-owned field preserves V25 facts the probe cannot report', () => {
+	const asset = timing(240);
+	const professional = normalizeVideoSourceCharacteristicsV25({
+		backend: 'framescaper-media-host',
+		codedWidth: 1_920,
+		codedHeight: 1_080,
+		hasAlpha: true,
+		bitDepth: 10,
+		pixelFormat: 'yuva420p10le',
+		chromaFormat: '4:2:0',
+		alphaMode: 'straight',
+		alphaInterpretation: 'transparency',
+		colour: {
+			primaries: 'bt2020', transfer: 'smpte2084', matrix: 'bt2020nc', range: 'limited',
+			contentLight: {
+				maximumContentLightLevel: 1_000,
+				maximumFrameAverageLightLevel: 400,
+			},
+		},
+	}, { rate: EXACT_RATE });
+	const source = unprobedSource({
+		frameRate: EXACT_RATE,
+		sourceFrameCount: 240,
+		timingAsset: asset.reference,
+		timingDecision: { mode: 'exact', rate: EXACT_RATE, backend: 'framescaper-media-host' },
+		characteristics: professional,
+		hasAudio: false,
+		audioCodec: null,
+	});
+	const { probe: exact, reference } = probe(240, {
+		backend: 'ffmpeg',
+		codedWidth: 2_048,
+		codedHeight: 1_080,
+		hasAlpha: true,
+		colour: { primaries: 'bt2020', transfer: 'smpte2084', matrix: 'bt2020nc', range: 'limited' },
+	});
+	const plan = planVideoSourceUpgrade({ source, probe: exact, timingAsset: reference });
+	const updated = plan.changes.characteristics as typeof professional;
+
+	assert.equal(updated.codedWidth, 2_048);
+	assert.equal(updated.backend, 'ffmpeg');
+	assert.equal(updated.bitDepth, 10);
+	assert.equal(updated.pixelFormat, 'yuva420p10le');
+	assert.equal(updated.chromaFormat, '4:2:0');
+	assert.equal(updated.alphaMode, 'straight');
+	assert.equal(updated.alphaInterpretation, 'transparency');
+	assert.deepEqual(updated.colour.contentLight, professional.colour.contentLight);
+});
+
 test('a corrected coded size and this engine\'s presented size both land', () => {
 	// The older probe read autorotated frames, so a rotated source persisted its
 	// presented size as its coded size; the document was also written by an
