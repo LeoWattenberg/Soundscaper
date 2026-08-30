@@ -8,6 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
+	createSquareOfflineIconSvg,
 	generateOfflineApplicationShell,
 	MAXIMUM_INSTALL_ASSET_BYTES,
 	MAXIMUM_INSTALL_ASSET_COUNT,
@@ -16,6 +17,16 @@ import {
 test('each product install core retains the approved request and byte ceilings', () => {
 	assert.equal(MAXIMUM_INSTALL_ASSET_COUNT, 128);
 	assert.equal(MAXIMUM_INSTALL_ASSET_BYTES, 8 * 1024 * 1024);
+});
+
+test('offline icon geometry rewrites only exact root SVG attributes', () => {
+	const source = '<svg stroke-width="2" data-width="3" width="10" height="5" viewBox="0 0 10 5"></svg>';
+	const square = createSquareOfflineIconSvg(source, 512, 'fixture.svg');
+	assert.match(square, /stroke-width="2"/u);
+	assert.match(square, /data-width="3"/u);
+	assert.match(square, /\swidth="512"/u);
+	assert.match(square, /\sheight="512"/u);
+	assert.match(square, /viewBox="0 -2\.5 10 10"/u);
 });
 
 test('offline shell generation inventories exact route URLs and emits installable product manifests', async (context) => {

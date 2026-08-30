@@ -305,20 +305,7 @@ async function generateProductArtifacts({ outputRoot, repositoryRoot, routing })
 
 async function renderSquarePng(sourcePath, size) {
 	const source = await readFile(sourcePath, 'utf8');
-	const rootTag = source.match(/<svg\b[^>]*>/u)?.[0];
-	const viewBox = rootTag?.match(/\bviewBox="([^"]+)"/u)?.[1]
-		?.trim().split(/\s+/u).map(Number);
-	if (!rootTag || viewBox?.length !== 4 || viewBox.some((value) => !Number.isFinite(value))) {
-		throw new Error(`Offline icon source has no finite SVG viewBox: ${sourcePath}`);
-	}
-	const [x, y, width, height] = viewBox;
-	const side = Math.max(width, height);
-	const squareViewBox = [x - ((side - width) / 2), y - ((side - height) / 2), side, side].join(' ');
-	const squareRoot = rootTag
-		.replace(/\bwidth="[^"]*"/u, `width="${String(size)}"`)
-		.replace(/\bheight="[^"]*"/u, `height="${String(size)}"`)
-		.replace(/\bviewBox="[^"]*"/u, `viewBox="${squareViewBox}"`);
-	const squareSource = source.replace(/<text\b[\s\S]*?<\/text>/gu, '').replace(rootTag, squareRoot);
+	const squareSource = createSquareOfflineIconSvg(source, size, sourcePath);
 	const rendered = new Resvg(squareSource, {
 		fitTo: { mode: 'width', value: size },
 		font: { loadSystemFonts: false },
@@ -327,6 +314,23 @@ async function renderSquarePng(sourcePath, size) {
 		throw new Error(`Offline icon raster is ${rendered.width}x${rendered.height}; expected ${size}x${size}.`);
 	}
 	return rendered.asPng();
+}
+
+export function createSquareOfflineIconSvg(source, size, sourcePath = 'offline icon source') {
+	const rootTag = source.match(/<svg\b[^>]*>/u)?.[0];
+	const viewBox = rootTag?.match(/(?:^|\s)viewBox="([^"]+)"/u)?.[1]
+		?.trim().split(/\s+/u).map(Number);
+	if (!rootTag || viewBox?.length !== 4 || viewBox.some((value) => !Number.isFinite(value))) {
+		throw new Error(`Offline icon source has no finite SVG viewBox: ${sourcePath}`);
+	}
+	const [x, y, width, height] = viewBox;
+	const side = Math.max(width, height);
+	const squareViewBox = [x - ((side - width) / 2), y - ((side - height) / 2), side, side].join(' ');
+	const squareRoot = rootTag
+		.replace(/(^|\s)width="[^"]*"/u, (_match, separator) => `${separator}width="${String(size)}"`)
+		.replace(/(^|\s)height="[^"]*"/u, (_match, separator) => `${separator}height="${String(size)}"`)
+		.replace(/(^|\s)viewBox="[^"]*"/u, (_match, separator) => `${separator}viewBox="${squareViewBox}"`);
+	return source.replace(/<text\b[\s\S]*?<\/text>/gu, '').replace(rootTag, squareRoot);
 }
 
 async function walk(directory) {
