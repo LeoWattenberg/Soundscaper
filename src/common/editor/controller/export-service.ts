@@ -330,9 +330,13 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 					destination: pendingDirectDestination as DirectPcmDestination, plan, signal: abort.signal,
 					assertCurrent: assertExportCurrent,
 					async renderStem(output, index) {
-						const snapshot = stemProject(exportProject, output.trackId);
+						const renderOutput = plan.outputs[index];
+						if (!renderOutput || renderOutput.trackId !== output.trackId) {
+							throw new Error('The direct stem archive output changed before rendering.');
+						}
+						const snapshot = stemProject(exportProject, renderOutput.trackId);
 						const encoded = await renderAndEncode(
-							snapshot, plan, settings, abort.signal, exportRenderSources, output, {
+							snapshot, plan, settings, abort.signal, exportRenderSources, renderOutput, {
 								start: index / plan.outputs.length,
 								end: (index + 1) / plan.outputs.length,
 							}, null, null, assertExportCurrent,

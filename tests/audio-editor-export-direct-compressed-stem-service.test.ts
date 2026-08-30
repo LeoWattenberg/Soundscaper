@@ -45,6 +45,19 @@ test('all canonical realtime compressed stem formats publish their final ZIP dir
 	}
 });
 
+test('direct stem rendering retains the canonical stem routing options', async () => {
+	const fixture = serviceFixture();
+	await fixture.service.handleExportAction('export', fixture.requestedSettings);
+	assert.deepEqual(
+		fixture.renderTargets.map(({ trackId, includeMaster, respectMuteSolo }) => ({
+			trackId, includeMaster, respectMuteSolo,
+		})),
+		fixture.plan.outputs.map(({ trackId }) => ({
+			trackId, includeMaster: false, respectMuteSolo: false,
+		})),
+	);
+});
+
 test('all centrally admitted offline compressed stem formats publish their final ZIP directly', async () => {
 	for (const entry of FORMAT_CASES) {
 		const plan = actualPlan(entry.format, {
@@ -293,6 +306,7 @@ function serviceFixture(options: FixtureOptions = {}) {
 	const downloads: Array<Readonly<Record<string, unknown>>> = [];
 	const ffmpegFormats: string[] = [];
 	const ffmpegSettings: Array<Readonly<Record<string, unknown>>> = [];
+	const renderTargets: Array<Readonly<Record<string, unknown>>> = [];
 	const stagedChannels: Array<readonly Float32Array[]> = [];
 	const bodies = options.encodedBodies ?? [Uint8Array.of(1, 2, 3), Uint8Array.of(4, 5, 6, 7, 8)];
 	const project = projectFixture(Number(plan.encoding.inputChannelCount), Number(plan.outputFrames));
@@ -334,6 +348,7 @@ function serviceFixture(options: FixtureOptions = {}) {
 				loadProject: () => undefined,
 				async renderMixRealtime(renderOptions: Readonly<Record<string, unknown>>) {
 					events.push(`render:${String(index)}`);
+					renderTargets.push(renderOptions);
 					assert.equal(retained, 0, 'the preceding encoded stem must be cleaned before the next render');
 					if (options.failure === 'render' && index === 0) throw new Error('render failed');
 					const onChunk = renderOptions.onChunk as (
@@ -505,7 +520,7 @@ function serviceFixture(options: FixtureOptions = {}) {
 	return {
 		downloads, errors, events, ffmpegFormats, ffmpegSettings, mappingCalls: () => mappingCalls,
 		maximumRetained: () => maximumRetained, plan, preflights, requestedSettings,
-		retained: () => retained, runtime, service, stagedChannels, state, statuses, target,
+		renderTargets, retained: () => retained, runtime, service, stagedChannels, state, statuses, target,
 	};
 }
 
