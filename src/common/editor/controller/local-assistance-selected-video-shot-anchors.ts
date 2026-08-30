@@ -42,20 +42,21 @@ export function readLocalAssistanceSelectedVideoShotAnchorFrames(
 		const match = SHOT_ID.exec(annotation.id);
 		if (!match || annotation.batchId !== `assistance-shot-batch:${match[1]!}`
 			|| annotation.kind !== 'marker' || annotation.anchor !== 'sample'
-			|| annotation.sequenceId !== request.fence.sequenceId) {
+			|| typeof annotation.sequenceId !== 'string') {
 			throw new TypeError('An accepted assistance shot marker lost its exact identity.');
 		}
+		if (annotation.sequenceId !== request.fence.sequenceId) continue;
 		const extensions = record(annotation.opaqueExtensions);
 		const extension = record(extensions?.[EXTENSION_KEY]);
 		if (!extension || !exactFields(extension, EXTENSION_FIELDS)) {
 			throw new TypeError('An accepted assistance shot marker lost its owned authority.');
 		}
+		if (extension.sourceId !== request.fence.sourceId
+			|| extension.sourceSha256 !== request.fence.sourceSha256) continue;
 		const sourceFrame = integer(extension.sourceFrame, 0, 'shot-anchor source frame');
 		if (match[2] !== String(sourceFrame) || extension.schemaVersion !== 1
 			|| extension.operation !== 'shot-detection'
 			|| (extension.detector !== 'ffmpeg-scdet' && extension.detector !== 'transnetv2')
-			|| extension.sourceId !== request.fence.sourceId
-			|| extension.sourceSha256 !== request.fence.sourceSha256
 			|| extension.sourceStartFrame !== request.sourceStartFrame
 			|| extension.sourceEndFrame !== request.sourceEndFrame
 			|| extension.timingAuthoritySha256 !== request.fence.timingAuthoritySha256

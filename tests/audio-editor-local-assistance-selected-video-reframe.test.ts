@@ -324,6 +324,26 @@ test('selected-video Reframe rejects stale shot timing and propagates cancellati
 	assert.equal(storeReads, 0);
 });
 
+test('selected-video Reframe ignores accepted shot markers owned by another occurrence', async () => {
+	const accepted = withAcceptedShotAnchor(baseProject(), 25);
+	const marker = accepted.timelineAnnotations[0]!;
+	const extension = (marker.opaqueExtensions as Record<string, Record<string, unknown>>)[
+		'org.soundscaper.assistance-shot-boundaries-v1'
+	]!;
+	const project = { ...accepted, timelineAnnotations: [
+		{ ...marker, sequenceId: 'other-sequence' },
+		{ ...marker, opaqueExtensions: { 'org.soundscaper.assistance-shot-boundaries-v1': {
+			...extension, sourceId: 'other-source', sourceSha256: 'ef'.repeat(32),
+		} } },
+		marker,
+	] };
+	const requests: VisualRequest[] = [];
+	await fixture(project, requests).prepareSelectedMedia({
+		sourceId: 'video-source', operation: 'subject-detection',
+	});
+	assert.equal(requests[0]?.timing.frames.some(({ sourceFrame }) => sourceFrame === 25), true);
+});
+
 interface VisualRequest {
 	readonly sourceWidth: number;
 	readonly sourceHeight: number;
