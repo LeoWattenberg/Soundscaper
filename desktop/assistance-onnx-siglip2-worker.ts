@@ -94,8 +94,10 @@ async function embedFramesAndTagPrototypes(
 ): Promise<readonly Float32Array[]> {
 	const frames = await embedFrames(context, runtime, visionModelPath);
 	context.signal?.throwIfAborted();
+	const frameBatchCount = Math.ceil(frames.length / IMAGE_BATCH);
+	const prototypeProgress = Math.max(0.95, frameBatchCount / (frameBatchCount + 1));
 	const prototypes = await embedTexts(context, runtime, textModelPath, tokenizerPath,
-		ASSISTANCE_VISUAL_TAG_PROMPTS_V1.map(({ text }) => text), 0.95);
+		ASSISTANCE_VISUAL_TAG_PROMPTS_V1.map(({ text }) => text), prototypeProgress);
 	return Object.freeze([...frames, ...prototypes]);
 }
 

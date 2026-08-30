@@ -101,6 +101,41 @@ test('SigLIP2 embeds VFR-ordered frame packs with exact CPU graph tensors', asyn
 	assert.equal(matrix.vector(2)[10], 1);
 });
 
+test('SigLIP2 frame and prototype progress remains monotonic beyond twenty batches', async (context) => {
+	const value = await fixture(context, {
+		task: 'image-text-embedding', operation: 'image-text-embedding', inputRole: 'frame-pack',
+		inputMediaType: 'application/vnd.soundscaper.frame-pack',
+		inputBody: visualFramePack(77, 2, 1, 2, 1),
+		outputRole: 'embeddings',
+		outputMediaType: 'application/vnd.soundscaper.embedding-matrix-v1',
+		artifacts: siglipArtifacts(),
+	});
+	const runtime = fakeRuntime((path) => basename(path) === 'vision_model_int8.onnx'
+		? session(['pixel_values'], ['last_hidden_state', 'pooler_output'], async (feeds) => {
+			const count = feeds.pixel_values!.dims[0]!;
+			const pooled = new Float32Array(count * 768);
+			for (let row = 0; row < count; row += 1) pooled[row * 768] = 1;
+			return {
+				last_hidden_state: tensor('float32', new Float32Array(count * 196 * 768),
+					[count, 196, 768]),
+				pooler_output: tensor('float32', pooled, [count, 768]),
+			};
+		})
+		: session(['input_ids'], ['last_hidden_state', 'pooler_output'], async () => {
+			const count = ASSISTANCE_VISUAL_TAG_PROMPTS_V1.length;
+			const pooled = new Float32Array(count * 768);
+			for (let row = 0; row < count; row += 1) pooled[row * 768] = 1;
+			return {
+				last_hidden_state: tensor('float32', new Float32Array(count * 64 * 768),
+					[count, 64, 768]),
+				pooler_output: tensor('float32', pooled, [count, 768]),
+			};
+		}));
+	const progress: number[] = [];
+	await run(value, runtime, (value) => progress.push(value));
+	assert.ok(progress.every((value, index) => index === 0 || value >= progress[index - 1]!));
+});
+
 test('SigLIP2 executes its pinned byte-fallback BPE and text-only graph signature', async (context) => {
 	const tokenizer = JSON.stringify(tokenizerFixture());
 	const value = await fixture(context, {
@@ -270,8 +305,13 @@ async function fixture(context: TestContext, options: WorkerFixtureOptions) {
 				byteLength: 1, sha256: '4'.repeat(64), executable: false }]) }) }) };
 }
 
-async function run(value: Awaited<ReturnType<typeof fixture>>, runtime: AssistanceOnnxRuntimeModuleV1) {
+async function run(
+	value: Awaited<ReturnType<typeof fixture>>,
+	runtime: AssistanceOnnxRuntimeModuleV1,
+	onProgress?: (value: number) => void,
+) {
 	return runAssistanceRuntimeFamilyWorkerJobV1({ job: value.job,
+		onProgress,
 		execute: createAssistanceOnnxRuntimeWorkerAdapterV1({ loadRuntime: async () => runtime }) });
 }
 
