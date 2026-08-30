@@ -74,22 +74,68 @@ test('browser container audio decode rejects output beyond its bound and observe
 	assert.equal(abortDisposed, true);
 });
 
-function sample(timestamp: number, channels: readonly (readonly number[])[]): BrowserContainerAudioSample & {
+test('browser container audio decode trims millisecond timestamp jitter without duplicating samples', async () => {
+	const sampleRate = 44_100;
+	const first = sample(0, [Array.from({ length: 1_024 }, () => 1)], sampleRate);
+	const second = sample(0.023, [Array.from({ length: 1_024 }, (_, index) => index + 1_000)], sampleRate);
+	const decoded = await decodeBrowserContainerAudio(new Blob(['webm']), {
+		durationSeconds: 0.05,
+		openSession: async () => ({
+			timelineOrigin: 0,
+			sampleRate,
+			channelCount: 1,
+			async *samples() { yield first; yield second; },
+			dispose() {},
+		}),
+	});
+
+	assert.deepEqual(second.copies, [{ planeIndex: 0, frameOffset: 10, frameCount: 1_014 }]);
+	assert.deepEqual([...decoded.channels[0]!.slice(1_022, 1_026)], [1, 1, 1_010, 1_011]);
+	assert.equal(decoded.channels[0]![2_037], 2_023);
+	assert.equal(decoded.channels[0]![2_038], 0);
+	assert.equal(first.closed && second.closed, true);
+});
+
+test('browser container audio decode still rejects genuine timestamp overlap', async () => {
+	const sampleRate = 44_100;
+	const samples = [
+		sample(0, [new Array(1_024).fill(1)], sampleRate),
+		sample(0.02, [new Array(1_024).fill(2)], sampleRate),
+	];
+	await assert.rejects(() => decodeBrowserContainerAudio(new Blob(['webm']), {
+		durationSeconds: 0.05,
+		openSession: async () => ({
+			timelineOrigin: 0,
+			sampleRate,
+			channelCount: 1,
+			async *samples() { yield* samples; },
+			dispose() {},
+		}),
+	}), /samples overlap/iu);
+	assert.equal(samples.every(({ closed }) => closed), true);
+});
+
+function sample(timestamp: number, channels: readonly (readonly number[])[], sampleRate = 4): BrowserContainerAudioSample & {
 	closed: boolean;
 	afterCopy?: () => void;
+	copies: Array<{ planeIndex: number; frameOffset: number; frameCount: number }>;
 } {
 	return {
 		timestamp,
-		sampleRate: 4,
+		sampleRate,
 		numberOfFrames: channels[0]?.length ?? 0,
 		numberOfChannels: channels.length,
-		duration: (channels[0]?.length ?? 0) / 4,
+		duration: (channels[0]?.length ?? 0) / sampleRate,
 		closed: false,
+		copies: [],
 		copyTo(destination, options) {
 			assert.equal(options.format, 'f32-planar');
+			const frameOffset = options.frameOffset ?? 0;
+			const frameCount = options.frameCount ?? (channels[options.planeIndex]?.length ?? 0) - frameOffset;
+			this.copies.push({ planeIndex: options.planeIndex, frameOffset, frameCount });
 			new Float32Array(
 				destination.buffer, destination.byteOffset, destination.byteLength / Float32Array.BYTES_PER_ELEMENT,
-			).set(channels[options.planeIndex] ?? []);
+			).set((channels[options.planeIndex] ?? []).slice(frameOffset, frameOffset + frameCount));
 			this.afterCopy?.();
 		},
 		close() { this.closed = true; },

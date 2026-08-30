@@ -11,6 +11,7 @@ import { throwIfAborted } from './video-timing-demux-reader.ts';
 const DEFAULT_MAXIMUM_OUTPUT_BYTES = 128 * 1024 * 1024;
 const MAXIMUM_AUDIO_CHANNELS = 32;
 const MAXIMUM_SAMPLE_FRAMES = 65_536;
+const MAXIMUM_TIMESTAMP_JITTER_SECONDS = 0.001;
 
 export interface BrowserContainerAudioSample {
 	readonly timestamp: number;
@@ -91,15 +92,21 @@ export async function decodeBrowserContainerAudio(
 				if (!Number.isSafeInteger(rawStartFrame)) {
 					throw new RangeError('The container audio timestamp is outside the safe frame range.');
 				}
-				const frameOffset = Math.max(0, -rawStartFrame);
-				const startFrame = Math.max(0, rawStartFrame);
+				let frameOffset = Math.max(0, -rawStartFrame);
+				let startFrame = Math.max(0, rawStartFrame);
+				const overlapFrames = Math.max(0, previousEndFrame - startFrame);
+				if (overlapFrames > Math.ceil(session.sampleRate * MAXIMUM_TIMESTAMP_JITTER_SECONDS)) {
+					throw new RangeError('The container audio samples overlap or exceed the safe timeline.');
+				}
+				frameOffset += overlapFrames;
+				startFrame += overlapFrames;
 				const frameCount = Math.min(
 					sample.numberOfFrames - frameOffset,
 					targetFrameCount - startFrame,
 				);
 				if (frameCount <= 0) continue;
 				const nextEndFrame = startFrame + frameCount;
-				if (!Number.isSafeInteger(nextEndFrame) || startFrame < previousEndFrame) {
+				if (!Number.isSafeInteger(nextEndFrame)) {
 					throw new RangeError('The container audio samples overlap or exceed the safe timeline.');
 				}
 				for (let planeIndex = 0; planeIndex < session.channelCount; planeIndex += 1) {
