@@ -7,6 +7,8 @@ const MOMENTARY_SECONDS = 0.4;
 const SHORT_TERM_SECONDS = 3;
 const UPDATE_SECONDS = 0.1;
 const LRA_UPDATE_SECONDS = 0.1;
+const LOUDNESS_HISTOGRAM_RESOLUTION_LU = 0.1;
+const LOUDNESS_HISTOGRAM_MAXIMUM_LUFS = 800;
 
 // ITU-R BS.1770-5 Annex 2, 48-tap, four-phase interpolating FIR.
 const TRUE_PEAK_FIR = Object.freeze([
@@ -91,8 +93,8 @@ export function createEbuR128Meter(options = {}) {
 	const programmeWindow = createEnergyWindow(shortTermFrames, momentaryFrames);
 	const integratedWindow = createEnergyWindow(momentaryFrames, momentaryFrames);
 	const liveTruePeak = Array.from({ length: channelCount }, createTruePeakState);
-	const integratedBlocks = [];
-	const lraBlocks = [];
+	const integratedBlocks = createLoudnessHistogram();
+	const lraBlocks = createLoudnessHistogram();
 	let running = Boolean(options.running);
 	let liveFrames = 0;
 	let programmeFrames = 0;
@@ -202,10 +204,10 @@ export function createEbuR128Meter(options = {}) {
 				shortTermLufs: liveFrames >= shortTermFrames
 					? ebuEnergyToLufs(liveWindow.shortTermEnergy())
 					: null,
-				integratedLufs: calculateEbuIntegratedLufs(integratedBlocks),
+				integratedLufs: integratedBlocks.integratedLufs(),
 				maximumMomentaryLufs,
 				maximumShortTermLufs,
-				loudnessRangeLu: calculateEbuLoudnessRange(lraBlocks),
+				loudnessRangeLu: lraBlocks.loudnessRangeLu(),
 				loudnessRangeStable: programmeFrames >= sampleRate * 60,
 				truePeakDbtp: ebuAmplitudeToDb(truePeakAmplitude),
 				maximumTruePeakDbtp: programmeFrames ? ebuAmplitudeToDb(maximumTruePeak) : null,
@@ -223,8 +225,8 @@ export function createEbuR128Meter(options = {}) {
 	function reset() {
 		programmeWindow.reset();
 		integratedWindow.reset();
-		integratedBlocks.length = 0;
-		lraBlocks.length = 0;
+		integratedBlocks.reset();
+		lraBlocks.reset();
 		programmeFrames = 0;
 		nextProgrammeUpdate = updateFrames;
 		nextLraUpdate = shortTermFrames;
@@ -242,6 +244,93 @@ export function createEbuR128Meter(options = {}) {
 		get running() { return running; },
 	});
 	return api;
+}
+
+function createLoudnessHistogram() {
+	const binCount = Math.ceil((LOUDNESS_HISTOGRAM_MAXIMUM_LUFS - ABSOLUTE_GATE_LUFS)
+		/ LOUDNESS_HISTOGRAM_RESOLUTION_LU) + 1;
+	const counts = new Float64Array(binCount);
+	const energySums = new Float64Array(binCount);
+	let totalCount = 0;
+	let totalEnergy = 0;
+	let minimumIndex = binCount;
+	let maximumIndex = -1;
+
+	function push(energy) {
+		const loudness = ebuEnergyToLufs(energy);
+		if (!Number.isFinite(loudness) || loudness <= ABSOLUTE_GATE_LUFS) return;
+		const index = Math.min(binCount - 1, Math.max(0, Math.floor(
+			(loudness - ABSOLUTE_GATE_LUFS) / LOUDNESS_HISTOGRAM_RESOLUTION_LU,
+		)));
+		counts[index] += 1;
+		energySums[index] += energy;
+		totalCount += 1;
+		totalEnergy += energy;
+		minimumIndex = Math.min(minimumIndex, index);
+		maximumIndex = Math.max(maximumIndex, index);
+	}
+
+	function gated(relativeOffset) {
+		if (totalCount === 0) return null;
+		const relativeGate = ebuEnergyToLufs(totalEnergy / totalCount) - relativeOffset;
+		let count = 0;
+		let energy = 0;
+		let firstIndex = maximumIndex + 1;
+		for (let index = minimumIndex; index <= maximumIndex; index += 1) {
+			if (binLoudness(index) <= relativeGate || counts[index] === 0) continue;
+			firstIndex = Math.min(firstIndex, index);
+			count += counts[index];
+			energy += energySums[index];
+		}
+		return { count, energy, firstIndex };
+	}
+
+	function integratedLufs() {
+		const selected = gated(10);
+		return selected !== null && selected.count > 0
+			? ebuEnergyToLufs(selected.energy / selected.count)
+			: null;
+	}
+
+	function loudnessRangeLu() {
+		const selected = gated(20);
+		if (selected === null || selected.count < 2) return null;
+		return percentileLoudness(selected, 0.95) - percentileLoudness(selected, 0.1);
+	}
+
+	function percentileLoudness(selected, fraction) {
+		const position = (selected.count - 1) * fraction;
+		const lower = Math.floor(position);
+		const upper = Math.ceil(position);
+		const lowerValue = loudnessAtRank(selected, lower);
+		if (lower === upper) return lowerValue;
+		const upperValue = loudnessAtRank(selected, upper);
+		return lowerValue + (upperValue - lowerValue) * (position - lower);
+	}
+
+	function loudnessAtRank(selected, rank) {
+		let visited = 0;
+		for (let index = selected.firstIndex; index <= maximumIndex; index += 1) {
+			visited += counts[index];
+			if (visited > rank) return binLoudness(index);
+		}
+		return binLoudness(maximumIndex);
+	}
+
+	function reset() {
+		counts.fill(0);
+		energySums.fill(0);
+		totalCount = 0;
+		totalEnergy = 0;
+		minimumIndex = binCount;
+		maximumIndex = -1;
+	}
+
+	return Object.freeze({ push, integratedLufs, loudnessRangeLu, reset });
+}
+
+function binLoudness(index) {
+	return ABSOLUTE_GATE_LUFS + (index + 0.5) * LOUDNESS_HISTOGRAM_RESOLUTION_LU;
 }
 
 function createEnergyWindow(capacity, momentaryFrames) {

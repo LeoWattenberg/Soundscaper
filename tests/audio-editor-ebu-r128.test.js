@@ -196,6 +196,21 @@ test('silence, mono/stereo summation, sample-rate variation, telemetry cadence, 
 	assert.equal(longMeter.snapshot().loudness.loudnessRangeStable, true);
 });
 
+test('realtime snapshots do not filter or sort the programme block history', () => {
+	const meter = createEbuR128Meter({ sampleRate: 16_000, channelCount: 1, running: true });
+	meter.push([new Float32Array(16_000).fill(0.1)]);
+	const filter = Array.prototype.filter;
+	const sort = Array.prototype.sort;
+	Array.prototype.filter = () => { throw new Error('snapshot filtered programme history'); };
+	Array.prototype.sort = () => { throw new Error('snapshot sorted programme history'); };
+	try {
+		assert.ok(Number.isFinite(meter.snapshot().loudness.integratedLufs));
+	} finally {
+		Array.prototype.filter = filter;
+		Array.prototype.sort = sort;
+	}
+});
+
 test('AudioWorklet processing is transparent and emits meter telemetry at 10 Hz', async () => {
 	const previousBase = globalThis.AudioWorkletProcessor;
 	const previousRegister = globalThis.registerProcessor;
