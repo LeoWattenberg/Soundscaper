@@ -13,6 +13,7 @@ import {
 	resolveNativeIsolationReviewPublicKey,
 	validateNativeIsolationReviewPolicy,
 } from '../../desktop/native-isolation-review-policy.mjs';
+import { compareCodeUnits } from './canonical-json.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
 import { listNativeSourceTree } from './native-source-tree.mjs';
 
@@ -472,7 +473,7 @@ function auditBuiltTarget(repositoryRoot, id, target) {
 	const runtimePaths = Array.isArray(isolation?.runtimeLibraryPayloads)
 		? isolation.runtimeLibraryPayloads.map(({ path }) => path) : [];
 	if (runtimePaths.some((path, index) => index > 0
-		&& runtimePaths[index - 1].localeCompare(path, 'en') >= 0)) {
+		&& compareCodeUnits(runtimePaths[index - 1], path) >= 0)) {
 		findings.push(`OpenFX target ${id} runtime libraries are not uniquely ordered.`);
 	}
 	if (id.startsWith('linux-') && runtimePaths.filter((path) => (

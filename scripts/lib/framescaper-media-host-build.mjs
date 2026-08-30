@@ -12,7 +12,7 @@ import {
 } from './boost-header-closure.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
 import { listNativeSourceTree } from './native-source-tree.mjs';
-import { canonicalJson } from './canonical-json.mjs';
+import { canonicalJson, compareCodeUnits } from './canonical-json.mjs';
 
 export { canonicalJson };
 
@@ -406,7 +406,7 @@ function auditIsolationPayload(root, targetId, value) {
 	];
 	const libraryPaths = value.runtimeLibraryPayloads.map(({ path }) => path);
 	if (libraryPaths.some((path, index) => index > 0
-		&& libraryPaths[index - 1].localeCompare(path, 'en') >= 0)) {
+		&& compareCodeUnits(libraryPaths[index - 1], path) >= 0)) {
 		findings.push(`${targetId}: media-host runtime libraries are not uniquely ordered.`);
 	}
 	for (const [descriptor, expectedPath] of declarations) {
