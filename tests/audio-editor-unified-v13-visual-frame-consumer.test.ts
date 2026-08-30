@@ -118,6 +118,24 @@ test('visual execution honors exact track visibility and fresh video freeze auth
 		.resolveFrame({ sequencePosition: 2 });
 	assert.deepEqual(frozenFrame.activeFreezeNodeIds, ['render:visual:video-freeze:video-source']);
 	assert.ok(frozenFrame.ledger.consumedNodeIds.includes('render:visual:video-freeze:video-source'));
+
+	const staleFreshness = visualFreshness(
+		framescaperProjectVisualFoundationFinishing(PROFILE, frozenProject),
+	);
+	const freezeFreshness = staleFreshness.get('video-freeze:video-source');
+	assert.ok(freezeFreshness);
+	staleFreshness.set('video-freeze:video-source', {
+		...freezeFreshness, inputIdentitiesSha256: '34'.repeat(32),
+	});
+	const bypassPlan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, frozenProject, {
+		...renderAuthority(frozenProject as unknown as Readonly<Record<string, unknown>>, 30),
+		visualFreshnessByModelId: staleFreshness,
+	});
+	const bypassFrame = createUnifiedExactRenderVisualPreviewConsumerV13(bypassPlan)
+		.resolveFrame({ sequencePosition: 2 });
+	assert.deepEqual(bypassFrame.activeFreezeNodeIds, []);
+	assert.ok(bypassFrame.ledger.consumedNodeIds.includes('render:visual:video-freeze:video-source'));
+	assert.deepEqual(bypassFrame.ledger.omittedNodeIds, []);
 });
 
 test('all built-in generator families and still decode materialize deterministic pixels', async () => {

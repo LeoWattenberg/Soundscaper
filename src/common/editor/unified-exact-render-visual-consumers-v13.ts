@@ -190,6 +190,10 @@ function resolveFrame(
 		if (node.modelKind !== 'video-freeze' || !('renderedSourceId' in node.authoredState)
 			|| !activeSourceIds.has(node.authoredState.renderedSourceId)) return [];
 		requested.add(node.nodeId);
+		if (node.fallbackDisposition?.mode === 'bypass') {
+			consumed.add(node.nodeId);
+			return [];
+		}
 		if (node.fallbackDisposition?.mode !== 'frozen' || node.frozenFallback === null) return [];
 		consumed.add(node.nodeId);
 		return [node.nodeId];
