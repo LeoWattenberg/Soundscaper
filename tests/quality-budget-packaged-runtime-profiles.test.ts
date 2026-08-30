@@ -19,6 +19,7 @@ interface QualificationProfile {
 	readonly environmentId: string;
 	readonly fingerprint?: Readonly<Record<string, string | number | null>>;
 	readonly fixture?: Readonly<Record<string, unknown>>;
+	readonly fixtureId?: string;
 	readonly observationClass?: string;
 	readonly observedEnvironmentId?: string;
 	readonly profile?: string;
@@ -30,11 +31,34 @@ interface QualificationProfile {
 
 interface QualificationConfig {
 	readonly environments: readonly QualificationEnvironment[];
+	readonly fixtures: readonly Readonly<{
+		readonly id: string;
+		readonly specification: Readonly<Record<string, unknown>>;
+	}>[];
 	readonly packagedRuntimeQualification: Readonly<{
 		readonly profiles: readonly QualificationProfile[];
 		readonly status: string;
 	}>;
 }
+
+test('packaged-runtime fixture profiles stay aligned with their registered specifications', async () => {
+	const config = JSON.parse(await readFile(
+		new URL('../config/quality-budgets.json', import.meta.url),
+		'utf8',
+	)) as QualificationConfig;
+	const fixtures = new Map(config.fixtures.map((fixture) => [fixture.id, fixture.specification]));
+
+	for (const profile of config.packagedRuntimeQualification.profiles) {
+		if (profile.fixture === undefined) continue;
+		assert.ok(profile.fixtureId, `${profile.diagnosticKey} must bind its fixture by ID`);
+		const specification = fixtures.get(profile.fixtureId);
+		assert.ok(specification, `${profile.diagnosticKey} references an unknown fixture`);
+		for (const [key, value] of Object.entries(profile.fixture)) {
+			assert.deepEqual(value, specification[key],
+				`${profile.diagnosticKey}.fixture.${key} drifted from ${profile.fixtureId}`);
+		}
+	}
+});
 
 test('packaged-runtime profiles remain open until the owner host supplies complete identity', async () => {
 	const config = JSON.parse(await readFile(

@@ -198,7 +198,7 @@
 						"selectionChanges": 2500,
 						"trackMixChanges": 2500
 					},
-					"projectSha256": "f971f162d4d018e3685fec751a2277a93fe898d91334c145d307e3329c5131f3",
+					"projectSha256": "efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e",
 					"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 				},
 				"rawSampleCounts": {
@@ -259,7 +259,7 @@
 					"displayMode": null
 				},
 				"fixture": {
-					"generatorRevision": 2,
+					"generatorRevision": 3,
 					"seed": 1801382864,
 					"width": 128,
 					"height": 72,
@@ -270,7 +270,7 @@
 					"sourceSha256": "db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a",
 					"caseIds": ["opacity-hold", "opacity-linear", "opacity-eased", "opacity-bezier"],
 					"queryIds": ["start", "interior", "end"],
-					"evidenceClipIds": ["m4b2-opacity-hold-clip", "m4b2-opacity-linear-clip", "m4b2-opacity-eased-clip", "framescaper-v18-flat-clip-4f2ad5b3a72f098f3878c158c7025f70"],
+					"evidenceClipIds": ["m4b2-opacity-hold-clip", "m4b2-opacity-linear-clip", "m4b2-opacity-eased-clip", "framescaper-flat-clip-4f2ad5b3a72f098f3878c158c7025f70"],
 					"presentationClasses": ["authenticated-cfr-occurrence", "authenticated-cfr-occurrence", "authenticated-cfr-occurrence", "authenticated-vfr-materialized-occurrence"]
 				},
 				"rawSampleCounts": {

@@ -262,7 +262,11 @@ test('the quality register keeps the fixed-GPU profiles open until full owner id
 		requestedConsumerOperations: 24,
 		renderedConsumerOperations: 24,
 	});
-	assert.equal(profiles[3].fixture.generatorRevision, 2);
+	assert.equal(profiles[3].fixture.generatorRevision, 3);
+	assert.equal(
+		profiles[3].fixture.evidenceClipIds[3],
+		'framescaper-flat-clip-4f2ad5b3a72f098f3878c158c7025f70',
+	);
 });
 
 function genericWorkloadFixture(definition: {
