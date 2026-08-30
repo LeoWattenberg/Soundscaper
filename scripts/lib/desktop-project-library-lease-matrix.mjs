@@ -127,9 +127,13 @@ async function runCase(runtime, workflowId, order) {
 	} catch (error) {
 		failure = error;
 	}
+	let cleanupError = null;
 	try {
 		await cleanupDesktopProjectLibraryLeaseMatrixChildren(children, scope.platform);
-	} catch (cleanupError) {
+	} catch (error) {
+		cleanupError = error;
+	}
+	if (cleanupError !== null) {
 		if (failure !== null) {
 			throw new AggregateError(
 				[failure, cleanupError], 'Lease matrix case and child cleanup both failed', { cause: failure },
@@ -435,7 +439,9 @@ async function launch(scope, productId, action, projectId, commitRequest) {
 	let output = '';
 	for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => {
 		output += String(chunk);
-		if (Buffer.byteLength(output) > MAXIMUM_OUTPUT_BYTES) void terminateTree(child, scope.platform);
+		if (Buffer.byteLength(output) > MAXIMUM_OUTPUT_BYTES) {
+			void terminateTree(child, scope.platform).catch(() => undefined);
+		}
 	});
 	const exit = new Promise((resolveExit, reject) => {
 		child.once('error', reject);
@@ -486,6 +492,7 @@ async function findExecutable(scope, productId) {
 
 async function terminateTree(child, platform) {
 	if (child.exitCode !== null || child.signalCode !== null) return;
+	if (!Number.isSafeInteger(child.pid) || child.pid <= 0) return;
 	if (platform === 'win32') {
 		const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
 		await new Promise((resolveKill) => killer.once('exit', resolveKill));

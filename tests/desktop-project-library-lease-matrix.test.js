@@ -60,6 +60,15 @@ test('lease-matrix cleanup terminates every child retained by a failed case', as
 	assert.equal(children.size, 0);
 });
 
+test('lease-matrix cleanup tolerates a child that failed before receiving a pid', async () => {
+	const children = new Set([{
+		child: { exitCode: null, signalCode: null, pid: undefined },
+		exit: Promise.resolve({ code: null, signal: null }),
+	}]);
+	await cleanupDesktopProjectLibraryLeaseMatrixChildren(children, 'linux');
+	assert.equal(children.size, 0);
+});
+
 test('current packaged lease qualification admits both product-family v1 baselines', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
@@ -147,6 +156,7 @@ test('desktop preview CI runs both selected products on every test-activated tar
 	assert.match(runner, /\[\s*'soundscaper',\s*'framescaper'\s*\]/u);
 	assert.match(runner, /for \(const productId of \['soundscaper', 'framescaper'\]\)/u);
 	assert.match(runner, /runRendererLoss[\s\S]*awaitLeaseMatrixControlFile\(child\.control\.result, child\)/u);
+	assert.match(runner, /void terminateTree\(child, scope\.platform\)\.catch\(\(\) => undefined\)/u);
 	assert.ok(Buffer.byteLength(formatDesktopProjectLibraryLeaseMatrix({ cases: [] })) < 1024 * 1024);
 });
 
