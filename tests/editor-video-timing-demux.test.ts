@@ -15,6 +15,8 @@ import {
 	demuxVideoTiming,
 	VideoTimingDemuxError,
 } from '../src/common/editor/video-timing-demux.ts';
+import { demuxMatroskaVideoTiming } from '../src/common/editor/video-timing-demux-matroska.ts';
+import { createVideoTimingDemuxReader } from '../src/common/editor/video-timing-demux-reader.ts';
 import { probeVideoTiming } from '../src/common/editor/video-timing-probe.ts';
 import { normalizeVideoSourceCharacteristics } from '../src/common/editor/video-source-characteristics.ts';
 
@@ -86,6 +88,27 @@ test('the container demuxer reads the pinned irregular WebM timing exactly', asy
 		extractedAudioStreamIndex: null,
 		startTimecode: null,
 	});
+});
+
+test('Matroska BlockDuration belongs to its enclosing block group and never leaks to simple blocks', async () => {
+	const explicitLast = await demuxMatroskaVideoTiming(createVideoTimingDemuxReader(new Blob([
+		matroskaTimingFixture([
+			block(0, 'simple'),
+			block(10, 'group', 7),
+		]),
+	])));
+	assert.equal(explicitLast?.finalFrameDurationTicks, 7n,
+		'a duration written after Block still belongs to that BlockGroup');
+
+	const followedBySimpleBlocks = await demuxMatroskaVideoTiming(createVideoTimingDemuxReader(new Blob([
+		matroskaTimingFixture([
+			block(0, 'group', 7),
+			block(10, 'simple'),
+			block(20, 'simple'),
+		]),
+	])));
+	assert.equal(followedBySimpleBlocks?.finalFrameDurationTicks, 10n,
+		'a later SimpleBlock derives its own duration instead of inheriting the group duration');
 });
 
 test('the container demuxer reports coded geometry separately from rotation and sample aspect', async () => {
@@ -165,4 +188,36 @@ function exactTiming(
 	assert.equal(decision.decision, 'timing-asset');
 	if (decision.decision !== 'timing-asset') throw new Error('unreachable');
 	return decision;
+}
+
+function matroskaTimingFixture(blocks: readonly Uint8Array[]): Uint8Array {
+	return bytes(
+		element([0x16, 0x54, 0xae, 0x6b], element([0xae],
+			element([0xd7], Uint8Array.of(1)),
+			element([0x83], Uint8Array.of(1)),
+		)),
+		element([0x1f, 0x43, 0xb6, 0x75],
+			element([0xe7], Uint8Array.of(0)),
+			...blocks,
+		),
+	);
+}
+
+function block(timestamp: number, kind: 'simple' | 'group', duration = 0): Uint8Array {
+	const payload = Uint8Array.of(0x81, timestamp >> 8 & 0xff, timestamp & 0xff, 0);
+	if (kind === 'simple') return element([0xa3], payload);
+	return element([0xa0], element([0xa1], payload), element([0x9b], Uint8Array.of(duration)));
+}
+
+function element(id: readonly number[], ...parts: readonly Uint8Array[]): Uint8Array {
+	const payload = bytes(...parts);
+	assert.ok(payload.byteLength < 127);
+	return bytes(Uint8Array.from(id), Uint8Array.of(0x80 | payload.byteLength), payload);
+}
+
+function bytes(...parts: readonly Uint8Array[]): Uint8Array {
+	const result = new Uint8Array(parts.reduce((length, part) => length + part.byteLength, 0));
+	let offset = 0;
+	for (const part of parts) { result.set(part, offset); offset += part.byteLength; }
+	return result;
 }

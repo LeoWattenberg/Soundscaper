@@ -142,6 +142,7 @@ async function readElement(
 	signal: AbortSignal | undefined,
 ): Promise<boolean> {
 	if (CONTAINERS.has(element.id)) {
+		const blockIndex = element.id === ELEMENT.blockGroup ? state.blocks.length : -1;
 		if (element.id === ELEMENT.trackEntry) {
 			state.pendingTrackNumber = null;
 			state.pendingTrackType = null;
@@ -149,6 +150,13 @@ async function readElement(
 		if (element.id === ELEMENT.blockGroup) state.pendingBlockDuration = null;
 		if (element.unknownSize) return true;
 		if (!await scan(reader, element.body, element.end, state, signal)) return false;
+		if (element.id === ELEMENT.blockGroup) {
+			if (state.pendingBlockDuration !== null && state.blocks.length === blockIndex + 1) {
+				const block = state.blocks[blockIndex]!;
+				state.blocks[blockIndex] = Object.freeze({ ...block, durationTicks: state.pendingBlockDuration });
+			}
+			state.pendingBlockDuration = null;
+		}
 		if (element.id === ELEMENT.trackEntry && state.videoTrackNumber === null
 			&& state.pendingTrackType === TRACK_TYPE_VIDEO && state.pendingTrackNumber !== null) {
 			state.videoTrackNumber = state.pendingTrackNumber;
@@ -188,7 +196,7 @@ async function readBlock(
 	if (state.blocks.length >= VIDEO_TIMING_ASSET_MAXIMUM_FRAMES) return false;
 	state.blocks.push(Object.freeze({
 		ticks: state.clusterTimecode + relative,
-		durationTicks: state.pendingBlockDuration,
+		durationTicks: null,
 	}));
 	return true;
 }
