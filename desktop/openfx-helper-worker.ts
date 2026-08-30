@@ -43,6 +43,7 @@ export interface OpenFxHelperWorkerOptions {
 interface ActiveJob {
 	readonly jobId: string;
 	readonly handle: OpenFxHelperJobHandle;
+	readonly ports: readonly HelperDataPlaneIoPort[];
 	cancelling: boolean;
 	settled: boolean;
 }
@@ -74,12 +75,14 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 	}
 
 	function handleMessage(value: unknown, ports: readonly unknown[] = []): void {
-		if (disposed) return;
+		if (disposed) { closePorts(ports); return; }
 		let message: ReturnType<typeof validateHelperHostMessage>;
 		try { message = validateHelperHostMessage(value); }
-		catch { dispose(1); return; }
+		catch { closePorts(ports); dispose(1); return; }
 		if (message.type !== 'job') {
-			if (!Array.isArray(ports) || ports.length !== 0) { dispose(1); return; }
+			if (!Array.isArray(ports) || ports.length !== 0) {
+				closePorts(ports); dispose(1); return;
+			}
 			if (message.type === 'shutdown') { dispose(0); return; }
 			if (message.type === 'cancel' && active?.jobId === message.jobId) void cancel(active);
 			return;
@@ -90,6 +93,7 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 				message.kind as 'ofx-scan' | 'ofx-host',
 				message.grant as HelperOfxScanJobGrant | HelperOfxHostJobGrantV1OrV2,
 			)) {
+			closePorts(ports);
 			dispose(1);
 			return;
 		}
@@ -101,10 +105,12 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 				ports: ports as readonly HelperDataPlaneIoPort[],
 			});
 		} catch (error) {
+			closePorts(ports);
 			sendError(message.jobId, error);
 			return;
 		}
-		const job: ActiveJob = { jobId: message.jobId, handle, cancelling: false, settled: false };
+		const job: ActiveJob = { jobId: message.jobId, handle,
+			ports: ports as readonly HelperDataPlaneIoPort[], cancelling: false, settled: false };
 		active = job;
 		handle.completion.then(
 			(result) => settle(job, () => send({
@@ -150,11 +156,26 @@ export function createOpenFxHelperWorker(options: OpenFxHelperWorkerOptions) {
 		clearIntervalImpl(heartbeat);
 		const job = active;
 		active = null;
-		if (job && !job.settled) void job.handle.cancel().catch(() => undefined);
+		if (job && !job.settled) {
+			closePorts(job.ports);
+			void job.handle.cancel().catch(() => undefined);
+		}
 		exit(code);
 	}
 
 	return Object.freeze({ handleMessage, dispose });
+}
+
+function closePorts(value: unknown): void {
+	if (!Array.isArray(value)) return;
+	const ports = value as readonly unknown[];
+	for (const port of ports) {
+		try {
+			if (port && typeof port === 'object' && typeof Reflect.get(port, 'close') === 'function') {
+				Reflect.apply(Reflect.get(port, 'close') as () => void, port, []);
+			}
+		} catch { /* closing a rejected transfer is best-effort and must not mask its refusal */ }
+	}
 }
 
 export function openFxHelperTransferredPortCount(

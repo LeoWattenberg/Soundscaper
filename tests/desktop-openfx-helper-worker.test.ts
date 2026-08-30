@@ -49,6 +49,39 @@ test('the worker admits exactly the MessagePorts bound by each OpenFX grant', ()
 	} as never), 4);
 });
 
+test('the worker closes transferred ports when a job never reaches data-plane I/O', () => {
+	const rejected = new ClosePort();
+	const worker = createOpenFxHelperWorker({
+		mode: 'scanner', post: () => undefined,
+		runner: { run: () => { throw new Error('grant rejected'); } },
+		setIntervalImpl: inertInterval as unknown as typeof setInterval,
+		clearIntervalImpl: () => undefined,
+	});
+	worker.handleMessage(scanJob(), [rejected]);
+	assert.equal(rejected.closes, 1, 'a synchronous grant refusal owns and closes its transferred port');
+
+	const surplus = [new ClosePort(), new ClosePort()];
+	const mismatched = createOpenFxHelperWorker({
+		mode: 'scanner', post: () => undefined,
+		runner: { run: () => handle(Promise.resolve({})) },
+		setIntervalImpl: inertInterval as unknown as typeof setInterval,
+		clearIntervalImpl: () => undefined,
+	});
+	mismatched.handleMessage(scanJob(), surplus);
+	assert.deepEqual(surplus.map(({ closes }) => closes), [1, 1]);
+
+	const activePort = new ClosePort();
+	const active = createOpenFxHelperWorker({
+		mode: 'scanner', post: () => undefined,
+		runner: { run: () => handle(new Promise(() => undefined)) },
+		setIntervalImpl: inertInterval as unknown as typeof setInterval,
+		clearIntervalImpl: () => undefined,
+	});
+	active.handleMessage(scanJob(), [activePort]);
+	active.dispose();
+	assert.equal(activePort.closes, 1, 'disposing an admitted job closes ports its I/O did not');
+});
+
 function handle(completion: Promise<unknown>) {
 	return { completion, cancel: async () => undefined };
 }
@@ -62,4 +95,18 @@ function resourcePolicy() {
 		maximumInputBytes: 1, maximumOutputBytes: 1, maximumScratchBytes: 1,
 		maximumRssBytes: 1, maximumJobDurationMs: 1, maximumInFlightChunks: 1,
 	};
+}
+
+function scanJob() {
+	return {
+		contractVersion: 1, type: 'job', jobId: '12'.repeat(20), kind: 'ofx-scan',
+		jobContractVersion: 1, grant: { descriptor: {} }, resourcePolicy: resourcePolicy(),
+	};
+}
+
+class ClosePort {
+	closes = 0;
+	postMessage(): void {}
+	on(): void {}
+	close(): void { this.closes += 1; }
 }
