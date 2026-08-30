@@ -227,6 +227,10 @@ test('the professional plug-in RPC executes only in the attested isolated child'
 	assert.equal(cleanEof.status, 0, cleanEof.stderr);
 	const malformed = spawnSync(peerPath, [], { encoding: 'utf8', input: Buffer.from([0]) });
 	assert.equal(malformed.status, 125, malformed.stderr);
+	const truncatedBody = spawnSync(peerPath, [], {
+		encoding: 'utf8', input: Buffer.from([0x4d, 0x35, 0x46, 0x31, 2, 0, 0, 0, 1]),
+	});
+	assert.equal(truncatedBody.status, 125, truncatedBody.stderr);
 	const [launcherArtifact, profile, broker, peerExecutable] = await Promise.all([
 		descriptor(launcherPath), descriptor(PROFILE_PATH), descriptor(BROKER_PATH), descriptor(peerPath),
 	]);
