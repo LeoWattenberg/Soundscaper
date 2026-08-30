@@ -470,14 +470,14 @@ test('service disposal is a barrier for running child termination and scratch cl
 	});
 	try {
 		const session = await fixture.service.begin(fixture.owner, PLAN);
-		const executing = fixture.service.execute(fixture.owner, session.operationId);
+		const executionRejected = assert.rejects(fixture.service.execute(fixture.owner, session.operationId), /cancelled/iu);
 		await waitFor(() => child.current !== null);
 		const disposal = fixture.service.dispose();
 		await waitFor(() => killed > 0);
 		assert.equal(await pending(disposal), true);
 		child.current?.emit('close', null, 'SIGTERM');
 		await disposal;
-		await assert.rejects(executing, /cancelled/iu);
+		await executionRejected;
 		assert.deepEqual(await readdir(root), []);
 	} finally {
 		await fixture.service.dispose();
