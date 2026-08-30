@@ -392,6 +392,21 @@ export class FileLocalModelStore {
 	 * files directly, and one damaged model must not hide the others.
 	 */
 	async listInstalled(): Promise<readonly InstalledLocalModel[]> {
+		const installed: InstalledLocalModel[] = [];
+		for (const manifest of await this.#listReadableManifests()) {
+			let complete = true;
+			for (const artifact of manifest.artifacts) {
+				if (!await this.#hasArtifact(artifact)) {
+					complete = false;
+					break;
+				}
+			}
+			if (complete) installed.push(manifest);
+		}
+		return Object.freeze(installed);
+	}
+
+	async #listReadableManifests(): Promise<readonly InstalledLocalModel[]> {
 		let entries: string[];
 		try {
 			entries = await readdir(join(this.#root, MANIFESTS_DIRECTORY));
@@ -399,7 +414,7 @@ export class FileLocalModelStore {
 			if (errorCode(error) === 'ENOENT') return Object.freeze([]);
 			throw error;
 		}
-		const installed: InstalledLocalModel[] = [];
+		const manifests: InstalledLocalModel[] = [];
 		for (const entry of entries.sort()) {
 			if (!entry.endsWith('.json')) continue;
 			const modelId = entry.slice(0, -'.json'.length);
@@ -407,19 +422,12 @@ export class FileLocalModelStore {
 			try {
 				const manifest = await this.readManifest(modelId);
 				if (!manifest || manifest.modelId !== modelId) continue;
-				let complete = true;
-				for (const artifact of manifest.artifacts) {
-					if (!await this.#hasArtifact(artifact)) {
-						complete = false;
-						break;
-					}
-				}
-				if (complete) installed.push(manifest);
+				manifests.push(manifest);
 			} catch {
 				continue;
 			}
 		}
-		return Object.freeze(installed);
+		return Object.freeze(manifests);
 	}
 
 	/**
@@ -436,7 +444,7 @@ export class FileLocalModelStore {
 	/** Deletes every blob no manifest references. Returns the bytes reclaimed. */
 	async reclaimUnreferencedBlobs(): Promise<number> {
 		const referenced = new Set<string>();
-		for (const installation of await this.listInstalled()) {
+		for (const installation of await this.#listReadableManifests()) {
 			for (const artifact of installation.artifacts) referenced.add(artifact.sha256);
 		}
 		let entries: string[];

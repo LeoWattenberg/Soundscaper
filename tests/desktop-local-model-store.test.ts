@@ -212,6 +212,23 @@ test('externally deleted bytes are reported as uninstalled rather than trusted',
 	);
 });
 
+test('reclamation preserves healthy blobs named by an incomplete manifest', { timeout: 20_000 }, async (t) => {
+	const { store, root } = await createStore();
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const healthy = await publish(store, 'encoder.onnx', 'healthy encoder');
+	const missing = await publish(store, 'decoder.onnx', 'missing decoder');
+	const unrelated = await publish(store, 'model.onnx', 'unrelated model');
+	await store.commitInstall({ modelId: 'incomplete-model', version: '1', artifacts: [healthy, missing] });
+	await store.commitInstall({ modelId: 'unrelated-model', version: '1', artifacts: [unrelated] });
+	await rm(store.blobPath(missing.sha256));
+
+	await store.removeModel('unrelated-model');
+
+	assert.equal(await store.hasBlob(healthy.sha256), true,
+		'a readable manifest retains every surviving artifact needed for repair');
+	assert.equal(await store.hasBlob(unrelated.sha256), false);
+});
+
 test('externally truncated bytes are reported as uninstalled', { timeout: 20_000 }, async (t) => {
 	const { store, root } = await createStore();
 	t.after(() => rm(root, { recursive: true, force: true }));
