@@ -44,6 +44,8 @@ test('site sidebar copy stays localized and merged into the bundled catalogs', (
 });
 
 test('recording preparation failures are localized in English and German', () => {
+	assert.equal(ENGLISH_COPY.showArmControls, ENGLISH_COPY.enableMultiTrackRecording);
+	assert.equal(GERMAN_COPY.showArmControls, GERMAN_COPY.enableMultiTrackRecording);
 	assert.equal(ENGLISH_COPY.recordingAssignInput, 'Assign an input to at least one armed track before recording.');
 	assert.equal(GERMAN_COPY.recordingAssignInput, 'Weise vor der Aufnahme mindestens einer aktivierten Spur einen Eingang zu.');
 	assert.equal(ENGLISH_COPY.timedRecordingAssignedInputsUnavailable, 'Every assigned recording input must remain available for timer recording.');

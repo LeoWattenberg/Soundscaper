@@ -470,7 +470,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		volumeAutomation: 'Lautstärke-Automation',
 		spectralBrush: 'Spektralpinsel',
 		showEffects: 'Effekte anzeigen',
-		showArmControls: 'Aufnahme-Schaltflächen anzeigen',
+		showArmControls: 'Mehrspuraufnahme aktivieren',
 		enableMultiTrackRecording: 'Mehrspuraufnahme aktivieren',
 		showRms: 'RMS in Wellenform anzeigen',
 		showVerticalRulers: 'Vertikale Lineale anzeigen',
