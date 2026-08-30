@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { crc32, PCM_ENCODING_RAW_F32LE } from '../src/common/editor/wavpack/index.js';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
+import { syncPcmWriter } from '../src/common/editor/storage/opfs-sync-writer-adapters.ts';
 import type {
 	OpfsSyncReadResult,
 	OpfsSyncStoragePort,
@@ -200,6 +201,85 @@ test('OPFS repository preserves the asynchronous correctness path when the worke
 		{ storage: 'opfs', path: storedFile.path }, 'missing',
 	)), 'fallback');
 });
+
+test('PCM writer abort remains available after container close fails', async () => {
+	const failure = new Error('durable close failed');
+	let aborts = 0;
+	let removals = 0;
+	const writer: OpfsSyncWriter = {
+		async write() {},
+		async close() { throw failure; },
+		async abort() { aborts += 1; },
+	};
+	const pcm = syncPcmWriter(
+		'failed.scpcm', writer, { sampleRate: 48_000, chunkFrames: 2 },
+		() => undefined, async () => { removals += 1; },
+	);
+	const payload = new Float32Array([0.25, -0.5]);
+	await pcm.write({
+		encoding: PCM_ENCODING_RAW_F32LE,
+		payload: payload.buffer,
+		pcmCrc32: crc32(new Uint8Array(payload.buffer)),
+		frames: 2,
+		channelCount: 1,
+		sampleRate: 48_000,
+		chunkFrames: 2,
+	});
+	await assert.rejects(pcm.close(), failure);
+	await pcm.abort();
+
+	assert.equal(aborts, 1);
+	assert.equal(removals, 1);
+});
+
+test('asynchronous PCM writer aborts its stream after container close fails', async () => {
+	const failure = new Error('asynchronous durable close failed');
+	let aborts = 0;
+	let removals = 0;
+	const directory = {
+		async getFileHandle() {
+			return {
+				async createWritable() {
+					return {
+						async write() {},
+						async close() { throw failure; },
+						async abort() { aborts += 1; },
+					};
+				},
+			};
+		},
+		async removeEntry() { removals += 1; },
+	} as unknown as FileSystemDirectoryHandle;
+	const repository = new OpfsRepository({
+		preferOpfs: true,
+		opfsRoot: { async getDirectoryHandle() { return directory; } } as unknown as FileSystemDirectoryHandle,
+		syncWorkerClient: unavailableSyncWorker(),
+	});
+	const pcm = await repository.createPcmWriter('failed-async', { sampleRate: 48_000, chunkFrames: 2 });
+	assert.ok(pcm);
+	const payload = new Float32Array([0.25, -0.5]);
+	await pcm.write({
+		encoding: PCM_ENCODING_RAW_F32LE, payload: payload.buffer,
+		pcmCrc32: crc32(new Uint8Array(payload.buffer)), frames: 2,
+		channelCount: 1, sampleRate: 48_000, chunkFrames: 2,
+	});
+	await assert.rejects(pcm.close(), failure);
+	await pcm.abort();
+
+	assert.equal(aborts, 1);
+	assert.equal(removals, 1);
+});
+
+function unavailableSyncWorker(): OpfsSyncStoragePort {
+	return {
+		async initialize() { return false; },
+		async read() { throw new Error('unavailable'); },
+		async snapshot() { throw new Error('unavailable'); },
+		async openWriter() { throw new Error('unavailable'); },
+		async remove() { throw new Error('unavailable'); },
+		close() {},
+	};
+}
 
 function exactBuffer(bytes: Uint8Array): ArrayBuffer {
 	const buffer = new ArrayBuffer(bytes.byteLength);

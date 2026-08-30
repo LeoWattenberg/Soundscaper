@@ -69,11 +69,12 @@ export function syncPcmWriter(
 		close: () => writer.close(),
 	};
 	let container: ContainerWriterInstance | null = null;
-	let closed = false;
+	let writeClosed = false;
+	let finalized = false;
 	return {
 		path,
 		async write(chunk) {
-			if (closed) throw new Error('The OPFS source writer is closed.');
+			if (writeClosed) throw new Error('The OPFS source writer is closed.');
 			if (!container) {
 				container = new ContainerWriter(writable as unknown as FileSystemWritableFileStream, {
 					channelCount: chunk.channelCount,
@@ -84,19 +85,23 @@ export function syncPcmWriter(
 			await container.write(chunk);
 		},
 		async close() {
-			if (closed) return container?.statistics() || compressionStatistics();
-			closed = true;
-			if (container) return container.close();
-			await writer.close();
-			return compressionStatistics();
+			if (finalized) return container?.statistics() || compressionStatistics();
+			if (writeClosed) throw new Error('The OPFS source writer close previously failed.');
+			writeClosed = true;
+			const statistics = container
+				? await container.close()
+				: await writer.close().then(() => compressionStatistics());
+			finalized = true;
+			return statistics;
 		},
 		async remove() {
 			invalidate();
 			await remove();
 		},
 		async abort() {
-			if (!closed) {
-				closed = true;
+			if (!finalized) {
+				writeClosed = true;
+				finalized = true;
 				await writer.abort();
 			}
 			invalidate();

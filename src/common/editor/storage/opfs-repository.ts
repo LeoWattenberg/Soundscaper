@@ -277,11 +277,12 @@ export class OpfsRepository {
 			const handle = await directory.getFileHandle(path, { create: true });
 			const writable = await handle.createWritable();
 			let container: ContainerWriterInstance | null = null;
-			let closed = false;
+			let writeClosed = false;
+			let finalized = false;
 			return {
 				path,
 				async write(chunk) {
-					if (closed) throw new Error('The OPFS source writer is closed.');
+					if (writeClosed) throw new Error('The OPFS source writer is closed.');
 					if (!container) {
 						container = new ContainerWriter(writable, {
 							channelCount: chunk.channelCount,
@@ -292,19 +293,23 @@ export class OpfsRepository {
 					await container.write(chunk);
 				},
 				async close() {
-					if (closed) return container?.statistics() || compressionStatistics();
-					closed = true;
-					if (container) return container.close();
-					await writable.close();
-					return compressionStatistics();
+					if (finalized) return container?.statistics() || compressionStatistics();
+					if (writeClosed) throw new Error('The OPFS source writer close previously failed.');
+					writeClosed = true;
+					const statistics = container
+						? await container.close()
+						: await writable.close().then(() => compressionStatistics());
+					finalized = true;
+					return statistics;
 				},
 				async remove() {
 					invalidate();
 					try { await directory.removeEntry(path); } catch { /* Already absent. */ }
 				},
 				async abort() {
-					if (!closed) {
-						closed = true;
+					if (!finalized) {
+						writeClosed = true;
+						finalized = true;
 						if (typeof writable.abort === 'function') await writable.abort();
 						else await writable.close();
 					}
