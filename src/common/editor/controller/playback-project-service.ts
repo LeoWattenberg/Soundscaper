@@ -103,7 +103,7 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 			readonly requiredVideoSourceIds: readonly string[];
 			readonly signal?: AbortSignal;
 		}>,
-	) => PromiseLike<ReadonlyMap<unknown, unknown>> | ReadonlyMap<unknown, unknown>;
+	) => PromiseLike<ReadonlyMap<string, unknown>> | ReadonlyMap<string, unknown>;
 	readonly prepareRequiredProjectSources: (
 		project: Project,
 		options: Readonly<{
@@ -111,8 +111,8 @@ export interface ApplyCanonicalProjectRuntime<Project extends object> {
 			readonly signal?: AbortSignal;
 		}>,
 	) => PromiseLike<PreparedRequiredProjectSources> | PreparedRequiredProjectSources;
-	readonly sourceBuffers: ReadonlyMap<unknown, unknown>;
-	readonly sourceChunkProviders: ReadonlyMap<unknown, unknown>;
+	readonly sourceBuffers: ReadonlyMap<string, unknown>;
+	readonly sourceChunkProviders: ReadonlyMap<string, unknown>;
 	readonly engine: PlaybackProjectEngine<Project>;
 	readonly setReadyStatus: () => void;
 }
@@ -287,7 +287,7 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 		// lane native and still needs those sources ensured.
 		const soleAudioSurface = projection.audioRenderedFallback?.role !== 'audio-track-render-v1';
 		const transientBuffers = preparedSources && soleAudioSurface && projection.requiredVideoSourceIds.length === 0
-			? new Map<unknown, unknown>()
+			? new Map<string, unknown>()
 			: await runtime.ensureProjectSourcesAvailable(projection.project, {
 				excludedAudioSourceIds: preparedSources ? projection.requiredAudioSourceIds : [],
 				requiredAudioSourceIds: preparedSources ? [] : projection.requiredAudioSourceIds,
@@ -306,6 +306,7 @@ export async function applyCanonicalProjectToPlaybackEngine<Project extends obje
 					if (runtime.getCurrentProject() !== canonicalProject) throw STALE_PLAYBACK_PROJECT_APPLY;
 				},
 				retireApplied: async () => { await runtime.engine.stop(); },
+				transientBuffers,
 			});
 		} else {
 			const playbackBuffers = transientBuffers.size
