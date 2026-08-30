@@ -3,6 +3,8 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
+import { reconcileProjectOwnedFeatureRequirements } from
+	'../common/editor/project-owned-feature-requirements.ts';
 import { validateAudioEditorProjectV17 } from '../common/editor/project-v17-validation.ts';
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { resolveRuntimeClipProjection } from '../common/editor/runtime-clip-projection.ts';
@@ -99,6 +101,7 @@ export function materializeFramescaperNestedPlaybackFoundationSequence(
 			})) : []),
 		};
 	}));
+	const featureRequirements = framescaperProjectFeatureRequirementsForV17Foundation(profile, project);
 	const foundation: Record<string, unknown> = {
 		...project,
 		schemaVersion: 17,
@@ -111,11 +114,15 @@ export function materializeFramescaperNestedPlaybackFoundationSequence(
 		mixer: materializeMixer(project.mixer, materializedTracks),
 		trackFolders: Object.freeze([]),
 		takeGroups: Object.freeze([]),
-		featureRequirements: framescaperProjectFeatureRequirementsForV17Foundation(profile, project),
+		featureRequirements,
 	};
 	delete foundation.schemaFamily;
 	delete foundation.subsequences;
 	delete foundation.multicameraGroups;
+	foundation.featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		foundation,
+		featureRequirements,
+	);
 	const result = Object.freeze(foundation) as FramescaperNestedPlaybackFoundationV17;
 	validateAudioEditorProjectV17(result);
 	return result;

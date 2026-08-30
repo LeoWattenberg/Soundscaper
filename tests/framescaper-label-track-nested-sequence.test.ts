@@ -3,13 +3,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLabelTrack } from '../src/common/editor/project-media-factory.ts';
+import { createEffect } from '../src/common/editor/effects.js';
+import {
+	createAudioTrack,
+	createLabelTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import {
 	FRAMESCAPER_SEQUENCE_PROJECT_RUNTIME_PROFILE as PROFILE,
 } from '../src/framescaper/editor-domain-runtime-profile.ts';
 import {
 	flattenFramescaperSequenceSequence,
 } from '../src/framescaper/editor-project-sequence-nested-sequence.ts';
+import {
+	materializeFramescaperNestedPlaybackFoundationSequence,
+} from '../src/framescaper/editor-project-sequence-nested-playback.ts';
 import { createFramescaperProjectSequence } from '../src/framescaper/editor-project-sequence.ts';
 import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
@@ -37,7 +44,20 @@ test('nested-sequence flattening ignores a valid label-track leaf', () => {
 	]);
 });
 
-function nestedProject() {
+test('nested playback reconciles requirements after dropping an unreachable effected track', () => {
+	const playback = materializeFramescaperNestedPlaybackFoundationSequence(
+		PROFILE,
+		nestedProject(true),
+	);
+	const requirements = (playback.featureRequirements as {
+		readonly requirements: readonly Readonly<{ readonly id: string }>[];
+	}).requirements;
+
+	assert.equal(playback.tracks.some(({ id }) => id === 'unreachable-effects-track'), false);
+	assert.equal(requirements.some(({ id }) => id === 'soundscaper.audio-effects'), false);
+});
+
+function nestedProject(includeUnreachableEffect = false) {
 	const options = framescaperV20Options();
 	const tracks = options.tracks as Data[];
 	const main = (options.sequences as Data[])[0]!;
@@ -47,10 +67,19 @@ function nestedProject() {
 	options.tracks = [
 		createLabelTrack({ id: 'label-track', name: 'Captions' }),
 		...tracks,
+		...(includeUnreachableEffect ? [createAudioTrack({
+			id: 'unreachable-effects-track', name: 'Unreachable effects',
+			effects: [createEffect('compressor', { id: 'unreachable-compressor' })],
+		})] : []),
 	];
 	options.sequences = [
 		{ ...main, trackIds: ['label-track'] },
 		{ ...main, id: 'nested-sequence', trackIds: ['video-track', 'audio-track'] },
+		...(includeUnreachableEffect ? [{
+			...main,
+			id: 'unreachable-sequence',
+			trackIds: ['unreachable-effects-track'],
+		}] : []),
 	];
 	options.subsequences = [{
 		id: 'nested-main-child',
