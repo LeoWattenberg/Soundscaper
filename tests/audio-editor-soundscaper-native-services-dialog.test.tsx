@@ -333,6 +333,10 @@ test('the menu dialog drives isolated hosting, DSP, bypass and opaque state cust
 	assert.equal(state.pluginVendorWindow, null);
 	state = await settle(state, bridge, { type: 'close-plugin', instanceId: 'plugin_instance_01' });
 	assert.equal(state.pluginInstance, null);
+	assert.equal(state.pluginStateBody, null,
+		'closing an instance must retire the opaque state that only that instance owns');
+	assert.equal(state.pluginStateGeneration, 0,
+		'a later instance must not inherit the closed instance state generation');
 	assert.deepEqual(calls.filter(([name]) => [
 		'reviewNativePluginInstallation', 'instantiateNativePlugin', 'runNativePluginOffline',
 		'setNativePluginBypassed', 'persistNativePluginState', 'restoreNativePluginState',

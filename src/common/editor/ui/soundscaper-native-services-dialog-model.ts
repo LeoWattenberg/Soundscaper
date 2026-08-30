@@ -218,8 +218,12 @@ export function reduceSoundscaperNativeServicesDialog(
 		pluginOffline: event.action.type === 'close-plugin'
 			? null
 			: result.pluginOffline ?? state.pluginOffline,
-		pluginStateBody: result.pluginStateBody ?? state.pluginStateBody,
-		pluginStateGeneration: result.pluginStateGeneration ?? state.pluginStateGeneration,
+		pluginStateBody: event.action.type === 'close-plugin'
+			? null
+			: result.pluginStateBody ?? state.pluginStateBody,
+		pluginStateGeneration: event.action.type === 'close-plugin'
+			? 0
+			: result.pluginStateGeneration ?? state.pluginStateGeneration,
 		pluginVendorWindow: event.action.type === 'close-plugin' || event.action.type === 'close-plugin-vendor-ui'
 			? null
 			: result.pluginVendorWindow ?? state.pluginVendorWindow,
