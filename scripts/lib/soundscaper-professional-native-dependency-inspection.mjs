@@ -5,7 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { basename } from 'node:path';
 
-import { isSoundscaperProfessionalLinuxSystemLibrary } from
+import { isSoundscaperProfessionalLinuxRuntimeLibrary } from
 '../../desktop/soundscaper-professional-linux-system-libraries.ts';
 
 import {
@@ -250,7 +250,7 @@ function systemLibrary(target, imported) {
 		return imported.startsWith('/System/Library/') || imported.startsWith('/usr/lib/');
 	}
 	if (target.startsWith('linux-')) {
-		return isSoundscaperProfessionalLinuxSystemLibrary(imported);
+		return isSoundscaperProfessionalLinuxRuntimeLibrary(imported, target);
 	}
 	const name = basename(imported.replaceAll('\\', '/')).toLowerCase();
 	return target.startsWith('win-') && WINDOWS_SYSTEM_LIBRARIES.has(name);
