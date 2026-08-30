@@ -20,6 +20,9 @@ import {
 import { isWebVcrRecoveryOwner } from './framescaper-capture-source-adapter-router.ts';
 import { clearFramescaperWebVcrBrowserData } from './framescaper-web-vcr-data-clear.ts';
 import { finalizeFramescaperWebVcrCapture, recoverFramescaperWebVcrStartFailure } from './framescaper-web-vcr-finalizer.ts';
+import { framescaperCaptureWorkActive as captureWorkActive, settleFramescaperWebVcrGuestClose,
+	unavailableWebVcrCapability as unavailable, webVcrErrorMessage as errorMessage } from
+	'./framescaper-web-vcr-controller-helpers.ts';
 import { evaluateFramescaperWebVcrTakeObservation, freezeFramescaperWebVcrTake,
 	type FramescaperWebVcrFrozenTake } from './framescaper-web-vcr-take-authority.ts';
 import { createFramescaperWebVcrUiSnapshot } from './framescaper-web-vcr-ui-snapshot.ts';
@@ -402,10 +405,15 @@ export function createFramescaperWebVcrController(
 			dimensions = null;
 			monitor?.dispose();
 			monitor = null;
-			if (!captureWorkActive(activeCapturePhase()) && !recoveryOwned()) {
-				modeActive = false;
-				frozen = null;
-				options.adapter.select('devices');
+			const phase = activeCapturePhase();
+			if (!captureWorkActive(phase) && !recoveryOwned()) {
+				void settleFramescaperWebVcrGuestClose({ phase,
+					releasePreview: () => capture().actions.release(),
+					isCurrent: () => host === null,
+					selectDevices: () => options.adapter.select('devices'),
+				}).then((settled) => {
+					if (settled) { modeActive = false; frozen = null; notify(); }
+				}, reportFailure);
 			}
 		} else {
 			host = next;
@@ -585,16 +593,4 @@ export function createFramescaperWebVcrController(
 		sealForShutdown,
 		dispose,
 	});
-}
-
-function unavailable(reason: 'roadmap-gate' | 'desktop-bridge-unavailable' | 'crop-pipeline-unavailable', detail: string | null = null): WebVcrCapability {
-	return Object.freeze({ status: 'unavailable', reason, detail });
-}
-
-function captureWorkActive(phase: CapturePhase): boolean {
-	return ['armed', 'countdown', 'recording', 'paused', 'finalizing'].includes(phase);
-}
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
 }

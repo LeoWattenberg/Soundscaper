@@ -10,9 +10,8 @@ test('Web VCR stays fail-closed behind the roadmap capability gate', async () =>
 	const fixture = harness({ enabled: false });
 	await fixture.controller.initialize();
 	assert.equal(fixture.calls.includes('handshake'), false);
-	assert.deepEqual(fixture.controller.snapshot.capability, {
-		status: 'unavailable', reason: 'roadmap-gate',
-	});
+	assert.deepEqual(fixture.controller.snapshot.capability,
+		{ status: 'unavailable', reason: 'roadmap-gate' });
 	assert.equal(fixture.controller.snapshot.autoStop, false);
 	await assert.rejects(() => fixture.controller.actions.activate(), /unavailable/iu);
 });
@@ -285,6 +284,7 @@ test('delayed desktop snapshots cannot replace or close a newer guest generation
 	assert.deepEqual(fixture.controller.captureAuthority.captureSurface(), { width: 1280, height: 720 });
 	assert.equal(fixture.controller.snapshot.modeActive, true);
 	fixture.publish(hostSnapshot({ sessionId: null, generation: 2, phase: 'closed', visible: false, target: null }));
+	await tick();
 	assert.equal(fixture.controller.snapshot.modeActive, false);
 });
 
@@ -506,7 +506,7 @@ function harness(options: Readonly<{
 		bridge,
 		getCapture: () => capture as never,
 		adapter: {
-			select(id) { calls.push(`select:${id}`); },
+			select(id) { if (id === 'devices' && state.phase !== 'inactive') throw new Error('capture is active'); calls.push(`select:${id}`); },
 			freezeCrop(value) { frozenCrops.push(value); },
 		},
 		cropRuntimeAvailable: true,
