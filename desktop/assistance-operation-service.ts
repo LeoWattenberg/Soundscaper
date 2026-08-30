@@ -117,14 +117,22 @@ export interface AssistanceOperationServiceOptions {
 
 export function createAssistanceOperationService(options: AssistanceOperationServiceOptions) {
 	const jobs = new Set<string>();
+	let pendingJobs = 0;
 	const activeRuns = new Map<string, ActiveRun>();
 	const mintStreamId = options.mintStreamId ?? (() => randomBytes(20).toString('hex'));
 
 	async function createJob(): Promise<AssistanceOperationJob> {
-		if (jobs.size >= MAXIMUM_ACTIVE_JOBS) throw new Error('The assistance operation job bound is exhausted.');
-		const jobId = await options.registry.createJob();
-		jobs.add(jobId);
-		return Object.freeze({ contractVersion: ASSISTANCE_OPERATION_BRIDGE_VERSION, jobId });
+		if (jobs.size + pendingJobs >= MAXIMUM_ACTIVE_JOBS) {
+			throw new Error('The assistance operation job bound is exhausted.');
+		}
+		pendingJobs += 1;
+		try {
+			const jobId = await options.registry.createJob();
+			jobs.add(jobId);
+			return Object.freeze({ contractVersion: ASSISTANCE_OPERATION_BRIDGE_VERSION, jobId });
+		} finally {
+			pendingJobs -= 1;
+		}
 	}
 
 	async function models(): Promise<readonly AssistanceOperationModelChoice[]> {

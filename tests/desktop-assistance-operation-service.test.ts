@@ -132,6 +132,40 @@ function bytes(value: string): AsyncIterable<Uint8Array> {
 	return Object.freeze({ async *[Symbol.asyncIterator]() { yield Buffer.from(value); } });
 }
 
+test('concurrent job creation cannot overrun the active-job admission bound', async () => {
+	let releaseCreates: () => void = () => undefined;
+	const createGate = new Promise<void>((resolve) => { releaseCreates = resolve; });
+	let registryCreates = 0;
+	const registry = {
+		createJob: async () => {
+			registryCreates += 1;
+			const jobId = registryCreates.toString(16).padStart(40, '0');
+			await createGate;
+			return jobId;
+		},
+	} as unknown as AssistanceStagingRegistry;
+	const service = createAssistanceOperationService({
+		registry,
+		models: {
+			status: async () => ({ runtimeAvailable: false, runtimeReason: null, models: [] }),
+			listInstalled: async () => [],
+			resolveModelPaths: async () => ({}),
+		},
+		runtime: {
+			status: async () => ({ available: false, reason: null, moduleId: 'test-runtime' }),
+			recognize: async () => ({ language: null, segments: [] }),
+		},
+	});
+	const creations = Array.from({ length: 33 }, () => service.createJob());
+	await Promise.resolve();
+
+	assert.equal(registryCreates, 32);
+	releaseCreates();
+	const settled = await Promise.allSettled(creations);
+	assert.equal(settled.filter(({ status }) => status === 'fulfilled').length, 32);
+	assert.equal(settled.filter(({ status }) => status === 'rejected').length, 1);
+});
+
 async function speechRequest(
 	service: ReturnType<typeof createAssistanceOperationService>,
 	inputText = 'RIFF-test-audio',
