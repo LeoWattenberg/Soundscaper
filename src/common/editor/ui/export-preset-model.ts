@@ -64,6 +64,12 @@ const CANVAS_FIT_DEFAULT = 'contain';
 const VIDEO_QUALITY_DEFAULT = DEFAULT_VIDEO_DELIVERY_QUALITY;
 const AUDIO_LAYOUT_DEFAULT = DEFAULT_VIDEO_DELIVERY_AUDIO_LAYOUT;
 
+const AUDIO_PRESET_DIALOG_DEFAULTS = Object.freeze({ loudnessNormalization: '' });
+const VIDEO_PRESET_DIALOG_DEFAULTS = Object.freeze({
+	canvasWidth: '', canvasHeight: '', canvasFit: CANVAS_FIT_DEFAULT, canvasFrameRate: '',
+	canvasBackgroundColor: '', videoQuality: VIDEO_QUALITY_DEFAULT, videoAudioLayout: AUDIO_LAYOUT_DEFAULT,
+});
+
 /** The preset-worthy subset of the dialog's settings, with numbers as numbers. */
 export function presetSettingsFromDialog(
 	settings: Readonly<Record<string, unknown>>,
@@ -305,7 +311,10 @@ export function dialogFormatFromPreset(preset: DeliveryPreset): string {
 export function dialogSettingsFromPreset(
 	preset: DeliveryPreset,
 ): Readonly<Record<string, unknown>> {
-	const patch: Record<string, unknown> = { format: dialogFormatFromPreset(preset) };
+	const patch: Record<string, unknown> = {
+		format: dialogFormatFromPreset(preset),
+		...(preset.kind === 'video' ? VIDEO_PRESET_DIALOG_DEFAULTS : AUDIO_PRESET_DIALOG_DEFAULTS),
+	};
 	for (const [key, value] of Object.entries(preset.settings ?? {})) {
 		if (key === 'size') {
 			const size = value as Readonly<{ width?: unknown; height?: unknown }> | null;

@@ -64,6 +64,24 @@ test('applying a preset patches the dialog back to strings', () => {
 	assert.equal(patch.sampleFormat, 'int16');
 });
 
+test('applying a preset resets omitted preset-owned defaults instead of retaining stale delivery settings', () => {
+	const audio = validateDeliveryPreset({
+		schemaVersion: 1, id: 'audio-defaults', label: 'No normalization',
+		kind: 'audio', format: 'wav', settings: {},
+	});
+	assert.equal(dialogSettingsFromPreset(audio).loudnessNormalization, '');
+
+	const video = validateDeliveryPreset({
+		schemaVersion: 1, id: 'video-defaults', label: 'Default video',
+		kind: 'video', format: 'mp4', settings: {},
+	});
+	assert.deepEqual(dialogSettingsFromPreset(video), {
+		format: 'video-mp4',
+		canvasWidth: '', canvasHeight: '', canvasFit: 'contain', canvasFrameRate: '',
+		canvasBackgroundColor: '', videoQuality: 'balanced', videoAudioLayout: 'preserve',
+	});
+});
+
 test('a dialog round trip through a preset produces the same export plan', () => {
 	const project = {
 		id: 'p', title: 'P', sampleRate: 48_000, masterChannels: 2,
