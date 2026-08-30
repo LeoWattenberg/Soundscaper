@@ -11,6 +11,13 @@ import {
 
 export const PROFESSIONAL_NATIVE_UTILITY_SMOKE_PREFIX =
 	'SOUNDSCAPER_PROFESSIONAL_NATIVE_UTILITY_SMOKE ';
+const MAXIMUM_UTILITY_DIAGNOSTIC_BYTES = 4 * 1024;
+const MAXIMUM_UTILITY_FAILURE_BYTES = 16 * 1024;
+const UTILITY_DIAGNOSTIC_DRAIN_TIMEOUT_MS = 250;
+const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001b\[[\d;?]*[ -/]*[@-~]`, 'gu');
+const UNSAFE_CONTROL_CHARACTER = new RegExp(
+	String.raw`[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]`, 'gu',
+);
 
 export async function runSoundscaperProfessionalNativeUtilitySmoke(options) {
 	if (await runSoundscaperDeliveryRestartPublicationSmoke(options)) return true;
@@ -53,25 +60,157 @@ export async function runSoundscaperProfessionalNativeUtilitySmoke(options) {
 function utilityResult(child, timeoutMs, target) {
 	return new Promise((resolvePromise, reject) => {
 		let settled = false;
+		const diagnostics = captureUtilityDiagnostics(child);
 		const finish = (error, value) => {
 			if (settled) return;
 			settled = true;
 			clearTimeout(timer);
+			diagnostics.close();
 			if (error) reject(error); else resolvePromise(value);
+		};
+		const failure = (summary) => new Error(boundedUtf8Head(
+			`${summary}${diagnostics.render()}`, MAXIMUM_UTILITY_FAILURE_BYTES,
+		));
+		const failAfterDrain = async (summary) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			await diagnostics.drain();
+			diagnostics.close();
+			reject(failure(summary));
 		};
 		const timer = setTimeout(() => {
 			child.kill();
-			finish(new Error('Professional native utility smoke timed out.'));
+			void failAfterDrain('Professional native utility smoke timed out.');
 		}, timeoutMs);
-		child.once('error', (error) => finish(error));
-		child.once('exit', (code) => {
-			if (!settled) finish(new Error(`Professional native utility smoke exited ${String(code)}.`));
+		child.once('error', (type, location, report) => {
+			void failAfterDrain(
+				`Professional native utility smoke process error: ${
+					utilityProcessErrorDetail(type, location, report)
+				}.`,
+			);
+		});
+		child.once('exit', (code, signal) => {
+			const status = Number.isInteger(code) ? String(code) : 'none';
+			void failAfterDrain(
+				`Professional native utility smoke exited ${status}`
+					+ ` (status=${status}, signal=${typeof signal === 'string' ? signal : 'none'}).`,
+			);
 		});
 		child.once('message', (message) => {
 			try { finish(null, validateEvidence(message, target)); }
 			catch (error) { child.kill(); finish(error); }
 		});
 	});
+}
+
+function captureUtilityDiagnostics(child) {
+	const stdout = captureDiagnosticStream(child?.stdout);
+	const stderr = captureDiagnosticStream(child?.stderr);
+	return Object.freeze({
+		close() { stdout.close(); stderr.close(); },
+		async drain() {
+			let deadline;
+			await Promise.race([
+				Promise.all([stdout.drained, stderr.drained]),
+				new Promise((resolvePromise) => {
+					deadline = setTimeout(resolvePromise, UTILITY_DIAGNOSTIC_DRAIN_TIMEOUT_MS);
+				}),
+			]);
+			clearTimeout(deadline);
+		},
+		render() {
+			const output = [
+				['stderr', stderr.read()], ['stdout', stdout.read()],
+			].filter(([, value]) => value !== '')
+				.map(([name, value]) => `${name}: ${value}`);
+			return output.length === 0 ? '' : `\n${output.join('\n')}`;
+		},
+	});
+}
+
+function captureDiagnosticStream(stream) {
+	let bytes = Buffer.alloc(0);
+	let resolveDrained;
+	const drained = !stream || stream.readableEnded === true || stream.destroyed === true
+		? Promise.resolve()
+		: new Promise((resolvePromise) => { resolveDrained = resolvePromise; });
+	const onData = (value) => {
+		const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
+		const tail = chunk.subarray(Math.max(0, chunk.byteLength - MAXIMUM_UTILITY_DIAGNOSTIC_BYTES));
+		bytes = Buffer.concat([bytes, tail]);
+		if (bytes.byteLength > MAXIMUM_UTILITY_DIAGNOSTIC_BYTES) {
+			bytes = bytes.subarray(bytes.byteLength - MAXIMUM_UTILITY_DIAGNOSTIC_BYTES);
+		}
+	};
+	const onDrained = () => { resolveDrained?.(); };
+	if (stream && typeof stream.on === 'function') {
+		stream.on('data', onData);
+		stream.once('end', onDrained);
+		stream.once('close', onDrained);
+		stream.once('error', onDrained);
+	}
+	return Object.freeze({
+		close() {
+			if (!stream || typeof stream.off !== 'function') return;
+			stream.off('data', onData);
+			stream.off('end', onDrained);
+			stream.off('close', onDrained);
+			stream.off('error', onDrained);
+		},
+		drained,
+		read() { return safeDiagnosticText(bytes.toString('utf8')); },
+	});
+}
+
+function safeDiagnosticText(value) {
+	if (typeof value !== 'string' || value === '') return '';
+	let output = value
+		.replaceAll(ANSI_ESCAPE_SEQUENCE, '')
+		.replaceAll(UNSAFE_CONTROL_CHARACTER, '')
+		.replaceAll(/(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+/giu, '$1[REDACTED]')
+		.replaceAll(/\b(?:github_pat_|gh[pousr]_)[A-Za-z\d_]+\b/gu, '[REDACTED]');
+	for (const [name, secret] of Object.entries(process.env)) {
+		if (!/(?:token|secret|password|passwd|credential|authorization|cookie|private[_-]?key)/iu
+			.test(name) || typeof secret !== 'string' || secret.length < 4) continue;
+		output = output.replaceAll(secret, '[REDACTED]');
+	}
+	return boundedUtf8Tail(output.trim(), MAXIMUM_UTILITY_DIAGNOSTIC_BYTES);
+}
+
+function utilityProcessErrorDetail(type, location, report) {
+	if (type instanceof Error && location === undefined && report === undefined) {
+		return safeDiagnosticText(type.message) || 'unknown';
+	}
+	const values = type !== null && typeof type === 'object'
+		? [['type', type.type], ['location', type.location], ['report', type.report]]
+		: [['type', type], ['location', location], ['report', report]];
+	const details = [];
+	for (const [field, value] of values) {
+		if (!['string', 'number', 'boolean'].includes(typeof value)) continue;
+		const rendered = safeDiagnosticText(String(value));
+		if (rendered !== '') details.push(`${field}=${rendered}`);
+	}
+	return details.length === 0 ? 'unknown' : details.join(', ');
+}
+
+function boundedUtf8Tail(value, maximumBytes) {
+	const bytes = Buffer.from(value, 'utf8');
+	if (bytes.byteLength <= maximumBytes) return value;
+	const marker = `[truncated to ${String(maximumBytes)} bytes] `;
+	const available = Math.max(0, maximumBytes - Buffer.byteLength(marker));
+	let start = bytes.byteLength - available;
+	while (start < bytes.byteLength && (bytes[start] & 0xc0) === 0x80) start += 1;
+	return `${marker}${bytes.subarray(start).toString('utf8')}`;
+}
+
+function boundedUtf8Head(value, maximumBytes) {
+	const bytes = Buffer.from(value, 'utf8');
+	if (bytes.byteLength <= maximumBytes) return value;
+	const marker = `\n[truncated to ${String(maximumBytes)} bytes]`;
+	let end = Math.max(0, maximumBytes - Buffer.byteLength(marker));
+	while (end > 0 && (bytes[end] & 0xc0) === 0x80) end -= 1;
+	return `${bytes.subarray(0, end).toString('utf8')}${marker}`;
 }
 
 function validateEvidence(value, target) {

@@ -2,6 +2,9 @@
 
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { PassThrough } from 'node:stream';
 import test from 'node:test';
 
 import {
@@ -11,6 +14,8 @@ import {
 	PROFESSIONAL_NATIVE_UTILITY_SMOKE_PREFIX,
 	runSoundscaperProfessionalNativeUtilitySmoke,
 } from '../desktop/soundscaper-professional-native-utility-smoke.mjs';
+
+const ROOT = resolve(import.meta.dirname, '..');
 
 test('professional utility smoke is dormant without its packaged-only argument', async () => {
 	assert.equal(await runSoundscaperProfessionalNativeUtilitySmoke({
@@ -75,6 +80,78 @@ test('professional utility smoke accepts only exact Electron utility-process evi
 	assert(logs[0].startsWith(PROFESSIONAL_NATIVE_UTILITY_SMOKE_PREFIX));
 });
 
+test('professional utility helper uses the utility-process parent port', async () => {
+	const source = await readFile(resolve(ROOT,
+		'desktop/soundscaper-professional-native-utility-smoke-helper.js'), 'utf8');
+	assert.match(source, /const parentPort = process\.parentPort;/u);
+	assert.doesNotMatch(source, /import\s*\{\s*parentPort\s*\}\s*from\s*['"]electron['"]/u);
+});
+
+test('professional utility smoke exposes bounded sanitized child diagnostics', async () => {
+	const stdout = new PassThrough();
+	const stderr = new PassThrough();
+	const { child, running } = utilitySmoke([], { stdout, stderr });
+	queueMicrotask(() => {
+		stdout.end(`${'x'.repeat(64 * 1024)}\nstdout-tail\n`);
+		stderr.end('\u001b[31mloader failed\u001b[0m\nAuthorization: Bearer github_pat_fixture\nstderr-tail\n');
+		child.emit('exit', 1);
+	});
+	await assert.rejects(running, (error) => {
+		assert.match(error.message, /exited 1/u);
+		assert.match(error.message, /loader failed/u);
+		assert.match(error.message, /stdout-tail/u);
+		assert.match(error.message, /stderr-tail/u);
+		assert.doesNotMatch(error.message, /github_pat_fixture/iu);
+		assert(!error.message.includes('\u001b'));
+		assert(Buffer.byteLength(error.message) <= 20 * 1024);
+		return true;
+	});
+});
+
+test('professional utility smoke keeps UTF-8 diagnostics inside the byte ceiling', async () => {
+	const stdout = new PassThrough();
+	const { child, running } = utilitySmoke([], { stdout });
+	queueMicrotask(() => {
+		stdout.end('🚀'.repeat(64 * 1024));
+		child.emit('exit', 1, null);
+	});
+	await assert.rejects(running, (error) => {
+		const summary = 'Professional native utility smoke exited 1 (status=1, signal=none).\nstdout: ';
+		assert(Buffer.byteLength(error.message) <= Buffer.byteLength(summary) + 4 * 1024);
+		assert.doesNotMatch(error.message, /�/u);
+		return true;
+	});
+});
+
+test('professional utility smoke drains final pipe data emitted after exit', async () => {
+	const stdout = new PassThrough();
+	const stderr = new PassThrough();
+	const { child, running } = utilitySmoke([], { stdout, stderr });
+	queueMicrotask(() => {
+		child.emit('exit', 1, null);
+		queueMicrotask(() => {
+			stdout.end();
+			stderr.end('late loader exception\n');
+		});
+	});
+	await assert.rejects(running, /status|exited 1[\s\S]*late loader exception/iu);
+});
+
+test('professional utility smoke renders bounded structured fatal errors', async () => {
+	const { child, running } = utilitySmoke([]);
+	queueMicrotask(() => child.emit(
+		'error', 'FatalError', 'utility-bootstrap',
+		`Authorization: Bearer github_pat_fixture\n${'r'.repeat(64 * 1024)}\nreport-tail`,
+	));
+	await assert.rejects(running, (error) => {
+		assert.match(error.message, /FatalError.*utility-bootstrap/u);
+		assert.match(error.message, /report-tail/u);
+		assert.doesNotMatch(error.message, /github_pat_fixture/u);
+		assert(Buffer.byteLength(error.message) <= 20 * 1024);
+		return true;
+	});
+});
+
 test('professional utility smoke requires audio and every isolated plug-in lifecycle operation', async () => {
 	for (const operation of [
 		'scan', 'instantiate', 'deterministic-process', 'latency', 'state-round-trip', 'close',
@@ -101,9 +178,11 @@ test('professional utility smoke requires audio and every isolated plug-in lifec
 	}
 });
 
-function utilitySmoke(logs) {
+function utilitySmoke(logs, streams = {}) {
 	const child = new EventEmitter();
 	child.kill = () => true;
+	child.stdout = streams.stdout ?? null;
+	child.stderr = streams.stderr ?? null;
 	const argv = [
 		'--soundscaper-professional-native-utility-smoke=/professional/soundscaper_professional.node',
 		'--soundscaper-professional-native-utility-target=linux-x64',

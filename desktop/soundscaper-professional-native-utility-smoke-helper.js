@@ -6,7 +6,6 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { isAbsolute, resolve } from 'node:path';
-import { parentPort } from 'electron';
 
 import {
 	runSoundscaperProfessionalNativeAudioCanary,
@@ -21,6 +20,7 @@ import {
 	resolveSoundscaperProfessionalLinuxSystemRuntime,
 } from './project-library-runtime/desktop/soundscaper-professional-linux-system-runtime.js';
 
+const parentPort = process.parentPort;
 const arguments_ = namedArguments(process.argv.slice(2));
 if (!parentPort) throw new Error('Invalid professional utility smoke request.');
 const target = runtimeTarget();
