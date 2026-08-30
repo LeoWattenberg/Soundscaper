@@ -8,7 +8,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import {
-	extname, isAbsolute, join, resolve,
+	basename, extname, isAbsolute, join, resolve,
 } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -44,11 +44,15 @@ export async function auditDesktopPackageArtifactContent({
 				));
 			}
 			const extractedRoot = join(temporaryRoot, 'content');
-			await run(await sevenZipExecutable(root), [
-				'x', '-y', '-bd', `-o${extractedRoot}`, artifact,
-			], 'DMG extraction');
-			return await auditExtractedDesktopPackageContent({
+			const extractedVolumeRoot = await extractDmgWithSevenZip({
+				artifact,
 				extractedRoot,
+				productId,
+				sevenZip: await sevenZipExecutable(root),
+				targetId,
+			});
+			return await auditExtractedDesktopPackageContent({
+				extractedRoot: extractedVolumeRoot,
 				packageFormat: extension,
 				runtimeManifestBytes,
 				productId,
@@ -213,9 +217,127 @@ async function findFiles(root, predicate) {
 	return matches;
 }
 
-async function run(command, args, label) {
+export async function extractDmgWithSevenZip({
+	artifact, extractedRoot, productId, sevenZip, targetId,
+}, { execute = executeFile } = {}) {
+	const { applicationsLinkPath, volumeName } = expectedDmgExtractionLayout({
+		artifact, productId, targetId,
+	});
+	// electron-builder DMGs carry one volume-root Applications -> /Applications
+	// alias. Authenticate its archive record and bytes before excluding that link.
+	const listing = await run(sevenZip, [
+		'l', '-slt', '-bd', '-spd', artifact, applicationsLinkPath,
+	], 'DMG Applications alias listing', { execute });
+	assertExpectedDmgApplicationsAliasListing(listing, applicationsLinkPath);
+	const link = await run(sevenZip, [
+		'e', '-so', '-bd', '-spd', artifact, applicationsLinkPath,
+	], 'DMG Applications alias inspection', { execute });
+	if (link.stderr !== '' || link.stdout !== '/Applications') {
+		throw new Error('The DMG Applications alias does not target /Applications exactly.');
+	}
+	// Match a mounted filesystem view: HFS alternate streams are metadata, not
+	// colon-suffixed installed files. Every other unsafe link still fails 7-Zip.
+	const extraction = await run(sevenZip, [
+		'x', '-y', '-bd', '-sns-', '-spd', `-x!${applicationsLinkPath}`,
+		`-o${extractedRoot}`, artifact,
+	], 'DMG extraction', { execute });
+	assertSuccessfulDmgExtraction(extraction);
+	return extractedDmgVolumeRoot(extractedRoot, volumeName);
+}
+
+function expectedDmgExtractionLayout({ artifact, productId, targetId }) {
+	if (targetId !== 'mac-arm64' || typeof artifact !== 'string') {
+		throw new Error('The DMG extraction target is invalid.');
+	}
+	const productName = productId === 'soundscaper' ? 'Soundscaper'
+		: productId === 'framescaper' ? 'Framescaper' : null;
+	if (productName === null) throw new Error('The DMG extraction product is invalid.');
+	const name = basename(artifact);
+	const prefix = `${productName}-`;
+	const suffix = '-mac-arm64.dmg';
+	if (!name.startsWith(prefix) || !name.endsWith(suffix)) {
+		throw new Error('The DMG artifact name does not bind its product and target.');
+	}
+	const version = name.slice(prefix.length, -suffix.length);
+	if (!/^[\w][\w.+-]{0,159}$/u.test(version)) {
+		throw new Error('The DMG artifact name has an invalid application version.');
+	}
+	const volumeName = `${productName} ${version}-arm64`;
+	return { applicationsLinkPath: `${volumeName}/Applications`, volumeName };
+}
+
+function assertExpectedDmgApplicationsAliasListing(result, applicationsLinkPath) {
+	const stdout = quietSevenZipOutput(result, 'DMG Applications alias listing');
+	const marker = '\n----------\n';
+	const markerIndex = stdout.indexOf(marker);
+	if (markerIndex < 0 || markerIndex !== stdout.lastIndexOf(marker)) {
+		throw new Error('The DMG Applications alias listing has invalid archive structure.');
+	}
+	const headerLines = stdout.slice(0, markerIndex).split('\n');
+	if (!headerLines.includes('Type = Dmg') || !headerLines.includes('Type = HFS')) {
+		throw new Error('The DMG Applications alias listing has invalid archive structure.');
+	}
+	const inventory = stdout.slice(markerIndex + marker.length).replace(/\n+$/u, '');
+	const blocks = inventory.split(/\n\n+/u);
+	if (blocks.length !== 1) {
+		throw new Error('The DMG Applications alias listing did not select exactly one entry.');
+	}
+	const properties = new Map();
+	for (const line of blocks[0].split('\n')) {
+		const match = /^([^=]+) = (.*)$/u.exec(line);
+		if (match === null || properties.has(match[1])) {
+			throw new Error('The DMG Applications alias listing has ambiguous properties.');
+		}
+		properties.set(match[1], match[2]);
+	}
+	if (properties.get('Path') !== applicationsLinkPath
+		|| properties.get('Folder') !== '-'
+		|| properties.get('Size') !== '13'
+		|| properties.get('Mode') !== 'lrwxr-xr-x'
+		|| properties.get('Alternate Stream') !== '-') {
+		throw new Error('The DMG Applications alias is not the expected symbolic link.');
+	}
+}
+
+function assertSuccessfulDmgExtraction(result) {
+	const stdout = quietSevenZipOutput(result, 'DMG extraction');
+	const lines = stdout.split('\n');
+	if (!lines.includes('Type = Dmg') || !lines.includes('Type = HFS')
+		|| !lines.includes('Everything is Ok')) {
+		throw new Error('The DMG extraction did not authenticate a complete HFS image.');
+	}
+}
+
+function quietSevenZipOutput(result, label) {
+	if (result === null || typeof result !== 'object'
+		|| typeof result.stdout !== 'string' || result.stderr !== '') {
+		throw new Error(`${label} produced unexpected diagnostics.`);
+	}
+	const stdout = result.stdout.replaceAll('\r\n', '\n');
+	if (/\b(?:Errors?|Warnings?)\b/iu.test(stdout)) {
+		throw new Error(`${label} reported an archive diagnostic.`);
+	}
+	return stdout;
+}
+
+async function extractedDmgVolumeRoot(extractedRoot, volumeName) {
+	const root = await canonicalDirectory(extractedRoot, 'DMG extraction root');
+	const entries = await readdir(root, { withFileTypes: true });
+	if (entries.length !== 1 || entries[0].name !== volumeName
+		|| !entries[0].isDirectory() || entries[0].isSymbolicLink()) {
+		throw new Error('The DMG extraction did not produce one exact volume root.');
+	}
+	const volumeRoot = await canonicalDirectory(join(root, volumeName), 'extracted DMG volume root');
+	const volumeEntries = await readdir(volumeRoot, { withFileTypes: true });
+	if (volumeEntries.some((entry) => entry.name === 'Applications')) {
+		throw new Error('The extracted DMG volume root retained the Applications alias.');
+	}
+	return volumeRoot;
+}
+
+async function run(command, args, label, { execute = executeFile } = {}) {
 	try {
-		return await executeFile(command, args, {
+		return await execute(command, args, {
 			encoding: 'utf8',
 			maxBuffer: MAXIMUM_TOOL_OUTPUT,
 			timeout: EXTRACTION_TIMEOUT_MS,

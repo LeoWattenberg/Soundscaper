@@ -1,12 +1,108 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import {
+	mkdir, mkdtemp, rm, symlink, writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { appImageSquashfsOffset } from '../scripts/lib/desktop-package-artifact-extractor.mjs';
+import {
+	appImageSquashfsOffset,
+	extractDmgWithSevenZip,
+} from '../scripts/lib/desktop-package-artifact-extractor.mjs';
+
+const DMG_VOLUME = 'Soundscaper 1.0.0-rc.1-arm64';
+const DMG_APPLICATIONS_LINK = `${DMG_VOLUME}/Applications`;
+
+test('foreign-platform DMG extraction authenticates the installer alias and volume root', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-dmg-extraction-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const artifact = join(root, 'Soundscaper-1.0.0-rc.1-mac-arm64.dmg');
+	const extractedRoot = join(root, 'content');
+	await writeFile(artifact, 'fixture');
+	const calls = [];
+	const execute = async (command, args) => {
+		calls.push([command, args]);
+		if (args[0] === 'l') return { stdout: dmgListing(), stderr: '' };
+		if (args[0] === 'e') return { stdout: '/Applications', stderr: '' };
+		await mkdir(join(extractedRoot, DMG_VOLUME), { recursive: true });
+		return { stdout: dmgExtractionOutput(), stderr: '' };
+	};
+	assert.equal(await extractDmgWithSevenZip({
+		artifact,
+		extractedRoot,
+		productId: 'soundscaper',
+		sevenZip: '/fixture/7z',
+		targetId: 'mac-arm64',
+	}, { execute }), join(extractedRoot, DMG_VOLUME));
+	assert.deepEqual(calls, [
+		['/fixture/7z', ['l', '-slt', '-bd', '-spd', artifact, DMG_APPLICATIONS_LINK]],
+		['/fixture/7z', ['e', '-so', '-bd', '-spd', artifact, DMG_APPLICATIONS_LINK]],
+		['/fixture/7z', [
+			'x', '-y', '-bd', '-sns-', '-spd', `-x!${DMG_APPLICATIONS_LINK}`,
+			`-o${extractedRoot}`, artifact,
+		]],
+	]);
+});
+
+test('foreign-platform DMG extraction fails closed on alias and volume deviations', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-dmg-rejections-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const artifact = join(root, 'Soundscaper-1.0.0-rc.1-mac-arm64.dmg');
+	await writeFile(artifact, 'fixture');
+	for (const scenario of [
+		{ label: 'regular alias', listing: dmgListing({ mode: '-rw-r--r--' }), target: '/Applications' },
+		{ label: 'wrong path', listing: dmgListing({ path: `${DMG_VOLUME}/Other` }), target: '/Applications' },
+		{ label: 'wrong size', listing: dmgListing({ size: '12' }), target: '/Applications' },
+		{ label: 'alternate stream', listing: dmgListing({ alternateStream: '+' }), target: '/Applications' },
+		{ label: 'duplicate alias', listing: dmgListing({ duplicate: true }), target: '/Applications' },
+		{ label: 'wrong target', listing: dmgListing(), target: '/tmp' },
+		{
+			label: 'extraction warning', listing: dmgListing(), target: '/Applications',
+			extractionOutput: `${dmgExtractionOutput()}Warnings: 1\n`,
+		},
+		{
+			label: 'extraction stderr', listing: dmgListing(), target: '/Applications',
+			extractionStderr: 'unexpected diagnostic\n',
+		},
+		{ label: 'extraction failure', listing: dmgListing(), target: '/Applications', extractionFailure: true },
+		{ label: 'extra volume', listing: dmgListing(), target: '/Applications', extraRoot: true },
+		{ label: 'retained alias', listing: dmgListing(), target: '/Applications', retainedAlias: true },
+		{ label: 'symbolic volume', listing: dmgListing(), target: '/Applications', symbolicVolume: true },
+	]) {
+		const extractedRoot = join(root, scenario.label);
+		const execute = async (_command, args) => {
+			if (args[0] === 'l') return { stdout: scenario.listing, stderr: '' };
+			if (args[0] === 'e') return { stdout: scenario.target, stderr: '' };
+			if (scenario.extractionFailure === true) throw new Error('fixture extraction failure');
+			if (scenario.symbolicVolume === true) {
+				const target = join(root, `${scenario.label}-target`);
+				await mkdir(target);
+				await mkdir(extractedRoot);
+				await symlink(target, join(extractedRoot, DMG_VOLUME), 'dir');
+			} else {
+				await mkdir(join(extractedRoot, DMG_VOLUME), { recursive: true });
+			}
+			if (scenario.extraRoot === true) await mkdir(join(extractedRoot, 'foreign'));
+			if (scenario.retainedAlias === true) {
+				await mkdir(join(extractedRoot, DMG_VOLUME, 'Applications'));
+			}
+			return {
+				stdout: scenario.extractionOutput ?? dmgExtractionOutput(),
+				stderr: scenario.extractionStderr ?? '',
+			};
+		};
+		await assert.rejects(extractDmgWithSevenZip({
+			artifact,
+			extractedRoot,
+			productId: 'soundscaper',
+			sevenZip: '/fixture/7z',
+			targetId: 'mac-arm64',
+		}, { execute }), /Applications alias|volume root|DMG extraction/iu, scenario.label);
+	}
+});
 
 test('AppImage extraction derives the payload from ELF structure and ignores decoy magic', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-appimage-offset-'));
@@ -59,4 +155,31 @@ function appImageBytes() {
 	bytes.writeUInt16LE(0, offset + 30);
 	bytes.writeBigUInt64LE(96n, offset + 40);
 	return bytes;
+}
+
+function dmgListing({
+	alternateStream = '-', duplicate = false, mode = 'lrwxr-xr-x',
+	path = DMG_APPLICATIONS_LINK, size = '13',
+} = {}) {
+	const entry = [
+		`Path = ${path}`,
+		'Folder = -',
+		`Size = ${size}`,
+		`Mode = ${mode}`,
+		`Alternate Stream = ${alternateStream}`,
+		'Method = ',
+	];
+	return [
+		'Type = Dmg',
+		'Type = HFS',
+		'',
+		'----------',
+		...entry,
+		...(duplicate ? ['', ...entry] : []),
+		'',
+	].join('\n');
+}
+
+function dmgExtractionOutput() {
+	return ['Type = Dmg', 'Type = HFS', 'Everything is Ok', ''].join('\n');
 }
