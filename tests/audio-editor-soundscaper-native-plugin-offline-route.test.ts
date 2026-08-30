@@ -99,8 +99,19 @@ test('ordinary renderMix sends an active native rack through bounded realtime PC
 		trackId: 'track-1', includeMaster: false, outputFrames: 4,
 	});
 	assert.ok('channels' in rendered);
-	assert.deepEqual(Array.from(rendered.channels[0]), [1, 2, 5, 6]);
-	assert.deepEqual(Array.from(rendered.channels[1]), [3, 4, 7, 8]);
+	const buffer = rendered as typeof rendered & {
+		readonly length: number;
+		readonly numberOfChannels: number;
+		readonly sampleRate: number;
+		getChannelData(channel: number): Float32Array;
+	};
+	assert.equal(buffer.sampleRate, 48_000, 'the export encoder can inspect the captured rate');
+	assert.equal(buffer.length, 4);
+	assert.equal(buffer.numberOfChannels, 2);
+	assert.deepEqual(Array.from(buffer.getChannelData(0)), [1, 2, 5, 6]);
+	assert.deepEqual(Array.from(buffer.getChannelData(1)), [3, 4, 7, 8]);
+	assert.strictEqual(buffer.getChannelData(0), buffer.channels[0], 'the buffer view does not copy the render');
+	assert.throws(() => buffer.getChannelData(2), /no channel 2/iu);
 	assert.equal(calls.length, 1);
 });
 
