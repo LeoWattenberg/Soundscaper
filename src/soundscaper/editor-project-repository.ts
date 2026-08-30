@@ -7,6 +7,7 @@ import type {
 	ProjectRepositoryPort,
 	ProjectRevision,
 } from '../common/editor/storage/project-repository.ts'
+import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts'
 import {
 	cloneSoundscaperProject,
 	type SoundscaperProject,
@@ -14,12 +15,18 @@ import {
 
 const REQUIRED_DELEGATE_METHODS = [
 	'createIfAbsent', 'createForScapeImportIfAbsent', 'save', 'saveIfCurrent',
-	'load', 'list', 'listRevisions', 'delete',
+	'load', 'list', 'listRevisions', 'delete', 'restore', 'restoreIfCurrent',
 ] as const
+
+type ProjectRestorationSnapshot = Readonly<{
+	readonly current: ProjectDocument | null
+	readonly revisions: readonly ProjectRevision[]
+}>
 
 /** Validate and detach every document crossing the baseline persistence boundary. */
 export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 	readonly #delegate: ProjectRepositoryPort
+	readonly #creationCapabilities = new WeakMap<object, ProjectDocument>()
 
 	constructor(delegateValue: ProjectRepositoryPort | unknown) {
 		assertDelegate(delegateValue)
@@ -27,11 +34,11 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 	}
 
 	async createIfAbsent(projectValue: ProjectDocument): Promise<ProjectDocument | null> {
-		return this.#optionalSnapshot(await this.#delegate.createIfAbsent!(this.#snapshot(projectValue)))
+		return this.#creationSnapshot(await this.#delegate.createIfAbsent!(this.#snapshot(projectValue)))
 	}
 
 	async createForScapeImportIfAbsent(projectValue: ProjectDocument): Promise<ProjectDocument | null> {
-		return this.#optionalSnapshot(
+		return this.#creationSnapshot(
 			await this.#delegate.createForScapeImportIfAbsent!(this.#snapshot(projectValue)),
 		)
 	}
@@ -53,6 +60,22 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 			this.#snapshot(projectValue),
 			postCommit,
 		))
+	}
+
+	async restore(projectId: string, snapshot: ProjectRestorationSnapshot): Promise<void> {
+		await this.#delegate.restore!(projectId, this.#restorationSnapshot(snapshot))
+	}
+
+	restoreIfCurrent(
+		projectId: string,
+		expectedValue: ProjectDocument,
+		snapshot: ProjectRestorationSnapshot,
+	): Promise<boolean> {
+		return this.#delegate.restoreIfCurrent!(
+			projectId,
+			this.#snapshot(expectedValue),
+			this.#restorationSnapshot(snapshot),
+		)
 	}
 
 	async maintainCurrentProject(
@@ -83,7 +106,12 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 
 	async deleteIfCurrent(projectValue: ProjectDocument): Promise<boolean> {
 		if (typeof this.#delegate.deleteIfCurrent !== 'function') return false
-		return this.#delegate.deleteIfCurrent(this.#snapshot(projectValue))
+		const snapshot = this.#snapshot(projectValue)
+		const capability = this.#creationCapabilities.get(projectValue)
+		if (!capability || !sameProjectSnapshot(snapshot, capability)) return false
+		const deleted = await this.#delegate.deleteIfCurrent(capability)
+		if (deleted) this.#creationCapabilities.delete(projectValue)
+		return deleted
 	}
 
 	async deleteExact(projectValue: ProjectDocument): Promise<boolean> {
@@ -97,6 +125,23 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 
 	#optionalSnapshot(project: ProjectDocument | null): ProjectDocument | null {
 		return project === null ? null : this.#snapshot(project)
+	}
+
+	#creationSnapshot(project: ProjectDocument | null): ProjectDocument | null {
+		if (project === null) return null
+		const snapshot = this.#snapshot(project)
+		this.#creationCapabilities.set(snapshot, project)
+		return snapshot
+	}
+
+	#restorationSnapshot(snapshot: ProjectRestorationSnapshot): ProjectRestorationSnapshot {
+		return {
+			current: this.#optionalSnapshot(snapshot.current),
+			revisions: snapshot.revisions.map(({ revision, project }) => ({
+				revision,
+				project: this.#snapshot(project),
+			})),
+		}
 	}
 
 	#snapshot(project: ProjectDocument | unknown): SoundscaperProject & ProjectDocument {
