@@ -262,7 +262,12 @@ function exportWebVttCue(
 	const speaker = cue.speakerId === null ? null : track.speakers.find((candidate) => candidate.id === cue.speakerId) ?? null;
 	const settings = style === null ? '' : ` align:${style.textAlign}`;
 	const timing = exportMillisecondTiming(cue, sampleRate, 'webvtt', losses) + settings;
-	let body = escapePassiveText(cue.text);
+	const printable = cue.text.split('\n').filter((line) => line.trim().length > 0);
+	const passiveText = printable.length > 0 ? printable.join('\n') : ' ';
+	if (passiveText !== cue.text) {
+		losses.push(captionLoss('text-lines-normalized', `cues.${cue.id}.text`, 'WebVTT cannot preserve leading, trailing, or blank caption lines.', {}));
+	}
+	let body = escapePassiveText(passiveText);
 	if (style !== null) {
 		losses.push(captionLoss('style-properties-omitted', `cues.${cue.id}.styleId`, 'WebVTT preserves emphasis and alignment but not the complete caption style.', { id: style.id }));
 		if (style.textDecoration === 'underline') body = `<u>${body}</u>`;
@@ -455,7 +460,7 @@ function exportTimingLoss(cue: VideoCaptionCueV1, field: 'startFrame' | 'endFram
 }
 
 function escapePassiveText(value: string): string {
-	return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '&#10;');
+	return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 function decodePassiveText(value: string): string {

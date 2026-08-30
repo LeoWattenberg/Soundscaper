@@ -236,14 +236,24 @@ test('millisecond sidecars expose deterministic timing quantization as structure
 	}
 });
 
-test('WebVTT sidecars preserve cue-leading, trailing, and blank lines as passive entities', () => {
+test('WebVTT writes ordinary cue line breaks literally and reports unrepresentable blank lines', () => {
 	const source = captionTrack({
 		styles: [], regions: [], speakers: [],
 		cues: [{
 			schemaVersion: 1,
-			id: 'cue-lines',
+			id: 'cue-multiline',
 			startFrame: 0,
 			endFrame: 48_000,
+			text: 'first\nsecond',
+			styleId: null,
+			regionId: null,
+			speakerId: null,
+			words: [],
+		}, {
+			schemaVersion: 1,
+			id: 'cue-blank-lines',
+			startFrame: 48_000,
+			endFrame: 96_000,
 			text: '\nfirst\n\nlast\n',
 			styleId: null,
 			regionId: null,
@@ -252,11 +262,18 @@ test('WebVTT sidecars preserve cue-leading, trailing, and blank lines as passive
 		}],
 	});
 	const exported = exportVideoCaptionTrackV1(source, { format: 'webvtt', sampleRate: 48_000 });
-	assert.match(exported.text, /&#10;/u);
+	assert.match(exported.text, /first\nsecond/u);
+	assert.match(exported.text, /first\nlast/u);
+	assert.doesNotMatch(exported.text, /&#10;/u);
+	assert.deepEqual(
+		exported.losses.filter((loss) => loss.code === 'text-lines-normalized').map((loss) => loss.path),
+		['cues.cue-blank-lines.text'],
+	);
 	const imported = importVideoCaptionTrackV1(exported.text, {
 		format: 'webvtt', sampleRate: 48_000, ...IMPORT_IDENTITY,
 	});
-	assert.equal(imported.track.cues[0]?.text, source.cues[0]?.text);
+	assert.equal(imported.track.cues[0]?.text, 'first\nsecond');
+	assert.equal(imported.track.cues[1]?.text, 'first\nlast');
 });
 
 test('SRT export writes literal plain text and reports unrepresentable line structure', () => {
