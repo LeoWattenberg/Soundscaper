@@ -185,3 +185,35 @@ test('a backtimed edit that would start before the origin is refused', () => {
 		return true;
 	});
 });
+
+test('the four points of a resolved edit are admitted when they are given again', () => {
+	// Count conversion is monotone but not invertible: 1337 PAL frames resolve to
+	// 1284 film frames, while 1284 film frames resolve to 1338 PAL frames because
+	// the exact ratio lands on a half. Admitting four points in only one of those
+	// directions refused an edit this module had itself just produced, so which
+	// marks the user happened to set decided whether the edit was legal.
+	const scope = context({ sourceFrameCount: 100_000 });
+	assert.equal(convertFrameCount(1_337, PAL, FILM), 1_284);
+	assert.equal(convertFrameCount(1_284, FILM, PAL), 1_338);
+	const derived = resolveThreePointEdit({ sourceIn: 0, sequenceIn: 0, sequenceOut: 1_337 }, scope);
+	assert.equal(derived.sourceOut, 1_284);
+	const readmitted = resolveThreePointEdit({
+		sourceIn: derived.sourceIn,
+		sourceOut: derived.sourceOut,
+		sequenceIn: derived.sequenceIn,
+		sequenceOut: derived.sequenceOut,
+	}, scope);
+	assert.equal(readmitted.sourceFrameCount, 1_284);
+	assert.equal(readmitted.sequenceFrameCount, 1_337);
+});
+
+test('four points whose durations genuinely disagree are still refused', () => {
+	assert.throws(() => resolveThreePointEdit(
+		{ sourceIn: 0, sourceOut: 1_284, sequenceIn: 0, sequenceOut: 1_500 },
+		context({ sourceFrameCount: 100_000 }),
+	), (error: unknown) => {
+		assert.ok(error instanceof ThreePointEditError);
+		assert.equal(error.reason, 'over-specified');
+		return true;
+	});
+});

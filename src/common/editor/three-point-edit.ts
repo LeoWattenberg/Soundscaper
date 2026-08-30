@@ -203,6 +203,12 @@ function deriveFourthPoint(
  * Four points are accepted only when they agree. Preferring three of them would
  * silently discard a mark the user set, which is exactly the kind of repair the
  * milestone forbids.
+ *
+ * Agreement is whether these four points are a result the three-point rule could
+ * have produced, which means asking in both directions. Count conversion is
+ * monotone but not invertible, so a range this module derives one way does not
+ * always convert back to the count it came from; checking one direction alone
+ * refused an edit the module had itself just resolved.
  */
 function admitFullySpecified(
 	given: ReadonlyMap<ThreePointEditPoint, number>,
@@ -216,7 +222,10 @@ function admitFullySpecified(
 	if (sourceOut <= sourceIn || sequenceOut <= sequenceIn) {
 		throw new ThreePointEditError('empty-range', 'A three-point edit keeps at least one frame.');
 	}
-	if (convertFrameCount(sourceOut - sourceIn, sourceRate, sequenceRate) !== sequenceOut - sequenceIn) {
+	const sourceCount = sourceOut - sourceIn;
+	const sequenceCount = sequenceOut - sequenceIn;
+	if (convertFrameCount(sourceCount, sourceRate, sequenceRate) !== sequenceCount
+		&& convertFrameCount(sequenceCount, sequenceRate, sourceRate) !== sourceCount) {
 		throw new ThreePointEditError(
 			'over-specified',
 			'All four points were given and their durations disagree; fitting one to the other would change speed.',
