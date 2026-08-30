@@ -96,15 +96,18 @@ jobs:
             arch: x64
             node_arch: x64
             cmake_arch: x64
+            native_target: win-x64
           - runner: windows-11-arm
             platform: win
             arch: arm64
             node_arch: x64
             cmake_arch: ARM64
+            native_target: win-arm64
           - runner: macos-15
             platform: mac
             arch: arm64
             node_arch: arm64
+            native_target: mac-arm64
     runs-on: ${{ matrix.target.runner }}
     steps:
       - name: Check out source
@@ -139,6 +142,7 @@ jobs:
           cmake -S native/milestone-5-native-isolation-launcher
           -B "${{ runner.temp }}/native-isolation-launcher"
           -A ${{ matrix.target.cmake_arch }}
+          -DSOUNDSCAPER_NATIVE_TARGET=${{ matrix.target.native_target }}
 
       - name: Configure the macOS isolation launcher
         if: runner.os == 'macOS'
@@ -147,6 +151,7 @@ jobs:
           -B "${{ runner.temp }}/native-isolation-launcher"
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DSOUNDSCAPER_NATIVE_TARGET=${{ matrix.target.native_target }}
 
       - name: Compile the target-native isolation launcher
         run: >-

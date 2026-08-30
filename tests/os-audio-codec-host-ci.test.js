@@ -216,9 +216,12 @@ test('pull-request quality compiles every supported Windows and macOS native tar
 	const workflow = await readFile(join(ROOT, '.github/workflows/quality.yml'), 'utf8');
 	const compileJob = jobSource(workflow, 'native-platform-compile', 'tests');
 	assert.match(compileJob, /needs: quality/u);
-	assert.match(compileJob, /runner: windows-2025[\s\S]*platform: win[\s\S]*arch: x64[\s\S]*node_arch: x64/u);
-	assert.match(compileJob, /runner: windows-11-arm[\s\S]*platform: win[\s\S]*arch: arm64[\s\S]*node_arch: x64/u);
-	assert.match(compileJob, /runner: macos-15[\s\S]*platform: mac[\s\S]*arch: arm64[\s\S]*node_arch: arm64/u);
+	assert.match(compileJob,
+		/- runner: windows-2025\n\s+platform: win\n\s+arch: x64\n\s+node_arch: x64\n\s+cmake_arch: x64\n\s+native_target: win-x64/u);
+	assert.match(compileJob,
+		/- runner: windows-11-arm\n\s+platform: win\n\s+arch: arm64\n\s+node_arch: x64\n\s+cmake_arch: ARM64\n\s+native_target: win-arm64/u);
+	assert.match(compileJob,
+		/- runner: macos-15\n\s+platform: mac\n\s+arch: arm64\n\s+node_arch: arm64\n\s+native_target: mac-arm64/u);
 	assert.doesNotMatch(compileJob, /runner: ubuntu|platform: linux/u);
 	assert.match(compileJob, /node scripts\/ci-build-os-audio-codec-host\.mjs/u);
 	for (const argument of [
@@ -227,10 +230,17 @@ test('pull-request quality compiles every supported Windows and macOS native tar
 		'--runner-os=${{ runner.os }}',
 		'--runner-arch=${{ runner.arch }}',
 	]) assert.match(compileJob, new RegExp(escapeRegExp(argument), 'u'), argument);
-	assert.match(compileJob,
-		/cmake -S native\/milestone-5-native-isolation-launcher[\s\S]*-A \$\{\{ matrix\.target\.cmake_arch \}\}/u);
-	assert.match(compileJob,
-		/-DCMAKE_OSX_ARCHITECTURES=arm64[\s\S]*--target milestone5-native-isolation-launcher/u);
+	const windowsConfigure = stepSource(compileJob,
+		'Configure the Windows isolation launcher', 'Configure the macOS isolation launcher');
+	assert.match(windowsConfigure, /cmake -S native\/milestone-5-native-isolation-launcher/u);
+	assert.match(windowsConfigure, /-A \$\{\{ matrix\.target\.cmake_arch \}\}/u);
+	assert.match(windowsConfigure,
+		/-DSOUNDSCAPER_NATIVE_TARGET=\$\{\{ matrix\.target\.native_target \}\}/u);
+	const macosConfigure = stepSource(compileJob,
+		'Configure the macOS isolation launcher', 'Compile the target-native isolation launcher');
+	assert.match(macosConfigure, /-DCMAKE_OSX_ARCHITECTURES=arm64/u);
+	assert.match(macosConfigure,
+		/-DSOUNDSCAPER_NATIVE_TARGET=\$\{\{ matrix\.target\.native_target \}\}/u);
 
 	const coverageJob = jobSource(workflow, 'coverage', 'browser');
 	assert.match(coverageJob, /needs: \[tests, native-platform-compile\]/u);
@@ -274,6 +284,14 @@ function jobSource(workflow, name, next) {
 	const end = next === null ? workflow.length : workflow.indexOf(`  ${next}:\n`, start + 1);
 	assert.notEqual(end, -1, next);
 	return workflow.slice(start, end);
+}
+
+function stepSource(job, name, next) {
+	const start = job.indexOf(`      - name: ${name}\n`);
+	assert.notEqual(start, -1, name);
+	const end = job.indexOf(`      - name: ${next}\n`, start + 1);
+	assert.notEqual(end, -1, next);
+	return job.slice(start, end);
 }
 
 function escapeRegExp(value) {
