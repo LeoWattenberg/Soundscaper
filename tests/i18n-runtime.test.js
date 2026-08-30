@@ -3,7 +3,9 @@ import { createHash, webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from '../src/common/i18n/musical-timeline-copy.js';
 import { SITE_SIDEBAR_COPY_BY_LOCALE } from '../src/common/i18n/site-sidebar-copy.js';
+import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from '../src/common/i18n/timeline-annotation-copy.js';
 import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
 import {
 	loadTranslationManifest,
@@ -41,6 +43,18 @@ test('site sidebar copy stays localized and merged into the bundled catalogs', (
 			assert.equal(catalog[key], value, `${locale}.${key}`);
 		}
 	}
+});
+
+test('musical timeline and annotation controls own distinct catalog keys', () => {
+	assert.deepEqual(
+		Object.keys(MUSICAL_TIMELINE_COPY_BY_LOCALE.en)
+			.filter((key) => Object.hasOwn(TIMELINE_ANNOTATION_COPY_BY_LOCALE.en, key)),
+		[],
+	);
+	assert.equal(ENGLISH_COPY.tempoMusicalAnchor, 'Musical');
+	assert.equal(GERMAN_COPY.tempoMusicalAnchor, 'Musikalisch');
+	assert.equal(ENGLISH_COPY.musicalAnchor, 'Musically anchored');
+	assert.equal(GERMAN_COPY.musicalAnchor, 'Musikalisch verankert');
 });
 
 test('recording preparation failures are localized in English and German', () => {

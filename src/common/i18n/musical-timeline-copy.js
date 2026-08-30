@@ -4,7 +4,7 @@ export const MUSICAL_TIMELINE_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 		musicalTimeline: 'Musikalische Zeitleiste',
 		tempoMapMode: 'Tempoverankerung',
-		musicalAnchor: 'Musikalisch',
+		tempoMusicalAnchor: 'Musikalisch',
 		sampleLockedAnchor: 'Samplegebunden',
 		tempoEvents: 'Tempoereignisse',
 		signatureEvents: 'Taktart-Ereignisse',
@@ -22,7 +22,7 @@ export const MUSICAL_TIMELINE_COPY_BY_LOCALE = Object.freeze({
 	en: Object.freeze({
 		musicalTimeline: 'Musical timeline',
 		tempoMapMode: 'Tempo anchoring',
-		musicalAnchor: 'Musical',
+		tempoMusicalAnchor: 'Musical',
 		sampleLockedAnchor: 'Sample locked',
 		tempoEvents: 'Tempo events',
 		signatureEvents: 'Time signature events',

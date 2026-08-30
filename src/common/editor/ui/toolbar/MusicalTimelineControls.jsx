@@ -84,7 +84,7 @@ export function MusicalTimelineControls({ project, snapshot, controller, copy, r
 							disabled={disabled}
 							onChange={(event) => run(() => controller.actions.project.setTempoMapMode(event.currentTarget.value))}
 						>
-							<option value="musical">{copy.musicalAnchor}</option>
+							<option value="musical">{copy.tempoMusicalAnchor}</option>
 							<option value="sampleLocked">{copy.sampleLockedAnchor}</option>
 						</select>
 					</label>
