@@ -7,6 +7,7 @@ import test from 'node:test';
 import { createVideoSource } from '../src/common/editor/project-media-factory.ts';
 import {
 	acquireFramescaperDesktopBodies,
+	prepareFramescaperDesktopPublicationBodies,
 } from '../src/framescaper/desktop-project-library-body-transfer.ts';
 import {
 	FRAMESCAPER_DESKTOP_CORE_MAXIMUM_BODY_CHUNK_BYTES as MAXIMUM_CHUNK_BYTES,
@@ -41,6 +42,28 @@ function body(overrides: Data = {}): Data {
 
 function validate(bodies: unknown): readonly unknown[] {
 	return validateBodies(project(), SHA256, bodies);
+}
+
+function retainedVideoFixture() {
+	const bytes = new TextEncoder().encode('already retained video body');
+	const sha256 = createHash('sha256').update(bytes).digest('hex');
+	const storageKey = `media-sha256:${sha256}`;
+	const source = createVideoSource({
+		id: 'retained-video', name: 'retained.mp4', storageKey, mimeType: 'video/mp4',
+		contentSha256: sha256, sampleFrameCount: 48_000, sourceFrameCount: 30,
+		frameRate: { num: 30, den: 1 }, width: 640, height: 360, videoCodec: 'h264',
+	});
+	const candidate = createFramescaperProject(PROFILE, { sources: [source] } as never);
+	const descriptor = Object.freeze({
+		kind: 'video-original', encoding: 'framescaper-video-original-v1',
+		sourceId: storageKey, storageKey, mimeType: 'video/mp4',
+		byteLength: bytes.byteLength, sha256,
+	});
+	const metadata = Object.freeze({
+		sourceId: storageKey, mimeType: descriptor.mimeType,
+		size: bytes.byteLength, sha256,
+	});
+	return { bytes, candidate, descriptor, metadata } as const;
 }
 
 test('the maximum body chunk is published as a bounded transfer unit', () => {
@@ -100,20 +123,7 @@ test('a proxy body carries a binding identity the other kinds do not', () => {
 });
 
 test('acquisition does not fetch a body that was already verified locally', async () => {
-	const bytes = new TextEncoder().encode('already retained video body');
-	const sha256 = createHash('sha256').update(bytes).digest('hex');
-	const storageKey = `media-sha256:${sha256}`;
-	const source = createVideoSource({
-		id: 'retained-video', name: 'retained.mp4', storageKey, mimeType: 'video/mp4',
-		contentSha256: sha256, sampleFrameCount: 48_000, sourceFrameCount: 30,
-		frameRate: { num: 30, den: 1 }, width: 640, height: 360, videoCodec: 'h264',
-	});
-	const candidate = createFramescaperProject(PROFILE, { sources: [source] } as never);
-	const descriptor = Object.freeze({
-		kind: 'video-original', encoding: 'framescaper-video-original-v1',
-		sourceId: storageKey, storageKey, mimeType: 'video/mp4',
-		byteLength: bytes.byteLength, sha256,
-	});
+	const { bytes, candidate, descriptor, metadata } = retainedVideoFixture();
 	let readCount = 0;
 	await acquireFramescaperDesktopBodies(candidate, SHA256, [descriptor], {
 		async readBodyChunk() {
@@ -121,14 +131,26 @@ test('acquisition does not fetch a body that was already verified locally', asyn
 			throw new Error('an already retained body must not cross the desktop bridge');
 		},
 	}, {
-		getMediaAssetMetadata: () => ({
-			sourceId: storageKey, mimeType: descriptor.mimeType,
-			size: bytes.byteLength, sha256,
-		}),
+		getMediaAssetMetadata: () => metadata,
 		loadMediaAsset: () => new Blob([bytes]),
 		beginMediaAssetWrite: async () => {
 			throw new Error('an already retained body must not be rewritten');
 		},
 	} as never);
 	assert.equal(readCount, 0);
+});
+
+test('publication inventory can be described without loading retained body bytes', async () => {
+	const { bytes, candidate, metadata } = retainedVideoFixture();
+	let loadCount = 0;
+	const prepared = await prepareFramescaperDesktopPublicationBodies(candidate, SHA256, {
+		getMediaAssetMetadata: () => metadata,
+		loadMediaAsset: () => {
+			loadCount += 1;
+			return new Blob([bytes]);
+		},
+	} as never, undefined, () => false);
+	assert.equal(loadCount, 0);
+	assert.equal(prepared.length, 1);
+	assert.equal(prepared[0]?.blob, null);
 });

@@ -20,6 +20,11 @@ import {
 	FramescaperDesktopProjectLibraryIndeterminateError,
 } from './desktop-project-library-errors.ts';
 import {
+	assertFramescaperDesktopPublicationBodyInventory,
+	createFramescaperDesktopPublicationId,
+	validateFramescaperDesktopPublicationAdmission,
+} from './desktop-project-library-publication-admission.ts';
+import {
 	createFramescaperDesktopProjectLibraryShadow,
 	type FramescaperDesktopProjectLibraryShadow,
 } from './desktop-project-library-shadow.ts';
@@ -239,15 +244,16 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 				throw new Error('Framescaper desktop catalog changed before publication.');
 			}
 			const projectSha256 = bytesToHex(sha256(new TextEncoder().encode(JSON.stringify(project))));
-			const preparedBodies = await prepareFramescaperDesktopPublicationBodies(
-				project, projectSha256, this.#store, request.signal,
+			const bodyInventory = await prepareFramescaperDesktopPublicationBodies(
+				project, projectSha256, this.#store, request.signal, () => false,
 			);
-			const publicationId = randomPublicationId();
+			const publicationId = createFramescaperDesktopPublicationId();
 			let admitted = false;
 			let finished = false;
 			let finishing = false;
 			try {
-				const admission = exactRecord(await this.#bridge.beginPublication({
+				const admission = validateFramescaperDesktopPublicationAdmission(
+					await this.#bridge.beginPublication({
 					publicationId,
 					expectedMetadataRevision: metadataRevision,
 					expectedProject: current ? {
@@ -255,14 +261,16 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 						projectSha256: current.bundle.project.sha256,
 					} : null,
 					project,
-					bodies: preparedBodies.map(({ descriptor }) => descriptor),
-				}), ['publicationId', 'maximumChunkBytes', 'bodyCount'], 'publication admission');
-				if (admission.publicationId !== publicationId
-					|| admission.maximumChunkBytes !== 4 * 1024 * 1024
-					|| admission.bodyCount !== preparedBodies.length) {
-					throw new Error('Framescaper publication admission changed.');
-				}
+					bodies: bodyInventory.map(({ descriptor }) => descriptor),
+				}), publicationId, bodyInventory.length);
 				admitted = true;
+				const requiredBodyIndexes = new Set(admission.requiredBodyIndexes);
+				const preparedBodies = admission.requiredBodyIndexes.length === 0 ? bodyInventory
+					: await prepareFramescaperDesktopPublicationBodies(
+						project, projectSha256, this.#store, request.signal,
+						(_descriptor, bodyIndex) => requiredBodyIndexes.has(bodyIndex),
+					);
+				assertFramescaperDesktopPublicationBodyInventory(bodyInventory, preparedBodies);
 				await uploadFramescaperDesktopPublicationBodies(
 					publicationId, preparedBodies, this.#bridge, this.#store, request.signal,
 				);
@@ -554,15 +562,6 @@ function inheritedData(value: object, field: string): ((...args: unknown[]) => u
 		candidate = Object.getPrototypeOf(candidate) as object | null;
 	}
 	return undefined;
-}
-
-function randomPublicationId(): string {
-	const bytes = new Uint8Array(24);
-	if (!globalThis.crypto?.getRandomValues) {
-		throw new Error('Web Crypto is required for Framescaper publication identities.');
-	}
-	globalThis.crypto.getRandomValues(bytes);
-	return bytesToHex(bytes);
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

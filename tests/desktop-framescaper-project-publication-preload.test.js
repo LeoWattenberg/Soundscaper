@@ -35,6 +35,7 @@ async function exposedBridges() {
 					publicationId: value.publicationId,
 					maximumChunkBytes: MAXIMUM_CHUNK_BYTES,
 					bodyCount: value.bodies.length,
+					requiredBodyIndexes: value.bodies.length ? [value.bodies.length - 1] : [],
 				});
 			},
 		},
@@ -71,6 +72,7 @@ test('a Framescaper publication clones every body instead of cloning against its
 	// The bridge builds its result inside the preload realm, so compare cloned structure.
 	assert.deepEqual(structuredClone(admitted), {
 		publicationId: PUBLICATION_ID, maximumChunkBytes: MAXIMUM_CHUNK_BYTES, bodyCount: 2,
+		requiredBodyIndexes: [1],
 	});
 
 	const published = invocations.at(-1);
@@ -92,6 +94,7 @@ test('a Framescaper publication with no bodies is still admitted', async () => {
 		bodies: [],
 	});
 	assert.equal(admitted.bodyCount, 0);
+	assert.deepEqual(structuredClone(admitted.requiredBodyIndexes), []);
 	assert.deepEqual(structuredClone(invocations.at(-1).value.bodies), []);
 });
 

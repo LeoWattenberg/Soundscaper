@@ -46,6 +46,8 @@ import {
 	type FramescaperDesktopExactStoredProjectRow as StoredProjectRow,
 } from './project-library-exact-generation-storage.ts';
 import { ProjectLibraryVerifiedBodyReader } from './project-library-native-body-materialization.ts';
+import { admitExactPublicationBodies as admitPublicationBodies } from
+	'./project-library-exact-generation-publication-bodies.ts';
 const START_FIELDS = ['appDataPath', 'owner', 'handshake'] as const;
 const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
@@ -357,6 +359,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		}
 		const document = JSON.stringify(project);
 		const bodies = configuredBodies(this.#configuration, project, sha256(document), record.bodies);
+		const { offsets, admission } = await admitPublicationBodies(
+			this.#paths, bodies, publicationId, MAXIMUM_CHUNK_BYTES);
 		this.#publication = {
 			publicationId,
 			expectedMetadataRevision,
@@ -365,9 +369,9 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			document,
 			bodies: Object.freeze(bodies),
 			chunks: bodies.map(() => []),
-			offsets: bodies.map(() => 0),
+			offsets,
 		};
-		return Object.freeze({ publicationId, maximumChunkBytes: MAXIMUM_CHUNK_BYTES, bodyCount: bodies.length });
+		return admission;
 	}
 
 	async writePublicationChunk(value: unknown): Promise<unknown> {
@@ -414,9 +418,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 				this.#publication = null;
 				try { await this.#lifecycle?.abortPublication(publication.publicationId); }
 				catch (cleanupError) {
-					throw new AggregateError(
-						[error, cleanupError], `${this.#configuration.label} publication cleanup failed`,
-					);
+					throw new AggregateError([error, cleanupError],
+						`${this.#configuration.label} publication cleanup failed`, { cause: cleanupError });
 				}
 				throw error;
 			}

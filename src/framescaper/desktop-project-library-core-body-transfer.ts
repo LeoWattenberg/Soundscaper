@@ -67,9 +67,14 @@ export interface FramescaperDesktopCoreBodyBridge {
 
 export interface FramescaperDesktopCorePreparedBody {
 	readonly descriptor: Readonly<FramescaperDesktopCoreBodyDescriptor>;
-	readonly blob: Blob;
+	readonly blob: Blob | null;
 	readonly metadataIdentity: string;
 }
+
+export type FramescaperDesktopCoreBodySelection = (
+	descriptor: Readonly<FramescaperDesktopCoreBodyDescriptor>,
+	bodyIndex: number,
+) => boolean;
 
 interface BodyReference {
 	readonly kind: FramescaperDesktopCoreBodyDescriptor['kind'];
@@ -90,6 +95,7 @@ export async function prepareFramescaperDesktopCorePublicationBodies(
 	projectSha256: string,
 	store: FramescaperDesktopCoreBodyStore,
 	signal?: AbortSignal,
+	selectBody: FramescaperDesktopCoreBodySelection = () => true,
 ): Promise<readonly Readonly<FramescaperDesktopCorePreparedBody>[]> {
 	const prepared: FramescaperDesktopCorePreparedBody[] = [];
 	let aggregateBytes = 0;
@@ -104,13 +110,15 @@ export async function prepareFramescaperDesktopCorePublicationBodies(
 		}
 		const metadata = trustedMetadata(reference, metadataValue);
 		aggregateBytes = addBodyBytes(aggregateBytes, metadata.size);
-		const blob = await loadVerifiedBlob(store, reference, metadata, signal);
+		const descriptor = descriptorFor(reference, metadata.size);
+		const blob = selectBody(descriptor, prepared.length)
+			? await loadVerifiedBlob(store, reference, metadata, signal) : null;
 		const current = trustedMetadata(reference, await store.getMediaAssetMetadata(reference.storageKey));
 		if (metadataIdentity(current) !== metadataIdentity(metadata)) {
 			throw new Error(`Managed desktop core ${reference.kind} body ${reference.storageKey} changed during preflight.`);
 		}
 		prepared.push(Object.freeze({
-			descriptor: descriptorFor(reference, metadata.size),
+			descriptor,
 			blob,
 			metadataIdentity: metadataIdentity(metadata),
 		}));
@@ -127,6 +135,7 @@ export async function uploadFramescaperDesktopCorePublicationBodies(
 	signal?: AbortSignal,
 ): Promise<void> {
 	for (const [bodyIndex, body] of prepared.entries()) {
+		if (body.blob === null) continue;
 		const digest = sha256.create();
 		for (let offset = 0; offset < body.descriptor.byteLength;) {
 			throwIfScapeAborted(signal);
@@ -260,7 +269,8 @@ export async function acquireFramescaperDesktopCoreBodies(
 		for (const publication of publications.reverse()) {
 			try { await publication.discardIfCurrent(); } catch (cause) { cleanup.push(cause); }
 		}
-		if (cleanup.length) throw new AggregateError([error, ...cleanup], 'V12 body acquisition rollback failed.');
+		if (cleanup.length) throw new AggregateError(
+			[error, ...cleanup], 'V12 body acquisition rollback failed.', { cause: error });
 		throw error;
 	}
 }

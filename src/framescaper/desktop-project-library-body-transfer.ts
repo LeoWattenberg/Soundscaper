@@ -42,9 +42,14 @@ export type FramescaperDesktopBodyStore = FramescaperDesktopCoreBodyStore;
 
 export interface FramescaperDesktopPreparedBody {
 	readonly descriptor: Readonly<FramescaperDesktopBodyDescriptor>;
-	readonly blob: Blob;
+	readonly blob: Blob | null;
 	readonly metadataIdentity: string;
 }
+
+export type FramescaperDesktopBodySelection = (
+	descriptor: Readonly<FramescaperDesktopBodyDescriptor>,
+	bodyIndex: number,
+) => boolean;
 
 export interface FramescaperDesktopBodyBridge {
 	readBodyChunk(request: Readonly<{
@@ -82,9 +87,10 @@ export async function prepareFramescaperDesktopPublicationBodies(
 	projectSha256: string,
 	store: FramescaperDesktopCoreBodyStore,
 	signal?: AbortSignal,
+	selectBody: FramescaperDesktopBodySelection = () => true,
 ): Promise<readonly Readonly<FramescaperDesktopPreparedBody>[]> {
 	const base = await prepareFramescaperDesktopCorePublicationBodies(
-		framescaperDesktopCoreBodyProject(project), projectSha256, store, signal,
+		framescaperDesktopCoreBodyProject(project), projectSha256, store, signal, selectBody,
 	);
 	const normalizedBase: FramescaperDesktopPreparedBody[] = [];
 	for (const item of base) {
@@ -101,7 +107,8 @@ export async function prepareFramescaperDesktopPublicationBodies(
 		const descriptor = await extensionDescriptor(reference, store, signal);
 		const metadata = trustedMetadata(descriptor,
 			await store.getMediaAssetMetadata(descriptor.storageKey));
-		const blob = await loadVerifiedBlob(store, transferReference(descriptor, project), metadata, signal);
+		const blob = selectBody(descriptor, normalizedBase.length + extension.length)
+			? await loadVerifiedBlob(store, transferReference(descriptor, project), metadata, signal) : null;
 		const current = trustedMetadata(descriptor,
 			await store.getMediaAssetMetadata(descriptor.storageKey));
 		if (metadataIdentity(current) !== metadataIdentity(metadata)) {
@@ -127,6 +134,7 @@ export async function uploadFramescaperDesktopPublicationBodies(
 	signal?: AbortSignal,
 ): Promise<void> {
 	for (const [bodyIndex, body] of prepared.entries()) {
+		if (body.blob === null) continue;
 		const digest = sha256.create();
 		for (let offset = 0; offset < body.descriptor.byteLength;) {
 			throwIfScapeAborted(signal);
@@ -224,7 +232,8 @@ export async function acquireFramescaperDesktopBodies(
 		for (const publication of publications.reverse()) {
 			try { await publication.discardIfCurrent(); } catch (cause) { cleanup.push(cause); }
 		}
-		if (cleanup.length) throw new AggregateError([error, ...cleanup], 'baseline body acquisition rollback failed.');
+		if (cleanup.length) throw new AggregateError(
+			[error, ...cleanup], 'baseline body acquisition rollback failed.', { cause: error });
 		throw error;
 	}
 }
