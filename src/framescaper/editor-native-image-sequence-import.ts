@@ -33,7 +33,7 @@ import {
 	editorProjectFeatureCapabilityProfileDefinition,
 } from '../common/editor/project-feature-capability-profile.ts';
 import { editorProjectRuntimeProfileDefinition } from '../common/editor/project-runtime-profile.ts';
-import { videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
+import { sampleFrameToVideoFrame, videoFrameToSampleFrame } from '../common/editor/timeline-time.ts';
 import {
 	normalizeVideoSourceCharacteristicsV25,
 	type VideoSourceCharacteristicsV25,
@@ -184,7 +184,7 @@ export async function composeFramescaperImageSequenceImport(
 		});
 		await options.commit(
 			projectSource(options.project, descriptor),
-			projectBinClip(options.project, selected.projectBinClipId, descriptor),
+			framescaperImageSequenceProjectBinClip(options.project, selected.projectBinClipId, descriptor),
 		);
 		try { await options.ports.complete?.(request); }
 		catch { /* The main-owned recovery manifest settles an acknowledged project commit. */ }
@@ -197,7 +197,8 @@ export async function composeFramescaperImageSequenceImport(
 		}
 		try { await writer.discard(); }
 		catch (cleanupError) { failures.push(cleanupError); }
-		if (failures.length > 1) throw new AggregateError(failures, 'Image-sequence import and rollback failed.');
+		if (failures.length > 1) throw new AggregateError(
+			failures, 'Image-sequence import and rollback failed.', { cause: error });
 		throw error;
 	}
 }
@@ -354,15 +355,25 @@ function projectSource(
 	});
 }
 
-function projectBinClip(
+export function framescaperImageSequenceProjectBinClip(
 	project: CandidateProject,
 	clipId: string,
 	descriptor: ReturnType<typeof createNativeMediaImageSequenceSourceV25>,
 ): Readonly<Record<string, unknown>> {
+	const sequences = project.sequences as readonly Readonly<Record<string, unknown>>[];
+	const sequence = sequences.find(({ id }) => id === project.primarySequenceId);
+	if (!sequence) throw new Error('Image-sequence import requires its primary sequence timing authority.');
+	const sampleRate = Number(project.sampleRate);
+	const sampleFrameCount = videoFrameToSampleFrame(
+		descriptor.frameCount, descriptor.frameRate, sampleRate, 'enclosingEnd',
+	);
+	const sequenceFrameCount = Math.max(1, sampleFrameToVideoFrame(
+		sampleFrameCount, sequence.rate as NativeMediaImageSequenceRateV1, sampleRate, 'point',
+	));
 	return Object.freeze({
 		kind: 'video', id: clipId, binItemId: clipId, sourceId: descriptor.id,
 		title: descriptor.name, sequenceId: project.primarySequenceId,
-		sequenceStartFrame: 0, sequenceFrameCount: descriptor.frameCount,
+		sequenceStartFrame: 0, sequenceFrameCount,
 		sourceInFrame: 0, sourceFrameCount: descriptor.frameCount, retimeMap: null,
 	});
 }
