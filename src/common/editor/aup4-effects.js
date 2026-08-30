@@ -406,7 +406,8 @@ function createRealtimeEffectNode(effect, opaqueNode, rackIndex) {
 		{ kind: 'attribute', name: 'value', type: 'string', value },
 	]) }));
 	for (const parameter of audacityXmlChildren(opaqueParameters, 'parameter')) {
-		if (!knownNames.has(String(audacityXmlAttribute(parameter, 'name', '')))) {
+		const name = String(audacityXmlAttribute(parameter, 'name', ''));
+		if (!knownNames.has(name) && (!(profile.curve || profile.bands) || !/^[fv](?:0|[1-9][0-9]{0,2})$/.test(name))) {
 			parameterContent.push({ kind: 'node', node: cloneNode(parameter) });
 		}
 	}
@@ -677,7 +678,6 @@ function parseNativeEffectId(nativeId) {
 function escapeEffectIdField(value) {
 	return value.replaceAll('\\', '\\\\').replaceAll('_', '\\_');
 }
-
 function appendEqualizationPoints(profile, params, output) {
 	let points = null;
 	if (profile.curve && Array.isArray(params.points)) points = params.points;
@@ -687,16 +687,16 @@ function appendEqualizationPoints(profile, params, output) {
 			: [];
 		points = frequencies.map((frequency, index) => ({ frequency, gain: params.gains[index] }));
 	}
+	if (output.length + (points?.length || 0) * 2 > MAX_NATIVE_PARAMETERS) throw new RangeError('Audacity realtime effect has too many parameters.');
 	for (const [index, point] of (points || []).entries()) {
 		output.push([`f${index}`, stableNumberString(point.frequency)]);
 		output.push([`v${index}`, stableNumberString(point.gain)]);
 	}
 }
-
 function readEqualizationPoints(profile, nativeParams, params) {
 	if (!profile.curve && !profile.bands) return;
 	const points = [];
-	for (let index = 0; index < 200; index += 1) {
+	for (let index = 0; index < MAX_NATIVE_PARAMETERS / 2; index += 1) {
 		if (!nativeParams.has(`f${index}`) || !nativeParams.has(`v${index}`)) break;
 		const frequency = finiteNumber(nativeParams.get(`f${index}`));
 		const gain = finiteNumber(nativeParams.get(`v${index}`));

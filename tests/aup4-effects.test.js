@@ -10,6 +10,7 @@ import {
 	AUP4_REALTIME_EFFECT_PROFILES,
 	aup4NativeEffectId,
 	createAup4EffectsNode,
+	encodeAudacityRealtimeEffectParameters,
 	readAup4EffectsNode,
 } from '../src/common/editor/aup4-effects.js';
 import { createEffect } from '../src/common/editor/effects.js';
@@ -84,6 +85,41 @@ test('AUP4 equalizer curves keep ordered f/v parameter pairs', () => {
 	]);
 	const [decoded] = readAup4EffectsNode(node, { idFactory: () => 'curve-opened' });
 	assert.deepEqual(decoded.params.points, effect.params.points);
+});
+
+test('AUP4 equalizer curves preserve every bounded point and replace opaque point state', () => {
+	const points = Array.from({ length: 220 }, (_, index) => ({
+		frequency: 20 + index,
+		gain: index / 10,
+	}));
+	const effect = createEffect('audacity-filter-curve-eq', {
+		id: 'detailed-curve',
+		params: { filterLength: 4095, linearFrequencyScale: false, points },
+	});
+	const [decoded] = readAup4EffectsNode(createAup4EffectsNode([effect]), {
+		idFactory: () => 'opened-detailed-curve',
+	});
+	assert.deepEqual(decoded.params.points, points);
+
+	const editedPoints = points.slice(0, 3);
+	const rewritten = createAup4EffectsNode([{
+		...decoded,
+		params: { ...decoded.params, points: editedPoints },
+	}]);
+	const rewrittenParameters = parameterMap(audacityXmlChildren(rewritten, 'effect')[0]);
+	assert.deepEqual(
+		[...rewrittenParameters].filter(([name]) => /^[fv]\d+$/.test(name)),
+		[['f0', '20'], ['v0', '0'], ['f1', '21'], ['v1', '0.1'], ['f2', '22'], ['v2', '0.2']],
+	);
+	assert.throws(
+		() => encodeAudacityRealtimeEffectParameters('audacity-filter-curve-eq', {
+			filterLength: 4095,
+			linearFrequencyScale: false,
+			interpolation: 'bspline',
+			points: Array.from({ length: 255 }, (_, index) => ({ frequency: index + 1, gain: 0 })),
+		}),
+		/too many parameters/i,
+	);
 });
 
 test('unknown native effects and known effects with future state become ordered missing placeholders', () => {
