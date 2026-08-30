@@ -294,6 +294,29 @@ test('a clip whose map reaches no nearby boundary keeps the request and says so 
 	);
 });
 
+test('a long warp span refuses an unusable boundary by naming it, not the rational domain', () => {
+	// Interpolating inside a span puts the span itself in the denominator, so a
+	// thirty-second warp at a ratio that does not reduce evaluates to a source
+	// position outside the stored rational domain. Building the trimmed map before
+	// admitting the boundary reported that as a bare rational-domain error, which
+	// says nothing about where the user may actually cut.
+	const project = longSpanProject();
+	assert.throws(() => applyEditorCommand(project, {
+		type: 'clip/split', clipId: 'clip', atFrame: 700_001, rightClipId: 'right',
+	}, { now: NOW }), /whole source-sample boundary: timeline frame 700001 resolves inside a source sample\.$/u);
+	assert.throws(() => applyEditorCommand(project, prepareRangeDeleteCommand(projectForCommandConsumers(project), {
+		startFrame: 700_001, endFrame: 800_003, trackIds: ['track'],
+	}, stableIds()) as AudioEditorCommand, { now: NOW }), /whole source-sample boundary/u);
+	// The boundaries the span does serve still cut, so the admission did not simply
+	// become stricter.
+	const edited = applyEditorCommand(project, {
+		type: 'clip/split', clipId: 'clip', atFrame: 1_200_000, rightClipId: 'right',
+	}, { now: NOW });
+	const [left, right] = orderedClips(edited);
+	assert.deepEqual([left.sourceStartFrame, left.sourceDurationFrames], [0, 1_200_001]);
+	assert.deepEqual([right.sourceStartFrame, right.sourceDurationFrames], [1_200_001, 1_200_001]);
+});
+
 function orderedClips(project: object): Readonly<Record<string, unknown>>[] {
 	return [...(project as AudioEditorProjectCurrent).clips]
 		.sort((left, right) => Number(left.timelineStartFrame) - Number(right.timelineStartFrame));
@@ -442,6 +465,33 @@ function stretchedProject(): AudioEditorProjectCurrent {
 	});
 	return createCurrentAudioEditorProject({
 		id: 'stretched-warp-project', now: NOW, tempoMap: TEMPO_MAP,
+		sources: [source], clips: [clip],
+		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
+	});
+}
+
+/**
+ * Fifty seconds of warp in one span, at a ratio that reduces to a denominator
+ * larger than the stored rational domain. Its midpoint is a whole source sample
+ * and nothing within a thousand frames of the other cuts is.
+ */
+function longSpanProject(): AudioEditorProjectCurrent {
+	const source = createAudioSource({
+		id: 'source', storageKey: 'source', frameCount: 3_000_000, channelCount: 1, sampleRate: 48_000,
+	});
+	const clip = createAudioClip({
+		id: 'clip', sourceId: source.id, anchor: 'sample',
+		timelineStartFrame: 0, durationFrames: 2_400_000,
+		sourceStartFrame: 0, sourceDurationFrames: 2_400_002,
+		warpMap: {
+			feature: 'audio-warp', points: [
+				{ outer: 0, source: 0, mode: 'forward' },
+				{ outer: 2_400_000, source: 2_400_002, mode: 'forward' },
+			],
+		},
+	});
+	return createCurrentAudioEditorProject({
+		id: 'long-span-warp-project', now: NOW, tempoMap: TEMPO_MAP,
 		sources: [source], clips: [clip],
 		tracks: [createAudioTrack({ id: 'track', clipIds: ['clip'] })],
 	});

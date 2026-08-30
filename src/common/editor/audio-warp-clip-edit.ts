@@ -54,15 +54,24 @@ export function trimAudioWarpClipToTimelineRange(
 		|| endFrame <= startFrame) {
 		throw new RangeError('Audio warp trim range must be positive and remain within the clip extent.');
 	}
-	const trimmed = trimAudioWarpMap(context.map, {
-		startOuter: outerAtTimelineFrame(context, startFrame),
-		endOuter: outerAtTimelineFrame(context, endFrame),
-	});
-	const sourceStartFrame = wholeSourceFrame(context, trimmed.points[0]!.source, startFrame);
-	const sourceEndFrame = wholeSourceFrame(context, trimmed.points.at(-1)!.source, endFrame);
+	const startOuter = outerAtTimelineFrame(context, startFrame);
+	const endOuter = outerAtTimelineFrame(context, endFrame);
+	// The whole-source-sample rule is what keeps a trimmed map's own boundary
+	// anchors inside the stored rational domain, so it has to be admitted before
+	// the map is built. Interpolating inside a span puts that span in the
+	// denominator, and a long one overflows the domain: building the map first
+	// reported a bare rational-domain error in place of the boundary the user can
+	// actually cut on.
+	const sourceStartFrame = wholeSourceFrame(
+		context, evaluateBreakpointMap(context.map as BreakpointMap, startOuter), startFrame,
+	);
+	const sourceEndFrame = wholeSourceFrame(
+		context, evaluateBreakpointMap(context.map as BreakpointMap, endOuter), endFrame,
+	);
 	if (sourceEndFrame <= sourceStartFrame) {
 		throw new RangeError('Audio warp trim must retain a positive source extent.');
 	}
+	const trimmed = trimAudioWarpMap(context.map, { startOuter, endOuter });
 	return Object.freeze({
 		sourceStartFrame,
 		sourceDurationFrames: sourceEndFrame - sourceStartFrame,
