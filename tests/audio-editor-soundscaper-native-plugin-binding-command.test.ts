@@ -158,6 +158,21 @@ test('a state-only restore still owns one revision while an exact restore remain
 	assert.equal(noOp, restored)
 })
 
+test('removing native plug-in state retires its product-owned requirement', () => {
+	const authored = executeSoundscaperProjectCommand(
+		createSoundscaperProjectHistory(project()), binding('author'), { now: NOW },
+	)
+	const removed = executeSoundscaperProjectCommand(authored, {
+		type: 'native-plugin-state/remove', instanceId: 'native-instance-1',
+	} as never, { now: '2026-08-24T00:00:01.000Z' })
+
+	assert.deepEqual(removed.present.nativePluginStates, [])
+	assert.equal(removed.present.featureRequirements.requirements.some(({ id, featureId }) => (
+		id.startsWith('soundscaper.native-plugin.')
+		|| featureId.startsWith('org.soundscaper.native-plugin.')
+	)), false)
+})
+
 test('the narrow native binding command does not widen V29 generic mixed batches', () => {
 	const history = createSoundscaperProjectHistory(project())
 	assert.throws(() => executeSoundscaperProjectCommand(history, {

@@ -16,6 +16,10 @@ import {
 	type NativePluginRackEffect,
 } from '../common/editor/native-plugin-effect.ts';
 import {
+	SOUNDSCAPER_NATIVE_PLUGIN_FEATURE_PREFIX,
+	SOUNDSCAPER_NATIVE_PLUGIN_REQUIREMENT_PREFIX,
+} from './editor-native-plugin-playback.ts';
+import {
 	applySoundscaperProjectFoundationCommand,
 	type SoundscaperProjectCommandOptions as SoundscaperProjectFoundationCommandOptions,
 } from './editor-project-command-foundation.ts';
@@ -414,6 +418,7 @@ function finalize(
 	}
 	draft.revision = revision;
 	draft.updatedAt = timestamp(options.now);
+	stripNativePluginRequirements(draft);
 	draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(
 		draft,
 		draft.featureRequirements as never,
@@ -424,6 +429,17 @@ function finalize(
 	);
 	validateSoundscaperProject(draft);
 	return draft as unknown as SoundscaperProject;
+}
+
+function stripNativePluginRequirements(draft: Record<string, unknown>): void {
+	const manifest = draft.featureRequirements as SoundscaperProject['featureRequirements'];
+	draft.featureRequirements = {
+		...manifest,
+		requirements: manifest.requirements.filter(({ id, featureId }) => (
+			!id.startsWith(SOUNDSCAPER_NATIVE_PLUGIN_REQUIREMENT_PREFIX)
+			&& !featureId.startsWith(SOUNDSCAPER_NATIVE_PLUGIN_FEATURE_PREFIX)
+		)),
+	};
 }
 
 function timestamp(now: Date | string | undefined): string {
