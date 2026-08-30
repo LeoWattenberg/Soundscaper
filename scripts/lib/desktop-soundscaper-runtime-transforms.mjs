@@ -243,19 +243,6 @@ export function soundscaperHelperResourcePolicySource(sourceValue) {
 	);
 }
 
-export function soundscaperSourceCharacteristicsSource(sourceValue) {
-	const source = textSource(sourceValue, 'compiled source-characteristics v14');
-	if (!source.includes('normalizeVideoSourceCharacteristics')
-		|| !source.includes('export function validateVideoSourceCharacteristicsV14')) {
-		throw new Error('Cannot isolate deferred video source characteristics.');
-	}
-	return `/* SPDX-License-Identifier: AGPL-3.0-only */
-export function reconcileVideoSourceCharacteristicsV14() {}
-export function validateVideoSourceCharacteristicsV14() {}
-export function projectHasReportedSourceCharacteristics() { return false; }
-`;
-}
-
 export function soundscaperProjectCurrentRuntimeSource(sourceValue) {
 	let source = textSource(sourceValue, 'compiled current project runtime');
 	source = replaceOnce(source,

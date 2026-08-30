@@ -21,6 +21,9 @@ import {
 	soundscaperProjectRuntimeSource,
 	soundscaperProtocolSource,
 } from '../scripts/lib/desktop-product-package-files.mjs';
+import {
+	desktopProductRuntimeTransform,
+} from '../scripts/lib/desktop-product-runtime-staging.mjs';
 
 test('Soundscaper package policy excludes product-owned Framescaper implementation files', () => {
 	const candidates = [
@@ -64,6 +67,20 @@ test('Soundscaper config closure excludes both Framescaper native payload author
 	const framescaper = desktopProductConfigFiles('framescaper');
 	assert.ok(framescaper.includes('config/framescaper-media-host-payload-manifest.json'));
 	assert.ok(framescaper.includes('config/framescaper-openfx-host-payload-manifest.json'));
+});
+
+test('Soundscaper desktop validation retains the shared source-characteristics contract', () => {
+	assert.equal(desktopProductRuntimeTransform(
+		'soundscaper',
+		'src/common/editor/source-characteristics-v14.js',
+	), undefined);
+	assert.deepEqual(desktopProductRuntimeFiles('soundscaper', [
+		'src/common/editor/source-characteristics-v14.js',
+		'src/common/editor/video-source-characteristics.js',
+	]), [
+		'src/common/editor/source-characteristics-v14.js',
+		'src/common/editor/video-source-characteristics.js',
+	]);
 });
 
 test('Stable Soundscaper excludes the legacy development native-addon fixture', () => {

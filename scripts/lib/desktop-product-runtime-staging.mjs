@@ -30,7 +30,6 @@ import {
 	soundscaperOwnedAudioCutTransformResultsSource,
 	soundscaperOwnedAudioCutTransformTypesSource,
 	soundscaperProjectCurrentRuntimeSource,
-	soundscaperSourceCharacteristicsSource,
 } from './desktop-soundscaper-runtime-transforms.mjs';
 
 export async function collectDesktopProductRuntimeClosure({
@@ -86,7 +85,6 @@ export function desktopProductRuntimeTransform(productId, name) {
 		['src/common/editor/assistance/owned-audio-cut-transform-types-v1.js',
 			soundscaperOwnedAudioCutTransformTypesSource],
 		['src/common/editor/project-current-runtime.js', soundscaperProjectCurrentRuntimeSource],
-		['src/common/editor/source-characteristics-v14.js', soundscaperSourceCharacteristicsSource],
 	]).get(name);
 }
 
