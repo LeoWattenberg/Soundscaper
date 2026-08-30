@@ -16,6 +16,7 @@ import {
 	detectShiTomasiFeaturesV1,
 	estimateSimilarityRansacV1,
 	trackPyramidalLucasKanadeV1,
+	VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1,
 	type GrayVideoFrameV1,
 	type VideoPointMatchV1,
 	type VideoSimilarityTransformV1,
@@ -194,14 +195,26 @@ function analyzePair(
 			: []
 	));
 	if (matches.length < 2) return identityTransform();
+	const selected = matches.length <= VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1
+		? matches
+		: matches.slice().sort(compareMotionMatch).slice(0, VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1);
 	try {
-		return estimateSimilarityRansacV1(matches, {
+		return estimateSimilarityRansacV1(selected, {
 			inlierThreshold: Math.max(0.5, tracking.minimumDistance / 2),
-			minimumInliers: Math.min(4, matches.length),
+			minimumInliers: Math.min(4, selected.length),
 		});
-	} catch {
-		return identityTransform();
+	} catch (error) {
+		if (error instanceof RangeError && /consensus|degenerate/iu.test(error.message)) {
+			return identityTransform();
+		}
+		throw error;
 	}
+}
+
+function compareMotionMatch(left: VideoPointMatchV1, right: VideoPointMatchV1): number {
+	return right.confidence - left.confidence
+		|| left.source.y - right.source.y || left.source.x - right.source.x
+		|| left.target.y - right.target.y || left.target.x - right.target.x;
 }
 
 function trackingProcessor(stack: VideoProcessorStackV1): VideoTrackingProcessorV1 {

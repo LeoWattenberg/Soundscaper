@@ -22,6 +22,23 @@ function translatedSquare(dx: number, dy: number) {
 	return createGrayVideoFrameV1({ width, height, samples });
 }
 
+function translatedNoise(dx: number) {
+	const width = 112;
+	let seed = 123;
+	const source = Array.from({ length: width * width }, () => {
+		seed = (seed * 1_664_525 + 1_013_904_223) >>> 0;
+		return (seed >>> 24) / 255;
+	});
+	return createGrayVideoFrameV1({
+		width, height: width,
+		samples: Array.from({ length: width * width }, (_, index) => {
+			const x = index % width;
+			const sourceX = x - dx;
+			return sourceX >= 0 ? source[index - dx]! : 0;
+		}),
+	});
+}
+
 function stack() {
 	return {
 		schemaVersion: 1 as const,
@@ -137,4 +154,21 @@ test('motion analysis yields to task-queued cancellation between frame pairs', a
 		},
 	}), /cancel from UI task|abort/iu);
 	assert.deepEqual(progress, [1]);
+});
+
+test('motion analysis retains a non-identity estimate with more than 512 tracked features', async () => {
+	const tracking = {
+		...stack().processors[0]!, maximumFeatures: 800, minimumDistance: 1, pyramidLevels: 1,
+	};
+	const result = await analyzeVideoMotionV1({
+		analysisId: 'analysis-dense', inputSha256: SHA_A,
+		processorStack: { ...stack(), processors: [tracking] },
+		frames: [
+			{ frameNumber: 0, frame: translatedNoise(0) },
+			{ frameNumber: 1, frame: translatedNoise(1) },
+		],
+	});
+	const transform = result.body.transforms[0]!.transform;
+	assert.ok(Math.abs(transform.translateX - 1) < 0.05);
+	assert.ok(Math.abs(transform.translateY) < 0.05);
 });

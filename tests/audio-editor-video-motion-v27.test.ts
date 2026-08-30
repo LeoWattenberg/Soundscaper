@@ -162,6 +162,25 @@ test('deterministic RANSAC recovers a similarity transform and ignores an outlie
 	assert.ok(Math.abs(stable.y - 2) < 1e-9);
 });
 
+test('deterministic RANSAC keeps its maximum match set bounded while rejecting outliers', () => {
+	const matches = Array.from({ length: 512 }, (_, index) => {
+		const source = { x: index % 32, y: Math.floor(index / 32) };
+		return {
+			source,
+			target: index % 17 === 0
+				? { x: source.x + 100, y: source.y - 100 }
+				: { x: source.x + 3, y: source.y - 2 },
+			confidence: index % 17 === 0 ? 0.1 : 1,
+		};
+	});
+	const transform = estimateSimilarityRansacV1(matches, {
+		inlierThreshold: 0.01, minimumInliers: 400,
+	});
+	assert.equal(transform.inlierCount, 481);
+	assert.ok(Math.abs(transform.translateX - 3) < 1e-9);
+	assert.ok(Math.abs(transform.translateY + 2) < 1e-9);
+});
+
 test('temporal denoise admits GPU-first output and computes CPU only after accelerator failure', async () => {
 	const current = createGrayVideoFrameV1({ width: 2, height: 2, samples: [1, 1, 1, 1] });
 	const neighbor = createGrayVideoFrameV1({ width: 2, height: 2, samples: [0, 0, 0, 0] });

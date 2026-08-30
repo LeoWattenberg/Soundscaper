@@ -41,7 +41,8 @@ export interface VideoSimilarityTransformV1 {
 
 const MAXIMUM_PIXELS = 16_777_216;
 const MAXIMUM_FEATURES = 4_096;
-const MAXIMUM_RANSAC_MATCHES = 512;
+export const VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1 = 512;
+const MAXIMUM_RANSAC_HYPOTHESES = 1_024;
 
 export function createGrayVideoFrameV1(value: Readonly<{
 	readonly width: unknown;
@@ -176,28 +177,45 @@ export function estimateSimilarityRansacV1(
 	matchesValue: readonly VideoPointMatchV1[],
 	options: Readonly<{ readonly inlierThreshold: number; readonly minimumInliers: number }>,
 ): VideoSimilarityTransformV1 {
-	if (!Array.isArray(matchesValue) || matchesValue.length < 2 || matchesValue.length > MAXIMUM_RANSAC_MATCHES) {
-		throw new RangeError(`Similarity RANSAC requires 2 through ${String(MAXIMUM_RANSAC_MATCHES)} matches.`);
+	if (!Array.isArray(matchesValue) || matchesValue.length < 2
+		|| matchesValue.length > VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1) {
+		throw new RangeError(`Similarity RANSAC requires 2 through ${String(VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1)} matches.`);
 	}
 	const matches = matchesValue.map((match, index) => matchValue(match, index));
 	const threshold = bounded(options?.inlierThreshold, Number.EPSILON, 1_000_000, 'RANSAC inlier threshold');
 	const minimumInliers = boundedInteger(options?.minimumInliers, 2, matches.length, 'RANSAC minimum inliers');
 	let best: Readonly<{ transform: VideoSimilarityTransformV1; indices: readonly number[]; error: number }> | null = null;
-	for (let left = 0; left < matches.length - 1; left += 1) {
-		for (let right = left + 1; right < matches.length; right += 1) {
-			const transform = similarityFromPair(matches[left]!, matches[right]!);
-			if (transform === null) continue;
-			const result = classifyInliers(matches, transform, threshold);
-			if (best === null || result.indices.length > best.indices.length
-				|| (result.indices.length === best.indices.length && result.error < best.error)) {
-				best = Object.freeze({ transform, indices: result.indices, error: result.error });
-			}
+	const pairCount = matches.length * (matches.length - 1) / 2;
+	const hypothesisCount = Math.min(pairCount, MAXIMUM_RANSAC_HYPOTHESES);
+	for (let hypothesis = 0; hypothesis < hypothesisCount; hypothesis += 1) {
+		const ordinal = hypothesisCount === pairCount
+			? hypothesis
+			: Math.min(pairCount - 1, Math.floor((hypothesis + 0.5) * pairCount / hypothesisCount));
+		const [left, right] = pairAtOrdinal(matches.length, ordinal);
+		const transform = similarityFromPair(matches[left]!, matches[right]!);
+		if (transform === null) continue;
+		const result = classifyInliers(matches, transform, threshold);
+		if (best === null || result.indices.length > best.indices.length
+			|| (result.indices.length === best.indices.length && result.error < best.error)) {
+			best = { transform, indices: result.indices, error: result.error };
 		}
 	}
 	if (best === null || best.indices.length < minimumInliers) {
 		throw new RangeError('Similarity RANSAC could not resolve the required inlier consensus.');
 	}
 	return fitSimilarity(matches, best.indices);
+}
+
+function pairAtOrdinal(matchCount: number, ordinal: number): readonly [number, number] {
+	let left = 0;
+	let remaining = ordinal;
+	let rowLength = matchCount - 1;
+	while (remaining >= rowLength) {
+		remaining -= rowLength;
+		left += 1;
+		rowLength -= 1;
+	}
+	return [left, left + 1 + remaining];
 }
 
 export function applySimilarityTransformV1(
@@ -344,16 +362,19 @@ function classifyInliers(
 ): Readonly<{ indices: readonly number[]; error: number }> {
 	const indices: number[] = [];
 	let error = 0;
+	const cosine = Math.cos(transform.rotationRadians) * transform.scale;
+	const sine = Math.sin(transform.rotationRadians) * transform.scale;
 	for (let index = 0; index < matches.length; index += 1) {
 		const match = matches[index]!;
-		const mapped = applySimilarityTransformV1(match.source, transform);
-		const distance = Math.hypot(mapped.x - match.target.x, mapped.y - match.target.y);
+		const mappedX = cosine * match.source.x - sine * match.source.y + transform.translateX;
+		const mappedY = sine * match.source.x + cosine * match.source.y + transform.translateY;
+		const distance = Math.hypot(mappedX - match.target.x, mappedY - match.target.y);
 		if (distance <= threshold) {
 			indices.push(index);
 			error += distance;
 		}
 	}
-	return Object.freeze({ indices: Object.freeze(indices), error });
+	return { indices, error };
 }
 
 function fitSimilarity(
@@ -406,8 +427,9 @@ function fitSimilarity(
 	let error = 0;
 	for (const index of indices) {
 		const match = matches[index]!;
-		const mapped = applySimilarityTransformV1(match.source, transform);
-		error += Math.hypot(mapped.x - match.target.x, mapped.y - match.target.y);
+		const mappedX = cosine * match.source.x - sine * match.source.y + transform.translateX;
+		const mappedY = sine * match.source.x + cosine * match.source.y + transform.translateY;
+		error += Math.hypot(mappedX - match.target.x, mappedY - match.target.y);
 	}
 	return Object.freeze({ ...transform, meanError: error / indices.length });
 }
@@ -445,7 +467,7 @@ function similarityValue(value: unknown, name: string): VideoSimilarityTransform
 		rotationRadians: bounded(candidate.rotationRadians, -Math.PI * 2, Math.PI * 2, `${name} rotation`),
 		translateX: bounded(candidate.translateX, -1_000_000_000, 1_000_000_000, `${name} translateX`),
 		translateY: bounded(candidate.translateY, -1_000_000_000, 1_000_000_000, `${name} translateY`),
-		inlierCount: boundedInteger(candidate.inlierCount, 0, MAXIMUM_RANSAC_MATCHES, `${name} inlier count`),
+		inlierCount: boundedInteger(candidate.inlierCount, 0, VIDEO_MOTION_MAXIMUM_RANSAC_MATCHES_V1, `${name} inlier count`),
 		meanError: bounded(candidate.meanError, 0, 1_000_000_000, `${name} mean error`),
 	});
 }
