@@ -46,7 +46,7 @@ constexpr char expectedBroker[] = "{\"schemaVersion\":1,\"id\":\"milestone5-maco
 	"\"childProcesses\":\"fork-denied-exec-peer-only\",\"environment\":\"fixed-empty\","
 	"\"executionIdentity\":\"posix-spawn-setexec-stopped-public-proc-region-vnode-v1\","
 	"\"sandboxEntry\":\"peer-bootstrap-before-work-v1\","
-	"\"memory\":\"trusted-verifier-rss-poll-10ms-v1\","
+	"\"memory\":\"trusted-verifier-physical-footprint-poll-10ms-v1\","
 	"\"attestation\":\"peer-post-sandbox-bootstrap-pipe-v1\"}\n";
 
 enum class Access { readOnly, readExecute, writeOnly };
@@ -248,7 +248,7 @@ std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bo
 	_exit(125);
 }
 
-[[noreturn]] void monitorResidentMemory(pid_t parent, uint64_t maximumRssBytes)
+[[noreturn]] void monitorPhysicalFootprint(pid_t parent, uint64_t maximumRssBytes)
 {
 	const timespec interval{ 0, 10'000'000 };
 	for (;;) {
@@ -259,7 +259,7 @@ std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bo
 			if (getppid() != parent) _exit(0);
 			verifierFailure(parent);
 		}
-		if (usage.ri_resident_size > maximumRssBytes) verifierFailure(parent);
+		if (usage.ri_phys_footprint > maximumRssBytes) verifierFailure(parent);
 		if (nanosleep(&interval, nullptr) != 0 && errno != EINTR) verifierFailure(parent);
 	}
 }
@@ -295,7 +295,7 @@ std::array<uint8_t, bootstrap::policyHeaderBytes> policyHeader(size_t length, bo
 				}
 				if (!exactWrite(1, policy.data(), policy.size()) || close(1) != 0) verifierFailure(parent);
 				(void)close(0);
-				monitorResidentMemory(parent, maximumRssBytes);
+				monitorPhysicalFootprint(parent, maximumRssBytes);
 			}
 		}
 		(void)nanosleep(&interval, nullptr);

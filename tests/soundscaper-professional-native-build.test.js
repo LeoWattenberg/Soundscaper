@@ -471,16 +471,19 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(mac,
 		/proc_pid_rusage\([^,]+, RUSAGE_INFO_V2,\s*reinterpret_cast<rusage_info_t \*>\(&usage\)\)/u,
 		'the trusted verifier must sample the SETEXEC peer through the public libproc API');
-	assert.match(mac, /usage\.ri_resident_size > maximumRssBytes/u);
+	assert.match(mac, /usage\.ri_phys_footprint > maximumRssBytes/u,
+		'the verifier must exclude clean shared mappings while charging private touched pages');
+	assert.doesNotMatch(mac, /usage\.ri_resident_size > maximumRssBytes/u,
+		'raw resident size can exceed the policy before the framework-linked peer attests');
 	assert.match(mac,
-		/monitorResidentMemory\([\s\S]*timespec interval\{ 0, 10'000'000 \}/u,
-		'the trusted RSS supervisor must mirror the Linux launcher polling interval');
+		/monitorPhysicalFootprint\([\s\S]*timespec interval\{ 0, 10'000'000 \}/u,
+		'the trusted physical-footprint supervisor must mirror the Linux launcher polling interval');
 	assert.match(mac,
 		/proc_pid_rusage\([\s\S]*!= 0\)[\s\S]*getppid\(\) != parent\) _exit\(0\);[\s\S]*verifierFailure\(parent\)/u,
 		'a sampling failure must kill a still-live peer but must not signal a reused process identifier');
 	assert.match(mac,
-		/exactWrite\(1, policy\.data\(\), policy\.size\(\)\)[\s\S]*monitorResidentMemory\(parent, maximumRssBytes\)/u,
-		'the trusted verifier must remain alive as the RSS supervisor after releasing the peer');
+		/exactWrite\(1, policy\.data\(\), policy\.size\(\)\)[\s\S]*monitorPhysicalFootprint\(parent, maximumRssBytes\)/u,
+		'the trusted verifier must remain alive as the physical-footprint supervisor after releasing the peer');
 	assert.match(mac, /--extra-input-fd=/u);
 	for (const protocol of [mac, macBootstrapHeader]) {
 		assert.match(protocol, /attestationDescriptor\s*=\s*3/u);
@@ -489,7 +492,7 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 		assert.match(protocol, /'M', '5', 'M', 'A', 'C', 'S', 'B', '1'/u);
 	}
 	assert.match(macBroker, /"attestation":"peer-post-sandbox-bootstrap-pipe-v1"/u);
-	assert.match(macBroker, /"memory":"trusted-verifier-rss-poll-10ms-v1"/u);
+	assert.match(macBroker, /"memory":"trusted-verifier-physical-footprint-poll-10ms-v1"/u);
 	assert.match(professionalCmake,
 		/soundscaper_professional_peer[\s\S]*professional_host_macos_bootstrap\.mm[\s\S]*"-lsandbox"/u);
 	assert.match(professionalCmake,
