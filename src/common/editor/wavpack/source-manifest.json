@@ -75,12 +75,12 @@
 	],
 	"localExtensions": [
 		{ "path": "client.js", "sha256": "a7c3ce5e3cc50b7c4c121ed4060721ba787fe3982a9a16264754cd42738e7e34" },
-		{ "path": "container.js", "sha256": "b7f4e6c0de70c5d982f56a7055ab25ccc0f55a52a7135da003422f3681abf40b" },
+		{ "path": "container.js", "sha256": "ae80e94b8a8986b4743c74e64d1086f58bf55e3879c203c18bb01bbf7057f455" },
 		{ "path": "index.js", "sha256": "18faaa40904cb5f581f2463aa4ffd6b057a474815afca31b37818fcf08e5bfce" },
 		{ "path": "operations.js", "sha256": "aa8ce719ceb58c353dfcad3f84c8f3ca221bb62562473ae371c66f6a26482e17" },
 		{ "path": "pcm.js", "sha256": "658f9db7988edb6296dc2a63a3c3176c965320347accf367454dc2b7940642e4" },
-		{ "path": "runtime.js", "sha256": "2edd3c45e3b0184f29c6c1d4e5d847bd52371a5fdda1f082e93e26b0412cb8b4" },
-		{ "path": "worker.js", "sha256": "f16c4666c803c25e21bce2880f1eff16c41ece6b09b11b2af6e0ee2ea538117b" }
+		{ "path": "runtime.js", "sha256": "1aa431c8ec042134bb3ae46036255b7e836e09a98f13168034cdba504018acd2" },
+		{ "path": "worker.js", "sha256": "956bbe59c61404dee8595983be9a95f38d8fbb2eb8020d1c9b57c0e01a43b88a" }
 	],
 	"wasm": {
 		"path": "wavpack.wasm",

@@ -16,6 +16,7 @@ import {
 	PCM_ENCODING_RAW_F32LE,
 	PCM_ENCODING_WAVPACK_F32_V1,
 	PcmContainerWriter,
+	createWavPackRuntimeCache,
 	crc32,
 	encodePcmAdaptively,
 	loadWavPackWasm,
@@ -266,6 +267,58 @@ test('the indexed PCM container validates geometry, CRCs, truncation, and random
 		parsePcmContainerIndex(file, { signal: controller.signal }),
 		{ name: 'AbortError' },
 	);
+});
+
+test('PCM container finalization aborts on failure and never reports a later false success', async () => {
+	const failure = new Error('quota exhausted while writing the index');
+	let writeCount = 0;
+	let abortCount = 0;
+	let closeCount = 0;
+	const writer = new PcmContainerWriter({
+		async write() {
+			writeCount += 1;
+			if (writeCount === 2) throw failure;
+		},
+		async close() { closeCount += 1; },
+		async abort(reason) {
+			abortCount += 1;
+			assert.strictEqual(reason, failure);
+		},
+	}, { channelCount: 1, sampleRate: 48_000, chunkFrames: 1_024 });
+
+	await assert.rejects(writer.close(), (error) => error === failure);
+	assert.equal(abortCount, 1);
+	assert.equal(closeCount, 0);
+	await assert.rejects(writer.close(), (error) => error === failure);
+	assert.equal(writeCount, 2, 'a partially written index is not retried');
+	assert.equal(abortCount, 1, 'the failed finalization cleanup only runs once');
+});
+
+test('WavPack runtime caching retries failed loads and retires trapped instances', async () => {
+	const transientFailure = new Error('temporary wasm fetch failure');
+	let loadCount = 0;
+	const cache = createWavPackRuntimeCache(async () => {
+		loadCount += 1;
+		if (loadCount === 1) throw transientFailure;
+		return Object.freeze({ generation: loadCount });
+	});
+	const firstLoad = cache.get('wavpack.wasm');
+	assert.strictEqual(cache.get('wavpack.wasm'), firstLoad, 'concurrent callers share the load');
+	await assert.rejects(firstLoad, (error) => error === transientFailure);
+
+	let runtime = await cache.get('wavpack.wasm');
+	assert.equal(runtime.generation, 2);
+	assert.strictEqual(await cache.get('wavpack.wasm'), runtime);
+	for (const code of ['WAVPACK_ABORT', 'WAVPACK_EXIT']) {
+		const trap = Object.assign(new Error(`runtime failed with ${code}`), { code });
+		await assert.rejects(cache.use('wavpack.wasm', () => { throw trap; }), (error) => error === trap);
+		const replacement = await cache.get('wavpack.wasm');
+		assert.notStrictEqual(replacement, runtime);
+		runtime = replacement;
+	}
+	const recoverable = new Error('bad input');
+	await assert.rejects(cache.use('wavpack.wasm', () => { throw recoverable; }), (error) => error === recoverable);
+	assert.strictEqual(await cache.get('wavpack.wasm'), runtime, 'ordinary codec errors retain the runtime');
 });
 
 test('corrupted WavPack blocks and invalid declarations fail closed', async () => {

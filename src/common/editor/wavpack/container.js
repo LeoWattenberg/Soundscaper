@@ -43,6 +43,8 @@ export class PcmContainerWriter {
 		this.entries = [];
 		this.offset = PCM_CONTAINER_HEADER_BYTES;
 		this.closed = false;
+		this.finalized = false;
+		this.finalization = null;
 		this.uncompressedBytes = 0;
 		this.storedBytes = 0;
 		this.wavpackChunkCount = 0;
@@ -93,20 +95,34 @@ export class PcmContainerWriter {
 	}
 
 	async close() {
-		if (this.closed) return this.statistics();
+		if (this.finalized) return this.statistics();
 		this.closed = true;
-		await this.ready;
-		const indexOffset = this.offset;
-		const index = createPcmContainerIndex(this.entries);
-		const footer = createPcmContainerFooter({
-			chunkCount: this.entries.length,
-			indexOffset,
-			indexCrc32: crc32(index),
-		});
-		await this.writable.write(index);
-		await this.writable.write(footer);
-		await this.writable.close();
-		return this.statistics();
+		this.finalization ||= this.#finalize();
+		return this.finalization;
+	}
+
+	async #finalize() {
+		try {
+			await this.ready;
+			const indexOffset = this.offset;
+			const index = createPcmContainerIndex(this.entries);
+			const footer = createPcmContainerFooter({
+				chunkCount: this.entries.length,
+				indexOffset,
+				indexCrc32: crc32(index),
+			});
+			await this.writable.write(index);
+			await this.writable.write(footer);
+			await this.writable.close();
+			this.finalized = true;
+			return this.statistics();
+		} catch (error) {
+			try {
+				if (typeof this.writable.abort === 'function') await this.writable.abort(error);
+				else await this.writable.close();
+			} catch { /* Best-effort release; preserve the finalization failure. */ }
+			throw error;
+		}
 	}
 
 	statistics() {

@@ -180,6 +180,37 @@ export async function loadWavPackWasm(source = WAVPACK_WASM_URL) {
 	return new WavPackWasmRuntime(instance);
 }
 
+export function createWavPackRuntimeCache(loader = loadWavPackWasm) {
+	if (typeof loader !== 'function') throw new TypeError('A WavPack runtime loader is required.');
+	let pending;
+	const get = (source) => {
+		if (!pending) {
+			const request = Promise.resolve().then(() => loader(source));
+			pending = request;
+			void request.catch(() => {
+				if (pending === request) pending = undefined;
+			});
+		}
+		return pending;
+	};
+	return Object.freeze({
+		get,
+		async use(source, operation) {
+			if (typeof operation !== 'function') throw new TypeError('A WavPack runtime operation is required.');
+			const request = get(source);
+			const runtime = await request;
+			try {
+				return await operation(runtime);
+			} catch (error) {
+				if ((error?.code === 'WAVPACK_ABORT' || error?.code === 'WAVPACK_EXIT')
+					&& pending === request) pending = undefined;
+				throw error;
+			}
+		},
+		discard() { pending = undefined; },
+	});
+}
+
 function runtimeResultError(result) {
 	const [code, message] = ERROR_CODES.get(result) || [
 		'WAVPACK_INVALID_RESULT',

@@ -2,9 +2,9 @@
 
 import { PCM_ENCODING_WAVPACK_F32_V1, exactArrayBuffer } from './pcm.js';
 import { decodePcmWithWavPack, encodePcmAdaptively } from './operations.js';
-import { loadWavPackWasm } from './runtime.js';
+import { createWavPackRuntimeCache } from './runtime.js';
 
-let runtimePromise;
+const runtimeCache = createWavPackRuntimeCache();
 let work = Promise.resolve();
 
 self.addEventListener('message', (event) => {
@@ -28,13 +28,15 @@ async function processMessage(message) {
 
 async function encode(message) {
 	const raw = exactArrayBuffer(message.payload);
-	const runtime = await getRuntime(message.wasmUrl);
-	postCodecResult(message.id, encodePcmAdaptively(raw, {
-		frames: message.frames,
-		channelCount: message.channelCount,
-		sampleRate: message.sampleRate,
-		runtime,
-	}));
+	const result = await runtimeCache.use(message.wasmUrl || undefined, (runtime) => (
+		encodePcmAdaptively(raw, {
+			frames: message.frames,
+			channelCount: message.channelCount,
+			sampleRate: message.sampleRate,
+			runtime,
+		})
+	));
+	postCodecResult(message.id, result);
 }
 
 async function decode(message) {
@@ -42,14 +44,15 @@ async function decode(message) {
 		throw new TypeError('WavPack worker can only decode wavpack-f32-v1 payloads.');
 	}
 	const encoded = exactArrayBuffer(message.payload);
-	const runtime = await getRuntime(message.wasmUrl);
-	const raw = decodePcmWithWavPack(encoded, {
-		frames: message.frames,
-		channelCount: message.channelCount,
-		sampleRate: message.sampleRate,
-		pcmCrc32: message.pcmCrc32,
-		runtime,
-	});
+	const raw = await runtimeCache.use(message.wasmUrl || undefined, (runtime) => (
+		decodePcmWithWavPack(encoded, {
+			frames: message.frames,
+			channelCount: message.channelCount,
+			sampleRate: message.sampleRate,
+			pcmCrc32: message.pcmCrc32,
+			runtime,
+		})
+	));
 	self.postMessage({
 		type: 'result',
 		id: message.id,
@@ -63,11 +66,6 @@ function postCodecResult(id, result) {
 		id,
 		result,
 	}, [result.payload]);
-}
-
-function getRuntime(wasmUrl) {
-	if (!runtimePromise) runtimePromise = loadWavPackWasm(wasmUrl || undefined);
-	return runtimePromise;
 }
 
 function serializeError(error) {
