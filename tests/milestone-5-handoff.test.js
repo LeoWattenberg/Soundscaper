@@ -12,6 +12,7 @@ import {
 	MILESTONE_5_HANDOFF_WORKLOAD_IDS,
 	assessMilestone5Handoff,
 	assembleMilestone5Handoff,
+	assembleMilestone5ProductHandoff,
 	authenticateMilestone5HandoffSourceRevision,
 	isAssembledMilestone5Handoff,
 	validateMilestone5QualificationRevisionCompatibility,
@@ -179,6 +180,30 @@ test('repository assembly runs the authenticated payload and raw-evidence audito
 	assert.equal(handoff.packageEvidence, null);
 	assert.ok(handoff.inputDigests['config/milestone-5-qualification-evidence.json']);
 	assert.ok(handoff.inputDigests['config/native-addon-payload-manifest.json']);
+});
+
+test('Soundscaper assembly has no Framescaper M5 evidence or blockers', async () => {
+	const handoff = await assembleMilestone5ProductHandoff({
+		repositoryRoot,
+		productIds: ['soundscaper'],
+	});
+	assert.deepEqual(handoff.engineeringScope.products, ['soundscaper']);
+	assert.equal(handoff.sources.total, 6);
+	assert.equal(handoff.payloads.total, 5);
+	assert.equal(handoff.qualification.profileCount, 11);
+	assert.deepEqual(handoff.qualification.workloadIds, ['m5-native-helper-and-audio']);
+	assert.ok(handoff.automatedEvidence.sources.every(({ id }) => (
+		!['x264', 'x265', 'libvpx', 'libopus'].includes(id)
+	)));
+	assert.ok(handoff.automatedEvidence.payloads.every(({ product }) => (
+		product === 'soundscaper-professional'
+	)));
+	assert.ok(!Object.keys(handoff.inputDigests).some((path) => (
+		path.includes('framescaper') || path.includes('ffmpeg-9.0.1-external-sources')
+	)));
+	assert.ok(!handoff.blockers.some(({ id, reason }) => (
+		`${id} ${reason}`.toLowerCase().includes('framescaper')
+	)));
 });
 
 test('repository assembly refuses to attribute working bytes to a non-HEAD revision', async () => {

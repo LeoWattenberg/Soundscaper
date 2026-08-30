@@ -8,13 +8,15 @@ import vm from 'node:vm';
 import {
 	DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	assertDesktopSmokePayload,
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
 } from '../scripts/lib/desktop-smoke.mjs';
+import { soundscaperPreloadSource } from '../scripts/lib/desktop-product-package-files.mjs';
 import { FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY } from '../desktop/framescaper-baseline-artifact-smoke.js';
 
-const EXPECTED_BRIDGE = DESKTOP_SMOKE_EXPECTED_BRIDGE;
+const EXPECTED_BRIDGE = SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const FRAMESCAPER_EXPECTED_BRIDGE = FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -79,6 +81,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'openNativePluginVendorUi',
 		'patchFinalPrefix',
 		'persistNativePluginState',
+		'persistentDelivery',
 		'probeHelperAvailability',
 		'readDesktopVideoCodecOutput',
 		'readNativeTierControls',
@@ -128,12 +131,97 @@ test('desktop smoke bridge inventory equals the sandbox preload surface', async 
 		}),
 	});
 	assert.deepEqual(Object.keys(bridge).sort(), DESKTOP_SMOKE_EXPECTED_BRIDGE);
+	assert.deepEqual(Object.keys(bridge.persistentDelivery).sort(), [
+		'cancel', 'currentProjectIdentity', 'enqueueBatch', 'events', 'list', 'pause',
+		'reauthorizeDestination', 'reorder', 'resume', 'retry', 'selectDestination',
+	]);
 	assert.equal(Object.isFrozen(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
 	assert.deepEqual(Object.keys(framescaperBridge).sort(), FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE);
+	assert.equal(Object.hasOwn(framescaperBridge, 'persistentDelivery'), false);
 	assert.deepEqual(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
-		...DESKTOP_SMOKE_EXPECTED_BRIDGE,
+		...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => name !== 'persistentDelivery'),
 		'projectLibrary',
 	].sort());
+});
+
+test('desktop smoke accepts the exact product-isolated Soundscaper preload surface', async () => {
+	assert.equal(Object.isFrozen(SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE), true);
+	assert.deepEqual(SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
+		'abortWrite',
+		'applyNativeTierControl',
+		'beginWrite',
+		'bindNativeAudioSession',
+		'calibrateNativeAudioSession',
+		'cancelAssistanceModelInstall',
+		'cancelDesktopAudioCodecOperation',
+		'checkForUpdates',
+		'chooseExternalFfmpeg',
+		'chooseFiles',
+		'chooseLinkedAudioOriginal',
+		'chooseSaveTarget',
+		'clearExternalFfmpeg',
+		'clearNativePluginQuarantine',
+		'closeNativeAudioSession',
+		'closeNativePluginInstance',
+		'closeNativePluginVendorUi',
+		'collectAssistanceModelGarbage',
+		'describeNativeAudioBackend',
+		'editText',
+		'finishWrite',
+		'getDesktopAudioCodecCapabilities',
+		'getEnvironment',
+		'getExternalFfmpegStatus',
+		'installAssistanceModel',
+		'installExternalFfmpeg',
+		'installPreseededAssistanceModel',
+		'instantiateNativePlugin',
+		'listAssistanceModelNotices',
+		'listAssistanceModels',
+		'listNativePlugins',
+		'loadLinkedAudioOriginal',
+		'localAssistance',
+		'nativeAudioHelperAvailability',
+		'nativeAudioSessionStatus',
+		'nativePluginAvailability',
+		'onAssistanceInstallProgress',
+		'onCloseRequested',
+		'onMenuCommand',
+		'onOpenProject',
+		'onWindowStateChanged',
+		'openExternal',
+		'openNativeAudioSession',
+		'openNativePluginVendorUi',
+		'patchFinalPrefix',
+		'persistNativePluginState',
+		'persistentDelivery',
+		'readNativeTierControls',
+		'reconcileAssistanceModels',
+		'reconcileLinkedOriginals',
+		'releaseLinkedOriginal',
+		'releaseRead',
+		'relocateAssistanceModels',
+		'removeAssistanceModel',
+		'reportNativeAudioSessionLoss',
+		'reportNativeAudioSessionTransfer',
+		'rescanExternalFfmpeg',
+		'respondToClose',
+		'restoreNativePluginState',
+		'reviewNativePluginInstallation',
+		'runDesktopAudioCodecOperation',
+		'runNativePluginOffline',
+		'runWindowAction',
+		'scanNativePlugins',
+		'setLocale',
+		'setNativeAudioHelperEnabled',
+		'setNativePluginBypassed',
+		'setNativePluginConsent',
+		'signalReady',
+		'writeChunk',
+	]);
+	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
+	const { bridge, framescaperBridge } = evaluatePreload(soundscaperPreloadSource(source));
+	assert.deepEqual(Object.keys(bridge).sort(), SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE);
+	assert.equal(framescaperBridge, undefined);
 });
 
 test('desktop smoke resolves an explicit package architecture independently of the Node host', () => {
@@ -196,6 +284,14 @@ test('desktop smoke validates the application-reported platform and target archi
 		url: 'soundscaper-app://bundle/',
 	};
 	assert.doesNotThrow(() => assertDesktopSmokePayload(payload, expected));
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
+			bridge: [...FRAMESCAPER_EXPECTED_BRIDGE],
+		}, expected),
+		/bridge surface/u,
+		'Framescaper bridge authority must not satisfy the Soundscaper smoke',
+	);
 	assert.doesNotThrow(() => assertDesktopSmokePayload({
 		...payload,
 		desktopChrome: { ...payload.desktopChrome, fileAccessKey: 'Alt+D' },
@@ -246,6 +342,14 @@ test('desktop smoke validates the closed Framescaper baseline UI, preload, and m
 	assert.throws(
 		() => assertDesktopSmokePayload({
 			...payload,
+			bridge: [...SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE],
+		}, expected),
+		/bridge surface/u,
+		'Soundscaper bridge authority must not satisfy the Framescaper smoke',
+	);
+	assert.throws(
+		() => assertDesktopSmokePayload({
+			...payload,
 			framescaperBaseline: {
 				...payload.framescaperBaseline,
 				main: {
@@ -284,12 +388,39 @@ test('desktop smoke validates the closed Framescaper baseline UI, preload, and m
 test('packaged desktop smoke isolates both Chromium and shared library data', async () => {
 	const source = await readFile(resolve(ROOT, 'scripts/desktop-smoke.mjs'), 'utf8');
 	assert.match(source, /bridge: SMOKE_EXPECTED_BRIDGE/u);
-	assert.match(source, /PRODUCT_ID === 'framescaper'[\s\S]*FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE/u);
+	assert.match(source,
+		/PRODUCT_ID === 'framescaper'[\s\S]*FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE[\s\S]*SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE/u);
 	assert.doesNotMatch(source, /const EXPECTED_BRIDGE/u);
 	assert.match(source, /--user-data-dir=\$\{profile\}/u);
 	assert.match(source, /--soundscaper-smoke-app-data=\$\{[^}]+\}/u);
 	assert.match(source, /productId:\s*PRODUCT_ID/u);
 });
+
+function evaluatePreload(source) {
+	let bridge;
+	let framescaperBridge;
+	vm.runInNewContext(source, {
+		ArrayBuffer, Object, Promise, RangeError, Reflect, String, TypeError, Uint8Array, URL,
+		structuredClone,
+		window: { addEventListener: () => {}, postMessage: () => {} },
+		require: () => ({
+			contextBridge: {
+				exposeInMainWorld(name, value) {
+					if (name === 'scapeDesktop') bridge = value.v1;
+					if (name === 'framescaperDesktop') framescaperBridge = value.v1;
+				},
+			},
+			ipcRenderer: {
+				invoke: () => Promise.resolve(),
+				on: () => {},
+				postMessage: () => {},
+				removeListener: () => {},
+				send: () => {},
+			},
+		}),
+	});
+	return { bridge, framescaperBridge };
+}
 
 function validFramescaperBaselinePayload() {
 	const project = {

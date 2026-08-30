@@ -176,19 +176,25 @@ translation release. For an intentionally offline/reproducible build, set
 contains `latest.json`, every referenced pack, the release manifest and audit,
 and the referenced source license; every descriptor is rechecked before use.
 
-Pushing a beta or release-candidate tag that exactly matches `package.json` (for example,
-`v1.0.0-rc.1`) runs unit, reproducibility, browser, and native packaging
-checks. The same build runs nightly from the default branch at 02:17 UTC and
-can be started manually from the **Desktop preview and nightly** GitHub Actions
-workflow. Soundscaper and Framescaper are prepared, packaged, and smoke-tested
-in separate jobs for every supported OS/architecture. Each packaging job uploads
-its verified installers to the Actions run for 14 days; these are CI artifacts,
-not a public release channel. Public
-desktop distribution still requires the release provenance recorded in
-`desktop/ffmpeg-corresponding-source.json`, plus a future stable tag that passes
-`npm run audit:aup4-interop:release`, uses Windows signing plus macOS Developer
-ID signing/notarization; the compiled-native AUP4 gate is intentionally still
-pending for this preview.
+Pushing a product-owned beta or release-candidate tag declared by
+`config/product-release-lines.json` (for example,
+`soundscaper-v1.0.0-rc.1`) runs unit, reproducibility, browser, and native
+packaging checks for that product. The same workflow runs the two-product CI
+suite nightly from the default branch at 02:17 UTC and can be started manually
+from **Desktop preview and nightly**. Each selected product is prepared,
+packaged, and smoke-tested in separate jobs for every supported
+OS/architecture. Each packaging job uploads its verified installers to the
+Actions run for 14 days; these are CI artifacts, not a public release channel.
+
+Soundscaper Stable 1.0 has a separate exact `v1.0.0` workflow. It remains
+fail-closed until `npm run release:soundscaper:stable-1:admission` accepts the
+external qualification record, all five promoted professional-native payloads
+and signed readiness evidence, notices/legal approval, signing/notarization,
+native cohorts, platform/accessibility evidence, release rehearsal, and all 22
+eight-hour soak runs. The workflow then assembles exactly nine Soundscaper
+desktop packages and five runtime manifests, performs install/rollback smokes,
+deploys the web artifact, and publishes the checksummed release. Framescaper is
+deferred and does not enter those blockers.
 
 The packaged desktop entry point requests Electron's regular hardware GPU
 selection before the application becomes ready. The operating system and

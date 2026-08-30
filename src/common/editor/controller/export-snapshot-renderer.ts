@@ -33,6 +33,11 @@ export function createExportSnapshotRenderer(runtime: ExportSnapshotRendererRunt
 		createCacheAwareRenderEngine, prepareCommittedTimePitchCaches,
 		throwIfAborted, updateExportProgress,
 	} = runtime;
+	const exportProgressObservers = new Set<(value: RuntimeValue) => void>();
+	const observeExportProgress = (observer: (value: RuntimeValue) => void) => {
+		exportProgressObservers.add(observer);
+		return () => { exportProgressObservers.delete(observer); };
+	};
 
 async function renderSnapshot(
 	snapshot: RuntimeValue,
@@ -68,11 +73,17 @@ function withRenderProgress(range: RuntimeValue) {
 		...range,
 		onProgress: (progress: RuntimeValue) => {
 			const value = typeof progress === 'number' ? progress : progress?.progress;
-			if (activeKind === 'export') updateExportProgress(value);
+			if (activeKind === 'export') {
+				updateExportProgress(value);
+				const mapped = taskProgress?.getSnapshot?.()?.value;
+				for (const observer of exportProgressObservers) {
+					observer(typeof mapped === 'number' && Number.isFinite(mapped) ? mapped : value);
+				}
+			}
 			else taskProgress.updateActive(value);
 		},
 	};
 }
 
-	return { renderSnapshot, withRenderProgress };
+	return { observeExportProgress, renderSnapshot, withRenderProgress };
 }

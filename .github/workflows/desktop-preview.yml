@@ -7,8 +7,10 @@ on:
     - cron: '17 2 * * *'
   push:
     tags:
-      - 'v*-beta.*'
-      - 'v*-rc.*'
+      - 'soundscaper-v*-beta.*'
+      - 'soundscaper-v*-rc.*'
+      - 'framescaper-v*-beta.*'
+      - 'framescaper-v*-rc.*'
   # Main commits are packaged off their Quality run rather than off the push, so
   # the shared quality, browser and Firefox jobs are never run twice.
   workflow_run:
@@ -45,6 +47,12 @@ jobs:
     if: github.event_name != 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      release-products: ${{ steps.release-scope.outputs.products }}
+      release-product-pattern: ${{ steps.release-scope.outputs.product-pattern }}
+      release-assembler-arguments: ${{ steps.release-scope.outputs.assembler-arguments }}
+      release-m5-arguments: ${{ steps.release-scope.outputs.m5-arguments }}
+      release-channel: ${{ steps.release-scope.outputs.channel }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -58,22 +66,34 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Require the tag to match package.json
-        if: github.ref_type == 'tag'
+      - name: Resolve the exact product release scope
+        id: release-scope
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: >-
           node --input-type=module -e
-          "import pkg from './package.json' with { type: 'json' };
-          if (process.env.RELEASE_TAG !== 'v' + pkg.version
-          || !/^\d+\.\d+\.\d+-(?:beta|rc)\.\d+$/u.test(pkg.version))
-          throw new Error('Desktop preview tags must exactly match a beta or RC package version.');"
+          "import { appendFileSync } from 'node:fs';
+          import { readProductReleaseLinesSync, resolveProductReleaseTag }
+          from './scripts/lib/product-release-lines.mjs';
+          const tag = process.env.RELEASE_TAG;
+          const release = tag ? resolveProductReleaseTag(tag, readProductReleaseLinesSync()) : null;
+          const products = release ? [release.productId] : ['soundscaper', 'framescaper'];
+          appendFileSync(process.env.GITHUB_OUTPUT,
+          'products=' + JSON.stringify(products) + '\n'
+          + 'product-pattern=' + (release ? release.productId : '*') + '\n'
+          + 'assembler-arguments=' + (release ? '--product ' + release.productId : '--suite') + '\n'
+          + 'm5-arguments=' + (release ? '--product ' + release.productId : '') + '\n'
+          + 'channel=' + (release?.channel ?? 'nightly-suite') + '\n');"
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Require Soundscaper Stable 1 admission before stable packaging
+        if: steps.release-scope.outputs.channel == 'stable'
+        run: npm run release:soundscaper:stable-1:admission
 
       - name: Run the canonical quality checks that are not the Node test suite
         # The Node suite runs in the per-product `tests` shards below, and the
@@ -397,7 +417,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [soundscaper, framescaper]
+        product: ${{ fromJSON(needs.quality.outputs.release-products) }}
         target:
           - runner: windows-2025
             platform: win
@@ -585,7 +605,7 @@ jobs:
         || github.event_name == 'schedule'
         || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly')
       )
-    needs: package
+    needs: [quality, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -608,10 +628,10 @@ jobs:
         timeout-minutes: 10
         run: bash scripts/ci-apt-install.sh p7zip-full squashfs-tools
 
-      - name: Download all ten audited package roots
+      - name: Download the selected audited package roots
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: nightly-*
+          pattern: nightly-${{ needs.quality.outputs.release-product-pattern }}-*
           path: ${{ runner.temp }}/milestone-5-packages
 
       - name: Re-audit and aggregate the authenticated package matrix
@@ -619,6 +639,7 @@ jobs:
           node scripts/aggregate-milestone-5-handoffs.mjs
           --package-directory "${{ runner.temp }}/milestone-5-packages"
           --output "${{ runner.temp }}/milestone-5-handoff-matrix.json"
+          ${{ needs.quality.outputs.release-m5-arguments }}
         env:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
@@ -632,11 +653,9 @@ jobs:
 
   release-inventory:
     name: Assemble the release inventory
-    # The assembler is what proves the five-target, two-product release matrix
-    # actually adds up: nine packages per product, ten agreeing runtime
-    # manifests, the fetched translation and bundled-codec corresponding
-    # sources the AGPL obligation depends on, and SHA256SUMS over the lot.
-    # Nothing invoked it, so the first time it ran would have been a release.
+    # The selected release scope is exact: a product tag assembles nine packages
+    # and five runtime manifests for that product only; nightlies retain the
+    # independent full-suite rehearsal.
     if: >-
       always()
       && needs.package.result == 'success'
@@ -645,7 +664,7 @@ jobs:
         || github.event_name == 'schedule'
         || (github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly')
       )
-    needs: package
+    needs: [quality, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -670,12 +689,12 @@ jobs:
       - name: Collect every packaged target into one release directory
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: nightly-*
+          pattern: nightly-${{ needs.quality.outputs.release-product-pattern }}-*
           path: release/desktop
           merge-multiple: true
 
       - name: Assemble the release assets and checksums
-        run: npm run desktop:release-assets
+        run: npm run desktop:release-assets -- ${{ needs.quality.outputs.release-assembler-arguments }}
 
       - name: Upload the assembled release inventory
         if: always()

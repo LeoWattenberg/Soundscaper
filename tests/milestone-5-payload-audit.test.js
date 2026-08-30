@@ -32,6 +32,21 @@ test('Milestone 5 payload audit authenticates all twenty exact target rows', asy
 	assert.equal(isAuditedMilestone5Payloads(structuredClone(audit)), false);
 });
 
+test('Soundscaper payload audit authenticates only five professional target rows', async () => {
+	const audit = await auditMilestone5Payloads(repositoryRoot, ['soundscaper']);
+	assert.equal(isAuditedMilestone5Payloads(audit), true);
+	assert.equal(audit.rows.length, 5);
+	assert.deepEqual([...new Set(audit.rows.map(({ product }) => product))], [
+		'soundscaper-professional',
+	]);
+	assert.deepEqual(Object.keys(audit.manifests), ['soundscaperProfessional']);
+	assert.deepEqual(Object.keys(audit.inputDigests).sort(), [
+		'config/milestone-5-native-isolation-review-policy.json',
+		'config/soundscaper-professional-native-payload-manifest.json',
+	]);
+	assert.ok(!audit.rows.some(({ product }) => product.startsWith('framescaper')));
+});
+
 test('professional and Framescaper build bytes are automated-ready without human readiness', () => {
 	for (const product of [
 		'soundscaper-professional', 'framescaper-media', 'framescaper-openfx',

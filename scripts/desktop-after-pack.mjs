@@ -186,6 +186,9 @@ export async function verifyPackagedOsAudioCodecNativeResources(context, depende
  */
 export async function verifyPackagedNativeAddonResources(context, dependencies = {}) {
 	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const stageManifestPath = resolve(dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'));
+	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
 	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
 	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
 		throw new TypeError('Electron packaged resources directory is unavailable.');
@@ -208,6 +211,18 @@ export async function verifyPackagedNativeAddonResources(context, dependencies =
 			&& entry.name !== SOUNDSCAPER_PROFESSIONAL_PREFIX
 			&& entry.name !== SOUNDSCAPER_OS_AUDIO_CODEC_PREFIX)
 		.map(({ name }) => name);
+	const productId = packagingProductId(context);
+	const stageTarget = `${stage?.target?.platform}-${stage?.target?.arch}`;
+	const stableSoundscaperSelected = productId === 'soundscaper'
+		&& (stage?.applicationVersionChannel === 'stable' || stage?.releaseChannel === 'stable');
+	if (stableSoundscaperSelected) {
+		if (stage.productId !== productId || stageTarget !== packagedTarget
+			|| stage.applicationVersionChannel !== 'stable' || stage.releaseChannel !== 'stable'
+			|| stage.nativeAddons !== null || targets.length !== 0) {
+			throw new Error('Packaged Stable Soundscaper resources have invalid legacy native-addon state.');
+		}
+		return null;
+	}
 	if (targets.length !== 1) {
 		throw new Error(`Packaged native addon payload must carry exactly one target; found ${targets.join(', ') || '<none>'}.`);
 	}

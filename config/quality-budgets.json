@@ -560,6 +560,26 @@
 				"config/milestone-9-soak-spec.json",
 				"scripts/lib/m9-soak-evidence.mjs"
 			]
+		},
+		{
+			"id": "soundscaper-stable-1-release-matrix",
+			"status": "unprovisioned",
+			"kind": "product-release-matrix",
+			"qualificationEligible": false,
+			"rendererRequirement": "any",
+			"fingerprint": {
+				"browserMatrixRevision": null,
+				"desktopMatrixRevision": null,
+				"deviceMatrixRevision": null
+			},
+			"eligibleWorkloadIds": ["soundscaper-stable-1-complete-system-soak"],
+			"evidence": [
+				"config/soundscaper-stable-1-behavior-environments.json",
+				"config/soundscaper-stable-1-soak-spec.json",
+				"config/soundscaper-stable-1-soak-trusted-lab-keys.json",
+				"scripts/lib/m9-soak-evidence.mjs",
+				"scripts/lib/soundscaper-stable-1-soak-attestation.mjs"
+			]
 		}
 	],
 	"fixtures": [
@@ -1446,6 +1466,33 @@
 			]
 		},
 		{
+			"id": "soundscaper-stable-1-complete-system-soak-8h-v1",
+			"milestones": ["9"],
+			"status": "provisional",
+			"kind": "deterministic-generator",
+			"specification": {
+				"durationSeconds": 28800,
+				"requiredBrowserPassRatio": 1,
+				"requiredDesktopPassRatio": 1,
+				"generatorRevision": 1,
+				"seed": "soundscaper-stable-1.0-complete-system-soak-v1",
+				"artifactSha256": "45f92d7f3293e3ef50177fb34d9d03c507cac11874a7548d85e4bebddf10568c",
+				"scheduleSha256": "0664cf4ae5cd18da64ef835408932968260c0df974e1e96655d04a05fe3be48a",
+				"eventCount": 1008,
+				"contractDurationSeconds": 120
+			},
+			"limitation": "The Soundscaper-only generator and collector contracts are digest-pinned. Contract mode cannot publish qualification. Stable qualification requires two consecutive real eight-hour runs on every Soundscaper release-matrix cell.",
+			"evidence": [
+				"config/soundscaper-stable-1-soak-spec.json",
+				"config/soundscaper-stable-1-soak-trusted-lab-keys.json",
+				"scripts/lib/m9-soak-fixture.mjs",
+				"scripts/lib/m9-soak-evidence.mjs",
+				"scripts/lib/soundscaper-stable-1-soak-attestation.mjs",
+				"tests/soundscaper-stable-1-release.test.js",
+				"tests/soundscaper-stable-1-soak-evidence-authority.test.js"
+			]
+		},
+		{
 			"id": "m5b-native-media-parity-and-longform-v1",
 			"milestones": ["5"],
 			"status": "planned",
@@ -1915,6 +1962,35 @@
 				"scripts/lib/m9-soak-evidence.mjs",
 				"scripts/collect-m9-soak-quality.mjs",
 				"tests/milestone-9-soak-evidence.test.js"
+			]
+		},
+		{
+			"id": "soundscaper-stable-1-complete-system-soak",
+			"milestone": "9",
+			"status": "provisional",
+			"fixtureIds": ["soundscaper-stable-1-complete-system-soak-8h-v1"],
+			"environmentIds": ["soundscaper-stable-1-release-matrix"],
+			"thresholds": [
+				{ "metricId": "soak.retainedJsHeapDeltaBytes", "comparison": "lte", "value": 134217728, "unit": "bytes" },
+				{ "metricId": "soak.postWarmupHeapSlopeMibPerHour", "comparison": "lte", "value": 4, "unit": "MiB/hour" },
+				{ "metricId": "soak.electronRssDeltaBytes", "comparison": "lte", "value": 536870912, "unit": "bytes" },
+				{ "metricId": "soak.audioDropoutFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "soak.unreportedDroppedFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+				{ "metricId": "soak.avDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+				{ "metricId": "soak.failedAutosaves", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "soak.unrecoveredJobs", "comparison": "eq", "value": 0, "unit": "count" },
+				{ "metricId": "qualification.browserPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
+				{ "metricId": "qualification.desktopPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
+				{ "metricId": "qualification.migrationPassRatio", "comparison": "eq", "value": 1, "unit": "ratio" },
+				{ "metricId": "qualification.releaseBlockingDefects", "comparison": "eq", "value": 0, "unit": "count" }
+			],
+			"evidence": [
+				"config/soundscaper-stable-1-soak-spec.json",
+				"config/soundscaper-stable-1-soak-trusted-lab-keys.json",
+				"scripts/lib/m9-soak-evidence.mjs",
+				"scripts/lib/soundscaper-stable-1-soak-attestation.mjs",
+				"tests/soundscaper-stable-1-release.test.js",
+				"tests/soundscaper-stable-1-soak-evidence-authority.test.js"
 			]
 		},
 		{

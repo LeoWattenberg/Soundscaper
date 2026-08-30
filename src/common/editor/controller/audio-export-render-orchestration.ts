@@ -214,7 +214,7 @@ export async function renderAndEncodeAudioExport(
 	try {
 		taskProgress?.setActivePhase?.(copy.encoding, {
 			start: progressRange.start + progressSpan * 0.7,
-			end: progressRange.end,
+			end: progressRange.start + progressSpan * 0.9,
 			value: 0,
 		});
 		return await encodeRenderedAudio(encodingRuntime, {

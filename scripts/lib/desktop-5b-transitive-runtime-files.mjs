@@ -145,6 +145,10 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 
 /** Leaf modules whose package imports must be closed into the staged runtime. */
 export const DESKTOP_RUNTIME_BUNDLED_LEAF_FILES = Object.freeze([
+	'src/common/editor/assistance/owned-audio-workflow-transforms-v1.js',
+	'src/common/editor/assistance/owned-video-workflow-transforms-v1.js',
+	'src/common/editor/assistance/workflow-settings-v1.js',
+	'src/common/editor/assistance/workflow.js',
 	'src/common/editor/audio-track-freeze-v21.js',
 	'src/common/editor/ixml.js',
 	'src/common/editor/native-media-image-sequence-rgba8-admission.js',
@@ -161,6 +165,7 @@ export const DESKTOP_RUNTIME_BUNDLED_LEAF_FILES = Object.freeze([
 	'src/common/editor/video-color-management-v27.js',
 	'src/common/editor/video-timing-asset.js',
 	'src/framescaper/desktop-project-library-core-body-transfer.js',
+	'src/framescaper/editor-native-image-sequence-import.js',
 	'src/soundscaper/editor-native-plugin-playback.js',
 	'src/soundscaper/editor-project-feature-requirements.js',
 ]);

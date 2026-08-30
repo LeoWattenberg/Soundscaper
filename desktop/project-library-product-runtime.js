@@ -194,6 +194,26 @@ class DesktopProjectLibraryProductRuntime {
 		});
 	}
 
+	soundscaperDeliveryProjectAuthority() {
+		if (this.#productId !== 'soundscaper') return null;
+		return Object.freeze({
+			readProjectAuthority: async (projectId) => {
+				const session = this.#host.openSession(this.#host.localHandshake);
+				try {
+					const bundle = await session.readProjectBundle(projectId);
+					return bundle ? Object.freeze({
+						projectIdentity: Object.freeze({
+							projectId: bundle.project.projectId,
+							projectRevision: bundle.project.projectRevision,
+							projectSha256: bundle.project.sha256,
+						}),
+						projectName: bundle.project.name,
+					}) : null;
+				} finally { await session.close(); }
+			},
+		});
+	}
+
 	registerRendererBridge(value) {
 		if (this.#closed) throw new Error('Desktop project-library product runtime is closed');
 		if (this.#bridge) throw new Error('Desktop project-library renderer bridge is already registered');

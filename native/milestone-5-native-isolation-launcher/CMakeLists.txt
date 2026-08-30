@@ -2,6 +2,10 @@
 cmake_minimum_required(VERSION 3.28)
 project(milestone5_native_isolation_launcher VERSION 1.0.0 LANGUAGES C CXX)
 
+if(MSVC)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -11,6 +15,40 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_OBJCXX_STANDARD 17)
 set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 set(CMAKE_OBJCXX_EXTENSIONS OFF)
+
+if(NOT DEFINED SOUNDSCAPER_NATIVE_TARGET)
+	message(FATAL_ERROR "SOUNDSCAPER_NATIVE_TARGET is required")
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	if(SOUNDSCAPER_NATIVE_TARGET STREQUAL "linux-x64")
+		if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64|x64)$")
+			message(FATAL_ERROR "The isolation launcher is not configuring for Linux x64")
+		endif()
+	elseif(SOUNDSCAPER_NATIVE_TARGET STREQUAL "linux-arm64")
+		if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|aarch64|arm64)$")
+			message(FATAL_ERROR "The isolation launcher is not configuring for Linux ARM64")
+		endif()
+	else()
+		message(FATAL_ERROR "The isolation launcher target is not a supported Linux target")
+	endif()
+elseif(APPLE)
+	if(NOT SOUNDSCAPER_NATIVE_TARGET STREQUAL "mac-arm64"
+		OR NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+		message(FATAL_ERROR "The isolation launcher supports only macOS ARM64")
+	endif()
+elseif(WIN32)
+	if(SOUNDSCAPER_NATIVE_TARGET STREQUAL "win-x64")
+		if(NOT CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+			message(FATAL_ERROR "The isolation launcher is not configuring for Windows x64")
+		endif()
+	elseif(SOUNDSCAPER_NATIVE_TARGET STREQUAL "win-arm64")
+		if(NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+			message(FATAL_ERROR "The isolation launcher is not configuring for Windows ARM64")
+		endif()
+	else()
+		message(FATAL_ERROR "The isolation launcher target is not a supported Windows target")
+	endif()
+endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_executable(milestone5-native-isolation-launcher src/linux_launcher.c)
@@ -42,3 +80,15 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU
 endif()
 install(TARGETS milestone5-native-isolation-launcher RUNTIME DESTINATION bin)
 install(FILES ${ISOLATION_PROFILES} DESTINATION profiles)
+file(GENERATE
+	OUTPUT "${CMAKE_BINARY_DIR}/soundscaper-isolation-toolchain.json"
+	CONTENT "{\n\
+\t\"cmakeVersion\":\"${CMAKE_VERSION}\",\n\
+\t\"generator\":\"${CMAKE_GENERATOR}\",\n\
+\t\"generatorPlatform\":\"${CMAKE_GENERATOR_PLATFORM}\",\n\
+\t\"systemName\":\"${CMAKE_SYSTEM_NAME}\",\n\
+\t\"systemProcessor\":\"${CMAKE_SYSTEM_PROCESSOR}\",\n\
+\t\"osxArchitectures\":\"${CMAKE_OSX_ARCHITECTURES}\",\n\
+\t\"cCompiler\":{\"id\":\"${CMAKE_C_COMPILER_ID}\",\"version\":\"${CMAKE_C_COMPILER_VERSION}\"},\n\
+\t\"cxxCompiler\":{\"id\":\"${CMAKE_CXX_COMPILER_ID}\",\"version\":\"${CMAKE_CXX_COMPILER_VERSION}\"}\n\
+}\n")

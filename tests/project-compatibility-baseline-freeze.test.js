@@ -91,5 +91,6 @@ test('the decision and release guidance record the freeze while every stable row
 	assert.equal(releaseRows.length, 14);
 	for (const row of releaseRows) assert.match(row, /\| pending \| pending \|/u);
 	assert.match(release, /`1\.0\.0-rc\.1`/u);
-	assert.match(release, /stable `v1\.0\.0` tags remain unsupported/u);
+	assert.match(release, /Soundscaper-only `v1\.0\.0` workflow is supported only after/iu);
+	assert.match(release, /Framescaper retains its separate[\s\S]*deferred from Soundscaper Stable 1\.0/iu);
 });

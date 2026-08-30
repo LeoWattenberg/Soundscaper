@@ -11,6 +11,7 @@ import { create as createTar } from 'tar';
 import {
 	MILESTONE_5_NATIVE_SOURCE_IDS,
 	auditMilestone5NativeSourceAcquisitions,
+	auditMilestone5NativeSourceAcquisitionsForProducts,
 	authenticateMilestone5NativeSourceInput,
 	isAuditedMilestone5NativeSourceAcquisitions,
 	readMilestone5NativeSourceAcquisitions,
@@ -123,6 +124,22 @@ test('an absent source cache is audited as pending and cannot inherit checked-in
 	assert.ok(audit.sources.every(({ authenticationStatus, authenticationBlockedBy }) => (
 		authenticationStatus === 'pending-external' && authenticationBlockedBy.length > 0
 	)));
+});
+
+test('Soundscaper source audit excludes every deferred Framescaper native input', () => {
+	const audit = auditMilestone5NativeSourceAcquisitionsForProducts(
+		repositoryRoot,
+		['soundscaper'],
+		null,
+	);
+	assert.deepEqual(audit.sources.map(({ id }) => id), [
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
+	]);
+	assert.deepEqual(audit.delegatedSources, []);
+	assert.deepEqual(Object.keys(audit.inputDigests), [
+		'config/milestone-5-native-source-acquisitions.json',
+	]);
+	assert.ok(!audit.sources.some(({ id }) => ['x264', 'x265', 'libvpx', 'libopus'].includes(id)));
 });
 
 test('source authentication binds one exact archive and extracted tree and rechecks mutable inputs', () => {

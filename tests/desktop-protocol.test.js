@@ -33,7 +33,6 @@ import {
 	MAX_SAVE_BYTES,
 	READ_PROFILE_MATERIALIZED_V1,
 } from '../desktop/constants.js';
-
 test('desktop document and locale validation accepts only committed editor routes', () => {
 	assert.equal(assertEditorDocumentUrl('soundscaper-app://bundle/').pathname, '/');
 	assert.equal(isEditorDocumentUrl('soundscaper-app://bundle/'), true);
@@ -546,9 +545,10 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		'reconcileAssistanceModels', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'relocateAssistanceModels', 'removeAssistanceModel', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'respondToClose', 'restoreNativePluginState', 'reviewNativePluginInstallation', 'runNativePluginOffline', 'scanNativePlugins',
 		'collectAssistanceModelGarbage', 'runDesktopAudioCodecOperation', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'signalReady', 'statDesktopVideoCodecOutput', 'writeChunk', 'writeDesktopVideoCodecInput',
 		].sort();
-	assert.deepEqual(Object.keys(bridge.v1).sort(), baseFields);
+	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'persistentDelivery'].sort());
 	const framescaperBridge = exposed.get('framescaperDesktop');
 	assert.deepEqual(Object.keys(framescaperBridge.v1).sort(), [...baseFields, 'projectLibrary'].sort());
+	assert.equal(Object.hasOwn(framescaperBridge.v1, 'persistentDelivery'), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'v12'), false);
 	assert.equal(Object.isFrozen(framescaperBridge.v1.projectLibrary), true);
 	assert.equal(Object.isFrozen(bridge.v1), true);
@@ -578,7 +578,6 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 function materializedCapabilityUrl(id, name) {
 	return `soundscaper-app://bundle/_desktop/read/${READ_PROFILE_MATERIALIZED_V1}/${id}/${encodeURIComponent(name)}`;
 }
-
 function materializedDescriptor(id, size) {
 	return Object.freeze({ id, size, readProfile: READ_PROFILE_MATERIALIZED_V1 });
 }

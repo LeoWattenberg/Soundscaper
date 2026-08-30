@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { dirname, extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
 import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-files.mjs';
@@ -15,6 +15,17 @@ import {
 	assertStagedDesktopImportsResolve,
 } from './desktop-staged-import-hygiene.mjs';
 import { stageBundledAudioCodecRuntimeManifest } from './desktop-bundled-audio-codec-runtime-closure.mjs';
+import {
+	assertDesktopProductPackageIsolation,
+	desktopProductRuntimePackageImports,
+	desktopProductSourceIncluded,
+} from './desktop-product-package-files.mjs';
+import {
+	collectApplicationDesktopRuntimeReferences,
+	collectDesktopProductRuntimeClosure,
+	desktopProductRuntimeTransform,
+	stageSoundscaperDesktopEntrySources,
+} from './desktop-product-runtime-staging.mjs';
 
 const FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE = 'framescaper-capture-sandbox-preload.cjs';
 const FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE = 'framescaper-web-vcr-sandbox-preload.cjs';
@@ -399,6 +410,7 @@ export async function stageDesktopApplicationSources({
 	desktopSourceRoot,
 	applicationDesktopRoot,
 	runtimeRoot,
+	productId = 'framescaper',
 }) {
 	const sourceRoot = resolveRequiredPath(desktopSourceRoot, 'desktop source root');
 	const applicationRoot = resolveRequiredPath(applicationDesktopRoot, 'application desktop root');
@@ -407,38 +419,79 @@ export async function stageDesktopApplicationSources({
 	assertExpectedRuntime(runtimeFiles);
 	await cp(sourceRoot, applicationRoot, {
 		recursive: true,
-		filter: (source) => extname(source) !== '.ts'
-			&& !DESKTOP_ONLY_EXCLUDED_SOURCES.has(source.slice(sourceRoot.length + 1).replaceAll('\\', '/')),
+		filter: (source) => {
+			const relativePath = source.slice(sourceRoot.length + 1).replaceAll('\\', '/');
+			return source === sourceRoot || extname(source) !== '.ts'
+				&& !DESKTOP_ONLY_EXCLUDED_SOURCES.has(relativePath)
+				&& desktopProductSourceIncluded(productId, relativePath);
+		},
 	});
-	await cp(compiledRoot, join(applicationRoot, 'project-library-runtime'), { recursive: true });
+	if (productId === 'soundscaper') {
+		await stageSoundscaperDesktopEntrySources(sourceRoot, applicationRoot);
+	}
+	const stagedSourceFiles = await listRuntimeFiles(applicationRoot);
+	const runtimeRoots = productId === 'soundscaper'
+		? [...DESKTOP_SOUNDSCAPER_RUNTIME_FILES,
+			...await collectApplicationDesktopRuntimeReferences({
+				applicationRoot,
+				applicationFiles: stagedSourceFiles,
+				completeFiles: runtimeFiles,
+			})]
+		: runtimeFiles;
+	const packagedRuntimeFiles = await collectDesktopProductRuntimeClosure({
+		compiledRoot,
+		completeFiles: runtimeFiles,
+		rootFiles: runtimeRoots,
+		productId,
+	});
+	for (const name of packagedRuntimeFiles) {
+		const output = join(applicationRoot, 'project-library-runtime', name);
+		await mkdir(dirname(output), { recursive: true });
+		const transform = desktopProductRuntimeTransform(productId, name);
+		if (transform) await writeFile(output,
+			transform(await readFile(join(compiledRoot, name), 'utf8')), { flag: 'wx' });
+		else await cp(join(compiledRoot, name), output, { errorOnExist: true });
+	}
 	await stageBundledAudioCodecRuntimeManifest({ desktopRoot: applicationRoot });
 	await assertStagedDesktopImportsResolve(applicationRoot);
-	assertRuntimePackageImportTargets();
+	assertRuntimePackageImportTargets(productId, packagedRuntimeFiles);
 	await bundleSandboxPreload({
 		entryPoint: join(sourceRoot, 'soundscaper-project-library-sandbox-preload.ts'),
 		cryptoShim: join(sourceRoot, 'soundscaper-project-library-sandbox-crypto.ts'),
 		outputPath: join(applicationRoot, SOUNDSCAPER_PRELOAD_BUNDLE),
 		productName: 'Soundscaper 1.0',
 	});
-	await bundleSandboxPreload({
-		entryPoint: join(sourceRoot, 'framescaper-capture-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-sandbox-crypto.ts'),
-		outputPath: join(applicationRoot, FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE),
-		productName: 'Framescaper Capture',
-	});
-	await bundleSandboxPreload({
-		entryPoint: join(sourceRoot, 'framescaper-web-vcr-sandbox-preload.ts'),
-		cryptoShim: join(sourceRoot, 'project-library-sandbox-crypto.ts'),
-		outputPath: join(applicationRoot, FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE),
-		productName: 'Framescaper Web VCR',
-	});
+	if (productId === 'framescaper') {
+		await bundleSandboxPreload({
+			entryPoint: join(sourceRoot, 'framescaper-capture-sandbox-preload.ts'),
+			cryptoShim: join(sourceRoot, 'project-library-sandbox-crypto.ts'),
+			outputPath: join(applicationRoot, FRAMESCAPER_CAPTURE_PRELOAD_BUNDLE),
+			productName: 'Framescaper Capture',
+		});
+		await bundleSandboxPreload({
+			entryPoint: join(sourceRoot, 'framescaper-web-vcr-sandbox-preload.ts'),
+			cryptoShim: join(sourceRoot, 'project-library-sandbox-crypto.ts'),
+			outputPath: join(applicationRoot, FRAMESCAPER_WEB_VCR_PRELOAD_BUNDLE),
+			productName: 'Framescaper Web VCR',
+		});
+	}
+	if (productId === 'soundscaper') {
+		const applicationFiles = await listRuntimeFiles(applicationRoot);
+		const textFiles = applicationFiles.filter((name) => /\.(?:c?js|mjs)$/u.test(name));
+		assertDesktopProductPackageIsolation(productId, applicationFiles,
+			new Map(await Promise.all(textFiles.map(async (name) => [
+				name, await readFile(join(applicationRoot, name), 'utf8'),
+			]))));
+	}
+	return Object.freeze({ files: packagedRuntimeFiles });
 }
 
-function assertRuntimePackageImportTargets() {
+function assertRuntimePackageImportTargets(productId, packagedFiles) {
 	const runtimePrefix = './desktop/project-library-runtime/';
-	for (const [alias, target] of Object.entries(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+	const imports = desktopProductRuntimePackageImports(productId, DESKTOP_RUNTIME_PACKAGE_IMPORTS);
+	for (const [alias, target] of Object.entries(imports)) {
 		if (!target.startsWith(runtimePrefix)
-			|| !DESKTOP_EXPECTED_RUNTIME_FILES.includes(target.slice(runtimePrefix.length))) {
+			|| !packagedFiles.includes(target.slice(runtimePrefix.length))) {
 			throw new Error(`Desktop package import ${alias} does not resolve to a shipped runtime member`);
 		}
 	}

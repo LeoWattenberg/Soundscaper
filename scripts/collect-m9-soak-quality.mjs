@@ -10,7 +10,7 @@ import { writeM9SoakEvidence } from './lib/m9-soak-evidence.mjs';
 import { validateM9SoakSpec } from './lib/m9-soak-fixture.mjs';
 
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
-const SPEC_URL = new URL('../config/milestone-9-soak-spec.json', import.meta.url);
+const DEFAULT_SPEC_PATH = new URL('../config/milestone-9-soak-spec.json', import.meta.url);
 
 export function parseM9SoakCollectorArguments(args) {
 	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
@@ -18,6 +18,7 @@ export function parseM9SoakCollectorArguments(args) {
 	}
 	const measurementPaths = [];
 	let outputDirectory = null;
+	let specPath = null;
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
 		if (argument === '--measurement') {
@@ -32,6 +33,12 @@ export function parseM9SoakCollectorArguments(args) {
 			if (outputDirectory === null) throw new Error('--output-directory requires a path.');
 			continue;
 		}
+		if (argument === '--spec') {
+			if (specPath !== null) throw new Error('--spec may be supplied once.');
+			specPath = args[index += 1] ?? null;
+			if (specPath === null) throw new Error('--spec requires a path.');
+			continue;
+		}
 		throw new Error(`Unknown M9 soak collector option ${argument}.`);
 	}
 	if (![1, 2].includes(measurementPaths.length)) {
@@ -41,6 +48,7 @@ export function parseM9SoakCollectorArguments(args) {
 	return Object.freeze({
 		measurementPaths: Object.freeze([...measurementPaths]),
 		outputDirectory,
+		...(specPath === null ? {} : { specPath }),
 	});
 }
 
@@ -48,7 +56,9 @@ export async function collectM9SoakQuality(optionsValue, dependencies = {}) {
 	const options = parseM9SoakCollectorArguments(flattenOptions(optionsValue));
 	const configBytes = await (dependencies.readConfig ?? readFile)(CONFIG_URL);
 	const config = JSON.parse(Buffer.from(configBytes).toString('utf8'));
-	const spec = validateM9SoakSpec(JSON.parse(await readFile(SPEC_URL, 'utf8')));
+	const spec = validateM9SoakSpec(JSON.parse(await readFile(
+		options.specPath === undefined ? DEFAULT_SPEC_PATH : resolve(options.specPath), 'utf8',
+	)));
 	const loadMeasurement = dependencies.readMeasurement
 		?? (async (path) => JSON.parse(await readFile(path, 'utf8')));
 	const measurements = await Promise.all(options.measurementPaths.map(loadMeasurement));
@@ -63,7 +73,8 @@ function flattenOptions(value) {
 	if (Array.isArray(value)) return value;
 	if (value === null || typeof value !== 'object') throw new TypeError('M9 collector options are invalid.');
 	const args = value.measurementPaths.flatMap((path) => ['--measurement', path]);
-	return [...args, '--output-directory', value.outputDirectory];
+	return [...args, '--output-directory', value.outputDirectory,
+		...(value.specPath === undefined ? [] : ['--spec', value.specPath])];
 }
 
 function sha256(bytes) {

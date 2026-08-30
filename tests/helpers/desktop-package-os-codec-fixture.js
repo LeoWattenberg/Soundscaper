@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { DESKTOP_CODEC_POLICY } from '../../scripts/lib/desktop-codec-policy.mjs';
+import {
+	typedUnavailableSoundscaperProfessionalNativeNotices,
+} from '../../scripts/lib/soundscaper-professional-native-notices.mjs';
 
 const REVISION = 'a'.repeat(40);
 
@@ -39,6 +42,9 @@ export async function osCodecPackageTree(context, target) {
 		sourceRevision: REVISION,
 		target: { platform, arch },
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		desktopNotices: {
+			professionalNative: typedUnavailableSoundscaperProfessionalNativeNotices(target),
+		},
 		nativeAddons: {
 			target, status: 'pending-external', payload: null,
 			payloadManifest: { sha256: descriptor(`${nativePrefix}/native-addon-payload-manifest.json`).sha256 },

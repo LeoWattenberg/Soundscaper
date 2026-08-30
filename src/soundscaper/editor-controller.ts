@@ -32,6 +32,13 @@ import {
 	type NativePluginStateQuiescencePurpose,
 } from '../common/editor/native-plugin-state-quiescence.ts';
 import { createSoundscaperVideoExportStrategy } from './video-export-strategy.ts';
+import {
+	createSoundscaperPersistentDeliveryControllerComposition,
+	type SoundscaperPersistentDeliveryControllerRuntime,
+} from '../common/editor/controller/soundscaper-persistent-delivery-controller-composition.ts';
+import type {
+	SoundscaperPersistentDeliveryExportRuntime,
+} from '../common/editor/controller/soundscaper-persistent-delivery-runtime-binding.ts';
 
 const PRESENTATION_FIELDS = ['locale', 'copy', 'fileService'] as const;
 
@@ -63,6 +70,7 @@ export function createSoundscaperAudioEditorController(
 	const nativePluginStateStore = environment.controllerStore as unknown as
 		SoundscaperAup4NativePluginStateStore;
 	let productController: SoundscaperAudioEditorController | null = null;
+	let persistentDeliveryExportRuntime: SoundscaperPersistentDeliveryExportRuntime | null = null;
 	const quiesce = (purpose: NativePluginStateQuiescencePurpose): Promise<void> => {
 		if (productController === null) {
 			return Promise.reject(new Error('Soundscaper native plug-in state authority is not ready.'));
@@ -84,6 +92,9 @@ export function createSoundscaperAudioEditorController(
 		),
 		prepareProjectSnapshot: (purpose: NativePluginStateQuiescencePurpose) => quiesce(purpose),
 		prepareProjectForExport: (purpose: NativePluginStateQuiescencePurpose) => quiesce(purpose),
+		bindSoundscaperPersistentDeliveryRuntime: (
+			runtime: SoundscaperPersistentDeliveryExportRuntime,
+		) => { persistentDeliveryExportRuntime = runtime; },
 		prepareAudacityProjectExport: async (project: unknown) => {
 			await quiesce('aup4-save');
 			const current = productController?.project;
@@ -97,6 +108,15 @@ export function createSoundscaperAudioEditorController(
 		...(productVideoExportStrategy ? { productVideoExportStrategy } : {}),
 		...presentation,
 	});
+	if (persistentDeliveryExportRuntime === null) {
+		throw new Error('The common editor did not bind the Soundscaper delivery export runtime.');
+	}
+	const persistentDelivery = createSoundscaperPersistentDeliveryControllerComposition({
+		productId: 'soundscaper',
+		bridge: persistentDeliveryBridge(presentation.fileService),
+		...(persistentDeliveryExportRuntime as SoundscaperPersistentDeliveryExportRuntime),
+		subscribe: (listener) => delegate.subscribe(listener),
+	});
 	const automation = createSoundscaperAutomationControllerBinding(delegate, {
 		validateProject: validateSoundscaperProject,
 	});
@@ -105,7 +125,7 @@ export function createSoundscaperAudioEditorController(
 		prepareProject: () => quiesce('track-freeze'),
 	});
 	productController = createControllerFacade(
-		delegate, automation, freeze, createSoundscaperNativePluginActions(delegate),
+		delegate, automation, freeze, createSoundscaperNativePluginActions(delegate), persistentDelivery,
 	);
 	return productController;
 }
@@ -115,8 +135,9 @@ function createControllerFacade(
 	automation: Readonly<SoundscaperAutomationControllerBinding>,
 	freeze: Readonly<SoundscaperAudioFreezeActionBinding>,
 	nativePlugins: Readonly<SoundscaperNativePluginActions>,
+	persistentDelivery: ReturnType<typeof createSoundscaperPersistentDeliveryControllerComposition>,
 ): SoundscaperAudioEditorController {
-	const actions = decorateActions(delegate.actions, automation, freeze, nativePlugins);
+	const actions = decorateActions(delegate.actions, automation, freeze, nativePlugins, persistentDelivery);
 	const descriptors = Object.getOwnPropertyDescriptors(delegate);
 	const actionsDescriptor = descriptors.actions;
 	const disposeDescriptor = descriptors.dispose;
@@ -129,7 +150,7 @@ function createControllerFacade(
 	descriptors.dispose = {
 		...disposeDescriptor,
 		value: () => {
-			disposal ??= disposeControllerBindings(delegate, automation, freeze);
+			disposal ??= disposeControllerBindings(delegate, automation, freeze, persistentDelivery);
 			return disposal;
 		},
 	};
@@ -144,6 +165,7 @@ function decorateActions(
 	automation: Readonly<SoundscaperAutomationControllerBinding>,
 	freeze: Readonly<SoundscaperAudioFreezeActionBinding>,
 	nativePlugins: Readonly<SoundscaperNativePluginActions>,
+	persistentDelivery: ReturnType<typeof createSoundscaperPersistentDeliveryControllerComposition>,
 ): SoundscaperAudioEditorController['actions'] {
 	const actions = actionRecord(actionsValue, 'common editor actions');
 	const descriptors = Object.getOwnPropertyDescriptors(actions);
@@ -162,6 +184,11 @@ function decorateActions(
 	descriptors.audioAutomation = immutableDataDescriptor(automation.actions);
 	descriptors.audioFreeze = immutableDataDescriptor(freeze.actions);
 	descriptors.nativePlugins = immutableDataDescriptor(nativePlugins);
+	if (persistentDelivery) descriptors.export = replacementDescriptor(
+		descriptors.export,
+		persistentDeliveryExportActions(actions.export, persistentDelivery.queue),
+		'export actions',
+	);
 	return Object.freeze(Object.create(
 		Object.getPrototypeOf(actions),
 		descriptors,
@@ -196,8 +223,10 @@ async function disposeControllerBindings(
 	delegate: CommonAudioEditorController,
 	automation: Readonly<SoundscaperAutomationControllerBinding>,
 	freeze: Readonly<SoundscaperAudioFreezeActionBinding>,
+	persistentDelivery: ReturnType<typeof createSoundscaperPersistentDeliveryControllerComposition>,
 ): Promise<void> {
 	const failures: unknown[] = [];
+	try { await persistentDelivery?.dispose(); } catch (error) { failures.push(error); }
 	try { automation.dispose(); } catch (error) { failures.push(error); }
 	try { await freeze.dispose(); } catch (error) { failures.push(error); }
 	try { await delegate.dispose(); } catch (error) { failures.push(error); }
@@ -207,6 +236,24 @@ async function disposeControllerBindings(
 			cause: failures[0],
 		});
 	}
+}
+
+function persistentDeliveryExportActions(value: unknown, queue: unknown): Readonly<Record<string, unknown>> {
+	const actions = actionRecord(value, 'common export actions');
+	const descriptors = Object.getOwnPropertyDescriptors(actions);
+	descriptors.queue = replacementDescriptor(descriptors.queue, queue, 'delivery queue actions');
+	return Object.freeze(Object.create(Object.getPrototypeOf(actions), descriptors));
+}
+
+function persistentDeliveryBridge(
+	fileService: unknown,
+): SoundscaperPersistentDeliveryControllerRuntime['bridge'] {
+	if (!fileService || typeof fileService !== 'object' || Array.isArray(fileService)) return null;
+	const service = fileService as Readonly<{ isDesktop?: unknown; bridge?: unknown }>;
+	if (service.isDesktop !== true || !service.bridge || typeof service.bridge !== 'object') return null;
+	const bridge = (service.bridge as Readonly<{ persistentDelivery?: unknown }>).persistentDelivery;
+	return bridge && typeof bridge === 'object'
+		? bridge as SoundscaperPersistentDeliveryControllerRuntime['bridge'] : null;
 }
 
 function actionRecord(value: unknown, name: string): Record<string, unknown> {

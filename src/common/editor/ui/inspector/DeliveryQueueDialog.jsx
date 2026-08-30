@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
@@ -24,6 +24,9 @@ import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 const STATE_COPY_KEYS = Object.freeze({
 	queued: 'deliveryQueueStateQueued',
 	running: 'deliveryQueueStateRunning',
+	'waiting-for-project': 'deliveryQueueStateWaitingForProject',
+	'needs-authorization': 'deliveryQueueStateNeedsAuthorization',
+	stale: 'deliveryQueueStateStale',
 	completed: 'deliveryQueueStateCompleted',
 	failed: 'deliveryQueueStateFailed',
 	cancelled: 'deliveryQueueStateCancelled',
@@ -55,6 +58,17 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 	const [batchId, setBatchId] = useState(null);
 	const [error, setError] = useState('');
 	const [status, setStatus] = useState('');
+	const [reportJobId, setReportJobId] = useState(null);
+
+	useEffect(() => {
+		if (!isOpen || !queueActions.persistent) return undefined;
+		let active = true;
+		const refresh = () => Promise.resolve(queueActions.refresh())
+			.catch((cause) => { if (active) setError(errorMessage(cause)); });
+		void refresh();
+		const timer = setInterval(() => { void refresh(); }, 1_000);
+		return () => { active = false; clearInterval(timer); };
+	}, [isOpen, queueActions]);
 
 	const selectable = selectableDeliveryBatchTargets(targets, mode);
 	const chosenTargets = selectable.filter(({ key }) => targetKeys.includes(key));
@@ -66,7 +80,7 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 		checked ? [...new Set([...current, value])] : current.filter((entry) => entry !== value)
 	));
 
-	const queueBatch = () => {
+	const queueBatch = async () => {
 		try {
 			const batch = createDeliveryBatch(snapshot.project, {
 				batchId: `delivery-batch-${queue.entries.length + 1}-${chosenTargets.length}x${chosenPresets.length}`,
@@ -74,15 +88,22 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 				targets: chosenTargets.map(({ target }) => target),
 				mode,
 			});
-			queueActions.enqueueBatch(batch);
+			await queueActions.enqueueBatch(batch);
 			setBatchId(batch.batchId);
 			setError('');
 			setStatus(copy.deliveryBatchQueued.replace('{members}', String(batch.members.length)));
 		} catch (cause) {
-			setError(cause instanceof Error ? cause.message : String(cause));
+			setError(errorMessage(cause));
 			setStatus('');
 		}
 	};
+	const run = async (operation) => {
+		try { await operation(); setError(''); }
+		catch (cause) { setError(errorMessage(cause)); }
+	};
+	const selectedReport = reportJobId && queueActions.persistent
+		? queueActions.report(reportJobId)
+		: null;
 
 	return (
 		<AudioEditorDialogShell
@@ -96,12 +117,19 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 				<DialogFooter
 					className="audio-editor-dialog-footer"
 					leftContent={(
-						<Button
-							variant="secondary"
-							onClick={() => (queue.paused ? queueActions.resume() : queueActions.pause())}
-						>
-							{queue.paused ? copy.deliveryQueueResume : copy.deliveryQueuePause}
-						</Button>
+						<>
+							<Button
+								variant="secondary"
+								onClick={() => { void run(() => (queue.paused ? queueActions.resume() : queueActions.pause())); }}
+							>
+								{queue.paused ? copy.deliveryQueueResume : copy.deliveryQueuePause}
+							</Button>
+							{queueActions.persistent && (
+								<Button variant="secondary" onClick={() => { void run(() => queueActions.selectDestination()); }}>
+									{copy.deliveryQueueSelectDestination}
+								</Button>
+							)}
+						</>
 					)}
 					rightContent={(
 						<>
@@ -109,7 +137,7 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 							<Button
 								variant="primary"
 								disabled={!chosenTargets.length || !chosenPresets.length}
-								onClick={queueBatch}
+								onClick={() => { void queueBatch(); }}
 							>
 								{copy.deliveryBatchQueue}
 							</Button>
@@ -163,18 +191,39 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 			<section aria-label={copy.deliveryQueue}>
 				{queue.entries.length === 0 && <p>{copy.deliveryQueueEmpty}</p>}
 				<ul>
-					{queue.entries.map((entry) => (
+				{queue.entries.map((entry, index) => (
 						<li key={entry.jobId} data-delivery-queue-job={entry.jobId}>
 							<span>{entry.label}</span>
 							<span data-delivery-queue-state={entry.state}>{copy[STATE_COPY_KEYS[entry.state]]}</span>
-							{(entry.state === 'queued' || entry.state === 'running') && (
-								<Button variant="secondary" onClick={() => queueActions.cancel(entry.jobId)}>
+							{entry.progress !== null && entry.progress !== undefined && (
+								<span>{copy.deliveryQueueProgress.replace('{percent}', String(Math.round(entry.progress * 100)))}</span>
+							)}
+							{['queued', 'running', 'waiting-for-project', 'needs-authorization'].includes(entry.state) && (
+								<Button variant="secondary" onClick={() => { void run(() => queueActions.cancel(entry.jobId)); }}>
 									{copy.deliveryQueueCancelJob}
 								</Button>
 							)}
 							{entry.state === 'failed' && (
-								<Button variant="secondary" onClick={() => queueActions.retry(entry.jobId)}>
+								<Button variant="secondary" onClick={() => { void run(() => queueActions.retry(entry.jobId)); }}>
 									{copy.deliveryQueueRetryJob}
+								</Button>
+							)}
+							{queueActions.persistent && entry.state === 'needs-authorization' && (
+								<Button variant="secondary" onClick={() => { void run(() => queueActions.reauthorizeDestination(entry.destinationGrantId)); }}>
+									{copy.deliveryQueueReauthorizeDestination}
+								</Button>
+							)}
+							{queueActions.persistent && ['queued', 'waiting-for-project', 'needs-authorization'].includes(entry.state) && <>
+								<Button variant="secondary" disabled={index === 0} onClick={() => { void run(() => queueActions.reorder(entry.jobId, index - 1)); }}>
+									{copy.deliveryQueueMoveEarlier}
+								</Button>
+								<Button variant="secondary" disabled={index === queue.entries.length - 1} onClick={() => { void run(() => queueActions.reorder(entry.jobId, index + 1)); }}>
+									{copy.deliveryQueueMoveLater}
+								</Button>
+							</>}
+							{queueActions.persistent && entry.state === 'completed' && queueActions.report(entry.jobId) && (
+								<Button variant="secondary" onClick={() => setReportJobId(entry.jobId)}>
+									{copy.deliveryQueueShowReport}
 								</Button>
 							)}
 						</li>
@@ -182,15 +231,27 @@ export function DeliveryQueueDialog({ isOpen, controller, snapshot, copy, onClos
 				</ul>
 				{report && <>
 					<p role="status">{deliverySummary(copy, report)}</p>
-					<Button variant="secondary" onClick={() => queueActions.retryBatchFailures(batchId)}>
+					<Button variant="secondary" onClick={() => { void run(() => queueActions.retryBatchFailures(batchId)); }}>
 						{copy.deliveryBatchRetryFailures}
 					</Button>
 				</>}
+				{selectedReport && <section aria-label={copy.deliveryQueueReport}>
+					<h3>{copy.deliveryQueueReport}</h3>
+					<ul>
+						{selectedReport.items.map((item, index) => (
+							<li key={`${item.code}-${index}`}>{item.message || item.code}</li>
+						))}
+					</ul>
+				</section>}
 			</section>
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 			{!error && status && <p role="status">{status}</p>}
 		</AudioEditorDialogShell>
 	);
+}
+
+function errorMessage(cause) {
+	return cause instanceof Error ? cause.message : String(cause);
 }
 
 function deliverySummary(copy, report) {

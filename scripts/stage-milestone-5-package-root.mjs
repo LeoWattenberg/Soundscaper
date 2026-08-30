@@ -15,7 +15,7 @@
  * filesystem allows it, because a desktop release is hundreds of megabytes.
  */
 
-import { copyFile, link, mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { copyFile, link, mkdir, readdir, rm } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,6 +23,10 @@ import { desktopReleaseTargetPackageInventory } from './desktop-release-assets.m
 import {
 	milestone5PackageReleaseAuthenticationEvidenceName,
 } from './lib/milestone-5-package-release-authentication.mjs';
+import {
+	readProductReleaseLines,
+	resolveProductApplicationVersion,
+} from './lib/product-release-lines.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -44,9 +48,11 @@ export async function stageMilestone5PackageRoot({
 	if (output === source || source.startsWith(`${output}${sep}`)) {
 		throw new Error('The staged package root cannot contain the packaging output.');
 	}
-	const projectPackage = JSON.parse(await readFile(resolve(repositoryRoot, 'package.json'), 'utf8'));
+	const selectedProductId = requiredValue(productId, 'product');
+	const releaseLines = await readProductReleaseLines(repositoryRoot);
+	const applicationVersion = resolveProductApplicationVersion(selectedProductId, releaseLines);
 	const inventory = desktopReleaseTargetPackageInventory(
-		requiredValue(productId, 'product'), requiredValue(targetId, 'target'), projectPackage.version,
+		selectedProductId, requiredValue(targetId, 'target'), applicationVersion,
 	);
 	const entries = await readdir(source, { withFileTypes: true });
 	const files = entries.filter((entry) => entry.isFile() && !entry.isSymbolicLink())

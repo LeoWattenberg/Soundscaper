@@ -111,7 +111,7 @@ function compact(value) {
 
 test('capability inventory records the shared Electron-only assistance surface for both products', async () => {
 	const inventory = await readJson('config/production-capabilities.json');
-	assert.equal(inventory.groundedAt, '2026-08-28');
+	assert.equal(inventory.groundedAt, '2026-08-30');
 	for (const productId of ['soundscaper', 'framescaper']) {
 		const surface = inventory.products[productId].platforms['electron-only'];
 		assert.equal(surface.status, 'partial');

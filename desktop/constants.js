@@ -1,6 +1,26 @@
 import productConfig from './product.json' with { type: 'json' };
 
-export const PRODUCT_ID = (process.env.SCAPE_PRODUCT || productConfig.id) === 'framescaper' ? 'framescaper' : 'soundscaper';
+export function resolveDesktopProductId(value, defaultProductId = productConfig.id) {
+	const requested = value === undefined ? defaultProductId : value;
+	if (requested !== 'soundscaper' && requested !== 'framescaper') {
+		throw new Error(
+			`SCAPE_PRODUCT must be soundscaper or framescaper; received ${JSON.stringify(value)}.`,
+		);
+	}
+	return requested;
+}
+
+export const PRODUCT_ID = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
+const PRODUCT_METADATA_MATCHES = productConfig.schemaVersion === 1 && productConfig.id === PRODUCT_ID;
+export const DECLARED_APPLICATION_VERSION = PRODUCT_METADATA_MATCHES
+	? productConfig.applicationVersion
+	: null;
+export const APPLICATION_VERSION_CHANNEL = PRODUCT_METADATA_MATCHES
+	? productConfig.applicationVersionChannel
+	: 'candidate';
+export const RELEASE_CHANNEL = PRODUCT_METADATA_MATCHES
+	? productConfig.releaseChannel
+	: PRODUCT_ID === 'framescaper' ? 'deferred' : 'candidate';
 export const FRAMESCAPER_WEB_VCR_ENABLED = PRODUCT_ID === 'framescaper';
 export const APP_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 export const APP_ID = PRODUCT_ID === 'framescaper' ? 'org.framescaper.desktop' : 'org.soundscaper.desktop';
@@ -10,7 +30,9 @@ export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 export const SESSION_PARTITION = PRODUCT_ID === 'framescaper'
 	? 'persist:framescaper-production'
 	: 'persist:soundscaper-production';
-export const UPDATE_TAG_PREFIX = PRODUCT_ID === 'framescaper' ? 'framescaper-v' : 'v';
+export const UPDATE_TAG_PREFIX = PRODUCT_METADATA_MATCHES
+	? productConfig.updateTagPrefix
+	: `${PRODUCT_ID}-v`;
 export const SETTINGS_SCHEMA_VERSION = 1;
 
 // Mirrors src/common/project-file-extensions.ts, which the Electron main
@@ -240,6 +262,18 @@ export const IPC = Object.freeze({
 	menuCommand: 'soundscaper:v1:event:menu-command',
 	closeRequested: 'soundscaper:v1:event:close-requested',
 	windowStateChanged: 'soundscaper:v1:event:window-state-changed',
+	deliverySelect: 'soundscaper:v1:delivery:root:select',
+	deliveryReauthorize: 'soundscaper:v1:delivery:root:reauthorize',
+	deliveryProjectIdentity: 'soundscaper:v1:delivery:project:identity',
+	deliveryEnqueueBatch: 'soundscaper:v1:delivery:queue:enqueue-batch',
+	deliveryList: 'soundscaper:v1:delivery:queue:list',
+	deliveryEvents: 'soundscaper:v1:delivery:queue:events',
+	deliveryPause: 'soundscaper:v1:delivery:queue:pause',
+	deliveryResume: 'soundscaper:v1:delivery:queue:resume',
+	deliveryReorder: 'soundscaper:v1:delivery:queue:reorder',
+	deliveryCancel: 'soundscaper:v1:delivery:queue:cancel',
+	deliveryRetry: 'soundscaper:v1:delivery:queue:retry',
+	deliveryWorkerPort: 'soundscaper:v1:delivery:worker:port',
 });
 
 export const EXTERNAL_DESTINATIONS = Object.freeze({

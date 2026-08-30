@@ -12,6 +12,11 @@ import {
 	collectExtractedSourceTree,
 } from '../../native/framescaper-media-host/build/source-authentication.mjs';
 import { authenticateMilestone5SourceArchiveExtraction } from './milestone-5-source-archive-extraction.mjs';
+import {
+	authenticateMilestone5SourceArchive as authenticateArchive,
+	canonicalMilestone5SourceDirectory as canonicalDirectory,
+} from './milestone-5-source-filesystem-authority.mjs';
+import { milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
 
 export const MILESTONE_5_NATIVE_SOURCE_ACQUISITIONS =
 	'config/milestone-5-native-source-acquisitions.json';
@@ -55,6 +60,7 @@ const SOURCE_REGISTER_INPUTS = new WeakMap();
 export function readMilestone5NativeSourceAcquisitions(
 	repositoryRoot,
 	manifestPath = MILESTONE_5_NATIVE_SOURCE_ACQUISITIONS,
+	sourceIdsValue = MILESTONE_5_NATIVE_SOURCE_IDS,
 ) {
 	let register;
 	let manifestBytes;
@@ -65,9 +71,17 @@ export function readMilestone5NativeSourceAcquisitions(
 		throw new Error(`Unable to read the Milestone 5 native source register: ${error.message}`, { cause: error });
 	}
 	validateRegister(register);
-	const delegatedInputs = validateDelegatedFiles(repositoryRoot, register);
-	validateFramescaperExternalSourceClosure(register, delegatedInputs.bytes);
-	const frozen = deepFreeze(register);
+	const sourceIds = selectedSourceIds(sourceIdsValue);
+	const includeDelegatedSources = sourceIds.length === MILESTONE_5_NATIVE_SOURCE_IDS.length;
+	const delegatedInputs = includeDelegatedSources
+		? validateDelegatedFiles(repositoryRoot, register)
+		: { bytes: new Map(), inputDigests: {} };
+	if (includeDelegatedSources) validateFramescaperExternalSourceClosure(register, delegatedInputs.bytes);
+	const frozen = deepFreeze({
+		...register,
+		sources: register.sources.filter(({ id }) => sourceIds.includes(id)),
+		delegatedSources: includeDelegatedSources ? register.delegatedSources : [],
+	});
 	SOURCE_REGISTER_INPUTS.set(frozen, deepFreeze({
 		[manifestPath]: fileDescriptor(manifestBytes),
 		...delegatedInputs.inputDigests,
@@ -84,7 +98,31 @@ export function auditMilestone5NativeSourceAcquisitions(
 	cacheRootValue = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT,
 	manifestPath = MILESTONE_5_NATIVE_SOURCE_ACQUISITIONS,
 ) {
-	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot, manifestPath);
+	return auditSelectedMilestone5NativeSourceAcquisitions(
+		repositoryRoot, cacheRootValue, manifestPath, MILESTONE_5_NATIVE_SOURCE_IDS,
+	);
+}
+
+export function auditMilestone5NativeSourceAcquisitionsForProducts(
+	repositoryRoot,
+	productIdsValue,
+	cacheRootValue = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT,
+	manifestPath = MILESTONE_5_NATIVE_SOURCE_ACQUISITIONS,
+) {
+	const scope = milestone5EngineeringScope(productIdsValue);
+	return auditSelectedMilestone5NativeSourceAcquisitions(
+		repositoryRoot, cacheRootValue, manifestPath, scope.sourceIds,
+	);
+}
+
+function auditSelectedMilestone5NativeSourceAcquisitions(
+	repositoryRoot,
+	cacheRootValue,
+	manifestPath,
+	sourceIdsValue,
+) {
+	const sourceIds = selectedSourceIds(sourceIdsValue);
+	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot, manifestPath, sourceIds);
 	const configured = typeof cacheRootValue === 'string' ? cacheRootValue.trim() : '';
 	if (configured === '') return brandedAudit(register, null, register.sources.map((source) => ({
 		...source,
@@ -96,7 +134,7 @@ export function auditMilestone5NativeSourceAcquisitions(
 	const cacheRoot = canonicalDirectory(configured, 'Milestone 5 native source cache');
 	const entries = readdirSync(cacheRoot, { withFileTypes: true });
 	const names = entries.map(({ name }) => name).sort();
-	if (JSON.stringify(names) !== JSON.stringify([...MILESTONE_5_NATIVE_SOURCE_IDS].sort())
+	if (JSON.stringify(names) !== JSON.stringify([...sourceIds].sort())
 		|| entries.some((entry) => !entry.isDirectory() || entry.isSymbolicLink())) {
 		throw new Error('The Milestone 5 native source cache has missing or unexpected source directories.');
 	}
@@ -110,6 +148,7 @@ export function auditMilestone5NativeSourceAcquisitions(
 		return authenticateMilestone5NativeSourceInput({
 			repositoryRoot,
 			manifestPath,
+			sourceIds,
 			sourceId: source.id,
 			archivePath: resolve(sourceDirectory, source.archive.fileName),
 			sourceRoot: resolve(sourceDirectory, 'source'),
@@ -134,8 +173,9 @@ export function authenticateMilestone5NativeSourceInput({
 	sourceId,
 	archivePath,
 	sourceRoot,
+	sourceIds = MILESTONE_5_NATIVE_SOURCE_IDS,
 }) {
-	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot, manifestPath);
+	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot, manifestPath, sourceIds);
 	const source = requireMilestone5NativeSource(register, sourceId);
 	if (basename(String(archivePath)) !== source.archive.fileName) {
 		throw new Error(`${source.id}: archive filename does not match its pin.`);
@@ -168,6 +208,19 @@ export function authenticateMilestone5NativeSourceInput({
 	});
 	AUTHENTICATED_SOURCE_INPUTS.add(witness);
 	return witness;
+}
+
+function selectedSourceIds(value) {
+	if (!Array.isArray(value) || value.length < 1
+		|| value.some((id) => !MILESTONE_5_NATIVE_SOURCE_IDS.includes(id))
+		|| new Set(value).size !== value.length) {
+		throw new TypeError('Milestone 5 source scope must select unique registered source IDs.');
+	}
+	const selected = MILESTONE_5_NATIVE_SOURCE_IDS.filter((id) => value.includes(id));
+	if (JSON.stringify(selected) !== JSON.stringify(value)) {
+		throw new TypeError('Milestone 5 source scope must retain canonical source order.');
+	}
+	return selected;
 }
 
 export function verifyMilestone5NativeSourceInput(witness) {
@@ -496,72 +549,6 @@ function assertExactIds(records, expectedIds, label) {
 
 function assertPlainObject(value, label) {
 	assert(value && typeof value === 'object' && !Array.isArray(value), `${label} must be an object.`);
-}
-
-function authenticateArchive(pathValue, expected, sourceId) {
-	const path = canonicalFile(pathValue, `${sourceId} source archive`);
-	const before = lstatSync(path);
-	if (before.size !== expected.byteLength) {
-		throw new Error(`${sourceId}: source archive byte length drifted from its pin.`);
-	}
-	const handle = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-	try {
-		const opened = fstatSync(handle);
-		if (!opened.isFile() || opened.size !== before.size
-			|| (before.ino !== 0 && opened.ino !== 0
-				&& (before.dev !== opened.dev || before.ino !== opened.ino))) {
-			throw new Error(`${sourceId}: source archive changed while opening.`);
-		}
-		const hash = createHash('sha256');
-		const buffer = Buffer.allocUnsafe(1024 * 1024);
-		const chunks = [];
-		let byteLength = 0;
-		for (;;) {
-			const bytesRead = readSync(handle, buffer, 0, buffer.byteLength, null);
-			if (bytesRead === 0) break;
-			byteLength += bytesRead;
-			if (byteLength > expected.byteLength) {
-				throw new Error(`${sourceId}: source archive exceeds its pinned byte length.`);
-			}
-			hash.update(buffer.subarray(0, bytesRead));
-			chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
-		}
-		const after = fstatSync(handle);
-		const sha256 = hash.digest('hex');
-		if (byteLength !== expected.byteLength || sha256 !== expected.sha256
-			|| after.size !== opened.size || after.mtimeMs !== opened.mtimeMs
-			|| after.ctimeMs !== opened.ctimeMs) {
-			throw new Error(`${sourceId}: source archive bytes drifted from their pin.`);
-		}
-		return {
-			descriptor: deepFreeze({ path, byteLength, sha256 }),
-			bytes: Buffer.concat(chunks, byteLength),
-		};
-	} finally {
-		closeSync(handle);
-	}
-}
-
-function canonicalFile(value, label) {
-	if (typeof value !== 'string' || !isAbsolute(value) || resolve(value) !== value) {
-		throw new TypeError(`${label} must be an absolute normalized path.`);
-	}
-	const metadata = lstatSync(value);
-	if (!metadata.isFile() || metadata.isSymbolicLink() || realpathSync(value) !== value) {
-		throw new Error(`${label} must be one canonical regular non-symbolic file.`);
-	}
-	return value;
-}
-
-function canonicalDirectory(value, label) {
-	if (typeof value !== 'string' || !isAbsolute(value) || resolve(value) !== value) {
-		throw new TypeError(`${label} must be an absolute normalized path.`);
-	}
-	const metadata = lstatSync(value);
-	if (!metadata.isDirectory() || metadata.isSymbolicLink() || realpathSync(value) !== value) {
-		throw new Error(`${label} must be one canonical regular non-symbolic directory.`);
-	}
-	return value;
 }
 
 function deepFreeze(value) {

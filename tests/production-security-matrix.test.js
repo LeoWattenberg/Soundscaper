@@ -103,6 +103,23 @@ async function readMatrix() {
 	return JSON.parse(await readFile(matrixUrl, 'utf8'));
 }
 
+test('security release state follows only an admitted Soundscaper promotion', async () => {
+	const [matrix, releaseLines] = await Promise.all([
+		readMatrix(),
+		readFile(new URL('../config/product-release-lines.json', import.meta.url), 'utf8').then(JSON.parse),
+	]);
+	const soundscaper = releaseLines.products.soundscaper;
+	assert.equal(matrix.releaseCandidate.version, soundscaper.candidate.version);
+	if (soundscaper.stable.status === 'admitted') {
+		assert.equal(matrix.releaseCandidate.stableVersion, soundscaper.stable.version);
+		assert.equal(matrix.releaseCandidate.stable1Admission, 'admitted');
+	} else {
+		assert.equal(matrix.releaseCandidate.stableVersion, undefined);
+		assert.equal(matrix.releaseCandidate.stable1Admission,
+			'blocked-on-remaining-milestone-9-evidence');
+	}
+});
+
 test('security matrix covers the production threat-model surfaces without promoting gaps', async () => {
 	const matrix = await readMatrix();
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));

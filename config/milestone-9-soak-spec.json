@@ -2,12 +2,14 @@
 	"schemaVersion": 1,
 	"fixtureId": "m9-complete-system-soak-8h-v1",
 	"workloadId": "m9-complete-system-soak",
+	"environmentId": "release-qualification-matrix",
+	"productIds": ["soundscaper", "framescaper"],
 	"generator": {
 		"id": "m9-seeded-complete-system-generator",
 		"revision": 1,
 		"seed": "soundscaper-framescaper-stable-1.0-complete-system-soak-v1",
 		"sourcePath": "scripts/lib/m9-soak-fixture.mjs",
-		"sourceSha256": "a28287adace24edc3a73d8d02e2dbec5dc88c9547ff498952bd553c5b1aa1ee0"
+		"sourceSha256": "8f79570de3b61ff5babdeb9017496c41578a462d04781fa7cd7dd7fafc10e25c"
 	},
 	"qualification": {
 		"durationSeconds": 28800,

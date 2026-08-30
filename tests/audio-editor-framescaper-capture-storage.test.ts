@@ -19,7 +19,9 @@ import { MediaAssetChunkRecords } from '../src/common/editor/storage/media-asset
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import { OpfsPreferredEncodedCaptureChunkPort } from '../src/common/editor/storage/opfs-preferred-encoded-capture-chunk-port.ts';
 import { OpfsRepository } from '../src/common/editor/storage/opfs-repository.ts';
-import { createProjectStore } from '../src/common/editor/storage.js';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from
+	'../src/framescaper/editor-project-runtime-profile.ts';
+import { createFramescaperProjectStore } from '../src/framescaper/editor-project-store.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('encoded capture append acknowledges a bounded durable prefix and adopts without copying', async () => {
@@ -283,11 +285,10 @@ test('OPFS acknowledged-prefix repair removes its exact tail before retry or del
 	assert.equal(await chunks.backend(retried.spoolToken), null);
 });
 
-test('project-store composition exposes capture recovery storage and retention protects its fallback', async () => {
-	const store = createProjectStore({
+test('Framescaper project-store composition exposes capture recovery storage and retention protects its fallback', async () => {
+	const store = createFramescaperProjectStore(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 		indexedDB: null,
 		preferOpfs: false,
-		databaseName: uniqueName(),
 	});
 	assert.ok(store.encodedCaptureSpoolRepository);
 	assert.ok(store.framescaperCaptureManifestRepository);

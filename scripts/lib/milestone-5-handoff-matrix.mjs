@@ -8,20 +8,20 @@ import { isDeepStrictEqual } from 'node:util';
 import { desktopReleaseTargetPackageInventory } from '../desktop-release-assets.mjs';
 import { assertDesktopCodecPolicy } from './desktop-codec-policy.mjs';
 import {
-	assembleMilestone5Handoff,
+	assembleMilestone5ProductHandoff,
 	isAssembledMilestone5Handoff,
 	MILESTONE_5_HANDOFF_INPUT_PATHS,
-	MILESTONE_5_HANDOFF_WORKLOAD_IDS,
 } from './milestone-5-handoff.mjs';
+import { milestone5RequiredHandoffInputPaths } from './milestone-5-handoff-scope-inputs.mjs';
 import {
-	MILESTONE_5_NATIVE_DELEGATED_SOURCE_PATHS,
-	MILESTONE_5_NATIVE_SOURCE_IDS,
-} from './milestone-5-native-source-acquisitions.mjs';
-import { MILESTONE_5_PAYLOAD_ROW_COUNT } from './milestone-5-payload-audit.mjs';
+	MILESTONE_5_TARGETS,
+	milestone5MatrixAssemblyOptions,
+	milestone5EngineeringScope,
+	milestone5PackageCells,
+	milestone5ProductIds,
+} from './milestone-5-product-scope.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
-const PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
-const TARGETS = Object.freeze(['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64']);
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const MAXIMUM_HANDOFF_BYTES = 32 * 1024 * 1024;
@@ -32,25 +32,26 @@ const HANDOFF_GATE_IDS = Object.freeze([
 	'productionSigningAndNotarization',
 ]);
 
-export const MILESTONE_5_PACKAGE_CELLS = deepFreeze(PRODUCTS.flatMap((productId) => (
-	TARGETS.map((targetId) => ({ productId, targetId }))
-)));
+export const MILESTONE_5_PACKAGE_CELLS = milestone5PackageCells();
 
 /** The first authority allowed to make a whole-Milestone-5 readiness claim. */
-export function aggregateMilestone5HandoffMatrix(values) {
-	if (!Array.isArray(values) || values.length !== MILESTONE_5_PACKAGE_CELLS.length) {
-		throw new Error('Milestone 5 handoff matrix must contain the exact ten package cells.');
+export function aggregateMilestone5HandoffMatrix(values, productIdsValue) {
+	const productIds = milestone5ProductIds(productIdsValue);
+	const engineeringScope = milestone5EngineeringScope(productIds);
+	const packageCells = milestone5PackageCells(productIds);
+	if (!Array.isArray(values) || values.length !== packageCells.length) {
+		throw new Error(`Milestone 5 handoff matrix must contain the exact ${numberWord(packageCells.length)} package cells.`);
 	}
 	const matrixInputsAuthenticated = values.every(isAssembledMilestone5Handoff);
 	const snapshots = values.map((value, index) => snapshotStrictJsonData(
 		value, `Milestone 5 handoff matrix cell ${String(index)}`,
 	));
-	const cells = MILESTONE_5_PACKAGE_CELLS.map((identity) => {
+	const cells = packageCells.map((identity) => {
 		const matches = snapshots.filter((candidate) => sameIdentity(candidate.assessmentScope, identity));
 		if (matches.length !== 1) {
 			throw new Error(`Milestone 5 handoff matrix needs one unique ${cellId(identity)} cell.`);
 		}
-		return validateCell(matches[0], identity);
+			return validateCell(matches[0], identity, engineeringScope);
 	});
 	validateCommonEvidence(cells);
 	const packageNames = cells.flatMap(({ packageEvidence }) => (
@@ -78,10 +79,11 @@ export function aggregateMilestone5HandoffMatrix(values) {
 		schemaVersion: 2,
 		assessmentScope: {
 			kind: 'milestone-5-package-matrix',
-			products: [...PRODUCTS],
-			targets: [...TARGETS],
+			products: [...productIds],
+			targets: [...MILESTONE_5_TARGETS],
 			cellCount: cells.length,
 		},
+		engineeringScope,
 		sourceRevision: first.sourceRevision,
 		qualificationSourceRevision: first.qualification.sourceRevision,
 		applicationVersion: first.packageEvidence.applicationVersion,
@@ -108,54 +110,54 @@ export function aggregateMilestone5HandoffMatrix(values) {
 
 /** Re-audit one clean checkout and all ten package roots before claiming readiness. */
 export async function assembleMilestone5HandoffMatrix(optionsValue) {
-	const options = snapshotStrictJsonData(optionsValue, 'Milestone 5 matrix assembly options');
-	if (!options || typeof options !== 'object' || Array.isArray(options)
-		|| !isDeepStrictEqual(Object.keys(options).sort(), [
-			'packageDirectory', 'repositoryRoot', 'sourceRevision',
-		])) {
-		throw new Error('Milestone 5 matrix assembly options have an invalid shape.');
-	}
+	const options = milestone5MatrixAssemblyOptions(snapshotStrictJsonData(
+		optionsValue, 'Milestone 5 matrix assembly options',
+	));
 	if (typeof options.repositoryRoot !== 'string' || options.repositoryRoot.length === 0
 		|| typeof options.packageDirectory !== 'string' || options.packageDirectory.length === 0
 		|| !SOURCE_REVISION.test(String(options.sourceRevision))) {
 		throw new Error('Milestone 5 matrix assembly requires checkout, package, and revision bindings.');
 	}
 	const packageDirectory = resolve(options.packageDirectory);
-	await validatePackageMatrixDirectory(packageDirectory);
+	const packageCells = milestone5PackageCells(options.productIds);
+	await validatePackageMatrixDirectory(packageDirectory, packageCells);
 	const handoffs = [];
-	for (const identity of MILESTONE_5_PACKAGE_CELLS) {
-		handoffs.push(await assembleMilestone5Handoff(
-			resolve(options.repositoryRoot),
-			options.sourceRevision,
-			{
+	for (const identity of packageCells) {
+		handoffs.push(await assembleMilestone5ProductHandoff({
+			repositoryRoot: resolve(options.repositoryRoot),
+			sourceRevision: options.sourceRevision,
+			productIds: options.productIds,
+			packageOptions: {
 				packageRoot: resolve(packageDirectory, packageDirectoryName(identity)),
 				productId: identity.productId,
 				targetId: identity.targetId,
 			},
-		));
+		}));
 	}
-	const matrix = aggregateMilestone5HandoffMatrix(handoffs);
+	const matrix = aggregateMilestone5HandoffMatrix(handoffs, options.productIds);
 	if (!matrix.matrixInputsAuthenticated || matrix.milestoneAutomatedReady === null) {
 		throw new Error('Milestone 5 matrix assembly lost its in-process audit authority.');
 	}
 	return matrix;
 }
 
-export async function auditMilestone5HandoffMatrixDirectory(directoryValue) {
+export async function auditMilestone5HandoffMatrixDirectory(directoryValue, productIdsValue) {
+	const productIds = milestone5ProductIds(productIdsValue);
+	const packageCells = milestone5PackageCells(productIds);
 	const directory = resolve(String(directoryValue));
 	const rootStats = await lstat(directory);
 	if (!rootStats.isDirectory() || rootStats.isSymbolicLink() || await realpath(directory) !== directory) {
 		throw new Error('Milestone 5 handoff matrix root must be one canonical regular directory.');
 	}
 	const entries = await readdir(directory, { withFileTypes: true });
-	const expectedNames = MILESTONE_5_PACKAGE_CELLS.map(handoffFileName).sort();
+	const expectedNames = packageCells.map(handoffFileName).sort();
 	const actualNames = entries.map(({ name }) => name).sort();
 	if (!isDeepStrictEqual(actualNames, expectedNames)) {
 		throw new Error('Milestone 5 handoff matrix directory has missing or unexpected entries.');
 	}
 	const values = [];
 	const cellEvidence = [];
-	for (const identity of MILESTONE_5_PACKAGE_CELLS) {
+	for (const identity of packageCells) {
 		const name = handoffFileName(identity);
 		const path = resolve(directory, name);
 		if (basename(path) !== name) throw new Error('Milestone 5 handoff filename is not direct.');
@@ -183,16 +185,16 @@ export async function auditMilestone5HandoffMatrixDirectory(directoryValue) {
 		values.push(value);
 		cellEvidence.push({ name, byteLength: bytes.byteLength, sha256: sha256(bytes) });
 	}
-	return deepFreeze({ ...aggregateMilestone5HandoffMatrix(values), cellEvidence });
+	return deepFreeze({ ...aggregateMilestone5HandoffMatrix(values, productIds), cellEvidence });
 }
 
-async function validatePackageMatrixDirectory(directory) {
+async function validatePackageMatrixDirectory(directory, packageCells) {
 	const rootStats = await lstat(directory);
 	if (!rootStats.isDirectory() || rootStats.isSymbolicLink() || await realpath(directory) !== directory) {
 		throw new Error('Milestone 5 package matrix root must be one canonical regular directory.');
 	}
 	const entries = await readdir(directory, { withFileTypes: true });
-	const expectedNames = MILESTONE_5_PACKAGE_CELLS.map(packageDirectoryName).sort();
+	const expectedNames = packageCells.map(packageDirectoryName).sort();
 	const actualNames = entries.map(({ name }) => name).sort();
 	if (!isDeepStrictEqual(actualNames, expectedNames)) {
 		throw new Error('Milestone 5 package matrix has missing or unexpected package roots.');
@@ -207,7 +209,7 @@ async function validatePackageMatrixDirectory(directory) {
 	}
 }
 
-function validateCell(cell, identity) {
+function validateCell(cell, identity, engineeringScope) {
 	if (cell.schemaVersion !== 2 || cell.assessmentScope?.kind !== 'package-cell'
 		|| !sameIdentity(cell.assessmentScope, identity)) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has an invalid cell identity.`);
@@ -237,8 +239,8 @@ function validateCell(cell, identity) {
 			!== cell.automatedEvidenceSha256) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has invalid blocker state.`);
 	}
-	const prerequisitesReady = validateReadinessSummary(cell, identity);
-	validateInputDigests(cell, identity);
+	const prerequisitesReady = validateReadinessSummary(cell, identity, engineeringScope);
+	validateInputDigests(cell, identity, engineeringScope);
 	const expectedReady = prerequisitesReady && cell.automatedEvidenceAuthenticated
 		&& cell.automatedBlockers.length === 0;
 	if (cell.packageCellAutomatedReady !== expectedReady
@@ -246,19 +248,20 @@ function validateCell(cell, identity) {
 		|| cell.status !== cell.automatedStatus) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has inconsistent cell readiness.`);
 	}
-	validateQualification(cell, identity);
+	validateQualification(cell, identity, engineeringScope);
 	validatePackageEvidence(cell, identity);
 	return cell;
 }
 
-function validateQualification(cell, identity) {
+function validateQualification(cell, identity, engineeringScope) {
 	const qualification = cell.qualification;
 	if (!qualification
-		|| !isDeepStrictEqual(qualification.workloadIds, MILESTONE_5_HANDOFF_WORKLOAD_IDS)
-		|| qualification.profileCount !== 18
-		|| !integerInRange(qualification.provisionedProfileCount, 0, 18)
+		|| !isDeepStrictEqual(qualification.workloadIds, engineeringScope.workloadIds)
+		|| qualification.profileCount !== engineeringScope.labProfileCount
+		|| !integerInRange(qualification.provisionedProfileCount, 0,
+			engineeringScope.labProfileCount)
 		|| !integerInRange(qualification.acceptedCohortCount, 0,
-			MILESTONE_5_HANDOFF_WORKLOAD_IDS.length)
+			engineeringScope.workloadIds.length)
 		|| !closedUniqueStrings(qualification.pendingHandoffGates, HANDOFF_GATE_IDS)) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has an invalid qualification source binding.`);
 	}
@@ -398,24 +401,25 @@ function validatePackageEvidence(cell, identity) {
 	}
 }
 
-function validateReadinessSummary(cell, identity) {
+function validateReadinessSummary(cell, identity, engineeringScope) {
 	const sources = cell.sources;
 	const payloads = cell.payloads;
 	const licensing = cell.licensing;
 	const automatedSources = cell.automatedEvidence?.sources;
 	const automatedPayloads = cell.automatedEvidence?.payloads;
-	const sourceCount = MILESTONE_5_NATIVE_SOURCE_IDS.length;
+	const sourceCount = engineeringScope.sourceCount;
+	const payloadCount = engineeringScope.payloadCount;
 	if (cell.automatedEvidence?.schemaVersion !== 1
 		|| !Array.isArray(automatedSources) || automatedSources.length !== sourceCount
 		|| !Array.isArray(automatedPayloads)
-		|| automatedPayloads.length !== MILESTONE_5_PAYLOAD_ROW_COUNT
+		|| automatedPayloads.length !== payloadCount
 		|| sources?.total !== sourceCount || !integerInRange(sources.authenticated, 0, sourceCount)
 		|| !integerInRange(sources.pendingExternal, 0, sourceCount)
 		|| sources.authenticated + sources.pendingExternal !== sources.total
 		|| !integerInRange(sources.activationBlocked, 0, sourceCount)
-		|| payloads?.total !== MILESTONE_5_PAYLOAD_ROW_COUNT
-		|| !integerInRange(payloads.built, 0, MILESTONE_5_PAYLOAD_ROW_COUNT)
-		|| !integerInRange(payloads.pendingExternal, 0, MILESTONE_5_PAYLOAD_ROW_COUNT)
+		|| payloads?.total !== payloadCount
+		|| !integerInRange(payloads.built, 0, payloadCount)
+		|| !integerInRange(payloads.pendingExternal, 0, payloadCount)
 		|| payloads.built + payloads.pendingExternal !== payloads.total
 		|| !closedUniqueStrings(licensing?.disabledGates,
 			['native-audio', 'native-codecs', 'native-plugins'])
@@ -431,12 +435,12 @@ function validateReadinessSummary(cell, identity) {
 	if (sources.authenticated !== authenticatedSources
 		|| sources.pendingExternal !== sourceCount - authenticatedSources
 		|| payloads.built !== builtPayloads
-		|| payloads.pendingExternal !== MILESTONE_5_PAYLOAD_ROW_COUNT - builtPayloads
+		|| payloads.pendingExternal !== payloadCount - builtPayloads
 		|| !isDeepStrictEqual(cell.automatedEvidence.package, automatedPackageEvidence(cell))) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} machine summary drifted from automated evidence.`);
 	}
 	return authenticatedSources === sourceCount
-		&& builtPayloads === MILESTONE_5_PAYLOAD_ROW_COUNT
+		&& builtPayloads === payloadCount
 		&& cell.packageEvidence.packages.every(({ content }) => content !== null);
 }
 
@@ -467,15 +471,12 @@ function automatedPackageEvidence(cell) {
 	};
 }
 
-function validateInputDigests(cell, identity) {
+function validateInputDigests(cell, identity, engineeringScope) {
 	const digests = cell.inputDigests;
 	if (!digests || typeof digests !== 'object' || Array.isArray(digests)) {
 		throw new Error(`Milestone 5 handoff ${cellId(identity)} has invalid input digests.`);
 	}
-	for (const path of [
-		...Object.values(MILESTONE_5_HANDOFF_INPUT_PATHS),
-		...MILESTONE_5_NATIVE_DELEGATED_SOURCE_PATHS,
-	]) {
+	for (const path of milestone5RequiredHandoffInputPaths(engineeringScope)) {
 		if (!Object.hasOwn(digests, path)) {
 			throw new Error(`Milestone 5 handoff ${cellId(identity)} is missing ${path}.`);
 		}
@@ -486,15 +487,14 @@ function validateInputDigests(cell, identity) {
 			|| !SHA256.test(String(descriptor?.sha256))) {
 			throw new Error(`Milestone 5 handoff ${cellId(identity)} has an invalid input digest.`);
 		}
-		if (!isAllowedInputDigestPath(path, cell)) {
+		if (!isAllowedInputDigestPath(path, cell, engineeringScope)) {
 			throw new Error(`Milestone 5 handoff ${cellId(identity)} has an unexpected input digest.`);
 		}
 	}
 }
 
-function isAllowedInputDigestPath(path, cell) {
-	if (Object.values(MILESTONE_5_HANDOFF_INPUT_PATHS).includes(path)
-		|| MILESTONE_5_NATIVE_DELEGATED_SOURCE_PATHS.includes(path)
+function isAllowedInputDigestPath(path, cell, engineeringScope) {
+	if (milestone5RequiredHandoffInputPaths(engineeringScope).includes(path)
 		|| path.startsWith('desktop-package:')) return true;
 	if (path.startsWith('qualification/milestone-5/')) {
 		const segments = path.slice('qualification/milestone-5/'.length).split('/');
@@ -562,6 +562,10 @@ function sameIdentity(actual, expected) {
 
 function cellId(identity) {
 	return `${identity.productId}:${identity.targetId}`;
+}
+
+function numberWord(value) {
+	return value === 5 ? 'five' : value === 10 ? 'ten' : String(value);
 }
 
 function sha256(bytes) {

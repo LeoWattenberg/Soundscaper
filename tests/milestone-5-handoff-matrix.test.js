@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -13,6 +13,7 @@ import {
 	assembleMilestone5HandoffMatrix,
 	auditMilestone5HandoffMatrixDirectory,
 } from '../scripts/lib/milestone-5-handoff-matrix.mjs';
+import { milestone5PackageCells } from '../scripts/lib/milestone-5-product-scope.mjs';
 import {
 	assessMilestone5AutomatedReadiness,
 } from '../scripts/lib/milestone-5-handoff-automated-readiness.mjs';
@@ -46,6 +47,15 @@ const INPUT_PATHS = [
 	'native/framescaper-openfx-host/source-manifest.json',
 	'vendor/pipewire-headers/UPSTREAM',
 ];
+const SOUNDSCAPER_INPUT_PATHS = INPUT_PATHS.filter((path) => [
+	'config/quality-budgets.json',
+	'config/production-licensing-matrix.json',
+	'config/milestone-5-native-source-acquisitions.json',
+	'config/milestone-5-package-release-authentication-policy.json',
+	'config/milestone-5-native-isolation-review-policy.json',
+	'config/milestone-5-qualification-evidence.json',
+	'config/soundscaper-professional-native-payload-manifest.json',
+].includes(path));
 
 test('serialized cells can be validated but cannot claim milestone readiness', () => {
 	const pending = aggregateMilestone5HandoffMatrix(
@@ -76,6 +86,28 @@ test('serialized cells can be validated but cannot claim milestone readiness', (
 	assert.equal(ready.sourceRevision, REVISION);
 	assert.equal(ready.qualificationSourceRevision, QUALIFICATION_REVISION);
 	assert.equal(ready.applicationVersion, VERSION);
+});
+
+test('a product-scoped matrix authenticates exactly five Soundscaper package cells', () => {
+	const soundscaperCells = milestone5PackageCells(['soundscaper']);
+	const assessment = aggregateMilestone5HandoffMatrix(
+		soundscaperCells.map((identity) => cell(identity, false, true)),
+		['soundscaper'],
+	);
+	assert.deepEqual(assessment.assessmentScope.products, ['soundscaper']);
+	assert.equal(assessment.assessmentScope.cellCount, 5);
+	assert.equal(assessment.cells.length, 5);
+	assert.ok(assessment.cells.every(({ productId }) => productId === 'soundscaper'));
+	assert.equal(assessment.engineeringScope.sourceCount, 6);
+	assert.equal(assessment.engineeringScope.payloadCount, 5);
+	assert.equal(assessment.engineeringScope.labProfileCount, 11);
+	assert.throws(
+		() => aggregateMilestone5HandoffMatrix(
+			MILESTONE_5_PACKAGE_CELLS.map((identity) => cell(identity)),
+			['soundscaper'],
+		),
+		/exact five package cells/iu,
+	);
 });
 
 test('matrix aggregation rejects missing, duplicate, drifted, or unauthenticated cells', () => {
@@ -188,6 +220,25 @@ test('directory audit requires ten canonical regular handoff files and binds the
 	await assert.rejects(auditMilestone5HandoffMatrixDirectory(root), /regular|symbolic|unexpected/iu);
 });
 
+test('matrix CLI audits a selected product without requiring foreign package cells', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-m5-product-matrix-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	await Promise.all(milestone5PackageCells(['soundscaper']).map(async (identity) => {
+		await writeFile(join(root, handoffName(identity)), `${JSON.stringify(cell(identity, false, true), null, '\t')}\n`);
+	}));
+	const output = join(root, 'soundscaper-assessment.json');
+	const cli = spawnSync(process.execPath, [
+		'scripts/aggregate-milestone-5-handoffs.mjs',
+		'--input-directory', root,
+		'--product', 'soundscaper',
+		'--output', output,
+	], { cwd: join(import.meta.dirname, '..'), encoding: 'utf8' });
+	assert.equal(cli.status, 0, cli.stderr);
+	const assessment = JSON.parse(await readFile(output, 'utf8'));
+	assert.deepEqual(assessment.assessmentScope.products, ['soundscaper']);
+	assert.equal(assessment.assessmentScope.cellCount, 5);
+});
+
 test('Milestone 5 CLIs reject an ambiguous final-release readiness flag', () => {
 	for (const script of [
 		'scripts/assemble-milestone-5-handoff.mjs',
@@ -202,7 +253,11 @@ test('Milestone 5 CLIs reject an ambiguous final-release readiness flag', () => 
 	}
 });
 
-function cell({ productId, targetId }, ready = false) {
+function cell({ productId, targetId }, ready = false, soundscaperScoped = false) {
+	const sourceCount = soundscaperScoped ? 6 : 10;
+	const payloadCount = soundscaperScoped ? 5 : 20;
+	const workloadIds = soundscaperScoped ? [WORKLOAD_IDS[0]] : WORKLOAD_IDS;
+	const profileCount = soundscaperScoped ? 11 : 18;
 	const runtimeName = `runtime-manifest-${productId}-${targetId}.json`;
 	const authenticationName = `release-authentication-${productId}-${targetId}.json`;
 	const packages = packageDescriptors(productId, targetId);
@@ -242,7 +297,7 @@ function cell({ productId, targetId }, ready = false) {
 		totalPackageBytes: packages.reduce((total, descriptor) => total + descriptor.byteLength, 0),
 	};
 	const automated = assessMilestone5AutomatedReadiness(automatedInputs(
-		productId, targetId, packageEvidence, ready,
+		productId, targetId, packageEvidence, ready, sourceCount, payloadCount,
 	));
 	return {
 		schemaVersion: 2,
@@ -255,15 +310,19 @@ function cell({ productId, targetId }, ready = false) {
 		milestoneReleaseReady: null,
 		status: automated.automatedStatus,
 		sources: {
-			authenticated: ready ? 10 : 0,
-			pendingExternal: ready ? 0 : 10,
-			activationBlocked: ready ? 0 : 10,
-			total: 10,
+			authenticated: ready ? sourceCount : 0,
+			pendingExternal: ready ? 0 : sourceCount,
+			activationBlocked: ready ? 0 : sourceCount,
+			total: sourceCount,
 		},
-		payloads: { built: ready ? 20 : 1, pendingExternal: ready ? 0 : 19, total: 20 },
+		payloads: {
+			built: ready ? payloadCount : 1,
+			pendingExternal: ready ? 0 : payloadCount - 1,
+			total: payloadCount,
+		},
 		qualification: {
-			workloadIds: WORKLOAD_IDS, profileCount: 18, provisionedProfileCount: ready ? 18 : 0,
-			acceptedCohortCount: ready ? 6 : 0, sourceRevision: QUALIFICATION_REVISION,
+			workloadIds, profileCount, provisionedProfileCount: ready ? profileCount : 0,
+			acceptedCohortCount: ready ? workloadIds.length : 0, sourceRevision: QUALIFICATION_REVISION,
 			revisionBinding: {
 				kind: 'qualification-evidence-only-descendant',
 				qualificationSourceRevision: QUALIFICATION_REVISION,
@@ -280,7 +339,7 @@ function cell({ productId, targetId }, ready = false) {
 		observedHeadRevision: REVISION,
 		sourceRevisionBinding: { status: 'authenticated-clean-head', sourceRevision: REVISION },
 		inputDigests: {
-			...Object.fromEntries(INPUT_PATHS.map((path) => [
+			...Object.fromEntries((soundscaperScoped ? SOUNDSCAPER_INPUT_PATHS : INPUT_PATHS).map((path) => [
 				path, { byteLength: 1, sha256: DIGEST },
 			])),
 			[packageDigestKey({ assessmentScope: { productId, targetId } }, runtimeName)]: {
@@ -299,14 +358,14 @@ function cell({ productId, targetId }, ready = false) {
 	};
 }
 
-function automatedInputs(productId, targetId, packageAudit, ready) {
+function automatedInputs(productId, targetId, packageAudit, ready, sourceCount, payloadCount) {
 	return {
 		assemblyInputsAuthenticated: true,
 		sourceInputsAudited: true,
 		payloadsAuthenticated: true,
 		packageAudited: true,
 		sourceRevisionAuthenticated: true,
-		sources: Array.from({ length: 10 }, (_, index) => ({
+		sources: Array.from({ length: sourceCount }, (_, index) => ({
 			id: `source-${String(index)}`,
 			version: '1.0.0',
 			git: { tag: 'v1.0.0', commit: REVISION },
@@ -318,7 +377,7 @@ function automatedInputs(productId, targetId, packageAudit, ready) {
 				? { algorithm: 'portable-tree-v1', fileCount: 1, sha256: DIGEST }
 				: null,
 		})),
-		payloadRows: Array.from({ length: 20 }, (_, index) => ({
+		payloadRows: Array.from({ length: payloadCount }, (_, index) => ({
 			identity: `payload:${String(index)}`,
 			product: 'payload',
 			targetId: String(index),

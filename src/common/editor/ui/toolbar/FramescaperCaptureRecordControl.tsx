@@ -7,6 +7,7 @@ import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
 import {
 	FRAMESCAPER_CAPTURE_PANEL_ID,
 	capturePrimaryAction,
+	framescaperCaptureRecordRequired,
 	framescaperCaptureRecordVisible,
 	persistFramescaperCaptureToolbarOptIn,
 	readFramescaperCaptureToolbarOptIn,
@@ -19,6 +20,8 @@ import {
 	webVcrPhaseIsActive,
 	webVcrPrimaryAction,
 } from '../web-vcr-ui-model.ts';
+
+export { framescaperCaptureRecordRequired };
 
 interface CaptureActions {
 	start?(): unknown;

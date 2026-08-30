@@ -140,5 +140,10 @@ test('the workspace hosts the delivery-queue surface and the dialog binds the ba
 	assert.match(dialog, /queueActions\.retryBatchFailures\(batchId\)/u);
 	assert.match(dialog, /createDeliveryBatch\(snapshot\.project/u, 'the batch is built from the document');
 	assert.match(dialog, /selectableDeliveryBatchTargets\(targets, mode\)/u);
+	assert.match(dialog, /queueActions\.persistent/u, 'desktop persistence enhances the existing menu surface');
+	assert.match(dialog, /queueActions\.selectDestination\(\)/u);
+	assert.match(dialog, /queueActions\.reauthorizeDestination\(entry\.destinationGrantId\)/u);
+	assert.match(dialog, /queueActions\.report\(entry\.jobId\)/u);
+	assert.match(dialog, /queueActions\.reorder\(entry\.jobId/u);
 	assert.doesNotMatch(dialog, /createExportPlan|renderSnapshot/u, 'a batch never renders anything itself');
 });

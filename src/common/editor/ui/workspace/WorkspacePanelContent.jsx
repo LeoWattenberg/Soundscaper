@@ -13,8 +13,12 @@ import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-
 
 const AnalysisPanel = React.lazy(() => import('../inspector/AnalysisPanel.jsx'));
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
-const RecordingSetupPanel = React.lazy(() => import('./RecordingSetupPanel.tsx'));
-const WebVcrPanel = React.lazy(() => import('./WebVcrPanel.tsx'));
+const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
+	|| __SCAPE_PRODUCT__ === 'framescaper';
+const RecordingSetupPanel = FRAMESCAPER_BUILD
+	? React.lazy(() => import('./RecordingSetupPanel.tsx')) : null;
+const WebVcrPanel = FRAMESCAPER_BUILD
+	? React.lazy(() => import('./WebVcrPanel.tsx')) : null;
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -64,7 +68,7 @@ export default function WorkspacePanelContent({
 			/>
 		);
 	}
-	if (panelId === 'recording-setup') {
+	if (FRAMESCAPER_BUILD && panelId === 'recording-setup') {
 		return (
 			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 				<RecordingSetupPanel
@@ -78,7 +82,7 @@ export default function WorkspacePanelContent({
 			</React.Suspense>
 		);
 	}
-	if (panelId === 'web-vcr') {
+	if (FRAMESCAPER_BUILD && panelId === 'web-vcr') {
 		return (
 			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 				<WebVcrPanel controller={controller} snapshot={snapshot} copy={copy} run={run} blocked={blocked} />

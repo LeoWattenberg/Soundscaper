@@ -29,6 +29,7 @@ import {
 	verifySoundscaperProfessionalNativePayload,
 } from './soundscaper-professional-native-payload.mjs';
 import { MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH } from '../../desktop/native-isolation-review-policy.mjs';
+import { milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
 
 const AUDITED = new WeakSet();
 export const MILESTONE_5_PAYLOAD_ROW_COUNT = 20;
@@ -37,40 +38,47 @@ const READINESS_REQUIRED_PRODUCTS = Object.freeze([
 ]);
 
 /** Authenticate every built native payload against its owning source manifest and bytes. */
-export async function auditMilestone5Payloads(repositoryRootValue) {
+export async function auditMilestone5Payloads(repositoryRootValue, productIdsValue) {
 	const repositoryRoot = resolve(repositoryRootValue);
-	const nativeReleases = await Promise.all(NATIVE_HELPER_ADDON_TARGETS.map(({ id }) => (
+	const scope = milestone5EngineeringScope(productIdsValue);
+	const includes = (product) => scope.payloadProducts.includes(product);
+	const nativeReleases = includes('soundscaper')
+		? await Promise.all(NATIVE_HELPER_ADDON_TARGETS.map(({ id }) => (
 		verifyNativeAddonPayloadManifest({ repositoryRoot, target: id, targetSource: 'declared' })
-	)));
-	const nativeManifestBytes = nativeReleases[0].manifestBytes;
+		))) : [];
+	const nativeManifestBytes = nativeReleases[0]?.manifestBytes ?? null;
 	for (const release of nativeReleases.slice(1)) {
 		if (!release.manifestBytes.equals(nativeManifestBytes)
 			|| !isDeepStrictEqual(release.manifest, nativeReleases[0].manifest)) {
 			throw new Error('Milestone 5 native-addon target audits did not read one manifest.');
 		}
 	}
-	const professionalReleases = await Promise.all(PROFESSIONAL_NATIVE_TARGETS.map((target) => (
+	const professionalReleases = includes('soundscaper-professional')
+		? await Promise.all(PROFESSIONAL_NATIVE_TARGETS.map((target) => (
 		verifySoundscaperProfessionalNativePayload({ repositoryRoot, target, targetSource: 'declared' })
-	)));
-	const professionalManifestBytes = professionalReleases[0].manifestBytes;
+		))) : [];
+	const professionalManifestBytes = professionalReleases[0]?.manifestBytes ?? null;
 	for (const release of professionalReleases.slice(1)) {
 		if (!release.manifestBytes.equals(professionalManifestBytes)
 			|| !isDeepStrictEqual(release.manifest, professionalReleases[0].manifest)) {
 			throw new Error('Milestone 5 professional native target audits did not read one manifest.');
 		}
 	}
-	const media = await verifyFramescaperMediaHostPayloadRelease({ repositoryRoot });
-	const openFx = await verifyFramescaperOpenFxPayloadRelease({ repositoryRoot });
-	const reviewPolicyBytes = professionalReleases[0].reviewPolicy.bytes;
-	for (const release of [...professionalReleases.slice(1), media, openFx]) {
+	const media = includes('framescaper-media')
+		? await verifyFramescaperMediaHostPayloadRelease({ repositoryRoot }) : null;
+	const openFx = includes('framescaper-openfx')
+		? await verifyFramescaperOpenFxPayloadRelease({ repositoryRoot }) : null;
+	const reviewedReleases = [...professionalReleases, ...[media, openFx].filter(Boolean)];
+	const reviewPolicyBytes = reviewedReleases[0].reviewPolicy.bytes;
+	for (const release of reviewedReleases.slice(1)) {
 		if (!release.reviewPolicy.bytes.equals(reviewPolicyBytes)) {
 			throw new Error('Milestone 5 payload auditors did not use one native-isolation review policy.');
 		}
 	}
-	const mediaManifestBytes = await authenticatedManifestBytes(
+	const mediaManifestBytes = media === null ? null : await authenticatedManifestBytes(
 		repositoryRoot, FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST, media.payload,
 	);
-	const openFxManifestBytes = await authenticatedManifestBytes(
+	const openFxManifestBytes = openFx === null ? null : await authenticatedManifestBytes(
 		repositoryRoot, FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST, openFx.payload,
 	);
 	const rows = [
@@ -91,25 +99,33 @@ export async function auditMilestone5Payloads(repositoryRootValue) {
 			} : null,
 			productionReadiness: professionalNativePayloadStageSummary(release).productionReadiness,
 		})),
-		...media.payload.targets.map((target) => createMilestone5PayloadAuditRow({
+		...(media === null ? [] : media.payload.targets.map((target) => createMilestone5PayloadAuditRow({
 			product: 'framescaper-media', targetId: target.id, status: target.status,
 			blockedBy: target.blockedBy, payload: target.status === 'built' ? {
 				payload: target.payload,
 				isolationPayload: target.isolationPayload,
 			} : null,
 			productionReadiness: framescaperMediaProductionReadinessStageSummary(media, target.id),
-		})),
-		...openFx.payload.targets.map((target) => createMilestone5PayloadAuditRow({
+		}))),
+		...(openFx === null ? [] : openFx.payload.targets.map((target) => createMilestone5PayloadAuditRow({
 			product: 'framescaper-openfx', targetId: target.id, status: target.status,
 			blockedBy: target.blockedBy, payload: target.payload,
 			productionReadiness: framescaperOpenFxProductionReadinessStageSummary(openFx, target.id),
-		})),
+		}))),
 	];
 	const inputDigests = {
-		[NATIVE_ADDON_PAYLOAD_MANIFEST_PATH]: descriptor(nativeManifestBytes),
-		[PROFESSIONAL_NATIVE_MANIFEST_PATH]: descriptor(professionalManifestBytes),
-		[FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST]: descriptor(mediaManifestBytes),
-		[FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST]: descriptor(openFxManifestBytes),
+		...(nativeManifestBytes === null ? {} : {
+			[NATIVE_ADDON_PAYLOAD_MANIFEST_PATH]: descriptor(nativeManifestBytes),
+		}),
+		...(professionalManifestBytes === null ? {} : {
+			[PROFESSIONAL_NATIVE_MANIFEST_PATH]: descriptor(professionalManifestBytes),
+		}),
+		...(mediaManifestBytes === null ? {} : {
+			[FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST]: descriptor(mediaManifestBytes),
+		}),
+		...(openFxManifestBytes === null ? {} : {
+			[FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST]: descriptor(openFxManifestBytes),
+		}),
 		[MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH]: descriptor(reviewPolicyBytes),
 	};
 	for (const release of professionalReleases) {
@@ -119,14 +135,14 @@ export async function auditMilestone5Payloads(repositoryRootValue) {
 			release.productionReadiness.evidenceBytes,
 		);
 	}
-	for (const readiness of Object.values(media.productionReadiness)) {
+	for (const readiness of Object.values(media?.productionReadiness ?? {})) {
 		if (readiness !== null) addEvidenceDigest(
 			inputDigests,
 			readiness.reference.evidence.path,
 			readiness.evidenceBytes,
 		);
 	}
-	for (const readiness of Object.values(openFx.productionReadiness)) {
+	for (const readiness of Object.values(openFx?.productionReadiness ?? {})) {
 		if (readiness !== null) addEvidenceDigest(
 			inputDigests,
 			readiness.reference.evidence.path,
@@ -140,10 +156,12 @@ export async function auditMilestone5Payloads(repositoryRootValue) {
 			...descriptor(reviewPolicyBytes),
 		},
 		manifests: {
-			nativeAddon: nativeReleases[0].manifest,
-			soundscaperProfessional: professionalReleases[0].manifest,
-			mediaHost: media.payload,
-			openFxHost: openFx.payload,
+			...(nativeReleases.length === 0 ? {} : { nativeAddon: nativeReleases[0].manifest }),
+			...(professionalReleases.length === 0 ? {} : {
+				soundscaperProfessional: professionalReleases[0].manifest,
+			}),
+			...(media === null ? {} : { mediaHost: media.payload }),
+			...(openFx === null ? {} : { openFxHost: openFx.payload }),
 		},
 		rows,
 		inputDigests,

@@ -6,15 +6,24 @@ decision. The machine-readable source is
 Evidence in that file describes current controls; it is not by itself proof that
 a platform tier has passed qualification.
 
-## 1.0 release-candidate status
+## Product-owned 1.0 release status
 
 `1.0.0-rc.1` freezes the independent Soundscaper-v1 and Framescaper-v1 project,
 archive, browser-storage, desktop-library, and project-coupled native identities
-recorded by [WP-9.0.0](wp-9.0.0-baseline-decision.md). Preview publication may
-use an exact `v*-rc.*` tag, as it may an exact beta tag. This admits an RC
-preview only: stable `v1.0.0` tags remain unsupported, and no baseline decision
-can override a missing Milestone 9 qualification, security, accessibility,
-licensing, signing, hardware, or platform result.
+recorded by [WP-9.0.0](wp-9.0.0-baseline-decision.md). The version and channel
+authority is [`config/product-release-lines.json`](../config/product-release-lines.json).
+Soundscaper candidate publication uses an exact `soundscaper-v*-rc.*` or
+`soundscaper-v*-beta.*` tag. Framescaper retains its separate
+`framescaper-v*` prerelease prefix and is deferred from Soundscaper Stable 1.0.
+
+The Soundscaper-only `v1.0.0` workflow is supported only after the versioned
+`soundscaper-stable-1` evaluator admits the exact candidate commit, packages,
+five professional-native targets, signed technical readiness, platform and
+accessibility campaign, notices/legal approval, release rehearsal, and all 22
+eight-hour soak runs. Missing evidence blocks the tag workflow; no baseline
+decision or Framescaper deferral can substitute for a Soundscaper requirement.
+The retained dual-product campaign remains available for later Framescaper
+qualification, but its rows do not enter Soundscaper admission.
 
 Later RCs and stable 1.0 may fix implementation defects but may not introduce a
 second clean schema or storage break. The first supported successor of either

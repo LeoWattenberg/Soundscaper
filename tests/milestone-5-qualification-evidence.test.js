@@ -60,6 +60,24 @@ test('the checked-in register owns six ordered pending cohorts and 46 ordered me
 	assert.equal(audit.blockers.length, 6);
 });
 
+test('Soundscaper qualification audit selects one workload and eleven native lab profiles', async () => {
+	const audit = await auditMilestone5QualificationEvidence({
+		repositoryRoot: ROOT,
+		productIds: ['soundscaper'],
+	}, {
+		loadHistoricalQualityBudget: async () => { throw new Error('pending rows must not load history'); },
+		createM5NativeHelperCohort: () => { throw new Error('pending rows must not recompute'); },
+		createM5bQualityCohortV2: () => { throw new Error('Framescaper rows must not recompute'); },
+	});
+	assert.equal(audit.rowCount, 1);
+	assert.equal(audit.measurementDescriptorCount, 11);
+	assert.deepEqual(audit.rows.map(({ workloadId }) => workloadId), [
+		'm5-native-helper-and-audio',
+	]);
+	assert.equal(audit.blockers.length, 1);
+	assert.ok(audit.rows[0].requiredLabProfileIds.every((id) => id.startsWith('soundscaper-')));
+});
+
 test('register admission rejects reordered, incomplete, and self-contradictory rows', async () => {
 	const register = structuredClone(await readMilestone5QualificationEvidenceRegister(ROOT));
 	for (const mutate of [

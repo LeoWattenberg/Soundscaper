@@ -4,8 +4,7 @@
 
 #include "professional_host_api.h"
 #include "os_audio_codec.h"
-
-#include <node_api.h>
+#include "node_api_runtime.h"
 
 #include <algorithm>
 #include <array>
@@ -471,6 +470,7 @@ napi_value listPluginCandidates(napi_env env, napi_callback_info info)
 
 NAPI_MODULE_INIT()
 {
+	if (!soundscaperNodeApiAvailable()) return nullptr;
 	const napi_property_descriptor properties[] = {
 		{ "describe", nullptr, describe, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "enumerateAudioBackends", nullptr, enumerateAudioBackends, nullptr, nullptr, nullptr, napi_default, nullptr },

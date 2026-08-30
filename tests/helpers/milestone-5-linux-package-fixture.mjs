@@ -14,6 +14,9 @@ import appImageUtil from 'app-builder-lib/out/targets/appimage/appImageUtil.js';
 import assistanceNativeRuntimeManifest from '../../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { DESKTOP_CODEC_POLICY } from '../../scripts/lib/desktop-codec-policy.mjs';
+import {
+	typedUnavailableSoundscaperProfessionalNativeNotices,
+} from '../../scripts/lib/soundscaper-professional-native-notices.mjs';
 import { createPngFixture } from './png-fixture.mjs';
 import { writeDesktopPackageContentManifest } from '../../scripts/lib/desktop-package-content-manifest.mjs';
 import {
@@ -72,6 +75,9 @@ export async function createSoundscaperLinuxPackageFixture({
 			TARGET_ID,
 		),
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		desktopNotices: {
+			professionalNative: typedUnavailableSoundscaperProfessionalNativeNotices(TARGET_ID),
+		},
 		nativeAddons: nativeAddonPayloadStageSummary(nativeRelease),
 		osAudioCodecNative: null,
 		soundscaperProfessionalNative: professionalNativePayloadStageSummary(professionalRelease),

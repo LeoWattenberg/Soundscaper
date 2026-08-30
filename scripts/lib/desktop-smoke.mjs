@@ -64,6 +64,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'openNativePluginVendorUi',
 	'patchFinalPrefix',
 	'persistNativePluginState',
+	'persistentDelivery',
 	'probeHelperAvailability',
 	'readDesktopVideoCodecOutput',
 	'readNativeTierControls',
@@ -95,8 +96,33 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'writeDesktopVideoCodecInput',
 ]);
 
+const SOUNDSCAPER_DEFERRED_BRIDGE_MEMBERS = new Set([
+	'awaitVideoSourceProbe',
+	'beginDesktopVideoCodecOperation',
+	'beginVideoSourceProbe',
+	'cancelDesktopVideoCodecOperation',
+	'cancelVideoSourceProbe',
+	'chooseLinkedVideoOriginal',
+	'closeDesktopVideoCodecInput',
+	'deleteDesktopVideoCodecOperation',
+	'executeDesktopVideoCodecOperation',
+	'getDesktopVideoExportCapabilities',
+	'loadLinkedVideoOriginal',
+	'nativeServices',
+	'probeHelperAvailability',
+	'readDesktopVideoCodecOutput',
+	'reconcileLinkedVideoOriginals',
+	'releaseLinkedVideoOriginal',
+	'statDesktopVideoCodecOutput',
+	'writeDesktopVideoCodecInput',
+]);
+
+export const SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze(
+	DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => !SOUNDSCAPER_DEFERRED_BRIDGE_MEMBERS.has(name)),
+);
+
 export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
-	...DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => name !== 'persistentDelivery'),
 	'projectLibrary',
 ].sort());
 

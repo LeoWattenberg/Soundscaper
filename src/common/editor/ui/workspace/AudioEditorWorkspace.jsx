@@ -32,7 +32,7 @@ import {
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
-import { WEB_VCR_PANEL_ID } from '../web-vcr-ui-model.ts';
+const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 export default function AudioEditorWorkspace({
 	locale,
 	copy,
@@ -334,7 +334,7 @@ export default function AudioEditorWorkspace({
 		});
 	}, [controller, run]);
 	const toggleWorkspacePanel = useCallback((panelId) => {
-		if (panelId === WEB_VCR_PANEL_ID) return run(() => controller.actions.webVcr.close());
+		if (panelId === DEFERRED_WEB_VCR_PANEL_ID) return run(() => controller.actions.webVcr.close());
 		if (panelId !== 'project-bin') return run(() => controller.actions.preferences.togglePanel(panelId));
 		if (!projectBinEffectivelyOpen) setProjectBinSessionOpened(true);
 		return run(() => controller.actions.preferences.setPanel(panelId, { visible: !projectBinEffectivelyOpen }));

@@ -22,6 +22,7 @@ import {
 	requireRecord,
 } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
+import { milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
 
 export const MILESTONE_5_QUALIFICATION_EVIDENCE_PATH =
 	'config/milestone-5-qualification-evidence.json';
@@ -141,6 +142,7 @@ export function validateMilestone5QualificationEvidenceRegister(value) {
 
 export async function auditMilestone5QualificationEvidence(optionsValue, dependencies = {}) {
 	const options = requireRecord(optionsValue, 'Milestone 5 qualification audit options');
+	const scope = milestone5EngineeringScope(options.productIds);
 	const repositoryRoot = boundedString(
 		options.repositoryRoot,
 		1,
@@ -161,7 +163,8 @@ export async function auditMilestone5QualificationEvidence(optionsValue, depende
 		?? createM5NativeHelperCohort;
 	const framescaperConstructor = dependencies.createM5bQualityCohortV2
 		?? createM5bQualityCohortV2;
-	const acceptedRows = register.rows.filter(({ status }) => status === 'accepted');
+	const selectedRows = register.rows.filter(({ workloadId }) => scope.workloadIds.includes(workloadId));
+	const acceptedRows = selectedRows.filter(({ status }) => status === 'accepted');
 	const historicalConfigs = new Map();
 	const observations = [];
 	const auditedRows = [];
@@ -169,8 +172,10 @@ export async function auditMilestone5QualificationEvidence(optionsValue, depende
 	const usedPaths = new Set();
 	validateOneHistoricalSourceAndBudget(acceptedRows);
 
-	for (const [index, row] of register.rows.entries()) {
-		const definition = MILESTONE_5_QUALIFICATION_ROWS[index];
+	for (const row of selectedRows) {
+		const definition = MILESTONE_5_QUALIFICATION_ROWS.find(({ workloadId }) => (
+			workloadId === row.workloadId
+		));
 		if (row.status === 'pending-external') {
 			auditedRows.push(rowAuditSummary(row, 0));
 			continue;
@@ -208,10 +213,10 @@ export async function auditMilestone5QualificationEvidence(optionsValue, depende
 	}
 
 	validateCrossRowObservations(observations);
-	const pendingBlockers = register.rows
+	const pendingBlockers = selectedRows
 		.filter(({ status }) => status === 'pending-external')
 		.map(({ workloadId, blockedBy }) => `${workloadId}: ${blockedBy}`);
-	const qualificationReady = acceptedRows.length === register.rows.length;
+	const qualificationReady = acceptedRows.length === selectedRows.length;
 	const historicalBudget = historicalConfigs.values().next().value;
 	const audit = deepFreeze({
 		passed: true,
@@ -222,8 +227,8 @@ export async function auditMilestone5QualificationEvidence(optionsValue, depende
 		sourceRevision: acceptedRows[0]?.sourceRevision ?? null,
 		budgetSha256: acceptedRows[0]?.budgetSha256 ?? null,
 		historicalBudgetByteLength: historicalBudget?.bytes.byteLength ?? null,
-		rowCount: register.rows.length,
-		measurementDescriptorCount: register.rows.reduce(
+		rowCount: selectedRows.length,
+		measurementDescriptorCount: selectedRows.reduce(
 			(count, row) => count + row.measurements.length,
 			0,
 		),

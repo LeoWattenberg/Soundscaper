@@ -4,11 +4,11 @@ import { spawn } from 'node:child_process';
 import { access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-	DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE,
+	SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE,
 	assertDesktopSmokePayload,
 	packagedExecutableCandidates,
 	resolveSmokeArchitecture,
@@ -16,12 +16,12 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_ROOT = resolve(ROOT, 'release/desktop');
-const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
+const PRODUCT_ID = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 const SMOKE_EXPECTED_BRIDGE = PRODUCT_ID === 'framescaper'
 	? FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE
-	: DESKTOP_SMOKE_EXPECTED_BRIDGE;
+	: SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE;
 const TARGET_ARCH = resolveSmokeArchitecture(process.env.SOUNDSCAPER_SMOKE_ARCH, process.arch);
 
 // How long the packaged application gets to report its artifact. This is a
@@ -33,36 +33,48 @@ const TARGET_ARCH = resolveSmokeArchitecture(process.env.SOUNDSCAPER_SMOKE_ARCH,
 // suite by a factor of four.
 const SMOKE_TIMEOUT_MS = 120_000;
 
-const executable = await findPackagedExecutable();
-const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
-const command = useXvfb ? 'xvfb-run' : executable;
-const profile = await mkdtemp(join(tmpdir(), `${PRODUCT_ID}-desktop-smoke-`));
-const smokeAppData = join(profile, 'application-data');
-const appArgs = [
-	`--user-data-dir=${profile}`,
-	'--soundscaper-smoke',
-	`--soundscaper-smoke-app-data=${smokeAppData}`,
-];
-const args = useXvfb ? ['-a', executable, ...appArgs] : appArgs;
-let result;
-try {
-	result = await run(command, args);
-} finally {
-	await rm(profile, { recursive: true, force: true });
+export function resolveDesktopProductId(value) {
+	const requested = value === undefined ? 'soundscaper' : value;
+	if (requested !== 'soundscaper' && requested !== 'framescaper') {
+		throw new Error(
+			`SCAPE_PRODUCT must be soundscaper or framescaper; received ${JSON.stringify(value)}.`,
+		);
+	}
+	return requested;
 }
-if (result.code !== 0) throw new Error(`Packaged desktop smoke exited with code ${result.code}.\n${result.output}`);
-const line = result.output.split(/\r?\n/u).find((value) => value.startsWith('SOUNDSCAPER_DESKTOP_SMOKE '));
-if (!line) throw new Error(`Packaged desktop smoke did not emit its result.\n${result.output}`);
-const payload = JSON.parse(line.slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
-assertDesktopSmokePayload(payload, {
-	arch: TARGET_ARCH,
-	bridge: SMOKE_EXPECTED_BRIDGE,
-	platform: process.platform,
-	productId: PRODUCT_ID,
-	title: PRODUCT_NAME,
-	url: `${APP_SCHEME}://bundle/`,
-});
-console.log(line);
+
+async function main() {
+	const executable = await findPackagedExecutable();
+	const useXvfb = process.platform === 'linux' && process.env.SOUNDSCAPER_SMOKE_XVFB === 'true';
+	const command = useXvfb ? 'xvfb-run' : executable;
+	const profile = await mkdtemp(join(tmpdir(), `${PRODUCT_ID}-desktop-smoke-`));
+	const smokeAppData = join(profile, 'application-data');
+	const appArgs = [
+		`--user-data-dir=${profile}`,
+		'--soundscaper-smoke',
+		`--soundscaper-smoke-app-data=${smokeAppData}`,
+	];
+	const args = useXvfb ? ['-a', executable, ...appArgs] : appArgs;
+	let result;
+	try {
+		result = await run(command, args);
+	} finally {
+		await rm(profile, { recursive: true, force: true });
+	}
+	if (result.code !== 0) throw new Error(`Packaged desktop smoke exited with code ${result.code}.\n${result.output}`);
+	const line = result.output.split(/\r?\n/u).find((value) => value.startsWith('SOUNDSCAPER_DESKTOP_SMOKE '));
+	if (!line) throw new Error(`Packaged desktop smoke did not emit its result.\n${result.output}`);
+	const payload = JSON.parse(line.slice('SOUNDSCAPER_DESKTOP_SMOKE '.length));
+	assertDesktopSmokePayload(payload, {
+		arch: TARGET_ARCH,
+		bridge: SMOKE_EXPECTED_BRIDGE,
+		platform: process.platform,
+		productId: PRODUCT_ID,
+		title: PRODUCT_NAME,
+		url: `${APP_SCHEME}://bundle/`,
+	});
+	console.log(line);
+}
 
 async function findPackagedExecutable() {
 	const candidates = packagedExecutableCandidates({
@@ -114,5 +126,16 @@ function run(binary, args) {
 			clearTimeout(timeout);
 			resolvePromise({ code, output });
 		});
+	});
+}
+
+function isMainModule() {
+	return Boolean(process.argv[1]) && pathToFileURL(process.argv[1]).href === import.meta.url;
+}
+
+if (isMainModule()) {
+	main().catch((error) => {
+		console.error(`Desktop smoke failed: ${error.message}`);
+		process.exitCode = 1;
 	});
 }

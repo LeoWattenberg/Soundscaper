@@ -9,9 +9,12 @@ import {
 	positiveInteger,
 } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
+import { validateSoundscaperStable1SoakEvidenceAuthority } from
+	'./soundscaper-stable-1-soak-attestation.mjs';
 
 const SPEC_FIELDS = Object.freeze([
-	'schemaVersion', 'fixtureId', 'workloadId', 'generator', 'qualification', 'contract',
+	'schemaVersion', 'fixtureId', 'workloadId', 'environmentId', 'productIds', 'generator',
+	'qualification', 'contract',
 	'operations', 'schedule', 'repeatabilityBands', 'generatedArtifacts',
 ]);
 const GENERATOR_FIELDS = Object.freeze(['id', 'revision', 'seed', 'sourcePath', 'sourceSha256']);
@@ -72,12 +75,22 @@ export function m9SoakScheduleSha256(fixtureValue) {
 }
 
 function validateSpecShape(value) {
+	const snapshot = snapshotStrictJsonData(value, 'M9 soak specification');
+	const fields = snapshot.schemaVersion === 2
+		? [...SPEC_FIELDS, 'evidenceAuthority']
+		: SPEC_FIELDS;
 	const spec = exactRecord(
-		snapshotStrictJsonData(value, 'M9 soak specification'), SPEC_FIELDS, 'M9 soak specification',
+		snapshot, fields, 'M9 soak specification',
 	);
-	if (spec.schemaVersion !== 1) throw new Error('M9 soak specification schemaVersion must be 1.');
+	if (![1, 2].includes(spec.schemaVersion)) throw new Error('M9 soak specification schemaVersion is invalid.');
 	boundedString(spec.fixtureId, 1, 128, 'M9 fixtureId');
 	boundedString(spec.workloadId, 1, 128, 'M9 workloadId');
+	boundedString(spec.environmentId, 1, 128, 'M9 environmentId');
+	const productIds = denseArray(spec.productIds, 'M9 product IDs').map((productId, index) => {
+		if (!PRODUCTS.includes(productId)) throw new Error(`M9 productIds[${index}] is invalid.`);
+		return productId;
+	});
+	assertUnique(productIds, 'M9 product IDs');
 	const generator = exactRecord(spec.generator, GENERATOR_FIELDS, 'M9 generator');
 	boundedString(generator.id, 1, 128, 'M9 generator.id');
 	positiveInteger(generator.revision, 'M9 generator.revision');
@@ -102,8 +115,16 @@ function validateSpecShape(value) {
 		return row;
 	});
 	assertUnique(operations.map(({ id }) => id), 'M9 operation IDs');
-	if (!PRODUCTS.every((productId) => operations.some((operation) => operation.productId === productId))) {
-		throw new Error('M9 operations must cover both products.');
+	if (!productIds.every((productId) => operations.some((operation) => operation.productId === productId))
+		|| operations.some((operation) => !productIds.includes(operation.productId))) {
+		throw new Error('M9 operations must cover exactly the selected products.');
+	}
+	const evidenceAuthority = spec.schemaVersion === 2
+		? validateSoundscaperStable1SoakEvidenceAuthority(spec.evidenceAuthority)
+		: undefined;
+	if (spec.schemaVersion === 2 && (spec.workloadId !== 'soundscaper-stable-1-complete-system-soak'
+		|| JSON.stringify(productIds) !== JSON.stringify(['soundscaper']))) {
+		throw new Error('M9 signed-attestation schema is reserved for the Soundscaper Stable 1 workload.');
 	}
 	const operationIds = new Set(operations.map(({ id }) => id));
 	const schedule = denseArray(spec.schedule, 'M9 schedule').map((entry, index) => {
@@ -135,6 +156,7 @@ function validateSpecShape(value) {
 	for (const mode of MODES) validateArtifactPin(generatedArtifacts[mode], mode);
 	return deepFreeze({
 		...spec,
+		productIds: [...productIds],
 		generator: { ...generator },
 		qualification,
 		contract,
@@ -144,6 +166,7 @@ function validateSpecShape(value) {
 		generatedArtifacts: Object.fromEntries(MODES.map((mode) => [
 			mode, { ...generatedArtifacts[mode] },
 		])),
+		...(evidenceAuthority === undefined ? {} : { evidenceAuthority }),
 	});
 }
 
@@ -177,7 +200,7 @@ function validateArtifactPin(value, mode) {
 function generateValidatedFixture(spec, mode) {
 	const run = spec[mode];
 	const random = seededRandom(`${spec.generator.seed}:${mode}`);
-	const projects = PRODUCTS.map((productId, productIndex) => deepFreeze({
+	const projects = spec.productIds.map((productId, productIndex) => deepFreeze({
 		productId,
 		projectId: `${productId}-m9-${randomHex(random)}`,
 		tracks: Array.from({ length: 4 }, (_, trackIndex) => deepFreeze({

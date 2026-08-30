@@ -13,6 +13,7 @@ import {
 	createFramescaperCapturedVideoProxyScheduler,
 	createFramescaperExistingVideoProxyScheduler,
 } from './editor-captured-video-proxy-scheduler-runtime.ts';
+import { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } from './editor-capture-runtime.ts';
 import type { FramescaperCapturedVideoProxyRuntimeComposition } from
 	'./editor-captured-video-proxy-scheduler.ts';
 import { bindFramescaperInheritedProductRuntimesAssistance } from
@@ -113,6 +114,7 @@ export function createFramescaperAudioEditorController(
 	controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
+		framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
 		framescaperCaptureRouteSchemaVersion: 1,
 		store: environment.controllerStore,
 		sessionController,

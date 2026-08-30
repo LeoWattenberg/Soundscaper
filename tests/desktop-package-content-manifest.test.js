@@ -2,8 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
@@ -12,14 +11,19 @@ import {
 	writeDesktopPackageContentManifest,
 } from '../scripts/lib/desktop-package-content-manifest.mjs';
 import { ASSISTANCE_TARGET_STATUSES } from '../desktop/assistance-native-runtime-payload.mjs';
-import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
+import {
+	soundscaperProfessionalNativeNoticeSummary,
+} from '../scripts/lib/soundscaper-professional-native-notices.mjs';
+import {
+	soundscaperProfessionalNativeSourceIdsForTarget,
+} from '../scripts/lib/soundscaper-professional-native-candidate-contract.mjs';
 import {
 	addOsCodecPayload,
 	osCodecPackageTree,
 } from './helpers/desktop-package-os-codec-fixture.js';
+import { packageTree } from './helpers/desktop-package-content-fixture.js';
 
 const REVISION = 'a'.repeat(40);
-
 test('the embedded package-content manifest binds the exact installed resource closure', async (context) => {
 	const fixture = await packageTree(context);
 	const written = await writeDesktopPackageContentManifest({
@@ -29,7 +33,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 		targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
-	assert.equal(written.fileCount, 13);
+	assert.equal(written.fileCount, 15);
 	const audit = await auditExtractedDesktopPackageContent({
 		extractedRoot: fixture.extractedRoot,
 		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
@@ -38,9 +42,61 @@ test('the embedded package-content manifest binds the exact installed resource c
 	});
 	assert.equal(audit.contentManifestSha256, written.contentManifestSha256);
 	assert.equal(audit.sourceRevision, REVISION);
-	assert.equal(audit.fileCount, 13);
+	assert.equal(audit.fileCount, 15);
 	assert.match(audit.installedClosureSha256, /^[a-f\d]{64}$/u);
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
+});
+test('Stable Soundscaper admits no legacy native-addon manifest or helper payload', async (context) => {
+	const stable = await packageTree(context);
+	await rm(join(stable.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });
+	const stableNotices = await addStableProfessionalNotices(stable);
+	Object.assign(stable.runtimeManifest, {
+		applicationVersion: '1.0.0', applicationVersionChannel: 'stable',
+		releaseChannel: 'stable', nativeAddons: null,
+	});
+	await writeJson(stable.runtimeManifestPath, stable.runtimeManifest);
+	const written = await writeDesktopPackageContentManifest({
+		resourcesRoot: stable.resourcesRoot, runtimeManifestPath: stable.runtimeManifestPath,
+		productId: 'soundscaper', targetId: 'linux-x64',
+	}, stableNotices.dependencies);
+	assert.equal(written.fileCount, 18);
+
+	const missingNotices = await packageTree(context);
+	await rm(join(missingNotices.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });
+	const missingAuthority = await addStableProfessionalNotices(missingNotices, { writeNotices: false });
+	Object.assign(missingNotices.runtimeManifest, {
+		applicationVersion: '1.0.0', applicationVersionChannel: 'stable',
+		releaseChannel: 'stable', nativeAddons: null,
+	});
+	await writeJson(missingNotices.runtimeManifestPath, missingNotices.runtimeManifest);
+	await assert.rejects(writeDesktopPackageContentManifest({
+		resourcesRoot: missingNotices.resourcesRoot,
+		runtimeManifestPath: missingNotices.runtimeManifestPath,
+		productId: 'soundscaper', targetId: 'linux-x64',
+	}, missingAuthority.dependencies), /professional-native notice/iu);
+
+	const smuggled = await packageTree(context);
+	const smuggledNotices = await addStableProfessionalNotices(smuggled);
+	Object.assign(smuggled.runtimeManifest, {
+		applicationVersion: '1.0.0', applicationVersionChannel: 'stable',
+		releaseChannel: 'stable', nativeAddons: null,
+	});
+	await writeJson(smuggled.runtimeManifestPath, smuggled.runtimeManifest);
+	await assert.rejects(writeDesktopPackageContentManifest({
+		resourcesRoot: smuggled.resourcesRoot, runtimeManifestPath: smuggled.runtimeManifestPath,
+		productId: 'soundscaper', targetId: 'linux-x64',
+	}, smuggledNotices.dependencies), /legacy native-addon|unexpected files.*runtime\/native\/linux-x64/iu);
+});
+
+test('preview packages keep professional notices typed-unavailable and reject smuggled files', async (context) => {
+	const fixture = await packageTree(context);
+	await mkdir(join(fixture.resourcesRoot, 'licenses/professional-native'), { recursive: true });
+	await writeFile(join(fixture.resourcesRoot, 'licenses/professional-native/foreign.txt'), 'foreign');
+	await assert.rejects(writeDesktopPackageContentManifest({
+		resourcesRoot: fixture.resourcesRoot,
+		runtimeManifestPath: fixture.runtimeManifestPath,
+		productId: 'soundscaper', targetId: 'linux-x64',
+	}), /unexpected files.*licenses\/professional-native/iu);
 });
 
 test('human professional readiness fields cannot suppress package-content auditing', async (context) => {
@@ -319,110 +375,62 @@ function peExecutable(machine) {
 	return bytes;
 }
 
-async function packageTree(context) {
-	const root = await mkdtemp(join(tmpdir(), 'desktop-package-content-'));
-	context.after(() => rm(root, { recursive: true, force: true }));
-	const extractedRoot = join(root, 'extracted');
-	const applicationRoot = join(extractedRoot, 'usr/lib/soundscaper');
-	const resourcesRoot = join(applicationRoot, 'resources');
-	const payloads = {
-		'app.asar': Buffer.from('authenticated application'),
-		'runtime/native/linux-x64/native-addon-payload-manifest.json': Buffer.from('authenticated addon manifest'),
-		'runtime/native/linux-x64/addon.node': Buffer.from('authenticated native payload'),
-		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-payload-manifest.json':
-			Buffer.from('authenticated professional manifest'),
-		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper_professional.node':
-			Buffer.from('authenticated professional payload'),
-		'runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json':
-			Buffer.from('authenticated native-isolation review policy'),
-		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-plugin-peer':
-			Buffer.from('authenticated professional plug-in peer'),
-		'runtime/native/soundscaper-professional-host/linux-x64/m5-native-isolation-launcher':
-			Buffer.from('authenticated isolation launcher'),
-		'runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-v1.json':
-			Buffer.from('authenticated sandbox profile'),
-		'runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-broker-v1.json':
-			Buffer.from('authenticated broker policy'),
-		'runtime/native/soundscaper-professional-host/linux-x64/runtime/ld-linux-x86-64.so.2':
-			Buffer.from('authenticated runtime loader'),
-		'runtime/assistance/test/node_modules/runtime/native.node': Buffer.from('authenticated assistance payload'),
-		'runtime/translations/audacity/4/latest.json': Buffer.from('authenticated translations'),
-	};
-	for (const [path, bytes] of Object.entries(payloads)) {
-		await mkdir(dirname(join(resourcesRoot, path)), { recursive: true });
-		await writeFile(join(resourcesRoot, path), bytes);
-	}
-	const executable = Buffer.alloc(64);
-	executable.set([0x7f, 0x45, 0x4c, 0x46, 2, 1]);
-	executable.writeUInt16LE(62, 18);
-	await writeFile(join(applicationRoot, 'soundscaper'), executable);
-	const descriptor = (path) => ({
-		byteLength: payloads[path].byteLength,
-		sha256: createHash('sha256').update(payloads[path]).digest('hex'),
+async function addStableProfessionalNotices(fixture, { writeNotices = true } = {}) {
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2'];
+	const targets = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'];
+	const sources = ids.map((id, index) => {
+		const archive = Buffer.from(`archive-${id}`);
+		const notice = Buffer.from(`notice-${id}`);
+		return {
+			id, version: `v${index + 1}`, licenseSelection: 'test-license',
+			archive: { fileName: `${id}.tar.gz`, ...descriptor(archive) },
+			extractedTree: {
+				algorithm: 'framescaper-portable-source-tree-sha256-v1',
+				fileCount: 1, sha256: descriptor(notice).sha256,
+			},
+			notice,
+		};
 	});
-	const runtimeManifest = {
-		schemaVersion: 1,
-		productId: 'soundscaper',
-		applicationVersion: '1.0.0-rc.1',
-		sourceRevision: REVISION,
-		target: { platform: 'linux', arch: 'x64' },
-		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
-		nativeAddons: {
-			target: 'linux-x64', status: 'built',
-			payloadManifest: { sha256: descriptor('runtime/native/linux-x64/native-addon-payload-manifest.json').sha256 },
-			payload: { name: 'addon.node', ...descriptor('runtime/native/linux-x64/addon.node') },
-		},
-		osAudioCodecNative: null,
-		soundscaperProfessionalNative: {
-			target: 'linux-x64', status: 'built',
-			productionReadiness: null,
-			reviewPolicy: {
-				name: 'milestone-5-native-isolation-review-policy.json',
-				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json'),
-			},
-			payloadManifest: descriptor(
-				'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-payload-manifest.json',
-			),
-			payload: {
-				name: 'soundscaper_professional.node',
-				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper_professional.node'),
-			},
-			pluginPeer: {
-				path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-plugin-peer',
-				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-plugin-peer'),
-			},
-			isolation: {
-				launcher: {
-					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/m5-native-isolation-launcher',
-					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/m5-native-isolation-launcher'),
-				},
-				sandboxProfile: {
-					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/profiles/linux-v1.json',
-					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-v1.json'),
-				},
-				brokerPolicy: {
-					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/profiles/linux-broker-v1.json',
-					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/profiles/linux-broker-v1.json'),
-				},
-				runtimeClosure: [{
-					path: 'native/soundscaper-professional-host/prebuilt/linux-x64/runtime/ld-linux-x86-64.so.2',
-					...descriptor('runtime/native/soundscaper-professional-host/linux-x64/runtime/ld-linux-x86-64.so.2'),
-				}],
-			},
-		},
-		assistanceNativeRuntime: {
-			target: 'linux-x64', status: 'built',
-			payload: {
-				root: 'assistance/test',
-				files: { 'node_modules/runtime/native.node': descriptor('runtime/assistance/test/node_modules/runtime/native.node') },
-			},
-		},
-		framescaperNativeHosts: null,
-		translations: { latest: { path: 'latest.json', ...descriptor('runtime/translations/audacity/4/latest.json') } },
+	const sourceRegister = { schemaVersion: 1, sources };
+	const noticeRegister = {
+		schemaVersion: 1, id: 'desktop-package-fixture-notices-v1', legalApproval: null,
+		sources: sources.map((source) => ({
+			id: source.id,
+			targets: targets.filter((target) =>
+				soundscaperProfessionalNativeSourceIdsForTarget(target).includes(source.id)),
+			notices: [{
+				name: `${source.id}.txt`, origin: 'authenticated-source',
+				path: `${source.id}.txt`, ...descriptor(source.notice),
+			}],
+		})),
 	};
-	const runtimeManifestPath = join(root, 'runtime-manifest.json');
-	await writeFile(runtimeManifestPath, `${JSON.stringify(runtimeManifest, null, 2)}\n`);
-	return { extractedRoot, resourcesRoot, runtimeManifest, runtimeManifestPath };
+	const sourceAuthentication = {
+		schemaVersion: 1, status: 'authenticated',
+		sources: soundscaperProfessionalNativeSourceIdsForTarget('linux-x64').map((id) => {
+			const source = sources.find((entry) => entry.id === id);
+			return {
+				id, authenticationStatus: 'authenticated',
+				archiveEvidence: {
+					byteLength: source.archive.byteLength, sha256: source.archive.sha256,
+				},
+				extractedTreeEvidence: { ...source.extractedTree },
+			};
+		}),
+	};
+	fixture.runtimeManifest.soundscaperProfessionalNative.sourceAuthentication = sourceAuthentication;
+	fixture.runtimeManifest.desktopNotices.professionalNative =
+		soundscaperProfessionalNativeNoticeSummary({
+			target: 'linux-x64', sourceAuthentication,
+		}, { sourceRegister, noticeRegister });
+	if (writeNotices) {
+		for (const notice of fixture.runtimeManifest.desktopNotices.professionalNative.notices) {
+			const source = sources.find(({ id }) => id === notice.sourceId);
+			const path = join(fixture.resourcesRoot, 'licenses/professional-native', notice.name);
+			await mkdir(dirname(path), { recursive: true });
+			await writeFile(path, source.notice);
+		}
+	}
+	return { dependencies: { professionalNativeNoticeAuthorities: { sourceRegister, noticeRegister } } };
 }
 
 async function framescaperPackageTree(context) {
@@ -462,6 +470,7 @@ async function framescaperPackageTree(context) {
 	const runtimeManifest = {
 		...fixture.runtimeManifest,
 		productId: 'framescaper',
+		desktopNotices: { professionalNative: null },
 		soundscaperProfessionalNative: null,
 		framescaperNativeHosts: {
 			target: 'linux-x64',

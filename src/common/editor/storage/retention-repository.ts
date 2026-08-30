@@ -61,8 +61,8 @@ export interface RetentionRepositoryOptions {
 	readonly media: MediaRepository;
 	readonly opfs: OpfsRepository;
 	readonly rawPcmSpools: Pick<RawPcmSpoolRepository, 'listAll'>;
-	readonly encodedCaptureSpools: Pick<EncodedCaptureSpoolRepository, 'retainedMediaChunkTokens'>;
-	readonly encodedCaptureChunks: Pick<OpfsPreferredEncodedCaptureChunkPort, 'retainedPaths'>;
+	readonly encodedCaptureSpools: Pick<EncodedCaptureSpoolRepository, 'retainedMediaChunkTokens'> | null;
+	readonly encodedCaptureChunks: Pick<OpfsPreferredEncodedCaptureChunkPort, 'retainedPaths'> | null;
 	readonly transientAnalysisCache: Pick<TransientAnalysisCacheRepository, 'purge'>;
 	readonly assistanceDerivatives?: Pick<AssistanceDerivativeRepositoryPort, 'purge'>;
 }
@@ -88,7 +88,8 @@ export class RetentionRepository {
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
 		for (const spool of await this.#options.rawPcmSpools.listAll()) tokens.add(spool.spoolToken);
-		const encodedCaptureTokens = await this.#options.encodedCaptureSpools.retainedMediaChunkTokens();
+		const encodedCaptureTokens = this.#options.encodedCaptureSpools
+			? await this.#options.encodedCaptureSpools.retainedMediaChunkTokens() : new Set<string>();
 		for (const token of encodedCaptureTokens) tokens.add(token);
 		const mediaAssets = await this.#options.media.assetRecords();
 		const binaryRecords = [
@@ -100,7 +101,8 @@ export class RetentionRepository {
 			...binaryRecords.map((record) => record.path),
 		].filter(isString));
 		for (const path of activeStaging.paths) paths.add(path);
-		for (const path of await this.#options.encodedCaptureChunks.retainedPaths(encodedCaptureTokens)) {
+		for (const path of this.#options.encodedCaptureChunks
+			? await this.#options.encodedCaptureChunks.retainedPaths(encodedCaptureTokens) : []) {
 			paths.add(path);
 		}
 		await this.#options.sourceRecords.cleanupStaleChunks(tokens, cutoff);

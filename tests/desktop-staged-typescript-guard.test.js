@@ -21,6 +21,10 @@ import {
 	DESKTOP_RUNTIME_PACKAGE_IMPORTS,
 	stageDesktopApplicationSources,
 } from '../scripts/lib/desktop-project-library-runtime.mjs';
+import {
+	assertDesktopProductPackageIsolation,
+	desktopProductRuntimePackageImports,
+} from '../scripts/lib/desktop-product-package-files.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TYPESCRIPT_SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"][^'"]*\.[cm]?tsx?['"]/u;
@@ -35,11 +39,19 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 		desktopSourceRoot: join(ROOT, 'desktop'),
 		applicationDesktopRoot,
 		runtimeRoot,
+		productId: 'soundscaper',
 	});
 
-	for (const name of await listFilesRecursively(applicationDesktopRoot)) {
+	const stagedFiles = await listFilesRecursively(applicationDesktopRoot);
+	assert.doesNotThrow(() => assertDesktopProductPackageIsolation(
+		'soundscaper', stagedFiles.map((name) => `desktop/${name}`),
+	), 'Soundscaper staging must not carry Framescaper-owned application files');
+	for (const name of stagedFiles) {
 		if (!/\.[cm]?js$/u.test(name)) continue;
 		const staged = await readFile(join(applicationDesktopRoot, name), 'utf8');
+		assert.doesNotMatch(staged,
+			/framescaperDesktop|framescaper:v1:|FRAMESCAPER_WEB_VCR_|registerDesktopVideoCodecs|createDesktopLinkedVideoLocatorRuntime/u,
+			`staged ${name} must not carry a callable Framescaper surface`);
 		assert.doesNotMatch(staged, TYPESCRIPT_SPECIFIER, `staged ${name} must not import a TypeScript specifier`);
 	}
 
@@ -49,9 +61,16 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 		Object.keys(DESKTOP_RUNTIME_PACKAGE_IMPORTS),
 		'the repository package-imports aliases must mirror the staged desktop aliases exactly',
 	);
-	for (const [alias, target] of Object.entries(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+	const soundscaperImports = desktopProductRuntimePackageImports(
+		'soundscaper', DESKTOP_RUNTIME_PACKAGE_IMPORTS,
+	);
+	assert.deepEqual(Object.keys(soundscaperImports), ['#desktop-runtime/helper-contract']);
+	for (const [alias, target] of Object.entries(soundscaperImports)) {
 		assert.match(target, /^\.\/desktop\/project-library-runtime\//u, `${alias} must resolve to a compiled runtime member`);
 		await access(join(applicationDesktopRoot, '..', target));
+	}
+	for (const [alias, target] of Object.entries(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+		assert.match(target, /^\.\/desktop\/project-library-runtime\//u, `${alias} must resolve to a compiled runtime member`);
 		await access(join(ROOT, repositoryPackage.imports[alias]));
 	}
 	for (const retired of [

@@ -1,7 +1,13 @@
 const assistanceNativeRuntimeManifest = require('./config/assistance-native-runtime-manifest.json');
+const professionalNativePayloadManifest = require('./config/soundscaper-professional-native-payload-manifest.json');
+const productReleaseLines = require('./config/product-release-lines.json');
 
-const framescaper = process.env.SCAPE_PRODUCT === 'framescaper';
+const productId = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
+const framescaper = productId === 'framescaper';
 const productName = framescaper ? 'Framescaper' : 'Soundscaper';
+const soundscaperStable = !framescaper
+	&& productReleaseLines.products.soundscaper.applicationVersionChannel === 'stable'
+	&& productReleaseLines.products.soundscaper.releaseChannel === 'stable';
 // The signing chain is enacted but identity-gated: with no acquired signing
 // identity (the named milestone-5 blocker), macOS stays ad-hoc-signed with the
 // hardened runtime off and Windows/Linux stay unsigned via the CI-wide
@@ -24,6 +30,8 @@ const macAssistanceNativeFiles = Object.keys(macAssistancePackage.files)
 const macPreAuthenticatedRuntimePayload = [
 	'/Contents/Resources/runtime/(?:',
 	'native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec\\.node',
+	'|',
+	`${regexEscape(professionalNativePayloadManifest.staging.runtimePrefix)}/mac-arm64(?:/.*)?`,
 	'|',
 	`${regexEscape(assistanceNativeRuntimeManifest.runtimePrefix)}/node_modules/`,
 	`${regexEscape(macAssistancePackage.name)}/(?:${macAssistanceNativeFiles})`,
@@ -62,6 +70,10 @@ module.exports = {
 		{ from: 'LICENSE', to: 'licenses/Soundscaper-AGPL-3.0.txt' },
 		{ from: '.desktop-build/licenses/THIRD_PARTY_LICENSES.md', to: 'licenses/THIRD_PARTY_LICENSES.md' },
 		{ from: '.desktop-build/licenses/codecs', to: 'licenses/codecs' },
+		...(soundscaperStable ? [{
+			from: '.desktop-build/licenses/professional-native',
+			to: 'licenses/professional-native',
+		}] : []),
 		{ from: 'LICENSES', to: 'licenses/LICENSES' },
 	],
 	fileAssociations: [
@@ -148,4 +160,14 @@ module.exports = {
 
 function regexEscape(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function resolveDesktopProductId(value) {
+	const requested = value === undefined ? 'soundscaper' : value;
+	if (requested !== 'soundscaper' && requested !== 'framescaper') {
+		throw new Error(
+			`SCAPE_PRODUCT must be soundscaper or framescaper; received ${JSON.stringify(value)}.`,
+		);
+	}
+	return requested;
 }

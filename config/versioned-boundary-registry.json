@@ -330,6 +330,8 @@
 		,
 		{ "path": "src/common/editor/soundscaper-delivery-contract-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-delivery-contract-v1.ts is an independently versioned persisted or cross-process carrier contract." }
 		,
+		{ "path": "src/common/editor/soundscaper-persistent-delivery-plan-v1.ts", "kind": "ipc-contract", "justification": "soundscaper-persistent-delivery-plan-v1.ts is the canonical persisted plan payload exchanged across the Soundscaper renderer and desktop delivery boundary." }
+		,
 		{ "path": "src/common/editor/source-characteristics-v14.ts", "kind": "persisted-contract", "justification": "source-characteristics-v14.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/take-comp-document-v17.ts", "kind": "persisted-contract", "justification": "take-comp-document-v17.ts is a persisted domain-component or render-contract revision independent of product schema." }

@@ -2,21 +2,28 @@
 
 /** Bind an extracted package runtime to the independently authenticated payload audit. */
 
-export function validateMilestone5PackagePayloadBinding(packageAudit, payloadAudit, inputPaths) {
+export function validateMilestone5PackagePayloadBinding(
+	packageAudit,
+	payloadAudit,
+	inputPaths,
+	engineeringScope = null,
+) {
 	const targetId = packageAudit.targetId;
 	const runtime = packageAudit.runtimeManifest.value;
-	const nativeManifest = payloadAudit.manifests.nativeAddon;
-	const nativeTarget = exactTarget(nativeManifest, targetId, 'native addon');
-	const nativeDigest = payloadAudit.inputDigests[inputPaths.nativeAddonPayload]?.sha256;
-	assert(runtime.nativeAddons?.payloadManifest?.id === nativeManifest.id
-		&& runtime.nativeAddons.payloadManifest.sha256 === nativeDigest,
-	'Milestone 5 package native-addon manifest pin disagrees with the authenticated payload audit.');
-	assert(runtime.nativeAddons.target === targetId
-		&& runtime.nativeAddons.status === nativeTarget.status
-		&& runtime.nativeAddons.blockedBy === nativeTarget.blockedBy
-		&& JSON.stringify(runtime.nativeAddons.payload) === JSON.stringify(
-			nativeTarget.payload === null ? null : packagePayload(nativeTarget.payload),
-		), 'Milestone 5 package native-addon target disagrees with the authenticated payload audit.');
+	if (engineeringScope?.payloadProducts?.includes('soundscaper') !== false) {
+		const nativeManifest = payloadAudit.manifests.nativeAddon;
+		const nativeTarget = exactTarget(nativeManifest, targetId, 'native addon');
+		const nativeDigest = payloadAudit.inputDigests[inputPaths.nativeAddonPayload]?.sha256;
+		assert(runtime.nativeAddons?.payloadManifest?.id === nativeManifest.id
+			&& runtime.nativeAddons.payloadManifest.sha256 === nativeDigest,
+		'Milestone 5 package native-addon manifest pin disagrees with the authenticated payload audit.');
+		assert(runtime.nativeAddons.target === targetId
+			&& runtime.nativeAddons.status === nativeTarget.status
+			&& runtime.nativeAddons.blockedBy === nativeTarget.blockedBy
+			&& JSON.stringify(runtime.nativeAddons.payload) === JSON.stringify(
+				nativeTarget.payload === null ? null : packagePayload(nativeTarget.payload),
+			), 'Milestone 5 package native-addon target disagrees with the authenticated payload audit.');
+	}
 
 	if (packageAudit.productId === 'soundscaper') {
 		const professionalManifest = payloadAudit.manifests.soundscaperProfessional;

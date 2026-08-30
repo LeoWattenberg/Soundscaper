@@ -20,7 +20,8 @@ test('production capability inventory covers every product profile and platform 
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 
 	assert.equal(inventory.schemaVersion, 1);
-	assert.equal(inventory.groundedAt, '2026-08-28');
+	assert.equal(inventory.groundedAt, '2026-08-30');
+	assert.equal(inventory.releaseLineAuthority, 'config/product-release-lines.json');
 	assert.deepEqual(inventory.platformTiers, PLATFORM_TIERS);
 	assert.deepEqual(Object.keys(inventory.products).sort(), [...PRODUCT_IDS].sort());
 
@@ -38,6 +39,34 @@ test('production capability inventory covers every product profile and platform 
 			assert.ok(actual.platforms[tier].evidence.length > 0, `${productId}/${tier} needs evidence`);
 		}
 	}
+});
+
+test('Soundscaper is software-complete without claiming external Stable 1.0 admission', async () => {
+	const [inventory, releaseLines] = await Promise.all([
+		readFile(inventoryUrl, 'utf8').then(JSON.parse),
+		readFile(new URL('../config/product-release-lines.json', import.meta.url), 'utf8').then(JSON.parse),
+	]);
+	const soundscaperLine = releaseLines.products.soundscaper;
+	assert.deepEqual(inventory.releaseCandidate.previewTagPatterns, [
+		'soundscaper-v*-beta.*', 'soundscaper-v*-rc.*',
+	]);
+	assert.deepEqual(inventory.products.soundscaper.release, {
+		softwareStatus: 'feature-complete',
+		channel: soundscaperLine.releaseChannel,
+		candidateVersion: soundscaperLine.candidate.version,
+		stableTarget: soundscaperLine.stable.version,
+		admissionProfile: 'soundscaper-stable-1',
+		admissionStatus: soundscaperLine.stable.status === 'admitted'
+			? 'admitted' : 'pending-external-evidence',
+	});
+	assert.deepEqual(inventory.products.framescaper.release, {
+		softwareStatus: 'pre-release-deferred',
+		channel: 'deferred',
+		candidateVersion: '1.0.0-rc.1',
+		stableTarget: null,
+		admissionProfile: null,
+		admissionStatus: 'deferred',
+	});
 });
 
 test('production capability inventory pins browser and desktop qualification targets', async () => {
@@ -119,6 +148,24 @@ test('Electron Enhanced inventory records product-owned current desktop boundari
 		'desktop/native-audio-session-service.ts',
 		'desktop/plugin-host-service.ts',
 		'src/common/editor/ui/soundscaper-native-renderer-bridge.ts',
+		'desktop/soundscaper-delivery-database.ts',
+		'desktop/soundscaper-delivery-service.ts',
+		'desktop/soundscaper-delivery-publication.ts',
+		'desktop/soundscaper-delivery-main-ipc.ts',
+		'desktop/soundscaper-delivery-worker-port.ts',
+		'desktop/soundscaper-delivery-registration.mjs',
+		'src/common/editor/soundscaper-persistent-delivery-save-target.ts',
+		'src/common/editor/controller/soundscaper-persistent-delivery-controller-composition.ts',
+		'src/common/editor/controller/soundscaper-persistent-delivery-private-transport.ts',
+		'src/common/editor/controller/soundscaper-persistent-delivery-ui-service.ts',
+		'src/common/editor/controller/soundscaper-persistent-delivery-worker.ts',
+		'tests/desktop-soundscaper-delivery-database.test.ts',
+		'tests/desktop-soundscaper-delivery-service.test.ts',
+		'tests/desktop-soundscaper-delivery-main-ipc.test.ts',
+		'tests/desktop-soundscaper-delivery-worker-port.test.ts',
+		'tests/desktop-preload-persistent-delivery.test.js',
+		'tests/audio-editor-soundscaper-persistent-delivery-composition.test.ts',
+		'tests/audio-editor-soundscaper-persistent-delivery-private-transport.test.ts',
 		'src/soundscaper/editor-project.ts',
 		'src/soundscaper/editor-project-runtime-profile.ts',
 		'src/soundscaper/editor-controller.ts',

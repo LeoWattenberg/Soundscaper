@@ -172,6 +172,11 @@ test('Sherpa Windows ARM64 rejects an invented addon or incomplete provision rec
 
 test('desktop packaging carries the same register that production startup imports', async () => {
 	const prepare = await readFile(new URL('../scripts/desktop-prepare.mjs', import.meta.url), 'utf8');
-	assert.match(prepare,
-		/'config\/assistance-runtime-family-supply-candidates\.json'/u);
+	const { desktopProductConfigFiles } = await import(
+		'../scripts/lib/desktop-product-package-files.mjs'
+	);
+	assert.match(prepare, /desktopProductConfigFiles\(PRODUCT_ID, productMetadata\)/u);
+	assert.ok(desktopProductConfigFiles('soundscaper').includes(
+		'config/assistance-runtime-family-supply-candidates.json',
+	));
 });

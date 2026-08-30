@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
 	canonicalM9SoakFixtureBytes,
@@ -12,7 +12,7 @@ import {
 	validateM9SoakSpec,
 } from './lib/m9-soak-fixture.mjs';
 
-const SPEC_URL = new URL('../config/milestone-9-soak-spec.json', import.meta.url);
+const DEFAULT_SPEC_PATH = 'config/milestone-9-soak-spec.json';
 const REPOSITORY_ROOT = new URL('../', import.meta.url);
 
 export function parseM9SoakGeneratorArguments(args) {
@@ -22,6 +22,7 @@ export function parseM9SoakGeneratorArguments(args) {
 	let check = false;
 	let mode = 'qualification';
 	let outputPath = null;
+	let specPath = DEFAULT_SPEC_PATH;
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
 		if (argument === '--check') {
@@ -38,16 +39,23 @@ export function parseM9SoakGeneratorArguments(args) {
 			if (outputPath === null) throw new Error('--output requires a path.');
 			continue;
 		}
+		if (argument === '--spec') {
+			specPath = args[index += 1] ?? null;
+			if (specPath === null) throw new Error('--spec requires a path.');
+			continue;
+		}
 		throw new Error(`Unknown M9 fixture generator option ${argument}.`);
 	}
 	if (check && outputPath !== null) throw new Error('--check does not write an output artifact.');
 	if (!check && outputPath === null) throw new Error('--output is required unless --check is used.');
-	return Object.freeze({ check, mode, outputPath });
+	return Object.freeze({ check, mode, outputPath, specPath });
 }
 
 export async function runM9SoakGenerator(args = process.argv.slice(2)) {
 	const options = parseM9SoakGeneratorArguments(args);
-	const spec = validateM9SoakSpec(JSON.parse(await readFile(SPEC_URL, 'utf8')));
+	const spec = validateM9SoakSpec(JSON.parse(await readFile(
+		resolve(fileURLToPath(REPOSITORY_ROOT), options.specPath), 'utf8',
+	)));
 	const source = await readFile(new URL(spec.generator.sourcePath, REPOSITORY_ROOT));
 	if (sha256(source) !== spec.generator.sourceSha256) {
 		throw new Error('M9 soak generator source does not match its specification pin.');

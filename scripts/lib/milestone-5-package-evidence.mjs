@@ -27,6 +27,10 @@ import {
 	deepFreeze,
 	exactRecord,
 } from './measurement-admission.mjs';
+import {
+	readProductReleaseLines,
+	resolveProductApplicationVersion,
+} from './product-release-lines.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 const AUDITED_PACKAGE_EVIDENCE = new WeakSet();
@@ -100,12 +104,10 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 	}
 	const sourceRevision = manifest.sourceRevision;
 	validateDesktopRuntimeManifests([{ name: manifestName, value: manifest }]);
-	const projectPackage = parseJson(
-		await readFile(resolve(repositoryRoot, 'package.json')),
-		'project package metadata',
-	);
-	if (projectPackage.version !== applicationVersion) {
-		throw new Error('Milestone 5 staged runtime manifest application version disagrees with the project package.');
+	const releaseLines = await readProductReleaseLines(repositoryRoot);
+	const selectedApplicationVersion = resolveProductApplicationVersion(productId, releaseLines);
+	if (selectedApplicationVersion !== applicationVersion) {
+		throw new Error('Milestone 5 staged runtime manifest application version disagrees with the selected product release line.');
 	}
 
 	const targetInventory = desktopReleaseTargetPackageInventory(

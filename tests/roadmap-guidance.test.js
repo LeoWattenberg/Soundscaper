@@ -59,8 +59,18 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.doesNotMatch(milestoneNine, /\bMIDI\b/iu);
 	assert.match(
 		milestoneNine,
-		/11 dual-product soak runtime cells.*22 real eight-hour\s+runs/isu,
-		'Milestone 9 must distinguish soak cells from product/environment behavior cells',
+		/11 Soundscaper-only soak runtime cells.*22 real eight-hour\s+runs/isu,
+		'Soundscaper admission must distinguish soak cells from native-lab profiles',
+	);
+	assert.match(
+		milestoneNine,
+		/Soundscaper software.*feature-complete.*Framescaper.*deferred.*does not\s+gate/isu,
+		'Milestone 9 must keep software completion separate from external stable admission',
+	);
+	assert.doesNotMatch(
+		milestoneNine,
+		/dual-product soak runtime cells/iu,
+		'Soundscaper Stable 1.0 must not consume the retained dual-product soak campaign',
 	);
 	assert.match(postRelease, /### 8B\. MIDI.*legacy packet identifier.*excluded from stable 1\.0/isu);
 	assert.match(roadmap, /### Frozen closure scope/iu);

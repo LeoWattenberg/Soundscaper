@@ -58,12 +58,20 @@ export async function verifySoundscaperProfessionalReadiness(referenceValue, bin
 	let parsed;
 	try { parsed = JSON.parse(String(first)); }
 	catch { throw new TypeError('The professional production-readiness evidence is not JSON.'); }
-	const evidence = readinessEvidence(parsed, bindings.target);
+	const evidence = normalizeSoundscaperProfessionalReadinessEvidence(parsed, bindings.target);
 	if (!first.equals(Buffer.from(JSON.stringify(evidence)))
-		|| evidence.payload.byteLength !== bindings.payload.byteLength
-		|| evidence.payload.sha256 !== bindings.payload.sha256
-		|| evidence.sourceAuthenticationSha256 !== sha256(Buffer.from(stableJson(bindings.sourceAuthentication)))
-		|| evidence.toolchainIdentity !== bindings.toolchainIdentity) {
+		|| !sameArtifact(evidence.payload, bindings.payload)
+		|| !sameArtifact(evidence.buildCandidate, bindings.buildCandidate)
+		|| !sameArtifact(evidence.deliveryFilesystem, bindings.deliveryFilesystem)
+		|| !sameNullableArtifact(evidence.osAudioCodec, bindings.osAudioCodec)
+		|| evidence.sourceAuthenticationSha256
+			!== soundscaperProfessionalSourceAuthenticationSha256(bindings.sourceAuthentication)
+		|| evidence.toolchainIdentity !== bindings.toolchainIdentity
+		|| evidence.buildProvenance.sourceRevision !== bindings.candidateAuthority?.sourceRevision
+		|| evidence.buildProvenance.buildPlanSha256 !== bindings.candidateAuthority?.buildPlanSha256
+		|| !sameMacSigning(evidence.macSigning, bindings.candidateAuthority?.macSigning)
+		|| evidence.launcher.runtimeClosureSha256
+			!== soundscaperProfessionalRuntimeClosureSha256(bindings.runtimeClosure)) {
 		throw new Error('The signed professional production-readiness evidence is stale or non-canonical.');
 	}
 	const authenticated = deepFreeze({ status: 'authenticated', evidence });
@@ -75,30 +83,67 @@ export function isVerifiedSoundscaperProfessionalReadiness(value) {
 	return !!value && typeof value === 'object' && VERIFIED_READINESS.has(value);
 }
 
+export function assertSoundscaperProfessionalReadinessArtifacts(verified, artifacts) {
+	if (!isVerifiedSoundscaperProfessionalReadiness(verified)) {
+		throw new TypeError('Professional readiness artifact matching requires verified evidence.');
+	}
+	const evidence = verified.evidence;
+	const launcher = evidence.launcher;
+	if (!sameArtifact(evidence.buildCandidate, artifacts?.buildCandidate)
+		|| !sameNullableArtifact(evidence.osAudioCodec, artifacts?.osAudioCodec)
+		|| !sameArtifact(evidence.deliveryFilesystem, artifacts?.deliveryFilesystem)
+		|| launcher.peerPayloadSha256 !== artifacts?.pluginPeer?.sha256
+		|| launcher.launcherPayloadSha256 !== artifacts?.isolation?.launcher?.sha256
+		|| launcher.sandboxProfileSha256 !== artifacts?.isolation?.sandboxProfile?.sha256
+		|| launcher.brokerPolicySha256 !== artifacts?.isolation?.brokerPolicy?.sha256
+		|| launcher.runtimeClosureSha256
+			!== soundscaperProfessionalRuntimeClosureSha256(
+				artifacts?.runtimeClosure ?? artifacts?.isolation?.runtimeClosure,
+			)) {
+		throw new Error('Signed readiness does not bind the exact professional candidate/helper/codec/isolation closure.');
+	}
+	return verified;
+}
+
 export function soundscaperProfessionalRuntimeClosureSha256(value) {
 	if (!Array.isArray(value) || value.length > 128 || value.some((entry) => (
-		!entry || typeof entry !== 'object' || !Number.isSafeInteger(entry.byteLength)
+		!entry || typeof entry !== 'object' || typeof entry.path !== 'string'
+		|| entry.path.length < 1 || entry.path.length > 4096 || entry.path.includes('\0')
+		|| !Number.isSafeInteger(entry.byteLength)
 		|| entry.byteLength < 1 || !digestValue(entry.sha256)
 	))) throw new TypeError('The professional runtime closure is invalid.');
-	const canonical = value.map(({ byteLength, sha256 }) => ({ byteLength, sha256 }))
-		.sort((left, right) => left.sha256.localeCompare(right.sha256) || left.byteLength - right.byteLength);
+	const canonical = value.map(({ path, byteLength, sha256 }) => ({ path, byteLength, sha256 }))
+		.sort((left, right) => left.path.localeCompare(right.path));
+	if (new Set(canonical.map(({ path }) => path)).size !== canonical.length) {
+		throw new TypeError('The professional runtime closure paths are not unique.');
+	}
 	return sha256(Buffer.from(JSON.stringify(canonical)));
 }
 
-function readinessEvidence(value, target) {
+export function soundscaperProfessionalSourceAuthenticationSha256(value) {
+	return sha256(Buffer.from(stableJson(value)));
+}
+
+export function normalizeSoundscaperProfessionalReadinessEvidence(value, target) {
 	const row = closed(value, [
-		'schemaVersion', 'kind', 'target', 'payload', 'sourceAuthenticationSha256',
-		'toolchainIdentity', 'buildProvenance', 'launcher', 'osIsolationAttested',
+		'schemaVersion', 'kind', 'target', 'payload', 'buildCandidate',
+		'deliveryFilesystem', 'osAudioCodec', 'sourceAuthenticationSha256',
+		'toolchainIdentity', 'buildProvenance', 'macSigning', 'launcher', 'osIsolationAttested',
 		'hostilePluginDenialAttested', 'realThirdPartyExecutionAttested', 'reviewedAt', 'reviewer',
 	]);
-	const payload = closed(row.payload, ['byteLength', 'sha256']);
+	const payload = artifactEvidence(row.payload, 'payload');
+	const buildCandidate = artifactEvidence(row.buildCandidate, 'build candidate');
+	const deliveryFilesystem = artifactEvidence(row.deliveryFilesystem, 'delivery filesystem');
+	const osAudioCodec = row.osAudioCodec === null ? null
+		: artifactEvidence(row.osAudioCodec, 'OS audio codec');
 	const build = closed(row.buildProvenance, [
 		'sourceRevision', 'buildPlanSha256', 'nativeHostTreeSha256', 'helperAddonTreeSha256',
 	]);
+	const macSigning = macSigningEvidence(row.macSigning, target);
 	const launcher = launcherEvidence(row.launcher, target);
-	if (row.schemaVersion !== 1 || row.kind !== 'soundscaper-professional-native-production-readiness'
-		|| row.target !== target || !Number.isSafeInteger(payload.byteLength) || Number(payload.byteLength) < 1
-		|| !digestValue(payload.sha256) || !digestValue(row.sourceAuthenticationSha256)
+	if (row.schemaVersion !== 2 || row.kind !== 'soundscaper-professional-native-production-readiness'
+		|| row.target !== target || (target.startsWith('linux-') ? osAudioCodec !== null : osAudioCodec === null)
+		|| !digestValue(row.sourceAuthenticationSha256)
 		|| typeof row.toolchainIdentity !== 'string' || row.toolchainIdentity.length < 3
 		|| row.toolchainIdentity.length > 512 || !REVISION.test(String(build.sourceRevision))
 		|| !digestValue(build.buildPlanSha256) || !digestValue(build.nativeHostTreeSha256)
@@ -108,15 +153,36 @@ function readinessEvidence(value, target) {
 		|| typeof row.reviewer !== 'string' || row.reviewer.length < 3 || row.reviewer.length > 128) {
 		throw new TypeError('Signed professional production-readiness evidence is invalid.');
 	}
-	return deepFreeze({ schemaVersion: 1, kind: row.kind, target,
-		payload: { byteLength: Number(payload.byteLength), sha256: payload.sha256 },
+	return deepFreeze({ schemaVersion: 2, kind: row.kind, target,
+		payload, buildCandidate, deliveryFilesystem, osAudioCodec,
 		sourceAuthenticationSha256: row.sourceAuthenticationSha256,
 		toolchainIdentity: row.toolchainIdentity,
 		buildProvenance: { sourceRevision: build.sourceRevision, buildPlanSha256: build.buildPlanSha256,
 			nativeHostTreeSha256: build.nativeHostTreeSha256, helperAddonTreeSha256: build.helperAddonTreeSha256 },
-		launcher, osIsolationAttested: true, hostilePluginDenialAttested: true,
+		macSigning, launcher, osIsolationAttested: true, hostilePluginDenialAttested: true,
 		realThirdPartyExecutionAttested: true, reviewedAt: row.reviewedAt, reviewer: row.reviewer,
 	});
+}
+
+function macSigningEvidence(value, target) {
+	if (target !== 'mac-arm64') {
+		if (value !== null) throw new TypeError('Only mac-arm64 readiness can bind mac signing.');
+		return null;
+	}
+	const row = closed(value, ['mode', 'identitySha256']);
+	if (row.mode !== 'developer-id' || !digestValue(row.identitySha256)) {
+		throw new TypeError('Stable mac-arm64 readiness requires Developer ID signing evidence.');
+	}
+	return Object.freeze({ mode: 'developer-id', identitySha256: row.identitySha256 });
+}
+
+function artifactEvidence(value, label) {
+	const row = closed(value, ['byteLength', 'sha256']);
+	if (!Number.isSafeInteger(row.byteLength) || row.byteLength < 1
+		|| !digestValue(row.sha256)) {
+		throw new TypeError(`The signed professional ${label} evidence is invalid.`);
+	}
+	return Object.freeze({ byteLength: Number(row.byteLength), sha256: row.sha256 });
 }
 
 function launcherEvidence(value, target) {
@@ -149,6 +215,17 @@ function targetId(value) {
 	return value;
 }
 function digestValue(value) { return typeof value === 'string' && SHA256.test(value); }
+function sameArtifact(left, right) {
+	return !!right && left.byteLength === right.byteLength && left.sha256 === right.sha256;
+}
+function sameNullableArtifact(left, right) {
+	return left === null ? right === null : right !== null && sameArtifact(left, right);
+}
+function sameMacSigning(left, right) {
+	return left === null ? right === null
+		: right !== null && right !== undefined && left.mode === right.mode
+			&& left.identitySha256 === right.identitySha256;
+}
 function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 function stableJson(value) {
 	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;

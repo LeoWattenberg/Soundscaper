@@ -26,9 +26,9 @@ import {
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import FramescaperCaptureRecordControl, {
+	framescaperCaptureRecordRequired,
 	useFramescaperCaptureRecordVisibility,
 } from './FramescaperCaptureRecordControl.tsx';
-import { framescaperCaptureRecordRequired } from '../framescaper-capture-ui-model.ts';
 import { WORKSPACE_TOOLBAR_IDS } from '../workspace/workspace-panel-model.ts';
 import {
 	handleEditorToolbarBlur,

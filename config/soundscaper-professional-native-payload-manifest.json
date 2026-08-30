@@ -14,6 +14,11 @@
 		"protocol": "M5F1",
 		"license": "AGPL-3.0-only"
 	},
+	"deliveryFilesystem": {
+		"payloadName": "soundscaper_delivery_fs",
+		"protocol": "SDF1",
+		"license": "AGPL-3.0-only"
+	},
 	"isolation": {
 		"launcherName": "milestone5-native-isolation-launcher",
 		"profileName": "native-isolation-profile-v1.json",
@@ -32,8 +37,11 @@
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
+			"buildCandidate": null,
 			"payload": null,
+			"osAudioCodec": null,
 			"pluginPeer": null,
+			"deliveryFilesystem": null,
 			"isolation": null
 		},
 		{
@@ -43,8 +51,11 @@
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
+			"buildCandidate": null,
 			"payload": null,
+			"osAudioCodec": null,
 			"pluginPeer": null,
+			"deliveryFilesystem": null,
 			"isolation": null
 		},
 		{
@@ -54,8 +65,11 @@
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
+			"buildCandidate": null,
 			"payload": null,
+			"osAudioCodec": null,
 			"pluginPeer": null,
+			"deliveryFilesystem": null,
 			"isolation": null
 		},
 		{
@@ -65,8 +79,11 @@
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
+			"buildCandidate": null,
 			"payload": null,
+			"osAudioCodec": null,
 			"pluginPeer": null,
+			"deliveryFilesystem": null,
 			"isolation": null
 		},
 		{
@@ -76,8 +93,11 @@
 			"toolchainIdentity": null,
 			"sourceAuthentication": null,
 			"productionReadiness": null,
+			"buildCandidate": null,
 			"payload": null,
+			"osAudioCodec": null,
 			"pluginPeer": null,
+			"deliveryFilesystem": null,
 			"isolation": null
 		}
 	]

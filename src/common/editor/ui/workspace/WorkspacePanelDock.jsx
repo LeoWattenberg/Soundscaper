@@ -5,7 +5,7 @@ import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui
 import {
 	workspacePanelAvailable,
 	workspacePanelRestoresCaptureFocus,
-} from '../framescaper-capture-ui-model.ts';
+} from './workspace-product-panel-runtime.ts';
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,

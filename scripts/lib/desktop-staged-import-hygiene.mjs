@@ -12,16 +12,28 @@
  * second is an import of a compiled runtime member that the runtime compile
  * never produced — `./project-library-runtime/desktop/thing.js` is only real
  * when `tsconfig.desktop-runtime.json` includes its source, and a raw member is
- * not part of the program that pulls sources in transitively. Both refuse
- * staging here so the break is a packaging error rather than a shipped binary
- * whose main process dies on `ERR_MODULE_NOT_FOUND`.
+ * not part of the program that pulls sources in transitively. The third is a
+ * bare dependency import: production deliberately ships no `node_modules`, so
+ * those dependencies must have been bundled into their owning runtime leaf.
+ * All three refuse staging here so the break is a packaging error rather than
+ * a shipped binary whose main process dies on `ERR_MODULE_NOT_FOUND`.
  */
 
 import { readdir, readFile } from 'node:fs/promises';
+import { builtinModules } from 'node:module';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
-const RELATIVE_SPECIFIER =
-	/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)['"](\.[^'"]*)['"]/gu;
+const MODULE_SPECIFIER =
+	/(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)['"]([^'"]*)['"]/gu;
+const NODE_BUILTINS = new Set(builtinModules.map((name) => name.replace(/^node:/u, '')));
+
+function isPackagedRuntimeSpecifier(specifier) {
+	return specifier.startsWith('.')
+		|| NODE_BUILTINS.has(specifier.replace(/^node:/u, ''))
+		|| specifier === 'electron'
+		|| specifier.startsWith('electron/')
+		|| specifier.startsWith('#desktop-runtime/');
+}
 
 /** Refuses a staged tree whose own members import something staging never produced. */
 export async function assertStagedDesktopImportsResolve(applicationRoot) {
@@ -32,7 +44,13 @@ export async function assertStagedDesktopImportsResolve(applicationRoot) {
 		if (!/\.[cm]?js$/u.test(name)) continue;
 		const source = await readFile(join(root, name), 'utf8');
 		assertNoTypeScriptImportSpecifiers(`Staged desktop source ${name}`, source);
-		for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {
+		for (const [, specifier] of source.matchAll(MODULE_SPECIFIER)) {
+			if (!isPackagedRuntimeSpecifier(specifier)) {
+				throw new Error(
+					`Staged desktop source ${name} retained unpackaged dependency ${specifier}`,
+				);
+			}
+			if (!specifier.startsWith('.')) continue;
 			// Bundler-only specifiers carry a `?worker&url`-style query the file
 			// system never sees; the module they name is what has to be there.
 			const path = specifier.replace(/[?#].*$/u, '');

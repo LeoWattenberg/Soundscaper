@@ -98,7 +98,7 @@
 			"license": "MIT",
 			"direct": true,
 			"role": "application-runtime",
-			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer", "electron-shell"],
 			"noticeMarker": "`@noble/hashes` 2.2.0",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
 		},

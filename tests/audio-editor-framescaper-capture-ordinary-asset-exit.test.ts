@@ -16,7 +16,7 @@ import {
 	type FramescaperCaptureDurableSession,
 } from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
 import type { AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
-import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import type {
 	LinkedVideoOriginalPort,
 } from '../src/common/editor/storage/linked-video-original-resolver.ts';
@@ -121,6 +121,10 @@ test('capture-published assets traverse ordinary relink, edit, Scape, and delive
 	assert.equal(inspection.schemaVersion, 1);
 	assert.equal(inspection.readOnly, false);
 
+	// The product store has one authenticated storage profile. Retire the sender
+	// before opening the recipient so this is a genuine empty-store import.
+	await fixture.store.clear();
+	await fixture.store.close();
 	const recipient = createFramescaperProjectStore(PROFILE, {
 		indexedDB: null,
 		preferOpfs: false,
@@ -208,13 +212,18 @@ async function publishCapture(context: TestContext): Promise<CaptureExitFixture>
 		},
 		release: () => true,
 	};
-	const store = createProjectStore({
+	const store = createFramescaperProjectStore(PROFILE, {
 		indexedDB: null,
 		preferOpfs: false,
-		databaseName: `capture-ordinary-exit-${Date.now()}-${Math.random()}`,
 		linkedVideoOriginalPort,
 	});
 	context.after(async () => { await store.close(); });
+	const encodedSpools = store.encodedCaptureSpoolRepository;
+	const rawPcmSpools = store.rawPcmSpoolRepository;
+	const manifests = store.framescaperCaptureManifestRepository;
+	assert.ok(encodedSpools);
+	assert.ok(rawPcmSpools);
+	assert.ok(manifests);
 	let project = createFramescaperProject(PROFILE, {
 		id: PROJECT_ID,
 		title: 'Capture ordinary exit',
@@ -224,9 +233,9 @@ async function publishCapture(context: TestContext): Promise<CaptureExitFixture>
 		primarySequenceId: 'main-sequence',
 	}) as CaptureProject;
 	const coordinator = createFramescaperCaptureDurableSessionCoordinator({
-		encodedSpools: store.encodedCaptureSpoolRepository,
-		rawPcmSpools: store.rawPcmSpoolRepository,
-		manifests: store.framescaperCaptureManifestRepository,
+		encodedSpools,
+		rawPcmSpools,
+		manifests,
 		now: () => 100,
 	});
 	const session = await coordinator.create({
@@ -252,9 +261,9 @@ async function publishCapture(context: TestContext): Promise<CaptureExitFixture>
 	await session.seal();
 	const service = createFramescaperCaptureCanonicalPublicationService({
 		store: captureStore(store),
-		manifests: store.framescaperCaptureManifestRepository,
-		encodedSpools: store.encodedCaptureSpoolRepository,
-		rawPcmSpools: store.rawPcmSpoolRepository,
+		manifests,
+		encodedSpools,
+		rawPcmSpools,
 		probeVideo: () => ({
 			backend: 'ordinary-exit-test-probe', nominalRate: { num: 2, den: 1 },
 			timing: VIDEO_TIMING, width: 640, height: 480,

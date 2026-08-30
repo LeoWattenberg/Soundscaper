@@ -18,6 +18,9 @@ import {
 	validateDesktopPackageSpecificResources,
 } from './desktop-package-format-layout.mjs';
 import { assertProfessionalNativeBuiltClosure } from './desktop-package-professional-closure.mjs';
+import {
+	assertDesktopProfessionalNativeNoticeClosure,
+} from './soundscaper-professional-native-notices.mjs';
 export const DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME = 'milestone-5-package-content.json';
 
 const PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
@@ -33,7 +36,7 @@ export async function writeDesktopPackageContentManifest({
 	runtimeManifestPath,
 	productId,
 	targetId,
-}) {
+}, dependencies = {}) {
 	identity(productId, targetId);
 	const root = await canonicalDirectory(resourcesRoot, 'desktop packaged resources root');
 	const manifestPath = directPath(root, DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME, 'package-content manifest');
@@ -43,7 +46,7 @@ export async function writeDesktopPackageContentManifest({
 	const runtimeManifest = canonicalJson(runtimeManifestBytes, 'desktop runtime manifest');
 	validateRuntimeManifest(runtimeManifest, productId, targetId);
 	const files = await collectClosure(root, [DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME]);
-	assertRuntimePayloadClosure(runtimeManifest, files);
+	assertRuntimePayloadClosure(runtimeManifest, files, dependencies);
 	const closureSha256 = digest(Buffer.from(JSON.stringify(files), 'utf8'));
 	const value = {
 		schemaVersion: 1,
@@ -117,7 +120,7 @@ export async function auditExtractedDesktopPackageContent({
 		DESKTOP_PACKAGE_CONTENT_MANIFEST_NAME,
 		...packageResourceExclusions,
 	]);
-	assertRuntimePayloadClosure(adjacent, files);
+	assertRuntimePayloadClosure(adjacent, files, dependencies);
 	if (JSON.stringify(files) !== JSON.stringify(content.files)
 		|| content.fileCount !== files.length
 		|| content.totalBytes !== files.reduce((total, file) => total + file.byteLength, 0)
@@ -197,7 +200,7 @@ async function collectInstalledClosure(root) {
 	return files;
 }
 
-function assertRuntimePayloadClosure(runtime, files) {
+function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
 	const inventory = new Map(files.map((file) => [file.path, file]));
 	const expectedByPrefix = new Map();
 	const requireFile = (path, descriptor, label, prefix = null) => {
@@ -236,35 +239,43 @@ function assertRuntimePayloadClosure(runtime, files) {
 		throw new Error(`The installed desktop resource closure contains forbidden bundled FFmpeg/libav content: ${forbiddenCodecPayloads.join(', ')}.`);
 	}
 
+	const nativeTarget = `${runtime.target.platform}-${runtime.target.arch}`;
+	const nativePrefix = `runtime/native/${nativeTarget}/`;
 	const native = runtime.nativeAddons;
-	if (!plainRecord(native) || native.target !== `${runtime.target.platform}-${runtime.target.arch}`
-		|| !plainRecord(native.payloadManifest)) {
-		throw new Error('The desktop runtime manifest has no exact native-addon content authority.');
-	}
-	const nativePrefix = `runtime/native/${native.target}/`;
-	const nativeManifestPath = `${nativePrefix}native-addon-payload-manifest.json`;
-	const nativeManifest = inventory.get(nativeManifestPath);
-	if (!nativeManifest || nativeManifest.sha256 !== native.payloadManifest.sha256) {
-		throw new Error('The installed desktop resource closure has the wrong native-addon manifest.');
-	}
-	expectedByPrefix.set(nativePrefix, new Set([nativeManifestPath]));
-	if (native.status === 'built') {
-		requireFile(`${nativePrefix}${native.payload?.name}`, native.payload,
-			'native-addon payload', nativePrefix);
-	} else if (native.status !== 'pending-external' || native.payload !== null) {
-		throw new Error('The desktop runtime manifest has invalid native-addon target state.');
+	if (stableSoundscaperRuntime(runtime)) {
+		if (native !== null) {
+			throw new Error('Stable Soundscaper retains the legacy native-addon development fixture.');
+		}
+		expectedByPrefix.set(nativePrefix, new Set());
+	} else {
+		if (!plainRecord(native) || native.target !== nativeTarget
+			|| !plainRecord(native.payloadManifest)) {
+			throw new Error('The desktop runtime manifest has no exact native-addon content authority.');
+		}
+		const nativeManifestPath = `${nativePrefix}native-addon-payload-manifest.json`;
+		const nativeManifest = inventory.get(nativeManifestPath);
+		if (!nativeManifest || nativeManifest.sha256 !== native.payloadManifest.sha256) {
+			throw new Error('The installed desktop resource closure has the wrong native-addon manifest.');
+		}
+		expectedByPrefix.set(nativePrefix, new Set([nativeManifestPath]));
+		if (native.status === 'built') {
+			requireFile(`${nativePrefix}${native.payload?.name}`, native.payload,
+				'native-addon payload', nativePrefix);
+		} else if (native.status !== 'pending-external' || native.payload !== null) {
+			throw new Error('The desktop runtime manifest has invalid native-addon target state.');
+		}
 	}
 	assertDesktopPackageOsAudioCodecClosure({
-		runtime, target: native.target, requireFile, expectedByPrefix,
+		runtime, target: nativeTarget, requireFile, expectedByPrefix,
 	});
 
 	const professional = runtime.soundscaperProfessionalNative;
 	if (runtime.productId === 'soundscaper') {
-		if (!plainRecord(professional) || professional.target !== native.target
+		if (!plainRecord(professional) || professional.target !== nativeTarget
 			|| !plainRecord(professional.payloadManifest)) {
 			throw new Error('The desktop runtime manifest has no professional native payload authority.');
 		}
-		const professionalPrefix = `runtime/native/soundscaper-professional-host/${native.target}/`;
+		const professionalPrefix = `runtime/native/soundscaper-professional-host/${nativeTarget}/`;
 		const professionalManifestPath = `${professionalPrefix}soundscaper-professional-native-payload-manifest.json`;
 		requireFile(professionalManifestPath, professional.payloadManifest,
 			'professional native payload manifest', professionalPrefix);
@@ -276,7 +287,7 @@ function assertRuntimePayloadClosure(runtime, files) {
 			requireFile(`${professionalPrefix}${professional.payload?.name}`, professional.payload,
 				'professional native payload', professionalPrefix);
 			assertProfessionalNativeBuiltClosure({
-				professional, target: native.target, prefix: professionalPrefix, requireFile,
+				professional, target: nativeTarget, prefix: professionalPrefix, requireFile,
 			});
 		} else if (professional.status !== 'pending-external' || professional.payload !== null) {
 			throw new Error('The desktop runtime manifest has invalid professional native target state.');
@@ -284,9 +295,12 @@ function assertRuntimePayloadClosure(runtime, files) {
 	} else if (professional !== null && professional !== undefined) {
 		throw new Error('The Framescaper runtime manifest carries Soundscaper professional native authority.');
 	}
+	assertDesktopProfessionalNativeNoticeClosure({
+		runtime, professional, target: nativeTarget, requireFile, expectedByPrefix,
+	}, dependencies.professionalNativeNoticeAuthorities);
 
 	assertAssistanceNativeRuntimeClosure({
-		assistance: runtime.assistanceNativeRuntime, target: native.target, requireFile,
+		assistance: runtime.assistanceNativeRuntime, target: nativeTarget, requireFile,
 	});
 	if (runtime.productId === 'framescaper') {
 		const hosts = runtime.framescaperNativeHosts;
@@ -479,6 +493,12 @@ function validateRuntimeManifest(value, productId, targetId) {
 		|| (value.sourceRevision !== null && !SOURCE_REVISION.test(String(value.sourceRevision)))) {
 		throw new Error('The desktop runtime manifest has invalid package identity.');
 	}
+}
+
+function stableSoundscaperRuntime(value) {
+	return value.productId === 'soundscaper'
+		&& value.applicationVersionChannel === 'stable'
+		&& value.releaseChannel === 'stable';
 }
 
 function canonicalJson(bytes, label) {

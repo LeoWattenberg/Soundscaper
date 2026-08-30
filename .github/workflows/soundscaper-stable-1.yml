@@ -1,0 +1,719 @@
+name: Soundscaper Stable 1
+on:
+  push:
+    tags:
+      - 'v1.0.0'
+permissions: {}
+concurrency: { group: soundscaper-stable-1, cancel-in-progress: false }
+jobs:
+  admission:
+    name: Admit the exact Stable 1 release
+    outputs:
+      candidate_commit_sha: ${{ steps.bind-candidate.outputs.candidate_commit_sha }}
+      candidate_tree_sha: ${{ steps.bind-candidate.outputs.candidate_tree_sha }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out the tagged source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+      - name: Require the declared admitted Soundscaper stable tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          node --input-type=module -e
+          "import { readProductReleaseLinesSync, resolveProductReleaseTag }
+          from './scripts/lib/product-release-lines.mjs';
+          const release = resolveProductReleaseTag(process.env.RELEASE_TAG,
+          readProductReleaseLinesSync());
+          if (release.productId !== 'soundscaper' || release.channel !== 'stable'
+          || release.version !== '1.0.0') throw new Error('The tag is not the admitted Soundscaper Stable 1 line');"
+      - name: Require the complete Soundscaper Stable 1 admission record
+        run: |
+          mkdir -p release/evidence
+          npm run release:soundscaper:stable-1:admission:json \
+            | tee release/evidence/soundscaper-stable-1-admission.json
+      - name: Bind all Stable 1 source to the exact admitted candidate tree
+        id: bind-candidate
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          TAGGED_SOURCE_SHA: ${{ github.sha }}
+        run: |
+          tagged_commit_sha="$(git rev-parse --verify "$RELEASE_TAG^{commit}")"
+          tagged_tree_sha="$(git rev-parse "$RELEASE_TAG^{tree}")"
+          test "$tagged_commit_sha" = "$(git rev-parse --verify "$TAGGED_SOURCE_SHA^{commit}")"
+          candidate_commit_sha="$(node -e "const a=require('./release/evidence/soundscaper-stable-1-admission.json'); if(a.admitted!==true)throw Error('not admitted'); process.stdout.write(a.releaseCandidate.commitSha)")"
+          test "$(git rev-parse --verify "$candidate_commit_sha^{commit}")" = "$candidate_commit_sha"
+          candidate_tree_sha="$(git rev-parse "$candidate_commit_sha^{tree}")"
+          echo "candidate_commit_sha=$candidate_commit_sha" >> "$GITHUB_OUTPUT"
+          echo "candidate_tree_sha=$candidate_tree_sha" >> "$GITHUB_OUTPUT"
+          git checkout --detach "$candidate_commit_sha"
+          test "$(git rev-parse HEAD)" = "$candidate_commit_sha" && test "$(git rev-parse HEAD^{tree})" = "$candidate_tree_sha"
+          node scripts/promote-soundscaper-stable-1.mjs \
+            --admission-json release/evidence/soundscaper-stable-1-admission.json \
+            --expected-source-commit "$candidate_commit_sha"
+          git add -- config/product-release-lines.json config/production-capabilities.json \
+            config/production-security-matrix.json config/ffmpeg-runtime-manifest.json \
+            desktop/product.json package.json package-lock.json
+          test -z "$(git diff --name-only)"
+          promoted_tree_sha="$(git write-tree)"
+          test "$promoted_tree_sha" = "$tagged_tree_sha"
+      - name: Install the admitted candidate dependencies
+        run: npm ci
+      - name: Re-run the non-browser source and build gates
+        run: npm run check:static
+        env: { NODE_OPTIONS: --max-old-space-size=8192 }
+      - name: Run the Soundscaper Node shard
+        run: npm test -- --shard=soundscaper
+      - name: Run the common Node shard
+        run: npm test -- --shard=common
+      - name: Build and preflight the Soundscaper Pages release
+        run: npm run build:pages
+        env:
+          SCAPE_PRODUCT: soundscaper
+      - name: Upload the admitted release record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-stable-1-admission
+          path: release/evidence/soundscaper-stable-1-admission.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Upload the preflighted Soundscaper site
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-stable-1-site
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+  professional-source:
+    name: Authenticate Stable professional-native source
+    needs: admission
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the admitted source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+      - name: Install dependencies
+        run: npm ci
+      - name: Provision only the exact Soundscaper professional-native sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          npm run provision:milestone-5-native-sources -- \
+            --root="$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
+            --source electron-node-api-headers \
+            --source juce \
+            --source clap \
+            --source vst3-sdk \
+            --source asio-sdk \
+            --source lv2
+      - name: Re-authenticate the exact six-source cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run provision:milestone-5-native-sources -- --check \
+            --root="$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
+            --source electron-node-api-headers \
+            --source juce \
+            --source clap \
+            --source vst3-sdk \
+            --source asio-sdk \
+            --source lv2
+      - name: Upload the authenticated six-source cache
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-professional-native-source-cache
+          path: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+  package:
+    name: Package Soundscaper / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    needs: [admission, professional-source]
+    permissions:
+      contents: read
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - runner: windows-2025
+            platform: win
+            arch: x64
+            node_arch: x64
+          - runner: windows-11-arm
+            platform: win
+            arch: arm64
+            node_arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            node_arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            node_arch: arm64
+    runs-on: ${{ matrix.target.runner }}
+    env: { SCAPE_PRODUCT: soundscaper }
+    steps:
+      - name: Check out the admitted source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+      - name: Download the authenticated admission JSON
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: soundscaper-stable-1-admission, path: release/evidence }
+      - name: Apply the admitted Stable 1 metadata transition
+        run: >-
+          node scripts/promote-soundscaper-stable-1.mjs --admission-json
+          release/evidence/soundscaper-stable-1-admission.json --expected-source-commit
+          ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Download the authenticated professional-native source cache
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-professional-native-source-cache
+          path: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+      - name: Re-authenticate professional-native notice inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run provision:milestone-5-native-sources -- --check \
+            --root="$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
+            --source electron-node-api-headers \
+            --source juce \
+            --source clap \
+            --source vst3-sdk \
+            --source asio-sdk \
+            --source lv2
+      - name: Require stable Windows signing credentials
+        if: matrix.target.platform == 'win'
+        env:
+          SIGNING_CERTIFICATE: ${{ secrets.SOUNDSCAPER_WINDOWS_SIGNING_CERTIFICATE }}
+          SIGNING_PASSWORD: ${{ secrets.SOUNDSCAPER_WINDOWS_SIGNING_PASSWORD }}
+        run: >-
+          node -e
+          "for (const name of ['SIGNING_CERTIFICATE', 'SIGNING_PASSWORD'])
+          if (!process.env[name]) throw new Error('Missing stable Windows signing credential ' + name);"
+      - name: Require stable macOS signing and notarization credentials
+        if: matrix.target.platform == 'mac'
+        env:
+          SIGNING_CERTIFICATE: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_CERTIFICATE }}
+          SIGNING_PASSWORD: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_PASSWORD }}
+          MAC_SIGNING_IDENTITY: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.SOUNDSCAPER_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.SOUNDSCAPER_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.SOUNDSCAPER_APPLE_TEAM_ID }}
+        run: >-
+          node -e
+          "for (const name of ['SIGNING_CERTIFICATE', 'SIGNING_PASSWORD',
+          'MAC_SIGNING_IDENTITY', 'APPLE_ID', 'APPLE_APP_SPECIFIC_PASSWORD', 'APPLE_TEAM_ID'])
+          if (!process.env[name]) throw new Error('Missing stable macOS credential ' + name);"
+      - name: Import the macOS signing certificate
+        if: matrix.target.platform == 'mac'
+        uses: apple-actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7.0.0
+        with:
+          p12-file-base64: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_CERTIFICATE }}
+          p12-password: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_PASSWORD }}
+      - name: Build the target-native Windows audio codec host
+        if: matrix.target.platform == 'win'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=win
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+      - name: Build the signed target-native macOS audio codec host
+        if: matrix.target.platform == 'mac'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=mac
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+        env:
+          SOUNDSCAPER_MAC_SIGNING_IDENTITY: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_IDENTITY }}
+      - name: Stage the admitted Linux renderer and authenticated runtimes
+        if: matrix.target.platform == 'linux'
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: linux
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ needs.admission.outputs.candidate_commit_sha }}
+          SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE: 'true'
+          SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+      - name: Stage the admitted Windows renderer and authenticated runtimes
+        if: matrix.target.platform == 'win'
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: win
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ needs.admission.outputs.candidate_commit_sha }}
+          SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE: 'true'
+          SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+      - name: Stage the admitted macOS renderer and authenticated runtimes
+        if: matrix.target.platform == 'mac'
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: mac
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ needs.admission.outputs.candidate_commit_sha }}
+          SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE: 'true'
+          SOUNDSCAPER_MAC_SIGNING_IDENTITY: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_IDENTITY }}
+          SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+      - name: Build unsigned Stable 1 Linux packages
+        if: matrix.target.platform == 'linux'
+        run: >-
+          npx electron-builder --config electron-builder.config.cjs
+          --linux --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Build signed Stable 1 Windows packages
+        if: matrix.target.platform == 'win'
+        run: >-
+          npx electron-builder --config electron-builder.config.cjs
+          --win --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_LINK: ${{ secrets.SOUNDSCAPER_WINDOWS_SIGNING_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.SOUNDSCAPER_WINDOWS_SIGNING_PASSWORD }}
+      - name: Build signed and notarized Stable 1 macOS packages
+        if: matrix.target.platform == 'mac'
+        run: >-
+          npx electron-builder --config electron-builder.config.cjs
+          --mac --${{ matrix.target.arch }} --publish never
+        env:
+          SOUNDSCAPER_MAC_SIGNING_IDENTITY: ${{ secrets.SOUNDSCAPER_MAC_SIGNING_IDENTITY }}
+          SOUNDSCAPER_MAC_NOTARIZE: 'true'
+          APPLE_ID: ${{ secrets.SOUNDSCAPER_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.SOUNDSCAPER_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.SOUNDSCAPER_APPLE_TEAM_ID }}
+      - name: Install virtual display for Linux package smoke
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh xvfb
+      - name: Configure Chromium sandbox for Linux package smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TARGET_ARCH: ${{ matrix.target.arch }}
+        run: |
+          case "$TARGET_ARCH" in
+            x64) sandbox_path="release/desktop/linux-unpacked/chrome-sandbox" ;;
+            arm64) sandbox_path="release/desktop/linux-arm64-unpacked/chrome-sandbox" ;;
+            *) exit 1 ;;
+          esac
+          test -f "$sandbox_path" && test ! -L "$sandbox_path"
+          sandbox_path="$(realpath --canonicalize-existing "$sandbox_path")"
+          sudo chown root:root -- "$sandbox_path"
+          sudo chmod 4755 -- "$sandbox_path"
+          test "$(stat --format='%U:%G %a' "$sandbox_path")" = 'root:root 4755'
+      - name: Smoke the hardened Stable 1 package
+        run: npm run desktop:smoke
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
+      - name: Smoke Soundscaper project save and reopen
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        run: npm run desktop:smoke:scape-open
+        env:
+          SOUNDSCAPER_SMOKE_ARCH: x64
+          SOUNDSCAPER_SMOKE_XVFB: 'true'
+      - name: Smoke persistent delivery restart and publication recovery
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        run: npm run desktop:smoke:persistent-delivery-restart
+        env: { SOUNDSCAPER_SMOKE_ARCH: x64, SOUNDSCAPER_SMOKE_XVFB: 'true' }
+      - name: Retain the authenticated runtime manifest
+        shell: bash
+        run: >-
+          cp .desktop-build/stage-manifest.json
+          "release/desktop/runtime-manifest-soundscaper-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
+      - name: Upload the Stable 1 target packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-stable-1-package-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: |
+            release/desktop/*.AppImage
+            release/desktop/*.deb
+            release/desktop/*.dmg
+            release/desktop/*.exe
+            release/desktop/*.zip
+            release/desktop/runtime-manifest-soundscaper-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          if-no-files-found: error
+          retention-days: 90
+  lifecycle:
+    name: Install, upgrade, and rollback / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    needs: [admission, package]
+    permissions:
+      actions: read
+      contents: read
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - runner: windows-2025
+            platform: win
+            arch: x64
+            node_arch: x64
+          - runner: windows-11-arm
+            platform: win
+            arch: arm64
+            node_arch: x64
+          - runner: macos-15
+            platform: mac
+            arch: arm64
+            node_arch: arm64
+          - runner: ubuntu-22.04
+            platform: linux
+            arch: x64
+            node_arch: x64
+          - runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            node_arch: arm64
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out the admitted source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+      - name: Download the exact admitted release record
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-stable-1-admission
+          path: release/evidence
+      - name: Apply the admitted Stable 1 metadata transition
+        run: >-
+          node scripts/promote-soundscaper-stable-1.mjs --admission-json
+          release/evidence/soundscaper-stable-1-admission.json --expected-source-commit
+          ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Install virtual display for Linux lifecycle smoke
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh xvfb
+      - name: Download the Stable 1 target packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-stable-1-package-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: release/stable
+      - name: Download the exact admitted release-candidate packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET_ID: ${{ matrix.target.platform }}-${{ matrix.target.arch }}
+        run: |
+          set -euo pipefail
+          admission_path="release/evidence/soundscaper-stable-1-admission.json"
+          run_id="$(ADMISSION_PATH="$admission_path" node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { validateSoundscaperStable1ReleaseCandidateIdentity } from
+            './scripts/lib/soundscaper-stable-1-release-admission.mjs';
+          const admission = JSON.parse(await readFile(process.env.ADMISSION_PATH, 'utf8'));
+          if (admission.admitted !== true) throw new Error('The Stable 1 admission result is not admitted.');
+          const candidate = validateSoundscaperStable1ReleaseCandidateIdentity(admission.releaseCandidate);
+          process.stdout.write(String(candidate.desktopPreviewWorkflowRunId));
+          NODE
+          )"
+          run_record="${{ runner.temp }}/soundscaper-release-candidate-run.json"
+          jobs_record="${{ runner.temp }}/soundscaper-release-candidate-jobs.json"
+          artifacts_record="${{ runner.temp }}/soundscaper-release-candidate-artifacts.json"
+          gh run view "$run_id" \
+            --json databaseId,headSha,headBranch,event,status,conclusion,workflowName > "$run_record"
+          gh api "repos/$GH_REPO/actions/runs/$run_id/jobs" --paginate --slurp > "$jobs_record"
+          gh api "repos/$GH_REPO/actions/runs/$run_id/artifacts" --paginate --slurp > "$artifacts_record"
+          RUN_RECORD="$run_record" JOBS_RECORD="$jobs_record" ARTIFACTS_RECORD="$artifacts_record" \
+            ADMISSION_PATH="$admission_path" node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { validateSoundscaperStable1CandidateWorkflowEvidence,
+            validateSoundscaperStable1CandidateWorkflowRun } from
+            './scripts/lib/soundscaper-stable-1-candidate-workflow.mjs';
+          const run = JSON.parse(await readFile(process.env.RUN_RECORD, 'utf8'));
+          const admission = JSON.parse(await readFile(process.env.ADMISSION_PATH, 'utf8'));
+          validateSoundscaperStable1CandidateWorkflowRun(run, admission.releaseCandidate);
+          const jobs = JSON.parse(await readFile(process.env.JOBS_RECORD, 'utf8')).flatMap(p => p.jobs);
+          const artifacts = JSON.parse(await readFile(process.env.ARTIFACTS_RECORD, 'utf8'))
+            .flatMap(p => p.artifacts);
+          validateSoundscaperStable1CandidateWorkflowEvidence({ jobs, artifacts }, admission.releaseCandidate);
+          NODE
+          mkdir -p release/candidate-inventory release/candidate
+          gh run download "$run_id" --name release-inventory --dir release/candidate-inventory
+          gh run download "$run_id" --name "nightly-soundscaper-$TARGET_ID" --dir release/candidate
+          ADMISSION_PATH="$admission_path" TARGET_ID="$TARGET_ID" node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          import { authenticateSoundscaperStable1CandidateArtifact } from
+            './scripts/lib/soundscaper-stable-1-release-admission.mjs';
+          const admission = JSON.parse(await readFile(process.env.ADMISSION_PATH, 'utf8'));
+          await authenticateSoundscaperStable1CandidateArtifact({
+            candidate: admission.releaseCandidate,
+            targetId: process.env.TARGET_ID,
+            inventoryPath: 'release/candidate-inventory/SHA256SUMS',
+            artifactRoot: 'release/candidate',
+          });
+          NODE
+      - name: Exercise candidate install, Stable 1 upgrade, and candidate rollback
+        run: >-
+          node --import tsx scripts/soundscaper-stable-lifecycle-smoke.mjs
+          --candidate-root="${{ github.workspace }}/release/candidate"
+          --stable-root="${{ github.workspace }}/release/stable"
+          --target=${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          --output="${{ runner.temp }}/soundscaper-stable-lifecycle-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
+        env:
+          GITHUB_ACTIONS: 'true'
+          SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
+      - name: Upload install and rollback evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-stable-lifecycle-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/soundscaper-stable-lifecycle-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          if-no-files-found: error
+          retention-days: 90
+  assemble:
+    name: Assemble the exact Stable 1 release
+    needs: [admission, professional-source, package, lifecycle]
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the admitted source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+      - name: Download the authenticated admission JSON
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with: { name: soundscaper-stable-1-admission, path: release/evidence }
+      - name: Apply the admitted Stable 1 metadata transition
+        run: >-
+          node scripts/promote-soundscaper-stable-1.mjs --admission-json
+          release/evidence/soundscaper-stable-1-admission.json --expected-source-commit
+          ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Install dependencies and package inspectors
+        run: npm ci
+      - name: Download the authenticated professional-native source cache
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-professional-native-source-cache
+          path: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+      - name: Re-authenticate professional-native release-source inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run provision:milestone-5-native-sources -- --check \
+            --root="$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
+            --source electron-node-api-headers \
+            --source juce \
+            --source clap \
+            --source vst3-sdk \
+            --source asio-sdk \
+            --source lv2
+      - name: Download exactly the five Stable 1 package artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: soundscaper-stable-1-package-*
+          path: release/desktop
+          merge-multiple: true
+      - name: Remove lifecycle evidence before exact package admission
+        run: find release/desktop -maxdepth 1 -type f -name 'soundscaper-stable-lifecycle-*.json' -delete
+      - name: Require nine packages and five runtime manifests, then gather notices and source
+        run: >-
+          npm run desktop:release-assets -- --product soundscaper
+          --admission-profile soundscaper-stable-1
+        env:
+          SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ runner.temp }}/soundscaper-professional-native-source-cache
+      - name: Require the assembled license, notices, and initial checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f release/desktop/Soundscaper-AGPL-3.0.txt
+          test -f release/desktop/THIRD_PARTY_LICENSES.md
+          test -f release/desktop/Soundscaper-professional-native-compliance.json
+          test -f release/desktop/SHA256SUMS
+          test "$(find release/desktop -maxdepth 1 -type f -name 'Soundscaper-professional-native-source-*' | wc -l)" -eq 6
+          ! find release/desktop -maxdepth 1 -type f \
+            \( -iname '*x264*' -o -iname '*x265*' -o -iname '*libvpx*' -o -iname '*libopus*' \) \
+            -print -quit | grep -q .
+      - name: Download all five lifecycle evidence records
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: soundscaper-stable-lifecycle-*
+          path: release/desktop
+          merge-multiple: true
+      - name: Add the authenticated admission JSON
+        run: cp release/evidence/soundscaper-stable-1-admission.json release/desktop/soundscaper-stable-1-admission.json
+      - name: Add the exact admitted candidate tree with its metadata transition
+        shell: bash
+        run: |
+          git add -- config/product-release-lines.json config/production-capabilities.json config/production-security-matrix.json config/ffmpeg-runtime-manifest.json desktop/product.json package.json package-lock.json
+          promoted_tree="$(git write-tree)"
+          git archive --format=tar.gz --prefix=Soundscaper-1.0.0-source/ \
+            --output=release/desktop/Soundscaper-1.0.0-source.tar.gz "$promoted_tree"
+      - name: Recompute and verify the complete release checksums
+        shell: bash
+        run: |
+          checksum_file="${{ runner.temp }}/SHA256SUMS"
+          find release/desktop -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\0' \
+            | LC_ALL=C sort -z \
+            | xargs -0 -I{} sha256sum "release/desktop/{}" \
+            | sed 's#  release/desktop/#  #' > "$checksum_file"
+          mv "$checksum_file" release/desktop/SHA256SUMS
+          cd release/desktop
+          sha256sum --check SHA256SUMS
+      - name: Upload the complete Stable 1 release inventory
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-stable-1-release
+          path: release/desktop/
+          if-no-files-found: error
+          retention-days: 90
+  draft-release:
+    name: Create the gated GitHub release draft
+    needs: assemble
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Download the complete release inventory
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-stable-1-release
+          path: release/desktop
+      - name: Create the immutable Stable 1 release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" release/desktop/*
+          --draft --verify-tag --title "Soundscaper 1.0.0" --generate-notes
+  deploy-web:
+    name: Deploy the admitted Soundscaper web release
+    needs: [admission, assemble, draft-release]
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Check out the admitted source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ needs.admission.outputs.candidate_commit_sha }}
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+      - name: Install dependencies
+        run: npm ci
+      - name: Download the preflighted Soundscaper site
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-stable-1-site
+          path: dist
+      - name: Deploy Soundscaper Stable 1 to Pages
+        run: npx wrangler pages deploy dist --project-name=soundscaper --branch=main | tee pages-deployment.log
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SCAPE_PRODUCT: soundscaper
+      - name: Verify the live Soundscaper deployment
+        run: npm run verify:pages
+        env:
+          SCAPE_PRODUCT: soundscaper
+          SCAPE_DEPLOY_EXPECTED_OFFLINE_SHELL: dist/offline-shell.json
+          SCAPE_DEPLOY_IDENTITY_EVIDENCE: pages-deployment-identity.json
+      - name: Upload deployment evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: soundscaper-stable-1-pages-deployment
+          path: |
+            pages-deployment.log
+            pages-deployment-identity.json
+          if-no-files-found: error
+          retention-days: 90
+  publish-release:
+    name: Publish Soundscaper 1.0.0
+    needs: deploy-web
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Download deployment evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: soundscaper-stable-1-pages-deployment
+      - name: Bind deployment evidence and publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" pages-deployment.log pages-deployment-identity.json
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest

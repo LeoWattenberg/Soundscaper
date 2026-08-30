@@ -65,6 +65,32 @@ test('staging refuses a desktop tree that imports a runtime member staging never
 		'a dangling runtime member must fail staging rather than reach a package');
 });
 
+test('staging refuses bare package imports excluded from the desktop asar', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'scape-asar-package-import-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const applicationRoot = join(temporaryRoot, 'desktop');
+	await mkdir(applicationRoot, { recursive: true });
+	await writeFile(join(applicationRoot, 'main.mjs'), [
+		"import { app } from 'electron';",
+		"import { createHash } from 'node:crypto';",
+		"import { helper } from '#desktop-runtime/helper-contract';",
+		'export const admitted = { app, createHash, helper };',
+		'',
+	].join('\n'));
+	await assertStagedDesktopImportsResolve(applicationRoot);
+
+	await writeFile(join(applicationRoot, 'main.mjs'), [
+		"import { sha256 } from '@noble/hashes/sha2.js';",
+		'export { sha256 };',
+		'',
+	].join('\n'));
+	await assert.rejects(
+		() => assertStagedDesktopImportsResolve(applicationRoot),
+		/@noble\/hashes\/sha2\.js/u,
+		'a dependency excluded by electron-builder must be bundled before it can reach the asar',
+	);
+});
+
 async function listFilesRecursively(root, relativeRoot = '') {
 	const entries = await readdir(join(root, relativeRoot), { withFileTypes: true });
 	const files = [];

@@ -1,11 +1,18 @@
 // @ts-check
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 import { chunkGroups, workerChunkGroups } from './scripts/lib/build-chunk-groups.mjs';
+import {
+	emitDesktopRendererProductPublicAssets,
+	enforceDesktopRendererProductIsolation,
+} from './scripts/lib/desktop-renderer-product-isolation.mjs';
+import {
+	readProductReleaseLinesSync,
+	resolveProductApplicationVersion,
+} from './scripts/lib/product-release-lines.mjs';
 import { enforceStartupGraphBudgets } from './scripts/lib/startup-graph-budget.mjs';
 import scopeAudacityDesignSystemCss, {
 	getScopedDesignSystemFiles,
@@ -17,7 +24,9 @@ import { createPffftNodeModuleBrowserShim } from './scripts/vite-pffft-browser-s
 import { PRODUCT_IDS, normalizeProductId } from './src/common/product-identities.js';
 
 const productId = resolveBuiltProductId(process.env.SCAPE_PRODUCT);
-const applicationVersion = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
+const applicationVersion = resolveProductApplicationVersion(
+	productId, readProductReleaseLinesSync(import.meta.dirname),
+);
 const vendoredDesignSystem = resolve(import.meta.dirname, 'vendor/audacity-design-system');
 const desktopCodecComposition = process.env.SCAPE_DESKTOP_CODEC_RUNTIME === 'main-process';
 
@@ -76,18 +85,113 @@ function assertDesignSystemCssScoped() {
 }
 export default defineConfig({
 	appType: 'spa',
+	publicDir: productId === 'soundscaper' && desktopCodecComposition ? false : 'public',
 	plugins: [
 		createPffftNodeModuleBrowserShim(),
 		react(),
 		assertDesignSystemCssScoped(),
 		enforceStartupGraphBudgets(productId),
+		...(productId === 'soundscaper' && desktopCodecComposition
+			? [emitDesktopRendererProductPublicAssets(import.meta.dirname, productId)]
+			: []),
+		...(desktopCodecComposition ? [enforceDesktopRendererProductIsolation(productId)] : []),
 	],
 	resolve: {
 		// File-targeted public aliases plus an app-internal deep component alias.
 		// Public deep subpath imports remain unsupported. Mirrored in
 		// tsconfig.base.json "paths" for tsc, editors, and tsx-run node tests.
 		alias: [
+			...(productId === 'soundscaper' ? [
+				{
+					find: /^\.\/framescaper-capture-copy\.js$/u,
+					replacement: resolve(import.meta.dirname, 'src/soundscaper/framescaper-capture-copy.js'),
+				},
+				{
+					find: /^\.\.\/framescaper-(?:finishing-menu|selected-visual-authoring-menu|video-proxy-application-menu)\.ts$/u,
+					replacement: resolve(import.meta.dirname, 'src/soundscaper/editor-framescaper-overlay-model.ts'),
+				},
+				{
+					find: /^\.\/FramescaperCaptureRecordControl\.tsx$/u,
+					replacement: resolve(import.meta.dirname, 'src/soundscaper/editor-capture-toolbar-control.tsx'),
+				},
+				{
+					find: /^\.\/framescaper-video-proxy-pressure\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-video-preview-product-runtime.ts',
+					),
+				},
+				{
+					find: /^\.\/video-preview-(?:external-display|freeze-capture)\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-video-preview-product-runtime.ts',
+					),
+				},
+				{
+					find: /^\.\/application-menu-product-runtime\.js$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-application-menu-product-runtime.js',
+					),
+				},
+				{
+					find: /^\.\/local-assistance-guided-framescaper-acceptance\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/local-assistance-deferred-publication.ts',
+					),
+				},
+				{
+					find: /^\.\.\/\.\.\/\.\.\/framescaper\/editor-local-assistance-(?:reframe|highlight)-publication\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/local-assistance-deferred-publication.ts',
+					),
+				},
+				{
+					find: /^\.\/workspace-product-application-menu-runtime\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-workspace-application-menu-runtime.ts',
+					),
+				},
+				{
+					find: /^\.\/workspace-product-panel-runtime\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-workspace-panel-runtime.ts',
+					),
+				},
+				{
+					find: /^\.\/workspace\/workspace-product-panel-runtime\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-workspace-panel-runtime.ts',
+					),
+				},
+				{
+					find: /^\.\.\/workspace\/workspace-product-panel-runtime\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-workspace-panel-runtime.ts',
+					),
+				},
+			] : []),
 			...(desktopCodecComposition ? [
+				...(productId === 'soundscaper' ? [{
+					find: /^\.\/cross-product-handoff-action-facade\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-foreign-family-runtime.ts',
+					),
+				}, {
+					find: /^\.\.\/transfer\/transfer-page-entry\.ts$/u,
+					replacement: resolve(
+						import.meta.dirname,
+						'src/soundscaper/editor-foreign-family-runtime.ts',
+					),
+				}] : []),
 				{
 					find: /^\.\/editor-codec-runtime\.ts$/u,
 					replacement: resolve(import.meta.dirname, 'src/common/editor/editor-codec-runtime.desktop.ts'),

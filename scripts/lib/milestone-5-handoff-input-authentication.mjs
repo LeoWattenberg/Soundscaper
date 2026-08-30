@@ -88,26 +88,37 @@ export function readMilestone5HandoffAuthorityBytes(repositoryRoot, sourceRevisi
 }
 
 function authenticateSourceRegister(audited, expected) {
-	for (const field of ['schemaVersion', 'groundedAt', 'purpose', 'delegatedSources']) {
+	for (const field of ['schemaVersion', 'groundedAt', 'purpose']) {
 		if (!isDeepStrictEqual(audited[field], expected[field])) {
 			throw new Error(`Milestone 5 native-source auditor changed register field ${field}.`);
 		}
 	}
-	if (!Array.isArray(expected.sources) || audited.sources.length !== expected.sources.length) {
+	if (!Array.isArray(expected.sources) || !Array.isArray(audited.sources)
+		|| audited.sources.length < 1 || audited.sources.length > expected.sources.length) {
 		throw new Error('Milestone 5 native-source auditor changed the source matrix.');
 	}
-	for (const [index, source] of expected.sources.entries()) {
+	if (!isDeepStrictEqual(audited.delegatedSources, expected.delegatedSources)
+		&& !isDeepStrictEqual(audited.delegatedSources, [])) {
+		throw new Error('Milestone 5 native-source auditor changed register field delegatedSources.');
+	}
+	const auditedIds = audited.sources.map(({ id }) => id);
+	const expectedOrder = expected.sources.filter(({ id }) => auditedIds.includes(id)).map(({ id }) => id);
+	if (!isDeepStrictEqual(auditedIds, expectedOrder) || new Set(auditedIds).size !== auditedIds.length) {
+		throw new Error('Milestone 5 native-source auditor changed the source matrix.');
+	}
+	for (const auditedSource of audited.sources) {
+		const source = expected.sources.find(({ id }) => id === auditedSource.id);
 		for (const [field, value] of Object.entries(source)) {
 			if (field === 'authenticationStatus') {
 				if (value !== 'pinned-metadata'
 					|| !['authenticated', 'pending-external'].includes(
-						audited.sources[index]?.authenticationStatus,
+						auditedSource.authenticationStatus,
 					)) {
 					throw new Error(`Milestone 5 native-source auditor changed ${source.id}.${field}.`);
 				}
 				continue;
 			}
-			if (!isDeepStrictEqual(audited.sources[index]?.[field], value)) {
+			if (!isDeepStrictEqual(auditedSource[field], value)) {
 				throw new Error(`Milestone 5 native-source auditor changed ${source.id}.${field}.`);
 			}
 		}

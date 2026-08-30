@@ -1,0 +1,129 @@
+{
+	"schemaVersion": 1,
+	"matrixId": "soundscaper-stable-1-browser-five-desktop-native-v1",
+	"productId": "soundscaper",
+	"releaseVersion": "1.0.0",
+	"soakCellSetId": "release-runtime",
+	"cells": [
+		{ "id": "soundscaper-browser-chromium-current", "kind": "browser", "platformId": null, "productId": "soundscaper", "versionBand": "current" },
+		{ "id": "soundscaper-browser-chromium-previous", "kind": "browser", "platformId": null, "productId": "soundscaper", "versionBand": "previous" },
+		{ "id": "soundscaper-browser-firefox-current", "kind": "browser", "platformId": null, "productId": "soundscaper", "versionBand": "current" },
+		{ "id": "soundscaper-browser-firefox-previous", "kind": "browser", "platformId": null, "productId": "soundscaper", "versionBand": "previous" },
+		{ "id": "soundscaper-browser-safari-current", "kind": "browser", "platformId": "macosArm64", "productId": "soundscaper", "versionBand": "current" },
+		{ "id": "soundscaper-browser-safari-previous", "kind": "browser", "platformId": "macosArm64", "productId": "soundscaper", "versionBand": "previous" },
+		{ "id": "soundscaper-desktop-windows-x64", "kind": "desktop", "platformId": "windowsX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-desktop-windows-arm64", "kind": "desktop", "platformId": "windowsArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-desktop-macos-arm64", "kind": "desktop", "platformId": "macosArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-desktop-linux-x64", "kind": "desktop", "platformId": "linuxX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-desktop-linux-arm64", "kind": "desktop", "platformId": "linuxArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-windows-x64-wasapi-shared", "kind": "native-profile", "platformId": "windowsX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-windows-x64-wasapi-exclusive", "kind": "native-profile", "platformId": "windowsX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-windows-x64-asio", "kind": "native-profile", "platformId": "windowsX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-windows-arm64-wasapi-shared", "kind": "native-profile", "platformId": "windowsArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-windows-arm64-wasapi-exclusive", "kind": "native-profile", "platformId": "windowsArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-windows-arm64-asio", "kind": "native-profile", "platformId": "windowsArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-macos-arm64-coreaudio", "kind": "native-profile", "platformId": "macosArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-linux-x64-pipewire", "kind": "native-profile", "platformId": "linuxX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-linux-x64-alsa", "kind": "native-profile", "platformId": "linuxX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-linux-arm64-pipewire", "kind": "native-profile", "platformId": "linuxArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-linux-arm64-alsa", "kind": "native-profile", "platformId": "linuxArm64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-delivery-fixed-rtx3090", "kind": "fixed-qualification-profile", "platformId": "windowsX64", "productId": "soundscaper", "versionBand": null },
+		{ "id": "soundscaper-campaign-review", "kind": "review", "platformId": null, "productId": "soundscaper", "versionBand": null }
+	],
+	"cellSets": [
+		{
+			"id": "browser",
+			"cellIds": [
+				"soundscaper-browser-chromium-current", "soundscaper-browser-chromium-previous",
+				"soundscaper-browser-firefox-current", "soundscaper-browser-firefox-previous",
+				"soundscaper-browser-safari-current", "soundscaper-browser-safari-previous"
+			]
+		},
+		{
+			"id": "safari",
+			"cellIds": ["soundscaper-browser-safari-current", "soundscaper-browser-safari-previous"]
+		},
+		{
+			"id": "desktop",
+			"cellIds": [
+				"soundscaper-desktop-windows-x64", "soundscaper-desktop-windows-arm64",
+				"soundscaper-desktop-macos-arm64", "soundscaper-desktop-linux-x64",
+				"soundscaper-desktop-linux-arm64"
+			]
+		},
+		{
+			"id": "windows-desktop",
+			"cellIds": ["soundscaper-desktop-windows-x64", "soundscaper-desktop-windows-arm64"]
+		},
+		{
+			"id": "release-runtime",
+			"cellIds": [
+				"soundscaper-browser-chromium-current", "soundscaper-browser-chromium-previous",
+				"soundscaper-browser-firefox-current", "soundscaper-browser-firefox-previous",
+				"soundscaper-browser-safari-current", "soundscaper-browser-safari-previous",
+				"soundscaper-desktop-windows-x64", "soundscaper-desktop-windows-arm64",
+				"soundscaper-desktop-macos-arm64", "soundscaper-desktop-linux-x64",
+				"soundscaper-desktop-linux-arm64"
+			]
+		},
+		{
+			"id": "soundscaper-native",
+			"cellIds": [
+				"soundscaper-windows-x64-wasapi-shared", "soundscaper-windows-x64-wasapi-exclusive",
+				"soundscaper-windows-x64-asio", "soundscaper-windows-arm64-wasapi-shared",
+				"soundscaper-windows-arm64-wasapi-exclusive", "soundscaper-windows-arm64-asio",
+				"soundscaper-macos-arm64-coreaudio", "soundscaper-linux-x64-pipewire",
+				"soundscaper-linux-x64-alsa", "soundscaper-linux-arm64-pipewire",
+				"soundscaper-linux-arm64-alsa"
+			]
+		},
+		{
+			"id": "soundscaper-mac-windows-native",
+			"cellIds": [
+				"soundscaper-windows-x64-wasapi-shared", "soundscaper-windows-x64-wasapi-exclusive",
+				"soundscaper-windows-x64-asio", "soundscaper-windows-arm64-wasapi-shared",
+				"soundscaper-windows-arm64-wasapi-exclusive", "soundscaper-windows-arm64-asio",
+				"soundscaper-macos-arm64-coreaudio"
+			]
+		},
+		{
+			"id": "delivery",
+			"cellIds": [
+				"soundscaper-delivery-fixed-rtx3090", "soundscaper-windows-x64-wasapi-shared",
+				"soundscaper-windows-x64-wasapi-exclusive", "soundscaper-windows-x64-asio",
+				"soundscaper-windows-arm64-wasapi-shared", "soundscaper-windows-arm64-wasapi-exclusive",
+				"soundscaper-windows-arm64-asio", "soundscaper-macos-arm64-coreaudio",
+				"soundscaper-linux-x64-pipewire", "soundscaper-linux-x64-alsa",
+				"soundscaper-linux-arm64-pipewire", "soundscaper-linux-arm64-alsa"
+			]
+		},
+		{ "id": "fixed-performance", "cellIds": ["soundscaper-delivery-fixed-rtx3090"] },
+		{ "id": "campaign", "cellIds": ["soundscaper-campaign-review"] }
+	],
+	"defaultCellSetByPrefix": {
+		"SB": "browser",
+		"SD": "desktop",
+		"SW": "windows-desktop",
+		"SN": "soundscaper-native",
+		"SDL": "delivery",
+		"LA": "desktop",
+		"REL": "release-runtime",
+		"GAT": "campaign"
+	},
+	"overrides": [
+		{ "checkId": "SN-09", "cellSetId": "soundscaper-mac-windows-native" },
+		{ "checkId": "LA-01", "cellSetId": "release-runtime" },
+		{ "checkId": "REL-01", "cellSetId": "campaign" },
+		{ "checkId": "REL-03", "cellSetId": "campaign" },
+		{ "checkId": "REL-04", "cellSetId": "safari" },
+		{ "checkId": "REL-07", "cellSetId": "browser" },
+		{ "checkId": "REL-08", "cellSetId": "browser" },
+		{ "checkId": "REL-10", "cellSetId": "desktop" },
+		{ "checkId": "REL-11", "cellSetId": "desktop" },
+		{ "checkId": "REL-13", "cellSetId": "campaign" },
+		{ "checkId": "REL-14", "cellSetId": "desktop" },
+		{ "checkId": "GAT-01", "cellSetId": "desktop" },
+		{ "checkId": "GAT-05", "cellSetId": "soundscaper-native" },
+		{ "checkId": "GAT-08", "cellSetId": "fixed-performance" }
+	]
+}

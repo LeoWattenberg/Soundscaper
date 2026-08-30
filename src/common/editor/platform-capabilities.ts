@@ -54,6 +54,9 @@ export interface PlatformAdapterProbe {
 	readonly webCodecsReady?: boolean;
 }
 
+const FRAMESCAPER_DESKTOP_BRIDGE_ENABLED = typeof __SCAPE_PRODUCT__ === 'undefined'
+	|| __SCAPE_PRODUCT__ === 'framescaper';
+
 export interface PlatformCapabilityProbe {
 	readonly scope?: PlatformCapabilityScope;
 	readonly adapters?: PlatformAdapterProbe;
@@ -306,10 +309,12 @@ function resolveDesktopBridge(scope: PlatformCapabilityScope): UnknownRecord | n
 	const candidates = [
 		scope.scapeDesktop,
 		scope.soundscaperDesktop,
-		scope.framescaperDesktop,
 		windowScope?.scapeDesktop,
 		windowScope?.soundscaperDesktop,
-		windowScope?.framescaperDesktop,
+		...(FRAMESCAPER_DESKTOP_BRIDGE_ENABLED ? [
+			scope.framescaperDesktop,
+			windowScope?.framescaperDesktop,
+		] : []),
 	];
 	for (const candidate of candidates) {
 		const bridge = asRecord(property(candidate, 'v1'));

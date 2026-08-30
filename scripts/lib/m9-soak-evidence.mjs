@@ -21,6 +21,11 @@ import {
 	requireRecord,
 } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
+import {
+	soundscaperStable1SoakCollectionFields,
+	soundscaperStable1SoakRawFields,
+	validateSoundscaperStable1SoakRawAuthority,
+} from './soundscaper-stable-1-soak-attestation.mjs';
 
 export const M9_SOAK_ENVIRONMENT_ID = 'release-qualification-matrix';
 export const M9_SOAK_METRIC_IDS = Object.freeze([
@@ -76,16 +81,19 @@ const SOURCE_REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u;
 const RENDERER_CLASSES = Object.freeze(['hardware', 'software', 'unknown']);
 const RELEASE_BLOCKING_SEVERITIES = new Set(['critical', 'high', 'unclassified']);
 
-export function validateM9SoakRawEvidence(value, specValue) {
+export function validateM9SoakRawEvidence(value, specValue, authorityContext) {
 	const spec = validateM9SoakSpec(specValue);
 	const raw = exactRecord(
-		snapshotStrictJsonData(value, 'M9 soak raw evidence'), RAW_FIELDS, 'M9 soak raw evidence',
+		snapshotStrictJsonData(value, 'M9 soak raw evidence'),
+		soundscaperStable1SoakRawFields(RAW_FIELDS, spec),
+		'M9 soak raw evidence',
 	);
-	if (raw.schemaVersion !== 1 || !['qualification', 'contract'].includes(raw.mode)) {
+	const expectedSchemaVersion = spec.evidenceAuthority === undefined ? 1 : 2;
+	if (raw.schemaVersion !== expectedSchemaVersion || !['qualification', 'contract'].includes(raw.mode)) {
 		throw new Error('M9 soak raw evidence identity is invalid.');
 	}
 	if (raw.workloadId !== spec.workloadId || raw.fixtureId !== spec.fixtureId
-		|| raw.environmentId !== M9_SOAK_ENVIRONMENT_ID) {
+		|| raw.environmentId !== spec.environmentId) {
 		throw new Error('M9 soak raw evidence workload/fixture/environment identity is invalid.');
 	}
 	boundedString(raw.runId, 1, 128, 'M9 runId');
@@ -103,10 +111,13 @@ export function validateM9SoakRawEvidence(value, specValue) {
 	const fingerprint = validateFingerprint(raw.environmentFingerprint);
 	const fixture = generateM9SoakFixture(spec, raw.mode);
 	const runSpec = spec[raw.mode];
-	const collection = validateCollection(raw.collection, runSpec, raw.mode);
+	const collection = validateCollection(raw.collection, runSpec, raw.mode, spec);
 	const fixtureBinding = validateFixtureBinding(raw.fixture, fixture, spec);
 	const samples = validateSamples(raw.samples, fixture, runSpec);
 	const qualification = validateQualification(raw.qualification);
+	const signedAuthority = spec.evidenceAuthority === undefined
+		? null
+		: validateSoundscaperStable1SoakRawAuthority(raw, spec, fixture, authorityContext);
 	return deepFreeze({
 		...raw,
 		environmentFingerprint: fingerprint,
@@ -114,12 +125,13 @@ export function validateM9SoakRawEvidence(value, specValue) {
 		fixture: fixtureBinding,
 		samples,
 		qualification,
+		...(signedAuthority === null ? {} : signedAuthority),
 	});
 }
 
-export function computeM9SoakMetrics(value, specValue) {
+export function computeM9SoakMetrics(value, specValue, authorityContext) {
 	const spec = validateM9SoakSpec(specValue);
-	const raw = validateM9SoakRawEvidence(value, spec);
+	const raw = validateM9SoakRawEvidence(value, spec, authorityContext);
 	const warmupMs = spec[raw.mode].warmupSeconds * 1_000;
 	const heap = raw.samples.heap.filter(({ elapsedMs }) => elapsedMs >= warmupMs);
 	const rss = raw.samples.electronRss.filter(({ elapsedMs }) => elapsedMs >= warmupMs);
@@ -165,14 +177,14 @@ export function computeM9SoakMetrics(value, specValue) {
 
 export function createM9SoakResult(value, contextValue) {
 	const context = qualificationContext(contextValue);
-	const raw = validateM9SoakRawEvidence(value, context.spec);
+	const raw = validateM9SoakRawEvidence(value, context.spec, context.authorityContext);
 	assertM9Registration(context.config, context.spec);
 	if (raw.budgetSha256 !== context.budgetSha256) {
 		throw new Error('M9 raw evidence does not bind the supplied quality budget.');
 	}
-	const computed = computeM9SoakMetrics(raw, context.spec);
+	const computed = computeM9SoakMetrics(raw, context.spec, context.authorityContext);
 	const expectedEnvironment = exactDescriptor(
-		context.config.environments, M9_SOAK_ENVIRONMENT_ID, 'environment',
+		context.config.environments, context.spec.environmentId, 'environment',
 	);
 	const qualificationEnvironment = raw.mode === 'contract'
 		? { ...expectedEnvironment, status: 'active', qualificationEligible: true }
@@ -187,7 +199,7 @@ export function createM9SoakResult(value, contextValue) {
 		}
 	}
 	const evaluation = evaluateQualityBudget({
-		environmentId: M9_SOAK_ENVIRONMENT_ID,
+		environmentId: context.spec.environmentId,
 		rendererRequirement: expectedEnvironment.rendererRequirement,
 		thresholds: M9_SOAK_THRESHOLDS,
 	}, qualificationEnvironment, {
@@ -196,9 +208,12 @@ export function createM9SoakResult(value, contextValue) {
 		metrics: computed.metrics,
 	});
 	const contractOnly = raw.mode === 'contract';
+	const operationGatePassed = raw.operationOutcomes === undefined
+		|| raw.operationOutcomes.every(({ status }) => status === 'passed');
+	const accepted = evaluation.passed && operationGatePassed;
 	return deepFreeze({
 		schemaVersion: 1,
-		status: contractOnly ? 'contract-only' : evaluation.passed ? 'accepted' : 'failed',
+		status: contractOnly ? 'contract-only' : accepted ? 'accepted' : 'failed',
 		workloadId: raw.workloadId,
 		fixtureId: raw.fixtureId,
 		mode: raw.mode,
@@ -210,10 +225,25 @@ export function createM9SoakResult(value, contextValue) {
 		budgetSha256: raw.budgetSha256,
 		durationSeconds: context.spec[raw.mode].durationSeconds,
 		metricGatePassed: evaluation.verdicts.every(({ passed }) => passed),
-		qualificationEvidencePublished: !contractOnly && evaluation.passed,
+		qualificationEvidencePublished: !contractOnly && accepted,
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		evaluation,
+		...(raw.operationOutcomes === undefined ? {} : {
+			operationGatePassed,
+			operationOutcomes: raw.operationOutcomes,
+			evidenceAuthority: {
+				profileId: context.spec.evidenceAuthority.profileId,
+				profileVersion: context.spec.evidenceAuthority.profileVersion,
+				profileSha256: context.spec.evidenceAuthority.profileSha256,
+				workloadRunnerId: raw.collection.workloadRunnerId,
+				workloadRunnerVersion: raw.collection.workloadRunnerVersion,
+				workloadRunnerSha256: raw.collection.workloadRunnerSha256,
+				packageInventorySha256: raw.collection.packageSha256,
+				attestationKeyId: raw.attestation.keyId,
+				attestation: raw.attestation,
+			},
+		}),
 	});
 }
 
@@ -222,7 +252,9 @@ export function createM9SoakCohort(values, contextValue) {
 		throw new Error('An M9 soak cohort requires exactly two raw runs.');
 	}
 	const context = qualificationContext(contextValue);
-	const raws = values.map((value) => validateM9SoakRawEvidence(value, context.spec));
+	const raws = values.map((value) => validateM9SoakRawEvidence(
+		value, context.spec, context.authorityContext,
+	));
 	if (raws.some(({ mode }) => mode !== 'qualification')) {
 		throw new Error('An M9 soak cohort accepts qualification-mode evidence only.');
 	}
@@ -238,12 +270,17 @@ export function createM9SoakCohort(values, contextValue) {
 	assertDeepSame(ordered, 'environmentFingerprint', 'one environment fingerprint');
 	assertDeepSame(ordered, 'collection', 'one collection binding', [
 		'workloadRunnerSha256', 'packageSha256',
+		...(context.spec.evidenceAuthority === undefined
+			? [] : ['workloadRunnerId', 'workloadRunnerVersion']),
 	]);
 	if (Date.parse(ordered[1].collection.startedAt) < Date.parse(ordered[0].collection.endedAt)) {
 		throw new Error('M9 soak cohort runs are not consecutive in wall-clock order.');
 	}
-	const runs = ordered.map((raw) => createM9SoakResult(raw, context));
+	const runs = ordered.map((raw) => createM9SoakResult(raw, contextValue));
 	for (const run of runs) {
+		if (run.operationGatePassed === false) {
+			throw new Error(`M9 soak run ${run.runId} has a failed operation outcome.`);
+		}
 		if (!run.evaluation.passed || run.status !== 'accepted') {
 			throw new Error(`M9 soak run ${run.runId} failed: ${run.evaluation.failures.join(' ')}`);
 		}
@@ -305,7 +342,11 @@ function qualificationContext(value) {
 	const spec = validateM9SoakSpec(context.spec);
 	const config = snapshotStrictJsonData(context.config, 'M9 quality budget');
 	if (!SHA256.test(context.budgetSha256)) throw new Error('M9 context budgetSha256 is invalid.');
-	return { config, spec, budgetSha256: context.budgetSha256 };
+	const authorityContext = spec.evidenceAuthority === undefined ? undefined : {
+		trustedKeyRegistryBytes: context.trustedKeyRegistryBytes,
+		evidenceBinding: context.evidenceBinding,
+	};
+	return { config, spec, budgetSha256: context.budgetSha256, authorityContext };
 }
 
 function assertM9Registration(config, spec) {
@@ -317,7 +358,7 @@ function assertM9Registration(config, spec) {
 		throw new Error('M9 fixture/workload is not ready for qualification evidence.');
 	}
 	if (!isDeepStrictEqual(workload.fixtureIds, [spec.fixtureId])
-		|| !isDeepStrictEqual(workload.environmentIds, [M9_SOAK_ENVIRONMENT_ID])
+		|| !isDeepStrictEqual(workload.environmentIds, [spec.environmentId])
 		|| !isDeepStrictEqual(workload.thresholds, M9_SOAK_THRESHOLDS)) {
 		throw new Error('M9 soak threshold registration is not exact.');
 	}
@@ -337,8 +378,10 @@ function assertM9Registration(config, spec) {
 	}
 }
 
-function validateCollection(value, runSpec, mode) {
-	const row = exactRecord(value, COLLECTION_FIELDS, 'M9 collection');
+function validateCollection(value, runSpec, mode, spec) {
+	const row = exactRecord(
+		value, soundscaperStable1SoakCollectionFields(COLLECTION_FIELDS, spec), 'M9 collection',
+	);
 	if (row.attemptCount !== 1 || row.retryCount !== 0) {
 		throw new Error('M9 collection requires one attempt and zero retries.');
 	}

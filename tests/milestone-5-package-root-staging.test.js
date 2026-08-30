@@ -73,6 +73,34 @@ test('staging refuses an output root that would swallow the packaging output', a
 	}), /cannot contain the packaging output/u);
 });
 
+test('staging selects package names from the independent product release line', async (context) => {
+	const repositoryRoot = await mkdtemp(join(tmpdir(), 'm5-divergent-release-lines-'));
+	context.after(() => rm(repositoryRoot, { recursive: true, force: true }));
+	const releaseLines = JSON.parse(await readFile(join(ROOT, 'config/product-release-lines.json'), 'utf8'));
+	releaseLines.products.framescaper.candidate.version = '0.9.0-rc.7';
+	await mkdir(join(repositoryRoot, 'config'), { recursive: true });
+	await writeFile(join(repositoryRoot, 'package.json'), JSON.stringify({
+		name: 'soundscaper', version: releaseLines.products.soundscaper.candidate.version,
+	}));
+	await writeFile(
+		join(repositoryRoot, 'config/product-release-lines.json'),
+		`${JSON.stringify(releaseLines, null, 2)}\n`,
+	);
+	const packageRoot = join(repositoryRoot, 'release/desktop');
+	const outputRoot = join(repositoryRoot, 'release/milestone-5-package');
+	const releaseNames = [
+		'Framescaper-0.9.0-rc.7-linux-x86_64.AppImage',
+		'Framescaper-0.9.0-rc.7-linux-amd64.deb',
+		'runtime-manifest-framescaper-linux-x64.json',
+	];
+	await mkdir(packageRoot, { recursive: true });
+	for (const name of releaseNames) await writeFile(join(packageRoot, name), 'source');
+	const result = await stageMilestone5PackageRoot({
+		repositoryRoot, packageRoot, outputRoot, productId: 'framescaper', targetId: 'linux-x64',
+	});
+	assert.deepEqual([...result.staged], releaseNames);
+});
+
 test('the staged package root is invisible to git', () => {
 	// The handoff authenticates its source revision against a clean worktree, so
 	// a staged root git can see refuses the very release it was staged for — the

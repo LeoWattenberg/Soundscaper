@@ -18,14 +18,19 @@ import { createDesktopLinkedOriginalAccess } from './desktop-linked-original-por
 import { registerDesktopReadCapability } from './desktop-read-capability-registry.ts';
 import { releaseDownloadObjectUrl } from './object-url-revoke.ts';
 import { createDesktopLinkedVideoOriginalAccess } from './storage/desktop-linked-video-original-port.ts';
+import { bindSoundscaperPersistentDeliverySave } from './soundscaper-persistent-delivery-save-target.ts';
 
 const DEFAULT_WRITE_CHUNK_BYTES = 1024 * 1024;
 const NEVER_ABORTED_READ_SIGNAL = new AbortController().signal;
+const FRAMESCAPER_DESKTOP_BRIDGE_ENABLED = typeof __SCAPE_PRODUCT__ === 'undefined'
+	|| __SCAPE_PRODUCT__ === 'framescaper';
 
 export function resolveAudioEditorDesktopBridge(scope = globalThis) {
 	const bridge = scope?.window?.scapeDesktop?.v1 || scope?.scapeDesktop?.v1
 		|| scope?.window?.soundscaperDesktop?.v1 || scope?.soundscaperDesktop?.v1
-		|| scope?.window?.framescaperDesktop?.v1 || scope?.framescaperDesktop?.v1;
+		|| (FRAMESCAPER_DESKTOP_BRIDGE_ENABLED
+			? scope?.window?.framescaperDesktop?.v1 || scope?.framescaperDesktop?.v1
+			: null);
 	return bridge && typeof bridge === 'object' ? bridge : null;
 }
 
@@ -232,7 +237,10 @@ export function createAudioEditorFileService(options = {}) {
 			}
 		}
 		if (!target) return Object.freeze({ mode: 'cancelled', cancelled: true, fileName });
-		if (bridge) return createDesktopPreparedSave({ bridge, target, fileName, signal: request.signal });
+		if (bridge) {
+			const persistent = bindSoundscaperPersistentDeliverySave(target, fileName);
+			return createDesktopPreparedSave({ ...(persistent ?? { bridge, target }), fileName, signal: request.signal });
+		}
 		if (typeof target.createWritable === 'function') {
 			return createFileSystemPreparedSave({ target, fileName, signal: request.signal });
 		}
@@ -279,10 +287,13 @@ export function createAudioEditorFileService(options = {}) {
 
 	async function writeDesktopFile(target, blob, fileName, signal) {
 		throwIfAborted(signal);
-		if (!target?.id || !bridge.beginWrite || !bridge.writeChunk || !bridge.finishWrite) {
+		const persistent = bindSoundscaperPersistentDeliverySave(target, fileName);
+		const saveBridge = persistent?.bridge ?? bridge;
+		const saveTarget = persistent?.target ?? target;
+		if (!saveTarget?.id || !saveBridge.beginWrite || !saveBridge.writeChunk || !saveBridge.finishWrite) {
 			throw new Error('Desktop file writing is unavailable.');
 		}
-		const session = await bridge.beginWrite({ targetId: target.id, size: blob.size });
+		const session = await saveBridge.beginWrite({ targetId: saveTarget.id, size: blob.size });
 		if (!session?.writeId) throw new Error('The desktop save session could not be started.');
 		const chunkSize = Math.max(1, Math.min(DEFAULT_WRITE_CHUNK_BYTES, Number(session.chunkSize) || DEFAULT_WRITE_CHUNK_BYTES));
 		let offset = 0;
@@ -292,18 +303,18 @@ export function createAudioEditorFileService(options = {}) {
 				throwIfAborted(signal);
 				const bytes = new Uint8Array(await blob.slice(offset, offset + chunkSize).arrayBuffer());
 				throwIfAborted(signal);
-				const result = await bridge.writeChunk({ writeId: session.writeId, offset, bytes });
+				const result = await saveBridge.writeChunk({ writeId: session.writeId, offset, bytes });
 				throwIfAborted(signal);
 				const expectedOffset = offset + bytes.byteLength;
 				if (Number(result?.nextOffset) !== expectedOffset) throw new Error('The desktop save stream lost synchronization.');
 				offset = expectedOffset;
 			}
 			throwIfAborted(signal);
-			const result = await bridge.finishWrite(session.writeId);
+			const result = await saveBridge.finishWrite(session.writeId);
 			if (Number(result?.byteLength) !== blob.size) throw new Error('The desktop save completed with an unexpected size.');
-			return { method: 'desktop', fileName: target.name || fileName, size: blob.size };
+			return { method: 'desktop', fileName: saveTarget.name || fileName, size: blob.size };
 		} catch (error) {
-			await Promise.resolve(bridge.abortWrite?.(session.writeId)).catch(() => undefined);
+			await Promise.resolve(saveBridge.abortWrite?.(session.writeId)).catch(() => undefined);
 			throw error;
 		}
 	}

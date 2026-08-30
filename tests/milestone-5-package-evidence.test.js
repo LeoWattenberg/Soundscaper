@@ -188,6 +188,23 @@ test('a genuine package audit binds one exact target manifest and every packaged
 	assert.ok(invalidHumanAudit.packages.every(({ content }) => content !== null));
 });
 
+test('package evidence binds the selected product release line, not the root package version', {
+	skip: process.platform !== 'linux',
+}, async (context) => {
+	const fixture = await createPackageFixture(context, { rootPackageVersion: '9.9.9-rc.9' });
+	const audit = await auditMilestone5PackageEvidence({
+		repositoryRoot: fixture.root,
+		packageRoot: fixture.packageRoot,
+		productId: 'soundscaper',
+		targetId: 'linux-x64',
+	}, {
+		auditPackageArtifactContent: (options) => auditDesktopPackageArtifactContent(options, {
+			appImageCompatibilityLibraryAuthority: fixture.appImageCompatibilityLibraryAuthority,
+		}),
+	});
+	assert.equal(audit.applicationVersion, VERSION);
+});
+
 test('package admission rejects missing, unexpected, wrong-version, source-revision, and wrong-target names', {
 	skip: process.platform !== 'linux',
 }, async (context) => {
@@ -311,11 +328,15 @@ test('package evidence rejects symbolic files, symbolic roots, and non-regular p
 	}
 });
 
-async function createPackageFixture(context) {
+async function createPackageFixture(context, { rootPackageVersion = VERSION } = {}) {
 	const fixture = await createFixture(context);
+	await cp(
+		new URL('../config/product-release-lines.json', import.meta.url),
+		join(fixture.root, 'config/product-release-lines.json'),
+	);
 	const projectPackagePath = join(fixture.root, 'package.json');
 	const projectPackage = JSON.parse(await readFile(projectPackagePath, 'utf8'));
-	projectPackage.version = VERSION;
+	projectPackage.version = rootPackageVersion;
 	await writeJson(projectPackagePath, projectPackage);
 	const packageRoot = join(fixture.root, 'release/desktop');
 	const packageFixture = await createSoundscaperLinuxPackageFixture({

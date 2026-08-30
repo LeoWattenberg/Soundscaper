@@ -142,6 +142,15 @@ export async function auditStagedDesktopCodecPolicy({ repositoryRoot, stageManif
 export async function verifyStagedNativeAddonBeforePack({ repositoryRoot, stageManifestPath, packagedTarget }) {
 	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
 	const staged = stage?.nativeAddons;
+	const stableSoundscaperSelected = stage?.productId === 'soundscaper'
+		&& (stage.applicationVersionChannel === 'stable' || stage.releaseChannel === 'stable');
+	if (stableSoundscaperSelected) {
+		if (stage.applicationVersionChannel !== 'stable' || stage.releaseChannel !== 'stable'
+			|| staged !== null) {
+			throw new Error('The Stable Soundscaper desktop stage has invalid legacy native-addon state.');
+		}
+		return null;
+	}
 	if (!staged || typeof staged.target !== 'string') {
 		throw new Error('The desktop stage manifest does not record a staged native addon payload.');
 	}

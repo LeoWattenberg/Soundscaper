@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 import {
-	MILESTONE_5_NATIVE_SOURCE_IDS,
 	auditMilestone5NativeSourceAcquisitions,
+	auditMilestone5NativeSourceAcquisitionsForProducts,
 	isAuditedMilestone5NativeSourceAcquisitions,
 } from './milestone-5-native-source-acquisitions.mjs';
 import { validateMilestone5LicensingReadiness } from './milestone-5-licensing-readiness.mjs';
@@ -39,7 +39,10 @@ import {
 	readMilestone5HandoffAuthorityBytes,
 	readMilestone5HandoffInputSnapshot,
 } from './milestone-5-handoff-input-authentication.mjs';
-
+import {
+	MILESTONE_5_PRODUCTS,
+	milestone5EngineeringScope,
+} from './milestone-5-product-scope.mjs';
 export const MILESTONE_5_HANDOFF_WORKLOAD_IDS = Object.freeze([
 	'm5-native-helper-and-audio',
 	'm5b-native-media-plan-parity-and-decode',
@@ -71,32 +74,31 @@ const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const ASSEMBLED_HANDOFF_INPUTS = new WeakSet();
 const ASSEMBLED_HANDOFF_OUTPUTS = new WeakSet();
 const ASSEMBLED_HANDOFF_SOURCE_REVISIONS = new WeakMap();
-
-export function assessMilestone5Handoff(inputs) {
+export function assessMilestone5Handoff(inputs, productIdsValue = MILESTONE_5_PRODUCTS) {
 	assertRecord(inputs, 'Milestone 5 handoff inputs');
+	const engineeringScope = milestone5EngineeringScope(productIdsValue);
 	const assemblyInputsAuthenticated = ASSEMBLED_HANDOFF_INPUTS.has(inputs);
 	const sourceInputsAudited = isAuditedMilestone5NativeSourceAcquisitions(
 		inputs.sourceAcquisitions,
 	);
-	const sources = validateSourceAcquisitions(inputs.sourceAcquisitions, sourceInputsAudited);
-	const lab = findLab(inputs.qualityBudgets);
-	validateWorkloads(inputs.qualityBudgets);
+	const sources = validateSourceAcquisitions(
+		inputs.sourceAcquisitions, sourceInputsAudited, engineeringScope,
+	);
+	const lab = findLab(inputs.qualityBudgets, engineeringScope);
+	validateWorkloads(inputs.qualityBudgets, engineeringScope);
 	const qualificationAuthenticated = isAuditedMilestone5QualificationEvidence(
 		inputs.qualificationAudit,
 	);
 	const payloadsAuthenticated = isAuditedMilestone5Payloads(inputs.payloadAudit);
 	const packageAudited = isAuditedMilestone5PackageEvidence(inputs.packageAudit);
 	const cohorts = qualificationAuthenticated
-		? validateAcceptedCohorts(inputs.qualificationAudit.cohorts)
+		? validateAcceptedCohorts(inputs.qualificationAudit.cohorts, engineeringScope)
 		: [];
-	const declaredPayloadRows = [
-		...validatePayloadManifest(inputs.nativeAddonPayload, 'soundscaper'),
-		...validatePayloadManifest(inputs.soundscaperProfessionalPayload, 'soundscaper-professional'),
-		...validatePayloadManifest(inputs.mediaHostPayload, 'framescaper-media'),
-		...validatePayloadManifest(inputs.openFxHostPayload, 'framescaper-openfx'),
-	];
+	const declaredPayloadRows = payloadManifestEntries(inputs, engineeringScope).flatMap(
+		([, manifest, product]) => validatePayloadManifest(manifest, product),
+	);
 	const payloadRows = payloadsAuthenticated
-		? validateAuditedPayloads(inputs, declaredPayloadRows)
+		? validateAuditedPayloads(inputs, declaredPayloadRows, engineeringScope)
 		: declaredPayloadRows;
 	const licensing = validateMilestone5LicensingReadiness(inputs.licensingMatrix);
 	const pendingHandoffGates = HANDOFF_GATE_IDS.filter((id) => lab.handoffGates[id] !== 'accepted');
@@ -104,6 +106,7 @@ export function assessMilestone5Handoff(inputs) {
 		inputs.packageAudit,
 		inputs.payloadAudit,
 		MILESTONE_5_HANDOFF_INPUT_PATHS,
+		engineeringScope,
 	);
 	const automated = assessMilestone5AutomatedReadiness({
 		assemblyInputsAuthenticated,
@@ -120,6 +123,7 @@ export function assessMilestone5Handoff(inputs) {
 		lab.physicalHosts[platformId] !== null).length;
 	return deepFreeze({
 		schemaVersion: 2,
+		engineeringScope,
 		assessmentScope: packageAudited
 			? {
 				kind: 'package-cell',
@@ -149,7 +153,7 @@ export function assessMilestone5Handoff(inputs) {
 		},
 		payloads: { built, pendingExternal: payloadRows.length - built, total: payloadRows.length },
 		qualification: {
-			workloadIds: [...MILESTONE_5_HANDOFF_WORKLOAD_IDS],
+			workloadIds: [...engineeringScope.workloadIds],
 			profileCount: lab.profiles.length,
 			provisionedProfileCount,
 			acceptedCohortCount: cohorts.filter(({ status }) => status === 'accepted').length,
@@ -171,6 +175,32 @@ export async function assembleMilestone5Handoff(
 	packageOptions = null,
 	dependencies = {},
 ) {
+	return assembleMilestone5HandoffScope({
+		repositoryRoot,
+		sourceRevision,
+		packageOptions,
+		productIds: MILESTONE_5_PRODUCTS,
+	}, dependencies);
+}
+
+export async function assembleMilestone5ProductHandoff(options, dependencies = {}) {
+	assertRecord(options, 'Milestone 5 product handoff options');
+	const keys = Object.keys(options).sort();
+	assert(keys.every((key) => [
+		'packageOptions', 'productIds', 'repositoryRoot', 'sourceRevision',
+	].includes(key)) && keys.includes('productIds') && keys.includes('repositoryRoot'),
+	'Milestone 5 product handoff options have an unexpected shape.');
+	return assembleMilestone5HandoffScope({
+		repositoryRoot: options.repositoryRoot,
+		sourceRevision: options.sourceRevision,
+		packageOptions: options.packageOptions ?? null,
+		productIds: options.productIds,
+	}, dependencies);
+}
+
+async function assembleMilestone5HandoffScope(options, dependencies) {
+	const { repositoryRoot, sourceRevision, packageOptions } = options;
+	const engineeringScope = milestone5EngineeringScope(options.productIds);
 	const observedHeadRevision = currentRevision(repositoryRoot);
 	const sourceRevisionBinding = sourceRevision === undefined
 		? deepFreeze({
@@ -182,14 +212,16 @@ export async function assembleMilestone5Handoff(
 	const revision = sourceRevisionBinding.sourceRevision ?? observedHeadRevision;
 	const authorityRevision = sourceRevisionBinding.status === 'authenticated-clean-head'
 		? revision : null;
+	const inputPaths = milestone5HandoffInputPaths(engineeringScope);
 	const snapshot = readMilestone5HandoffInputSnapshot(
 		repositoryRoot,
-		MILESTONE_5_HANDOFF_INPUT_PATHS,
+		inputPaths,
 		authorityRevision,
 	);
 	const { inputs, bytes: inputBytes, inputDigests } = snapshot;
 	inputs.sourceAcquisitionRegister = inputs.sourceAcquisitions;
-	for (const { manifestPath } of inputs.sourceAcquisitionRegister.delegatedSources) {
+	for (const { manifestPath } of engineeringScope.includeDelegatedSources
+		? inputs.sourceAcquisitionRegister.delegatedSources : []) {
 		const bytes = readMilestone5HandoffAuthorityBytes(
 			repositoryRoot,
 			authorityRevision,
@@ -199,9 +231,16 @@ export async function assembleMilestone5Handoff(
 	}
 	// The audit checks the duplicated Framescaper pins and only authenticates
 	// rows backed by the exact external archive/source cache in this process.
-	inputs.sourceAcquisitions = auditMilestone5NativeSourceAcquisitions(repositoryRoot);
-	inputs.payloadAudit = await auditMilestone5Payloads(repositoryRoot);
-	inputs.qualificationAudit = await auditMilestone5QualificationEvidence({ repositoryRoot });
+	inputs.sourceAcquisitions = engineeringScope.kind === 'retained-dual-product'
+		? auditMilestone5NativeSourceAcquisitions(repositoryRoot)
+		: auditMilestone5NativeSourceAcquisitionsForProducts(
+			repositoryRoot, engineeringScope.products,
+		);
+	inputs.payloadAudit = await auditMilestone5Payloads(repositoryRoot, engineeringScope.products);
+	inputs.qualificationAudit = await auditMilestone5QualificationEvidence({
+		repositoryRoot,
+		productIds: engineeringScope.products,
+	});
 	if (packageOptions !== null) {
 		validatePackageOptions(packageOptions);
 		inputs.packageAudit = await auditMilestone5PackageEvidence({
@@ -265,7 +304,7 @@ export async function assembleMilestone5Handoff(
 		inputs,
 		sourceRevisionBinding.status === 'authenticated-clean-head',
 	);
-	const assessment = assessMilestone5Handoff(inputs);
+	const assessment = assessMilestone5Handoff(inputs, engineeringScope.products);
 	const revisionBinding = assessment.qualification.sourceRevision === null
 		? null
 		: validateMilestone5QualificationRevisionCompatibility(
@@ -273,6 +312,7 @@ export async function assembleMilestone5Handoff(
 			assessment.qualification.sourceRevision,
 			revision,
 			inputs.qualityBudgets,
+			engineeringScope.products,
 		);
 	const sourceAuthenticated = sourceRevisionBinding.status === 'authenticated-clean-head';
 	if (sourceAuthenticated) {
@@ -306,13 +346,15 @@ export function validateMilestone5QualificationRevisionCompatibility(
 	qualificationSourceRevision,
 	handoffSourceRevision,
 	currentQualityBudgets,
+	productIdsValue = MILESTONE_5_PRODUCTS,
 ) {
+	const engineeringScope = milestone5EngineeringScope(productIdsValue);
 	return validateQualificationRevisionCompatibility({
 		repositoryRoot,
 		qualificationSourceRevision,
 		handoffSourceRevision,
 		currentQualityBudgets,
-		workloadIds: MILESTONE_5_HANDOFF_WORKLOAD_IDS,
+		workloadIds: engineeringScope.workloadIds,
 	});
 }
 
@@ -320,21 +362,24 @@ export function authenticateMilestone5HandoffSourceRevision(repositoryRoot, asse
 	return authenticateHandoffSourceRevision(repositoryRoot, assertedRevision);
 }
 
-function findLab(qualityBudgets) {
+function findLab(qualityBudgets, engineeringScope) {
 	assertRecord(qualityBudgets, 'Milestone 5 quality budgets');
 	const matches = qualityBudgets.environments?.filter(({ id }) => id === 'native-os-lab-matrix') ?? [];
 	assert(matches.length === 1, 'Milestone 5 quality budgets need exactly one native OS lab.');
 	const lab = validateNativeOsLabEnvironmentV2(matches[0]);
 	assert(JSON.stringify(lab.profiles.map(({ id }) => id)) === JSON.stringify(NATIVE_OS_LAB_REQUIRED_PROFILE_IDS),
 		'Milestone 5 native lab profiles do not match the exact handoff matrix.');
-	return lab;
+	return deepFreeze({
+		...lab,
+		profiles: lab.profiles.filter(({ id }) => engineeringScope.labProfileIds.includes(id)),
+	});
 }
 
-function validateWorkloads(qualityBudgets) {
+function validateWorkloads(qualityBudgets, engineeringScope) {
 	assert(Array.isArray(qualityBudgets.workloads), 'Milestone 5 quality workloads must be an array.');
 	const registeredIds = qualityBudgets.qualification?.qualifiedWorkloadIds;
 	assert(Array.isArray(registeredIds), 'Milestone 5 qualifiedWorkloadIds must be an array.');
-	return MILESTONE_5_HANDOFF_WORKLOAD_IDS.map((id) => {
+	return engineeringScope.workloadIds.map((id) => {
 		const matches = qualityBudgets.workloads.filter((workload) => workload.id === id);
 		assert(matches.length === 1, `Milestone 5 workload ${id} must occur exactly once.`);
 		assert(typeof matches[0].status === 'string', `Milestone 5 workload ${id} needs a status.`);
@@ -342,11 +387,11 @@ function validateWorkloads(qualityBudgets) {
 	});
 }
 
-function validateAcceptedCohorts(cohortsValue) {
+function validateAcceptedCohorts(cohortsValue, engineeringScope) {
 	assert(Array.isArray(cohortsValue), 'Milestone 5 accepted cohorts must be an array.');
 	const cohorts = cohortsValue.map((cohort, index) => {
 		assertRecord(cohort, `Milestone 5 cohort ${String(index)}`);
-		assert(MILESTONE_5_HANDOFF_WORKLOAD_IDS.includes(cohort.workloadId),
+		assert(engineeringScope.workloadIds.includes(cohort.workloadId),
 			`Milestone 5 cohort ${String(index)} has an unknown workload.`);
 		assert(cohort.schemaVersion === 2, `Milestone 5 cohort ${cohort.workloadId} must use schemaVersion 2.`);
 		assert(['accepted', 'pending-external', 'failed'].includes(cohort.status),
@@ -355,7 +400,8 @@ function validateAcceptedCohorts(cohortsValue) {
 			`Milestone 5 cohort ${cohort.workloadId} has an invalid source revision.`);
 		const productId = cohort.workloadId.startsWith('m5b-') ? 'framescaper' : 'soundscaper';
 		const expectedProfileIds = NATIVE_OS_LAB_PROFILES_V2
-			.filter((profile) => profile.productId === productId)
+			.filter((profile) => profile.productId === productId
+				&& engineeringScope.labProfileIds.includes(profile.id))
 			.map(({ id }) => id);
 		assert(JSON.stringify(cohort.labProfileIds) === JSON.stringify(expectedProfileIds),
 			`Milestone 5 cohort ${cohort.workloadId} does not cover its exact native-lab profiles.`);
@@ -372,7 +418,7 @@ function validateAcceptedCohorts(cohortsValue) {
 	return cohorts;
 }
 
-function validateAuditedPayloads(inputs, declaredRows) {
+function validateAuditedPayloads(inputs, declaredRows, engineeringScope) {
 	const audit = inputs.payloadAudit;
 	assert(audit.schemaVersion === 2,
 		'Milestone 5 authenticated payload audit has an unsupported schema.');
@@ -380,12 +426,7 @@ function validateAuditedPayloads(inputs, declaredRows) {
 		path: MILESTONE_5_HANDOFF_INPUT_PATHS.nativeIsolationReviewPolicy,
 		...audit.inputDigests[MILESTONE_5_HANDOFF_INPUT_PATHS.nativeIsolationReviewPolicy],
 	}), 'Milestone 5 authenticated payload audit has inconsistent isolation-review policy evidence.');
-	for (const [key, inputKey] of [
-		['nativeAddon', 'nativeAddonPayload'],
-		['soundscaperProfessional', 'soundscaperProfessionalPayload'],
-		['mediaHost', 'mediaHostPayload'],
-		['openFxHost', 'openFxHostPayload'],
-	]) {
+	for (const [key, , , inputKey] of payloadManifestEntries(inputs, engineeringScope)) {
 		assert(JSON.stringify(audit.manifests[key]) === JSON.stringify(inputs[inputKey]),
 			`Milestone 5 authenticated ${key} payload manifest disagrees with the handoff input.`);
 	}
@@ -449,11 +490,11 @@ function validatePackageOptions(options) {
 	}
 }
 
-function validateSourceAcquisitions(register, audited) {
+function validateSourceAcquisitions(register, audited, engineeringScope) {
 	assertRecord(register, 'Milestone 5 native source acquisitions');
 	assert(register.schemaVersion === 1 && Array.isArray(register.sources),
 		'Milestone 5 native source acquisitions are invalid.');
-	assert(JSON.stringify(register.sources.map(({ id }) => id)) === JSON.stringify(MILESTONE_5_NATIVE_SOURCE_IDS),
+	assert(JSON.stringify(register.sources.map(({ id }) => id)) === JSON.stringify(engineeringScope.sourceIds),
 		'Milestone 5 native source IDs are incomplete or out of order.');
 	for (const source of register.sources) {
 		assert((audited
@@ -474,6 +515,24 @@ function validateSourceAcquisitions(register, audited) {
 			`Milestone 5 native source ${source.id} activation evidence is inconsistent.`);
 	}
 	return register.sources;
+}
+
+function payloadManifestEntries(inputs, engineeringScope) {
+	const entries = [
+		['nativeAddon', inputs.nativeAddonPayload, 'soundscaper', 'nativeAddonPayload'],
+		['soundscaperProfessional', inputs.soundscaperProfessionalPayload,
+			'soundscaper-professional', 'soundscaperProfessionalPayload'],
+		['mediaHost', inputs.mediaHostPayload, 'framescaper-media', 'mediaHostPayload'],
+		['openFxHost', inputs.openFxHostPayload, 'framescaper-openfx', 'openFxHostPayload'],
+	];
+	return entries.filter(([, , product]) => engineeringScope.payloadProducts.includes(product));
+}
+
+function milestone5HandoffInputPaths(engineeringScope) {
+	return Object.fromEntries(Object.entries(MILESTONE_5_HANDOFF_INPUT_PATHS).filter(([key]) => (
+		!['nativeAddonPayload', 'soundscaperProfessionalPayload', 'mediaHostPayload', 'openFxHostPayload']
+			.includes(key) || engineeringScope.payloadInputKeys.includes(key)
+	)));
 }
 function validatePayloadManifest(manifest, product) {
 	assertRecord(manifest, `Milestone 5 ${product} payload manifest`);

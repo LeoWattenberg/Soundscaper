@@ -14,7 +14,7 @@ import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
-import { workspacePanelAvailable } from '../framescaper-capture-ui-model.ts';
+import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
 import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
 import {

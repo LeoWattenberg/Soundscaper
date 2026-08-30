@@ -45,6 +45,23 @@ import {
 	stageVerifiedSoundscaperProfessionalNativePayload,
 	verifySoundscaperProfessionalNativePayload,
 } from './lib/soundscaper-professional-native-payload.mjs';
+import {
+	assertDesktopProfessionalNativeReleasePolicy,
+} from './lib/desktop-professional-native-release-policy.mjs';
+import {
+	stageSoundscaperProfessionalNativePackageNotices,
+	typedUnavailableSoundscaperProfessionalNativeNotices,
+} from './lib/soundscaper-professional-native-notices.mjs';
+import {
+	readProductReleaseLines,
+	resolveProductApplicationVersion,
+	resolveProductDesktopMetadata,
+} from './lib/product-release-lines.mjs';
+import {
+	desktopLegacyNativeAddonIncluded,
+	desktopProductConfigFiles,
+	desktopProductRuntimePackageImports,
+} from './lib/desktop-product-package-files.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD_ROOT = resolve(ROOT, '.desktop-build');
@@ -59,20 +76,7 @@ const DEFAULT_TRANSLATIONS_URL = 'https://translations.soundscaper.org/runtime/t
 // The assistance and native services validate their catalogs and payloads
 // against these shipped registers. Executable payloads stay outside the asar;
 // only their authenticated pins live inside it.
-const ASSISTANCE_REGISTERS = Object.freeze([
-	'config/assistance-native-runtime-manifest.json',
-	'config/assistance-runtime-family-supply-candidates.json',
-	'config/framescaper-media-host-payload-manifest.json',
-	'config/framescaper-openfx-host-payload-manifest.json',
-	'config/local-model-catalog.json',
-	'config/milestone-5-native-isolation-review-policy.json',
-	'config/milestone-5-package-release-authentication-policy.json',
-	'config/milestone-5-native-source-acquisitions.json',
-	'config/native-addon-payload-manifest.json',
-	'config/production-licensing-matrix.json',
-	'config/soundscaper-professional-native-payload-manifest.json',
-]);
-const PRODUCT_ID = process.env.SCAPE_PRODUCT === 'framescaper' ? 'framescaper' : 'soundscaper';
+const PRODUCT_ID = resolveDesktopProductId(process.env.SCAPE_PRODUCT);
 const PRODUCT_NAME = PRODUCT_ID === 'framescaper' ? 'Framescaper' : 'Soundscaper';
 const APP_SCHEME = PRODUCT_ID === 'framescaper' ? 'framescaper-app' : 'soundscaper-app';
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
@@ -80,9 +84,24 @@ const DESKTOP_STAGE_TARGETS = new Set([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
 
+export function resolveDesktopProductId(value) {
+	const requested = value === undefined ? 'soundscaper' : value;
+	if (requested !== 'soundscaper' && requested !== 'framescaper') {
+		throw new Error(
+			`SCAPE_PRODUCT must be soundscaper or framescaper; received ${JSON.stringify(value)}.`,
+		);
+	}
+	return requested;
+}
+
 async function main() {
 	const projectPackage = parseJson(await readFile(resolve(ROOT, 'package.json')), 'package.json');
 	assert(projectPackage.name === 'soundscaper', 'Run desktop preparation from the Soundscaper checkout.');
+	const releaseLines = await readProductReleaseLines(ROOT);
+	const applicationVersion = resolveProductApplicationVersion(PRODUCT_ID, releaseLines);
+	const productMetadata = resolveProductDesktopMetadata(PRODUCT_ID, releaseLines);
+	const sourceRevision = resolveDesktopSourceRevision();
+	const legacyNativeAddonIncluded = desktopLegacyNativeAddonIncluded(PRODUCT_ID, productMetadata);
 	await assertFile(resolve(ROOT, 'desktop/main.mjs'), 'desktop/main.mjs');
 	await assertFile(resolve(ROOT, 'desktop/preload.mjs'), 'desktop/preload.mjs');
 	// Resolve and verify native payload authority before destroying the previous
@@ -91,11 +110,11 @@ async function main() {
 		platform: process.env.SOUNDSCAPER_DESKTOP_TARGET_PLATFORM ?? null,
 		arch: process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH ?? null,
 	});
-	const nativeAddonRelease = await verifyNativeAddonPayloadManifest({
+	const nativeAddonRelease = legacyNativeAddonIncluded ? await verifyNativeAddonPayloadManifest({
 		repositoryRoot: ROOT,
 		target: nativeTarget.id,
 		targetSource: nativeTarget.source,
-	});
+	}) : null;
 	const framescaperNativeHostRelease = PRODUCT_ID === 'framescaper'
 		? await verifyFramescaperNativeHostPayloads({
 			repositoryRoot: ROOT,
@@ -110,6 +129,12 @@ async function main() {
 			targetSource: nativeTarget.source,
 		})
 		: null;
+	assertDesktopProfessionalNativeReleasePolicy({
+		productId: PRODUCT_ID,
+		productMetadata,
+		release: soundscaperProfessionalNativeRelease,
+		sourceRevision,
+	});
 	const osAudioCodecNativeRelease = PRODUCT_ID === 'soundscaper'
 		? await prepareDesktopOsAudioCodecNativeRelease({
 			buildResultPath: process.env.SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT ?? null,
@@ -125,7 +150,7 @@ async function main() {
 		: null;
 	await rm(BUILD_ROOT, { recursive: true, force: true });
 	await mkdir(BUILD_ROOT, { recursive: true });
-	const desktopRuntime = await compileDesktopProjectLibraryRuntime({
+	const compiledDesktopRuntime = await compileDesktopProjectLibraryRuntime({
 		repositoryRoot: ROOT,
 		outputRoot: DESKTOP_RUNTIME_ROOT,
 	});
@@ -135,7 +160,7 @@ async function main() {
 		nodeModulesRoot: resolve(ROOT, 'node_modules'),
 		outputRoot: RUNTIME_ROOT,
 	});
-	const nativeAddons = await stageNativeAddons(nativeAddonRelease);
+	const nativeAddons = nativeAddonRelease === null ? null : await stageNativeAddons(nativeAddonRelease);
 	const osAudioCodecNative = osAudioCodecNativeRelease === null
 		? null
 		: await stageDesktopOsAudioCodecNativeRelease({
@@ -157,18 +182,25 @@ async function main() {
 			outputRoot: RUNTIME_ROOT,
 		});
 	const translations = await stageTranslations();
-	const desktopNotices = await stageDesktopNotices();
+	const desktopNotices = await stageDesktopNotices({
+		nativeTarget, productMetadata, soundscaperProfessionalNativeRelease,
+	});
 	await generateDesktopIcon({
 		...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
 	});
 	await buildRenderer();
-	await stageApplication(projectPackage, framescaperNativeHostRelease);
+	const desktopRuntime = await stageApplication(
+		projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
+		compiledDesktopRuntime,
+	);
 
 	const stageManifest = {
 		schemaVersion: 1,
 		productId: PRODUCT_ID,
-		applicationVersion: projectPackage.version,
-		sourceRevision: resolveDesktopSourceRevision(),
+		applicationVersion,
+		applicationVersionChannel: productMetadata.applicationVersionChannel,
+		releaseChannel: productMetadata.releaseChannel,
+		sourceRevision,
 		target: resolveDesktopStageTarget(nativeTarget),
 		desktopRuntime,
 		assistanceNativeRuntime,
@@ -181,7 +213,7 @@ async function main() {
 		translations,
 	};
 	await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
-	console.log(`Prepared ${PRODUCT_NAME} desktop ${projectPackage.version} in ${BUILD_ROOT}`);
+	console.log(`Prepared ${PRODUCT_NAME} desktop ${applicationVersion} in ${BUILD_ROOT}`);
 }
 
 export function resolveDesktopSourceRevision(
@@ -202,7 +234,7 @@ export function resolveDesktopStageTarget(nativeTarget) {
 	return { platform: match[1], arch: match[2] };
 }
 
-async function stageDesktopNotices() {
+async function stageDesktopNotices({ nativeTarget, productMetadata, soundscaperProfessionalNativeRelease }) {
 	await mkdir(dirname(DESKTOP_NOTICE_PATH), { recursive: true });
 	await cp(resolve(ROOT, 'THIRD_PARTY_LICENSES.md'), DESKTOP_NOTICE_PATH, {
 		errorOnExist: true,
@@ -213,10 +245,33 @@ async function stageDesktopNotices() {
 		repositoryRoot: ROOT,
 		outputRoot: DESKTOP_LICENSE_ROOT,
 	});
+	const stableSoundscaper = PRODUCT_ID === 'soundscaper'
+		&& productMetadata.applicationVersionChannel === 'stable'
+		&& productMetadata.releaseChannel === 'stable';
+	const professionalNative = PRODUCT_ID !== 'soundscaper' ? null
+		: stableSoundscaper
+			? await stageSoundscaperProfessionalNativePackageNotices({
+				repositoryRoot: ROOT,
+				sourceRoot: requiredEnvironmentPath(
+					'SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT',
+					'Stable Soundscaper professional-native notice staging',
+				),
+				outputRoot: resolve(DESKTOP_LICENSE_ROOT, 'professional-native'),
+				target: nativeTarget.id,
+				sourceAuthentication: soundscaperProfessionalNativeRelease?.target.sourceAuthentication,
+			})
+			: typedUnavailableSoundscaperProfessionalNativeNotices(nativeTarget.id);
 	return Object.freeze({
 		aggregate: descriptorForBytes('THIRD_PARTY_LICENSES.md', aggregate),
 		bundledCodecs,
+		professionalNative,
 	});
+}
+
+function requiredEnvironmentPath(name, label) {
+	const value = process.env[name]?.trim() ?? '';
+	assert(value !== '', `${label} requires ${name}.`);
+	return value;
 }
 
 /**
@@ -337,16 +392,22 @@ async function buildRenderer() {
 	await assertFile(resolve(RENDERER_ROOT, 'index.html'), 'desktop editor document');
 }
 
-async function stageApplication(projectPackage, framescaperNativeHostRelease) {
+async function stageApplication(
+	projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
+	compiledDesktopRuntime,
+) {
 	await mkdir(APP_ROOT, { recursive: true });
-	await stageDesktopApplicationSources({
+	const desktopRuntime = await stageDesktopApplicationSources({
 		desktopSourceRoot: resolve(ROOT, 'desktop'),
 		applicationDesktopRoot: resolve(APP_ROOT, 'desktop'),
 		runtimeRoot: DESKTOP_RUNTIME_ROOT,
+		productId: PRODUCT_ID,
 	});
-	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), { id: PRODUCT_ID });
+	assert(compiledDesktopRuntime.files.length >= desktopRuntime.files.length,
+		'Packaged desktop runtime cannot exceed its compiled closure.');
+	await writeJson(resolve(APP_ROOT, 'desktop/product.json'), productMetadata);
 	await mkdir(resolve(APP_ROOT, 'config'), { recursive: true });
-	for (const register of ASSISTANCE_REGISTERS) {
+	for (const register of desktopProductConfigFiles(PRODUCT_ID, productMetadata)) {
 		const verifiedBytes = framescaperNativeHostRelease === null
 			? null
 			: register === 'config/framescaper-media-host-payload-manifest.json'
@@ -364,18 +425,21 @@ async function stageApplication(projectPackage, framescaperNativeHostRelease) {
 		name: `${PRODUCT_ID}-desktop`,
 		productName: PRODUCT_NAME,
 		desktopName: `org.${PRODUCT_ID}.desktop`,
-		version: projectPackage.version,
+		version: applicationVersion,
 		description: PRODUCT_ID === 'framescaper' ? 'Local-first video editor' : 'Local-first multitrack audio editor',
 		main: 'desktop/main.mjs',
 		type: 'module',
-		imports: DESKTOP_RUNTIME_PACKAGE_IMPORTS,
+		imports: desktopProductRuntimePackageImports(PRODUCT_ID, DESKTOP_RUNTIME_PACKAGE_IMPORTS),
 		license: 'AGPL-3.0-only',
 		author: { name: 'kw.media', url: 'https://kw.media' },
 		homepage: `https://${PRODUCT_ID}.org`,
 	});
-	for (const target of Object.values(DESKTOP_RUNTIME_PACKAGE_IMPORTS)) {
+	for (const target of Object.values(desktopProductRuntimePackageImports(
+		PRODUCT_ID, DESKTOP_RUNTIME_PACKAGE_IMPORTS,
+	))) {
 		await assertFile(resolve(APP_ROOT, target), `staged desktop package import target ${target}`);
 	}
+	return desktopRuntime;
 }
 
 function translationBaseUrl() {

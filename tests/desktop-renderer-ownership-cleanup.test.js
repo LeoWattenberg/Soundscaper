@@ -24,6 +24,7 @@ test('renderer ownership is revoked synchronously and repeated drains share one 
 		reportError: (error) => { throw error; },
 		revokeCapture: async () => { events.push('capture'); await barrier; },
 		revokeDesktopCodecs: async () => { events.push('codecs'); await barrier; },
+		revokeSoundscaperDelivery: async () => { events.push('delivery'); await barrier; },
 		revokeNativeServices: async () => { events.push('native-services'); await barrier; },
 		saves: { revokeOwner: async () => { events.push('saves'); await barrier; } },
 	});
@@ -33,7 +34,7 @@ test('renderer ownership is revoked synchronously and repeated drains share one 
 	assert.equal(first, duplicate);
 	assert.equal(events[0], 'revoke:true');
 	assert.deepEqual(new Set(events.slice(1)), new Set([
-		'capture', 'codecs', 'native-services', 'linked', 'projects', 'reads', 'saves',
+		'capture', 'codecs', 'delivery', 'native-services', 'linked', 'projects', 'reads', 'saves',
 	]));
 	release();
 	assert.equal(await first, true);

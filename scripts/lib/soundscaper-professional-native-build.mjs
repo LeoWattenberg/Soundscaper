@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readdirSync, realpathSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import {
@@ -17,6 +18,13 @@ export const SOUNDSCAPER_PROFESSIONAL_NATIVE_ROOT = 'native/soundscaper-professi
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
+const TARGET_NATIVE_RUNNERS = Object.freeze({
+	'Linux/X64': 'linux-x64',
+	'Linux/ARM64': 'linux-arm64',
+	'macOS/ARM64': 'mac-arm64',
+	'Windows/X64': 'win-x64',
+	'Windows/ARM64': 'win-arm64',
+});
 const AUTHENTICATED_BUILD_PLANS = new WeakSet();
 
 /**
@@ -27,6 +35,7 @@ const AUTHENTICATED_BUILD_PLANS = new WeakSet();
  * configure.
  */
 const JUCE_VST3_SDK_CLOSURE = 'modules/juce_audio_processors_headless/format_types/VST3_SDK';
+const JUCE_VST3_VERSION_HEADER = `${JUCE_VST3_SDK_CLOSURE}/pluginterfaces/vst/vsttypes.h`;
 /** LV2 1.18.10 ships its headers under `include/`, so `<lv2/core/lv2.h>` resolves only from there. */
 const LV2_INCLUDE_ROOT = 'include';
 
@@ -38,6 +47,30 @@ const EXPECTED = Object.freeze({
 	'asio-sdk': Object.freeze({ version: '2.3.4', commit: null, license: 'GPL-3.0-only' }),
 	lv2: Object.freeze({ version: '1.18.10', commit: '0bcde338db1c63bbc503b4d1f6d7b55ed43154af', license: 'ISC' }),
 });
+
+export function resolveSoundscaperProfessionalNativeRunnerTarget({
+	target, runnerOs, runnerArch,
+}) {
+	const runnerTarget = TARGET_NATIVE_RUNNERS[`${String(runnerOs)}/${String(runnerArch)}`];
+	if (runnerTarget === undefined || runnerTarget !== target) {
+		throw new TypeError(
+			`Professional native target ${String(target)} requires its exact target-native runner.`,
+		);
+	}
+	return runnerTarget;
+}
+
+/** Resolve Xcode's MacOSX.sdk alias to the exact versioned SDK used by CMake. */
+export function canonicalSoundscaperProfessionalNativeMacosSdkPath(value) {
+	if (typeof value !== 'string' || !isAbsolute(value) || resolve(value) !== value) {
+		throw new TypeError('The macOS SDK root must be an absolute normalized path.');
+	}
+	const path = realpathSync(value);
+	const metadata = lstatSync(path);
+	assert(metadata.isDirectory() && !metadata.isSymbolicLink() && realpathSync(path) === path,
+		'The macOS SDK root must be one canonical non-symbolic directory.');
+	return path;
+}
 
 export function createSoundscaperProfessionalNativeBuildPlan(options) {
 	const repositoryRoot = resolve(options.repositoryRoot);
@@ -99,19 +132,25 @@ function authenticatedBuildPlan({
 	sourceAuthentication, snapshotParent, target,
 }) {
 	const snapshotRoots = Object.fromEntries(sourceAuthentication.map((witness) => [witness.id, witness.extractedTree.root]));
-	assertExtractedJuceVst3Closure(snapshotRoots.juce);
+	const vst3Closure = assertExtractedJuceVst3Closure(snapshotRoots.juce);
 	assertFile(snapshotRoots.clap, 'include/clap/clap.h', 'direct CLAP 1.2.4 ABI');
 	assertFile(snapshotRoots['electron-node-api-headers'], 'include/node/node_api.h', 'Electron 43.1.1 Node-API headers');
 	if (target.startsWith('win-')) assertFile(snapshotRoots['asio-sdk'], 'common/asio.h', 'ASIO SDK 2.3.4');
 	if (target.startsWith('linux-')) assertFile(snapshotRoots.lv2, `${LV2_INCLUDE_ROOT}/lv2/core/lv2.h`, 'LV2 1.18.10 headers');
 	const buildRoot = resolve(options.buildRoot);
+	const installRoot = resolve(options.installRoot ?? `${options.buildRoot}-install`);
 	const sourceRoot = resolve(repositoryRoot, SOUNDSCAPER_PROFESSIONAL_NATIVE_ROOT);
+	const targetSelection = target.startsWith('win-')
+		? ['-A', target === 'win-arm64' ? 'ARM64' : 'x64']
+		: ['-G', 'Ninja'];
 	const definitions = [
 		`-DSOUNDSCAPER_JUCE_ROOT=${snapshotRoots.juce}`,
 		`-DSOUNDSCAPER_CLAP_ROOT=${snapshotRoots.clap}`,
 		`-DSOUNDSCAPER_NODE_API_INCLUDE=${resolve(snapshotRoots['electron-node-api-headers'], 'include/node')}`,
 		`-DSOUNDSCAPER_VST3_PROVENANCE_COMMIT=${EXPECTED['vst3-sdk'].commit}`,
+		`-DSOUNDSCAPER_NATIVE_TARGET=${target}`,
 		`-DCMAKE_BUILD_TYPE=Release`,
+		'-DBUILD_TESTING=ON',
 	];
 	if (target.startsWith('win-')) {
 		definitions.push(`-DSOUNDSCAPER_ASIO_ROOT=${snapshotRoots['asio-sdk']}`);
@@ -123,15 +162,16 @@ function authenticatedBuildPlan({
 	if (target === 'mac-arm64') {
 		assert(typeof options.macosSdkPath === 'string' && options.macosSdkPath.length > 0,
 			'mac-arm64 requires the selected macOS SDK path.');
-		definitions.push(`-DCMAKE_OSX_SYSROOT=${resolve(options.macosSdkPath)}`);
+		definitions.push(`-DCMAKE_OSX_SYSROOT=${canonicalSoundscaperProfessionalNativeMacosSdkPath(options.macosSdkPath)}`);
 		definitions.push('-DCMAKE_OSX_ARCHITECTURES=arm64');
 	}
-	if (target.endsWith('-arm64') && target !== 'mac-arm64') definitions.push('-DCMAKE_SYSTEM_PROCESSOR=arm64');
+	if (target === 'linux-arm64') definitions.push('-DCMAKE_SYSTEM_PROCESSOR=arm64');
 	const plan = Object.freeze({
 		schemaVersion: 1,
 		target,
 		sourceRoot,
 		buildRoot,
+		installRoot,
 		sourceAuthentication: Object.freeze(sourceAuthentication),
 		sourceSnapshotRoot: snapshotParent,
 		m9ReleaseReview: Object.freeze({
@@ -141,13 +181,24 @@ function authenticatedBuildPlan({
 		}),
 		vst3Closure: Object.freeze({
 			kind: 'juce-embedded-sdk',
-			root: resolve(snapshotRoots.juce, JUCE_VST3_SDK_CLOSURE),
+			root: vst3Closure.root,
+			version: vst3Closure.version,
+			versionHeaderSha256: vst3Closure.versionHeaderSha256,
 			provenanceOnlySourceId: 'vst3-sdk',
 			commit: EXPECTED['vst3-sdk'].commit,
 		}),
 		features: featuresFor(target),
-		configure: Object.freeze({ command: 'cmake', argv: Object.freeze(['-S', sourceRoot, '-B', buildRoot, ...definitions]) }),
+		configure: Object.freeze({
+			command: 'cmake',
+			argv: Object.freeze(['-S', sourceRoot, '-B', buildRoot, ...targetSelection, ...definitions]),
+		}),
 		build: Object.freeze({ command: 'cmake', argv: Object.freeze(['--build', buildRoot, '--config', 'Release', '--parallel']) }),
+		test: Object.freeze({ command: 'ctest', argv: Object.freeze([
+			'--test-dir', buildRoot, '-C', 'Release', '--output-on-failure', '--no-tests=error',
+		]) }),
+		install: Object.freeze({ command: 'cmake', argv: Object.freeze([
+			'--install', buildRoot, '--config', 'Release', '--prefix', installRoot,
+		]) }),
 	});
 	AUTHENTICATED_BUILD_PLANS.add(plan);
 	return plan;
@@ -159,13 +210,13 @@ export function executeSoundscaperProfessionalNativeBuild(plan, options = {}) {
 	try {
 		for (const witness of plan.sourceAuthentication) verifyMilestone5NativeSourceInput(witness);
 		const run = options.run ?? spawnSync;
-		for (const step of [plan.configure, plan.build]) {
+		for (const step of [plan.configure, plan.build, plan.test, plan.install]) {
 			const result = run(step.command, step.argv, { encoding: 'utf8', stdio: options.stdio ?? 'pipe' });
 			assert(result.status === 0, `Professional native build failed: ${result.stderr || result.stdout || 'unknown error'}`);
 		}
 		for (const witness of plan.sourceAuthentication) verifyMilestone5NativeSourceInput(witness);
 		return Object.freeze({
-			target: plan.target, buildRoot: plan.buildRoot, status: 'built',
+			target: plan.target, buildRoot: plan.buildRoot, installRoot: plan.installRoot, status: 'built',
 			sourceAuthentication: sourceAuthenticationSummary(plan.sourceAuthentication),
 		});
 	} finally {
@@ -230,6 +281,14 @@ function assertExtractedJuceVst3Closure(juceRoot) {
 	assertFile(juceRoot, 'modules/juce_audio_processors/format_types/juce_VST3PluginFormat.cpp', 'JUCE VST3 adapter');
 	const closure = resolve(juceRoot, JUCE_VST3_SDK_CLOSURE);
 	assert(existsSync(closure), 'JUCE 9.0.1 embedded VST3 SDK closure is missing.');
+	const versionHeader = readFileSync(resolve(juceRoot, JUCE_VST3_VERSION_HEADER));
+	assert(/^#define kVstVersionString\s+"VST 3\.8\.0"\s*$/mu.test(versionHeader.toString('utf8')),
+		'The JUCE embedded VST3 SDK is not exact API version 3.8.0.');
+	return Object.freeze({
+		root: closure,
+		version: '3.8.0',
+		versionHeaderSha256: createHash('sha256').update(versionHeader).digest('hex'),
+	});
 }
 
 function assertFile(root, relativePath, label) {

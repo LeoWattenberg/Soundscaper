@@ -18,9 +18,10 @@ import {
 	APP_NAME,
 	APP_ORIGIN,
 	APP_SCHEME,
+	DECLARED_APPLICATION_VERSION,
 	EXTERNAL_DESTINATIONS, FRAMESCAPER_WEB_VCR_ENABLED,
 	IPC,
-	PRODUCT_ID,
+	PRODUCT_ID, RELEASE_CHANNEL,
 	SESSION_PARTITION,
 	SUPPORTED_LOCALES,
 	UPDATE_TAG_PREFIX,
@@ -47,6 +48,7 @@ import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { startDesktopProjectLibraryProductRuntime } from './project-library-product-runtime.js';
+import { startSoundscaperDeliveryRegistration } from './soundscaper-delivery-registration.mjs';
 import { attachDesktopMainWindowRecovery } from './project-library-runtime/desktop/main-window-recovery.js';
 import { registerDesktopNativeTierControls } from './project-library-runtime/desktop/native-tier-controls.js';
 import { RendererSaveOwnership } from './renderer-save-owner.js';
@@ -74,25 +76,21 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
+if (DECLARED_APPLICATION_VERSION !== null && app.getVersion() !== DECLARED_APPLICATION_VERSION) throw new Error('Packaged application version does not match its selected product release line.');
 const rendererSaveOwnership = new RendererSaveOwnership();
 let mainWindow = null;
 let nightlyTestsWindow = null;
-let settings = null;
-let releaseChecker = null;
+let settings = null, releaseChecker = null;
 let rendererReady = false;
 let pendingClose = null;
-let projectLibraryRuntime = null;
-let projectLibraryStartup = null;
-let projectLibraryIpc = null;
-let linkedVideoLocators = null;
-let nativeTier = null;
-let nativeServices = null;
+let projectLibraryRuntime = null, projectLibraryStartup = null, projectLibraryIpc = null;
+let linkedVideoLocators = null, nativeTier = null, nativeServices = null, soundscaperDelivery = null;
 let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	revokeCapture: (owner) => revokeDesktopCaptureOwner(captureSecurity, owner), revokeAssistanceSemanticSearch: (owner) => assistanceSemanticSearch?.revokeOwner(owner),
-	revokeDesktopCodecs: (owner) => desktopCodecs?.revokeOwner(owner),
+	revokeDesktopCodecs: (owner) => desktopCodecs?.revokeOwner(owner), revokeSoundscaperDelivery: (owner) => soundscaperDelivery?.revokeOwner(owner),
 	revokeNativeServices: (owner) => nativeServices?.revokeOwner(owner),
 	revokeNativeTier: (owner) => revokeDesktopNativeTierOwner(nativeTier, owner),
 	linkedVideoLocators: () => linkedVideoLocators,
@@ -116,7 +114,7 @@ const pendingOpenProjects = new PendingProjectQueue(createPendingProjectDelivery
 }));
 const applicationShutdown = new DesktopApplicationShutdown({
 	tasks: [
-		{ name: 'desktop codecs', run: () => desktopCodecs?.dispose() },
+		{ name: 'desktop codecs', run: () => desktopCodecs?.dispose() }, { name: 'persistent delivery', run: () => soundscaperDelivery?.dispose() },
 		{ name: 'external FFmpeg preferences', run: () => externalFfmpegPreferences?.dispose() },
 		{ name: 'capture security', run: () => disposeDesktopCaptureSecurity(captureSecurity) },
 		{ name: 'native services', run: () => nativeServices?.dispose() },
@@ -179,7 +177,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 async function startApplication() {
-	await app.whenReady();
+	await app.whenReady(); if (await desktopSmokeProbe.professionalNativeUtilitySmoke({ argv: process.argv, packaged: app.isPackaged, productId: PRODUCT_ID, userDataPath: app.getPath('userData'), nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), utilityProcess, helperPath: resolve(__dirname, 'soundscaper-professional-native-utility-smoke-helper.js'), log: console.log })) { await exitApplication(0); return; }
 	linkedVideoLocators = createDesktopLinkedVideoLocatorRuntime({ readCapabilities, registryPath: resolve(app.getPath('userData'), 'linked-video-locators-project-v1.json') });
 	await linkedVideoLocators.ready();
 	if (applicationShutdown.requested) return;
@@ -264,6 +262,7 @@ async function createWindow() {
 		backgroundColor: '#1b1b1b',
 		webPreferences: {
 			preload: resolve(__dirname, 'preload.mjs'),
+			additionalArguments: [`--soundscaper-product=${PRODUCT_ID}`],
 			partition: SESSION_PARTITION,
 			nodeIntegration: false,
 			contextIsolation: true,
@@ -368,6 +367,7 @@ async function registerIpcHandlers(desktopSession) {
 		removeHandler: (channel) => ipcMain.removeHandler(channel),
 		session: desktopSession,
 	});
+	soundscaperDelivery = await startSoundscaperDeliveryRegistration({ productId: PRODUCT_ID, applicationVersion: app.getVersion(), declaredApplicationVersion: DECLARED_APPLICATION_VERSION, releaseChannel: RELEASE_CHANNEL, nativePayloadLocation: Object.freeze({ applicationRoot: dirname(__dirname), packaged: app.isPackaged, resourcesPath: process.resourcesPath, platform: process.platform, arch: process.arch }), userDataPath: app.getPath('userData'), instanceId: randomUUID(), processId: process.pid, projectLibraryRuntime, handle, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener), ownerFor: rendererSaveOwnerFor, dialog, windowFor: () => mainWindow });
 	nativeServices?.registerRendererBridge({ handle, ownerFor: rendererSaveOwnerFor, removeHandler: (channel) => ipcMain.removeHandler(channel), on: (channel, listener) => ipcMain.on(channel, listener), removeListener: (channel, listener) => ipcMain.removeListener(channel, listener) });
 	linkedVideoLocators.registerIpc({ dialog, handle, ownerFor: rendererSaveOwnerFor, windowFor: () => mainWindow });
 	nativeTier = registerDesktopNativeTier({ channels: IPC, handle, ownerFor: rendererSaveOwnerFor, readCapabilities, settings, desktopRoot: __dirname, packaged: app.isPackaged, resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'), parentWindow: () => mainWindow, productId: PRODUCT_ID, nativePluginStateAuthority: () => projectLibraryRuntime.nativePluginStateAuthority() });

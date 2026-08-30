@@ -30,6 +30,21 @@ export function createDeferredEditorExportService(
 		return servicePromise;
 	};
 	return Object.freeze({
+		derivePersistentAudioDeliveryPlan: async (
+			...args: Parameters<EditorExportService['derivePersistentAudioDeliveryPlan']>
+		) => (await loadService()).derivePersistentAudioDeliveryPlan(...args),
+		cancelPersistentAudioDelivery: async (
+			...args: Parameters<EditorExportService['cancelPersistentAudioDelivery']>
+		) => (await loadService()).cancelPersistentAudioDelivery(...args),
+		persistentAudioDeliveryAvailable: async () => (
+			(await loadService()).persistentAudioDeliveryAvailable()
+		),
+		whenPersistentAudioDeliveryAvailable: async () => (
+			(await loadService()).whenPersistentAudioDeliveryAvailable()
+		),
+		executePersistentAudioDeliveryPlan: async (
+			...args: Parameters<EditorExportService['executePersistentAudioDeliveryPlan']>
+		) => (await loadService()).executePersistentAudioDeliveryPlan(...args),
 		exportVideo: async (...args: Parameters<EditorExportService['exportVideo']>) => (
 			(await loadService()).exportVideo(...args)
 		),

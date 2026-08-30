@@ -15,10 +15,16 @@ const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertie
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
 const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
-const FramescaperVideoProxyDialog = React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx'));
-const FramescaperFinishingDialog = React.lazy(() => import('../dialogs/FramescaperFinishingDialog.tsx'));
-const FramescaperVisualInspectorDialog = React.lazy(() => import('../dialogs/FramescaperVisualInspectorDialog.tsx'));
-const FramescaperSelectedVisualAuthoringDialog = React.lazy(() => import('../dialogs/FramescaperSelectedVisualAuthoringDialog.tsx'));
+const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
+	|| __SCAPE_PRODUCT__ === 'framescaper';
+const FramescaperVideoProxyDialog = FRAMESCAPER_BUILD
+	? React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx')) : null;
+const FramescaperFinishingDialog = FRAMESCAPER_BUILD
+	? React.lazy(() => import('../dialogs/FramescaperFinishingDialog.tsx')) : null;
+const FramescaperVisualInspectorDialog = FRAMESCAPER_BUILD
+	? React.lazy(() => import('../dialogs/FramescaperVisualInspectorDialog.tsx')) : null;
+const FramescaperSelectedVisualAuthoringDialog = FRAMESCAPER_BUILD
+	? React.lazy(() => import('../dialogs/FramescaperSelectedVisualAuthoringDialog.tsx')) : null;
 const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
 const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));

@@ -1,0 +1,100 @@
+{
+	"schemaVersion": 1,
+	"id": "soundscaper-professional-native-notices-v1",
+	"purpose": "Exact installed-notice inventory for authenticated Soundscaper professional-native source inputs. This technical inventory does not assert external legal approval.",
+	"legalApproval": null,
+	"sources": [
+		{
+			"id": "electron-node-api-headers",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "electron-node-api-headers-MIT.txt",
+					"origin": "repository-dependency",
+					"path": "node_modules/electron/LICENSE",
+					"byteLength": 1096,
+					"sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+				}
+			]
+		},
+		{
+			"id": "juce",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "JUCE-LICENSE.md",
+					"origin": "authenticated-source",
+					"path": "LICENSE.md",
+					"byteLength": 5312,
+					"sha256": "a37eaefe4f160da98bc07d2e8d951e46a9b52abd6e23b233ffcadf003d690f93"
+				},
+				{
+					"name": "AGPL-3.0.txt",
+					"origin": "repository",
+					"path": "LICENSE",
+					"byteLength": 34523,
+					"sha256": "8486a10c4393cee1c25392769ddd3b2d6c242d6ec7928e1414efff7dfb2f07ef"
+				}
+			]
+		},
+		{
+			"id": "clap",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "CLAP-MIT.txt",
+					"origin": "authenticated-source",
+					"path": "LICENSE",
+					"byteLength": 1072,
+					"sha256": "ced49f9ef950277afdb56199369ea6e8165ebfdbfbb37ebfe1827e0de892088d"
+				}
+			]
+		},
+		{
+			"id": "vst3-sdk",
+			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "VST3-SDK-MIT.txt",
+					"origin": "authenticated-source",
+					"path": "LICENSE.txt",
+					"byteLength": 1257,
+					"sha256": "d6115b263faa1cdf8c7372d70889c833dde1cec95252e7ee93e4f7d599ec96ca"
+				}
+			]
+		},
+		{
+			"id": "asio-sdk",
+			"targets": ["win-x64", "win-arm64"],
+			"notices": [
+				{
+					"name": "ASIO-SDK-LICENSE.txt",
+					"origin": "authenticated-source",
+					"path": "LICENSE.txt",
+					"byteLength": 2640,
+					"sha256": "61e56814f24b32216884b2db0b4dcc317111a5ab354d54d19dd9fc13d71b1c7a"
+				},
+				{
+					"name": "GPL-3.0.txt",
+					"origin": "repository",
+					"path": "LICENSES/GPL-3.0.txt",
+					"byteLength": 35149,
+					"sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+				}
+			]
+		},
+		{
+			"id": "lv2",
+			"targets": ["linux-x64", "linux-arm64"],
+			"notices": [
+				{
+					"name": "LV2-ISC.txt",
+					"origin": "authenticated-source",
+					"path": "COPYING",
+					"byteLength": 827,
+					"sha256": "1e6bb175e193608b767ff25a4ed68b82c4db599491cf0d2694435cf60e9a4841"
+				}
+			]
+		}
+	]
+}

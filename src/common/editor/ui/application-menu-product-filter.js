@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { workspacePanelAvailable } from './framescaper-capture-ui-model.ts';
+import { workspacePanelAvailable } from './workspace/workspace-product-panel-runtime.ts';
 
 export function filterProductMenus(menus, capabilities, productId) {
 	const hiddenTopLevel = new Set();

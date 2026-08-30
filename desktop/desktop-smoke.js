@@ -57,6 +57,7 @@ import {
 } from './framescaper-web-vcr-smoke-plan.js';
 import { createFramescaperWebVcrSmokeSession } from './framescaper-web-vcr-smoke-session.js';
 import { FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY } from './framescaper-web-vcr-renderer-smoke.js';
+import { runSoundscaperProfessionalNativeUtilitySmoke } from './soundscaper-professional-native-utility-smoke.mjs';
 
 const ARTIFACT_SMOKE_SCRIPT = `(async () => ({
 	url: location.href,
@@ -388,6 +389,7 @@ export function createDesktopSmokeProbe(options) {
 			webVcrSmokeSession?.observeDisplaySecurityWitness(value) ?? false
 		),
 		observeProjectDescriptor,
+		professionalNativeUtilitySmoke: runSoundscaperProfessionalNativeUtilitySmoke,
 		projectLibraryLeaseQualification: () => leaseSession?.leaseQualification ?? null,
 		rendererReady,
 		resolveSavePath,

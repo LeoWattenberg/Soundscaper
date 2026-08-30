@@ -9,18 +9,25 @@ import {
 } from '../src/common/editor/controller/framescaper-capture-canonical-assets.ts';
 import { createFramescaperCaptureDurableSessionCoordinator } from '../src/common/editor/controller/framescaper-capture-durable-session.ts';
 import { createFramescaperCaptureAssetStreams } from '../src/common/editor/controller/framescaper-capture-stream-timing.ts';
-import { createProjectStore } from '../src/common/editor/storage.js';
+import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
+import { createFramescaperProjectStore } from '../src/framescaper/editor-project-store.ts';
 
 test('canonical PCM publication materializes an exact internal hole without shifting captured samples', async () => {
-	const store = createProjectStore({
+	const store = createFramescaperProjectStore(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
 		indexedDB: null,
 		preferOpfs: false,
-		databaseName: `capture-pcm-timing-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
 	});
+	const encodedSpools = store.encodedCaptureSpoolRepository;
+	const rawPcmSpools = store.rawPcmSpoolRepository;
+	const manifests = store.framescaperCaptureManifestRepository;
+	assert.ok(encodedSpools);
+	assert.ok(rawPcmSpools);
+	assert.ok(manifests);
 	const coordinator = createFramescaperCaptureDurableSessionCoordinator({
-		encodedSpools: store.encodedCaptureSpoolRepository,
-		rawPcmSpools: store.rawPcmSpoolRepository,
-		manifests: store.framescaperCaptureManifestRepository,
+		encodedSpools,
+		rawPcmSpools,
+		manifests,
 		now: () => 100,
 	});
 	const session = await coordinator.create({
@@ -56,8 +63,8 @@ test('canonical PCM publication materializes an exact internal hole without shif
 
 	const publication = await publishFramescaperCaptureCanonicalAsset({
 		store: canonicalStore(store),
-		encodedSpools: store.encodedCaptureSpoolRepository,
-		rawPcmSpools: store.rawPcmSpoolRepository,
+		encodedSpools,
+		rawPcmSpools,
 		probeVideo: () => { throw new Error('PCM publication cannot probe video.'); },
 	}, manifest, streamManifest, stream, 48_000, null, 'publish');
 
@@ -79,7 +86,7 @@ test('canonical PCM publication materializes an exact internal hole without shif
 	]);
 });
 
-function canonicalStore(store: ReturnType<typeof createProjectStore>): FramescaperCaptureCanonicalStore {
+function canonicalStore(store: AudioEditorProjectStore): FramescaperCaptureCanonicalStore {
 	return {
 		getSourceMetadata: store.getSourceMetadata.bind(store),
 		beginSourceWrite: store.beginSourceWrite.bind(store),

@@ -20,6 +20,9 @@ const { createProjectStore } = await import('../src/common/editor/storage.js');
 const { createSoundscaperProjectRuntimeSelection } = await import(
 	'../src/soundscaper/editor-project-runtime-selection.ts'
 );
+const { FRAMESCAPER_EDITOR_CAPTURE_RUNTIME } = await import(
+	'../src/framescaper/editor-capture-runtime.ts'
+);
 
 const COPY = Object.freeze({
 	ready: 'Ready', untitledProject: 'Untitled', track: 'Track',
@@ -224,6 +227,7 @@ test('real Framescaper capture open action reveals Recording Setup without openi
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		productId: 'framescaper',
+		framescaperCaptureRuntime: FRAMESCAPER_EDITOR_CAPTURE_RUNTIME,
 		framescaperCaptureRouteSchemaVersion: 19,
 		copy: COPY,
 		store: createProjectStore({ indexedDB: null, preferOpfs: false }),

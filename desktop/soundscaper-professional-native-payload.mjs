@@ -7,11 +7,14 @@ import { lstat, readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
+	assertSoundscaperProfessionalReadinessArtifacts,
 	soundscaperProfessionalReadinessEvidenceName,
 	soundscaperProfessionalReadinessReference,
-	soundscaperProfessionalRuntimeClosureSha256,
 	verifySoundscaperProfessionalReadiness,
 } from './soundscaper-professional-native-readiness.mjs';
+import {
+	parseSoundscaperProfessionalNativeCandidateReadinessBindings,
+} from './soundscaper-professional-native-candidate-bindings.mjs';
 import {
 	MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
 	resolveNativeIsolationReviewPublicKey,
@@ -45,12 +48,25 @@ export async function describeSoundscaperProfessionalNativePayload(location, rea
 		return unavailable('payload-pending-external', selected?.blockedBy ?? 'No payload is built for this target.');
 	}
 	let payload;
+	let osAudioCodec;
+	let buildCandidate;
+	let candidateAuthority;
 	let pluginPeer;
+	let deliveryFilesystem;
 	let isolation;
 	let entrypoint;
 	try {
 		payload = await runtimeArtifact(location, manifest, target, selected.payload, readFileImpl);
+		buildCandidate = await runtimeArtifact(location, manifest, target,
+			selected.buildCandidate, readFileImpl, (bytes) => {
+				candidateAuthority = parseSoundscaperProfessionalNativeCandidateReadinessBindings(bytes, target);
+			});
+		osAudioCodec = selected.osAudioCodec === null ? null
+			: await runtimeArtifact(location, manifest, target, selected.osAudioCodec, readFileImpl);
 		pluginPeer = await runtimeArtifact(location, manifest, target, selected.pluginPeer, readFileImpl);
+		deliveryFilesystem = await runtimeArtifact(
+			location, manifest, target, selected.deliveryFilesystem, readFileImpl,
+		);
 		const runtimeClosure = Object.freeze(await Promise.all(selected.isolation.runtimeClosure.map((entry) =>
 			runtimeArtifact(location, manifest, target, entry, readFileImpl))));
 		entrypoint = selected.isolation.entrypointPath === selected.pluginPeer.path ? pluginPeer
@@ -71,20 +87,22 @@ export async function describeSoundscaperProfessionalNativePayload(location, rea
 		manifest,
 		target,
 		selected,
-		pluginPeer,
-		isolation,
+		buildCandidate, osAudioCodec, deliveryFilesystem, pluginPeer,
+		isolation, candidateAuthority,
 		readFileImpl,
 	});
 	return Object.freeze({ status: 'available', descriptor: Object.freeze({
 		target, path: payload.path, byteLength: payload.byteLength, sha256: payload.sha256,
 		addonVersion: manifest.addon.version, napiVersion: manifest.addon.napiVersion,
 		toolchainIdentity: selected.toolchainIdentity, sourceAudit: selected.sourceAuthentication,
+		buildCandidate, osAudioCodec, deliveryFilesystem,
 		m9ReleaseReview, pluginPeer, isolation: Object.freeze({ ...isolation, entrypoint }),
 	}) });
 }
 
 async function professionalNativeM9ReleaseReview({
-	reference, location, manifest, target, selected, pluginPeer, isolation, readFileImpl,
+	reference, location, manifest, target, selected, buildCandidate, osAudioCodec,
+	deliveryFilesystem, pluginPeer, isolation, candidateAuthority, readFileImpl,
 }) {
 	if (reference === null) return Object.freeze({
 		scope: 'stable-1.0-release', status: 'pending',
@@ -98,6 +116,11 @@ async function professionalNativeM9ReleaseReview({
 			{
 				target, payload: selected.payload, sourceAuthentication: selected.sourceAuthentication,
 				toolchainIdentity: selected.toolchainIdentity,
+				buildCandidate: selected.buildCandidate,
+				deliveryFilesystem: selected.deliveryFilesystem,
+				osAudioCodec: selected.osAudioCodec,
+				runtimeClosure: selected.isolation.runtimeClosure,
+				candidateAuthority,
 			}, {
 				readEvidence: () => readFileImpl(runtimeReadinessPath(location, manifest, target)),
 				resolveReviewPublicKey: (keyId) => resolveNativeIsolationReviewPublicKey(reviewPolicy, {
@@ -105,7 +128,10 @@ async function professionalNativeM9ReleaseReview({
 				}),
 			},
 		);
-		assertReadinessArtifacts(verified, pluginPeer, isolation);
+		assertSoundscaperProfessionalReadinessArtifacts(verified, {
+			buildCandidate, osAudioCodec, deliveryFilesystem, pluginPeer, isolation,
+			runtimeClosure: selected.isolation.runtimeClosure,
+		});
 		return Object.freeze({
 			scope: 'stable-1.0-release', status: 'complete', evidence: verified,
 		});
@@ -133,6 +159,9 @@ function validateManifest(value, sourceRegister) {
 		|| value.addon?.napiVersion !== 8 || value.addon?.license !== 'AGPL-3.0-only'
 		|| value.pluginPeer?.payloadName !== 'soundscaper_professional_peer'
 		|| value.pluginPeer?.protocol !== 'M5F1' || value.pluginPeer?.license !== 'AGPL-3.0-only'
+		|| value.deliveryFilesystem?.payloadName !== 'soundscaper_delivery_fs'
+		|| value.deliveryFilesystem?.protocol !== 'SDF1'
+		|| value.deliveryFilesystem?.license !== 'AGPL-3.0-only'
 		|| value.isolation?.launcherName !== 'milestone5-native-isolation-launcher'
 		|| value.isolation?.profileName !== 'native-isolation-profile-v1.json'
 		|| value.isolation?.brokerPolicyName !== 'native-isolation-broker-v1.json'
@@ -150,6 +179,13 @@ function validateManifest(value, sourceRegister) {
 			|| typeof target.toolchainIdentity !== 'string' || !target.payload
 			|| !Number.isSafeInteger(target.payload.byteLength) || target.payload.byteLength < 1
 			|| !SHA256.test(String(target.payload.sha256))
+			|| !validArtifact(target.buildCandidate,
+				`native/soundscaper-professional-host/prebuilt/${target.id}/soundscaper-professional-native-candidate.json`)
+				|| (target.id.startsWith('linux-') ? target.osAudioCodec !== null
+					: !validArtifact(target.osAudioCodec,
+						`native/soundscaper-professional-host/prebuilt/${target.id}/soundscaper_os_audio_codec.node`))
+				|| !validArtifact(target.deliveryFilesystem,
+					`native/soundscaper-professional-host/prebuilt/${target.id}/soundscaper_delivery_fs${target.id.startsWith('win-') ? '.exe' : ''}`)
 			|| !validIsolation(target, value)
 			|| !validSourceAuthentication(target.sourceAuthentication, target.id, sourceRegister)
 				|| target.productionReadiness === undefined)) {
@@ -157,7 +193,9 @@ function validateManifest(value, sourceRegister) {
 		}
 		if (target.status === 'pending-external'
 			&& (target.sourceAuthentication !== null || target.productionReadiness !== null
-				|| target.pluginPeer !== null || target.isolation !== null)) {
+					|| target.buildCandidate !== null || target.payload !== null
+					|| target.osAudioCodec !== null || target.pluginPeer !== null
+					|| target.deliveryFilesystem !== null || target.isolation !== null)) {
 			throw new TypeError(`The pending professional native ${String(target.id)} target cannot claim source authentication.`);
 		}
 	}
@@ -190,10 +228,12 @@ function validSourceAuthentication(value, target, sourceRegister) {
 
 function validIsolation(target, manifest) {
 	const root = `native/soundscaper-professional-host/prebuilt/${target.id}`;
-	if (!validArtifact(target.pluginPeer, `${root}/${manifest.pluginPeer.payloadName}`)
+	if (!validArtifact(target.pluginPeer,
+		`${root}/${targetExecutableName(manifest.pluginPeer.payloadName, target.id)}`)
 		|| !exactKeys(target.isolation,
 			['launcher', 'sandboxProfile', 'brokerPolicy', 'entrypointPath', 'runtimeClosure'])
-		|| !validArtifact(target.isolation.launcher, `${root}/${manifest.isolation.launcherName}`)
+		|| !validArtifact(target.isolation.launcher,
+			`${root}/${targetExecutableName(manifest.isolation.launcherName, target.id)}`)
 		|| !validArtifact(target.isolation.sandboxProfile, `${root}/${manifest.isolation.profileName}`)
 		|| !validArtifact(target.isolation.brokerPolicy, `${root}/${manifest.isolation.brokerPolicyName}`)
 		|| !Array.isArray(target.isolation.runtimeClosure) || target.isolation.runtimeClosure.length > 128) return false;
@@ -217,7 +257,11 @@ function exactKeys(value, fields) {
 		&& JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...fields].sort());
 }
 
-async function runtimeArtifact(location, manifest, target, descriptor, readFileImpl) {
+function targetExecutableName(name, target) {
+	return `${name}${target.startsWith('win-') ? '.exe' : ''}`;
+}
+
+async function runtimeArtifact(location, manifest, target, descriptor, readFileImpl, inspect = null) {
 	const prefix = `native/soundscaper-professional-host/prebuilt/${target}/`;
 	if (!descriptor.path.startsWith(prefix)) throw new Error('A professional native artifact escaped its target root.');
 	const path = location.packaged
@@ -229,22 +273,11 @@ async function runtimeArtifact(location, manifest, target, descriptor, readFileI
 		|| bytes.byteLength !== descriptor.byteLength || digest(bytes) !== descriptor.sha256) {
 		throw new Error(`The professional native artifact at ${path} failed exact authentication.`);
 	}
+	if (inspect !== null) inspect(bytes);
 	return Object.freeze({
 		path, byteLength: descriptor.byteLength, sha256: descriptor.sha256,
 		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
 	});
-}
-
-function assertReadinessArtifacts(verified, peer, isolation) {
-	const launcher = verified.evidence.launcher;
-	if (launcher.peerPayloadSha256 !== peer.sha256
-		|| launcher.launcherPayloadSha256 !== isolation.launcher.sha256
-		|| launcher.sandboxProfileSha256 !== isolation.sandboxProfile.sha256
-		|| launcher.brokerPolicySha256 !== isolation.brokerPolicy.sha256
-		|| launcher.runtimeClosureSha256
-			!== soundscaperProfessionalRuntimeClosureSha256(isolation.runtimeClosure)) {
-		throw new Error('Signed readiness does not bind the exact professional peer/isolation closure.');
-	}
 }
 
 function runtimeTarget(platform, arch) {

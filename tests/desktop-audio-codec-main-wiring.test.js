@@ -17,7 +17,9 @@ test('desktop main registers both codec providers after preferences and joins li
 		'the request-scoped runtime receives the initialized external preference service');
 	assert.match(mainSource, /registerDesktopCodecProviders\(\{[^\n]+productId: PRODUCT_ID,[^\n]+externalFfmpegPreferences: externalFfmpegPreferences\.service,[^\n]+environment: process\.env \}\)/u);
 	assert.match(mainSource, /revokeDesktopCodecs: \(owner\) => desktopCodecs\?\.revokeOwner\(owner\)/u);
+	assert.match(mainSource, /revokeSoundscaperDelivery: \(owner\) => soundscaperDelivery\?\.revokeOwner\(owner\)/u);
 	assert.match(mainSource, /name: 'desktop codecs', run: \(\) => desktopCodecs\?\.dispose\(\)/u);
+	assert.match(mainSource, /name: 'persistent delivery', run: \(\) => soundscaperDelivery\?\.dispose\(\)/u);
 	assert.match(integrationSource, /registerDesktopAudioCodecs/u);
 	assert.match(integrationSource, /registerDesktopVideoCodecs/u);
 	assert.match(registrationSource, /import\('\.\/project-library-runtime\/desktop\/desktop-audio-codec-runtime-composition\.js'\)/u);

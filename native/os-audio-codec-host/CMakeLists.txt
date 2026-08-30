@@ -13,6 +13,7 @@ elseif(WIN32)
 		AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
 		message(FATAL_ERROR "Soundscaper OS audio codecs support only Windows x64 or ARM64")
 	endif()
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	enable_language(C CXX)
 else()
 	message(FATAL_ERROR

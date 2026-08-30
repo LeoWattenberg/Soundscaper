@@ -5,10 +5,13 @@ import { EFFECT_MENU_GROUPS, createSnapMenu } from './application-menu-model.js'
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
 import { ANALYZER_PANEL_ID_SET, WORKSPACE_DISCOVERABLE_PANEL_IDS, workspacePanelLabel } from './workspace/workspace-panel-model.ts';
 import { filterProductMenus } from './application-menu-product-filter.js';
-import { createFramescaperEditControlMenuItems } from './framescaper-edit-control-menu-model.ts';
-import { createFramescaperVideoTrimApplicationMenuItems } from './framescaper-video-trim-application-menu.ts';
-import { createFramescaperVideoFinishingMenuItems } from './framescaper-video-finishing-menu.ts';
-import { createApplicationMenuProductItems, extendApplicationMenuProductPanelItems } from './application-menu-product-items.js';
+import {
+	createApplicationMenuProductItems,
+	createFramescaperEditControlMenuItems,
+	createFramescaperVideoFinishingMenuItems,
+	createFramescaperVideoTrimApplicationMenuItems,
+	extendApplicationMenuProductPanelItems,
+} from './application-menu-product-runtime.js';
 import { createClipSelectionNavigationMenuModel } from './clip-selection-navigation-menu-model.ts';
 import { createTrackStructuralOperationMenuModel } from './track-structural-operation-menu-model.ts';
 import { createImportAnalysisToolMenuItems, createRepeatAnalyzerMenuItem, createRepeatGeneratorMenuItem } from './import-analysis-application-menu.ts';

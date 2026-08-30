@@ -12,9 +12,21 @@ import {
 import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
+import {
+	readProductReleaseLines,
+	resolveProductApplicationVersion,
+} from './lib/product-release-lines.mjs';
+import {
+	validateSoundscaperStableProfessionalNativeSummary,
+} from './lib/soundscaper-professional-native-stable-summary.mjs';
+import {
+	stageSoundscaperProfessionalNativeReleaseCompliance,
+} from './lib/soundscaper-professional-native-release-compliance.mjs';
+
+export { validateSoundscaperStableProfessionalNativeSummary };
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ASSET_ROOT = resolve(process.argv[2] || resolve(ROOT, 'release/desktop'));
+const DEFAULT_ASSET_ROOT = resolve(ROOT, 'release/desktop');
 const TRANSLATION_BASE_URL = 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
 const RELEASE_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 const RELEASE_TARGETS = Object.freeze([
@@ -41,75 +53,178 @@ const RELEASE_TARGET_PACKAGE_ROWS = Object.freeze({
 		['Windows x64 ZIP', 'win-x64\\.zip'],
 	]),
 });
-const EXPECTED_RUNTIME_MANIFESTS = Object.freeze(RELEASE_PRODUCTS.flatMap((productId) => (
-	RELEASE_TARGETS.map((target) => `runtime-manifest-${productId}-${target}.json`)
-)).sort());
-
-export async function main() {
-	const entries = await readdir(ASSET_ROOT, { withFileTypes: true });
+export async function main(args = process.argv.slice(2)) {
+	const { admissionProfile, assetRoot, productIds } = parseDesktopReleaseAssetArguments(args);
+	const releaseLines = await readProductReleaseLines(ROOT);
+	const effectiveAdmissionProfile = validateDesktopReleaseAdmissionProfile(
+		admissionProfile, releaseLines, productIds,
+	);
+	const expectedVersions = new Map(productIds.map((productId) => [
+		productId, resolveProductApplicationVersion(productId, releaseLines),
+	]));
+	const entries = await readdir(assetRoot, { withFileTypes: true });
 	const packageFiles = regularDesktopReleaseFileNames(entries);
 	const manifestNames = packageFiles
 		.filter((name) => /^runtime-manifest-.+\.json$/u.test(name))
 		.sort();
-	assert(JSON.stringify(manifestNames) === JSON.stringify(EXPECTED_RUNTIME_MANIFESTS),
-		`Expected runtime manifests for all five native builds; received: ${manifestNames.join(', ') || '<none>'}.`);
-	const manifests = await Promise.all(manifestNames.map(async (name) => ({
-		name,
-		value: parseJson(await readFile(resolve(ASSET_ROOT, name)), name),
-	})));
-	validateDesktopRuntimeManifests(manifests);
+	const expectedRuntimeManifests = desktopReleaseRuntimeManifestNames(productIds);
+	assert(JSON.stringify(manifestNames) === JSON.stringify(expectedRuntimeManifests),
+		`Expected the selected product runtime manifests for all five native builds; received: ${manifestNames.join(', ') || '<none>'}.`);
+	const manifests = await Promise.all(manifestNames.map(async (name) => {
+		const bytes = await readFile(resolve(assetRoot, name));
+		return { name, bytes, value: parseJson(bytes, name) };
+	}));
+	validateDesktopRuntimeManifests(manifests, productIds, expectedVersions, {
+		admissionProfile: effectiveAdmissionProfile,
+	});
 	const canonical = manifests[0].value;
 	for (const manifest of manifests.slice(1)) {
-		assert(manifest.value.applicationVersion === canonical.applicationVersion,
-			`${manifest.name} has a different application version.`);
 		assert(manifest.value.translations?.releaseId === canonical.translations?.releaseId,
 			`${manifest.name} has a different translation release.`);
 	}
 	validateDesktopReleasePackageInventory(packageFiles,
-		canonical.applicationVersion,
-		RELEASE_PRODUCTS,
+		expectedVersions,
+		productIds,
 	);
+	validateDesktopReleaseInputInventory(packageFiles, expectedVersions, productIds);
 	const translationSource = canonical.translations?.source?.archive;
 	const translationSourceName = desktopTranslationSourceName(canonical.translations?.releaseId, translationSource);
 	await fetchVerified(
 		new URL(translationSource.path, TRANSLATION_BASE_URL),
-		resolve(ASSET_ROOT, translationSourceName),
+		resolve(assetRoot, translationSourceName),
 		translationSource,
 		'translation source archive',
 	);
-	await writeFile(resolve(ASSET_ROOT, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
-	await writeFile(resolve(ASSET_ROOT, 'THIRD_PARTY_LICENSES.md'), await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
-	await stageDesktopBundledCodecCorrespondingSource({
-		repositoryRoot: ROOT,
-		outputRoot: ASSET_ROOT,
-		applicationVersion: canonical.applicationVersion,
-	});
+	await writeFile(resolve(assetRoot, 'Soundscaper-AGPL-3.0.txt'), await readFile(resolve(ROOT, 'LICENSE')), { flag: 'wx' });
+	await writeFile(resolve(assetRoot, 'THIRD_PARTY_LICENSES.md'), await readFile(resolve(ROOT, 'THIRD_PARTY_LICENSES.md')), { flag: 'wx' });
+	for (const applicationVersion of new Set(expectedVersions.values())) {
+		await stageDesktopBundledCodecCorrespondingSource({
+			repositoryRoot: ROOT,
+			outputRoot: assetRoot,
+			applicationVersion,
+		});
+	}
+	if (effectiveAdmissionProfile === 'soundscaper-stable-1') {
+		const sourceRoot = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT?.trim() ?? '';
+		assert(sourceRoot !== '',
+			'Stable Soundscaper release assembly requires SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT.');
+		await stageSoundscaperProfessionalNativeReleaseCompliance({
+			repositoryRoot: ROOT,
+			sourceRoot,
+			outputRoot: assetRoot,
+			runtimeManifests: manifests,
+		});
+	}
 
-	const releaseFiles = regularDesktopReleaseFileNames(await readdir(ASSET_ROOT, { withFileTypes: true }))
+	const releaseFiles = regularDesktopReleaseFileNames(await readdir(assetRoot, { withFileTypes: true }))
 		.filter((name) => name !== 'SHA256SUMS')
 		.sort();
 	const checksums = [];
 	for (const name of releaseFiles) {
-		const bytes = await readFile(resolve(ASSET_ROOT, name));
+		const bytes = await readFile(resolve(assetRoot, name));
 		checksums.push(`${sha256(bytes)}  ${name}`);
 	}
-	await writeFile(resolve(ASSET_ROOT, 'SHA256SUMS'), `${checksums.join('\n')}\n`, { flag: 'wx' });
-	console.log(`Prepared ${releaseFiles.length} release assets and SHA256SUMS in ${ASSET_ROOT}`);
+	await writeFile(resolve(assetRoot, 'SHA256SUMS'), `${checksums.join('\n')}\n`, { flag: 'wx' });
+	console.log(`Prepared ${releaseFiles.length} release assets and SHA256SUMS in ${assetRoot}`);
+}
+
+export function parseDesktopReleaseAssetArguments(args) {
+	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
+		throw new TypeError('Desktop release asset arguments must be strings.');
+	}
+	let assetRoot = DEFAULT_ASSET_ROOT;
+	let productIds = null;
+	let admissionProfile = null;
+	for (let index = 0; index < args.length; index += 1) {
+		const argument = args[index];
+		if (argument === '--product') {
+			assert(productIds === null, 'Desktop release product scope may be supplied once.');
+			const productId = args[index += 1];
+			assert(RELEASE_PRODUCTS.includes(productId), 'Desktop release product is invalid.');
+			productIds = [productId];
+			continue;
+		}
+		if (argument === '--suite') {
+			assert(productIds === null, 'Desktop release product scope may be supplied once.');
+			productIds = [...RELEASE_PRODUCTS];
+			continue;
+		}
+		if (argument === '--asset-root') {
+			const path = args[index += 1];
+			assert(typeof path === 'string' && path.length > 0, '--asset-root requires a path.');
+			assetRoot = resolve(path);
+			continue;
+		}
+		if (argument === '--admission-profile') {
+			assert(admissionProfile === null, 'Desktop release admission profile may be supplied once.');
+			admissionProfile = args[index += 1];
+			assert(admissionProfile === 'soundscaper-stable-1',
+				'Desktop release admission profile is invalid.');
+			continue;
+		}
+		throw new Error(`Unknown desktop release asset option ${argument}.`);
+	}
+	assert(productIds !== null, 'Desktop release assembly requires --product or --suite.');
+	assert(admissionProfile === null
+		|| (productIds.length === 1 && productIds[0] === 'soundscaper'),
+	'Desktop release admission profile requires the Soundscaper-only product scope.');
+	return Object.freeze({ admissionProfile, assetRoot, productIds: Object.freeze(productIds) });
+}
+
+export function validateDesktopReleaseAdmissionProfile(
+	admissionProfile, releaseLines, productIds = ['soundscaper'],
+) {
+	const line = releaseLines?.products?.soundscaper;
+	const stableSelected = productIds.includes('soundscaper')
+		&& (line?.applicationVersionChannel === 'stable' || line?.releaseChannel === 'stable');
+	if (stableSelected) {
+		assert(productIds.length === 1 && productIds[0] === 'soundscaper',
+			'The Soundscaper stable line requires the Soundscaper-only product scope.');
+		admissionProfile ??= line?.stable?.admissionProfile ?? null;
+	}
+	if (admissionProfile === null) return null;
+	assert(admissionProfile === 'soundscaper-stable-1'
+		&& line?.stable?.admissionProfile === admissionProfile,
+	'The requested desktop release admission profile is not authoritative.');
+	assert(line.applicationVersionChannel === 'stable' && line.releaseChannel === 'stable'
+		&& line.stable.status === 'admitted',
+	'The Soundscaper Stable 1 release line is not admitted and selected for assembly.');
+	return admissionProfile;
+}
+
+export function desktopReleaseRuntimeManifestNames(productIds) {
+	assert(Array.isArray(productIds) && productIds.length > 0
+		&& productIds.every((id) => RELEASE_PRODUCTS.includes(id))
+		&& new Set(productIds).size === productIds.length,
+	'An exact desktop release product set is required.');
+	return productIds.flatMap((productId) => RELEASE_TARGETS.map(
+		(target) => `runtime-manifest-${productId}-${target}.json`,
+	)).sort();
+}
+
+export function validateDesktopReleaseInputInventory(packageFiles, applicationVersion, productIds) {
+	validateDesktopReleasePackageInventory(packageFiles, applicationVersion, productIds);
+	const expected = desktopReleaseRuntimeManifestNames(productIds);
+	const actual = packageFiles.filter((name) => /^runtime-manifest-.+\.json$/u.test(name)).sort();
+	assert(JSON.stringify(actual) === JSON.stringify(expected),
+		'Desktop release input must contain exactly five runtime manifests per selected product.');
 }
 
 export function validateDesktopReleasePackageInventory(
 	packageFiles,
-	applicationVersion,
+	applicationVersionAuthority,
 	productIds = ['soundscaper'],
 ) {
-	assert(typeof applicationVersion === 'string' && applicationVersion.length > 0,
-		'Desktop runtime manifests have no application version.');
 	assert(Array.isArray(productIds) && productIds.length > 0
 		&& productIds.every((id) => RELEASE_PRODUCTS.includes(id))
 		&& new Set(productIds).size === productIds.length,
 		'An exact desktop release product set is required.');
 	const requiredPackages = productIds.flatMap((productId) => RELEASE_TARGETS.flatMap((targetId) => (
-		desktopReleaseTargetPackageInventory(productId, targetId, applicationVersion)
+		desktopReleaseTargetPackageInventory(
+			productId,
+			targetId,
+			desktopReleaseApplicationVersion(productId, applicationVersionAuthority),
+		)
 			.map(({ label, pattern }) => [
 				productIds.length === 1 && productId === 'soundscaper'
 					? label
@@ -133,6 +248,14 @@ export function validateDesktopReleasePackageInventory(
 	const unexpectedInputs = packageFiles.filter((name) => !allowedInputs.has(name));
 	assert(unexpectedInputs.length === 0,
 		`Unexpected desktop release input: ${unexpectedInputs.join(', ')}.`);
+}
+
+export function desktopReleaseApplicationVersion(productId, authority) {
+	assert(RELEASE_PRODUCTS.includes(productId), 'Desktop release product is invalid.');
+	const applicationVersion = authority instanceof Map ? authority.get(productId) : authority;
+	assert(typeof applicationVersion === 'string' && applicationVersion.length > 0,
+		`Desktop runtime manifests have no ${productId} application version.`);
+	return applicationVersion;
 }
 
 export function desktopReleaseTargetPackageInventory(productId, targetId, applicationVersion) {
@@ -164,7 +287,10 @@ export function desktopTranslationSourceName(releaseId, descriptor) {
 	return `Audacity-translations-${normalizedId}-source.zip`;
 }
 
-export function validateDesktopRuntimeManifests(manifests) {
+export function validateDesktopRuntimeManifests(
+	manifests, productIds = RELEASE_PRODUCTS, expectedVersions, options = {},
+) {
+	const selectedProducts = new Set(productIds);
 	for (const manifest of manifests) {
 		assert(manifest.value && typeof manifest.value === 'object' && !Array.isArray(manifest.value),
 			`${manifest.name} is not a desktop runtime manifest.`);
@@ -173,17 +299,39 @@ export function validateDesktopRuntimeManifests(manifests) {
 		assertDesktopCodecPolicy(manifest.value.desktopCodecPolicy,
 			`${manifest.name} desktop codec policy`);
 		const identity = /^runtime-manifest-(soundscaper|framescaper)-(linux|mac|win)-(arm64|x64)\.json$/u.exec(manifest.name);
+		assert(identity !== null && selectedProducts.has(identity[1]),
+			`${manifest.name} is outside the selected desktop release product scope.`);
 		assert(manifest.value.productId === identity?.[1] && manifest.value.target?.platform === identity?.[2]
 			&& manifest.value.target?.arch === identity?.[3], `${manifest.name} has invalid product or target identity.`);
 		const targetId = `${identity?.[2]}-${identity?.[3]}`;
+		if (expectedVersions !== undefined) {
+			assert(manifest.value.applicationVersion === expectedVersions.get(identity[1]),
+				`${manifest.name} does not use its selected product release-line version.`);
+		}
+		if (options.admissionProfile === 'soundscaper-stable-1') {
+			assert(manifest.value.applicationVersionChannel === 'stable'
+				&& manifest.value.releaseChannel === 'stable',
+			`${manifest.name} does not declare the stable release channel.`);
+		}
 		assert(JSON.stringify(manifest.value.assistanceNativeRuntime)
 			=== JSON.stringify(assistanceNativeRuntimeStageSummary(assistanceNativeRuntimeManifest, targetId)),
 			`${manifest.name} has invalid assistance native-runtime evidence.`);
-		validateDesktopNativeAddonSummary(manifest, targetId);
+		validateDesktopNativeAddonSummary(manifest, targetId, {
+			stableSoundscaper: identity?.[1] === 'soundscaper'
+				&& options.admissionProfile === 'soundscaper-stable-1',
+		});
 		if (identity?.[1] === 'framescaper') validateFramescaperNativeHostSummary(manifest, targetId);
-		else assert(manifest.value.framescaperNativeHosts === null
-			|| manifest.value.framescaperNativeHosts === undefined,
+		else {
+			assert(manifest.value.framescaperNativeHosts === null
+				|| manifest.value.framescaperNativeHosts === undefined,
 			`${manifest.name} unexpectedly carries Framescaper native-host state.`);
+			if (options.admissionProfile === 'soundscaper-stable-1') {
+				validateSoundscaperStableProfessionalNativeSummary(
+					manifest.value.soundscaperProfessionalNative, targetId, manifest.name,
+					manifest.value.sourceRevision,
+				);
+			}
+		}
 	}
 }
 
@@ -214,8 +362,13 @@ export function validateFramescaperNativeHostSummary(manifest, targetId) {
  * must also have declared its target: a summary that fell back to the build
  * host is a local build and is never release evidence.
  */
-export function validateDesktopNativeAddonSummary(manifest, targetId) {
+export function validateDesktopNativeAddonSummary(manifest, targetId, options = {}) {
 	const summary = manifest.value.nativeAddons;
+	if (options.stableSoundscaper === true) {
+		assert(manifest.value.productId === 'soundscaper' && summary === null,
+			`${manifest.name} Stable Soundscaper retains the legacy development native addon.`);
+		return;
+	}
 	assert(summary && typeof summary === 'object',
 		`${manifest.name} does not record a staged native addon payload summary.`);
 	assert(summary.target === targetId,

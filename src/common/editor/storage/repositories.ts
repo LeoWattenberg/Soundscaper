@@ -24,11 +24,10 @@ import {
 	type LinkedVideoOriginalPort,
 } from './linked-video-original-resolver.ts';
 import { MediaRepository } from './media-repository.ts';
-import { MediaAssetChunkRecords } from './media-asset-chunk-records.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
-import { EncodedCaptureSpoolRepository } from './encoded-capture-spool-repository.ts';
-import { FramescaperCaptureSessionManifestRepository } from './framescaper-capture-session-manifest-repository.ts';
-import { OpfsPreferredEncodedCaptureChunkPort } from './opfs-preferred-encoded-capture-chunk-port.ts';
+import type { EncodedCaptureSpoolRepository } from './encoded-capture-spool-repository.ts';
+import type { FramescaperCaptureSessionManifestRepository } from './framescaper-capture-session-manifest-repository.ts';
+import type { OpfsPreferredEncodedCaptureChunkPort } from './opfs-preferred-encoded-capture-chunk-port.ts';
 import { OpfsRepository } from './opfs-repository.ts';
 import { PcmRepository, type PcmRepositoryOptions } from './pcm-repository.ts';
 import { ProjectCompareAndSwapRepository } from './project-compare-and-swap-repository.ts';
@@ -66,9 +65,9 @@ export interface StorageRepositories {
 	readonly pcm: PcmRepository;
 	readonly retention: RetentionRepository;
 	readonly rawPcmSpools: RawPcmSpoolRepository;
-	readonly encodedCaptureChunks: OpfsPreferredEncodedCaptureChunkPort;
-	readonly encodedCaptureSpools: EncodedCaptureSpoolRepository;
-	readonly framescaperCaptureManifests: FramescaperCaptureSessionManifestRepository;
+	readonly encodedCaptureChunks: OpfsPreferredEncodedCaptureChunkPort | null;
+	readonly encodedCaptureSpools: EncodedCaptureSpoolRepository | null;
+	readonly framescaperCaptureManifests: FramescaperCaptureSessionManifestRepository | null;
 	readonly takeCycleRecoveryEnvelopes: TakeCycleRecoveryEnvelopeRepository;
 }
 
@@ -93,7 +92,20 @@ export interface StorageRepositoryOptions {
 	readonly transientAnalysisCacheNow?: () => number;
 	readonly linkedOriginalPort?: LinkedOriginalPort | null;
 	readonly linkedVideoOriginalPort?: LinkedVideoOriginalPort | null;
+	readonly createFramescaperCaptureRepositories?: FramescaperCaptureRepositoryFactory;
 }
+
+export interface FramescaperCaptureRepositories {
+	readonly encodedCaptureChunks: OpfsPreferredEncodedCaptureChunkPort;
+	readonly encodedCaptureSpools: EncodedCaptureSpoolRepository;
+	readonly framescaperCaptureManifests: FramescaperCaptureSessionManifestRepository;
+}
+
+export type FramescaperCaptureRepositoryFactory = (dependencies: Readonly<{
+	readonly analysis: KeyValueRepository;
+	readonly opfs: OpfsRepository;
+	readonly port: StorageRepositoryPort;
+}>) => Readonly<FramescaperCaptureRepositories>;
 
 export type StorageRepositoryFactory = (
 	port: StorageRepositoryPort,
@@ -174,16 +186,12 @@ export function createStorageRepositories(
 		pcm,
 	});
 	const rawPcmSpools = new RawPcmSpoolRepository(analysis, sourceRecords);
-	const encodedCaptureChunks = new OpfsPreferredEncodedCaptureChunkPort({
-		values: analysis,
-		opfs,
-		fallback: new MediaAssetChunkRecords(port),
-	});
-	const encodedCaptureSpools = new EncodedCaptureSpoolRepository(
-		analysis,
-		encodedCaptureChunks,
-	);
-	const framescaperCaptureManifests = new FramescaperCaptureSessionManifestRepository(analysis);
+	const framescaperCaptureRepositories = options.createFramescaperCaptureRepositories?.({
+		analysis, opfs, port,
+	}) ?? null;
+	const encodedCaptureChunks = framescaperCaptureRepositories?.encodedCaptureChunks ?? null;
+	const encodedCaptureSpools = framescaperCaptureRepositories?.encodedCaptureSpools ?? null;
+	const framescaperCaptureManifests = framescaperCaptureRepositories?.framescaperCaptureManifests ?? null;
 	const takeCycleRecoveryEnvelopes = new TakeCycleRecoveryEnvelopeRepository(analysis);
 	const projects = new ProjectRepository(port, options.revisionLimit);
 	return Object.freeze({

@@ -1,0 +1,8 @@
+{
+	"schemaVersion": 1,
+	"profileId": "soundscaper-stable-1-soak-lab-attestation",
+	"profileVersion": 1,
+	"status": "pending-external",
+	"blockedBy": "No externally provisioned Soundscaper Stable 1 soak-lab Ed25519 verification key has been reviewed and pinned.",
+	"keys": []
+}

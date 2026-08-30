@@ -2,7 +2,7 @@
 
 import type { KeyValueRepository } from './key-value-repository.ts';
 import type { SourceChunkRecord, SourceRecordRepository } from './source-record-repository.ts';
-import { restoreRawPcmAcknowledgedPrefix } from './framescaper-capture-spool-prefix-repair.ts';
+import { restoreRawPcmAcknowledgedPrefix } from './raw-pcm-spool-prefix-repair.ts';
 import {
 	normalizeRawPcmSpoolChunkTiming,
 	normalizeTimedRawPcmSpoolChunk,

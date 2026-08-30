@@ -1,0 +1,39 @@
+{
+	"schemaVersion": 1,
+	"products": {
+		"soundscaper": {
+			"productId": "soundscaper",
+			"applicationVersionChannel": "candidate",
+			"releaseChannel": "candidate",
+			"candidate": {
+				"version": "1.0.0-rc.1",
+				"status": "active",
+				"tagPrefix": "soundscaper-v",
+				"admissionProfile": null
+			},
+			"stable": {
+				"version": "1.0.0",
+				"status": "pending-admission",
+				"tagPrefix": "v",
+				"admissionProfile": "soundscaper-stable-1"
+			}
+		},
+		"framescaper": {
+			"productId": "framescaper",
+			"applicationVersionChannel": "candidate",
+			"releaseChannel": "deferred",
+			"candidate": {
+				"version": "1.0.0-rc.1",
+				"status": "active",
+				"tagPrefix": "framescaper-v",
+				"admissionProfile": null
+			},
+			"stable": {
+				"version": "1.0.0",
+				"status": "deferred",
+				"tagPrefix": "framescaper-v",
+				"admissionProfile": null
+			}
+		}
+	}
+}

@@ -1,5 +1,26 @@
 # Third-party browser runtime notices
 
+## Soundscaper professional-native desktop payload
+
+Stable Soundscaper desktop packages carry a closed, target-specific notice
+inventory under `licenses/professional-native/`. The exact filenames, byte
+lengths, SHA-256 digests, source targets, and selected license arms are recorded
+in [`config/soundscaper-professional-native-notices.json`](config/soundscaper-professional-native-notices.json):
+
+- Electron 43.1.1 Node-API headers — MIT; all five targets
+- JUCE 9.0.1 — AGPL-3.0-only selected; all five targets
+- CLAP 1.2.4 — MIT; all five targets
+- VST3 SDK 3.8.0 build 66 — MIT; all five targets
+- ASIO SDK 2.3.4 — GPL-3.0-only selected; Windows x64 and ARM64 only
+- LV2 1.18.10 — ISC; Linux x64 and ARM64 only
+
+The Stable release inventory includes the exact six authenticated upstream
+source archives and a canonical compliance receipt binding them to all five
+packaged runtime manifests and their source-authentication receipts. No
+Framescaper video-codec source enters that inventory. This checked technical
+inventory does not claim the external legal, trademark, patent, signing, or
+notarization approvals that independently gate Stable admission.
+
 ## Audacity-derived native audio effects
 
 Parts of `src/common/editor/audacity-effects/` are JavaScript translations and adaptations of native effect implementations from Audacity 3.7.7, exact commit `5ef610ed23260d6d648175735bb16b32536eb30b`:

@@ -12,6 +12,7 @@ import {
 import type { StorageRepositoryPort } from '../common/editor/storage/repository-port.ts';
 import type { ProjectRepositoryPort } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore, createProjectStore } from '../common/editor/storage.js';
+import { createFramescaperCaptureRepositories } from './editor-capture-storage-runtime.ts';
 
 const AUTHORITY_FIELDS = Object.freeze([
 	'projectStorageProfile', 'databaseName', 'store', 'repositoryFactory', 'desktopProjectBridge',
@@ -114,7 +115,10 @@ function foundationRepositoryFactory(
 	recordAuthority: (authority: FramescaperProjectStoreFoundationAuthority) => void,
 ): StorageRepositoryFactory {
 	return (port, options) => {
-		const repositories = delegateFactory(port, options);
+		const repositories = delegateFactory(port, {
+			...options,
+			createFramescaperCaptureRepositories,
+		});
 		if (repositories === null || typeof repositories !== 'object') {
 			throw new TypeError(`${definition.generation} repository factory returned an invalid set.`);
 		}

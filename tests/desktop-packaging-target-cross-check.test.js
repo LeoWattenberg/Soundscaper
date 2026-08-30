@@ -48,7 +48,15 @@ async function packagedResources(context) {
 	const resources = join(root, 'resources');
 	const release = await verifyNativeAddonPayloadManifest({ repositoryRoot, target: BUILT_TARGET });
 	await stageVerifiedNativeAddonPayload({ release, outputRoot: join(resources, 'runtime', 'native', BUILT_TARGET) });
-	return { root, resources };
+	const stageManifestPath = join(root, 'stage-manifest.json');
+	await writeFile(stageManifestPath, `${JSON.stringify({
+		productId: 'soundscaper',
+		applicationVersionChannel: 'candidate',
+		releaseChannel: 'candidate',
+		target: { platform: 'linux', arch: 'x64' },
+		nativeAddons: nativeAddonPayloadStageSummary(release),
+	}, null, 2)}\n`);
+	return { root, resources, stageManifestPath };
 }
 
 async function stagedBuildTree(context) {
@@ -104,12 +112,65 @@ test('beforePack refuses a staged native payload that is not the target being pa
 	);
 });
 
+test('beforePack accepts only the intentional legacy-addon absence in Stable Soundscaper', async (context) => {
+	const root = temporaryRoot(context, 'soundscaper-stable-staged-target-');
+	const stageManifestPath = join(root, 'stage-manifest.json');
+	const stable = {
+		productId: 'soundscaper',
+		applicationVersionChannel: 'stable',
+		releaseChannel: 'stable',
+		nativeAddons: null,
+	};
+	await writeFile(stageManifestPath, `${JSON.stringify(stable, null, 2)}\n`);
+	assert.equal(await verifyStagedNativeAddonBeforePack({
+		repositoryRoot: root,
+		stageManifestPath,
+		packagedTarget: BUILT_TARGET,
+	}), null);
+
+	await writeFile(stageManifestPath, `${JSON.stringify({
+		...stable,
+		applicationVersionChannel: 'candidate',
+	}, null, 2)}\n`);
+	await assert.rejects(
+		() => verifyStagedNativeAddonBeforePack({
+			repositoryRoot: root,
+			stageManifestPath,
+			packagedTarget: BUILT_TARGET,
+		}),
+		/Stable Soundscaper desktop stage has invalid legacy native-addon state/iu,
+	);
+});
+
 test('afterPack refuses a packaged native payload that is not the target being packed', async (context) => {
-	const { root, resources } = await packagedResources(context);
-	const summary = await verifyPackagedNativeAddonResources(packagingContext(root, resources, X64), { repositoryRoot });
+	const { root, resources, stageManifestPath } = await packagedResources(context);
+	const dependencies = { repositoryRoot, stageManifestPath };
+	const summary = await verifyPackagedNativeAddonResources(
+		packagingContext(root, resources, X64), dependencies,
+	);
 	assert.equal(summary.target, BUILT_TARGET);
 	await assert.rejects(
-		() => verifyPackagedNativeAddonResources(packagingContext(root, resources, ARM64), { repositoryRoot }),
+		() => verifyPackagedNativeAddonResources(
+			packagingContext(root, resources, ARM64), dependencies,
+		),
 		/packaged native addon payload carries linux-x64.*electron-builder is packing linux-arm64/iu,
 	);
+});
+
+test('afterPack accepts a Stable Soundscaper package only when the legacy addon is absent', async (context) => {
+	const root = temporaryRoot(context, 'soundscaper-stable-packaged-target-');
+	const resources = join(root, 'resources');
+	const stageManifestPath = join(root, 'stage-manifest.json');
+	mkdirSync(join(resources, 'runtime', 'native'), { recursive: true });
+	await writeFile(stageManifestPath, `${JSON.stringify({
+		productId: 'soundscaper',
+		applicationVersionChannel: 'stable',
+		releaseChannel: 'stable',
+		target: { platform: 'linux', arch: 'x64' },
+		nativeAddons: null,
+	}, null, 2)}\n`);
+	assert.equal(await verifyPackagedNativeAddonResources(
+		packagingContext(root, resources, X64),
+		{ repositoryRoot: root, stageManifestPath },
+	), null);
 });

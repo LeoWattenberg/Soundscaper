@@ -3,10 +3,35 @@
 cmake_minimum_required(VERSION 3.25)
 project(soundscaper_professional_host VERSION 1.0.0 LANGUAGES C CXX)
 
+if(MSVC)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+if(NOT DEFINED SOUNDSCAPER_NATIVE_TARGET)
+	message(FATAL_ERROR "SOUNDSCAPER_NATIVE_TARGET is required")
+endif()
 if(APPLE)
 	enable_language(OBJCXX)
-	if(CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+	if(NOT SOUNDSCAPER_NATIVE_TARGET STREQUAL "mac-arm64"
+		OR NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
 		message(FATAL_ERROR "Soundscaper supports only arm64 professional builds on macOS")
+	endif()
+elseif(WIN32)
+	if(SOUNDSCAPER_NATIVE_TARGET STREQUAL "win-x64")
+		if(NOT CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+			message(FATAL_ERROR "The professional host is not configuring for Windows x64")
+		endif()
+	elseif(SOUNDSCAPER_NATIVE_TARGET STREQUAL "win-arm64")
+		if(NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+			message(FATAL_ERROR "The professional host is not configuring for Windows ARM64")
+		endif()
+	else()
+		message(FATAL_ERROR "The professional host target is not a supported Windows target")
+	endif()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	if(NOT SOUNDSCAPER_NATIVE_TARGET STREQUAL "linux-x64"
+		AND NOT SOUNDSCAPER_NATIVE_TARGET STREQUAL "linux-arm64")
+		message(FATAL_ERROR "The professional host target is not a supported Linux target")
 	endif()
 endif()
 
@@ -23,6 +48,13 @@ if(NOT EXISTS "${SOUNDSCAPER_JUCE_ROOT}/CMakeLists.txt")
 endif()
 if(NOT EXISTS "${SOUNDSCAPER_JUCE_ROOT}/modules/juce_audio_processors_headless/format_types/VST3_SDK")
 	message(FATAL_ERROR "JUCE's embedded VST3 SDK closure is absent")
+endif()
+file(READ
+	"${SOUNDSCAPER_JUCE_ROOT}/modules/juce_audio_processors_headless/format_types/VST3_SDK/pluginterfaces/vst/vsttypes.h"
+	SOUNDSCAPER_VST3_VERSION_HEADER)
+if(NOT SOUNDSCAPER_VST3_VERSION_HEADER MATCHES
+	"#define[ \t]+kVstVersionString[ \t]+\"VST 3\\.8\\.0\"")
+	message(FATAL_ERROR "JUCE's embedded VST3 SDK is not exact API version 3.8.0")
 endif()
 if(NOT EXISTS "${SOUNDSCAPER_CLAP_ROOT}/include/clap/clap.h")
 	message(FATAL_ERROR "SOUNDSCAPER_CLAP_ROOT is not the direct CLAP ABI tree")
@@ -146,6 +178,23 @@ if(BUILD_TESTING AND (APPLE OR WIN32))
 	add_test(NAME soundscaper_os_audio_codec_self_test
 		COMMAND soundscaper_os_audio_codec_self_test)
 endif()
+if(BUILD_TESTING)
+	add_library(soundscaper_professional_clap_fixture MODULE
+		tests/professional_clap_fixture.cpp)
+	target_compile_features(soundscaper_professional_clap_fixture PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_professional_clap_fixture PRIVATE
+		"${SOUNDSCAPER_CLAP_ROOT}/include")
+	set_target_properties(soundscaper_professional_clap_fixture PROPERTIES
+		PREFIX ""
+		OUTPUT_NAME "soundscaper_professional_fixture"
+		SUFFIX ".clap"
+		CXX_VISIBILITY_PRESET hidden
+		VISIBILITY_INLINES_HIDDEN YES
+	)
+	install(TARGETS soundscaper_professional_clap_fixture
+		LIBRARY DESTINATION self-test
+		RUNTIME DESTINATION self-test)
+endif()
 
 # The utility process loads only this trusted-audio Node-API module. It cannot
 # link, scan, instantiate, or execute third-party plug-in code.
@@ -173,7 +222,15 @@ install(TARGETS soundscaper_professional_node
 add_executable(soundscaper_professional_peer src/professional_host_peer.cpp)
 target_compile_features(soundscaper_professional_peer PRIVATE cxx_std_20)
 target_link_libraries(soundscaper_professional_peer PRIVATE soundscaper_professional_plugin)
-if(UNIX AND NOT APPLE)
+if(WIN32)
+	target_link_libraries(soundscaper_professional_peer PRIVATE ws2_32)
+endif()
+if(APPLE)
+	set_target_properties(soundscaper_professional_peer PROPERTIES
+		BUILD_RPATH "@loader_path/runtime"
+		INSTALL_RPATH "@loader_path/runtime"
+	)
+elseif(UNIX)
 	set_target_properties(soundscaper_professional_peer PROPERTIES
 		BUILD_RPATH "\$ORIGIN/runtime"
 		INSTALL_RPATH "\$ORIGIN/runtime"
@@ -183,3 +240,42 @@ set_target_properties(soundscaper_professional_peer PROPERTIES
 	OUTPUT_NAME "soundscaper_professional_peer"
 )
 install(TARGETS soundscaper_professional_peer RUNTIME DESTINATION .)
+
+# Persistent delivery runs in the Electron main process but keeps filesystem
+# paths and publication handles inside this one-session framed native peer.
+# It deliberately shares no renderer, plug-in-host, or professional-addon ABI.
+set(SOUNDSCAPER_DELIVERY_FS_SOURCES
+	src/delivery_fs_main.cpp
+	src/delivery_fs_protocol.cpp
+	src/delivery_fs_sha256.cpp
+)
+if(APPLE)
+	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_macos.mm)
+elseif(WIN32)
+	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_windows.cpp)
+else()
+	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_linux.cpp)
+endif()
+add_executable(soundscaper_delivery_fs ${SOUNDSCAPER_DELIVERY_FS_SOURCES})
+target_compile_features(soundscaper_delivery_fs PRIVATE cxx_std_20)
+target_include_directories(soundscaper_delivery_fs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+if(APPLE)
+	target_link_libraries(soundscaper_delivery_fs PRIVATE "-framework Foundation")
+elseif(WIN32)
+	target_compile_definitions(soundscaper_delivery_fs PRIVATE
+		NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+endif()
+set_target_properties(soundscaper_delivery_fs PROPERTIES OUTPUT_NAME "soundscaper_delivery_fs")
+install(TARGETS soundscaper_delivery_fs RUNTIME DESTINATION .)
+file(GENERATE
+	OUTPUT "${CMAKE_BINARY_DIR}/soundscaper-professional-toolchain.json"
+	CONTENT "{\n\
+\t\"cmakeVersion\":\"${CMAKE_VERSION}\",\n\
+\t\"generator\":\"${CMAKE_GENERATOR}\",\n\
+\t\"generatorPlatform\":\"${CMAKE_GENERATOR_PLATFORM}\",\n\
+\t\"systemName\":\"${CMAKE_SYSTEM_NAME}\",\n\
+\t\"systemProcessor\":\"${CMAKE_SYSTEM_PROCESSOR}\",\n\
+\t\"osxArchitectures\":\"${CMAKE_OSX_ARCHITECTURES}\",\n\
+\t\"cCompiler\":{\"id\":\"${CMAKE_C_COMPILER_ID}\",\"version\":\"${CMAKE_C_COMPILER_VERSION}\"},\n\
+\t\"cxxCompiler\":{\"id\":\"${CMAKE_CXX_COMPILER_ID}\",\"version\":\"${CMAKE_CXX_COMPILER_VERSION}\"}\n\
+}\n")

@@ -6,6 +6,7 @@ export class DesktopRendererOwnershipCleanup {
 	#revokeCapture;
 	#revokeAssistanceSemanticSearch;
 	#revokeDesktopCodecs;
+	#revokeSoundscaperDelivery;
 	#revokeNativeServices;
 	#revokeNativeTier;
 	#linkedVideoLocators;
@@ -15,10 +16,11 @@ export class DesktopRendererOwnershipCleanup {
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeNativeServices, revokeNativeTier, saves }) {
+	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves }) {
 		this.#revokeCapture = revokeCapture;
 		this.#revokeAssistanceSemanticSearch = revokeAssistanceSemanticSearch;
 		this.#revokeDesktopCodecs = revokeDesktopCodecs;
+		this.#revokeSoundscaperDelivery = revokeSoundscaperDelivery;
 		this.#revokeNativeServices = revokeNativeServices;
 		this.#revokeNativeTier = revokeNativeTier;
 		this.#linkedVideoLocators = linkedVideoLocators;
@@ -56,6 +58,7 @@ export class DesktopRendererOwnershipCleanup {
 			this.#revokeCapture?.(owner),
 			this.#revokeAssistanceSemanticSearch?.(owner),
 			this.#revokeDesktopCodecs?.(owner),
+			this.#revokeSoundscaperDelivery?.(owner),
 			this.#revokeNativeServices?.(owner),
 			this.#revokeNativeTier?.(owner),
 			this.#linkedVideoLocators()?.revokeOwner(owner),

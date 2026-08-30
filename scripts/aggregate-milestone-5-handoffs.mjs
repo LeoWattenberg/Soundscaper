@@ -12,6 +12,7 @@ import {
 let handoffDirectory = null;
 let packageDirectory = null;
 let outputPath = null;
+let productId = null;
 let requireAutomatedReady = false;
 for (let index = 2; index < process.argv.length; index += 1) {
 	const argument = process.argv[index];
@@ -25,18 +26,24 @@ for (let index = 2; index < process.argv.length; index += 1) {
 		requireAutomatedReady = true;
 		continue;
 	}
-	if (['--input-directory', '--package-directory', '--output'].includes(argument)) {
+	if (['--input-directory', '--package-directory', '--output', '--product'].includes(argument)) {
 		const value = process.argv[index += 1];
-		if (!value || value.startsWith('--')) throw new Error(`${argument} requires a path.`);
+		if (!value || value.startsWith('--')) throw new Error(`${argument} requires a value.`);
 		if (argument === '--input-directory') {
 			if (handoffDirectory !== null) throw new Error(`${argument} may be supplied only once.`);
 			handoffDirectory = value;
 		} else if (argument === '--package-directory') {
 			if (packageDirectory !== null) throw new Error(`${argument} may be supplied only once.`);
 			packageDirectory = value;
-		} else {
+		} else if (argument === '--output') {
 			if (outputPath !== null) throw new Error(`${argument} may be supplied only once.`);
 			outputPath = value;
+		} else {
+			if (productId !== null) throw new Error(`${argument} may be supplied only once.`);
+			if (!['soundscaper', 'framescaper'].includes(value)) {
+				throw new Error('--product must select soundscaper or framescaper.');
+			}
+			productId = value;
 		}
 		continue;
 	}
@@ -47,11 +54,14 @@ if ((handoffDirectory === null) === (packageDirectory === null)) {
 }
 
 const handoff = packageDirectory === null
-	? await auditMilestone5HandoffMatrixDirectory(resolve(handoffDirectory))
+	? await auditMilestone5HandoffMatrixDirectory(
+		resolve(handoffDirectory), productId === null ? undefined : [productId],
+	)
 	: await assembleMilestone5HandoffMatrix({
 		repositoryRoot: resolve(import.meta.dirname, '..'),
 		packageDirectory: resolve(packageDirectory),
 		sourceRevision: process.env.SOUNDSCAPER_SOURCE_REVISION,
+		...(productId === null ? {} : { productIds: [productId] }),
 	});
 const bytes = `${JSON.stringify(handoff, null, '\t')}\n`;
 if (outputPath) writeFileSync(resolve(outputPath), bytes, { flag: 'wx' });
