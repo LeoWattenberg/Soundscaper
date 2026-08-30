@@ -77,6 +77,38 @@ test('a preview session refuses a project outside the finishing domain', async (
 	);
 });
 
+test('a legal adjustment beyond the selected picture range does not poison preview freshness', async () => {
+	const project = createFramescaperProjectFinishing(PROFILE, {
+		...framescaperV20Options(),
+		videoTransitionsByTrackId: { 'video-track': [] },
+		visualModel: {
+			stillSources: [], generatorSources: [], presets: [], maskMattes: [], freezeFallbacks: [],
+			adjustmentLayers: [{
+				schemaVersion: 1, kind: 'adjustment-layer', id: 'late-adjustment',
+				sequenceId: 'main-sequence', sequenceStartFrame: 20, sequenceFrameCount: 10,
+				targetTrackIds: ['video-track'], effectIds: [],
+			}],
+		},
+	} as never);
+
+	const root = globalThis as unknown as Data;
+	const previousDocument = root.document;
+	root.document = {
+		createElement: () => ({
+			width: 0, height: 0,
+			getContext: () => ({ putImageData() {}, clearRect() {} }),
+		}),
+	};
+	try {
+		const preview = await session({ project });
+		assert.ok(preview);
+		(preview as Readonly<{ dispose(): void }>).dispose();
+	} finally {
+		if (previousDocument === undefined) delete root.document;
+		else root.document = previousDocument;
+	}
+});
+
 test('a Project Bin thumbnail is absent for a clip the bin does not hold', async () => {
 	assert.equal(await thumbnail({ clipId: 'clip-that-is-not-in-the-bin' }), null);
 });

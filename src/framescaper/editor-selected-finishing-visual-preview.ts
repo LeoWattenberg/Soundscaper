@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { fingerprintNativeMediaPlan } from '../common/editor/native-media-plan-canonical-form.ts';
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { digestMediaContent } from '../common/editor/storage/media-content-digest.ts';
@@ -20,7 +19,6 @@ import type {
 } from '../common/editor/unified-exact-render-plan.ts';
 import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
-import type { VideoFreezeFreshnessInputV1 } from '../common/editor/video-freeze-v24.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
 import { registeredVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import {
@@ -51,7 +49,9 @@ import {
 } from './editor-domain-runtime-profile.ts';
 import {
 	validateFramescaperProjectFinishing,
+	type FramescaperProjectFinishing,
 } from './editor-project-finishing.ts';
+import { createFramescaperVideoExportVisualFreshnessFinishing } from './video-export-visual-freshness-finishing.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -253,12 +253,20 @@ function createPreviewPlan(
 			video: 'h264', videoEncoder: 'libx264', audio: null, audioEncoder: null,
 			pixelFormat: 'yuv420p',
 		},
-		canvas: { ...canvas, pixelFormat: 'yuv420p', backgroundColor: '#000000' },
+		canvas: {
+			...canvas,
+			fit: canvas.fit ?? 'contain',
+			pixelFormat: 'yuv420p',
+			backgroundColor: '#000000',
+		},
 		quality: 'balanced',
 		includeAudio: false,
 		audioLayout: null,
 		timingViews,
-		visualFreshnessByModelId: previewVisualFreshness(project, stableId(sequence.id, 'sequence ID'), canvas),
+		visualFreshnessByModelId: createFramescaperVideoExportVisualFreshnessFinishing(
+			project as unknown as FramescaperProjectFinishing,
+			{ startFrame: 0, durationFrames: sampleDuration },
+		),
 	});
 }
 
@@ -299,60 +307,6 @@ function previewTimingViews(project: Data): ReadonlyMap<string, VideoSourceTimin
 		}));
 	}
 	return result;
-}
-
-function previewVisualFreshness(
-	project: Data,
-	sequenceId: string,
-	canvas: Readonly<{ width: number; height: number; fit?: VideoCanvasFit }>,
-): ReadonlyMap<string, VideoFreezeFreshnessInputV1> {
-	const sources = new Map(records(project.sources, 'Selected finishing sources')
-		.map((source) => [stableId(source.id, 'source ID'), source]));
-	const states = new Map<string, unknown>();
-	for (const clip of records(project.clips, 'Selected finishing clips')) {
-		if (clip.sequenceId !== sequenceId || (clip.kind !== 'still' && clip.kind !== 'generator')) continue;
-		const source = sources.get(stableId(clip.sourceId, 'visual source ID'));
-		if (!source) throw new ReferenceError('Selected finishing visual source is unavailable.');
-		states.set(stableId(clip.id, 'visual clip ID'), Object.freeze({ source, clip }));
-	}
-	for (const value of records(project.videoAdjustmentLayers, 'Selected finishing adjustments')) {
-		if (value.sequenceId === sequenceId) states.set(stableId(value.id, 'adjustment ID'), value);
-	}
-	for (const value of records(project.videoVisualPresets, 'Selected finishing presets')) {
-		states.set(stableId(value.id, 'preset ID'), value);
-	}
-	for (const value of records(project.videoMaskMattes, 'Selected finishing masks')) {
-		states.set(stableId(value.id, 'mask ID'), value);
-	}
-	for (const fallback of records(project.videoFreezeFallbacks, 'Selected finishing freezes')) {
-		const sourceId = stableId(fallback.renderedSourceId, 'freeze source ID');
-		const state = Object.freeze({
-			schemaVersion: 1, kind: 'video-freeze', renderedSourceId: sourceId,
-		});
-		states.set(`video-freeze:${sourceId}`, Object.freeze({
-			state,
-			fallback,
-		}));
-	}
-	return new Map([...states].map(([modelId, rawState]) => {
-		const freeze = modelId.startsWith('video-freeze:')
-			? record(rawState, `freeze freshness ${modelId}`) : null;
-		const state = freeze === null ? rawState : freeze.state;
-		const fallback = freeze === null ? null : record(freeze.fallback, `freeze fallback ${modelId}`);
-		const authoredStateSha256 = fingerprintNativeMediaPlan(state).sha256;
-		return [modelId, Object.freeze({
-			authoredStateSha256,
-			inputIdentitiesSha256: fallback?.authoredStateSha256 === authoredStateSha256
-				? digest(fallback.inputIdentitiesSha256, 'freeze input identities')
-				: fingerprintNativeMediaPlan({ modelId, state }).sha256,
-			renderPlanFingerprintSha256: fallback?.authoredStateSha256 === authoredStateSha256
-				? digest(fallback.renderPlanFingerprintSha256, 'freeze render plan')
-				: fingerprintNativeMediaPlan({ sequenceId, canvas, modelId }).sha256,
-			nativeEffectFingerprintSha256: fallback?.authoredStateSha256 === authoredStateSha256
-				? digest(fallback.nativeEffectFingerprintSha256, 'freeze native effects')
-				: fingerprintNativeMediaPlan({ nativeEffects: [] }).sha256,
-		})] as const;
-	}));
 }
 
 async function materializeDrawables(
@@ -582,11 +536,4 @@ function record(value: unknown, name: string): Data {
 function records(value: unknown, name: string): Data[] {
 	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
 	return value.map((item, index) => record(item, `${name}[${String(index)}]`));
-}
-
-function digest(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
-		throw new TypeError(`${name} must be a lowercase SHA-256 digest.`);
-	}
-	return value;
 }
