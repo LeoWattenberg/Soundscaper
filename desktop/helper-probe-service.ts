@@ -81,6 +81,7 @@ export class DesktopHelperProbeService {
 	readonly #isEnabled: () => boolean;
 	readonly #mintProbeId: () => string;
 	readonly #pending = new Map<string, PendingProbe>();
+	#admissions = 0;
 	#queue: Promise<unknown> = Promise.resolve();
 	#disposed = false;
 
@@ -110,39 +111,44 @@ export class DesktopHelperProbeService {
 		if (this.#supervisor.snapshot().quarantined) {
 			throw probeRefusal('helper-quarantined', 'The native probe helper is quarantined after repeated crashes.');
 		}
-		if (this.#pending.size >= MAXIMUM_PENDING_HELPER_PROBES) {
+		if (this.#pending.size + this.#admissions >= MAXIMUM_PENDING_HELPER_PROBES) {
 			throw probeRefusal('helper-busy', 'Too many native probes are already pending.');
 		}
-		const grant = await this.#grants.resolveHelperGrant(capabilityId, { owner });
-		if (!grant) {
-			throw probeRefusal('unknown-capability', 'The probe capability is not live for this renderer.');
+		this.#admissions += 1;
+		try {
+			const grant = await this.#grants.resolveHelperGrant(capabilityId, { owner });
+			if (!grant) {
+				throw probeRefusal('unknown-capability', 'The probe capability is not live for this renderer.');
+			}
+			if (grant.size > HELPER_PROBE_MAXIMUM_INPUT_BYTES) {
+				throw probeRefusal('input-too-large',
+					'The media exceeds the native probe memory ceiling; the WebAssembly probe takes over.');
+			}
+			const probeId = this.#mintProbeId();
+			const controller = new AbortController();
+			const completion = this.#enqueue(() => this.#supervisor.runJob({
+				kind: 'probe-video-source',
+				grant: {
+					mediaPath: grant.path,
+					mediaBytes: grant.size,
+					identity: grant.identity,
+				},
+				resourcePolicy: { maximumInputBytes: HELPER_PROBE_MAXIMUM_INPUT_BYTES },
+				signal: controller.signal,
+				validateResult: (value) => this.#validateProbeResult(value),
+			})).then(
+				(result) => Object.freeze({ status: 'probed' as const, ...(result as HelperProbeResultPayload) }),
+				(error: unknown) => Object.freeze({
+					status: 'failed' as const,
+					code: failureCode(error),
+					message: error instanceof Error ? error.message : String(error),
+				}),
+			);
+			this.#pending.set(probeId, { owner, controller, completion, awaited: false });
+			return Object.freeze({ probeId });
+		} finally {
+			this.#admissions -= 1;
 		}
-		if (grant.size > HELPER_PROBE_MAXIMUM_INPUT_BYTES) {
-			throw probeRefusal('input-too-large',
-				'The media exceeds the native probe memory ceiling; the WebAssembly probe takes over.');
-		}
-		const probeId = this.#mintProbeId();
-		const controller = new AbortController();
-		const completion = this.#enqueue(() => this.#supervisor.runJob({
-			kind: 'probe-video-source',
-			grant: {
-				mediaPath: grant.path,
-				mediaBytes: grant.size,
-				identity: grant.identity,
-			},
-			resourcePolicy: { maximumInputBytes: HELPER_PROBE_MAXIMUM_INPUT_BYTES },
-			signal: controller.signal,
-			validateResult: (value) => this.#validateProbeResult(value),
-		})).then(
-			(result) => Object.freeze({ status: 'probed' as const, ...(result as HelperProbeResultPayload) }),
-			(error: unknown) => Object.freeze({
-				status: 'failed' as const,
-				code: failureCode(error),
-				message: error instanceof Error ? error.message : String(error),
-			}),
-		);
-		this.#pending.set(probeId, { owner, controller, completion, awaited: false });
-		return Object.freeze({ probeId });
 	}
 
 	async awaitProbe({ owner, probeId }: Readonly<{ owner: object; probeId: string }>): Promise<HelperProbeCompletion> {

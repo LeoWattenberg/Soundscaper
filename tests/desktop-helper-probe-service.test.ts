@@ -31,6 +31,11 @@ function createHarness(options: Readonly<{
 	enabled?: boolean;
 	quarantined?: boolean;
 	grantSize?: number;
+	resolveGrant?: () => Promise<Readonly<{
+		path: string;
+		size: number;
+		identity: Readonly<{ dev: number; ino: number }>;
+	}> | null>;
 	runJob?: (request: HelperJobRequest) => Promise<unknown>;
 }> = {}) {
 	let probeSequence = 0;
@@ -54,7 +59,9 @@ function createHarness(options: Readonly<{
 	const service = new DesktopHelperProbeService({
 		supervisor,
 		grants: {
-			resolveHelperGrant: async (id, { owner }) => (
+			resolveHelperGrant: async (id, { owner }) => options.resolveGrant
+				? options.resolveGrant()
+				: (
 				id === CAPABILITY_ID && owner === OWNER
 					? Object.freeze({
 						path: '/media/example.mp4', size: options.grantSize ?? 4_096,
@@ -160,6 +167,31 @@ test('helper probe service bounds pending probes and reports supervision failure
 	assert.equal(failed.status, 'failed');
 	assert.ok(failed.status === 'failed' && failed.code === 'helper-failed');
 	assert.match(failed.status === 'failed' ? failed.message : '', /stopped reporting liveness/u);
+});
+
+test('helper probe service reserves its pending bound before asynchronous grant resolution', async () => {
+	let releaseGrants: () => void = () => undefined;
+	let resolutions = 0;
+	const grantGate = new Promise<void>((resolve) => { releaseGrants = resolve; });
+	const { service } = createHarness({ resolveGrant: async () => {
+		resolutions += 1;
+		await grantGate;
+		return Object.freeze({ path: '/media/example.mp4', size: 4_096,
+			identity: Object.freeze({ dev: 3, ino: 42 }) });
+	} });
+	const admitted = Array.from({ length: MAXIMUM_PENDING_HELPER_PROBES }, () => (
+		service.beginProbe({ owner: OWNER, capabilityId: CAPABILITY_ID })
+	));
+	await Promise.resolve();
+	await assert.rejects(
+		service.beginProbe({ owner: OWNER, capabilityId: CAPABILITY_ID }),
+		(error: Error & { code?: string }) => error.code === 'helper-busy',
+	);
+	assert.equal(resolutions, MAXIMUM_PENDING_HELPER_PROBES);
+	releaseGrants();
+	for (const { probeId } of await Promise.all(admitted)) {
+		await service.awaitProbe({ owner: OWNER, probeId });
+	}
 });
 
 test('helper probe service cancellation and owner revocation abort supervised jobs', async () => {
