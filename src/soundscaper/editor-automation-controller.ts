@@ -26,6 +26,7 @@ import type { SoundscaperProject } from './editor-project.ts';
 import { validateSoundscaperProject } from './editor-project-validation.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
+type SubscriptionRelease = () => boolean | void;
 
 export interface SoundscaperAutomationControllerHost {
 	readonly project: unknown;
@@ -95,9 +96,48 @@ export function createSoundscaperAutomationControllerBinding(
 		if (disposed) return;
 		coordinator.synchronize();
 	};
-	const unsubscribeDocument = host.subscribe(synchronize);
-	const unsubscribePosition = host.engine.subscribePosition(synchronize);
-	const unsubscribeState = host.engine.subscribeState(synchronize);
+	const subscriptionReleases: Record<'document' | 'position' | 'state', SubscriptionRelease | null> = {
+		document: null,
+		position: null,
+		state: null,
+	};
+	let coordinatorOwned = true;
+	const releaseOwnership = (): unknown[] => {
+		const failures: unknown[] = [];
+		for (const name of ['document', 'position', 'state'] as const) {
+			const release = subscriptionReleases[name];
+			if (!release) continue;
+			subscriptionReleases[name] = null;
+			try { release(); } catch (error) {
+				subscriptionReleases[name] = release;
+				failures.push(error);
+			}
+		}
+		if (coordinatorOwned) {
+			coordinatorOwned = false;
+			try { coordinator.dispose(); } catch (error) { failures.push(error); }
+		}
+		return failures;
+	};
+	try {
+		subscriptionReleases.document = subscriptionRelease(host.subscribe(synchronize), 'document');
+		subscriptionReleases.position = subscriptionRelease(
+			host.engine.subscribePosition(synchronize),
+			'position',
+		);
+		subscriptionReleases.state = subscriptionRelease(host.engine.subscribeState(synchronize), 'state');
+	} catch (error) {
+		disposed = true;
+		const cleanupFailures = releaseOwnership();
+		if (cleanupFailures.length > 0) {
+			throw new AggregateError(
+				[error, ...cleanupFailures],
+				'Soundscaper automation controller setup rollback failed.',
+				{ cause: error },
+			);
+		}
+		throw error;
+	}
 	const actions = Object.freeze({
 		getSnapshot: () => coordinator.getSnapshot(),
 		setMode: (
@@ -124,14 +164,23 @@ export function createSoundscaperAutomationControllerBinding(
 		actions,
 		coordinator,
 		dispose() {
-			if (disposed) return;
 			disposed = true;
-			unsubscribeDocument();
-			unsubscribePosition();
-			unsubscribeState();
-			coordinator.dispose();
+			const failures = releaseOwnership();
+			if (failures.length === 1) throw failures[0];
+			if (failures.length > 1) {
+				throw new AggregateError(failures, 'Soundscaper automation controller disposal failed.', {
+					cause: failures[0],
+				});
+			}
 		},
 	});
+}
+
+function subscriptionRelease(value: unknown, name: string): SubscriptionRelease {
+	if (typeof value !== 'function') {
+		throw new TypeError(`Soundscaper automation ${name} subscription must return a release function.`);
+	}
+	return value as SubscriptionRelease;
 }
 
 function restoreAutomationReadbackV21(

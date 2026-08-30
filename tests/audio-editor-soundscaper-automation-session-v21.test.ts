@@ -238,6 +238,76 @@ test('the product controller binding resolves exact targets and follows host lif
 	assert.equal(stateListeners.size, 0);
 });
 
+test('controller disposal retires actions and retries only failed subscription releases', () => {
+	const failure = new Error('document subscription release failed');
+	const releases: string[] = [];
+	let documentReleaseAttempts = 0;
+	const binding = createSoundscaperAutomationControllerBinding({
+		project: projectFixture(),
+		engine: {
+			getPositionFrames: () => 0,
+			getState: () => ({ state: 'stopped' }),
+			subscribePosition: () => () => { releases.push('position'); },
+			subscribeState: () => () => { releases.push('state'); },
+		},
+		actions: { edit: { commit: (command: unknown) => command } },
+		getSnapshot: () => ({ readOnly: false, lockReadOnly: false }),
+		subscribe: () => () => {
+			releases.push('document');
+			documentReleaseAttempts += 1;
+			if (documentReleaseAttempts === 1) throw failure;
+		},
+	});
+
+	assert.throws(() => binding.dispose(), (error: unknown) => error === failure);
+	assert.deepEqual(releases, ['document', 'position', 'state']);
+	assert.throws(() => binding.actions.setMode('read'), /disposed/iu);
+	assert.doesNotThrow(() => binding.dispose());
+	assert.deepEqual(releases, ['document', 'position', 'state', 'document']);
+	assert.throws(() => binding.actions.setMode('read'), /disposed/iu);
+	assert.doesNotThrow(() => binding.dispose());
+	assert.deepEqual(releases, ['document', 'position', 'state', 'document']);
+});
+
+test('controller setup rolls back subscriptions acquired before a later subscription fails', () => {
+	const failure = new Error('position subscription failed');
+	const releases: string[] = [];
+	assert.throws(() => createSoundscaperAutomationControllerBinding({
+		project: projectFixture(),
+		engine: {
+			getPositionFrames: () => 0,
+			getState: () => ({ state: 'stopped' }),
+			subscribePosition: () => { throw failure; },
+			subscribeState: () => () => { releases.push('state'); },
+		},
+		actions: { edit: { commit: (command: unknown) => command } },
+		getSnapshot: () => ({ readOnly: false, lockReadOnly: false }),
+		subscribe: () => () => { releases.push('document'); },
+	}), (error: unknown) => error === failure);
+	assert.deepEqual(releases, ['document']);
+});
+
+test('session disposal remains retired when readback restoration fails', () => {
+	const failure = new Error('automation readback restoration failed');
+	const fixture = createFixture({ restoreFailure: failure });
+	armWritingGesture(fixture, 'touch');
+
+	assert.throws(() => fixture.coordinator.dispose(), (error: unknown) => error === failure);
+	assert.deepEqual(
+		fixture.coordinator.getSnapshot(),
+		{
+			mode: 'read',
+			laneId: null,
+			active: false,
+			gestureActive: false,
+			generation: 1,
+			owner: 'lane',
+			capturePointCount: 0,
+		},
+	);
+	assert.throws(() => fixture.coordinator.setMode('read'), /disposed/iu);
+});
+
 test('every writing mode cancels on each authority loss without entering history', () => {
 	const causes = [
 		'cancel', 'read-only', 'lock', 'target-removal', 'project-change',
@@ -346,7 +416,9 @@ function createHistoryFixture() {
 	};
 }
 
-function createFixture() {
+function createFixture(
+	options: Readonly<{ readonly restoreFailure?: unknown }> = {},
+) {
 	const project = projectFixture();
 	const lane = project.automationLanes[0]!;
 	const authority: MutableAuthority = {
@@ -375,7 +447,10 @@ function createFixture() {
 			commits.push(command as AudioEditorCommand);
 			return command;
 		},
-		restoreReadback: () => { restores += 1; },
+		restoreReadback: () => {
+			restores += 1;
+			if (options.restoreFailure !== undefined) throw options.restoreFailure;
+		},
 	});
 	const original = structuredClone(authority);
 	return {

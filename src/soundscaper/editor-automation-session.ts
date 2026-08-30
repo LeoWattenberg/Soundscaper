@@ -228,10 +228,10 @@ export function createSoundscaperAutomationSession<Result = unknown>(
 
 	function dispose(): void {
 		if (disposed) return;
-		discardSession(true);
+		disposed = true;
 		mode = 'read';
 		laneId = null;
-		disposed = true;
+		discardSession(true);
 	}
 
 	function createSession(
