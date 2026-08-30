@@ -115,7 +115,9 @@ async function main() {
 		let verified = 0;
 		for (const modelId of models) {
 			const entry = catalog.entries.find((candidate) => candidate.modelId === modelId);
-			const artifacts = entry?.artifacts ?? entry?.upstream?.artifacts ?? [];
+			if (!entry) throw new Error(`${modelId} is not in the model catalog`);
+			const artifacts = entry.artifacts ?? entry.upstream?.artifacts ?? [];
+			if (artifacts.length === 0) throw new Error(`${modelId} has no artifacts to verify`);
 			process.stdout.write(`\n${modelId}\n`);
 			for (const artifact of artifacts) {
 				const { url } = mirrorLocation(catalog, entry, artifact.fileName);

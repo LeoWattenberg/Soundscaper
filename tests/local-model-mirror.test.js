@@ -536,3 +536,18 @@ test('the mirror CLI cannot record catalog URLs before public publication and re
 	assert.doesNotMatch(result.stdout, /Staging in|verified only|Recorded mirrored artifacts/iu,
 		'the command must fail before fetching, staging, or recording any artifact');
 });
+
+test('the mirror CLI cannot report a successful verification for an unknown model', () => {
+	const result = spawnSync(process.execPath, [
+		'scripts/mirror-local-models.mjs',
+		'--verify',
+		'--model', 'misspelled-model',
+	], {
+		cwd: new URL('..', import.meta.url),
+		encoding: 'utf8',
+	});
+
+	assert.notEqual(result.status, 0);
+	assert.match(result.stderr, /misspelled-model.*not in the model catalog/iu);
+	assert.doesNotMatch(result.stdout, /Verified 0 mirrored artifacts/iu);
+});
