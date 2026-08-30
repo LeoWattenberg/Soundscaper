@@ -72,16 +72,17 @@ export function useSoundscaperProductionWorkspace(input: Readonly<{
 }>): Readonly<SoundscaperProductionWorkspaceRuntime> | null {
 	const automationGesture = useRef<SoundscaperProductionAutomationGestureState>({ token: null });
 	const menuReturnFocus = useRef<HTMLElement | null>(null);
+	const projectIdentity = soundscaperProductionWorkspaceProjectIdentity(input.project);
 	const [automationMode, setAutomationModeState] = useState<SoundscaperAutomationMode>(() => (
 		controllerAutomationMode(input.controller)
 	));
 	const [freezeStatusRevision, setFreezeStatusRevision] = useState(0);
 	useEffect(() => {
 		setAutomationModeState(controllerAutomationMode(input.controller));
-	}, [input.controller, input.project]);
+	}, [input.controller, projectIdentity]);
 	useEffect(() => () => {
 		cancelAutomationGesture(input.controller, automationGesture.current);
-	}, [input.controller, input.project]);
+	}, [input.controller, projectIdentity]);
 	return useMemo(() => {
 		if (input.productId !== 'soundscaper') return null;
 		const freeze = freezePort(input.controller);
@@ -353,6 +354,12 @@ function controllerAutomationMode(
 	return SOUNDSCAPER_AUTOMATION_MODES.includes(mode as SoundscaperAutomationMode)
 		? mode as SoundscaperAutomationMode
 		: 'read';
+}
+
+function soundscaperProductionWorkspaceProjectIdentity(project: unknown): unknown {
+	if (project === null || typeof project !== 'object' || Array.isArray(project)) return null;
+	const id = (project as Readonly<Record<string, unknown>>).id;
+	return typeof id === 'string' ? id : project;
 }
 
 export function selectedTrackAutomationLaneId(

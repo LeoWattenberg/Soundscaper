@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import React, { act } from 'react';
 
 import {
 	createApplicationMenuProductItems,
@@ -14,11 +15,13 @@ import {
 	resolveSoundscaperFreezeStatus,
 	scheduleSoundscaperProductionMenuFocus,
 	soundscaperProductionSurface,
+	useSoundscaperProductionWorkspace,
 	type SoundscaperProductionAutomationGestureState,
 	type SoundscaperProductionControllerPort,
 } from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
 import { closeSoundscaperProductionWorkspace } from '../src/common/editor/ui/workspace/SoundscaperProductionWorkspaceOverlay.tsx';
 import type { SoundscaperProductionMenuItem } from '../src/common/editor/ui/soundscaper-production-application-menu.ts';
+import { installReactTestDom } from './helpers/react-test-dom.ts';
 
 test('the host product seam places each production entry without a default surface', () => {
 	const calls: unknown[][] = [];
@@ -309,6 +312,59 @@ test('workspace automation gestures retain their token when release is unavailab
 	assert.equal(state.token, token);
 });
 
+test('a same-project revision cannot cancel an active workspace automation gesture', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const token = Object.freeze({
+		type: 'soundscaper-automation-gesture-v21' as const,
+		laneId: 'lane-a',
+		generation: 10,
+	});
+	const cancellations: unknown[] = [];
+	const controller: SoundscaperProductionControllerPort = {
+		actions: {
+			edit: { commit: () => undefined },
+			audioAutomation: {
+				getSnapshot: () => ({ mode: 'touch' }),
+				setMode: () => undefined,
+				beginGesture: () => token,
+				cancelGesture: (active) => {
+					cancellations.push(active);
+					return true;
+				},
+			},
+		},
+	};
+	let runtime: ReturnType<typeof useSoundscaperProductionWorkspace> = null;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const renderProject = async (id: string, revision: number): Promise<void> => {
+		await act(async () => root.render(React.createElement(ProductionWorkspaceHarness, {
+			controller,
+			project: { ...project(), id, revision },
+			capture: (value) => { runtime = value; },
+		})));
+	};
+	try {
+		await renderProject('project-a', 1);
+		runtime?.execute(operation({
+			type: 'automation-gesture/begin', laneId: 'lane-a', controlValue: 0.5,
+		}));
+
+		await renderProject('project-a', 2);
+		assert.deepEqual(cancellations, [],
+			'an immutable revision of project A still owns its in-progress gesture');
+		await renderProject('project-b', 1);
+		assert.deepEqual(cancellations, [token], 'a real project replacement must cancel the gesture');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('workspace freeze status prefers the verified runtime classifier and falls back to document ownership', () => {
 	const projectValue = {
 		tracks: [{ id: 'track-a', audioFreeze: { schemaVersion: 1 } }],
@@ -375,6 +431,19 @@ test('restoration maps enabled stages to one macro transaction and reports a mis
 
 function operation(value: SoundscaperProductionDialogOperation): SoundscaperProductionDialogOperation {
 	return value;
+}
+
+function ProductionWorkspaceHarness({ controller, project: projectValue, capture }: Readonly<{
+	controller: SoundscaperProductionControllerPort;
+	project: unknown;
+	capture(value: ReturnType<typeof useSoundscaperProductionWorkspace>): void;
+}>): null {
+	const runtime = useSoundscaperProductionWorkspace({
+		productId: 'soundscaper', controller, project: projectValue,
+		selectedTrackId: 'track-a', openSurface: () => undefined,
+	});
+	capture(runtime);
+	return null;
 }
 
 function requireProductionMenuItem(
