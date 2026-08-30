@@ -113,6 +113,24 @@ test('R2 requests retry only a bounded number of transient responses', async () 
 	assert.equal(rejectedCalls, 3, 'a persistent transient response cannot create an unbounded loop');
 });
 
+test('R2 downloads refuse a missing Content-Length before buffering the body', async () => {
+	let buffered = false;
+	const client = testClient(async () => ({
+		status: 200,
+		headers: new Headers(),
+		arrayBuffer: async () => {
+			buffered = true;
+			return new ArrayBuffer(1_024);
+		},
+	}));
+
+	await assert.rejects(
+		client.get('models/example/1.0.0/model.onnx', 128),
+		/has no valid Content-Length/u,
+	);
+	assert.equal(buffered, false, 'an unbounded response body must not be materialized');
+});
+
 test('R2 multipart listing can report an expired upload without hiding other errors', async () => {
 	const expired = testClient(async () => new Response('<Error><Code>NoSuchUpload</Code></Error>', {
 		status: 404,

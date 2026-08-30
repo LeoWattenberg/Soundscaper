@@ -251,8 +251,12 @@ export class R2Client {
 	async get(key, maximum, acceptedStatuses = [200]) {
 		const response = await this.request('GET', key, { acceptedStatuses });
 		if (response.status !== 200) return { response, bytes: Buffer.alloc(0) };
-		const declaredLength = Number(response.headers.get('content-length'));
-		if (Number.isFinite(declaredLength)) assert(declaredLength <= maximum, `R2 ${key} exceeds ${maximum} bytes`);
+		const contentLength = response.headers.get('content-length');
+		assert(contentLength !== null && /^\d+$/u.test(contentLength),
+			`R2 ${key} has no valid Content-Length`);
+		const declaredLength = Number(contentLength);
+		assert(Number.isSafeInteger(declaredLength), `R2 ${key} has no valid Content-Length`);
+		assert(declaredLength <= maximum, `R2 ${key} exceeds ${maximum} bytes`);
 		const bytes = Buffer.from(await response.arrayBuffer());
 		assert(bytes.byteLength <= maximum, `R2 ${key} exceeds ${maximum} bytes`);
 		return { response, bytes };
