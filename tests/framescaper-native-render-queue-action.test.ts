@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 
+import { EditorControllerLifetime } from '../src/common/editor/controller/lifecycle.ts';
 import {
 	createNativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
@@ -160,4 +161,62 @@ test('a destination root that fails its projection is refused', async (context) 
 	const runtime = createRuntime(PROFILE, owner() as never) as unknown as Data;
 
 	await assert.rejects(() => enqueue(runtime), /destination root projection is invalid/u);
+});
+
+test('an audio-inclusive live carrier does not supersede its sibling video task', async (context) => {
+	type Role = 'evaluated-rgba-frame-pack' | 'staged-audio-mix';
+	const lifetime = new EditorControllerLifetime();
+	const started: Role[] = [];
+	const completed: Role[] = [];
+	const roleStream = (role: Role) => async (sink: Readonly<{
+		write(bytes: Uint8Array): Promise<void>;
+	}>) => {
+		started.push(role);
+		const task = lifetime.startTask('product-native-render-input');
+		try {
+			await Promise.resolve();
+			task.assertCurrent();
+			await sink.write(Uint8Array.of(role === 'evaluated-rgba-frame-pack' ? 1 : 2));
+			task.assertCurrent();
+			return { byteLength: 1, sha256: '1'.repeat(64), chunkCount: 1 };
+		} finally {
+			task.finish();
+		}
+	};
+	installBridge(context, {
+		selectRoot: async () => ({
+			grantId: 'a'.repeat(16), displayName: 'Exports', revoked: false,
+		}),
+		revalidateRoot: async () => true,
+		stageLiveRenderInputs: async (request: Data) => ({
+			stageId: 'b'.repeat(40), carrierByteLength: request.carrierByteLength,
+			scratchByteLength: 2,
+		}),
+		writeLiveRenderInput: async (request: Data) => ({
+			sequence: request.sequence,
+			receivedBytes: Number(request.offset) + (request.bytes as Uint8Array).byteLength,
+		}),
+		completeLiveRenderInput: async (request: Data) => {
+			completed.push(request.role as Role);
+			return { byteLength: request.byteLength, sha256: request.sha256 };
+		},
+		abandonRenderInputs: async () => true,
+		enqueue: async () => ({}),
+	});
+	const runtimeOwner = {
+		...owner(),
+		prepareNativeRenderInputStreamNativeMedia: async () => ({
+			carrierByteLength: 1,
+			stream: roleStream('evaluated-rgba-frame-pack'),
+			audio: {
+				role: 'staged-audio-mix', byteLength: 1,
+				stream: roleStream('staged-audio-mix'),
+			},
+		}),
+	};
+	const runtime = createRuntime(PROFILE, runtimeOwner as never) as unknown as Data;
+
+	await assert.doesNotReject(() => enqueue(runtime));
+	assert.deepEqual(started, ['evaluated-rgba-frame-pack', 'staged-audio-mix']);
+	assert.deepEqual(completed, started);
 });

@@ -223,16 +223,16 @@ async function streamSelectedNativeMediaLiveCarrier(
 	if (!bridge.writeLiveRenderInput || !bridge.completeLiveRenderInput) {
 		throw new Error('The selected nativeMedia live carrier bridge ended before production.');
 	}
-	await Promise.all([
-		streamSelectedNativeMediaLiveRole(
-			bridge, prepared.stageId, 'evaluated-rgba-frame-pack', prepared.carrierByteLength,
-			prepared.producer.stream,
-		),
-		...(prepared.producer.audio === null ? [] : [streamSelectedNativeMediaLiveRole(
+	await streamSelectedNativeMediaLiveRole(
+		bridge, prepared.stageId, 'evaluated-rgba-frame-pack', prepared.carrierByteLength,
+		prepared.producer.stream,
+	);
+	if (prepared.producer.audio !== null) {
+		await streamSelectedNativeMediaLiveRole(
 			bridge, prepared.stageId, 'staged-audio-mix', prepared.producer.audio.byteLength,
 			prepared.producer.audio.stream,
-		)]),
-	]);
+		);
+	}
 }
 
 async function streamSelectedNativeMediaLiveRole(
