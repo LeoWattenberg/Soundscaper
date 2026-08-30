@@ -208,3 +208,23 @@ test('quantization rejects transient inversions, bounds, and invalid grids', () 
 		grid: { origin: 0, interval: 2 }, strength: -0.1,
 	}), /strength/iu);
 });
+
+test('a position the map evaluates is a position the map can be evaluated at', () => {
+	// Interpolating inside a span puts the span in the denominator of the result,
+	// so a long span evaluates to positions outside the stored anchor domain. A
+	// query bounded to that domain could not name the map's own results, and the
+	// documented inverse refused the value the forward evaluation had just
+	// returned.
+	const map = {
+		feature: 'audio-warp',
+		points: [
+			{ outer: 0, source: 0, mode: 'forward' },
+			{ outer: 2_400_000, source: 2_400_002, mode: 'forward' },
+		],
+	};
+	const source = evaluateAudioWarpMap(map, { num: 700_001, den: 1 });
+	assert.equal(source.den, 1_200_000);
+	const outer = evaluateAudioWarpMapAtSource(map, source);
+	assert.deepEqual(outer, { num: 700_001, den: 1 });
+	assert.deepEqual(evaluateAudioWarpMap(map, outer), source);
+});
