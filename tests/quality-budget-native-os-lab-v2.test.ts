@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
 	NATIVE_OS_LAB_ENVIRONMENT_ID,
 	NATIVE_OS_LAB_PLATFORM_IDS,
+	assessNativeOsLabBindingQualificationV2,
 	findNativeOsLabProfile,
 	validateNativeOsLabEnvironmentV2,
 	validateNativeOsLabMeasurementBindingV2,
@@ -88,6 +89,31 @@ test('a V2 measurement binds one host, registered configuration, and artifact se
 	assert.equal(measurement.profile.audioBackend, 'pipewire');
 	assert.equal(measurement.artifacts.packageSha256, '1'.repeat(64));
 	assert.equal(findNativeOsLabProfile(environment, measurement.profileId).id, measurement.profileId);
+});
+
+test('native lab qualification treats record key order as non-semantic', () => {
+	const physicalHost = host();
+	const qualified = structuredClone(environment);
+	qualified.status = 'active';
+	qualified.qualificationEligible = true;
+	qualified.handoffGates = Object.fromEntries(
+		Object.keys(qualified.handoffGates).map((field) => [field, 'accepted']),
+	);
+	qualified.physicalHosts.linuxX64 = physicalHost;
+	qualified.profiles = qualified.profiles.map((profile: Readonly<Record<string, unknown>>) => (
+		Object.fromEntries(Object.entries(profile).reverse())
+	));
+	const reorderedHost = Object.fromEntries(Object.entries(physicalHost).reverse());
+	const assessment = assessNativeOsLabBindingQualificationV2(qualified, {
+		schemaVersion: 2,
+		environmentId: NATIVE_OS_LAB_ENVIRONMENT_ID,
+		platformId: 'linuxX64',
+		profileId: 'soundscaper-linux-x64-pipewire',
+		physicalHost: reorderedHost,
+		artifacts: artifacts(),
+	}, 'm5-native-helper-and-audio');
+	assert.equal(assessment.provisioned, true);
+	assert.deepEqual(assessment.blockers, []);
 });
 
 test('V2 bindings reject profile relabelling, embedded artifact state, and unknown fields', () => {

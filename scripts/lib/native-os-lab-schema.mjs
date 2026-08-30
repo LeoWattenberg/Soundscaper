@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isDeepStrictEqual } from 'node:util';
+
 import {
 	boundedString,
 	deepFreeze,
@@ -149,7 +151,7 @@ export function validateNativeOsLabEnvironmentV2(value) {
 		throw new Error('Native OS lab environment must enumerate the exact V2 product profiles.');
 	}
 	const profiles = environment.profiles.map((candidate, index) => validateProfile(candidate, index));
-	if (JSON.stringify(profiles) !== JSON.stringify(NATIVE_OS_LAB_PROFILES_V2)) {
+	if (!isDeepStrictEqual(profiles, NATIVE_OS_LAB_PROFILES_V2)) {
 		throw new Error('Native OS lab environment profiles do not match the frozen V2 matrix.');
 	}
 	return deepFreeze({ ...environment, physicalHosts, profiles, handoffGates });
@@ -212,7 +214,7 @@ export function assessNativeOsLabBindingQualificationV2(
 	const registeredHost = environment.physicalHosts[binding.platformId];
 	if (registeredHost === null) {
 		blockers.push(`Environment ${NATIVE_OS_LAB_ENVIRONMENT_ID} has no physical host for ${binding.platformId}.`);
-	} else if (JSON.stringify(registeredHost) !== JSON.stringify(binding.physicalHost)) {
+	} else if (!isDeepStrictEqual(registeredHost, binding.physicalHost)) {
 		blockers.push(`Environment ${NATIVE_OS_LAB_ENVIRONMENT_ID} physical host for ${binding.platformId} does not match the observation.`);
 	}
 	const gates = requireRecord(environment.handoffGates, 'native OS lab handoffGates');
@@ -272,11 +274,7 @@ function validateArtifacts(value) {
 }
 
 function platformRecord(value, path) {
-	const record = requireRecord(value, path);
-	if (JSON.stringify(Object.keys(record)) !== JSON.stringify(NATIVE_OS_LAB_PLATFORM_IDS)) {
-		throw new Error(`${path} must enumerate the exact five platform rows.`);
-	}
-	return record;
+	return exactRecord(value, NATIVE_OS_LAB_PLATFORM_IDS, path);
 }
 
 function platform(value, path) {
