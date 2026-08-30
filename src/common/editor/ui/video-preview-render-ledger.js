@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+const DECODABLE_LAYER_OWNER = Symbol('decodableVideoPreviewLayerOwner');
+
 export function decodableVideoPreviewEntry(entry) {
 	const video = entry?.video;
 	return Boolean(video && video.readyState >= 2 && video.videoWidth && video.videoHeight);
@@ -13,6 +15,7 @@ export function decodableVideoPreviewLayers(layers) {
 	return layers.map((layer) => ({
 		...layer,
 		entries: (layer?.entries || []).filter(decodableVideoPreviewEntry),
+		[DECODABLE_LAYER_OWNER]: layer,
 	}));
 }
 
@@ -24,6 +27,7 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 	const effects = new Map();
 	const composition = new Map();
 	for (const layer of layers || []) {
+		const layerOwner = layer?.[DECODABLE_LAYER_OWNER] ?? layer;
 		for (const entry of layer?.entries || []) {
 			if (entry?.renderDescription != null) {
 				const clipId = boundedEffectId(entry.clipId);
@@ -52,7 +56,7 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 			const id = boundedEffectId(effect.id);
 			if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
 			effects.set(id, {
-				owner: layer,
+				owner: layerOwner,
 				supported: supportedEffectTypes.has(effect.type),
 				outcome: null,
 			});

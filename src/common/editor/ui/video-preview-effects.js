@@ -301,10 +301,12 @@ void main() {
 		color.rgb *= bright;
 	} else if (u_effect == 13) {
 		float radius = max(0.0, u_params0.x);
+		float sample_stride = max(radius / 16.0, 1.0);
 		float dilated_alpha = 0.0;
 		for (int sample_x = -16; sample_x <= 16; sample_x += 1) {
-			if (abs(float(sample_x)) > radius) continue;
-			vec2 offset = vec2(float(sample_x), 0.0) / max(u_resolution, vec2(1.0));
+			float sample_offset = float(sample_x) * sample_stride;
+			if (abs(sample_offset) > radius) continue;
+			vec2 offset = vec2(sample_offset, 0.0) / max(u_resolution, vec2(1.0));
 			dilated_alpha = max(dilated_alpha, sample_content_transparent(content_uv + offset).a);
 		}
 		color = vec4(0.0, 0.0, 0.0, dilated_alpha);
@@ -312,10 +314,12 @@ void main() {
 		color = vec4(0.0, 0.0, 0.0, color.a);
 	} else if (u_effect == 15) {
 		float radius = max(0.0, u_params0.x);
+		float sample_stride = max(radius / 16.0, 1.0);
 		float dilated_alpha = 0.0;
 		for (int sample_y = -16; sample_y <= 16; sample_y += 1) {
-			if (abs(float(sample_y)) > radius) continue;
-			vec2 offset = vec2(0.0, float(sample_y)) / max(u_resolution, vec2(1.0));
+			float sample_offset = float(sample_y) * sample_stride;
+			if (abs(sample_offset) > radius) continue;
+			vec2 offset = vec2(0.0, sample_offset) / max(u_resolution, vec2(1.0));
 			dilated_alpha = max(dilated_alpha, sample_content_transparent(content_uv + offset).a);
 		}
 		vec4 original = sample_aux_content_transparent(content_uv);

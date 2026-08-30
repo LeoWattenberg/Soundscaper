@@ -151,6 +151,20 @@ test('the compositor rejects malformed layer blend modes before a blend draw', (
 	}
 });
 
+test('the outline shader samples its complete high-DPI radius with a bounded adaptive stride', () => {
+	const fixture = createRecordingFixture();
+	const compositor = createVideoPreviewCompositor(fixture.canvas);
+	try {
+		const outlineProgram = compositor.programs[13];
+		const source = outlineProgram.shaders.map((shader) => shader.source).join('\n');
+		assert.match(source, /float sample_stride = max\(radius \/ 16\.0, 1\.0\)/u);
+		assert.match(source, /sample_offset = float\(sample_x\) \* sample_stride/u);
+		assert.match(source, /sample_offset = float\(sample_y\) \* sample_stride/u);
+	} finally {
+		compositor.dispose();
+	}
+});
+
 function entry(clipId) {
 	return {
 		clipId,

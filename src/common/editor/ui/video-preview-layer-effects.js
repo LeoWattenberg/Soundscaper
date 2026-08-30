@@ -35,6 +35,7 @@ export function compositeVideoPreviewAdjustedLayer(
 export function applyVideoPreviewLayerEffects(compositor, sourceTarget, effects, previewScale) {
 	const passes = compositor.passesForEffects(effects || EMPTY_EFFECTS, previewScale);
 	if (!passes.length) return sourceTarget;
+	compositor.gl.disable(compositor.gl.BLEND);
 	const viewport = {
 		x: 0, y: 0, width: compositor.canvas.width, height: compositor.canvas.height,
 	};

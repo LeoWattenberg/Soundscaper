@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
 	createVideoPreviewCompositorFallbackReport,
 } from '../src/common/editor/ui/video-preview-compositor.js';
+import { applyVideoPreviewLayerEffects } from '../src/common/editor/ui/video-preview-layer-effects.js';
 import {
 	beginVideoPreviewRenderLedger,
 	completeVideoPreviewRenderLedger,
@@ -183,6 +184,22 @@ test('adjustment-layer effects are explicit compositor requests and outcomes', (
 		fallbackRendered: ['adjustment-brightness'],
 		omitted: [],
 	});
+});
+
+test('adjustment-layer passes disable entry-compositing blend state before drawing', () => {
+	let blending = true;
+	const drawBlendStates = [];
+	const target = (name) => ({ name, texture: `${name}-texture` });
+	const compositor = {
+		canvas: { width: 640, height: 360 },
+		gl: { BLEND: 1, disable() { blending = false; } },
+		targets: { layer: target('layer'), ping: target('ping'), pong: target('pong'), anchor: target('anchor') },
+		passesForEffects: () => [{ code: 1 }],
+		clearTarget() {},
+		draw() { drawBlendStates.push(blending); },
+	};
+	applyVideoPreviewLayerEffects(compositor, compositor.targets.layer, [effect('adjustment', 'color-adjust')], { x: 1, y: 1 });
+	assert.deepEqual(drawBlendStates, [false, false]);
 });
 
 function effect(id, type, enabled = true) {

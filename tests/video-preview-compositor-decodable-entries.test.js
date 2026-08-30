@@ -102,6 +102,19 @@ test('keeps rendering the decodable entries while a sibling entry buffers', () =
 	compositor.dispose();
 });
 
+test('a buffering sibling does not detach a rendered adjustment layer from its ledger owner', () => {
+	const compositor = createVideoPreviewCompositor(createStubCanvas());
+	const report = compositor.render([{
+		entries: [createEntry(0, 'effect-buffering'), createEntry(4, 'effect-ready')],
+		effects: [{ id: 'adjustment-ready', type: 'color-adjust', enabled: true, params: { brightness: 0.1 } }],
+	}], { referenceWidth: 1_920, referenceHeight: 1_080 });
+	assert.deepEqual(report.effects.requested, ['effect-ready', 'adjustment-ready']);
+	assert.deepEqual(report.effects.rendered, ['effect-ready', 'adjustment-ready']);
+	assert.deepEqual(report.effects.omitted, []);
+	assert.equal(report.status, 'rendered');
+	compositor.dispose();
+});
+
 test('keeps preview YUV simulation by default and exposes one raw RGBA final pass offline', () => {
 	const compositor = createVideoPreviewCompositor(createStubCanvas());
 	const finalPasses = [];
