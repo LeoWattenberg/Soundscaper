@@ -98,6 +98,19 @@ test('Qt TS parsing accepts schema entities but rejects active XML constructs an
 		() => parseQtTs('<?xml version="1.0"?><TS version="2.1" language="de"/>'),
 		(error) => error.code === 'QT_TS_SCHEMA',
 	);
+	assert.throws(
+		() => parseQtTs('<?xml version="1.0"?><!DOCTYPE TS><TS version="2.1" language="de"><context><name>bad<b>markup</b></name></context></TS>'),
+		(error) => error.code === 'QT_TS_CONTEXT_NAME_MARKUP',
+	);
+});
+
+test('Qt TS conversion strips translator-introduced mnemonics from every mapped value', () => {
+	const catalog = parseQtTs('<?xml version="1.0"?><!DOCTYPE TS><TS version="2.1" language="de"><context><name>menu</name><message><source>Copy</source><translation>&amp;Kopieren &amp;&amp; Einfügen</translation></message></context></TS>');
+	const result = convertQtCatalog(catalog, [{
+		key: 'copy', context: 'menu', source: 'Copy', comment: '',
+	}]);
+
+	assert.equal(result.messages.copy, 'Kopieren & Einfügen');
 });
 
 test('mapping validation requires explicit ellipsis and complete named-placeholder adapters', () => {

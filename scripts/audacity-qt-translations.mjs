@@ -112,7 +112,12 @@ export function parseQtTs(input, options = {}) {
 			if (node.name === 'numerusform') currentMessage.numerus = true;
 			currentMessage.unsupportedMarkup = true;
 		}
-		if (capture && depth > capture.depth) currentMessage.unsupportedMarkup = true;
+		if (capture && depth > capture.depth) {
+			if (capture.kind === 'contextName') {
+				fail('QT_TS_CONTEXT_NAME_MARKUP', `${fileName} contains markup inside a context name.`);
+			}
+			currentMessage.unsupportedMarkup = true;
+		}
 	});
 	parser.on('text', appendCapturedText);
 	parser.on('cdata', appendCapturedText);
@@ -239,12 +244,11 @@ export function convertQtCatalog(catalog, mapping = AUDACITY_QT_MAPPING, options
 		}
 		let value = applyPlaceholderAdapter(message.translation, entry.placeholders || {});
 		for (const transform of entry.transforms || []) {
-			if (transform === 'stripMnemonic') value = stripQtMnemonic(value);
 			if (transform === 'stripEllipsis') value = stripEllipses(value);
 		}
-		// Imported UI values are always ellipsis-free, even when a translator
-		// introduced punctuation not present in the mapped English source.
-		value = stripEllipses(value).normalize('NFC');
+		// Imported UI values are always free of Qt presentation syntax, even when
+		// a translator introduced it outside the mapped English source.
+		value = stripQtMnemonic(stripEllipses(value)).normalize('NFC');
 		if (!value.trim()) {
 			skipped.push({ key: entry.key, reason: 'empty' });
 			continue;
