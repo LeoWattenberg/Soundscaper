@@ -7,6 +7,7 @@ import '../audio-editor-design-system/26-take-comp.css';
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createTakeCompDialogModel,
 	readTakeCompNumberEntry,
@@ -138,8 +139,7 @@ export default function TakeCompDialog({
 		activeOperationRef.current = operationId;
 		setPending(name);
 		setError('');
-		void Promise.resolve()
-			.then(() => run(operation))
+		void runAwaitedAudioEditorOperation(run, operation)
 			.then(() => {
 				if (activeOperationRef.current !== operationId) return;
 				setStatus(success);

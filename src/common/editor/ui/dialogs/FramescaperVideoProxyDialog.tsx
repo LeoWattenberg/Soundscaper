@@ -12,6 +12,7 @@ import {
 import {
 	createFramescaperVideoProxyDialogModel,
 } from '../framescaper-video-proxy-dialog-model.ts';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import type { FramescaperVideoProxyModeRetime } from '../../../../framescaper/editor-video-proxy-use-policy-retime.ts';
 
 interface ProxyFileService {
@@ -95,7 +96,7 @@ export default function FramescaperVideoProxyDialog({
 		setStatus('');
 		setError('');
 		const mutation = modeMutationRef.current.then(() => (
-			Promise.resolve(run(() => runtime.setMode(sourceId, next))).then(() => undefined)
+			runAwaitedAudioEditorOperation(run, () => runtime.setMode(sourceId, next)).then(() => undefined)
 		));
 		modeMutationRef.current = mutation.catch(() => undefined);
 		void mutation.then(() => {
@@ -118,7 +119,7 @@ export default function FramescaperVideoProxyDialog({
 		setProgress(null);
 		setStatus('');
 		setError('');
-		void Promise.resolve().then(() => run(() => operation(abort?.signal))).then(() => {
+		void runAwaitedAudioEditorOperation(run, () => operation(abort?.signal)).then(() => {
 			setStatus(kind === 'detach'
 				? label(copy, 'videoProxyDetached', 'Proxy detached. Undo remains available.')
 				: kind === 'attach'
@@ -185,7 +186,7 @@ export default function FramescaperVideoProxyDialog({
 		setPending('relink');
 		setStatus('');
 		setError('');
-		void Promise.resolve(run(async () => {
+		void runAwaitedAudioEditorOperation(run, async () => {
 			const choice = relinkChoice(await fileService.chooseLinkedVideoOriginal!());
 			if (!choice) return;
 			const result = await runtime.relinkOriginal(selectedSourceId, choice);
@@ -194,7 +195,7 @@ export default function FramescaperVideoProxyDialog({
 				return;
 			}
 			setStatus(label(copy, 'videoProxyOriginalRelinked', 'Original video relinked.'));
-		})).catch((operationError: unknown) => {
+		}).catch((operationError: unknown) => {
 			setError(operationError instanceof Error ? operationError.message : String(operationError));
 		}).finally(() => { setPending(null); });
 	};
@@ -203,11 +204,11 @@ export default function FramescaperVideoProxyDialog({
 		const choice = changedRelink;
 		setPending('relink');
 		setError('');
-		void Promise.resolve(run(() => runtime.relinkOriginal(
+		void runAwaitedAudioEditorOperation(run, () => runtime.relinkOriginal(
 			selectedSourceId,
 			choice,
 			{ allowChangedContent: true },
-		))).then(() => {
+		)).then(() => {
 			setChangedRelink(null);
 			setStatus(label(copy, 'videoProxyOriginalRelinkedChanged',
 				'Changed original relinked. The stale proxy was detached; generate a new one.'));

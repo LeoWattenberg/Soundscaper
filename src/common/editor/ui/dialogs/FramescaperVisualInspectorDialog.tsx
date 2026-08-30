@@ -8,6 +8,7 @@ import {
 	createFramescaperVisualInspectorModel,
 	type FramescaperVisualInspectorDraft,
 } from '../framescaper-visual-inspector-model.ts';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import type { VideoGeneratorDocumentV1 } from '../../video-visual-model-v24.ts';
 
 interface Props {
@@ -61,7 +62,7 @@ export default function FramescaperVisualInspectorDialog({
 		setPending(true);
 		setError('');
 		setStatus('');
-		void Promise.resolve().then(() => run(() => controller.actions.edit.commit(command)))
+		void runAwaitedAudioEditorOperation(run, () => controller.actions.edit.commit(command))
 			.then(() => { setStatus(label(copy, 'visualInspectorApplied', 'Selected visual updated.')); })
 			.catch((cause: unknown) => { setError(cause instanceof Error ? cause.message : String(cause)); })
 			.finally(() => { setPending(false); });

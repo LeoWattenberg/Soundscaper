@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { runAwaitedAudioEditorOperation } from './workspace/audio-editor-workspace-runner.ts';
+
 export interface SoundscaperProductionDialogOperationState<Operation> {
 	readonly disabled: boolean;
 	readonly pending: string | null;
@@ -65,10 +67,9 @@ export function useSoundscaperProductionDialogOperation<Operation>(options: Read
 		activeOperationRef.current = ownership;
 		setPending(name);
 		setError('');
-		void Promise.resolve()
-			.then(() => ownsOperation()
-				? options.run(() => ownsOperation() ? options.execute(operation()) : undefined)
-				: undefined)
+		void runAwaitedAudioEditorOperation(options.run, () => ownsOperation()
+			? options.execute(operation())
+			: undefined)
 			.then(() => {
 				if (!ownsOperation()) return;
 				onSuccess?.();

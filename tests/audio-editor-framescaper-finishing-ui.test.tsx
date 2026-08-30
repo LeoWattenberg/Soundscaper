@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { filterProductMenus } from '../src/common/editor/ui/application-menu-product-filter.js';
@@ -12,6 +12,11 @@ import {
 	bindFramescaperMotionAnalysisActionsFinishing,
 	createFramescaperMotionAnalysisActionsFinishing,
 } from '../src/framescaper/editor-motion-analysis-actions-finishing.ts';
+import {
+	installReactTestDom,
+	reactProps,
+	type ReactTestElement,
+} from './helpers/react-test-dom.ts';
 
 test('lazy Framescaper captions surface exposes pathless file import and common file-service export', () => {
 	const markup = render('captions', project(), controller());
@@ -69,6 +74,69 @@ test('Framescaper keeps only its motion analysis in Analyze when audio analyzers
 	}, 'framescaper'), []);
 });
 
+test('a synchronous finishing commit failure is shown instead of reporting success', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const expected = new Error('finishing commit refused');
+	const reported: unknown[] = [];
+	const owner = {
+		actions: { edit: { commit: () => { throw expected; } } },
+	};
+	const run = (operation: () => unknown): unknown => {
+		try {
+			const result = operation();
+			if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+				void Promise.resolve(result).catch((error: unknown) => { reported.push(error); });
+			}
+			return result;
+		} catch (error) {
+			reported.push(error);
+			return undefined;
+		}
+	};
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<FramescaperFinishingDialog
+			surface="captions"
+			controller={owner}
+			project={project()}
+			editingBlocked={false}
+			readOnly={false}
+			copy={{}}
+			fileService={{ saveFile: async () => undefined }}
+			run={run}
+			onClose={() => undefined}
+		/>));
+		const documentInput = dom.one('[data-framescaper-finishing-document]');
+		await act(async () => {
+			documentInput.value = JSON.stringify([{
+				schemaVersion: 1,
+				id: 'captions-1',
+				sequenceId: 'main-sequence',
+				name: 'Captions',
+				language: 'und',
+				styles: [], regions: [], speakers: [], cues: [],
+			}]);
+			void reactProps(documentInput).onChange({ currentTarget: documentInput });
+		});
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, 'Apply')).onClick({});
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /finishing commit refused/u);
+		assert.doesNotMatch(dom.container.textContent, /Finishing state updated/u);
+		assert.deepEqual(reported, [expected]);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function render(surface: 'captions' | 'grading-presets' | 'motion-tracking', value: unknown, owner: ReturnType<typeof controller>) {
 	return renderToStaticMarkup(<FramescaperFinishingDialog
 		surface={surface}
@@ -115,4 +183,10 @@ function project() {
 		videoMotionAnalyses: [], videoFinishingPresets: [], videoCaptionTracks: [],
 		automationLanes: [], mixer: {}, tracks: [],
 	};
+}
+
+function buttonWithText(root: ReactTestElement, text: string): ReactTestElement {
+	const button = root.querySelectorAll('button').find((candidate) => candidate.textContent === text);
+	if (!button) throw new Error(`Missing button ${text}.`);
+	return button;
 }

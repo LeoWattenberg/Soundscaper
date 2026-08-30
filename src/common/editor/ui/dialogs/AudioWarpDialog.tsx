@@ -8,6 +8,7 @@ import type { RationalInput } from '../../timeline-time.ts';
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { createAudioWarpDialogModel } from '../audio-warp-dialog-model.ts';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 interface AudioWarpDialogActions {
 	view(): Readonly<{
@@ -99,8 +100,7 @@ export default function AudioWarpDialog({
 		activeOperationRef.current = operationId;
 		setPending(name);
 		setError('');
-		void Promise.resolve()
-			.then(() => run(operation))
+		void runAwaitedAudioEditorOperation(run, operation)
 			.then((result) => {
 				if (activeOperationRef.current !== operationId) return;
 				onSuccess?.(result);

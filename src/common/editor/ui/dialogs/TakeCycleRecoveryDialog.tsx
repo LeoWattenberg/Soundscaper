@@ -6,6 +6,7 @@ import '../audio-editor-design-system/28-take-cycle-recovery.css';
 
 import type { TakeCyclePendingOpenRecovery } from '../../controller/take-cycle-capture-orchestrator.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 interface TakeCycleRecoveryActions {
 	recover(pending: TakeCyclePendingOpenRecovery): unknown;
@@ -40,8 +41,10 @@ export default function TakeCycleRecoveryDialog({
 	const perform = (decision: 'recover' | 'discard'): void => {
 		setPendingAction(decision);
 		setError('');
-		void Promise.resolve()
-			.then(() => run(() => controller.actions.recording.cycle[decision](pending)))
+		void runAwaitedAudioEditorOperation(
+			run,
+			() => controller.actions.recording.cycle[decision](pending),
+		)
 			.then(onClose)
 			.catch((operationError: unknown) => {
 				setError(operationError instanceof Error ? operationError.message : String(operationError));

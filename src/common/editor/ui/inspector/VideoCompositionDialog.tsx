@@ -13,6 +13,7 @@ import {
 	videoClipCompositionsEqual,
 } from '../../video-clip-composition.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createVideoCompositionDialogModel,
 	createVideoCompositionDraft,
@@ -100,8 +101,7 @@ export default function VideoCompositionDialog({
 			);
 			setPending(true);
 			setError('');
-			void Promise.resolve()
-				.then(() => run(() => controller.actions.edit.commit(command)))
+			void runAwaitedAudioEditorOperation(run, () => controller.actions.edit.commit(command))
 				.then(() => { setStatus(success); })
 				.catch(() => {
 					setError(label(copy, 'videoCompositionApplyFailed', 'The composition could not be applied. Refresh the project and try again.'));

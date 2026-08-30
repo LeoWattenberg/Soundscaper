@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createFramescaperFinishingCommand,
 	createFramescaperFinishingDialogModel,
@@ -11,7 +12,6 @@ import {
 } from '../framescaper-finishing-dialog-model.ts';
 import type { FramescaperFinishingSurface } from '../framescaper-finishing-menu.ts';
 import type { VideoCaptionInterchangeFormatV1 } from '../../video-caption-interchange-contract-v27.ts';
-import type { VideoMotionAnalysisReferenceV1 } from '../../video-motion-model-v27.ts';
 import {
 	openFramescaperCaptionSidecarFile,
 	saveFramescaperCaptionSidecarFile,
@@ -110,8 +110,7 @@ export default function FramescaperFinishingDialog({
 		setPending(true);
 		setStatus('');
 		setError('');
-		void Promise.resolve()
-			.then(() => run(operation))
+		void runAwaitedAudioEditorOperation(run, operation)
 			.then(() => { setStatus(typeof success === 'function' ? success() : success); })
 			.catch((operationError: unknown) => {
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
@@ -220,14 +219,14 @@ export default function FramescaperFinishingDialog({
 		setMotionProgress(null);
 		setStatus('');
 		setError('');
-		const operation = run(() => motionRuntime.analyze({
+		const operation = runAwaitedAudioEditorOperation(run, () => motionRuntime.analyze({
 			processorStackId: motionTarget.stackId,
 			startFrame,
 			endFrame,
 			signal: abort.signal,
 			onProgress: setMotionProgress,
-		})) as PromiseLike<VideoMotionAnalysisReferenceV1> | VideoMotionAnalysisReferenceV1;
-		void Promise.resolve(operation).then((reference) => {
+		}));
+		void operation.then((reference) => {
 			setDocumentText(JSON.stringify({
 				videoProcessorStacks: processorStacks(project),
 				videoMotionAnalyses: [

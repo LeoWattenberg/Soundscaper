@@ -11,6 +11,7 @@ import {
 	type FramescaperSelectedVisualAuthoringSurface,
 } from '../../../../framescaper/editor-selected-finishing-visual-authoring-model.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 const TEXT = Object.freeze({
 	selectAdjacent: 'Select one clip from an unlocked video track containing an adjacent pair.',
@@ -96,7 +97,7 @@ export default function FramescaperSelectedVisualAuthoringDialog(props: Props) {
 		setPending(true);
 		setStatus('');
 		setError('');
-		void Promise.resolve(props.run(() => runtime.run(props.surface, request)))
+		void runAwaitedAudioEditorOperation(props.run, () => runtime.run(props.surface, request))
 			.then(() => { setStatus(successText(operation)); })
 			.catch((cause: unknown) => {
 				setError(cause instanceof Error ? cause.message : String(cause));

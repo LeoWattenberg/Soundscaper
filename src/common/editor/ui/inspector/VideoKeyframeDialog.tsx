@@ -4,6 +4,7 @@ import React, { type FormEvent, useMemo, useState } from 'react';
 
 import { addRationals, multiplyRationals } from '../../timeline-time.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createVideoKeyframeCurveTransfer,
 	parseVideoKeyframeCurveTransfer,
@@ -67,8 +68,7 @@ export default function VideoKeyframeDialog({
 		try {
 			const command = createVideoKeyframeSetCommand(model, keyframes);
 			setPending(true); setError('');
-			void Promise.resolve()
-				.then(() => run(() => controller.actions.edit.commit(command)))
+			void runAwaitedAudioEditorOperation(run, () => controller.actions.edit.commit(command))
 				.then(() => { setStatus(message); })
 				.catch(() => { setError(label(copy, 'videoKeyframesApplyFailed', 'Video keyframes could not be applied.')); })
 				.finally(() => { setPending(false); });

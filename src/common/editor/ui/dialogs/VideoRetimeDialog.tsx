@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { createVideoRetimeDialogModel } from '../video-retime-dialog-model.ts';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	formatVideoRetimeExactMapInput,
 	parseVideoRetimeExactMapInput,
@@ -82,8 +83,7 @@ export default function VideoRetimeDialog({
 	const perform = (operation: () => unknown, success: string): void => {
 		setPending(true);
 		setError('');
-		void Promise.resolve()
-			.then(() => run(operation))
+		void runAwaitedAudioEditorOperation(run, operation)
 			.then(() => { setStatus(success); })
 			.catch((operationError: unknown) => {
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
