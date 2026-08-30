@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-28",
+	"groundedAt": "2026-08-30",
 	"modelDocument": "docs/production-threat-model.md",
 	"releaseCandidate": {
 		"version": "1.0.0-rc.1",
@@ -11013,6 +11013,69 @@
 					"policyAuthority": "family-v1-active"
 				},
 				{
+					"id": "authenticated-professional-native-containment",
+					"summary": "Professional native containment is fail closed around exact file identity rather than a package-owned runtime directory. On Linux, each invocation extracts the exact PT_INTERP from the authenticated target-native peer, admits only the target's closed case-sensitive SONAME set, resolves with that loader's cache inhibited, replays resolution through the exact discovered library directories, and authenticates every canonical host loader/library as a root-owned, non-group/world-writable regular file by bytes, SHA-256, device and inode. A packaged ELF runtime closure is forbidden: the authenticated PT_INTERP is the launch entry point, and Landlock receives its loader/library read-execute grants as exact descriptors before seccomp rather than a host-library directory. Host libraries are never copied into the candidate. On macOS, the launcher retains exact descriptors, uses POSIX_SPAWN_SETEXEC with POSIX_SPAWN_START_SUSPENDED, verifies the stopped peer's executable vnode identity, and resumes only that peer; the peer then enters Seatbelt through its first-party bootstrap before containment probes or framed protocol work and attests completion. The sole com.apple.security.cs.disable-library-validation exception is a pinned entitlement applied only to the Soundscaper professional plug-in peer so it can load the selected plug-in. Candidate signing strictly verifies every signed artifact and hashes successful codesign --test-requirement evidence: a positive entitlement requirement for the peer and a negative requirement for every other artifact.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "desktop/soundscaper-professional-linux-system-libraries.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/soundscaper-professional-linux-system-runtime.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/native-child-isolation-launcher.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/milestone-5-native-isolation-launcher/src/linux_launcher.c"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/milestone-5-native-isolation-launcher/src/macos_launcher.mm"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/soundscaper-professional-host/src/professional_host_macos_bootstrap.mm"
+						},
+						{
+							"kind": "implementation",
+							"path": "native/soundscaper-professional-host/soundscaper-professional-peer-entitlements.mac.plist"
+						},
+						{
+							"kind": "implementation",
+							"path": "scripts/lib/soundscaper-professional-native-macos-signing.mjs"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-native-child-dynamic-loader.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-native-child-isolation-launcher.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/soundscaper-professional-native-dependency-inspection.test.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/soundscaper-professional-native-build.test.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/soundscaper-professional-native-signing.test.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/soundscaper-professional-native-build-candidate.test.js"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				},
+				{
 					"id": "digest-keyed-plugin-consent-isolation-and-quarantine",
 					"summary": "Consent is per format and a fresh store grants none: nothing scans at startup, standard operating-system roots are offered but inert until admitted, and custom roots arrive only through a main-owned directory picker, never from anything the renderer says. Raw roots and binary paths stay main-private. Isolation is one host process per renderer owner and plug-in binary digest, so unrelated binaries and unrelated renderer owners never share a host, and a revoked digest has no restart path: revocation kills the matching host and prevents automatic restart until an explicit restore. Two qualifying host faults inside ten minutes quarantine that digest, and a scanner fault quarantines it immediately. Quarantine is digest-keyed rather than path-keyed so moving or renaming a binary cannot launder a crash, is written atomically through an injected filesystem seam before it is reported, survives restart, and is cleared only by an explicit rescan or re-enable of that exact digest. User cancellation, device loss and editor shutdown are not faults and are recorded nowhere. An oversize or rejected opaque state makes the instance ineligible without discarding the state already persisted, and the isolation registry renders nothing, so it cannot manufacture a freeze after a failure. A vendor UI is modelled only as a helper-owned top-level window with no renderer bridge, DOM, Node, filesystem, network, child-process, or embedded child window authority.",
 					"evidence": [
@@ -11055,8 +11118,8 @@
 			"residualRisks": [
 				{
 					"id": "hosted-plugin-ambient-authority",
-					"exposure": "A hosted plug-in is arbitrary native code. The per-OS launcher source and tests implement Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer restrictions, and runtime admission requires the exact built launcher, sandbox policy, broker policy, plug-in payload, and runtime-library closure. No authenticated built launcher exists in the checked-in target manifests, so execution is currently machine-unavailable rather than falling back to an ordinary utility process. A signature or publisher-verification channel remains milestone 9 stable 1.0 release evidence; its absence does not weaken the machine containment gate or disable testing once an authenticated target payload exists.",
-					"requiredControl": "Treat native plug-ins as arbitrary code, isolate them in a supervised host, minimize filesystem and network authority, record the operating-system restrictions that actually apply per target, and disclose the residual account authority to the user rather than describing the helper as a sandbox.",
+					"exposure": "A hosted plug-in is arbitrary native code. The per-OS launcher source implements Linux namespaces/Landlock/seccomp, macOS Seatbelt, and Windows AppContainer. Linux now authenticates the peer's exact PT_INTERP and target-reviewed root-owned host ELF closure and grants Landlock read/execute only to those identities; macOS SETEXECs into the suspended identity-verified peer before the peer itself enters Seatbelt. The macOS library-validation exception is pinned to the Soundscaper professional plug-in peer alone, and strict signature plus positive/negative codesign --test-requirement evidence proves presence there and absence from every other candidate artifact. The macOS stopped-vnode transition prevents the selected plug-in from running before Seatbelt, but it is not a defense against an already-running same-UID process that can race a newly valid same-vnode code signature or send SIGCONT; that actor already has ambient account execution and remains outside this control. These source controls do not substitute for packaged hostile-code containment evidence, broad compatibility, vendor provenance, or a publisher trust decision. A signature or publisher-verification trust channel beyond the candidate-integrity receipt remains Milestone 9 stable 1.0 release evidence. No authenticated built launcher exists in the checked-in target manifests, so execution remains machine-unavailable rather than falling back to an ordinary utility process.",
+					"requiredControl": "Treat native plug-ins as arbitrary code; retain exact per-invocation file identity, the closed Linux host closure, peer-side Seatbelt bootstrap, and the peer-only macOS library-validation exception; minimize filesystem and network authority; and disclose the restrictions actually proven per target. Complete packaged hostile-code, publisher, and compatibility evidence without weakening the machine containment gate.",
 					"ownerMilestone": "5 and 8B",
 					"acceptanceCriteria": [
 						"Host compromise, crash recovery, denial, scanning, consent, revocation, and per-platform packaging tests pass, and the per-target operating-system restriction row is recorded, before any third-party format is enabled."
