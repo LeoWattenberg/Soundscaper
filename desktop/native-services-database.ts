@@ -217,6 +217,49 @@ export function renewFramescaperNativeServicesWriterLease(
 	}
 }
 
+/** Re-acquire the exact expired generation if no other writer took it over. */
+export function reacquireExpiredFramescaperNativeServicesWriterLease(
+	database: DatabaseSync,
+	lease: FramescaperNativeServicesLease,
+	options: Readonly<{ instanceId: string; processId: number; nowMs: number }>,
+): FramescaperNativeServicesLease | null {
+	const nowMs = nonNegativeInteger(options.nowMs, 'nowMs');
+	const expiresAtMs = nowMs + FRAMESCAPER_NATIVE_SERVICES_LEASE_MS;
+	database.exec('BEGIN IMMEDIATE');
+	try {
+		const current = database.prepare(`
+			SELECT active, lease_id, fencing_token, expires_at_ms
+			FROM native_services_writer_lease WHERE singleton = 1
+		`).get() as Record<string, unknown> | undefined;
+		if (Number(current?.active ?? 0) !== 1 || current?.lease_id !== lease.leaseId
+			|| Number(current?.fencing_token ?? 0) !== lease.fencingToken
+			|| Number(current?.expires_at_ms ?? 0) > nowMs) {
+			database.exec('ROLLBACK');
+			return null;
+		}
+		const fencingToken = lease.fencingToken + 1;
+		const result = database.prepare(`
+			UPDATE native_services_writer_lease SET fencing_token = ?, owner_process_id = ?,
+				owner_instance_id = ?, acquired_at_ms = ?, expires_at_ms = ?
+			WHERE singleton = 1 AND active = 1 AND lease_id = ? AND fencing_token = ?
+				AND expires_at_ms <= ?
+		`).run(
+			fencingToken, options.processId, options.instanceId, nowMs, expiresAtMs,
+			lease.leaseId, lease.fencingToken, nowMs,
+		);
+		if (result.changes !== 1) {
+			throw new FramescaperNativeServicesDatabaseError(
+				'The expired Framescaper native services writer lease could not be re-acquired.',
+			);
+		}
+		database.exec('COMMIT');
+		return Object.freeze({ leaseId: lease.leaseId, fencingToken, expiresAtMs });
+	} catch (error) {
+		if (database.isTransaction) database.exec('ROLLBACK');
+		throw error;
+	}
+}
+
 export function releaseFramescaperNativeServicesWriterLease(
 	database: DatabaseSync,
 	lease: FramescaperNativeServicesLease,

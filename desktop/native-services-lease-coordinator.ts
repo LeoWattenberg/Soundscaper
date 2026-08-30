@@ -4,6 +4,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import {
 	acquireFramescaperNativeServicesWriterLease,
+	reacquireExpiredFramescaperNativeServicesWriterLease,
 	releaseFramescaperNativeServicesWriterLease,
 	renewFramescaperNativeServicesWriterLease,
 	type FramescaperNativeServicesLease,
@@ -22,7 +23,7 @@ export interface FramescaperNativeServicesLeaseCoordinatorOptions {
 	readonly onFenced?: (error: unknown) => void;
 }
 
-/** Process-lifetime renewal; one failure is a permanent dispatch fence. */
+/** Process-lifetime renewal; ownership loss is a permanent dispatch fence. */
 export class FramescaperNativeServicesLeaseCoordinator {
 	readonly #database: DatabaseSync;
 	readonly #identity: Readonly<{
@@ -75,9 +76,21 @@ export class FramescaperNativeServicesLeaseCoordinator {
 		let current: FramescaperNativeServicesLease;
 		try {
 			current = this.lease();
-			const renewed = renewFramescaperNativeServicesWriterLease(
-				this.#database, current, this.#now(),
-			);
+			const nowMs = this.#now();
+			let renewed: FramescaperNativeServicesLease;
+			try {
+				renewed = renewFramescaperNativeServicesWriterLease(
+					this.#database, current, nowMs,
+				);
+			} catch (renewalError) {
+				const reacquired = reacquireExpiredFramescaperNativeServicesWriterLease(
+					this.#database,
+					current,
+					{ instanceId: this.#identity.instanceId, processId: this.#identity.processId, nowMs },
+				);
+				if (reacquired === null) throw renewalError;
+				renewed = reacquired;
+			}
 			this.#current = renewed;
 			this.#replaceTimer();
 			return Promise.resolve(renewed);

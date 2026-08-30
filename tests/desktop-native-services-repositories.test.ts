@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
 	acquireFramescaperNativeServicesWriterLease,
+	assertFramescaperNativeServicesWriterLease,
 	FRAMESCAPER_NATIVE_SERVICES_LEASE_MS,
 	initializeFramescaperNativeServicesDatabase,
 	renewFramescaperNativeServicesWriterLease,
@@ -109,6 +110,38 @@ test('the process lease coordinator renews inside the TTL and permanently fences
 	await assert.rejects(() => coordinator.renewNow(), /writer lease was taken over/u);
 	assert.equal(fenced.length, 1);
 	assert.throws(() => coordinator.lease(), /fenced/u);
+	coordinator.stop();
+	database.close();
+});
+
+test('the process lease coordinator re-acquires an expired lease that was not taken over', async () => {
+	const database = open();
+	let nowMs = 0;
+	const fenced: unknown[] = [];
+	const coordinator = new FramescaperNativeServicesLeaseCoordinator({
+		database,
+		leaseId: 'lease-a',
+		instanceId: 'instance-a',
+		processId: 1,
+		now: () => nowMs,
+		schedule: () => 1,
+		cancelSchedule: () => {},
+		onFenced: (error) => fenced.push(error),
+	});
+	const first = coordinator.start();
+	nowMs = first.expiresAtMs;
+
+	const reacquired = await coordinator.renewNow();
+
+	assert.ok(reacquired.fencingToken > first.fencingToken);
+	assert.ok(reacquired.expiresAtMs > nowMs);
+	assert.equal(coordinator.lease(), reacquired);
+	assert.doesNotThrow(() => assertFramescaperNativeServicesWriterLease(database, reacquired, nowMs));
+	assert.throws(
+		() => assertFramescaperNativeServicesWriterLease(database, first, nowMs),
+		/writer lease was taken over/u,
+	);
+	assert.deepEqual(fenced, []);
 	coordinator.stop();
 	database.close();
 });
