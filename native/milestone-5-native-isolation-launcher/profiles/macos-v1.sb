@@ -4,4 +4,6 @@
 (allow process-info*)
 (allow signal (target self))
 (allow sysctl-read)
+;; Data-only transport over the launcher's explicitly inherited descriptors.
+(allow file-read-data file-write-data (subpath "/dev/fd"))
 ;; Exact file literals are appended by the authenticated broker from reopened FDs.

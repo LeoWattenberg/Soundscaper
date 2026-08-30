@@ -461,7 +461,7 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 		'the exact stopped peer must resume before a maximum-size policy can fill the pipe');
 	assert.match(mac, /kill\([^,]+, SIGKILL\)/u);
 	assert.match(mac, /"LANG=C"[\s\S]*"LC_ALL=C"[\s\S]*"PATH="[\s\S]*"HOME=\/nonexistent"/u);
-	assert.match(mac, /const int status = posix_spawn[\s\S]*\(void\)status;[\s\S]*return 125;/u,
+	assert.match(mac, /const int status = posix_spawn[\s\S]*nativeFailure\("posix-spawn", status\)/u,
 		'a successful SETEXEC cannot return, so every return path must fail closed');
 	assert.doesNotMatch(mac, /sandbox_init/u,
 		'the exact peer, not the pre-exec launcher image, must enter Seatbelt');

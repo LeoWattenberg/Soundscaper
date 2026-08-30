@@ -7,7 +7,7 @@ import type { Readable } from 'node:stream';
 import type { NativeChildIsolationCompletion } from './native-child-isolation-contract.ts';
 
 const ENFORCEMENT_FRAME = Buffer.from('M5_NATIVE_ISOLATION_ENFORCED_V1\n');
-const WINDOWS_FAILURE = /(?:^|\n)M5_NATIVE_ISOLATION_FAILURE_V1 windows ([a-z][a-z-]{0,63}) (\d{1,10})(?:\n|$)/u;
+const NATIVE_FAILURE = /(?:^|\n)M5_NATIVE_ISOLATION_FAILURE_V1 (windows|macos) ([a-z][a-z-]{0,63}) (\d{1,10})(?:\n|$)/u;
 
 export function waitForNativeChildEnforcement(stream: Readable, timeoutMs: number): Promise<void> {
 	return new Promise((resolve, reject) => {
@@ -38,8 +38,9 @@ export function nativeChildEnforcementFailure(
 ): Error {
 	const cause = error instanceof Error ? error : new Error(String(error));
 	if (outcome === null) return cause;
-	const diagnostic = WINDOWS_FAILURE.exec(outcome.stderr);
-	const detail = diagnostic === null ? '' : `; diagnostic=windows ${diagnostic[1]} ${diagnostic[2]}`;
+	const diagnostic = NATIVE_FAILURE.exec(outcome.stderr);
+	const detail = diagnostic === null ? ''
+		: `; diagnostic=${diagnostic[1]} ${diagnostic[2]} ${diagnostic[3]}`;
 	return new Error(`${cause.message} Native launcher outcome: exit=${String(outcome.exitCode)}, `
 		+ `signal=${outcome.signal ?? 'none'}${detail}.`, { cause });
 }

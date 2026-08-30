@@ -26,12 +26,17 @@ test('the native enforcement pipe rejects malformed and stalled frames', async (
 
 test('pre-attestation native failure retains only bounded trusted diagnostics', () => {
 	const cause = new Error('The enforcement handshake ended early.');
-	const failure = nativeChildEnforcementFailure(cause, {
-		exitCode: 125, signal: null, stdout: 'untrusted output',
-		stderr: 'M5_NATIVE_ISOLATION_FAILURE_V1 windows create-process 2\nsecret',
-	});
-	assert.match(failure.message, /exit=125.*windows create-process 2/iu);
-	assert.doesNotMatch(failure.message, /secret|untrusted/iu);
-	assert.equal(failure.cause, cause);
+	for (const [platform, stage, code] of [
+		['windows', 'create-process', '2'],
+		['macos', 'sandbox-init', '1'],
+	] as const) {
+		const failure = nativeChildEnforcementFailure(cause, {
+			exitCode: 125, signal: null, stdout: 'untrusted output',
+			stderr: `M5_NATIVE_ISOLATION_FAILURE_V1 ${platform} ${stage} ${code}\nsecret`,
+		});
+		assert.match(failure.message, new RegExp(`exit=125.*${platform} ${stage} ${code}`, 'iu'));
+		assert.doesNotMatch(failure.message, /secret|untrusted/iu);
+		assert.equal(failure.cause, cause);
+	}
 	assert.equal(nativeChildEnforcementFailure(cause, null), cause);
 });
