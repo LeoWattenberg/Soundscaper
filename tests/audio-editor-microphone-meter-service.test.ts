@@ -38,6 +38,20 @@ test('disabling during asynchronous acquisition prevents late meter resurrection
 	assert.equal(harness.state.microphoneMetering, false);
 });
 
+test('disabling during loudness worklet setup tears down the pending graph and input', async () => {
+	const loudness = deferred<void>();
+	const harness = createHarness({ loudnessGate: loudness.promise });
+	const starting = harness.service.setMicrophoneMetering(true);
+	await harness.flush();
+	await harness.service.setMicrophoneMetering(false);
+	loudness.resolve();
+	assert.equal(await starting, false);
+	assert.equal(harness.service.getSession(), null);
+	assert.equal(harness.intervalCount, 0);
+	assert.equal(harness.loudnessDisposeCount, 1);
+	assert.deepEqual(harness.releasedDevices, ['default']);
+});
+
 test('concurrent enable requests share one acquisition and one meter session', async () => {
 	const acquisition = deferred<FakeStream>();
 	const harness = createHarness({ acquireHardware: () => acquisition.promise });
@@ -140,6 +154,7 @@ interface FakeStream extends MeterMediaStream {
 
 function createHarness(overrides: Readonly<{
 	acquireHardware?: (deviceId: string) => Promise<FakeStream>;
+	loudnessGate?: Promise<void>;
 }> = {}) {
 	const state: MicrophoneMeterState = {
 		disposed: false,
@@ -163,6 +178,7 @@ function createHarness(overrides: Readonly<{
 	let acquireCount = 0;
 	let contextRequests = 0;
 	let intervalCount = 0;
+	let loudnessDisposeCount = 0;
 	let disconnectCount = 0;
 	let nextInterval = 0;
 	const streams = new Map<string, FakeStream>();
@@ -208,10 +224,11 @@ function createHarness(overrides: Readonly<{
 			contextRequests += 1;
 			return context;
 		},
-		createLoudnessMeterNode: async () => ({
-			...fakeLoudnessMeter(),
-			node: node(),
-		}),
+		createLoudnessMeterNode: async () => {
+			await overrides.loudnessGate;
+			return { ...fakeLoudnessMeter(), node: node(),
+				dispose: () => { loudnessDisposeCount += 1; } };
+		},
 		streamAudioChannelCount: fakeStreamAudioChannelCount,
 		projectSampleRate: () => 48_000,
 		persistSetting: async (key, value) => { persisted.push([key, value]); },
@@ -238,6 +255,7 @@ function createHarness(overrides: Readonly<{
 		get acquireCount() { return acquireCount; },
 		get contextRequests() { return contextRequests; },
 		get intervalCount() { return intervalCount; },
+		get loudnessDisposeCount() { return loudnessDisposeCount; },
 		get disconnectCount() { return disconnectCount; },
 		async flush() {
 			await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));

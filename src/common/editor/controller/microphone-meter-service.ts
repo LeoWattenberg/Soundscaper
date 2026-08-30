@@ -280,6 +280,14 @@ export function createMicrophoneMeterService(
 		let merger: AudioNodePort | null = null;
 		let loudnessMeter: NodeLoudnessMeter | null = null;
 		const analysers: AnalyserNodePort[] = [];
+		const discardPendingGraph = (): void => {
+			disconnectSource();
+			disconnect(splitter);
+			disconnect(merger);
+			loudnessMeter?.dispose?.();
+			for (const analyser of analysers) disconnect(analyser);
+			releaseIfUnused(deviceId);
+		};
 		try {
 			stream ||= await dependencies.recordingCapturePool.acquireHardware(deviceId, {
 				channelCount: requestedChannels,
@@ -347,6 +355,10 @@ export function createMicrophoneMeterService(
 				loudnessMeter = null;
 				merger = null;
 			}
+			if (operationIsStale(operationGeneration)) {
+				discardPendingGraph();
+				return false;
+			}
 			const samples = analysers.map((analyser) => new Float32Array(analyser.fftSize));
 			const endedListeners: (() => void)[] = [];
 			const nextSession: MicrophoneMeterSession = {
@@ -392,12 +404,7 @@ export function createMicrophoneMeterService(
 			dependencies.publishDocumentSnapshot();
 			return true;
 		} catch (error) {
-			disconnectSource();
-			disconnect(splitter);
-			disconnect(merger);
-			loudnessMeter?.dispose?.();
-			for (const analyser of analysers) disconnect(analyser);
-			releaseIfUnused(deviceId);
+			discardPendingGraph();
 			throw error;
 		}
 	}
