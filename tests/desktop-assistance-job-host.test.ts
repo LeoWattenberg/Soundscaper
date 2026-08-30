@@ -87,6 +87,24 @@ test('assistance uses the shared control-v1 envelope and its speech subcontract'
 	assert.equal(host.isBusy, false);
 });
 
+test('concurrent assistance jobs queue without losing either admitted identity', async () => {
+	const { channel, host } = harness();
+	const secondId = 'cd'.repeat(20);
+	const first = host.start(REQUEST);
+	const second = host.start({ ...REQUEST, jobId: secondId });
+	await ready(channel);
+	assert.equal((channel.sent[0] as { jobId?: string }).jobId, JOB_ID);
+	channel.emit({ contractVersion: 1, type: 'result', jobId: JOB_ID, result: STATUS });
+	assert.deepEqual(await first.completed, STATUS);
+	for (let attempt = 0; attempt < 10 && channel.sent.length < 2; attempt += 1) {
+		await new Promise((resolve) => { setImmediate(resolve); });
+	}
+	assert.equal((channel.sent[1] as { jobId?: string }).jobId, secondId);
+	channel.emit({ contractVersion: 1, type: 'result', jobId: secondId, result: STATUS });
+	assert.deepEqual(await second.completed, STATUS);
+	assert.equal(host.isBusy, false);
+});
+
 test('helper faults are contained and translated to assistance failures', async () => {
 	for (const [mode, expected] of [['error', 'helper-error'], ['exit', 'helper-exit']] as const) {
 		const { channel, host } = harness();

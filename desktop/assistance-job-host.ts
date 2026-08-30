@@ -55,7 +55,8 @@ export class AssistanceJobError extends Error {
 
 export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 	let nextJobId: string | null = null;
-	let active: Readonly<{ jobId: string; controller: AbortController; completed: Promise<unknown> }> | null = null;
+	let queue: Promise<void> = Promise.resolve();
+	const jobs = new Map<string, Readonly<{ controller: AbortController }>>();
 	const supervisor = new HelperSupervisor({
 		spawn: options.spawn,
 		verifyBinary: options.verifyBinary ?? (() => Promise.resolve()),
@@ -76,8 +77,8 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 		request: unknown,
 		optionsValue?: AssistanceJobStartOptions | ((progress: AssistanceJobProgress) => void),
 	): AssistanceJobRun {
-		if (active) throw new Error('An assistance job is already running.');
 		const validated: AssistanceJobRequest = validateAssistanceJobRequest(request);
+		if (jobs.has(validated.jobId)) throw new Error('The assistance job is already running.');
 		const options: AssistanceJobStartOptions = typeof optionsValue === 'function'
 			? Object.freeze({ onProgress: optionsValue })
 			: optionsValue ?? Object.freeze({});
@@ -86,24 +87,36 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 		const forwardAbort = (): void => controller.abort(externalSignal?.reason);
 		if (externalSignal?.aborted) forwardAbort();
 		else externalSignal?.addEventListener('abort', forwardAbort, { once: true });
-		nextJobId = validated.jobId;
-		const completed = supervisor.runJob({
-			kind: 'assistance-speech',
-			grant: validated.grant,
-			signal: controller.signal,
-			onProgress: (value) => options.onProgress?.(Object.freeze({ completed: value ?? 0, total: 1 })),
-		}).catch((error: unknown) => {
+		const job = Object.freeze({ controller });
+		jobs.set(validated.jobId, job);
+		const execution = queue.then(async () => {
+			nextJobId = validated.jobId;
+			try {
+				return await supervisor.runJob({
+					kind: 'assistance-speech',
+					grant: validated.grant,
+					signal: controller.signal,
+					onProgress: (value) => options.onProgress?.(Object.freeze({
+						completed: value ?? 0,
+						total: 1,
+					})),
+				});
+			} finally {
+				if (nextJobId === validated.jobId) nextJobId = null;
+			}
+		});
+		const completed = execution.catch((error: unknown) => {
 			throw translateError(validated.jobId, error, controller.signal.aborted);
 		}).finally(() => {
 			externalSignal?.removeEventListener('abort', forwardAbort);
-			if (active?.jobId === validated.jobId) active = null;
+			if (jobs.get(validated.jobId) === job) jobs.delete(validated.jobId);
 		});
-		active = Object.freeze({ jobId: validated.jobId, controller, completed });
+		queue = completed.then(() => undefined, () => undefined);
 		return Object.freeze({
 			jobId: validated.jobId,
 			completed,
 			async cancel(): Promise<void> {
-				if (active?.jobId !== validated.jobId) return;
+				if (jobs.get(validated.jobId) !== job) return;
 				controller.abort();
 				try {
 					await completed;
@@ -117,9 +130,9 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 
 	return Object.freeze({
 		start,
-		get isBusy(): boolean { return active !== null; },
+		get isBusy(): boolean { return jobs.size > 0; },
 		dispose(): void {
-			if (active) active.controller.abort();
+			for (const { controller } of jobs.values()) controller.abort();
 			supervisor.dispose();
 		},
 	});
