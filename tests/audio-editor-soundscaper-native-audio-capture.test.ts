@@ -119,6 +119,38 @@ test('bound native input is pulled silently and records exact channels through t
 		&& value[0] === 'disconnect' && value[1] === 'device' && value[2] === 'recorder'), true);
 });
 
+test('native route preparation disposes its transport when graph construction fails', async () => {
+	const failure = new Error('planned sink construction failure');
+	let disposals = 0;
+	const context = {
+		sampleRate: 48_000,
+		createGain: () => { throw failure; },
+	} as unknown as AudioContext;
+	const renderer = createSoundscaperNativeAudioRenderer({
+		engine: {
+			getAudioContext: async () => context,
+			getState: () => ({ state: 'stopped' }),
+			pause() {},
+			play: async () => undefined,
+		},
+		windowValue: null,
+		createNode: async () => ({
+			node: audioNode('device', []) as unknown as AudioNode,
+			attach: (_port: unknown, value: { generation: number }) => value.generation,
+			revoke: () => 1,
+			notifyPeerLoss: () => 1,
+			calibrate: async () => 0,
+			dispose: () => { disposals += 1; },
+		}),
+	});
+	await assert.rejects(() => renderer.prepare('session-failed', {
+		candidates: [{ backend: 'alsa', deviceHandle: 'opaque-device' }],
+		direction: 'output', mode: 'shared', sampleRate: 48_000, periodFrames: 128, channelCount: 2,
+	}), failure);
+	assert.equal(disposals, 1, 'the worklet transport cannot outlive a failed route preparation');
+	await renderer.dispose();
+});
+
 function audioNode(name: string, events: unknown[]) {
 	return {
 		name,

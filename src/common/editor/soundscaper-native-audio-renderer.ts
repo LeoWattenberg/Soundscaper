@@ -131,26 +131,34 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 				onClose: (value: Readonly<{ reason?: unknown }>) => lost(value, 'device-loss'),
 				onFault: (value: Readonly<{ reason?: unknown }>) => lost(value, 'device-fault'),
 			});
-			const sink = context.createGain();
-			sink.gain.value = 0;
-			transport.node.connect(sink);
-			sink.connect(context.destination);
-			if (request.direction !== 'output') capture = claimSoundscaperNativeAudioCapture({
-				sessionId, context, node: transport.node,
-				channelCount: request.channelCount, sampleRate: request.sampleRate,
-				deviceId: route ? nativeAudioDeviceId(route.backend, 'audio-input', route.deviceHandle) : undefined,
-			});
-			prepared = Object.freeze({
-				sessionId, context, node: transport.node, direction: request.direction,
-				sink, capture, calibrate: transport.calibrate,
-				client: createNativeRealtimeClient({
-					transport,
-					request: {
-						sampleRate: request.sampleRate, channelCount: request.channelCount,
-						frameCount: request.periodFrames, queueCapacity: 8,
-					},
-				}),
-			});
+			let sink: GainNode | null = null;
+			try {
+				sink = context.createGain();
+				sink.gain.value = 0;
+				transport.node.connect(sink);
+				sink.connect(context.destination);
+				if (request.direction !== 'output') capture = claimSoundscaperNativeAudioCapture({
+					sessionId, context, node: transport.node,
+					channelCount: request.channelCount, sampleRate: request.sampleRate,
+					deviceId: route ? nativeAudioDeviceId(route.backend, 'audio-input', route.deviceHandle) : undefined,
+				});
+				prepared = Object.freeze({
+					sessionId, context, node: transport.node, direction: request.direction,
+					sink, capture, calibrate: transport.calibrate,
+					client: createNativeRealtimeClient({
+						transport,
+						request: {
+							sampleRate: request.sampleRate, channelCount: request.channelCount,
+							frameCount: request.periodFrames, queueCapacity: 8,
+						},
+					}),
+				});
+			} catch (error) {
+				capture?.revoke('session-closed');
+				try { sink?.disconnect(); } catch { /* partially connected */ }
+				transport.dispose();
+				throw error;
+			}
 		},
 		async calibrate(sessionId: string): Promise<number> {
 			if (!prepared || prepared.sessionId !== sessionId) {
