@@ -9,6 +9,7 @@ import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 	const [params, setParams] = useState(() => generatorDefaults(type));
@@ -80,8 +81,10 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 					const options = type === 'dtmf'
 						? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 						: params;
-					run(() => controller.actions.generators.generate(type, options));
-					onClose();
+					void runAwaitedAudioEditorOperation(
+						run,
+						() => controller.actions.generators.generate(type, options),
+					).then(onClose).catch(() => undefined);
 				}}>
 					<div className="kw-audio-editor-generator__content">
 						{type === 'tone' && (

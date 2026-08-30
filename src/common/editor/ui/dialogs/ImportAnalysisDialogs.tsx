@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/raw-pcm-import.ts';
 import type { RegularIntervalAnnotationOptions } from '../../controller/regular-interval-annotation-service.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 interface DialogController {
 	readonly project: null | Readonly<{
@@ -106,11 +107,12 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 				kind, anchor: 'sample', sequenceId: project.primarySequenceId, startFrame, endFrame,
 				intervalFrames, namePrefix, color: 'auto',
 			};
-			run(() => {
+			void runAwaitedAudioEditorOperation(run, () => {
 				if (controller.project?.id !== projectId) return undefined;
 				return controller.actions.timelineAnnotations.regularInterval(request);
-			});
-			if (controller.project?.id === projectId) onClose();
+			}).then(() => {
+				if (controller.project?.id === projectId) onClose();
+			}).catch(() => undefined);
 		}}>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalKind}</span><select value={kind} onChange={(event) => setKind(event.currentTarget.value as 'marker' | 'region')}><option value="marker">{copy.regularIntervalMarker}</option><option value="region">{copy.regularIntervalRegion}</option></select></label>
 			<NumberField label={copy.regularIntervalStartFrame} value={startFrame} minimum={0} maximum={Number.MAX_SAFE_INTEGER} onChange={setStartFrame} />

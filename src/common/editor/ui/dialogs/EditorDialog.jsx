@@ -5,8 +5,10 @@ import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { formatDate } from '../workspace-runtime.js';
 import {
+	applyTrackRateDialog,
 	aup4CompatibilityItems,
 	compatibilityCount,
 	formatAup4CompatibilityItem,
@@ -18,7 +20,6 @@ import {
 	formatDeliveryReportSummary,
 	deliveryReportItems,
 	recordingOffsetSources,
-	applyTrackRateDialog,
 } from './editor-dialog-model.js';
 
 export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
@@ -28,6 +29,11 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 	const closeDialog = () => {
 		if (cancelTimedRecordingOnClose.current) run(() => controller.actions.recording.cancelScheduled());
 		onClose();
+	};
+	const runThenClose = (operation, shouldClose = () => true) => {
+		void runAwaitedAudioEditorOperation(run, operation)
+			.then((result) => { if (shouldClose(result)) onClose(); })
+			.catch(() => undefined);
 	};
 	const title = {
 		projects: copy.projectsTitle,
@@ -58,7 +64,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							<ul className="kw-audio-editor-project-list" data-project-list>
 								{snapshot.projects?.map((project) => (
 									<li key={project.id}>
-										<Button variant="secondary" onClick={() => { run(() => controller.actions.project.openById(project.id)); onClose(); }}>
+										<Button variant="secondary" onClick={() => runThenClose(() => controller.actions.project.openById(project.id))}>
 											<span>{project.title}</span>
 											<small>{copy.lastEdited}: {formatDate(project.updatedAt, locale)}</small>
 										</Button>
@@ -72,8 +78,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 						<form onSubmit={(event) => {
 							event.preventDefault();
 							if (!value.trim()) return;
-							run(() => controller.actions.project.rename(value));
-							onClose();
+							runThenClose(() => controller.actions.project.rename(value));
 						}}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.projectName}</span>
@@ -91,8 +96,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 						<form onSubmit={(event) => {
 							event.preventDefault();
 							if (!value.trim() || !snapshot.selectedTrackId) return;
-							run(() => controller.actions.track.update(snapshot.selectedTrackId, { name: value.trim() }));
-							onClose();
+							runThenClose(() => controller.actions.track.update(snapshot.selectedTrackId, { name: value.trim() }));
 						}}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.trackName}</span>
@@ -122,10 +126,10 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 									}
 									return snapshot.project?.tracks.find((track) => track.type === 'audio')?.id;
 								})();
-							const operation = run(() => controller.actions.recording.schedule(startTimeMs, { trackId }));
-							if (operation && typeof operation.then === 'function') {
-								operation.then((scheduled) => { if (scheduled) onClose(); }, () => undefined);
-							} else if (operation !== undefined) onClose();
+							runThenClose(
+								() => controller.actions.recording.schedule(startTimeMs, { trackId }),
+								(scheduled) => Boolean(scheduled),
+							);
 						}}>
 							<p>{copy.timedRecordingDescription}</p>
 							<label className="kw-audio-editor-dialog__field">
@@ -143,8 +147,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							)}</p>}
 							<div className="kw-audio-editor-dialog__actions">
 								{snapshot.scheduledRecording && <Button variant="secondary" onClick={() => {
-									run(() => controller.actions.recording.cancelScheduled());
-									onClose();
+									runThenClose(() => controller.actions.recording.cancelScheduled());
 								}}>{copy.timedRecordingCancel}</Button>}
 								<Button variant="secondary" onClick={closeDialog}>{copy.cancel}</Button>
 								<Button type="submit" disabled={Boolean(snapshot.scheduledRecording) || !Number.isFinite(new Date(value).getTime()) || new Date(value).getTime() <= Date.now()}>
@@ -156,10 +159,9 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 					{type === 'recording-offset' && (
 						<form onSubmit={(event) => {
 							event.preventDefault();
-							run(() => sourceKey === 'global'
+							runThenClose(() => sourceKey === 'global'
 								? controller.actions.recording.setLatencyOffset(value)
 								: controller.actions.recording.setSourceOffset(sourceKey, value));
-							onClose();
 						}}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.recordingOffsetSource}</span>
@@ -195,8 +197,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							event.preventDefault();
 							const trackId = snapshot.selectedTrackId;
 							if (!trackId) return;
-							run(() => controller.actions.track.resample(trackId, Number(value)));
-							onClose();
+							runThenClose(() => controller.actions.track.resample(trackId, Number(value)));
 						}}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.sampleRate} (Hz)</span>
@@ -211,9 +212,14 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 					{type === 'track-rate' && (
 						<form onSubmit={(event) => {
 							event.preventDefault();
-							if (!applyTrackRateDialog({ trackId, value, run,
-								setRate: controller.actions.track.setRate })) return;
-							onClose();
+							if (!trackId) return;
+							runThenClose(
+								() => applyTrackRateDialog({ trackId, value,
+									run: (operation) => operation(),
+									setRate: controller.actions.track.setRate,
+								}),
+								Boolean,
+							);
 						}}>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.sampleRate} (Hz)</span>
@@ -253,10 +259,7 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							<div className="kw-audio-editor-dialog__actions">
 								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
 								<Button onClick={() => {
-									const operation = run(() => controller.actions.preferences.revertFactorySettings());
-									if (operation && typeof operation.then === 'function') {
-										operation.then(onClose, () => undefined);
-									} else if (operation !== undefined) onClose();
+									runThenClose(() => controller.actions.preferences.revertFactorySettings());
 								}}>{copy.confirmRevertFactorySettings}</Button>
 							</div>
 						</>
@@ -271,10 +274,9 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 										onClose();
 										return;
 									}
-									run(() => type === 'delete'
+									runThenClose(() => type === 'delete'
 										? controller.actions.project.remove(projectIdAtOpen.current)
 										: controller.actions.project.clear());
-									onClose();
 								}}>{type === 'delete' ? copy.confirmDelete : copy.clearData}</Button>
 							</div>
 						</>

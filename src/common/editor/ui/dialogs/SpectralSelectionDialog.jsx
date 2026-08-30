@@ -3,6 +3,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 export default function SpectralSelectionDialog({ controller, snapshot, copy, run, onClose }) {
 	const project = snapshot.project;
@@ -42,14 +43,15 @@ export default function SpectralSelectionDialog({ controller, snapshot, copy, ru
 		if (!projectIdentity || stateProjectIdentity.current !== projectIdentity || !projectOwnership) return;
 		const options = selectionOptions();
 		const requestedGainDb = Number(gainDb);
-		run(async () => {
+		void runAwaitedAudioEditorOperation(run, async () => {
 			if (currentProjectOwnership.current !== projectOwnership) return;
 			controller.actions.spectral.boxSelect(options);
 			if (currentProjectOwnership.current !== projectOwnership) return;
 			if (operation === 'delete') await controller.actions.spectral.delete();
 			if (operation === 'amplify') await controller.actions.spectral.amplify(requestedGainDb);
-		});
-		onClose();
+		}).then(() => {
+			if (currentProjectOwnership.current === projectOwnership) onClose();
+		}).catch(() => undefined);
 	};
 	const validRange = Number.isFinite(Number(minimumFrequency))
 		&& Number.isFinite(Number(maximumFrequency))

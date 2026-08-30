@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { createAudioEditorSearchEntries } from '../../search.js';
 import { handleProjectZoomShortcut } from '../workspace-shortcuts.ts';
+import { runAwaitedAudioEditorOperation } from './audio-editor-workspace-runner.ts';
 
 export function useWorkspaceSearchRuntime({
 	applicationMenus,
@@ -45,8 +46,14 @@ export function useWorkspaceSearchRuntime({
 		if (entry.kind === 'timeline') {
 			const clipId = entry.target?.clipId;
 			if (!clipId) return;
-			run(() => controller.actions.timeline.selectClip(clipId));
-			setTimelineSearchReveal({ clipId, revision });
+			void runAwaitedAudioEditorOperation(
+				run,
+				() => controller.actions.timeline.selectClip(clipId),
+			).then(() => {
+				if (searchRevealRevisionRef.current === revision) {
+					setTimelineSearchReveal({ clipId, revision });
+				}
+			}).catch(() => undefined);
 			return;
 		}
 		if (entry.kind === 'project-bin') {

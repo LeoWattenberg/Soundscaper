@@ -14,6 +14,7 @@ import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
 import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
+import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
 import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
@@ -248,8 +249,10 @@ export default function WorkspacePreferencesDialog({
 								</label>
 								<div className="kw-audio-editor__custom-workspace-actions">
 									<Button variant="secondary" disabled={!workspaceName.trim()} onClick={() => {
-										run(() => controller.actions.preferences.createWorkspace(workspaceName.trim()));
-										setWorkspaceName('');
+										void runAwaitedAudioEditorOperation(
+											run,
+											() => controller.actions.preferences.createWorkspace(workspaceName.trim()),
+										).then(() => { setWorkspaceName(''); }).catch(() => undefined);
 									}}>{copy.workspaceCreate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.updateWorkspace(activeCustom.id, workspaceName.trim() ? { name: workspaceName.trim() } : {}))}>{copy.workspaceUpdate}</Button>
 									<Button variant="secondary" disabled={!activeCustom} onClick={() => run(() => controller.actions.preferences.deleteWorkspace(activeCustom.id))}>{copy.workspaceDelete}</Button>
