@@ -251,10 +251,10 @@ export default function SoundscaperProductionDialog({
 					}))}
 					onGestureRelease={() => perform('automation-gesture-release', () => ({
 						type: 'automation-gesture/release', controlValue: automationValue,
-					}), undefined, () => { setAutomationGestureActive(false); })}
+					}), () => { setAutomationGestureActive(false); })}
 					onGestureCancel={() => perform('automation-gesture-cancel', () => ({
 						type: 'automation-gesture/cancel',
-					}), undefined, () => { setAutomationGestureActive(false); })}
+					}), () => { setAutomationGestureActive(false); })}
 				/>}
 				{model.surface === 'routing' && <SoundscaperRoutingEditor
 					copy={copy}

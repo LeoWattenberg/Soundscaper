@@ -240,13 +240,40 @@ function executeAutomationGesture(
 		if (!actions.previewGesture) throw new Error('Automation gesture preview is unavailable in this runtime.');
 		return actions.previewGesture(token, operation.controlValue);
 	}
-	state.token = null;
 	if (operation.type === 'automation-gesture/release') {
 		if (!actions.releaseGesture) throw new Error('Automation gesture release is unavailable in this runtime.');
-		return actions.releaseGesture(token, operation.controlValue);
+		return clearAutomationGestureAfterSuccess(
+			state,
+			token,
+			actions.releaseGesture(token, operation.controlValue),
+		);
 	}
 	if (!actions.cancelGesture) throw new Error('Automation gesture cancellation is unavailable in this runtime.');
-	return actions.cancelGesture(token);
+	return clearAutomationGestureAfterSuccess(state, token, actions.cancelGesture(token));
+}
+
+function clearAutomationGestureAfterSuccess(
+	state: SoundscaperProductionAutomationGestureState,
+	token: SoundscaperProductionAutomationGestureToken,
+	result: unknown,
+): unknown {
+	const clear = (): void => {
+		if (state.token === token) state.token = null;
+	};
+	if (!isPromiseLike(result)) {
+		clear();
+		return result;
+	}
+	return Promise.resolve(result).then((value) => {
+		clear();
+		return value;
+	});
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+	return value !== null
+		&& (typeof value === 'object' || typeof value === 'function')
+		&& typeof Reflect.get(value, 'then') === 'function';
 }
 
 /**

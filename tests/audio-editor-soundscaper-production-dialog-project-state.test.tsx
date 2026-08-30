@@ -67,6 +67,76 @@ test('production work from another project cannot retain or publish dialog state
 	}
 });
 
+test('a failed automation release remains active so the user can retry or cancel it', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const release = deferred<void>();
+	const operations: unknown[] = [];
+	const actions = {
+		execute: (operation: Readonly<{ readonly type: string }>) => {
+			operations.push(operation);
+			return operation.type === 'automation-gesture/release' ? release.promise : undefined;
+		},
+	};
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperProductionDialog
+			productId="soundscaper"
+			capabilities={{ audioAutomation: true }}
+			snapshot={{
+				project: automationProject(), selectedTrackId: 'voice', selectedLaneId: 'voice-gain',
+			}}
+			initialSurface="automation"
+			automationMode="touch"
+			actions={actions}
+			run={(operation) => operation()}
+			onClose={() => undefined}
+		/>));
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.beginAutomationGesture)).onClick({});
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(
+			reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.cancelAutomationGesture)).disabled,
+			false,
+		);
+
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.releaseAutomationGesture)).onClick({});
+			await Promise.resolve();
+		});
+		await act(async () => {
+			release.reject(new Error('release refused'));
+			await release.promise.catch(() => undefined);
+			await Promise.resolve();
+		});
+
+		assert.deepEqual(operations.map((operation) => Reflect.get(operation as object, 'type')), [
+			'automation-gesture/begin', 'automation-gesture/release',
+		]);
+		assert.equal(dom.container.textContent.includes('release refused'), true);
+		assert.equal(
+			reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.cancelAutomationGesture)).disabled,
+			false,
+			'a failed release must leave cancellation reachable',
+		);
+		assert.equal(
+			reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.beginAutomationGesture)).disabled,
+			true,
+			'a failed release must not allow a second gesture to begin',
+		);
+	} finally {
+		release.resolve();
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function project(id: string) {
 	return {
 		id,
@@ -74,6 +144,22 @@ function project(id: string) {
 		schemaVersion: 1 as const,
 		sampleRate: 48_000,
 		tracks: [],
+	};
+}
+
+function automationProject() {
+	return {
+		...project('automation-project'),
+		tracks: [{
+			id: 'voice', type: 'audio', name: 'Voice', locked: false, clipIds: [], effects: [],
+		}],
+		automationLanes: [{
+			id: 'voice-gain',
+			address: { kind: 'strip', strip: { kind: 'track', id: 'voice' }, parameterId: 'gain' },
+			timebase: 'absolute-samples',
+			points: [{ id: 'point-1', position: 0, value: 1 }],
+			segments: [],
+		}],
 	};
 }
 

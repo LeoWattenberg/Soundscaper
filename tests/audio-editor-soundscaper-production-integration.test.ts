@@ -241,6 +241,74 @@ test('workspace automation gestures retain one opaque generation through preview
 	assert.deepEqual(calls.at(-1), ['cancel', token]);
 });
 
+test('workspace automation gestures retain their token until an asynchronous release succeeds', async () => {
+	const token = Object.freeze({
+		type: 'soundscaper-automation-gesture-v21' as const,
+		laneId: 'lane-a',
+		generation: 8,
+	});
+	let releaseAttempts = 0;
+	const controller: SoundscaperProductionControllerPort = {
+		actions: {
+			edit: { commit: () => undefined },
+			audioAutomation: {
+				getSnapshot: () => ({ mode: 'touch' }),
+				setMode: () => undefined,
+				beginGesture: () => token,
+				releaseGesture: () => {
+					releaseAttempts += 1;
+					return releaseAttempts === 1
+						? Promise.reject(new Error('release refused'))
+						: Promise.resolve('released');
+				},
+			},
+		},
+	};
+	const state: SoundscaperProductionAutomationGestureState = { token: null };
+	const mode = () => undefined;
+	executeSoundscaperProductionOperation(controller, operation({
+		type: 'automation-gesture/begin', laneId: 'lane-a', controlValue: 0.5,
+	}), mode, null, state);
+
+	await assert.rejects(Promise.resolve(executeSoundscaperProductionOperation(controller, operation({
+		type: 'automation-gesture/release', controlValue: 0.75,
+	}), mode, null, state)), /release refused/iu);
+	assert.equal(state.token, token, 'a failed release must remain cancellable or retryable');
+
+	assert.equal(await executeSoundscaperProductionOperation(controller, operation({
+		type: 'automation-gesture/release', controlValue: 0.75,
+	}), mode, null, state), 'released');
+	assert.equal(state.token, null);
+});
+
+test('workspace automation gestures retain their token when release is unavailable', () => {
+	const token = Object.freeze({
+		type: 'soundscaper-automation-gesture-v21' as const,
+		laneId: 'lane-a',
+		generation: 9,
+	});
+	const controller: SoundscaperProductionControllerPort = {
+		actions: {
+			edit: { commit: () => undefined },
+			audioAutomation: {
+				getSnapshot: () => ({ mode: 'touch' }),
+				setMode: () => undefined,
+				beginGesture: () => token,
+			},
+		},
+	};
+	const state: SoundscaperProductionAutomationGestureState = { token: null };
+	const mode = () => undefined;
+	executeSoundscaperProductionOperation(controller, operation({
+		type: 'automation-gesture/begin', laneId: 'lane-a', controlValue: 0.5,
+	}), mode, null, state);
+
+	assert.throws(() => executeSoundscaperProductionOperation(controller, operation({
+		type: 'automation-gesture/release', controlValue: 0.75,
+	}), mode, null, state), /release is unavailable/iu);
+	assert.equal(state.token, token);
+});
+
 test('workspace freeze status prefers the verified runtime classifier and falls back to document ownership', () => {
 	const projectValue = {
 		tracks: [{ id: 'track-a', audioFreeze: { schemaVersion: 1 } }],
