@@ -269,14 +269,11 @@ async function acquireLease(projectId, lockName, options) {
 	}
 
 	if (typeof setIntervalFn === 'function') {
-		heartbeat = setIntervalFn(() => {
+			heartbeat = setIntervalFn(() => {
 			if (released) return;
 			const current = readLease(storage, key);
 			if (current?.owner !== owner) {
-				released = true;
-				if (heartbeat && typeof clearIntervalFn === 'function') clearIntervalFn(heartbeat);
-				removeLifecycleListeners();
-				channel?.close();
+				loseLease();
 				return;
 			}
 			writeLease(storage, key, owner, now());

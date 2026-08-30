@@ -106,6 +106,28 @@ test('a forced fallback lease replaces the previous owner immediately', async ()
 	replacement.release();
 });
 
+test('a fallback lease reports ownership lost when its heartbeat observes a replacement', async () => {
+	const values = new Map();
+	let heartbeat;
+	const storage = {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+		removeItem: (key) => values.delete(key),
+	};
+	const lock = await acquireProjectLock('heartbeat-loss', {
+		navigator: {}, localStorage: storage, BroadcastChannel: null,
+		setInterval: (callback) => { heartbeat = callback; return 1; },
+		clearInterval: () => {}, now: () => 100,
+	});
+	let lost = false;
+	void lock.lost.then(() => { lost = true; });
+	const [key] = values.keys();
+	values.set(key, JSON.stringify({ protocol: 1, owner: 'replacement', expiresAt: 1_000 }));
+	heartbeat();
+	await Promise.resolve();
+	assert.equal(lost, true);
+});
+
 test('project lease makes a second writer read-only and releases ownership', async () => {
 	const values = new Map();
 	const storage = {
