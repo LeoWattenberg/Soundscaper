@@ -40,6 +40,7 @@ export interface FramescaperVideoProxyCleanupStoreRetime {
 
 export interface FramescaperVideoProxyCleanupProjectStoreRetime {
 	listProjects(): Promise<readonly unknown[]>;
+	loadProject(projectId: string): Promise<unknown>;
 }
 
 /**
@@ -185,9 +186,35 @@ export function createFramescaperVideoProxyCleanupCoordinatorRetime(
 	return new FramescaperVideoProxyCleanupCoordinatorRetime({
 		loadJournal: () => bodyStore.loadAnalysis(JOURNAL_KEY),
 		saveJournal: (journal) => bodyStore.saveAnalysis(JOURNAL_KEY, journal).then(() => undefined),
-		listCurrentProjects: () => projectStore.listProjects(),
+		listCurrentProjects: () => listProjectDocuments(projectStore),
 		deleteBody: (storageKey) => bodyStore.deleteMediaAsset(storageKey).then(() => undefined),
 	});
+}
+
+async function listProjectDocuments(
+	store: FramescaperVideoProxyCleanupProjectStoreRetime,
+): Promise<readonly Readonly<Record<string, unknown>>[]> {
+	if (typeof store?.listProjects !== 'function' || typeof store.loadProject !== 'function') {
+		throw new TypeError('Selected video-proxy cleanup requires a project document store.');
+	}
+	const listed = await store.listProjects();
+	if (!Array.isArray(listed) || listed.length > 100_000) {
+		throw new TypeError('The selected proxy cleanup project inventory is invalid.');
+	}
+	const documents: Readonly<Record<string, unknown>>[] = [];
+	for (const value of listed) {
+		const entry = projectRecord(value);
+		const candidate = Array.isArray(entry.sources)
+			? entry
+			: await store.loadProject(identifier(entry.id, 'proxy cleanup project ID'));
+		if (candidate === null) continue;
+		const document = projectDocumentRecord(candidate);
+		if (document.id !== entry.id) {
+			throw new Error('The proxy cleanup project inventory changed identity while loading.');
+		}
+		documents.push(document);
+	}
+	return Object.freeze(documents);
 }
 
 function createClaim(
@@ -261,9 +288,9 @@ async function currentProjects(
 	if (!Array.isArray(values) || values.length > 100_000) {
 		throw new TypeError('The selected proxy cleanup project inventory is invalid.');
 	}
-	const projects = values.map(projectRecord);
+	const projects = values.map(projectDocumentRecord);
 	if (currentProject !== undefined) {
-		const current = projectRecord(currentProject);
+		const current = projectDocumentRecord(currentProject);
 		const index = projects.findIndex((candidate) => candidate.id === current.id);
 		if (index < 0) projects.push(current);
 		else projects[index] = current;
@@ -312,6 +339,14 @@ function projectRecord(value: unknown): Readonly<Record<string, unknown>> {
 	identifier((value as Readonly<Record<string, unknown>>).id, 'proxy cleanup project ID');
 	revisionValue((value as Readonly<Record<string, unknown>>).revision);
 	return value as Readonly<Record<string, unknown>>;
+}
+
+function projectDocumentRecord(value: unknown): Readonly<Record<string, unknown>> {
+	const project = projectRecord(value);
+	if (!Array.isArray(project.sources)) {
+		throw new TypeError('A proxy cleanup project has an invalid source inventory.');
+	}
+	return project;
 }
 
 function exactRecord(
