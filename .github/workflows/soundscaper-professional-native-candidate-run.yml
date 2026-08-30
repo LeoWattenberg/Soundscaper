@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           umask 077
           npm run provision:milestone-5-native-sources -- \
-            --root="$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
+            --root "$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
             --source electron-node-api-headers \
             --source juce \
             --source clap \
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run provision:milestone-5-native-sources -- --check \
-            --root="$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
+            --root "$RUNNER_TEMP/soundscaper-professional-native-source-cache" \
             --source electron-node-api-headers \
             --source juce \
             --source clap \

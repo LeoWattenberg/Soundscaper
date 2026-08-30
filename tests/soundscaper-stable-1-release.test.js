@@ -332,6 +332,8 @@ test('the v1.0.0 workflow admits, rehearses, deploys, and publishes only Soundsc
 	const assembly = workflowJob(workflow, 'assemble');
 	const professionalSource = workflowJob(workflow, 'professional-source');
 	assert.match(professionalSource, /provision:milestone-5-native-sources/u);
+	assert.doesNotMatch(workflow, /--root=/u,
+		'the provisioning CLI requires the root path as a separate argument');
 	for (const id of [
 		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
 	]) assert.match(professionalSource, new RegExp(`--source ${id}`, 'u'));

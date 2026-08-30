@@ -92,6 +92,8 @@ test('dispatch workflow produces and passes one authenticated Soundscaper-only s
 		assert.doesNotMatch(source, new RegExp(`--source ${framescaperSource}(?:\\s|$)`, 'u'));
 	}
 	assert.match(source, /provision:milestone-5-native-sources[^\n]+--check/u);
+	assert.doesNotMatch(source, /--root=/u,
+		'the provisioning CLI requires the root path as a separate argument');
 	assert.doesNotMatch(source, /pull_request|push:/u);
 	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
 	for (const pin of [
