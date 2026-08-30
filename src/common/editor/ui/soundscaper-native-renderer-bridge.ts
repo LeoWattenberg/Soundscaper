@@ -33,6 +33,7 @@ import {
 } from '../native-plugin-state-quiescence.ts';
 import { adaptNativeAudioInventory, type NativeAudioInventory } from '../controller/native-audio-inventory.ts';
 import { soundscaperNativeAudioCaptureHasActiveLease } from '../soundscaper-native-audio-capture.ts';
+import { createSoundscaperNativeRendererOperationBarrier } from './soundscaper-native-renderer-operation-barrier.ts';
 
 const PLUGIN_PORT_EVENT = 'soundscaper-native-plugin-rpc-port-v1';
 
@@ -89,9 +90,11 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	const generations = new Map<string, number>();
 	const activeStateKeys = new Map<string, string>();
 	const offlineInstanceIds = new Set<string>();
+	const ownershipOperations = createSoundscaperNativeRendererOperationBarrier();
 	let offlineSequence = 0;
 	let reconciliation: Promise<readonly unknown[]> = Promise.resolve([]);
 	let disposal: Promise<void> | null = null;
+	let closing = false;
 	let listening = false;
 	const receive = (event: Event): void => {
 		const message = event as MessageEvent<unknown>;
@@ -117,7 +120,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			setNativePluginBypassed(event.instanceId, true, transition.contextTime);
 		}
 	});
-	const unregisterOffline = registerNativePluginOfflineRuntimeProvider(async (request: Readonly<{
+	const unregisterOffline = registerNativePluginOfflineRuntimeProvider(ownershipOperations.wrap(async (request: Readonly<{
 		instanceId: string; state: NativePluginProjectStateV1; sampleRate: number;
 	}>) => {
 		assertRuntimeOpen();
@@ -142,17 +145,16 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 				runtimeInstanceId,
 				stateBytes: restored.bytes,
 				async dispose(): Promise<void> {
-					if (!offlineInstanceIds.delete(runtimeInstanceId)) return;
-					await options.bridge.closeNativePluginInstance({ instanceId: runtimeInstanceId });
+					if (!offlineInstanceIds.has(runtimeInstanceId)) return;
+					await closeOwnedPluginInstance(runtimeInstanceId);
 				},
 			});
 		} catch (error) {
-			if (acquired) await options.bridge.closeNativePluginInstance({ instanceId: runtimeInstanceId }).catch(() => false);
-			offlineInstanceIds.delete(runtimeInstanceId);
+			if (acquired) await closeOwnedPluginInstance(runtimeInstanceId).catch(() => false);
 			releaseNativePluginRuntime(runtimeInstanceId);
 			throw error;
 		}
-	});
+	}));
 	const bridge = Object.freeze({
 		...options.bridge,
 		async describeNativeAudioBackend(request: Readonly<{ backend: string }>) {
@@ -171,10 +173,11 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 				await Promise.all([closeOwnedAudioSessions(), publishNativeInventories()]);
 			} }
 		},
-		async openNativeAudioSession(request: NativeAudioSessionOpenRequestV1) {
+		openNativeAudioSession: ownershipOperations.wrap(async (request: NativeAudioSessionOpenRequestV1) => {
 			assertRuntimeOpen();
 			const outcome = await options.bridge.openNativeAudioSession(request);
 			if (outcome.status !== 'opened') return outcome;
+			audioSessionIds.add(outcome.sessionId);
 			try {
 				assertRuntimeOpen();
 				const deviceHandle = outcome.deviceHandle
@@ -184,13 +187,15 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 				assertRuntimeOpen();
 			}
 			catch (error) {
-				await options.bridge.closeNativeAudioSession({ sessionId: outcome.sessionId }).catch(() => false);
+				const closed = await options.bridge.closeNativeAudioSession({
+					sessionId: outcome.sessionId,
+				}).catch(() => false);
+				if (closed) audioSessionIds.delete(outcome.sessionId);
 				await audio.release(outcome.sessionId);
 				throw error;
 			}
-			audioSessionIds.add(outcome.sessionId);
 			return outcome;
-		},
+		}),
 		async nativeAudioSessionStatus(request: Readonly<{ sessionId: string }>) {
 			return withRendererCalibrationAvailability(await options.bridge.nativeAudioSessionStatus(request));
 		},
@@ -211,7 +216,9 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			}
 			finally { audioReportTails.delete(request.sessionId); }
 		},
-		async instantiateNativePlugin(request: Readonly<{ installationId: string; instanceId: string | null }>) {
+		instantiateNativePlugin: ownershipOperations.wrap(async (request: Readonly<{
+			installationId: string; instanceId: string | null;
+		}>) => {
 			assertRuntimeOpen();
 			listen();
 			const context = await options.engine.getAudioContext({ resume: true });
@@ -235,14 +242,13 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 				generations.set(instance.instanceId, 1);
 			}
 			catch (error) {
-				await options.bridge.closeNativePluginInstance({ instanceId: instance.instanceId }).catch(() => false);
+				await closeOwnedPluginInstance(instance.instanceId).catch(() => false);
 				releaseNativePluginRuntime(instance.instanceId);
-				instanceIds.delete(instance.instanceId);
 				processorIds.delete(instance.instanceId);
 				throw error;
 			}
 			return withTransportLatency(instance);
-		},
+		}),
 		async setNativePluginBypassed(request: Readonly<{ instanceId: string; bypassed: boolean }>) {
 			const instance = await options.bridge.setNativePluginBypassed(request);
 			const transition = project?.setBypassed(request.instanceId, request.bypassed);
@@ -302,14 +308,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 		async closeNativePluginInstance(request: Readonly<{ instanceId: string }>) {
 			const transition = project?.setBypassed(request.instanceId, true);
 			setNativePluginBypassed(request.instanceId, true, transition?.contextTime);
-			const closed = await options.bridge.closeNativePluginInstance(request);
-			if (!closed) return false;
-			releaseNativePluginRuntime(request.instanceId);
-			instanceIds.delete(request.instanceId);
-			processorIds.delete(request.instanceId);
-			generations.delete(request.instanceId);
-			activeStateKeys.delete(request.instanceId);
-			return true;
+			return closeOwnedPluginInstance(request.instanceId);
 		},
 	}) satisfies SoundscaperNativeServicesBridge;
 	const unregisterStateQuiescence = options.controller
@@ -325,24 +324,51 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 		bridge,
 		restoreProjectNativePlugins,
 		dispose: () => {
-			disposal ??= disposeRenderer();
-			return disposal;
+			if (disposal) return disposal;
+			closing = true;
+			const pending = disposeRenderer();
+			disposal = pending;
+			void pending.catch(() => { if (disposal === pending) disposal = null; });
+			return pending;
 		},
 	});
 
 	async function closeOwnedAudioSessions(): Promise<void> {
 		const closing = [...audioSessionIds];
-		audioSessionIds.clear();
 		const localSettlements = await Promise.allSettled([
 			audio.release(),
 			Promise.all(closing.map((sessionId) => audioReportTails.get(sessionId))),
 		]);
-		await Promise.allSettled(closing.map(
-			(sessionId) => options.bridge.closeNativeAudioSession({ sessionId }),
-		));
+		const remoteSettlements = await Promise.allSettled(closing.map(async (sessionId) => {
+			const closed = await options.bridge.closeNativeAudioSession({ sessionId });
+			if (closed) audioSessionIds.delete(sessionId);
+			return closed;
+		}));
 		for (const sessionId of closing) audioReportTails.delete(sessionId);
-		const failure = localSettlements.find((settlement) => settlement.status === 'rejected');
-		if (failure?.status === 'rejected') throw failure.reason;
+		const failures = localSettlements.flatMap(
+			(settlement) => settlement.status === 'rejected' ? [settlement.reason] : [],
+		);
+		for (let index = 0; index < remoteSettlements.length; index += 1) {
+			const settlement = remoteSettlements[index]!;
+			if (settlement.status === 'rejected') failures.push(settlement.reason);
+			else if (!settlement.value) failures.push(new Error(
+				`Native audio session ${closing[index] ?? 'unknown'} did not close.`,
+			));
+		}
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) throw new AggregateError(failures, 'Native audio session cleanup failed.');
+	}
+
+	async function closeOwnedPluginInstance(instanceId: string): Promise<boolean> {
+		const closed = await options.bridge.closeNativePluginInstance({ instanceId });
+		if (!closed) return false;
+		releaseNativePluginRuntime(instanceId);
+		instanceIds.delete(instanceId);
+		offlineInstanceIds.delete(instanceId);
+		processorIds.delete(instanceId);
+		generations.delete(instanceId);
+		activeStateKeys.delete(instanceId);
+		return true;
 	}
 
 	async function publishNativeInventories(): Promise<void> {
@@ -361,20 +387,25 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	}
 
 	async function disposeRenderer(): Promise<void> {
+		await ownershipOperations.settle();
 		unregisterStateQuiescence();
 		unsubscribe();
 		unregisterOffline();
 		if (listening) windowValue?.removeEventListener('message', receive);
 		listening = false;
 		const closingPlugins = new Set([...instanceIds, ...offlineInstanceIds]);
-		instanceIds.clear();
-		offlineInstanceIds.clear();
 		const failures: unknown[] = [];
 		try { await closeOwnedAudioSessions(); }
 		catch (error) { failures.push(error); }
-		await Promise.allSettled([...closingPlugins].map(
-			(instanceId) => options.bridge.closeNativePluginInstance({ instanceId }),
-		));
+		const pluginIds = [...closingPlugins];
+		const pluginSettlements = await Promise.allSettled(pluginIds.map(closeOwnedPluginInstance));
+		for (let index = 0; index < pluginSettlements.length; index += 1) {
+			const settlement = pluginSettlements[index]!;
+			if (settlement.status === 'rejected') failures.push(settlement.reason);
+			else if (!settlement.value) failures.push(new Error(
+				`Native plug-in instance ${pluginIds[index] ?? 'unknown'} did not close.`,
+			));
+		}
 		try { await audio.dispose(); }
 		catch (error) { failures.push(error); }
 		for (const instanceId of new Set([...processorIds, ...closingPlugins])) {
@@ -388,7 +419,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	}
 
 	function assertRuntimeOpen(): void {
-		if (disposal !== null) throw new Error('The Soundscaper native workspace runtime is closing.');
+		if (closing) throw new Error('The Soundscaper native workspace runtime is closing.');
 	}
 
 	function calibrationBusy(): boolean {
@@ -417,7 +448,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 
 	function restoreProjectNativePlugins(): Promise<readonly unknown[]> {
 		reconciliation = reconciliation.then(reconcileProjectNativePlugins, reconcileProjectNativePlugins);
-		return reconciliation;
+		return ownershipOperations.track(reconciliation);
 	}
 
 	async function reconcileProjectNativePlugins(): Promise<readonly unknown[]> {
@@ -429,12 +460,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			.map((state) => [state.instanceId, stateKey(state)]));
 		for (const [instanceId, activeKey] of activeStateKeys) {
 			if (desired.get(instanceId) === activeKey) continue;
-			await options.bridge.closeNativePluginInstance({ instanceId }).catch(() => false);
-			releaseNativePluginRuntime(instanceId);
-			activeStateKeys.delete(instanceId);
-			instanceIds.delete(instanceId);
-			processorIds.delete(instanceId);
-			generations.delete(instanceId);
+			await closeOwnedPluginInstance(instanceId).catch(() => false);
 		}
 		if (!states.some((state) => state.enabled && !state.bypassed && state.continuity === 'live')) {
 			return Object.freeze([]);
@@ -444,7 +470,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 		const outcomes = [];
 		for (const state of states) {
 			if (!state.enabled || state.bypassed || state.continuity !== 'live') continue;
-			if (activeStateKeys.get(state.instanceId) === stateKey(state)
+			if (instanceIds.has(state.instanceId)
 				|| restoringIds.has(state.instanceId)) continue;
 			restoringIds.add(state.instanceId);
 			let acquired = false;
@@ -473,11 +499,10 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 				outcomes.push(Object.freeze({ instanceId: state.instanceId, status: 'restored' as const }));
 			} catch (error) {
 				if (acquired) {
-					await options.bridge.closeNativePluginInstance({ instanceId: state.instanceId }).catch(() => false);
+					await closeOwnedPluginInstance(state.instanceId).catch(() => false);
 					const transition = project?.runtime(state.instanceId, 0, 'host-lost');
 					setNativePluginBypassed(state.instanceId, true, transition?.contextTime);
 					releaseNativePluginRuntime(state.instanceId);
-					instanceIds.delete(state.instanceId);
 					processorIds.delete(state.instanceId);
 				}
 				outcomes.push(Object.freeze({
