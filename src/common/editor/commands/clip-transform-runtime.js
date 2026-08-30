@@ -461,7 +461,7 @@ export function overwriteClip(project, command) {
 	const overwriteCut = conformedOverwriteCut(project, { clip, updated, track: targetTrack });
 
 	const replacements = [];
-	const removedIds = new Set();
+	const removedIds = new Set(targetTrack.clipIds);
 	for (const clipId of targetTrack.clipIds) {
 		if (clipId === clip.id) continue;
 		const inactiveClip = requireClip(project, clipId);

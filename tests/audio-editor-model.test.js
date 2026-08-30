@@ -293,13 +293,16 @@ test('overwrite clip placement trims, splits, and removes inactive clips', () =>
 	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
 		id: 'active', sourceId: 'source-1', timelineStartFrame: 1_100, sourceStartFrame: 1_000, durationFrames: 200,
 	} });
+	project = apply(project, { type: 'clip/add', trackId: 'track-1', clip: {
+		id: 'untouched', sourceId: 'source-1', timelineStartFrame: 1_500, sourceStartFrame: 1_400, durationFrames: 100,
+	} });
 	const overwrite = prepareOverwriteClipCommand(project, 'active', {
 		trackId: 'track-1',
 		changes: { timelineStartFrame: 300 },
 	}, () => 'backing-right');
 	assert.deepEqual(overwrite.splitClipIds, { backing: 'backing-right' });
 	project = apply(project, overwrite);
-	assert.deepEqual(project.tracks[0].clipIds, ['backing', 'active', 'backing-right']);
+	assert.deepEqual(project.tracks[0].clipIds, ['backing', 'active', 'backing-right', 'untouched']);
 	assert.deepEqual(coreClip(findClip(project, 'backing')), {
 		id: 'backing', sourceId: 'source-1', timelineStartFrame: 100, sourceStartFrame: 0, durationFrames: 200,
 		gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
@@ -308,14 +311,19 @@ test('overwrite clip placement trims, splits, and removes inactive clips', () =>
 		id: 'backing-right', sourceId: 'source-1', timelineStartFrame: 500, sourceStartFrame: 400, durationFrames: 400,
 		gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
 	});
+	assert.deepEqual(coreClip(findClip(project, 'untouched')), {
+		id: 'untouched', sourceId: 'source-1', timelineStartFrame: 1_500, sourceStartFrame: 1_400,
+		durationFrames: 100, gain: 1, fadeInFrames: 0, fadeOutFrames: 0, reversed: false,
+	});
 
 	project = apply(project, { type: 'clip/overwrite', clipId: 'active', trackId: 'track-1', changes: {
 		timelineStartFrame: 0,
 		durationFrames: 1_000,
 	} });
-	assert.deepEqual(project.tracks[0].clipIds, ['active']);
+	assert.deepEqual(project.tracks[0].clipIds, ['active', 'untouched']);
 	assert.equal(findClip(project, 'backing'), null);
 	assert.equal(findClip(project, 'backing-right'), null);
+	assert.notEqual(findClip(project, 'untouched'), null);
 	assert.equal(validateAudioEditorProject(project), true);
 });
 
