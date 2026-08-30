@@ -132,7 +132,7 @@ test('the dynamics worklet consumes its explicit second input only as the detect
 	}
 });
 
-test('production strip analysers preserve channel geometry and expose one analyser per channel', () => {
+test('production strip analysers tap channels without rewriting the audible path', () => {
 	const context = new FakeContext();
 	const nodes: AudioNode[] = [];
 	const input = new FakeNode('input');
@@ -144,18 +144,19 @@ test('production strip analysers preserve channel geometry and expose one analys
 		6,
 	);
 	assert.ok(bank);
+	assert.strictEqual(bank.output, input as unknown as AudioNode);
 	assert.deepEqual(bank.channelLabels, ['L', 'R', 'C', 'LFE', 'Ls', 'Rs']);
 	assert.equal(bank.analysers.length, 6);
 	const splitter = context.created.find((node) => node.kind.startsWith('splitter-'));
-	const merger = context.created.find((node) => node.kind.startsWith('merger-'));
-	assert.ok(splitter && merger);
+	assert.equal(context.created.some((node) => node.kind.startsWith('merger-')), false);
+	assert.ok(splitter);
 	assert.equal(input.connections[0]?.target, splitter);
 	assert.deepEqual(splitter.connections.map(({ output, input: targetInput }) => [output, targetInput]), [
 		[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0],
 	]);
-	for (const [index, analyser] of bank.analysers.entries()) {
+	for (const analyser of bank.analysers) {
 		const fake = analyser as unknown as FakeNode;
-		assert.deepEqual(fake.connections, [{ target: merger, output: 0, input: index }]);
+		assert.deepEqual(fake.connections, []);
 	}
 });
 

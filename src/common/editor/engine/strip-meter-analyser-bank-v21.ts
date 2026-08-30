@@ -11,7 +11,7 @@ export interface StripMeterAnalyserBankV21 {
 	readonly analysers: readonly AnalyserNode[];
 }
 
-/** Preserve declared channels while inserting one bounded analyser per channel. */
+/** Tap one bounded analyser per declared channel without rewriting the signal path. */
 export function createStripMeterAnalyserBankV21(
 	context: BaseAudioContext,
 	nodes: AudioNodeArray,
@@ -24,23 +24,20 @@ export function createStripMeterAnalyserBankV21(
 		throw new RangeError('Production strip meters require 1 through 32 declared channels.');
 	}
 	if (typeof context.createAnalyser !== 'function'
-		|| typeof context.createChannelSplitter !== 'function'
-		|| typeof context.createChannelMerger !== 'function') return null;
+		|| typeof context.createChannelSplitter !== 'function') return null;
 	const width = Number(channelCount);
 	const splitter = addNode(nodes, context.createChannelSplitter(width));
-	const merger = addNode(nodes, context.createChannelMerger(width));
 	connect(input, splitter);
 	const analysers: AnalyserNode[] = [];
 	for (let channel = 0; channel < width; channel += 1) {
 		const analyser = createAnalyser(context, nodes);
 		if (!analyser) throw new Error('Production strip analyser construction failed.');
 		connect(splitter, analyser, channel, 0);
-		connect(analyser, merger, 0, channel);
 		analysers.push(analyser);
 	}
 	return Object.freeze({
 		strip: normalizeStripRef(stripValue),
-		output: merger,
+		output: input,
 		channelLabels: channelLabels(width),
 		analysers: Object.freeze(analysers),
 	});
