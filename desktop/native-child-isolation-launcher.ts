@@ -223,7 +223,9 @@ async function launchTargetChild(options: Readonly<{
 			? `/proc/self/fd/${String(launcherFd)}` : options.artifacts.launcher.path;
 		child = options.spawn(command, arguments_, {
 			stdio, shell: false, windowsHide: true,
-			env: nativeChildLauncherEnvironment(options.target),
+			// Node injects its ambient coverage path unless the option owns this key.
+			// Keep it undefined so neither that path nor the variable reaches the launcher.
+			env: { ...nativeChildLauncherEnvironment(options.target), NODE_V8_COVERAGE: undefined },
 		});
 		const processBinding = bindNativeChildProcess(child, request.framedControl);
 		completion = options.target.startsWith('linux-') ? processBinding.completion
