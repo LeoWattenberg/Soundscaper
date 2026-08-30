@@ -292,7 +292,7 @@ async function stageTranslations() {
 	if (localSource) {
 		const source = resolve(ROOT, localSource);
 		assert(source !== TRANSLATION_ROOT, 'Translation snapshot source cannot be the generated destination.');
-		await cp(source, TRANSLATION_ROOT, { recursive: true, errorOnExist: true });
+		await cp(source, TRANSLATION_ROOT, { recursive: true, errorOnExist: true, force: false });
 	} else {
 		await retry(async () => {
 			await rm(TRANSLATION_ROOT, { recursive: true, force: true });
@@ -416,7 +416,7 @@ async function stageApplication(
 					? framescaperNativeHostRelease.openFxHost.manifestBytes
 					: null;
 		if (verifiedBytes === null) {
-			await cp(resolve(ROOT, register), resolve(APP_ROOT, register), { errorOnExist: true });
+			await cp(resolve(ROOT, register), resolve(APP_ROOT, register), { errorOnExist: true, force: false });
 		} else {
 			await writeFile(resolve(APP_ROOT, register), verifiedBytes, { flag: 'wx' });
 		}

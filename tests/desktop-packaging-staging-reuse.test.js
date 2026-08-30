@@ -62,3 +62,12 @@ test('the desktop packaging scripts take the staged native prefix from the manif
 		);
 	}
 });
+
+test('every guarded desktop staging copy disables overwrite', async () => {
+	const source = await readModule('scripts/desktop-prepare.mjs');
+	const optionBlocks = [...source.matchAll(/\bcp\([^;]*?\{([^}]*errorOnExist: true[^}]*)\}\)/gu)]
+		.map((match) => match[1]);
+
+	assert.equal(optionBlocks.length, 3);
+	assert.ok(optionBlocks.every((options) => /\bforce: false\b/u.test(options)));
+});
