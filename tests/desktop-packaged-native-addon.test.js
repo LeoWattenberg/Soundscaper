@@ -75,16 +75,23 @@ function packagingContext(appOutDir, resourcesDir, target = BUILT_TARGET) {
 test('afterPack verifies the packaged native addon payload before any fuse work', async (context) => {
 	const { root, resources, nativeRoot, release, stageManifestPath } = await packagedResources(context);
 	const fuseCalls = [];
+	const contentManifestCalls = [];
 	const invoke = () => hardenPackagedElectron(packagingContext(root, resources), {
 		repositoryRoot: process.cwd(),
 		stageManifestPath,
 		verifyPackagedElectronAlternateFfmpeg: async () => {},
 		verifyPackagedOsAudioCodecNativeResources: async () => {},
 		flipFuses: async (...args) => { fuseCalls.push(args); },
-		writeDesktopPackageContentManifest: async () => {},
+		writeDesktopPackageContentManifest: async (options) => { contentManifestCalls.push(options); },
 	});
 	await invoke();
 	assert.equal(fuseCalls.length, 1);
+	assert.deepEqual(contentManifestCalls, [{
+		resourcesRoot: resources,
+		runtimeManifestPath: stageManifestPath,
+		productId: 'soundscaper',
+		targetId: BUILT_TARGET,
+	}]);
 
 	fuseCalls.length = 0;
 	await writeFile(join(nativeRoot, release.payload.name), 'tampered packaged addon');
@@ -107,9 +114,10 @@ test('afterPack verifies the packaged native addon payload before any fuse work'
 });
 
 test('a package that carries no native target, or more than one, is rejected', async (context) => {
-	const { root, resources, nativeRoot } = await packagedResources(context);
+	const { root, resources, nativeRoot, stageManifestPath } = await packagedResources(context);
 	const invoke = () => verifyPackagedNativeAddonResources(packagingContext(root, resources), {
 		repositoryRoot: process.cwd(),
+		stageManifestPath,
 	});
 	await mkdir(join(resources, 'runtime/native/win-x64'), { recursive: true });
 	await assert.rejects(invoke(), /exactly one target; found linux-x64, win-x64/iu);
@@ -119,36 +127,39 @@ test('a package that carries no native target, or more than one, is rejected', a
 });
 
 test('the addon verifier leaves the closed Framescaper host subtrees to their owner', async (context) => {
-	const { root, resources } = await packagedResources(context);
+	const { root, resources, stageManifestPath } = await packagedResources(context);
 	await mkdir(join(resources, 'runtime/native/framescaper-media-host/linux-x64'), { recursive: true });
 	await mkdir(join(resources, 'runtime/native/framescaper-openfx-host/linux-x64'), { recursive: true });
 	const framescaperContext = packagingContext(root, resources);
 	framescaperContext.packager.appInfo.productFilename = 'Framescaper';
 	await assert.doesNotReject(() => verifyPackagedNativeAddonResources(framescaperContext, {
 		repositoryRoot: process.cwd(),
+		stageManifestPath,
 	}));
 	await assert.rejects(
 		() => verifyPackagedNativeAddonResources(packagingContext(root, resources), {
 			repositoryRoot: process.cwd(),
+			stageManifestPath,
 		}),
 		/Soundscaper resources carry Framescaper native-host payloads/iu,
 	);
 });
 
 test('the addon verifier leaves the codec-only OS subtree to its owner', async (context) => {
-	const { root, resources } = await packagedResources(context);
+	const { root, resources, stageManifestPath } = await packagedResources(context);
 	await mkdir(join(
 		resources, 'runtime/native/soundscaper-os-audio-codec/win-x64',
 	), { recursive: true });
 	await assert.doesNotReject(() => verifyPackagedNativeAddonResources(
-		packagingContext(root, resources), { repositoryRoot: process.cwd() },
+		packagingContext(root, resources), { repositoryRoot: process.cwd(), stageManifestPath },
 	));
 });
 
 test('a target whose payload is pending-external packages its manifest and nothing else', async (context) => {
-	const { root, resources } = await packagedResources(context, PENDING_TARGET);
+	const { root, resources, stageManifestPath } = await packagedResources(context, PENDING_TARGET);
 	const summary = await verifyPackagedNativeAddonResources(packagingContext(root, resources, PENDING_TARGET), {
 		repositoryRoot: process.cwd(),
+		stageManifestPath,
 	});
 	assert.equal(summary.target, PENDING_TARGET);
 	assert.equal(summary.payload, null);

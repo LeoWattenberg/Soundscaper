@@ -103,11 +103,13 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 	});
 	const resourcesRoot = context.packager.getResourcesDir(context.appOutDir);
 	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const stageManifestPath = resolve(dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'));
 	const writeContentManifest = dependencies.writeDesktopPackageContentManifest
 		?? writeDesktopPackageContentManifest;
 	await writeContentManifest({
 		resourcesRoot: resolve(resourcesRoot),
-		runtimeManifestPath: resolve(repositoryRoot, '.desktop-build/stage-manifest.json'),
+		runtimeManifestPath: stageManifestPath,
 		productId: packagingProductId(context),
 		targetId: nativeAddonPayloadTargetForPackagingContext(context),
 	});

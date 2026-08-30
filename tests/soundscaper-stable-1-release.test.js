@@ -324,6 +324,10 @@ test('the v1.0.0 workflow admits, rehearses, deploys, and publishes only Soundsc
 	for (const shard of ['soundscaper', 'common']) {
 		assert.match(workflow, new RegExp(`npm test -- --shard=${shard}`, 'u'));
 	}
+	const admissionJob = workflowJob(workflow, 'admission');
+	assert.match(admissionJob,
+		/Provision interchange conformance reference tools[\s\S]*npm run provision:interchange-conformance[\s\S]*npm test -- --shard=common/u,
+		'the clean stable-tag checkout provisions the pinned readers before the common reference tests');
 	assert.match(workflow, /soundscaper-stable-1-admission\.json/u);
 	const assembly = workflowJob(workflow, 'assemble');
 	const professionalSource = workflowJob(workflow, 'professional-source');

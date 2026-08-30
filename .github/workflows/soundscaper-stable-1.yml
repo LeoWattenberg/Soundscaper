@@ -72,6 +72,8 @@ jobs:
           test "$promoted_tree_sha" = "$tagged_tree_sha"
       - name: Install the admitted candidate dependencies
         run: npm ci
+      - name: Provision interchange conformance reference tools
+        run: npm run provision:interchange-conformance
       - name: Re-run the non-browser source and build gates
         run: npm run check:static
         env: { NODE_OPTIONS: --max-old-space-size=8192 }
