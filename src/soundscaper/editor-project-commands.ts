@@ -198,7 +198,11 @@ function applyNativePluginBindingCommand(
 				context: effect.context,
 			},
 		};
-	const applied = applyInheritedCommand(project, rackCommand as AudioEditorCommand, options);
+	const applied = applySoundscaperProjectFoundationCommand(
+		project,
+		rackCommand as AudioEditorCommand,
+		options,
+	);
 	const draft = structuredClone(applied) as unknown as Record<string, unknown>;
 	applyNativePluginStateTree(draft, { type: 'native-plugin-state/upsert', state });
 	if (JSON.stringify(draft) === JSON.stringify(project)) return project;
@@ -307,7 +311,44 @@ function applyInheritedCommand(
 	command: AudioEditorCommand,
 	options: SoundscaperProjectCommandOptions,
 ): SoundscaperProject {
-	return applySoundscaperProjectFoundationCommand(project, command, options);
+	const applied = applySoundscaperProjectFoundationCommand(project, command, options);
+	assertNoNewNativePluginRackBindings(project, applied);
+	return applied;
+}
+
+function assertNoNewNativePluginRackBindings(
+	previous: SoundscaperProject,
+	next: SoundscaperProject,
+): void {
+	const previousSlots = nativePluginRackSlots(previous);
+	for (const slot of nativePluginRackSlots(next)) {
+		if (!previousSlots.has(slot)) {
+			throw new RangeError('A native plug-in rack slot requires the atomic native plug-in binding command.');
+		}
+	}
+}
+
+function nativePluginRackSlots(project: SoundscaperProject): ReadonlySet<string> {
+	const slots = new Set<string>();
+	const collect = (scope: string, ownerValue: unknown): void => {
+		if (!ownerValue || typeof ownerValue !== 'object' || Array.isArray(ownerValue)) return;
+		const owner = ownerValue as Readonly<Record<string, unknown>>;
+		if (!Array.isArray(owner.effects)) return;
+		for (const effectValue of owner.effects) {
+			if (!effectValue || typeof effectValue !== 'object' || Array.isArray(effectValue)) continue;
+			const effect = effectValue as Readonly<Record<string, unknown>>;
+			if (effect.type !== 'native-plugin') continue;
+			slots.add(JSON.stringify([scope, owner.id ?? null, effect.id]));
+		}
+	};
+	for (const track of project.tracks) collect('track', track);
+	collect('master', project.master);
+	for (const [kind, owners] of [
+		['group', project.mixer.groups],
+		['send', project.mixer.sends],
+		['cue', project.mixer.cues],
+	] as const) for (const owner of owners) collect(kind, owner);
+	return slots;
 }
 
 function applyAssistanceCommand(
@@ -320,7 +361,7 @@ function applyAssistanceCommand(
 		const childCommand: AudioEditorCommand = command.commands.length === 1
 			? command.commands[0]!
 			: { type: 'batch', commands: command.commands };
-		const applied = applySoundscaperProjectFoundationCommand(project, childCommand, options);
+		const applied = applyInheritedCommand(project, childCommand, options);
 		if (applied !== project) {
 			const draft = structuredClone(applied) as unknown as Record<string, unknown>;
 			draft.assistanceAssets = assistanceAssets;

@@ -83,6 +83,25 @@ test('a late native state failure cannot publish the otherwise valid rack mutati
 	assert.equal(history.undoStack.length, 0)
 })
 
+test('a generic rack command cannot bypass the atomic native plug-in binding', () => {
+	const initial = project()
+	const history = createSoundscaperProjectHistory(initial)
+
+	assert.throws(() => executeSoundscaperProjectCommand(history, {
+		type: 'effect/add', scope: 'track', trackId: 'track-1', effect: effect(),
+	} as never), /native plug-in.*binding|atomic native/iu)
+	assert.throws(() => executeSoundscaperProjectCommand(history, {
+		type: 'track/add',
+		track: {
+			...structuredClone(initial.tracks[0]),
+			id: 'track-2', name: 'Track 2', effects: [effect({ id: 'native-effect-2' })],
+		},
+	} as never), /native plug-in.*binding|atomic native/iu)
+	assert.deepEqual(nativeEffects(history.present), [])
+	assert.deepEqual(history.present.nativePluginStates, [])
+	assert.equal(history.undoStack.length, 0)
+})
+
 test('native plug-in restore updates the exact rack slot and state in one reversible revision', () => {
 	const authored = executeSoundscaperProjectCommand(
 		createSoundscaperProjectHistory(project()), binding('author'), { now: NOW },
