@@ -5,6 +5,7 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
+import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import {
 	acquireFramescaperDesktopBodies,
 	prepareFramescaperDesktopPublicationBodies,
@@ -94,14 +95,17 @@ export interface FramescaperDesktopProjectLibraryProjectSummary {
 	readonly updatedAt: string;
 }
 
+interface RendererPublicationRequest {
+	readonly project: unknown;
+	readonly signal?: AbortSignal;
+	readonly beforeFinish?: () => PromiseLike<void> | void;
+}
+
 export interface FramescaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<FramescaperDesktopProjectLibraryProjectSummary>[]>;
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProject | null>;
-	publishProject(request: Readonly<{
-		readonly project: unknown;
-		readonly signal?: AbortSignal;
-		readonly beforeFinish?: () => PromiseLike<void> | void;
-	}>): Promise<FramescaperProject>;
+	publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
+	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<FramescaperProject | null>;
 	deleteProject(projectId: string): Promise<void>;
 	duplicateProject(sourceProjectId: string, options: Readonly<{
 		readonly id: string;
@@ -184,20 +188,35 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		});
 	}
 
-	publishProject(request: Readonly<{
-		readonly project: unknown;
-		readonly signal?: AbortSignal;
-		readonly beforeFinish?: () => PromiseLike<void> | void;
-	}>): Promise<FramescaperProject> {
+	publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject> {
+		return this.#publishProject(request);
+	}
+
+	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown): Promise<FramescaperProject | null> {
+		const expected = cloneFramescaperProject(this.#profile, expectedValue);
+		return this.#publishProject({ project: projectValue }, expected);
+	}
+
+	#publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
+	#publishProject(
+		request: Readonly<RendererPublicationRequest>, expected: FramescaperProject,
+	): Promise<FramescaperProject | null>;
+	#publishProject(
+		request: Readonly<RendererPublicationRequest>, expected?: FramescaperProject,
+	): Promise<FramescaperProject | null> {
 		return this.#exclusive(async () => {
 			const project = cloneFramescaperProject(this.#profile, request.project);
 			throwIfAborted(request.signal);
 			const projectId = String(project.id);
+			if (expected && String(expected.id) !== projectId) {
+				throw new Error('Framescaper desktop conditional publication requires one project identity.');
+			}
 			const [catalogSnapshot, currentRaw] = await Promise.all([
 				this.#bridge.listProjects(),
 				this.#bridge.readProjectBundle(projectId),
 			]);
 			const current = currentRaw === null ? null : validateBundle(this.#profile, currentRaw, projectId);
+			if (expected && (!current || !sameFramescaperDesktopProject(current.project, expected))) return null;
 			if (current && !isStrictlyHigherProjectRevision(project.revision, current.project.revision)) {
 				throw new Error('Framescaper desktop publication requires a strictly higher revision.');
 			}
@@ -325,6 +344,10 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		this.#tail = result.then(() => undefined, () => undefined);
 		return result;
 	}
+}
+
+function sameFramescaperDesktopProject(left: FramescaperProject, right: FramescaperProject): boolean {
+	return serializeScapeProjectDocument(left) === serializeScapeProjectDocument(right);
 }
 
 function resolveBridge(): Bridge | null {

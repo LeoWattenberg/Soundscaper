@@ -49,6 +49,8 @@ export interface SoundscaperDesktopProjectStoreLocal {
 
 export type SoundscaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
 	createProjectIfAbsent(project: unknown): Promise<SoundscaperProject | null>;
+	saveProjectIfCurrent(expected: unknown, project: unknown, options?: unknown): Promise<SoundscaperProject | null>;
+	restoreProjectSnapshotIfCurrent(projectId: string, expected: unknown, snapshot: unknown): Promise<false>;
 	getNativePluginStateBodyMetadata(bodyId: string): Promise<Readonly<{
 		byteLength: number; sha256: string;
 	}> | null>;
@@ -141,6 +143,22 @@ function proxyHandler<Store extends SoundscaperDesktopProjectStoreLocal>(
 			await admitProjectPublication(localStore, project, options);
 			return renderer.publishProject({ project });
 		},
+		saveProjectIfCurrent: async (
+			expectedValue: unknown,
+			projectValue: unknown,
+			optionsValue: unknown = {},
+		) => {
+			const options = saveOptions(optionsValue);
+			const expected = soundscaperProjectClone(profile, expectedValue);
+			const project = soundscaperProjectClone(profile, projectValue);
+			await admitProjectPublication(localStore, project, options);
+			return renderer.publishProjectIfCurrent(expected, project);
+		},
+		// Desktop main cannot be rewound through its shadow-only repository,
+		// so rollback is conservatively refused.
+		restoreProjectSnapshotIfCurrent: async (
+			_projectId: string, _expected: unknown, _snapshot: unknown,
+		) => false as const,
 		createProjectIfAbsent: async (projectValue: unknown) => {
 			const project = soundscaperProjectClone(profile, projectValue);
 			if (Number(project.revision) !== 0) {

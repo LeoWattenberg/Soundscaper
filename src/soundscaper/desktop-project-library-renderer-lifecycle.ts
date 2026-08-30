@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
 import { soundscaperProjectClone } from './editor-project-profile.ts';
 import type { SoundscaperProject } from './editor-project-validation.ts';
 import {
+	snapshotSoundscaperDesktopProject,
 	validateSoundscaperDesktopProjectId,
 	type SoundscaperDesktopBundleSnapshot,
 	type SoundscaperDesktopCatalogSnapshot,
@@ -168,6 +170,32 @@ export function sameSoundscaperDesktopProject(
 	right: SoundscaperProject,
 ): boolean {
 	return serializeScapeProjectDocument(left) === serializeScapeProjectDocument(right);
+}
+
+export function assertSoundscaperDesktopLocalPublicationCas(
+	profile: EditorProjectRuntimeProfile,
+	current: SoundscaperProject | null,
+	request: Readonly<{
+		allowImportedRevision: boolean;
+		expectedProject: Readonly<{ projectRevision: number; projectSha256: string }> | null;
+		project: SoundscaperProject;
+	}>,
+): void {
+	if (request.expectedProject === null) {
+		if (current !== null || (!request.allowImportedRevision && Number(request.project.revision) !== 0)) {
+			throw new Error('Desktop create requires an absent V21 shadow and fresh revision zero.');
+		}
+		return;
+	}
+	if (!current || String(current.id) !== String(request.project.id)) {
+		throw new Error('Desktop publication requires its exact reconciled V21 shadow base.');
+	}
+	const snapshot = snapshotSoundscaperDesktopProject(profile, current);
+	if (Number(current.revision) !== request.expectedProject.projectRevision
+		|| snapshot.sha256 !== request.expectedProject.projectSha256
+		|| !isStrictlyHigherProjectRevision(request.project.revision, current.revision)) {
+		throw new Error('The V21 shadow failed the desktop publication compare-and-swap.');
+	}
 }
 
 function currentWitness(

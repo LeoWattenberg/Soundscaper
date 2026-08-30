@@ -32,6 +32,8 @@ export interface FramescaperDesktopProjectStoreLocal {
 
 export type FramescaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
 	createProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
+	saveProjectIfCurrent(expected: unknown, project: unknown, options?: unknown): Promise<FramescaperProject | null>;
+	restoreProjectSnapshotIfCurrent(projectId: string, expected: unknown, snapshot: unknown): Promise<false>;
 }>;
 
 export function createFramescaperDesktopProjectStoreAdapter<
@@ -73,6 +75,20 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
 			return renderer.publishProject({ project });
 		},
+		saveProjectIfCurrent: async (
+			expectedValue: unknown, projectValue: unknown, optionsValue: unknown = {},
+		) => {
+			const options = allowedRecord(optionsValue, SAVE_FIELDS, `${LABEL} save options`);
+			const expected = cloneFramescaperProject(profile, expectedValue);
+			const project = cloneFramescaperProject(profile, projectValue);
+			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
+			return renderer.publishProjectIfCurrent(expected, project);
+		},
+		// Desktop main cannot be rewound through its shadow-only repository,
+		// so rollback is conservatively refused.
+		restoreProjectSnapshotIfCurrent: async (
+			_projectId: string, _expected: unknown, _snapshot: unknown,
+		) => false as const,
 		createProjectIfAbsent: async (projectValue: unknown) => {
 			const project = cloneFramescaperProject(profile, projectValue);
 			if (project.revision !== 0) throw new Error(`${LABEL} create requires revision zero.`);

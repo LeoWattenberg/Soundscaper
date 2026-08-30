@@ -37,6 +37,7 @@ import {
 	type SoundscaperDesktopRawShadowProjectStore,
 } from './desktop-project-library-renderer-catalog.ts'
 import {
+	assertSoundscaperDesktopLocalPublicationCas,
 	createSoundscaperDesktopPublicationId,
 	SoundscaperDesktopWitnessLedger,
 	sameSoundscaperDesktopProject,
@@ -83,6 +84,7 @@ export interface SoundscaperDesktopProjectLibraryRenderer {
 	createScapeProjectIfAbsent(project: unknown): Promise<SoundscaperProject | null>
 	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
 		Promise<SoundscaperProject>
+	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<SoundscaperProject | null>
 	deleteProject(projectId: string): Promise<void>
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>
 	cleanupDeletedProject(projectId: string): Promise<boolean>
@@ -205,6 +207,20 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		return this.#exclusive(() => this.#publishFromWitness(request))
 	}
 
+	publishProjectIfCurrent(expectedValue: unknown, projectValue: unknown): Promise<SoundscaperProject | null> {
+		const expected = soundscaperProjectClone(this.#profile, expectedValue)
+		const request = rendererPublicationRequest(this.#profile, { project: projectValue })
+		const projectId = validateSoundscaperDesktopProjectId(String(expected.id))
+		if (String(request.project.id) !== projectId) {
+			throw new Error('Soundscaper desktop conditional publication requires one project identity.')
+		}
+		return this.#exclusive(async () => {
+			const current = await this.#readProject(projectId, request.signal)
+			if (current === null || !sameSoundscaperDesktopProject(current, expected)) return null
+			return this.#publishFromWitness(request)
+		})
+	}
+
 	deleteProject(projectIdValue: string): Promise<void> {
 		return this.#exclusive(() => this.#catalog.deleteProject(projectIdValue))
 	}
@@ -309,7 +325,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 			projectId, request.signal ? { signal: request.signal } : {},
 		)
 		const current = currentValue == null ? null : soundscaperProjectClone(this.#profile, currentValue)
-		assertLocalCas(this.#profile, current, request)
+		assertSoundscaperDesktopLocalPublicationCas(this.#profile, current, request)
 		const planned = soundscaperDesktopBodiesForProject(
 			this.#profile, request.project, request.documentSha256,
 		)
@@ -466,28 +482,6 @@ function rendererPublicationRequest(profile: EditorProjectRuntimeProfile, value:
 		documentSha256: snapshot.sha256,
 		...(signal ? { signal } : {}),
 	})
-}
-
-function assertLocalCas(
-	profile: EditorProjectRuntimeProfile,
-	current: SoundscaperProject | null,
-	request: NormalizedPublication,
-): void {
-	if (request.expectedProject === null) {
-		if (current !== null || (!request.allowImportedRevision && Number(request.project.revision) !== 0)) {
-			throw new Error('Desktop create requires an absent V21 shadow and fresh revision zero.')
-		}
-		return
-	}
-	if (!current || String(current.id) !== String(request.project.id)) {
-		throw new Error('Desktop publication requires its exact reconciled V21 shadow base.')
-	}
-	const snapshot = snapshotSoundscaperDesktopProject(profile, current)
-	if (Number(current.revision) !== request.expectedProject.projectRevision
-		|| snapshot.sha256 !== request.expectedProject.projectSha256
-		|| !isStrictlyHigherProjectRevision(request.project.revision, current.revision)) {
-		throw new Error('The V21 shadow failed the desktop publication compare-and-swap.')
-	}
 }
 
 function assertPublicationResult(
