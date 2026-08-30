@@ -122,6 +122,30 @@ class CapacityProbeStore implements ScapeImportStore {
 		this.#project = structuredClone(project);
 	}
 
+	async createProjectIfAbsent(project: ImportProjectDocument): Promise<ImportProjectDocument | null> {
+		if (this.#project) return null;
+		this.events.push('project-published');
+		this.#project = structuredClone(project);
+		return structuredClone(project);
+	}
+
+	async deleteProjectIfCurrent(project: ImportProjectDocument): Promise<boolean> {
+		if (JSON.stringify(this.#project) !== JSON.stringify(project)) return false;
+		this.events.push('project-deleted-exact');
+		this.#project = null;
+		return true;
+	}
+
+	async saveProjectIfCurrent(
+		expected: ImportProjectDocument,
+		project: ImportProjectDocument,
+	): Promise<ImportProjectDocument | null> {
+		if (JSON.stringify(this.#project) !== JSON.stringify(expected)) return null;
+		this.events.push('project-published');
+		this.#project = structuredClone(project);
+		return structuredClone(project);
+	}
+
 	async restoreProjectSnapshotIfCurrent(): Promise<boolean> {
 		return false;
 	}
@@ -172,6 +196,7 @@ test('Scape import admits exact free capacity before opening its media writer', 
 			store.events.push('asset-extracted');
 			await output.write(bytes);
 		},
+		onClose: () => { store.events.push('archive-closed'); },
 	});
 	const store = new CapacityProbeStore({
 		estimate: () => ({ usage: 989, quota: 1_000 }),
@@ -188,6 +213,32 @@ test('Scape import admits exact free capacity before opening its media writer', 
 	assert.ok(capacityIndex < store.events.indexOf('media-write-began'));
 	assert.ok(store.events.indexOf('media-write-began') < store.events.indexOf('asset-extracted'));
 	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('project-published'));
+	assert.ok(store.events.indexOf('archive-closed') < store.events.indexOf('project-published'));
+});
+
+test('Scape archive close failure discards staging before project publication', async () => {
+	const bytes = Uint8Array.of(0, 1, 2, 3);
+	const closeFailure = new Error('archive close failed');
+	const store = new CapacityProbeStore({
+		estimate: () => ({ usage: 0, quota: 1_000 }),
+	});
+	const archive = syntheticVideoArchive({
+		projectId: 'scape-close-before-publication',
+		assetSize: bytes.byteLength,
+		sha256: digestScapeBytes(bytes),
+		async emit(output) { await output.write(bytes); },
+		onClose() {
+			store.events.push('archive-close-failed');
+			throw closeFailure;
+		},
+	});
+
+	await assert.rejects(importScapeProject(new Blob(['synthetic']), store, {
+		archiveReaderFactory: archive.readerFactory,
+	}), (error: unknown) => error === closeFailure);
+	assert.equal(store.events.includes('project-published'), false);
+	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('archive-close-failed'));
+	assert.ok(store.events.indexOf('archive-close-failed') < store.events.indexOf('media-publication-discarded'));
 });
 
 test('Scape import uses one controller estimate before transaction capture, remapping, and extraction', async () => {

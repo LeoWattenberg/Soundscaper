@@ -454,7 +454,6 @@ export async function importScapeProject(input, store, options = {}) {
 					}
 				}
 			}
-			await transaction.publishProject(project);
 			return {
 				project,
 				manifest,
@@ -466,7 +465,7 @@ export async function importScapeProject(input, store, options = {}) {
 			blob: options.archiveReaderFactory,
 			byteSource: options.archiveByteSourceReaderFactory,
 		});
-		if (transaction) transaction.complete();
+		if (transaction) await transaction.publishProject(result.project);
 		return result;
 	} catch (error) {
 		if (transaction) return transaction.rollback(error);

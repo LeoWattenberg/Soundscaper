@@ -255,6 +255,18 @@ class CountingSha256ImportStore implements ScapeImportStore {
 		this.events.push('project-published');
 	}
 
+	async createProjectIfAbsent(project: ImportedProjectDocument): Promise<ImportedProjectDocument | null> {
+		if (this.publishedProject) return null;
+		await this.saveProject(project);
+		return structuredClone(project);
+	}
+
+	async deleteProjectIfCurrent(project: ImportedProjectDocument): Promise<boolean> {
+		if (JSON.stringify(this.publishedProject) !== JSON.stringify(project)) return false;
+		await this.deleteProject();
+		return true;
+	}
+
 	async restoreProjectSnapshotIfCurrent(): Promise<boolean> {
 		return false;
 	}

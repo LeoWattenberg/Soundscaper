@@ -307,7 +307,7 @@ test('cancellation during video publication deletes the provisional asset and pr
 	assert.deepEqual(await inventory(backingStore), before);
 });
 
-test('late cancellation after project save restores the previous committed project', async () => {
+test('late cancellation after project CAS is commit-wins', async () => {
 	const sourceStore = memoryStore('scape-project-abort-source');
 	const backingStore = memoryStore('scape-project-abort-target');
 	const replacement = projectOnly('scape-project-publication', 'Replacement');
@@ -321,8 +321,11 @@ test('late cancellation after project save restores the previous committed proje
 	let replacementWrites = 0;
 	const targetStore = new Proxy(backingStore, {
 		get(target, property, receiver) {
-			if (property === 'saveProject') return async (project: Readonly<{ title?: string }>) => {
-				const result = await target.saveProject(project);
+			if (property === 'saveProjectIfCurrent') return async (
+				expected: Readonly<{ id: string }>,
+				project: Readonly<{ title?: string }>,
+			) => {
+				const result = await target.saveProjectIfCurrent(expected, project);
 				if (project.title === replacement.title) {
 					replacementWrites += 1;
 					controller.abort(abortReason('cancel after project publication'));
@@ -334,12 +337,15 @@ test('late cancellation after project save restores the previous committed proje
 		},
 	});
 
-	await assertAbort(importScapeProject(archive, targetStore, {
+	const imported = await importScapeProject(archive, targetStore, {
 		collision: 'replace',
 		signal: controller.signal,
-	}));
+	});
 	assert.equal(replacementWrites, 1);
-	assert.deepEqual(await inventory(backingStore), before);
+	assert.equal(controller.signal.aborted, true);
+	assert.equal(imported.project.title, replacement.title);
+	assert.equal((await backingStore.loadProject(replacement.id))?.title, replacement.title);
+	assert.notDeepEqual(await inventory(backingStore), before);
 });
 
 test('cancellation during export returns the source iterator and aborts the destination', async () => {

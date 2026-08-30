@@ -45,6 +45,10 @@ export interface ScapeImportStore {
 	createProjectIfAbsent?(project: ScapeProjectDocument): PromiseLike<ScapeProjectDocument | null>;
 	deleteProjectIfCurrent?(project: ScapeProjectDocument): PromiseLike<boolean>;
 	saveProject(project: ScapeProjectDocument): PromiseLike<unknown>;
+	saveProjectIfCurrent?(
+		expected: ScapeProjectDocument,
+		project: ScapeProjectDocument,
+	): PromiseLike<ScapeProjectDocument | null>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	discardSourceIfCurrent(source: StorageRecord): PromiseLike<boolean>;
 	/**
@@ -67,7 +71,7 @@ interface ProjectSnapshot {
 	readonly revisions: readonly ScapeProjectRevision[];
 }
 
-/** Tracks every import mutation until archive closure makes the operation complete. */
+/** Tracks every import mutation until final project publication makes the operation complete. */
 export class ScapeImportTransaction {
 	readonly #store: ScapeImportStore;
 	readonly #signal?: AbortSignal;
@@ -121,36 +125,45 @@ export class ScapeImportTransaction {
 			throw new Error('The Scape target project was not captured before publication.');
 		}
 		throwIfScapeAborted(this.#signal);
-		this.#projectWriteAttempted = true;
 		const createExactly = this.#store.createScapeProjectIfAbsent ?? this.#store.createProjectIfAbsent;
 		const canCreateExactly = typeof createExactly === 'function';
 		const canDeleteExactly = typeof this.#store.deleteProjectIfCurrent === 'function';
-		if (this.#projectSnapshot.current === null && canCreateExactly !== canDeleteExactly) {
-			throw new TypeError('Create-only Scape publication requires exact-current rollback.');
-		}
-		if (this.#projectSnapshot.current === null && canCreateExactly) {
+		const capturedProject = this.#projectSnapshot.current;
+		if (capturedProject === null) {
+			if (!canCreateExactly || !canDeleteExactly) {
+				throw new TypeError('Create-only Scape publication requires exact-current rollback.');
+			}
 			this.#createOnlyPublicationAttempted = true;
+			this.#projectWriteAttempted = true;
 			const created = await createExactly.call(this.#store, project);
 			if (created === null) throw new Error('The Scape target project was created concurrently.');
 			if (created.id !== project.id) {
 				throw new Error('Create-only Scape publication changed the target project identity.');
 			}
-			// Retain the repository's creation-fence token before observing cancellation.
+			// Retain the repository's creation-fence token as the committed result.
 			this.#createdProject = created;
-			throwIfScapeAborted(this.#signal);
+			this.#complete = true;
 			return;
 		}
 		if (typeof this.#store.restoreProjectSnapshotIfCurrent !== 'function') {
 			throw new TypeError('Replace-import publication requires exact-current snapshot rollback.');
 		}
+		if (typeof this.#store.saveProjectIfCurrent !== 'function') {
+			throw new TypeError('Replace-import publication requires exact-current project storage.');
+		}
 		this.#publishedProject = project;
-		const published = await this.#store.saveProject(project);
+		this.#projectWriteAttempted = true;
+		const published = await this.#store.saveProjectIfCurrent(capturedProject, project);
+		if (published === null) {
+			this.#publishedProject = null;
+			// A competing publisher can adopt this transaction's same-ID staging.
+			throw new Error('The Scape target project changed concurrently during import.');
+		}
 		if (isScapeProjectDocument(published, project.id)) this.#publishedProject = published;
-		throwIfScapeAborted(this.#signal);
+		this.#complete = true;
 	}
 
 	complete(): void {
-		throwIfScapeAborted(this.#signal);
 		this.#complete = true;
 	}
 
@@ -192,8 +205,9 @@ export class ScapeImportTransaction {
 			}
 			return this.#store.deleteProjectIfCurrent(this.#createdProject);
 		}
-		// A failed create-only comparison did not publish the captured absent target.
-		if (snapshot.current === null && this.#createOnlyPublicationAttempted) return true;
+		// A competing creator can publish this transaction's same-ID staged assets;
+		// without project ownership they must be left for reachability maintenance.
+		if (snapshot.current === null && this.#createOnlyPublicationAttempted) return false;
 		if (this.#publishedProject) {
 			if (typeof this.#store.restoreProjectSnapshotIfCurrent !== 'function') {
 				throw new TypeError('Replace-import rollback lost its exact-current restore capability.');

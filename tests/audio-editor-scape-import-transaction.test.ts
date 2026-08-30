@@ -52,12 +52,27 @@ test('replace-import rollback preserves linked-original bindings and their locat
 	);
 	assert.ok(await store.getLinkedOriginalBinding('p1', 'src-1'));
 
-	const importStore: unknown = store;
+	const primary = new Error('project persistence failed after its local write');
+	const importStore: unknown = new Proxy(store, {
+		get(target, property, receiver) {
+			if (property === 'saveProjectIfCurrent') return async (
+				expected: Parameters<typeof target.saveProjectIfCurrent>[0],
+				project: Parameters<typeof target.saveProjectIfCurrent>[1],
+			) => {
+				await target.saveProjectIfCurrent(expected, project);
+				throw primary;
+			};
+			const value = Reflect.get(target, property, receiver) as unknown;
+			return typeof value === 'function' ? value.bind(target) : value;
+		},
+	});
 	assertScapeImportStore(importStore);
 	const transaction = new ScapeImportTransaction(importStore);
 	await transaction.captureProject('p1');
-	await transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] });
-	const primary = new Error('user cancelled after publish');
+	await assert.rejects(
+		transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] }),
+		(error: unknown) => error === primary,
+	);
 	await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
 
 	const restored = await store.loadProject('p1');
@@ -70,7 +85,7 @@ test('replace-import rollback preserves linked-original bindings and their locat
 });
 
 for (const backend of ['memory', 'indexeddb'] as const) {
-	test(`replace-import rollback preserves a project saved after its publication in ${backend}`, async () => {
+	test(`committed replace-import does not rewind a project saved afterward in ${backend}`, async () => {
 		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
 		const options = {
 			indexedDB: indexedDB as unknown as IDBFactory | null,
@@ -97,6 +112,39 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		assert.deepEqual(
 			(await store.listProjectRevisions('p1')).map(({ revision }) => revision),
 			[2, 1, 0],
+		);
+	});
+}
+
+for (const backend of ['memory', 'indexeddb'] as const) {
+	test(`replace-import publication refuses a project saved after capture in ${backend}`, async () => {
+		const indexedDB = backend === 'indexeddb' ? createInstrumentedIndexedDB() : null;
+		const options = {
+			indexedDB: indexedDB as unknown as IDBFactory | null,
+			preferOpfs: false,
+			databaseName: `scape-publication-concurrent-project-${backend}`,
+		};
+		const store = createProjectStore(options);
+		const concurrentStore = createProjectStore(options);
+		await Promise.all([store.ready(), concurrentStore.ready()]);
+		await store.saveProject({ id: 'p1', revision: 0, title: 'Original', sources: [] });
+
+		const importStore: unknown = store;
+		assertScapeImportStore(importStore);
+		const transaction = new ScapeImportTransaction(importStore);
+		await transaction.captureProject('p1');
+		await concurrentStore.saveProject({
+			id: 'p1', revision: 1, title: 'Concurrent edit', sources: [],
+		});
+
+		await assert.rejects(
+			transaction.publishProject({ id: 'p1', revision: 2, title: 'Imported', sources: [] }),
+			/project.*changed concurrently|concurrent.*project/iu,
+		);
+		assert.equal((await store.loadProject('p1'))?.title, 'Concurrent edit');
+		assert.deepEqual(
+			(await store.listProjectRevisions('p1')).map(({ revision }) => revision),
+			[1, 0],
 		);
 	});
 }
@@ -156,7 +204,47 @@ test('Scape rollback discards exact owned media publications and PCM sources', a
 	assert.deepEqual(cleanup, ['media:timing-1', 'media:video-1', 'source:audio-1']);
 });
 
-test('Scape publishes an absent target create-only and rolls it back by exact ownership', async () => {
+for (const [label, current] of [
+	['create', null],
+	['replace', { id: 'capability-refusal', revision: 1 }],
+] as const) {
+	test(`Scape ${label} capability refusal discards assets staged before project publication`, async () => {
+		const cleanup: string[] = [];
+		const store = {
+			async loadProject() { return current; },
+			async listProjectRevisions() {
+				return current === null ? [] : [{ revision: current.revision, project: current }];
+			},
+			async getSourceMetadata() { return null; },
+			async getMediaAssetMetadata() { return null; },
+			async beginSourceWrite() { throw new Error('unused'); },
+			async beginMediaAssetWrite() { throw new Error('unused'); },
+			async saveProject() { throw new Error('unconditional publication must not run'); },
+			async deleteProject() { throw new Error('broad rollback must not run'); },
+			async discardSourceIfCurrent(source: StorageRecord) {
+				cleanup.push(`source:${source.id}`);
+				return true;
+			},
+		};
+		const transaction = new ScapeImportTransaction(store);
+		await transaction.captureProject('capability-refusal');
+		transaction.trackProvisionalSource(sourcePublication('staged-audio'));
+		transaction.trackProvisionalMedia(publication('staged-video', cleanup));
+		let publicationFailure: unknown;
+		try {
+			await transaction.publishProject({ id: 'capability-refusal', revision: 2 });
+		} catch (error) {
+			publicationFailure = error;
+		}
+		assert.match(String(publicationFailure), /requires exact-current/iu);
+		await assert.rejects(transaction.rollback(publicationFailure), (error: unknown) => (
+			error === publicationFailure
+		));
+		assert.deepEqual(cleanup, ['media:staged-video', 'source:staged-audio']);
+	});
+}
+
+test('Scape create-only publication is an irreversible commit point', async () => {
 	const events: string[] = [];
 	const project = { id: 'new-project', revision: 0 };
 	const created = structuredClone(project);
@@ -187,10 +275,10 @@ test('Scape publishes an absent target create-only and rolls it back by exact ow
 	assert.deepEqual(events, ['created']);
 	const primary = new Error('archive closure failed');
 	await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
-	assert.deepEqual(events, ['created', 'deleted-exact']);
+	assert.deepEqual(events, ['created']);
 });
 
-test('Scape preserves project assets when a later writer defeats exact create rollback', async () => {
+test('Scape preserves project assets after committed create-only publication', async () => {
 	const cleanup: string[] = [];
 	const project = { id: 'adopted-project', revision: 0 };
 	const created = structuredClone(project);
@@ -202,7 +290,7 @@ test('Scape preserves project assets when a later writer defeats exact create ro
 		async beginSourceWrite() { throw new Error('unused'); },
 		async beginMediaAssetWrite() { throw new Error('unused'); },
 		async createProjectIfAbsent() { return created; },
-		async deleteProjectIfCurrent() { cleanup.push('project-preserved'); return false; },
+		async deleteProjectIfCurrent() { throw new Error('committed creation cannot be rolled back'); },
 		async saveProject() { throw new Error('ordinary save must not create'); },
 		async deleteProject() { throw new Error('broad delete must not remove an adopted target'); },
 		async discardSourceIfCurrent(source: StorageRecord) { cleanup.push(`source:${source.id}`); return true; },
@@ -214,10 +302,75 @@ test('Scape preserves project assets when a later writer defeats exact create ro
 	await transaction.publishProject(project);
 	const primary = new Error('archive closure failed');
 	await assert.rejects(transaction.rollback(primary), (error: unknown) => error === primary);
-	assert.deepEqual(cleanup, ['project-preserved']);
+	assert.deepEqual(cleanup, []);
 });
 
-test('Scape routes a captured existing target through ordinary repository update', async () => {
+test('Scape preserves project assets when a concurrent creator wins initial publication', async () => {
+	const cleanup: string[] = [];
+	const project = { id: 'concurrent-project', revision: 0 };
+	const store = {
+		async loadProject() { return null; },
+		async listProjectRevisions() { return []; },
+		async getSourceMetadata() { return null; },
+		async getMediaAssetMetadata() { return null; },
+		async beginSourceWrite() { throw new Error('unused'); },
+		async beginMediaAssetWrite() { throw new Error('unused'); },
+		async createProjectIfAbsent() { return null; },
+		async deleteProjectIfCurrent() { throw new Error('an unowned project cannot be deleted'); },
+		async saveProject() { throw new Error('ordinary save must not create'); },
+		async deleteProject() { throw new Error('broad delete must not remove a concurrent target'); },
+		async discardSourceIfCurrent(source: StorageRecord) { cleanup.push(`source:${source.id}`); return true; },
+	};
+	const transaction = new ScapeImportTransaction(store);
+	await transaction.captureProject(project.id);
+	transaction.trackProvisionalSource(sourcePublication('shared-audio'));
+	transaction.trackProvisionalMedia(publication('shared-video', cleanup));
+	let publicationFailure: unknown;
+	try {
+		await transaction.publishProject(project);
+	} catch (error) {
+		publicationFailure = error;
+	}
+	assert.match(String(publicationFailure), /created concurrently/iu);
+	await assert.rejects(transaction.rollback(publicationFailure), (error: unknown) => error === publicationFailure);
+	assert.deepEqual(cleanup, []);
+});
+
+test('Scape preserves project assets when a concurrent replacement wins publication', async () => {
+	const cleanup: string[] = [];
+	const existing = { id: 'concurrent-replacement', revision: 1 };
+	const replacement = { ...existing, revision: 2 };
+	const store = {
+		async loadProject() { return existing; },
+		async listProjectRevisions() { return [{ revision: 1, project: existing }]; },
+		async getSourceMetadata() { return null; },
+		async getMediaAssetMetadata() { return null; },
+		async beginSourceWrite() { throw new Error('unused'); },
+		async beginMediaAssetWrite() { throw new Error('unused'); },
+		async saveProject() { throw new Error('ordinary save must not publish replacement'); },
+		async saveProjectIfCurrent() { return null; },
+		async restoreProjectSnapshotIfCurrent() {
+			throw new Error('a comparison loser did not publish a restorable project');
+		},
+		async deleteProject() { throw new Error('broad delete must not remove a concurrent target'); },
+		async discardSourceIfCurrent(source: StorageRecord) { cleanup.push(`source:${source.id}`); return true; },
+	};
+	const transaction = new ScapeImportTransaction(store);
+	await transaction.captureProject(existing.id);
+	transaction.trackProvisionalSource(sourcePublication('shared-audio'));
+	transaction.trackProvisionalMedia(publication('shared-video', cleanup));
+	let publicationFailure: unknown;
+	try {
+		await transaction.publishProject(replacement);
+	} catch (error) {
+		publicationFailure = error;
+	}
+	assert.match(String(publicationFailure), /changed concurrently/iu);
+	await assert.rejects(transaction.rollback(publicationFailure), (error: unknown) => error === publicationFailure);
+	assert.deepEqual(cleanup, []);
+});
+
+test('Scape routes a captured existing target through exact-current repository update', async () => {
 	const existing = { id: 'existing-project', revision: 1 };
 	const replacement = { id: existing.id, revision: 2 };
 	const events: string[] = [];
@@ -230,7 +383,13 @@ test('Scape routes a captured existing target through ordinary repository update
 		async beginMediaAssetWrite() { throw new Error('unused'); },
 		async createProjectIfAbsent() { throw new Error('updates must not use create-only publication'); },
 		async deleteProjectIfCurrent() { throw new Error('unused'); },
-		async saveProject(value: typeof replacement) { events.push('save'); assert.equal(value, replacement); },
+		async saveProject() { throw new Error('replace imports must not use unconditional publication'); },
+		async saveProjectIfCurrent(expected: typeof existing, value: typeof replacement) {
+			events.push('save-exact');
+			assert.equal(expected, existing);
+			assert.equal(value, replacement);
+			return replacement;
+		},
 		async restoreProjectSnapshotIfCurrent() { throw new Error('completed imports do not roll back'); },
 		async deleteProject() { throw new Error('unused'); },
 		async discardSourceIfCurrent() { return true; },
@@ -239,7 +398,7 @@ test('Scape routes a captured existing target through ordinary repository update
 	await transaction.captureProject(existing.id);
 	await transaction.publishProject(replacement);
 	transaction.complete();
-	assert.deepEqual(events, ['save']);
+	assert.deepEqual(events, ['save-exact']);
 });
 
 function publication(

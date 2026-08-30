@@ -8,6 +8,7 @@ import { DEFAULT_OPFS_WORKER_NAME } from './storage/opfs-sync-worker-client.ts';
 import { admitLocalStoreClear } from './storage/linked-video-original-lifecycle-coordinator.ts';
 import { LinkedOriginalStoreService } from './storage/linked-original-store-service.ts';
 import { createStoreProjectIfAbsent, createStoreScapeProjectIfAbsent, deleteStoreProjectIfCurrent } from './storage/project-create-only-publication.ts';
+import { saveStoreProjectIfCurrent } from './storage/project-conditional-publication.ts';
 import { duplicateStoreProject } from './storage/project-store-defaults.ts';
 import { restoreStoreProjectSnapshot, restoreStoreProjectSnapshotIfCurrent } from './storage/project-snapshot-restore.ts';
 
@@ -125,6 +126,7 @@ export class AudioEditorProjectStore {
 	async saveProject(project, options = {}) {
 		return this.linkedOriginalStoreService.saveProject(this, this.projectRepository, project, options);
 	}
+	saveProjectIfCurrent(expected, project, options = {}) { return saveStoreProjectIfCurrent(this, this.linkedOriginalStoreService, this.projectRepository, expected, project, options); }
 	createProjectIfAbsent(project, options = {}) { return createStoreProjectIfAbsent(this, this.projectRepository, project, options); }
 	createScapeProjectIfAbsent(project, options = {}) { return createStoreScapeProjectIfAbsent(this, this.projectRepository, project, options); }
 	deleteProjectIfCurrent(project) { return deleteStoreProjectIfCurrent(this.linkedOriginalStoreService, this.projectRepository, project); }
