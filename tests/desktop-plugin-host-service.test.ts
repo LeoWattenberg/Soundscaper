@@ -102,6 +102,17 @@ test('plug-in service keeps paths private and isolates one owner plus digest hos
 	}), /opaque plug-in installation ID/iu)
 })
 
+test('a duplicate instantiate refusal leaves the live instance host attached', async () => {
+	const fixture = harness()
+	const request = {
+		installationId: fixture.installation, instanceId: 'duplicate_instance_01', sampleRate: 48_000,
+	}
+	const first = await fixture.service.instantiate(OWNER, request)
+	await assert.rejects(fixture.service.instantiate(OWNER, request), /already active/iu)
+	assert.deepEqual(fixture.killed, [])
+	assert.equal(fixture.service.openVendorUi(OWNER, first.instanceId).status, 'opened')
+})
+
 test('plug-in state is content addressed, survives restore, and supplies exact PDC latency', async () => {
 	const fixture = harness()
 	const instance = await fixture.service.instantiate(OWNER, {

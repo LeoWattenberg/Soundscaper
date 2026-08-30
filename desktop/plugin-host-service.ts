@@ -143,13 +143,11 @@ export class DesktopPluginHostService {
 		})
 		if (acquisition.status !== 'hosted') throw new Error(acquisition.message)
 		const instanceId = acquisition.instance.instanceId
-		if (!this.#isFormatActivated(descriptor.format) || this.#instances.has(instanceId)) {
+		if (!this.#isFormatActivated(descriptor.format)) {
 			this.#isolation.releaseInstance(instanceId)
-			if (!this.#isFormatActivated(descriptor.format)) {
-				throw new Error('That plug-in format activation changed while its host was starting.')
-			}
-			throw new Error('That native plug-in instance is already active.')
+			throw new Error('That plug-in format activation changed while its host was starting.')
 		}
+		if (this.#instances.has(instanceId)) throw new Error('That native plug-in instance is already active.')
 		const latencySamples = latency(descriptor.reportedLatencyFrames ?? 0)
 		const entry: InstanceEntry = {
 			owner,
