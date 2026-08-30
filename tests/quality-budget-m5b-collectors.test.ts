@@ -119,9 +119,7 @@ test('a software renderer cannot satisfy a provisioned hardware-renderer budget'
 	const profileId = 'persistent-services';
 	const measurement = makeMeasurement(profileId);
 	measurement.rendererClass = 'software';
-	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint);
-	const environment = provisioned.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
-	environment.rendererRequirement = 'hardware';
+	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint, 'hardware');
 	measurement.budgetSha256 = m5bQualityBudgetSha256(provisioned);
 	const result = createM5bQualityResult(profileId, measurement, provisioned);
 	assert.notEqual(result.status, 'accepted');
@@ -489,7 +487,11 @@ function nodeCommand(
 	};
 }
 
-function provisionedConfig(profileId: string, fingerprint: unknown): QualityConfig {
+function provisionedConfig(
+	profileId: string,
+	fingerprint: unknown,
+	rendererRequirement?: 'hardware',
+): QualityConfig {
 	const candidate = structuredClone(config) as unknown as Record<string, unknown>;
 	const pipeline = M5B_QUALITY_PIPELINES[profileId as keyof typeof M5B_QUALITY_PIPELINES];
 	const environments = candidate.environments as Array<Record<string, unknown>>;
@@ -497,6 +499,7 @@ function provisionedConfig(profileId: string, fingerprint: unknown): QualityConf
 	environment.status = 'active';
 	environment.qualificationEligible = true;
 	environment.eligibleWorkloadIds = [pipeline.workloadId];
+	if (rendererRequirement !== undefined) environment.rendererRequirement = rendererRequirement;
 	environment.fingerprint = {
 		...(environment.fingerprint as Record<string, unknown>),
 		linuxX64: fingerprint,
