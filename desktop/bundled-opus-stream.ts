@@ -60,16 +60,30 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 	let unsupported: string | null = null;
 
 	while (offset < bytes.byteLength) {
-		if (++pageCount > MAXIMUM_PAGE_COUNT || sawEos || offset + 27 > bytes.byteLength
+		if (sawEos) {
+			if (equalsAt(bytes, offset, CAPTURE)) {
+				throw new BundledOpusStreamUnsupportedError(
+					'Chained Ogg Opus streams are outside the reviewed profile.',
+				);
+			}
+			fail();
+		}
+		if (++pageCount > MAXIMUM_PAGE_COUNT || offset + 27 > bytes.byteLength
 			|| !equalsAt(bytes, offset, CAPTURE) || readByte(bytes, offset + 4) !== 0) fail();
 		const flags = readByte(bytes, offset + 5);
 		if ((flags & ~7) !== 0) fail();
 		const continued = Boolean(flags & 1);
 		const bos = Boolean(flags & 2);
 		const eos = Boolean(flags & 4);
-		if (pageCount === 1 ? !bos || continued || eos : bos) fail();
-		if (continued !== (partial.byteLength > 0)) fail();
 		const pageSerial = readU32(bytes, offset + 14);
+		if (pageCount === 1 && (!bos || continued || eos)) fail();
+		if (pageCount > 1 && bos) {
+			if (pageSerial === serial) fail();
+			throw new BundledOpusStreamUnsupportedError(
+				'Multiplexed Ogg streams are outside the reviewed profile.',
+			);
+		}
+		if (continued !== (partial.byteLength > 0)) fail();
 		const pageSequence = readU32(bytes, offset + 18);
 		if (serial === null) serial = pageSerial;
 		if (pageSerial !== serial || pageSequence !== sequence++) fail();
@@ -78,7 +92,7 @@ export function parseBundledOpusStream(value: unknown): BundledOpusStreamGeometr
 		let bodyBytes = 0;
 		for (let index = 0; index < segmentCount; index++) bodyBytes += readByte(bytes, offset + 27 + index);
 		const pageEnd = offset + 27 + segmentCount + bodyBytes;
-		if (pageEnd > bytes.byteLength || eos !== (pageEnd === bytes.byteLength)) fail();
+		if (pageEnd > bytes.byteLength || !eos && pageEnd === bytes.byteLength) fail();
 		if (readU32(bytes, offset + 22) !== oggPageCrc(bytes.subarray(offset, pageEnd))) fail();
 		const granule = readU64(bytes, offset + 6);
 		let bodyOffset = offset + 27 + segmentCount;

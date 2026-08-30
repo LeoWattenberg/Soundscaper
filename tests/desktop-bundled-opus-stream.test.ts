@@ -84,15 +84,24 @@ test('strict parser keeps incompatible headers and impossible initial granules m
 	);
 });
 
-test('strict parser rejects chained, discontinuous, and checksum-invalid Ogg streams', () => {
+test('strict parser distinguishes chained and multiplexed Ogg streams for provider fallthrough', () => {
 	const chained = concatBytes(
 		opusStream({ channels: 1, frameCount: 648 }),
 		opusStream({ channels: 1, frameCount: 648 }),
 	);
-	const continued = opusStream({ channels: 1, frameCount: 648, firstAudioContinuation: true });
-	for (const malformed of [chained, continued]) {
-		assert.throws(() => parseBundledOpusStream(malformed), BundledOpusStreamError);
+	const first = opusStream({ channels: 1, frameCount: 648 });
+	const second = opusStream({ channels: 1, frameCount: 648 });
+	new DataView(second.buffer).setUint32(14, 0x53434f51, true);
+	new DataView(second.buffer).setUint32(22, oggCrc(second.subarray(0, firstPageLength(second))), true);
+	const multiplexed = concatBytes(first.subarray(0, firstPageLength(first)), second);
+	for (const unsupported of [chained, multiplexed]) {
+		assert.throws(() => parseBundledOpusStream(unsupported), BundledOpusStreamUnsupportedError);
 	}
+});
+
+test('strict parser rejects discontinuous Ogg streams', () => {
+	const continued = opusStream({ channels: 1, frameCount: 648, firstAudioContinuation: true });
+	assert.throws(() => parseBundledOpusStream(continued), BundledOpusStreamError);
 });
 
 function opusStream(options: Readonly<{
