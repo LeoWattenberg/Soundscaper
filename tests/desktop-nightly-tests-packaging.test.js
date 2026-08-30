@@ -163,6 +163,11 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	assert.doesNotMatch(testJob, /workflow_run\.conclusion == 'success'/u);
 	// The packaged commit must be the verified one, not whatever main moved to.
 	assert.match(testJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
+	assert.match(testJob, new RegExp(
+		String.raw`- name: Stage the nightly-with-tests application\s+run: node scripts/desktop-nightly-tests-prepare\.mjs`
+		+ String.raw`\s+env:[\s\S]*?SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}`,
+		'u',
+	), 'the staged manifest must name the same revision that the job checked out');
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
 	assert.equal(testJob.match(/- runner:/gu)?.length, 5);
 	for (const target of [

@@ -39,7 +39,7 @@ function isMainModule() {
 if (isMainModule()) {
 	prepareDesktopNightlyTests({
 		browserSourceRoot: process.env.SOUNDSCAPER_NIGHTLY_TESTS_BROWSERS_PATH,
-		sourceRevision: process.env.GITHUB_SHA || null,
+		sourceRevision: process.env.SOUNDSCAPER_SOURCE_REVISION || process.env.GITHUB_SHA || null,
 		target: {
 			platform: process.env.SOUNDSCAPER_DESKTOP_TARGET_PLATFORM || null,
 			arch: process.env.SOUNDSCAPER_DESKTOP_TARGET_ARCH || null,

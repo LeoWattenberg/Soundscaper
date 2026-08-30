@@ -837,6 +837,7 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       # macOS ships a 256-descriptor soft limit, and signing this bundle walks the
       # whole embedded Playwright browser matrix, so the build dies with EMFILE
