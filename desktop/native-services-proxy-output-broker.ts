@@ -8,13 +8,16 @@ import { isAbsolute, relative, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { assertNativeMediaRelativeDestination } from '../src/common/editor/native-media-atomic-publication.ts';
+import { createNativeMediaPlanEnvelopeV2 } from '../src/common/editor/native-media-plan-envelope-v2.ts';
 import type { NativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
+import { HELPER_DATA_PLANE_MAXIMUM_BYTES } from './helper-data-plane.ts';
+import { framescaperNativeMediaV14ProxyOutputCeiling } from './native-media-v14-helper-adapter.ts';
 import type { FramescaperNativeRootGrant } from './native-services-root-repository.ts';
 
 const JOB_ID = /^[a-f0-9]{40}$/u;
 const CLAIM_ID = /^[a-f0-9]{40}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
-const MAXIMUM_PROXY_BYTES = 512 * 1024 ** 2;
+const MAXIMUM_PROXY_BYTES = HELPER_DATA_PLANE_MAXIMUM_BYTES;
 const MAXIMUM_READ_BYTES = 1024 * 1024;
 export const FRAMESCAPER_NATIVE_PROXY_OUTPUT_MAXIMUM_OPEN_CLAIMS = 8;
 
@@ -76,7 +79,7 @@ export class FramescaperNativeProxyOutputBroker {
 			|| root.grantId !== record.rootGrantId || root.revokedAtMs !== null
 			|| receipt.planFingerprint !== record.planFingerprint
 			|| !Number.isSafeInteger(receipt.byteLength) || receipt.byteLength < 1
-			|| receipt.byteLength > MAXIMUM_PROXY_BYTES || !SHA256.test(receipt.sha256)) {
+			|| receipt.byteLength > proxyOutputCeiling(record) || !SHA256.test(receipt.sha256)) {
 			throw new Error('A published native proxy output lost queue, root, plan, or byte authority.');
 		}
 		const published = Object.freeze({
@@ -227,6 +230,13 @@ export class FramescaperNativeProxyOutputBroker {
 			}
 		}
 	}
+}
+
+function proxyOutputCeiling(record: NativeQueueRecordV3): number {
+	let plan: unknown;
+	try { plan = JSON.parse(record.planPayload) as unknown; }
+	catch { throw new Error('A native proxy queue plan is not JSON.'); }
+	return framescaperNativeMediaV14ProxyOutputCeiling(createNativeMediaPlanEnvelopeV2(plan));
 }
 
 async function digestHandle(handle: FileHandle, byteLength: number): Promise<string> {

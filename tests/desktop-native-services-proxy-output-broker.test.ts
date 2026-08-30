@@ -104,12 +104,30 @@ test('proxy claims deduplicate an owner/job and reserve a bounded concurrent glo
 	}
 });
 
-function record(root: FramescaperNativeRootGrant, relativeDestination: string): NativeQueueRecordV3 {
+test('publication admission accepts outputs within the plan-scaled proxy ceiling', async () => {
+	const root = rootGrant('/private/proxy-root');
+	const running = record(root, 'proxies/long-source.mov', 36_000);
+	const broker = new FramescaperNativeProxyOutputBroker({
+		queueRecord: () => running, rootGrant: () => root, mintClaimId: () => 'ef'.repeat(20),
+	});
+	assert.doesNotThrow(() => broker.recordPublished(running, root, {
+		planFingerprint: running.planFingerprint,
+		byteLength: 513 * 1024 ** 2, sha256: '12'.repeat(32),
+	}));
+	await broker.dispose();
+});
+
+function record(
+	root: FramescaperNativeRootGrant, relativeDestination: string, sourceFrameCount = 10,
+): NativeQueueRecordV3 {
 	const profile = FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE;
 	const project = createFramescaperProjectNativeMedia(profile, framescaperV20Options());
-	const plan = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
+	const created = createFramescaperProjectUnifiedExactRenderPlanNativeMedia(
 		profile, project, createFramescaperNativeRenderPlanAuthorityNativeMedia(project),
 	);
+	const plan = { ...created, sources: created.sources.map((source) => ({
+		...source, timing: { ...source.timing, frameCount: sourceFrameCount },
+	})) };
 	const queued = createNativeQueueRecordV3({
 		schemaFamily: 'framescaper', schemaVersion: 1,
 		jobId: 'ab'.repeat(20), taskKind: 'proxy-generation', plan,

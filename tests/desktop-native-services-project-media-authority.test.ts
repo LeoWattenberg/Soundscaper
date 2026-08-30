@@ -386,6 +386,7 @@ test('the baseline prepares one exact original as a native ProRes Proxy MOV job'
 	const publication = publicationHarness(record, { byteLength: 96, sha256: '34'.repeat(32) });
 	let materializations = 0;
 	let recordedProxyOutput = false;
+	let proxyOutputBytes = 96;
 	const authority = new FramescaperNativeProjectMediaAuthority({
 		project: {
 			...PROJECT_IDENTITY,
@@ -409,7 +410,7 @@ test('the baseline prepares one exact original as a native ProRes Proxy MOV job'
 			executeProxyV14: async (request) => {
 				requests.push(request);
 				await request.sourceBody.materialize('/private/helper/source.media', request.signal);
-				return { planFingerprint: request.envelope.fingerprint, byteLength: 96,
+				return { planFingerprint: request.envelope.fingerprint, byteLength: proxyOutputBytes,
 					sha256: '34'.repeat(32), publication: 'verified-temporary' as const };
 			},
 		},
@@ -440,6 +441,12 @@ test('the baseline prepares one exact original as a native ProRes Proxy MOV job'
 	assert.equal(publication.events.includes('rename'), true);
 	assert.equal(recordedProxyOutput, true);
 	await prepared.cleanup?.('succeeded');
+	proxyOutputBytes = 512 * 1024 ** 2 + 1; publication.events.length = 0; recordedProxyOutput = false;
+	const oversized = await authority.prepare(record, ROOT);
+	const oversizedResult = await oversized.execute!({ signal: new AbortController().signal, onProgress: () => undefined });
+	await assert.rejects(oversized.publish!(oversizedResult), /ceiling/iu);
+	assert.deepEqual(publication.events, []); assert.equal(recordedProxyOutput, false);
+	await oversized.cleanup?.('failed');
 });
 
 function digest(bytes: Uint8Array): string {

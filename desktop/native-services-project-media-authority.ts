@@ -257,6 +257,7 @@ export class FramescaperNativeProjectMediaAuthority {
 			throw new Error('The selected V14 project or source authority changed before execution.');
 		}
 		const proxy = record.taskKind === 'proxy-generation';
+		const proxyOutputCeiling = proxy ? framescaperNativeMediaV14ProxyOutputCeiling(envelope) : null;
 		if (proxy && typeof this.#options.recordProxyOutput !== 'function') {
 			throw new Error('Selected V14 proxy generation requires its pathless completed-output authority.');
 		}
@@ -308,6 +309,9 @@ export class FramescaperNativeProjectMediaAuthority {
 				}),
 			publish: async (result: unknown) => {
 				const execution = v14ExecutionResult(result, record.planFingerprint);
+				if (proxyOutputCeiling !== null && execution.receipt.byteLength > proxyOutputCeiling) {
+					throw new RangeError('The native proxy output exceeds its plan-scaled byte ceiling.');
+				}
 				await publishVerifiedNativeMediaOutput({
 					plan: publication, currentPlanFingerprint: record.planFingerprint, finalized: true,
 					declaredByteLength: execution.receipt.byteLength,
