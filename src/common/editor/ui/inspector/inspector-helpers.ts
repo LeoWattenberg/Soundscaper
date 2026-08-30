@@ -113,7 +113,9 @@ export function secondsInputToFrames(
 	copy: InspectorCopy,
 	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 ): number {
-	const parts = String(value).trim().split(':').map(Number);
+	const text = String(value ?? '').trim();
+	if (!text) throw new RangeError(copy.invalidTimeValue);
+	const parts = text.split(':').map(Number);
 	if (!parts.length || parts.some((part) => !Number.isFinite(part) || part < 0)) {
 		throw new RangeError(copy.invalidTimeValue);
 	}
@@ -122,7 +124,9 @@ export function secondsInputToFrames(
 }
 
 export function nonNegativeFrame(value: unknown, copy: InspectorCopy): number {
-	const frame = Number(value);
+	const text = String(value ?? '').trim();
+	if (!text) throw new RangeError(copy.invalidFrameValue);
+	const frame = Number(text);
 	if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError(copy.invalidFrameValue);
 	return frame;
 }

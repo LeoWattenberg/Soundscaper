@@ -10,6 +10,7 @@ import {
 import {
 	compactFields,
 	macroFileName,
+	nonNegativeFrame,
 	parseJsonChannelMapping,
 	parseJsonObject,
 	secondsInputToFrames,
@@ -18,6 +19,7 @@ import {
 const copy = {
 	channelMatrixRequired: '{label} is required',
 	channelMatrixShape: '{label} has the wrong shape',
+	invalidFrameValue: 'Invalid frame',
 	invalidTimeValue: 'Invalid time',
 	mustBeJsonObject: '{label} must be an object',
 	mustBeValidJson: '{label} must be valid JSON',
@@ -29,6 +31,8 @@ test('Inspector serialization helpers validate boundary input without UI state',
 	assert.deepEqual(compactFields({ title: 'Song', artist: '', year: null, track: 3 }), { title: 'Song', track: 3 });
 	assert.equal(macroFileName('  My noisy / macro  '), 'My-noisy-macro');
 	assert.equal(secondsInputToFrames('1:02.5', copy, 48_000), 3_000_000);
+	assert.throws(() => secondsInputToFrames('   ', copy, 48_000), /Invalid time/u);
+	assert.throws(() => nonNegativeFrame('', copy), /Invalid frame/u);
 	assert.throws(() => parseJsonObject('[]', 'Metadata', copy), /Metadata must be an object/);
 	assert.throws(() => parseJsonChannelMapping('{}', 'Channels', copy), /wrong shape/);
 });

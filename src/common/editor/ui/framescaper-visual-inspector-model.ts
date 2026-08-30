@@ -128,6 +128,7 @@ export function createFramescaperVisualInspectorCommand(
 		});
 	}
 	const existing = existingClipPresentation(project, clipId);
+	const retainedMaskIds = existing?.maskMatteIds.slice(1) ?? [];
 	const presentation = normalizeVideoVisualPresentationV1({
 		...(existing ?? {
 			schemaVersion: 1, id: createStableId('visual-presentation'),
@@ -136,7 +137,9 @@ export function createFramescaperVisualInspectorCommand(
 		}),
 		opacity: finite(draft.opacity, 0, 1, 'visual opacity'),
 		blendMode: blendMode(draft.blendMode),
-		maskMatteIds: maskId === null ? [] : [maskId],
+		maskMatteIds: maskId === null
+			? retainedMaskIds
+			: [maskId, ...retainedMaskIds.filter((id) => id !== maskId)],
 	});
 	if (!same(existing, presentation)) commands.push({
 		type: 'video-visual-presentation/set', presentationId: presentation.id,
@@ -203,7 +206,7 @@ function resizeMask(graph: ReturnType<typeof normalizeVideoMaskMatteGraphV1>, wi
 	return normalizeVideoMaskMatteGraphV1({
 		...graph,
 		nodes: graph.nodes.map((node) => node.id === graph.outputNodeId && node.kind === 'vector-shape'
-			? { ...node, x: 0, width } : node),
+			? { ...node, width } : node),
 	});
 }
 
