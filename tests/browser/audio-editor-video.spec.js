@@ -139,21 +139,26 @@ test.describe('audio editor video composition workflow', () => {
 		const sequenceTimecode = editor.locator('[data-sequence-timecode]');
 		const sequenceTimecodeBeforePlayback = await sequenceTimecode
 			.getAttribute('data-sequence-timecode');
-		const previewTimesBeforePlayback = previewRenderer === 'fallback' ? []
-			: await preview.locator('[data-video-preview-clip]')
-				.evaluateAll((videos) => videos.map((video) => video.currentTime));
+		if (previewRenderer !== 'fallback') {
+			await expect(preview).toHaveAttribute(
+				'data-video-preview-evaluated-timeline-sample', /^\d+$/u,
+			);
+		}
+		const previewSampleBeforePlayback = previewRenderer === 'fallback' ? null
+			: await preview.getAttribute('data-video-preview-evaluated-timeline-sample');
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		const playbackProgress = previewRenderer === 'fallback'
 			// Exact composed identities stay paused and hidden without WebGL2; the
 			// sequence clock remains the authoritative observable for transport.
 			? expect.poll(() => sequenceTimecode.getAttribute('data-sequence-timecode'))
 				.not.toBe(sequenceTimecodeBeforePlayback)
-			: expect.poll(() => preview.locator('[data-video-preview-clip]').evaluateAll(
-				(videos, before) => videos.some((video, index) => (
-					!video.paused || video.currentTime > (before[index] ?? 0) + 0.001
-				)),
-				previewTimesBeforePlayback,
-			), { timeout: 10_000 }).toBe(true);
+			// Active media elements are interval-owned and may leave the DOM before
+			// a loaded Firefox worker observes their transient currentTime. The
+			// compositor's persistent evaluated sample proves the same preview loop
+			// followed the running transport without racing those elements.
+			: expect.poll(() => preview.getAttribute(
+				'data-video-preview-evaluated-timeline-sample',
+			), { timeout: 10_000 }).not.toBe(previewSampleBeforePlayback);
 		await Promise.all([
 			expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible(),
 			playbackProgress,
