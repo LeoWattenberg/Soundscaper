@@ -145,6 +145,12 @@ export async function recoverSoundscaperNativePluginStatesFromAup4(
 		}
 	}
 	const draft = structuredClone(project) as unknown as Record<string, unknown>
+	const draftExtensions = dataRecord(draft.opaqueExtensions, 'project.opaqueExtensions')
+	draft.opaqueExtensions = {
+		...draftExtensions,
+		aup4UnknownNodes: extensionEntries(draftExtensions.aup4UnknownNodes)
+			.filter((entry) => !isOwnedExtension(entry)),
+	}
 	draft.nativePluginStates = parsed.states
 	draft.featureRequirements = reconcileSoundscaperProjectFeatureRequirements(
 		draft,

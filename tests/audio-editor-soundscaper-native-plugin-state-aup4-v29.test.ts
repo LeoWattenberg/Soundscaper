@@ -13,6 +13,7 @@ import { createAup4ProjectTree } from '../src/common/editor/aup4-profile.js'
 import {
 	embedSoundscaperNativePluginStatesInAup4,
 	recoverSoundscaperNativePluginStatesFromAup4,
+	SOUNDSCAPER_AUP4_NATIVE_PLUGIN_STATE_NODE,
 } from '../src/soundscaper/editor-native-plugin-state-aup4.ts'
 import { importSoundscaperAudacityProject } from '../src/soundscaper/editor-audacity-project-import.ts'
 import {
@@ -73,6 +74,13 @@ test('AUP4 V29 deduplicates opaque bodies and restores instances through binary 
 	assert.equal(validateSoundscaperProject(recovered), true)
 	assert.deepEqual(recovered.nativePluginStates, original.nativePluginStates)
 	assert.deepEqual(persisted.get(stateBody.bodyId), bytes)
+	const recoveredExtensions = recovered.opaqueExtensions as Readonly<Record<string, unknown>>
+	const unknownNodes = recoveredExtensions.aup4UnknownNodes as readonly Readonly<Record<string, unknown>>[]
+	assert.equal(unknownNodes.some((entry) => (
+		entry.kind === 'node'
+		&& (entry.node as Readonly<Record<string, unknown>>)?.name
+			=== SOUNDSCAPER_AUP4_NATIVE_PLUGIN_STATE_NODE
+	)), false, 'persisted bodies must not remain duplicated inside the project document')
 })
 
 test('AUP4 V29 refuses missing, drifted, duplicate and ambiguous native-state custody', async () => {
