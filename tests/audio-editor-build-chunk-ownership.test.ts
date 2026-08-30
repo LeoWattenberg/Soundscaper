@@ -98,6 +98,19 @@ test('every local assistance controller module keeps the lazy assistance owner',
 	);
 });
 
+test('optional editor ownership is independent of path separator', () => {
+	for (const [path, owner] of [
+		['src/common/editor/controller/local-assistance-runtime.ts', 'editor-optional-assistance'],
+		['src/common/editor/assistance/local-model.ts', 'editor-optional-assistance'],
+		['src/common/editor/storage/assistance-derivative-repository.ts', 'editor-optional-assistance'],
+		['src/common/editor/ui/local-model-manager-store.ts', 'editor-optional-surfaces'],
+	] as const) {
+		assert.equal(chunkGroupForModulePath(path), owner, path);
+		const windowsPath = path.replaceAll('/', '\\');
+		assert.equal(chunkGroupForModulePath(windowsPath), owner, windowsPath);
+	}
+});
+
 test('every assistance domain module has an owning chunk group', () => {
 	const unowned = assistanceDomainModules()
 		.filter((path) => chunkGroupForModulePath(path) === null);

@@ -74,12 +74,12 @@ export const EDITOR_OPTIONAL_EXPORT_CHUNK_TEST = new RegExp(
 
 /** Stateful assistance workflows loaded only after their menu-owned dialog is invoked. */
 export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:controller[\\/]${editorOptionalAssistanceModule}|assistance[\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\/]assistance-derivative-(?:codec|key-value-port|repository))|src[\\/]soundscaper[\\/]local-assistance-deferred-publication)\\.ts$`,
+	`(?:${editorPath}(?:controller[\\\\/]${editorOptionalAssistanceModule}|assistance[\\\\/](?!${editorEagerAssistanceModule}\\.ts$)[^\\\\/]+|storage[\\\\/]assistance-derivative-(?:codec|key-value-port|repository))|src[\\\\/]soundscaper[\\\\/]local-assistance-deferred-publication)\\.ts$`,
 );
 
 /** Menu-opened UI implementations that remain behind existing React.lazy surfaces. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\/]local-assistance-review-authority\\.ts)$`,
+	`${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts)$`,
 );
 
 /** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
