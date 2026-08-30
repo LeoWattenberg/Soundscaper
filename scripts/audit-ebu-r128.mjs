@@ -66,8 +66,8 @@ function expectationFor(fileName) {
 	if (number === 1) return symmetric('integratedLufs', -23, 0.1);
 	if (number === 2) return symmetric('integratedLufs', -33, 0.1);
 	if (number >= 3 && number <= 6) return symmetric('integratedLufs', -23, 0.1);
-	if (number === 9) return symmetric('shortTermLufs', -23, 0.1);
-	if (number === 12) return symmetric('momentaryLufs', -23, 0.1);
+	if (number === 9) return symmetric('maximumShortTermLufs', -23, 0.1);
+	if (number === 12) return symmetric('maximumMomentaryLufs', -23, 0.1);
 	if (number >= 15 && number <= 18) return { field: 'maximumTruePeakDbtp', expected: -6, plus: 0.2, minus: 0.4 };
 	if (number === 19) return { field: 'maximumTruePeakDbtp', expected: 3, plus: 0.2, minus: 0.4 };
 	if (number >= 20 && number <= 23) return { field: 'maximumTruePeakDbtp', expected: 0, plus: 0.2, minus: 0.4 };
