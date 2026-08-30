@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import {
 	addNode,
 	connect,
@@ -48,7 +49,8 @@ export async function scheduleExactWarpPlayback(
 	const frame = clampFrame(fromFrame, activeWindow.startFrame, activeWindow.endFrame);
 	const nodes: AudioNode[] = [];
 	let masterAnalyser = null;
-	const meterDestination = engine.masterLoudnessMeter?.node || context.destination;
+	const meterDestination = engine.masterLoudnessMeter?.node
+		|| soundscaperNativeAudioDestination(context, context.destination);
 	if (engine.meterListeners.size > 0) {
 		masterAnalyser = createAnalyser(context, nodes);
 		connect(masterAnalyser, meterDestination);
@@ -107,7 +109,8 @@ function scheduleWindow(
 	const source = addNode(transientNodes, context.createBufferSource());
 	prepared.audioBuffer ||= exactAudioBuffer(context, prepared);
 	source.buffer = prepared.audioBuffer;
-	connect(source, graph.masterAnalyser || engine.masterLoudnessMeter?.node || context.destination);
+	connect(source, graph.masterAnalyser || engine.masterLoudnessMeter?.node
+		|| soundscaperNativeAudioDestination(context, context.destination));
 	const wholeLoop = engine.loop.enabled
 		&& prepared.startFrame === engine.loop.startFrame
 		&& prepared.endFrame === engine.loop.endFrame

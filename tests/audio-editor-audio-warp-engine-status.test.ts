@@ -21,6 +21,7 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { ENGINE_SCHEDULE_PLAYBACK } from '../src/common/editor/engine/runtime-symbols.ts';
 import { createAudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
+import { createSoundscaperNativeAudioRenderer } from '../src/common/editor/soundscaper-native-audio-renderer.ts';
 
 test('engine reports the actual realtime and exact-offline warp facilities it owns', async () => {
 	const realtime = createAudioEditorEngine({
@@ -357,6 +358,50 @@ test('scheduled exact warp starts snap into the active loop instead of rejecting
 	await engine.dispose();
 });
 
+test('exact warp playback follows an attached native output route', async () => {
+	const connections: unknown[] = [];
+	const context = audioContext([], [], [], connections);
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context as never,
+		offlineAudioContextFactory: null,
+		audioWarpRealtimeAcceleration: false,
+		softwareRenderer: ({ captureStartFrame, endFrame }) => ({
+			channels: [new Float32Array(Number(endFrame) - Number(captureStartFrame))], sampleRate: 48_000,
+		}),
+	});
+	const nativeWindow = {} as Window;
+	let receive: ((event: Event) => void) | null = null;
+	const device = { connect() {}, disconnect() {} } as AudioNode;
+	const renderer = createSoundscaperNativeAudioRenderer({
+		engine,
+		windowValue: {
+			window: nativeWindow,
+			addEventListener: (_type, listener) => { receive = listener as (event: Event) => void; },
+			removeEventListener() {},
+		} as never,
+		createNode: async () => ({
+			node: device, attach: (_port, value) => value.generation,
+			revoke: () => 1, notifyPeerLoss: () => 1, calibrate: async () => 0, dispose() {},
+		}),
+	});
+	await renderer.prepare('native-output', {
+		candidates: [{ backend: 'alsa', deviceHandle: 'device' }], direction: 'output', mode: 'shared',
+		sampleRate: 48_000, periodFrames: 128, channelCount: 1,
+	});
+	receive?.({
+		source: nativeWindow,
+		data: { type: 'soundscaper-native-realtime-port-v1', offer: {
+			protocolVersion: 1, generation: 1, sampleFormat: 'f32-planar', sampleRate: 48_000,
+			channelCount: 1, frameCount: 128, queueCapacity: 8, startFrame: 0,
+		} }, ports: [{ close() {} }],
+	} as unknown as Event);
+	engine.loadProject(warpProject());
+	await engine.play();
+	assert.strictEqual(connections.at(-1), device);
+	await renderer.dispose();
+	await engine.dispose();
+});
+
 test('play() keeps a cursor parked in the silent editor timeline tail', async () => {
 	const context = audioContext([], []);
 	const engine = createAudioEditorEngine({
@@ -445,11 +490,13 @@ function audioContext(
 	events: string[],
 	played: number[][],
 	scheduledSources: MockScheduledSource[] = [],
+	connections: unknown[] = [],
 ) {
 	return {
 		currentTime: 0,
 		sampleRate: 48_000,
 		destination: { connect() {}, disconnect() {} },
+		createGain: () => ({ gain: { value: 1 }, connect() {}, disconnect() {} }),
 		resume: () => { events.push('resume'); return Promise.resolve(); },
 		close: () => Promise.resolve(),
 		createBuffer: (channels: number, frames: number, sampleRate: number) => {
@@ -468,7 +515,7 @@ function audioContext(
 			loop: false,
 			loopStart: 0,
 			loopEnd: 0,
-			connect() {},
+			connect(destination: unknown) { connections.push(destination); },
 			disconnect() { source.active = false; },
 			start(this: { buffer: { getChannelData(channel: number): Float32Array } | null }, when: number, offset: number) {
 				source.active = true;
