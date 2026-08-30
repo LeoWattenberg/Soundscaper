@@ -2,9 +2,9 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { access, cp, mkdir, mkdtemp, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import { authenticatePluginCandidate } from '../desktop/plugin-candidate-authentication.mjs';
@@ -113,6 +113,33 @@ test('a failed custody removal remains retryable instead of becoming a permanent
 	await snapshot.dispose();
 	assert.equal(removals, 2);
 	await assert.rejects(access(snapshot.path), { code: 'ENOENT' });
+});
+
+test('default snapshot custody canonicalizes the platform temporary-directory alias', async (context) => {
+	const root = await fixture(context);
+	const snapshotParent = join(root, 'canonical-snapshots');
+	const snapshotAlias = join(root, 'aliased-snapshots');
+	const path = join(root, 'effect.clap');
+	await mkdir(snapshotParent);
+	await symlink(snapshotParent, snapshotAlias, process.platform === 'win32' ? 'junction' : 'dir');
+	await writeFile(path, 'reviewed module');
+	const expected = await authenticatePluginCandidate(path);
+	const temporaryDirectoryVariable = process.platform === 'win32' ? 'TEMP' : 'TMPDIR';
+	const previousTemporaryDirectory = process.env[temporaryDirectoryVariable];
+	process.env[temporaryDirectoryVariable] = snapshotAlias;
+	let snapshot;
+	try {
+		snapshot = await snapshotAuthenticatedPluginCandidate(path, expected);
+	} finally {
+		if (previousTemporaryDirectory === undefined) delete process.env[temporaryDirectoryVariable];
+		else process.env[temporaryDirectoryVariable] = previousTemporaryDirectory;
+	}
+	assert.equal(dirname(dirname(snapshot.path)), snapshotParent);
+	assert.equal(snapshot.path, await realpath(snapshot.path));
+	await snapshot.dispose();
+	await assert.rejects(() => snapshotAuthenticatedPluginCandidate(path, expected, {
+		snapshotParent: snapshotAlias,
+	}), /snapshot parent must remain canonical/iu);
 });
 
 async function fixture(context) {
