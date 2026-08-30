@@ -154,22 +154,28 @@ export function createFramescaperWebVcrTargetObserverV1(
 			if (navigationGeneration !== lastNavigationGeneration) {
 				lastNavigationGeneration = navigationGeneration;
 				lastSequence = 0;
+				identities.clear();
 			}
 			if (observation.sequence <= lastSequence) return;
 			lastSequence = observation.sequence;
+			const liveIdentityKeys = new Set<string>();
 			const candidates = observation.candidates.map((candidate) => Object.freeze({
 				...candidate,
-				targetId: identityFor(navigationGeneration, candidate.slot, candidate.generation),
+				targetId: identityFor(
+					navigationGeneration, candidate.slot, candidate.generation, liveIdentityKeys,
+				),
 			}));
 			const endedTarget = observation.ended === null ? null : Object.freeze({
 				targetId: identityFor(
 					navigationGeneration,
 					observation.ended.slot,
 					observation.ended.generation,
+					liveIdentityKeys,
 				),
 				generation: observation.ended.generation,
 				endedRecordingToken: observation.ended.recordingToken,
 			});
+			pruneIdentities(liveIdentityKeys);
 			options.onObservation(Object.freeze({
 				navigationGeneration,
 				selection: selectWebVcrTarget({ viewport: options.viewport, candidates }),
@@ -244,18 +250,27 @@ export function createFramescaperWebVcrTargetObserverV1(
 		dispose: disposeObserver,
 	});
 
-	function identityFor(navigation: number, slot: number, generation: number): string {
+	function identityFor(
+		navigation: number,
+		slot: number,
+		generation: number,
+		liveIdentityKeys: Set<string>,
+	): string {
 		const key = `${String(navigation)}:${String(slot)}:${String(generation)}`;
+		liveIdentityKeys.add(key);
 		let identity = identities.get(key);
 		if (!identity) {
 			identity = opaqueId(options.createOpaqueId());
 			identities.set(key, identity);
-			if (identities.size > MAX_CANDIDATES * 4) {
-				const oldest = identities.keys().next().value as string | undefined;
-				if (oldest) identities.delete(oldest);
-			}
 		}
 		return identity;
+	}
+
+	function pruneIdentities(liveIdentityKeys: ReadonlySet<string>): void {
+		for (const key of identities.keys()) {
+			if (identities.size <= MAX_CANDIDATES * 4) return;
+			if (!liveIdentityKeys.has(key)) identities.delete(key);
+		}
 	}
 
 	function disposeObserver(): void {
