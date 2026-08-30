@@ -290,15 +290,6 @@ export function createEditorVideoExportAction(
 			if (directPreparation.cancelled) return directPreparation.cancelled;
 			assertVideoExportCurrent();
 			pendingDirectDestination = directPreparation.destination;
-			const rawVideoBytes = plan.inputs
-				.filter((input: RuntimeValue) => input.kind === 'video-source')
-				.reduce((total: RuntimeValue, input: RuntimeValue) => {
-					const source = findSource(exportProject, input.sourceId);
-					return total + Math.max(0, Number(source?.opaqueExtensions?.byteLength) || 0);
-				}, 0);
-			await preflightStorage(Math.max(rawVideoBytes, 16 * 1024 * 1024), 'export');
-			setStatus(copy.rendering);
-			progressTask.setPhase(copy.rendering, { start: 0, end: 0.4, value: 0 });
 			const videoBlobs = new Map();
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
 				throwIfAborted(abort.signal);
@@ -319,6 +310,11 @@ export function createEditorVideoExportAction(
 				);
 				videoBlobs.set(input.sourceId, blob);
 			}
+			const rawVideoBytes = [...videoBlobs.values()]
+				.reduce((total, blob) => total + blob.size, 0);
+			await preflightStorage(Math.max(rawVideoBytes, 16 * 1024 * 1024), 'export');
+			setStatus(copy.rendering);
+			progressTask.setPhase(copy.rendering, { start: 0, end: 0.4, value: 0 });
 			let audioMixBlob = null;
 			if (includeAudio) {
 				const range = {

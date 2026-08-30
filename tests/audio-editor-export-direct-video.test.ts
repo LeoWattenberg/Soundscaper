@@ -20,7 +20,7 @@ const DESKTOP_VIDEO_EXPORT_CAPABILITIES = Object.freeze({
 
 test('desktop composed video export streams exact MP4 and WebM outputs directly', async () => {
 	for (const format of ['mp4', 'webm'] as const) {
-		const fixture = createDesktopFixture({ format });
+		const fixture = createDesktopFixture({ format, multiSource: true });
 		const result = await fixture.exportVideo({ format: `video-${format}` });
 
 		assert.deepEqual(result, {
@@ -30,7 +30,8 @@ test('desktop composed video export streams exact MP4 and WebM outputs directly'
 			size: 4,
 			method: 'desktop',
 		});
-		assertOrder(fixture.events, ['plan', 'preflight', 'load', 'render-audio', 'encode-sink']);
+		assertOrder(fixture.events, ['plan', 'load', 'preflight', 'render-audio', 'encode-sink']);
+		assert.deepEqual(fixture.preflights, [2 * (8 * 1024 * 1024 + 1)]);
 		assertOrder(fixture.events, [
 			'encode-sink', 'prepare', 'open:4:exact', 'write:2', 'write:2', 'seal', 'commit',
 		]);
@@ -55,7 +56,7 @@ test('desktop video export selects its target only from sink open after FFmpeg s
 	const result = await fixture.exportVideo();
 
 	assert.equal(result?.method, 'desktop');
-	assertOrder(fixture.events, ['plan', 'preflight', 'load', 'render-audio', 'encode-sink', 'prepare', 'open:4:exact']);
+	assertOrder(fixture.events, ['plan', 'load', 'preflight', 'render-audio', 'encode-sink', 'prepare', 'open:4:exact']);
 	assert.equal(fixture.events.filter((event) => event === 'prepare').length, 1);
 	assert.equal(fixture.events.includes('download'), false);
 });
@@ -287,6 +288,7 @@ interface FixtureOptions {
 	readonly emittedByteLength?: number;
 	readonly format?: Format;
 	readonly invalidPlan?: 'legacy' | 'alias' | 'underspecified';
+	readonly multiSource?: boolean;
 	readonly onCommit?: () => void;
 	readonly prepared?: Readonly<Record<string, unknown>>;
 	readonly priorOutput?: boolean;
@@ -302,12 +304,17 @@ function createFixture(options: FixtureOptions = {}) {
 	const statuses: Array<[string, unknown]> = [];
 	const prepareRequests: Array<Record<string, unknown>> = [];
 	const downloads: Array<Record<string, unknown>> = [];
+	const preflights: number[] = [];
 	const encodedVideoBlobs = new Map<string, Blob>();
 	const verifiedFallbackBlob = new Blob([Uint8Array.of(7, 8, 9)], { type: 'video/mp4' });
-	const ordinaryVideoBlob = new Blob([Uint8Array.of(1, 2, 3)], { type: 'video/mp4' });
+	const ordinaryVideoBlob = new Blob([new Uint8Array(options.multiSource ? 8 * 1024 * 1024 + 1 : 3)], { type: 'video/mp4' });
 	const canonical = project(false);
 	const projected = project(true);
 	const plan = videoPlan(format, options.renderedFallback ? 'fallback-video' : 'original-video');
+	if (options.multiSource) plan.inputs.splice(1, 0, {
+		kind: 'video-source', inputIndex: 1, sourceId: 'second-video', storageKey: 'second-video-storage', mimeType: 'video/mp4',
+	});
+	if (options.multiSource) { plan.inputs[2]!.inputIndex = 2; plan.filterPlan.audio.inputIndex = 2; }
 	if (options.captionSidecar) {
 		plan.captions = { trackId: 'caption-track', sidecarFormat: 'vtt' };
 	}
@@ -419,7 +426,7 @@ function createFixture(options: FixtureOptions = {}) {
 				return renderedFallbackProjection(projected);
 			},
 		} : undefined,
-		preflightStorage() { events.push('preflight'); },
+		preflightStorage(bytes: number) { events.push('preflight'); preflights.push(bytes); },
 		projectGeneration: { capture: () => 'token', assertCurrent() {} },
 		projectSampleRate: () => 48_000,
 		publishDocumentSnapshot() {},
@@ -444,11 +451,10 @@ function createFixture(options: FixtureOptions = {}) {
 		return { sampleRate: 48_000, channels: [Float32Array.of(0), Float32Array.of(0)] };
 	};
 	return {
-		events, errors, statuses, prepareRequests, downloads, encodedVideoBlobs, verifiedFallbackBlob, state,
+		events, errors, statuses, prepareRequests, downloads, preflights, encodedVideoBlobs, verifiedFallbackBlob, state,
 		exportVideo: createEditorVideoExportAction(runtime, renderSnapshot),
 	};
 }
-
 function createDesktopFixture(options: Omit<FixtureOptions, 'desktop'> = {}) {
 	return createFixture({ ...options, desktop: true });
 }
