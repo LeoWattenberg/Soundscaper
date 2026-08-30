@@ -492,7 +492,7 @@ function orderedVideoTrackClips(track, clipById) {
 	)).sort(compareVideoClips);
 }
 
-function isProductVisualClip(clip) {
+export function isProductVisualClip(clip) {
 	return clip?.kind === 'still' || clip?.kind === 'generator' || clip?.kind === 'image';
 }
 

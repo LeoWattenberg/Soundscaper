@@ -39,6 +39,18 @@ test('a stated canvas still reports the reference the project resolved it agains
 	assert.equal(canvas.referenceSourceId, 'source-1');
 });
 
+test('canvas derivation skips product visual clips on a mixed video track', () => {
+	const mixed = project();
+	mixed.clips.unshift({
+		kind: 'still', id: 'still-clip', sourceId: 'still-source', title: 'Still',
+		timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 1_000, durationFrames: 1_000,
+	});
+	mixed.tracks[0].clipIds.unshift('still-clip');
+	const canvas = resolveVideoExportCanvas(mixed, {});
+	assert.equal(canvas.referenceClipId, 'clip-1');
+	assert.equal(canvas.referenceSourceId, 'source-1');
+});
+
 test('an odd or oversized canvas extent is a refusal at plan build, never an encoder surprise', () => {
 	assert.throws(
 		() => resolveVideoExportCanvas(project(), { size: { width: 1_081, height: 1_920 } }),

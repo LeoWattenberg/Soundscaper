@@ -1,6 +1,7 @@
 import { compareCodeUnits } from './code-unit-order.ts';
 import {
 	createVisibleVideoTrackPredicate,
+	isProductVisualClip,
 	resolveVideoCompositionIntervals,
 	videoClipEndFrame,
 } from './video-timeline.js';
@@ -454,6 +455,7 @@ function firstVisibleTimelineVideo(project, options) {
 		for (const clipId of track.clipIds || []) {
 			const clip = clipById.get(clipId);
 			if (!clip) throw new ReferenceError(`Video track ${track.id} references missing clip ${clipId}.`);
+			if (isProductVisualClip(clip)) continue;
 			if (clip.kind !== 'video') throw new TypeError(`Video track ${track.id} contains non-video clip ${clip.id}.`);
 			if (range && (
 				videoClipEndFrame(clip) <= range.startFrame
