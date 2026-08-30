@@ -27,7 +27,12 @@ const FRAMESCAPER_IMAGE_SEQUENCE_SOURCE_PACK_FIELDS = Object.freeze([
 ]);
 
 export function collectProjectSourceIds(project, target = new Set()) {
-	if (!isFoundationProjectSchema(project)) return target;
+	if (!isFoundationProjectSchema(project)) {
+		for (const source of Array.isArray(project?.sources) ? project.sources : []) {
+			if (typeof source?.id === 'string' && source.id) target.add(source.id);
+		}
+		return target;
+	}
 	const clips = [
 		...(project?.clips || []),
 		...(project?.projectBin?.clips || []),
@@ -324,6 +329,7 @@ export function collectHistorySourceIds(history, target = new Set()) {
  */
 export function compactProjectSourceMetadata(project, { preserveSourceIds = [] } = {}) {
 	if (!project || !Array.isArray(project.sources) || !Array.isArray(project.clips)) return project;
+	if (!isFoundationProjectSchema(project)) return project;
 	const retained = collectProjectSourceIds(project);
 	for (const sourceId of preserveSourceIds) if (sourceId) retained.add(sourceId);
 	const sources = project.sources.filter((source) => retained.has(source?.id));

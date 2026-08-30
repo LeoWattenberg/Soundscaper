@@ -71,7 +71,7 @@ test('current take-only sources root logical metadata and physical storage throu
 	assert.deepEqual(project, original);
 });
 
-test('take source collection deduplicates current roots without traversing unsupported identities', () => {
+test('take source collection deduplicates current roots and preserves unsupported inventories', () => {
 	const current = {
 		...currentLikeProject(),
 		clips: [{ id: 'clip', sourceId: 'take-only-source', kind: 'audio' as const }],
@@ -101,14 +101,21 @@ test('take source collection deduplicates current roots without traversing unsup
 		schemaVersion: 2,
 		clips: [],
 	};
-	assert.deepEqual([...collectProjectSourceIds(later)], []);
+	assert.deepEqual([...collectProjectSourceIds(later)], [
+		'take-only-source', 'unreferenced-source',
+	]);
+	assert.deepEqual([...collectProjectStorageKeys(later)], [
+		'take-only-source-storage', 'unreferenced-storage',
+	]);
 
 	const preTakeComp = {
 		...current,
 		schemaVersion: AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION - 1,
 		clips: [],
 	};
-	assert.deepEqual([...collectProjectSourceIds(preTakeComp)], []);
+	assert.deepEqual([...collectProjectSourceIds(preTakeComp)], [
+		'take-only-source', 'unreferenced-source',
+	]);
 });
 
 test('live linked-original references include audio take sources across every history snapshot', () => {
