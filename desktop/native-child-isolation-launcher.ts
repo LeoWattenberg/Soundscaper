@@ -21,6 +21,7 @@ import {
 	canonicalNativeChildFileIdentity,
 	nativeChildFileIdentityFromStat,
 } from './native-child-file-identity.ts';
+import { nativeChildLauncherEnvironment } from './native-child-launcher-environment.ts';
 import type {
 	EnforcedNativeChildLaunch,
 	NativeChildIsolationArtifactDescriptor,
@@ -222,7 +223,7 @@ async function launchTargetChild(options: Readonly<{
 			? `/proc/self/fd/${String(launcherFd)}` : options.artifacts.launcher.path;
 		child = options.spawn(command, arguments_, {
 			stdio, shell: false, windowsHide: true,
-			env: { LANG: 'C', LC_ALL: 'C', PATH: '', HOME: '/nonexistent' },
+			env: nativeChildLauncherEnvironment(options.target),
 		});
 		const processBinding = bindNativeChildProcess(child, request.framedControl);
 		completion = options.target.startsWith('linux-') ? processBinding.completion
