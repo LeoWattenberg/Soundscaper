@@ -71,6 +71,8 @@ test('observer installs only a fixed isolated-world binding and maps targets to 
 	assert.match(String(trackerSource), /parts\.length > 2|manualFallbackReason: 'canvas-player'/u);
 	assert.match(String(trackerSource), /hasTransformedAncestor|current = current\.parentElement/u);
 	assert.match(String(trackerSource), /clipRect: clip/u);
+	assert.match(String(trackerSource), /candidateGeometryWithinBounds/u);
+	assert.match(String(trackerSource), /intrinsic\.width <= 16_384|component\.fraction >= -4/u);
 	assert.match(String(trackerSource), /recordingToken: activeRecordingToken/u);
 	assert.doesNotMatch(JSON.stringify(commands), /executeScript|evaluate\b/iu);
 	for (const listener of listeners) listener({}, 'Runtime.executionContextCreated', {

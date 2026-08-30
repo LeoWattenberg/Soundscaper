@@ -110,6 +110,17 @@ export const FRAMESCAPER_WEB_VCR_TARGET_TRACKER_SOURCE = String.raw`(() => {
 		const y = position(second);
 		return x && y ? { x, y } : null;
 	};
+	const boundedRect = (rect) => [rect.x, rect.y, rect.width, rect.height].every(Number.isFinite)
+		&& rect.x >= -32_768 && rect.x <= 32_768 && rect.y >= -32_768 && rect.y <= 32_768
+		&& rect.width > 0 && rect.width <= 32_768 && rect.height > 0 && rect.height <= 32_768;
+	const candidateGeometryWithinBounds = (elementRect, clipRect, intrinsic, position) =>
+		boundedRect(elementRect) && boundedRect(clipRect)
+		&& Number.isInteger(intrinsic.width) && intrinsic.width > 0 && intrinsic.width <= 16_384
+		&& Number.isInteger(intrinsic.height) && intrinsic.height > 0 && intrinsic.height <= 16_384
+		&& [position.x, position.y].every((component) => Number.isFinite(component.fraction)
+			&& component.fraction >= -4 && component.fraction <= 4
+			&& Number.isFinite(component.offsetPixels)
+			&& component.offsetPixels >= -16_384 && component.offsetPixels <= 16_384);
 	const publish = (ended = null) => {
 		const candidates = [];
 		for (const video of Array.from(document.querySelectorAll('video')).slice(0, 16)) {
@@ -118,38 +129,43 @@ export const FRAMESCAPER_WEB_VCR_TARGET_TRACKER_SOURCE = String.raw`(() => {
 			if (!rect) continue;
 			const clip = visibleClip(video, rect);
 			if (!clip) continue;
-			const mediaIdentity = identity(video);
 			const parsedPosition = objectPosition(style.objectPosition);
+			const resolvedPosition = parsedPosition || {
+				x: { fraction: 0.5, offsetPixels: 0 }, y: { fraction: 0.5, offsetPixels: 0 },
+			};
+			const intrinsic = { width: video.videoWidth || 1, height: video.videoHeight || 1 };
+			if (!candidateGeometryWithinBounds(rect, clip, intrinsic, resolvedPosition)) continue;
+			const mediaIdentity = identity(video);
 			const transformed = hasTransformedAncestor(video);
 			candidates.push({
 				slot: mediaIdentity.slot, generation: mediaIdentity.generation,
 				mediaState: video.ended ? 'ended' : video.paused ? 'paused' : 'playing',
 				elementRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
 				clipRect: clip,
-				intrinsicSize: { width: video.videoWidth || 1, height: video.videoHeight || 1 },
+				intrinsicSize: intrinsic,
 				objectFit: ['fill', 'contain', 'cover', 'none', 'scale-down'].includes(style.objectFit)
 					? style.objectFit : 'contain',
-				objectPosition: parsedPosition || {
-					x: { fraction: 0.5, offsetPixels: 0 }, y: { fraction: 0.5, offsetPixels: 0 },
-				},
+				objectPosition: resolvedPosition,
 				manualFallbackReason: transformed || !parsedPosition ? 'unsupported-transform' : null,
 			});
 		}
 		if (candidates.length === 0) {
-			const canvas = Array.from(document.querySelectorAll('canvas')).slice(0, 16)
-				.find((element) => visibleClip(element, element.getBoundingClientRect()));
-			if (canvas) {
+			for (const canvas of Array.from(document.querySelectorAll('canvas')).slice(0, 16)) {
 				const rect = canvas.getBoundingClientRect();
 				const clip = visibleClip(canvas, rect);
+				const intrinsic = { width: canvas.width || 1, height: canvas.height || 1 };
+				const position = {
+					x: { fraction: 0.5, offsetPixels: 0 }, y: { fraction: 0.5, offsetPixels: 0 },
+				};
+				if (!clip || !candidateGeometryWithinBounds(rect, clip, intrinsic, position)) continue;
 				const mediaIdentity = identity(canvas);
 				candidates.push({
 					slot: mediaIdentity.slot, generation: mediaIdentity.generation, mediaState: 'playing',
 					elementRect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-					clipRect: clip, intrinsicSize: { width: canvas.width || 1, height: canvas.height || 1 },
-					objectFit: 'fill', objectPosition: {
-						x: { fraction: 0.5, offsetPixels: 0 }, y: { fraction: 0.5, offsetPixels: 0 },
-					}, manualFallbackReason: 'canvas-player',
+					clipRect: clip, intrinsicSize: intrinsic,
+					objectFit: 'fill', objectPosition: position, manualFallbackReason: 'canvas-player',
 				});
+				break;
 			}
 		}
 		try { binding(JSON.stringify({ version: 1, sequence: ++sequence, candidates, ended })); } catch {}
