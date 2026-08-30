@@ -41,6 +41,11 @@ interface PlanAuthority {
 	readonly exportProject: Readonly<Record<string, unknown>>;
 }
 
+interface ExportAuthority {
+	readonly canonicalProject: Readonly<Record<string, unknown>>;
+	readonly canonicalProjection: Readonly<Record<string, unknown>>;
+}
+
 const DEFAULT_DEPENDENCIES: SoundscaperVideoExportStrategyDependencies = Object.freeze({
 	encodeOffline: encodeVideoKeyframeOfflineVideo,
 	encodeOfflineToSink: encodeVideoKeyframeOfflineVideoToSink as OfflineSinkEncoder,
@@ -65,27 +70,30 @@ export function createSoundscaperVideoExportStrategy(
 		throw new TypeError('Soundscaper baseline video export requires selected runtime projection authority.');
 	}
 	const dependencies = snapshotDependencies(dependenciesValue);
-	const exportAuthorities = new WeakMap<object, Readonly<Record<string, unknown>>>();
+	const exportAuthorities = new WeakMap<object, ExportAuthority>();
 	const planAuthorities = new WeakMap<object, PlanAuthority>();
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
-			assertFallbackFreeDelivery(request.delivery);
-			const detached = runtime.cloneProject(request.canonicalProject);
+			const deliveryProject = assertFallbackFreeDelivery(request.delivery);
+			const canonicalProjection = createDetachedExportProject(runtime, request.canonicalProject);
+			const detached = runtime.cloneProject(deliveryProject);
 			const projection = runtime.projectForRuntimeConsumers(detached);
 			const exportProject = freezeExportProject(projectTrackFolderMediaStateV12(projection));
-			exportAuthorities.set(exportProject, request.canonicalProject);
+			exportAuthorities.set(exportProject, Object.freeze({
+				canonicalProject: request.canonicalProject,
+				canonicalProjection,
+			}));
 			return exportProject;
 		},
 		createPlan(request: ProductVideoExportStrategyPlanRequest) {
-			if (exportAuthorities.get(request.exportProject) !== request.canonicalProject) {
+			const authority = exportAuthorities.get(request.exportProject);
+			if (!authority || authority.canonicalProject !== request.canonicalProject) {
 				throw new TypeError('The Soundscaper baseline export projection is not owned by its exact canonical project.');
 			}
-			const detached = runtime.cloneProject(request.canonicalProject);
-			const projection = runtime.projectForRuntimeConsumers(detached);
 			assertSameData(
-				request.exportProject,
-				projectTrackFolderMediaStateV12(projection),
-				'Soundscaper baseline export projection',
+				authority.canonicalProjection,
+				createDetachedExportProject(runtime, request.canonicalProject),
+				'Soundscaper baseline canonical snapshot',
 			);
 			const plan = createSoundscaperVideoKeyframeExportPlan(runtime, request.canonicalProject, {
 				format: request.format, range: request.range, includeAudio: request.includeAudio,
@@ -129,14 +137,25 @@ function ownedPlan(
 	return request.plan;
 }
 
-function assertFallbackFreeDelivery(delivery: ProductVideoExportProjectRequest['delivery']): void {
+function assertFallbackFreeDelivery(
+	delivery: ProductVideoExportProjectRequest['delivery'],
+): Readonly<Record<string, unknown>> {
 	if (dataProperty(delivery, 'audioRenderedFallback') !== null
 		|| dataProperty(delivery, 'videoRenderedFallback') !== null
 		|| !emptyArray(dataProperty(delivery, 'requiredAudioSourceIds'))
 		|| !emptyArray(dataProperty(delivery, 'requiredVideoSourceIds'))) {
 		throw new Error('Soundscaper baseline keyed video export refuses a rendered-fallback delivery projection.');
 	}
-	dataRecord(dataProperty(delivery, 'project'), 'Soundscaper baseline delivery project');
+	return dataRecord(dataProperty(delivery, 'project'), 'Soundscaper baseline delivery project');
+}
+
+function createDetachedExportProject(
+	runtime: Pick<ControllerProjectRuntime, 'cloneProject' | 'projectForRuntimeConsumers'>,
+	project: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+	const detached = runtime.cloneProject(project);
+	const projection = runtime.projectForRuntimeConsumers(detached);
+	return freezeExportProject(projectTrackFolderMediaStateV12(projection));
 }
 
 function offlineRequest(

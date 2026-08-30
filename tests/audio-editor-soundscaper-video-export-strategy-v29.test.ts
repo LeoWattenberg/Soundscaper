@@ -98,6 +98,35 @@ test('Soundscaper V29 keyed strategy refuses a stale export projection after can
 	}), /diverge|stale|snapshot/iu);
 });
 
+test('Soundscaper V29 keyed strategy renders the delivery effect-bypass projection', () => {
+	const options = framescaperV20Options();
+	const audioTrack = (options.tracks as Record<string, unknown>[])[1]!;
+	audioTrack.effects = [{
+		id: 'audio-limiter', type: 'limiter', enabled: true, bypassed: false,
+		params: { ceiling: -1, lookahead: 0.005, release: 0.1 },
+	}];
+	const project = createSoundscaperProject(options as never);
+	const deliveryProject = structuredClone(project);
+	const deliveredTrack = deliveryProject.tracks.find(({ id }) => id === 'audio-track')!;
+	if (deliveredTrack.type !== 'audio') throw new Error('Expected the audio fixture track.');
+	deliveredTrack.effects[0] = { ...deliveredTrack.effects[0]!, bypassed: true, params: {} };
+	const strategy = createSoundscaperVideoExportStrategy(
+		createSoundscaperProjectRuntimeSelection(), dependencies(),
+	);
+
+	const exportProject = strategy.createExportProject({
+		canonicalProject: project, delivery: fallbackFreeDelivery(deliveryProject),
+	});
+	const exportedTrack = (exportProject.tracks as readonly Readonly<Record<string, unknown>>[])
+		.find(({ id }) => id === 'audio-track')!;
+	const exportedEffect = (exportedTrack.effects as readonly Readonly<Record<string, unknown>>[])[0]!;
+	assert.equal(exportedEffect.bypassed, true);
+	assert.doesNotThrow(() => strategy.createPlan({
+		canonicalProject: project, exportProject, format: 'webm', range: 'project',
+		includeAudio: true, canvas: undefined,
+	}));
+});
+
 test('Soundscaper V29 controller strategy is desktop-only', () => {
 	const runtime = createSoundscaperProjectRuntimeSelection();
 	assert.equal(createSoundscaperDesktopVideoExportStrategy(runtime, { isDesktop: false }), undefined);
