@@ -12,6 +12,7 @@ import {
 export const PROFESSIONAL_NATIVE_UTILITY_SMOKE_PREFIX =
 	'SOUNDSCAPER_PROFESSIONAL_NATIVE_UTILITY_SMOKE ';
 const MAXIMUM_UTILITY_DIAGNOSTIC_BYTES = 4 * 1024;
+const MAXIMUM_UTILITY_DIAGNOSTIC_CAPTURE_BYTES = 64 * 1024;
 const MAXIMUM_UTILITY_FAILURE_BYTES = 16 * 1024;
 const UTILITY_DIAGNOSTIC_DRAIN_TIMEOUT_MS = 250;
 const ANSI_ESCAPE_SEQUENCE = new RegExp(String.raw`\u001b\[[\d;?]*[ -/]*[@-~]`, 'gu');
@@ -105,8 +106,9 @@ function utilityResult(child, timeoutMs, target) {
 }
 
 function captureUtilityDiagnostics(child) {
-	const stdout = captureDiagnosticStream(child?.stdout);
-	const stderr = captureDiagnosticStream(child?.stderr);
+	const secrets = sensitiveEnvironmentSecrets(process.env);
+	const stdout = captureDiagnosticStream(child?.stdout, secrets);
+	const stderr = captureDiagnosticStream(child?.stderr, secrets);
 	return Object.freeze({
 		close() { stdout.close(); stderr.close(); },
 		async drain() {
@@ -129,18 +131,23 @@ function captureUtilityDiagnostics(child) {
 	});
 }
 
-function captureDiagnosticStream(stream) {
+function captureDiagnosticStream(stream, secrets) {
+	const captureBytes = diagnosticCaptureBytes(secrets);
 	let bytes = Buffer.alloc(0);
+	let truncated = false;
 	let resolveDrained;
 	const drained = !stream || stream.readableEnded === true || stream.destroyed === true
 		? Promise.resolve()
 		: new Promise((resolvePromise) => { resolveDrained = resolvePromise; });
 	const onData = (value) => {
+		if (captureBytes === 0) return;
 		const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
-		const tail = chunk.subarray(Math.max(0, chunk.byteLength - MAXIMUM_UTILITY_DIAGNOSTIC_BYTES));
+		const tail = chunk.subarray(Math.max(0, chunk.byteLength - captureBytes));
+		if (tail.byteLength !== chunk.byteLength) truncated = true;
 		bytes = Buffer.concat([bytes, tail]);
-		if (bytes.byteLength > MAXIMUM_UTILITY_DIAGNOSTIC_BYTES) {
-			bytes = bytes.subarray(bytes.byteLength - MAXIMUM_UTILITY_DIAGNOSTIC_BYTES);
+		if (bytes.byteLength > captureBytes) {
+			truncated = true;
+			bytes = bytes.subarray(bytes.byteLength - captureBytes);
 		}
 	};
 	const onDrained = () => { resolveDrained?.(); };
@@ -159,23 +166,97 @@ function captureDiagnosticStream(stream) {
 			stream.off('error', onDrained);
 		},
 		drained,
-		read() { return safeDiagnosticText(bytes.toString('utf8')); },
+		read() {
+			if (captureBytes === 0) return '';
+			const completeLines = truncated ? discardLeadingPartialLine(bytes) : bytes;
+			const redacted = redactCapturedEnvironmentSecrets(completeLines, secrets);
+			return safeDiagnosticText(redacted.toString('utf8'), secrets);
+		},
 	});
 }
 
-function safeDiagnosticText(value) {
+function safeDiagnosticText(value, secrets = sensitiveEnvironmentSecrets(process.env)) {
 	if (typeof value !== 'string' || value === '') return '';
 	let output = value
 		.replaceAll(ANSI_ESCAPE_SEQUENCE, '')
 		.replaceAll(UNSAFE_CONTROL_CHARACTER, '')
 		.replaceAll(/(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+/giu, '$1[REDACTED]')
 		.replaceAll(/\b(?:github_pat_|gh[pousr]_)[A-Za-z\d_]+\b/gu, '[REDACTED]');
-	for (const [name, secret] of Object.entries(process.env)) {
-		if (!/(?:token|secret|password|passwd|credential|authorization|cookie|private[_-]?key)/iu
-			.test(name) || typeof secret !== 'string' || secret.length < 4) continue;
+	for (const secret of secrets) {
 		output = output.replaceAll(secret, '[REDACTED]');
 	}
 	return boundedUtf8Tail(output.trim(), MAXIMUM_UTILITY_DIAGNOSTIC_BYTES);
+}
+
+function sensitiveEnvironmentSecrets(environment) {
+	const secrets = new Set();
+	for (const [name, secret] of Object.entries(environment ?? {})) {
+		if (!/(?:token|secret|password|passwd|credential|authorization|cookie|private[_-]?key)/iu
+			.test(name) || typeof secret !== 'string' || secret.length < 4) continue;
+		secrets.add(secret);
+	}
+	return Object.freeze([...secrets].sort((left, right) =>
+		Buffer.byteLength(right) - Buffer.byteLength(left)));
+}
+
+function diagnosticCaptureBytes(secrets) {
+	const maximumSecretBytes = secrets.reduce(
+		(maximum, secret) => Math.max(maximum, Buffer.byteLength(secret)), 0,
+	);
+	const requiredBytes = MAXIMUM_UTILITY_DIAGNOSTIC_BYTES
+		+ Math.max(0, maximumSecretBytes - 1);
+	return requiredBytes <= MAXIMUM_UTILITY_DIAGNOSTIC_CAPTURE_BYTES ? requiredBytes : 0;
+}
+
+function redactCapturedEnvironmentSecrets(bytes, secrets) {
+	const redacted = Buffer.from(bytes);
+	const boundaries = new Int32Array(redacted.byteLength + 1);
+	for (const secret of secrets) {
+		const secretBytes = Buffer.from(secret);
+		markSecretMatches(bytes, secretBytes, boundaries);
+	}
+	let activeRedactions = 0;
+	for (let index = 0; index < redacted.byteLength; index += 1) {
+		activeRedactions += boundaries[index];
+		if (activeRedactions !== 0) redacted[index] = 0x2a;
+	}
+	return redacted;
+}
+
+function markSecretMatches(bytes, secret, boundaries) {
+	const fallback = new Uint32Array(secret.byteLength);
+	for (let index = 1, matched = 0; index < secret.byteLength;) {
+		if (secret[index] === secret[matched]) {
+			matched += 1;
+			fallback[index] = matched;
+			index += 1;
+		} else if (matched !== 0) {
+			matched = fallback[matched - 1];
+		} else {
+			fallback[index] = 0;
+			index += 1;
+		}
+	}
+	for (let index = 0, matched = 0; index < bytes.byteLength;) {
+		if (bytes[index] === secret[matched]) {
+			index += 1;
+			matched += 1;
+			if (matched === secret.byteLength) {
+				boundaries[index - secret.byteLength] += 1;
+				boundaries[index] -= 1;
+				matched = fallback[matched - 1];
+			}
+		} else if (matched !== 0) {
+			matched = fallback[matched - 1];
+		} else {
+			index += 1;
+		}
+	}
+}
+
+function discardLeadingPartialLine(bytes) {
+	const newline = bytes.indexOf(0x0a);
+	return newline === -1 ? Buffer.alloc(0) : bytes.subarray(newline + 1);
 }
 
 function utilityProcessErrorDetail(type, location, report) {
