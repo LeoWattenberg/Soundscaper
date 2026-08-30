@@ -341,7 +341,8 @@ int makeInheritable(int descriptor)
 int mapBootstrapDescriptors(
 	int attestationSource,
 	int policySource,
-	int extraInputSource)
+	int extraInputSource,
+	const std::vector<int> &openDescriptors)
 {
 	if (dup2(attestationSource, bootstrap::attestationDescriptor) != bootstrap::attestationDescriptor
 		|| dup2(policySource, bootstrap::policyDescriptor) != bootstrap::policyDescriptor) {
@@ -359,7 +360,10 @@ int mapBootstrapDescriptors(
 	for (int descriptor = 0; descriptor <= lastDescriptor; ++descriptor) {
 		if (const int status = makeInheritable(descriptor); status != 0) return status;
 	}
-	closefrom(6);
+	for (const int descriptor : openDescriptors) {
+		if (descriptor > bootstrap::extraInputDescriptor
+			&& close(descriptor) != 0) return failureCode();
+	}
 	return 0;
 }
 
@@ -410,7 +414,8 @@ int main(int argc, char **argv)
 	if (verifier == 0) verifyAndRelease(parent, value.rssBytes, value.executableFd,
 		policyPipe[1], openDescriptors,
 		launcherIdentity, executableIdentity, header, policy);
-	const int transportStatus = mapBootstrapDescriptors(attestationSource, policySource, extraInputSource);
+	const int transportStatus = mapBootstrapDescriptors(
+		attestationSource, policySource, extraInputSource, openDescriptors);
 	if (transportStatus != 0) {
 		(void)kill(verifier, SIGKILL);
 		while (waitpid(verifier, nullptr, 0) < 0 && errno == EINTR) {}

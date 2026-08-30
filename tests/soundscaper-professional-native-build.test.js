@@ -459,8 +459,10 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(mac, /F_DUPFD_CLOEXEC/u,
 		'the fixed bootstrap descriptors must be sourced from collision-free private duplicates');
 	assert.match(mac,
-		/mapBootstrapDescriptors\([\s\S]*closefrom\(6\)/u,
-		'the parent must close everything above the exact bootstrap descriptor set');
+		/mapBootstrapDescriptors\([\s\S]*const std::vector<int> &openDescriptors[\s\S]*for \(const int descriptor : openDescriptors\)[\s\S]*descriptor > bootstrap::extraInputDescriptor[\s\S]*close\(descriptor\) != 0\) return failureCode\(\)/u,
+		'the parent must close every snapshotted descriptor above the exact bootstrap descriptor set');
+	assert.doesNotMatch(mac, /closefrom\(/u,
+		'the launcher must compile against the macOS SDK without relying on undeclared BSD extensions');
 	assert.match(mac,
 		/fork\(\)[\s\S]*mapBootstrapDescriptors\([\s\S]*posix_spawn\(nullptr,[\s\S]*nullptr, &attributes/u,
 		'the verifier must retain authority before the parent maps and closes the exact peer descriptor set');
