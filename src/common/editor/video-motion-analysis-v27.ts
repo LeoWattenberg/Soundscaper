@@ -94,7 +94,7 @@ export async function analyzeVideoMotionV1(
 		}));
 		request.onProgress?.(Object.freeze({ phase: 'tracking', completed: index, total }));
 		// Let cancellation and UI progress run between expensive frame pairs.
-		await Promise.resolve();
+		await yieldToHostTask();
 	}
 	throwIfAborted(request.signal);
 	const body = normalizeBody({
@@ -365,4 +365,15 @@ function throwIfAborted(signal?: AbortSignal): void {
 	if (!signal?.aborted) return;
 	if (signal.reason instanceof Error) throw signal.reason;
 	throw new DOMException('The motion analysis was aborted.', 'AbortError');
+}
+
+async function yieldToHostTask(): Promise<void> {
+	const scheduler = (globalThis as typeof globalThis & {
+		readonly scheduler?: Readonly<{ yield?: () => Promise<void> }>;
+	}).scheduler;
+	if (typeof scheduler?.yield === 'function') {
+		await scheduler.yield();
+		return;
+	}
+	await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
 }

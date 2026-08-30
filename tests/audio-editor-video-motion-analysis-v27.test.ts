@@ -119,3 +119,22 @@ test('motion analysis is cancellable and never admits an optical-flow retime pro
 		],
 	}), /retime|unsupported|processor/iu);
 });
+
+test('motion analysis yields to task-queued cancellation between frame pairs', async () => {
+	const controller = new AbortController();
+	const progress: number[] = [];
+	await assert.rejects(() => analyzeVideoMotionV1({
+		analysisId: 'analysis-1', inputSha256: SHA_A, processorStack: stack(),
+		frames: [
+			{ frameNumber: 0, frame: translatedSquare(0, 0) },
+			{ frameNumber: 1, frame: translatedSquare(1, 1) },
+			{ frameNumber: 2, frame: translatedSquare(2, 2) },
+		],
+		signal: controller.signal,
+		onProgress(value) {
+			progress.push(value.completed);
+			if (value.completed === 1) setTimeout(() => controller.abort(new Error('cancel from UI task')), 0);
+		},
+	}), /cancel from UI task|abort/iu);
+	assert.deepEqual(progress, [1]);
+});
