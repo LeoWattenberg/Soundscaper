@@ -129,11 +129,22 @@ test('the restart mirror exposes persistent states, reports, control, order, and
 	]);
 });
 
+test('a transient queue refresh failure does not poison every later refresh', async () => {
+	const queued = summary({ jobId: '66'.repeat(24), state: 'queued' });
+	const fixture = persistentFixture({ entries: [queued], failFirstList: true });
+
+	await assert.rejects(fixture.service.refresh(), /transient list failure/iu);
+	await fixture.service.refresh();
+
+	assert.equal(fixture.calls.list, 2);
+	assert.deepEqual(fixture.service.list().entries.map(({ jobId }) => jobId), [queued.jobId]);
+});
+
 function persistentFixture(overrides: Record<string, unknown> = {}) {
 	const calls: {
-		enqueue: SoundscaperPersistentDeliveryEnqueueRequest[];
+		enqueue: SoundscaperPersistentDeliveryEnqueueRequest[]; list: number;
 		controls: Array<[string, unknown]>; describe: number;
-	} = { enqueue: [], controls: [], describe: 0 };
+	} = { enqueue: [], list: 0, controls: [], describe: 0 };
 	let entries = Array.isArray(overrides.entries)
 		? overrides.entries as SoundscaperPersistentDeliverySummary[]
 		: [];
@@ -171,7 +182,13 @@ function persistentFixture(overrides: Record<string, unknown> = {}) {
 			})];
 			return entries;
 		},
-		list: async () => ({ entries, paused, nextCursor: null }),
+		list: async () => {
+			calls.list += 1;
+			if (overrides.failFirstList === true && calls.list === 1) {
+				throw new Error('transient list failure');
+			}
+			return { entries, paused, nextCursor: null };
+		},
 		events: async () => ({ events: [], nextSequence: 0, hasMore: false }),
 		pause: async () => { paused = true; recordControl('pause', undefined); },
 		resume: async () => { paused = false; recordControl('resume', undefined); },

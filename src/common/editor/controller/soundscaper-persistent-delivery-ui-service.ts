@@ -113,7 +113,7 @@ export function createSoundscaperPersistentDeliveryUiService(
 	let refreshChain: Promise<void> = Promise.resolve();
 
 	async function refresh(): Promise<void> {
-		refreshChain = refreshChain.then(async () => {
+		const load = async (): Promise<void> => {
 			const entries: SoundscaperPersistentDeliverySummary[] = [];
 			let currentProjectIdentity: SoundscaperDeliveryProjectIdentityV1 | null = null;
 			try { currentProjectIdentity = await savedProjectIdentity(runtime); } catch { /* no exact open project */ }
@@ -133,8 +133,10 @@ export function createSoundscaperPersistentDeliveryUiService(
 			} while (cursor !== undefined);
 			view = frozenView(paused, entries);
 			runtime.publishDocumentSnapshot?.();
-		});
-		return refreshChain;
+		};
+		const operation = refreshChain.then(load, load);
+		refreshChain = operation.catch(() => undefined);
+		return operation;
 	}
 
 	async function mutate(operation: () => PromiseLike<unknown>): Promise<void> {
