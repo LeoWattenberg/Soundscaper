@@ -96,7 +96,9 @@ export function createSoundscaperProfessionalPluginPeer(options: Readonly<{
 	const entryExecutable = options.entryExecutable ?? executable;
 	const entryArguments = options.entryArguments === undefined
 		? (entryExecutable.path === executable.path ? [] : ['--library-path', dirname(entryExecutable.path)])
-		: loaderArguments(options.entryArguments);
+		: entryExecutable.path === executable.path && Array.isArray(options.entryArguments)
+			&& options.entryArguments.length === 0
+			? Object.freeze([]) : loaderArguments(options.entryArguments);
 	const runtimeReadExecute = Object.freeze([...options.runtimeReadExecute]);
 	return Object.freeze({
 		describe: async () => Object.freeze({
