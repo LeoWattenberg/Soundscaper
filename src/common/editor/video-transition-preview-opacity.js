@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { evaluateInterpolationCurveAtExactPosition } from './interpolation-curve.ts';
+
 /** Resolve maintained transition opacity, preferring an exact product plan weight. */
 export function resolveVideoTransitionPreviewOpacity(options, transition, clip, role, frame) {
 	if (transition == null) return 1;
@@ -12,9 +14,15 @@ export function resolveVideoTransitionPreviewOpacity(options, transition, clip, 
 			return exact;
 		}
 	}
-	const progress = Math.max(0, Math.min(
-		1,
-		(frame - transition.startFrame) / (transition.endFrame - transition.startFrame),
+	const localFrame = Math.max(0, Math.min(
+		transition.endFrame - transition.startFrame,
+		frame - transition.startFrame,
 	));
+	const progress = transition.curve == null ? localFrame / (
+		transition.endFrame - transition.startFrame
+	) : evaluateInterpolationCurveAtExactPosition(transition.curve, localFrame);
+	if (!Number.isFinite(progress) || progress < 0 || progress > 1) {
+		throw new RangeError('An authored video transition weight must be between zero and one.');
+	}
 	return role === 'outgoing' ? 1 - progress : progress;
 }

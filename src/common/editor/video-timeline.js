@@ -121,7 +121,7 @@ export function resolveActiveVideoLayers(project, timelineFrame, options = {}) {
 		if (!activeClips.length) continue;
 
 		const transition = activeClips.length === 2
-			? videoTransition(activeClips[0], activeClips[1])
+			? videoTransition(track, activeClips[0], activeClips[1])
 			: null;
 		if (options.renderCanvas != null && activeClips.length === 2) {
 			assertCompatibleVideoTransitionComposition(activeClips[0], activeClips[1], track.id);
@@ -251,7 +251,7 @@ export function resolveVideoCompositionIntervals(project, options = {}) {
 					source: activeClip.source,
 				});
 				const transition = layer.clips.length === 2
-					? videoTransition(layer.clips[0].clip, layer.clips[1].clip)
+					? videoTransition(layer.track, layer.clips[0].clip, layer.clips[1].clip)
 					: null;
 				const transitionOpacityStart = resolveVideoTransitionPreviewOpacity(
 					options, transition, activeClip.clip, activeClip.role, intervalStart,
@@ -505,10 +505,14 @@ function videoSourceForClip(sourceById, clip) {
 	return source;
 }
 
-function videoTransition(outgoing, incoming) {
+function videoTransition(track, outgoing, incoming) {
+	const authored = (Array.isArray(track?.videoTransitions) ? track.videoTransitions : []).find((transition) => (
+		transition?.outgoingClipId === outgoing.id && transition?.incomingClipId === incoming.id
+	));
 	return {
 		startFrame: incoming.timelineStartFrame,
 		endFrame: videoClipEndFrame(outgoing),
+		...(authored?.curve == null ? {} : { curve: authored.curve }),
 	};
 }
 

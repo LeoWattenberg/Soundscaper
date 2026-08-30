@@ -7,6 +7,7 @@ import {
 	validateVideoTrackComposition,
 } from '../src/common/editor/video-timeline.js';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
+import { compileInterpolationCurve } from '../src/common/editor/interpolation-curve.ts';
 import { createVideoKeyframeRenderStateProvider } from '../src/common/editor/video-keyframe-render-state-provider.ts';
 import {
 	isVideoKeyframePreviewStateError,
@@ -125,6 +126,32 @@ test('media composition delegates dissolve weights to the exact shared resolver 
 	})), [
 		{ opacityStart: 0.8, opacityEnd: 0.8 },
 		{ opacityStart: 0.2, opacityEnd: 0.2 },
+	]);
+});
+
+test('composition interval fallback evaluates the authored transition curve', () => {
+	const project = layeredProject();
+	project.tracks.find(({ id }) => id === 'top-track').videoTransitions = [{
+		id: 'held-dissolve',
+		type: 'dissolve',
+		outgoingClipId: 'outgoing',
+		incomingClipId: 'incoming',
+		alignment: 'center-at-cut',
+		durationFrames: 40,
+		curve: compileInterpolationCurve({
+			anchors: [
+				{ position: { num: 0, den: 1 }, value: 0 },
+				{ position: { num: 40, den: 1 }, value: 1 },
+			],
+			segments: [{ kind: 'hold' }],
+		}),
+	}];
+	const [interval] = resolveVideoCompositionIntervals(project, { startFrame: 70, endFrame: 90 });
+	assert.deepEqual(interval.layers.at(-1).clips.map(({ clipId, opacityStart, opacityEnd }) => ({
+		clipId, opacityStart, opacityEnd,
+	})), [
+		{ clipId: 'outgoing', opacityStart: 1, opacityEnd: 1 },
+		{ clipId: 'incoming', opacityStart: 0, opacityEnd: 0 },
 	]);
 });
 
