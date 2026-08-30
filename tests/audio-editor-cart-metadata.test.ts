@@ -18,3 +18,22 @@ test('CART rejects a ninth timer and non-ASCII fixed-field data', () => {
 	assert.throws(() => encodeCartPayload({ postTimers: Array.from({ length: 9 }, () => ({ usage: 'TEST', value: 0 })) }), /eight/u);
 	assert.throws(() => encodeCartPayload({ title: 'Grüße' }), /ASCII/u);
 });
+
+test('CART interoperates with the AES46 fixed URL field and trailing TagText', () => {
+	const url = 'https://example.test/aes46';
+	const tagText = 'line one\r\nline two\r\n';
+	const tagBytes = new TextEncoder().encode(tagText);
+	const fixture = new Uint8Array(2_048 + tagBytes.byteLength);
+	fixture.set(new TextEncoder().encode('0101'), 0);
+	fixture.set(new TextEncoder().encode(url), 1_024);
+	fixture.set(tagBytes, 2_048);
+
+	const parsed = parseCartPayload(fixture);
+	assert.equal(parsed.url, url);
+	assert.equal(parsed.tagText, tagText);
+
+	const encoded = encodeCartPayload({ url, tagText });
+	assert.equal(CART_FIXED_PAYLOAD_BYTES, 2_048);
+	assert.equal(new TextDecoder('ascii').decode(encoded.subarray(1_024, 1_024 + url.length)), url);
+	assert.equal(new TextDecoder('ascii').decode(encoded.subarray(2_048, 2_048 + tagBytes.length)), tagText);
+});

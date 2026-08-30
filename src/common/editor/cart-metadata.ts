@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const CART_FIXED_PAYLOAD_BYTES = 1_024;
+export const CART_FIXED_PAYLOAD_BYTES = 2_048;
+const CART_URL_OFFSET = 1_024;
+const CART_URL_BYTES = 1_024;
 const MAX_CART_TEXT_BYTES = 1024 * 1024;
 
 export interface CartTimer { readonly usage: string; readonly value: number; }
@@ -32,25 +34,28 @@ export function normalizeCartMetadata(input: CartMetadataInput = {}): CartMetada
 		...values,
 		levelReference: int32(input.levelReference ?? 0, 'CART levelReference'),
 		postTimers: Object.freeze(timers),
-		url: ascii(input.url ?? '', MAX_CART_TEXT_BYTES, 'CART URL'),
-		tagText: ascii(input.tagText ?? '', MAX_CART_TEXT_BYTES, 'CART tag text'),
+		url: ascii(input.url ?? '', CART_URL_BYTES, 'CART URL'),
+		tagText: cartTagText(input.tagText ?? '', MAX_CART_TEXT_BYTES, 'CART tag text'),
 	}) as unknown as CartMetadata;
 }
 
 export function encodeCartPayload(input: CartMetadataInput = {}): Uint8Array {
 	const value = normalizeCartMetadata(input);
-	const suffix = new TextEncoder().encode(`${value.url}\0${value.tagText}\0`);
-	if (CART_FIXED_PAYLOAD_BYTES + suffix.byteLength > MAX_CART_TEXT_BYTES) throw new RangeError('CART metadata exceeds 1 MiB.');
-	const output = new Uint8Array(CART_FIXED_PAYLOAD_BYTES + suffix.byteLength);
+	const encoder = new TextEncoder();
+	const url = encoder.encode(value.url);
+	const tagText = encoder.encode(value.tagText);
+	if (CART_FIXED_PAYLOAD_BYTES + tagText.byteLength > MAX_CART_TEXT_BYTES) throw new RangeError('CART metadata exceeds 1 MiB.');
+	const output = new Uint8Array(CART_FIXED_PAYLOAD_BYTES + tagText.byteLength);
 	const view = new DataView(output.buffer);
-	for (const [field, offset] of FIELDS) output.set(new TextEncoder().encode(value[field]), offset);
+	for (const [field, offset] of FIELDS) output.set(encoder.encode(value[field]), offset);
 	view.setInt32(680, value.levelReference, true);
 	for (const [index, timer] of value.postTimers.entries()) {
 		const offset = 684 + index * 8;
-		output.set(new TextEncoder().encode(timer.usage), offset);
+		output.set(encoder.encode(timer.usage), offset);
 		view.setUint32(offset + 4, timer.value, true);
 	}
-	output.set(suffix, CART_FIXED_PAYLOAD_BYTES);
+	output.set(url, CART_URL_OFFSET);
+	output.set(tagText, CART_FIXED_PAYLOAD_BYTES);
 	return output;
 }
 
@@ -76,14 +81,14 @@ export function parseCartPayload(bytes: Uint8Array): CartMetadata {
 		const value = view.getUint32(offset + 4, true);
 		if (usage || value) timers.push({ usage, value });
 	}
-	const suffix = bytes.subarray(CART_FIXED_PAYLOAD_BYTES);
-	const separator = suffix.indexOf(0);
-	const url = decode(separator < 0 ? suffix : suffix.subarray(0, separator));
-	const tagText = separator < 0 ? '' : decode(suffix.subarray(separator + 1));
+	const url = decode(bytes.subarray(CART_URL_OFFSET, CART_FIXED_PAYLOAD_BYTES));
+	const tagText = decodeTagText(bytes.subarray(CART_FIXED_PAYLOAD_BYTES));
 	return normalizeCartMetadata({ ...values, levelReference: view.getInt32(680, true), postTimers: timers, url, tagText });
 }
 
 function ascii(value: unknown, maximum: number, name: string): string { if (typeof value !== 'string') throw new TypeError(`${name} must be a string.`); if (value.length > maximum) throw new RangeError(`${name} is too long.`); for (const character of value) { const code = character.charCodeAt(0); if (code < 0x20 || code > 0x7e) throw new RangeError(`${name} must contain printable ASCII only.`); } return value; }
+function cartTagText(value: unknown, maximum: number, name: string): string { if (typeof value !== 'string') throw new TypeError(`${name} must be a string.`); if (value.length > maximum) throw new RangeError(`${name} is too long.`); for (const character of value) { const code = character.charCodeAt(0); if (code !== 0x0a && code !== 0x0d && (code < 0x20 || code > 0x7e)) throw new RangeError(`${name} must contain ASCII text only.`); } return value; }
 function decode(bytes: Uint8Array): string { const end = bytes.indexOf(0); return new TextDecoder('ascii').decode(end < 0 ? bytes : bytes.subarray(0, end)).trimEnd(); }
+function decodeTagText(bytes: Uint8Array): string { const end = bytes.indexOf(0); return new TextDecoder('ascii').decode(end < 0 ? bytes : bytes.subarray(0, end)); }
 function uint32(value: unknown, name: string): number { const number = Number(value); if (!Number.isInteger(number) || number < 0 || number > 0xffff_ffff) throw new RangeError(`${name} must be unsigned 32-bit.`); return number; }
 function int32(value: unknown, name: string): number { const number = Number(value); if (!Number.isInteger(number) || number < -0x8000_0000 || number > 0x7fff_ffff) throw new RangeError(`${name} must be signed 32-bit.`); return number; }
