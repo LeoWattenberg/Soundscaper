@@ -31,6 +31,7 @@ test('timeline pointer hooks capture immutable slip/slide authority and preserve
 	assert.match(start, /controller\.actions\.video\.trim\.slipSlide\.capturePointerAuthority\(capture\)/u);
 	assert.match(start, /slipSlideMode/u);
 	assert.match(start, /slipSlidePointerAuthority/u);
+	assert.match(start, /touchPointers\.current\.size === 2[\s\S]*?setSelectionPreview\(null\)[\s\S]*?pointerSession\.current = null/u);
 	assert.match(start, /slipSlideMode !== null[\s\S]*?rollRippleMode === null && event\.shiftKey/u);
 	assert.match(start, /rollRippleMode === null && \(event\.metaKey \|\| event\.ctrlKey\)/u);
 	assert.ok(
@@ -61,6 +62,11 @@ test('timeline pointer hooks capture immutable slip/slide authority and preserve
 		finish.indexOf('commitTimelineSlipSlidePointer({')
 			< finish.indexOf('Math.hypot(event.clientX - session.startX'),
 		'captured zero-delta release commits instead of seeking',
+	);
+	assert.ok(
+		finish.indexOf('setSelectionPreview(null)')
+			< finish.indexOf('if (!session || cancelled || pinchSession.current || !project) return'),
+		'abnormal pointer completion clears the rubber-band preview before returning',
 	);
 });
 

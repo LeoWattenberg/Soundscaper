@@ -54,6 +54,7 @@ export function useTimelinePointerStart({
 					midpoint: (points[0].x + points[1].x) / 2,
 					scrollLeft: scrollRef.current?.scrollLeft || 0,
 				};
+				setSelectionPreview(null);
 				pointerSession.current = null;
 				return;
 			}

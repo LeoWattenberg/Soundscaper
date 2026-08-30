@@ -50,6 +50,7 @@ export function useTimelinePointerFinish({
 		const dragPreview = session?.preview;
 		setClipDragPreview(null);
 		setTrackResizePreview(null);
+		setSelectionPreview(null);
 		if (session?.kind === 'track-resize') {
 			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
 				run(() => controller.actions.timeline.resizeTrackHeight(
@@ -113,7 +114,6 @@ export function useTimelinePointerFinish({
 		}
 		if (session.kind === 'selection') {
 			const endFrame = frameAtClientX(event.clientX, session.lane);
-			setSelectionPreview(null);
 			if (Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
 				run(() => controller.actions.transport.seek(endFrame));
 				run(() => controller.actions.timeline.clearSelection());
