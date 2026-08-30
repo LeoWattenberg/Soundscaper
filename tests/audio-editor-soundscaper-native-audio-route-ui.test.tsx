@@ -60,6 +60,42 @@ test('enumerated routes expose exact format and backend-valid mode choices', () 
 		'WASAPI must let the user choose shared or exclusive before opening');
 });
 
+test('asymmetric duplex handles preserve the channel limit of each selected direction', () => {
+	const inventory = {
+		backend: 'asio', status: 'ready', detail: '', devices: [
+			{ handle: 'studio-interface', label: 'Studio interface', direction: 'input', channelCount: 8 },
+			{ handle: 'studio-interface', label: 'Studio interface', direction: 'output', channelCount: 2 },
+		],
+	};
+	const renderRoute = (preference: NativeAudioSessionOpenRequestV1): string => renderToStaticMarkup(
+		<SoundscaperNativeServicesDialog
+			bridge={bridge}
+			initialSurface="native-audio-device"
+			initialState={{
+				...EMPTY_SOUNDSCAPER_NATIVE_SERVICES_DIALOG_STATE,
+				audio: {
+					enabled: true, quarantined: false, routePreference: preference,
+					payload: { status: 'available', reason: null, detail: '' }, backends: ['asio'],
+				},
+				devices: { status: 'described', inventory },
+			}}
+			onClose={() => undefined}
+		/>,
+	);
+	const preference = (direction: 'input' | 'output', channelCount: number) => createNativeAudioRouteOpenRequest({
+		candidates: [{ backend: 'asio', deviceHandle: 'studio-interface' }],
+		direction, mode: 'exclusive', sampleRate: 48_000, periodFrames: 256, channelCount,
+	});
+
+	const input = renderRoute(preference('input', 8));
+	assert.match(input, /data-native-audio-direction="studio-interface"[^>]*>[^]*value="input" selected=""/iu);
+	assert.match(input, /max="8"[^>]*data-native-audio-channel-count="studio-interface"[^>]*value="8"/iu);
+
+	const output = renderRoute(preference('output', 2));
+	assert.match(output, /data-native-audio-direction="studio-interface"[^>]*>[^]*value="output" selected=""/iu);
+	assert.match(output, /max="2"[^>]*data-native-audio-channel-count="studio-interface"[^>]*value="2"/iu);
+});
+
 test('route controls resolve every user-visible label through the host copy catalog', () => {
 	const markup = renderToStaticMarkup(<SoundscaperNativeServicesDialog
 		bridge={bridge}

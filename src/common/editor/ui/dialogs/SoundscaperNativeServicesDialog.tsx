@@ -242,7 +242,9 @@ interface AudioRoute {
 	readonly handle: string;
 	readonly label: string;
 	readonly directions: readonly NativeAudioSessionOpenRequestV1['direction'][];
-	readonly maximumChannels: number;
+	readonly maximumChannels: Readonly<Partial<Record<
+		NativeAudioSessionOpenRequestV1['direction'], number
+	>>>;
 }
 
 function AudioRouteControl({ copy, backend, route, preference, availableBackends, disabled, perform }: Readonly<{
@@ -265,9 +267,13 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 	);
 	const [sampleRate, setSampleRate] = React.useState(saved?.sampleRate ?? 48_000);
 	const [periodFrames, setPeriodFrames] = React.useState(saved?.periodFrames ?? 1_024);
+	const maximumChannels = maximumChannelsForDirection(route, direction);
 	const [channelCount, setChannelCount] = React.useState(
-		Math.min(saved?.channelCount ?? 2, route.maximumChannels),
+		Math.min(saved?.channelCount ?? 2, maximumChannels),
 	);
+	React.useEffect(() => {
+		setChannelCount((current) => Math.min(current, maximumChannels));
+	}, [maximumChannels]);
 	const rates = numericChoices([44_100, 48_000, 88_200, 96_000, 192_000], sampleRate);
 	const periods = numericChoices([64, 128, 256, 512, 1_024, 2_048], periodFrames);
 	const open = (): void => {
@@ -281,7 +287,11 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 		<strong>{route.label}</strong>
 		<label>{copy.audioRouteDirection} <select value={direction} disabled={disabled}
 			data-native-audio-direction={route.handle}
-			onChange={(event) => setDirection(event.currentTarget.value as typeof direction)}>
+			onChange={(event) => {
+				const next = event.currentTarget.value as typeof direction;
+				setDirection(next);
+				setChannelCount((current) => Math.min(current, maximumChannelsForDirection(route, next)));
+			}}>
 			{route.directions.map((value) => <option key={value} value={value}>{value}</option>)}
 		</select></label>
 		<label>{copy.audioRouteMode} <select value={mode} data-native-audio-mode={route.handle}
@@ -299,38 +309,68 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 			onChange={(event) => setPeriodFrames(Number(event.currentTarget.value))}>
 			{periods.map((value) => <option key={value} value={value}>{value}</option>)}
 		</select></label>
-		<label>{copy.audioRouteChannels} <input type="number" min={1} max={route.maximumChannels} value={channelCount}
+		<label>{copy.audioRouteChannels} <input type="number" min={1} max={maximumChannels} value={channelCount}
 			disabled={disabled} data-native-audio-channel-count={route.handle}
 			onChange={(event) => setChannelCount(Math.max(1,
-				Math.min(route.maximumChannels, Number(event.currentTarget.value))))} /></label>
+				Math.min(maximumChannels, Number(event.currentTarget.value))))} /></label>
 		<button type="button" disabled={disabled || !isStreamingBackend(backend)}
 			data-native-audio-open={route.handle} onClick={open}>{copy.openAudioSession}</button>
 	</li>;
 }
 
 function groupAudioRoutes(inventory: NativeAudioInventory): readonly AudioRoute[] {
-	const grouped = new Map<string, { label: string; input: boolean; output: boolean; channels: number }>();
+	const grouped = new Map<string, {
+		label: string;
+		input: boolean;
+		output: boolean;
+		inputChannels: number;
+		outputChannels: number;
+	}>();
 	for (const device of inventory.devices) {
+		const input = device.direction === 'input' || device.direction === 'duplex';
+		const output = device.direction === 'output' || device.direction === 'duplex';
+		if (!input && !output) continue;
 		const route = grouped.get(device.handle) ?? {
-			label: device.label, input: false, output: false, channels: 32,
+			label: device.label, input: false, output: false,
+			inputChannels: 32, outputChannels: 32,
 		};
-		route.input ||= device.direction === 'input' || device.direction === 'duplex';
-		route.output ||= device.direction === 'output' || device.direction === 'duplex';
-		if (device.channelCount !== undefined) route.channels = Math.min(route.channels, device.channelCount, 32);
+		const channels = maximumInventoryChannels(device.channelCount);
+		route.input ||= input;
+		route.output ||= output;
+		if (input) route.inputChannels = Math.min(route.inputChannels, channels);
+		if (output) route.outputChannels = Math.min(route.outputChannels, channels);
 		grouped.set(device.handle, route);
 	}
 	return Object.freeze([...grouped].map(([handle, route]) => Object.freeze({
 		handle, label: route.label,
 		directions: Object.freeze(route.input && route.output
 			? ['duplex', 'input', 'output'] as const : route.input ? ['input'] as const : ['output'] as const),
-		maximumChannels: Math.max(1, route.channels),
+		maximumChannels: Object.freeze({
+			...(route.input ? { input: route.inputChannels } : {}),
+			...(route.output ? { output: route.outputChannels } : {}),
+			...(route.input && route.output
+				? { duplex: Math.min(route.inputChannels, route.outputChannels) }
+				: {}),
+		}),
 	})));
+}
+
+function maximumInventoryChannels(value: number | undefined): number {
+	return value === undefined ? 32
+		: Number.isSafeInteger(value) && value > 0 ? Math.min(value, 32) : 1;
+}
+
+function maximumChannelsForDirection(
+	route: AudioRoute,
+	direction: NativeAudioSessionOpenRequestV1['direction'],
+): number {
+	return route.maximumChannels[direction] ?? 1;
 }
 
 function routePreferenceForRoute(preference: NativeAudioSessionOpenRequestV1 | null, backend: string,
 	route: AudioRoute, availableBackends: readonly string[]): NativeAudioSessionOpenRequestV1 | null {
 	if (preference === null || !route.directions.includes(preference.direction)
-		|| preference.channelCount > route.maximumChannels) return null;
+		|| preference.channelCount > maximumChannelsForDirection(route, preference.direction)) return null;
 	const index = preference.candidates.findIndex(
 		(candidate) => candidate.backend === backend && candidate.deviceHandle === route.handle,
 	);
@@ -345,7 +385,7 @@ function savedRouteUnavailable(preference: NativeAudioSessionOpenRequestV1 | nul
 	if (preference === null || preference.candidates[0]?.backend !== inventory.backend) return false;
 	const route = routes.find((candidate) => candidate.handle === preference.candidates[0].deviceHandle);
 	return route === undefined || !route.directions.includes(preference.direction)
-		|| preference.channelCount > route.maximumChannels;
+		|| preference.channelCount > maximumChannelsForDirection(route, preference.direction);
 }
 
 function numericChoices(values: readonly number[], selected: number): readonly number[] {
