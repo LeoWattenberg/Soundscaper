@@ -44,6 +44,7 @@ enum class Operation : uint8_t {
 };
 
 enum class VendorOperation : uint8_t { open = 1u, close = 2u };
+enum class FrameReadStatus : uint8_t { ready, cleanEof, malformed };
 
 bool exactRead(FILE *stream, void *bytes, size_t length)
 {
@@ -157,17 +158,17 @@ private:
 	std::vector<uint8_t> bytes_;
 };
 
-bool readFrame(std::vector<uint8_t> &body)
+FrameReadStatus readFrame(std::vector<uint8_t> &body)
 {
 	uint8_t header[8];
 	const size_t first = std::fread(header, 1u, 1u, stdin);
-	if (first == 0u && std::feof(stdin)) return false;
+	if (first == 0u) return std::feof(stdin) ? FrameReadStatus::cleanEof : FrameReadStatus::malformed;
 	if (first != 1u || !exactRead(stdin, header + 1u, sizeof(header) - 1u)
-		|| !std::equal(magic.begin(), magic.end(), header)) return false;
+		|| !std::equal(magic.begin(), magic.end(), header)) return FrameReadStatus::malformed;
 	const uint32_t length = decode32(header + magic.size());
-	if (length < 2u || length > maximumFrameBytes) return false;
+	if (length < 2u || length > maximumFrameBytes) return FrameReadStatus::malformed;
 	body.resize(length);
-	return exactRead(stdin, body.data(), body.size());
+	return exactRead(stdin, body.data(), body.size()) ? FrameReadStatus::ready : FrameReadStatus::malformed;
 }
 
 bool writeFrame(const std::vector<uint8_t> &body)
@@ -491,7 +492,8 @@ int main(int argc, char **argv)
 	Peer peer;
 	for (;;) {
 		std::vector<uint8_t> request, answer;
-		if (!readFrame(request)) return std::feof(stdin) ? 0 : 125;
+		const FrameReadStatus status = readFrame(request);
+		if (status != FrameReadStatus::ready) return status == FrameReadStatus::cleanEof ? 0 : 125;
 		if (!peer.dispatch(request, answer) || !writeFrame(answer)) return 125;
 		if (peer.finished()) {
 			soundscaper::shutdownJuceMessageDispatcher();

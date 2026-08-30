@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { execFile, spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
+import { execFile, spawn as nodeSpawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmod, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -223,6 +223,10 @@ test('the professional plug-in RPC executes only in the attested isolated child'
 		]),
 	]);
 	await Promise.all([chmod(launcherPath, 0o700), chmod(peerPath, 0o700)]);
+	const cleanEof = spawnSync(peerPath, [], { encoding: 'utf8' });
+	assert.equal(cleanEof.status, 0, cleanEof.stderr);
+	const malformed = spawnSync(peerPath, [], { encoding: 'utf8', input: Buffer.from([0]) });
+	assert.equal(malformed.status, 125, malformed.stderr);
 	const [launcherArtifact, profile, broker, peerExecutable] = await Promise.all([
 		descriptor(launcherPath), descriptor(PROFILE_PATH), descriptor(BROKER_PATH), descriptor(peerPath),
 	]);
