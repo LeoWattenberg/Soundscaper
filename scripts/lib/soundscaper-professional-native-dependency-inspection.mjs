@@ -25,11 +25,12 @@ const LINUX_SYSTEM_LIBRARIES = new Set([
 	'libXrandr.so.2', 'libXrender.so.1',
 ]);
 const WINDOWS_SYSTEM_LIBRARIES = new Set([
-	'advapi32.dll', 'avrt.dll', 'bcrypt.dll', 'cfgmgr32.dll', 'comdlg32.dll',
-	'dwmapi.dll', 'gdi32.dll', 'imm32.dll', 'kernel32.dll', 'mf.dll', 'mfplat.dll',
+	'advapi32.dll', 'avrt.dll', 'bcrypt.dll', 'cfgmgr32.dll', 'comctl32.dll',
+	'comdlg32.dll', 'd2d1.dll', 'd3d11.dll', 'dcomp.dll', 'dwrite.dll', 'dwmapi.dll',
+	'dxgi.dll', 'gdi32.dll', 'imm32.dll', 'kernel32.dll', 'mf.dll', 'mfplat.dll',
 	'mfreadwrite.dll', 'mfuuid.dll', 'ole32.dll', 'oleaut32.dll', 'powrprof.dll',
 	'propsys.dll', 'rpcrt4.dll', 'secur32.dll', 'setupapi.dll', 'shell32.dll',
-	'shlwapi.dll', 'user32.dll', 'userenv.dll', 'uuid.dll', 'version.dll',
+	'shcore.dll', 'shlwapi.dll', 'user32.dll', 'userenv.dll', 'uuid.dll', 'version.dll', 'vfw32.dll',
 	'winmm.dll', 'ws2_32.dll',
 ]);
 
@@ -94,9 +95,7 @@ export async function inspectSoundscaperProfessionalNativeDependencies({ target,
 	}
 	if (target.startsWith('linux-')) return {
 		architecture,
-		imports: [...result.stdout.matchAll(/Shared library: \[([^\]]+)\]/gu)].map((match) => match[1]),
-		rpaths: [...result.stdout.matchAll(/\((?:RPATH|RUNPATH)\).*Library rpath: \[([^\]]+)\]/gu)]
-			.flatMap((match) => match[1].split(':')).filter(Boolean),
+		...parseSoundscaperProfessionalLinuxDynamicSection(result.stdout),
 	};
 	if (target === 'mac-arm64') {
 		const rpathResult = spawnSync('otool', ['-l', path], {
@@ -112,6 +111,17 @@ export async function inspectSoundscaperProfessionalNativeDependencies({ target,
 		};
 	}
 	throw new TypeError(`The native dependency target ${String(target)} is unsupported.`);
+}
+
+export function parseSoundscaperProfessionalLinuxDynamicSection(value) {
+	if (typeof value !== 'string') throw new TypeError('The Linux dynamic section must be text.');
+	return Object.freeze({
+		imports: Object.freeze([...value.matchAll(/Shared library: \[([^\]]+)\]/gu)]
+			.map((match) => match[1])),
+		rpaths: Object.freeze([...value.matchAll(
+			/\((?:RPATH|RUNPATH)\).*Library (?:rpath|runpath): \[([^\]]+)\]/gu,
+		)].flatMap((match) => match[1].split(':')).filter(Boolean)),
+	});
 }
 
 function portableExecutableImports(value) {

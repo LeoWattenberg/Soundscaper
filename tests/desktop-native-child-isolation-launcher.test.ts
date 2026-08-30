@@ -70,7 +70,8 @@ test('Linux launches an exact child only after namespaces, Landlock, and seccomp
 	assert.equal(result.exitCode, 0, result.stderr);
 	assert.deepEqual(JSON.parse(result.stdout), {
 		allowed: 'admitted-body', deniedFilesystem: true, deniedNetwork: true,
-		deniedChild: true, pidNamespace: true, userNamespace: true,
+		localSocketpair: true, deniedNonLocalSocketpair: true, deniedChild: true,
+		pidNamespace: true, userNamespace: true,
 	});
 	const extra = await launcher.launch({
 		executable, arguments: ['--extra-input'], readOnly: [], readExecute: [], writeOnly: [],
@@ -433,16 +434,26 @@ int main(int argc, char **argv) {
 	int network = socket(AF_INET, SOCK_STREAM, 0);
 	if (network >= 0) { close(network); return 13; }
 	const int deniedNetwork = errno == EPERM;
+	int local[2] = {-1, -1};
+	if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, local) != 0) return 17;
+	const int localSocketpair = close(local[0]) == 0 && close(local[1]) == 0;
+	int nonLocal[2] = {-1, -1};
+	if (socketpair(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0, nonLocal) == 0) return 18;
+	const int deniedNonLocalSocketpair = errno == EPERM;
 	pid_t child = fork();
 	if (child == 0) _exit(14);
 	if (child > 0) { waitpid(child, NULL, 0); return 15; }
 	const int deniedChild = errno == EPERM;
 	printf("{\"allowed\":\"%s\",\"deniedFilesystem\":%s,\"deniedNetwork\":%s,"
+		"\"localSocketpair\":%s,\"deniedNonLocalSocketpair\":%s,"
 		"\"deniedChild\":%s,\"pidNamespace\":%s,\"userNamespace\":%s}\n",
 		body, deniedFilesystem ? "true" : "false", deniedNetwork ? "true" : "false",
-		deniedChild ? "true" : "false", getpid() == 1 ? "true" : "false",
+		localSocketpair ? "true" : "false", deniedNonLocalSocketpair ? "true" : "false",
+		deniedChild ? "true" : "false",
+		getpid() == 1 ? "true" : "false",
 		geteuid() == 0 ? "true" : "false");
-	return deniedFilesystem && deniedNetwork && deniedChild && getpid() == 1 && geteuid() == 0 ? 0 : 16;
+	return deniedFilesystem && deniedNetwork && localSocketpair && deniedNonLocalSocketpair && deniedChild
+		&& getpid() == 1 && geteuid() == 0 ? 0 : 16;
 }
 `;
 

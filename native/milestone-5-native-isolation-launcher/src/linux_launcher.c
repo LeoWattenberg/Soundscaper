@@ -19,6 +19,7 @@
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -337,8 +338,14 @@ static bool install_seccomp(void)
 	append_filter(filters, &count, FILTER_JUMP(BPF_JMP | BPF_JEQ | BPF_K, architecture, 1u, 0u));
 	append_filter(filters, &count, FILTER_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS));
 	append_filter(filters, &count, FILTER_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
+	append_filter(filters, &count, FILTER_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SYS_socketpair, 0u, 3u));
+	append_filter(filters, &count, FILTER_STMT(BPF_LD | BPF_W | BPF_ABS,
+		offsetof(struct seccomp_data, args[0])));
+	append_filter(filters, &count, FILTER_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AF_UNIX, 1u, 0u));
+	append_filter(filters, &count, FILTER_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | EPERM));
+	append_filter(filters, &count, FILTER_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
 #define DENY(number) deny_syscall(filters, &count, number, EPERM)
-	DENY(SYS_socket); DENY(SYS_socketpair); DENY(SYS_connect); DENY(SYS_bind); DENY(SYS_listen);
+	DENY(SYS_socket); DENY(SYS_connect); DENY(SYS_bind); DENY(SYS_listen);
 	DENY(SYS_accept); DENY(SYS_accept4); DENY(SYS_sendto); DENY(SYS_recvfrom); DENY(SYS_sendmsg);
 	DENY(SYS_recvmsg); DENY(SYS_shutdown); DENY(SYS_setsockopt); DENY(SYS_getsockopt);
 #ifdef SYS_fork
