@@ -72,8 +72,8 @@
 		},
 		{
 			"path": "build/source-authentication.mjs",
-			"byteLength": 11009,
-			"sha256": "b956f2c67317573832a4fce52fb847a824d13b1f2ddb68ed2df480144d9092bd"
+			"byteLength": 11157,
+			"sha256": "98fe4904da91a1861b1115267e03ba7095fd4ddfdba57a0ced800d7abb810691"
 		},
 		{
 			"path": "build/targets.json",
