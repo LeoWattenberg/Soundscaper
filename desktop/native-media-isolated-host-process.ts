@@ -7,6 +7,7 @@ import { basename, dirname } from 'node:path';
 import type { Writable } from 'node:stream';
 
 import type { FramescaperMediaHostDescriptor } from './framescaper-media-host-payload.ts';
+import { nativeChildFileIdentityFromStat } from './native-child-file-identity.ts';
 import type { HelperDataPlaneByteSink } from './helper-data-plane-io.ts';
 import {
 	createNativeChildIsolationLauncher,
@@ -184,13 +185,13 @@ async function uniqueGrants(
 	kind: NativeChildIsolationPathGrant['kind'],
 ): Promise<readonly NativeChildIsolationPathGrant[]> {
 	const grants = await Promise.all([...new Set(paths)].map(async (path) => {
-		const metadata = await lstat(path);
+		const metadata = await lstat(path, { bigint: true });
 		if (metadata.isSymbolicLink() || (kind === 'file' ? !metadata.isFile() : !metadata.isDirectory())
 			|| await realpath(path) !== path) {
 			throw new Error('A media-host isolation grant is not one canonical path.');
 		}
 		return Object.freeze({
-			path, kind, identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
+			path, kind, identity: nativeChildFileIdentityFromStat(metadata),
 		});
 	}));
 	const identities = grants.map(({ identity }) => `${String(identity.dev)}:${String(identity.ino)}`);

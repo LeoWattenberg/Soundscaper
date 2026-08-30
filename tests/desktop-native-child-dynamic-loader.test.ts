@@ -75,7 +75,7 @@ test('the arm64 loader parser admits one anonymous link-map row only with its ex
 test('the host resolver rejects a packaged Linux runtime before loader inspection', async () => {
 	const artifact = Object.freeze({
 		path: '/professional-peer', byteLength: 1, sha256: '0'.repeat(64),
-		identity: Object.freeze({ dev: 1, ino: 1 }),
+		identity: Object.freeze({ dev: '1', ino: '1' }),
 	});
 	let invokedPort = false;
 	await assert.rejects(resolveSoundscaperProfessionalLinuxSystemRuntime({
@@ -141,10 +141,13 @@ test('an authenticated host loader resolves only its exact runtime closure and d
 });
 
 async function descriptor(path: string): Promise<NativeChildIsolationArtifactDescriptor> {
-	const [bytes, metadata] = await Promise.all([readFile(path), stat(path)]);
+	const [bytes, metadata] = await Promise.all([readFile(path), stat(path, { bigint: true })]);
 	return Object.freeze({
 		path: await realpath(path), byteLength: bytes.byteLength, sha256: hash(bytes),
-		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
+		identity: Object.freeze({
+			dev: BigInt.asUintN(64, metadata.dev).toString(10),
+			ino: BigInt.asUintN(64, metadata.ino).toString(10),
+		}),
 	});
 }
 

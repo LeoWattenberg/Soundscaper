@@ -88,7 +88,7 @@ async function isolatedFixtureCanary(roots_, target_) {
 	});
 	const fixtureMetadata = await lstat(fixture.path);
 	const context = Object.freeze({
-		identity: fixture.identity,
+		identity: Object.freeze({ dev: Number(fixtureMetadata.dev), ino: Number(fixtureMetadata.ino) }),
 		byteLength: fixture.byteLength,
 		sha256: fixture.sha256,
 		resourcePolicy: Object.freeze({
@@ -186,14 +186,17 @@ async function effectiveIsolationRuntime(target_, peer, packagedRuntimeClosure) 
 
 async function descriptor(path) {
 	const canonical = await realpath(path);
-	const [metadata, bytes] = await Promise.all([lstat(canonical), readFile(canonical)]);
+	const [metadata, bytes] = await Promise.all([lstat(canonical, { bigint: true }), readFile(canonical)]);
 	assert(canonical === path && metadata.isFile() && !metadata.isSymbolicLink(),
 		`The utility self-test artifact ${path} is not canonical.`);
 	return Object.freeze({
 		path: canonical,
 		byteLength: bytes.byteLength,
 		sha256: createHash('sha256').update(bytes).digest('hex'),
-		identity: Object.freeze({ dev: Number(metadata.dev), ino: Number(metadata.ino) }),
+		identity: Object.freeze({
+			dev: BigInt.asUintN(64, metadata.dev).toString(10),
+			ino: BigInt.asUintN(64, metadata.ino).toString(10),
+		}),
 	});
 }
 

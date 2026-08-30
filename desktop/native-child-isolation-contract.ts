@@ -5,6 +5,7 @@
 import type { ChildProcess, SpawnOptions } from 'node:child_process';
 import type { Writable } from 'node:stream';
 
+import type { NativeChildFileIdentity } from './native-child-file-identity.ts';
 import type {
 	NativeChildFramedControl,
 	NativeChildFramedControlBinding,
@@ -21,13 +22,13 @@ export interface NativeChildIsolationArtifactDescriptor {
 	readonly path: string;
 	readonly byteLength: number;
 	readonly sha256: string;
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
+	readonly identity: NativeChildFileIdentity;
 }
 
 export interface NativeChildIsolationPathGrant {
 	readonly path: string;
 	readonly kind: 'file' | 'directory';
-	readonly identity: Readonly<{ readonly dev: number; readonly ino: number }>;
+	readonly identity: NativeChildFileIdentity;
 }
 
 export interface NativeChildIsolationLaunchRequest {

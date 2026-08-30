@@ -6,6 +6,7 @@ import { lstat, readdir, realpath } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import type { HelperFileIdentity, HelperPluginFormat } from './helper-job-grant.ts';
+import { nativeChildFileIdentityFromStat } from './native-child-file-identity.ts';
 import {
 	isEnforcedNativeChildLaunch,
 	type NativeChildIsolationArtifactDescriptor,
@@ -305,13 +306,15 @@ async function listPluginCandidates(root: string, suffix: string): Promise<reado
 }
 
 async function exactPathGrant(path: string, expected: Readonly<HelperFileIdentity>) {
-	const metadata = await lstat(path);
+	const metadata = await lstat(path, { bigint: true });
+	const identity = nativeChildFileIdentityFromStat(metadata);
 	if (metadata.isSymbolicLink() || (!metadata.isFile() && !metadata.isDirectory())
-		|| Number(metadata.dev) !== expected.dev || Number(metadata.ino) !== expected.ino
+		|| Number(BigInt.asUintN(64, metadata.dev)) !== expected.dev
+		|| Number(BigInt.asUintN(64, metadata.ino)) !== expected.ino
 		|| await realpath(path) !== path) throw new Error('The plug-in path changed before isolated launch.');
 	return Object.freeze({
 		path, kind: metadata.isDirectory() ? 'directory' as const : 'file' as const,
-		identity: Object.freeze({ ...expected }),
+		identity,
 	});
 }
 

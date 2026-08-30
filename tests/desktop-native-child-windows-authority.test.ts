@@ -7,6 +7,7 @@ import {
 	createNativeChildWindowsAuthorityProfile,
 	type NativeChildWindowsAuthorityProfileInput,
 } from '../desktop/native-child-windows-authority.ts';
+import type { NativeChildFileIdentityValue } from '../desktop/native-child-file-identity.ts';
 
 const DIGEST = '12'.repeat(32);
 
@@ -28,6 +29,14 @@ test('Windows AppContainer authority is bound to the exact current grant set', (
 		readOnly: [grant(11, 'file'), grant(12, 'directory')],
 		runtimeClosure: [artifact(22, DIGEST)],
 	})), 'the exact dynamic runtime closure participates in the authority');
+	assert.notEqual(createNativeChildWindowsAuthorityProfile(input({
+		readOnly: [grant('9007199254740992', 'file')],
+	})), createNativeChildWindowsAuthorityProfile(input({
+		readOnly: [grant('9007199254740993', 'file')],
+	})), 'adjacent 64-bit file IDs must mint different authorities');
+	assert.equal(profile, createNativeChildWindowsAuthorityProfile(input({
+		readOnly: [grant('11', 'file'), grant('12', 'directory')],
+	})), 'safe legacy and canonical identities must mint the same authority');
 });
 
 function input(overrides: Partial<NativeChildWindowsAuthorityProfileInput> = {}): NativeChildWindowsAuthorityProfileInput {
@@ -41,10 +50,10 @@ function input(overrides: Partial<NativeChildWindowsAuthorityProfileInput> = {})
 	});
 }
 
-function artifact(ino: number, sha256: string) {
+function artifact(ino: NativeChildFileIdentityValue, sha256: string) {
 	return Object.freeze({ sha256, identity: Object.freeze({ dev: 7, ino }) });
 }
 
-function grant(ino: number, kind: 'file' | 'directory') {
+function grant(ino: NativeChildFileIdentityValue, kind: 'file' | 'directory') {
 	return Object.freeze({ kind, identity: Object.freeze({ dev: 7, ino }) });
 }

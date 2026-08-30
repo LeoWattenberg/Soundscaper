@@ -276,6 +276,6 @@ function digest(value) { return createHash('sha256').update(value).digest('hex')
 function probeArtifact(path) {
 	return Object.freeze({
 		path, byteLength: 1, sha256: '9'.repeat(64),
-		identity: Object.freeze({ dev: 1, ino: 1 }),
+		identity: Object.freeze({ dev: '18446744073709551615', ino: '9007199254740993' }),
 	});
 }
