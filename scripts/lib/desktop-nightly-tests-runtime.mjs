@@ -5,11 +5,8 @@ import { createReadStream } from 'node:fs';
 import { mkdtemp, open, readdir, realpath, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, isAbsolute, join, posix, win32 } from 'node:path';
-
-import {
-	resolveDesktopNightlyTestsStaticRequestFile,
-	StaticRequestError,
-} from './desktop-nightly-tests-static-route.mjs';
+import { startDesktopNightlyTestsProductSites } from './desktop-nightly-tests-product-sites.mjs';
+import { resolveDesktopNightlyTestsStaticRequestFile, StaticRequestError } from './desktop-nightly-tests-static-route.mjs';
 import { runDesktopNightlyTestsMetricsPhase } from './desktop-nightly-tests-metrics.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS, runDesktopNightlyTestsPackagedMetricsPhase } from './desktop-nightly-tests-packaged-runtime.mjs';
 
@@ -274,21 +271,23 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 
 	const startStaticServer = dependencies.startStaticServer ?? startDesktopNightlyTestsStaticServer;
 	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
-	let server = null;
+	let sites = null;
 	let outcome;
 	let signal = null;
 	let failure = null;
 	try {
-		server = await startStaticServer({ root: join(options.payloadRoot, 'dist') });
+		sites = await startDesktopNightlyTestsProductSites({
+			payloadRoot: options.payloadRoot, environment, startStaticServer,
+		});
 		const resolveEsbuildBinary = dependencies.resolveEsbuildBinary ?? resolveDesktopNightlyTestsEsbuildBinary;
 		const esbuildBinaryPath = await resolveEsbuildBinary({ payloadRoot: options.payloadRoot });
 		const plan = createDesktopNightlyTestsPlaywrightPlan({
 			executablePath: options.executablePath,
 			payloadRoot: options.payloadRoot,
 			runRoot,
-			baseURL: server.baseURL,
+			baseURL: sites.origins.soundscaper,
 			esbuildBinaryPath,
-			environment,
+			environment: sites.browserEnvironment,
 		});
 		const child = await runPlaywright(plan);
 		signal = child.signal ?? null;
@@ -296,7 +295,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		if (outcome.status === 'passed' || outcome.status === 'failed') {
 			const metrics = await runDesktopNightlyTestsMetricsPhase({
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
-				baseURL: server.baseURL, esbuildBinaryPath, environment,
+				baseURL: sites.origins.soundscaper, esbuildBinaryPath, environment: sites.browserEnvironment,
 				sourceRevision: options.sourceRevision ?? null,
 			}, { runPlaywright, writeEvidence: dependencies.writeMetricsEvidence });
 			const metricsOutcome = mapDesktopNightlyTestsExit(metrics.child);
@@ -304,7 +303,8 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			outcome = combineOutcomes(outcome, metricsOutcome, metrics.evidence.passed);
 			const packagedMetrics = await runDesktopNightlyTestsPackagedMetricsPhase({
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
-				baseURL: server.baseURL, esbuildBinaryPath, environment, platform, arch,
+				baseURL: sites.origins.soundscaper, esbuildBinaryPath,
+				environment: sites.browserEnvironment, platform, arch,
 				sourceRevision: options.sourceRevision ?? null,
 			}, { runPlaywright, writeEvidence: dependencies.writePackagedMetricsEvidence });
 			const packagedOutcome = mapDesktopNightlyTestsExit(packagedMetrics.child);
@@ -314,12 +314,12 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	} catch (error) {
 		outcome = Object.freeze({ status: 'error', exitCode: 2 }); failure = message(error);
 	} finally {
-		if (server) {
+		if (sites) {
 			try {
-				await server.close();
+				await sites.close();
 			} catch (error) {
 				outcome = Object.freeze({ status: 'error', exitCode: 2 });
-				failure = combineFailures(failure, `Static server shutdown failed: ${message(error)}`);
+				failure = combineFailures(failure, `Product server shutdown failed: ${message(error)}`);
 			}
 		}
 	}

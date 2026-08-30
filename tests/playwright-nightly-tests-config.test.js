@@ -27,7 +27,7 @@ test('bundled Playwright config uses only absolute launcher-provided paths', asy
 		);
 
 		assert.equal(config.testDir, resolve(payloadRoot, 'tests/browser'));
-		assert.deepEqual(config.testIgnore, ['handbook/**']);
+		assert.deepEqual(config.testIgnore, ['handbook/**', 'dual-origin/**']);
 		assert.equal(config.outputDir, resolve(runRoot, 'test-results'));
 		assert.equal(config.use.baseURL, 'http://127.0.0.1:41000');
 		assert.equal(config.webServer, undefined);
@@ -176,7 +176,7 @@ test('package scripts expose local preparation and packaging of the diagnostic f
 	);
 	assert.equal(
 		packageMetadata.scripts['desktop:nightly-tests:dist'],
-		'npm run build && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
+		'npm run build && npm run build:browser:framescaper && npm run prepare:browser:products && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
 	);
 });
 

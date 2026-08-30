@@ -793,6 +793,12 @@ jobs:
       - name: Build the browser application
         run: npm run build
 
+      - name: Build the Framescaper browser application
+        run: npm run build:browser:framescaper
+
+      - name: Prepare the verified browser product sites
+        run: npm run prepare:browser:products
+
       - name: Install Linux browser dependencies
         if: runner.os == 'Linux'
         run: npx playwright install-deps chromium firefox webkit

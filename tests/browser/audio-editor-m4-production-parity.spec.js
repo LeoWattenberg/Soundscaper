@@ -1,5 +1,6 @@
 import { expect, test } from './helpers/nightly-packaged-electron.js';
 import { packagedRuntimeEnvironmentFingerprint } from './helpers/packaged-runtime-environment.js';
+import { resolveSoundscaperProductionAssetsDirectory } from './helpers/production-build-paths.js';
 import { buildSync } from 'esbuild';
 import { readdirSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -214,7 +215,7 @@ function bundleAudioEngineHarness(dynamicsWorkletPath) {
 }
 
 function productionDynamicsWorkletPath() {
-	const assetsDirectory = fileURLToPath(new URL('../../dist/assets/', import.meta.url));
+	const assetsDirectory = resolveSoundscaperProductionAssetsDirectory();
 	const matches = readdirSync(assetsDirectory).filter((name) => /^dynamics-worklet-[\w-]+\.js$/u.test(name));
 	if (matches.length !== 1) throw new Error('The production build must contain one dynamics worklet asset.');
 	return `/assets/${matches[0]}`;

@@ -3,9 +3,9 @@
 export const BROWSER_PRODUCT_ORIGINS_VARIABLE = 'SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS';
 
 /**
- * Resolve an editor route only when the ordinary two-origin harness declares
- * itself. Packaged Electron and the dedicated dual-origin suite keep complete
- * authority over their own URLs.
+ * Resolve an editor route only when a test harness declares independent
+ * product origins. Explicit URLs remain authoritative for packaged Electron
+ * and the dedicated dual-origin suite.
  */
 export function resolveBrowserProductTestUrl(path, environment = process.env) {
 	if (typeof path !== 'string') throw new TypeError('A browser product test URL must be a string.');

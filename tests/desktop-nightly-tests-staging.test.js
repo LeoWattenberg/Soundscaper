@@ -102,6 +102,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'desktop/nightly-tests-main.mjs',
 		'desktop/nightly-tests-manifest.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
+		'scripts/lib/desktop-nightly-tests-product-sites.mjs',
 		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-qualification.mjs',
@@ -115,7 +116,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'playwright.nightly-metrics.config.mjs',
 		'playwright.nightly-packaged-metrics.config.mjs',
 		'playwright.nightly-tests.config.mjs',
-		'dist/en/index.html',
+		'sites/soundscaper/en/index.html',
+		'sites/framescaper/en/index.html',
 		'tests/browser/example.spec.js',
 		'tests/browser/example.spec.js-snapshots/example-chromium-linux.png',
 		'tests/aup3-fixture.js',
@@ -169,7 +171,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 	assert.deepEqual(manifest.payload.map(({ path }) => path), [
 		'.local-browsers',
 		'config',
-		'dist',
+		'sites',
 		'licenses',
 		'node_modules',
 		'package.json',
@@ -273,19 +275,19 @@ test('nightly test staging rejects symlinked repository content and escaping bro
 	const fixture = await createFixture(context);
 	const outside = join(dirname(fixture.repositoryRoot), 'outside-index.html');
 	await writeFile(outside, '<p>outside</p>');
-	await rm(join(fixture.repositoryRoot, 'dist/en/index.html'));
-	await symlink(outside, join(fixture.repositoryRoot, 'dist/en/index.html'));
+	await rm(join(fixture.repositoryRoot, '.wrangler/browser-products/soundscaper/en/index.html'));
+	await symlink(outside, join(fixture.repositoryRoot, '.wrangler/browser-products/soundscaper/en/index.html'));
 	await assert.rejects(
 		() => stageDesktopNightlyTests({
 			repositoryRoot: fixture.repositoryRoot,
 			outputRoot: fixture.outputRoot,
 			browserSourceRoot: fixture.browserSourceRoot,
 		}),
-		/(?:dist|production web build).*symbolic link/iu,
+		/verified Soundscaper browser site.*symbolic link/iu,
 	);
 
-	await rm(join(fixture.repositoryRoot, 'dist/en/index.html'));
-	await writeFile(join(fixture.repositoryRoot, 'dist/en/index.html'), '<p>inside</p>');
+	await rm(join(fixture.repositoryRoot, '.wrangler/browser-products/soundscaper/en/index.html'));
+	await writeFile(join(fixture.repositoryRoot, '.wrangler/browser-products/soundscaper/en/index.html'), '<p>inside</p>');
 	await symlink(outside, join(fixture.browserSourceRoot, 'firefox-102/escape'));
 	await assert.rejects(
 		() => stageDesktopNightlyTests({
@@ -461,6 +463,7 @@ async function createFixture(context) {
 		['desktop/nightly-tests-main.mjs', 'export const launcher = true;\n'],
 		['desktop/nightly-tests-manifest.mjs', 'export const manifest = true;\n'],
 		['scripts/lib/desktop-nightly-tests-runtime.mjs', 'export const runtime = true;\n'],
+		['scripts/lib/desktop-nightly-tests-product-sites.mjs', 'export const productSites = true;\n'],
 		['scripts/lib/desktop-nightly-tests-static-route.mjs', 'export const staticRoute = true;\n'],
 		['scripts/lib/desktop-nightly-tests-metrics.mjs', 'export const metricsRuntime = true;\n'],
 		['scripts/lib/desktop-nightly-tests-qualification.mjs', 'export const qualification = true;\n'],
@@ -477,7 +480,8 @@ async function createFixture(context) {
 		['scripts/lib/m4-production-parity-video-fixture.mjs', 'export const fixture = true;\n'],
 		['scripts/lib/m4b2-keyframe-parity-metrics.mjs', 'export const keyframeMetrics = true;\n'],
 		['scripts/lib/strict-json-snapshot.mjs', 'export const snapshot = true;\n'],
-		['dist/en/index.html', '<p>fixture</p>'],
+		['.wrangler/browser-products/soundscaper/en/index.html', '<p>Soundscaper fixture</p>'],
+		['.wrangler/browser-products/framescaper/en/index.html', '<p>Framescaper fixture</p>'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/example.spec.js-snapshots/example-chromium-linux.png', 'png'],
 		['tests/browser/AGENTS.md', 'Do not package instructions.\n'],

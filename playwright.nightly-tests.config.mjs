@@ -54,7 +54,7 @@ export function createNightlyTestsConfig(environment = process.env, platform = p
 
 	return defineConfig({
 		testDir: resolve(payloadRoot, 'tests/browser'),
-		testIgnore: ['handbook/**'],
+		testIgnore: ['handbook/**', 'dual-origin/**'],
 		timeout: 30000,
 		expect: { timeout: 5000 },
 		fullyParallel: true,

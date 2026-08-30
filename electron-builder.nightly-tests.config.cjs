@@ -18,6 +18,7 @@ module.exports = {
 		'desktop/nightly-tests-main.mjs',
 		'desktop/nightly-tests-manifest.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
+		'scripts/lib/desktop-nightly-tests-product-sites.mjs',
 		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-qualification.mjs',
@@ -44,7 +45,7 @@ module.exports = {
 			filter: [
 				'.local-browsers/**/*',
 				'config/**/*',
-				'dist/**/*',
+				'sites/**/*',
 				'licenses/**/*',
 				'package.json',
 				'playwright.nightly-metrics.config.mjs',

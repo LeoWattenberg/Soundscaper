@@ -36,6 +36,15 @@ const PRODUCT = Object.freeze({
 	version: '1.0.0-rc.1',
 });
 const PACKAGED_ENVIRONMENT = Object.freeze({ PATH: '/usr/bin', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204', SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac', SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct' });
+
+function productServerStub(firstPort: number, onClose = () => undefined) {
+	let offset = 0;
+	return async () => ({
+		baseURL: `http://127.0.0.1:${String(firstPort + offset++)}`,
+		close: async () => { onClose(); },
+	});
+}
+
 test('nightly test results resolve beside each portable artifact convention', () => {
 	assert.equal(resolveDesktopNightlyTestsOutputRoot({
 		platform: 'win32',
@@ -165,18 +174,12 @@ test('the bundled static server serves bounded files and rejects traversal and s
 	});
 	assert.equal(embeddedWithQuery.status, 200);
 	assert.equal(await embeddedWithQuery.text(), '<h1>English</h1>');
-	const framescaperEmbedded = await fetch(`${server.baseURL}/framescaper/embed/en/`, {
-		headers: { Accept: 'text/html' },
+	const framescaper = await fetch(`${server.baseURL}/framescaper/embed/en/`, {
+		method: 'HEAD', headers: { Accept: 'text/html' },
 	});
-	assert.equal(framescaperEmbedded.status, 200);
-	assert.equal(await framescaperEmbedded.text(), '<h1>Framescaper English</h1>');
-	const framescaperHead = await fetch(`${server.baseURL}/framescaper/embed/en/`, {
-		method: 'HEAD',
-		headers: { Accept: 'text/html' },
-	});
-	assert.equal(framescaperHead.status, 200);
-	assert.equal(framescaperHead.headers.get('content-length'), String(Buffer.byteLength('<h1>Framescaper English</h1>')));
-	assert.equal(await framescaperHead.text(), '');
+	assert.equal(framescaper.status, 200);
+	assert.equal(framescaper.headers.get('content-length'), String(Buffer.byteLength('<h1>Framescaper English</h1>')));
+	assert.equal(await framescaper.text(), '');
 	const script = await fetch(`${server.baseURL}/app.js`);
 	assert.equal(script.headers.get('content-type'), 'text/javascript; charset=utf-8');
 	const wasm = await fetch(`${server.baseURL}/worker.wasm`);
@@ -373,7 +376,7 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 	assert.equal(Object.isFrozen(envelope.artifacts), true);
 });
 
-test('the injected nightly runtime records terminal results and always closes its server', async (context) => {
+test('the injected nightly runtime records terminal results and always closes its product servers', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-runner-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let closeCalls = 0;
@@ -396,10 +399,7 @@ test('the injected nightly runtime records terminal results and always closes it
 		sourceRevision: 'b'.repeat(40),
 	}, {
 		now: () => times.shift() ?? new Date('2026-08-08T13:05:00.000Z'),
-		startStaticServer: async () => ({
-			baseURL: 'http://127.0.0.1:47777',
-			close: async () => { closeCalls += 1; },
-		}),
+		startStaticServer: productServerStub(47777, () => { closeCalls += 1; }),
 		runPlaywright: async (plan) => {
 			plansSeen.push(plan);
 			return plansSeen.length === 1
@@ -425,11 +425,18 @@ test('the injected nightly runtime records terminal results and always closes it
 	assert.equal(dirname(completed.runRoot), outputRoot);
 	assert.equal(completed.result.status, 'failed');
 	assert.equal(completed.result.finishedAt, '2026-08-08T13:05:00.000Z');
-	assert.equal(closeCalls, 1);
+	assert.equal(closeCalls, 2);
 	assert.equal(metricsEvidenceCalls, 1);
 	assert.equal(packagedEvidenceCalls, 1);
 	assert.equal(plansSeen.length, 3);
 	assert.equal(plansSeen[0]?.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT, completed.runRoot);
+	const productOrigins = JSON.stringify({
+		soundscaper: 'http://127.0.0.1:47777',
+		framescaper: 'http://127.0.0.1:47778',
+	});
+	assert.equal(plansSeen[0]?.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
+	assert.equal(plansSeen[1]?.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
+	assert.equal(plansSeen[2]?.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
 	assert.match(plansSeen[1]?.args.at(-1) ?? '', /playwright\.nightly-metrics\.config\.mjs$/u);
 	assert.match(plansSeen[2]?.args.at(-1) ?? '', /playwright\.nightly-packaged-metrics\.config\.mjs$/u);
 	assert.deepEqual(
@@ -452,17 +459,14 @@ test('the injected nightly runtime turns server and child errors into an error e
 		arch: 'x64',
 		environment: {},
 	}, {
-		startStaticServer: async () => ({
-			baseURL: 'http://127.0.0.1:48888',
-			close: async () => { closeCalls += 1; },
-		}),
+		startStaticServer: productServerStub(48888, () => { closeCalls += 1; }),
 		runPlaywright: async () => { throw new Error('browser process could not start'); },
 	});
 
 	assert.equal(completed.exitCode, 2);
 	assert.equal(completed.result.status, 'error');
 	assert.match(completed.result.failure ?? '', /browser process could not start/iu);
-	assert.equal(closeCalls, 1);
+	assert.equal(closeCalls, 2);
 	assert.equal(
 		JSON.parse(await readFile(join(completed.runRoot, 'run.json'), 'utf8')).status,
 		'error',
@@ -525,10 +529,7 @@ test('the default Playwright child runner captures output and reaches a terminal
 		arch: process.arch,
 		environment: { ...PACKAGED_ENVIRONMENT, PATH: process.env.PATH },
 	}, {
-		startStaticServer: async () => ({
-			baseURL: 'http://127.0.0.1:49999',
-			close: async () => undefined,
-		}),
+		startStaticServer: productServerStub(49990),
 		writeMetricsEvidence: async () => ({ passed: true }),
 		writePackagedMetricsEvidence: async () => ({ passed: true }),
 	});
@@ -556,10 +557,7 @@ test('a Playwright child spawn error closes its log and records infrastructure f
 		arch: process.arch,
 		environment: { PATH: process.env.PATH },
 	}, {
-		startStaticServer: async () => ({
-			baseURL: 'http://127.0.0.1:49998',
-			close: async () => undefined,
-		}),
+		startStaticServer: productServerStub(49992),
 		writeMetricsEvidence: async () => ({ passed: true }),
 	});
 
@@ -582,10 +580,7 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		arch: 'x64',
 		environment: PACKAGED_ENVIRONMENT,
 	}, {
-		startStaticServer: async () => ({
-			baseURL: 'http://127.0.0.1:49997',
-			close: async () => undefined,
-		}),
+		startStaticServer: productServerStub(49994),
 		runPlaywright: async () => {
 			childCalls += 1;
 			return { code: 0, signal: null };
