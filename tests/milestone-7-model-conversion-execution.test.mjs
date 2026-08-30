@@ -281,7 +281,7 @@ test('file verification rejects traversal, symlinks, wrong lengths, and wrong di
 		const sha256 = createHash('sha256').update(bytes).digest('hex');
 		await writeFile(join(root, 'exact.bin'), bytes);
 		assert.deepEqual(await verifyPinnedConversionEvidenceFiles(root, [{
-			path: 'exact.bin', byteLength: bytes.byteLength, sha256,
+			role: 'converted-model', path: 'exact.bin', byteLength: bytes.byteLength, sha256,
 		}]), [{ path: 'exact.bin', byteLength: bytes.byteLength, sha256 }]);
 
 		await assert.rejects(() => verifyPinnedConversionEvidenceFiles(root, [{

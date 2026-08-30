@@ -418,7 +418,7 @@ export async function verifyPinnedConversionEvidenceFiles(rootPath, inventory) {
 		|| inventory.length < 1 || inventory.length > 128) {
 		throw new TypeError('A bounded conversion-evidence root and inventory are required.');
 	}
-	const admitted = inventory.map((entry) => evidenceFile(entry, 'conversion evidence', true));
+	const admitted = inventory.map(verificationEvidenceFile);
 	const total = admitted.reduce((sum, { byteLength }) => sum + byteLength, 0);
 	if (!Number.isSafeInteger(total) || total > MAXIMUM_EVIDENCE_BYTES) {
 		throw new RangeError('The conversion-evidence byte budget was exceeded.');
@@ -447,6 +447,22 @@ export async function verifyPinnedConversionEvidenceFiles(rootPath, inventory) {
 		verified.push({ ...entry });
 	}
 	return verified;
+}
+
+function verificationEvidenceFile(value) {
+	const carriesRole = value !== null && typeof value === 'object'
+		&& Object.hasOwn(value, 'role');
+	const row = exactRecord(value, carriesRole
+		? ['role', 'path', 'byteLength', 'sha256']
+		: ['path', 'byteLength', 'sha256'], 'conversion evidence');
+	if (carriesRole && (typeof row.role !== 'string' || row.role.length < 1 || row.role.length > 128)) {
+		throw new TypeError('The conversion evidence role is invalid.');
+	}
+	return evidenceFile({
+		path: row.path,
+		byteLength: row.byteLength,
+		sha256: row.sha256,
+	}, 'conversion evidence', true);
 }
 
 async function digestFile(path) {
