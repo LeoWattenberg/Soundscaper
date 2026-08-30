@@ -219,7 +219,7 @@ function opusPacketSamples(packet: Uint8Array): number {
 	const configuration = toc >>> 3;
 	let samplesPerFrame: number;
 	if (configuration >= 16) samplesPerFrame = 120 << (configuration & 3);
-	else if (configuration >= 12) samplesPerFrame = configuration & 1 ? 480 : 960;
+	else if (configuration >= 12) samplesPerFrame = configuration & 1 ? 960 : 480;
 	else if ((configuration & 3) === 3) samplesPerFrame = 2_880;
 	else samplesPerFrame = 480 << (configuration & 3);
 	const code = toc & 3;

@@ -73,6 +73,29 @@ test('strict parser distinguishes valid but unreviewed Opus profiles for provide
 	);
 });
 
+test('hybrid Opus TOC configurations retain their RFC frame durations', () => {
+	for (const configuration of [13, 15]) {
+		assert.deepEqual(parseBundledOpusStream(opusStream({
+			channels: 2,
+			frameCount: 1_608,
+			toc: configuration << 3,
+			packetSamples: 960,
+			audioPacketsPerPage: 1,
+		})), {
+			sampleRate: 48_000, channelCount: 2, frameCount: 1_608, preSkip: 312,
+			audioPacketCount: 2,
+		});
+	}
+	for (const configuration of [12, 14]) {
+		assert.throws(() => parseBundledOpusStream(opusStream({
+			channels: 2,
+			frameCount: 168,
+			toc: configuration << 3,
+			packetSamples: 480,
+		})), BundledOpusStreamUnsupportedError);
+	}
+});
+
 test('strict parser keeps incompatible headers and impossible initial granules malformed', () => {
 	for (const malformed of [
 		opusStream({ channels: 2, frameCount: 648, headVersion: 16 }),
@@ -105,6 +128,7 @@ test('strict parser rejects discontinuous Ogg streams', () => {
 });
 
 function opusStream(options: Readonly<{
+	readonly audioPacketsPerPage?: number;
 	readonly channels: number;
 	readonly frameCount: number;
 	readonly finalGranule?: bigint;
@@ -114,6 +138,7 @@ function opusStream(options: Readonly<{
 	readonly headVersion?: number;
 	readonly initialGranuleOffset?: bigint;
 	readonly mappingFamily?: 0 | 1;
+	readonly packetSamples?: number;
 	readonly tagTrailingBytes?: Uint8Array;
 	readonly tags?: Uint8Array;
 	readonly toc?: number;
@@ -139,18 +164,31 @@ function opusStream(options: Readonly<{
 		new TextEncoder().encode('OpusTags'), u32(0), u32(0),
 		options.tagTrailingBytes ?? new Uint8Array(0),
 	);
-	const packets = Math.ceil((options.frameCount + preSkip) / 960);
+	const packetSamples = options.packetSamples ?? 960;
+	const packets = Math.ceil((options.frameCount + preSkip) / packetSamples);
 	const audioPackets = Array.from({ length: packets }, () => Uint8Array.of(options.toc ?? 0xf8));
 	const serial = 0x53434f50;
+	const audioPages: Uint8Array[] = [];
+	const packetsPerPage = options.audioPacketsPerPage ?? packets;
+	for (let offset = 0; offset < packets; offset += packetsPerPage) {
+		const pagePackets = audioPackets.slice(offset, offset + packetsPerPage);
+		const final = offset + pagePackets.length === packets;
+		audioPages.push(oggPage({
+			packets: pagePackets,
+			serial,
+			sequence: 2 + audioPages.length,
+			flags: (final ? 4 : 0) | (offset === 0 && options.firstAudioContinuation ? 1 : 0),
+			granule: final
+				? options.finalGranule
+					?? BigInt(options.frameCount + preSkip) + (options.initialGranuleOffset ?? 0n)
+				: BigInt(offset + pagePackets.length) * BigInt(packetSamples)
+					+ (options.initialGranuleOffset ?? 0n),
+		}));
+	}
 	return concatBytes(
 		oggPage({ packets: [completeHead], serial, sequence: 0, flags: 2, granule: 0n }),
 		oggPage({ packets: [tags], serial, sequence: 1, flags: 0, granule: 0n }),
-		oggPage({
-			packets: audioPackets, serial, sequence: 2,
-			flags: 4 | (options.firstAudioContinuation ? 1 : 0),
-			granule: options.finalGranule
-				?? BigInt(options.frameCount + preSkip) + (options.initialGranuleOffset ?? 0n),
-		}),
+		...audioPages,
 	);
 }
 
