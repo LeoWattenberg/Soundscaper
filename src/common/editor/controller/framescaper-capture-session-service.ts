@@ -4,10 +4,11 @@ import { createCaptureRuntimeAvailability, type CaptureFailure, type CapturePack
 import type { CapturePreviewLease, CapturePreviewSource } from '../platform/capture-source-port.ts';
 import type { FramescaperCaptureOriginAuthority } from './framescaper-capture-origin-guard.ts';
 import { createFramescaperCaptureActiveTimeClock } from './framescaper-capture-active-time-clock.ts';
+import { createFramescaperCaptureDisplaySelection } from './framescaper-capture-display-selection.ts';
 import { createFramescaperCaptureMetrics } from './framescaper-capture-metrics.ts';
 import { findFramescaperCaptureRecovery } from './framescaper-capture-recovery-admission.ts';
 import { applyCaptureSourceSettings, capturePreviewSourceSnapshots, createFramescaperCapturePreviewResources,
-	disposeCapturePreviewOwnership, normalizeCaptureDisplaySources, selectedCaptureDevices,
+	disposeCapturePreviewOwnership, selectedCaptureDevices,
 	type FramescaperCapturePreviewResources } from './framescaper-capture-preview-resources.ts';
 import { captureSessionFailure, captureSessionInputGain, installCaptureSourceEndWatchers,
 	safelyStopCaptureClock, waitForCaptureCountdown } from './framescaper-capture-session-runtime.ts';
@@ -46,16 +47,14 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	let sourceEndCleanups: readonly (() => void)[] = Object.freeze([]);
 	let devices: FramescaperCaptureSessionSnapshot['devices'] = Object.freeze([]);
 	let selectedDeviceIds: FramescaperCaptureSessionSnapshot['selectedDeviceIds'] = Object.freeze({});
-	let displaySources: FramescaperCaptureSessionSnapshot['displaySources'] = Object.freeze([]);
-	let selectedDisplaySourceToken: string | null = null;
+	const displaySelection = createFramescaperCaptureDisplaySelection(options.displaySelection, notify);
 	function snapshot(): Readonly<FramescaperCaptureSessionSnapshot> {
 		const state = machine.snapshot;
 		const elapsedTimeMs = clock && state.phase !== 'inactive' ? clock.snapshot(now()).activeTimeMs : 0;
 		const richSources = previewLease ? capturePreviewSourceSnapshots(previewLease.sources, previewResources) : state.sources;
 		return Object.freeze({
 			...state, sources: Object.freeze(richSources), devices, selectedDeviceIds,
-			displaySelectionMode: options.displaySelection?.mode ?? null,
-			displaySources, selectedDisplaySourceToken,
+			displaySelectionMode: displaySelection.mode, ...displaySelection.snapshot,
 			monitoring, inputGain, elapsedTimeMs, setupDefaults: options.setupDefaults?.snapshot ?? Object.freeze({ destination: 'both' as const, countdownMs: 3_000 }),
 			metrics: state.phase === 'inactive' ? Object.freeze([]) : metrics?.snapshot ?? Object.freeze([]),
 		});
@@ -98,7 +97,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	}
 	async function requestPreview(roles: readonly CaptureSourceRole[]): Promise<void> {
 		assertActive();
-		const sourceToken = displaySourceToken(roles);
+		const sourceToken = await displaySelection.renewToken(roles);
 		const previous = previewLease;
 		const previousResources = previewResources;
 		previewLease = null;
@@ -134,10 +133,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			previewResources = openedResources;
 			machine.previewReady(requestGeneration, openedLease.sources.map(({ sourceId, role }) => ({ sourceId, role })));
 			selectedDeviceIds = selectedCaptureDevices(openedLease.sources, selectedDeviceIds);
-			if (sourceToken) {
-				displaySources = Object.freeze([]);
-				selectedDisplaySourceToken = null;
-			}
+			displaySelection.consume(sourceToken);
 			notify();
 			await refreshDeviceInventory(openedLease);
 		} catch (error) {
@@ -154,21 +150,17 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	async function listDisplaySources(): Promise<void> {
 		assertActive();
 		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)
-			|| options.displaySelection?.mode !== 'source-list' || !options.displaySelection.listSources) {
+			|| displaySelection.mode !== 'source-list') {
 			throw new Error('Capture display source listing is unavailable.');
 		}
-		displaySources = normalizeCaptureDisplaySources(await options.displaySelection.listSources());
-		selectedDisplaySourceToken = null;
-		notify();
+		await displaySelection.list();
 	}
 	function selectDisplaySource(sourceToken: string): void {
 		assertActive();
-		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)
-			|| !displaySources.some(({ token }) => token === sourceToken)) {
+		if (!['inactive', 'previewing'].includes(machine.snapshot.phase)) {
 			throw new Error('The selected display source is not in the current inventory.');
 		}
-		selectedDisplaySourceToken = sourceToken;
-		notify();
+		displaySelection.select(sourceToken);
 	}
 	async function selectDevice(role: 'camera' | 'microphone', deviceId: string): Promise<void> {
 		assertActive();
@@ -198,17 +190,7 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	function clearDeviceInventory(): void {
 		devices = Object.freeze([]);
 		selectedDeviceIds = Object.freeze({});
-		displaySources = Object.freeze([]);
-		selectedDisplaySourceToken = null;
-	}
-	function displaySourceToken(roles: readonly CaptureSourceRole[]): string | null {
-		if (!roles.includes('display') || !options.displaySelection
-			|| options.displaySelection.mode !== 'source-list') return null;
-		if (!selectedDisplaySourceToken
-			|| !displaySources.some(({ token }) => token === selectedDisplaySourceToken)) {
-			throw new Error('Choose a display source before opening its preview.');
-		}
-		return selectedDisplaySourceToken;
+		displaySelection.clear();
 	}
 	async function configureSource(
 		sourceId: string,

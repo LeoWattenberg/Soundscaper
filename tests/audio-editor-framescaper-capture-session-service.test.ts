@@ -162,15 +162,21 @@ test('permission inventory, device changes, source settings and preview resource
 
 test('desktop source-list authority never chooses a display and grants non-display media too', async () => {
 	const grants: unknown[] = [];
+	let listCount = 0;
 	const displaySelection: FramescaperCaptureDisplaySelectionPort = {
 		mode: 'source-list',
-		listSources: () => [
+		listSources: () => {
+			listCount += 1;
+			return [
 			{ token: 'screen-token', name: 'Main screen', kind: 'screen' },
-			{ token: 'window-token', name: 'Slides', kind: 'window' },
-		],
+			{ token: `window-token-${String(listCount)}`, name: 'Slides', kind: 'window' },
+			];
+		},
 		authorize(request) { grants.push(request); },
 	};
-	const harness = serviceHarness({ displaySelection });
+	const harness = serviceHarness({ displaySelection, devices: [
+		{ id: 'camera-b', kind: 'camera' as const, label: 'Document camera' },
+	] });
 	await harness.service.initialize();
 	await assert.rejects(
 		harness.service.actions.requestPreview(['display']),
@@ -182,15 +188,17 @@ test('desktop source-list authority never chooses a display and grants non-displ
 	await harness.service.actions.listDisplaySources();
 	assert.equal(harness.service.snapshot.selectedDisplaySourceToken, null);
 	assert.deepEqual(harness.service.snapshot.displaySources.map(({ name }) => name), ['Main screen', 'Slides']);
-	harness.service.actions.selectDisplaySource('window-token');
-	await harness.service.actions.requestPreview(['display']);
-	assert.deepEqual(grants[0], { generation: 1, roles: ['display'], sourceToken: 'window-token' });
+	harness.service.actions.selectDisplaySource('window-token-1');
+	await harness.service.actions.requestPreview(['display', 'camera']);
+	assert.deepEqual(grants[0], { generation: 1, roles: ['display', 'camera'], sourceToken: 'window-token-1' });
 	assert.deepEqual(harness.service.snapshot.displaySources, []);
 	assert.equal(harness.service.snapshot.selectedDisplaySourceToken, null);
+	await harness.service.actions.selectDevice('camera', 'camera-b');
+	assert.deepEqual(grants[1], { generation: 2, roles: ['display', 'camera'], sourceToken: 'window-token-2' });
 	await harness.service.actions.release();
 
 	await harness.service.actions.requestPreview(['camera']);
-	assert.deepEqual(grants[1], { generation: 2, roles: ['camera'], sourceToken: null });
+	assert.deepEqual(grants[2], { generation: 3, roles: ['camera'], sourceToken: null });
 	await harness.service.actions.release();
 });
 
@@ -421,6 +429,7 @@ function serviceHarness(options: Readonly<{
 	recoveryProjectIds?: readonly string[];
 	currentProjectId?: string;
 	displaySelection?: FramescaperCaptureDisplaySelectionPort;
+	devices?: readonly Readonly<{ id: string; kind: 'camera' | 'microphone'; label: string }>[];
 	appendDelayMs?: number;
 	prepareGate?: Promise<void>;
 	previewGate?: Promise<void>;
@@ -460,7 +469,7 @@ function serviceHarness(options: Readonly<{
 					status: 'available', sourceRoles: ['camera', 'microphone', 'display', 'system-audio'],
 				}) as never;
 			},
-			async enumerate() { return { devices: [] }; },
+			async enumerate() { return { devices: options.devices ?? [] }; },
 			async openPreview(request) {
 				events.push(`preview:${String(request.userActionGeneration)}`);
 				await options.previewGate;
