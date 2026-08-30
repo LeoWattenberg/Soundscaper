@@ -37,7 +37,7 @@ test('reviewed Mark Cuts acceptance retains a normalized reusable shot table', a
 	const records = await retainLocalAssistanceGuidedReusableDerivatives({ workflow,
 		review: reviewed(workflow, 'normalize-cuts', 'cut-proposals', cuts),
 		readOutput: async () => { throw new Error('Mark Cuts needs no intermediate reread'); },
-		repository, resolveCurrentFence: () => workflow.fence });
+		repository, resolveCurrentFence: () => acceptedFence(workflow) });
 	assert.deepEqual(records.map(({ kind }) => kind), ['shot-table']);
 	assert.deepEqual(JSON.parse(new TextDecoder().decode(records[0]!.bytes)), {
 		schemaVersion: 1, kind: 'shot-table', sourceId: 'video-source', result: {
@@ -58,8 +58,8 @@ test('reusable retention refuses a changed aggregate fence before repository pub
 		}), readOutput: async () => { throw new Error('unexpected'); }, repository,
 		resolveCurrentFence: () => {
 			resolutions += 1;
-			return resolutions === 1 ? workflow.fence : {
-				...workflow.fence, sourceRanges: workflow.fence.sourceRanges.map((range) => ({
+			return resolutions === 1 ? acceptedFence(workflow) : {
+				...acceptedFence(workflow), sourceRanges: workflow.fence.sourceRanges.map((range) => ({
 					...range, linkMembershipSha256: 'ff'.repeat(32),
 				})),
 			};
@@ -79,7 +79,7 @@ test('accepted Reframe retains only normalized saliency and deterministic tracke
 		review: reviewed(workflow, 'plan-crops', 'reframe-path', terminal),
 		readOutput: async ({ claim }) => jsonBlob(claim.slotId === 'tracked-subjects'
 			? tracked : saliency, claim.slotId), repository,
-		resolveCurrentFence: () => workflow.fence });
+		resolveCurrentFence: () => acceptedFence(workflow) });
 	assert.deepEqual(records.map(({ kind }) => kind), ['saliency-map', 'tracker-state']);
 	assert.deepEqual(records.map(({ bytes }) => (
 		JSON.parse(new TextDecoder().decode(bytes)) as { kind: string }
@@ -91,7 +91,7 @@ test('accepted Reframe retains only normalized saliency and deterministic tracke
 		readOutput: async ({ claim }) => jsonBlob(claim.slotId === 'tracked-subjects'
 			? { ...tracked, frames: [{ ...tracked.frames[0]!, presentationTick: '1' },
 				tracked.frames[1]!] } : saliency, claim.slotId),
-		repository: corruptRepository, resolveCurrentFence: () => workflow.fence,
+		repository: corruptRepository, resolveCurrentFence: () => acceptedFence(workflow),
 	}), /authority|ordered|frame/iu);
 	assert.deepEqual(await corruptRepository.listProject('project-a'), []);
 });
@@ -113,7 +113,7 @@ test('accepted Highlights retains its reviewed shot table and ranked proposal li
 			? ranking : { schemaVersion: 1, detector: 'ffmpeg-scdet', timescale: 24,
 				sourceFrameCount: 240, boundaries: [{ sourceFrame: 120,
 					presentationTick: '120', score: 0.8 }] }, claim.slotId),
-		repository, resolveCurrentFence: () => workflow.fence });
+		repository, resolveCurrentFence: () => acceptedFence(workflow) });
 	assert.deepEqual(records.map(({ kind }) => kind), ['shot-table', 'ranking-checkpoint']);
 	const body = JSON.parse(new TextDecoder().decode(records[1]!.bytes)) as
 		Readonly<{ kind: string; result: { candidates: readonly { id: string }[] } }>;
@@ -193,6 +193,10 @@ function videoRange(): AssistanceWorkflowSourceRangeV1 {
 		occurrenceIds: ['video-occurrence'], sourceStartFrame: 0, sourceEndFrame: 240,
 		linkMembershipSha256: '56'.repeat(32), timingAuthoritySha256: '78'.repeat(32),
 		retimeKind: 'identity' };
+}
+
+function acceptedFence(workflow: AssistanceWorkflowV1) {
+	return { ...workflow.fence, revision: workflow.fence.revision + 1 };
 }
 
 function reframeResult() {

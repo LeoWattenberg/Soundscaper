@@ -90,9 +90,11 @@ async function assertCurrentProject(
 	}
 	const row = value as Readonly<Record<string, unknown>>;
 	const identity = readProjectSchemaIdentity(row);
-	if (identity.schemaFamily !== fence.schemaFamily
+	const acceptedRevision = fence.revision + 1;
+	if (!Number.isSafeInteger(acceptedRevision)
+		|| identity.schemaFamily !== fence.schemaFamily
 		|| identity.schemaVersion !== fence.schemaVersion
-		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision) {
+		|| row.projectId !== fence.projectId || row.projectRevision !== acceptedRevision) {
 		throw new DOMException('The Guided reaction project authority is stale.', 'AbortError');
 	}
 }

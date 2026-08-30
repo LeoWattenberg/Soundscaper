@@ -222,7 +222,10 @@ async function assertCurrentFence(
 	signal.throwIfAborted();
 	const current = validateAssistanceWorkflowFenceV1(await resolve(workflow, signal));
 	signal.throwIfAborted();
-	if (JSON.stringify(current) !== JSON.stringify(workflow.fence)) {
+	const acceptedRevision = workflow.fence.revision + 1;
+	if (!Number.isSafeInteger(acceptedRevision) || JSON.stringify(current) !== JSON.stringify({
+		...workflow.fence, revision: acceptedRevision,
+	})) {
 		throw new DOMException('Reusable Guided aggregate-fence authority is stale.', 'AbortError');
 	}
 }

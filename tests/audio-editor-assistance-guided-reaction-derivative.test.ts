@@ -22,7 +22,7 @@ test('reviewed PANNs windows are retained only in authenticated disposable proje
 	const semantic = audioTags();
 	const record = await retainLocalAssistanceGuidedReactionScores({ workflow, repository,
 		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
-			projectId: 'project-a', projectRevision: 8 }),
+			projectId: 'project-a', projectRevision: 9 }),
 		readOutput: async ({ claim }) => {
 			assert.equal(`${claim.stageId}:${claim.slotId}`, 'tag-reactions:audio-tags');
 			return new Blob([` ${JSON.stringify(semantic)} `], { type: MEDIA_TYPE });
@@ -40,11 +40,11 @@ test('reaction score retention refuses stale, malformed, and foreign workflow cu
 	const repository = derivativeRepository();
 	const base = { workflow, repository,
 		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
-			projectId: 'project-a', projectRevision: 8 }),
+			projectId: 'project-a', projectRevision: 9 }),
 		readOutput: async () => new Blob([JSON.stringify(audioTags())], { type: MEDIA_TYPE }) };
 	await assert.rejects(retainLocalAssistanceGuidedReactionScores({ ...base,
 		currentProject: () => ({ schemaFamily: 'framescaper', schemaVersion: 1,
-			projectId: 'project-a', projectRevision: 9 }),
+			projectId: 'project-a', projectRevision: 10 }),
 	}), /stale|revision|authority/iu);
 	await assert.rejects(retainLocalAssistanceGuidedReactionScores({ ...base,
 		readOutput: async () => new Blob([JSON.stringify({ ...audioTags(), sampleRate: 16_000 })],
