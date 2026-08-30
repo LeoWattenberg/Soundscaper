@@ -246,7 +246,7 @@ export function createSoundscaperAudioFreezeActions(
 			disposed = true;
 			const pending = active;
 			pending?.abort.abort(new DOMException('Audio freeze actions were disposed.', 'AbortError'));
-			await pending?.promise.catch(() => undefined);
+			await pending?.promise.catch((error: unknown) => { if (!(error instanceof Error) || error.name !== 'AbortError') throw error; });
 		},
 	});
 }
@@ -305,7 +305,7 @@ async function renderFreezeBody(
 			throwIfAborted(request.signal);
 			const storageKey = String(source.storageKey ?? source.id);
 			const metadata = await store.getSourceMetadata(storageKey);
-			assertCurrentSoundscaperFreezeProject(controller, ticket);
+			throwIfAborted(request.signal); assertCurrentSoundscaperFreezeProject(controller, ticket);
 			if (!metadata) throw new Error(`Stored PCM for ${String(source.id)} is unavailable.`);
 			providers.set(String(source.id), createStoredChunkProvider(store, source as never, metadata));
 		}

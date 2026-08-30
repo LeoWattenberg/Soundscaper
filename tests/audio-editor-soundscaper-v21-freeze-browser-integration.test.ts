@@ -246,6 +246,108 @@ test('an edit to the frozen material during a freeze still discards the render',
 	playback.dispose();
 });
 
+test('disposing freeze actions reports a failed cancellation rollback', async () => {
+	const store = new MemoryFreezeStore();
+	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(),
+		store,
+	);
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
+		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	}));
+	let current = projectFixture(liveSourceSha256);
+	const controller = {
+		get project() { return current; },
+		actions: { edit: { commit(command: AudioTrackFreezeCoordinatorCommandV21) {
+			current = applySoundscaperProjectCommand(current, command, { now: NOW });
+			return current;
+		} } },
+	};
+	const verificationStarted = deferred();
+	const continueVerification = deferred();
+	const rollbackFailure = new Error('planned freeze rollback failure');
+	const binding = createSoundscaperAudioFreezeActions({
+		store,
+		playback: {
+			...playback,
+			async hashSourceContent(projectId, source, signal) {
+				const result = await playback.hashSourceContent(projectId, source, signal);
+				if (source.id === 'voice-freeze-cancelled') {
+					verificationStarted.resolve();
+					await continueVerification.promise;
+				}
+				return result;
+			},
+		},
+	}, controller, {
+		createId: (kind) => kind === 'source' ? 'voice-freeze-cancelled' : 'unused-clip',
+		createRenderEngine: () => fakeRenderEngine([]),
+	});
+	const freezing = binding.actions.freeze('voice');
+	const freezeFailure = assert.rejects(freezing, (error) => (
+		error instanceof AggregateError && error.errors.includes(rollbackFailure)
+	));
+	await verificationStarted.promise;
+	store.failNextDiscard(rollbackFailure);
+	const disposal = assert.rejects(binding.dispose(), (error) => (
+		error instanceof AggregateError && error.errors.includes(rollbackFailure)
+	));
+	continueVerification.resolve();
+	await Promise.all([freezeFailure, disposal]);
+	assert.equal(store.has('voice-freeze-cancelled'), true, 'the reported rollback failure left its exact body');
+	playback.dispose();
+});
+
+test('disposing during source metadata lookup stops before offline graph load', async () => {
+	const store = new MemoryFreezeStore();
+	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(), store,
+	);
+	const liveSourceSha256 = await playback.hashSourceContent('freeze-browser-project', createAudioSource({
+		id: 'voice-source', storageKey: 'pcm:voice', frameCount: 8, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	}));
+	let current = projectFixture(liveSourceSha256);
+	const controller = {
+		get project() { return current; },
+		actions: { edit: { commit(command: AudioTrackFreezeCoordinatorCommandV21) {
+			current = applySoundscaperProjectCommand(current, command, { now: NOW });
+			return current;
+		} } },
+	};
+	const engineCreated = deferred();
+	let metadataGate: Readonly<{ started: Promise<void>; resolve(): void }> | null = null;
+	let graphLoads = 0;
+	let renderCalls = 0;
+	const binding = createSoundscaperAudioFreezeActions({ store, playback }, controller, {
+		createId: (kind) => kind === 'source' ? 'voice-freeze-cancelled-metadata' : 'unused-clip',
+		createRenderEngine: () => {
+			metadataGate = store.deferNextMetadata();
+			engineCreated.resolve();
+			return {
+				loadProject() { graphLoads += 1; },
+				async renderTrack() { renderCalls += 1; return { channels: [new Float32Array(8)] }; },
+				async dispose() { /* no-op */ },
+			};
+		},
+	});
+	const freezing = binding.actions.freeze('voice');
+	const freezeFailure = assert.rejects(freezing, /disposed|abort/iu);
+	await engineCreated.promise;
+	const gate = metadataGate as Readonly<{ started: Promise<void>; resolve(): void }> | null;
+	assert.ok(gate);
+	await gate.started;
+	const disposal = binding.dispose();
+	gate.resolve();
+	await Promise.all([freezeFailure, disposal]);
+	assert.equal(graphLoads, 0, 'an aborted render never loads its project graph');
+	assert.equal(renderCalls, 0);
+	playback.dispose();
+});
+
 function projectFixture(contentSha256: string): SoundscaperProject {
 	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256,
@@ -316,14 +418,29 @@ interface StoredPcm {
 class MemoryFreezeStore {
 	readonly #sources = new Map<string, StoredPcm>();
 	#token = 0;
+	#discardFailure: Error | null = null;
+	#metadataGate: Readonly<{ started: ReturnType<typeof deferred>; continuation: ReturnType<typeof deferred> }> | null = null;
 
 	seed(id: string, channels: readonly Float32Array[]): void {
 		this.#sources.set(id, this.#stored(id, channels, `seed-${String(++this.#token)}`, {}));
 	}
 
 	has(id: string): boolean { return this.#sources.has(id); }
+	failNextDiscard(error: Error): void { this.#discardFailure = error; }
+	deferNextMetadata(): Readonly<{ started: Promise<void>; resolve(): void }> {
+		const started = deferred();
+		const continuation = deferred();
+		this.#metadataGate = Object.freeze({ started, continuation });
+		return Object.freeze({ started: started.promise, resolve: continuation.resolve });
+	}
 
-	getSourceMetadata(id: string): StorageRecord | null {
+	async getSourceMetadata(id: string): Promise<StorageRecord | null> {
+		const gate = this.#metadataGate;
+		if (gate) {
+			this.#metadataGate = null;
+			gate.started.resolve();
+			await gate.continuation.promise;
+		}
 		return this.#sources.get(id)?.metadata ?? null;
 	}
 
@@ -391,6 +508,11 @@ class MemoryFreezeStore {
 	}
 
 	async discardSourceIfCurrent(authority: StorageRecord): Promise<boolean> {
+		if (this.#discardFailure) {
+			const failure = this.#discardFailure;
+			this.#discardFailure = null;
+			throw failure;
+		}
 		const current = this.#sources.get(String(authority.id));
 		if (!current || current.metadata.sourceToken !== authority.sourceToken) return false;
 		this.#sources.delete(String(authority.id));
@@ -425,4 +547,10 @@ class MemoryFreezeStore {
 			chunks,
 		});
 	}
+}
+
+function deferred(): Readonly<{ promise: Promise<void>; resolve(): void }> {
+	let settle = (): void => undefined;
+	const promise = new Promise<void>((resolve) => { settle = resolve; });
+	return Object.freeze({ promise, resolve: () => settle() });
 }
