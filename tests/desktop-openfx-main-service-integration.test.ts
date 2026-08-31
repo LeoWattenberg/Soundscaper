@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
@@ -224,6 +224,25 @@ test('revocation closes execution while immutable custody survives later source 
 	assert.equal(fixture.service.inventory()[0]?.state, 'enabled');
 });
 
+test('revoke, disable, and dispose settle immutable custody removal before returning', async (context) => {
+	for (const action of ['revoke', 'disable', 'dispose'] as const) {
+		const fixture = await createFixture(context);
+		fixture.preferences.nativeMediaEnabled = true;
+		fixture.preferences.ofxConsentEnabled = true;
+		const scanned = await fixture.service.scan();
+		assert.ok(scanned);
+		const custodyRoot = fixture.snapshotRoots[0];
+		assert.ok(custodyRoot);
+		await access(custodyRoot);
+
+		if (action === 'revoke') {
+			await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'revoke' });
+		} else await fixture.service[action]();
+
+		await assert.rejects(access(custodyRoot), { code: 'ENOENT' }, action);
+	}
+});
+
 test('runtime quarantine becomes consent authority and clearing requires a fresh scan and enable', async (context) => {
 	const fixture = await createFixture(context);
 	fixture.preferences.nativeMediaEnabled = true;
@@ -298,7 +317,7 @@ test('scan cancellation and malformed descriptors leave no registration or scrat
 	cancelled.preferences.ofxConsentEnabled = true;
 	const pending = cancelled.service.scan();
 	await started;
-	cancelled.service.disable();
+	await cancelled.service.disable();
 	releaseScan();
 	await assert.rejects(pending, /abort|authority/iu);
 	assert.deepEqual(cancelled.service.inventory(), []);
@@ -372,11 +391,14 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 	let scanJobs = 0;
 	let hostJobs = 0;
 	let videoTimingStreams = 0;
+	const snapshotRoots: string[] = [];
 	const runtimeState = { quarantined: false, failures: [] as Error[] };
 	const manager = new OfxIsolatedHostManager({
 		createScanner: () => worker(async (request) => {
 			scanJobs += 1;
 			const grant = request.grant as HelperOfxScanJobGrant;
+			assert.ok(grant.pluginBinary.custody);
+			snapshotRoots.push(grant.pluginBinary.custody.rootPath);
 			await options.beforeScanResult?.();
 			const descriptor = Buffer.from(JSON.stringify(options.scanDescriptor ?? {
 				pluginId: 'org.framescaper.conformance', vendor: 'Framescaper',
@@ -501,7 +523,7 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 	});
 	return {
 		service, pluginPath, preferences, runtimeAvailable, payloadAvailable, plan,
-		runtimeState, channelState, scratchRoot: join(root, 'scratch'),
+		runtimeState, channelState, snapshotRoots, scratchRoot: join(root, 'scratch'),
 		get selections() { return selections; },
 		get scanJobs() { return scanJobs; },
 		get hostJobs() { return hostJobs; },

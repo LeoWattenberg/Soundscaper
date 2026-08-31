@@ -249,7 +249,7 @@ export class FramescaperOpenFxMainService {
 			plugin.consent = revokeOfxPlugin(plugin.consent);
 			this.#invalidatePlugin(plugin);
 			this.#options.runtime.manager?.release(ofxPluginFingerprint(plugin.descriptor));
-			void plugin.custody.dispose();
+			await plugin.custody.dispose();
 			return this.#projection(plugin);
 		}
 		this.#admitOperation();
@@ -425,27 +425,28 @@ export class FramescaperOpenFxMainService {
 		}
 	}
 
-	disable(): void {
+	async disable(): Promise<void> {
 		this.#assertActive();
 		this.#authorityEpoch += 1;
 		this.#scanAbort?.abort();
+		const disposals: Promise<void>[] = [];
 		for (const plugin of this.#plugins.values()) {
 			plugin.consent = revokeOfxPlugin(plugin.consent);
 			this.#invalidatePlugin(plugin);
 			this.#options.runtime.manager?.release(ofxPluginFingerprint(plugin.descriptor));
-			void plugin.custody.dispose();
+			disposals.push(plugin.custody.dispose());
 		}
+		await Promise.all(disposals);
 	}
 
-	dispose(): void {
-		if (this.#disposed) return;
-		this.#disposed = true;
-		this.#authorityEpoch += 1;
-		this.#scanAbort?.abort();
-		for (const plugin of this.#plugins.values()) {
-			this.#invalidatePlugin(plugin);
-			void plugin.custody.dispose();
+	async dispose(): Promise<void> {
+		if (!this.#disposed) {
+			this.#disposed = true;
+			this.#authorityEpoch += 1;
+			this.#scanAbort?.abort();
+			for (const plugin of this.#plugins.values()) this.#invalidatePlugin(plugin);
 		}
+		await Promise.all([...this.#plugins.values()].map((plugin) => plugin.custody.dispose()));
 		this.#plugins.clear();
 	}
 

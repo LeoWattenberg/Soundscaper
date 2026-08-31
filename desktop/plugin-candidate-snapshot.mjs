@@ -12,6 +12,7 @@ const SHA256 = /^[a-f\d]{64}$/u;
 
 export async function snapshotAuthenticatedPluginCandidate(path, expected, ports = {}) {
 	const copy = ports.copy ?? cp;
+	const remove = ports.remove ?? rm;
 	const snapshotParent = ports.snapshotParent ?? tmpdir();
 	const first = await authenticatePluginCandidate(path);
 	assertExpected(first, expected, true);
@@ -20,6 +21,7 @@ export async function snapshotAuthenticatedPluginCandidate(path, expected, ports
 	}
 	const container = await mkdtemp(join(snapshotParent, 'soundscaper-plugin-snapshot-'));
 	let disposed = false;
+	let disposal = null;
 	try {
 		const snapshotPath = join(container, basename(path));
 		await copy(path, snapshotPath, {
@@ -39,14 +41,20 @@ export async function snapshotAuthenticatedPluginCandidate(path, expected, ports
 			authentication: frozen,
 			dispose: async () => {
 				if (disposed) return;
-				disposed = true;
-				await makeWritable(container).catch(() => undefined);
-				await rm(container, { recursive: true, force: true });
+				if (disposal === null) disposal = (async () => {
+					await makeWritable(container).catch(() => undefined);
+					await remove(container, {
+						recursive: true, force: true, maxRetries: 5, retryDelay: 50,
+					});
+					disposed = true;
+				})();
+				try { await disposal; }
+				finally { if (!disposed) disposal = null; }
 			},
 		});
 	} catch (error) {
 		await makeWritable(container).catch(() => undefined);
-		await rm(container, { recursive: true, force: true });
+		await remove(container, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
 		throw error;
 	}
 }

@@ -89,6 +89,32 @@ test('custody refuses a source mutated after copy but before final authenticatio
 	}), /changed before immutable isolated custody/iu);
 });
 
+test('a failed custody removal remains retryable instead of becoming a permanent no-op', async (context) => {
+	const root = await fixture(context);
+	const path = join(root, 'retry-disposal.clap');
+	await writeFile(path, 'reviewed module');
+	const expected = await authenticatePluginCandidate(path);
+	let removals = 0;
+	const snapshot = await snapshotAuthenticatedPluginCandidate(path, expected, {
+		snapshotParent: root,
+		remove: async (target, options) => {
+			removals += 1;
+			if (removals === 1) {
+				const failure = new Error('snapshot is still busy');
+				failure.code = 'EBUSY';
+				throw failure;
+			}
+			await rm(target, options);
+		},
+	});
+
+	await assert.rejects(() => snapshot.dispose(), /still busy/iu);
+	await access(snapshot.path);
+	await snapshot.dispose();
+	assert.equal(removals, 2);
+	await assert.rejects(access(snapshot.path), { code: 'ENOENT' });
+});
+
 async function fixture(context) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-plugin-candidate-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

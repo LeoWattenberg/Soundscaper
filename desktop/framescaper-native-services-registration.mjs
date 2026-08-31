@@ -175,6 +175,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		});
 	} catch (error) {
 		imageSequenceSelectionBroker.dispose();
+		await openFxService?.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -196,7 +197,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 	catch (error) {
 		void watchImportBroker?.dispose().catch(options.onServiceError);
 		imageSequenceSelectionBroker.dispose();
-		openFxService.dispose();
+		await openFxService.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -240,7 +241,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 					}
 				}
 				if ((preference === 'native-media' || preference === 'ofx-consent')
-					&& result === false) openFxService.disable();
+					&& result === false) await openFxService.disable();
 				return result;
 			},
 			onFenced: options.onFenced,
@@ -274,7 +275,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		externalDisplay.dispose?.();
 		void watchImportBroker?.dispose().catch(options.onServiceError);
 		imageSequenceSelectionBroker.dispose();
-		openFxService.dispose();
+		await openFxService.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -292,7 +293,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		await runtime.close();
 		void watchImportBroker?.dispose().catch(options.onServiceError);
 		imageSequenceSelectionBroker.dispose();
-		openFxService.dispose();
+		await openFxService.dispose();
 		openFxRuntime.dispose();
 		mediaRuntime.dispose();
 		throw error;
@@ -345,7 +346,7 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		},
 		async revokeOwner(owner) {
 			if (disposed) return 0;
-			openFxService.disable();
+			await openFxService.disable();
 			const revoked = await Promise.all([
 				renderInputStaging.abandonOwner(owner),
 				Promise.resolve().then(() => imageSequenceSelectionBroker.disposeOwner(owner)),
