@@ -72,6 +72,7 @@ test('post-delete release failure reports without rollback and retries after rec
 		},
 	});
 	await fixture.store.saveProject({ id: 'project-a', revision: 0 });
+	await fixture.store.saveProject({ id: 'project-b', revision: 0 });
 	await fixture.store.bindLinkedVideoOriginal('project-a', source('source-a', 'storage-a'), LOCATOR_A);
 
 	await fixture.store.deleteProject('project-a');
@@ -89,7 +90,6 @@ test('post-delete release failure reports without rollback and retries after rec
 		},
 	);
 
-	await fixture.store.saveProject({ id: 'project-b', revision: 0 });
 	await fixture.store.bindLinkedVideoOriginal('project-b', source('source-b', 'storage-b'), LOCATOR_A);
 	assert.equal(releaseAttempts, 1, 'the newly rebound alias must suppress pending cleanup');
 	await fixture.store.deleteProject('project-b');
