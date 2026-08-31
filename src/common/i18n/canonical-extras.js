@@ -1,5 +1,4 @@
 import { localeLanguage } from './locale.js';
-
 // Canonical effect/layout and Audacity parity copy. The exported catalogs are flat.
 const COPY_ENTRIES = Object.freeze([
 	["loudnessNormalization","Loudness normalization","Lautheitsnormalisierung"],
