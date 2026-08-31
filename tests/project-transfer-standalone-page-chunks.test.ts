@@ -172,8 +172,8 @@ function requireBuiltTransferDocuments(): void {
  */
 const ADMITTED_PRELOAD_GROUPS = [
 	'cross-product-handoff-report-sidecar',
-	'cross-product-handoff-root-contract',
 	'project-interchange-foundations',
+	'project-transfer-handshake-channel',
 	'rolldown-runtime',
 	'site-entry',
 	'transfer-manual-refusal',
