@@ -234,6 +234,27 @@ test('encodeFileToSink streams bounded FFmpeg ranges without a whole-file read',
 	ffmpeg.dispose();
 });
 
+test('File inputs mount under the same sanitized name passed to FFmpeg', async () => {
+	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
+	const unsafe = new File([Uint8Array.of(1)], 'folder\\unsafe/input.wav', { type: 'audio/wav' });
+	await ffmpeg.encodeFile(unsafe, 'mp3');
+	const runtime = MockFfmpegRuntime.instances[0];
+	assert.equal(runtime.mountCalls[0].options.files, undefined);
+	assert.equal(runtime.mountCalls[0].options.blobs[0].data, unsafe);
+	assert.equal(runtime.mountCalls[0].options.blobs[0].name, 'folder-unsafe-input.wav');
+	assert.equal(runtime.lastExec[1].endsWith('/folder-unsafe-input.wav'), true);
+
+	const unnamed = new File([Uint8Array.of(2)], '', { type: 'audio/wav' });
+	await ffmpeg.encodeFileToSink(unnamed, 'mp3', {
+		async open() {}, async write() {}, async close() { return 'saved'; }, async abort() {},
+	});
+	const mountedName = runtime.mountCalls[1].options.blobs[0].name;
+	assert.match(mountedName, /^editor-.+\.wav$/u);
+	assert.equal(runtime.mountCalls[1].options.blobs[0].data, unnamed);
+	assert.equal(runtime.lastExec[1].endsWith(`/${mountedName}`), true);
+	ffmpeg.dispose();
+});
+
 test('encodeFileToSink terminates cancellation and aborts the uncommitted sink exactly once', async () => {
 	MockFfmpegRuntime.pauseExecByDefault = true;
 	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });

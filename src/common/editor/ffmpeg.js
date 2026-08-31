@@ -303,9 +303,7 @@ export function createEditorFfmpeg(options = {}) {
 			try {
 				await instance.createDir(mountPoint);
 				createdMountPoint = true;
-				const mountOptions = typeof File !== 'undefined' && file instanceof File
-					? { files: [file] }
-					: { blobs: [{ name: inputName, data: file }] };
+				const mountOptions = { blobs: [{ name: inputName, data: file }] };
 				await instance.mount(module.FFFSType.WORKERFS, mountOptions, mountPoint);
 				mounted = true;
 				const code = await instance.exec(encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
@@ -347,7 +345,7 @@ export function createEditorFfmpeg(options = {}) {
 				const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 				const mountPoint = `/editor-encode-${stamp}`;
 				const inputName = typeof File !== 'undefined' && file instanceof File
-					? file.name.replace(/[\\/]/g, '-').replaceAll('\u0000', '-')
+					? safeFfmpegFileName(file.name, `editor-${stamp}.wav`)
 					: `editor-${stamp}.wav`;
 				const output = `editor-${stamp}.${normalized.extension}`;
 				const onAbort = () => terminateRuntime();
@@ -359,9 +357,7 @@ export function createEditorFfmpeg(options = {}) {
 					assertFfmpegOutputReady(settings);
 					await instance.createDir(mountPoint);
 					cleanupSteps.push(() => instance.deleteDir(mountPoint));
-					const mountOptions = typeof File !== 'undefined' && file instanceof File
-						? { files: [file] }
-						: { blobs: [{ name: inputName, data: file }] };
+					const mountOptions = { blobs: [{ name: inputName, data: file }] };
 					await instance.mount(module.FFFSType.WORKERFS, mountOptions, mountPoint);
 					cleanupSteps.unshift(() => instance.unmount(mountPoint));
 					assertFfmpegOutputReady(settings);
