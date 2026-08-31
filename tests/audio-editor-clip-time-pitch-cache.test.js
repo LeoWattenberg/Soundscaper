@@ -342,6 +342,37 @@ test('shared renders isolate subscriber aborts and cancel StaffPad only after th
 	coordinator.dispose();
 });
 
+test('a caller arriving while an abandoned render drains receives a fresh job', async () => {
+	const store = await sourceStore('aborted-job-replacement');
+	const source = sourceFixture();
+	const client = new FakeStaffPadClient();
+	const stalledRender = deferred();
+	const renderEntered = deferred();
+	const render = client.render.bind(client);
+	let attempts = 0;
+	client.render = async (...args) => {
+		attempts += 1;
+		if (attempts === 1) {
+			renderEntered.resolve();
+			await stalledRender.promise;
+		}
+		return render(...args);
+	};
+	const coordinator = new ClipTimePitchRenderCacheCoordinator({ store, client });
+	const clip = clipFixture({ renderCacheRevision: 5 });
+	const cancelled = new AbortController();
+	const first = await coordinator.requestClipRender(clip, source, { signal: cancelled.signal });
+	await renderEntered.promise;
+	cancelled.abort();
+	await assert.rejects(first.pending, (error) => error.code === 'ABORTED');
+
+	const replacement = await coordinator.requestClipRender(clip, source);
+	stalledRender.resolve();
+	assert.equal((await replacement.pending).renderCacheRevision, 5);
+	assert.equal(client.calls.length, 2);
+	await coordinator.dispose();
+});
+
 test('quota failures are structured, abort publication, and do not replace the last valid cache', async () => {
 	const store = await sourceStore('quota');
 	const source = sourceFixture();

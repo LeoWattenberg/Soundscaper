@@ -501,6 +501,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 
 	#getOrCreateJob(plan, clip, source, options) {
 		let job = this.inFlight.get(plan.finalKey);
+		if (job?.controller.signal.aborted) job = null;
 		if (job) return job;
 		const controller = new AbortController();
 		job = {
