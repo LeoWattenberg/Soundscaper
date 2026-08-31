@@ -14,11 +14,10 @@
  *     value: number,
  *     unit: string,
  *   }[],
- * }} qualification
+ * }} budget
  * @param {{
  *   id: string,
  *   status: 'active' | 'unprovisioned',
- *   qualificationEligible: boolean,
  * }} expectedEnvironment
  * @param {{
  *   environmentId: string,
@@ -26,33 +25,30 @@
  *   metrics: Readonly<Record<string, number>>,
  * }} measurement
  */
-export function evaluateQualityBudget(qualification, expectedEnvironment, measurement) {
+export function evaluateQualityBudget(budget, expectedEnvironment, measurement) {
 	const failures = [];
 	const verdicts = [];
 
-	if (qualification.environmentId !== expectedEnvironment.id) {
+	if (budget.environmentId !== expectedEnvironment.id) {
 		failures.push(
-			`Budget environment ${qualification.environmentId} does not match descriptor ${expectedEnvironment.id}.`,
+			`Budget environment ${budget.environmentId} does not match descriptor ${expectedEnvironment.id}.`,
 		);
 	}
 	if (expectedEnvironment.status !== 'active') {
 		failures.push(`Environment ${expectedEnvironment.id} is ${expectedEnvironment.status}.`);
 	}
-	if (!expectedEnvironment.qualificationEligible) {
-		failures.push(`Environment ${expectedEnvironment.id} is not qualification-eligible.`);
-	}
-	if (measurement.environmentId !== qualification.environmentId) {
+	if (measurement.environmentId !== budget.environmentId) {
 		failures.push(
-			`Environment mismatch: expected ${qualification.environmentId}, received ${measurement.environmentId}.`,
+			`Environment mismatch: expected ${budget.environmentId}, received ${measurement.environmentId}.`,
 		);
 	}
-	if (qualification.rendererRequirement === 'hardware' && measurement.rendererClass !== 'hardware') {
+	if (budget.rendererRequirement === 'hardware' && measurement.rendererClass !== 'hardware') {
 		failures.push(
 			`A hardware renderer is required; received ${measurement.rendererClass || 'unknown'}.`,
 		);
 	}
 
-	for (const threshold of qualification.thresholds) {
+	for (const threshold of budget.thresholds) {
 		if (!Object.hasOwn(measurement.metrics, threshold.metricId)) {
 			failures.push(`Missing metric ${threshold.metricId}.`);
 			verdicts.push(Object.freeze({

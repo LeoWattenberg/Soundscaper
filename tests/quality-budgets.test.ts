@@ -7,7 +7,7 @@ import {
 	createVideoEffectParityFixture,
 } from './browser/video-effect-parity-helpers.js';
 
-type BudgetStatus = 'blocked' | 'optional' | 'planned' | 'provisional' | 'qualified';
+type BudgetStatus = 'active' | 'blocked' | 'optional' | 'planned';
 type Comparison = 'eq' | 'gte' | 'lte';
 type EnvironmentStatus = 'active' | 'unprovisioned';
 type RendererRequirement = 'any' | 'hardware';
@@ -19,13 +19,9 @@ interface BudgetArtifact {
 }
 
 interface BudgetEnvironment {
-	readonly eligibleWorkloadIds?: readonly string[];
 	readonly evidence: readonly string[];
 	readonly fingerprint: Readonly<Record<string, string | number | null>>;
 	readonly id: string;
-	readonly lowerBoundOf?: string;
-	readonly qualificationBasis?: string;
-	readonly qualificationEligible: boolean;
 	readonly rendererRequirement: RendererRequirement;
 	readonly status: EnvironmentStatus;
 }
@@ -83,24 +79,6 @@ interface QualityBudgetConfig {
 		timingWarmupTrials: number;
 		timingWorkers: number;
 	}>;
-	readonly qualification: Readonly<{
-		acceptedResultCohorts: readonly Readonly<Record<string, unknown>>[];
-		qualifiedWorkloadIds: readonly string[];
-		resultContract: Readonly<{
-			attemptCount: number;
-			budgetDigest: string;
-			cohortAuditor: string;
-			environmentFingerprint: string;
-			evidenceWriter: string;
-			evaluator: string;
-			fileVerifier: string;
-			metricSet: string;
-			rawEvidence: string;
-			retryCount: number;
-			schemaVersion: number;
-		}>;
-		status: string;
-	}>;
 	readonly schemaVersion: number;
 	readonly softwareInputs: Readonly<{
 		browsers: Readonly<Record<string, BrowserInput>>;
@@ -120,7 +98,7 @@ const metricSuffixUnits: Readonly<Record<string, string>> = Object.freeze({
 	Bytes: 'bytes', Ratio: 'ratio', Db: 'dB', Lu: 'LU', Rtf: 'RTF',
 });
 
-test('quality budget contract names numeric gates and the exact qualified structural set', async () => {
+test('quality budget contract names numeric diagnostic gates', async () => {
 	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
 	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
 		readonly scripts: Readonly<Record<string, string>>;
@@ -136,36 +114,6 @@ test('quality budget contract names numeric gates and the exact qualified struct
 
 	assert.equal(config.schemaVersion, 1);
 	assert.match(config.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
-	assert.equal(config.qualification.status, 'in-progress');
-	assert.deepEqual(config.qualification.qualifiedWorkloadIds, [
-		'm2-streaming-project-8gib-v1',
-		'm2-direct-wav-385mib-v1',
-		'm2-direct-stem-archives-v3',
-		'm2-direct-compressed-output-v2',
-		'm2-direct-mp4-webm-video-output-v1',
-		'm4-production-render-parity',
-		'm4b2-keyframe-render-parity',
-	]);
-	assert.equal(config.qualification.acceptedResultCohorts.length, 3);
-	assert.deepEqual(config.qualification.resultContract, {
-		schemaVersion: 1,
-		evaluator: 'scripts/quality-budget-result.mjs',
-		fileVerifier: 'scripts/verify-quality-budget-result.mjs',
-		evidenceWriter: 'scripts/quality-budget-evidence.mjs',
-		cohortAuditor: 'scripts/audit-quality-result-cohorts.mjs',
-		attemptCount: 1,
-		retryCount: 0,
-		budgetDigest: 'sha256-exact-config-bytes',
-		environmentFingerprint: 'exact-descriptor-match',
-		metricSet: 'exact-workload-thresholds',
-		rawEvidence: 'positive-byte-length-and-sha256',
-	});
-	await assertEvidenceExists([
-		config.qualification.resultContract.evaluator,
-		config.qualification.resultContract.fileVerifier,
-		config.qualification.resultContract.evidenceWriter,
-		config.qualification.resultContract.cohortAuditor,
-	]);
 	assert.deepEqual(config.measurementPolicy, {
 		percentileMethod: 'nearest-rank',
 		missingMetric: 'fail',
@@ -187,7 +135,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 
 	assert.deepEqual(
 		[...new Set(config.workloads.map(({ milestone }) => milestone).filter((milestone) => milestone !== '1'))].sort(),
-		['2', '3', '4', '5', '6', '7', '8+', '8A', '8B', '9'],
+		['2', '3', '4', '5', '6', '7', '8+', '8A', '8B'],
 	);
 	for (const workload of config.workloads) {
 		assert.ok(workload.fixtureIds.length > 0, `${workload.id} must name a fixture`);
@@ -222,7 +170,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.match(blockedMidi?.activationGate ?? '', /Audacity.*design/iu);
 
 	const milestone2Fixture = fixtures.get('m2-streaming-project-8gib-v1');
-	assert.equal(milestone2Fixture?.status, 'provisional');
+	assert.equal(milestone2Fixture?.status, 'active');
 	assert.equal(milestone2Fixture?.kind, 'sparse-zip64-desktop-range-and-counting-import-witness');
 	assert.deepEqual(milestone2Fixture?.specification, {
 		referenceScaleExecutionCommand: 'npm run test:reference:scape-8gib',
@@ -262,16 +210,9 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		exactCapabilityReleaseCount: 1,
 		exactPinnedHandleCloseCount: 1,
 		fullImportWholeBlobMaterialization: false,
-		packagedElectronUiQualified: false,
-		opfsIndexedDbDurableStorageQualified: false,
-		quotaPreflightQualified: true,
+		quotaPreflightVerified: true,
 		quotaPreflightPolicy: 'point-in-time-validated-asset-bytes-plus-ceil-10-percent',
 		quotaPreflightRequiredFreeBytes: 9_448_923_946,
-		realBrowserQuotaAvailabilityQualified: false,
-		rendererBrowserHeapQualified: false,
-		mainRendererRssQualified: false,
-		wholeArchiveStorageAtomicityQualified: false,
-		publisherAuthenticationQualified: false,
 	});
 	assert.equal(
 		milestone2Fixture?.specification.quotaPreflightRequiredFreeBytes,
@@ -281,7 +222,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.match(milestone2Fixture?.limitation ?? '', /counting.*sink/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /packaged Electron UI/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /OPFS.*IndexedDB/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /point-in-time capacity admission.*injected estimate/iu);
+	assert.match(milestone2Fixture?.limitation ?? '', /point-in-time capacity check.*injected estimate/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /8,589,930,860.*9,448,923,946/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /not a storage reservation/iu);
 	assert.match(milestone2Fixture?.limitation ?? '', /does not guarantee.*capacity UI snapshot.*write-time success/iu);
@@ -313,7 +254,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	]);
 
 	const directWavFixture = fixtures.get('m2-direct-wav-385mib-v1');
-	assert.equal(directWavFixture?.status, 'provisional');
+	assert.equal(directWavFixture?.status, 'active');
 	assert.equal(directWavFixture?.kind, 'deterministic-direct-wav-counting-sha256-node-witness');
 	assert.deepEqual(directWavFixture?.specification, {
 		referenceScaleExecutionCommand: 'npm run test:reference:wav-385mib',
@@ -351,10 +292,6 @@ test('quality budget contract names numeric gates and the exact qualified struct
 			'direct-exact-size-destination',
 		],
 		cancellationAfterCoalescedPcmWriteVerified: true,
-		rendererHeapQualified: false,
-		processRssQualified: false,
-		filesystemDurabilityQualified: false,
-		packagedElectronQualified: false,
 	});
 	assert.match(directWavFixture?.limitation ?? '', /Node.*counting SHA-256 target/iu);
 	assert.match(directWavFixture?.limitation ?? '', /typed-array and coalescing-buffer backing bytes.*ownership/iu);
@@ -389,14 +326,11 @@ test('quality budget contract names numeric gates and the exact qualified struct
 	assert.equal(
 		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.status,
 		'planned',
-		'the counting-sink witness does not qualify the bounded-memory workload',
+		'the counting-sink witness does not measure the bounded-memory workload',
 	);
 
 	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
 	assert.equal(hostedPlaywright?.status, 'active');
-	assert.equal(hostedPlaywright?.qualificationEligible, true);
-	assert.equal(hostedPlaywright?.qualificationBasis, 'hardware-lower-bound');
-	assert.equal(hostedPlaywright?.lowerBoundOf, 'owner-qualified-windows-x64-rtx3090-01');
 
 	const keyedFixture = fixtures.get('m4b2-keyframe-parity-rgba-v1');
 	const keyedWorkload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
@@ -409,7 +343,7 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		'tests/quality-budget-m4b2-keyframe-parity-collector.test.ts',
 		'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js',
 	];
-	assert.equal(keyedFixture?.status, 'provisional');
+	assert.equal(keyedFixture?.status, 'active');
 	assert.equal(keyedFixture?.kind, 'deterministic-keyed-preview-offline-rgba-parity');
 	assert.deepEqual(keyedFixture?.specification, {
 		profile: 'deterministic-keyframe-parity-v1',
@@ -425,15 +359,14 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		presentationClasses: ['authenticated-cfr-occurrence', 'authenticated-cfr-occurrence',
 			'authenticated-cfr-occurrence', 'authenticated-vfr-materialized-occurrence'],
 		localDiagnosticCommand: 'node scripts/collect-m4b2-keyframe-parity-quality.mjs',
-		qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
 	});
 	assert.deepEqual(keyedFixture?.evidence, keyedEvidence);
 	assert.match(keyedFixture?.limitation ?? '', /exact media correctness/iu);
 	assert.match(keyedFixture?.limitation ?? '', /hardware lower bound/iu);
-	assert.match(keyedFixture?.limitation ?? '', /nightly packaged-runtime verification/iu);
+	assert.match(keyedFixture?.limitation ?? '', /no hardware lower bound or release status/iu);
 	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
 	assert.deepEqual(keyedWorkload?.environmentIds,
-		['github-ubuntu-playwright-1.62.1', 'owner-qualified-windows-x64-rtx3090-01']);
+		['github-ubuntu-playwright-1.62.1', 'owner-windows-x64-rtx3090-01']);
 	assert.deepEqual(keyedWorkload?.thresholds, [
 		{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
 		{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },
@@ -442,86 +375,13 @@ test('quality budget contract names numeric gates and the exact qualified struct
 		{ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0, unit: 'count' },
 	]);
 	assert.deepEqual(keyedWorkload?.evidence, keyedEvidence);
-	// The keyed comparison is exact media, so the hosted lower bound closes it.
-	assert.equal(keyedWorkload?.status, 'qualified');
-	assert.equal(config.qualification.qualifiedWorkloadIds.includes(keyedWorkload?.id ?? ''), true);
-	const keyedCohort = config.qualification.acceptedResultCohorts
-		.find(({ id }) => id === 'hosted-ci-render-parity-c87838f9') as undefined | Readonly<{
-			artifacts: readonly Readonly<{
-				rawByteLength: number; rawSha256: string;
-				resultByteLength: number; resultSha256: string;
-				workloadId: string;
-			}>[];
-			attemptCount: number; budgetSha256: string; environmentId: string;
-			retryCount: number; sourceRevision: string;
-		}>;
-	assert.ok(keyedCohort, 'the hosted render-parity cohort must be registered');
-	assert.equal(keyedCohort.sourceRevision, 'c87838f9db45594b65cda433f61ace035773a1e4');
-	assert.equal(
-		keyedCohort.budgetSha256,
-		'82df7c8576350a3d5a360e6505bb3c3e8bab44d50ee099a0c8a96553542a40ed',
-	);
-	assert.equal(keyedCohort.environmentId, 'github-ubuntu-playwright-1.62.1');
-	assert.equal(keyedCohort.attemptCount, 1);
-	assert.equal(keyedCohort.retryCount, 0);
-	assert.deepEqual(keyedCohort.artifacts, [
-		{
-			workloadId: 'm4-production-render-parity',
-			resultByteLength: 1_126,
-			resultSha256: 'e4064e69f07945c96f3566cbc7a3954c1554e75d36f5a48a2eab5a1373617414',
-			rawByteLength: 3_076,
-			rawSha256: '25b0d8ca23fac61b8d8a79fa772e07b3a2a23f0b7020f90dd9e04458250e7416',
-		},
-		{
-			workloadId: 'm4b2-keyframe-render-parity',
-			resultByteLength: 1_101,
-			resultSha256: 'c1ebfd1f371d7744436c364855fce95e04dd315f617a88fc82a95c09a2c1918d',
-			rawByteLength: 3_103,
-			rawSha256: 'c82069526758d68f6feaa12888685ae03a3130f95a19f9f0e9c365f1613d7d6f',
-		},
-	]);
+	assert.equal(keyedWorkload?.status, 'active');
 
 	await assertEvidenceExists([
 		...config.environments.flatMap(({ evidence }) => evidence),
 		...config.fixtures.flatMap(({ evidence }) => evidence),
 		...config.workloads.flatMap(({ evidence }) => evidence),
 	]);
-});
-
-test('a lower-bound environment qualifies only workloads its stronger host also admits', async () => {
-	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
-	const environments = new Map(config.environments.map((environment) => [environment.id, environment]));
-	const workloads = new Map(config.workloads.map((workload) => [workload.id, workload]));
-	let lowerBoundCount = 0;
-	for (const environment of config.environments) {
-		if (environment.qualificationEligible) {
-			assert.ok(
-				Array.isArray(environment.eligibleWorkloadIds) && environment.eligibleWorkloadIds.length > 0,
-				`${environment.id} is qualification-eligible and must name its eligible workloads`,
-			);
-		}
-		if (environment.qualificationBasis !== 'hardware-lower-bound') {
-			assert.equal(environment.lowerBoundOf, undefined,
-				`${environment.id} names a stronger host without claiming the lower-bound basis`);
-			continue;
-		}
-		lowerBoundCount += 1;
-		// The rule only holds one way: a budget met on the weaker machine is met
-		// on the stronger one. That is meaningless unless the stronger host is
-		// registered and the workload is measured against it as well.
-		const stronger = environments.get(environment.lowerBoundOf ?? '');
-		assert.ok(stronger, `${environment.id} names unknown stronger host ${String(environment.lowerBoundOf)}`);
-		assert.equal(environment.qualificationEligible, true);
-		for (const workloadId of environment.eligibleWorkloadIds ?? []) {
-			const workload = workloads.get(workloadId);
-			assert.ok(workload, `${environment.id} is eligible for unknown workload ${workloadId}`);
-			assert.ok(workload.environmentIds.includes(environment.id),
-				`${workloadId} does not admit lower-bound environment ${environment.id}`);
-			assert.ok(workload.environmentIds.includes(stronger.id),
-				`${workloadId} qualifies from ${environment.id} without admitting ${stronger.id}`);
-		}
-	}
-	assert.equal(lowerBoundCount, 1, 'exactly one registered lower-bound environment is expected');
 });
 
 test('quality budget inputs pin the checked-in Node, npm, Playwright, and browser revisions', async () => {

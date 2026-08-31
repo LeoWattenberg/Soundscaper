@@ -45,7 +45,7 @@ export async function collectM5bQualityCurrent(profileId, options, dependencies 
 	if (after !== before) throw new Error('5B workload executable changed while its measurement was collected.');
 	const measurement = measurementFromDiagnostic(profileId, diagnostic);
 	const runnerDigest = measurement.schemaVersion === 2
-		? measurement.labBinding?.artifacts?.workloadRunnerSha256
+		? measurement.diagnosticBinding?.artifacts?.workloadRunnerSha256
 		: measurement.observedFingerprint?.workloadRunnerSha256;
 	if (runnerDigest !== before) {
 		throw new Error('5B workload runner executable digest does not match the measured artifact binding.');

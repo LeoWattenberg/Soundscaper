@@ -298,19 +298,19 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
 				baseURL: sites.origins.soundscaper, esbuildBinaryPath, environment: sites.browserEnvironment,
 				sourceRevision: options.sourceRevision ?? null,
-			}, { runPlaywright, writeEvidence: dependencies.writeMetricsEvidence });
+			}, { runPlaywright, writeDiagnostics: dependencies.writeMetricsDiagnostics });
 			const metricsOutcome = mapDesktopNightlyTestsExit(metrics.child);
 			signal = metrics.child.signal ?? signal;
-			outcome = combineOutcomes(outcome, metricsOutcome, metrics.evidence.passed);
+			outcome = combineOutcomes(outcome, metricsOutcome, metrics.diagnostics.passed);
 			const packagedMetrics = await runDesktopNightlyTestsPackagedMetricsPhase({
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
 				baseURL: sites.origins.soundscaper, esbuildBinaryPath,
 				environment: sites.browserEnvironment, platform, arch,
 				sourceRevision: options.sourceRevision ?? null,
-			}, { runPlaywright, writeEvidence: dependencies.writePackagedMetricsEvidence });
+			}, { runPlaywright, writeDiagnostics: dependencies.writePackagedMetricsDiagnostics });
 			const packagedOutcome = mapDesktopNightlyTestsExit(packagedMetrics.child);
 			signal = packagedMetrics.child.signal ?? signal;
-			outcome = combineOutcomes(outcome, packagedOutcome, packagedMetrics.evidence.passed);
+			outcome = combineOutcomes(outcome, packagedOutcome, packagedMetrics.diagnostics.passed);
 		}
 	} catch (error) {
 		outcome = Object.freeze({ status: 'error', exitCode: 2 }); failure = message(error);

@@ -1,649 +1,142 @@
-# Quality budgets and benchmark qualification
+# Quality budgets and diagnostics
 
-Soundscaper's quality-budget foundation is **in progress**. The checked-in
-ledger names fixtures and proposed numeric limits, validates its own contract,
-and provides a deterministic fail-closed evaluator. The five frozen milestone 2
-first-party structural workloads have qualified, and so have the two
-milestone 4 render-parity workloads, whose exact media comparisons met every
-threshold on the hosted runner registered as a hardware lower bound for the
-owner-designated host. On 2026-08-21 the project
-owner also designated the Windows x64 RTX 3090 machine as the fixed-GPU
-reference and retained its then-current M1 preview, M4 production-parity, and
-M4B-2 keyed-parity results. The packaged formal-qualification contract now
-requires the GPU driver and device identity plus the power and display modes.
-Because those fields were absent from the historical run, every fixed-GPU
-profile is `pending-external`; the result remains audit evidence but is not
-current formal qualification. Other timing, heap/RSS, third-party codec-memory,
-device, durability, and release-platform workloads remain open.
+[`config/quality-budgets.json`](../config/quality-budgets.json) describes
+repeatable diagnostic inputs and numeric expectations. It does not certify a
+release. A passing result means only that the named measurement met the named
+thresholds. The owner decides whether to release, informed by CI, package
+audits, native self-tests, diagnostics, and manual QA.
 
-The source of truth is
-[`config/quality-budgets.json`](../config/quality-budgets.json). The roadmap
-describes product outcomes; this ledger gives those outcomes stable workload,
-fixture, environment, metric, and threshold identifiers.
+The repository deliberately has no evidence register, accepted-result cohort,
+hardware lower-bound claim, reviewer key, or workload status that means
+“release approved.” Generated diagnostic files are disposable test output and
+are never release-admission inputs.
 
 ## What is active today
 
-- Node 26.5.0, npm 12.0.1, Playwright 1.62.1, and the Playwright browser
-  revisions are pinned from checked-in dependency and workflow inputs.
-- Chromium browser workflows run in the digest-pinned Playwright container.
-  Their release status remains provisional.
-- Automated tests for Firefox and WebKit now run in the maintained functional matrix alongside
-  Chromium. All three remain provisional rather than performance- or
-  release-qualified. Playwright WebKit is useful engine evidence; it is not by
-  itself a Safari release qualification.
-- The four 128x72 video-effect parity frames are deterministic and SHA-256
-  pinned. Their full FFmpeg/WebGL audit is still opt-in.
-- The milestone-4 production-parity fixture adds one second of digest-pinned
-  48 kHz stereo Float32 vectors, exact impulse/PDC and automation landmarks,
-  and a focused four-frame FFmpeg/WebGL workload. Run its one-worker,
-  no-retry collector with `npm run quality:collect:m4-production-parity`.
-  Local, hosted, and packaged runs identify their observed execution surface;
-  the standalone collector writes only `pending-external` or `failed` evidence
-  and has no acceptance mode. `nightly-with-tests` is the sole formal publisher
-  for the packaged-runtime owner-host profile: it independently verifies the
-  complete packaged diagnostic, Chromium/WebGL fingerprint,
-  one-attempt/no-retry policy, registered threshold verdicts, source revision,
-  and exact budget digest before writing `packaged-runtime/qualification.json`.
-  Independently, the `Qualification metrics` workflow can publish accepted
-  pairs for workloads admitted by its registered lower-bound environment. A
-  metric or identity mismatch rejects that workload without preventing an
-  independently complete workload in the same run from being assessed.
-- Historical fixed-GPU reference run, 2026-08-21: the project owner designated
-  the Windows x64 downloadable-nightly machine at revision
-  `657e2d67d57070b31bbfe7c8a2b76b5a54bbe082` as the reference. Its NVIDIA
-  GeForce RTX 3090 ran through ANGLE/D3D11 with one worker, one attempt, and zero
-  retries. The metrics phase passed all three collected workloads. M1 reported
-  p95 frame interval `8.100000023841858` ms and retained-JS-heap delta `-7304`
-  bytes. M4 reported maximum audio sample error `0`, PDC error `0`, minimum
-  video SSIM `0.981534357583265`, maximum normalized channel MAE
-  `0.020067401960784315`, and silently omitted effects `0`. M4B-2 passed all 12
-  keyed preview/offline operations with no omitted, substituted, or fallback
-  operation. The accepted scope is the metrics phase only; unrelated handbook
-  failures made the enclosing nightly run fail and are not relabelled. The
-  retained metrics artifacts are identified by summary byte length `8075` and
-  SHA-256 `04ec246be3f0fef9c7b9447056f5a95f7c3b7ecb4e1465677cf2673625c090d6`,
-  plus raw byte length `5268909` and SHA-256
-  `eb7e9716d75b462f9118084a36ed9a5b2a0a38f309e5345a765e24162a399b45`.
-  These retained artifacts predate the complete driver/device/power/display
-  identity contract and therefore do not close a current formal row.
-- Hosted qualification run, 2026-08-29: [Qualification metrics run
-  33250892992](https://github.com/LeoWattenberg/Soundscaper/actions/runs/33250892992)
-  at revision `c87838f9db45594b65cda433f61ace035773a1e4` ran the three
-  attemptable metric specs on `github-ubuntu-playwright-1.62.1` with one
-  worker, one attempt, and zero retries. Its exact quality-budget SHA-256 was
-  `82df7c8576350a3d5a360e6505bb3c3e8bab44d50ee099a0c8a96553542a40ed`.
-  `m4-production-render-parity` reported maximum audio sample error `0`, PDC
-  error `0`, minimum video SSIM `0.9818532248014168`, maximum normalized
-  channel MAE `0.020215907543572983`, and silently omitted effects `0`.
-  `m4b2-keyframe-render-parity` reported minimum SSIM `0.999855387171781`,
-  maximum channel MAE `0.0006510416666666666`, and zero omitted, substituted,
-  or fallback operations. Both met every registered threshold, so the
-  lower-bound rule qualifies them and the `hosted-ci-render-parity-c87838f9`
-  cohort binds their retained accepted and raw artifacts. The M4 accepted/raw
-  pair is `1126` bytes with SHA-256
-  `e4064e69f07945c96f3566cbc7a3954c1554e75d36f5a48a2eab5a1373617414`
-  and `3076` bytes with SHA-256
-  `25b0d8ca23fac61b8d8a79fa772e07b3a2a23f0b7020f90dd9e04458250e7416`;
-  the M4B-2 pair is `1101` bytes with SHA-256
-  `c1ebfd1f371d7744436c364855fce95e04dd315f617a88fc82a95c09a2c1918d`
-  and `3103` bytes with SHA-256
-  `c82069526758d68f6feaa12888685ae03a3130f95a19f9f0e9c365f1613d7d6f`.
-  `m3-longform-editorial` met both position counters, drift, seek p95, and
-  retained-heap budgets. Its sole miss was scroll-frame interval p95
-  (`33.400000000001455` ms against `33.34` ms) under SwiftShader, which is what
-  the weaker runner is expected to do; it stays an observation.
-  `m1-video-preview-12fx-720p` was not attempted because the hosted runner has
-  no hardware renderer.
-- The 12-effect 1280x720 preview test records timing and heap data against a
-  repository-owned, digest-pinned, six-second synthetic VP8 fixture. The active
-  `deterministic-video-preview-12fx-v2` collector hashes the actual runtime
-  fixture bytes, runs one unreported full warm-up trial and five measured trials
-  in fresh contexts, forces three collections before every before/after heap
-  snapshot, and retains all 605 timestamps and ten heap snapshots. It passively
-  records preview cadence without synchronously draining the GPU on each draw
-  and emits the complete packaged browser/platform/architecture/WebGL
-  fingerprint. The 2026-08-21 run passed both thresholds under the superseded
-  single-context collector, so a fresh owner-host packaged-runtime run is
-  required before M1 can be formally accepted under v2. Decoder/audio
-  scheduling and other platforms remain outside that future acceptance.
-- Hosted CI is a qualification lower bound. Its shared CPU and software
-  renderer are strictly weaker than the owner-designated fixed-GPU host, so a
-  workload that *meets* its budgets on the hosted runner also meets them there
-  and the hosted result qualifies. The implication runs one way only: a hosted
-  run that misses a timing budget is the expected consequence of the weaker
-  machine and remains an observation, never a regression verdict against the
-  owner host. The environment descriptor records this as
-  `qualificationBasis: "hardware-lower-bound"` and names its stronger host in
-  `lowerBoundOf`.
+Fixture and workload status describes whether a diagnostic is maintained:
 
-The existing 500,000-byte JavaScript chunk ceiling and 25 MiB Pages asset
-ceiling remain independent build gates. Registering future measurements here
-must not weaken either limit.
+- `active` means the fixture or workload is runnable now.
+- `planned` means its contract is recorded but its runner or fixture is not
+  complete.
+- `optional` means it covers an optional feature and may be skipped when that
+  feature is not installed.
+- `blocked` means a named technical prerequisite is absent.
 
-## Contract statuses
+These values do not express release readiness. Environment status is `active`
+when its checked-in descriptor is runnable and `unprovisioned` when a local
+device or runtime must supply observations. A collector may evaluate a real
+observation against the thresholds without changing that descriptor.
 
-`qualified` identifies a workload covered by a reviewed result cohort.
-`provisional` identifies broader fixture evidence that is not itself a
-qualification gate. `planned` identifies an accepted future fixture and its
-starting budget. `optional` applies only to milestone 7. Human acceptance of a
-fixture is a milestone-9 stable 1.0 admission check, never permission to build
-or test it.
+## Configuration contract
 
-The top-level `qualification.qualifiedWorkloadIds` array admits a workload only
-after it has all of the following:
+The top-level register contains only schema and grounding metadata, the
+offline-cache narrative, measurement policy and units, pinned software inputs,
+environment descriptors, fixtures, and workloads with thresholds.
 
-1. a deterministic, digest-pinned fixture or generator;
-2. a provisioned and exact environment descriptor;
-3. an automated collector that emits all required finite metrics;
-4. a result evaluated by `scripts/quality-budget-evaluator.mjs`; and
-5. retained raw evidence from a no-retry run.
-
-A workload does not become qualified merely because an individual test passed
-or a proposed threshold was checked in. A hosted result satisfies condition 2
-through the registered `hardware-lower-bound` rule and still has to meet the
-other four, including a reviewed cohort binding its retained evidence.
-
-The accepted `m2-structural-aad0ba1` cohort retains the two original frozen
-workload IDs backed by production-path observations. It binds them to source
-revision `aad0ba1`, the exact historical quality-budget digest, the scoped
-portable Node environment, one attempt, zero retries, and checked-in byte
-length/SHA-256 records for each ignored raw and accepted workspace artifact.
-Each retained pair was re-read and independently verified after collection.
-This cohort qualifies only the declared first-party structural counters; every broader
-fixture limitation below remains in force. The composite
-`m2-streaming-bounded-memory` performance workload is not in the frozen closure
-set and remains planned. The `m2-direct-observed-f3d11cb3` cohort binds the
-remaining three workloads to fresh no-retry evidence after their collector
-stopped publishing fixture specification constants as observations. The
-`hosted-ci-render-parity-c87838f9` cohort binds the two milestone-4
-render-parity workloads to the 2026-08-29 hosted run, whose exact media
-comparisons met every threshold on the registered lower-bound runner.
+Each workload owns exact fixture IDs, environment IDs, and thresholds. Each
+threshold names a metric, comparison, value, and unit. Values are read from the
+register by collectors rather than copied into runner code.
 
 ## Measurement procedure
 
-Correctness counters and exact media comparisons may run in ordinary CI.
-Timing, retained-heap, device, and native-helper budgets use a fixed environment
-and the following common procedure:
+Diagnostics use one attempt and zero retry-to-pass attempts. Timing workloads
+use the checked-in warm-up and timed-run counts, a single timing worker, and the
+nearest-rank percentile method. Correctness ledgers include warm-up failures
+when a warm-up could expose corruption, unauthorized access, or lost state;
+timing summaries exclude warm-up samples.
 
-1. Build once from a clean dependency install and run against that exact build.
-2. Verify the fixture digest or deterministic generator revision before the
-   measurement begins.
-3. Verify the complete environment identity. An unexpected renderer, browser,
-   driver, device, power mode, or display mode is an environment failure, not a
-   skipped or successful benchmark.
-4. Disable Playwright retries and use one worker. Run one unreported warm-up
-   trial followed by five measured trials in fresh browser contexts or fresh
-   helper processes.
-5. Use `performance.now()` for renderer elapsed time and a monotonic native
-   clock for helpers. Do not mix wall-clock timestamps into elapsed metrics.
-6. Compute percentiles with nearest rank: after sorting `n` values ascending,
-   percentile `p` is item `ceil(p * n) - 1` using a zero-based index.
-7. For Chromium retained-JavaScript-heap measurements, perform three forced
-   collections before each before/after snapshot and use the stable snapshot
-   specified by the workload collector. Record all raw snapshots. Other browser
-   engines require a separately pinned process-level method rather than
-   pretending the Chromium CDP method is portable.
-8. Evaluate every threshold. A missing or non-finite metric, environment ID
-   mismatch, or software renderer where hardware is required fails the result.
-9. Retain raw samples, aggregates, environment identity, fixture digests, Git
-   revision, threshold revision, and evaluator verdicts together.
+Raw measurements use closed schemas. Collectors reject missing, duplicated,
+extra, non-finite, relabelled, or detached data. Where a run depends on package,
+source, model, helper, or runtime bytes, the record carries their byte lengths
+and SHA-256 hashes. A derived result is recomputed from the raw record before it
+is written, and existing output is never overwritten.
 
-Collectors must avoid materially changing the path under measurement. In
-particular, synchronously calling `WebGL2RenderingContext.finish()` for every
-preview draw changes GPU pipelining. The M1 v2 collector therefore records
-cadence passively. Any future GPU-completion metric must use a separate
-observation rather than changing the cadence path.
+## Result evaluation
 
-No benchmark retry may turn a failure into a pass. A failed run may be repeated
-for diagnosis, but both runs remain evidence and the original result remains
-failed.
+Deterministic correctness and parity thresholds are blocking for the diagnostic
+command: a missing metric or failed equality/limit produces `failed` and a
+non-zero exit. Timing, heap, RSS, and other performance observations report the
+measured value honestly. Hosted diagnostics may classify observational budget
+misses as warnings where their runner cannot provide a stable performance
+reference.
 
-## Metric units
+An unsupported measurement is omitted or represented as unavailable with a
+reason. It is never replaced by an invented zero. A result may be `passed` or
+`failed`; soak diagnostics separately use `ok`, `warnings`, `failed`, and
+`incomplete`.
 
-Every threshold declares its unit from the `units` enum in
-`config/quality-budgets.json`: `bytes`, `count`, `dB`, `frames`, `LU`,
-`MiB/hour`, `ms`, `ratio`, `RTF`, `samples`, `seconds`.
+## Hosted CI diagnostics
 
-A metric name that states its quantity binds the unit it may be published in — a
-metric ending in `Seconds` is published in `seconds`, one ending in `Bytes` in
-`bytes`, and so on. Enum membership alone is not enough: a threshold that names
-one quantity and declares another leaves the collector to choose between
-emitting the wrong unit and being rejected for emitting the right one, and the
-published evidence record then misstates what was measured.
+Hosted CI runs deterministic structural, media-correctness, and render-parity
+workloads. The hosted environment is useful for reproducibility, but shared CPU
+time and software rendering are not claims about owner hardware or a minimum
+supported machine. Timing and GPU observations remain diagnostics.
+
+The hosted collector writes a raw log and a derived report under
+`test-results/`. CI may fail on correctness/parity errors. It does not publish
+an accepted artifact or mutate this register.
 
 ## Portable structural environment
 
-`portable-node-structural-26.5.0` is active only for the five frozen milestone 2
-resource workload IDs. It requires Linux x64, Node 26.5.0, npm 12.0.1, and the
-`first-party-owned-structural-counters` measurement class. The result verifier
-refuses any other workload even if it supplies passing numbers.
+`portable-node-structural-26.5.0` is the deterministic Node 26.5.0/npm 12.0.1
+environment for first-party counters. Its metrics cover exact byte ranges,
+write sizes, retained payloads, partial publications, and similar structural
+facts. They do not imply browser heap, process RSS, device, filesystem,
+operating-system, codec, or elapsed-time behavior.
 
-This environment qualifies deterministic counters such as maximum owned input
-or output slices, sequentially retained bodies, final renderer Blob retention,
-and partial publication. It is not eligible for elapsed-time, browser or
-renderer heap, process RSS, native/WASM heap, codec amplification, garbage
-collection, filesystem durability, packaged UI, or operating-system behavior.
-Those remain explicit residuals of the provisional fixtures; no structural
-result may promote them.
+## Observed and reference environments
 
-## Fixed hardware environments
-
-The owner-designated fixed-GPU reference is the Windows x64 RTX 3090 machine
-used by the historical 2026-08-21 downloadable metrics run. Its packaged-runtime
-identity is `owner-qualified-windows-x64-rtx3090-01`; the nightly-with-tests
-runner has independent formal profiles for M1 preview timing/heap, M3 long-form
-editorial, M4 render parity, and M4B-2 keyed parity. Each admission is
-independent of other results in the same run. All four profiles are now
-`pending-external`: the retained artifact records the GPU device identity but
-omitted GPU-driver, power-mode, and display-mode identity and cannot be
-promoted under the corrected contract. A fresh owner-host run and reviewed
-descriptor are required before any of those four packaged-runtime profile rows
-can close. Independently, the M4 production and M4B-2 exact-media workloads are
-qualified through the
-`hosted-ci-render-parity-c87838f9` lower-bound cohort; that qualification does
-not fill either workload's fixed-GPU profile. M1 additionally requires the v2
-raw fixture digest and five-trial cadence/heap samples.
-
-Future formal runs must exactly match the profile's browser version, platform,
-architecture, WebGL vendor and renderer, GPU driver version and device ID,
-power mode, display mode, and required hardware renderer class. The packaged
-runner accepts a complete owner identity only when
-`SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION`,
-`SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID`,
-`SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE`, and
-`SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE` are all non-empty. Supplying only a
-subset is an incomplete configuration and fails before collection. Supplying
-none selects diagnostic mode: all four recorded fields become `not-recorded`,
-the packaged-runtime checks still run, and their non-authoritative fingerprint
-is rejected by formal qualification. Supplying all four retains the exact
-values and makes the evidence eligible for the remaining exact-match gates; it
-does not bypass them. SwiftShader, llvmpipe, another renderer, or an unknown
-renderer cannot satisfy the gate.
-Workloads not listed in this host's `eligibleWorkloadIds` remain unqualified
-until their own formal profile and accepted run exist.
-
-The native OS, capture-device, and final release matrices are also
-unprovisioned. Packaging on hosted Windows, macOS, and Linux runners is valuable
-distribution evidence, but it cannot qualify real audio latency, camera,
-microphone, display-capture, or system-audio budgets without controlled devices.
-
-## Milestone 7 local-assistance privacy evidence
-
-The optional `m7-local-assistance-privacy` collector is locally runnable with
-`npm run quality:collect:m7-assistance-privacy -- --measurement <record.json>`.
-It observes no special measurement path and does not launch inference or create
-sample evidence: the input must be a closed summary from an ordinary real
-workflow run. Admission binds the exact quality-budget digest, source revision,
-authenticated package manifest, signed model catalog, runtime and model artifact
-digests, and the fixture's two selected plus two deliberately unselected media
-identities. One warm-up and five fresh no-retry runs must retain whole-workflow
-post-install network observations, per-asset byte-read ledgers, accepted-output
-digest comparisons, canonical-state checks, and bounded cancellation samples.
-The collector re-derives exactly the five registered metrics, including
-nearest-rank cancellation p95, and retains the raw record beside its aggregate.
-
-This command can produce `pending-external` development evidence or a `failed`
-result. It cannot publish acceptance, relabel a local/package run as the owner
-lab, or turn a software/unknown renderer into fixed-hardware evidence. The
-registered Windows x64 owner environment remains unprovisioned and does not
-admit the M7 workload; no five-target packaged canary or owner-lab result is
-claimed by the existence of this collector.
-
-## Milestone 7 local-assistance accuracy criteria
-
-`m7-local-assistance-speech-accuracy` and `m7-local-assistance-visual-accuracy`
-register the numeric quality each model-backed assistance route has to reach.
-They exist because the milestone-7 packets named those bounds in prose — a
-word-error-rate bound, a planted-filler precision and recall bound, a
-diarization-error-rate bound, retrieval recall, a beat-grid tolerance, a
-cut-detection F-measure, an index size per hour of video, subject retention, a
-highlight time budget — and prose is not a gate. Writing them down fixes what
-the routes owe before anyone can measure them and argue the bar downward.
-
-Both workloads are `planned`, and their corpora are specified rather than
-provisioned. Neither has a collector, and that is deliberate: no converted
-artifact, signed catalog entry, or target runtime payload exists yet, so there
-is nothing to measure and nothing to accept. Registering a criterion is not
-evidence that it is met, and the milestone's optional status means neither
-workload blocks any other milestone's gate.
-
-The speech corpus is thirty minutes of English speech with three speakers, a
-reference transcript, planted fillers and silences, seeded search phrases, and
-annotated beats. Transcription must reach a word error rate at or below `0.15`
-with a median word-timing error at or below `120 ms`. Cleanup proposals are held
-to precision at or above `0.9` and recall at or above `0.7`: a proposal the user
-must review costs more when it is wrong than when it is missing, so precision is
-the tighter of the two. Diarization must reach a diarization error rate at or
-below `0.2` and produce zero label drifts across re-runs on unchanged media.
-Semantic transcript search must reach recall-at-5 at or above `0.8` with zero
-index rebuild divergences. Beats must land within a `40 ms` median error with a
-downbeat F-measure at or above `0.8`.
-
-The visual reel is one hour of video with annotated shot boundaries including
-dissolves, seeded visual queries, annotated subject shots, deliberately
-subjectless shots, and vertical golden frames. Accurate TransNetV2 cuts must
-reach an F-measure at or above `0.9`; the model-free fast scene-score path is
-held separately at `0.7`, because its dissolve miss class is a known and
-documented property of that mode rather than a defect. Visual retrieval must
-reach a hit rate at or above `0.8` while the disposable index stays at or below
-`64 MiB` per hour of video. Reframe must retain its subject in at least `0.9` of
-annotated shots and must fall back to saliency and then centre on every
-subjectless shot without a failure. Highlight assembly must complete at a
-real-time factor at or below `0.5` and produce identical proposals on identical
-inputs and settings. Vertical delivery must produce zero crop-correct golden
-frame mismatches, and an export that requests no crop must remain byte-stable.
-
-
-## Milestone 4B keyed render parity
-
-`m4b2-keyframe-render-parity` is a qualified exact-media workload over a
-provisional deterministic 128x72 RGBA fixture. The fixture evaluates hold,
-linear, eased, and Bezier opacity curves at exact segment starts, interiors,
-and ends. Each of the 12 operations must be rendered by both the preview and
-offline consumers; the collector independently recomputes their frame
-comparisons and requires a minimum SSIM of `0.98`, maximum normalized channel
-MAE of `6/255`, and exactly zero omitted, substituted, or fallback operations.
-
-Run the opt-in no-retry diagnostic with `node
-scripts/collect-m4b2-keyframe-parity-quality.mjs`. The standalone collector
-cannot publish acceptance, and an ordinary hosted Playwright result qualifies
-only when the runner is the registered lower bound, every metric passes, and a
-reviewed cohort binds the retained no-retry evidence. The 2026-08-29 hosted run
-met that contract and `hosted-ci-render-parity-c87838f9` qualifies the workload.
-The project owner's 2026-08-21 Windows RTX 3090 artifact remains a passing
-historical diagnostic, while the separate packaged-runtime profile still
-requires a fresh owner-host nightly artifact with its complete fingerprint.
-The selected V27 activation candidate delegates the maintained V20 keyed route,
-while guided-local, owner-host-profile, and release qualification remain
-separate open gates.
+The owner desktop is an optional reference context. Native, capture-device,
+and Web VCR diagnostics instead carry the environment they actually observed,
+including renderer, platform, device, and package identity where relevant.
+There is no checked-in host/profile matrix to complete. No host is a release
+requirement and no result is promoted into a hardware lower-bound claim.
 
 ## Fixtures and project sizes
 
-Small deterministic artifacts may be checked in with their byte length and
-SHA-256 digest. Reference-scale projects should use lazy deterministic streams
-or sparse fixtures so the test does not commit multi-gigabyte generated files.
-The generator revision, seed, logical byte length, stream metadata, and expected
-digest must still be stable.
+Fixtures pin exact media geometry, duration, sample rate, channel layout,
+operation inventory, generator revision, and digests where those facts affect a
+metric. Small correctness fixtures and virtual-length transport witnesses must
+say what they do not allocate or execute.
 
-The milestone 2 sparse fixture remains provisional and requires observable sparse-file
-support. Its generator creates an exact 8,589,934,592-byte logical Zip64 archive
-with current-schema project metadata and an 8,589,930,860-byte sparse-zero video
-asset. The payload is pinned below the layout's natural size and the project
-title pads the difference, so schema evolution changes the padding rather than
-the recorded identity. That asset is pinned to SHA-256
-`29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942` and
-ZIP CRC-32 `1816305334`; these values are authentic fixture identity, not
-placeholders.
+Direct stem-archive publication uses a small focused Node correctness fixture.
+It checks ZIP32 and 7z Copy framing, at-most-64-KiB input slices, serialized sink
+backpressure, close-before-commit behavior, cancellation, and zero partial
+publication. Provider-injected FFmpeg/MEMFS fixtures are retained historical
+tests; they do not describe the production browser codec runtime, which uses
+dedicated reviewed audio WASMs and WebCodecs/Mediabunny with no FFmpeg fallback.
 
-`npm run quality:collect:m2-scape-8gib` runs the sparse full-import reference
-once, admits one exact identity-bound diagnostic, and writes its provisional
-raw/accepted pair under `test-results/quality/m2-resources`. It records maximum
-protocol range and media-emission bytes, retained sink payload, and invalid
-publication count; it does not turn the fixture's OPFS, RSS, packaged UI,
-durability, or publisher-authentication exclusions into qualified claims.
+The direct compressed diagnostic covers both render strategies and all seven
+registered formats. Its virtual 269,484,049-byte output is delivered in 258
+ranges and proves transport arithmetic and backpressure only. It does not
+allocate the virtual body or execute real codecs, and therefore remains outside
+the bounded-memory workload despite the active structural checks.
 
-A second provisional milestone 2 fixture drives direct WAV export with an exact
-3,153,920-frame, 48 kHz, 32-channel silent-float plan. Its 403,701,760-byte PCM
-payload is exactly 385 MiB, one MiB above the desktop 384 MiB output-memory threshold;
-the complete 403,701,804-byte RIFF has pinned SHA-256
-`f1978598e11527049bcafae0f1d4847238e5322e11fddf714cc9f298bf12f9fe`.
-The opt-in Node witness uses the production planner, export controller,
-channel-aware PCM sink queue, passthrough streaming resampler, WAV stream
-encoder, and exact-size direct-destination adapter. A counting SHA-256 target
-retains only the 44-byte header prefix, counters, and digest state. It verifies
-193 render packets requested at 16,384 frames, a 16-packet/32-MiB pending-PCM
-ceiling, 98 serial destination writes including the header, four-way exact byte
-agreement, no temporary-storage preflight or final `Blob`, and cancellation
-after the first 4 MiB coalesced PCM write without close or commit.
+### Direct video transport diagnostic
 
-The witness records a conservative 41,943,384-byte structural maximum for
-path-owned binary backing stores: 16 queued 2,097,152-byte PCM packets, one
-mapped packet, one encoder emission, the 4 MiB coalescing buffer, two 44-byte
-header copies, and the 32-channel Float64 dither state. That is below the
-planned 64 MiB buffered-binary budget.
-It is an ownership-derived correctness bound, not a renderer-heap or process-RSS
-measurement. Run it with `npm run test:reference:wav-385mib`; direct invocation
-may opt in with `SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1`. Routine Node and
-coverage discovery fast-skips it with that command.
+The direct MP4 and WebM diagnostic uses canonical version-8 plans. A
+2,097,169-byte body is read in three ranges of 1,048,576, 1,048,576, and 17
+bytes, with one stat call, serialized writes, and zero whole-output `readFile`
+calls. It covers the transport slice, not codec conformance, packaged UI,
+reference-scale memory, crash recovery, or filesystem durability.
 
-`npm run quality:collect:m2-direct-wav` runs that production-path reference
-exactly once, accepts exactly one identity-bound structured diagnostic, and
-writes the raw/accepted evidence pair under `test-results/quality/m2-resources`.
-The pair is provisional generated evidence until retained and reviewed; the
-collector itself does not update `qualifiedWorkloadIds`.
+The [legacy-schema refusal witness](../tests/audio-editor-video-export-plan-version.test.ts)
+keeps the plan version and diagnostic narrative synchronized.
 
-A third provisional milestone 2 fixture records direct stem-archive publication
-for exact native-PCM ZIP32 and 7z Copy plus canonical realtime and centrally
-admitted offline compressed ZIP32 audio as small focused Node correctness
-evidence. The native ZIP32 service case preflights only the four-byte largest
-sequential intermediate, then selects and opens an exact 268-byte destination
-before rendering `01-dialogue.wav` and `02-music.wav` with four marker bytes
-apiece. It reconstructs the archive, closes before commit, cleans each staged
-result, and leaves failures and cancellation unpublished. Those markers isolate
-archive publication rather than native-container conformance; format-specific
-WAV, AIFF, and BWF evidence still owns encoder correctness. The native admission
-and shared ZIP32 fixtures retain the two 60-byte/exact-380-byte
-largest-intermediate case, the 468-byte 3/1/2/2-byte archive, and the 256 KiB
-source sliced at 64 KiB under serial backpressure. Prepared Blob mode retains
-the legacy 272-byte preflight, ordered archive additions, and browser download
-publication.
+The sparse 8-GiB Scape witness checks exact range and publication behavior
+without retaining the media body. Direct WAV diagnostics similarly distinguish
+structural path-owned bytes from browser heap, process RSS, and durable storage.
 
-The maintained planner selects 7z only when an exact native stem plan exceeds
-ZIP32 limits. A deliberately small injected route fixture avoids making that a
-scale run: it preflights the same four-byte largest sequential intermediate,
-opens one exact 151-byte destination, writes a zero-filled 32-byte prefix before
-rendering, retains at most one complete four-byte stem, and appends the complete
-next header. After the exact stream is sealed, the destination replaces only
-that fixed 32-byte prefix once without changing its written-byte count, then
-commits. The completed bytes match the checked-in 7z Copy golden, and the route
-constructs no final archive `Blob` and calls neither the legacy archive nor the
-download publisher.
+### Browser storage diagnostics
 
-The compressed service cases admit MP3, FLAC, Ogg Vorbis, Opus, WavPack, MP2,
-and AAC/M4A for owned canonical `realtime-stream` plans and exact centrally
-admitted `offline` plans. Each snapshot fingerprint remains bound through
-publication. Realtime staging is the output-width `outputBytesPerRender`.
-Offline staging is bounded by
-`max(outputFrames × inputChannels × offlineBytesPerSample,
-outputBytesPerRender)`. The first term uses requested FLAC integer bytes per
-sample or four bytes for the other six formats. The possible realtime-retry
-term is output-width `outputFrames × outputChannels × Float32(4)`, including for
-FLAC. The per-entry cap is
-`max(strategy-aware staging bound, 1 MiB)`. Preflight charges that same bound,
-not WAV framing, codec output, or aggregate legacy staging, and the synthetic
-maximum ZIP32 destination is selected and opened before render. The cap is a
-refusal boundary, not a qualified codec expansion or conformance bound.
+The dedicated OPFS storage worker exposes six closed operation IDs. It uses synchronous access handles only after capability detection and caps at 16 MiB both canonical PCM and exact bounded ranges. It handles media and derivative writes as slices and obtains worker-owned `File` snapshots. It performs an exact synchronous size check, records store close, and terminates. Asynchronous OPFS and IndexedDB remain correctness fallbacks.
 
-The following provider-injected FFmpeg/MEMFS fixtures are retained historical
-transport and publication witnesses only. They do not describe the production
-browser codec runtime, which now uses dedicated reviewed audio WASMs and
-WebCodecs/Mediabunny complete-file generation with no FFmpeg fallback.
+The Chromium and Firefox witness covers main-realm `createWritable`, `getFile`, persisted PCM, original video, and derivatives across reload and playback. A second tab is read-only while the writer lock is held. This is not WebKit and not reference-scale; it does not measure heap, RSS, crash, or power-loss behavior. WebKit still runs the automated test; historical milestone-9 wording is not a release gate.
 
-The exact compressed witness names `01-Voice.mp3` and `02-Music.mp3`, has an
-eight-byte raw preflight and a 16-byte aggregate legacy claim, gives each entry
-a 1,048,576-byte maximum, and opens a 2,097,406-byte maximum ZIP32 destination.
-Injected three- and five-byte encoded bodies yield a dynamically recomputed
-262-byte actual ZIP32 archive. Actual entry, emitted, destination-written, and
-committed counts agree. The route constructs no final ZIP `Blob`, calls neither
-the legacy archive nor download publisher, and owns at most one encoded stem at
-a time. It does retain one complete staged WAV `Blob`, the complete worker
-MEMFS output, and one complete encoded result; the witness therefore makes no
-bounded-codec-memory claim. All seven formats also pass the direct service in
-both render strategies. Offline cases stage the unmapped input width and give
-FFmpeg canonical channel mapping. An ordinary offline renderer or encoder
-failure may retry only the current stem in realtime before its ZIP entry begins;
-currentness loss refuses that retry, and post-entry failure never retries.
-
-This direct stem-archive witness uses a provider-injected prepared streaming
-destination. It does not exercise File System Access, an Electron filesystem,
-a native picker, packaged UI, or real browser or operating-system behavior.
-The compressed bytes are injected, so it does not qualify actual FFmpeg codec
-execution, codec conformance or expansion, worker MEMFS allocation, heap or RSS
-amplification, garbage collection, CPU, or elapsed time. Custom FFmpeg and
-compressed 7z stems, BW64 stems, video, and final-Blob direct publication remain
-excluded, and reference scale remains excluded. These small fixtures are not
-renderer-heap, process-RSS, browser, operating-system, quota, crash, power-loss,
-or filesystem-durability evidence. They remain outside the inputs to the
-milestone 2 bounded-memory workload, which stays planned.
-
-A fourth provisional milestone 2 fixture records direct compressed whole-mix
-output across both maintained render strategies as small focused Node evidence.
-Closed admission covers all seven canonical built-in formats: MP3, FLAC, Ogg
-Vorbis, Opus, WavPack, MP2, and AAC/M4A. Realtime cases map and resample before
-WAV staging and give FFmpeg preserve geometry. Centrally admitted offline cases
-recompute the exact planner-owned output admission, resample before staging the
-unmapped input width, and give FFmpeg the canonical mapping, so each route has
-one mapping owner. An ordinary offline renderer failure may reuse the same
-unopened target in realtime; cancellation, integrity or currentness loss, and
-every post-render failure do not retry. The first-party rendered-fallback case
-also keeps its verified provider private and its canonical and global source
-state unchanged through direct offline publication.
-
-Each realtime service case preflights an eight-byte staging payload. The small
-offline cases preflight 32 bytes; the mono MP3 case establishes that input width,
-not mapped output width alone, is charged. These are raw PCM payload counts and
-exclude WAV framing and padding. Each case selects its prepared target before
-render and opens the exact target only after a five-byte FFmpeg stat, then
-closes and commits without the legacy download publisher. Prepared Blob mode
-retains the legacy whole-read and download path. The lower-level fixture
-presents a virtual 269,484,049-byte output and observes 258 exact monotonic reads
-of at most 1,048,576 bytes, at most one range read and sink write at a time, and
-awaited backpressure without whole-output `readFile` use. The representative
-MP3 planner's separate 33,685,504-frame case establishes only the
-269,484,032-byte staging arithmetic and realtime admission reason.
-
-These witnesses establish transport arithmetic and backpressure only. The
-central 256 MiB offline ceiling covers exact useful-binary render-context and
-crop output, not end-to-end memory. Offline staging synchronously materializes a
-complete WAV byte array and Blob, and the complete encoded output still exists
-in worker MEMFS. The virtual body is not allocated and the actual FFmpeg codecs
-are not executed by this fixture. Native or WASM codec memory, staged-input
-residency, renderer or browser heap, GC, process RSS, CPU, elapsed time, and
-codec conformance remain unqualified. The fixture is not reference-scale and
-does not exercise File System Access, Electron filesystem publication, a native
-picker, actual browser or operating-system behavior, packaged UI, quota,
-durability, crash, or power loss. A desktop prepared target expires after
-900,000 milliseconds, so long offline desktop elapsed-time behavior is also
-unqualified. Custom FFmpeg, compressed stems, video, and other noncanonical
-delivery are excluded. It stays outside the milestone 2 bounded-memory
-workload, which stays planned.
-
-A fifth provisional milestone 2 fixture records direct MP4 and WebM final-video
-transport as focused Node evidence. The service cases bind canonical version-8
-plans and safe picker contracts, verify rendered-fallback admission before
-planning and selection, prepare browser targets before preflight and input work,
-and defer desktop target selection until sink open after FFmpeg stat. Both
-formats seal the sink before exact-count commit without a final video `Blob`, Object
-URL, or download; prepared Blob mode retains the legacy publication path.
-
-The lower fixture allocates a 2,097,169-byte body and transfers it in three
-exact ranges of 1,048,576, 1,048,576, and 17 bytes with one stat and zero output
-`readFile` calls. It proves transport arithmetic, serial backpressure, and
-ordering only. The complete output remains in worker MEMFS, while source-video
-and optional staged-audio `Blob` residency, codec execution and conformance,
-codec memory, heap, RSS, CPU, elapsed time, browser, operating-system, picker,
-packaged, quota, durability, crash, power-loss, and reference-scale behavior
-remain unqualified. The fixture stays outside the milestone 2 bounded-memory
-workload, which stays planned.
-
-The three focused structural collectors run with
-`npm run quality:collect:m2-direct-stems`,
-`npm run quality:collect:m2-direct-compressed`, and
-`npm run quality:collect:m2-direct-video`. Each starts one no-retry Node test
-process over its exact production/security files, retains that output in the
-raw evidence, and accepts only identity-bound structured diagnostics emitted by
-instrumented production-path tests. The collector requires the exact metric set,
-rejects duplicates and foreign metrics, and never derives observations from the
-quality fixture specification. These collectors qualify only
-first-party slice, sequential-retention, final-Blob, and partial-publication counters; the codec,
-worker MEMFS, native/WASM, heap/RSS, timing, browser, OS, and durability
-exclusions above remain unchanged.
-
-The [legacy-schema refusal witness](../tests/desktop-scape-sparse-range-integration.test.ts)
-remains payload-lazy. It stamps the retired schema-9 project into the fixture
-and follows the real capability store, protocol, desktop range adapter, file
-service, project router, and inspector through single exact closed ranges of at
-most 16 MiB. Every response is `206`, total transfer stays below 8 MiB, only
-the asset's bounded ZIP end-search suffix is touched, and the archive fails
-with the typed re-import error before any collision lookup, import, or
-whole-archive `Blob` materialization.
-
-The separate [full-import witness](../tests/desktop-scape-sparse-full-import-integration.test.ts)
-runs the current-schema arm of the same fixture through the real capability store, protocol, desktop
-range adapter, file service, project service, and importer. The strict ZIP
-reader validates the authentic CRC; its focused
-[corruption regression](../tests/audio-editor-scape-streaming-video.test.ts)
-proves a stored-entry CRC mismatch is rejected. Import validates the manifest
-SHA-256, and a transactional counting sink independently rehashes and counts
-all 8,589,930,860 asset bytes without retaining payload chunks. The witness
-requires exact at-most-16-MiB `206` ranges, at-most-4-MiB media emissions,
-project publication after media commit, exact-once capability release and
-pinned-handle close, and no whole-archive `Blob` path.
-
-The maintained importer's point-in-time capacity admission is covered by the
-[arithmetic tests](../tests/audio-editor-scape-import-capacity.test.ts) and
-[archive admission tests](../tests/audio-editor-scape-import-capacity-admission.test.ts).
-It checked-sums validated manifest asset sizes and adds `ceil(10%)` headroom
-before transaction capture, source remapping, writer creation, or asset
-extraction. For this fixture, 8,589,930,860 asset bytes require exactly
-9,448,923,946 free bytes; exact free space is admitted and one byte less is
-refused. The full-import counting store supplies that exact injected estimate
-before its media writer opens.
-
-This full-import witness is an explicit portable reference-scale gate. Run it
-with `npm run test:reference:scape-8gib`; a direct Node-test invocation may opt
-in by setting `SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1`. It passed when included
-in an all-files coverage run, but the instrumented test took an observed 525
-seconds. Routine `npm test` and `npm run test:coverage` discovery therefore
-reports a fast skip that names the dedicated command. The scheduling change
-does not remove or weaken any full-import assertion, and the observed duration
-is execution evidence rather than a performance qualification threshold.
-
-Neither counting sink is real durable application storage. The qualified
-capacity check is a point-in-time admission against an injected estimate, not a
-storage reservation; it does not guarantee actual browser quota availability,
-estimate accuracy or freshness under concurrent writers, a capacity UI
-snapshot, browser-record or filesystem-allocation overhead beyond the policy
-headroom, or write-time success. These witnesses do not qualify a packaged
-Electron UI, real OPFS or IndexedDB durable storage, renderer/browser heap,
-main/renderer RSS, whole-archive storage atomicity, or publisher authentication.
-The direct-WAV witness additionally does not qualify File System Access,
-Electron filesystem publication, native picker behavior, packaged application
-UI, or filesystem durability.
-
-The dedicated OPFS storage worker owns exactly six closed operation IDs. It
-creates synchronous access handles only after capability detection and accepts
-at most 16 MiB in one read or write message. Canonical PCM is exposed through
-exact bounded ranges; media and derivative writes consume at-most-16-MiB
-`Blob` slices, while worker-owned `File` snapshots cross back only after an
-exact synchronous size check. Store close terminates the worker after admitted
-storage work drains. When the synchronous worker capability is unavailable,
-the repository retains its asynchronous OPFS path; when OPFS is unavailable or
-fails, the existing PCM, media, and derivative repositories retain their tested
-IndexedDB correctness fallback.
-
-The focused Chromium and Firefox witness disables main-realm `createWritable`
-and `getFile`, then proves persisted PCM, original video, and derivatives can
-be imported, reloaded, and used for playback through the worker route. It also
-opens the same media-bearing project in a second tab, proves one read-only
-loser cannot mutate the project, and returns the writer lock to the first tab.
-It is a small correctness witness, not WebKit evidence and not reference-scale,
-heap, RSS, crash, or power-loss qualification. Media and derivative body
-consumption after the worker-owned snapshot still uses the browser's
-`File`/`Blob` backend; it is not a claim that those complete bodies are
-synchronously copied through worker messages.
-
-The milestone-2 browser durability matrix is qualified in Chromium and Firefox
-for the exact workflow IDs `indexeddb-quota-refusal`, `opfs-quota-refusal`,
+The browser suite exercises `indexeddb-quota-refusal`, `opfs-quota-refusal`,
 `indexeddb-multitab-writer`, `opfs-multitab-writer`,
-`offline-shell-upgrade`, and `storage-eviction-recovery`. The former mutable
-FFmpeg runtime rollback workflow is no longer a production browser path and is
-absent from the closure inventory. IndexedDB quota injection leaves the failed
-revision dirty and reloads the preceding commit. The OPFS worker witness
-injects `QuotaExceededError` at its synchronous write boundary and either
-refuses without changing the current project or exercises the repository's
-IndexedDB fallback. The two tab workflows prove only one writer can mutate the
-same project and that ownership transfers back after the newer tab closes.
+`offline-shell-upgrade`, and `storage-eviction-recovery`.
+
 <!-- policy-narrative:milestone-2-offline-cache-qualification -->
 Shell upgrade begins with a prior complete cache, activates one complete current
 active-product cache, and retires only safely obsolete caches. The current
@@ -654,292 +147,53 @@ audio WASM payloads and dynamically loaded WebCodecs/Mediabunny chunks are
 ordinary digest-bound application assets; no FFmpeg runtime is fetched, cached,
 served, or retained for rollback.
 <!-- /policy-narrative:milestone-2-offline-cache-qualification -->
-The eviction
-workflow exports a current Scape project file, removes the origin's IndexedDB database,
-reopens the usable empty editor, and restores the same project identity from
-the archive. Milestone-2 scope revision 2 historically deferred WebKit release
-qualification; that human checkpoint now belongs to milestone 9. Automated
-testing runs the pinned Playwright WebKit build today and skips an individual
-workflow only when a concrete API or runtime probe—such as OPFS, MediaRecorder,
-or an IndexedDB Blob round trip—fails. These small functional workflows do not qualify real
-quota exhaustion thresholds, storage reservation, browser eviction policy,
-abrupt process death, power loss, reference-scale capacity, heap, or RSS.
 
-The milestone 2 bounded-memory workload therefore remains planned.
+## Native and packaged diagnostics
 
-The fixture specifications are deliberately concrete:
+The M5 helper and M5B media/OpenFX collectors validate closed measurements,
+source revisions, package/runtime hashes, observed host/runtime identity, one
+no-retry attempt, and the registered metrics. Local device collectors refuse
+hosted runners when a real audio or capture device is required. Passing their
+thresholds does not authorize a package or a release.
 
-- milestone 2: the provisional exact 8 GiB sparse Zip64 payload-lazy
-  inspection and counting-sink full-import witnesses, plus the exact 385 MiB
-  direct-WAV counting-SHA witness and the small direct native-PCM ZIP32/7z,
-  canonical realtime and centrally admitted offline compressed ZIP32 stem,
-  direct compressed-audio, and direct MP4/WebM correctness fixtures described
-  above;
-- milestone 3: a two-hour, 24-audio-track, two-proxy-video-track editorial
-  session with 10,000 edits;
-- milestone 4: 48 kHz deterministic audio vectors plus calibrated 128x72 video
-  golden frames;
-- milestone 5: 10,000 malformed helper cases and a 30-minute native loopback,
-  plus the five Framescaper native-tier fixtures — canonical plan parity with a
-  procedurally generated UHD long-GOP decode workload, one licensed fixture per
-  required professional format row, a queue/root/watch/scratch fault workload,
-  matching-rate 1080p60 and UHD30 clean-display soak cohorts, and an OpenFX
-  1.5.1 conformance and hostile-plug-in suite across all five packaged targets;
-- milestone 6: a one-hour audio master and ten-minute 720p/30 video master;
-- milestone 7: selected and deliberately unselected local media assets;
-- milestone 8A: all six capture-source combinations over 30 minutes;
-- milestone 8B: a named placeholder refined alongside the MIDI implementation,
-  with Audacity design and compatibility acceptance recorded in milestone 9; and
-- milestone 9: an eight-hour complete-system soak.
+The M6 reference-master diagnostic derives delivery conformance, loudness,
+partial-output, frame, A/V, caption, and render-time metrics from sealed reports
+for both registered canvases. The M8 capture diagnostic derives completion,
+A/V drift, supported dropped-frame observations, teardown, recovery, and device
+authorization metrics from the exact six source combinations.
 
-Except for the explicitly provisional milestone 2 witness, these are
-specifications rather than accepted qualification evidence. Milestone 8A now
-has an opt-in collector (`npm run quality:collect:m8a-capture`) that validates
-the exact six 30-minute combinations, recomputes all eight registered metrics
-from raw ledgers, and binds their observed environment fingerprint. It can emit
-only pending-external or failed evidence while the capture device matrix is
-unprovisioned; it deliberately refuses accepted or qualified publication.
-Another future fixture becomes active only when its implementation and
-provenance are checked in and its contract test is tightened accordingly.
+Packaged runtime reports keep deterministic correctness/parity failures
+separate from timing and memory observations. Runtime manifests, package bytes,
+and content inventories remain SHA-256-bound technical inputs.
 
-Milestone 5 now has the exception that its complete collection machinery is
-present even though no accepted result exists. Native-lab descriptor V2 keeps
-five physical hosts separate from eighteen exact product configurations:
-eleven Soundscaper backend/mode profiles and seven Framescaper
-decode/encode/GPU/display profiles, including both X11 and XWayland on each
-Linux architecture. The Soundscaper collector and all five Framescaper
-collectors accept digest-bound V2 measurements and write raw evidence; their
-cohort writers require every applicable profile, one source revision, and one
-host/artifact set per platform. A failed profile fails its cohort, and a
-missing or externally blocked profile leaves it `pending-external`.
+## Milestone 5 package audit
 
-`npm run quality:cohort:m5-native-helper` assembles the eleven-profile audio
-cohort. `npm run quality:cohort:m5b -- --profile <pipeline>` assembles one
-seven-profile Framescaper cohort for each registered 5B pipeline. Cohorts are
-not trusted as command-line claims. The checked-in
-`config/milestone-5-qualification-evidence.json` register binds all 46 raw
-measurements and the six cohort files; `npm run milestone5:handoff` reopens and
-recomputes that evidence, audits all 20 native-payload rows and ten source
-acquisitions, and reports the licensing, lab, cohort, and reviewer state for
-Milestone 9 without using those human observations in Milestone 5 automation.
+The M5 handoff is an automated package audit. It verifies source acquisitions,
+licensing, payload manifests, target and architecture binding, required native
+self-tests, runtime-manifest identity, exact package names and contents, byte
+lengths, SHA-256 hashes, and equal installed closures across package formats.
+It has no reviewer, signature, notarization, attestation, or release-readiness
+state.
 
-One package job supplies `--product`, `--target`, and `--package-root` together
-and may use `--require-automated-ready` only as a machine-evidence package-cell
-gate. It authenticates one clean HEAD revision and the exact staged runtime
-manifest, corresponding-source sidecar, target package inventory, and installed
-content closure. Missing, pending, or invalid human signatures remain visible
-as report-only observations and do not suppress package extraction. Every cell
-deliberately emits `packageCellReady: null` and `milestoneReleaseReady: null`:
-Milestone 5 does not claim final release authority.
-`npm run milestone5:handoff-matrix -- --package-directory <directory>` admits
-the exact two-product, five-target package-root set and re-runs every package,
-payload, source, Git ancestry, clean-HEAD, and installed-content audit in one
-process. This is the first authority that can emit the Boolean
-`milestoneAutomatedReady`; it still emits `milestoneReleaseReady: null`. A
-separate `--input-directory` mode validates and hashes ten serialized cell
-reports for inspection, but returns `milestoneAutomatedReady: null`; canonical
-caller-authored JSON is not in-process audit provenance. The optional
-`--require-automated-ready` fails only for source, payload, package-byte, or
-installed-closure failures. Licensing, lab, cohort, reviewer, signing, and
-other manual acceptance belong solely to the Milestone 9 1.0 release decision
-and cannot change this automated verdict or its digest.
-Hosted packaging remains useful distribution evidence but cannot populate a
-physical-host or device/GPU qualification row.
+## Milestone 7 local-assistance privacy diagnostics
 
-## Result evaluation
+The optional privacy diagnostic derives network requests after installation,
+unselected-media reads, accepted-output digest mismatches, cancellation p95,
+and canonical-state losses from a closed trace. Model catalogs and runtime
+artifacts retain their existing authenticated SHA-256 bindings. A local or
+packaged observation is labelled as such and cannot impersonate another
+environment.
 
-`evaluateQualityBudget(qualification, expectedEnvironment, measurement)` accepts
-already-aggregated finite metrics and returns immutable verdicts and failure
-messages. It uses only `eq`, `gte`, and `lte` comparisons; it does not evaluate
-configuration strings as code.
+## Milestone 7 local-assistance accuracy criteria
 
-Accepted retained summaries use result schema 1 and pass through
-`evaluateQualityBudgetResult`. The boundary snapshots only exact own-data
-records, then binds the summary to the exact workload, ordered fixtures,
-environment descriptor, source revision, quality-budget bytes, and retained raw
-artifact:
-
-```json
-{
-	"schemaVersion": 1,
-	"workloadId": "m2-streaming-project-8gib-v1",
-	"fixtureIds": ["m2-streaming-project-8gib-v1"],
-	"environmentId": "portable-node-structural-26.5.0",
-	"environmentFingerprint": { "measurementClass": "first-party-owned-structural-counters" },
-	"rendererClass": "unknown",
-	"budgetSha256": "64-lowercase-hex-digits",
-	"sourceRevision": "40-or-64-lowercase-hex-digits",
-	"attemptCount": 1,
-	"retryCount": 0,
-	"rawEvidence": {
-		"artifactName": "m2-streaming-project-8gib-v1.raw.json",
-		"byteLength": 4096,
-		"sha256": "64-lowercase-hex-digits"
-	},
-	"metrics": {
-		"streaming.maximumProtocolRangeBytes": 4194304,
-		"streaming.maximumMediaEmissionBytes": 4194304,
-		"streaming.retainedMediaPayloadBytes": 0,
-		"streaming.invalidPublishedRevisions": 0
-	}
-}
-```
-
-The attempt count must be one and both the result and policy retry counts must
-be zero. The metric keys must equal the workload threshold keys; missing,
-additional, accessor-backed, or non-finite values fail. Passing numbers cannot
-override an unprovisioned or ineligible environment. Raw generated evidence
-remains an ignored CI artifact, while any reviewed summary retains its exact
-byte length and SHA-256. This is why the current ledger still cannot produce a
-qualified result.
-
-Run `node scripts/verify-quality-budget-result.mjs <accepted-summary.json>` from
-the exact reviewed checkout. The verifier hashes the checked-in budget and the
-named sibling raw artifact, requires the summary's source revision to equal
-`HEAD`, rejects ambiguous workload or environment descriptors, and exits
-nonzero on any failed threshold or identity check.
-
-Workload collectors pass observed counters to
-`writeStructuralQualityBudgetEvidence`. It requires a clean checkout, derives
-the exact platform, architecture, Node, npm, and Git identity, rejects failed
-metrics before creating files, uses exclusive file creation, and verifies the
-completed pair from disk. Generated pairs remain under ignored `test-results/`
-until their raw artifact is retained and their accepted summary is reviewed.
-
-`npm run audit:quality-results` resolves every accepted cohort's historical
-budget from Git, recomputes its digest, and requires one artifact descriptor for
-every qualified workload. Supplying `-- --evidence-directory <path>` also
-rehashes each retained raw/result body and re-evaluates its historical workload
-and environment contract.
-
-## CI progression
-
-The safe progression is:
-
-1. Keep the contract/evaluator tests in the canonical Node suite.
-2. Run the deterministic M4 PCM/RGBA parity collector in a one-worker,
-   no-retry browser job and retain its complete raw evidence. The collector
-   recomputes exactly the five registered metrics and refuses ambiguous,
-   truncated, non-finite, retried, or overwrite-prone evidence. **Done**, by
-   the `Qualification metrics` workflow described below.
-3. Keep Chromium, Firefox, and WebKit functional/fallback jobs green. Their
-   hosted timing qualifies a workload only through the registered lower-bound
-   rule — a met budget carries to the stronger owner host, a missed one is an
-   observation about the runner.
-4. Provision the fixed GPU host, add an exact environment check, replace the
-   runtime-generated preview media with a digest-pinned fixture, and emit one
-   consolidated result artifact.
-5. Add device/native labs only when the corresponding milestone contracts land.
-
-### Hosted CI qualification metrics
-
-`.github/workflows/qualification-metrics.yml` runs
-`npm run quality:collect:ci-metrics` every night and keeps its evidence for
-thirty days. Before it existed, the four opt-in metric specs self-skipped
-unless their environment flag was set and no workflow set one, so the M1, M3,
-M4 and M4B-2 numbers were produced only when somebody ran a collector by hand —
-which is why an unopenable M3 fixture and a broken preview interaction both sat
-undetected.
-
-The collector runs one Playwright invocation per spec, single worker and no
-retries, and writes `console.log`, `raw.json` and `summary.json` under
-`test-results/ci-qualification-metrics/`, beside one `<workload>.accepted.json`
-and `<workload>.raw.json` pair for every workload that met all of its
-thresholds. Those pairs are the qualification evidence: they carry the exact
-result-contract fields the file verifier and cohort auditor check, so an
-accepted hosted run can be bound into `qualification.acceptedResultCohorts` by
-byte length and SHA-256 without committing the artifacts themselves.
-
-A workload qualifies here because `github-ubuntu-playwright-1.62.1` is a
-registered `hardware-lower-bound` surrogate for
-`owner-qualified-windows-x64-rtx3090-01`. A missed threshold does not
-disqualify anything: the weaker machine is expected to miss a timing budget,
-and the summary records the miss as an observation.
-
-What the run does with each number follows the measurement procedure above:
-
-- `m4-production-render-parity` and `m4b2-keyframe-render-parity` are
-  **blocking**. They are exact media comparisons whose SSIM, MAE and
-  omitted-operation counters are deterministic, so a regression fails the job.
-- `m3-longform-editorial` is **observational**. Its position counters are exact,
-  and its seek, scroll and retained-heap budgets qualify when the shared runner
-  meets them, but a shared runner misses them under load without anything being
-  wrong, so a miss cannot fail the job.
-- `m1-video-preview-12fx-720p` is **not attempted**. It measures presented
-  frames through a twelve-effect 1280x720 WebGL stack and requires a hardware
-  renderer, which the hosted environment does not provide. The summary records
-  the skip and its reason rather than a failure.
-
-Generated results belong under ignored `test-results/` and should be uploaded as
-CI artifacts. An accepted summary can be reviewed and versioned separately, but
-raw generated `test-results`, `playwright-report`, or coverage content must not
-be committed.
-
-### Milestone 6 reference master, and its vertical companion
-
-`m6-reference-master-suite-v1` specifies a ten-minute 1280x720 video master
-beside its hour of audio. That canvas predates milestone 6B's canvas lift, which
-made the delivered extents an explicit decision rather than a cap, so the suite
-alone could no longer exercise what the milestone added: a run could deliver the
-landscape master twice, satisfy every threshold, and never reframe anything.
-
-`m6-reference-master-vertical-v1` is therefore registered beside it rather than
-edited into it — a fixture change is a new fixture revision, never a silent edit
-to an existing baseline. It is the **same** ten-minute master delivered at
-1080x1920: identical audio and video durations and identical frame rate, so one
-real-time denominator remains correct for both, with only the canvas differing.
-The collector refuses a companion that drifts on duration or rate, and refuses
-one whose canvas duplicates the suite's, because either would make the
-distinction it exists to draw disappear.
-
-No threshold moved. `m6-reference-master-delivery` keeps its eleven metrics and
-their values unchanged; what changed is that the workload now names two fixtures,
-a run must file a video delivery at each registered canvas or be rejected, and
-both fixtures must reach `qualified` before any accepted evidence could be
-published. Both fixtures remain `planned`; the fixed-GPU host does not admit
-M6 and the native OS matrix remains unprovisioned. The collector therefore
-still refuses to publish acceptance and names every fact the lab owes —
-including, now, each unbuilt fixture by name.
-
-Reviewing commit: the milestone 6B-5 exit-evidence change that introduced
-`m6-reference-master-vertical-v1`.
-
-### Milestone 3 long-form editorial, revised to the maintained schema
-
-`m3-longform-editorial-2h-v1` generated its two-hour project at Soundscaper
-project schema V23 while the maintained product had moved to V30. Its declared
-kind is `deterministic-current-schema-project-generator`, and the browser
-harness seeds the generated document straight into the project store rather than
-through an import that could migrate it, so the maintained product refused the
-fixture outright with `Soundscaper V30 project.nativePluginStates is required`.
-The workload was therefore uncollectable: no M3 long-form diagnostic could be
-produced on any host, qualified or not.
-
-`m3-longform-editorial-2h-v2` replaces it — a fixture change is a new fixture
-revision, never a silent edit to an existing baseline. Nothing about the
-workload's shape moved: the same seed, duration, sample rate, frame rate, track
-counts, edit count and transaction size, and the identical 10,000-command edit
-plan whose `editPlanSha256` is unchanged, because the plan is commands and never
-depended on the project schema. What changed is that the generator builds and
-replays through the V30 project owner, so `generatorRevision` is `2` and
-`projectSha256` is `efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e`.
-No threshold moved, and the workload stays `provisional`; the fixed-GPU profile
-that admits it remains `pending-external`.
-
-The revision was found by running the opt-in metric specs on a hosted runner
-for the first time, which is what `npm run quality:collect:ci-metrics` now does
-nightly. `tests/audio-editor-m3-longform-editorial-workload.test.ts`
-pins the fixture to the newest declared Soundscaper schema so the next schema
-bump fails there rather than silently rotting the fixture again.
-
-Reviewing commit: the change that moved the long-form generator onto the
-maintained Soundscaper project schema.
+Speech and visual accuracy workloads remain planned criteria until real offline
+models and runners produce the registered metrics. Synthetic or caller-invented
+results do not stand in for those models. Manual QA covers local assistance when
+the required model set is installed.
 
 ## Changing a threshold
 
-A threshold change must record the old and new values, the affected fixture and
-environment, raw before/after measurements, the reason, and the reviewing
-commit or issue. Hardware, driver, browser, or fixture changes create a new
-environment or fixture revision; they are not silent edits to an existing
-baseline. Thresholds must not be loosened automatically to make a regression
-pass.
+A threshold change should state the old and new values, affected fixture and
+environment, raw before/after measurements, and the reason for the change.
+Never loosen a deterministic correctness threshold merely to hide a regression.
+Update the register, its focused tests, and this guide in the same change.

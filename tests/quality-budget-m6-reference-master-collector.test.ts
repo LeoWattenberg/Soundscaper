@@ -15,7 +15,6 @@ import {
 } from '../scripts/lib/m6-reference-master-metrics.mjs';
 import {
 	assertM6ReferenceMasterCollectionHost,
-	assessM6ReferenceMasterQualification,
 	collectM6ReferenceMasterQuality,
 	createM6ReferenceMasterResult,
 	parseM6ReferenceMasterCliOptions,
@@ -134,7 +133,7 @@ function measurement(overrides: Record<string, unknown> = {}) {
 		schemaVersion: 1,
 		workloadId: M6_REFERENCE_MASTER_WORKLOAD_ID,
 		profile: 'reference-master-delivery-v1',
-		environmentId: 'owner-qualified-windows-x64-rtx3090-01',
+		environmentId: 'owner-windows-x64-rtx3090-01',
 		platformId: 'win32-x64',
 		fingerprint: { osImage: 'observed', cpuModel: 'observed' },
 		audioArtifacts: [audioArtifact()],
@@ -327,29 +326,6 @@ test('the companion fixture must stay the same master at another canvas', () => 
 	}
 });
 
-test('a companion fixture that is not built yet blocks acceptance for the whole gate', () => {
-	const partiallyBuilt = JSON.parse(JSON.stringify(CONFIG));
-	for (const id of ['m6-reference-master-suite-v1', 'm6-reference-master-vertical-v1']) {
-		partiallyBuilt.fixtures.find(({ id: candidate }: { id: string }) => candidate === id).status = 'qualified';
-	}
-	const bothBuilt = createM6ReferenceMasterResult(measurement(), partiallyBuilt);
-	assert.equal(
-		bothBuilt.qualificationBlockers.some((blocker: string) => blocker.startsWith('Fixture ')),
-		false,
-	);
-
-	partiallyBuilt.fixtures.find(
-		({ id }: { id: string }) => id === 'm6-reference-master-vertical-v1',
-	).status = 'planned';
-	const companionPlanned = createM6ReferenceMasterResult(measurement(), partiallyBuilt);
-	assert.ok(
-		companionPlanned.qualificationBlockers.some(
-			(blocker: string) => blocker.includes('m6-reference-master-vertical-v1 status is planned'),
-		),
-		'a planned companion must block just as a planned suite does, and be named',
-	);
-});
-
 test('a run that hides a trial, an artifact, or a field is rejected rather than defaulted', () => {
 	for (const [override, pattern] of [
 		[{ audioRenderSeconds: [1, 2, 3, 4] }, /exactly 5 timed runs/u],
@@ -364,21 +340,13 @@ test('a run that hides a trial, an artifact, or a field is rejected rather than 
 	}
 });
 
-test('the collector refuses to publish, and names every fact the lab still owes', () => {
+test('the collector reports thresholds without making a release claim', () => {
 	const result = createM6ReferenceMasterResult(measurement(), CONFIG);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.equal(result.evaluation.passed, false, 'a pending result never claims the gate passed');
-	assert.ok(result.metricGatePassed, 'though the metrics themselves are within their thresholds');
+	assert.equal(result.status, 'passed');
+	assert.equal('qualificationEvidencePublished' in result, false);
+	assert.equal(result.evaluation.passed, true);
+	assert.ok(result.metricGatePassed);
 	assert.deepEqual(result.observedFingerprint, { osImage: 'observed', cpuModel: 'observed' });
-
-	const blockers = result.qualificationBlockers;
-	assert.ok(blockers.includes(
-		'Environment owner-qualified-windows-x64-rtx3090-01 does not list m6-reference-master-delivery among its eligible workloads.',
-	));
-	assert.ok(blockers.some((line: string) => /Fixture m6-reference-master-suite-v1 status is planned/u.test(line)));
-	assert.ok(blockers.some((line: string) => /Workload .* status is planned/u.test(line)));
-	assert.ok(blockers.some((line: string) => /not registered in qualification.qualifiedWorkloadIds/u.test(line)));
 });
 
 test('a metric outside its threshold is a failure, not a pending result', () => {
@@ -391,21 +359,7 @@ test('a metric outside its threshold is a failure, not a pending result', () => 
 	assert.ok(slow.evaluation.failures.length > 0);
 });
 
-test('the collector stops rather than sign off once the environment is provisioned', () => {
-	// A pending record naming nothing missing would read as "measured, awaiting
-	// sign-off" when the truth is that the publishing half is unwritten.
-	const provisioned = provisionedConfig();
-	assert.equal(
-		assessM6ReferenceMasterQualification(provisioned, 'owner-qualified-windows-x64-rtx3090-01').provisioned,
-		true,
-	);
-	assert.throws(
-		() => createM6ReferenceMasterResult(measurement(), provisioned),
-		/accepted-evidence writer lands with the lab/u,
-	);
-});
-
-test('a hosted runner is not render-time evidence, and acceptance flags do not exist', () => {
+test('a hosted runner is not suitable for timing diagnostics', () => {
 	assert.doesNotThrow(() => assertM6ReferenceMasterCollectionHost({}));
 	for (const key of ['GITHUB_ACTIONS', 'CI', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI']) {
 		assert.throws(
@@ -415,7 +369,7 @@ test('a hosted runner is not render-time evidence, and acceptance flags do not e
 		);
 	}
 	for (const flag of ['--accept', '--qualify', '--publish']) {
-		assert.throws(() => parseM6ReferenceMasterCliOptions([flag]), /qualification is unavailable/u, flag);
+		assert.throws(() => parseM6ReferenceMasterCliOptions([flag]), /Unknown M6 collector option/u, flag);
 	}
 	assert.deepEqual(
 		parseM6ReferenceMasterCliOptions(['--measurement', 'record.json', 'out']),
@@ -423,15 +377,11 @@ test('a hosted runner is not render-time evidence, and acceptance flags do not e
 	);
 });
 
-test('the writer refuses any status that would read as acceptance', async () => {
+test('the writer refuses unsupported statuses', async () => {
 	const result = createM6ReferenceMasterResult(measurement(), CONFIG);
 	await assert.rejects(
 		() => writeM6ReferenceMasterResult('/nonexistent', { ...result, status: 'accepted' }),
-		/cannot write a accepted result/u,
-	);
-	await assert.rejects(
-		() => writeM6ReferenceMasterResult('/nonexistent', { ...result, qualificationEvidencePublished: true }),
-		/must not mark qualification evidence as published/u,
+		/unsupported status accepted/u,
 	);
 });
 
@@ -459,7 +409,7 @@ test('the collector re-checks that the workload still owns its fixture, environm
 	);
 });
 
-test('the collected result lands as a pending file and never overwrites one', async (context) => {
+test('the collected diagnostic lands as a passed file and never overwrites one', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m6-quality-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
 	const collected = await collectM6ReferenceMasterQuality(
@@ -468,12 +418,10 @@ test('the collected result lands as a pending file and never overwrites one', as
 	);
 	assert.equal(
 		collected.resultPath,
-		join(directory, 'm6-reference-master-delivery.pending-external.json'),
-		'the status is in the file name, so an accepted one could not be mistaken for this',
+		join(directory, 'm6-reference-master-delivery.passed.json'),
 	);
 	const written = JSON.parse(await readFile(collected.resultPath, 'utf8'));
-	assert.equal(written.status, 'pending-external');
-	assert.equal(written.qualificationEvidencePublished, false);
+	assert.equal(written.status, 'passed');
 	// The run's own observation stays beside the result rather than filling in
 	// the descriptor's null fingerprint rows.
 	assert.deepEqual(written.observedFingerprint, { osImage: 'observed', cpuModel: 'observed' });
@@ -484,28 +432,9 @@ test('the collected result lands as a pending file and never overwrites one', as
 			{ processEnvironment: {}, config: CONFIG, readMeasurement: () => measurement() },
 		),
 		/EEXIST/u,
-		'a second run cannot quietly replace the first run\'s evidence',
+		'a second run cannot quietly replace the first diagnostic',
 	);
 });
-
-function provisionedConfig() {
-	const config = JSON.parse(JSON.stringify(CONFIG));
-	const environment = config.environments.find(
-		({ id }: { id: string }) => id === 'owner-qualified-windows-x64-rtx3090-01',
-	);
-	environment.status = 'active';
-	environment.qualificationEligible = true;
-	environment.eligibleWorkloadIds = [M6_REFERENCE_MASTER_WORKLOAD_ID];
-	for (const row of Object.keys(environment.fingerprint)) environment.fingerprint[row] = 'recorded';
-	for (const id of ['m6-reference-master-suite-v1', 'm6-reference-master-vertical-v1']) {
-		config.fixtures.find(({ id: candidate }: { id: string }) => candidate === id).status = 'qualified';
-	}
-	config.workloads.find(({ id }: { id: string }) => id === M6_REFERENCE_MASTER_WORKLOAD_ID).status = 'qualified';
-	config.qualification.qualifiedWorkloadIds = [
-		...config.qualification.qualifiedWorkloadIds, M6_REFERENCE_MASTER_WORKLOAD_ID,
-	];
-	return config;
-}
 
 test('a run that timed only one canvas has not covered the render-speed row', () => {
 	// The row is registered against both canvases, and a flat list of five timings

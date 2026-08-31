@@ -3,7 +3,7 @@ import type {
 	DesktopNightlyTestsPlaywrightPlan,
 } from './desktop-nightly-tests-runtime.mjs';
 import type {
-	DesktopNightlyTestsMetricsEvidence,
+	DesktopNightlyTestsMetricsDiagnostics,
 	DesktopNightlyTestsMetricsExit,
 } from './desktop-nightly-tests-metrics.mjs';
 
@@ -14,7 +14,6 @@ export const PACKAGED_RUNTIME_ARTIFACT_PATHS: Readonly<{
 	readonly packagedRuntimeJunitReport: 'packaged-runtime/junit.xml';
 	readonly packagedRuntimeRaw: 'packaged-runtime/raw.json';
 	readonly packagedRuntimeSummary: 'packaged-runtime/summary.json';
-	readonly packagedRuntimeQualification: 'packaged-runtime/qualification.json';
 	readonly packagedRuntimeTestResults: 'packaged-runtime/test-results';
 }>;
 
@@ -49,7 +48,7 @@ export function runDesktopNightlyTestsPackagedMetricsPhase(
 	options: DesktopNightlyTestsPackagedMetricsOptions,
 	dependencies: {
 		readonly runPlaywright: (plan: DesktopNightlyTestsPlaywrightPlan) => Promise<DesktopNightlyTestsMetricsExit>;
-		readonly writeEvidence?: (options: {
+		readonly writeDiagnostics?: (options: {
 			readonly payloadRoot: string;
 			readonly runRoot: string;
 			readonly sourceRevision: string | null;
@@ -57,9 +56,9 @@ export function runDesktopNightlyTestsPackagedMetricsPhase(
 			readonly consoleLogPath: string;
 			readonly artifactDirectory: 'packaged-runtime';
 			readonly evidenceKind: 'packaged-runtime';
-		}) => Promise<DesktopNightlyTestsMetricsEvidence>;
+		}) => Promise<DesktopNightlyTestsMetricsDiagnostics>;
 	},
 ): Promise<{
 	readonly child: DesktopNightlyTestsMetricsExit;
-	readonly evidence: DesktopNightlyTestsMetricsEvidence;
+	readonly diagnostics: DesktopNightlyTestsMetricsDiagnostics;
 }>;

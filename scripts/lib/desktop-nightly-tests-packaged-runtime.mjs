@@ -3,20 +3,12 @@
 import { mkdir } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
-import { writeDesktopNightlyTestsMetricsEvidence } from './desktop-nightly-tests-metrics.mjs';
+import { writeDesktopNightlyTestsMetricsDiagnostics } from './desktop-nightly-tests-metrics.mjs';
 
 const PRODUCTS = Object.freeze({
 	soundscaper: Object.freeze({ executable: 'Soundscaper', linuxExecutable: 'soundscaper' }),
 	framescaper: Object.freeze({ executable: 'Framescaper', linuxExecutable: 'framescaper' }),
 });
-const OWNER_IDENTITY_ENVIRONMENT_NAMES = Object.freeze([
-	'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION',
-	'SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID',
-	'SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE',
-	'SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE',
-]);
-const NON_AUTHORITATIVE_IDENTITY = 'not-recorded';
-
 export const PACKAGED_RUNTIME_ARTIFACT_PATHS = Object.freeze({
 	packagedRuntimeConsoleLog: 'packaged-runtime/console.log',
 	packagedRuntimeHtmlReport: 'packaged-runtime/playwright-report/index.html',
@@ -24,7 +16,6 @@ export const PACKAGED_RUNTIME_ARTIFACT_PATHS = Object.freeze({
 	packagedRuntimeJunitReport: 'packaged-runtime/junit.xml',
 	packagedRuntimeRaw: 'packaged-runtime/raw.json',
 	packagedRuntimeSummary: 'packaged-runtime/summary.json',
-	packagedRuntimeQualification: 'packaged-runtime/qualification.json',
 	packagedRuntimeTestResults: 'packaged-runtime/test-results',
 });
 
@@ -75,7 +66,6 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 	assertLoopback(baseURL);
 	if (!['linux', 'win32', 'darwin'].includes(platform)) throw new TypeError('Packaged runtime platform is invalid.');
 	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Packaged runtime architecture is invalid.');
-	const ownerIdentity = resolveOwnerEnvironmentIdentity(environment);
 	return Object.freeze({
 		command: executablePath,
 		args: Object.freeze([
@@ -87,7 +77,6 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 		cwd: payloadRoot,
 		env: Object.freeze({
 			...environment,
-			...ownerIdentity,
 			ELECTRON_RUN_AS_NODE: '1',
 			PLAYWRIGHT_BROWSERS_PATH: join(payloadRoot, '.local-browsers'),
 			PLAYWRIGHT_HTML_OPEN: 'never',
@@ -113,28 +102,13 @@ export function createDesktopNightlyTestsPackagedMetricsPlan({
 	});
 }
 
-function resolveOwnerEnvironmentIdentity(environment) {
-	const suppliedCount = OWNER_IDENTITY_ENVIRONMENT_NAMES.filter((name) => environment?.[name] !== undefined).length;
-	if (suppliedCount === 0) {
-		return Object.freeze(Object.fromEntries(OWNER_IDENTITY_ENVIRONMENT_NAMES.map((name) => [
-			name, NON_AUTHORITATIVE_IDENTITY,
-		])));
-	}
-	if (suppliedCount !== OWNER_IDENTITY_ENVIRONMENT_NAMES.length
-		|| OWNER_IDENTITY_ENVIRONMENT_NAMES.some((name) => typeof environment?.[name] !== 'string'
-			|| environment[name].length < 1)) {
-		throw new Error(`Packaged runtime owner environment identity is incomplete; set all four variables: ${OWNER_IDENTITY_ENVIRONMENT_NAMES.join(', ')}.`);
-	}
-	return Object.freeze(Object.fromEntries(OWNER_IDENTITY_ENVIRONMENT_NAMES.map((name) => [name, environment[name]])));
-}
-
 export async function runDesktopNightlyTestsPackagedMetricsPhase(options, dependencies = {}) {
 	const artifactRoot = join(options.runRoot, 'packaged-runtime');
 	await mkdir(artifactRoot, { recursive: false });
 	const plan = createDesktopNightlyTestsPackagedMetricsPlan(options);
 	const child = await dependencies.runPlaywright(plan);
-	const writeEvidence = dependencies.writeEvidence ?? writeDesktopNightlyTestsMetricsEvidence;
-	const evidence = await writeEvidence({
+	const writeDiagnostics = dependencies.writeDiagnostics ?? writeDesktopNightlyTestsMetricsDiagnostics;
+	const diagnostics = await writeDiagnostics({
 		payloadRoot: options.payloadRoot,
 		runRoot: options.runRoot,
 		sourceRevision: options.sourceRevision,
@@ -143,7 +117,7 @@ export async function runDesktopNightlyTestsPackagedMetricsPhase(options, depend
 		artifactDirectory: 'packaged-runtime',
 		evidenceKind: 'packaged-runtime',
 	});
-	return Object.freeze({ child, evidence });
+	return Object.freeze({ child, diagnostics });
 }
 
 function assertAbsolute(value, label) {

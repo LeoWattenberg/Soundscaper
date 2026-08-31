@@ -10,28 +10,20 @@ import {
 	M5_NATIVE_HELPER_FIXTURE_ID as FIXTURE_ID,
 	M5_NATIVE_HELPER_METRIC_IDS as METRIC_IDS,
 	M5_NATIVE_HELPER_OBSERVATION_CLASS as OBSERVATION_CLASS,
-	M5_NATIVE_HELPER_PLATFORM_IDS as PLATFORM_IDS,
 	M5_NATIVE_HELPER_PROFILE as PROFILE,
 	M5_NATIVE_HELPER_WORKLOAD_ID as WORKLOAD_ID,
 	computeM5NativeHelperMetrics,
 } from './lib/m5-native-helper-metrics.mjs';
 import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
-import { assessNativeOsLabBindingQualificationV2 } from './lib/native-os-lab-schema.mjs';
 import { qualityBudgetSha256 } from './lib/quality-budget-config-digest.mjs';
 
 /*
  * Milestone 5A-4 collector. Ordinary CI owns the correctness half of
- * `m5-helper-fault-and-loopback-v1`; only the provisioned `native-os-lab-matrix`
- * may publish the latency, underrun, recovery, and RSS half. That matrix is
- * unprovisioned and all five of its platform fingerprints are null, so this
- * collector deliberately has no accepted-evidence writer: it recomputes the
- * eight metrics, records them, and emits a pending-external result that names
- * every missing provisioning fact by hand. The day that list empties, it stops
- * instead — a pending record naming nothing missing would read as sign-off.
- *
- * Two things it must never do: copy an intended fingerprint into a null
- * descriptor row, and let a hosted runner stand in for an audio device.
+ * `m5-helper-fault-and-loopback-v1`; a local device run supplies the latency,
+ * underrun, recovery, and RSS observations. The collector recomputes all eight
+ * metrics and reports their thresholds as diagnostics. It never modifies the
+ * checked-in environment descriptor or makes a release decision.
  */
 
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
@@ -39,7 +31,7 @@ const HOSTED_RUNNER_VARIABLES = Object.freeze([
 	'GITHUB_ACTIONS', 'CI', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI',
 ]);
 
-/** Read a lab-produced measurement and persist only unaccepted evidence. */
+/** Read a device-produced measurement and persist its diagnostic result. */
 export async function collectM5NativeHelperQuality(optionsValue, dependencies = {}) {
 	const options = exactRecord(
 		snapshotStrictJsonData(optionsValue, 'collector options'),
@@ -79,56 +71,42 @@ export function createM5NativeHelperResult(
 		'M5 measurement',
 	);
 	const isV2 = measurementSnapshot.schemaVersion === 2;
-	const qualification = isV2
-		? assessM5NativeHelperQualificationV2(config, workload, fixture, environment, measurementSnapshot.labBinding)
-		: assessM5NativeHelperQualification(config);
-	if (!isV2 && qualification.provisioned) {
-		// There is no accepted-evidence writer here yet. Emitting `pending-external`
-		// with an empty blocker list would read as "measured, awaiting sign-off"
-		// when the truth is that the publishing half is unwritten, so the
-		// collector stops rather than describe a lab it can no longer describe.
-		throw new Error(`Environment ${ENVIRONMENT_ID} is provisioned; the M5 accepted-evidence writer lands with the lab and must exist before a result is emitted.`);
-	}
 	const computed = computeM5NativeHelperMetrics(measurement, {
 		...(isV2 ? { budgetSha256 } : {}),
 		fixtureSpecification: fixture.specification,
 		measurementPolicy: policy,
-		...(isV2 ? { labEnvironment: environment } : {}),
+		...(isV2 ? { diagnosticEnvironment: environment } : {}),
 	});
 	const evaluation = evaluateQualityBudget({
 		environmentId: ENVIRONMENT_ID,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, {
+	}, { ...environment, status: 'active' }, {
 		environmentId: ENVIRONMENT_ID,
 		rendererClass: 'unknown',
 		metrics: computed.metrics,
 	});
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const accepted = isV2 && metricGatePassed && evaluation.passed
-		&& qualification.blockers.length === 0;
-	const failures = [...new Set([...evaluation.failures, ...qualification.blockers])];
+	const passed = metricGatePassed && evaluation.passed;
 	return Object.freeze({
 		schemaVersion: isV2 ? 2 : 1,
-		qualificationScope: isV2 ? 'single-profile' : 'legacy-single-target',
-		status: !metricGatePassed ? 'failed' : accepted ? 'accepted' : 'pending-external',
+		status: passed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: ENVIRONMENT_ID,
-		qualificationEnvironmentId: ENVIRONMENT_ID,
 		platformId: computed.platformId,
 		profile: PROFILE,
 		observationClass: OBSERVATION_CLASS,
 		attemptCount: 1,
 		retryCount: policy.benchmarkRetries,
 		rendererClass: 'unknown',
-		// The lab's own observation, kept beside the result. It is never merged
-		// into the descriptor's null platform row by this collector.
+		// Keep the observed host and runtime beside the result. They do not
+		// populate or certify any repository-wide hardware matrix.
 		...(isV2
 			? {
 				budgetSha256: computed.budgetSha256,
-				observedLabBinding: computed.labBinding,
+				observedDiagnosticBinding: computed.diagnosticBinding,
 				observedRuntimeProfile: computed.observedRuntimeProfile,
 				sourceRevision: computed.sourceRevision,
 			}
@@ -137,80 +115,11 @@ export function createM5NativeHelperResult(
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: false,
-		qualificationBlockers: Object.freeze(qualification.blockers),
 		evaluation: Object.freeze({
-			// Never true here: the guard above refuses every provisioned state, so a
-			// passing metric gate is reported by `metricGatePassed` alone.
-			passed: accepted,
-			failures: Object.freeze(failures),
+			passed,
+			failures: evaluation.failures,
 			verdicts: evaluation.verdicts,
 		}),
-	});
-}
-
-function assessM5NativeHelperQualificationV2(config, workload, fixture, environment, labBinding) {
-	const assessment = assessNativeOsLabBindingQualificationV2(
-		environment,
-		labBinding,
-		WORKLOAD_ID,
-	);
-	const blockers = [...assessment.blockers];
-	if (fixture.status !== 'qualified') {
-		blockers.push(`Fixture ${FIXTURE_ID} status is ${String(fixture.status)}.`);
-	}
-	if (workload.status !== 'qualified') {
-		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
-	}
-	if (!Array.isArray(config.qualification?.qualifiedWorkloadIds)
-		|| !config.qualification.qualifiedWorkloadIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Workload ${WORKLOAD_ID} is not registered in qualification.qualifiedWorkloadIds.`);
-	}
-	return Object.freeze({ provisioned: blockers.length === 0, blockers: Object.freeze(blockers) });
-}
-
-/**
- * Name every fact the native lab still owes, one line per missing thing, so a
- * pending result says what would have to become true rather than how close it
- * came.
- */
-export function assessM5NativeHelperQualification(configValue) {
-	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const blockers = [];
-	if (environment.status !== 'active') {
-		// Worded exactly as the shared evaluator words it, so the two lists
-		// collapse into one statement of the same missing fact.
-		blockers.push(`Environment ${ENVIRONMENT_ID} is ${String(environment.status)}.`);
-	}
-	if (environment.qualificationEligible !== true) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} is not qualification-eligible.`);
-	}
-	if (!Array.isArray(environment.eligibleWorkloadIds)
-		|| !environment.eligibleWorkloadIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} does not list ${WORKLOAD_ID} among its eligible workloads.`);
-	}
-	const fingerprint = requireRecord(environment.fingerprint, `${ENVIRONMENT_ID}.fingerprint`);
-	const rows = Object.keys(fingerprint).sort();
-	if (!sameStrings(rows, [...PLATFORM_IDS].sort())) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} fingerprint does not enumerate exactly the five lab platforms.`);
-	}
-	for (const platformId of PLATFORM_IDS) {
-		if (!isRecord(fingerprint[platformId])) {
-			blockers.push(`Environment ${ENVIRONMENT_ID} has no recorded fingerprint for platform ${platformId}.`);
-		}
-	}
-	if (workload.status !== 'qualified') {
-		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
-	}
-	const qualifiedIds = config.qualification?.qualifiedWorkloadIds;
-	if (!Array.isArray(qualifiedIds) || !qualifiedIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Workload ${WORKLOAD_ID} is not registered in qualification.qualifiedWorkloadIds.`);
-	}
-	return Object.freeze({
-		provisioned: blockers.length === 0,
-		blockers: Object.freeze(blockers),
 	});
 }
 
@@ -222,19 +131,15 @@ export function assertM5NativeHelperCollectionHost(processEnvironment) {
 	for (const key of HOSTED_RUNNER_VARIABLES) {
 		const value = ownEnvironmentString(processEnvironment, key);
 		if (value === undefined || value === '') continue;
-		throw new Error(`M5 native-lab collection refuses to run on a hosted runner (${key} is set); hosted runners are not audio-device evidence.`);
+		throw new Error(`M5 native-diagnostic collection refuses to run on a hosted runner (${key} is set); hosted runners are not audio-device evidence.`);
 	}
 }
 
-/** Persist unaccepted evidence only; the accepted writer lands with the lab. */
+/** Persist one immutable diagnostic result and its raw V2 measurement. */
 export async function writeM5NativeHelperResult(outputDirectory, resultValue, measurementValue = null) {
 	const result = snapshotStrictJsonData(resultValue, 'result');
-	if (result.status !== 'pending-external' && result.status !== 'failed'
-		&& !(result.schemaVersion === 2 && result.status === 'accepted')) {
-		throw new Error(`M5 collector cannot write a ${String(result.status)} result while ${ENVIRONMENT_ID} is unprovisioned.`);
-	}
-	if (result.qualificationEvidencePublished !== false) {
-		throw new Error('M5 collector must not mark qualification evidence as published.');
+	if (result.status !== 'passed' && result.status !== 'failed') {
+		throw new Error(`M5 diagnostic result has unsupported status ${String(result.status)}.`);
 	}
 	await mkdir(outputDirectory, { recursive: true });
 	if (result.schemaVersion !== 2) {
@@ -245,10 +150,13 @@ export async function writeM5NativeHelperResult(outputDirectory, resultValue, me
 	if (measurementValue === null) throw new Error('M5 schema V2 result requires its raw measurement.');
 	const measurement = snapshotStrictJsonData(measurementValue, 'measurement');
 	if (measurement.schemaVersion !== 2
-		|| measurement.labBinding?.profileId !== result.observedLabBinding?.profileId) {
+		|| measurement.diagnosticBinding?.platformId
+			!== result.observedDiagnosticBinding?.platformId
+		|| measurement.diagnosticBinding?.artifacts?.sourceRevision
+			!== result.observedDiagnosticBinding?.artifacts?.sourceRevision) {
 		throw new Error('M5 schema V2 result is detached from its raw measurement.');
 	}
-	const stem = `${WORKLOAD_ID}.${result.observedLabBinding.profileId}`;
+	const stem = `${WORKLOAD_ID}.${result.observedDiagnosticBinding.platformId}`;
 	const rawPath = join(outputDirectory, `${stem}.raw.json`);
 	const resultPath = join(outputDirectory, `${stem}.${result.status}.json`);
 	await writeFile(rawPath, `${JSON.stringify(measurement, null, '\t')}\n`, { flag: 'wx' });
@@ -256,7 +164,7 @@ export async function writeM5NativeHelperResult(outputDirectory, resultValue, me
 	return Object.freeze({ rawPath, resultPath, result });
 }
 
-/** Parse `[--measurement <path>] [output-directory]`; qualification flags are refused. */
+/** Parse `[--measurement <path>] [output-directory]`. */
 export function parseM5NativeHelperCliOptions(argsValue) {
 	const args = snapshotStrictJsonData(argsValue, 'M5 collector CLI arguments');
 	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
@@ -270,9 +178,6 @@ export function parseM5NativeHelperCliOptions(argsValue) {
 			measurementPath = argument;
 			expectingMeasurement = false;
 			continue;
-		}
-		if (argument === '--accept' || argument === '--qualify' || argument === '--publish') {
-			throw new Error(`M5 native-lab qualification is unavailable while ${ENVIRONMENT_ID} is unprovisioned.`);
 		}
 		if (argument === '--measurement') {
 			if (measurementPath !== null) throw new Error('M5 collector accepts one measurement path.');
@@ -292,7 +197,7 @@ async function readMeasurementFile(path) {
 		return JSON.parse(await readFile(path, 'utf8'));
 	} catch (error) {
 		throw new Error(
-			`M5 native-lab measurement is unavailable or invalid: ${errorMessage(error)}.`,
+			`M5 native-diagnostic measurement is unavailable or invalid: ${errorMessage(error)}.`,
 			{ cause: error },
 		);
 	}

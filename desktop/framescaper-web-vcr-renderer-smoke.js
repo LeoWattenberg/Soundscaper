@@ -39,7 +39,7 @@ export async function runFramescaperWebVcrDormantRendererSmoke(scope, plan) {
 		mode: plan.mode,
 		productId: 'framescaper',
 		token: plan.token,
-		qualification: false,
+		diagnosticOnly: true,
 		preloadBridge,
 		capability: { status: 'available', resolutions: ['720p', '1080p'] },
 		openAttempted: false,
@@ -389,7 +389,7 @@ export async function runFramescaperWebVcrPackagedRendererSmoke(scope, plan) {
 			mode: plan.mode,
 			productId: 'framescaper',
 			token: plan.token,
-			qualification: false,
+			diagnosticOnly: true,
 			preloadBridge,
 			capability: { resolutions: ['720p', '1080p'], fourKUnavailable: true },
 			persistence: { authenticatedBeforeClear: true, anonymousAfterClear: true },
@@ -412,7 +412,7 @@ export async function runFramescaperWebVcrPackagedRendererSmoke(scope, plan) {
 
 export function validateFramescaperWebVcrDormantSmokeResult(value, plan) {
 	const result = closed(value, [
-		'schemaVersion', 'mode', 'productId', 'token', 'qualification', 'preloadBridge',
+		'schemaVersion', 'mode', 'productId', 'token', 'diagnosticOnly', 'preloadBridge',
 		'capability', 'openAttempted',
 	], 'dormant smoke result');
 	matchEnvelope(result, plan, FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE);
@@ -427,7 +427,7 @@ export function validateFramescaperWebVcrDormantSmokeResult(value, plan) {
 
 export function validateFramescaperWebVcrPackagedSmokeResult(value, plan) {
 	const result = closed(value, [
-		'schemaVersion', 'mode', 'productId', 'token', 'qualification', 'preloadBridge',
+		'schemaVersion', 'mode', 'productId', 'token', 'diagnosticOnly', 'preloadBridge',
 		'capability', 'persistence', 'input', 'captures', 'target', 'lifecycle', 'clearData',
 		'teardown', 'audioBoundary', 'displaySecurity',
 	], 'packaged smoke result');
@@ -458,7 +458,7 @@ export function validateFramescaperWebVcrPackagedSmokeResult(value, plan) {
 
 export function validateFramescaperWebVcrPackagedRendererSmokeResult(value, plan) {
 	const result = closed(value, [
-		'schemaVersion', 'mode', 'productId', 'token', 'qualification', 'preloadBridge',
+		'schemaVersion', 'mode', 'productId', 'token', 'diagnosticOnly', 'preloadBridge',
 		'capability', 'persistence', 'input', 'captures', 'target', 'lifecycle', 'clearData',
 		'teardown', 'audioBoundary',
 	], 'packaged renderer smoke result');
@@ -540,8 +540,8 @@ function validateVisualMarker(value, resolution) {
 
 function matchEnvelope(value, plan, mode) {
 	if (value.schemaVersion !== 1 || value.mode !== mode || value.productId !== 'framescaper'
-		|| value.token !== plan?.token || value.qualification !== false) {
-		throw new Error('Framescaper Web VCR smoke result does not match its non-qualification plan.');
+		|| value.token !== plan?.token || value.diagnosticOnly !== true) {
+		throw new Error('Framescaper Web VCR smoke result does not match its diagnostic-only plan.');
 	}
 }
 

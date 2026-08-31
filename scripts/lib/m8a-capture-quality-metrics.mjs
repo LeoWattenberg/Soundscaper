@@ -12,7 +12,7 @@ import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M8A_CAPTURE_WORKLOAD_ID = 'm8a-capture-long-session';
 export const M8A_CAPTURE_FIXTURE_ID = 'm8a-capture-30m-all-sources-v1';
-export const M8A_CAPTURE_ENVIRONMENT_ID = 'capture-os-browser-lab-matrix';
+export const M8A_CAPTURE_ENVIRONMENT_ID = 'capture-device-diagnostics';
 export const M8A_CAPTURE_PROFILE = 'framescaper-capture-30m-six-combination-v1';
 export const M8A_CAPTURE_OBSERVATION_CLASS = 'real-device-shared-clock-durability-v1';
 
@@ -65,7 +65,7 @@ const EXPECTATION_FIELDS = Object.freeze(['fixtureSpecification']);
 const FIXTURE_FIELDS = Object.freeze(['durationSeconds', 'sourceCombinationCount']);
 const MAXIMUM_LEDGER_ENTRIES = 1_000_000;
 
-/** Recompute all eight registered capture metrics from one closed lab record. */
+/** Recompute all eight registered capture metrics from one closed device observation. */
 export function computeM8ACaptureMetrics(measurement, expectation) {
 	const validated = validateM8ACaptureMeasurement(measurement, expectation);
 	let combinationsCompleted = 0;

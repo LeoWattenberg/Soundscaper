@@ -33,7 +33,7 @@ const CONFIG_URL = new URL('../../config/quality-budgets.json', import.meta.url)
 const DEFAULT_CONFIG_BYTES = await readFile(CONFIG_URL);
 const DEFAULT_CONFIG = JSON.parse(DEFAULT_CONFIG_BYTES.toString('utf8'));
 export const M5B_DEFAULT_QUALITY_BUDGET_SHA256 = DEFAULT_QUALITY_BUDGET_SHA256;
-const ENVIRONMENT_ID = 'native-os-lab-matrix';
+const ENVIRONMENT_ID = 'native-os-diagnostics';
 const PLATFORM_ARCHITECTURES = Object.freeze({
 	windowsX64: 'x64',
 	windowsArm64: 'arm64',
@@ -169,22 +169,19 @@ export function createM5bQualityResult(profileIdValue, measurementValue, configV
 	const config = snapshotStrictJsonData(configValue, 'quality config');
 	const measurement = validateM5bQualityMeasurement(profileId, measurementValue, config);
 	const workload = exactDescriptor(config.workloads, pipeline.workloadId, 'workload');
-	const fixture = exactDescriptor(config.fixtures, pipeline.fixtureId, 'fixture');
 	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
 	assertRegistration(profileId, pipeline, workload);
-	const blockers = qualificationBlockers(config, workload, fixture, environment, measurement);
 	const evaluation = evaluateQualityBudget({
 		environmentId: ENVIRONMENT_ID,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, measurement);
+	}, { ...environment, status: 'active' }, measurement);
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const accepted = metricGatePassed && evaluation.passed && blockers.length === 0;
+	const passed = metricGatePassed && evaluation.passed;
 	return deepFreeze({
 		schemaVersion: 1,
-		qualificationScope: 'single-target',
-		status: !metricGatePassed ? 'failed' : accepted ? 'accepted' : 'pending-external',
+		status: passed ? 'passed' : 'failed',
 		profileId,
 		workloadId: pipeline.workloadId,
 		fixtureId: pipeline.fixtureId,
@@ -195,11 +192,9 @@ export function createM5bQualityResult(profileIdValue, measurementValue, configV
 		metrics: measurement.metrics,
 		sampleCounts: measurement.sampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: false,
-		qualificationBlockers: blockers,
 		evaluation: {
-			passed: accepted,
-			failures: [...new Set([...evaluation.failures, ...blockers])],
+			passed,
+			failures: evaluation.failures,
 			verdicts: evaluation.verdicts,
 		},
 	});
@@ -255,7 +250,7 @@ export async function writeM5bQualityResult(
 	const result = snapshotStrictJsonData(resultValue, 'result');
 	const expected = createM5bQualityResult(measurement.profileId, measurement, configValue);
 	if (!isDeepStrictEqual(result, expected)) {
-		throw new Error('5B collector result does not match its recomputed qualification result.');
+		throw new Error('5B diagnostic result does not match its recomputed thresholds.');
 	}
 	const stem = `${result.workloadId}.${result.platformId}`;
 	const rawBytes = Buffer.from(`${JSON.stringify(measurement, null, '\t')}\n`, 'utf8');
@@ -287,7 +282,7 @@ export function assertM5bCollectionHost(environment) {
 			throw new Error(`Collector environment ${key} must be an own string data property.`);
 		}
 		if (descriptor.value) {
-			throw new Error(`5B native-lab collection refuses hosted-runner evidence (${key} is set).`);
+			throw new Error(`5B native-diagnostic collection refuses hosted-runner evidence (${key} is set).`);
 		}
 	}
 }
@@ -334,9 +329,6 @@ export function parseM5bQualityCollectorCliArguments(argsValue) {
 	let outputLimitSpecified = false;
 	for (let index = 0; index < optionArguments.length; index += 1) {
 		const argument = optionArguments[index];
-		if (['--accept', '--qualify', '--publish'].includes(argument)) {
-			throw new Error(`5B qualification publication is automatic and cannot be forced with ${argument}.`);
-		}
 		if (argument === '--measurement') {
 			if (measurementPath !== null || index + 1 >= optionArguments.length) {
 				throw new Error('5B collector requires exactly one measurement path.');
@@ -504,34 +496,6 @@ function exactMetricRecord(value, metricIds, label, validate) {
 		metricId,
 		validate(record[metricId], `${label}.${metricId}`),
 	])));
-}
-
-function qualificationBlockers(config, workload, fixture, environment, measurement) {
-	const blockers = [];
-	if (environment.status !== 'active') blockers.push(`Environment ${ENVIRONMENT_ID} is ${String(environment.status)}.`);
-	if (environment.qualificationEligible !== true) blockers.push(`Environment ${ENVIRONMENT_ID} is not qualification-eligible.`);
-	if (!Array.isArray(environment.eligibleWorkloadIds)
-		|| !environment.eligibleWorkloadIds.includes(workload.id)) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} does not list ${workload.id} as an eligible workload.`);
-	}
-	const fingerprints = requireRecord(environment.fingerprint, `${ENVIRONMENT_ID}.fingerprint`);
-	for (const platformId of Object.keys(PLATFORM_ARCHITECTURES)) {
-		if (!isRecord(fingerprints[platformId])) blockers.push(`Environment ${ENVIRONMENT_ID} has no recorded fingerprint for ${platformId}.`);
-	}
-	const registeredFingerprint = fingerprints[measurement.platformId];
-	if (isRecord(registeredFingerprint)
-		&& !FINGERPRINT_FIELDS.every((field) => (
-			registeredFingerprint[field] === measurement.observedFingerprint[field]
-		))) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} fingerprint for ${measurement.platformId} does not match the observed target.`);
-	}
-	if (fixture.status !== 'qualified') blockers.push(`Fixture ${fixture.id} status is ${String(fixture.status)}.`);
-	if (workload.status !== 'qualified') blockers.push(`Workload ${workload.id} status is ${String(workload.status)}.`);
-	if (!Array.isArray(config.qualification?.qualifiedWorkloadIds)
-		|| !config.qualification.qualifiedWorkloadIds.includes(workload.id)) {
-		blockers.push(`Workload ${workload.id} has no accepted qualification cohort.`);
-	}
-	return Object.freeze(blockers);
 }
 
 function assertRegistration(profileId, pipeline, workload) {

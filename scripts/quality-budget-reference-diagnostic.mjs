@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { writeStructuralQualityBudgetEvidence } from './quality-budget-evidence.mjs';
+import { writeStructuralQualityBudgetDiagnostic } from './quality-budget-diagnostic.mjs';
 
-export async function collectReferenceDiagnosticEvidence(options, dependencies = {}) {
-	const writeEvidence = dependencies.writeEvidence ?? writeStructuralQualityBudgetEvidence;
+export async function collectReferenceDiagnostic(options, dependencies = {}) {
+	const writeDiagnostic = dependencies.writeDiagnostic ?? writeStructuralQualityBudgetDiagnostic;
 	const { stdout, stderr } = await dependencies.runReference();
 	const diagnostic = parseReferenceDiagnostic(`${stdout}\n${stderr}`, options);
 	const { budgetMetrics, workloadId: _workloadId, ...observations } = diagnostic;
-	return writeEvidence({
+	return writeDiagnostic({
 		configPath: options.configPath,
 		outputDirectory: options.outputDirectory,
 		workloadId: options.workloadId,

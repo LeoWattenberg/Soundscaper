@@ -13,7 +13,7 @@ import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M7_ASSISTANCE_PRIVACY_WORKLOAD_ID = 'm7-local-assistance-privacy';
 export const M7_ASSISTANCE_PRIVACY_FIXTURE_ID = 'm7-local-assistance-privacy-v1';
-export const M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
+export const M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID = 'native-os-diagnostics';
 export const M7_ASSISTANCE_PRIVACY_PROFILE = 'packaged-local-assistance-privacy-v1';
 export const M7_ASSISTANCE_PRIVACY_OBSERVATION_CLASS =
 	'post-install-network-media-and-canonical-custody-v1';
@@ -56,12 +56,11 @@ const TARGETS = Object.freeze({
 	'win32-arm64': Object.freeze({ operatingSystem: 'win32', architecture: 'arm64' }),
 	'win32-x64': Object.freeze({ operatingSystem: 'win32', architecture: 'x64' }),
 });
-const EVIDENCE_CLASSES = Object.freeze(['local-development', 'packaged-canary', 'owner-lab']);
+const OBSERVATION_MODES = Object.freeze(['local-development', 'packaged']);
 const RENDERER_CLASSES = Object.freeze(['hardware', 'software', 'unknown']);
 const OS_NETWORK_BLOCKS = Object.freeze(['enforced', 'not-available']);
 const NETWORK_MECHANISMS = Object.freeze([
 	'electron-net-log-and-os-counter-v1', 'packaged-process-network-audit-v1',
-	'owner-lab-os-network-audit-v1',
 ]);
 const NETWORK_METHODS = Object.freeze([
 	'CONNECT', 'DELETE', 'GET', 'HEAD', 'NONE', 'OPTIONS', 'PATCH', 'POST', 'PUT',
@@ -72,9 +71,9 @@ const CANONICAL_SCENARIOS = Object.freeze([
 ]);
 
 const MEASUREMENT_FIELDS = Object.freeze([
-	'artifactAuthority', 'budgetSha256', 'evidenceClass', 'fixtureId', 'mediaAssets',
+	'artifactAuthority', 'budgetSha256', 'observationMode', 'fixtureId', 'mediaAssets',
 	'observationClass', 'observedEnvironment', 'observedEnvironmentId', 'package', 'profile',
-	'qualificationEnvironmentId', 'runs', 'schemaVersion', 'sourceRevision', 'warmupRuns',
+	'diagnosticEnvironmentId', 'runs', 'schemaVersion', 'sourceRevision', 'warmupRuns',
 	'workloadId',
 ]);
 const OBSERVED_ENVIRONMENT_FIELDS = Object.freeze([
@@ -122,7 +121,7 @@ const MAXIMUM_ARTIFACTS = 64;
 const MAXIMUM_CANCELLATION_SAMPLES = 4_096;
 const MAXIMUM_CANCELLATION_MS = 600_000;
 
-/** Re-derive the exact five registered metrics from a closed raw evidence record. */
+/** Re-derive the exact five registered metrics from a closed raw diagnostic record. */
 export function computeM7AssistancePrivacyMetrics(measurementValue, expectationValue) {
 	const validated = validateM7AssistancePrivacyMeasurement(measurementValue, expectationValue);
 	let networkRequests = 0;
@@ -163,7 +162,7 @@ export function computeM7AssistancePrivacyMetrics(measurementValue, expectationV
 	return deepFreeze({
 		budgetSha256: validated.budgetSha256,
 		canonicalMeasurementSha256: canonicalMeasurementSha256(validated),
-		evidenceClass: validated.evidenceClass,
+		observationMode: validated.observationMode,
 		observedEnvironment: validated.observedEnvironment,
 		observedEnvironmentId: validated.observedEnvironmentId,
 		package: validated.package,
@@ -207,12 +206,11 @@ export function validateM7AssistancePrivacyMeasurement(measurementValue, expecta
 	);
 	validateMeasurementIdentity(measurement, expectedBudgetSha256);
 	const observedEnvironment = validateObservedEnvironment(measurement.observedEnvironment);
-	const evidenceClass = oneOf(
-		measurement.evidenceClass,
-		EVIDENCE_CLASSES,
-		'M7 measurement evidenceClass',
+	const observationMode = oneOf(
+		measurement.observationMode,
+		OBSERVATION_MODES,
+		'M7 measurement observationMode',
 	);
-	validateEnvironmentRelabelling(measurement, observedEnvironment, evidenceClass);
 	const packageIdentity = validatePackage(
 		measurement.package, observedEnvironment.platformTarget, measurement.sourceRevision,
 	);
@@ -229,14 +227,14 @@ export function validateM7AssistancePrivacyMeasurement(measurementValue, expecta
 		policy.timingWarmupTrials,
 		`M7 measurement.warmupRuns must contain exactly ${policy.timingWarmupTrials} warm-up run`,
 	).map((run, index) => validateRun(run, index, mediaAssets, packageIdentity,
-		artifactAuthority, evidenceClass, processIds, requestIds, outputIds, checkIds,
+		artifactAuthority, processIds, requestIds, outputIds, checkIds,
 		`M7 measurement.warmupRuns[${index}]`));
 	const runs = exactArray(
 		measurement.runs,
 		policy.timingTrials,
 		`M7 measurement.runs must contain exactly ${policy.timingTrials} timed runs`,
 	).map((run, index) => validateRun(run, index, mediaAssets, packageIdentity,
-		artifactAuthority, evidenceClass, processIds, requestIds, outputIds, checkIds,
+		artifactAuthority, processIds, requestIds, outputIds, checkIds,
 		`M7 measurement.runs[${index}]`));
 	if (outputIds.size === 0) {
 		throw new Error('M7 measurement must observe at least one accepted output digest.');
@@ -244,7 +242,7 @@ export function validateM7AssistancePrivacyMeasurement(measurementValue, expecta
 	return deepFreeze({
 		...measurement,
 		artifactAuthority,
-		evidenceClass,
+		observationMode,
 		mediaAssets,
 		observedEnvironment,
 		package: packageIdentity,
@@ -265,7 +263,7 @@ function validateMeasurementIdentity(measurement, expectedBudgetSha256) {
 		|| measurement.observationClass !== M7_ASSISTANCE_PRIVACY_OBSERVATION_CLASS
 		|| measurement.workloadId !== M7_ASSISTANCE_PRIVACY_WORKLOAD_ID
 		|| measurement.fixtureId !== M7_ASSISTANCE_PRIVACY_FIXTURE_ID
-		|| measurement.qualificationEnvironmentId !== M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID) {
+		|| measurement.diagnosticEnvironmentId !== M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID) {
 		throw new Error('M7 measurement identity does not match the frozen assistance privacy workload.');
 	}
 	if (sha256(measurement.budgetSha256, 'M7 measurement budgetSha256') !== expectedBudgetSha256) {
@@ -289,19 +287,6 @@ function validateObservedEnvironment(value) {
 	oneOf(observed.rendererClass, RENDERER_CLASSES, 'M7 observed rendererClass');
 	boundedString(observed.runtimeVersion, 1, 256, 'M7 observed runtimeVersion');
 	return Object.freeze(observed);
-}
-
-function validateEnvironmentRelabelling(measurement, observed, evidenceClass) {
-	if (evidenceClass !== 'owner-lab'
-		&& measurement.observedEnvironmentId === M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID) {
-		throw new Error('M7 local development or packaged evidence cannot relabel itself as the owner lab.');
-	}
-	if (evidenceClass === 'owner-lab'
-		&& (measurement.observedEnvironmentId !== M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID
-			|| observed.platformTarget !== 'win32-x64'
-			|| observed.rendererClass !== 'hardware')) {
-		throw new Error('M7 owner-lab evidence requires the exact Windows x64 hardware profile.');
-	}
 }
 
 function validatePackage(value, platformTarget, sourceRevision) {
@@ -388,7 +373,7 @@ function validateMediaAssets(value, fixture) {
 	return Object.freeze(assets);
 }
 
-function validateRun(value, index, assets, packageIdentity, authority, evidenceClass,
+function validateRun(value, index, assets, packageIdentity, authority,
 	processIds, requestIds, outputIds, checkIds, path) {
 	const run = exactRecord(value, RUN_FIELDS, path);
 	if (run.runIndex !== index) throw new Error(`${path}.runIndex must be ${index}.`);
@@ -407,7 +392,7 @@ function validateRun(value, index, assets, packageIdentity, authority, evidenceC
 		throw new Error(`${path} catalog digest is detached from its artifact authority.`);
 	}
 	const networkObservation = validateNetworkObservation(
-		run.networkObservation, evidenceClass, requestIds, path,
+		run.networkObservation, requestIds, path,
 	);
 	const mediaReads = validateMediaReads(run.mediaReads, assets, path);
 	const acceptedOutputs = validateDigestLedger(
@@ -429,14 +414,11 @@ function validateRun(value, index, assets, packageIdentity, authority, evidenceC
 	});
 }
 
-function validateNetworkObservation(value, evidenceClass, requestIds, runPath) {
+function validateNetworkObservation(value, requestIds, runPath) {
 	const path = `${runPath}.networkObservation`;
 	const observation = exactRecord(value, NETWORK_OBSERVATION_FIELDS, path);
 	oneOf(observation.mechanism, NETWORK_MECHANISMS, `${path}.mechanism`);
 	oneOf(observation.osNetworkBlock, OS_NETWORK_BLOCKS, `${path}.osNetworkBlock`);
-	if (evidenceClass === 'owner-lab' && observation.osNetworkBlock !== 'enforced') {
-		throw new Error(`${path} owner-lab evidence requires an enforced OS network block.`);
-	}
 	if (observation.startedBeforeWorkflow !== true || observation.endedAfterWorkflow !== true) {
 		throw new Error(`${path} network observation must cover the whole workflow.`);
 	}

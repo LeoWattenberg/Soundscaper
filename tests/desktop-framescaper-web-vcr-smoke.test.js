@@ -202,7 +202,7 @@ test('production-lazy renderer uses only the bounded bridge and leaves the guest
 	const injected = vm.runInNewContext(`(${runFramescaperWebVcrDormantRendererSmoke.toString()})`);
 	const result = structuredClone(await injected({ framescaperWebVcr: { v1: bridge } }, plan));
 	assert.doesNotThrow(() => validateFramescaperWebVcrDormantSmokeResult(result, plan));
-	assert.equal(result.qualification, false);
+	assert.equal(result.diagnosticOnly, true);
 	assert.equal(result.openAttempted, false);
 	assert.equal(openCalls, 0);
 });
@@ -235,7 +235,7 @@ test('packaged renderer exercises persistence, scaled input, exact surfaces, aud
 	assert.equal(fixture.unsubscribed, true);
 });
 
-test('packaged renderer validator rejects silence, 4K drift, and qualification claims', () => {
+test('packaged renderer validator rejects silence, 4K drift, and certification claims', () => {
 	const plan = smokePlan();
 	const fixture = validPackagedResult(plan);
 	assert.doesNotThrow(() => validateFramescaperWebVcrPackagedSmokeResult(fixture, plan));
@@ -251,8 +251,8 @@ test('packaged renderer validator rejects silence, 4K drift, and qualification c
 		...fixture, captures: [{ ...fixture.captures[0], visualMarker: { ...visualMarkerEvidence(), matched: false } }, fixture.captures[1]],
 	}, plan), /visual marker/iu);
 	assert.throws(() => validateFramescaperWebVcrPackagedSmokeResult({
-		...fixture, qualification: true,
-	}, plan), /non-qualification plan/u);
+		...fixture, diagnosticOnly: false,
+	}, plan), /diagnostic-only plan/u);
 });
 
 function smokePlan(overrides = {}) {
@@ -550,7 +550,7 @@ function validPackagedResult(plan) {
 		mode: plan.mode,
 		productId: 'framescaper',
 		token: plan.token,
-		qualification: false,
+		diagnosticOnly: true,
 		preloadBridge: ['dispatch', 'dispose', 'handshake', 'open', 'prepareCapture', 'setCaptureState', 'subscribe'],
 		capability: { resolutions: ['720p', '1080p'], fourKUnavailable: true },
 		persistence: { authenticatedBeforeClear: true, anonymousAfterClear: true },

@@ -32,22 +32,15 @@ type QualityConfig = {
 	environments: Array<{
 		id: string;
 		status: string;
-		qualificationEligible: boolean;
-		eligibleWorkloadIds?: string[];
 		fingerprint: Record<string, unknown>;
 	}>;
-	packagedRuntimeQualification: {
-		profiles: Array<{ workloadId: string; environmentId: string; observedEnvironmentId: string }>;
-	};
 };
 
 test('the M4 collector independently recomputes exactly five parity metrics', () => {
 	const result = createPendingM4ProductionParityResult(makeDiagnostic(), config);
-	assert.equal(result.status, 'pending-external');
+	assert.equal(result.status, 'passed');
 	assert.equal(result.environmentId, 'local-browser-correctness');
-	assert.equal(result.qualificationEnvironmentId, 'owner-qualified-windows-x64-rtx3090-01');
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.qualificationEvidencePublished, false);
 	assert.equal(Object.keys(result.metrics).length, 5);
 	assert.deepEqual(result.metrics, {
 		'parity.audioMaximumAbsoluteSampleError': 0,
@@ -64,8 +57,8 @@ test('the M4 collector independently recomputes exactly five parity metrics', ()
 		requestedEffectInstances: 3,
 		requestedCompositionInstances: 18,
 	});
-	assert.equal(result.evaluation.passed, false);
-	assert.match(result.evaluation.failures.join('\n'), /nightly packaged-runtime verifier/iu);
+	assert.equal(result.evaluation.passed, true);
+	assert.deepEqual(result.evaluation.failures, []);
 });
 test('the M4 collector reports gross PDC shifts outside the former local search window', () => {
 	const diagnostic = makeDiagnostic();
@@ -260,31 +253,23 @@ test('the diagnostic parser admits exactly one matching structured record', () =
 	);
 });
 
-test('metric evidence can write only pending or failed diagnostics and never accepted evidence', async () => {
+test('metric diagnostics write only passed or failed results', async () => {
 	const result = createPendingM4ProductionParityResult(makeDiagnostic(), config);
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m4-parity-'));
 	const written = await writeM4ProductionParityResult(directory, result);
 	assert.equal(
 		written.resultPath,
-		join(directory, 'm4-production-render-parity.pending-external.json'),
+		join(directory, 'm4-production-render-parity.passed.json'),
 	);
 	const persisted = JSON.parse(await readFile(written.resultPath, 'utf8'));
-	assert.equal(persisted.status, 'pending-external');
-	assert.equal(persisted.qualificationEvidencePublished, false);
+	assert.equal(persisted.status, 'passed');
 	await assert.rejects(
 		writeM4ProductionParityResult(directory, result),
 		/exists|EEXIST/iu,
 	);
 	assert.throws(
 		() => writeM4ProductionParityResult(directory, { ...result, status: 'accepted' }),
-		/only pending-external or failed/iu,
-	);
-	assert.throws(
-		() => writeM4ProductionParityResult(directory, {
-			...result,
-			qualificationEvidencePublished: true,
-		}),
-		/must not publish qualification/iu,
+		/only passed or failed/iu,
 	);
 	await assert.rejects(
 		readFile(join(directory, 'm4-production-render-parity.accepted.json')),
@@ -310,7 +295,7 @@ test('collection identity admits local, hosted, and packaged diagnostics only', 
 	}), { environmentId: 'packaged-runtime-win32-x64' });
 	const hosted = makeDiagnostic();
 	hosted.environmentId = 'github-ubuntu-playwright-1.62.1';
-	assert.equal(createPendingM4ProductionParityResult(hosted, config).status, 'pending-external');
+	assert.equal(createPendingM4ProductionParityResult(hosted, config).status, 'passed');
 	const invented = makeDiagnostic();
 	invented.environmentId = 'invented-host';
 	assert.throws(
@@ -329,7 +314,7 @@ test('collection identity admits local, hosted, and packaged diagnostics only', 
 	);
 });
 
-test('packaged collection writes diagnostic evidence without a local qualification route', async () => {
+test('packaged collection writes the observed diagnostic result', async () => {
 	const diagnostic = makeDiagnostic();
 	diagnostic.environmentId = 'packaged-runtime-win32-x64';
 	let writes = 0;
@@ -351,8 +336,7 @@ test('packaged collection writes diagnostic evidence without a local qualificati
 		},
 	);
 	assert.equal(writes, 1);
-	assert.equal(collected.result.status, 'pending-external');
-	assert.equal(collected.result.qualificationEvidencePublished, false);
+	assert.equal(collected.result.status, 'passed');
 
 	const relabeled = makeDiagnostic();
 	await assert.rejects(
@@ -385,32 +369,23 @@ test('CLI parsing accepts one output directory and rejects the removed reference
 	assert.throws(() => parseM4ProductionParityCliOptions(['/one', '/two']), /one output/iu);
 });
 
-test('quality config separates qualified M4 evidence from the open owner-host profile', () => {
+test('quality config retains the M4 diagnostic fixture and thresholds', () => {
 	const quality = config as QualityConfig;
 	const fixture = quality.fixtures.find(({ id }) => id === 'm4-production-parity-v1');
 	const workload = quality.workloads.find(({ id }) => id === 'm4-production-render-parity');
 	const owner = quality.environments.find(
-		({ id }) => id === 'owner-qualified-windows-x64-rtx3090-01',
+		({ id }) => id === 'owner-windows-x64-rtx3090-01',
 	);
-	const profile = quality.packagedRuntimeQualification.profiles.find(
-		({ workloadId }) => workloadId === 'm4-production-render-parity',
-	);
-	assert.equal(fixture?.status, 'provisional');
+	assert.equal(fixture?.status, 'active');
 	assert.equal(fixture?.kind, 'deterministic-audio-vectors-and-video-golden-frames');
 	assert.equal(fixture?.artifacts?.length, 5);
-	// The hosted lower bound closed this workload; the fixed-GPU profile is still open.
-	assert.equal(workload?.status, 'qualified');
+	assert.equal(workload?.status, 'active');
 	assert.equal(workload?.thresholds.length, 5);
 	assert.deepEqual(workload?.environmentIds, [
 		'github-ubuntu-playwright-1.62.1',
-		'owner-qualified-windows-x64-rtx3090-01',
+		'owner-windows-x64-rtx3090-01',
 	]);
 	assert.equal(owner?.status, 'unprovisioned');
-	assert.equal(owner?.qualificationEligible, false);
-	assert.ok(owner?.eligibleWorkloadIds?.includes('m4-production-render-parity'));
-	assert.equal(profile?.workloadId, 'm4-production-render-parity');
-	assert.equal(profile?.environmentId, 'owner-qualified-windows-x64-rtx3090-01');
-	assert.equal(profile?.observedEnvironmentId, 'packaged-runtime-win32-x64');
 	assert.equal(packageMetadata.scripts['quality:collect:m4-production-parity'],
 		'node scripts/collect-m4-production-parity-quality.mjs');
 });

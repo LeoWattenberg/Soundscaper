@@ -3,7 +3,7 @@
 import { constants } from 'node:fs';
 import { createHash } from 'node:crypto';
 import {
-	lstat, mkdtemp, open, readFile, readdir, realpath, rm,
+	lstat, mkdtemp, open, readdir, realpath, rm,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import {
@@ -17,12 +17,6 @@ import {
 } from '../desktop-release-assets.mjs';
 import { auditDesktopPackageArtifactContent } from './desktop-package-artifact-extractor.mjs';
 import {
-	completeMilestone5PackageReleaseAuthentication,
-	MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY,
-	milestone5PackageReleaseAuthenticationEvidenceName,
-	preauthenticateMilestone5PackageReleaseAuthentication,
-} from './milestone-5-package-release-authentication.mjs';
-import {
 	boundedString,
 	deepFreeze,
 	exactRecord,
@@ -33,7 +27,7 @@ import {
 } from './product-release-lines.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
-const AUDITED_PACKAGE_EVIDENCE = new WeakSet();
+const AUDITED_PACKAGES = new WeakSet();
 const OPTION_FIELDS = Object.freeze([
 	'repositoryRoot', 'packageRoot', 'productId', 'targetId',
 ]);
@@ -44,20 +38,20 @@ const MAXIMUM_RUNTIME_MANIFEST_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_PACKAGE_BYTES = 8 * 1024 * 1024 * 1024;
 
 /**
- * Authenticate one isolated product/target package root. The returned object is
- * an in-process authority: serialize it for evidence, but re-audit the files to
+ * Audit one isolated product/target package root. The returned object is an
+ * in-process authority: serialize it for diagnostics, but re-audit the files to
  * regain authority in another process.
  */
-export async function auditMilestone5PackageEvidence(optionsValue, dependencies = {}) {
+export async function auditMilestone5Package(optionsValue, dependencies = {}) {
 	const options = exactRecord(
-		snapshotStrictJsonData(optionsValue, 'Milestone 5 package-evidence options'),
+		snapshotStrictJsonData(optionsValue, 'Milestone 5 package-audit options'),
 		OPTION_FIELDS,
-		'Milestone 5 package-evidence options',
+		'Milestone 5 package-audit options',
 	);
 	const repositoryRoot = absoluteRoot(options.repositoryRoot, 'repositoryRoot');
 	const packageRoot = absoluteRoot(options.packageRoot, 'packageRoot');
-	const productId = boundedString(options.productId, 1, 40, 'package-evidence productId');
-	const targetId = boundedString(options.targetId, 1, 40, 'package-evidence targetId');
+	const productId = boundedString(options.productId, 1, 40, 'package-audit productId');
+	const targetId = boundedString(options.targetId, 1, 40, 'package-audit targetId');
 	const auditPackageArtifactContent = dependencies.auditPackageArtifactContent
 		?? auditDesktopPackageArtifactContent;
 	// The shared inventory is the target/product vocabulary authority. Calling it
@@ -128,14 +122,9 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 		const unexpected = packageNames.filter((name) => !expected.has(name));
 		throw new Error(`Milestone 5 package root contains unexpected packaged files: ${unexpected.join(', ') || '<duplicate>'}.`);
 	}
-	const releaseAuthenticationName = milestone5PackageReleaseAuthenticationEvidenceName(
-		productId,
-		targetId,
-	);
 	const expectedRootNames = new Set([
 		manifestName,
 		...selected.map(({ name }) => name),
-		...(rootNames.includes(releaseAuthenticationName) ? [releaseAuthenticationName] : []),
 	]);
 	const unexpectedRootNames = rootNames.filter((name) => !expectedRootNames.has(name));
 	if (rootNames.length !== expectedRootNames.size || unexpectedRootNames.length > 0) {
@@ -162,29 +151,6 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 				byteLength: file.byteLength,
 				sha256: file.sha256,
 				content: null,
-			});
-		}
-		let preauthentication;
-		try {
-			preauthentication = await preauthenticateMilestone5PackageReleaseAuthentication({
-				repositoryRoot,
-				packageRoot,
-				productId,
-				targetId,
-				applicationVersion,
-				sourceRevision,
-				packages,
-				...(dependencies.releaseAuthenticationPolicyBytes === undefined
-					? {} : { policyBytes: dependencies.releaseAuthenticationPolicyBytes }),
-			});
-		} catch (error) {
-			preauthentication = await invalidReleaseAuthenticationObservation({
-				error,
-				repositoryRoot,
-				packageRoot,
-				canonicalRoot,
-				releaseAuthenticationName,
-				policyBytes: dependencies.releaseAuthenticationPolicyBytes,
 			});
 		}
 		for (const descriptor of packages) {
@@ -218,16 +184,8 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 			|| content.installedTotalBytes !== firstContent.installedTotalBytes)) {
 			throw new Error('Milestone 5 target package formats contain different installed application closures.');
 		}
-		const releaseAuthentication = preauthentication.status !== 'authenticated-preflight'
-			? preauthentication
-			: completeMilestone5PackageReleaseAuthentication({ preauthentication, packages });
 		return packageAudit({
-			status: releaseAuthentication.status === 'authenticated'
-				? 'installed-application-closure-audited'
-				: releaseAuthentication.status === 'pending-external'
-					? 'release-authentication-pending'
-					: 'release-authentication-invalid-report-only',
-			releaseAuthentication,
+			status: 'installed-application-closure-audited',
 			productId,
 			targetId,
 			applicationVersion,
@@ -242,49 +200,8 @@ export async function auditMilestone5PackageEvidence(optionsValue, dependencies 
 	}
 }
 
-async function invalidReleaseAuthenticationObservation({
-	error,
-	repositoryRoot,
-	packageRoot,
-	canonicalRoot,
-	releaseAuthenticationName,
-	policyBytes: suppliedPolicyBytes,
-}) {
-	const policyBytes = suppliedPolicyBytes === undefined
-		? await readFile(resolve(repositoryRoot, MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY))
-		: Buffer.from(suppliedPolicyBytes);
-	const evidence = await lstat(resolve(packageRoot, releaseAuthenticationName))
-		.then(() => readAndDescribeRegularFile({
-			canonicalRoot,
-			label: 'Milestone 5 report-only package release authentication',
-			maximumBytes: 1024 * 1024,
-			name: releaseAuthenticationName,
-			packageRoot,
-			retainBytes: false,
-		}))
-		.catch((readError) => {
-			if (readError.code === 'ENOENT') return null;
-			throw readError;
-		});
-	return deepFreeze({
-		status: 'invalid-report-only',
-		blockedBy: error instanceof Error ? error.message : String(error),
-		evidence: evidence === null ? null : {
-			name: releaseAuthenticationName,
-			byteLength: evidence.byteLength,
-			sha256: evidence.sha256,
-		},
-		policyEvidence: {
-			name: MILESTONE_5_PACKAGE_RELEASE_AUTHENTICATION_POLICY,
-			byteLength: policyBytes.byteLength,
-			sha256: createHash('sha256').update(policyBytes).digest('hex'),
-		},
-	});
-}
-
 function packageAudit({
 	status,
-	releaseAuthentication,
 	productId,
 	targetId,
 	applicationVersion,
@@ -319,7 +236,6 @@ function packageAudit({
 		automatedStatus: 'installed-application-closure-audited',
 		automatedEvidenceSha256: createHash('sha256')
 			.update(JSON.stringify(automatedEvidence)).digest('hex'),
-		releaseAuthentication,
 		productId,
 		targetId,
 		applicationVersion,
@@ -338,7 +254,7 @@ function packageAudit({
 			0,
 		),
 	});
-	AUDITED_PACKAGE_EVIDENCE.add(audit);
+	AUDITED_PACKAGES.add(audit);
 	return audit;
 }
 
@@ -360,8 +276,8 @@ function packageContentSummary(content) {
 	};
 }
 
-export function isAuditedMilestone5PackageEvidence(value) {
-	return value !== null && typeof value === 'object' && AUDITED_PACKAGE_EVIDENCE.has(value);
+export function isAuditedMilestone5Package(value) {
+	return value !== null && typeof value === 'object' && AUDITED_PACKAGES.has(value);
 }
 
 async function readAndDescribeRegularFile({
@@ -458,9 +374,9 @@ async function writeAll(handle, bytes) {
 }
 
 function absoluteRoot(value, field) {
-	const path = boundedString(value, 1, 4_096, `Milestone 5 package-evidence ${field}`);
+	const path = boundedString(value, 1, 4_096, `Milestone 5 package-audit ${field}`);
 	if (!isAbsolute(path) || resolve(path) !== path) {
-		throw new Error(`Milestone 5 package-evidence ${field} must be one canonical absolute path.`);
+		throw new Error(`Milestone 5 package-audit ${field} must be one canonical absolute path.`);
 	}
 	return path;
 }

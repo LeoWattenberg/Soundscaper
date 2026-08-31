@@ -97,11 +97,10 @@ export function validateMilestone7ModelCatalogTaskRegister(value, options) {
 }
 
 function validateOptions(options) {
-	if (!plainRecord(options) || !Array.isArray(options.licensingEvidence)
-		|| !Array.isArray(options.offeredModelIds)
+	if (!plainRecord(options) || !Array.isArray(options.offeredModelIds)
 		|| options.offeredModelIds.some((id) => typeof id !== 'string' || !IDENTIFIER.test(id))
 		|| new Set(options.offeredModelIds).size !== options.offeredModelIds.length) {
-		throw new TypeError('Catalog-task validation needs bounded licensing and offered-model inputs.');
+		throw new TypeError('Catalog-task validation needs a bounded offered-model inventory.');
 	}
 	const supply = validateMilestone7ModelSupplyRegister(options.modelSupply);
 	const fixtures = validateMilestone7ParityFixtureRegister(options.parityFixtures, supply);
@@ -114,7 +113,6 @@ function validateOptions(options) {
 		fixtures,
 		execution,
 		runtimes,
-		licensingEvidence: options.licensingEvidence,
 		offeredModelIds: options.offeredModelIds,
 	};
 }
@@ -126,7 +124,6 @@ function validateTask(value, expected, inputs) {
 		'sourceAuthorities',
 		'releaseEvidence', 'catalogStatus', 'catalogBlockedBy',
 		'activationStatus', 'activationBlockedBy',
-		'm9ReleaseReviewStatus', 'm9ReleaseReviewBlockedBy',
 	], 'Milestone 7 model catalog task');
 	if (row.catalogModelId !== expected.catalogModelId || row.version !== expected.version
 		|| row.task !== expected.task || row.installTier !== expected.installTier
@@ -167,14 +164,6 @@ function validateTask(value, expected, inputs) {
 	if (row.activationStatus !== activationStatus) {
 		throw new Error(`${expected.catalogModelId} activationStatus must be ${activationStatus}.`);
 	}
-	const m9ReleaseReviewBlockedBy = licensingReady(
-		inputs.licensingEvidence, expected.catalogModelId,
-	) ? [] : ['licensing-evidence'];
-	const m9ReleaseReviewStatus = m9ReleaseReviewBlockedBy.length === 0 ? 'complete' : 'pending';
-	if (row.m9ReleaseReviewStatus !== m9ReleaseReviewStatus
-		|| !sameArray(row.m9ReleaseReviewBlockedBy, m9ReleaseReviewBlockedBy)) {
-		throw new Error(`${expected.catalogModelId} Milestone 9 release review is not derived from licensing evidence.`);
-	}
 	return {
 		catalogModelId: row.catalogModelId,
 		version: row.version,
@@ -191,8 +180,6 @@ function validateTask(value, expected, inputs) {
 		catalogBlockedBy,
 		activationStatus,
 		activationBlockedBy,
-		m9ReleaseReviewStatus,
-		m9ReleaseReviewBlockedBy,
 	};
 }
 
@@ -311,18 +298,6 @@ function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds,
 		blockers.push('external-catalog-signature');
 	}
 	return [...new Set(blockers)].sort();
-}
-
-function licensingReady(value, modelId) {
-	const matches = value.filter((entry) => plainRecord(entry) && entry.id === modelId);
-	if (matches.length !== 1) return false;
-	const row = matches[0];
-	return row.distributionStatus === 'permitted'
-		&& Array.isArray(row.blockedBy) && row.blockedBy.length === 0
-		&& plainRecord(row.requirements)
-		&& Object.keys(row.requirements).length > 0
-		&& Object.values(row.requirements).every((entry) =>
-			plainRecord(entry) && entry.status === 'recorded');
 }
 
 function runtimeReady(value, familyId) {

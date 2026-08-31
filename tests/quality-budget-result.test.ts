@@ -12,19 +12,18 @@ const SOURCE_REVISION = 'c'.repeat(40);
 interface ExpectedEnvironment {
 	readonly fingerprint: Readonly<Record<string, string | number>>;
 	readonly id: string;
-	readonly qualificationEligible: boolean;
 	readonly rendererRequirement: 'any' | 'hardware';
 	readonly status: 'active' | 'unprovisioned';
 }
 
-interface AcceptedResult {
+interface DiagnosticResult {
 	attemptCount: number;
 	budgetSha256: string;
 	environmentFingerprint: Record<string, string | number>;
 	environmentId: string;
 	fixtureIds: string[];
 	metrics: Record<string, number>;
-	rawEvidence: {
+	rawArtifact: {
 		artifactName: string;
 		byteLength: number;
 		sha256: string;
@@ -59,7 +58,6 @@ const workload = Object.freeze({
 const environment: ExpectedEnvironment = Object.freeze({
 	id: 'reference-linux-node-01',
 	status: 'active',
-	qualificationEligible: true,
 	rendererRequirement: 'any',
 	fingerprint: Object.freeze({
 		architecture: 'x64',
@@ -72,7 +70,7 @@ const environment: ExpectedEnvironment = Object.freeze({
 
 const measurementPolicy = Object.freeze({ benchmarkRetries: 0 });
 
-function acceptedResult(): AcceptedResult {
+function diagnosticResult(): DiagnosticResult {
 	return {
 		schemaVersion: 1,
 		workloadId: workload.id,
@@ -84,7 +82,7 @@ function acceptedResult(): AcceptedResult {
 		sourceRevision: SOURCE_REVISION,
 		attemptCount: 1,
 		retryCount: 0,
-		rawEvidence: {
+		rawArtifact: {
 			artifactName: 'm2-direct-output-memory.json',
 			byteLength: 4096,
 			sha256: EVIDENCE_SHA256,
@@ -108,8 +106,8 @@ function evaluate(result: unknown, overrides: {
 	}, result);
 }
 
-test('an exact digest-bound no-retry result evaluates the owning workload', () => {
-	const evaluation = evaluate(acceptedResult());
+test('an exact digest-bound no-retry diagnostic evaluates the owning workload', () => {
+	const evaluation = evaluate(diagnosticResult());
 
 	assert.equal(evaluation.passed, true);
 	assert.deepEqual(evaluation.failures, []);
@@ -120,7 +118,7 @@ test('an exact digest-bound no-retry result evaluates the owning workload', () =
 });
 
 test('result identity, provenance, attempt, and metric mismatches fail closed', () => {
-	const cases: readonly [string, (result: ReturnType<typeof acceptedResult>) => void, RegExp][] = [
+	const cases: readonly [string, (result: ReturnType<typeof diagnosticResult>) => void, RegExp][] = [
 		['workload', (result) => { result.workloadId = 'another-workload'; }, /workload.*another-workload/iu],
 		['fixture', (result) => { result.fixtureIds = ['another-fixture']; }, /fixture IDs/iu],
 		['environment', (result) => { result.environmentId = 'another-host'; }, /environment mismatch/iu],
@@ -129,16 +127,16 @@ test('result identity, provenance, attempt, and metric mismatches fail closed', 
 		['source revision', (result) => { result.sourceRevision = 'not-a-revision'; }, /source revision/iu],
 		['attempt count', (result) => { result.attemptCount = 2; }, /one no-retry attempt/iu],
 		['retry count', (result) => { result.retryCount = 1; }, /retry count/iu],
-		['artifact name', (result) => { result.rawEvidence.artifactName = '../escape.json'; }, /artifact name/iu],
-		['evidence length', (result) => { result.rawEvidence.byteLength = 0; }, /evidence byte length/iu],
-		['evidence digest', (result) => { result.rawEvidence.sha256 = 'nope'; }, /evidence digest/iu],
+		['artifact name', (result) => { result.rawArtifact.artifactName = '../escape.json'; }, /artifact name/iu],
+		['artifact length', (result) => { result.rawArtifact.byteLength = 0; }, /artifact byte length/iu],
+		['artifact digest', (result) => { result.rawArtifact.sha256 = 'nope'; }, /artifact digest/iu],
 		['missing metric', (result) => { delete result.metrics['output.maximumOwnedBytes']; }, /exact threshold metric set/iu],
 		['extra metric', (result) => { result.metrics['output.elapsedMs'] = 1; }, /exact threshold metric set/iu],
 		['non-finite metric', (result) => { result.metrics['output.maximumOwnedBytes'] = Number.NaN; }, /finite/iu],
 	];
 
 	for (const [label, mutate, expectedFailure] of cases) {
-		const result = acceptedResult();
+		const result = diagnosticResult();
 		mutate(result);
 		const evaluation = evaluate(result);
 		assert.equal(evaluation.passed, false, label);
@@ -147,9 +145,9 @@ test('result identity, provenance, attempt, and metric mismatches fail closed', 
 });
 
 test('result records must be exact own-data snapshots and accessors are never invoked', () => {
-	for (const property of ['metrics', 'rawEvidence', 'environmentFingerprint'] as const) {
+	for (const property of ['metrics', 'rawArtifact', 'environmentFingerprint'] as const) {
 		let reads = 0;
-		const result = acceptedResult() as unknown as Record<string, unknown>;
+		const result = diagnosticResult() as unknown as Record<string, unknown>;
 		const value = result[property];
 		Object.defineProperty(result, property, {
 			enumerable: true,
@@ -165,23 +163,21 @@ test('result records must be exact own-data snapshots and accessors are never in
 		assert.equal(reads, 0, property);
 	}
 
-	const extra = acceptedResult() as unknown as Record<string, unknown>;
+	const extra = diagnosticResult() as unknown as Record<string, unknown>;
 	extra.unreviewed = true;
 	const extraEvaluation = evaluate(extra);
 	assert.equal(extraEvaluation.passed, false);
 	assert.match(extraEvaluation.failures.join('\n'), /exact result fields/iu);
 });
 
-test('an ineligible environment cannot be promoted by an otherwise passing result', () => {
-	const evaluation = evaluate(acceptedResult(), {
+test('an unprovisioned environment cannot evaluate an otherwise passing result', () => {
+	const evaluation = evaluate(diagnosticResult(), {
 		expectedEnvironment: {
 			...environment,
 			status: 'unprovisioned',
-			qualificationEligible: false,
 		},
 	});
 
 	assert.equal(evaluation.passed, false);
 	assert.match(evaluation.failures.join('\n'), /unprovisioned/iu);
-	assert.match(evaluation.failures.join('\n'), /not qualification-eligible/iu);
 });

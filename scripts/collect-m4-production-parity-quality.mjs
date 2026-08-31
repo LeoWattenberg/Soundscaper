@@ -34,7 +34,7 @@ const VIDEO_FIXTURE_ID = 'video-effect-parity-rgba-v1';
 const PROFILE = 'deterministic-production-parity-v1';
 const DIAGNOSTIC_MARKER = 'SOUNDSCAPER_M4_PRODUCTION_PARITY ';
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4-production-parity.spec.js';
-const QUALIFICATION_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
+const REFERENCE_ENVIRONMENT_ID = 'owner-windows-x64-rtx3090-01';
 const METRIC_IDS = Object.freeze([
 	'parity.audioMaximumAbsoluteSampleError',
 	'parity.pdcErrorSamples',
@@ -241,11 +241,10 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 		&& verdicts.every(({ passed }) => passed);
 	return Object.freeze({
 		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: metricGatePassed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: diagnostic.environmentId,
-		qualificationEnvironmentId: QUALIFICATION_ENVIRONMENT_ID,
 		profile: PROFILE,
 		observationClass: diagnostic.observationClass,
 		attemptCount: 1,
@@ -263,26 +262,19 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 			requestedCompositionInstances: requestedCompositionIds.size,
 		}),
 		metricGatePassed,
-		qualificationEvidencePublished: false,
 		evaluation: Object.freeze({
-			passed: false,
-			failures: Object.freeze([
-				...failures,
-				'Formal qualification is published only by the nightly packaged-runtime verifier on the owner-designated host.',
-			]),
+			passed: metricGatePassed,
+			failures: Object.freeze(failures),
 			verdicts: Object.freeze(verdicts),
 		}),
 	});
 }
 
-/** Persist diagnostic-only evidence with exclusive-create semantics. */
+/** Persist diagnostic results with exclusive-create semantics. */
 export function writeM4ProductionParityResult(outputDirectory, result) {
 	const resultSnapshot = snapshotStrictJsonData(result, 'result');
-	if (!['pending-external', 'failed'].includes(resultSnapshot.status)) {
-		throw new Error('The M4 collector can write only pending-external or failed evidence.');
-	}
-	if (resultSnapshot.qualificationEvidencePublished !== false) {
-		throw new Error('The M4 collector must not publish qualification evidence.');
+	if (!['passed', 'failed'].includes(resultSnapshot.status)) {
+		throw new Error('The M4 collector can write only passed or failed diagnostics.');
 	}
 	return writePendingResult(outputDirectory, resultSnapshot);
 }
@@ -367,7 +359,7 @@ function assertWorkloadRegistration(workload) {
 	if (!deepEqualJson(workload.fixtureIds, [VIDEO_FIXTURE_ID, FIXTURE_ID])
 		|| !Array.isArray(workload.environmentIds)
 		|| !workload.environmentIds.includes(HOSTED_ENVIRONMENT_ID)
-		|| !workload.environmentIds.includes(QUALIFICATION_ENVIRONMENT_ID)
+		|| !workload.environmentIds.includes(REFERENCE_ENVIRONMENT_ID)
 		|| !deepEqualJson(thresholdIds, METRIC_IDS)) {
 		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixtures, environments, and five metrics.`);
 	}

@@ -124,8 +124,6 @@
 		,
 		{ "path": "scripts/compact-v8-coverage.mjs", "kind": "upstream-contract", "justification": "compact-v8-coverage.mjs follows the upstream V8 coverage format name and does not identify project schema." }
 		,
-		{ "path": "scripts/lib/m5b-quality-cohort-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-cohort-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
-		,
 		{ "path": "scripts/lib/m5b-quality-observations-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-observations-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
 		,
 		{ "path": "scripts/lib/m5b-quality-pipeline-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-pipeline-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }

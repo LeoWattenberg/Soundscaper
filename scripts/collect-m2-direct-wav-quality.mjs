@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-	collectReferenceDiagnosticEvidence,
+	collectReferenceDiagnostic,
 	parseReferenceDiagnostic,
 } from './quality-budget-reference-diagnostic.mjs';
 
@@ -24,18 +24,18 @@ const WORKLOAD_ID = 'm2-direct-wav-385mib-v1';
  * @param {{ outputDirectory: string }} options
  * @param {{
  *   runReference?: () => Promise<{ stdout: string, stderr: string }>,
- *   writeEvidence?: typeof writeStructuralQualityBudgetEvidence,
+ *   writeDiagnostic?: (options: unknown) => Promise<unknown>,
  * }} dependencies
  */
 export async function collectDirectWavQualityEvidence(options, dependencies = {}) {
-	return collectReferenceDiagnosticEvidence({
+	return collectReferenceDiagnostic({
 		configPath: CONFIG_URL,
 		outputDirectory: options.outputDirectory,
 		profile: PROFILE,
 		workloadId: WORKLOAD_ID,
 	}, {
 		runReference: dependencies.runReference ?? runDirectWavReference,
-		writeEvidence: dependencies.writeEvidence,
+		writeDiagnostic: dependencies.writeDiagnostic,
 	});
 }
 

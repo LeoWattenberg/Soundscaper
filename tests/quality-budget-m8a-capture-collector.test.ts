@@ -13,7 +13,6 @@ import {
 } from '../scripts/lib/m8a-capture-quality-metrics.mjs';
 import {
 	assertM8ACaptureCollectionHost,
-	assessM8ACaptureQualification,
 	collectM8ACaptureQuality,
 	createM8ACaptureResult,
 	parseM8ACaptureCliOptions,
@@ -32,21 +31,13 @@ type Descriptor = {
 	readonly specification?: Record<string, number>;
 	readonly thresholds?: readonly Threshold[];
 	readonly fingerprint?: Record<string, unknown>;
-	readonly qualificationEligible?: boolean;
 };
 type Config = {
-	readonly qualification: { readonly qualifiedWorkloadIds: readonly string[] };
 	readonly measurementPolicy: Record<string, unknown>;
 	readonly environments: readonly Descriptor[];
 	readonly fixtures: readonly Descriptor[];
 	readonly workloads: readonly Descriptor[];
 };
-type MutableConfig = {
-	qualification: { qualifiedWorkloadIds: string[] };
-	environments: Array<Record<string, unknown> & { id: string }>;
-	workloads: Array<Record<string, unknown> & { id: string }>;
-};
-
 const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
 	'utf8',
@@ -131,15 +122,15 @@ function makeMeasurement(): Record<string, unknown> {
 		observationClass: 'real-device-shared-clock-durability-v1',
 		workloadId: 'm8a-capture-long-session',
 		fixtureId: 'm8a-capture-30m-all-sources-v1',
-		environmentId: 'capture-os-browser-lab-matrix',
+		environmentId: 'capture-device-diagnostics',
 		fingerprint: fingerprint(),
 		combinations: M8A_CAPTURE_COMBINATIONS.map(makeCombination),
 	};
 }
 
 test('the collector owns the exact six combinations and eight registered metrics', () => {
-	assert.equal(fixture.status, 'provisional');
-	assert.equal(workload.status, 'provisional');
+	assert.equal(fixture.status, 'active');
+	assert.equal(workload.status, 'active');
 	assert.deepEqual(M8A_CAPTURE_COMBINATIONS, [
 		{ id: 'camera-only', requestedRoles: ['camera'] },
 		{ id: 'microphone-only', requestedRoles: ['microphone'] },
@@ -154,7 +145,7 @@ test('the collector owns the exact six combinations and eight registered metrics
 	);
 });
 
-test('a complete 30-minute matrix recomputes all metrics but stays provisional', () => {
+test('a complete 30-minute run recomputes all diagnostic metrics', () => {
 	const computed = computeM8ACaptureMetrics(makeMeasurement(), expectation);
 	assert.deepEqual(computed.metrics, {
 		'capture.sourceCombinationsCompleted': 6,
@@ -181,13 +172,11 @@ test('a complete 30-minute matrix recomputes all metrics but stays provisional',
 
 	const result = createM8ACaptureResult(makeMeasurement(), config);
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.equal(result.evaluation.passed, false);
+	assert.equal(result.status, 'passed');
+	assert.equal('qualificationEvidencePublished' in result, false);
+	assert.equal(result.evaluation.passed, true);
 	assert.ok(result.evaluation.verdicts.every(({ passed }: { passed: boolean }) => passed));
 	assert.deepEqual(result.observedFingerprint, fingerprint());
-	assert.match(result.qualificationBlockers.join('\n'), /unprovisioned/iu);
-	assert.match(result.qualificationBlockers.join('\n'), /not qualification-eligible/iu);
 });
 
 test('every registered threshold is derived from raw failure evidence', () => {
@@ -305,7 +294,7 @@ test('optional system audio is admitted only as a display-returned separate stre
 	);
 });
 
-test('fingerprints are exact observations and never provision an ineligible descriptor', () => {
+test('fingerprints are exact per-run observations and no fixed device matrix exists', () => {
 	assert.deepEqual(M8A_CAPTURE_FINGERPRINT_FIELDS, [
 		'camera', 'microphone', 'displayCapture', 'systemAudio',
 	]);
@@ -318,54 +307,30 @@ test('fingerprints are exact observations and never provision an ineligible desc
 		);
 	}
 
-	const qualification = assessM8ACaptureQualification(config);
-	assert.equal(qualification.provisioned, false);
-	for (const field of M8A_CAPTURE_FINGERPRINT_FIELDS) {
-		assert.ok(qualification.blockers.some((value: string) => value.includes(`fingerprint ${field}`)));
-	}
-	const environment = config.environments.find(({ id }) => id === 'capture-os-browser-lab-matrix')!;
-	assert.equal(environment.status, 'unprovisioned');
-	assert.equal(environment.qualificationEligible, false);
-	assert.ok(Object.values(environment.fingerprint!).every((value) => value === null));
+	const environment = config.environments.find(({ id }) => id === 'capture-device-diagnostics')!;
+	assert.equal(environment.status, 'active');
+	assert.equal('fingerprint' in environment, false);
 });
 
-test('a provisioned descriptor stops until a real accepted-evidence writer exists', () => {
-	const provisioned = structuredClone(config) as unknown as MutableConfig;
-	const environment = provisioned.environments.find(
-		({ id }) => id === 'capture-os-browser-lab-matrix',
-	)!;
-	environment.status = 'active';
-	environment.qualificationEligible = true;
-	environment.eligibleWorkloadIds = ['m8a-capture-long-session'];
-	environment.fingerprint = fingerprint();
-	provisioned.workloads.find(({ id }) => id === 'm8a-capture-long-session')!.status = 'qualified';
-	provisioned.qualification.qualifiedWorkloadIds.push('m8a-capture-long-session');
-	assert.equal(assessM8ACaptureQualification(provisioned).provisioned, true);
-	assert.throws(
-		() => createM8ACaptureResult(makeMeasurement(), provisioned),
-		/accepted-evidence writer must land with the real-device lab/u,
-	);
-});
-
-test('hosted runners and qualification publication are refused', async () => {
+test('hosted runners and unsupported result states are refused', async () => {
 	assert.throws(
 		() => assertM8ACaptureCollectionHost({ GITHUB_ACTIONS: 'true' }),
-		/hosted runners are not real-device capture evidence/u,
+		/hosted runners have no real capture devices/u,
 	);
 	assert.doesNotThrow(() => assertM8ACaptureCollectionHost({ CI: '' }));
 	assert.throws(
 		() => parseM8ACaptureCliOptions(['--qualify']),
-		/qualification is unavailable while capture-os-browser-lab-matrix is unprovisioned/u,
+		/Unknown M8A collector option/u,
 	);
 	await assert.rejects(
 		writeM8ACaptureResult('/unused', {
 			...createM8ACaptureResult(makeMeasurement(), config), status: 'accepted',
 		}),
-		/cannot write a accepted result/u,
+		/unsupported status accepted/u,
 	);
 });
 
-test('the collector reads one lab record and writes one provisional result', async () => {
+test('the collector reads one device record and writes one diagnostic result', async () => {
 	let written: unknown = null;
 	const collected = await collectM8ACaptureQuality(
 		{ measurementPath: '/lab/capture.json', outputDirectory: '/unused' },
@@ -384,5 +349,5 @@ test('the collector reads one lab record and writes one provisional result', asy
 	);
 	assert.equal(collected, written);
 	assert.equal((written as { directory: string }).directory, '/unused');
-	assert.equal((written as { result: { status: string } }).result.status, 'pending-external');
+	assert.equal((written as { result: { status: string } }).result.status, 'passed');
 });

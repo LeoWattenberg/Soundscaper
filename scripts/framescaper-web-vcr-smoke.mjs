@@ -59,7 +59,7 @@ try {
 	console.log(`${WORKFLOW_PREFIX}${JSON.stringify({
 		schemaVersion: 1,
 		productId: PRODUCT_ID,
-		qualification: false,
+		diagnosticOnly: true,
 		evidenceKind: 'packaged-feasibility-only',
 		dormant: { ...dormant, persistentGuestProfileMaterialized: false },
 		active,

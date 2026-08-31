@@ -8,7 +8,7 @@ export const M4_PARITY_WORKLOAD_ID = 'm4-production-render-parity';
 
 const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
 
-/** Resolve a diagnostic identity; formal qualification belongs to the packaged-nightly verifier. */
+/** Resolve the diagnostic identity used by hosted and local runs. */
 export function resolveM4ParityCollectionEnvironment(options, _config, processEnvironment = {}) {
 	const record = requireRecord(
 		snapshotStrictJsonData(options, 'collector options'),
@@ -31,7 +31,7 @@ export function resolveM4ParityCollectionEnvironment(options, _config, processEn
 	return Object.freeze({ environmentId });
 }
 
-/** Parse one optional output directory; no standalone qualification mode exists. */
+/** Parse one optional output directory. */
 export function parseM4ParityCliOptions(args) {
 	const values = snapshotStrictJsonData(args, 'M4 collector CLI arguments');
 	if (!Array.isArray(values) || values.some((value) => typeof value !== 'string')) {

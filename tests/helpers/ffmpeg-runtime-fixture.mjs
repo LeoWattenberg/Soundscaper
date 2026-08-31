@@ -47,14 +47,6 @@ export async function createFixture(context) {
 		join(ROOT, 'config/milestone-5-native-source-acquisitions.json'),
 		join(root, 'config/milestone-5-native-source-acquisitions.json'),
 	);
-	await cp(
-		join(ROOT, 'config/milestone-5-package-release-authentication-policy.json'),
-		join(root, 'config/milestone-5-package-release-authentication-policy.json'),
-	);
-	await cp(
-		join(ROOT, 'config/milestone-5-native-isolation-review-policy.json'),
-		join(root, 'config/milestone-5-native-isolation-review-policy.json'),
-	);
 	await cp(join(ROOT, 'native/soundscaper-helper-addon'), join(root, 'native/soundscaper-helper-addon'), { recursive: true });
 	const javascript = Buffer.from('fixture ffmpeg JavaScript');
 	const wasm = Buffer.from('fixture ffmpeg WebAssembly');

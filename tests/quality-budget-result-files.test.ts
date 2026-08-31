@@ -17,9 +17,7 @@ function qualityConfig() {
 		environments: [{
 			id: 'reference-linux-node-01',
 			status: 'active',
-			qualificationEligible: true,
 			rendererRequirement: 'any',
-			eligibleWorkloadIds: ['m2-direct-output-memory'],
 			fingerprint: {
 				architecture: 'x64',
 				nodeVersion: '26.5.0',
@@ -47,7 +45,7 @@ function sha256(bytes: string | Uint8Array): string {
 async function fixture() {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-quality-result-'));
 	const configPath = join(directory, 'quality-budgets.json');
-	const resultPath = join(directory, 'accepted-summary.json');
+	const resultPath = join(directory, 'diagnostic-summary.json');
 	const rawPath = join(directory, 'raw-measurement.json');
 	const configBytes = `${JSON.stringify(qualityConfig(), null, '\t')}\n`;
 	const rawBytes = '{"samples":[50331648]}\n';
@@ -66,7 +64,7 @@ async function fixture() {
 		sourceRevision: SOURCE_REVISION,
 		attemptCount: 1,
 		retryCount: 0,
-		rawEvidence: {
+		rawArtifact: {
 			artifactName: 'raw-measurement.json',
 			byteLength: Buffer.byteLength(rawBytes),
 			sha256: sha256(rawBytes),
@@ -81,7 +79,7 @@ async function fixture() {
 	return { configPath, directory, rawPath, result, resultPath };
 }
 
-test('file verification hashes exact budget, raw evidence, and source revision bytes', async () => {
+test('file verification hashes exact budget, raw artifact, and source revision bytes', async () => {
 	const files = await fixture();
 	const evaluation = await verifyQualityBudgetResultFiles({
 		configPath: files.configPath,
@@ -95,16 +93,16 @@ test('file verification hashes exact budget, raw evidence, and source revision b
 	assert.equal(Object.isFrozen(evaluation.failures), true);
 });
 
-test('tampered budget, evidence, and source revision each refuse the result', async () => {
+test('tampered budget, raw artifact, and source revision each refuse the result', async () => {
 	const cases: readonly [string, (files: Awaited<ReturnType<typeof fixture>>) => Promise<void>, RegExp][] = [
 		['budget', async ({ configPath }) => {
 			const config = JSON.parse(await readFile(configPath, 'utf8')) as ReturnType<typeof qualityConfig>;
 			config.workloads[0].thresholds[0].value += 1;
 			await writeFile(configPath, `${JSON.stringify(config, null, '\t')}\n`);
 		}, /budget digest/iu],
-		['evidence body', async ({ rawPath }) => {
+		['raw artifact body', async ({ rawPath }) => {
 			await writeFile(rawPath, '{"samples":[1]}\n');
-		}, /raw evidence.*(?:byte length|digest)/iu],
+		}, /raw artifact.*(?:byte length|digest)/iu],
 		['source revision', async () => {}, /source revision/iu],
 	];
 
@@ -121,10 +119,10 @@ test('tampered budget, evidence, and source revision each refuse the result', as
 	}
 });
 
-test('missing, escaping, and self-referential raw evidence is refused', async () => {
-	for (const artifactName of ['missing.json', '../outside.json', 'accepted-summary.json']) {
+test('missing, escaping, and self-referential raw artifacts are refused', async () => {
+	for (const artifactName of ['missing.json', '../outside.json', 'diagnostic-summary.json']) {
 		const files = await fixture();
-		files.result.rawEvidence.artifactName = artifactName;
+		files.result.rawArtifact.artifactName = artifactName;
 		await writeFile(files.resultPath, `${JSON.stringify(files.result, null, '\t')}\n`);
 		const evaluation = await verifyQualityBudgetResultFiles({
 			configPath: files.configPath,
@@ -132,7 +130,7 @@ test('missing, escaping, and self-referential raw evidence is refused', async ()
 			expectedSourceRevision: SOURCE_REVISION,
 		});
 		assert.equal(evaluation.passed, false, artifactName);
-		assert.match(evaluation.failures.join('\n'), /raw evidence/iu, artifactName);
+		assert.match(evaluation.failures.join('\n'), /raw artifact/iu, artifactName);
 	}
 });
 
@@ -156,24 +154,4 @@ test('ambiguous workload and environment descriptors fail before evaluation', as
 		assert.equal(evaluation.passed, false, collection);
 		assert.match(evaluation.failures.join('\n'), /exactly one.*descriptor/iu, collection);
 	}
-});
-
-test('an eligible environment cannot evaluate an out-of-scope workload', async () => {
-	const files = await fixture();
-	const config = JSON.parse(await readFile(files.configPath, 'utf8')) as ReturnType<typeof qualityConfig>;
-	config.environments[0].eligibleWorkloadIds = ['another-workload'];
-	const configBytes = `${JSON.stringify(config, null, '\t')}\n`;
-	files.result.budgetSha256 = sha256(configBytes);
-	await Promise.all([
-		writeFile(files.configPath, configBytes),
-		writeFile(files.resultPath, `${JSON.stringify(files.result, null, '\t')}\n`),
-	]);
-
-	const evaluation = await verifyQualityBudgetResultFiles({
-		configPath: files.configPath,
-		resultPath: files.resultPath,
-		expectedSourceRevision: SOURCE_REVISION,
-	});
-	assert.equal(evaluation.passed, false);
-	assert.match(evaluation.failures.join('\n'), /environment.*not eligible.*workload/iu);
 });

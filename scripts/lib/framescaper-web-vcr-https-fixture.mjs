@@ -260,9 +260,9 @@ function serveMediaPage(response, loop, durationValue) {
 }
 
 function indexPage() {
-	return htmlDocument('Web VCR qualification fixture', `
+	return htmlDocument('Web VCR diagnostics fixture', `
 		<main>
-			<h1>Web VCR qualification fixture</h1>
+			<h1>Web VCR diagnostics fixture</h1>
 			<nav>
 				<a href="/login">Persistent login</a>
 				<a href="/input">Interactive input</a>

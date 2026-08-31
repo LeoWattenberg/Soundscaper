@@ -9,23 +9,23 @@ import {
 	requireRecord,
 } from './measurement-admission.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
-import { validateNativeOsLabMeasurementBindingV2 } from './native-os-lab-schema.mjs';
+import { validateNativeOsDiagnosticBinding } from './native-os-diagnostics-schema.mjs';
 
 /*
  * Milestone 5A-4 measurement arithmetic. Nothing here touches hardware or the
- * filesystem: a native-lab run hands over one JSON record and this module
+ * filesystem: a native-diagnostic run hands over one JSON record and this module
  * re-derives every registered metric from the raw per-run observations, so a
  * collector can never publish a number the record does not actually contain.
  *
  * The schema is closed on purpose. A helper run that omits a fingerprint
  * member, hides a retry, or ships four timed runs instead of five is rejected
  * rather than defaulted, because the missing half is exactly the half that
- * would make an unqualified host look qualified.
+ * would make one host observation look like another.
  */
 
 export const M5_NATIVE_HELPER_WORKLOAD_ID = 'm5-native-helper-and-audio';
 export const M5_NATIVE_HELPER_FIXTURE_ID = 'm5-helper-fault-and-loopback-v1';
-export const M5_NATIVE_HELPER_ENVIRONMENT_ID = 'native-os-lab-matrix';
+export const M5_NATIVE_HELPER_ENVIRONMENT_ID = 'native-os-diagnostics';
 export const M5_NATIVE_HELPER_PROFILE = 'native-helper-fault-and-loopback-v1';
 export const M5_NATIVE_HELPER_OBSERVATION_CLASS = 'fresh-helper-fault-and-device-loopback-v1';
 
@@ -42,9 +42,8 @@ export const M5_NATIVE_HELPER_METRIC_IDS = Object.freeze([
 ]);
 
 /*
- * Each lab row may only speak for a backend its own operating system ships.
- * Without this binding a Windows loopback could be filed against the macOS row,
- * which is the same relabelling the environment rule forbids one level up.
+ * A diagnostic may only report a backend its observed operating system ships.
+ * Without this check a Windows loopback could be relabelled as a macOS run.
  *
  * The rows are the helper contract's publishable backends split by platform:
  * PipeWire is the primary Linux backend, ALSA the direct `hw:` backup, JACK the
@@ -60,7 +59,7 @@ export const M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS = Object.freeze({
 	linuxArm64: Object.freeze(['pipewire', 'alsa', 'jack']),
 });
 
-/** The five lab-matrix rows; a record names exactly one and never speaks for the others. */
+/** Supported native platform identifiers; one diagnostic describes only one observed host. */
 export const M5_NATIVE_HELPER_PLATFORM_IDS = Object.freeze(Object.keys(M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS));
 
 /** A requested backend is evidence only when it is the backend that actually ran. */
@@ -102,7 +101,7 @@ const MEASUREMENT_FIELDS_V1 = Object.freeze([
 	'profile', 'runs', 'schemaVersion', 'warmupRuns', 'workloadId',
 ]);
 const MEASUREMENT_FIELDS_V2 = Object.freeze([
-	'budgetSha256', 'environmentId', 'fixtureId', 'labBinding', 'observationClass',
+	'budgetSha256', 'environmentId', 'fixtureId', 'diagnosticBinding', 'observationClass',
 	'observedRuntimeProfile', 'platformId', 'profile', 'runs', 'schemaVersion',
 	'sourceRevision', 'warmupRuns', 'workloadId',
 ]);
@@ -119,7 +118,7 @@ const GRANT_FIELDS = Object.freeze(['authorized', 'capabilityId']);
 const REVISION_FIELDS = Object.freeze(['expectedSha256', 'observedSha256', 'revisionId']);
 const EXPECTATION_FIELDS_V1 = Object.freeze(['fixtureSpecification', 'measurementPolicy']);
 const EXPECTATION_FIELDS_V2 = Object.freeze([
-	'budgetSha256', 'fixtureSpecification', 'labEnvironment', 'measurementPolicy',
+	'budgetSha256', 'fixtureSpecification', 'diagnosticEnvironment', 'measurementPolicy',
 ]);
 const FIXTURE_FIELDS = Object.freeze(['loopbackDurationSeconds', 'malformedCaseCount']);
 const SAMPLE_ARRAY_FIELDS = Object.freeze([
@@ -179,7 +178,7 @@ export function computeM5NativeHelperMetrics(measurement, expectation) {
 			? { fingerprint: validated.fingerprint }
 			: {
 				budgetSha256: validated.budgetSha256,
-				labBinding: validated.labBinding,
+				diagnosticBinding: validated.diagnosticBinding,
 				observedRuntimeProfile: validated.observedRuntimeProfile,
 				sourceRevision: validated.sourceRevision,
 			}),
@@ -244,7 +243,7 @@ export function validateM5NativeHelperMeasurement(measurementValue, expectationV
 	}
 	const environmentObservation = schemaVersion === 1
 		? { fingerprint: validateFingerprint(measurement.fingerprint, measurement.platformId) }
-		: validateV2LabBinding(measurement, expectation.labEnvironment, expectation.budgetSha256);
+		: validateV2DiagnosticBinding(measurement, expectation.diagnosticEnvironment, expectation.budgetSha256);
 	const warmupRuns = exactArray(
 		measurement.warmupRuns,
 		policy.timingWarmupTrials,
@@ -268,16 +267,13 @@ export function validateM5NativeHelperMeasurement(measurementValue, expectationV
 	});
 }
 
-function validateV2LabBinding(measurement, labEnvironment, budgetSha256) {
-	const binding = validateNativeOsLabMeasurementBindingV2(
-		measurement.labBinding,
-		labEnvironment,
+function validateV2DiagnosticBinding(measurement, diagnosticEnvironment, budgetSha256) {
+	const binding = validateNativeOsDiagnosticBinding(
+		measurement.diagnosticBinding,
+		diagnosticEnvironment,
 	);
 	if (binding.platformId !== measurement.platformId) {
-		throw new Error('M5 measurement platformId does not match its V2 lab binding.');
-	}
-	if (binding.profile.productId !== 'soundscaper' || binding.profile.audioBackend === null) {
-		throw new Error('M5 measurement V2 lab profile must be a Soundscaper audio profile.');
+		throw new Error('M5 measurement platformId does not match its diagnostic binding.');
 	}
 	if (typeof measurement.budgetSha256 !== 'string'
 		|| !SHA256_PATTERN.test(measurement.budgetSha256)
@@ -299,17 +295,19 @@ function validateV2LabBinding(measurement, labEnvironment, budgetSha256) {
 	}
 	positiveInteger(observed.sampleRate, 'M5 measurement.observedRuntimeProfile.sampleRate');
 	positiveInteger(observed.bufferFrames, 'M5 measurement.observedRuntimeProfile.bufferFrames');
-	if (observed.audioBackend !== binding.profile.audioBackend
-		|| observed.audioMode !== binding.profile.audioMode
-		|| observed.sampleRate !== binding.profile.audioSampleRate
-		|| observed.bufferFrames !== binding.profile.audioBufferFrames
-		|| observed.deviceIdentity !== binding.physicalHost.audioInterfaceModel
-		|| observed.driverIdentity !== binding.physicalHost.audioDriverVersion) {
-		throw new Error('M5 measurement observed runtime profile does not match its lab profile and physical host.');
+	if (!M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS[binding.platformId].includes(observed.audioBackend)
+		|| observed.deviceIdentity !== binding.observedHost.audioInterfaceModel
+		|| observed.driverIdentity !== binding.observedHost.audioDriverVersion) {
+		throw new Error('M5 measurement observed runtime profile does not match its diagnostic host.');
+	}
+	for (const field of ['helperBinarySha256', 'nativeAddonSha256']) {
+		if (!SHA256_PATTERN.test(String(binding.artifacts[field]))) {
+			throw new Error(`M5 measurement diagnostic binding requires ${field}.`);
+		}
 	}
 	return {
 		budgetSha256: measurement.budgetSha256,
-		labBinding: binding,
+		diagnosticBinding: binding,
 		observedRuntimeProfile: Object.freeze(observed),
 		sourceRevision: measurement.sourceRevision,
 	};

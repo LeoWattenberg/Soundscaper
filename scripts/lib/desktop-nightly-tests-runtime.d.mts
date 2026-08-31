@@ -71,7 +71,6 @@ export interface DesktopNightlyTestsResultEnvelope {
 		readonly packagedRuntimeJunitReport: 'packaged-runtime/junit.xml';
 		readonly packagedRuntimeRaw: 'packaged-runtime/raw.json';
 		readonly packagedRuntimeSummary: 'packaged-runtime/summary.json';
-		readonly packagedRuntimeQualification: 'packaged-runtime/qualification.json';
 		readonly packagedRuntimeTestResults: 'packaged-runtime/test-results';
 	};
 }
@@ -155,13 +154,13 @@ export interface DesktopNightlyTestsDependencies {
 	readonly runPlaywright?: (
 		plan: DesktopNightlyTestsPlaywrightPlan,
 	) => Promise<{ readonly code: number | null; readonly signal: string | null }>;
-	readonly writeMetricsEvidence?: (options: {
+	readonly writeMetricsDiagnostics?: (options: {
 		readonly payloadRoot: string;
 		readonly runRoot: string;
 		readonly sourceRevision: string | null;
 		readonly playwrightExit: { readonly code: number | null; readonly signal: string | null };
 	}) => Promise<{ readonly passed: boolean }>;
-	readonly writePackagedMetricsEvidence?: (options: {
+	readonly writePackagedMetricsDiagnostics?: (options: {
 		readonly payloadRoot: string;
 		readonly runRoot: string;
 		readonly sourceRevision: string | null;

@@ -17,9 +17,6 @@ import {
 	createPendingM4B2KeyframeParityResult,
 	parseM4B2KeyframeParityDiagnostic,
 } from '../collect-m4b2-keyframe-parity-quality.mjs';
-import { createPackagedRuntimeQualification } from './desktop-nightly-tests-qualification.mjs';
-
-const DOWNLOADABLE_HOST_FAILURE = 'A downloadable nightly host is diagnostic-only and not a qualified environment.';
 const DEFAULT_COLLECTORS = Object.freeze([
 	collector(
 		'm3-longform-editorial',
@@ -198,7 +195,7 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 	const metricGatePassed = verdicts.every(({ passed }) => passed);
 	return Object.freeze({
 		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: metricGatePassed ? 'passed' : 'failed',
 		workloadId: 'm1-video-preview-12fx-720p',
 		fixtureId: 'video-preview-12fx-720p-v1',
 		profile: expectedIdentity.profile,
@@ -221,9 +218,8 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 			heapSnapshotsAfter: diagnostic.trials.length,
 		}),
 		metricGatePassed,
-		qualificationEvidencePublished: false,
 		evaluation: Object.freeze({
-			passed: false,
+			passed: metricGatePassed,
 			failures: Object.freeze(metricGatePassed ? [] : verdicts
 				.filter(({ passed }) => !passed)
 				.map(({ metricId }) => `${metricId} did not pass.`)),
@@ -277,7 +273,7 @@ export function createDesktopNightlyTestsMetricsEvidence({
 		budgetSha256,
 		diagnostics: Object.freeze(diagnostics),
 	});
-	const pendingSummary = Object.freeze({
+	const summary = Object.freeze({
 		schemaVersion: 1,
 		kind: `soundscaper-desktop-nightly${kindSuffix}-metrics`,
 		executionSurface: evidenceKind,
@@ -287,37 +283,17 @@ export function createDesktopNightlyTestsMetricsEvidence({
 		retryCount: 0,
 		workerCount: 1,
 		collectionPassed,
-		qualificationEvidencePublished: false,
 		workloads: Object.freeze(workloads),
 		failures: Object.freeze(failures),
 	});
-	const qualification = evidenceKind === 'packaged-runtime'
-		? createPackagedRuntimeQualification({ config, raw, summary: pendingSummary })
-		: null;
-	const workloadQualifications = Array.isArray(qualification?.workloadQualifications)
-		? qualification.workloadQualifications
-		: qualification === null ? [] : [qualification];
-	const acceptedQualifications = new Map(workloadQualifications
-		.filter(({ status }) => status === 'accepted')
-		.map((value) => [value.workloadId, value]));
-	const qualifiedWorkloads = workloads.map((workload) => {
-		const accepted = acceptedQualifications.get(workload.workloadId);
-		return accepted === undefined ? workload : acceptedWorkload(workload, accepted.environmentId);
-	});
-	const summary = acceptedQualifications.size > 0 ? Object.freeze({
-		...pendingSummary,
-		qualificationEvidencePublished: true,
-		workloads: Object.freeze(qualifiedWorkloads),
-	}) : pendingSummary;
 	return Object.freeze({
 		passed: collectionPassed,
 		raw,
 		summary,
-		qualification,
 	});
 }
 
-export async function writeDesktopNightlyTestsMetricsEvidence({
+export async function writeDesktopNightlyTestsMetricsDiagnostics({
 	payloadRoot,
 	runRoot,
 	sourceRevision,
@@ -333,7 +309,7 @@ export async function writeDesktopNightlyTestsMetricsEvidence({
 		readFile(consoleLogPath, 'utf8'),
 		readFile(configPath),
 	]);
-	const evidence = createDesktopNightlyTestsMetricsEvidence({
+	const diagnostics = createDesktopNightlyTestsMetricsEvidence({
 		consoleOutput,
 		config: JSON.parse(configBytes.toString('utf8')),
 		sourceRevision,
@@ -346,13 +322,10 @@ export async function writeDesktopNightlyTestsMetricsEvidence({
 	const metricsRoot = join(runRoot, artifactDirectory);
 	await mkdir(metricsRoot, { recursive: true });
 	await Promise.all([
-		writeFile(join(metricsRoot, 'raw.json'), `${JSON.stringify(evidence.raw, null, '\t')}\n`, { flag: 'wx' }),
-		writeFile(join(metricsRoot, 'summary.json'), `${JSON.stringify(evidence.summary, null, '\t')}\n`, { flag: 'wx' }),
-		...(evidence.qualification === null ? [] : [
-			writeFile(join(metricsRoot, 'qualification.json'), `${JSON.stringify(evidence.qualification, null, '\t')}\n`, { flag: 'wx' }),
-		]),
+		writeFile(join(metricsRoot, 'raw.json'), `${JSON.stringify(diagnostics.raw, null, '\t')}\n`, { flag: 'wx' }),
+		writeFile(join(metricsRoot, 'summary.json'), `${JSON.stringify(diagnostics.summary, null, '\t')}\n`, { flag: 'wx' }),
 	]);
-	return evidence;
+	return diagnostics;
 }
 
 export async function runDesktopNightlyTestsMetricsPhase({
@@ -370,11 +343,11 @@ export async function runDesktopNightlyTestsMetricsPhase({
 		executablePath, payloadRoot, runRoot, baseURL, esbuildBinaryPath, environment,
 	});
 	const child = await dependencies.runPlaywright(plan);
-	const writeEvidence = dependencies.writeEvidence ?? writeDesktopNightlyTestsMetricsEvidence;
-	const evidence = await writeEvidence({
+	const writeDiagnostics = dependencies.writeDiagnostics ?? writeDesktopNightlyTestsMetricsDiagnostics;
+	const diagnostics = await writeDiagnostics({
 		payloadRoot, runRoot, sourceRevision, playwrightExit: child,
 	});
-	return Object.freeze({ child, evidence });
+	return Object.freeze({ child, diagnostics });
 }
 
 function collector(workloadId, parse, evaluate, metricGatePassed) {
@@ -388,27 +361,12 @@ function normalizeDiagnosticResult(resultValue, metricGatePassed) {
 		? originalEvaluation.failures.filter((failure) => typeof failure === 'string') : [];
 	return Object.freeze({
 		...resultValue,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: metricGatePassed ? 'passed' : 'failed',
 		metricGatePassed,
-		qualificationEvidencePublished: false,
 		evaluation: Object.freeze({
 			...originalEvaluation,
-			passed: false,
-			failures: Object.freeze([...originalFailures, DOWNLOADABLE_HOST_FAILURE]),
-		}),
-	});
-}
-
-function acceptedWorkload(workload, environmentId) {
-	return Object.freeze({
-		...workload,
-		status: 'accepted',
-		qualificationEnvironmentId: environmentId,
-		qualificationEvidencePublished: true,
-		evaluation: Object.freeze({
-			...(isRecord(workload.evaluation) ? workload.evaluation : {}),
-			passed: true,
-			failures: Object.freeze([]),
+			passed: metricGatePassed,
+			failures: Object.freeze(originalFailures),
 		}),
 	});
 }

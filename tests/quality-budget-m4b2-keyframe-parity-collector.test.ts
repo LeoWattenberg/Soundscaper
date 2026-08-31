@@ -14,11 +14,10 @@ import { makeM4B2KeyframeParityDiagnostic } from './helpers/m4b2-keyframe-parity
 const MARKER = 'SOUNDSCAPER_M4B2_KEYFRAME_PARITY ';
 const OPERATION = 'opacity-linear/interior/composition.opacity';
 
-test('complete keyed frames and dual-consumer ledgers pass metric admission for formal nightly verification', () => {
+test('complete keyed frames and dual-consumer ledgers pass the diagnostic thresholds', () => {
 	const result = createPendingM4B2KeyframeParityResult(makeM4B2KeyframeParityDiagnostic());
-	assert.equal(result.status, 'pending-external');
+	assert.equal(result.status, 'passed');
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.qualificationEvidencePublished, false);
 	assert.deepEqual(result.metrics, {
 		'keyframes.videoMinimumSsim': 1,
 		'keyframes.videoMaximumChannelMae': 0,
@@ -36,7 +35,7 @@ test('complete keyed frames and dual-consumer ledgers pass metric admission for 
 	});
 	assert.equal(result.evaluation.verdicts.length, 5);
 	assert.ok(result.evaluation.verdicts.every(({ passed }) => passed));
-	assert.match(result.evaluation.failures.at(-1) ?? '', /formal qualification.*nightly packaged-runtime/iu);
+	assert.deepEqual(result.evaluation.failures, []);
 });
 
 test('omission, substitution, and fallback remain distinct zero-count gates', () => {
@@ -51,7 +50,6 @@ test('omission, substitution, and fallback remain distinct zero-count gates', ()
 		assert.equal(result.status, 'failed');
 		assert.equal(result.metricGatePassed, false);
 		assert.equal(result.metrics[metric], 2, `${outcome} is counted once per consumer`);
-		assert.equal(result.qualificationEvidencePublished, false);
 	}
 });
 
@@ -228,7 +226,7 @@ test('CLI and collection publish only injected pending results', async () => {
 	});
 	assert.equal(collected, written);
 	assert.equal((written as { directory: string }).directory, '/unused');
-	assert.equal((written as { result: { status: string } }).result.status, 'pending-external');
+	assert.equal((written as { result: { status: string } }).result.status, 'passed');
 });
 
 test('accessor and nonfinite diagnostics fail before invoking or publishing them', () => {

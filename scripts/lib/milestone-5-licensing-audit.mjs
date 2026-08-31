@@ -42,7 +42,8 @@ const NATIVE_POLICY_IDS = Object.freeze([
 	'codec-encode-openexr-image-sequence',
 ]);
 
-export function validateMilestone5LicensingReadiness(matrix) {
+/** Validate and summarize the native licensing rows used by the package audit. */
+export function auditMilestone5LicensingMatrix(matrix) {
 	assertRecord(matrix, 'Milestone 5 production licensing matrix');
 	assert(Array.isArray(matrix.futureDistributionGates) && Array.isArray(matrix.nativeFormatPolicies),
 		'Milestone 5 licensing collections are invalid.');
@@ -56,17 +57,15 @@ export function validateMilestone5LicensingReadiness(matrix) {
 	assert(JSON.stringify(matrix.nativeFormatPolicies.map(({ id }) => id))
 		=== JSON.stringify(NATIVE_POLICY_IDS),
 	'Milestone 5 native licensing policy IDs are incomplete, duplicated, or out of order.');
-	const policyRows = matrix.nativeFormatPolicies
-		.filter(({ id }) => id !== 'plugin-format-soundscaper-fixture');
-	for (const row of policyRows) {
+	for (const row of matrix.nativeFormatPolicies) {
 		assert(['blocked', 'implemented'].includes(row.status),
 			`Milestone 5 native policy row ${row.id} has an invalid status.`);
 	}
 	return Object.freeze({
-		disabledGates: Object.freeze(gates
-			.filter(({ status }) => status !== 'enabled').map(({ id }) => id)),
-		blockedPolicyRows: Object.freeze(policyRows
-			.filter(({ status }) => status !== 'implemented').map(({ id }) => id)),
+		distributionGates: Object.freeze(gates.map(({ id, status }) => Object.freeze({ id, status }))),
+		nativeFormatPolicies: Object.freeze(matrix.nativeFormatPolicies.map(
+			({ id, status }) => Object.freeze({ id, status }),
+		)),
 	});
 }
 

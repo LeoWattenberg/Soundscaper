@@ -10,10 +10,7 @@ import {
 	M5B_QUALITY_PIPELINES,
 	m5bQualityBudgetSha256,
 } from './m5b-quality-pipeline.mjs';
-import {
-	assessNativeOsLabBindingQualificationV2,
-	validateNativeOsLabMeasurementBindingV2,
-} from './native-os-lab-schema.mjs';
+import { validateNativeOsDiagnosticBinding } from './native-os-diagnostics-schema.mjs';
 import {
 	deriveM5bQualityMetricsV2,
 	validateM5bObservedRuntimeProfileV2,
@@ -28,11 +25,11 @@ import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 const CONFIG_URL = new URL('../../config/quality-budgets.json', import.meta.url);
 const DEFAULT_CONFIG = JSON.parse(await readFile(CONFIG_URL, 'utf8'));
-const ENVIRONMENT_ID = 'native-os-lab-matrix';
+const ENVIRONMENT_ID = 'native-os-diagnostics';
 const MEASUREMENT_FIELDS = Object.freeze([
 	'schemaVersion', 'budgetSha256', 'sourceRevision', 'attemptCount', 'retryCount',
 	'profileId', 'workloadId', 'fixtureId', 'environmentId', 'platformId',
-	'labBinding', 'observations', 'observedRuntimeProfile',
+	'diagnosticBinding', 'observations', 'observedRuntimeProfile',
 ]);
 const SOURCE_REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -71,29 +68,24 @@ export function validateM5bQualityMeasurementV2(
 		|| record.environmentId !== ENVIRONMENT_ID) {
 		throw new Error(`${profileId} measurement identity does not match its registered pipeline.`);
 	}
-	const labBinding = validateNativeOsLabMeasurementBindingV2(record.labBinding, environment);
-	if (record.platformId !== labBinding.platformId) {
-		throw new Error(`${profileId} measurement platform does not match its V2 lab binding.`);
+	const diagnosticBinding = validateNativeOsDiagnosticBinding(record.diagnosticBinding, environment);
+	if (record.platformId !== diagnosticBinding.platformId) {
+		throw new Error(`${profileId} measurement platform does not match its diagnostic binding.`);
 	}
-	if (labBinding.profile.productId !== 'framescaper'
-		|| labBinding.profile.mediaDecodeBackend === null
-		|| labBinding.profile.mediaEncodeBackend === null) {
-		throw new Error(`${profileId} V2 lab binding must use a Framescaper media profile.`);
-	}
-	if (labBinding.artifacts.sourceRevision !== record.sourceRevision) {
+	if (diagnosticBinding.artifacts.sourceRevision !== record.sourceRevision) {
 		throw new Error(`${profileId} source revision does not match its V2 artifact binding.`);
 	}
-	if (!SHA256.test(String(labBinding.artifacts.mediaHostSha256))) {
+	if (!SHA256.test(String(diagnosticBinding.artifacts.mediaHostSha256))) {
 		throw new Error(`${profileId} measurement requires its media-host digest.`);
 	}
 	if (profileId === 'openfx' && (
-		!SHA256.test(String(labBinding.artifacts.ofxScannerSha256))
-		|| !SHA256.test(String(labBinding.artifacts.ofxRuntimeHostSha256))
+		!SHA256.test(String(diagnosticBinding.artifacts.ofxScannerSha256))
+		|| !SHA256.test(String(diagnosticBinding.artifacts.ofxRuntimeHostSha256))
 	)) throw new Error('OpenFX measurement requires scanner and runtime-host digests.');
 	const observedRuntimeProfile = validateM5bObservedRuntimeProfileV2(
 		profileId,
 		record.observedRuntimeProfile,
-		labBinding,
+		diagnosticBinding,
 	);
 	const derived = deriveM5bQualityMetricsV2(record.observations, workload.thresholds);
 	return deepFreeze({
@@ -106,9 +98,9 @@ export function validateM5bQualityMeasurementV2(
 		workloadId: pipeline.workloadId,
 		fixtureId: pipeline.fixtureId,
 		environmentId: ENVIRONMENT_ID,
-		platformId: labBinding.platformId,
+		platformId: diagnosticBinding.platformId,
 		rendererClass: observedRuntimeProfile.rendererClass,
-		labBinding,
+		diagnosticBinding,
 		observedRuntimeProfile,
 		observations: derived.observations,
 		metrics: derived.metrics,
@@ -132,49 +124,33 @@ export function createM5bQualityResultV2(
 		expectedBudgetSha256,
 	);
 	const workload = exactDescriptor(config.workloads, pipeline.workloadId, 'workload');
-	const fixture = exactDescriptor(config.fixtures, pipeline.fixtureId, 'fixture');
 	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const assessment = assessNativeOsLabBindingQualificationV2(
-		environment,
-		measurementValue.labBinding,
-		pipeline.workloadId,
-	);
-	const blockers = [...assessment.blockers];
-	if (fixture.status !== 'qualified') blockers.push(`Fixture ${fixture.id} status is ${String(fixture.status)}.`);
-	if (workload.status !== 'qualified') blockers.push(`Workload ${workload.id} status is ${String(workload.status)}.`);
-	if (!Array.isArray(config.qualification?.qualifiedWorkloadIds)
-		|| !config.qualification.qualifiedWorkloadIds.includes(workload.id)) {
-		blockers.push(`Workload ${workload.id} has no accepted qualification cohort.`);
-	}
 	const evaluation = evaluateQualityBudget({
 		environmentId: ENVIRONMENT_ID,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, measurement);
+	}, { ...environment, status: 'active' }, measurement);
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const accepted = metricGatePassed && evaluation.passed && blockers.length === 0;
+	const passed = metricGatePassed && evaluation.passed;
 	return deepFreeze({
 		schemaVersion: 2,
-		qualificationScope: 'single-profile',
-		status: !metricGatePassed ? 'failed' : accepted ? 'accepted' : 'pending-external',
+		status: passed ? 'passed' : 'failed',
 		profileId,
 		workloadId: pipeline.workloadId,
 		fixtureId: pipeline.fixtureId,
 		environmentId: ENVIRONMENT_ID,
 		platformId: measurement.platformId,
-		labProfileId: measurement.labBinding.profileId,
+		diagnosticPlatformId: measurement.diagnosticBinding.platformId,
 		rendererClass: measurement.rendererClass,
-		observedLabBinding: measurement.labBinding,
+		observedDiagnosticBinding: measurement.diagnosticBinding,
 		observedRuntimeProfile: measurement.observedRuntimeProfile,
 		metrics: measurement.metrics,
 		sampleCounts: measurement.sampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: false,
-		qualificationBlockers: [...new Set(blockers)],
 		evaluation: {
-			passed: accepted,
-			failures: [...new Set([...evaluation.failures, ...blockers])],
+			passed,
+			failures: evaluation.failures,
 			verdicts: evaluation.verdicts,
 		},
 	});
@@ -197,9 +173,9 @@ export async function writeM5bQualityResultV2(
 	);
 	const result = snapshotStrictJsonData(resultValue, '5B V2 result');
 	if (!isDeepStrictEqual(result, expected)) {
-		throw new Error('5B V2 result does not match its recomputed qualification result.');
+		throw new Error('5B V2 diagnostic result does not match its recomputed thresholds.');
 	}
-	const stem = `${expected.workloadId}.${measurement.labBinding.profileId}`;
+	const stem = `${expected.workloadId}.${measurement.diagnosticBinding.platformId}`;
 	const rawBytes = Buffer.from(`${JSON.stringify(measurementValue, null, '\t')}\n`, 'utf8');
 	const raw = Object.freeze({
 		file: `${stem}.raw.json`,

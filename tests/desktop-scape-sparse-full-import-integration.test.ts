@@ -478,7 +478,5 @@ test('portable reference-scale gate: an exact 8 GiB sparse desktop Scape fully i
 			'streaming.retainedMediaPayloadBytes': importStore.retainedMediaPayloadBytes,
 			'streaming.invalidPublishedRevisions': 0,
 		},
-		opfsQualified: false,
-		processRssQualified: false,
 	}));
 });

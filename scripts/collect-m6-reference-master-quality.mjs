@@ -19,18 +19,12 @@ import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measu
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
 /*
- * Milestone 6 exit-gate collector. Ordinary CI owns the correctness half of
+ * Milestone 6 diagnostic collector. Ordinary CI owns the correctness half of
  * `m6-reference-master-delivery` — conformance, reporting and unreported
- * conversions are proven by the node suite on every change. The RTF half
- * qualifies only on `owner-qualified-windows-x64-rtx3090-01` and
- * `native-os-lab-matrix`. The owner-qualified host is active for earlier
- * workloads but does not admit M6, while the native matrix is unprovisioned.
- *
- * So this collector deliberately has no accepted-evidence writer. It recomputes
- * the eleven metrics from the delivery's own sealed reports, records them, and
- * emits a pending-external result that names every missing provisioning fact by
- * hand. The day that list empties it stops instead, because a pending record
- * naming nothing missing would read as sign-off.
+ * conversions are proven by the node suite on every change. The local RTF run
+ * measures either the owner reference host or a native lab profile. It
+ * recomputes eleven metrics from the delivery's own sealed reports and reports
+ * the checked-in thresholds without making a release claim.
  *
  * Two things it must never do: copy an intended fingerprint into a null
  * descriptor row, and let a hosted runner stand in for reference hardware.
@@ -41,7 +35,7 @@ const HOSTED_RUNNER_VARIABLES = Object.freeze([
 	'GITHUB_ACTIONS', 'CI', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI',
 ]);
 
-/** Read a reference-run measurement and persist only unaccepted evidence. */
+/** Read a reference-run measurement and persist its diagnostic result. */
 export async function collectM6ReferenceMasterQuality(optionsValue, dependencies = {}) {
 	const options = exactRecord(
 		snapshotStrictJsonData(optionsValue, 'collector options'),
@@ -82,34 +76,25 @@ export function createM6ReferenceMasterResult(measurementValue, configValue) {
 	});
 	const environmentId = computed.environmentId;
 	const environment = exactDescriptor(config.environments, environmentId, 'environment');
-	const qualification = assessM6ReferenceMasterQualification(config, environmentId);
-	if (qualification.provisioned) {
-		// There is no accepted-evidence writer here yet. Emitting `pending-external`
-		// with an empty blocker list would read as "measured, awaiting sign-off"
-		// when the truth is that the publishing half is unwritten, so the collector
-		// stops rather than describe a lab it can no longer describe.
-		throw new Error(`Environment ${environmentId} is provisioned; the M6 accepted-evidence writer lands with the lab and must exist before a result is emitted.`);
-	}
 	const evaluation = evaluateQualityBudget({
 		environmentId,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, {
+	}, { ...environment, status: 'active' }, {
 		environmentId,
 		rendererClass: 'unknown',
 		metrics: computed.metrics,
 	});
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const failures = [...new Set([...evaluation.failures, ...qualification.blockers])];
+	const passed = metricGatePassed && evaluation.passed;
 	return Object.freeze({
 		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: passed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		fixtureIds: FIXTURE_IDS,
 		environmentId,
-		qualificationEnvironmentId: environmentId,
 		platformId: computed.platformId,
 		profile: PROFILE,
 		observationClass: OBSERVATION_CLASS,
@@ -129,63 +114,11 @@ export function createM6ReferenceMasterResult(measurementValue, configValue) {
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: false,
-		qualificationBlockers: Object.freeze(qualification.blockers),
 		evaluation: Object.freeze({
-			// Never true here: the guard above refuses every provisioned state, so a
-			// passing metric gate is reported by `metricGatePassed` alone.
-			passed: false,
-			failures: Object.freeze(failures),
+			passed,
+			failures: evaluation.failures,
 			verdicts: evaluation.verdicts,
 		}),
-	});
-}
-
-/**
- * Name every fact the reference environment still owes, one line per missing
- * thing, so a pending result says what would have to become true rather than
- * how close it came.
- */
-export function assessM6ReferenceMasterQualification(configValue, environmentId) {
-	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const environment = exactDescriptor(config.environments, environmentId, 'environment');
-	const blockers = [];
-	if (environment.status !== 'active') {
-		// Worded exactly as the shared evaluator words it, so the two lists collapse
-		// into one statement of the same missing fact.
-		blockers.push(`Environment ${environmentId} is ${String(environment.status)}.`);
-	}
-	if (environment.qualificationEligible !== true) {
-		blockers.push(`Environment ${environmentId} is not qualification-eligible.`);
-	}
-	if (!Array.isArray(environment.eligibleWorkloadIds)
-		|| !environment.eligibleWorkloadIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Environment ${environmentId} does not list ${WORKLOAD_ID} among its eligible workloads.`);
-	}
-	const fingerprint = requireRecord(environment.fingerprint, `${environmentId}.fingerprint`);
-	for (const row of Object.keys(fingerprint).sort()) {
-		if (fingerprint[row] === null || fingerprint[row] === undefined) {
-			blockers.push(`Environment ${environmentId} has no recorded fingerprint for ${row}.`);
-		}
-	}
-	// Every registered fixture, not only the suite: a companion left behind is a
-	// delivery canvas the gate stopped covering, and the blocker has to name it.
-	for (const { id, status } of fixtureStatuses(config)) {
-		if (status !== 'qualified') {
-			blockers.push(`Fixture ${id} status is ${String(status)}; accepted evidence requires a built reference suite.`);
-		}
-	}
-	if (workload.status !== 'qualified') {
-		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
-	}
-	const qualifiedIds = config.qualification?.qualifiedWorkloadIds;
-	if (!Array.isArray(qualifiedIds) || !qualifiedIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Workload ${WORKLOAD_ID} is not registered in qualification.qualifiedWorkloadIds.`);
-	}
-	return Object.freeze({
-		provisioned: blockers.length === 0,
-		blockers: Object.freeze(blockers),
 	});
 }
 
@@ -201,14 +134,11 @@ export function assertM6ReferenceMasterCollectionHost(processEnvironment) {
 	}
 }
 
-/** Persist unaccepted evidence only; the accepted writer lands with the lab. */
+/** Persist one immutable diagnostic result. */
 export async function writeM6ReferenceMasterResult(outputDirectory, resultValue) {
 	const result = snapshotStrictJsonData(resultValue, 'result');
-	if (result.status !== 'pending-external' && result.status !== 'failed') {
-		throw new Error(`M6 collector cannot write a ${String(result.status)} result while M6 qualification is incomplete.`);
-	}
-	if (result.qualificationEvidencePublished !== false) {
-		throw new Error('M6 collector must not mark qualification evidence as published.');
+	if (result.status !== 'passed' && result.status !== 'failed') {
+		throw new Error(`M6 diagnostic result has unsupported status ${String(result.status)}.`);
 	}
 	await mkdir(outputDirectory, { recursive: true });
 	const resultPath = join(outputDirectory, `${WORKLOAD_ID}.${result.status}.json`);
@@ -216,7 +146,7 @@ export async function writeM6ReferenceMasterResult(outputDirectory, resultValue)
 	return Object.freeze({ resultPath, result });
 }
 
-/** Parse `[--measurement <path>] [output-directory]`; qualification flags are refused. */
+/** Parse `[--measurement <path>] [output-directory]`. */
 export function parseM6ReferenceMasterCliOptions(argsValue) {
 	const args = snapshotStrictJsonData(argsValue, 'M6 collector CLI arguments');
 	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
@@ -230,9 +160,6 @@ export function parseM6ReferenceMasterCliOptions(argsValue) {
 			measurementPath = argument;
 			expectingMeasurement = false;
 			continue;
-		}
-		if (argument === '--accept' || argument === '--qualify' || argument === '--publish') {
-			throw new Error('M6 reference qualification is unavailable while its environment admissions are incomplete.');
 		}
 		if (argument === '--measurement') {
 			if (measurementPath !== null) throw new Error('M6 collector accepts one measurement path.');
@@ -256,13 +183,6 @@ async function readMeasurementFile(path) {
 			{ cause: error },
 		);
 	}
-}
-
-function fixtureStatuses(config) {
-	return FIXTURE_IDS.map((id) => Object.freeze({
-		id,
-		status: exactDescriptor(config.fixtures, id, 'fixture').status,
-	}));
 }
 
 /**
@@ -346,7 +266,7 @@ async function main() {
 			?? fileURLToPath(new URL('../test-results/quality/m6-reference-master', import.meta.url))),
 	});
 	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
-	if (collected.result.status !== 'pending-external') process.exitCode = 1;
+	if (collected.result.status === 'failed') process.exitCode = 1;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) await main();

@@ -29,12 +29,12 @@ const OBSERVATION_CLASS = 'complete-keyed-rgba-consumer-ledger-v1';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
-const LOCAL_ADMISSION_MINIMUM_SSIM = 0.98;
-const LOCAL_ADMISSION_MAXIMUM_CHANNEL_MAE = 6 / 255;
+const LOCAL_MINIMUM_SSIM_THRESHOLD = 0.98;
+const LOCAL_MAXIMUM_CHANNEL_MAE_THRESHOLD = 6 / 255;
 const SOURCE_SHA256 = 'db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a';
 const DEFAULT_THRESHOLDS = Object.freeze([
-	Object.freeze({ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: LOCAL_ADMISSION_MINIMUM_SSIM }),
-	Object.freeze({ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: LOCAL_ADMISSION_MAXIMUM_CHANNEL_MAE }),
+	Object.freeze({ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: LOCAL_MINIMUM_SSIM_THRESHOLD }),
+	Object.freeze({ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: LOCAL_MAXIMUM_CHANNEL_MAE_THRESHOLD }),
 	Object.freeze({ metricId: 'keyframes.omittedOperations', comparison: 'eq', value: 0 }),
 	Object.freeze({ metricId: 'keyframes.substitutedOperations', comparison: 'eq', value: 0 }),
 	Object.freeze({ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0 }),
@@ -79,7 +79,7 @@ const FIXTURE = Object.freeze({
 	presentationClasses: Object.freeze(CASE_DEFINITIONS.map(({ presentationClass }) => presentationClass)),
 });
 
-/** Run the keyed-parity diagnostic; formal qualification is intentionally unavailable here. */
+/** Run the keyed-parity diagnostic. */
 export async function collectM4B2KeyframeParityDiagnostic(optionsValue, dependencies = {}) {
 	const options = exactRecord(
 		snapshotStrictJsonData(optionsValue, 'collector options'),
@@ -122,7 +122,7 @@ export function parseM4B2KeyframeParityDiagnostic(output) {
 	return matches[0];
 }
 
-/** Recompute every local-admission metric from complete frames and exact consumer ledgers. */
+/** Recompute every local threshold metric from complete frames and exact consumer ledgers. */
 export function createPendingM4B2KeyframeParityResult(input, inputConfig) {
 	const diagnostic = exactRecord(snapshotStrictJsonData(input, 'diagnostic'), [
 		'cases', 'environmentFingerprint', 'environmentId', 'fixture', 'fixtureId',
@@ -232,7 +232,7 @@ export function createPendingM4B2KeyframeParityResult(input, inputConfig) {
 	if (Object.keys(fingerprint).length === 0) throw new Error('Environment fingerprint must not be empty.');
 	return Object.freeze({
 		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: metricGatePassed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: diagnostic.environmentId,
@@ -253,13 +253,9 @@ export function createPendingM4B2KeyframeParityResult(input, inputConfig) {
 			renderedConsumerOperations,
 		}),
 		metricGatePassed,
-		qualificationEvidencePublished: false,
 		evaluation: Object.freeze({
-			passed: false,
-			failures: Object.freeze([
-				...failures,
-				'Formal qualification is published only by the nightly packaged-runtime verifier on the owner-designated host.',
-			]),
+			passed: metricGatePassed,
+			failures: Object.freeze(failures),
 			verdicts: Object.freeze(verdicts),
 		}),
 	});

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	collectDirectStructuralQualityEvidence,
+	collectDirectStructuralQualityDiagnostic,
 	parseDirectStructuralDiagnostics,
 } from '../scripts/collect-m2-direct-structural-quality.mjs';
 
@@ -32,7 +32,7 @@ test('structural diagnostics combine independently observed fragments into one e
 test('collector publishes observed diagnostics without loading fixture specification values', async () => {
 	let written: unknown;
 	let receivedWorkload: string | undefined;
-	const result = await collectDirectStructuralQualityEvidence({
+	const result = await collectDirectStructuralQualityDiagnostic({
 		outputDirectory: '/ignored', workloadId: WORKLOAD_ID,
 	}, {
 		runTests: async (testFiles: readonly string[], workloadId: string) => {
@@ -40,7 +40,7 @@ test('collector publishes observed diagnostics without loading fixture specifica
 			assert.ok(testFiles.length >= 2);
 			return { stdout: diagnostic(METRICS), stderr: '' };
 		},
-		writeEvidence: async (options: unknown) => {
+		writeDiagnostic: async (options: unknown) => {
 			written = options;
 			return {
 				rawPath: '/raw', resultPath: '/result',
@@ -96,18 +96,18 @@ test('missing, duplicate, foreign, and absent structural metrics refuse publicat
 
 test('unknown workloads and test failures refuse publication', async () => {
 	await assert.rejects(
-		collectDirectStructuralQualityEvidence({
+		collectDirectStructuralQualityDiagnostic({
 			outputDirectory: '/ignored', workloadId: 'unknown',
 		}, {}),
 		/unsupported/iu,
 	);
 	let writeCalls = 0;
 	await assert.rejects(
-		collectDirectStructuralQualityEvidence({
+		collectDirectStructuralQualityDiagnostic({
 			outputDirectory: '/ignored', workloadId: 'm2-direct-mp4-webm-video-output-v1',
 		}, {
 			runTests: async () => { throw new Error('focused tests failed'); },
-			writeEvidence: async () => {
+			writeDiagnostic: async () => {
 				writeCalls += 1;
 				return {
 					rawPath: '/raw', resultPath: '/result',

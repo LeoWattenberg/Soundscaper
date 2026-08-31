@@ -58,8 +58,8 @@ export function deriveM5bQualityMetricsV2(observationsValue, thresholdsValue) {
 	return deepFreeze({ observations, metrics, sampleCounts });
 }
 
-/** Bind what the native runner observed to the exact lab row it was asked to exercise. */
-export function validateM5bObservedRuntimeProfileV2(profileId, value, labBinding) {
+/** Bind what the native runner observed to its actual host and artifact set. */
+export function validateM5bObservedRuntimeProfileV2(profileId, value, diagnosticBinding) {
 	const observed = exactRecord(
 		snapshotStrictJsonData(value, '5B V2 observed runtime profile'),
 		RUNTIME_PROFILE_FIELDS,
@@ -79,21 +79,17 @@ export function validateM5bObservedRuntimeProfileV2(profileId, value, labBinding
 		throw new Error('5B V2 observed runtime profile rendererClass is unsupported.');
 	}
 	const expected = {
-		platformId: labBinding.platformId,
-		architecture: ARCHITECTURES[labBinding.platformId],
-		osImage: labBinding.physicalHost.osImage,
-		osVersion: labBinding.physicalHost.osVersion,
-		gpuModel: labBinding.physicalHost.gpuModel,
-		driverVersion: labBinding.physicalHost.driverVersion,
-		displayIdentity: labBinding.physicalHost.displayIdentity,
-		mediaDecodeBackend: labBinding.profile.mediaDecodeBackend,
-		mediaEncodeBackend: labBinding.profile.mediaEncodeBackend,
-		ofxGpuBackend: labBinding.profile.ofxGpuBackend,
-		displayServer: labBinding.profile.displayServer,
+		platformId: diagnosticBinding.platformId,
+		architecture: ARCHITECTURES[diagnosticBinding.platformId],
+		osImage: diagnosticBinding.observedHost.osImage,
+		osVersion: diagnosticBinding.observedHost.osVersion,
+		gpuModel: diagnosticBinding.observedHost.gpuModel,
+		driverVersion: diagnosticBinding.observedHost.driverVersion,
+		displayIdentity: diagnosticBinding.observedHost.displayIdentity,
 	};
 	for (const [field, expectedValue] of Object.entries(expected)) {
 		if (observed[field] !== expectedValue) {
-			throw new Error(`5B V2 observed runtime profile ${field} does not match its lab binding.`);
+			throw new Error(`5B V2 observed runtime profile ${field} does not match its diagnostic binding.`);
 		}
 	}
 	for (const field of [
@@ -104,7 +100,7 @@ export function validateM5bObservedRuntimeProfileV2(profileId, value, labBinding
 		if (digest !== null && (typeof digest !== 'string' || !SHA256.test(digest))) {
 			throw new Error(`5B V2 observed runtime profile ${field} must be a SHA-256 or null.`);
 		}
-		if (digest !== labBinding.artifacts[field]) {
+		if (digest !== diagnosticBinding.artifacts[field]) {
 			throw new Error(`5B V2 observed runtime profile ${field} does not match its artifact binding.`);
 		}
 	}

@@ -1,7 +1,0 @@
-{
-	"schemaVersion": 1,
-	"statementType": "soundscaper-milestone-5-package-release-authentication-v1",
-	"algorithm": "Ed25519",
-	"trustedKeys": [],
-	"blockedBy": "The repository owner review replaces the independent-reviewer and trust-key requirement. No per-target technical package evidence covering platform signatures, notarization or Linux attestations, and installer semantics has been supplied."
-}

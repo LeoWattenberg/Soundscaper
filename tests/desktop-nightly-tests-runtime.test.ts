@@ -367,7 +367,7 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 			packagedRuntimeJsonReport: 'packaged-runtime/results.json',
 			packagedRuntimeJunitReport: 'packaged-runtime/junit.xml',
 			packagedRuntimeRaw: 'packaged-runtime/raw.json',
-			packagedRuntimeSummary: 'packaged-runtime/summary.json', packagedRuntimeQualification: 'packaged-runtime/qualification.json',
+			packagedRuntimeSummary: 'packaged-runtime/summary.json',
 			packagedRuntimeTestResults: 'packaged-runtime/test-results',
 		},
 	});
@@ -406,13 +406,13 @@ test('the injected nightly runtime records terminal results and always closes it
 				? { code: 1, signal: null }
 				: { code: 0, signal: null };
 		},
-		writeMetricsEvidence: async ({ playwrightExit, runRoot }) => {
+		writeMetricsDiagnostics: async ({ playwrightExit, runRoot }) => {
 			metricsEvidenceCalls += 1;
 			assert.deepEqual(playwrightExit, { code: 0, signal: null });
 			assert.ok(runRoot);
 			return { passed: true };
 		},
-		writePackagedMetricsEvidence: async ({ playwrightExit, runRoot }) => {
+		writePackagedMetricsDiagnostics: async ({ playwrightExit, runRoot }) => {
 			packagedEvidenceCalls += 1;
 			assert.deepEqual(playwrightExit, { code: 0, signal: null });
 			assert.ok(runRoot);
@@ -530,8 +530,8 @@ test('the default Playwright child runner captures output and reaches a terminal
 		environment: { ...PACKAGED_ENVIRONMENT, PATH: process.env.PATH },
 	}, {
 		startStaticServer: productServerStub(49990),
-		writeMetricsEvidence: async () => ({ passed: true }),
-		writePackagedMetricsEvidence: async () => ({ passed: true }),
+		writeMetricsDiagnostics: async () => ({ passed: true }),
+		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
 	assert.equal(completed.exitCode, 0);
@@ -558,7 +558,7 @@ test('a Playwright child spawn error closes its log and records infrastructure f
 		environment: { PATH: process.env.PATH },
 	}, {
 		startStaticServer: productServerStub(49992),
-		writeMetricsEvidence: async () => ({ passed: true }),
+		writeMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
 	assert.equal(completed.exitCode, 2);
@@ -585,8 +585,8 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 			childCalls += 1;
 			return { code: 0, signal: null };
 		},
-		writeMetricsEvidence: async () => ({ passed: false }),
-		writePackagedMetricsEvidence: async () => ({ passed: true }),
+		writeMetricsDiagnostics: async () => ({ passed: false }),
+		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
 	assert.equal(childCalls, 3);

@@ -50,7 +50,7 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 	Object.freeze({
 		marker: 'milestone-2-offline-cache-qualification',
 		register: 'config/quality-budgets.json',
-		jsonPath: ['qualification', 'offlineCacheQualificationNarrative'],
+		jsonPath: ['offlineCacheNarrative'],
 		document: 'docs/quality-budgets.md',
 		intro: null,
 		wrap: 80,
@@ -58,7 +58,7 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 	Object.freeze({
 		marker: 'milestone-2-offline-cache-qualification-threat-model',
 		register: 'config/quality-budgets.json',
-		jsonPath: ['qualification', 'offlineCacheQualificationNarrative'],
+		jsonPath: ['offlineCacheNarrative'],
 		document: 'docs/production-threat-model.md',
 		intro: null,
 		wrap: 80,

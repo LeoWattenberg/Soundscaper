@@ -9,7 +9,6 @@ import executionRegister from '../../config/milestone-7-model-conversion-executi
 import catalogTaskRegister from '../../config/milestone-7-model-catalog-tasks.json' with { type: 'json' };
 import parityFixtures from '../../config/milestone-7-model-parity-fixtures.json' with { type: 'json' };
 import modelSupply from '../../config/milestone-7-model-supply-candidates.json' with { type: 'json' };
-import licensingMatrix from '../../config/production-licensing-matrix.json' with { type: 'json' };
 import {
 	validateMilestone7ModelCatalogTaskRegister,
 } from './milestone-7-model-catalog-tasks.mjs';
@@ -23,7 +22,6 @@ const register = validateMilestone7ModelCatalogTaskRegister(catalogTaskRegister,
 	parityFixtures,
 	conversionExecution: executionRegister,
 	runtimeSupply,
-	licensingEvidence: licensingMatrix.localModelEvidence,
 	offeredModelIds: checkedCatalog.entries.map(({ modelId }) => modelId),
 });
 
@@ -41,8 +39,6 @@ const report = Object.freeze({
 		catalogBlockedBy: task.catalogBlockedBy,
 		activationStatus: task.activationStatus,
 		activationBlockedBy: task.activationBlockedBy,
-		m9ReleaseReviewStatus: task.m9ReleaseReviewStatus,
-		m9ReleaseReviewBlockedBy: task.m9ReleaseReviewBlockedBy,
 		artifacts: task.artifacts.map((artifact) => Object.freeze({
 			role: artifact.role,
 			fileName: artifact.distributionFileName,

@@ -14,7 +14,7 @@ export const DEFAULT_QUALITY_BUDGET_SHA256 = sha256(DEFAULT_CONFIG_BYTES);
 
 /**
  * Bind an admitted quality configuration to its exact source bytes when those
- * bytes are available. Synthetic tests may omit them; historical qualification
+ * bytes are available. Synthetic tests may omit them; historical diagnostic
  * must supply the bytes fetched from the evidence revision.
  */
 export function qualityBudgetSha256(configValue = DEFAULT_CONFIG, exactBytesValue = null) {

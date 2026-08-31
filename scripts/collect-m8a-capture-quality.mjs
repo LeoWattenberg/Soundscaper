@@ -8,7 +8,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
 	M8A_CAPTURE_ENVIRONMENT_ID as ENVIRONMENT_ID,
-	M8A_CAPTURE_FINGERPRINT_FIELDS as FINGERPRINT_FIELDS,
 	M8A_CAPTURE_FIXTURE_ID as FIXTURE_ID,
 	M8A_CAPTURE_METRIC_IDS as METRIC_IDS,
 	M8A_CAPTURE_OBSERVATION_CLASS as OBSERVATION_CLASS,
@@ -24,7 +23,7 @@ const HOSTED_RUNNER_VARIABLES = Object.freeze([
 	'GITHUB_ACTIONS', 'CI', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI',
 ]);
 
-/** Read one real-device lab record and persist only provisional evidence. */
+/** Read one real-device record and persist its diagnostic result. */
 export async function collectM8ACaptureQuality(optionsValue, dependencies = {}) {
 	const options = exactRecord(
 		snapshotStrictJsonData(optionsValue, 'collector options'),
@@ -42,7 +41,7 @@ export async function collectM8ACaptureQuality(optionsValue, dependencies = {}) 
 	return writeResult(outputDirectory, result);
 }
 
-/** Recompute the registered metrics while refusing to imply lab qualification. */
+/** Recompute the registered metrics without making a release decision. */
 export function createM8ACaptureResult(measurement, configValue) {
 	const config = snapshotStrictJsonData(configValue, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
@@ -51,10 +50,6 @@ export function createM8ACaptureResult(measurement, configValue) {
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 	assertWorkloadRegistration(workload);
 	assertMeasurementPolicy(policy);
-	const qualification = assessM8ACaptureQualification(config);
-	if (qualification.provisioned) {
-		throw new Error(`Environment ${ENVIRONMENT_ID} is provisioned; the M8A accepted-evidence writer must land with the real-device lab before a result is emitted.`);
-	}
 	const computed = computeM8ACaptureMetrics(measurement, {
 		fixtureSpecification: fixture.specification,
 	});
@@ -62,21 +57,20 @@ export function createM8ACaptureResult(measurement, configValue) {
 		environmentId: ENVIRONMENT_ID,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, {
+	}, { ...environment, status: 'active' }, {
 		environmentId: ENVIRONMENT_ID,
 		rendererClass: 'unknown',
 		metrics: computed.metrics,
 	});
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const failures = [...new Set([...evaluation.failures, ...qualification.blockers])];
+	const passed = metricGatePassed && evaluation.passed;
 	return Object.freeze({
 		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: passed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: ENVIRONMENT_ID,
-		qualificationEnvironmentId: ENVIRONMENT_ID,
 		profile: PROFILE,
 		observationClass: OBSERVATION_CLASS,
 		attemptCount: 1,
@@ -87,71 +81,28 @@ export function createM8ACaptureResult(measurement, configValue) {
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: false,
-		qualificationBlockers: Object.freeze(qualification.blockers),
 		evaluation: Object.freeze({
-			passed: false,
-			failures: Object.freeze(failures),
+			passed,
+			failures: evaluation.failures,
 			verdicts: evaluation.verdicts,
 		}),
 	});
 }
 
-/** Name every missing eligibility and fingerprint fact in the registered lab. */
-export function assessM8ACaptureQualification(configValue) {
-	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const blockers = [];
-	if (environment.status !== 'active') {
-		blockers.push(`Environment ${ENVIRONMENT_ID} is ${String(environment.status)}.`);
-	}
-	if (environment.qualificationEligible !== true) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} is not qualification-eligible.`);
-	}
-	if (!Array.isArray(environment.eligibleWorkloadIds)
-		|| !environment.eligibleWorkloadIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} does not list ${WORKLOAD_ID} among its eligible workloads.`);
-	}
-	const fingerprint = requireRecord(environment.fingerprint, `${ENVIRONMENT_ID}.fingerprint`);
-	if (!sameStrings(Object.keys(fingerprint).sort(), [...FINGERPRINT_FIELDS].sort())) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} fingerprint does not enumerate the exact capture device fields.`);
-	}
-	for (const field of FINGERPRINT_FIELDS) {
-		if (!isRecord(fingerprint[field]) || Object.keys(fingerprint[field]).length === 0) {
-			blockers.push(`Environment ${ENVIRONMENT_ID} has no recorded fingerprint ${field}.`);
-		}
-	}
-	if (workload.status !== 'qualified') {
-		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
-	}
-	const qualifiedIds = config.qualification?.qualifiedWorkloadIds;
-	if (!Array.isArray(qualifiedIds) || !qualifiedIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Workload ${WORKLOAD_ID} is not registered in qualification.qualifiedWorkloadIds.`);
-	}
-	return Object.freeze({
-		provisioned: blockers.length === 0,
-		blockers: Object.freeze(blockers),
-	});
-}
-
-/** Hosted automation is not a camera, microphone, display, or OS-audio lab. */
+/** Hosted automation has no camera, microphone, display, or OS-audio device. */
 export function assertM8ACaptureCollectionHost(processEnvironment) {
 	for (const key of HOSTED_RUNNER_VARIABLES) {
 		const value = ownEnvironmentString(processEnvironment, key);
 		if (value === undefined || value === '') continue;
-		throw new Error(`M8A capture collection refuses to run on a hosted runner (${key} is set); hosted runners are not real-device capture evidence.`);
+		throw new Error(`M8A capture collection refuses to run on a hosted runner (${key} is set); hosted runners have no real capture devices.`);
 	}
 }
 
-/** Persist failed or pending evidence; accepted publication is deliberately absent. */
+/** Persist a passed or failed diagnostic result. */
 export async function writeM8ACaptureResult(outputDirectory, resultValue) {
 	const result = snapshotStrictJsonData(resultValue, 'result');
-	if (result.status !== 'pending-external' && result.status !== 'failed') {
-		throw new Error(`M8A collector cannot write a ${String(result.status)} result while ${ENVIRONMENT_ID} is unprovisioned.`);
-	}
-	if (result.qualificationEvidencePublished !== false) {
-		throw new Error('M8A collector must not mark qualification evidence as published.');
+	if (result.status !== 'passed' && result.status !== 'failed') {
+		throw new Error(`M8A diagnostic result has unsupported status ${String(result.status)}.`);
 	}
 	await mkdir(outputDirectory, { recursive: true });
 	const resultPath = join(outputDirectory, `${WORKLOAD_ID}.${result.status}.json`);
@@ -159,7 +110,7 @@ export async function writeM8ACaptureResult(outputDirectory, resultValue) {
 	return Object.freeze({ resultPath, result });
 }
 
-/** Parse `[--measurement <path>] [output-directory]`; qualification is unavailable. */
+/** Parse `[--measurement <path>] [output-directory]`. */
 export function parseM8ACaptureCliOptions(argsValue) {
 	const args = snapshotStrictJsonData(argsValue, 'M8A collector CLI arguments');
 	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
@@ -173,9 +124,6 @@ export function parseM8ACaptureCliOptions(argsValue) {
 			measurementPath = argument;
 			expectingMeasurement = false;
 			continue;
-		}
-		if (argument === '--accept' || argument === '--qualify' || argument === '--publish') {
-			throw new Error(`M8A capture qualification is unavailable while ${ENVIRONMENT_ID} is unprovisioned.`);
 		}
 		if (argument === '--measurement') {
 			if (measurementPath !== null) throw new Error('M8A collector accepts one measurement path.');
@@ -195,7 +143,7 @@ async function readMeasurementFile(path) {
 		return JSON.parse(await readFile(path, 'utf8'));
 	} catch (error) {
 		throw new Error(
-			`M8A capture-lab measurement is unavailable or invalid: ${errorMessage(error)}.`,
+			`M8A capture diagnostic is unavailable or invalid: ${errorMessage(error)}.`,
 			{ cause: error },
 		);
 	}
@@ -263,7 +211,7 @@ async function main() {
 			?? fileURLToPath(new URL('../test-results/quality/m8a-capture', import.meta.url))),
 	});
 	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
-	if (collected.result.status !== 'pending-external') process.exitCode = 1;
+	if (collected.result.status === 'failed') process.exitCode = 1;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) await main();

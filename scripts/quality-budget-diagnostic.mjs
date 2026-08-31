@@ -17,7 +17,7 @@ const MEASUREMENT_CLASS = 'first-party-owned-structural-counters';
 
 /**
  * Persist one no-retry structural workload result without overwriting prior
- * evidence. Metrics are evaluated before any file is created and the completed
+ * diagnostic output. Metrics are evaluated before any file is created and the completed
  * files are verified again from disk.
  *
  * @param {{
@@ -36,7 +36,7 @@ const MEASUREMENT_CLASS = 'first-party-owned-structural-counters';
  *   sourceRevision: string,
  * } | undefined} providedRuntime
  */
-export async function writeStructuralQualityBudgetEvidence(options, providedRuntime = undefined) {
+export async function writeStructuralQualityBudgetDiagnostic(options, providedRuntime = undefined) {
 	const configPath = ownDataValue(options, 'configPath');
 	const outputDirectory = ownDataValue(options, 'outputDirectory');
 	const workloadId = ownDataValue(options, 'workloadId');
@@ -45,13 +45,13 @@ export async function writeStructuralQualityBudgetEvidence(options, providedRunt
 	if ((typeof configPath !== 'string' && !(configPath instanceof URL))
 		|| typeof outputDirectory !== 'string'
 		|| typeof workloadId !== 'string') {
-		throw new Error('Quality evidence options contain invalid path or workload fields.');
+		throw new Error('Quality diagnostic options contain invalid path or workload fields.');
 	}
 	const runtime = providedRuntime === undefined
 		? await collectRuntime()
 		: snapshotJsonData(providedRuntime, 'runtime');
 	if (runtime.gitStatus.trim() !== '') {
-		throw new Error('Quality evidence requires a clean checkout.');
+		throw new Error('Quality diagnostics require a clean checkout.');
 	}
 	const configBytes = await readFile(configPath);
 	const config = JSON.parse(configBytes.toString('utf8'));
@@ -74,7 +74,7 @@ export async function writeStructuralQualityBudgetEvidence(options, providedRunt
 		measurementClass: MEASUREMENT_CLASS,
 	};
 	const rawArtifactName = `${workloadId}.raw.json`;
-	const resultArtifactName = `${workloadId}.accepted.json`;
+	const resultArtifactName = `${workloadId}.result.json`;
 	const rawPath = join(outputDirectory, rawArtifactName);
 	const resultPath = join(outputDirectory, resultArtifactName);
 	const raw = {
@@ -100,7 +100,7 @@ export async function writeStructuralQualityBudgetEvidence(options, providedRunt
 		sourceRevision: runtime.sourceRevision,
 		attemptCount: 1,
 		retryCount: 0,
-		rawEvidence: {
+		rawArtifact: {
 			artifactName: rawArtifactName,
 			byteLength: rawBytes.byteLength,
 			sha256: sha256(rawBytes),
@@ -126,7 +126,7 @@ export async function writeStructuralQualityBudgetEvidence(options, providedRunt
 		expectedSourceRevision: runtime.sourceRevision,
 	});
 	if (!diskEvaluation.passed) {
-		throw new Error(`Written quality evidence failed verification:\n${diskEvaluation.failures.join('\n')}`);
+		throw new Error(`Written quality diagnostic failed verification:\n${diskEvaluation.failures.join('\n')}`);
 	}
 	return Object.freeze({ rawPath, resultPath, evaluation: diskEvaluation });
 }
@@ -157,10 +157,10 @@ function exactDescriptor(collection, id, label) {
 }
 
 function ownDataValue(record, property) {
-	if (!isRecord(record)) throw new Error('Quality evidence options must be a plain record.');
+	if (!isRecord(record)) throw new Error('Quality diagnostic options must be a plain record.');
 	const descriptor = Object.getOwnPropertyDescriptor(record, property);
 	if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-		throw new Error(`Quality evidence ${property} must use only own data properties.`);
+		throw new Error(`Quality diagnostic ${property} must use only own data properties.`);
 	}
 	return descriptor.value;
 }
@@ -168,7 +168,7 @@ function ownDataValue(record, property) {
 function snapshotJsonData(value, path) {
 	if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
 	if (typeof value === 'number') {
-		if (!Number.isFinite(value)) throw new Error(`Quality evidence ${path} must be finite JSON data.`);
+		if (!Number.isFinite(value)) throw new Error(`Quality diagnostic ${path} must be finite JSON data.`);
 		return value;
 	}
 	if (Array.isArray(value)) {
@@ -176,7 +176,7 @@ function snapshotJsonData(value, path) {
 		for (let index = 0; index < value.length; index += 1) {
 			const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
 			if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-				throw new Error(`Quality evidence ${path} must contain only own data properties.`);
+				throw new Error(`Quality diagnostic ${path} must contain only own data properties.`);
 			}
 			snapshot.push(snapshotJsonData(descriptor.value, `${path}[${index}]`));
 		}
@@ -184,16 +184,16 @@ function snapshotJsonData(value, path) {
 	}
 	if (!isRecord(value)
 		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		throw new Error(`Quality evidence ${path} must be plain JSON data.`);
+		throw new Error(`Quality diagnostic ${path} must be plain JSON data.`);
 	}
 	const snapshot = {};
 	for (const key of Reflect.ownKeys(value)) {
 		if (typeof key !== 'string') {
-			throw new Error(`Quality evidence ${path} must contain only string-keyed own data properties.`);
+			throw new Error(`Quality diagnostic ${path} must contain only string-keyed own data properties.`);
 		}
 		const descriptor = Object.getOwnPropertyDescriptor(value, key);
 		if (!descriptor || !Object.hasOwn(descriptor, 'value')) {
-			throw new Error(`Quality evidence ${path} must contain only own data properties.`);
+			throw new Error(`Quality diagnostic ${path} must contain only own data properties.`);
 		}
 		snapshot[key] = snapshotJsonData(descriptor.value, `${path}.${key}`);
 	}
@@ -207,7 +207,7 @@ async function assertAbsent(path) {
 		if (isMissingFile(error)) return;
 		throw error;
 	}
-	throw new Error(`Quality evidence already exists at ${path}.`);
+	throw new Error(`Quality diagnostic already exists at ${path}.`);
 }
 
 function isMissingFile(error) {

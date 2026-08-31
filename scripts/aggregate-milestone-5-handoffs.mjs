@@ -13,17 +13,17 @@ let handoffDirectory = null;
 let packageDirectory = null;
 let outputPath = null;
 let productId = null;
-let requireAutomatedReady = false;
+let requirePass = false;
 for (let index = 2; index < process.argv.length; index += 1) {
 	const argument = process.argv[index];
-	if (argument === '--require-ready') {
-		throw new Error('--require-ready is ambiguous; use --require-automated-ready.');
+	if (['--require-ready', '--require-automated-ready'].includes(argument)) {
+		throw new Error(`${argument} was removed; use --require-pass.`);
 	}
-	if (argument === '--require-automated-ready') {
-		if (requireAutomatedReady) {
-			throw new Error('--require-automated-ready may be supplied only once.');
+	if (argument === '--require-pass') {
+		if (requirePass) {
+			throw new Error('--require-pass may be supplied only once.');
 		}
-		requireAutomatedReady = true;
+		requirePass = true;
 		continue;
 	}
 	if (['--input-directory', '--package-directory', '--output', '--product'].includes(argument)) {
@@ -66,4 +66,4 @@ const handoff = packageDirectory === null
 const bytes = `${JSON.stringify(handoff, null, '\t')}\n`;
 if (outputPath) writeFileSync(resolve(outputPath), bytes, { flag: 'wx' });
 else process.stdout.write(bytes);
-if (requireAutomatedReady && !handoff.milestoneAutomatedReady) process.exitCode = 1;
+if (requirePass && !handoff.passed) process.exitCode = 1;

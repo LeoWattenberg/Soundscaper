@@ -91,7 +91,7 @@ test('Web VCR HTTPS fixture persists only its bounded secure authorization cooki
 	assert.match(String(logout.headers['set-cookie']), /Max-Age=0/u);
 });
 
-test('Web VCR HTTPS fixture serves popup, input, media, and redirect qualification routes', async (t) => {
+test('Web VCR HTTPS fixture serves popup, input, media, and redirect diagnostic routes', async (t) => {
 	const fixture = await createFramescaperWebVcrHttpsFixture();
 	t.after(() => fixture.close());
 	const index = await fetchFixture(fixture, '/');

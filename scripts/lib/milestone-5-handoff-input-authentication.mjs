@@ -44,29 +44,13 @@ export function authenticateMilestone5HandoffAuditorInputs({
 		assertDescriptor(observed, inputDigests[path],
 			`Milestone 5 payload auditor input ${path} drifted from the handoff authority.`);
 	}
-	assertDescriptor(
-		inputs.qualificationAudit.registerEvidence,
-		{ path: 'config/milestone-5-qualification-evidence.json',
-			...inputDigests['config/milestone-5-qualification-evidence.json'] },
-		'Milestone 5 qualification register drifted from the handoff authority.',
-	);
 	authenticateSourceRegister(inputs.sourceAcquisitions, inputs.sourceAcquisitionRegister);
 	for (const [path, observed] of Object.entries(inputs.sourceAcquisitions.inputDigests ?? {})) {
 		assertDescriptor(observed, inputDigests[path],
 			`Milestone 5 native-source auditor input ${path} drifted from the handoff authority.`);
 	}
-	if (inputs.packageAudit !== undefined) {
-		assertDescriptor(
-			inputs.packageAudit.releaseAuthentication.policyEvidence,
-			{ name: 'config/milestone-5-package-release-authentication-policy.json',
-				...inputDigests['config/milestone-5-package-release-authentication-policy.json'] },
-			'Milestone 5 package authentication policy drifted from the handoff authority.',
-		);
-	}
-	// Keep the immutable policy bytes live until all package authentication has
-	// completed; callers use this exact Buffer rather than reopening its path.
-	if (!Buffer.isBuffer(inputBytes['config/milestone-5-package-release-authentication-policy.json'])) {
-		throw new Error('Milestone 5 package authentication policy bytes are unavailable.');
+	if (!inputBytes || typeof inputBytes !== 'object') {
+		throw new Error('Milestone 5 package-audit input bytes are unavailable.');
 	}
 }
 

@@ -21,9 +21,6 @@ import { fileURLToPath } from 'node:url';
 
 import { desktopReleaseTargetPackageInventory } from './desktop-release-assets.mjs';
 import {
-	milestone5PackageReleaseAuthenticationEvidenceName,
-} from './lib/milestone-5-package-release-authentication.mjs';
-import {
 	readProductReleaseLines,
 	resolveProductApplicationVersion,
 } from './lib/product-release-lines.mjs';
@@ -62,11 +59,9 @@ export async function stageMilestone5PackageRoot({
 		if (matches.length !== 1) throw new Error(`Packaging produced no single ${label}.`);
 		return matches[0];
 	});
-	const releaseAuthentication = milestone5PackageReleaseAuthenticationEvidenceName(productId, targetId);
 	const staged = [
 		...packages,
 		`runtime-manifest-${productId}-${targetId}.json`,
-		...(files.includes(releaseAuthentication) ? [releaseAuthentication] : []),
 	];
 	await rm(output, { recursive: true, force: true });
 	await mkdir(output, { recursive: true });

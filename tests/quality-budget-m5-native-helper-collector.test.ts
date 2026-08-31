@@ -16,16 +16,11 @@ import {
 } from '../scripts/lib/m5-native-helper-metrics.mjs';
 import {
 	assertM5NativeHelperCollectionHost,
-	assessM5NativeHelperQualification,
 	collectM5NativeHelperQuality,
 	createM5NativeHelperResult,
 	parseM5NativeHelperCliOptions,
 	writeM5NativeHelperResult,
 } from '../scripts/collect-m5-native-helper-quality.mjs';
-import {
-	M5_NATIVE_HELPER_COHORT_PROFILE_IDS_V2,
-	createM5NativeHelperCohort,
-} from '../scripts/lib/m5-native-helper-cohort.mjs';
 import { qualityBudgetSha256 } from '../scripts/lib/quality-budget-config-digest.mjs';
 
 type Threshold = { readonly metricId: string; readonly comparison: string; readonly value: number };
@@ -42,18 +37,6 @@ type Config = {
 	readonly fixtures: readonly Descriptor[];
 	readonly workloads: readonly Descriptor[];
 };
-/** A JSON clone the provisioning test may edit; the checked-in config stays read-only. */
-type MutableConfig = {
-	qualification: { qualifiedWorkloadIds: string[] };
-	environments: Array<Record<string, unknown> & { id: string }>;
-	workloads: Array<Record<string, unknown> & { id: string }>;
-};
-type V2Measurement = {
-	platformId: string;
-	observedRuntimeProfile: Record<'audioBackend' | 'audioMode', string> & Record<'bufferFrames' | 'sampleRate', number>;
-	labBinding: { platformId: string; profileId: string; physicalHost: Record<string, unknown> };
-};
-
 const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
 	'utf8',
@@ -124,7 +107,7 @@ function makeMeasurement(): Record<string, unknown> {
 		observationClass: 'fresh-helper-fault-and-device-loopback-v1',
 		workloadId: 'm5-native-helper-and-audio',
 		fixtureId: 'm5-helper-fault-and-loopback-v1',
-		environmentId: 'native-os-lab-matrix',
+		environmentId: 'native-os-diagnostics',
 		platformId: 'windowsX64',
 		fingerprint: makeFingerprint(),
 		warmupRuns: [makeRun(0, 'warmup')],
@@ -144,25 +127,24 @@ function makeV2Measurement(): Record<string, unknown> {
 			audioBackend: 'asio', audioMode: 'direct', sampleRate: 48_000, bufferFrames: 128,
 			deviceIdentity: 'RME Fireface UCX II', driverIdentity: '1.226',
 		},
-		labBinding: {
+		diagnosticBinding: {
 			schemaVersion: 2,
-			environmentId: 'native-os-lab-matrix',
+			environmentId: 'native-os-diagnostics',
 			platformId: 'windowsX64',
-			profileId: 'soundscaper-windows-x64-asio',
-			physicalHost: {
-				hostId: 'lab-windows-x64-01',
+			observedHost: {
+				hostId: 'diagnostic-windows-x64-01',
 				platformId: 'windowsX64',
 				architecture: 'x64',
-				osImage: 'Windows 11 lab image',
+				osImage: 'Windows 11 diagnostic image',
 				osVersion: '10.0.26100',
 				cpuModel: 'AMD Ryzen 9 7950X',
 				logicalCpuCount: 32,
 				memoryBytes: 68_719_476_736,
-				gpuModel: 'Lab GPU',
+				gpuModel: 'Observed GPU',
 				driverVersion: '1.0',
 				audioInterfaceModel: 'RME Fireface UCX II',
 				audioDriverVersion: '1.226',
-				displayIdentity: 'Lab display',
+				displayIdentity: 'Observed display',
 			},
 			artifacts: {
 				sourceRevision: 'f'.repeat(40),
@@ -176,29 +158,6 @@ function makeV2Measurement(): Record<string, unknown> {
 			},
 		},
 	};
-}
-
-function makeV2MeasurementForProfile(labProfileId: string): Record<string, unknown> {
-	const candidate = makeV2Measurement() as V2Measurement;
-	const environment = config.environments.find(({ id }) => id === 'native-os-lab-matrix') as Descriptor & {
-		profiles: Array<{ id: string; platformId: string; audioBackend: string; audioMode: string; audioSampleRate: number; audioBufferFrames: number }>;
-	};
-	const profile = environment.profiles.find(({ id }) => id === labProfileId)!;
-	const architecture = ['windowsX64', 'linuxX64'].includes(profile.platformId) ? 'x64' : 'arm64';
-	candidate.platformId = profile.platformId;
-	candidate.labBinding.platformId = profile.platformId;
-	candidate.labBinding.profileId = labProfileId;
-	candidate.observedRuntimeProfile.audioBackend = profile.audioBackend;
-	candidate.observedRuntimeProfile.audioMode = profile.audioMode;
-	candidate.observedRuntimeProfile.sampleRate = profile.audioSampleRate;
-	candidate.observedRuntimeProfile.bufferFrames = profile.audioBufferFrames;
-	candidate.labBinding.physicalHost = {
-		...candidate.labBinding.physicalHost,
-		hostId: `lab-${profile.platformId}-01`,
-		platformId: profile.platformId,
-		architecture,
-	};
-	return candidate;
 }
 
 test('the eight computed metric ids are exactly the registered thresholds', () => {
@@ -237,49 +196,33 @@ test('a complete record is recomputed and evaluated against the checked-in thres
 	assert.equal(result.rawSampleCounts.loopbackSecondsPerRun, 1_800);
 });
 
-test('schema V2 binds helper metrics to a registered lab profile without reinterpreting V1', () => {
-	const labEnvironment = config.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
+test('schema V2 binds helper metrics to the observed host without a configured hardware row', () => {
+	const diagnosticEnvironment = config.environments.find(({ id }) => id === 'native-os-diagnostics')!;
 	const computed = computeM5NativeHelperMetrics(makeV2Measurement(), {
 		...expectation,
 		budgetSha256: qualityBudgetSha256(config),
-		labEnvironment,
+		diagnosticEnvironment,
 	} as Parameters<typeof computeM5NativeHelperMetrics>[1]) as unknown as {
 		schemaVersion: number;
-		labBinding: { profileId: string; artifacts: { helperBinarySha256: string } };
+		diagnosticBinding: { platformId: string; artifacts: { helperBinarySha256: string } };
 		observedRuntimeProfile: { audioBackend: string };
 		metrics: Readonly<Record<string, number>>;
 	};
 	assert.equal(computed.schemaVersion, 2);
-	assert.equal(computed.labBinding.profileId, 'soundscaper-windows-x64-asio');
-	assert.equal(computed.labBinding.artifacts.helperBinarySha256, DIGEST);
+	assert.equal(computed.diagnosticBinding.platformId, 'windowsX64');
+	assert.equal(computed.diagnosticBinding.artifacts.helperBinarySha256, DIGEST);
 	assert.equal(computed.observedRuntimeProfile.audioBackend, 'asio');
 	assert.deepEqual(computed.metrics, computeM5NativeHelperMetrics(makeMeasurement(), expectation).metrics);
 	assert.throws(
 		() => validateM5NativeHelperMeasurement({
 			...makeV2Measurement(),
 			platformId: 'linuxX64',
-		}, { ...expectation, budgetSha256: qualityBudgetSha256(config), labEnvironment }),
+		}, { ...expectation, budgetSha256: qualityBudgetSha256(config), diagnosticEnvironment }),
 		/platformId does not match/iu,
 	);
-	const relabelled = makeV2Measurement() as { observedRuntimeProfile: { audioMode: string } };
-	relabelled.observedRuntimeProfile.audioMode = 'shared';
-	assert.throws(() => validateM5NativeHelperMeasurement(relabelled, { ...expectation, budgetSha256: qualityBudgetSha256(config), labEnvironment }), /observed runtime profile/iu);
-});
-
-test('the V2 Soundscaper cohort covers every required backend configuration', () => {
-	const measurements = M5_NATIVE_HELPER_COHORT_PROFILE_IDS_V2.map(makeV2MeasurementForProfile);
-	const cohort = createM5NativeHelperCohort(measurements, config);
-	assert.equal(cohort.status, 'pending-external');
-	assert.equal(cohort.profiles.length, M5_NATIVE_HELPER_COHORT_PROFILE_IDS_V2.length);
-	assert.ok(cohort.labProfileIds.includes('soundscaper-windows-x64-wasapi-exclusive'));
-	assert.ok(cohort.labProfileIds.includes('soundscaper-windows-arm64-asio'));
-	assert.ok(cohort.labProfileIds.includes('soundscaper-linux-arm64-alsa'));
-	assert.equal(cohort.qualificationEvidencePublished, false);
-	assert.equal(cohort.budgetSha256, qualityBudgetSha256(config));
-	assert.throws(
-		() => createM5NativeHelperCohort(measurements.slice(1), config),
-		/requires exactly/iu,
-	);
+	const relabelled = makeV2Measurement() as { observedRuntimeProfile: { audioBackend: string } };
+	relabelled.observedRuntimeProfile.audioBackend = 'coreaudio';
+	assert.throws(() => validateM5NativeHelperMeasurement(relabelled, { ...expectation, budgetSha256: qualityBudgetSha256(config), diagnosticEnvironment }), /observed runtime profile/iu);
 });
 
 test('a breached threshold fails the metric gate instead of degrading to pending', () => {
@@ -337,71 +280,33 @@ test('the discarded warm-up still contributes its authorization and publication 
 	assert.equal(result.status, 'failed');
 });
 
-test('an unprovisioned lab matrix cannot publish; every missing fact is named', async () => {
-	const qualification = assessM5NativeHelperQualification(config);
-	assert.equal(qualification.provisioned, false);
-	for (const platformId of ['windowsX64', 'windowsArm64', 'macosArm64', 'linuxX64', 'linuxArm64']) {
-		assert.ok(
-			qualification.blockers.some((blocker: string) =>
-				blocker.includes(`no recorded fingerprint for platform ${platformId}`)),
-			`${platformId} must be named as a missing fingerprint row`,
-		);
-	}
-	assert.ok(qualification.blockers.some((blocker: string) => /is unprovisioned/u.test(blocker)));
-	assert.ok(qualification.blockers.some((blocker: string) => /not qualification-eligible/u.test(blocker)));
-	assert.ok(qualification.blockers.some((blocker: string) => /status is planned/u.test(blocker)));
-
+test('a device diagnostic reports thresholds without making a release decision', async () => {
 	const result = createM5NativeHelperResult(makeMeasurement(), config);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.evaluation.passed, false);
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.deepEqual(result.qualificationBlockers, qualification.blockers);
-	// The observed lab fingerprint stays beside the result; the null descriptor
-	// rows in config are never filled in from it.
+	assert.equal(result.status, 'passed');
+	assert.equal(result.evaluation.passed, true);
+	assert.equal('qualificationEvidencePublished' in result, false);
+	assert.equal('qualificationBlockers' in result, false);
+	// The observed fingerprint stays beside the result and no fixed hardware
+	// matrix is created from it.
 	assert.deepEqual(
 		(result as unknown as { observedFingerprint: Record<string, unknown> }).observedFingerprint,
 		makeFingerprint(),
 	);
-	const environment = config.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
-	assert.ok(Object.values(environment.fingerprint!).every((row) => row === null));
+	const environment = config.environments.find(({ id }) => id === 'native-os-diagnostics')!;
+	assert.equal('fingerprint' in environment, false);
+	assert.equal('profiles' in environment, false);
 
 	await assert.rejects(
 		writeM5NativeHelperResult('/unused', { ...result, status: 'accepted' }),
-		/cannot write a accepted result/u,
-	);
-	await assert.rejects(
-		writeM5NativeHelperResult('/unused', { ...result, qualificationEvidencePublished: true }),
-		/must not mark qualification evidence as published/u,
+		/unsupported status accepted/u,
 	);
 	assert.throws(
 		() => parseM5NativeHelperCliOptions(['--accept']),
-		/qualification is unavailable while native-os-lab-matrix is unprovisioned/u,
+		/Unknown M5 collector option --accept/u,
 	);
 });
 
-test('a provisioned matrix is refused outright rather than silently downgraded to pending', () => {
-	// A pending record with an empty blocker list would read as "measured and
-	// awaiting sign-off"; the truth is that no accepted-evidence writer exists.
-	const provisioned = JSON.parse(JSON.stringify(config)) as MutableConfig;
-	const environment = provisioned.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
-	environment.status = 'active';
-	environment.qualificationEligible = true;
-	environment.eligibleWorkloadIds = ['m5-native-helper-and-audio'];
-	environment.fingerprint = Object.fromEntries(
-		Object.keys(environment.fingerprint as Record<string, unknown>)
-			.map((platformId) => [platformId, makeFingerprint()]),
-	);
-	provisioned.workloads.find(({ id }) => id === 'm5-native-helper-and-audio')!.status = 'qualified';
-	provisioned.qualification.qualifiedWorkloadIds.push('m5-native-helper-and-audio');
-
-	assert.equal(assessM5NativeHelperQualification(provisioned).provisioned, true);
-	assert.throws(
-		() => createM5NativeHelperResult(makeMeasurement(), provisioned),
-		/accepted-evidence writer lands with the lab and must exist before a result is emitted/u,
-	);
-});
-
-test('a hosted runner may not file device evidence and the collector writes only pending records', async () => {
+test('a hosted runner may not file device diagnostics and the collector writes computed results', async () => {
 	assert.throws(
 		() => assertM5NativeHelperCollectionHost({ GITHUB_ACTIONS: 'true' }),
 		/hosted runners are not audio-device evidence/u,
@@ -426,7 +331,7 @@ test('a hosted runner may not file device evidence and the collector writes only
 	);
 	assert.equal(collected, written);
 	assert.equal((written as { directory: string }).directory, '/unused');
-	assert.equal((written as { result: { status: string } }).result.status, 'pending-external');
+	assert.equal((written as { result: { status: string } }).result.status, 'passed');
 });
 
 test('fewer than five fresh runs and any retried run are rejected outright', () => {
@@ -506,8 +411,7 @@ test('an incomplete fingerprint is a rejection, never a default', () => {
 		/nativeAddonSha256 must be one lowercase SHA-256/u,
 	);
 
-	// Filing a Windows loopback against the macOS row is the same relabelling the
-	// environment rule forbids, one level down.
+	// Filing a Windows loopback as a macOS observation is rejected.
 	const relabelled = makeMeasurement() as {
 		platformId: string;
 		fingerprint: Record<string, unknown>;
@@ -521,7 +425,7 @@ test('an incomplete fingerprint is a rejection, never a default', () => {
 	assert.doesNotThrow(() => validateM5NativeHelperMeasurement(relabelled, expectation));
 });
 
-test('every lab row admits exactly the backends the product publishes', () => {
+test('every supported platform admits only backends the product publishes', () => {
 	assert.deepEqual(
 		Object.keys(M5_NATIVE_HELPER_PLATFORM_AUDIO_BACKENDS),
 		[...M5_NATIVE_HELPER_PLATFORM_IDS],
@@ -537,12 +441,12 @@ test('every lab row admits exactly the backends the product publishes', () => {
 		}
 	}
 	// The union is the contract's publishable vocabulary exactly: a backend the
-	// product ships that no row admits could never be measured, and the synthetic
+	// product ships that no platform admits could never be measured, and the synthetic
 	// proof backend is never device evidence.
 	assert.deepEqual([...M5_NATIVE_HELPER_AUDIO_BACKENDS].sort(), [...publishable].sort());
 });
 
-test('a Linux row files evidence against PipeWire, the backend the product streams through', () => {
+test('a Linux diagnostic can report PipeWire, the backend the product streams through', () => {
 	const linux = makeMeasurement() as { platformId: string; fingerprint: Record<string, unknown> };
 	linux.platformId = 'linuxX64';
 	for (const backend of ['pipewire', 'alsa', 'jack']) {

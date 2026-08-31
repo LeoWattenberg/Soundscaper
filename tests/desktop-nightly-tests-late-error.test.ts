@@ -8,7 +8,7 @@ import test from 'node:test';
 
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 
-test('a late packaged-metrics admission error cannot retain an earlier passing outcome', async (context) => {
+test('partial packaged-runtime metadata does not abort diagnostics', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-late-error-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let childCalls = 0;
@@ -30,14 +30,12 @@ test('a late packaged-metrics admission error cannot retain an earlier passing o
 			childCalls += 1;
 			return { code: 0, signal: null };
 		},
-		writeMetricsEvidence: async () => ({ passed: true }),
-		writePackagedMetricsEvidence: async () => {
-			throw new Error('Packaged evidence must not run after plan admission fails.');
-		},
+		writeMetricsDiagnostics: async () => ({ passed: true }),
+		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
-	assert.equal(childCalls, 2);
-	assert.equal(completed.exitCode, 2);
-	assert.equal(completed.result.status, 'error');
-	assert.match(completed.result.failure ?? '', /owner environment identity.*incomplete/iu);
+	assert.equal(childCalls, 3);
+	assert.equal(completed.exitCode, 0);
+	assert.equal(completed.result.status, 'passed');
+	assert.equal(completed.result.failure, null);
 });

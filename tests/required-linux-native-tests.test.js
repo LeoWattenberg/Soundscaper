@@ -30,7 +30,7 @@ test('required Linux native mode rejects every implicit prerequisite skip', () =
 
 test('required Linux native mode preserves unrelated boolean platform skips', () => {
 	assert.equal(requiresLinuxNativeTestExecution(
-		true, '/checkout/tests/milestone-5-package-evidence.test.js'), false);
+		true, '/checkout/tests/milestone-5-package-audit.test.js'), false);
 });
 
 test('required Linux native mode preserves reviewed opt-in and build-output skips', () => {

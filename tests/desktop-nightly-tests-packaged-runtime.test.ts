@@ -75,7 +75,7 @@ test('packaged-runtime metrics run through the bundled Playwright driver', () =>
 	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'packaged-runtime-linux-x64');
 });
 
-test('packaged-runtime diagnostics record an explicitly non-authoritative identity when none is supplied', () => {
+test('packaged-runtime diagnostics do not invent host metadata when none is supplied', () => {
 	const plan = createDesktopNightlyTestsPackagedMetricsPlan({
 		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
 		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
@@ -86,14 +86,14 @@ test('packaged-runtime diagnostics record an explicitly non-authoritative identi
 		environment: { PATH: '/usr/bin' },
 	});
 
-	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION, 'not-recorded');
-	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID, 'not-recorded');
-	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE, 'not-recorded');
-	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE, 'not-recorded');
+	assert.equal('SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION' in plan.env, false);
+	assert.equal('SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID' in plan.env, false);
+	assert.equal('SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE' in plan.env, false);
+	assert.equal('SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE' in plan.env, false);
 });
 
-test('packaged-runtime qualification refuses a partially supplied owner environment identity', () => {
-	assert.throws(() => createDesktopNightlyTestsPackagedMetricsPlan({
+test('packaged-runtime diagnostics allow partial best-effort host metadata', () => {
+	const plan = createDesktopNightlyTestsPackagedMetricsPlan({
 		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
 		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
 		runRoot: '/tmp/Soundscaper-playwright-run',
@@ -104,7 +104,9 @@ test('packaged-runtime qualification refuses a partially supplied owner environm
 			PATH: '/usr/bin',
 			SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02',
 		},
-	}), /owner environment identity.*incomplete/iu);
+	});
+	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION, '555.42.02');
+	assert.equal('SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID' in plan.env, false);
 });
 
 test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers', () => {

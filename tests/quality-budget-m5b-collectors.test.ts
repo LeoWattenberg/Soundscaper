@@ -68,91 +68,68 @@ test('five exact 5B collector profiles bind the registered workloads and fixture
 		const workload = config.workloads.find(({ id }) => id === pipeline.workloadId);
 		assert.ok(workload, pipeline.workloadId);
 		assert.deepEqual(workload.fixtureIds, [pipeline.fixtureId]);
-		assert.deepEqual(workload.environmentIds, ['native-os-lab-matrix']);
+		assert.deepEqual(workload.environmentIds, ['native-os-diagnostics']);
 		assert.ok(workload.thresholds.length > 0);
 	}
 });
 
-test('each pipeline validates a closed measurement and remains pending-external', () => {
+test('each pipeline validates a closed measurement and reports its thresholds', () => {
 	for (const profileId of Object.keys(M5B_QUALITY_PIPELINES)) {
 		const measurement = validateM5bQualityMeasurement(profileId, makeMeasurement(profileId));
 		assert.equal(Object.isFrozen(measurement), true);
 		assert.equal(Object.isFrozen(measurement.metrics), true);
 		const result = createM5bQualityResult(profileId, measurement, config);
-		assert.equal(result.status, 'pending-external', profileId);
+		assert.equal(result.status, 'passed', profileId);
 		assert.equal(result.metricGatePassed, true, profileId);
-		assert.equal(result.qualificationEvidencePublished, false, profileId);
-		assert.ok(result.qualificationBlockers.some((value: string) => /unprovisioned/iu.test(value)));
-		assert.equal(result.evaluation.passed, false);
+		assert.equal('qualificationEvidencePublished' in result, false, profileId);
+		assert.equal(result.evaluation.passed, true);
 	}
 });
 
-test('a provisioned exact lab can produce digest-bound accepted target evidence', async () => {
+test('a diagnostic result is digest-bound to its raw measurement', async () => {
 	const profileId = 'persistent-services';
 	const measurement = makeMeasurement(profileId);
-	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint);
-	measurement.budgetSha256 = m5bQualityBudgetSha256(provisioned);
-	const result = createM5bQualityResult(profileId, measurement, provisioned);
-	assert.equal(result.status, 'accepted');
+	const result = createM5bQualityResult(profileId, measurement, config);
+	assert.equal(result.status, 'passed');
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.qualificationScope, 'single-target');
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.deepEqual(result.qualificationBlockers, []);
 	assert.equal(result.evaluation.passed, true);
 
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m5b-quality-'));
 	try {
-		const written = await writeM5bQualityResult(directory, measurement, result, provisioned);
-		assert.match(written.resultPath, /\.accepted\.json$/u);
+		const written = await writeM5bQualityResult(directory, measurement, result, config);
+		assert.match(written.resultPath, /\.passed\.json$/u);
 		const stored = JSON.parse(await readFile(written.resultPath, 'utf8')) as {
-			qualificationEvidencePublished: boolean;
 			raw: { sha256: string };
 		};
-		assert.equal(stored.qualificationEvidencePublished, false);
 		assert.match(stored.raw.sha256, /^[a-f\d]{64}$/u);
 	} finally {
 		await rm(directory, { recursive: true, force: true });
 	}
 });
 
-test('a software renderer cannot satisfy a provisioned hardware-renderer budget', () => {
+test('a software renderer cannot satisfy a hardware-renderer budget', () => {
 	const profileId = 'persistent-services';
 	const measurement = makeMeasurement(profileId);
 	measurement.rendererClass = 'software';
-	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint, 'hardware');
-	measurement.budgetSha256 = m5bQualityBudgetSha256(provisioned);
-	const result = createM5bQualityResult(profileId, measurement, provisioned);
-	assert.notEqual(result.status, 'accepted');
+	const hardwareConfig = structuredClone(config) as unknown as QualityConfig;
+	const environment = hardwareConfig.environments.find(({ id }) => id === 'native-os-diagnostics') as Record<string, unknown>;
+	environment.rendererRequirement = 'hardware';
+	measurement.budgetSha256 = m5bQualityBudgetSha256(hardwareConfig);
+	const result = createM5bQualityResult(profileId, measurement, hardwareConfig);
+	assert.equal(result.status, 'failed');
 	assert.equal(result.evaluation.passed, false);
 	assert.match(result.evaluation.failures.join('\n'), /hardware renderer.*software/iu);
 });
 
-test('accepted evidence requires the exact registered target fingerprint', () => {
+test('diagnostics retain the exact observed target fingerprint', () => {
 	const profileId = 'native-media';
 	const measurement = makeMeasurement(profileId);
-	const provisioned = provisionedConfig(profileId, {
-		...measurement.observedFingerprint,
-		mediaHostSha256: 'b'.repeat(64),
-	});
-	measurement.budgetSha256 = m5bQualityBudgetSha256(provisioned);
-	const result = createM5bQualityResult(profileId, measurement, provisioned);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.ok(result.qualificationBlockers.some((value: string) => /fingerprint/iu.test(value)));
+	const result = createM5bQualityResult(profileId, measurement, config);
+	assert.deepEqual(result.observedFingerprint, measurement.observedFingerprint);
 });
 
-test('accepted evidence requires explicit workload eligibility and no-retry source binding', () => {
+test('measurement admission enforces no-retry source and budget binding', () => {
 	const profileId = 'persistent-services';
-	const measurement = makeMeasurement(profileId);
-	const provisioned = provisionedConfig(profileId, measurement.observedFingerprint);
-	const environment = provisioned.environments.find(({ id }) => id === 'native-os-lab-matrix')!;
-	Reflect.deleteProperty(environment, 'eligibleWorkloadIds');
-	measurement.budgetSha256 = m5bQualityBudgetSha256(provisioned);
-	const result = createM5bQualityResult(profileId, measurement, provisioned);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
-	assert.ok(result.qualificationBlockers.some((value: string) => /eligible workload/iu.test(value)));
-
 	for (const mutation of [
 		(value: MutableMeasurement) => { value.sourceRevision = 'not-a-revision'; },
 		(value: MutableMeasurement) => { value.attemptCount = 2; },
@@ -168,28 +145,25 @@ test('accepted evidence requires explicit workload eligibility and no-retry sour
 	}
 });
 
-test('the evidence writer cannot publish a caller-forged accepted result', async () => {
+test('the diagnostic writer rejects a caller-forged result', async () => {
 	const measurement = makeMeasurement('native-media');
-	const pending = createM5bQualityResult('native-media', measurement, config);
+	const expected = createM5bQualityResult('native-media', measurement, config);
 	const forged = {
-		...pending,
-		status: 'accepted',
-		qualificationEvidencePublished: true,
-		qualificationBlockers: [],
-		evaluation: { ...pending.evaluation, passed: true, failures: [] },
+		...expected,
+		status: 'failed',
 	};
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m5b-quality-'));
 	try {
 		await assert.rejects(
 			writeM5bQualityResult(directory, measurement, forged),
-			/recomputed|qualification|result/iu,
+			/recomputed|thresholds|result/iu,
 		);
 	} finally {
 		await rm(directory, { recursive: true, force: true });
 	}
 });
 
-test('the evidence writer refuses a result detached from its raw measurement', async () => {
+test('the diagnostic writer refuses a result detached from its raw measurement', async () => {
 	const raw = makeMeasurement('native-media');
 	const other = makeMeasurement('persistent-services');
 	const result = createM5bQualityResult(
@@ -208,7 +182,7 @@ test('the evidence writer refuses a result detached from its raw measurement', a
 	}
 });
 
-test('native-lab evidence cannot be collected on a hosted CI runner', () => {
+test('native diagnostics cannot be collected on a hosted CI runner', () => {
 	assert.doesNotThrow(() => assertM5bCollectionHost({}));
 	for (const variable of ['GITHUB_ACTIONS', 'CI', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI']) {
 		assert.throws(() => assertM5bCollectionHost({ [variable]: 'true' }), /hosted-runner/iu);
@@ -232,8 +206,7 @@ test('all five collectors can derive one validated measurement from a bounded wo
 				processEnvironment: {},
 			});
 			assert.equal(collected.result.profileId, profileId);
-			assert.equal(collected.result.status, 'pending-external');
-			assert.equal(collected.result.qualificationEvidencePublished, false);
+			assert.equal(collected.result.status, 'passed');
 			const raw = JSON.parse(await readFile(collected.rawPath, 'utf8')) as { profileId: string };
 			assert.equal(raw.profileId, profileId);
 		}
@@ -372,7 +345,7 @@ test('the CLI exposes mutually exclusive offline and exact-command modes', () =>
 	);
 });
 
-test('a threshold miss is failed rather than disguised as pending qualification', () => {
+test('a threshold miss is a failed diagnostic', () => {
 	const measurement = makeMeasurement('clean-display');
 	measurement.metrics['cleanDisplay.corruptFrames'] = 1;
 	const result = createM5bQualityResult(
@@ -435,16 +408,16 @@ function makeMeasurement(profileId: string): MutableMeasurement {
 		profileId,
 		workloadId: pipeline.workloadId,
 		fixtureId: pipeline.fixtureId,
-		environmentId: 'native-os-lab-matrix',
+		environmentId: 'native-os-diagnostics',
 		platformId: 'linuxX64',
 		rendererClass: 'hardware',
 		observedFingerprint: {
 			platformId: 'linuxX64',
 			architecture: 'x64',
-			osVersion: 'qualification-fixture',
-			cpuModel: 'qualification-fixture',
-			gpuModel: 'qualification-fixture',
-			driverVersion: 'qualification-fixture',
+			osVersion: 'diagnostic-fixture',
+			cpuModel: 'diagnostic-fixture',
+			gpuModel: 'diagnostic-fixture',
+			driverVersion: 'diagnostic-fixture',
 			packageSha256: DIGEST,
 			mediaHostSha256: DIGEST,
 			sourceRevision: SOURCE_REVISION,
@@ -484,57 +457,5 @@ function nodeCommand(
 		arguments: ['--eval', source],
 		timeoutMilliseconds: overrides.timeoutMilliseconds ?? 5_000,
 		maxOutputBytes: overrides.maxOutputBytes ?? 128 * 1_024,
-	};
-}
-
-function provisionedConfig(
-	profileId: string,
-	fingerprint: unknown,
-	rendererRequirement?: 'hardware',
-): QualityConfig {
-	const candidate = structuredClone(config) as unknown as Record<string, unknown>;
-	const pipeline = M5B_QUALITY_PIPELINES[profileId as keyof typeof M5B_QUALITY_PIPELINES];
-	const environments = candidate.environments as Array<Record<string, unknown>>;
-	const environment = environments.find(({ id }) => id === 'native-os-lab-matrix')!;
-	environment.status = 'active';
-	environment.qualificationEligible = true;
-	environment.eligibleWorkloadIds = [pipeline.workloadId];
-	if (rendererRequirement !== undefined) environment.rendererRequirement = rendererRequirement;
-	environment.fingerprint = {
-		...(environment.fingerprint as Record<string, unknown>),
-		linuxX64: fingerprint,
-		windowsX64: fingerprintFor('windowsX64', 'x64'),
-		windowsArm64: fingerprintFor('windowsArm64', 'arm64'),
-		macosArm64: fingerprintFor('macosArm64', 'arm64'),
-		linuxArm64: fingerprintFor('linuxArm64', 'arm64'),
-	};
-	const fixtures = candidate.fixtures as Array<Record<string, unknown>>;
-	fixtures.find(({ id }) => id === pipeline.fixtureId)!.status = 'qualified';
-	const workloads = candidate.workloads as Array<Record<string, unknown>>;
-	workloads.find(({ id }) => id === pipeline.workloadId)!.status = 'qualified';
-	const qualification = candidate.qualification as Record<string, unknown>;
-	qualification.qualifiedWorkloadIds = [
-		...new Set([
-			...((qualification.qualifiedWorkloadIds as string[]) ?? []),
-			pipeline.workloadId,
-		]),
-	];
-	return candidate as unknown as QualityConfig;
-}
-
-function fingerprintFor(platformId: string, architecture: string): Record<string, unknown> {
-	return {
-		platformId,
-		architecture,
-		osVersion: 'qualification-fixture',
-		cpuModel: 'qualification-fixture',
-		gpuModel: 'qualification-fixture',
-		driverVersion: 'qualification-fixture',
-		packageSha256: DIGEST,
-		mediaHostSha256: DIGEST,
-		sourceRevision: SOURCE_REVISION,
-		workloadRunnerSha256: WORKLOAD_RUNNER_SHA256,
-		ofxScannerSha256: DIGEST,
-		ofxRuntimeHostSha256: DIGEST,
 	};
 }

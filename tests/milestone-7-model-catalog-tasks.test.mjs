@@ -10,7 +10,6 @@ import executionRegister from '../config/milestone-7-model-conversion-execution.
 import catalogTasks from '../config/milestone-7-model-catalog-tasks.json' with { type: 'json' };
 import parityFixtures from '../config/milestone-7-model-parity-fixtures.json' with { type: 'json' };
 import modelSupply from '../config/milestone-7-model-supply-candidates.json' with { type: 'json' };
-import licensingMatrix from '../config/production-licensing-matrix.json' with { type: 'json' };
 import {
 	validateMilestone7ModelCatalogTaskRegister,
 } from '../scripts/models/milestone-7-model-catalog-tasks.mjs';
@@ -25,7 +24,6 @@ function validate(value = catalogTasks) {
 		parityFixtures,
 		conversionExecution: executionRegister,
 		runtimeSupply,
-		licensingEvidence: licensingMatrix.localModelEvidence,
 		offeredModelIds: checkedCatalog.entries.map(({ modelId }) => modelId),
 	});
 }
@@ -54,8 +52,7 @@ test('seven pending catalog tasks map every Milestone 7 supply identity exactly'
 		assert.equal(task.catalogStatus, 'pending-external');
 		assert.equal(task.activationStatus, 'pending-external');
 		assert.ok(!task.catalogBlockedBy.includes('licensing-evidence'));
-		assert.equal(task.m9ReleaseReviewStatus, 'pending');
-		assert.deepEqual(task.m9ReleaseReviewBlockedBy, ['licensing-evidence']);
+		assert.ok(!Object.keys(task).some((field) => /releaseReview/iu.test(field)));
 		assert.ok(task.catalogBlockedBy.includes('immutable-public-readback'));
 		assert.ok(task.catalogBlockedBy.includes('external-catalog-signature'));
 		assert.ok(task.activationBlockedBy.includes('runtime-target-closure'));

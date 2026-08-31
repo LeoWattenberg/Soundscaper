@@ -21,8 +21,6 @@ const diagnostic = Object.freeze({
 		'streaming.retainedMediaPayloadBytes': 0,
 		'streaming.invalidPublishedRevisions': 0,
 	},
-	opfsQualified: false,
-	processRssQualified: false,
 });
 
 function reporterOutput(value: unknown): string {
@@ -37,7 +35,7 @@ test('the sparse Scape collector admits one exact reference diagnostic', async (
 			runCalls += 1;
 			return { stdout: reporterOutput(diagnostic), stderr: '' };
 		},
-		writeEvidence: async (options: unknown) => {
+		writeDiagnostic: async (options: unknown) => {
 			written = options;
 			return {
 				rawPath: '/raw',
@@ -61,8 +59,6 @@ test('the sparse Scape collector admits one exact reference diagnostic', async (
 			assetBytes: diagnostic.assetBytes,
 			assetSha256: diagnostic.assetSha256,
 			protocolRangeRequests: diagnostic.protocolRangeRequests,
-			opfsQualified: false,
-			processRssQualified: false,
 		},
 	});
 	assert.equal(result.evaluation.passed, true);
@@ -85,12 +81,12 @@ test('the sparse collector rejects missing, duplicate, and wrong-identity diagno
 	);
 });
 
-test('sparse reference failure prevents evidence publication', async () => {
+test('sparse reference failure prevents diagnostic publication', async () => {
 	let writeCalls = 0;
 	await assert.rejects(
 		collectScape8GibQualityEvidence({ outputDirectory: '/ignored' }, {
 			runReference: async () => { throw new Error('sparse reference failed'); },
-			writeEvidence: async () => {
+			writeDiagnostic: async () => {
 				writeCalls += 1;
 				return {
 					rawPath: '/raw',

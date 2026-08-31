@@ -9,14 +9,14 @@ const RESULT_FIELDS = Object.freeze([
 	'environmentId',
 	'fixtureIds',
 	'metrics',
-	'rawEvidence',
+	'rawArtifact',
 	'rendererClass',
 	'retryCount',
 	'schemaVersion',
 	'sourceRevision',
 	'workloadId',
 ]);
-const RAW_EVIDENCE_FIELDS = Object.freeze(['artifactName', 'byteLength', 'sha256']);
+const RAW_ARTIFACT_FIELDS = Object.freeze(['artifactName', 'byteLength', 'sha256']);
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const SOURCE_REVISION_PATTERN = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 const ARTIFACT_NAME_PATTERN = /^[A-Za-z\d][A-Za-z\d._-]{0,126}\.json$/u;
@@ -44,7 +44,6 @@ const ARTIFACT_NAME_PATTERN = /^[A-Za-z\d][A-Za-z\d._-]{0,126}\.json$/u;
  *   expectedEnvironment: {
  *     id: string,
  *     status: 'active' | 'unprovisioned',
- *     qualificationEligible: boolean,
  *     rendererRequirement: 'any' | 'hardware',
  *     fingerprint: Readonly<Record<string, unknown>>,
  *   },
@@ -104,7 +103,7 @@ export function evaluateQualityBudgetResult(expectation, candidate) {
 		failures.push('Result renderer class must be hardware, software, or unknown.');
 	}
 
-	validateRawEvidence(result.rawEvidence, failures);
+	validateRawArtifact(result.rawArtifact, failures);
 	validateMetrics(result.metrics, expectation.workload.thresholds, failures);
 
 	const metricEvaluation = evaluateQualityBudget(
@@ -128,20 +127,20 @@ export function evaluateQualityBudgetResult(expectation, candidate) {
 	});
 }
 
-function validateRawEvidence(value, failures) {
+function validateRawArtifact(value, failures) {
 	if (!isRecord(value)) {
-		failures.push('Result raw evidence must be a plain record.');
+		failures.push('Result raw artifact must be a plain record.');
 		return;
 	}
-	assertExactFields(value, RAW_EVIDENCE_FIELDS, 'raw evidence', failures);
+	assertExactFields(value, RAW_ARTIFACT_FIELDS, 'raw artifact', failures);
 	if (typeof value.artifactName !== 'string' || !ARTIFACT_NAME_PATTERN.test(value.artifactName)) {
-		failures.push('Result raw evidence artifact name must be one local JSON filename.');
+		failures.push('Result raw artifact name must be one local JSON filename.');
 	}
 	if (!Number.isSafeInteger(value.byteLength) || value.byteLength <= 0) {
-		failures.push('Result raw evidence byte length must be a positive safe integer.');
+		failures.push('Result raw artifact byte length must be a positive safe integer.');
 	}
 	if (typeof value.sha256 !== 'string' || !SHA256_PATTERN.test(value.sha256)) {
-		failures.push('Result raw evidence digest must be one lowercase SHA-256.');
+		failures.push('Result raw artifact digest must be one lowercase SHA-256.');
 	}
 }
 

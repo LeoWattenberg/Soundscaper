@@ -2,8 +2,6 @@
 
 import { isDeepStrictEqual } from 'node:util';
 
-import { NATIVE_OS_LAB_PROFILES_V2 } from './native-os-lab-schema.mjs';
-
 export const MILESTONE_5_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
 export const MILESTONE_5_TARGETS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
@@ -65,9 +63,6 @@ export function milestone5EngineeringScope(productIdsValue = MILESTONE_5_PRODUCT
 		? SOUNDSCAPER_MILESTONE_5_PAYLOAD_PRODUCTS : ALL_PAYLOAD_PRODUCTS;
 	const workloadIds = soundscaperStable
 		? SOUNDSCAPER_MILESTONE_5_WORKLOAD_IDS : ALL_WORKLOAD_IDS;
-	const labProfileIds = NATIVE_OS_LAB_PROFILES_V2
-		.filter(({ productId }) => !soundscaperStable || productId === 'soundscaper')
-		.map(({ id }) => id);
 	const payloadInputKeys = soundscaperStable
 		? ['soundscaperProfessionalPayload'] : ALL_PAYLOAD_INPUT_KEYS;
 	return deepFreeze({
@@ -78,10 +73,8 @@ export function milestone5EngineeringScope(productIdsValue = MILESTONE_5_PRODUCT
 		payloadProducts: [...payloadProducts],
 		payloadInputKeys: [...payloadInputKeys],
 		workloadIds: [...workloadIds],
-		labProfileIds,
 		sourceCount: sourceIds.length,
 		payloadCount: payloadProducts.length * MILESTONE_5_TARGETS.length,
-		labProfileCount: labProfileIds.length,
 	});
 }
 

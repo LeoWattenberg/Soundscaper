@@ -4,39 +4,28 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	assessMilestone5AutomatedReadiness,
-} from '../scripts/lib/milestone-5-handoff-automated-readiness.mjs';
+	assessMilestone5AutomatedAudit,
+} from '../scripts/lib/milestone-5-handoff-automated-audit.mjs';
 
 const DIGEST_A = 'a'.repeat(64);
 const DIGEST_B = 'b'.repeat(64);
 
-test('human review state cannot change Milestone 5 automated readiness or its digest', () => {
+test('non-audit metadata cannot change the Milestone 5 automated audit or its digest', () => {
 	const baseline = fixture();
 	const reviewed = structuredClone(baseline);
-	reviewed.sources[0].activationStatus = 'blocked';
-	reviewed.sources[0].blockedBy = 'Human licensing review is pending.';
-	reviewed.payloadRows[0].status = 'pending-external';
-	reviewed.payloadRows[0].blockedBy = 'Human isolation readiness is pending.';
-	reviewed.payloadRows[0].productionReadiness = {
-		verified: { status: 'authenticated', reviewer: 'Release reviewer' },
-	};
-	reviewed.packageAudit.status = 'release-authentication-pending';
-	reviewed.packageAudit.releaseAuthentication = {
-		status: 'pending-external', reviewer: null, blockedBy: 'Human signature is pending.',
-	};
-	reviewed.packageAudit.runtimeManifest.value.reviewPolicy = {
-		trustedKeys: [], blockedBy: 'Human reviewer has not accepted a key.',
-	};
+	reviewed.sources[0].notes = 'local cache copy';
+	reviewed.payloadRows[0].notes = 'debug build log retained elsewhere';
+	reviewed.packageAudit.notes = 'package smoke log retained elsewhere';
 
-	const first = assessMilestone5AutomatedReadiness(baseline);
-	const second = assessMilestone5AutomatedReadiness(reviewed);
-	assert.equal(first.packageCellAutomatedReady, true);
-	assert.equal(first.automatedStatus, 'automated-ready');
+	const first = assessMilestone5AutomatedAudit(baseline);
+	const second = assessMilestone5AutomatedAudit(reviewed);
+	assert.equal(first.passed, true);
+	assert.equal(first.status, 'passed');
 	assert.deepEqual(second, first);
 });
 
-test('source, payload, and package machine failures change automated evidence and block readiness', () => {
-	const baseline = assessMilestone5AutomatedReadiness(fixture());
+test('source, payload, and package failures change audit data and fail the automated audit', () => {
+	const baseline = assessMilestone5AutomatedAudit(fixture());
 	for (const [id, mutate] of [
 		['source-authentication:native-source', (value) => {
 			value.sources[0].authenticationStatus = 'pending-external';
@@ -53,18 +42,18 @@ test('source, payload, and package machine failures change automated evidence an
 	]) {
 		const changed = fixture();
 		mutate(changed);
-		const result = assessMilestone5AutomatedReadiness(changed);
-		assert.equal(result.packageCellAutomatedReady, false, id);
-		assert.equal(result.automatedStatus, 'automated-blocked', id);
-		assert.notEqual(result.automatedEvidenceSha256, baseline.automatedEvidenceSha256, id);
-		assert.ok(result.automatedBlockers.some((blocker) => blocker.id === id), id);
+		const result = assessMilestone5AutomatedAudit(changed);
+		assert.equal(result.passed, false, id);
+		assert.equal(result.status, 'failed', id);
+		assert.notEqual(result.evidenceSha256, baseline.evidenceSha256, id);
+		assert.ok(result.failures.some((blocker) => blocker.id === id), id);
 	}
 	const hashMismatch = fixture();
 	hashMismatch.sources[0].archiveEvidence.sha256 = DIGEST_B;
-	const mismatched = assessMilestone5AutomatedReadiness(hashMismatch);
-	assert.equal(mismatched.packageCellAutomatedReady, false);
-	assert.notEqual(mismatched.automatedEvidenceSha256, baseline.automatedEvidenceSha256);
-	assert.ok(mismatched.automatedBlockers.some(({ id }) => (
+	const mismatched = assessMilestone5AutomatedAudit(hashMismatch);
+	assert.equal(mismatched.passed, false);
+	assert.notEqual(mismatched.evidenceSha256, baseline.evidenceSha256);
+	assert.ok(mismatched.failures.some(({ id }) => (
 		id === 'source-authentication:native-source'
 	)));
 });
@@ -94,8 +83,6 @@ function fixture() {
 				fileCount: 2,
 				sha256: DIGEST_B,
 			},
-			activationStatus: 'accepted',
-			blockedBy: null,
 		}],
 		payloadRows: [{
 			identity: 'native:linux-x64',
@@ -103,13 +90,9 @@ function fixture() {
 			targetId: 'linux-x64',
 			buildStatus: 'built',
 			payloadEvidence: { path: 'native/payload.node', byteLength: 19, sha256: DIGEST_A },
-			status: 'built',
-			blockedBy: null,
-			productionReadiness: null,
 		}],
 		packageAudit: {
 			status: 'installed-application-closure-audited',
-			releaseAuthentication: { status: 'authenticated', reviewer: 'Reviewer' },
 			productId: 'native',
 			targetId: 'linux-x64',
 			applicationVersion: '1.0.0',
@@ -118,7 +101,7 @@ function fixture() {
 				name: 'runtime-manifest-native-linux-x64.json',
 				byteLength: 23,
 				sha256: DIGEST_A,
-				value: { reviewPolicy: { trustedKeys: ['human-key'] } },
+				value: {},
 			},
 			packages: [{
 				label: 'Linux package',

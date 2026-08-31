@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-	writeStructuralQualityBudgetEvidence,
-} from '../scripts/quality-budget-evidence.mjs';
+	writeStructuralQualityBudgetDiagnostic,
+} from '../scripts/quality-budget-diagnostic.mjs';
 
 const SOURCE_REVISION = 'c'.repeat(40);
 
@@ -29,7 +29,7 @@ const runtime: CollectorRuntime = Object.freeze({
 });
 
 async function outputDirectory(): Promise<string> {
-	return mkdtemp(join(tmpdir(), 'soundscaper-quality-evidence-'));
+	return mkdtemp(join(tmpdir(), 'soundscaper-quality-diagnostic-'));
 }
 
 function options(directory: string) {
@@ -52,13 +52,13 @@ function options(directory: string) {
 	};
 }
 
-test('one clean structural run writes and re-verifies raw and accepted evidence', async () => {
+test('one clean structural run writes and re-verifies raw and result diagnostics', async () => {
 	const directory = await outputDirectory();
-	const written = await writeStructuralQualityBudgetEvidence(options(directory), runtime);
+	const written = await writeStructuralQualityBudgetDiagnostic(options(directory), runtime);
 
 	assert.equal(written.evaluation.passed, true);
 	assert.equal(written.rawPath, join(directory, 'm2-direct-wav-385mib-v1.raw.json'));
-	assert.equal(written.resultPath, join(directory, 'm2-direct-wav-385mib-v1.accepted.json'));
+	assert.equal(written.resultPath, join(directory, 'm2-direct-wav-385mib-v1.result.json'));
 	const [raw, result] = await Promise.all([
 		readFile(written.rawPath, 'utf8').then(JSON.parse),
 		readFile(written.resultPath, 'utf8').then(JSON.parse),
@@ -81,7 +81,7 @@ test('one clean structural run writes and re-verifies raw and accepted evidence'
 		observations: options(directory).observations,
 	});
 	assert.equal(result.sourceRevision, SOURCE_REVISION);
-	assert.equal(result.rawEvidence.artifactName, 'm2-direct-wav-385mib-v1.raw.json');
+	assert.equal(result.rawArtifact.artifactName, 'm2-direct-wav-385mib-v1.raw.json');
 	assert.deepEqual(result.metrics, raw.metrics);
 });
 
@@ -99,7 +99,7 @@ test('dirty source, environment drift, and failed metrics refuse before writing'
 		const value = options(directory);
 		mutate(value);
 		await assert.rejects(
-			writeStructuralQualityBudgetEvidence(value, actualRuntime),
+			writeStructuralQualityBudgetDiagnostic(value, actualRuntime),
 			expectedFailure,
 			label,
 		);
@@ -107,13 +107,13 @@ test('dirty source, environment drift, and failed metrics refuse before writing'
 	}
 });
 
-test('existing evidence is never overwritten', async () => {
+test('existing diagnostics are never overwritten', async () => {
 	const directory = await outputDirectory();
-	const first = await writeStructuralQualityBudgetEvidence(options(directory), runtime);
+	const first = await writeStructuralQualityBudgetDiagnostic(options(directory), runtime);
 	const originalRaw = await readFile(first.rawPath);
 
 	await assert.rejects(
-		writeStructuralQualityBudgetEvidence(options(directory), runtime),
+		writeStructuralQualityBudgetDiagnostic(options(directory), runtime),
 		/already exists/iu,
 	);
 	assert.deepEqual(await readFile(first.rawPath), originalRaw);
@@ -133,7 +133,7 @@ test('collector inputs must be immutable own-data snapshots without invoked acce
 			},
 		});
 		await assert.rejects(
-			writeStructuralQualityBudgetEvidence(value as never, runtime),
+			writeStructuralQualityBudgetDiagnostic(value as never, runtime),
 			/own data properties/iu,
 			property,
 		);

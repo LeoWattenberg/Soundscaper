@@ -25,8 +25,8 @@ import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
  *
  * The schema is closed. A run that omits an artifact, hides a retry, or files
  * four timed runs instead of five is rejected rather than defaulted, because
- * the missing half is exactly the half that would make an unqualified result
- * look qualified.
+ * the missing half is exactly the half that would make an incomplete result
+ * look complete.
  */
 
 export const M6_REFERENCE_MASTER_WORKLOAD_ID = 'm6-reference-master-delivery';
@@ -47,8 +47,8 @@ export const M6_REFERENCE_MASTER_FIXTURE_IDS = Object.freeze([
 	'm6-reference-master-vertical-v1',
 ]);
 export const M6_REFERENCE_MASTER_ENVIRONMENT_IDS = Object.freeze([
-	'owner-qualified-windows-x64-rtx3090-01',
-	'native-os-lab-matrix',
+	'owner-windows-x64-rtx3090-01',
+	'native-os-diagnostics',
 ]);
 export const M6_REFERENCE_MASTER_PROFILE = 'reference-master-delivery-v1';
 export const M6_REFERENCE_MASTER_OBSERVATION_CLASS = 'reference-master-delivery-and-conformance-v1';

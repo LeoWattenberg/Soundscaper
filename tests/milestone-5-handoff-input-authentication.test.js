@@ -13,9 +13,6 @@ import {
 	readMilestone5HandoffInputSnapshot,
 } from '../scripts/lib/milestone-5-handoff-input-authentication.mjs';
 
-const qualificationPath = 'config/milestone-5-qualification-evidence.json';
-const policyPath = 'config/milestone-5-package-release-authentication-policy.json';
-
 test('authenticated handoff inputs come from immutable Git blobs, not mutable worktree bytes', (context) => {
 	const root = mkdtempSync(join(tmpdir(), 'soundscaper-m5-inputs-'));
 	context.after(() => rmSync(root, { recursive: true, force: true }));
@@ -46,9 +43,8 @@ test('authenticated handoff inputs come from immutable Git blobs, not mutable wo
 test('handoff auditor results must bind every repository authority they reopen', () => {
 	const payloadPath = 'config/native-addon-payload-manifest.json';
 	const sourcePath = 'config/milestone-5-native-source-acquisitions.json';
-	const descriptors = Object.fromEntries([
-		payloadPath, sourcePath, qualificationPath, policyPath,
-	].map((path) => [path, describeMilestone5HandoffBytes(Buffer.from(path))]));
+	const descriptors = Object.fromEntries([payloadPath, sourcePath]
+		.map((path) => [path, describeMilestone5HandoffBytes(Buffer.from(path))]));
 	const source = { id: 'juce', version: '9.0.1', authenticationStatus: 'pinned-metadata' };
 	const sourceRegister = {
 		schemaVersion: 1,
@@ -65,14 +61,8 @@ test('handoff auditor results must bind every repository authority they reopen',
 			inputDigests: { [sourcePath]: descriptors[sourcePath] },
 		},
 		payloadAudit: { inputDigests: { [payloadPath]: descriptors[payloadPath] } },
-		qualificationAudit: {
-			registerEvidence: { path: qualificationPath, ...descriptors[qualificationPath] },
-		},
-		packageAudit: { releaseAuthentication: {
-			policyEvidence: { name: policyPath, ...descriptors[policyPath] },
-		} },
 	};
-	const inputBytes = { [policyPath]: Buffer.from(policyPath) };
+	const inputBytes = { [payloadPath]: Buffer.from(payloadPath) };
 	assert.doesNotThrow(() => authenticateMilestone5HandoffAuditorInputs({
 		inputs, inputBytes, inputDigests: descriptors,
 	}));

@@ -17,7 +17,7 @@ const packageMetadata = JSON.parse(await readFile(
 	new URL('../package.json', import.meta.url),
 	'utf8',
 )) as { readonly scripts: Readonly<Record<string, string>> };
-const QUALIFICATION_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
+const DIAGNOSTIC_ENVIRONMENT_ID = 'owner-windows-x64-rtx3090-01';
 const FINGERPRINT = Object.freeze({
 	browserVersion: '150.0.7871.114',
 	platform: 'win32',
@@ -124,8 +124,7 @@ test('the registered fixture digests match the maintained deterministic generato
 test('the long-form collector recomputes every metric with the frozen sampling policy', () => {
 	const result = createPendingM3LongformEditorialResult(makeDiagnostic(), config);
 
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
+	assert.equal(result.status, 'passed');
 	assert.deepEqual(result.metrics, {
 		'editorial.audioPositionErrorSamples': 0,
 		'editorial.videoPositionErrorFrames': 0,
@@ -143,10 +142,10 @@ test('the long-form collector recomputes every metric with the frozen sampling p
 		forcedCollectionsBefore: 3,
 		forcedCollectionsAfter: 3,
 	});
-	assert.equal(result.evaluation.passed, false);
+	assert.equal(result.evaluation.passed, true);
 	assert.equal(result.metricGatePassed, true);
-	assert.match(result.evaluation.failures.join('\n'), /environment mismatch/iu);
-	assert.equal(Object.hasOwn(result, 'rawEvidence'), false);
+	assert.deepEqual(result.evaluation.failures, []);
+	assert.equal(Object.hasOwn(result, 'rawArtifact'), false);
 	assert.equal(Object.hasOwn(result, 'budgetSha256'), false);
 });
 
@@ -201,25 +200,22 @@ test('fixture drift and malformed raw observations fail before a result can exis
 	);
 });
 
-test('an explicitly owner-labeled exact diagnostic still requires packaged nightly verification', async () => {
+test('an explicitly owner-labeled exact diagnostic reports its measured result', async () => {
 	const activated = structuredClone(config) as {
 		environments: Array<{
 			id: string;
 			status: string;
-			qualificationEligible: boolean;
 			fingerprint: Record<string, unknown>;
 		}>;
 	};
-	const environment = activated.environments.find(({ id }) => id === QUALIFICATION_ENVIRONMENT_ID);
+	const environment = activated.environments.find(({ id }) => id === DIAGNOSTIC_ENVIRONMENT_ID);
 	assert.ok(environment);
-	const diagnostic = { ...makeDiagnostic(), environmentId: QUALIFICATION_ENVIRONMENT_ID };
+	const diagnostic = { ...makeDiagnostic(), environmentId: DIAGNOSTIC_ENVIRONMENT_ID };
 	environment.fingerprint = structuredClone(diagnostic.environmentFingerprint);
 	const result = createPendingM3LongformEditorialResult(diagnostic, activated);
-	assert.equal(result.status, 'pending-external');
-	assert.equal(result.qualificationEvidencePublished, false);
+	assert.equal(result.status, 'passed');
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.evaluation.passed, false);
-	assert.match(result.evaluation.failures.join('\n'), /packaged-runtime verifier/iu);
+	assert.equal(result.evaluation.passed, true);
 
 	let pendingWrites = 0;
 	const written = await writeM3LongformEditorialResult(
@@ -232,38 +228,28 @@ test('an explicitly owner-labeled exact diagnostic still requires packaged night
 		},
 	);
 	assert.equal(pendingWrites, 1);
-	assert.equal(written.result.status, 'pending-external');
+	assert.equal(written.result.status, 'passed');
 });
 
-test('the registered runnable harness delegates formal acceptance to packaged nightly verification', () => {
+test('the registered runnable harness is a diagnostic workload', () => {
 	const quality = config as {
-		qualification: { qualifiedWorkloadIds: string[] };
 		fixtures: Array<{ id: string; status: string; kind: string; specification: Record<string, unknown> }>;
 		workloads: Array<{ id: string; status: string }>;
 		environments: Array<{
 			id: string;
 			status: string;
-			qualificationEligible: boolean;
 			fingerprint: Record<string, unknown>;
 		}>;
 	};
 	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v2');
 	const workload = quality.workloads.find(({ id }) => id === 'm3-longform-editorial');
-	const environment = quality.environments.find(({ id }) => id === QUALIFICATION_ENVIRONMENT_ID);
-	const profile = (quality as typeof quality & {
-		packagedRuntimeQualification: { profiles: Array<{ workloadId: string; environmentId: string }> };
-	}).packagedRuntimeQualification.profiles.find(({ workloadId }) => workloadId === 'm3-longform-editorial');
-
-	assert.equal(fixture?.status, 'provisional');
+	const environment = quality.environments.find(({ id }) => id === DIAGNOSTIC_ENVIRONMENT_ID);
+	assert.equal(fixture?.status, 'active');
 	assert.equal(fixture?.kind, 'deterministic-current-schema-project-generator');
 	assert.equal(fixture?.specification.localDiagnosticCommand, 'npm run quality:collect:m3-longform');
-	assert.equal(fixture?.specification.qualificationPublication,
-		'accepted-only-after-qualified-environment-and-digest-bound-verification');
+	assert.equal(Object.hasOwn(fixture?.specification ?? {}, 'qualificationPublication'), false);
 	assert.equal(packageMetadata.scripts['quality:collect:m3-longform'],
 		'node scripts/collect-m3-longform-editorial-quality.mjs');
-	assert.equal(workload?.status, 'provisional');
+	assert.equal(workload?.status, 'active');
 	assert.equal(environment?.status, 'unprovisioned');
-	assert.equal(environment?.qualificationEligible, false);
-	assert.equal(profile?.environmentId, QUALIFICATION_ENVIRONMENT_ID);
-	assert.equal(quality.qualification.qualifiedWorkloadIds.includes('m3-longform-editorial'), false);
 });

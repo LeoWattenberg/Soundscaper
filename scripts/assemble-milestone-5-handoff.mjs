@@ -8,18 +8,18 @@ import { assembleMilestone5Handoff } from './lib/milestone-5-handoff.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 let outputPath = null;
-let requireAutomatedReady = false;
+let requirePass = false;
 const packageArguments = { productId: null, targetId: null, packageRoot: null };
 for (let index = 2; index < process.argv.length; index += 1) {
 	const argument = process.argv[index];
-	if (argument === '--require-ready') {
-		throw new Error('--require-ready is ambiguous; use --require-automated-ready.');
+	if (['--require-ready', '--require-automated-ready'].includes(argument)) {
+		throw new Error(`${argument} was removed; use --require-pass.`);
 	}
-	if (argument === '--require-automated-ready') {
-		if (requireAutomatedReady) {
-			throw new Error('--require-automated-ready may be supplied only once.');
+	if (argument === '--require-pass') {
+		if (requirePass) {
+			throw new Error('--require-pass may be supplied only once.');
 		}
-		requireAutomatedReady = true;
+		requirePass = true;
 		continue;
 	}
 	if (argument === '--output') {
@@ -51,8 +51,8 @@ if (![0, 3].includes(suppliedPackageArguments)) {
 	throw new Error('--product, --target, and --package-root must be supplied together.');
 }
 const packageOptions = suppliedPackageArguments === 0 ? null : packageArguments;
-if (requireAutomatedReady && packageOptions === null) {
-	throw new Error('--require-automated-ready requires --product, --target, and --package-root.');
+if (requirePass && packageOptions === null) {
+	throw new Error('--require-pass requires --product, --target, and --package-root.');
 }
 
 const handoff = await assembleMilestone5Handoff(
@@ -63,4 +63,4 @@ const handoff = await assembleMilestone5Handoff(
 const bytes = `${JSON.stringify(handoff, null, '\t')}\n`;
 if (outputPath) writeFileSync(resolve(outputPath), bytes, { flag: 'wx' });
 else process.stdout.write(bytes);
-if (requireAutomatedReady && !handoff.packageCellAutomatedReady) process.exitCode = 1;
+if (requirePass && !handoff.passed) process.exitCode = 1;

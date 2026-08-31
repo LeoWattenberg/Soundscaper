@@ -3,12 +3,11 @@
 import { createHash } from 'node:crypto';
 
 /**
- * Derive only machine-verifiable Milestone 5 readiness. Human licensing,
- * reviewer, qualification, lab, cohort, and release-signature state is
- * deliberately absent from both the verdict and its canonical evidence hash.
+ * Audit only machine-verifiable Milestone 5 inputs. Human review and release
+ * ceremony state are deliberately absent from the verdict and evidence hash.
  */
-export function assessMilestone5AutomatedReadiness(value) {
-	assertRecord(value, 'Milestone 5 automated-readiness inputs');
+export function assessMilestone5AutomatedAudit(value) {
+	assertRecord(value, 'Milestone 5 automated-audit inputs');
 	const sources = sourceEvidence(value.sources);
 	const payloads = payloadEvidence(value.payloadRows);
 	const packageEvidence = value.packageAudit === null || value.packageAudit === undefined
@@ -40,25 +39,20 @@ export function assessMilestone5AutomatedReadiness(value) {
 			'The package cell has no authenticated installed-content closure.',
 		));
 	}
-	const automatedEvidenceAuthenticated = value.assemblyInputsAuthenticated === true
+	const evidenceAuthenticated = value.assemblyInputsAuthenticated === true
 		&& value.sourceInputsAudited === true
 		&& value.payloadsAuthenticated === true
 		&& value.sourceRevisionAuthenticated === true
 		&& (packageEvidence === null || value.packageAudited === true)
 		&& automatedBlockers.length === 0;
-	const packageCellAutomatedReady = packageEvidence === null
-		? null : automatedEvidenceAuthenticated && automatedBlockers.length === 0;
-	const engineeringAutomatedReady = automatedEvidenceAuthenticated
-		&& automatedBlockers.length === 0;
+	const passed = evidenceAuthenticated && automatedBlockers.length === 0;
 	return deepFreeze({
-		automatedEvidenceAuthenticated,
-		packageCellAutomatedReady,
-		automatedStatus: packageEvidence === null
-			? (engineeringAutomatedReady ? 'automated-inputs-ready' : 'automated-inputs-blocked')
-			: (packageCellAutomatedReady ? 'automated-ready' : 'automated-blocked'),
-		automatedEvidenceSha256: digest(automatedEvidence),
-		automatedEvidence,
-		automatedBlockers,
+		evidenceAuthenticated,
+		passed,
+		status: passed ? 'passed' : 'failed',
+		evidenceSha256: digest(automatedEvidence),
+		evidence: automatedEvidence,
+		failures: automatedBlockers,
 	});
 }
 

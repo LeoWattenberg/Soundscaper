@@ -28,10 +28,6 @@ interface BudgetWorkload {
 
 interface QualityBudgetConfig {
 	readonly fixtures: readonly BudgetFixture[];
-	readonly qualification: Readonly<{
-		acceptedResultCohorts: readonly Readonly<Record<string, unknown>>[];
-		qualifiedWorkloadIds: readonly string[];
-	}>;
 	readonly workloads: readonly BudgetWorkload[];
 }
 
@@ -69,15 +65,11 @@ test('milestone 7 registers what each assistance route owes rather than leaving 
 		{ metricId: 'assistance.unchangedExportByteDivergences', comparison: 'eq', value: 0, unit: 'count' },
 	]);
 
-	// A registered criterion states what a route owes; it is never evidence that
-	// the route meets it, so neither workload may drift into the qualified set.
+	// A registered criterion states what a route owes; it is not an observed result.
 	for (const workload of [speech, visual]) {
 		assert.equal(workload?.status, 'planned');
-		assert.deepEqual(workload?.environmentIds, ['owner-qualified-windows-x64-rtx3090-01']);
-		assert.equal(config.qualification.qualifiedWorkloadIds.includes(workload?.id ?? ''), false);
+		assert.deepEqual(workload?.environmentIds, ['native-os-diagnostics']);
 	}
-	assert.equal(JSON.stringify(config.qualification.acceptedResultCohorts)
-		.includes('m7-local-assistance'), false);
 
 	const fixtures = new Map(config.fixtures.map((fixture) => [fixture.id, fixture]));
 	for (const fixtureId of ['m7-local-assistance-speech-accuracy-v1', 'm7-local-assistance-visual-accuracy-v1']) {
@@ -87,4 +79,3 @@ test('milestone 7 registers what each assistance route owes rather than leaving 
 		assert.match(fixture?.limitation ?? '', /specified, not provisioned/u);
 	}
 });
-

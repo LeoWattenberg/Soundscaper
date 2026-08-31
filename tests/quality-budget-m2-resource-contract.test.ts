@@ -6,7 +6,7 @@ const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 const closureUrl = new URL('../config/milestone-2-closure.json', import.meta.url);
 
 const ENVIRONMENT_ID = 'portable-node-structural-26.5.0';
-const QUALIFIED_IDS = Object.freeze([
+const ACTIVE_IDS = Object.freeze([
 	'm2-streaming-project-8gib-v1',
 	'm2-direct-wav-385mib-v1',
 	'm2-direct-stem-archives-v3',
@@ -56,7 +56,7 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 		readFile(budgetsUrl, 'utf8').then(JSON.parse),
 		readFile(closureUrl, 'utf8').then(JSON.parse),
 	]);
-	const item = closure.items.find(({ id }: { readonly id: string }) => id === 'm2-pipeline-resource-qualification');
+	const item = closure.items.find(({ id }: { readonly id: string }) => id === 'm2-pipeline-resource-verification');
 	assert.deepEqual(item.workloadIds, [...EXPECTED_THRESHOLDS.keys()]);
 
 	const workloads = new Map(budgets.workloads.map((workload: { readonly id: string }) => [workload.id, workload]));
@@ -71,7 +71,7 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 		};
 		assert.ok(workload, id);
 		assert.equal(workload.milestone, '2', id);
-		assert.equal(workload.status, QUALIFIED_IDS.includes(id) ? 'qualified' : 'provisional', id);
+		assert.equal(workload.status, ACTIVE_IDS.includes(id) ? 'active' : 'planned', id);
 		assert.deepEqual(workload.fixtureIds, [id], id);
 		assert.deepEqual(workload.environmentIds, [ENVIRONMENT_ID], id);
 		assert.deepEqual(workload.thresholds, thresholds, id);
@@ -82,46 +82,7 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 	}
 });
 
-test('reviewed no-retry cohorts cover the exact qualified structural workload set', async () => {
-	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
-	const qualifiedIds = [...QUALIFIED_IDS];
-	// Workloads from other milestones qualify through their own cohorts; this
-	// contract owns the frozen structural five and the two cohorts that bind them.
-	assert.deepEqual(
-		budgets.qualification.qualifiedWorkloadIds.slice(0, qualifiedIds.length),
-		qualifiedIds,
-	);
-	const structuralCohorts = budgets.qualification.acceptedResultCohorts.filter(
-		({ environmentId }: { readonly environmentId: string }) => environmentId === ENVIRONMENT_ID,
-	);
-	assert.equal(structuralCohorts.length, 2);
-	const [historical, observed] = structuralCohorts;
-	assert.deepEqual([
-		[historical.id, historical.sourceRevision, historical.budgetSha256],
-		[observed.id, observed.sourceRevision, observed.budgetSha256],
-	], [
-		['m2-structural-aad0ba1', 'aad0ba1630d6c1a554da1ba5134307d274210f47', '9ebd33f88b5ce7af51a99175b48d6ddf19175b11f962c6f765d2825d59fdf7d1'],
-		['m2-direct-observed-f3d11cb3', 'f3d11cb307a227fefb60cee5392b46e8919d9eb6', 'fe1efab919627fb70cfbc640ece9a8e898895f5b6da19188444f9c45ccf09a78'],
-	]);
-	assert.deepEqual(structuralCohorts.flatMap(
-		(cohort: { readonly artifacts: readonly { readonly workloadId: string }[] }) => (
-			cohort.artifacts.map(({ workloadId }) => workloadId)
-		),
-	), qualifiedIds);
-	for (const cohort of structuralCohorts) {
-		assert.equal(cohort.attemptCount, 1);
-		assert.equal(cohort.retryCount, 0);
-		assert.equal(cohort.retention, 'reviewed-workspace-artifacts-with-checked-in-byte-length-and-sha256');
-		for (const artifact of cohort.artifacts) {
-			assert.ok(Number.isSafeInteger(artifact.resultByteLength) && artifact.resultByteLength > 0);
-			assert.ok(Number.isSafeInteger(artifact.rawByteLength) && artifact.rawByteLength > 0);
-			assert.match(artifact.resultSha256, /^[a-f\d]{64}$/u);
-			assert.match(artifact.rawSha256, /^[a-f\d]{64}$/u);
-		}
-	}
-});
-
-test('the structural Node environment is eligible only for the frozen workload set', async () => {
+test('the structural Node environment records its diagnostic fingerprint', async () => {
 	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
 	const environment = budgets.environments.find(({ id }: { readonly id: string }) => id === ENVIRONMENT_ID);
 
@@ -129,9 +90,7 @@ test('the structural Node environment is eligible only for the frozen workload s
 		id: ENVIRONMENT_ID,
 		status: 'active',
 		kind: 'portable-deterministic-node-structural',
-		qualificationEligible: true,
 		rendererRequirement: 'any',
-		eligibleWorkloadIds: [...EXPECTED_THRESHOLDS.keys()],
 		fingerprint: {
 			platform: 'linux',
 			architecture: 'x64',

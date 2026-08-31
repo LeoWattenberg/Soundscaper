@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
-	collectReferenceDiagnosticEvidence,
+	collectReferenceDiagnostic,
 	parseReferenceDiagnostic,
 } from './quality-budget-reference-diagnostic.mjs';
 
@@ -18,14 +18,14 @@ const PROFILE = 'exact-8-gib-sparse-full-import-counting-sha256-sink';
 const WORKLOAD_ID = 'm2-streaming-project-8gib-v1';
 
 export async function collectScape8GibQualityEvidence(options, dependencies = {}) {
-	return collectReferenceDiagnosticEvidence({
+	return collectReferenceDiagnostic({
 		configPath: CONFIG_URL,
 		outputDirectory: options.outputDirectory,
 		profile: PROFILE,
 		workloadId: WORKLOAD_ID,
 	}, {
 		runReference: dependencies.runReference ?? runScape8GibReference,
-		writeEvidence: dependencies.writeEvidence,
+		writeDiagnostic: dependencies.writeDiagnostic,
 	});
 }
 

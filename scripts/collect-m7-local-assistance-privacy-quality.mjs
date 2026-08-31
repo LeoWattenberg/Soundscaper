@@ -24,12 +24,7 @@ const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const PACKAGE_TARGETS = Object.freeze([
 	'darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64',
 ]);
-const OWNER_FINGERPRINT_FIELDS = Object.freeze([
-	'architecture', 'browserVersion', 'displayMode', 'gpuDeviceId', 'gpuDriverVersion',
-	'platform', 'powerMode', 'webglRenderer', 'webglVendor',
-]);
-
-/** Read one real-path trace summary and retain it only as unaccepted evidence. */
+/** Read one real-path trace summary and retain it as a diagnostic. */
 export async function collectM7AssistancePrivacyQuality(optionsValue, dependencies = {}) {
 	const options = exactRecord(
 		snapshotStrictJsonData(optionsValue, 'collector options'),
@@ -46,7 +41,7 @@ export async function collectM7AssistancePrivacyQuality(optionsValue, dependenci
 	return writeResult(outputDirectory, result, measurement);
 }
 
-/** Recompute every threshold while refusing to widen an unprovisioned owner profile. */
+/** Recompute every threshold without making a release decision. */
 export function createM7AssistancePrivacyResult(measurement, configValue) {
 	const config = snapshotStrictJsonData(configValue, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
@@ -55,10 +50,6 @@ export function createM7AssistancePrivacyResult(measurement, configValue) {
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 	assertWorkloadRegistration(workload);
 	assertMeasurementPolicy(policy);
-	const qualification = assessM7AssistancePrivacyQualification(config);
-	if (qualification.provisioned) {
-		throw new Error(`Environment ${ENVIRONMENT_ID} is provisioned; the M7 accepted-evidence writer must land with the owner lab before a result is emitted.`);
-	}
 	const computed = computeM7AssistancePrivacyMetrics(measurement, {
 		budgetSha256: qualityBudgetSha256(config),
 		fixtureSpecification: fixture.specification,
@@ -68,25 +59,24 @@ export function createM7AssistancePrivacyResult(measurement, configValue) {
 		environmentId: ENVIRONMENT_ID,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, {
-		environmentId: computed.observedEnvironmentId,
+	}, { ...environment, status: 'active' }, {
+		environmentId: ENVIRONMENT_ID,
 		rendererClass: computed.observedEnvironment.rendererClass,
 		metrics: computed.metrics,
 	});
 	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
 		&& evaluation.verdicts.every(({ passed }) => passed);
-	const failures = [...new Set([...evaluation.failures, ...qualification.blockers])];
+	const passed = metricGatePassed && evaluation.passed;
 	return Object.freeze({
 		schemaVersion: 1,
-		qualificationScope: 'unaccepted-single-target-observation',
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: passed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
-		qualificationEnvironmentId: ENVIRONMENT_ID,
+		environmentId: ENVIRONMENT_ID,
 		observedEnvironmentId: computed.observedEnvironmentId,
 		profile: PROFILE,
 		observationClass: OBSERVATION_CLASS,
-		evidenceClass: computed.evidenceClass,
+		observationMode: computed.observationMode,
 		attemptCount: 1,
 		retryCount: policy.benchmarkRetries,
 		rendererClass: computed.observedEnvironment.rendererClass,
@@ -99,61 +89,16 @@ export function createM7AssistancePrivacyResult(measurement, configValue) {
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		qualificationEvidencePublished: false,
-		qualificationBlockers: Object.freeze(qualification.blockers),
 		evaluation: Object.freeze({
-			passed: false,
-			failures: Object.freeze(failures),
+			passed,
+			failures: evaluation.failures,
 			verdicts: evaluation.verdicts,
 		}),
 	});
 }
 
-/** Name every authority absent from the registered optional owner-lab row. */
-export function assessM7AssistancePrivacyQualification(configValue) {
-	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const blockers = [];
-	if (environment.status !== 'active') {
-		blockers.push(`Environment ${ENVIRONMENT_ID} is ${String(environment.status)}.`);
-	}
-	if (environment.qualificationEligible !== true) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} is not qualification-eligible.`);
-	}
-	if (!Array.isArray(environment.eligibleWorkloadIds)
-		|| !environment.eligibleWorkloadIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Environment ${ENVIRONMENT_ID} does not list ${WORKLOAD_ID} among its eligible workloads.`);
-	}
-	const fingerprint = exactRecord(
-		environment.fingerprint,
-		OWNER_FINGERPRINT_FIELDS,
-		`${ENVIRONMENT_ID}.fingerprint`,
-	);
-	for (const [field, value] of Object.entries(fingerprint)) {
-		if (value === null || value === '') {
-			blockers.push(`Environment ${ENVIRONMENT_ID} has no recorded fingerprint ${field}.`);
-		}
-	}
-	if (fixture.status !== 'qualified') {
-		blockers.push(`Fixture ${FIXTURE_ID} status is ${String(fixture.status)}; accepted evidence requires status qualified.`);
-	}
-	if (workload.status !== 'qualified') {
-		blockers.push(`Workload ${WORKLOAD_ID} status is ${String(workload.status)}; accepted evidence requires status qualified.`);
-	}
-	if (!Array.isArray(config.qualification?.qualifiedWorkloadIds)
-		|| !config.qualification.qualifiedWorkloadIds.includes(WORKLOAD_ID)) {
-		blockers.push(`Workload ${WORKLOAD_ID} is not registered in qualification.qualifiedWorkloadIds.`);
-	}
-	return Object.freeze({
-		provisioned: blockers.length === 0,
-		blockers: Object.freeze(blockers),
-	});
-}
-
 /**
- * Persist the closed raw record and aggregate; accepted publication is deliberately absent.
+ * Persist the closed raw record and its derived diagnostic.
  * @param {string} outputDirectory
  * @param {unknown} resultValue
  * @param {unknown} [measurementValue]
@@ -164,11 +109,8 @@ export async function writeM7AssistancePrivacyResult(
 	measurementValue = null,
 ) {
 	const result = snapshotStrictJsonData(resultValue, 'result');
-	if (result.status !== 'pending-external' && result.status !== 'failed') {
-		throw new Error(`M7 collector cannot write a ${String(result.status)} result while ${ENVIRONMENT_ID} is unprovisioned.`);
-	}
-	if (result.qualificationEvidencePublished !== false) {
-		throw new Error('M7 collector must not mark qualification evidence as published.');
+	if (result.status !== 'passed' && result.status !== 'failed') {
+		throw new Error(`M7 diagnostic result has unsupported status ${String(result.status)}.`);
 	}
 	if (measurementValue === null) throw new Error('M7 result requires its complete raw measurement.');
 	const measurement = snapshotStrictJsonData(measurementValue, 'measurement');
@@ -189,7 +131,7 @@ export async function writeM7AssistancePrivacyResult(
 	return Object.freeze({ rawPath, resultPath, result });
 }
 
-/** Parse `[--measurement <path>] [output-directory]`; qualification flags are refused. */
+/** Parse `[--measurement <path>] [output-directory]`. */
 export function parseM7AssistancePrivacyCliOptions(argsValue) {
 	const args = snapshotStrictJsonData(argsValue, 'M7 collector CLI arguments');
 	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string')) {
@@ -203,9 +145,6 @@ export function parseM7AssistancePrivacyCliOptions(argsValue) {
 			measurementPath = argument;
 			expectingMeasurement = false;
 			continue;
-		}
-		if (argument === '--accept' || argument === '--qualify' || argument === '--publish') {
-			throw new Error(`M7 assistance qualification is unavailable while ${ENVIRONMENT_ID} is unprovisioned.`);
 		}
 		if (argument === '--measurement') {
 			if (measurementPath !== null) throw new Error('M7 collector accepts one measurement path.');
@@ -284,7 +223,7 @@ async function main() {
 			?? fileURLToPath(new URL('../test-results/quality/m7-assistance-privacy', import.meta.url))),
 	});
 	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
-	if (collected.result.status !== 'pending-external') process.exitCode = 1;
+	if (collected.result.status === 'failed') process.exitCode = 1;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) await main();

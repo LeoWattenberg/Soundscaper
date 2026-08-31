@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { writeStructuralQualityBudgetEvidence } from './quality-budget-evidence.mjs';
+import { writeStructuralQualityBudgetDiagnostic } from './quality-budget-diagnostic.mjs';
 
 const execFileAsync = promisify(execFile);
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
@@ -60,16 +60,16 @@ const TEST_FILES = Object.freeze({
 	]),
 });
 
-export async function collectDirectStructuralQualityEvidence(options, dependencies = {}) {
+export async function collectDirectStructuralQualityDiagnostic(options, dependencies = {}) {
 	const testFiles = TEST_FILES[options.workloadId];
 	if (!testFiles) throw new Error(`Unsupported direct structural workload ${options.workloadId}.`);
 	const runTests = dependencies.runTests ?? runFocusedTests;
-	const writeEvidence = dependencies.writeEvidence ?? writeStructuralQualityBudgetEvidence;
+	const writeDiagnostic = dependencies.writeDiagnostic ?? writeStructuralQualityBudgetDiagnostic;
 	const { stdout, stderr } = await runTests(testFiles, options.workloadId);
 	const diagnostic = parseDirectStructuralDiagnostics(
 		`${stdout}\n${stderr}`, options.workloadId,
 	);
-	return writeEvidence({
+	return writeDiagnostic({
 		configPath: CONFIG_URL,
 		outputDirectory: options.outputDirectory,
 		workloadId: options.workloadId,
@@ -146,7 +146,7 @@ async function main() {
 	const outputDirectory = resolve(
 		process.argv[3] ?? fileURLToPath(new URL('../test-results/quality/m2-resources', import.meta.url)),
 	);
-	const result = await collectDirectStructuralQualityEvidence({
+	const result = await collectDirectStructuralQualityDiagnostic({
 		outputDirectory,
 		workloadId: process.argv[2],
 	});

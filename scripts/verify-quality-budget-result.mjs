@@ -14,7 +14,7 @@ const execFileAsync = promisify(execFile);
 const defaultConfigPath = fileURLToPath(new URL('../config/quality-budgets.json', import.meta.url));
 
 /**
- * Verify an accepted summary against the exact quality ledger, retained raw
+ * Verify a diagnostic summary against the exact quality ledger, retained raw
  * artifact, and checked-out source revision.
  *
  * @param {{
@@ -42,7 +42,7 @@ export async function verifyQualityBudgetResultFiles(options) {
 		'environment',
 		failures,
 	);
-	await verifyRawEvidence(options.resultPath, result, failures);
+	await verifyRawArtifact(options.resultPath, result, failures);
 	if (result.sourceRevision !== options.expectedSourceRevision) {
 		failures.push(
 			`Result source revision does not match ${options.expectedSourceRevision}.`,
@@ -50,13 +50,6 @@ export async function verifyQualityBudgetResultFiles(options) {
 	}
 
 	if (!workload || !environment) return failedEvaluation(failures);
-	if (environment.qualificationEligible
-		&& (!Array.isArray(environment.eligibleWorkloadIds)
-			|| !environment.eligibleWorkloadIds.includes(workload.id))) {
-		failures.push(
-			`Environment ${environment.id} is not eligible for workload ${workload.id}.`,
-		);
-	}
 	const evaluation = evaluateQualityBudgetResult({
 		workload,
 		expectedEnvironment: environment,
@@ -70,19 +63,19 @@ export async function verifyQualityBudgetResultFiles(options) {
 	});
 }
 
-async function verifyRawEvidence(resultPath, result, failures) {
-	if (!isRecord(result.rawEvidence) || typeof result.rawEvidence.artifactName !== 'string') {
-		failures.push('Result raw evidence does not name a local artifact.');
+async function verifyRawArtifact(resultPath, result, failures) {
+	if (!isRecord(result.rawArtifact) || typeof result.rawArtifact.artifactName !== 'string') {
+		failures.push('Result does not name a local raw artifact.');
 		return;
 	}
 	const resultDirectory = resolve(dirname(resultPath));
-	const rawPath = resolve(resultDirectory, result.rawEvidence.artifactName);
-	if (dirname(rawPath) !== resultDirectory || basename(rawPath) !== result.rawEvidence.artifactName) {
-		failures.push('Result raw evidence must stay in the result directory.');
+	const rawPath = resolve(resultDirectory, result.rawArtifact.artifactName);
+	if (dirname(rawPath) !== resultDirectory || basename(rawPath) !== result.rawArtifact.artifactName) {
+		failures.push('Result raw artifact must stay in the result directory.');
 		return;
 	}
 	if (rawPath === resolve(resultPath)) {
-		failures.push('Result raw evidence must be distinct from the accepted summary.');
+		failures.push('Result raw artifact must be distinct from the diagnostic summary.');
 		return;
 	}
 
@@ -90,16 +83,16 @@ async function verifyRawEvidence(resultPath, result, failures) {
 	try {
 		bytes = await readFile(rawPath);
 	} catch (error) {
-		failures.push(`Result raw evidence could not be read: ${errorMessage(error)}.`);
+		failures.push(`Result raw artifact could not be read: ${errorMessage(error)}.`);
 		return;
 	}
-	if (bytes.byteLength !== result.rawEvidence.byteLength) {
+	if (bytes.byteLength !== result.rawArtifact.byteLength) {
 		failures.push(
-			`Result raw evidence byte length was ${bytes.byteLength}; expected ${String(result.rawEvidence.byteLength)}.`,
+			`Result raw artifact byte length was ${bytes.byteLength}; expected ${String(result.rawArtifact.byteLength)}.`,
 		);
 	}
-	if (sha256(bytes) !== result.rawEvidence.sha256) {
-		failures.push('Result raw evidence digest does not match its actual bytes.');
+	if (sha256(bytes) !== result.rawArtifact.sha256) {
+		failures.push('Result raw artifact digest does not match its actual bytes.');
 	}
 }
 
@@ -166,7 +159,7 @@ async function currentSourceRevision() {
 
 async function main() {
 	if (process.argv.length !== 3) {
-		process.stderr.write('Usage: node scripts/verify-quality-budget-result.mjs <accepted-summary.json>\n');
+		process.stderr.write('Usage: node scripts/verify-quality-budget-result.mjs <diagnostic-summary.json>\n');
 		process.exitCode = 2;
 		return;
 	}

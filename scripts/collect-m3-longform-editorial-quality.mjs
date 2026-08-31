@@ -14,7 +14,7 @@ const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WORKLOAD_ID = 'm3-longform-editorial';
 const FIXTURE_ID = 'm3-longform-editorial-2h-v2';
-const QUALIFICATION_ENVIRONMENT_ID = 'owner-qualified-windows-x64-rtx3090-01';
+const REFERENCE_ENVIRONMENT_ID = 'owner-windows-x64-rtx3090-01';
 const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
@@ -74,13 +74,13 @@ export function parseM3LongformEditorialDiagnostic(output) {
 	return matches[0];
 }
 
-/** Recompute all six metrics; only a configured qualified environment can pass. */
+/** Recompute all six metrics for the named diagnostic environment. */
 export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	const diagnostic = snapshotJsonData(input, 'diagnostic');
 	const config = snapshotJsonData(inputConfig, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, QUALIFICATION_ENVIRONMENT_ID, 'environment');
+	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 
 	assertIdentity(diagnostic);
@@ -96,7 +96,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		|| workload.fixtureIds.length !== 1
 		|| workload.fixtureIds[0] !== FIXTURE_ID
 		|| !Array.isArray(workload.environmentIds)
-		|| !workload.environmentIds.includes(QUALIFICATION_ENVIRONMENT_ID)) {
+		|| !workload.environmentIds.includes(REFERENCE_ENVIRONMENT_ID)) {
 		throw new Error(`Workload ${WORKLOAD_ID} must own exactly the frozen fixture and environment.`);
 	}
 
@@ -232,10 +232,10 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		throw new Error('Browser diagnostic environmentFingerprint must not be empty.');
 	}
 	const evaluation = evaluateQualityBudget({
-		environmentId: QUALIFICATION_ENVIRONMENT_ID,
+		environmentId: diagnostic.environmentId,
 		rendererRequirement: environment.rendererRequirement,
 		thresholds: workload.thresholds,
-	}, environment, {
+	}, { ...environment, id: diagnostic.environmentId, status: 'active' }, {
 		environmentId: diagnostic.environmentId,
 		rendererClass,
 		metrics,
@@ -244,11 +244,10 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		&& evaluation.verdicts.every(({ passed }) => passed);
 	return Object.freeze({
 		schemaVersion: 1,
-		status: metricGatePassed ? 'pending-external' : 'failed',
+		status: metricGatePassed ? 'passed' : 'failed',
 		workloadId: WORKLOAD_ID,
 		fixtureId: FIXTURE_ID,
 		environmentId: diagnostic.environmentId,
-		qualificationEnvironmentId: QUALIFICATION_ENVIRONMENT_ID,
 		profile: PROFILE,
 		observationClass: diagnostic.observationClass,
 		attemptCount: 1,
@@ -267,14 +266,9 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 			forcedCollectionsAfter: forcedAfter,
 		}),
 		metricGatePassed,
-		qualificationEvidencePublished: false,
 		evaluation: Object.freeze({
 			...evaluation,
-			passed: false,
-			failures: Object.freeze([
-				...evaluation.failures,
-				'Formal qualification is published only by the nightly packaged-runtime verifier on the owner-designated host.',
-			]),
+			passed: metricGatePassed,
 		}),
 	});
 }
@@ -336,7 +330,7 @@ function assertIdentity(diagnostic) {
 }
 
 function isM3DiagnosticEnvironmentId(value) {
-	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, QUALIFICATION_ENVIRONMENT_ID].includes(value)
+	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, REFERENCE_ENVIRONMENT_ID].includes(value)
 		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 

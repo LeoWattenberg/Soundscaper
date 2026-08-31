@@ -11,7 +11,7 @@ import {
  * which is what the sibling file checks; keeping both in one unit took that
  * file past the maintainability ceiling.
  */
-test('quality budget evaluator accepts exact boundaries on an eligible environment', () => {
+test('quality budget evaluator accepts exact boundaries on an active environment', () => {
 	const evaluation = evaluateQualityBudget(
 		{
 			environmentId: 'fixed-gpu',
@@ -22,7 +22,7 @@ test('quality budget evaluator accepts exact boundaries on an eligible environme
 				{ metricId: 'preview.omissions', comparison: 'eq', value: 0, unit: 'count' },
 			],
 		},
-		{ id: 'fixed-gpu', status: 'active', qualificationEligible: true },
+		{ id: 'fixed-gpu', status: 'active' },
 		{
 			environmentId: 'fixed-gpu',
 			rendererClass: 'hardware',
@@ -49,7 +49,7 @@ test('quality budget evaluator fails closed on missing metrics, environment mism
 				{ metricId: 'preview.heapDeltaBytes', comparison: 'lte', value: 1_048_576, unit: 'bytes' },
 			],
 		},
-		{ id: 'fixed-gpu', status: 'active', qualificationEligible: true },
+		{ id: 'fixed-gpu', status: 'active' },
 		{
 			environmentId: 'another-host',
 			rendererClass: 'software',
@@ -64,14 +64,14 @@ test('quality budget evaluator fails closed on missing metrics, environment mism
 	assert.ok(evaluation.failures.some((failure: string) => /missing metric.*heapDeltaBytes/iu.test(failure)));
 });
 
-test('quality budget evaluator cannot qualify an unprovisioned environment', () => {
+test('quality budget evaluator cannot use an unprovisioned environment', () => {
 	const evaluation = evaluateQualityBudget(
 		{
 			environmentId: 'unprovisioned-gpu',
 			rendererRequirement: 'hardware',
 			thresholds: [{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34, unit: 'ms' }],
 		},
-		{ id: 'unprovisioned-gpu', status: 'unprovisioned', qualificationEligible: false },
+		{ id: 'unprovisioned-gpu', status: 'unprovisioned' },
 		{
 			environmentId: 'unprovisioned-gpu',
 			rendererClass: 'hardware',
@@ -81,5 +81,4 @@ test('quality budget evaluator cannot qualify an unprovisioned environment', () 
 
 	assert.equal(evaluation.passed, false);
 	assert.ok(evaluation.failures.some((failure: string) => /unprovisioned/iu.test(failure)));
-	assert.ok(evaluation.failures.some((failure: string) => /not qualification-eligible/iu.test(failure)));
 });

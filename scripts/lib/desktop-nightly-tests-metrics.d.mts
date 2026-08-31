@@ -8,11 +8,10 @@ export interface DesktopNightlyTestsMetricsExit {
 	readonly signal: string | null;
 }
 
-export interface DesktopNightlyTestsMetricsEvidence {
+export interface DesktopNightlyTestsMetricsDiagnostics {
 	readonly passed: boolean;
 	readonly raw?: DesktopNightlyTestsMetricsRaw;
 	readonly summary?: DesktopNightlyTestsMetricsSummary;
-	readonly qualification?: DesktopNightlyTestsQualification | null;
 }
 
 export interface DesktopNightlyTestsMetricCollector {
@@ -26,9 +25,8 @@ export interface DesktopNightlyTestsMetricCollector {
 }
 
 export interface DesktopNightlyTestsMetricsWorkload extends Readonly<Record<string, unknown>> {
-	readonly status: 'accepted' | 'failed' | 'pending-external';
+	readonly status: 'passed' | 'failed';
 	readonly metricGatePassed: boolean;
-	readonly qualificationEvidencePublished: boolean;
 	readonly evaluation: Readonly<{
 		passed: boolean;
 		failures: readonly string[];
@@ -55,22 +53,8 @@ export interface DesktopNightlyTestsMetricsSummary {
 	readonly retryCount: 0;
 	readonly workerCount: 1;
 	readonly collectionPassed: boolean;
-	readonly qualificationEvidencePublished: boolean;
 	readonly workloads: readonly DesktopNightlyTestsMetricsWorkload[];
 	readonly failures: readonly string[];
-}
-
-export interface DesktopNightlyTestsQualification extends Readonly<Record<string, unknown>> {
-	readonly status: 'accepted' | 'rejected';
-	readonly qualificationEvidencePublished: boolean;
-	readonly workloadQualifications: readonly DesktopNightlyTestsWorkloadQualification[];
-}
-
-export interface DesktopNightlyTestsWorkloadQualification extends Readonly<Record<string, unknown>> {
-	readonly status: 'accepted' | 'rejected';
-	readonly qualificationEvidencePublished: boolean;
-	readonly environmentId: string | null;
-	readonly workloadId: string | null;
 }
 
 export function createDesktopNightlyTestsMetricsPlan(options: {
@@ -112,10 +96,9 @@ export function createDesktopNightlyTestsMetricsEvidence(
 	readonly passed: boolean;
 	readonly raw: DesktopNightlyTestsMetricsRaw;
 	readonly summary: DesktopNightlyTestsMetricsSummary;
-	readonly qualification: DesktopNightlyTestsQualification | null;
 };
 
-export function writeDesktopNightlyTestsMetricsEvidence(
+export function writeDesktopNightlyTestsMetricsDiagnostics(
 	options: {
 		readonly payloadRoot: string;
 		readonly runRoot: string;
@@ -129,7 +112,7 @@ export function writeDesktopNightlyTestsMetricsEvidence(
 		readonly collectors?: readonly DesktopNightlyTestsMetricCollector[];
 		readonly evidenceKind?: 'browser' | 'packaged-runtime';
 	},
-): Promise<DesktopNightlyTestsMetricsEvidence>;
+): Promise<DesktopNightlyTestsMetricsDiagnostics>;
 
 export function runDesktopNightlyTestsMetricsPhase(
 	options: {
@@ -145,9 +128,9 @@ export function runDesktopNightlyTestsMetricsPhase(
 		readonly runPlaywright: (
 			plan: DesktopNightlyTestsPlaywrightPlan,
 		) => Promise<DesktopNightlyTestsMetricsExit>;
-		readonly writeEvidence?: typeof writeDesktopNightlyTestsMetricsEvidence;
+		readonly writeDiagnostics?: typeof writeDesktopNightlyTestsMetricsDiagnostics;
 	},
 ): Promise<{
 	readonly child: DesktopNightlyTestsMetricsExit;
-	readonly evidence: DesktopNightlyTestsMetricsEvidence;
+	readonly diagnostics: DesktopNightlyTestsMetricsDiagnostics;
 }>;

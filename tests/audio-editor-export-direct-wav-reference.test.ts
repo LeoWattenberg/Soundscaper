@@ -218,10 +218,6 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 			'directWav.oversizePreflightBytesRead': 0,
 			'directWav.partialPublishedOutputs': 0,
 		},
-		rendererHeapQualified: false,
-		processRssQualified: false,
-		filesystemDurabilityQualified: false,
-		packagedElectronQualified: false,
 	}));
 });
 

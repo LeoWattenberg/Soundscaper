@@ -22,8 +22,6 @@ const diagnostic = Object.freeze({
 		'directWav.oversizePreflightBytesRead': 0,
 		'directWav.partialPublishedOutputs': 0,
 	},
-	rendererHeapQualified: false,
-	processRssQualified: false,
 });
 
 function reporterOutput(value: unknown): string {
@@ -38,7 +36,7 @@ test('the direct WAV collector admits exactly one matching structured diagnostic
 			runCalls += 1;
 			return { stdout: reporterOutput(diagnostic), stderr: '' };
 		},
-		writeEvidence: async (options: unknown) => {
+		writeDiagnostic: async (options: unknown) => {
 			written = options;
 			return {
 				rawPath: '/raw',
@@ -62,8 +60,6 @@ test('the direct WAV collector admits exactly one matching structured diagnostic
 			outputFileBytes: diagnostic.outputFileBytes,
 			outputSha256: diagnostic.outputSha256,
 			renderPackets: diagnostic.renderPackets,
-			rendererHeapQualified: false,
-			processRssQualified: false,
 		},
 	});
 	assert.deepEqual(result, {
@@ -90,12 +86,12 @@ test('diagnostic parsing rejects missing, duplicate, and wrong-identity records'
 	);
 });
 
-test('reference-process failure prevents evidence publication', async () => {
+test('reference-process failure prevents diagnostic publication', async () => {
 	let writeCalls = 0;
 	await assert.rejects(
 		collectDirectWavQualityEvidence({ outputDirectory: '/ignored' }, {
 			runReference: async () => { throw new Error('reference failed'); },
-			writeEvidence: async () => {
+			writeDiagnostic: async () => {
 				writeCalls += 1;
 				return {
 					rawPath: '/raw',
