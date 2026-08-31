@@ -367,8 +367,8 @@ function advanceBookkeeping(
 	draft.updatedAt = timestamp(options.now);
 }
 
-function timestamp(value: unknown): string {
-	const date = value === undefined ? new Date() : new Date(String(value));
+function timestamp(value: Date | string | undefined): string {
+	const date = value instanceof Date ? value : new Date(value ?? Date.now());
 	if (Number.isNaN(date.getTime())) throw new RangeError('Framescaper transitions timestamp is invalid.');
 	return date.toISOString();
 }
