@@ -48,6 +48,10 @@ const SHA256 = /^[a-f\d]{64}$/u;
 const OPAQUE_ID = /^[a-f\d]{40}$/u;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 const UTF8 = new TextEncoder();
+const STABLE_OWNERSHIP_FIELDS = Object.freeze([
+	'schemaVersion', 'operation', 'sourceId', 'sourceSha256', 'sourceStartFrame', 'sourceEndFrame',
+	'timingAuthoritySha256',
+]);
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -388,7 +392,7 @@ function owned(annotation: TimelineAnnotationV11, ownership: DataRecord): boolea
 	const extensions = dataRecordOrNull(annotation.opaqueExtensions);
 	const value = dataRecordOrNull(extensions?.[EXTENSION_KEY]);
 	if (!value) return false;
-	return Object.entries(ownership).every(([key, expected]) => same(value[key], expected));
+	return STABLE_OWNERSHIP_FIELDS.every((key) => same(value[key], ownership[key]));
 }
 
 function fenceDigest(fence: AssistanceSelectionFence): string {

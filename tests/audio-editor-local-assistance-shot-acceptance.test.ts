@@ -178,6 +178,35 @@ test('reviewed TransNetV2 cuts emit the same canonical markers and never timelin
 		'a selected-range frame pack may report its authenticated exclusive source end');
 });
 
+test('rerunning shot detection in another mode replaces the prior stable marker batch', async () => {
+	let current = authority();
+	const commits: Readonly<Record<string, unknown>>[] = [];
+	const acceptance = createLocalAssistanceShotAcceptance({
+		currentAuthority: () => current as never,
+		captureProject: () => current.project,
+		assertProject: (token) => assert.strictEqual(token, current.project),
+		commit: (command) => commits.push(command),
+	});
+	await acceptance.acceptValidatedResult(reviewed([
+		{ sourceFrame: 24, presentationTick: '90090', score: 0.425 },
+	]));
+	const initial = commits[0] as Readonly<{
+		commands: readonly Readonly<{ annotation: Readonly<Record<string, unknown>> }>[];
+	}>;
+	const marker = initial.commands[0]!.annotation;
+	current = authority([marker]);
+
+	await acceptance.acceptValidatedResult(accurateReviewed([
+		{ sourceFrame: 48, presentationTick: '180180', score: 0.75 },
+	]));
+	const replacement = commits[1] as Readonly<{
+		commands: readonly Readonly<Record<string, unknown>>[];
+	}>;
+	assert.equal(replacement.commands[0]?.type, 'timeline-annotation/remove-many');
+	assert.deepEqual(replacement.commands[0]?.annotationIds, [marker.id]);
+	assert.equal(replacement.commands[1]?.type, 'timeline-annotation/add');
+});
+
 test('shot acceptance maps source boundaries through authenticated forward-retime authority', async () => {
 	const current = authority([], {
 		sequenceFrameCount: 50,
