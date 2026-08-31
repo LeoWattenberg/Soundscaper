@@ -996,11 +996,6 @@
       "count": 1
     }
   },
-  "src/common/editor/ui/soundscaper-native-renderer-bridge.ts": {
-    "no-unsafe-finally": {
-      "count": 1
-    }
-  },
   "src/common/editor/ui/soundscaper-routing-editor-model.ts": {
     "no-useless-assignment": {
       "count": 1

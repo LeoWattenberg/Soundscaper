@@ -34,6 +34,7 @@ import {
 import { adaptNativeAudioInventory, type NativeAudioInventory } from '../controller/native-audio-inventory.ts';
 import { soundscaperNativeAudioCaptureHasActiveLease } from '../soundscaper-native-audio-capture.ts';
 import { createSoundscaperNativeRendererOperationBarrier } from './soundscaper-native-renderer-operation-barrier.ts';
+import { closeSoundscaperNativePluginVendorUi } from './soundscaper-native-vendor-ui-close.ts';
 
 const PLUGIN_PORT_EVENT = 'soundscaper-native-plugin-rpc-port-v1';
 
@@ -303,20 +304,10 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			}
 		},
 		async closeNativePluginVendorUi(request: Readonly<{ instanceId: string; windowHandleId: string }>) {
-			let runtimeFailed = false;
-			let runtimeFailure: unknown;
-			try { await closeNativePluginRuntimeVendorUi(request.instanceId, request.windowHandleId); }
-			catch (error) { runtimeFailed = true; runtimeFailure = error; }
-			let closed: boolean;
-			try { closed = await options.bridge.closeNativePluginVendorUi(request); }
-			catch (error) {
-				if (runtimeFailed) {
-					throw new AggregateError([runtimeFailure, error], 'Native plug-in vendor window cleanup failed.');
-				}
-				throw error;
-			}
-			if (runtimeFailed) throw runtimeFailure;
-			return closed;
+			return closeSoundscaperNativePluginVendorUi(
+				request, closeNativePluginRuntimeVendorUi,
+				(value) => options.bridge.closeNativePluginVendorUi(value),
+			);
 		},
 		async closeNativePluginInstance(request: Readonly<{ instanceId: string }>) {
 			const update = project?.setBypassed(request.instanceId, true);
