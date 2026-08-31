@@ -5,10 +5,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { FramescaperNativeProjectMediaAuthority } from '../desktop/native-services-project-media-authority.ts';
-import type {
-	FramescaperNativeMediaProxyV14RuntimeRequest,
-	FramescaperNativeMediaV14RuntimeRequest,
-} from '../desktop/native-media-v14-runtime-contract.ts';
+import type { FramescaperNativeMediaProxyV14RuntimeRequest, FramescaperNativeMediaV14RuntimeRequest } from '../desktop/native-media-v14-runtime-contract.ts';
 import type { FramescaperNativeRootGrant } from '../desktop/native-services-root-repository.ts';
 import type { FramescaperNativeDerivedRenderInputs } from '../desktop/native-services-render-input-staging.ts';
 import { createNativeQueueRecordV3 } from '../src/common/editor/native-queue-record-v3.ts';
@@ -24,8 +21,7 @@ import { framescaperV20Options } from './helpers/framescaper-model-fixture.ts';
 
 const ROOT: FramescaperNativeRootGrant = Object.freeze({
 	grantId: 'ab'.repeat(16), rootPath: '/private/v28-exports',
-	volumeIdentity: 'volume-v28', directoryIdentity: 'directory-v28',
-	authorizedAtMs: 1, revokedAtMs: null,
+	volumeIdentity: 'volume-v28', directoryIdentity: 'directory-v28', authorizedAtMs: 1, revokedAtMs: null,
 });
 const PROJECT_IDENTITY = Object.freeze({ schemaFamily: 'framescaper' as const, schemaVersion: 1 as const });
 
