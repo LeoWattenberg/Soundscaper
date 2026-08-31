@@ -2,9 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createVideoPreviewCompositor } from '../src/common/editor/ui/video-preview-compositor.js';
+import { createVideoPreviewRenderTargets } from '../src/common/editor/ui/video-preview-render-target.js';
 
 function createStubContext() {
 	let nextConstant = 1;
+	let nextResource = 0;
+	let framebufferCreates = 0;
+	let failFramebufferAt = -1;
 	const constants = new Map();
 	const constant = (name) => {
 		if (!constants.has(name)) constants.set(name, nextConstant += 1);
@@ -20,10 +24,18 @@ function createStubContext() {
 		createShader: () => ({}),
 		createProgram: () => ({}),
 		createBuffer: () => ({}),
-		createTexture: () => ({}),
-		createFramebuffer: () => ({}),
+		createTexture: () => ({ kind: 'texture', id: nextResource += 1 }),
+		createFramebuffer: () => {
+			const index = framebufferCreates++;
+			return index === failFramebufferAt ? null : { kind: 'framebuffer', id: nextResource += 1 };
+		},
 		createVertexArray: () => ({}),
 		checkFramebufferStatus: () => constant('FRAMEBUFFER_COMPLETE'),
+		deletedTextures: [],
+		deletedFramebuffers: [],
+		deleteTexture: (value) => { target.deletedTextures.push(value); },
+		deleteFramebuffer: (value) => { target.deletedFramebuffers.push(value); },
+		failFramebufferIn: (offset) => { failFramebufferAt = framebufferCreates + offset; },
 		uploads: [],
 		texImage2D: (...args) => { if (args.length === 6) target.uploads.push(args[5]); },
 		texSubImage2D: (...args) => { target.uploads.push(args.at(-1)); },
@@ -38,6 +50,40 @@ function createStubContext() {
 		},
 	});
 }
+
+test('render-target allocation releases every partial resource after a later target fails', () => {
+	const gl = createStubContext();
+	gl.failFramebufferIn(3);
+	assert.throws(() => createVideoPreviewRenderTargets(gl, 640, 360, 0.5), /allocate/iu);
+	assert.equal(gl.deletedFramebuffers.length, 3);
+	assert.equal(gl.deletedTextures.length, 4,
+		'including the texture whose paired framebuffer allocation failed');
+});
+
+test('a failed compositor resize retains the live targets and retries the requested dimensions', () => {
+	const canvas = createStubCanvas();
+	const compositor = createVideoPreviewCompositor(canvas);
+	compositor.resizeToDisplaySize({ outputWidth: 640, outputHeight: 360 });
+	const priorTargets = compositor.targets;
+	const priorFramebuffers = new Set(Object.values(priorTargets).map(({ framebuffer }) => framebuffer));
+	canvas.gl.failFramebufferIn(0);
+	assert.throws(
+		() => compositor.resizeToDisplaySize({ outputWidth: 800, outputHeight: 450 }),
+		/allocate/iu,
+	);
+	assert.equal(canvas.width, 640);
+	assert.equal(canvas.height, 360);
+	assert.strictEqual(compositor.targets, priorTargets);
+	assert.equal(canvas.gl.deletedFramebuffers.some((value) => priorFramebuffers.has(value)), false);
+
+	canvas.gl.failFramebufferIn(-1);
+	compositor.resizeToDisplaySize({ outputWidth: 800, outputHeight: 450 });
+	assert.equal(canvas.width, 800);
+	assert.equal(canvas.height, 450);
+	assert.notStrictEqual(compositor.targets, priorTargets);
+	assert.equal(canvas.gl.deletedFramebuffers.filter((value) => priorFramebuffers.has(value)).length, 8);
+	compositor.dispose();
+});
 
 function createStubCanvas() {
 	const gl = createStubContext();

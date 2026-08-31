@@ -182,12 +182,23 @@ export class VideoPreviewCompositor {
 	resizeToDisplaySize(options = {}) {
 		const { width, height } = resolveVideoPreviewCompositorSize(this.canvas, options);
 		if (this.canvas.width === width && this.canvas.height === height && this.targets) return;
-		this.canvas.width = width;
-		this.canvas.height = height;
-		deleteVideoPreviewRenderTargets(this.gl, this.targets);
-		this.targets = createVideoPreviewRenderTargets(
+		const nextTargets = createVideoPreviewRenderTargets(
 			this.gl, width, height, GAUSSIAN_BLUR_RENDER_SCALE,
 		);
+		const previousWidth = this.canvas.width;
+		const previousHeight = this.canvas.height;
+		try {
+			this.canvas.width = width;
+			this.canvas.height = height;
+		} catch (error) {
+			this.canvas.width = previousWidth;
+			this.canvas.height = previousHeight;
+			deleteVideoPreviewRenderTargets(this.gl, nextTargets);
+			throw error;
+		}
+		const previousTargets = this.targets;
+		this.targets = nextTargets;
+		deleteVideoPreviewRenderTargets(this.gl, previousTargets);
 	}
 
 	uploadVideo(video) {
