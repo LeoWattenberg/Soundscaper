@@ -103,6 +103,27 @@ test('a positive Audacity label region remains a region below one destination sa
 	}));
 });
 
+test('overlong Audacity label names remain canonical at the annotation limit', () => {
+	let nextId = 0;
+	const result = createAudacityAnnotationImport([{
+		name: 'Long labels',
+		labels: [
+			{ title: `${'a'.repeat(4_095)} b`, startSeconds: 0, endSeconds: 0 },
+			{ title: `${'a'.repeat(4_095)}😀`, startSeconds: 1, endSeconds: 1 },
+		],
+	}], {
+		sampleRate: 48_000,
+		tempoMap: MUSICAL_ROOT,
+		sequenceId: 'main-sequence',
+		idFactory: (prefix) => `${prefix}-${String(++nextId)}`,
+	});
+
+	assert.equal(result.annotations[0]?.name.length, 4_095);
+	assert.equal(result.annotations[0]?.name.endsWith(' '), false);
+	assert.equal(result.annotations[1]?.name.length, 4_095);
+	assert.equal(result.annotations[1]?.name.charCodeAt(4_094), 'a'.charCodeAt(0));
+});
+
 test('legacy XML AUP labels import as current annotations instead of internal label-track objects', () => {
 	let nextId = 0;
 	const decoded = convertLegacyAupToProject({

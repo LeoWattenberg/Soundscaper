@@ -153,8 +153,10 @@ export function createAudacityAnnotationImport(
 }
 
 function canonicalAnnotationName(value: string): string {
-	return value.replace(INVALID_ANNOTATION_NAME_TEXT, ' ').trim()
-		.slice(0, AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumNameCodeUnits);
+	return value.replace(INVALID_ANNOTATION_NAME_TEXT, ' ')
+		.slice(0, AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumNameCodeUnits)
+		.replace(/[\uD800-\uDBFF]$/u, '')
+		.trim();
 }
 
 function cloneOpaque(value: unknown): unknown {
