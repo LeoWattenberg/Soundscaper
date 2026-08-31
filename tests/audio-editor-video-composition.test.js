@@ -129,8 +129,8 @@ test('media composition delegates dissolve weights to the exact shared resolver 
 	]);
 });
 
-test('composition interval fallback evaluates the authored transition curve', () => {
-	const project = layeredProject();
+test('composition interval fallback evaluates an authored transition curve after snapshot cloning', () => {
+	let project = layeredProject();
 	project.tracks.find(({ id }) => id === 'top-track').videoTransitions = [{
 		id: 'held-dissolve',
 		type: 'dissolve',
@@ -146,6 +146,7 @@ test('composition interval fallback evaluates the authored transition curve', ()
 			segments: [{ kind: 'hold' }],
 		}),
 	}];
+	project = structuredClone(project);
 	const [interval] = resolveVideoCompositionIntervals(project, { startFrame: 70, endFrame: 90 });
 	assert.deepEqual(interval.layers.at(-1).clips.map(({ clipId, opacityStart, opacityEnd }) => ({
 		clipId, opacityStart, opacityEnd,

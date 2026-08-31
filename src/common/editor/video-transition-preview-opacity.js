@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { evaluateInterpolationCurveAtExactPosition } from './interpolation-curve.ts';
+import {
+	compileInterpolationCurve,
+	evaluateInterpolationCurveAtExactPosition,
+} from './interpolation-curve.ts';
+
+const PREVIEW_CURVES = new WeakMap();
 
 /** Resolve maintained transition opacity, preferring an exact product plan weight. */
 export function resolveVideoTransitionPreviewOpacity(options, transition, clip, role, frame) {
@@ -20,9 +25,18 @@ export function resolveVideoTransitionPreviewOpacity(options, transition, clip, 
 	));
 	const progress = transition.curve == null ? localFrame / (
 		transition.endFrame - transition.startFrame
-	) : evaluateInterpolationCurveAtExactPosition(transition.curve, localFrame);
+	) : evaluateInterpolationCurveAtExactPosition(previewCurve(transition.curve), localFrame);
 	if (!Number.isFinite(progress) || progress < 0 || progress > 1) {
 		throw new RangeError('An authored video transition weight must be between zero and one.');
 	}
 	return role === 'outgoing' ? 1 - progress : progress;
+}
+
+function previewCurve(value) {
+	if (!value || typeof value !== 'object') return compileInterpolationCurve(value);
+	let compiled = PREVIEW_CURVES.get(value);
+	if (compiled) return compiled;
+	compiled = compileInterpolationCurve(value);
+	PREVIEW_CURVES.set(value, compiled);
+	return compiled;
 }
