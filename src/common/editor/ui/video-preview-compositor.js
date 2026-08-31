@@ -43,8 +43,8 @@ import {
 	videoPreviewRenderQuadUniforms,
 } from './video-preview-render-description.ts';
 import {
-	createVideoPreviewRenderTargets,
 	deleteVideoPreviewRenderTargets,
+	replaceVideoPreviewRenderTargets,
 } from './video-preview-render-target.js';
 import { resolveVideoPreviewCompositorSize } from './video-preview-compositor-size.js';
 import { compositeVideoPreviewAdjustedLayer } from './video-preview-layer-effects.js';
@@ -182,23 +182,9 @@ export class VideoPreviewCompositor {
 	resizeToDisplaySize(options = {}) {
 		const { width, height } = resolveVideoPreviewCompositorSize(this.canvas, options);
 		if (this.canvas.width === width && this.canvas.height === height && this.targets) return;
-		const nextTargets = createVideoPreviewRenderTargets(
-			this.gl, width, height, GAUSSIAN_BLUR_RENDER_SCALE,
+		this.targets = replaceVideoPreviewRenderTargets(
+			this.gl, this.canvas, this.targets, width, height, GAUSSIAN_BLUR_RENDER_SCALE,
 		);
-		const previousWidth = this.canvas.width;
-		const previousHeight = this.canvas.height;
-		try {
-			this.canvas.width = width;
-			this.canvas.height = height;
-		} catch (error) {
-			this.canvas.width = previousWidth;
-			this.canvas.height = previousHeight;
-			deleteVideoPreviewRenderTargets(this.gl, nextTargets);
-			throw error;
-		}
-		const previousTargets = this.targets;
-		this.targets = nextTargets;
-		deleteVideoPreviewRenderTargets(this.gl, previousTargets);
 	}
 
 	uploadVideo(video) {

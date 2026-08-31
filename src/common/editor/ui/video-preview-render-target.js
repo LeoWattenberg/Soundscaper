@@ -55,3 +55,21 @@ export function createVideoPreviewRenderTargets(gl, width, height, blurScale) {
 export function deleteVideoPreviewRenderTargets(gl, targets) {
 	for (const target of Object.values(targets || {})) deleteVideoPreviewRenderTarget(gl, target);
 }
+
+/** Allocate a complete replacement before releasing the compositor's live target set. */
+export function replaceVideoPreviewRenderTargets(gl, canvas, previousTargets, width, height, blurScale) {
+	const nextTargets = createVideoPreviewRenderTargets(gl, width, height, blurScale);
+	const previousWidth = canvas.width;
+	const previousHeight = canvas.height;
+	try {
+		canvas.width = width;
+		canvas.height = height;
+	} catch (error) {
+		canvas.width = previousWidth;
+		canvas.height = previousHeight;
+		deleteVideoPreviewRenderTargets(gl, nextTargets);
+		throw error;
+	}
+	deleteVideoPreviewRenderTargets(gl, previousTargets);
+	return nextTargets;
+}
