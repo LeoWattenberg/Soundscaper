@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
+import { createExportRenderProject } from '../common/editor/controller/export-render-project.ts';
 import { projectTrackFolderMediaStateV12 } from '../common/editor/track-folder-media-runtime.ts';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -76,9 +77,7 @@ export function createSoundscaperVideoExportStrategy(
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const deliveryProject = assertFallbackFreeDelivery(request.delivery);
 			const canonicalProjection = createDetachedExportProject(runtime, request.canonicalProject);
-			const detached = runtime.cloneProject(deliveryProject);
-			const projection = runtime.projectForRuntimeConsumers(detached);
-			const exportProject = freezeExportProject(projectTrackFolderMediaStateV12(projection));
+			const exportProject = freezeExportProject(createExportRenderProject(deliveryProject));
 			exportAuthorities.set(exportProject, Object.freeze({
 				canonicalProject: request.canonicalProject,
 				canonicalProjection,

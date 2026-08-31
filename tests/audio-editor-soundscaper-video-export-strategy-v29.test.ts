@@ -6,6 +6,8 @@ import test from 'node:test';
 import type { ProductVideoExportStrategyEncodeRequest } from '../src/common/editor/controller/product-video-export-strategy.ts';
 import type { FfmpegOutputSink } from '../src/common/editor/ffmpeg-output-stream.ts';
 import type { VideoKeyframeOfflineVideoExportRequest } from '../src/common/editor/ui/video-keyframe-offline-video-export.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperPlaybackProjectService } from '../src/soundscaper/editor-project-playback.ts';
 import { createSoundscaperProjectRuntimeSelection } from '../src/soundscaper/editor-project-runtime-selection.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import {
@@ -126,6 +128,42 @@ test('Soundscaper V29 keyed strategy renders the delivery effect-bypass projecti
 		canonicalProject: project, exportProject, format: 'webm', range: 'project',
 		includeAudio: true, canvas: undefined,
 	}));
+});
+
+test('Soundscaper V29 keyed strategy detaches a trusted track-folder delivery projection', () => {
+	const runtime = createSoundscaperProjectRuntimeSelection();
+	const project = createSoundscaperProject(framescaperV20Options() as never);
+	const foldered = applySoundscaperProjectCommand(project, {
+		type: 'batch', commands: [
+			{
+				type: 'track-folder/add', sequenceId: 'main-sequence',
+				folder: { id: 'audio-folder', name: 'Audio folder' },
+			},
+			{
+				type: 'track-node/move', sequenceId: 'main-sequence',
+				nodeId: 'audio-track', parentFolderId: 'audio-folder', index: 0,
+			},
+			{
+				type: 'track-folder/update', folderId: 'audio-folder', changes: { mute: true },
+			},
+		],
+	} as never);
+	const delivery = createSoundscaperPlaybackProjectService()
+		.projectForVideoRenderedFallbackDelivery(foldered);
+	assert.equal(
+		(delivery.project as Readonly<Record<string, unknown>>).trackFolderStateProjectionVersion,
+		1,
+	);
+	assert.equal(delivery.project.tracks.find(({ id }) => id === 'audio-track')?.mute, true);
+
+	const exportProject = createSoundscaperVideoExportStrategy(runtime, dependencies())
+		.createExportProject({ canonicalProject: foldered, delivery });
+	assert.equal(exportProject.trackFolderStateProjectionVersion, 1);
+	assert.equal(
+		(exportProject.tracks as readonly Readonly<Record<string, unknown>>[])
+			.find(({ id }) => id === 'audio-track')?.mute,
+		true,
+	);
 });
 
 test('Soundscaper V29 controller strategy is desktop-only', () => {
