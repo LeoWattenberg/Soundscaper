@@ -1250,7 +1250,7 @@
       "count": 2
     }
   },
-  "src/framescaper/editor-video-proxy-reattestation-contract-sequence.ts": {
+  "src/framescaper/editor-video-proxy-revalidation-contract-sequence.ts": {
     "no-useless-escape": {
       "count": 1
     }

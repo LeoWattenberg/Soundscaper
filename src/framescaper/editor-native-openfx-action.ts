@@ -34,7 +34,7 @@ import {
 	type FramescaperNativeProjectActionRuntime,
 } from '../common/editor/ui/framescaper-native-project-actions.ts';
 import type { FramescaperNativeServicesBridge } from '../common/editor/ui/framescaper-native-services-bridge.ts';
-import { attestFramescaperOpenFxEffectOpenFx } from './editor-native-openfx-authoring.ts';
+import { verifyFramescaperOpenFxEffectOpenFx } from './editor-native-openfx-authoring.ts';
 import {
 	createFramescaperOpenFxAuthoringDraftNativeMedia,
 	createFramescaperOpenFxAuthoringModelNativeMedia,
@@ -349,7 +349,7 @@ function effectWithFreshness(
 		}),
 		nativeEffectFingerprintSha256: digest({ projection: plugin }),
 	});
-	return attestFramescaperOpenFxEffectOpenFx(plugin, Object.freeze({
+	return verifyFramescaperOpenFxEffectOpenFx(plugin, Object.freeze({
 		...authored, freshness, frozenFallback: null,
 	}));
 }

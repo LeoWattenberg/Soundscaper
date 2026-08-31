@@ -128,8 +128,8 @@ export const NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE = 'inventory';
  * format on the wire so the scanner, registry, host and fault suites exercise
  * exactly the admission a third-party format will, but it names only our own
  * fixture binaries. Third-party execution still requires an authenticated
- * format adapter and payload; human licensing review is milestone-9 release
- * metadata and never changes this vocabulary.
+ * format adapter and payload; distribution licensing metadata never changes
+ * this vocabulary.
  */
 export const HELPER_PLUGIN_FORMATS = Object.freeze([
 	'vst3', 'clap', 'au', 'lv2', 'fixture',

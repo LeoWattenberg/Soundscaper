@@ -31,7 +31,7 @@ function unavailableCapability(format: DesktopVideoExportFormat): DesktopVideoEx
 	return Object.freeze({
 		available: false,
 		provider: null,
-		reason: `Desktop ${format === 'mp4' ? 'MP4' : 'WebM'} export needs an execution-qualified external FFmpeg provider. Manage or rescan it in Edit > Preferences > General.`,
+		reason: `Desktop ${format === 'mp4' ? 'MP4' : 'WebM'} export needs an execution-verified external FFmpeg provider. Manage or rescan it in Edit > Preferences > General.`,
 	});
 }
 

@@ -70,8 +70,8 @@ test('Web VCR isolated-guest control records the active lazy security boundary',
 	assert.match(control.summary, /720p.*1080p.*enabled.*4K.*unavailable.*no platform claim/isu);
 	assert.match(control.summary, /packaged feasibility smoke.*TLS.*authentication.*scaled input.*owned guest.*page audio.*visual marker/isu);
 	assert.match(control.summary, /Electron 43.*display.*camera.*preflight.*10-second.*metadata.*no.*camera capture.*guest-partition/isu);
-	assert.match(control.summary, /human.*review.*stable 1\.0 admission only.*never disable/isu);
-	assert.match(control.summary, /no packaged-runtime-qualification.*platform-support claim/isu);
+	assert.match(control.summary, /optional owner QA.*never disable/isu);
+	assert.match(control.summary, /diagnosticOnly.*true.*no broader runtime or platform-support claim/isu);
 	assertEvidence(control, [
 		'desktop/framescaper-web-vcr-capture-authority.ts',
 		'desktop/framescaper-web-vcr-contract.ts',
@@ -112,7 +112,7 @@ test('Web VCR isolated-guest control records the active lazy security boundary',
 	assert.match(threatModel, new RegExp(`policy-narrative:${CONTROL_ID}`, 'u'));
 	assert.match(privacy, /Web VCR.*enabled.*framescaperWebVcr.*true.*default-hidden.*Record/isu);
 	assert.match(privacy, /persistent profile.*URL.*title.*login.*crop gesture.*diagnostic.*project state/isu);
-	assert.match(privacy, /deterministic.*HTTPS fixture.*evidence only.*not.*platform.*qualification/isu);
+	assert.match(privacy, /deterministic.*HTTPS fixture.*diagnosticOnly.*true.*does not establish broader.*platform.*behavior/isu);
 });
 
 test('Web VCR stays in real tests and owner QA instead of a pseudo quality workload', async () => {
@@ -134,20 +134,20 @@ test('Web VCR roadmap and owning plan report the enabled test surface truthfully
 	]);
 	const section = roadmap.slice(
 		roadmap.indexOf('## 8+. Post-milestone-8 Framescaper Web VCR extension'),
-		roadmap.indexOf('## 9. Final convergence and qualification'),
+		roadmap.indexOf('## 8+C. Framescaper product origin and cross-product storage'),
 	);
 	assert.match(section, /Status:.*Implemented and enabled for testing/isu);
 	assert.match(section, /framescaperWebVcr.*true/isu);
-	assert.match(section, /human.*qualification.*milestone 9.*stable 1\.0.*never disables/isu);
+	assert.match(section, /optional Framescaper owner QA/isu);
 	assert.match(section, /720p.*1080p.*enabled.*no platform claim/isu);
 	assert.match(section, /4K.*unavailable/isu);
-	assert.match(section, /deterministic.*HTTPS fixture.*not.*qualification/isu);
-	assert.match(section, /packaged feasibility.*qualification.*false.*720p.*1080p/isu);
+	assert.match(section, /deterministic.*HTTPS fixture.*neither establishes.*general real-runtime.*platform claim/isu);
+	assert.match(section, /packaged feasibility.*720p.*1080p/isu);
 	assert.match(plan, /Implementation status.*implemented.*enabled for testing/isu);
 	assert.match(plan, /framescaperWebVcr.*true.*default-hidden.*Record/isu);
-	assert.match(plan, /packaged feasibility.*720p.*1080p.*qualification.*false/isu);
-	assert.match(plan, /real-runtime\s+matrix.*stable 1\.0 admission.*4K.*unavailable/isu);
-	assert.match(plan, /loopback HTTPS fixture.*evidence only.*not.*qualification/isu);
+	assert.match(plan, /packaged feasibility.*720p.*1080p.*diagnosticOnly.*true/isu);
+	assert.match(plan, /real-runtime behavior.*optional.*owner-QA.*4K.*unavailable/isu);
+	assert.match(plan, /loopback HTTPS fixture.*report only what they actually ran.*no broader.*platform claim/isu);
 });
 
 async function json(path) {

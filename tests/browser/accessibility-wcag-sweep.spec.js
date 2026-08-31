@@ -7,11 +7,10 @@ import { AxeBuilder, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import { bootEditor } from './audio-editor-test-helpers.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 
-// Milestone 9 owes a recorded accessibility position, and the per-feature axe
-// assertions scattered through the suite cannot give one: they cover the dialog
-// each spec happens to open, run untagged, and never see 200% reflow, forced
-// colors, or reduced motion. This sweep walks the maintained routes under each
-// of those conditions with the WCAG 2.2 AA tag set and publishes one count.
+// Per-feature axe assertions cover only the dialog each spec happens to open,
+// run untagged, and never see 200% reflow, forced colors, or reduced motion.
+// This CI sweep walks the maintained routes under each of those conditions with
+// the WCAG 2.2 AA tag set and publishes one diagnostic count for owner QA.
 const WCAG_TAGS = Object.freeze(accessibilityBaseline.tags);
 const BLOCKING_IMPACTS = Object.freeze(accessibilityBaseline.impacts);
 const ROUTES = Object.freeze([

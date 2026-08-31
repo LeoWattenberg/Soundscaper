@@ -23,7 +23,7 @@ test('frame registration forwards exact effect identity into current-project aut
 	const observed = [];
 	const registration = await createFramescaperOpenFxFrameRegistration({
 		openFxService: {
-			inventory: () => [], qualifiedGpuBackends: () => [], execute: async () => ({ mode: 'bypass' }),
+			inventory: () => [], supportedGpuBackends: () => [], execute: async () => ({ mode: 'bypass' }),
 		},
 		projectBodyAuthority: { openFxTimingAssets: async () => [] },
 		createMessageChannel: () => ({}), mintOpaqueId: () => 'ab'.repeat(20),

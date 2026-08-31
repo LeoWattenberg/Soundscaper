@@ -9,7 +9,7 @@
  * one source built once per variant, including the
  * ones that genuinely abort, genuinely hang, and genuinely answer with more
  * state than the cap allows — a simulated crash would exercise the simulation
- * rather than the supervision. Human review remains milestone-9 release work.
+ * rather than the supervision. Distribution licensing is tracked separately.
  *
  * Like the addon, these are pinned per target and audited without a compiler,
  * and only the host's own target is ever built.

@@ -64,28 +64,28 @@
 		},
 		"notices": {
 			"path": "THIRD_PARTY_LICENSES.md",
-			"byteLength": 61018,
-			"sha256": "dfa371c3b80892f280165ca0033b4f63dd432aa340668857f3d1c7d595a3e844"
+			"byteLength": 61760,
+			"sha256": "a183e2e4772ca7eacbe17ea95467932ea4edb4572349dd8739da811d8ac63e80"
 		},
 		"licensingPolicy": {
 			"path": "docs/production-licensing-policy.md",
-			"byteLength": 32279,
-			"sha256": "7f568b0522a5eb751ff46304c0df96191e7089dbcbfc398964534af51fe229c4"
+			"byteLength": 31601,
+			"sha256": "b1ad9ecfb6f50db2c76ffd66a840feae34a9d4517bb6fcbee1d2426700e6182f"
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 132918,
-			"sha256": "a17c5bb141bb65ca2ef2920ac0921310f91050d27d380c7283f8e3ed138a6f2b"
+			"byteLength": 131568,
+			"sha256": "21c793f3d98355879e2477a2d9cbce1eeda139b1e24899f46698355744ffb8f4"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
-			"byteLength": 805848,
-			"sha256": "d8189bfa66a7a68804ba449a34871f72204fd29f5dadc1fb511c13cabc6279fc"
+			"byteLength": 800498,
+			"sha256": "277e6b1c9607a5bb9255d4a6011addac141acd4655419ad1b671302500cf1d82"
 		},
 		"threatModel": {
 			"path": "docs/production-threat-model.md",
-			"byteLength": 308217,
-			"sha256": "0d4f4f6c46eb4a3fe7a27d64505de5dc0511afe8be3584c79a4449e5cca33dee"
+			"byteLength": 307089,
+			"sha256": "1a4890d4249be58c9eaddfa688993926a3133954b2562bb9e7625fdb14eca1a9"
 		}
 	},
 	"security": {
@@ -93,13 +93,13 @@
 		"riskId": "runtime-supply-chain",
 		"controlId": "validated-ffmpeg-runtime-publication"
 	},
-	"authorizations": {
+	"distributionChecks": {
 		"desktopAssembly": {
-			"status": "approved",
+			"allowed": true,
 			"blockedBy": []
 		},
 		"runtimePublication": {
-			"status": "blocked",
+			"allowed": false,
 			"blockedBy": [
 				"ffmpeg-enabled-codec-patent-review",
 				"ffmpeg-enabled-library-corresponding-source",
@@ -107,22 +107,14 @@
 			]
 		},
 		"desktopRelease": {
-			"status": "blocked",
+			"allowed": false,
 			"blockedBy": [
 				"ffmpeg-enabled-codec-patent-review",
 				"ffmpeg-enabled-library-corresponding-source"
 			]
 		}
 	},
-	"review": {
-		"status": "approved",
-		"reviewedAt": "2026-08-08",
-		"reviewer": "Soundscaper release maintainers",
-		"scopes": [
-			"desktop-assembly",
-			"desktop-release-policy",
-			"runtime-publication-policy"
-		],
-		"payloadSha256": "7a3182f5f7135121db74c229b316d5b54dbf7aa9feb5a97a3af4c231107ba6c7"
+	"integrity": {
+		"payloadSha256": "ba38a4ae12b5d1e03319fb247c66dca65fca1559c6cfe91cc1b3f5bf5b805095"
 	}
 }

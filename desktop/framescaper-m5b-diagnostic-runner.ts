@@ -113,7 +113,7 @@ const PIPELINES = Object.freeze({
 		'm5b-openfx-isolation-and-packaging', 'm5b-openfx-conformance-and-hostile-v1',
 		['openfx-scan', 'openfx-render', 'openfx-hostile-suite'],
 		['ofx.uncontainedFailures', 'ofx.editorTakedowns', 'ofx.silentEffectOmissions',
-			'ofx.authoredStateLosses', 'ofx.unqualifiedTargets', 'ofx.hostProcessTreeRssBytes'],
+			'ofx.authoredStateLosses', 'ofx.unsupportedTargets', 'ofx.hostProcessTreeRssBytes'],
 	),
 });
 

@@ -268,11 +268,11 @@ test('loader composes authenticated helper, embedded canary, exact provider, and
 	const resolvedOutsideCanary = { ...operation, sampleRate: 44_100, channelCount: 2 };
 	assert.deepEqual(await runtime.provider.preflight(resolvedOutsideCanary, {}), {
 		disposition: 'unsupported',
-		reason: 'No exact canary-qualified operating-system codec tuple matches this operation.',
+		reason: 'No exact canary-verified operating-system codec tuple matches this operation.',
 	});
 });
 
-test('loader qualifies and executes AAC-LC M4A through the registered OS runtime', async (context) => {
+test('loader verifies and executes AAC-LC M4A through the registered OS runtime', async (context) => {
 	const scratchRoot = await scratch(context);
 	const inputDigests: string[] = [];
 	const runtime = await loadOperatingSystemAudioCodecRuntime({
@@ -304,7 +304,7 @@ test('loader qualifies and executes AAC-LC M4A through the registered OS runtime
 	assert.deepEqual(await readdir(scratchRoot), []);
 });
 
-test('loader qualifies exact AAC-LC M4A encode and rejects other settings before spawn', async (context) => {
+test('loader verifies exact AAC-LC M4A encode and rejects other settings before spawn', async (context) => {
 	const scratchRoot = await scratch(context);
 	const inputDigests: string[] = [];
 	let helperSpawns = 0;
@@ -485,7 +485,7 @@ test('exact request gate rejects request/operation substitution before helper ex
 	assert.equal(spawns, 4, 'only the four Windows startup canaries may spawn');
 });
 
-test('nonqualified MP3 source geometry falls through before the OS helper executes', async (context) => {
+test('nonverified MP3 source geometry falls through before the OS helper executes', async (context) => {
 	const scratchRoot = await scratch(context);
 	let helperSpawns = 0;
 	let externalExecutions = 0;
@@ -501,19 +501,19 @@ test('nonqualified MP3 source geometry falls through before the OS helper execut
 	const outsideTuple = Object.freeze({ ...request, input: mp3Mpeg1Fixture(0) });
 	assert.deepEqual(await runtime?.preflightRequest?.(outsideTuple, { operation }), {
 		disposition: 'unsupported',
-		reason: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
+		reason: 'The OS MP3 source geometry is outside the exact canary-verified tuple.',
 	});
 	assert.deepEqual(await runtime?.preflightRequest?.(
 		Object.freeze({ ...request, input: mp3Mpeg1Fixture(1, 9, 3) }), { operation },
 	), {
 		disposition: 'unsupported',
-		reason: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
+		reason: 'The OS MP3 source geometry is outside the exact canary-verified tuple.',
 	});
 	assert.deepEqual(await runtime?.preflightRequest?.(
 		Object.freeze({ ...request, input: mp3Mpeg1Fixture(1, 9, 0, 0) }), { operation },
 	), {
 		disposition: 'unsupported',
-		reason: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
+		reason: 'The OS MP3 source geometry is outside the exact canary-verified tuple.',
 	});
 	const unsupportedProvider = Object.freeze({
 		kind: 'bundled' as const,
@@ -550,7 +550,7 @@ test('nonqualified MP3 source geometry falls through before the OS helper execut
 	assert.equal(helperSpawns, 4, 'only the four Windows startup canaries may spawn');
 });
 
-test('unqualified AAC profile falls through before the OS helper executes', async (context) => {
+test('unverified AAC profile falls through before the OS helper executes', async (context) => {
 	const scratchRoot = await scratch(context);
 	let helperSpawns = 0;
 	const spawn = successfulSpawn('win-arm64', []);
@@ -569,7 +569,7 @@ test('unqualified AAC profile falls through before the OS helper executes', asyn
 	const heRequest = Object.freeze({ ...aacRequest, input: heInput });
 	assert.deepEqual(await runtime?.preflightRequest?.(heRequest, { operation: aacOperation }), {
 		disposition: 'unsupported',
-		reason: 'The OS AAC-LC M4A source is outside the exact canary-qualified tuple.',
+		reason: 'The OS AAC-LC M4A source is outside the exact canary-verified tuple.',
 	});
 	assert.equal(helperSpawns, 4, 'only the four Windows startup canaries may spawn');
 });
@@ -589,7 +589,7 @@ test('valid unreviewed AAC-LC geometry falls through before the OS helper execut
 	const request44_100 = Object.freeze({ ...aacRequest, input: aacLcM4a44_100Fixture() });
 	assert.deepEqual(await runtime?.preflightRequest?.(request44_100, { operation: aacOperation }), {
 		disposition: 'unsupported',
-		reason: 'The OS AAC-LC M4A source is outside the exact canary-qualified tuple.',
+		reason: 'The OS AAC-LC M4A source is outside the exact canary-verified tuple.',
 	});
 	assert.equal(helperSpawns, 3, 'only the three startup canaries may spawn');
 });

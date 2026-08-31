@@ -15,7 +15,7 @@ test('reviewed effects qualify only the release-bundled pure-WASM catalog', asyn
 
 	assert.ok(risk);
 	assert.equal(risk.status, 'enforced');
-	assert.equal(risk.releaseDisposition, 'qualified-current-surface');
+	assert.equal(risk.surfaceDisposition, 'verified-current-surface');
 	assert.deepEqual(risk.residualRisks, []);
 	assert.deepEqual(risk.currentControls.map(({ id }) => id), [
 		'release-pinned-reviewed-effect-catalog',

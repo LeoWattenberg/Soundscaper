@@ -6,9 +6,8 @@
  *
  * Runtime capability is an intersection, never a single flag: the pinned helper
  * build, the driver probe, the self-test, the master switch, and the user's
- * per-feature opt-in all have to agree. Human policy review remains separate
- * milestone-9 stable-release metadata. The
- * snapshot keeps those apart so the report stays accurate when any one of them
+ * per-feature opt-in all have to agree. Distribution policy is deliberately
+ * absent from runtime capability resolution, so the report stays accurate when any one of them
  * is missing — most importantly when every helper is disabled and the editor
  * falls back to Web Core, where the report must still say what would have been
  * possible rather than pretending the capability never existed.
@@ -27,7 +26,6 @@ export const NATIVE_MEDIA_CAPABILITY_SNAPSHOT_VERSION = 1;
 
 export const NATIVE_MEDIA_CAPABILITY_STATES = Object.freeze([
 	'disabled',
-	'blocked-policy',
 	'unavailable',
 	'available',
 	'degraded',
@@ -79,7 +77,6 @@ export const NATIVE_MEDIA_CAPABILITY_IDS: Readonly<Record<
 
 /** Exactly one reason per state, so a report can never say "off, unspecified". */
 export const NATIVE_MEDIA_CAPABILITY_REASONS = Object.freeze([
-	'policy-row-blocked',
 	'quarantined-after-repeated-failure',
 	'master-switch-off',
 	'build-does-not-support',
@@ -96,8 +93,6 @@ export type NativeMediaCapabilityReason = (typeof NATIVE_MEDIA_CAPABILITY_REASON
  * collapsing them loses the answer to "why can I not use this?".
  */
 export interface NativeMediaCapabilityObservationV1 {
-	/** Report-only milestone-9 licensing/provenance review status. */
-	readonly policyCleared: boolean;
 	/** The native media master switch is on. */
 	readonly masterEnabled: boolean;
 	/** The pinned helper build was compiled with this capability. */
@@ -176,12 +171,10 @@ const { exactKeys, plainRecord: record } = createNativeValidators({
 
 /**
  * Every observation defaults to its fail-closed value: nothing is built,
- * probed, self-tested, or opted into until something says so. Policy review
- * also defaults pending, but it does not affect runtime resolution.
+ * probed, self-tested, or opted into until something says so.
  */
 export const NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION: NativeMediaCapabilityObservationV1 =
 	Object.freeze({
-		policyCleared: false,
 		masterEnabled: false,
 		buildSupported: false,
 		probeSucceeded: false,
@@ -318,8 +311,7 @@ export function nativeMediaCapabilityRefusals(
 	snapshot: NativeMediaCapabilitySnapshotV1,
 ): readonly NativeMediaCapabilityEntryV1[] {
 	return Object.freeze(snapshot.entries.filter((entry) => (
-		entry.state === 'blocked-policy'
-		|| entry.state === 'quarantined'
+		entry.state === 'quarantined'
 		|| (entry.state === 'unavailable' && entry.userEnabled)
 	)));
 }

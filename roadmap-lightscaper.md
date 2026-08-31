@@ -32,14 +32,14 @@ file deliberately omits:
 - L6 local adjustments and repair: [L6 plan](docs/lightscaper-6-plan.md);
 - L7 raw and deep color: [L7 plan](docs/lightscaper-7-plan.md);
 - L8 desktop tier: [L8 plan](docs/lightscaper-8-plan.md); and
-- L9 final qualification: [L9 plan](docs/lightscaper-9-plan.md).
+- L9 owner QA and diagnostics: [historical L9 plan](docs/lightscaper-9-plan.md).
 
 Each plan is grounded at the commit named in its own header; re-ground its
 citations at pickup. Machine-readable claims stay in the
 policies the main roadmap already names: capabilities in the
 [capability inventory](config/production-capabilities.json), licensing in the
 [production licensing policy](docs/production-licensing-policy.md), budgets in
-the [quality budgets](docs/quality-budgets.md), and severity in the
+the [quality budgets](docs/quality-budgets.md), and the owner release rule in the
 [release policy](docs/release-policy.md).
 
 ### Agent operating rules
@@ -52,13 +52,10 @@ the [quality budgets](docs/quality-budgets.md), and severity in the
   `src/common/`, registers in the shared catalogs, and is authorable and
   renderable from Framescaper with tests in both products in the same change.
   A Lightscaper-only image filter is a placement defect, not a product feature.
-- Every exit gate through L8 is provable by CI or by a deterministic script or
-  test a maintainer runs locally, without human judgment, real devices,
-  provisioned accounts, or external tools. Human, visual, real-camera, and
-  real-device qualification belongs to L9 and only L9; when part of a
-  capability cannot honestly be gated automatically, its automated part closes
-  in its milestone and the remainder is named as an L9 row, never as an
-  intermediate gate.
+- Every exit gate is provable by CI or a deterministic script or test a
+  maintainer runs locally. Human, visual, real-camera, and real-device checks
+  belong in optional owner QA; they report only the environments actually
+  tried and never certify a release or activate a capability.
 - The persisted schema and the pixel interchange are bit-depth- and
   color-space-agnostic from their first version. Processing may ship 8-bit
   sRGB first, but the limit lives in an admission check, never in the types or
@@ -151,7 +148,7 @@ Nothing exists under `src/lightscaper/`. What Lightscaper builds on:
 | Pixel interchange | 8-bit straight RGBA end to end; color math is floating-point per sample, but no 16-bit or float interchange buffer exists. |
 | Library and storage | OPFS/IndexedDB media library, id-keyed with recorded SHA-256 content digests, with retained originals and disposable derivatives, capacity preflight, single-writer project locks, Project Bin, Scape archive, and revisioned JSON commands with snapshot undo/redo. |
 | UI and platform | Vendored Audacity design system, product-profile-driven workspace/menu/dialog shells, i18n catalogs, offline application shell, and the hardened Electron wrapper. |
-| Gates | Sharded Node suite, three-engine Playwright matrix, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, a machine-audited quality-budget ledger, and the packaged desktop smoke matrix. |
+| Gates | Sharded Node suite, browser workflows, coverage-union thresholds, architecture and file-size ceilings, licensing/notice/WASM audits, correctness checks, and packaged desktop smokes. Performance reports are diagnostics. |
 
 Known architectural constraints that drive the sequence:
 
@@ -177,12 +174,12 @@ Known architectural constraints that drive the sequence:
 | L6. Local adjustments and repair | **Planned** | Add masked adjustments and parametric healing. |
 | L7. Raw and deep color | **Planned** | Activate deep processing, raw decode, and wide-gamut output. |
 | L8. Desktop tier | **Planned** | Package the desktop product and add-in-place libraries. |
-| L9. Final qualification | **Planned** | Qualify the complete product; the only milestone with human gates. |
+| L9. Owner QA and diagnostics | **Planned** | Exercise the coherent product, improve diagnostics, and record optional observations without a certification gate. |
 
 L3 and L4 may proceed in parallel once L2 and L3's catalog-and-ingest core
-land. Earlier milestones may ship independently; this roadmap does not close
-until L9 closes. Every gate through L8 is CI- or script-provable by design;
-L9 concentrates all human, real-device, and external qualification.
+land. Earlier milestones may ship independently. L9 rounds out owner QA and
+debugging; it does not delay a release whose automated gates are green and
+whose owner accepts the known issues.
 
 ## L1. Product registration and platform seam
 
@@ -291,15 +288,15 @@ real-library scale.
   the existing relink path, and catalog snapshot/backup through Scape
   export.
 - **Shared — Planned:** a pinned synthetic large-library fixture, with its
-  import, scroll, filter, and search budgets recorded in the quality-budget
-  ledger on a CI-runnable environment class.
+  import, scroll, filter, and search measurements and thresholds recorded in
+  the quality-diagnostics configuration and run in CI.
 - **Shared — Optional:** merge-on-import of a catalog Scape archive into an open
   catalog.
 
 ### Exit gate
 
 - Node and browser workflows cover the full loop keyboard-complete in every
-  engine the qualified storage matrix supports — Chromium and Firefox today;
+  engine whose storage workflow is supported — Chromium and Firefox today;
   WebKit joins when a pinned Playwright build exposes the required
   OPFS/IndexedDB storage, per the milestone-2 scope-revision-2 deferral.
 - The large-library fixture meets its recorded budgets in CI.
@@ -348,7 +345,7 @@ sync — entirely on shared effects.
 - History, snapshots, sync, and presets pass property tests over generated
   stacks, including process-version stability goldens.
 - Browser workflows complete the develop loop keyboard-first within recorded
-  interaction budgets in every engine the qualified storage matrix supports,
+  interaction budgets in every engine whose storage workflow is supported,
   under the same WebKit deferral as L3.
 
 ## L5. Export and cross-product handoff
@@ -497,48 +494,44 @@ the desktop can offer.
 - Disabling every native service leaves a complete, working Web Core product
   in the packaged app.
 
-## L9. Final qualification
+## L9. Owner QA and diagnostics
 
 **Depends on:** L1–L8 closed. Deferred and Optional items are excluded,
 and Blocked items stay excluded while their named blockers remain.
 
-**Goal:** qualify Lightscaper as a coherent product. This is the only
-milestone whose gates require humans, real devices, real cameras, or external
-tools, and it adds no product capability.
+**Goal:** exercise Lightscaper as a coherent product and make failures easier
+to diagnose. Human and real-device observations are optional owner QA, not
+acceptance evidence, and this milestone adds no product capability.
 
-- **Shared — Planned:** a real-camera raw corpus across vendors, sensor
-  generations, and Bayer/X-Trans layouts, rendered against reference
-  converters with visual and metric review, and camera-support breadth
-  recorded honestly.
+- **Shared — Planned:** exercise representative real-camera raw files and
+  record only the camera models, converters, and environments actually tried.
 - **Web Core — Planned:** current and previous Chromium, Firefox, and Safari
   on real devices, including color management on actual wide-gamut displays.
 - **Shared — Planned:** accessibility review with assistive technology across
   library culling and develop, at supported zoom, contrast, locale, and
   direction.
-- **Shared — Planned:** real-library soaks — six-figure photo counts, real
-  file sizes, storage pressure — over import, browse, search, develop, and
-  export, with bounded memory and stable timing evidence.
-- **Electron Enhanced — Planned:** packaged upgrade/downgrade with real
-  catalogs, uninstall preservation, signing, and notarization across the
-  desktop matrix.
+- **Shared — Planned:** add a real-library debug soak over import, browse,
+  search, develop, and export, with truthful memory/timing diagnostics and
+  explicit unavailable measurements.
+- **Electron Enhanced — Planned:** optionally exercise packaged install,
+  upgrade, rollback, uninstall, and catalog preservation on environments the
+  owner has available.
 - **Web Enhanced — Planned:** GPU/CPU render-parity breadth on real GPUs
   across vendors and the real-device browser matrix, beyond the CI-detected
   environments L7 pinned.
-- **Shared — Planned:** licensing, provenance, and corresponding-source
-  sign-off for the raw decoder, any lens-profile data, and every new runtime
-  asset, recording an explicit license selection for every dual-licensed
-  input per the licensing policy.
+- **Shared — Planned:** automated licensing, provenance, notice, and
+  corresponding-source checks for the raw decoder, any lens-profile data, and
+  every new runtime asset, recording an explicit license selection for every
+  dual-licensed input per the licensing policy.
 
 ### Exit gate
 
-- No open data-loss, corruption, security-boundary, accessibility-blocker, or
-  unreported-conversion defect remains in the required matrix.
-- Owner-host and real-device qualification rows are recorded as accepted
-  rather than `pending-external`.
-- Representative photo work moves between Lightscaper and Framescaper on web
-  and desktop and returns re-editable with fallbacks reported.
-- Release artifacts pass notices, hashes, provenance, licensing, package
-  smoke, signature, and update/recovery gates.
+- Ordinary static, Node, browser, package, notice, source, hash, and smoke
+  checks pass on the revision being considered.
+- No known data-loss, security, or primary-workflow failure remains.
+- Representative cross-product handoff stays covered by automated tests;
+  optional owner QA may add observations without becoming a gate.
+- The owner decides whether and when to push the release tag.
 
 ## Interface and schema commitments
 
@@ -564,7 +557,7 @@ tools, and it adds no product capability.
 | Catalog scale | Recorded import/scroll/filter/search budgets over the pinned large-library fixture; bounded memory over soak. |
 | Interrupted mutation | Abort, kill, or reload at import, preview-build, develop, and export boundaries leaves a valid recoverable catalog. |
 | Shared-effect parity | Every Lightscaper operation authorable and renderable from Framescaper in the same suite run. |
-| Distribution | Browser and desktop matrices, licenses, notices, hashes, signatures, and package smoke. |
+| Distribution | Browser and desktop workflows, licenses, notices, SHA-256 sums, authenticated runtime/catalog payloads, and unsigned package smoke. |
 
 ## Platform feasibility references
 
@@ -587,9 +580,8 @@ Revalidate platform assumptions when the owning milestone starts:
   today verifies only `roadmap.md` anchors — in the same change that adds the
   first such citation.
 - A status becomes **Implemented** only with maintained behavior and its
-  automated gate; through L8 that gate must stay CI- or script-provable, and
-  moving a human judgment into an L1–L8 gate is a scope error, not a
-  qualification shortcut.
+  automated gate. Moving a human judgment into an implementation gate is a
+  scope error; record the observation in optional owner QA instead.
 - Before implementation, decompose each milestone item into a bounded work
   packet with outcome, invariants, acceptance, non-goals, and stop condition
   in the owning `docs/lightscaper-*-plan.md`.

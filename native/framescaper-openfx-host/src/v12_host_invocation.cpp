@@ -10,7 +10,7 @@
 #include "v12_retime_authority.hpp"
 #include "v12_transition_authority.hpp"
 #include "v12_video_timing_grants.hpp"
-#include "v12_gpu_qualification.hpp"
+#include "v12_gpu_support.hpp"
 
 #include <algorithm>
 #include <array>
@@ -436,15 +436,15 @@ V12HostInvocation authenticate_v12_host_invocation(
 		if (canonical_grant != grant_bytes) fail("admission", "The OpenFX V12 grant bytes are not canonical JSON.");
 		const auto* timing_value = json::optional_member(grant, "videoTimingAssets");
 		exact(grant, timing_value == nullptr
-			? std::initializer_list<std::string_view>{"schemaVersion", "qualifiedBackends", "pluginBinary", "invocation", "plan", "inputs", "output"}
-			: std::initializer_list<std::string_view>{"schemaVersion", "qualifiedBackends", "pluginBinary", "invocation", "plan", "videoTimingAssets", "inputs", "output"});
+			? std::initializer_list<std::string_view>{"schemaVersion", "supportedBackends", "pluginBinary", "invocation", "plan", "inputs", "output"}
+			: std::initializer_list<std::string_view>{"schemaVersion", "supportedBackends", "pluginBinary", "invocation", "plan", "videoTimingAssets", "inputs", "output"});
 		if (safe_integer(json::member(grant, "schemaVersion"), "grant schema", 1) != 1) {
 			fail("admission", "The OpenFX V12 grant schema is unsupported.");
 		}
 		const auto& plugin = json::member(grant, "pluginBinary");
 		exact(plugin, {"path", "sha256", "pluginIndex"});
 		V12HostInvocation result;
-		result.qualified_backends = authenticate_v12_gpu_qualification(json::member(grant, "qualifiedBackends"));
+		result.supported_backends = authenticate_v12_gpu_support(json::member(grant, "supportedBackends"));
 		result.plugin_binary = absolute_path(json::member(plugin, "path"), "plug-in path");
 		result.plugin_binary_sha256 = digest(json::member(plugin, "sha256"), "plug-in digest");
 		result.plugin_index = static_cast<int>(safe_integer(json::member(plugin, "pluginIndex"), "plug-in index"));

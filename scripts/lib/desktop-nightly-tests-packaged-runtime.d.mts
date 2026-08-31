@@ -55,7 +55,7 @@ export function runDesktopNightlyTestsPackagedMetricsPhase(
 			readonly playwrightExit: DesktopNightlyTestsMetricsExit;
 			readonly consoleLogPath: string;
 			readonly artifactDirectory: 'packaged-runtime';
-			readonly evidenceKind: 'packaged-runtime';
+			readonly executionSurface: 'packaged-runtime';
 		}) => Promise<DesktopNightlyTestsMetricsDiagnostics>;
 	},
 ): Promise<{

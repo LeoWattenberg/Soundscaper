@@ -83,16 +83,16 @@ const OS_CODEC_EVIDENCE = [
 const EXTERNAL_CODEC_EVIDENCE = [
 	'desktop/external-ffmpeg-audio-operation-runner.ts',
 	'desktop/external-ffmpeg-installer.ts',
-	'desktop/external-ffmpeg-video-qualification.ts',
+	'desktop/external-ffmpeg-video-verification.ts',
 	'desktop/external-ffmpeg-video-canary-inspection.ts',
-	'desktop/external-ffmpeg-video-qualified-capabilities.ts',
+	'desktop/external-ffmpeg-video-verified-capabilities.ts',
 	'desktop/external-ffmpeg-video-process.ts',
 	'desktop/external-ffmpeg-video-operation-service.ts',
 	'desktop/desktop-video-codec-registration.mjs',
 	'src/common/editor/ui/dialogs/DesktopFfmpegPreferencePanel.tsx',
 	'tests/desktop-external-ffmpeg-audio-operation-runner.test.ts',
 	'tests/desktop-external-ffmpeg-installer.test.ts',
-	'tests/external-ffmpeg-video-qualification.test.ts',
+	'tests/external-ffmpeg-video-verification.test.ts',
 	'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	'tests/external-ffmpeg-video-operation-service.test.ts',
 	'tests/desktop-video-codec-registration.test.js',
@@ -131,7 +131,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/Framescaper.*exact authenticated target media-host payload.*containment closure.*build and test packages.*pending human review cannot withhold it.*alternate Chromium libffmpeg.*framework exception.*never a Soundscaper provider tier/iu,
+		/Framescaper.*exact authenticated target media-host payload.*containment closure.*build and test packages.*distribution policy does not replace its machine checks.*alternate Chromium libffmpeg.*framework exception.*never a Soundscaper provider tier/iu,
 	);
 	assert.match(
 		helperPayload.summary,
@@ -143,7 +143,7 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		helperPayload.summary,
-		/Media Foundation.*AudioToolbox.*target-native.*signed.*manifest\/payload.*Linux.*never built for mac-x64.*user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*H\.264\/AAC MP4.*VP9\/Opus WebM.*exact ffprobe.*two streams.*16x16.*yuv420p.*48 kHz stereo.*hash-before-path-spawn TOCTOU.*dynamic-library closure.*filesystem\/network\/RSS\/CPU sandbox.*malicious selected executable.*Bundled video.*operating-system video.*AV1 remain disabled.*WebM is VP9.*null timing.*neither patent clearance nor non-infringement/iu,
+		/Media Foundation.*AudioToolbox.*target-native.*ad-hoc sealed.*manifest\/payload.*Linux.*never built for mac-x64.*user-installed FFmpeg\/ffprobe 4\.4 through 9\.x.*Edit > Preferences > General.*WinGet\/Homebrew.*live-verified H\.264\/AAC MP4.*VP9\/Opus WebM.*exact ffprobe.*verifies two streams.*16x16.*yuv420p.*48 kHz stereo.*hash-before-path-spawn TOCTOU.*dynamic-library closure.*filesystem\/network\/RSS\/CPU sandbox.*malicious selected executable.*Bundled video.*operating-system video.*AV1 remain disabled.*WebM is VP9.*null timing.*neither patent clearance nor non-infringement/iu,
 	);
 	assertEvidence(packageIntegrity, [
 		'.github/workflows/desktop-preview.yml',
@@ -170,11 +170,11 @@ test('desktop codec security separates Electron framework, application, and exte
 	]);
 	assert.match(
 		packageIntegrity.summary,
-		/application-codec policy.*reject unmanaged FFmpeg programs.*loose libav.*FFmpeg WebAssembly.*archives.*unqualified WebM\/AV1 payloads/iu,
+		/application-codec policy.*reject unmanaged FFmpeg programs.*loose libav.*FFmpeg WebAssembly.*archives.*unverified WebM\/AV1 payloads/iu,
 	);
 	assert.match(
 		packageIntegrity.summary,
-		/admit.*exact Framescaper media-host subtree.*target manifest.*payload.*runtime closure.*isolation launcher.*package inventory.*human release review.*milestone-9 metadata.*never blocks a build or test package/iu,
+		/admit.*exact Framescaper media-host subtree.*target manifest.*payload.*runtime closure.*isolation launcher.*package inventory.*distribution.*corresponding source.*notices.*licensing checks.*never activate a payload/iu,
 	);
 	assert.match(
 		packageIntegrity.summary,
@@ -190,12 +190,12 @@ test('desktop codec security separates Electron framework, application, and exte
 	);
 	assert.match(
 		plan,
-		/Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native codec canar.*sign.*package.*Linux.*no uniform OS tier.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
+		/Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native codec canar.*identity-free ad-hoc code seal.*no\s+certificate.*package.*Linux.*no uniform OS tier.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
 	);
 	assert.match(plan, /live.*16x16.*48 kHz stereo.*exact.*ffprobe.*exactly two streams.*yuv420p.*H\.264.*AAC.*yuv420p.*VP9.*Opus/isu);
 	assert.match(
 		plan,
-		/Bundled and operating-system video execution are not implemented.*dav1d.*SVT-AV1.*libaom.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external WebM.*VP9.*not AV1.*Media Foundation video.*VideoToolbox video.*no execution capability.*fail.*closed/isu,
+		/Bundled and operating-system video execution are not implemented.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external\s+WebM.*VP9.*not AV1.*Media Foundation video.*VideoToolbox video.*no execution capability.*fail\s+closed/isu,
 	);
 	assert.match(
 		plan,

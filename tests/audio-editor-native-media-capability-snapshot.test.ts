@@ -27,7 +27,7 @@ const FINGERPRINT = 'a1'.repeat(32);
 
 test('the report distinguishes every state the milestone-5B contract names', () => {
 	assert.deepEqual([...NATIVE_MEDIA_CAPABILITY_STATES], [
-		'disabled', 'blocked-policy', 'unavailable', 'available', 'degraded', 'quarantined',
+		'disabled', 'unavailable', 'available', 'degraded', 'quarantined',
 	]);
 	assert.deepEqual([...NATIVE_MEDIA_CAPABILITY_DOMAINS], [
 		'codec', 'operation', 'backend', 'queue', 'watch', 'scratch', 'display', 'ofx',
@@ -64,7 +64,6 @@ test('the gated capability rows are named once, and the proxy row names its prof
 
 test('every machine observation is closed by default, so nothing is capable until proven', () => {
 	assert.deepEqual(NATIVE_MEDIA_CAPABILITY_CLOSED_OBSERVATION, {
-		policyCleared: false,
 		masterEnabled: false,
 		buildSupported: false,
 		probeSucceeded: false,
@@ -79,43 +78,39 @@ test('every machine observation is closed by default, so nothing is capable unti
 });
 
 test('capability is the intersection of build, probe, self-test, and health', () => {
-	const cleared = { policyCleared: true, masterEnabled: true, buildSupported: true, probeSucceeded: true, selfTestPassed: true };
+	const ready = { masterEnabled: true, buildSupported: true, probeSucceeded: true, selfTestPassed: true };
 
-	assert.deepEqual(resolveNativeMediaCapability(cleared), { state: 'available', reason: 'ready' });
-	assert.deepEqual(resolveNativeMediaCapability({ ...cleared, buildSupported: false }), {
+	assert.deepEqual(resolveNativeMediaCapability(ready), { state: 'available', reason: 'ready' });
+	assert.deepEqual(resolveNativeMediaCapability({ ...ready, buildSupported: false }), {
 		state: 'unavailable', reason: 'build-does-not-support',
 	});
-	assert.deepEqual(resolveNativeMediaCapability({ ...cleared, probeSucceeded: false }), {
+	assert.deepEqual(resolveNativeMediaCapability({ ...ready, probeSucceeded: false }), {
 		state: 'unavailable', reason: 'driver-probe-failed',
 	});
-	assert.deepEqual(resolveNativeMediaCapability({ ...cleared, selfTestPassed: false }), {
+	assert.deepEqual(resolveNativeMediaCapability({ ...ready, selfTestPassed: false }), {
 		state: 'unavailable', reason: 'self-test-failed',
 	});
-	assert.deepEqual(resolveNativeMediaCapability({ ...cleared, degraded: true }), {
+	assert.deepEqual(resolveNativeMediaCapability({ ...ready, degraded: true }), {
 		state: 'degraded', reason: 'degraded-after-failure',
 	});
-	assert.deepEqual(resolveNativeMediaCapability({ ...cleared, masterEnabled: false }), {
+	assert.deepEqual(resolveNativeMediaCapability({ ...ready, masterEnabled: false }), {
 		state: 'disabled', reason: 'master-switch-off',
 	});
 });
 
-test('pending release policy is report-only, while quarantine stays fail-closed', () => {
+test('quarantine stays fail-closed even when the master switch is off', () => {
 	const everythingElseReady = {
 		masterEnabled: true, buildSupported: true, probeSucceeded: true,
 		selfTestPassed: true, userEnabled: true,
 	};
 
-	assert.deepEqual(
-		resolveNativeMediaCapability({ ...everythingElseReady, policyCleared: false }),
-		{ state: 'available', reason: 'ready' },
-	);
 	// A capability that has hurt the editor must not read as merely switched off.
 	assert.deepEqual(
-		resolveNativeMediaCapability({ ...everythingElseReady, policyCleared: true, quarantined: true, masterEnabled: false }),
+		resolveNativeMediaCapability({ ...everythingElseReady, quarantined: true, masterEnabled: false }),
 		{ state: 'quarantined', reason: 'quarantined-after-repeated-failure' },
 	);
 	assert.deepEqual(
-		resolveNativeMediaCapability({ ...everythingElseReady, policyCleared: false, quarantined: true }),
+		resolveNativeMediaCapability({ ...everythingElseReady, quarantined: true }),
 		{ state: 'quarantined', reason: 'quarantined-after-repeated-failure' },
 	);
 });
@@ -158,7 +153,7 @@ test('disabling every helper still reports what each capability would have been'
 		buildFingerprint: FINGERPRINT,
 		entries: [
 			ready('codec', NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec.id, { userEnabled: true }),
-			{ domain: 'codec', id: 'hevc', policyCleared: false },
+			{ domain: 'codec', id: 'hevc' },
 			ready('queue', NATIVE_MEDIA_CAPABILITY_IDS.renderQueue.id, { quarantined: true }),
 		],
 	});
@@ -253,7 +248,6 @@ function ready(
 	return {
 		domain,
 		id,
-		policyCleared: true,
 		buildSupported: true,
 		probeSucceeded: true,
 		selfTestPassed: true,

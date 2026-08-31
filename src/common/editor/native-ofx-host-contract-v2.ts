@@ -23,7 +23,7 @@ export const OFX_HOST_EXECUTION_CONTRACT_V2 = Object.freeze({
 	customParameterInteract: true as const,
 	drawSuite: 'draw-suite-v1' as const,
 	cpuRenderingRequired: true as const,
-	qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda', 'metal'] as const),
+	supportedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda', 'metal'] as const),
 	gatedBackends: Object.freeze([] as const),
 	abortPollingRequired: true as const,
 	offscreenUiOnly: true as const,
@@ -110,7 +110,7 @@ export function assertOfxHostInvocationV2(value: unknown): asserts value is OfxH
 	if (invocation.outputFrameStreamId !== null) pattern(invocation.outputFrameStreamId, ID, 'outputFrameStreamId');
 	nonNegativeInteger(invocation.outputOrdinal, 'outputOrdinal');
 	if (!['cpu', 'opengl', 'opencl', 'cuda', 'metal'].includes(String(invocation.requestedBackend))) {
-		throw new RangeError('OFX V2 backend is not qualified.');
+		throw new RangeError('OFX V2 backend is unsupported.');
 	}
 	pattern(invocation.abortSignalId, ID, 'abortSignalId');
 	if (invocation.context === 'retimer') {

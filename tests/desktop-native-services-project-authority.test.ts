@@ -16,7 +16,7 @@ const PROJECT_IDENTITY = Object.freeze({
 	schemaVersion: 1 as const,
 });
 
-test('the main-private authority revalidates machine facts without consulting milestone-9 review', async () => {
+test('the main-private authority revalidates machine facts directly', async () => {
 	const plan = nativeQueueKeyedPlanV7();
 	const inputs = Object.freeze([
 		Object.freeze({ sourceId: 'source-a', sha256: '12'.repeat(32) }),

@@ -7,7 +7,7 @@ import {
 	nonNegativeInteger,
 	positiveInteger,
 	requireRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 import { validateNativeOsDiagnosticBinding } from './native-os-diagnostics-schema.mjs';
 

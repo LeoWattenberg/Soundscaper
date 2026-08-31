@@ -17,7 +17,6 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 		platform: options.externalDisplay.platform,
 		hardwareEncodeEnabled: () => options.settings.snapshot().nativeHardwareEncodeEnabled === true,
 	});
-	const executionPolicy = framescaperNativeExecutionPolicy();
 	const scratchRoot = resolve(options.userDataPath, 'framescaper-native-scratch');
 	const nodePorts = modules.createNodePorts({
 		scratchRoot,
@@ -215,7 +214,6 @@ export async function startFramescaperNativeServicesRegistration(value, dependen
 				preferences: preferenceSnapshot(options.settings.snapshot()),
 				mediaRuntime,
 				openFxRuntime,
-				policy: capabilityReportExecutionPolicy(executionPolicy),
 				externalDisplay: options.externalDisplay,
 				externalDisplaySupport: modules.externalDisplaySupport,
 				queueSourceAuthorityMounted: projectAuthority !== null, queueCapacityAuthorityMounted: queueCapacity !== null,
@@ -450,16 +448,16 @@ async function loadRuntimeModules() {
 	});
 }
 function capabilityReportOptions({
-	preferences, mediaRuntime, openFxRuntime, policy, externalDisplay, externalDisplaySupport,
+	preferences, mediaRuntime, openFxRuntime, externalDisplay, externalDisplaySupport,
 	queueSourceAuthorityMounted, queueCapacityAuthorityMounted, watchProjectMutationMounted,
 	imageSequenceImportMounted,
 }) {
 	const payload = mediaRuntime.payloadAvailability;
 	const payloadBuilt = payload?.status === 'available';
 	const pool = mediaRuntime.snapshot?.() ?? null;
-	const mediaSelfTest = mediaRuntime.selfTestEvidence?.() ?? null;
-	const selectedV20RenderSelfTest = mediaRuntime.selectedV20RenderSelfTestEvidence?.() ?? null;
-	const selectedV28V14RenderSelfTest = mediaRuntime.selectedV28V14RenderSelfTestEvidence?.() ?? null;
+	const mediaSelfTest = mediaRuntime.selfTestResult?.() ?? null;
+	const selectedV20RenderSelfTest = mediaRuntime.selectedV20RenderSelfTestResult?.() ?? null;
+	const selectedV28V14RenderSelfTest = mediaRuntime.selectedV28V14RenderSelfTestResult?.() ?? null;
 	const quarantined = pool !== null && pool.quarantinedWorkers >= pool.configuredWorkers;
 	const degraded = pool !== null && pool.quarantinedWorkers > 0 && !quarantined;
 	const placement = externalDisplaySupport(externalDisplay.platform, externalDisplay.linuxSessionType);
@@ -483,7 +481,7 @@ function capabilityReportOptions({
 			payloadBuilt,
 			runtimeAvailable: mediaRuntime.available(),
 			selfTestPassed: payloadBuilt && mediaRuntime.reason === null,
-			// Professional probing is attested separately from selected V20 rendering.
+			// Professional probing is verified separately from selected V20 rendering.
 			selectedV20RenderSelfTestPassed: payloadBuilt
 				&& mediaRuntime.reason === null
 				&& selectedV20RenderSelfTest?.ready === true,
@@ -498,7 +496,6 @@ function capabilityReportOptions({
 			buildFingerprint: payloadBuilt ? payload.descriptor.sha256 : null,
 			detail: mediaDetail.slice(0, 512),
 		}),
-		policy,
 		queueSourceAuthorityMounted, queueCapacityAuthorityMounted,
 		watchProjectMutationMounted, imageSequenceImportMounted,
 		externalDisplay: Object.freeze({
@@ -523,7 +520,7 @@ function openFxRuntimeFingerprint(descriptor) {
 		target: descriptor.target,
 		scannerSha256: descriptor.scanner.sha256,
 		runtimeHostSha256: descriptor.runtimeHost.sha256,
-		qualifiedGpuBackends: descriptor.qualifiedGpuBackends,
+		supportedGpuBackends: descriptor.supportedGpuBackends,
 		launcherSha256: descriptor.isolation.launcher.sha256,
 		sandboxProfileSha256: descriptor.isolation.sandboxProfile.sha256,
 		brokerPolicySha256: descriptor.isolation.brokerPolicy.sha256,
@@ -545,22 +542,13 @@ const NATIVE_EXECUTION_POLICY = Object.freeze({
 	proxyCodecExecutionEnabled: true,
 	imageSequencesExecutionEnabled: true,
 });
-/** Human licensing review is an M9 release input, never runtime execution authority. */
+/** Fixed machine execution switches; distribution policy is not runtime authority. */
 export function framescaperNativeExecutionPolicy() { return NATIVE_EXECUTION_POLICY; }
 export function framescaperNativeQueueOperationExecutionEnabled(policy, record) {
 	if (record?.taskKind === 'encoded-export') return policy.selectedRenderCodecExecutionEnabled === true;
 	if (record?.taskKind === 'proxy-generation') return policy.proxyCodecExecutionEnabled === true;
 	if (record?.taskKind === 'image-sequence-export') return policy.imageSequencesExecutionEnabled === true;
 	return false;
-}
-/** Compatibility mapper for the existing renderer capability DTO field names. */
-function capabilityReportExecutionPolicy(policy) {
-	return Object.freeze({
-		nativeCodecsCleared: policy.nativeCodecsExecutionEnabled === true,
-		proxyCodecCleared: policy.proxyCodecExecutionEnabled === true,
-		imageSequencesCleared: policy.imageSequencesExecutionEnabled === true,
-		openFxCleared: true,
-	});
 }
 function mediaExecutable(mediaRuntime) {
 	const payload = mediaRuntime.payloadAvailability;

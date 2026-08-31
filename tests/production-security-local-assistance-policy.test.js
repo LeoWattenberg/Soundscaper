@@ -14,7 +14,7 @@ async function readText(path) {
 	return readFile(new URL(path, repositoryUrl), 'utf8');
 }
 
-test('Milestone 7 policy records conditional workflow activation and its external evidence gates', async () => {
+test('Milestone 7 policy records conditional workflow activation and its machine gates', async () => {
 	const [matrix, threatModel, activation, historicalEvidence] = await Promise.all([
 		readJson('config/production-security-matrix.json'),
 		readText('docs/production-threat-model.md'),
@@ -30,8 +30,8 @@ test('Milestone 7 policy records conditional workflow activation and its externa
 	const historicalClaims = compact(historicalEvidence);
 	const supplyControl = matrix.risks.flatMap(({ currentControls }) => currentControls)
 		.find(({ id }) => id === 'signed-local-model-catalog-and-authenticated-store');
-	const qualificationRisk = matrix.risks.flatMap(({ residualRisks }) => residualRisks)
-		.find(({ id }) => id === 'local-assistance-runtime-qualification');
+	const diagnosticsRisk = matrix.risks.flatMap(({ residualRisks }) => residualRisks)
+		.find(({ id }) => id === 'local-assistance-runtime-diagnostics');
 	const externalExecutableRisk = matrix.risks.flatMap(({ residualRisks }) => residualRisks)
 		.find(({ id }) => id === 'external-ffmpeg-selected-executable-authority');
 
@@ -50,7 +50,7 @@ test('Milestone 7 policy records conditional workflow activation and its externa
 	assert.match(control.summary,
 		/explicit reviewed acceptance.*content-addressed transcript body.*cleanup.*speaker attribution.*derived audio.*reactions.*beats.*tempo.*shot.*indexes.*reframe.*secondary sequences/isu);
 	assert.match(control.summary,
-		/owner-lab evidence.*pending.*nonblocking/isu);
+		/owner-device observations.*pending.*nonblocking/isu);
 	assert.match(control.summary,
 		/licensing.*catalog signature.*artifact digest.*runtime.*selected-media.*consent.*fail[- ]closed/isu);
 	for (const path of [
@@ -89,18 +89,18 @@ test('Milestone 7 policy records conditional workflow activation and its externa
 	assert.match(threatClaims,
 		/semantic review.*explicit acceptance.*transcript.*cleanup.*speaker.*derived audio.*reactions.*beats.*tempo.*shots.*indexes.*reframe.*highlight/isu);
 	assert.match(threatClaims,
-		/owner-lab.*remain absent.*Manual qualification.*documentary.*nonblocking/isu);
+		/owner-device observations.*remain absent.*Owner QA.*optional/isu);
 	assert.ok(supplyControl);
 	assert.match(supplyControl.summary,
 		/stream.*disk.*multipart.*public.*SHA-256 read-back.*external.*sign.*no real R2 write.*no remote-availability claim/isu);
-	assert.ok(qualificationRisk);
-	assert.match(qualificationRisk.exposure,
-		/TIGER.*converted artifacts.*parity.*signed catalog.*five target.*payload closures.*Windows ARM64.*No provisioned owner-lab profile.*no five target packaged canary/isu);
+	assert.ok(diagnosticsRisk);
+	assert.match(diagnosticsRisk.exposure,
+		/TIGER.*converted artifacts.*parity.*signed catalog.*five target.*payload closures.*Windows ARM64.*No owner-device observations.*five-target packaged canary/isu);
 	assert.ok(externalExecutableRisk);
 	assert.match(externalExecutableRisk.exposure,
 		/assistance shot.*scdet.*canary.*path-based runners.*replacement.*dynamically loaded libraries/isu);
 	assert.match(activationClaims,
-		/Delivered boundary \(2026-08-27\).*conditionally activates.*enabled for testing.*typed machine unavailability rather than substitute inference or an implicit download.*remain fail closed.*Licensing and owner qualification are milestone-9 stable 1\.0 blockers only/isu);
+		/Delivered boundary \(2026-08-27\).*conditionally activates.*enabled for testing.*typed machine unavailability rather than substitute inference or an implicit download.*remain fail closed.*Owner QA is optional/isu);
 	assert.match(historicalClaims,
 		/Historical slice record.*local-models.*enabled.*thirteen.*permitted/isu);
 });

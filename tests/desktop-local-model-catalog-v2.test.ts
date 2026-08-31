@@ -201,7 +201,7 @@ test('production pins distinct current and successor Ed25519 catalog keys', asyn
 	}));
 });
 
-test('human review state is Milestone 9 metadata while evidence identity stays fail-closed', () => {
+test('distribution metadata does not override fail-closed evidence identity', () => {
 	const permitted = evidence();
 	const entry = entryFor(permitted);
 

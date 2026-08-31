@@ -304,7 +304,7 @@ test('direct queue reorder requires a writable owning project after capability a
 	const capabilities = createNativeMediaCapabilitySnapshotV1({
 		masterEnabled: true,
 		entries: Object.values(NATIVE_MEDIA_CAPABILITY_IDS).map((reference) => ({
-			...reference, policyCleared: true, buildSupported: true, probeSucceeded: true,
+			...reference, buildSupported: true, probeSucceeded: true,
 			selfTestPassed: true, userEnabled: true,
 		})),
 	});

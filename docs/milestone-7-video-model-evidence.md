@@ -14,9 +14,9 @@
 > catalog entry, and authenticated ONNX Runtime target payloads; the same
 > payload closure blocks the other visual models in packages. Intended EU R2
 > URLs and digests remain metadata, not durable publication/read-back evidence.
-> Five-target canaries and owner-lab qualification remain open and nonblocking;
-> licensing, signatures, digests, selection, consent, runtime, and result
-> authentication stay fail closed.
+> Five-target canaries and optional owner-device QA remain open and nonblocking;
+> licensing, catalog signatures, digests, selection, consent, runtime, and
+> result authentication stay fail closed when the feature is used.
 
 This is the licence and provenance review for the models the Framescaper
 assistance track (7B) needs, and the record of how each pinned artifact was

@@ -60,7 +60,7 @@ try {
 		schemaVersion: 1,
 		productId: PRODUCT_ID,
 		diagnosticOnly: true,
-		evidenceKind: 'packaged-feasibility-only',
+		diagnosticScope: 'packaged-feasibility-only',
 		dormant: { ...dormant, persistentGuestProfileMaterialized: false },
 		active,
 	})}`);

@@ -8,7 +8,7 @@
  * process boundary is exercised separately by the real-process smoke.
  *
  * This is the only place the trusted audio addon is loaded. Professional
- * plug-in roles instead reopen signed staged authority and proxy the actual
+ * plug-in roles instead reopen hash-verified staged authority and proxy the actual
  * third-party-loading peer through the enforced child launcher.
  */
 

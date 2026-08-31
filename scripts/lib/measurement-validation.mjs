@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /*
- * The admission rules every quality collector measures a record against, in one
+ * The validation rules every quality collector measures a record against, in one
  * place. A milestone that tightens what counts as a record, a bounded string, or
  * a countable integer tightens it for every milestone at once; a private copy of
  * these rules would let one collector keep accepting what another already
- * refuses, which is the shape of a host that looks qualified because nobody
- * re-checked it.
+ * refuses, which prevents inconsistent or flattering diagnostic records.
  *
  * Nothing here knows what is being measured. Callers name the path so the
  * refusal says which member of which record was wrong.
@@ -57,7 +56,7 @@ export function nonNegativeInteger(value, path) {
 	return value;
 }
 
-/** Freeze the whole validated shape, so a later stage cannot edit admitted evidence. */
+/** Freeze the whole validated shape, so a later stage cannot edit the recorded result. */
 export function deepFreeze(value) {
 	if (value === null || typeof value !== 'object') return value;
 	for (const key of Object.keys(value)) deepFreeze(value[key]);

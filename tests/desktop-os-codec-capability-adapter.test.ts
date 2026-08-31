@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	qualifyOperatingSystemCodecCapabilities,
+	verifyOperatingSystemCodecCapabilities,
 	type OperatingSystemCodecCanaryRequest,
 	type OperatingSystemCodecCanaryRunner,
 } from '../desktop/os-codec-capability-adapter.ts';
@@ -20,34 +20,34 @@ const HEVC = videoCapability('apple-hevc-main10-p010-decode', 'mov', 'hevc', 'ma
 
 test('Linux is unavailable without invoking a canary and macOS x64 is rejected', async () => {
 	let calls = 0;
-	const result = await qualifyOperatingSystemCodecCapabilities({
+	const result = await verifyOperatingSystemCodecCapabilities({
 		target: 'linux-arm64', osVersion: '6.14.0', candidates: [{ capability: H264 }],
 		runner: { run: () => { calls += 1; return Promise.reject(new Error('must not run')); } },
 	});
 	assert.equal(result.status, 'unavailable');
 	assert.equal(result.unavailableReason, 'linux-no-system-codec-provider');
-	assert.equal(result.providerOptions.canaryQualifiedCapabilities.length, 0);
+	assert.equal(result.providerOptions.canaryVerifiedCapabilities.length, 0);
 	assert.equal(result.observations.length, 0);
 	assert.equal(calls, 0);
-	await assert.rejects(() => qualifyOperatingSystemCodecCapabilities({
+	await assert.rejects(() => verifyOperatingSystemCodecCapabilities({
 		target: 'mac-x64' as 'mac-arm64', osVersion: '15.4', candidates: [], runner: null,
 	}), /target/iu);
 });
 
 test('Windows Media Foundation admits only an exact echoed canary tuple', async () => {
 	const requests: OperatingSystemCodecCanaryRequest[] = [];
-	const result = await qualifyOperatingSystemCodecCapabilities({
+	const result = await verifyOperatingSystemCodecCapabilities({
 		target: 'win-x64', osVersion: '10.0.26100', candidates: [{ capability: H264 }],
 		runner: runner((request) => {
 			requests.push(request);
-			return qualified(request, '11'.repeat(32));
+			return passed(request, '11'.repeat(32));
 		}),
 	});
 	assert.equal(result.status, 'available');
 	assert.equal(result.unavailableReason, null);
 	assert.equal(requests[0]?.implementation, 'windows-media-foundation');
 	assert.equal(requests[0]?.target, 'win-x64');
-	assert.equal(requests[0]?.capability, result.providerOptions.canaryQualifiedCapabilities[0]?.capability);
+	assert.equal(requests[0]?.capability, result.providerOptions.canaryVerifiedCapabilities[0]?.capability);
 	assert.equal(Object.isFrozen(requests[0]), true);
 	assert.equal(Object.isFrozen(requests[0]?.capability), true);
 	assert.match(result.providerOptions.capabilityGeneration, /^os-canary-[a-f0-9]{64}$/u);
@@ -66,19 +66,19 @@ test('Windows Media Foundation admits only an exact echoed canary tuple', async 
 
 test('mac-arm64 routes audio and video canaries through only the reviewed Apple frameworks', async () => {
 	const implementations: string[] = [];
-	const result = await qualifyOperatingSystemCodecCapabilities({
+	const result = await verifyOperatingSystemCodecCapabilities({
 		target: 'mac-arm64', osVersion: '15.4',
 		candidates: [{ capability: AAC }, { capability: HEVC }],
 		runner: runner((request) => {
 			implementations.push(request.implementation);
-			return qualified(request, request.capability.id === AAC.id ? '22'.repeat(32) : '33'.repeat(32));
+			return passed(request, request.capability.id === AAC.id ? '22'.repeat(32) : '33'.repeat(32));
 		}),
 	});
 	assert.deepEqual(implementations, [
 		'apple-audiotoolbox-avfoundation',
 		'apple-avfoundation-videotoolbox',
 	]);
-	assert.equal(result.providerOptions.canaryQualifiedCapabilities.length, 2);
+	assert.equal(result.providerOptions.canaryVerifiedCapabilities.length, 2);
 	const provider = createOperatingSystemDesktopCodecProvider(result.providerOptions);
 	assert.equal(provider.resolve(asOperation(AAC, { sampleRate: 48_000, channelCount: 2 }))?.implementation,
 		'apple-audiotoolbox-avfoundation');
@@ -87,49 +87,59 @@ test('mac-arm64 routes audio and video canaries through only the reviewed Apple 
 });
 
 test('no injected native canary means no OS codec claim', async () => {
-	const result = await qualifyOperatingSystemCodecCapabilities({
+	const result = await verifyOperatingSystemCodecCapabilities({
 		target: 'win-arm64', osVersion: '10.0.26100', candidates: [{ capability: H264 }], runner: null,
 	});
 	assert.equal(result.status, 'unavailable');
 	assert.equal(result.unavailableReason, 'native-canary-adapter-unavailable');
-	assert.deepEqual(result.providerOptions.canaryQualifiedCapabilities, []);
+	assert.deepEqual(result.providerOptions.canaryVerifiedCapabilities, []);
 	assert.deepEqual(result.observations, [{
 		capabilityId: H264.id, disposition: 'unavailable', reason: 'canary-adapter-unavailable',
 	}]);
 });
 
-test('throws, malformed evidence, and mismatched echoes fail closed per tuple', async () => {
-	const result = await qualifyOperatingSystemCodecCapabilities({
+test('throws, malformed results, legacy fields, and mismatched echoes fail closed per tuple', async () => {
+	const result = await verifyOperatingSystemCodecCapabilities({
 		target: 'win-x64', osVersion: '10.0.26100',
 		candidates: [
 			{ capability: H264 },
 			{ capability: { ...H264, id: 'wmf-h264-mismatched-evidence' } },
 			{ capability: { ...H264, id: 'wmf-h264-malformed-evidence' } },
+			{ capability: { ...H264, id: 'wmf-h264-legacy-evidence-field' } },
+			{ capability: { ...H264, id: 'wmf-h264-legacy-status' } },
 			{ capability: { ...H264, id: 'wmf-h264-runner-failed' } },
 		],
 		runner: runner((request) => {
-			if (request.capability.id === H264.id) return qualified(request, '44'.repeat(32));
+			if (request.capability.id === H264.id) return passed(request, '44'.repeat(32));
 			if (request.capability.id.endsWith('mismatched-evidence')) return {
-				...qualified(request, '55'.repeat(32)), capabilityDigest: '66'.repeat(32),
+				...passed(request, '55'.repeat(32)), capabilityDigest: '66'.repeat(32),
 			};
 			if (request.capability.id.endsWith('malformed-evidence')) return {
-				...qualified(request, '77'.repeat(32)), unreviewedClaim: true,
+				...passed(request, '77'.repeat(32)), unreviewedClaim: true,
+			};
+			if (request.capability.id.endsWith('legacy-evidence-field')) return {
+				...passed(request, '88'.repeat(32)), evidenceDigest: '88'.repeat(32),
+			};
+			if (request.capability.id.endsWith('legacy-status')) return {
+				...passed(request, '99'.repeat(32)), status: 'qualified',
 			};
 			throw new Error('private native runtime failure');
 		}),
 	});
 	assert.equal(result.status, 'available');
-	assert.deepEqual(result.providerOptions.canaryQualifiedCapabilities.map(({ capability }) => capability.id), [H264.id]);
+	assert.deepEqual(result.providerOptions.canaryVerifiedCapabilities.map(({ capability }) => capability.id), [H264.id]);
 	assert.deepEqual(result.observations.map(({ disposition, reason }) => ({ disposition, reason })), [
-		{ disposition: 'qualified', reason: null },
-		{ disposition: 'rejected', reason: 'mismatched-canary-evidence' },
-		{ disposition: 'rejected', reason: 'malformed-canary-evidence' },
+		{ disposition: 'verified', reason: null },
+		{ disposition: 'rejected', reason: 'mismatched-canary-result' },
+		{ disposition: 'rejected', reason: 'malformed-canary-result' },
+		{ disposition: 'rejected', reason: 'malformed-canary-result' },
+		{ disposition: 'rejected', reason: 'malformed-canary-result' },
 		{ disposition: 'unavailable', reason: 'canary-failed' },
 	]);
 });
 
 test('typed native refusal and timeout remain unavailable rather than advertised', async () => {
-	const refused = await qualifyOperatingSystemCodecCapabilities({
+	const refused = await verifyOperatingSystemCodecCapabilities({
 		target: 'mac-arm64', osVersion: '15.4', candidates: [{ capability: AAC }],
 		runner: { run: () => Promise.resolve({
 			contractVersion: 1, status: 'unavailable', reason: 'tuple-unsupported',
@@ -140,7 +150,7 @@ test('typed native refusal and timeout remain unavailable rather than advertised
 		capabilityId: AAC.id, disposition: 'unavailable', reason: 'tuple-unsupported',
 	}]);
 
-	const timedOut = await qualifyOperatingSystemCodecCapabilities({
+	const timedOut = await verifyOperatingSystemCodecCapabilities({
 		target: 'mac-arm64', osVersion: '15.4', candidates: [{ capability: HEVC }],
 		maximumDurationMs: 5,
 		runner: { run: () => new Promise(() => {}) },
@@ -149,10 +159,10 @@ test('typed native refusal and timeout remain unavailable rather than advertised
 	assert.equal(timedOut.observations[0]?.reason, 'canary-timeout');
 });
 
-test('qualification identity binds exact tuples and evidence into immutable output', async () => {
-	const collect = (evidenceDigest: string) => qualifyOperatingSystemCodecCapabilities({
+test('verification identity binds exact tuples and result digests into immutable output', async () => {
+	const collect = (resultDigest: string) => verifyOperatingSystemCodecCapabilities({
 		target: 'win-x64' as const, osVersion: '10.0.26100', candidates: [{ capability: H264 }],
-		runner: runner((request) => qualified(request, evidenceDigest)),
+		runner: runner((request) => passed(request, resultDigest)),
 	});
 	const first = await collect('88'.repeat(32));
 	const repeated = await collect('88'.repeat(32));
@@ -162,7 +172,7 @@ test('qualification identity binds exact tuples and evidence into immutable outp
 	assert.equal(Object.isFrozen(first), true);
 	assert.equal(Object.isFrozen(first.providerOptions), true);
 	assert.equal(Object.isFrozen(first.observations), true);
-	assert.equal(Object.isFrozen(first.providerOptions.canaryQualifiedCapabilities), true);
+	assert.equal(Object.isFrozen(first.providerOptions.canaryVerifiedCapabilities), true);
 	assert.throws(() => {
 		(first.providerOptions as { osVersion: string }).osVersion = 'changed';
 	}, TypeError);
@@ -174,13 +184,13 @@ function runner(
 	return { run: (request) => Promise.resolve(answer(request)) };
 }
 
-function qualified(request: OperatingSystemCodecCanaryRequest, evidenceDigest: string) {
+function passed(request: OperatingSystemCodecCanaryRequest, resultDigest: string) {
 	return {
-		contractVersion: 1 as const, status: 'qualified' as const,
+		contractVersion: 1 as const, status: 'passed' as const,
 		target: request.target, osVersion: request.osVersion,
 		capabilityId: request.capability.id, capabilityDigest: request.capabilityDigest,
 		implementation: request.implementation, nativeApiReached: true as const,
-		exactTuplePassed: true as const, evidenceDigest,
+		exactTuplePassed: true as const, resultDigest,
 	};
 }
 

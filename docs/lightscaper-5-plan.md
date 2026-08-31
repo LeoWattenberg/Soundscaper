@@ -1,5 +1,10 @@
 # Lightscaper milestone L5 plan: export and cross-product handoff
 
+> **Current release-policy note (2026-08-31):** qualification ledgers, cohorts,
+> and release-admission commands retained below are historical planning context.
+> Future implementation uses ordinary CI, disposable diagnostics, and optional
+> owner QA as described by the current release and quality policies.
+
 > Owning source for L5 sequencing, the photo-delivery and handoff
 > decisions, their invariants, and the bounded work packets. The
 > [Lightscaper roadmap](../roadmap-lightscaper.md#l5-export-and-cross-product-handoff)

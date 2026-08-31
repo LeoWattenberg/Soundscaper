@@ -64,7 +64,7 @@ test('the offline application shell explicitly excludes an FFmpeg runtime cache'
 	);
 
 	assert.equal(
-		matrix.publicationFaultQualification.paths.some(
+		matrix.publicationFaultVerification.paths.some(
 			({ id }: { id: string }) => id === 'offline-runtime-cache',
 		),
 		false,
@@ -74,7 +74,7 @@ test('the offline application shell explicitly excludes an FFmpeg runtime cache'
 	);
 	assert.ok(residual);
 	assert.match(residual.exposure, /development-only legacy audit machinery.*no production browser consumes/isu);
-	assert.match(residual.exposure, /blocked by the bundle audit.*explicit reviewed architecture change/isu);
+	assert.match(residual.exposure, /blocked by the bundle audit.*explicit architecture change/isu);
 
 	const threatModel = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
 	const roadmap = await readFile(roadmapUrl, 'utf8');

@@ -70,7 +70,9 @@ test('active compatibility rules are family-v1 authorities with checked-in evide
 test('compatibility register freezes two independent family-v1 stores and one Scape format', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	assert.equal(policy.releaseCandidate, '1.0.0-rc.1');
-	assert.equal(policy.baselineDecision.stableReleaseAdmission, 'blocked-on-remaining-milestone-9-evidence');
+	assert.equal(Object.hasOwn(policy.baselineDecision, 'stableReleaseAdmission'), false);
+	assert.equal(Object.hasOwn(policy.baselineDecision, 'approver'), false);
+	assert.equal(policy.baselineDecision.releaseDecision, 'repository-owner-on-v1.0.0-tag');
 	assert.deepEqual(policy.projectSchema.baselines.map(({ schemaFamily, currentVersion }) => ({ schemaFamily, currentVersion })), [
 		{ schemaFamily: 'soundscaper', currentVersion: 1 },
 		{ schemaFamily: 'framescaper', currentVersion: 1 },
@@ -89,6 +91,8 @@ test('compatibility register freezes two independent family-v1 stores and one Sc
 		'future-versioned-policy-change',
 		'retained-migration-from-family-v1',
 	]);
+	assert.equal(Object.hasOwn(policy.schemaRetirement, 'approval'), false);
+	assert.equal(policy.schemaRetirement.designRecord, 'docs/wp-9.0.0-baseline-decision.md');
 });
 
 test('compatibility documentation distinguishes the active baseline from historical provenance', async () => {
@@ -103,5 +107,7 @@ test('compatibility documentation distinguishes the active baseline from histori
 	assert.match(documentation, /managed desktop acquisition.*only after the owning family-v1 identity.*same-family workflows/isu);
 	assert.match(documentation, /foreign-family archive never\s+enters those domain controls.*byte-exact Save Copy/isu);
 	assert.match(documentation, /Version-bearing S21–S30, F18–F32[\s\S]*?provenance/iu);
-	assert.match(documentation, /stable 1\.0.*blocked/iu);
+	assert.match(documentation, /pushing the matching stable tag.*owner's\s+release decision/isu);
+	assert.match(documentation, /does not certify it/iu);
+	assert.doesNotMatch(documentation, /release admission/iu);
 });

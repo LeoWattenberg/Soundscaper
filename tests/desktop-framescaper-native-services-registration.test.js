@@ -18,7 +18,6 @@ test('Soundscaper never starts the Framescaper service database', async () => {
 			createNodePorts: () => { throw new Error('must not create filesystem ports'); },
 			createExternalDisplayPort: () => { throw new Error('must not create display ports'); },
 		},
-		loadCapabilityPolicy: () => { throw new Error('must not load policy'); },
 	});
 	assert.equal(registration, null);
 });
@@ -66,9 +65,9 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 		payloadAvailability: { status: 'unavailable', reason: 'payload-pending-external', detail: 'No payload.' },
 		reason: 'payload-pending-external: No payload.',
 		snapshot: () => null,
-		selfTestEvidence: () => null,
-		selectedV20RenderSelfTestEvidence: () => null,
-		selectedV28V14RenderSelfTestEvidence: () => null,
+		selfTestResult: () => null,
+		selectedV20RenderSelfTestResult: () => null,
+		selectedV28V14RenderSelfTestResult: () => null,
 		activate: async () => { mediaActivations += 1; return true; },
 		deactivate: () => { mediaDeactivations += 1; return true; },
 		runJob: async () => ({ output: true }),
@@ -209,7 +208,6 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 				return Object.freeze({ dispose: () => { ipcDisposals += 1; } });
 			},
 		},
-		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	});
 	assert.ok(registration);
 	assert.match(runtimeOptions.databasePath, /framescaper-native-services-v1\.sqlite$/u);
@@ -232,30 +230,26 @@ test('Framescaper owns one runtime, authenticates every IPC caller, and closes i
 	assert.equal(capabilities.value.queueCapacityAuthorityMounted, true);
 	assert.equal(capabilities.value.watchProjectMutationMounted, true);
 	assert.equal(capabilities.value.imageSequenceImportMounted, true);
-	assert.deepEqual(capabilities.value.policy, {
-		nativeCodecsCleared: true, proxyCodecCleared: true,
-		imageSequencesCleared: true, openFxCleared: true,
-	}, 'legacy capability DTO names carry machine execution admission, not human review');
+	assert.equal('policy' in capabilities.value, false,
+		'distribution policy is not part of runtime capability resolution');
 	assert.equal(capabilities.value.externalDisplay.placementSupported, true);
 	mediaRuntime.payloadAvailability = {
 		status: 'available', descriptor: { sha256: 'b'.repeat(64) },
 	};
 	mediaRuntime.reason = null;
-	mediaRuntime.selfTestEvidence = () => ({ professionalCharacteristicsMatches: true });
-	mediaRuntime.selectedV20RenderSelfTestEvidence = () => ({ ready: true });
-	mediaRuntime.selectedV28V14RenderSelfTestEvidence = () => ({ ready: true });
-	const attestedCapabilities = runtimeOptions.capabilities();
-	assert.equal(attestedCapabilities.value.media.professionalCharacteristicsSelfTestPassed, true);
-	assert.equal(attestedCapabilities.value.media.selectedV20RenderSelfTestPassed, true);
-	assert.equal(attestedCapabilities.value.media.selectedV28V14RenderSelfTestPassed, true);
-	assert.equal(attestedCapabilities.value.imageSequenceImportMounted, true,
+	mediaRuntime.selfTestResult = () => ({ professionalCharacteristicsMatches: true });
+	mediaRuntime.selectedV20RenderSelfTestResult = () => ({ ready: true });
+	mediaRuntime.selectedV28V14RenderSelfTestResult = () => ({ ready: true });
+	const verifiedCapabilities = runtimeOptions.capabilities();
+	assert.equal(verifiedCapabilities.value.media.professionalCharacteristicsSelfTestPassed, true);
+	assert.equal(verifiedCapabilities.value.media.selectedV20RenderSelfTestPassed, true);
+	assert.equal(verifiedCapabilities.value.media.selectedV28V14RenderSelfTestPassed, true);
+	assert.equal(verifiedCapabilities.value.imageSequenceImportMounted, true,
 		'the baseline route mounts only after its main-owned authority recovers');
 	assert.equal(imageSequenceImportOptions.route.schemaFamily, 'framescaper');
 	assert.equal(imageSequenceImportOptions.route.schemaVersion, 1);
 	assert.equal(imageSequenceImportOptions.project, registrationInput.projectAuthority);
 	assert.equal(imageSequenceImportOptions.controller, controller);
-	assert.equal('policyCleared' in imageSequenceImportOptions, false);
-	assert.equal('policyCleared' in openFxServiceOptions, false);
 	assert.equal(await runtimeOptions.nativeQueueExecution.prepare({}, {}), prepared);
 	assert.deepEqual(await runtimeOptions.revalidate({ record: {}, root: {}, rootAuthorized: true }), {
 		projectRevisionMatches: true, planFingerprintMatches: true,
@@ -422,7 +416,6 @@ test('a runtime startup failure releases the session display subscription', asyn
 			createCapabilityReport: (value) => ({ value }),
 			externalDisplaySupport: () => ({ supported: false, reason: 'unsupported-platform' }),
 		},
-		loadCapabilityPolicy: () => { throw new Error('human release review must not be read'); },
 	}), /startup failed/u);
 	assert.equal(disposals, 1);
 });
@@ -438,7 +431,7 @@ test('desktop main mounts the Framescaper registration after settings and includ
 	assert.match(source, /watchImportAuthority:[\s\S]*currentRendererSaveOwner[\s\S]*watchImportAuthority\(\)/u);
 	assert.match(source, /imageSequenceImportAuthority:[\s\S]*FRAMESCAPER_IMAGE_SEQUENCE_IMPORT_AUTHORITY/u);
 	assert.match(routes, /schemaFamily:\s*'framescaper'[\s\S]*schemaVersion:\s*1[\s\S]*projectMutationSurface:\s*'image-sequence-import'/u,
-		'the main composition must attest only the exact baseline project mutation route');
+		'the main composition must verify only the exact baseline project mutation route');
 	assert.ok(
 		source.indexOf('await settings.load') < source.indexOf('startFramescaperNativeServicesRegistration({'),
 		'native service settings authority must be loaded before its runtime starts',

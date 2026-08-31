@@ -18,8 +18,8 @@ The Stable release inventory includes the exact six authenticated upstream
 source archives and a canonical compliance receipt binding them to all five
 packaged runtime manifests and their source-authentication receipts. No
 Framescaper video-codec source enters that inventory. This checked technical
-inventory does not claim the external legal, trademark, patent, signing, or
-notarization approvals that independently gate Stable admission.
+inventory does not claim legal, trademark, or patent clearance beyond the
+recorded owner review.
 
 ## Audacity-derived native audio effects
 
@@ -425,8 +425,8 @@ against
 
 That manifest binds Electron 43.1.1, the exact five release-archive names and
 archive SHA-256 values, and each unpacked library's byte length and SHA-256.
-The after-pack verifier re-hashes the exact framework location before fuse or
-signing work. The library remains part of Electron/Chromium and its notices; it
+The after-pack verifier re-hashes the exact framework location before final
+package assembly. The library remains part of Electron/Chromium and its notices; it
 is not a Soundscaper codec-provider tier, is not invoked through the desktop
 codec broker, and is not a separately distributed Soundscaper runtime. The
 alternate asset name, upstream intent, and digest verification do not prove a
@@ -436,11 +436,11 @@ or patent clearance.
 The maintained first-party PCM container readers remain application source.
 The exact libFLAC 1.5.0 signed-24, libopus 1.6.1 plus libogg 1.3.6 Ogg Opus,
 libvorbis 1.3.7 plus libogg 1.3.6 Ogg Vorbis, and WavPack 5.9.0 float32
-providers described above are the admitted bundled compressed-codec runtimes
+providers described above are the supported bundled compressed-codec runtimes
 in the shipped desktop composition. Every other
 bundled compressed-codec candidate provides policy and tuple contracts only
 and fails closed as unavailable. Operating-system codecs remain limited to
-their separately qualified exact target profiles.
+their separately verified exact target profiles.
 
 As the final provider tier, the desktop application may execute an FFmpeg
 program already installed on the user's system after bounded discovery or an
@@ -467,7 +467,7 @@ bytes; SHA-256 `5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c
 pins the conservative 254-file syntactic include closure rooted at
 `boost/multiprecision/cpp_int.hpp`. The closure is compile-time source, not a
 separately loaded runtime binary, and its presence does not claim that any
-native media-host or OpenFX-host payload has been built, signed, qualified, or
+native media-host or OpenFX-host payload has been built, self-tested, or
 shipped.
 
 ## Framescaper native FFmpeg source candidate
@@ -500,9 +500,8 @@ and its host-local notice retain the tag, signature identity, source digest,
 and five build recipes. Framescaper does not redistribute user-installed OFX
 plug-ins, and
 [`config/framescaper-openfx-host-payload-manifest.json`](config/framescaper-openfx-host-payload-manifest.json)
-contains no scanner or runtime-host payload. All targets remain
-`pending-external` behind licensing, isolation, conformance, signing, payload,
-and hardware evidence.
+contains no scanner or runtime-host payload. All targets remain unavailable
+until their licensing, isolation, conformance, payload, and target checks pass.
 
 ## Video-effect behavioral references
 
@@ -531,7 +530,7 @@ source pinning, and an update to this document before distribution.
 
 - Electron 43.1.1 — MIT; source: <https://github.com/electron/electron/tree/v43.1.1>. Packaged desktop applications include Electron's license and `LICENSES.chromium.html`, which carries Chromium and bundled component notices.
 - electron-builder 26.15.6 — MIT; build-time packaging tool, not part of the application runtime; exact npm source package: <https://registry.npmjs.org/electron-builder/-/electron-builder-26.15.6.tgz> (`sha512-jxlHRjqYrlTgLVo/aoACGpiki3QFYv8s4f2djsqaEbwTBZ9PcTBK03Tj/HMa65kiE0hdZxxbZdmVFo22eou2wA==`); upstream repository: <https://github.com/electron-userland/electron-builder>.
-- `@electron/fuses` 2.1.3 — MIT; build-time hardening tool used to disable unsafe Electron runtime switches before signing; source: <https://github.com/electron/fuses/tree/v2.1.3>.
+- `@electron/fuses` 2.1.3 — MIT; build-time hardening tool used to disable unsafe Electron runtime switches during package finalization; source: <https://github.com/electron/fuses/tree/v2.1.3>.
 - `@resvg/resvg-js` 2.6.2 — MPL-2.0; unmodified build-time rasterizer used only to derive platform icons from the existing Soundscaper SVG mark; source: <https://github.com/yisibl/resvg-js/tree/v2.6.2>.
 - `wawoff2` 2.0.1 — MIT; pinned build-time WebAssembly compiler used only to derive the browser-delivery `MusescoreIcon.woff2` from the retained upstream TTF; source: <https://github.com/fontello/wawoff2/tree/2.0.1>.
 
@@ -567,6 +566,19 @@ The artifact also retains each staged npm package's installed `LICENSE`,
 `NOTICE`, and third-party-notice files. This deliberately broader diagnostic
 distribution does not change the dependency surface of the normal Soundscaper
 or Framescaper desktop executables.
+
+## Interchange conformance reference implementations
+
+The opt-in interchange reference tests execute these pinned Python packages as
+independent readers. They are not bundled, linked, shipped, or redistributed
+with Soundscaper or Framescaper:
+
+- `opentimelineio 0.18.1` — Apache-2.0; source: <https://github.com/AcademySoftwareFoundation/OpenTimelineIO/tree/v0.18.1>
+- `otio-cmx3600-adapter 1.0.0` — Apache-2.0; source: <https://github.com/OpenTimelineIO/otio-cmx3600-adapter/tree/v1.0.0>
+- `otio-fcpx-xml-adapter 1.0.0` — Apache-2.0; source: <https://github.com/OpenTimelineIO/otio-fcpx-xml-adapter/tree/v1.0.0>
+
+Exact package versions and wheel SHA-256 verification rules are recorded in
+[`config/interchange-conformance-tools.json`](config/interchange-conformance-tools.json).
 
 ## Packaged browser dependencies
 

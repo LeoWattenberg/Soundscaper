@@ -1,5 +1,12 @@
 # Milestones 1–4 implementation, activation, and verification plan
 
+> **Historical execution plan (superseded 2026-08-31):** the qualification
+> contracts, rich environment identities, qualifier, reviewed cohorts,
+> owner-host profiles, guided sign-off, and formal milestone gates below record
+> the implementation campaign that selected the current routes. They are not
+> current release policy or machine-issued release status. Current automation
+> reports only what ran; human observations belong in optional owner QA.
+
 > Canonical execution plan for completing and activating the remaining
 > Milestone 1–4 work. Grounded against the repository on 2026-08-23. The
 > [roadmap](../roadmap.md) continues to own milestone status, while the

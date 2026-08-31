@@ -86,7 +86,6 @@ export interface FramescaperNativeImageSequenceDecodeAuthorityOptions {
 	readonly mediaRuntime: Pick<FramescaperNativeMediaRuntime, 'available' | 'runJob'>;
 	readonly mintOpaqueId: () => string;
 	readonly runtimeAvailable: () => boolean;
-	/** Report-only milestone-9 stable-release review status. */
 }
 
 export class FramescaperNativeImageSequenceDecodeAuthority {

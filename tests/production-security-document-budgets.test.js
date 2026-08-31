@@ -11,7 +11,7 @@ test('legacy AUP evidence pins structural and block-materialization budgets', as
 	const projectDocuments = matrix.risks.find(({ id }) => id === 'external-project-document-validation');
 	assert.ok(projectDocuments);
 	assert.equal(projectDocuments.status, 'partial');
-	assert.equal(projectDocuments.releaseDisposition, 'conditional');
+	assert.equal(projectDocuments.surfaceDisposition, 'conditional');
 
 	const legacyAup = projectDocuments.currentControls.find(
 		({ id }) => id === 'legacy-aup-xml-structural-budget',
@@ -96,7 +96,7 @@ test('desktop save admission evidence pins product-wide capacity before staging'
 	const desktopWrite = matrix.risks.find(({ id }) => id === 'desktop-write-path-capabilities');
 	assert.ok(desktopWrite);
 	assert.equal(desktopWrite.status, 'partial');
-	assert.equal(desktopWrite.releaseDisposition, 'conditional');
+	assert.equal(desktopWrite.surfaceDisposition, 'conditional');
 
 	const admission = desktopWrite.currentControls.find(
 		({ id }) => id === 'aggregate-save-capacity-and-disk-admission',

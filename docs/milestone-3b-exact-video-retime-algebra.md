@@ -1,5 +1,9 @@
 # Milestone 3B-5a: exact video-retime curve algebra
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > **Implemented:** the contract landed in commit `b7d452a5` and the bounded,
 > schema-neutral algebra landed in commit `fcff5eab` on 2026-08-11. It adds no
 > document field, migration, command, menu, control, capability claim, playback

@@ -7,8 +7,11 @@
 > V25/V26 remain recognized, opaque, read-only custody rather than an activation
 > shortcut. The selected routes are enabled for build and test. Exact payload,
 > platform, containment, consent, quarantine, project, and capacity checks stay
-> fail-closed; human readiness and qualification move to Milestone 9 and block
-> only stable-1.0 release admission.
+> fail-closed. Releases use neutral build results; optional human observations
+> belong in owner QA and do not grant runtime authority.
+> Any readiness, signing, notarization, release-key, cohort, qualification, or
+> admission language retained later in this document is historical design
+> provenance, not current repository policy.
 
 > Owning pickup contract for the Framescaper half of milestone 5. The
 > [milestone-5 plan](milestone-5-plan.md) owns the shared 5.0 helper contract
@@ -169,13 +172,13 @@ generation identity is authenticated inside each handshake.
 
 | Area | Implemented scope |
 | --- | --- |
-| Selected F31 route | F31/V14/V20 owns the maintained project, queue, body-custody, proxy, image-sequence, and OpenFX state/action boundaries while delegating inherited native semantics through immutable exact V28/V14. Test execution is admitted by project capability, exact authenticated payload, platform compatibility, enforced containment, user opt-in, quarantine, and capacity. Human readiness and licensing review is recorded only for milestone-9 stable 1.0 admission; unavailable machine work preserves Web Core or a typed requirement without mutating the project. |
+| Selected F31 route | F31/V14/V20 owns the maintained project, queue, body-custody, proxy, image-sequence, and OpenFX state/action boundaries while delegating inherited native semantics through immutable exact V28/V14. Test execution is admitted by project capability, exact authenticated payload, platform compatibility, enforced containment, user opt-in, quarantine, and capacity. Source, licensing, notices, build-result, architecture, self-test, length, hash, and package checks remain ordinary automation; optional owner QA records only what was tried. Unavailable machine work preserves Web Core or a typed requirement without mutating the project. |
 | Historical V20 foundation | Both App branches authenticated project V20, enabled `videoKeyframes`, preserved V18/V19-owned behavior, and used the distinct desktop V17 boundary with immutable V12 copy-forward. Historical V28 superseded this project route and F31 now inherits that foundation through V28; the project-V20 native machinery remains historical implementation state. |
 | Milestone-4 prerequisites | V22 transition and dissolve state plus V24 still/generator/adjustment/preset/mask/matte/freeze models include validation, commands/history where applicable, clipboard, archive, storage, desktop transport, and dormant capability profiles. |
 | Exact render authority | Unified V9–V12 validators, canonical serializers/fingerprints, native envelopes, Web/native summaries and goldens exist. The exact retime ordinal oracle uses bounded arbitrary-precision rational arithmetic with a pinned Boost.Multiprecision 1.92.0 header closure. |
 | Helper/media contract | Contract v1 owns exact media/OFX grants and results, 64 KiB control messages and a digest/length-bound 16 MiB-chunk MessagePort data plane. The one-to-four-worker pool defaults to two, runs one job per worker, self-tests before work, and permits hardware → native CPU without plan drift. Exhausting both native attempts returns a typed requirement for the existing renderer-owned Web Core route rather than executing Web work in main or claiming a native result. |
 | Native media source | The selected F31 route binds immutable exact V28/V14 authority, an evaluated-RGBA carrier plus optional float32 WAV, current-project/body/timing custody, bounded helper execution, and broker-relative no-clobber publication. OS-native hardware encode dispatch covers the admitted Windows MF/QSV/NVENC/AMF, macOS VideoToolbox, and Linux VAAPI/QSV/NVENC/AMF paths; decode-only mechanisms are refused for encode. A typed hardware failure permits one exact native-CPU retry with identical plan/fingerprint. If both native attempts fail, production reports `web-core-required` and directs the user to the existing renderer-owned Web Core export route; it does not synthesize a native receipt or automatically execute that renderer route. An image-sequence output tree is created only in helper scratch, seals the exact regular-file inventory and aggregate digest, detects symlink/replacement/tamper/replay, and is revalidated before main-owned destination publication. Completed broker trees cannot replace one another, but Node's lack of a portable directory no-replace rename leaves external same-user empty-destination races unqualified. Source recipes and local contract fixtures exist, but the external acquisition audit remains 0/10 and the media payload manifest remains empty. |
-| Persistent services | Persistent services V3 mount exact F31/V14/V20 project authority through F31's immutable V28 foundation, selected queue admission, current-project/body custody, physical-capacity sampling, pathless watch/bin/proxy mutation, scratch reservations, checkpoint recovery, idempotent lease-fenced publication, and external display. The watch broker binds exact project-bin/proxy digests, records landed state before acknowledgement, and resumes proxy-only work after restart without replaying a project mutation. Missing capacity, authenticated payload, platform, containment, consent, quarantine, or capability authority leaves operations unavailable without mutating the project; human readiness is Milestone 9 report metadata only. |
+| Persistent services | Persistent services V3 mount exact F31/V14/V20 project authority through F31's immutable V28 foundation, selected queue admission, current-project/body custody, physical-capacity sampling, pathless watch/bin/proxy mutation, scratch reservations, checkpoint recovery, idempotent lease-fenced publication, and external display. The watch broker binds exact project-bin/proxy digests, records landed state before acknowledgement, and resumes proxy-only work after restart without replaying a project mutation. Missing capacity, authenticated payload, platform, containment, consent, quarantine, or capability authority leaves operations unavailable without mutating the project; optional owner QA records observations only. |
 | Professional media | F31 consumes the V25 characteristics, image-sequence, and proxy contracts through its V28 foundation and selected menu-owned actions. Pathless selection, numeric ordering, gap/duplicate refusal, Project Bin CAS, exact inventory/pack identity, generate/attach/detach/relink/reattest/adaptive/offline/cleanup, and authenticated sequence publication are source-complete. The selected decode carrier admits only opaque 8-bit sRGB/RGB/full-range pixels; 16-bit PNG/TIFF, float OpenEXR, HDR, alpha, and incompatible or unreported color are typed refusals before project mutation, not silently flattened. Image-sequence export may preserve the evaluated RGBA8 carrier's 8-bit alpha, but does not upgrade its precision or HDR metadata. No authenticated PNG, TIFF, OpenEXR, codec, hardware, signing, or package payload evidence exists, so originals remain export authority and the shipped capability stays unavailable. |
 | OpenFX | The selected F31 route delegates through its immutable V28 foundation and retains fingerprint-bound state, descriptors, all 16 parameter types, keyframes, named inputs, fallback, one-shot scan, per-fingerprint supervision, exact V14 frame grants, and the menu-owned scan/enable/Add OFX flow. A shared context-aware exact graph maps Generator, Filter, Transition, Paint, Retimer, and General at true intermediate planes for preview, browser export, and native carrier execution, including transition SourceFrom/SourceTo, Retimer SourceTime, masks, and named inputs. The bounded React Interact route uses Interact Suite V1/custom parameters/DrawSuite V1 and normalized events without native windows. The payload manifest is empty, production readiness is null on every target, and no shipped process loads a third-party binary. |
 | Product/evidence surfaces | Framescaper-only menu models, lazy native-services dialogs, default-off settings, and strict workload runners/validators/writers are implemented for F31 through its V28 foundation. Accepted evidence publication still requires the exact lab, target fingerprint, fixture, threshold cohort, and observed measurement. The audit currently reports zero accepted cohorts and no manual or readiness-signature evidence. Soundscaper receives no 5B surface. |
@@ -185,34 +188,34 @@ registered in platform policy. HEVC/AV1, image-sequence still formats,
 MOV/MXF/Matroska, hardware codecs and OpenFX keep named licensing review rows for
 Milestone 9, but those rows do not disable a machine-admitted test route.
 
-### Still open and release-blocking
+### Still open for distribution and real-runtime diagnostics
 
 - **Native sources and payloads.** The acquisition audit authenticates 0/10
   exact archive/extracted-tree inputs. Both 5B payload manifests contain zero
-  payloads; all five targets are `pending-external`, and every OpenFX readiness
-  field is null. The complete selected media, hardware retry, professional
+  payloads; all five targets are `pending-external`. The complete selected media, hardware retry, professional
   sequence/proxy, persistent V3, OpenFX frame-graph, and Interact software routes
   therefore remain non-shipping source implementation rather than codec,
   third-party execution, GPU, performance, or platform evidence.
-- **Licensing clearance.** Professional codec/container, hardware, FFmpeg
-  corresponding-source/patent, and OpenFX rows remain blocked. Source pins and
-  notices do not clear a licensing or redistribution gate.
+- **Distribution checks.** Professional codec/container, hardware, FFmpeg
+  corresponding-source, and OpenFX rows still require their applicable source,
+  notice, and licensing checks. Those checks do not claim patent clearance or
+  make a release decision.
 - **Provisioned measurement.** Every 5B workload remains `planned`; the bounded
-  runners exist, but while the native lab is unprovisioned the five collectors
-  can write only `pending-external` or failed evidence. Accepted publication is automatic—not
-  a CLI override—and additionally requires the exact registered target
-  fingerprint and qualified workload/fixture cohort. No throughput, timing,
-  RSS, display, GPU or hardware claim is qualified.
-- **Packaging, review, and signing evidence.** No authenticated built launcher
-  or target payload, independent signed isolation-readiness decision,
-  five-target packaged execution, Windows Arm64EC or Linux aarch64 host proof,
-  signing/notarization identity, release key, codec/display/GPU result, manual
-  run, or accepted qualification cohort exists.
+  runners exist, but without a real native payload the five collectors report
+  the operation unavailable or failed. The `native-os-diagnostics` environment
+  records only the target and observations actually supplied; it defines no
+  fixed hardware profile or cohort. No throughput, timing, RSS, display, GPU,
+  or hardware claim extends beyond the measured run.
+- **Packaging.** No authenticated built launcher or target payload exists.
+  Distribution requires a matching neutral target build result with a closed
+  dependency inventory, required self-tests, architecture, byte lengths, and
+  SHA-256 values, followed by package-content and smoke checks. Optional owner
+  QA can add observations but is never package authority.
 - **Activation.** Native media/hardware/OFX settings default off. Menu-owned F31
   actions are present, but operational work remains unavailable unless exact
   project, capability, authenticated payload, platform, containment, capacity,
-  quarantine, and user-consent authorities all agree. Licensing and readiness
-  are Milestone 9 release-report inputs and never operational authorities.
+  quarantine, and user-consent authorities all agree. Distribution checks and
+  owner QA never become operational authorities.
 
 Security and threat-model rows follow the enacted pathless controller and
 source candidates while retaining these blockers. A build recipe is never

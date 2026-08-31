@@ -110,6 +110,7 @@ function isolatedInvocation(
 		}
 		return Object.freeze({
 			exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr,
+			isolationChecksPassed: true,
 		});
 	});
 	return Object.freeze({

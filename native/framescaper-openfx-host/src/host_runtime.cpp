@@ -547,18 +547,18 @@ const char* official_action(std::string_view action) {
 } // namespace
 class HostRuntime::Impl {
 public:
-	explicit Impl(std::vector<Backend> backends) : qualified_backends{std::move(backends)} {}
+	explicit Impl(std::vector<Backend> backends) : supported_backends{std::move(backends)} {}
 	HostState state;
-	std::vector<Backend> qualified_backends;
+	std::vector<Backend> supported_backends;
 };
-HostRuntime::HostRuntime(std::vector<Backend> qualified_backends) {
-	if (qualified_backends.empty() || qualified_backends.front() != Backend::cpu) {
-		throw std::invalid_argument("The OpenFX qualified backend set must be canonical and include CPU.");
+HostRuntime::HostRuntime(std::vector<Backend> supported_backends) {
+	if (supported_backends.empty() || supported_backends.front() != Backend::cpu) {
+		throw std::invalid_argument("The OpenFX supported backend set must be canonical and include CPU.");
 	}
-	for (std::size_t index = 1; index < qualified_backends.size(); ++index) {
-		if (static_cast<std::size_t>(qualified_backends[index]) <= static_cast<std::size_t>(qualified_backends[index - 1])) throw std::invalid_argument("The OpenFX qualified backend set is not canonically ordered.");
+	for (std::size_t index = 1; index < supported_backends.size(); ++index) {
+		if (static_cast<std::size_t>(supported_backends[index]) <= static_cast<std::size_t>(supported_backends[index - 1])) throw std::invalid_argument("The OpenFX supported backend set is not canonically ordered.");
 	}
-	impl_ = std::make_unique<Impl>(std::move(qualified_backends));
+	impl_ = std::make_unique<Impl>(std::move(supported_backends));
 }
 HostRuntime::~HostRuntime() = default;
 OfxHost* HostRuntime::host() { return &impl_->state.host_record; }

@@ -104,7 +104,7 @@ export interface FramescaperVideoProxyOriginalRequestSequence {
 	readonly signal?: AbortSignal;
 }
 
-export interface FramescaperVideoProxyReattestationAuthorityDependenciesSequence {
+export interface FramescaperVideoProxyRevalidationAuthorityDependenciesSequence {
 	readonly profile: EditorProjectRuntimeProfile;
 	readonly getProject: () => unknown;
 	readonly captureTask: () => unknown;
@@ -117,8 +117,8 @@ export interface FramescaperVideoProxyReattestationAuthorityDependenciesSequence
 	) => Awaitable<FramescaperVideoProxyOriginalLeaseSequence>;
 }
 
-export interface FramescaperVideoProxyReattestationAuthoritySequence {
-	readonly kind: 'framescaper-video-proxy-reattestation-authority';
+export interface FramescaperVideoProxyRevalidationAuthoritySequence {
+	readonly kind: 'framescaper-video-proxy-revalidation-authority';
 	readonly version: 1;
 }
 
@@ -130,7 +130,7 @@ export interface FramescaperVideoProxyTrustSequence {
 export interface FramescaperVideoProxyChoiceSequence {
 	readonly kind: 'framescaper-video-proxy-choice';
 	readonly version: 1;
-	readonly rule: 'existing-attachment-reattested-v1';
+	readonly rule: 'existing-attachment-revalidated-v1';
 	readonly projectId: string;
 	readonly sourceId: string;
 	readonly proxy: FramescaperVideoProxyBodyIdentitySequence;
@@ -139,12 +139,12 @@ export interface FramescaperVideoProxyChoiceSequence {
 	readonly audioPolicy: 'ignore-proxy-container-audio-v1';
 }
 
-export interface FramescaperVideoProxyReattestationResultSequence {
+export interface FramescaperVideoProxyRevalidationResultSequence {
 	readonly trust: FramescaperVideoProxyTrustSequence;
 	readonly choice: Readonly<FramescaperVideoProxyChoiceSequence>;
 }
 
-export interface FramescaperVideoProxyReattestationRequestSequence {
+export interface FramescaperVideoProxyRevalidationRequestSequence {
 	readonly sourceId: string;
 	readonly signal?: AbortSignal;
 }

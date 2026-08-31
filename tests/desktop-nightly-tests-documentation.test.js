@@ -22,7 +22,6 @@ test('desktop documentation explains how to run and find nightly-with-tests resu
 		'metrics/results.json',
 		'metrics/console.log',
 		'packaged-runtime/summary.json',
-		'packaged-runtime/qualification.json',
 		'packaged-runtime/raw.json',
 		'packaged-runtime/results.json',
 		'packaged-runtime/console.log',
@@ -31,8 +30,10 @@ test('desktop documentation explains how to run and find nightly-with-tests resu
 	assert.match(documentation, /full Chromium.*`--enable-gpu`.*hardware\s+renderer/isu);
 	assert.match(documentation, /playwright install --no-shell chromium firefox webkit/u);
 	assert.doesNotMatch(documentation, /playwright install --only-shell/u);
-	assert.match(documentation, /other hosts and workloads remain `pending-external`/iu);
-	assert.match(documentation, /fail-closed formal verification.*owner-designated Windows x64 RTX 3090/isu);
+	assert.doesNotMatch(documentation, /packaged-runtime\/qualification\.json/iu);
+	assert.match(documentation, /any\s+subset of these optional environment variables/iu);
+	assert.match(documentation, /deterministic correctness and parity failures.*fail the run/isu);
+	assert.match(documentation, /no accepted-evidence.*hardware lower-bound claim.*qualified-workload status/isu);
 	assert.match(documentation, /real packaged Soundscaper and Framescaper\s+executables/iu);
 	assert.match(documentation, /diagnostic.*not.*public release/isu);
 });

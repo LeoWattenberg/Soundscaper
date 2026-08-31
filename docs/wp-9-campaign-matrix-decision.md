@@ -1,8 +1,8 @@
 # Milestone 9 campaign-matrix decision
 
-Status: approved as the required stable-`1.0.0` qualification matrix;
-infrastructure implemented, campaign evidence pending. This decision does not
-admit stable 1.0 and does not claim that any external evidence has passed.
+Status: historical and superseded as of 2026-08-31. The table below records an
+abandoned campaign design; it is not required, read by CI, or release authority.
+Stable releases use ordinary automated gates plus optional owner QA.
 
 | Surface | Required cells |
 | --- | --- |

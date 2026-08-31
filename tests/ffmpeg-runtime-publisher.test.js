@@ -10,7 +10,7 @@ import {
 	publishFfmpegRuntime,
 } from '../scripts/lib/ffmpeg-runtime-publisher.mjs';
 import {
-	REQUIRED_LICENSING_GATES,
+	REQUIRED_LICENSING_CHECKS,
 	createFixture,
 	descriptor,
 	writeJson,
@@ -144,25 +144,25 @@ test('rollback CAS conflict retains the concurrently promoted pointer', async ()
 	assert.deepEqual(purges, [[URL]]);
 });
 
-test('pending Milestone 9 review does not disable authenticated runtime publication', async (context) => {
+test('licensing blocks are descriptive and do not weaken authenticated runtime publication', async (context) => {
 	const fixture = await createFixture(context);
 	const licensingPath = `${fixture.root}/config/production-licensing-matrix.json`;
 	const licensing = JSON.parse(await readFile(licensingPath, 'utf8'));
-	for (const gate of licensing.releaseGates) {
-		if (REQUIRED_LICENSING_GATES.includes(gate.id)) gate.status = 'blocked';
+	for (const check of licensing.distributionChecks) {
+		if (REQUIRED_LICENSING_CHECKS.includes(check.id)) check.status = 'blocked';
 	}
 	const licensingBytes = Buffer.from(`${JSON.stringify(licensing, null, 2)}\n`);
 	await writeJson(licensingPath, licensing);
 	fixture.manifest.evidence.licensingMatrix = descriptor(
 		'config/production-licensing-matrix.json', licensingBytes,
 	);
-	fixture.manifest.authorizations.runtimePublication = {
-		status: 'blocked',
-		blockedBy: [...REQUIRED_LICENSING_GATES],
+	fixture.manifest.distributionChecks.runtimePublication = {
+		allowed: false,
+		blockedBy: [...REQUIRED_LICENSING_CHECKS],
 	};
-	fixture.manifest.authorizations.desktopRelease = {
-		status: 'blocked',
-		blockedBy: REQUIRED_LICENSING_GATES.slice(0, 2),
+	fixture.manifest.distributionChecks.desktopRelease = {
+		allowed: false,
+		blockedBy: REQUIRED_LICENSING_CHECKS.slice(0, 2),
 	};
 	await writeManifest(fixture);
 	const release = await verifyFfmpegRuntimeManifest({

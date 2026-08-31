@@ -41,13 +41,13 @@ test('production capability inventory covers every product profile and platform 
 	}
 });
 
-test('Soundscaper is software-complete without claiming external Stable 1.0 admission', async () => {
+test('product release metadata is descriptive and contains no admission state', async () => {
 	const [inventory, releaseLines] = await Promise.all([
 		readFile(inventoryUrl, 'utf8').then(JSON.parse),
 		readFile(new URL('../config/product-release-lines.json', import.meta.url), 'utf8').then(JSON.parse),
 	]);
 	const soundscaperLine = releaseLines.products.soundscaper;
-	assert.deepEqual(inventory.releaseCandidate.previewTagPatterns, [
+	assert.deepEqual(inventory.productVersions.previewTagPatterns, [
 		'soundscaper-v*-beta.*', 'soundscaper-v*-rc.*',
 	]);
 	assert.deepEqual(inventory.products.soundscaper.release, {
@@ -55,21 +55,18 @@ test('Soundscaper is software-complete without claiming external Stable 1.0 admi
 		channel: soundscaperLine.releaseChannel,
 		candidateVersion: soundscaperLine.candidate.version,
 		stableTarget: soundscaperLine.stable.version,
-		admissionProfile: 'soundscaper-stable-1',
-		admissionStatus: soundscaperLine.stable.status === 'admitted'
-			? 'admitted' : 'pending-external-evidence',
 	});
 	assert.deepEqual(inventory.products.framescaper.release, {
 		softwareStatus: 'pre-release-deferred',
 		channel: 'deferred',
 		candidateVersion: '1.0.0-rc.1',
 		stableTarget: null,
-		admissionProfile: null,
-		admissionStatus: 'deferred',
 	});
+	assert.doesNotMatch(JSON.stringify(inventory.productVersions), /admission/iu);
+	assert.doesNotMatch(JSON.stringify(inventory.products), /admissionProfile|admissionStatus/iu);
 });
 
-test('production capability inventory pins browser and desktop qualification targets', async () => {
+test('production capability inventory records browser and desktop QA targets', async () => {
 	const inventory = JSON.parse(await readFile(inventoryUrl, 'utf8'));
 	const browsers = inventory.browserTargets;
 
@@ -79,7 +76,8 @@ test('production capability inventory pins browser and desktop qualification tar
 	assert.equal(browsers.webkit.automated, true);
 	for (const [family, target] of Object.entries(browsers)) {
 		assert.ok(target.project.length > 0, `${family} must name a Playwright project`);
-		assert.equal(target.releaseStatus, 'provisional');
+		assert.equal(target.automationStatus, 'configured');
+		assert.equal(Object.hasOwn(target, 'releaseStatus'), false);
 	}
 
 	assert.deepEqual(

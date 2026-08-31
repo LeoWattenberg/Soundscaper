@@ -1,5 +1,10 @@
 # Milestone 6B pickup: Framescaper delivery
 
+> **Current release-policy note (2026-08-31):** formal qualification and stable
+> admission passages below are historical packet context. Current automation
+> checks real source, package, integrity, and workflow behavior; install,
+> upgrade, rollback, and other human observations are optional owner QA.
+
 > Owning pickup contract for the Framescaper half of milestone 6. The
 > [milestone-6 plan](milestone-6-plan.md) owns the shared delivery decisions,
 > the 6.0 packets, and cross-track sequencing; the

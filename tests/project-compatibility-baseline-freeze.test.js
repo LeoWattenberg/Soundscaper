@@ -44,14 +44,16 @@ test('WP-9.0.0 freezes exactly two independent family-v1 project baselines', asy
 	);
 	assert.deepEqual(compatibility.historicalPreReleaseLineage.retainedMigrationSources, []);
 	assert.equal(decision.workPackage, 'WP-9.0.0');
-	assert.equal(decision.approver, 'Leo Wattenberg');
-	assert.equal(decision.decisionDate, '2026-08-28');
+	assert.equal(Object.hasOwn(decision, 'status'), false);
+	assert.equal(Object.hasOwn(decision, 'approver'), false);
+	assert.equal(Object.hasOwn(decision, 'decisionDate'), false);
 	assert.equal(decision.commit, IMPLEMENTATION_COMMIT);
 	assert.equal(decision.commitTimestamp, IMPLEMENTATION_TIMESTAMP);
-	assert.match(decision.stableReleaseAdmission, /^blocked-/u);
+	assert.equal(decision.releaseDecision, 'repository-owner-on-v1.0.0-tag');
+	assert.equal(decision.stableReleaseAdmission, undefined);
 });
 
-test('capability and security registers carry the same RC identities without admitting stable 1.0', async () => {
+test('capability and security registers carry the same RC identities without admission state', async () => {
 	const capabilities = await json('config/production-capabilities.json');
 	const security = await json('config/production-security-matrix.json');
 	const expected = [
@@ -71,14 +73,15 @@ test('capability and security registers carry the same RC identities without adm
 	}
 	assert.deepEqual(security.projectIdentityBaseline.identities, expected);
 	assert.equal(security.projectIdentityBaseline.archiveFormatVersion, 1);
-	assert.match(capabilities.releaseCandidate.stable1Admission, /^blocked-/u);
-	assert.match(security.releaseCandidate.stable1Admission, /^blocked-/u);
+	assert.doesNotMatch(JSON.stringify(capabilities.productVersions), /admission/iu);
+	assert.doesNotMatch(JSON.stringify(security.productVersions), /admission/iu);
 });
 
-test('the decision and release guidance record the freeze while every stable row stays pending', async () => {
-	const [decision, guided, release] = await Promise.all([
+test('the decision and release guidance preserve the freeze and point to owner QA', async () => {
+	const [decision, soundscaperQa, framescaperQa, release] = await Promise.all([
 		text('docs/wp-9.0.0-baseline-decision.md'),
-		text('docs/milestone-9-guided-verification.md'),
+		text('docs/qa/soundscaper.md'),
+		text('docs/qa/framescaper.md'),
 		text('docs/release-policy.md'),
 	]);
 
@@ -86,11 +89,10 @@ test('the decision and release guidance record the freeze while every stable row
 	assert.ok(decision.includes(IMPLEMENTATION_COMMIT));
 	assert.ok(decision.includes(IMPLEMENTATION_TIMESTAMP));
 	assert.match(decision, /exactly two independent/u);
-	assert.match(decision, /stable 1\.0 admission remains\s+blocked/iu);
-	const releaseRows = guided.split('\n').filter((line) => /^\| REL-\d{2} \|/u.test(line));
-	assert.equal(releaseRows.length, 14);
-	for (const row of releaseRows) assert.match(row, /\| pending \| pending \|/u);
-	assert.match(release, /`1\.0\.0-rc\.1`/u);
-	assert.match(release, /Soundscaper-only `v1\.0\.0` workflow is supported only after/iu);
-	assert.match(release, /Framescaper retains its separate[\s\S]*deferred from Soundscaper Stable 1\.0/iu);
+	assert.match(decision, /historical/iu);
+	assert.match(soundscaperQa, /owner-operated checklist/iu);
+	assert.match(framescaperQa, /owner-operated checklist/iu);
+	assert.match(release, /pushing the stable tag is the owner's\s+release decision/iu);
+	assert.match(release, /release:soundscaper:prepare/iu);
+	assert.match(release, /Framescaper keeps its independent tag namespace/iu);
 });

@@ -43,11 +43,11 @@ test('OpenFX 1.5.1 is pinned to its signed ab77951 release tag and the source cl
 	});
 });
 
-test('native OpenFX loading delegates machine isolation to the enforced launcher, never human review', () => {
+test('native OpenFX loading delegates machine isolation to the enforced launcher', () => {
 	const source = readFileSync(join(repositoryRoot,
 		'native/framescaper-openfx-host/src/isolation_contract.hpp'), 'utf8');
 	assert.match(source, /require_os_isolation_for_plugin_execution\(\) noexcept \{\}/u);
-	assert.doesNotMatch(source, /reviewed OS isolation launcher attestation/iu);
+	assert.match(source, /Distribution metadata is intentionally not an in-process execution oracle/iu);
 });
 
 test('scanner and runtime are distinct C++20 targets and no unbuilt payload is packaged', () => {
@@ -96,11 +96,11 @@ test('future built targets require two exact target-root payloads before derivat
 	assert.deepEqual(derived.targets[0].payload, {
 		scannerPayload: scanner, runtimeHostPayload: runtime, isolationPayload: isolation,
 	});
-	manifest.targets['linux-x64'].productionReadiness = null;
+	manifest.targets['linux-x64'].obsoleteReleaseField = null;
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
 	assert.match(auditFramescaperOpenFxHost({ repositoryRoot: directory }).findings.join('\n'),
 		/malformed closed record/iu);
-	delete manifest.targets['linux-x64'].productionReadiness;
+	delete manifest.targets['linux-x64'].obsoleteReleaseField;
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
 
 	writeFileSync(join(directory, runtime.path), 'tampered-runtime');
@@ -135,7 +135,7 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 			join(hostRoot, 'src', 'loaded_plugin_binary.cpp'),
 			join(hostRoot, 'src', 'parameter_values.cpp'),
 			join(hostRoot, 'src', 'v12_cancellation_channel.cpp'),
-			join(hostRoot, 'src', 'v12_gpu_qualification.cpp'),
+			join(hostRoot, 'src', 'v12_gpu_support.cpp'),
 			join(hostRoot, 'src', 'v12_host_invocation.cpp'),
 			join(hostRoot, 'src', 'v12_video_timing_grants.cpp'),
 			join(hostRoot, 'src', 'v12_output_file.cpp'),
@@ -167,8 +167,6 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 			assert.equal(result.networkSuiteExposed, false);
 			assert.equal(result.arbitraryFilesystemSuiteExposed, false);
 			assert.equal(result.vendorTopLevelWindowsExposed, false);
-			assert.equal(result.osIsolationAttested, false);
-			assert.equal(result.thirdPartyExecutionEnabled, false);
 			assert.deepEqual(result.interactSuiteVersions, [1]);
 			assert.equal(
 				result.interactSuiteV2,

@@ -24,7 +24,7 @@ test('the native enforcement pipe rejects malformed and stalled frames', async (
 	await assert.rejects(waitForNativeChildEnforcement(new PassThrough(), 10), /timed out/iu);
 });
 
-test('pre-attestation native failure retains only bounded trusted diagnostics', () => {
+test('pre-enforcement native failure retains only bounded trusted diagnostics', () => {
 	const cause = new Error('The enforcement handshake ended early.');
 	for (const [platform, stage, code] of [
 		['windows', 'create-process', '2'],

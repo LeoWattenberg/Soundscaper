@@ -64,8 +64,8 @@ export interface DeliveryPresetAvailability {
 	readonly available: boolean;
 	readonly status: 'implemented';
 	readonly licensingRowId: string | null;
-	readonly m9ReleaseReviewStatus: string;
-	readonly m9ReleaseReviewPending: boolean;
+	readonly licensingStatus: string;
+	readonly licensingPending: boolean;
 }
 
 export class DeliveryPresetError extends Error {
@@ -160,8 +160,8 @@ export function resolveDeliveryPresetPlanOptions(
 }
 
 /**
- * Whether this preset is implemented, with its human distribution review
- * reported separately for Milestone 9 release admission.
+ * Whether this preset is implemented, with its licensing state reported
+ * independently from runtime availability.
  */
 export function resolveDeliveryPresetAvailability(
 	preset: DeliveryPreset,
@@ -175,8 +175,8 @@ export function resolveDeliveryPresetAvailability(
 			available: true,
 			status: 'implemented',
 			licensingRowId: null,
-			m9ReleaseReviewStatus: 'not-required',
-			m9ReleaseReviewPending: false,
+			licensingStatus: 'not-required',
+			licensingPending: false,
 		});
 	}
 	const row = findLicensingRow(licensingMatrix, preset.licensingRowId);
@@ -185,8 +185,8 @@ export function resolveDeliveryPresetAvailability(
 			available: true,
 			status: 'implemented',
 			licensingRowId: preset.licensingRowId,
-			m9ReleaseReviewStatus: 'unrecorded',
-			m9ReleaseReviewPending: true,
+			licensingStatus: 'unrecorded',
+			licensingPending: true,
 		});
 	}
 	const status = typeof row.status === 'string' ? row.status : 'unknown';
@@ -195,8 +195,8 @@ export function resolveDeliveryPresetAvailability(
 		available: true,
 		status: 'implemented',
 		licensingRowId: preset.licensingRowId,
-		m9ReleaseReviewStatus: status,
-		m9ReleaseReviewPending: !reviewed,
+		licensingStatus: status,
+		licensingPending: !reviewed,
 	});
 }
 

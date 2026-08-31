@@ -4,7 +4,7 @@
 export async function createFramescaperOpenFxFrameRegistration(options, dependencies = {}) {
 	if (!options || typeof options.openFxService?.inventory !== 'function'
 		|| typeof options.openFxService.execute !== 'function'
-		|| typeof options.openFxService.qualifiedGpuBackends !== 'function'
+		|| typeof options.openFxService.supportedGpuBackends !== 'function'
 		|| typeof options.currentProject !== 'function'
 		|| typeof options.createMessageChannel !== 'function'
 		|| typeof options.mintOpaqueId !== 'function') {
@@ -16,7 +16,7 @@ export async function createFramescaperOpenFxFrameRegistration(options, dependen
 	]);
 	const service = execution.createFramescaperOpenFxFrameExecutionService({
 		inventory: () => options.openFxService.inventory(),
-		qualifiedGpuBackends: () => options.openFxService.qualifiedGpuBackends(),
+		supportedGpuBackends: () => options.openFxService.supportedGpuBackends(),
 		execute: (request) => options.openFxService.execute(request),
 		currentProject: async (plan, effect) => await options.currentProject(plan, effect) === true,
 		timingAssets: (plan) => options.projectBodyAuthority?.openFxTimingAssets(plan)

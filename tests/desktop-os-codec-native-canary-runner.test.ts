@@ -25,14 +25,14 @@ test('Windows x64 and ARM64 invoke only the injected Media Foundation native hos
 	const runner = createOperatingSystemCodecNativeCanaryRunner(adapter((request, signal) => {
 		received.push(request);
 		signals.push(signal);
-		return qualified(request, '11'.repeat(32));
+		return passed(request, '11'.repeat(32));
 	}));
 	for (const target of ['win-x64', 'win-arm64'] as const) {
 		const result = await runner.run(canaryRequest({
 			target, implementation: 'windows-media-foundation', capability: WINDOWS_VIDEO,
 		}), new AbortController().signal) as OperatingSystemCodecCanaryResult;
-		assert.equal(result.status, 'qualified');
-		assert.equal(result.status === 'qualified' && result.target, target);
+		assert.equal(result.status, 'passed');
+		assert.equal(result.status === 'passed' && result.target, target);
 	}
 	assert.deepEqual(received.map(({ target }) => target), ['win-x64', 'win-arm64']);
 	assert.deepEqual(received.map(({ implementation }) => implementation), [
@@ -51,7 +51,7 @@ test('macOS ARM64 binds audio and video tuples to only the reviewed Apple framew
 	const implementations: string[] = [];
 	const runner = createOperatingSystemCodecNativeCanaryRunner(adapter((request) => {
 		implementations.push(request.implementation);
-		return qualified(request, request.capability.mediaKind === 'audio' ? '22'.repeat(32) : '33'.repeat(32));
+		return passed(request, request.capability.mediaKind === 'audio' ? '22'.repeat(32) : '33'.repeat(32));
 	}));
 	await runner.run(canaryRequest({
 		target: 'mac-arm64', implementation: 'apple-audiotoolbox-avfoundation', capability: APPLE_AUDIO,
@@ -68,7 +68,7 @@ test('unsupported targets and target/framework/media mismatches fail before nati
 	let calls = 0;
 	const runner = createOperatingSystemCodecNativeCanaryRunner(adapter((request) => {
 		calls += 1;
-		return qualified(request, '44'.repeat(32));
+		return passed(request, '44'.repeat(32));
 	}));
 	const invalid = [
 		{ target: 'mac-x64', implementation: 'apple-audiotoolbox-avfoundation', capability: APPLE_AUDIO },
@@ -122,18 +122,20 @@ test('caller cancellation reaches the native host even when it ignores cancellat
 	assert.equal(capture.signal?.aborted, true);
 });
 
-test('malformed, expanded, or mismatched native evidence fails closed', async () => {
+test('malformed, expanded, legacy, or mismatched native results fail closed', async () => {
 	const request = canaryRequest({
 		target: 'mac-arm64', implementation: 'apple-audiotoolbox-avfoundation', capability: APPLE_AUDIO,
 	});
 	for (const answer of [
-		{ ...qualified(request, '55'.repeat(32)), capabilityDigest: '66'.repeat(32) },
-		{ ...qualified(request, '77'.repeat(32)), nativeApiReached: false },
-		{ ...qualified(request, '88'.repeat(32)), nativeExecutablePath: '/private/native-host' },
+		{ ...passed(request, '55'.repeat(32)), capabilityDigest: '66'.repeat(32) },
+		{ ...passed(request, '77'.repeat(32)), nativeApiReached: false },
+		{ ...passed(request, '88'.repeat(32)), nativeExecutablePath: '/private/native-host' },
+		{ ...passed(request, '99'.repeat(32)), evidenceDigest: '99'.repeat(32) },
+		{ ...passed(request, 'aa'.repeat(32)), status: 'qualified' },
 		{ contractVersion: 1, status: 'unavailable', reason: 'unknown' },
 	]) {
 		const runner = createOperatingSystemCodecNativeCanaryRunner(adapter(() => answer));
-		await assert.rejects(() => runner.run(request, new AbortController().signal), /native canary|evidence/iu);
+		await assert.rejects(() => runner.run(request, new AbortController().signal), /native canary|result/iu);
 	}
 });
 
@@ -149,7 +151,7 @@ test('hostile accessors are never invoked or forwarded to the native host', asyn
 	});
 	const runner = createOperatingSystemCodecNativeCanaryRunner(adapter((nativeRequest) => {
 		hostCalls += 1;
-		return qualified(nativeRequest, '99'.repeat(32));
+		return passed(nativeRequest, '99'.repeat(32));
 	}));
 	await assert.rejects(() => runner.run(
 		request as unknown as OperatingSystemCodecCanaryRequest,
@@ -188,13 +190,13 @@ function canaryRequest(options: Readonly<{
 	};
 }
 
-function qualified(
+function passed(
 	request: OperatingSystemCodecCanaryRequest,
-	evidenceDigest: string,
-): Extract<OperatingSystemCodecCanaryResult, { readonly status: 'qualified' }> {
+	resultDigest: string,
+): Extract<OperatingSystemCodecCanaryResult, { readonly status: 'passed' }> {
 	return {
 		contractVersion: 1,
-		status: 'qualified',
+		status: 'passed',
 		target: request.target,
 		osVersion: request.osVersion,
 		capabilityId: request.capability.id,
@@ -202,7 +204,7 @@ function qualified(
 		implementation: request.implementation,
 		nativeApiReached: true,
 		exactTuplePassed: true,
-		evidenceDigest,
+		resultDigest,
 	};
 }
 

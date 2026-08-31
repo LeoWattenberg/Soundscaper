@@ -346,7 +346,7 @@ function externalProvider(
 		const tuple = deriveDesktopAudioFfmpegCapabilityTuple(request);
 		const requirements = satisfiedRequirements(tuple, admission.capabilities);
 		const capability = externalCapability(operation, request);
-		const qualifiedCapabilities = requirements === null ? [] : [Object.freeze({
+		const verifiedCapabilities = requirements === null ? [] : [Object.freeze({
 			capability: Object.freeze({
 				id: `external-audio-${operation.direction}-${request.format}`
 					+ (request.operation === 'audio-encode'
@@ -360,7 +360,7 @@ function externalProvider(
 			target, version: admission.version,
 			capabilityGeneration: admission.capabilityGeneration,
 			capabilitySets: admission.capabilities,
-			qualifiedCapabilities,
+			verifiedCapabilities,
 		});
 		const resolution = catalog.resolve(operation);
 		if (resolution === null) return catalog;

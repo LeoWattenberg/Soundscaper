@@ -9,13 +9,6 @@ import {
 } from '../src/common/editor/native-media-capability-snapshot.ts';
 import type { FramescaperNativeServicePreferences } from './native-services-controller.ts';
 
-export interface FramescaperNativeCapabilityPolicyV1 {
-	readonly nativeCodecsCleared: boolean;
-	readonly proxyCodecCleared: boolean;
-	readonly imageSequencesCleared: boolean;
-	readonly openFxCleared: boolean;
-}
-
 export interface FramescaperNativeCapabilityRuntimeV1 {
 	readonly payloadBuilt: boolean;
 	readonly runtimeAvailable: boolean;
@@ -35,7 +28,6 @@ export interface FramescaperNativeCapabilityRuntimeV1 {
 export interface FramescaperNativeCapabilityReportOptionsV1 {
 	readonly preferences: FramescaperNativeServicePreferences;
 	readonly media: FramescaperNativeCapabilityRuntimeV1;
-	readonly policy: FramescaperNativeCapabilityPolicyV1;
 	readonly queueSourceAuthorityMounted: boolean;
 	readonly queueCapacityAuthorityMounted: boolean;
 	readonly watchProjectMutationMounted: boolean;
@@ -88,7 +80,6 @@ export function createFramescaperNativeCapabilityReportV1(
 		entries: [
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.renderQueue,
-				policyCleared: options.policy.nativeCodecsCleared,
 				buildSupported: media.payloadBuilt && queueExecutionMounted
 					&& media.selectedV28V14RenderSelfTestPassed,
 				probeSucceeded: mediaProbe,
@@ -101,7 +92,6 @@ export function createFramescaperNativeCapabilityReportV1(
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.watchFolders,
-				policyCleared: true,
 				buildSupported: options.watchProjectMutationMounted,
 				probeSucceeded: true,
 				selfTestPassed: options.watchProjectMutationMounted,
@@ -112,7 +102,6 @@ export function createFramescaperNativeCapabilityReportV1(
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.proxyCodec,
-				policyCleared: options.policy.proxyCodecCleared,
 				buildSupported: media.payloadBuilt && queueExecutionMounted,
 				probeSucceeded: mediaProbe,
 				selfTestPassed: media.selfTestPassed,
@@ -124,7 +113,6 @@ export function createFramescaperNativeCapabilityReportV1(
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.imageSequenceImport,
-				policyCleared: options.policy.imageSequencesCleared,
 				buildSupported: media.payloadBuilt && options.imageSequenceImportMounted,
 				probeSucceeded: mediaProbe && media.professionalCharacteristicsSelfTestPassed,
 				selfTestPassed: media.selfTestPassed
@@ -141,7 +129,6 @@ export function createFramescaperNativeCapabilityReportV1(
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.externalDisplay,
-				policyCleared: true,
 				buildSupported: options.externalDisplay.placementSupported,
 				probeSucceeded: options.externalDisplay.placementSupported,
 				selfTestPassed: options.externalDisplay.sinkSelfTestPassed,
@@ -150,7 +137,6 @@ export function createFramescaperNativeCapabilityReportV1(
 			},
 			{
 				...NATIVE_MEDIA_CAPABILITY_IDS.ofxHost,
-				policyCleared: options.policy.openFxCleared,
 				buildSupported: options.openFx.payloadBuilt,
 				probeSucceeded: options.openFx.runtimeAvailable,
 				selfTestPassed: options.openFx.selfTestPassed,
@@ -179,12 +165,6 @@ export function framescaperClosedNativeCapabilityReportV1(
 			degraded: false,
 			buildFingerprint: null,
 			detail: 'No authenticated native media-host payload is present for this target.',
-		},
-		policy: {
-			nativeCodecsCleared: false,
-			proxyCodecCleared: false,
-			imageSequencesCleared: false,
-			openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: false,
 		queueCapacityAuthorityMounted: false,

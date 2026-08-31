@@ -1,5 +1,9 @@
 # Milestone 3B-4b7: frame-canonical uniform rate-stretch
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > **Implemented:** delivered through commit `2bbfa06b` on 2026-08-11, after
 > [3B-4b6 — frame-canonical slip and slide](milestone-3b-slip-slide.md).
 > It adds constant-rate video-bearing stretch through one pure planning

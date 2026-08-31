@@ -167,10 +167,10 @@ function validateVerificationChecks(candidate) {
 	const build = verificationFor(candidate, 'build');
 	closedRecord(build, [
 		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macCodeSeal',
-	], 'build evidence');
+	], 'build result');
 	if (build.status !== 'passed' || build.sourceRevision !== candidate.sourceRevision
 		|| build.buildPlanSha256 !== candidate.buildPlanSha256) {
-		throw new TypeError('The build-result build evidence is misbound.');
+		throw new TypeError('The build-result build record is misbound.');
 	}
 	const packagedApp = validateSoundscaperProfessionalPackagedAppAuthority(
 		build.packagedAppAuthority,
@@ -185,11 +185,11 @@ function validateVerificationChecks(candidate) {
 		throw new TypeError('Only mac-arm64 build results can carry a code-seal result.');
 	}
 	const selfTest = verificationFor(candidate, 'self-test');
-	closedRecord(selfTest, ['status', 'inventory', 'tests'], 'self-test evidence');
+	closedRecord(selfTest, ['status', 'inventory', 'tests'], 'self-test result');
 	if (selfTest.status !== 'passed'
 		|| JSON.stringify(selfTest.inventory) !== JSON.stringify(
 			expectedSoundscaperProfessionalNativeInventory(candidate.target))) {
-		throw new TypeError('The build-result self-test inventory evidence is invalid.');
+		throw new TypeError('The build-result self-test inventory is invalid.');
 	}
 	normalizeSelfTests(selfTest.tests, candidate.target);
 	const expectedBuildTestIds = candidate.target.startsWith('linux-')
@@ -201,23 +201,23 @@ function validateVerificationChecks(candidate) {
 		throw new TypeError('The build-result receipt omits its target-native CTest result.');
 	}
 	const toolchain = verificationFor(candidate, 'toolchain');
-	closedRecord(toolchain, ['identity', 'receipt'], 'toolchain evidence');
+	closedRecord(toolchain, ['identity', 'receipt'], 'toolchain result');
 	boundedText(toolchain.identity, 3, 512, 'build-result toolchain identity');
 	validateSoundscaperProfessionalNativeToolchainReceipt(toolchain.receipt);
 	if (toolchain.receipt.target !== candidate.target
 		|| soundscaperProfessionalNativeToolchainIdentity(toolchain.receipt) !== toolchain.identity) {
-		throw new TypeError('The build-result structured toolchain evidence is misbound.');
+		throw new TypeError('The build-result structured toolchain result is misbound.');
 	}
 	const source = verificationFor(candidate, 'source-authentication');
-	closedRecord(source, ['authentication'], 'source evidence');
+	closedRecord(source, ['authentication'], 'source authentication result');
 	normalizeSourceAuthentication(source.authentication, candidate.target);
 	const installed = verificationFor(candidate, 'installed-files');
-	closedRecord(installed, ['files'], 'installed-file evidence');
+	closedRecord(installed, ['files'], 'installed-file result');
 	if (JSON.stringify(installed.files) !== JSON.stringify(buildResultDescriptors(candidate))) {
 		throw new TypeError('The build-result installed-file receipt does not bind its exact payload closure.');
 	}
 	const closure = verificationFor(candidate, 'dependency-closure');
-	closedRecord(closure, ['status', 'maximumRuntimeFiles', 'inspections', 'checks'], 'closure evidence');
+	closedRecord(closure, ['status', 'maximumRuntimeFiles', 'inspections', 'checks'], 'closure result');
 	if (closure.status !== 'closed' || closure.maximumRuntimeFiles !== MAXIMUM_RUNTIME_FILES
 		|| !Array.isArray(closure.inspections)
 		|| JSON.stringify(closure.checks) !== JSON.stringify([

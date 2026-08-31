@@ -412,7 +412,6 @@ function entry(domain: NativeMediaCapabilityDomain, id: string, userEnabled: boo
 	return {
 		domain,
 		id,
-		policyCleared: true,
 		buildSupported: true,
 		probeSucceeded: true,
 		selfTestPassed: true,

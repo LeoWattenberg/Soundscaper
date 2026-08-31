@@ -29,7 +29,8 @@ test('milestone 3A has bounded pickup packets with the required implementation c
 		}
 	}
 	assert.match(document, /schema revisions are serialized/iu);
-	assert.match(document, /Electron.*pending-external/isu);
+	assert.match(document, /browser and packaged tests.*environments they actually exercise/isu);
+	assert.match(document, /ordinary CI.*optional owner QA.*owner tag decision/isu);
 	assert.match(document, /MIDI.*out of scope/isu);
 });
 

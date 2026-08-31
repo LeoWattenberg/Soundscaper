@@ -174,24 +174,24 @@ export function createOperatingSystemAudioCodecCanaryAdapter(
 				return unavailable(result.reason === 'api-unavailable' ? 'api-unavailable'
 					: result.reason === 'tuple-unsupported' ? 'tuple-unsupported' : 'canary-refused');
 			}
-			const evidence = canary.operation === 'audio-encode'
+			const measurements = canary.operation === 'audio-encode'
 				? inspectEncodedCanary(canary, result)
 				: inspectDecodedCanary(canary, result);
-			if (evidence === null) return unavailable('canary-refused');
-			const evidenceDigest = sha256(Buffer.from(JSON.stringify({
+			if (measurements === null) return unavailable('canary-refused');
+			const resultDigest = sha256(Buffer.from(JSON.stringify({
 				schemaVersion: 1, target, osVersion: request.osVersion,
 				implementation: request.implementation,
 				capabilityDigest: request.capabilityDigest,
 				inputSha256: canary.sha256,
 				outputSha256: sha256(result.output),
-				...evidence,
+				...measurements,
 			})));
 			return Object.freeze({
-				contractVersion: 1, status: 'qualified', target,
+				contractVersion: 1, status: 'passed', target,
 				osVersion: request.osVersion, capabilityId: request.capability.id,
 				capabilityDigest: request.capabilityDigest,
 				implementation: request.implementation,
-				nativeApiReached: true, exactTuplePassed: true, evidenceDigest,
+				nativeApiReached: true, exactTuplePassed: true, resultDigest,
 			});
 		},
 	});

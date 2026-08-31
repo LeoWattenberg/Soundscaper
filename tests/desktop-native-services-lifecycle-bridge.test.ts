@@ -51,7 +51,7 @@ const SHA_B = 'b'.repeat(64);
 const usableCapabilities = () => createNativeMediaCapabilitySnapshotV1({
 	masterEnabled: true,
 	entries: Object.values(NATIVE_MEDIA_CAPABILITY_IDS).map((reference) => ({
-		...reference, policyCleared: true, buildSupported: true, probeSucceeded: true,
+		...reference, buildSupported: true, probeSucceeded: true,
 		selfTestPassed: true, userEnabled: true,
 	})),
 });

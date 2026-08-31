@@ -1,5 +1,9 @@
 # Milestone 3B-2c: re-import upgrade
 
+> **Historical slice record:** implementation details remain useful provenance;
+> browser-qualification and release-evidence-row language below predates the
+> owner-run release policy and does not gate or certify a current release.
+
 > Slice-level pickup decomposition for the last open half of
 > [3B-2](milestone-3b-work-packets.md#3b-2--probed-source-timing-and-preserved-characteristics).
 > [3B-2a](milestone-3b-probed-source-characteristics.md) made ingest persist

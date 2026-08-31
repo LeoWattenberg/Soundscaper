@@ -1,5 +1,11 @@
 # Milestone 7 plan: optional local assistance
 
+> **Current release note (2026-08-31):** this historical work plan's formal
+> qualification and release-admission language is not current policy. Real
+> correctness and privacy failures still fail their tests; performance reports
+> are diagnostics, owner QA is optional, and signed model-catalog and artifact
+> authentication remain runtime integrity controls rather than release approval.
+
 > Owning source for milestone-7 sequencing, the runtime and model-catalog
 > decisions, the assistance-lifecycle invariants, and the bounded work
 > packets. The [roadmap](../roadmap.md#7-optional-local-assistance) owns
@@ -588,7 +594,7 @@ manual sign-off as an execution switch:
 
 | Area | Current implementation |
 | --- | --- |
-| Catalog and licensing | The authenticated Ed25519 catalog V2 retains thirteen admitted entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the executable catalog before converted-artifact/parity closure, versioned-download notices and hashes, and external signing. Unknown keys and artifact drift fail closed. Owner human licensing review is recorded in `config/production-legal-review.json`; the remaining artifact-specific gates are reported to milestone 9 and block stable 1.0 admission only. |
+| Catalog and licensing | The authenticated Ed25519 catalog V2 retains thirteen verified entries. Supply candidates now pin wav2vec2 and Qwen sources plus conversion recipes for TIGER, PANNs, Beat This, and TransNetV2, but none joins the executable catalog before converted-artifact/parity closure, versioned-download notices and hashes, and signed catalog publication. Unknown keys and artifact drift fail closed. Owner licensing notes remain a non-gating worksheet; missing artifact-specific integrity and distribution inputs keep only that model unavailable. |
 | Model lifecycle | A user-settable, content-addressed filesystem store supports capacity preflight, explicit resumable install, cancellation after quiescence, preseed, relocation by copy/verify/swap, removal, garbage collection, notices, and reconciliation after external deletion. **Tools > Local Models > Manage Models…** is lazy and desktop-only. No model is installed or repaired implicitly. |
 | Native runtime | Sherpa ONNX 1.13.5 remains authenticated on linux-x64, linux-arm64, mac-arm64, and win-x64; its Windows-arm64 Node addon is pending. Isolated, supervised CPU-only family contracts, workers, memory admission, crash quarantine, and termination cancellation exist for ONNX Runtime 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509, but every five-target payload row remains `pending-external`. Fast shots retain the separately admitted external-FFmpeg path. |
 | Job and data boundary | `AssistanceWorkflow` adds a closed workflow graph, one aggregate fence, versioned settings, slotted claims, exact model roles, stage progress, one main-owned consent authority, strict frame-pack/embedding formats, bounded semantic reviewers, and project-isolated disposable custody over all guided and fifteen Advanced recipes. Review media is incrementally hashed and bound to its exact stage/slot claim before native execution. Adapter-owned preprocessing preserves each model's required sample rate/channels; long media remains under one whole-selection fence. VFR and monotonic forward retimes use source-time authority; reverse, ambiguous nested, multicamera, and live inputs refuse. |

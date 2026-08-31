@@ -1,11 +1,11 @@
 # Milestone 4B pickup: Framescaper finishing
 
-> **Superseded selection route:** V20/V22/V24 below remain implementation and
-> sequencing history. The current route is Framescaper V27, built from the V24
-> visual lineage after forward-porting maintained V20 retime/proxy work. V27 is
-> implementation-complete and is an activation candidate pending guided-local
-> sign-off; external qualification remains open. V25/V26 native/OpenFX projects
-> remain recognized, opaque, read-only custody and confer no M5 authority.
+> **Historical implementation plan:** V20 through V27 below remain sequencing
+> and architectural provenance. Framescaper F31 is now selected and delegates
+> through its immutable V28 foundation; V25/V26 remain recognized, opaque,
+> read-only custody. Guided sign-off, external qualification, candidacy, and
+> admission language in this document is superseded by ordinary CI and optional
+> owner QA and is not current release policy.
 
 > Owning pickup contract for the Framescaper half of milestone 4. The
 > [milestone-4 plan](milestone-4-plan.md) owns shared sequencing and the
@@ -15,7 +15,7 @@
 
 ## Pickup status and sequencing
 
-**Current status on 2026-08-23:** V27 is the selected Framescaper activation
+**Historical status recorded on 2026-08-23:** V27 was the selected Framescaper activation
 candidate for browser and desktop. Its M1–M4 implementation is complete, but
 guided-local sign-off and external qualification remain open. It activates the
 forward-ported V20 composition/keyframe/retime/proxy work and V22/V24 visual

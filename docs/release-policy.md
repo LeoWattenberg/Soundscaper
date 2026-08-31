@@ -25,9 +25,9 @@ that benefit from human observation. Completed copies are local, ignored files.
 Manual QA is never read as a CI gate and no script converts it into release
 readiness.
 
-Do not release with a known data-loss, security, licensing, or primary-workflow
-failure. Everything else—including which conditional environments to try and
-whether a bounded issue is acceptable—is an explicit owner decision.
+Do not release with a known data-loss, security, or primary-workflow failure.
+Everything else—including which conditional environments to try and whether a
+bounded issue is acceptable—is an explicit owner decision.
 
 ## Release sequence
 

@@ -46,7 +46,7 @@ test('cross-origin project transfer owns a bounded authenticated security bounda
 	assert.ok(risk);
 	assert.deepEqual(risk.boundaryIds, [BOUNDARY_ID]);
 	assert.equal(risk.status, 'partial');
-	assert.equal(risk.releaseDisposition, 'conditional');
+	assert.equal(risk.surfaceDisposition, 'conditional');
 	assert.ok(control);
 	assert.match(control.summary,
 		/exact origin.*window identity.*versioned.*session.*512 entries.*512 MiB.*SharedArrayBuffer.*one archive/isu);
@@ -55,7 +55,7 @@ test('cross-origin project transfer owns a bounded authenticated security bounda
 });
 
 test('project transfer download and import are closed milestone-2 publication rows', () => {
-	const route = matrix.publicationRouteQualification.routes.find(
+	const route = matrix.publicationRouteVerification.routes.find(
 		({ id }: { id: string }) => id === ROUTE_ID,
 	);
 	assert.deepEqual(route, {
@@ -66,10 +66,10 @@ test('project transfer download and import are closed milestone-2 publication ro
 		controlId: CONTROL_ID,
 	});
 	assert.equal(PROJECT_TRANSFER_DEFAULT_MAXIMUM_ENTRIES, 512);
-	const routeItem = closure.items.find(({ id }: { id: string }) => id === 'm2-pipeline-route-qualification');
+	const routeItem = closure.items.find(({ id }: { id: string }) => id === 'm2-pipeline-route-verification');
 	assert.ok(routeItem.routeIds.includes(ROUTE_ID));
 
-	const faultPath = matrix.publicationFaultQualification.paths.find(
+	const faultPath = matrix.publicationFaultVerification.paths.find(
 		({ id }: { id: string }) => id === FAULT_PATH_ID,
 	);
 	const faultItem = closure.items.find(({ id }: { id: string }) => id === 'm2-publication-fault-matrix');

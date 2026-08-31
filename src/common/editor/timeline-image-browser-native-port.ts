@@ -43,7 +43,7 @@ interface BrowserImageDecoderConstructor {
 
 type BrowserCanvas = OffscreenCanvas | HTMLCanvasElement;
 
-/** Open the browser's qualified ImageDecoder, falling back to one static ImageBitmap. */
+/** Open the browser's supported ImageDecoder, falling back to one static ImageBitmap. */
 export const openFramescaperBrowserNativeImageV1: OpenFramescaperBrowserNativeImageV1 = async (
 	request,
 ): Promise<FramescaperBrowserNativeImageDecodeSessionV1> => {
@@ -112,7 +112,7 @@ async function openStaticBitmap(
 	signal: AbortSignal | undefined,
 ): Promise<FramescaperBrowserNativeImageDecodeSessionV1> {
 	if (typeof globalThis.createImageBitmap !== 'function') {
-		throw new Error('This browser has no qualified native image decoder.');
+		throw new Error('This browser has no supported native image decoder.');
 	}
 	const bitmap = await globalThis.createImageBitmap(new Blob([bytes.slice()], { type: mimeType }), {
 		imageOrientation: 'from-image', premultiplyAlpha: 'none', colorSpaceConversion: 'default',

@@ -173,7 +173,7 @@ test('a distributable model cites the exact bytes it ships in the notices', asyn
 	}
 });
 
-test('owner-accepted upstream ambiguity is recorded without fabricating artifact evidence', async () => {
+test('upstream ambiguity is recorded factually without a named or dated approval claim', async () => {
 	const matrix = await readJson(matrixUrl);
 	const byId = new Map(matrix.localModelEvidence.map((record) => [record.id, record]));
 
@@ -184,6 +184,9 @@ test('owner-accepted upstream ambiguity is recorded without fabricating artifact
 		assert.deepEqual(record.blockedBy, ['versioned-download-notices-and-hashes']);
 		assert.equal(record.distributionStatus, 'blocked');
 	}
+	const summaries = matrix.localModelEvidence.flatMap(({ requirements }) =>
+		Object.values(requirements).map(({ summary }) => summary)).join('\n');
+	assert.doesNotMatch(summaries, /kw\.media owner|owner (?:accepted|approved)|on 2026-08-28/iu);
 });
 
 test('refused weights are recorded and never appear as evidence records', async () => {

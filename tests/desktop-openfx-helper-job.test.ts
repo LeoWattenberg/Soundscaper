@@ -196,7 +196,6 @@ test('runtime self-test results are fenced when its held executable path is repl
 		stdout: JSON.stringify({
 			contractVersion: 1, mode: 'per-binary-fingerprint-runtime',
 			openfx: '1.5.1', commit: 'ab77951', ok: true, contractFixture: false,
-			osIsolationAttested: true, thirdPartyExecutionEnabled: true,
 			networkSuiteExposed: false, arbitraryFilesystemSuiteExposed: false,
 			vendorTopLevelWindowsExposed: false,
 		}),
@@ -361,6 +360,7 @@ test('native runtime failures expose only the closed retryable GPU error codes',
 			exitCode: 65,
 			stdout: '',
 			stderr: `${JSON.stringify({ error: nativeCode, message: 'GPU failed exactly.' })}\n`,
+			isolationChecksPassed: false,
 		}, 'runtime host');
 		assert.equal(failure.name, 'OfxRetryableGpuError');
 		assert.equal((failure as Error & { code?: string }).code, wireCode);
@@ -374,7 +374,7 @@ test('native runtime failures expose only the closed retryable GPU error codes',
 		['not-json', 'runtime host'],
 	] as const) {
 		const failure = createOpenFxHostProcessFailure({
-			exitCode: 65, stdout: '', stderr,
+			exitCode: 65, stdout: '', stderr, isolationChecksPassed: false,
 		}, label);
 		assert.equal((failure as Error & { code?: string }).code, undefined);
 		assert.match(failure.message, /failed with code 65/iu);
@@ -406,7 +406,7 @@ test('native scanner and runtime arguments are closed and shell-free', () => {
 	}), /cancellation frame/iu);
 });
 
-test('utility self-tests require production isolation and real third-party execution', async (context) => {
+test('utility self-tests return a verified result only after direct isolation checks', async (context) => {
 	const fixture = await createFixture(context);
 	for (const mode of ['scanner', 'runtime'] as const) {
 		const identity = {
@@ -419,27 +419,25 @@ test('utility self-tests require production isolation and real third-party execu
 			arbitraryFilesystemSuiteExposed: false,
 			vendorTopLevelWindowsExposed: false,
 		};
-		const invoke = (selfTest: Readonly<Record<string, unknown>>) => () => processHandle(
+		const invoke = (selfTest: Readonly<Record<string, unknown>>, isolationChecksPassed: boolean) => () => processHandle(
 			Promise.resolve({ exitCode: 0, stdout: JSON.stringify(selfTest), stderr: '' }),
+			isolationChecksPassed,
 		);
 		await assert.rejects(selfTestFramescaperOpenFxHelper(
 			fixture.descriptor, mode, invoke({
 				...identity, contractFixture: false,
-				osIsolationAttested: false, thirdPartyExecutionEnabled: false,
-			}),
-		), /production isolation.*third-party execution/iu);
+			}, false),
+		), /isolation checks.*verified result/iu);
 		await assert.rejects(selfTestFramescaperOpenFxHelper(
 			fixture.descriptor, mode, invoke({
 				...identity, contractFixture: true,
-				osIsolationAttested: true, thirdPartyExecutionEnabled: true,
-			}),
-		), /production isolation.*third-party execution/iu);
-		await selfTestFramescaperOpenFxHelper(
+			}, true),
+		), /verified result/iu);
+		assert.deepEqual(await selfTestFramescaperOpenFxHelper(
 			fixture.descriptor, mode, invoke({
 				...identity, contractFixture: false,
-				osIsolationAttested: true, thirdPartyExecutionEnabled: true,
-			}),
-		);
+			}, true),
+		), { status: 'verified-result', isolationChecksPassed: true, mode });
 	}
 });
 
@@ -464,7 +462,7 @@ async function createFixture(context: test.TestContext) {
 		isolation: {
 			launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 		},
-		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
+		supportedGpuBackends: ['opengl', 'opencl', 'cuda'],
 	};
 	return {
 		root, descriptor, plugin,
@@ -523,8 +521,11 @@ function outputReservation<const Length extends number | null>(
 
 function processHandle(completion: Promise<Readonly<{
 	exitCode: number; stdout: string; stderr: string;
-}>>) {
-	return { completion, cancel: async () => undefined };
+}>>, isolationChecksPassed = true) {
+	return {
+		completion: completion.then((result) => ({ ...result, isolationChecksPassed })),
+		cancel: async () => undefined,
+	};
 }
 
 function scannerDescriptorBytes(binarySha256: string): Buffer {

@@ -1,8 +1,15 @@
-The repository has no independently authenticated legal approval yet. Its licensing matrix is an evidence register—not legal clearance—and stable 1.0 is still blocked by human licensing/patent decisions and web notice delivery. See [production-licensing-policy.md](/home/splowatt/git/Soundscaper/docs/production-licensing-policy.md:3) and [production-licensing-matrix.json](/home/splowatt/git/Soundscaper/config/production-licensing-matrix.json:833).
+This is the repository owner's working licensing checklist, not legal clearance,
+release certification, or a separate admission gate. Machine checks still verify
+the source, notice, dependency, and package inventories represented here; the
+owner makes the release decision when pushing the stable tag. See
+[production-licensing-policy.md](production-licensing-policy.md) and
+[`production-licensing-matrix.json`](../config/production-licensing-matrix.json).
 
-Use each checkbox as a written decision recording: approve/reject, exact artifacts, products, distribution channels, territories, commercial status, conditions, reviewer, and date.
+Use each checkbox as a working note recording the decision, exact artifacts,
+products, distribution channels, territories, commercial status, conditions,
+owner, and date.
 
-## Stable 1.0 legal checklist
+## Owner licensing worksheet
 
 ### Release-wide
 
@@ -19,11 +26,11 @@ Use each checkbox as a written decision recording: approve/reject, exact artifac
 - [x] Decide whether release requires Terms of Use/EULA, warranty disclosures, acceptable-use terms, DMCA/contact procedures, or user-content representations. None is presently represented as a product legal artifact.
 -- The EULA are just the AGPL.
 
-### Web notice blocker
+### Web notice requirement
 
 - [ ] Approve the content and placement of a stable web legal-notices route linked from both products.
 - [ ] Approve delivery of matching notices with every separately versioned runtime/model asset.
-- [ ] Do not clear the gate until that route actually exists; this is an engineering blocker, not something legal can waive. The current blocker is recorded at [production-licensing-matrix.json](/home/splowatt/git/Soundscaper/config/production-licensing-matrix.json:857).
+- [ ] Keep the affected web distribution disabled until that route actually exists; this is an engineering requirement, not something a note can waive. The current missing path is recorded in [production-licensing-matrix.json](../config/production-licensing-matrix.json).
 
 ### Audacity, MuseScore, and adapted material
 
@@ -58,10 +65,6 @@ The required separation between copyright and patent review is stated at [produc
 - [x] Decide how incompatible plug-in EULAs, scanning, quarantine, vendor windows, crash isolation, and user consent are handled and disclosed.
 -- not a legal problem. What users do with the software once they've downloaded it isn't for us to care about.
 - [x] Approve the notice/source package delivered with each target-native helper.
-- [x] Designate an independently controlled reviewer/signing authority for native-readiness attestations.
--- not necessary, the only contributor (me) is approving it. Remove the trust key nonsense.
-
-The last item is a literal blocker: both trust-key lists are empty in [native-isolation-review-policy.json](/home/splowatt/git/Soundscaper/config/milestone-5-native-isolation-review-policy.json:3) and [package-release-authentication-policy.json](/home/splowatt/git/Soundscaper/config/milestone-5-package-release-authentication-policy.json:3).
 
 ### Framescaper native media: exact review scopes
 
@@ -93,11 +96,12 @@ Each tuple is intentionally a separate legal row; approval of one must not autho
 - [x] Approve the common FFmpeg 9.0.1 GPL/corresponding-source/notice posture covering whichever tuples survive review.
 -- approved if we don't ship FFmpeg ourselves (having users download it from winget/third party sources is fine)
 
-All these rows remain blocked. Legal approval cannot substitute for the missing implementation, payload, interoperability, signing, and five-target evidence.
+All these rows remain blocked. Legal approval cannot substitute for missing
+implementation, payload, interoperability, and target verification.
 
 ### Local AI models
 
-For every approved model, sign off on four separate questions: code/weights licenses, training-data provenance, model-card/use restrictions, and versioned notices/hashes.
+For every model considered for distribution, record four separate answers: code/weights licenses, training-data provenance, model-card/use restrictions, and versioned notices/hashes.
 
 - [x] Ratify the 13 currently recorded as permitted: Silero VAD 6; Parakeet TDT 0.6b v2 and v3; Whisper large-v3-turbo; pyannote segmentation 3.0; 3D-Speaker ERes2Net; DeepFilterNet3; YuNet; D-FINE Nano; SigLIP2; nomic-embed-text v1.5; PP-OCRv4; and U²-Net-P.
 - [x] Decide whether the incomplete or unpublished training-data inventories recorded for several “permitted” models are acceptable.
@@ -138,13 +142,13 @@ The per-model decision rule is documented at [production-licensing-policy.md](/h
 
 The implemented capture and Web VCR facts to review are in [framescaper-capture-privacy.md](/home/splowatt/git/Soundscaper/docs/framescaper-capture-privacy.md:11) and its [Web VCR section](/home/splowatt/git/Soundscaper/docs/framescaper-capture-privacy.md:125).
 
-## Future-only legal gates
+## Future distribution requirements
 
-These do not authorize current stable functionality, but should stay blocked until separately approved:
+These do not authorize current functionality. Keep the affected distribution disabled until the listed work is complete:
 
 - [ ] Reactivating legacy Web FFmpeg: complete source for all 13 enabled libraries plus exact product/territory/codec patent review.
 - [ ] Externally authored web effect packages: complete dependency/license inventory, source pins, notices, redistribution, and ABI/sandbox terms.
 - [ ] Lightscaper: raw decoder licensing, lens-profile database rights, camera-profile rights, new runtime assets, and HEIC/HEVC patents.
 - [ ] Android/Google Play: public privacy policy, accurate Data Safety declaration, store terms, new distribution-surface notices, and deliberate license selection for the generated TWA shell. This is already required by [post-milestone-9-installable-distribution-plan.md](/home/splowatt/git/Soundscaper/docs/post-milestone-9-installable-distribution-plan.md:330).
 
-The first actionable legal packets are therefore: release scope/territories, AGPL/GPL posture, aggregate notices, current codec patents, the 13 “permitted” model records, privacy/recording disclosures, and native/plugin policies. Everything else either depends on those decisions or still lacks engineering evidence that cannot be signed away.
+The first actionable legal packets are therefore: release scope/territories, AGPL/GPL posture, aggregate notices, current codec patents, the 13 “permitted” model records, privacy/recording disclosures, and native/plugin policies. Everything else either depends on those decisions or still lacks engineering work that an owner note cannot waive.

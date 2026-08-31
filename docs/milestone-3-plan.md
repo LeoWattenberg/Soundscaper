@@ -3,8 +3,8 @@
 > **Current-status note (2026-08-26):** selected Framescaper F31 is active on
 > browser and packaged-desktop source routes and delegates through its immutable
 > exact V28 foundation, which retains the V27-forwarded V20 retime/proxy work
-> and menu-reached authoring/consumer routes. Guided-local and external
-> qualification remain open. Statements below that present V20 or V27 as
+> and menu-reached authoring/consumer routes. Optional diagnostics and owner QA
+> do not qualify or gate a release. Statements below that present V20 or V27 as
 > selected, or retime/proxy authoring as unavailable, are retained only as the
 > historical milestone-3 sequencing record.
 
@@ -694,8 +694,8 @@ with its atomic capability registration.
 ## Watch items (not gates yet)
 
 - Every maintained browser engine is enabled for automated workflow tests.
-  Manual browser-engine qualification belongs to milestone 9 stable 1.0
-  release admission and does not disable build or test. A test may still
+  Browser-specific human checks may be recorded in optional owner QA; they do
+  not disable build or test and never gate or certify a release. A test may still
   capability-skip when the current engine concretely lacks a required API;
   the pinned WebKit build currently exposes neither OPFS nor working
   IndexedDB Blob storage for imported A/V sources.

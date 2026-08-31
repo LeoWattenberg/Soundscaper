@@ -35,10 +35,10 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(capture.summary, /proxy request.*session.*origin.*source.*revision.*content digest.*Framescaper family v1.*owned revision lineage.*inactive-origin.*active app.*reclaim.*determinate failure/isu);
 	assert.match(capture.summary, /landed proxy target.*claim cleanup.*session-history.*playback.*app-snapshot.*without regenerating.*later project edit/isu);
 	assert.match(capture.summary, /Framescaper family v1 capture-derived scheduler.*post-commit generation.*separate from Framescaper family v1's menu-reached general editorial proxy lifecycle.*generation.*adaptive Original\/Proxy\/Auto preview selection.*offline editing.*relink.*regeneration.*cancellation.*atomic cleanup.*Neither route.*memory.*RSS/isu);
-	assert.match(capture.summary, /implementation.*active on Framescaper family-v1 web and desktop.*default-hidden Record-menu surface enabled for testing.*manual.*qualification.*milestone-9 stable 1\.0 admission evidence.*never disables.*implemented route.*synthetic media.*packaged no-device smoke.*control-plane/isu);
+	assert.match(capture.summary, /implementation.*active on Framescaper family-v1 web and desktop.*default-hidden Record-menu surface enabled for testing.*optional owner QA.*never disable.*implemented route.*synthetic media.*packaged no-device smoke.*control-plane/isu);
 	assert.match(capture.summary,
-		/Configured Chromium, Firefox, and WebKit.*eight-case workflow.*synthetic media.*24 configured-engine cases.*neither substitutes for qualification/isu);
-	assert.match(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*30-minute.*unprovisioned/isu);
+		/Configured Chromium, Firefox, and WebKit.*eight-case workflow.*synthetic media.*24 configured-engine cases.*neither establishes behavior on other devices/isu);
+	assert.match(capture.summary, /no aggregate duration.*global byte.*browser heap.*RSS.*quota reservation.*capture-device-diagnostics.*unavailable with a reason/isu);
 	assertEvidence(capture, [
 		'src/common/editor/framescaper-capture-domain.ts',
 		'src/common/editor/framescaper-capture-session-manifest.ts',
@@ -75,7 +75,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(desktop.summary, /macOS 15.*system picker.*Windows.*loopback.*other.*unavailable/isu);
 	assert.match(desktop.summary, /standalone Framescaper.*camera.*microphone.*display.*Soundscaper.*camera.*embedded.*deny/isu);
 	assert.match(desktop.summary, /Framescaper family v1.*framescaperCapture true.*active on standalone web and desktop.*Recording Setup.*default-hidden.*capture route authority.*desktop control plane/isu);
-	assert.match(desktop.summary, /real packaged, no-device smoke.*control-plane.*status.*grant.*teardown.*activation.*not qualification.*actual packaged cameras.*remain unqualified/isu);
+	assert.match(desktop.summary, /real packaged, no-device smoke.*control-plane.*status.*grant.*teardown.*does not establish general device behavior.*actual packaged cameras.*remain unverified/isu);
 	assertEvidence(desktop, [
 		'desktop/framescaper-capture-artifact-smoke.js',
 		'desktop/framescaper-capture-desktop-port.ts',
@@ -96,7 +96,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(threatModel, /policy-narrative:framescaper-capture-desktop-consent-authority/u);
 });
 
-test('capability activates the Framescaper family-v1 baseline while real-device qualification remains pending', async () => {
+test('capability activates the Framescaper family-v1 baseline while real-device QA stays optional', async () => {
 	const [capabilities, quality, roadmap, plan] = await Promise.all([
 		json('config/production-capabilities.json'),
 		json('config/quality-budgets.json'),
@@ -162,10 +162,10 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 		roadmap.indexOf('### 8A. Framescaper recording setup'),
 		roadmap.indexOf('## 8+. Post-milestone-8 Framescaper Web VCR extension'),
 	);
-	assert.match(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*manual qualification.*milestone 9.*framescaperWebVcr: true/isu);
+	assert.match(capture, /Status:.*Implemented and active on selected Framescaper F31 web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*optional Framescaper owner QA.*framescaperWebVcr: true/isu);
 	assert.doesNotMatch(roadmap, /Blocked until milestone 8:\*\*[^\n]*(?:Framescaper camera|Framescaper capture)/iu);
 	assert.doesNotMatch(capture, /— Planned:/u);
-	assert.equal((capture.match(/— Implemented \(active; qualification open\):/gu) ?? []).length, 11);
+	assert.equal((capture.match(/— Implemented \(active\):/gu) ?? []).length, 11);
 	assert.match(capture, /milestone-8a-plan\.md.*framescaper-capture-privacy\.md/isu);
 	const captureFixture = quality.fixtures.find(({ id }) => id === 'm8a-capture-30m-all-sources-v1');
 	const captureWorkload = quality.workloads.find(({ id }) => id === 'm8a-capture-long-session');
@@ -186,11 +186,11 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 	assert.match(plan, /capture-only proxy route landed in commit `4f4d9d5a`.*framescaper-capture-canonical-publication\.ts.*editor-captured-video-proxy-scheduler\.ts.*captured-video-proxy-final-fence\.test\.ts/isu);
 	assert.match(plan, /crash-safe creation and append protocol landed in commit `917add78`.*framescaper-capture-app-composition\.ts.*capture-spool-append-intent-repository\.ts.*capture-spool-operation-lock\.ts.*capture-rollback-lock\.test\.ts.*capture-terminal-retirement\.test\.ts/isu);
 	assert.match(plan, /Commit `15a50dcb`.*framescaper-capture-stream-timing\.ts.*numeric.*null.*capture-shared-timing\.test\.ts/isu);
-	assert.match(plan, /Commit `70d1192e`.*framescaper-v19-capture\.spec\.js.*eight configured-Chromium.*incomplete-runtime denial.*mixed.*inactive origin.*source-ended recovery.*does not.*qualify.*external/isu);
+	assert.match(plan, /Commit `70d1192e`.*framescaper-v19-capture\.spec\.js.*eight configured-Chromium.*incomplete-runtime denial.*mixed.*inactive origin.*source-ended recovery.*makes no external.*support claim/isu);
 	assert.match(plan,
-		/Commits `5ccf6447`, `2c6e2a94`, and `16029166`.*selected F31.*Chromium, Firefox, and WebKit.*eight cases.*24 configured-engine cases.*synthetic.*still unqualified/isu);
+		/Commits `5ccf6447`, `2c6e2a94`, and `16029166`.*selected F31.*Chromium, Firefox, and WebKit.*eight cases.*24 configured-engine cases.*synthetic.*outside their scope/isu);
 	assert.match(plan, /Milestone 8B MIDI remains planned but unimplemented and is outside this plan/iu);
-	assert.match(plan, /Status:.*Implemented and active on selected F31 standalone web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*framescaperWebVcr: true.*manual.*review.*milestone 9/isu);
+	assert.match(plan, /Status:.*Implemented and active on selected F31 standalone web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*framescaperWebVcr: true.*optional owner QA/isu);
 });
 
 async function json(path) {

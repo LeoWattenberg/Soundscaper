@@ -80,7 +80,7 @@ test('composition releases a desktop selection when source-pack creation fails a
 			capabilities: () => createNativeMediaCapabilitySnapshotV1({
 				masterEnabled: true,
 				entries: [{
-					domain: 'operation', id: 'image-sequence-import', policyCleared: true,
+					domain: 'operation', id: 'image-sequence-import',
 					buildSupported: true, probeSucceeded: true, selfTestPassed: true, userEnabled: true,
 				}],
 			}),

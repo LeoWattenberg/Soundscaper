@@ -120,7 +120,7 @@ export function buildOpenFxNativeContractFixture(context) {
 		join(sources, 'interact_v1_invocation.cpp'),
 		join(sources, 'parameter_values.cpp'), join(sources, 'v12_cancellation_channel.cpp'),
 		join(sources, 'v12_host_invocation.cpp'), join(sources, 'v12_video_timing_grants.cpp'),
-		join(sources, 'v12_gpu_qualification.cpp'),
+		join(sources, 'v12_gpu_support.cpp'),
 		join(sources, 'v12_retime_authority.cpp'),
 		join(sources, 'v12_output_file.cpp'), join(sources, 'v12_transition_authority.cpp'),
 		join(repositoryRoot, 'native/framescaper-media-host/src/strict_json.cpp'),

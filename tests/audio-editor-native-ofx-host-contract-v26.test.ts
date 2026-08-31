@@ -161,17 +161,17 @@ function exactSourceTime() {
 
 test('GPU failure visibly retries CPU without mutating authored state', () => {
 	assert.deepEqual(resolveOfxRenderBackendV1({
-		requestedBackend: 'cuda', qualifiedBackends: ['cpu', 'cuda'], failedBackends: [],
+		requestedBackend: 'cuda', supportedBackends: ['cpu', 'cuda'], failedBackends: [],
 	}), {
 		backend: 'cuda', retriedOnCpu: false, reportsDegradation: false,
 	});
 	assert.deepEqual(resolveOfxRenderBackendV1({
-		requestedBackend: 'cuda', qualifiedBackends: ['cpu', 'cuda'], failedBackends: ['cuda'],
+		requestedBackend: 'cuda', supportedBackends: ['cpu', 'cuda'], failedBackends: ['cuda'],
 	}), {
 		backend: 'cpu', retriedOnCpu: true, reportsDegradation: true,
 	});
 	assert.throws(() => resolveOfxRenderBackendV1({
-		requestedBackend: 'metal', qualifiedBackends: ['metal'], failedBackends: ['metal'],
+		requestedBackend: 'metal', supportedBackends: ['metal'], failedBackends: ['metal'],
 	}), /CPU/iu);
 });
 

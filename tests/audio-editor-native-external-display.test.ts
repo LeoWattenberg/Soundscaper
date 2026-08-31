@@ -35,7 +35,7 @@ test('native Wayland reports unavailable instead of approximating placement', ()
 	const displays = [primary(), secondary('display-2')];
 
 	assert.deepEqual(listSelectableExternalDisplays(displays, 'wayland'), []);
-	// XWayland presents as x11 and is where Linux qualification runs.
+	// XWayland presents as x11 and is where Linux coverage runs.
 	assert.equal(listSelectableExternalDisplays(displays, 'x11').length, 1);
 
 	const store = createExternalDisplaySessionStore('wayland');

@@ -116,11 +116,11 @@ test('a preset with no licensing row rides what the product already ships', () =
 	const availability = resolveDeliveryPresetAvailability(preset(), {});
 	assert.deepEqual(availability, {
 		available: true, status: 'implemented', licensingRowId: null,
-		m9ReleaseReviewStatus: 'not-required', m9ReleaseReviewPending: false,
+		licensingStatus: 'not-required', licensingPending: false,
 	});
 });
 
-test('a preset naming a gated codec reports Milestone 9 review without blocking execution', async () => {
+test('a preset naming a gated codec reports licensing state without blocking execution', async () => {
 	const matrix = JSON.parse(await readFile(licensingUrl, 'utf8'));
 	const gated = preset({
 		id: 'hevc-master',
@@ -131,17 +131,17 @@ test('a preset naming a gated codec reports Milestone 9 review without blocking 
 	const availability = resolveDeliveryPresetAvailability(gated, matrix);
 	assert.equal(availability.available, true);
 	assert.equal(availability.status, 'implemented');
-	assert.equal(availability.m9ReleaseReviewStatus, 'blocked');
-	assert.equal(availability.m9ReleaseReviewPending, true);
+	assert.equal(availability.licensingStatus, 'blocked');
+	assert.equal(availability.licensingPending, true);
 });
 
-test('a preset whose licensing row does not exist remains testable and flags Milestone 9 review', () => {
+test('a preset whose licensing row does not exist remains testable and flags licensing state', () => {
 	const orphan = preset({ id: 'orphan', licensingRowId: 'codec-invented', fallbackPresetId: 'cd-master' });
 	const availability = resolveDeliveryPresetAvailability(orphan, { nativeFormatPolicies: [] });
 	assert.equal(availability.available, true);
 	assert.equal(availability.status, 'implemented');
-	assert.equal(availability.m9ReleaseReviewStatus, 'unrecorded');
-	assert.equal(availability.m9ReleaseReviewPending, true);
+	assert.equal(availability.licensingStatus, 'unrecorded');
+	assert.equal(availability.licensingPending, true);
 });
 
 test('validated presets are frozen data and round-trip through JSON', () => {

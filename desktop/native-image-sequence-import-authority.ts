@@ -85,7 +85,6 @@ export interface FramescaperNativeImageSequenceImportAuthorityOptions {
 	readonly mintOpaqueId: () => string;
 	readonly capabilities: () => Awaitable<unknown>;
 	readonly runtimeAvailable: () => boolean;
-	/** Report-only milestone-9 stable-release review input; execution never awaits it. */
 	readonly projectState: (projectId: string) => Awaitable<FramescaperNativeImageSequenceProjectState | null>;
 	readonly projectContainsImageSequence: (value: Readonly<{
 		schemaFamily: 'framescaper';

@@ -47,8 +47,8 @@
 		},
 		{
 			"path": "THIRD_PARTY_NOTICES.md",
-			"byteLength": 818,
-			"sha256": "c2451a0c3fb13eebe9d2928664419775646b9a1534576a6987344d435d82c76c"
+			"byteLength": 834,
+			"sha256": "6ab6b5496d5b8cfc5e84d629f6ca2d0479b84de0f1b9e36c70b97a73eed5171a"
 		},
 		{
 			"path": "build/external-source-authentication.mjs",
@@ -172,13 +172,13 @@
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_render.cpp",
-			"byteLength": 9140,
-			"sha256": "d816bb8cf6019cbcf003e1ebd1265228d29e45fe6bebc3d04c9bfc18f05c797f"
+			"byteLength": 9156,
+			"sha256": "86ca9e365706351f5abc1d2d3b5ab066c1d0e7b469da0ffac77ba836b296c1ab"
 		},
 		{
 			"path": "src/ffmpeg_selected_v20_render.hpp",
-			"byteLength": 827,
-			"sha256": "2e274b79a2798c3d517f153310cb7a3cb1cc6ae71818655ad0b4312285ab522a"
+			"byteLength": 859,
+			"sha256": "91062cbfade955f5f58cab1ef07c3001e28712a63f795dd44f9b531207c36cdb"
 		},
 		{
 			"path": "src/ffmpeg_simple_render.cpp",
@@ -292,8 +292,8 @@
 		},
 		{
 			"path": "src/selected_v20_frame_executor.hpp",
-			"byteLength": 4446,
-			"sha256": "ac50a9b29db7523cd9cdae3577df0a58f703ca4e3cd671a0d39851dd9ea68867"
+			"byteLength": 4449,
+			"sha256": "e93c9d96448a767b28606a232bb90e0f3a92c2247b2667975b17d92e68e031be"
 		},
 		{
 			"path": "src/selected_v20_frame_pack.cpp",

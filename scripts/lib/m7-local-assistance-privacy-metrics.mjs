@@ -8,7 +8,7 @@ import {
 	exactRecord,
 	nonNegativeInteger,
 	positiveInteger,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M7_ASSISTANCE_PRIVACY_WORKLOAD_ID = 'm7-local-assistance-privacy';

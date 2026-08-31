@@ -56,7 +56,7 @@ function request(
 	};
 }
 
-test('canary decodes embedded MP3 through the supervised runner and binds exact evidence', async () => {
+test('canary decodes embedded MP3 through the supervised runner and binds an exact result digest', async () => {
 	const output = new Uint8Array(new Float32Array([0.25, -0.25, 0.5, -0.5]).buffer);
 	let calls = 0;
 	const runner: OperatingSystemAudioCodecOperationRunner = {
@@ -79,15 +79,15 @@ test('canary decodes embedded MP3 through the supervised runner and binds exact 
 	const signal = new AbortController().signal;
 	const result = await adapter.runCanary(request(), signal);
 	assert.equal(calls, 1);
-	assert.equal(result.status, 'qualified');
-	if (result.status !== 'qualified') assert.fail('The exact MP3 canary must qualify.');
+	assert.equal(result.status, 'passed');
+	if (result.status !== 'passed') assert.fail('The exact MP3 canary must pass.');
 	assert.deepEqual(result, {
-		contractVersion: 1, status: 'qualified', target: 'win-x64', osVersion: '10.0.26100',
+		contractVersion: 1, status: 'passed', target: 'win-x64', osVersion: '10.0.26100',
 		capabilityId: capability.id, capabilityDigest: digest(JSON.stringify(capability)),
 		implementation: 'windows-media-foundation', nativeApiReached: true,
-		exactTuplePassed: true, evidenceDigest: result.evidenceDigest,
+		exactTuplePassed: true, resultDigest: result.resultDigest,
 	});
-	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
+	assert.match(result.resultDigest, /^[a-f0-9]{64}$/u);
 });
 
 test('canary decodes embedded AAC-LC M4A through the reviewed native method', async () => {
@@ -113,11 +113,11 @@ test('canary decodes embedded AAC-LC M4A through the reviewed native method', as
 	});
 	const result = await adapter.runCanary(aacRequest, new AbortController().signal);
 	assert.equal(calls, 1);
-	assert.equal(result.status, 'qualified');
-	if (result.status !== 'qualified') assert.fail('The exact AAC-LC M4A canary must qualify.');
+	assert.equal(result.status, 'passed');
+	if (result.status !== 'passed') assert.fail('The exact AAC-LC M4A canary must pass.');
 	assert.equal(result.capabilityId, aacCapability.id);
 	assert.equal(result.implementation, 'apple-audiotoolbox-avfoundation');
-	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
+	assert.match(result.resultDigest, /^[a-f0-9]{64}$/u);
 });
 
 test('canary encodes deterministic float PCM and verifies exact AAC-LC M4A output', async () => {
@@ -147,13 +147,13 @@ test('canary encodes deterministic float PCM and verifies exact AAC-LC M4A outpu
 	});
 	const result = await adapter.runCanary(encodeRequest, new AbortController().signal);
 	assert.equal(calls, 1);
-	assert.equal(result.status, 'qualified');
-	if (result.status !== 'qualified') assert.fail('The exact AAC encode canary must qualify.');
+	assert.equal(result.status, 'passed');
+	if (result.status !== 'passed') assert.fail('The exact AAC encode canary must pass.');
 	assert.equal(result.capabilityId, aacEncodeCapability.id);
-	assert.match(result.evidenceDigest, /^[a-f0-9]{64}$/u);
+	assert.match(result.resultDigest, /^[a-f0-9]{64}$/u);
 });
 
-test('canary qualifies exact Windows MP3 encode but never advertises it on macOS', async () => {
+test('canary verifies exact Windows MP3 encode but never advertises it on macOS', async () => {
 	const output = mp3Mpeg1Fixture(1, 11);
 	let calls = 0;
 	const runner: OperatingSystemAudioCodecOperationRunner = {
@@ -175,7 +175,7 @@ test('canary qualifies exact Windows MP3 encode but never advertises it on macOS
 	const result = await createOperatingSystemAudioCodecCanaryAdapter({
 		target: 'win-x64', runner,
 	}).runCanary(mp3Request, new AbortController().signal);
-	assert.equal(result.status, 'qualified');
+	assert.equal(result.status, 'passed');
 	assert.equal(calls, 1);
 
 	const macRequest = request({

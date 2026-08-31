@@ -27,7 +27,7 @@ test('main reopens exact canonical V14 authority and resolves the enabled finger
 	const projectEffects: unknown[] = [];
 	const service = createFramescaperOpenFxFrameExecutionService({
 		inventory: () => [plugin()] as never,
-		qualifiedGpuBackends: () => ['opengl'],
+		supportedGpuBackends: () => ['opengl'],
 		currentProject: (_plan, effect) => {
 			projectEffects.push(effect);
 			return Boolean(effect && typeof effect === 'object'
@@ -60,7 +60,7 @@ test('main refuses renderer-authored handles, changed fingerprints, input identi
 	let inventory = [plugin()] as never;
 	const service = createFramescaperOpenFxFrameExecutionService({
 		inventory: () => inventory,
-		qualifiedGpuBackends: () => [],
+		supportedGpuBackends: () => [],
 		currentProject: () => true,
 		timingAssets: async () => [],
 		execute: async () => bypass('missing'),
@@ -86,7 +86,7 @@ test('main projects unavailable execution without mutating the exact authored pl
 	const before = fixture.request.planPayload;
 	const service = createFramescaperOpenFxFrameExecutionService({
 		inventory: () => [plugin()] as never,
-		qualifiedGpuBackends: () => [],
+		supportedGpuBackends: () => [],
 		currentProject: () => true,
 		timingAssets: async () => [],
 		execute: async () => bypass('quarantined'),
@@ -109,7 +109,7 @@ test('a canonical same-revision forged effect is refused before missing-plugin f
 	let inventories = 0;
 	const service = createFramescaperOpenFxFrameExecutionService({
 		inventory: () => { inventories += 1; return []; },
-		qualifiedGpuBackends: () => [],
+		supportedGpuBackends: () => [],
 		currentProject: (_plan, authored) => authored.pluginId === 'net.example.Filter',
 		timingAssets: async () => [],
 		execute: async () => bypass('missing'),
@@ -122,13 +122,13 @@ test('a canonical same-revision forged effect is refused before missing-plugin f
 	assert.equal(inventories, 0, 'fallback resolution cannot precede exact authored-effect authority');
 });
 
-test('main admits only signed GPU qualification and reports exact CPU degradation otherwise', async () => {
+test('main uses only verified GPU support and reports exact CPU degradation otherwise', async () => {
 	const fixture = requestFixture();
-	let qualified = ['opengl'] as const;
+	let supported = ['opengl'] as const;
 	const backends: string[] = [];
 	const service = createFramescaperOpenFxFrameExecutionService({
 		inventory: () => [plugin()] as never,
-		qualifiedGpuBackends: () => qualified,
+		supportedGpuBackends: () => supported,
 		currentProject: () => true,
 		timingAssets: async () => [],
 		execute: async (request) => {
@@ -141,10 +141,10 @@ test('main admits only signed GPU qualification and reports exact CPU degradatio
 		},
 	});
 	const preferred = await service.execute({
-		...fixture.request, requestedBackend: 'qualified-preferred',
+		...fixture.request, requestedBackend: 'supported-preferred',
 	});
 	assert.equal(preferred.mode === 'render' ? preferred.backend : null, 'opengl');
-	qualified = [] as never;
+	supported = [] as never;
 	const refused = await service.execute({ ...fixture.request, requestedBackend: 'metal' });
 	assert.deepEqual(backends, ['opengl', 'cpu']);
 	assert.equal(refused.mode === 'render' ? refused.backend : null, 'cpu');
@@ -196,7 +196,7 @@ test('the missing-plugin frozen gate derives freshness from the plan, not the au
 	) as unknown as Record<string, unknown>;
 	const service = createFramescaperOpenFxFrameExecutionService({
 		inventory: () => [],
-		qualifiedGpuBackends: () => [],
+		supportedGpuBackends: () => [],
 		currentProject: () => true,
 		timingAssets: async () => [],
 		execute: async () => { throw new Error('a missing plug-in cannot execute'); },

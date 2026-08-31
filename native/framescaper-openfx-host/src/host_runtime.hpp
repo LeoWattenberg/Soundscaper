@@ -128,7 +128,7 @@ struct PluginInspection final {
 
 class HostRuntime {
 public:
-	explicit HostRuntime(std::vector<Backend> qualified_backends = {Backend::cpu});
+	explicit HostRuntime(std::vector<Backend> supported_backends = {Backend::cpu});
 	~HostRuntime();
 	HostRuntime(const HostRuntime&) = delete;
 	HostRuntime& operator=(const HostRuntime&) = delete;

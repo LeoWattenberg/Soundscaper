@@ -85,7 +85,7 @@ export function createV12WireFixture(build, context) {
 	const outputBytes = expectedOutput(context);
 	const grant = {
 		schemaVersion: 1,
-		qualifiedBackends: ['cpu', 'opengl', 'opencl', 'cuda'],
+		supportedBackends: ['cpu', 'opengl', 'opencl', 'cuda'],
 		pluginBinary: { path: build.plugin, sha256: build.sha256, pluginIndex: 0 },
 		invocation,
 		plan: {
@@ -175,7 +175,7 @@ export function createV12VfrRetimerWireFixture(build) {
 	const outputBytes = expectedOutput('retimer');
 	const grant = {
 		schemaVersion: 1,
-		qualifiedBackends: ['cpu', 'opengl', 'opencl', 'cuda'],
+		supportedBackends: ['cpu', 'opengl', 'opencl', 'cuda'],
 		pluginBinary: { path: build.plugin, sha256: build.sha256, pluginIndex: 0 },
 		invocation,
 		plan: { path: planPath, byteLength: envelope.canonicalByteLength, sha256: envelope.fingerprint },

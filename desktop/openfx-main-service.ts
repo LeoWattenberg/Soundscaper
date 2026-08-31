@@ -233,10 +233,10 @@ export class FramescaperOpenFxMainService {
 			.map((plugin) => this.#projection(plugin)));
 	}
 
-	qualifiedGpuBackends() {
+	supportedGpuBackends() {
 		const availability = this.#options.runtime.payloadAvailability;
 		return availability.status === 'available'
-			? availability.descriptor.qualifiedGpuBackends
+			? availability.descriptor.supportedGpuBackends
 			: Object.freeze([]);
 	}
 
@@ -364,7 +364,7 @@ export class FramescaperOpenFxMainService {
 				runtime: { availability, pluginId: null, binarySha256: null,
 					freshness: observedFreshness },
 				requestedBackend: request.requestedBackend,
-				executionPolicy: 'production-attested',
+				executionMode: 'verified-result',
 				createAttemptResources: () => { throw new Error('Unavailable OpenFX state cannot stage resources.'); },
 			});
 			if (unavailable.mode === 'render') throw new Error('Unavailable OpenFX execution rendered unexpectedly.');
@@ -400,7 +400,7 @@ export class FramescaperOpenFxMainService {
 				runtime: { availability: 'available', pluginId: plugin.descriptor.pluginId,
 					binarySha256: plugin.descriptor.binarySha256, freshness: observedFreshness },
 				requestedBackend: executionRequest.requestedBackend,
-				executionPolicy: 'production-attested', signal: executionRequest.signal,
+				executionMode: 'verified-result', signal: executionRequest.signal,
 				onHostFailure: (error) => this.#recordRuntimeFailure(plugin, error),
 				createAttemptResources: (backend) => backend === executionRequest.requestedBackend
 					? primary!.resources : cpu!.resources,

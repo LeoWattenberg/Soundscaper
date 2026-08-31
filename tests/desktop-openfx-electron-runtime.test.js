@@ -7,7 +7,7 @@ import test from 'node:test';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-test('Electron main keeps readiness branded while the actual OpenFX native child owns isolation', async () => {
+test('Electron main keeps verification in main while the actual OpenFX native child owns isolation', async () => {
 	const source = await readFile(join(ROOT, 'desktop/framescaper-openfx-electron-runtime.mjs'), 'utf8');
 	assert.match(source, /startFramescaperOpenFxRuntime/iu);
 	assert.match(source, /externalRuntimeRoot.*resourcesPath.*runtime.*\.\..*runtime/su,
@@ -22,7 +22,7 @@ test('Electron main keeps readiness branded while the actual OpenFX native child
 	assert.match(isolated, /isEnforcedNativeChildLaunch/u);
 });
 
-test('the retired utility-process entry cannot receive structured-cloned readiness authority', async () => {
+test('the retired utility-process entry cannot receive structured-cloned execution authority', async () => {
 	const source = await readFile(join(ROOT, 'desktop/openfx-helper-process.js'), 'utf8');
 	assert.match(source, /Retired fail-closed entry/iu);
 	assert.match(source, /throw new Error/iu);

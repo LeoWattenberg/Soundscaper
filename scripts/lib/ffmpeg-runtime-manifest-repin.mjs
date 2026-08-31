@@ -32,8 +32,8 @@ export function createFfmpegRuntimeEvidenceRepinner({
 		refreshed.push(await repinDescriptor(root, manifest.publication.cors, 'runtime CORS policy'));
 		refreshed.push(await repinDescriptor(root, manifest.publication.policy, 'runtime publication policy'));
 
-		const payload = Object.fromEntries(Object.entries(manifest).filter(([key]) => key !== 'review'));
-		manifest.review.payloadSha256 = sha256(Buffer.from(canonicalJson(payload)));
+		const payload = Object.fromEntries(Object.entries(manifest).filter(([key]) => key !== 'integrity'));
+		manifest.integrity.payloadSha256 = sha256(Buffer.from(canonicalJson(payload)));
 		const manifestText = `${JSON.stringify(manifest, null, '\t')}\n`;
 		return Object.freeze({
 			manifestText,

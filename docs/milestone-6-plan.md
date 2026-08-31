@@ -1,5 +1,9 @@
 # Milestone 6 plan: professional delivery and interchange
 
+> **Current release note (2026-08-31):** manual delivery, upgrade, and rollback
+> checks are optional owner QA. Historical qualification/admission language in
+> packet records below does not define current release state.
+
 > Owning source for milestone-6 sequencing, the delivery-model and
 > interchange decisions, their invariants, and the bounded work packets.
 > The [roadmap](../roadmap.md#6-professional-delivery-and-interchange)
@@ -35,15 +39,13 @@ activation claim:
 Native surfaces are implemented and enabled for testing. Execution still
 requires facts this repository cannot manufacture: exact target payloads,
 corresponding-source identity, platform compatibility, containment, project
-authority, capacity, and explicit consent. Reviewed codec/licensing decisions,
-signing/notarization review, packaged qualification, and owner-controlled lab
-evidence belong to milestone-9 stable 1.0 admission. The milestone-6
-qualification audit is therefore healthy but `pending-external`: zero of 19 required
-measurements are accepted (one fixed-RTX profile plus the complete 18-profile
-Windows x64/ARM64, macOS ARM64, and Linux x64/ARM64 native matrix). Run
-`npm run audit:milestone-6-qualification` for the authoritative gate and
-`npm run milestone6:handoff-matrix` for the exact external handoff inventory.
-No pending human row disables build, packaging, catalog visibility, or testing.
+authority, capacity, and explicit consent. Source, licensing, payload,
+architecture, package-content, and runtime-integrity checks remain ordinary
+automation. Timing, heap, codec, display, GPU, install, upgrade, and rollback
+observations belong in diagnostics or the conditional owner-QA worksheet; there
+is no fixed hardware matrix, accepted measurement set, or milestone-6 release
+authority. Missing machine facts keep the affected operation unavailable but no
+pending human row disables build, packaging, catalog visibility, or testing.
 
 ## Goals and ordering principle
 

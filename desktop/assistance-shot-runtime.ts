@@ -12,6 +12,6 @@ export interface AssistanceShotDetectionRequest {
 
 export interface AssistanceShotRuntimeAdapter {
 	status(): Promise<SpeechRuntimeStatus>;
-	/** Null means the runtime became unavailable while qualifying the executable pair. */
+	/** Null means the runtime became unavailable while verifying the executable pair. */
 	detect(request: AssistanceShotDetectionRequest): Promise<ExternalFfmpegShotDetectionResult | null>;
 }

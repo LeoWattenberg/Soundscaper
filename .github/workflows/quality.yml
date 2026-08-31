@@ -208,7 +208,7 @@ jobs:
         # ubuntu-24.04 images restrict unprivileged user namespaces through
         # AppArmor, so the milestone-5 launcher's unshare(CLONE_NEWUSER) fails
         # with EPERM and every real-child enforcement test fail-closes with
-        # "The enforcement handshake ended early" before it can attest.
+        # "The enforcement handshake ended early" before it can complete.
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Provision interchange conformance reference tools

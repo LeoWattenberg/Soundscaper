@@ -7,6 +7,7 @@ import {
 	reportFramescaperVideoProxyPreviewPressure,
 	type FramescaperVideoProxyPressureCounters,
 } from '../src/common/editor/ui/workspace/framescaper-video-proxy-pressure.ts';
+import { resolveFramescaperVideoProxyUseRetime } from '../src/framescaper/editor-video-proxy-use-policy-retime.ts';
 
 const VIEWPORT = Object.freeze({
 	width: 1_280, height: 720, referenceWidth: 1_280, referenceHeight: 720,
@@ -64,4 +65,15 @@ test('a restarted decode counter does not report negative pressure', async () =>
 
 	const restarted = await report(10, 1, counters);
 	assert.ok(restarted >= 0 && restarted <= 1, `ratio stays in range, got ${String(restarted)}`);
+});
+
+test('proxy-use policy accepts verified trust and rejects the legacy attested wire value', () => {
+	const request = {
+		purpose: 'preview', mode: 'proxy', originalAvailable: true,
+		proxyTrust: 'verified', pressure: null,
+	} as const;
+	assert.equal(resolveFramescaperVideoProxyUseRetime(request).kind, 'proxy');
+	assert.throws(() => resolveFramescaperVideoProxyUseRetime({
+		...request, proxyTrust: 'attested',
+	} as unknown as Parameters<typeof resolveFramescaperVideoProxyUseRetime>[0]), /trust state is unsupported/iu);
 });

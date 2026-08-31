@@ -5,7 +5,7 @@ import {
 	deepFreeze,
 	exactRecord,
 	positiveInteger,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const NATIVE_OS_DIAGNOSTICS_ENVIRONMENT_ID = 'native-os-diagnostics';

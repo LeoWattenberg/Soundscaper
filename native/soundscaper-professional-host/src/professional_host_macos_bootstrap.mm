@@ -114,12 +114,12 @@ bool soundscaperProfessionalMacosBootstrap()
 	}
 	if (close(policyDescriptor) != 0) return bootstrapFailure("policy-close", errno);
 	if (!enterSandbox(policy)) return false;
-	if (!exactWrite(attestationDescriptor, enforcementFrame, sizeof(enforcementFrame) - 1u)) {
-		return bootstrapFailure("attestation-write", errno);
+	if (!exactWrite(enforcementDescriptor, enforcementFrame, sizeof(enforcementFrame) - 1u)) {
+		return bootstrapFailure("enforcement-write", errno);
 	}
-	if (close(attestationDescriptor) != 0) return bootstrapFailure("attestation-close", errno);
+	if (close(enforcementDescriptor) != 0) return bootstrapFailure("enforcement-close", errno);
 	if (hasExtraInput) {
-		if (dup2(extraInputDescriptor, attestationDescriptor) != attestationDescriptor
+		if (dup2(extraInputDescriptor, enforcementDescriptor) != enforcementDescriptor
 			|| close(extraInputDescriptor) != 0) return bootstrapFailure("extra-input", errno);
 	} else if (close(extraInputDescriptor) != 0 && errno != EBADF) {
 		return bootstrapFailure("extra-input-close", errno);

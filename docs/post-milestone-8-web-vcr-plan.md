@@ -1,7 +1,7 @@
 # Post-milestone-8 Framescaper Web VCR plan
 
 > Owning source for the Web VCR product, security, capture, lifecycle, and
-> qualification decisions. The [roadmap](../roadmap.md) owns sequencing and
+> diagnostic boundaries. The [roadmap](../roadmap.md) owns sequencing and
 > closure status. The enabled feature consumes milestone 8A's capture contracts
 > rather than creating a parallel recording path.
 
@@ -18,20 +18,18 @@ remain outside the feature boundary.
 
 A deterministic Linux x64/Xvfb packaged feasibility smoke exercises owned-guest
 720p and 1080p video, page audio, authentication, input, crop, ended, security,
-data-clear, and teardown paths and emits `qualification: false`. Both tiers are
-enabled subject to live machine capability checks. The supported real-runtime
-matrix, encoder, recovery, performance, and registered quality review remain
-stable 1.0 admission work in milestone 9; none disables the build or test
-surface. 4K remains unavailable until its independent runtime capture probe and
+data-clear, and teardown paths and emits `diagnosticOnly: true`. Both tiers are
+enabled subject to live machine capability checks. Real-runtime behavior,
+encoder coverage, recovery, and performance remain automation or optional
+owner-QA work; none disables the build or test surface. 4K remains unavailable until its independent runtime capture probe and
 selected encoder backend report support.
 
 The packaged feasibility smoke uses the
 deterministic loopback HTTPS fixture to exercise login-cookie persistence,
 an OAuth-like popup, interactive input, standard HTML media with generated
 video and tone, ended/loop behavior, redirects, and clean shutdown. That
-loopback HTTPS fixture and packaged smoke are evidence only and do not
-establish the supported real-runtime matrix, performance, or platform
-qualification.
+loopback HTTPS fixture and packaged smoke report only what they actually ran;
+they establish no broader real-runtime, performance, or platform claim.
 
 ## Outcome and boundaries
 
@@ -225,15 +223,15 @@ Develop test-first with focused coverage for:
   fixture for authentication persistence, input, audio monitoring, resolution,
   crop, auto-stop, project switch, import, reopen, recovery, and data clearing.
 
-Every enabled resolution tier must pass milestone 8A's long-session A/V drift,
-dropped-frame, audio-dropout, teardown, and durable-fragment budgets. Additional
-acceptance requires exact full-surface dimensions, encoder-compatible crop
-agreement, no retained uncropped project asset, and truthful runtime gating.
+Automated correctness checks fail closed for exact full-surface dimensions,
+encoder-compatible crop agreement, durable recovery, truthful runtime gating,
+and the rule that no uncropped project asset is retained. Long-session A/V
+drift, dropped-frame, audio-dropout, and teardown measurements are diagnostics
+for the environment that produced them, not a machine claim about other hosts.
 Public websites are never CI dependencies.
 
-Before stable 1.0 admission, review the capability inventory, privacy
-documentation, threat model, security matrix, and applicable quality workloads.
-Refresh every digest-controlled evidence pin through its owning script. No
-platform or 4K claim ships before its required machine capability, packaged,
-security, performance, licensing, and recovery evidence passes; pending human
-review never disables the enabled development surface.
+Capability, privacy, threat-model, and security changes remain subject to their
+ordinary tests and digest-pin refreshes. Platform and 4K behavior should be
+tried through the conditional Framescaper QA section when relevant; the owner
+decides what observations are sufficient for a release. Manual review never
+activates or disables the development surface.

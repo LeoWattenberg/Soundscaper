@@ -34,7 +34,7 @@ export function validateSoundscaperStableProfessionalNativeSummary(
 		`${label} build source revision does not match the runtime manifest source revision.`);
 	const root = `native/soundscaper-professional-host/prebuilt/${targetId}/`;
 	assert(summary.payload?.name === 'soundscaper_professional.node', `${label} payload is invalid.`);
-	assertSummaryEvidence(summary.payload, `${label} payload`);
+	assertSummaryFileDigest(summary.payload, `${label} payload`);
 	assertSummaryArtifact(summary.buildResult,
 		`${root}soundscaper-professional-native-build-result.json`, `${label} build result`);
 	assertSummaryArtifact(summary.pluginPeer,
@@ -77,16 +77,16 @@ function assertSummaryArtifact(value, expectedPath, label) {
 	assert(typeof value.path === 'string' && !value.path.includes('\\')
 		&& !value.path.split('/').includes('..') && (expectedPath === null || value.path === expectedPath),
 	`${label} path is invalid.`);
-	assertSummaryEvidence(value, label);
+	assertSummaryFileDigest(value, label);
 }
 function assertSummaryDescriptor(value, label) {
 	assert(value && (typeof value.id === 'string' || typeof value.name === 'string'),
 		`${label} identity is invalid.`);
-	assertSummaryEvidence(value, label);
+	assertSummaryFileDigest(value, label);
 }
-function assertSummaryEvidence(value, label) {
+function assertSummaryFileDigest(value, label) {
 	assert(value && Number.isSafeInteger(value.byteLength) && value.byteLength > 0
-		&& SHA256.test(String(value.sha256)), `${label} evidence is invalid.`);
+		&& SHA256.test(String(value.sha256)), `${label} file digest is invalid.`);
 }
 function exactRecord(value, fields, label) {
 	assert(value && typeof value === 'object' && !Array.isArray(value)

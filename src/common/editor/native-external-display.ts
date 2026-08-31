@@ -17,7 +17,7 @@
  * gives a client no dependable way to place a window on a chosen output, so
  * "full screen on the display you picked" cannot be honoured; claiming it and
  * landing on the wrong screen mid-session is worse than saying so up front.
- * Linux qualification therefore runs under X11 and XWayland.
+ * Linux coverage therefore runs under X11 and XWayland.
  *
  * HDR is claimed only when the display reports both HDR capability and colour
  * management. A surface that says HDR while the compositor is quietly tone

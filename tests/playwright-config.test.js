@@ -132,7 +132,7 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 	assert.match(buildScript, /PUBLIC_TRANSFER_PEER_ORIGIN: 'http:\/\/127\.0\.0\.1:4332'/u);
 });
 
-test('each site-qualifying workflow runs the dual-origin proof exactly once', async () => {
+test('each site-verifying workflow runs the dual-origin proof exactly once', async () => {
 	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
 		const browserJob = extractJob(workflow, 'browser');
@@ -146,7 +146,7 @@ test('each site-qualifying workflow runs the dual-origin proof exactly once', as
 	}
 });
 
-test('each site-qualifying workflow publishes and consumes a verified Framescaper browser build', async () => {
+test('each site-verifying workflow publishes and consumes a verified Framescaper browser build', async () => {
 	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
 		const qualityJob = extractJob(workflow, 'quality');
@@ -167,9 +167,9 @@ test('each site-qualifying workflow publishes and consumes a verified Framescape
 	}
 });
 
-test('desktop verification isolates browser engines and qualifies packages with every engine', async () => {
+test('desktop verification isolates browser engines and tests packages with every engine', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
-	assertBrowserQualification(workflow, 'desktop');
+	assertBrowserCoverage(workflow, 'desktop');
 	for (const jobName of ['package', 'package-with-tests', 'soundscaper-project-library-lease-matrix']) {
 		// Packaging waits on the sharded Node suite and the merged coverage gate too:
 		// a package built off unverified source is worse than no package.
@@ -180,7 +180,7 @@ test('desktop verification isolates browser engines and qualifies packages with 
 
 test('quality verification keeps Chromium and WebKit in the pinned container and gives Firefox real audio', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
-	assertBrowserQualification(workflow, 'quality');
+	assertBrowserCoverage(workflow, 'quality');
 });
 
 test('Firefox CI audio helpers configure a null sink/source and reject a stalled clock', async () => {
@@ -200,7 +200,7 @@ test('Firefox CI audio helpers configure a null sink/source and reject a stalled
 	assert.match(clockProbe, /did not advance/u);
 });
 
-function assertBrowserQualification(workflow, label) {
+function assertBrowserCoverage(workflow, label) {
 	const qualityJob = extractJob(workflow, 'quality');
 	const browserJob = extractJob(workflow, 'browser');
 	const firefoxJob = extractJob(workflow, 'firefox');
@@ -236,13 +236,13 @@ function assertBrowserQualification(workflow, label) {
 	assert.ok(
 		firefoxJob.indexOf('ci-firefox-audio-clock.mjs')
 			< firefoxJob.indexOf('test:browser:built -- --project=firefox'),
-		`${label} must probe the real audio clock before Firefox qualification`,
+		`${label} must probe the real audio clock before Firefox verification`,
 	);
 }
 
 /**
  * Playwright is the pipeline's long pole, so every engine is split across
- * runners with `--shard`. Three things have to agree for that to qualify the
+ * runners with `--shard`. Three things have to agree for that gate to be meaningful:
  * same tests the unsharded job did, and each is silent when it does not: the
  * `/N` denominator has to equal the number of matrix legs, or the shards the
  * matrix never runs take their tests with them; the job name has to say which

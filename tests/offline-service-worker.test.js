@@ -55,7 +55,7 @@ test('a partial shell install deletes only its candidate and leaves the prior re
 	assert.equal(await (await cacheStorage.open(priorName)).match('/').then((value) => value?.text()), 'prior shell');
 });
 
-test('a digest mismatch cannot write readiness or retire the active shell', async () => {
+test('a digest mismatch cannot write completion or retire the active shell', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const priorId = 'c'.repeat(64);
 	const priorName = shellCacheName(priorId);
@@ -75,7 +75,7 @@ test('a digest mismatch cannot write readiness or retire the active shell', asyn
 	assert.deepEqual(await cacheStorage.keys(), [priorName]);
 });
 
-test('activation retires old shell caches only after the complete release readiness marker exists', async () => {
+test('activation retires old shell caches only after the complete cache marker exists', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const priorName = shellCacheName('e'.repeat(64));
 	await (await cacheStorage.open(priorName)).put('/', response('prior shell'));

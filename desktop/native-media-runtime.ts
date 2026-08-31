@@ -76,9 +76,9 @@ export interface FramescaperNativeMediaRuntime {
 	readonly reason: string | null;
 	available(): boolean;
 	snapshot(): NativeMediaHelperPoolSnapshot | null;
-	selfTestEvidence(): FramescaperMediaHostSelfTestResult | null;
-	selectedV20RenderSelfTestEvidence(): FramescaperMediaHostSelectedV20RenderSelfTestResult | null;
-	selectedV28V14RenderSelfTestEvidence(): FramescaperMediaHostSelectedV28V14RenderSelfTestResult | null;
+	selfTestResult(): FramescaperMediaHostSelfTestResult | null;
+	selectedV20RenderSelfTestResult(): FramescaperMediaHostSelectedV20RenderSelfTestResult | null;
+	selectedV28V14RenderSelfTestResult(): FramescaperMediaHostSelectedV28V14RenderSelfTestResult | null;
 	activate(): Promise<boolean>;
 	deactivate(): boolean;
 	runJob(request: NativeMediaHelperPoolJobRequest): Promise<unknown>;
@@ -118,41 +118,41 @@ async function startActiveFramescaperNativeMediaRuntime(
 		return unavailableRuntime(availability, `${availability.reason}: ${availability.detail}`);
 	}
 	const verify = createFramescaperMediaHostVerifier(options.location, options.payloadPorts);
-	let selfTestEvidence: FramescaperMediaHostSelfTestResult;
+	let selfTestResult: FramescaperMediaHostSelfTestResult;
 	try {
 		assertSameDescriptor(availability.descriptor, await verify());
 		const result = await (options.runHostSelfTest ?? runFramescaperMediaHostSelfTest)(
 			availability.descriptor,
 		);
 		assertFramescaperMediaHostSelfTest(result);
-		selfTestEvidence = result;
+		selfTestResult = result;
 	} catch (error) {
 		return unavailableRuntime(
 			availability,
 			`self-test-failed: ${errorMessage(error)}`,
 		);
 	}
-	let selectedV20RenderSelfTestEvidence: FramescaperMediaHostSelectedV20RenderSelfTestResult | null = null;
+	let selectedV20RenderSelfTestResult: FramescaperMediaHostSelectedV20RenderSelfTestResult | null = null;
 	try {
 		const result = await (
 			options.runSelectedV20RenderSelfTest
 			?? runFramescaperMediaHostSelectedV20RenderSelfTest
 		)(availability.descriptor);
 		assertFramescaperMediaHostSelectedV20RenderSelfTest(result);
-		selectedV20RenderSelfTestEvidence = result;
+		selectedV20RenderSelfTestResult = result;
 	} catch {
-		// Operation-specific readiness gates selected V20 only; probe/proxy remain independently useful.
+		// Operation-specific self-test verification gates selected V20 only; probe/proxy remain independently useful.
 	}
-	let selectedV28V14RenderSelfTestEvidence: FramescaperMediaHostSelectedV28V14RenderSelfTestResult | null = null;
+	let selectedV28V14RenderSelfTestResult: FramescaperMediaHostSelectedV28V14RenderSelfTestResult | null = null;
 	try {
 		const result = await (
 			options.runSelectedV28V14RenderSelfTest
 			?? runFramescaperMediaHostSelectedV28V14RenderSelfTest
 		)(availability.descriptor);
 		assertFramescaperMediaHostSelectedV28V14RenderSelfTest(result);
-		selectedV28V14RenderSelfTestEvidence = result;
+		selectedV28V14RenderSelfTestResult = result;
 	} catch {
-		// Exact selected V28/V14 readiness gates its queue without disabling probe/proxy work.
+		// Exact selected V28/V14 self-test verification gates its queue without disabling probe/proxy work.
 	}
 	const workers: RuntimeWorker[] = [];
 	const pool = new NativeMediaHelperPool({
@@ -203,9 +203,9 @@ async function startActiveFramescaperNativeMediaRuntime(
 		reason: null,
 		available: () => !disposed && pool.snapshot().quarantinedWorkers < pool.snapshot().configuredWorkers,
 		snapshot: () => pool.snapshot(),
-		selfTestEvidence: () => selfTestEvidence,
-		selectedV20RenderSelfTestEvidence: () => selectedV20RenderSelfTestEvidence,
-		selectedV28V14RenderSelfTestEvidence: () => selectedV28V14RenderSelfTestEvidence,
+		selfTestResult: () => selfTestResult,
+		selectedV20RenderSelfTestResult: () => selectedV20RenderSelfTestResult,
+		selectedV28V14RenderSelfTestResult: () => selectedV28V14RenderSelfTestResult,
 		activate: () => Promise.resolve(!disposed),
 		deactivate: () => false,
 		runJob: (request: NativeMediaHelperPoolJobRequest) => pool.runJob(request),
@@ -285,10 +285,10 @@ function dormantRuntime(
 		get reason() { return reason; },
 		available: () => !disposed && active?.available() === true,
 		snapshot: () => active?.snapshot() ?? null,
-		selfTestEvidence: () => active?.selfTestEvidence() ?? null,
-		selectedV20RenderSelfTestEvidence: () => active?.selectedV20RenderSelfTestEvidence() ?? null,
-		selectedV28V14RenderSelfTestEvidence: () => (
-			active?.selectedV28V14RenderSelfTestEvidence() ?? null
+		selfTestResult: () => active?.selfTestResult() ?? null,
+		selectedV20RenderSelfTestResult: () => active?.selectedV20RenderSelfTestResult() ?? null,
+		selectedV28V14RenderSelfTestResult: () => (
+			active?.selectedV28V14RenderSelfTestResult() ?? null
 		),
 		activate,
 		deactivate,
@@ -320,9 +320,9 @@ function unavailableRuntime(
 		reason,
 		available: () => false,
 		snapshot: () => null,
-		selfTestEvidence: () => null,
-		selectedV20RenderSelfTestEvidence: () => null,
-		selectedV28V14RenderSelfTestEvidence: () => null,
+		selfTestResult: () => null,
+		selectedV20RenderSelfTestResult: () => null,
+		selectedV28V14RenderSelfTestResult: () => null,
 		activate: () => Promise.resolve(false),
 		deactivate: () => false,
 		runJob: (_request: HelperJobRequest<NativeMediaHelperPoolJobKind>) => Promise.reject(

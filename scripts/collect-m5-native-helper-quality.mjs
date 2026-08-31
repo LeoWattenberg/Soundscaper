@@ -13,7 +13,7 @@ import {
 	M5_NATIVE_HELPER_WORKLOAD_ID as WORKLOAD_ID,
 	computeM5NativeHelperMetrics,
 } from './lib/m5-native-helper-metrics.mjs';
-import { boundedString, exactRecord, requireRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord, requireRecord } from './lib/measurement-validation.mjs';
 import {
 	DIAGNOSTIC_MEASUREMENT_POLICY,
 	evaluateQualityWorkload,

@@ -55,8 +55,8 @@ const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'src/v12_output_file.hpp',
 	'src/v12_transition_authority.cpp',
 	'src/v12_transition_authority.hpp',
-	'src/v12_gpu_qualification.cpp',
-	'src/v12_gpu_qualification.hpp',
+	'src/v12_gpu_support.cpp',
+	'src/v12_gpu_support.hpp',
 ]);
 const REQUIRED_OPENFX_HEADERS = Object.freeze([
 	'ofxCore.h', 'ofxImageEffect.h', 'ofxProperty.h', 'ofxParam.h',
@@ -167,11 +167,11 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 	if (!dynamicLoader.includes('require_os_isolation_for_plugin_execution()')
 		|| dynamicLoader.indexOf('require_os_isolation_for_plugin_execution()')
 			> dynamicLoader.indexOf('open_library(path_)')) {
-		findings.push('The OpenFX native loader can run without an isolation-attestation gate.');
+		findings.push('The OpenFX native loader can run without an isolation-verification gate.');
 	}
 	const isolation = sourceText.get('src/isolation_contract.hpp') ?? '';
 	if (!isolation.includes('require_os_isolation_for_plugin_execution() noexcept {}')
-		|| !isolation.includes('Human release review is intentionally not an in-process execution oracle.')
+		|| !isolation.includes('Distribution metadata is intentionally not an in-process execution oracle.')
 		|| !isolation.includes('unavailable-upstream-openfx-1.5.1-defines-only-v1')) {
 		findings.push('The OpenFX isolation or pinned Interact-suite limitation is not explicit.');
 	}

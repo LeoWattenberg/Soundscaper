@@ -44,7 +44,7 @@ export function createSoundscaperNativeActivationPolicy({
 		audioBackend: (backend) => activated(BACKENDS[backend]),
 		// Format visibility is not execution authority. The helper reopens the
 		// exact payload and plug-in bytes and enforces the target OS launcher at
-		// each scan/host operation; pending M9 review must not hide the surface.
+		// each scan/host operation; those execution checks must not hide the surface.
 		pluginFormat: (format) => format !== 'fixture' && surfaceAvailable(FORMATS[format]),
 	});
 }

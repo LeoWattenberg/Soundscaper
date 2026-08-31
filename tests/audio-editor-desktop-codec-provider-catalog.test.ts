@@ -105,11 +105,11 @@ test('caller-supplied inventory cannot synthesize bundled video runtimes', async
 	}), /inventory component/iu);
 });
 
-test('OS providers expose only exact canary-qualified tuples and Linux stays unavailable', async () => {
+test('OS providers expose only exact canary-verified tuples and Linux stays unavailable', async () => {
 	const capability = videoCapability('wmf-h264-canary', 'h264', 'main', 'nv12');
 	const windows = createOperatingSystemDesktopCodecProvider({
 		target: 'win-x64', osVersion: '10.0.26100', capabilityGeneration: 'canary-17',
-		canaryQualifiedCapabilities: [{ capability, implementation: 'media-foundation-h264' }],
+		canaryVerifiedCapabilities: [{ capability, implementation: 'media-foundation-h264' }],
 	});
 	const exact = operation({
 		direction: 'decode', mediaKind: 'video', container: 'mp4', codec: 'h264',
@@ -122,7 +122,7 @@ test('OS providers expose only exact canary-qualified tuples and Linux stays una
 
 	const linux = createOperatingSystemDesktopCodecProvider({
 		target: 'linux-arm64', osVersion: '6.14', capabilityGeneration: 'canary-linux',
-		canaryQualifiedCapabilities: [{ capability, implementation: 'must-not-leak' }],
+		canaryVerifiedCapabilities: [{ capability, implementation: 'must-not-leak' }],
 	});
 	assert.equal((await linux.preflight(exact, {})).disposition, 'unavailable');
 	assert.equal(linux.capabilities.length, 0);
@@ -139,7 +139,7 @@ test('unknown audio decode geometry may select a ranged capability but encode re
 	};
 	const provider = createOperatingSystemDesktopCodecProvider({
 		target: 'win-x64', osVersion: '10.0.26100', capabilityGeneration: 'canary-audio',
-		canaryQualifiedCapabilities: [{ capability, implementation: 'media-foundation-mp3' }],
+		canaryVerifiedCapabilities: [{ capability, implementation: 'media-foundation-mp3' }],
 	});
 	const unresolved = operation({
 		direction: capability.direction, mediaKind: capability.mediaKind,
@@ -152,7 +152,7 @@ test('unknown audio decode geometry may select a ranged capability but encode re
 });
 
 test('external FFmpeg requires both an exact tuple and every probed implementation', async () => {
-	const qualified = [{
+	const verified = [{
 		capability: { ...videoCapability('ffmpeg-av1', 'av1', 'main', 'yuv420p'), direction: 'encode' as const },
 		implementation: 'libsvtav1',
 		requires: { encoders: ['libsvtav1'], muxers: ['webm'], filters: ['scale'] },
@@ -163,7 +163,7 @@ test('external FFmpeg requires both an exact tuple and every probed implementati
 			encoders: ['libsvtav1'], decoders: ['dav1d'], muxers: ['webm'],
 			demuxers: ['webm'], filters: ['scale'],
 		},
-		qualifiedCapabilities: qualified,
+		verifiedCapabilities: verified,
 	});
 	const exact = operation({ ...AV1_ENCODE });
 	assert.equal((await provider.preflight(exact, {})).disposition, 'supported');
@@ -175,7 +175,7 @@ test('external FFmpeg requires both an exact tuple and every probed implementati
 		capabilitySets: {
 			encoders: ['libaom-av1'], decoders: [], muxers: ['webm'], demuxers: [], filters: ['scale'],
 		},
-		qualifiedCapabilities: qualified,
+		verifiedCapabilities: verified,
 	});
 	assert.equal((await missingEncoder.preflight(exact, {})).disposition, 'unsupported');
 	assert.equal(missingEncoder.capabilities.length, 0);
@@ -185,7 +185,7 @@ test('provider identities and admitted capabilities are immutable copies', () =>
 	const capabilities = [videoCapability('apple-hevc', 'hevc', 'main', 'p010le')];
 	const provider = createOperatingSystemDesktopCodecProvider({
 		target: 'mac-arm64', osVersion: '15.4', capabilityGeneration: 'canary-88',
-		canaryQualifiedCapabilities: [{ capability: capabilities[0]!, implementation: 'video-toolbox-hevc' }],
+		canaryVerifiedCapabilities: [{ capability: capabilities[0]!, implementation: 'video-toolbox-hevc' }],
 	});
 	capabilities.splice(0);
 	assert.equal(provider.kind, 'operating-system');
@@ -200,6 +200,20 @@ test('provider identities and admitted capabilities are immutable copies', () =>
 	assert.throws(() => {
 		(provider as { version: string }).version = 'changed';
 	}, TypeError);
+});
+
+test('provider option schemas reject legacy qualified-capability fields', () => {
+	const capability = videoCapability('wmf-h264-canary', 'h264', 'main', 'nv12');
+	assert.throws(() => createOperatingSystemDesktopCodecProvider({
+		target: 'win-x64', osVersion: '10.0.26100', capabilityGeneration: 'canary-legacy',
+		canaryVerifiedCapabilities: [{ capability, implementation: 'media-foundation-h264' }],
+		canaryQualifiedCapabilities: [],
+	} as unknown as Parameters<typeof createOperatingSystemDesktopCodecProvider>[0]), /closed|fields/iu);
+	assert.throws(() => createExternalFfmpegDesktopCodecProvider({
+		target: 'win-x64', version: '9.0.1', capabilityGeneration: 'probe-legacy',
+		capabilitySets: { encoders: [], decoders: [], muxers: [], demuxers: [], filters: [] },
+		verifiedCapabilities: [], qualifiedCapabilities: [],
+	} as unknown as Parameters<typeof createExternalFfmpegDesktopCodecProvider>[0]), /closed|fields/iu);
 });
 
 function reviewedAudioInventory(): Partial<Record<BundledDesktopCodecComponent, string>> {

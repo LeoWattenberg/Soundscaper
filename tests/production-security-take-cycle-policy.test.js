@@ -14,7 +14,7 @@ test('routed take-cycle capture has exact durability, recovery, and resource tru
 	const control = risk?.currentControls.find(({ id }) => id === CONTROL_ID);
 	assert.ok(control);
 	assert.equal(risk.status, 'partial');
-	assert.equal(risk.releaseDisposition, 'conditional');
+	assert.equal(risk.surfaceDisposition, 'conditional');
 	assert.match(
 		control.summary,
 		/Soundscaper.*`takeComp`-gated.*Record options.*Record loop into takes.*writable exact owning-family v1.*positive enabled loop.*unlocked armed audio targets.*routed input.*one owning sequence.*Framescaper.*neither.*cycle entry.*recovery UI.*direct start, Recover, and Discard.*before controller mutation/iu,

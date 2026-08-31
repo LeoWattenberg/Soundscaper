@@ -135,9 +135,8 @@ test('V12 attempt admission refuses forged plan, plug-in, named input, transfer,
 	}
 });
 
-test('production-unattested and a non-fixture plug-in never spawn and use only fresh frozen recovery', async () => {
-	for (const [executionPolicy, plan] of [
-		['production-unattested', candidatePlan()],
+test('a non-fixture plug-in cannot use the conformance execution mode', async () => {
+	for (const [executionMode, plan] of [
 		['framescaper-conformance-fixture', candidatePlan('net.example.ThirdParty')],
 	] as const) {
 		let spawns = 0;
@@ -148,7 +147,7 @@ test('production-unattested and a non-fixture plug-in never spawn and use only f
 			instanceId: 'ofx-1',
 			runtime: runtime(plan),
 			requestedBackend: 'cpu',
-			executionPolicy,
+			executionMode,
 			createAttemptResources: () => {
 				resourceCalls += 1;
 				return attemptResources(plan, 'cpu');
@@ -163,12 +162,29 @@ test('production-unattested and a non-fixture plug-in never spawn and use only f
 	}
 });
 
+test('the runtime execution seam accepts verified results without release-policy states', async () => {
+	const plan = candidatePlan();
+	const manager = managerWith(() => new Worker());
+	const result = await executeUnifiedExactOfxNodeV1(manager, {
+		plan, instanceId: 'ofx-1', runtime: runtime(plan), requestedBackend: 'cpu',
+		executionMode: 'verified-result',
+		createAttemptResources: () => attemptResources(plan, 'cpu'),
+	});
+	assert.equal(result.mode, 'render');
+	await assert.rejects(executeUnifiedExactOfxNodeV1(manager, {
+		plan, instanceId: 'ofx-1', runtime: runtime(plan), requestedBackend: 'cpu',
+		executionMode: 'legacy-policy' as never,
+		createAttemptResources: () => attemptResources(plan, 'cpu'),
+	}), /execution mode is unsupported/iu);
+	manager.dispose();
+});
+
 test('stale or unavailable runtime state resolves before execution without mutating authored state', async () => {
 	const plan = candidatePlan();
 	const manager = managerWith(() => { throw new Error('must not spawn'); });
 	const freshMissing = await executeUnifiedExactOfxNodeV1(manager, {
 		plan, instanceId: 'ofx-1', runtime: runtime(plan, { availability: 'missing' }),
-		requestedBackend: 'cpu', executionPolicy: 'framescaper-conformance-fixture',
+		requestedBackend: 'cpu', executionMode: 'framescaper-conformance-fixture',
 		createAttemptResources: () => { throw new Error('must not resolve resources'); },
 	});
 	assert.deepEqual(
@@ -185,7 +201,7 @@ test('stale or unavailable runtime state resolves before execution without mutat
 			freshness: { ...effectNode(plan).state.freshness, inputIdentitiesSha256: '77'.repeat(32) },
 		}),
 		requestedBackend: 'cpu',
-		executionPolicy: 'framescaper-conformance-fixture',
+		executionMode: 'framescaper-conformance-fixture',
 		createAttemptResources: () => { throw new Error('must not resolve resources'); },
 	});
 	assert.equal(stale.mode, 'bypass');
@@ -206,7 +222,7 @@ test('V12 preserves stale authored fallback state but can resolve it only to byp
 	const manager = managerWith(() => { throw new Error('must not spawn'); });
 	const result = await executeUnifiedExactOfxNodeV1(manager, {
 		plan, instanceId: 'ofx-1', runtime: runtime(plan, { availability: 'missing' }),
-		requestedBackend: 'cpu', executionPolicy: 'framescaper-conformance-fixture',
+		requestedBackend: 'cpu', executionMode: 'framescaper-conformance-fixture',
 		createAttemptResources: () => { throw new Error('must not resolve resources'); },
 	});
 	assert.equal(result.mode, 'bypass');
@@ -228,7 +244,7 @@ test('the conformance fixture retries a failed GPU attempt on CPU in the same fi
 		instanceId: 'ofx-1',
 		runtime: runtime(plan),
 		requestedBackend: 'cuda',
-		executionPolicy: 'framescaper-conformance-fixture',
+		executionMode: 'framescaper-conformance-fixture',
 		createAttemptResources: (backend) => attemptResources(plan, backend),
 	});
 	assert.deepEqual(
@@ -252,7 +268,7 @@ test('CPU fallback preflight cannot change authenticated input or output authori
 		instanceId: 'ofx-1',
 		runtime: runtime(plan),
 		requestedBackend: 'cuda',
-		executionPolicy: 'framescaper-conformance-fixture',
+		executionMode: 'framescaper-conformance-fixture',
 		createAttemptResources: (backend) => {
 			const resources = attemptResources(plan, backend);
 			return backend === 'cpu' ? {
@@ -276,7 +292,7 @@ test('crash and quarantine preserve fresh frozen playback; cancellation remains 
 		const manager = managerWith(() => worker);
 		const result = await executeUnifiedExactOfxNodeV1(manager, {
 			plan, instanceId: 'ofx-1', runtime: runtime(plan), requestedBackend: 'cpu',
-			executionPolicy: 'framescaper-conformance-fixture',
+			executionMode: 'framescaper-conformance-fixture',
 			createAttemptResources: (backend) => attemptResources(plan, backend),
 		});
 		assert.equal(result.mode, 'frozen');
@@ -297,7 +313,7 @@ test('crash and quarantine preserve fresh frozen playback; cancellation remains 
 	const manager = managerWith(() => cancelling);
 	await assert.rejects(executeUnifiedExactOfxNodeV1(manager, {
 		plan, instanceId: 'ofx-1', runtime: runtime(plan), requestedBackend: 'cpu',
-		executionPolicy: 'framescaper-conformance-fixture', signal: controller.signal,
+		executionMode: 'framescaper-conformance-fixture', signal: controller.signal,
 		createAttemptResources: (backend) => attemptResources(plan, backend),
 	}), /cancel/iu);
 	manager.dispose();

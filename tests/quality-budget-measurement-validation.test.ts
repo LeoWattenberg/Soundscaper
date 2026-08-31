@@ -12,7 +12,7 @@ import {
 	nonNegativeInteger,
 	positiveInteger,
 	requireRecord,
-} from '../scripts/lib/measurement-admission.mjs';
+} from '../scripts/lib/measurement-validation.mjs';
 
 /** The two milestone-5A modules that used to carry their own copy of these rules. */
 const M5_SOURCES = Object.freeze([
@@ -34,7 +34,7 @@ test('a record is own plain data, never an array, an instance, or a prototype', 
 	assert.throws(() => requireRecord(null, 'measurement'), /measurement must be a plain record\./u);
 });
 
-test('an exact record admits every named field and nothing else', () => {
+test('an exact record accepts every named field and nothing else', () => {
 	const fields = ['left', 'right'];
 	const record = { left: 1, right: 2 };
 	assert.equal(exactRecord(record, fields, 'measurement'), record);
@@ -92,13 +92,13 @@ test('a deep freeze reaches nested records and arrays, not just the root', () =>
 	assert.equal(deepFreeze(null), null);
 });
 
-test('the milestone-5A modules admit through the shared rules instead of private copies', async () => {
+test('the milestone-5A modules validate through the shared rules instead of private copies', async () => {
 	for (const specifier of M5_SOURCES) {
 		const source = await readFile(new URL(specifier, import.meta.url), 'utf8');
 		assert.match(
 			source,
-			/from '\.(?:\/lib)?\/measurement-admission\.mjs'/u,
-			`${specifier} must import the shared admission rules`,
+			/from '\.(?:\/lib)?\/measurement-validation\.mjs'/u,
+			`${specifier} must import the shared validation rules`,
 		);
 		for (const rule of [
 			'isRecord', 'requireRecord', 'exactRecord', 'boundedString',

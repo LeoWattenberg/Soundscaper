@@ -437,7 +437,7 @@ function emitWitness(
 	value: FramescaperWebVcrDisplaySecurityWitnessV1,
 ): void {
 	try { seams.onWebVcrDisplaySecurityWitness?.(value); } catch {
-		// Packaged qualification observation can never alter capture admission.
+		// Packaged diagnostic observation can never alter capture admission.
 	}
 }
 

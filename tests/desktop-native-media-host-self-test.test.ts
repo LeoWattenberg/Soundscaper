@@ -68,7 +68,7 @@ test('a hung authenticated media-host self-test is killed within its exact timeo
 	}
 });
 
-test('the selected-V20 operation self-test authenticates and accepts only status-consistent evidence', {
+test('the selected-V20 operation self-test accepts only status-consistent verified results', {
 	skip: process.platform === 'win32' ? 'Executable script fixture is POSIX-only.' : false,
 }, async () => {
 	const root = await mkdtemp(join(tmpdir(), 'framescaper-selected-v20-self-test-'));

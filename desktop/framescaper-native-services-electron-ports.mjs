@@ -72,7 +72,7 @@ function listDisplays() {
 		primary: display.id === primaryId,
 		width: display.size.width,
 		height: display.size.height,
-		// Electron exposes no cross-platform proof for these; qualification stays fail-closed.
+		// Electron exposes no cross-platform proof for these, so support stays fail-closed.
 		hdrCapable: false,
 		colorManaged: false,
 		bounds: Object.freeze({

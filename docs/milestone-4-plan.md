@@ -5,7 +5,7 @@
 > owns the historical M4 implementation record. As of 2026-08-26, selected
 > Soundscaper S30 inherits that production surface through exact S29 and
 > selected Framescaper F31 inherits finishing through immutable exact V28.
-> Guided-local and external qualification remains open, and V25/V26
+> Optional diagnostics and owner QA are not a release gate, and V25/V26
 > native-media/OpenFX state remains opaque read-only custody. V23/V27 selection
 > and activation-candidate language below is retained as dated historical
 > design context, not current product routing.

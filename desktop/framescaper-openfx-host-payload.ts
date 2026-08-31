@@ -58,7 +58,7 @@ export interface FramescaperOpenFxHostDescriptor {
 		readonly brokerPolicy: FramescaperOpenFxExecutableDescriptor;
 		readonly runtimeLibraries: readonly FramescaperOpenFxExecutableDescriptor[];
 	}>;
-	readonly qualifiedGpuBackends: readonly OpenFxGpuBackend[];
+	readonly supportedGpuBackends: readonly OpenFxGpuBackend[];
 }
 
 export type FramescaperOpenFxHostAvailability =
@@ -207,7 +207,7 @@ export async function describeFramescaperOpenFxHostAvailability(
 					launcher: launcher!, sandboxProfile: sandboxProfile!, brokerPolicy: brokerPolicy!,
 					runtimeLibraries: Object.freeze(runtimeLibraries),
 				}),
-				qualifiedGpuBackends: TARGET_GPU_BACKENDS[targetId],
+				supportedGpuBackends: TARGET_GPU_BACKENDS[targetId],
 			}),
 		});
 	} catch (error) {
@@ -268,7 +268,7 @@ function payloadManifest(value: unknown): PayloadManifest {
 	const openfx = closedRecord(record.openfx, ['version', 'commit', 'sha256']);
 	if (openfx.version !== '1.5.1' || openfx.commit !== 'ab77951'
 		|| openfx.sha256 !== OPENFX_SHA256) {
-		throw new TypeError('The OpenFX-host manifest does not bind the signed 1.5.1 source pin.');
+		throw new TypeError('The OpenFX-host manifest does not bind the verified 1.5.1 source pin.');
 	}
 	if (!Array.isArray(record.targets) || !Array.isArray(record.payloads)) {
 		throw new TypeError('The OpenFX-host manifest must contain target and payload arrays.');

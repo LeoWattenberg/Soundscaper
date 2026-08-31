@@ -1,8 +1,7 @@
 # Interchange conformance reference implementations
 
-> How the milestone-6C interchange profiles are proven against readers that are
-> not ours, what is provisioned to do it, and the one notices entry that is
-> still owed. Owning slice docs:
+> How the milestone-6C interchange profiles are checked against readers that are
+> not ours and what is provisioned to do it. Owning slice docs:
 > [6C pickup](milestone-6c-interchange-archive.md).
 
 ## Why a third-party reader at all
@@ -57,29 +56,11 @@ It is not published under terms that permit redistribution. Validating against a
 schema we may not carry would trade a licensing problem for a conformance claim
 that the reference reader gives us honestly instead.
 
-## Outstanding: the third-party notices entry
+## Third-party notices
 
-`THIRD_PARTY_LICENSES.md` is the right home for this — it already carries a
-section for non-shipped tooling ("Nightly-with-tests diagnostic tooling") — but
-its exact bytes are digest-bound by the **approved** FFmpeg runtime review
-record in `config/ffmpeg-runtime-manifest.json`
-(`review.payloadSha256`, `status: approved`, a named reviewer and date).
-
-Adding a section to the notices file therefore invalidates that digest, and
-restoring it means re-stamping a maintainer approval to cover bytes no
-maintainer has reviewed. That is a human sign-off, so it is left to a human.
-The provenance is recorded in `config/interchange-conformance-tools.json` and
-in this document in the meantime.
-
-To complete it, a maintainer adds the section and re-stamps the record:
-
-1. Add an "Interchange conformance reference implementations" section to
-   `THIRD_PARTY_LICENSES.md` naming the three packages, their versions, their
-   Apache-2.0 licensing, and that they are executed rather than distributed.
-2. Update `evidence.notices.byteLength` and `evidence.notices.sha256` in
-   `config/ffmpeg-runtime-manifest.json` to the new file.
-3. Update `review.reviewedAt`, `review.reviewer`, and recompute
-   `review.payloadSha256` over the manifest with the `review` key removed,
-   canonicalized — the computation `scripts/lib/ffmpeg-runtime-manifest.mjs`
-   performs in `validateReview`.
-4. `node scripts/audit-ffmpeg-runtime.mjs` to confirm.
+`THIRD_PARTY_LICENSES.md` already records the three pinned reference packages,
+their versions and Apache-2.0 terms, and the fact that they are executed only by
+the opt-in conformance tests rather than bundled or distributed. The FFmpeg
+runtime manifest binds the notice bytes with ordinary byte-length and SHA-256
+integrity metadata; `node scripts/repin-runtime-evidence.mjs` refreshes those
+descriptors after a deliberate notice edit, with no human approval record.

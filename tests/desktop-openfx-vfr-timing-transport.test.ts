@@ -264,7 +264,7 @@ test('the OpenFX helper receives SCTI ports and emits only staged native timing 
 		isolation: {
 			launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 		},
-		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
+		supportedGpuBackends: ['opengl', 'opencl', 'cuda'],
 	};
 	let nativeTiming: unknown = null;
 	const runner = createOpenFxHelperJobRunner({
@@ -545,7 +545,10 @@ function scannerDescriptor(binarySha256: string): string {
 }
 
 function processHandle(completion: Promise<Readonly<{ exitCode: number; stdout: string; stderr: string }>>) {
-	return { completion, cancel: async () => undefined };
+	return {
+		completion: completion.then((result) => ({ ...result, isolationChecksPassed: true })),
+		cancel: async () => undefined,
+	};
 }
 
 function digest(bytes: Uint8Array): string {

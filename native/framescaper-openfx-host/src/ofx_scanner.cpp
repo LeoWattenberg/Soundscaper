@@ -22,9 +22,7 @@ int self_test() {
 		<< "\"openfx\":\"" << kOpenFxVersion << "\",\"commit\":\"" << kOpenFxCommit << "\","
 		<< denied_authorities_json() << ",\"contractFixture\":"
 		<< (conformance_fixture_execution() ? "true" : "false")
-		<< ",\"thirdPartyExecutionEnabled\":"
-		<< (conformance_fixture_execution() ? "true" : "false") << ','
-		<< "\"interactSuiteVersions\":[1],\"interactSuiteV2\":"
+		<< ",\"interactSuiteVersions\":[1],\"interactSuiteV2\":"
 		<< json_string(kInteractSuiteV2Status) << ','
 		<< "\"loadsOneBinary\":true,\"exitsAfterScan\":true,"
 		<< "\"authenticatedBeforeLoad\":true,\"ok\":" << (ok ? "true" : "false") << "}\n";

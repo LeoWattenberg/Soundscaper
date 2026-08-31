@@ -26,9 +26,9 @@ test('accepted enforcement cannot turn hostile child stderr into launcher diagno
 	]);
 	const stdout = new PassThrough();
 	const stderr = new PassThrough();
-	const attestation = new PassThrough();
+	const enforcementHandshake = new PassThrough();
 	const child = Object.assign(new EventEmitter(), {
-		pid: 0, stdin: null, stdout, stderr, stdio: [null, stdout, stderr, attestation], kill: () => true,
+		pid: 0, stdin: null, stdout, stderr, stdio: [null, stdout, stderr, enforcementHandshake], kill: () => true,
 	}) as unknown as ChildProcess;
 	const launcher = createNativeChildIsolationLauncher({
 		target: 'linux-x64',
@@ -39,7 +39,7 @@ test('accepted enforcement cannot turn hostile child stderr into launcher diagno
 		artifacts: { launcher: launcherArtifact, sandboxProfile: profile, brokerPolicy: broker },
 		spawn: (() => {
 			queueMicrotask(() => {
-				attestation.end('M5_NATIVE_ISOLATION_ENFORCED_V1\n');
+				enforcementHandshake.end('M5_NATIVE_ISOLATION_ENFORCED_V1\n');
 				stdout.end();
 				stderr.end('M5_NATIVE_ISOLATION_FAILURE_V1 windows create-process 2\nsecret');
 				child.emit('close', 125, null);

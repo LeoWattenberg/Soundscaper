@@ -25,7 +25,13 @@ const PROFILE_PATH = join(NATIVE_ROOT, 'profiles/linux-v1.json');
 const BROKER_PATH = join(NATIVE_ROOT, 'profiles/linux-broker-v1.json');
 const execFileAsync = promisify(execFile);
 
-test('human review metadata cannot construct a native-child execution authority', () => {
+test('the Linux profile names its enforcement handshake without attestation language', async () => {
+	const profile = await readFile(PROFILE_PATH, 'utf8');
+	assert.match(profile, /"enforcementHandshake":"pre-exec-enforcement-pipe-v1"/u);
+	assert.doesNotMatch(profile, /attest/iu);
+});
+
+test('caller-supplied review metadata cannot construct a native-child execution authority', () => {
 	const artifact = Object.freeze({
 		path: '/fixture/native-artifact', byteLength: 1, sha256: 'a'.repeat(64),
 		identity: Object.freeze({ dev: 1, ino: 1 }),
@@ -189,7 +195,7 @@ test('Linux launches an exact child only after namespaces, Landlock, and seccomp
 		assert.equal((await hostile.completion).exitCode, 125);
 	}
 	await assert.rejects(execFileAsync(launcherPath, [
-		'--attestation-fd=3', '--attestation-fd=4', '--profile-fd=5', '--broker-policy-fd=6',
+		'--enforcement-fd=3', '--enforcement-fd=4', '--profile-fd=5', '--broker-policy-fd=6',
 		'--executable-fd=7', '--maximum-duration-ms=1000', '--maximum-rss-bytes=1048576',
 		'--', 'child',
 	]), (error: unknown) => (error as { code?: number }).code === 125);
@@ -223,7 +229,7 @@ test('artifact drift fails closed before a launcher process is spawned', {
 	assert.equal(spawns, 0);
 });
 
-test('the professional plug-in RPC executes only in the attested isolated child', {
+test('the professional plug-in RPC executes only in the enforced isolated child', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await buildFixture(context);
@@ -290,7 +296,7 @@ test('the professional plug-in RPC executes only in the attested isolated child'
 	assert.equal(await plugin.closePluginInstance(instance), true);
 });
 
-test('human review metadata and a launcher that never attests cannot mount execution', {
+test('caller-supplied review metadata and an unverified launcher cannot mount execution', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await buildFixture(context);
@@ -330,7 +336,7 @@ test('human review metadata and a launcher that never attests cannot mount execu
 	assert.equal(killedBySignal, true);
 });
 
-test('machine-authenticated containment is available without a human release review', {
+test('machine-authenticated containment is available from verified machine state', {
 	skip: process.platform !== 'linux' || process.arch !== 'x64',
 }, async (context) => {
 	const fixture = await buildFixture(context);

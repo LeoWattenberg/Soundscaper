@@ -44,18 +44,22 @@ const FUTURE_GATE_IDS = [
 	'web-effect-packages',
 ];
 
-test('human licensing checks are milestone-9 release inputs, not execution gates', async () => {
+test('human licensing checks inform the owner without becoming an admission gate', async () => {
 	const policy = await readFile(policyUrl, 'utf8');
 	assert.match(
 		policy,
-		/human.*licensing.*milestone 9.*stable 1\.0.*(?:does not|never).*build.*test.*package.*runtime/isu,
+		/human licensing checks inform the repository owner's release decision/iu,
 	);
-	assert.doesNotMatch(policy, /broader capabilities remain disabled until their matrix requirements/iu);
+	assert.doesNotMatch(policy, /stable 1\.0 admission|notarization/iu);
+	assert.doesNotMatch(policy, /config\/production-legal-review\.json/iu);
 	assert.match(policy, /machine.*artifact.*payload.*platform.*containment.*consent.*fail closed/isu);
 });
 
 test('production licensing matrix is versioned and distinguishes every distribution surface', async () => {
 	const matrix = await readJson(matrixUrl);
+	assert.equal(Object.hasOwn(matrix, 'humanLegalReview'), false);
+	assert.equal(Object.hasOwn(matrix, 'releaseGates'), false);
+	assert.ok(Array.isArray(matrix.distributionChecks));
 
 	assert.equal(matrix.schemaVersion, 1);
 	assert.match(matrix.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
@@ -154,21 +158,21 @@ test('shipped Electron is tracked separately from the non-development npm closur
 	await assertEvidence(matrix.shippedDevelopmentDependencies[0].evidence);
 });
 
-test('runtime provenance entries and release gates fail closed without claiming legal clearance', async () => {
+test('runtime provenance entries and distribution checks fail closed without claiming legal clearance', async () => {
 	const matrix = await readJson(matrixUrl);
-	const gates = new Map(matrix.releaseGates.map((gate) => [gate.id, gate]));
+	const checks = new Map(matrix.distributionChecks.map((check) => [check.id, check]));
 	const provenance = new Map(matrix.runtimeProvenance.map((artifact) => [artifact.id, artifact]));
 
-	assert.equal(gates.size, matrix.releaseGates.length, 'release gate IDs must be unique');
-	assert.equal(gates.get('desktop-notice-delivery').status, 'implemented');
-	assert.equal(gates.get('desktop-bundled-codec-corresponding-source').status, 'implemented');
-	assert.equal(gates.get('web-bundled-codec-corresponding-source').status, 'blocked');
-	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').status, 'implemented');
-	assert.equal(gates.get('web-notice-delivery').status, 'blocked');
-	assert.equal(gates.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
-	assert.equal(gates.get('ffmpeg-enabled-codec-patent-review').status, 'blocked');
+	assert.equal(checks.size, matrix.distributionChecks.length, 'distribution check IDs must be unique');
+	assert.equal(checks.get('desktop-notice-delivery').status, 'implemented');
+	assert.equal(checks.get('desktop-bundled-codec-corresponding-source').status, 'implemented');
+	assert.equal(checks.get('web-bundled-codec-corresponding-source').status, 'blocked');
+	assert.equal(checks.get('ffmpeg-runtime-manifest-integrity').status, 'implemented');
+	assert.equal(checks.get('web-notice-delivery').status, 'blocked');
+	assert.equal(checks.get('ffmpeg-enabled-library-corresponding-source').status, 'blocked');
+	assert.equal(checks.get('ffmpeg-enabled-codec-patent-review').status, 'blocked');
 	for (const path of ['scripts/desktop-after-pack.mjs', 'tests/desktop-packaged-ffmpeg-runtime.test.js']) {
-		assert.ok(gates.get('desktop-notice-delivery').evidence.includes(path),
+		assert.ok(checks.get('desktop-notice-delivery').evidence.includes(path),
 			'desktop-notice-delivery must retain post-copy verification evidence');
 	}
 	for (const path of [
@@ -176,20 +180,20 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		'scripts/lib/desktop-bundled-codec-corresponding-source.mjs',
 		'tests/desktop-bundled-codec-corresponding-source.test.js',
 	]) {
-		assert.ok(gates.get('desktop-bundled-codec-corresponding-source').evidence.includes(path),
+		assert.ok(checks.get('desktop-bundled-codec-corresponding-source').evidence.includes(path),
 			'desktop source delivery must retain exact assembly evidence');
 	}
 	const desktopRelease = matrix.distributionSurfaces.find(({ id }) => id === 'desktop-release-assets');
 	assert.match(desktopRelease.description, /preferred corresponding-source ZIP/iu);
-	assert.ok(gates.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/publish-runtime-assets.mjs'));
-	assert.equal(gates.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/desktop-prepare.mjs'), false);
+	assert.ok(checks.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/publish-runtime-assets.mjs'));
+	assert.equal(checks.get('ffmpeg-runtime-manifest-integrity').evidence.includes('scripts/desktop-prepare.mjs'), false);
 	assert.deepEqual(matrix.ffmpeg.enabledExternalLibraries, ENABLED_FFMPEG_LIBRARIES);
 	assert.equal(matrix.ffmpeg.runtimeManifest, 'config/ffmpeg-runtime-manifest.json');
 	assert.equal(matrix.ffmpeg.correspondingSourceManifest, 'desktop/ffmpeg-corresponding-source.json');
-	assert.match(gates.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
-	assert.match(gates.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);
-	assert.match(gates.get('web-notice-delivery').blocker, /web route|web artifact/u);
-	assert.match(gates.get('web-bundled-codec-corresponding-source').blocker,
+	assert.match(checks.get('ffmpeg-enabled-library-corresponding-source').blocker, /every enabled library/u);
+	assert.match(checks.get('ffmpeg-enabled-codec-patent-review').blocker, /jurisdiction/u);
+	assert.match(checks.get('web-notice-delivery').blocker, /web route|web artifact/u);
+	assert.match(checks.get('web-bundled-codec-corresponding-source').blocker,
 		/preferred corresponding source.*relink/iu);
 	assert.equal(matrix.npmProductionClosure.some(({ name }) => name.startsWith('@ffmpeg/')), false);
 	assert.deepEqual(provenance.get('ffmpeg-core-wasm').artifactSurfaces, []);
@@ -228,7 +232,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 			[version, license, byteLength, sha256], id);
 		assert.deepEqual(provider.targets, ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64']);
 		assert.equal(provider.targets.includes('mac-x64'), false, id);
-		assert.equal(provider.qualification, 'exact-reviewed-slice-no-patent-clearance', id);
+		assert.equal(provider.verification, 'exact-reviewed-slice-no-patent-clearance', id);
 	}
 	assert.deepEqual(codecPolicy.firstPartyPcm.containers, ['wav', 'bwf', 'bw64', 'aiff']);
 	assert.match(codecPolicy.firstPartyPcm.libsndfile, /not-bundled-redundant/u);
@@ -263,12 +267,13 @@ test('runtime provenance entries and release gates fail closed without claiming 
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumIpcChunkBytes, 1024 * 1024);
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumOutputBytes, 512 * 1024 * 1024);
 	assert.equal(codecPolicy.externalFfmpegProvider.video.maximumContractOutputBytes, 2 * 1024 ** 3);
-	assert.match(codecPolicy.externalFfmpegProvider.video.qualification,
-		/live-16x16-one-frame-rgba-plus-48khz-stereo-audio.*finite-container.*exact-ffprobe-two-track-codec-geometry-attestation/u);
+	assert.match(codecPolicy.externalFfmpegProvider.video.compatibilityCanary,
+		/live-16x16-one-frame-rgba-plus-48khz-stereo-audio.*finite-container.*exact-ffprobe-two-track-codec-geometry-inspection/u);
 	assert.equal(codecPolicy.videoProvider.bundled.status, 'disabled');
 	assert.equal(codecPolicy.videoProvider.operatingSystem.status, 'disabled');
 	assert.match(codecPolicy.videoProvider.external.webm, /VP9\/Opus.*not-AV1/iu);
-	assert.match(codecPolicy.videoProvider.av1, /no-dav1d.*five-target.*fail-closed/iu);
+	assert.match(codecPolicy.videoProvider.av1, /no-dav1d.*execution-path.*fail-closed/iu);
+	assert.deepEqual(codecPolicy.videoProvider.candidateResearch, ['dav1d', 'svt-av1', 'libaom']);
 	assert.match(codecPolicy.executionStatus.bundledExecutionModel,
 		/authenticated.*one-shot.*utility.*max-four/iu);
 	assert.match(codecPolicy.executionStatus.externalFfmpeg,
@@ -281,12 +286,12 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		'desktop/bundled-audio-codec-operation-runner.ts',
 		'desktop/bundled-audio-codec-runtime-payload.mjs',
 		'desktop/external-ffmpeg-video-operation-service.ts',
-		'desktop/external-ffmpeg-video-qualification.ts',
+		'desktop/external-ffmpeg-video-verification.ts',
 		'desktop/external-ffmpeg-video-canary-inspection.ts',
 		'desktop/desktop-video-codec-main-ipc.ts',
 		'src/common/editor/desktop-video-codec-runtime.ts',
 		'tests/desktop-bundled-audio-codec-operation-runner.test.ts',
-		'tests/external-ffmpeg-video-qualification.test.ts',
+		'tests/external-ffmpeg-video-verification.test.ts',
 		'tests/external-ffmpeg-video-canary-inspection.test.ts',
 	]) assert.ok(codecPolicy.evidence.includes(path), `desktop codec evidence needs ${path}`);
 	await assertEvidence(codecPolicy.evidence);
@@ -311,7 +316,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		providerRole: 'soundscaper-bundled-wavpack-float32-encode-decode',
 		compressionLevel: 2,
 		targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],
-		qualification: 'Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.',
+		verification: 'Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.',
 		evidence: [
 			'src/common/editor/wavpack/source-manifest.json',
 			'src/common/editor/wavpack/NOTICE.md',
@@ -339,7 +344,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		provenanceKind: 'electron-upstream-alternate-framework-library-verified-after-pack',
 		upstreamIntent: "Electron's matching alternate release asset is intended upstream to omit proprietary codec support.",
 		providerRole: 'electron-chromium-framework-internal-not-soundscaper-codec-provider',
-		qualification: 'Exact target, file type, byte length, and SHA-256 are verified. No complete codec inventory, behavior, absence-of-patent-exposure, or patent-clearance claim is made.',
+		verification: 'Exact target, file type, byte length, and SHA-256 are verified. No complete codec inventory, behavior, absence-of-patent-exposure, or patent-clearance claim is made.',
 		targets: ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'],
 		evidence: [
 			'electron-builder.config.cjs',
@@ -370,7 +375,7 @@ test('runtime provenance entries and release gates fail closed without claiming 
 		assert.ok(artifact.evidence.length > 0, `${artifact.id} needs evidence`);
 		await assertEvidence(artifact.evidence);
 	}
-	for (const gate of matrix.releaseGates) await assertEvidence(gate.evidence);
+	for (const check of matrix.distributionChecks) await assertEvidence(check.evidence);
 	assert.doesNotMatch(JSON.stringify(matrix), /legally[- ]cleared|legal approval|patent[- ]free/iu);
 });
 
@@ -395,7 +400,7 @@ test('only the evidenced local-model surface is enabled among future distributio
 	assert.equal(gates.get('native-codecs').scope,
 		'additional-bundled-video-codec-execution');
 	assert.match(gates.get('native-codecs').blocker,
-		/Seven exact reviewed compressed-audio WebAssembly providers.*isolated.*utility process.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*target-native.*macOS ARM64.*Windows x64.*Windows ARM64.*sign.*manifest.*payload.*Linux.*no uniform OS tier.*external.*keyed-RGBA.*H\.264\/AAC MP4.*VP9\/Opus WebM.*no libwebm.*dav1d.*SVT-AV1.*libaom.*bundled and operating-system WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
+		/Seven exact reviewed compressed-audio WebAssembly providers.*isolated.*utility process.*libsndfile is not bundled.*Media Foundation.*AudioToolbox.*target-native.*macOS ARM64.*Windows x64.*Windows ARM64.*ad-hoc.*manifest.*payload.*Linux.*no uniform OS tier.*external.*keyed-RGBA.*H\.264\/AAC MP4.*VP9\/Opus WebM.*no libwebm.*dav1d.*SVT-AV1.*libaom.*bundled and operating-system WebM\/AV1 execution fails closed.*Electron.*rather than a provider tier.*user-installed external FFmpeg.*outside/iu);
 	for (const path of [
 		'src/common/editor/reviewed-effects/catalog.ts',
 		'src/common/editor/reviewed-effects/utility-gain-package.ts',
@@ -420,7 +425,7 @@ test('reviewed browser codec notices name the web and Electron renderer surfaces
 	}
 });
 
-test('native policy rows separate stable-release review from test activation', async () => {
+test('native policy rows separate distribution requirements from test activation', async () => {
 	const matrix = await readJson(matrixUrl);
 
 	assert.deepEqual(matrix.nativeFormatPolicies.map(({ id }) => id), [
@@ -486,7 +491,7 @@ test('native policy rows separate stable-release review from test activation', a
 			await assertEvidence(row.evidence);
 			continue;
 		}
-		assert.equal(row.status, 'blocked', `${row.id} retains stable-release review status`);
+		assert.equal(row.status, 'blocked', `${row.id} retains an unresolved distribution status`);
 		assert.ok(row.blocker.length > 0, `${row.id} needs a named blocker`);
 		assert.ok(row.upstreamLicensing.length > 0, `${row.id} needs its upstream licensing form`);
 		assert.ok(row.agplCompatibilityDirection.length > 0, `${row.id} needs its compatibility direction`);
@@ -503,7 +508,7 @@ test('native policy rows separate stable-release review from test activation', a
 	}
 	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
 	assert.equal(ffmpegRow.testActivation, 'enabled');
-	assert.equal(ffmpegRow.humanReviewMilestone, 9);
+	assert.equal(Object.hasOwn(ffmpegRow, 'humanReviewMilestone'), false);
 	assert.match(ffmpegRow.blocker, /enabled for build and testing/iu);
 	for (const id of [
 		'codec-hardware-acceleration',
@@ -513,7 +518,7 @@ test('native policy rows separate stable-release review from test activation', a
 	]) {
 		const row = matrix.nativeFormatPolicies.find((candidate) => candidate.id === id);
 		assert.equal(row.testActivation, 'enabled', id);
-		assert.equal(row.humanReviewMilestone, 9, id);
+		assert.equal(Object.hasOwn(row, 'humanReviewMilestone'), false, id);
 		assert.match(row.blocker, /enabled.*test/iu, id);
 	}
 	const exactCodecRows = matrix.nativeFormatPolicies.filter(({ id }) => /^codec-(?:decode|encode)-/u.test(id));

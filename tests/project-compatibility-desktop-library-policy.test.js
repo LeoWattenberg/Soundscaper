@@ -27,16 +27,25 @@ test('desktop compatibility authority is split between two fresh family-v1 libra
 	}
 });
 
-test('desktop lease policy records package qualification while keeping stable release fail-closed', async () => {
+test('desktop lease policy records exact package workflows without a release verdict', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));
 	const rule = policy.rules.find(({ id }) => id === 'current-desktop-electron-lease-protections');
 	assert.ok(rule);
 	assert.equal(rule.status, 'implemented');
 	assert.equal(rule.policyAuthority, 'family-v1-active');
 	assert.match(rule.currentBehavior, /distinct roots.*user_version 1.*v1 IPC namespaces/isu);
-	assert.match(rule.currentBehavior, /accepted packaged matrix.*all five maintained desktop targets/iu);
+	assert.match(rule.currentBehavior, /packaged tests run.*all five maintained desktop targets/iu);
+	assert.match(rule.currentBehavior, /prove only the named workflows.*optional owner QA.*stable tag decision.*outside/iu);
 	assert.match(rule.currentBehavior, /No pre-release library is opened, copied forward, enumerated, mutated, or deleted/iu);
-	assert.match(rule.currentBehavior, /stable 1\.0.*Milestone 9.*blocked/iu);
+	assert.doesNotMatch(rule.currentBehavior, /qualification|accepted packaged matrix|stable 1\.0.*blocked/iu);
+	assert.match(
+		rule.historicalPreFreezeNarrative.currentBehavior,
+		/Diagnostic run results describe only their exact revision and target and are disposable/iu,
+	);
+	assert.doesNotMatch(
+		rule.historicalPreFreezeNarrative.currentBehavior,
+		/accepted cohort|human evidence/iu,
+	);
 });
 
 test('pre-freeze packaged shared-library handoff remains provenance only', async () => {

@@ -466,7 +466,7 @@ function capacity() {
 
 function renderQueueCapabilities() {
 	return createNativeMediaCapabilitySnapshotV1({ masterEnabled: true, entries: [{
-		...NATIVE_MEDIA_CAPABILITY_IDS.renderQueue, policyCleared: true,
+		...NATIVE_MEDIA_CAPABILITY_IDS.renderQueue,
 		buildSupported: true, probeSucceeded: true, selfTestPassed: true, userEnabled: true,
 	}] });
 }

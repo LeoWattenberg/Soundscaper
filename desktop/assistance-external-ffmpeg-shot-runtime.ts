@@ -65,7 +65,7 @@ const OPTION_KEYS = new Set(['preferences', 'createDetector']);
 const REQUEST_KEYS = new Set(['videoPath', 'signal']);
 const SHA256 = /^[0-9a-f]{64}$/u;
 const CAPABILITY_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u;
-const QUALIFICATION_UNAVAILABLE = new Set<ExternalFfmpegShotDetectorErrorReason>([
+const VERIFICATION_UNAVAILABLE = new Set<ExternalFfmpegShotDetectorErrorReason>([
 	'canary-failed', 'executable-unavailable', 'identity-changed', 'metadata-invalid',
 	'metadata-limit', 'process-failed', 'process-signalled', 'spawn-failed',
 	'stderr-limit', 'timeout',
@@ -76,7 +76,7 @@ const DETECTION_UNAVAILABLE = new Set<ExternalFfmpegShotDetectorErrorReason>([
 
 /**
  * Bind shot detection to the preference service's current main-only admission.
- * Every request gets a new detector so its canary qualification cannot be reused
+ * Every request gets a new detector so its canary verification cannot be reused
  * after either the staged source authority or executable admission changes.
  */
 export function createExternalFfmpegAssistanceShotRuntimeAdapter(
@@ -114,11 +114,11 @@ export function createExternalFfmpegAssistanceShotRuntimeAdapter(
 			});
 
 			try {
-				await detector.qualify(signalOptions(normalized.signal));
+				await detector.verify(signalOptions(normalized.signal));
 				throwIfCancelled(normalized.signal);
 			} catch (error) {
 				throwIfCancelled(normalized.signal);
-				if (!isDetectorReason(error, QUALIFICATION_UNAVAILABLE)) throw error;
+				if (!isDetectorReason(error, VERIFICATION_UNAVAILABLE)) throw error;
 				await preferences.invalidateAdmission(admission, invalidationReason(error.reason));
 				return null;
 			}

@@ -28,7 +28,7 @@ add_library(framescaper-openfx-host-contract STATIC
 	src/sha256.cpp
 	src/v12_cancellation_channel.cpp
 	src/v12_host_invocation.cpp
-	src/v12_gpu_qualification.cpp
+	src/v12_gpu_support.cpp
 	src/v12_output_file.cpp
 	src/v12_retime_authority.cpp
 	src/v12_video_timing_grants.cpp

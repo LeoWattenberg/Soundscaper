@@ -52,7 +52,7 @@ export {
 	resolveM4ParityCollectionEnvironment as resolveM4ProductionParityCollectionEnvironment,
 };
 
-/** Run the single-worker/no-retry diagnostic and publish only admitted evidence. */
+/** Run the single-worker/no-retry diagnostic and write only validated results. */
 export async function collectM4ProductionParityDiagnostic(options, dependencies = {}) {
 	const collectorOptions = snapshotStrictJsonData(options, 'collector options');
 	const outputDirectory = ownString(collectorOptions, 'outputDirectory');
@@ -74,7 +74,7 @@ export async function collectM4ProductionParityDiagnostic(options, dependencies 
 	return writeResult(outputDirectory, result);
 }
 
-/** Admit one and only one complete diagnostic with the frozen identity. */
+/** Parse one and only one complete diagnostic with the frozen identity. */
 export function parseM4ProductionParityDiagnostic(output) {
 	if (typeof output !== 'string') throw new TypeError('Browser diagnostic output must be a string.');
 	const matches = [];
@@ -130,7 +130,7 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	const referenceArtifact = exactArtifact(fixture.artifacts, 'audio-reference-interleaved-f32le');
 	if (referenceArtifact.byteLength !== referenceAudio.bytes.byteLength
 		|| referenceArtifact.sha256 !== sha256(referenceAudio.bytes)) {
-		throw new Error('Reference audio evidence does not match its fixture digest.');
+		throw new Error('Reference audio bytes do not match the fixture digest.');
 	}
 	const previewAudioMetrics = compareM4ParityAudio(
 		previewAudio.channels,

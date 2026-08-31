@@ -28,6 +28,6 @@
 		"status": "source-pin-only",
 		"runtimeManifestEntry": false,
 		"payload": null,
-		"reason": "The closure is compile-time input for candidate native media hosts. This record does not claim that a host payload has been built, signed, qualified, or shipped."
+		"reason": "The closure is compile-time input for native media host builds. This record does not claim that a host payload has been built or shipped."
 	}
 }

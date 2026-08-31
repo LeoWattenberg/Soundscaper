@@ -23,9 +23,10 @@ Packaged desktop previews keep an autosaved local library inside the desktop
 application. They bundle the editor runtime and released translations for
 offline editing.
 
-Current preview packages may be unsigned or ad-hoc signed. Windows SmartScreen
-or macOS Gatekeeper can therefore display an unknown-developer warning. Treat a
-preview build as preview software rather than a signed stable release.
+Desktop packages are unsigned. macOS applies only the identity-free ad-hoc code
+seal its loader needs to execute Electron and native binaries; that seal makes
+no publisher or trust claim. Windows SmartScreen or macOS Gatekeeper can
+therefore display an unknown-developer warning for preview and stable packages.
 
 Opening an `.aup4` file imports an independent project into the desktop
 library. Later edits do not rewrite the file you opened. **Save** updates the

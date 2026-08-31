@@ -30,7 +30,7 @@ test('security selects family-v1 admission and desktop isolation', async () => {
 	const risks = new Map(security.risks.map((risk) => [risk.id, risk]));
 	for (const [riskId, controlId, claim] of [
 		['external-project-document-validation', 'framescaper-v1-editorial-document-admission', /schemaFamily.*framescaper.*schemaVersion.*1.*direct unversioned domain validators/iu],
-		['external-media-parser-bounds', 'framescaper-v1-proxy-reattestation', /originals as authority.*proxy\/timing pair.*current source/iu],
+		['external-media-parser-bounds', 'framescaper-v1-proxy-revalidation', /originals as authority.*proxy\/timing pair.*current source/iu],
 		['shared-desktop-project-library-integrity', 'framescaper-v1-desktop-isolation', /FSCP.*user_version 1.*framescaper-project-library\/v1/iu],
 		['shared-desktop-project-library-integrity', 'family-v1-desktop-library-isolation', /Soundscaper and Framescaper.*family-v1 handshakes.*user_version 1/iu],
 	]) {
@@ -42,19 +42,20 @@ test('security selects family-v1 admission and desktop isolation', async () => {
 	}
 });
 
-test('historical Milestone 3 prose remains provenance while stable qualification stays open', async () => {
-	const [roadmap, plan, verification] = await Promise.all([
+test('historical Milestone 3 prose remains provenance while owner QA stays optional', async () => {
+	const [roadmap, plan, qa] = await Promise.all([
 		text('roadmap.md'),
 		text('docs/milestones-1-to-4-activation-plan.md'),
-		text('docs/milestone-9-guided-verification.md'),
+		text('docs/qa/framescaper.md'),
 	]);
 	assert.match(roadmap, /Milestone 3.*Status:.*In progress/isu);
 	assert.match(plan, /Milestone 3/iu);
-	assert.match(verification, /Generate a proxy.*cancel generation.*regenerate.*detach.*relink/isu);
-	assert.match(verification, /Stable 1\.0 release conclusion \| pending/iu);
+	assert.match(qa, /FQA-13.*proxies.*retime.*not-run/isu);
+	assert.doesNotMatch(qa, /qualification|admission|certif/iu);
 
-	const matrix = await json('config/milestone-3-timing-probe-matrix.json');
-	assert.deepEqual(new Set(matrix.electronRows.map(({ status }) => status)), new Set(['pending-external']));
+	const fixtures = await json('config/milestone-3-timing-probe-fixtures.json');
+	assert.equal(fixtures.fixtures.length, 5);
+	assert.doesNotMatch(JSON.stringify(fixtures), /qualification|admission|cohort|humanReview/iu);
 	const compatibility = await json('config/project-compatibility.json');
 	assert.equal(compatibility.rules.find(({ id }) => id === 'current-desktop-electron-lease-protections').status, 'implemented');
 });

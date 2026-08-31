@@ -40,7 +40,7 @@ const UTF8 = new TextDecoder('utf-8', { fatal: false });
  * Names and MIME hints are deliberately absent. TIFF remains the TIFF family
  * until its bounded IFD inspection can distinguish TIFF from DNG/NEF/ARW and
  * related RAW variants. A recognized family must still pass metadata, colour,
- * topology, resource, and decoder qualification before import.
+ * topology, resource, and verified decoder-route checks before import.
  */
 export function classifyImageFormatSignature(bytes: Uint8Array): ImageFormatSignatureClassification {
 	if (!(bytes instanceof Uint8Array)) {

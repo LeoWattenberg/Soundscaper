@@ -154,7 +154,7 @@ test('disposable video preview cache evidence binds current originals without cl
 	assert.ok(decoderResidual);
 	assert.match(
 		decoderResidual.exposure,
-		/dedicated audio WebAssembly.*WebCodecs.*Mediabunny.*decoders.*heap.*RSS.*GC.*qualification/isu,
+		/dedicated audio WebAssembly.*WebCodecs.*Mediabunny.*decoders.*heap.*RSS.*GC.*diagnostics/isu,
 	);
 
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
@@ -163,7 +163,7 @@ test('disposable video preview cache evidence binds current originals without cl
 		normalizedDocumentation,
 		/original-bound-disposable-video-preview-cache.*repository-trusted current SHA-256.*media-content token.*content-addressed key.*original storage key and digest.*poster or thumbnail type.*normalized non-negative source time.*versioned recipe.*revalidates.*immediately before publication.*payload and scalar companion.*failed publication.*staged OPFS output.*output size and SHA-256.*older original generation.*cache miss.*same digest.*malformed pair or binding.*reject.*legacy or unbound.*cache misses.*exact derivative deletion.*media-asset cascade.*full agreement.*scalar companion.*before deleting any row.*paths re-projected from validated payloads.*after the transaction commits.*mismatch.*without disposing any OPFS path.*corrupt companion path.*cannot delete an unrelated.*recipe.*normalized recipe ID and version.*omitting the recipe.*all revisions.*posterStorageKey.*thumbnailStorageKey.*null.*future read-only.*opaque.*durable desktop recipient binding.*no longer part of maintained durable binding identity.*not an editorial proxy or relink relationship/isu,
 	);
-	assertOrderedClaim(documentation, /selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Guided-local sign-off.*resource\s+qualification.*external qualification remain open/isu);
+	assertOrderedClaim(documentation, /selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Optional owner QA.*does not gate or activate.*pre-encode end-to-end working-set.*coverage for the whole product/isu);
 });
 
 test('project identities fail closed before traversal and expose no predecessor route', async () => {
@@ -177,7 +177,7 @@ test('project identities fail closed before traversal and expose no predecessor 
 	assert.ok(boundary);
 	assert.ok(projectDocuments);
 	assert.equal(projectDocuments.status, 'partial');
-	assert.equal(projectDocuments.releaseDisposition, 'conditional');
+	assert.equal(projectDocuments.surfaceDisposition, 'conditional');
 	assert.ok(control);
 	assert.equal(control.policyAuthority, 'family-v1-active');
 
@@ -222,7 +222,7 @@ test('project identities fail closed before traversal and expose no predecessor 
 	assert.match(normalizedDocumentation, /1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaVersion:1.*schemaFamily:'framescaper'.*schemaVersion:1/isu);
 	assert.match(normalizedDocumentation, /no project migration, copy-forward, predecessor-validator dispatch/isu);
 	assert.match(normalizedDocumentation, /Fallback admission.*owning family-v1 identity.*same family.*foreign-family archive never enters those domain controls.*byte-exact Save Copy/isu);
-	assert.match(normalizedDocumentation, /stable 1\.0.*blocked/isu);
+	assert.match(normalizedDocumentation, /known security-boundary failure.*owner.*hold the release/isu);
 });
 
 async function readMatrix() {

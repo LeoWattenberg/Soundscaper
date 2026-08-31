@@ -42,7 +42,7 @@ export interface FramescaperOpenFxFrameControlV1 {
 	readonly planFingerprint: string;
 	readonly instanceId: string;
 	readonly outputOrdinal: number;
-	readonly requestedBackend: OfxRenderBackendV1 | 'qualified-preferred';
+	readonly requestedBackend: OfxRenderBackendV1 | 'supported-preferred';
 	readonly transitionProgress: number | null;
 }
 
@@ -69,7 +69,7 @@ export interface FramescaperOpenFxFrameExecutionPorts {
 		plan: UnifiedExactRenderPlanV14,
 		effect: UnifiedExactRenderOpenFxNode['state'],
 	): boolean | Promise<boolean>;
-	qualifiedGpuBackends(): readonly Exclude<OfxRenderBackendV1, 'cpu'>[];
+	supportedGpuBackends(): readonly Exclude<OfxRenderBackendV1, 'cpu'>[];
 }
 
 export interface FramescaperOpenFxFrameExecutionService {
@@ -107,7 +107,7 @@ export function createFramescaperOpenFxFrameExecutionService(
 					plan: request.plan, instanceId: request.instanceId,
 					outputOrdinal: request.outputOrdinal, timingAssets,
 				}) : null;
-			const backend = executionBackend(request.requestedBackend, ports.qualifiedGpuBackends());
+			const backend = executionBackend(request.requestedBackend, ports.supportedGpuBackends());
 			const result = await ports.execute(Object.freeze({
 				pluginHandle: plugin.pluginHandle, plan: request.plan,
 				instanceId: request.instanceId, requestedBackend: backend.backend,
@@ -142,7 +142,7 @@ export function admitFramescaperOpenFxFrameControlV1(
 		|| typeof row.instanceId !== 'string' || !ID.test(row.instanceId)
 		|| typeof row.outputOrdinal !== 'number' || !Number.isSafeInteger(row.outputOrdinal)
 		|| row.outputOrdinal < 0 || typeof row.requestedBackend !== 'string'
-		|| !['cpu', 'opengl', 'opencl', 'cuda', 'metal', 'qualified-preferred']
+		|| !['cpu', 'opengl', 'opencl', 'cuda', 'metal', 'supported-preferred']
 			.includes(row.requestedBackend)
 		|| (row.transitionProgress !== null && (typeof row.transitionProgress !== 'number'
 			|| !Number.isFinite(row.transitionProgress) || row.transitionProgress < 0
@@ -166,7 +166,7 @@ export function admitFramescaperOpenFxFrameControlV1(
 		protocolVersion: 1 as const, ...identity, planPayload: row.planPayload,
 		planFingerprint: row.planFingerprint, plan, instanceId: row.instanceId,
 		outputOrdinal: row.outputOrdinal,
-		requestedBackend: row.requestedBackend as OfxRenderBackendV1 | 'qualified-preferred',
+		requestedBackend: row.requestedBackend as OfxRenderBackendV1 | 'supported-preferred',
 		transitionProgress: row.transitionProgress as number | null,
 	});
 }
@@ -240,7 +240,7 @@ function exactPorts(value: unknown): FramescaperOpenFxFrameExecutionPorts {
 	const ports = value as Partial<FramescaperOpenFxFrameExecutionPorts>;
 	if (typeof ports.inventory !== 'function' || typeof ports.execute !== 'function'
 		|| typeof ports.timingAssets !== 'function' || typeof ports.currentProject !== 'function'
-		|| typeof ports.qualifiedGpuBackends !== 'function') {
+		|| typeof ports.supportedGpuBackends !== 'function') {
 		throw new TypeError('OpenFX frame ports are incomplete.');
 	}
 	return ports as FramescaperOpenFxFrameExecutionPorts;
@@ -344,16 +344,16 @@ function projectResult(
 
 function executionBackend(
 	requested: FramescaperOpenFxFrameMainRequestV1['requestedBackend'],
-	qualifiedValue: readonly Exclude<OfxRenderBackendV1, 'cpu'>[],
+	supportedValue: readonly Exclude<OfxRenderBackendV1, 'cpu'>[],
 ): Readonly<{ backend: OfxRenderBackendV1; reportsDegradation: boolean }> {
-	if (!Array.isArray(qualifiedValue) || qualifiedValue.some((backend) => (
+	if (!Array.isArray(supportedValue) || supportedValue.some((backend) => (
 		!['opengl', 'opencl', 'cuda', 'metal'].includes(backend)
-	))) throw new TypeError('Signed OpenFX GPU qualification is invalid.');
-	const qualified = Object.freeze([...new Set(qualifiedValue)]);
-	if (requested === 'qualified-preferred') {
-		return Object.freeze({ backend: qualified[0] ?? 'cpu', reportsDegradation: false });
+	))) throw new TypeError('Verified OpenFX GPU support is invalid.');
+	const supported = Object.freeze([...new Set(supportedValue)]);
+	if (requested === 'supported-preferred') {
+		return Object.freeze({ backend: supported[0] ?? 'cpu', reportsDegradation: false });
 	}
-	if (requested === 'cpu' || qualified.includes(requested)) {
+	if (requested === 'cpu' || supported.includes(requested)) {
 		return Object.freeze({ backend: requested, reportsDegradation: false });
 	}
 	return Object.freeze({ backend: 'cpu', reportsDegradation: true });

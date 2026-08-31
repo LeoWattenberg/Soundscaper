@@ -5,8 +5,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const STATUS_VALUES = ['enforced', 'partial', 'planned', 'release-blocked'];
-const DISPOSITION_VALUES = ['qualified-current-surface', 'conditional', 'surface-disabled', 'blocked'];
+const STATUS_VALUES = ['enforced', 'partial', 'planned', 'distribution-blocked'];
+const DISPOSITION_VALUES = ['verified-current-surface', 'conditional', 'surface-disabled', 'blocked'];
 const ROADMAP_THREAT_AREAS = [
 	'malformed-projects-media',
 	'archive-expansion',
@@ -24,7 +24,6 @@ const IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS = [
 	'inspect-import-validation-parity',
 	'reserved-and-extra-entry-ownership',
 ];
-const PENDING_ARCHIVE_EXPANSION_GATES = [];
 const IMPLEMENTED_ARCHIVE_EXPANSION_CONTROLS = {
 	'cumulative-actual-expanded-byte-limit': [
 		'src/common/editor/scape-expanded-byte-budget.ts',
@@ -103,21 +102,15 @@ async function readMatrix() {
 	return JSON.parse(await readFile(matrixUrl, 'utf8'));
 }
 
-test('security release state follows only an admitted Soundscaper promotion', async () => {
+test('security metadata follows the configured Soundscaper versions without admission state', async () => {
 	const [matrix, releaseLines] = await Promise.all([
 		readMatrix(),
 		readFile(new URL('../config/product-release-lines.json', import.meta.url), 'utf8').then(JSON.parse),
 	]);
 	const soundscaper = releaseLines.products.soundscaper;
-	assert.equal(matrix.releaseCandidate.version, soundscaper.candidate.version);
-	if (soundscaper.stable.status === 'admitted') {
-		assert.equal(matrix.releaseCandidate.stableVersion, soundscaper.stable.version);
-		assert.equal(matrix.releaseCandidate.stable1Admission, 'admitted');
-	} else {
-		assert.equal(matrix.releaseCandidate.stableVersion, undefined);
-		assert.equal(matrix.releaseCandidate.stable1Admission,
-			'blocked-on-remaining-milestone-9-evidence');
-	}
+	assert.equal(matrix.productVersions.version, soundscaper.candidate.version);
+	assert.equal(matrix.productVersions.stableTarget, soundscaper.stable.version);
+	assert.doesNotMatch(JSON.stringify(matrix.productVersions), /admission/iu);
 });
 
 test('security matrix covers the production threat-model surfaces without promoting gaps', async () => {
@@ -162,13 +155,13 @@ test('security matrix covers the production threat-model surfaces without promot
 	for (const risk of matrix.risks) {
 		assert.match(risk.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 		assert.ok(STATUS_VALUES.includes(risk.status), `${risk.id} has an invalid status`);
-		assert.ok(DISPOSITION_VALUES.includes(risk.releaseDisposition), `${risk.id} has an invalid disposition`);
+		assert.ok(DISPOSITION_VALUES.includes(risk.surfaceDisposition), `${risk.id} has an invalid disposition`);
 		assert.ok(risk.boundaryIds.length > 0, `${risk.id} needs a trust boundary`);
 		assert.ok(risk.assets.length > 0, `${risk.id} needs a protected asset`);
 		assert.ok(risk.currentControls.length > 0, `${risk.id} needs a current control or surface fence`);
 
 		if (risk.status === 'enforced') {
-			assert.equal(risk.releaseDisposition, 'qualified-current-surface', risk.id);
+			assert.equal(risk.surfaceDisposition, 'verified-current-surface', risk.id);
 			assert.deepEqual(risk.residualRisks, [], `${risk.id} must be narrowly scoped if enforced`);
 			for (const control of risk.currentControls) {
 				const kinds = new Set(control.evidence.map(({ kind }) => kind));
@@ -176,7 +169,7 @@ test('security matrix covers the production threat-model surfaces without promot
 				assert.ok(kinds.has('test'), `${risk.id}/${control.id} needs test evidence`);
 			}
 		}
-		if (risk.status === 'partial' || risk.status === 'release-blocked') {
+		if (risk.status === 'partial' || risk.status === 'distribution-blocked') {
 			assert.ok(risk.residualRisks.length > 0, `${risk.id} must record residual risk`);
 			for (const residual of risk.residualRisks) {
 				assert.ok(residual.requiredControl.length > 0, `${risk.id}/${residual.id} needs a required control`);
@@ -184,25 +177,25 @@ test('security matrix covers the production threat-model surfaces without promot
 			}
 		}
 		if (risk.status === 'planned') {
-			assert.equal(risk.releaseDisposition, 'surface-disabled', risk.id);
+			assert.equal(risk.surfaceDisposition, 'surface-disabled', risk.id);
 			assert.ok(risk.residualRisks.length > 0, `${risk.id} needs enablement criteria`);
 		}
 	}
 });
 
-test('native plug-in surfaces are conditional for testing and portable archive controls are qualified', async () => {
+test('native plug-in surfaces are conditional for testing and portable archive controls are verified', async () => {
 	const matrix = await readMatrix();
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));
 
 	for (const riskId of ['native-plugin-hosting']) {
 		const risk = risks.get(riskId);
 		assert.equal(risk.status, 'partial');
-		assert.equal(risk.releaseDisposition, 'conditional');
+		assert.equal(risk.surfaceDisposition, 'conditional');
 	}
 
 	const helperProcesses = risks.get('native-helper-processes');
 	assert.equal(helperProcesses.status, 'partial');
-	assert.equal(helperProcesses.releaseDisposition, 'conditional');
+	assert.equal(helperProcesses.surfaceDisposition, 'conditional');
 	assert.deepEqual(helperProcesses.currentControls.map(({ id }) => id), [
 		'pathless-probe-helper-bridge',
 		'helper-contract-v1-wire-validation',
@@ -218,8 +211,8 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	}
 	assert.match(
 		helperProcesses.residualRisks[0].acceptanceCriteria.join(' '),
-		/m5-helper-fault-and-loopback-v1/u,
-		'helper qualification stays tied to the registered fixture',
+		/crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests.*matching verified build result/iu,
+		'helper distribution stays tied to real tests and its matching build result',
 	);
 
 	const archiveStructure = risks.get('scape-archive-structure-integrity');
@@ -261,11 +254,7 @@ test('native plug-in surfaces are conditional for testing and portable archive c
 	);
 	const archiveExpansion = risks.get('scape-archive-expansion');
 	assert.equal(archiveExpansion.status, 'enforced');
-	assert.equal(archiveExpansion.releaseGate.status, 'satisfied');
-	assert.deepEqual(
-		[...archiveExpansion.releaseGate.requiredControlIds].sort(),
-		[...PENDING_ARCHIVE_EXPANSION_GATES].sort(),
-	);
+	assert.equal(Object.hasOwn(archiveExpansion, 'releaseGate'), false);
 	const implementedControls = new Map(archiveExpansion.currentControls.map((control) => [control.id, control]));
 	for (const controlId of IMPLEMENTED_ARCHIVE_PREFLIGHT_CONTROLS) {
 		const control = implementedControls.get(controlId);

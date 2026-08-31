@@ -167,7 +167,7 @@ export interface DesktopNightlyTestsDependencies {
 		readonly playwrightExit: { readonly code: number | null; readonly signal: string | null };
 		readonly consoleLogPath: string;
 		readonly artifactDirectory: 'packaged-runtime';
-		readonly evidenceKind: 'packaged-runtime';
+		readonly executionSurface: 'packaged-runtime';
 	}) => Promise<{ readonly passed: boolean }>;
 	readonly writeResult?: (
 		runRoot: string,

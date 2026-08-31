@@ -9,7 +9,7 @@ import {
 	boundedString,
 	deepFreeze,
 	exactRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 const COMMAND_FIELDS = Object.freeze([

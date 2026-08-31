@@ -8,7 +8,7 @@
 
 namespace soundscaper::professional::macosBootstrap {
 
-inline constexpr int attestationDescriptor = 3;
+inline constexpr int enforcementDescriptor = 3;
 inline constexpr int policyDescriptor = 4;
 inline constexpr int extraInputDescriptor = 5;
 inline constexpr std::size_t maximumPolicyBytes = 512u * 1024u;

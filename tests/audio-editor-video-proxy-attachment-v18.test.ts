@@ -248,7 +248,7 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-video-proxy-command-retime.ts',
 		'src/framescaper/editor-video-proxy-attachment-retention-sequence.ts',
 		'src/framescaper/editor-video-proxy-preview-media-retime.ts',
-		'src/framescaper/editor-video-proxy-reattestation-contract-sequence.ts',
+		'src/framescaper/editor-video-proxy-revalidation-contract-sequence.ts',
 		'src/framescaper/editor-scape-asset-plan-finishing.ts',
 		'src/framescaper/editor-scape-asset-plan.ts',
 	]);

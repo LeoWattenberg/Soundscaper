@@ -132,7 +132,7 @@ export class FramescaperExternalDisplayController {
 			throw new TypeError('External display dynamic range must be explicitly SDR or HDR.');
 		}
 		this.stop();
-		// The sink is deliberately SDR-only until a target-specific HDR surface is qualified.
+		// The sink is deliberately SDR-only until a target-specific HDR surface is verified.
 		const dynamicRange = requestedDynamicRange === 'hdr' ? 'sdr-fallback' : 'sdr';
 		const window = this.#createWindow(windowOptions(display.bounds));
 		this.#window = window;

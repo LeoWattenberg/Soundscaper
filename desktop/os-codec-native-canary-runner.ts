@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Bounded, pathless bridge from OS codec admission to an injected native canary host. */
+/** Bounded, pathless bridge from OS codec verification to an injected native canary host. */
 
 import { createHash } from 'node:crypto';
 
@@ -38,10 +38,10 @@ const CAPABILITY_FIELDS = [
 	'id', 'direction', 'mediaKind', 'container', 'codec', 'profile', 'sampleFormat',
 	'pixelFormat', 'sampleRate', 'channelCount', 'width', 'height',
 ] as const;
-const QUALIFIED_FIELDS = [
+const PASSED_FIELDS = [
 	'contractVersion', 'status', 'target', 'osVersion', 'capabilityId',
 	'capabilityDigest', 'implementation', 'nativeApiReached', 'exactTuplePassed',
-	'evidenceDigest',
+	'resultDigest',
 ] as const;
 const UNAVAILABLE_FIELDS = ['contractVersion', 'status', 'reason'] as const;
 const UNAVAILABLE_REASONS = new Set<string>([
@@ -173,12 +173,12 @@ function inspectNativeResult(
 	value: unknown,
 	request: OperatingSystemCodecCanaryRequest,
 ): OperatingSystemCodecCanaryResult {
-	const status = dataProperty(value, 'status', 'OS codec native canary evidence');
+	const status = dataProperty(value, 'status', 'OS codec native canary result');
 	if (status === 'unavailable') {
-		const record = closedRecord(value, UNAVAILABLE_FIELDS, 'OS codec native canary unavailable evidence');
+		const record = closedRecord(value, UNAVAILABLE_FIELDS, 'OS codec native canary unavailable result');
 		if (record.contractVersion !== 1 || typeof record.reason !== 'string'
 			|| !UNAVAILABLE_REASONS.has(record.reason)) {
-			throw new TypeError('The OS codec native canary unavailable evidence is invalid.');
+			throw new TypeError('The OS codec native canary unavailable result is invalid.');
 		}
 		return Object.freeze({
 			contractVersion: 1,
@@ -186,19 +186,19 @@ function inspectNativeResult(
 			reason: record.reason as Extract<OperatingSystemCodecCanaryResult, { status: 'unavailable' }>['reason'],
 		});
 	}
-	const record = closedRecord(value, QUALIFIED_FIELDS, 'OS codec native canary qualified evidence');
-	if (record.contractVersion !== 1 || record.status !== 'qualified'
+	const record = closedRecord(value, PASSED_FIELDS, 'OS codec native canary passed result');
+	if (record.contractVersion !== 1 || record.status !== 'passed'
 		|| record.target !== request.target || record.osVersion !== request.osVersion
 		|| record.capabilityId !== request.capability.id
 		|| record.capabilityDigest !== request.capabilityDigest
 		|| record.implementation !== request.implementation
 		|| record.nativeApiReached !== true || record.exactTuplePassed !== true
-		|| typeof record.evidenceDigest !== 'string' || !SHA256.test(record.evidenceDigest)) {
-		throw new TypeError('The OS codec native canary qualified evidence does not match its exact request.');
+		|| typeof record.resultDigest !== 'string' || !SHA256.test(record.resultDigest)) {
+		throw new TypeError('The OS codec native canary passed result does not match its exact request.');
 	}
 	return Object.freeze({
 		contractVersion: 1,
-		status: 'qualified',
+		status: 'passed',
 		target: request.target,
 		osVersion: request.osVersion,
 		capabilityId: request.capability.id,
@@ -206,7 +206,7 @@ function inspectNativeResult(
 		implementation: request.implementation,
 		nativeApiReached: true,
 		exactTuplePassed: true,
-		evidenceDigest: record.evidenceDigest,
+		resultDigest: record.resultDigest,
 	});
 }
 

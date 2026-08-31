@@ -481,7 +481,7 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 					isolation: {
 						launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 					},
-					qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'] as const,
+					supportedGpuBackends: ['opengl', 'opencl', 'cuda'] as const,
 				} }
 				: { status: 'unavailable' as const, reason: 'payload-pending-external' as const,
 					detail: 'No authenticated OpenFX payload.' }; },

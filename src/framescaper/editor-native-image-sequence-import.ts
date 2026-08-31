@@ -94,7 +94,6 @@ export interface FramescaperImageSequenceNativeAdmissionRequest {
 
 export interface FramescaperImageSequenceImportPorts {
 	capabilities(): Awaitable<unknown>;
-	/** Report-only milestone-9 stable-release review input; composition never awaits it. */
 	createSourcePackWriter(): Awaitable<NativeMediaImageSequenceSourcePackWriterV25>;
 	publishInventory(
 		bytes: Uint8Array,

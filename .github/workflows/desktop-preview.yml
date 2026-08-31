@@ -187,7 +187,7 @@ jobs:
         # ubuntu-24.04 images restrict unprivileged user namespaces through
         # AppArmor, so the milestone-5 launcher's unshare(CLONE_NEWUSER) fails
         # with EPERM and every real-child enforcement test fail-closes with
-        # "The enforcement handshake ended early" before it can attest.
+        # "The enforcement handshake ended early" before it can complete.
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Provision interchange conformance reference tools
@@ -527,7 +527,7 @@ jobs:
           SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
           SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT: ${{ runner.temp }}/desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
 
-      - name: Upload bounded timing-probe evidence
+      - name: Upload bounded timing-probe diagnostics
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}

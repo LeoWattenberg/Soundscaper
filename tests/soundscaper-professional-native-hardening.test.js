@@ -185,7 +185,7 @@ test('the target peer contains purpose-built filesystem, network, and child-proc
 	assert.match(source, /\b(?:fork|CreateProcessW)\s*\(/u);
 	assert.match(source,
 		/rss-ceiling pressure-started[\s\S]*256u \* 1024u \* 1024u[\s\S]*volatile/u,
-		'the target peer must make resident memory pressure after its sandbox attestation');
+		'the target peer must make resident memory pressure after its sandbox enforcement handshake');
 	assert.match(source, /rss-ceiling survived/u,
 		'the target peer must make a missing supervisor termination observable');
 });

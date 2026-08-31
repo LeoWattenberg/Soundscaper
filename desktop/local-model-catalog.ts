@@ -5,7 +5,7 @@
  *
  * The catalog is data rather than code. V2 is authenticated before parsing and
  * binds each offered entry to the canonical digest of its licensing-evidence
- * row. Pending human review remains milestone-9 release metadata; unsigned,
+ * row. Distribution metadata does not grant execution authority; unsigned,
  * unmirrored, or artifact-incomplete models cannot construct machine execution
  * authority.
  *

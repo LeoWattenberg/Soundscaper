@@ -1,5 +1,11 @@
 # Lightscaper milestone L9 plan: final qualification
 
+> **Historical document (2026-08-31):** the qualification campaign, signed
+> readiness, fixed lab, certificate, notarization, and admission mechanisms
+> below are not current repository policy. A future Lightscaper release follows
+> the owner-run [release policy](release-policy.md), ordinary CI, and optional
+> product QA.
+
 > Owning source for L9 sequencing, the qualification-campaign decisions,
 > their invariants, and the bounded work packets. The
 > [Lightscaper roadmap](../roadmap-lightscaper.md#l9-final-qualification)

@@ -30,7 +30,7 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	);
 	assert.match(
 		fence.summary,
-		/VST3, CLAP, Audio Units, LV2 and OpenFX.*enabled for testing.*human.*milestone 9.*stable 1\.0.*never.*execution/iu,
+		/VST3, CLAP, Audio Units, LV2 and OpenFX.*enabled for testing.*source and notice closure.*matching target build result.*self-tests.*architecture.*hashes.*package verification.*optional owner QA.*never controls execution/iu,
 	);
 	assert.match(
 		fence.summary,
@@ -130,7 +130,7 @@ test('the native plug-in hosting row enables testing while keeping machine gaps 
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const risk = matrix.risks.find(({ id }) => id === 'native-plugin-hosting');
 	assert.equal(risk.status, 'partial');
-	assert.equal(risk.releaseDisposition, 'conditional');
+	assert.equal(risk.surfaceDisposition, 'conditional');
 	const residuals = new Map(risk.residualRisks.map((residual) => [residual.id, residual]));
 
 	const authority = residuals.get('hosted-plugin-ambient-authority');
@@ -139,7 +139,10 @@ test('the native plug-in hosting row enables testing while keeping machine gaps 
 		authority.exposure,
 		/launcher source.*Linux namespaces\/Landlock\/seccomp.*macOS Seatbelt.*Windows AppContainer.*no authenticated built launcher.*machine-unavailable/iu,
 	);
-	assert.match(authority.exposure, /signature or publisher-verification.*milestone 9.*stable 1\.0/iu);
+	assert.match(
+		authority.exposure,
+		/matching target build result.*packaged hostile-code containment tests.*compatibility observations/iu,
+	);
 
 	const unexercised = residuals.get('unexercised-plugin-hosting-gates');
 	assert.ok(unexercised, 'the unexercised hosting gates must remain a named residual risk');
@@ -153,7 +156,7 @@ test('the native plug-in hosting row enables testing while keeping machine gaps 
 	);
 	assert.match(
 		unexercised.requiredControl,
-		/human.*milestone 9.*stable 1\.0.*not.*(?:execution|testing)/iu,
+		/source and notices.*matching target build result.*self-tests.*package verification.*owner QA.*never activate/iu,
 	);
 	for (const residual of risk.residualRisks) {
 		assert.ok(residual.requiredControl.length > 0, residual.id);
@@ -172,23 +175,30 @@ test('the native helper row stops describing hosting and device opening as absen
 		residual.exposure,
 		/Soundscaper family-v1 route.*native audio.*native-effect hosting.*direct unversioned baseline.*Framescaper family-v1 and exact V14-render route.*persistent services V3.*direct unversioned native baseline.*native media.*OpenFX frame graph/iu,
 	);
-	assert.match(residual.exposure, /0\/10.*all five Soundscaper professional rows.*both Framescaper payload manifests are empty.*zero accepted cohorts/iu);
-	assert.match(residual.acceptanceCriteria.join(' '), /m5-helper-fault-and-loopback-v1/u);
+	assert.match(residual.exposure, /0\/10.*all five Soundscaper professional rows.*both Framescaper payload manifests are empty.*no verified OpenFX build result/iu);
+	assert.match(
+		residual.acceptanceCriteria.join(' '),
+		/crash, hang, malformed message, oversized payload, binary mismatch, and cancellation tests.*matching verified build result.*required self-tests/iu,
+	);
 });
 
-test('the threat-model narrative separates enabled testing from machine and release admission', async () => {
+test('the threat-model narrative separates enabled testing from machine checks and owner QA', async () => {
 	const threatModel = (await readFile(threatModelUrl, 'utf8')).replace(/\s+/gu, ' ');
 	assert.doesNotMatch(threatModel, /plug-in hosting remain out of scope/iu);
 	assert.doesNotMatch(threatModel, /discovers operating-system audio backends and opens no device/iu);
 	assert.match(
 		threatModel,
-		/partial and conditionally admitted.*enabled for testing.*human.*milestone 9.*stable 1\.0/iu,
+		/partial.*enabled for testing.*exact machine.*optional owner QA.*never.*execution/iu,
 	);
 	assert.match(
 		threatModel,
-		/1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaFamily:'framescaper'.*native-payload.*release-blocking/isu,
+		/1\.0 project-identity boundary.*schemaFamily:'soundscaper'.*schemaFamily:'framescaper'.*ordinary automated gate/isu,
 	);
-	assert.match(threatModel, /0\/10.*payload.*pending-external.*zero accepted cohorts/iu);
+	assert.match(threatModel, /shared source audit authenticates 0\/10.*no matching\s+target build result exists/isu);
+	assert.match(
+		threatModel,
+		/source and notices.*matching target build result.*required self-tests.*architecture checks.*hashes.*package verification/iu,
+	);
 	assert.match(
 		threatModel,
 		/launcher source.*Landlock.*Seatbelt.*AppContainer.*no authenticated built.*machine payload/iu,

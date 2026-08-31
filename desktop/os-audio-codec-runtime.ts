@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Canary-qualified operating-system audio codec runtime for desktop main. */
+/** Canary-verified operating-system audio codec runtime for desktop main. */
 
 import {
 	DESKTOP_AUDIO_CODEC_MAXIMUM_CHANNEL_COUNT,
@@ -35,7 +35,7 @@ import {
 	type OperatingSystemAudioSourceFormat,
 } from './os-audio-codec-source-inspection.ts';
 import {
-	qualifyOperatingSystemCodecCapabilities,
+	verifyOperatingSystemCodecCapabilities,
 	type OperatingSystemCodecCanaryRequest,
 } from './os-codec-capability-adapter.ts';
 import {
@@ -129,8 +129,8 @@ const OPERATION_FIELDS = Object.freeze([
 const NATIVE_TARGETS = new Set<string>(['win-x64', 'win-arm64', 'mac-arm64']);
 const NON_NATIVE_TARGETS = new Set<string>(['linux-x64', 'linux-arm64', 'mac-x64']);
 const SOURCE_TUPLE_REASON: Readonly<Record<OperatingSystemAudioSourceFormat, string>> = Object.freeze({
-	mp3: 'The OS MP3 source geometry is outside the exact canary-qualified tuple.',
-	'aac-m4a': 'The OS AAC-LC M4A source is outside the exact canary-qualified tuple.',
+	mp3: 'The OS MP3 source geometry is outside the exact canary-verified tuple.',
+	'aac-m4a': 'The OS AAC-LC M4A source is outside the exact canary-verified tuple.',
 });
 const AAC_ENCODE_TUPLE_REASON =
 	'The OS AAC-LC M4A encoder admits only 48 kHz stereo float PCM at 160 kbps.';
@@ -196,7 +196,7 @@ export async function loadOperatingSystemAudioCodecRuntime(
 	const candidates = Object.freeze(CANARY_OPERATIONS.flatMap((operation) => (
 		deriveDesktopAudioOperatingSystemCandidatesFromOperation(target, operation).candidates
 	)));
-	const admission = await qualifyOperatingSystemCodecCapabilities({
+	const verification = await verifyOperatingSystemCodecCapabilities({
 		target,
 		osVersion: options.osVersion,
 		candidates,
@@ -205,8 +205,8 @@ export async function loadOperatingSystemAudioCodecRuntime(
 			? {} : { maximumDurationMs: options.maximumCanaryDurationMs }),
 		...(options.signal === undefined ? {} : { signal: options.signal }),
 	});
-	if (admission.status !== 'available') return null;
-	const provider = createOperatingSystemDesktopCodecProvider(admission.providerOptions);
+	if (verification.status !== 'available') return null;
+	const provider = createOperatingSystemDesktopCodecProvider(verification.providerOptions);
 
 	return Object.freeze({
 		provider,

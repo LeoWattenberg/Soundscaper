@@ -51,14 +51,14 @@ test('proxy geometry is always an even frame size', () => {
 	assert.throws(() => resolveNativeMediaProxyGeometry(100_000, 1), /even frame size/u);
 });
 
-test('a reviewed ProRes profile yields the documented recipe and no pending release rows', () => {
+test('a recorded ProRes profile yields the documented recipe and no unresolved licensing rows', () => {
 	const plan = planNativeMediaProxy({
-		sourceWidth: 3_840, sourceHeight: 2_160, clearedPolicyRowIds: CLEARED,
+		sourceWidth: 3_840, sourceHeight: 2_160, recordedLicensingRowIds: CLEARED,
 	});
 
 	assert.equal(plan.blocked, false);
 	assert.ok(!plan.blocked);
-	assert.deepEqual(plan.pendingReleasePolicyRowIds, []);
+	assert.deepEqual(plan.unresolvedLicensingRowIds, []);
 	assert.deepEqual(plan.recipe, {
 		recipeId: NATIVE_MEDIA_PROXY_RECIPE_ID,
 		recipeVersion: 1,
@@ -73,27 +73,27 @@ test('a reviewed ProRes profile yields the documented recipe and no pending rele
 	});
 });
 
-test('pending ProRes review is reported for milestone 9 without blocking generation', () => {
+test('unresolved ProRes licensing is reported without blocking generation', () => {
 	const plan = planNativeMediaProxy({ sourceWidth: 1_920, sourceHeight: 1_080 });
 
 	assert.equal(plan.blocked, false);
 	assert.ok(!plan.blocked);
 	assert.equal(plan.recipe.codec, 'prores_ks');
-	assert.deepEqual(plan.pendingReleasePolicyRowIds, [
+	assert.deepEqual(plan.unresolvedLicensingRowIds, [
 		'codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-proxy',
 	]);
 });
 
-test('partially reviewed rows leave only the remaining milestone-9 release metadata', () => {
+test('partially recorded rows leave only unresolved licensing metadata', () => {
 	const plan = planNativeMediaProxy({
 		sourceWidth: 1_920,
 		sourceHeight: 1_080,
-		clearedPolicyRowIds: ['codec-native-ffmpeg-current-set'],
+		recordedLicensingRowIds: ['codec-native-ffmpeg-current-set'],
 	});
 
 	assert.equal(plan.blocked, false);
 	assert.ok(!plan.blocked);
-	assert.deepEqual(plan.pendingReleasePolicyRowIds, ['codec-encode-prores-mov-proxy']);
+	assert.deepEqual(plan.unresolvedLicensingRowIds, ['codec-encode-prores-mov-proxy']);
 });
 
 test('unreported source geometry blocks rather than assuming a frame size', () => {
@@ -102,21 +102,21 @@ test('unreported source geometry blocks rather than assuming a frame size', () =
 		{ sourceWidth: 1_920, sourceHeight: null },
 		{ sourceWidth: null, sourceHeight: null },
 	]) {
-		const plan = planNativeMediaProxy({ ...request, clearedPolicyRowIds: CLEARED });
+		const plan = planNativeMediaProxy({ ...request, recordedLicensingRowIds: CLEARED });
 		assert.ok(plan.blocked);
 		assert.deepEqual(plan.refusals, ['source-geometry-unreported']);
-		assert.deepEqual(plan.pendingReleasePolicyRowIds, []);
+		assert.deepEqual(plan.unresolvedLicensingRowIds, []);
 	}
 });
 
 test('geometry that cannot survive the ceiling blocks with its own reason', () => {
 	const plan = planNativeMediaProxy({
-		sourceWidth: 100_000, sourceHeight: 1, clearedPolicyRowIds: CLEARED,
+		sourceWidth: 100_000, sourceHeight: 1, recordedLicensingRowIds: CLEARED,
 	});
 
 	assert.ok(plan.blocked);
 	assert.deepEqual(plan.refusals, ['source-geometry-unusable']);
-	assert.deepEqual(plan.pendingReleasePolicyRowIds, []);
+	assert.deepEqual(plan.unresolvedLicensingRowIds, []);
 });
 
 test('the original stays the export authority', () => {

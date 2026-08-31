@@ -24,6 +24,8 @@ export interface OpenFxHostProcessResult {
 	readonly exitCode: number;
 	readonly stdout: string;
 	readonly stderr: string;
+	/** Set only from the enforced launch result, never from child-controlled stdout. */
+	readonly isolationChecksPassed: boolean;
 }
 
 export interface OpenFxHostProcessHandle {

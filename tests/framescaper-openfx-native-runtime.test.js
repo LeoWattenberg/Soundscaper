@@ -115,17 +115,16 @@ test('the helper runner carries the actual native scanner descriptor over its re
 		expectedOpenFxNativeScannerDescriptor(build.sha256));
 });
 
-test('production entry points attest no OS isolation and are refused third-party loading', async (context) => {
+test('direct production entry points report no launcher isolation result', async (context) => {
 	const build = buildContractFixture(context);
 	if (build === null) return;
 	try {
 		const declared = run(build.blockedScanner, ['--self-test']);
 		assert.equal(declared.status, 0, declared.stderr);
 		assert.deepEqual(Object.fromEntries(Object.entries(JSON.parse(declared.stdout)).filter(
-			([key]) => key === 'contractFixture' || key.endsWith('Exposed')
-				|| key === 'osIsolationAttested' || key === 'thirdPartyExecutionEnabled',
+			([key]) => key === 'contractFixture' || key.endsWith('Exposed'),
 		)), {
-			contractFixture: false, osIsolationAttested: false, thirdPartyExecutionEnabled: false,
+			contractFixture: false,
 			networkSuiteExposed: false, arbitraryFilesystemSuiteExposed: false,
 			vendorTopLevelWindowsExposed: false,
 		});
@@ -133,7 +132,7 @@ test('production entry points attest no OS isolation and are refused third-party
 			() => selfTestFramescaperOpenFxHelper(
 				{ scanner: nativeExecutable(build.blockedScanner) }, 'scanner', nativeProcessInvoker,
 			),
-			/lacks production isolation and real third-party execution readiness/u,
+			/isolation checks.*verified result/iu,
 		);
 	} finally {
 		build.cleanup();

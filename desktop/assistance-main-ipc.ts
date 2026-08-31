@@ -218,9 +218,9 @@ export interface AssistanceServiceFactoryOptions {
 }
 
 /**
- * Binds catalog metadata to the exact register the build ships. Human review
- * status remains report-only until Milestone 9; runtime admission still
- * authenticates the catalog, artifacts, platform, memory, and evidence digest.
+ * Binds catalog metadata to the exact register the build ships. Distribution
+ * metadata does not grant execution authority; runtime checks authenticate the
+ * catalog, artifacts, platform, memory, and evidence digest.
  */
 export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions): AssistanceService {
 	const register = options.licensingMatrix as {

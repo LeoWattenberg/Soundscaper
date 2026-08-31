@@ -9,7 +9,7 @@
 
 namespace framescaper::openfx {
 
-[[nodiscard]] std::vector<Backend> authenticate_v12_gpu_qualification(
+[[nodiscard]] std::vector<Backend> authenticate_v12_gpu_support(
 	const framescaper::media::json::value& value
 );
 

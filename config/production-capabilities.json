@@ -2,14 +2,14 @@
 	"schemaVersion": 1,
 	"groundedAt": "2026-08-30",
 	"releaseLineAuthority": "config/product-release-lines.json",
-	"releaseCandidate": {
+	"productVersions": {
 		"productId": "soundscaper",
 		"version": "1.0.0-rc.1",
 		"previewTagPatterns": [
 			"soundscaper-v*-beta.*",
 			"soundscaper-v*-rc.*"
 		],
-		"stable1Admission": "blocked-on-soundscaper-external-evidence"
+		"stableTarget": "1.0.0"
 	},
 	"projectSchemaBaselines": [
 		{
@@ -41,7 +41,7 @@
 		"chromium": {
 			"project": "chromium",
 			"automated": true,
-			"releaseStatus": "provisional",
+			"automationStatus": "configured",
 			"evidence": [
 				"playwright.config.mjs",
 				".github/workflows/quality.yml"
@@ -50,7 +50,7 @@
 		"firefox": {
 			"project": "firefox",
 			"automated": true,
-			"releaseStatus": "provisional",
+			"automationStatus": "configured",
 			"evidence": [
 				"playwright.config.mjs",
 				".github/workflows/quality.yml"
@@ -59,7 +59,7 @@
 		"webkit": {
 			"project": "webkit",
 			"automated": true,
-			"releaseStatus": "provisional",
+			"automationStatus": "configured",
 			"evidence": [
 				"playwright.config.mjs",
 				".github/workflows/quality.yml"
@@ -120,9 +120,7 @@
 				"softwareStatus": "feature-complete",
 				"channel": "candidate",
 				"candidateVersion": "1.0.0-rc.1",
-				"stableTarget": "1.0.0",
-				"admissionProfile": "soundscaper-stable-1",
-				"admissionStatus": "pending-external-evidence"
+				"stableTarget": "1.0.0"
 			},
 			"applicationFeatures": {},
 			"platforms": {
@@ -347,9 +345,7 @@
 				"softwareStatus": "pre-release-deferred",
 				"channel": "deferred",
 				"candidateVersion": "1.0.0-rc.1",
-				"stableTarget": null,
-				"admissionProfile": null,
-				"admissionStatus": "deferred"
+				"stableTarget": null
 			},
 			"applicationFeatures": {
 				"framescaperCapture": true,

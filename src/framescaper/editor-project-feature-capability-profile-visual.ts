@@ -10,7 +10,7 @@ const CANDIDATE_FEATURES = new Set([
 	'videoStills', 'videoGenerators', 'videoAdjustmentLayers', 'videoMasksMattes', 'videoFreeze',
 ]);
 
-/** Qualification-only visual capabilities. Shipped product availability remains false. */
+/** Test-only visual capabilities. Shipped product availability remains false. */
 export const FRAMESCAPER_VISUAL_PROJECT_CANDIDATE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'framescaper',

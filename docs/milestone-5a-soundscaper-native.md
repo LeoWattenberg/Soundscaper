@@ -1,5 +1,12 @@
 # Milestone 5A plan: Soundscaper native services
 
+> **Current release note (2026-08-31):** the readiness, promotion, signature,
+> lab, and admission terminology retained in historical packets below is not
+> current release machinery. Native builds now produce neutral target build
+> results; final packages require matching revision/target/build-plan identity,
+> closed dependencies, required self-tests, architecture, byte lengths, and
+> SHA-256 values. macOS uses only an identity-free ad-hoc execution seal.
+
 > Owning plan for the Soundscaper half of milestone 5. The
 > [milestone-5 plan](milestone-5-plan.md) owns the shared helper contract and
 > sequencing, and the

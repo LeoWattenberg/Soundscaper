@@ -4,52 +4,46 @@ This policy defines the engineering evidence required before Soundscaper or
 Framescaper distributes third-party code, data, fonts, WebAssembly, native
 runtimes, plug-ins, codecs, or models. The machine-readable inventory is
 [`config/production-licensing-matrix.json`](../config/production-licensing-matrix.json).
-It records evidence and fail-closed release state; it is not legal advice, a
+It records the concrete artifact and distribution state; it is not legal advice, a
 patent opinion, or a declaration that any component is legally cleared for
 every product, territory, or distribution channel.
 
-Human licensing checks are Milestone 9 stable 1.0 admission inputs. Their
-pending state does not disable build, test, package, or runtime access to an
-implemented surface. Machine artifact identity, payload presence, platform
-compatibility, containment, consent, and resource checks remain fail closed at
-the point of use. A missing implementation or machine payload therefore remains
-unavailable for its exact technical reason; a pending human review cannot be
-used as that reason.
+Human licensing checks inform the repository owner's release decision. An
+unresolved notice, source-delivery, license, or patent issue must be recorded
+and the affected component must not ship, but no evidence register turns that
+judgment into a separate admission process. Machine artifact identity, payload
+presence, platform compatibility, containment, consent, and resource checks
+remain fail closed at the point of use. A missing implementation or machine
+payload therefore remains unavailable for its exact technical reason.
 
-## Recorded owner legal review
+## Owner licensing notes
 
-On 2026-08-28 the kw.media owner and sole contributor recorded the human legal
-review in `config/production-legal-review.json`. The record is bound by SHA-256
-to `docs/legalchecklist.md`: checked items mean satisfied, unchecked items mean
-not satisfied, and `--` lines preserve the owner's conditions. Its scope is
-global distribution of Soundscaper and Framescaper through the Cloudflare web
-application/assets and direct Electron downloads; application stores are out
-of scope. The application remains AGPL-3.0-only and no separate EULA is selected.
+[`legalchecklist.md`](legalchecklist.md) is an editable worksheet for the
+repository owner. It is not hashed, attested, signed, counted, or interpreted by
+CI. The machine-readable matrix instead verifies concrete facts it can actually
+check: dependency closure, source and notice files, artifact identity,
+distribution surfaces, and whether a blocked component is absent.
 
-That review approves the recorded current copyright, copyleft, notice,
-corresponding-source, patent-risk, trademark, native-audio, plug-in-hosting,
-local-model, capture, Web VCR, retention, export-control, and operational-privacy
-positions subject to the exact conditions in the record. The English and German
-privacy policy publication is recorded as satisfied. The unchecked web-notice
-route, content, placement, and versioned-asset delivery questions remain open,
-so the web notice gate remains blocked. The refused-model review and all named
+The application remains AGPL-3.0-only and no separate EULA is selected. The
+matrix records current copyright, copyleft, notice, corresponding-source,
+patent-risk, trademark, native-audio, plug-in-hosting, local-model, capture, Web
+VCR, retention, export-control, and operational-privacy positions. Open web
+notice and versioned-asset delivery work stays visible in the relevant rows.
+The refused-model review and all named
 future-only reviews remain not satisfied.
 
-Native codec approval is provider-conditional: WebCodecs, operating-system
-providers, and user-installed FFmpeg are approved, while redistribution of
-FFmpeg or a bundled native FFmpeg media host is not. Consequently every native
-FFmpeg tuple stays blocked despite the broader codec and patent-risk decisions.
-The owner accepted the recorded Spleeter, Demucs, TransNetV2, PANNs, and other
-model-license ambiguities, but no missing converted artifact, parity result,
-mirror read-back, catalog signature, notice, or runtime evidence is fabricated
-or cleared by that acceptance.
+The current distribution choice is provider-conditional: WebCodecs,
+operating-system providers, and user-installed FFmpeg are allowed, while FFmpeg
+or a bundled native FFmpeg media host is not redistributed. Consequently every
+native FFmpeg tuple stays blocked despite the broader codec and patent-risk notes.
+The Spleeter, Demucs, TransNetV2, PANNs, and other model records preserve their
+documented upstream licence ambiguities as factual limitations. No missing
+converted artifact, parity result, mirror read-back, catalog signature, notice,
+or runtime evidence is fabricated or inferred from a recorded requirement.
 
-No independently controlled cryptographic key is required to authenticate this
-human legal decision; the repository record is its authority. Existing package,
-platform-signing, notarization, payload-identity, isolation-readiness, and
-per-target technical-evidence controls are separate release controls. They do
-not create a second legal approver and cannot override or broaden the recorded
-legal scope.
+The repository owner records licensing judgment as editable notes.
+Package-content, payload-identity, source, notice, and isolation checks remain
+technical safeguards and cannot turn those notes into legal approval.
 
 ## Dependency closure
 
@@ -105,7 +99,7 @@ WebAssembly runtime. Separately, electron-builder replaces stock Electron
 asset, intended upstream to omit proprietary codec support, and afterPack
 runs `scripts/lib/electron-alternate-ffmpeg.mjs` to verify its exact target,
 file type, byte length, and SHA-256 against
-`config/electron-alternate-ffmpeg-manifest.json` before fuse or signing work.
+`config/electron-alternate-ffmpeg-manifest.json` before package finalization.
 Packaging also validates the aggregate notice.
 In addition, desktop assembly copies and audits the 28 exact codec component
 NOTICE, license, source-manifest, and shared toolchain-license files under the
@@ -140,28 +134,29 @@ pinned source archive or revision, license and notice closure, Emscripten
 3.1.64 build recipe, exact artifact byte length and SHA-256, a fail-fast audit,
 and exact-identity desktop staging and startup checks. The matrix records the
 individual values and evidence paths rather than treating a family name as an
-artifact identity. This is engineering provenance and exact-slice qualification,
+artifact identity. This is engineering provenance and exact-slice verification,
 not a copyright-license, corresponding-source, or patent conclusion beyond the
 facts separately recorded for each component.
 
-An audit status of `documented` means that checked-in provenance evidence is
+An audit status of `documented` means that checked-in provenance material is
 present and its existing automated audit remains enabled. It is not a legal
-approval. `blocked` means a stable-release fact, review, source bundle, or
-delivery path is absent. It blocks Milestone 9 stable 1.0 admission, not
-engineering access to an implemented surface. Gates may only move from
-`blocked` when the missing evidence is checked in and an automated test verifies
-it.
+approval. `blocked` means a required review, source bundle, notice, or delivery
+path is absent, so the affected component must not be distributed. It does not
+disable engineering access to an implemented surface. A row may move from
+`blocked` only when the missing material is checked in and its automated check
+passes.
 
 The checked-in FFmpeg runtime policy manifest is an engineering integrity gate,
 not a license or patent approval. It binds installed runtime bytes to the
 current notice, source descriptor, licensing matrix, and release policy, and
-its authorizations are derived from the matrix's fail-closed gates. Its review
-marker and payload digest are self-declared consistency evidence, not an
-independently authenticated approval. It governs the optional Web runtime:
-stable 1.0 public-runtime admission remains blocked whenever its notice,
-corresponding-source, or patent gates are blocked, while build and test
-publication continue to depend only on the exact machine-verifiable runtime
-closure. Its legacy desktop-assembly authorization is not consumed by the
+its distribution checks are derived from the matrix's fail-closed distribution
+checks. Its
+payload digest is an internal consistency check, not a human or release
+approval. It governs the optional Web runtime: public packaging
+rejects that runtime whenever its notice, corresponding-source, or patent rows
+are blocked, while build and test publication continue to depend only on the
+exact machine-verifiable runtime closure. Its legacy desktop-assembly
+distribution check is not consumed by the
 current production desktop entry points and does not override the separate
 desktop codec policy, which requires those Web runtime and
 application-provider bytes to be absent. It does not prohibit Electron's
@@ -256,9 +251,9 @@ third-party notice. This narrow provenance record does not satisfy the gate for
 adding externally authored or non-repository-owned effect packages.
 
 The following capabilities may be implemented, built, packaged, and tested
-before their human matrix requirements are accepted. Their exact machine
-dependencies still gate execution, and their human requirements must be
-accepted in Milestone 9 before stable 1.0 admission:
+before their human matrix requirements are complete. Their exact machine
+dependencies still gate execution, and the recorded human requirements must be
+resolved before the affected capability is distributed:
 
 - externally authored or non-repository-owned reviewed web effect packages need
   a complete transitive inventory, immutable artifact/source pins, notice
@@ -268,11 +263,11 @@ accepted in Milestone 9 before stable 1.0 admission:
   required;
 - native audio needs an authenticated JUCE/SDK source closure, an explicit
   license selection for each dual-licensed input, platform-API and ASIO
-  trademark review, target notices, signed packages, and provisioned device-lab
-  evidence;
+  trademark review, target notices, and representative owner QA on available
+  devices;
 - additional bundled video codec execution needs an exact codec/license
   inventory, corresponding source, package notices, target payload and
-  qualification evidence, and distribution-specific patent review; and
+  verification, and distribution-specific patent review; and
 - local models need licenses for code and weights, training-data provenance,
   model cards and use restrictions, exact hashes, and versioned offline notice
   delivery.
@@ -294,7 +289,7 @@ libsndfile is not bundled because those owners plus the direct libFLAC provider
 cover the admitted matrix without adding a redundant general-purpose file
 parser and its broader format surface.
 
-Seven exact compressed-audio WebAssembly providers are admitted on Linux x64,
+Seven exact compressed-audio WebAssembly providers are supported on Linux x64,
 Linux ARM64, macOS ARM64, Windows x64, and Windows ARM64, never macOS x64:
 libFLAC 1.5.0 for signed-24-bit FLAC encode/decode; libopus 1.6.1 plus libogg
 1.3.6 for 48 kHz mono/stereo Ogg Opus encode/decode; libvorbis 1.3.7 plus
@@ -302,12 +297,12 @@ libogg 1.3.6 for 8–192 kHz mono/stereo Ogg Vorbis encode/decode; WavPack 5.9.0
 for the float32, compression-level-2 slice; mpg123 1.33.7 for feed-only
 MPEG-1 Layer II/III decode at 32, 44.1, or 48 kHz, mono or stereo; LAME 4.0 for
 the admitted MPEG-1 Layer III CBR encode combinations at those rates; and
-TwoLAME 0.4.0 for the admitted MPEG-1 Layer II CBR encode combinations at
+TwoLAME 0.4.0 for the supported MPEG-1 Layer II CBR encode combinations at
 those rates. The matrix pins every payload's exact byte length and SHA-256.
 Valid but unreviewed settings fall through; malformed input, validation failure,
 security failure, execution failure, cancellation, or partial output is
 terminal. WavPack retains its independent stock `wvunpack` 5.9.0 witness; that
-witness does not qualify other WavPack profiles, versions, or producers.
+witness verifies no other WavPack profile, version, or producer.
 
 The desktop audio wire caps each input at 32 MiB and each returned output at
 128 MiB. The compressed providers retain whole input and output buffers. Their
@@ -331,29 +326,26 @@ Windows Media Foundation and macOS ARM64 AudioToolbox source adapters, bounded
 source inspection, output validation, and live startup canaries exist for exact
 48 kHz stereo MP3/AAC decode and AAC-LC/M4A encode; the AAC encoder tuple is
 160 kbps and Windows additionally has a 192 kbps MP3 encoder tuple. macOS has
-no admitted MP3 encoder. A repository-owned codec-only Node-API addon is built
+no supported MP3 encoder. A repository-owned codec-only Node-API addon is built
 on target-native CI for macOS ARM64, Windows x64, and Windows ARM64. The build
 authenticates pinned Electron headers and the repository source/build plan,
 runs the exact native canaries, and records the toolchain and output digest.
-macOS signs and strictly verifies the addon before hashing; Windows records
-signing as not applicable. Release preparation and package/startup verification
-bind one exact per-target manifest and payload and reject missing, changed,
-wrong-target, duplicate, foreign, or unsigned-on-macOS bytes. No codec library
+macOS applies and verifies an ad-hoc execution seal before hashing; Windows has
+no code-seal step. Release preparation and package/startup verification bind one
+exact per-target manifest and payload and reject missing, changed, wrong-target,
+duplicate, foreign, or non-executable macOS bytes. No codec library
 is copied from the operating system into the package. Linux has no uniform OS
 provider, and macOS x64 has no supported build or compatibility alias. These
-controls qualify only the enumerated tuples on a package whose target-native
+controls verify only the enumerated tuples on a package whose target-native
 build has passed; they do not establish general OS availability, patent
 clearance, or non-infringement.
 
 Bundled and operating-system video remain disabled. The application contains
-no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload and has no complete
-twelve-case benchmark decision on each of the five targets. It also has no
-admitted Media Foundation or VideoToolbox video operation. The qualification
-model names dav1d as the decoder candidate, SVT-AV1 as the primary encoder
-candidate, and libaom only as a conditional Windows ARM64 encoder fallback;
-those candidate names do not admit execution. The external WebM path described
-below uses VP9, not AV1. AV1 plus bundled and operating-system WebM execution
-therefore remain disabled.
+no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload and has no AV1 execution
+path. It also has no supported Media Foundation or VideoToolbox video
+operation. Historical candidate notes do not enable execution or select a
+provider. The external WebM path described below uses VP9, not AV1. AV1 plus
+bundled and operating-system WebM execution therefore remain disabled.
 
 The final tier executes an FFmpeg program already installed on the user's
 machine, whether found by bounded discovery, chosen explicitly, or installed
@@ -394,7 +386,7 @@ exact keyed-RGBA H.264/AAC MP4 through `libx264`/`aac` and VP9/Opus WebM through
 `libvpx-vp9`/`libopus`. Encoder/muxer tokens alone do not enable either tuple:
 the current executable pair must complete a live one-frame 16x16 RGBA plus
 48 kHz stereo-audio canary and produce a structurally valid finite container.
-The exact admitted `ffprobe` must then attest exactly two streams at indices 0
+The exact admitted `ffprobe` must then report exactly two streams at indices 0
 and 1: 16x16 `yuv420p` H.264 plus 48 kHz stereo AAC for MP4, or 16x16 `yuv420p`
 VP9 plus 48 kHz stereo Opus for WebM. Renderer requests carry no filesystem
 paths. Main owns fixed command construction,
@@ -403,7 +395,7 @@ and output files, exact sequential input lengths, and output range reads. IPC
 chunks are at most 1 MiB; no more than two sessions may exist globally and one
 per renderer owner. Idle, duration, log, and output bounds, executable-identity
 checks, cancellation, renderer revocation, shutdown draining, cleanup, container
-validation, bounded track attestation, and digest evidence guard output
+validation, bounded track checks, and digest verification guard output
 publication. The five-second, 64 KiB `ffprobe` inspection uses a private
 cwd/HOME/TMP environment,
 fixed shell-free arguments, and process-tree termination. These controls do not
@@ -416,8 +408,8 @@ the JUCE native-audio stack, one per operating-system backend (CoreAudio,
 WASAPI, ASIO, PipeWire and ALSA), and one per plug-in format (VST3, CLAP, Audio
 Units, LV2, OFX). The acquisition register pins the exact JUCE, CLAP, VST3,
 ASIO and LV2 source inputs and the four external native codec libraries. A
-verified archive hash proves source identity only: it does not satisfy legal,
-trademark, corresponding-source, signing, hardware, or activation review.
+verified archive hash proves source identity only: it does not supply notices,
+corresponding source, platform compatibility, self-tests, or package verification.
 
 Native professional media
 uses a finer inventory: each software operation is a distinct
@@ -435,13 +427,13 @@ into this AGPL-3.0-only work (the ASIO SDK's selected GPLv3 arm combines
 one-way via GPLv3 section 13; the VST3 3.8.0 SDK and other permissive SDKs
 combine trivially; operating-system APIs and
 platform encoder services are linkage, not combined source), the
-redistribution posture, and the named review still missing for that exact
+redistribution posture, and the concrete source, notice, implementation, or verification fact still missing for that exact
 tuple. Every codec tuple remains `blocked`; it additionally depends on the
 blocked `codec-native-ffmpeg-current-set` row and the owning `native-codecs`
 gate. This inventory does not change FFmpeg configure flags, publish a helper,
 populate a payload manifest, or activate native media. Those remain separate
-reviewed changes after corresponding source, notices, patent posture,
-interoperability, signing, and five-target evidence clear. User-installed
+implementation changes after corresponding source, notices,
+interoperability, self-tests, and five-target verification are present. User-installed
 external FFmpeg and third-party plug-in binaries are never redistributed by
 this project, so their licenses never enter the production artifact closure;
 the codec and plug-in rows govern what the application itself may ship and
@@ -455,29 +447,28 @@ matrix rather than asserted once for the gate. Every entry in
 omits one, or invents another, is refused by
 `scripts/lib/local-model-evidence.mjs`.
 
-Each requirement is `recorded`, `pending`, or `unresolved`, and only `recorded`
-satisfies stable 1.0 distribution review. `pending` marks evidence this
-milestone cannot hold yet, naming the stage that will produce it; `unresolved`
-marks upstream evidence that is missing, conflicting, or unanswered and may
-never resolve. The 2026-08-28 owner review explicitly accepts the documented
-Spleeter, Demucs, TransNetV2, and PANNs licensing ambiguities as risks, so those
-license-review requirements are now `recorded` without representing that an
-upstream clarification occurred. A model's `blockedBy` list and its
+Each requirement is `recorded`, `pending`, or `unresolved`. `recorded` means
+the named information is present; it is not a release approval. `pending`
+names information or an artifact that has not been produced, while `unresolved`
+marks upstream information that is missing, conflicting, or unanswered and may
+never resolve. The Spleeter, Demucs, TransNetV2, and PANNs licence-information
+requirements record the documented upstream ambiguities themselves without
+representing that an upstream clarification occurred. A model's `blockedBy` list and its
 `distributionStatus` are derived from the remaining statuses and verified
 against the authored values, so an incomplete artifact record cannot be
-converted into a stable-release approval.
+presented as an available model.
 
-The `local-models` gate records the stable-release disposition of individually
-reviewed records. Gate enablement is not runtime authority: an implemented
+The `local-models` inventory records whether each model is distributable.
+That status is not runtime authority: an implemented
 model route may be installed and executed for testing when its exact catalog
 entry, notices, byte lengths, digests, converted artifact, platform support,
-memory bound, and consent checks pass. Pending or refused human distribution
-status is reported to Milestone 9 and does not disable that test route. Artifact
+memory bound, and consent checks pass. Pending or refused distribution
+notes do not disable that test route. Artifact
 authentication remains mandatory immediately before execution. Weights whose
-terms forbid redistribution or commercial use are refused for stable release
+terms forbid redistribution or commercial use remain unavailable
 by pattern, and models this product has already excluded are listed in
 `refusedLocalModels` with their reason so they are not accidentally admitted to
-1.0. Upstream locations belong in `provenanceSources`; `evidence` holds
+the catalog. Upstream locations belong in `provenanceSources`; `evidence` holds
 repository paths only.
 
 A source pin, direct artifact digest, conversion recipe, parity-fixture shape,
@@ -486,19 +477,19 @@ The owner has completed the human license, training-data, and model-card review
 for wav2vec2, TIGER-DnR, PANNs Cnn10, Beat This small0/final0, TransNetV2, and
 Qwen3. Each row still records `versioned-download-notices-and-hashes` as pending.
 TIGER-DnR, PANNs Cnn10, Beat This, and TransNetV2 remain technically unavailable
-until their converted artifact digests and source-framework parity evidence are
+until their converted artifact digests and source-framework parity results are
 recorded; wav2vec2 and Qwen remain candidates until executable catalog entries
-land. Externally signed entries and artifact notice/read-back evidence remain
-Milestone 9 release inputs. Cataloged byte lengths and hashes authenticate
+land. Externally signed catalog entries and artifact notice/read-back checks
+remain required before model publication. Cataloged byte lengths and hashes authenticate
 downloads and offline preseed, but do not assert that an EU R2 write or public
 read-back occurred. The release publisher must complete public HEAD, Range, and
 full SHA-256 read-back before a catalog is handed to the external signer.
 
 Opaque placeholders do not make an unimplemented native feature available, and
 a loader must not accept a missing, changed, wrong-platform, uncontained, or
-unconsented machine payload. Conversely, a human licensing or qualification row
-must not disable an implemented, machine-authenticated test route; that row is
-enforced by Milestone 9 stable 1.0 admission.
+unconsented machine payload. Conversely, an incomplete human licensing row
+must not disable an implemented, machine-authenticated test route; it controls
+whether the affected bytes may be distributed.
 
 ## Change procedure
 

@@ -21,7 +21,7 @@ const FILES = Object.freeze({
 const MANIFEST_PATH = '/application/config/framescaper-openfx-host-payload-manifest.json';
 const SOURCE_PREFIX = 'native/framescaper-openfx-host/prebuilt/linux-x64';
 type MutableOpenFxTarget = {
-	productionReadiness?: unknown;
+	obsoleteReleaseField?: unknown;
 	payload: null | { scannerPayload: { path: string } };
 };
 
@@ -40,7 +40,7 @@ test('a built target exposes only the hash-verified OpenFX and isolation closure
 	if (availability.status !== 'available') return;
 	assert.equal(availability.descriptor.scanner.sha256, digest(FILES['framescaper-ofx-scanner']));
 	assert.equal(availability.descriptor.runtimeHost.sha256, digest(FILES['framescaper-ofx-runtime-host']));
-	assert.deepEqual(availability.descriptor.qualifiedGpuBackends, ['opengl', 'opencl', 'cuda']);
+	assert.deepEqual(availability.descriptor.supportedGpuBackends, ['opengl', 'opencl', 'cuda']);
 	assert.equal(Object.hasOwn(availability.descriptor, 'm9ReleaseReview'), false);
 	assert.equal(reads.length, 7);
 });
@@ -64,7 +64,7 @@ test('pending, malformed, wrong-target, and altered OpenFX closures fail closed'
 	const pending = await describeFramescaperOpenFxHostAvailability(location(), ports(manifest(false)));
 	assert.equal(pending.status === 'unavailable' ? pending.reason : null, 'payload-pending-external');
 	for (const [label, value, alteredName, expected] of [
-		['extra target field', mutateManifest((row) => { row.productionReadiness = null; }), '', 'manifest-unreadable'],
+		['extra target field', mutateManifest((row) => { row.obsoleteReleaseField = null; }), '', 'manifest-unreadable'],
 		['missing payload row', { ...manifest(), payloads: [] }, '', 'manifest-unreadable'],
 		['unsafe scanner path', mutateManifest((row) => { row.payload!.scannerPayload.path = '../scanner'; }), '',
 			'manifest-unreadable'],

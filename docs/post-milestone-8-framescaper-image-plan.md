@@ -1,7 +1,7 @@
 # Post-milestone-8 Framescaper image plan
 
 > Owning source for Framescaper timeline-image product, project-model,
-> conversion, runtime, security, and qualification decisions. The
+> conversion, runtime, security, and verification decisions. The
 > [roadmap](../roadmap.md#8i-post-milestone-8-framescaper-image-extension)
 > owns sequencing and closure status.
 
@@ -29,13 +29,13 @@ As of 2026-08-25, the browser-native vertical slice is implemented. V32 owns
 strict image source and clip records, authenticated deterministic frame packs,
 atomic commands and publication, storage/archive/clipboard retention,
 menu-reached authoring, collision-safe placement, timeline and Project Bin
-previews, save/reopen, and exact browser video export. The qualified native
-decoder tier currently covers signature-admitted JPEG, PNG, GIF, WebP, and BMP
-inputs, including animated frames where the browser exposes them.
+previews, save/reopen, and exact browser video export. The verified native
+decoder tier currently covers format-signature-checked JPEG, PNG, GIF, WebP,
+and BMP inputs, including animated frames where the browser exposes them.
 
 The FFmpeg and ImageMagick converter tiers, the remaining reviewed formats,
 multipage and high-precision/color-managed paths, packaged native render
-parity, and the full qualification matrix remain open. Unsupported inputs fail
+parity, and the remaining verification coverage remain open. Unsupported inputs fail
 closed; the implemented slice does not claim arbitrary-format support.
 
 ## Product and timeline contract
@@ -131,7 +131,7 @@ settings.
 
 Decoding is layered:
 
-1. browser-native APIs for qualified common 8-bit SDR files;
+1. browser-native APIs for supported common 8-bit SDR files;
 2. the existing pinned FFmpeg runtime for admitted standardized high-bit or PQ
    inputs it can decode; and
 3. a lazy, pinned Q16-HDRI ImageMagick WASM runtime for reviewed remaining
@@ -175,7 +175,7 @@ fail before allocating the claimed output where metadata permits.
 Runtime activation requires a digest-pinned manifest, positive coder policy,
 reproducible build command and sources, corresponding-source payload,
 third-party notices, delegate licensing and patent review, threat-model and
-production-security bindings, and packaged/web runtime evidence. Runtime
+production-security bindings, and packaged/web runtime checks. Runtime
 assets remain absent from the initial application and production JavaScript
 chunks remain below the repository ceiling.
 
@@ -215,13 +215,14 @@ chunks remain below the repository ceiling.
 - Enable each non-native format only after its licensed fixture, color,
   malformed-input, resource-limit, and runtime-unavailable tests pass.
 
-### 8+I-5: Qualification and activation
+### 8+I-5: Verification and activation
 
 - Complete web and packaged Electron workflows, deterministic render parity,
   archive/handoff tamper tests, runtime publication audits, memory and timeout
-  budgets, notices, security evidence, and user documentation.
-- Activate the capability only when every advertised row has passing evidence;
-  unqualified formats remain absent rather than silently falling back.
+  budgets, notices, security controls, and user documentation.
+- Activate the capability only when every advertised format passes its named
+  fixture, workflow, integrity, resource, and unavailable-path checks; formats
+  without those checks remain absent rather than silently falling back.
 
 ## Exit gate
 
@@ -236,5 +237,5 @@ chunks remain below the repository ceiling.
 - Every malformed, spoofed, bomb, timeout, offline-runtime, forbidden-coder,
   unsupported-profile, and tampered-body fixture fails closed without retained
   partial state.
-- Runtime hashes, sources, policies, licenses, notices, security evidence, and
+- Runtime hashes, sources, policies, licenses, notices, security tests, and
   production size gates pass before the roadmap status advances to accepted.

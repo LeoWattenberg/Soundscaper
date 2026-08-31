@@ -360,11 +360,11 @@ single hardest constraint in this plan.
   load-bearing on the Play track, not less.
 - Android's own guideline target size, WCAG 2.5.8 and WCAG 2.5.5 disagree.
   One number is chosen in WP-9+B.3 and recorded.
-- The device-lab matrix that milestone 9 gates release on is unprovisioned
-  today (config/quality-budgets.json). Adding Android multiplies an empty
-  matrix; whether Android is held to the same regime is a scope decision
-  recorded in the roadmap §9+ status line — which now covers this plan
-  alone, the origin move having moved to §8+C.
+- Android browser and installation behavior has not been tried on owner
+  hardware yet. The environments actually exercised belong in an optional QA
+  run; they are not a fixed lab matrix or an automated release claim. The
+  roadmap §9+ status line covers this plan alone, the origin move having moved
+  to §8+C.
 - Any Android detection code that lands in the static entry graph fails the
   build against the startup-graph budgets, inside every pull request. Budget
   each new module before writing it.

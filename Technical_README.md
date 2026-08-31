@@ -119,8 +119,8 @@ copy. Numeric-only projects and pre-release `.scape` formats require re-import.
 
 The portable archive is family-qualified `formatVersion: 1`; file suffixes are
 routing hints and do not override the identity recorded in the manifest and
-project root. Stable 1.0 remains fail-closed on the outstanding Milestone 9
-evidence described in the [release policy](docs/release-policy.md).
+project root. Stable releases follow the owner-run checks described in the
+[release policy](docs/release-policy.md).
 
 ## Desktop preview
 
@@ -134,10 +134,12 @@ Soundscaper `1.0.0-rc.1` can be built as an unsigned desktop preview:
 
 The Windows installer requires administrator approval because Windows only
 registers the `.aup4` association for this build's per-machine installation.
-The ZIP does not install or register file types. The macOS preview is ad-hoc
-signed rather than notarized, and the Windows preview has no publisher
-certificate, so Gatekeeper or SmartScreen may show an unknown-developer
-warning. A future public release will include `SHA256SUMS` for every artifact.
+The ZIP does not install or register file types. Packages are intentionally
+unsigned. macOS applies only an identity-free ad-hoc code seal where its loader
+requires one to execute Electron or native binaries; this is neither Developer
+ID signing nor notarization and makes no publisher trust claim. Gatekeeper or
+SmartScreen may therefore show an unknown-developer warning. Public releases
+include `SHA256SUMS` for every artifact.
 
 The desktop editor and all released languages work offline. Its package contains
 the reviewed dedicated audio codec payloads, Electron's authenticated framework
@@ -186,15 +188,15 @@ packaged, and smoke-tested in separate jobs for every supported
 OS/architecture. Each packaging job uploads its verified installers to the
 Actions run for 14 days; these are CI artifacts, not a public release channel.
 
-Soundscaper Stable 1.0 has a separate exact `v1.0.0` workflow. It remains
-fail-closed until `npm run release:soundscaper:stable-1:admission` accepts the
-external qualification record, all five promoted professional-native payloads
-and signed readiness evidence, notices/legal approval, signing/notarization,
-native cohorts, platform/accessibility evidence, release rehearsal, and all 22
-eight-hour soak runs. The workflow then assembles exactly nine Soundscaper
-desktop packages and five runtime manifests, performs install/rollback smokes,
-deploys the web artifact, and publishes the checksummed release. Framescaper is
-deferred and does not enter those blockers.
+Soundscaper Stable 1.0 has a separate exact `v1.0.0` workflow. Pushing that tag
+is the owner's release decision. The workflow verifies the checked-in version
+and channel, runs the canonical static, sharded Node, coverage, and browser
+gates, builds and self-tests all five professional-native targets, and rejects
+any missing or mismatched build result. It then assembles exactly nine unsigned
+Soundscaper desktop packages and five runtime manifests, runs package smokes,
+creates notices, corresponding source, and `SHA256SUMS`, deploys and verifies
+Pages, and publishes the release. Framescaper remains on its independent,
+deferred release line.
 
 The packaged desktop entry point requests Electron's regular hardware GPU
 selection before the application becomes ready. The operating system and
@@ -231,13 +233,10 @@ directory contains `metrics/summary.json` with evaluated metric gates,
 `metrics/junit.xml` for machine-readable test results, `metrics/console.log`,
 `metrics/playwright-report/index.html`, and `metrics/test-results/`.
 
-The portable runner has separate diagnostic and formal owner-host identity
-modes. When none of the owner identity variables is set, it records the
-explicit non-authoritative value `not-recorded` in all four fingerprint fields
-and still runs the packaged applications. That evidence is useful for
-correctness diagnostics, but its fingerprint necessarily fails formal
-qualification. A formal owner-host assessment must set all four variables in
-the launcher's environment:
+The portable runner produces diagnostics, not qualification evidence. It runs
+without host metadata. If useful while debugging a particular machine, any
+subset of these optional environment variables may be supplied and is copied
+into the report as observed context:
 
 - `SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION` — the exact installed GPU
   driver version;
@@ -246,11 +245,8 @@ the launcher's environment:
 - `SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE` — the resolution, refresh rate,
   and scale identity.
 
-Supplying only some of those variables is treated as an incomplete identity
-and ends the launcher with exit code 2 before packaged-runtime collection.
-Supplying all four preserves their exact values in the diagnostic fingerprint;
-formal admission still requires that complete fingerprint and every other
-registered condition to match the owner-designated profile.
+Omitted values remain unrecorded. A partial set is valid and does not change
+the run's exit status or turn the host into a representative hardware profile.
 
 The runner then launches the bundled hardened Soundscaper and Framescaper
 executables and attaches Playwright over an ephemeral loopback-only Chromium
@@ -261,27 +257,17 @@ directory contains `packaged-runtime/summary.json`,
 `packaged-runtime/raw.json`, `packaged-runtime/results.json`,
 `packaged-runtime/junit.xml`, `packaged-runtime/console.log`,
 `packaged-runtime/playwright-report/index.html`, and
-`packaged-runtime/test-results/`. It also writes
-`packaged-runtime/qualification.json`: fail-closed formal verification entries
-that independently admit the M1 preview and Soundscaper M4 results against the
-owner-designated Windows x64 RTX 3090 host fingerprint, each registered
-workload and sampling shape, the exact budget digest, one attempt, zero retries,
-one worker, hardware rendering, and every registered threshold. A failure in
-one workload or in unrelated Framescaper coverage does not invalidate another
-complete qualification. This makes packaged-runtime evidence machine-readable
-instead of relying only on CI log lines.
-
-Other hosts and workloads remain `pending-external`. An identity, renderer,
-source-revision, budget-digest, retry, worker, or metric mismatch is recorded as
-a rejected qualification. A metric-threshold or collector failure still makes
-the overall run fail.
+`packaged-runtime/test-results/`. Deterministic correctness and parity failures
+still fail the run. Timing, heap, renderer, and host observations remain
+diagnostic measurements tied to that run; the runner emits no accepted-evidence
+artifact, hardware lower-bound claim, or qualified-workload status.
 
 The browser phase carries full Chromium rather than Chromium Headless Shell and
 launches it headlessly with `--enable-gpu` for normal hardware renderer
 selection. The packaged-runtime phase uses the
 Chromium embedded in each real Electron application. Every diagnostic records
-the observed renderer; a SwiftShader, llvmpipe, software, or unknown result
-remains non-qualifying.
+the observed renderer so software fallback or an unknown renderer is visible in
+the report without pretending that one host qualifies other hardware.
 
 Those two launcher files are attempted even for infrastructure failures. Once
 Playwright starts, the directory also contains `results.json` and `junit.xml`
@@ -390,9 +376,9 @@ CLOUDFLARE_API_TOKEN=<r2-cors-cache-rules-and-purge-token>
 ```
 
 Use the jurisdiction-specific endpoint required by the manifest (`eu` here).
-Node and npm do not load `.env` automatically. After the three checked-in
-publication blockers have received their existing approvals, run the two gated
-steps explicitly:
+Node and npm do not load `.env` automatically. The following are legacy
+diagnostic commands, not a release workflow; they proceed only when the
+checked-in distribution checks allow publication:
 
 ```sh
 node --env-file=.env scripts/configure-ffmpeg-runtime-cache.mjs
@@ -652,9 +638,8 @@ than a shared-storage lookup.
 ## Audacity interoperability
 
 The AUP4 fixture codec and StaffPad WASM audits are retained from the original
-kw.media implementation. The compiled-native Audacity round-trip release gate is
-still tracked separately in `tests/fixtures/aup4-interop-gate.json` and fails
-closed until its required evidence is supplied.
+kw.media implementation. The optional compiled-native Audacity round-trip audit
+is tracked separately in `tests/fixtures/aup4-interop-gate.json`.
 
 The release audit accepts an optional executable built from the pinned Audacity
 commit:
@@ -673,10 +658,10 @@ whitespace. Invoking
 `<runner> --roundtrip <input.aup4> <output.aup4>` must open the read-only input
 through that revision's Audacity loader, save to the distinct output path
 through its native writer, close and checkpoint the database, and exit zero.
-The audit hashes the runner and both directions' files, independently validates
-the native outputs with Soundscaper's codec, and only passes the release gate
-from evidence produced during that invocation. Without a runner, the normal
-codec audit still passes and the release audit exits with status 2.
+The audit hashes the runner and both directions' files and independently
+validates the native outputs with Soundscaper's codec. Without a runner, the
+normal codec audit still passes and the optional interoperability audit exits
+with status 2.
 
 ### Nyquist WebAssembly
 

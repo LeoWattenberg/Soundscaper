@@ -1,5 +1,9 @@
 # Milestone 3B-4b3: frame-canonical edge-trim integration
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > **Implemented:** commit `8de72ca` on 2026-08-11. Bounded slice immediately after
 > [3B-4b2 — frame-canonical edge-trim planner](milestone-3b-frame-canonical-edge-trim-planner.md).
 > This slice inherits that planner as its only trim authority and makes ordinary

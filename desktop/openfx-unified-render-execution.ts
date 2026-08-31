@@ -53,12 +53,11 @@ import {
 
 type OfxUnifiedExactPlan = UnifiedExactRenderPlanV12 | UnifiedExactRenderPlanV14;
 
-export const OFX_CANDIDATE_EXECUTION_POLICIES = Object.freeze([
-	'production-unattested',
-	'production-attested',
+export const OFX_EXECUTION_MODES = Object.freeze([
+	'verified-result',
 	'framescaper-conformance-fixture',
 ] as const);
-export type OfxCandidateExecutionPolicy = (typeof OFX_CANDIDATE_EXECUTION_POLICIES)[number];
+export type OfxExecutionMode = (typeof OFX_EXECUTION_MODES)[number];
 
 export interface OfxBoundDataPlaneV1 {
 	readonly binding: HelperDataPlaneBinding;
@@ -106,7 +105,7 @@ export interface OfxUnifiedNodeExecutionRequestV1 {
 	readonly instanceId: string;
 	readonly runtime: OfxEffectRuntimeV26;
 	readonly requestedBackend: OfxRenderBackendV1;
-	readonly executionPolicy: OfxCandidateExecutionPolicy;
+	readonly executionMode: OfxExecutionMode;
 	readonly signal?: AbortSignal;
 	readonly onHostFailure?: (error: unknown) => void;
 	readonly createAttemptResources: (
@@ -242,13 +241,11 @@ export async function executeUnifiedExactOfxNodeV1(
 	if (initial.mode !== 'render') {
 		return recovery(effect.state, request.runtime.availability, request.runtime.freshness);
 	}
-	if (!(OFX_CANDIDATE_EXECUTION_POLICIES as readonly unknown[])
-		.includes(request.executionPolicy)) {
-		throw new RangeError('The OpenFX candidate execution policy is unsupported.');
+	if (!(OFX_EXECUTION_MODES as readonly unknown[]).includes(request.executionMode)) {
+		throw new RangeError('The OpenFX execution mode is unsupported.');
 	}
-	if (request.executionPolicy === 'production-unattested'
-		|| (request.executionPolicy === 'framescaper-conformance-fixture'
-			&& effect.state.pluginId !== 'org.framescaper.conformance')) {
+	if (request.executionMode === 'framescaper-conformance-fixture'
+		&& effect.state.pluginId !== 'org.framescaper.conformance') {
 		return recovery(effect.state, 'revoked', request.runtime.freshness, 'isolation-unavailable');
 	}
 	request.signal?.throwIfAborted();

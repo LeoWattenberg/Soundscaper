@@ -6,7 +6,7 @@ import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 
-test('desktop read capability evidence remains qualified for its current surface', async () => {
+test('desktop read capability behavior remains verified for its current surface', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const desktopRead = matrix.risks.find(({ id }) => id === 'desktop-read-path-capabilities');
 	assert.ok(desktopRead);
@@ -169,6 +169,6 @@ test('desktop read capability evidence remains qualified for its current surface
 		boundedMaterialization.summary,
 		/only.*main-assigned `materialized-v1`.*authoritative main-process admission.*aggregate active declared selected-file bytes.*512 MiB.*per committed-document owner.*before publication.*preload.*exact materialized profile.*name.*MIME.*safe size.*canonical profile-bearing URL.*renderer.*before fetch.*rejects.*Scape name.*canonical Scape MIME.*`scape-range-v1`.*`linked-audio-range-v1`.*`linked-video-range-v1`.*instead of materializing.*exact declared Content-Length.*emitted-byte.*final Blob-size.*response body stream.*copied and split.*16 MiB.*caller.*AbortSignal.*stalled body read.*exact reason.*never calls response\.blob.*scoped descriptor batch.*releases every capability.*success.*failure.*cancellation.*request abort.*destroys.*file stream.*bounded whole-Blob tier.*not.*decoder amplification.*whole-process RSS.*Scape and linked-original audio\/video ranges.*excluded.*separately admitted range profiles/iu,
 	);
-	assert.equal(desktopRead.releaseDisposition, 'qualified-current-surface');
+	assert.equal(desktopRead.surfaceDisposition, 'verified-current-surface');
 	assert.deepEqual(desktopRead.residualRisks, []);
 });

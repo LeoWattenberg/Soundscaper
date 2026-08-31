@@ -6,8 +6,8 @@
 > owns scope and status; the compatibility policy, the threat model, and the
 > quality budgets own their claims. Re-grounded against the implementation on
 > 2026-08-29. This is a post-milestone-8 extension, not milestone-9 work: the
-> product-origin cutover and durable handoff are complete before stable
-> qualification. Milestone 9 depends on this plan and not the reverse.
+> product-origin cutover and durable handoff are complete before a stable
+> release. Milestone 9 depends on this plan and not the reverse.
 
 > **Implementation disposition (2026-08-29):** the user-approved
 > [cutover decision](wp-8c-cutover-decision.md) selects separate origins and an
@@ -21,7 +21,7 @@
 
 ## Goals and ordering principle
 
-1. **Primary: make the origin split before stable qualification.** The
+1. **Primary: make the origin split before a stable release.** The
    separate-origin deployment is complete and Soundscaper no longer emits the
    Framescaper app or worker scope. Because no legacy population or retained
    pre-release store exists, the cutover is immediate rather than a staged
@@ -185,7 +185,7 @@ the old Framescaper app, worker scope, or store under the Soundscaper origin.
   line ceiling; no code changes in this packet.
 - **Acceptance:** `roadmap-guidance` remains green and the §8+C status states
   the selected topology, immediate no-legacy cutover, and permanent route
-  lifetime without claiming stable qualification.
+  lifetime without making a general platform-support claim.
 - **Non-goals:** No manifest change, no redirect, no storage work.
 - **Stop condition:** Stop if the decision cannot be made — every packet
   below depends on it, and building the handoff against an undecided
@@ -344,6 +344,6 @@ the old Framescaper app, worker scope, or store under the Soundscaper origin.
   server-side project storage. The product remains local-first.
 - No new project schema number or archive envelope; family-v1 and Scape format
   v1 remain frozen, and no second clean break is allowed.
-- No MIDI state or qualification row; MIDI remains post-1.0 scope.
+- No MIDI state; MIDI remains post-1.0 scope.
 - No change to the desktop products' shared project library.
 - No telemetry, in this plan or as a condition of closing it.

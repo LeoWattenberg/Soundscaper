@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Handing a persisted proxy body to the authority that re-attests it.
+ * Handing a persisted proxy body to the authority that revalidates it.
  *
- * Re-attestation takes an `acquireBody` port and no implementation shipped, so
+ * Revalidation takes an `acquireBody` port and no implementation shipped, so
  * the one authority that can decide a persisted attachment is safe to show had
  * no way to read what it was deciding about. This is that port over the project
  * store, for both bodies an attachment names: the proxy picture and the timing
@@ -18,7 +18,7 @@
  * It deliberately does not decide anything. Length is checked because a body of
  * the wrong size cannot be the one the attachment names and reading further
  * wastes a load, but the digest, the timing validation, and the conformance
- * rerun all belong to the re-attestation authority, which is the only thing
+ * rerun all belong to the revalidation authority, which is the only thing
  * allowed to conclude that a proxy may be shown. A body that is missing,
  * unreadable, or the wrong length fails here, and a failure there means
  * original-or-unavailable — never a proxy shown on trust.
@@ -29,7 +29,7 @@ import type {
 	FramescaperVideoProxyBodyLeaseSequence,
 	FramescaperVideoProxyBodyRequestSequence,
 	FramescaperVideoProxyExpectedBodySequence,
-} from './editor-video-proxy-reattestation-contract-sequence.ts';
+} from './editor-video-proxy-revalidation-contract-sequence.ts';
 
 export interface FramescaperVideoProxyBodyStoreSequence {
 	loadMediaAsset(

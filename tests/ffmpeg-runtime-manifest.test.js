@@ -9,7 +9,7 @@ import test from 'node:test';
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import {
-	REQUIRED_LICENSING_GATES,
+	REQUIRED_LICENSING_CHECKS,
 	createFixture,
 	descriptor,
 	writeBytes,
@@ -152,7 +152,7 @@ test('publisher rejects fabricated, mutated, or post-validation-corrupted releas
 		purpose: 'desktop-assembly',
 	});
 	assert.throws(
-		() => { release.manifest.authorizations.runtimePublication.status = 'blocked'; },
+		() => { release.manifest.distributionChecks.runtimePublication.allowed = true; },
 		/readonly|read only|Cannot assign/iu,
 	);
 	let calls = 0;
@@ -250,7 +250,7 @@ test('desktop release assembly requires the immutable no-FFmpeg provider policy'
 	);
 	assert.throws(
 		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, targetSource: 'build-host' } })),
-		/build-host native addon target; release evidence requires a declared target/iu,
+		/build-host native addon target; package assembly requires a declared target/iu,
 	);
 	assert.throws(
 		() => validateDesktopRuntimeManifests(identified({ nativeAddons: { ...nativeAddons, payload: null } })),
@@ -271,20 +271,13 @@ test('incomplete runtime evidence fails both gates before side effects', async (
 	await assertNoSideEffects(mismatch, /does not identify the pinned ffmpeg\.wasm build source/iu);
 });
 
-test('review payload binding stays exact while pending human status remains testable', async (context) => {
+test('manifest integrity stays exact without human review fields', async (context) => {
 	const stale = await createFixture(context);
 	stale.manifest.evidence.notices.sha256 = '0'.repeat(64);
 	await writeJson(stale.manifestPath, stale.manifest);
-	await assertNoSideEffects(stale, /review payload digest/iu);
-
-	const pending = await createFixture(context);
-	pending.manifest.review.status = 'pending';
-	await writeJson(pending.manifestPath, pending.manifest);
-	for (const purpose of ['desktop-assembly', 'runtime-publication', 'desktop-release']) {
-		assert.equal((await verifyFfmpegRuntimeManifest({
-			repositoryRoot: pending.root, purpose,
-		})).manifest.review.status, 'pending');
-	}
+	await assertNoSideEffects(stale, /integrity payload digest/iu);
+	assert.deepEqual(Object.keys(stale.manifest.integrity), ['payloadSha256']);
+	assert.equal(Object.hasOwn(stale.manifest, 'review'), false);
 });
 
 test('the line-ending policy covers every digest-bound text input', async (context) => {
@@ -325,17 +318,18 @@ test('case-insensitive release sidecar collisions fail before side effects', asy
 	await assertNoSideEffects(fixture, /source archive filename is reserved: sha256sums/iu);
 });
 
-test('pending Milestone 9 review is reported without blocking assembly, publication, or test packaging', async () => {
+test('licensing-derived distribution checks are reported without release approval state', async () => {
 	const release = await verifyFfmpegRuntimeManifest({
 		repositoryRoot: ROOT,
 		purpose: 'desktop-assembly',
 	});
-	assert.equal(release.manifest.authorizations.desktopAssembly.status, 'approved');
-	assert.equal(release.manifest.authorizations.runtimePublication.status, 'blocked');
+	assert.equal(release.manifest.distributionChecks.desktopAssembly.allowed, true);
+	assert.equal(release.manifest.distributionChecks.runtimePublication.allowed, false);
 	assert.deepEqual(
-		release.manifest.authorizations.runtimePublication.blockedBy,
-		REQUIRED_LICENSING_GATES,
+		release.manifest.distributionChecks.runtimePublication.blockedBy,
+		REQUIRED_LICENSING_CHECKS,
 	);
+	assert.equal(Object.hasOwn(release.manifest, 'review'), false);
 
 	assert.equal((await verifyFfmpegRuntimeManifest({
 		repositoryRoot: ROOT, purpose: 'runtime-publication',

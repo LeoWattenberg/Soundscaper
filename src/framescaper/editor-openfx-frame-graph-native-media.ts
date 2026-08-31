@@ -36,7 +36,7 @@ export interface FramescaperOpenFxFrameExecutionRequestNativeMedia {
 	readonly instanceId: string;
 	readonly context: OfxContext;
 	readonly outputOrdinal: number;
-	readonly requestedBackend: OfxRenderBackendV1 | 'qualified-preferred';
+	readonly requestedBackend: OfxRenderBackendV1 | 'supported-preferred';
 	readonly inputs: readonly Readonly<{
 		readonly name: string;
 		readonly sourceRef: string;
@@ -86,7 +86,7 @@ export interface FramescaperOpenFxFrameGraphNativeMedia {
 		readonly namedPlanes: readonly FramescaperOpenFxNamedPlaneNativeMedia[];
 		readonly transitionProgress?: number;
 		readonly retimerSourceTime?: Readonly<{ readonly num: number; readonly den: number }>;
-		readonly requestedBackend?: OfxRenderBackendV1 | 'qualified-preferred';
+		readonly requestedBackend?: OfxRenderBackendV1 | 'supported-preferred';
 		readonly signal: AbortSignal;
 	}>): Promise<Readonly<{
 		readonly frame: FramescaperOpenFxFrameNativeMedia;
@@ -221,7 +221,7 @@ function checkpoint(
 		|| value.outputOrdinal >= plan.output.frameCount
 		|| !(value.signal instanceof AbortSignal)
 		|| (value.requestedBackend !== undefined
-			&& !['cpu', 'opengl', 'opencl', 'cuda', 'metal', 'qualified-preferred']
+			&& !['cpu', 'opengl', 'opencl', 'cuda', 'metal', 'supported-preferred']
 				.includes(value.requestedBackend))) {
 		throw new TypeError('Selected nativeMedia OpenFX frame checkpoint is invalid.');
 	}
@@ -244,7 +244,7 @@ function checkpoint(
 		context: value.context, targetId: value.targetId, outputOrdinal: value.outputOrdinal,
 		primary, namedPlanes, transitionProgress: value.transitionProgress,
 		retimerSourceTime: value.retimerSourceTime,
-		requestedBackend: value.requestedBackend ?? 'qualified-preferred', signal: value.signal,
+		requestedBackend: value.requestedBackend ?? 'supported-preferred', signal: value.signal,
 	});
 }
 

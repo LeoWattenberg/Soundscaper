@@ -16,8 +16,9 @@
 > authenticated target payload closure. Existing Parakeet/Silero/diarization
 > and model-free fast-shot execution remains admitted. Catalog metadata is not
 > durable R2 publication or public read-back evidence. Five-target canaries,
-> the registered privacy run, and owner-lab qualification remain pending; all
-> hard admission gates stay fail closed.
+> privacy diagnostics, and optional owner-device QA remain to be run. They do
+> not certify or gate a release; catalog, artifact, runtime, selection, consent,
+> and result-integrity checks stay fail closed when the feature is used.
 >
 > **Implemented:** delivered on 2026-08-13, the first milestone-7 slice.
 > Decomposes the licensing half of WP-7.0.0 in
@@ -38,7 +39,7 @@
 - Those four slugs bind to nothing. `enableRequires` is free-form text
   everywhere in the matrix; `tests/production-licensing-matrix.test.js:163`
   only asserts `length >= 3`. Note that `web-notice-delivery` at
-  `:323` coincidentally equals a `releaseGates` id and nothing checks the
+  `:323` coincidentally equals a `distributionChecks` id and nothing checks the
   coincidence. **Turning those four slugs into required, individually
   satisfied, per-model fields is this slice's entire deliverable.**
 - The fail-closed rule the records must obey is
@@ -103,18 +104,17 @@ empty and `blocked` otherwise. The validator recomputes both and rejects
 a record whose authored values disagree. An incomplete record therefore
 cannot be typo'd, optimised, or hand-waved into a distributable state —
 which is the fail-closed rule expressed as arithmetic rather than as a
-review instruction. This derived status feeds milestone-9 stable 1.0
-admission only; it cannot hide an authenticated model, block local packaging,
-or disable testing.
+review instruction. At this historical slice it described model-distribution
+availability only; it never hid an authenticated model, blocked unrelated local
+packaging, disabled testing, or issued a release decision.
 
 ## Contract 3: every launch-set release record is pending at this slice
 
 `versioned-download-notices-and-hashes` requires a pinned artifact with a
 byte length and a SHA-256. No artifact is mirrored yet — that is WP-7.0.1
-— so this requirement is `pending` for every record and the entire launch
-set is `blocked` for stable 1.0 admission. This is recorded as a release-review
-assertion, not runtime authority: machine-complete catalog entries remain
-visible and testable.
+— so this requirement is `pending` for every record and the historical launch
+set was blocked from distribution. This record is not runtime or release
+authority: machine-complete catalog entries remain visible and testable.
 
 Two records are additionally blocked on `weights-and-code-license-review`
 with status `unresolved`, and they are the reason the mechanism needs

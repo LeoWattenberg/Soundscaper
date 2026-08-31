@@ -20,7 +20,7 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 		'host_runtime.hpp', 'host_parameter_hydration.hpp', 'host_scan_inspection.inc',
 		'host_standard_parameters.inc', 'loaded_plugin_binary.cpp', 'ofx_scanner.cpp',
 		'ofx_runtime_host.cpp', 'rgba_frame.hpp', 'gpu_runtime.cpp', 'gpu_runtime.hpp',
-		'v12_gpu_qualification.cpp', 'v12_gpu_qualification.hpp',
+		'v12_gpu_support.cpp', 'v12_gpu_support.hpp',
 		'v12_cancellation_channel.cpp', 'v12_cancellation_channel.hpp',
 		'v12_host_invocation.cpp', 'v12_host_invocation.hpp',
 		'v12_output_file.cpp', 'v12_output_file.hpp',

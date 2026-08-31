@@ -110,7 +110,7 @@ async function createFixture(context: test.TestContext) {
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: { launcher: scanner, sandboxProfile: scanner,
 			brokerPolicy: scanner, runtimeLibraries: [] },
-		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
+		supportedGpuBackends: ['opengl', 'opencl', 'cuda'],
 	};
 	return { descriptor: host, plugin, scratch: {
 		rootPath: scratchPath, rootIdentity: { dev: scratch.dev, ino: scratch.ino },
@@ -130,7 +130,10 @@ function executable(role: 'ofx-host' | 'ofx-plugin', value: Awaited<ReturnType<t
 }
 
 function handle(result: Readonly<{ exitCode: number; stdout: string; stderr: string }>) {
-	return { completion: Promise.resolve(result), cancel: async () => undefined };
+	return {
+		completion: Promise.resolve({ ...result, isolationChecksPassed: true }),
+		cancel: async () => undefined,
+	};
 }
 
 function digest(bytes: Uint8Array): string {

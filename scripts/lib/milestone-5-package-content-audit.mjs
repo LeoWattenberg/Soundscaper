@@ -20,7 +20,7 @@ import {
 	boundedString,
 	deepFreeze,
 	exactRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import {
 	readProductReleaseLines,
 	resolveProductApplicationVersion,

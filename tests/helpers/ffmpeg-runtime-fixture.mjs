@@ -20,14 +20,14 @@ import { NATIVE_ADDON_PAYLOAD_MANIFEST_PATH } from '../../scripts/lib/native-add
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
-/** Every release gate the FFmpeg provenance manifest derives authorizations from. */
-export const ALL_LICENSING_GATES = Object.freeze([
+/** Every licensing check the FFmpeg provenance manifest derives distribution state from. */
+export const ALL_LICENSING_CHECKS = Object.freeze([
 	'dependency-notice-version-audit', 'desktop-notice-delivery', 'ffmpeg-enabled-codec-patent-review',
 	'ffmpeg-enabled-library-corresponding-source', 'ffmpeg-runtime-manifest-integrity', 'web-notice-delivery',
 ]);
 
 /** The subset a runtime publication additionally requires. */
-export const REQUIRED_LICENSING_GATES = Object.freeze([
+export const REQUIRED_LICENSING_CHECKS = Object.freeze([
 	'ffmpeg-enabled-codec-patent-review', 'ffmpeg-enabled-library-corresponding-source', 'web-notice-delivery',
 ]);
 
@@ -154,7 +154,7 @@ export async function createFixture(context) {
 		licensingPolicy: Buffer.from('# Fixture licensing policy\n'),
 		licensingMatrix: Buffer.from(JSON.stringify({
 			schemaVersion: 1,
-			releaseGates: ALL_LICENSING_GATES.map((id) => ({ id, status: 'implemented' })),
+			distributionChecks: ALL_LICENSING_CHECKS.map((id) => ({ id, status: 'implemented' })),
 		})),
 		securityMatrix: Buffer.from(JSON.stringify(securityMatrix)),
 		threatModel: Buffer.from('# Fixture threat model\n'),
@@ -219,16 +219,12 @@ export async function createFixture(context) {
 			riskId: 'runtime-supply-chain',
 			controlId: 'validated-ffmpeg-runtime-publication',
 		},
-		authorizations: {
-			desktopAssembly: { status: 'approved', blockedBy: [] },
-			runtimePublication: { status: 'approved', blockedBy: [] },
-			desktopRelease: { status: 'approved', blockedBy: [] },
+		distributionChecks: {
+			desktopAssembly: { allowed: true, blockedBy: [] },
+			runtimePublication: { allowed: true, blockedBy: [] },
+			desktopRelease: { allowed: true, blockedBy: [] },
 		},
-		review: {
-			status: 'approved',
-			reviewedAt: '2026-07-29',
-			reviewer: 'Fixture release reviewer',
-			scopes: ['desktop-assembly', 'desktop-release-policy', 'runtime-publication-policy'],
+		integrity: {
 			payloadSha256: '',
 		},
 	};
@@ -247,8 +243,8 @@ export async function createFixture(context) {
 }
 
 export async function writeManifest(fixture) {
-	fixture.manifest.review.payloadSha256 = sha256(Buffer.from(canonicalJson(
-		Object.fromEntries(Object.entries(fixture.manifest).filter(([key]) => key !== 'review')),
+	fixture.manifest.integrity.payloadSha256 = sha256(Buffer.from(canonicalJson(
+		Object.fromEntries(Object.entries(fixture.manifest).filter(([key]) => key !== 'integrity')),
 	)));
 	await writeJson(fixture.manifestPath, fixture.manifest);
 }

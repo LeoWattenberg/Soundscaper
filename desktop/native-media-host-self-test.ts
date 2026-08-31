@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Runs the pinned host attestation through the independently reviewed OS launcher. */
+/** Runs the pinned host self-test through the verified OS launcher. */
 
 import type { FramescaperMediaHostDescriptor } from './framescaper-media-host-payload.ts';
 import { authenticateNativeMediaFile } from './native-media-file-auth.ts';
@@ -200,7 +200,7 @@ export function runFramescaperMediaHostSelectedV20RenderSelfTest(
 		const value = parseSelfTestJson(result.stdout);
 		assertFramescaperMediaHostSelectedV20RenderSelfTest(value);
 		if ((result.exitCode === 0) !== value.ready) {
-			throw new Error('The selected-V20 media-render self-test exit status does not match its readiness evidence.');
+			throw new Error('The selected-V20 media-render self-test exit status does not match its result.');
 		}
 		return value;
 	});
@@ -222,7 +222,7 @@ export function runFramescaperMediaHostSelectedV28V14RenderSelfTest(
 		const value = parseSelfTestJson(result.stdout);
 		assertFramescaperMediaHostSelectedV28V14RenderSelfTest(value);
 		if ((result.exitCode === 0) !== value.ready) {
-			throw new Error('The selected-V28/V14 media-render self-test exit status does not match its readiness evidence.');
+			throw new Error('The selected-V28/V14 media-render self-test exit status does not match its result.');
 		}
 		return value;
 	});
@@ -245,13 +245,13 @@ function assertBoundedControlResult(value: IsolatedNativeMediaHostControlResult)
 
 function selectedV20SelfTestError(): TypeError {
 	return new TypeError(
-		'The selected-V20 media-render self-test did not return its exact closed readiness evidence.',
+		'The selected-V20 media-render self-test did not return its exact closed result.',
 	);
 }
 
 function selectedV28V14SelfTestError(): TypeError {
 	return new TypeError(
-		'The selected-V28/V14 carrier self-test did not return its exact closed readiness evidence.',
+		'The selected-V28/V14 carrier self-test did not return its exact closed result.',
 	);
 }
 

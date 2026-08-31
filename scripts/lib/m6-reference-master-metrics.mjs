@@ -7,7 +7,7 @@ import {
 	isRecord,
 	nonNegativeInteger,
 	requireRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 /*

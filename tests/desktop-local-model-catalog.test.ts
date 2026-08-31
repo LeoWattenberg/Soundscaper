@@ -158,7 +158,7 @@ test('a model without a licensing evidence record cannot be cataloged', () => {
 	);
 });
 
-test('Milestone 9 refusal metadata cannot disable an authenticated test catalog', () => {
+test('distribution metadata cannot disable an authenticated test catalog', () => {
 	assert.doesNotThrow(() => validateLocalModelCatalog(
 		catalogOf([entry({ modelId: 'crisperwhisper' })]),
 		binding({ evidenceIds: ['crisperwhisper'], refusedIds: ['crisperwhisper'] }),

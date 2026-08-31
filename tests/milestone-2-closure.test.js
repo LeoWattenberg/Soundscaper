@@ -31,8 +31,8 @@ const ITEM_IDS = [
 	'm2-managed-capacity-admission',
 	'm2-media-relationship-roundtrip',
 	'm2-opfs-worker-boundary',
-	'm2-pipeline-resource-qualification',
-	'm2-pipeline-route-qualification',
+	'm2-pipeline-resource-verification',
+	'm2-pipeline-route-verification',
 	'm2-publication-fault-matrix',
 ];
 

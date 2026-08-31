@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Where an OpenFX bundle's binary lives on each qualifying target.
+ * Where an OpenFX bundle's binary lives on each supported target.
  *
  * These directory names are the OpenFX packaging convention, not ours, and the
  * mapping is deliberately exact rather than derived. Windows on ARM is the
@@ -13,7 +13,7 @@
  *
  * macOS x64 is deliberately absent: it is an explicit milestone-5B non-goal, so
  * asking for it returns null rather than a plausible directory that would then
- * be qualified against nothing.
+ * be verified against nothing.
  */
 
 export const OFX_TARGETS = Object.freeze([
@@ -31,8 +31,8 @@ export const OFX_TARGET_ARCHITECTURE_DIRECTORIES: Readonly<Record<OfxTarget, str
 		'linux-arm64': 'Linux-aarch64',
 	});
 
-/** Qualification that must pass on every target, with no hardware excuse. */
-export const OFX_UNIVERSAL_QUALIFICATIONS: readonly string[] = Object.freeze([
+/** Verification that must pass on every target, with no hardware excuse. */
+export const OFX_UNIVERSAL_VERIFICATIONS: readonly string[] = Object.freeze([
 	'cpu-render',
 	'interact-v1',
 	'overlay-interact-v2',
@@ -42,7 +42,7 @@ export const OFX_UNIVERSAL_QUALIFICATIONS: readonly string[] = Object.freeze([
 ]);
 
 /** Which GPU mechanisms are even applicable on a given target. */
-export const OFX_TARGET_GPU_QUALIFICATIONS: Readonly<Record<OfxTarget, readonly string[]>> =
+export const OFX_TARGET_GPU_SUPPORT: Readonly<Record<OfxTarget, readonly string[]>> =
 	Object.freeze({
 		'win32-x64': Object.freeze(['opengl-render', 'opencl-render', 'cuda-render']),
 		'win32-arm64': Object.freeze(['opengl-render', 'opencl-render']),
@@ -74,26 +74,26 @@ export function ofxBundleBinaryPath(bundleName: string, target: string): string 
 }
 
 /** Everything one target must pass before 5B may claim it. */
-export function ofxRequiredQualifications(
+export function ofxRequiredVerifications(
 	target: OfxTarget,
 	provisionedGpuMechanisms: readonly string[] = [],
 ): readonly string[] {
-	const applicable = OFX_TARGET_GPU_QUALIFICATIONS[target];
+	const applicable = OFX_TARGET_GPU_SUPPORT[target];
 	const gpu = provisionedGpuMechanisms.filter((mechanism) => applicable.includes(mechanism));
-	return Object.freeze([...OFX_UNIVERSAL_QUALIFICATIONS, ...gpu]);
+	return Object.freeze([...OFX_UNIVERSAL_VERIFICATIONS, ...gpu]);
 }
 
 /**
- * A target is qualified only when every universal requirement passed. GPU
- * mechanisms qualify where their hardware exists; unprovisioned ones stay
- * unqualified rather than being counted as passes.
+ * A target is verified only when every universal requirement passed. GPU
+ * mechanisms are verified where their hardware exists; unprovisioned ones stay
+ * unsupported rather than being counted as passes.
  */
-export function ofxTargetIsQualified(
+export function ofxTargetIsVerified(
 	target: OfxTarget,
 	passed: readonly string[],
 	provisionedGpuMechanisms: readonly string[] = [],
 ): boolean {
-	const required = ofxRequiredQualifications(target, provisionedGpuMechanisms);
+	const required = ofxRequiredVerifications(target, provisionedGpuMechanisms);
 	const observed = new Set(passed);
 	return required.every((requirement) => observed.has(requirement));
 }

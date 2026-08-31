@@ -39,7 +39,7 @@ export const ELECTRON_LEASE_WORKFLOWS = Object.freeze([
 	'crash-restart-recovery',
 ]);
 
-const QUALIFICATION_ID_TOKENS = Object.freeze([
+const NARRATIVE_CODE_ID_TOKENS = Object.freeze([
 	...FALLBACK_WITNESS_ROLES,
 	...FALLBACK_ROUNDTRIP_WORKFLOWS,
 	...ELECTRON_LIBRARY_WORKFLOWS,
@@ -156,10 +156,10 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 	}),
 	Object.freeze({
-		marker: 'framescaper-v18-proxy-reattestation',
+		marker: 'framescaper-v18-proxy-revalidation',
 		register: 'config/production-security-matrix.json',
 		riskId: 'external-media-parser-bounds',
-		controlId: 'framescaper-v1-proxy-reattestation',
+		controlId: 'framescaper-v1-proxy-revalidation',
 		field: 'summary',
 		document: 'docs/production-threat-model.md',
 		intro: null,
@@ -400,7 +400,7 @@ export function renderPolicyNarrative(text, binding) {
 		rendered = documentIntro + rendered.slice(registerIntro.length);
 	}
 	rendered = rendered.replace(/\b(Soundscaper|Framescaper) to (?=(?:Soundscaper|Framescaper)\b)/gu, '$1 → ');
-	for (const token of QUALIFICATION_ID_TOKENS) {
+	for (const token of NARRATIVE_CODE_ID_TOKENS) {
 		rendered = rendered.replace(new RegExp(`(?<!\`)\\b${token}\\b(?!\`)`, 'gu'), `\`${token}\``);
 	}
 	if (binding.wrap) rendered = wrapText(rendered, binding.wrap);

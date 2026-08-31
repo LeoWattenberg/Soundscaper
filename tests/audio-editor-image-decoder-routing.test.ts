@@ -8,7 +8,7 @@ import {
 	type ImageDecoderId,
 } from '../src/common/editor/image-decoder-routing.ts';
 
-test('qualified common static sRGB8 files take the browser route first', () => {
+test('verified common static sRGB8 files take the browser route first', () => {
 	for (const format of ['jpeg', 'png', 'gif', 'webp', 'bmp', 'dib'] as const) {
 		assert.deepEqual(route(format, 'srgb-8-bit', 'single', ['browser-native', 'ffmpeg']), {
 			status: 'ready',
@@ -18,7 +18,7 @@ test('qualified common static sRGB8 files take the browser route first', () => {
 	}
 });
 
-test('qualified browser ImageDecoder animations keep their embedded frame timing', () => {
+test('verified browser ImageDecoder animations keep their embedded frame timing', () => {
 	for (const format of ['png', 'gif', 'webp'] as const) {
 		assert.deepEqual(route(format, 'srgb-8-bit', 'animated', ['browser-native', 'ffmpeg']), {
 			status: 'ready',
@@ -58,13 +58,13 @@ test('unimplemented ImageMagick-only tiers remain unavailable rather than lookin
 	] as const) {
 		assert.deepEqual(route(format, colour, topology, ['browser-native', 'ffmpeg']), {
 			status: 'unavailable',
-			reason: 'decoder-not-qualified',
+			reason: 'decoder-not-verified',
 			candidates: ['imagemagick-q16-hdri'],
 		}, `${format}/${colour}/${topology}`);
 	}
 });
 
-test('the future Magick route becomes selectable only through explicit qualification', () => {
+test('the future Magick route becomes selectable only through explicit route verification', () => {
 	assert.deepEqual(route('jpeg-xl', 'icc-sdr', 'animated', ['imagemagick-q16-hdri']), {
 		status: 'ready',
 		decoder: 'imagemagick-q16-hdri',
@@ -84,23 +84,23 @@ test('HLG, scene-linear, ambiguous, and contradictory colour claims are terminal
 	}
 });
 
-test('an exact FFmpeg qualification cannot grant a route outside the reviewed codec map', () => {
+test('an exact FFmpeg route verification cannot grant a route outside the reviewed codec map', () => {
 	assert.deepEqual(route('avif', 'tagged-pq', 'single', ['ffmpeg']), {
 		status: 'unavailable',
-		reason: 'decoder-not-qualified',
+		reason: 'decoder-not-verified',
 		candidates: ['imagemagick-q16-hdri'],
 	});
 });
 
-test('routing validates closed requests and unique known qualifications', () => {
+test('routing validates closed requests and unique known verified routes', () => {
 	assert.throws(
 		() => routeImageDecoder({
 			format: 'png',
 			colour: 'srgb-8-bit',
 			topology: 'single',
-			qualifiedRoutes: [
-				qualification('ffmpeg', 'png', 'srgb-8-bit', 'single'),
-				qualification('ffmpeg', 'png', 'srgb-8-bit', 'single'),
+			verifiedRoutes: [
+				verifiedRoute('ffmpeg', 'png', 'srgb-8-bit', 'single'),
+				verifiedRoute('ffmpeg', 'png', 'srgb-8-bit', 'single'),
 			],
 		}),
 		/unique/u,
@@ -110,16 +110,16 @@ test('routing validates closed requests and unique known qualifications', () => 
 			format: 'png',
 			colour: 'srgb-8-bit',
 			topology: 'single',
-			qualifiedRoutes: [qualification('unknown' as never, 'png', 'srgb-8-bit', 'single')],
+			verifiedRoutes: [verifiedRoute('unknown' as never, 'png', 'srgb-8-bit', 'single')],
 		}),
-		/decoder qualification/u,
+		/verified decoder route/u,
 	);
 	assert.throws(
 		() => routeImageDecoder({
 			format: 'png',
 			colour: 'srgb-8-bit',
 			topology: 'single',
-			qualifiedRoutes: [],
+			verifiedRoutes: [],
 			extra: true,
 		} as never),
 		/Unknown image decoder routing request field/u,
@@ -130,19 +130,19 @@ function route(
 	format: Parameters<typeof routeImageDecoder>[0]['format'],
 	colour: Parameters<typeof routeImageDecoder>[0]['colour'],
 	topology: Parameters<typeof routeImageDecoder>[0]['topology'],
-	qualifiedDecoders: readonly ImageDecoderId[],
+	verifiedDecoders: readonly ImageDecoderId[],
 ) {
 	return routeImageDecoder({
 		format,
 		colour,
 		topology,
-		qualifiedRoutes: qualifiedDecoders.map((decoder) => (
-			qualification(decoder, format, colour, topology)
+		verifiedRoutes: verifiedDecoders.map((decoder) => (
+			verifiedRoute(decoder, format, colour, topology)
 		)),
 	});
 }
 
-function qualification(
+function verifiedRoute(
 	decoder: ImageDecoderId,
 	format: Parameters<typeof routeImageDecoder>[0]['format'],
 	colour: Parameters<typeof routeImageDecoder>[0]['colour'],

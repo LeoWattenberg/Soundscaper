@@ -5,7 +5,7 @@
  *
  * Both proxy authorities take an `observeOriginal` port and neither ships an
  * implementation: the relationship authority uses it to generate and time a
- * candidate against the source it names, and re-attestation uses it to re-bind a
+ * candidate against the source it names, and revalidation uses it to re-bind a
  * persisted attachment to the original as it stands *now*. This is that port,
  * bound to the project store the editor already loads pictures from, so an
  * owned source and a linked one both open the same way.
@@ -26,7 +26,7 @@
  * proxy generation would cost a full read to re-learn something the project
  * already states. Integrity of the *proxy* body is a different question and is
  * proven where it belongs: the candidate observer digests what the generator
- * produced, and re-attestation digests the persisted body before it is trusted.
+ * produced, and revalidation digests the persisted body before it is trusted.
  */
 
 import type { VideoProxyOriginalObservationRequest } from '../video-proxy-relationship.ts';

@@ -50,7 +50,7 @@ test('legacy FFmpeg WASM publication remains blocked and absent from production 
 	);
 	assert.match(
 		legacyRuntime.summary,
-		/stable publication and browser reactivation remain blocked.*independent approval attestation.*deliberate audit change/isu,
+		/stable publication and browser reactivation remain blocked.*payload-authentication controls.*deliberate audit change/isu,
 	);
 	assert.match(
 		legacyRuntime.summary,
@@ -63,13 +63,17 @@ test('legacy FFmpeg WASM publication remains blocked and absent from production 
 	assert.ok(reactivation);
 	assert.match(
 		reactivation.exposure,
-		/development-only legacy audit machinery.*no production browser consumes.*dormant.*blocked by the bundle audit/isu,
+		/development-only legacy audit machinery.*no production browser consumes.*payload digest.*blocked by the bundle audit/isu,
 	);
-	assert.match(reactivation.requiredControl, /Before any.*reactivation.*protected approval attestation/isu);
+	assert.match(reactivation.requiredControl, /Before any.*reactivation.*runtime catalog.*authenticates/isu);
 	const attestation = runtimeSupplyChain.residualRisks.find(
 		({ id }) => id === 'runtime-manifest-review-attestation',
 	);
-	assert.ok(attestation);
-	assert.match(attestation.exposure, /self-declared.*blocked-reactivation risk.*rather than an active runtime exposure/isu);
-	assert.ok(runtimeSupplyChain.residualRisks.some(({ id }) => id === 'signed-update-qualification'));
+	assert.equal(attestation, undefined);
+	const unsignedRelease = runtimeSupplyChain.residualRisks.find(
+		({ id }) => id === 'unsigned-manual-release-integrity',
+	);
+	assert.ok(unsignedRelease);
+	assert.match(unsignedRelease.requiredControl, /SHA256SUMS.*package contents.*manual upgrade or rollback/isu);
+	assert.doesNotMatch(JSON.stringify(unsignedRelease), /certificate|notari[sz]|Developer ID|key rotation/iu);
 });

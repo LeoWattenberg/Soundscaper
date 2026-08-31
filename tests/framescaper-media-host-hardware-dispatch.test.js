@@ -36,6 +36,10 @@ test('decode, proxy, and the closed V14 family dispatch hardware without a blank
 
 test('legacy V20 and selected V28/V14 self-tests own separate exact codec inventories', () => {
 	const selected = readFileSync(join(sourceRoot, 'ffmpeg_selected_v20_render.cpp'), 'utf8');
+	assert.match(selected, /struct self_test_result final/u);
+	assert.match(selected, /selected_v20_self_test_result/u);
+	assert.match(selected, /selected_v28_v14_self_test_result/u);
+	assert.doesNotMatch(selected, /readiness_receipt|selected_v20_readiness|selected_v28_v14_readiness/u);
 	const legacy = /legacy_delivery_codec_set_available\(\)[\s\S]*?\n\}/u.exec(selected)?.[0] ?? '';
 	for (const encoder of ['libx264', 'libvpx-vp9', 'aac', 'libopus']) {
 		assert.match(legacy, new RegExp(`"${encoder}"`, 'u'));

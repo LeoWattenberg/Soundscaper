@@ -72,7 +72,7 @@ test('the actual OpenFX scanner child executes only the machine-authenticated an
 		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
-		qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
+		supportedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
 	});
 	const authority = createIsolatedOpenFxNativeChildAuthority(descriptorValue);
 	assert.equal((await authority.machineReady()).status, 'ready');
@@ -129,7 +129,7 @@ test('the isolated runtime admits the Interact invocation form without write aut
 		target: 'linux-x64', runtime: 'linux-x64', hostVersion: '1.0.0',
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
-		qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
+		supportedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
 	}));
 	const grantSha256 = digest(await readFile(grantPath));
 	const interactInvocation = {

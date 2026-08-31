@@ -4,13 +4,13 @@
  * The delivery targets this product names, and what each one is allowed to do.
  *
  * Three of these execute in the browser. The rest execute through the native
- * desktop tier when its authenticated payload is present. Human distribution
- * review is recorded for Milestone 9 but never hides the implemented route.
+ * desktop tier when its authenticated payload is present. Licensing state is
+ * reported separately and never hides an implemented route.
  *
- * Each preset names the production licensing rows Milestone 9 must review
- * before stable 1.0. Those rows never hide an implemented target or disable
- * build, test, package, or execution; exact machine executors perform their own
- * payload, platform, containment, consent, and capacity admission.
+ * Each preset names the production licensing rows that apply to distribution.
+ * Those rows never hide an implemented target or disable build, test, package,
+ * or execution; exact machine executors perform their own payload, platform,
+ * containment, consent, and capacity validation.
  */
 
 import { VIDEO_EXPORT_FORMATS } from './video-export.js';
@@ -50,7 +50,7 @@ export interface PlatformDeliveryPreset {
 	readonly label: string;
 	/** What the delivery is, in the terms a user picks it by. */
 	readonly summary: string;
-	/** Human distribution-review rows reported at Milestone 9. */
+	/** Licensing rows relevant when this preset is distributed. */
 	readonly licensingRowIds: readonly string[];
 	/** Where a route with no matching executor goes; null when this preset is the floor. */
 	readonly fallbackPresetId: string | null;
@@ -62,9 +62,9 @@ export interface PlatformDeliveryPresetAvailability {
 	readonly presetId: string;
 	readonly available: boolean;
 	readonly status: 'implemented';
-	readonly m9ReleaseReviewStatus: 'not-required' | 'complete' | 'pending';
-	readonly m9ReleaseReviewRowIds: readonly string[];
-	readonly m9ReleaseReviewPendingRowIds: readonly string[];
+	readonly licensingStatus: 'not-required' | 'cleared' | 'pending';
+	readonly licensingRowIds: readonly string[];
+	readonly pendingLicensingRowIds: readonly string[];
 }
 
 const H264 = Object.freeze({ format: 'mp4', quality: 'balanced' });
@@ -212,8 +212,8 @@ export function findPlatformDeliveryPreset(id: unknown): PlatformDeliveryPreset 
 }
 
 /**
- * Whether the catalog implements this preset, with human review reported
- * separately for final 1.0 admission.
+ * Whether the catalog implements this preset, with licensing state reported
+ * independently from runtime availability.
  */
 export function resolvePlatformDeliveryAvailability(
 	preset: PlatformDeliveryPreset,
@@ -234,10 +234,10 @@ export function resolvePlatformDeliveryAvailability(
 		presetId: preset.id,
 		available: true,
 		status: 'implemented' as const,
-		m9ReleaseReviewStatus: preset.licensingRowIds.length === 0
-			? 'not-required' as const : pending.length === 0 ? 'complete' as const : 'pending' as const,
-		m9ReleaseReviewRowIds: preset.licensingRowIds,
-		m9ReleaseReviewPendingRowIds: Object.freeze(pending),
+		licensingStatus: preset.licensingRowIds.length === 0
+			? 'not-required' as const : pending.length === 0 ? 'cleared' as const : 'pending' as const,
+		licensingRowIds: preset.licensingRowIds,
+		pendingLicensingRowIds: Object.freeze(pending),
 	});
 }
 
@@ -245,7 +245,7 @@ export function resolvePlatformDeliveryAvailability(
  * The browser-video plan options this preset means, or null when this preset is
  * owned by a different executor. Native targets return null here because their
  * exact queue execution is exposed by `resolvePlatformDeliveryExecution`, not
- * because human licensing review is pending.
+ * because licensing work is pending.
  */
 export function resolvePlatformDeliveryPlanOptions(
 	preset: PlatformDeliveryPreset,
@@ -260,7 +260,7 @@ export function resolvePlatformDeliveryPlanOptions(
 	return preset.execution.planOptions;
 }
 
-/** Resolve the implemented executor; its runtime performs machine admission. */
+/** Resolve the implemented executor; its runtime validates the current machine. */
 export function resolvePlatformDeliveryExecution(
 	preset: PlatformDeliveryPreset,
 	licensingMatrix: unknown = PLATFORM_DELIVERY_LICENSING_SNAPSHOT,

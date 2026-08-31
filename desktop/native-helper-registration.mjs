@@ -160,7 +160,7 @@ export function registerDesktopNativeAudioHelper({
 	});
 }
 
-/** Resolve machine activation for native backends; human review never supplies execution authority. */
+/** Resolve machine activation for native backends from authenticated machine state. */
 export function productionAudioBackendActivated() {
 	return productionSoundscaperAudioBackendActivated(...arguments);
 }

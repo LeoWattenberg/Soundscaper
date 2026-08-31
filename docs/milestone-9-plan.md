@@ -1,13 +1,12 @@
 # Milestone 9 plan: final convergence and qualification
 
-> Owning source for milestone-9 sequencing, the qualification-campaign
-> decisions, and the bounded work packets. The
-> [roadmap](../roadmap.md#9-final-convergence-and-qualification) owns scope
-> and status; the release policy, quality budgets, threat model,
-> compatibility policy, and licensing policy own their claims. Re-grounded
-> against the qualification infrastructure on 2026-08-29. Milestone 9 depends
-> on milestones 1–6, the shipped milestone-8 capability set, and the completed
-> 8+C origin cutover.
+> **Historical document (superseded 2026-08-31).** This records the abandoned
+> formal qualification design for architectural provenance. Its matrices,
+> evidence campaign, signatures, attestations, cohorts, and admission rules are
+> not current release authority. See the
+> [owner-run release policy](release-policy.md), current
+> [roadmap](../roadmap.md#9-stable-release-and-owner-qa), and evergreen
+> [QA templates](qa/) instead.
 
 > **Provenance note (2026-08-28):** the repository-grounded inventory and
 > implementation-generation citations below describe the pre-freeze campaign

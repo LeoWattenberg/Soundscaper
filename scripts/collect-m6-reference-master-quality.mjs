@@ -13,7 +13,7 @@ import {
 	M6_REFERENCE_MASTER_WORKLOAD_ID as WORKLOAD_ID,
 	computeM6ReferenceMasterMetrics,
 } from './lib/m6-reference-master-metrics.mjs';
-import { boundedString, exactRecord, requireRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord, requireRecord } from './lib/measurement-validation.mjs';
 import {
 	DIAGNOSTIC_MEASUREMENT_POLICY,
 	evaluateQualityWorkload,

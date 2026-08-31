@@ -142,7 +142,7 @@ struct selected_v20_frame_executor_self_test final {
 	const selected_v20_executor_ports& ports
 );
 
-/** Exercise the exact selected-V20 frame core without implying codec/audio readiness. */
+/** Exercise the exact selected-V20 frame core without implying codec/audio verification. */
 [[nodiscard]] selected_v20_frame_executor_self_test self_test_selected_v20_frame_executor() noexcept;
 
 } // namespace framescaper::media

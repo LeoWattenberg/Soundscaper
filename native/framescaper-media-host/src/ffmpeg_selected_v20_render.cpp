@@ -34,12 +34,12 @@ namespace {
 	return true;
 }
 
-struct readiness_receipt final {
+struct self_test_result final {
 	bool ready{};
-	std::string control_json;
+	std::string result_json;
 };
 
-[[nodiscard]] readiness_receipt selected_v20_readiness(const bool delivery_codecs_available) {
+[[nodiscard]] self_test_result selected_v20_self_test_result(const bool delivery_codecs_available) {
 	const auto core = self_test_selected_v20_frame_executor();
 	const bool keyed_adapter = self_test_selected_v20_keyed_adapter();
 	const bool frame_core = core.exact_picture_ordinals
@@ -72,7 +72,7 @@ struct readiness_receipt final {
 	return {ready, result.str()};
 }
 
-[[nodiscard]] readiness_receipt selected_v28_v14_readiness(const bool delivery_codecs_available) {
+[[nodiscard]] self_test_result selected_v28_v14_self_test_result(const bool delivery_codecs_available) {
 	const auto core = self_test_selected_v20_frame_executor();
 	const bool evaluated_rgba_executor = self_test_selected_v20_keyed_adapter();
 	const bool staged_audio_input_bound = evaluated_rgba_executor;
@@ -123,13 +123,13 @@ struct readiness_receipt final {
 } // namespace
 
 engine_result self_test_selected_v20_render() {
-	const auto receipt = selected_v20_readiness(legacy_delivery_codec_set_available());
-	return {receipt.ready ? 0 : 78, receipt.control_json};
+	const auto result = selected_v20_self_test_result(legacy_delivery_codec_set_available());
+	return {result.ready ? 0 : 78, result.result_json};
 }
 
 engine_result self_test_selected_v28_v14_render() {
-	const auto receipt = selected_v28_v14_readiness(v14_delivery_codec_set_available());
-	return {receipt.ready ? 0 : 78, receipt.control_json};
+	const auto result = selected_v28_v14_self_test_result(v14_delivery_codec_set_available());
+	return {result.ready ? 0 : 78, result.result_json};
 }
 
 engine_result execute_selected_v20_render_job(const invocation& job) {

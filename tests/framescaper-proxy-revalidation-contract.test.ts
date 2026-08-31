@@ -8,7 +8,7 @@ import {
 	normalizeFramescaperVideoProxyOriginalIdentitySequence as normalizeOriginal,
 	sameFramescaperVideoProxyBodyIdentitySequence as sameBody,
 	sameFramescaperVideoProxyOriginalIdentitySequence as sameOriginal,
-} from '../src/framescaper/editor-video-proxy-reattestation-contract-sequence.ts';
+} from '../src/framescaper/editor-video-proxy-revalidation-contract-sequence.ts';
 
 type Data = Record<string, unknown>;
 

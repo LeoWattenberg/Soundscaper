@@ -21,7 +21,7 @@ import {
 	fingerprintM5bWorkloadExecutable,
 	runM5bQualityWorkload,
 } from './m5b-quality-workload-runner.mjs';
-import { exactRecord, requireRecord } from './measurement-admission.mjs';
+import { exactRecord, requireRecord } from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 const CONFIG_URL = new URL('../../config/quality-budgets.json', import.meta.url);

@@ -16,12 +16,12 @@ export function canonicalOpenFxV12NativeGrant(input: Readonly<{
 	readonly inputPaths: readonly string[];
 	readonly outputPath: string;
 	readonly maximumControlBytes: number;
-	readonly qualifiedBackends: readonly OfxRenderBackendV1[];
+	readonly supportedBackends: readonly OfxRenderBackendV1[];
 }>): string {
 	const { grant } = input;
 	const document = {
 		schemaVersion: 1,
-		qualifiedBackends: input.qualifiedBackends,
+		supportedBackends: input.supportedBackends,
 		pluginBinary: {
 			path: input.pluginPath,
 			sha256: grant.pluginBinary.sha256,

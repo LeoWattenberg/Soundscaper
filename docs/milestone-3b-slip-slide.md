@@ -1,5 +1,9 @@
 # Milestone 3B-4b6: frame-canonical slip and slide
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > **Implemented:** delivered through commit `c490af3b` on 2026-08-11, after
 > [3B-4b5 — frame-canonical roll and ripple trim](milestone-3b-roll-ripple-trim.md).
 > This slice adds video-bearing slip and slide through one pure planning

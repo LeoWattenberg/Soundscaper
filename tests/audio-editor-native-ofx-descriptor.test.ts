@@ -18,12 +18,12 @@ import {
 import {
 	ofxArchitectureDirectory,
 	ofxBundleBinaryPath,
-	ofxRequiredQualifications,
-	ofxTargetIsQualified,
+	ofxRequiredVerifications,
+	ofxTargetIsVerified,
 	OFX_DEFERRED_TARGETS,
 	OFX_TARGETS,
 	OFX_TARGET_ARCHITECTURE_DIRECTORIES,
-	OFX_UNIVERSAL_QUALIFICATIONS,
+	OFX_UNIVERSAL_VERIFICATIONS,
 } from '../src/common/editor/native-ofx-packaging.ts';
 
 const DIGEST = 'a'.repeat(64);
@@ -172,38 +172,38 @@ test('a bundle binary path follows the OpenFX bundle layout', () => {
 	assert.throws(() => ofxBundleBinaryPath('../Blur', 'linux-x64'), RangeError);
 });
 
-test('CPU and Interact qualification is required on every target', () => {
-	assert.equal(OFX_UNIVERSAL_QUALIFICATIONS.includes('interact-v2'), false);
-	assert.equal(OFX_UNIVERSAL_QUALIFICATIONS.includes('overlay-interact-v2'), true);
+test('CPU and Interact verification is required on every target', () => {
+	assert.equal(OFX_UNIVERSAL_VERIFICATIONS.includes('interact-v2'), false);
+	assert.equal(OFX_UNIVERSAL_VERIFICATIONS.includes('overlay-interact-v2'), true);
 	for (const target of OFX_TARGETS) {
-		const required = ofxRequiredQualifications(target);
-		for (const universal of OFX_UNIVERSAL_QUALIFICATIONS) {
+		const required = ofxRequiredVerifications(target);
+		for (const universal of OFX_UNIVERSAL_VERIFICATIONS) {
 			assert.ok(required.includes(universal), `${target}/${universal}`);
 		}
 	}
 });
 
-test('a GPU mechanism qualifies only where its hardware is provisioned', () => {
+test('a GPU mechanism is verified only where its hardware is provisioned', () => {
 	// Metal is applicable on macOS and nowhere else.
-	assert.ok(ofxRequiredQualifications('darwin-arm64', ['metal-render']).includes('metal-render'));
-	assert.ok(!ofxRequiredQualifications('linux-x64', ['metal-render']).includes('metal-render'));
+	assert.ok(ofxRequiredVerifications('darwin-arm64', ['metal-render']).includes('metal-render'));
+	assert.ok(!ofxRequiredVerifications('linux-x64', ['metal-render']).includes('metal-render'));
 	// An unprovisioned mechanism is simply not required, never counted as passed.
-	assert.ok(!ofxRequiredQualifications('linux-x64').includes('cuda-render'));
+	assert.ok(!ofxRequiredVerifications('linux-x64').includes('cuda-render'));
 });
 
-test('a target is qualified only when every requirement actually passed', () => {
-	assert.equal(ofxTargetIsQualified('linux-x64', [...OFX_UNIVERSAL_QUALIFICATIONS]), true);
+test('a target is verified only when every requirement actually passed', () => {
+	assert.equal(ofxTargetIsVerified('linux-x64', [...OFX_UNIVERSAL_VERIFICATIONS]), true);
 	assert.equal(
-		ofxTargetIsQualified('linux-x64', OFX_UNIVERSAL_QUALIFICATIONS.filter((value) => value !== 'packaging')),
+		ofxTargetIsVerified('linux-x64', OFX_UNIVERSAL_VERIFICATIONS.filter((value) => value !== 'packaging')),
 		false,
 	);
 	assert.equal(
-		ofxTargetIsQualified('linux-x64', [...OFX_UNIVERSAL_QUALIFICATIONS], ['cuda-render']),
+		ofxTargetIsVerified('linux-x64', [...OFX_UNIVERSAL_VERIFICATIONS], ['cuda-render']),
 		false,
 		'a provisioned GPU mechanism must actually pass',
 	);
 	assert.equal(
-		ofxTargetIsQualified('linux-x64', [...OFX_UNIVERSAL_QUALIFICATIONS, 'cuda-render'], ['cuda-render']),
+		ofxTargetIsVerified('linux-x64', [...OFX_UNIVERSAL_VERIFICATIONS, 'cuda-render'], ['cuda-render']),
 		true,
 	);
 });

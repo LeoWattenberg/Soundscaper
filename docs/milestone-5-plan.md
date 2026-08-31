@@ -10,6 +10,9 @@
 > quarantine, and capacity checks pass. Releases consume neutral target build
 > results with closed inventories, self-tests, architecture, lengths, and
 > SHA-256 checks; optional human observations belong in owner QA.
+> Any signed-readiness, publisher-provenance, cohort, qualification, or
+> milestone-9 admission language retained later in this document is historical
+> design provenance, not a current requirement or release verdict.
 
 > The source audit authenticates 0/10 required exact archive/extracted-tree
 > inputs until a cache is provisioned — see

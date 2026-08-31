@@ -13,7 +13,7 @@
  * Nothing here hosts anything. A scan grants no project audio and leaves no
  * plug-in resident. Every known format is reported; hosting availability is
  * decided later by its authenticated adapter, payload, platform, and
- * containment authority, never by pending human release review.
+ * containment authority; distribution metadata does not grant execution.
  */
 
 /** Closed format-to-candidate mapping; the verified payload declares its subset. */

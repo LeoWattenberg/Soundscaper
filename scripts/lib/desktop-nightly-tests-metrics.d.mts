@@ -80,7 +80,7 @@ export function createPendingM1VideoPreviewResult(
 	readonly environmentId: string;
 }>;
 
-export function createDesktopNightlyTestsMetricsEvidence(
+export function createDesktopNightlyTestsMetricsReport(
 	options: {
 		readonly consoleOutput: string;
 		readonly config: Readonly<Record<string, unknown>>;
@@ -90,7 +90,7 @@ export function createDesktopNightlyTestsMetricsEvidence(
 	},
 	dependencies?: {
 		readonly collectors?: readonly DesktopNightlyTestsMetricCollector[];
-		readonly evidenceKind?: 'browser' | 'packaged-runtime';
+		readonly executionSurface?: 'browser' | 'packaged-runtime';
 	},
 ): {
 	readonly passed: boolean;
@@ -106,11 +106,11 @@ export function writeDesktopNightlyTestsMetricsDiagnostics(
 		readonly playwrightExit: DesktopNightlyTestsMetricsExit;
 		readonly consoleLogPath?: string;
 		readonly artifactDirectory?: 'metrics' | 'packaged-runtime';
-		readonly evidenceKind?: 'browser' | 'packaged-runtime';
+		readonly executionSurface?: 'browser' | 'packaged-runtime';
 	},
 	dependencies?: {
 		readonly collectors?: readonly DesktopNightlyTestsMetricCollector[];
-		readonly evidenceKind?: 'browser' | 'packaged-runtime';
+		readonly executionSurface?: 'browser' | 'packaged-runtime';
 	},
 ): Promise<DesktopNightlyTestsMetricsDiagnostics>;
 

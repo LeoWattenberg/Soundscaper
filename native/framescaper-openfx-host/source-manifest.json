@@ -25,8 +25,8 @@
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 2968,
-			"sha256": "c94d7c94b0efedf0e3dfd7b37e39de44b003cedd87e710f784cca857896dcce9"
+			"byteLength": 2962,
+			"sha256": "7f92dbb4b43ccde6ccf1dc96148d067acdfca3df36a284976799528b68505dfd"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -35,8 +35,8 @@
 		},
 		{
 			"path": "THIRD_PARTY_NOTICES.md",
-			"byteLength": 1044,
-			"sha256": "e8a24b3e1983134a4798ad298b0a7de0114a437c1b156b5e1f810cb71096b687"
+			"byteLength": 1087,
+			"sha256": "b0a131d09d266babcda6822788d6bc0071d9d5b151f51117a7717d8b8bdba753"
 		},
 		{
 			"path": "build/recipe-driver.mjs",
@@ -101,7 +101,7 @@
 		{
 			"path": "src/gpu_runtime.cpp",
 			"byteLength": 30244,
-			"sha256": "4065925a50cb7397855170fcd4fd21cc6f9b7dde43f92f425e8bd75cd7311d53"
+			"sha256": "a5f3b56abb1c1368d873967c07b76a53282efb6da2698f68e666014136ec0c1f"
 		},
 		{
 			"path": "src/gpu_runtime.hpp",
@@ -121,17 +121,17 @@
 		{
 			"path": "src/host_runtime.cpp",
 			"byteLength": 45639,
-			"sha256": "f64d0ae0e1eb9fbea39c76c1d7004d3d1d2971f10befbb1a8e02e62dea94e289"
+			"sha256": "80eae8e240f349a0c5edcd2849190a735487bf1b999a64f25ef3fd67848138c4"
 		},
 		{
 			"path": "src/host_runtime.hpp",
 			"byteLength": 4379,
-			"sha256": "5e5dbc011949349723c228920bd193a8ebda07e564cd534f624344d74795eee3"
+			"sha256": "398b23bec5f223c7eb815ee02289c5f7659fe506b23c8b0b852289259b404863"
 		},
 		{
 			"path": "src/host_runtime_invoke.inc",
-			"byteLength": 10185,
-			"sha256": "31b48c7a0f6c6505aa8903d157896c55666b33d51591ba2d4af3ad0c6150b31a"
+			"byteLength": 10179,
+			"sha256": "7f06270197014cfc71662985305c362506254163453d7074cba2371b785cf5c4"
 		},
 		{
 			"path": "src/host_scan_inspection.inc",
@@ -155,8 +155,8 @@
 		},
 		{
 			"path": "src/isolation_contract.hpp",
-			"byteLength": 4839,
-			"sha256": "93ea3a24fd4b823c63cb233669f7a9ee516020825290f2049dab8a3e501df5af"
+			"byteLength": 4810,
+			"sha256": "4ddfd173aabee8c77062b46349f6ab5bd5afb7eac26e8a202982c8f2b46e010b"
 		},
 		{
 			"path": "src/loaded_plugin_binary.cpp",
@@ -165,13 +165,13 @@
 		},
 		{
 			"path": "src/ofx_runtime_host.cpp",
-			"byteLength": 19137,
-			"sha256": "0183503ac513481ccc8b27d1b7123f4dda8bb8f4cb4491bdbacdbff30ccc7f2f"
+			"byteLength": 19033,
+			"sha256": "2ae5248e815a180b768e987c4de937cb90a5ecb4cb6ad36fb2d0cce378698dd4"
 		},
 		{
 			"path": "src/ofx_scanner.cpp",
-			"byteLength": 4625,
-			"sha256": "33cc92af5be067d1007414db1397f5289d46c50f972f427bc6efe1c5823241e1"
+			"byteLength": 4521,
+			"sha256": "c4af9d6464606b7f9bb673e63f5a9a8e09c4c548d03842fd3aa349d35ee26dbd"
 		},
 		{
 			"path": "src/openfx_abi.hpp",
@@ -214,24 +214,24 @@
 			"sha256": "10f444e75b7a0ba29a8b5ad0e12e2bfadf4aa9a0aeff2f3e71994b02b44dad9a"
 		},
 		{
-			"path": "src/v12_gpu_qualification.cpp",
-			"byteLength": 1319,
-			"sha256": "83a8bedb6df80fa4e89c8a8f729f0eda38260981758a5075d4061cac8ac9df02"
+			"path": "src/v12_gpu_support.cpp",
+			"byteLength": 1307,
+			"sha256": "cb8eee2da80eebf2f8226dead49eff5c04b5f6216faa82d04ad3fd55676f2a75"
 		},
 		{
-			"path": "src/v12_gpu_qualification.hpp",
-			"byteLength": 363,
-			"sha256": "f312003147d6825f2db724a089f364587d33496ebbd755f844d9155b019de4ad"
+			"path": "src/v12_gpu_support.hpp",
+			"byteLength": 357,
+			"sha256": "6ce9e0ecc2cb7d5bbde5eaa49eac87d2dcf27b493950d17a323ee4440630be2b"
 		},
 		{
 			"path": "src/v12_host_invocation.cpp",
-			"byteLength": 28552,
-			"sha256": "c40129089b5bbeebdbb9c1b7fadcb2852f1b3a04ee6a7f96c943900547922001"
+			"byteLength": 28540,
+			"sha256": "64ac7bf4297ede79138f7609bf19b313f03f3f0712e2c9a4c0d9ebcadf67c896"
 		},
 		{
 			"path": "src/v12_host_invocation.hpp",
 			"byteLength": 1762,
-			"sha256": "84e5012c0c41522489048cef538ad06c8543a705e73a468cfa50b558b16f15c3"
+			"sha256": "912f5340cb416cb43a29e08d865eeabead2871629ee60bf3f04e7388b2a9ff5b"
 		},
 		{
 			"path": "src/v12_output_file.cpp",

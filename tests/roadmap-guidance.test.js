@@ -33,11 +33,11 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.match(roadmap, /implementation evidence.*owning modules.*focused tests/isu);
 	assert.match(
 		roadmap,
-		/2\. Shared platform\/storage\/media.*implemented.*release qualification belongs to milestone 9/iu,
+		/2\. Shared platform\/storage\/media.*implemented/iu,
 	);
 	assert.match(
 		roadmap,
-		/3\. Editorial foundations.*software implementation active.*qualification belongs to milestone 9/iu,
+		/3\. Editorial foundations.*software implementation active/iu,
 	);
 	assert.match(
 		roadmap,
@@ -52,26 +52,18 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		/9\+\. Post-1\.0 extensions.*MIDI and installable distribution/iu,
 	);
 	const milestoneNine = roadmap.slice(
-		roadmap.indexOf('## 9. Final convergence and qualification'),
+		roadmap.indexOf('## 9. Stable release and owner QA'),
 		roadmap.indexOf('## 9+. Post-1.0 extensions'),
 	);
 	const postRelease = roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions'));
 	assert.doesNotMatch(milestoneNine, /\bMIDI\b/iu);
-	assert.match(
-		milestoneNine,
-		/11 Soundscaper-only soak runtime cells.*22 real eight-hour\s+runs/isu,
-		'Soundscaper admission must distinguish soak cells from native-lab profiles',
-	);
-	assert.match(
-		milestoneNine,
-		/Soundscaper software.*feature-complete.*Framescaper.*deferred.*does not\s+gate/isu,
-		'Milestone 9 must keep software completion separate from external stable admission',
-	);
-	assert.doesNotMatch(
-		milestoneNine,
-		/dual-product soak runtime cells/iu,
-		'Soundscaper Stable 1.0 must not consume the retained dual-product soak campaign',
-	);
+	assert.match(milestoneNine, /pushing `v1\.0\.0`.*repository owner's release\s+decision/isu);
+	assert.match(milestoneNine, /canonical static.*Node shards.*browser workflows/isu);
+	assert.match(milestoneNine, /nine unsigned.*five runtime manifests/isu);
+	assert.match(milestoneNine, /npm run qa:new.*CI never reads completed worksheets/isu);
+	assert.match(milestoneNine, /npm run debug:soak.*diagnostic, not release certification/isu);
+	assert.match(milestoneNine, /no qualification campaign.*human attestation is required/isu);
+	assert.doesNotMatch(milestoneNine, /required.*(?:cohort|notarization|signed readiness)/iu);
 	assert.match(postRelease, /### 8B\. MIDI.*legacy packet identifier.*excluded from stable 1\.0/isu);
 	assert.match(roadmap, /### Frozen closure scope/iu);
 	assert.match(roadmap, /config\/milestone-2-closure\.json/iu);
@@ -90,20 +82,17 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 	assert.doesNotMatch(roadmap, /observed .* seconds/iu);
 });
 
-test('roadmap separates hosted exact-media qualification from open owner-host profiles', async () => {
+test('roadmap treats hosted performance results as diagnostics', async () => {
 	const roadmap = await readFile(roadmapUrl, 'utf8');
 	assert.match(
 		roadmap,
-		/Windows x64.*RTX 3090.*reference.*M1\s+preview.*M4 production parity.*M4B-2\s+keyed parity.*passed/isu,
+		/Correctness and parity workloads retain deterministic blocking thresholds/iu,
 	);
 	assert.match(
 		roadmap,
-		/reviewed hosted\s+hardware-lower-bound cohort.*qualifies.*current M4 production.*M4B-2\s+exact-media workloads/isu,
+		/Timing, heap, RSS, and renderer observations are diagnostics/iu,
 	);
-	assert.match(
-		roadmap,
-		/M1 preview and M3 long-form timing.*remain\s+`pending-external`.*all four owner-host packaged-runtime profiles.*remain\s+open/isu,
-	);
+	assert.doesNotMatch(roadmap, /hardware-lower-bound cohort|release-qualified machine/iu);
 });
 
 test('machine-readable policy links resolve to current roadmap headings', async () => {

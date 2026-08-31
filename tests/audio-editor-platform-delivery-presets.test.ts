@@ -54,9 +54,9 @@ test('the presets that ship deliver, and resolve to options a plan builder accep
 			presetId: preset.id,
 			available: true,
 			status: 'implemented',
-			m9ReleaseReviewStatus: 'not-required',
-			m9ReleaseReviewRowIds: [],
-			m9ReleaseReviewPendingRowIds: [],
+			licensingStatus: 'not-required',
+			licensingRowIds: [],
+			pendingLicensingRowIds: [],
 		});
 		const options = resolvePlatformDeliveryPlanOptions(preset, MATRIX)!;
 		const plan = createVideoExportPlan(project(), {
@@ -67,16 +67,16 @@ test('the presets that ship deliver, and resolve to options a plan builder accep
 	}
 });
 
-test('manual delivery review is reported for Milestone 9 without blocking test execution', () => {
+test('licensing state is reported without blocking test execution', () => {
 	const gated = PLATFORM_DELIVERY_PRESETS.filter((preset) => preset.licensingRowIds.length > 0);
 	assert.ok(gated.length >= 6, 'the native tier the milestone names is declared, not omitted');
 	for (const preset of gated) {
 		const availability = resolvePlatformDeliveryAvailability(preset, MATRIX);
-		assert.equal(availability.available, true, `${preset.id} is hidden behind release review`);
+		assert.equal(availability.available, true, `${preset.id} is hidden behind licensing state`);
 		assert.equal(availability.status, 'implemented', preset.id);
-		assert.equal(availability.m9ReleaseReviewStatus, 'pending', preset.id);
+		assert.equal(availability.licensingStatus, 'pending', preset.id);
 		assert.deepEqual(
-			availability.m9ReleaseReviewPendingRowIds,
+			availability.pendingLicensingRowIds,
 			preset.licensingRowIds,
 			'pending review rows are reported in the order the preset names them',
 		);
@@ -110,7 +110,7 @@ test('the catalog binds every platform target to one explicit web or V15 native 
 	);
 });
 
-test('native execution exposes caption, hardware, and companion-audio policy before release review', () => {
+test('native execution exposes caption, hardware, and companion-audio policy independently', () => {
 	const cleared = structuredClone(MATRIX) as Record<string, unknown>;
 	for (const rows of Object.values(cleared)) {
 		if (!Array.isArray(rows)) continue;
@@ -153,7 +153,7 @@ test('native execution exposes caption, hardware, and companion-audio policy bef
 	});
 	assert.equal(resolvePlatformDeliveryExecution(
 		findPlatformDeliveryPreset('native-image-sequence-png')!, MATRIX,
-	)?.kind, 'native-media-v15', 'pending human review cannot hide the implemented executor');
+	)?.kind, 'native-media-v15', 'pending licensing work cannot hide the implemented executor');
 });
 
 function assertNativeExecution(
@@ -227,14 +227,14 @@ test('the catalog resolves the same way against the snapshot as against the matr
 	}
 });
 
-test('a row missing from the matrix is a pending Milestone 9 record, not a runtime block', () => {
+test('a row missing from the matrix is pending licensing work, not a runtime block', () => {
 	const preset = findPlatformDeliveryPreset('native-uhd-hdr10')!;
 	const availability = resolvePlatformDeliveryAvailability(preset, { nativeFormatPolicies: [] });
 
 	assert.equal(availability.available, true);
 	assert.equal(availability.status, 'implemented');
-	assert.equal(availability.m9ReleaseReviewStatus, 'pending');
-	assert.deepEqual(availability.m9ReleaseReviewPendingRowIds, preset.licensingRowIds);
+	assert.equal(availability.licensingStatus, 'pending');
+	assert.deepEqual(availability.pendingLicensingRowIds, preset.licensingRowIds);
 });
 
 test('a preset that is not from the catalog cannot ask about itself', () => {
@@ -265,7 +265,7 @@ test('the dialog resolves a blocked target to what will actually be delivered', 
 	assert.deepEqual(vertical.canvas, { size: { width: 1_080, height: 1_920 }, fit: 'cover' });
 
 	// This common browser dialog has no native executor, so the request says what
-	// it fell back to and what it fell back from. Milestone 9 review is irrelevant.
+	// it fell back to and what it fell back from. Licensing state is independent.
 	const hdr = request('native-uhd-hdr10');
 	assert.equal(hdr.deliveryTarget, 'web-1080p');
 	assert.equal(hdr.degradedFrom, 'native-uhd-hdr10');

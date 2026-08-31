@@ -20,7 +20,7 @@ try {
 		for (const pin of result.refreshed) {
 			console.log(`${pin.path}: ${pin.byteLength} bytes, sha256 ${pin.sha256}`);
 		}
-		console.log(`Repinned ${result.refreshed.length} evidence files and the review payload digest in ${FFMPEG_RUNTIME_MANIFEST_PATH}.`);
+		console.log(`Repinned ${result.refreshed.length} evidence files and the integrity payload digest in ${FFMPEG_RUNTIME_MANIFEST_PATH}.`);
 	}
 } catch (error) {
 	console.error(`FFmpeg runtime evidence repin failed: ${error.message}`);

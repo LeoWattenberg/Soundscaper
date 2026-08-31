@@ -9,10 +9,10 @@ export function offlineShellFunctionSources() {
 		validateOfflineShellConfiguration,
 		sha256Hex,
 		shellCacheName,
-		shellReadinessUrl,
-		legacyShellReadinessUrl,
-		readinessRecord,
-		cacheHasReadinessMarker,
+		shellCompletionUrl,
+		legacyShellCompletionUrl,
+		completionRecord,
+		cacheHasCompletionMarker,
 		cacheIsComplete,
 		completeReuseCacheNames,
 		verifiedShellResponse,
@@ -124,26 +124,26 @@ function shellCacheName(productId, releaseId) {
 	return `soundscaper-application-shell-v2-${productId}-${releaseId}`;
 }
 
-function shellReadinessUrl(productId, releaseId) {
+function shellCompletionUrl(productId, releaseId) {
 	return `/.soundscaper/offline/application-shell-v2-${productId}-${releaseId}.json`;
 }
 
-function legacyShellReadinessUrl(releaseId) {
+function legacyShellCompletionUrl(releaseId) {
 	return `/.soundscaper/offline/application-shell-${releaseId}.json`;
 }
 
-async function readinessRecord(cache, cacheName, productId) {
+async function completionRecord(cache, cacheName, productId) {
 	let match = cacheName.match(/^soundscaper-application-shell-v2-(framescaper|soundscaper)-([a-f\d]{64})$/u);
 	let marker;
 	let expected;
 	if (match) {
 		if (match[1] !== productId) return null;
-		marker = shellReadinessUrl(match[1], match[2]);
+		marker = shellCompletionUrl(match[1], match[2]);
 		expected = { schemaVersion: 2, productId: match[1], releaseId: match[2] };
 	} else {
 		match = cacheName.match(/^soundscaper-application-shell-v1-([a-f\d]{64})$/u);
 		if (!match) return null;
-		marker = legacyShellReadinessUrl(match[1]);
+		marker = legacyShellCompletionUrl(match[1]);
 		expected = { schemaVersion: 1, releaseId: match[1] };
 	}
 	try {
@@ -157,14 +157,14 @@ async function readinessRecord(cache, cacheName, productId) {
 	}
 }
 
-async function cacheHasReadinessMarker(cacheStorage, cacheName, productId) {
+async function cacheHasCompletionMarker(cacheStorage, cacheName, productId) {
 	const cache = await cacheStorage.open(cacheName);
-	return await readinessRecord(cache, cacheName, productId) !== null;
+	return await completionRecord(cache, cacheName, productId) !== null;
 }
 
 async function cacheIsComplete(cacheStorage, cacheName, configuration, cryptoImpl) {
 	const cache = await cacheStorage.open(cacheName);
-	if (await readinessRecord(cache, cacheName, configuration.productId) === null) return false;
+	if (await completionRecord(cache, cacheName, configuration.productId) === null) return false;
 	const descriptors = new Map(configuration.assets.map((asset) => [asset.url, asset]));
 	for (const url of configuration.installUrls) {
 		const response = await cache.match(url);
@@ -184,7 +184,7 @@ async function completeReuseCacheNames(cacheStorage, productId, candidateName) {
 		if (cacheName === candidateName) continue;
 		if (!cacheName.startsWith(`soundscaper-application-shell-v2-${productId}-`)
 			&& !cacheName.startsWith('soundscaper-application-shell-v1-')) continue;
-		if (await cacheHasReadinessMarker(cacheStorage, cacheName, productId)) reusable.push(cacheName);
+		if (await cacheHasCompletionMarker(cacheStorage, cacheName, productId)) reusable.push(cacheName);
 	}
 	return reusable;
 }
@@ -282,17 +282,17 @@ export async function installOfflineShell({
 			cryptoImpl,
 			reuseNames,
 		}, configuration.installUrls.map((url) => byUrl.get(url)));
-		const readiness = JSON.stringify({
+		const completion = JSON.stringify({
 			schemaVersion: 2,
 			productId: configuration.productId,
 			releaseId: configuration.releaseId,
 		});
 		await candidate.put(
-			shellReadinessUrl(configuration.productId, configuration.releaseId),
-			new Response(readiness, {
+			shellCompletionUrl(configuration.productId, configuration.releaseId),
+			new Response(completion, {
 				status: 200,
 				headers: {
-					'content-length': String(new TextEncoder().encode(readiness).byteLength),
+					'content-length': String(new TextEncoder().encode(completion).byteLength),
 					'content-type': 'application/json; charset=utf-8',
 				},
 			}),

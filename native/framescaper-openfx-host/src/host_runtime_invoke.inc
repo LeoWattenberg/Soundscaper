@@ -11,8 +11,8 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 	std::optional<double> host_standard_parameter_value) {
 	if (!member_of(action, kActions)) throw std::invalid_argument("The OpenFX action is outside the closed host contract.");
 	if (!std::isfinite(render_time) || render_time < 0) throw std::invalid_argument("The OpenFX render time is outside its exact frame domain.");
-	if (std::find(impl_->qualified_backends.begin(), impl_->qualified_backends.end(), backend) == impl_->qualified_backends.end()) {
-		throw gpu_runtime_error{"unsupported-backend", "The requested GPU backend lacks exact platform qualification."};
+	if (std::find(impl_->supported_backends.begin(), impl_->supported_backends.end(), backend) == impl_->supported_backends.end()) {
+		throw gpu_runtime_error{"unsupported-backend", "The requested GPU backend lacks exact platform support."};
 	}
 	if (backend != Backend::cpu && action != "render") {
 		throw gpu_runtime_error{"unsupported-backend", "GPU execution is admitted only for an exact render action."};
@@ -33,7 +33,7 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 	if (backend != Backend::cpu && (!declared_backends.has_value()
 		|| std::find(declared_backends->begin(), declared_backends->end(), result.backend) == declared_backends->end())) {
 		if (loaded) call(plugin, kOfxActionUnload, nullptr);
-		throw gpu_runtime_error{"unsupported-backend", "The plug-in did not declare the qualified GPU backend."};
+		throw gpu_runtime_error{"unsupported-backend", "The plug-in did not declare the supported GPU backend."};
 	}
 	bool frames_bound = in_context;
 	if (frames_bound) {
@@ -117,7 +117,7 @@ InvocationResult HostRuntime::invoke(OfxPlugin& plugin, Context context, std::st
 		const bool action_cancelled = !accepted_status(status) && observe_cancellation(target);
 		if (backend != Backend::cpu && !action_cancelled
 			&& (status == kOfxStatGPUOutOfMemory || status == kOfxStatGPURenderFailed || !accepted_status(status))) {
-			throw gpu_runtime_error{"gpu-execution-failed", "The qualified GPU render action failed."};
+			throw gpu_runtime_error{"gpu-execution-failed", "The supported GPU render action failed."};
 		}
 		if ((!accepted_status(status) && !action_cancelled)
 			|| (action == "render" && !state.effect_record.clips.contains("Output"))) {

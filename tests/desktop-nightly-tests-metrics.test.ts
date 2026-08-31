@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
-	createDesktopNightlyTestsMetricsEvidence,
+	createDesktopNightlyTestsMetricsReport,
 	createDesktopNightlyTestsMetricsPlan,
 	createPendingM1VideoPreviewResult,
 	parseM1VideoPreviewDiagnostic,
@@ -112,7 +112,7 @@ test('nightly diagnostics report threshold results without promotion state', () 
 			metricGatePassed: (result: Readonly<Record<string, unknown>>) => result.metricGatePassed === true,
 		},
 	];
-	const diagnostics = createDesktopNightlyTestsMetricsEvidence({
+	const diagnostics = createDesktopNightlyTestsMetricsReport({
 		consoleOutput: 'raw diagnostic',
 		config: { measurementPolicy: { timingWorkers: 1, benchmarkRetries: 0 } },
 		sourceRevision: 'a'.repeat(40),
@@ -130,7 +130,7 @@ test('nightly diagnostics report threshold results without promotion state', () 
 });
 
 test('metric diagnostics record partial observations and fail closed', () => {
-	const diagnostics = createDesktopNightlyTestsMetricsEvidence({
+	const diagnostics = createDesktopNightlyTestsMetricsReport({
 		consoleOutput: 'partial output',
 		config: {},
 		sourceRevision: null,

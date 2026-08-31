@@ -1,5 +1,10 @@
 # Lightscaper milestone L3 plan: photo library
 
+> **Current release-policy note (2026-08-31):** qualification ledgers, cohorts,
+> and release-admission commands retained below are historical planning context.
+> Future implementation uses ordinary CI, disposable diagnostics, and optional
+> owner QA as described by the current release and quality policies.
+
 > Owning source for L3 sequencing, the catalog-read, derivative-tier,
 > culling, smart-collection, and large-library-evidence decisions, their
 > invariants, and the bounded work packets. The

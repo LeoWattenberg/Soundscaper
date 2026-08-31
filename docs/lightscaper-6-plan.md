@@ -1,5 +1,10 @@
 # Lightscaper milestone L6 plan: local adjustments and repair
 
+> **Current release-policy note (2026-08-31):** qualification ledgers, cohorts,
+> and release-admission commands retained below are historical planning context.
+> Future implementation uses ordinary CI, disposable diagnostics, and optional
+> owner QA as described by the current release and quality policies.
+
 > Owning source for L6 sequencing, the mask-graph, local-adjustment, and
 > repair decisions, their invariants, and the bounded work packets. The
 > [Lightscaper roadmap](../roadmap-lightscaper.md#l6-local-adjustments-and-repair)

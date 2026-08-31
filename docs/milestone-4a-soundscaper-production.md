@@ -1,11 +1,13 @@
 # Milestone 4A pickup: Soundscaper production
 
-> **Current-status note (2026-08-26):** selected Soundscaper S30 inherits this
-> implementation-complete production surface through exact S29. Selected
-> Framescaper F31 delegates its shared audio finishing through immutable exact
-> V28. Guided-local and remaining external qualification stays open. V20, V23,
-> and V27 selection/allocation statements below are dated historical pickup
-> records, not current product routing.
+> **Historical implementation plan (superseded 2026-08-31):** selected
+> Soundscaper S30 inherits this implementation-complete production surface
+> through exact S29, and selected Framescaper F31 delegates its shared audio
+> finishing through immutable exact V28. Qualification rows, fixed-hardware
+> profiles, reviewed cohorts, evidence status, guided sign-off, and release
+> gates below are dated architectural provenance, not current repository policy.
+> Current automation reports only the checks and environment that ran; optional
+> human observations belong in owner QA and never gate or certify a release.
 
 > Owning pickup contract for the Soundscaper half of milestone 4. The
 > [milestone-4 plan](milestone-4-plan.md) owns shared sequencing and the

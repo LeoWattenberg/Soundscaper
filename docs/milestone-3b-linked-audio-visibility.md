@@ -1,5 +1,9 @@
 # Milestone 3B-4b1: linked audio and video visibility controls
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > Bounded pickup contract for the first 3B-4b slice after
 > [shuttle and edit-point navigation](milestone-3b-shuttle-navigation.md).
 > This slice makes two already-persisted Framescaper behaviors reachable from

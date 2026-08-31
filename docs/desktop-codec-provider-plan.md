@@ -9,8 +9,8 @@ order:
 2. codecs supplied by the operating system;
 3. an external `ffmpeg`/`ffprobe` installation selected by the user.
 
-The browser build keeps its existing pinned FFmpeg WASM runtime. Desktop
-packages contain no Soundscaper application-provider FFmpeg executable, libav
+The production browser build contains no application-supplied FFmpeg runtime.
+Desktop packages contain no Soundscaper application-provider FFmpeg executable, libav
 library, or FFmpeg WASM payload. Electron's separately verified alternate
 framework libffmpeg remains Chromium infrastructure rather than a Soundscaper
 provider tier. The supported desktop targets remain Windows x64/ARM64, macOS
@@ -93,16 +93,17 @@ workflow now builds the isolated Node-API codec addon target-native on mac-arm64
 win-x64, and win-arm64; it does not link the professional JUCE/device/plug-in
 host. The build authenticates the exact Electron 43.1.1 headers and complete
 repository source/build-plan identity, runs the native codec canaries, and
-records the toolchain and payload digest. macOS signs and strictly verifies the
-addon before its digest is recorded; Windows records signing as not applicable.
+records the toolchain and payload digest. macOS applies and verifies only the
+identity-free ad-hoc code seal required to execute the addon; it uses no
+certificate or trust identity. Windows needs no corresponding seal.
 Preparation, beforePack, afterPack, the package-content manifest, and startup
-all bind the same exact manifest, payload, target, signing evidence, byte length,
-and SHA-256. A supported release build fails closed if that target-native result
-is absent or changes. Linux intentionally has no uniform OS tier and falls
+all bind the same exact manifest, payload, target, byte length, and SHA-256. A
+supported package build fails closed if that matching target-native result is
+absent or changes. Linux intentionally has no uniform OS tier and falls
 straight through to external FFmpeg. mac-x64 is rejected at target selection,
 build, staging, packaging, and runtime. This Linux development session cannot
-execute the Windows/macOS native canaries; the target-native workflow is the
-release acceptance authority and does not check native binaries into Git.
+execute the Windows/macOS native canaries; each target-native workflow records
+what it built and tested and does not check native binaries into Git.
 
 External FFmpeg CLI support is implemented for matching `ffmpeg`/`ffprobe`
 released versions from 4.4 through 9.x (`>=4.4.0`, `<10.0.0`). Main fingerprints
@@ -132,15 +133,13 @@ arguments, exact input byte counts, duration/log/output ceilings, executable
 identity checks, cancellation, cleanup, bounded output reads, container
 validation, and digest-bound output evidence guard publication.
 
-Bundled and operating-system video execution are not implemented. The
-repository has a fail-closed AV1 qualification decision and correctly treats
-dav1d as the decode candidate, SVT-AV1 as the primary encode candidate, and
-libaom as a conditional Windows ARM64 encoder fallback. It has no
-libwebm/libvpx/dav1d/SVT-AV1/libaom payload and no complete 12-case result on
-every supported target. The external WebM delivery above is VP9, not AV1. AV1,
-bundled WebM, Media Foundation video, and VideoToolbox video therefore advertise
-no execution capability and fall closed rather than silently using the browser
-FFmpeg runtime.
+Bundled and operating-system video execution are not implemented. There is no
+libwebm/libvpx/dav1d/SVT-AV1/libaom payload or AV1 execution path. The external
+WebM delivery above is VP9, not AV1. AV1, bundled WebM, Media Foundation video,
+and VideoToolbox video therefore advertise no execution capability and fail
+closed rather than silently using the browser FFmpeg runtime. Historical AV1
+candidate comparisons below are research notes, not a release matrix or a
+machine qualification decision.
 
 Copyright-license and technical evidence for these components is not patent
 clearance or a non-infringement representation for any codec, use, provider,
@@ -178,31 +177,26 @@ territory, or distribution method.
 - Keep libwebm/libvpx WebM execution disabled until exact payloads, bounded
   bridge operations, conformance tests, notices, and five-target evidence are
   present. External VP9/Opus WebM availability does not clear this bundled gate.
-- Keep dav1d 1.5.4, SVT-AV1 4.2.0, and libaom 3.14.1 as qualification
-  candidates, not shipped providers. dav1d is the decoder candidate. SVT-AV1
-  is the primary encoder candidate; encoder-only libaom may be selected only on
-  Windows ARM64 after a complete same-target decision proves the stated
-  fallback condition. Do not distribute rav1e initially.
-- Qualify AV1 with identical 1080p/4K, 8/10-bit film, animation, and screen
-  corpora. Compare decode CPU time and peak RSS, and compare encoder throughput
-  only at matched bitrate and VMAF/SSIM points.
+- Treat dav1d 1.5.4, SVT-AV1 4.2.0, and libaom 3.14.1 only as research
+  candidates, not shipped providers. Any future implementation must add real
+  correctness and interoperability tests before it can expose an operation.
+- Compare performance on representative media when implementation work begins;
+  measurements are diagnostics and do not certify a provider or release.
 - Pin source archives, hashes, build recipes, notices, patent-license texts,
-  SBOM entries, corresponding source, and five-target payload evidence. Codec
-  admission remains fail-closed per operation/container/jurisdiction.
+  SBOM entries, corresponding source, and target payloads for any implementation.
 
 ### AV1 implementation finding
 
 `libaom` is the reference AV1 implementation and includes both encode and
 decode paths; it is not one comparable "fastest project" for both directions.
 VideoLAN's dav1d is decoder-only and explicitly optimized for speed, size, and
-correctness. It remains the bundled software-decoder choice. The dav1d project
-still describes its 1.5.4 release as the latest optimized decoder, but its
-published blanket fastest claim dates to 2019, so admission must depend on the
-five-target corpus above rather than that historical claim.
+correctness. These observations are historical candidate research only. A
+future implementation must be selected from current correctness,
+interoperability, and diagnostic results rather than a predeclared matrix.
 
 SVT-AV1 is encoder-only and its current 4.2.0 release continues target-specific
-speed/quality and memory work. It is therefore the default encoder candidate;
-libaom 3.14.1 is an encoder fallback, not a dav1d replacement. There is no
+speed/quality and memory work. It and libaom 3.14.1 remain possible future
+encoder implementations rather than a default/fallback decision. There is no
 single useful encoder-speed result without fixing preset, bitrate, quality
 metric, bit depth, content class, CPU, thread count, and memory ceiling. Keep
 the Windows ARM64 fallback closed until the same corpus shows that libaom meets
@@ -240,10 +234,11 @@ Primary references: [dav1d project and release](https://images.videolan.org/proj
 - The target-native CI job builds only the codec addon on mac-arm64, win-x64,
   and win-arm64, authenticates pinned Electron headers and the source closure,
   runs `ctest`, and emits a canonical build result. macOS payload bytes are
-  ad-hoc or Developer ID signed and strictly verified before hashing. Release
-  preparation requires that result, stages exactly one manifest and one addon,
-  and beforePack/afterPack/content-manifest/startup verification reject missing,
-  changed, unsigned-on-macOS, wrong-target, duplicate, or foreign bytes.
+  given only an identity-free ad-hoc code seal and verified before hashing; no
+  Developer ID identity or credential is accepted. Package preparation requires
+  that result, stages exactly one manifest and one addon, and
+  beforePack/afterPack/content-manifest/startup verification reject missing,
+  changed, unsealed-on-macOS, wrong-target, duplicate, or foreign bytes.
 - Linux has no uniform OS provider and falls from bundled codecs directly to
   external FFmpeg. macOS x64 is unsupported and has no build or compatibility
   alias. The exact canaries qualify only their listed tuples and do not claim

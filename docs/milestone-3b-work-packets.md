@@ -18,10 +18,9 @@ The 3.0 foundation is the implementation baseline: sequences already carry a
 rational rate, a drop-frame flag, a start timecode, and their track membership;
 video clips are frame-anchored in sequence frames with source-domain in/out
 points; and the runtime clip projection is the only timing surface consumers
-read. The ten packaged Electron probe rows in
-`config/milestone-3-timing-probe-matrix.json` run automated tests across all
-five maintained desktop targets and remain `pending-external` only as
-milestone-9 stable 1.0 evidence. This historical packet does not relabel them.
+read. The retained `config/milestone-3-timing-probe-fixtures.json` pins only the
+representative correctness media. Ordinary browser and packaged tests report
+the environments they actually exercise.
 
 What the foundation did **not** provide is any editorial surface over that
 model: no command can change a sequence's timing, nothing renders or parses

@@ -27,7 +27,6 @@ test('the closed production report always names all six menu capability rows', (
 	assert.equal(report.buildFingerprint, null);
 	assert.equal(report.entries.every((entry) => entry.detail !== null), true);
 	assert.equal(report.entries.every((entry) => entry.buildFingerprint === null), true);
-	assert.equal(report.entries.filter((entry) => entry.state === 'blocked-policy').length, 0);
 	assert.match(
 		report.entries.find(({ id }) => id === 'image-sequence-import')?.detail ?? '',
 		/only opaque 8-bit sRGB\/RGB\/full-range.*higher-bit-depth, HDR, alpha, or incompatible color/iu,
@@ -45,10 +44,6 @@ test('only an authenticated payload digest becomes a media build fingerprint', (
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: fingerprint,
 			detail: 'Authenticated current-target media host passed its supervised self-test.',
-		},
-		policy: {
-			nativeCodecsCleared: true, proxyCodecCleared: true,
-			imageSequencesCleared: true, openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: false,
 		queueCapacityAuthorityMounted: false,
@@ -84,10 +79,6 @@ test('the render queue requires its separate selected V28/V14 carrier self-test'
 			quarantined: false, degraded: false, buildFingerprint: 'cd'.repeat(32),
 			detail: 'The host passed its general FFmpeg and proxy self-test only.',
 		},
-		policy: {
-			nativeCodecsCleared: true, proxyCodecCleared: true,
-			imageSequencesCleared: false, openFxCleared: false,
-		},
 		queueSourceAuthorityMounted: true,
 		queueCapacityAuthorityMounted: true,
 		watchProjectMutationMounted: false,
@@ -114,10 +105,6 @@ test('queue and proxy execution require a mounted capacity authority', () => {
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: 'de'.repeat(32),
 			detail: 'Authenticated media runtime is available.',
-		},
-		policy: {
-			nativeCodecsCleared: true, proxyCodecCleared: true,
-			imageSequencesCleared: false, openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: true,
 		queueCapacityAuthorityMounted: false,
@@ -148,10 +135,6 @@ test('a generic media-host self-test cannot claim V25 professional image-sequenc
 			professionalCharacteristicsSelfTestPassed: false,
 			quarantined: false, degraded: false, buildFingerprint: 'ef'.repeat(32),
 			detail: 'The generic FFmpeg, retime, and proxy self-test passed.',
-		},
-		policy: {
-			nativeCodecsCleared: true, proxyCodecCleared: true,
-			imageSequencesCleared: true, openFxCleared: false,
 		},
 		queueSourceAuthorityMounted: false,
 		queueCapacityAuthorityMounted: false,

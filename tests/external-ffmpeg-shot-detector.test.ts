@@ -22,7 +22,7 @@ const WORKING_DIRECTORY = '/private/shot-detection';
 const SOURCE = `${WORKING_DIRECTORY}/source.media`;
 const SCENE_FILTER = "scdet=threshold=10,metadata=mode=print:file='pipe\\:4':direct=1,metadata=mode=select:key=lavfi.scd.time,showinfo";
 
-test('qualifies scdet functionally then detects through one exact shell-free source grammar', async () => {
+test('verifies scdet functionally then detects through one exact shell-free source grammar', async () => {
 	const launches: Launch[] = [];
 	const digests: string[] = [];
 	const detector = createExternalFfmpegShotDetector({
@@ -32,7 +32,7 @@ test('qualifies scdet functionally then detects through one exact shell-free sou
 		spawn: successfulSpawn(launches),
 	});
 
-	assert.deepEqual(await detector.qualify(), {
+	assert.deepEqual(await detector.verify(), {
 		schemaVersion: 1,
 		detector: 'ffmpeg-scdet',
 		executablePairClosureSha256: pair().executablePairClosureSha256,
@@ -67,13 +67,13 @@ test('qualifies scdet functionally then detects through one exact shell-free sou
 	]);
 });
 
-test('requires its own successful automatic qualification and rejects argv-shaped requests', async () => {
+test('requires its own successful automatic verification and rejects argv-shaped requests', async () => {
 	let launches = 0;
 	const detector = createExternalFfmpegShotDetector({
 		pair: pair(), workingDirectory: WORKING_DIRECTORY, digestExecutable: exactDigest,
 		spawn: () => { launches += 1; return fakeChild(); },
 	});
-	await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'unqualified');
+	await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'not-verified');
 	await rejectsReason(detector.detect({
 		sourcePath: SOURCE, arguments: ['-i', '/outside'] as readonly string[],
 	} as never), 'request-rejected');
@@ -92,7 +92,7 @@ test('rejects invalid pair authority and unknown factory options before launch',
 	} as never), /options|invalid/iu);
 });
 
-test('fails closed when either executable identity changes before or after qualification', async () => {
+test('fails closed when either executable identity changes before or after verification', async () => {
 	for (const driftAfterDigestCall of [0, 2]) {
 		let calls = 0;
 		let launches = 0;
@@ -104,9 +104,9 @@ test('fails closed when either executable identity changes before or after quali
 			},
 			spawn: (...arguments_) => { launches += 1; return successfulSpawn([])(...arguments_); },
 		});
-		await rejectsReason(detector.qualify(), 'identity-changed');
+		await rejectsReason(detector.verify(), 'identity-changed');
 		assert.equal(launches, driftAfterDigestCall === 0 ? 0 : 1);
-		await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'unqualified');
+		await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'not-verified');
 	}
 });
 
@@ -121,13 +121,13 @@ test('withholds a completed detection result when the admitted pair drifts durin
 		},
 		spawn: successfulSpawn(launches),
 	});
-	await detector.qualify();
+	await detector.verify();
 	await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'identity-changed');
-	await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'unqualified');
+	await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'not-verified');
 	assert.equal(launches.length, 2);
 });
 
-test('does not qualify a filter graph that fails the known black-to-white cut canary', async () => {
+test('does not verify a filter graph that fails the known black-to-white cut canary', async () => {
 	for (const metadata of [
 		metadataFrames([0, 1_000_000, 2_000_000, 3_000_000]),
 		metadataFrames([0, 1_000_000, 2_000_000, 3_000_000], 3),
@@ -136,8 +136,8 @@ test('does not qualify a filter graph that fails the known black-to-white cut ca
 			pair: pair(), workingDirectory: WORKING_DIRECTORY, digestExecutable: exactDigest,
 			spawn: outputSpawn('[showinfo] config in time_base: 1/1000000, frame_rate: 1/1\n', metadata),
 		});
-		await rejectsReason(detector.qualify(), 'canary-failed');
-		await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'unqualified');
+		await rejectsReason(detector.verify(), 'canary-failed');
+		await rejectsReason(detector.detect({ sourcePath: SOURCE }), 'not-verified');
 	}
 });
 
@@ -158,7 +158,7 @@ test('cancellation and timeout supervise the whole child tree through TERM then 
 				return child;
 			},
 		});
-		const pending = detector.qualify({ signal: controller.signal });
+		const pending = detector.verify({ signal: controller.signal });
 		await rejectsReason(pending, reason);
 		assert.deepEqual(kills, ['SIGTERM', 'SIGKILL']);
 	}
@@ -182,7 +182,7 @@ test('independently bounds stderr and scene metadata while the process is runnin
 				return child;
 			},
 		});
-		await rejectsReason(detector.qualify(), reason);
+		await rejectsReason(detector.verify(), reason);
 		assert.deepEqual(kills, ['SIGTERM', 'SIGKILL']);
 	}
 });
@@ -196,13 +196,13 @@ test('reports nonzero exits and malformed successful metadata without claiming s
 			return child;
 		},
 	});
-	await rejectsReason(failed.qualify(), 'process-failed');
+	await rejectsReason(failed.verify(), 'process-failed');
 
 	const malformed = createExternalFfmpegShotDetector({
 		pair: pair(), workingDirectory: WORKING_DIRECTORY, digestExecutable: exactDigest,
 		spawn: outputSpawn('[showinfo] config in time_base: 1/1000, frame_rate: 25/1\n', 'not metadata\n'),
 	});
-	await rejectsReason(malformed.qualify(), 'metadata-invalid');
+	await rejectsReason(malformed.verify(), 'metadata-invalid');
 });
 
 interface Launch {

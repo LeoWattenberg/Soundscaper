@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact ffprobe track attestation for a completed external-video canary. */
+/** Exact ffprobe track inspection for a completed external-video canary. */
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import { dirname, isAbsolute, normalize } from 'node:path';

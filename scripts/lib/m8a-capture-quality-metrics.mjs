@@ -7,7 +7,7 @@ import {
 	nonNegativeInteger,
 	positiveInteger,
 	requireRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M8A_CAPTURE_WORKLOAD_ID = 'm8a-capture-long-session';

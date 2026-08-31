@@ -6,7 +6,7 @@ import {
 	boundedString,
 	deepFreeze,
 	exactRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 const MAXIMUM_SAMPLES_PER_METRIC = 262_144;

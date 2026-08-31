@@ -10,7 +10,7 @@ export function snapshotFramescaperVideoProxyPressureRetime(
 ): Readonly<FramescaperVideoProxyPressureRetime> {
 	resolveFramescaperVideoProxyUseRetime({
 		purpose: 'preview', mode: 'auto', originalAvailable: true,
-		proxyTrust: 'attested', pressure: value,
+		proxyTrust: 'verified', pressure: value,
 	});
 	return Object.freeze({
 		droppedFrameRatio: value.droppedFrameRatio,
@@ -24,6 +24,6 @@ export function framescaperVideoProxyPressureSelectsProxyRetime(
 ): boolean {
 	return resolveFramescaperVideoProxyUseRetime({
 		purpose: 'preview', mode: 'auto', originalAvailable: true,
-		proxyTrust: 'attested', pressure: value,
+		proxyTrust: 'verified', pressure: value,
 	}).kind === 'proxy';
 }

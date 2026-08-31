@@ -186,7 +186,7 @@ test('image-sequence profiles disclose the selected RGBA8 SDR preservation ceili
 				bitDepth, chromaFormat: '4:4:4', hasAlpha: true,
 				colourTransfer, colourPrimaries: colourTransfer === 'smpte2084' ? 'bt2020' : 'bt709',
 			}),
-			clearedPolicyRowIds: ALL_ROWS,
+			recordedLicensingRowIds: ALL_ROWS,
 			requirements: { preserveBitDepth: true, preserveHdrMetadata: true },
 		});
 		assert.equal(verdict.admitted, false);
@@ -198,13 +198,13 @@ test('image-sequence profiles disclose the selected RGBA8 SDR preservation ceili
 			bitDepth: 8, chromaFormat: '4:4:4', hasAlpha: true,
 			colourPrimaries: 'bt709', colourTransfer: 'iec61966-2-1',
 		}),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 		requirements: { preserveAlpha: true },
 	});
 	assert.deepEqual(alpha.refusals, ['alpha-not-preserved']);
 });
 
-test('every profile policy row remains a named stable-1.0 release blocker', async () => {
+test('every profile policy row retains a named distribution disposition', async () => {
 	const matrix = JSON.parse(await readFile(
 		new URL('../config/production-licensing-matrix.json', import.meta.url), 'utf8',
 	)) as { nativeFormatPolicies: { id: string; status: string; blocker: string }[] };
@@ -213,12 +213,12 @@ test('every profile policy row remains a named stable-1.0 release blocker', asyn
 	for (const rowId of ALL_ROWS) {
 		const row = rows.get(rowId);
 		assert.ok(row, `the licensing register is missing ${rowId}`);
-		assert.equal(row.status, 'blocked', `${rowId} must block stable 1.0 release`);
+		assert.equal(row.status, 'blocked', `${rowId} must name its distribution restriction`);
 		assert.ok(row.blocker.length > 0, `${rowId} needs a named blocker`);
 	}
 });
 
-test('pending licensing rows are milestone-9 release metadata, not execution refusals', () => {
+test('unresolved licensing rows are metadata, not execution refusals', () => {
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-mov-prores-4444',
 		source: source({ bitDepth: 12, chromaFormat: '4:4:4', hasAlpha: true, colourTransfer: 'bt709' }),
@@ -226,7 +226,7 @@ test('pending licensing rows are milestone-9 release metadata, not execution ref
 
 	assert.equal(verdict.admitted, true);
 	assert.deepEqual(verdict.refusals, []);
-	assert.deepEqual(verdict.pendingReleasePolicyRowIds, [
+	assert.deepEqual(verdict.unresolvedLicensingRowIds, [
 		'codec-native-ffmpeg-current-set', 'codec-encode-prores-mov-4444',
 	]);
 });
@@ -235,7 +235,7 @@ test('an unknown profile is refused rather than treated as permissive', () => {
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-mov-prores-8888',
 		source: source({}),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 	});
 
 	assert.deepEqual(verdict.refusals, ['profile-unknown']);
@@ -255,7 +255,7 @@ test('a required bit depth, chroma, HDR, or alpha a profile cannot hold is refus
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-mp4-h264',
 		source: hdrAlpha,
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 		requirements: {
 			preserveBitDepth: true, preserveChroma: true,
 			preserveHdrMetadata: true, preserveAlpha: true,
@@ -284,7 +284,7 @@ test('a profile that can hold every requirement is admitted', () => {
 			masteringDisplay: masteringDisplay(),
 			contentLight: { maximumContentLightLevel: 1_000, maximumFrameAverageLightLevel: 400 },
 		}),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 		requirements: {
 			preserveBitDepth: true, preserveChroma: true,
 			preserveHdrMetadata: true, preserveAlpha: true,
@@ -296,7 +296,7 @@ test('a profile that can hold every requirement is admitted', () => {
 		profileId: 'encode-mov-prores-4444',
 		refusals: [],
 		disclosures: [],
-		pendingReleasePolicyRowIds: [],
+		unresolvedLicensingRowIds: [],
 	});
 });
 
@@ -310,7 +310,7 @@ test('a loss the caller did not require is admitted but never silent', () => {
 			colourTransfer: 'smpte2084',
 			colourPrimaries: 'bt2020',
 		}),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 	});
 
 	assert.equal(verdict.admitted, true);
@@ -323,7 +323,7 @@ test('an unreported fact is disclosed, so alpha is never lost without saying so'
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-mp4-h264',
 		source: createUnreportedNativeMediaProfessionalCharacteristics(),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 	});
 
 	assert.equal(verdict.admitted, true);
@@ -336,7 +336,7 @@ test('a requirement that probing cannot establish is refused, not assumed satisf
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-matroska-ffv1',
 		source: createUnreportedNativeMediaProfessionalCharacteristics(),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 		requirements: { preserveBitDepth: true, preserveAlpha: true },
 	});
 
@@ -363,7 +363,7 @@ test('HDR10 metadata probing established is disclosed even when the transfer tag
 		const dropped = evaluateNativeMediaProfileAdmission({
 			profileId: 'encode-mp4-h264',
 			source: carrier,
-			clearedPolicyRowIds: ALL_ROWS,
+			recordedLicensingRowIds: ALL_ROWS,
 		});
 		assert.equal(dropped.admitted, true);
 		assert.deepEqual(dropped.disclosures, ['transfer-unreported', 'hdr-metadata-dropped']);
@@ -371,7 +371,7 @@ test('HDR10 metadata probing established is disclosed even when the transfer tag
 		const required = evaluateNativeMediaProfileAdmission({
 			profileId: 'encode-mp4-h264',
 			source: carrier,
-			clearedPolicyRowIds: ALL_ROWS,
+			recordedLicensingRowIds: ALL_ROWS,
 			requirements: { preserveHdrMetadata: true },
 		});
 		assert.equal(required.admitted, false);
@@ -380,7 +380,7 @@ test('HDR10 metadata probing established is disclosed even when the transfer tag
 		const held = evaluateNativeMediaProfileAdmission({
 			profileId: 'encode-mov-prores-422-hq',
 			source: carrier,
-			clearedPolicyRowIds: ALL_ROWS,
+			recordedLicensingRowIds: ALL_ROWS,
 		});
 		assert.deepEqual(held.disclosures, ['transfer-unreported']);
 	}
@@ -390,7 +390,7 @@ test('an SDR source loses nothing to a profile that carries no HDR metadata', ()
 	const verdict = evaluateNativeMediaProfileAdmission({
 		profileId: 'encode-webm-vp9',
 		source: source({ bitDepth: 8, chromaFormat: '4:2:0', hasAlpha: false, colourTransfer: 'bt709' }),
-		clearedPolicyRowIds: ALL_ROWS,
+		recordedLicensingRowIds: ALL_ROWS,
 		requirements: { preserveBitDepth: true, preserveChroma: true, preserveAlpha: true },
 	});
 

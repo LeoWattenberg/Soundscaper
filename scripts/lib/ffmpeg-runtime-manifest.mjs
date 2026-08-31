@@ -37,14 +37,14 @@ const EVIDENCE_PATHS = Object.freeze({
 	securityMatrix: 'config/production-security-matrix.json',
 	threatModel: 'docs/production-threat-model.md',
 });
-const PUBLICATION_GATE_IDS = Object.freeze([
+const PUBLICATION_CHECK_IDS = Object.freeze([
 	'dependency-notice-version-audit',
 	'ffmpeg-enabled-codec-patent-review',
 	'ffmpeg-enabled-library-corresponding-source',
 	'ffmpeg-runtime-manifest-integrity',
 	'web-notice-delivery',
 ]);
-const DESKTOP_RELEASE_GATE_IDS = Object.freeze([
+const DESKTOP_RELEASE_CHECK_IDS = Object.freeze([
 	'dependency-notice-version-audit',
 	'desktop-notice-delivery',
 	'ffmpeg-enabled-codec-patent-review',
@@ -57,12 +57,6 @@ const PURPOSES = Object.freeze({
 	'runtime-publication': null,
 	'desktop-release': null,
 });
-const REVIEW_SCOPES = Object.freeze([
-	'desktop-assembly',
-	'desktop-release-policy',
-	'runtime-publication-policy',
-]);
-
 export const repinFfmpegRuntimeEvidence = createFfmpegRuntimeEvidenceRepinner({
 	assert, canonicalJson, evidencePaths: EVIDENCE_PATHS, manifestPath: FFMPEG_RUNTIME_MANIFEST_PATH,
 	parseJson, readRegularFile, sha256, validateManifestShape,
@@ -79,7 +73,7 @@ export async function verifyFfmpegRuntimeManifest({
 	const manifestBytes = await readRegularFile(root, manifestPath, 'FFmpeg runtime manifest');
 	const manifest = parseJson(manifestBytes, 'FFmpeg runtime manifest');
 	validateManifestShape(manifest);
-	validateReview(manifest);
+	validateIntegrity(manifest);
 	const publicPolicyBytes = await readRegularFile(root, manifest.publication.policy.path, 'runtime publication policy');
 	verifyDescriptorBytes(publicPolicyBytes, manifest.publication.policy, 'runtime publication policy');
 	const publicPolicy = validatePublicPolicy(
@@ -121,7 +115,7 @@ export async function verifyFfmpegRuntimeManifest({
 		parseJson(evidence.securityMatrix.bytes, 'production security matrix'),
 	);
 	validateLineEndingPolicy(String(evidence.lineEndings.bytes), manifest);
-	validateAuthorizations(manifest.authorizations, licensingMatrix);
+	validateDistributionChecks(manifest.distributionChecks, licensingMatrix);
 	deepFreeze(manifest);
 
 	const release = Object.freeze({
@@ -243,7 +237,8 @@ export function snapshotVerifiedFfmpegRuntime(release) {
 function validateManifestShape(manifest) {
 	assertPlainObject(manifest, 'manifest');
 	assertExactKeys(manifest, [
-		'schemaVersion', 'id', 'package', 'runtime', 'publication', 'evidence', 'security', 'authorizations', 'review',
+		'schemaVersion', 'id', 'package', 'runtime', 'publication', 'evidence', 'security',
+		'distributionChecks', 'integrity',
 	], 'manifest');
 	assert(manifest.schemaVersion === 1, 'FFmpeg runtime manifest schemaVersion must be 1');
 	assert(/^ffmpeg-core-\d+\.\d+\.\d+$/u.test(manifest.id), 'FFmpeg runtime manifest ID is invalid');
@@ -295,28 +290,24 @@ function validateManifestShape(manifest) {
 	assert(manifest.security.riskId === 'runtime-supply-chain', 'security.riskId is invalid');
 	assert(manifest.security.controlId === 'validated-ffmpeg-runtime-publication', 'security.controlId is invalid');
 
-	assertPlainObject(manifest.authorizations, 'authorizations');
-	assertExactKeys(manifest.authorizations, ['desktopAssembly', 'runtimePublication', 'desktopRelease'], 'authorizations');
-	for (const [id, authorization] of Object.entries(manifest.authorizations)) validateAuthorization(authorization, `authorizations.${id}`);
+	assertPlainObject(manifest.distributionChecks, 'distributionChecks');
+	assertExactKeys(manifest.distributionChecks, [
+		'desktopAssembly', 'runtimePublication', 'desktopRelease',
+	], 'distributionChecks');
+	for (const [id, check] of Object.entries(manifest.distributionChecks)) {
+		validateDistributionCheck(check, `distributionChecks.${id}`);
+	}
 
-	assertPlainObject(manifest.review, 'review');
-	assertExactKeys(manifest.review, ['status', 'reviewedAt', 'reviewer', 'scopes', 'payloadSha256'], 'review');
+	assertPlainObject(manifest.integrity, 'integrity');
+	assertExactKeys(manifest.integrity, ['payloadSha256'], 'integrity');
 }
 
-function validateReview(manifest) {
-	assert(['approved', 'pending'].includes(manifest.review.status),
-		'FFmpeg runtime review status must be approved or pending');
-	assert(/^\d{4}-\d{2}-\d{2}$/u.test(manifest.review.reviewedAt), 'FFmpeg runtime reviewedAt is invalid');
-	assert(Date.parse(`${manifest.review.reviewedAt}T00:00:00Z`) <= Date.now(), 'FFmpeg runtime review date is in the future');
-	assert(typeof manifest.review.reviewer === 'string' && manifest.review.reviewer.trim().length >= 3,
-		'FFmpeg runtime reviewer is invalid');
-	assert(Array.isArray(manifest.review.scopes), 'FFmpeg runtime review scopes must be an array');
-	assert(canonicalJson(manifest.review.scopes) === canonicalJson(REVIEW_SCOPES),
-		`FFmpeg runtime review scopes must be ${REVIEW_SCOPES.join(', ')}`);
-	assert(SHA256_PATTERN.test(manifest.review.payloadSha256), 'FFmpeg runtime review payload digest is invalid');
-	const payload = Object.fromEntries(Object.entries(manifest).filter(([key]) => key !== 'review'));
-	assert(sha256(Buffer.from(canonicalJson(payload))) === manifest.review.payloadSha256,
-		'FFmpeg runtime review payload digest is stale or invalid');
+function validateIntegrity(manifest) {
+	assert(SHA256_PATTERN.test(manifest.integrity.payloadSha256),
+		'FFmpeg runtime integrity payload digest is invalid');
+	const payload = Object.fromEntries(Object.entries(manifest).filter(([key]) => key !== 'integrity'));
+	assert(sha256(Buffer.from(canonicalJson(payload))) === manifest.integrity.payloadSha256,
+		'FFmpeg runtime integrity payload digest is stale or invalid');
 }
 
 function validatePackageIdentity(manifest, { projectPackage, lock, installedPackage }) {
@@ -369,8 +360,8 @@ function validateLinkedEvidence(manifest, evidence, licensingMatrix, securityMat
 	const noticeBuildTags = [...notices.matchAll(/https:\/\/github\.com\/ffmpegwasm\/ffmpeg\.wasm\/tree\/([A-Za-z\d._-]+)/gu)];
 	assert(buildTag && noticeBuildTags.length > 0 && noticeBuildTags.every((match) => match[1] === buildTag),
 		'THIRD_PARTY_LICENSES.md does not identify the pinned ffmpeg.wasm build source');
-	assert(licensingMatrix.schemaVersion === 1 && Array.isArray(licensingMatrix.releaseGates),
-		'production licensing matrix release gates are invalid');
+	assert(licensingMatrix.schemaVersion === 1 && Array.isArray(licensingMatrix.distributionChecks),
+		'production licensing matrix distribution checks are invalid');
 	assert(securityMatrix.schemaVersion === 1 && Array.isArray(securityMatrix.risks),
 		'production security matrix risks are invalid');
 	const risk = securityMatrix.risks.find(({ id }) => id === manifest.security.riskId);
@@ -457,38 +448,38 @@ function validatePublicPolicy(policy, manifest) {
 	return deepFreeze(policy);
 }
 
-function validateAuthorizations(authorizations, licensingMatrix) {
-	assertAuthorization(authorizations.desktopAssembly, [], 'desktop assembly');
-	assertAuthorization(
-		authorizations.runtimePublication,
-		blockedLicensingGates(licensingMatrix, PUBLICATION_GATE_IDS),
+function validateDistributionChecks(checks, licensingMatrix) {
+	assertDistributionCheck(checks.desktopAssembly, [], 'desktop assembly');
+	assertDistributionCheck(
+		checks.runtimePublication,
+		blockedLicensingChecks(licensingMatrix, PUBLICATION_CHECK_IDS),
 		'runtime publication',
 	);
-	assertAuthorization(
-		authorizations.desktopRelease,
-		blockedLicensingGates(licensingMatrix, DESKTOP_RELEASE_GATE_IDS),
+	assertDistributionCheck(
+		checks.desktopRelease,
+		blockedLicensingChecks(licensingMatrix, DESKTOP_RELEASE_CHECK_IDS),
 		'desktop release',
 	);
 }
 
-function blockedLicensingGates(matrix, gateIds) {
-	assert(new Set(matrix.releaseGates.map(({ id }) => id)).size === matrix.releaseGates.length,
-		'production licensing matrix release gate IDs must be unique');
-	const gates = new Map(matrix.releaseGates.map((gate) => [gate.id, gate]));
-	return gateIds.filter((id) => {
-		const gate = gates.get(id);
-		assert(gate, `production licensing matrix has no ${id} gate`);
-		assert(gate.status === 'implemented' || gate.status === 'blocked', `${id} has an unsupported status`);
-		return gate.status !== 'implemented';
+function blockedLicensingChecks(matrix, checkIds) {
+	assert(new Set(matrix.distributionChecks.map(({ id }) => id)).size === matrix.distributionChecks.length,
+		'production licensing matrix distribution check IDs must be unique');
+	const checks = new Map(matrix.distributionChecks.map((check) => [check.id, check]));
+	return checkIds.filter((id) => {
+		const check = checks.get(id);
+		assert(check, `production licensing matrix has no ${id} distribution check`);
+		assert(check.status === 'implemented' || check.status === 'blocked', `${id} has an unsupported status`);
+		return check.status !== 'implemented';
 	});
 }
 
-function assertAuthorization(authorization, blockedBy, label) {
-	const expectedStatus = blockedBy.length === 0 ? 'approved' : 'blocked';
-	assert(authorization.status === expectedStatus,
-		`${label} authorization must be ${expectedStatus} for the current licensing gates`);
-	assert(canonicalJson(authorization.blockedBy) === canonicalJson(blockedBy),
-		`${label} blockedBy must match the current licensing gates: ${blockedBy.join(', ') || '<none>'}`);
+function assertDistributionCheck(check, blockedBy, label) {
+	const expectedAllowed = blockedBy.length === 0;
+	assert(check.allowed === expectedAllowed,
+		`${label} distribution check must be ${expectedAllowed ? 'allowed' : 'blocked'} for the current licensing checks`);
+	assert(canonicalJson(check.blockedBy) === canonicalJson(blockedBy),
+		`${label} blockedBy must match the current licensing checks: ${blockedBy.join(', ') || '<none>'}`);
 }
 
 function validateCorsPolicy(cors, expectedOrigins) {
@@ -544,13 +535,13 @@ function validateSourceDescriptor(descriptor, label) {
 	assertDescriptorSizeAndDigest(descriptor, label, 2 * 1024 * 1024 * 1024);
 }
 
-function validateAuthorization(authorization, label) {
-	assertPlainObject(authorization, label);
-	assertExactKeys(authorization, ['status', 'blockedBy'], label);
-	assert(authorization.status === 'approved' || authorization.status === 'blocked', `${label}.status is invalid`);
-	assert(Array.isArray(authorization.blockedBy), `${label}.blockedBy must be an array`);
-	assertSortedUnique(authorization.blockedBy, `${label}.blockedBy`);
-	for (const id of authorization.blockedBy) assert(/^[a-z\d]+(?:-[a-z\d]+)*$/u.test(id), `${label}.blockedBy contains an invalid ID`);
+function validateDistributionCheck(check, label) {
+	assertPlainObject(check, label);
+	assertExactKeys(check, ['allowed', 'blockedBy'], label);
+	assert(typeof check.allowed === 'boolean', `${label}.allowed must be boolean`);
+	assert(Array.isArray(check.blockedBy), `${label}.blockedBy must be an array`);
+	assertSortedUnique(check.blockedBy, `${label}.blockedBy`);
+	for (const id of check.blockedBy) assert(/^[a-z\d]+(?:-[a-z\d]+)*$/u.test(id), `${label}.blockedBy contains an invalid ID`);
 }
 
 function assertDescriptorSizeAndDigest(descriptor, label, maximum) {

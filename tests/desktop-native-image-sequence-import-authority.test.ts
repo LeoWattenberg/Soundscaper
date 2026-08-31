@@ -437,7 +437,7 @@ function capabilitySnapshot(usable: boolean) {
 	return createNativeMediaCapabilitySnapshotV1({
 		masterEnabled: usable,
 		entries: [{
-			domain: 'operation', id: 'image-sequence-import', policyCleared: usable,
+			domain: 'operation', id: 'image-sequence-import',
 			buildSupported: usable, probeSucceeded: usable, selfTestPassed: usable,
 			userEnabled: usable,
 		}],

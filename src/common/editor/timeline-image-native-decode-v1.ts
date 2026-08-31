@@ -56,7 +56,7 @@ export interface FramescaperBrowserNativeImageDecodeResultV1 {
 	readonly notices: readonly string[];
 }
 
-/** Strictly classify, admit, decode, normalize, and pack one qualified native raster. */
+/** Strictly classify, admit, decode, normalize, and pack one supported native raster. */
 export async function decodeFramescaperBrowserNativeImageV1(
 	request: FramescaperBrowserNativeImageDecodeRequestV1,
 ): Promise<FramescaperBrowserNativeImageDecodeResultV1> {
@@ -74,7 +74,7 @@ export async function decodeFramescaperBrowserNativeImageV1(
 	}
 	if (classification.status !== 'recognized') throw new RangeError('The image byte signature is not recognized.');
 	const mimeType = NATIVE_MIME_TYPES.get(classification.format);
-	if (!mimeType) throw new RangeError(`The reviewed ${classification.format} format has no qualified browser-native route.`);
+	if (!mimeType) throw new RangeError(`The reviewed ${classification.format} format has no supported browser-native route.`);
 	let session: FramescaperBrowserNativeImageDecodeSessionV1 | null = null;
 	try {
 		session = await request.open({
@@ -84,13 +84,13 @@ export async function decodeFramescaperBrowserNativeImageV1(
 		const metadata = normalizeMetadata(session.metadata);
 		const route = routeImageDecoder({
 			format: classification.format, colour: 'srgb-8-bit', topology: metadata.topology,
-			qualifiedRoutes: [{
+			verifiedRoutes: [{
 				decoder: 'browser-native', format: classification.format,
 				colour: 'srgb-8-bit', topology: metadata.topology,
 			}],
 		});
 		if (route.status !== 'ready' || route.decoder !== 'browser-native') {
-			throw new RangeError(`The ${classification.format} topology is not qualified for browser-native decode.`);
+			throw new RangeError(`The ${classification.format} topology is not verified for browser-native decode.`);
 		}
 		admit(metadata, request.bytes.byteLength, metadata.frameCount * FALLBACK_DURATION_MICROSECONDS);
 		const notices: string[] = [];

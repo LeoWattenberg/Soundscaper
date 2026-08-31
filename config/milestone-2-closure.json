@@ -21,16 +21,15 @@
 	"testActivation": {
 		"browserProjects": ["chromium", "firefox", "webkit"],
 		"desktopTargets": ["windows-x64", "windows-arm64", "macos-arm64", "linux-x64", "linux-arm64"],
-		"humanReviewMilestone": 9,
-		"policy": "Manual browser-engine and desktop-target qualification is a stable 1.0 release-admission input at milestone 9 and never disables automated testing. Tests skip only when the current engine, target, or runner reports a concrete missing API or runtime capability."
+		"policy": "Configured browser engines and desktop targets run automated checks. Tests skip only when the current engine, target, or runner reports a concrete missing API or runtime capability. Optional owner QA records only environments actually tried and never activates a feature or certifies a release."
 	},
 	"gates": [
 		{
 			"id": "m2-gate-bounded-pipelines",
 			"status": "implemented",
 			"itemIds": [
-				"m2-pipeline-route-qualification",
-				"m2-pipeline-resource-qualification",
+				"m2-pipeline-route-verification",
+				"m2-pipeline-resource-verification",
 				"m2-opfs-worker-boundary"
 			]
 		},
@@ -76,7 +75,7 @@
 	],
 	"items": [
 		{
-			"id": "m2-pipeline-route-qualification",
+			"id": "m2-pipeline-route-verification",
 			"gateId": "m2-gate-bounded-pipelines",
 			"status": "implemented",
 			"routeIds": [
@@ -104,7 +103,7 @@
 			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
 		},
 		{
-			"id": "m2-pipeline-resource-qualification",
+			"id": "m2-pipeline-resource-verification",
 			"gateId": "m2-gate-bounded-pipelines",
 			"status": "implemented",
 			"workloadIds": [
@@ -171,7 +170,7 @@
 			],
 			"acceptance": [
 				"Every publication-path and fault combination either preserves the previous commit or exposes a recoverable journal; no partial destination is advertised.",
-				"Unsupported fault injection is recorded as an explicit platform qualification failure, not silently skipped."
+				"Unsupported fault injection is recorded with an explicit reason, not silently skipped."
 			],
 			"ownerRefs": ["docs/production-threat-model.md", "config/production-security-matrix.json"]
 		},
@@ -187,10 +186,8 @@
 				"offline-shell-upgrade",
 				"storage-eviction-recovery"
 			],
-			"qualifiedBrowserProjects": ["chromium", "firefox"],
-			"deferredBrowserProjects": ["webkit"],
 			"acceptance": [
-				"Each workflow ID passes in each historically qualified browserProject or records a truthful unsupported outcome with the Web Core fallback passing. Scope revision 2 deferred WebKit release qualification, while current test activation runs WebKit and skips only a concrete missing API or runtime capability.",
+				"Automated test activation runs each workflow ID in configured Chromium, Firefox, and WebKit and records a truthful unsupported outcome only for a concrete missing API or runtime capability, with the Web Core fallback passing.",
 				"A failed workflow leaves the last committed project and installed application shell usable."
 			],
 			"ownerRefs": ["docs/quality-budgets.md", "docs/production-threat-model.md"]
@@ -343,10 +340,9 @@
 				"orderly-process-restart",
 				"crash-restart-recovery"
 			],
-			"qualifiedDesktopTargets": ["windows-x64", "windows-arm64", "macos-arm64", "linux-x64", "linux-arm64"],
-			"acceptedResultCohortId": "hosted-ci-family-v1-lease-matrix-e7c76c70",
+			"configuredDesktopTargets": ["windows-x64", "windows-arm64", "macos-arm64", "linux-x64", "linux-arm64"],
 			"acceptance": [
-				"The seven product-specific workflow IDs retain one accepted family-v1 packaged result for both Soundscaper and Framescaper on every testActivation.desktopTarget, and cross-product-simultaneous-open retains one accepted result per paired package set. Stable-release human qualification remains a separate milestone-9 gate. macos-x64 remains retired.",
+				"The CI job runs the seven product-specific workflows for both Soundscaper and Framescaper on every configured desktop target and cross-product-simultaneous-open once per paired package set. Each run reports only its own revision and target; no retained cohort certifies a later release. macos-x64 remains retired.",
 				"Fencing tokens increase monotonically and no losing writer publishes a project or managed-media descriptor."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "docs/production-threat-model.md"]
@@ -440,12 +436,9 @@
 				"video-full-project-electron-roundtrip",
 				"video-clip-render-electron-roundtrip"
 			],
-			"qualifiedBrowserProjects": ["chromium", "firefox"],
-			"deferredBrowserProjects": ["webkit"],
-			"packagedProductPairQualified": true,
 			"acceptance": [
 				"Each workflow ID opens on the less-capable product, uses its admitted fallback, saves or exports without canonical mutation and returns to the originating product with editable and opaque state preserved.",
-				"The web workflows pass each historically qualified browserProject. Scope revision 2 deferred WebKit release qualification, while current test activation runs WebKit and skips only a concrete missing API or runtime capability; the Electron workflows pass the packaged product pair."
+				"Automated test activation runs the web workflows in configured Chromium, Firefox, and WebKit and skips only a concrete missing API or runtime capability; the Electron workflows exercise the packaged product pair."
 			],
 			"ownerRefs": ["docs/project-compatibility.md", "config/project-compatibility.json"]
 		}

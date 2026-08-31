@@ -46,7 +46,7 @@ struct V12HostInvocation final {
 	std::string state_sha256;
 	Context context{};
 	Backend requested_backend{};
-	std::vector<Backend> qualified_backends;
+	std::vector<Backend> supported_backends;
 	std::string abort_signal_id;
 	std::vector<HydratedParameterState> parameters;
 	std::vector<V12NamedInputFrame> inputs;

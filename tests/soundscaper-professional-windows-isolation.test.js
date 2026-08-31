@@ -27,13 +27,16 @@ test('Windows constructs the inherited CRT handle table without unaligned stores
 		'ARM64 cannot admit a pointer aligned only after the variable byte flags');
 });
 
-test('Windows reports a bounded pre-attestation API stage without merging guards', () => {
+test('Windows reports a bounded pre-enforcement API stage without merging guards', () => {
 	assert.match(SOURCE, /M5_NATIVE_ISOLATION_FAILURE_V1/u);
+	assert.match(PROFILE,
+		/"enforcementHandshake":"post-assignment-pre-resume-enforcement-pipe-v1"/u);
 	assert.match(SOURCE, /if \(!CreateProcessW\([\s\S]*nativeFailure\("create-process"/u);
 	assert.match(SOURCE, /if \(!AssignProcessToJobObject\([\s\S]*nativeFailure\("assign-job"/u);
 	assert.match(SOURCE,
 		/if \(!AssignProcessToJobObject\([\s\S]*TerminateProcess\([\s\S]*nativeFailure\("assign-job"/u,
 		'the unassigned suspended child must be terminated before the launcher exits');
+	assert.doesNotMatch(`${SOURCE}\n${PROFILE}`, /attest/iu);
 });
 
 test('Windows opts the peer out of ambient all-application-package access', () => {

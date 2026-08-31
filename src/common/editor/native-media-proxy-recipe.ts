@@ -6,14 +6,14 @@
  *
  * This completes the existing proxy relationship rather than starting a second
  * one. The generated body still flows through the established content-addressed
- * staging, claim, attachment, cleanup, and reattestation lifecycle, and the
+ * staging, claim, attachment, cleanup, and revalidation lifecycle, and the
  * attachment still records the generator and recipe identity that make a stale
  * proxy detectable. What is new here is only the recipe itself and the machine
  * admission in front of it.
  *
- * Pending ProRes licensing review is milestone-9 stable-release metadata. It
- * never substitutes another codec and never disables this implemented test
- * path; the recipe remains exact ProRes Proxy in MOV.
+ * Unresolved ProRes licensing work is distribution metadata. It never
+ * substitutes another codec and never disables this implemented test path; the
+ * recipe remains exact ProRes Proxy in MOV.
  *
  * Timing is preserved exactly: a proxy that resamples to a friendlier frame
  * rate stops being a stand-in for its original, and every edit made against it
@@ -72,19 +72,19 @@ export interface NativeMediaProxyPlanRequestV1 {
 	readonly sourceWidth: number | null;
 	readonly sourceHeight: number | null;
 	readonly sourceCharacteristics?: VideoSourceCharacteristicsV25;
-	readonly clearedPolicyRowIds?: readonly string[];
+	readonly recordedLicensingRowIds?: readonly string[];
 }
 
 export type NativeMediaProxyPlanV1 =
 	| Readonly<{
 		readonly blocked: false;
 		readonly recipe: NativeMediaProxyRecipeV1;
-		readonly pendingReleasePolicyRowIds: readonly string[];
+		readonly unresolvedLicensingRowIds: readonly string[];
 	}>
 	| Readonly<{
 		readonly blocked: true;
 		readonly refusals: readonly NativeMediaProxyRefusal[];
-		readonly pendingReleasePolicyRowIds: readonly string[];
+		readonly unresolvedLicensingRowIds: readonly string[];
 	}>;
 
 export class NativeMediaProxyError extends Error {
@@ -141,24 +141,24 @@ export function planNativeMediaProxy(
 		profileId: NATIVE_MEDIA_PROXY_PROFILE_ID,
 		source: request.sourceCharacteristics
 			?? createUnreportedVideoSourceCharacteristicsV25(),
-		clearedPolicyRowIds: request.clearedPolicyRowIds ?? [],
+		recordedLicensingRowIds: request.recordedLicensingRowIds ?? [],
 	});
 	const refusals: NativeMediaProxyRefusal[] = [];
 	if (request.sourceWidth === null || request.sourceHeight === null) {
 		refusals.push('source-geometry-unreported');
-		return blocked(refusals, admission.pendingReleasePolicyRowIds);
+		return blocked(refusals, admission.unresolvedLicensingRowIds);
 	}
 	let geometry: NativeMediaProxyGeometryV1;
 	try {
 		geometry = resolveNativeMediaProxyGeometry(request.sourceWidth, request.sourceHeight);
 	} catch {
 		refusals.push('source-geometry-unusable');
-		return blocked(refusals, admission.pendingReleasePolicyRowIds);
+		return blocked(refusals, admission.unresolvedLicensingRowIds);
 	}
 	return Object.freeze({
 		blocked: false,
 		recipe: recipe(profile, geometry),
-		pendingReleasePolicyRowIds: admission.pendingReleasePolicyRowIds,
+		unresolvedLicensingRowIds: admission.unresolvedLicensingRowIds,
 	});
 }
 
@@ -193,12 +193,12 @@ function recipe(
 
 function blocked(
 	refusals: readonly NativeMediaProxyRefusal[],
-	pendingReleasePolicyRowIds: readonly string[],
+	unresolvedLicensingRowIds: readonly string[],
 ): NativeMediaProxyPlanV1 {
 	return Object.freeze({
 		blocked: true,
 		refusals: Object.freeze([...refusals]),
-		pendingReleasePolicyRowIds: Object.freeze([...pendingReleasePolicyRowIds]),
+		unresolvedLicensingRowIds: Object.freeze([...unresolvedLicensingRowIds]),
 	});
 }
 

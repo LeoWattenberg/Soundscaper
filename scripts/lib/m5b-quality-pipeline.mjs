@@ -12,7 +12,7 @@ import {
 	exactRecord,
 	isRecord,
 	requireRecord,
-} from './measurement-admission.mjs';
+} from './measurement-validation.mjs';
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 import {
 	DEFAULT_QUALITY_BUDGET_SHA256,

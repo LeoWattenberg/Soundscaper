@@ -8,7 +8,7 @@ import { FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE } from './editor-
 
 const CANDIDATE_FEATURES = new Set(['videoTransitions', 'videoTransitionDissolve']);
 
-/** Qualification-only capabilities. The selected product profile remains unchanged. */
+/** Test-only capabilities. The selected product profile remains unchanged. */
 export const FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'framescaper',

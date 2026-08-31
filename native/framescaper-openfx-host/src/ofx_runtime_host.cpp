@@ -30,9 +30,7 @@ int self_test() {
 		<< "\"openfx\":\"" << kOpenFxVersion << "\",\"commit\":\"" << kOpenFxCommit << "\","
 		<< denied_authorities_json() << ",\"contractFixture\":"
 		<< (conformance_fixture_execution() ? "true" : "false")
-		<< ",\"thirdPartyExecutionEnabled\":"
-		<< (conformance_fixture_execution() ? "true" : "false") << ','
-		<< "\"interactSuiteVersions\":[1],\"interactSuiteV2\":"
+		<< ",\"interactSuiteVersions\":[1],\"interactSuiteV2\":"
 		<< json_string(kInteractSuiteV2Status) << ','
 		<< "\"overlayInteractVersions\":[2],"
 		<< "\"cpuRenderingRequired\":true,"
@@ -101,7 +99,7 @@ int invoke_v12(const char* const argv[]) {
 	auto grant = authenticate_v12_host_invocation(
 		std::filesystem::path{argv[2]}, argv[4]
 	);
-	HostRuntime host{grant.qualified_backends};
+	HostRuntime host{grant.supported_backends};
 	LoadedPluginBinary binary{grant.plugin_binary, grant.plugin_binary_sha256};
 	binary.bind_host(host.host());
 	auto& plugin = binary.plugin(grant.plugin_index);

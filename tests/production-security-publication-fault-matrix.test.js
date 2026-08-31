@@ -14,21 +14,21 @@ const threatModel = await readFile(
 	new URL('../docs/production-threat-model.md', import.meta.url),
 	'utf8',
 );
-const register = matrix.publicationFaultQualification;
+const register = matrix.publicationFaultVerification;
 const item = closure.items.find(({ id }) => id === 'm2-publication-fault-matrix');
 
-const OUTCOME_VOCABULARY = ['inapplicable', 'platform-delegated', 'unqualified', 'witnessed'];
+const OUTCOME_VOCABULARY = ['inapplicable', 'platform-delegated', 'unverified', 'witnessed'];
 const EXPECTED_TALLY = Object.freeze({
 	witnessed: 103,
 	inapplicable: 9,
 	'platform-delegated': 8,
-	unqualified: 0,
+	unverified: 0,
 });
 
 test('the fault register covers the exact closure path and fault cross product', () => {
 	assert.ok(item, 'the closure inventory must keep the fault-matrix item');
 	assert.equal(register?.status, 'implemented');
-	assert.match(register.summary, /unsupported fault injection.*never a silent skip/iu);
+	assert.match(register.summary, /unsupported fault injection.*never silently skipped/iu);
 	assert.deepEqual(Object.keys(register.outcomes).sort(), OUTCOME_VOCABULARY);
 	assert.deepEqual(
 		register.paths.map(({ id }) => id),
@@ -45,7 +45,7 @@ test('the fault register covers the exact closure path and fault cross product',
 });
 
 test('every fault cell is witnessed with real evidence or carries an explicit recorded outcome', async () => {
-	const tally = { witnessed: 0, inapplicable: 0, 'platform-delegated': 0, unqualified: 0 };
+	const tally = { witnessed: 0, inapplicable: 0, 'platform-delegated': 0, unverified: 0 };
 	for (const path of register.paths) {
 		for (const [faultId, cell] of Object.entries(path.faults)) {
 			const label = `${path.id}/${faultId}`;
@@ -77,10 +77,10 @@ test('every fault cell is witnessed with real evidence or carries an explicit re
 test('the threat model owns the register narrative and its residuals', () => {
 	assert.match(threatModel, /### Crash-safe publication fault register/u);
 	assert.match(threatModel, /fifteen publication paths\ncrossed with eight fault classes, one hundred twenty cells in total/u);
-	assert.match(threatModel, /recorded platform qualification failure, never a silent skip; the\nregister currently contains none/u);
-	assert.match(threatModel, /does not convert simulation limits into qualified claims/u);
+	assert.match(threatModel, /An `unverified` cell\nhas no supporting evidence and is an explicit failed check, never a silent\nskip; the register currently contains none/u);
+	assert.match(threatModel, /does not convert simulation limits into broader claims/u);
 	assert.match(threatModel, /hard worker termination is not\ninjected/u);
-	assert.match(threatModel, /abrupt process death, power loss,\nparent-directory fsync, and the non-Linux packaged platform matrix remain\nunqualified/u);
+	assert.match(threatModel, /abrupt process death, power loss,\nparent-directory fsync, and non-Linux packaged behavior remain\nunverified/u);
 	assert.match(threatModel, /dot-prefixed orphan `\.soundscaper-part` file/u);
 	assert.match(threatModel, /never replaced and the orphan is never advertised/u);
 });

@@ -49,7 +49,7 @@ static const char expected_profile[] =
 	"\"filesystem\":\"landlock-fd-grants\",\"network\":\"namespace-and-seccomp-denied\","
 	"\"childProcesses\":\"seccomp-thread-only\",\"dynamicCode\":\"read-execute-grants-only\","
 	"\"resourceCeilings\":\"outer-pid-duration-rss-v1\","
-	"\"attestation\":\"pre-exec-pipe-v1\"}\n";
+	"\"enforcementHandshake\":\"pre-exec-enforcement-pipe-v1\"}\n";
 static const char expected_broker[] =
 	"{\"schemaVersion\":1,\"id\":\"milestone5-native-child-broker-v1\",\"maximumGrants\":64,"
 	"\"readOnly\":\"no-follow-fd\",\"readExecute\":\"no-follow-fd\","
@@ -65,7 +65,7 @@ struct grant {
 };
 
 struct launch_request {
-	int attestation_fd;
+	int enforcement_fd;
 	int profile_fd;
 	int broker_fd;
 	int executable_fd;
@@ -115,7 +115,7 @@ static bool option_u64(const char *argument, const char *prefix, uint64_t *outpu
 
 static bool duplicate_fd(const struct launch_request *request, int candidate)
 {
-	if (candidate == request->attestation_fd || candidate == request->profile_fd
+	if (candidate == request->enforcement_fd || candidate == request->profile_fd
 		|| candidate == request->broker_fd || candidate == request->executable_fd
 		|| candidate == request->extra_input_fd) return true;
 	for (size_t index = 0u; index < request->grant_count; ++index) {
@@ -147,7 +147,7 @@ static bool assign_u64_once(uint64_t *slot, uint64_t value, uint64_t maximum)
 
 static bool request_fds_unique(const struct launch_request *request)
 {
-	const int core[] = { request->attestation_fd, request->profile_fd, request->broker_fd,
+	const int core[] = { request->enforcement_fd, request->profile_fd, request->broker_fd,
 		request->executable_fd, request->extra_input_fd };
 	for (size_t left = 0u; left < sizeof(core) / sizeof(core[0]); ++left) {
 		if (core[left] < 3) {
@@ -166,13 +166,13 @@ static bool request_fds_unique(const struct launch_request *request)
 
 static bool parse_request(int argc, char **argv, struct launch_request *request)
 {
-	*request = (struct launch_request){ .attestation_fd = -1, .profile_fd = -1,
+	*request = (struct launch_request){ .enforcement_fd = -1, .profile_fd = -1,
 		.broker_fd = -1, .executable_fd = -1, .extra_input_fd = -1 };
 	int index = 1;
 	for (; index < argc && strcmp(argv[index], "--") != 0; ++index) {
 		int fd = -1;
-		if (option_fd(argv[index], "--attestation-fd=", &fd)) {
-			if (!assign_once(&request->attestation_fd, fd)) return false;
+		if (option_fd(argv[index], "--enforcement-fd=", &fd)) {
+			if (!assign_once(&request->enforcement_fd, fd)) return false;
 		} else if (option_fd(argv[index], "--profile-fd=", &fd)) {
 			if (!assign_once(&request->profile_fd, fd)) return false;
 		} else if (option_fd(argv[index], "--broker-policy-fd=", &fd)) {
@@ -401,10 +401,10 @@ static int execute_isolated(const struct launch_request *request)
 	const struct rlimit no_files = { .rlim_cur = 1024u, .rlim_max = 1024u };
 	if (setrlimit(RLIMIT_CORE, &no_core) != 0 || setrlimit(RLIMIT_NOFILE, &no_files) != 0
 		|| !restrict_filesystem(request) || !install_seccomp()) return CHILD_FAILURE;
-	if (write(request->attestation_fd, enforcement_frame, sizeof(enforcement_frame) - 1u)
+	if (write(request->enforcement_fd, enforcement_frame, sizeof(enforcement_frame) - 1u)
 		!= (ssize_t)(sizeof(enforcement_frame) - 1u)) return CHILD_FAILURE;
 	const bool extra_input = request->extra_input_fd >= 0;
-	if (close(request->attestation_fd) != 0
+	if (close(request->enforcement_fd) != 0
 		|| (extra_input && (dup2(request->extra_input_fd, 3) != 3
 			|| close(request->extra_input_fd) != 0))
 		|| fcntl(request->executable_fd, F_SETFD, FD_CLOEXEC) != 0) return CHILD_FAILURE;
@@ -450,7 +450,7 @@ static int supervise_isolated_child(const struct launch_request *request)
 	const pid_t child = fork();
 	if (child < 0) return CHILD_FAILURE;
 	if (child == 0) _exit(execute_isolated(request));
-	(void)close(request->attestation_fd);
+	(void)close(request->enforcement_fd);
 	(void)close(request->profile_fd);
 	(void)close(request->broker_fd);
 	(void)close(request->executable_fd);

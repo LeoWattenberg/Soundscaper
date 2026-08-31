@@ -14,7 +14,7 @@ import {
 	M8A_CAPTURE_WORKLOAD_ID as WORKLOAD_ID,
 	computeM8ACaptureMetrics,
 } from './lib/m8a-capture-quality-metrics.mjs';
-import { boundedString, exactRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord } from './lib/measurement-validation.mjs';
 import {
 	DIAGNOSTIC_MEASUREMENT_POLICY,
 	evaluateQualityWorkload,

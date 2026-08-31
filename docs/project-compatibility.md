@@ -3,12 +3,16 @@
 The versioned source of truth is
 [`config/project-compatibility.json`](../config/project-compatibility.json).
 Its statuses distinguish behavior enforced today from outcomes owned by later
-roadmap milestones. A planned row is a release requirement, not permission to
-discard state until that row is implemented.
+roadmap milestones. A planned row describes unsupported future behavior; it is
+not a release certificate or permission to discard state.
+
+Some retained version narratives use “qualified” or “admitted” for a narrow
+operation boundary. Those words are historical technical shorthand only; they
+do not describe release status, owner QA, or a machine-issued approval.
 
 ## 1.0 family baselines
 
-The approved [`WP-9.0.0` decision](wp-9.0.0-baseline-decision.md) freezes two
+The recorded [`WP-9.0.0` design decision](wp-9.0.0-baseline-decision.md) freezes two
 independent project identities for `1.0.0-rc.1`:
 
 - `{ schemaFamily: 'soundscaper', schemaVersion: 1 }`
@@ -31,7 +35,8 @@ Both v1 stores are fresh. The candidate never opens, enumerates, migrates,
 mutates, or deletes a pre-release browser database, desktop library, or
 project-coupled native store. Future supported schemas must migrate from v1 of
 their own family; the RC line may not take another clean schema or storage
-break. Stable 1.0 remains blocked on the outstanding Milestone 9 evidence.
+break. Preparing and pushing the matching stable tag is the repository owner's
+release decision; this compatibility register does not certify it.
 
 The milestone-2 closure inventory names nine media-relationship IDs; each maps
 to one documented relationship here. `owned-canonical-pcm` and
@@ -285,8 +290,8 @@ limits. Audacity export reports losses that its label model cannot represent;
 RIFF export clips or omits annotations at the selected media range and reports
 stable-ID, batch, anchor, color, and opaque-extension loss. This rule claims no
 annotation contribution to playback rendering, audio or video fallback, or
-semantic preservation beyond the tested current-schema and interchange paths,
-and pending manual qualification does not disable this bounded native path.
+semantic preservation beyond the tested current-schema and interchange paths.
+Optional owner QA does not disable or grant this bounded native path.
 <!-- /policy-narrative:timeline-annotation-capability -->
 
 ## Nested track folder compatibility
@@ -1483,11 +1488,12 @@ The Soundscaper and Framescaper family-v1 libraries use distinct roots, SQLite
 application IDs, user_version 1 databases, v1 IPC namespaces, and monotonic
 lease tokens. Startup recovers journals before renderer admission; renewal loss
 fences new work; shutdown drains admitted operations and releases only the exact
-owned lease. The accepted packaged matrix ran fourteen per-product cases plus
-paired cross-product isolation on all five maintained desktop targets, closing
-m2-electron-lease-matrix. Stable 1.0 qualification in Milestone 9 remains
-separate and blocked on its pending human rows. No pre-release library is
-opened, copied forward, enumerated, mutated, or deleted.
+owned lease. Packaged tests run fourteen per-product cases plus paired
+cross-product isolation on all five maintained desktop targets, closing
+m2-electron-lease-matrix. Those executions prove only the named workflows;
+optional owner QA and the stable tag decision remain outside this compatibility
+rule. No pre-release library is opened, copied forward, enumerated, mutated, or
+deleted.
 <!-- /policy-narrative:desktop-electron-lease-protections -->
 
 <!-- policy-narrative:desktop-packaged-source-bearing-handoff -->
@@ -1527,20 +1533,20 @@ canonical-document, canonical-source-body, and fallback-body SHA-256 across
 recipient and origin. Main-owned evidence also binds every handoff navigation,
 the mixed-media document digest and binding IDs and digests, and strictly
 increasing catalog revisions and fencing tokens across all six processes. This
-qualifies only the `electron-soundscaper-to-framescaper-to-soundscaper-library`
+exercises only the `electron-soundscaper-to-framescaper-to-soundscaper-library`
 and `electron-framescaper-to-soundscaper-to-framescaper-library` workflow IDs
 plus those four exact role-return workflow IDs; the web `.scape` workflow matrix
-is qualified separately. The evidence uses fixed small first-party fixtures on
-Linux x64 with muted audio. It qualifies packaged activation, fallback playback,
+is exercised separately. The evidence uses fixed small first-party fixtures on
+Linux x64 with muted audio. It exercises packaged activation, fallback playback,
 unchanged project handoff, and editable origin return only for the four frozen
-rendered-fallback roles; it does not qualify packaged rendered-media delivery,
+rendered-fallback roles; it does not exercise packaged rendered-media delivery,
 fallback authoring or other relationships, audible or device-output fidelity,
 general browser or codec coverage, linked or unmanaged media, installers or file
 associations, concurrent opens, crash or power-loss behavior, or Windows, macOS,
 or ARM64. This is legacy desktop-library-v9, shared-schema-17 pre-V18 evidence;
 it does not authorize Framescaper V17 activation after the V18 selector lands,
-and cross-product V18 transfer is copy-only preservation until separately
-qualified.
+and no current test exercises cross-product V18 transfer beyond copy-only
+preservation.
 <!-- /policy-narrative:desktop-packaged-source-bearing-handoff -->
 
 A maintained Chromium browser spec closes the two frozen web `.scape` workflow
@@ -1985,11 +1991,11 @@ relationship roles are unqualified. Linked or unmanaged delivery is
 unqualified, as is simultaneous rendered fallback delivery beyond that exact
 composition; standalone final-audio delivery still rejects simultaneous
 fallbacks. Freeze, proxy, relink, embedded fallback audio, and broader render
-parity are unqualified. The exact Linux x64 packaged workflow qualifies
+parity are unqualified. The exact Linux x64 packaged workflow exercised
 source/component UI activation and transport playback for both frozen video
-roles. Packaged runtime or UI final-delivery workflows are unqualified, browser
-behavior is unqualified, codec qualification is unqualified, and reference-scale
-evidence is unqualified. Earlier Soundscaper
+roles. Packaged runtime or UI final-delivery workflows were not exercised,
+browser behavior and codec coverage were not exercised, and reference-scale
+evidence was not exercised. Earlier Soundscaper
 project schemas are not a compatibility target for this slice beyond retained
 outer migrations and deterministic nested manifest-schema-1 whole-project
 normalization. Whole-handoff atomicity and a durable storage or cross-process
@@ -2445,8 +2451,8 @@ The maintained role-defined whole-project video render and one closed
 videoEffects-only clip-target render relationship are separately qualified for
 controller activation and bounded video delivery after their independent
 route-specific relationship, source, and digest admissions. Framescaper family
-v1 proxy attachment preservation and its isolated re-attestation primitive
-remain qualified under the product-specific rules above. Framescaper family v1
+v1 proxy attachment preservation and its isolated revalidation primitive
+remain verified under the product-specific rules above. Framescaper family v1
 retains the menu-reached proxy lifecycle after retime through its direct
 unversioned Framescaper baseline domain: generation,
 attach/detach, Original/Proxy/Auto preview selection,

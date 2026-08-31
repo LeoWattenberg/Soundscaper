@@ -39,7 +39,7 @@ test('the native host contains real standard GPU context providers and no vendor
 	assert.doesNotMatch(`${runtime}\n${host}`, /OfxCudaVendorSuite|OfxMetalVendorSuite/u);
 });
 
-test('a qualified GPU setup failure is typed and can never report false native success', (context) => {
+test('a supported GPU setup failure is typed and can never report false native success', (context) => {
 	const build = buildOpenFxNativeContractFixture(context);
 	if (build === null) return;
 	const result = spawnSync(build.runtime, [

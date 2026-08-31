@@ -33,7 +33,7 @@ test('rendering arrows product orders without touching ordinary prose', () => {
 	);
 });
 
-test('rendering backticks qualification IDs exactly once', () => {
+test('rendering backticks configured narrative IDs exactly once', () => {
 	const once = renderPolicyNarrative('covers project-audio-mix-v1 and audio-track-render-v1.', { intro: null });
 	assert.equal(once, 'covers `project-audio-mix-v1` and `audio-track-render-v1`.');
 	assert.equal(renderPolicyNarrative(once, { intro: null }), once, 'already-backticked IDs are untouched');

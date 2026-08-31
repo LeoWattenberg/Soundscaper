@@ -1,5 +1,9 @@
 # Milestone 3B-4b4: persisted track locking and central enforcement
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > **Implemented:** commit `86496f4` on 2026-08-11, after
 > [3B-4b3 — frame-canonical edge-trim integration](milestone-3b-frame-canonical-edge-trim-integration.md).
 > This slice introduces the first persisted track-lock fact, enforces it at the

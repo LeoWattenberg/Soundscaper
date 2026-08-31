@@ -52,12 +52,12 @@ test('an authenticated payload self-tests before a default two-worker pool accep
 		});
 		assert.equal(runtime.available(), true);
 		assert.equal(runtime.snapshot()?.configuredWorkers, 2);
-		assert.deepEqual(runtime.selfTestEvidence(), SELF_TEST);
+		assert.deepEqual(runtime.selfTestResult(), SELF_TEST);
 		assert.deepEqual(
-			runtime.selectedV20RenderSelfTestEvidence(),
+			runtime.selectedV20RenderSelfTestResult(),
 			SELECTED_V20_RENDER_SELF_TEST,
 		);
-		assert.deepEqual(runtime.selectedV28V14RenderSelfTestEvidence(), SELECTED_V28_V14_RENDER_SELF_TEST);
+		assert.deepEqual(runtime.selectedV28V14RenderSelfTestResult(), SELECTED_V28_V14_RENDER_SELF_TEST);
 		assert.equal(spawns, 2, 'every default-pool worker negotiates its isolated self-test before availability');
 		assert.deepEqual(await runtime.runJob({
 			kind: 'probe-video-source',
@@ -65,7 +65,7 @@ test('an authenticated payload self-tests before a default two-worker pool accep
 				mediaPath: '/media/source.mov', mediaBytes: 10, identity: { dev: 1, ino: 2 },
 			},
 		}), { probed: true });
-		assert.equal(spawns, 2, 'work reuses the already attested supervised utility process');
+		assert.equal(spawns, 2, 'work reuses the already verified supervised utility process');
 		assert.equal(runtime.dispose(), true);
 		assert.equal(runtime.dispose(), false);
 		assert.equal(runtime.available(), false);
@@ -177,9 +177,9 @@ test('empty manifests and failed self-tests remain unavailable without spawning 
 	assert.equal(repository.available(), false);
 	assert.match(repository.reason ?? '', /payload-pending-external/u);
 	assert.equal(repository.snapshot(), null);
-	assert.equal(repository.selfTestEvidence(), null);
-	assert.equal(repository.selectedV20RenderSelfTestEvidence(), null);
-	assert.equal(repository.selectedV28V14RenderSelfTestEvidence(), null);
+	assert.equal(repository.selfTestResult(), null);
+	assert.equal(repository.selectedV20RenderSelfTestResult(), null);
+	assert.equal(repository.selectedV28V14RenderSelfTestResult(), null);
 
 	const fixture = await runtimeFixture();
 	try {
@@ -194,7 +194,7 @@ test('empty manifests and failed self-tests remain unavailable without spawning 
 		});
 		assert.equal(failed.available(), false);
 		assert.match(failed.reason ?? '', /self-test-failed/u);
-		assert.ok(spawns >= 1 && spawns <= 2, 'startup rejects as soon as a supervised worker fails attestation');
+		assert.ok(spawns >= 1 && spawns <= 2, 'startup rejects as soon as a supervised worker fails verification');
 	} finally {
 		await fixture.dispose();
 	}
@@ -211,9 +211,9 @@ test('a failed authenticated host self-test blocks the pool before helpers spawn
 			spawnHelper: () => { spawns += 1; return new Channel(); },
 		});
 		assert.equal(runtime.available(), false);
-		assert.equal(runtime.selfTestEvidence(), null);
-		assert.equal(runtime.selectedV20RenderSelfTestEvidence(), null);
-		assert.equal(runtime.selectedV28V14RenderSelfTestEvidence(), null);
+		assert.equal(runtime.selfTestResult(), null);
+		assert.equal(runtime.selectedV20RenderSelfTestResult(), null);
+		assert.equal(runtime.selectedV28V14RenderSelfTestResult(), null);
 		assert.match(runtime.reason ?? '', /professional probe mismatch/u);
 		assert.equal(spawns, 0);
 	} finally {
@@ -221,7 +221,7 @@ test('a failed authenticated host self-test blocks the pool before helpers spawn
 	}
 });
 
-test('a missing selected-V20 operation attestation leaves other media operations available', async () => {
+test('a missing selected-V20 operation result leaves other media operations available', async () => {
 	const fixture = await runtimeFixture();
 	try {
 		const runtime = await startFramescaperNativeMediaRuntime({
@@ -236,15 +236,15 @@ test('a missing selected-V20 operation attestation leaves other media operations
 		});
 		assert.equal(runtime.available(), true);
 		assert.equal(runtime.reason, null);
-		assert.equal(runtime.selectedV20RenderSelfTestEvidence(), null);
-		assert.deepEqual(runtime.selectedV28V14RenderSelfTestEvidence(), SELECTED_V28_V14_RENDER_SELF_TEST);
+		assert.equal(runtime.selectedV20RenderSelfTestResult(), null);
+		assert.deepEqual(runtime.selectedV28V14RenderSelfTestResult(), SELECTED_V28_V14_RENDER_SELF_TEST);
 		runtime.dispose();
 	} finally {
 		await fixture.dispose();
 	}
 });
 
-test('self-test admission is closed to exact FFmpeg and retime evidence', () => {
+test('self-test validation is closed to exact FFmpeg and retime results', () => {
 	assert.doesNotThrow(() => assertFramescaperMediaHostSelfTest(SELF_TEST));
 	for (const value of [
 		{ ...SELF_TEST, extra: true },
@@ -257,7 +257,7 @@ test('self-test admission is closed to exact FFmpeg and retime evidence', () => 
 	}
 });
 
-test('selected-V20 render admission is closed to exact end-to-end operation evidence', () => {
+test('selected-V20 render validation is closed to exact end-to-end operation results', () => {
 	assert.doesNotThrow(() => (
 		assertFramescaperMediaHostSelectedV20RenderSelfTest(SELECTED_V20_RENDER_SELF_TEST)
 	));
@@ -273,7 +273,7 @@ test('selected-V20 render admission is closed to exact end-to-end operation evid
 	}
 });
 
-test('selected-V28 queue admission is closed to its separate exact V14 carrier evidence', () => {
+test('selected-V28 queue validation is closed to its separate exact V14 carrier result', () => {
 	assert.doesNotThrow(() => (
 		assertFramescaperMediaHostSelectedV28V14RenderSelfTest(SELECTED_V28_V14_RENDER_SELF_TEST)
 	));

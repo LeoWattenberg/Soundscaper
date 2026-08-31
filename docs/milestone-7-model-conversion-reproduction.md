@@ -2,14 +2,14 @@
 
 ## Current boundary
 
-The checked-in conversion execution register and Python conversion module are
-a runnable reproducibility and release-evidence contract. The CPython 3.12
-direct dependencies and complete transitive resolution are hash-locked in
+The checked-in conversion execution configuration and Python conversion module
+are a runnable reproducibility and artifact-verification contract. The CPython
+3.12 direct dependencies and complete transitive resolution are hash-locked in
 `pyproject.toml` and `uv.lock`; candidate-specific runners execute authenticated
 source-framework and CPU ONNX Runtime comparisons for TIGER-DnR, PANNs Cnn10,
-Beat This `small0`, and TransNetV2. This is not evidence that a conversion or
+Beat This `small0`, and TransNetV2. This alone does not show that a conversion or
 parity run occurred. Those four candidates remain `pending-external`: no
-attested installed exporter environment, retained source-tree archive,
+recorded installed exporter environment, retained source-tree archive,
 converted ONNX identity, live framework output, or parity result is present.
 Beat This `final0` remains a separately optional converted artifact outside the
 baseline retained fixture run. Consequently none of these records authorizes a
@@ -21,22 +21,22 @@ The non-fetching repository check is:
 node scripts/models/verify-milestone-7-conversion-execution.mjs
 ```
 
-It validates the register and prints the exact blockers, command digests, and
-still-null output identities. A successful exit means that the pending contract
-is internally consistent; it does not mean that a model passed conversion or
-parity.
+It validates the configuration and prints the exact blockers, command digests,
+and still-null output identities. A successful exit means that the pending
+contract is internally consistent; it does not mean that a model passed
+conversion or parity.
 
 ## Reproduction inputs
 
 `config/milestone-7-model-conversion-execution.json` is bound to the strict
-source register and deterministic fixture register. The validator refuses a
-different candidate, order, source revision, model/checkpoint identity,
+source manifest and deterministic fixture configuration. The validator refuses
+a different candidate, order, source revision, model/checkpoint identity,
 AudioSet class map, graph plan, output role, or fixture identity.
 
 Each run must retain:
 
 - an archive of the exact source revision with byte length and SHA-256;
-- every upstream artifact at its registered byte length and checksum;
+- every upstream artifact at its pinned byte length and checksum;
 - a full SHA-256 readback of every source artifact, even when upstream only
   publishes MD5 or SHA-1;
 - the reviewed toolchain lock file and SHA-256 named by the supply recipe;
@@ -49,7 +49,7 @@ The PANNs checkpoint and both Beat This checkpoints currently have only their
 upstream MD5/SHA-1 identities. Their separate SHA-256 readbacks intentionally
 remain null and are explicit blockers. The PANNs AudioSet class map, TIGER
 weights, and TransNetV2 SavedModel files already have upstream SHA-256 pins,
-which the execution register repeats as their required readbacks.
+which the execution configuration repeats as their required readbacks.
 
 ## Owned command protocol
 
@@ -59,7 +59,7 @@ isolated Python (`-I -B`), the closed
 the canonical supply conversion plan. Network and GPU access are forbidden,
 and fixed environment values select deterministic CPU behavior and single
 threaded math libraries. The command record itself receives a canonical
-SHA-256 that retained execution evidence must repeat.
+SHA-256 that the retained run record must repeat.
 
 The repository-owned installable module is under
 `scripts/models/milestone-7-conversion-tool/`. Create the external CPython 3.12
@@ -73,15 +73,15 @@ cd scripts/models/milestone-7-conversion-tool
 uv sync --frozen --no-dev
 ```
 
-Perform dependency acquisition before the offline evidence run. Copy the exact
+Perform dependency acquisition before the offline conversion run. Copy the exact
 `uv.lock` bytes into that run's canonical workspace, activate the resulting
 environment, and invoke the registered argv without a shell.
 The registered isolated `python3 -I -B -m soundscaper_m7_conversion` invocation
 resolves only that installed copy. Every parity argv authenticates
 `source-input-manifest.json`, `uv.lock`, and the lock's registered SHA-256 before
 lazy framework imports. The lock makes the repository runner reproducible; it
-does not attest that an external environment was installed or that any model
-ran, so fabricated command output still cannot be admitted.
+does not establish that an external environment was installed or that any model
+ran, so fabricated command output still cannot pass verification.
 
 The module authenticates the fixture, source archive/artifacts, converted
 graphs, and toolchain lock before importing PyTorch, TensorFlow, ONNX, or
@@ -94,8 +94,9 @@ canonical JSON with no-clobber semantics. The TIGER exporter retains only its
 three neural mask cores in D/M/E order; owned application STFT, complex mask
 application, ISTFT, and overlap-add remain outside the graph. TransNetV2 is
 bridged TensorFlow → ONNX → PyTorch → final ONNX so all three retained runtime
-runs remain independently comparable. These executions still create no
-release authority until their exact artifacts and evidence are registered.
+runs remain independently comparable. These executions do not make a model
+eligible for the production catalog until their exact artifacts and parity
+results pass the configured checks.
 
 The converter protocol receives only manifest names, never arbitrary command
 fragments. `source-input-manifest.json` is one exact object binding the
@@ -117,15 +118,15 @@ The runner compares TIGER source/ORT neural masks through the same owned
 STFT/mask/ISTFT reconstruction and retains the resulting waveforms; it retains
 PANNs probabilities and embeddings, Beat This `small0` logits plus owned beat
 points, and TransNetV2 TensorFlow/PyTorch/ORT logits plus owned boundaries. The
-parity command checks every required framework/role, computes the registered
+parity command checks every required framework/role, computes the configured
 maximum-error or symmetric-index-difference metric, refuses a failed threshold,
 atomically publishes the complete raw-run directory, and exclusively creates
-canonical evidence without overwriting prior files.
+the canonical comparison report without overwriting prior files.
 
-The registered files are:
+The configured files are:
 
 - `source-input-manifest.json` binds the source archive and artifact files;
-- `converted-artifacts.json` must contain the exact registered output roles;
+- `converted-artifacts.json` must contain the exact configured output roles;
 - `parity-fixture.bin` is the generated, digest-pinned fixture;
 - `source-framework-runs/` retains role-addressed framework outputs; and
 - `parity-evidence.json` records every comparison and observed value.
@@ -133,19 +134,19 @@ The registered files are:
 TIGER conversion covers only the neural core; STFT, ISTFT, and overlap-add stay
 in owned application code. PANNs retains the pinned 527-entry AudioSet map.
 Beat This retains required `small0` and optional `final0` identities separately.
-TransNetV2 requires TensorFlow-to-PyTorch and PyTorch-to-ONNX evidence, including
-both logits and the deterministic boundary result.
+TransNetV2 requires TensorFlow-to-PyTorch and PyTorch-to-ONNX comparisons,
+including both logits and the deterministic boundary result.
 
-## Evidence admission
+## Artifact verification
 
-The dependency lock is registered, but no installed environment or model run is
-attested. After an external conversion environment exists, retain the source
-archive, command results, converted output, and parity identities together. Do
-not fill only one half of an identity: a byte length without a SHA-256, or a
-SHA-256 without a byte length, is rejected. Do not mark evidence verified while
-any derived blocker remains.
+The dependency lock is recorded, but no installed environment or model run has
+been observed. After an external conversion environment exists, retain the
+source archive, command results, converted output, and parity identities
+together. Do not fill only one half of an identity: a byte length without a
+SHA-256, or a SHA-256 without a byte length, is rejected. Do not mark the bundle
+verified while any derived blocker remains.
 
-Audit a retained evidence bundle with:
+Verify a retained artifact bundle with:
 
 ```sh
 node scripts/models/verify-milestone-7-conversion-execution.mjs \
@@ -153,14 +154,14 @@ node scripts/models/verify-milestone-7-conversion-execution.mjs \
   --root /absolute/path/to/retained/files
 ```
 
-The audit revalidates the checked-in source, recipe, toolchain, output, and
-fixture registers; binds the exact command digests and zero exit statuses;
+The verifier revalidates the checked-in source, recipe, toolchain, output, and
+fixture configurations; binds the exact command digests and zero exit statuses;
 checks every parity threshold; and streams every retained file through
 SHA-256. Relative traversal, symlinks, non-regular files, size changes, digest
 changes, unexpected roles, missing framework runs, and extra record fields are
 refused. The checker performs no network request and never manufactures a
 missing digest.
 
-Only after this audit passes may the evidence digest and converted artifact
-identities feed the separate immutable mirror, public readback, external
-catalog-signing, packaged runtime canary, notice, and release gates.
+Only after this verification passes may the bundle digest and converted
+artifact identities feed the separate immutable mirror, public readback,
+external catalog signing, packaged runtime canary, notice, and artifact checks.

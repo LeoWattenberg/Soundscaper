@@ -86,9 +86,9 @@
 		,
 		{ "path": "native/framescaper-openfx-host/src/v12_cancellation_channel.hpp", "kind": "native-contract", "justification": "v12_cancellation_channel.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
 		,
-		{ "path": "native/framescaper-openfx-host/src/v12_gpu_qualification.cpp", "kind": "native-contract", "justification": "v12_gpu_qualification.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		{ "path": "native/framescaper-openfx-host/src/v12_gpu_support.cpp", "kind": "native-contract", "justification": "v12_gpu_support.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
 		,
-		{ "path": "native/framescaper-openfx-host/src/v12_gpu_qualification.hpp", "kind": "native-contract", "justification": "v12_gpu_qualification.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
+		{ "path": "native/framescaper-openfx-host/src/v12_gpu_support.hpp", "kind": "native-contract", "justification": "v12_gpu_support.hpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
 		,
 		{ "path": "native/framescaper-openfx-host/src/v12_host_invocation.cpp", "kind": "native-contract", "justification": "v12_host_invocation.cpp is a compiled native ABI or execution-plan boundary paired with its native callers." }
 		,

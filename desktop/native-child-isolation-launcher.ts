@@ -210,7 +210,7 @@ async function launchTargetChild(options: Readonly<{
 		const brokerFd = 6;
 		const executableFd = 7;
 		const arguments_ = [
-			'--attestation-fd=3', `--profile-fd=${String(profileFd)}`,
+			'--enforcement-fd=3', `--profile-fd=${String(profileFd)}`,
 			`--broker-policy-fd=${String(brokerFd)}`, `--executable-fd=${String(executableFd)}`,
 			`--maximum-duration-ms=${String(request.resourcePolicy.maximumJobDurationMs)}`,
 			`--maximum-rss-bytes=${String(request.resourcePolicy.maximumRssBytes)}`,
@@ -245,12 +245,12 @@ async function launchTargetChild(options: Readonly<{
 		completion = options.target.startsWith('linux-') ? processBinding.completion
 			: wallTimeBound(processBinding.completion, child, request.resourcePolicy.maximumJobDurationMs);
 		settledCompletion = completion.then((value) => value, () => null);
-		const attestation = child.stdio?.[3];
-		if (!attestation || typeof (attestation as Readable).on !== 'function') {
+		const enforcementStream = child.stdio?.[3];
+		if (!enforcementStream || typeof (enforcementStream as Readable).on !== 'function') {
 			throw new Error('The native isolation launcher exposed no enforcement pipe.');
 		}
 		try {
-			await waitForNativeChildEnforcement(attestation as Readable, options.enforcementTimeoutMs);
+			await waitForNativeChildEnforcement(enforcementStream as Readable, options.enforcementTimeoutMs);
 		} catch (error) {
 			enforcementHandshakeFailed = true;
 			throw error;

@@ -1,5 +1,9 @@
 # Milestone 3B-4b8: canonical clip-focus trim keyboard parity
 
+> **Historical slice record:** implementation details remain useful provenance;
+> qualified browser rows and qualification-status language below predate the
+> owner-run release policy and do not gate or certify a current release.
+
 > **Implemented:** delivered through commit `a20cbc0a` on 2026-08-11, after
 > [3B-4b7 — frame-canonical uniform rate-stretch](milestone-3b-uniform-rate-stretch.md).
 > This bounded Framescaper slice closes the remaining vendored clip-focus trim

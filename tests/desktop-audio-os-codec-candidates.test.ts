@@ -10,7 +10,7 @@ import {
 } from '../desktop/desktop-audio-os-codec-candidates.ts';
 import { deriveDesktopAudioCodecOperation } from '../desktop/desktop-audio-codec-broker.ts';
 import {
-	qualifyOperatingSystemCodecCapabilities,
+	verifyOperatingSystemCodecCapabilities,
 	type OperatingSystemCodecCanaryRequest,
 } from '../desktop/os-codec-capability-adapter.ts';
 
@@ -152,29 +152,29 @@ test('direct MP3 encode candidates stay Windows-only and changed AAC profiles re
 	);
 });
 
-test('derived candidates bind canonically through the existing canary admission seam', async () => {
+test('derived candidates bind canonically through the existing canary verification seam', async () => {
 	const candidateSet = deriveDesktopAudioOperatingSystemCandidatesFromOperation(
 		'mac-arm64', resolvedDecodeOperation('aac-m4a', 48_000, 2),
 	);
 	const received: OperatingSystemCodecCanaryRequest[] = [];
-	const admission = await qualifyOperatingSystemCodecCapabilities({
+	const verification = await verifyOperatingSystemCodecCapabilities({
 		target: candidateSet.target,
 		osVersion: '15.4',
 		candidates: candidateSet.candidates,
 		runner: { run(request) {
 			received.push(request);
 			return Promise.resolve({
-				contractVersion: 1, status: 'qualified', target: request.target,
+				contractVersion: 1, status: 'passed', target: request.target,
 				osVersion: request.osVersion, capabilityId: request.capability.id,
 				capabilityDigest: request.capabilityDigest, implementation: request.implementation,
-				nativeApiReached: true, exactTuplePassed: true, evidenceDigest: 'a'.repeat(64),
+				nativeApiReached: true, exactTuplePassed: true, resultDigest: 'a'.repeat(64),
 			});
 		} },
 	});
 	assert.equal(received.length, 1);
 	assert.equal(received[0]?.implementation, candidateSet.implementation);
-	assert.equal(admission.status, 'available');
-	assert.equal(admission.providerOptions.canaryQualifiedCapabilities[0]?.implementation,
+	assert.equal(verification.status, 'available');
+	assert.equal(verification.providerOptions.canaryVerifiedCapabilities[0]?.implementation,
 		'apple-audiotoolbox-avfoundation');
 });
 

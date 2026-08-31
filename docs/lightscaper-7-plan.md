@@ -1,5 +1,10 @@
 # Lightscaper milestone L7 plan: raw and deep color
 
+> **Current release-policy note (2026-08-31):** qualification ledgers, cohorts,
+> and release-admission commands retained below are historical planning context.
+> Future implementation uses ordinary CI, disposable diagnostics, and optional
+> owner QA as described by the current release and quality policies.
+
 > Owning source for L7 sequencing, the sample-depth, working-range,
 > raw-decoder, and GPU decisions, their invariants, and the bounded work
 > packets. The
@@ -577,8 +582,8 @@ pickup; a packet that grows one names it here first.
 - Schema revisions stay serialized product-wide, at most one in flight; WP-L7.0
   claims none occurs, so a packet that needs one stops.
   `THIRD_PARTY_LICENSES.md` is edited by one packet at a time and only with the
-  maintainer re-stamp in hand; two concurrent notices edits invalidate the same
-  digest twice.
+  corresponding source and notice update ready; two concurrent notices edits
+  invalidate the same digest twice.
 - Stage explicit paths and confirm `git diff --cached --name-only` before each
   commit; the tree is worked by many sessions at once. `npm run check`
   (`package.json:141`) stays green on every push.

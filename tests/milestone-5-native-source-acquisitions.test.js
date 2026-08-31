@@ -46,7 +46,7 @@ const EXPECTED_PINS = {
 		'b7637334527201fdfd6dd6a02e67aceffb0e5e60155bbd89175647a80301c92c'],
 };
 // Every pinned source is available to the build/test path. Human licensing and
-// release review is recorded separately by milestone 9.
+// distribution licensing metadata is recorded separately.
 const TEST_ACTIVATION_ENABLED = MILESTONE_5_NATIVE_SOURCE_IDS;
 
 const EXPECTED_LICENSE_SELECTIONS = {

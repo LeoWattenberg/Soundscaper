@@ -546,8 +546,8 @@ function capabilitySnapshot() {
 	return {
 		snapshotVersion: 1, masterEnabled: false, buildFingerprint: null,
 		entries: rows.map(([domain, id]) => ({
-			domain, id, state: domain === 'watch' || domain === 'display' ? 'disabled' : 'blocked-policy',
-			reason: domain === 'watch' || domain === 'display' ? 'master-switch-off' : 'policy-row-blocked',
+			domain, id, state: domain === 'watch' || domain === 'display' ? 'disabled' : 'unavailable',
+			reason: domain === 'watch' || domain === 'display' ? 'master-switch-off' : 'build-does-not-support',
 			userEnabled: false, buildFingerprint: null, detail: 'Unavailable by exact production evidence.',
 		})),
 	};

@@ -25,7 +25,6 @@ type Data = Record<string, unknown>;
 const OFX_ENTRY = Object.freeze({
 	domain: 'ofx',
 	id: 'isolated-host',
-	policyCleared: true,
 	buildSupported: true,
 	probeSucceeded: true,
 	selfTestPassed: true,

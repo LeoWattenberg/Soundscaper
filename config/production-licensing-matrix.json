@@ -2,12 +2,6 @@
 	"schemaVersion": 1,
 	"groundedAt": "2026-08-28",
 	"policyDocument": "docs/production-licensing-policy.md",
-	"humanLegalReview": {
-		"status": "approved-with-open-items",
-		"record": "config/production-legal-review.json",
-		"reviewedAt": "2026-08-28",
-		"reviewer": "kw.media owner and sole contributor"
-	},
 	"lockfile": {
 		"path": "package-lock.json",
 		"lockfileVersion": 3,
@@ -51,7 +45,7 @@
 		},
 		{
 			"id": "desktop-release-assets",
-			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers and the exact verified Electron alternate framework libffmpeg for its target. Release assembly emits one preferred corresponding-source ZIP for those seven providers before SHA256SUMS: it fail-closed validates their exact shipped WASM identities, source manifests, upstream archives, Soundscaper wrappers, in-tree WavPack snapshot, build scripts and transitive helpers, configuration, relink instructions, and license texts, and records every included source byte in a deterministic internal receipt. This desktop source delivery does not qualify any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, signing evidence, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
+			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers and the exact verified Electron alternate framework libffmpeg for its target. Release assembly emits one preferred corresponding-source ZIP for those seven providers before SHA256SUMS: it fail-closed validates their exact shipped WASM identities, source manifests, upstream archives, Soundscaper wrappers, in-tree WavPack snapshot, build scripts and transitive helpers, configuration, relink instructions, and license texts, and records every included source byte in a deterministic internal receipt. This desktop source delivery does not enable any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "blocked",
 			"noticeDeliveryStatus": "implemented",
 			"evidence": ["config/electron-alternate-ffmpeg-manifest.json", "config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "src/common/editor/flac/source-manifest.json", "src/common/editor/opus/source-manifest.json", "src/common/editor/vorbis/source-manifest.json", "src/common/editor/wavpack/source-manifest.json", "src/common/editor/mpg123/source-manifest.json", "src/common/editor/lame/source-manifest.json", "src/common/editor/twolame/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "tests/desktop-bundled-codec-corresponding-source.test.js", "THIRD_PARTY_LICENSES.md"]
@@ -334,7 +328,7 @@
 			"sha256": "0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986",
 			"providerRole": "soundscaper-bundled-flac-signed-24-bit-encode-decode",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed memory-only libFLAC slice with bounded parsing and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed memory-only libFLAC slice with bounded parsing and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/flac/source-manifest.json", "src/common/editor/flac/NOTICE.md", "scripts/audit-flac-wasm.mjs", "scripts/lib/desktop-bundled-flac-runtime.mjs", "desktop/bundled-flac-audio-codec-runtime.ts", "desktop/bundled-flac-stream.ts", "tests/desktop-bundled-flac-audio-codec-runtime.test.ts", "tests/desktop-bundled-flac-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -348,7 +342,7 @@
 			"sha256": "c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853",
 			"providerRole": "soundscaper-bundled-ogg-opus-48khz-mono-stereo-encode-decode",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed memory-only libopus/libogg slice with bounded Ogg parsing and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed memory-only libopus/libogg slice with bounded Ogg parsing and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/opus/source-manifest.json", "src/common/editor/opus/NOTICE.md", "scripts/audit-opus-wasm.mjs", "scripts/lib/desktop-bundled-opus-runtime.mjs", "desktop/bundled-opus-audio-codec-runtime.ts", "desktop/bundled-opus-stream.ts", "tests/desktop-bundled-opus-audio-codec-runtime.test.ts", "tests/desktop-bundled-opus-stream.test.ts", "tests/desktop-bundled-opus-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -362,7 +356,7 @@
 			"sha256": "c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5",
 			"providerRole": "soundscaper-bundled-ogg-vorbis-mono-stereo-encode-decode",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed memory-only libvorbis/libogg slice with bounded Ogg parsing and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed memory-only libvorbis/libogg slice with bounded Ogg parsing and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/vorbis/source-manifest.json", "src/common/editor/vorbis/NOTICE.md", "scripts/audit-vorbis-wasm.mjs", "scripts/lib/desktop-bundled-vorbis-runtime.mjs", "desktop/bundled-vorbis-audio-codec-runtime.ts", "desktop/bundled-vorbis-stream.ts", "tests/desktop-bundled-vorbis-audio-codec-runtime.test.ts", "tests/desktop-bundled-vorbis-stream.test.ts", "tests/desktop-bundled-vorbis-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -376,7 +370,7 @@
 			"sha256": "d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae",
 			"providerRole": "soundscaper-bundled-mpeg1-layer2-layer3-feed-decoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed feed-only MPEG-1 Layer II/III decoder slice with bounded stream authority and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed feed-only MPEG-1 Layer II/III decoder slice with bounded stream authority and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/mpg123/source-manifest.json", "src/common/editor/mpg123/NOTICE.md", "scripts/audit-mpg123-wasm.mjs", "scripts/lib/desktop-bundled-mpg123-runtime.mjs", "desktop/bundled-mpg123-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-mpg123-audio-codec-runtime.test.ts", "tests/desktop-bundled-mpg123-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -390,7 +384,7 @@
 			"sha256": "654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502",
 			"providerRole": "soundscaper-bundled-mpeg1-layer3-cbr-encoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed encoder-only MPEG-1 Layer III CBR slice with output parsing, gapless-tag validation, and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed encoder-only MPEG-1 Layer III CBR slice with output parsing, gapless-tag validation, and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/lame/source-manifest.json", "src/common/editor/lame/NOTICE.md", "scripts/audit-lame-wasm.mjs", "scripts/lib/desktop-bundled-lame-runtime.mjs", "desktop/bundled-lame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-lame-audio-codec-runtime.test.ts", "tests/desktop-bundled-lame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -404,7 +398,7 @@
 			"sha256": "b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b",
 			"providerRole": "soundscaper-bundled-mpeg1-layer2-cbr-encoder",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed encoder-only MPEG-1 Layer II CBR slice with output parsing and startup canary. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed encoder-only MPEG-1 Layer II CBR slice with output parsing and startup canary. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/twolame/source-manifest.json", "src/common/editor/twolame/NOTICE.md", "scripts/audit-twolame-wasm.mjs", "scripts/lib/desktop-bundled-twolame-runtime.mjs", "desktop/bundled-twolame-audio-codec-runtime.ts", "desktop/bundled-mpeg-audio-stream.ts", "tests/desktop-bundled-twolame-audio-codec-runtime.test.ts", "tests/desktop-bundled-twolame-wasm.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -419,7 +413,7 @@
 			"providerRole": "soundscaper-bundled-wavpack-float32-encode-decode",
 			"compressionLevel": 2,
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.",
+			"verification": "Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.",
 			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -435,7 +429,7 @@
 			"status": "blocked",
 			"artifactSurfaces": [],
 			"provenanceKind": "retained-legacy-publication-audit-tooling-not-browser-runtime",
-			"qualification": "The development-only packages and publication records are retained to reproduce and audit historical evidence. They are outside the production browser dependency closure and no application artifact publishes, packages, imports, or fetches this runtime.",
+			"verification": "The development-only packages and publication records are retained to reproduce and audit historical evidence. They are outside the production browser dependency closure and no application artifact publishes, packages, imports, or fetches this runtime.",
 			"evidence": ["config/ffmpeg-runtime-manifest.json", "THIRD_PARTY_LICENSES.md", "desktop/ffmpeg-corresponding-source.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/publish-runtime-assets.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
@@ -451,7 +445,7 @@
 			"provenanceKind": "electron-upstream-alternate-framework-library-verified-after-pack",
 			"upstreamIntent": "Electron's matching alternate release asset is intended upstream to omit proprietary codec support.",
 			"providerRole": "electron-chromium-framework-internal-not-soundscaper-codec-provider",
-			"qualification": "Exact target, file type, byte length, and SHA-256 are verified. No complete codec inventory, behavior, absence-of-patent-exposure, or patent-clearance claim is made.",
+			"verification": "Exact target, file type, byte length, and SHA-256 are verified. No complete codec inventory, behavior, absence-of-patent-exposure, or patent-clearance claim is made.",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"evidence": ["electron-builder.config.cjs", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-after-pack.mjs", "tests/desktop-electron-alternate-ffmpeg.test.js", "THIRD_PARTY_LICENSES.md"]
 		},
@@ -518,7 +512,7 @@
 			"providerTier": false,
 			"manifest": "config/electron-alternate-ffmpeg-manifest.json",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"qualification": "exact-bytes-only-no-codec-or-patent-clearance"
+			"verification": "exact-bytes-only-no-codec-or-patent-clearance"
 		},
 		"providerOrder": ["bundled-reviewed-codecs", "os", "external-user-install"],
 		"bundledProviders": {
@@ -534,7 +528,7 @@
 				"sha256": "0f703571f95e37c24ad68577163ea56b4a9dd7d5576760700b482369e924f986",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-decode-canary"],
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			},
 			"opus": {
 				"status": "admitted",
@@ -548,7 +542,7 @@
 				"sha256": "c4c9f7ac85071b24b2545f966943c4319fff023a65c899146cfcb016ae0a8853",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-decode-canary"],
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			},
 			"vorbis": {
 				"status": "admitted",
@@ -562,7 +556,7 @@
 				"sha256": "c03037c33f35dbf85e1e963058156399b995b2dedb5479f6eb3f3b30148eeee5",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-decode-canary"],
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			},
 			"wavpack": {
 				"status": "admitted",
@@ -579,7 +573,7 @@
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-decode-canary"],
 				"streamValidation": "strict-bounded-reviewed-float32-profile",
 				"interoperability": "narrow-stock-wvunpack-5-9-0-witness",
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			},
 			"mpg123": {
 				"status": "admitted",
@@ -593,7 +587,7 @@
 				"sha256": "d2b5686a16141ec97dbeb4e4f2a1ce28b756dd3eaf6438b31379356c8dd958ae",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "decode-canary-per-layer"],
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			},
 			"lame": {
 				"status": "admitted",
@@ -607,7 +601,7 @@
 				"sha256": "654d08f946851134755513c8c0cd4486e8c9d2024df2318dc48b262e4ad7a502",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-gapless-canary"],
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			},
 			"twolame": {
 				"status": "admitted",
@@ -621,7 +615,7 @@
 				"sha256": "b4b166bed688504b548adcee02cda391d4d8b25a44aec914c3fe1082f466ed1b",
 				"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 				"startupAdmission": ["exact-byte-length", "sha256", "encode-parse-canary"],
-				"qualification": "exact-reviewed-slice-no-patent-clearance"
+				"verification": "exact-reviewed-slice-no-patent-clearance"
 			}
 		},
 		"bundledExecution": {
@@ -646,9 +640,9 @@
 			"payloadManifest": "runtime/native/soundscaper-os-audio-codec/<target>/os-audio-codec-native-payload-manifest.json",
 			"payloadStatus": "target-native-ci-build-required-mac-arm64-win-x64-win-arm64",
 			"buildTargets": ["mac-arm64", "win-x64", "win-arm64"],
-			"buildAdmission": ["pinned-electron-43.1.1-headers", "repository-source-closure", "build-plan", "target-toolchain", "native-ctest-canaries", "payload-byte-length-and-sha256"],
-			"packageAdmission": ["canonical-build-result", "exact-two-file-target-subtree", "manifest-payload-summary-equality", "before-pack-verification", "after-pack-verification", "content-manifest-closure", "startup-reauthentication"],
-			"signing": { "mac-arm64": "pre-hash-ad-hoc-or-developer-id-strictly-verified", "win-x64": "not-applicable", "win-arm64": "not-applicable" },
+			"buildChecks": ["pinned-electron-43.1.1-headers", "repository-source-closure", "build-plan", "target-toolchain", "native-ctest-canaries", "payload-byte-length-and-sha256"],
+			"packageChecks": ["canonical-build-result", "exact-two-file-target-subtree", "manifest-payload-summary-equality", "before-pack-verification", "after-pack-verification", "content-manifest-closure", "startup-reauthentication"],
+			"codeSeal": { "mac-arm64": "ad-hoc-execution-check-before-hash", "win-x64": "not-applicable", "win-arm64": "not-applicable" },
 			"windows": {
 				"implementation": "windows-media-foundation",
 				"targets": ["win-x64", "win-arm64"],
@@ -658,7 +652,7 @@
 				"implementation": "apple-audiotoolbox-extended-audio-file",
 				"targets": ["mac-arm64"],
 				"canaryTuples": ["mp3-decode-48khz-stereo", "aac-lc-m4a-decode-48khz-stereo", "aac-lc-m4a-encode-48khz-stereo-160kbps"],
-				"mp3Encode": "not-admitted"
+				"mp3Encode": "unsupported"
 			},
 			"linux": "no-uniform-operating-system-codec-tier"
 		},
@@ -676,8 +670,8 @@
 					"mp4": "keyed-rgba-h264-libx264-aac",
 					"webm": "keyed-rgba-vp9-libvpx-vp9-opus-libopus"
 				},
-				"qualification": "live-16x16-one-frame-rgba-plus-48khz-stereo-audio-canary-per-exact-format-with-finite-container-validation-and-exact-ffprobe-two-track-codec-geometry-attestation",
-				"qualificationInspection": "exact-admitted-ffprobe-two-stream-indices-0-and-1-16x16-yuv420p-48khz-stereo-five-second-64kib-private-environment-tree-terminated",
+				"compatibilityCanary": "live-16x16-one-frame-rgba-plus-48khz-stereo-audio-check-per-exact-format-with-finite-container-validation-and-exact-ffprobe-two-track-codec-geometry-inspection",
+				"compatibilityInspection": "exact-verified-ffprobe-two-stream-indices-0-and-1-16x16-yuv420p-48khz-stereo-five-second-64kib-private-environment-tree-terminated",
 				"rendererAuthority": "owner-scoped-pathless-sessions-main-owned-fixed-arguments-private-pipes-and-scratch",
 				"privateInputs": ["fd3-rgba", "fd4-optional-float-wav"],
 				"maximumSessions": 2,
@@ -711,15 +705,15 @@
 				"mp4": "H264/AAC-via-user-installed-FFmpeg",
 				"webm": "VP9/Opus-via-user-installed-FFmpeg-not-AV1"
 			},
-			"av1": "no-dav1d-svt-av1-libaom-payload-or-complete-five-target-benchmark-evidence-fail-closed",
-			"candidateOrder": { "decode": ["dav1d", "libaom-comparison-only"], "encode": ["svt-av1", "libaom-win-arm64-conditional-fallback"] }
+			"av1": "no-dav1d-svt-av1-libaom-payload-or-execution-path-fail-closed",
+			"candidateResearch": ["dav1d", "svt-av1", "libaom"]
 		},
 		"executionStatus": {
-			"bundledCompressedCodecs": "seven-reviewed-audio-wasm-payloads-admitted",
+			"bundledCompressedCodecs": "seven-reviewed-audio-wasm-payloads-verified",
 			"bundledExecutionModel": "authenticated-whole-buffer-one-shot-supervised-electron-utility-process-per-phase-max-four",
 			"operatingSystemCodecs": "target-native-ci-built-canary-tested-and-package-authenticated-on-mac-arm64-win-x64-win-arm64-linux-unavailable",
 			"externalFfmpeg": "audio-and-keyed-RGBA-H264/AAC MP4-and-VP9/Opus WebM-user-installed-cli-4.4-through-9.x-no-redistribution",
-			"webmAv1": "external-vp9-opus-webm-qualified-bundled-and-os-video-and-all-av1-disabled",
+			"webmAv1": "external-vp9-opus-webm-verified-bundled-and-os-video-and-all-av1-disabled",
 			"receiptTiming": "null-no-timing-claim"
 		},
 		"patentPosition": "No patent clearance or non-infringement representation is made for any codec, provider, use, or territory.",
@@ -801,15 +795,15 @@
 			"desktop/desktop-video-codec-operation-contract.ts",
 			"desktop/external-ffmpeg-video-process.ts",
 			"desktop/external-ffmpeg-video-operation-service.ts",
-			"desktop/external-ffmpeg-video-qualification.ts",
+			"desktop/external-ffmpeg-video-verification.ts",
 			"desktop/external-ffmpeg-video-canary-inspection.ts",
-			"desktop/external-ffmpeg-video-qualified-capabilities.ts",
+			"desktop/external-ffmpeg-video-verified-capabilities.ts",
 			"desktop/desktop-video-codec-main-ipc.ts",
 			"desktop/desktop-video-codec-registration.mjs",
 			"desktop/desktop-codec-main-integration.mjs",
 			"src/common/editor/desktop-video-codec-runtime.ts",
 			"src/common/editor/editor-codec-runtime.desktop.ts",
-			"tests/external-ffmpeg-video-qualification.test.ts",
+			"tests/external-ffmpeg-video-verification.test.ts",
 			"tests/external-ffmpeg-video-canary-inspection.test.ts",
 			"tests/external-ffmpeg-video-operation-service.test.ts",
 			"tests/desktop-video-codec-main-ipc.test.ts",
@@ -836,7 +830,7 @@
 			]
 		}
 	],
-	"releaseGates": [
+	"distributionChecks": [
 		{
 			"id": "dependency-notice-version-audit",
 			"status": "implemented",
@@ -851,7 +845,7 @@
 			"id": "desktop-bundled-codec-corresponding-source",
 			"status": "implemented",
 			"scope": "seven-exact-reviewed-bundled-desktop-audio-codec-wasm-modules",
-			"qualification": "A preferred deterministic corresponding-source ZIP is emitted and checksummed with every desktop release. It contains exact verified upstream source archives, the complete in-tree WavPack snapshot, Soundscaper wrappers, build scripts and transitive helpers, source configuration, relink/replacement instructions, and licenses for the seven exact shipped module identities. It does not qualify any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling, Electron framework internals, OS providers, external FFmpeg, patent clearance, or non-infringement.",
+			"verification": "A preferred deterministic corresponding-source ZIP is emitted and checksummed with every desktop release. It contains exact verified upstream source archives, the complete in-tree WavPack snapshot, Soundscaper wrappers, build scripts and transitive helpers, source configuration, relink/replacement instructions, and licenses for the seven exact shipped module identities. It does not authorize any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling, Electron framework internals, OS providers, external FFmpeg, patent clearance, or non-infringement.",
 			"evidence": ["config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-bundled-codec-corresponding-source.test.js"]
 		},
 		{
@@ -905,16 +899,16 @@
 			"id": "native-audio",
 			"status": "enabled",
 			"scope": "soundscaper-native-audio-stack-and-os-backends",
-			"enableRequires": ["authenticated-source-closure", "per-backend-license-and-trademark-review", "notice-and-corresponding-source-delivery", "five-target-signing-and-packaging", "provisioned-device-lab-cohort"],
+			"enableRequires": ["authenticated-source-closure", "per-backend-license-and-trademark-review", "notice-and-corresponding-source-delivery", "five-target-build-self-test-and-packaging"],
 			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "docs/production-licensing-policy.md", "native/soundscaper-helper-addon/source-manifest.json"]
 		},
 		{
 			"id": "native-codecs",
 			"status": "disabled",
 			"scope": "additional-bundled-video-codec-execution",
-			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are admitted outside this future gate and execute in authenticated, isolated one-shot Electron utility processes: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, macOS signs before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. User-installed external FFmpeg has an exact live-qualified keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM path, but those external bytes remain outside the production artifact closure. There is no admitted bundled or operating-system video provider and no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or complete five-target AV1 evidence, so bundled and operating-system WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
-			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "target-payload-and-five-target-qualification"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-qualification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "src/common/editor/av1-codec-qualification.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-qualification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
+			"blocker": "Seven exact reviewed compressed-audio WebAssembly providers are verified outside this future gate and execute in authenticated, isolated one-shot Electron utility processes: libFLAC, libopus/libogg, libvorbis/libogg, WavPack, mpg123, LAME, and TwoLAME. Specialized first-party PCM readers remain application code and libsndfile is not bundled. Windows Media Foundation and macOS ARM64 AudioToolbox use a target-native codec-only build for macOS ARM64, Windows x64, and Windows ARM64; the build runs native canaries, applies and checks the macOS ad-hoc execution seal before hashing, and staging, package, content-manifest, and startup checks bind one exact manifest and payload. Linux has no uniform OS tier and macOS x64 is unsupported. User-installed external FFmpeg has exact live-checked keyed-RGBA H.264/AAC MP4 and VP9/Opus WebM paths, but those external bytes remain outside the production artifact closure. There is no bundled or operating-system video provider and no libwebm, libvpx, dav1d, SVT-AV1, or libaom payload or AV1 execution path, so bundled and operating-system WebM/AV1 execution fails closed. Electron's exact alternate framework libffmpeg is Chromium infrastructure rather than a provider tier, while user-installed external FFmpeg remains outside the production artifact closure.",
+			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "supported-target-payload-build-self-test-and-package-verification"],
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-verification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-verification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
 		},
 		{
 			"id": "local-models",
@@ -944,7 +938,7 @@
 			"kind": "native-audio-stack",
 			"upstreamLicensing": "JUCE 9.0.1 is selected under AGPL-3.0-only; the repository-owned N-API adapter remains AGPL-3.0-only.",
 			"agplCompatibilityDirection": "The selected JUCE AGPL arm and repository adapter combine into the AGPL-3.0-only application without using the commercial arm.",
-			"redistribution": "No JUCE-derived native payload ships until exact corresponding source, notices, target builds, signatures and notarization are assembled and audited.",
+			"redistribution": "No JUCE-derived native payload ships until exact corresponding source, notices, target builds, self-tests, and package-content checks pass.",
 			"status": "implemented",
 			"blocker": null,
 			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/source-manifest.json", "THIRD_PARTY_LICENSES.md"]
@@ -954,7 +948,7 @@
 			"kind": "audio-backend",
 			"upstreamLicensing": "CoreAudio is an operating-system API supplied by the selected macOS SDK; JUCE adapter source is selected under AGPL-3.0-only.",
 			"agplCompatibilityDirection": "System-framework linkage is used and the JUCE adapter is combined under its AGPL arm.",
-			"redistribution": "No Apple SDK is redistributed; the application payload and applicable source/notices require target-specific audit and notarization.",
+			"redistribution": "No Apple SDK is redistributed; the application payload and applicable source/notices require target-specific audit and an ad-hoc execution seal.",
 			"status": "implemented",
 			"blocker": null,
 			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
@@ -964,7 +958,7 @@
 			"kind": "audio-backend",
 			"upstreamLicensing": "WASAPI is an operating-system API supplied by Windows SDK 10.0.26100; JUCE adapter source is selected under AGPL-3.0-only.",
 			"agplCompatibilityDirection": "System-API linkage is used and the JUCE adapter is combined under its AGPL arm.",
-			"redistribution": "No Windows SDK is redistributed; x64 and ARM64 application payloads and notices require target-specific audit and signing.",
+			"redistribution": "No Windows SDK is redistributed; x64 and ARM64 application payloads and notices require target-specific audit.",
 			"status": "implemented",
 			"blocker": null,
 			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
@@ -974,7 +968,7 @@
 			"kind": "audio-backend",
 			"upstreamLicensing": "ASIO SDK 2.3.4 is selected under GPL-3.0-only; its alternative proprietary license is not selected.",
 			"agplCompatibilityDirection": "The selected GPLv3 SDK code combines one-way into the AGPL-3.0-only application via GPLv3 section 13.",
-			"redistribution": "No ASIO-derived payload or ASIO trademark/logo claim ships before corresponding source, notices, trademark review and signed Windows packages are approved.",
+			"redistribution": "No ASIO-derived payload or ASIO trademark/logo claim ships before corresponding source, notices, trademark review, target build self-tests, and package-content checks pass.",
 			"status": "implemented",
 			"blocker": null,
 			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c", "THIRD_PARTY_LICENSES.md"]
@@ -994,7 +988,7 @@
 			"kind": "audio-backend",
 			"upstreamLicensing": "ALSA is a Linux system ABI; the native adapter resolves the user's installed system library and redistributes no ALSA library or headers.",
 			"agplCompatibilityDirection": "Runtime system-library linkage is used; repository adapter code remains AGPL-3.0-only.",
-			"redistribution": "No ALSA library is redistributed; Linux application payloads still require target-specific source, notice and signing audit.",
+			"redistribution": "No ALSA library is redistributed; Linux application payloads still require target-specific source, notice, and package-content audit.",
 			"status": "implemented",
 			"blocker": null,
 			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
@@ -1052,13 +1046,12 @@
 		{
 			"id": "codec-native-ffmpeg-current-set",
 			"kind": "codec-capability",
-			"upstreamLicensing": "The former browser FFmpeg GPL build with thirteen enabled external libraries remains only as development-time legacy publication and audit evidence; it is outside the production closure and browser artifact surfaces. The separate native candidate pins FFmpeg 9.0.1 in GPL mode with no external libraries. Its authenticated build recipe is enabled for testing; per-codec human review is milestone-9 stable 1.0 release evidence.",
+			"upstreamLicensing": "The former browser FFmpeg GPL build with thirteen enabled external libraries remains only as development-time legacy publication and audit material; it is outside the production closure and browser artifact surfaces. The separate native build pins FFmpeg 9.0.1 in GPL mode with no external libraries and is enabled for testing only.",
 			"agplCompatibilityDirection": "Each GPL-2.0-or-later build combines into this AGPL-3.0-only work compatibly; the native 9.0.1 source and recipe are a separate blocked provenance record and do not replace or upgrade the browser runtime.",
-			"redistribution": "An exact target-built Framescaper media host may enter its authenticated runtime payload manifest and a test package before human review completes; general-purpose FFmpeg programs, WebAssembly, archives, and loose libav payloads remain forbidden. Each desktop package also contains Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into an artifact. Stable 1.0 redistribution still requires the milestone-9 corresponding-source, notices, patent, signing, and target review.",
+			"redistribution": "An exact target-built Framescaper media host may enter a test package; general-purpose FFmpeg programs, WebAssembly, archives, and loose libav payloads remain forbidden. Each desktop package also contains Electron's exact verified alternate framework libffmpeg, intended upstream to omit proprietary codec support; it is Chromium infrastructure, not this provider row. User-installed external FFmpeg is executed in place and is not copied into an artifact. Any future bundled media host must carry corresponding source and notices and pass target self-tests and package-content verification.",
 			"status": "blocked",
-			"blocker": "The 2026-08-28 owner review approves WebCodecs, operating-system providers, and user-installed FFmpeg but does not approve bundled FFmpeg or a redistributed native FFmpeg media host. Corresponding-source, notices, signing, payload, and target evidence also remain incomplete. The authenticated native FFmpeg 9.0.1 recipe remains enabled for build and testing only.",
+			"blocker": "The distribution policy permits WebCodecs, operating-system providers, and user-installed FFmpeg but disables bundled FFmpeg and a redistributed native FFmpeg media host. Corresponding source, notices, payload, and target verification also remain incomplete. The authenticated native FFmpeg 9.0.1 recipe remains enabled for build and testing only.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -1066,11 +1059,10 @@
 			"kind": "codec-capability",
 			"upstreamLicensing": "Platform encoder/decoder services (NVENC, Quick Sync, VideoToolbox, VAAPI) reached through their platform interfaces",
 			"agplCompatibilityDirection": "System-service linkage is used, not combined source; no license flows into the work.",
-			"redistribution": "Nothing is redistributed. Machine-complete hardware paths are enabled for testing; per-codec, per-jurisdiction patent review is milestone-9 stable 1.0 evidence.",
+			"redistribution": "Nothing is redistributed. Machine-complete hardware paths are enabled for testing; distributed routes remain unavailable until each concrete provider and codec tuple has implementation, source/notice coverage where applicable, and target verification.",
 			"status": "blocked",
-			"blocker": "No jurisdiction-specific patent review is recorded for stable 1.0 admission; machine-complete hardware paths remain enabled for testing.",
+			"blocker": "No hardware codec route is part of the distributed package inventory; machine-complete paths remain enabled for testing.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
@@ -1081,7 +1073,7 @@
 			"container": "mp4",
 			"profile": "decode-h264",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg H.264 decoder in the pinned GPL-2.0-or-later native candidate; AVC patent licensing is separate from copyright licensing.",
+			"upstreamLicensing": "FFmpeg H.264 decoder in the pinned GPL-2.0-or-later native build recipe; AVC patent licensing is separate from copyright licensing.",
 			"agplCompatibilityDirection": "The decoder and MP4 demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No H.264-in-MP4 decoder binary ships until corresponding source, notices, and distribution-specific AVC patent review are recorded.",
 			"status": "blocked",
@@ -1096,7 +1088,7 @@
 			"container": "mov",
 			"profile": "decode-h264",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg H.264 decoder and MOV demuxer in the pinned GPL-2.0-or-later native candidate; AVC patent licensing is separate from copyright licensing.",
+			"upstreamLicensing": "FFmpeg H.264 decoder and MOV demuxer in the pinned GPL-2.0-or-later native build recipe; AVC patent licensing is separate from copyright licensing.",
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No H.264-in-MOV decoder binary ships until corresponding source, notices, and distribution-specific AVC patent review are recorded.",
 			"status": "blocked",
@@ -1111,7 +1103,7 @@
 			"container": "mp4",
 			"profile": "decode-hevc",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg HEVC decoder in the pinned GPL-2.0-or-later native candidate; HEVC patent-pool terms are separate from copyright licensing.",
+			"upstreamLicensing": "FFmpeg HEVC decoder in the pinned GPL-2.0-or-later native build recipe; HEVC patent-pool terms are separate from copyright licensing.",
 			"agplCompatibilityDirection": "The decoder and MP4 demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No HEVC-in-MP4 decoder binary ships until corresponding source, notices, and per-pool, per-jurisdiction patent review are recorded.",
 			"status": "blocked",
@@ -1126,7 +1118,7 @@
 			"container": "mov",
 			"profile": "decode-hevc",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg HEVC decoder and MOV demuxer in the pinned GPL-2.0-or-later native candidate; HEVC patent-pool terms are separate from copyright licensing.",
+			"upstreamLicensing": "FFmpeg HEVC decoder and MOV demuxer in the pinned GPL-2.0-or-later native build recipe; HEVC patent-pool terms are separate from copyright licensing.",
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No HEVC-in-MOV decoder binary ships until corresponding source, notices, and per-pool, per-jurisdiction patent review are recorded.",
 			"status": "blocked",
@@ -1141,7 +1133,7 @@
 			"container": "webm",
 			"profile": "decode-vp9",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg VP9 decoder and Matroska/WebM demuxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg VP9 decoder and Matroska/WebM demuxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No VP9-in-WebM decoder binary ships until corresponding source, notices, patent review, and payload evidence are recorded.",
 			"status": "blocked",
@@ -1156,7 +1148,7 @@
 			"container": "mp4",
 			"profile": "decode-av1",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg AV1 decoder in the pinned GPL-2.0-or-later native candidate; the Alliance for Open Media patent licence is reviewed separately.",
+			"upstreamLicensing": "FFmpeg AV1 decoder in the pinned GPL-2.0-or-later native build recipe; the Alliance for Open Media patent licence is reviewed separately.",
 			"agplCompatibilityDirection": "The decoder and MP4 demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No AV1-in-MP4 decoder binary ships until corresponding source, notices, patent-licence review, and payload evidence are recorded.",
 			"status": "blocked",
@@ -1171,7 +1163,7 @@
 			"container": "webm",
 			"profile": "decode-av1",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg AV1 decoder and Matroska/WebM demuxer in the pinned GPL-2.0-or-later native candidate; the Alliance for Open Media patent licence is reviewed separately.",
+			"upstreamLicensing": "FFmpeg AV1 decoder and Matroska/WebM demuxer in the pinned GPL-2.0-or-later native build recipe; the Alliance for Open Media patent licence is reviewed separately.",
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No AV1-in-WebM decoder binary ships until corresponding source, notices, patent-licence review, and payload evidence are recorded.",
 			"status": "blocked",
@@ -1186,11 +1178,11 @@
 			"container": "mov",
 			"profile": "decode-prores",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg ProRes decoder and MOV demuxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg ProRes decoder and MOV demuxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes-in-MOV decoder binary ships until corresponding source, notices, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names this pair, but format, interoperability, payload, signing, and five-target reviews remain incomplete.",
+			"blocker": "The recipe names this pair, but format, interoperability, payload, and target verification remain incomplete.",
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1201,7 +1193,7 @@
 			"container": "mxf",
 			"profile": "decode-dnxhr",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg DNxHR decoder and SMPTE MXF demuxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg DNxHR decoder and SMPTE MXF demuxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The decoder and demuxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No DNxHR-in-MXF decoder binary ships until corresponding source, notices, format and patent review, and payload evidence are recorded.",
 			"status": "blocked",
@@ -1216,13 +1208,12 @@
 			"container": "image-sequence",
 			"profile": "decode-png-sequence",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg internal PNG decoder in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg internal PNG decoder in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The decoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "The built-in PNG decoder is enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, interoperability, and target review.",
+			"redistribution": "The built-in PNG decoder is enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "PNG decode is enabled for authenticated build and testing; milestone-9 stable 1.0 sequence interoperability and target review remains incomplete.",
+			"blocker": "PNG decode is enabled for build and testing; sequence interoperability and target verification remain incomplete.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1233,13 +1224,12 @@
 			"container": "image-sequence",
 			"profile": "decode-tiff-sequence",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg internal TIFF decoder in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg internal TIFF decoder in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The decoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "The built-in TIFF decoder is enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, interoperability, and target review.",
+			"redistribution": "The built-in TIFF decoder is enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "TIFF decode is enabled for authenticated build and testing; milestone-9 stable 1.0 sequence interoperability and target review remains incomplete.",
+			"blocker": "TIFF decode is enabled for build and testing; sequence interoperability and target verification remain incomplete.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1250,13 +1240,12 @@
 			"container": "image-sequence",
 			"profile": "decode-openexr-sequence",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg internal EXR decoder in the pinned GPL-2.0-or-later native candidate; any future libOpenEXR linkage carries BSD-3-Clause terms.",
+			"upstreamLicensing": "FFmpeg internal EXR decoder in the pinned GPL-2.0-or-later native build recipe; any future libOpenEXR linkage carries BSD-3-Clause terms.",
 			"agplCompatibilityDirection": "The internal decoder combines under FFmpeg's GPL posture; permissive OpenEXR code would combine into this AGPL-3.0-only work.",
-			"redistribution": "The built-in OpenEXR decoder is enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, interoperability, and target review.",
+			"redistribution": "The built-in OpenEXR decoder is enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "The internal EXR decoder is enabled for authenticated build and testing without libOpenEXR; milestone-9 stable 1.0 notices, interoperability, and target review remains incomplete.",
+			"blocker": "The internal EXR decoder is enabled for build and testing without libOpenEXR; notices, interoperability, and target verification remain incomplete.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
@@ -1327,11 +1316,11 @@
 			"container": "mov",
 			"profile": "encode-mov-prores-proxy",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg prores_ks encoder and MOV muxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg prores_ks encoder and MOV muxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes Proxy MOV encoder binary ships until corresponding source, notices, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names this pair, but ProRes Proxy interoperability, payload, signing, and five-target reviews remain incomplete.",
+			"blocker": "The recipe names this pair, but ProRes Proxy interoperability, payload, and target verification remain incomplete.",
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1342,11 +1331,11 @@
 			"container": "mov",
 			"profile": "encode-mov-prores-422-hq",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg prores_ks encoder and MOV muxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg prores_ks encoder and MOV muxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes 422 HQ MOV encoder binary ships until corresponding source, notices, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names the encoder and muxer, but 422 HQ interoperability, payload, signing, and five-target reviews remain incomplete.",
+			"blocker": "The recipe names the encoder and muxer, but 422 HQ interoperability, payload, and target verification remain incomplete.",
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1357,11 +1346,11 @@
 			"container": "mov",
 			"profile": "encode-mov-prores-4444",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg prores_ks encoder and MOV muxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg prores_ks encoder and MOV muxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No ProRes 4444 MOV encoder binary ships until corresponding source, notices, alpha interoperability, format review, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "The recipe names the encoder and muxer, but 4444 alpha interoperability, payload, signing, and five-target reviews remain incomplete.",
+			"blocker": "The recipe names the encoder and muxer, but 4444 alpha interoperability, payload, and target verification remain incomplete.",
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1372,7 +1361,7 @@
 			"container": "mxf",
 			"profile": "encode-mxf-dnxhr-hqx",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg dnxhd encoder for DNxHR HQX and SMPTE MXF muxer in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg dnxhd encoder for DNxHR HQX and SMPTE MXF muxer in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No DNxHR HQX MXF encoder binary ships until corresponding source, notices, format and patent review, and payload evidence are recorded.",
 			"status": "blocked",
@@ -1387,11 +1376,11 @@
 			"container": "matroska",
 			"profile": "encode-matroska-ffv1",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg FFV1 encoder and Matroska muxer in the pinned GPL-2.0-or-later native candidate; the FFV1 specification is standardized by the IETF.",
+			"upstreamLicensing": "FFmpeg FFV1 encoder and Matroska muxer in the pinned GPL-2.0-or-later native build recipe; the FFV1 specification is standardized by the IETF.",
 			"agplCompatibilityDirection": "The encoder and muxer combine into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
 			"redistribution": "No FFV1-in-Matroska encoder binary ships until corresponding source, notices, lossless interoperability, and payload evidence are recorded.",
 			"status": "blocked",
-			"blocker": "FFV1 encode and Matroska mux are disabled in the native recipe, and lossless, payload, signing, and five-target reviews remain absent.",
+			"blocker": "FFV1 encode and Matroska mux are disabled in the native recipe, and lossless, payload, and target verification remain absent.",
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1402,13 +1391,12 @@
 			"container": "image-sequence",
 			"profile": "encode-png-sequence",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg internal PNG encoder in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg internal PNG encoder in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The encoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "The built-in PNG encoder and image2 muxer are enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, alpha interoperability, and target review.",
+			"redistribution": "The built-in PNG encoder and image2 muxer are enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, alpha interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "PNG encode is enabled for authenticated build and testing; milestone-9 stable 1.0 alpha, sequence, and target review remains incomplete.",
+			"blocker": "PNG encode is enabled for authenticated build and testing; distribution interoperability and target verification remain incomplete.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1419,13 +1407,12 @@
 			"container": "image-sequence",
 			"profile": "encode-tiff-sequence",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg internal TIFF encoder in the pinned GPL-2.0-or-later native candidate.",
+			"upstreamLicensing": "FFmpeg internal TIFF encoder in the pinned GPL-2.0-or-later native build recipe.",
 			"agplCompatibilityDirection": "The encoder combines into this AGPL-3.0-only work under the pinned FFmpeg GPL posture.",
-			"redistribution": "The built-in TIFF encoder and image2 muxer are enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, alpha interoperability, and target review.",
+			"redistribution": "The built-in TIFF encoder and image2 muxer are enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, alpha interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "TIFF encode is enabled for authenticated build and testing; milestone-9 stable 1.0 alpha, sequence, and target review remains incomplete.",
+			"blocker": "TIFF encode is enabled for authenticated build and testing; distribution interoperability and target verification remain incomplete.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
@@ -1436,13 +1423,12 @@
 			"container": "image-sequence",
 			"profile": "encode-openexr-sequence",
 			"execution": "software",
-			"upstreamLicensing": "FFmpeg internal EXR encoder in the pinned GPL-2.0-or-later native candidate; any future libOpenEXR linkage carries BSD-3-Clause terms.",
+			"upstreamLicensing": "FFmpeg internal EXR encoder in the pinned GPL-2.0-or-later native build recipe; any future libOpenEXR linkage carries BSD-3-Clause terms.",
 			"agplCompatibilityDirection": "The internal encoder combines under FFmpeg's GPL posture; permissive OpenEXR code would combine into this AGPL-3.0-only work.",
-			"redistribution": "The built-in OpenEXR encoder and image2 muxer are enabled in authenticated build and test payloads. Stable 1.0 redistribution waits for milestone-9 corresponding-source, notices, alpha/HDR interoperability, and target review.",
+			"redistribution": "The built-in OpenEXR encoder and image2 muxer are enabled in build and test payloads. Distribution remains unavailable until corresponding source, notices, alpha/HDR interoperability checks, and target verification are present.",
 			"status": "blocked",
-			"blocker": "The internal EXR encoder is enabled for authenticated build and testing without libOpenEXR; milestone-9 stable 1.0 alpha/HDR and target review remains incomplete.",
+			"blocker": "The internal EXR encoder is enabled for authenticated build and testing without libOpenEXR; distribution alpha/HDR interoperability and target verification remain incomplete.",
 			"testActivation": "enabled",
-			"humanReviewMilestone": 9,
 			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
@@ -1577,9 +1563,9 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The repository is MIT and ships its pretrained models from its own releases, while upstream question deezer/spleeter#898 records ambiguity over whether that licence covers the weights. The kw.media owner accepted that documented ambiguity as a distribution risk on 2026-08-28; this is an explicit risk decision, not an upstream clarification." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The repository is MIT and ships its pretrained models from its own releases, while upstream question deezer/spleeter#898 records ambiguity over whether that licence covers the weights. That unresolved scope is recorded as a distribution risk, not as an upstream clarification." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream describes training on an internal music corpus it does not publish; that absence is the recorded provenance." },
-				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No use restriction is stated beyond the repository licence. The owner accepted the unresolved weight-licence scope as recorded in the separate licence-review requirement." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No use restriction is stated beyond the repository licence. The unresolved weight-licence scope remains explicit in the separate licence-review requirement." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
 			},
 			"provenanceSources": ["https://github.com/deezer/spleeter", "https://github.com/deezer/spleeter/issues/898"],
@@ -1595,7 +1581,7 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025. The kw.media owner accepted that missing weight grant as a distribution risk on 2026-08-28; this records the decision without representing that upstream supplied terms." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "Upstream code is MIT but the pretrained weights were never given explicit terms, and the repository was archived in January 2025. The missing weight grant is recorded as a distribution risk without representing that upstream supplied terms." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names a public music separation corpus plus additional unpublished data for the fine-tuned variants; that description is the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "No model-card use restriction is published. The missing weight terms and the owner's risk acceptance remain explicit in the licence-review requirement." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No artifact is mirrored yet, so no byte length, SHA-256, or offline notice exists. WP-7.0.1 mirrors and pins the artifact." }
@@ -1721,7 +1707,7 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned facebook/wav2vec2-base-960h repository declares Apache-2.0 for the model and weights. The kw.media owner approved the recorded code/weight posture on 2026-08-28." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned facebook/wav2vec2-base-960h repository declares Apache-2.0 for the model and weights." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The model card identifies LibriSpeech 960 hours as the English fine-tuning corpus and the wav2vec2 family documentation as the pretraining authority." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model card states no additional use restriction beyond Apache-2.0. Soundscaper restricts this artifact to English alignment as a product contract, not a licence condition." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The upstream ONNX artifact is digest-pinned, but no immutable product mirror read-back, externally signed catalog entry, or matching offline notice for the distributed artifact is recorded." }
@@ -1739,7 +1725,7 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned TIGER source repository is MIT and the author-published TIGER-DnR weight repository declares Apache-2.0. The kw.media owner approved that combined posture on 2026-08-28." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned TIGER source repository is MIT and the author-published TIGER-DnR weight repository declares Apache-2.0." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream repository, model card, and paper document DnR separation evaluation and the related EchoSet data; no complete per-file training manifest is published, and that limitation is accepted as recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT and Apache-2.0 terms add no use restriction, and the model card states none." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint is pinned, but the repository-owned ONNX output, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
@@ -1757,9 +1743,9 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The source repository carries MIT terms and publishes the pinned pretrained Cnn10 checkpoint through its documented Zenodo record without separate checkpoint terms. The kw.media owner approved treating the checkpoint under the repository MIT posture on 2026-08-28." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The source repository carries MIT terms and publishes the pinned pretrained Cnn10 checkpoint through its documented Zenodo record without separate checkpoint terms. That absence of separate checkpoint terms remains explicit in this record." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream states that PANNs is trained on AudioSet and documents the 527-class label map. Availability drift in the underlying YouTube-derived corpus is part of the recorded provenance." },
-				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Upstream publishes no additional model-card use restriction beyond the MIT repository posture; the owner accepted the absence of separate checkpoint terms." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Upstream publishes no additional model-card use restriction beyond the MIT repository posture; no separate checkpoint terms are published." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint and class map are pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
 			},
 			"provenanceSources": ["https://github.com/qiuqiangkong/audioset_tagging_cnn", "https://zenodo.org/records/3987831"],
@@ -1775,8 +1761,8 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT. The kw.media owner approved that posture on 2026-08-28." },
-				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. The owner accepted that recorded training-data risk for use of the released weights." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. That warning remains part of the recorded provenance for the released weights." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The released model carries MIT terms with no additional use restriction; upstream's training-file warning is retained as provenance rather than converted into a weight-use restriction." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The small0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
 			},
@@ -1793,8 +1779,8 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT. The kw.media owner approved that posture on 2026-08-28." },
-				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. The owner accepted that recorded training-data risk for use of the released weights." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The upstream Beat This repository explicitly releases both code and published model weights under MIT." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The upstream documentation identifies the training datasets and warns that some training files are fully copyrighted or carry limited Creative Commons terms. That warning remains part of the recorded provenance for the released weights." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The released model carries MIT terms with no additional use restriction; upstream's training-file warning is retained as provenance rather than converted into a weight-use restriction." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The final0 checkpoint is pinned, but the converted ONNX identity, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
 			},
@@ -1811,7 +1797,7 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The exact Qwen3-4B-GGUF repository and pinned Q4_K_M weights carry Apache-2.0. The kw.media owner approved that posture on 2026-08-28." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The exact Qwen3-4B-GGUF repository and pinned Q4_K_M weights carry Apache-2.0." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "The model card and Qwen3 technical report describe the training stages and data categories without publishing a complete corpus inventory; that limitation is accepted as the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The repository carries Apache-2.0 and states no additional model-use restriction. Soundscaper's constrained local editorial role is a product boundary, not a licence condition." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The GGUF artifact is digest-pinned, but no immutable product mirror read-back, externally signed catalog entry, packaged runtime canary, or matching offline notice is recorded." }
@@ -1829,7 +1815,7 @@
 			"distributionStatus": "blocked",
 			"blockedBy": ["versioned-download-notices-and-hashes"],
 			"requirements": {
-				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating repository is MIT and publishes its TensorFlow and PyTorch weights. No author-published ONNX build exists, and a third-party CoreML redistribution states conflicting terms. The kw.media owner accepted producing a repository-owned ONNX conversion directly from the pinned MIT upstream as a distribution risk on 2026-08-28; no third-party conversion bytes are accepted." },
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The originating repository is MIT and publishes its TensorFlow and PyTorch weights. No author-published ONNX build exists, and a third-party CoreML redistribution states conflicting terms. Only a repository-owned ONNX conversion directly from the pinned MIT upstream is accepted; no third-party conversion bytes are accepted." },
 				"training-data-provenance-record": { "status": "recorded", "summary": "Upstream names the public shot-transition corpora it trains and evaluates on in its paper; that documentation is the recorded provenance." },
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The MIT terms carry no use restriction; the open item is which converted bytes may be shipped, not what they may be used for." },
 				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "No repository-owned converted artifact, parity evidence, immutable mirror read-back, signed catalog entry, or exact offline notice is recorded yet." }

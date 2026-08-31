@@ -39,7 +39,7 @@ public:
 			if (handle_ != nullptr) break;
 		}
 		if (handle_ == nullptr) {
-			throw gpu_runtime_error{"unsupported-backend", "The qualified GPU runtime library is unavailable."};
+			throw gpu_runtime_error{"unsupported-backend", "The supported GPU runtime library is unavailable."};
 		}
 	}
 	~RuntimeLibrary() {
@@ -60,7 +60,7 @@ public:
 		auto* symbol = dlsym(handle_, name);
 #endif
 		if (symbol == nullptr) {
-			throw gpu_runtime_error{"unsupported-backend", "The qualified GPU runtime ABI is incomplete."};
+			throw gpu_runtime_error{"unsupported-backend", "The supported GPU runtime ABI is incomplete."};
 		}
 		return reinterpret_cast<Function>(symbol);
 	}
@@ -229,7 +229,7 @@ private:
 	using Release = int (*)(void*);
 	using CreateProgram = void* (*)(void*, unsigned, const char**, const std::size_t*, int*);
 	using BuildProgram = int (*)(void*, unsigned, const void**, const char*, void (*)(void*, void*), void*);
-	[[noreturn]] static void unavailable() { throw gpu_runtime_error{"unsupported-backend", "No qualified OpenCL GPU device is available."}; }
+	[[noreturn]] static void unavailable() { throw gpu_runtime_error{"unsupported-backend", "No supported OpenCL GPU device is available."}; }
 	[[noreturn]] static void failed() { throw gpu_runtime_error{"gpu-execution-failed", "The OpenCL render context failed."}; }
 	void load_api() {
 		get_platforms_ = library_.require<GetPlatforms>("clGetPlatformIDs");
@@ -322,7 +322,7 @@ private:
 	using Allocate = int (*)(std::uintptr_t*, std::size_t); using Free = int (*)(std::uintptr_t);
 	using CopyTo = int (*)(std::uintptr_t, const void*, std::size_t);
 	using CopyFrom = int (*)(void*, std::uintptr_t, std::size_t); using SynchronizeContext = int (*)();
-	[[noreturn]] static void unavailable() { throw gpu_runtime_error{"unsupported-backend", "No qualified CUDA GPU device is available."}; }
+	[[noreturn]] static void unavailable() { throw gpu_runtime_error{"unsupported-backend", "No supported CUDA GPU device is available."}; }
 	[[noreturn]] static void failed() { throw gpu_runtime_error{"gpu-execution-failed", "The CUDA render context failed."}; }
 	template <typename Function> Function versioned(const char* v2, const char* plain) {
 		try { return library_.require<Function>(v2); } catch (const gpu_runtime_error&) { return library_.require<Function>(plain); }
@@ -431,7 +431,7 @@ private:
 	using FrameTexture = void (*)(std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, int);
 	using ReadPixels = void (*)(int, int, int, int, std::uint32_t, std::uint32_t, void*);
 	using Finish = void (*)(); using GetError = std::uint32_t (*)();
-	[[noreturn]] static void unavailable() { throw gpu_runtime_error{"unsupported-backend", "No qualified EGL OpenGL context is available."}; }
+	[[noreturn]] static void unavailable() { throw gpu_runtime_error{"unsupported-backend", "No supported EGL OpenGL context is available."}; }
 	[[noreturn]] static void failed() { throw gpu_runtime_error{"gpu-execution-failed", "The OpenGL render context failed."}; }
 	template <typename Function> Function gl(const char* name) { auto* value = get_proc_(name); if (value == nullptr) unavailable(); return reinterpret_cast<Function>(value); }
 	void load_egl() {
@@ -545,7 +545,7 @@ std::unique_ptr<GpuRenderSession> GpuRenderSession::create(
 #ifdef __APPLE__
 	if (backend == Backend::metal) return MetalSession::create(frames);
 #endif
-	throw gpu_runtime_error{"unsupported-backend", "The requested qualified GPU provider is unavailable on this host."};
+	throw gpu_runtime_error{"unsupported-backend", "The requested supported GPU provider is unavailable on this host."};
 }
 
 void GpuRenderSession::make_active() noexcept { current_session = this; }

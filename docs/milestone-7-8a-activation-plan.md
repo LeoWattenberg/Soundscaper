@@ -1,5 +1,10 @@
 # Milestone 7 and 8A activation plan
 
+> **Current release note (2026-08-31):** owner-lab, qualification-evidence, and
+> release-admission passages below are historical provenance. They do not gate
+> a release or activate a feature. Current behavior is enforced by the runtime
+> integrity checks and ordinary automated tests it actually executes.
+
 ## Delivered boundary (2026-08-27)
 
 This branch conditionally activates the complete Milestone 7 workflow layer
@@ -34,14 +39,13 @@ All five target payload closures for `onnxruntime-node`
 1.29.0, whisper.cpp v1.9.3, and llama.cpp b10509 remain
 `pending-external`, as does the Windows-arm64 Sherpa Node addon. No live EU R2
 publication and public full-SHA-256 read-back has been recorded, and the five
-packaged target canaries and owner-lab workload have not run. Those states
+packaged target canaries and owner-device workflows have not run. Those states
 produce typed machine unavailability rather than substitute inference or an
-implicit download. The selected F31 capture route remains active, with its
-separate real-device qualification pending. External catalog signature,
+implicit download. The selected F31 capture route remains active; real-device
+behavior remains an optional owner QA observation. External catalog signature,
 artifact digest, runtime/platform compatibility, selected-media authority,
 storage integrity, consent, and external-FFmpeg machine admission remain fail
-closed. Licensing and owner qualification are milestone-9 stable 1.0 blockers
-only.
+closed. Owner QA is optional and never grants runtime authority.
 
 ## Outcome
 
@@ -50,21 +54,17 @@ only.
   inference remains desktop-only.
 - Activate Framescaper capture for standalone web and desktop on the final
   selected Framescaper schema.
-- Treat owner-lab, reference-device, and other manual qualification as
-  nonblocking. Record implementation as active and qualification as pending or
-  unqualified in diagnostics and documentation without adding a user-facing
-  preview or qualification warning.
+- Treat owner-device and other manual observations as optional QA. Diagnostics
+  report what ran and what remains unavailable without certifying a release.
 - Keep artifact integrity, explicit consent, selected-media authority, runtime
-  compatibility, storage durability, and security checks fail-closed. Report
-  human licensing review to milestone 9 without disabling current work.
+  compatibility, storage durability, and security checks fail-closed.
 
 ## Model supply chain and native runtime
 
 - Enable the complete implemented model catalog for testing. An offered model
   must still have an authenticated catalog entry, exact runtime compatibility,
-  and mirrored artifact pins. `distributionStatus` is milestone-9 release
-  metadata and cannot hide a machine-complete model. All human reviews are
-  consolidated into stable 1.0 admission.
+  and mirrored artifact pins. Distribution metadata cannot hide a
+  machine-complete model or substitute for an authenticated one.
 - Introduce signed catalog V2: Ed25519 over canonical JSON, pinned current and
   next public keys, repository-external release private keys, and explicit
   rotation. Separate upstream source artifacts from distributable artifacts.
@@ -143,8 +143,9 @@ only.
 
 ## Product workflows and rollout
 
-The complete rollout layer is implemented, with release admission evaluated per
-workflow rather than asserted for the whole milestone:
+The complete rollout layer is implemented, with each workflow guarded by its
+own runtime integrity and correctness checks rather than a release-admission
+status:
 
 - 7A retains active Parakeet/Silero/Sherpa execution and adds conditional
   Whisper/alignment, enhancement/separation, reactions, indexed transcript
@@ -154,7 +155,7 @@ workflow rather than asserted for the whole milestone:
   editorial augmentation. Missing signed model or runtime evidence makes only
   the affected route unavailable.
 - 8A is active on selected F31 web and desktop, default-hidden and menu-opt-in;
-  its real-device and owner-lab qualification remains open.
+  real-device observations belong in optional owner QA.
 
 - Add only menu-reached UI. `Tools -> Local Models -> Manage Models...` is
   always discoverable in desktop builds. `Analyze -> Local Assistance` opens
@@ -215,9 +216,9 @@ workflow rather than asserted for the whole milestone:
   require zero post-install network requests, zero unselected bytes read, zero
   accepted digest mismatches, cancellation p95 at or below two seconds, and zero
   canonical-state losses.
-- Keep M7 and M8A owner environments unprovisioned and qualification evidence
-  pending; do not fabricate accepted evidence. Update roadmap, milestone plans,
-  and policy registers truthfully. Run policy-narrative synchronization,
+- Treat M7 and M8A owner-device runs as optional QA; do not fabricate
+  measurements for environments that were not exercised. Update roadmap,
+  milestone plans, and policy registers truthfully. Run policy-narrative synchronization,
   documentation reference generation, and runtime-evidence repinning in that
   order before their checks.
 - During development run `npm test` after helper work, `npm run build` after UI

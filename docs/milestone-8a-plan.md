@@ -18,8 +18,8 @@ Recording Setup remains default-hidden and requires explicit opt-in through **Vi
 `framescaperWebVcr: true` enables the default-hidden, Record-menu-owned
 post-milestone extension for testing.
 Schema-19 web, schema-18 desktop, and schema-20 web/desktop remain historical
-compatibility surfaces. Manual real-device and owner-lab review is tracked only
-by milestone 9 for stable 1.0 admission and never disables these active routes.
+compatibility surfaces. Real-device observations belong in optional owner QA
+and never disable these active routes.
 
 ## Work packets
 
@@ -30,7 +30,7 @@ by milestone 9 for stable 1.0 admission and never disables these active routes.
   Soundscaper audio recording.
 - Implement the `framescaper-capture` platform contract while preserving every
   MIDI block and inertness test. Selected-F31 web and desktop activation is
-  complete; real-device and owner-lab qualification remains a separate gate.
+  complete; real-device observations remain optional owner QA.
 
 ### 8A-1: Capture domain
 
@@ -196,7 +196,7 @@ selection, offline editing, detach, relink, regeneration, and cancellation.
 - Use the macOS system picker where supported; otherwise present a bounded
   source chooser. Never silently choose the first screen.
 - Gate system audio by truthful platform and runtime probes and add required
-  signed macOS camera, microphone, and audio-capture metadata and entitlements.
+  macOS camera, microphone, and audio-capture usage metadata and entitlements.
 - Extract new main and preload handlers rather than growing
   maintainability-allowlisted files.
 - Generate mutually exclusive Pages document policies: standalone Framescaper
@@ -204,13 +204,13 @@ selection, offline editing, detach, relink, regeneration, and cancellation.
   Soundscaper retains its current policy. Prevent overlapping rules from
   producing comma-joined `Permissions-Policy` headers.
 
-### 8A-7: Qualification and evidence
+### 8A-7: Diagnostics and automated checks
 
-- Add the 30-minute, six-combination quality collector and bind its evidence to
-  the registered workload and environment fingerprint.
-- Keep the quality fixture, workload, and external qualification provisional
-  until the real-device matrix is provisioned and passes; implementation
-  completion does not qualify that matrix.
+- Add the capture diagnostic collector and record the environment actually
+  observed by each run.
+- Keep the quality fixture and workload descriptive; unsupported measurements
+  are `null` with a reason and optional owner-device runs create no release
+  status.
 - Update security, privacy, platform-capability, and quality evidence through
   their owning registers and required narrative-sync and digest-repin workflows.
 - Preserve the absent MIDI runtime and leave milestone 8B planned until it is implemented.
@@ -229,8 +229,8 @@ cases covering default-hidden consent, embedded and incomplete-runtime denial,
 all six preview combinations, pause/resume and ordinary-media reopen, mixed
 four-stream publication/reopen, capture publication to an inactive origin while
 another project is edited, later-request cleanup, and source-ended recovery.
-This synthetic-media evidence does not provision or qualify the external
-camera, microphone, display, system-audio, operating-system, or browser matrix.
+This synthetic-media automation makes no external camera, microphone, display,
+system-audio, operating-system, or browser support claim.
 
 Commits `5ccf6447`, `2c6e2a94`, and `16029166` preserve that historical
 coverage while restoring it against the selected F31 route, schema, and storage
@@ -241,7 +241,7 @@ assert that opening capture does not implicitly enumerate devices, that closing
 and reopening the panel preserves an active recording, and that mixed video
 publication completes its camera and display proxies. These remain synthetic
 automation results: actual devices, operating-system pickers, encoders,
-long-session performance, and manual privacy behavior are still unqualified.
+long-session performance, and manual privacy behavior remain outside their scope.
 
 ## Public interfaces
 
@@ -313,15 +313,16 @@ long-session performance, and manual privacy behavior are still unqualified.
   paths.
 - Run focused tests throughout, then `npm test`, `npm run build`, focused and
   full Playwright suites, packaging and security checks, and `npm run check`.
-- The 30-minute quality workload must meet: no more than 20 ms drift, no more
-  than 0.001 dropped-frame ratio, zero unreported drops, zero audio-dropout
-  frames, no more than one-second p95 teardown, zero unrecoverable fragments,
-  and zero unauthorized opens.
+- The 30-minute diagnostic reports drift, dropped-frame ratio, unreported drops,
+  audio-dropout frames, teardown time, unrecoverable fragments, and unauthorized
+  opens. Correctness failures remain blocking; timing and device-performance
+  observations describe only the environment that produced them.
 
 ## Status, defaults, and stop conditions
 
 - Browser and Electron media APIs are the initial encoder path. Add a native
-  encoder behind the same port only if qualification proves it necessary.
+  encoder behind the same port only if a concrete product need and real
+  measurements justify it.
 - Embedded Framescaper capture remains unsupported.
 - Selected-F31 runtime support requires the exact Framescaper route plus the complete source,
   supported video encoder, audio packet, cross-context Web Lock,
@@ -330,15 +331,15 @@ long-session performance, and manual privacy behavior are still unqualified.
 - Selected F31 admits capture on standalone web and desktop only through its
   exact controller, app binding, and runtime probe. Embedded Framescaper remains
   denied; historical exact routes retain compatibility and recovery behavior.
-- The capture quality fixture and workload remain provisional. Do not claim
-  qualification while `capture-os-browser-lab-matrix` is unprovisioned or
-  ineligible. The packaged no-device control-plane smoke is not actual packaged
+- The capture fixture and `capture-device-diagnostics` workload are diagnostic.
+  The packaged no-device control-plane smoke is not an observation of a real
   camera, microphone, operating-system picker, loopback, encoder, or timing
-  qualification.
+  environment. Record the devices and environments actually tried in optional
+  owner QA instead of treating a fixed platform matrix as release authority.
 - Stop a packet if it would require weakening storage atomicity, device-consent
   rules, origin-project protection, capture metrics, security policy, or
   existing A/V invariants; revise the owning contract before continuing.
-- Do not add dependencies unless the implementation proves an existing
-  platform adapter cannot meet the accepted qualification thresholds.
+- Do not add dependencies unless implementation and real diagnostics show that
+  an existing platform adapter cannot meet the product requirement.
 - Do not implement or relax any MIDI contract, schema, UI, device, import,
   export, or native bridge as part of milestone 8A.

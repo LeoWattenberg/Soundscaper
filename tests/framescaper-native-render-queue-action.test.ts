@@ -25,7 +25,6 @@ type Data = Record<string, unknown>;
 const QUEUE_ENTRY = Object.freeze({
 	domain: 'queue',
 	id: 'persistent-render-queue',
-	policyCleared: true,
 	buildSupported: true,
 	probeSucceeded: true,
 	selfTestPassed: true,

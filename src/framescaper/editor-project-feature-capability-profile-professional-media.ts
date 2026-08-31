@@ -18,7 +18,7 @@ const CANDIDATE_AVAILABLE = new Set([
 	'videoTransitions',
 ]);
 
-/** professionalMedia test/qualification profile; the shipped retime profile remains unchanged. */
+/** Test-only professional-media capabilities; the shipped retime profile remains unchanged. */
 export const FRAMESCAPER_PROFESSIONAL_MEDIA_PROJECT_FEATURE_CAPABILITY_PROFILE =
 	createEditorProjectFeatureCapabilityProfile({
 		owner: 'framescaper',

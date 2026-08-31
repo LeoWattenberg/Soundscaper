@@ -213,7 +213,7 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 	});
 }
 
-export function createDesktopNightlyTestsMetricsEvidence({
+export function createDesktopNightlyTestsMetricsReport({
 	consoleOutput,
 	config,
 	sourceRevision,
@@ -229,11 +229,11 @@ export function createDesktopNightlyTestsMetricsEvidence({
 		throw new TypeError('Nightly metrics budget digest must be SHA-256.');
 	}
 	const collectors = dependencies.collectors ?? DEFAULT_COLLECTORS;
-	const evidenceKind = dependencies.evidenceKind ?? 'browser';
-	if (!['browser', 'packaged-runtime'].includes(evidenceKind)) {
-		throw new TypeError('Nightly metrics evidence kind is invalid.');
+	const executionSurface = dependencies.executionSurface ?? 'browser';
+	if (!['browser', 'packaged-runtime'].includes(executionSurface)) {
+		throw new TypeError('Nightly metrics execution surface is invalid.');
 	}
-	const kindSuffix = evidenceKind === 'browser' ? '' : '-packaged-runtime';
+	const kindSuffix = executionSurface === 'browser' ? '' : '-packaged-runtime';
 	const failures = playwrightFailures(playwrightExit);
 	const diagnostics = {};
 	const workloads = [];
@@ -253,7 +253,7 @@ export function createDesktopNightlyTestsMetricsEvidence({
 	const raw = Object.freeze({
 		schemaVersion: 1,
 		kind: `soundscaper-desktop-nightly${kindSuffix}-metrics-raw`,
-		executionSurface: evidenceKind,
+		executionSurface,
 		sourceRevision,
 		budgetSha256,
 		diagnostics: Object.freeze(diagnostics),
@@ -261,7 +261,7 @@ export function createDesktopNightlyTestsMetricsEvidence({
 	const summary = Object.freeze({
 		schemaVersion: 1,
 		kind: `soundscaper-desktop-nightly${kindSuffix}-metrics`,
-		executionSurface: evidenceKind,
+		executionSurface,
 		sourceRevision,
 		budgetSha256,
 		attemptCount: 1,
@@ -285,7 +285,7 @@ export async function writeDesktopNightlyTestsMetricsDiagnostics({
 	playwrightExit,
 	consoleLogPath = join(runRoot, 'metrics/console.log'),
 	artifactDirectory = 'metrics',
-	evidenceKind = 'browser',
+	executionSurface = 'browser',
 }, dependencies = {}) {
 	assertAbsolutePath(payloadRoot, 'Desktop nightly metrics payload root');
 	assertAbsolutePath(runRoot, 'Desktop nightly metrics run root');
@@ -294,13 +294,13 @@ export async function writeDesktopNightlyTestsMetricsDiagnostics({
 		readFile(consoleLogPath, 'utf8'),
 		readFile(configPath),
 	]);
-	const diagnostics = createDesktopNightlyTestsMetricsEvidence({
+	const diagnostics = createDesktopNightlyTestsMetricsReport({
 		consoleOutput,
 		config: JSON.parse(configBytes.toString('utf8')),
 		sourceRevision,
 		budgetSha256: createHash('sha256').update(configBytes).digest('hex'),
 		playwrightExit,
-	}, { ...dependencies, evidenceKind });
+	}, { ...dependencies, executionSurface });
 	if (!['metrics', 'packaged-runtime'].includes(artifactDirectory)) {
 		throw new TypeError('Nightly metrics artifact directory is invalid.');
 	}

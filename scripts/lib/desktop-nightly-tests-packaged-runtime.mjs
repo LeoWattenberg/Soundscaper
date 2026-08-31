@@ -115,7 +115,7 @@ export async function runDesktopNightlyTestsPackagedMetricsPhase(options, depend
 		playwrightExit: child,
 		consoleLogPath: plan.logFile,
 		artifactDirectory: 'packaged-runtime',
-		evidenceKind: 'packaged-runtime',
+		executionSurface: 'packaged-runtime',
 	});
 	return Object.freeze({ child, diagnostics });
 }

@@ -26,7 +26,7 @@ export interface DesktopCodecIntegerRange {
 
 export type DesktopCodecIntegerConstraint = number | Readonly<DesktopCodecIntegerRange>;
 
-/** Categorical fields are exact. A numeric range is an explicit qualified constraint, never a wildcard. */
+/** Categorical fields are exact. A numeric range is an explicit verified constraint, never a wildcard. */
 export interface DesktopCodecCapability {
 	readonly id: string;
 	readonly direction: DesktopCodecOperation['direction'];
@@ -60,7 +60,7 @@ export interface BundledDesktopCodecProviderOptions {
 	readonly inventory: Readonly<Partial<Record<BundledDesktopCodecComponent, string>>>;
 }
 
-export interface DesktopCodecQualifiedCapability {
+export interface DesktopCodecVerifiedCapability {
 	readonly capability: DesktopCodecCapability;
 	readonly implementation: string;
 }
@@ -69,7 +69,7 @@ export interface OperatingSystemDesktopCodecProviderOptions {
 	readonly target: DesktopCodecTarget;
 	readonly osVersion: string;
 	readonly capabilityGeneration: string;
-	readonly canaryQualifiedCapabilities: readonly DesktopCodecQualifiedCapability[];
+	readonly canaryVerifiedCapabilities: readonly DesktopCodecVerifiedCapability[];
 }
 
 export interface ExternalFfmpegCapabilitySets {
@@ -88,7 +88,7 @@ export interface ExternalFfmpegCapabilityRequirements {
 	readonly filters?: readonly string[];
 }
 
-export interface ExternalFfmpegQualifiedCapability extends DesktopCodecQualifiedCapability {
+export interface ExternalFfmpegVerifiedCapability extends DesktopCodecVerifiedCapability {
 	readonly requires: ExternalFfmpegCapabilityRequirements;
 }
 
@@ -97,10 +97,10 @@ export interface ExternalFfmpegDesktopCodecProviderOptions {
 	readonly version: string;
 	readonly capabilityGeneration: string;
 	readonly capabilitySets: ExternalFfmpegCapabilitySets;
-	readonly qualifiedCapabilities: readonly ExternalFfmpegQualifiedCapability[];
+	readonly verifiedCapabilities: readonly ExternalFfmpegVerifiedCapability[];
 }
 
-interface CapabilityBinding extends DesktopCodecQualifiedCapability {
+interface CapabilityBinding extends DesktopCodecVerifiedCapability {
 	readonly capability: DesktopCodecCapability;
 }
 
@@ -131,10 +131,13 @@ export function createBundledDesktopCodecProvider(
 export function createOperatingSystemDesktopCodecProvider(
 	options: OperatingSystemDesktopCodecProviderOptions,
 ): DesktopCodecCatalogProvider {
-	const target = desktopTarget(options?.target);
-	const version = token(options?.osVersion, 'operating-system version');
-	const generation = token(options?.capabilityGeneration, 'operating-system capability generation');
-	const supplied = validateQualifiedCapabilities(options?.canaryQualifiedCapabilities, 'OS canary');
+	const record = closedDataRecord(options, [
+		'target', 'osVersion', 'capabilityGeneration', 'canaryVerifiedCapabilities',
+	], 'Operating-system codec provider options');
+	const target = desktopTarget(record.target);
+	const version = token(record.osVersion, 'operating-system version');
+	const generation = token(record.capabilityGeneration, 'operating-system capability generation');
+	const supplied = validateVerifiedCapabilities(record.canaryVerifiedCapabilities, 'OS canary');
 	const linux = target.startsWith('linux-');
 	const implementation = target.startsWith('win-')
 		? 'windows-media-foundation'
@@ -146,24 +149,32 @@ export function createOperatingSystemDesktopCodecProvider(
 		implementation, version, capabilityGeneration: generation,
 		bindings: linux ? [] : supplied,
 		unavailableReason: linux ? 'Linux has no admitted operating-system codec provider.' : null,
-		unsupportedReason: 'No exact canary-qualified operating-system codec tuple matches this operation.',
+		unsupportedReason: 'No exact canary-verified operating-system codec tuple matches this operation.',
 	});
 }
 
 export function createExternalFfmpegDesktopCodecProvider(
 	options: ExternalFfmpegDesktopCodecProviderOptions,
 ): DesktopCodecCatalogProvider {
-	const target = desktopTarget(options?.target);
-	const version = externalFfmpegVersion(options?.version);
-	const generation = token(options?.capabilityGeneration, 'external FFmpeg capability generation');
-	const sets = validateExternalCapabilitySets(options?.capabilitySets);
-	if (!Array.isArray(options?.qualifiedCapabilities)) {
-		throw new TypeError('External FFmpeg qualified capabilities are invalid.');
+	const record = closedDataRecord(options, [
+		'target', 'version', 'capabilityGeneration', 'capabilitySets', 'verifiedCapabilities',
+	], 'External FFmpeg codec provider options');
+	const target = desktopTarget(record.target);
+	const version = externalFfmpegVersion(record.version);
+	const generation = token(record.capabilityGeneration, 'external FFmpeg capability generation');
+	const sets = validateExternalCapabilitySets(record.capabilitySets);
+	if (!Array.isArray(record.verifiedCapabilities)) {
+		throw new TypeError('External FFmpeg verified capabilities are invalid.');
 	}
-	const bindings = options.qualifiedCapabilities.map((entry) => {
-		const [binding] = validateQualifiedCapabilities([entry], 'external FFmpeg');
+	const bindings = record.verifiedCapabilities.map((entry) => {
+		const verified = closedDataRecord(entry, [
+			'capability', 'implementation', 'requires',
+		], 'External FFmpeg verified capability');
+		const [binding] = validateVerifiedCapabilities([{
+			capability: verified.capability, implementation: verified.implementation,
+		}], 'external FFmpeg');
 		if (!binding) throw new TypeError('An external FFmpeg capability is invalid.');
-		const requirements = validateExternalRequirements(entry.requires, binding.capability.direction);
+		const requirements = validateExternalRequirements(verified.requires, binding.capability.direction);
 		return Object.freeze({ binding, requirements });
 	}).filter(({ requirements }) => requirements.every(({ kind, name }) => sets[kind].has(name)))
 		.map(({ binding }) => binding);
@@ -171,7 +182,7 @@ export function createExternalFfmpegDesktopCodecProvider(
 		kind: 'external-ffmpeg', target, id: `external-ffmpeg-${target}`,
 		implementation: 'ffmpeg-cli', version, capabilityGeneration: generation, bindings,
 		unavailableReason: null,
-		unsupportedReason: 'External FFmpeg has no exact probed and qualified capability for this operation.',
+		unsupportedReason: 'External FFmpeg has no exact probed and verified capability for this operation.',
 	});
 }
 
@@ -263,19 +274,35 @@ function capability(value: DesktopCodecCapability): DesktopCodecCapability {
 	return cloneCapability(value);
 }
 
-function validateQualifiedCapabilities(value: unknown, label: string): readonly CapabilityBinding[] {
+function validateVerifiedCapabilities(value: unknown, label: string): readonly CapabilityBinding[] {
 	if (!Array.isArray(value) || value.length > 4_096) throw new TypeError(`${label} capabilities are invalid.`);
 	const identifiers = new Set<string>();
 	return Object.freeze(value.map((candidate: unknown) => {
-		if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
-			throw new TypeError(`A ${label} capability is invalid.`);
-		}
-		const entry = candidate as DesktopCodecQualifiedCapability;
-		const admitted = cloneCapability(entry.capability);
+		const entry = closedDataRecord(candidate, [
+			'capability', 'implementation',
+		], `${label} verified capability`);
+		const admitted = cloneCapability(entry.capability as DesktopCodecCapability);
 		if (identifiers.has(admitted.id)) throw new TypeError(`${label} capability identifiers must be unique.`);
 		identifiers.add(admitted.id);
 		return Object.freeze({ capability: admitted, implementation: token(entry.implementation, `${label} implementation`) });
 	}));
+}
+
+function closedDataRecord(
+	value: unknown, fields: readonly string[], label: string,
+): Record<string, unknown> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| Object.getPrototypeOf(value) !== Object.prototype) {
+		throw new TypeError(`${label} must be one plain record with closed fields.`);
+	}
+	const descriptors = Object.getOwnPropertyDescriptors(value);
+	const keys = Object.keys(descriptors).sort();
+	const expected = [...fields].sort();
+	if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])
+		|| Object.values(descriptors).some((descriptor) => !Object.hasOwn(descriptor, 'value'))) {
+		throw new TypeError(`${label} must have only its closed data fields.`);
+	}
+	return value as Record<string, unknown>;
 }
 
 function cloneCapability(value: DesktopCodecCapability): DesktopCodecCapability {

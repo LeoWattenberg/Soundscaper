@@ -6,10 +6,10 @@
 
 namespace framescaper::media {
 
-/** Report selected V7/V8 operation readiness separately from the general ABI self-test. */
+/** Report the selected V7/V8 operation self-test result separately from the general ABI self-test. */
 [[nodiscard]] engine_result self_test_selected_v20_render();
 
-/** Report selected V28/V14 carrier readiness under its own operation receipt. */
+/** Report the selected V28/V14 carrier self-test result separately from the general ABI self-test. */
 [[nodiscard]] engine_result self_test_selected_v28_v14_render();
 
 /** Consume one authenticated V7/V8 snapshot and fail with its precise unbound runtime seam. */

@@ -110,7 +110,7 @@ inline std::string json_string(const std::string_view value) {
 
 inline constexpr std::string_view denied_authorities_json() {
 	return "\"networkSuiteExposed\":false,\"arbitraryFilesystemSuiteExposed\":false,"
-		"\"vendorTopLevelWindowsExposed\":false,\"osIsolationAttested\":false";
+		"\"vendorTopLevelWindowsExposed\":false";
 }
 
 class isolation_unavailable final : public std::runtime_error {
@@ -129,7 +129,7 @@ inline constexpr bool conformance_fixture_execution() {
 // Process admission belongs to the outer native-child launcher. It reopens the
 // exact host and plug-in bytes, applies the target OS sandbox, and completes an
 // enforcement handshake before this executable can load third-party code.
-// Human release review is intentionally not an in-process execution oracle.
+// Distribution metadata is intentionally not an in-process execution oracle.
 inline void require_os_isolation_for_plugin_execution() noexcept {}
 
 } // namespace framescaper::openfx

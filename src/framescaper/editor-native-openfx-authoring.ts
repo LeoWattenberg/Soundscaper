@@ -11,7 +11,7 @@ import {
 	type FramescaperOpenFxPluginProjectionV1,
 } from '../common/editor/native-ofx-service-contract.ts';
 
-export function attestFramescaperOpenFxEffectOpenFx(
+export function verifyFramescaperOpenFxEffectOpenFx(
 	pluginValue: unknown,
 	effectValue: unknown,
 ): OfxEffectStateV26 {

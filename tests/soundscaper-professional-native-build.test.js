@@ -92,8 +92,8 @@ test('the professional macOS SDK input resolves Xcode\'s moving alias once', asy
 });
 
 /**
- * Build a fixture register. `withdrawn` names a source whose Milestone 9
- * acceptance remains pending; authenticated build inputs must still be usable.
+ * Build a fixture register. `withdrawn` names a source whose distribution
+ * disposition is unresolved; authenticated build inputs must still be usable.
  */
 async function sourceRoots(context, withdrawn = 'juce', embeddedVst3Version = '3.8.0') {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-pro-sources-'));
@@ -449,7 +449,7 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(mac, /usage\.ri_phys_footprint > maximumRssBytes/u,
 		'the verifier must exclude clean shared mappings while charging private touched pages');
 	assert.doesNotMatch(mac, /usage\.ri_resident_size > maximumRssBytes/u,
-		'raw resident size can exceed the policy before the framework-linked peer attests');
+		'raw resident size can exceed the policy before the framework-linked peer completes enforcement');
 	assert.match(mac,
 		/monitorPhysicalFootprint\([\s\S]*timespec interval\{ 0, 10'000'000 \}/u,
 		'the trusted physical-footprint supervisor must mirror the Linux launcher polling interval');
@@ -461,19 +461,20 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 		'the trusted verifier must remain alive as the physical-footprint supervisor after releasing the peer');
 	assert.match(mac, /--extra-input-fd=/u);
 	for (const protocol of [mac, macBootstrapHeader]) {
-		assert.match(protocol, /attestationDescriptor\s*=\s*3/u);
+		assert.match(protocol, /enforcementDescriptor\s*=\s*3/u);
 		assert.match(protocol, /policyDescriptor\s*=\s*4/u);
 		assert.match(protocol, /extraInputDescriptor\s*=\s*5/u);
 		assert.match(protocol, /'M', '5', 'M', 'A', 'C', 'S', 'B', '1'/u);
 	}
-	assert.match(macBroker, /"attestation":"peer-post-sandbox-bootstrap-pipe-v1"/u);
+	assert.match(macBroker,
+		/"enforcementHandshake":"peer-post-sandbox-enforcement-pipe-v1"/u);
 	assert.match(macBroker, /"memory":"trusted-verifier-physical-footprint-poll-10ms-v1"/u);
 	assert.match(professionalCmake,
 		/soundscaper_professional_peer[\s\S]*professional_host_macos_bootstrap\.mm[\s\S]*"-lsandbox"/u);
 	assert.match(professionalCmake,
 		/soundscaper_professional_peer PROPERTIES[\s\S]*OBJCXX_STANDARD 20[\s\S]*OBJCXX_STANDARD_REQUIRED YES/u);
-	assert.match(macBootstrap, /sandbox_init[\s\S]*exactWrite[\s\S]*close\([^)]*attestation/u);
-	assert.match(macBootstrap, /dup2\(extraInputDescriptor, attestationDescriptor\)/u);
+	assert.match(macBootstrap, /sandbox_init[\s\S]*exactWrite[\s\S]*close\([^)]*enforcement/u);
+	assert.match(macBootstrap, /dup2\(extraInputDescriptor, enforcementDescriptor\)/u);
 	assert.match(peer,
 		/int main\(int argc, char \*\*argv\)[\s\S]*soundscaperProfessionalMacosBootstrap\(\)[\s\S]*containmentProbe/u,
 		'the macOS sandbox bootstrap must precede containment probes and framed protocol work');
@@ -496,7 +497,7 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(windows, /JOB_OBJECT_LIMIT_ACTIVE_PROCESS/u);
 	assert.match(windows, /AssignProcessToJobObject/u);
 	assert.match(windows,
-		/WriteFile\(values\.attestation[\s\S]*_close\(values\.attestationFd\)[\s\S]*values\.attestationFd = -1[\s\S]*values\.attestation = nullptr[\s\S]*ResumeThread/u,
+		/WriteFile\(values\.enforcement[\s\S]*_close\(values\.enforcementFd\)[\s\S]*values\.enforcementFd = -1[\s\S]*values\.enforcement = nullptr[\s\S]*ResumeThread/u,
 		'the enforcement pipe must reach EOF before the child waits for framed input');
 	assert.match(windowsProfile, /appcontainer-low-integrity/u);
 	assert.match(runtime, /soundscaper-macos-seatbelt-broker-v1/u);

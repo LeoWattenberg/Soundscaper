@@ -1,5 +1,10 @@
 # Lightscaper milestone L1 plan: product registration and platform seam
 
+> **Current release-policy note (2026-08-31):** qualification ledgers, cohorts,
+> and release-admission commands retained below are historical planning context.
+> Future implementation uses ordinary CI, disposable diagnostics, and optional
+> owner QA as described by the current release and quality policies.
+
 > Owning source for L1 sequencing, the product-registry and platform-seam
 > decisions, their invariants, and the bounded work packets. The
 > [Lightscaper roadmap](../roadmap-lightscaper.md#l1-product-registration-and-platform-seam)

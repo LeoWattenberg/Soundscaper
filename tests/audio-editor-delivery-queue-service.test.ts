@@ -226,7 +226,7 @@ test('an export that resolves without publishing is a failure, not a delivery', 
 	assert.deepEqual(service.list().entries.map(({ state }) => state), ['completed', 'failed']);
 	const report = service.batchReport('batch-1');
 	assert.deepEqual(report.items.map(({ data }) => data.state), ['delivered', 'failed'],
-		'a member that published nothing must not be attested as delivered');
+		'a member that published nothing must not be reported as delivered');
 	assert.equal(report.items[1].data.fileName, null);
 	assert.ok(!('report' in report.items[1].data),
 		'and must not carry the report of a delivery it did not make');

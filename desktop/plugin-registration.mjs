@@ -395,7 +395,7 @@ export function registerDesktopPluginDiscovery({
 	});
 }
 
-/** Resolve machine activation for every known format; human review is release-report metadata only. */
+/** Resolve machine activation for every known format from authenticated machine state. */
 export function productionPluginFormatActivated() {
 	return productionSoundscaperPluginFormatActivated(...arguments);
 }

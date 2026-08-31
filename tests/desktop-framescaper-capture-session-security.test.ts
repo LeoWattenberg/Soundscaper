@@ -267,7 +267,7 @@ test('a pending Web VCR video preflight cannot authorize a camera request', () =
 	assert.equal(harness.webVcrPending, true, 'camera refusal cannot consume the guest grant');
 });
 
-test('packaged qualification can observe closed permission and display decisions without changing them', () => {
+test('packaged diagnostics can observe closed permission and display decisions without changing them', () => {
 	const guestFrame = { routingId: 91 };
 	const harness = sessionHarness({ webVcr: true, guestFrame, witness: true });
 	harness.configure();

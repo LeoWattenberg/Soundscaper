@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Exact native-enforcement handshake and bounded pre-attestation diagnostics. */
+/** Exact native-enforcement handshake and bounded pre-enforcement diagnostics. */
 
 import type { Readable } from 'node:stream';
 

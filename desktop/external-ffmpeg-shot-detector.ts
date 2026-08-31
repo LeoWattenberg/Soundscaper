@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Automatically qualified, shell-free external-FFmpeg fast shot detector. */
+/** Automatically verified, shell-free external-FFmpeg fast shot detector. */
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import { dirname, isAbsolute, normalize } from 'node:path';
@@ -63,7 +63,7 @@ export interface ExternalFfmpegShotDetectorOptions {
 	readonly limits?: Partial<ExternalFfmpegShotDetectorLimits>;
 }
 
-export interface ExternalFfmpegShotDetectorQualification {
+export interface ExternalFfmpegShotDetectorVerification {
 	readonly schemaVersion: 1;
 	readonly detector: 'ffmpeg-scdet';
 	readonly executablePairClosureSha256: string;
@@ -81,8 +81,8 @@ export interface ExternalFfmpegShotDetectionRequest {
 
 export interface ExternalFfmpegShotDetector {
 	/** Run the fixed four-frame black-to-white scene-filter canary. */
-	qualify(options?: Readonly<{ readonly signal?: AbortSignal }>): Promise<ExternalFfmpegShotDetectorQualification>;
-	/** Detect only after this exact factory instance has qualified successfully. */
+	verify(options?: Readonly<{ readonly signal?: AbortSignal }>): Promise<ExternalFfmpegShotDetectorVerification>;
+	/** Detect only after this exact factory instance has verified successfully. */
 	detect(request: ExternalFfmpegShotDetectionRequest): Promise<ExternalFfmpegShotDetectionResult>;
 }
 
@@ -100,7 +100,7 @@ export type ExternalFfmpegShotDetectorErrorReason =
 	| 'spawn-failed'
 	| 'stderr-limit'
 	| 'timeout'
-	| 'unqualified';
+	| 'not-verified';
 
 export class ExternalFfmpegShotDetectorError extends Error {
 	constructor(readonly reason: ExternalFfmpegShotDetectorErrorReason, message: string) {
@@ -153,7 +153,7 @@ export function createExternalFfmpegShotDetector(
 	const environment = privateEnvironment(options.environment ?? process.env, workingDirectory);
 	const limits = normalizeLimits(options.limits);
 	let active = false;
-	let qualified = false;
+	let verified = false;
 
 	const assertIdentity = async (): Promise<void> => {
 		let matches: boolean;
@@ -172,18 +172,18 @@ export function createExternalFfmpegShotDetector(
 	});
 
 	return Object.freeze({
-		async qualify(request = {}): Promise<ExternalFfmpegShotDetectorQualification> {
-			const signal = qualificationSignal(request);
+		async verify(request = {}): Promise<ExternalFfmpegShotDetectorVerification> {
+			const signal = verificationSignal(request);
 			if (active) throw detectorError('busy', 'External FFmpeg shot detection is already active.');
 			throwIfAborted(signal);
 			active = true;
-			qualified = false;
+			verified = false;
 			try {
 				await assertIdentity();
 				const canary = await run(CANARY_ARGUMENTS, signal);
 				assertCanary(canary);
 				await assertIdentity();
-				qualified = true;
+				verified = true;
 				return Object.freeze({
 					schemaVersion: 1,
 					detector: 'ffmpeg-scdet',
@@ -194,7 +194,7 @@ export function createExternalFfmpegShotDetector(
 		},
 		async detect(request: ExternalFfmpegShotDetectionRequest): Promise<ExternalFfmpegShotDetectionResult> {
 			const normalized = normalizeRequest(request, workingDirectory);
-			if (!qualified) throw detectorError('unqualified', 'External FFmpeg shot detection is not qualified.');
+			if (!verified) throw detectorError('not-verified', 'External FFmpeg shot detection is not verified.');
 			if (active) throw detectorError('busy', 'External FFmpeg shot detection is already active.');
 			throwIfAborted(normalized.signal);
 			active = true;
@@ -206,7 +206,7 @@ export function createExternalFfmpegShotDetector(
 			} catch (error) {
 				if (error instanceof ExternalFfmpegShotDetectorError
 					&& (error.reason === 'identity-changed' || error.reason === 'executable-unavailable')) {
-					qualified = false;
+					verified = false;
 				}
 				throw error;
 			} finally { active = false; }
@@ -344,11 +344,11 @@ function normalizeRequest(
 	return Object.freeze({ sourcePath, ...(value.signal ? { signal: value.signal } : {}) });
 }
 
-function qualificationSignal(value: Readonly<{ readonly signal?: AbortSignal }>): AbortSignal | undefined {
+function verificationSignal(value: Readonly<{ readonly signal?: AbortSignal }>): AbortSignal | undefined {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| !exactKeys(value, value.signal === undefined ? [] : ['signal'])
 		|| value.signal !== undefined && !(value.signal instanceof AbortSignal)) {
-		throw detectorError('request-rejected', 'The external FFmpeg shot qualification request is invalid.');
+		throw detectorError('request-rejected', 'The external FFmpeg shot verification request is invalid.');
 	}
 	return value.signal;
 }

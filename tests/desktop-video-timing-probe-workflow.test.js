@@ -29,7 +29,7 @@ test('desktop CI runs the packaged timing probe for both products on every maint
 	const packageJob = workflow.slice(packageJobStart, nextJobStart);
 	const hardenedIndex = packageJob.indexOf('- name: Smoke the hardened packaged application');
 	const timingIndex = packageJob.indexOf('- name: Probe packaged CFR and VFR timing persistence');
-	const uploadTimingIndex = packageJob.indexOf('- name: Upload bounded timing-probe evidence');
+	const uploadTimingIndex = packageJob.indexOf('- name: Upload bounded timing-probe diagnostics');
 	const directWavIndex = packageJob.indexOf('- name: Smoke packaged direct WAV, AIFF, BWF, and BW64 exports');
 	const retainIndex = packageJob.indexOf('- name: Retain the verified runtime manifest');
 	assert.ok(timingIndex > hardenedIndex);

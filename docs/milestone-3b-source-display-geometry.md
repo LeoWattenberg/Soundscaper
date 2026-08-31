@@ -1,5 +1,9 @@
 # Milestone 3B-2b: source display geometry
 
+> **Historical slice record:** implementation details remain useful provenance;
+> browser-qualification and release-evidence-row language below predates the
+> owner-run release policy and does not gate or certify a current release.
+
 > Slice-level pickup decomposition for the export half of
 > [3B-2](milestone-3b-work-packets.md#3b-2--probed-source-timing-and-preserved-characteristics),
 > continuing [3B-2a](milestone-3b-probed-source-characteristics.md), which

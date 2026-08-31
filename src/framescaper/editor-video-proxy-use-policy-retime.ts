@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export type FramescaperVideoProxyModeRetime = 'original' | 'proxy' | 'auto';
-export type FramescaperVideoProxyTrustRetime = 'unavailable' | 'attested' | 'offline-verified';
+export type FramescaperVideoProxyTrustRetime = 'unavailable' | 'verified' | 'offline-verified';
 export type FramescaperVideoProxyPurposeRetime = 'preview' | 'export' | 'delivery';
 
 export const FRAMESCAPER_VIDEO_PROXY_ADAPTIVE_POLICY_RETIME = Object.freeze({
@@ -97,7 +97,7 @@ function snapshotRequest(value: unknown): Readonly<FramescaperVideoProxyUseReque
 	if (typeof record.originalAvailable !== 'boolean') {
 		throw new TypeError('The Framescaper retime original availability must be boolean.');
 	}
-	if (record.proxyTrust !== 'unavailable' && record.proxyTrust !== 'attested'
+	if (record.proxyTrust !== 'unavailable' && record.proxyTrust !== 'verified'
 		&& record.proxyTrust !== 'offline-verified') {
 		throw new RangeError('The Framescaper retime proxy trust state is unsupported.');
 	}

@@ -1,5 +1,10 @@
 # Lightscaper milestone L8 plan: desktop tier
 
+> **Historical release-design note (2026-08-31):** certificate signing,
+> notarization, fixed-lab qualification, and formal admission requirements in
+> this plan are superseded by the repository's owner-run [release
+> policy](release-policy.md). They remain below only as design provenance.
+
 > Owning source for L8 sequencing, the desktop-packaging and add-in-place
 > library decisions, their invariants, and the bounded work packets. The
 > [Lightscaper roadmap](../roadmap-lightscaper.md#l8-desktop-tier) owns

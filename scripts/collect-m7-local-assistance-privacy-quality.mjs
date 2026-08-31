@@ -15,7 +15,7 @@ import {
 	canonicalMeasurementSha256,
 	computeM7AssistancePrivacyMetrics,
 } from './lib/m7-local-assistance-privacy-metrics.mjs';
-import { boundedString, exactRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord } from './lib/measurement-validation.mjs';
 import {
 	DIAGNOSTIC_MEASUREMENT_POLICY,
 	evaluateQualityWorkload,

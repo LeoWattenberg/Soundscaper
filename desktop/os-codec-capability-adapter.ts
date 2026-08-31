@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Main-owned, fail-closed admission of exact operating-system codec canary evidence. */
+/** Main-owned, fail-closed verification of exact operating-system codec canary results. */
 
 import { createHash } from 'node:crypto';
 
@@ -8,7 +8,7 @@ import {
 	DESKTOP_CODEC_TARGETS,
 	type DesktopCodecCapability,
 	type DesktopCodecIntegerConstraint,
-	type DesktopCodecQualifiedCapability,
+	type DesktopCodecVerifiedCapability,
 	type DesktopCodecTarget,
 	type OperatingSystemDesktopCodecProviderOptions,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
@@ -34,7 +34,7 @@ export interface OperatingSystemCodecCanaryRequest {
 
 export type OperatingSystemCodecCanaryResult = Readonly<{
 	readonly contractVersion: 1;
-	readonly status: 'qualified';
+	readonly status: 'passed';
 	readonly target: DesktopCodecTarget;
 	readonly osVersion: string;
 	readonly capabilityId: string;
@@ -42,7 +42,7 @@ export type OperatingSystemCodecCanaryResult = Readonly<{
 	readonly implementation: OperatingSystemCodecImplementation;
 	readonly nativeApiReached: true;
 	readonly exactTuplePassed: true;
-	readonly evidenceDigest: string;
+	readonly resultDigest: string;
 }> | Readonly<{
 	readonly contractVersion: 1;
 	readonly status: 'unavailable';
@@ -56,21 +56,21 @@ export interface OperatingSystemCodecCanaryRunner {
 
 export type OperatingSystemCodecCanaryObservationReason =
 	| 'canary-adapter-unavailable' | 'canary-failed' | 'canary-timeout'
-	| 'malformed-canary-evidence' | 'mismatched-canary-evidence'
+	| 'malformed-canary-result' | 'mismatched-canary-result'
 	| 'api-unavailable' | 'tuple-unsupported' | 'canary-refused';
 
 export interface OperatingSystemCodecCanaryObservation {
 	readonly capabilityId: string;
-	readonly disposition: 'qualified' | 'unavailable' | 'rejected';
+	readonly disposition: 'verified' | 'unavailable' | 'rejected';
 	readonly reason: OperatingSystemCodecCanaryObservationReason | null;
 }
 
-export interface OperatingSystemCodecCapabilityAdmission {
+export interface OperatingSystemCodecCapabilityVerification {
 	readonly status: 'available' | 'unavailable';
 	readonly unavailableReason:
 		| 'linux-no-system-codec-provider'
 		| 'native-canary-adapter-unavailable'
-		| 'no-canary-qualified-tuples'
+		| 'no-canary-verified-tuples'
 		| null;
 	readonly providerOptions: OperatingSystemDesktopCodecProviderOptions;
 	readonly observations: readonly OperatingSystemCodecCanaryObservation[];
@@ -105,22 +105,22 @@ const CAPABILITY_FIELDS = [
 	'id', 'direction', 'mediaKind', 'container', 'codec', 'profile', 'sampleFormat',
 	'pixelFormat', 'sampleRate', 'channelCount', 'width', 'height',
 ] as const;
-const QUALIFIED_FIELDS = [
+const PASSED_FIELDS = [
 	'contractVersion', 'status', 'target', 'osVersion', 'capabilityId', 'capabilityDigest',
-	'implementation', 'nativeApiReached', 'exactTuplePassed', 'evidenceDigest',
+	'implementation', 'nativeApiReached', 'exactTuplePassed', 'resultDigest',
 ] as const;
 const UNAVAILABLE_FIELDS = ['contractVersion', 'status', 'reason'] as const;
 const DEFAULT_CANARY_DURATION_MS = 5_000;
 const MAXIMUM_CANARY_DURATION_MS = 30_000;
 
-export async function qualifyOperatingSystemCodecCapabilities(
+export async function verifyOperatingSystemCodecCapabilities(
 	options: OperatingSystemCodecCapabilityOptions,
-): Promise<OperatingSystemCodecCapabilityAdmission> {
+): Promise<OperatingSystemCodecCapabilityVerification> {
 	const target = desktopTarget(options?.target);
 	const osVersion = token(options?.osVersion, 'operating-system version');
 	throwIfAborted(options?.signal);
 	if (target.startsWith('linux-')) {
-		return admission(target, osVersion, [], [], 'linux-no-system-codec-provider');
+		return verification(target, osVersion, [], [], 'linux-no-system-codec-provider');
 	}
 	const maximumDurationMs = integer(
 		options.maximumDurationMs ?? DEFAULT_CANARY_DURATION_MS,
@@ -129,12 +129,12 @@ export async function qualifyOperatingSystemCodecCapabilities(
 	const candidates = canonicalCandidates(options?.candidates, target);
 	const runner = canaryRunner(options?.runner);
 	if (runner === null) {
-		return admission(target, osVersion, [], candidates.map(({ capability }) => observation(
+		return verification(target, osVersion, [], candidates.map(({ capability }) => observation(
 			capability.id, 'unavailable', 'canary-adapter-unavailable',
 		)), 'native-canary-adapter-unavailable');
 	}
-	const qualified: DesktopCodecQualifiedCapability[] = [];
-	const evidence: string[] = [];
+	const verified: DesktopCodecVerifiedCapability[] = [];
+	const resultDigests: string[] = [];
 	const observations: OperatingSystemCodecCanaryObservation[] = [];
 	for (const candidate of candidates) {
 		throwIfAborted(options.signal);
@@ -153,37 +153,37 @@ export async function qualifyOperatingSystemCodecCapabilities(
 		const inspected = inspectCanaryResult(invocation.value, request);
 		observations.push(inspected.observation);
 		if (inspected.binding !== null) {
-			qualified.push(inspected.binding);
-			evidence.push(`${candidate.capabilityDigest}:${inspected.evidenceDigest}`);
+			verified.push(inspected.binding);
+			resultDigests.push(`${candidate.capabilityDigest}:${inspected.resultDigest}`);
 		}
 	}
-	return admission(
-		target, osVersion, qualified, observations,
-		qualified.length === 0 ? 'no-canary-qualified-tuples' : null,
-		evidence,
+	return verification(
+		target, osVersion, verified, observations,
+		verified.length === 0 ? 'no-canary-verified-tuples' : null,
+		resultDigests,
 	);
 }
 
-function admission(
+function verification(
 	target: DesktopCodecTarget,
 	osVersion: string,
-	qualifiedValue: readonly DesktopCodecQualifiedCapability[],
+	verifiedValue: readonly DesktopCodecVerifiedCapability[],
 	observationsValue: readonly OperatingSystemCodecCanaryObservation[],
-	unavailableReason: OperatingSystemCodecCapabilityAdmission['unavailableReason'],
-	evidence: readonly string[] = [],
-): OperatingSystemCodecCapabilityAdmission {
-	const canaryQualifiedCapabilities = Object.freeze(qualifiedValue.map((entry) => Object.freeze({
+	unavailableReason: OperatingSystemCodecCapabilityVerification['unavailableReason'],
+	resultDigests: readonly string[] = [],
+): OperatingSystemCodecCapabilityVerification {
+	const canaryVerifiedCapabilities = Object.freeze(verifiedValue.map((entry) => Object.freeze({
 		capability: entry.capability, implementation: entry.implementation,
 	})));
 	const observations = Object.freeze([...observationsValue]);
 	const capabilityGeneration = `os-canary-${digest(JSON.stringify({
-		target, osVersion, evidence: [...evidence].sort(),
+		target, osVersion, resultDigests: [...resultDigests].sort(),
 	}))}`;
 	const providerOptions = Object.freeze({
-		target, osVersion, capabilityGeneration, canaryQualifiedCapabilities,
+		target, osVersion, capabilityGeneration, canaryVerifiedCapabilities,
 	});
 	return Object.freeze({
-		status: canaryQualifiedCapabilities.length > 0 ? 'available' : 'unavailable',
+		status: canaryVerifiedCapabilities.length > 0 ? 'available' : 'unavailable',
 		unavailableReason, providerOptions, observations,
 	});
 }
@@ -244,8 +244,8 @@ function inspectCanaryResult(
 	request: OperatingSystemCodecCanaryRequest,
 ): Readonly<{
 	readonly observation: OperatingSystemCodecCanaryObservation;
-	readonly binding: DesktopCodecQualifiedCapability | null;
-	readonly evidenceDigest: string;
+	readonly binding: DesktopCodecVerifiedCapability | null;
+	readonly resultDigest: string;
 }> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return malformedInspection(request.capability.id);
 	const statusDescriptor = Object.getOwnPropertyDescriptor(value, 'status');
@@ -262,38 +262,38 @@ function inspectCanaryResult(
 			'api-unavailable' | 'tuple-unsupported' | 'canary-refused'>;
 		return Object.freeze({
 			observation: observation(request.capability.id, 'unavailable', reason),
-			binding: null, evidenceDigest: '',
+			binding: null, resultDigest: '',
 		});
 	}
 	let record: Record<string, unknown>;
-	try { record = closedRecord(value, QUALIFIED_FIELDS, 'OS codec qualified canary result'); }
+	try { record = closedRecord(value, PASSED_FIELDS, 'OS codec passed canary result'); }
 	catch { return malformedInspection(request.capability.id); }
-	if (record.contractVersion !== 1 || record.status !== 'qualified'
+	if (record.contractVersion !== 1 || record.status !== 'passed'
 		|| typeof record.target !== 'string' || typeof record.osVersion !== 'string'
 		|| typeof record.capabilityId !== 'string' || typeof record.capabilityDigest !== 'string'
 		|| typeof record.implementation !== 'string' || record.nativeApiReached !== true
-		|| record.exactTuplePassed !== true || typeof record.evidenceDigest !== 'string'
-		|| !SHA256.test(record.evidenceDigest)) return malformedInspection(request.capability.id);
+		|| record.exactTuplePassed !== true || typeof record.resultDigest !== 'string'
+		|| !SHA256.test(record.resultDigest)) return malformedInspection(request.capability.id);
 	if (record.target !== request.target || record.osVersion !== request.osVersion
 		|| record.capabilityId !== request.capability.id
 		|| record.capabilityDigest !== request.capabilityDigest
 		|| record.implementation !== request.implementation) {
 		return Object.freeze({
-			observation: observation(request.capability.id, 'rejected', 'mismatched-canary-evidence'),
-			binding: null, evidenceDigest: '',
+			observation: observation(request.capability.id, 'rejected', 'mismatched-canary-result'),
+			binding: null, resultDigest: '',
 		});
 	}
 	return Object.freeze({
-		observation: observation(request.capability.id, 'qualified', null),
+		observation: observation(request.capability.id, 'verified', null),
 		binding: Object.freeze({ capability: request.capability, implementation: request.implementation }),
-		evidenceDigest: record.evidenceDigest,
+		resultDigest: record.resultDigest,
 	});
 }
 
 function malformedInspection(capabilityId: string): ReturnType<typeof inspectCanaryResult> {
 	return Object.freeze({
-		observation: observation(capabilityId, 'rejected', 'malformed-canary-evidence'),
-		binding: null, evidenceDigest: '',
+		observation: observation(capabilityId, 'rejected', 'malformed-canary-result'),
+		binding: null, resultDigest: '',
 	});
 }
 

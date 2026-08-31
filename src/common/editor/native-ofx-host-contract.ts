@@ -286,16 +286,16 @@ export function resolveOfxRenderBackendV1(value: unknown): OfxRenderBackendResol
 	const input = record(value, 'OFX render backend request');
 	exactKeys(
 		input,
-		['requestedBackend', 'qualifiedBackends', 'failedBackends'],
+		['requestedBackend', 'supportedBackends', 'failedBackends'],
 		'OFX render backend request',
 	);
 	const requested = backend(input.requestedBackend, 'requestedBackend');
-	const qualified = snapshotBackends(input.qualifiedBackends, 'qualifiedBackends');
+	const supported = snapshotBackends(input.supportedBackends, 'supportedBackends');
 	const failed = new Set(snapshotBackends(input.failedBackends, 'failedBackends'));
-	if (!qualified.includes('cpu')) {
-		throw new OfxHostContractError('An OFX runtime must qualify mandatory CPU rendering.');
+	if (!supported.includes('cpu')) {
+		throw new OfxHostContractError('An OFX runtime must support mandatory CPU rendering.');
 	}
-	if (qualified.includes(requested) && !failed.has(requested)) {
+	if (supported.includes(requested) && !failed.has(requested)) {
 		return Object.freeze({ backend: requested, retriedOnCpu: false, reportsDegradation: false });
 	}
 	if (failed.has('cpu')) throw new OfxHostContractError('The mandatory OFX CPU fallback is unavailable.');

@@ -28,7 +28,7 @@ import {
 import type {
 	FramescaperVideoProxyBodyLeaseSequence,
 	FramescaperVideoProxyExpectedBodySequence,
-} from './editor-video-proxy-reattestation-contract-sequence.ts';
+} from './editor-video-proxy-revalidation-contract-sequence.ts';
 import {
 	resolveFramescaperVideoProxyUseRetime,
 	type FramescaperVideoProxyModeRetime,
@@ -120,7 +120,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverRetime(
 		throwIfAborted(request.signal);
 		const originalAvailable = await hasOriginal(options.originalStore, request);
 		const provisional = resolveFramescaperVideoProxyUseRetime({
-			purpose: 'preview', mode, originalAvailable, proxyTrust: 'attested',
+			purpose: 'preview', mode, originalAvailable, proxyTrust: 'verified',
 			pressure: options.getPressure(sourceId),
 		});
 		if (provisional.kind !== 'proxy') return null;
@@ -129,7 +129,7 @@ export function createFramescaperVideoProxyPreviewMediaResolverRetime(
 			reportTrust(options, sourceId, attachmentValue, 'verified');
 			const selection = resolveFramescaperVideoProxyUseRetime({
 				purpose: 'preview', mode, originalAvailable,
-				proxyTrust: originalAvailable ? 'attested' : 'offline-verified',
+				proxyTrust: originalAvailable ? 'verified' : 'offline-verified',
 				pressure: options.getPressure(sourceId),
 			});
 			return selection.kind === 'proxy'

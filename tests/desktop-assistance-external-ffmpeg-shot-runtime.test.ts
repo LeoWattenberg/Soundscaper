@@ -26,8 +26,8 @@ import {
 } from '../desktop/external-ffmpeg-shot-detector.ts';
 import type { ExternalFfmpegShotDetectionResult } from '../desktop/external-ffmpeg-shot-detection-output.ts';
 
-const FFMPEG = '/opt/qualified/bin/ffmpeg';
-const FFPROBE = '/opt/qualified/bin/ffprobe';
+const FFMPEG = '/opt/verified/bin/ffmpeg';
+const FFPROBE = '/opt/verified/bin/ffprobe';
 const FFMPEG_SHA256 = 'a'.repeat(64);
 const FFPROBE_SHA256 = 'b'.repeat(64);
 const VIDEO = '/private/shot-job/source.media';
@@ -65,7 +65,7 @@ test('reports only an authenticated admission with every fixed-graph capability 
 	}
 });
 
-test('projects one exact admission, hashes both executables, qualifies first, then detects in staged private storage', async (t) => {
+test('projects one exact admission, hashes both executables, verifies first, then detects in staged private storage', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-shot-runtime-'));
 	t.after(() => rm(root, { recursive: true, force: true }));
 	const ffmpegPath = join(root, 'ffmpeg');
@@ -93,8 +93,8 @@ test('projects one exact admission, hashes both executables, qualifies first, th
 		createDetector(options) {
 			captured.push(options);
 			return detectorFixture({
-				async qualify(request) {
-					events.push('qualify');
+				async verify(request) {
+					events.push('verify');
 					assert.equal(request?.signal, controller.signal);
 					assert.equal(await options.digestExecutable(ffmpegPath), sha256(ffmpegBytes));
 					assert.equal(await options.digestExecutable(ffprobePath), sha256(ffprobeBytes));
@@ -109,7 +109,7 @@ test('projects one exact admission, hashes both executables, qualifies first, th
 	});
 
 	assert.equal(await runtime.detect({ videoPath, signal: controller.signal }), RESULT);
-	assert.deepEqual(events, ['qualify', 'detect']);
+	assert.deepEqual(events, ['verify', 'detect']);
 	assert.equal(captured[0]?.workingDirectory, root);
 	assert.deepEqual(captured[0]?.pair, {
 		executablePath: ffmpegPath,
@@ -140,7 +140,7 @@ test('returns unavailable and quarantines the exact admission before constructin
 	assert.deepEqual(absent.invalidations, []);
 });
 
-test('turns typed qualification incompatibility into exact-admission invalidation and null', async () => {
+test('turns typed verification incompatibility into exact-admission invalidation and null', async () => {
 	const cases: readonly [ExternalFfmpegShotDetectorError['reason'], ExternalFfmpegRuntimeInvalidationReason][] = [
 		['canary-failed', 'identity-changed'],
 		['identity-changed', 'identity-changed'],
@@ -157,7 +157,7 @@ test('turns typed qualification incompatibility into exact-admission invalidatio
 		const admitted = admission();
 		const preference = preferenceFixture(admitted);
 		const runtime = runtimeFixture(preference, detectorFixture({
-			qualify: () => Promise.reject(detectorError(reason)),
+			verify: () => Promise.reject(detectorError(reason)),
 		}));
 		assert.equal(await runtime.detect({ videoPath: VIDEO }), null, reason);
 		assert.deepEqual(preference.invalidations, [[admitted, invalidationReason]], reason);
@@ -184,7 +184,7 @@ test('returns null only for typed runtime loss during actual detection', async (
 test('keeps malformed metadata and actual media/process failures hard', async () => {
 	const reasons: readonly ExternalFfmpegShotDetectorError['reason'][] = [
 		'metadata-invalid', 'metadata-limit', 'process-failed', 'process-signalled',
-		'stderr-limit', 'timeout', 'canary-failed', 'request-rejected', 'unqualified', 'busy',
+		'stderr-limit', 'timeout', 'canary-failed', 'request-rejected', 'not-verified', 'busy',
 	];
 	for (const reason of reasons) {
 		const preference = preferenceFixture(admission());
@@ -203,7 +203,7 @@ test('keeps malformed metadata and actual media/process failures hard', async ()
 	assert.deepEqual(preference.invalidations, []);
 });
 
-test('propagates caller cancellation exactly before, during, and after qualification', async () => {
+test('propagates caller cancellation exactly before, during, and after verification', async () => {
 	const before = new AbortController();
 	const beforeReason = new Error('cancel before factory');
 	before.abort(beforeReason);
@@ -217,7 +217,7 @@ test('propagates caller cancellation exactly before, during, and after qualifica
 		(error) => error === beforeReason);
 	assert.equal(factories, 0);
 
-	for (const phase of ['qualify', 'detect'] as const) {
+	for (const phase of ['verify', 'detect'] as const) {
 		const controller = new AbortController();
 		const reason = new Error(`cancel during ${phase}`);
 		const current = preferenceFixture(admission());
@@ -234,7 +234,7 @@ test('propagates caller cancellation exactly before, during, and after qualifica
 	}
 });
 
-test('withholds work when exact admission authority changes after qualification', async () => {
+test('withholds work when exact admission authority changes after verification', async () => {
 	const original = admission();
 	const replacement = admission({
 		ffmpegSha256: 'c'.repeat(64),
@@ -243,7 +243,7 @@ test('withholds work when exact admission authority changes after qualification'
 	const preference = preferenceFixture(original);
 	let detections = 0;
 	const runtime = runtimeFixture(preference, detectorFixture({
-		qualify: () => { preference.current = replacement; return Promise.resolve(); },
+		verify: () => { preference.current = replacement; return Promise.resolve(); },
 		detect: () => { detections += 1; return Promise.resolve(RESULT); },
 	}));
 	assert.equal(await runtime.detect({ videoPath: VIDEO }), null);
@@ -255,13 +255,13 @@ test('does not hide invalidation failures or malformed adapter requests', async 
 	const invalidationFailure = new Error('quarantine persistence failed');
 	const preference = preferenceFixture(admission(), invalidationFailure);
 	await assert.rejects(runtimeFixture(preference, detectorFixture({
-		qualify: () => Promise.reject(detectorError('canary-failed')),
+		verify: () => Promise.reject(detectorError('canary-failed')),
 	})).detect({ videoPath: VIDEO }), (error) => error === invalidationFailure);
-	const ordinaryQualificationFailure = new Error('unexpected qualification failure');
+	const ordinaryVerificationFailure = new Error('unexpected verification failure');
 	const ordinaryPreference = preferenceFixture(admission());
 	await assert.rejects(runtimeFixture(ordinaryPreference, detectorFixture({
-		qualify: () => Promise.reject(ordinaryQualificationFailure),
-	})).detect({ videoPath: VIDEO }), (error) => error === ordinaryQualificationFailure);
+		verify: () => Promise.reject(ordinaryVerificationFailure),
+	})).detect({ videoPath: VIDEO }), (error) => error === ordinaryVerificationFailure);
 	assert.deepEqual(ordinaryPreference.invalidations, []);
 
 	const runtime = runtimeFixture(preferenceFixture(admission()), detectorFixture());
@@ -277,7 +277,7 @@ function runtimeFixture(preference: PreferenceFixture, detector: ExternalFfmpegS
 }
 
 interface DetectorFixtureOverrides {
-	readonly qualify?: (
+	readonly verify?: (
 		request?: Readonly<{ readonly signal?: AbortSignal }>,
 	) => Promise<unknown>;
 	readonly detect?: ExternalFfmpegShotDetector['detect'];
@@ -285,8 +285,8 @@ interface DetectorFixtureOverrides {
 
 function detectorFixture(overrides: DetectorFixtureOverrides = {}): ExternalFfmpegShotDetector {
 	return Object.freeze({
-		async qualify(request?: Readonly<{ readonly signal?: AbortSignal }>) {
-			await overrides.qualify?.(request);
+		async verify(request?: Readonly<{ readonly signal?: AbortSignal }>) {
+			await overrides.verify?.(request);
 			return Object.freeze({
 				schemaVersion: 1,
 				detector: 'ffmpeg-scdet',

@@ -17,13 +17,13 @@
 #include <vector>
 
 namespace {
-constexpr char attestation[] = "M5_NATIVE_ISOLATION_ENFORCED_V1\n";
+constexpr char enforcementFrame[] = "M5_NATIVE_ISOLATION_ENFORCED_V1\n";
 constexpr size_t maximumGrants = 64u;
 enum class Access { readOnly, readExecute, writeOnly };
 struct Grant { HANDLE handle; Access access; };
 struct Values {
-	HANDLE attestation = nullptr, profile = nullptr, broker = nullptr, executable = nullptr;
-	int attestationFd = -1;
+	HANDLE enforcement = nullptr, profile = nullptr, broker = nullptr, executable = nullptr;
+	int enforcementFd = -1;
 	HANDLE extraInput = nullptr;
 	std::vector<Grant> grants;
 	std::wstring authorityProfile;
@@ -269,7 +269,7 @@ int wmain(int argc, wchar_t **argv)
 		const std::wstring option(argv[index]);
 		if (separator) { child.push_back(option); continue; }
 		if (option == L"--") { separator = true; continue; }
-		if (exactFd(option, L"--attestation-fd=", values.attestation, &values.attestationFd)
+		if (exactFd(option, L"--enforcement-fd=", values.enforcement, &values.enforcementFd)
 			|| exactFd(option, L"--profile-fd=", values.profile)
 			|| exactFd(option, L"--broker-policy-fd=", values.broker)
 			|| exactFd(option, L"--executable-fd=", values.executable)
@@ -292,10 +292,10 @@ int wmain(int argc, wchar_t **argv)
 		return 125;
 	admitted: if (values.grants.size() > maximumGrants) return 125;
 	}
-	if (!separator || values.attestation == nullptr || values.profile == nullptr || values.broker == nullptr
+	if (!separator || values.enforcement == nullptr || values.profile == nullptr || values.broker == nullptr
 		|| values.executable == nullptr || values.authorityProfile.empty()
 		|| values.rss == 0u || values.durationMs == 0u || child.empty()) return 125;
-	std::vector<HANDLE> unique{ values.attestation, values.profile, values.broker, values.executable };
+	std::vector<HANDLE> unique{ values.enforcement, values.profile, values.broker, values.executable };
 	if (values.extraInput != nullptr) unique.push_back(values.extraInput);
 	for (const auto &grant : values.grants) unique.push_back(grant.handle);
 	std::sort(unique.begin(), unique.end());
@@ -368,10 +368,10 @@ int wmain(int argc, wchar_t **argv)
 		nativeFailure("assign-job", code);
 	}
 	DWORD written = 0u;
-	if (!WriteFile(values.attestation, attestation, sizeof(attestation) - 1u, &written, nullptr)
-		|| written != sizeof(attestation) - 1u || _close(values.attestationFd) != 0) return 125;
-	values.attestationFd = -1;
-	values.attestation = nullptr;
+	if (!WriteFile(values.enforcement, enforcementFrame, sizeof(enforcementFrame) - 1u, &written, nullptr)
+		|| written != sizeof(enforcementFrame) - 1u || _close(values.enforcementFd) != 0) return 125;
+	values.enforcementFd = -1;
+	values.enforcement = nullptr;
 	if (ResumeThread(process.hThread) == static_cast<DWORD>(-1)) return 125;
 	WaitForSingleObject(process.hProcess, INFINITE);
 	DWORD exitCode = 125u; GetExitCodeProcess(process.hProcess, &exitCode);

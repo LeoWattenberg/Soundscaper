@@ -66,7 +66,7 @@ test('installed-model notices derive only bounded authenticated catalog and evid
 	assert.equal(Object.isFrozen(notices[0]?.provenanceSources), true);
 });
 
-test('pending Milestone 9 distribution review does not suppress authenticated notices', () => {
+test('distribution status does not suppress authenticated notices', () => {
 	const pendingEvidence = Object.freeze({
 		...EVIDENCE,
 		distributionStatus: 'blocked',

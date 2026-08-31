@@ -12,7 +12,9 @@ export function nativeProcessInvoker({ executablePath, arguments: args }) {
 		child.stdout.on('data', (chunk) => { stdout += chunk; });
 		child.stderr.on('data', (chunk) => { stderr += chunk; });
 		child.once('error', reject);
-		child.once('exit', (code) => resolve({ exitCode: code ?? 1, stdout, stderr }));
+		child.once('exit', (code) => resolve({
+			exitCode: code ?? 1, stdout, stderr, isolationChecksPassed: false,
+		}));
 	});
 	return { completion, cancel: async () => { child.kill('SIGKILL'); } };
 }

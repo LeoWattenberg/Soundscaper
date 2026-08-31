@@ -30,7 +30,7 @@
 namespace {
 
 namespace bootstrap {
-constexpr int attestationDescriptor = 3;
+constexpr int enforcementDescriptor = 3;
 constexpr int policyDescriptor = 4;
 constexpr int extraInputDescriptor = 5;
 constexpr size_t maximumPolicyBytes = 512u * 1024u;
@@ -48,12 +48,12 @@ constexpr char expectedBroker[] = "{\"schemaVersion\":1,\"id\":\"milestone5-maco
 	"\"executionIdentity\":\"posix-spawn-setexec-stopped-public-proc-region-vnode-v1\","
 	"\"sandboxEntry\":\"peer-bootstrap-before-work-v1\","
 	"\"memory\":\"trusted-verifier-physical-footprint-poll-10ms-v1\","
-	"\"attestation\":\"peer-post-sandbox-bootstrap-pipe-v1\"}\n";
+	"\"enforcementHandshake\":\"peer-post-sandbox-enforcement-pipe-v1\"}\n";
 
 enum class Access { readOnly, readExecute, writeOnly };
 struct Grant { int fd; Access access; };
 struct Request {
-	int attestationFd = -1, profileFd = -1, brokerFd = -1, executableFd = -1;
+	int enforcementFd = -1, profileFd = -1, brokerFd = -1, executableFd = -1;
 	int extraInputFd = -1;
 	uint64_t durationMs = 0u, rssBytes = 0u;
 	std::vector<Grant> grants;
@@ -103,7 +103,7 @@ Request request(int argc, char **argv)
 	Request result;
 	for (int index = 1; index < argc; ++index) {
 		if (std::strcmp(argv[index], "--") == 0) { result.childArgv = argv + index + 1; break; }
-		if (singleton(argv[index], "--attestation-fd=", result.attestationFd)
+		if (singleton(argv[index], "--enforcement-fd=", result.enforcementFd)
 			|| singleton(argv[index], "--profile-fd=", result.profileFd)
 			|| singleton(argv[index], "--broker-policy-fd=", result.brokerFd)
 			|| singleton(argv[index], "--executable-fd=", result.executableFd)
@@ -125,7 +125,7 @@ Request request(int argc, char **argv)
 
 bool valid(const Request &value)
 {
-	std::vector<int> descriptors{ value.attestationFd, value.profileFd, value.brokerFd, value.executableFd };
+	std::vector<int> descriptors{ value.enforcementFd, value.profileFd, value.brokerFd, value.executableFd };
 	if (value.extraInputFd >= 0) descriptors.push_back(value.extraInputFd);
 	for (const auto &grant : value.grants) descriptors.push_back(grant.fd);
 	std::sort(descriptors.begin(), descriptors.end());
@@ -339,12 +339,12 @@ int makeInheritable(int descriptor)
 }
 
 int mapBootstrapDescriptors(
-	int attestationSource,
+	int enforcementSource,
 	int policySource,
 	int extraInputSource,
 	const std::vector<int> &openDescriptors)
 {
-	if (dup2(attestationSource, bootstrap::attestationDescriptor) != bootstrap::attestationDescriptor
+	if (dup2(enforcementSource, bootstrap::enforcementDescriptor) != bootstrap::enforcementDescriptor
 		|| dup2(policySource, bootstrap::policyDescriptor) != bootstrap::policyDescriptor) {
 		return failureCode();
 	}
@@ -372,7 +372,7 @@ int mapBootstrapDescriptors(
 int main(int argc, char **argv)
 {
 	const auto value = request(argc, argv);
-	if (value.attestationFd < 0 || value.profileFd < 0 || value.brokerFd < 0 || value.executableFd < 0
+	if (value.enforcementFd < 0 || value.profileFd < 0 || value.brokerFd < 0 || value.executableFd < 0
 		|| value.durationMs == 0u || value.rssBytes == 0u || value.childArgv == nullptr
 		|| value.childArgv[0] == nullptr || !valid(value)) return 125;
 	// Darwin charges its multi-gigabyte dyld shared region to RLIMIT_AS; the
@@ -389,11 +389,11 @@ int main(int argc, char **argv)
 	const auto executablePath = pathFor(value.executableFd);
 	int policyPipe[2]{ -1, -1 };
 	if (pipe(policyPipe) != 0) return 125;
-	const int attestationSource = fcntl(value.attestationFd, F_DUPFD_CLOEXEC, 6);
+	const int enforcementSource = fcntl(value.enforcementFd, F_DUPFD_CLOEXEC, 6);
 	const int policySource = fcntl(policyPipe[0], F_DUPFD_CLOEXEC, 6);
 	const int extraInputSource = value.extraInputFd < 0
 		? -1 : fcntl(value.extraInputFd, F_DUPFD_CLOEXEC, 6);
-	if (attestationSource < 0 || policySource < 0 || (value.extraInputFd >= 0 && extraInputSource < 0)) return 125;
+	if (enforcementSource < 0 || policySource < 0 || (value.extraInputFd >= 0 && extraInputSource < 0)) return 125;
 	posix_spawnattr_t attributes{};
 	if (posix_spawnattr_init(&attributes) != 0) {
 		(void)close(policyPipe[0]); (void)close(policyPipe[1]);
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
 		policyPipe[1], openDescriptors,
 		launcherIdentity, executableIdentity, header, policy);
 	const int transportStatus = mapBootstrapDescriptors(
-		attestationSource, policySource, extraInputSource, openDescriptors);
+		enforcementSource, policySource, extraInputSource, openDescriptors);
 	if (transportStatus != 0) {
 		(void)kill(verifier, SIGKILL);
 		while (waitpid(verifier, nullptr, 0) < 0 && errno == EINTR) {}

@@ -1,5 +1,9 @@
 # Milestone 3B-4b5: frame-canonical roll and ripple trim
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > **Implemented:** delivered through commit `47a0be9` on 2026-08-11, after
 > [3B-4b4 — persisted track locking and central enforcement](milestone-3b-track-locking.md).
 > This slice adds video-bearing roll and track-ripple trim through one pure

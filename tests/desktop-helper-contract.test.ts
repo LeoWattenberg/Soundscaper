@@ -204,7 +204,7 @@ test('helper contract v1 rejects every well-formed message in the wrong directio
  * `m5-helper-fault-and-loopback-v1`: exactly 10,000 deterministic malformed
  * wire payloads, every one rejected with the contract's typed violation and
  * nothing else. This suite runs in ordinary CI as correctness evidence; the
- * fixture's device-bound loopback half stays on the unprovisioned lab matrix.
+ * fixture's device-bound loopback half stays in conditional manual QA.
  */
 test('helper contract v1 rejects exactly 10,000 assigned-direction malformed cases', () => {
 	const cases = deterministicMalformedCases(10_000);

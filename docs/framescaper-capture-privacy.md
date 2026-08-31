@@ -4,9 +4,9 @@
 > `framescaperCapture:true` and activates capture on standalone web and desktop
 > through its exact controller, app binding, and runtime probe. Recording Setup
 > remains default-hidden and requires explicit opt-in through **View > Panels**.
-> Manual real-device and owner-lab qualification is tracked only by the
-> milestone-9 stable 1.0 admission record. `framescaperWebVcr:true` enables the
-> default-hidden, Record-menu-owned post-milestone extension for testing now.
+> Real-device observations may be recorded in optional owner QA and never gate
+> or certify a release. `framescaperWebVcr:true` enables the default-hidden,
+> Record-menu-owned post-milestone extension for testing now.
 
 The Framescaper family-v1 capture implementation is local-first. It can capture a
 camera, microphone, display, or a supported combination of those sources.
@@ -118,7 +118,7 @@ Record is available on Framescaper family-v1 standalone web and desktop only whe
 source, supported video encoder, audio packet path, cross-context Web Locks, complete
 encoded/raw/manifest repository set, video probe, and canonical publication
 store are all present. A partial stack remains unavailable; the presence of Web
-Locks alone is not a durability or device qualification claim.
+ Locks alone is not a durability or device-support claim.
 Pre-release capture generations remain provenance only, and embedded
 Framescaper remains denied.
 
@@ -149,16 +149,15 @@ until import or discard. Exact-surface, encoder-crop, cropped-only retention,
 sync, drop, teardown, and recovery machine checks all fail closed per recording.
 
 The deterministic loopback HTTPS fixture and its Linux x64/Xvfb packaged
-feasibility smoke are evidence only. The smoke emits `qualification: false`
+feasibility smoke are diagnostics. The smoke emits `diagnosticOnly: true`
 after authentication, interactive input, exact 720p and 1080p owned-guest
 video, page audio, visual-marker, crop/ended, data-clear, and teardown checks.
-It does not establish the supported real-runtime matrix, encoder performance,
-long-session, platform, or privacy qualification, and it uses only a checked-in
+It does not establish broader real-runtime, encoder-performance, long-session,
+platform, or privacy behavior, and it uses only a checked-in
 test certificate and loopback content rather than public network or provider
-credentials. Those human reviews are milestone-9 stable 1.0 admission checks;
-they never disable the enabled build or test surface.
+credentials. Optional owner QA never disables the enabled build or test surface.
 
-## Qualification status
+## Diagnostics and optional QA
 
 Automated tests cover permission admission, source combinations, state and
 resource ownership, exact stream timing and bounded PCM gap materialization,
@@ -180,11 +179,9 @@ pathless control-plane authority, status, grant, and teardown boundary; it does
 not exercise an actual camera, microphone, operating-system picker, loopback
 device, encoder, or long capture.
 
-The Framescaper family-v1 implementation is active on standalone web and desktop, while
-its manual qualification remains provisional. The registered 30-minute,
-six-combination fixture and workload remain provisional because
-`capture-os-browser-lab-matrix` is unprovisioned and is not qualification
-eligible. Synthetic configured-engine evidence and packaged no-device smoke
-do not close this gate. No browser, operating-system, owner-lab, or
-packaged-device performance qualification is claimed until that controlled
-matrix is provisioned and passes its registered budgets.
+The Framescaper family-v1 implementation is active on standalone web and desktop.
+The capture workload writes observed results through
+`capture-device-diagnostics`; unsupported measurements are `null` with a
+reason. Synthetic configured-engine automation and the packaged no-device
+smoke report only what they ran. Actual device and packaged performance may be
+recorded in optional owner QA without creating a release status.

@@ -30,14 +30,14 @@ const PUBLICATION_EVIDENCE = Object.freeze([
 	'src/common/editor/controller/video-export-service.ts',
 	'src/common/editor/desktop-video-codec-runtime.ts',
 	'desktop/external-ffmpeg-video-operation-service.ts',
-	'desktop/external-ffmpeg-video-qualification.ts',
+	'desktop/external-ffmpeg-video-verification.ts',
 	'desktop/external-ffmpeg-video-canary-inspection.ts',
 	'tests/audio-editor-video-delivery-encoder-tier.test.ts',
 	'tests/audio-editor-video-keyframe-mediabunny-execution.test.ts',
 	'tests/audio-editor-video-mediabunny-muxer.test.ts',
 	'tests/audio-editor-export-direct-video.test.ts',
 	'tests/external-ffmpeg-video-operation-service.test.ts',
-	'tests/external-ffmpeg-video-qualification.test.ts',
+	'tests/external-ffmpeg-video-verification.test.ts',
 	'tests/external-ffmpeg-video-canary-inspection.test.ts',
 ]);
 
@@ -257,7 +257,7 @@ test('Framescaper family-v1 admission and encoding reuse the existing video publ
 	assert.match(rollback.summary, /exact keyed WebCodecs.*exactly once.*whole-file digest/isu);
 
 	assert.deepEqual(
-		matrix.publicationRouteQualification.routes
+		matrix.publicationRouteVerification.routes
 			.filter(({ id }) => id.startsWith('video-'))
 			.map(({ id, controlId }) => [id, controlId]),
 		[

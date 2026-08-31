@@ -269,8 +269,8 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 			});
 			const canonicalGrant = canonicalOpenFxV12NativeGrant({
 				grant, pluginPath: plugin.path, pluginIndex, planPath, timingAssets, inputPaths, outputPath,
-				qualifiedBackends: Object.freeze([
-					'cpu', ...this.#descriptor.qualifiedGpuBackends,
+				supportedBackends: Object.freeze([
+					'cpu', ...this.#descriptor.supportedGpuBackends,
 				]),
 				maximumControlBytes: OPENFX_HOST_CONTROL_MAXIMUM_BYTES,
 			});
@@ -350,7 +350,11 @@ export async function selfTestFramescaperOpenFxHelper(
 	descriptor: FramescaperOpenFxHostDescriptor,
 	mode: FramescaperOpenFxHelperMode,
 	invokeHost: OpenFxHostProcessInvoker,
-): Promise<void> {
+): Promise<Readonly<{
+	readonly status: 'verified-result';
+	readonly isolationChecksPassed: true;
+	readonly mode: FramescaperOpenFxHelperMode;
+}>> {
 	const executable = mode === 'scanner' ? descriptor.scanner : descriptor.runtimeHost;
 	const filesystem = new NativeMediaHelperFilesystem();
 	let settled = false;
@@ -365,16 +369,18 @@ export async function selfTestFramescaperOpenFxHelper(
 			|| value.openfx !== '1.5.1' || value.commit !== 'ab77951' || value.ok !== true) {
 			throw new Error('The authenticated OpenFX payload failed its closed self-test.');
 		}
-		if (value.contractFixture !== false || value.osIsolationAttested !== true
-			|| value.thirdPartyExecutionEnabled !== true || value.networkSuiteExposed !== false
+		if (result.isolationChecksPassed !== true || value.contractFixture !== false
+			|| value.networkSuiteExposed !== false
 			|| value.arbitraryFilesystemSuiteExposed !== false
 			|| value.vendorTopLevelWindowsExposed !== false) {
 			throw new Error(
-				'The OpenFX payload lacks production isolation and real third-party execution readiness.',
+				'The OpenFX self-test and process-isolation checks did not return a verified result.',
 			);
 		}
 		await filesystem.finish({ retainOutput: false });
 		settled = true;
+		return Object.freeze({ status: 'verified-result' as const,
+			isolationChecksPassed: true as const, mode });
 	} finally {
 		if (!settled) await filesystem.abort();
 	}

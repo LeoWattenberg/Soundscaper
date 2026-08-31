@@ -126,7 +126,7 @@ test('a fresh worker instance over a partial cache reinstalls completely and the
 	assert.deepEqual(await cacheStorage.keys(), [stagedName], 'activation retires only after completeness');
 });
 
-test('a readiness marker cannot hide a missing same-release install entry', async () => {
+test('a completion marker cannot hide a missing same-release install entry', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const configuration = shellConfiguration('5');
 	await installOfflineShell({
@@ -155,7 +155,7 @@ test('a readiness marker cannot hide a missing same-release install entry', asyn
 	);
 });
 
-test('activation verifies every install entry behind the readiness marker before retiring a prior release', async () => {
+test('activation verifies every install entry behind the completion marker before retiring a prior release', async () => {
 	const cacheStorage = new MemoryCacheStorage();
 	const priorName = shellCacheName('6'.repeat(64));
 	await (await cacheStorage.open(priorName)).put('/', response('prior shell'));

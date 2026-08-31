@@ -1,5 +1,9 @@
 # Milestone 3B-4b2: frame-canonical edge-trim planner
 
+> **Historical slice record:** implementation details remain useful provenance;
+> any qualification, human sign-off, evidence-admission, or milestone-9 release
+> language below is superseded by ordinary CI and optional owner QA.
+
 > Bounded pickup contract after
 > [linked audio and video visibility controls](milestone-3b-linked-audio-visibility.md).
 > This slice builds the pure planning authority that later trim commands,

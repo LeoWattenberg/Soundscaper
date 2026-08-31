@@ -221,7 +221,7 @@ test('Manage OFX exposes scan only when exact runtime, consent, and bridge gates
 		preferences: { ...base.preferences, nativeMediaEnabled: true, ofxConsentEnabled: true },
 		capabilitySnapshot: createNativeMediaCapabilitySnapshotV1({
 			masterEnabled: true,
-			entries: [{ domain: 'ofx', id: 'isolated-host', policyCleared: true,
+			entries: [{ domain: 'ofx', id: 'isolated-host',
 				buildSupported: true, probeSucceeded: true, selfTestPassed: true, userEnabled: true }],
 		}),
 	};

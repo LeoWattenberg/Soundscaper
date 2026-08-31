@@ -1,7 +1,8 @@
 # WP-9.0.0 baseline decision
 
-Status: approved for the `1.0.0-rc.1` candidate. Stable 1.0 admission remains
-blocked on the outstanding Milestone 9 evidence.
+Status: historical architecture decision approved for the `1.0.0-rc.1`
+candidate. It records the family-v1 baseline; it is not a current release gate
+or qualification record.
 
 | Field | Decision |
 | --- | --- |

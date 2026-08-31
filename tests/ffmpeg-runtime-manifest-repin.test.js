@@ -47,7 +47,7 @@ async function createStaleFixture(context) {
 		pin.byteLength = 1;
 		pin.sha256 = '0'.repeat(64);
 	}
-	manifest.review.payloadSha256 = '1'.repeat(64);
+	manifest.integrity.payloadSha256 = '1'.repeat(64);
 	const manifestPath = join(root, FFMPEG_RUNTIME_MANIFEST_PATH);
 	await mkdir(dirname(manifestPath), { recursive: true });
 	await writeFile(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
@@ -61,7 +61,7 @@ test('repin reproduces the checked-in manifest byte for byte on a green tree', a
 	assert.equal(result.manifestText, checkedIn);
 });
 
-test('repin refreshes every stale file pin and the review payload digest', async (context) => {
+test('repin refreshes every stale file pin and the manifest integrity digest', async (context) => {
 	const { root, manifestPath, staleManifest } = await createStaleFixture(context);
 
 	const result = await repinFfmpegRuntimeEvidence({ repositoryRoot: root });
@@ -75,12 +75,9 @@ test('repin refreshes every stale file pin and the review payload digest', async
 		assert.equal(pin.sha256, sha256(bytes), `${pin.path} sha256`);
 	}
 
-	const payload = Object.fromEntries(Object.entries(repinned).filter(([key]) => key !== 'review'));
-	assert.equal(repinned.review.payloadSha256, sha256(Buffer.from(canonicalJson(payload))));
-	assert.equal(repinned.review.status, staleManifest.review.status, 'review attestation is untouched');
-	assert.equal(repinned.review.reviewedAt, staleManifest.review.reviewedAt);
-	assert.equal(repinned.review.reviewer, staleManifest.review.reviewer);
-	assert.deepEqual(repinned.review.scopes, staleManifest.review.scopes);
+	const payload = Object.fromEntries(Object.entries(repinned).filter(([key]) => key !== 'integrity'));
+	assert.equal(repinned.integrity.payloadSha256, sha256(Buffer.from(canonicalJson(payload))));
+	assert.deepEqual(Object.keys(repinned.integrity), ['payloadSha256']);
 	assert.equal(result.manifestText, `${JSON.stringify(repinned, null, '\t')}\n`, 'tab-serialized with a trailing newline');
 
 	await writeFile(manifestPath, result.manifestText);

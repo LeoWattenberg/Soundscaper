@@ -1,5 +1,11 @@
 # Milestone 3A work packets: Soundscaper editorial features
 
+> **Historical qualification note (2026-08-31):** fixed environment matrices,
+> release-admission evidence, and Milestone 9 qualification language below are
+> retained only as architectural provenance. Current releases use ordinary CI,
+> optional owner QA, and the owner tag decision in [the release
+> policy](release-policy.md).
+
 > Pickup contract for the Soundscaper half of milestone 3. This document
 > decomposes the 3A summary in [the milestone plan](milestone-3-plan.md) before
 > feature code is changed. The roadmap owns product scope; this document owns
@@ -8,11 +14,9 @@
 ## Pickup status and sequencing
 
 The 3.0 foundation is the implementation baseline. Its browser and Node gates
-are green. All ten packaged Electron probe rows in
-`config/milestone-3-timing-probe-matrix.json` are enabled for automated testing
-across the five maintained desktop targets; they remain `pending-external` only
-as milestone-9 stable 1.0 qualification evidence. Those rows are not relabelled
-or treated as passing evidence by this historical packet.
+are green. The retained `config/milestone-3-timing-probe-fixtures.json` pins
+only the representative timing and geometry media; browser and packaged tests
+report the environments they actually exercise without a release-evidence matrix.
 
 Schema-neutral work lands first. Document schema revisions are serialized: at
 most one revision is in flight, and it is complete before the next begins.
