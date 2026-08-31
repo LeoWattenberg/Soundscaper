@@ -389,10 +389,13 @@ export function readAup4ProjectSummary(root) {
 			startFrame: secondsToFrames(audacityXmlAttribute(root, 'sel0', 0), rate),
 			endFrame: secondsToFrames(audacityXmlAttribute(root, 'sel1', 0), rate),
 		},
-		tempo: finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 999, 120),
+		tempo: finiteInRange(audacityXmlAttribute(root, 'time_signature_tempo', 120), 1, 1_000, 120),
 		timeSignature: {
-			numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4), 1, 32, 4),
-			denominator: integerInRange(audacityXmlAttribute(root, 'time_signature_lower', 4), 1, 32, 4),
+			numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4),
+				1, 0x7fff_ffff, 4),
+			denominator: nativeTimeSignatureDenominator(
+				audacityXmlAttribute(root, 'time_signature_lower', 4),
+			),
 		},
 		audioTrackCount: audacityXmlChildren(root, 'wavetrack').length,
 		labelTrackCount: audacityXmlChildren(root, 'labeltrack').length,

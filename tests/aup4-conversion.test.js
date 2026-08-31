@@ -11,7 +11,11 @@ import {
 } from '../src/common/editor/audacity-binary-xml.js';
 import { decodeAudacityProjectTree, decodeAup4ProjectTree } from '../src/common/editor/aup4-conversion.js';
 import { aup4NativeEffectId } from '../src/common/editor/aup4-effects.js';
-import { createAup4ProjectTree, createAup4SampleBlock } from '../src/common/editor/aup4-profile.js';
+import {
+	createAup4ProjectTree,
+	createAup4SampleBlock,
+	readAup4ProjectSummary,
+} from '../src/common/editor/aup4-profile.js';
 import {
 	createAudioClip,
 	createAudioSource,
@@ -479,6 +483,9 @@ test('AUP4 conversion preserves empty stereo track rate, collapsed state, and bo
 	assert.equal(audacityXmlAttribute(tree, 'time_signature_tempo'), 1_000);
 	assert.equal(audacityXmlAttribute(tree, 'time_signature_upper'), 33);
 	assert.equal(audacityXmlAttribute(tree, 'time_signature_lower'), 64);
+	const summary = readAup4ProjectSummary(tree);
+	assert.equal(summary.tempo, 1_000);
+	assert.deepEqual(summary.timeSignature, { numerator: 33, denominator: 64 });
 	const leader = audacityXmlChildren(tree, 'wavetrack')[0];
 	audacityXmlAttributes(leader, 'rate').at(-1).value = 44_100;
 	audacityXmlAttributes(leader, 'linked')[0].value = 1;
