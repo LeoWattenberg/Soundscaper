@@ -252,8 +252,7 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		const meterChannelCount = this.context && runtimeProject
 			? configureMasterLoudnessMeterChannelCount(this.context.destination, runtimeProject.masterChannels)
 			: null;
-		if (this.masterLoudnessMeterChannelCount !== null
-			&& this.masterLoudnessMeterChannelCount !== meterChannelCount) {
+		if (this.masterLoudnessMeterChannelCount !== meterChannelCount) {
 			this.masterLoudnessMeter?.dispose();
 			this.masterLoudnessMeter = null;
 			this.masterLoudnessMeterChannelCount = null;

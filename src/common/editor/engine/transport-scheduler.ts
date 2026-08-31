@@ -305,6 +305,14 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 			this.masterLoudnessMeterPromise = null;
 			this.masterLoudnessMeterError = null;
 		}
+		if (meterChannelCount === null) {
+			if (!this.masterLoudnessMeterError) {
+				this.masterLoudnessMeterError = new RangeError(
+					'Master loudness metering supports up to 8 channels; immersive playback continues without loudness metering.',
+				);
+			}
+			return null;
+		}
 		if (this.masterLoudnessMeter || this.masterLoudnessMeterError) {
 			return this.masterLoudnessMeter;
 		}

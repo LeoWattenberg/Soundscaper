@@ -139,6 +139,50 @@ test('loading a project with a different native master width rebuilds its EBU me
 	}
 });
 
+test('loading an immersive project preserves a capable destination wider than the EBU meter', async () => {
+	const context = new MockAudioContext();
+	context.destination.maxChannelCount = 32;
+	const engine = loadedEngine(context);
+	try {
+		await engine.getAudioContext({ resume: false });
+		engine.loadProject(project(12), engine.sources);
+
+		assert.equal(context.destination.channelCount, 12);
+		assert.equal(engine.masterLoudnessMeter, null);
+		assert.equal(engine.masterLoudnessMeterChannelCount, null);
+	} finally {
+		await engine.dispose();
+	}
+});
+
+test('an immersive master declines an undersized EBU passthrough without narrowing playback', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	context.destination.maxChannelCount = 32;
+	const engine = loadedEngine(context, { onMeter() {} });
+	try {
+		await engine.getAudioContext({ resume: false });
+		engine.loadProject(project(12), engine.sources);
+		const unsupportedMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+
+		assert.equal(unsupportedMeter, null);
+		assert.equal(context.destination.channelCount, 12);
+		assert.equal(context.workletNodes.filter(({ name }) => name === 'kw-ebu-r128-meter').length, 0);
+		assert.match(engine.getLoudnessMeasurementState().error?.message, /up to 8 channels/i);
+
+		engine.loadProject(project(6), engine.sources);
+		assert.equal(engine.getLoudnessMeasurementState().error, null);
+		const supportedMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		assert.equal(supportedMeter.node.options.channelCount, 6);
+		assert.equal(context.destination.channelCount, 6);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 function pendingResumeFixture() {
 	const context = new MockAudioContext();
 	const resumeRequested = deferred();

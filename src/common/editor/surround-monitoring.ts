@@ -26,8 +26,9 @@ export function configureNativeSurroundDestination(
 export function configureMasterLoudnessMeterChannelCount(
 	destination: SurroundDestination | null | undefined,
 	masterChannels: unknown,
-): number {
-	const requestedChannels = Math.max(1, Math.min(8, Number(masterChannels) || 2));
+): number | null {
+	const requestedChannels = Math.max(1, Number(masterChannels) || 2);
+	if (requestedChannels > 8) return null;
 	return requestedChannels > 2
 		&& configureNativeSurroundDestination(destination, requestedChannels)
 		? requestedChannels
