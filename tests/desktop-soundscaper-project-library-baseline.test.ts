@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
@@ -186,6 +187,54 @@ test('Soundscaper main reports a writer-lease loss exactly once', async (context
 	await main.close()
 })
 
+test('Soundscaper startup waits out transient database initialization contention', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-startup-contention-'))
+	context.after(() => rm(root, { recursive: true, force: true }))
+	const paths = createSoundscaperDesktopProjectLibraryPaths(root)
+	await mkdir(paths.libraryRoot, { recursive: true })
+	const database = new DatabaseSync(paths.databasePath)
+	initializeSoundscaperDesktopProjectLibraryDatabase(database)
+	database.close()
+
+	const locker = spawn(process.execPath, [
+		'--input-type=module',
+		'--eval',
+		`import { DatabaseSync } from 'node:sqlite'
+const database = new DatabaseSync(process.argv[1])
+database.exec('BEGIN IMMEDIATE')
+process.stdout.write('locked\\n')
+setTimeout(() => {
+	database.exec('COMMIT')
+	database.close()
+}, 250)`,
+		paths.databasePath,
+	], { stdio: ['ignore', 'pipe', 'inherit'] })
+	context.after(() => {
+		if (locker.exitCode === null && locker.signalCode === null) locker.kill('SIGKILL')
+	})
+	const lockerExit = new Promise<number | null>((resolve, reject) => {
+		locker.once('error', reject)
+		locker.once('exit', resolve)
+	})
+	await new Promise<void>((resolve, reject) => {
+		locker.once('error', reject)
+		locker.stdout.once('data', (chunk) => {
+			assert.equal(String(chunk), 'locked\n')
+			resolve()
+		})
+	})
+
+	const main = await SoundscaperDesktopProjectLibraryMain.start({
+		appDataPath: root,
+		owner: { product: 'soundscaper', processId: 933, instanceId: 'startup-contention' },
+		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
+		qualification: { leaseTtlMs: 1_000, renewIntervalMs: 500, checkpoint: null },
+	})
+	await main.close()
+	assert.equal(await lockerExit, 0)
+})
+
 test('Soundscaper baseline never opens or changes either pre-release desktop library', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-baseline-isolation-'))
 	context.after(() => rm(root, { recursive: true, force: true }))
@@ -311,6 +360,18 @@ test('Soundscaper baseline lease retry recognizes only current contention', asyn
 		return 'lease'
 	}, { waitMs: 50, pollIntervalMs: 10 }), 'lease')
 	assert.equal(attempts, 2)
+	let refusalAttempts = 0
+	await assert.rejects(
+		() => acquireSoundscaperDesktopProjectLibraryLeaseWithWait(() => {
+			refusalAttempts += 1
+			if (refusalAttempts === 1) {
+				throw new Error('Soundscaper desktop baseline writer lease is busy')
+			}
+			throw Object.assign(new Error('database is locked'), { errcode: 5 })
+		}, { waitMs: 10, pollIntervalMs: 10 }),
+		/Soundscaper desktop baseline writer lease is busy/u,
+	)
+	assert.equal(refusalAttempts, 2)
 	await assert.rejects(
 		() => acquireSoundscaperDesktopProjectLibraryLeaseWithWait(() => {
 			throw new Error('Soundscaper desktop V11 writer lease is busy')

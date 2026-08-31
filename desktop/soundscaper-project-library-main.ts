@@ -145,6 +145,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 
 	static async start(value: unknown): Promise<SoundscaperDesktopProjectLibraryMain> {
 		const options = validateStartOptions(value);
+		const leaseTtlMs = options.qualification?.leaseTtlMs ?? LEASE_TTL_MS;
 		const paths = createSoundscaperDesktopProjectLibraryPaths(options.appDataPath);
 		await createPrivateLibrary(paths);
 		const database = new DatabaseSync(paths.databasePath, {
@@ -157,8 +158,13 @@ export class SoundscaperDesktopProjectLibraryMain {
 		let lease: SoundscaperDesktopProjectLibraryLease | null = null;
 		try {
 			await chmod(paths.databasePath, 0o600);
-			initializeSoundscaperDesktopProjectLibraryDatabase(database);
-			const leaseTtlMs = options.qualification?.leaseTtlMs ?? LEASE_TTL_MS;
+			// A live holder can renew while another process performs this idempotent
+			// schema check. Keep that SQLite write-lock race inside the same bounded
+			// contention window as acquisition so it cannot bypass the lease refusal.
+			await acquireSoundscaperDesktopProjectLibraryLeaseWithWait(
+				() => initializeSoundscaperDesktopProjectLibraryDatabase(database),
+				{ waitMs: leaseTtlMs + 1_000 },
+			);
 			catalog = SoundscaperDesktopProjectLibraryCatalog.create({
 				database,
 				owner: options.owner,

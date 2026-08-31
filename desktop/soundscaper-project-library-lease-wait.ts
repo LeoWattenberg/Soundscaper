@@ -23,12 +23,15 @@ export async function acquireSoundscaperDesktopProjectLibraryLeaseWithWait<Lease
 		), 1_000),
 	)
 	const deadline = Date.now() + waitMs
+	let leaseBusyError: Error | null = null
 	for (;;) {
 		try {
 			return acquire()
 		} catch (error) {
 			const remaining = deadline - Date.now()
-			if (remaining <= 0 || !isLeaseContention(error)) throw error
+			if (!isLeaseContention(error)) throw error
+			if (isWriterLeaseBusy(error)) leaseBusyError ??= error
+			if (remaining <= 0) throw leaseBusyError ?? error
 			await delay(Math.min(pollIntervalMs, remaining))
 		}
 	}
@@ -36,9 +39,13 @@ export async function acquireSoundscaperDesktopProjectLibraryLeaseWithWait<Lease
 
 function isLeaseContention(error: unknown): boolean {
 	if (!(error instanceof Error)) return false
-	if (CONTENDED_LEASE_MESSAGE.test(error.message)) return true
+	if (isWriterLeaseBusy(error)) return true
 	const { errcode } = error as { readonly errcode?: unknown }
 	return typeof errcode === 'number' && CONTENDED_SQLITE_CODES.includes(errcode)
+}
+
+function isWriterLeaseBusy(error: unknown): error is Error {
+	return error instanceof Error && CONTENDED_LEASE_MESSAGE.test(error.message)
 }
 
 function delay(durationMs: number): Promise<void> {
