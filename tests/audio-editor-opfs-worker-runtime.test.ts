@@ -135,6 +135,26 @@ test('OPFS worker runtime performs exact bounded reads with a short-lived sync h
 	);
 });
 
+test('a late OPFS cancellation cannot poison a later request that reuses the completed id', async () => {
+	const fixture = fakeDirectory({ 'source.scpcm': Uint8Array.of(1, 2, 3) });
+	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });
+	await runtime.handle({ id: 'init', type: 'initialize', directory: fixture.directory });
+	const read = {
+		id: 'reused-request',
+		type: 'read',
+		operationId: 'canonical-pcm-chunk-read',
+		path: 'source.scpcm',
+		offset: 0,
+		length: 1,
+	};
+
+	await runtime.handle(read);
+	assert.deepEqual(await runtime.handle({ id: read.id, type: 'cancel' }), { cancelled: true });
+	const result = await runtime.handle(read);
+
+	assert.deepEqual([...new Uint8Array(result.bytes as ArrayBuffer)], [1]);
+});
+
 test('OPFS worker runtime snapshots genuine Blob content after sync size validation', async () => {
 	const fixture = fakeDirectory({ 'media.blob': Uint8Array.of(8, 9, 10) });
 	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });

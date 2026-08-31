@@ -47,6 +47,7 @@ let nextWriterId = 1;
 export class OpfsSyncWorkerRuntime {
 	readonly #supportsSyncAccessHandles: () => boolean;
 	readonly #writers = new Map<string, WorkerWriter>();
+	readonly #active = new Set<string>();
 	readonly #cancelled = new Set<string>();
 	#directory: FileSystemDirectoryHandle | null = null;
 	#initialized = false;
@@ -61,13 +62,14 @@ export class OpfsSyncWorkerRuntime {
 		const type = typeof request.type === 'string' ? request.type : '';
 		const id = requestId(request.id);
 		if (type === 'cancel') {
-			this.#cancelled.add(id);
+			if (this.#active.has(id)) this.#cancelled.add(id);
 			return Object.freeze({ cancelled: true });
 		}
 		if (type === 'initialize') return this.#initialize(request);
 		this.#assertInitialized();
-		this.#throwIfCancelled(id);
+		this.#active.add(id);
 		try {
+			this.#throwIfCancelled(id);
 			if (type === 'read') return await this.#read(request, id);
 			if (type === 'snapshot') return await this.#snapshot(request, id);
 			if (type === 'open-writer') return await this.#openWriter(request, id);
@@ -77,6 +79,7 @@ export class OpfsSyncWorkerRuntime {
 			if (type === 'remove') return await this.#remove(request, id);
 			throw new TypeError('A known OPFS worker request type is required.');
 		} finally {
+			this.#active.delete(id);
 			this.#cancelled.delete(id);
 		}
 	}
