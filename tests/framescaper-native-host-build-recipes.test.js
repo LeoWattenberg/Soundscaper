@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import {
 	appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
 	rmSync, symlinkSync, writeFileSync,
@@ -30,6 +29,9 @@ import {
 	FRAMESCAPER_MEDIA_HOST_EXTERNAL_SOURCE_IDS,
 	validateFramescaperMediaHostExternalSourceManifest,
 } from '../native/framescaper-media-host/build/external-source-authentication.mjs';
+import {
+	closureIdentity, json, listRelativeFiles, sha256, sourcePins, writeJson,
+} from './helpers/framescaper-native-host-build-fixture.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const SOURCE_DATE_EPOCH = 1786492800;
@@ -584,42 +586,4 @@ function refreshPins(fixture) {
 	const manifest = json(fixture.manifestPath);
 	manifest.sourceFiles = sourcePins(fixture.hostRoot, fixture.inputs);
 	writeJson(fixture.manifestPath, manifest);
-}
-
-function sourcePins(root, inputs) {
-	return inputs.map((path) => {
-		const bytes = readFileSync(join(root, path));
-		return { path, byteLength: bytes.byteLength, sha256: sha256(bytes) };
-	});
-}
-
-function listRelativeFiles(root, prefix = '') {
-	const files = [];
-	for (const entry of readdirSync(join(root, prefix), { withFileTypes: true })) {
-		const path = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
-		if (entry.isDirectory()) files.push(...listRelativeFiles(root, path));
-		else if (entry.isFile()) files.push(path);
-	}
-	return files;
-}
-
-function closureIdentity(closure) {
-	return {
-		algorithm: closure.algorithm,
-		...(closure.roots ? { roots: [...closure.roots] } : {}),
-		fileCount: closure.fileCount,
-		sha256: closure.sha256,
-	};
-}
-
-function json(path) {
-	return JSON.parse(readFileSync(path, 'utf8'));
-}
-
-function writeJson(path, value) {
-	writeFileSync(path, `${JSON.stringify(value, null, '\t')}\n`);
-}
-
-function sha256(value) {
-	return createHash('sha256').update(value).digest('hex');
 }
