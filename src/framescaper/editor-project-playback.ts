@@ -67,13 +67,11 @@ export function createFramescaperPlaybackProjectService(
 		if (!isCurrent(project)) return opaque(project);
 		const projection = baselineProjection(selected.projectForPlayback(
 			project,
-		)) as PlaybackProjectProjection<Project>;
+		));
 		const mediaProject = projectTrackFolderMediaStateV12(projection.project);
 		return Object.freeze({
 			...projection,
-			project: isRuntimeProjectProjection(projection.project)
-				? brandRuntimeProjectProjection(mediaProject as RuntimeClipProject)
-				: mediaProject,
+			project: preserveRuntimeProjectionBrand(projection.project, mediaProject),
 		});
 	}
 
@@ -101,19 +99,25 @@ function isCurrent(project: unknown): boolean {
 	}
 }
 
-function baselineProjection(
-	projection: PlaybackProjectProjection<object>,
-): PlaybackProjectProjection<object> {
+function baselineProjection<Project extends object>(
+	projection: PlaybackProjectProjection<Project>,
+): PlaybackProjectProjection<Project> {
 	const source = projection.project;
-	let project = inheritTrackFolderMediaStateProjectionV12(source, Object.freeze({
+	const project = inheritTrackFolderMediaStateProjectionV12(source, Object.freeze({
 		...source,
 		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
 		schemaVersion: 1,
 	}));
-	if (isRuntimeProjectProjection(source)) {
-		project = brandRuntimeProjectProjection(project as RuntimeClipProject);
-	}
-	return Object.freeze({ ...projection, project });
+	return Object.freeze({
+		...projection,
+		project: preserveRuntimeProjectionBrand(source, project),
+	});
+}
+
+function preserveRuntimeProjectionBrand<Project extends object>(source: Project, project: Project): Project {
+	return isRuntimeProjectProjection(source)
+		? brandRuntimeProjectProjection(project as Project & RuntimeClipProject)
+		: project;
 }
 
 function opaque<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
