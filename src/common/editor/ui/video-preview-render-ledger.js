@@ -53,7 +53,7 @@ export function beginVideoPreviewRenderLedger(layers, supportedEffectTypes) {
 		}
 		for (const effect of layer?.effects || []) {
 			if (!effect || effect.enabled === false) continue;
-			const id = boundedEffectId(effect.id);
+			const id = boundedEffectId(effect.previewLedgerId ?? effect.id);
 			if (effects.has(id)) throw new Error(`Video preview effect instance ID ${id} is duplicate.`);
 			effects.set(id, {
 				owner: layerOwner,

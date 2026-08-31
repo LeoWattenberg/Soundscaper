@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	composeProductVideoVisualPreviewLayers,
 } from '../src/common/editor/ui/workspace/product-video-visual-preview-composition.ts';
+import { beginVideoPreviewRenderLedger } from '../src/common/editor/ui/video-preview-render-ledger.js';
 import type {
 	ProductVideoVisualPreviewFrame,
 } from '../src/common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
@@ -44,6 +45,24 @@ test('product visual composition rejects every unexplained or ambiguous active s
 		...frame,
 		adjustments: [{ ...frame.adjustments[0]!, opacity: 0.5 }],
 	}), /unconsumed presentation/iu);
+});
+
+test('one visual adjustment fans out to multiple target tracks with distinct preview ledger ownership', () => {
+	const frame = visualFrame();
+	const layers = composeProductVideoVisualPreviewLayers([{
+		trackId: 'background', trackIndex: 2, entries: [{ clipId: 'background-clip', effects: [] }],
+	}, {
+		trackId: 'middle', trackIndex: 1, entries: [{ clipId: 'middle-clip', effects: [] }],
+	}], {
+		...frame,
+		adjustments: [{ ...frame.adjustments[0]!, targetTrackIds: ['background', 'middle'] }],
+	});
+	assert.deepEqual(layers.slice(0, 2).map(({ effects }) => effects?.map((effect) => (
+		(effect as { id: string }).id
+	))), [['adjust-brightness'], ['adjust-brightness']]);
+	const ledger = beginVideoPreviewRenderLedger(layers, new Set(['color-adjust']));
+	assert.equal(ledger.effects.size, 2);
+	assert.equal(new Set(ledger.effects.keys()).size, 2);
 });
 
 function visualFrame(): ProductVideoVisualPreviewFrame {

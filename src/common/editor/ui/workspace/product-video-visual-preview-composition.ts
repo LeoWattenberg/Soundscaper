@@ -30,24 +30,29 @@ export function composeProductVideoVisualPreviewLayers(
 		layers.push(candidate);
 	}
 	const activeEffectIds = new Set<string>();
-	for (const adjustment of frame.adjustments) {
+	for (const [adjustmentIndex, adjustment] of frame.adjustments.entries()) {
 		if (adjustment.opacity !== 1 || adjustment.blendMode !== 'normal' || adjustment.maskIds.length !== 0) {
 			throw new Error(`Visual adjustment ${adjustment.nodeId} has an unconsumed presentation.`);
 		}
-		for (const targetTrackId of adjustment.targetTrackIds) {
+		const adjustmentEffects = adjustment.effects.map((effectValue, effectIndex) => {
+			const effect = record(effectValue, `visual adjustment ${adjustment.nodeId} effect`);
+			const effectId = stableId(effect.id, 'visual adjustment effect ID');
+			if (activeEffectIds.has(effectId)) {
+				throw new RangeError(`Visual adjustment effect ${effectId} is active more than once.`);
+			}
+			activeEffectIds.add(effectId);
+			return Object.freeze({ effect, effectId, effectIndex });
+		});
+		const adjustmentEffectIds = new Set(adjustmentEffects.map(({ effectId }) => effectId));
+		for (const [targetIndex, targetTrackId] of adjustment.targetTrackIds.entries()) {
 			const target = byTrackId.get(targetTrackId);
 			if (!target) continue;
 			const effects = [...(target.effects ?? [])];
-			const adjustmentEffectIds = new Set<string>();
-			for (const effectValue of adjustment.effects) {
-				const effect = record(effectValue, `visual adjustment ${adjustment.nodeId} effect`);
-				const effectId = stableId(effect.id, 'visual adjustment effect ID');
-				if (activeEffectIds.has(effectId)) {
-					throw new RangeError(`Visual adjustment effect ${effectId} is active more than once.`);
-				}
-				activeEffectIds.add(effectId);
-				adjustmentEffectIds.add(effectId);
-				effects.push(effect);
+			for (const { effect, effectIndex } of adjustmentEffects) {
+				effects.push(targetIndex === 0 ? effect : Object.freeze({
+					...effect,
+					previewLedgerId: `#visual-adjustment/${String(adjustmentIndex)}/${String(targetIndex)}/${String(effectIndex)}`,
+				}));
 			}
 			const entries = target.entries.map((entry) => Object.freeze({
 				...entry,
