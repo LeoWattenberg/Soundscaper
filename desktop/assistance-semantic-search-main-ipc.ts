@@ -75,14 +75,6 @@ export function registerAssistanceSemanticSearchMainIpc(
 	const activeQueries = new Map<string, ActiveQuery>();
 	let disposed = false;
 
-	const owner = (event: unknown): object => {
-		if (disposed) throw new Error('Semantic-search IPC is disposed.');
-		const value = options.ownerFor(event);
-		if (!value || typeof value !== 'object') {
-			throw new Error('Semantic-search IPC requires an active renderer owner.');
-		}
-		return value;
-	};
 	const remember = (value: object, session: AssistanceSemanticSearchSession): void => {
 		let ids = sessionsByOwner.get(value);
 		if (!ids) { ids = new Set(); sessionsByOwner.set(value, ids); }
@@ -106,6 +98,23 @@ export function registerAssistanceSemanticSearchMainIpc(
 		const active = [...activeQueries.values()].filter((query) => query.sessionId === sessionId);
 		for (const query of active) query.controller.abort(reason);
 		await Promise.all(active.map(({ completion }) => completion));
+	};
+	const pruneTrackedSessions = (): void => {
+		for (const sessionId of authority.pruneExpired()) {
+			forget(sessionId);
+			void abortSession(sessionId, new DOMException(
+				'Semantic-search session expired.', 'AbortError',
+			));
+		}
+	};
+	const owner = (event: unknown): object => {
+		if (disposed) throw new Error('Semantic-search IPC is disposed.');
+		pruneTrackedSessions();
+		const value = options.ownerFor(event);
+		if (!value || typeof value !== 'object') {
+			throw new Error('Semantic-search IPC requires an active renderer owner.');
+		}
+		return value;
 	};
 
 	options.handle(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open, (event, value) => {
@@ -189,6 +198,7 @@ export function registerAssistanceSemanticSearchMainIpc(
 		if (!value || typeof value !== 'object') {
 			throw new TypeError('Semantic-search renderer owner is invalid.');
 		}
+		pruneTrackedSessions();
 		const ids = [...(sessionsByOwner.get(value) ?? [])];
 		let revoked = 0;
 		for (const sessionId of ids) {

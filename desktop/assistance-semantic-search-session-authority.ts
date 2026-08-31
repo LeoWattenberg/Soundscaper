@@ -141,10 +141,18 @@ export class AssistanceSemanticSearchSessionAuthority {
 		return revoked;
 	}
 
-	#prune(now: number): void {
+	pruneExpired(): readonly string[] {
+		return Object.freeze(this.#prune(timestamp(this.#now())));
+	}
+
+	#prune(now: number): string[] {
+		const expired: string[] = [];
 		for (const [sessionId, session] of this.#active) {
-			if (session.expiresAtEpochMs <= now) this.#active.delete(sessionId);
+			if (session.expiresAtEpochMs > now) continue;
+			this.#active.delete(sessionId);
+			expired.push(sessionId);
 		}
+		return expired;
 	}
 }
 

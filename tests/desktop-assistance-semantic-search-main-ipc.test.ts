@@ -31,8 +31,9 @@ function fixture(query: AssistanceSemanticQueryExecutorV1 = Object.freeze({ embe
 	const handlers = new Map<string, Handler>();
 	const removed: string[] = [];
 	let byte = 0xaa;
+	let now = 1_800_000_000_000;
 	const authority = new AssistanceSemanticSearchSessionAuthority({
-		now: () => 1_800_000_000_000,
+		now: () => now,
 		randomBytes: (size) => new Uint8Array(size).fill(byte++),
 	});
 	const registration = registerAssistanceSemanticSearchMainIpc({
@@ -43,7 +44,13 @@ function fixture(query: AssistanceSemanticQueryExecutorV1 = Object.freeze({ embe
 		authority,
 		query,
 	});
-	return { authority, handlers, registration, removed };
+	return {
+		authority,
+		handlers,
+		registration,
+		removed,
+		setNow: (value: number) => { now = value; },
+	};
 }
 
 test('semantic-search IPC issues and reauthorizes only an owner-bound short session', () => {
@@ -80,6 +87,46 @@ test('semantic-search IPC revokes one session or every session for a renderer ow
 	assert.equal(await registration.revokeOwner(owner), 1);
 	assert.equal(await registration.revokeOwner(owner), 0);
 	assert.match(second.sessionId, /^[a-f\d]{40}$/u);
+});
+
+test('opening after expiry retires tracked ownership and aborts the expired session query', async () => {
+	let entered!: () => void;
+	const running = new Promise<void>((resolve) => { entered = resolve; });
+	let querySignal: AbortSignal | null = null;
+	const { handlers, setNow } = fixture(Object.freeze({ embed: async (
+		{ signal }: Readonly<{ signal: AbortSignal }>,
+	) => {
+		querySignal = signal;
+		entered();
+		await new Promise<void>((_resolve, reject) => signal.addEventListener('abort', () => {
+			reject(signal.reason);
+		}, { once: true }));
+		throw new Error('unreachable');
+	} }));
+	const owner = {};
+	const open = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.open)!;
+	const query = handlers.get(ASSISTANCE_SEMANTIC_SEARCH_IPC_CHANNELS.query)!;
+	const session = open({ owner }, { ...PROJECT_AUTHORITY, lifetimeMs: 1_000 }) as
+		Readonly<{ expiresAtEpochMs: number }>;
+	const pending = Promise.resolve(query(
+		{ owner },
+		{
+			queryVersion: 1,
+			queryId: QUERY_ID,
+			session,
+			...PROJECT_AUTHORITY,
+			provider: 'visual',
+			query: 'expired query',
+		},
+	));
+	void pending.catch(() => undefined);
+	await running;
+	setNow(session.expiresAtEpochMs);
+
+	open({ owner }, PROJECT_AUTHORITY);
+
+	assert.equal(querySignal?.aborted, true);
+	await assert.rejects(pending, { name: 'AbortError' });
 });
 
 test('semantic-search IPC refuses malformed authority and removes every handler on disposal', async () => {
