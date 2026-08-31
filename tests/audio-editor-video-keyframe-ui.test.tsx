@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../src/common/editor/video-clip-composition.ts';
@@ -11,6 +11,7 @@ import { createVideoEffect } from '../src/common/editor/video-effects.js';
 import VideoKeyframeDialog from '../src/common/editor/ui/inspector/VideoKeyframeDialog.tsx';
 import { videoKeyframeTransferShortcut } from '../src/common/editor/ui/video-keyframe-transfer-shortcut.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 test('the baseline keyframe dialog exposes exact curve editing, transfer, and accessible keyboard-native controls', () => {
 	const markup = renderToStaticMarkup(<VideoKeyframeDialog
@@ -62,6 +63,40 @@ test('blocked keyframe UI is explained and disables its complete editing surface
 	assert.match(markup, new RegExp('<fieldset[^>]*disabled=""[^>]*>[\\s\\S]*?<legend>Edit curve</legend>', 'u'));
 });
 
+test('an unrelated controller snapshot preserves the selected keyframe anchor draft', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const document = project();
+	const controller = { actions: { edit: { commit: () => undefined } } };
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const render = (historyRevision: number) => root.render(<VideoKeyframeDialog
+		productId="framescaper" capability
+		controller={controller}
+		snapshot={{ project: document, selectedClipId: 'video', historyRevision }}
+		copy={{}}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>);
+	try {
+		await act(async () => render(1));
+		await act(async () => {
+			reactProps(dom.one('[data-video-keyframe-field="anchor-position"]')).onChange({
+				currentTarget: { value: '7/2' },
+			});
+		});
+		assert.equal(dom.one('[data-video-keyframe-field="anchor-position"]').value, '7/2');
+		await act(async () => render(2));
+		assert.equal(dom.one('[data-video-keyframe-field="anchor-position"]').value, '7/2');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('advertised curve-transfer shortcuts route only the exact enabled chord', () => {
 	assert.equal(videoKeyframeTransferShortcut({ key: 'c', ctrlKey: true, shiftKey: true }), 'copy');
 	assert.equal(videoKeyframeTransferShortcut({ key: 'V', ctrlKey: true, shiftKey: true }), 'paste');
@@ -98,8 +133,9 @@ test('keyframe UI stays lazy, menu-reached, and guarded by its capability', asyn
 	assert.match(dialog, /initialFocus=\{'\[data-video-keyframe-field="target"\]'\}/u);
 	assert.match(dialog, /controller\.actions\.edit\.commit\(command\)/u);
 	const curveEditor = await readFile(new URL('../src/common/editor/ui/inspector/VideoKeyframeCurveEditor.tsx', import.meta.url), 'utf8');
-	assert.match(curveEditor, /useEffect\(\(\) => \{[\s\S]*setAnchorIndex\(0\); setSegmentIndex\(0\);[\s\S]*\}, \[curve, model, stableKey\]\)/u,
-		'curve switches and removals reset local fields from the surviving immutable curve');
+	assert.match(curveEditor, /const curveResetKey = JSON\.stringify/u);
+	assert.match(curveEditor, /useEffect\(\(\) => \{[\s\S]*setAnchorIndex\(0\); setSegmentIndex\(0\);[\s\S]*\}, \[curveResetKey\]\)/u,
+		'curve content changes reset local fields without following snapshot-only object identity');
 });
 
 test('English and German catalogs own all keyframe interaction and target copy', () => {

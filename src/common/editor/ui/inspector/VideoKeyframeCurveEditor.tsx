@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { type FormEvent, useEffect, useMemo, useState } from 'react';
+import React, { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Rational } from '../../timeline-time.ts';
 import type { VideoKeyframeCurves } from '../../video-keyframe-curves.ts';
@@ -47,20 +47,28 @@ export default function VideoKeyframeCurveEditor({
 	const [control2Position, setControl2Position] = useState(() => segment?.kind === 'bezier'
 		? optionalRationalText(visiblePositionForVideoKeyframeAnchor(model, segment.control2.position)) : '0');
 	const [control2Value, setControl2Value] = useState(() => String(segment?.kind === 'bezier' ? segment.control2.value : 0));
+	const resetSourceRef = useRef({ curve, model });
+	resetSourceRef.current = { curve, model };
+	const curveResetKey = JSON.stringify([
+		stableKey, curve, model.keyframes?.timeDomain,
+		model.sequenceStartFrame, model.sequenceFrameCount,
+	]);
 	useEffect(() => {
+		const { curve: resetCurve, model: resetModel } = resetSourceRef.current;
 		setAnchorIndex(0); setSegmentIndex(0);
-		const nextAnchor = curve?.curve.anchors[0];
-		const nextVisible = nextAnchor ? visiblePositionForVideoKeyframeAnchor(model, nextAnchor.position) : null;
+		const nextAnchor = resetCurve?.curve.anchors[0];
+		const nextVisible = nextAnchor
+			? visiblePositionForVideoKeyframeAnchor(resetModel, nextAnchor.position) : null;
 		setPositionText(nextVisible ? rationalText(nextVisible) : ''); setValueText(String(nextAnchor?.value ?? ''));
-		const nextSegment = curve?.curve.segments[0];
+		const nextSegment = resetCurve?.curve.segments[0];
 		setSegmentKind(nextSegment?.kind ?? 'linear');
 		if (nextSegment?.kind === 'bezier') {
-			const first = visiblePositionForVideoKeyframeAnchor(model, nextSegment.control1.position);
-			const second = visiblePositionForVideoKeyframeAnchor(model, nextSegment.control2.position);
+			const first = visiblePositionForVideoKeyframeAnchor(resetModel, nextSegment.control1.position);
+			const second = visiblePositionForVideoKeyframeAnchor(resetModel, nextSegment.control2.position);
 			setControl1Position(first ? rationalText(first) : ''); setControl1Value(String(nextSegment.control1.value));
 			setControl2Position(second ? rationalText(second) : ''); setControl2Value(String(nextSegment.control2.value));
 		}
-	}, [curve, model, stableKey]);
+	}, [curveResetKey]);
 
 	const selectAnchor = (index: number): void => {
 		setAnchorIndex(index);
