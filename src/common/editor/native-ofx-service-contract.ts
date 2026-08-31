@@ -61,9 +61,10 @@ export function framescaperOpenFxPluginProjectionV1(
 ): FramescaperOpenFxPluginProjectionV1 {
 	const record = exactRecord(value, PROJECTION_KEYS, 'OpenFX plug-in projection');
 	const version = exactRecord(record.version, ['major', 'minor'], 'OpenFX plug-in version');
-	if (!HANDLE.test(String(record.pluginHandle)) || !ID.test(String(record.pluginId))
-		|| (record.vendor !== null && !ID.test(String(record.vendor)))
-		|| !SHA256.test(String(record.binarySha256))
+	if (typeof record.pluginHandle !== 'string' || !HANDLE.test(record.pluginHandle)
+		|| typeof record.pluginId !== 'string' || !ID.test(record.pluginId)
+		|| (record.vendor !== null && (typeof record.vendor !== 'string' || !ID.test(record.vendor)))
+		|| typeof record.binarySha256 !== 'string' || !SHA256.test(record.binarySha256)
 		|| !nonNegative(version.major) || !nonNegative(version.minor)
 		|| typeof record.threading !== 'string'
 		|| !(OFX_THREADING_DECLARATIONS as readonly string[]).includes(record.threading)
