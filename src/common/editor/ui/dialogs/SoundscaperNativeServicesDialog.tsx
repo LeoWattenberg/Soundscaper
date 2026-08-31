@@ -31,6 +31,8 @@ import {
 	createSoundscaperNativeServicesDialogRuntime,
 	type SoundscaperNativeServicesDialogRuntime,
 } from '../soundscaper-native-services-dialog-runtime.ts';
+import { isNativeAudioStreamingBackend } from '../soundscaper-native-audio-route.ts';
+export { createNativeAudioRouteOpenRequest } from '../soundscaper-native-audio-route.ts';
 import {
 	SOUNDSCAPER_NATIVE_SERVICE_SURFACES,
 	type SoundscaperNativeServiceSurface,
@@ -281,11 +283,11 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 	const rates = numericChoices([44_100, 48_000, 88_200, 96_000, 192_000], sampleRate);
 	const periods = numericChoices([64, 128, 256, 512, 1_024, 2_048], periodFrames);
 	const open = (): void => {
-		if (!isStreamingBackend(backend)) return;
+		if (!isNativeAudioStreamingBackend(backend)) return;
 		const candidates = saved?.candidates ?? [{ backend, deviceHandle: route.handle }];
-		perform({ type: 'open-audio-session', request: createNativeAudioRouteOpenRequest({
+		perform({ type: 'open-audio-session', request: {
 			candidates, direction, mode, sampleRate, periodFrames, channelCount,
-		}) });
+		} });
 	};
 	return <li data-native-audio-route={route.handle}>
 		<strong>{route.label}</strong>
@@ -317,7 +319,7 @@ function AudioRouteControl({ copy, backend, route, preference, availableBackends
 			disabled={disabled} data-native-audio-channel-count={route.handle}
 			onChange={(event) => setChannelCount(Math.max(1,
 				Math.min(maximumChannels, Number(event.currentTarget.value))))} /></label>
-		<button type="button" disabled={disabled || !isStreamingBackend(backend)}
+		<button type="button" disabled={disabled || !isNativeAudioStreamingBackend(backend)}
 			data-native-audio-open={route.handle} onClick={open}>{copy.openAudioSession}</button>
 	</li>;
 }
@@ -394,38 +396,6 @@ function savedRouteUnavailable(preference: NativeAudioSessionOpenRequestV1 | nul
 
 function numericChoices(values: readonly number[], selected: number): readonly number[] {
 	return [...new Set([...values, selected])].sort((left, right) => left - right);
-}
-
-type NativeAudioStreamingUiBackend = Exclude<
-	NativeAudioSessionOpenRequestV1['candidates'][number]['backend'], 'jack'
->;
-
-function isStreamingBackend(value: string): value is NativeAudioStreamingUiBackend {
-	return ['coreaudio', 'wasapi', 'asio', 'pipewire', 'alsa'].includes(value);
-}
-
-/** Build the exact request issued by a changed route form; no defaults are substituted here. */
-export function createNativeAudioRouteOpenRequest(
-	value: NativeAudioSessionOpenRequestV1,
-): NativeAudioSessionOpenRequestV1 {
-	if (value.candidates.length < 1 || value.candidates.length > 4
-		|| value.candidates.some((candidate) => !isStreamingBackend(candidate.backend)
-			|| !candidate.deviceHandle || /[\0/\\]/u.test(candidate.deviceHandle))
-		|| !['input', 'output', 'duplex'].includes(value.direction)
-		|| !['shared', 'exclusive'].includes(value.mode)
-		|| value.candidates.some((candidate) => candidate.backend === 'asio') && value.mode !== 'exclusive') {
-		throw new TypeError('Invalid native audio route selection.');
-	}
-	for (const [entry, minimum, maximum] of [
-		[value.sampleRate, 8_000, 768_000], [value.periodFrames, 1, 16_384], [value.channelCount, 1, 32],
-	] as const) if (!Number.isSafeInteger(entry) || entry < minimum || entry > maximum) {
-		throw new RangeError('A native audio route value is outside its admitted bounds.');
-	}
-	return Object.freeze({
-		candidates: Object.freeze(value.candidates.map((candidate) => Object.freeze({ ...candidate }))),
-		direction: value.direction, mode: value.mode, sampleRate: value.sampleRate,
-		periodFrames: value.periodFrames, channelCount: value.channelCount,
-	});
 }
 
 function calibrationUnavailableText(copy: SoundscaperNativeServicesCopy,

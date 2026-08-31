@@ -18,6 +18,7 @@ import {
 import type {
 	SoundscaperNativeServicesDialogRuntime,
 } from '../src/common/editor/ui/soundscaper-native-services-dialog-runtime.ts';
+import { createSoundscaperNativeServicesDialogRuntime } from '../src/common/editor/ui/soundscaper-native-services-dialog-runtime.ts';
 import SoundscaperNativeServicesDialog, {
 	createNativeAudioRouteOpenRequest,
 } from '../src/common/editor/ui/dialogs/SoundscaperNativeServicesDialog.tsx';
@@ -154,6 +155,68 @@ test('a device handle reused by another backend receives that backend route defa
 			assert.equal(action.request.mode, 'exclusive');
 			assert.equal(action.request.direction, 'input');
 		}
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('invalid restored route combinations report through dialog status without escaping the click', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const preference = createNativeAudioRouteOpenRequest({
+		candidates: [
+			{ backend: 'asio', deviceHandle: 'unavailable-asio' },
+			{ backend: 'wasapi', deviceHandle: 'speakers' },
+		],
+		direction: 'output', mode: 'exclusive', sampleRate: 48_000, periodFrames: 256, channelCount: 2,
+	});
+	const initialState: SoundscaperNativeServicesDialogState = {
+		...routeState('wasapi'),
+		audio: { ...routeState('wasapi').audio!, routePreference: preference },
+		devices: { status: 'described', inventory: {
+			backend: 'wasapi', status: 'ready', detail: '', devices: [
+				{ handle: 'speakers', label: 'Speakers', direction: 'output', channelCount: 2 },
+			],
+		} },
+	};
+	let bridgeOpenCalled = false;
+	const runtime = createSoundscaperNativeServicesDialogRuntime({
+		nativeAudioHelperAvailability: async () => initialState.audio!,
+		nativePluginAvailability: async () => ({
+			enabled: false, quarantined: false, payload: { status: 'unavailable', reason: null },
+			formats: [], consent: { scanningEnabled: false, formats: [] },
+			quarantine: { loaded: true, degraded: false, records: [], pendingFaults: 0 },
+		}),
+		listNativePlugins: async () => ({ entries: [] }),
+		openNativeAudioSession: async () => {
+			bridgeOpenCalled = true;
+			throw new Error('invalid request reached the bridge');
+		},
+	} as unknown as SoundscaperNativeServicesBridge, initialState);
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperNativeServicesDialog
+			bridge={bridge}
+			runtime={runtime}
+			initialSurface="native-audio-device"
+			onClose={() => undefined}
+		/>));
+		await act(async () => {
+			reactProps(dom.one('[data-native-audio-mode="speakers"]')).onChange({
+				currentTarget: { value: 'shared' },
+			});
+		});
+		await act(async () => {
+			reactProps(dom.one('[data-native-audio-open="speakers"]')).onClick({});
+			await new Promise<void>((resolve) => setImmediate(resolve));
+		});
+		assert.match(dom.one('[role="status"]').textContent, /invalid native audio route selection/iu);
+		assert.equal(bridgeOpenCalled, false);
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

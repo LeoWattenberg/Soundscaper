@@ -27,6 +27,7 @@ import type {
 	NativePluginVendorWindowV1,
 	SoundscaperNativeServicesBridge,
 } from './soundscaper-native-services-bridge.ts';
+import { createNativeAudioRouteOpenRequest } from './soundscaper-native-audio-route.ts';
 
 export interface SoundscaperNativeScanState {
 	readonly format: string;
@@ -269,7 +270,7 @@ async function perform(
 		return Object.freeze({ audio: await bridge.nativeAudioHelperAvailability() });
 	}
 	if (action.type === 'open-audio-session') {
-		const opened = await bridge.openNativeAudioSession(action.request);
+		const opened = await bridge.openNativeAudioSession(createNativeAudioRouteOpenRequest(action.request));
 		if (opened.status !== 'opened') throw new Error(opened.message);
 		return Object.freeze({
 			audioSession: await bridge.nativeAudioSessionStatus({ sessionId: opened.sessionId }),
