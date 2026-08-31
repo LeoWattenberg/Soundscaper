@@ -245,6 +245,28 @@ test('changed-content relink admits a silent video with different bytes and publ
 	assert.deepEqual(fixture.releases, []);
 });
 
+test('changed-content relink inherits the current MIME type for a typeless video snapshot', async (context) => {
+	const originalBody = new Blob(['old typed silent bytes'], { type: 'video/webm' });
+	const changedBody = new Blob(['new typeless silent replacement bytes']);
+	const source = Object.freeze({ ...videoSource(), mimeType: 'video/webm', videoCodec: 'vp9' });
+	const fixture = await relinkFixture(context, originalBody, source);
+	fixture.snapshots.set(NEW_LOCATOR_ID, snapshot(changedBody, NEW_LOCATOR_REVISION));
+
+	const rebound = await fixture.store.relinkLinkedVideoOriginal(
+		PROJECT_ID,
+		source,
+		NEW_LOCATOR_ID,
+		{
+			admission: 'changed-content',
+			expectedBindingToken: fixture.original.bindingToken,
+			expectedLocatorRevision: NEW_LOCATOR_REVISION,
+			expectedSnapshot: changedBody,
+		},
+	);
+
+	assert.equal(rebound.mimeType, fixture.original.mimeType);
+});
+
 test('changed-content relink refuses a video source that retains extracted audio', async (context) => {
 	const originalBody = new Blob(['audible original retained bytes'], { type: 'video/mp4' });
 	const changedBody = new Blob(['audible replacement retained bytes!'], { type: 'video/mp4' });

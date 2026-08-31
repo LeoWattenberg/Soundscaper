@@ -563,7 +563,7 @@ async function changedContentRelinkSnapshot(
 			+ 'changed-content relink requires a silent video source.',
 		);
 	}
-	if ((selected.type || 'video/mp4') !== current.mimeType) {
+	if ((selected.type || current.mimeType) !== current.mimeType) {
 		throw new Error('The selected linked video original does not match the current MIME type.');
 	}
 	throwIfRelinkAborted(options.signal, 'video');
