@@ -12,7 +12,6 @@
 #include <winternl.h>
 
 #include <algorithm>
-#include <array>
 #include <climits>
 #include <cstddef>
 #include <cstdint>
@@ -392,19 +391,20 @@ recovery_result inspect_platform_final(const final_inspection_request& request) 
 		fail_windows("final-inspection-failed", "inspect-final-seek", true);
 	}
 	sha256 digest;
-	std::array<std::byte, 1024U * 1024U> buffer{};
+	constexpr std::size_t authentication_buffer_bytes = 1024U * 1024U;
+	auto buffer = std::make_unique<std::byte[]>(authentication_buffer_bytes);
 	std::uint64_t offset = 0;
 	const auto length = static_cast<std::uint64_t>(size.QuadPart);
 	while (offset < length) {
 		const auto amount = static_cast<DWORD>(
-			std::min<std::uint64_t>(buffer.size(), length - offset));
+			std::min<std::uint64_t>(authentication_buffer_bytes, length - offset));
 		DWORD count = 0;
-		if (!ReadFile(file.get(), buffer.data(), amount, &count, nullptr)) {
+		if (!ReadFile(file.get(), buffer.get(), amount, &count, nullptr)) {
 			fail_windows("final-inspection-failed", "inspect-final-read", true);
 		}
 		if (count == 0) throw protocol_error("final-inspection-failed", "inspect-final-read", true,
 			"The Windows final delivery file returned an early end of file.");
-		digest.update(std::span(buffer).first(count));
+		digest.update(std::span(buffer.get(), count));
 		offset += count;
 	}
 	LARGE_INTEGER after_size {};
