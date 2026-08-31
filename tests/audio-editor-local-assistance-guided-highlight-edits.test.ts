@@ -22,7 +22,7 @@ test('Guided highlight edits stay bounded to the authenticated proposal', () => 
 	const trimmed = setLocalAssistanceGuidedHighlightTrimV1(original, titled,
 		'highlight-a', 12_000, 48_000, sourceTimeAuthority());
 	const edited = setLocalAssistanceGuidedHighlightCropV1(trimmed, 'highlight-a', 12,
-		{ left: 0.2, top: 0, right: 0.48, bottom: 0 });
+		{ left: 0.2, top: 0, right: 0.48359375, bottom: 0 }, sourceTimeAuthority());
 	const proposal = edited.proposals[0]!;
 	assert.equal(proposal.title, 'A tighter opening');
 	assert.deepEqual({ startFrame: proposal.startFrame, endFrame: proposal.endFrame,
@@ -31,7 +31,7 @@ test('Guided highlight edits stay bounded to the authenticated proposal', () => 
 	});
 	assert.deepEqual(proposal.cropKeyframes.map(({ sourceFrame }) => sourceFrame), [12, 47]);
 	assert.deepEqual(proposal.cropKeyframes[0]?.crop,
-		{ left: 0.2, top: 0, right: 0.48, bottom: 0 });
+		{ left: 0.2, top: 0, right: 0.48359375, bottom: 0 });
 	assert.equal(Object.isFrozen(proposal.cropKeyframes), true);
 	assert.deepEqual(validateLocalAssistanceGuidedHighlightDraftV1(
 		original, edited, sourceTimeAuthority(),
@@ -83,7 +83,12 @@ test('Guided highlight drafts cannot rewrite evidence, identities, or unsafe tex
 	), /title/iu);
 	assert.throws(() => setLocalAssistanceGuidedHighlightCropV1(
 		draft, 'highlight-a', 0, { left: 0.6, top: 0, right: 0.5, bottom: 0 },
+		sourceTimeAuthority(),
 	), /crop|aperture/iu);
+	assert.throws(() => setLocalAssistanceGuidedHighlightCropV1(
+		draft, 'highlight-a', 0, { left: 0.1, top: 0.1, right: 0.1, bottom: 0.1 },
+		sourceTimeAuthority(),
+	), /target aspect/iu);
 	assert.throws(() => validateLocalAssistanceGuidedHighlightDraftV1(original, {
 		...draft, proposals: [{ ...draft.proposals[0]!, score: 1 }],
 	}, sourceTimeAuthority()), /evidence|authority|rewrite/iu);

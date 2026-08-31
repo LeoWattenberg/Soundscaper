@@ -80,8 +80,13 @@ export function setLocalAssistanceGuidedHighlightCropV1(
 	proposalId: string,
 	sourceFrame: number,
 	crop: Crop,
+	sourceTimeAuthorityValue: unknown,
 ): AssistanceOwnedHighlightProposalsV1 {
 	const draft = proposals(draftValue);
+	const sourceTimeAuthority = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(
+		sourceTimeAuthorityValue,
+	);
+	assertTargetAspect(draft, sourceTimeAuthority, crop);
 	return proposals({ ...draft, proposals: replace(draft, proposalId, (proposal) => {
 		if (!Number.isSafeInteger(sourceFrame)) {
 			throw new RangeError('A Guided highlight crop frame is invalid.');
@@ -95,6 +100,20 @@ export function setLocalAssistanceGuidedHighlightCropV1(
 		if (!found) throw new RangeError('A Guided highlight crop must edit an admitted keyframe.');
 		return { ...proposal, cropKeyframes };
 	}) });
+}
+
+function assertTargetAspect(
+	value: AssistanceOwnedHighlightProposalsV1,
+	authority: LocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+	crop: Crop,
+): void {
+	const width = (1 - crop.left - crop.right) * authority.sourceWidth;
+	const height = (1 - crop.top - crop.bottom) * authority.sourceHeight;
+	const target = value.targetAspect.width / value.targetAspect.height;
+	if (!Number.isFinite(width) || !Number.isFinite(height) || height <= 0
+		|| Math.abs((width / height) - target) > 0.000_001) {
+		throw new RangeError('A Guided highlight crop must preserve its target aspect.');
+	}
 }
 
 export function validateLocalAssistanceGuidedHighlightDraftV1(

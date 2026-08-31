@@ -382,7 +382,7 @@ export function createLocalAssistanceGuidedSessionStore(
 		crop: Readonly<{ left: number; top: number; right: number; bottom: number }>): void => {
 		const draft = openHighlightDraft(snapshot);
 		update({ highlightDraft: setLocalAssistanceGuidedHighlightCropV1(
-			draft, proposalId, sourceFrame, crop,
+			draft, proposalId, sourceFrame, crop, snapshot.highlightSourceTimeAuthority,
 		) });
 	};
 	const accept = async (): Promise<void> => {
