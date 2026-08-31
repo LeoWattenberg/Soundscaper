@@ -48,14 +48,15 @@ export function useWorkspaceAssistanceSearchRuntime({ project, source }) {
 			projectId: project.id, projectRevision: project.revision,
 		})).then((session) => {
 			if (openingRef.current !== ownedOpening) {
-				return session.dispose();
+				void session.dispose().catch(() => undefined);
+				return undefined;
 			}
 			sessionRef.current = session;
 			setState(Object.freeze({
 				status: 'ready', revision, coordinator: session.coordinator, message: null,
 			}));
 			return undefined;
-		}, (error) => {
+		}).catch((error) => {
 			if (openingRef.current !== ownedOpening) return;
 			setState(Object.freeze({
 				status: 'unavailable', revision, coordinator: null,
