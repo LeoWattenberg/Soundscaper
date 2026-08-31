@@ -198,6 +198,14 @@ function childIndexOf(plan: TrackListRowPlan, sequenceId: string, parentFolderId
 	return -1;
 }
 
+function childCountOf(plan: TrackListRowPlan, sequenceId: string, parentFolderId: string | null): number {
+	return plan.entries.filter((entry) => {
+		const entrySequenceId = entry.kind === 'folder' ? entry.row.sequenceId : entry.sequenceId;
+		const entryParent = entry.kind === 'folder' ? entry.row.parentFolderId : entry.parentFolderId;
+		return entrySequenceId === sequenceId && entryParent === parentFolderId;
+	}).length;
+}
+
 /**
  * Resolve one Alt-modified tree keystroke into a structural move. The payload
  * is exactly the folder-aware move command, so a keyboard move and a pointer
@@ -219,7 +227,7 @@ export function resolveTrackFolderMoveKey(
 				parentFolderId: row.parentFolderId, index: childIndex - 1,
 			};
 		case 'ArrowDown':
-			return {
+			return childIndex === childCountOf(plan, row.sequenceId, row.parentFolderId) - 1 ? null : {
 				kind: 'move', sequenceId: row.sequenceId, nodeId: row.id,
 				parentFolderId: row.parentFolderId, index: childIndex + 1,
 			};

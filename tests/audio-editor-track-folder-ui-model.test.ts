@@ -172,6 +172,8 @@ test('alt-modified keys resolve structural moves identical to a pointer drop', (
 	assert.deepEqual(resolveTrackFolderMoveKey('ArrowDown', 'band', rows), {
 		kind: 'move', sequenceId: 'main', nodeId: 'band', parentFolderId: null, index: 1,
 	});
+	assert.equal(resolveTrackFolderMoveKey('ArrowDown', 'drums', rows), null,
+		'a folder already last among its parent children must not emit an undoable no-op');
 	// drums unnests to sit right after band at the root.
 	assert.deepEqual(resolveTrackFolderMoveKey('ArrowLeft', 'drums', rows), {
 		kind: 'move', sequenceId: 'main', nodeId: 'drums', parentFolderId: null, index: 1,
