@@ -18,7 +18,7 @@
 		"src/common/editor/aup4-export.js": { "maxLines": 877, "reason": "AUP4 exporter with interoperability fixtures and release audit." },
 		"src/common/editor/aup4-profile.js": { "maxLines": 961, "reason": "Audacity profile and plug-in metadata compatibility mapping." },
 		"src/common/editor/aup4-worker.js": { "maxLines": 786, "reason": "Legacy worker-side AUP4 database command boundary." },
-		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 887, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
+		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 874, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
 		"src/common/editor/nyquist/plugins/catalog.js": { "maxLines": 630, "reason": "Reviewed bundled Nyquist plug-in catalog." },
 		"src/common/editor/parametric-eq/native/parametric_eq_wasm.cpp": { "maxLines": 1570, "reason": "First-party parametric-EQ WASM implementation predating the native size gate; split DSP design, processing, and ABI surfaces before extending it." },
 		"src/common/editor/recording.js": { "maxLines": 674, "reason": "Legacy recording graph and device lifecycle implementation." },

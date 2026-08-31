@@ -17,6 +17,7 @@ import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
 import { checkedPublicationByteSum, estimatePcmRenderPublication } from './publication-byte-estimates.ts';
 import { estimateClipTimePitchRenderAdmission, normalizeClipTimePitchRenderMaximumBytes } from './clip-time-pitch-render-admission.ts';
 import { ClipTimePitchCacheSessionFence } from './clip-time-pitch-cache-session.ts';
+import { cloneJson, reverseFloat32, stableSerialize } from './clip-time-pitch-cache-values.ts';
 import {
 	finiteRange,
 	integerRange,
@@ -855,11 +856,6 @@ function abortError() {
 function throwIfAborted(signal) {
 	if (signal?.aborted) throw abortError();
 }
-function reverseFloat32(input) {
-	const output = new Float32Array(input.length);
-	for (let index = 0; index < input.length; index += 1) output[index] = input[input.length - index - 1];
-	return output;
-}
 function sourceRevision(source) {
 	const value = source.revision ?? source.opaqueExtensions?.revision ?? source.opaqueExtensions?.sourceRevision ?? 0;
 	return nonNegativeInteger(value, 'source revision');
@@ -875,14 +871,4 @@ function isAudioBufferLike(value) {
 	return Boolean(value && Number.isSafeInteger(value.numberOfChannels) && value.numberOfChannels > 0
 		&& Number.isSafeInteger(value.length) && value.length > 0
 		&& typeof value.getChannelData === 'function');
-}
-function stableSerialize(value) {
-	if (value === null || typeof value !== 'object') return JSON.stringify(Object.is(value, -0) ? 0 : value);
-	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
-	return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`;
-}
-function cloneJson(value) {
-	if (value == null) return value;
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value));
 }
