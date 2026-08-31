@@ -4,6 +4,7 @@ import React, {
 	type FormEvent,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from 'react';
 
@@ -66,12 +67,15 @@ export default function VideoCompositionDialog({
 	const [pending, setPending] = useState(false);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
+	const compositionRef = useRef(model.composition);
+	compositionRef.current = model.composition;
+	const compositionResetKey = JSON.stringify([model.clipId, model.composition]);
 
 	useEffect(() => {
-		setDraft(createVideoCompositionDraft(model.composition ?? DEFAULT_VIDEO_CLIP_COMPOSITION));
+		setDraft(createVideoCompositionDraft(compositionRef.current ?? DEFAULT_VIDEO_CLIP_COMPOSITION));
 		setStatus('');
 		setError('');
-	}, [model.clipId, model.composition]);
+	}, [compositionResetKey]);
 
 	const disabled = model.operationsBlocked || pending;
 	const descriptionId = 'video-composition-description';

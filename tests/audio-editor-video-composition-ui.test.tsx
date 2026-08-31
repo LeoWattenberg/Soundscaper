@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import {
@@ -20,6 +20,7 @@ import {
 } from '../src/common/editor/ui/video-composition-dialog-model.ts';
 import VideoCompositionDialog from '../src/common/editor/ui/inspector/VideoCompositionDialog.tsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 test('video composition is capability-gated for writable Framescaper v1 video clips', () => {
 	const opened: string[] = [];
@@ -189,6 +190,41 @@ test('video composition dialog exposes every field, reset/apply, and accessible 
 	/>);
 	assert.match(lockedMarkup, /<fieldset[^>]*disabled=""[^>]*>[\s\S]*<legend>Crop<\/legend>/u);
 	assert.match(lockedMarkup, /Unlock the video track/u);
+});
+
+test('an unrelated controller snapshot preserves an in-progress composition draft', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const document = project();
+	const controller = { actions: { edit: { commit: () => undefined } } };
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const render = (historyRevision: number) => root.render(<VideoCompositionDialog
+		productId="framescaper"
+		capability
+		controller={controller}
+		snapshot={{ project: document, selectedClipId: 'video', historyRevision }}
+		copy={{}}
+		run={(operation) => operation()}
+		onClose={() => undefined}
+	/>);
+	try {
+		await act(async () => render(1));
+		await act(async () => {
+			reactProps(dom.one('[data-video-composition-field="crop-left"]')).onChange({
+				currentTarget: { value: '25' },
+			});
+		});
+		assert.equal(dom.one('[data-video-composition-field="crop-left"]').value, '25');
+		await act(async () => render(2));
+		assert.equal(dom.one('[data-video-composition-field="crop-left"]').value, '25');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('video composition remains menu-reached and capability guarded in workspace wiring', async () => {
