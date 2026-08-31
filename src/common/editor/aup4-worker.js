@@ -19,6 +19,7 @@ import {
 	writeAup4Document,
 } from './aup4-database.js';
 import { decodeAudacityProjectTree } from './aup4-conversion.js';
+import { Aup4WorkerRequestState } from './aup4-worker-request-state.ts';
 import {
 	createAup4ExportPlan,
 	normalizeAup4ExportSource,
@@ -32,7 +33,6 @@ import {
 	effectiveAup4SaveLimit,
 } from './aup4-profile.js';
 import { sanitizeAup4Document } from './aup4-sanitization.js';
-
 const DATABASE_DIRECTORY = 'kw-media/audio-editor/aup4';
 const VFS_NAME = 'kw-media-aup4';
 const INITIAL_POOL_CAPACITY = 12;
@@ -41,14 +41,13 @@ const WORKER_VALIDATION_OPTIONS = Object.freeze({ allowHistoryRecovery: false, r
 const projects = new Map();
 const snapshotWrites = new Map();
 const activeSnapshotByProject = new Map();
-const cancelled = new Set();
+const requestState = new Aup4WorkerRequestState();
 let sqlitePromise;
 let poolPromise;
-
 globalThis.addEventListener('message', (event) => {
 	const message = event.data || {};
 	if (message.type === 'cancel') {
-		cancelled.add(message.id);
+		requestState.cancel(message.id);
 		return;
 	}
 	void dispatch(message).catch((error) => {
@@ -58,11 +57,12 @@ globalThis.addEventListener('message', (event) => {
 
 async function dispatch(message) {
 	if (!message.id || typeof message.type !== 'string') return;
+	requestState.begin(message.id);
 	const context = {
 		id: message.id,
 		progress(value, phase, detail = null) { postMessage({ id: message.id, progress: { value, phase, detail } }); },
 		checkCancelled() {
-			if (cancelled.has(message.id)) throw operationError('The AUP4 operation was cancelled.', 'ABORTED');
+			if (requestState.isCancelled(message.id)) throw operationError('The AUP4 operation was cancelled.', 'ABORTED');
 		},
 	};
 	try {
@@ -70,7 +70,7 @@ async function dispatch(message) {
 		const transfer = collectTransferables(result);
 		postMessage({ id: message.id, result }, transfer);
 	} finally {
-		cancelled.delete(message.id);
+		requestState.finish(message.id);
 	}
 }
 
