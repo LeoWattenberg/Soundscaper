@@ -503,11 +503,6 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/source-import.ts": {
-    "preserve-caught-error": {
-      "count": 1
-    }
-  },
   "src/common/editor/controller/source-lifecycle-service.ts": {
     "preserve-caught-error": {
       "count": 1

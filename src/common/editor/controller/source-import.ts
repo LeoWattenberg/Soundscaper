@@ -6,10 +6,8 @@ import {
 } from '../video-preview-capture-admission.ts';
 import { linkedVideoLocatorReferenceFromImportOptions } from './project-import-options.ts';
 import { sampleFrameToVideoFrame } from '../timeline-time.ts';
-import { digestMediaContent } from '../storage/media-content-digest.ts';
 import type {
 	OwnedMediaAssetPublication,
-	OwnedMediaAssetWriter,
 } from '../storage/media-asset-write-contract.ts';
 import { createFfmpegVideoTimingProbe, probeVideoTiming } from '../video-timing-probe.ts';
 import { createContainerVideoTimingProbe } from '../video-timing-demux.ts';
@@ -22,6 +20,7 @@ import { planVideoImportTiming } from './video-import-timing.ts';
 import { createImportedAudioContentIdentityWriter, rollbackImportedAudioContentIdentityWriter,
 	type ImportedAudioContentIdentity } from './imported-audio-content-identity.ts';
 import { decodeImportedVideoAudio } from './video-import-audio-decode.ts';
+import { digestImportedVideoFile, publishImportedVideo } from './source-import-video-publication.ts';
 export interface ImportVideoRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,7 +193,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				);
 				sourceContentSha256 = published.sha256;
 				mediaPublication = published.publication;
-			} else sourceContentSha256 = await digestImportFile(canonicalVideoFile);
+			} else sourceContentSha256 = await digestImportedVideoFile(canonicalVideoFile);
 			let timingAsset = null;
 			if (timingProbe.decision === 'timing-asset') {
 				const published = await publishVideoTimingAsset(store, sourceContentSha256, timingProbe.timing);
@@ -538,65 +537,6 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		}
 	}
 	return importVideoFile;
-}
-
-async function digestImportFile(file: RuntimeValue): Promise<string> {
-	if (file instanceof Blob) return digestMediaContent(file);
-	if (typeof file?.arrayBuffer !== 'function') throw new TypeError('Video media must provide bytes for digest binding.');
-	return digestMediaContent(new Blob([await file.arrayBuffer()]));
-}
-
-async function publishImportedVideo(
-	store: RuntimeValue,
-	storageKey: string,
-	file: RuntimeValue,
-	metadata: Readonly<Record<string, unknown>>,
-	signal?: AbortSignal,
-): Promise<Readonly<{ sha256: string; publication: OwnedMediaAssetPublication }>> {
-	const body = file instanceof Blob
-		? file
-		: new Blob([await file.arrayBuffer()], { type: typeof file?.type === 'string' ? file.type : '' });
-	if (!body.size) throw new RangeError('Video media must contain at least one byte.');
-	const sha256 = await digestMediaContent(body);
-	const writer = await store.beginMediaAssetWrite(storageKey, metadata, {
-		expectedBytes: body.size,
-		expectedSha256: sha256,
-		signal,
-	}) as OwnedMediaAssetWriter;
-	let publication: OwnedMediaAssetPublication | null = null;
-	try {
-		const maximumChunkBytes = positiveWriterChunkBytes(writer.maximumChunkBytes);
-		for (let offset = 0; offset < body.size; offset += maximumChunkBytes) {
-			throwIfImportAborted(signal);
-			const end = Math.min(offset + maximumChunkBytes, body.size);
-			const bytes = new Uint8Array(await body.slice(offset, end).arrayBuffer());
-			if (bytes.byteLength !== end - offset) throw new Error('Video media returned an incomplete byte range.');
-			await writer.write(bytes, { signal });
-		}
-		if (writer.bytesWritten !== body.size) throw new Error('Video media emitted an unexpected byte length.');
-		publication = await writer.commitOwned({ signal });
-		throwIfImportAborted(signal);
-		if (!publication || typeof publication.discardIfCurrent !== 'function'
-			|| publication.metadata.sha256 !== sha256 || publication.metadata.size !== body.size) {
-			throw new Error('Published video metadata disagrees with its admitted content.');
-		}
-		return Object.freeze({ sha256, publication });
-	} catch (error) {
-		try {
-			if (publication) await publication.discardIfCurrent();
-			else await writer.abort();
-		} catch (cleanupError) {
-			throw new AggregateError([error, cleanupError], 'Video publication and cleanup both failed.', { cause: error });
-		}
-		throw error;
-	}
-}
-
-function positiveWriterChunkBytes(value: unknown): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError('The video media writer has an invalid chunk bound.');
-	}
-	return Number(value);
 }
 
 function throwIfImportAborted(signal?: AbortSignal): void {
