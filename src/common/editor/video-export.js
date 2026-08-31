@@ -8,6 +8,7 @@ import {
 import { isTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 import { assertStaticVideoKeyframesForExport } from './video-keyframe-export-admission.ts';
+import { resolveVideoKeyframeExportFrameCount } from './video-keyframe-export-frame-source.ts';
 import { approximatePositiveRational } from './rational-approximation.ts';
 import {
 	isRuntimeProjectProjection,
@@ -253,10 +254,16 @@ export function createVideoExportPlan(project, options = {}) {
 	// intervals below do. Deriving it from the whole project meant a selection
 	// export could be framed and timed by a clip it never shows, and could name a
 	// reference clip the plan's own inputs do not contain.
-	const canvas = resolveVideoExportCanvas(runtimeProject, {
+	const canvasOptions = {
 		...(options.canvas || {}),
 		range,
 		...(options.isTrackVisible === undefined ? {} : { isTrackVisible: options.isTrackVisible }),
+	};
+	const exactCanvas = exactVideoExportCanvas(runtimeProject, canvasOptions);
+	const canvas = Object.freeze({
+		...exactCanvas,
+		frameRate: exactCanvas.frameRate.num / exactCanvas.frameRate.den,
+		maximumFrameRate: exactCanvas.maximumFrameRate.num / exactCanvas.maximumFrameRate.den,
 	});
 	const compositionIntervals = resolveVideoCompositionIntervals(runtimeProject, {
 		startFrame: range.startFrame,
@@ -390,7 +397,11 @@ export function createVideoExportPlan(project, options = {}) {
 		captions,
 		range,
 		durationSeconds,
-		outputFrameCount: Math.max(1, Math.ceil(durationSeconds * canvas.frameRate)),
+		outputFrameCount: resolveVideoKeyframeExportFrameCount(
+			range.durationFrames,
+			projectSampleRate,
+			exactCanvas.frameRate,
+		),
 		canvas,
 		inputs,
 		intervals,

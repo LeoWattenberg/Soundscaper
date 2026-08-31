@@ -160,6 +160,24 @@ test('the plan carries its canvas fit under the canonical version that can state
 	assert.equal(plan.canvas.height, 1_920);
 });
 
+test('the composed plan counts exact CFR frames without floating-point overstatement', () => {
+	const value = project();
+	const durationFrames = 776_776;
+	value.sampleRate = 48_000;
+	value.sources[0].sampleRate = 48_000;
+	value.sources[0].frameCount = durationFrames;
+	value.clips[0].sourceDurationFrames = durationFrames;
+	value.clips[0].durationFrames = durationFrames;
+
+	const plan = createVideoExportPlan(value, {
+		includeAudio: false,
+		range: { startFrame: 0, endFrame: durationFrames },
+		canvas: { frameRate: { num: 30_000, den: 1_001 } },
+	});
+
+	assert.equal(plan.outputFrameCount, 485);
+});
+
 test('each fit states the operation that reaches the canvas, and contain states the one it always did', () => {
 	const operations = (fit) => createVideoExportPlan(project(), {
 		includeAudio: false,
