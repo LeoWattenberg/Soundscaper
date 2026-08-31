@@ -7,7 +7,14 @@ import {
 	createEditorExportService,
 	type ExportServiceRuntime,
 } from '../src/common/editor/controller/export-service.ts';
+import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
+import {
+	createAudioClip,
+	createAudioSource,
+	createAudioTrack,
+} from '../src/common/editor/project-media-factory.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const PRE_DATA = Uint8Array.of(0x63, 0x68, 0x6e, 0x61, 0, 0, 0, 0);
 const TRAILING = Uint8Array.of(0x61, 0x78, 0x6d, 0x6c, 0, 0, 0, 0);
@@ -19,7 +26,7 @@ test('offline and realtime BW64 exports forward ADM chunks and retain six channe
 	assert.equal(offlineOutput.mimeType, 'audio/wav');
 	assert.equal(offline.planOptions[0]?.inputChannelCount, 2);
 	assert.equal(offline.wavChannelCounts[0], 6);
-	assert.equal(offline.renderProjects[0]?.masterChannels, 6);
+	assertBw64RenderProject(offline.renderProjects[0]);
 	assert.equal((offline.renderProjects[0]?.metadata as { adm?: { mode?: string } })?.adm?.mode, 'authored');
 	assertBw64Options(offline.wavOptions.at(-1));
 	assert.deepEqual(offline.errors, []);
@@ -28,7 +35,7 @@ test('offline and realtime BW64 exports forward ADM chunks and retain six channe
 	const realtimeOutput = await createEditorExportService(realtime.runtime).handleExportAction('export');
 	assert.equal(realtimeOutput.mimeType, 'audio/wav');
 	assert.equal(realtime.resamplerChannelCounts[0], 6);
-	assert.equal(realtime.renderProjects[0]?.masterChannels, 6);
+	assertBw64RenderProject(realtime.renderProjects[0]);
 	assertBw64Options(realtime.streamOptions.at(-1));
 	assert.deepEqual(realtime.errors, []);
 });
@@ -36,12 +43,22 @@ test('offline and realtime BW64 exports forward ADM chunks and retain six channe
 function harness(strategy: 'offline' | 'realtime-stream') {
 	const channels = Array.from({ length: 6 }, (_, channel) => Float32Array.of(channel / 10, 0));
 	const audio = { sampleRate: 48_000, length: 2, numberOfChannels: 6, channels };
-	const project = {
-		id: 'project', title: 'ADM', sampleRate: 48_000, masterChannels: 2, metadata: { adm: null },
-		clips: [{ id: 'clip', kind: 'audio', sourceId: 'source' }],
-		tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'] }],
-		sources: [{ id: 'source' }],
-	};
+	const source = createAudioSource({
+		id: 'source', storageKey: 'source', name: 'Source', mimeType: 'audio/wav',
+		frameCount: 2, channelCount: 6, sampleRate: 48_000,
+	});
+	const clip = createAudioClip({
+		id: 'clip', sourceId: source.id, title: 'Clip', timelineStartFrame: 0,
+		sourceStartFrame: 0, sourceDurationFrames: 2, durationFrames: 2,
+	});
+	const project = createSoundscaperProject({
+		id: 'project', title: 'ADM', now: '2026-08-31T00:00:00.000Z', masterChannels: 2,
+		metadata: { adm: null }, sources: [source], clips: [clip],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', clipIds: [clip.id] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['track'] }],
+		primarySequenceId: 'main-sequence',
+		mixer: createDefaultMixerGraphV21([{ id: 'track', channelCount: 6 }], 2),
+	});
 	const plan = {
 		mode: 'mix', format: 'bw64', mimeType: 'audio/wav', sampleRate: 48_000, channelCount: 6,
 		container: 'bw64', preDataChunks: PRE_DATA, trailingChunks: TRAILING, bext: BEXT,
@@ -145,4 +162,18 @@ function assertBw64Options(options: Record<string, unknown> | undefined): void {
 	assert.deepEqual(options?.preDataChunks, PRE_DATA);
 	assert.deepEqual(options?.trailingChunks, TRAILING);
 	assert.deepEqual(options?.bext, BEXT);
+}
+
+function assertBw64RenderProject(project: Record<string, unknown> | undefined): void {
+	assert.equal(project?.masterChannels, 6);
+	const mixer = project?.mixer as ReturnType<typeof createDefaultMixerGraphV21> | undefined;
+	assert.equal(mixer?.outputs.find(({ role }) => role === 'main')?.channelCount, 6);
+	assert.deepEqual(
+		mixer?.edges.find(({ source, destination }) => (
+			source.kind === 'master'
+			&& destination.kind === 'output'
+			&& destination.id === 'main'
+		))?.channelMap,
+		[0, 1, 2, 3, 4, 5],
+	);
 }

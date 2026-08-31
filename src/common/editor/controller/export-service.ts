@@ -6,6 +6,7 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
 import { createExportRenderProject } from './export-render-project.ts';
+import { createBw64RenderProject } from './bw64-render-project.ts';
 import {
 	admitAudioRenderedFallbackExport,
 	assertAudioRenderedFallbackExportSettings,
@@ -234,11 +235,13 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 				sampleRate: exportProject.sampleRate,
 			});
 			if (plan.format === 'bw64' && plan.adm) {
-				exportProject = inheritTrackFolderMediaStateProjectionV12(exportProject, {
-					...exportProject,
-					masterChannels: plan.channelCount,
-					metadata: { ...exportProject.metadata, adm: plan.adm.metadata },
-				});
+				exportProject = inheritTrackFolderMediaStateProjectionV12(
+					exportProject,
+					createBw64RenderProject(exportProject, {
+						channelCount: plan.channelCount,
+						metadata: plan.adm.metadata,
+					}),
+				);
 			}
 			const directStemTemporaryBytes = directStemArchiveTemporaryBytes(plan);
 			const directCompressedTemporaryBytes = directCompressedStagingTemporaryBytes(plan);

@@ -11,6 +11,7 @@ import {
 import { DIRECT_PCM_RENDER_CHUNK_FRAMES } from '../src/common/editor/controller/direct-pcm-export.ts';
 import { createExportPlan } from '../src/common/editor/export.js';
 import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
+import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import { PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE } from '../src/common/editor/project-fallback-integrity.ts';
 import { createWavStreamEncoder, encodeWav } from '../src/common/editor/wav.js';
 
@@ -532,7 +533,7 @@ function projectFixture(frameCount: number, adm: boolean) {
 			id: 'track', type: 'audio', name: 'Track', clipIds: ['clip'],
 			effectsActive: true, effects: [],
 		}],
-		mixer: { groups: [], sends: [], routes: {} },
+		mixer: createDefaultMixerGraphV21([{ id: 'track', channelCount: 2 }], 2),
 		master: { effectsActive: true, effects: [] },
 	};
 }
