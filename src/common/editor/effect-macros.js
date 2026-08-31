@@ -132,7 +132,7 @@ export function parseAudacityEffectMacro(text, options = {}) {
 				? parseSoundscaperEffect(fields)
 				: parseAudacityEffect(effectType, command, fields));
 		} catch (error) {
-			if (error instanceof SyntaxError && /line \d+/.test(error.message)) throw error;
+			if (error instanceof SyntaxError && /^Invalid effect macro line \d+:/.test(error.message)) throw error;
 			const message = error instanceof Error ? error.message : String(error);
 			throw macroSyntaxError(lineNumber, message, error);
 		}

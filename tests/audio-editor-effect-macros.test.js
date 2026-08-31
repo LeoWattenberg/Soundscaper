@@ -242,6 +242,11 @@ test('supported malformed lines reject the whole import before IDs are allocated
 	assert.throws(() => parseAudacityEffectMacro('Echo:Use_Preset="Telephone"'), /unresolved Audacity preset/);
 	assert.throws(() => parseAudacityEffectMacro('Echo:Future="1"'), /Unsupported Echo parameter/);
 	assert.throws(() => parseAudacityEffectMacro('FilterCurve:f0="20"'), /contiguous fN\/vN pairs/);
+	assert.throws(() => parseAudacityEffectMacro([
+		'SelectAll:',
+		'',
+		'SoundscaperEffect:Type="highpass" Params="{\\"frequency\\":\\"bad\\nvalue\\"}"',
+	].join('\n')), /^SyntaxError: Invalid effect macro line 3:/u);
 	assert.throws(() => parseAudacityEffectMacro('SelectAll:\nExportWav:'), /no supported effects/);
 	assert.throws(() => serializeAudacityEffectMacro([
 		createEffect('audacity-invert', { id: 'off', enabled: false }),
