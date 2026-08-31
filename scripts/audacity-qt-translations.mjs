@@ -899,9 +899,7 @@ function asBytes(input, code) {
 	fail(code, 'Expected byte input.');
 }
 
-function sha256(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}
+function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 
 function sortRecord(record) {
 	return Object.fromEntries(Object.entries(record).sort(([left], [right]) => compareCodeUnits(left, right)));
@@ -928,9 +926,7 @@ function deepFreeze(value) {
 	return Object.freeze(value);
 }
 
-function fail(code, message) {
-	throw new TranslationArtifactError(code, message);
-}
+function fail(code, message) { throw new TranslationArtifactError(code, message); }
 
 function isMainModule() {
 	if (!process.argv[1]) return false;

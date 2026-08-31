@@ -2029,9 +2029,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 
 export const ENGLISH_COPY = COPY_BY_LOCALE.en;
 export const GERMAN_COPY = COPY_BY_LOCALE.de;
-export function bundledCopyForLocale(locale = 'en') {
-	return localeLanguage(locale) === 'de' ? GERMAN_COPY : ENGLISH_COPY;
-}
+export function bundledCopyForLocale(locale = 'en') { return localeLanguage(locale) === 'de' ? GERMAN_COPY : ENGLISH_COPY; }
 function deepFreeze(value) {
 	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
 	for (const child of Object.values(value)) deepFreeze(child);
