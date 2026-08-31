@@ -99,7 +99,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await showToolbarButton(page, editor, 'Split at playhead');
 		await importFiles(editor, [toneA]);
-		await seekOnRuler(editor, 60);
+		await seekOnRuler(page, editor, 60);
 		await editor.getByRole('button', { name: 'Split at playhead' }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();

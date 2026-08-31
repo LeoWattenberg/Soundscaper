@@ -155,8 +155,23 @@ export async function commitInput(input, value) {
 	await input.blur();
 }
 
-export async function seekOnRuler(editor, x) {
-	await editor.locator('[data-ruler]').click({ position: { x, y: 28 } });
+export async function seekOnRuler(page, editor, x) {
+	const ruler = editor.locator('[data-ruler]');
+	await ruler.click({ button: 'right', position: { x, y: 20 } });
+	const menu = page.locator('.timeline-ruler-context-menu');
+	const playback = menu.getByRole('menuitem', {
+		name: 'Click ruler to start playback', exact: true,
+	});
+	await expect(menu).toBeVisible();
+	if (await playback.locator('svg').count()) await playback.click();
+	else await page.keyboard.press('Escape');
+	await expect(menu).toBeHidden();
+	await ruler.click({ button: 'right', position: { x, y: 20 } });
+	await expect(menu).toBeVisible();
+	await expect(playback.locator('svg')).toHaveCount(0);
+	await page.keyboard.press('Escape');
+	await expect(menu).toBeHidden();
+	await ruler.click({ position: { x, y: 28 } });
 }
 
 export async function clickClipInterior(page, clip, position = 0.5) {

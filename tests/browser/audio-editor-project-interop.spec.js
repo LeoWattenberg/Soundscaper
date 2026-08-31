@@ -78,7 +78,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipField(clipDialog, 'startFrame')).toHaveValue('120');
 		await closeDialog(clipDialog);
 
-		await seekOnRuler(editor, 48);
+		await seekOnRuler(page, editor, 48);
 		await editor.getByRole('button', { name: 'Split at playhead' }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '3');
 		await editor.getByRole('button', { name: 'Undo' }).click();
