@@ -57,30 +57,25 @@ function assertFiniteMp4(bytes: Uint8Array): void {
 
 function assertFiniteWebm(bytes: Uint8Array): void {
 	let elements = 0;
-	const header = ebmlElement(bytes, 0, bytes.byteLength, () => {
+	const count = (): void => {
 		elements += 1;
 		if (elements > MAXIMUM_CONTAINER_ELEMENTS) invalidWebm();
-	});
+	};
+	const header = ebmlElement(bytes, 0, bytes.byteLength, count);
 	if (header.id !== WEBM_EBML || header.payloadBytes === 0) invalidWebm();
 	let hasWebmDocType = false;
-	forEachEbmlChild(bytes, header, () => { elements += 1; }, (child) => {
-		if (child.id === WEBM_DOCTYPE
+	forEachEbmlChild(bytes, header, count, (child) => {
+		if (child.id === WEBM_DOCTYPE && child.payloadBytes === 4
 			&& ascii(bytes, child.payloadOffset, child.payloadBytes) === 'webm') {
 			hasWebmDocType = true;
 		}
 	});
 	if (!hasWebmDocType) invalidWebm();
-	const segment = ebmlElement(bytes, header.end, bytes.byteLength, () => {
-		elements += 1;
-		if (elements > MAXIMUM_CONTAINER_ELEMENTS) invalidWebm();
-	});
+	const segment = ebmlElement(bytes, header.end, bytes.byteLength, count);
 	if (segment.id !== WEBM_SEGMENT || segment.end !== bytes.byteLength) invalidWebm();
 	let hasTracks = false;
 	let hasCluster = false;
-	forEachEbmlChild(bytes, segment, () => {
-		elements += 1;
-		if (elements > MAXIMUM_CONTAINER_ELEMENTS) invalidWebm();
-	}, (child) => {
+	forEachEbmlChild(bytes, segment, count, (child) => {
 		if (child.id === WEBM_TRACKS && child.payloadBytes > 0) hasTracks = true;
 		if (child.id === WEBM_CLUSTER && child.payloadBytes > 0) hasCluster = true;
 	});
