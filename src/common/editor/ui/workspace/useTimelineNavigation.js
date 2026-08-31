@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
+import {
+	centeredTimelinePlayheadScroll,
+	resolveTimelineViewportGeometry,
+} from './timeline-navigation-geometry.js';
 
 export function useTimelineNavigation({ controller, editorRef, project, run, snapshot, workspaceRef }) {
 	const pendingZoomAnchorRef = useRef(null);
 	const zoomProject = useCallback((direction, anchor = null) => {
 		const scroll = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
-		const timeline = scroll?.closest('.audio-editor-timeline-panel');
-		if (!scroll || !timeline) return undefined;
+		if (!scroll) return undefined;
 		const rect = scroll.getBoundingClientRect();
-		const timelineStyle = getComputedStyle(timeline);
-		const panelWidth = Number.parseFloat(timelineStyle.getPropertyValue('--track-panel-width')) || 0;
-		const viewportWidth = Number.parseFloat(timelineStyle.getPropertyValue('--timeline-viewport-width'))
-			|| Math.max(0, scroll.clientWidth - panelWidth);
+		const { panelWidth, viewportWidth } = resolveTimelineViewportGeometry(scroll);
 		const currentZoom = snapshot.timeline?.pixelsPerSecond || 120;
 		let anchorSeconds;
 		let anchorOffset;
@@ -57,9 +57,9 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 			const positionFrame = controller.getTelemetrySnapshot?.().positionFrame || 0;
 			const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
 			const sampleRate = project?.sampleRate || 48_000;
-			const nextScroll = positionFrame / sampleRate * pixelsPerSecond - scroll.clientWidth / 2;
-			const maximumScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
-			scroll.scrollLeft = Math.max(0, Math.min(maximumScroll, nextScroll));
+			scroll.scrollLeft = centeredTimelinePlayheadScroll(scroll, {
+				positionFrame, sampleRate, pixelsPerSecond,
+			});
 		});
 		return value;
 	}, [controller, project?.sampleRate, run, snapshot.timeline?.pixelsPerSecond, workspaceRef]);

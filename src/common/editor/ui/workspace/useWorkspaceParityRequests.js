@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { centeredTimelinePlayheadScroll } from './timeline-navigation-geometry.js';
 
 export function useWorkspaceParityRequests({
 	controller,
@@ -76,7 +77,9 @@ export function useWorkspaceParityRequests({
 			const positionFrame = controller.getTelemetrySnapshot?.().positionFrame || 0;
 			const pixelsPerSecond = snapshot.timeline?.pixelsPerSecond || 120;
 			const sampleRate = project?.sampleRate || 48_000;
-			if (scroll) scroll.scrollLeft = Math.max(0, positionFrame / sampleRate * pixelsPerSecond - scroll.clientWidth / 2);
+			if (scroll) scroll.scrollLeft = centeredTimelinePlayheadScroll(scroll, {
+				positionFrame, sampleRate, pixelsPerSecond,
+			});
 		} else if (request.type === 'open-context-menu') {
 			const selectedId = payload.clipId || payload.trackId;
 			const attribute = payload.clipId ? 'data-clip-id' : 'data-track-id';
