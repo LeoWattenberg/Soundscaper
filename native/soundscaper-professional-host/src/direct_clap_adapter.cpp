@@ -98,7 +98,7 @@ public:
 #endif
 	}
 
-	void *function(const char *name) const
+	void *function(const char *name)
 	{
 #if defined(_WIN32)
 		return handle == nullptr ? nullptr : reinterpret_cast<void *>(GetProcAddress(handle, name));
