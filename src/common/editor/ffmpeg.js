@@ -25,6 +25,7 @@ import { conformFfmpegVideoToCfr } from './ffmpeg-cfr-ingest.ts';
 import { createVideoKeyframeEncoderOperationRunner } from './video-keyframe-ffmpeg-operation.ts';
 import { probeFfmpegVideoTiming } from './ffmpeg-video-timing-operation.ts';
 import { runFfmpegMediaFileOperation } from './ffmpeg-media-file-operation.ts';
+import { safeFfmpegWorkerFsName } from './ffmpeg-workerfs-name.ts';
 import {
 	FFMPEG_RUNTIME_PUBLIC_ORIGIN,
 	FFMPEG_RUNTIME_PUBLIC_PREFIX,
@@ -293,7 +294,7 @@ export function createEditorFfmpeg(options = {}) {
 			const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 			const mountPoint = `/editor-encode-${stamp}`;
 			const inputName = typeof File !== 'undefined' && file instanceof File
-				? safeFfmpegFileName(file.name, `editor-${stamp}.wav`)
+				? safeFfmpegWorkerFsName(file.name, `editor-${stamp}.wav`)
 				: `editor-${stamp}.wav`;
 			const output = `editor-${stamp}.${normalized.extension}`;
 			const onAbort = () => terminateRuntime();
@@ -345,7 +346,7 @@ export function createEditorFfmpeg(options = {}) {
 				const stamp = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 				const mountPoint = `/editor-encode-${stamp}`;
 				const inputName = typeof File !== 'undefined' && file instanceof File
-					? safeFfmpegFileName(file.name, `editor-${stamp}.wav`)
+					? safeFfmpegWorkerFsName(file.name, `editor-${stamp}.wav`)
 					: `editor-${stamp}.wav`;
 				const output = `editor-${stamp}.${normalized.extension}`;
 				const onAbort = () => terminateRuntime();
@@ -545,11 +546,6 @@ function normalizeIdleTimeout(value) {
 		throw new TypeError('FFmpeg idleTimeoutMs must be a non-negative finite number, false, or null.');
 	}
 	return value;
-}
-
-function safeFfmpegFileName(value, fallback) {
-	const normalized = String(value || '').replaceAll('\0', '-').replace(/[\\/]/gu, '-');
-	return normalized || fallback;
 }
 
 export function encoderArgs(input, output, format, settings = {}) {
