@@ -261,6 +261,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/pffft.js',
 	'src/common/editor/project-current-runtime.js',
 	'src/common/editor/project-command-projection.js',
+	'src/common/editor/project-effect-tail-v21.js',
 	'src/common/editor/project-hierarchy-reconcile.js',
 	'src/common/editor/project.js',
 	'src/common/editor/reviewed-effects/catalog.js',

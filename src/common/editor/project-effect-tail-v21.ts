@@ -7,14 +7,21 @@ import {
 	normalizeMixerGraphV21,
 	type MixerEdgeV21,
 } from './mixer-graph-v21.ts';
-import type {
-	EngineEffect,
-	EngineProject,
-} from './engine/types.ts';
 
 interface EffectRackOwner {
 	readonly effectsActive?: unknown;
-	readonly effects?: readonly EngineEffect[];
+	readonly effects?: readonly Readonly<Record<string, unknown>>[];
+}
+
+interface EffectTailTrack extends EffectRackOwner {
+	readonly id?: unknown;
+	readonly type?: unknown;
+}
+
+interface EffectTailProject extends Readonly<Record<string, unknown>> {
+	readonly tracks?: readonly EffectTailTrack[];
+	readonly master?: EffectRackOwner;
+	readonly mixer?: unknown;
 }
 
 interface ProjectEffectTailV21Options {
@@ -28,7 +35,7 @@ const NO_OUTPUT_PATH = -1;
 
 /** Resolve the longest audible insert path in an explicit production mixer. */
 export function projectEffectTailFramesV21(
-	project: EngineProject | null | undefined,
+	project: EffectTailProject | null | undefined,
 	options: ProjectEffectTailV21Options,
 ): number | null {
 	if (!project || !hasProductionMixerProjectAuthority(project)) return null;
