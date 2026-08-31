@@ -62,6 +62,17 @@ test('Guided highlight trims use admitted VFR and ramp-retime rows instead of en
 	assert.throws(() => setLocalAssistanceGuidedHighlightTrimV1(
 		original, draft, 'highlight-a', 0, 96_001, authority,
 	), /range|trim/iu);
+	assert.throws(() => setLocalAssistanceGuidedHighlightTrimV1(
+		original,
+		draft,
+		'highlight-a',
+		12_000,
+		13_000,
+		sourceTimeAuthority([
+			row(0, 0, 0), row(12, 12_000, 12_000), row(13, 13_000, 13_000),
+			row(24, 24_000, 96_000),
+		]),
+	), /at least two source frames/iu);
 });
 
 test('Guided highlight drafts cannot rewrite evidence, identities, or unsafe text and crops', () => {

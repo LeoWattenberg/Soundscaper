@@ -62,6 +62,9 @@ export function setLocalAssistanceGuidedHighlightTrimV1(
 		if (sourceEndFrame <= sourceStartFrame) {
 			throw new RangeError('A Guided highlight trim collapsed its exact source mapping.');
 		}
+		if (sourceEndFrame - sourceStartFrame < 2) {
+			throw new RangeError('A Guided highlight trim requires at least two source frames.');
+		}
 		const first = cropAt(current.cropKeyframes, sourceStartFrame);
 		const last = cropAt(current.cropKeyframes, sourceEndFrame - 1);
 		const middle = current.cropKeyframes.filter(({ sourceFrame }) => (
