@@ -118,7 +118,7 @@ test('V16 admits all five segment modes and the exact 1 through 4096 segment bou
 		version: 2,
 		points: [...points, { outerFrame: 4_097, sourceFrame: { num: 4_097, den: 1 } }],
 		segments: [...segments, { mode: 'constant-forward' }],
-	}, { sequenceFrameCount: 4_097, sourceInFrame: 0, sourceFrameCount: 4_097 }), /4096|segments/iu);
+	}, { sequenceFrameCount: 4_097, sourceInFrame: 0, sourceFrameCount: 4_097 }), /4097|points|4096|segments/iu);
 	assert.throws(() => normalizeVideoRetimeCurveV16({
 		feature: 'video-retime', version: 2, points: [], segments: [],
 	}, { sequenceFrameCount: 1, sourceInFrame: 0, sourceFrameCount: 1 }), /1 through 4096|segments/iu);

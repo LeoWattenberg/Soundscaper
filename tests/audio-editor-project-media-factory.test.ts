@@ -140,6 +140,9 @@ test('current media leaves accumulate extension, musical, and rational video aut
 		startBeat: { num: 3, den: 2 },
 	}), {
 		id: 'marker',
+		title: '',
+		color: 'auto',
+		opaqueExtensions: {},
 		anchor: 'musical',
 		startBeat: { num: 3, den: 2 },
 		endBeat: { num: 3, den: 2 },
