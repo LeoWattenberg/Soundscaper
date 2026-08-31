@@ -223,20 +223,19 @@ export function createMixRenderService(
 
 	async function normalizeMixOutput(
 		rendered: AudioBufferLike,
-		outputChannelCount: 1 | 2,
+		outputChannelCount: number,
 		ownership: MixOwnership,
 	): Promise<AudioBufferLike> {
 		const channels = bufferChannels(rendered);
-		if (!channels.length || channels.length > 2 || !channels[0]?.length
+		if (!channels.length || channels.length > 32 || !channels[0]?.length
 			|| channels.some((channel) => channel.length !== channels[0]!.length)
 			|| Number(rendered.sampleRate) !== dependencies.getProject().sampleRate) {
 			throw new Error(dependencies.copy.effectInvalidAudio);
 		}
-		if (outputChannelCount === 2) {
-			if (channels.length !== 2) throw new Error(dependencies.copy.effectInvalidAudio);
-			return rendered;
+		if (channels.length === outputChannelCount) return rendered;
+		if (outputChannelCount !== 1 || channels.length !== 2) {
+			throw new Error(dependencies.copy.effectInvalidAudio);
 		}
-		if (channels.length === 1) return rendered;
 		const mono = new Float32Array(channels[0].length);
 		for (let frame = 0; frame < mono.length; frame += 1) {
 			mono[frame] = (channels[0][frame]! + channels[1]![frame]!) * Math.SQRT1_2;
@@ -257,6 +256,7 @@ export function createMixRenderService(
 			tailFrames: number;
 			preRollFrames: number;
 			outputFrames: number;
+			outputChannelCount: number;
 		}>,
 		ownership: MixOwnership,
 	): Promise<DerivedSourceRecord> {
@@ -272,7 +272,7 @@ export function createMixRenderService(
 				name,
 				mimeType: 'audio/wav',
 				sampleRate,
-				channelCount: 2,
+				channelCount: plan.outputChannelCount,
 				chunkFrames: dependencies.sourceChunkFrames,
 			});
 			assertOwned(ownership);
@@ -292,15 +292,15 @@ export function createMixRenderService(
 			});
 			assertOwned(ownership);
 			if (Number(result.sampleRate) !== sampleRate
-				|| Number(result.channelCount) !== 2
+				|| Number(result.channelCount) !== plan.outputChannelCount
 				|| Number(result.frameCount) !== plan.outputFrames
-				|| writer.channelCount !== 2
+				|| writer.channelCount !== plan.outputChannelCount
 				|| writer.framesWritten !== plan.outputFrames) {
 				throw new Error(dependencies.copy.effectInvalidAudio);
 			}
 			const metadata = await writer.commit({
 				sampleRate,
-				channelCount: 2,
+				channelCount: plan.outputChannelCount,
 				chunkFrames: dependencies.sourceChunkFrames,
 			});
 			committed = true;
@@ -311,7 +311,7 @@ export function createMixRenderService(
 				name,
 				mimeType: 'audio/wav',
 				frameCount: plan.outputFrames,
-				channelCount: 2,
+				channelCount: plan.outputChannelCount,
 				sampleRate,
 				originalSampleRate: sampleRate,
 				sampleFormat: 'float32',
@@ -324,7 +324,13 @@ export function createMixRenderService(
 		} catch (error) {
 			if (committed) {
 				await dependencies.derivedSources.rollbackDerivedSources([{
-					source: streamedSourcePlaceholder(sourceId, name, plan.outputFrames, sampleRate),
+					source: streamedSourcePlaceholder(
+						sourceId,
+						name,
+						plan.outputFrames,
+						plan.outputChannelCount,
+						sampleRate,
+					),
 				}]);
 			} else {
 				await Promise.resolve(writer?.abort()).catch(() => undefined);
@@ -371,6 +377,7 @@ function streamedSourcePlaceholder(
 	id: string,
 	name: string,
 	frameCount: number,
+	channelCount: number,
 	sampleRate: number,
 ): ControllerSource {
 	return {
@@ -379,7 +386,7 @@ function streamedSourcePlaceholder(
 		name,
 		mimeType: 'audio/wav',
 		frameCount,
-		channelCount: 2,
+		channelCount,
 		sampleRate,
 		originalSampleRate: sampleRate,
 	};

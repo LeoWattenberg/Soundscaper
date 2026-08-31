@@ -38,6 +38,7 @@ export interface MixRenderPlan {
 	readonly tailFrames: number;
 	readonly preRollFrames: number;
 	readonly outputFrames: number;
+	readonly outputChannelCount: number;
 	readonly outputBytes: number;
 	readonly streamToStorage: boolean;
 }
@@ -82,14 +83,17 @@ export function createMixRenderPlan(
 	const endFrame = Math.max(...clips.map((clip) => clip.timelineStartFrame + clip.durationFrames));
 	const preRollFrames = Math.min(startFrame, project.sampleRate * 10);
 	const outputFrames = endFrame - startFrame + tailFrames;
-	const outputBytes = outputFrames * 2 * Float32Array.BYTES_PER_ELEMENT;
-	const processingBytes = (outputFrames + preRollFrames) * 2 * Float32Array.BYTES_PER_ELEMENT * 3;
+	const outputChannelCount = mixRenderPlannedOutputChannelCount(project);
+	const outputBytes = outputFrames * outputChannelCount * Float32Array.BYTES_PER_ELEMENT;
+	const processingBytes = (outputFrames + preRollFrames)
+		* outputChannelCount * Float32Array.BYTES_PER_ELEMENT * 3;
 	return Object.freeze({
 		startFrame,
 		endFrame,
 		tailFrames,
 		preRollFrames,
 		outputFrames,
+		outputChannelCount,
 		outputBytes,
 		streamToStorage: processingBytes > memoryLimitBytes,
 	});
@@ -195,7 +199,8 @@ export function mixRenderOutputChannelCount(
 	snapshot: ControllerProject,
 	rendered: AudioBufferLike,
 	isFixedStereoEffect: (type: string) => boolean,
-): 1 | 2 {
+): number {
+	if (isSoundscaperProductionProject(project)) return mixRenderPlannedOutputChannelCount(project);
 	const allSourcesMono = targetTracks.every((track) => track.clipIds.every((clipId) => {
 		const clip = findControllerClip(project, clipId);
 		return findControllerSource(project, clip?.sourceId)?.channelCount === 1;
@@ -217,6 +222,15 @@ export function mixRenderOutputChannelCount(
 		if (left[frame] !== right[frame]) return 2;
 	}
 	return 1;
+}
+
+function mixRenderPlannedOutputChannelCount(project: ControllerProject): number {
+	if (!isSoundscaperProductionProject(project)) return 2;
+	const channelCount = Number(project.masterChannels);
+	if (!Number.isSafeInteger(channelCount) || channelCount < 1 || channelCount > 32) {
+		throw new RangeError('A Soundscaper mix render requires between 1 and 32 master channels.');
+	}
+	return channelCount;
 }
 
 export function prepareMixRenderCommit(

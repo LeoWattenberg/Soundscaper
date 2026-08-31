@@ -130,7 +130,7 @@ export function createDerivedSourceService(
 		dependencies.lifetime.assertActive();
 		const channels = bufferChannels(rendered);
 		assertChannels(channels);
-		if (channels.length > 2 || Number(rendered.sampleRate) !== dependencies.projectSampleRate()) {
+		if (channels.length > 32 || Number(rendered.sampleRate) !== dependencies.projectSampleRate()) {
 			throw new Error(dependencies.copy.effectInvalidAudio);
 		}
 		const token = dependencies.captureProject();
