@@ -35,6 +35,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(config.files.includes('desktop/nightly-tests-main.mjs'));
 	assert.ok(config.files.includes('desktop/nightly-tests-manifest.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-runtime.mjs'));
+	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-response.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-product-sites.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-route.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-metrics.mjs'));

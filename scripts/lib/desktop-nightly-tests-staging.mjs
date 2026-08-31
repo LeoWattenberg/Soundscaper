@@ -51,6 +51,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-manifest.mjs', destination: 'desktop/nightly-tests-manifest.mjs', kind: 'file', label: 'nightly test manifest reader' },
 	{ source: 'scripts/lib/desktop-nightly-tests-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-runtime.mjs', kind: 'file', label: 'nightly test runtime' },
+	{ source: 'scripts/lib/desktop-nightly-tests-static-response.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-response.mjs', kind: 'file', label: 'nightly test static response piping' },
 	{ source: 'scripts/lib/desktop-nightly-tests-product-sites.mjs', destination: 'scripts/lib/desktop-nightly-tests-product-sites.mjs', kind: 'file', label: 'nightly browser product sites' },
 	{ source: 'scripts/lib/desktop-nightly-tests-static-route.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-route.mjs', kind: 'file', label: 'nightly test static route resolver' },
 	{ source: 'scripts/lib/desktop-nightly-tests-metrics.mjs', destination: 'scripts/lib/desktop-nightly-tests-metrics.mjs', kind: 'file', label: 'nightly metrics runtime' },
