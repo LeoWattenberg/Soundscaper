@@ -9,7 +9,7 @@
 		"src/common/editor/app.js": { "maxLines": 2909, "reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration." },
 		"src/common/editor/audacity-action-parity.js": { "maxLines": 1041, "reason": "Pinned Audacity action inventory and policy implementation." },
 		"src/common/editor/audacity-effects/basic.js": { "maxLines": 718, "reason": "Legacy basic-effect implementations; new effects belong in focused modules." },
-		"src/common/editor/audacity-effects/live.js": { "maxLines": 1235, "reason": "Legacy realtime effect graph implementation." },
+		"src/common/editor/audacity-effects/live.js": { "maxLines": 1232, "reason": "Legacy realtime effect graph implementation." },
 		"src/common/editor/audacity-effects/realtime.js": { "maxLines": 788, "reason": "Legacy realtime effect processors and routing helpers." },
 		"src/common/editor/audacity-effects/spectral.js": { "maxLines": 916, "reason": "Legacy spectral effect algorithms with shared FFT plumbing." },
 		"src/common/editor/aup4-conversion.js": { "maxLines": 772, "reason": "AUP4 compatibility conversion matrix retained for interoperability." },

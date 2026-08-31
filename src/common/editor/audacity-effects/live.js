@@ -15,6 +15,7 @@ import {
 	applyAudacityGraphicEq,
 	applyAudacityNoiseReduction,
 } from './spectral.js';
+import { audacitySelectionOnlyReason, isAudacityEffectLiveCapable } from './live-capability-policy.js';
 import { fft } from '../pffft.js';
 import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 
@@ -30,39 +31,8 @@ const DISTORTION_TABLE_SIZE = DISTORTION_STEPS * 2 + 1;
 const PHASER_LFO_SHAPE = 4;
 const MAX_LIVE_DELAY_SECONDS = 10;
 
-const LIVE_TYPES = new Set([
-	'audacity-auto-duck',
-	'audacity-bass-treble',
-	'audacity-click-removal',
-	'audacity-compressor',
-	'audacity-distortion',
-	'audacity-echo',
-	'audacity-filter-curve-eq',
-	'audacity-graphic-eq',
-	'audacity-invert',
-	'audacity-limiter',
-	'audacity-noise-reduction',
-	'audacity-phaser',
-	'audacity-classic-filters',
-	'audacity-wahwah',
-]);
-
-const SELECTION_ONLY_REASONS = Object.freeze({
-	'audacity-amplify': 'The no-clipping gain depends on the complete selection peak.',
-	'audacity-fade-in': 'The gain curve depends on selection position and length.',
-	'audacity-fade-out': 'The gain curve depends on the future selection boundary.',
-	'audacity-legacy-compressor': 'The algorithm performs whole-selection and backwards passes.',
-	'audacity-loudness-normalization': 'The gain depends on complete-program loudness.',
-	'audacity-normalize': 'DC offset and peak gain depend on complete-selection statistics.',
-	'audacity-paulstretch': 'The effect changes duration and cannot be a one-in/one-out insert.',
-	'audacity-repair': 'Repair requires an explicitly marked short damaged selection and surrounding context.',
-	'audacity-repeat': 'The effect changes duration and cannot be a one-in/one-out insert.',
-	'audacity-reverse': 'The first output sample depends on the end of the complete selection.',
-	'audacity-truncate-silence': 'The effect removes time and cannot be a one-in/one-out insert.',
-});
-
 const liveCapabilities = Object.fromEntries(audacityEffectTypes().map((type) => {
-	const live = LIVE_TYPES.has(type);
+	const live = isAudacityEffectLiveCapable(type);
 	return [type, Object.freeze({
 		type,
 		mode: live ? 'live' : 'selection-only',
@@ -71,7 +41,7 @@ const liveCapabilities = Object.fromEntries(audacityEffectTypes().map((type) => 
 		requiresSidechain: type === 'audacity-auto-duck',
 		requiresNoiseProfile: type === 'audacity-noise-reduction',
 		paramRanges: freezeParamRanges(liveParamRanges(type)),
-		reason: live ? null : SELECTION_ONLY_REASONS[type] || 'This effect requires render-ahead selection processing.',
+		reason: live ? null : audacitySelectionOnlyReason(type) || 'This effect requires render-ahead selection processing.',
 		latencyFrames: (sampleRate, params = {}) => liveLatencyFrames(type, sampleRate, params),
 		tailFrames: (sampleRate, params = {}) => liveTailFrames(type, sampleRate, params),
 	})];
@@ -1148,7 +1118,7 @@ function channelAt(channels, index) {
 
 function liveLatencyFrames(type, sampleRate, params) {
 	validateSampleRate(sampleRate);
-	if (!LIVE_TYPES.has(type)) return 0;
+	if (!isAudacityEffectLiveCapable(type)) return 0;
 	const settings = normalizeAudacityEffectParams(type, { ...audacityEffectDefaults(type), ...params });
 	validateLiveParamRanges({ type, paramRanges: liveParamRanges(type) }, settings);
 	if (type === 'audacity-auto-duck') {
@@ -1197,7 +1167,7 @@ function validateLiveParamRanges(capability, params) {
 
 function liveTailFrames(type, sampleRate, params) {
 	validateSampleRate(sampleRate);
-	if (!LIVE_TYPES.has(type)) return 0;
+	if (!isAudacityEffectLiveCapable(type)) return 0;
 	const settings = normalizeAudacityEffectParams(type, { ...audacityEffectDefaults(type), ...params });
 	validateLiveParamRanges({ type, paramRanges: liveParamRanges(type) }, settings);
 	if (type === 'audacity-echo') {
