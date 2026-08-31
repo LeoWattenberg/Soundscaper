@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
+import { findStereoLimitedMultichannelRenderEffects } from '../adm-render-safety.ts';
+import {
+	hasCoreEditingProjectAuthority,
+	isSoundscaperProductionProject,
+} from '../project-schema-version.ts';
 
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import type { DerivedSourceService } from './derived-source-service.ts';
@@ -139,6 +143,7 @@ export function createMixRenderService(
 			dependencies.getSelectedClipId(),
 		);
 		const renderProject = createMixRenderSnapshot(project, targetTracks);
+		assertMixRenderEffectChannelSafety(renderProject);
 		const tailFrames = mixRenderTailFrames(
 			targetTracks,
 			renderProject,
@@ -367,6 +372,21 @@ export function createMixRenderService(
 			return false;
 		}
 	}
+}
+
+function assertMixRenderEffectChannelSafety(project: ControllerProject): void {
+	if (!isSoundscaperProductionProject(project)) return;
+	const issues = findStereoLimitedMultichannelRenderEffects(
+		project as never,
+		Number(project.masterChannels),
+		{ includeMaster: false },
+	);
+	if (!issues.length) return;
+	throw new Error(`Multichannel Mix and Render cannot use effects that change channel width: ${issues
+		.map(({ effectType, scope, targetId, channelCount }) => (
+			`${effectType} on ${scope}${targetId ? ` ${targetId}` : ''} (${String(channelCount)} channels)`
+		))
+		.join(', ')}.`);
 }
 
 function bufferChannels(buffer: AudioBufferLike): Float32Array[] {

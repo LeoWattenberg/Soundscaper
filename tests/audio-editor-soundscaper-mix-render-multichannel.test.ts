@@ -6,6 +6,7 @@ import test from 'node:test';
 import { createDerivedSourceService } from '../src/common/editor/controller/derived-source-service.ts';
 import { createMixRenderService } from '../src/common/editor/controller/mix-render-service.ts';
 import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
+import { createEffect } from '../src/common/editor/effects.js';
 import type {
 	ControllerSource,
 	SourceWriter,
@@ -151,6 +152,45 @@ for (const streamToStorage of [false, true]) {
 	});
 }
 
+test('Soundscaper Mix and Render refuses a stereo-only effect on a surround strip before rendering', async () => {
+	const project = surroundProject({
+		trackEffects: [createEffect('reverb', { id: 'surround-reverb' })],
+	});
+	let rendered = false;
+	let preflighted = false;
+	const service = createMixRenderService({
+		lifetime: {
+			assertActive() {},
+			startTask: () => ({ assertCurrent() {}, finish() {} }),
+		},
+		copy: {
+			v2Required: 'V2 required', rendering: 'Rendering', mixedTrack: 'Mix',
+			mixRender: 'Mix and Render', mixdownTo: 'Mix down',
+		},
+		memoryLimitBytes: Number.MAX_SAFE_INTEGER,
+		getProject: () => project as never,
+		getSelectedTrackId: () => 'surround-track',
+		getSelectedClipId: () => null,
+		editingBlocked: () => false,
+		captureProject: () => ({ id: project.id, generation: 1 }) as never,
+		assertProject() {},
+		setProcessing() {},
+		setStatus() {},
+		publish() {},
+		handleError() {},
+		rackTailFrames: () => 0,
+		preflightStorage: () => { preflighted = true; return Promise.resolve(); },
+		renderSnapshot: () => { rendered = true; return Promise.reject(new Error('unexpected render')); },
+	} as never);
+
+	await assert.rejects(
+		() => service.mixAndRenderTracks(),
+		/multichannel.*reverb|reverb.*channel width/iu,
+	);
+	assert.equal(preflighted, false);
+	assert.equal(rendered, false);
+});
+
 test('buffered derived mix persistence admits Soundscaper surround geometry', async () => {
 	const channels = Array.from({ length: CHANNEL_COUNT }, (_, channel) => (
 		Float32Array.from({ length: FRAME_COUNT }, (_, frame) => channel + frame / 10)
@@ -209,7 +249,11 @@ test('buffered derived mix persistence admits Soundscaper surround geometry', as
 	assert.equal(writtenChannels, CHANNEL_COUNT);
 });
 
-function surroundProject() {
+function surroundProject({
+	trackEffects = [],
+}: Readonly<{
+	trackEffects?: readonly ReturnType<typeof createEffect>[];
+}> = {}) {
 	const source = createAudioSource({
 		id: 'surround-source', storageKey: 'surround-source', name: 'Surround', mimeType: 'audio/wav',
 		frameCount: FRAME_COUNT, channelCount: CHANNEL_COUNT, sampleRate: SAMPLE_RATE,
@@ -223,7 +267,9 @@ function surroundProject() {
 		id: 'surround-mix', title: 'Surround mix', now: '2026-08-31T00:00:00.000Z',
 		masterChannels: CHANNEL_COUNT,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrack({ id: 'surround-track', name: 'Surround', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({
+			id: 'surround-track', name: 'Surround', clipIds: [clip.id], effects: trackEffects,
+		})],
 		sequences: [{ id: 'main-sequence', trackIds: ['surround-track'] }],
 		primarySequenceId: 'main-sequence',
 	});
