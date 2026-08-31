@@ -337,6 +337,9 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(cmake, /SOUNDSCAPER_PIPEWIRE_SYSTEM_ABI_ADAPTER=1/u);
 	assert.match(cmake, /SOUNDSCAPER_JACK_DISCOVERY_ONLY=1/u);
 	assert.match(cmake, /SOUNDSCAPER_PRO_BUILD=1/u);
+	assert.match(cmake,
+		/target_compile_definitions\(soundscaper_professional_(?:audio|plugin) PUBLIC SOUNDSCAPER_PRO_STATIC=1\)/u,
+		'the static professional cores must make Windows consumers call their linked definitions directly');
 	assert.match(cmake, /add_library\(soundscaper_professional_node MODULE/u);
 	assert.match(cmake, /target_link_libraries\(soundscaper_professional_node PRIVATE soundscaper_professional_audio\)/u);
 	assert.match(cmake,
@@ -349,6 +352,9 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(cmake, /pipewire_session\.c/u);
 	assert.match(cmake, /juce_message_dispatcher\.cpp/u);
 	assert.match(api, /SOUNDSCAPER_PRO_API __attribute__\(\(visibility\("default"\)\)\)/u);
+	assert.match(api,
+		/defined\(_WIN32\)[\s\S]*defined\(SOUNDSCAPER_PRO_STATIC\)[\s\S]*#define SOUNDSCAPER_PRO_API\s*\n/u,
+		'the Windows static-core ABI must not turn consumer references into DLL imports');
 	assert.match(api, /SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_audio_enumerate/u);
 	assert.match(api, /soundscaper_pro_plugin_scan[\s\S]*capacity[\s\S]*written/u);
 	assert.match(api, /soundscaper_pro_plugin_open[\s\S]*stable_id/u);

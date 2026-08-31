@@ -7,7 +7,9 @@
 #include <stdint.h>
 
 #if defined(_WIN32)
-#if defined(SOUNDSCAPER_PRO_BUILD)
+#if defined(SOUNDSCAPER_PRO_STATIC)
+#define SOUNDSCAPER_PRO_API
+#elif defined(SOUNDSCAPER_PRO_BUILD)
 #define SOUNDSCAPER_PRO_API __declspec(dllexport)
 #else
 #define SOUNDSCAPER_PRO_API __declspec(dllimport)

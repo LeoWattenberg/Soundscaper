@@ -96,6 +96,8 @@ foreach(core soundscaper_professional_audio soundscaper_professional_plugin)
 		WINDOWS_EXPORT_ALL_SYMBOLS YES
 	)
 endforeach()
+target_compile_definitions(soundscaper_professional_audio PUBLIC SOUNDSCAPER_PRO_STATIC=1)
+target_compile_definitions(soundscaper_professional_plugin PUBLIC SOUNDSCAPER_PRO_STATIC=1)
 target_compile_definitions(soundscaper_professional_audio PRIVATE SOUNDSCAPER_PRO_AUDIO_ONLY=1)
 target_link_libraries(soundscaper_professional_audio PRIVATE juce::juce_audio_devices)
 target_include_directories(soundscaper_professional_plugin PRIVATE "${SOUNDSCAPER_CLAP_ROOT}/include")
