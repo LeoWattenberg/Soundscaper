@@ -181,6 +181,20 @@ test.describe('Soundscaper exact V30 production UI', () => {
 		await dialog.getByRole('button', { name: 'Apply lane', exact: true }).click();
 		await expect(dialog.getByRole('status').last()).toHaveText('Production audio change complete.');
 		await closeProductionDialog(dialog);
+		expect(await chooseUncheckedTrackMenuAction(
+			page, editor, track, ['Automation', 'Mode', 'Trim'],
+		)).toBe(true);
+		const syncedTracks = await openMenu(page, editor, 'Tracks');
+		const syncedAutomation = getMenuItem(syncedTracks, 'Automation');
+		await syncedAutomation.focus();
+		await page.keyboard.press('ArrowRight');
+		const syncedMode = getMenuItem(syncedAutomation.getByRole('menu'), 'Mode');
+		await syncedMode.focus();
+		await page.keyboard.press('ArrowRight');
+		const syncedModeMenu = syncedMode.getByRole('menu');
+		await expect(getMenuItem(syncedModeMenu, 'Trim')).toHaveAttribute('aria-checked', 'true');
+		await expect(getMenuItem(syncedModeMenu, 'Read')).toHaveAttribute('aria-checked', 'false');
+		await closeApplicationMenus(page);
 
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		let historyDialog = await openAutomationEditor(page, editor);

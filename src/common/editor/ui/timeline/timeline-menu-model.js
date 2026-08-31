@@ -39,6 +39,7 @@ export function createTimelineMenuModel({
 	menuActions,
 	onOpenSurface,
 	onOpenTrackRate,
+	soundscaperProduction,
 	productId,
 	capabilities,
 }) {
@@ -111,7 +112,7 @@ export function createTimelineMenuModel({
 	] : [];
 	const trackOverflowItems = menuTrack ? createTrackOverflowItems({
 		controller, project, track: menuTrack, copy, productId, capabilities,
-		mutationsBlocked, run, onOpenSurface, onOpenTrackRate,
+		mutationsBlocked, run, onOpenSurface, onOpenTrackRate, soundscaperProduction,
 	}) : [];
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'audio' ? [
@@ -247,6 +248,7 @@ export function createTimelineMenuModel({
 
 function createTrackOverflowItems({
 	controller, project, track, copy, productId, capabilities, mutationsBlocked, run, onOpenSurface, onOpenTrackRate,
+	soundscaperProduction,
 }) {
 	const audioTrack = track.type === 'audio' ? track : null;
 	const sources = trackSources(project, audioTrack);
@@ -263,7 +265,8 @@ function createTrackOverflowItems({
 		capabilities,
 		project,
 		selectedTrackId: track.id,
-		automationMode: controller.actions.audioAutomation?.getSnapshot?.().mode,
+		automationMode: soundscaperProduction?.automationMode
+			?? controller.actions.audioAutomation?.getSnapshot?.().mode,
 		freezeStatus: resolveSoundscaperFreezeStatus(controller, project, track.id),
 		freezeActionsAvailable: ['freeze', 'refresh', 'unfreeze', 'commit'].every((name) => (
 			typeof freezeActions?.[name] === 'function'
@@ -276,11 +279,15 @@ function createTrackOverflowItems({
 			run(selectTrack);
 			onOpenSurface?.(`soundscaper-production:${surface}`);
 		},
-		setAutomationMode: (mode) => run(() => controller.actions.audioAutomation?.setMode(
-			mode,
-			selectedTrackAutomationLaneId(project, track.id),
-		)),
-		freeze: (operation, trackId) => run(() => freezeActions?.[operation]?.(trackId)),
+		setAutomationMode: (mode) => run(() => {
+			const laneId = selectedTrackAutomationLaneId(project, track.id);
+			return soundscaperProduction?.setAutomationMode
+				? soundscaperProduction.setAutomationMode(mode, laneId)
+				: controller.actions.audioAutomation?.setMode(mode, laneId);
+		}),
+		freeze: (operation, trackId) => run(() => soundscaperProduction?.freeze
+			? soundscaperProduction.freeze(operation, trackId)
+			: freezeActions?.[operation]?.(trackId)),
 	});
 	const takeComp = createTakeCompApplicationMenuItems({
 		productId,

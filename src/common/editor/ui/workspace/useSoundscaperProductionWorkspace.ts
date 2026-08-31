@@ -58,7 +58,7 @@ export interface SoundscaperProductionWorkspaceRuntime {
 	readonly reviewedPackagesAvailable: boolean;
 	open(surface: SoundscaperProductionSurface): void;
 	restoreFocus(): void;
-	setAutomationMode(mode: SoundscaperAutomationMode): void;
+	setAutomationMode(mode: SoundscaperAutomationMode, laneId?: string | null): void;
 	freeze(operation: 'freeze' | 'refresh' | 'unfreeze' | 'commit', trackId: string): unknown;
 	execute(operation: SoundscaperProductionDialogOperation): unknown;
 }

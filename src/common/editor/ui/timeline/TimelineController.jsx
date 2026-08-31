@@ -37,6 +37,7 @@ export default function TimelineController({
 		onToggleArmControls,
 		onOpenSurface,
 		onOpenTrackRate,
+		soundscaperProduction,
 		productId,
 		capabilities,
 	} = actionInput;
@@ -124,6 +125,7 @@ export default function TimelineController({
 		menuActions,
 		onOpenSurface,
 		onOpenTrackRate,
+		soundscaperProduction,
 		productId,
 		capabilities,
 	});

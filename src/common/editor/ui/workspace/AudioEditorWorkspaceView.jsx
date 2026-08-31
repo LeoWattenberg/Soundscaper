@@ -84,6 +84,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		setRecordingMeterSettings,
 		setShowArmControls,
 		showArmControls,
+		soundscaperProduction,
 		snapshot,
 		statusMessage,
 		statusState,
@@ -351,6 +352,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
 						onOpenSurface={openSurface}
 						onOpenTrackRate={openTrackRate}
+						soundscaperProduction={soundscaperProduction}
 						searchRevealRequest={timelineSearchReveal}
 						overlayTarget={editorOverlayTarget}
 					/>
