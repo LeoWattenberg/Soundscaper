@@ -162,7 +162,7 @@ export default function AudioEditorDialogShell({
 		const previouslyFocused = resolveEditorReturnFocus(document, document.activeElement);
 		const panel = panelRef.current;
 		const focusableElements = () => [...(panel?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) || [])]
-			.filter((element) => !element.closest('[hidden], [aria-hidden="true"], [inert]'));
+			.filter(isAvailableFocusTarget);
 		const frame = requestAnimationFrame(() => {
 			if (panel?.contains(document.activeElement)) return;
 			(resolveInitialFocus(panel, initialFocus, focusableElements) || panel)?.focus({ preventScroll: true });
@@ -254,7 +254,7 @@ export default function AudioEditorDialogShell({
 	);
 }
 
-function resolveInitialFocus(
+export function resolveInitialFocus(
 	panel: HTMLElement | null,
 	initialFocus: InitialFocus,
 	focusableElements: () => HTMLElement[],
@@ -262,8 +262,17 @@ function resolveInitialFocus(
 	if (!panel || initialFocus === 'dialog') return panel;
 	if (initialFocus === 'first') return focusableElements()[0] || panel;
 	try {
-		return panel.querySelector<HTMLElement>(initialFocus) || focusableElements()[0] || panel;
+		const requested = panel.querySelector<HTMLElement>(initialFocus);
+		return (requested && isAvailableFocusTarget(requested) ? requested : null)
+			|| focusableElements()[0]
+			|| panel;
 	} catch {
 		return focusableElements()[0] || panel;
 	}
+}
+
+function isAvailableFocusTarget(element: HTMLElement): boolean {
+	return element.matches(FOCUSABLE_SELECTOR)
+		&& !element.matches(':disabled')
+		&& !element.closest('[hidden], [aria-hidden="true"], [inert], fieldset[disabled]');
 }
