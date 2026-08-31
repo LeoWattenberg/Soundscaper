@@ -8,6 +8,7 @@ import { MessageChannelMain } from 'electron/main';
 
 import { DesktopPluginHostService } from './project-library-runtime/desktop/plugin-host-service.js';
 import { PluginHostIsolationRegistry } from './project-library-runtime/desktop/plugin-host-isolation.js';
+import { PluginInstanceStateStore } from './project-library-runtime/desktop/plugin-instance-state.js';
 import {
 	createNativePluginOfflineRunner,
 	openNativePersistentPluginSession,
@@ -32,6 +33,7 @@ export function createDesktopPluginHostingRuntime({
 	const hosts = new Map();
 	const realtime = new Map();
 	let isolation;
+	const states = new PluginInstanceStateStore();
 	const offline = createNativePluginOfflineRunner(({ instanceId }) => {
 		const hostId = isolation.describeInstance(instanceId)?.hostId;
 		const host = hostId === null || hostId === undefined ? null : hosts.get(hostId);
@@ -45,6 +47,7 @@ export function createDesktopPluginHostingRuntime({
 		mintId: () => randomBytes(20).toString('hex'),
 		isEnabled: () => settings.snapshot().nativePluginDiscoveryEnabled === true,
 		isDigestQuarantined: (digest) => quarantine.isQuarantined(digest),
+		isStateEligible: (instanceId) => states.isEligible(instanceId),
 		onQualifyingFault: (digest, reason) => {
 			const kind = HOST_FAULT_KINDS.get(reason) ?? 'crash';
 			quarantineWrites = quarantineWrites
@@ -69,6 +72,7 @@ export function createDesktopPluginHostingRuntime({
 	const service = new DesktopPluginHostService({
 		registry,
 		isolation,
+		states,
 		stateBodies,
 		offline,
 		isFormatActivated,

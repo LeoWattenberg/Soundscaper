@@ -8,6 +8,7 @@ import {
 import {
 	PLUGIN_HOST_BENIGN_STOP_REASONS,
 	PLUGIN_HOST_FAULT_REASONS,
+	PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES,
 	PluginInstanceStateStore,
 	type PluginContinuityDecision,
 	type PluginHostStopReason,
@@ -196,11 +197,13 @@ export class DesktopPluginHostService {
 			entry.latencySamples = nextLatency
 			this.#onLatencyChanged(entry.instanceId, nextLatency)
 		}
-		if (result.stateBytes !== null && result.stateBytes > 16 * 1024 * 1024) {
+		if ((result.stateBytes !== null && result.stateBytes > PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES)
+			|| result.stateRefusal === 'state-too-large') {
 			this.#states.declareOversizeState({
 				instanceId: entry.instanceId,
 				generation: entry.generation + 1,
-				declaredByteLength: result.stateBytes,
+				declaredByteLength: result.stateBytes
+					?? PLUGIN_OPAQUE_STATE_MAXIMUM_BYTES + 1,
 			})
 		}
 		return Object.freeze({

@@ -127,6 +127,47 @@ test('a session the supervisor rejects reports the host crash instead of leaving
 	runtime.service.dispose();
 });
 
+test('the production host refuses to rehost an instance whose state was oversized', async () => {
+	const registry = new DesktopPluginRegistry({ isQuarantined: () => false });
+	const admission = recordFixtureInstallation(registry);
+	if (admission.status !== 'recorded') return;
+	let launches = 0;
+	const runtime = createDesktopPluginHostingRuntime({
+		registry,
+		quarantine: { isQuarantined: () => false },
+		settings: { snapshot: () => ({ nativePluginDiscoveryEnabled: true }) },
+		stateBodies: { persist: () => { throw new Error('unused'); }, read: () => null },
+		isFormatActivated: () => true,
+		createHostHelper: () => {
+			launches += 1;
+			return {
+				describePayload: async () => ({ status: 'available' }),
+				supervisor: {
+					dispose: () => undefined,
+					runJob: async () => ({
+						reportedLatencyFrames: 0, latencyStable: true, blocksRendered: 1,
+						renderedSha256: 'cd'.repeat(32), stateBytes: null,
+						stateRefusal: 'state-too-large',
+					}),
+				},
+			};
+		},
+	});
+	const owner = {};
+	const request = {
+		installationId: admission.installationId,
+		instanceId: 'oversize_instance_01',
+		sampleRate: 48_000,
+	};
+	const instance = await runtime.service.instantiate(owner, request);
+	await runtime.service.runOffline(owner, instance.instanceId);
+	runtime.service.reportInstanceHostStopped(owner, instance.instanceId, 'oversize-state');
+
+	await assert.rejects(() => runtime.service.instantiate(owner, request), /ineligible/iu);
+	assert.equal(launches, 1, 'the ineligible instance must be refused before another host launches');
+	runtime.service.dispose();
+});
+
 test('repeated host crashes quarantine the digest durably, and the explicit clear rehosts it', async (t) => {
 	const { mkdtemp, rm } = await import('node:fs/promises');
 	const { tmpdir } = await import('node:os');
