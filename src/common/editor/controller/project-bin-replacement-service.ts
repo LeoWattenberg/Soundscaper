@@ -222,7 +222,7 @@ export function createProjectBinReplacementService(
 		if (!stage) throw new Error('The staged Project Bin replacement is no longer available.');
 		const project = dependencies.getProject();
 		if (project !== stage.baseProject || project.id !== stage.projectId) {
-			void cancelProjectBinReplacement(token);
+			void cancelProjectBinReplacement(token).catch(() => undefined);
 			throw new Error('The project changed before the replacement could be applied.');
 		}
 		const commands: AudioEditorCommand[] = [
@@ -260,10 +260,20 @@ export function createProjectBinReplacementService(
 	): Promise<void> {
 		try {
 			for (const source of sources) {
-				if (source.kind === 'video') await dependencies.revokeVideoVisual(source.id);
+				if (source.kind === 'video') {
+					try {
+						await dependencies.revokeVideoVisual(source.id);
+					} catch {
+						// Continue retiring the remaining runtime and persisted staging state.
+					}
+				}
 			}
 			for (const source of sources) {
-				await dependencies.retireSourceChunkProvider(source.id);
+				try {
+					await dependencies.retireSourceChunkProvider(source.id);
+				} catch {
+					// Continue deleting the unreferenced replacement after runtime teardown failed.
+				}
 			}
 			for (const source of sources) {
 				dependencies.sourceBuffers.delete(source.id);

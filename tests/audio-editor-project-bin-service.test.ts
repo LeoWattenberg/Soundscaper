@@ -319,6 +319,47 @@ test('replacement cancellation drains its staged chunk provider before deleting 
 	assert.deepEqual(harness.deletedSources, ['new']);
 });
 
+test('replacement cancellation continues cleanup when runtime retirement fails', async () => {
+	const target = clipFixture({
+		id: 'video-bin', sourceId: 'old-video', kind: 'video', binItemId: 'video-item',
+	});
+	const base = projectFixture({
+		projectBinClips: [target],
+		sources: [{ id: 'old-video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
+	});
+	const imported = projectFixture({
+		id: base.id,
+		projectBinClips: [clipFixture({
+			id: 'new-video-bin', sourceId: 'new-video', kind: 'video', binItemId: 'new-item',
+		})],
+		sources: [{ id: 'new-video', kind: 'video', sampleRate: 48_000, frameCount: 1_000 }],
+	});
+	const events: string[] = [];
+	const harnessRef: { current?: ReturnType<typeof createHarness> } = {};
+	const harness = createHarness(base, {
+		importProjectBinFile: async () => {
+			harnessRef.current?.replaceImportedDocument(imported);
+			return { clipId: 'new-video-bin' };
+		},
+		revokeVideoVisual: () => {
+			events.push('revoke');
+			throw new Error('visual teardown failed');
+		},
+		retireSourceChunkProvider: () => {
+			events.push('retire');
+			throw new Error('provider teardown failed');
+		},
+	});
+	harnessRef.current = harness;
+	const prepared = await harness.service.prepareProjectBinReplacement(
+		'video-bin', { name: 'replacement.mp4' },
+	);
+
+	assert.equal(await harness.service.cancelProjectBinReplacement(prepared?.token ?? ''), true);
+	assert.deepEqual(events, ['revoke', 'retire']);
+	assert.deepEqual(harness.deletedMedia, ['new-video']);
+});
+
 test('video and resumed audio previews follow explicit pause, resume, stop, and engine-state policies', async () => {
 	const video = clipFixture({ id: 'video-bin', sourceId: 'video', kind: 'video', binItemId: 'video-item' });
 	const videoHarness = createHarness(projectFixture({
