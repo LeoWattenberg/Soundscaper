@@ -158,6 +158,45 @@ test('caption assembly admits the longest producer-valid diarized title', () => 
 	assert.equal(result.outputs.captions.cues[0]?.text.length, 16_546);
 });
 
+test('caption alignment keeps touching words disjoint after sample-rate rescaling', () => {
+	const source = createAssistanceTranscript({
+		sourceId: 'source-a', sampleRate: 11_025, language: 'en', modelId: 'whisper',
+		segments: [{
+			startFrame: 0, endFrame: 11_025, text: 'one two', speaker: null,
+			words: [
+				{ text: 'one', startFrame: 0, endFrame: 220, confidence: 0.9 },
+				{ text: 'two', startFrame: 220, endFrame: 441, confidence: 0.8 },
+			],
+		}],
+	});
+	const result = registry.run({
+		schemaVersion: 1,
+		transformId: 'assemble-captions',
+		settings: settings('transcribe-captions', {
+			recognizer: 'whisper', language: 'en', englishWhisperAlignment: 'when-installed',
+		}),
+		inputs: {
+			transcript: source,
+			'word-alignment': {
+				schemaVersion: 1, sourceSampleRate: 11_025, sourceStartFrame: 0,
+				alignment: {
+					schemaVersion: 1, sampleRate: 16_000,
+					words: [
+						{ segmentIndex: 0, wordIndex: 0, text: 'one', startSample: 0,
+							endSample: 320, confidence: 0.9 },
+						{ segmentIndex: 0, wordIndex: 1, text: 'two', startSample: 320,
+							endSample: 640, confidence: 0.8 },
+					],
+				},
+			},
+		},
+	});
+
+	assert.deepEqual(result.outputs.captions.cues[0]?.words.map(
+		({ startFrame, endFrame }) => [startFrame, endFrame],
+	), [[0, 221], [221, 441]]);
+});
+
 test('cleanup uses the exact authenticated preset while keeping every proposal unselected', () => {
 	const voiceActivity = {
 		schemaVersion: 1, sourceSampleRate: 48_000, sourceStartFrame: 0, sourceEndFrame: 96_000,

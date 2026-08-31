@@ -384,12 +384,16 @@ function alignedCaptionWords(
 		const endFrame = ownedSafeAdd(sourceStart, Number(scaleSampleFrame(
 			aligned.endSample, ASSISTANCE_ALIGNMENT_SAMPLE_RATE, sourceRate, 'enclosingEnd')),
 		'word-alignment source end');
-		if (startFrame < authority.segment.startFrame || endFrame > authority.segment.endFrame
-			|| endFrame <= startFrame) {
+		const segmentWords = bySegment[authority.segmentIndex]!;
+		const priorEndFrame = segmentWords[segmentWords.length - 1]?.endFrame ?? startFrame;
+		const disjointStartFrame = Math.max(startFrame, priorEndFrame);
+		if (disjointStartFrame < authority.segment.startFrame
+			|| endFrame > authority.segment.endFrame || endFrame <= disjointStartFrame) {
 			throw new RangeError('Word alignment exceeds its transcript segment timing authority.');
 		}
-		bySegment[authority.segmentIndex]!.push(Object.freeze({
-			text: aligned.text, startFrame, endFrame, confidence: aligned.confidence,
+		segmentWords.push(Object.freeze({
+			text: aligned.text, startFrame: disjointStartFrame, endFrame,
+			confidence: aligned.confidence,
 		}));
 	}
 	return Object.freeze(bySegment.map((words) => Object.freeze(words)));
