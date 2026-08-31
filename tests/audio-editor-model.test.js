@@ -47,26 +47,12 @@ import {
 	createAudioClip,
 	createAudioSource,
 } from '../src/common/editor/project-media-factory.ts';
+import { coreClip } from './helpers/audio-editor-model-clip-projection.js';
 
 const NOW = '2026-07-12T10:00:00.000Z';
 
 function apply(project, command) {
 	return applyEditorCommand(project, command, { now: NOW });
-}
-
-function coreClip(clip) {
-	if (!clip) return clip;
-	return {
-		id: clip.id,
-		sourceId: clip.sourceId,
-		timelineStartFrame: clip.timelineStartFrame,
-		sourceStartFrame: clip.sourceStartFrame,
-		durationFrames: clip.durationFrames,
-		gain: clip.gain,
-		fadeInFrames: clip.fadeInFrames,
-		fadeOutFrames: clip.fadeOutFrames,
-		reversed: clip.reversed,
-	};
 }
 
 function createFixture(options = {}) {
