@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
+import { qualityWorkloadBudget } from './lib/quality-budget-config.mjs';
 import { evaluateQualityBudgetResult } from './quality-budget-result.mjs';
 import { verifyQualityBudgetResultFiles } from './verify-quality-budget-result.mjs';
 
@@ -55,17 +56,7 @@ export async function writeStructuralQualityBudgetDiagnostic(options, providedRu
 	}
 	const configBytes = await readFile(configPath);
 	const config = JSON.parse(configBytes.toString('utf8'));
-	const workload = exactDescriptor(config.workloads, workloadId, 'workload');
-	if (!Array.isArray(workload.environmentIds)
-		|| workload.environmentIds.length !== 1
-		|| workload.environmentIds[0] !== STRUCTURAL_ENVIRONMENT_ID) {
-		throw new Error(`Workload ${workloadId} does not own the structural environment.`);
-	}
-	const environment = exactDescriptor(
-		config.environments,
-		STRUCTURAL_ENVIRONMENT_ID,
-		'environment',
-	);
+	const workload = qualityWorkloadBudget(config, workloadId);
 	const environmentFingerprint = {
 		platform: runtime.platform,
 		architecture: runtime.architecture,
@@ -109,9 +100,7 @@ export async function writeStructuralQualityBudgetDiagnostic(options, providedRu
 	};
 	const evaluation = evaluateQualityBudgetResult({
 		workload,
-		expectedEnvironment: environment,
 		expectedBudgetSha256: result.budgetSha256,
-		measurementPolicy: config.measurementPolicy,
 	}, result);
 	if (!evaluation.passed) throw new Error(evaluation.failures.join('\n'));
 
@@ -145,15 +134,6 @@ async function collectRuntime() {
 		platform: process.platform,
 		sourceRevision: sourceRevision.trim(),
 	});
-}
-
-function exactDescriptor(collection, id, label) {
-	if (!Array.isArray(collection)) throw new Error(`Quality config has no ${label} descriptors.`);
-	const matches = collection.filter((value) => isRecord(value) && value.id === id);
-	if (matches.length !== 1) {
-		throw new Error(`Quality config must contain exactly one ${label} descriptor for ${id}.`);
-	}
-	return matches[0];
 }
 
 function ownDataValue(record, property) {

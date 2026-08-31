@@ -18,8 +18,8 @@ import {
 	parseM8ACaptureCliOptions,
 	writeM8ACaptureResult,
 } from '../scripts/collect-m8a-capture-quality.mjs';
+import { workloadThresholds } from '../scripts/lib/quality-budget-config.mjs';
 
-type Threshold = { readonly metricId: string };
 type CaptureRole = 'camera' | 'microphone' | 'display' | 'system-audio';
 type CombinationDefinition = Readonly<{
 	readonly id: string;
@@ -27,14 +27,12 @@ type CombinationDefinition = Readonly<{
 }>;
 type Descriptor = {
 	readonly id: string;
-	readonly status?: string;
+	readonly behavior?: string;
+	readonly kind?: string;
 	readonly specification?: Record<string, number>;
-	readonly thresholds?: readonly Threshold[];
-	readonly fingerprint?: Record<string, unknown>;
+	readonly measurementIds?: readonly string[];
 };
 type Config = {
-	readonly measurementPolicy: Record<string, unknown>;
-	readonly environments: readonly Descriptor[];
 	readonly fixtures: readonly Descriptor[];
 	readonly workloads: readonly Descriptor[];
 };
@@ -129,8 +127,8 @@ function makeMeasurement(): Record<string, unknown> {
 }
 
 test('the collector owns the exact six combinations and eight registered metrics', () => {
-	assert.equal(fixture.status, 'active');
-	assert.equal(workload.status, 'active');
+	assert.equal(fixture.kind, 'observed-capture-session');
+	assert.equal(workload.behavior, 'blocking');
 	assert.deepEqual(M8A_CAPTURE_COMBINATIONS, [
 		{ id: 'camera-only', requestedRoles: ['camera'] },
 		{ id: 'microphone-only', requestedRoles: ['microphone'] },
@@ -140,7 +138,7 @@ test('the collector owns the exact six combinations and eight registered metrics
 		{ id: 'camera-plus-display-plus-microphone', requestedRoles: ['camera', 'display', 'microphone'] },
 	]);
 	assert.deepEqual(
-		workload.thresholds!.map(({ metricId }) => metricId),
+		workloadThresholds(config, workload.id).map(({ metricId }: { metricId: string }) => metricId),
 		[...M8A_CAPTURE_METRIC_IDS],
 	);
 });
@@ -307,9 +305,7 @@ test('fingerprints are exact per-run observations and no fixed device matrix exi
 		);
 	}
 
-	const environment = config.environments.find(({ id }) => id === 'capture-device-diagnostics')!;
-	assert.equal(environment.status, 'active');
-	assert.equal('fingerprint' in environment, false);
+	assert.equal(Object.hasOwn(config, 'environments'), false);
 });
 
 test('hosted runners and unsupported result states are refused', async () => {

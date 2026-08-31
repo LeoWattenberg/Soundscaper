@@ -167,11 +167,18 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 	assert.doesNotMatch(capture, /— Planned:/u);
 	assert.equal((capture.match(/— Implemented \(active; qualification open\):/gu) ?? []).length, 11);
 	assert.match(capture, /milestone-8a-plan\.md.*framescaper-capture-privacy\.md/isu);
-	assert.equal(quality.fixtures.find(({ id }) => id === 'm8a-capture-30m-all-sources-v1')?.status, 'provisional');
-	assert.equal(quality.workloads.find(({ id }) => id === 'm8a-capture-long-session')?.status, 'provisional');
-	const environment = quality.environments.find(({ id }) => id === 'capture-os-browser-lab-matrix');
-	assert.equal(environment?.status, 'unprovisioned');
-	assert.equal(environment?.qualificationEligible, false);
+	const captureFixture = quality.fixtures.find(({ id }) => id === 'm8a-capture-30m-all-sources-v1');
+	const captureWorkload = quality.workloads.find(({ id }) => id === 'm8a-capture-long-session');
+	assert.equal(captureFixture?.kind, 'observed-capture-session');
+	assert.equal(captureWorkload?.behavior, 'blocking');
+	assert.deepEqual(captureWorkload?.fixtureIds, ['m8a-capture-30m-all-sources-v1']);
+	assert.deepEqual(captureWorkload?.measurementIds, [
+		'capture.sourceCombinationsCompleted', 'capture.avDriftMaximumMs',
+		'capture.droppedFrameRatio', 'capture.unreportedDroppedFrames',
+		'capture.audioDropoutFrames', 'capture.deviceTeardownP95Ms',
+		'capture.unrecoverableDurableFragments', 'capture.unauthorizedDeviceOpens',
+	]);
+	assert.equal(Object.hasOwn(quality, 'environments'), false);
 	assert.match(
 		roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions')),
 		/### 8B\. MIDI.*Status:.*Planned.*not implemented.*excluded from stable 1\.0.*Audacity.*post-1\.0/isu,

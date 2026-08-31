@@ -17,6 +17,11 @@ import {
 	createPendingM4B2KeyframeParityResult,
 	parseM4B2KeyframeParityDiagnostic,
 } from '../collect-m4b2-keyframe-parity-quality.mjs';
+import {
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './quality-budget-config.mjs';
 const DEFAULT_COLLECTORS = Object.freeze([
 	collector(
 		'm3-longform-editorial',
@@ -110,8 +115,8 @@ export function parseM1VideoPreviewDiagnostic(output) {
 export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) {
 	const diagnostic = requireRecord(diagnosticValue, 'M1 preview diagnostic');
 	const config = requireRecord(configValue, 'quality config');
-	const fixture = exactDescriptor(config.fixtures, 'video-preview-12fx-720p-v1', 'fixture');
-	const workload = exactDescriptor(config.workloads, 'm1-video-preview-12fx-720p', 'workload');
+	const fixture = qualityFixture(config, 'video-preview-12fx-720p-v1');
+	const workload = qualityWorkloadBudget(config, 'm1-video-preview-12fx-720p');
 	const specification = requireRecord(fixture.specification, 'M1 preview fixture specification');
 	const expectedIdentity = {
 		schemaVersion: 1,
@@ -174,25 +179,11 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 		'preview.frameIntervalP95Ms': roundedMetric(nearestRankP95(frameIntervals)),
 		'preview.retainedJsHeapDeltaBytes': roundedMetric(nearestRankP95(retainedHeapDeltas)),
 	});
-	if (!Array.isArray(workload.thresholds) || workload.thresholds.length !== 2) {
-		throw new Error('M1 preview workload must register exactly two thresholds.');
+	if (workload.thresholds.length !== 2) {
+		throw new Error('M1 preview workload must register exactly two measurements.');
 	}
-	const verdicts = workload.thresholds.map((thresholdValue) => {
-		const threshold = requireRecord(thresholdValue, 'M1 preview threshold');
-		const actual = metrics[threshold.metricId];
-		if (typeof actual !== 'number' || threshold.comparison !== 'lte'
-			|| typeof threshold.value !== 'number' || !Number.isFinite(threshold.value)) {
-			throw new Error('M1 preview threshold registration is invalid.');
-		}
-		return Object.freeze({
-			metricId: threshold.metricId,
-			comparison: threshold.comparison,
-			expected: threshold.value,
-			actual,
-			passed: actual <= threshold.value,
-		});
-	});
-	const metricGatePassed = verdicts.every(({ passed }) => passed);
+	const evaluation = evaluateQualityWorkload(config, workload, metrics);
+	const metricGatePassed = evaluation.passed;
 	return Object.freeze({
 		schemaVersion: 1,
 		status: metricGatePassed ? 'passed' : 'failed',
@@ -218,13 +209,7 @@ export function createPendingM1VideoPreviewResult(diagnosticValue, configValue) 
 			heapSnapshotsAfter: diagnostic.trials.length,
 		}),
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed: metricGatePassed,
-			failures: Object.freeze(metricGatePassed ? [] : verdicts
-				.filter(({ passed }) => !passed)
-				.map(({ metricId }) => `${metricId} did not pass.`)),
-			verdicts: Object.freeze(verdicts),
-		}),
+		evaluation,
 	});
 }
 
@@ -400,13 +385,6 @@ function isRecord(value) {
 function requireRecord(value, label) {
 	if (!isRecord(value)) throw new TypeError(`${label} must be a plain record.`);
 	return value;
-}
-
-function exactDescriptor(collection, id, label) {
-	if (!Array.isArray(collection)) throw new Error(`Quality config has no ${label} descriptors.`);
-	const matches = collection.filter((value) => isRecord(value) && value.id === id);
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function rendererClass(value) {

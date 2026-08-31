@@ -7,7 +7,12 @@ import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './lib/quality-budget-config.mjs';
 
 const execFileAsync = promisify(execFile);
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
@@ -76,26 +81,22 @@ export function parseM3LongformEditorialDiagnostic(output) {
 export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	const diagnostic = snapshotJsonData(input, 'diagnostic');
 	const config = snapshotJsonData(inputConfig, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, LOCAL_ENVIRONMENT_ID, 'environment');
-	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
+	const workload = qualityWorkloadBudget(config, WORKLOAD_ID);
+	const fixture = qualityFixture(config, FIXTURE_ID);
+	const policy = DIAGNOSTIC_MEASUREMENT_POLICY;
 
 	assertIdentity(diagnostic);
 	if (diagnostic.observationClass !== 'decoded-media-av-scheduling-v1') {
 		throw new Error('Browser diagnostic observationClass must prove decoded-media A/V scheduling.');
 	}
-	assertMeasurementPolicy(policy);
 	const expectedFixture = expectedFixtureContract(fixture);
 	if (!deepEqualJson(diagnostic.fixture, expectedFixture)) {
 		throw new Error('Browser diagnostic fixture specification does not match the frozen quality-budget fixture.');
 	}
 	if (!Array.isArray(workload.fixtureIds)
 		|| workload.fixtureIds.length !== 1
-		|| workload.fixtureIds[0] !== FIXTURE_ID
-		|| !Array.isArray(workload.environmentIds)
-		|| !workload.environmentIds.includes(LOCAL_ENVIRONMENT_ID)) {
-		throw new Error(`Workload ${WORKLOAD_ID} must own exactly the frozen fixture and environment.`);
+		|| workload.fixtureIds[0] !== FIXTURE_ID) {
+		throw new Error(`Workload ${WORKLOAD_ID} must own exactly the frozen fixture.`);
 	}
 
 	const positionChecks = exactArray(diagnostic.positionChecks, 26, 'position checks');
@@ -229,17 +230,8 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	if (Object.keys(environmentFingerprint).length === 0) {
 		throw new Error('Browser diagnostic environmentFingerprint must not be empty.');
 	}
-	const evaluation = evaluateQualityBudget({
-		environmentId: diagnostic.environmentId,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, { ...environment, id: diagnostic.environmentId, status: 'active' }, {
-		environmentId: diagnostic.environmentId,
-		rendererClass,
-		metrics,
-	});
-	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
-		&& evaluation.verdicts.every(({ passed }) => passed);
+	const evaluation = evaluateQualityWorkload(config, workload, metrics);
+	const metricGatePassed = evaluation.passed;
 	return Object.freeze({
 		schemaVersion: 1,
 		status: metricGatePassed ? 'passed' : 'failed',
@@ -264,10 +256,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 			forcedCollectionsAfter: forcedAfter,
 		}),
 		metricGatePassed,
-		evaluation: Object.freeze({
-			...evaluation,
-			passed: metricGatePassed,
-		}),
+		evaluation,
 	});
 }
 
@@ -332,17 +321,6 @@ function isM3DiagnosticEnvironmentId(value) {
 		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 
-function assertMeasurementPolicy(policy) {
-	if (policy.percentileMethod !== 'nearest-rank'
-		|| policy.benchmarkRetries !== 0
-		|| policy.timingWorkers !== 1
-		|| policy.timingWarmupTrials !== 1
-		|| policy.timingTrials !== 5
-		|| policy.forcedCollectionsPerHeapSnapshot !== 3) {
-		throw new Error('Long-form collector requires the frozen no-retry measurement policy.');
-	}
-}
-
 function nearestRank(values, percentile) {
 	if (values.length === 0) throw new Error('Nearest-rank percentile requires samples.');
 	const sorted = [...values].sort((left, right) => left - right);
@@ -372,13 +350,6 @@ function finiteNonNegativeInteger(value, path) {
 function finiteString(value, path) {
 	if (typeof value !== 'string' || value.length === 0) throw new Error(`${path} must be a non-empty string.`);
 	return value;
-}
-
-function exactDescriptor(collection, id, label) {
-	if (!Array.isArray(collection)) throw new Error(`Quality config has no ${label} descriptors.`);
-	const matches = collection.filter((value) => isRecord(value) && value.id === id);
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function ownString(value, property) {

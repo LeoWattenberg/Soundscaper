@@ -85,10 +85,9 @@ test('one clean structural run writes and re-verifies raw and result diagnostics
 	assert.deepEqual(result.metrics, raw.metrics);
 });
 
-test('dirty source, environment drift, and failed metrics refuse before writing', async () => {
+test('dirty source and failed blocking metrics refuse before writing', async () => {
 	const cases: readonly [string, typeof runtime, (value: ReturnType<typeof options>) => void, RegExp][] = [
 		['dirty', { ...runtime, gitStatus: ' M src/file.ts' }, () => {}, /clean checkout/iu],
-		['npm drift', { ...runtime, npmVersion: '12.0.2' }, () => {}, /environment fingerprint/iu],
 		['failed metric', runtime, (value) => {
 			value.metrics['directWav.maximumPathOwnedBinaryBytes'] = 67_108_865;
 		}, /expected lte/iu],

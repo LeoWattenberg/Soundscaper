@@ -18,6 +18,10 @@ import {
 	writeM7AssistancePrivacyResult,
 } from '../scripts/collect-m7-local-assistance-privacy-quality.mjs';
 import { qualityBudgetSha256 } from '../scripts/lib/quality-budget-config-digest.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	workloadThresholds,
+} from '../scripts/lib/quality-budget-config.mjs';
 
 type MutableRecord = Record<string, unknown>;
 type MutableRun = MutableRecord & {
@@ -39,10 +43,8 @@ const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
 	'utf8',
 )) as MutableRecord & {
-	environments: Array<MutableRecord & { id: string }>;
 	fixtures: Array<MutableRecord & { id: string; specification: MutableRecord }>;
-	measurementPolicy: MutableRecord;
-	workloads: Array<MutableRecord & { id: string; thresholds: Array<{ metricId: string }> }>;
+	workloads: Array<MutableRecord & { id: string; measurementIds: string[] }>;
 };
 const fixture = config.fixtures.find(({ id }) => id === 'm7-local-assistance-privacy-v1')!;
 const workload = config.workloads.find(({ id }) => id === 'm7-local-assistance-privacy')!;
@@ -150,16 +152,17 @@ function expectation() {
 	return {
 		budgetSha256,
 		fixtureSpecification: fixture.specification,
-		measurementPolicy: config.measurementPolicy,
+		measurementPolicy: DIAGNOSTIC_MEASUREMENT_POLICY,
 	};
 }
 
 test('the runnable collector owns exactly the five registered privacy metrics', async () => {
-	assert.deepEqual(workload.thresholds.map(({ metricId }) => metricId), [
+	assert.deepEqual(workloadThresholds(config, workload.id).map(
+		({ metricId }: { metricId: string }) => metricId,
+	), [
 		...M7_ASSISTANCE_PRIVACY_METRIC_IDS,
 	]);
-	assert.equal(workload.status, 'optional');
-	assert.equal(fixture.status, 'optional');
+	assert.equal(workload.behavior, 'blocking');
 	assert.deepEqual(fixture.specification, {
 		selectedMediaAssetCount: 2,
 		unselectedMediaAssetCount: 2,
@@ -221,7 +224,7 @@ test('zero-tolerance ledgers include warm-up failures while timing excludes warm
 	assert.equal(result.evaluation.verdicts.filter(({ passed }: { passed: boolean }) => !passed).length, 4);
 });
 
-test('nearest-rank p95 is stable over bounded samples and breaches at 2001 ms', () => {
+test('nearest-rank p95 is stable and a 2001 ms miss is observational', () => {
 	const measurement = makeMeasurement();
 	measurement.runs.forEach((run, index) => {
 		run.cancellationSamplesMs = [10 + index, 20 + index, 30 + index, 40 + index];
@@ -231,8 +234,8 @@ test('nearest-rank p95 is stable over bounded samples and breaches at 2001 ms', 
 	const computed = computeM7AssistancePrivacyMetrics(measurement, expectation());
 	assert.equal(computed.metrics['assistance.cancellationP95Ms'], 2_001);
 	const result = createM7AssistancePrivacyResult(measurement, config);
-	assert.equal(result.status, 'failed');
-	assert.match(result.evaluation.failures.join('\n'), /cancellationP95Ms was 2001 ms/u);
+	assert.equal(result.status, 'passed');
+	assert.match(result.evaluation.warnings.join('\n'), /cancellationP95Ms was 2001 ms/u);
 });
 
 test('fixture, identity, package, artifact, media, observation, and run shapes fail closed', () => {

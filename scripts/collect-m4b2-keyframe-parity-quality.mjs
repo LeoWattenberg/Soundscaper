@@ -15,6 +15,7 @@ import {
 	decodeM4B2KeyframeParitySourceRgba,
 	validateM4B2KeyframeConsumerLedger,
 } from './lib/m4b2-keyframe-parity-metrics.mjs';
+import { evaluateQualityWorkload } from './lib/quality-budget-config.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -220,14 +221,21 @@ export function createPendingM4B2KeyframeParityResult(input, inputConfig) {
 		'keyframes.substitutedOperations': substitutedOperations,
 		'keyframes.fallbackOperations': fallbackOperations,
 	});
-	const thresholds = inputConfig === null || inputConfig === undefined
-		? DEFAULT_THRESHOLDS
-		: exactDescriptor(inputConfig.workloads, WORKLOAD_ID, 'workload').thresholds;
-	const verdicts = metricVerdicts(metrics, thresholds);
-	const failures = verdicts.filter(({ passed }) => !passed)
-		.map(({ metricId }) => `${metricId} did not pass.`);
-	const metricGatePassed = verdicts.length === DEFAULT_THRESHOLDS.length
-		&& verdicts.every(({ passed }) => passed);
+	let evaluation;
+	if (inputConfig === null || inputConfig === undefined) {
+		const verdicts = metricVerdicts(metrics, DEFAULT_THRESHOLDS);
+		const failures = verdicts.filter(({ passed }) => !passed)
+			.map(({ metricId }) => `${metricId} did not pass.`);
+		evaluation = Object.freeze({
+			passed: failures.length === 0,
+			failures: Object.freeze(failures),
+			warnings: Object.freeze([]),
+			verdicts: Object.freeze(verdicts),
+		});
+	} else {
+		evaluation = evaluateQualityWorkload(inputConfig, WORKLOAD_ID, metrics);
+	}
+	const metricGatePassed = evaluation.passed;
 	const fingerprint = requireRecord(diagnostic.environmentFingerprint, 'environmentFingerprint');
 	if (Object.keys(fingerprint).length === 0) throw new Error('Environment fingerprint must not be empty.');
 	return Object.freeze({
@@ -253,11 +261,7 @@ export function createPendingM4B2KeyframeParityResult(input, inputConfig) {
 			renderedConsumerOperations,
 		}),
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed: metricGatePassed,
-			failures: Object.freeze(failures),
-			verdicts: Object.freeze(verdicts),
-		}),
+		evaluation,
 	});
 }
 
@@ -335,14 +339,6 @@ function metricVerdicts(metrics, thresholds) {
 			passed,
 		});
 	});
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function assertExpectedValue(actual, expected, path) {

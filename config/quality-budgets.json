@@ -1,185 +1,8 @@
 {
-	"schemaVersion": 1,
-	"groundedAt": "2026-08-31",
-	"offlineCacheNarrative": "Shell upgrade begins with a prior complete cache, activates one complete current active-product cache, and retires only safely obsolete caches. The current product's verified core is guaranteed offline after installation; optional assets and the other product become available offline only after their exact allowlisted bytes have been fetched, verified, and cached on use. Dedicated audio WASM payloads and dynamically loaded WebCodecs/Mediabunny chunks are ordinary digest-bound application assets; no FFmpeg runtime is fetched, cached, served, or retained for rollback.",
-	"measurementPolicy": {
-		"percentileMethod": "nearest-rank",
-		"missingMetric": "fail",
-		"nonFiniteMetric": "fail",
-		"environmentMismatch": "fail",
-		"rendererMismatch": "fail",
-		"benchmarkRetries": 0,
-		"timingWorkers": 1,
-		"timingWarmupTrials": 1,
-		"timingTrials": 5,
-		"forcedCollectionsPerHeapSnapshot": 3
-	},
-	"units": [
-		"bytes",
-		"count",
-		"dB",
-		"frames",
-		"LU",
-		"MiB/hour",
-		"ms",
-		"ratio",
-		"RTF",
-		"samples",
-		"seconds"
-	],
-	"softwareInputs": {
-		"node": {
-			"version": "26.5.0",
-			"evidence": [
-				".nvmrc",
-				"package.json"
-			]
-		},
-		"npm": {
-			"version": "12.0.1",
-			"evidence": [
-				"package.json",
-				"package-lock.json"
-			]
-		},
-		"playwright": {
-			"version": "1.62.1",
-			"evidence": [
-				"package.json",
-				"package-lock.json",
-				".github/workflows/quality.yml"
-			]
-		},
-		"browsers": {
-			"chromium": {
-				"version": "151.0.7922.34",
-				"revision": "1234",
-				"project": "chromium",
-				"status": "provisional",
-				"evidence": [
-					"package-lock.json",
-					"playwright.config.mjs",
-					".github/workflows/quality.yml"
-				]
-			},
-			"firefox": {
-				"version": "153.0",
-				"revision": "1538",
-				"project": "firefox",
-				"status": "provisional",
-				"evidence": [
-					"package-lock.json",
-					"playwright.config.mjs",
-					".github/workflows/quality.yml"
-				]
-			},
-			"webkit": {
-				"version": "26.5",
-				"revision": "2336",
-				"project": "webkit",
-				"status": "provisional",
-				"evidence": [
-					"package-lock.json",
-					"playwright.config.mjs",
-					".github/workflows/quality.yml"
-				]
-			}
-		}
-	},
-	"environments": [
-		{
-			"id": "github-ubuntu-playwright-1.62.1",
-			"status": "active",
-			"kind": "hosted-ci",
-			"rendererRequirement": "any",
-			"fingerprint": {
-				"osImage": "ubuntu-24.04",
-				"containerImage": "mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e",
-				"nodeVersion": "26.5.0",
-				"npmVersion": "12.0.1",
-				"playwrightVersion": "1.62.1"
-			},
-			"evidence": [
-				".github/workflows/quality.yml",
-				".github/workflows/diagnostic-metrics.yml",
-				".nvmrc",
-				"package-lock.json",
-				"docs/quality-budgets.md#hosted-ci-diagnostics"
-			]
-		},
-		{
-			"id": "portable-node-structural-26.5.0",
-			"status": "active",
-			"kind": "portable-deterministic-node-structural",
-			"rendererRequirement": "any",
-			"fingerprint": {
-				"platform": "linux",
-				"architecture": "x64",
-				"nodeVersion": "26.5.0",
-				"npmVersion": "12.0.1",
-				"measurementClass": "first-party-owned-structural-counters"
-			},
-			"evidence": [
-				".nvmrc",
-				"package.json",
-				"package-lock.json",
-				"docs/quality-budgets.md#portable-structural-environment"
-			]
-		},
-		{
-			"id": "local-runtime-diagnostics",
-			"status": "active",
-			"kind": "observed-local-runtime-diagnostics",
-			"rendererRequirement": "any",
-			"evidence": [
-				"scripts/lib/desktop-nightly-tests-metrics.mjs",
-				"tests/desktop-nightly-tests-metrics.test.ts",
-				"docs/quality-budgets.md#observed-local-runtime-diagnostics"
-			]
-		},
-		{
-			"id": "native-os-diagnostics",
-			"status": "active",
-			"kind": "observed-native-runtime-diagnostics",
-			"rendererRequirement": "any",
-			"evidence": [
-				"scripts/lib/native-os-diagnostics-schema.mjs",
-				"tests/quality-budget-native-os-diagnostics.test.ts",
-				"docs/quality-budgets.md#native-and-packaged-diagnostics"
-			]
-		},
-		{
-			"id": "capture-device-diagnostics",
-			"status": "active",
-			"kind": "observed-capture-device-diagnostics",
-			"rendererRequirement": "any",
-			"evidence": [
-				"scripts/collect-m8a-capture-quality.mjs",
-				"tests/quality-budget-m8a-capture-collector.test.ts",
-				"docs/quality-budgets.md#native-and-packaged-diagnostics"
-			]
-		},
-		{
-			"id": "web-vcr-diagnostics",
-			"status": "active",
-			"kind": "observed-web-vcr-diagnostics",
-			"rendererRequirement": "any",
-			"evidence": [
-				"docs/post-milestone-8-web-vcr-plan.md",
-				"tests/production-security-framescaper-web-vcr-policy.test.js",
-				"docs/quality-budgets.md#native-and-packaged-diagnostics"
-			]
-		}
-	],
+	"schemaVersion": 2,
 	"fixtures": [
 		{
 			"id": "video-preview-12fx-720p-v1",
-			"milestones": [
-				"1",
-				"4",
-				"9"
-			],
-			"status": "active",
 			"kind": "digest-pinned-media",
 			"specification": {
 				"width": 1280,
@@ -191,19 +14,10 @@
 				"sourceByteLength": 109277,
 				"sourceSha256": "f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c"
 			},
-			"limitation": "The repository-owned synthetic VP8 source is digest-pinned and isolates the complete 1280x720 shader-preview path. It is silent and does not measure decoder/audio scheduling or the unprovisioned reference GPU host.",
-			"evidence": [
-				"tests/browser/audio-editor-video-preview-benchmark.spec.js"
-			]
+			"limitation": "The repository-owned synthetic VP8 source is digest-pinned and isolates the complete 1280x720 shader-preview path. It is silent and does not measure decoder/audio scheduling or representative hardware performance."
 		},
 		{
 			"id": "video-effect-parity-rgba-v1",
-			"milestones": [
-				"1",
-				"4",
-				"6"
-			],
-			"status": "active",
 			"kind": "deterministic-generator",
 			"specification": {
 				"width": 128,
@@ -231,18 +45,10 @@
 					"byteLength": 36864,
 					"sha256": "55d2384282e66eb12cba4ae16b229d5fdccb5190471dcc8a0487ed0ec56e1399"
 				}
-			],
-			"evidence": [
-				"tests/browser/video-effect-parity-helpers.js",
-				"tests/audio-editor-video-effect-parity.test.js"
 			]
 		},
 		{
 			"id": "m2-streaming-project-8gib-v1",
-			"milestones": [
-				"2"
-			],
-			"status": "active",
 			"kind": "sparse-zip64-desktop-range-and-counting-import-witness",
 			"specification": {
 				"referenceScaleExecutionCommand": "npm run test:reference:scape-8gib",
@@ -286,25 +92,10 @@
 				"quotaPreflightPolicy": "point-in-time-validated-asset-bytes-plus-ceil-10-percent",
 				"quotaPreflightRequiredFreeBytes": 9448923946
 			},
-			"limitation": "The witness requires a sparse filesystem. Its legacy-schema refusal inspection is payload-lazy, while its successful full import ends at a counting independent-SHA transactional sink that retains no payload. The maintained importer verifies a point-in-time capacity check against an injected estimate: 8,589,930,860 validated asset bytes plus ceil(10%) require 9,448,923,946 free bytes before asset extraction. This check is not a storage reservation and does not guarantee a capacity UI snapshot or write-time success. The reference-scale test passed under all-files coverage with an observed 525-second test duration; routine Node and coverage runs skip it with a message naming the dedicated command. It does not measure packaged Electron UI, real OPFS or IndexedDB durable storage, actual browser quota availability or estimate freshness under concurrent writers, browser-record or filesystem-allocation overhead beyond the policy headroom, renderer or browser heap, main or renderer RSS, whole-archive storage atomicity, or publisher authentication.",
-			"evidence": [
-				"package.json",
-				"src/common/editor/scape-import-capacity.ts",
-				"tests/audio-editor-scape-import-capacity.test.ts",
-				"tests/audio-editor-scape-import-capacity-admission.test.ts",
-				"tests/desktop-scape-sparse-range-integration.test.ts",
-				"tests/desktop-scape-sparse-full-import-integration.test.ts",
-				"tests/audio-editor-scape-streaming-video.test.ts",
-				"tests/helpers/sparse-scape-zip64-fixture.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
-			]
+			"limitation": "The witness requires a sparse filesystem. Its legacy-schema refusal inspection is payload-lazy, while its successful full import ends at a counting independent-SHA transactional sink that retains no payload. The maintained importer verifies a point-in-time capacity check against an injected estimate: 8,589,930,860 validated asset bytes plus ceil(10%) require 9,448,923,946 free bytes before asset extraction. This check is not a storage reservation and does not guarantee a capacity UI snapshot or write-time success. The reference-scale test passed under all-files coverage with an observed 525-second test duration; routine Node and coverage runs skip it with a message naming the dedicated command. It does not measure packaged Electron UI, real OPFS or IndexedDB durable storage, actual browser quota availability or estimate freshness under concurrent writers, browser-record or filesystem-allocation overhead beyond the policy headroom, renderer or browser heap, main or renderer RSS, whole-archive storage atomicity, or publisher authentication."
 		},
 		{
 			"id": "m2-direct-wav-385mib-v1",
-			"milestones": [
-				"2"
-			],
-			"status": "active",
 			"kind": "deterministic-direct-wav-counting-sha256-node-witness",
 			"specification": {
 				"referenceScaleExecutionCommand": "npm run test:reference:wav-385mib",
@@ -343,26 +134,10 @@
 				],
 				"cancellationAfterCoalescedPcmWriteVerified": true
 			},
-			"limitation": "The Node witness ends at a counting SHA-256 target and retains no PCM output payload. Its 41,943,384-byte structural maximum counts typed-array and coalescing-buffer backing bytes by production-path ownership; it is not renderer heap or process RSS evidence. It does not exercise File System Access or an Electron filesystem, actual quota or durability, a native picker, or packaged application UI. The over-limit check is closed direct-target admission rather than a storage reservation. Routine Node and coverage runs skip it with a message naming the dedicated command.",
-			"evidence": [
-				"package.json",
-				"src/common/editor/export.js",
-				"src/common/editor/pcm-sink.js",
-				"src/common/editor/resample.js",
-				"src/common/editor/wav.js",
-				"src/common/editor/controller/direct-pcm-export.ts",
-				"src/common/editor/controller/direct-wav-export.ts",
-				"src/common/editor/controller/export-service.ts",
-				"tests/audio-editor-export-direct-wav-reference.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
-			]
+			"limitation": "The Node witness ends at a counting SHA-256 target and retains no PCM output payload. Its 41,943,384-byte structural maximum counts typed-array and coalescing-buffer backing bytes by production-path ownership; it is not renderer heap or process RSS evidence. It does not exercise File System Access or an Electron filesystem, actual quota or durability, a native picker, or packaged application UI. The over-limit check is closed direct-target admission rather than a storage reservation. Routine Node and coverage runs skip it with a message naming the dedicated command."
 		},
 		{
 			"id": "m2-direct-stem-archives-v3",
-			"milestones": [
-				"2"
-			],
-			"status": "active",
 			"kind": "deterministic-direct-stem-archive-node-witness",
 			"specification": {
 				"generatorRevision": 4,
@@ -499,43 +274,10 @@
 					"prepared-exact-fixed-final-prefix-or-maximum-size-destination"
 				]
 			},
-			"limitation": "This is a small Node correctness fixture over a provider-injected prepared streaming destination. It proves exact direct native-PCM ZIP32 and 7z Copy plus maximum-admitted canonical realtime and centrally admitted offline compressed ZIP32 admission, strategy-bounded sequential staging, current-stem-only pre-entry realtime retry, actual archive byte-accounting, backpressure, and unpublished-failure contracts only. The 151-byte 7z case is a small injected golden correctness fixture, not a ZIP32-overflow or reference-scale execution. The compressed cap is a refusal boundary, not a codec expansion bound. The fixture uses injected encoded bytes and mock FFmpeg behavior; it does not exercise actual FFmpeg codec execution, codec conformance, codec expansion, heap or RSS amplification, worker MEMFS allocation, garbage collection, CPU, or elapsed time. It does not exercise File System Access or an Electron filesystem, a native picker, packaged UI, final-Blob direct publication, or real browser or operating-system behavior. It is not a reference-scale, renderer-heap, process-RSS, quota, filesystem-durability, crash, or power-loss measurement and does not cover the milestone 2 bounded-memory workload. Custom FFmpeg and compressed 7z stems, BW64 stems, and video remain excluded.",
-			"evidence": [
-				"src/common/editor/controller/audio-export-render-orchestration.ts",
-				"src/common/editor/controller/direct-audio-render-plan.ts",
-				"src/common/editor/controller/direct-compressed-plan.ts",
-				"src/common/editor/controller/direct-compressed-stem-archive-plan.ts",
-				"src/common/editor/controller/direct-native-stem-archive-plan.ts",
-				"src/common/editor/controller/direct-pcm-export.ts",
-				"src/common/editor/controller/direct-stem-archive-export.ts",
-				"src/common/editor/controller/export-service.ts",
-				"src/common/editor/controller/rendered-audio-encoding.ts",
-				"src/common/editor/controller/sequential-seven-zip-copy.ts",
-				"src/common/editor/controller/sequential-zip32-stream.ts",
-				"src/common/editor/file-save-stream.ts",
-				"src/common/editor/controller/zip32.ts",
-				"tests/audio-editor-direct-audio-render-plan.test.ts",
-				"tests/audio-editor-direct-native-stem-archive-plan.test.ts",
-				"tests/audio-editor-export-direct-compressed-stem-archive.test.ts",
-				"tests/audio-editor-export-direct-compressed-stem-stream.test.ts",
-				"tests/audio-editor-export-direct-compressed-stem-service.test.ts",
-				"tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts",
-				"tests/audio-editor-offline-compressed-stem-encoding.test.ts",
-				"tests/audio-editor-export-direct-stem-archive.test.ts",
-				"tests/audio-editor-export-direct-stem-stream.test.ts",
-				"tests/audio-editor-final-prefix-save.test.ts",
-				"tests/audio-editor-sequential-seven-zip-copy.test.ts",
-				"tests/audio-editor-sequential-zip32-stream.test.ts",
-				"tests/fixtures/seven-zip-copy-golden.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
-			]
+			"limitation": "This is a small Node correctness fixture over a provider-injected prepared streaming destination. It proves exact direct native-PCM ZIP32 and 7z Copy plus maximum-admitted canonical realtime and centrally admitted offline compressed ZIP32 admission, strategy-bounded sequential staging, current-stem-only pre-entry realtime retry, actual archive byte-accounting, backpressure, and unpublished-failure contracts only. The 151-byte 7z case is a small injected golden correctness fixture, not a ZIP32-overflow or reference-scale execution. The compressed cap is a refusal boundary, not a codec expansion bound. The fixture uses injected encoded bytes and mock FFmpeg behavior; it does not exercise actual FFmpeg codec execution, codec conformance, codec expansion, heap or RSS amplification, worker MEMFS allocation, garbage collection, CPU, or elapsed time. It does not exercise File System Access or an Electron filesystem, a native picker, packaged UI, final-Blob direct publication, or real browser or operating-system behavior. It is not a reference-scale, renderer-heap, process-RSS, quota, filesystem-durability, crash, or power-loss measurement and does not cover the milestone 2 bounded-memory workload. Custom FFmpeg and compressed 7z stems, BW64 stems, and video remain excluded."
 		},
 		{
 			"id": "m2-direct-compressed-output-v2",
-			"milestones": [
-				"2"
-			],
-			"status": "active",
 			"kind": "deterministic-direct-compressed-node-transport-witness",
 			"specification": {
 				"generatorRevision": 3,
@@ -658,41 +400,10 @@
 					"prepared-exact-size-destination"
 				]
 			},
-			"limitation": "This is a small Node correctness fixture over a patched-worker fake filesystem, a mock FFmpeg runtime, and a provider-injected prepared destination. Its service cases exercise both render strategies and all seven admitted formats with five output bytes. Realtime cases deliver that body in two chunks; offline cases deliver it in one. Its virtual 269,484,049-byte case proves exact transport arithmetic and backpressure across 258 reads; it does not allocate that output, execute the actual FFmpeg codec, establish codec conformance, or establish reference-scale behavior. The 256 MiB central offline admission covers exact useful-binary context and crop output only, not end-to-end memory. Offline preflight counts a raw PCM payload that excludes WAV framing and padding. A complete staged WAV remains materialized as bytes and a Blob, and the complete encoded output remains in worker MEMFS before transfer. The fixture does not bound worker MEMFS, staged-input residency, native or WASM codec memory, renderer or browser heap, GC, process RSS, CPU, or elapsed time. In particular, the 900,000-millisecond desktop prepared-target TTL does not measure long offline desktop elapsed-time behavior. It does not exercise File System Access, an Electron filesystem, a native picker, actual browser or operating-system behavior, packaged UI, quota, filesystem durability, crash, or power loss. Custom FFmpeg, compressed stems, video, and other noncanonical delivery are excluded. It remains outside the milestone 2 bounded-memory workload.",
-			"evidence": [
-				"patches/npm/@ffmpeg+ffmpeg+0.12.15.patch",
-				"src/common/editor/media-export.js",
-				"src/common/editor/export.js",
-				"src/common/editor/ffmpeg-output-stream.ts",
-				"src/common/editor/ffmpeg.js",
-				"src/common/editor/controller/direct-audio-render-plan.ts",
-				"src/common/editor/controller/direct-compressed-plan.ts",
-				"src/common/editor/controller/direct-compressed-export.ts",
-				"src/common/editor/controller/direct-offline-compressed-export.ts",
-				"src/common/editor/controller/rendered-audio-encoding.ts",
-				"src/common/editor/controller/audio-export-render-orchestration.ts",
-				"src/common/editor/controller/export-service.ts",
-				"tests/audio-editor-media-export.test.js",
-				"tests/audio-editor-ffmpeg-output-range-patch.test.js",
-				"tests/audio-editor-ffmpeg-output-stream.test.ts",
-				"tests/audio-editor-ffmpeg-idle.test.js",
-				"tests/audio-editor-direct-audio-render-plan.test.ts",
-				"tests/audio-editor-direct-offline-compressed-export.test.ts",
-				"tests/audio-editor-export-direct-compressed-matrix.test.ts",
-				"tests/audio-editor-export-direct-compressed-service.test.ts",
-				"tests/audio-editor-rendered-direct-offline-compressed.test.ts",
-				"tests/audio-editor-export-direct-offline-compressed-service.test.ts",
-				"tests/audio-editor-export-direct-offline-compressed-fallback.test.ts",
-				"tests/audio-editor-export-direct-mp3.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
-			]
+			"limitation": "This is a small Node correctness fixture over a patched-worker fake filesystem, a mock FFmpeg runtime, and a provider-injected prepared destination. Its service cases exercise both render strategies and all seven admitted formats with five output bytes. Realtime cases deliver that body in two chunks; offline cases deliver it in one. Its virtual 269,484,049-byte case proves exact transport arithmetic and backpressure across 258 reads; it does not allocate that output, execute the actual FFmpeg codec, establish codec conformance, or establish reference-scale behavior. The 256 MiB central offline admission covers exact useful-binary context and crop output only, not end-to-end memory. Offline preflight counts a raw PCM payload that excludes WAV framing and padding. A complete staged WAV remains materialized as bytes and a Blob, and the complete encoded output remains in worker MEMFS before transfer. The fixture does not bound worker MEMFS, staged-input residency, native or WASM codec memory, renderer or browser heap, GC, process RSS, CPU, or elapsed time. In particular, the 900,000-millisecond desktop prepared-target TTL does not measure long offline desktop elapsed-time behavior. It does not exercise File System Access, an Electron filesystem, a native picker, actual browser or operating-system behavior, packaged UI, quota, filesystem durability, crash, or power loss. Custom FFmpeg, compressed stems, video, and other noncanonical delivery are excluded. It remains outside the milestone 2 bounded-memory workload."
 		},
 		{
 			"id": "m2-direct-mp4-webm-video-output-v1",
-			"milestones": [
-				"2"
-			],
-			"status": "active",
 			"kind": "deterministic-direct-mp4-webm-node-transport-witness",
 			"specification": {
 				"generatorRevision": 1,
@@ -766,39 +477,10 @@
 					"prepared-exact-size-destination"
 				]
 			},
-			"limitation": "This is a small Node correctness fixture over a patched-worker fake filesystem, a mock FFmpeg runtime, and provider-injected prepared destinations. Its allocated 2,097,169-byte transport body crosses three exact ranges and proves MP4 and WebM range arithmetic, serial backpressure, and service ordering; it does not execute the actual codecs, establish codec conformance, or establish reference-scale behavior. The complete finalized output remains in worker MEMFS before transfer. The fixture does not bound worker MEMFS, source-video or staged-audio Blob residency, native or WASM codec memory, renderer or browser heap, GC, process RSS, CPU, or elapsed time. It does not exercise File System Access, an Electron filesystem, a native picker, actual browser or operating-system behavior, packaged UI, quota, filesystem durability, crash, or power loss. It remains outside the milestone 2 bounded-memory workload.",
-			"evidence": [
-				"patches/npm/@ffmpeg+ffmpeg+0.12.15.patch",
-				"src/common/editor/ffmpeg-output-stream.ts",
-				"src/common/editor/ffmpeg-video-output.ts",
-				"src/common/editor/ffmpeg.js",
-				"src/common/editor/controller/direct-video-export.ts",
-				"src/common/editor/controller/video-export-service.ts",
-				"src/common/editor/controller/video-rendered-fallback-export.ts",
-				"src/common/editor/file-service.js",
-				"src/common/editor/file-save-stream.ts",
-				"src/common/editor/video-export.js",
-				"src/common/editor/video-ffmpeg.js",
-				"desktop/save-targets.js",
-				"tests/audio-editor-ffmpeg-output-range-patch.test.js",
-				"tests/audio-editor-ffmpeg-output-stream.test.ts",
-				"tests/audio-editor-ffmpeg-video-output.test.ts",
-				"tests/audio-editor-ffmpeg-idle.test.js",
-				"tests/audio-editor-export-direct-video.test.ts",
-				"tests/audio-editor-video-ffmpeg.test.js",
-				"tests/audio-editor-video-rendered-fallback-export.test.ts",
-				"tests/audio-editor-file-service.test.js",
-				"tests/desktop-save-capacity.test.js",
-				"tests/desktop-save.test.js",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
-			]
+			"limitation": "This is a small Node correctness fixture over a patched-worker fake filesystem, a mock FFmpeg runtime, and provider-injected prepared destinations. Its allocated 2,097,169-byte transport body crosses three exact ranges and proves MP4 and WebM range arithmetic, serial backpressure, and service ordering; it does not execute the actual codecs, establish codec conformance, or establish reference-scale behavior. The complete finalized output remains in worker MEMFS before transfer. The fixture does not bound worker MEMFS, source-video or staged-audio Blob residency, native or WASM codec memory, renderer or browser heap, GC, process RSS, CPU, or elapsed time. It does not exercise File System Access, an Electron filesystem, a native picker, actual browser or operating-system behavior, packaged UI, quota, filesystem durability, crash, or power loss. It remains outside the milestone 2 bounded-memory workload."
 		},
 		{
 			"id": "m3-longform-editorial-2h-v2",
-			"milestones": [
-				"3"
-			],
-			"status": "active",
 			"kind": "deterministic-current-schema-project-generator",
 			"specification": {
 				"localDiagnosticCommand": "npm run quality:collect:m3-longform",
@@ -832,22 +514,10 @@
 				"projectSha256": "efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e",
 				"editPlanSha256": "2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf"
 			},
-			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Results are local diagnostics for the environment recorded by the run; they do not certify a release or another host.",
-			"evidence": [
-				"package.json",
-				"src/common/editor/quality/m3-longform-editorial-workload.ts",
-				"tests/audio-editor-m3-longform-editorial-workload.test.ts",
-				"tests/browser/audio-editor-longform-editorial-benchmark.spec.js",
-				"scripts/collect-m3-longform-editorial-quality.mjs",
-				"tests/quality-budget-longform-editorial-collector.test.ts"
-			]
+			"limitation": "The deterministic current-schema project and 10,000-command replay establish structural shape and exact persisted/runtime positions. The opt-in browser harness decodes both repository-owned VP8/Opus fixtures and samples their AudioContext and requestVideoFrameCallback presentation clocks while measuring seek, scroll and retained heap in the same long-form session. Results are local diagnostics for the environment recorded by the run; they do not certify a release or another host."
 		},
 		{
 			"id": "m4-production-parity-v1",
-			"milestones": [
-				"4"
-			],
-			"status": "active",
 			"kind": "deterministic-audio-vectors-and-video-golden-frames",
 			"specification": {
 				"localDiagnosticCommand": "npm run quality:collect:m4-production-parity",
@@ -909,22 +579,10 @@
 					"sha256": "a7a1230cdd711e15deaea68e0e5f58028eb684455fb42024e2aed624ad934701"
 				}
 			],
-			"limitation": "The deterministic PCM and RGBA artifacts establish exact media correctness. Hosted and local timing, heap, and renderer observations describe only the environment recorded by each diagnostic run; they establish no hardware lower bound or release status.",
-			"evidence": [
-				"package.json",
-				"src/common/editor/quality/m4-production-parity-workload.ts",
-				"tests/audio-editor-m4-production-parity-workload.test.ts",
-				"tests/browser/audio-editor-m4-production-parity.spec.js",
-				"scripts/collect-m4-production-parity-quality.mjs",
-				"tests/quality-budget-m4-production-parity-collector.test.ts"
-			]
+			"limitation": "The deterministic PCM and RGBA artifacts establish exact media correctness. Hosted and local timing, heap, and renderer observations describe only the environment recorded by each diagnostic run; they establish no hardware lower bound or release status."
 		},
 		{
 			"id": "m4b2-keyframe-parity-rgba-v1",
-			"milestones": [
-				"4"
-			],
-			"status": "active",
 			"kind": "deterministic-keyed-preview-offline-rgba-parity",
 			"specification": {
 				"profile": "deterministic-keyframe-parity-v1",
@@ -966,217 +624,57 @@
 				],
 				"localDiagnosticCommand": "node scripts/collect-m4b2-keyframe-parity-quality.mjs"
 			},
-			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes exact media correctness. Hosted and local timing, heap, and renderer observations describe only the environment recorded by each diagnostic run; they establish no hardware lower bound or release status.",
-			"evidence": [
-				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
-				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
-				"scripts/collect-m4b2-keyframe-parity-quality.mjs",
-				"tests/audio-editor-m4b2-keyframe-parity-workload.test.ts",
-				"tests/helpers/m4b2-keyframe-parity-fixture.ts",
-				"tests/quality-budget-m4b2-keyframe-parity-collector.test.ts",
-				"tests/browser/audio-editor-m4b2-keyframe-parity.spec.js"
-			]
+			"limitation": "The deterministic keyed preview/offline RGBA comparison establishes exact media correctness. Hosted and local timing, heap, and renderer observations describe only the environment recorded by each diagnostic run; they establish no hardware lower bound or release status."
 		},
 		{
 			"id": "m5-helper-fault-and-loopback-v1",
-			"milestones": [
-				"5"
-			],
-			"status": "planned",
-			"kind": "planned-native-fault-and-device-harness",
+			"kind": "native-fault-and-device-harness",
 			"specification": {
 				"malformedCaseCount": 10000,
 				"loopbackDurationSeconds": 1800
-			},
-			"evidence": [
-				"roadmap.md#5-electron-native-services-and-extensibility",
-				"docs/milestone-5a-soundscaper-native.md",
-				"tests/desktop-helper-contract.test.ts",
-				"tests/desktop-helper-supervisor.test.ts",
-				"tests/desktop-helper-probe-process.test.js",
-				"tests/desktop-native-helper-real-process.test.js",
-				"tests/desktop-native-helper-process.test.js",
-				"tests/native-fixture-plugin-format.test.js",
-				"scripts/lib/m5-native-helper-metrics.mjs",
-				"scripts/collect-m5-native-helper-quality.mjs",
-				"tests/quality-budget-m5-native-helper-collector.test.ts"
-			]
+			}
 		},
 		{
 			"id": "m6-reference-master-suite-v1",
-			"milestones": [
-				"6"
-			],
-			"status": "planned",
-			"kind": "planned-reference-media-suite",
+			"kind": "reference-media-suite",
 			"specification": {
 				"audioDurationSeconds": 3600,
 				"videoDurationSeconds": 600,
 				"videoWidth": 1280,
 				"videoHeight": 720,
 				"videoFrameRate": 30
-			},
-			"evidence": [
-				"roadmap.md#6-professional-delivery-and-interchange"
-			]
+			}
 		},
 		{
 			"id": "m6-reference-master-vertical-v1",
-			"milestones": [
-				"6"
-			],
-			"status": "planned",
-			"kind": "planned-reference-media-suite",
+			"kind": "reference-media-suite",
 			"specification": {
 				"audioDurationSeconds": 3600,
 				"videoDurationSeconds": 600,
 				"videoWidth": 1080,
 				"videoHeight": 1920,
 				"videoFrameRate": 30
-			},
-			"evidence": [
-				"roadmap.md#6-professional-delivery-and-interchange",
-				"docs/quality-budgets.md#fixtures-and-project-sizes",
-				"docs/milestone-6b-framescaper-delivery.md"
-			]
+			}
 		},
 		{
 			"id": "m7-local-assistance-privacy-v1",
-			"milestones": [
-				"7"
-			],
-			"status": "optional",
-			"kind": "planned-offline-model-sandbox",
+			"kind": "offline-model-sandbox",
 			"specification": {
 				"selectedMediaAssetCount": 2,
 				"unselectedMediaAssetCount": 2
-			},
-			"evidence": [
-				"roadmap.md#7-optional-local-assistance",
-				"docs/milestone-7-plan.md#wp-703--job-consent-and-evidence-integration",
-				"docs/quality-budgets.md#milestone-7-local-assistance-privacy-diagnostics",
-				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
-				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
-				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
-			]
-		},
-		{
-			"id": "m7-local-assistance-speech-accuracy-v1",
-			"milestones": [
-				"7"
-			],
-			"status": "planned",
-			"kind": "planned-offline-model-accuracy-corpus",
-			"specification": {
-				"language": "en",
-				"durationSeconds": 1800,
-				"speakerCount": 3,
-				"referenceTranscriptWordCount": 4500,
-				"plantedFillerCount": 120,
-				"plantedSilenceCount": 60,
-				"seededSearchPhraseCount": 25,
-				"annotatedBeatCount": 2400,
-				"annotatedDownbeatCount": 600
-			},
-			"limitation": "The corpus is specified, not provisioned. Every threshold it carries is a criterion for the model-backed routes, and none of them can be measured until the converted artifacts, signed catalog entries, and target runtime payloads exist.",
-			"evidence": [
-				"roadmap.md#7-optional-local-assistance",
-				"docs/milestone-7-plan.md#7a-packets-soundscaper-track-slice-docs-at-pickup",
-				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
-			]
-		},
-		{
-			"id": "m7-local-assistance-visual-accuracy-v1",
-			"milestones": [
-				"7"
-			],
-			"status": "planned",
-			"kind": "planned-offline-model-accuracy-corpus",
-			"specification": {
-				"durationSeconds": 3600,
-				"annotatedShotBoundaryCount": 400,
-				"annotatedDissolveCount": 40,
-				"seededVisualQueryCount": 25,
-				"annotatedSubjectShotCount": 120,
-				"subjectlessShotCount": 20,
-				"verticalGoldenFrameCount": 12
-			},
-			"limitation": "The reel is specified, not provisioned. Its accurate-cut, retrieval, reframe, and highlight thresholds cannot be measured until the converted artifacts, signed catalog entries, and target runtime payloads exist; only the model-free fast-cut and unchanged-export rows are measurable without them.",
-			"evidence": [
-				"roadmap.md#7-optional-local-assistance",
-				"docs/milestone-7-plan.md#7b-packets-framescaper-track-slice-docs-at-pickup",
-				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
-			]
+			}
 		},
 		{
 			"id": "m8a-capture-30m-all-sources-v1",
-			"milestones": [
-				"8A"
-			],
-			"status": "active",
-			"kind": "capture-device-matrix",
+			"kind": "observed-capture-session",
 			"specification": {
 				"durationSeconds": 1800,
 				"sourceCombinationCount": 6
-			},
-			"evidence": [
-				"roadmap.md#8a-framescaper-recording-setup",
-				"docs/quality-budgets.md#fixtures-and-project-sizes",
-				"scripts/lib/m8a-capture-quality-metrics.mjs",
-				"scripts/collect-m8a-capture-quality.mjs",
-				"tests/quality-budget-m8a-capture-collector.test.ts"
-			]
-		},
-		{
-			"id": "m8plus-web-vcr-loopback-https-v1",
-			"milestones": [
-				"8+"
-			],
-			"status": "active",
-			"kind": "deterministic-loopback-https-browser-fixture",
-			"specification": {
-				"bindAddress": "127.0.0.1",
-				"certificateSha256": "338b8e455fa680fbb281823d0d334e58e632f68ecf69c628b2a5583664402f61",
-				"certificateSpkiSha256Base64": "FKYjtNhMIpOI/vI03Cj8eoWUo0bwinbcxXlDbOfqgYw=",
-				"videoWidth": 640,
-				"videoHeight": 360,
-				"videoFrameRate": 30,
-				"toneFrequencyHz": 440,
-				"secureCookieLogin": true,
-				"oauthLikePopup": true,
-				"endedAndLoopModes": true,
-				"rejectedHttpRedirect": true
-			},
-			"limitation": "This deterministic loopback fixture is a correctness diagnostic only and establishes no packaged, operating-system, browser-profile, encoder, performance, real-runtime, or broader platform behavior or support claim.",
-			"evidence": [
-				"scripts/lib/framescaper-web-vcr-https-fixture.mjs",
-				"tests/fixtures/web-vcr/README.md",
-				"tests/fixtures/web-vcr/fixture-cert.pem",
-				"tests/fixtures/web-vcr/fixture-key.pem",
-				"tests/desktop-framescaper-web-vcr-https-fixture.test.js"
-			]
-		},
-		{
-			"id": "m8b-reviewed-design-interop-v1",
-			"milestones": [
-				"8B"
-			],
-			"status": "blocked",
-			"kind": "upstream-design-derived-fixture",
-			"specification": {
-				"definedOnlyAfterEntryGate": true
-			},
-			"evidence": [
-				"roadmap.md#8b-midi"
-			]
+			}
 		},
 		{
 			"id": "m5b-native-media-parity-and-longform-v1",
-			"milestones": [
-				"5"
-			],
-			"status": "planned",
-			"kind": "planned-canonical-plan-parity-and-uhd-long-gop-decode-workload",
+			"kind": "canonical-plan-parity-and-uhd-long-gop-decode-workload",
 			"specification": {
 				"canonicalPlanVersions": [
 					7,
@@ -1198,27 +696,11 @@
 				"proceduralUhdLongGopResolution": "3840x2160",
 				"losslessComparison": "pixel-exact",
 				"lossyComparison": "ssim-and-psnr"
-			},
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"roadmap.md#5-electron-native-services-and-extensibility",
-				"tests/audio-editor-native-media-plan-envelope.test.ts",
-				"tests/audio-editor-native-media-backend-policy.test.ts",
-				"tests/audio-editor-unified-exact-render-plan.test.ts",
-				"tests/audio-editor-video-retime-exact-ordinal-oracle.test.ts",
-				"tests/desktop-native-media-execution.test.ts",
-				"tests/desktop-native-media-helper-pool.test.ts",
-				"scripts/collect-m5b-native-media-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
-			]
+			}
 		},
 		{
 			"id": "m5b-professional-format-row-suite-v1",
-			"milestones": [
-				"5"
-			],
-			"status": "planned",
-			"kind": "planned-one-licensed-fixture-per-required-format-row",
+			"kind": "one-licensed-fixture-per-required-format-row",
 			"specification": {
 				"requiredDecodeRows": [
 					"decode-h264",
@@ -1244,26 +726,11 @@
 					"encode-openexr-sequence"
 				],
 				"testActivation": "enabled"
-			},
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"config/production-licensing-matrix.json",
-				"tests/audio-editor-native-media-professional-tier.test.ts",
-				"tests/audio-editor-native-media-proxy-recipe.test.ts",
-				"tests/audio-editor-native-media-image-sequence-v25.test.ts",
-				"tests/audio-editor-video-source-professional-v25.test.ts",
-				"tests/audio-editor-framescaper-video-proxy-actions.test.ts",
-				"scripts/collect-m5b-professional-media-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
-			]
+			}
 		},
 		{
 			"id": "m5b-persistent-services-fault-v1",
-			"milestones": [
-				"5"
-			],
-			"status": "planned",
-			"kind": "planned-queue-root-watch-and-scratch-fault-workload",
+			"kind": "queue-root-watch-and-scratch-fault-workload",
 			"specification": {
 				"crashStatesCovered": [
 					"queued",
@@ -1280,28 +747,11 @@
 				],
 				"diskFullTrials": 8,
 				"duplicateDispatchTrials": 64
-			},
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-queue-state-machine.test.ts",
-				"tests/audio-editor-native-queue-admission.test.ts",
-				"tests/audio-editor-native-durable-root-and-scratch.test.ts",
-				"tests/audio-editor-native-watch-folder.test.ts",
-				"tests/desktop-native-services-database.test.ts",
-				"tests/desktop-native-services-repositories.test.ts",
-				"tests/desktop-native-watch-scratch-publication.test.ts",
-				"tests/desktop-native-services-runtime.test.ts",
-				"scripts/collect-m5b-persistent-services-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
-			]
+			}
 		},
 		{
 			"id": "m5b-clean-display-30m-v1",
-			"milestones": [
-				"5"
-			],
-			"status": "planned",
-			"kind": "planned-matching-rate-clean-display-diagnostics",
+			"kind": "matching-rate-clean-display-diagnostics",
 			"specification": {
 				"displayModes": [
 					"1080p60",
@@ -1312,23 +762,11 @@
 					"x11",
 					"xwayland"
 				]
-			},
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-external-display.test.ts",
-				"tests/desktop-external-display-controller.test.ts",
-				"tests/browser/framescaper-native-services-menu.spec.js",
-				"scripts/collect-m5b-clean-display-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
-			]
+			}
 		},
 		{
 			"id": "m5b-openfx-conformance-and-hostile-v1",
-			"milestones": [
-				"5"
-			],
-			"status": "planned",
-			"kind": "planned-openfx-1-5-1-conformance-and-hostile-plugin-suite",
+			"kind": "openfx-1-5-1-conformance-and-hostile-plugin-suite",
 			"specification": {
 				"contexts": [
 					"generator",
@@ -1361,1433 +799,1441 @@
 					"network-denied",
 					"filesystem-denied"
 				]
-			},
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-ofx-descriptor.test.ts",
-				"tests/audio-editor-native-ofx-consent-and-binding.test.ts",
-				"tests/audio-editor-native-ofx-host-contract-v26.test.ts",
-				"tests/audio-editor-framescaper-baseline.test.ts",
-				"tests/framescaper-openfx-host-source-manifest.test.js",
-				"scripts/collect-m5b-openfx-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
-			]
+			}
+		}
+	],
+	"measurements": [
+		{
+			"id": "preview.frameIntervalP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "preview.retainedJsHeapDeltaBytes",
+			"behavior": "observational"
+		},
+		{
+			"id": "streaming.maximumProtocolRangeBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "streaming.maximumMediaEmissionBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "streaming.retainedMediaPayloadBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "streaming.invalidPublishedRevisions",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directWav.maximumPathOwnedBinaryBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directWav.maximumDestinationWriteBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directWav.retainedOutputPayloadBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directWav.oversizePreflightBytesRead",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directWav.partialPublishedOutputs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directStems.maximumInputSliceBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directStems.maximumOwnedCompressedStemBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directStems.maximumOwnedEncodedStems",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directStems.finalArchiveBlobBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directStems.partialPublishedOutputs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directCompressed.maximumStagingBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directCompressed.maximumOutputRangeBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directCompressed.maximumConcurrentRangeReads",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directCompressed.retainedFinalOutputBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directCompressed.partialPublishedOutputs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directVideo.maximumOutputRangeBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directVideo.maximumConcurrentRangeReads",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directVideo.maximumConcurrentSinkWrites",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directVideo.retainedFinalOutputBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "directVideo.partialPublishedOutputs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "editorial.audioPositionErrorSamples",
+			"behavior": "blocking"
+		},
+		{
+			"id": "editorial.videoPositionErrorFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "editorial.avDriftMaximumMs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "editorial.seekP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "editorial.scrollFrameIntervalP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "editorial.retainedHeapDeltaBytes",
+			"behavior": "observational"
+		},
+		{
+			"id": "parity.audioMaximumAbsoluteSampleError",
+			"behavior": "blocking"
+		},
+		{
+			"id": "parity.pdcErrorSamples",
+			"behavior": "blocking"
+		},
+		{
+			"id": "parity.videoMinimumSsim",
+			"behavior": "blocking"
+		},
+		{
+			"id": "parity.videoMaximumChannelMae",
+			"behavior": "blocking"
+		},
+		{
+			"id": "parity.silentlyOmittedEffects",
+			"behavior": "blocking"
+		},
+		{
+			"id": "keyframes.videoMinimumSsim",
+			"behavior": "blocking"
+		},
+		{
+			"id": "keyframes.videoMaximumChannelMae",
+			"behavior": "blocking"
+		},
+		{
+			"id": "keyframes.omittedOperations",
+			"behavior": "blocking"
+		},
+		{
+			"id": "keyframes.substitutedOperations",
+			"behavior": "blocking"
+		},
+		{
+			"id": "keyframes.fallbackOperations",
+			"behavior": "blocking"
+		},
+		{
+			"id": "native.unauthorizedCapabilityGrants",
+			"behavior": "blocking"
+		},
+		{
+			"id": "native.corruptPublishedRevisions",
+			"behavior": "blocking"
+		},
+		{
+			"id": "native.cancellationP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "native.crashDetectionMaximumMs",
+			"behavior": "observational"
+		},
+		{
+			"id": "native.editorRecoveryMaximumMs",
+			"behavior": "observational"
+		},
+		{
+			"id": "native.helperPeakRssBytes",
+			"behavior": "observational"
+		},
+		{
+			"id": "native.audioRoundTripLatencyP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "native.audioUnderrunFrames",
+			"behavior": "observational"
+		},
+		{
+			"id": "delivery.audioDurationErrorSamples",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.videoFrameCountError",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.avDriftMaximumMs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.integratedLoudnessErrorLu",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.truePeakErrorDb",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.captionCueErrorFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.channelMapErrors",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.unreportedConversions",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.partialPublishedOutputBytes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "delivery.webVideoRenderP95Rtf",
+			"behavior": "observational"
+		},
+		{
+			"id": "delivery.audioRenderP95Rtf",
+			"behavior": "observational"
+		},
+		{
+			"id": "assistance.networkRequestsAfterInstall",
+			"behavior": "blocking"
+		},
+		{
+			"id": "assistance.unselectedMediaBytesRead",
+			"behavior": "blocking"
+		},
+		{
+			"id": "assistance.acceptedDigestMismatches",
+			"behavior": "blocking"
+		},
+		{
+			"id": "assistance.cancellationP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "assistance.canonicalStateLosses",
+			"behavior": "blocking"
+		},
+		{
+			"id": "capture.sourceCombinationsCompleted",
+			"behavior": "blocking"
+		},
+		{
+			"id": "capture.avDriftMaximumMs",
+			"behavior": "observational"
+		},
+		{
+			"id": "capture.droppedFrameRatio",
+			"behavior": "observational"
+		},
+		{
+			"id": "capture.unreportedDroppedFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "capture.audioDropoutFrames",
+			"behavior": "observational"
+		},
+		{
+			"id": "capture.deviceTeardownP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "capture.unrecoverableDurableFragments",
+			"behavior": "blocking"
+		},
+		{
+			"id": "capture.unauthorizedDeviceOpens",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.planParityDivergences",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.latePublications",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.partialPublications",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.losslessPixelMismatches",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.minimumSsim",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.minimumPsnrDb",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.avEndpointFrameDelta",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.editorialAudioPositionErrorSamples",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.editorialVideoPositionErrorFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.editorialNestedPositionErrorFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.editorialMulticameraSyncErrorSamples",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeMedia.uhdLongGopThroughputRatioVersusWasm",
+			"behavior": "observational"
+		},
+		{
+			"id": "nativeMedia.nativeCpuRealtimeFactor",
+			"behavior": "observational"
+		},
+		{
+			"id": "nativeMedia.cancellationP95Ms",
+			"behavior": "observational"
+		},
+		{
+			"id": "nativeMedia.crashDetectionMaximumMs",
+			"behavior": "observational"
+		},
+		{
+			"id": "nativeMedia.editorRecoveryMaximumMs",
+			"behavior": "observational"
+		},
+		{
+			"id": "nativeMedia.helperPeakRssBytes",
+			"behavior": "observational"
+		},
+		{
+			"id": "professionalMedia.uncoveredRequiredFormatRows",
+			"behavior": "blocking"
+		},
+		{
+			"id": "professionalMedia.inferredColorObservations",
+			"behavior": "blocking"
+		},
+		{
+			"id": "professionalMedia.unreportedAlphaLosses",
+			"behavior": "blocking"
+		},
+		{
+			"id": "professionalMedia.imageSequenceOrderingErrors",
+			"behavior": "blocking"
+		},
+		{
+			"id": "professionalMedia.proxyTimingDivergences",
+			"behavior": "blocking"
+		},
+		{
+			"id": "professionalMedia.proxyAuthoritativeExports",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.unrecoveredJobs",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.partialPublications",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.unauthorizedGrants",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.traversalEscapes",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.duplicateWatchImports",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.externalFileDeletions",
+			"behavior": "blocking"
+		},
+		{
+			"id": "nativeServices.duplicateDispatches",
+			"behavior": "blocking"
+		},
+		{
+			"id": "cleanDisplay.corruptFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "cleanDisplay.reorderedFrames",
+			"behavior": "blocking"
+		},
+		{
+			"id": "cleanDisplay.unexplainedDroppedFrames",
+			"behavior": "observational"
+		},
+		{
+			"id": "cleanDisplay.avDriftFrames",
+			"behavior": "observational"
+		},
+		{
+			"id": "cleanDisplay.soakDurationSeconds",
+			"behavior": "blocking"
+		},
+		{
+			"id": "ofx.uncontainedFailures",
+			"behavior": "blocking"
+		},
+		{
+			"id": "ofx.editorTakedowns",
+			"behavior": "blocking"
+		},
+		{
+			"id": "ofx.silentEffectOmissions",
+			"behavior": "blocking"
+		},
+		{
+			"id": "ofx.authoredStateLosses",
+			"behavior": "blocking"
+		},
+		{
+			"id": "ofx.unsupportedTargets",
+			"behavior": "blocking"
+		},
+		{
+			"id": "ofx.hostProcessTreeRssBytes",
+			"behavior": "observational"
+		}
+	],
+	"thresholds": [
+		{
+			"measurementId": "preview.frameIntervalP95Ms",
+			"comparison": "lte",
+			"value": 33.34,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "preview.retainedJsHeapDeltaBytes",
+			"comparison": "lte",
+			"value": 1048576,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "streaming.maximumProtocolRangeBytes",
+			"comparison": "lte",
+			"value": 16777216,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "streaming.maximumMediaEmissionBytes",
+			"comparison": "lte",
+			"value": 4194304,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "streaming.retainedMediaPayloadBytes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "streaming.invalidPublishedRevisions",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directWav.maximumPathOwnedBinaryBytes",
+			"comparison": "lte",
+			"value": 67108864,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directWav.maximumDestinationWriteBytes",
+			"comparison": "lte",
+			"value": 4194304,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directWav.retainedOutputPayloadBytes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directWav.oversizePreflightBytesRead",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directWav.partialPublishedOutputs",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directStems.maximumInputSliceBytes",
+			"comparison": "lte",
+			"value": 65536,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directStems.maximumOwnedCompressedStemBytes",
+			"comparison": "lte",
+			"value": 268435456,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directStems.maximumOwnedEncodedStems",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directStems.finalArchiveBlobBytes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directStems.partialPublishedOutputs",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directCompressed.maximumStagingBytes",
+			"comparison": "lte",
+			"value": 268435456,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directCompressed.maximumOutputRangeBytes",
+			"comparison": "lte",
+			"value": 1048576,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directCompressed.maximumConcurrentRangeReads",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directCompressed.retainedFinalOutputBytes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directCompressed.partialPublishedOutputs",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directVideo.maximumOutputRangeBytes",
+			"comparison": "lte",
+			"value": 1048576,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directVideo.maximumConcurrentRangeReads",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directVideo.maximumConcurrentSinkWrites",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "count"
+		},
+		{
+			"measurementId": "directVideo.retainedFinalOutputBytes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "directVideo.partialPublishedOutputs",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "editorial.audioPositionErrorSamples",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "samples"
+		},
+		{
+			"measurementId": "editorial.videoPositionErrorFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "editorial.avDriftMaximumMs",
+			"comparison": "lte",
+			"value": 20,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "editorial.seekP95Ms",
+			"comparison": "lte",
+			"value": 200,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "editorial.scrollFrameIntervalP95Ms",
+			"comparison": "lte",
+			"value": 33.34,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "editorial.retainedHeapDeltaBytes",
+			"comparison": "lte",
+			"value": 268435456,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "parity.audioMaximumAbsoluteSampleError",
+			"comparison": "lte",
+			"value": 0.000001,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "parity.pdcErrorSamples",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "samples"
+		},
+		{
+			"measurementId": "parity.videoMinimumSsim",
+			"comparison": "gte",
+			"value": 0.98,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "parity.videoMaximumChannelMae",
+			"comparison": "lte",
+			"value": 0.023529411764705882,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "parity.silentlyOmittedEffects",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "keyframes.videoMinimumSsim",
+			"comparison": "gte",
+			"value": 0.98,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "keyframes.videoMaximumChannelMae",
+			"comparison": "lte",
+			"value": 0.023529411764705882,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "keyframes.omittedOperations",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "keyframes.substitutedOperations",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "keyframes.fallbackOperations",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "native.unauthorizedCapabilityGrants",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "native.corruptPublishedRevisions",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "native.cancellationP95Ms",
+			"comparison": "lte",
+			"value": 1000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "native.crashDetectionMaximumMs",
+			"comparison": "lte",
+			"value": 2000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "native.editorRecoveryMaximumMs",
+			"comparison": "lte",
+			"value": 5000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "native.helperPeakRssBytes",
+			"comparison": "lte",
+			"value": 1073741824,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "native.audioRoundTripLatencyP95Ms",
+			"comparison": "lte",
+			"value": 20,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "native.audioUnderrunFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "delivery.audioDurationErrorSamples",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "samples"
+		},
+		{
+			"measurementId": "delivery.videoFrameCountError",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "delivery.avDriftMaximumMs",
+			"comparison": "lte",
+			"value": 20,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "delivery.integratedLoudnessErrorLu",
+			"comparison": "lte",
+			"value": 0.2,
+			"unit": "LU"
+		},
+		{
+			"measurementId": "delivery.truePeakErrorDb",
+			"comparison": "lte",
+			"value": 0.2,
+			"unit": "dB"
+		},
+		{
+			"measurementId": "delivery.captionCueErrorFrames",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "delivery.channelMapErrors",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "delivery.unreportedConversions",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "delivery.partialPublishedOutputBytes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "delivery.webVideoRenderP95Rtf",
+			"comparison": "lte",
+			"value": 12,
+			"unit": "RTF"
+		},
+		{
+			"measurementId": "delivery.audioRenderP95Rtf",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "RTF"
+		},
+		{
+			"measurementId": "assistance.networkRequestsAfterInstall",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "assistance.unselectedMediaBytesRead",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "assistance.acceptedDigestMismatches",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "assistance.cancellationP95Ms",
+			"comparison": "lte",
+			"value": 2000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "assistance.canonicalStateLosses",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "capture.sourceCombinationsCompleted",
+			"comparison": "eq",
+			"value": 6,
+			"unit": "count"
+		},
+		{
+			"measurementId": "capture.avDriftMaximumMs",
+			"comparison": "lte",
+			"value": 20,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "capture.droppedFrameRatio",
+			"comparison": "lte",
+			"value": 0.001,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "capture.unreportedDroppedFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "capture.audioDropoutFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "capture.deviceTeardownP95Ms",
+			"comparison": "lte",
+			"value": 1000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "capture.unrecoverableDurableFragments",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "capture.unauthorizedDeviceOpens",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeMedia.planParityDivergences",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeMedia.latePublications",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeMedia.partialPublications",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeMedia.losslessPixelMismatches",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeMedia.minimumSsim",
+			"comparison": "gte",
+			"value": 0.995,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "nativeMedia.minimumPsnrDb",
+			"comparison": "gte",
+			"value": 45,
+			"unit": "dB"
+		},
+		{
+			"measurementId": "nativeMedia.avEndpointFrameDelta",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "nativeMedia.editorialAudioPositionErrorSamples",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "samples"
+		},
+		{
+			"measurementId": "nativeMedia.editorialVideoPositionErrorFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "nativeMedia.editorialNestedPositionErrorFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "nativeMedia.editorialMulticameraSyncErrorSamples",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "samples"
+		},
+		{
+			"measurementId": "nativeMedia.uhdLongGopThroughputRatioVersusWasm",
+			"comparison": "gte",
+			"value": 2,
+			"unit": "ratio"
+		},
+		{
+			"measurementId": "nativeMedia.nativeCpuRealtimeFactor",
+			"comparison": "gte",
+			"value": 1,
+			"unit": "RTF"
+		},
+		{
+			"measurementId": "nativeMedia.cancellationP95Ms",
+			"comparison": "lte",
+			"value": 1000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "nativeMedia.crashDetectionMaximumMs",
+			"comparison": "lte",
+			"value": 2000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "nativeMedia.editorRecoveryMaximumMs",
+			"comparison": "lte",
+			"value": 5000,
+			"unit": "ms"
+		},
+		{
+			"measurementId": "nativeMedia.helperPeakRssBytes",
+			"comparison": "lte",
+			"value": 1073741824,
+			"unit": "bytes"
+		},
+		{
+			"measurementId": "professionalMedia.uncoveredRequiredFormatRows",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "professionalMedia.inferredColorObservations",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "professionalMedia.unreportedAlphaLosses",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "professionalMedia.imageSequenceOrderingErrors",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "professionalMedia.proxyTimingDivergences",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "professionalMedia.proxyAuthoritativeExports",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.unrecoveredJobs",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.partialPublications",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.unauthorizedGrants",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.traversalEscapes",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.duplicateWatchImports",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.externalFileDeletions",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "nativeServices.duplicateDispatches",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "cleanDisplay.corruptFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "cleanDisplay.reorderedFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "cleanDisplay.unexplainedDroppedFrames",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "cleanDisplay.avDriftFrames",
+			"comparison": "lte",
+			"value": 1,
+			"unit": "frames"
+		},
+		{
+			"measurementId": "cleanDisplay.soakDurationSeconds",
+			"comparison": "gte",
+			"value": 1800,
+			"unit": "seconds"
+		},
+		{
+			"measurementId": "ofx.uncontainedFailures",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "ofx.editorTakedowns",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "ofx.silentEffectOmissions",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "ofx.authoredStateLosses",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "ofx.unsupportedTargets",
+			"comparison": "eq",
+			"value": 0,
+			"unit": "count"
+		},
+		{
+			"measurementId": "ofx.hostProcessTreeRssBytes",
+			"comparison": "lte",
+			"value": 1073741824,
+			"unit": "bytes"
 		}
 	],
 	"workloads": [
 		{
 			"id": "m1-video-preview-12fx-720p",
-			"milestone": "1",
-			"status": "active",
+			"behavior": "observational",
 			"fixtureIds": [
 				"video-preview-12fx-720p-v1"
 			],
-			"environmentIds": [
-				"local-runtime-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "preview.frameIntervalP95Ms",
-					"comparison": "lte",
-					"value": 33.34,
-					"unit": "ms"
-				},
-				{
-					"metricId": "preview.retainedJsHeapDeltaBytes",
-					"comparison": "lte",
-					"value": 1048576,
-					"unit": "bytes"
-				}
-			],
-			"evidence": [
-				"tests/browser/audio-editor-video-preview-benchmark.spec.js",
-				"roadmap.md#1-baseline-contracts-and-quality-budgets"
-			]
-		},
-		{
-			"id": "m2-streaming-bounded-memory",
-			"milestone": "2",
-			"status": "planned",
-			"fixtureIds": [
-				"m2-streaming-project-8gib-v1",
-				"m2-direct-wav-385mib-v1"
-			],
-			"environmentIds": [
-				"local-runtime-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "streaming.rendererHeapDeltaBytes",
-					"comparison": "lte",
-					"value": 268435456,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "streaming.maxBufferedBinaryBytes",
-					"comparison": "lte",
-					"value": 67108864,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "streaming.oversizePreflightBytesRead",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "streaming.invalidPublishedRevisions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "streaming.partialPublishedOutputs",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"roadmap.md#2-shared-platform-storage-and-media-foundation"
+			"measurementIds": [
+				"preview.frameIntervalP95Ms",
+				"preview.retainedJsHeapDeltaBytes"
 			]
 		},
 		{
 			"id": "m2-streaming-project-8gib-v1",
-			"milestone": "2",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m2-streaming-project-8gib-v1"
 			],
-			"environmentIds": [
-				"portable-node-structural-26.5.0"
-			],
-			"thresholds": [
-				{
-					"metricId": "streaming.maximumProtocolRangeBytes",
-					"comparison": "lte",
-					"value": 16777216,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "streaming.maximumMediaEmissionBytes",
-					"comparison": "lte",
-					"value": 4194304,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "streaming.retainedMediaPayloadBytes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "streaming.invalidPublishedRevisions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"scripts/collect-m2-scape-8gib-quality.mjs",
-				"tests/quality-budget-scape-8gib-collector.test.ts",
-				"tests/desktop-scape-sparse-full-import-integration.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
+			"measurementIds": [
+				"streaming.maximumProtocolRangeBytes",
+				"streaming.maximumMediaEmissionBytes",
+				"streaming.retainedMediaPayloadBytes",
+				"streaming.invalidPublishedRevisions"
 			]
 		},
 		{
 			"id": "m2-direct-wav-385mib-v1",
-			"milestone": "2",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m2-direct-wav-385mib-v1"
 			],
-			"environmentIds": [
-				"portable-node-structural-26.5.0"
-			],
-			"thresholds": [
-				{
-					"metricId": "directWav.maximumPathOwnedBinaryBytes",
-					"comparison": "lte",
-					"value": 67108864,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directWav.maximumDestinationWriteBytes",
-					"comparison": "lte",
-					"value": 4194304,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directWav.retainedOutputPayloadBytes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directWav.oversizePreflightBytesRead",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directWav.partialPublishedOutputs",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"scripts/collect-m2-direct-wav-quality.mjs",
-				"tests/quality-budget-direct-wav-collector.test.ts",
-				"tests/audio-editor-export-direct-wav-reference.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
+			"measurementIds": [
+				"directWav.maximumPathOwnedBinaryBytes",
+				"directWav.maximumDestinationWriteBytes",
+				"directWav.retainedOutputPayloadBytes",
+				"directWav.oversizePreflightBytesRead",
+				"directWav.partialPublishedOutputs"
 			]
 		},
 		{
 			"id": "m2-direct-stem-archives-v3",
-			"milestone": "2",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m2-direct-stem-archives-v3"
 			],
-			"environmentIds": [
-				"portable-node-structural-26.5.0"
-			],
-			"thresholds": [
-				{
-					"metricId": "directStems.maximumInputSliceBytes",
-					"comparison": "lte",
-					"value": 65536,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directStems.maximumOwnedCompressedStemBytes",
-					"comparison": "lte",
-					"value": 268435456,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directStems.maximumOwnedEncodedStems",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "count"
-				},
-				{
-					"metricId": "directStems.finalArchiveBlobBytes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directStems.partialPublishedOutputs",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"scripts/collect-m2-direct-structural-quality.mjs",
-				"tests/quality-budget-direct-structural-collector.test.ts",
-				"tests/audio-editor-export-direct-compressed-stem-stream.test.ts",
-				"tests/audio-editor-export-direct-seven-zip-stem-stream.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
+			"measurementIds": [
+				"directStems.maximumInputSliceBytes",
+				"directStems.maximumOwnedCompressedStemBytes",
+				"directStems.maximumOwnedEncodedStems",
+				"directStems.finalArchiveBlobBytes",
+				"directStems.partialPublishedOutputs"
 			]
 		},
 		{
 			"id": "m2-direct-compressed-output-v2",
-			"milestone": "2",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m2-direct-compressed-output-v2"
 			],
-			"environmentIds": [
-				"portable-node-structural-26.5.0"
-			],
-			"thresholds": [
-				{
-					"metricId": "directCompressed.maximumStagingBytes",
-					"comparison": "lte",
-					"value": 268435456,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directCompressed.maximumOutputRangeBytes",
-					"comparison": "lte",
-					"value": 1048576,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directCompressed.maximumConcurrentRangeReads",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "count"
-				},
-				{
-					"metricId": "directCompressed.retainedFinalOutputBytes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directCompressed.partialPublishedOutputs",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"scripts/collect-m2-direct-structural-quality.mjs",
-				"tests/quality-budget-direct-structural-collector.test.ts",
-				"tests/audio-editor-export-direct-compressed-service.test.ts",
-				"tests/audio-editor-ffmpeg-output-stream.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
+			"measurementIds": [
+				"directCompressed.maximumStagingBytes",
+				"directCompressed.maximumOutputRangeBytes",
+				"directCompressed.maximumConcurrentRangeReads",
+				"directCompressed.retainedFinalOutputBytes",
+				"directCompressed.partialPublishedOutputs"
 			]
 		},
 		{
 			"id": "m2-direct-mp4-webm-video-output-v1",
-			"milestone": "2",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m2-direct-mp4-webm-video-output-v1"
 			],
-			"environmentIds": [
-				"portable-node-structural-26.5.0"
-			],
-			"thresholds": [
-				{
-					"metricId": "directVideo.maximumOutputRangeBytes",
-					"comparison": "lte",
-					"value": 1048576,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directVideo.maximumConcurrentRangeReads",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "count"
-				},
-				{
-					"metricId": "directVideo.maximumConcurrentSinkWrites",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "count"
-				},
-				{
-					"metricId": "directVideo.retainedFinalOutputBytes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "directVideo.partialPublishedOutputs",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"scripts/collect-m2-direct-structural-quality.mjs",
-				"tests/quality-budget-direct-structural-collector.test.ts",
-				"tests/audio-editor-export-direct-video.test.ts",
-				"tests/audio-editor-ffmpeg-output-stream.test.ts",
-				"docs/quality-budgets.md#fixtures-and-project-sizes"
+			"measurementIds": [
+				"directVideo.maximumOutputRangeBytes",
+				"directVideo.maximumConcurrentRangeReads",
+				"directVideo.maximumConcurrentSinkWrites",
+				"directVideo.retainedFinalOutputBytes",
+				"directVideo.partialPublishedOutputs"
 			]
 		},
 		{
 			"id": "m3-longform-editorial",
-			"milestone": "3",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m3-longform-editorial-2h-v2"
 			],
-			"environmentIds": [
-				"github-ubuntu-playwright-1.62.1",
-				"local-runtime-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "editorial.audioPositionErrorSamples",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "samples"
-				},
-				{
-					"metricId": "editorial.videoPositionErrorFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "editorial.avDriftMaximumMs",
-					"comparison": "lte",
-					"value": 20,
-					"unit": "ms"
-				},
-				{
-					"metricId": "editorial.seekP95Ms",
-					"comparison": "lte",
-					"value": 200,
-					"unit": "ms"
-				},
-				{
-					"metricId": "editorial.scrollFrameIntervalP95Ms",
-					"comparison": "lte",
-					"value": 33.34,
-					"unit": "ms"
-				},
-				{
-					"metricId": "editorial.retainedHeapDeltaBytes",
-					"comparison": "lte",
-					"value": 268435456,
-					"unit": "bytes"
-				}
-			],
-			"evidence": [
-				"src/common/editor/quality/m3-longform-editorial-workload.ts",
-				"tests/audio-editor-m3-longform-editorial-workload.test.ts",
-				"tests/browser/audio-editor-longform-editorial-benchmark.spec.js",
-				"scripts/collect-m3-longform-editorial-quality.mjs",
-				"tests/quality-budget-longform-editorial-collector.test.ts"
+			"measurementIds": [
+				"editorial.audioPositionErrorSamples",
+				"editorial.videoPositionErrorFrames",
+				"editorial.avDriftMaximumMs",
+				"editorial.seekP95Ms",
+				"editorial.scrollFrameIntervalP95Ms",
+				"editorial.retainedHeapDeltaBytes"
 			]
 		},
 		{
 			"id": "m4-production-render-parity",
-			"milestone": "4",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"video-effect-parity-rgba-v1",
 				"m4-production-parity-v1"
 			],
-			"environmentIds": [
-				"github-ubuntu-playwright-1.62.1",
-				"local-runtime-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "parity.audioMaximumAbsoluteSampleError",
-					"comparison": "lte",
-					"value": 0.000001,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "parity.pdcErrorSamples",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "samples"
-				},
-				{
-					"metricId": "parity.videoMinimumSsim",
-					"comparison": "gte",
-					"value": 0.98,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "parity.videoMaximumChannelMae",
-					"comparison": "lte",
-					"value": 0.023529411764705882,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "parity.silentlyOmittedEffects",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"src/common/editor/quality/m4-production-parity-workload.ts",
-				"tests/browser/audio-editor-m4-production-parity.spec.js",
-				"scripts/collect-m4-production-parity-quality.mjs",
-				"tests/quality-budget-m4-production-parity-collector.test.ts",
-				"roadmap.md#4-parallel-production-surfaces"
+			"measurementIds": [
+				"parity.audioMaximumAbsoluteSampleError",
+				"parity.pdcErrorSamples",
+				"parity.videoMinimumSsim",
+				"parity.videoMaximumChannelMae",
+				"parity.silentlyOmittedEffects"
 			]
 		},
 		{
 			"id": "m4b2-keyframe-render-parity",
-			"milestone": "4",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m4b2-keyframe-parity-rgba-v1"
 			],
-			"environmentIds": [
-				"github-ubuntu-playwright-1.62.1",
-				"local-runtime-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "keyframes.videoMinimumSsim",
-					"comparison": "gte",
-					"value": 0.98,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "keyframes.videoMaximumChannelMae",
-					"comparison": "lte",
-					"value": 0.023529411764705882,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "keyframes.omittedOperations",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "keyframes.substitutedOperations",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "keyframes.fallbackOperations",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"src/common/editor/quality/m4b2-keyframe-parity-workload.ts",
-				"scripts/lib/m4b2-keyframe-parity-metrics.mjs",
-				"scripts/collect-m4b2-keyframe-parity-quality.mjs",
-				"tests/audio-editor-m4b2-keyframe-parity-workload.test.ts",
-				"tests/helpers/m4b2-keyframe-parity-fixture.ts",
-				"tests/quality-budget-m4b2-keyframe-parity-collector.test.ts",
-				"tests/browser/audio-editor-m4b2-keyframe-parity.spec.js"
+			"measurementIds": [
+				"keyframes.videoMinimumSsim",
+				"keyframes.videoMaximumChannelMae",
+				"keyframes.omittedOperations",
+				"keyframes.substitutedOperations",
+				"keyframes.fallbackOperations"
 			]
 		},
 		{
 			"id": "m5-native-helper-and-audio",
-			"milestone": "5",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m5-helper-fault-and-loopback-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "native.unauthorizedCapabilityGrants",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "native.corruptPublishedRevisions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "native.cancellationP95Ms",
-					"comparison": "lte",
-					"value": 1000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "native.crashDetectionMaximumMs",
-					"comparison": "lte",
-					"value": 2000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "native.editorRecoveryMaximumMs",
-					"comparison": "lte",
-					"value": 5000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "native.helperPeakRssBytes",
-					"comparison": "lte",
-					"value": 1073741824,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "native.audioRoundTripLatencyP95Ms",
-					"comparison": "lte",
-					"value": 20,
-					"unit": "ms"
-				},
-				{
-					"metricId": "native.audioUnderrunFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				}
-			],
-			"evidence": [
-				"roadmap.md#5-electron-native-services-and-extensibility",
-				"docs/milestone-5a-soundscaper-native.md",
-				"tests/desktop-helper-contract.test.ts",
-				"tests/desktop-helper-supervisor.test.ts",
-				"tests/desktop-helper-probe-process.test.js",
-				"tests/desktop-native-helper-real-process.test.js",
-				"scripts/collect-m5-native-helper-quality.mjs",
-				"tests/quality-budget-m5-native-helper-collector.test.ts"
+			"measurementIds": [
+				"native.unauthorizedCapabilityGrants",
+				"native.corruptPublishedRevisions",
+				"native.cancellationP95Ms",
+				"native.crashDetectionMaximumMs",
+				"native.editorRecoveryMaximumMs",
+				"native.helperPeakRssBytes",
+				"native.audioRoundTripLatencyP95Ms",
+				"native.audioUnderrunFrames"
 			]
 		},
 		{
 			"id": "m6-reference-master-delivery",
-			"milestone": "6",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m6-reference-master-suite-v1",
 				"m6-reference-master-vertical-v1"
 			],
-			"environmentIds": [
-				"local-runtime-diagnostics",
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "delivery.audioDurationErrorSamples",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "samples"
-				},
-				{
-					"metricId": "delivery.videoFrameCountError",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "delivery.avDriftMaximumMs",
-					"comparison": "lte",
-					"value": 20,
-					"unit": "ms"
-				},
-				{
-					"metricId": "delivery.integratedLoudnessErrorLu",
-					"comparison": "lte",
-					"value": 0.2,
-					"unit": "LU"
-				},
-				{
-					"metricId": "delivery.truePeakErrorDb",
-					"comparison": "lte",
-					"value": 0.2,
-					"unit": "dB"
-				},
-				{
-					"metricId": "delivery.captionCueErrorFrames",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "frames"
-				},
-				{
-					"metricId": "delivery.channelMapErrors",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "delivery.unreportedConversions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "delivery.partialPublishedOutputBytes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "delivery.webVideoRenderP95Rtf",
-					"comparison": "lte",
-					"value": 12,
-					"unit": "RTF"
-				},
-				{
-					"metricId": "delivery.audioRenderP95Rtf",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "RTF"
-				}
-			],
-			"evidence": [
-				"roadmap.md#6-professional-delivery-and-interchange",
-				"docs/milestone-6a-soundscaper-delivery.md",
-				"docs/milestone-6b-framescaper-delivery.md",
-				"tests/audio-editor-delivery-conformance.test.ts",
-				"tests/audio-editor-delivery-conformance-acceptance.test.ts",
-				"tests/audio-editor-adm-immersive-acceptance.test.ts",
-				"scripts/lib/m6-reference-master-metrics.mjs",
-				"scripts/collect-m6-reference-master-quality.mjs",
-				"tests/quality-budget-m6-reference-master-collector.test.ts"
+			"measurementIds": [
+				"delivery.audioDurationErrorSamples",
+				"delivery.videoFrameCountError",
+				"delivery.avDriftMaximumMs",
+				"delivery.integratedLoudnessErrorLu",
+				"delivery.truePeakErrorDb",
+				"delivery.captionCueErrorFrames",
+				"delivery.channelMapErrors",
+				"delivery.unreportedConversions",
+				"delivery.partialPublishedOutputBytes",
+				"delivery.webVideoRenderP95Rtf",
+				"delivery.audioRenderP95Rtf"
 			]
 		},
 		{
 			"id": "m7-local-assistance-privacy",
-			"milestone": "7",
-			"status": "optional",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m7-local-assistance-privacy-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "assistance.networkRequestsAfterInstall",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.unselectedMediaBytesRead",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "assistance.acceptedDigestMismatches",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.cancellationP95Ms",
-					"comparison": "lte",
-					"value": 2000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "assistance.canonicalStateLosses",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"roadmap.md#7-optional-local-assistance",
-				"docs/milestone-7-plan.md#wp-703--job-consent-and-evidence-integration",
-				"docs/quality-budgets.md#milestone-7-local-assistance-privacy-diagnostics",
-				"scripts/lib/m7-local-assistance-privacy-metrics.mjs",
-				"scripts/collect-m7-local-assistance-privacy-quality.mjs",
-				"tests/quality-budget-m7-local-assistance-privacy-collector.test.ts"
-			]
-		},
-		{
-			"id": "m7-local-assistance-speech-accuracy",
-			"milestone": "7",
-			"status": "planned",
-			"fixtureIds": [
-				"m7-local-assistance-speech-accuracy-v1"
-			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "assistance.transcriptWordErrorRateRatio",
-					"comparison": "lte",
-					"value": 0.15,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.transcriptWordTimingMedianErrorMs",
-					"comparison": "lte",
-					"value": 120,
-					"unit": "ms"
-				},
-				{
-					"metricId": "assistance.fillerProposalPrecisionRatio",
-					"comparison": "gte",
-					"value": 0.9,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.fillerProposalRecallRatio",
-					"comparison": "gte",
-					"value": 0.7,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.diarizationErrorRateRatio",
-					"comparison": "lte",
-					"value": 0.2,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.diarizationLabelDrifts",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.transcriptSearchRecallAtFiveRatio",
-					"comparison": "gte",
-					"value": 0.8,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.transcriptIndexRebuildDivergences",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.beatGridMedianErrorMs",
-					"comparison": "lte",
-					"value": 40,
-					"unit": "ms"
-				},
-				{
-					"metricId": "assistance.downbeatFMeasureRatio",
-					"comparison": "gte",
-					"value": 0.8,
-					"unit": "ratio"
-				}
-			],
-			"evidence": [
-				"roadmap.md#7-optional-local-assistance",
-				"docs/milestone-7-plan.md#7a-packets-soundscaper-track-slice-docs-at-pickup",
-				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
-			]
-		},
-		{
-			"id": "m7-local-assistance-visual-accuracy",
-			"milestone": "7",
-			"status": "planned",
-			"fixtureIds": [
-				"m7-local-assistance-visual-accuracy-v1"
-			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "assistance.accurateShotBoundaryFMeasureRatio",
-					"comparison": "gte",
-					"value": 0.9,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.fastShotBoundaryFMeasureRatio",
-					"comparison": "gte",
-					"value": 0.7,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.visualRetrievalHitRateRatio",
-					"comparison": "gte",
-					"value": 0.8,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.visualIndexBytesPerVideoHour",
-					"comparison": "lte",
-					"value": 67108864,
-					"unit": "bytes"
-				},
-				{
-					"metricId": "assistance.subjectRetentionRatio",
-					"comparison": "gte",
-					"value": 0.9,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "assistance.reframeDegenerateFallbackFailures",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.highlightAssemblyRtf",
-					"comparison": "lte",
-					"value": 0.5,
-					"unit": "RTF"
-				},
-				{
-					"metricId": "assistance.highlightProposalDivergences",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.verticalCropGoldenFrameMismatches",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "assistance.unchangedExportByteDivergences",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"roadmap.md#7-optional-local-assistance",
-				"docs/milestone-7-plan.md#7b-packets-framescaper-track-slice-docs-at-pickup",
-				"docs/quality-budgets.md#milestone-7-local-assistance-accuracy-criteria"
+			"measurementIds": [
+				"assistance.networkRequestsAfterInstall",
+				"assistance.unselectedMediaBytesRead",
+				"assistance.acceptedDigestMismatches",
+				"assistance.cancellationP95Ms",
+				"assistance.canonicalStateLosses"
 			]
 		},
 		{
 			"id": "m8a-capture-long-session",
-			"milestone": "8A",
-			"status": "active",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m8a-capture-30m-all-sources-v1"
 			],
-			"environmentIds": [
-				"capture-device-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "capture.sourceCombinationsCompleted",
-					"comparison": "eq",
-					"value": 6,
-					"unit": "count"
-				},
-				{
-					"metricId": "capture.avDriftMaximumMs",
-					"comparison": "lte",
-					"value": 20,
-					"unit": "ms"
-				},
-				{
-					"metricId": "capture.droppedFrameRatio",
-					"comparison": "lte",
-					"value": 0.001,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "capture.unreportedDroppedFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "capture.audioDropoutFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "capture.deviceTeardownP95Ms",
-					"comparison": "lte",
-					"value": 1000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "capture.unrecoverableDurableFragments",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "capture.unauthorizedDeviceOpens",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"roadmap.md#8a-framescaper-recording-setup",
-				"docs/quality-budgets.md#fixtures-and-project-sizes",
-				"scripts/lib/m8a-capture-quality-metrics.mjs",
-				"scripts/collect-m8a-capture-quality.mjs",
-				"tests/quality-budget-m8a-capture-collector.test.ts"
-			]
-		},
-		{
-			"id": "m8plus-web-vcr-long-session",
-			"milestone": "8+",
-			"status": "active",
-			"activationGate": "Milestone 8 and applicable milestone 5B gates closed; packaged real-runtime matrix provisioned and accepted",
-			"fixtureIds": [
-				"m8plus-web-vcr-loopback-https-v1"
-			],
-			"environmentIds": [
-				"web-vcr-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "webVcr.resolutionTiersCompleted",
-					"comparison": "eq",
-					"value": 2,
-					"unit": "count"
-				},
-				{
-					"metricId": "webVcr.avDriftMaximumMs",
-					"comparison": "lte",
-					"value": 20,
-					"unit": "ms"
-				},
-				{
-					"metricId": "webVcr.droppedFrameRatio",
-					"comparison": "lte",
-					"value": 0.001,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "webVcr.unreportedDroppedFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "webVcr.audioDropoutFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "webVcr.deviceTeardownP95Ms",
-					"comparison": "lte",
-					"value": 1000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "webVcr.unrecoverableDurableFragments",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "webVcr.unauthorizedDeviceOpens",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "webVcr.exactSurfaceMismatches",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "webVcr.encoderCropMismatches",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "webVcr.retainedUncroppedProjectAssets",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"docs/post-milestone-8-web-vcr-plan.md",
-				"docs/framescaper-capture-privacy.md",
-				"scripts/lib/framescaper-web-vcr-https-fixture.mjs",
-				"tests/desktop-framescaper-web-vcr-https-fixture.test.js",
-				"tests/production-security-framescaper-web-vcr-policy.test.js"
-			]
-		},
-		{
-			"id": "m8b-reviewed-design-timing",
-			"milestone": "8B",
-			"status": "blocked",
-			"activationGate": "Audacity MIDI design pinned and compatibility design approved",
-			"fixtureIds": [
-				"m8b-reviewed-design-interop-v1"
-			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "reviewedDesign.offlineTimingErrorSamples",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "samples"
-				},
-				{
-					"metricId": "reviewedDesign.stateLosses",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "reviewedDesign.unreportedConversions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "reviewedDesign.liveTimingP95Ms",
-					"comparison": "lte",
-					"value": 20,
-					"unit": "ms"
-				},
-				{
-					"metricId": "reviewedDesign.deviceTeardownP95Ms",
-					"comparison": "lte",
-					"value": 1000,
-					"unit": "ms"
-				}
-			],
-			"evidence": [
-				"roadmap.md#8b-midi"
+			"measurementIds": [
+				"capture.sourceCombinationsCompleted",
+				"capture.avDriftMaximumMs",
+				"capture.droppedFrameRatio",
+				"capture.unreportedDroppedFrames",
+				"capture.audioDropoutFrames",
+				"capture.deviceTeardownP95Ms",
+				"capture.unrecoverableDurableFragments",
+				"capture.unauthorizedDeviceOpens"
 			]
 		},
 		{
 			"id": "m5b-native-media-plan-parity-and-decode",
-			"milestone": "5",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m5b-native-media-parity-and-longform-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "nativeMedia.planParityDivergences",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeMedia.latePublications",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeMedia.partialPublications",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeMedia.losslessPixelMismatches",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeMedia.minimumSsim",
-					"comparison": "gte",
-					"value": 0.995,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "nativeMedia.minimumPsnrDb",
-					"comparison": "gte",
-					"value": 45,
-					"unit": "dB"
-				},
-				{
-					"metricId": "nativeMedia.avEndpointFrameDelta",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "frames"
-				},
-				{
-					"metricId": "nativeMedia.editorialAudioPositionErrorSamples",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "samples"
-				},
-				{
-					"metricId": "nativeMedia.editorialVideoPositionErrorFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "nativeMedia.editorialNestedPositionErrorFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "nativeMedia.editorialMulticameraSyncErrorSamples",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "samples"
-				},
-				{
-					"metricId": "nativeMedia.uhdLongGopThroughputRatioVersusWasm",
-					"comparison": "gte",
-					"value": 2,
-					"unit": "ratio"
-				},
-				{
-					"metricId": "nativeMedia.nativeCpuRealtimeFactor",
-					"comparison": "gte",
-					"value": 1,
-					"unit": "RTF"
-				},
-				{
-					"metricId": "nativeMedia.cancellationP95Ms",
-					"comparison": "lte",
-					"value": 1000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "nativeMedia.crashDetectionMaximumMs",
-					"comparison": "lte",
-					"value": 2000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "nativeMedia.editorRecoveryMaximumMs",
-					"comparison": "lte",
-					"value": 5000,
-					"unit": "ms"
-				},
-				{
-					"metricId": "nativeMedia.helperPeakRssBytes",
-					"comparison": "lte",
-					"value": 1073741824,
-					"unit": "bytes"
-				}
-			],
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"roadmap.md#5-electron-native-services-and-extensibility",
-				"tests/audio-editor-native-media-plan-envelope.test.ts",
-				"tests/audio-editor-native-media-atomic-publication.test.ts",
-				"tests/audio-editor-unified-exact-render-plan.test.ts",
-				"tests/audio-editor-video-retime-exact-ordinal-oracle.test.ts",
-				"tests/desktop-native-media-execution.test.ts",
-				"tests/desktop-native-media-helper-pool.test.ts",
-				"scripts/collect-m5b-native-media-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
+			"measurementIds": [
+				"nativeMedia.planParityDivergences",
+				"nativeMedia.latePublications",
+				"nativeMedia.partialPublications",
+				"nativeMedia.losslessPixelMismatches",
+				"nativeMedia.minimumSsim",
+				"nativeMedia.minimumPsnrDb",
+				"nativeMedia.avEndpointFrameDelta",
+				"nativeMedia.editorialAudioPositionErrorSamples",
+				"nativeMedia.editorialVideoPositionErrorFrames",
+				"nativeMedia.editorialNestedPositionErrorFrames",
+				"nativeMedia.editorialMulticameraSyncErrorSamples",
+				"nativeMedia.uhdLongGopThroughputRatioVersusWasm",
+				"nativeMedia.nativeCpuRealtimeFactor",
+				"nativeMedia.cancellationP95Ms",
+				"nativeMedia.crashDetectionMaximumMs",
+				"nativeMedia.editorRecoveryMaximumMs",
+				"nativeMedia.helperPeakRssBytes"
 			]
 		},
 		{
 			"id": "m5b-professional-media-tier",
-			"milestone": "5",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m5b-professional-format-row-suite-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "professionalMedia.uncoveredRequiredFormatRows",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "professionalMedia.inferredColorObservations",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "professionalMedia.unreportedAlphaLosses",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "professionalMedia.imageSequenceOrderingErrors",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "professionalMedia.proxyTimingDivergences",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "professionalMedia.proxyAuthoritativeExports",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-media-professional-tier.test.ts",
-				"tests/audio-editor-native-media-image-sequence.test.ts",
-				"tests/audio-editor-native-media-proxy-recipe.test.ts",
-				"tests/audio-editor-native-media-image-sequence-v25.test.ts",
-				"tests/audio-editor-video-source-professional-v25.test.ts",
-				"tests/audio-editor-framescaper-video-proxy-actions.test.ts",
-				"scripts/collect-m5b-professional-media-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
+			"measurementIds": [
+				"professionalMedia.uncoveredRequiredFormatRows",
+				"professionalMedia.inferredColorObservations",
+				"professionalMedia.unreportedAlphaLosses",
+				"professionalMedia.imageSequenceOrderingErrors",
+				"professionalMedia.proxyTimingDivergences",
+				"professionalMedia.proxyAuthoritativeExports"
 			]
 		},
 		{
 			"id": "m5b-persistent-services-recovery",
-			"milestone": "5",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m5b-persistent-services-fault-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "nativeServices.unrecoveredJobs",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeServices.partialPublications",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeServices.unauthorizedGrants",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeServices.traversalEscapes",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeServices.duplicateWatchImports",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeServices.externalFileDeletions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "nativeServices.duplicateDispatches",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				}
-			],
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-queue-state-machine.test.ts",
-				"tests/audio-editor-native-durable-root-and-scratch.test.ts",
-				"tests/audio-editor-native-watch-folder.test.ts",
-				"tests/desktop-native-services-repositories.test.ts",
-				"tests/desktop-native-watch-scratch-publication.test.ts",
-				"tests/desktop-native-services-runtime.test.ts",
-				"scripts/collect-m5b-persistent-services-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
+			"measurementIds": [
+				"nativeServices.unrecoveredJobs",
+				"nativeServices.partialPublications",
+				"nativeServices.unauthorizedGrants",
+				"nativeServices.traversalEscapes",
+				"nativeServices.duplicateWatchImports",
+				"nativeServices.externalFileDeletions",
+				"nativeServices.duplicateDispatches"
 			]
 		},
 		{
 			"id": "m5b-clean-external-display",
-			"milestone": "5",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m5b-clean-display-30m-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "cleanDisplay.corruptFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "cleanDisplay.reorderedFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "cleanDisplay.unexplainedDroppedFrames",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "frames"
-				},
-				{
-					"metricId": "cleanDisplay.avDriftFrames",
-					"comparison": "lte",
-					"value": 1,
-					"unit": "frames"
-				},
-				{
-					"metricId": "cleanDisplay.soakDurationSeconds",
-					"comparison": "gte",
-					"value": 1800,
-					"unit": "seconds"
-				}
-			],
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-external-display.test.ts",
-				"tests/desktop-external-display-controller.test.ts",
-				"tests/browser/framescaper-native-services-menu.spec.js",
-				"scripts/collect-m5b-clean-display-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
+			"measurementIds": [
+				"cleanDisplay.corruptFrames",
+				"cleanDisplay.reorderedFrames",
+				"cleanDisplay.unexplainedDroppedFrames",
+				"cleanDisplay.avDriftFrames",
+				"cleanDisplay.soakDurationSeconds"
 			]
 		},
 		{
 			"id": "m5b-openfx-isolation-and-packaging",
-			"milestone": "5",
-			"status": "planned",
+			"behavior": "blocking",
 			"fixtureIds": [
 				"m5b-openfx-conformance-and-hostile-v1"
 			],
-			"environmentIds": [
-				"native-os-diagnostics"
-			],
-			"thresholds": [
-				{
-					"metricId": "ofx.uncontainedFailures",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "ofx.editorTakedowns",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "ofx.silentEffectOmissions",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "ofx.authoredStateLosses",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "ofx.unsupportedTargets",
-					"comparison": "eq",
-					"value": 0,
-					"unit": "count"
-				},
-				{
-					"metricId": "ofx.hostProcessTreeRssBytes",
-					"comparison": "lte",
-					"value": 1073741824,
-					"unit": "bytes"
-				}
-			],
-			"evidence": [
-				"docs/milestone-5b-framescaper-native-tier.md",
-				"tests/audio-editor-native-ofx-descriptor.test.ts",
-				"tests/audio-editor-native-ofx-consent-and-binding.test.ts",
-				"tests/audio-editor-native-ofx-host-contract-v26.test.ts",
-				"tests/audio-editor-framescaper-baseline.test.ts",
-				"tests/framescaper-openfx-host-source-manifest.test.js",
-				"scripts/collect-m5b-openfx-quality.mjs",
-				"tests/quality-budget-m5b-collectors.test.ts"
+			"measurementIds": [
+				"ofx.uncontainedFailures",
+				"ofx.editorTakedowns",
+				"ofx.silentEffectOmissions",
+				"ofx.authoredStateLosses",
+				"ofx.unsupportedTargets",
+				"ofx.hostProcessTreeRssBytes"
 			]
 		}
 	]

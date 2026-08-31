@@ -116,9 +116,7 @@ test('the direct compressed fixture records both render strategies without memor
 	assert.ok(fixture);
 	assert.equal(budgets.fixtures.some(({ id }) => id === 'm2-direct-realtime-compressed-output-v1'), false);
 	assert.equal(budgets.fixtures.some(({ id }) => id === 'm2-direct-realtime-mp3-output-v1'), false);
-	assert.equal(fixture.status, 'provisional');
 	assert.equal(fixture.kind, 'deterministic-direct-compressed-node-transport-witness');
-	assert.deepEqual(fixture.milestones, ['2']);
 	assert.equal(fixture.specification.generatorRevision, 3);
 	assert.deepEqual(fixture.specification.admittedModes, [
 		'realtime-single-mix-canonical-compressed-audio',
@@ -168,26 +166,7 @@ test('the direct compressed fixture records both render strategies without memor
 	assert.equal(fixture.specification.directRouteDownloadCalls, 0);
 	assert.equal(fixture.specification.retainedFinalOutputBytes, 0);
 	assert.equal(fixture.specification.partialPublishedOutputs, 0);
-	for (const field of [
-		'actualFfmpegCodecExecutionQualified',
-		'codecConformanceQualified',
-		'workerMemfsQualified',
-		'nativeWasmCodecMemoryQualified',
-		'stagedInputResidencyQualified',
-		'rendererHeapQualified',
-		'garbageCollectionQualified',
-		'processRssQualified',
-		'cpuQualified',
-		'elapsedTimeQualified',
-		'browserQualified',
-		'operatingSystemQualified',
-		'nativePickerQualified',
-		'referenceScaleQualified',
-		'quotaQualified',
-		'filesystemDurabilityQualified',
-		'crashPowerLossQualified',
-		'packagedElectronQualified',
-	]) assert.equal(fixture.specification[field], false, field);
+	assert.doesNotMatch(JSON.stringify(fixture.specification), /qualified/iu);
 	assert.match(
 		fixture.limitation,
 		/small Node correctness fixture.*mock FFmpeg.*both render strategies.*all seven.*virtual.*transport arithmetic and backpressure.*not.*actual FFmpeg codec.*reference-scale/isu,
@@ -198,15 +177,12 @@ test('the direct compressed fixture records both render strategies without memor
 	);
 	assert.match(
 		fixture.limitation,
-		/900,000-millisecond.*prepared-target TTL.*long offline desktop.*elapsed-time.*unqualified/isu,
+		/900,000-millisecond.*prepared-target TTL.*does not measure.*long offline desktop.*elapsed-time/isu,
 	);
-	assert.deepEqual(
-		budgets.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.fixtureIds,
-		['m2-streaming-project-8gib-v1', 'm2-direct-wav-385mib-v1'],
-	);
-	for (const path of fixture.evidence) {
-		await access(new URL(`../${path.split('#')[0]}`, import.meta.url));
-	}
+	const workload = budgets.workloads.find(({ id }) => id === 'm2-direct-compressed-output-v2');
+	assert.deepEqual(workload.fixtureIds, ['m2-direct-compressed-output-v2']);
+	assert.equal(workload.behavior, 'blocking');
+	assert.equal(budgets.workloads.some(({ id }) => id === 'm2-streaming-bounded-memory'), false);
 });
 
 test('the threat and quality documents limit direct compressed claims to the proved transport slice', async () => {
@@ -225,7 +201,7 @@ test('the threat and quality documents limit direct compressed claims to the pro
 	);
 	assert.match(
 		qualityBudgets,
-		/direct compressed.*both.*all seven.*269,484,049-byte.*258.*transport arithmetic and backpressure only.*outside.*bounded-memory\s+workload.*stays planned/isu,
+		/direct compressed.*both.*all seven.*269,484,049-byte.*258.*transport arithmetic and backpressure only.*no synthetic\s+bounded-memory workload/isu,
 	);
 });
 

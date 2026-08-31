@@ -27,14 +27,10 @@ const packageMetadata = JSON.parse(await readFile(
 	'utf8',
 )) as { readonly scripts: Readonly<Record<string, string>> };
 type QualityConfig = {
-	fixtures: Array<{ id: string; status: string; kind: string; artifacts?: unknown[] }>;
-	workloads: Array<{ id: string; status: string; thresholds: unknown[]; environmentIds?: string[] }>;
-	environments: Array<{
-		id: string;
-		kind: string;
-		status: string;
-		fingerprint?: Record<string, unknown>;
-	}>;
+	fixtures: Array<{ id: string; kind: string; artifacts?: unknown[] }>;
+	measurements: Array<{ id: string; behavior: string }>;
+	thresholds: Array<{ measurementId: string; comparison: string; value: number; unit: string }>;
+	workloads: Array<{ id: string; behavior: string; measurementIds: string[] }>;
 };
 
 test('the M4 collector independently recomputes exactly five parity metrics', () => {
@@ -129,10 +125,14 @@ test('fixture drift, truncated evidence, and dishonest ledgers fail closed', () 
 	const sixthMetric = structuredClone(config) as QualityConfig;
 	const workload = sixthMetric.workloads.find(({ id }) => id === 'm4-production-render-parity');
 	assert.ok(workload);
-	workload.thresholds.push({ metricId: 'parity.unregisteredSixthMetric' });
+	workload.measurementIds.push('parity.unregisteredSixthMetric');
+	sixthMetric.measurements.push({ id: 'parity.unregisteredSixthMetric', behavior: 'blocking' });
+	sixthMetric.thresholds.push({
+		measurementId: 'parity.unregisteredSixthMetric', comparison: 'eq', value: 0, unit: 'count',
+	});
 	assert.throws(
 		() => createPendingM4ProductionParityResult(diagnostic, sixthMetric),
-		/five metrics/iu,
+		/five measurements/iu,
 	);
 });
 
@@ -181,7 +181,7 @@ test('collector identity, specification, raw evidence, and config snapshots reje
 	assert.equal(getterReads, 0);
 
 	const configAccessor = structuredClone(config) as Record<string, unknown>;
-	Object.defineProperty(configAccessor, 'measurementPolicy', {
+	Object.defineProperty(configAccessor, 'workloads', {
 		enumerable: true,
 		get() {
 			getterReads += 1;
@@ -374,21 +374,11 @@ test('quality config retains the M4 diagnostic fixture and thresholds', () => {
 	const quality = config as QualityConfig;
 	const fixture = quality.fixtures.find(({ id }) => id === 'm4-production-parity-v1');
 	const workload = quality.workloads.find(({ id }) => id === 'm4-production-render-parity');
-	const localRuntime = quality.environments.find(
-		({ id }) => id === 'local-runtime-diagnostics',
-	);
-	assert.equal(fixture?.status, 'active');
 	assert.equal(fixture?.kind, 'deterministic-audio-vectors-and-video-golden-frames');
 	assert.equal(fixture?.artifacts?.length, 5);
-	assert.equal(workload?.status, 'active');
-	assert.equal(workload?.thresholds.length, 5);
-	assert.deepEqual(workload?.environmentIds, [
-		'github-ubuntu-playwright-1.62.1',
-		'local-runtime-diagnostics',
-	]);
-	assert.equal(localRuntime?.status, 'active');
-	assert.equal(localRuntime?.kind, 'observed-local-runtime-diagnostics');
-	assert.equal(Object.hasOwn(localRuntime ?? {}, 'fingerprint'), false);
+	assert.equal(workload?.behavior, 'blocking');
+	assert.equal(workload?.measurementIds.length, 5);
+	assert.equal(Object.hasOwn(quality, 'environments'), false);
 	assert.equal(packageMetadata.scripts['quality:collect:m4-production-parity'],
 		'node scripts/collect-m4-production-parity-quality.mjs');
 });

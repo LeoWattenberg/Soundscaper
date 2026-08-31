@@ -5,7 +5,6 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
 	M8A_CAPTURE_ENVIRONMENT_ID as ENVIRONMENT_ID,
 	M8A_CAPTURE_FIXTURE_ID as FIXTURE_ID,
@@ -15,7 +14,13 @@ import {
 	M8A_CAPTURE_WORKLOAD_ID as WORKLOAD_ID,
 	computeM8ACaptureMetrics,
 } from './lib/m8a-capture-quality-metrics.mjs';
-import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord } from './lib/measurement-admission.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './lib/quality-budget-config.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
 const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
@@ -44,27 +49,17 @@ export async function collectM8ACaptureQuality(optionsValue, dependencies = {}) 
 /** Recompute the registered metrics without making a release decision. */
 export function createM8ACaptureResult(measurement, configValue) {
 	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
+	const workload = qualityWorkloadBudget(config, WORKLOAD_ID);
+	const fixture = qualityFixture(config, FIXTURE_ID);
+	const policy = DIAGNOSTIC_MEASUREMENT_POLICY;
 	assertWorkloadRegistration(workload);
 	assertMeasurementPolicy(policy);
 	const computed = computeM8ACaptureMetrics(measurement, {
 		fixtureSpecification: fixture.specification,
 	});
-	const evaluation = evaluateQualityBudget({
-		environmentId: ENVIRONMENT_ID,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, { ...environment, status: 'active' }, {
-		environmentId: ENVIRONMENT_ID,
-		rendererClass: 'unknown',
-		metrics: computed.metrics,
-	});
-	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
-		&& evaluation.verdicts.every(({ passed }) => passed);
-	const passed = metricGatePassed && evaluation.passed;
+	const evaluation = evaluateQualityWorkload(config, workload, computed.metrics);
+	const metricGatePassed = evaluation.passed;
+	const passed = metricGatePassed;
 	return Object.freeze({
 		schemaVersion: 1,
 		status: passed ? 'passed' : 'failed',
@@ -81,11 +76,7 @@ export function createM8ACaptureResult(measurement, configValue) {
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed,
-			failures: evaluation.failures,
-			verdicts: evaluation.verdicts,
-		}),
+		evaluation,
 	});
 }
 
@@ -154,9 +145,8 @@ function assertWorkloadRegistration(workload) {
 		? workload.thresholds.map((threshold) => threshold?.metricId)
 		: [];
 	if (!sameStrings(workload.fixtureIds, [FIXTURE_ID])
-		|| !sameStrings(workload.environmentIds, [ENVIRONMENT_ID])
 		|| !sameStrings(thresholdIds, METRIC_IDS)) {
-		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture, environment, and eight metrics.`);
+		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture and eight measurements.`);
 	}
 }
 
@@ -164,14 +154,6 @@ function assertMeasurementPolicy(policy) {
 	if (policy.percentileMethod !== 'nearest-rank' || policy.benchmarkRetries !== 0) {
 		throw new Error('M8A capture measurement requires nearest-rank percentiles and no retries.');
 	}
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function ownEnvironmentString(environment, key) {

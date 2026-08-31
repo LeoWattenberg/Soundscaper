@@ -4,7 +4,6 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
 	M5_NATIVE_HELPER_ENVIRONMENT_ID as ENVIRONMENT_ID,
 	M5_NATIVE_HELPER_FIXTURE_ID as FIXTURE_ID,
@@ -14,7 +13,13 @@ import {
 	M5_NATIVE_HELPER_WORKLOAD_ID as WORKLOAD_ID,
 	computeM5NativeHelperMetrics,
 } from './lib/m5-native-helper-metrics.mjs';
-import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord, requireRecord } from './lib/measurement-admission.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './lib/quality-budget-config.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 import { qualityBudgetSha256 } from './lib/quality-budget-config-digest.mjs';
 
@@ -30,6 +35,13 @@ const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const HOSTED_RUNNER_VARIABLES = Object.freeze([
 	'GITHUB_ACTIONS', 'CI', 'GITLAB_CI', 'BUILDKITE', 'CIRCLECI',
 ]);
+const NATIVE_DIAGNOSTIC_ENVIRONMENT = Object.freeze({
+	id: ENVIRONMENT_ID,
+	status: 'active',
+	kind: 'observed-native-runtime-diagnostics',
+	rendererRequirement: 'any',
+	evidence: Object.freeze(['scripts/collect-m5-native-helper-quality.mjs']),
+});
 
 /** Read a device-produced measurement and persist its diagnostic result. */
 export async function collectM5NativeHelperQuality(optionsValue, dependencies = {}) {
@@ -61,10 +73,9 @@ export function createM5NativeHelperResult(
 	budgetSha256 = qualityBudgetSha256(configValue),
 ) {
 	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
+	const workload = qualityWorkloadBudget(config, WORKLOAD_ID);
+	const fixture = qualityFixture(config, FIXTURE_ID);
+	const policy = DIAGNOSTIC_MEASUREMENT_POLICY;
 	assertWorkloadRegistration(workload);
 	const measurementSnapshot = requireRecord(
 		snapshotStrictJsonData(measurement, 'M5 measurement'),
@@ -75,20 +86,11 @@ export function createM5NativeHelperResult(
 		...(isV2 ? { budgetSha256 } : {}),
 		fixtureSpecification: fixture.specification,
 		measurementPolicy: policy,
-		...(isV2 ? { diagnosticEnvironment: environment } : {}),
+		...(isV2 ? { diagnosticEnvironment: NATIVE_DIAGNOSTIC_ENVIRONMENT } : {}),
 	});
-	const evaluation = evaluateQualityBudget({
-		environmentId: ENVIRONMENT_ID,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, { ...environment, status: 'active' }, {
-		environmentId: ENVIRONMENT_ID,
-		rendererClass: 'unknown',
-		metrics: computed.metrics,
-	});
-	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
-		&& evaluation.verdicts.every(({ passed }) => passed);
-	const passed = metricGatePassed && evaluation.passed;
+	const evaluation = evaluateQualityWorkload(config, workload, computed.metrics);
+	const metricGatePassed = evaluation.passed;
+	const passed = metricGatePassed;
 	return Object.freeze({
 		schemaVersion: isV2 ? 2 : 1,
 		status: passed ? 'passed' : 'failed',
@@ -115,11 +117,7 @@ export function createM5NativeHelperResult(
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed,
-			failures: evaluation.failures,
-			verdicts: evaluation.verdicts,
-		}),
+		evaluation,
 	});
 }
 
@@ -208,18 +206,9 @@ function assertWorkloadRegistration(workload) {
 		? workload.thresholds.map((threshold) => threshold?.metricId)
 		: [];
 	if (!sameStrings(workload.fixtureIds, [FIXTURE_ID])
-		|| !sameStrings(workload.environmentIds, [ENVIRONMENT_ID])
 		|| !sameStrings(thresholdIds, METRIC_IDS)) {
-		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture, environment, and eight metrics.`);
+		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture and eight measurements.`);
 	}
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function ownEnvironmentString(environment, key) {

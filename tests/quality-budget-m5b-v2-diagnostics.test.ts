@@ -11,6 +11,7 @@ import {
 } from '../scripts/lib/m5b-quality-pipeline-v2.mjs';
 import { collectM5bQualityCurrent } from '../scripts/lib/m5b-quality-collector.mjs';
 import { M5B_V2_EXERCISED_CAPABILITIES } from '../scripts/lib/m5b-quality-observations-v2.mjs';
+import { workloadThresholds } from '../scripts/lib/quality-budget-config.mjs';
 
 const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
@@ -19,10 +20,8 @@ const config = JSON.parse(await readFile(
 
 function measurement(profileId = 'native-media') {
 	const pipeline = M5B_QUALITY_PIPELINES[profileId as keyof typeof M5B_QUALITY_PIPELINES];
-	const workload = config.workloads.find(
-		({ id }: { readonly id: string }) => id === pipeline.workloadId,
-	);
-	const observations = Object.fromEntries(workload.thresholds.map(
+	const thresholds = workloadThresholds(config, pipeline.workloadId);
+	const observations = Object.fromEntries(thresholds.map(
 		(threshold: { metricId: string; value: number }) => [threshold.metricId, [threshold.value]],
 	));
 	return {

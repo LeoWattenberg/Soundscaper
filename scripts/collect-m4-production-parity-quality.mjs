@@ -16,13 +16,18 @@ import {
 	validateM4ParityRenderReport,
 } from './lib/m4-production-parity-metrics.mjs';
 import {
-	M4_PARITY_HOSTED_ENVIRONMENT_ID as HOSTED_ENVIRONMENT_ID,
 	M4_PARITY_WORKLOAD_ID as WORKLOAD_ID,
 	assertM4ParityCollectionEnvironment,
 	isM4ParityDiagnosticEnvironmentId,
 	parseM4ParityCliOptions,
 	resolveM4ParityCollectionEnvironment,
 } from './lib/m4-production-parity-identity.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './lib/quality-budget-config.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 import { validateM4ParityVideoFixture } from './lib/m4-production-parity-video-fixture.mjs';
 
@@ -34,7 +39,6 @@ const VIDEO_FIXTURE_ID = 'video-effect-parity-rgba-v1';
 const PROFILE = 'deterministic-production-parity-v1';
 const DIAGNOSTIC_MARKER = 'SOUNDSCAPER_M4_PRODUCTION_PARITY ';
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4-production-parity.spec.js';
-const LOCAL_ENVIRONMENT_ID = 'local-runtime-diagnostics';
 const METRIC_IDS = Object.freeze([
 	'parity.audioMaximumAbsoluteSampleError',
 	'parity.pdcErrorSamples',
@@ -104,12 +108,11 @@ export function parseM4ProductionParityDiagnostic(output) {
 export function createPendingM4ProductionParityResult(input, inputConfig) {
 	const diagnostic = snapshotStrictJsonData(input, 'diagnostic');
 	const config = snapshotStrictJsonData(inputConfig, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const videoFixture = exactDescriptor(config.fixtures, VIDEO_FIXTURE_ID, 'fixture');
-	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
+	const workload = qualityWorkloadBudget(config, WORKLOAD_ID);
+	const fixture = qualityFixture(config, FIXTURE_ID);
+	const videoFixture = qualityFixture(config, VIDEO_FIXTURE_ID);
+	const policy = DIAGNOSTIC_MEASUREMENT_POLICY;
 	assertIdentity(diagnostic);
-	assertMeasurementPolicy(policy);
 	assertWorkloadRegistration(workload);
 	const expectedFixture = expectedFixtureContract(fixture);
 	if (!deepEqualJson(diagnostic.fixture, expectedFixture)) {
@@ -234,11 +237,8 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 	if (Object.keys(environmentFingerprint).length === 0) {
 		throw new Error('Browser diagnostic environmentFingerprint must not be empty.');
 	}
-	const verdicts = metricVerdicts(metrics, workload.thresholds);
-	const failures = verdicts.filter(({ passed }) => !passed)
-		.map(({ metricId }) => `${metricId} did not pass.`);
-	const metricGatePassed = verdicts.length === METRIC_IDS.length
-		&& verdicts.every(({ passed }) => passed);
+	const evaluation = evaluateQualityWorkload(config, workload, metrics);
+	const metricGatePassed = evaluation.passed;
 	return Object.freeze({
 		schemaVersion: 1,
 		status: metricGatePassed ? 'passed' : 'failed',
@@ -262,11 +262,7 @@ export function createPendingM4ProductionParityResult(input, inputConfig) {
 			requestedCompositionInstances: requestedCompositionIds.size,
 		}),
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed: metricGatePassed,
-			failures: Object.freeze(failures),
-			verdicts: Object.freeze(verdicts),
-		}),
+		evaluation,
 	});
 }
 
@@ -346,48 +342,14 @@ function isM4DiagnosticEnvironmentId(value) {
 	return isM4ParityDiagnosticEnvironmentId(value);
 }
 
-function assertMeasurementPolicy(policy) {
-	if (policy.benchmarkRetries !== 0 || policy.timingWorkers !== 1) {
-		throw new Error('M4 parity collection requires the frozen one-worker/no-retry policy.');
-	}
-}
-
 function assertWorkloadRegistration(workload) {
 	const thresholdIds = Array.isArray(workload.thresholds)
 		? workload.thresholds.map((threshold) => threshold?.metricId)
 		: [];
 	if (!deepEqualJson(workload.fixtureIds, [VIDEO_FIXTURE_ID, FIXTURE_ID])
-		|| !Array.isArray(workload.environmentIds)
-		|| !workload.environmentIds.includes(HOSTED_ENVIRONMENT_ID)
-		|| !workload.environmentIds.includes(LOCAL_ENVIRONMENT_ID)
 		|| !deepEqualJson(thresholdIds, METRIC_IDS)) {
-		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixtures, environments, and five metrics.`);
+		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixtures and five measurements.`);
 	}
-}
-
-function metricVerdicts(metrics, thresholds) {
-	if (!Array.isArray(thresholds) || thresholds.length !== METRIC_IDS.length) {
-		throw new Error('M4 production parity workload must register exactly five thresholds.');
-	}
-	return thresholds.map((thresholdValue) => {
-		const threshold = requireRecord(thresholdValue, 'M4 production parity threshold');
-		const actual = metrics[threshold.metricId];
-		if (typeof actual !== 'number' || !Number.isFinite(actual)
-			|| typeof threshold.value !== 'number' || !Number.isFinite(threshold.value)
-			|| !['eq', 'gte', 'lte'].includes(threshold.comparison)) {
-			throw new Error('M4 production parity threshold registration is invalid.');
-		}
-		const passed = threshold.comparison === 'eq'
-			? actual === threshold.value
-			: threshold.comparison === 'gte' ? actual >= threshold.value : actual <= threshold.value;
-		return Object.freeze({
-			metricId: threshold.metricId,
-			comparison: threshold.comparison,
-			expected: threshold.value,
-			actual,
-			passed,
-		});
-	});
 }
 
 function exactArtifact(collection, id) {
@@ -395,14 +357,6 @@ function exactArtifact(collection, id) {
 		? collection.filter((value) => isRecord(value) && value.id === id)
 		: [];
 	if (matches.length !== 1) throw new Error(`M4 fixture must contain exact artifact ${id}.`);
-	return matches[0];
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
 	return matches[0];
 }
 

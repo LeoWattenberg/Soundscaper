@@ -223,26 +223,16 @@ test('an observed local-runtime diagnostic reports its measured result', async (
 
 test('the registered runnable harness is a diagnostic workload', () => {
 	const quality = config as {
-		fixtures: Array<{ id: string; status: string; kind: string; specification: Record<string, unknown> }>;
-		workloads: Array<{ id: string; status: string }>;
-		environments: Array<{
-			id: string;
-			kind: string;
-			status: string;
-			fingerprint?: Record<string, unknown>;
-		}>;
+		fixtures: Array<{ id: string; kind: string; specification: Record<string, unknown> }>;
+		workloads: Array<{ id: string; behavior: string }>;
 	};
 	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v2');
 	const workload = quality.workloads.find(({ id }) => id === 'm3-longform-editorial');
-	const environment = quality.environments.find(({ id }) => id === DIAGNOSTIC_ENVIRONMENT_ID);
-	assert.equal(fixture?.status, 'active');
 	assert.equal(fixture?.kind, 'deterministic-current-schema-project-generator');
 	assert.equal(fixture?.specification.localDiagnosticCommand, 'npm run quality:collect:m3-longform');
 	assert.equal(Object.hasOwn(fixture?.specification ?? {}, 'qualificationPublication'), false);
 	assert.equal(packageMetadata.scripts['quality:collect:m3-longform'],
 		'node scripts/collect-m3-longform-editorial-quality.mjs');
-	assert.equal(workload?.status, 'active');
-	assert.equal(environment?.status, 'active');
-	assert.equal(environment?.kind, 'observed-local-runtime-diagnostics');
-	assert.equal(Object.hasOwn(environment ?? {}, 'fingerprint'), false);
+	assert.equal(workload?.behavior, 'blocking');
+	assert.equal(Object.hasOwn(quality, 'environments'), false);
 });

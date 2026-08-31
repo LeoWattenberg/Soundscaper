@@ -33,22 +33,15 @@ const ARTIFACT_NAME_PATTERN = /^[A-Za-z\d][A-Za-z\d._-]{0,126}\.json$/u;
  *   workload: {
  *     id: string,
  *     fixtureIds: readonly string[],
- *     environmentIds: readonly string[],
  *     thresholds: readonly {
  *       metricId: string,
+ *       behavior: 'blocking' | 'observational',
  *       comparison: 'eq' | 'gte' | 'lte',
  *       value: number,
  *       unit: string,
  *     }[],
  *   },
- *   expectedEnvironment: {
- *     id: string,
- *     status: 'active' | 'unprovisioned',
- *     rendererRequirement: 'any' | 'hardware',
- *     fingerprint: Readonly<Record<string, unknown>>,
- *   },
  *   expectedBudgetSha256: string,
- *   measurementPolicy: { benchmarkRetries: number },
  * }} expectation
  * @param {unknown} candidate
  */
@@ -72,18 +65,12 @@ export function evaluateQualityBudgetResult(expectation, candidate) {
 	if (!sameStringArray(result.fixtureIds, expectation.workload.fixtureIds)) {
 		failures.push('Result fixture IDs do not exactly match the workload fixture IDs.');
 	}
-	if (!expectation.workload.environmentIds.includes(result.environmentId)) {
-		failures.push(
-			`Environment mismatch: workload ${expectation.workload.id} does not admit ${String(result.environmentId)}.`,
-		);
+	if (typeof result.environmentId !== 'string' || result.environmentId.length === 0) {
+		failures.push('Result environment ID must describe the runtime that produced it.');
 	}
-	if (result.environmentId !== expectation.expectedEnvironment.id) {
-		failures.push(
-			`Environment mismatch: expected ${expectation.expectedEnvironment.id}, received ${String(result.environmentId)}.`,
-		);
-	}
-	if (!deepEqualData(result.environmentFingerprint, expectation.expectedEnvironment.fingerprint)) {
-		failures.push('Result environment fingerprint does not exactly match the environment descriptor.');
+	if (!isRecord(result.environmentFingerprint)
+		|| Object.keys(result.environmentFingerprint).length === 0) {
+		failures.push('Result environment fingerprint must retain the observed runtime context.');
 	}
 	if (!SHA256_PATTERN.test(expectation.expectedBudgetSha256)
 		|| result.budgetSha256 !== expectation.expectedBudgetSha256) {
@@ -96,8 +83,8 @@ export function evaluateQualityBudgetResult(expectation, candidate) {
 	if (result.attemptCount !== 1) {
 		failures.push('Result must represent exactly one no-retry attempt.');
 	}
-	if (expectation.measurementPolicy.benchmarkRetries !== 0 || result.retryCount !== 0) {
-		failures.push('Result retry count and the measurement policy must both be zero.');
+	if (result.retryCount !== 0) {
+		failures.push('Result retry count must be zero.');
 	}
 	if (!['hardware', 'software', 'unknown'].includes(result.rendererClass)) {
 		failures.push('Result renderer class must be hardware, software, or unknown.');
@@ -107,22 +94,14 @@ export function evaluateQualityBudgetResult(expectation, candidate) {
 	validateMetrics(result.metrics, expectation.workload.thresholds, failures);
 
 	const metricEvaluation = evaluateQualityBudget(
-		{
-			environmentId: expectation.expectedEnvironment.id,
-			rendererRequirement: expectation.expectedEnvironment.rendererRequirement,
-			thresholds: expectation.workload.thresholds,
-		},
-		expectation.expectedEnvironment,
-		{
-			environmentId: typeof result.environmentId === 'string' ? result.environmentId : '',
-			rendererClass: typeof result.rendererClass === 'string' ? result.rendererClass : 'unknown',
-			metrics: isRecord(result.metrics) ? result.metrics : {},
-		},
+		expectation.workload.thresholds,
+		isRecord(result.metrics) ? result.metrics : {},
 	);
 
 	return Object.freeze({
 		passed: failures.length === 0 && metricEvaluation.passed,
 		failures: Object.freeze([...failures, ...metricEvaluation.failures]),
+		warnings: metricEvaluation.warnings,
 		verdicts: metricEvaluation.verdicts,
 	});
 }
@@ -213,20 +192,6 @@ function snapshotArray(value, path, failures) {
 	return snapshot;
 }
 
-function deepEqualData(left, right) {
-	if (Object.is(left, right)) return true;
-	if (Array.isArray(left) || Array.isArray(right)) {
-		return Array.isArray(left) && Array.isArray(right)
-			&& left.length === right.length
-			&& left.every((value, index) => deepEqualData(value, right[index]));
-	}
-	if (!isRecord(left) || !isRecord(right)) return false;
-	const leftKeys = Object.keys(left).sort();
-	const rightKeys = Object.keys(right).sort();
-	return sameStringArray(leftKeys, rightKeys)
-		&& leftKeys.every((key) => deepEqualData(left[key], right[key]));
-}
-
 function sameStringArray(left, right) {
 	return Array.isArray(left)
 		&& left.length === right.length
@@ -241,6 +206,7 @@ function failedEvaluation(failures) {
 	return Object.freeze({
 		passed: false,
 		failures: Object.freeze([...failures]),
+		warnings: Object.freeze([]),
 		verdicts: Object.freeze([]),
 	});
 }

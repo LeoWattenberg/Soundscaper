@@ -90,9 +90,7 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	for (const oldId of ['m2-direct-native-pcm-zip32-stems-v1', 'm2-direct-zip32-stems-v2']) {
 		assert.equal(budgets.fixtures.some(({ id }) => id === oldId), false, oldId);
 	}
-	assert.equal(fixture.status, 'provisional');
 	assert.equal(fixture.kind, 'deterministic-direct-stem-archive-node-witness');
-	assert.deepEqual(fixture.milestones, ['2']);
 	assert.equal(fixture.specification.generatorRevision, 4);
 	assert.deepEqual(fixture.specification.admittedStemFormats, ['wav', 'aiff', 'bwf']);
 	assert.deepEqual(fixture.specification.admittedCompressedStemFormats, [
@@ -172,7 +170,7 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 		'max(strategy-aware staging bound, 1 MiB)',
 	);
 	assert.equal(fixture.specification.compressedEntryMaximumIsRefusalBoundary, true);
-	assert.equal(fixture.specification.compressedCodecExpansionBoundQualified, false);
+	assert.equal(Object.hasOwn(fixture.specification, 'compressedCodecExpansionBoundQualified'), false);
 	assert.equal(fixture.specification.compressedRawPerRenderPreflightVerified, undefined);
 	assert.equal(fixture.specification.compressedStrategyBoundPreflightVerified, true);
 	assert.equal(fixture.specification.compressedActualZip32LayoutRecomputed, true);
@@ -194,8 +192,8 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	assert.equal(fixture.specification.nativeSevenZDirectRouteVerified, true);
 	assert.equal(fixture.specification.compressedSevenZDirectRouteVerified, false);
 	assert.equal(fixture.specification.sevenZDirectRouteVerified, undefined);
-	assert.equal(fixture.specification.actualFfmpegCodecExecutionQualified, false);
-	assert.equal(fixture.specification.codecConformanceQualified, false);
+	assert.equal(Object.hasOwn(fixture.specification, 'actualFfmpegCodecExecutionQualified'), false);
+	assert.equal(Object.hasOwn(fixture.specification, 'codecConformanceQualified'), false);
 	assert.deepEqual(fixture.specification.compressedFixtureEntryNames, [
 		'01-Voice.mp3', '02-Music.mp3',
 	]);
@@ -205,32 +203,19 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 	assert.equal(fixture.specification.compressedFixtureMaximumZip32Bytes, 2_097_406);
 	assert.deepEqual(fixture.specification.compressedFixtureActualEntryBytes, [3, 5]);
 	assert.equal(fixture.specification.compressedFixtureActualZip32Bytes, 262);
-	assert.equal(fixture.specification.rendererHeapQualified, false);
-	assert.equal(fixture.specification.processRssQualified, false);
-	assert.equal(fixture.specification.browserQualified, false);
-	assert.equal(fixture.specification.operatingSystemQualified, false);
-	assert.equal(fixture.specification.referenceScaleQualified, false);
-	assert.equal(fixture.specification.filesystemDurabilityQualified, false);
-	assert.equal(fixture.specification.packagedElectronQualified, false);
+	assert.doesNotMatch(JSON.stringify(fixture.specification), /qualified/iu);
 	assert.match(
 		fixture.limitation,
 		/Node.*provider-injected.*prepared streaming destination.*not.*File System Access.*Electron filesystem.*native picker/isu,
 	);
 	assert.match(
 		fixture.limitation,
-		/small Node correctness fixture.*151-byte 7z.*small injected golden correctness fixture.*not.*reference-scale.*actual FFmpeg codec execution.*codec conformance.*codec expansion.*MEMFS.*garbage collection.*CPU.*elapsed time.*not reference-scale.*renderer-heap.*process-RSS.*filesystem-durability.*crash.*power-loss/isu,
+		/small Node correctness fixture.*151-byte 7z.*small injected golden correctness fixture.*not.*reference-scale.*actual FFmpeg codec execution.*codec conformance.*codec expansion.*MEMFS.*garbage collection.*CPU.*elapsed time.*not a reference-scale.*renderer-heap.*process-RSS.*filesystem-durability.*crash.*power-loss/isu,
 	);
-	assert.deepEqual(
-		budgets.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.fixtureIds,
-		[
-			'm2-streaming-project-8gib-v1',
-			'm2-direct-wav-385mib-v1',
-		],
-	);
-	assert.equal(
-		budgets.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.status,
-		'planned',
-	);
+	const workload = budgets.workloads.find(({ id }) => id === 'm2-direct-stem-archives-v3');
+	assert.deepEqual(workload.fixtureIds, ['m2-direct-stem-archives-v3']);
+	assert.equal(workload.behavior, 'blocking');
+	assert.equal(budgets.workloads.some(({ id }) => id === 'm2-streaming-bounded-memory'), false);
 
 	for (const path of [
 		'src/common/editor/controller/audio-export-render-orchestration.ts',
@@ -246,8 +231,7 @@ test('the direct stem-archive fixture records native ZIP32/7z and compressed ZIP
 		'tests/audio-editor-offline-compressed-stem-encoding.test.ts',
 		'tests/audio-editor-sequential-seven-zip-copy.test.ts',
 		'tests/fixtures/seven-zip-copy-golden.ts',
-	]) assert.ok(fixture.evidence.includes(path), path);
-	for (const path of fixture.evidence) await access(new URL(`../${path.split('#')[0]}`, import.meta.url));
+	]) await access(new URL(`../${path}`, import.meta.url));
 });
 
 test('the threat and quality documents separate current codecs from historical fixtures', async () => {

@@ -20,6 +20,7 @@ import {
 	parseM6ReferenceMasterCliOptions,
 	writeM6ReferenceMasterResult,
 } from '../scripts/collect-m6-reference-master-quality.mjs';
+import { DIAGNOSTIC_MEASUREMENT_POLICY } from '../scripts/lib/quality-budget-config.mjs';
 
 const CONFIG = JSON.parse(
 	await readFile(new URL('../config/quality-budgets.json', import.meta.url), 'utf8'),
@@ -163,7 +164,7 @@ function metrics(record: Record<string, unknown> = measurement()) {
 	return computeM6ReferenceMasterMetrics(record, {
 		fixtureSpecification: FIXTURE.specification,
 		fixtureCanvases: FIXTURE_CANVASES,
-		measurementPolicy: CONFIG.measurementPolicy,
+		measurementPolicy: DIAGNOSTIC_MEASUREMENT_POLICY,
 	}).metrics;
 }
 
@@ -183,7 +184,7 @@ test('the eleven metrics are recomputed from the delivery reports the run filed'
 		computeM6ReferenceMasterMetrics(measurement(), {
 			fixtureSpecification: FIXTURE.specification,
 			fixtureCanvases: FIXTURE_CANVASES,
-			measurementPolicy: CONFIG.measurementPolicy,
+			measurementPolicy: DIAGNOSTIC_MEASUREMENT_POLICY,
 		}).rawSampleCounts.videoRenderRuns,
 		10,
 		'five timed runs per registered canvas',
@@ -349,14 +350,15 @@ test('the collector reports thresholds without making a release claim', () => {
 	assert.deepEqual(result.observedFingerprint, { osImage: 'observed', cpuModel: 'observed' });
 });
 
-test('a metric outside its threshold is a failure, not a pending result', () => {
+test('a render-time threshold miss is an observational warning', () => {
 	const slow = createM6ReferenceMasterResult(
 		measurement({ audioRenderSeconds: [3_600, 3_700, 3_800, 3_900, 4_000] }),
 		CONFIG,
 	);
-	assert.equal(slow.status, 'failed');
-	assert.equal(slow.metricGatePassed, false);
-	assert.ok(slow.evaluation.failures.length > 0);
+	assert.equal(slow.status, 'passed');
+	assert.equal(slow.metricGatePassed, true);
+	assert.equal(slow.evaluation.failures.length, 0);
+	assert.ok(slow.evaluation.warnings.length > 0);
 });
 
 test('a hosted runner is not suitable for timing diagnostics', () => {
@@ -385,13 +387,13 @@ test('the writer refuses unsupported statuses', async () => {
 	);
 });
 
-test('the collector re-checks that the workload still owns its fixture, environments, and metrics', async () => {
+test('the collector re-checks that the workload still owns its fixtures and metrics', async () => {
 	const drifted = JSON.parse(JSON.stringify(CONFIG));
 	const workload = drifted.workloads.find(({ id }: { id: string }) => id === M6_REFERENCE_MASTER_WORKLOAD_ID);
-	workload.thresholds.pop();
+	workload.measurementIds.pop();
 	assert.throws(
 		() => createM6ReferenceMasterResult(measurement(), drifted),
-		/does not own both frozen fixtures, two environments, and eleven metrics/u,
+		/use every registered measurement|does not own both frozen fixtures and eleven measurements/u,
 	);
 
 	// And the collector never reaches a writer when the measurement cannot be read.

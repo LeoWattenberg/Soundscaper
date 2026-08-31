@@ -6,7 +6,6 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
-import { evaluateQualityBudget } from '../quality-budget-evaluator.mjs';
 import {
 	boundedString,
 	deepFreeze,
@@ -19,6 +18,10 @@ import {
 	DEFAULT_QUALITY_BUDGET_SHA256,
 	qualityBudgetSha256,
 } from './quality-budget-config-digest.mjs';
+import {
+	evaluateQualityWorkload,
+	qualityWorkloadBudget,
+} from './quality-budget-config.mjs';
 import {
 	M5B_WORKLOAD_DEFAULT_OUTPUT_BYTES,
 	M5B_WORKLOAD_DEFAULT_TIMEOUT_MILLISECONDS,
@@ -114,7 +117,7 @@ export function validateM5bQualityMeasurement(profileIdValue, value, configValue
 	const pipeline = M5B_QUALITY_PIPELINES[profileId];
 	const budgetSha256 = m5bQualityBudgetSha256(configValue);
 	const config = snapshotStrictJsonData(configValue, 'quality config');
-	const workload = exactDescriptor(config.workloads, pipeline.workloadId, 'workload');
+	const workload = qualityWorkloadBudget(config, pipeline.workloadId);
 	assertRegistration(profileId, pipeline, workload);
 	const thresholdIds = workload.thresholds.map((threshold) => threshold.metricId);
 	const record = exactRecord(
@@ -128,8 +131,8 @@ export function validateM5bQualityMeasurement(profileIdValue, value, configValue
 		throw new Error(`${profileId} measurement source revision is invalid.`);
 	}
 	if (record.attemptCount !== 1) throw new Error(`${profileId} measurement must be one no-retry attempt.`);
-	if (record.retryCount !== 0 || config.measurementPolicy?.benchmarkRetries !== 0) {
-		throw new Error(`${profileId} measurement and policy retry counts must both be zero.`);
+	if (record.retryCount !== 0) {
+		throw new Error(`${profileId} measurement retry count must be zero.`);
 	}
 	if (record.profileId !== profileId) throw new Error(`${profileId} measurement profileId does not match.`);
 	if (record.workloadId !== pipeline.workloadId) throw new Error(`${profileId} measurement workloadId does not match.`);
@@ -168,17 +171,11 @@ export function createM5bQualityResult(profileIdValue, measurementValue, configV
 	const pipeline = M5B_QUALITY_PIPELINES[profileId];
 	const config = snapshotStrictJsonData(configValue, 'quality config');
 	const measurement = validateM5bQualityMeasurement(profileId, measurementValue, config);
-	const workload = exactDescriptor(config.workloads, pipeline.workloadId, 'workload');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
+	const workload = qualityWorkloadBudget(config, pipeline.workloadId);
 	assertRegistration(profileId, pipeline, workload);
-	const evaluation = evaluateQualityBudget({
-		environmentId: ENVIRONMENT_ID,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, { ...environment, status: 'active' }, measurement);
-	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
-		&& evaluation.verdicts.every(({ passed }) => passed);
-	const passed = metricGatePassed && evaluation.passed;
+	const evaluation = evaluateQualityWorkload(config, workload, measurement.metrics);
+	const metricGatePassed = evaluation.passed;
+	const passed = metricGatePassed;
 	return deepFreeze({
 		schemaVersion: 1,
 		status: passed ? 'passed' : 'failed',
@@ -192,11 +189,7 @@ export function createM5bQualityResult(profileIdValue, measurementValue, configV
 		metrics: measurement.metrics,
 		sampleCounts: measurement.sampleCounts,
 		metricGatePassed,
-		evaluation: {
-			passed,
-			failures: evaluation.failures,
-			verdicts: evaluation.verdicts,
-		},
+		evaluation,
 	});
 }
 
@@ -500,7 +493,6 @@ function exactMetricRecord(value, metricIds, label, validate) {
 
 function assertRegistration(profileId, pipeline, workload) {
 	if (!sameStrings(workload.fixtureIds, [pipeline.fixtureId])
-		|| !sameStrings(workload.environmentIds, [ENVIRONMENT_ID])
 		|| !Array.isArray(workload.thresholds)
 		|| workload.thresholds.length === 0
 		|| workload.thresholds.some((threshold) => (
@@ -510,16 +502,8 @@ function assertRegistration(profileId, pipeline, workload) {
 			|| !Number.isFinite(threshold.value)
 			|| typeof threshold.unit !== 'string'
 		))) {
-		throw new Error(`Quality workload for ${profileId} does not own its exact fixture, environment, and thresholds.`);
+		throw new Error(`Quality workload for ${profileId} does not own its exact fixture and measurements.`);
 	}
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function pipelineId(value) {

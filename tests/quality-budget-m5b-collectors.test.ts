@@ -15,11 +15,11 @@ import {
 	assertM5bCollectionHost,
 	collectM5bQuality,
 	createM5bQualityResult,
-	m5bQualityBudgetSha256,
 	parseM5bQualityCollectorCliArguments,
 	validateM5bQualityMeasurement,
 	writeM5bQualityResult,
 } from '../scripts/lib/m5b-quality-pipeline.mjs';
+import { workloadThresholds } from '../scripts/lib/quality-budget-config.mjs';
 
 type Threshold = Readonly<{
 	metricId: string;
@@ -28,13 +28,11 @@ type Threshold = Readonly<{
 	unit: string;
 }>;
 type QualityConfig = Readonly<{
-	environments: readonly Readonly<Record<string, unknown> & { id: string }>[];
 	fixtures: readonly Readonly<Record<string, unknown> & { id: string }>[];
 	workloads: readonly Readonly<Record<string, unknown> & {
 		id: string;
 		fixtureIds: readonly string[];
-		environmentIds: readonly string[];
-		thresholds: readonly Threshold[];
+		measurementIds: readonly string[];
 	}>[];
 }>;
 type MutableMeasurement = Record<string, unknown> & {
@@ -68,9 +66,9 @@ test('five exact 5B collector profiles bind the registered workloads and fixture
 		const workload = config.workloads.find(({ id }) => id === pipeline.workloadId);
 		assert.ok(workload, pipeline.workloadId);
 		assert.deepEqual(workload.fixtureIds, [pipeline.fixtureId]);
-		assert.deepEqual(workload.environmentIds, ['native-os-diagnostics']);
-		assert.ok(workload.thresholds.length > 0);
+		assert.ok(workload.measurementIds.length > 0);
 	}
+	assert.equal(Object.hasOwn(config, 'environments'), false);
 });
 
 test('each pipeline validates a closed measurement and reports its thresholds', () => {
@@ -107,18 +105,14 @@ test('a diagnostic result is digest-bound to its raw measurement', async () => {
 	}
 });
 
-test('a software renderer cannot satisfy a hardware-renderer budget', () => {
+test('a software renderer is reported without pretending to satisfy a hardware profile', () => {
 	const profileId = 'persistent-services';
 	const measurement = makeMeasurement(profileId);
 	measurement.rendererClass = 'software';
-	const hardwareConfig = structuredClone(config) as unknown as QualityConfig;
-	const environment = hardwareConfig.environments.find(({ id }) => id === 'native-os-diagnostics') as Record<string, unknown>;
-	environment.rendererRequirement = 'hardware';
-	measurement.budgetSha256 = m5bQualityBudgetSha256(hardwareConfig);
-	const result = createM5bQualityResult(profileId, measurement, hardwareConfig);
-	assert.equal(result.status, 'failed');
-	assert.equal(result.evaluation.passed, false);
-	assert.match(result.evaluation.failures.join('\n'), /hardware renderer.*software/iu);
+	const result = createM5bQualityResult(profileId, measurement, config);
+	assert.equal(result.status, 'passed');
+	assert.equal(result.rendererClass, 'software');
+	assert.equal(Object.hasOwn(config, 'environments'), false);
 });
 
 test('diagnostics retain the exact observed target fingerprint', () => {
@@ -399,6 +393,7 @@ function makeMeasurement(profileId: string): MutableMeasurement {
 	const pipeline = M5B_QUALITY_PIPELINES[profileId as keyof typeof M5B_QUALITY_PIPELINES];
 	assert.ok(pipeline);
 	const workload = config.workloads.find(({ id }) => id === pipeline.workloadId)!;
+	const thresholds = workloadThresholds(config, workload.id) as readonly Threshold[];
 	return {
 		schemaVersion: 1,
 		budgetSha256: M5B_DEFAULT_QUALITY_BUDGET_SHA256,
@@ -425,8 +420,8 @@ function makeMeasurement(profileId: string): MutableMeasurement {
 			ofxScannerSha256: profileId === 'openfx' ? DIGEST : null,
 			ofxRuntimeHostSha256: profileId === 'openfx' ? DIGEST : null,
 		},
-		metrics: Object.fromEntries(workload.thresholds.map(({ metricId, value }) => [metricId, value])),
-		sampleCounts: Object.fromEntries(workload.thresholds.map(({ metricId }) => [metricId, 1])),
+		metrics: Object.fromEntries(thresholds.map(({ metricId, value }) => [metricId, value])),
+		sampleCounts: Object.fromEntries(thresholds.map(({ metricId }) => [metricId, 1])),
 	};
 }
 

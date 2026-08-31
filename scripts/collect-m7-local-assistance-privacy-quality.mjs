@@ -5,7 +5,6 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
 	M7_ASSISTANCE_PRIVACY_ENVIRONMENT_ID as ENVIRONMENT_ID,
 	M7_ASSISTANCE_PRIVACY_FIXTURE_ID as FIXTURE_ID,
@@ -16,7 +15,13 @@ import {
 	canonicalMeasurementSha256,
 	computeM7AssistancePrivacyMetrics,
 } from './lib/m7-local-assistance-privacy-metrics.mjs';
-import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord } from './lib/measurement-admission.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './lib/quality-budget-config.mjs';
 import { qualityBudgetSha256 } from './lib/quality-budget-config-digest.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
@@ -44,10 +49,9 @@ export async function collectM7AssistancePrivacyQuality(optionsValue, dependenci
 /** Recompute every threshold without making a release decision. */
 export function createM7AssistancePrivacyResult(measurement, configValue) {
 	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, ENVIRONMENT_ID, 'environment');
-	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
+	const workload = qualityWorkloadBudget(config, WORKLOAD_ID);
+	const fixture = qualityFixture(config, FIXTURE_ID);
+	const policy = DIAGNOSTIC_MEASUREMENT_POLICY;
 	assertWorkloadRegistration(workload);
 	assertMeasurementPolicy(policy);
 	const computed = computeM7AssistancePrivacyMetrics(measurement, {
@@ -55,18 +59,9 @@ export function createM7AssistancePrivacyResult(measurement, configValue) {
 		fixtureSpecification: fixture.specification,
 		measurementPolicy: policy,
 	});
-	const evaluation = evaluateQualityBudget({
-		environmentId: ENVIRONMENT_ID,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, { ...environment, status: 'active' }, {
-		environmentId: ENVIRONMENT_ID,
-		rendererClass: computed.observedEnvironment.rendererClass,
-		metrics: computed.metrics,
-	});
-	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
-		&& evaluation.verdicts.every(({ passed }) => passed);
-	const passed = metricGatePassed && evaluation.passed;
+	const evaluation = evaluateQualityWorkload(config, workload, computed.metrics);
+	const metricGatePassed = evaluation.passed;
+	const passed = metricGatePassed;
 	return Object.freeze({
 		schemaVersion: 1,
 		status: passed ? 'passed' : 'failed',
@@ -89,11 +84,7 @@ export function createM7AssistancePrivacyResult(measurement, configValue) {
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed,
-			failures: evaluation.failures,
-			verdicts: evaluation.verdicts,
-		}),
+		evaluation,
 	});
 }
 
@@ -175,9 +166,8 @@ function assertWorkloadRegistration(workload) {
 		? workload.thresholds.map((threshold) => threshold?.metricId)
 		: [];
 	if (!sameStrings(workload.fixtureIds, [FIXTURE_ID])
-		|| !sameStrings(workload.environmentIds, [ENVIRONMENT_ID])
 		|| !sameStrings(thresholdIds, METRIC_IDS)) {
-		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture, environment, and five metrics.`);
+		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixture and five measurements.`);
 	}
 }
 
@@ -189,14 +179,6 @@ function assertMeasurementPolicy(policy) {
 		|| policy.timingTrials !== 5) {
 		throw new Error('M7 assistance measurement requires one warm-up, five timed runs, one worker, and no retries.');
 	}
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function sameStrings(left, right) {

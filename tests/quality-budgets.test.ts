@@ -1,16 +1,12 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import {
-	createVideoEffectParityFixture,
-} from './browser/video-effect-parity-helpers.js';
-
-type BudgetStatus = 'active' | 'blocked' | 'optional' | 'planned';
-type Comparison = 'eq' | 'gte' | 'lte';
-type EnvironmentStatus = 'active' | 'unprovisioned';
-type RendererRequirement = 'any' | 'hardware';
+import { workloadThresholds } from '../scripts/lib/quality-budget-config.mjs';
+import { createVideoEffectParityFixture } from './browser/video-effect-parity-helpers.js';
 
 interface BudgetArtifact {
 	readonly byteLength: number;
@@ -18,431 +14,98 @@ interface BudgetArtifact {
 	readonly sha256: string;
 }
 
-interface BudgetEnvironment {
-	readonly evidence: readonly string[];
-	readonly fingerprint?: Readonly<Record<string, string | number | null>>;
-	readonly id: string;
-	readonly kind: string;
-	readonly rendererRequirement: RendererRequirement;
-	readonly status: EnvironmentStatus;
-}
-
 interface BudgetFixture {
 	readonly artifacts?: readonly BudgetArtifact[];
-	readonly evidence: readonly string[];
 	readonly id: string;
 	readonly kind: string;
 	readonly limitation?: string;
-	readonly milestones: readonly string[];
 	readonly specification: Readonly<Record<string, unknown>>;
-	readonly status: BudgetStatus;
-}
-
-interface BudgetThreshold {
-	readonly comparison: Comparison;
-	readonly metricId: string;
-	readonly unit: string;
-	readonly value: number;
-}
-
-interface BudgetWorkload {
-	readonly activationGate?: string;
-	readonly environmentIds: readonly string[];
-	readonly evidence: readonly string[];
-	readonly fixtureIds: readonly string[];
-	readonly id: string;
-	readonly milestone: string;
-	readonly status: BudgetStatus;
-	readonly thresholds: readonly BudgetThreshold[];
-}
-
-interface BrowserInput {
-	readonly evidence: readonly string[];
-	readonly project: string;
-	readonly revision: string;
-	readonly status: 'planned' | 'provisional';
-	readonly version: string;
 }
 
 interface QualityBudgetConfig {
-	readonly environments: readonly BudgetEnvironment[];
-	readonly fixtures: readonly BudgetFixture[];
-	readonly groundedAt: string;
-	readonly measurementPolicy: Readonly<{
-		benchmarkRetries: number;
-		environmentMismatch: string;
-		forcedCollectionsPerHeapSnapshot: number;
-		missingMetric: string;
-		nonFiniteMetric: string;
-		percentileMethod: string;
-		rendererMismatch: string;
-		timingTrials: number;
-		timingWarmupTrials: number;
-		timingWorkers: number;
-	}>;
 	readonly schemaVersion: number;
-	readonly softwareInputs: Readonly<{
-		browsers: Readonly<Record<string, BrowserInput>>;
-		node: Readonly<{ evidence: readonly string[]; version: string }>;
-		npm: Readonly<{ evidence: readonly string[]; version: string }>;
-		playwright: Readonly<{ evidence: readonly string[]; version: string }>;
-	}>;
-	readonly units: readonly string[];
-	readonly workloads: readonly BudgetWorkload[];
+	readonly fixtures: readonly BudgetFixture[];
+	readonly measurements: readonly Readonly<{ id: string; behavior: string }>[];
+	readonly thresholds: readonly Readonly<{
+		comparison: string; measurementId: string; unit: string; value: number;
+	}>[];
+	readonly workloads: readonly Readonly<{
+		behavior: string; fixtureIds: readonly string[]; id: string; measurementIds: readonly string[];
+	}>[];
 }
 
 const configUrl = new URL('../config/quality-budgets.json', import.meta.url);
-
-/** A metric name that states its quantity binds the unit it may be published in. */
+const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
 const metricSuffixUnits: Readonly<Record<string, string>> = Object.freeze({
 	Seconds: 'seconds', Ms: 'ms', Samples: 'samples', Frames: 'frames',
 	Bytes: 'bytes', Ratio: 'ratio', Db: 'dB', Lu: 'LU', Rtf: 'RTF',
 });
 
-test('quality budget contract names numeric diagnostic gates', async () => {
-	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
-	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
-		readonly scripts: Readonly<Record<string, string>>;
-	};
-	const referenceScaleTest = await readFile(
-		new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url),
-		'utf8',
-	);
-	const directWavReferenceTest = await readFile(
-		new URL('./audio-editor-export-direct-wav-reference.test.ts', import.meta.url),
-		'utf8',
-	);
-
-	assert.equal(config.schemaVersion, 1);
-	assert.match(config.groundedAt, /^\d{4}-\d{2}-\d{2}$/u);
-	assert.deepEqual(config.measurementPolicy, {
-		percentileMethod: 'nearest-rank',
-		missingMetric: 'fail',
-		nonFiniteMetric: 'fail',
-		environmentMismatch: 'fail',
-		rendererMismatch: 'fail',
-		benchmarkRetries: 0,
-		timingWorkers: 1,
-		timingWarmupTrials: 1,
-		timingTrials: 5,
-		forcedCollectionsPerHeapSnapshot: 3,
-	});
-
+test('quality budget contract names explicit numeric diagnostics', () => {
+	assert.equal(config.schemaVersion, 2);
 	const fixtures = new Map(config.fixtures.map((fixture) => [fixture.id, fixture]));
-	const environments = new Map(config.environments.map((environment) => [environment.id, environment]));
-	assert.equal(fixtures.size, config.fixtures.length, 'fixture IDs must be unique');
-	assert.equal(environments.size, config.environments.length, 'environment IDs must be unique');
-	assert.equal(new Set(config.workloads.map(({ id }) => id)).size, config.workloads.length, 'workload IDs must be unique');
+	assert.equal(fixtures.size, config.fixtures.length);
+	assert.equal(new Set(config.measurements.map(({ id }) => id)).size, config.measurements.length);
+	assert.equal(new Set(config.thresholds.map(({ measurementId }) => measurementId)).size, config.thresholds.length);
+	assert.equal(new Set(config.workloads.map(({ id }) => id)).size, config.workloads.length);
 
-	assert.deepEqual(
-		[...new Set(config.workloads.map(({ milestone }) => milestone).filter((milestone) => milestone !== '1'))].sort(),
-		['2', '3', '4', '5', '6', '7', '8+', '8A', '8B'],
-	);
 	for (const workload of config.workloads) {
-		assert.ok(workload.fixtureIds.length > 0, `${workload.id} must name a fixture`);
-		assert.ok(workload.environmentIds.length > 0, `${workload.id} must name an environment`);
-		assert.ok(workload.thresholds.length > 0, `${workload.id} must define numeric thresholds`);
-		assert.ok(workload.evidence.length > 0, `${workload.id} must point at evidence`);
-		for (const fixtureId of workload.fixtureIds) {
-			assert.ok(fixtures.has(fixtureId), `${workload.id} references unknown fixture ${fixtureId}`);
-		}
-		for (const environmentId of workload.environmentIds) {
-			assert.ok(environments.has(environmentId), `${workload.id} references unknown environment ${environmentId}`);
-		}
-		const metricIds = new Set<string>();
-		for (const threshold of workload.thresholds) {
-			assert.match(threshold.metricId, /^[a-z][a-zA-Z\d.]+$/u, `${workload.id} has an invalid metric ID`);
-			assert.equal(metricIds.has(threshold.metricId), false, `${workload.id} repeats ${threshold.metricId}`);
-			metricIds.add(threshold.metricId);
-			assert.ok(['eq', 'gte', 'lte'].includes(threshold.comparison), `${threshold.metricId} has an invalid comparison`);
-			assert.ok(Number.isFinite(threshold.value), `${threshold.metricId} must have a finite threshold`);
-			assert.ok(config.units.includes(threshold.unit), `${threshold.metricId} has an unknown unit`);
-			const named = Object.keys(metricSuffixUnits)
-				.find((suffix) => threshold.metricId.endsWith(suffix));
-			if (named) {
-				assert.equal(threshold.unit, metricSuffixUnits[named],
-					`${threshold.metricId} contradicts the quantity it names`);
-			}
+		assert.ok(workload.fixtureIds.length > 0, workload.id);
+		assert.ok(workload.measurementIds.length > 0, workload.id);
+		for (const fixtureId of workload.fixtureIds) assert.ok(fixtures.has(fixtureId), fixtureId);
+		const thresholds = workloadThresholds(config, workload.id);
+		assert.equal(thresholds.length, workload.measurementIds.length);
+		for (const threshold of thresholds) {
+			assert.match(threshold.metricId, /^[a-z][a-zA-Z\d.]+$/u);
+			assert.ok(Number.isFinite(threshold.value));
+			const named = Object.keys(metricSuffixUnits).find(
+				(suffix) => threshold.metricId.endsWith(suffix),
+			);
+			if (named) assert.equal(threshold.unit, metricSuffixUnits[named]);
 		}
 	}
+});
 
-	const blockedMidi = config.workloads.find(({ milestone }) => milestone === '8B');
-	assert.equal(blockedMidi?.status, 'blocked');
-	assert.match(blockedMidi?.activationGate ?? '', /Audacity.*design/iu);
+test('reference-scale structural fixtures retain exact executable facts', () => {
+	const streaming = config.fixtures.find(({ id }) => id === 'm2-streaming-project-8gib-v1');
+	assert.equal(streaming?.kind, 'sparse-zip64-desktop-range-and-counting-import-witness');
+	assert.equal(streaming?.specification.logicalBytes, 8_589_934_592);
+	assert.equal(streaming?.specification.maxRangeBytes, 16_777_216);
+	assert.equal(streaming?.specification.retainedSinkPayloadBytes, 0);
+	assert.match(streaming?.limitation ?? '', /sparse filesystem/iu);
 
-	const milestone2Fixture = fixtures.get('m2-streaming-project-8gib-v1');
-	assert.equal(milestone2Fixture?.status, 'active');
-	assert.equal(milestone2Fixture?.kind, 'sparse-zip64-desktop-range-and-counting-import-witness');
-	assert.deepEqual(milestone2Fixture?.specification, {
-		referenceScaleExecutionCommand: 'npm run test:reference:scape-8gib',
-		referenceScaleEnvironmentOverride: 'SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB=1',
-		routineNodeTestBehavior: 'skip-with-reference-command',
-		routineCoverageBehavior: 'skip-with-reference-command',
-		observedAllFilesCoverageTestResult: 'passed',
-		observedAllFilesCoverageTestDurationSeconds: 525,
-		logicalBytes: 8_589_934_592,
-		assetBytes: 8_589_930_860,
-		assetSha256: '29fe8d0dc2c84f17f76b0a8a896c33042d832681351f0798a523dcbf72c49942',
-		assetCrc32: 1_816_305_334,
-		archiveFormat: 'zip64',
-		projectSchemaVersion: 'current',
-		sparseFilesystemRequired: true,
-		rangeRequestShape: 'single-exact-closed',
-		rangeResponseStatus: 206,
-		maxRangeBytes: 16_777_216,
-		maxInspectionTransferBytesExclusive: 8_388_608,
-		inspectionStopsAt: 'legacy-schema-reimport-refusal',
-		inspectionPayloadLazy: true,
-		inspectionWholeBlobMaterialization: false,
-		fullImportPipeline: [
-			'read-capability-store',
-			'protocol',
-			'desktop-range-adapter',
-			'file-service',
-			'project-file-service',
-			'scape-import',
-		],
-		fullImportSink: 'counting-independent-sha256-transactional-no-payload-retention',
-		zipCrcVerification: 'strict-reader-check-signature',
-		manifestSha256Verification: 'importer-and-independent-sink',
-		maxMediaEmissionBytes: 4_194_304,
-		retainedSinkPayloadBytes: 0,
-		projectPublicationVerified: true,
-		exactCapabilityReleaseCount: 1,
-		exactPinnedHandleCloseCount: 1,
-		fullImportWholeBlobMaterialization: false,
-		quotaPreflightVerified: true,
-		quotaPreflightPolicy: 'point-in-time-validated-asset-bytes-plus-ceil-10-percent',
-		quotaPreflightRequiredFreeBytes: 9_448_923_946,
-	});
+	const directWav = config.fixtures.find(({ id }) => id === 'm2-direct-wav-385mib-v1');
+	assert.equal(directWav?.kind, 'deterministic-direct-wav-counting-sha256-node-witness');
+	assert.equal(directWav?.specification.outputFileBytes, 403_701_804);
 	assert.equal(
-		milestone2Fixture?.specification.quotaPreflightRequiredFreeBytes,
-		8_589_930_860 + Math.ceil(8_589_930_860 / 10),
+		directWav?.specification.outputSha256,
+		'f1978598e11527049bcafae0f1d4847238e5322e11fddf714cc9f298bf12f9fe',
 	);
-	assert.match(milestone2Fixture?.limitation ?? '', /sparse filesystem/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /counting.*sink/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /packaged Electron UI/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /OPFS.*IndexedDB/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /point-in-time capacity check.*injected estimate/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /8,589,930,860.*9,448,923,946/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /not a storage reservation/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /does not guarantee.*capacity UI snapshot.*write-time success/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /actual browser quota.*estimate freshness.*concurrent writers/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /browser-record.*filesystem-allocation.*policy headroom/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /RSS/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /browser heap/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /quota/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /atomicity/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /publisher authentication/iu);
-	assert.match(milestone2Fixture?.limitation ?? '', /routine.*coverage.*skip/iu);
-	assert.equal(
-		packageMetadata.scripts['test:reference:scape-8gib'],
-		'node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-scape-sparse-full-import-integration.test.ts',
-	);
-	assert.match(referenceScaleTest, /process\.env\.npm_lifecycle_event/u);
-	assert.match(referenceScaleTest, /SOUNDSCAPER_RUN_REFERENCE_SCAPE_8GIB/u);
-	assert.match(referenceScaleTest, /npm run test:reference:scape-8gib/u);
-	assert.deepEqual(milestone2Fixture?.evidence, [
-		'package.json',
-		'src/common/editor/scape-import-capacity.ts',
-		'tests/audio-editor-scape-import-capacity.test.ts',
-		'tests/audio-editor-scape-import-capacity-admission.test.ts',
-		'tests/desktop-scape-sparse-range-integration.test.ts',
-		'tests/desktop-scape-sparse-full-import-integration.test.ts',
-		'tests/audio-editor-scape-streaming-video.test.ts',
-		'tests/helpers/sparse-scape-zip64-fixture.ts',
-		'docs/quality-budgets.md#fixtures-and-project-sizes',
-	]);
+	assert.equal(directWav?.specification.partialPublishedOutputs, 0);
+});
 
-	const directWavFixture = fixtures.get('m2-direct-wav-385mib-v1');
-	assert.equal(directWavFixture?.status, 'active');
-	assert.equal(directWavFixture?.kind, 'deterministic-direct-wav-counting-sha256-node-witness');
-	assert.deepEqual(directWavFixture?.specification, {
-		referenceScaleExecutionCommand: 'npm run test:reference:wav-385mib',
-		referenceScaleEnvironmentOverride: 'SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB=1',
-		routineNodeTestBehavior: 'skip-with-reference-command',
-		routineCoverageBehavior: 'skip-with-reference-command',
-		generatorRevision: 2,
-		sampleRate: 48_000,
-		channelCount: 32,
-		sampleFormat: 'float32',
-		signal: 'silence',
-		packetFrames: 16_384,
-		outputFrames: 3_153_920,
-		outputPcmBytes: 403_701_760,
-		outputFileBytes: 403_701_804,
-		outputSha256: 'f1978598e11527049bcafae0f1d4847238e5322e11fddf714cc9f298bf12f9fe',
-		desktopOutputThresholdBytes: 402_653_184,
-		renderStrategy: 'realtime-stream',
-		renderReason: 'output-memory',
-		renderPackets: 193,
-		maximumPendingPackets: 16,
-		maximumPendingPcmBytes: 33_554_432,
-		maximumDestinationWriteBytes: 4_194_304,
-		maximumPathOwnedBinaryBytes: 41_943_384,
-		maximumBudgetBufferedBinaryBytes: 67_108_864,
-		retainedOutputPayloadBytes: 0,
-		oversizePreflightBytesRead: 0,
-		partialPublishedOutputs: 0,
-		productionPipeline: [
-			'export-planner',
-			'export-controller',
-			'channel-aware-32-mib-pcm-sink-queue',
-			'passthrough-streaming-resampler',
-			'wav-stream-encoder',
-			'direct-exact-size-destination',
-		],
-		cancellationAfterCoalescedPcmWriteVerified: true,
-	});
-	assert.match(directWavFixture?.limitation ?? '', /Node.*counting SHA-256 target/iu);
-	assert.match(directWavFixture?.limitation ?? '', /typed-array and coalescing-buffer backing bytes.*ownership/iu);
-	assert.match(directWavFixture?.limitation ?? '', /not.*renderer heap.*process RSS/iu);
-	assert.match(directWavFixture?.limitation ?? '', /File System Access.*Electron filesystem/iu);
-	assert.match(directWavFixture?.limitation ?? '', /quota.*durability/iu);
-	assert.match(directWavFixture?.limitation ?? '', /packaged.*UI/iu);
-	assert.match(directWavFixture?.limitation ?? '', /routine.*coverage.*skip/iu);
-	assert.equal(
-		packageMetadata.scripts['test:reference:wav-385mib'],
-		'node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-export-direct-wav-reference.test.ts',
-	);
-	assert.match(directWavReferenceTest, /process\.env\.npm_lifecycle_event/u);
-	assert.match(directWavReferenceTest, /SOUNDSCAPER_RUN_REFERENCE_WAV_385MIB/u);
-	assert.match(directWavReferenceTest, /npm run test:reference:wav-385mib/u);
-	assert.deepEqual(directWavFixture?.evidence, [
-		'package.json',
-		'src/common/editor/export.js',
-		'src/common/editor/pcm-sink.js',
-		'src/common/editor/resample.js',
-		'src/common/editor/wav.js',
-		'src/common/editor/controller/direct-pcm-export.ts',
-		'src/common/editor/controller/direct-wav-export.ts',
-		'src/common/editor/controller/export-service.ts',
-		'tests/audio-editor-export-direct-wav-reference.test.ts',
-		'docs/quality-budgets.md#fixtures-and-project-sizes',
-	]);
+test('keyframe parity remains a deterministic correctness gate', () => {
+	const fixture = config.fixtures.find(({ id }) => id === 'm4b2-keyframe-parity-rgba-v1');
+	const workload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
+	assert.equal(fixture?.kind, 'deterministic-keyed-preview-offline-rgba-parity');
+	assert.equal(workload?.behavior, 'blocking');
 	assert.deepEqual(
-		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.fixtureIds,
-		['m2-streaming-project-8gib-v1', 'm2-direct-wav-385mib-v1'],
+		workloadThresholds(config, 'm4b2-keyframe-render-parity').map(
+			({ metricId, comparison, value, unit }: {
+				metricId: string; comparison: string; value: number; unit: string;
+			}) => ({ metricId, comparison, value, unit }),
+		),
+		[
+			{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
+			{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },
+			{ metricId: 'keyframes.omittedOperations', comparison: 'eq', value: 0, unit: 'count' },
+			{ metricId: 'keyframes.substitutedOperations', comparison: 'eq', value: 0, unit: 'count' },
+			{ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0, unit: 'count' },
+		],
 	);
-	assert.equal(
-		config.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.status,
-		'planned',
-		'the counting-sink witness does not measure the bounded-memory workload',
-	);
-
-	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
-	assert.equal(hostedPlaywright?.status, 'active');
-	const localRuntime = environments.get('local-runtime-diagnostics');
-	assert.equal(localRuntime?.status, 'active');
-	assert.equal(localRuntime?.kind, 'observed-local-runtime-diagnostics');
-	assert.equal(localRuntime?.rendererRequirement, 'any');
-	assert.equal(Object.hasOwn(localRuntime ?? {}, 'fingerprint'), false);
-	assert.equal(environments.has('owner-windows-x64-rtx3090-01'), false);
-
-	const keyedFixture = fixtures.get('m4b2-keyframe-parity-rgba-v1');
-	const keyedWorkload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
-	const keyedEvidence = [
-		'src/common/editor/quality/m4b2-keyframe-parity-workload.ts',
-		'scripts/lib/m4b2-keyframe-parity-metrics.mjs',
-		'scripts/collect-m4b2-keyframe-parity-quality.mjs',
-		'tests/audio-editor-m4b2-keyframe-parity-workload.test.ts',
-		'tests/helpers/m4b2-keyframe-parity-fixture.ts',
-		'tests/quality-budget-m4b2-keyframe-parity-collector.test.ts',
-		'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js',
-	];
-	assert.equal(keyedFixture?.status, 'active');
-	assert.equal(keyedFixture?.kind, 'deterministic-keyed-preview-offline-rgba-parity');
-	assert.deepEqual(keyedFixture?.specification, {
-		profile: 'deterministic-keyframe-parity-v1',
-		observationClass: 'complete-keyed-rgba-consumer-ledger-v1',
-		generatorRevision: 3, seed: 1_801_382_864, width: 128, height: 72,
-		sampleRate: 48_000, frameRate: { num: 12, den: 1 }, frameCount: 12,
-		sourceByteLength: 442_368,
-		sourceSha256: 'db9fa74f23eb1b5f9565cd10f10794a975492b629731534b56d0af3072b3ad8a',
-		caseIds: ['opacity-hold', 'opacity-linear', 'opacity-eased', 'opacity-bezier'],
-		queryIds: ['start', 'interior', 'end'],
-		evidenceClipIds: ['m4b2-opacity-hold-clip', 'm4b2-opacity-linear-clip',
-			'm4b2-opacity-eased-clip', 'framescaper-flat-clip-4f2ad5b3a72f098f3878c158c7025f70'],
-		presentationClasses: ['authenticated-cfr-occurrence', 'authenticated-cfr-occurrence',
-			'authenticated-cfr-occurrence', 'authenticated-vfr-materialized-occurrence'],
-		localDiagnosticCommand: 'node scripts/collect-m4b2-keyframe-parity-quality.mjs',
-	});
-	assert.deepEqual(keyedFixture?.evidence, keyedEvidence);
-	assert.match(keyedFixture?.limitation ?? '', /exact media correctness/iu);
-	assert.match(keyedFixture?.limitation ?? '', /hardware lower bound/iu);
-	assert.match(keyedFixture?.limitation ?? '', /no hardware lower bound or release status/iu);
-	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
-	assert.deepEqual(keyedWorkload?.environmentIds,
-		['github-ubuntu-playwright-1.62.1', 'local-runtime-diagnostics']);
-	assert.deepEqual(keyedWorkload?.thresholds, [
-		{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
-		{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },
-		{ metricId: 'keyframes.omittedOperations', comparison: 'eq', value: 0, unit: 'count' },
-		{ metricId: 'keyframes.substitutedOperations', comparison: 'eq', value: 0, unit: 'count' },
-		{ metricId: 'keyframes.fallbackOperations', comparison: 'eq', value: 0, unit: 'count' },
-	]);
-	assert.deepEqual(keyedWorkload?.evidence, keyedEvidence);
-	assert.equal(keyedWorkload?.status, 'active');
-
-	await assertEvidenceExists([
-		...config.environments.flatMap(({ evidence }) => evidence),
-		...config.fixtures.flatMap(({ evidence }) => evidence),
-		...config.workloads.flatMap(({ evidence }) => evidence),
-	]);
 });
 
-test('quality budget inputs pin the checked-in Node, npm, Playwright, and browser revisions', async () => {
-	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
-	const packageMetadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
-		readonly devDependencies: Readonly<Record<string, string>>;
-		readonly packageManager: string;
-	};
-	const packageLock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8')) as {
-		readonly packages: Readonly<Record<string, Readonly<{ version?: string }>>>;
-	};
-	const browserRegistry = JSON.parse(
-		await readFile(new URL('../node_modules/playwright-core/browsers.json', import.meta.url), 'utf8'),
-	) as {
-		readonly browsers: readonly Readonly<{
-			browserVersion?: string;
-			name: string;
-			revision: string;
-		}>[];
-	};
-
-	assert.equal(config.softwareInputs.node.version, (await readFile(new URL('../.nvmrc', import.meta.url), 'utf8')).trim());
-	assert.equal(config.softwareInputs.npm.version, packageMetadata.packageManager.split('@').at(-1));
-	assert.equal(config.softwareInputs.playwright.version, packageLock.packages['node_modules/@playwright/test']?.version);
-	assert.equal(packageMetadata.devDependencies['@playwright/test'], `^${config.softwareInputs.playwright.version}`);
-	assert.deepEqual(config.softwareInputs.browsers, {
-		chromium: {
-			version: '151.0.7922.34', revision: '1234', project: 'chromium', status: 'provisional',
-			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
-		},
-		firefox: {
-			version: '153.0', revision: '1538', project: 'firefox', status: 'provisional',
-			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
-		},
-		webkit: {
-			version: '26.5', revision: '2336', project: 'webkit', status: 'provisional',
-			evidence: ['package-lock.json', 'playwright.config.mjs', '.github/workflows/quality.yml'],
-		},
-	});
-	for (const [browserId, input] of Object.entries(config.softwareInputs.browsers)) {
-		const installed = browserRegistry.browsers.find(({ name }) => name === browserId);
-		assert.equal(input.version, installed?.browserVersion, `${browserId} version must match Playwright`);
-		assert.equal(input.revision, installed?.revision, `${browserId} revision must match Playwright`);
-	}
-	await assertEvidenceExists([
-		...config.softwareInputs.node.evidence,
-		...config.softwareInputs.npm.evidence,
-		...config.softwareInputs.playwright.evidence,
-		...Object.values(config.softwareInputs.browsers).flatMap(({ evidence }) => evidence),
-	]);
-});
-
-test('registered video parity artifacts retain their deterministic hashes', async () => {
-	const config = JSON.parse(await readFile(configUrl, 'utf8')) as QualityBudgetConfig;
+test('registered video parity artifacts retain their deterministic hashes', () => {
 	const fixture = config.fixtures.find(({ id }) => id === 'video-effect-parity-rgba-v1');
 	assert.ok(fixture?.artifacts);
 	for (const artifact of fixture.artifacts) {
@@ -451,13 +114,3 @@ test('registered video parity artifacts retain their deterministic hashes', asyn
 		assert.equal(createHash('sha256').update(generated.bytes).digest('hex'), artifact.sha256);
 	}
 });
-
-async function assertEvidenceExists(references: readonly string[]): Promise<void> {
-	for (const reference of new Set(references)) {
-		const [repositoryPath] = reference.split('#');
-		await assert.doesNotReject(
-			access(new URL(`../${repositoryPath}`, import.meta.url)),
-			`Missing quality-budget evidence: ${reference}`,
-		);
-	}
-}

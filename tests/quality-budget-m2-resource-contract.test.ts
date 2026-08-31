@@ -1,18 +1,11 @@
 import assert from 'node:assert/strict';
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+
+import { workloadThresholds } from '../scripts/lib/quality-budget-config.mjs';
 
 const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
 const closureUrl = new URL('../config/milestone-2-closure.json', import.meta.url);
-
-const ENVIRONMENT_ID = 'portable-node-structural-26.5.0';
-const ACTIVE_IDS = Object.freeze([
-	'm2-streaming-project-8gib-v1',
-	'm2-direct-wav-385mib-v1',
-	'm2-direct-stem-archives-v3',
-	'm2-direct-compressed-output-v2',
-	'm2-direct-mp4-webm-video-output-v1',
-]);
 
 const EXPECTED_THRESHOLDS = new Map<string, readonly Readonly<Record<string, unknown>>[]>([
 	['m2-streaming-project-8gib-v1', [
@@ -62,42 +55,28 @@ test('the frozen milestone-2 resource IDs own exact structural workload contract
 	const workloads = new Map(budgets.workloads.map((workload: { readonly id: string }) => [workload.id, workload]));
 	for (const [id, thresholds] of EXPECTED_THRESHOLDS) {
 		const workload = workloads.get(id) as undefined | {
-			readonly environmentIds: readonly string[];
-			readonly evidence: readonly string[];
+			readonly behavior: string;
 			readonly fixtureIds: readonly string[];
-			readonly milestone: string;
-			readonly status: string;
-			readonly thresholds: readonly Readonly<Record<string, unknown>>[];
+			readonly measurementIds: readonly string[];
 		};
 		assert.ok(workload, id);
-		assert.equal(workload.milestone, '2', id);
-		assert.equal(workload.status, ACTIVE_IDS.includes(id) ? 'active' : 'planned', id);
+		assert.equal(workload.behavior, 'blocking', id);
 		assert.deepEqual(workload.fixtureIds, [id], id);
-		assert.deepEqual(workload.environmentIds, [ENVIRONMENT_ID], id);
-		assert.deepEqual(workload.thresholds, thresholds, id);
-		assert.ok(workload.evidence.length > 0, id);
-		for (const reference of workload.evidence) {
-			await assert.doesNotReject(access(new URL(`../${reference}`, import.meta.url)), reference);
-		}
+		assert.deepEqual(
+			workloadThresholds(budgets, id).map((threshold: Readonly<Record<string, unknown>>) => ({
+				metricId: threshold.metricId,
+				comparison: threshold.comparison,
+				value: threshold.value,
+				unit: threshold.unit,
+			})),
+			thresholds,
+			id,
+		);
 	}
 });
 
-test('the structural Node environment records its diagnostic fingerprint', async () => {
+test('structural diagnostics record runtime identity in results rather than config', async () => {
 	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
-	const environment = budgets.environments.find(({ id }: { readonly id: string }) => id === ENVIRONMENT_ID);
-
-	assert.deepEqual(environment, {
-		id: ENVIRONMENT_ID,
-		status: 'active',
-		kind: 'portable-deterministic-node-structural',
-		rendererRequirement: 'any',
-		fingerprint: {
-			platform: 'linux',
-			architecture: 'x64',
-			nodeVersion: '26.5.0',
-			npmVersion: '12.0.1',
-			measurementClass: 'first-party-owned-structural-counters',
-		},
-		evidence: ['.nvmrc', 'package.json', 'package-lock.json', 'docs/quality-budgets.md#portable-structural-environment'],
-	});
+	assert.equal(Object.hasOwn(budgets, 'environments'), false);
+	assert.doesNotMatch(JSON.stringify(budgets), /portable-node-structural-26\.5\.0/u);
 });

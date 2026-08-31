@@ -226,11 +226,24 @@ function m1DiagnosticFixture() {
 	});
 	return {
 		config: {
-			fixtures: [{ id: 'video-preview-12fx-720p-v1', specification: structuredClone(fixture) }],
-			workloads: [{ id: 'm1-video-preview-12fx-720p', thresholds: [
-				{ metricId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34 },
-				{ metricId: 'preview.retainedJsHeapDeltaBytes', comparison: 'lte', value: 1_048_576 },
-			] }],
+			schemaVersion: 2,
+			fixtures: [{
+				id: 'video-preview-12fx-720p-v1', kind: 'digest-pinned-media',
+				specification: structuredClone(fixture),
+			}],
+			measurements: [
+				{ id: 'preview.frameIntervalP95Ms', behavior: 'observational' },
+				{ id: 'preview.retainedJsHeapDeltaBytes', behavior: 'observational' },
+			],
+			thresholds: [
+				{ measurementId: 'preview.frameIntervalP95Ms', comparison: 'lte', value: 33.34, unit: 'ms' },
+				{ measurementId: 'preview.retainedJsHeapDeltaBytes', comparison: 'lte', value: 1_048_576, unit: 'bytes' },
+			],
+			workloads: [{
+				id: 'm1-video-preview-12fx-720p', behavior: 'observational',
+				fixtureIds: ['video-preview-12fx-720p-v1'],
+				measurementIds: ['preview.frameIntervalP95Ms', 'preview.retainedJsHeapDeltaBytes'],
+			}],
 		},
 		diagnostic: {
 			schemaVersion: 1,

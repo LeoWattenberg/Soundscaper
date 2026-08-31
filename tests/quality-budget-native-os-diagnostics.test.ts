@@ -14,9 +14,13 @@ const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
 	'utf8',
 ));
-const environment = config.environments.find(
-	({ id }: { readonly id: string }) => id === NATIVE_OS_DIAGNOSTICS_ENVIRONMENT_ID,
-);
+const environment = Object.freeze({
+	id: NATIVE_OS_DIAGNOSTICS_ENVIRONMENT_ID,
+	status: 'active',
+	kind: 'observed-native-runtime-diagnostics',
+	rendererRequirement: 'any',
+	evidence: Object.freeze(['scripts/collect-m5-native-helper-quality.mjs']),
+});
 
 function observedHost(platformId = 'linuxX64') {
 	return {
@@ -50,6 +54,7 @@ function artifacts() {
 }
 
 test('native OS diagnostics have no configured hardware or profile matrix', () => {
+	assert.equal(Object.hasOwn(config, 'environments'), false);
 	const validated = validateNativeOsDiagnosticsEnvironment(environment);
 	assert.equal(validated.id, 'native-os-diagnostics');
 	assert.equal(validated.kind, 'observed-native-runtime-diagnostics');

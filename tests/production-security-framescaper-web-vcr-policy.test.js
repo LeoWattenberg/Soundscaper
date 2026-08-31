@@ -5,7 +5,6 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const CONTROL_ID = 'framescaper-web-vcr-dormant-isolated-guest';
-const ENVIRONMENT_ID = 'framescaper-web-vcr-runtime-matrix';
 const FIXTURE_ID = 'm8plus-web-vcr-loopback-https-v1';
 const WORKLOAD_ID = 'm8plus-web-vcr-long-session';
 
@@ -116,39 +115,17 @@ test('Web VCR isolated-guest control records the active lazy security boundary',
 	assert.match(privacy, /deterministic.*HTTPS fixture.*evidence only.*not.*platform.*qualification/isu);
 });
 
-test('Web VCR quality records inherit capture budgets without claiming qualification', async () => {
+test('Web VCR stays in real tests and owner QA instead of a pseudo quality workload', async () => {
 	const quality = await json('config/quality-budgets.json');
-	const environment = quality.environments.find(({ id }) => id === ENVIRONMENT_ID);
 	const fixture = quality.fixtures.find(({ id }) => id === FIXTURE_ID);
 	const workload = quality.workloads.find(({ id }) => id === WORKLOAD_ID);
-	assert.equal(environment?.status, 'unprovisioned');
-	assert.equal(environment?.qualificationEligible, false);
-	assert.equal(fixture?.status, 'provisional');
-	assert.equal(fixture?.specification.certificateSha256,
-		'338b8e455fa680fbb281823d0d334e58e632f68ecf69c628b2a5583664402f61');
-	assert.match(fixture?.limitation, /evidence only.*(?:not|no).*qualification/iu);
-	assert.equal(workload?.status, 'provisional');
-	assert.deepEqual(workload?.fixtureIds, [FIXTURE_ID]);
-	assert.deepEqual(workload?.environmentIds, [ENVIRONMENT_ID]);
-	assert.equal(quality.qualification.qualifiedWorkloadIds.includes(WORKLOAD_ID), false);
-
-	const capture = quality.workloads.find(({ id }) => id === 'm8a-capture-long-session');
-	const inherited = new Map(capture.thresholds.map(({ metricId, comparison, value, unit }) => [
-		metricId.slice('capture.'.length), { comparison, value, unit },
-	]));
-	const webVcr = new Map(workload.thresholds.map(({ metricId, comparison, value, unit }) => [
-		metricId.slice('webVcr.'.length), { comparison, value, unit },
-	]));
-	for (const metric of [
-		'avDriftMaximumMs', 'droppedFrameRatio', 'unreportedDroppedFrames',
-		'audioDropoutFrames', 'deviceTeardownP95Ms', 'unrecoverableDurableFragments',
-		'unauthorizedDeviceOpens',
-	]) assert.deepEqual(webVcr.get(metric), inherited.get(metric), metric);
-	assert.deepEqual(webVcr.get('exactSurfaceMismatches'), { comparison: 'eq', value: 0, unit: 'count' });
-	assert.deepEqual(webVcr.get('encoderCropMismatches'), { comparison: 'eq', value: 0, unit: 'count' });
-	assert.deepEqual(webVcr.get('retainedUncroppedProjectAssets'), {
-		comparison: 'eq', value: 0, unit: 'count',
-	});
+	assert.equal(fixture, undefined);
+	assert.equal(workload, undefined);
+	assert.equal(Object.hasOwn(quality, 'environments'), false);
+	assert.equal(Object.hasOwn(quality, 'qualification'), false);
+	const qa = await text('docs/qa/framescaper.md');
+	assert.match(qa, /Web VCR/iu);
+	assert.match(qa, /conditional/iu);
 });
 
 test('Web VCR roadmap and owning plan report the enabled test surface truthfully', async () => {

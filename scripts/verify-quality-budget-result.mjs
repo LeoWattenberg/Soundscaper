@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { evaluateQualityBudgetResult } from './quality-budget-result.mjs';
+import { qualityWorkloadBudget } from './lib/quality-budget-config.mjs';
 
 const execFileAsync = promisify(execFile);
 const defaultConfigPath = fileURLToPath(new URL('../config/quality-budgets.json', import.meta.url));
@@ -35,13 +36,12 @@ export async function verifyQualityBudgetResultFiles(options) {
 	const result = parseJson(resultBytes, 'Quality-budget result', failures);
 	if (!isRecord(config) || !isRecord(result)) return failedEvaluation(failures);
 
-	const workload = findExactDescriptor(config.workloads, result.workloadId, 'workload', failures);
-	const environment = findExactDescriptor(
-		config.environments,
-		result.environmentId,
-		'environment',
-		failures,
-	);
+	let workload = null;
+	try {
+		workload = qualityWorkloadBudget(config, result.workloadId);
+	} catch (error) {
+		failures.push(errorMessage(error));
+	}
 	await verifyRawArtifact(options.resultPath, result, failures);
 	if (result.sourceRevision !== options.expectedSourceRevision) {
 		failures.push(
@@ -49,16 +49,15 @@ export async function verifyQualityBudgetResultFiles(options) {
 		);
 	}
 
-	if (!workload || !environment) return failedEvaluation(failures);
+	if (!workload) return failedEvaluation(failures);
 	const evaluation = evaluateQualityBudgetResult({
 		workload,
-		expectedEnvironment: environment,
 		expectedBudgetSha256: sha256(configBytes),
-		measurementPolicy: isRecord(config.measurementPolicy) ? config.measurementPolicy : {},
 	}, result);
 	return Object.freeze({
 		passed: failures.length === 0 && evaluation.passed,
 		failures: Object.freeze([...failures, ...evaluation.failures]),
+		warnings: evaluation.warnings,
 		verdicts: evaluation.verdicts,
 	});
 }
@@ -96,21 +95,6 @@ async function verifyRawArtifact(resultPath, result, failures) {
 	}
 }
 
-function findExactDescriptor(collection, id, label, failures) {
-	if (!Array.isArray(collection) || typeof id !== 'string') {
-		failures.push(`Quality-budget config must contain exactly one ${label} descriptor for the result.`);
-		return null;
-	}
-	const matches = collection.filter((candidate) => isRecord(candidate) && candidate.id === id);
-	if (matches.length !== 1) {
-		failures.push(
-			`Quality-budget config must contain exactly one ${label} descriptor for ${id}.`,
-		);
-		return null;
-	}
-	return matches[0];
-}
-
 async function readRequiredFile(path, label, failures) {
 	try {
 		return await readFile(path);
@@ -145,6 +129,7 @@ function failedEvaluation(failures) {
 	return Object.freeze({
 		passed: false,
 		failures: Object.freeze([...failures]),
+		warnings: Object.freeze([]),
 		verdicts: Object.freeze([]),
 	});
 }

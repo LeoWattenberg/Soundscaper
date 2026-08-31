@@ -13,27 +13,18 @@ const SOURCE_REVISION = 'c'.repeat(40);
 
 function qualityConfig() {
 	return {
-		measurementPolicy: { benchmarkRetries: 0 },
-		environments: [{
-			id: 'reference-linux-node-01',
-			status: 'active',
-			rendererRequirement: 'any',
-			fingerprint: {
-				architecture: 'x64',
-				nodeVersion: '26.5.0',
-				osImage: 'debian-13.1',
-			},
+		schemaVersion: 2,
+		fixtures: [{ id: 'm2-direct-output-v1', kind: 'structural', specification: {} }],
+		measurements: [{ id: 'output.maximumOwnedBytes', behavior: 'blocking' }],
+		thresholds: [{
+			measurementId: 'output.maximumOwnedBytes',
+			comparison: 'lte', value: 64 * 1024 * 1024, unit: 'bytes',
 		}],
 		workloads: [{
 			id: 'm2-direct-output-memory',
+			behavior: 'blocking',
 			fixtureIds: ['m2-direct-output-v1'],
-			environmentIds: ['reference-linux-node-01'],
-			thresholds: [{
-				metricId: 'output.maximumOwnedBytes',
-				comparison: 'lte',
-				value: 64 * 1024 * 1024,
-				unit: 'bytes',
-			}],
+			measurementIds: ['output.maximumOwnedBytes'],
 		}],
 	};
 }
@@ -53,7 +44,7 @@ async function fixture() {
 		schemaVersion: 1,
 		workloadId: 'm2-direct-output-memory',
 		fixtureIds: ['m2-direct-output-v1'],
-		environmentId: 'reference-linux-node-01',
+		environmentId: 'observed-node-runtime',
 		environmentFingerprint: {
 			architecture: 'x64',
 			nodeVersion: '26.5.0',
@@ -97,7 +88,7 @@ test('tampered budget, raw artifact, and source revision each refuse the result'
 	const cases: readonly [string, (files: Awaited<ReturnType<typeof fixture>>) => Promise<void>, RegExp][] = [
 		['budget', async ({ configPath }) => {
 			const config = JSON.parse(await readFile(configPath, 'utf8')) as ReturnType<typeof qualityConfig>;
-			config.workloads[0].thresholds[0].value += 1;
+			config.thresholds[0].value += 1;
 			await writeFile(configPath, `${JSON.stringify(config, null, '\t')}\n`);
 		}, /budget digest/iu],
 		['raw artifact body', async ({ rawPath }) => {
@@ -134,8 +125,8 @@ test('missing, escaping, and self-referential raw artifacts are refused', async 
 	}
 });
 
-test('ambiguous workload and environment descriptors fail before evaluation', async () => {
-	for (const collection of ['workloads', 'environments'] as const) {
+test('ambiguous workload and measurement descriptors fail before evaluation', async () => {
+	for (const collection of ['workloads', 'measurements'] as const) {
 		const files = await fixture();
 		const config = JSON.parse(await readFile(files.configPath, 'utf8')) as ReturnType<typeof qualityConfig>;
 		config[collection].push(structuredClone(config[collection][0]) as never);
@@ -152,6 +143,6 @@ test('ambiguous workload and environment descriptors fail before evaluation', as
 			expectedSourceRevision: SOURCE_REVISION,
 		});
 		assert.equal(evaluation.passed, false, collection);
-		assert.match(evaluation.failures.join('\n'), /exactly one.*descriptor/iu, collection);
+		assert.match(evaluation.failures.join('\n'), /unique.*(?:workload|measurement)/iu, collection);
 	}
 });

@@ -4,9 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { evaluateQualityBudget } from './quality-budget-evaluator.mjs';
 import {
-	M6_REFERENCE_MASTER_ENVIRONMENT_IDS as ENVIRONMENT_IDS,
 	M6_REFERENCE_MASTER_FIXTURE_ID as FIXTURE_ID,
 	M6_REFERENCE_MASTER_FIXTURE_IDS as FIXTURE_IDS,
 	M6_REFERENCE_MASTER_METRIC_IDS as METRIC_IDS,
@@ -15,7 +13,13 @@ import {
 	M6_REFERENCE_MASTER_WORKLOAD_ID as WORKLOAD_ID,
 	computeM6ReferenceMasterMetrics,
 } from './lib/m6-reference-master-metrics.mjs';
-import { boundedString, exactRecord, isRecord, requireRecord } from './lib/measurement-admission.mjs';
+import { boundedString, exactRecord, requireRecord } from './lib/measurement-admission.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	evaluateQualityWorkload,
+	qualityFixture,
+	qualityWorkloadBudget,
+} from './lib/quality-budget-config.mjs';
 import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
 
 /*
@@ -23,7 +27,7 @@ import { snapshotStrictJsonData } from './lib/strict-json-snapshot.mjs';
  * `m6-reference-master-delivery` — conformance, reporting and unreported
  * conversions are proven by the node suite on every change. The local RTF run
  * measures either the owner reference host or a native lab profile. It
- * recomputes eleven metrics from the delivery's own sealed reports and reports
+ * recomputes eleven metrics from the delivery's own closed reports and reports
  * the checked-in thresholds without making a release claim.
  *
  * Two things it must never do: copy an intended fingerprint into a null
@@ -60,10 +64,10 @@ export async function collectM6ReferenceMasterQuality(optionsValue, dependencies
  */
 export function createM6ReferenceMasterResult(measurementValue, configValue) {
 	const config = snapshotStrictJsonData(configValue, 'config');
-	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
-	const fixtures = FIXTURE_IDS.map((id) => exactDescriptor(config.fixtures, id, 'fixture'));
+	const workload = qualityWorkloadBudget(config, WORKLOAD_ID);
+	const fixtures = FIXTURE_IDS.map((id) => qualityFixture(config, id));
 	const fixture = fixtures[0];
-	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
+	const policy = DIAGNOSTIC_MEASUREMENT_POLICY;
 	assertWorkloadRegistration(workload);
 	assertCompanionFixture(fixtures);
 	const computed = computeM6ReferenceMasterMetrics(measurementValue, {
@@ -75,19 +79,9 @@ export function createM6ReferenceMasterResult(measurementValue, configValue) {
 		measurementPolicy: policy,
 	});
 	const environmentId = computed.environmentId;
-	const environment = exactDescriptor(config.environments, environmentId, 'environment');
-	const evaluation = evaluateQualityBudget({
-		environmentId,
-		rendererRequirement: environment.rendererRequirement,
-		thresholds: workload.thresholds,
-	}, { ...environment, status: 'active' }, {
-		environmentId,
-		rendererClass: 'unknown',
-		metrics: computed.metrics,
-	});
-	const metricGatePassed = evaluation.verdicts.length === workload.thresholds.length
-		&& evaluation.verdicts.every(({ passed }) => passed);
-	const passed = metricGatePassed && evaluation.passed;
+	const evaluation = evaluateQualityWorkload(config, workload, computed.metrics);
+	const metricGatePassed = evaluation.passed;
+	const passed = metricGatePassed;
 	return Object.freeze({
 		schemaVersion: 1,
 		status: passed ? 'passed' : 'failed',
@@ -114,11 +108,7 @@ export function createM6ReferenceMasterResult(measurementValue, configValue) {
 		metrics: computed.metrics,
 		rawSampleCounts: computed.rawSampleCounts,
 		metricGatePassed,
-		evaluation: Object.freeze({
-			passed,
-			failures: evaluation.failures,
-			verdicts: evaluation.verdicts,
-		}),
+		evaluation,
 	});
 }
 
@@ -215,18 +205,9 @@ function assertWorkloadRegistration(workload) {
 		? workload.thresholds.map((threshold) => threshold?.metricId)
 		: [];
 	if (!sameStrings(workload.fixtureIds, [...FIXTURE_IDS])
-		|| !sameStrings(workload.environmentIds, [...ENVIRONMENT_IDS])
 		|| !sameStrings(thresholdIds, METRIC_IDS)) {
-		throw new Error(`Workload ${WORKLOAD_ID} does not own both frozen fixtures, two environments, and eleven metrics.`);
+		throw new Error(`Workload ${WORKLOAD_ID} does not own both frozen fixtures and eleven measurements.`);
 	}
-}
-
-function exactDescriptor(collection, id, label) {
-	const matches = Array.isArray(collection)
-		? collection.filter((value) => isRecord(value) && value.id === id)
-		: [];
-	if (matches.length !== 1) throw new Error(`Quality config must contain exactly one ${label} ${id}.`);
-	return matches[0];
 }
 
 function ownEnvironmentString(environment, key) {

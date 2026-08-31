@@ -28,7 +28,7 @@ export const HOSTED_CI_COLLECTORS = Object.freeze([
 	collector('m4b2-keyframe-render-parity', 'blocking', 'any',
 		'tests/browser/audio-editor-m4b2-keyframe-parity.spec.js',
 		parseM4B2KeyframeParityDiagnostic, createPendingM4B2KeyframeParityResult),
-	collector('m3-longform-editorial', 'observational', 'any',
+	collector('m3-longform-editorial', 'blocking', 'any',
 		'tests/browser/audio-editor-longform-editorial-benchmark.spec.js',
 		parseM3LongformEditorialDiagnostic, createPendingM3LongformEditorialResult),
 	collector('m1-video-preview-12fx-720p', 'observational', 'hardware',
@@ -72,7 +72,15 @@ export function createCiDiagnosticsReport({
 			diagnostics[current.diagnosticKey] = diagnostic;
 			const evaluated = current.evaluate(diagnostic, config);
 			const passed = evaluated?.metricGatePassed === true;
-			const status = passed ? 'passed' : current.gate === 'blocking' ? 'failed' : 'warning';
+			const measurementWarnings = Array.isArray(evaluated?.evaluation?.warnings)
+				? evaluated.evaluation.warnings
+				: [];
+			for (const warning of measurementWarnings) {
+				warnings.push(`${current.diagnosticKey}: ${String(warning)}`);
+			}
+			const status = passed
+				? measurementWarnings.length > 0 ? 'warning' : 'passed'
+				: current.gate === 'blocking' ? 'failed' : 'warning';
 			workloads.push(Object.freeze({
 				...evaluated,
 				diagnosticKey: current.diagnosticKey,

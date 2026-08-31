@@ -23,6 +23,7 @@ function stubCollector(
 	diagnosticKey: string,
 	gate: 'blocking' | 'observational',
 	metricGatePassed: boolean,
+	measurementWarnings: readonly string[] = [],
 ) {
 	return {
 		diagnosticKey,
@@ -38,6 +39,7 @@ function stubCollector(
 			evaluation: {
 				passed: metricGatePassed,
 				failures: metricGatePassed ? [] : ['stub.value missed its threshold.'],
+				warnings: measurementWarnings,
 				verdicts: [{ metricId: 'stub.value', passed: metricGatePassed }],
 			},
 		}),
@@ -72,6 +74,16 @@ test('hosted diagnostics block on correctness and warn on observational budgets'
 	assert.deepEqual(failed.report.failures, ['parity did not pass its metric thresholds.']);
 });
 
+test('a mixed workload blocks on correctness and surfaces performance warnings', () => {
+	const report = reportFrom([
+		stubCollector('editorial', 'blocking', true, ['seek timing missed its threshold.']),
+	]);
+	assert.equal(report.passed, true);
+	assert.deepEqual(report.report.failures, []);
+	assert.deepEqual(report.report.warnings, ['editorial: seek timing missed its threshold.']);
+	assert.equal(report.report.workloads[0]?.status, 'warning');
+});
+
 test('hardware-only diagnostics are reported as unavailable on hosted software renderers', () => {
 	const report = createCiDiagnosticsReport({
 		consoleOutput: '', sourceRevision: null, playwrightExit: PASSING_EXIT,
@@ -96,7 +108,7 @@ test('the diagnostic collector table retains parity, timing, and GPU observation
 		[
 			['m4-production-parity', 'blocking', 'any'],
 			['m4b2-keyframe-render-parity', 'blocking', 'any'],
-			['m3-longform-editorial', 'observational', 'any'],
+			['m3-longform-editorial', 'blocking', 'any'],
 			['m1-video-preview-12fx-720p', 'observational', 'hardware'],
 		],
 	);

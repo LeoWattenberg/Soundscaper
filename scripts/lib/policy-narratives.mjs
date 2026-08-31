@@ -3,7 +3,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-// Qualification narratives that appear in both a register and a markdown
+// Policy narratives that appear in both a register and a markdown
 // document are derived, not hand-mirrored: the register text is the single
 // source, and the document carries a marked block holding its rendered form.
 // `node scripts/sync-policy-narratives.mjs` rewrites the blocks; `--check`
@@ -47,22 +47,6 @@ const QUALIFICATION_ID_TOKENS = Object.freeze([
 ]);
 
 export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
-	Object.freeze({
-		marker: 'milestone-2-offline-cache-qualification',
-		register: 'config/quality-budgets.json',
-		jsonPath: ['offlineCacheNarrative'],
-		document: 'docs/quality-budgets.md',
-		intro: null,
-		wrap: 80,
-	}),
-	Object.freeze({
-		marker: 'milestone-2-offline-cache-qualification-threat-model',
-		register: 'config/quality-budgets.json',
-		jsonPath: ['offlineCacheNarrative'],
-		document: 'docs/production-threat-model.md',
-		intro: null,
-		wrap: 80,
-	}),
 	Object.freeze({
 		marker: 'framescaper-v18-product-isolation',
 		register: 'config/project-compatibility.json',

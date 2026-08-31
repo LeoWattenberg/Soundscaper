@@ -12,6 +12,7 @@ import {
 	executeEditorCommand,
 } from '../src/common/editor/history.js';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import { workloadThresholds } from '../scripts/lib/quality-budget-config.mjs';
 
 const WORKLOAD_ID = 'm3-longform-editorial-2h-v2';
 const METRIC_ID = 'editorial.retainedHeapDeltaBytes';
@@ -24,12 +25,11 @@ if (process.env[CHILD_FLAG] === '1') {
 	test('current-schema snapshot history stays within the milestone-3 long-form retained-heap budget', async () => {
 		const budget = JSON.parse(await readFile(new URL('../config/quality-budgets.json', import.meta.url), 'utf8'));
 		const fixture = budget.fixtures.find(({ id }: { id: string }) => id === WORKLOAD_ID);
-		const workload = budget.workloads.find(({ id }: { id: string }) => id === 'm3-longform-editorial');
-		const threshold = workload.thresholds.find(({ metricId }: { metricId: string }) => metricId === METRIC_ID);
+		const threshold = workloadThresholds(budget, 'm3-longform-editorial')
+			.find(({ metricId }: { metricId: string }) => metricId === METRIC_ID);
 		assert.deepEqual(fixture.specification, {
 			localDiagnosticCommand: 'npm run quality:collect:m3-longform',
 			routineBrowserTestBehavior: 'skip-with-explicit-collector',
-			qualificationPublication: 'accepted-only-after-qualified-environment-and-digest-bound-verification',
 			generatorRevision: 2,
 			seed: 1_554_098_974,
 			durationSeconds: 7_200,
@@ -52,6 +52,7 @@ if (process.env[CHILD_FLAG] === '1') {
 		});
 		assert.deepEqual(threshold, {
 			metricId: METRIC_ID,
+			behavior: 'observational',
 			comparison: 'lte',
 			value: 268_435_456,
 			unit: 'bytes',

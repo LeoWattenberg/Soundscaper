@@ -273,9 +273,7 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 	const budgets = JSON.parse(await readFile(budgetsUrl, 'utf8'));
 	const fixture = budgets.fixtures.find(({ id }) => id === 'm2-direct-mp4-webm-video-output-v1');
 	assert.ok(fixture);
-	assert.equal(fixture.status, 'provisional');
 	assert.equal(fixture.kind, 'deterministic-direct-mp4-webm-node-transport-witness');
-	assert.deepEqual(fixture.milestones, ['2']);
 	assert.equal(fixture.specification.generatorRevision, 1);
 	assert.equal(fixture.specification.admittedMode, 'canonical-mp4-webm-final-video');
 	assert.equal(fixture.specification.planVersion, CANONICAL_VIDEO_EXPORT_PLAN_VERSION);
@@ -324,7 +322,7 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 		'quotaQualified',
 		'filesystemDurabilityQualified',
 		'crashPowerLossQualified',
-	]) assert.equal(fixture.specification[field], false, field);
+	]) assert.equal(Object.hasOwn(fixture.specification, field), false, field);
 	assert.match(
 		fixture.limitation,
 		/small Node.*mock FFmpeg.*2,097,169-byte.*transport.*three.*not.*actual codecs.*conformance.*reference-scale/isu,
@@ -333,13 +331,10 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 		fixture.limitation,
 		/complete.*worker MEMFS.*does not bound.*source-video.*audio.*Blob residency.*codec memory.*heap.*RSS.*CPU.*elapsed time/isu,
 	);
-	assert.deepEqual(
-		budgets.workloads.find(({ id }) => id === 'm2-streaming-bounded-memory')?.fixtureIds,
-		['m2-streaming-project-8gib-v1', 'm2-direct-wav-385mib-v1'],
-	);
-	for (const path of fixture.evidence) {
-		await access(new URL(`../${path.split('#')[0]}`, import.meta.url));
-	}
+	const workload = budgets.workloads.find(({ id }) => id === 'm2-direct-mp4-webm-video-output-v1');
+	assert.deepEqual(workload.fixtureIds, ['m2-direct-mp4-webm-video-output-v1']);
+	assert.equal(workload.behavior, 'blocking');
+	assert.equal(budgets.workloads.some(({ id }) => id === 'm2-streaming-bounded-memory'), false);
 });
 
 test('the threat and quality documents limit direct video claims to the proved transport slice', async () => {
@@ -351,7 +346,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 	const threatEnd = threatModel.indexOf('\n### Electron renderer', threatStart);
 	assert.ok(threatStart >= 0 && threatEnd > threatStart);
 	const threatDocumentation = threatModel.slice(threatStart, threatEnd).replace(/\s+/gu, ' ');
-	const qualityStart = qualityBudgets.indexOf('A fifth provisional milestone 2 fixture');
+	const qualityStart = qualityBudgets.indexOf('### Direct video transport diagnostic');
 	const qualityEnd = qualityBudgets.indexOf('\nThe [legacy-schema refusal witness]', qualityStart);
 	assert.ok(qualityStart >= 0 && qualityEnd > qualityStart);
 	const qualityDocumentation = qualityBudgets.slice(qualityStart, qualityEnd).replace(/\s+/gu, ' ');
@@ -366,7 +361,7 @@ test('the threat and quality documents limit direct video claims to the proved t
 	);
 	assert.match(
 		qualityDocumentation,
-		/direct MP4 and WebM.*2,097,169-byte.*three.*1,048,576.*1,048,576.*17.*one stat.*zero.*`readFile`.*outside.*bounded-memory workload.*stays planned/isu,
+		/direct MP4 and WebM.*2,097,169-byte.*three.*1,048,576.*1,048,576.*17.*one stat.*zero.*`readFile`.*transport slice.*not codec conformance.*packaged UI.*reference-scale memory.*crash recovery.*filesystem durability/isu,
 	);
 });
 

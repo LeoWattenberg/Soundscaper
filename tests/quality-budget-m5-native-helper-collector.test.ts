@@ -22,20 +22,20 @@ import {
 	writeM5NativeHelperResult,
 } from '../scripts/collect-m5-native-helper-quality.mjs';
 import { qualityBudgetSha256 } from '../scripts/lib/quality-budget-config-digest.mjs';
+import {
+	DIAGNOSTIC_MEASUREMENT_POLICY,
+	workloadThresholds,
+} from '../scripts/lib/quality-budget-config.mjs';
 
-type Threshold = { readonly metricId: string; readonly comparison: string; readonly value: number };
 type Descriptor = {
 	readonly id: string;
-	readonly status?: string;
 	readonly specification?: Record<string, number>;
-	readonly thresholds?: readonly Threshold[];
-	readonly fingerprint?: Record<string, unknown>;
 };
 type Config = {
-	readonly measurementPolicy: Record<string, unknown>;
-	readonly environments: readonly Descriptor[];
 	readonly fixtures: readonly Descriptor[];
-	readonly workloads: readonly Descriptor[];
+	readonly measurements: readonly Descriptor[];
+	readonly thresholds: readonly Descriptor[];
+	readonly workloads: readonly (Descriptor & { readonly measurementIds: readonly string[] })[];
 };
 const config = JSON.parse(await readFile(
 	new URL('../config/quality-budgets.json', import.meta.url),
@@ -45,9 +45,16 @@ const workload = config.workloads.find(({ id }) => id === 'm5-native-helper-and-
 const fixture = config.fixtures.find(({ id }) => id === 'm5-helper-fault-and-loopback-v1')!;
 const expectation = Object.freeze({
 	fixtureSpecification: fixture.specification!,
-	measurementPolicy: config.measurementPolicy,
+	measurementPolicy: DIAGNOSTIC_MEASUREMENT_POLICY,
 });
 const DIGEST = 'a'.repeat(64);
+const diagnosticEnvironment = Object.freeze({
+	id: 'native-os-diagnostics',
+	status: 'active',
+	kind: 'observed-native-runtime-diagnostics',
+	rendererRequirement: 'any',
+	evidence: Object.freeze(['scripts/collect-m5-native-helper-quality.mjs']),
+});
 
 function makeFingerprint(): Record<string, unknown> {
 	return {
@@ -162,7 +169,7 @@ function makeV2Measurement(): Record<string, unknown> {
 
 test('the eight computed metric ids are exactly the registered thresholds', () => {
 	assert.deepEqual(
-		workload.thresholds!.map(({ metricId }) => metricId),
+		workloadThresholds(config, workload.id).map(({ metricId }: { metricId: string }) => metricId),
 		[...M5_NATIVE_HELPER_METRIC_IDS],
 	);
 	const computed = computeM5NativeHelperMetrics(makeMeasurement(), expectation);
@@ -184,7 +191,7 @@ test('a complete record is recomputed and evaluated against the checked-in thres
 		'native.audioUnderrunFrames': 0,
 	});
 	assert.equal(result.metricGatePassed, true);
-	assert.equal(result.evaluation.verdicts.length, workload.thresholds!.length);
+	assert.equal(result.evaluation.verdicts.length, workload.measurementIds.length);
 	assert.ok(result.evaluation.verdicts.every(({ passed }: { passed: boolean }) => passed));
 	assert.equal(result.rawSampleCounts.warmupRuns, 1);
 	assert.equal(result.rawSampleCounts.timedRuns, 5);
@@ -197,7 +204,6 @@ test('a complete record is recomputed and evaluated against the checked-in thres
 });
 
 test('schema V2 binds helper metrics to the observed host without a configured hardware row', () => {
-	const diagnosticEnvironment = config.environments.find(({ id }) => id === 'native-os-diagnostics')!;
 	const computed = computeM5NativeHelperMetrics(makeV2Measurement(), {
 		...expectation,
 		budgetSha256: qualityBudgetSha256(config),
@@ -248,7 +254,7 @@ test('a breached threshold fails the metric gate instead of degrading to pending
 	assert.equal(result.metricGatePassed, false);
 	assert.equal(result.status, 'failed');
 	assert.match(
-		result.evaluation.failures.join('\n'),
+		result.evaluation.warnings.join('\n'),
 		/native\.audioUnderrunFrames was 7 frames/u,
 	);
 	assert.match(
@@ -292,9 +298,7 @@ test('a device diagnostic reports thresholds without making a release decision',
 		(result as unknown as { observedFingerprint: Record<string, unknown> }).observedFingerprint,
 		makeFingerprint(),
 	);
-	const environment = config.environments.find(({ id }) => id === 'native-os-diagnostics')!;
-	assert.equal('fingerprint' in environment, false);
-	assert.equal('profiles' in environment, false);
+	assert.equal(Object.hasOwn(config, 'environments'), false);
 
 	await assert.rejects(
 		writeM5NativeHelperResult('/unused', { ...result, status: 'accepted' }),

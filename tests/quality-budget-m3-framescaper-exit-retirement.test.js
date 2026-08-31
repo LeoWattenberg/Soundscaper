@@ -39,8 +39,11 @@ test('moves exact editorial continuity into the current milestone 5 native-media
 		'source-timecode',
 	]);
 	assert.deepEqual(
-		workload.thresholds.filter(({ metricId }) => metricId.startsWith('nativeMedia.editorial')).map(
-			({ metricId, comparison, value, unit }) => ({ metricId, comparison, value, unit }),
+		quality.thresholds.filter(({ measurementId }) => (
+			workload.measurementIds.includes(measurementId)
+			&& measurementId.startsWith('nativeMedia.editorial')
+		)).map(
+			({ measurementId: metricId, comparison, value, unit }) => ({ metricId, comparison, value, unit }),
 		),
 		[
 			{ metricId: 'nativeMedia.editorialAudioPositionErrorSamples', comparison: 'eq', value: 0, unit: 'samples' },
