@@ -336,12 +336,13 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 			const included = relative(
 				mediaRoot, resolve(dirname(join(mediaRoot, path)), match[1]),
 			).replaceAll('\\', '/');
-			if (included.startsWith('src/')) {
-				if (!pins.has(included)) {
-					throw new Error(`Reused media-contract include ${included} is not manifest pinned.`);
-				}
-				queue.push(included);
+			if (!included.startsWith('src/')) {
+				throw new Error(`Reused media-contract include ${included} resolves outside its source root.`);
 			}
+			if (!pins.has(included)) {
+				throw new Error(`Reused media-contract include ${included} is not manifest pinned.`);
+			}
+			queue.push(included);
 		}
 	}
 	closure.sort(({ path: left }, { path: right }) => left.localeCompare(right));

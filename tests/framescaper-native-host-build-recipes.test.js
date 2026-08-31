@@ -254,6 +254,23 @@ test('repinning cannot broaden FFmpeg or smuggle ambient paths into exact preset
 		/reused media-contract input .* drifted from its pin/iu,
 	);
 
+	const escapedInclude = buildFixture(context, 'openfx', 'linux-x64');
+	appendFileSync(
+		join(escapedInclude.mediaContractRoot, 'src/media_plan.cpp'),
+		'#include "../../outside.hpp"\n',
+	);
+	const escapedManifestPath = join(escapedInclude.mediaContractRoot, 'source-manifest.json');
+	const escapedManifest = json(escapedManifestPath);
+	escapedManifest.sourceFiles = sourcePins(
+		escapedInclude.mediaContractRoot,
+		escapedManifest.sourceFiles.map(({ path }) => path),
+	);
+	writeJson(escapedManifestPath, escapedManifest);
+	assert.throws(
+		() => createFramescaperOpenFxHostBuildRecipe(escapedInclude.options),
+		/media-contract include .* outside its source root/iu,
+	);
+
 	const boost = buildFixture(context, 'openfx', 'linux-x64');
 	writeFileSync(join(boost.boostSourceRoot, 'boost/version.hpp'), '#define BOOST_VERSION 109100\n');
 	assert.throws(
