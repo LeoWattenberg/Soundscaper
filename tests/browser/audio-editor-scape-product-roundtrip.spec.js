@@ -34,7 +34,11 @@ const PRODUCT_PATHS = {
 test.describe('exact selected-schema cross-product Scape handoffs', () => {
 	registerAudioEditorHooks();
 
-	test('Framescaper v1 holds Soundscaper v1 opaquely without damaging its archive', async ({ browser, page }) => {
+	test('Framescaper v1 holds Soundscaper v1 opaquely without damaging its archive', async ({ browser, browserName, page }) => {
+		test.slow(
+			browserName === 'webkit',
+			'This handoff boots three isolated editor runtimes before its final playback proof.',
+		);
 		await disableDirectScapeSave(page);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, PRODUCT_PATHS.soundscaper);
@@ -83,7 +87,11 @@ test.describe('exact selected-schema cross-product Scape handoffs', () => {
 		}
 	});
 
-	test('Soundscaper v1 holds Framescaper v1 opaquely without damaging its archive', async ({ browser, page }) => {
+	test('Soundscaper v1 holds Framescaper v1 opaquely without damaging its archive', async ({ browser, browserName, page }) => {
+		test.slow(
+			browserName === 'webkit',
+			'This handoff boots three isolated editor runtimes before its final playback proof.',
+		);
 		await disableDirectScapeSave(page);
 		const originErrors = collectClientErrors(page);
 		const origin = await bootEditor(page, PRODUCT_PATHS.framescaper);
@@ -208,6 +216,8 @@ async function openScapeArchive(editor, archive, name) {
 }
 
 async function assertPlayback(editor) {
+	await expect(editor.locator('[data-editor-task-progress="import"]'))
+		.toHaveCount(0, { timeout: 20_000 });
 	await editor.getByRole('button', { name: 'Play', exact: true }).click();
 	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
