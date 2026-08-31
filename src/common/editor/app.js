@@ -620,7 +620,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getProject: () => project,
 		hasHistory: () => Boolean(state.history), hasUnsavedProjectChanges: () => Boolean(project && sessionTab(project.id)?.dirty),
 		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
-		cloneProject: projectRuntime.cloneProject, prepareSnapshot: typeof options.prepareProjectSnapshot === 'function' ? async (snapshot) => { await options.prepareProjectSnapshot('project-save', snapshot); if (!project || project.id !== snapshot.id) throw new Error('The active project changed during save preparation.'); return projectRuntime.cloneProject(project); } : undefined, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
+		cloneProject: projectRuntime.cloneProject, prepareSnapshot: typeof options.prepareProjectSnapshot === 'function' ? async (snapshot, purpose) => { await options.prepareProjectSnapshot(purpose, snapshot); if (!project || project.id !== snapshot.id) throw new Error('The active project changed during save preparation.'); return projectRuntime.cloneProject(project); } : undefined, admitProjectPublication: (bytes) => preflightStorage(bytes, 'project'), collectProtectedLinkedOriginalSourceReferences: () => projectRetentionService.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, options) => store.saveProject(snapshot, options),
 		persistActiveProjectId: async (projectId) => {
 			await persistSetting(lastProjectSettingKey, projectId);

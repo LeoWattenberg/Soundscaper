@@ -7,6 +7,7 @@ import type {
 import type { EditorTaskProgressCoordinator } from './task-progress.ts';
 import type { ScapeArchiveByteSource } from '../scape-archive-byte-source.ts';
 import type { ProjectFileExtension } from '../../project-file-extensions.ts';
+import type { ProjectFlushOptions } from './project-save-service.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -294,7 +295,7 @@ export interface NativeProjectServiceRuntime {
 		preserveScapeOpenRequest?: boolean;
 	}>) => PromiseLike<unknown> | unknown;
 	readonly editingBlocked: () => boolean;
-	readonly flushProject: () => PromiseLike<unknown> | unknown;
+	readonly flushProject: (options?: ProjectFlushOptions) => PromiseLike<unknown> | unknown;
 	readonly hasMissingTimelineSources: (
 		project: NativeProjectDocument,
 		options?: Readonly<{ audioOnly?: boolean }>,

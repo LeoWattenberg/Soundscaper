@@ -220,7 +220,10 @@ export function createProjectMutationService<
 
 	async function saveNow(): Promise<unknown> {
 		dependencies.lifetime.assertActive();
-		return dependencies.saves.flushProject();
+		return dependencies.saves.flushProject({
+			prepareCurrentSnapshot: true,
+			preparationPurpose: 'project-save',
+		});
 	}
 
 	async function flushProject(options: ProjectFlushOptions = {}): Promise<unknown> {

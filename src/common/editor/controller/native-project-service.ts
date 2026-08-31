@@ -149,7 +149,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 			});
 			if (prepared.mode === 'cancelled') return { cancelled: true };
 			assertOwnership(operation.task, operation.projectToken);
-			await runtime.flushProject();
+			await runtime.flushProject({ prepareCurrentSnapshot: true, preparationPurpose: 'scape-save' });
 			assertOwnership(operation.task, operation.projectToken);
 			const snapshot = requireOwnedProject(projectAtStart.id);
 			beginSave(operation.task, operation.projectToken);

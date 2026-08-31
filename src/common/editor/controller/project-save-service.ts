@@ -9,7 +9,12 @@ export interface ProjectSaveSnapshot {
 
 export interface ProjectFlushOptions {
 	readonly forceCurrentSnapshot?: boolean;
+	/** Prepare and persist the current snapshot even when document history is clean. */
+	readonly prepareCurrentSnapshot?: boolean;
+	readonly preparationPurpose?: ProjectSnapshotPreparationPurpose;
 }
+
+export type ProjectSnapshotPreparationPurpose = 'project-save' | 'scape-save';
 
 export interface ProjectSaveState<Project extends ProjectSaveSnapshot> {
 	autosaveTimer: number;
@@ -26,7 +31,10 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly hasUnsavedProjectChanges?: () => boolean;
 	readonly isReadOnly: () => boolean;
 	readonly cloneProject: (project: Project) => Project;
-	readonly prepareSnapshot?: (snapshot: Project) => PromiseLike<Project> | Project;
+	readonly prepareSnapshot?: (
+		snapshot: Project,
+		purpose: ProjectSnapshotPreparationPurpose,
+	) => PromiseLike<Project> | Project;
 	readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
 	readonly collectProtectedLinkedOriginalSourceReferences?: (
 	) => Iterable<ProjectLinkedOriginalSourceReference>;
@@ -111,7 +119,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		state.autosaveTimer = scheduleTimer(() => {
 			state.autosaveTimer = 0;
 			scheduledProjectId = null;
-			void enqueueSaveSnapshot(snapshot, generation, projectSaveEpoch).catch(() => undefined);
+			void enqueueSaveSnapshot(snapshot, generation, projectSaveEpoch, 'project-save').catch(() => undefined);
 		}, autosaveDelayMs);
 		return true;
 	}
@@ -165,12 +173,22 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	}
 
 	function flushProject(options: ProjectFlushOptions = {}): Promise<unknown> | undefined {
-		return flushCurrentProject(false, options.forceCurrentSnapshot === true);
+		const prepareCurrentSnapshot = options.prepareCurrentSnapshot === true
+			&& dependencies.prepareSnapshot !== undefined;
+		return flushCurrentProject(
+			false,
+			options.forceCurrentSnapshot === true || prepareCurrentSnapshot,
+			options.preparationPurpose ?? 'project-save',
+		);
 	}
 
 	async function terminalFlush(): Promise<unknown> {
 		terminal = true;
-		const operation = flushCurrentProject(true, false);
+		const operation = flushCurrentProject(
+			true,
+			dependencies.prepareSnapshot !== undefined,
+			'project-save',
+		);
 		if (operation) return operation;
 		return state.saveQueue;
 	}
@@ -178,6 +196,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	function flushCurrentProject(
 		allowTerminal: boolean,
 		forceCurrentSnapshot: boolean,
+		preparationPurpose: ProjectSnapshotPreparationPurpose,
 	): Promise<unknown> | undefined {
 		if (suspensionCount > 0 || (terminal && !allowTerminal)) return undefined;
 		const project = dependencies.getProject();
@@ -190,7 +209,9 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			const gate = suspendedProjects.get(project.id);
 			if (gate) {
 				if (scheduledProjectId === project.id) cancelScheduled();
-				return gate.promise.then(() => flushCurrentProject(allowTerminal, forceCurrentSnapshot));
+				return gate.promise.then(() => flushCurrentProject(
+					allowTerminal, forceCurrentSnapshot, preparationPurpose,
+				));
 			}
 		}
 		cancelScheduled();
@@ -200,6 +221,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			dependencies.cloneProject(project),
 			generation,
 			currentProjectSaveEpoch(project.id),
+			preparationPurpose,
 		);
 	}
 
@@ -207,10 +229,11 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		snapshot: Project,
 		generation: number,
 		projectSaveEpoch: number,
+		preparationPurpose: ProjectSnapshotPreparationPurpose,
 	): Promise<unknown> {
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch));
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, preparationPurpose));
 		state.saveQueue = operation;
 		return operation;
 	}
@@ -219,12 +242,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		snapshotValue: Project,
 		generation: number,
 		projectSaveEpoch: number,
+		preparationPurpose: ProjectSnapshotPreparationPurpose,
 	): Promise<void> {
 		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
 		let snapshot: Project;
 		try {
 			snapshot = dependencies.prepareSnapshot
-				? await dependencies.prepareSnapshot(snapshotValue)
+				? await dependencies.prepareSnapshot(snapshotValue, preparationPurpose)
 				: snapshotValue;
 		} catch (error) {
 			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;

@@ -249,16 +249,19 @@ test('superseded playback preparation cannot apply or report an expected cancell
 
 test('save aliases delegate to the single serialized project save service', async () => {
 	let scheduled = 0;
-	let flushed = 0;
+	const flushes: unknown[] = [];
 	const fixture = mutationFixture({
 		autosave: () => { scheduled += 1; return true; },
-		flush: async () => { flushed += 1; return 'saved'; },
+		flush: async (options) => { flushes.push(options); return 'saved'; },
 	});
 	assert.equal(fixture.service.scheduleAutosave(), true);
 	assert.equal(await fixture.service.saveNow(), 'saved');
 	assert.equal(await fixture.service.flushProject(), 'saved');
 	assert.equal(scheduled, 1);
-	assert.equal(flushed, 2);
+	assert.deepEqual(flushes, [
+		{ prepareCurrentSnapshot: true, preparationPurpose: 'project-save' },
+		{},
+	]);
 });
 
 interface FixtureOverrides {
@@ -280,7 +283,7 @@ interface FixtureOverrides {
 	readonly retainClips?: () => void;
 	readonly publish?: () => void;
 	readonly autosave?: () => boolean;
-	readonly flush?: () => Promise<unknown>;
+	readonly flush?: (options?: Readonly<Record<string, unknown>>) => Promise<unknown>;
 	readonly normalizeRouting?: (
 		routing: TestRouting,
 		tracks: readonly Readonly<{ id: string }>[],

@@ -99,6 +99,7 @@ test('clean projects do not emit equal-revision explicit or terminal saves', asy
 	});
 
 	assert.equal(service.flushProject(), undefined);
+	assert.equal(service.flushProject({ prepareCurrentSnapshot: true }), undefined);
 	service.suspendProject(project.id);
 	assert.equal(service.flushProject(), undefined, 'a clean scoped origin never waits for the derivative owner');
 	assert.equal(service.resumeProject(project.id), true);
