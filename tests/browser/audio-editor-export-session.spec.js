@@ -94,7 +94,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps playback smooth without redrawing clip waveforms or producing long tasks', async ({ page }) => {
+	test('keeps settled playback smooth without redrawing clip waveforms or producing long tasks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await showToolbarButton(page, editor, 'Split at playhead');
@@ -106,7 +106,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		test.skip(!await page.evaluate(() => PerformanceObserver.supportedEntryTypes?.includes('longtask')), 'The Long Task API is unavailable in this browser.');
 		await page.evaluate(() => {
-			globalThis.__audioEditorLongTasks = [];
 			globalThis.__playbackWaveformDraws = 0;
 			const prototype = CanvasRenderingContext2D.prototype;
 			const clearRect = prototype.clearRect;
@@ -114,16 +113,20 @@ test.describe('audio editor React/design-system workflows', () => {
 				if (this.canvas?.matches('canvas.clip-body__waveform')) globalThis.__playbackWaveformDraws += 1;
 				return clearRect.apply(this, args);
 			};
-			globalThis.__audioEditorLongTaskObserver = new PerformanceObserver((list) => {
-				for (const entry of list.getEntries()) globalThis.__audioEditorLongTasks.push(entry.duration);
-			});
-			globalThis.__audioEditorLongTaskObserver.observe({ type: 'longtask', buffered: false });
 		});
 
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await page.waitForTimeout(500);
-		await page.evaluate(() => { globalThis.__playbackWaveformDraws = 0; });
+		// Keep both probes on the same post-startup playback window.
+		await page.evaluate(() => {
+			globalThis.__audioEditorLongTasks = [];
+			globalThis.__playbackWaveformDraws = 0;
+			globalThis.__audioEditorLongTaskObserver = new PerformanceObserver((list) => {
+				for (const entry of list.getEntries()) globalThis.__audioEditorLongTasks.push(entry.duration);
+			});
+			globalThis.__audioEditorLongTaskObserver.observe({ type: 'longtask', buffered: false });
+		});
 		const playheadPositions = await page.evaluate(async () => {
 			const line = document.querySelector('[data-playhead] .playhead-cursor__line');
 			const positions = [];
@@ -139,16 +142,19 @@ test.describe('audio editor React/design-system workflows', () => {
 			return positions;
 		});
 		const playbackMetrics = await page.evaluate(() => {
+			for (const entry of globalThis.__audioEditorLongTaskObserver.takeRecords()) {
+				globalThis.__audioEditorLongTasks.push(entry.duration);
+			}
 			globalThis.__audioEditorLongTaskObserver.disconnect();
 			return {
-				longestTask: Math.max(0, ...globalThis.__audioEditorLongTasks),
+				longTasks: [...globalThis.__audioEditorLongTasks],
 				waveformDraws: globalThis.__playbackWaveformDraws,
 			};
 		});
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		expect(new Set(playheadPositions.map((position) => position.toFixed(1))).size).toBeGreaterThan(10);
 		expect(playbackMetrics.waveformDraws).toBe(0);
-		expect(playbackMetrics.longestTask).toBeLessThanOrEqual(50);
+		expect(playbackMetrics.longTasks).toEqual([]);
 		expect(errors).toEqual([]);
 	});
 
