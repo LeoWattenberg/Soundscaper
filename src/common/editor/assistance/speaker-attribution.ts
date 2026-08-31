@@ -23,6 +23,11 @@ export interface AssistanceSpeakerTimeline {
 
 type NormalizedTurn = AssistanceSpeakerTurn;
 
+interface ScaledInterval {
+	readonly start: bigint;
+	readonly end: bigint;
+}
+
 /**
  * Assign each transcript segment to the anonymous local cluster with the
  * greatest aggregate overlap. Equal overlap resolves to the lowest stable
@@ -34,12 +39,14 @@ export function attributeTranscriptSpeakers(
 ): AssistanceTranscript {
 	const turns = normalizeTimeline(timeline);
 	const bySpeaker = mergeSpeakerTurns(turns);
-	const segments = transcript.segments.map((segment) => Object.freeze({
+	const speakers = speakersForSegments(transcript.segments, transcript.sampleRate,
+		timeline.sampleRate, bySpeaker);
+	const segments = transcript.segments.map((segment, index) => Object.freeze({
 		startFrame: segment.startFrame,
 		endFrame: segment.endFrame,
 		text: segment.text,
 		words: segment.words,
-		speaker: speakerForSegment(segment, transcript.sampleRate, timeline.sampleRate, bySpeaker),
+		speaker: speakers[index] ?? null,
 	}));
 	return createAssistanceTranscript({
 		sourceId: transcript.sourceId,
@@ -104,33 +111,58 @@ function mergeSpeakerTurns(
 	]));
 }
 
-function speakerForSegment(
-	segment: TranscriptSegment,
+function speakersForSegments(
+	segments: readonly TranscriptSegment[],
 	transcriptRate: number,
 	turnRate: number,
 	turnsBySpeaker: ReadonlyMap<number, readonly NormalizedTurn[]>,
-): string | null {
-	const segmentStart = BigInt(segment.startFrame) * BigInt(turnRate);
-	const segmentEnd = BigInt(segment.endFrame) * BigInt(turnRate);
-	let selectedId: number | null = null;
-	let selectedOverlap = 0n;
+): readonly (string | null)[] {
+	const segmentScale = BigInt(turnRate);
+	const turnScale = BigInt(transcriptRate);
+	const scaledSegments = segments.map(({ startFrame, endFrame }): ScaledInterval => ({
+		start: BigInt(startFrame) * segmentScale,
+		end: BigInt(endFrame) * segmentScale,
+	}));
+	const selectedIds: Array<number | null> = Array.from({ length: segments.length }, () => null);
+	const selectedOverlaps = Array.from({ length: segments.length }, () => 0n);
 	for (const [speakerId, turns] of turnsBySpeaker) {
-		let overlap = 0n;
+		const overlaps = new Map<number, bigint>();
 		for (const turn of turns) {
-			const turnStart = BigInt(turn.startFrame) * BigInt(transcriptRate);
-			const turnEnd = BigInt(turn.endFrame) * BigInt(transcriptRate);
-			const start = segmentStart > turnStart ? segmentStart : turnStart;
-			const end = segmentEnd < turnEnd ? segmentEnd : turnEnd;
-			if (end > start) overlap += end - start;
+			const scaledTurn = { start: BigInt(turn.startFrame) * turnScale,
+				end: BigInt(turn.endFrame) * turnScale };
+			for (let index = firstIntervalEndingAfter(scaledSegments, scaledTurn.start);
+				index < scaledSegments.length && scaledSegments[index]!.start < scaledTurn.end;
+				index += 1) {
+				const segment = scaledSegments[index]!;
+				const start = segment.start > scaledTurn.start ? segment.start : scaledTurn.start;
+				const end = segment.end < scaledTurn.end ? segment.end : scaledTurn.end;
+				if (end > start) overlaps.set(index, (overlaps.get(index) ?? 0n) + end - start);
+			}
 		}
-		if (overlap > selectedOverlap
-			|| (overlap === selectedOverlap && overlap > 0n
-				&& (selectedId === null || speakerId < selectedId))) {
-			selectedId = speakerId;
-			selectedOverlap = overlap;
+		for (const [index, overlap] of overlaps) {
+			const selectedId = selectedIds[index];
+			const selectedOverlap = selectedOverlaps[index]!;
+			if (overlap > selectedOverlap
+				|| (overlap === selectedOverlap
+					&& (selectedId === null || speakerId < selectedId))) {
+				selectedIds[index] = speakerId;
+				selectedOverlaps[index] = overlap;
+			}
 		}
 	}
-	return selectedId === null ? null : `Speaker ${String(selectedId + 1)}`;
+	return Object.freeze(selectedIds.map((speakerId) => speakerId === null
+		? null : `Speaker ${String(speakerId + 1)}`));
+}
+
+function firstIntervalEndingAfter(intervals: readonly ScaledInterval[], start: bigint): number {
+	let low = 0;
+	let high = intervals.length;
+	while (low < high) {
+		const middle = low + Math.floor((high - low) / 2);
+		if (intervals[middle]!.end <= start) low = middle + 1;
+		else high = middle;
+	}
+	return low;
 }
 
 function compareTurns(left: AssistanceSpeakerTurn, right: AssistanceSpeakerTurn): number {

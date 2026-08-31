@@ -37,6 +37,31 @@ test('speaker attribution uses greatest aggregate temporal overlap at unlike sam
 	assert.equal(attributed.segments[1]?.startFrame, 48_000);
 });
 
+test('speaker attribution scales each admitted interval once', () => {
+	const nativeBigInt = BigInt;
+	const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'BigInt');
+	assert.ok(descriptor);
+	let conversions = 0;
+	Object.defineProperty(globalThis, 'BigInt', { ...descriptor, value: (value: unknown) => {
+		conversions += 1;
+		return nativeBigInt(value as string | number | bigint | boolean);
+	} });
+	try {
+		attributeTranscriptSpeakers(transcript(), {
+			sampleRate: 16_000,
+			turns: [
+				{ startFrame: 0, endFrame: 8_000, speakerId: 1 },
+				{ startFrame: 8_000, endFrame: 16_000, speakerId: 0 },
+				{ startFrame: 16_000, endFrame: 22_000, speakerId: 1 },
+				{ startFrame: 22_000, endFrame: 32_000, speakerId: 0 },
+			],
+		});
+	} finally {
+		Object.defineProperty(globalThis, 'BigInt', descriptor);
+	}
+	assert.ok(conversions <= 18, `scaled ${String(conversions)} interval bounds`);
+});
+
 test('speaker attribution aggregates disjoint turns and resolves exact ties by stable speaker id', () => {
 	const input = createAssistanceTranscript({
 		sourceId: 'source-1', sampleRate: 16_000, modelId: 'parakeet',
