@@ -10,6 +10,7 @@ import type {
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts'
 import {
 	cloneSoundscaperProject,
+	loadSoundscaperProject,
 	type SoundscaperProject,
 } from './editor-project.ts'
 
@@ -90,17 +91,18 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 	}
 
 	async load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null> {
-		return this.#optionalSnapshot(await this.#delegate.load(projectId, options))
+		const project = await this.#delegate.load(projectId, options)
+		return project === null ? null : this.#custody(project)
 	}
 
 	async list(): Promise<ProjectDocument[]> {
-		return (await this.#delegate.list()).map((project) => this.#snapshot(project))
+		return (await this.#delegate.list()).map((project) => this.#custody(project))
 	}
 
 	async listRevisions(projectId: string): Promise<ProjectRevision[]> {
 		return (await this.#delegate.listRevisions(projectId)).map((revision) => ({
 			revision: revision.revision,
-			project: this.#snapshot(revision.project),
+			project: this.#custody(revision.project),
 		}))
 	}
 
@@ -146,6 +148,10 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 
 	#snapshot(project: ProjectDocument | unknown): SoundscaperProject & ProjectDocument {
 		return cloneSoundscaperProject(project) as SoundscaperProject & ProjectDocument
+	}
+
+	#custody(project: ProjectDocument | unknown): ProjectDocument {
+		return loadSoundscaperProject(project).project as ProjectDocument
 	}
 }
 function assertDelegate(value: unknown): asserts value is ProjectRepositoryPort {
