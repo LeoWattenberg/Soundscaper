@@ -92,22 +92,22 @@ export function soundscaperProfessionalNativeBuildResultArtifactPaths(targetValu
 	});
 }
 
-export function bindEvidenceReceipt(kind, targetValue, evidence) {
+export function bindVerificationCheck(kind, targetValue, result) {
 	const target = targetId(targetValue);
 	if (!['build', 'self-test', 'toolchain', 'source-authentication',
 		'installed-files', 'dependency-closure'].includes(kind)) {
-		throw new TypeError('The professional build-result evidence kind is invalid.');
+		throw new TypeError('The professional build-result verification kind is invalid.');
 	}
-	const value = deepFreeze(structuredClone(evidence));
+	const value = deepFreeze(structuredClone(result));
 	return deepFreeze({
-		kind, target, sha256: sha256(canonicalJson(value)), evidence: value,
+		kind, target, sha256: sha256(canonicalJson(value)), result: value,
 	});
 }
 
 export function validateBuildResultReceipt(value) {
 	closedRecord(value, [
 		'schemaVersion', 'kind', 'target', 'sourceRevision', 'buildPlanSha256',
-		'evidenceReceipts', 'payload', 'osAudioCodec', 'pluginPeer', 'deliveryFilesystem',
+		'verificationChecks', 'payload', 'osAudioCodec', 'pluginPeer', 'deliveryFilesystem',
 		'isolation',
 	], 'build-result receipt');
 	if (value.schemaVersion !== 1 || value.kind !== 'soundscaper-professional-native-build-result'
@@ -141,30 +141,30 @@ export function validateBuildResultReceipt(value) {
 		|| new Set(runtimePaths).size !== runtimePaths.length) {
 		throw new TypeError('The build-result runtime closure paths are invalid.');
 	}
-	validateEvidenceReceipts(value);
+	validateVerificationChecks(value);
 	return value;
 }
 
-function validateEvidenceReceipts(candidate) {
+function validateVerificationChecks(candidate) {
 	const expectedKinds = [
 		'build', 'self-test', 'toolchain', 'source-authentication',
 		'installed-files', 'dependency-closure',
 	];
-	if (!Array.isArray(candidate.evidenceReceipts)
-		|| candidate.evidenceReceipts.length !== expectedKinds.length
-		|| JSON.stringify(candidate.evidenceReceipts.map(({ kind }) => kind).sort())
+	if (!Array.isArray(candidate.verificationChecks)
+		|| candidate.verificationChecks.length !== expectedKinds.length
+		|| JSON.stringify(candidate.verificationChecks.map(({ kind }) => kind).sort())
 			!== JSON.stringify([...expectedKinds].sort())) {
-		throw new TypeError('The build-result evidence receipt inventory is incomplete.');
+		throw new TypeError('The build-result verification check inventory is incomplete.');
 	}
-	for (const receipt of candidate.evidenceReceipts) {
-		closedRecord(receipt, ['kind', 'target', 'sha256', 'evidence'], 'build-result evidence receipt');
-		if (receipt.target !== candidate.target || !expectedKinds.includes(receipt.kind)
-			|| !SHA256.test(String(receipt.sha256))
-			|| receipt.sha256 !== sha256(canonicalJson(receipt.evidence))) {
-			throw new TypeError(`The build-result ${String(receipt.kind)} evidence receipt is invalid.`);
+	for (const check of candidate.verificationChecks) {
+		closedRecord(check, ['kind', 'target', 'sha256', 'result'], 'build-result verification check');
+		if (check.target !== candidate.target || !expectedKinds.includes(check.kind)
+			|| !SHA256.test(String(check.sha256))
+			|| check.sha256 !== sha256(canonicalJson(check.result))) {
+			throw new TypeError(`The build-result ${String(check.kind)} verification check is invalid.`);
 		}
 	}
-	const build = evidenceFor(candidate, 'build');
+	const build = verificationFor(candidate, 'build');
 	closedRecord(build, [
 		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macCodeSeal',
 	], 'build evidence');
@@ -184,7 +184,7 @@ function validateEvidenceReceipts(candidate) {
 	} else if (build.macCodeSeal !== null) {
 		throw new TypeError('Only mac-arm64 build results can carry a code-seal result.');
 	}
-	const selfTest = evidenceFor(candidate, 'self-test');
+	const selfTest = verificationFor(candidate, 'self-test');
 	closedRecord(selfTest, ['status', 'inventory', 'tests'], 'self-test evidence');
 	if (selfTest.status !== 'passed'
 		|| JSON.stringify(selfTest.inventory) !== JSON.stringify(
@@ -200,7 +200,7 @@ function validateEvidenceReceipts(candidate) {
 		|| build.tests.some((receipt) => !selfTest.tests.some((entry) => sameJson(entry, receipt)))) {
 		throw new TypeError('The build-result receipt omits its target-native CTest result.');
 	}
-	const toolchain = evidenceFor(candidate, 'toolchain');
+	const toolchain = verificationFor(candidate, 'toolchain');
 	closedRecord(toolchain, ['identity', 'receipt'], 'toolchain evidence');
 	boundedText(toolchain.identity, 3, 512, 'build-result toolchain identity');
 	validateSoundscaperProfessionalNativeToolchainReceipt(toolchain.receipt);
@@ -208,15 +208,15 @@ function validateEvidenceReceipts(candidate) {
 		|| soundscaperProfessionalNativeToolchainIdentity(toolchain.receipt) !== toolchain.identity) {
 		throw new TypeError('The build-result structured toolchain evidence is misbound.');
 	}
-	const source = evidenceFor(candidate, 'source-authentication');
+	const source = verificationFor(candidate, 'source-authentication');
 	closedRecord(source, ['authentication'], 'source evidence');
 	normalizeSourceAuthentication(source.authentication, candidate.target);
-	const installed = evidenceFor(candidate, 'installed-files');
+	const installed = verificationFor(candidate, 'installed-files');
 	closedRecord(installed, ['files'], 'installed-file evidence');
 	if (JSON.stringify(installed.files) !== JSON.stringify(buildResultDescriptors(candidate))) {
 		throw new TypeError('The build-result installed-file receipt does not bind its exact payload closure.');
 	}
-	const closure = evidenceFor(candidate, 'dependency-closure');
+	const closure = verificationFor(candidate, 'dependency-closure');
 	closedRecord(closure, ['status', 'maximumRuntimeFiles', 'inspections', 'checks'], 'closure evidence');
 	if (closure.status !== 'closed' || closure.maximumRuntimeFiles !== MAXIMUM_RUNTIME_FILES
 		|| !Array.isArray(closure.inspections)
@@ -243,10 +243,10 @@ function validateEvidenceReceipts(candidate) {
 	}
 }
 
-export function evidenceFor(candidate, kind) {
-	const matches = candidate.evidenceReceipts?.filter((entry) => entry?.kind === kind) ?? [];
-	if (matches.length !== 1) throw new TypeError(`The build result has no exact ${kind} evidence receipt.`);
-	return matches[0].evidence;
+export function verificationFor(candidate, kind) {
+	const matches = candidate.verificationChecks?.filter((entry) => entry?.kind === kind) ?? [];
+	if (matches.length !== 1) throw new TypeError(`The build result has no exact ${kind} verification check.`);
+	return matches[0].result;
 }
 
 export function normalizeSourceAuthentication(value, target) {

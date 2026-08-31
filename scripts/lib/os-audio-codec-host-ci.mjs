@@ -49,10 +49,6 @@ export function resolveOsAudioCodecHostCiTarget({
 
 export async function runOsAudioCodecHostCi(options, dependencies = {}) {
 	const target = resolveOsAudioCodecHostCiTarget(options);
-	if (options?.signingIdentity !== undefined) {
-		throw new TypeError('OS audio codec CI does not accept a signing identity.');
-	}
-	const signingIdentity = target === 'mac-arm64' ? '-' : null;
 	const repositoryRoot = await canonicalDirectory(options?.repositoryRoot, 'repository root');
 	const runnerTemp = await canonicalDirectory(options?.runnerTemp, 'RUNNER_TEMP');
 	const githubEnvironmentPath = await canonicalFile(
@@ -97,7 +93,6 @@ export async function runOsAudioCodecHostCi(options, dependencies = {}) {
 		resultPath: plan.resultPath,
 		repositoryRoot,
 		target,
-		...(signingIdentity === null ? {} : { signingIdentity }),
 	});
 	await publishBuildEnvironment({
 		githubEnvironmentPath, resultPath: plan.resultPath,
@@ -205,11 +200,10 @@ function executeBuildCommand({ command, arguments: arguments_, plan }) {
 	assertSuccessful(outcome, 'OS audio codec host build');
 }
 
-async function verifyCanonicalBuildResult({ resultPath, repositoryRoot, signingIdentity, target }) {
+async function verifyCanonicalBuildResult({ resultPath, repositoryRoot, target }) {
 	const release = await prepareDesktopOsAudioCodecNativeRelease({
 		buildResultPath: resultPath,
 		repositoryRoot,
-		...(signingIdentity === undefined ? {} : { signingIdentity }),
 		target,
 		required: true,
 	});

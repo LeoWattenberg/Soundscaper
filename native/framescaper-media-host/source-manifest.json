@@ -57,8 +57,8 @@
 		},
 		{
 			"path": "build/ffmpeg-9.0.1-configure.json",
-			"byteLength": 1648,
-			"sha256": "00c1e15d8de4e999fe155291cfaa15d50b169bb8dc6cdba0197946b53c544aa4"
+			"byteLength": 1556,
+			"sha256": "f3052756420cb1feef08e2f8b4a41874a2804f8f7333e6acb2efe30f13a7ef56"
 		},
 		{
 			"path": "build/ffmpeg-9.0.1-external-sources.json",
@@ -67,8 +67,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28981,
-			"sha256": "b84e89a27c6ee73a5c69b7697b820c5496d522106e6fff57c00748d72b6ef32f"
+			"byteLength": 28895,
+			"sha256": "64808796f90cccbb2b2aaef24579890e45e1b7b466dd7c1fe6f119a5daa78e41"
 		},
 		{
 			"path": "build/source-authentication.mjs",

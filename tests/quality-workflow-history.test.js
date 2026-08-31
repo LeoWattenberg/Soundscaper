@@ -85,8 +85,8 @@ for (const workflowName of workflowNames) {
 			assert.deepEqual(
 				[...extractJob(workflow, jobName).matchAll(/^\s+fetch-depth:\s*(\d+)\s*$/gmu)].map((match) => match[1]),
 				['0'],
-				`${workflowName} ${jobName} must fetch history: audit:quality-results resolves recorded revisions `
-					+ 'and tests/milestone-5-handoff.test.js resolves HEAD^',
+				`${workflowName} ${jobName} must fetch history because tests/milestone-5-package-audit.test.js `
+					+ 'resolves HEAD^',
 			);
 		}
 	});

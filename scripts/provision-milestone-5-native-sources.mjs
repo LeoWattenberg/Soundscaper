@@ -24,17 +24,14 @@ import { materializeMilestone5SourceArchive } from './lib/milestone-5-source-arc
  * extracts to, and `auditMilestone5NativeSourceAcquisitions` authenticates a
  * cache against those pins. Until this script existed the register named what a
  * cache must contain but nothing assembled one, so the audit reported 0/10 on
- * every machine and the native machine-admission policy — which requires
- * archive evidence matching the pin exactly — could never clear its source
- * gate.
+ * every machine and native builds could not use the pinned source set.
  *
  * The cache is deliberately outside the repository and outside the product's
  * dependency graph. Nothing provisioned here is committed, bundled, linked, or
  * redistributed. Authenticating a source enables that exact source for build
- * and test use, but grants no redistribution, trademark, patent, signing, or
- * stable-release approval. Payload, platform, containment, consent, quarantine,
- * and capacity remain independent machine gates; human review belongs to
- * Milestone 9.
+ * and test use, but grants no redistribution, trademark, or patent permission.
+ * Package source, notice, architecture, payload, and runtime checks remain
+ * independent.
  *
  * Usage:
  *   node scripts/provision-milestone-5-native-sources.mjs
@@ -291,7 +288,7 @@ function report() {
 	);
 	if (authenticated === register.sources.length) {
 		console.log(`Export SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT=${cacheRoot} to let the audit read this cache.`);
-		console.log('Exact sources are enabled for build/test; redistribution, signing, and stable-release review remain Milestone 9 inputs.');
+		console.log('Exact sources are enabled for build/test; package source, notice, architecture, payload, and runtime checks remain independent.');
 	}
 	if (authenticated !== results.length) process.exitCode = 1;
 }

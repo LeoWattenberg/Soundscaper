@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Stable-release notices and corresponding-source archives for the five promoted targets. */
+/** Stable-release notices and corresponding-source archives for the five verified targets. */
 
 import { constants } from 'node:fs';
 import { createHash } from 'node:crypto';

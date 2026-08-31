@@ -18,7 +18,7 @@ test('packaged Web VCR smoke has an explicit script and no insecure Chromium swi
 	assert.match(runner, /createFramescaperWebVcrHttpsFixture/u);
 	assert.match(runner, /--user-data-dir=\$\{profile\}/u);
 	assert.match(runner, /persistentGuestProfileMaterialized: false/u);
-	assert.match(runner, /qualification: false/u);
+	assert.match(runner, /diagnosticOnly: true/u);
 	assert.doesNotMatch(runner, /ignore-certificate-errors|disable-web-security|allow-insecure-localhost/iu);
 });
 

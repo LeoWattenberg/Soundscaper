@@ -15,7 +15,7 @@ import {
 	type ExternalFfmpegVideoChildProcess,
 	type ExternalFfmpegVideoSpawn,
 } from '../desktop/external-ffmpeg-video-operation-service.ts';
-import type { ExternalFfmpegVideoQualifier } from '../desktop/external-ffmpeg-video-qualified-capabilities.ts';
+import type { ExternalFfmpegVideoVerifier } from '../desktop/external-ffmpeg-video-verified-capabilities.ts';
 
 const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
@@ -321,21 +321,21 @@ test('post-spawn private-pipe setup failure terminates the admitted child tree',
 	}
 });
 
-test('video service coalesces qualification, reruns it for a new admission, and gates begin', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-qualification-'));
-	let qualificationCalls = 0;
-	let qualified = true;
+test('video service coalesces verification, reruns it for a new admission, and gates begin', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-verification-'));
+	let verificationCalls = 0;
+	let verified = true;
 	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
-		qualify: async (value) => {
-			qualificationCalls += 1;
+		verify: async (value) => {
+			verificationCalls += 1;
 			const capabilities = createDesktopExternalFfmpegVideoCapabilities(value);
-			return qualified ? capabilities : Object.freeze({
+			return verified ? capabilities : Object.freeze({
 				schemaVersion: 1 as const,
 				formats: Object.freeze({
 					...capabilities.formats,
 					mp4: Object.freeze({
 						available: false, provider: null,
-						reason: 'The configured FFmpeg failed exact H264/AAC MP4 execution qualification.',
+						reason: 'The configured FFmpeg failed exact H264/AAC MP4 execution verification.',
 					}),
 				}),
 			});
@@ -347,25 +347,25 @@ test('video service coalesces qualification, reruns it for a new admission, and 
 		]);
 		assert.equal(first.formats.mp4.available, true);
 		assert.equal(second.formats.mp4.available, true);
-		assert.equal(qualificationCalls, 1);
+		assert.equal(verificationCalls, 1);
 		fixture.setAdmission(Object.freeze({ ...fixture.admission }));
-		qualified = false;
+		verified = false;
 		assert.equal((await fixture.service.capabilities()).formats.mp4.available, false);
-		assert.equal(qualificationCalls, 2);
-		await assert.rejects(() => fixture.service.begin(fixture.owner, PLAN), /execution qualification/iu);
+		assert.equal(verificationCalls, 2);
+		await assert.rejects(() => fixture.service.begin(fixture.owner, PLAN), /execution verification/iu);
 	} finally {
 		await fixture.service.dispose();
 		await rm(root, { recursive: true, force: true });
 	}
 });
 
-test('video service reserves owner capacity while asynchronous qualification is pending', async () => {
+test('video service reserves owner capacity while asynchronous verification is pending', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-concurrent-begin-'));
 	let release!: () => void;
-	const qualificationReady = new Promise<void>((resolve) => { release = resolve; });
+	const verificationReady = new Promise<void>((resolve) => { release = resolve; });
 	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
-		qualify: async (value) => {
-			await qualificationReady;
+		verify: async (value) => {
+			await verificationReady;
 			return createDesktopExternalFfmpegVideoCapabilities(value);
 		},
 	});
@@ -381,14 +381,14 @@ test('video service reserves owner capacity while asynchronous qualification is 
 	}
 });
 
-test('an identical rescan admission cannot inherit in-flight qualification authority', async () => {
+test('an identical rescan admission cannot inherit in-flight verification authority', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-rescan-identity-'));
 	let release!: () => void;
-	const qualificationReady = new Promise<void>((resolve) => { release = resolve; });
+	const verificationReady = new Promise<void>((resolve) => { release = resolve; });
 	let calls = 0;
 	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
-		qualify: async (value) => {
-			calls += 1; await qualificationReady;
+		verify: async (value) => {
+			calls += 1; await verificationReady;
 			return createDesktopExternalFfmpegVideoCapabilities(value);
 		},
 	});
@@ -406,13 +406,13 @@ test('an identical rescan admission cannot inherit in-flight qualification autho
 	}
 });
 
-test('owner revocation cancels and drains a begin that is awaiting qualification', async () => {
+test('owner revocation cancels and drains a begin that is awaiting verification', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-revoke-begin-'));
 	let release!: () => void;
-	const qualificationReady = new Promise<void>((resolve) => { release = resolve; });
+	const verificationReady = new Promise<void>((resolve) => { release = resolve; });
 	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null), {
-		qualify: async (value) => {
-			await qualificationReady;
+		verify: async (value) => {
+			await verificationReady;
 			return createDesktopExternalFfmpegVideoCapabilities(value);
 		},
 	});
@@ -431,8 +431,8 @@ test('owner revocation cancels and drains a begin that is awaiting qualification
 	}
 });
 
-test('service disposal aborts and drains an in-flight real qualification child', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-qualification-'));
+test('service disposal aborts and drains an in-flight real verification child', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-verification-'));
 	const child = { current: null as FakeChild | null };
 	let killed = 0;
 	let markSpawned!: () => void;
@@ -442,7 +442,7 @@ test('service disposal aborts and drains an in-flight real qualification child',
 		child.current.kill = () => { killed += 1; return true; };
 		markSpawned();
 		return child.current;
-	}, { qualify: null });
+	}, { verify: null });
 	try {
 		const capabilities = assert.rejects(fixture.service.capabilities(), /abort|stopped/iu);
 		await spawned;
@@ -488,7 +488,7 @@ test('service disposal is a barrier for running child termination and scratch cl
 test('service disposal reports cleanup failures after draining every cleanup task', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-service-dispose-failure-'));
 	const fixture = serviceFixture(root, () => fakeChild(new PassThrough(), null));
-	await mkdir(join(root, 'qualification'));
+	await mkdir(join(root, 'verification'));
 	await chmod(root, 0o000);
 	try {
 		const disposal = fixture.service.dispose();
@@ -510,7 +510,7 @@ function serviceFixture(
 	overrides: Readonly<{
 		digest?: (path: string) => Promise<string>;
 		maximumIdleMs?: number;
-		qualify?: ExternalFfmpegVideoQualifier | null;
+		verify?: ExternalFfmpegVideoVerifier | null;
 	}> = {},
 ) {
 	const owner = {};
@@ -549,8 +549,8 @@ function serviceFixture(
 		spawn,
 		digestExecutable: overrides.digest ?? (async (path) => path.endsWith('ffmpeg') ? HASH_A : HASH_B),
 		mintOperationId: () => `desktop-video-${'1'.repeat(32)}`,
-		...(overrides.qualify === null ? {} : {
-			qualifyAdmission: overrides.qualify
+		...(overrides.verify === null ? {} : {
+			verifyAdmission: overrides.verify
 				?? (async (value) => createDesktopExternalFfmpegVideoCapabilities(value)),
 		}),
 		maximumDurationMs: 5_000,

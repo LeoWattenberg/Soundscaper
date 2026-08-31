@@ -14,7 +14,7 @@ import {
 	describeSoundscaperProfessionalNativePayload as describeRuntimeProfessionalNativePayload,
 } from '../../desktop/soundscaper-professional-native-payload.mjs';
 import {
-	canonicalJson as canonicalBuildResultJson, evidenceFor as buildResultEvidenceFor,
+	canonicalJson as canonicalBuildResultJson, verificationFor as buildResultVerificationFor,
 	validateBuildResultReceipt,
 } from './soundscaper-professional-native-build-result-contract.mjs';
 import { soundscaperProfessionalNativeBuildAuthority }
@@ -356,8 +356,8 @@ function assertBuildResultMatchesTarget(result, target) {
 		&& sameJson(staged(result.isolation.sandboxProfile), target.isolation.sandboxProfile)
 		&& sameJson(staged(result.isolation.brokerPolicy), target.isolation.brokerPolicy)
 		&& sameJson(result.isolation.runtimeClosure.map(staged), target.isolation.runtimeClosure)
-		&& buildResultEvidenceFor(result, 'toolchain').identity === target.toolchainIdentity
-		&& sameJson(buildResultEvidenceFor(result, 'source-authentication').authentication,
+		&& buildResultVerificationFor(result, 'toolchain').identity === target.toolchainIdentity
+		&& sameJson(buildResultVerificationFor(result, 'source-authentication').authentication,
 			target.sourceAuthentication),
 	'The professional native build-result receipt does not bind the staged target row.');
 }

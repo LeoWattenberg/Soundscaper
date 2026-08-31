@@ -18,7 +18,7 @@ import {
 	verifyStagedSoundscaperProfessionalNativePayload,
 } from '../scripts/lib/soundscaper-professional-native-payload.mjs';
 import {
-	bindEvidenceReceipt,
+	bindVerificationCheck,
 	canonicalJson,
 	expectedSoundscaperProfessionalNativeInventory,
 	requiredSoundscaperProfessionalNativeSelfTestIds,
@@ -237,22 +237,22 @@ function buildResultReceipt(target) {
 	return canonicalJson({
 		schemaVersion: 1, kind: 'soundscaper-professional-native-build-result',
 		target: target.id, sourceRevision, buildPlanSha256,
-		evidenceReceipts: [
-			bindEvidenceReceipt('build', target.id, {
+		verificationChecks: [
+			bindVerificationCheck('build', target.id, {
 				status: 'passed', sourceRevision, buildPlanSha256, packagedAppAuthority,
 				macCodeSeal: null, tests: [],
 			}),
-			bindEvidenceReceipt('self-test', target.id, {
+			bindVerificationCheck('self-test', target.id, {
 				status: 'passed', inventory: expectedSoundscaperProfessionalNativeInventory(target.id), tests,
 			}),
-			bindEvidenceReceipt('toolchain', target.id, {
+			bindVerificationCheck('toolchain', target.id, {
 				identity: target.toolchainIdentity, receipt: toolchainReceipt,
 			}),
-			bindEvidenceReceipt('source-authentication', target.id, {
+			bindVerificationCheck('source-authentication', target.id, {
 				authentication: target.sourceAuthentication,
 			}),
-			bindEvidenceReceipt('installed-files', target.id, { files }),
-			bindEvidenceReceipt('dependency-closure', target.id, {
+			bindVerificationCheck('installed-files', target.id, { files }),
+			bindVerificationCheck('dependency-closure', target.id, {
 				status: 'closed', maximumRuntimeFiles: 128,
 				inspections: [
 					{ architecture: architectureReceipt(target.id), artifactPath: deliveryFilesystem.path,

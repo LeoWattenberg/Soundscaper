@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import releaseLines from '../config/product-release-lines.json' with { type: 'json' };
 
-test('product-owned candidates enter preview while the Soundscaper stable tag has one workflow owner', async () => {
+test('product-owned previews exclude the Soundscaper stable tag and any release-admission step', async () => {
 	assert.equal(releaseLines.products.soundscaper.candidate.version, '1.0.0-rc.1');
 	assert.equal(releaseLines.products.framescaper.releaseChannel, 'deferred');
 	assert.equal(releaseLines.products.soundscaper.stable.tagPrefix, 'v');
@@ -16,7 +16,7 @@ test('product-owned candidates enter preview while the Soundscaper stable tag ha
 	assert.match(workflow, /'framescaper-v\*-rc\.\*'/u);
 	assert.doesNotMatch(workflow, /- 'v\*'/u);
 	assert.match(workflow, /resolveProductReleaseTag\(tag/u);
-	assert.match(workflow, /release:soundscaper:stable-1:admission/u);
+	assert.doesNotMatch(workflow, /release admission|qualification|stable-1:admission/iu);
 	const stable = await readFile(new URL('../.github/workflows/soundscaper-stable-1.yml', import.meta.url), 'utf8');
 	assert.match(stable, /tags:\s*\n\s*- 'v1\.0\.0'/u);
 });

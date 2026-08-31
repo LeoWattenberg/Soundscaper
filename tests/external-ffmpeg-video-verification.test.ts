@@ -14,9 +14,9 @@ import type {
 	ExternalFfmpegVideoCanaryInspectionRequest,
 } from '../desktop/external-ffmpeg-video-canary-inspection.ts';
 import {
-	ExternalFfmpegVideoQualificationIdentityError,
-	qualifyExternalFfmpegVideoAdmission,
-} from '../desktop/external-ffmpeg-video-qualification.ts';
+	ExternalFfmpegVideoVerificationIdentityError,
+	verifyExternalFfmpegVideoAdmission,
+} from '../desktop/external-ffmpeg-video-verification.ts';
 import type {
 	ExternalFfmpegVideoChildProcess,
 	ExternalFfmpegVideoSpawn,
@@ -25,8 +25,8 @@ import type {
 const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
 
-test('qualification executes exact shell-free A/V plans and cleans private output', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-qualification-'));
+test('verification executes exact shell-free A/V plans and cleans private output', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-verification-'));
 	const launches: Array<Readonly<{
 		arguments_: readonly string[];
 		options: Readonly<{ shell: false }>;
@@ -52,7 +52,7 @@ test('qualification executes exact shell-free A/V plans and cleans private outpu
 		return child;
 	};
 	try {
-		const result = await qualifyExternalFfmpegVideoAdmission({
+		const result = await verifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission(), spawn, environment: {},
 			digestExecutable: exactDigest,
 			inspectOutput: async (request) => { inspections.push(request); },
@@ -81,8 +81,8 @@ test('qualification executes exact shell-free A/V plans and cleans private outpu
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('qualification fails only the exact format whose execution output is malformed', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-qualification-partial-'));
+test('verification fails only the exact format whose execution output is malformed', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-verification-partial-'));
 	const spawn: ExternalFfmpegVideoSpawn = (_executable, arguments_) => {
 		const child = fakeChild(new PassThrough(), new PassThrough());
 		let finished = 0;
@@ -97,22 +97,22 @@ test('qualification fails only the exact format whose execution output is malfor
 		return child;
 	};
 	try {
-		const result = await qualifyExternalFfmpegVideoAdmission({
+		const result = await verifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission(), spawn, environment: {},
 			digestExecutable: exactDigest, inspectOutput: acceptInspection,
 		});
 		assert.equal(result.formats.mp4.available, true);
 		assert.equal(result.formats.webm.available, false);
-		assert.match(result.formats.webm.reason ?? '', /execution qualification/iu);
+		assert.match(result.formats.webm.reason ?? '', /execution verification/iu);
 		assert.deepEqual(await readdir(root), []);
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('qualification rejects executable identity drift instead of advertising stale output', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-qualification-identity-'));
+test('verification rejects executable identity drift instead of advertising stale output', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-verification-identity-'));
 	let digests = 0;
 	try {
-		await assert.rejects(() => qualifyExternalFfmpegVideoAdmission({
+		await assert.rejects(() => verifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission({ webm: false }), environment: {},
 			inspectOutput: acceptInspection,
 			spawn: (_executable, arguments_) => {
@@ -131,15 +131,15 @@ test('qualification rejects executable identity drift instead of advertising sta
 				digests += 1;
 				return digests <= 2 ? exactDigest(path) : 'c'.repeat(64);
 			},
-		}), (error: unknown) => error instanceof ExternalFfmpegVideoQualificationIdentityError);
+		}), (error: unknown) => error instanceof ExternalFfmpegVideoVerificationIdentityError);
 		assert.deepEqual(await readdir(root), []);
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('qualification rejects an oversized canary output within its private bound', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-qualification-output-limit-'));
+test('verification rejects an oversized canary output within its private bound', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-verification-output-limit-'));
 	try {
-		const result = await qualifyExternalFfmpegVideoAdmission({
+		const result = await verifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission({ webm: false }), environment: {},
 			digestExecutable: exactDigest, inspectOutput: acceptInspection,
 			spawn: (_executable, arguments_) => {
@@ -157,22 +157,22 @@ test('qualification rejects an oversized canary output within its private bound'
 			},
 		});
 		assert.equal(result.formats.mp4.available, false);
-		assert.match(result.formats.mp4.reason ?? '', /execution qualification/iu);
+		assert.match(result.formats.mp4.reason ?? '', /execution verification/iu);
 		assert.deepEqual(await readdir(root), []);
 	} finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('qualification refuses a finite container when exact track inspection fails', async () => {
-	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-qualification-tracks-'));
+test('verification refuses a finite container when exact track inspection fails', async () => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-video-verification-tracks-'));
 	try {
-		const result = await qualifyExternalFfmpegVideoAdmission({
+		const result = await verifyExternalFfmpegVideoAdmission({
 			scratchRoot: root, admission: admission({ webm: false }), environment: {},
 			digestExecutable: exactDigest,
 			inspectOutput: async () => { throw new Error('wrong codec tuple'); },
 			spawn: finiteOutputSpawn(validMp4()),
 		});
 		assert.equal(result.formats.mp4.available, false);
-		assert.match(result.formats.mp4.reason ?? '', /execution qualification/iu);
+		assert.match(result.formats.mp4.reason ?? '', /execution verification/iu);
 		assert.deepEqual(await readdir(root), []);
 	} finally { await rm(root, { recursive: true, force: true }); }
 });

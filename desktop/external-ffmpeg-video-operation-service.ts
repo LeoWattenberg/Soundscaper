@@ -28,10 +28,10 @@ import type {
 } from './external-ffmpeg-preference-service.js';
 import {
 	createExternalFfmpegVideoBeginGate,
-	createExternalFfmpegVideoQualifiedCapabilities,
+	createExternalFfmpegVideoVerifiedCapabilities,
 	type DesktopVideoCodecProductId,
-	type ExternalFfmpegVideoQualifier,
-} from './external-ffmpeg-video-qualified-capabilities.js';
+	type ExternalFfmpegVideoVerifier,
+} from './external-ffmpeg-video-verified-capabilities.js';
 import {
 	closeExternalFfmpegVideoInput,
 	curatedExternalFfmpegVideoEnvironment,
@@ -63,7 +63,7 @@ export interface ExternalFfmpegVideoOperationServiceOptions {
 	readonly maximumLogBytes?: number;
 	readonly terminationGraceMs?: number;
 	readonly killWaitMs?: number;
-	readonly qualifyAdmission?: ExternalFfmpegVideoQualifier;
+	readonly verifyAdmission?: ExternalFfmpegVideoVerifier;
 }
 
 export interface ExternalFfmpegVideoOperationService<Owner extends object = object> {
@@ -161,11 +161,11 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 	const logLimit = lowerLimit(options.maximumLogBytes, 64 * 1024, HARD_LOG_BYTES, 'log');
 	const terminationGrace = lowerLimit(options.terminationGraceMs, 1000, 5000, 'termination grace');
 	const killWait = lowerLimit(options.killWaitMs, 1000, 5000, 'kill wait');
-	const qualifiedCapabilities = createExternalFfmpegVideoQualifiedCapabilities({
+	const verifiedCapabilities = createExternalFfmpegVideoVerifiedCapabilities({
 		productId: options.productId, scratchRoot: options.scratchRoot, preferences: options.preferences,
 		digestExecutable: digest, ...(launch ? { spawn: launch } : {}),
 		environment: options.environment ?? process.env,
-		...(options.qualifyAdmission ? { qualify: options.qualifyAdmission } : {}),
+		...(options.verifyAdmission ? { verify: options.verifyAdmission } : {}),
 	});
 	let disposed = false;
 	let disposal: Promise<void> | null = null;
@@ -185,14 +185,14 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 	};
 
 	const service: ExternalFfmpegVideoOperationService<Owner> = Object.freeze({
-		capabilities: () => qualifiedCapabilities.capabilities(),
+		capabilities: () => verifiedCapabilities.capabilities(),
 		async begin(ownerValue: Owner, planValue: unknown) {
 			assertAvailable(disposed);
 			const owner = owned(ownerValue);
 			const plan = normalizeDesktopVideoCodecOperationPlan(planValue);
 			const reservation = beginGate.reserve(owner);
 			try {
-				const admission = await qualifiedCapabilities.admission(plan.format);
+				const admission = await verifiedCapabilities.admission(plan.format);
 				beginGate.assertCurrent(reservation, disposed);
 				const pair = executablePair(admission);
 				const operationId = operationIdValue(mint());
@@ -353,7 +353,7 @@ export function createExternalFfmpegVideoOperationService<Owner extends object =
 			}
 			disposal = (async () => {
 				const lifecycle = await Promise.allSettled([
-					qualifiedCapabilities.dispose(), beginGate.dispose(),
+					verifiedCapabilities.dispose(), beginGate.dispose(),
 				]);
 				await Promise.allSettled([...pendingCleanups, ...active.map(async (session) => {
 					await session.execution?.catch(() => undefined); await cleanup(session);
@@ -550,7 +550,7 @@ function validateOptions(options: ExternalFfmpegVideoOperationServiceOptions): v
 		|| options.digestExecutable !== undefined && typeof options.digestExecutable !== 'function'
 		|| options.spawn !== undefined && typeof options.spawn !== 'function'
 			|| options.mintOperationId !== undefined && typeof options.mintOperationId !== 'function'
-			|| options.qualifyAdmission !== undefined && typeof options.qualifyAdmission !== 'function') {
+			|| options.verifyAdmission !== undefined && typeof options.verifyAdmission !== 'function') {
 		throw new TypeError('External FFmpeg video service options are invalid.');
 	}
 }

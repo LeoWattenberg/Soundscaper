@@ -94,8 +94,8 @@ test('both recipes own exactly five pending targets and FFmpeg starts from a clo
 	assert.equal(configuration.policy.network, false);
 	assert.match(configuration.configureFlags.join('\n'), /png.*tiff.*exr/isu);
 	assert.doesNotMatch(configuration.configureFlags.join('\n'), /libx264|libvpx|hevc|av1/iu);
-	assert.equal(configuration.policy.payloadPublicationRequiresAuthenticatedTargetEvidence, true);
-	assert.equal(configuration.policy.humanReviewMilestone, 9);
+	assert.equal(configuration.policy.payloadPublicationRequiresVerifiedBuildResult, true);
+	assert.equal(Object.hasOwn(configuration.policy, 'humanReviewMilestone'), false);
 	const external = validateFramescaperMediaHostExternalSourceManifest(json(join(
 		repositoryRoot, 'native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json',
 	)));

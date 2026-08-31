@@ -35,7 +35,7 @@ test('alternate Electron FFmpeg evidence covers exactly five targets and exclude
 	}), /manifest|target/iu);
 });
 
-test('post-package verification binds the exact alternate library before signing', async (context) => {
+test('post-package verification binds the exact alternate library during package finalization', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-electron-ffmpeg-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const bytes = Buffer.from('fixture Electron alternate media library');

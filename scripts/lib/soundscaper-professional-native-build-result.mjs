@@ -10,7 +10,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import {
 	absentPath,
-	bindEvidenceReceipt,
+	bindVerificationCheck,
 	boundedText,
 	buildResultDescriptors,
 	canonicalDirectory,
@@ -19,7 +19,7 @@ import {
 	deepFreeze,
 	descriptorOnly,
 	digestValue,
-	evidenceFor,
+	verificationFor,
 	expectedSoundscaperProfessionalNativeInventory as expectedInventory,
 	executableBuildResultArtifact,
 	MAXIMUM_RUNTIME_FILES,
@@ -79,7 +79,7 @@ const PROFILE_PATHS = Object.freeze({
 /**
  * Assemble one immutable build result outside the repository. This function never
  * mutates the production manifest and publishes its output only after every
- * file, dependency, and self-test receipt has been authenticated.
+ * file, dependency, and self-test check has been verified.
  */
 export async function createSoundscaperProfessionalNativeBuildResult(options) {
 	const target = targetId(options?.target);
@@ -182,27 +182,27 @@ export async function createSoundscaperProfessionalNativeBuildResult(options) {
 			descriptorOnly(copied.launcher), descriptorOnly(copied.sandboxProfile),
 			descriptorOnly(copied.brokerPolicy), ...runtimeClosure.map(descriptorOnly),
 		];
-		const evidenceReceipts = [
-			bindEvidenceReceipt('build', target, {
+		const verificationChecks = [
+			bindVerificationCheck('build', target, {
 				status: 'passed', sourceRevision, buildPlanSha256,
 				packagedAppAuthority,
 					macCodeSeal: macCodeSealResult === null
 						? null : structuredClone(macCodeSealResult),
 				tests: selfTests.filter(({ id }) => id.endsWith('-ctest')),
 			}),
-			bindEvidenceReceipt('self-test', target, {
+			bindVerificationCheck('self-test', target, {
 				status: 'passed',
 				inventory: expectedInventory(target),
 				tests: selfTests,
 			}),
-			bindEvidenceReceipt('toolchain', target, {
+			bindVerificationCheck('toolchain', target, {
 				identity: toolchainIdentity, receipt: toolchainReceipt,
 			}),
-			bindEvidenceReceipt('source-authentication', target, {
+			bindVerificationCheck('source-authentication', target, {
 				authentication: sourceAuthentication,
 			}),
-			bindEvidenceReceipt('installed-files', target, { files: installedFiles }),
-			bindEvidenceReceipt('dependency-closure', target, {
+			bindVerificationCheck('installed-files', target, { files: installedFiles }),
+			bindVerificationCheck('dependency-closure', target, {
 				status: 'closed', maximumRuntimeFiles: MAXIMUM_RUNTIME_FILES,
 				inspections: dependencyInspections,
 				checks: CLOSURE_CHECKS,
@@ -214,7 +214,7 @@ export async function createSoundscaperProfessionalNativeBuildResult(options) {
 			target,
 			sourceRevision,
 			buildPlanSha256,
-			evidenceReceipts,
+			verificationChecks,
 			payload: descriptorOnly(copied.payload),
 			osAudioCodec: copied.osAudioCodec === null ? null : descriptorOnly(copied.osAudioCodec),
 			pluginPeer: descriptorOnly(copied.pluginPeer),
@@ -420,8 +420,8 @@ function runNativeSelfTest(request) {
 }
 
 function stagedManifestRow(receipt, targetRoot, buildResult) {
-	const toolchain = evidenceFor(receipt, 'toolchain');
-	const sources = evidenceFor(receipt, 'source-authentication');
+	const toolchain = verificationFor(receipt, 'toolchain');
+	const sources = verificationFor(receipt, 'source-authentication');
 	const staged = (descriptor) => ({
 		path: `${targetRoot}/${descriptor.path.slice('payload/'.length)}`,
 		byteLength: descriptor.byteLength,

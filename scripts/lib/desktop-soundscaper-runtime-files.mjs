@@ -5,7 +5,6 @@ export const DESKTOP_SOUNDSCAPER_RUNTIME_FILES = Object.freeze([
 	'desktop/native-audio-helper-adapter.js',
 	'desktop/native-audio-session-service.js',
 	'desktop/native-audio-session-validation.js',
-	'desktop/native-helper-lab-diagnostic.js',
 	'desktop/native-plugin-helper-adapter.js',
 	'desktop/plugin-bundle-identity.js',
 	'desktop/plugin-host-isolation-support.js',

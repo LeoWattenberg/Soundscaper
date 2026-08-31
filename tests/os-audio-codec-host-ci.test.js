@@ -102,10 +102,9 @@ test('CI orchestration keeps all inputs and outputs in RUNNER_TEMP and publishes
 			assert.equal(arguments_.some((value) => value.startsWith('--macos-sdk=')), false);
 			return writeFile(plan.resultPath, '{}\n', { flag: 'wx' });
 		},
-		async verifyResult({ resultPath, repositoryRoot, signingIdentity, target }) {
+		async verifyResult({ resultPath, repositoryRoot, target }) {
 			calls.push('verify');
 			assert.equal(repositoryRoot, ROOT);
-			assert.equal(signingIdentity, undefined);
 			assert.equal(target, 'win-arm64');
 			assert.equal(String(await readFile(resultPath)), '{}\n');
 		},
@@ -122,7 +121,7 @@ test('CI orchestration keeps all inputs and outputs in RUNNER_TEMP and publishes
 	].join('\n'));
 });
 
-test('macOS CI binds the canonical SDK and ad-hoc signing before publishing the result', async (context) => {
+test('macOS CI binds the canonical SDK and fixed ad-hoc seal before publishing the result', async (context) => {
 	const runnerTemp = await mkdtemp(join(tmpdir(), 'soundscaper-codec-ci-mac-'));
 	context.after(() => rm(runnerTemp, { recursive: true, force: true }));
 	const githubEnvironmentPath = join(runnerTemp, 'github-env');
@@ -143,9 +142,8 @@ test('macOS CI binds the canonical SDK and ad-hoc signing before publishing the 
 			buildArguments = arguments_;
 			await writeFile(plan.resultPath, '{}\n', { flag: 'wx' });
 		},
-		verifyResult: async ({ repositoryRoot, signingIdentity, target }) => {
+		verifyResult: async ({ repositoryRoot, target }) => {
 			assert.equal(repositoryRoot, ROOT);
-			assert.equal(signingIdentity, '-');
 			assert.equal(target, 'mac-arm64');
 		},
 	});

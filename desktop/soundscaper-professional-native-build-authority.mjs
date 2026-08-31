@@ -23,28 +23,28 @@ export function soundscaperProfessionalNativeBuildAuthority(result, target) {
 	if (!TARGETS.includes(target)) throw new TypeError('The professional build-result target is unsupported.');
 	closed(result, [
 		'schemaVersion', 'kind', 'target', 'sourceRevision', 'buildPlanSha256',
-		'evidenceReceipts', 'payload', 'osAudioCodec', 'pluginPeer', 'deliveryFilesystem',
+		'verificationChecks', 'payload', 'osAudioCodec', 'pluginPeer', 'deliveryFilesystem',
 		'isolation',
 	], 'build-result authority');
 	if (result.schemaVersion !== 1
 		|| result.kind !== 'soundscaper-professional-native-build-result'
 		|| result.target !== target || !REVISION.test(String(result.sourceRevision))
 		|| !SHA256.test(String(result.buildPlanSha256))
-		|| !Array.isArray(result.evidenceReceipts)) {
+		|| !Array.isArray(result.verificationChecks)) {
 		throw new TypeError('The professional build-result authority identity is invalid.');
 	}
-	const receipts = result.evidenceReceipts.filter((entry) => entry?.kind === 'build');
-	if (receipts.length !== 1) throw new TypeError('The professional build-result authority is not exact.');
-	const receipt = receipts[0];
-	closed(receipt, ['kind', 'target', 'sha256', 'evidence'], 'build-result receipt');
-	closed(receipt.evidence, [
+	const checks = result.verificationChecks.filter((entry) => entry?.kind === 'build');
+	if (checks.length !== 1) throw new TypeError('The professional build-result authority is not exact.');
+	const check = checks[0];
+	closed(check, ['kind', 'target', 'sha256', 'result'], 'build-result verification check');
+	closed(check.result, [
 		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macCodeSeal',
-	], 'build-result evidence');
-	if (receipt.target !== target || !SHA256.test(String(receipt.sha256))
-		|| receipt.sha256 !== sha256(canonicalJson(receipt.evidence))
-		|| receipt.evidence.status !== 'passed'
-		|| receipt.evidence.sourceRevision !== result.sourceRevision
-		|| receipt.evidence.buildPlanSha256 !== result.buildPlanSha256) {
+	], 'build-result check result');
+	if (check.target !== target || !SHA256.test(String(check.sha256))
+		|| check.sha256 !== sha256(canonicalJson(check.result))
+		|| check.result.status !== 'passed'
+		|| check.result.sourceRevision !== result.sourceRevision
+		|| check.result.buildPlanSha256 !== result.buildPlanSha256) {
 		throw new TypeError('The professional build-result authority is misbound.');
 	}
 	return deepFreeze({

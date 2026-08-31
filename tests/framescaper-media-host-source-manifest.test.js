@@ -84,9 +84,7 @@ test('the candidate recipe enables built-in image sequences without external cod
 		blockedComponents: [
 			'av1', 'h264', 'hevc', 'libvpx-vp9', 'libx264', 'vp9',
 		],
-		payloadPublicationRequiresAuthenticatedTargetEvidence: true,
-		humanReviewMilestone: 9,
-		humanReviewBlocks: 'stable-1.0-release-admission',
+		payloadPublicationRequiresVerifiedBuildResult: true,
 	});
 	const targets = JSON.parse(readFileSync(join(hostRoot, 'build/targets.json'), 'utf8'));
 	assert.deepEqual(targets.targets.map(({ cmakePreset }) => cmakePreset), [

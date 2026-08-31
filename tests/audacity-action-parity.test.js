@@ -284,7 +284,7 @@ test('milestone 3 import and analysis actions have exact menu ownership and hand
 	}
 });
 
-test('the unimplemented milestone 8B MIDI plan stays inert while human review moves to M9', () => {
+test('the unimplemented milestone 8B MIDI plan stays inert and post-1.0', () => {
 	const midiActionIds = ['export-midi', 'midi-device-info', 'local://midi-track'];
 	assert.deepEqual(AUDACITY_MIDI_FENCE.actionIds, midiActionIds);
 	assert.ok(Object.isFrozen(AUDACITY_MIDI_FENCE));
@@ -296,11 +296,10 @@ test('the unimplemented milestone 8B MIDI plan stays inert while human review mo
 		assert.equal(definition.shortcut, null, id);
 		assert.equal(definition.roadmapDisposition, 'planned', id);
 		assert.equal(definition.roadmapMilestone, '8B', id);
-		assert.equal(definition.releaseReviewMilestone, '9', id);
+		assert.equal(definition.releaseReviewMilestone, undefined, id);
 		assert.equal(definition.blockedThroughMilestone, undefined, id);
-		assert.match(audacityActionReason(id, 'en'), /milestone 8B/u, id);
 		assert.match(audacityActionReason(id, 'en'), /not implemented/u, id);
-		assert.match(audacityActionReason(id, 'en'), /stable 1\.0 admission/u, id);
+		assert.match(audacityActionReason(id, 'en'), /post-1\.0 scope/u, id);
 	}
 
 	const shortcutIds = collectAudacityShortcutCommands([]).map(({ id }) => id);

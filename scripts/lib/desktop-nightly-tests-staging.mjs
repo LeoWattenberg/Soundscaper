@@ -77,7 +77,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: '.wrangler/browser-products/soundscaper', destination: 'sites/soundscaper', kind: 'directory', label: 'verified Soundscaper browser site' },
 	{ source: '.wrangler/browser-products/framescaper', destination: 'sites/framescaper', kind: 'directory', label: 'verified Framescaper browser site' },
 	{ source: 'src', destination: 'src', kind: 'directory', label: 'browser-test source tree' },
-	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md', 'handbook']) },
+	{ source: 'tests/browser', destination: 'tests/browser', kind: 'directory', label: 'browser test tree', exclude: new Set(['AGENTS.md', 'audio-editor-soak-debug.spec.js', 'handbook']) },
 	{ source: 'tests/aup3-fixture.js', destination: 'tests/aup3-fixture.js', kind: 'file', label: 'AUP3 browser support fixture' },
 	{ source: 'tests/fixtures/aup4-native-rich.js', destination: 'tests/fixtures/aup4-native-rich.js', kind: 'file', label: 'AUP4 browser support fixture' },
 ]);

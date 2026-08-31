@@ -45,14 +45,14 @@ interface RouteRecord {
 	readonly publicationMode: 'browser-blob' | 'direct-stream';
 }
 
-test('milestone 2 qualifies one exact unique publication-route register', async () => {
+test('milestone 2 verifies one exact unique publication-route register', async () => {
 	const [inventory, matrix] = await Promise.all([
 		readFile(inventoryUrl, 'utf8').then(JSON.parse),
 		readFile(matrixUrl, 'utf8').then(JSON.parse),
 	]);
-	const item = inventory.items.find(({ id }: { id: string }) => id === 'm2-pipeline-route-qualification');
+	const item = inventory.items.find(({ id }: { id: string }) => id === 'm2-pipeline-route-verification');
 	const routeIds = item.routeIds as string[];
-	const qualification = matrix.publicationRouteQualification as Readonly<{
+	const verification = matrix.publicationRouteVerification as Readonly<{
 		browserBlobMaximumBytes: number;
 		routes: RouteRecord[];
 		status: string;
@@ -61,11 +61,11 @@ test('milestone 2 qualifies one exact unique publication-route register', async 
 	assert.equal(item.status, 'implemented');
 	assert.equal(new Set(routeIds).size, routeIds.length, 'route IDs must be unique');
 	assert.deepEqual([...routeIds].sort(), Object.keys(ROUTE_CONTROL).sort());
-	assert.equal(qualification.status, 'implemented');
-	assert.equal(qualification.browserBlobMaximumBytes, 512 * 1024 * 1024);
-	assert.equal(qualification.browserBlobMaximumBytes, BROWSER_EXPORT_BLOB_MAXIMUM_BYTES);
-	assert.equal(qualification.browserBlobMaximumBytes, SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES);
-	assert.deepEqual(qualification.routes.map(({ id }) => id), routeIds);
+	assert.equal(verification.status, 'implemented');
+	assert.equal(verification.browserBlobMaximumBytes, 512 * 1024 * 1024);
+	assert.equal(verification.browserBlobMaximumBytes, BROWSER_EXPORT_BLOB_MAXIMUM_BYTES);
+	assert.equal(verification.browserBlobMaximumBytes, SCAPE_WEB_CORE_BLOB_MAXIMUM_BYTES);
+	assert.deepEqual(verification.routes.map(({ id }) => id), routeIds);
 });
 
 test('every browser route has one frozen Blob limit and every direct route excludes a final renderer Blob', async () => {
@@ -74,7 +74,7 @@ test('every browser route has one frozen Blob limit and every direct route exclu
 	for (const risk of matrix.risks) {
 		for (const control of risk.currentControls) controls.set(control.id, control);
 	}
-	for (const route of matrix.publicationRouteQualification.routes as RouteRecord[]) {
+	for (const route of matrix.publicationRouteVerification.routes as RouteRecord[]) {
 		assert.equal(route.controlId, ROUTE_CONTROL[route.id as keyof typeof ROUTE_CONTROL]);
 		const control = controls.get(route.controlId);
 		assert.ok(control, `${route.id} references an unknown control`);
@@ -115,7 +115,7 @@ test('browser audio and video publication use the shared admission boundary', as
 
 test('Framescaper family-v1 keyed export reuses the frozen video Blob and direct route IDs', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
-	const videoRoutes = matrix.publicationRouteQualification.routes
+	const videoRoutes = matrix.publicationRouteVerification.routes
 		.filter(({ id }: RouteRecord) => id.startsWith('video-')) as RouteRecord[];
 
 	assert.deepEqual(videoRoutes.map(({ id }) => id), [
@@ -123,14 +123,14 @@ test('Framescaper family-v1 keyed export reuses the frozen video Blob and direct
 		'video-direct-mp4',
 		'video-direct-webm',
 	]);
-	assert.equal(matrix.publicationRouteQualification.routes.length, 16);
+	assert.equal(matrix.publicationRouteVerification.routes.length, 16);
 	const keyedControl = matrix.risks
 		.flatMap(({ currentControls }: { currentControls: Array<{ id: string }> }) => currentControls)
 		.find(({ id }: { id: string }) => id === 'framescaper-v1-keyed-export-authority');
 	assert.ok(keyedControl, 'the selected keyed strategy must have separate authority evidence');
 });
 
-test('the threat model owns the route-level claim without promoting resource qualification', async () => {
+test('the threat model owns the route-level claim without promoting resource guarantees', async () => {
 	const documentation = await readFile(
 		new URL('../docs/production-threat-model.md', import.meta.url),
 		'utf8',

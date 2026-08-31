@@ -170,22 +170,22 @@ test('a build result binds installed payloads, closed dependencies, and passing 
 	]);
 	assert(inspected.some((path) => path.endsWith('payload/runtime/libowned.so')),
 		'the dependency closure must recursively inspect bundled libraries');
-	assert.deepEqual(candidate.receipt.evidenceReceipts.map(({ kind }) => kind), [
+	assert.deepEqual(candidate.receipt.verificationChecks.map(({ kind }) => kind), [
 		'build', 'self-test', 'toolchain', 'source-authentication',
 		'installed-files', 'dependency-closure',
 	]);
-	const selfTestEvidence = candidate.receipt.evidenceReceipts
-		.find(({ kind }) => kind === 'self-test').evidence;
-	const buildEvidence = candidate.receipt.evidenceReceipts
-		.find(({ kind }) => kind === 'build').evidence;
-	const dependencyEvidence = candidate.receipt.evidenceReceipts
-		.find(({ kind }) => kind === 'dependency-closure').evidence;
-	assert.equal(buildEvidence.packagedAppAuthority.sourceRevision, SOURCE_REVISION);
-	assert.equal(buildEvidence.packagedAppAuthority.target, 'linux-x64');
-	assert.equal(selfTestEvidence.tests.every(({ status }) => status === 'passed'), true);
-	assert.deepEqual(selfTestEvidence.tests.map(({ id }) => id).sort(),
+	const selfTestResult = candidate.receipt.verificationChecks
+		.find(({ kind }) => kind === 'self-test').result;
+	const buildResult = candidate.receipt.verificationChecks
+		.find(({ kind }) => kind === 'build').result;
+	const dependencyResult = candidate.receipt.verificationChecks
+		.find(({ kind }) => kind === 'dependency-closure').result;
+	assert.equal(buildResult.packagedAppAuthority.sourceRevision, SOURCE_REVISION);
+	assert.equal(buildResult.packagedAppAuthority.target, 'linux-x64');
+	assert.equal(selfTestResult.tests.every(({ status }) => status === 'passed'), true);
+	assert.deepEqual(selfTestResult.tests.map(({ id }) => id).sort(),
 		requiredSoundscaperProfessionalNativeSelfTestIds('linux-x64'));
-	assert.deepEqual(dependencyEvidence.checks, [
+	assert.deepEqual(dependencyResult.checks, [
 		'ambient-dependency-refusal', 'recursive-inspection', 'rpath-refusal',
 		'runtime-file-limit-refusal', 'symlink-refusal', 'undeclared-dependency-refusal',
 	]);
@@ -250,7 +250,7 @@ test('build-result creation refuses a wrong-architecture binary without publishi
 	await assert.rejects(() => readFile(join(fixture.candidateRoot, 'build-result.json')), /ENOENT/u);
 });
 
-test('verification rejects every missing or tampered evidence-receipt category', async (context) => {
+test('verification rejects every missing or tampered verification-check category', async (context) => {
 	const fixture = await candidateFixture(context);
 	await createSoundscaperProfessionalNativeBuildResult({
 		...fixture.options,
@@ -260,20 +260,20 @@ test('verification rejects every missing or tampered evidence-receipt category',
 	const path = join(fixture.candidateRoot, 'build-result.json');
 	const original = JSON.parse(await readFile(path, 'utf8'));
 	await chmod(path, 0o600);
-	for (const kind of original.evidenceReceipts.map(({ kind }) => kind)) {
+	for (const kind of original.verificationChecks.map(({ kind }) => kind)) {
 		const tampered = structuredClone(original);
-		tampered.evidenceReceipts.find((entry) => entry.kind === kind).evidence.tampered = true;
+		tampered.verificationChecks.find((entry) => entry.kind === kind).result.tampered = true;
 		await writeFile(path, canonicalJson(tampered));
 		await assert.rejects(() => verifySoundscaperProfessionalNativeBuildResult({
 			buildResultRoot: fixture.candidateRoot,
 		}), new RegExp(kind, 'iu'));
 	}
 	const missing = structuredClone(original);
-	missing.evidenceReceipts.pop();
+	missing.verificationChecks.pop();
 	await writeFile(path, canonicalJson(missing));
 	await assert.rejects(() => verifySoundscaperProfessionalNativeBuildResult({
 		buildResultRoot: fixture.candidateRoot,
-	}), /evidence receipt inventory is incomplete/iu);
+	}), /verification check inventory is incomplete/iu);
 });
 
 test('staging is no-overwrite and idempotent for one exact build result', async (context) => {
@@ -351,7 +351,7 @@ test('mac build results require, receipt-bind, and stage the OS audio codec addo
 		runSelfTest: passingSelfTest,
 	});
 	assert.equal(candidate.receipt.osAudioCodec.path, 'payload/soundscaper_os_audio_codec.node');
-	const codeSeal = candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'build').evidence.macCodeSeal;
+	const codeSeal = candidate.receipt.verificationChecks.find(({ kind }) => kind === 'build').result.macCodeSeal;
 	assert(codeSeal.schemaVersion === 1 && codeSeal.status === 'execution-checked');
 	assert.deepEqual(codeSeal, mac.options.macCodeSealResult);
 	for (const artifact of codeSeal.artifacts) {
@@ -360,7 +360,7 @@ test('mac build results require, receipt-bind, and stage the OS audio codec addo
 		assert.equal(artifact.libraryValidation.entitlements?.path ?? null, peer
 			? 'native/soundscaper-professional-host/soundscaper-professional-peer-entitlements.mac.plist' : null);
 	}
-	assert(candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'installed-files').evidence.files.some(({ path }) => path === candidate.receipt.osAudioCodec.path));
+	assert(candidate.receipt.verificationChecks.find(({ kind }) => kind === 'installed-files').result.files.some(({ path }) => path === candidate.receipt.osAudioCodec.path));
 	await stageSoundscaperProfessionalNativeBuildResult({
 		buildResultRoot: mac.candidateRoot, repositoryRoot: repository.root,
 	});

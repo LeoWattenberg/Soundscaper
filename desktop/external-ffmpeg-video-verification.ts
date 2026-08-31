@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Bounded execution qualification for the exact external video command grammar. */
+/** Bounded execution verification for the exact external video command grammar. */
 
 import { chmod, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
@@ -32,7 +32,7 @@ import {
 	type ExternalFfmpegVideoSpawn,
 } from './external-ffmpeg-video-process.js';
 
-export interface ExternalFfmpegVideoQualificationOptions {
+export interface ExternalFfmpegVideoVerificationOptions {
 	readonly scratchRoot: string;
 	readonly admission: ExternalFfmpegRuntimeAdmission;
 	readonly digestExecutable: (path: string) => Promise<string>;
@@ -51,18 +51,18 @@ const OUTPUT_LIMIT = 256 * 1024;
 const VIDEO_BYTES = new Uint8Array(16 * 16 * 4);
 const AUDIO_BYTES = float32SilenceWav();
 
-export class ExternalFfmpegVideoQualificationIdentityError extends Error {
+export class ExternalFfmpegVideoVerificationIdentityError extends Error {
 	constructor(readonly reason: 'executable-unavailable' | 'identity-changed') {
 		super(reason === 'identity-changed'
-			? 'The external FFmpeg executable identity changed during video qualification.'
-			: 'The external FFmpeg executable pair is unavailable for video qualification.');
-		this.name = 'ExternalFfmpegVideoQualificationIdentityError';
+			? 'The external FFmpeg executable identity changed during video verification.'
+			: 'The external FFmpeg executable pair is unavailable for video verification.');
+		this.name = 'ExternalFfmpegVideoVerificationIdentityError';
 	}
 }
 
 /** Execute one tiny A/V delivery for every token-eligible format. */
-export async function qualifyExternalFfmpegVideoAdmission(
-	options: ExternalFfmpegVideoQualificationOptions,
+export async function verifyExternalFfmpegVideoAdmission(
+	options: ExternalFfmpegVideoVerificationOptions,
 ): Promise<DesktopExternalFfmpegVideoCapabilities> {
 	validateOptions(options);
 	throwIfAborted(options.signal);
@@ -77,13 +77,13 @@ export async function qualifyExternalFfmpegVideoAdmission(
 	for (const format of FORMATS) {
 		throwIfAborted(options.signal);
 		if (!formats[format].available) continue;
-		try { await qualifyFormat(format, pair, options, inspectOutput); }
+		try { await verifyFormat(format, pair, options, inspectOutput); }
 		catch (error) {
-			if (error instanceof ExternalFfmpegVideoQualificationIdentityError) throw error;
+			if (error instanceof ExternalFfmpegVideoVerificationIdentityError) throw error;
 			throwIfAborted(options.signal);
 			formats[format] = Object.freeze({
 				available: false, provider: null,
-				reason: `The configured FFmpeg failed exact ${format === 'mp4' ? 'H264/AAC MP4' : 'VP9/Opus WebM'} execution qualification. Manage or rescan it in Edit > Preferences > General.`,
+				reason: `The configured FFmpeg failed exact ${format === 'mp4' ? 'H264/AAC MP4' : 'VP9/Opus WebM'} execution verification. Manage or rescan it in Edit > Preferences > General.`,
 			});
 		}
 		await assertIdentity(pair, options.digestExecutable);
@@ -92,14 +92,14 @@ export async function qualifyExternalFfmpegVideoAdmission(
 	return Object.freeze({ schemaVersion: 1, formats: Object.freeze(formats) });
 }
 
-async function qualifyFormat(
+async function verifyFormat(
 	format: DesktopVideoCodecFormat,
 	pair: ExternalFfmpegExecutablePairAdmission,
-	options: ExternalFfmpegVideoQualificationOptions,
+	options: ExternalFfmpegVideoVerificationOptions,
 	inspectOutput: ExternalFfmpegVideoCanaryInspector,
 ): Promise<void> {
 	await mkdir(options.scratchRoot, { recursive: true, mode: 0o700 });
-	const scratchDirectory = await mkdtemp(join(options.scratchRoot, `video-${format}-qualification-`));
+	const scratchDirectory = await mkdtemp(join(options.scratchRoot, `video-${format}-verification-`));
 	const controller = new AbortController();
 	const onAbort = (): void => controller.abort(options.signal?.reason);
 	options.signal?.addEventListener('abort', onAbort, { once: true });
@@ -123,7 +123,7 @@ async function qualifyFormat(
 				killWait: bounded(options.killWaitMs, 500, 2_000, 'kill wait'),
 			}),
 			...(options.spawn ? { spawn: options.spawn } : {}),
-			error: qualificationError,
+			error: verificationError,
 		});
 		try {
 			await Promise.all([
@@ -138,11 +138,11 @@ async function qualifyFormat(
 		}
 		const metadata = await stat(outputPath);
 		if (!metadata.isFile() || metadata.size < 1 || metadata.size > OUTPUT_LIMIT) {
-			throw qualificationError('output-limit', 'External FFmpeg produced an invalid canary output.');
+			throw verificationError('output-limit', 'External FFmpeg produced an invalid canary output.');
 		}
 		const bytes = await readFile(outputPath);
 		if (bytes.byteLength !== metadata.size) {
-			throw qualificationError('output-drift', 'External FFmpeg canary output changed during validation.');
+			throw verificationError('output-drift', 'External FFmpeg canary output changed during validation.');
 		}
 		assertFiniteVideoKeyframeContainer(bytes, format);
 		throwIfAborted(options.signal);
@@ -193,7 +193,7 @@ function executablePair(admission: ExternalFfmpegRuntimeAdmission): ExternalFfmp
 		executablePairClosureSha256: admission.identity.executablePairClosureSha256,
 	});
 	if (!isExternalFfmpegExecutablePairAdmission(pair)) {
-		throw new ExternalFfmpegVideoQualificationIdentityError('executable-unavailable');
+		throw new ExternalFfmpegVideoVerificationIdentityError('executable-unavailable');
 	}
 	return pair;
 }
@@ -204,8 +204,8 @@ async function assertIdentity(
 ): Promise<void> {
 	let matches: boolean;
 	try { matches = await externalFfmpegExecutablePairMatches(pair, digest); }
-	catch { throw new ExternalFfmpegVideoQualificationIdentityError('executable-unavailable'); }
-	if (!matches) throw new ExternalFfmpegVideoQualificationIdentityError('identity-changed');
+	catch { throw new ExternalFfmpegVideoVerificationIdentityError('executable-unavailable'); }
+	if (!matches) throw new ExternalFfmpegVideoVerificationIdentityError('identity-changed');
 }
 
 function float32SilenceWav(): Uint8Array {
@@ -227,13 +227,13 @@ function writeAscii(bytes: Uint8Array, offset: number, value: string): void {
 function bounded(value: number | undefined, fallback: number, maximum: number, label: string): number {
 	const result = value ?? fallback;
 	if (!Number.isSafeInteger(result) || result < 1 || result > maximum) {
-		throw new RangeError(`External FFmpeg video qualification ${label} is invalid.`);
+		throw new RangeError(`External FFmpeg video verification ${label} is invalid.`);
 	}
 	return result;
 }
 
-function qualificationError(reason: string, message: string): Error {
-	return Object.assign(new Error(message), { name: 'ExternalFfmpegVideoQualificationError', reason });
+function verificationError(reason: string, message: string): Error {
+	return Object.assign(new Error(message), { name: 'ExternalFfmpegVideoVerificationError', reason });
 }
 
 function processEnvironment(): Readonly<Record<string, string | undefined>> {
@@ -241,10 +241,10 @@ function processEnvironment(): Readonly<Record<string, string | undefined>> {
 }
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
-	if (signal?.aborted) throw signal.reason ?? new DOMException('Video qualification was aborted.', 'AbortError');
+	if (signal?.aborted) throw signal.reason ?? new DOMException('Video verification was aborted.', 'AbortError');
 }
 
-function validateOptions(options: ExternalFfmpegVideoQualificationOptions): void {
+function validateOptions(options: ExternalFfmpegVideoVerificationOptions): void {
 	if (!options || typeof options !== 'object' || typeof options.scratchRoot !== 'string'
 		|| !isAbsolute(options.scratchRoot) || options.scratchRoot.length > 4_096
 		|| options.scratchRoot.includes('\0') || !options.admission
@@ -254,6 +254,6 @@ function validateOptions(options: ExternalFfmpegVideoQualificationOptions): void
 		|| options.signal !== undefined && !(options.signal instanceof AbortSignal)
 		|| options.environment !== undefined && (!options.environment
 			|| typeof options.environment !== 'object')) {
-		throw new TypeError('External FFmpeg video qualification options are invalid.');
+		throw new TypeError('External FFmpeg video verification options are invalid.');
 	}
 }

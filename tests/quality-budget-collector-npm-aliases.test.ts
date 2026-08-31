@@ -39,7 +39,8 @@ test('collector aliases live under the quality namespace and invoke node directl
 		.filter(([, command]) => COLLECTOR_PATTERN.test(command.split('/').at(-1)?.split(' ').at(0) ?? ''));
 	assert.ok(aliases.length >= collectorScripts().length, 'Each collector needs at least one alias.');
 	for (const [name, command] of aliases) {
-		assert.match(name, /^quality:(?:collect|cohort):/u, `${name} must be a quality namespace alias.`);
+		assert.match(name, /^quality:collect:/u, `${name} must be a diagnostic collector alias.`);
 		assert.match(command, /^node scripts\/collect-/u, `${name} must invoke its collector with node.`);
 	}
+	assert.equal(Object.keys(scripts).some((name) => name.startsWith('quality:cohort:')), false);
 });

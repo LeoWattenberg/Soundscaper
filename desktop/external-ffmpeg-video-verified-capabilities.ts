@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Cache execution qualification against one exact external-FFmpeg admission. */
+/** Cache execution verification against one exact external-FFmpeg admission. */
 
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -15,28 +15,28 @@ import type {
 	ExternalFfmpegRuntimeAdmission,
 } from './external-ffmpeg-preference-service.js';
 import {
-	ExternalFfmpegVideoQualificationIdentityError,
-	qualifyExternalFfmpegVideoAdmission,
-} from './external-ffmpeg-video-qualification.js';
+	ExternalFfmpegVideoVerificationIdentityError,
+	verifyExternalFfmpegVideoAdmission,
+} from './external-ffmpeg-video-verification.js';
 import type { ExternalFfmpegVideoSpawn } from './external-ffmpeg-video-process.js';
 
 export type DesktopVideoCodecProductId = 'soundscaper' | 'framescaper';
-export type ExternalFfmpegVideoQualifier = (
+export type ExternalFfmpegVideoVerifier = (
 	admission: ExternalFfmpegRuntimeAdmission,
 	signal: AbortSignal,
 ) => Promise<DesktopExternalFfmpegVideoCapabilities>;
 
-export interface ExternalFfmpegVideoQualifiedCapabilitiesOptions {
+export interface ExternalFfmpegVideoVerifiedCapabilitiesOptions {
 	readonly productId: DesktopVideoCodecProductId;
 	readonly scratchRoot: string;
 	readonly preferences: Pick<ExternalFfmpegPreferenceService, 'admission' | 'invalidateAdmission'>;
 	readonly digestExecutable: (path: string) => Promise<string>;
 	readonly spawn?: ExternalFfmpegVideoSpawn;
 	readonly environment: Readonly<Record<string, string | undefined>>;
-	readonly qualify?: ExternalFfmpegVideoQualifier;
+	readonly verify?: ExternalFfmpegVideoVerifier;
 }
 
-export interface ExternalFfmpegVideoQualifiedCapabilities {
+export interface ExternalFfmpegVideoVerifiedCapabilities {
 	capabilities(): Promise<DesktopExternalFfmpegVideoCapabilities>;
 	admission(format: DesktopVideoCodecFormat): Promise<ExternalFfmpegRuntimeAdmission>;
 	dispose(): Promise<void>;
@@ -56,13 +56,13 @@ export class ExternalFfmpegVideoCapabilityError extends Error {
 	}
 }
 
-export function createExternalFfmpegVideoQualifiedCapabilities(
-	options: ExternalFfmpegVideoQualifiedCapabilitiesOptions,
-): ExternalFfmpegVideoQualifiedCapabilities {
+export function createExternalFfmpegVideoVerifiedCapabilities(
+	options: ExternalFfmpegVideoVerifiedCapabilitiesOptions,
+): ExternalFfmpegVideoVerifiedCapabilities {
 	assertProduct(options.productId);
 	const controller = new AbortController();
-	const qualify = options.qualify ?? ((admission, signal) => qualifyExternalFfmpegVideoAdmission({
-		scratchRoot: join(options.scratchRoot, 'qualification'), admission,
+	const verify = options.verify ?? ((admission, signal) => verifyExternalFfmpegVideoAdmission({
+		scratchRoot: join(options.scratchRoot, 'verification'), admission,
 		digestExecutable: options.digestExecutable,
 		...(options.spawn ? { spawn: options.spawn } : {}),
 		environment: options.environment, signal,
@@ -70,12 +70,12 @@ export function createExternalFfmpegVideoQualifiedCapabilities(
 	const cached = new WeakMap<ExternalFfmpegRuntimeAdmission, Promise<DesktopExternalFfmpegVideoCapabilities>>();
 	const pending = new Set<Promise<DesktopExternalFfmpegVideoCapabilities>>();
 	let disposal: Promise<void> | null = null;
-	const qualifyExact = (admission: ExternalFfmpegRuntimeAdmission) => {
+	const verifyExact = (admission: ExternalFfmpegRuntimeAdmission) => {
 		assertOpen(disposal);
 		const prior = cached.get(admission);
 		if (prior) return prior;
-		const task = Promise.resolve().then(() => qualify(admission, controller.signal)).catch(async (error: unknown) => {
-			if (!(error instanceof ExternalFfmpegVideoQualificationIdentityError)) throw error;
+		const task = Promise.resolve().then(() => verify(admission, controller.signal)).catch(async (error: unknown) => {
+			if (!(error instanceof ExternalFfmpegVideoVerificationIdentityError)) throw error;
 			await options.preferences.invalidateAdmission(admission, error.reason);
 			return createDesktopExternalFfmpegVideoCapabilities(null);
 		});
@@ -90,7 +90,7 @@ export function createExternalFfmpegVideoQualifiedCapabilities(
 			assertProduct(options.productId);
 			const admission = options.preferences.admission();
 			if (!admission) return createDesktopExternalFfmpegVideoCapabilities(null);
-			const capabilities = await qualifyExact(admission);
+			const capabilities = await verifyExact(admission);
 			if (options.preferences.admission() !== admission) {
 				return createDesktopExternalFfmpegVideoCapabilities(null);
 			}
@@ -101,10 +101,10 @@ export function createExternalFfmpegVideoQualifiedCapabilities(
 			assertProduct(options.productId);
 			const admission = options.preferences.admission();
 			if (!admission) throw unavailable(format, createDesktopExternalFfmpegVideoCapabilities(null));
-			const capabilities = await qualifyExact(admission);
+			const capabilities = await verifyExact(admission);
 			if (options.preferences.admission() !== admission) {
 				throw new ExternalFfmpegVideoCapabilityError(
-					'stale-admission', 'The external FFmpeg admission changed during video qualification.',
+					'stale-admission', 'The external FFmpeg admission changed during video verification.',
 				);
 			}
 			if (!capabilities.formats[format].available) throw unavailable(format, capabilities);
@@ -112,16 +112,16 @@ export function createExternalFfmpegVideoQualifiedCapabilities(
 		},
 		dispose() {
 			if (disposal) return disposal;
-			controller.abort(new DOMException('Video qualification service stopped.', 'AbortError'));
+			controller.abort(new DOMException('Video verification service stopped.', 'AbortError'));
 			disposal = Promise.allSettled([...pending]).then(async () => {
-				await rm(join(options.scratchRoot, 'qualification'), { recursive: true, force: true });
+				await rm(join(options.scratchRoot, 'verification'), { recursive: true, force: true });
 			});
 			return disposal;
 		},
 	});
 }
 
-/** Reserve global and renderer capacity across asynchronous qualification and scratch setup. */
+/** Reserve global and renderer capacity across asynchronous verification and scratch setup. */
 export function createExternalFfmpegVideoBeginGate<Owner extends object>(options: Readonly<{
 	readonly activeCount: () => number;
 	readonly hasActiveOwner: (owner: Owner) => boolean;
@@ -186,7 +186,7 @@ function unavailable(
 
 function assertOpen(disposal: Promise<void> | null): void {
 	if (disposal) throw new ExternalFfmpegVideoCapabilityError(
-		'disposed', 'The external FFmpeg video qualification service is disposed.',
+		'disposed', 'The external FFmpeg video verification service is disposed.',
 	);
 }
 

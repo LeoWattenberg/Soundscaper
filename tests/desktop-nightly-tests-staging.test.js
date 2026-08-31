@@ -139,6 +139,10 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		await access(join(fixture.outputRoot, 'node_modules/@fontsource/inter/files', name));
 	}
 	await assert.rejects(() => access(join(fixture.outputRoot, 'tests/browser/AGENTS.md')), /ENOENT/u);
+	await assert.rejects(
+		() => access(join(fixture.outputRoot, 'tests/browser/audio-editor-soak-debug.spec.js')),
+		/ENOENT/u,
+	);
 	await assert.rejects(() => access(join(fixture.outputRoot, 'tests/browser/handbook')), /ENOENT/u);
 	await assert.rejects(
 		() => access(join(fixture.outputRoot, 'node_modules/playwright-core/.local-browsers')),
@@ -480,6 +484,7 @@ async function createFixture(context) {
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/example.spec.js-snapshots/example-chromium-linux.png', 'png'],
 		['tests/browser/AGENTS.md', 'Do not package instructions.\n'],
+		['tests/browser/audio-editor-soak-debug.spec.js', 'export const debugSoak = true;\n'],
 		['tests/browser/handbook/handbook.spec.js', 'export const handbook = true;\n'],
 		['tests/aup3-fixture.js', 'export const fixture = true;\n'],
 		['tests/fixtures/aup4-native-rich.js', 'export const fixture = true;\n'],

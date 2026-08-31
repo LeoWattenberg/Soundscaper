@@ -59,8 +59,6 @@
 			"libx264",
 			"vp9"
 		],
-		"payloadPublicationRequiresAuthenticatedTargetEvidence": true,
-		"humanReviewMilestone": 9,
-		"humanReviewBlocks": "stable-1.0-release-admission"
+		"payloadPublicationRequiresVerifiedBuildResult": true
 	}
 }
