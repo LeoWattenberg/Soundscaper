@@ -141,7 +141,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const task = begin(copy.analysisRendering);
 		const range = dependencies.getRange();
 		const key = [
-			'audio-editor-analysis-v1',
+			'audio-editor-analysis-v2',
 			project.id,
 			project.revision,
 			scope,

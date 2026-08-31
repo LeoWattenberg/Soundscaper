@@ -64,6 +64,7 @@ test('levels analysis uses the authored 7.1 channel semantics', async () => {
 	const projectGeneration = new EditorProjectGeneration();
 	projectGeneration.activate('analysis-project');
 	let channelWeights: readonly number[] | undefined;
+	let cacheKey = '';
 	const adm = authoredSevenPointOneAdm();
 	const service = createAudioAnalysisService({
 		lifetime,
@@ -86,7 +87,10 @@ test('levels analysis uses the authored 7.1 channel semantics', async () => {
 		getSpectrumWindowSize: () => 32,
 		getContrastSelections: () => ({ foreground: null, background: null }),
 		setContrastSelections: () => undefined,
-		loadAnalysis: async () => null,
+		loadAnalysis: async (key) => {
+			cacheKey = key;
+			return null;
+		},
 		saveAnalysis: async () => undefined,
 		renderAudio: async () => ({
 			sampleRate: 48_000,
@@ -107,6 +111,7 @@ test('levels analysis uses the authored 7.1 channel semantics', async () => {
 	});
 
 	await service.run('master');
+	assert.match(cacheKey, /^audio-editor-analysis-v2:/u);
 	assert.deepEqual(channelWeights, resolveAdmEbuChannelWeights(adm, 8));
 });
 
