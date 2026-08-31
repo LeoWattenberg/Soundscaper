@@ -76,7 +76,7 @@ export function createSoundscaperNativeAudioRenderer(options: Readonly<{
 			prepared.capture?.activate();
 			if (prepared.direction !== 'input') {
 				ROUTES.set(prepared.context, prepared.node);
-				void restartIfPlaying(options.engine);
+				void restartIfPlaying(options.engine).catch(() => undefined);
 			}
 		}
 	};

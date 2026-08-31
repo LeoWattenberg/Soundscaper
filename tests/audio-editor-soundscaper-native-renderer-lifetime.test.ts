@@ -117,6 +117,20 @@ test('workspace teardown closes main audio ownership after a local release failu
 	]);
 });
 
+test('an attached native route contains a rejected playback restart', async (t) => {
+	useFakeAudioWorklet(t);
+	const failure = new Error('planned attached-route restart failure');
+	const fixture = rendererFixture({ engineState: 'playing', playFailure: failure });
+	const renderer = createRenderer(fixture);
+	const opened = await renderer.bridge.openNativeAudioSession(audioRequest('audio-attach-failure'));
+	assert.equal(opened.status, 'opened');
+	if (opened.status !== 'opened') return;
+
+	fixture.offerAudio(opened.sessionId);
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	await assert.rejects(renderer.dispose(), failure);
+});
+
 test('a port offer from a foreign window source never attaches audio authority', async (t) => {
 	useFakeAudioWorklet(t);
 	const fixture = rendererFixture();
