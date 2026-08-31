@@ -21,6 +21,31 @@ test('picture-only canvas derives from timeline order instead of project track a
 	assert.deepEqual(swapped.canvas, first.canvas);
 });
 
+test('picture-only canvas bounds stated rates and rejects contradictory controls', () => {
+	const project = visualProject();
+	const plan = (canvas: Readonly<Record<string, unknown>>) =>
+		createFramescaperVideoVisualPlanFinishing(project as never, {
+			format: 'mp4', range: 'project', includeAudio: false, canvas,
+		} as never);
+
+	assert.throws(
+		() => plan({ frameRate: { num: 1_001, den: 1 } }),
+		/at most 1000/i,
+	);
+	assert.throws(
+		() => plan({ maximumFrameRate: { num: 1_001, den: 1 } }),
+		/at most 1000/i,
+	);
+	assert.throws(
+		() => plan({ frameRate: { num: 60, den: 1 }, maximumFrameRate: { num: 30, den: 1 } }),
+		/canvas\.maximumFrameRate cannot also apply/i,
+	);
+	assert.throws(
+		() => plan({ size: { width: 640, height: 360 }, width: 640 }),
+		/canvas\.width cannot also apply/i,
+	);
+});
+
 function visualProject() {
 	return {
 		sampleRate: 48_000,

@@ -9,7 +9,11 @@ import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-nav
 import { normalizeVideoDeliveryAudioLayout } from '../common/editor/video-delivery-audio-layout.ts';
 import { normalizeVideoDeliveryColor } from '../common/editor/video-delivery-color.ts';
 import { normalizeVideoDeliveryQuality } from '../common/editor/video-delivery-quality.ts';
-import { isVideoCanvasFit, VIDEO_CANVAS_MAXIMUM_EXTENT } from '../common/editor/video-canvas-fit.ts';
+import {
+	isVideoCanvasFit,
+	VIDEO_CANVAS_MAXIMUM_EXTENT,
+	VIDEO_CANVAS_MAXIMUM_FRAME_RATE,
+} from '../common/editor/video-canvas-fit.ts';
 import { getVideoExportFormat } from '../common/editor/video-export.js';
 import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import { compareRationals, normalizeRational, type Rational } from '../common/editor/timeline-time.ts';
@@ -196,16 +200,34 @@ function activeVisualPlacements(
 
 function visualCanvas(value: unknown, source: Readonly<Record<string, unknown>>, sequenceRate: Rational) {
 	const request = value === undefined ? {} : record(value, 'finishing visual export canvas');
+	if (request.frameRate !== undefined && request.maximumFrameRate !== undefined) {
+		throw new RangeError(
+			'canvas.frameRate states the delivery rate, so canvas.maximumFrameRate cannot also apply.',
+		);
+	}
+	const statedSize = request.size === undefined ? null : record(request.size, 'canvas.size');
+	if (statedSize !== null) {
+		for (const conflicting of ['width', 'height', 'maximumWidth', 'maximumHeight']) {
+			if (request[conflicting] !== undefined) {
+				throw new RangeError(
+					`canvas.size states the delivery canvas, so canvas.${conflicting} cannot also apply.`,
+				);
+			}
+		}
+	}
 	const maximumWidth = optionalPositive(request.maximumWidth, 1_280, 'canvas.maximumWidth');
 	const maximumHeight = optionalPositive(request.maximumHeight, 720, 'canvas.maximumHeight');
-	const statedSize = request.size === undefined ? null : record(request.size, 'canvas.size');
 	const sourceWidth = optionalPositive(request.width, positiveInteger(source.width, 'visual source width'), 'canvas.width');
 	const sourceHeight = optionalPositive(request.height, positiveInteger(source.height, 'visual source height'), 'canvas.height');
 	const scale = Math.min(1, maximumWidth / sourceWidth, maximumHeight / sourceHeight);
 	const width = evenExtent(statedSize?.width ?? Math.max(2, Math.floor(sourceWidth * scale / 2) * 2), 'canvas.width');
 	const height = evenExtent(statedSize?.height ?? Math.max(2, Math.floor(sourceHeight * scale / 2) * 2), 'canvas.height');
-	const maximumRate = positiveRate(request.maximumFrameRate ?? { num: 30, den: 1 }, 'canvas.maximumFrameRate');
-	const statedRate = request.frameRate === undefined ? null : positiveRate(request.frameRate, 'canvas.frameRate');
+	const maximumRate = boundedRate(
+		request.maximumFrameRate ?? { num: 30, den: 1 }, 'canvas.maximumFrameRate',
+	);
+	const statedRate = request.frameRate === undefined
+		? null
+		: boundedRate(request.frameRate, 'canvas.frameRate');
 	const frameRate = statedRate ?? (compareRationals(sequenceRate, maximumRate) > 0 ? maximumRate : sequenceRate);
 	const fit = request.fit ?? 'contain';
 	if (!isVideoCanvasFit(fit)) throw new RangeError('finishing visual export canvas fit is unsupported.');
@@ -227,6 +249,14 @@ function primarySequence(project: FramescaperProjectFinishing): Readonly<Record<
 function positiveRate(value: unknown, name: string): Rational {
 	const result = normalizeRational(value as never);
 	if (result.num <= 0) throw new RangeError(`${name} must be positive.`);
+	return result;
+}
+
+function boundedRate(value: unknown, name: string): Rational {
+	const result = positiveRate(value, name);
+	if (result.num > VIDEO_CANVAS_MAXIMUM_FRAME_RATE * result.den) {
+		throw new RangeError(`${name} must be at most ${String(VIDEO_CANVAS_MAXIMUM_FRAME_RATE)}.`);
+	}
 	return result;
 }
 
