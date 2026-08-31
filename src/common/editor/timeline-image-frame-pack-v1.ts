@@ -143,7 +143,8 @@ export function createFramescaperImageFramePackV1(
 		if (totalRawBytes > FRAMESCAPER_IMAGE_MODEL_LIMITS_V1.maximumAssetBytes) {
 			throw new FramescaperImageFramePackV1Error('The decoded RGBA frames exceed their byte ceiling.');
 		}
-		hasAlpha ||= validateCanonicalPixels(normalized.rgba);
+		const frameHasAlpha = validateCanonicalPixels(normalized.rgba);
+		hasAlpha = hasAlpha || frameHasAlpha;
 		const compressed = zlibSync(normalized.rgba, { level: 9 });
 		return Object.freeze({
 			presentationTicks: normalized.presentationTicks,

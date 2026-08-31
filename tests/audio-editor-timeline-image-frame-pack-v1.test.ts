@@ -76,6 +76,15 @@ test('writer canonicalizes receipt JSON and rejects noncanonical pixels or timin
 	assert.throws(() => createFramescaperImageFramePackV1({
 		...packFixture(), frames: [
 			packFixture().frames[0]!,
+			{
+				...packFixture().frames[1]!,
+				rgba: Uint8Array.of(1, 2, 3, 0, 4, 5, 6, 255),
+			},
+		],
+	}), /transparent.*RGB/iu);
+	assert.throws(() => createFramescaperImageFramePackV1({
+		...packFixture(), frames: [
+			packFixture().frames[0]!,
 			{ ...packFixture().frames[1]!, presentationTicks: 34_000n },
 		],
 	}), /continuous/iu);
