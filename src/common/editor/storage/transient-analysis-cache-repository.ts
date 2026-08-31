@@ -86,6 +86,7 @@ export class TransientAnalysisCacheRepository {
 	readonly #limits: NormalizedDerivativeCacheLimits;
 	readonly #now: () => number;
 	#maintenance: Promise<unknown> = Promise.resolve();
+	#maintenanceRequired = true;
 
 	constructor(
 		portOrValues: StorageRepositoryPort | TransientAnalysisCacheKeyValuePort,
@@ -152,7 +153,7 @@ export class TransientAnalysisCacheRepository {
 			await this.#evictAndRepair();
 			return null;
 		}
-		await this.#evictAndRepair();
+		if (this.#maintenanceRequired) await this.#evictAndRepair();
 		return pair.payload;
 	}
 
@@ -166,6 +167,7 @@ export class TransientAnalysisCacheRepository {
 		const entry = cacheEntry(payload, this.#timestamp());
 		const publicationPair = validatePair(payload.key, payload, entry);
 		if (!publicationPair) throw new Error('The transient analysis cache publication is invalid.');
+		this.#maintenanceRequired = true;
 		await this.#values.put(payload.key, payload);
 		try {
 			await this.#values.put(entry.key, entry);
@@ -176,6 +178,7 @@ export class TransientAnalysisCacheRepository {
 		}
 		try {
 			await this.#settlePublication(payload.key);
+			this.#maintenanceRequired = false;
 		} catch (error) {
 			await this.#compareAndDeletePair(publicationPair).catch(() => undefined);
 			await this.#evictAndRepair().catch(() => undefined);
@@ -185,13 +188,17 @@ export class TransientAnalysisCacheRepository {
 	}
 
 	async #evictAndRepair(): Promise<void> {
+		this.#maintenanceRequired = true;
 		for (let attempt = 0; attempt < MAXIMUM_MAINTENANCE_ATTEMPTS; attempt += 1) {
 			const inventory = await this.#inventory();
 			const plan = planDerivativeCacheEviction(
 				inventory.pairs.map(({ entry }) => entry),
 				{ ...this.#limits, now: this.#timestamp() },
 			);
-			if (!inventory.discard.length && !plan.removals.length) return;
+			if (!inventory.discard.length && !plan.removals.length) {
+				this.#maintenanceRequired = false;
+				return;
+			}
 			await this.#applyMaintenance(inventory, plan.removals);
 		}
 		throw new Error('Transient analysis cache maintenance exceeded its bounded retry limit.');
