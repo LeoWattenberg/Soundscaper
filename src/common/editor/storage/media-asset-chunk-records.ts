@@ -17,7 +17,7 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 
 export { MEDIA_ASSET_CHUNK_STORE_NAME, MEDIA_ASSET_CHUNK_TOKEN_INDEX_NAME };
 
-const MEDIA_ASSET_CHUNK_CURSOR_PAGE_SIZE = 1;
+const MEDIA_ASSET_CHUNK_CURSOR_PAGE_SIZE = 8;
 const MEDIA_ASSET_CHUNK_PAYLOAD_ENCODING = 'array-buffer-v1';
 
 export interface MediaAssetChunkRecord extends Record<string, unknown> {
