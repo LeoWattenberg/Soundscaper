@@ -14,11 +14,13 @@ import {
 import {
 	findShortcutMenuHandler,
 	handleWorkspaceKeyboard,
+	isWorkspaceModalShortcutTarget,
 	matchAudioEditorShortcut,
 	projectZoomShortcut,
 	resolveAudioEditorShortcutHandler,
 	videoNavigationShortcut,
 } from '../src/common/editor/ui/workspace-shortcuts.ts';
+import { installReactTestDom } from './helpers/react-test-dom.ts';
 import {
 	projectBinItems,
 	projectBinPeakRanges,
@@ -102,6 +104,42 @@ test('workspace shortcut resolution rejects product-disabled actions and submenu
 	}), null);
 	assert.equal(resolveAudioEditorShortcutHandler('menu-align', { actionRuntime: runtime }), null);
 	assert.equal(resolveAudioEditorShortcutHandler('menu-sort', { actionRuntime: runtime }), null);
+});
+
+test('workspace shortcuts never escape an open dialog into editor actions', () => {
+	const dom = installReactTestDom();
+	try {
+		const dialog = document.createElement('section');
+		dialog.setAttribute('role', 'dialog');
+		const panel = document.createElement('div');
+		dialog.appendChild(panel);
+		dom.container.appendChild(dialog as never);
+		let calls = 0;
+		let prevented = false;
+		const event = {
+			altKey: false,
+			code: 'KeyZ',
+			ctrlKey: true,
+			defaultPrevented: false,
+			key: 'z',
+			metaKey: false,
+			repeat: false,
+			shiftKey: false,
+			target: panel,
+			preventDefault: () => { prevented = true; },
+		};
+		assert.equal(isWorkspaceModalShortcutTarget(panel), true);
+		handleWorkspaceKeyboard(
+			event,
+			{ preferences: { shortcuts: { undo: ['Ctrl+Z'] } } },
+			(handler) => handler(),
+			{ menus: [{ id: 'undo', onClick: () => { calls += 1; } }] },
+		);
+		assert.equal(calls, 0);
+		assert.equal(prevented, false, 'the dialog remains the sole owner of its keystroke');
+	} finally {
+		dom.restore();
+	}
 });
 
 test('Framescaper video navigation reserves deliberate unmodified J K L and arrow presses', () => {

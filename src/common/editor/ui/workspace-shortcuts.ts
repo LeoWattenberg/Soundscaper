@@ -58,6 +58,7 @@ export function handleWorkspaceKeyboard(
 	registry: ShortcutRegistry = {},
 ): void {
 	if (event.defaultPrevented) return;
+	if (isWorkspaceModalShortcutTarget(event.target)) return;
 	if (handleProjectZoomShortcut(event, run, registry)) return;
 	if (typeof Element !== 'undefined' && event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"], [role="menubar"], [role="toolbar"], [role="slider"], [role="spinbutton"]')) return;
 	const reservedVideoNavigationAction = registry.videoNavigation
@@ -86,6 +87,11 @@ export function handleWorkspaceKeyboard(
 		run(handler);
 		event.preventDefault();
 	}
+}
+
+export function isWorkspaceModalShortcutTarget(target: EventTarget | null): boolean {
+	return typeof (target as Element | null)?.closest === 'function'
+		&& (target as Element).closest('[role="dialog"]') !== null;
 }
 
 export function videoNavigationShortcut(

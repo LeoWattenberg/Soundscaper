@@ -13,6 +13,11 @@ const SEARCH_GROUPS = Object.freeze([
 
 const text = (copy, key, fallback) => copy?.[key] || fallback;
 
+function isModalShortcutTarget(target) {
+	return typeof target?.closest === 'function'
+		&& target.closest('[role="dialog"]') !== null;
+}
+
 function formatCount(copy, count) {
 	return text(copy, 'editorSearchResultCount', '{count} search results').replace('{count}', String(count));
 }
@@ -150,6 +155,7 @@ export default function AudioEditorSearch({
 
 	useEffect(() => {
 		const openFromShortcut = (event) => {
+			if (isModalShortcutTarget(event.target)) return;
 			const commandFind = event.key.toLowerCase() === 'f'
 				&& (event.ctrlKey || event.metaKey)
 				&& !event.altKey

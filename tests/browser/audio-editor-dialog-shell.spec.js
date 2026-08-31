@@ -55,6 +55,27 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(dialog).toBeHidden();
 	});
 
+	test('keeps workspace and search shortcuts behind an open modal dialog', async ({ page }) => {
+		const editor = await bootEditor(page);
+		await chooseCommand(page, editor, 'Edit', 'Preferences');
+		const dialog = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		const search = editor.locator('[data-editor-search-input]');
+		const play = editor.locator('[data-transport="play"] button').first();
+		await dialog.focus();
+		await expect(dialog).toBeFocused();
+		await expect(search).toHaveAttribute('aria-expanded', 'false');
+		await expect(play).toHaveAttribute('aria-pressed', 'false');
+
+		for (const shortcut of ['Control+f', 'F3', 'Space']) {
+			await dialog.focus();
+			await page.keyboard.press(shortcut);
+			await expect(dialog).toBeVisible();
+			await expect(search, `${shortcut} must not open workspace search`)
+				.toHaveAttribute('aria-expanded', 'false');
+			await expect(play).toHaveAttribute('aria-pressed', 'false');
+		}
+	});
+
 	test('keeps nonmodal effect settings draggable after their dock closes', async ({ page }) => {
 		const editor = await bootEditor(page);
 		const track = editor.locator('[data-track-row]').first();
