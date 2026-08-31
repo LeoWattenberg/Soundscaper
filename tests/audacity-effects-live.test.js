@@ -142,6 +142,38 @@ test('linked Compressor and Limiter preserve lookahead DSP across arbitrary bloc
 	}
 });
 
+test('linked dynamics reuse lookahead scratch across equal render quanta', () => {
+	const processor = createAudacityLiveProcessor('audacity-compressor', SAMPLE_RATE, {
+		thresholdDb: -20, lookaheadMs: 1_000, attackMs: 20,
+	});
+	const input = [signal(128)];
+	const output = [new Float32Array(128)];
+	processor.process(input, output);
+	const float32 = Object.getOwnPropertyDescriptor(globalThis, 'Float32Array');
+	const float64 = Object.getOwnPropertyDescriptor(globalThis, 'Float64Array');
+	assert.ok(float32 && float64);
+	let float32Allocations = 0;
+	let float64Allocations = 0;
+	Object.defineProperty(globalThis, 'Float32Array', { ...float32,
+		value: new Proxy(Float32Array, { construct(target, argumentsList) {
+			float32Allocations += 1;
+			return Reflect.construct(target, argumentsList);
+		} }) });
+	Object.defineProperty(globalThis, 'Float64Array', { ...float64,
+		value: new Proxy(Float64Array, { construct(target, argumentsList) {
+			float64Allocations += 1;
+			return Reflect.construct(target, argumentsList);
+		} }) });
+	try {
+		processor.process(input, output);
+	} finally {
+		Object.defineProperty(globalThis, 'Float32Array', float32);
+		Object.defineProperty(globalThis, 'Float64Array', float64);
+	}
+	assert.equal(float32Allocations, 0);
+	assert.equal(float64Allocations, 0);
+});
+
 test('Auto Duck retains sidechain analysis and retroactive fades across block boundaries', () => {
 	const sampleRate = 1_000;
 	const params = {
