@@ -334,7 +334,7 @@ function rendererFixture(options: Readonly<{
 	let stateUpserts = 0;
 	const initialInstanceId = options.initialInstanceId ?? null;
 	const project = {
-		sampleRate: 48_000,
+		id: 'project-1', sampleRate: 48_000,
 		masterChannels: 2,
 		tracks: [{
 			id: 'track-1', type: 'audio', enabled: true, effectsActive: true,

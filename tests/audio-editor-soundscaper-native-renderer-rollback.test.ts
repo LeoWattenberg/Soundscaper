@@ -131,6 +131,114 @@ test('native bypass transitions retain latency and enforce a faulted project ove
 	await renderer.dispose();
 });
 
+test('late native instantiation cannot author into a replacement project', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const gate = fixture.deferNextPluginPersistence();
+	const instantiation = renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	await gate.started;
+	const replacement = fixture.switchProject();
+	gate.resolve();
+
+	await assert.rejects(instantiation, isProjectOwnershipLoss);
+	assert.deepEqual(replacement.tracks[0]?.effects, []);
+	assert.deepEqual(replacement.nativePluginStates, []);
+	assert.deepEqual(fixture.active().plugins, [], 'the late acquired helper instance is closed');
+	await renderer.dispose();
+});
+
+test('native instantiation authors into the track selected when the operation began', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const gate = fixture.deferNextPluginPersistence();
+	const instantiation = renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	await gate.started;
+	fixture.selectTrack('track-2');
+	gate.resolve();
+
+	await instantiation;
+	assert.equal(fixture.project.tracks[0]!.effects.length, 1);
+	assert.equal(fixture.project.tracks[1]!.effects.length, 0);
+	await renderer.dispose();
+});
+
+test('late native persistence cannot upsert state into a replacement project', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const instance = await renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	const gate = fixture.deferNextPluginPersistence();
+	const persistence = renderer.bridge.persistNativePluginState({
+		instanceId: instance.instanceId, generation: 2,
+	});
+	await gate.started;
+	const replacement = fixture.switchProject();
+	gate.resolve();
+
+	await assert.rejects(persistence, isProjectOwnershipLoss);
+	assert.deepEqual(replacement.nativePluginStates, []);
+	await renderer.dispose();
+});
+
+test('late explicit native restore cannot upsert state into a replacement project', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const instance = await renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	const gate = fixture.deferNextPluginRestore();
+	const restoration = renderer.bridge.restoreNativePluginState({
+		instanceId: instance.instanceId, generation: 2,
+		stateBody: pluginState(instance.instanceId).stateBody,
+	});
+	await gate.started;
+	const replacement = fixture.switchProject();
+	gate.resolve();
+
+	await assert.rejects(restoration, isProjectOwnershipLoss);
+	assert.deepEqual(replacement.nativePluginStates, []);
+	await renderer.dispose();
+});
+
+test('late project reconciliation closes its acquired instance without touching the replacement', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture({ seeded: true });
+	const renderer = createRenderer(fixture, true);
+	const gate = fixture.deferNextPluginRestore();
+	const restoration = renderer.restoreProjectNativePlugins();
+	await gate.started;
+	const replacement = fixture.switchProject();
+	gate.resolve();
+
+	await assert.rejects(restoration, isProjectOwnershipLoss);
+	assert.deepEqual(replacement.nativePluginStates, []);
+	assert.deepEqual(fixture.active().plugins, [], 'the stale reconciliation releases its acquired helper');
+	await renderer.dispose();
+});
+
+test('project reconciliation replaces a live instance reused by a different project', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture({ seeded: true });
+	const renderer = createRenderer(fixture, true);
+	const restored = [{ instanceId: fixture.project.nativePluginStates[0]!.instanceId, status: 'restored' }];
+	assert.deepEqual(await renderer.restoreProjectNativePlugins(), restored);
+	fixture.switchProject(true);
+
+	assert.deepEqual(await renderer.restoreProjectNativePlugins(), restored);
+	assert.deepEqual(fixture.pluginCloses, [fixture.project.nativePluginStates[0]!.instanceId],
+		'the first project\'s live helper is not reused by the replacement');
+	await renderer.dispose();
+});
+
 let fixtureSequence = 0;
 
 function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
@@ -148,18 +256,29 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 	let pluginCloseFailure = false;
 	let initialPersistenceRefused = false;
 	let delayAudioOpen = false;
+	let delayPluginPersistence = false;
+	let delayPluginRestore = false;
 	const audioOpenStarted = deferred();
 	const audioOpenGate = deferred();
+	const pluginPersistenceStarted = deferred();
+	const pluginPersistenceGate = deferred();
+	const pluginRestoreStarted = deferred();
+	const pluginRestoreGate = deferred();
 	const state = pluginState(authoredInstanceId);
 	const project = {
-		sampleRate: 48_000,
+		id: `project-a-${suffix}`, sampleRate: 48_000,
 		masterChannels: 2,
 		tracks: [{
 			id: 'track-1', type: 'audio', enabled: true, effectsActive: true,
 			effects: options.seeded ? [rackEffect(authoredInstanceId)] : [] as Record<string, unknown>[],
+		}, {
+			id: 'track-2', type: 'audio', enabled: true, effectsActive: true,
+			effects: [] as Record<string, unknown>[],
 		}],
 		master: { effectsActive: true, effects: [] as Record<string, unknown>[] },
-		mixer: createDefaultMixerGraphV21([{ id: 'track-1', channelCount: 2 }], 2),
+		mixer: createDefaultMixerGraphV21([
+			{ id: 'track-1', channelCount: 2 }, { id: 'track-2', channelCount: 2 },
+		], 2),
 		nativePluginStates: options.seeded ? [state] : [] as ReturnType<typeof pluginState>[],
 	};
 	const audioContext = {
@@ -203,13 +322,23 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 			pluginBypasses.push(request);
 			return pluginProjection(request.instanceId, { bypassed: request.bypassed });
 		},
-		persistNativePluginState: async ({ instanceId }: Readonly<{ instanceId: string }>) => ({
-			outcome: { status: 'persisted' },
-			projectState: initialPersistenceRefused ? null : pluginState(instanceId),
-		}),
-		restoreNativePluginState: async ({ instanceId }: Readonly<{ instanceId: string }>) => ({
-			projectState: pluginState(instanceId), bytes: new Uint8Array([1]),
-		}),
+		persistNativePluginState: async ({ instanceId }: Readonly<{ instanceId: string }>) => {
+			if (delayPluginPersistence) {
+				pluginPersistenceStarted.resolve();
+				await pluginPersistenceGate.promise;
+				delayPluginPersistence = false;
+			}
+			return { outcome: { status: 'persisted' },
+				projectState: initialPersistenceRefused ? null : pluginState(instanceId) };
+		},
+		restoreNativePluginState: async ({ instanceId }: Readonly<{ instanceId: string }>) => {
+			if (delayPluginRestore) {
+				pluginRestoreStarted.resolve();
+				await pluginRestoreGate.promise;
+				delayPluginRestore = false;
+			}
+			return { projectState: pluginState(instanceId), bytes: new Uint8Array([1]) };
+		},
 		closeNativePluginInstance: async ({ instanceId }: Readonly<{ instanceId: string }>) => {
 			pluginCloses.push(instanceId);
 			if (pluginCloseFailure) {
@@ -228,27 +357,33 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 		pause() {},
 		play: async () => undefined,
 	} as unknown as EnginePublicApi;
+	let selectedTrackId = 'track-1';
 	const controller = {
 		project,
-		getSnapshot: () => ({ selectedTrackId: 'track-1' }),
+		getSnapshot: () => ({ selectedTrackId }),
 		actions: {
 			effects: {
 				update(_scope: string, _trackId: string, effectId: string, changes: Record<string, unknown>) {
-					const effect = project.tracks[0]!.effects.find(({ id }) => id === effectId);
+					const effect = controller.project.tracks[0]!.effects.find(({ id }) => id === effectId);
 					if (effect) Object.assign(effect, changes);
 				},
 			},
 			nativePlugins: {
 				commitBinding(request: Readonly<{
-					operation: 'author' | 'restore'; effect: Readonly<Record<string, unknown>>; state: unknown;
+					operation: 'author' | 'restore'; trackId: string;
+					effect: Readonly<Record<string, unknown>>; state: unknown;
 				}>) {
 					const effectId = typeof request.effect.id === 'string' ? request.effect.id : `effect-${suffix}`;
 					const effect = { id: effectId, type: 'native-plugin', ...request.effect };
-					if (request.operation === 'author') project.tracks[0]!.effects.push(effect);
-					project.nativePluginStates = [request.state as ReturnType<typeof pluginState>];
+					if (request.operation === 'author') {
+						controller.project.tracks.find(({ id }) => id === request.trackId)?.effects.push(effect);
+					}
+					controller.project.nativePluginStates = [request.state as ReturnType<typeof pluginState>];
 					return { effectId };
 				},
-				upsert(next: unknown) { project.nativePluginStates = [next as ReturnType<typeof pluginState>]; },
+				upsert(next: unknown) {
+					controller.project.nativePluginStates = [next as ReturnType<typeof pluginState>];
+				},
 				setBypassed() {},
 			},
 		},
@@ -274,6 +409,28 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 		deferNextAudioOpen: () => {
 			delayAudioOpen = true;
 			return { started: audioOpenStarted.promise, resolve: audioOpenGate.resolve };
+		},
+		deferNextPluginPersistence: () => {
+			delayPluginPersistence = true;
+			return { started: pluginPersistenceStarted.promise, resolve: pluginPersistenceGate.resolve };
+		},
+		deferNextPluginRestore: () => {
+			delayPluginRestore = true;
+			return { started: pluginRestoreStarted.promise, resolve: pluginRestoreGate.resolve };
+		},
+		selectTrack: (trackId: string) => { selectedTrackId = trackId; },
+		switchProject: (preserveNativeState = false) => {
+			const replacement = {
+				...project, id: `project-b-${suffix}`,
+				tracks: [{ ...project.tracks[0]!, id: 'track-b',
+					effects: preserveNativeState ? [...project.tracks[0]!.effects] : [] as Record<string, unknown>[] }],
+				mixer: createDefaultMixerGraphV21([{ id: 'track-b', channelCount: 2 }], 2),
+				nativePluginStates: preserveNativeState
+					? [...project.nativePluginStates] : [] as ReturnType<typeof pluginState>[],
+			};
+			controller.project = replacement;
+			selectedTrackId = 'track-b';
+			return replacement;
 		},
 	};
 }
@@ -357,6 +514,10 @@ function deferred(): Readonly<{ promise: Promise<void>; resolve(): void }> {
 	let settle = (): void => undefined;
 	const promise = new Promise<void>((resolve) => { settle = resolve; });
 	return Object.freeze({ promise, resolve: () => settle() });
+}
+
+function isProjectOwnershipLoss(error: unknown): boolean {
+	return error instanceof Error && error.name === 'AbortError' && /project changed/iu.test(error.message);
 }
 
 function pluginProjection(instanceId: string, overrides: Readonly<Record<string, unknown>> = {}) {

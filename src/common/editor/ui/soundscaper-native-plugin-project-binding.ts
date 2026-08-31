@@ -12,6 +12,7 @@ import {
 } from '../engine/native-effect-latency-v21.ts'
 import type { EnginePublicApi } from '../engine/public-api.ts'
 import { scheduleNativePluginRuntimeLatency } from '../native-plugin-realtime-node.js'
+import type { SoundscaperNativeProjectOperation } from './soundscaper-native-renderer-project-operation.ts'
 
 interface NativePluginController {
 	readonly project?: unknown
@@ -66,15 +67,19 @@ export function createSoundscaperNativePluginProjectBinding(
 	let ledger: NativeEffectLatencyLedgerV21 | null = null
 	let lastBoundary = 0
 	return Object.freeze({
-		insert(instance: NativePluginInstanceProjectionV1, state: NativePluginProjectStateV1): void {
-			const trackId = controller.getSnapshot().selectedTrackId
+		insert(
+			instance: NativePluginInstanceProjectionV1,
+			state: NativePluginProjectStateV1,
+			operation: SoundscaperNativeProjectOperation,
+		): void {
+			const { selectedTrackId: trackId } = operation
 			if (typeof trackId !== 'string' || !trackId) {
 				throw new Error('Select an audio track before instantiating a native plug-in.')
 			}
 			assertProject()
-			const binding = controller.actions.nativePlugins.commitBinding({
+			const binding = operation.commit(() => controller.actions.nativePlugins.commitBinding({
 				operation: 'author', trackId, effect: effectOptions(instance), state,
-			})
+			}))
 			if (typeof binding.effectId !== 'string' || !binding.effectId) {
 				throw new Error('The selected track refused the native plug-in effect.')
 			}
@@ -82,17 +87,24 @@ export function createSoundscaperNativePluginProjectBinding(
 			locations.set(instance.instanceId, location)
 			reconcilePlan(instance.instanceId)
 		},
-		restore(instance: NativePluginInstanceProjectionV1, state: NativePluginProjectStateV1): void {
+		restore(
+			instance: NativePluginInstanceProjectionV1,
+			state: NativePluginProjectStateV1,
+			operation: SoundscaperNativeProjectOperation,
+		): void {
+			operation.assertCurrent()
 			const effect = locateProjectEffect(controller.project, instance)
-			controller.actions.nativePlugins.commitBinding({
+			operation.commit(() => controller.actions.nativePlugins.commitBinding({
 				operation: 'restore', trackId: effect.trackId,
 				effect: effectOptions(instance, effect.effectId), state,
-			})
+			}))
 			const location = createLocation(instance, effect.trackId, effect.effectId)
 			locations.set(instance.instanceId, location)
 			reconcilePlan(instance.instanceId)
 		},
-		persist(state: NativePluginProjectStateV1): void { controller.actions.nativePlugins.upsert(state) },
+		persist(state: NativePluginProjectStateV1, operation: SoundscaperNativeProjectOperation): void {
+			operation.commit(() => controller.actions.nativePlugins.upsert(state))
+		},
 		admitBypassed(instanceId: string, bypassed: boolean): boolean {
 			return bypassed || locations.get(instanceId)?.faulted === true
 		},

@@ -34,6 +34,11 @@ import {
 import { adaptNativeAudioInventory, type NativeAudioInventory } from '../controller/native-audio-inventory.ts';
 import { soundscaperNativeAudioCaptureHasActiveLease } from '../soundscaper-native-audio-capture.ts';
 import { createSoundscaperNativeRendererOperationBarrier } from './soundscaper-native-renderer-operation-barrier.ts';
+import {
+	assertRestoredNativePluginIdentity as assertRestoredIdentity,
+	captureSoundscaperNativeProjectOperation, nativePluginProjectStateKey as stateKey,
+	nextNativePluginGeneration, projectPluginStates, withProjectLatency,
+} from './soundscaper-native-renderer-project-operation.ts';
 import { closeSoundscaperNativePluginVendorUi } from './soundscaper-native-vendor-ui-close.ts';
 
 const PLUGIN_PORT_EVENT = 'soundscaper-native-plugin-rpc-port-v1';
@@ -87,9 +92,14 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	const audioSessionIds = new Set<string>();
 	const instanceIds = new Set<string>();
 	const processorIds = new Set<string>();
+	const suppressedRuntimeEvents = new Set<string>();
 	const restoringIds = new Set<string>();
 	const generations = new Map<string, number>();
 	const activeStateKeys = new Map<string, string>();
+	const releaseRendererPluginRuntime = (instanceId: string): void => {
+		suppressedRuntimeEvents.add(instanceId);
+		try { releaseNativePluginRuntime(instanceId); } finally { suppressedRuntimeEvents.delete(instanceId); }
+	};
 	const offlineInstanceIds = new Set<string>();
 	const ownershipOperations = createSoundscaperNativeRendererOperationBarrier();
 	let offlineSequence = 0;
@@ -116,6 +126,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	const unsubscribe = subscribeNativePluginRuntime((event: Readonly<{
 		instanceId: string; latencyFrames: number | null; state: string;
 	}>) => {
+		if (suppressedRuntimeEvents.has(event.instanceId)) return;
 		const transition = project?.runtime(event.instanceId, event.latencyFrames, event.state);
 		if (transition?.bypassed) {
 			setNativePluginBypassed(event.instanceId, true, transition.contextTime);
@@ -152,7 +163,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			});
 		} catch (error) {
 			if (acquired) await closeOwnedPluginInstance(runtimeInstanceId).catch(() => false);
-			releaseNativePluginRuntime(runtimeInstanceId);
+			releaseRendererPluginRuntime(runtimeInstanceId);
 			throw error;
 		}
 	}));
@@ -220,31 +231,37 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 		instantiateNativePlugin: ownershipOperations.wrap(async (request: Readonly<{
 			installationId: string; instanceId: string | null;
 		}>) => {
+			const projectOperation = captureSoundscaperNativeProjectOperation(options.controller);
 			assertRuntimeOpen();
 			listen();
 			const context = await options.engine.getAudioContext({ resume: true });
 			await ensureNativePluginRealtimeWorklet(context);
+			projectOperation.assertCurrent();
 			const instance = await options.bridge.instantiateNativePlugin({
 				...request, sampleRate: context.sampleRate,
 			});
 			instanceIds.add(instance.instanceId);
 			try {
 				assertRuntimeOpen();
+				projectOperation.assertCurrent();
 				registerNativePluginRuntimeIdentity(instance.instanceId, instance.format, instance);
 				prepareStateNode(context, instance);
 				await waitForNativePluginRuntime(instance.instanceId);
+				projectOperation.assertCurrent();
 				const projected = withTransportLatency(instance);
 				const state = await saveNativePluginRuntimeState(instance.instanceId);
+				projectOperation.assertCurrent();
 				const persisted = await persistThroughMain(instance.instanceId, 1, state);
+				projectOperation.assertCurrent();
 				if (!persisted.projectState) throw new Error('The initial native plug-in state was not persisted.');
 				const projectState = withProjectLatency(persisted.projectState, projected.latencySamples);
-				project?.insert(projected, projectState);
-				activeStateKeys.set(instance.instanceId, stateKey(projectState));
+				project?.insert(projected, projectState, projectOperation);
+				activeStateKeys.set(instance.instanceId, stateKey(projectState, projectOperation.projectId));
 				generations.set(instance.instanceId, 1);
 			}
 			catch (error) {
 				await closeOwnedPluginInstance(instance.instanceId).catch(() => false);
-				releaseNativePluginRuntime(instance.instanceId);
+				releaseRendererPluginRuntime(instance.instanceId);
 				processorIds.delete(instance.instanceId);
 				throw error;
 			}
@@ -258,16 +275,19 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			return instance;
 		},
 		async persistNativePluginState(request: Readonly<{ instanceId: string; generation: number }>) {
+			const projectOperation = captureSoundscaperNativeProjectOperation(options.controller);
 			const state = await saveNativePluginRuntimeState(request.instanceId);
-			const generation = nextGeneration(request.instanceId, request.generation);
+			projectOperation.assertCurrent();
+			const generation = nextNativePluginGeneration(generations, request.instanceId, request.generation);
 			const persisted = await persistThroughMain(request.instanceId, generation, state);
+			projectOperation.assertCurrent();
 			generations.set(request.instanceId, generation);
 			if (persisted.projectState) {
 				const projectState = withProjectLatency(
 					persisted.projectState, nativePluginReportedLatencyFrames(request.instanceId),
 				);
-				project?.persist(projectState);
-				activeStateKeys.set(request.instanceId, stateKey(projectState));
+				project?.persist(projectState, projectOperation);
+				activeStateKeys.set(request.instanceId, stateKey(projectState, projectOperation.projectId));
 			}
 			return persisted;
 		},
@@ -275,19 +295,22 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			instanceId: string; generation: number;
 			stateBody: Readonly<{ kind: 'native-plugin-state'; bodyId: string; byteLength: number; sha256: string }>;
 		}>) {
-			const generation = nextGeneration(request.instanceId, request.generation);
+			const projectOperation = captureSoundscaperNativeProjectOperation(options.controller);
+			const generation = nextNativePluginGeneration(generations, request.instanceId, request.generation);
 			const restored = await (options.bridge.restoreNativePluginState({
 				...request, generation,
 			}) as unknown as Promise<{
 				projectState: NativePluginProjectStateV1; bytes: Uint8Array;
 			}>);
+			projectOperation.assertCurrent();
 			await loadNativePluginRuntimeState(request.instanceId, restored.bytes);
+			projectOperation.assertCurrent();
 			generations.set(request.instanceId, generation);
 			const projectState = withProjectLatency(
 				restored.projectState, nativePluginReportedLatencyFrames(request.instanceId),
 			);
-			project?.persist(projectState);
-			activeStateKeys.set(request.instanceId, stateKey(projectState));
+			project?.persist(projectState, projectOperation);
+			activeStateKeys.set(request.instanceId, stateKey(projectState, projectOperation.projectId));
 			return Object.freeze({ projectState: restored.projectState });
 		},
 		async openNativePluginVendorUi(request: Readonly<{ instanceId: string }>) {
@@ -366,7 +389,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	async function closeOwnedPluginInstance(instanceId: string): Promise<boolean> {
 		const closed = await options.bridge.closeNativePluginInstance({ instanceId });
 		if (!closed) return false;
-		releaseNativePluginRuntime(instanceId);
+		releaseRendererPluginRuntime(instanceId);
 		instanceIds.delete(instanceId);
 		offlineInstanceIds.delete(instanceId);
 		processorIds.delete(instanceId);
@@ -413,7 +436,7 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 		try { await audio.dispose(); }
 		catch (error) { failures.push(error); }
 		for (const instanceId of new Set([...processorIds, ...closingPlugins])) {
-			releaseNativePluginRuntime(instanceId);
+			releaseRendererPluginRuntime(instanceId);
 		}
 		processorIds.clear();
 		generations.clear();
@@ -456,59 +479,72 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 	}
 
 	async function reconcileProjectNativePlugins(): Promise<readonly unknown[]> {
+		const projectOperation = captureSoundscaperNativeProjectOperation(options.controller);
 		assertRuntimeOpen();
 		listen();
-		const states = projectPluginStates(options.controller?.project);
+		const states = projectPluginStates(projectOperation.project);
 		const desired = new Map(states
 			.filter((state) => state.enabled && !state.bypassed && state.continuity === 'live')
-			.map((state) => [state.instanceId, stateKey(state)]));
+			.map((state) => [state.instanceId, stateKey(state, projectOperation.projectId)]));
 		for (const [instanceId, activeKey] of activeStateKeys) {
 			if (desired.get(instanceId) === activeKey) continue;
+			projectOperation.assertCurrent();
 			await closeOwnedPluginInstance(instanceId).catch(() => false);
+			projectOperation.assertCurrent();
 		}
 		if (!states.some((state) => state.enabled && !state.bypassed && state.continuity === 'live')) {
 			return Object.freeze([]);
 		}
 		const context = await options.engine.getAudioContext({ resume: false });
 		await ensureNativePluginRealtimeWorklet(context);
+		projectOperation.assertCurrent();
 		const outcomes = [];
 		for (const state of states) {
 			if (!state.enabled || state.bypassed || state.continuity !== 'live') continue;
 			if (instanceIds.has(state.instanceId)
 				|| restoringIds.has(state.instanceId)) continue;
 			restoringIds.add(state.instanceId);
-			let acquired = false;
+			let acquiredInstanceId: string | null = null;
 			try {
+				projectOperation.assertCurrent();
 				const instance = await options.bridge.instantiateNativePlugin({
 					installationId: installationIdFor(state.binarySha256, state.stablePluginId),
 					instanceId: state.instanceId,
 					sampleRate: context.sampleRate,
 				});
-				acquired = true;
+				acquiredInstanceId = instance.instanceId;
 				instanceIds.add(instance.instanceId);
 				assertRuntimeOpen();
+				projectOperation.assertCurrent();
 				assertRestoredIdentity(instance, state);
 				registerNativePluginRuntimeIdentity(instance.instanceId, instance.format, instance);
 				prepareStateNode(context, instance);
 				await waitForNativePluginRuntime(instance.instanceId);
+				projectOperation.assertCurrent();
 				const projected = withTransportLatency(instance);
 				const restored = await (options.bridge.restoreNativePluginState({
 					instanceId: instance.instanceId, generation: 1, stateBody: state.stateBody,
 				}) as unknown as Promise<{ projectState: NativePluginProjectStateV1; bytes: Uint8Array }>);
+				projectOperation.assertCurrent();
 				await loadNativePluginRuntimeState(instance.instanceId, restored.bytes);
+				projectOperation.assertCurrent();
 				const persistedState = withProjectLatency(restored.projectState, projected.latencySamples);
-				project?.restore(projected, persistedState);
-				activeStateKeys.set(instance.instanceId, stateKey(persistedState));
+				project?.restore(projected, persistedState, projectOperation);
+				activeStateKeys.set(instance.instanceId, stateKey(persistedState, projectOperation.projectId));
 				generations.set(instance.instanceId, 1);
 				outcomes.push(Object.freeze({ instanceId: state.instanceId, status: 'restored' as const }));
 			} catch (error) {
-				if (acquired) {
-					await closeOwnedPluginInstance(state.instanceId).catch(() => false);
-					const transition = project?.runtime(state.instanceId, 0, 'host-lost');
+				if (acquiredInstanceId !== null) {
+					await closeOwnedPluginInstance(acquiredInstanceId).catch(() => false);
+					if (!projectOperation.isCurrent()) throw error;
+					const transition = projectOperation.commit(
+						() => project?.runtime(state.instanceId, 0, 'host-lost'),
+					);
 					setNativePluginBypassed(state.instanceId, true, transition?.contextTime);
-					releaseNativePluginRuntime(state.instanceId);
+					releaseRendererPluginRuntime(state.instanceId);
 					processorIds.delete(state.instanceId);
 				}
+				if (!projectOperation.isCurrent()) throw error;
 				outcomes.push(Object.freeze({
 					instanceId: state.instanceId, status: 'bypassed' as const,
 					detail: error instanceof Error ? error.message : String(error),
@@ -534,10 +570,6 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 		});
 	}
 
-	function nextGeneration(instanceId: string, requested: number): number {
-		return Math.max(requested, (generations.get(instanceId) ?? 0) + 1);
-	}
-
 	function withTransportLatency(
 		instance: NativePluginInstanceProjectionV1,
 	): NativePluginInstanceProjectionV1 {
@@ -549,34 +581,6 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 const TEXT_ENCODER = new TextEncoder();
 function installationIdFor(binarySha256: string, stableId: string): string {
 	return `i${bytesToHex(sha256(TEXT_ENCODER.encode(`${binarySha256}\0${stableId}`))).slice(0, 15)}`;
-}
-
-function projectPluginStates(project: unknown): readonly NativePluginProjectStateV1[] {
-	const states = (project as { readonly nativePluginStates?: unknown } | null)?.nativePluginStates;
-	return Array.isArray(states) ? states as readonly NativePluginProjectStateV1[] : Object.freeze([]);
-}
-
-function withProjectLatency(
-	state: NativePluginProjectStateV1,
-	latencySamples: number,
-): NativePluginProjectStateV1 {
-	return Object.freeze({ ...state, latencySamples });
-}
-
-function stateKey(state: NativePluginProjectStateV1): string {
-	return [state.format, state.stablePluginId, state.binarySha256, state.stateBody.sha256,
-		state.stateBody.byteLength, state.latencySamples, state.enabled, state.bypassed, state.continuity].join('\0');
-}
-
-function assertRestoredIdentity(
-	instance: NativePluginInstanceProjectionV1,
-	state: NativePluginProjectStateV1,
-): void {
-	if (instance.instanceId !== state.instanceId || instance.format !== state.format
-		|| instance.stablePluginId !== state.stablePluginId
-		|| instance.binarySha256 !== state.binarySha256) {
-		throw new Error('The installed native plug-in no longer matches the persisted project identity.');
-	}
 }
 
 function offlineInstanceId(instanceId: string, sequence: number): string {
