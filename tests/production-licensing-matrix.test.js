@@ -111,7 +111,7 @@ test('matrix exactly covers the package-lock v3 non-development runtime closure'
 	}
 	const mediabunny = matrix.npmProductionClosure.find(({ name }) => name === 'mediabunny');
 	assert.equal(mediabunny.role, 'browser-media-container-runtime');
-	assert.deepEqual(mediabunny.artifactSurfaces, ['web-pages-bundle']);
+	assert.deepEqual(mediabunny.artifactSurfaces, ['web-pages-bundle', 'electron-renderer']);
 	const nobleHashes = matrix.npmProductionClosure.find(({ name }) => name === '@noble/hashes');
 	assert.equal(nobleHashes.role, 'application-runtime');
 	assert.deepEqual(nobleHashes.artifactSurfaces, [

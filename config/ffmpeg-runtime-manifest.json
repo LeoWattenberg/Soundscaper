@@ -79,8 +79,8 @@
 		},
 		"licensingMatrix": {
 			"path": "config/production-licensing-matrix.json",
-			"byteLength": 132936,
-			"sha256": "b73a4eef945754da7cc4318be59b78e828e09669f92d2764aa3b0f2d85f24bd7"
+			"byteLength": 132957,
+			"sha256": "16c7e4d1ea8601f5058ff74535a4ea48e4cca68b23a1487b9a5525db3c4e3d10"
 		},
 		"securityMatrix": {
 			"path": "config/production-security-matrix.json",
@@ -128,6 +128,6 @@
 			"desktop-release-policy",
 			"runtime-publication-policy"
 		],
-		"payloadSha256": "576dde9d621d6521832a8a973202be793c4d31faf5defb549ab98d2e686da583"
+		"payloadSha256": "523311d0d3c683fba2f0b2fb3c2cdc3c0d43b5df6736692189efb337c24a47d7"
 	}
 }

@@ -164,7 +164,7 @@
 			"license": "MPL-2.0",
 			"direct": true,
 			"role": "browser-media-container-runtime",
-			"artifactSurfaces": ["web-pages-bundle"],
+			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`mediabunny` 1.55.3",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/editor/browser-webcodecs-aac.ts", "src/common/editor/video-mediabunny-muxer.ts"]
 		},
