@@ -119,6 +119,12 @@ std::wstring appContainerName(const std::wstring &profile)
 	ExitProcess(125u);
 }
 
+bool registryReadAuthority(const std::wstring &profile)
+{
+	const std::wstring brand = profile.substr(0u, profile.find(L':'));
+	return brand == L"soundscaper-professional" || brand == L"framescaper-openfx";
+}
+
 PSID appContainerSid(const std::wstring &profile)
 {
 	const auto name = appContainerName(profile);
@@ -130,6 +136,34 @@ PSID appContainerSid(const std::wstring &profile)
 	if (FAILED(status) || sid == nullptr) {
 		nativeFailure("appcontainer-profile", static_cast<DWORD>(status));
 	}
+	return sid;
+}
+
+void freeSidArray(PSID *sids, DWORD count)
+{
+	if (sids == nullptr) return;
+	for (DWORD index = 0u; index < count; ++index) LocalFree(sids[index]);
+	LocalFree(sids);
+}
+
+PSID registryReadCapabilitySid()
+{
+	PSID *groupSids = nullptr, *capabilitySids = nullptr;
+	DWORD groupCount = 0u, capabilityCount = 0u;
+	if (!DeriveCapabilitySidsFromName(L"registryRead", &groupSids, &groupCount,
+		&capabilitySids, &capabilityCount)) {
+		nativeFailure("registry-read-capability", GetLastError());
+	}
+	if (groupCount != 1u || capabilityCount != 1u
+		|| groupSids == nullptr || capabilitySids == nullptr
+		|| !IsValidSid(groupSids[0]) || !IsValidSid(capabilitySids[0])) {
+		freeSidArray(groupSids, groupCount);
+		freeSidArray(capabilitySids, capabilityCount);
+		nativeFailure("validate-registry-read-capability", ERROR_INVALID_SID);
+	}
+	freeSidArray(groupSids, groupCount);
+	PSID sid = capabilitySids[0];
+	LocalFree(capabilitySids);
 	return sid;
 }
 
@@ -273,11 +307,16 @@ int wmain(int argc, wchar_t **argv)
 		command += L" " + quote(child[childIndex]);
 	}
 	PSID sid = appContainerSid(values.authorityProfile);
+	PSID registryReadSid = registryReadAuthority(values.authorityProfile)
+		? registryReadCapabilitySid() : nullptr;
 	std::vector<uintptr_t> userSidStorage;
 	PSID userSid = currentUserSid(userSidStorage);
 	grantExactAccess(values.executable, sid, userSid, Access::readExecute);
 	for (const auto &grant : values.grants) grantExactAccess(grant.handle, sid, userSid, grant.access);
-	SECURITY_CAPABILITIES capabilities{ sid, nullptr, 0u, 0u };
+	SID_AND_ATTRIBUTES registryRead{ registryReadSid, SE_GROUP_ENABLED };
+	SECURITY_CAPABILITIES capabilities{ sid,
+		registryReadSid == nullptr ? nullptr : &registryRead,
+		registryReadSid == nullptr ? 0u : 1u, 0u };
 	DWORD allApplicationPackagesPolicy = PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
 	const auto crt = crtDescriptors(values.extraInput);
 	std::vector<HANDLE> inherited{ GetStdHandle(STD_INPUT_HANDLE), GetStdHandle(STD_OUTPUT_HANDLE),
@@ -336,7 +375,9 @@ int wmain(int argc, wchar_t **argv)
 	if (ResumeThread(process.hThread) == static_cast<DWORD>(-1)) return 125;
 	WaitForSingleObject(process.hProcess, INFINITE);
 	DWORD exitCode = 125u; GetExitCodeProcess(process.hProcess, &exitCode);
-	CloseHandle(process.hThread); CloseHandle(process.hProcess); CloseHandle(job); FreeSid(sid);
+	CloseHandle(process.hThread); CloseHandle(process.hProcess); CloseHandle(job);
 	DeleteProcThreadAttributeList(attributes);
+	if (registryReadSid != nullptr) LocalFree(registryReadSid);
+	FreeSid(sid);
 	return static_cast<int>(exitCode);
 }
