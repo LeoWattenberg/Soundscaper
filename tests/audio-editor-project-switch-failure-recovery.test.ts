@@ -81,6 +81,27 @@ test('failed export cleanup is detached before failed-target recovery', async ()
 	assert.strictEqual(fixture.getLoadedEngineProject(), next);
 });
 
+test('an initial save failure does not fence an already activated project read-only', async () => {
+	const fixture = createFixture();
+	const next = project('failed-initial-save-project');
+	const saveFailure = new Error('injected initial save failure');
+	fixture.setSaveProject(async () => { throw saveFailure; });
+
+	await assert.rejects(
+		fixture.service.switchProject(next, { save: true }),
+		(error) => error === saveFailure,
+	);
+
+	assert.strictEqual(fixture.getProject(), next);
+	assert.strictEqual(fixture.getLoadedEngineProject(), next);
+	assert.equal(fixture.state.readOnly, false);
+	assert.equal(fixture.getTab(next.id)?.readOnly, false);
+	assert.equal(
+		fixture.readOnlyUpdates.some(({ reason }) => reason === 'project-activation-failed'),
+		false,
+	);
+});
+
 test('terminal disposal during failed provider finalization skips degraded publication', async () => {
 	const fixture = createFixture();
 	const next = project('disposed-failed-project');

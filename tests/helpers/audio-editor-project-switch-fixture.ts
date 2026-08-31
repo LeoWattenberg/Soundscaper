@@ -70,6 +70,7 @@ export function createFixture(
 	const recoveryProjects = new Set<string>();
 	const recoveryDeferred = new Map<string, Array<() => PromiseLike<unknown> | unknown>>();
 	const events: string[] = [];
+	let saveProject = async (value: TestProject) => { events.push(`save-project:${value.id}`); };
 	const statuses: Array<readonly [string, string]> = [];
 	const assignedTracks: string[] = [];
 	const createdProjects: TestProject[] = [];
@@ -257,7 +258,7 @@ export function createFixture(
 				return value;
 			},
 		} : {}),
-		saveProject: async (value: TestProject) => { events.push(`save-project:${value.id}`); },
+		saveProject: (value: TestProject) => saveProject(value),
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => { events.push('sync-meter'); },
 		publishProjectState: () => { events.push('publish'); publishedProjectIds.push(currentProject?.id ?? null); },
@@ -296,6 +297,7 @@ export function createFixture(
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
 		setStopPreview(value: typeof stopPreview) { stopPreview = value; }, setDisposeRenderEngines(value: typeof disposeRenderEngines) { disposeRenderEngines = value; },
 		setSaveNow(value: typeof saveNow) { saveNow = value; },
+		setSaveProject(value: typeof saveProject) { saveProject = value; },
 		setLoadReadOnly(value: boolean) { loadReadOnly = value; },
 		setRecoveryBlocked(value: boolean) { recoveryBlocked = value; },
 		setPendingRecovery(projectId: string) { recoveryProjects.add(projectId); },
