@@ -273,6 +273,11 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 		const projectId = validateSoundscaperDesktopProjectId(String(request.project.id))
 		await this.#catalog.observeCatalog()
 		const witness = this.#ledger.take(projectId)
+		if (witness.kind === 'current'
+			&& sameSoundscaperDesktopProject(request.project, witness.project)) {
+			this.#ledger.restoreCurrent(witness, witness.expectedMetadataRevision)
+			return witness.project
+		}
 		if (witness.kind === 'absent') {
 			if (!allowImportedRevision && Number(request.project.revision) !== 0) {
 				throw new Error('The desktop  absence witness can publish only fresh revision zero.')

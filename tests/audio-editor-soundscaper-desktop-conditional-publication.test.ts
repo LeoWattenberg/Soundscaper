@@ -67,6 +67,11 @@ test('Soundscaper desktop conditional saves publish and compare against main aut
 		const stale = advance(concurrent, 3, 'Stale contender', '2026-08-30T10:03:00.000Z');
 
 		assert.deepEqual(await adapter.createScapeProjectIfAbsent(base), base);
+		const catalogAfterCreate = await session.listProjects();
+		assert.deepEqual(await adapter.saveProject(base), base,
+			'a forced save of the unchanged prepared snapshot is an idempotent publication');
+		assert.deepEqual(await session.listProjects(), catalogAfterCreate,
+			'an idempotent save does not advance the durable catalog revision');
 		assert.deepEqual(await adapter.saveProjectIfCurrent(base, first), first);
 		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), first);
 
