@@ -33,6 +33,7 @@ const REQUIRED_SOURCE_COMBINATIONS = Object.freeze([
 ]);
 
 test.describe('Framescaper v1 recoverable capture', () => {
+	test.describe.configure({ mode: 'default' });
 	registerAudioEditorHooks();
 
 	test('is default-hidden and opens setup without implicit device access', async ({ page, browserName }) => {
