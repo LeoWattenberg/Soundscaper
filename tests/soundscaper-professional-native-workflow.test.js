@@ -103,6 +103,28 @@ test('reusable professional candidate workflow enables Linux user namespaces', a
 		/^ {8}run: sudo sysctl -w kernel\.apparmor_restrict_unprivileged_userns=0$/mu);
 });
 
+test('reusable professional candidate workflow keeps Windows native custody on the profile volume', async () => {
+	const source = await readFile(resolve(ROOT,
+		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
+	const step = /^ {6}- name: Select Windows profile-volume native workspace\n[\s\S]*?(?=^ {6}- )/mu
+		.exec(source)?.[0];
+	assert.ok(step, 'Windows candidate self-tests need profile-volume native custody');
+	assert.match(step, /^ {8}if: runner\.os == 'Windows'$/mu);
+	assert.match(step, /\$env:LOCALAPPDATA/u);
+	assert.match(step, /\$env:SystemDrive/u);
+	assert.match(step, /\[IO\.FileAttributes\]::ReparsePoint/u);
+	assert.match(step, /\$env:GITHUB_RUN_ID-\$env:GITHUB_RUN_ATTEMPT-\$env:SOUNDSCAPER_NATIVE_TARGET/u);
+	assert.match(step, /\$env:GITHUB_ENV/u);
+	assert.match(step, /"TEMP=\$temporaryRoot"/u);
+	assert.match(step, /"TMP=\$temporaryRoot"/u);
+	assert.match(step, /"SOUNDSCAPER_NATIVE_WORK_ROOT=\$workRoot"/u);
+	assert(step.indexOf('$created = New-Item') < step.indexOf('"TEMP=$temporaryRoot"'));
+	assert.match(source,
+		/--work-root="\$\{SOUNDSCAPER_NATIVE_WORK_ROOT:-\$RUNNER_TEMP\/soundscaper-professional-work\}"/u);
+	assert(source.indexOf('- name: Select Windows profile-volume native workspace')
+		< source.indexOf('- name: Build, install, close, self-test, and seal candidate'));
+});
+
 test('dispatch workflow produces and passes one authenticated Soundscaper-only source cache', async () => {
 	const [source, reusable] = await Promise.all([
 		readFile(resolve(ROOT,

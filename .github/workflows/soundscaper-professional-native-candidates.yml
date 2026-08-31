@@ -131,6 +131,34 @@ jobs:
           set -euo pipefail
           node -e 'if (process.arch !== process.env.SOUNDSCAPER_EXPECTED_NODE_ARCH) process.exit(1)'
           test "$(npm --version)" = "12.0.1"
+      - name: Select Windows profile-volume native workspace
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SOUNDSCAPER_NATIVE_TARGET: ${{ matrix.target }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $profile = Get-Item -LiteralPath $env:LOCALAPPDATA
+          if (($profile.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'The Windows local application-data directory is a reparse point.'
+          }
+          if ([IO.Path]::GetPathRoot($profile.FullName).TrimEnd('\') -ne $env:SystemDrive) {
+            throw 'The Windows local application-data directory is outside the profile volume.'
+          }
+          $temporaryName = "soundscaper-native-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-$env:SOUNDSCAPER_NATIVE_TARGET"
+          $temporaryRoot = Join-Path $profile.FullName $temporaryName
+          if (Test-Path -LiteralPath $temporaryRoot) {
+            throw 'The Windows native temporary directory already exists.'
+          }
+          $created = New-Item -ItemType Directory -Path $temporaryRoot
+          if (($created.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw 'The Windows native temporary directory is a reparse point.'
+          }
+          $temporaryRoot = $created.FullName
+          $workRoot = Join-Path $temporaryRoot 'soundscaper-professional-work'
+          "TEMP=$temporaryRoot" >> $env:GITHUB_ENV
+          "TMP=$temporaryRoot" >> $env:GITHUB_ENV
+          "SOUNDSCAPER_NATIVE_WORK_ROOT=$workRoot" >> $env:GITHUB_ENV
       - name: Build, install, close, self-test, and seal candidate
         if: runner.os != 'macOS'
         shell: bash
@@ -140,7 +168,7 @@ jobs:
           --runner-os=${{ runner.os }}
           --runner-arch=${{ runner.arch }}
           --sources="$RUNNER_TEMP/soundscaper-native-sources"
-          --work-root="$RUNNER_TEMP/soundscaper-professional-work"
+          --work-root="${SOUNDSCAPER_NATIVE_WORK_ROOT:-$RUNNER_TEMP/soundscaper-professional-work}"
           --candidate="$RUNNER_TEMP/soundscaper-professional-candidate"
           --packaged-app="$RUNNER_TEMP/soundscaper-packaged-app"
       - name: Require configured Developer ID candidate credentials
