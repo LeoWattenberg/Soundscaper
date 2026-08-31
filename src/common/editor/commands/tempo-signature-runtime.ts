@@ -91,7 +91,7 @@ function setLegacyTempo(
 	const denominator = command.denominator == null
 		? legacy.timeSignature.denominator
 		: Number(command.denominator);
-	validateLegacySignatureValues(numerator, denominator);
+	validateSignatureValues(numerator, denominator, 'tempo.timeSignature');
 
 	if (!hasAuthoritativeMaps(project)) {
 		project.tempo = { bpm, timeSignature: { numerator, denominator }, detected: false };
@@ -338,15 +338,6 @@ function validateSignatureValues(numerator: number, denominator: number, name: s
 	}
 	if (!isPowerOfTwo(denominator)) {
 		throw new RangeError(`${name}.denominator must be a positive safe power of two.`);
-	}
-}
-
-function validateLegacySignatureValues(numerator: number, denominator: number): void {
-	if (!Number.isSafeInteger(numerator) || numerator < 1 || numerator > 32) {
-		throw new RangeError('tempo.timeSignature.numerator must be between 1 and 32.');
-	}
-	if (!isPowerOfTwo(denominator) || denominator > 32) {
-		throw new RangeError('tempo.timeSignature.denominator must be a power of two up to 32.');
 	}
 }
 

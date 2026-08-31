@@ -210,6 +210,20 @@ test('legacy tempo/set updates authoritative map roots and re-derives sample-loc
 	assert.deepEqual(legacyTempo(project).timeSignature, { numerator: 7, denominator: 8 });
 });
 
+test('bpm-only tempo/set preserves a wider authoritative root signature', () => {
+	let project = createCurrentAudioEditorProject({ id: 'wide-root-signature', now: CREATED_AT });
+	project = apply(project, createUpdateSignatureEventCommand('signature-1', {
+		numerator: 40, denominator: 64,
+	}));
+	project = apply(project, { type: 'tempo/set', bpm: 137.5 });
+
+	assert.equal(legacyTempo(project).bpm, 137.5);
+	assert.deepEqual(legacyTempo(project).timeSignature, { numerator: 40, denominator: 64 });
+	assert.deepEqual(signatureEvents(project)[0], {
+		id: 'signature-1', bar: 0, numerator: 40, denominator: 64,
+	});
+});
+
 test('tempo commands reflow musical material, preserve sample anchors, and undo atomically', () => {
 	const project = reflowProject();
 	const before = resolveRuntimeProjectProjection(project);
