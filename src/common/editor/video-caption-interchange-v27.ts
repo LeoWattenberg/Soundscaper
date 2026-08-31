@@ -28,6 +28,7 @@ import {
 import { exportImscCaptionTrackV1, importImscCaptionTrackV1 } from './video-caption-imsc-v27.ts';
 
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
+const WEBVTT_RESERVED_CUE_ID = /^(?:NOTE|REGION|STYLE)$/u;
 const SRT_TIMING = /^(\d+):([0-5]\d):([0-5]\d),(\d{3}) --> (\d+):([0-5]\d):([0-5]\d),(\d{3})$/u;
 const VTT_TIMING = /^(?:(\d+):)?([0-5]\d):([0-5]\d)\.(\d{3}) --> (?:(\d+):)?([0-5]\d):([0-5]\d)\.(\d{3})(.*)$/u;
 const PASSIVE_ENTITIES: Readonly<Record<string, string>> = Object.freeze({
@@ -108,9 +109,10 @@ export function exportCaptionInterchangeV1(
 		{ id: track.id, sequenceId: track.sequenceId, name: track.name, language: track.language },
 	)];
 	reportUnreferencedDefinitions(track, format, losses);
+	const webVttIdentities = format === 'webvtt' ? createWebVttCueIdentities(track, losses) : null;
 	const blocks = track.cues.map((cue, index) => format === 'srt'
 		? exportSrtCue(cue, index, sampleRate, losses)
-		: exportWebVttCue(cue, track, sampleRate, losses));
+		: exportWebVttCue(cue, webVttIdentities?.get(cue.id) ?? cue.id, track, sampleRate, losses));
 	const text = format === 'srt'
 		? `${blocks.join('\n\n')}${blocks.length > 0 ? '\n' : ''}`
 		: `WEBVTT\n\n${blocks.join('\n\n')}${blocks.length > 0 ? '\n' : ''}`;
@@ -254,6 +256,7 @@ function exportSrtCue(
 
 function exportWebVttCue(
 	cue: VideoCaptionCueV1,
+	identifier: string,
 	track: VideoCaptionTrackV1,
 	sampleRate: number,
 	losses: VideoCaptionInterchangeLossV1[],
@@ -282,7 +285,38 @@ function exportWebVttCue(
 		losses.push(captionLoss('speaker-omitted', `cues.${cue.id}.speakerId`, 'WebVTT voice annotations cannot preserve a multi-line speaker name.', { id: speaker.id }));
 	}
 	if (cue.words.length > 0) losses.push(captionLoss('word-timing-omitted', `cues.${cue.id}.words`, 'WebVTT cannot preserve exact sample-frame word timing.', { count: cue.words.length }));
-	return `${cue.id}\n${timing}\n${body}`;
+	return `${identifier}\n${timing}\n${body}`;
+}
+
+function createWebVttCueIdentities(
+	track: VideoCaptionTrackV1,
+	losses: VideoCaptionInterchangeLossV1[],
+): ReadonlyMap<string, string> {
+	const used = new Set(track.cues
+		.filter(({ id }) => !WEBVTT_RESERVED_CUE_ID.test(id))
+		.map(({ id }) => id));
+	const identities = new Map<string, string>();
+	let count = 0;
+	for (const cue of track.cues) {
+		if (!WEBVTT_RESERVED_CUE_ID.test(cue.id)) {
+			identities.set(cue.id, cue.id);
+			continue;
+		}
+		let identifier: string;
+		do {
+			count += 1;
+			identifier = `soundscaper-cue-${String(count)}`;
+		} while (used.has(identifier));
+		used.add(identifier);
+		identities.set(cue.id, identifier);
+		losses.push(captionLoss(
+			'cue-identity-normalized',
+			`cues.${cue.id}.id`,
+			'WebVTT reserves this cue identifier as a global block keyword.',
+			{ source: cue.id, id: identifier },
+		));
+	}
+	return identities;
 }
 
 function exportMillisecondTiming(

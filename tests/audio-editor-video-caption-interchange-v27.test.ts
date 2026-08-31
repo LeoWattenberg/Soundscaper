@@ -276,6 +276,36 @@ test('WebVTT writes ordinary cue line breaks literally and reports unrepresentab
 	assert.equal(imported.track.cues[1]?.text, 'first\nlast');
 });
 
+test('WebVTT normalizes reserved cue identifiers into importable unique identities', () => {
+	const ids = ['NOTE', 'STYLE', 'REGION', 'soundscaper-cue-1'];
+	const source = captionTrack({
+		styles: [], regions: [], speakers: [],
+		cues: ids.map((id, index) => ({
+			schemaVersion: 1 as const,
+			id,
+			startFrame: index * 48_000,
+			endFrame: (index + 1) * 48_000,
+			text: id,
+			styleId: null,
+			regionId: null,
+			speakerId: null,
+			words: [],
+		})),
+	});
+	const exported = exportVideoCaptionTrackV1(source, { format: 'webvtt', sampleRate: 48_000 });
+
+	assert.doesNotMatch(exported.text, /(?:^|\n\n)(?:NOTE|STYLE|REGION)\n/u);
+	assert.deepEqual(
+		exported.losses.filter(({ code }) => code === 'cue-identity-normalized').map(({ details }) => details.source),
+		['NOTE', 'STYLE', 'REGION'],
+	);
+	const imported = importVideoCaptionTrackV1(exported.text, {
+		format: 'webvtt', sampleRate: 48_000, ...IMPORT_IDENTITY,
+	});
+	assert.equal(imported.track.cues.length, ids.length);
+	assert.equal(new Set(imported.track.cues.map(({ id }) => id)).size, ids.length);
+});
+
 test('SRT export writes literal plain text and reports unrepresentable line structure', () => {
 	// SRT has no entity syntax: a standard player renders '&amp;' and '&#10;'
 	// literally on screen, so cue bodies must export verbatim. Blank, leading,
