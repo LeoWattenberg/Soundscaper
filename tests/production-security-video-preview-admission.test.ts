@@ -119,8 +119,8 @@ test('disposable video-preview admission remains narrowly evidenced and document
 	);
 	assert.match(
 		previewScope,
-		/selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Guided-local sign-off,\s+resource\s+qualification,\s+and external qualification remain open/isu,
-		`${name} must distinguish the implemented V27 proxy lifecycle from its open qualification`,
+		/selected Framescaper V27 activation\s+candidate locally implements.*general editorial proxy lifecycle.*Optional owner QA may record\s+observations but does not gate or activate either route.*Neither.*pre-encode end-to-end working-set.*process-RSS.*GC-headroom coverage/isu,
+		`${name} must separate optional owner QA from the proxy lifecycle's unverified resource behavior`,
 	);
 	assert.match(
 		previewScope,

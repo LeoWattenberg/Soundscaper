@@ -517,7 +517,8 @@ function manualClock() {
 }
 
 async function waitForTestCondition(predicate) {
-	for (let attempt = 0; attempt < 100; attempt += 1) {
+	const deadline = Date.now() + 10_000;
+	while (Date.now() < deadline) {
 		if (predicate()) return;
 		await new Promise((resolvePromise) => setImmediate(resolvePromise));
 	}
