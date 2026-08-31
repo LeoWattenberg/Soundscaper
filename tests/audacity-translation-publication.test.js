@@ -124,7 +124,10 @@ test('R2 requests refuse transport compression so ETags stay strong validators',
 		const client = new R2Client();
 		await withFetch((url, init) => {
 			seen.push(new Headers(init.headers));
-			return new Response('{}', { status: 200, headers: { etag: '"strong"' } });
+			return new Response('{}', {
+				status: 200,
+				headers: { etag: '"strong"', 'content-length': '2' },
+			});
 		}, () => client.get('runtime/translations/audacity/4/latest.json', 1024));
 	});
 	assert.equal(seen.length, 1);
