@@ -52,6 +52,8 @@ jobs:
       - name: Discover and verify the latest upstream artifact
         id: source
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           node scripts/manage-audacity-translation-release.mjs discover \

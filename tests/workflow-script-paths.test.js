@@ -37,3 +37,12 @@ test('the translation sync workflow reads the committed locale tags from their o
 	assert.ok(Array.isArray(module.COMMITTED_LOCALE_TAGS) && module.COMMITTED_LOCALE_TAGS.includes('en'),
 		`${specifier} must export the committed locale tags the staged release is verified against`);
 });
+
+test('the translation discovery request authenticates with the workflow token', async () => {
+	const workflow = await readFile(new URL('sync-audacity-translations.yml', WORKFLOW_ROOT), 'utf8');
+	const discoveryStep = / {6}- name: Discover and verify the latest upstream artifact\n(?<step>[\s\S]*?)(?=\n {6}- name:)/u
+		.exec(workflow)?.groups?.step;
+
+	assert.ok(discoveryStep, 'the translation workflow must retain its upstream discovery step');
+	assert.match(discoveryStep, / {8}env:\n {10}GITHUB_TOKEN: \$\{\{ github\.token \}\}\n/u);
+});
