@@ -60,7 +60,10 @@ test('Guided reaction acceptance publishes labels before retaining authenticated
 		assertProject: (token) => assert.deepEqual(token,
 			{ id: project.id, revision: project.revision }),
 		renderDryTrackRange: async () => [new Float32Array(48_000)],
-		commit: (command) => { commands.push(command); },
+		commit: (command) => {
+			commands.push(command);
+			project.revision += 1;
+		},
 	});
 	const result = await runtime.acceptGuidedWorkflowResult({
 		workflow,
