@@ -10,23 +10,37 @@ const ROOT = resolve(import.meta.dirname, '..');
 test('reusable professional candidate workflow closes all five Soundscaper targets', async () => {
 	const source = await readFile(resolve(ROOT,
 		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	for (const [target, runner, platform, arch, nodeArch] of [
-		['linux-x64', 'ubuntu-24.04', 'linux', 'x64', 'x64'],
-		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64', 'arm64'],
-		['mac-arm64', 'macos-15', 'mac', 'arm64', 'arm64'],
-		['win-x64', 'windows-2025', 'win', 'x64', 'x64'],
-		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'arm64'],
+	for (const [target, runner, platform, arch, toolingNodeArch, nodeArch] of [
+		['linux-x64', 'ubuntu-24.04', 'linux', 'x64', 'x64', 'x64'],
+		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64', 'arm64', 'arm64'],
+		['mac-arm64', 'macos-15', 'mac', 'arm64', 'arm64', 'arm64'],
+		['win-x64', 'windows-2025', 'win', 'x64', 'x64', 'x64'],
+		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'x64', 'arm64'],
 	]) {
 		const row = [
 			`target: ${target}`, `runner: ${runner}`, `platform: ${platform}`,
-			`arch: ${arch}`, `node_arch: ${nodeArch}`,
+			`arch: ${arch}`, `tooling_node_arch: ${toolingNodeArch}`,
+			`node_arch: ${nodeArch}`,
 		].join('\\n\\s+');
 		assert.equal([...source.matchAll(new RegExp(row, 'gu'))].length, 1);
 	}
 	assert.match(source, /workflow_call:/u);
 	assert.match(source, /npm run milestone5a:native-candidate/u);
 	assert.match(source, /npm run milestone5a:promote-native-candidate/u);
-	assert.match(source, /architecture: \$\{\{ matrix\.node_arch \}\}/u);
+	assert.match(source, /architecture: \$\{\{ matrix\.tooling_node_arch \}\}/u);
+	assert.match(source,
+		/name: Activate target-native Node\.js[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*architecture: \$\{\{ matrix\.node_arch \}\}[\s\S]*package-manager-cache: false/u);
+	assert.match(source,
+		/name: Pin target-native npm[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*npm install --global npm@12\.0\.1/u);
+	assert.match(source,
+		/name: Verify target-native Node\.js[\s\S]*SOUNDSCAPER_EXPECTED_NODE_ARCH: \$\{\{ matrix\.node_arch \}\}[\s\S]*process\.arch !== process\.env\.SOUNDSCAPER_EXPECTED_NODE_ARCH[\s\S]*npm --version/u);
+	const packagedBuild = source.indexOf('- name: Build target packaged Electron utility-process harness');
+	const targetRuntime = source.indexOf('- name: Activate target-native Node.js');
+	const runtimeCheck = source.indexOf('- name: Verify target-native Node.js');
+	const candidateBuild = source.indexOf('- name: Build, install, close, self-test, and seal candidate');
+	assert(packagedBuild >= 0 && packagedBuild < targetRuntime
+		&& targetRuntime < runtimeCheck && runtimeCheck < candidateBuild,
+	'the x64 tooling phase must finish before target-native candidate orchestration');
 	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.platform \}\}/u);
 	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.arch \}\}/u);
 	assert.match(source,
@@ -49,7 +63,7 @@ test('reusable professional candidate workflow closes all five Soundscaper targe
 		'production-capable candidate commands must not hard-code ad-hoc signing');
 	assert.doesNotMatch(source, /framescaper/iu);
 	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
-	assert.equal([...source.matchAll(/npm install --global npm@12\.0\.1/gu)].length, 2);
+	assert.equal([...source.matchAll(/npm install --global npm@12\.0\.1/gu)].length, 3);
 	for (const pin of [
 		'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd',
 		'actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f',
@@ -89,25 +103,26 @@ test('reusable professional candidate workflow enables Linux user namespaces', a
 		/^ {8}run: sudo sysctl -w kernel\.apparmor_restrict_unprivileged_userns=0$/mu);
 });
 
-test('reusable professional candidate workflow bypasses only the unavailable Windows ARM64 workerd installer', async () => {
+test('reusable professional candidate workflow keeps Windows native custody on the profile volume', async () => {
 	const source = await readFile(resolve(ROOT,
 		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	const standardStep = /^ {6}- name: Install candidate dependencies\n[\s\S]*?(?=^ {6}- )/mu
+	const step = /^ {6}- name: Select Windows profile-volume native workspace\n[\s\S]*?(?=^ {6}- )/mu
 		.exec(source)?.[0];
-	assert.ok(standardStep, 'supported candidate targets need the ordinary install path');
-	assert.match(standardStep, /^ {8}if: matrix\.target != 'win-arm64'$/mu);
-	assert.match(standardStep, /^ {8}run: npm ci$/mu);
-
-	const windowsArm64Step = /^ {6}- name: Install Windows ARM64 candidate dependencies\n[\s\S]*?(?=^ {6}- )/mu
-		.exec(source)?.[0];
-	assert.ok(windowsArm64Step, 'Windows ARM64 needs an install path without workerd');
-	assert.match(windowsArm64Step, /^ {8}if: matrix\.target == 'win-arm64'$/mu);
-	assert.match(windowsArm64Step, /^ {8}shell: bash$/mu);
-	assert.match(windowsArm64Step, /^ {10}npm ci --ignore-scripts$/mu);
-	assert.match(windowsArm64Step, /^ {10}npm rebuild electron-winstaller esbuild$/mu);
-	assert.match(windowsArm64Step, /^ {10}npm run postinstall$/mu);
-	assert.doesNotMatch(windowsArm64Step, /npm rebuild[^\n]*workerd/u);
-	assert.equal([...source.matchAll(/npm ci --ignore-scripts/gu)].length, 1);
+	assert.ok(step, 'Windows candidate self-tests need profile-volume native custody');
+	assert.match(step, /^ {8}if: runner\.os == 'Windows'$/mu);
+	assert.match(step, /\$env:LOCALAPPDATA/u);
+	assert.match(step, /\$env:SystemDrive/u);
+	assert.match(step, /\[IO\.FileAttributes\]::ReparsePoint/u);
+	assert.match(step, /\$env:GITHUB_RUN_ID-\$env:GITHUB_RUN_ATTEMPT-\$env:SOUNDSCAPER_NATIVE_TARGET/u);
+	assert.match(step, /\$env:GITHUB_ENV/u);
+	assert.match(step, /"TEMP=\$temporaryRoot"/u);
+	assert.match(step, /"TMP=\$temporaryRoot"/u);
+	assert.match(step, /"SOUNDSCAPER_NATIVE_WORK_ROOT=\$workRoot"/u);
+	assert(step.indexOf('$created = New-Item') < step.indexOf('"TEMP=$temporaryRoot"'));
+	assert.match(source,
+		/--work-root="\$\{SOUNDSCAPER_NATIVE_WORK_ROOT:-\$RUNNER_TEMP\/soundscaper-professional-work\}"/u);
+	assert(source.indexOf('- name: Select Windows profile-volume native workspace')
+		< source.indexOf('- name: Build, install, close, self-test, and seal candidate'));
 });
 
 test('dispatch workflow produces and passes one authenticated Soundscaper-only source cache', async () => {
