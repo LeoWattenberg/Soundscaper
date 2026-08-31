@@ -509,7 +509,6 @@ function secureSessionId(): string {
 function assertOptions(options: FramescaperVideoProxyActionsOptions): void {
 	if (!options?.owner || typeof options.owner !== 'object'
 		|| typeof options.createScheduler !== 'function'
-		|| typeof options.createAttachExistingScheduler !== 'function'
 		|| (options.previewTrust !== undefined && typeof options.previewTrust !== 'function')
 		|| !options.cleanup || typeof options.cleanup.prepareReplacement !== 'function'
 		|| typeof options.cleanup.cancel !== 'function' || typeof options.cleanup.settle !== 'function'

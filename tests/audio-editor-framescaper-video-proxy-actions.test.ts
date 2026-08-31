@@ -446,6 +446,20 @@ test('cancelling an existing-body attachment disposes its exact scheduler', asyn
 	assert.equal(disposals, 1);
 });
 
+test('an omitted attach-existing scheduler keeps construction valid and refuses only that action', async () => {
+	const owner = ownerFixture(null);
+	const runtime = createFramescaperVideoProxyActions({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
+		createSessionId: () => 'generation-only-session',
+		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
+	});
+	await assert.rejects(
+		() => runtime.attachExisting('video-source', new Blob(['proxy'])),
+		/This runtime cannot attach an existing video proxy/u,
+	);
+});
+
 function completedScheduler(): ReturnType<NonNullable<Parameters<
 	typeof createFramescaperVideoProxyActions
 >[0]['createAttachExistingScheduler']>> {
