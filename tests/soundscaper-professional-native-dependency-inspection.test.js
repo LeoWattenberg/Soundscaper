@@ -42,10 +42,10 @@ test('Linux dependency inspection reads both GNU readelf RPATH labels', () => {
 `), { imports: [], rpaths: ['/reviewed/runtime'] });
 });
 
-test('Windows dependency closure admits the exact JUCE GUI system libraries', async () => {
+test('Windows dependency closure admits the exact JUCE system libraries', async () => {
 	const imports = [
-		'COMCTL32.dll', 'D2D1.dll', 'D3D11.dll', 'DCOMP.dll',
-		'DWRITE.dll', 'DXGI.dll', 'SHCORE.dll', 'VFW32.dll',
+		'api-ms-win-shcore-scaling-l1-1-1.DLL', 'COMCTL32.dll', 'D2D1.dll', 'D3D11.dll', 'DCOMP.dll',
+		'DWRITE.dll', 'DXGI.dll', 'SHCORE.dll', 'VFW32.dll', 'WININET.dll',
 	];
 	const inspections = await validateSoundscaperProfessionalNativeDependencyClosure({
 		target: 'win-x64',
