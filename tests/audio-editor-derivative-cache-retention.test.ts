@@ -156,6 +156,8 @@ test('prune rolls back both derivative stores before OPFS disposal when a later 
 	});
 	indexedDB.seedRecord(databaseName, 'projects', {
 		id: 'compact-on-prune',
+		schemaFamily: 'soundscaper',
+		schemaVersion: 1,
 		sources: [{ id: 'stale-source' }],
 		clips: [],
 	});
