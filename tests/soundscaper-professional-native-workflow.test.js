@@ -89,6 +89,27 @@ test('reusable professional candidate workflow enables Linux user namespaces', a
 		/^ {8}run: sudo sysctl -w kernel\.apparmor_restrict_unprivileged_userns=0$/mu);
 });
 
+test('reusable professional candidate workflow bypasses only the unavailable Windows ARM64 workerd installer', async () => {
+	const source = await readFile(resolve(ROOT,
+		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
+	const standardStep = /^ {6}- name: Install candidate dependencies\n[\s\S]*?(?=^ {6}- )/mu
+		.exec(source)?.[0];
+	assert.ok(standardStep, 'supported candidate targets need the ordinary install path');
+	assert.match(standardStep, /^ {8}if: matrix\.target != 'win-arm64'$/mu);
+	assert.match(standardStep, /^ {8}run: npm ci$/mu);
+
+	const windowsArm64Step = /^ {6}- name: Install Windows ARM64 candidate dependencies\n[\s\S]*?(?=^ {6}- )/mu
+		.exec(source)?.[0];
+	assert.ok(windowsArm64Step, 'Windows ARM64 needs an install path without workerd');
+	assert.match(windowsArm64Step, /^ {8}if: matrix\.target == 'win-arm64'$/mu);
+	assert.match(windowsArm64Step, /^ {8}shell: bash$/mu);
+	assert.match(windowsArm64Step, /^ {10}npm ci --ignore-scripts$/mu);
+	assert.match(windowsArm64Step, /^ {10}npm rebuild electron-winstaller esbuild$/mu);
+	assert.match(windowsArm64Step, /^ {10}npm run postinstall$/mu);
+	assert.doesNotMatch(windowsArm64Step, /npm rebuild[^\n]*workerd/u);
+	assert.equal([...source.matchAll(/npm ci --ignore-scripts/gu)].length, 1);
+});
+
 test('dispatch workflow produces and passes one authenticated Soundscaper-only source cache', async () => {
 	const [source, reusable] = await Promise.all([
 		readFile(resolve(ROOT,
