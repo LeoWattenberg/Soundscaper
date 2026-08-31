@@ -1,15 +1,10 @@
-name: Qualification metrics
+name: Diagnostic metrics
 
-# The four opt-in metric specs self-skip unless their environment flag is set,
-# so nothing in the ordinary Quality run produces an M1, M3, M4 or M4B-2 number.
-# This job runs them once a night on a hosted runner and keeps the evidence.
-# `docs/quality-budgets.md` admits correctness counters and exact media
-# comparisons in ordinary CI and holds timing and heap budgets to a fixed
-# environment, so the collector fails the run on a parity regression and records
-# the preview-cadence and long-form timings as observations.
+# These opt-in Playwright workloads measure deterministic render correctness and
+# useful performance trends. Correctness regressions fail the job; timings and
+# heap values are observations tied to this runner, not release certification.
 on:
   schedule:
-    # Offset from the 02:17 desktop nightly so the two do not contend for runners.
     - cron: '41 3 * * *'
   workflow_dispatch:
 
@@ -18,12 +13,12 @@ permissions:
   packages: read
 
 concurrency:
-  group: qualification-metrics-${{ github.ref }}
+  group: diagnostic-metrics-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   hosted-metrics:
-    name: Hosted CI qualification metrics
+    name: Hosted CI diagnostics
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -49,22 +44,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build the application the collector measures
+      - name: Build Soundscaper
         run: npm run build
 
-      - name: Build and verify the Framescaper browser peer
+      - name: Build and verify Framescaper
         run: npm run build:browser:framescaper
 
-      - name: Collect the hosted qualification metrics
-        run: npm run quality:collect:ci-metrics
+      - name: Collect hosted diagnostics
+        run: npm run quality:collect:ci-diagnostics
 
-      - name: Upload the hosted qualification evidence
+      - name: Upload diagnostic reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: hosted-ci-qualification-metrics
+          name: hosted-ci-diagnostics
           path: |
-            test-results/ci-qualification-metrics/
+            test-results/ci-diagnostics/
             playwright-report/
           if-no-files-found: warn
           retention-days: 30

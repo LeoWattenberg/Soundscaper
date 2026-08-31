@@ -56,7 +56,7 @@
 		"provision:milestone-5-native-sources": "node scripts/provision-milestone-5-native-sources.mjs",
 		"test:reference:interchange": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-*-reference-conformance.test.ts",
 		"test:reference:wav-385mib": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/audio-editor-export-direct-wav-reference.test.ts",
-		"quality:collect:ci-metrics": "node scripts/collect-ci-qualification-metrics.mjs",
+		"quality:collect:ci-diagnostics": "node scripts/collect-ci-diagnostics.mjs",
 		"quality:collect:m2-direct-wav": "node scripts/collect-m2-direct-wav-quality.mjs",
 		"test:reference:scape-8gib": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-scape-sparse-full-import-integration.test.ts",
 		"quality:collect:m2-scape-8gib": "node scripts/collect-m2-scape-8gib-quality.mjs",
