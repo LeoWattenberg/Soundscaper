@@ -9,6 +9,7 @@ import {
 	isMixerGraphV21Surface,
 	mixerTrackSurfaceRouteV21,
 } from '../../mixer-graph-surface-v21.ts';
+import { resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
 import {
 	folderOwnedMixerBusIds,
 	mixerAudibilityAuthority,
@@ -21,8 +22,18 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 	const tracks = (project?.tracks || []).filter((track) => track.type === 'audio');
 	const groups = project?.mixer?.groups || [];
 	const sends = project?.mixer?.sends || [];
+	const terminalWidths = isMixerGraphV21Surface(project?.mixer)
+		? resolveTerminalChannelWidths(project, project.masterChannels)
+		: null;
 	const routes = isMixerGraphV21Surface(project?.mixer)
-		? Object.fromEntries(tracks.map((track) => [track.id, mixerTrackSurfaceRouteV21(project.mixer, track.id)]))
+		? Object.fromEntries(tracks.map((track) => [track.id, mixerTrackSurfaceRouteV21(
+			project.mixer,
+			track.id,
+			{
+				sourceChannels: terminalWidths?.tracks.get(track.id) || project.masterChannels,
+				masterChannels: project.masterChannels,
+			},
+		)]))
 		: project?.mixer?.routes || {};
 	// A folder that contains audio owns its group: the folder holds that bus's
 	// name, mute, solo, and existence, and the graph refuses to edit them on the

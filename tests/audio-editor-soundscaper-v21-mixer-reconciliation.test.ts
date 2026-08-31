@@ -317,3 +317,42 @@ test('a hand-shaped map is still preserved across a width change', () => {
 		swapped,
 	);
 });
+
+test('compact mixer commands refuse canonical-ID edges with advanced routing semantics', () => {
+	const base = createSoundscaperProject({
+		id: 'advanced-routes', title: 'Advanced routes', now: NOW,
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'main-sequence',
+	});
+	const routed = applySoundscaperProjectCommand(base, {
+		type: 'batch', commands: [
+			{ type: 'mixer/bus-add', busType: 'group', bus: { id: 'dialogue', name: 'Dialogue' } },
+			{ type: 'mixer/route-update', trackId: 'voice', changes: { groupId: 'dialogue' } },
+			{ type: 'mixer/bus-add', busType: 'send', bus: { id: 'reverb', name: 'Reverb' } },
+			{ type: 'mixer/route-update', trackId: 'voice', changes: { sends: { reverb: 0.5 } } },
+		],
+	} as AudioEditorCommand);
+	const advanced = applySoundscaperProjectCommand(routed, {
+		type: 'mixer-graph/set', expected: routed.mixer,
+		mixer: {
+			...routed.mixer,
+			edges: routed.mixer.edges.map((edge) => {
+				if (edge.id === 'assignment:track:voice:mixer-node:dialogue') {
+					return { ...edge, position: 'pre-fader' };
+				}
+				if (edge.id === 'send:track:voice:mixer-node:reverb') {
+					return { ...edge, enabled: false };
+				}
+				return edge;
+			}),
+		},
+	} as AudioEditorCommand);
+
+	assert.throws(() => applySoundscaperProjectCommand(advanced, {
+		type: 'mixer/route-update', trackId: 'voice', changes: { groupId: null },
+	} as AudioEditorCommand), /advanced assignment/iu);
+	assert.throws(() => applySoundscaperProjectCommand(advanced, {
+		type: 'mixer/route-update', trackId: 'voice', changes: { sends: { reverb: 0.25 } },
+	} as AudioEditorCommand), /advanced send/iu);
+});

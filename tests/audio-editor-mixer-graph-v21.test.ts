@@ -99,6 +99,52 @@ test('the compact mixer reads only canonical V21 assignment and send edges', () 
 	assert.deepEqual(mixerTrackSurfaceRouteV21(advanced, 'voice').editableSendIds, []);
 });
 
+test('the compact mixer does not expose canonical-ID edges with advanced routing semantics', () => {
+	const base = createDefaultMixerGraphV21([{ id: 'voice', channelCount: 2 }]);
+	const graph = normalizeMixerGraphV21({
+		...base,
+		groups: [strip('dialogue')],
+		sends: [strip('reverb')],
+		edges: [
+			...base.edges.filter(({ source }) => source.kind !== 'track'),
+			{
+				...edge(
+					'assignment:track:voice:mixer-node:dialogue',
+					{ kind: 'track', id: 'voice' },
+					{ kind: 'mixer-node', id: 'dialogue' },
+				),
+				position: 'pre-fader',
+			},
+			edge(
+				'assignment:mixer-node:dialogue:master',
+				{ kind: 'mixer-node', id: 'dialogue' },
+				{ kind: 'master' },
+			),
+			edge(
+				'assignment:mixer-node:reverb:master',
+				{ kind: 'mixer-node', id: 'reverb' },
+				{ kind: 'master' },
+			),
+			{
+				...edge(
+					'send:track:voice:mixer-node:reverb',
+					{ kind: 'track', id: 'voice' },
+					{ kind: 'mixer-node', id: 'reverb' },
+					{ kind: 'send', level: 0.5 },
+				),
+				enabled: false,
+			},
+		],
+	});
+
+	assert.deepEqual(mixerTrackSurfaceRouteV21(graph, 'voice'), {
+		groupId: null,
+		sends: {},
+		groupEditable: false,
+		editableSendIds: [],
+	});
+});
+
 test('normalizes nested buses, multiple assignments, sends, cues, VCAs, outputs, sidechains, and channel maps', () => {
 	const graph = normalizeMixerGraphV21({
 		schemaVersion: 1,

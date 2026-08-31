@@ -9,6 +9,10 @@ import {
 	type MixerNodeKindV21,
 	type MixerStripV21,
 } from '../common/editor/mixer-graph-v21.ts';
+import {
+	isMixerTrackSurfaceAssignmentV21,
+	isMixerTrackSurfaceSendV21,
+} from '../common/editor/mixer-graph-surface-v21.ts';
 import { resolveTerminalChannelWidths } from '../common/editor/terminal-channel-widths.ts';
 
 type LegacyMixerCommandV21 = Extract<AudioEditorCommand, {
@@ -146,17 +150,19 @@ function updateRoute(
 	}
 	const widths = resolveTerminalChannelWidths(project as never, project.masterChannels).tracks;
 	const sourceChannels = widths.get(command.trackId) ?? project.masterChannels;
+	const surfaceWidths = { sourceChannels, masterChannels: project.masterChannels };
 	let edges = [...graph.edges];
 	if (Object.hasOwn(changes, 'groupId')) {
-		const noncanonical = edges.filter((edge) => edge.kind === 'assignment'
-			&& edge.source.kind === 'track' && edge.source.id === command.trackId
-			&& !isCanonicalTrackAssignment(edge));
-		if (noncanonical.length > 0) {
+		const assignments = edges.filter((edge) => edge.kind === 'assignment'
+			&& edge.source.kind === 'track' && edge.source.id === command.trackId);
+		if (assignments.length > 1 || assignments.some((edge) => (
+			!isMixerTrackSurfaceAssignmentV21(graph, edge, command.trackId, surfaceWidths)
+		))) {
 			throw new RangeError('This track has advanced assignment edges; edit it in the routing graph.');
 		}
 		edges = edges.filter((edge) => !(edge.kind === 'assignment'
 			&& edge.source.kind === 'track' && edge.source.id === command.trackId
-			&& isCanonicalTrackAssignment(edge)));
+			&& isMixerTrackSurfaceAssignmentV21(graph, edge, command.trackId, surfaceWidths)));
 		const groupId = nullableId(changes.groupId, 'mixer route groupId');
 		const destination = groupId === null
 			? { kind: 'master' as const }
@@ -173,7 +179,9 @@ function updateRoute(
 			const matching = edges.filter((edge) => edge.kind === 'send'
 				&& edge.source.kind === 'track' && edge.source.id === command.trackId
 				&& edge.destination.kind === 'mixer-node' && edge.destination.id === sendId);
-			if (matching.some((edge) => edge.id !== sendEdgeId(command.trackId, sendId))) {
+			if (matching.length > 1 || matching.some((edge) => (
+				!isMixerTrackSurfaceSendV21(graph, edge, command.trackId, sendId, surfaceWidths)
+			))) {
 				throw new RangeError('This track has advanced send edges; edit it in the routing graph.');
 			}
 			edges = edges.filter((edge) => !matching.includes(edge));
@@ -244,13 +252,6 @@ function edgeTouchesNode(edge: MixerEdgeV21, nodeId: string): boolean {
 	return edge.destination.kind === 'effect-sidechain'
 		&& edge.destination.strip.kind === 'mixer-node'
 		&& edge.destination.strip.id === nodeId;
-}
-
-function isCanonicalTrackAssignment(edge: MixerEdgeV21): boolean {
-	if (edge.kind !== 'assignment' || edge.source.kind !== 'track'
-		|| (edge.destination.kind !== 'master' && edge.destination.kind !== 'mixer-node')) return false;
-	const suffix = edge.destination.kind === 'master' ? 'master' : `mixer-node:${edge.destination.id}`;
-	return edge.id === `assignment:track:${edge.source.id}:${suffix}`;
 }
 
 function sendEdgeId(trackId: string, sendId: string): string {
