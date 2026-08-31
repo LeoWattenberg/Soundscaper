@@ -140,7 +140,7 @@ function speakersForSegments(
 			}
 		}
 		for (const [index, overlap] of overlaps) {
-			const selectedId = selectedIds[index];
+			const selectedId = selectedIds[index] ?? null;
 			const selectedOverlap = selectedOverlaps[index]!;
 			if (overlap > selectedOverlap
 				|| (overlap === selectedOverlap
