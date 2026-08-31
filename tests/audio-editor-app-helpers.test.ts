@@ -111,9 +111,12 @@ test('workspace shortcuts never escape an open dialog into editor actions', () =
 	try {
 		const dialog = document.createElement('section');
 		dialog.setAttribute('role', 'dialog');
+		dialog.setAttribute('aria-modal', 'true');
 		const panel = document.createElement('div');
+		const background = document.createElement('button');
 		dialog.appendChild(panel);
 		dom.container.appendChild(dialog as never);
+		dom.container.appendChild(background as never);
 		let calls = 0;
 		let prevented = false;
 		const event = {
@@ -129,6 +132,11 @@ test('workspace shortcuts never escape an open dialog into editor actions', () =
 			preventDefault: () => { prevented = true; },
 		};
 		assert.equal(isWorkspaceModalShortcutTarget(panel), true);
+		assert.equal(
+			isWorkspaceModalShortcutTarget(background),
+			true,
+			'an open modal owns shortcuts before its deferred focus lands',
+		);
 		handleWorkspaceKeyboard(
 			event,
 			{ preferences: { shortcuts: { undo: ['Ctrl+Z'] } } },

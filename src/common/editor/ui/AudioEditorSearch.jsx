@@ -14,8 +14,12 @@ const SEARCH_GROUPS = Object.freeze([
 const text = (copy, key, fallback) => copy?.[key] || fallback;
 
 function isModalShortcutTarget(target) {
-	return typeof target?.closest === 'function'
-		&& target.closest('[role="dialog"]') !== null;
+	if (typeof target?.closest !== 'function') return false;
+	if (target.closest('[role="dialog"]') !== null) return true;
+	const body = target.ownerDocument?.body;
+	return typeof body?.querySelectorAll === 'function'
+		&& [...body.querySelectorAll('[aria-modal="true"]')]
+			.some((candidate) => candidate.getAttribute('role') === 'dialog');
 }
 
 function formatCount(copy, count) {

@@ -90,8 +90,13 @@ export function handleWorkspaceKeyboard(
 }
 
 export function isWorkspaceModalShortcutTarget(target: EventTarget | null): boolean {
-	return typeof (target as Element | null)?.closest === 'function'
-		&& (target as Element).closest('[role="dialog"]') !== null;
+	const element = target as Element | null;
+	if (typeof element?.closest !== 'function') return false;
+	if (element.closest('[role="dialog"]') !== null) return true;
+	const body = element.ownerDocument?.body;
+	return typeof body?.querySelectorAll === 'function'
+		&& [...body.querySelectorAll('[aria-modal="true"]')]
+			.some((candidate) => candidate.getAttribute('role') === 'dialog');
 }
 
 export function videoNavigationShortcut(
