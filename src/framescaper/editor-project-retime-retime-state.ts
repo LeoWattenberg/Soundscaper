@@ -82,8 +82,20 @@ export function conformFramescaperVideoRetimeSnapshotsForReprobeRetime(
 	command: DataRecord,
 	snapshots: readonly FramescaperVideoRetimeSnapshotRetime[],
 ): readonly FramescaperVideoRetimeSnapshotRetime[] {
-	if (command.type !== 'source/reprobe' || snapshots.length === 0) return snapshots;
-	const sourceId = identifier(command.sourceId, 'source/reprobe.sourceId');
+	if (snapshots.length === 0) return snapshots;
+	let conformed = snapshots;
+	for (const sourceId of reprobedSourceIds(command)) {
+		conformed = conformReprobedSource(before, commanded, sourceId, conformed);
+	}
+	return conformed;
+}
+
+function conformReprobedSource(
+	before: DataRecord,
+	commanded: DataRecord,
+	sourceId: string,
+	snapshots: readonly FramescaperVideoRetimeSnapshotRetime[],
+): readonly FramescaperVideoRetimeSnapshotRetime[] {
 	const oldRate = videoSourceRate(before, sourceId);
 	const newRate = videoSourceRate(commanded, sourceId);
 	if (!oldRate || !newRate) return snapshots;
@@ -113,6 +125,20 @@ export function conformFramescaperVideoRetimeSnapshotsForReprobeRetime(
 			retimeMap: Object.freeze({ ...snapshot.retimeMap, points: Object.freeze(points) }),
 		});
 	}));
+}
+
+function reprobedSourceIds(command: DataRecord): ReadonlySet<string> {
+	const result = new Set<string>();
+	const visit = (candidate: DataRecord): void => {
+		if (candidate.type === 'source/reprobe') {
+			result.add(identifier(candidate.sourceId, 'source/reprobe.sourceId'));
+		} else if (candidate.type === 'batch') {
+			if (!Array.isArray(candidate.commands)) throw new TypeError('batch.commands must be an array.');
+			candidate.commands.forEach((child, index) => visit(record(child, `batch.commands[${String(index)}]`)));
+		}
+	};
+	visit(command);
+	return result;
 }
 
 function videoSourceRate(project: DataRecord, sourceId: string): Readonly<{ num: number; den: number }> | null {
