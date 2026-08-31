@@ -13,7 +13,6 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../common/editor/project-feature-requirements.ts';
 import {
-	editorProjectRuntimeProfileDefinition,
 	type EditorProjectRuntimeProfile,
 } from '../common/editor/project-runtime-profile.ts';
 import {
@@ -23,6 +22,8 @@ import {
 import {
 	reconcileFramescaperProjectFeatureRequirementsSequence,
 } from './editor-project-feature-requirements-sequence.ts';
+import { FRAMESCAPER_COMPOSITION_PROJECT_FEATURE_CAPABILITY_PROFILE } from
+	'./editor-project-feature-capability-profile-composition.ts';
 import { FRAMESCAPER_SEQUENCE_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { assertFramescaperProjectCompositionProfile } from './editor-domain-runtime-profile.ts';
 
@@ -103,8 +104,9 @@ export function createFramescaperProjectFeatureCompatibilityServiceComposition(
 	profile: EditorProjectRuntimeProfile | unknown,
 ): FramescaperProjectFeatureCompatibilityServiceComposition {
 	assertFramescaperProjectCompositionProfile(profile);
-	const runtime = editorProjectRuntimeProfileDefinition(profile);
-	const capability = editorProjectFeatureCapabilityProfileDefinition(runtime.capabilityProfile);
+	const capability = editorProjectFeatureCapabilityProfileDefinition(
+		FRAMESCAPER_COMPOSITION_PROJECT_FEATURE_CAPABILITY_PROFILE,
+	);
 	const knownFeatureIds = new Set(capability.registrations.map(({ featureId }) => featureId));
 	const availableFeatureIds = new Set(capability.registrations
 		.filter(({ available }) => available)

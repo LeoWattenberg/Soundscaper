@@ -12,10 +12,11 @@ import {
 	type ProjectFeatureRequirementsReport,
 } from '../common/editor/project-feature-requirements.ts';
 import {
-	editorProjectRuntimeProfileDefinition,
 	type EditorProjectRuntimeProfile,
 } from '../common/editor/project-runtime-profile.ts';
 import { assertFramescaperProjectSequenceProfile } from './editor-domain-runtime-profile.ts';
+import { FRAMESCAPER_SEQUENCE_PROJECT_FEATURE_CAPABILITY_PROFILE } from
+	'./editor-project-feature-capability-profile-sequence.ts';
 
 export const FRAMESCAPER_MULTICAMERA_FEATURE_ID =
 	'org.soundscaper.capability.multicamera' as const;
@@ -158,8 +159,9 @@ export function createFramescaperProjectFeatureCompatibilityServiceSequence(
 	profile: EditorProjectRuntimeProfile | unknown,
 ): FramescaperProjectFeatureCompatibilityServiceSequence {
 	assertFramescaperProjectSequenceProfile(profile);
-	const runtime = editorProjectRuntimeProfileDefinition(profile);
-	const capability = editorProjectFeatureCapabilityProfileDefinition(runtime.capabilityProfile);
+	const capability = editorProjectFeatureCapabilityProfileDefinition(
+		FRAMESCAPER_SEQUENCE_PROJECT_FEATURE_CAPABILITY_PROFILE,
+	);
 	const knownFeatureIds = new Set(capability.registrations.map(({ featureId }) => featureId));
 	const availableFeatureIds = new Set(capability.registrations
 		.filter(({ available }) => available)
