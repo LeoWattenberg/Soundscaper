@@ -25,17 +25,15 @@ export function applyInheritedFramescaperProjectCommandVisual(
 	const visualTimelineClipIds = ownedIds(
 		(project as unknown as Readonly<Record<string, unknown>>).clips, isVisual,
 	);
-	const visualSelection = selectedVisualClipIds(command, visualTimelineClipIds);
-	const inheritedCommand = visualSelection === null ? command : {
-		...(command as Readonly<Record<string, unknown>>),
-		clipIds: (command as Readonly<{ readonly clipIds: readonly unknown[] }>).clipIds
-			.filter((id) => !visualTimelineClipIds.has(String(id))),
-	};
+	const currentSelection = record(project.selection, 'selection');
+	const selectedVisualClipIds = new Set(Array.isArray(currentSelection.clipIds)
+		? currentSelection.clipIds.map(String).filter((id) => visualTimelineClipIds.has(id)) : []);
+	const visualSelection = projectInheritedVisualSelection(command, visualTimelineClipIds);
 	const foundation = framescaperProjectTransitionsFoundationVisual(profile, project);
 	const applied = applyFramescaperProjectCommandTransitions(
 		FRAMESCAPER_TRANSITIONS_PROJECT_CANDIDATE_PROFILE,
 		foundation,
-		inheritedCommand as never,
+		visualSelection.command as never,
 		options,
 	) as unknown as Record<string, unknown>;
 	const original = structuredClone(project) as unknown as Record<string, unknown>;
@@ -74,12 +72,12 @@ export function applyInheritedFramescaperProjectCommandVisual(
 	applied.videoMaskMattes = retainedMaskMattes(original.videoMaskMattes, sourceIds);
 	applied.videoFreezeFallbacks = records(original.videoFreezeFallbacks, 'videoFreezeFallbacks')
 		.filter(({ renderedSourceId }) => sourceIds.has(String(renderedSourceId)));
-	if (visualSelection !== null) {
-		const selection = record(applied.selection, 'selection');
-		selection.clipIds = visualSelection.filter(
-			(id) => !visualTimelineClipIds.has(id) || retainedVisualTimelineClipIds.has(id),
-		);
-	}
+	const selection = record(applied.selection, 'selection');
+	const selectedVisual = visualSelection.selectedClipIds ?? selectedVisualClipIds;
+	selection.clipIds = [
+		...(Array.isArray(selection.clipIds) ? selection.clipIds.map(String) : []),
+		...[...selectedVisual].filter((id) => retainedVisualTimelineClipIds.has(id)),
+	];
 	normalizeFramescaperProjectVisualModelsVisual(applied);
 	applied.featureRequirements = reconcileFramescaperProjectFeatureRequirementsVisual(profile, applied);
 	validateFramescaperProjectVisual(profile, applied);
@@ -136,15 +134,28 @@ function retainedMaskMattes(
 	return retained;
 }
 
-function selectedVisualClipIds(
+interface InheritedVisualSelectionProjection {
+	readonly command: unknown;
+	readonly selectedClipIds: ReadonlySet<string> | null;
+}
+
+function projectInheritedVisualSelection(
 	command: unknown,
 	visualIds: ReadonlySet<string>,
-): string[] | null {
-	if (!command || typeof command !== 'object' || Array.isArray(command)) return null;
-	const value = command as Readonly<Record<string, unknown>>;
-	if (value.type !== 'selection/set' || !Array.isArray(value.clipIds)
-		|| !value.clipIds.some((id) => visualIds.has(String(id)))) return null;
-	return value.clipIds.map(String);
+): InheritedVisualSelectionProjection {
+	let selectedClipIds: ReadonlySet<string> | null = null;
+	const visit = (candidate: unknown): unknown => {
+		if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return candidate;
+		const value = candidate as Readonly<Record<string, unknown>>;
+		if (value.type === 'batch' && Array.isArray(value.commands)) {
+			return { ...value, commands: value.commands.map(visit) };
+		}
+		if (value.type !== 'selection/set' || !Array.isArray(value.clipIds)) return value;
+		const clipIds = value.clipIds.map(String);
+		selectedClipIds = new Set(clipIds.filter((id) => visualIds.has(id)));
+		return { ...value, clipIds: clipIds.filter((id) => !visualIds.has(id)) };
+	};
+	return Object.freeze({ command: visit(command), selectedClipIds });
 }
 
 function mergeCollections(
