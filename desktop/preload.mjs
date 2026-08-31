@@ -2,10 +2,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const PRELOAD_PRODUCT_ID = (globalThis.process?.argv ?? []).includes('--soundscaper-product=framescaper')
 	? 'framescaper' : 'soundscaper';
+const SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper'
+	&& (globalThis.process?.argv ?? []).includes('--soundscaper-soak-debug');
 /* Keys main may hold but the renderer may never see, whatever the shape. */
 const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
 const CHANNELS = Object.freeze({
-	environment: 'soundscaper:v1:environment', chooseFiles: 'soundscaper:v1:files:choose', releaseRead: 'soundscaper:v1:files:release', chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose', loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load', reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile', releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release', chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose', loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load', reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile', releaseLinkedOriginal: 'soundscaper:v1:linked-original:release', chooseSaveTarget: 'soundscaper:v1:save:choose', beginWrite: 'soundscaper:v1:save:begin', writeChunk: 'soundscaper:v1:save:chunk', patchFinalPrefix: 'soundscaper:v1:save:prefix', finishWrite: 'soundscaper:v1:save:finish', abortWrite: 'soundscaper:v1:save:abort',
+	environment: 'soundscaper:v1:environment', soakDebugProcessMetrics: 'soundscaper:v1:soak-debug:process-metrics', chooseFiles: 'soundscaper:v1:files:choose', releaseRead: 'soundscaper:v1:files:release', chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose', loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load', reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile', releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release', chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose', loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load', reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile', releaseLinkedOriginal: 'soundscaper:v1:linked-original:release', chooseSaveTarget: 'soundscaper:v1:save:choose', beginWrite: 'soundscaper:v1:save:begin', writeChunk: 'soundscaper:v1:save:chunk', patchFinalPrefix: 'soundscaper:v1:save:prefix', finishWrite: 'soundscaper:v1:save:finish', abortWrite: 'soundscaper:v1:save:abort',
 	helperProbeAvailability: 'soundscaper:v1:helper:probe-availability',
 	helperProbeBegin: 'soundscaper:v1:helper:probe-begin',
 	helperProbeAwait: 'soundscaper:v1:helper:probe-await',
@@ -50,6 +52,7 @@ const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2; const MAX_SCAPE_
 const SHA256 = /^[a-f0-9]{64}$/u;
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
+	...(SOAK_DEBUG_ENABLED ? { readSoakProcessMetrics: () => ipcRenderer.invoke(CHANNELS.soakDebugProcessMetrics).then(soakDebugProcessMetrics) } : {}),
 	chooseFiles: (options) => ipcRenderer.invoke(CHANNELS.chooseFiles, {
 		purpose: text(options?.purpose, 24),
 		multiple: options?.multiple === true,
@@ -228,6 +231,14 @@ function subscribe(channel, listener, sanitize) {
 	const handler = (_event, value) => listener(sanitize(value));
 	ipcRenderer.on(channel, handler);
 	return () => ipcRenderer.removeListener(channel, handler);
+}
+function soakDebugProcessMetrics(value) {
+	nativeRecord(value, ['schemaVersion', 'workingSetBytes', 'processes'], 'soak-debug process metrics');
+	if (value.schemaVersion !== 1 || !Array.isArray(value.processes) || value.processes.length > 128) throw new TypeError('Invalid soak-debug process metrics');
+	const processTypes = ['Browser', 'Tab', 'Utility', 'Zygote', 'Sandbox helper', 'GPU', 'Pepper Plugin', 'Pepper Plugin Broker', 'Unknown'];
+	const processes = value.processes.map((entry) => { nativeRecord(entry, ['pid', 'type', 'workingSetBytes'], 'soak-debug process'); const pid = safeInteger(entry.pid), workingSetBytes = safeInteger(entry.workingSetBytes); if (pid < 1 || !processTypes.includes(entry.type)) throw new TypeError('Invalid soak-debug process metric'); return Object.freeze({ pid, type: entry.type, workingSetBytes }); });
+	const workingSetBytes = safeInteger(value.workingSetBytes); if (processes.some((entry, index) => index > 0 && entry.pid <= processes[index - 1].pid) || processes.reduce((sum, entry) => sum + entry.workingSetBytes, 0) !== workingSetBytes) throw new TypeError('Invalid soak-debug process metric total');
+	return Object.freeze({ schemaVersion: 1, workingSetBytes, processes: Object.freeze(processes) });
 }
 function sanitizeReadDescriptor(value) {
 	const id = opaqueId(value?.id, 64);

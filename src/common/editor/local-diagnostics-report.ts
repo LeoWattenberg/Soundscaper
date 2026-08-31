@@ -65,6 +65,7 @@ export function buildLocalDiagnosticsReport(input: Readonly<{
 	productId: unknown;
 	runtime: Readonly<LocalDiagnosticsRuntimeIdentity>;
 	capabilities: unknown;
+	streaming: unknown;
 	snapshot: unknown;
 	diagnostics: unknown;
 }>): Readonly<LocalDiagnosticsReport> {
@@ -127,6 +128,7 @@ export function buildLocalDiagnosticsReport(input: Readonly<{
 				: 'not-applicable',
 			renderQueue: 'not-observed',
 		},
+		streaming: streamingSnapshot(input.streaming),
 	};
 	return deepFreeze(report);
 }
@@ -169,6 +171,14 @@ function capabilitySnapshot(value: unknown) {
 		id,
 		available: data(capabilities, id) === true,
 	}));
+}
+
+function streamingSnapshot(value: unknown) {
+	const streaming = record(value);
+	return Object.freeze({
+		streamUnderrunFrames: nonnegativeInteger(data(streaming, 'streamUnderrunFrames')) ?? 0,
+		streamedPlaybackObserved: data(streaming, 'streamedPlaybackObserved') === true,
+	});
 }
 
 function normalizedErrors(value: unknown, fallbackTimestamp: string) {
@@ -326,7 +336,7 @@ function deepFreeze<Value>(value: Value): Readonly<Value> {
 function assertLocalDiagnosticsReport(value: unknown): asserts value is LocalDiagnosticsReport {
 	const report = exactRecord(value, [
 		'kind', 'schemaVersion', 'generatedAt', 'product', 'versions', 'environment',
-		'capabilities', 'errors', 'storage', 'library', 'recovery',
+		'capabilities', 'errors', 'storage', 'library', 'recovery', 'streaming',
 	], 'report');
 	assertEqual(data(report, 'kind'), 'soundscaper-local-diagnostics', 'report kind');
 	assertEqual(data(report, 'schemaVersion'), 1, 'report schema version');
@@ -346,6 +356,7 @@ function assertLocalDiagnosticsReport(value: unknown): asserts value is LocalDia
 	assertStorage(data(report, 'storage'));
 	assertLibrary(data(report, 'library'));
 	assertRecovery(data(report, 'recovery'));
+	assertStreaming(data(report, 'streaming'));
 }
 
 function assertEnvironment(value: unknown): void {
@@ -437,6 +448,14 @@ function assertRecovery(value: unknown): void {
 		assertEnum(data(recovery, key), RECOVERY_STATES, `${key} recovery state`);
 	}
 	assertEqual(data(recovery, 'renderQueue'), 'not-observed', 'render queue state');
+}
+
+function assertStreaming(value: unknown): void {
+	const streaming = exactRecord(
+		value, ['streamUnderrunFrames', 'streamedPlaybackObserved'], 'streaming',
+	);
+	assertCount(data(streaming, 'streamUnderrunFrames'), 'stream underrun frames');
+	assertBoolean(data(streaming, 'streamedPlaybackObserved'), 'streamed playback observation');
 }
 
 function assertProjectVersion(value: unknown): void {

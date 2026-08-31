@@ -64,6 +64,7 @@ test('desktop shutdown reports all cleanup failures and upgrades a normal exit',
 test('desktop project library uses appData normally and requires an isolated smoke root', () => {
 	const applicationDataPath = resolve('test-desktop-application-data');
 	const smokeAppDataPath = resolve('test-desktop-smoke-application-data');
+	const soakAppDataPath = resolve('test-desktop-soak-application-data');
 	const ignoredAppDataPath = resolve('test-desktop-ignored-application-data');
 	assert.equal(resolveDesktopProjectLibraryAppData({
 		applicationDataPath,
@@ -77,6 +78,21 @@ test('desktop project library uses appData normally and requires an isolated smo
 			`--soundscaper-smoke-app-data=${smokeAppDataPath}`,
 		],
 	}), smokeAppDataPath);
+	assert.equal(resolveDesktopProjectLibraryAppData({
+		applicationDataPath,
+		argv: [
+			'/opt/Soundscaper',
+			'--soundscaper-soak-debug',
+			`--soundscaper-soak-debug-app-data=${soakAppDataPath}`,
+		],
+	}), soakAppDataPath);
+	assert.throws(
+		() => resolveDesktopProjectLibraryAppData({
+			applicationDataPath,
+			argv: ['/opt/Soundscaper', '--soundscaper-soak-debug'],
+		}),
+		/soak debug.*isolated appData/iu,
+	);
 	assert.throws(
 		() => resolveDesktopProjectLibraryAppData({
 			applicationDataPath,

@@ -32,7 +32,7 @@ test.describe('local diagnostic reports', () => {
 			}).click();
 			for (const heading of [
 				'Versions', 'Environment', 'Capabilities', 'Recent typed errors',
-				'Storage and library', 'Recovery journals',
+				'Storage and library', 'Recovery journals', 'Streamed playback',
 			]) await expect(dialog.getByRole('heading', { name: heading, exact: true })).toBeVisible();
 
 			const downloadEvent = page.waitForEvent('download');
@@ -49,8 +49,12 @@ test.describe('local diagnostic reports', () => {
 			const report = JSON.parse(text);
 			expect(Object.keys(report)).toEqual([
 				'kind', 'schemaVersion', 'generatedAt', 'product', 'versions', 'environment',
-				'capabilities', 'errors', 'storage', 'library', 'recovery',
+				'capabilities', 'errors', 'storage', 'library', 'recovery', 'streaming',
 			]);
+			expect(report.streaming).toEqual({
+				streamUnderrunFrames: 0,
+				streamedPlaybackObserved: false,
+			});
 			expect(report.kind).toBe('soundscaper-local-diagnostics');
 			expect(report.schemaVersion).toBe(1);
 			expect(report.product).toEqual({ id: productId });

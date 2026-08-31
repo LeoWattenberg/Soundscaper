@@ -113,6 +113,7 @@ test('the diagnostic report is an exact read-only allowlist without project or e
 			navigator: { platform: 'Linux x86_64', userAgent: 'Firefox/128.0 private-sentinel' },
 		}),
 		capabilities: { project: true, audioRecording: true, privateCapability: true },
+		streaming: { streamUnderrunFrames: 256, streamedPlaybackObserved: true },
 		snapshot,
 		diagnostics: {
 			recentErrors: [{
@@ -129,8 +130,12 @@ test('the diagnostic report is an exact read-only allowlist without project or e
 	assert.deepEqual(snapshot, before, 'building a report must not mutate editor state');
 	assert.deepEqual(Object.keys(report), [
 		'kind', 'schemaVersion', 'generatedAt', 'product', 'versions', 'environment',
-		'capabilities', 'errors', 'storage', 'library', 'recovery',
+		'capabilities', 'errors', 'storage', 'library', 'recovery', 'streaming',
 	]);
+	assert.deepEqual(report.streaming, {
+		streamUnderrunFrames: 256,
+		streamedPlaybackObserved: true,
+	});
 	assert.deepEqual(report.product, { id: 'soundscaper' });
 	assert.deepEqual(report.versions.project, { family: 'soundscaper', version: 1 });
 	assert.equal(report.library.projectCount, 1);
@@ -179,6 +184,7 @@ test('serialization rejects unknown fields and over-retained error journals', ()
 			isDesktop: false, locale: 'en', navigator: {},
 		}),
 		capabilities: {},
+		streaming: { streamUnderrunFrames: 0, streamedPlaybackObserved: false },
 		snapshot: { project: null, projects: [], projectTabs: [], storage: {} },
 		diagnostics: { recentErrors: [] },
 	});

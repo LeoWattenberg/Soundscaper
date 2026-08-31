@@ -6,6 +6,8 @@ const SMOKE_MODE_ARGUMENT = '--soundscaper-smoke';
 const SMOKE_APP_DATA_PREFIX = '--soundscaper-smoke-app-data=';
 const NIGHTLY_TESTS_BASE_URL_PREFIX = '--soundscaper-nightly-tests-base-url=';
 const NIGHTLY_TESTS_APP_DATA_PREFIX = '--soundscaper-nightly-tests-app-data=';
+const SOAK_DEBUG_ARGUMENT = '--soundscaper-soak-debug';
+const SOAK_DEBUG_APP_DATA_PREFIX = '--soundscaper-soak-debug-app-data=';
 const CLEANUP_FAILURE_EXIT_CODE = 1;
 const MAXIMUM_EXIT_CODE = 255;
 
@@ -86,6 +88,13 @@ export function resolveDesktopProjectLibraryAppData(
 			throw new TypeError('Desktop nightly tests require exactly one loopback URL and isolated appData path');
 		}
 		return absolutePath(nightlyRoots[0], 'nightly tests appData');
+	}
+	if (options.argv.includes(SOAK_DEBUG_ARGUMENT)) {
+		const soakRoots = valuesForPrefix(options.argv, SOAK_DEBUG_APP_DATA_PREFIX);
+		if (soakRoots.length !== 1) {
+			throw new TypeError('Desktop soak debug requires exactly one isolated appData path');
+		}
+		return absolutePath(soakRoots[0], 'soak debug appData');
 	}
 	if (!options.argv.includes(SMOKE_MODE_ARGUMENT)) return applicationDataPath;
 	const smokeRoots = valuesForPrefix(options.argv, SMOKE_APP_DATA_PREFIX);

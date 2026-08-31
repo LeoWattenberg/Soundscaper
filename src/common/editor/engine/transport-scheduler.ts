@@ -8,6 +8,10 @@ import { configureMasterLoudnessMeterChannelCount } from '../surround-monitoring
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
 import {
+	recordWebCoreStreamPlayback,
+	recordWebCoreStreamUnderrun,
+} from '../web-core-stream-diagnostics.ts';
+import {
 	addNode,
 	connect,
 } from './audio-node-utils.ts';
@@ -266,6 +270,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 				chunkStreamClient: this[ENGINE_GET_CHUNK_STREAM_CLIENT](),
 				chunkAudioNodeFactory: this.chunkAudioNodeFactory,
 				signal: graph.abortController.signal,
+				onStreamUnderrun: recordWebCoreStreamUnderrun,
 				deferStartUntilPrimed: true,
 			});
 		} catch (error) {
@@ -273,6 +278,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			throw error;
 		}
 		if (this.graph !== graph) return schedule.contextStartTime;
+		recordWebCoreStreamPlayback(schedule.streamedClips);
 		scheduledTime = schedule.contextStartTime;
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
@@ -431,7 +437,9 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				chunkStreamClient: this[ENGINE_GET_CHUNK_STREAM_CLIENT](),
 				chunkAudioNodeFactory: this.chunkAudioNodeFactory,
 				signal: graph.abortController.signal,
-			}).catch((error) => this[ENGINE_HANDLE_SCHEDULING_ERROR](error));
+				onStreamUnderrun: recordWebCoreStreamUnderrun,
+			}).then(({ streamedClips }) => recordWebCoreStreamPlayback(streamedClips))
+				.catch((error) => this[ENGINE_HANDLE_SCHEDULING_ERROR](error));
 			this.loopScheduleTime += durationSeconds;
 			scheduledIterations += 1;
 		}

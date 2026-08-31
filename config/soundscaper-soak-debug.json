@@ -1,0 +1,114 @@
+{
+	"schemaVersion": 1,
+	"seed": "soundscaper-soak-debug-v1",
+	"profiles": {
+		"quick": {
+			"maximumDurationSeconds": 600,
+			"warmupSeconds": 60,
+			"sampleIntervalSeconds": 30
+		},
+		"extended": {
+			"durationSeconds": 28800,
+			"warmupSeconds": 1800,
+			"sampleIntervalSeconds": 300
+		}
+	},
+	"operations": [
+		{
+			"id": "media-import",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 900,
+			"extendedOffsetSeconds": 0,
+			"timeoutSeconds": 90
+		},
+		{
+			"id": "edit-history",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 300,
+			"extendedOffsetSeconds": 60,
+			"timeoutSeconds": 60
+		},
+		{
+			"id": "simulated-record-playback",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 1200,
+			"extendedOffsetSeconds": 120,
+			"timeoutSeconds": 90
+		},
+		{
+			"id": "autosave-reload",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 900,
+			"extendedOffsetSeconds": 180,
+			"timeoutSeconds": 90
+		},
+		{
+			"id": "wav-render",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 1800,
+			"extendedOffsetSeconds": 300,
+			"timeoutSeconds": 120
+		},
+		{
+			"id": "foreign-project-custody",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 1800,
+			"extendedOffsetSeconds": 360,
+			"timeoutSeconds": 180
+		},
+		{
+			"id": "decoded-media-probe",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 1800,
+			"extendedOffsetSeconds": 420,
+			"timeoutSeconds": 90
+		},
+		{
+			"id": "streamed-playback-diagnostics",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 3600,
+			"extendedOffsetSeconds": 480,
+			"timeoutSeconds": 240
+		},
+		{
+			"id": "desktop-persistent-delivery-recovery",
+			"targets": ["desktop"],
+			"extendedCadenceSeconds": 3600,
+			"extendedOffsetSeconds": 540,
+			"timeoutSeconds": 240
+		},
+		{
+			"id": "interrupted-take-recovery",
+			"targets": ["browser", "desktop"],
+			"extendedCadenceSeconds": 28800,
+			"extendedOffsetSeconds": 26400,
+			"timeoutSeconds": 180
+		}
+	],
+	"thresholds": [
+		{ "metricId": "retainedJsHeapDeltaBytes", "comparison": "lte", "value": 134217728, "unit": "bytes" },
+		{ "metricId": "postWarmupHeapSlopeMibPerHour", "comparison": "lte", "value": 4, "unit": "MiB/hour" },
+		{ "metricId": "electronWorkingSetDeltaBytes", "comparison": "lte", "value": 536870912, "unit": "bytes" },
+		{ "metricId": "decodedMediaAvDriftMaximumMs", "comparison": "lte", "value": 20, "unit": "ms" },
+		{ "metricId": "decodedVideoDroppedFrames", "comparison": "eq", "value": 0, "unit": "frames" },
+		{ "metricId": "failedAutosaves", "comparison": "eq", "value": 0, "unit": "count" }
+	],
+	"unavailableMeasurements": [
+		{
+			"metricId": "microphoneFidelity",
+			"reason": "A synthetic browser input cannot measure physical microphone fidelity."
+		},
+		{
+			"metricId": "nativeAudioLoss",
+			"reason": "Native audio loss is unavailable unless a real native audio session is active."
+		},
+		{
+			"metricId": "editorTimelineSynchronization",
+			"reason": "Decoded-media scheduling is not a measurement of editor timeline synchronization."
+		}
+	],
+	"artifacts": {
+		"maximumFailureArtifacts": 5,
+		"maximumFailureArtifactBytes": 2097152
+	}
+}

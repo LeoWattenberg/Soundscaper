@@ -160,7 +160,7 @@ export function soundscaperPreloadSource(sourceValue) {
 	source = replaceRange(source,
 		'const PRELOAD_PRODUCT_ID =',
 		'/* Keys main may hold',
-		"const PRELOAD_PRODUCT_ID = 'soundscaper';\nconst SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper'\n\t&& (process.argv ?? []).includes('--soundscaper-soak-debug');\n/* Keys main may hold",
+		"const PRELOAD_PRODUCT_ID = 'soundscaper';\nconst SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper'\n\t&& (globalThis.process?.argv ?? []).includes('--soundscaper-soak-debug');\n/* Keys main may hold",
 		'preload product selection');
 	source = replaceRange(source,
 		'\n\tframescaperNativeCapabilities:',

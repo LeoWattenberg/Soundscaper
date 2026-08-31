@@ -92,6 +92,7 @@ export const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 export const MAX_SAVE_ADMITTED_BYTES = MAX_DESKTOP_SAVE_BYTES;
 export const IPC = Object.freeze({
 	environment: 'soundscaper:v1:environment',
+	soakDebugProcessMetrics: 'soundscaper:v1:soak-debug:process-metrics',
 	chooseFiles: 'soundscaper:v1:files:choose',
 	releaseRead: 'soundscaper:v1:files:release',
 	chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose',

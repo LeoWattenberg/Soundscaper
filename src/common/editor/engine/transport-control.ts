@@ -35,6 +35,10 @@ import {
 } from './transport-scheduler.ts';
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import {
+	recordWebCoreStreamPlayback,
+	recordWebCoreStreamUnderrun,
+} from '../web-core-stream-diagnostics.ts';
+import {
 	ENGINE_ASSERT_ACTIVE,
 	ENGINE_CANCEL_SCRUB,
 	ENGINE_EMIT_PARAMETRIC_EQ_ERROR,
@@ -370,9 +374,11 @@ async scrub(frame, { durationMs = DEFAULT_SCRUB_FRAME_MS } = {}) {
 				chunkStreamClient: this[ENGINE_GET_CHUNK_STREAM_CLIENT](),
 				chunkAudioNodeFactory: this.chunkAudioNodeFactory,
 				signal: graph.abortController.signal,
+				onStreamUnderrun: recordWebCoreStreamUnderrun,
 				deferStartUntilPrimed: true,
 			});
 			if (this.graph !== graph || !this.scrubbing || generation !== this.scrubGeneration) return this.positionFrame;
+			recordWebCoreStreamPlayback(schedule.streamedClips);
 			const latencyMs = (graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE) * 1000;
 			const scheduledDelayMs = Math.max(0, (schedule.contextStartTime - context.currentTime) * 1000);
 			this.scrubTimer = globalThis.setTimeout(() => {

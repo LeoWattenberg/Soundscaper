@@ -6,7 +6,7 @@ import {
 	app,
 	BrowserWindow,
 	desktopCapturer,
-	dialog,
+	dialog as electronDialog,
 	ipcMain,
 	Menu,
 	protocol,
@@ -46,6 +46,7 @@ import { registerSelectedReadCapability } from './read-selection-service.js';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
+import { createSoakDebugDialog } from './soak-debug-dialog.mjs'; import { collectSoakDebugProcessMetrics, soakDebugProcessMetricsEnabled, SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { startDesktopProjectLibraryProductRuntime } from './project-library-product-runtime.js';
 import { startSoundscaperDeliveryRegistration } from './soundscaper-delivery-registration.mjs';
@@ -57,11 +58,8 @@ import { AtomicSaveManager, SaveTargetStore } from './save-targets.js';
 import { DesktopSettingsStore } from './settings.js';
 import { ReleaseChecker } from './update-check.js';
 import {
-	desktopWindowOptions,
-	hideNativeWindowButtons,
-	installDesktopApplicationMenu,
-	onWindowStateChanged,
-	registerFocusedWindowAccelerators,
+	desktopWindowOptions, hideNativeWindowButtons, installDesktopApplicationMenu,
+	onWindowStateChanged, registerFocusedWindowAccelerators,
 	runWindowAction, upgradePendingCloseRequestForQuit,
 } from './window-chrome.mjs';
 import {
@@ -73,6 +71,7 @@ import {
 	validateSaveChoice,
 } from './validation.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []);
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
@@ -262,7 +261,7 @@ async function createWindow() {
 		backgroundColor: '#1b1b1b',
 		webPreferences: {
 			preload: resolve(__dirname, 'preload.mjs'),
-			additionalArguments: [`--soundscaper-product=${PRODUCT_ID}`],
+			additionalArguments: [`--soundscaper-product=${PRODUCT_ID}`, ...(SOAK_DEBUG_ENABLED ? [SOAK_DEBUG_FLAG] : [])],
 			partition: SESSION_PARTITION,
 			nodeIntegration: false,
 			contextIsolation: true,
@@ -384,6 +383,7 @@ async function registerIpcHandlers(desktopSession) {
 		supportedLocales: [...SUPPORTED_LOCALES], runtimeVersions: { electron: process.versions.electron, chromium: process.versions.chrome, node: process.versions.node },
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
 	}));
+	if (SOAK_DEBUG_ENABLED) handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app));
 	handle(IPC.chooseFiles, (event, value) => chooseFiles(event, value));
 	handle(IPC.releaseRead, (event, id) => redispatchPendingProjectsAfterReadRelease(
 		pendingOpenProjects,

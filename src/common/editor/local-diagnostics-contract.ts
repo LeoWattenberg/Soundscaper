@@ -101,6 +101,10 @@ export interface LocalDiagnosticsReport {
 		readonly webVcr: RecoveryState;
 		readonly renderQueue: 'not-observed';
 	}>;
+	readonly streaming: Readonly<{
+		readonly streamUnderrunFrames: number;
+		readonly streamedPlaybackObserved: boolean;
+	}>;
 }
 
 export interface SerializedLocalDiagnosticsReport {

@@ -13,6 +13,7 @@ import type {
 	LocalDiagnosticsErrorSource,
 } from '../../local-diagnostics-error-journal.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { readWebCoreStreamDiagnostics } from '../../web-core-stream-diagnostics.ts';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 type Phase = 'idle' | 'generating' | 'ready' | 'exporting' | 'saved' | 'error';
@@ -62,6 +63,7 @@ export default function LocalDiagnosticsDialog({
 				productId,
 				runtime,
 				capabilities: diagnosticCapabilities(snapshot),
+				streaming: readWebCoreStreamDiagnostics(),
 				snapshot,
 				diagnostics: controller.getLocalDiagnosticsSnapshot(),
 			});
@@ -177,6 +179,20 @@ function ReportSummary({ copy, report }: Readonly<{
 		</SummarySection>
 		<SummarySection title={text(copy, 'localDiagnosticsRecovery', 'Recovery journals')}>
 			<p>{report.recovery.takeCycle}; {report.recovery.capture}; {report.recovery.webVcr}; {report.recovery.renderQueue}</p>
+		</SummarySection>
+		<SummarySection title={text(copy, 'localDiagnosticsStreaming', 'Streamed playback')}>
+			<p
+				data-local-diagnostics-streaming="true"
+				data-stream-underrun-frames={report.streaming.streamUnderrunFrames}
+				data-streamed-playback-observed={String(report.streaming.streamedPlaybackObserved)}
+			>{format(text(
+				copy, 'localDiagnosticsStreamingSummary', '{observation}; {frames} underrun frames.',
+			), {
+				observation: report.streaming.streamedPlaybackObserved
+					? text(copy, 'localDiagnosticsStreamingObserved', 'observed')
+					: text(copy, 'localDiagnosticsStreamingNotObserved', 'not observed'),
+				frames: report.streaming.streamUnderrunFrames,
+			})}</p>
 		</SummarySection>
 	</div>;
 }

@@ -20,6 +20,7 @@ const REPORT = buildLocalDiagnosticsReport({
 		isDesktop: false, locale: 'en', navigator: {},
 	}),
 	capabilities: { project: true, audioPlayback: true },
+	streaming: { streamUnderrunFrames: 64, streamedPlaybackObserved: true },
 	snapshot: { project: null, projects: [], projectTabs: [], storage: {} },
 	diagnostics: { recentErrors: [] },
 });
@@ -32,7 +33,9 @@ test('both bundled locales carry every local diagnostics surface string', () => 
 			'localDiagnosticsExport', 'localDiagnosticsExporting', 'localDiagnosticsSaved',
 			'localDiagnosticsError', 'localDiagnosticsVersions', 'localDiagnosticsEnvironment',
 			'localDiagnosticsCapabilities', 'localDiagnosticsErrors', 'localDiagnosticsStorage',
-			'localDiagnosticsRecovery',
+			'localDiagnosticsRecovery', 'localDiagnosticsStreaming',
+			'localDiagnosticsStreamingSummary', 'localDiagnosticsStreamingObserved',
+			'localDiagnosticsStreamingNotObserved',
 		]) {
 			assert.equal(typeof copy[key], 'string', `${key} is missing`);
 			assert.ok(copy[key].length > 0, `${key} is empty`);
@@ -68,6 +71,9 @@ test('the dialog is inert before generation and exposes only diagnostic summarie
 	assert.match(ready, /Recent typed errors/u);
 	assert.match(ready, /Storage and library/u);
 	assert.match(ready, /Recovery journals/u);
+	assert.match(ready, /Streamed playback/u);
+	assert.match(ready, /data-stream-underrun-frames="64"/u);
+	assert.match(ready, /data-streamed-playback-observed="true"/u);
 	assert.match(ready, /data-local-diagnostics-export/u);
 	assert.doesNotMatch(ready, /private-project|Secret interview|operator|confidential/u);
 });
