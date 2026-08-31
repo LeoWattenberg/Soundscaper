@@ -481,7 +481,10 @@ jobs:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
       - name: Package ${{ matrix.product }} ${{ matrix.target.platform }} ${{ matrix.target.arch }}
-        run: npx electron-builder --config electron-builder.config.cjs --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
+        run: >-
+          bash scripts/ci-electron-builder.sh
+          --config electron-builder.config.cjs
+          --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
@@ -849,7 +852,8 @@ jobs:
           hard="$(ulimit -Hn)"
           if [ "$hard" = "unlimited" ]; then ulimit -n 65536; else ulimit -n "$hard"; fi
           echo "File-descriptor limit for packaging: $(ulimit -n)"
-          npx electron-builder --config electron-builder.nightly-tests.config.cjs \
+          bash scripts/ci-electron-builder.sh \
+            --config electron-builder.nightly-tests.config.cjs \
             --mac --${{ matrix.target.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -857,7 +861,8 @@ jobs:
       - name: Package nightly-with-tests ${{ matrix.target.platform }} ${{ matrix.target.arch }}
         if: runner.os != 'macOS'
         run: >-
-          npx electron-builder --config electron-builder.nightly-tests.config.cjs
+          bash scripts/ci-electron-builder.sh
+          --config electron-builder.nightly-tests.config.cjs
           --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
