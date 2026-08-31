@@ -17,6 +17,15 @@ export class FramescaperDesktopProjectLibraryCommittedError extends Error {
 	}
 }
 
+export async function reconcileFramescaperDesktopProjectLibraryCommit<Value>(
+	operation: FramescaperDesktopProjectLibraryOperation,
+	projectId: string,
+	reconcile: () => PromiseLike<Value> | Value,
+): Promise<Value> {
+	try { return await reconcile(); }
+	catch (cause) { throw new FramescaperDesktopProjectLibraryCommittedError(operation, projectId, cause); }
+}
+
 /** Main may have committed the operation; an authoritative reread is required. */
 export class FramescaperDesktopProjectLibraryIndeterminateError extends Error {
 	constructor(

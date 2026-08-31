@@ -15,10 +15,9 @@ import {
 } from './desktop-project-library-body-transfer.ts';
 import { validateFramescaperDesktopBodies, type FramescaperDesktopBodyDescriptor } from
 	'./desktop-project-library-body-contract.ts';
-import {
-	FramescaperDesktopProjectLibraryCommittedError,
-	FramescaperDesktopProjectLibraryIndeterminateError,
-} from './desktop-project-library-errors.ts';
+import { FramescaperDesktopProjectLibraryCommittedError, FramescaperDesktopProjectLibraryIndeterminateError,
+	reconcileFramescaperDesktopProjectLibraryCommit as reconcileCommitted } from
+	'./desktop-project-library-errors.ts';
 import {
 	assertFramescaperDesktopPublicationBodyInventory,
 	createFramescaperDesktopPublicationId,
@@ -328,7 +327,6 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 			return true;
 		});
 	}
-
 	duplicateProject(sourceProjectId: string, options: Readonly<{
 		readonly id: string;
 		readonly title: string;
@@ -350,15 +348,17 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 					projectSha256: source.bundle.project.sha256,
 				},
 			});
-			const snapshot = validateBundle(this.#profile, result, options.id);
-			await acquireFramescaperDesktopBodies(
-				snapshot.project,
-				snapshot.bundle.project.sha256,
-				snapshot.bundle.bodies,
-				this.#bridge,
-				this.#store,
-			);
-			return this.#store.shadow.reconcileCommittedProject(snapshot.project);
+			return reconcileCommitted('duplicate', options.id, async () => {
+				const snapshot = validateBundle(this.#profile, result, options.id);
+				await acquireFramescaperDesktopBodies(
+					snapshot.project,
+					snapshot.bundle.project.sha256,
+					snapshot.bundle.bodies,
+					this.#bridge,
+					this.#store,
+				);
+				return this.#store.shadow.reconcileCommittedProject(snapshot.project);
+			});
 		});
 	}
 
@@ -383,7 +383,7 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		if (result.projectId !== projectId || result.deleted !== true) {
 			throw new Error('Framescaper delete acknowledgement changed.');
 		}
-		await this.#store.shadow.deleteCommittedProject(projectId);
+		await reconcileCommitted('delete', projectId, () => this.#store.shadow.deleteCommittedProject(projectId));
 	}
 }
 

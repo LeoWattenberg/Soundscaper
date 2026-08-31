@@ -12,6 +12,8 @@ import { FramescaperDesktopProjectLibraryMain } from
 	'../desktop/framescaper-project-library-main.ts';
 import { connectFramescaperDesktopProjectLibraryRenderer } from
 	'../src/framescaper/desktop-project-library-renderer.ts';
+import { FramescaperDesktopProjectLibraryCommittedError } from
+	'../src/framescaper/desktop-project-library-errors.ts';
 import { createFramescaperDesktopProjectStoreAdapter } from
 	'../src/framescaper/desktop-project-library-store-adapter.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from
@@ -42,6 +44,24 @@ test('Framescaper desktop conditional saves publish and compare against main aut
 		storageManager: persistentStorage(),
 	});
 	await store.ready();
+	const repository = store.projectRepository as unknown as {
+		restore(...args: unknown[]): unknown;
+		delete(...args: unknown[]): unknown;
+	};
+	const restoreShadow = repository.restore.bind(repository);
+	const deleteShadow = repository.delete.bind(repository);
+	let failRestoreShadow = false;
+	let failDeleteShadow = false;
+	Object.defineProperties(repository, {
+		restore: { configurable: true, value: (...args: unknown[]) => {
+			if (failRestoreShadow) throw new Error('duplicate shadow failed');
+			return restoreShadow(...args);
+		} },
+		delete: { configurable: true, value: (...args: unknown[]) => {
+			if (failDeleteShadow) throw new Error('delete shadow failed');
+			return deleteShadow(...args);
+		} },
+	});
 	const priorDesktop = Object.getOwnPropertyDescriptor(globalThis, 'framescaperDesktop');
 	Object.defineProperty(globalThis, 'framescaperDesktop', {
 		configurable: true,
@@ -95,6 +115,20 @@ test('Framescaper desktop conditional saves publish and compare against main aut
 		assert.deepEqual(await authoritativeProject(session, String(imported.id)), imported);
 		assert.equal(await adapter.deleteProjectIfCurrent(created), true);
 		assert.equal(await session.readProjectBundle(String(imported.id)), null);
+
+		failRestoreShadow = true;
+		await assert.rejects(renderer.duplicateProject(PROJECT_ID, {
+			id: `${PROJECT_ID}-copy`, title: 'Committed copy', timestamp: '2026-08-30T11:06:00.000Z',
+		}), (error: unknown) => error instanceof FramescaperDesktopProjectLibraryCommittedError
+			&& error.operation === 'duplicate' && error.projectId === `${PROJECT_ID}-copy`);
+		failRestoreShadow = false;
+		assert.ok(await session.readProjectBundle(`${PROJECT_ID}-copy`));
+
+		failDeleteShadow = true;
+		await assert.rejects(renderer.deleteProject(PROJECT_ID),
+			(error: unknown) => error instanceof FramescaperDesktopProjectLibraryCommittedError
+				&& error.operation === 'delete' && error.projectId === PROJECT_ID);
+		assert.equal(await session.readProjectBundle(PROJECT_ID), null);
 	} finally {
 		if (priorDesktop) Object.defineProperty(globalThis, 'framescaperDesktop', priorDesktop);
 		else Reflect.deleteProperty(globalThis, 'framescaperDesktop');
