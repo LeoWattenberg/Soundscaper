@@ -147,17 +147,22 @@ export function createSoundscaperDesktopProjectLibraryMainPreloadBridge(
 				request.publicationId,
 				String((request.project as { readonly id: unknown }).id),
 			);
-			const result = validateSoundscaperDesktopProjectLibraryPublicationAdmission(
-				await invoke(
-					SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.beginPublication,
-					request,
-				),
-				request.bodies.length,
-			);
-			if (result.publicationId !== request.publicationId) {
-				throw new Error('Soundscaper desktop baseline preload admission changed its publication id');
+			try {
+				const result = validateSoundscaperDesktopProjectLibraryPublicationAdmission(
+					await invoke(
+						SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.beginPublication,
+						request,
+					),
+					request.bodies.length,
+				);
+				if (result.publicationId !== request.publicationId) {
+					throw new Error('Soundscaper desktop baseline preload admission changed its publication id');
+				}
+				return result;
+			} catch (error) {
+				publications.delete(request.publicationId);
+				throw error;
 			}
-			return result;
 		},
 		async writePublicationChunk(value: unknown) {
 			assertOperational();

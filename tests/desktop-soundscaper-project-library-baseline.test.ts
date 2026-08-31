@@ -30,6 +30,9 @@ import {
 	validateSoundscaperDesktopProjectLibraryCatalogSnapshot,
 } from '../desktop/soundscaper-project-library-lifecycle-contract.ts'
 import {
+	MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
+} from '../desktop/soundscaper-project-library-transfer-contract.ts'
+import {
 	acquireSoundscaperDesktopProjectLibraryLeaseWithWait,
 } from '../desktop/soundscaper-project-library-lease-wait.ts'
 import { SoundscaperDesktopProjectLibraryCatalog } from '../desktop/soundscaper-project-library-catalog.ts'
@@ -235,6 +238,33 @@ test('Soundscaper baseline IPC is closed under its v1 project-library namespace'
 	})
 	await assert.rejects(() => bridge.listProjects(), /handshake/iu)
 	assert.deepEqual(await bridge.connect(), createSoundscaperDesktopProjectLibraryHandshake())
+})
+
+test('a refused preload publication ID can be retried after IPC or admission failure', async () => {
+	const project = createSoundscaperProject({ id: 'retry-publication', title: 'Retry publication' })
+	const publicationId = 'ab'.repeat(24)
+	const request = {
+		publicationId, expectedMetadataRevision: 0, expectedProject: null, project, bodies: [],
+	}
+	for (const failure of ['ipc', 'admission'] as const) {
+		let attempts = 0
+		const bridge = createSoundscaperDesktopProjectLibraryMainPreloadBridge({
+			invoke: async (channel: string, value?: unknown) => {
+				if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.handshake) return value
+				attempts += 1
+				if (attempts === 1 && failure === 'ipc') throw new Error('publication refused')
+				if (attempts === 1) return { publicationId, maximumChunkBytes: 1, bodyCount: 0 }
+				return {
+					publicationId,
+					maximumChunkBytes: MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
+					bodyCount: 0,
+				}
+			},
+		})
+		await bridge.connect()
+		await assert.rejects(() => bridge.beginPublication(request))
+		assert.equal((await bridge.beginPublication(request)).publicationId, publicationId, failure)
+	}
 })
 
 test('Soundscaper baseline IPC preserves prototype-named data fields for closed-record validation', async () => {
