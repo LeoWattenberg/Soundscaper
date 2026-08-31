@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { isRuntimeProjectProjection } from '../src/common/editor/runtime-clip-projection.ts';
+import { isTrackFolderMediaStateProjectionV12 } from '../src/common/editor/track-folder-media-runtime.ts';
 import { createTrackFolderV12 } from '../src/common/editor/track-folder-v12.ts';
 import { createFramescaperPlaybackProjectService } from
 	'../src/framescaper/editor-project-playback.ts';
@@ -32,6 +34,8 @@ test('Framescaper playback flattens inherited folder mute and hidden state', () 
 		.projectForPlayback(project).project;
 	const tracks = playback.tracks as readonly Readonly<Record<string, unknown>>[];
 	assert.equal(tracks.find(({ id }) => id === 'video-track')?.hidden, true);
+	assert.equal(isRuntimeProjectProjection(playback), true);
+	assert.equal(isTrackFolderMediaStateProjectionV12(playback), true);
 	assert.equal(project.tracks.find(({ id }) => id === 'video-track')?.hidden, false,
 		'folder projection stays transient');
 });

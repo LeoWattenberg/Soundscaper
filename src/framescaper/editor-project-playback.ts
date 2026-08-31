@@ -6,7 +6,15 @@ import type {
 } from '../common/editor/controller/playback-project-service.ts';
 import { FRAMESCAPER_PROJECT_SCHEMA_FAMILY, classifyProjectSchemaIdentity } from
 	'../common/editor/project-schema-identity.ts';
-import { projectTrackFolderMediaStateV12 } from
+import {
+	brandRuntimeProjectProjection,
+	isRuntimeProjectProjection,
+	type RuntimeClipProject,
+} from '../common/editor/runtime-clip-projection.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from
 	'../common/editor/track-folder-media-runtime.ts';
 import type { VideoTimingMediaStore } from '../common/editor/video-timing-storage.ts';
 import { createFramescaperPlaybackProjectServiceAssistance } from './editor-project-playback-assistance.ts';
@@ -60,9 +68,12 @@ export function createFramescaperPlaybackProjectService(
 		const projection = baselineProjection(selected.projectForPlayback(
 			project,
 		)) as PlaybackProjectProjection<Project>;
+		const mediaProject = projectTrackFolderMediaStateV12(projection.project);
 		return Object.freeze({
 			...projection,
-			project: projectTrackFolderMediaStateV12(projection.project),
+			project: isRuntimeProjectProjection(projection.project)
+				? brandRuntimeProjectProjection(mediaProject as RuntimeClipProject)
+				: mediaProject,
 		});
 	}
 
@@ -93,10 +104,16 @@ function isCurrent(project: unknown): boolean {
 function baselineProjection(
 	projection: PlaybackProjectProjection<object>,
 ): PlaybackProjectProjection<object> {
-	const project = structuredClone(projection.project) as Record<string, unknown>;
-	project.schemaFamily = FRAMESCAPER_PROJECT_SCHEMA_FAMILY;
-	project.schemaVersion = 1;
-	return Object.freeze({ ...projection, project: Object.freeze(project) });
+	const source = projection.project;
+	let project = inheritTrackFolderMediaStateProjectionV12(source, Object.freeze({
+		...source,
+		schemaFamily: FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
+		schemaVersion: 1,
+	}));
+	if (isRuntimeProjectProjection(source)) {
+		project = brandRuntimeProjectProjection(project as RuntimeClipProject);
+	}
+	return Object.freeze({ ...projection, project });
 }
 
 function opaque<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
