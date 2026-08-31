@@ -113,15 +113,16 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			cameraDeviceId: selectedDeviceIds.camera,
 			microphoneDeviceId: selectedDeviceIds.microphone,
 		};
-		const opening = options.displaySelection
-			? Promise.resolve(options.displaySelection.authorize({
-				generation: gesture.generation, roles, sourceToken,
-			})).then(() => options.sourcePort.openPreview(previewRequest))
-			: options.sourcePort.openPreview(previewRequest);
-		notify();
+		let opening: Promise<CapturePreviewLease<Stream, Track>> | null = null;
 		let openedLease: CapturePreviewLease<Stream, Track> | null = null;
 		let openedResources: FramescaperCapturePreviewResources | null = null;
 		try {
+			opening = options.displaySelection
+				? Promise.resolve(options.displaySelection.authorize({
+					generation: gesture.generation, roles, sourceToken,
+				})).then(() => options.sourcePort.openPreview(previewRequest))
+				: Promise.resolve(options.sourcePort.openPreview(previewRequest));
+			notify();
 			await previousDisposal;
 			openedLease = await opening;
 			openedResources = await createFramescaperCapturePreviewResources(openedLease.sources, {
@@ -137,7 +138,11 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			notify();
 			await refreshDeviceInventory(openedLease);
 		} catch (error) {
-			if (!openedLease) await opening.then((lease) => Promise.resolve(lease.dispose()).catch(() => undefined), () => undefined);
+			await previousDisposal.catch(() => undefined);
+			if (!openedLease && opening) {
+				await opening.then((lease) => Promise.resolve(lease.dispose()).catch(() => undefined),
+					() => undefined);
+			}
 			else await disposeCapturePreviewOwnership(openedLease, openedResources).catch(() => undefined);
 			if (previewLease === openedLease) previewLease = null;
 			if (previewResources === openedResources) previewResources = null;
@@ -145,6 +150,8 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			machine.previewFailed(requestGeneration, captureSessionFailure(error, 'permission-denied'));
 			notify();
 			throw error;
+		} finally {
+			options.releaseUserAction?.(gesture.generation);
 		}
 	}
 	async function listDisplaySources(): Promise<void> {

@@ -163,6 +163,7 @@ export interface FramescaperCaptureSessionServiceOptions<Stream = unknown, Track
 	readonly recoveryProjectIds?: () => PromiseLike<readonly string[]> | readonly string[];
 	readonly prepareRecoveryOrigin?: (projectId: string) => PromiseLike<void> | void;
 	readonly authorizeUserAction?: (generation: number) => void;
+	readonly releaseUserAction?: (generation: number) => void;
 	captureOrigin(): Readonly<{
 		readonly projectFence: FramescaperCaptureProjectFence;
 		readonly origin: FramescaperCaptureSessionOrigin;

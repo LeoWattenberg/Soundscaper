@@ -185,11 +185,15 @@ export function createFramescaperCaptureAppComposition(
 		throw new TypeError('Enabled Web VCR requires exact app capture start admission.');
 	}
 	const originGuard = createFramescaperCaptureOriginGuard();
-	const gestures = new Set<number>();
+	let pendingUserActionGeneration: number | null = null;
 	const createStream = resolveCaptureStream(options.createStream);
 	const browserSource = createBrowserFramescaperCaptureSourcePort({
 		mediaDevices: options.mediaDevices,
-		consumeUserAction: (generation) => gestures.delete(generation),
+		consumeUserAction: (generation) => {
+			if (pendingUserActionGeneration !== generation) return false;
+			pendingUserActionGeneration = null;
+			return true;
+		},
 		createStream,
 	});
 	const setupDefaults = createFramescaperCaptureSetupDefaults(options.onChange);
@@ -256,7 +260,10 @@ export function createFramescaperCaptureAppComposition(
 		}),
 		...(options.recoveryProjectIds ? { recoveryProjectIds: options.recoveryProjectIds } : {}),
 		...(options.prepareRecoveryOrigin ? { prepareRecoveryOrigin: options.prepareRecoveryOrigin } : {}),
-		authorizeUserAction: (generation) => { gestures.add(generation); },
+		authorizeUserAction: (generation) => { pendingUserActionGeneration = generation; },
+		releaseUserAction: (generation) => {
+			if (pendingUserActionGeneration === generation) pendingUserActionGeneration = null;
+		},
 		captureOrigin: options.captureOrigin,
 		createRecorder: router.createRecorder,
 		createSourceIdentity: router.sourceIdentity,

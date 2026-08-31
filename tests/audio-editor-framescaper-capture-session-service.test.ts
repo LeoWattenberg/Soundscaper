@@ -203,6 +203,22 @@ test('desktop source-list authority never chooses a display and grants non-displ
 	await harness.service.actions.release();
 });
 
+test('failed display authorization releases its one-shot user action', async () => {
+	const displaySelection: FramescaperCaptureDisplaySelectionPort = {
+		mode: 'system-picker',
+		authorize() { throw new Error('display permission failed'); },
+	};
+	const harness = serviceHarness({ displaySelection });
+	await harness.service.initialize();
+
+	await assert.rejects(harness.service.actions.requestPreview(['display']),
+		/display permission failed/iu);
+	assert.deepEqual(harness.events.filter((event) =>
+		event.startsWith('authorize:') || event.startsWith('release-user-action:')), [
+		'authorize:1', 'release-user-action:1',
+	]);
+});
+
 test('live capture preregisters durability, measures before storage delay, and publishes after release', async () => {
 	const harness = serviceHarness({ appendDelayMs: 5_000 });
 	await harness.service.initialize();
@@ -531,6 +547,7 @@ function serviceHarness(options: Readonly<{
 			return availability;
 		},
 		authorizeUserAction: (generation) => { events.push(`authorize:${String(generation)}`); },
+		releaseUserAction: (generation) => { events.push(`release-user-action:${String(generation)}`); },
 		captureOrigin: () => ({
 			projectFence: { schemaFamily: 'framescaper' as const, schemaVersion: 1 as const, projectId: options.currentProjectId ?? 'project-a', baseRevision: 4, baseSha256: SHA },
 			origin: { sequenceId: 'sequence-a', playheadMicroseconds: 2_000_000, destination: 'both' },
