@@ -218,6 +218,30 @@ test('adaptive pressure refreshes Auto only when it crosses the proxy threshold'
 	});
 });
 
+test('adaptive pressure does not reload an original-only visual', async () => {
+	const owner = ownerFixture(null);
+	const runtime = createFramescaperVideoProxyActions({
+		owner: owner.owner as never,
+		cleanup: cleanupFixture(owner),
+		createSessionId: () => 'v27-original-pressure-session',
+		createScheduler: () => Object.assign(async () => undefined, { dispose: async () => undefined }),
+		createAttachExistingScheduler: () => Object.assign(
+			async () => undefined, { dispose: async () => undefined },
+		),
+		createDetachCommand: () => ({ type: 'framescaper/video-proxy-detach' }),
+	});
+	await runtime.reportPreviewPressure('video-source', {
+		droppedFrameRatio: 0, decodeQueueDepth: 0, viewportScale: 1,
+	});
+	await runtime.reportPreviewPressure('video-source', {
+		droppedFrameRatio: 0.03, decodeQueueDepth: 0, viewportScale: 1,
+	});
+	assert.equal(owner.refreshes, 0);
+	assert.deepEqual(runtime.pressure('video-source'), {
+		droppedFrameRatio: 0.03, decodeQueueDepth: 0, viewportScale: 1,
+	});
+});
+
 test('proxy session state rolls back when its required visual refresh fails', async () => {
 	const owner = ownerFixture(attachment());
 	let refreshFailure: Error | null = new Error('planned visual refresh failure');

@@ -132,7 +132,10 @@ export function createFramescaperVideoProxyActions(
 			pressures.set(id, captured);
 			try {
 				if ((modes.get(id) ?? 'auto') === 'auto'
-					&& before !== pressureSelectsProxy(captured)) await refresh(id);
+					&& before !== pressureSelectsProxy(captured)
+					&& videoSource(exactProject(options.owner.project), id).proxyAttachment !== null) {
+					await refresh(id);
+				}
 			} catch (error) {
 				if (pressures.get(id) === captured) {
 					if (previous === undefined) pressures.delete(id);
