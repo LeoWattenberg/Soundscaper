@@ -401,7 +401,8 @@ export function createProjectSwitchService<
 					return false;
 				}
 			};
-			const failedTarget = targetSessionActivated && readyProjectId !== projectId;
+			const failedTarget = targetSessionActivated
+				&& !providerReplacementFinalized && readyProjectId !== projectId;
 			const lifetimeDisposed = () => runtime.isDisposedError(error)
 				|| runtime.lifetime.signal.aborted;
 			const canPublishFailedTarget = () => failedTarget && !lifetimeDisposed();
