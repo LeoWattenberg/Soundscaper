@@ -71,7 +71,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const clearTimer = dependencies.clearTimer || ((handle) => globalThis.clearTimeout(handle));
 	const autosaveDelayMs = dependencies.autosaveDelayMs ?? 500;
 	let terminal = false;
-	let suspended = false;
+	let suspensionCount = 0;
 	let scheduledProjectId: string | null = null;
 	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
 	const projectSaveEpochs = new Map<string, number>();
@@ -81,7 +81,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		flushProject,
 		terminalFlush,
 		suspend,
-		resume: () => { suspended = false; },
+		resume: () => { suspensionCount = Math.max(0, suspensionCount - 1); },
 		suspendProject,
 		resumeProject,
 		retireProjectSaves,
@@ -93,7 +93,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	});
 
 	function scheduleAutosave(): boolean {
-		if (terminal || suspended || dependencies.isReadOnly()) return false;
+		if (terminal || suspensionCount > 0 || dependencies.isReadOnly()) return false;
 		const project = dependencies.getProject();
 		if (!project) { cancelScheduled(); return false; }
 		if (suspendedProjects.has(project.id)) {
@@ -123,7 +123,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	}
 
 	function suspend(): void {
-		suspended = true;
+		suspensionCount += 1;
 		cancelScheduled();
 	}
 
@@ -179,7 +179,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		allowTerminal: boolean,
 		forceCurrentSnapshot: boolean,
 	): Promise<unknown> | undefined {
-		if (suspended || (terminal && !allowTerminal)) return undefined;
+		if (suspensionCount > 0 || (terminal && !allowTerminal)) return undefined;
 		const project = dependencies.getProject();
 		if (!dependencies.hasHistory() || dependencies.isReadOnly()
 			|| (!forceCurrentSnapshot && dependencies.hasUnsavedProjectChanges?.() === false)) {

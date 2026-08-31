@@ -328,6 +328,7 @@ test('suspended project saves cancel timers and reject new work behind a stable 
 	assert.equal(service.scheduleAutosave(), true);
 	assert.equal(timers.has(state.autosaveTimer), true);
 	service.suspend();
+	service.suspend();
 	assert.equal(state.autosaveTimer, 0);
 	assert.equal(timers.size, 0);
 	const drain = service.drain();
@@ -339,6 +340,8 @@ test('suspended project saves cancel timers and reject new work behind a stable 
 	writes[0]?.resolve();
 	await drain;
 
+	service.resume();
+	assert.equal(service.scheduleAutosave(), false, 'one owner cannot resume another owner\'s suspension');
 	service.resume();
 	assert.equal(service.scheduleAutosave(), true);
 	assert.equal(timers.size, 1);
