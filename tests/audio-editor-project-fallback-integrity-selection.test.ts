@@ -70,6 +70,16 @@ test('selected video verification skips a missing unrelated body and retains one
 	assert.deepEqual(new Uint8Array(await verifiedBlob.arrayBuffer()), VIDEO_BYTES);
 });
 
+test('selected fallback verification admits the internal foundation project shape', async () => {
+	const candidate = fallbackProject() as unknown as Record<string, unknown>;
+	delete candidate.schemaFamily;
+	candidate.schemaVersion = AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION;
+
+	await assert.doesNotReject(() => verifyProjectFallbackIntegrity(candidate, videoStore(), {
+		videoFallback: VIDEO_SELECTOR,
+	}));
+});
+
 test('selected video verification rejects mismatched and ambiguous selectors before storage', async () => {
 	let storageReads = 0;
 	const store = {

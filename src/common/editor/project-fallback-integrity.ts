@@ -128,12 +128,12 @@ export async function verifyProjectFallbackIntegrity(
 		throw new TypeError('Fallback integrity currentness must be a function.');
 	}
 	const captured = captureProjectFallbackIntegrity(project);
-	if (audioSelector && !isBaselineRenderedFallbackProject(captured)
-		&& !isMaintainedRenderedFallbackProjectSchema(captured)) {
+	if (audioSelector && !isBaselineRenderedFallbackProject(project)
+		&& !isMaintainedRenderedFallbackProjectSchema(project)) {
 		throw new Error('A selected audio rendered fallback requires the exact current project schema.');
 	}
-	if (videoSelector && !isBaselineRenderedFallbackProject(captured)
-		&& !isMaintainedRenderedFallbackProjectSchema(captured)) {
+	if (videoSelector && !isBaselineRenderedFallbackProject(project)
+		&& !isMaintainedRenderedFallbackProjectSchema(project)) {
 		throw new Error('A selected video rendered fallback requires the exact current project schema.');
 	}
 	const admissionState = snapshotAdmissionState(captured);
