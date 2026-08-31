@@ -139,17 +139,28 @@ export function importImscCaptionTrackV1(
 		throw interchangeError('IMSC input is not well-formed XML.', 'INVALID_XML', {}, error);
 	}
 	if (!state.rootSeen || state.stack.length !== 0) throw interchangeError('IMSC input must contain one complete tt root.', 'INVALID_XML');
-	const track = normalize({
-		schemaVersion: 1,
-		id: state.trackId,
-		sequenceId: options.sequenceId,
-		name: state.trackName,
-		language: state.language,
-		styles: state.styles,
-		regions: state.regions,
-		speakers: state.speakers,
-		cues: state.cues,
-	});
+	let track: VideoCaptionTrackV1;
+	try {
+		track = normalize({
+			schemaVersion: 1,
+			id: state.trackId,
+			sequenceId: options.sequenceId,
+			name: state.trackName,
+			language: state.language,
+			styles: state.styles,
+			regions: state.regions,
+			speakers: state.speakers,
+			cues: state.cues,
+		});
+	} catch (error) {
+		if (error instanceof VideoCaptionInterchangeError) throw error;
+		throw interchangeError(
+			'IMSC caption data is outside the maintained caption model.',
+			'INVALID_CAPTION',
+			{},
+			error,
+		);
+	}
 	return Object.freeze({ format: 'imsc1.1', track, losses: freezeCaptionLosses(state.losses) });
 }
 

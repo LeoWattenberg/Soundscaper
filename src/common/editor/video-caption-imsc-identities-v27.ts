@@ -7,7 +7,7 @@ import {
 	type VideoCaptionInterchangeLossV1,
 } from './video-caption-interchange-contract-v27.ts';
 
-export const IMSC_XML_ID_V1 = /^[A-Za-z_][A-Za-z0-9._-]{0,127}$/u;
+export const IMSC_XML_ID_V1 = /^[A-Za-z][A-Za-z0-9._-]{0,127}$/u;
 
 export interface ImscXmlIdentitiesV1 {
 	readonly trackId: string;

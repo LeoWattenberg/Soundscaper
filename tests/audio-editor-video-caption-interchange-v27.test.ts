@@ -381,6 +381,22 @@ test('IMSC rejects prototype-named font families as unsupported styles', () => {
 	}
 });
 
+test('IMSC reports model-incompatible XML identities and language as caption errors', () => {
+	const underscoreIdentity = minimalImsc('', 48_000).replace(
+		'<head/>',
+		'<head><styling><style xml:id="_style" /></styling></head>',
+	);
+	const emptyLanguage = minimalImsc('', 48_000).replace('xml:lang="en-GB"', 'xml:lang=""');
+	for (const xml of [underscoreIdentity, emptyLanguage]) {
+		assertInterchangeError(
+			() => importVideoCaptionTrackV1(xml, {
+				format: 'imsc1.1', sampleRate: 48_000, ...IMPORT_IDENTITY,
+			}),
+			'INVALID_CAPTION',
+		);
+	}
+});
+
 test('IMSC rejects external XML, entities, processing instructions, and active or foreign markup', () => {
 	const attacks = [
 		'<!DOCTYPE tt SYSTEM "https://example.invalid/caption.dtd">' + minimalImsc('', 48_000),
