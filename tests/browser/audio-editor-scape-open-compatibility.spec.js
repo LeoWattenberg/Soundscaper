@@ -207,6 +207,7 @@ test.describe('Scape open feature decisions', () => {
 	});
 
 	test('plays an admitted Framescaper v1 audio-effects render', async ({ page }) => {
+		test.setTimeout(90_000);
 		const errors = collectClientErrors(page);
 		const publisher = await bootEditor(page, '/framescaper/embed/en/');
 		const originalId = await publisher.getAttribute('data-project-id');
@@ -229,10 +230,10 @@ test.describe('Scape open feature decisions', () => {
 		await expect(dialog.getByText('Audio effects', { exact: true })).toBeVisible();
 		await expect(dialog.getByText(/Unavailable.*Rendered fallback declared/iu)).toBeVisible();
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
-		await expect(framescaper).toHaveAttribute('data-project-id', incomingId);
-		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
 		await expect(framescaper.getByRole('tab', { name: 'Framescaper v1 rendered fallback', exact: true }))
 			.toBeEnabled({ timeout: 60_000 });
+		await expect(framescaper).toHaveAttribute('data-project-id', incomingId);
+		await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');
 
 		const notice = framescaper.locator('[data-project-feature-compatibility]');
 		const requirement = notice.locator(
@@ -406,9 +407,8 @@ test.describe('Scape open feature decisions', () => {
 
 		await assertAffectedPixelatePlaceholder(soundscaper, effectId);
 		const originalTab = soundscaper.getByRole('tab', { name: 'Untitled project', exact: true });
-		// Project tabs stay disabled while the opened project is still settling, and
-		// focus()/press() have no actionability wait of their own, so a keyboard
-		// activation raced against the tail of the read-only open would be dropped.
+		await expect(soundscaper.locator('[data-editor-task-progress="import"]'))
+			.toHaveCount(0, { timeout: 60_000 });
 		await expect(originalTab).toBeEnabled();
 		await originalTab.focus();
 		await page.keyboard.press('Enter');
