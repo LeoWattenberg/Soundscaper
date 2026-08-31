@@ -15,6 +15,7 @@ import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_DEFINITION, REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_LABEL,
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 } from './reviewed-effects/selection-effect-contract.ts';
+import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
 
 const EQ_FREQUENCIES = Object.freeze([100, 500, 2_000, 8_000]);
 export const MISSING_EFFECT_TYPE = 'missing';
@@ -383,11 +384,6 @@ export function rackTailFrames(effects, sampleRate = AUDIO_EDITOR_SAMPLE_RATE, m
 	return Math.min(maximum, tail);
 }
 
-/**
- * Return the longest audible insert path through track, routed bus, and master
- * racks. Group and send racks run in parallel, so only the longest bus rack is
- * added to each track path.
- */
 export function projectEffectTailFrames(project, {
 	trackId = null,
 	includeMaster = true,
@@ -400,6 +396,8 @@ export function projectEffectTailFrames(project, {
 	const rackTail = (owner) => owner?.effectsActive === false
 		? 0
 		: rackTailFrames(owner?.effects || [], sampleRate, maximumSeconds);
+	const v21Tail = projectEffectTailFramesV21(project, { trackId, includeMaster, maximum, rackTail });
+	if (v21Tail !== null) return v21Tail;
 	const tracks = (project?.tracks || []).filter((track) => (
 		track?.type !== 'label'
 		&& track?.type !== 'video'
