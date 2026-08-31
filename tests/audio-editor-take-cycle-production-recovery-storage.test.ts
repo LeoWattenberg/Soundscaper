@@ -86,6 +86,28 @@ test('production discard removes mixed media, its raw draft, and every recovery 
 	await reopened.store.close();
 });
 
+test('a failed production stop settles and can retry project synchronization', async () => {
+	const fixture = await openProcess(
+		createInstrumentedIndexedDB(),
+		uniqueName('cycle-stop-retry'),
+	);
+	let synchronizationAttempts = 0;
+	const composition = productionComposition(fixture, {
+		synchronizeActivatedProject: () => {
+			synchronizationAttempts += 1;
+			if (synchronizationAttempts === 1) throw new Error('project synchronization failed');
+		},
+	});
+	const controller = await composition.start(recordingScope(fixture));
+
+	await assert.rejects(controller.stop(), /project synchronization failed/u);
+	assert.equal(controller.state, 'stopped');
+	await controller.stop();
+	assert.equal(controller.state, 'stopped');
+	assert.equal(synchronizationAttempts, 2);
+	await fixture.store.close();
+});
+
 interface ProcessFixture {
 	readonly indexedDB: ReturnType<typeof createInstrumentedIndexedDB>;
 	readonly databaseName: string;
@@ -188,6 +210,7 @@ function productionComposition(
 		recoveryRepository?: TakeCycleRecoveryEnvelopeRepository;
 		recorder?: { current?: RecordingControllerFactoryOptions };
 		activateCommittedSource?(mediaId: string): PromiseLike<void> | void;
+		synchronizeActivatedProject?(): PromiseLike<void> | void;
 	}> = {},
 ) {
 	const ids = new Map<string, number>();
@@ -210,7 +233,7 @@ function productionComposition(
 		},
 		publishCurrentProject() {},
 		activateCommittedSource: overrides.activateCommittedSource ?? (() => {}),
-		synchronizeActivatedProject() {},
+		synchronizeActivatedProject: overrides.synchronizeActivatedProject ?? (() => {}),
 		now: () => NOW,
 		routed: {
 			capturePool: {

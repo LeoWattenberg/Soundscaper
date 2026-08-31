@@ -129,7 +129,12 @@ export function createTakeCycleProductionComposition(
 				state = 'stopping';
 				stopPromise = routed.stop()
 					.then(() => dependencies.synchronizeActivatedProject())
-					.then(() => { state = 'stopped'; });
+					.then(() => { state = 'stopped'; })
+					.catch((error: unknown) => {
+						state = 'stopped';
+						stopPromise = null;
+						throw error;
+					});
 				return stopPromise;
 			},
 			dispose() { return this.stop(); },
