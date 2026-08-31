@@ -4,10 +4,13 @@ import type {
 	NativePluginInstanceProjectionV1,
 	NativePluginProjectStateV1,
 } from './soundscaper-native-services-bridge.ts';
+import type { EditorProjectToken } from '../controller/lifecycle.ts';
 
 interface NativeProjectController {
 	readonly project?: unknown;
 	getSnapshot(): Readonly<{ readonly selectedTrackId?: string | null }>;
+	captureProjectGeneration(projectId: string): EditorProjectToken;
+	assertProjectGeneration(token: EditorProjectToken): void;
 }
 
 export interface SoundscaperNativeProjectOperation {
@@ -25,17 +28,25 @@ export function captureSoundscaperNativeProjectOperation(
 ): Readonly<SoundscaperNativeProjectOperation> {
 	let project = controller?.project ?? null;
 	const projectId = projectIdentity(project);
+	const projectToken = controller && projectId !== null
+		? controller.captureProjectGeneration(projectId) : null;
 	const selectedTrackId = controller?.getSnapshot().selectedTrackId ?? null;
-	const isCurrent = (): boolean => {
-		const current = controller?.project ?? null;
-		return current === project && projectIdentity(current) === projectId;
+	const assertGenerationCurrent = (): void => {
+		if (controller && projectToken !== null) controller.assertProjectGeneration(projectToken);
 	};
 	const assertCurrent = (): void => {
-		if (!isCurrent()) throw projectChangedError();
+		assertGenerationCurrent();
+		const current = controller?.project ?? null;
+		if (current !== project || projectIdentity(current) !== projectId) throw projectChangedError();
+	};
+	const isCurrent = (): boolean => {
+		try { assertCurrent(); return true; }
+		catch { return false; }
 	};
 	const commit = <Value>(mutation: () => Value): Value => {
 		assertCurrent();
 		const value = mutation();
+		assertGenerationCurrent();
 		const current = controller?.project ?? null;
 		if (projectIdentity(current) !== projectId) throw projectChangedError();
 		project = current;

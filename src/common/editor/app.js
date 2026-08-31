@@ -1889,7 +1889,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			});
 		},
 		get headless() { return true; },
-		getSnapshot,
+		getSnapshot, captureProjectGeneration: projectGeneration.capture.bind(projectGeneration), assertProjectGeneration: projectGeneration.assertCurrent.bind(projectGeneration),
 		subscribe: (listener) => documentChannel.subscribe(listener),
 		getTelemetrySnapshot, subscribeTelemetry: (listener) => telemetryChannel.subscribe(listener),
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,

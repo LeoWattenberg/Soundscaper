@@ -458,7 +458,7 @@ function rendererFixture(options: Readonly<{
 			timedRecording: null, timedRecordingCancelling: false, recordingPoolSources: [] as unknown[],
 		},
 		refreshAudioDevices: async (value: (typeof nativeRefreshes)[number]) => { nativeRefreshes.push(value); },
-		getSnapshot: () => ({ selectedTrackId: 'track-1' }),
+		captureProjectGeneration: () => ({ generation: 1, projectId: project.id }), assertProjectGeneration() {}, getSnapshot: () => ({ selectedTrackId: 'track-1' }),
 		actions: {
 			effects: {
 				add: (request: Readonly<Record<string, unknown>>) => {

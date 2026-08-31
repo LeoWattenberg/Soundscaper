@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { EnginePublicApi } from '../src/common/editor/engine/public-api.ts';
 import { createDefaultMixerGraphV21 } from '../src/common/editor/mixer-graph-v21.ts';
 import { prepareNativePluginOfflineRuntimes } from '../src/common/editor/native-plugin-realtime-node.js';
@@ -150,6 +151,25 @@ test('late native instantiation cannot author into a replacement project', async
 	await renderer.dispose();
 });
 
+test('project retirement aborts native instantiation before the project reference changes', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const gate = fixture.deferNextPluginPersistence();
+	const instantiation = renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	await gate.started;
+	fixture.retireProject();
+	gate.resolve();
+
+	await assert.rejects(instantiation, isProjectOwnershipLoss);
+	assert.deepEqual(fixture.project.tracks[0]?.effects, []);
+	assert.deepEqual(fixture.project.nativePluginStates, []);
+	assert.deepEqual(fixture.active().plugins, [], 'the retiring project releases its late helper');
+	await renderer.dispose();
+});
+
 test('native instantiation authors into the track selected when the operation began', async (context) => {
 	useFakeAudioWorklet(context);
 	const fixture = rollbackFixture();
@@ -281,6 +301,8 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 		], 2),
 		nativePluginStates: options.seeded ? [state] : [] as ReturnType<typeof pluginState>[],
 	};
+	const projectGeneration = new EditorProjectGeneration();
+	projectGeneration.activate(project.id);
 	const audioContext = {
 		sampleRate: 48_000,
 		destination: audioNode(),
@@ -360,6 +382,8 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 	let selectedTrackId = 'track-1';
 	const controller = {
 		project,
+		captureProjectGeneration: projectGeneration.capture.bind(projectGeneration),
+		assertProjectGeneration: projectGeneration.assertCurrent.bind(projectGeneration),
 		getSnapshot: () => ({ selectedTrackId }),
 		actions: {
 			effects: {
@@ -419,7 +443,9 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 			return { started: pluginRestoreStarted.promise, resolve: pluginRestoreGate.resolve };
 		},
 		selectTrack: (trackId: string) => { selectedTrackId = trackId; },
+		retireProject: () => projectGeneration.invalidate(),
 		switchProject: (preserveNativeState = false) => {
+			projectGeneration.invalidate();
 			const replacement = {
 				...project, id: `project-b-${suffix}`,
 				tracks: [{ ...project.tracks[0]!, id: 'track-b',
@@ -429,6 +455,7 @@ function rollbackFixture(options: Readonly<{ seeded?: boolean }> = {}) {
 					? [...project.nativePluginStates] : [] as ReturnType<typeof pluginState>[],
 			};
 			controller.project = replacement;
+			projectGeneration.activate(replacement.id);
 			selectedTrackId = 'track-b';
 			return replacement;
 		},

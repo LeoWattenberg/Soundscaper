@@ -44,7 +44,7 @@ import { closeSoundscaperNativePluginVendorUi } from './soundscaper-native-vendo
 const PLUGIN_PORT_EVENT = 'soundscaper-native-plugin-rpc-port-v1';
 
 type NativeControllerPort = Parameters<typeof createSoundscaperNativePluginProjectBinding>[0];
-type NativeAudioControllerPort = NativeControllerPort & Readonly<{
+type NativeAudioControllerPort = NativeControllerPort & NonNullable<Parameters<typeof captureSoundscaperNativeProjectOperation>[0]> & Readonly<{
 	state?: Readonly<{
 		monitoring?: boolean; microphoneMetering?: boolean; recorder?: unknown;
 		recordingStarting?: boolean; recordingFinishing?: boolean;
