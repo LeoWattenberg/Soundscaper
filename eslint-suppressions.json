@@ -134,11 +134,6 @@
       "count": 1
     }
   },
-  "desktop/soundscaper-professional-plugin-peer.ts": {
-    "no-unsafe-finally": {
-      "count": 1
-    }
-  },
   "desktop/soundscaper-project-library-main.ts": {
     "no-unused-private-class-members": {
       "count": 1
