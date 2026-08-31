@@ -13,6 +13,7 @@ import {
 import {
 	mapVideoKeyframeVisiblePosition,
 	normalizeVideoKeyframeTimeDomain,
+	trimVideoKeyframeTimeDomain,
 } from '../src/common/editor/video-keyframe-time-domain.ts';
 import { createVideoEffect } from '../src/common/editor/video-effects.js';
 
@@ -155,6 +156,24 @@ test('time-domain containment compares an exact sum without publishing the inter
 		viewStart: rational(almostWide, 999_983),
 		viewDuration: rational(almostWide, 999_983),
 	});
+});
+
+test('trim classifies every derived view field outside the persisted rational domain', () => {
+	const domain = {
+		authoredDuration: rational(1),
+		viewStart: rational(0),
+		viewDuration: rational(1),
+	};
+	for (const [range, field] of [
+		[{ start: rational(1, 1_000_001), end: rational(1) }, 'view start'],
+		[{ start: rational(0), end: rational(1, 1_000_001) }, 'view duration'],
+		[{ start: rational(0), end: rational(1_000_002, 1_000_001) }, 'authored duration'],
+	] as const) {
+		assert.throws(
+			() => trimVideoKeyframeTimeDomain(domain, rational(1), range),
+			new RegExp(`video keyframe trim ${field} is outside the persisted rational domain`, 'iu'),
+		);
+	}
 });
 
 test('empty keyframes still return detached normalized static state', () => {

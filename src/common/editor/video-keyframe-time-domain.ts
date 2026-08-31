@@ -127,9 +127,12 @@ export function trimVideoKeyframeTimeDomain(
 	const viewDuration = subtractRationals(shiftedEnd, shiftedStart);
 	return Object.freeze({
 		timeDomain: normalizeVideoKeyframeTimeDomain({
-			authoredDuration,
-			viewStart: shiftedStart,
-			viewDuration,
+			authoredDuration: persistedDerivedRational(
+				authoredDuration,
+				'video keyframe trim authored duration',
+			),
+			viewStart: persistedDerivedRational(shiftedStart, 'video keyframe trim view start'),
+			viewDuration: persistedDerivedRational(viewDuration, 'video keyframe trim view duration'),
 		}),
 		curveOffset: persistedDerivedRational(curveOffset, 'video keyframe trim curve offset'),
 		duration: coordinateRational(subtractRationals(end, start), 'video keyframe trim destination duration'),
