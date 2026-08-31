@@ -130,6 +130,7 @@ export interface TakeCycleRecordingServiceDependencies {
 	prepareProjectPublication(
 		operation: TakeCycleProjectPreparationOperation,
 	): MaybePromise<PreparedTakeCycleProjectPublication>;
+	releaseProjectPreparation?(project: PreparedTakeCycleProjectPublication): void;
 	/** Must only mint ownership; durable media work begins after envelope creation. */
 	createMediaStageReceipt(operation: TakeCycleStageReceiptOperation): MaybePromise<AudioSourceStageReceipt>;
 	stageMedia(operation: TakeCyclePassOperation): MaybePromise<void>;

@@ -112,6 +112,9 @@ export function createTakeCycleRecordingRepositoryComposition(
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,
 		prepareProjectPublication,
+		releaseProjectPreparation: ({ projectFence }) => {
+			preparedProjects.delete(projectFence.targetSha256);
+		},
 		createMediaStageReceipt,
 		stageMedia,
 		publishMedia,
@@ -308,27 +311,33 @@ export function createTakeCycleRecordingRepositoryComposition(
 		envelope: TakeCycleRecoveryEnvelope,
 		reason: 'finalize' | 'recovery',
 	): Promise<void> {
-		if (!dependencies.publishCurrentProject) return;
-		validateProject(targetValue);
-		const prepared = preparedProjects.get(envelope.projectFence.targetSha256);
-		let base: AudioEditorProjectV17;
-		let command: AudioEditorCommand | null;
-		if (prepared && documentDigest(serializeScapeProjectDocument(prepared.base)) === envelope.projectFence.baseSha256) {
-			base = prepared.base;
-			command = prepared.command;
-		} else {
-			const baseValue = await dependencies.projects.load(envelope.projectFence.projectId, {
-				revision: envelope.projectFence.baseRevision,
-			});
-			if (!baseValue || documentDigest(serializeScapeProjectDocument(baseValue)) !== envelope.projectFence.baseSha256) {
-				throw new Error('Exact take cycle base revision is unavailable for current-project publication.');
+		const targetSha256 = envelope.projectFence.targetSha256;
+		try {
+			if (!dependencies.publishCurrentProject) return;
+			validateProject(targetValue);
+			const prepared = preparedProjects.get(targetSha256);
+			let base: AudioEditorProjectV17;
+			let command: AudioEditorCommand | null;
+			if (prepared && documentDigest(serializeScapeProjectDocument(prepared.base)) === envelope.projectFence.baseSha256) {
+				base = prepared.base;
+				command = prepared.command;
+			} else {
+				const baseValue = await dependencies.projects.load(envelope.projectFence.projectId, {
+					revision: envelope.projectFence.baseRevision,
+				});
+				if (!baseValue || documentDigest(serializeScapeProjectDocument(baseValue)) !== envelope.projectFence.baseSha256) {
+					throw new Error('Exact take cycle base revision is unavailable for current-project publication.');
+				}
+				validateProject(baseValue);
+				base = baseValue as AudioEditorProjectV17;
+				command = null;
 			}
-			validateProject(baseValue);
-			base = baseValue as AudioEditorProjectV17;
-			command = null;
+			await dependencies.publishCurrentProject(Object.freeze({
+				reason, base, target: targetValue as AudioEditorProjectV17, command,
+			}));
+		} finally {
+			preparedProjects.delete(targetSha256);
 		}
-		await dependencies.publishCurrentProject(Object.freeze({ reason, base, target: targetValue as AudioEditorProjectV17, command }));
-		preparedProjects.delete(envelope.projectFence.targetSha256);
 	}
 
 	async function loadProject(projectId: string, signal?: AbortSignal): Promise<AudioEditorProjectV17> {

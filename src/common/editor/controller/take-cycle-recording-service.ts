@@ -124,8 +124,8 @@ export function createTakeCycleRecordingService(
 			ownership.assertCurrent();
 			return freezeLaneResult(lane, 'failed', [], error);
 		}
-		await callOwned(ownership, () => dependencies.recoveryRepository.create(envelope));
 		try {
+			await callOwned(ownership, () => dependencies.recoveryRepository.create(envelope));
 			for (let entryIndex = 0; entryIndex < envelope.entries.length; entryIndex += 1) {
 				await callOwned(ownership, () => dependencies.stageMedia(passOperation(
 					envelope, lane, entryIndex, ownership,
@@ -166,7 +166,12 @@ export function createTakeCycleRecordingService(
 			);
 		} catch (error) {
 			ownership.assertCurrent();
-			return reconcileLaneFailure(lane, envelope, error, ownership);
+			return await reconcileLaneFailure(lane, envelope, error, ownership);
+		} finally {
+			dependencies.releaseProjectPreparation?.(Object.freeze({
+				projectFence: envelope.projectFence,
+				targetProjectDocument: envelope.targetProjectDocument,
+			}));
 		}
 	}
 
@@ -176,46 +181,50 @@ export function createTakeCycleRecordingService(
 		ownership: TakeCycleOperationOwnership,
 	): Promise<TakeCycleRecoveryEnvelope> {
 		const base = Object.freeze({ ownership, laneIndex: lane.laneIndex, plan: lane.plan });
-		const project = await callOwned(
-			ownership,
-			() => dependencies.prepareProjectPublication(Object.freeze({
-				...base, publications: lane.publications,
-			})),
-		);
-		if (project.projectFence.projectId !== ownership.projectToken.projectId) {
-			throw new Error('Take cycle project fence does not own the active editor project.');
+		ownership.assertCurrent();
+		const project = await dependencies.prepareProjectPublication(Object.freeze({
+			...base, publications: lane.publications,
+		}));
+		try {
+			ownership.assertCurrent();
+			if (project.projectFence.projectId !== ownership.projectToken.projectId) {
+				throw new Error('Take cycle project fence does not own the active editor project.');
+			}
+			const publications: TakeCycleRecoveryEnvelopePublication[] = [];
+			for (let entryIndex = 0; entryIndex < lane.publications.length; entryIndex += 1) {
+				const publication = lane.publications[entryIndex]!;
+				const stageReceipt = await callOwned(ownership, () => dependencies.createMediaStageReceipt(
+					Object.freeze({ ...base, pass: lane.plan.passes[entryIndex]!, publication }),
+				));
+				publications.push(Object.freeze({
+					journalId: publication.journalId,
+					laneId: publication.laneId,
+					mediaId: publication.mediaId,
+					byteLength: publication.byteLength,
+					sha256: publication.sha256,
+					stageReceipt,
+				}));
+			}
+			return createTakeCycleRecoveryEnvelope({
+				envelopeId: lane.envelopeId,
+				generation,
+				captureRequest: {
+					groupId: lane.plan.groupId,
+					laneId: lane.plan.laneId,
+					laneIds: lane.plan.laneIds,
+					loopStartSample: lane.plan.loopStartSample,
+					loopEndSample: lane.plan.loopEndSample,
+					captureSpans: lane.captureSpans,
+					takeIds: lane.plan.passes.map(({ takeId }) => takeId),
+					interrupted: lane.plan.interrupted,
+				},
+				publications,
+				...project,
+			});
+		} catch (error) {
+			dependencies.releaseProjectPreparation?.(project);
+			throw error;
 		}
-		const publications: TakeCycleRecoveryEnvelopePublication[] = [];
-		for (let entryIndex = 0; entryIndex < lane.publications.length; entryIndex += 1) {
-			const publication = lane.publications[entryIndex]!;
-			const stageReceipt = await callOwned(ownership, () => dependencies.createMediaStageReceipt(
-				Object.freeze({ ...base, pass: lane.plan.passes[entryIndex]!, publication }),
-			));
-			publications.push(Object.freeze({
-				journalId: publication.journalId,
-				laneId: publication.laneId,
-				mediaId: publication.mediaId,
-				byteLength: publication.byteLength,
-				sha256: publication.sha256,
-				stageReceipt,
-			}));
-		}
-		return createTakeCycleRecoveryEnvelope({
-			envelopeId: lane.envelopeId,
-			generation,
-			captureRequest: {
-				groupId: lane.plan.groupId,
-				laneId: lane.plan.laneId,
-				laneIds: lane.plan.laneIds,
-				loopStartSample: lane.plan.loopStartSample,
-				loopEndSample: lane.plan.loopEndSample,
-				captureSpans: lane.captureSpans,
-				takeIds: lane.plan.passes.map(({ takeId }) => takeId),
-				interrupted: lane.plan.interrupted,
-			},
-			publications,
-			...project,
-		});
 	}
 
 	async function reconcileLaneFailure(

@@ -125,6 +125,18 @@ test('a failed routed lane is exactly cleaned before the next lane begins', asyn
 	assert.ok(removeA >= 0 && prepareB > removeA, 'failed lane ownership settles before the next lane');
 });
 
+test('project preparation is released after receipt failure and terminal publication', async () => {
+	const fixture = serviceFixture({ receiptFailsForLane: 'lane-a' });
+	const result = await fixture.service.finalize(request());
+
+	assert.equal(result.lanes[0]?.status, 'failed');
+	assert.equal(result.lanes[1]?.status, 'committed');
+	assert.deepEqual(fixture.events.filter((event) => event.startsWith('project:release:')), [
+		'project:release:11',
+		'project:release:11',
+	]);
+});
+
 test('a later media failure cleans the committed prefix and staged suffix without publishing a project', async () => {
 	const failure = new Error('second media commit failed');
 	const fixture = serviceFixture({
@@ -258,6 +270,7 @@ test('cleanup ownership refusal is terminal and never starts another lane', asyn
 });
 
 interface FixtureOverrides {
+	receiptFailsForLane?: string;
 	stageMedia?(operation: TakeCyclePassOperation, fixture: Fixture): Promise<void>;
 	publishMedia?(operation: TakeCyclePassOperation, fixture: Fixture): Promise<void>;
 	publishProject?(
@@ -335,6 +348,9 @@ function serviceFixture(overrides: FixtureOverrides = {}): Fixture {
 		},
 		createMediaStageReceipt(operation) {
 			events.push(`receipt:${operation.pass.takeId}`);
+			if (operation.plan.laneId === overrides.receiptFailsForLane) {
+				throw new Error('stage receipt failed');
+			}
 			return Object.freeze({
 				version: 1 as const,
 				sourceId: operation.publication.mediaId,
@@ -382,6 +398,9 @@ function serviceFixture(overrides: FixtureOverrides = {}): Fixture {
 			events.push(`replay-project:${action.envelope.captureRequest.laneId}`);
 			project.current = targetEvidence(action.envelope);
 			return project.current;
+		},
+		releaseProjectPreparation({ projectFence }) {
+			events.push(`project:release:${String(projectFence.targetRevision)}`);
 		},
 	});
 	const fixture: Fixture = {
