@@ -127,17 +127,19 @@ export default function AudioEditorMenuBar({
 		button?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 		if (open) openMenuAt(nextIndex, { keyboard: true });
 	}, [openMenu, openMenuAt, orderedMenus.length]);
-	accessKeys.updateOptions({
-		focusFileMenu: () => focusMenuButton(0, { open: false }),
-		openMenuByAccessKey: (key) => {
-			const match = menuAccessKeys.find((candidate) => candidate.key === key);
-			if (!match) return false;
-			const index = orderedMenus.findIndex((menu) => menu.id === match.menuId);
-			if (index < 0) return false;
-			openMenuAt(index, { keyboard: true });
-			return true;
-		},
-	});
+	useLayoutEffect(() => {
+		accessKeys.updateOptions({
+			focusFileMenu: () => focusMenuButton(0, { open: false }),
+			openMenuByAccessKey: (key) => {
+				const match = menuAccessKeys.find((candidate) => candidate.key === key);
+				if (!match) return false;
+				const index = orderedMenus.findIndex((menu) => menu.id === match.menuId);
+				if (index < 0) return false;
+				openMenuAt(index, { keyboard: true });
+				return true;
+			},
+		});
+	}, [accessKeys, focusMenuButton, menuAccessKeys, openMenuAt, orderedMenus]);
 
 	useEffect(() => {
 		if (!menuAccessKeysEnabled) return undefined;
