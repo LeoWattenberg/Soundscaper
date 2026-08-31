@@ -5,7 +5,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import {
 	requiredSoundscaperProfessionalNativeSelfTestIds,
@@ -196,11 +196,14 @@ function externalPath(value, repositoryRoot, label) {
 	if (typeof value !== 'string' || !isAbsolute(value) || resolve(value) !== value
 		|| value.includes('\0')) throw new TypeError(`The ${label} must be an absolute normalized path.`);
 	const relation = relative(repositoryRoot, value);
-	if (relation === '' || (!relation.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
-		&& relation !== '..') || isAbsolute(relation)) {
+	if (relation === '' || !isExternalPathRelation(relation, sep, isAbsolute(relation))) {
 		throw new TypeError(`The ${label} must remain outside the authenticated repository.`);
 	}
 	return value;
+}
+
+export function isExternalPathRelation(relation, separator, relationIsAbsolute) {
+	return relation === '..' || relation.startsWith(`..${separator}`) || relationIsAbsolute;
 }
 
 function revision(value) {

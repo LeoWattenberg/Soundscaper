@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, win32 } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -18,6 +18,7 @@ import {
 import {
 	assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 	createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
+	isExternalPathRelation,
 	requiredPipelineSoundscaperProfessionalNativeSelfTestIds,
 	verifyAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 } from '../scripts/lib/soundscaper-professional-native-self-test-plan.mjs';
@@ -35,6 +36,18 @@ import {
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SOURCE_REVISION = '12'.repeat(20); const BUILD_PLAN_SHA256 = '34'.repeat(32);
+
+test('self-test authority recognizes a normalized path on another Windows volume as external', () => {
+	const repositoryRoot = 'D:\\a\\Soundscaper\\Soundscaper';
+	const isExternal = (value) => {
+		const relation = win32.relative(repositoryRoot, value);
+		return isExternalPathRelation(relation, win32.sep, win32.isAbsolute(relation));
+	};
+	assert.equal(isExternal('C:\\Users\\runneradmin\\AppData\\Local\\soundscaper-native'), true);
+	assert.equal(isExternal(repositoryRoot), false);
+	assert.equal(isExternal(win32.join(repositoryRoot, 'payload')), false);
+	assert.equal(isExternal('D:\\a\\Soundscaper\\sibling'), true);
+});
 
 test('Soundscaper candidate source scope excludes every Framescaper codec input', () => {
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('mac-arm64'), [
