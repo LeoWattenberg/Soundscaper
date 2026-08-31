@@ -18,6 +18,9 @@ namespace {
 constexpr uint32_t maximumPendingTasks = 32u;
 constexpr auto taskTimeout = std::chrono::seconds(10);
 
+class Dispatcher;
+std::atomic<Dispatcher *> liveDispatcher{nullptr};
+
 struct Invocation {
 	std::mutex mutex;
 	std::condition_variable condition;
@@ -31,20 +34,25 @@ class Dispatcher final {
 public:
 	Dispatcher() : worker([this]() { run(); })
 	{
+		liveDispatcher.store(this, std::memory_order_release);
 		std::unique_lock lock(stateMutex);
 		stateChanged.wait_for(lock, taskTimeout, [this]() { return started; });
 	}
 
 	~Dispatcher()
 	{
+		shutdown();
+		liveDispatcher.store(nullptr, std::memory_order_release);
+	}
+
+	void shutdown()
+	{
 		{
 			std::lock_guard lock(stateMutex);
 			accepting = false;
 		}
 		auto *current = manager.load(std::memory_order_acquire);
-		if (current != nullptr) {
-			juce::MessageManager::callAsync([current]() { current->stopDispatchLoop(); });
-		}
+		if (current != nullptr) current->stopDispatchLoop();
 		if (worker.joinable()) worker.join();
 	}
 
@@ -159,6 +167,11 @@ soundscaper_pro_status dispatchJuceMessageTask(
 bool postJuceMessageTask(const std::function<void()> &task)
 {
 	return task && dispatcher().post(task);
+}
+
+void shutdownJuceMessageDispatcher()
+{
+	if (auto *value = liveDispatcher.load(std::memory_order_acquire)) value->shutdown();
 }
 
 } // namespace soundscaper

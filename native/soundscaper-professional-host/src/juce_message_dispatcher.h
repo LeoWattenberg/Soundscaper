@@ -12,6 +12,7 @@ namespace soundscaper {
 soundscaper_pro_status dispatchJuceMessageTask(
 	const std::function<soundscaper_pro_status()> &task);
 bool postJuceMessageTask(const std::function<void()> &task);
+void shutdownJuceMessageDispatcher();
 
 } // namespace soundscaper
 
