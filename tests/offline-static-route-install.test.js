@@ -18,8 +18,10 @@ test('static web routes receive product-specific install manifests and Apple tou
 
 	const root = await readFile(join(outputRoot, 'index.html'), 'utf8');
 	const soundscaper = await readFile(join(outputRoot, 'en/index.html'), 'utf8');
+	const german = await readFile(join(outputRoot, 'de/index.html'), 'utf8');
 	assertInstallLinks(root, 'soundscaper');
 	assertInstallLinks(soundscaper, 'soundscaper');
+	assert.match(german, /data-initial-load-progress role="progressbar" aria-label="Projekt wird geladen"/u);
 	assert.equal(await readFile(join(outputRoot, 'framescaper/en/index.html'), 'utf8').catch(() => null), null);
 	// Every build also emits the two cross-origin transfer documents: they
 	// belong to the origin rather than to a product, so both builds carry them.
@@ -120,7 +122,10 @@ async function generateRoutes(context, environment) {
 	await writeFile(join(outputRoot, 'index.html'), `<!doctype html>
 <html lang="en" dir="ltr" data-product="soundscaper">
 	<head><!-- route-head --><title>Soundscaper</title></head>
-	<body><div id="app"></div></body>
+	<body>
+		<div data-initial-load-progress role="progressbar" aria-label="Loading project"></div>
+		<div id="app"></div>
+	</body>
 </html>`);
 	await writeFile(join(outputRoot, '_headers'), await readFile('public/_headers', 'utf8'));
 	await execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {

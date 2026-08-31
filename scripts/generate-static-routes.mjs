@@ -174,9 +174,14 @@ function rootDocument(html, plan) {
 }
 
 function productDocument(html, productId, descriptor) {
+	const loading = escapeHtml(bundledCopyForLocale(descriptor.locale).loading);
 	return html
 		.replace(/<html\b[^>]*>/iu, `<html lang="${escapeHtml(descriptor.locale)}" dir="${descriptor.direction}" data-product="${productId}">`)
-		.replace(/<title>[^<]*<\/title>/iu, `<title>${escapeHtml(productProfile(productId).name)}</title>`);
+		.replace(/<title>[^<]*<\/title>/iu, `<title>${escapeHtml(productProfile(productId).name)}</title>`)
+		.replace(
+			/(<[^>]*\bdata-initial-load-progress\b[^>]*\baria-label=")[^"]*(")/iu,
+			(_match, before, after) => `${before}${loading}${after}`,
+		);
 }
 
 function productIcons(productId) {
