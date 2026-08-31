@@ -7,6 +7,7 @@ import {
 	createUnifiedExactRenderFinishingExportConsumerV13,
 	createUnifiedExactRenderFinishingPreviewConsumerV13,
 } from '../src/common/editor/unified-exact-render-finishing-consumers-v13.ts';
+import { warpApplied } from '../src/common/editor/unified-exact-render-finishing-motion-v13.ts';
 import { analyzeVideoMotionV1 } from '../src/common/editor/video-motion-analysis-v27.ts';
 import { createGrayVideoFrameV1 } from '../src/common/editor/video-motion-processing-v27.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanFinishing } from '../src/framescaper/editor-project-unified-render-plan-finishing.ts';
@@ -19,6 +20,25 @@ import { renderAuthority } from './helpers/framescaper-unified-render-project-fi
 
 const PROFILE = FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE;
 const SOURCE_SHA = '12'.repeat(32);
+
+test('motion warping preserves abort reasons and AbortError classification', () => {
+	const frame = rgba(1, 1, [0]);
+	const transform = {
+		scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
+		inlierCount: 1, meanError: 0,
+	};
+	const reason = new DOMException('cancelled by caller', 'AbortError');
+	const withReason = new AbortController();
+	withReason.abort(reason);
+	assert.throws(() => warpApplied(frame, transform, withReason.signal), (error) => error === reason);
+
+	const withoutErrorReason = new AbortController();
+	withoutErrorReason.abort('cancelled');
+	assert.throws(
+		() => warpApplied(frame, transform, withoutErrorReason.signal),
+		(error: unknown) => error instanceof DOMException && error.name === 'AbortError',
+	);
+});
 
 test('preview and V13 export use the same managed-SDR grade and denoise resolver', async () => {
 	const project = createFramescaperProjectFinishing(PROFILE, {

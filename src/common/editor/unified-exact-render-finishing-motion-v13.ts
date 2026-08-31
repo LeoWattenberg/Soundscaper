@@ -95,5 +95,7 @@ export function writeChannel(pixels: Uint8Array, channel: number, frame: GrayVid
 
 
 function throwIfAborted(signal?: AbortSignal): void {
-	if (signal?.aborted) throw new Error('The V13 finishing frame request was aborted.');
+	if (!signal?.aborted) return;
+	if (signal.reason instanceof Error) throw signal.reason;
+	throw new DOMException('The V13 finishing frame request was aborted.', 'AbortError');
 }
