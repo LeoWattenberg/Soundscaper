@@ -1,4 +1,5 @@
 import { projectEffectTailFrames } from './effects.js';
+import { findStereoLimitedMultichannelRenderEffects } from './adm-render-safety.ts';
 import { createBwfExportMetadata, projectBextMetadata } from './broadcast-wave-project.ts';
 import { inspectPreservedAdmRiffChunks, sameBextMetadata } from './adm-riff-passthrough.ts';
 import { createBw64AdmExport, resolveBw64Adm } from './export-bw64-adm.js';
@@ -26,6 +27,7 @@ import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
 import { planExportOfflineRenderStrategyAdmission } from './export-render-admission.ts';
 import { scaleSampleFrame } from './timeline-time.ts';
+import { isSoundscaperProductionProject } from './project-schema-version.ts';
 
 export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
 	wav: { bitDepth: 24 },
@@ -161,6 +163,7 @@ export function createExportPlan(project, options = {}) {
 	if (mode !== 'mix' && mode !== 'stems') throw new RangeError('Export mode must be mix or stems.');
 	const format = canonicalMediaExportFormat(options.format || 'wav');
 	if (format === 'bw64' && mode !== 'mix') throw new RangeError('BW64 / ADM export is mix-only.');
+	assertSoundscaperEffectChannelSafety(runtimeProject, mode);
 	const bw64Adm = format === 'bw64' ? resolveBw64Adm(runtimeProject, options) : null;
 	const binaural = resolveBinauralBw64Delivery(runtimeProject, options, format, mode);
 	let encoding = normalizeMediaExportSettings(format, {
@@ -391,6 +394,19 @@ export function createExportPlan(project, options = {}) {
 		archive,
 		aggregateStereoMinutes: aggregateStereoMinutes(runtimeProject),
 	};
+}
+
+function assertSoundscaperEffectChannelSafety(project, mode) {
+	if (!isSoundscaperProductionProject(project)) return;
+	const issues = findStereoLimitedMultichannelRenderEffects(project, Number(project.masterChannels), {
+		includeMaster: mode === 'mix',
+	});
+	if (!issues.length) return;
+	throw new Error(`Multichannel audio export cannot use effects that change terminal channel width: ${issues
+		.map(({ effectType, scope, targetId, channelCount }) => (
+			`${effectType} on ${scope}${targetId ? ` ${targetId}` : ''} (${String(channelCount)} channels)`
+		))
+		.join(', ')}.`);
 }
 
 /**

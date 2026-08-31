@@ -15,6 +15,21 @@ export interface UnsafeAdmRenderEffect {
 	readonly channelCount: number;
 }
 
+export interface RenderEffectChannelSafetyOptions {
+	readonly includeMaster?: boolean;
+}
+
+/** Find active browser effects that cannot preserve a signal wider than stereo. */
+export function findStereoLimitedMultichannelRenderEffects(
+	project: EngineProject | null | undefined,
+	masterChannelCount: number,
+	options: RenderEffectChannelSafetyOptions = {},
+): readonly UnsafeAdmRenderEffect[] {
+	return findUnsafeRenderEffects(project, masterChannelCount, options, (effect, _scope, channelCount) => (
+		channelCount > 2 && STEREO_LIMITED_EFFECT_TYPES.has(normalizedEffectType(effect))
+	));
+}
+
 const STEREO_LIMITED_EFFECT_TYPES: ReadonlySet<string> = new Set([
 	'compressor',
 	'convolver',
@@ -31,16 +46,31 @@ export function findUnsafeAdmRenderEffects(
 	project: EngineProject | null | undefined,
 	authoredChannelCount: number,
 ): readonly UnsafeAdmRenderEffect[] {
+	return findUnsafeRenderEffects(project, authoredChannelCount, {}, isUnsafeWidthTransform);
+}
+
+function findUnsafeRenderEffects(
+	project: EngineProject | null | undefined,
+	masterChannelCount: number,
+	options: RenderEffectChannelSafetyOptions,
+	predicate: (
+		effect: EngineEffect,
+		scope: UnsafeAdmRenderEffect['scope'],
+		channelCount: number,
+	) => boolean,
+): readonly UnsafeAdmRenderEffect[] {
 	const widths = resolveTerminalChannelWidths(project);
 	const issues: UnsafeAdmRenderEffect[] = [];
 	for (const rack of projectEffectRacks(project)) {
+		if (rack.scope === 'master' && options.includeMaster === false) continue;
 		const channelCount = rack.scope === 'master'
-			? authoredChannelCount
+			? masterChannelCount
 			: rack.scope === 'track'
 				? widths.tracks.get(rack.targetId ?? '') ?? 2
 				: (rack.scope === 'group' ? widths.groups : widths.sends).get(rack.targetId ?? '') ?? 2;
 		for (const effect of rack.effects) {
-			if (!isUnsafeWidthTransform(effect, rack.scope, channelCount)) continue;
+			if (!effect || effect.enabled === false || effect.bypassed === true
+				|| !predicate(effect, rack.scope, channelCount)) continue;
 			issues.push(Object.freeze({
 				scope: rack.scope,
 				targetId: rack.targetId,
@@ -54,11 +84,10 @@ export function findUnsafeAdmRenderEffects(
 }
 
 function isUnsafeWidthTransform(
-	effect: EngineEffect | null | undefined,
+	effect: EngineEffect,
 	scope: 'track' | 'group' | 'send' | 'master',
 	channelCount: number,
-): effect is EngineEffect {
-	if (!effect || effect.enabled === false || effect.bypassed === true) return false;
+): boolean {
 	const type = normalizedEffectType(effect);
 	if (channelCount > 2) return STEREO_LIMITED_EFFECT_TYPES.has(type);
 	return scope !== 'master' && channelCount === 1 && STEREO_EXPANDING_EFFECT_TYPES.has(type);
