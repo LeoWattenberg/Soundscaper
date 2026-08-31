@@ -626,11 +626,15 @@ function readSpectrogram(node, sampleRate) {
 	const nativeWindowType = integerInRange(audacityXmlAttribute(node, 'windowType', 3), 0, 0x7fff_ffff, 3);
 	const scale = nativeSpectrogramScale(nativeScaleType);
 	const windowType = nativeSpectrogramWindow(nativeWindowType);
+	const gainAttributes = audacityXmlAttributes(node, 'gain');
+	const spectrogramGain = gainAttributes.length > 1 || gainAttributes[0]?.type === 'int'
+		? gainAttributes[0]?.value
+		: undefined;
 	return {
 		scale, minimumFrequency, maximumFrequency,
 		windowSize: powerOfTwo(audacityXmlAttribute(node, 'windowSize', 2048), 2048),
 		windowType,
-		gain: finiteInRange(audacityXmlAttributes(node, 'gain')[0]?.value, -120, 120, 20),
+		gain: finiteInRange(spectrogramGain, -120, 120, 20),
 		range: finiteInRange(audacityXmlAttribute(node, 'range', 80), 1, 240, 80),
 		syncWithGlobal: booleanValue(audacityXmlAttribute(node, 'syncWithGlobalSettings', true), true),
 		frequencyGainDb: finiteInRange(audacityXmlAttribute(node, 'frequencyGain', 0), -120, 120, 0),
