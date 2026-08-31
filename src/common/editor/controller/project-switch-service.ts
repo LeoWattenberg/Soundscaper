@@ -41,6 +41,7 @@ export function createProjectSwitchService<
 >(runtime: ProjectSwitchServiceRuntime<Project, History>) {
 	const playbackProjects = runtime.playbackProjectService
 		?? createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
+	let pendingProjectSwitches = 0;
 	return Object.freeze({
 		newProject,
 		openProject,
@@ -90,13 +91,21 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
+		if (pendingProjectSwitches === 0 && runtime.getProject()?.id === nextProject.id) {
+			runtime.lifetime.assertActive(token);
+			return Promise.resolve();
+		}
 		const fence = beginScapeInspectionFence(options.preserveScapeOpenRequest === true);
+		pendingProjectSwitches += 1;
 		const operation = runtime.state.projectQueue.then(async () => {
 			runtime.lifetime.assertActive(token);
 			await fence.wait();
 			runtime.lifetime.assertActive(token);
 			await performProjectSwitchUnderFence(nextProject, options, token);
-		}).finally(() => { fence.release(); });
+		}).finally(() => {
+			pendingProjectSwitches -= 1;
+			fence.release();
+		});
 		runtime.state.projectQueue = operation.catch(() => undefined);
 		return operation;
 	}
@@ -107,12 +116,15 @@ export function createProjectSwitchService<
 		token: EditorLifetimeToken = runtime.lifetime.capture(),
 	): Promise<void> {
 		runtime.lifetime.assertActive(token);
+		if (pendingProjectSwitches === 0 && runtime.getProject()?.id === nextProject.id) return;
 		const fence = beginScapeInspectionFence();
+		pendingProjectSwitches += 1;
 		try {
 			await fence.wait();
 			runtime.lifetime.assertActive(token);
 			await performProjectSwitchUnderFence(nextProject, options, token);
 		} finally {
+			pendingProjectSwitches -= 1;
 			fence.release();
 		}
 	}
@@ -122,6 +134,7 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History>,
 		token: EditorLifetimeToken,
 	): Promise<void> {
+		if (runtime.getProject()?.id === nextProject.id) return;
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
 		const projectId = nextProject.id;
 		const existingCapture = runtime.sessionTab(projectId)

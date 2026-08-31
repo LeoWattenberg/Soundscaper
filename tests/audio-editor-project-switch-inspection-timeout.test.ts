@@ -56,6 +56,7 @@ test('a Scape inspection timeout rejects project switching before project work',
 		lifetime,
 		scapeInspectionQuiescence: quiescence,
 		productCapabilities: {},
+		getProject: () => null,
 		projectGeneration: {
 			invalidate() { projectWorkCalls += 1; },
 			activate() { return null; },

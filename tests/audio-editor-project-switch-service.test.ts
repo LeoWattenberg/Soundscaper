@@ -51,6 +51,57 @@ test('project activation resets scoped state and publishes only after sources ar
 	await assert.rejects(fixture.service.switchProject(project('render-failure')), (error) => error === renderFailure); assert.equal(fixture.events.filter((event) => event === 'begin-provider-replacement').length, 1);
 });
 
+test('reactivating the active project preserves playback and project-scoped tasks', async () => {
+	const fixture = createFixture();
+	const activeProject = fixture.getProject();
+	assert.ok(activeProject);
+	fixture.projectGeneration.activate(activeProject.id);
+	const projectGeneration = fixture.projectGeneration.capture(activeProject.id);
+	const tasks = [
+		fixture.lifetime.startTask('native-project-save'),
+		fixture.lifetime.startTask(PLAYBACK_PROJECT_APPLY_TASK),
+		fixture.lifetime.startTask(PROJECT_BIN_LINKED_VIDEO_RELINK_TASK),
+		fixture.lifetime.startTask(SCAPE_INSPECTION_TASK),
+		fixture.lifetime.startTask(SCAPE_OPEN_REQUEST_TASK),
+	];
+	const exportAbort = fixture.state.exportAbort;
+	const sampleEditAbort = fixture.state.sampleEditAbort;
+	const sameIdReload = { ...activeProject, title: 'Newer same-ID document' };
+
+	await fixture.service.switchProject(activeProject);
+	await fixture.service.openProject(sameIdReload);
+
+	assert.deepEqual(fixture.events, []);
+	assert.ok(tasks.every(({ signal }) => !signal.aborted));
+	assert.equal(exportAbort?.signal.aborted, false);
+	assert.equal(sampleEditAbort?.signal.aborted, false);
+	assert.strictEqual(fixture.state.exportAbort, exportAbort);
+	assert.strictEqual(fixture.state.sampleEditAbort, sampleEditAbort);
+	assert.strictEqual(fixture.getProject(), activeProject);
+	assert.notStrictEqual(fixture.getProject(), sameIdReload);
+	assert.equal(fixture.initialLock.releases, 0);
+	fixture.projectGeneration.assertCurrent(projectGeneration);
+});
+
+test('active-project deduplication preserves a queued reversal intent', async () => {
+	const fixture = createFixture();
+	const activeProject = fixture.getProject();
+	assert.ok(activeProject);
+	const queueGate = deferred<void>();
+	fixture.state.projectQueue = queueGate.promise;
+
+	const away = fixture.service.switchProject(project('next-project'));
+	const back = fixture.service.switchProject(activeProject);
+	queueGate.resolve();
+	await Promise.all([away, back]);
+
+	assert.strictEqual(fixture.getProject(), activeProject);
+	assert.deepEqual(fixture.events.filter((event) => event.startsWith('engine-load:')), [
+		'engine-load:next-project',
+		'engine-load:old-project',
+	]);
+});
+
 test('project switch waits for a suspended origin save and flushes its edit before activation', async () => {
 	const fixture = createFixture();
 	type FixtureProject = NonNullable<ReturnType<typeof fixture.getProject>>;
