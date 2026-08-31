@@ -28,6 +28,10 @@ export interface AnalysisAudioBuffer {
 	getChannelData(channel: number): Float32Array;
 }
 
+export interface AnalysisChannelOptions {
+	readonly channelWeights?: readonly number[];
+}
+
 interface AnalysisCopy {
 	readonly analysisRendering: string;
 	readonly analysisCached: string;
@@ -85,7 +89,12 @@ export interface AnalysisDependencies {
 	loadAnalysis(key: string): Promise<StoredAnalysis | null>;
 	saveAnalysis(key: string, value: StoredAnalysis): Promise<unknown>;
 	renderAudio(scope: string, range: AnalysisRange, signal: AbortSignal): Promise<AnalysisAudioBuffer>;
-	analyzeChannels(channels: Float32Array[], sampleRate: number, signal: AbortSignal): Promise<Record<string, unknown>>;
+	analyzeChannels(
+		channels: Float32Array[],
+		sampleRate: number,
+		signal: AbortSignal,
+		options?: AnalysisChannelOptions,
+	): Promise<Record<string, unknown>>;
 	createVisuals(channels: Float32Array[], sampleRate: number): unknown;
 	showAnalysis(result: unknown, visuals?: unknown, report?: unknown): void;
 	setProcessing(processing: boolean): void;
@@ -299,7 +308,13 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const rendered = await dependencies.renderAudio(scope, range, task.signal);
 		assertCurrent(task, projectToken);
 		const channels = Array.from({ length: rendered.numberOfChannels }, (_, channel) => rendered.getChannelData(channel));
-		const result = await dependencies.analyzeChannels(channels, rendered.sampleRate, task.signal);
+		const channelWeights = resolveAdmEbuChannelWeights(
+			dependencies.getProject().metadata?.adm,
+			channels.length,
+		);
+		const result = await dependencies.analyzeChannels(channels, rendered.sampleRate, task.signal, {
+			...(channelWeights ? { channelWeights } : {}),
+		});
 		assertCurrent(task, projectToken);
 		return { channels, sampleRate: rendered.sampleRate, result };
 	}

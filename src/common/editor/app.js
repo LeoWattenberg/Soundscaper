@@ -744,7 +744,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		loadAnalysis: (key) => store.loadAnalysis(key),
 		saveAnalysis: (key, value) => store.saveAnalysis(key, value),
 		renderAudio: renderAnalysisAudio,
-		analyzeChannels: (channels, sampleRate, signal) => analyzeChannelsInWorker(channels, sampleRate, copy, 65_536, signal),
+		analyzeChannels: (channels, sampleRate, signal, analysisOptions) => analyzeChannelsInWorker(channels, sampleRate, copy, 65_536, signal, analysisOptions),
 		createVisuals: createAnalysisVisuals,
 		showAnalysis,
 		setProcessing: (processing) => { state.analysisProcessing = processing; },

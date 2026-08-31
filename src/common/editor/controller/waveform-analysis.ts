@@ -214,18 +214,22 @@ export async function analyzeChannelsInWorker(
 	copy: WorkerCopy,
 	chunkFrames = 65_536,
 	signal: AbortSignal | null = null,
+	options: Readonly<{ channelWeights?: readonly number[] }> = {},
 ): Promise<unknown> {
 	throwIfAborted(signal);
 	if (typeof Worker !== 'function') {
 		const { analyzeAudioChannels } = await import('../analysis.js');
-		const result = analyzeAudioChannels(channels, sampleRate);
+		const result = analyzeAudioChannels(channels, sampleRate, options);
 		throwIfAborted(signal);
 		return result;
 	}
 	const worker = new Worker(new URL('../analysis-worker.js', import.meta.url), { type: 'module' });
 	try {
 		const ready = waitForAnalysisWorker(worker, 'ready', copy, { signal });
-		worker.postMessage({ type: 'start', options: { sampleRate, channelCount: channels.length, truePeakOversample: 4 } });
+		worker.postMessage({
+			type: 'start',
+			options: { ...options, sampleRate, channelCount: channels.length, truePeakOversample: 4 },
+		});
 		await ready;
 		const frameCount = channels[0]?.length || 0;
 		for (let offset = 0; offset < frameCount; offset += chunkFrames) {
