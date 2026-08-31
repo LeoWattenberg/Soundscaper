@@ -27,13 +27,17 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 		try {
 			if (action === 'undo') {
 				state.videoEffectGestures.clear();
-				state.history = undoEditorCommand(state.history);
+				const previousHistory = state.history;
+				state.history = undoEditorCommand(previousHistory);
+				if (state.history === previousHistory) return;
 				projectChanged();
 				return;
 			}
 			if (action === 'redo') {
 				state.videoEffectGestures.clear();
-				state.history = redoEditorCommand(state.history);
+				const previousHistory = state.history;
+				state.history = redoEditorCommand(previousHistory);
+				if (state.history === previousHistory) return;
 				projectChanged();
 				return;
 			}
