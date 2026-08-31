@@ -495,6 +495,23 @@ int containmentProbe(int argc, char **argv)
 	return 125;
 }
 
+int runFramedPeer()
+{
+	Peer peer;
+	for (;;) {
+		std::vector<uint8_t> request, answer;
+		const FrameReadStatus status = readFrame(request);
+		if (status != FrameReadStatus::ready) return status == FrameReadStatus::cleanEof ? 0 : 125;
+		if (!peer.dispatch(request, answer) || !writeFrame(answer)) return 125;
+		if (peer.finished()) {
+#if !defined(__APPLE__)
+			soundscaper::shutdownJuceMessageDispatcher();
+#endif
+			return 0;
+		}
+	}
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -508,15 +525,9 @@ int main(int argc, char **argv)
 #endif
 	const int probe = containmentProbe(argc, argv);
 	if (probe >= 0) return probe;
-	Peer peer;
-	for (;;) {
-		std::vector<uint8_t> request, answer;
-		const FrameReadStatus status = readFrame(request);
-		if (status != FrameReadStatus::ready) return status == FrameReadStatus::cleanEof ? 0 : 125;
-		if (!peer.dispatch(request, answer) || !writeFrame(answer)) return 125;
-		if (peer.finished()) {
-			soundscaper::shutdownJuceMessageDispatcher();
-			return 0;
-		}
-	}
+#if defined(__APPLE__)
+	return soundscaper::runMacJuceMessageDispatcher(runFramedPeer);
+#else
+	return runFramedPeer();
+#endif
 }

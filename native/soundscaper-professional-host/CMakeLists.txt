@@ -112,9 +112,15 @@ target_link_libraries(soundscaper_professional_plugin PRIVATE
 
 if(APPLE)
 	target_sources(soundscaper_professional_audio PRIVATE src/os_audio_codec_mac.mm)
+	target_sources(soundscaper_professional_plugin PRIVATE src/juce_message_dispatcher_mac.mm)
 	target_link_libraries(soundscaper_professional_audio PRIVATE
 		"-framework AudioToolbox" "-framework CoreFoundation")
 	target_link_libraries(soundscaper_professional_plugin PRIVATE "-framework CoreAudioKit")
+	target_link_libraries(soundscaper_professional_plugin PRIVATE "-framework CoreFoundation")
+	set_target_properties(soundscaper_professional_plugin PROPERTIES
+		OBJCXX_STANDARD 20
+		OBJCXX_STANDARD_REQUIRED YES
+		OBJCXX_EXTENSIONS NO)
 	target_compile_definitions(soundscaper_professional_audio PRIVATE
 		JUCE_ASIO=0 SOUNDSCAPER_COREAUDIO_STREAMING=1)
 	target_compile_definitions(soundscaper_professional_plugin PRIVATE
@@ -180,6 +186,18 @@ if(BUILD_TESTING AND (APPLE OR WIN32))
 		soundscaper_professional_audio)
 	add_test(NAME soundscaper_os_audio_codec_self_test
 		COMMAND soundscaper_os_audio_codec_self_test)
+endif()
+if(BUILD_TESTING AND APPLE)
+	add_executable(soundscaper_juce_message_dispatcher_mac_self_test
+		tests/juce_message_dispatcher_mac_self_test.cpp)
+	target_compile_features(soundscaper_juce_message_dispatcher_mac_self_test PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_juce_message_dispatcher_mac_self_test PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/src")
+	target_link_libraries(soundscaper_juce_message_dispatcher_mac_self_test PRIVATE
+		soundscaper_professional_plugin)
+	add_test(NAME soundscaper_juce_message_dispatcher_mac_self_test
+		COMMAND soundscaper_juce_message_dispatcher_mac_self_test)
+	set_tests_properties(soundscaper_juce_message_dispatcher_mac_self_test PROPERTIES TIMEOUT 15)
 endif()
 if(BUILD_TESTING)
 	add_library(soundscaper_professional_clap_fixture MODULE

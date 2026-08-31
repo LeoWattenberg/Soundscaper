@@ -2,6 +2,8 @@
 
 #include "juce_message_dispatcher.h"
 
+#if !defined(__APPLE__)
+
 #include <juce_events/juce_events.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -175,3 +177,5 @@ void shutdownJuceMessageDispatcher()
 }
 
 } // namespace soundscaper
+
+#endif
