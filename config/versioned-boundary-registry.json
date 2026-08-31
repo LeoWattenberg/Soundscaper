@@ -316,6 +316,8 @@
 		,
 		{ "path": "src/common/editor/native-rgba-frame-pack-v1-contract.ts", "kind": "ipc-contract", "justification": "native-rgba-frame-pack-v1-contract.ts is an independently versioned persisted or cross-process carrier contract." }
 		,
+		{ "path": "src/common/editor/project-effect-tail-v21.ts", "kind": "persisted-contract", "justification": "project-effect-tail-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
 		{ "path": "src/common/editor/project-feature-audio-track-render-v1.ts", "kind": "persisted-contract", "justification": "project-feature-audio-track-render-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/project-feature-video-clip-render-v1.ts", "kind": "persisted-contract", "justification": "project-feature-video-clip-render-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
