@@ -3,6 +3,9 @@
 import { readClosedDomainArray, readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
 import type { OfxEffectStateV26 } from '../common/editor/native-ofx-state-v26.ts';
 import { AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS } from '../common/editor/project-validation-budget.ts';
+import { videoSourceCharacteristicsCarryProfessionalFields } from '../common/editor/video-source-characteristics-consumer.ts';
+import { normalizeVideoSourceCharacteristicsV25 } from '../common/editor/video-source-professional-characteristics-v25.ts';
+import { mergeVideoSourceProfessionalCharacteristicsForReprobe } from '../common/editor/video-source-upgrade.ts';
 import {
 	applyFramescaperProjectCommandFinishing,
 	snapshotFramescaperProjectCommandFinishing,
@@ -11,7 +14,10 @@ import {
 } from './editor-project-finishing-commands.ts';
 import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { reconcileInheritedFramescaperProjectStateFinishing } from './editor-project-finishing-inherited-state.ts';
-import { framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia } from './editor-project-professional-media-foundation.ts';
+import {
+	framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia,
+	framescaperVideoSourceRateProfessionalMedia,
+} from './editor-project-professional-media-foundation.ts';
 import {
 	applyFramescaperProfessionalSourceCollectionCommandProfessionalMedia,
 	isFramescaperProfessionalSourceCollectionCommandTypeProfessionalMedia,
@@ -162,7 +168,7 @@ function applyInherited(
 	const nativeState = new Map<string, NativeSourceAuthorityNativeMedia>(records(project.sources, 'sources')
 		.filter(({ kind }) => kind === 'video')
 		.map((source) => [String(source.id), snapshotNativeSourceNativeMedia(source)]));
-	const projectedCommand = projectInheritedCommandNativeMedia(command);
+	const projectedCommand = projectInheritedCommandNativeMedia(command, nativeState);
 	for (const [id, state] of projectedCommand.nativeState) nativeState.set(id, state);
 	const applied = applyFramescaperProjectCommandFinishing(
 		FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE,
@@ -179,33 +185,88 @@ function applyInherited(
 	return applied as unknown as FramescaperProjectNativeMedia;
 }
 
-function projectInheritedCommandNativeMedia(command: FramescaperProjectCommandFinishing): Readonly<{
+function projectInheritedCommandNativeMedia(
+	command: FramescaperProjectCommandFinishing,
+	inheritedNativeState: ReadonlyMap<string, NativeSourceAuthorityNativeMedia>,
+): Readonly<{
 	command: FramescaperProjectCommandFinishing;
 	nativeState: ReadonlyMap<string, NativeSourceAuthorityNativeMedia>;
 }> {
 	const projected = structuredClone(command) as unknown as Record<string, unknown>;
 	const nativeState = new Map<string, NativeSourceAuthorityNativeMedia>();
-	projectInheritedCommandNodeNativeMedia(projected, nativeState);
+	projectInheritedCommandNodeNativeMedia(projected, nativeState, inheritedNativeState);
 	return Object.freeze({ command: projected as unknown as FramescaperProjectCommandFinishing, nativeState });
 }
 
 function projectInheritedCommandNodeNativeMedia(
 	command: Record<string, unknown>,
 	nativeState: Map<string, NativeSourceAuthorityNativeMedia>,
+	inheritedNativeState: ReadonlyMap<string, NativeSourceAuthorityNativeMedia>,
 ): void {
 	if (command.type === 'batch') {
 		for (const child of records(command.commands, 'nativeMedia inherited command batch')) {
-			projectInheritedCommandNodeNativeMedia(child, nativeState);
+			projectInheritedCommandNodeNativeMedia(child, nativeState, inheritedNativeState);
 		}
 		return;
 	}
-	if (command.type !== 'source/add') return;
-	const source = record(command.source, 'nativeMedia source admission');
-	if (source.kind !== 'video') return;
-	const id = String(source.id);
-	nativeState.set(id, snapshotNativeSourceNativeMedia(source));
-	delete source.imageSequence;
-	source.characteristics = framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia(source);
+	if (command.type === 'source/add') {
+		const source = record(command.source, 'nativeMedia source admission');
+		if (source.kind !== 'video') return;
+		const id = String(source.id);
+		nativeState.set(id, snapshotNativeSourceNativeMedia(source));
+		delete source.imageSequence;
+		source.characteristics = framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia(source);
+		return;
+	}
+	if (command.type !== 'source/reprobe' || typeof command.sourceId !== 'string') return;
+	projectInheritedReprobeNativeMedia(command, nativeState, inheritedNativeState);
+}
+
+function projectInheritedReprobeNativeMedia(
+	command: Record<string, unknown>,
+	nativeState: Map<string, NativeSourceAuthorityNativeMedia>,
+	inheritedNativeState: ReadonlyMap<string, NativeSourceAuthorityNativeMedia>,
+): void {
+	const sourceId = String(command.sourceId);
+	const prior = nativeState.get(sourceId) ?? inheritedNativeState.get(sourceId);
+	if (!prior?.characteristics) return;
+	const changes = record(command.changes, 'nativeMedia inherited source re-probe changes');
+	const resulting = { ...structuredClone(prior), ...changes };
+	if (Object.hasOwn(changes, 'characteristics')) {
+		const requested = changes.characteristics;
+		const inherited = inheritedReprobeCharacteristicsNativeMedia(prior, resulting, requested);
+		if (videoSourceCharacteristicsCarryProfessionalFields(requested)) {
+			const claimed = normalizeVideoSourceCharacteristicsV25(requested, {
+				rate: framescaperVideoSourceRateProfessionalMedia(resulting),
+			});
+			if (!same(claimed, inherited)) {
+				throw new RangeError('A source re-probe cannot change professional source characteristics.');
+			}
+		}
+		resulting.characteristics = inherited;
+		changes.characteristics = framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia(resulting);
+	}
+	if (!same(resulting.characteristics, prior.characteristics)
+		|| !imageSequenceAuthorityUnchanged(prior, resulting)) resulting.imageSequence = null;
+	nativeState.set(sourceId, snapshotNativeSourceNativeMedia(resulting));
+}
+
+function inheritedReprobeCharacteristicsNativeMedia(
+	prior: NativeSourceAuthorityNativeMedia,
+	resulting: Readonly<Record<string, unknown>>,
+	requested: unknown,
+): ReturnType<typeof normalizeVideoSourceCharacteristicsV25> {
+	const visual = framescaperVideoSourceCharacteristicsVisualProjectionProfessionalMedia({
+		...resulting,
+		characteristics: requested,
+	});
+	const rate = framescaperVideoSourceRateProfessionalMedia(resulting);
+	if (!rate) throw new RangeError('A source re-probe requires a positive video frame rate.');
+	return mergeVideoSourceProfessionalCharacteristicsForReprobe(
+		visual,
+		prior.characteristics,
+		rate,
+	);
 }
 
 function snapshotNativeSourceNativeMedia(source: Record<string, unknown>): NativeSourceAuthorityNativeMedia {

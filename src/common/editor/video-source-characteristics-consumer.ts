@@ -17,12 +17,13 @@ export function normalizeVideoSourceCharacteristicsForConsumer(
 	value: unknown,
 	options: VideoSourceCharacteristicsOptions = {},
 ): VideoSourceCharacteristics {
-	return carriesProfessionalCharacteristics(value)
+	return videoSourceCharacteristicsCarryProfessionalFields(value)
 		? normalizeVideoSourceCharacteristicsV25(value, options)
 		: normalizeVideoSourceCharacteristics(value, options);
 }
 
-function carriesProfessionalCharacteristics(value: unknown): boolean {
+/** Whether a persisted record uses V25's in-place professional extension. */
+export function videoSourceCharacteristicsCarryProfessionalFields(value: unknown): boolean {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 	const candidate = value as Readonly<Record<string, unknown>>;
 	if (PROFESSIONAL_KEYS.some((key) => Object.hasOwn(candidate, key))) return true;

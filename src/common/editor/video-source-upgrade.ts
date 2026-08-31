@@ -264,12 +264,13 @@ function upgradeCharacteristics(
 	);
 	if (sameValue(reading, historicalCharacteristicsProjection(existing, rate))) return existing;
 	if (!Object.hasOwn(existing, 'bitDepth')) return reading;
-	return preserveProfessionalCharacteristics(reading, existing, rate);
+	return mergeVideoSourceProfessionalCharacteristicsForReprobe(reading, existing, rate);
 }
 
-function preserveProfessionalCharacteristics(
+/** Carry only the V25 facts a historical timing probe has no authority to replace. */
+export function mergeVideoSourceProfessionalCharacteristicsForReprobe(
 	reading: VideoSourceCharacteristics,
-	existing: VideoSourceCharacteristics,
+	existing: unknown,
 	rate: RationalRate,
 ): VideoSourceCharacteristicsV25 {
 	const professional = normalizeVideoSourceCharacteristicsV25(existing, { rate });
