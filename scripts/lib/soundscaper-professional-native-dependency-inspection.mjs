@@ -21,7 +21,8 @@ import {
 
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 const WINDOWS_SYSTEM_LIBRARIES = new Set([
-	'advapi32.dll', 'api-ms-win-shcore-scaling-l1-1-1.dll', 'avrt.dll', 'bcrypt.dll', 'cfgmgr32.dll', 'comctl32.dll',
+	'advapi32.dll', 'api-ms-win-security-base-l1-2-2.dll', 'api-ms-win-shcore-scaling-l1-1-1.dll',
+	'avrt.dll', 'bcrypt.dll', 'cfgmgr32.dll', 'comctl32.dll',
 	'comdlg32.dll', 'd2d1.dll', 'd3d11.dll', 'dcomp.dll', 'dwrite.dll', 'dwmapi.dll',
 	'dxgi.dll', 'gdi32.dll', 'imm32.dll', 'kernel32.dll', 'mf.dll', 'mfplat.dll',
 	'mfreadwrite.dll', 'mfuuid.dll', 'ole32.dll', 'oleaut32.dll', 'powrprof.dll',
