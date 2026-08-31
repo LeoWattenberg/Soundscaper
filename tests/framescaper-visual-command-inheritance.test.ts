@@ -18,8 +18,9 @@ test('removing a video track also removes its visual clips and adjustment target
 	const removed = applyFramescaperProjectCommandVisual(PROFILE, visualProject(), {
 		type: 'track/remove', trackId: 'video-track',
 	});
+	const tracks = removed.tracks as readonly Readonly<{ id: string }>[];
 
-	assert.equal(removed.tracks.some(({ id }) => id === 'video-track'), false);
+	assert.equal(tracks.some(({ id }) => id === 'video-track'), false);
 	assert.equal(removed.clips.some(({ kind }) => kind === 'still' || kind === 'generator'), false);
 	assert.deepEqual(removed.videoAdjustmentLayers, []);
 });
@@ -49,11 +50,11 @@ test('removing a source prunes only its unused mask input', () => {
 
 test('inherited commands retain the current still and generator selection', () => {
 	const project = structuredClone(visualProject());
-	project.selection.clipIds = ['still-clip', 'generator-clip'];
+	selection(project).clipIds = ['still-clip', 'generator-clip'];
 	const updated = applyFramescaperProjectCommandVisual(PROFILE, project, {
 		type: 'track/update', trackId: 'audio-track', changes: { mute: true },
 	});
-	assert.deepEqual(updated.selection.clipIds, ['still-clip', 'generator-clip']);
+	assert.deepEqual(selection(updated).clipIds, ['still-clip', 'generator-clip']);
 });
 
 test('nested inherited batches retain their final visual clip selection', () => {
@@ -65,5 +66,9 @@ test('nested inherited batches retain their final visual clip selection', () => 
 			}, { type: 'track/update', trackId: 'audio-track', changes: { mute: true } }],
 		}],
 	});
-	assert.deepEqual(selected.selection.clipIds, ['generator-clip']);
+	assert.deepEqual(selection(selected).clipIds, ['generator-clip']);
 });
+
+function selection(project: FramescaperProjectVisual): { clipIds: string[] } {
+	return project.selection as { clipIds: string[] };
+}
