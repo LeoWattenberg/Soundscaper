@@ -72,6 +72,57 @@ test('preview mode changes settle in intent order and ignore an older failure', 
 	}
 });
 
+test('a rejected preview mode change restores the mode the runtime still owns', async () => {
+	const dom = installTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const mutation = deferred<void>();
+	const controller = {};
+	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
+		mode: () => 'auto',
+		previewTrust: () => 'unverified',
+		setMode: () => mutation.promise,
+		pressure: () => null,
+		reportPreviewPressure: async () => undefined,
+		generate: async () => undefined,
+		attachExisting: async () => undefined,
+		detach: async () => undefined,
+		regenerate: async () => undefined,
+		relinkOriginal: async () => 'relinked',
+	}));
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<FramescaperVideoProxyDialog
+			controller={controller}
+			snapshot={{ project: project(), selectedClipId: 'video-clip', missingSourceIds: [] }}
+			editingBlocked={false}
+			copy={{}}
+			fileService={{}}
+			run={(operation) => operation()}
+			onClose={() => undefined}
+		/>));
+		const mode = dom.elements('select')[1];
+		assert.ok(mode);
+		await change(mode, 'proxy');
+		assert.equal(mode.value, 'proxy');
+
+		await act(async () => {
+			mutation.reject(new Error('verified proxy unavailable'));
+			await mutation.promise.catch(() => undefined);
+			await new Promise<void>((resolve) => { setImmediate(resolve); });
+		});
+
+		assert.match(dom.container.textContent, /verified proxy unavailable/u);
+		assert.equal(dom.elements('select')[1]?.getAttribute('data-video-proxy-preview-mode'), 'auto');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function project() {
 	return {
 		schemaFamily: 'framescaper', schemaVersion: 1,

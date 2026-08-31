@@ -105,6 +105,7 @@ export default function FramescaperVideoProxyDialog({
 				'Preview mode updated and proxy trust refreshed.'));
 		}, (operationError: unknown) => {
 			if (modeGenerationRef.current !== generation) return;
+			setMode(runtime.mode(sourceId));
 			setError(operationError instanceof Error ? operationError.message : String(operationError));
 		});
 	};
@@ -250,7 +251,8 @@ export default function FramescaperVideoProxyDialog({
 					</select>
 				</label>
 				<label><span>{label(copy, 'videoProxyPreviewMode', 'Preview media')}</span>
-					<select value={mode} disabled={!runtime || pending !== null}
+					<select value={mode} data-video-proxy-preview-mode={mode}
+						disabled={!runtime || pending !== null}
 						onChange={(event) => changeMode(event.currentTarget.value)}>
 						<option value="original">{label(copy, 'videoProxyModeOriginal', 'Original')}</option>
 						<option value="proxy">{label(copy, 'videoProxyModeProxy', 'Proxy')}</option>
