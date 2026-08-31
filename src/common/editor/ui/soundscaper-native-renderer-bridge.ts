@@ -303,8 +303,20 @@ export function createSoundscaperNativeRendererBridge(options: Readonly<{
 			}
 		},
 		async closeNativePluginVendorUi(request: Readonly<{ instanceId: string; windowHandleId: string }>) {
+			let runtimeFailed = false;
+			let runtimeFailure: unknown;
 			try { await closeNativePluginRuntimeVendorUi(request.instanceId, request.windowHandleId); }
-			finally { return options.bridge.closeNativePluginVendorUi(request); }
+			catch (error) { runtimeFailed = true; runtimeFailure = error; }
+			let closed: boolean;
+			try { closed = await options.bridge.closeNativePluginVendorUi(request); }
+			catch (error) {
+				if (runtimeFailed) {
+					throw new AggregateError([runtimeFailure, error], 'Native plug-in vendor window cleanup failed.');
+				}
+				throw error;
+			}
+			if (runtimeFailed) throw runtimeFailure;
+			return closed;
 		},
 		async closeNativePluginInstance(request: Readonly<{ instanceId: string }>) {
 			const update = project?.setBypassed(request.instanceId, true);
