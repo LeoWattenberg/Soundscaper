@@ -62,13 +62,14 @@ export function createFramescaperVideoFrameAddressFinishing(options: Readonly<{
 		? DEFAULT_MAXIMUM_CACHE_BYTES
 		: positiveInteger(options.maximumCacheBytes, 'finishing frame cache byte limit');
 	const decoders = new Map<string, FrameDecoderFinishing>();
+	const decoderCreations = new Map<string, Promise<FrameDecoderFinishing>>();
 	const cache = new Map<string, UnifiedExactRenderRgbaFrameV13>();
 	let retainedBytes = 0;
 	let disposed = false;
 	let disposePromise: Promise<void> | null = null;
 
 	async function resolve(request: Parameters<FramescaperVideoFrameAddressFinishing['resolve']>[0]) {
-		if (disposed) throw new Error('Selected finishing frame addressing is closed.');
+		if (disposed) throw closedError();
 		const sourceId = requiredId(request?.sourceId, 'finishing addressed source ID');
 		const sourceFrame = nonNegativeInteger(request?.sourceFrame, 'finishing addressed source frame');
 		const width = positiveInteger(request?.width, 'finishing addressed frame width');
@@ -89,12 +90,29 @@ export function createFramescaperVideoFrameAddressFinishing(options: Readonly<{
 		}
 		let decoder = decoders.get(sourceId);
 		if (!decoder) {
-			decoder = await createDecoder(body, Object.freeze({ signal }));
-			throwIfAborted(signal);
-			if (!decoder || typeof decoder.capture !== 'function' || typeof decoder.dispose !== 'function') {
-				throw new TypeError('The selected finishing frame decoder is invalid.');
+			let creation = decoderCreations.get(sourceId);
+			if (!creation) {
+				creation = (async () => {
+					const created = await createDecoder(body, Object.freeze({ signal }));
+					if (!created || typeof created.capture !== 'function'
+						|| typeof created.dispose !== 'function') {
+						throw new TypeError('The selected finishing frame decoder is invalid.');
+					}
+					if (disposed) {
+						await created.dispose();
+						throw closedError();
+					}
+					decoders.set(sourceId, created);
+					return created;
+				})();
+				decoderCreations.set(sourceId, creation);
 			}
-			decoders.set(sourceId, decoder);
+			try {
+				decoder = await creation;
+			} finally {
+				if (decoderCreations.get(sourceId) === creation) decoderCreations.delete(sourceId);
+			}
+			throwIfAborted(signal);
 		}
 		const decoded = checkedFrame(await decoder.capture(Object.freeze({
 			timestampSeconds: midpointSeconds(
@@ -103,8 +121,15 @@ export function createFramescaperVideoFrameAddressFinishing(options: Readonly<{
 			width, height, signal,
 		})), 'Selected finishing addressed frame');
 		throwIfAborted(signal);
+		if (disposed) throw closedError();
 		const frame = decoded.width === width && decoded.height === height
 			? decoded : resizeFrame(decoded, width, height);
+		const retained = cache.get(key);
+		if (retained) {
+			cache.delete(key);
+			cache.set(key, retained);
+			return cloneFrame(retained);
+		}
 		const byteLength = frame.pixels.byteLength;
 		while (cache.size > 0 && retainedBytes + byteLength > maximumCacheBytes) {
 			const oldest = cache.keys().next().value as string;
@@ -254,4 +279,8 @@ function nonNegativeInteger(value: unknown, name: string): number {
 
 function throwIfAborted(signal: AbortSignal): void {
 	if (signal.aborted) throw signal.reason ?? new DOMException('finishing frame addressing was aborted.', 'AbortError');
+}
+
+function closedError(): Error {
+	return new Error('Selected finishing frame addressing is closed.');
 }
