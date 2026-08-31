@@ -70,6 +70,10 @@ test('a conversion that would collapse or reorder authored positions is refused'
 	assert.equal(assertConvertedPositionsOrderedV21([
 		{ num: 0, den: 1 }, { num: 1, den: 2 }, { num: 1, den: 1 },
 	]), true);
+	assert.equal(assertConvertedPositionsOrderedV21([
+		{ num: 99_999_999, den: 100_000_000 },
+		{ num: 100_000_000, den: 100_000_001 },
+	]), true, 'adjacent large rationals remain distinguishable beyond Number precision');
 	// Two authored points landing on one frame would make the lane invalid, so the
 	// switch refuses rather than committing a lane with duplicate positions.
 	assert.throws(() => assertConvertedPositionsOrderedV21([5, 5]), /cannot express/iu);

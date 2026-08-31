@@ -3,7 +3,7 @@
 import type { AutomationLaneTimebaseV21 } from './automation-lane-v21.ts';
 import { createIndexedBeatFrameProjector } from './indexed-tempo-projector.ts';
 import { sampleFrameToBeat } from './timeline-tempo-inverse.ts';
-import { normalizeRational, type HoldTempoMap, type Rational } from './timeline-time.ts';
+import { compareRationals, normalizeRational, type HoldTempoMap, type Rational } from './timeline-time.ts';
 
 export interface AutomationLaneTimebaseOptionsV21 {
 	readonly sampleRate: number;
@@ -77,17 +77,11 @@ export function assertConvertedPositionsOrderedV21(
 	positions: readonly (number | Rational)[],
 ): true {
 	for (let index = 1; index < positions.length; index += 1) {
-		if (comparePositions(positions[index - 1]!, positions[index]!) >= 0) {
+		if (compareRationals(positions[index - 1]!, positions[index]!) >= 0) {
 			throw new RangeError('This tempo map cannot express the lane in the requested timebase.');
 		}
 	}
 	return true;
-}
-
-function comparePositions(left: number | Rational, right: number | Rational): number {
-	const first = typeof left === 'number' ? { num: left, den: 1 } : left;
-	const second = typeof right === 'number' ? { num: right, den: 1 } : right;
-	return first.num * second.den - second.num * first.den;
 }
 
 function canonicalRational(value: unknown): Rational {
