@@ -556,6 +556,7 @@ const COPY_ENTRIES = Object.freeze([
 	["minimizeWindow","Minimize window","Fenster minimieren"],
 	["maximizeWindow","Maximize window","Fenster maximieren"],
 	["restoreWindow","Restore window","Fenster wiederherstellen"],
+	["desktopActiveWorkQuit","{product} is still recording or processing. Stop the active work and quit?","{product} nimmt noch auf oder verarbeitet Daten. Aktive Arbeit stoppen und beenden?"],
 ]);
 
 export const CANONICAL_EXTRA_COPY_BY_LOCALE = Object.freeze({

@@ -61,7 +61,7 @@ export function useDesktopEditorBridge({
 				const current = controller.getSnapshot();
 				const activeWork = editorCloseHasActiveWork(current);
 				if (activeWork) {
-					const stopAndQuit = globalThis.confirm?.('Soundscaper is still recording or processing. Stop the active work and quit?') ?? false;
+					const stopAndQuit = globalThis.confirm?.(desktopActiveWorkQuitPrompt(copy)) ?? false;
 					if (!stopAndQuit) return;
 					await sealEditorCaptureForClose(controller);
 					await Promise.resolve(controller.actions.export.cancel());
@@ -102,7 +102,7 @@ export function useDesktopEditorBridge({
 			active = false;
 			for (const unsubscribe of unsubscribers) unsubscribe();
 		};
-	}, [controller, durationFrames, fileService, onError, openDesktopFiles, openDesktopProjectDescriptor, openSurface, run, snapshot.readOnly, toggleFullscreen]);
+	}, [controller, copy, durationFrames, fileService, onError, openDesktopFiles, openDesktopProjectDescriptor, openSurface, run, snapshot.readOnly, toggleFullscreen]);
 	if (!fileService.isDesktop) return null;
 	return {
 		platform: desktopEnvironment?.platform,
@@ -113,4 +113,12 @@ export function useDesktopEditorBridge({
 		onToggleMaximize: () => run(() => fileService.runWindowAction('toggle-maximize')),
 		onQuit: () => run(() => fileService.runWindowAction('quit')),
 	};
+}
+
+export function desktopActiveWorkQuitPrompt(copy) {
+	const template = typeof copy?.desktopActiveWorkQuit === 'string'
+		? copy.desktopActiveWorkQuit
+		: '{product} is still recording or processing. Stop the active work and quit?';
+	const product = typeof copy?.title === 'string' && copy.title ? copy.title : 'The editor';
+	return template.replace('{product}', product);
 }
