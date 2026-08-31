@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { collectClientErrors } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
@@ -447,13 +448,4 @@ async function beginClipDrag(page, clip, destinationTrack, horizontalFraction) {
 		laneBox.y + Math.min(42, laneBox.height / 2),
 		{ steps: 8 },
 	);
-}
-
-function collectClientErrors(page) {
-	const errors = [];
-	page.on('pageerror', (error) => errors.push(error.message));
-	page.on('console', (message) => {
-		if (message.type() === 'error') errors.push(message.text());
-	});
-	return errors;
 }
