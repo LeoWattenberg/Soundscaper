@@ -69,7 +69,10 @@ export function finalizeWavAdmImport(options: Readonly<{
 	readonly opaqueRiffChunks?: readonly WavOpaqueRiffChunk[];
 	readonly opaqueWarnings?: readonly WavAdmWarning[];
 }>): Readonly<{ metadata: WavAdmImportMetadata | null; warnings: readonly WavAdmWarning[] }> {
-	const warnings: WavAdmWarning[] = [...(options.priorWarnings ?? [])];
+	const warnings: WavAdmWarning[] = [
+		...(options.priorWarnings ?? []),
+		...(options.opaqueWarnings ?? []),
+	];
 	const addWarning = (code: string, error: unknown): void => {
 		const message = error instanceof Error ? error.message : String(error);
 		warnings.push(Object.freeze({ code, message }));
@@ -143,8 +146,6 @@ export function finalizeWavAdmImport(options: Readonly<{
 		if (options.chna) addWarning('adm-chna-orphaned', 'The CHNA chunk has no ADM AXML, BXML, or SXML payload.');
 		return Object.freeze({ metadata: null, warnings: Object.freeze(warnings) });
 	}
-	warnings.push(...(options.opaqueWarnings ?? []));
-
 	let parsedChna: ChnaMetadata | null = null;
 	let rawBase64 = '';
 	if (options.chna) {
