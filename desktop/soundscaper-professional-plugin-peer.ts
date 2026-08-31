@@ -245,15 +245,12 @@ async function openSession(
 	const snapshot = await snapshotAuthenticatedPluginCandidate(pluginPath, context);
 	let launch;
 	try {
-		const [snapshotDirectoryGrant, pluginGrant] = await Promise.all([
-			exactSnapshotDirectoryGrant(snapshot.path),
-			exactPathGrant(snapshot.path, snapshot.authentication.identity),
-		]);
+		const pluginGrant = await exactPathGrant(snapshot.path, snapshot.authentication.identity);
 		const arguments_ = entryExecutable.path === peerExecutable.path ? []
 			: [...entryArguments, peerExecutable.path];
 		launch = await launcher.launch({
 			executable: entryExecutable, workloadPayload: peerExecutable, arguments: arguments_,
-			readOnly: [], readExecute: [snapshotDirectoryGrant, pluginGrant], writeOnly: [],
+			readOnly: [], readExecute: [pluginGrant], writeOnly: [],
 			runtimeClosure: runtimeReadExecute,
 			resourcePolicy: {
 				maximumJobDurationMs: context.resourcePolicy.maximumJobDurationMs,
@@ -330,19 +327,6 @@ async function listPluginCandidates(root: string, suffix: string): Promise<reado
 	}
 	await visit(root, 0);
 	return Object.freeze(output);
-}
-
-async function exactSnapshotDirectoryGrant(path: string) {
-	const directory = dirname(path);
-	const [metadata, canonical, entries] = await Promise.all([
-		lstat(directory, { bigint: true }), realpath(directory), readdir(directory),
-	]);
-	const identity = nativeChildFileIdentityFromStat(metadata);
-	if (metadata.isSymbolicLink() || !metadata.isDirectory() || canonical !== directory
-		|| entries.length !== 1 || resolve(directory, entries[0]!) !== path) {
-		throw new Error('The immutable plug-in snapshot directory changed before isolated launch.');
-	}
-	return Object.freeze({ path: directory, kind: 'directory' as const, identity });
 }
 
 async function exactPathGrant(path: string, expected: Readonly<HelperFileIdentity>) {
