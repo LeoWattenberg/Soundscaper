@@ -222,7 +222,7 @@ function editorial(row: JsonRecord, workflowId: 'generate-editorial-text'): Assi
 	}
 	return Object.freeze({ settingsVersion: 1, workflowId,
 		enabled: boolean(row.enabled, 'editorial generation'),
-		fields: Object.freeze(row.fields as Array<typeof EDITORIAL_FIELDS[number]>) });
+		fields: Object.freeze([...(row.fields as Array<typeof EDITORIAL_FIELDS[number]>)]) });
 }
 
 function advanced(row: JsonRecord, workflowId: AssistanceAdvancedWorkflowId): AssistanceWorkflowSettingsV1 {

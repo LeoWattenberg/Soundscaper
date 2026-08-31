@@ -81,6 +81,20 @@ test('workflow settings reject unknown keys, cross-workflow values, and unsafe b
 	), /workflow/iu);
 });
 
+test('editorial workflow validation owns its fields without freezing caller state', () => {
+	const fields = ['title', 'hook'];
+	const settings = validateAssistanceWorkflowSettingsV1({
+		settingsVersion: 1, workflowId: 'generate-editorial-text', enabled: true, fields,
+	});
+	assert.equal(Object.isFrozen(fields), false);
+	fields.push('chapters');
+	if (settings.workflowId !== 'generate-editorial-text') {
+		assert.fail('Editorial settings changed workflow identity.');
+	}
+	assert.deepEqual(settings.fields, ['title', 'hook']);
+	assert.notStrictEqual(settings.fields, fields);
+});
+
 test('advanced recipes remain exact single-operation recipes with no hidden parameters', () => {
 	const settings = defaultAssistanceWorkflowSettingsV1('advanced:audio-tagging');
 	assert.deepEqual(settings, {
