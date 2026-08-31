@@ -145,9 +145,20 @@ test.describe('Framescaper v1 product lifecycle', () => {
 		await expect(dialog.getByRole('button', { name: 'Generate and attach', exact: true })).toBeEnabled();
 		const mode = dialog.getByRole('combobox', { name: 'Preview media', exact: true });
 		await mode.selectOption('proxy');
-		await expect(mode).toHaveValue('proxy');
+		await expect(dialog.getByRole('status')).toContainText(
+			'Proxy preview is unavailable because no verified attachment exists.',
+		);
+		await expect(mode).toHaveValue('auto');
+		await mode.selectOption('original');
+		await expect(mode).toHaveValue('original');
+		await expect(dialog.getByRole('status')).toContainText(
+			'Preview mode updated and proxy trust refreshed.',
+		);
 		await mode.selectOption('auto');
 		await expect(mode).toHaveValue('auto');
+		await expect(dialog.getByRole('status')).toContainText(
+			'Preview mode updated and proxy trust refreshed.',
+		);
 		await dialog.getByRole('button', { name: 'Close', exact: true }).click();
 		expect(clientErrors).toEqual([]);
 	});
