@@ -10,7 +10,7 @@ import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fix
 test('OpenFX transition progress uses point-rounded NTSC output frame samples', () => {
 	const rate = Object.freeze({ num: 30_000, den: 1_001 });
 	const base = unifiedExactPlanFixture(14);
-	const nodes = base.nodes.map((node) => node.kind !== 'transition' ? node : ({
+	const nodes = base.nodes.map((node) => !('edges' in node) ? node : ({
 		...node,
 		edges: {
 			...node.edges,
