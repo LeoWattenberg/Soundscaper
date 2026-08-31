@@ -39,7 +39,7 @@
 		"tests/audio-editor-controller.test.js": { "maxLines": 3338, "reason": "Legacy controller regression suite; place new subsystem tests in focused files." },
 		"tests/audio-editor-disk-backed-sources.test.js": { "maxLines": 740, "reason": "Legacy bounded-storage integration scenarios." },
 		"tests/audio-editor-mix-render.test.js": { "maxLines": 743, "reason": "Legacy mix/render integration matrix." },
-		"tests/audio-editor-model.test.js": { "maxLines": 862, "reason": "Legacy project model regression matrix." },
+		"tests/audio-editor-model.test.js": { "maxLines": 856, "reason": "Legacy project model regression matrix." },
 		"tests/audio-editor-multitrack-selection-effects.test.js": { "maxLines": 602, "reason": "Legacy multitrack selection/effect integration scenarios." },
 		"tests/audio-editor-nyquist-controller.test.js": { "maxLines": 625, "reason": "Legacy Nyquist controller integration scenarios." },
 		"tests/audio-editor-recording-controller.test.js": { "maxLines": 1284, "reason": "Legacy recording-controller regression suite." },
