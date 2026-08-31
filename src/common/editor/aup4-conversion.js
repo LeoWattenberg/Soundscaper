@@ -626,15 +626,10 @@ function readSpectrogram(node, sampleRate) {
 	const nativeWindowType = integerInRange(audacityXmlAttribute(node, 'windowType', 3), 0, 0x7fff_ffff, 3);
 	const scale = nativeSpectrogramScale(nativeScaleType);
 	const windowType = nativeSpectrogramWindow(nativeWindowType);
-	const gainAttributes = audacityXmlAttributes(node, 'gain');
-	const spectrogramGain = gainAttributes.length > 1 || gainAttributes[0]?.type === 'int'
-		? gainAttributes[0]?.value
-		: undefined;
 	return {
-		scale, minimumFrequency, maximumFrequency,
-		windowSize: powerOfTwo(audacityXmlAttribute(node, 'windowSize', 2048), 2048),
+		scale, minimumFrequency, maximumFrequency, windowSize: powerOfTwo(audacityXmlAttribute(node, 'windowSize', 2048), 2048),
 		windowType,
-		gain: finiteInRange(spectrogramGain, -120, 120, 20),
+		gain: finiteInRange(audacitySpectrogramGain(node), -120, 120, 20),
 		range: finiteInRange(audacityXmlAttribute(node, 'range', 80), 1, 240, 80),
 		syncWithGlobal: booleanValue(audacityXmlAttribute(node, 'syncWithGlobalSettings', true), true),
 		frequencyGainDb: finiteInRange(audacityXmlAttribute(node, 'frequencyGain', 0), -120, 120, 0),
@@ -746,6 +741,7 @@ function readPitchAndSpeedPreset(node) {
 }
 function nativeSpectrogramScale(value) { return ['linear', 'log', 'mel', 'bark', 'erb', 'period'][value] || 'mel'; }
 function nativeSpectrogramWindow(value) { return ({ 2: 'hamming', 3: 'hann', 4: 'blackman' })[value] || 'hann'; }
+function audacitySpectrogramGain(node) { const gains = audacityXmlAttributes(node, 'gain'); return gains.length > 1 || gains[0]?.type === 'int' ? gains[0]?.value : undefined; }
 function trackColor(value) { return ['#66a3ff', '#9996fc', '#b5b5b5', '#ffad51'][Number(value)] || '#66a3ff'; }
 function booleanValue(value, fallback) {
 	if (value === true || value === 1) return true;

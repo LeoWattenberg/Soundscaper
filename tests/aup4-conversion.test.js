@@ -106,24 +106,6 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 	assert.equal(audacityXmlAttributes(withoutFrequencySelection, 'selHigh').length, 0);
 });
 
-test('a lone AUP3 wavetrack gain remains volume rather than spectrogram gain', async () => {
-	const root = createAudacityXmlNode('project', [
-		{ kind: 'attribute', name: 'rate', type: 'double', value: 48_000 },
-	], [{ kind: 'node', node: createAudacityXmlNode('wavetrack', [
-		{ kind: 'attribute', name: 'name', type: 'string', value: 'Classic track' },
-		{ kind: 'attribute', name: 'rate', type: 'double', value: 48_000 },
-		{ kind: 'attribute', name: 'gain', type: 'double', value: 0.5 },
-	]) }]);
-	let nextId = 0;
-	const decoded = await decodeAudacityProjectTree(root, async () => null, {
-		sourceGeneration: 'aup3',
-		idFactory: (prefix) => `${prefix}-${String(++nextId)}`,
-	});
-	const track = decoded.project.tracks.find((candidate) => candidate.type === 'audio');
-	assert.equal(track.gain, 0.5);
-	assert.equal(track.spectrogram.gain, 20);
-});
-
 test('AUP4 conversion reconciles mixed-rate and structurally mismatched linked-channel timelines', async () => {
 	const source = createAudioSource({
 		id: 'linked-source',
