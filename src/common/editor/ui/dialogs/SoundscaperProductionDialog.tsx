@@ -19,6 +19,7 @@ import {
 	type SoundscaperProductionCopy,
 } from '../soundscaper-production-copy.ts';
 import { useSoundscaperProductionDialogOperation } from '../soundscaper-production-dialog-operation.ts';
+import { createSoundscaperProductionDialogClose } from '../soundscaper-production-dialog-close.ts';
 import type {
 	MasteringSequenceCommandPayloads,
 	MasteringSequenceCommandType,
@@ -198,23 +199,9 @@ export default function SoundscaperProductionDialog({
 			document.getElementById(tabId(next))?.focus({ preventScroll: true });
 		});
 	};
-	const requestClose = (): void => {
-		if (pending !== null) return;
-		if (!automationGestureActive) {
-			onClose();
-			return;
-		}
-		perform(
-			'automation-gesture-cancel',
-			() => ({ type: 'automation-gesture/cancel' }),
-			() => {
-				setAutomationGestureActive(false);
-				onClose();
-			},
-			undefined,
-			{ allowWhenBlocked: true },
-		);
-	};
+	const requestClose = createSoundscaperProductionDialogClose({
+		pending, automationGestureActive, perform, setAutomationGestureActive, onClose,
+	});
 
 	return <AudioEditorDialogShell
 		title={copy.productionAudio}
