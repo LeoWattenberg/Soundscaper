@@ -48,5 +48,14 @@ test('Windows opts the peer out of ambient all-application-package access', () =
 		/InitializeProcThreadAttributeList\(nullptr, 3u,[\s\S]*InitializeProcThreadAttributeList\(attributes, 3u,/u,
 		'the LPAC policy must occupy its own process attribute slot');
 	assert.match(PROFILE, /less-privileged-appcontainer-low-integrity/u);
-	assert.match(BROKER, /persistent-exact-less-privileged-appcontainer-policy/u);
+	assert.match(PROFILE, /exact-user-and-appcontainer-sid-intersection-grants/u);
+	assert.match(BROKER,
+		/persistent-exact-user-and-less-privileged-appcontainer-intersection-policy/u);
+});
+
+test('Windows exact grants satisfy both LPAC access-check principals', () => {
+	assert.match(SOURCE,
+		/OpenProcessToken\(GetCurrentProcess\(\), TOKEN_QUERY[\s\S]*GetTokenInformation\([^,]+, TokenUser/u);
+	assert.match(SOURCE,
+		/std::array<EXPLICIT_ACCESSW, 2>[\s\S]*TRUSTEE_IS_GROUP[\s\S]*TRUSTEE_IS_USER[\s\S]*SetEntriesInAclW\(2u/u);
 });

@@ -393,6 +393,9 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(peer,
 		/writeFrame\(answer\)[\s\S]*peer\.finished\(\)[\s\S]*shutdownJuceMessageDispatcher\(\)/u,
 		'the successful close frame must precede explicit bounded-lifetime JUCE teardown');
+	assert.match(peer,
+		/int main\(int argc, char \*\*argv\)[\s\S]*_setmode\(_fileno\(stdout\), _O_BINARY\)[\s\S]*containmentProbe\(argc, argv\)/u,
+		'Windows containment receipts must enter binary stdout mode before emitting exact LF markers');
 	for (const method of [
 		'describe', 'enumerateAudioBackends', 'openAudioDevice', 'writeAudioDevice',
 		'readAudioDevice', 'closeAudioDevice', 'listPluginCandidates',
@@ -520,6 +523,9 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(windows, /PROC_THREAD_ATTRIBUTE_HANDLE_LIST/u);
 	assert.match(windows, /SetEntriesInAclW/u);
 	assert.match(windows, /sameFile\(source, handle\)/u);
+	assert.match(windows,
+		/OpenProcessToken\(GetCurrentProcess\(\), TOKEN_QUERY[\s\S]*GetTokenInformation\([^,]+, TokenUser[\s\S]*SetEntriesInAclW\(2u/u,
+		'exact LPAC grants must authorize both halves of the Windows dual-principal access check');
 	assert.doesNotMatch(windows, /class AclLease|originalAcl|~AclLease/u,
 		'a crash-safe exact AppContainer grant must never rely on launcher-exit DACL restoration');
 	assert.match(windows, /cbReserved2/u);
