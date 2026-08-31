@@ -2,6 +2,7 @@ import { audacityXmlAttribute, audacityXmlChildren, createAudacityXmlNode } from
 import { createAup4EffectsNode } from './aup4-effects.js';
 import { rehydrateAup4OpaqueInt64Attribute } from './aup4-opaque-persistence.ts';
 import { sanitizeAup4ProjectRoot } from './aup4-sanitization.js';
+import { nativeAup4TimeSignatureDenominator } from './aup4-time-signature.ts';
 import {
 	AUDIO_EDITOR_SNAP_UPSTREAM_MAX,
 	audioEditorSnapGrid,
@@ -268,7 +269,7 @@ export function createAup4ProjectTree(project, channelBlocks = new Map()) {
 	const tempo = finiteInRange(project.tempo?.bpm ?? project.tempo ?? 120, 1, 1000, 120);
 	const timeSignature = project.timeSignature || project.tempo?.timeSignature || {};
 	const numerator = integerInRange(timeSignature.numerator, 1, 0x7fff_ffff, 4);
-	const denominator = nativeTimeSignatureDenominator(timeSignature.denominator);
+	const denominator = nativeAup4TimeSignatureDenominator(timeSignature.denominator);
 	const selectedTrackIds = new Set(project.selection?.trackIds || []);
 	const selectedClipIds = new Set(project.selection?.clipIds || []);
 	const groupNumbers = createGroupNumberMap(project);
@@ -393,7 +394,7 @@ export function readAup4ProjectSummary(root) {
 		timeSignature: {
 			numerator: integerInRange(audacityXmlAttribute(root, 'time_signature_upper', 4),
 				1, 0x7fff_ffff, 4),
-			denominator: nativeTimeSignatureDenominator(
+			denominator: nativeAup4TimeSignatureDenominator(
 				audacityXmlAttribute(root, 'time_signature_lower', 4),
 			),
 		},
@@ -834,13 +835,6 @@ function integerInRange(value, minimum, maximum, fallback) { const number = Numb
 function nonNegativeInteger(value, fallback) { const number = Number(value); return Number.isSafeInteger(number) && number >= 0 ? number : fallback; }
 function displayType(value) { return value === 'spectrogram' ? 1 : value === 'multiview' ? 2 : 0; }
 function inverseRatio(value) { const ratio = Number(value); return Number.isFinite(ratio) && ratio > 0 ? 1 / ratio : 1; }
-function nativeTimeSignatureDenominator(value) {
-	const number = Number(value);
-	return Number.isSafeInteger(number) && number > 0 && number <= 0x4000_0000
-		&& Number.isInteger(Math.log2(number))
-		? number
-		: 4;
-}
 function envelopePointsEqual(left, right) {
 	if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
 	return left.every((point, index) => (
