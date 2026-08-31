@@ -394,6 +394,13 @@ function labelTrackMarkers(
 				'A maintained label could not fit the RIFF uint32 cue fields and was omitted.', { labelId: String(label.id ?? '') });
 			return [];
 		}
+		if (endFrame > startFrame && outputEnd <= sampleOffset) {
+			addItem(report, 'RIFF_LABEL_UNREPRESENTABLE', 'omitted', null,
+				'A positive maintained label region collapsed below one output sample and was omitted.', {
+					labelId: String(label.id ?? ''),
+				});
+			return [];
+		}
 		return [Object.freeze({
 			id: index + 1,
 			sampleOffset,

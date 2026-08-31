@@ -182,6 +182,28 @@ test('WAV planning keeps annotations and maintained label tracks explicitly sele
 	}), /timeline-annotation project schema/iu);
 });
 
+test('RIFF label export reports a positive region that collapses below one output sample', () => {
+	const project = createCurrentAudioEditorProject({
+		id: 'collapsed-riff-label', title: 'Collapsed RIFF label', now: NOW,
+		sampleRate: 96_000,
+		tracks: [createLabelTrack({
+			id: 'labels',
+			labels: [{ id: 'tiny', title: 'Tiny', startFrame: 2, endFrame: 4 }],
+		})],
+	});
+
+	const result = createRiffAnnotationExport(project, {
+		range: { startFrame: 0, endFrame: 100 },
+		outputSampleRate: 8_000,
+		markerSource: 'label-track',
+		markerTrackId: 'labels',
+	});
+
+	assert.deepEqual(result.markers, []);
+	assert.equal(result.report.items[0]?.code, 'RIFF_LABEL_UNREPRESENTABLE');
+	assert.equal(result.report.items[0]?.disposition, 'omitted');
+});
+
 function annotation(overrides: Record<string, unknown>): Record<string, unknown> {
 	return {
 		id: 'annotation',
