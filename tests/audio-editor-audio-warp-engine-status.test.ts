@@ -390,13 +390,15 @@ test('exact warp playback follows an attached native output route', async () => 
 		}),
 	});
 	const nativeWindow = {} as Window;
-	let receive: ((event: Event) => void) | null = null;
-	const device = { connect() {}, disconnect() {} } as AudioNode;
+	const listener: { receive: ((event: Event) => void) | null } = { receive: null };
+	const device = { connect() {}, disconnect() {} } as unknown as AudioNode;
 	const renderer = createSoundscaperNativeAudioRenderer({
 		engine,
 		windowValue: {
 			window: nativeWindow,
-			addEventListener: (_type, listener) => { receive = listener as (event: Event) => void; },
+			addEventListener: (_type: string, receive: EventListenerOrEventListenerObject) => {
+				listener.receive = receive as (event: Event) => void;
+			},
 			removeEventListener() {},
 		} as never,
 		createNode: async () => ({
@@ -408,7 +410,7 @@ test('exact warp playback follows an attached native output route', async () => 
 		candidates: [{ backend: 'alsa', deviceHandle: 'device' }], direction: 'output', mode: 'shared',
 		sampleRate: 48_000, periodFrames: 128, channelCount: 1,
 	});
-	receive?.({
+	listener.receive?.({
 		source: nativeWindow,
 		data: { type: 'soundscaper-native-realtime-port-v1', offer: {
 			protocolVersion: 1, generation: 1, sampleFormat: 'f32-planar', sampleRate: 48_000,
