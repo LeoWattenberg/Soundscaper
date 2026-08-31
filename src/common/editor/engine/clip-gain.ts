@@ -51,8 +51,9 @@ export function scheduleProjectGains({
 			else linearRamp(scheduled.param, event.value, event.time);
 		}
 	};
-	for (const [trackIndex, track] of (project.tracks || []).entries()) {
-		if (track.type === 'label' || track.type === 'video') continue;
+	const audioTracks = (project.tracks || [])
+		.filter((track) => track.type !== 'label' && track.type !== 'video');
+	for (const [trackIndex, track] of audioTracks.entries()) {
 		scheduleEnvelope(track, gainParams.tracks?.get(String(track.id ?? trackIndex)));
 	}
 	for (const [index, bus] of (project.mixer?.groups || []).entries()) {

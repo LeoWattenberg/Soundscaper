@@ -25,8 +25,9 @@ export function activeRackEffects(owner: Readonly<{
 export function* projectEffectRacks(
 	project: EngineProject | null | undefined,
 ): Generator<EngineEffectRackLocation> {
-	for (const [index, track] of (project?.tracks || []).entries()) {
-		if (track?.type === 'label' || track?.type === 'video') continue;
+	const audioTracks = (project?.tracks || [])
+		.filter((track) => track?.type !== 'label' && track?.type !== 'video');
+	for (const [index, track] of audioTracks.entries()) {
 		yield {
 			scope: 'track',
 			targetId: String(track?.id ?? index),

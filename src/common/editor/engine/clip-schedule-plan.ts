@@ -223,8 +223,9 @@ export function buildClipSchedulePlans({
 }: BuildClipSchedulePlansOptions): ClipSchedulePlan[] {
 	const clipsById = new Map(getProjectClips(project).map((clip) => [String(clip.id), clip]));
 	const plans: ClipSchedulePlan[] = [];
-	for (const [trackIndex, track] of (project.tracks || []).entries()) {
-		if (track.type === 'label' || track.type === 'video') continue;
+	const audioTracks = (project.tracks || [])
+		.filter((track) => track.type !== 'label' && track.type !== 'video');
+	for (const [trackIndex, track] of audioTracks.entries()) {
 		const trackInput = trackInputs.get(String(track.id ?? trackIndex));
 		if (!trackInput) continue;
 		const trackClips = getTrackClips(track, clipsById);

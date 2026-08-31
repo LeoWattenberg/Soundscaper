@@ -12,7 +12,10 @@ import {
 	buildClipSchedulePlans,
 } from '../src/common/editor/engine/clip-schedule-plan.ts';
 import { effectRackLatencyFrames } from '../src/common/editor/engine/effect-rack.ts';
+import { scheduleProjectGains } from '../src/common/editor/engine/clip-gain.ts';
 import { projectGraphLatencyFrames } from '../src/common/editor/engine/project-graph.ts';
+import { projectEffectRacks } from '../src/common/editor/engine/project-effects.ts';
+import type { EngineProject } from '../src/common/editor/engine/types.ts';
 
 test('duration helpers preserve legacy clips and the minimum editor timeline', () => {
 	const project = {
@@ -127,6 +130,53 @@ test('schedule plans consume authored warp segments instead of a scalar clip rat
 		{ segmentStart: 125, segmentEnd: 150, relativeStart: 25, offsetFrame: 1_025, playbackRate: 0.5 },
 		{ segmentStart: 150, segmentEnd: 175, relativeStart: 50, offsetFrame: 1_050, playbackRate: 1.5 },
 	]);
+});
+
+test('id-less audio tracks keep post-filter graph indices across schedules and racks', () => {
+	const trackInput = {} as AudioNode;
+	const gainCalls: Array<readonly [number, number]> = [];
+	const gainParam = {
+		setValueAtTime(value: number, time: number) { gainCalls.push([value, time]); },
+		linearRampToValueAtTime(value: number, time: number) { gainCalls.push([value, time]); },
+	} as unknown as AudioParam;
+	const project: EngineProject = {
+		sampleRate: 100,
+		tracks: [
+			{ type: 'label' },
+			{
+				type: 'audio', clipIds: ['clip'], gain: 1,
+				envelope: [{ frame: 0, value: 0.5 }],
+				effects: [{ id: 'effect', type: 'gain' }],
+			},
+		],
+		clips: [{
+			id: 'clip', sourceId: 'source', timelineStartFrame: 0, durationFrames: 10,
+			sourceStartFrame: 0, sourceDurationFrames: 10,
+		}],
+	};
+
+	const plans = buildClipSchedulePlans({
+		project,
+		sources: new Map([['source', { length: 10, sampleRate: 100 } as AudioBuffer]]),
+		trackInputs: new Map([['0', trackInput]]),
+		fromFrame: 0,
+		toFrame: 10,
+		sampleRate: 100,
+	});
+	assert.equal(plans[0]?.trackInput, trackInput);
+
+	scheduleProjectGains({
+		context: { sampleRate: 100 } as BaseAudioContext,
+		project,
+		gainParams: { tracks: new Map([['0', { param: gainParam, latencyFrames: 0 }]]) },
+		fromFrame: 0,
+		toFrame: 10,
+		contextStartTime: 0,
+		sampleRate: 100,
+		transportRate: 1,
+	});
+	assert.ok(gainCalls.length > 0, 'the graph-owned gain parameter must receive its envelope');
+	assert.equal([...projectEffectRacks(project)][0]?.targetId, '0');
 });
 
 test('rack and project graph latency remain additive across graph stages', () => {
