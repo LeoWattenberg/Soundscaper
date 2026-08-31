@@ -130,7 +130,7 @@ export function gatherOwnedHighlightSignalsV1(
 		+ (visualAvailable ? HIGHLIGHT_RANKING_V1_SPEECHLESS_WEIGHTS.visualInterest : 0),
 	);
 	const edges = canonicalEdges(video, shotEdges, transcript.timelineEdges);
-	const candidates = video.windows.map((window, index) => {
+	const candidates = video.windows.flatMap((window, index) => {
 		const startFrame = nearest(edges, window.startFrame);
 		const endFrame = nearest(edges, window.endFrame);
 		if (endFrame <= startFrame) {
@@ -141,6 +141,7 @@ export function gatherOwnedHighlightSignalsV1(
 		if (sourceEndFrame <= sourceStartFrame) {
 			throw new RangeError(`Highlight window ${window.id} violates forward source-time authority.`);
 		}
+		if (sourceEndFrame - sourceStartFrame < 2) return [];
 		const language = transcript.signals.get(window.id);
 		const transcriptEvidence = language !== undefined
 			&& transcript.ranges.some((range) => overlaps(startFrame, endFrame, range.start, range.end));
@@ -152,7 +153,7 @@ export function gatherOwnedHighlightSignalsV1(
 		const cropKeyframes = createOwnedHighlightCropKeyframesV1({ video,
 			sourceStartFrame, sourceEndFrame,
 			targetAspect: { width: settings.targetAspectWidth, height: settings.targetAspectHeight } });
-		return Object.freeze({ id: window.id, startFrame, endFrame,
+		return [Object.freeze({ id: window.id, startFrame, endFrame,
 			sourceStartFrame, sourceEndFrame, transcriptEvidence, transcriptExcerpt,
 			visualSummary: `Admitted shot-structure score ${shotStructure.toFixed(6)}; authenticated semantic visual-interest score ${visualInterest.toFixed(6)}.`,
 			hook: transcriptEvidence ? language.hook : 0,
@@ -164,7 +165,7 @@ export function gatherOwnedHighlightSignalsV1(
 			shotStructure, visualInterest, speechlessAvailableWeight,
 			duplication: duplication[index] ?? 0,
 			videoOccurrenceId: video.videoOccurrenceId,
-			audioOccurrenceId: video.audioOccurrenceId, cropKeyframes });
+			audioOccurrenceId: video.audioOccurrenceId, cropKeyframes })];
 	});
 	return reviewOwnedHighlightSignalsV1({ schemaVersion: 1, kind: 'highlight-signals',
 		sourceId: video.sourceId, sampleRate: video.sampleRate, sourceSize: video.sourceSize,

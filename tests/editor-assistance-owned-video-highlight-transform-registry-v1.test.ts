@@ -404,6 +404,29 @@ test('speechless highlight windows retain their admitted boundaries without shot
 	assert.deepEqual(ranked.candidates.map(({ score }) => score), [0, 0]);
 });
 
+test('highlight gathering drops a one-source-frame window without aborting valid candidates', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const inputs = highlightInputs();
+	const sourceTimeAuthority = [...inputs.video.sourceTimeAuthority,
+		{ sourceFrame: 16, presentationTick: '16', timelineFrame: 16_000 }]
+		.sort((left, right) => left.sourceFrame - right.sourceFrame);
+	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
+		settings: HIGHLIGHT_SETTINGS, inputs: { ...inputs,
+			video: { ...inputs.video, sourceTimeAuthority, windows: [
+				{ id: 'too-short', startFrame: 15_000, endFrame: 16_000,
+					shotStructure: 0, visualInterest: 0 },
+				{ id: 'valid', startFrame: 60_000, endFrame: 90_000,
+					shotStructure: 0, visualInterest: 0 },
+			] },
+			audio: null, transcript: null, 'shot-boundaries': null,
+			'audio-tags': null, 'reaction-ranges': null, embeddings: null,
+		} }).outputs['highlight-signals'];
+	assert.deepEqual(gathered.candidates.map(({ id, sourceStartFrame, sourceEndFrame }) =>
+		({ id, sourceStartFrame, sourceEndFrame })), [
+		{ id: 'valid', sourceStartFrame: 60, sourceEndFrame: 90 },
+	]);
+});
+
 test('owned highlight signal review rejects malformed speechless availability', () => {
 	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
 	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
