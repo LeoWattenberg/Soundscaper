@@ -165,9 +165,7 @@ function applyInherited(
 	command: FramescaperProjectCommandFinishing,
 	options: FramescaperProjectCommandOptionsNativeMedia,
 ): FramescaperProjectNativeMedia {
-	const nativeState = new Map<string, NativeSourceAuthorityNativeMedia>(records(project.sources, 'sources')
-		.filter(({ kind }) => kind === 'video')
-		.map((source) => [String(source.id), snapshotNativeSourceNativeMedia(source)]));
+	const nativeState = nativeSourceStateNativeMedia(project);
 	const projectedCommand = projectInheritedCommandNativeMedia(command, nativeState);
 	for (const [id, state] of projectedCommand.nativeState) nativeState.set(id, state);
 	const applied = applyFramescaperProjectCommandFinishing(
@@ -183,6 +181,25 @@ function applyInherited(
 	normalizeFramescaperProjectNativeStateNativeMedia(profile, applied);
 	validateFramescaperProjectNativeMedia(profile, applied);
 	return applied as unknown as FramescaperProjectNativeMedia;
+}
+
+/** Project an authoritative inherited command only for the closed finishing preflight boundary. */
+export function projectFramescaperInheritedCommandForFinishingNativeMedia(
+	project: FramescaperProjectNativeMedia,
+	command: FramescaperProjectCommandFinishing,
+): FramescaperProjectCommandFinishing {
+	return projectInheritedCommandNativeMedia(
+		command,
+		nativeSourceStateNativeMedia(project),
+	).command;
+}
+
+function nativeSourceStateNativeMedia(
+	project: FramescaperProjectNativeMedia,
+): Map<string, NativeSourceAuthorityNativeMedia> {
+	return new Map<string, NativeSourceAuthorityNativeMedia>(records(project.sources, 'sources')
+		.filter(({ kind }) => kind === 'video')
+		.map((source) => [String(source.id), snapshotNativeSourceNativeMedia(source)]));
 }
 
 function projectInheritedCommandNativeMedia(
