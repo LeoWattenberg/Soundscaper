@@ -318,7 +318,27 @@ function applyInheritedCommand(
 	const applied = applySoundscaperProjectFoundationCommand(project, command, options);
 	assertNoNewNativePluginRackBindings(project, applied);
 	assertNoNewSidechainsIntoFrozenRacks(project, applied);
-	return applied;
+	const retainedInstanceIds = nativePluginRackInstanceIds(applied);
+	const removedInstanceIds = new Set([...nativePluginRackInstanceIds(project)]
+		.filter((instanceId) => !retainedInstanceIds.has(instanceId)));
+	if (removedInstanceIds.size === 0) return applied;
+	const retainedStates = applied.nativePluginStates.filter(({ instanceId }) => (
+		!removedInstanceIds.has(instanceId)
+	));
+	if (retainedStates.length === applied.nativePluginStates.length) return applied;
+	const draft = structuredClone(applied) as unknown as Record<string, unknown>;
+	draft.nativePluginStates = normalizeSoundscaperNativePluginStates(retainedStates);
+	stripNativePluginRequirements(draft);
+	draft.featureRequirements = reconcileProjectOwnedFeatureRequirements(
+		draft,
+		draft.featureRequirements as never,
+	);
+	draft.featureRequirements = reconcileSoundscaperProjectFeatureRequirements(
+		draft,
+		draft.featureRequirements as never,
+	);
+	validateSoundscaperProject(draft);
+	return draft as unknown as SoundscaperProject;
 }
 
 function assertNoNewSidechainsIntoFrozenRacks(
@@ -373,6 +393,26 @@ function nativePluginRackSlots(project: SoundscaperProject): ReadonlySet<string>
 		['cue', project.mixer.cues],
 	] as const) for (const owner of owners) collect(kind, owner);
 	return slots;
+}
+
+function nativePluginRackInstanceIds(project: SoundscaperProject): ReadonlySet<string> {
+	const instanceIds = new Set<string>();
+	const collect = (ownerValue: unknown): void => {
+		if (!ownerValue || typeof ownerValue !== 'object' || Array.isArray(ownerValue)) return;
+		const owner = ownerValue as Readonly<Record<string, unknown>>;
+		if (!Array.isArray(owner.effects)) return;
+		for (const effect of owner.effects) {
+			if (!effect || typeof effect !== 'object' || Array.isArray(effect)
+				|| (effect as Readonly<Record<string, unknown>>).type !== 'native-plugin') continue;
+			instanceIds.add(normalizeNativePluginEffect(effect).params.instanceId);
+		}
+	};
+	for (const track of project.tracks) collect(track);
+	collect(project.master);
+	for (const owners of [project.mixer.groups, project.mixer.sends, project.mixer.cues]) {
+		for (const owner of owners) collect(owner);
+	}
+	return instanceIds;
 }
 
 function applyAssistanceCommand(

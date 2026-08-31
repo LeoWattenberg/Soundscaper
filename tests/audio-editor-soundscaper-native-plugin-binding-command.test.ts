@@ -173,6 +173,27 @@ test('removing native plug-in state retires its product-owned requirement', () =
 	)), false)
 })
 
+test('generic rack removal atomically retires its native state and requirement', () => {
+	const authored = executeSoundscaperProjectCommand(
+		createSoundscaperProjectHistory(project()), binding('author'), { now: NOW },
+	)
+	const removed = executeSoundscaperProjectCommand(authored, {
+		type: 'effect/remove', scope: 'track', trackId: 'track-1', effectId: 'native-effect-1',
+	} as never, { now: '2026-08-24T00:00:01.000Z' })
+
+	assert.deepEqual(nativeEffects(removed.present), [])
+	assert.deepEqual(removed.present.nativePluginStates, [])
+	assert.equal(removed.present.featureRequirements.requirements.some(({ id, featureId }) => (
+		id.startsWith('soundscaper.native-plugin.')
+		|| featureId.startsWith('org.soundscaper.native-plugin.')
+	)), false)
+	assert.equal(removed.present.revision, authored.present.revision + 1)
+
+	const undone = undoSoundscaperProjectCommand(removed)
+	assert.deepEqual(nativeEffects(undone.present), [effect()])
+	assert.deepEqual(undone.present.nativePluginStates, [state()])
+})
+
 test('the narrow native binding command does not widen V29 generic mixed batches', () => {
 	const history = createSoundscaperProjectHistory(project())
 	assert.throws(() => executeSoundscaperProjectCommand(history, {
