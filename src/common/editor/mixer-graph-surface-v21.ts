@@ -75,11 +75,12 @@ export function isMixerTrackSurfaceAssignmentV21(
 		|| edge.source.kind !== 'track' || edge.source.id !== trackId
 		|| (edge.destination.kind !== 'master' && edge.destination.kind !== 'mixer-node')
 		|| edge.position !== 'post-fader' || edge.level !== 1 || !edge.enabled) return false;
-	const destinationChannels = edge.destination.kind === 'master'
+	const destination = edge.destination;
+	const destinationChannels = destination.kind === 'master'
 		? widths?.masterChannels
-		: graph.groups.find(({ id }) => id === edge.destination.id)?.channelCount;
-	if (edge.destination.kind === 'mixer-node' && destinationChannels === undefined) return false;
-	const suffix = edge.destination.kind === 'master' ? 'master' : `mixer-node:${edge.destination.id}`;
+		: graph.groups.find(({ id }) => id === destination.id)?.channelCount;
+	if (destination.kind === 'mixer-node' && destinationChannels === undefined) return false;
+	const suffix = destination.kind === 'master' ? 'master' : `mixer-node:${destination.id}`;
 	return edge.id === `assignment:track:${trackId}:${suffix}`
 		&& hasSurfaceChannelMap(edge, widths?.sourceChannels, destinationChannels);
 }
