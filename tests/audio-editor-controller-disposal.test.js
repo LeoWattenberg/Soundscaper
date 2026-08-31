@@ -85,14 +85,14 @@ test('disposal flushes the latest writable project before closing storage', asyn
 	assert.equal(store.closeCalls, 1);
 });
 
-test('disposal refuses a terminal project save when IndexedDB capacity is known insufficient', async () => {
+test('disposal refuses a terminal project save when IndexedDB capacity is known insufficient', async (t) => {
 	const store = createStore();
 	store.getStatus = () => ({ backend: 'indexeddb' });
-	store.estimateStorage = async () => ({ usage: 1_000_000, quota: 1_000_000 });
+	store.estimateStorage = async () => ({ usage: 0, quota: 1_000_000 });
 	const saveProject = store.saveProject.bind(store);
 	let saveCalls = 0;
 	store.saveProject = async (project, options) => {
-		await options?.admitProjectPublication(1);
+		await options?.admitProjectPublication?.(1);
 		saveCalls += 1;
 		await saveProject(project);
 	};
@@ -104,7 +104,10 @@ test('disposal refuses a terminal project save when IndexedDB capacity is known 
 		ffmpeg: { dispose() {} },
 		clipTimePitchCache: createCache(),
 	});
+	t.after(() => controller.dispose().catch(() => undefined));
 	await controller.ready;
+	assert.equal(controller.getSnapshot().readOnly, false, JSON.stringify(controller.getSnapshot().status));
+	store.estimateStorage = async () => ({ usage: 1_000_000, quota: 1_000_000 });
 	const saveCallsBeforeDisposal = saveCalls;
 	const trackId = controller.getSnapshot().project.tracks[0].id;
 	controller.actions.track.update(trackId, { name: 'Must remain unsaved' });
