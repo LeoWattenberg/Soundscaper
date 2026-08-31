@@ -69,7 +69,7 @@ export async function createBrowserFramescaperCaptureLevelMonitor<Stream, Track>
 		analyser.fftSize = 2_048;
 		sourceNode.connect(analyser);
 		if (context.state === 'suspended') await context.resume?.();
-		const samples = new Float32Array(Math.max(1, analyser.frequencyBinCount));
+		const samples = new Float32Array(Math.max(1, analyser.fftSize));
 		const sample = (): void => {
 			if (disposed || !analyser) return;
 			try {

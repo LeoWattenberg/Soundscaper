@@ -27,10 +27,14 @@ test('browser audio level monitor reports RMS without connecting to output and r
 	let sourceDisconnects = 0;
 	let analyserDisconnects = 0;
 	let notifications = 0;
+	let sampledFrames = 0;
 	const analyser = {
 		fftSize: 0,
 		frequencyBinCount: 4,
-		getFloatTimeDomainData(values: Float32Array) { values.set([0, 0.5, -0.5, 0]); },
+		getFloatTimeDomainData(values: Float32Array) {
+			sampledFrames = values.length;
+			values.fill(0.5);
+		},
 		disconnect() { analyserDisconnects += 1; },
 	};
 	const monitor = await createBrowserFramescaperCaptureLevelMonitor({
@@ -55,7 +59,8 @@ test('browser audio level monitor reports RMS without connecting to output and r
 	assert.equal(monitor.level, null);
 	assert.ok(sample);
 	(sample as () => void)();
-	assert.ok(Math.abs((monitor.level ?? 0) - Math.sqrt(0.125)) < 0.000_001);
+	assert.equal(sampledFrames, 2_048);
+	assert.equal(monitor.level, 0.5);
 	assert.equal(notifications, 1);
 	await monitor.dispose();
 	await monitor.dispose();
