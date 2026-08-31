@@ -442,13 +442,8 @@ function primarySequence(project: Data): Data {
 }
 
 function hasExecutableVisualState(project: Data): boolean {
-	if (records(project.clips, 'Selected finishing clips').some(({ kind }) => (
+	return records(project.clips, 'Selected finishing clips').some(({ kind }) => (
 		kind === 'video' || kind === 'still' || kind === 'generator'
-	))) return true;
-	if (records(project.videoAdjustmentLayers, 'Selected finishing adjustments').length > 0
-		|| records(project.videoFreezeFallbacks, 'Selected finishing freezes').length > 0) return true;
-	return records(project.tracks, 'Selected finishing tracks').some((track) => (
-		Array.isArray(track.videoTransitions) && track.videoTransitions.length > 0
 	));
 }
 

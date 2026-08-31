@@ -50,6 +50,25 @@ test('a project with no executable visual state composes no preview session', as
 	assert.equal(await session(), null);
 });
 
+test('orphaned finishing state without a picture range composes no preview session', async () => {
+	const options = framescaperV20Options() as Data;
+	options.clips = [];
+	for (const track of options.tracks as Data[]) track.clipIds = [];
+	const project = createFramescaperProjectFinishing(PROFILE, {
+		...options,
+		videoTransitionsByTrackId: { 'video-track': [] },
+		visualModel: {
+			stillSources: [], generatorSources: [], presets: [], maskMattes: [], freezeFallbacks: [],
+			adjustmentLayers: [{
+				schemaVersion: 1, kind: 'adjustment-layer', id: 'orphaned-adjustment',
+				sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+				targetTrackIds: ['video-track'], effectIds: [],
+			}],
+		},
+	} as never);
+	assert.equal(await session({ project }), null);
+});
+
 test('a preview session refuses a non-positive or fractional canvas dimension', async () => {
 	const visual = { project: visualProject() };
 
