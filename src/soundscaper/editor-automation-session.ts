@@ -315,6 +315,10 @@ export function createSoundscaperAutomationSession<Result = unknown>(
 			ports.restoreReadback?.(completed.lane);
 			return null;
 		}
+		let result: Result | null = null;
+		let failed = false;
+		let failure: unknown;
+		let refreshAuthority = false;
 		try {
 			const capture = commitAutomationWriteModeV21(
 				completed.lane,
@@ -323,26 +327,33 @@ export function createSoundscaperAutomationSession<Result = unknown>(
 				{ descriptor: completed.descriptor },
 			);
 			if (!capture.changed || !capture.capture) {
-				ports.restoreReadback?.(completed.lane);
-				return null;
-			}
-			committing = true;
-			try {
-				return ports.commit(Object.freeze({
+				result = null;
+			} else {
+				committing = true;
+				refreshAuthority = true;
+				result = ports.commit(Object.freeze({
 					type: 'automation-lane/set',
 					laneId: completed.laneId,
 					expected: completed.lane as unknown as Readonly<Record<string, unknown>>,
 					lane: capture.capture as unknown as Readonly<Record<string, unknown>>,
 				}));
-			} finally {
-				committing = false;
-				known = authority(ports.captureAuthority());
-				ports.restoreReadback?.(completed.lane);
 			}
 		} catch (error) {
-			ports.restoreReadback?.(completed.lane);
-			throw error;
+			failed = true;
+			failure = error;
 		}
+		const cleanupFailures: unknown[] = [];
+		if (refreshAuthority) {
+			committing = false;
+			try { known = authority(ports.captureAuthority()); } catch (error) { cleanupFailures.push(error); }
+		}
+		try { ports.restoreReadback?.(completed.lane); } catch (error) { cleanupFailures.push(error); }
+		if (failed) throw failure;
+		if (cleanupFailures.length === 1) throw cleanupFailures[0];
+		if (cleanupFailures.length > 1) {
+			throw new AggregateError(cleanupFailures, 'automation session cleanup failed.');
+		}
+		return result;
 	}
 
 	function discardSession(restore: boolean): void {

@@ -308,6 +308,22 @@ test('session disposal remains retired when readback restoration fails', () => {
 	assert.throws(() => fixture.coordinator.setMode('read'), /disposed/iu);
 });
 
+test('a failed automation commit restores readback exactly once and preserves the failure', () => {
+	const failure = new Error('automation commit rejected');
+	const fixture = createFixture({ commitFailure: failure });
+	const token = armWritingGesture(fixture, 'touch');
+	fixture.authority.positionFrame = 20;
+	fixture.coordinator.previewGesture(token, 0.25);
+	fixture.authority.positionFrame = 30;
+
+	assert.throws(
+		() => fixture.coordinator.releaseGesture(token, 0.25),
+		(error: unknown) => error === failure,
+	);
+	assert.equal(fixture.commits.length, 1);
+	assert.equal(fixture.restores, 1);
+});
+
 test('every writing mode cancels on each authority loss without entering history', () => {
 	const causes = [
 		'cancel', 'read-only', 'lock', 'target-removal', 'project-change',
@@ -417,7 +433,7 @@ function createHistoryFixture() {
 }
 
 function createFixture(
-	options: Readonly<{ readonly restoreFailure?: unknown }> = {},
+	options: Readonly<{ readonly commitFailure?: unknown; readonly restoreFailure?: unknown }> = {},
 ) {
 	const project = projectFixture();
 	const lane = project.automationLanes[0]!;
@@ -445,6 +461,7 @@ function createFixture(
 		} : null,
 		commit: (command) => {
 			commits.push(command as AudioEditorCommand);
+			if (options.commitFailure !== undefined) throw options.commitFailure;
 			return command;
 		},
 		restoreReadback: () => {
