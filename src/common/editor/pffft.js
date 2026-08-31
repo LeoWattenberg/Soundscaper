@@ -20,10 +20,12 @@ export function initializePffft(options = {}) {
 		ready = createPffftModule(pffftModuleOptions(options))
 			.then((value) => {
 				module = value;
+				initializationError = null;
 				return value;
 			})
 			.catch((error) => {
 				initializationError = error;
+				ready = null;
 				throw error;
 			});
 	}
