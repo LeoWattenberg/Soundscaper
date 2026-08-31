@@ -186,7 +186,7 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 		'CMake may consume only auditor-owned source snapshots.');
 	assert.doesNotMatch(linux.configure.argv.join(' '), /vst3-sdk(?:\/|\\)/u);
 	assert.deepEqual(executeSoundscaperProfessionalNativeBuild(linux, {
-		run: () => ({ status: 0, stderr: '', stdout: '' }),
+		run: (_command, _arguments, options) => (assert.equal(options.maxBuffer, 8 * 1024 * 1024), { status: 0, stderr: '', stdout: '' }),
 	}).status, 'built');
 	const macosSdk = join(dirname(roots.juce), 'MacOSX15.5.sdk');
 	const macosSdkAlias = join(dirname(roots.juce), 'MacOSX.sdk');
