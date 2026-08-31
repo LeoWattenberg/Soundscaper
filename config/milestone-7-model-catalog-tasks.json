@@ -47,9 +47,9 @@
 			"m9ReleaseReviewStatus": "pending",
 			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-code-archive-identity", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-code-archive-identity", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "panns-cnn10",
@@ -81,9 +81,9 @@
 			"m9ReleaseReviewStatus": "pending",
 			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "beat-this-small0",
@@ -102,9 +102,9 @@
 			"m9ReleaseReviewStatus": "pending",
 			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "beat-this-final0",
@@ -123,9 +123,9 @@
 			"m9ReleaseReviewStatus": "pending",
 			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-artifact-sha256-readback", "source-code-archive-identity", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "transnetv2",
@@ -144,9 +144,9 @@
 			"m9ReleaseReviewStatus": "pending",
 			"m9ReleaseReviewBlockedBy": ["licensing-evidence"],
 			"catalogStatus": "pending-external",
-			"catalogBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "source-framework-parity"],
+			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-code-archive-identity", "source-framework-parity"],
 			"activationStatus": "pending-external",
-			"activationBlockedBy": ["converted-artifact-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-framework-parity"]
+			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-code-archive-identity", "source-framework-parity"]
 		},
 		{
 			"catalogModelId": "qwen3-4b-q4-k-m",

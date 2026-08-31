@@ -297,6 +297,7 @@ function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds,
 			candidateId === expected.supplyBinding.supplyId);
 		const output = recipe?.outputManifest.artifacts.find(({ role }) =>
 			role === expected.supplyBinding.outputRole);
+		if (recipe) blockers.push(...recipe.blockedBy);
 		if (!output || output.byteLength === null || output.sha256 === null) {
 			blockers.push('converted-artifact-identity');
 		}
@@ -309,7 +310,7 @@ function deriveCatalogBlockers({ expected, execution, fixtures, offeredModelIds,
 		|| !offeredModelIds.includes(expected.catalogModelId)) {
 		blockers.push('external-catalog-signature');
 	}
-	return blockers.sort();
+	return [...new Set(blockers)].sort();
 }
 
 function licensingReady(value, modelId) {

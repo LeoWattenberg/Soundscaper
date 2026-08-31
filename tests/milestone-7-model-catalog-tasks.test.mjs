@@ -124,8 +124,15 @@ test('derived tasks split grouped conversions into install-safe catalog artifact
 	], ['small0-network', 'final0-network']);
 	for (const id of ['tiger-dnr', 'panns-cnn10', 'beat-this-small0',
 		'beat-this-final0', 'transnetv2']) {
-		assert.ok(byId.get(id).catalogBlockedBy.includes('converted-artifact-identity'));
-		assert.ok(byId.get(id).catalogBlockedBy.includes('source-framework-parity'));
+		const task = byId.get(id);
+		assert.ok(task.catalogBlockedBy.includes('converted-artifact-identity'));
+		assert.ok(task.catalogBlockedBy.includes('source-framework-parity'));
+		const recipe = executionRegister.recipes.find(({ candidateId }) =>
+			candidateId === task.supplyBinding.supplyId);
+		for (const blocker of recipe.blockedBy) {
+			assert.ok(task.catalogBlockedBy.includes(blocker),
+				`${id} must retain its conversion-recipe blocker ${blocker}`);
+		}
 	}
 });
 
