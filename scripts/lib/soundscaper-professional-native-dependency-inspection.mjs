@@ -215,7 +215,7 @@ function asciiDllName(bytes, offset) {
 	while (end < endLimit && bytes[end] !== 0) end += 1;
 	if (end === offset || end === endLimit) throw new TypeError('The PE import name is malformed.');
 	const name = bytes.subarray(offset, end).toString('ascii');
-	if (!/^[A-Za-z0-9._+-]+\.dll$/u.test(name)) {
+	if (!/^[A-Za-z0-9._+-]+\.dll$/iu.test(name)) {
 		throw new TypeError('The PE import name is not one portable DLL basename.');
 	}
 	return name;
