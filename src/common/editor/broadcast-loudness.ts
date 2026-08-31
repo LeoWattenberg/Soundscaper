@@ -3,11 +3,21 @@
 import { createEbuR128Meter } from './ebu-r128.js';
 import type { BextMetadataInput } from './broadcast-wave.ts';
 
+export interface BextLoudnessMeasurementOptions {
+	readonly channelWeights?: readonly number[];
+}
+
 export function measureBextLoudness(
 	channels: readonly Float32Array[],
 	sampleRate: number,
+	options: BextLoudnessMeasurementOptions = {},
 ): Readonly<Pick<BextMetadataInput, 'loudnessValue' | 'loudnessRange' | 'maxTruePeakLevel' | 'maxMomentaryLoudness' | 'maxShortTermLoudness'>> {
-	const meter = createEbuR128Meter({ sampleRate, channelCount: channels.length, running: true });
+	const meter = createEbuR128Meter({
+		sampleRate,
+		channelCount: channels.length,
+		channelWeights: options.channelWeights,
+		running: true,
+	});
 	meter.push(channels);
 	const value = meter.snapshot().loudness;
 	return Object.freeze({

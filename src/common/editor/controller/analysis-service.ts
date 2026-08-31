@@ -3,6 +3,7 @@ import {
 	findAudioClippingRegions,
 } from '../analysis.js';
 import { measureBextLoudness } from '../broadcast-loudness.ts';
+import { resolveAdmEbuChannelWeights } from '../loudness-channel-layout.ts';
 import type { DeliveryReport } from '../delivery-report.ts';
 import {
 	createLoudnessMeasurementReport,
@@ -46,6 +47,7 @@ interface AnalysisProjectIdentity {
 	readonly id: string;
 	readonly revision: number;
 	readonly clips: readonly unknown[];
+	readonly metadata?: Readonly<{ readonly adm?: unknown }>;
 }
 
 interface ContrastSelection {
@@ -266,8 +268,11 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				{ length: rendered.numberOfChannels },
 				(_, channel) => rendered.getChannelData(channel),
 			);
+			const channelWeights = resolveAdmEbuChannelWeights(project.metadata?.adm, channels.length);
 			const report = createLoudnessMeasurementReport({
-				measurement: measureBextLoudness(channels, rendered.sampleRate),
+				measurement: measureBextLoudness(channels, rendered.sampleRate, {
+					...(channelWeights ? { channelWeights } : {}),
+				}),
 				sampleRate: rendered.sampleRate,
 				channelCount: channels.length,
 				range,

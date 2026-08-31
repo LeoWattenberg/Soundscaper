@@ -129,6 +129,7 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	parametricEqErrorListeners: Set<(error: unknown) => void>;
 	masterLoudnessMeter: EngineLoudnessMeter | null;
 	masterLoudnessMeterChannelCount: number | null;
+	masterLoudnessMeterChannelWeights: readonly number[] | null;
 	masterLoudnessMeterPromise: Promise<EngineLoudnessMeter | null> | null;
 	masterLoudnessMeterError: unknown;
 	latestMasterLoudnessMeter: Readonly<{ loudness?: unknown }> | null;

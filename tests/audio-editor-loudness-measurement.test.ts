@@ -144,6 +144,29 @@ test('silence is reported as unmeasurable rather than as a loudness of null', as
 	);
 });
 
+test('authored 7.1 measurement excludes the semantic LFE channel', async () => {
+	const silence = new Float32Array(SAMPLE_RATE * 3);
+	const lfe = tone(0.1);
+	const channels = Array.from({ length: 8 }, (_value, channel) => channel === 3 ? lfe : silence);
+	const harness = service({
+		getProject: () => ({
+			id: 'loudness-project', revision: 1, clips: [{}], masterChannels: 8,
+			metadata: { adm: authoredSevenPointOneAdm() },
+		}),
+		getRange: () => ({ startFrame: 0, endFrame: channels[0].length }),
+		renderAudio: async () => ({
+			sampleRate: SAMPLE_RATE,
+			numberOfChannels: channels.length,
+			length: channels[0].length,
+			getChannelData: (channel: number) => channels[channel],
+		}),
+	});
+
+	const report = await harness.service.measureLoudness();
+	assert.ok(report?.items.some(({ code }) => code === 'delivery.loudness-unmeasurable'));
+	assert.equal(report?.items.some(({ code }) => code === 'delivery.loudness-measured'), false);
+});
+
 test('the scope is the selection when there is one, and an empty selection is not one', () => {
 	assert.equal(loudnessMeasurementScope({ startFrame: 10, endFrame: 20 }), 'selection');
 	assert.equal(loudnessMeasurementScope(null), 'project');
@@ -181,3 +204,12 @@ test('the report says what was measured, because the number means nothing withou
 		}
 	}
 });
+
+function authoredSevenPointOneAdm() {
+	return {
+		mode: 'authored' as const,
+		programme: { name: 'Programme', language: '' },
+		content: { name: 'Content', language: '' },
+		bed: { name: 'Bed', layout: '7.1' as const, assignments: [] },
+	};
+}

@@ -183,6 +183,31 @@ test('an immersive master declines an undersized EBU passthrough without narrowi
 	}
 });
 
+test('the realtime EBU meter uses canonical authored 7.1 roles without guessing from width', async () => {
+	const previousWorkletNode = globalThis.AudioWorkletNode;
+	globalThis.AudioWorkletNode = MockAudioWorkletNode;
+	const context = new MockAudioContext();
+	context.destination.maxChannelCount = 8;
+	const engine = loadedEngine(context, { onMeter() {} });
+	engine.context = context;
+	try {
+		engine.loadProject(authoredEightChannelProject('7.1'), engine.sources);
+		const semanticMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		assert.deepEqual(semanticMeter.node.options.processorOptions.channelWeights, [
+			1, 1, 1, 0, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2,
+		]);
+
+		engine.loadProject(authoredEightChannelProject('5.1.2'), engine.sources);
+		assert.equal(semanticMeter.node.disconnected, true);
+		const widthOnlyMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
+		assert.equal(widthOnlyMeter.node.options.processorOptions.channelWeights, undefined);
+	} finally {
+		await engine.dispose();
+		if (previousWorkletNode === undefined) delete globalThis.AudioWorkletNode;
+		else globalThis.AudioWorkletNode = previousWorkletNode;
+	}
+});
+
 function pendingResumeFixture() {
 	const context = new MockAudioContext();
 	const resumeRequested = deferred();
@@ -220,6 +245,20 @@ function project(masterChannels = 2) {
 			mute: false, solo: false, effects: [],
 		}],
 		master: { gain: 1, effects: [] },
+	};
+}
+
+function authoredEightChannelProject(layout) {
+	return {
+		...project(8),
+		metadata: {
+			adm: {
+				mode: 'authored',
+				programme: { name: 'Programme', language: '' },
+				content: { name: 'Content', language: '' },
+				bed: { name: 'Bed', layout, assignments: [] },
+			},
+		},
 	};
 }
 

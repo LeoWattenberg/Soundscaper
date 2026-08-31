@@ -3,6 +3,7 @@
 import { ChunkStreamClient } from '../chunk-stream-client.js';
 import { createChunkStreamAudioNode } from '../chunk-stream-worklet-node.js';
 import { createAudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
+import { resolveAdmEbuChannelWeights } from '../loudness-channel-layout.ts';
 import {
 	clearPreparedAudioWarpPlayback,
 } from './audio-warp-fallback.ts';
@@ -142,6 +143,7 @@ export function initializeEngineRuntime(
 	engine.parametricEqErrorListeners = new Set(onParametricEqError ? [onParametricEqError] : []);
 	engine.masterLoudnessMeter = null;
 	engine.masterLoudnessMeterChannelCount = null;
+	engine.masterLoudnessMeterChannelWeights = null;
 	engine.masterLoudnessMeterPromise = null;
 	engine.masterLoudnessMeterError = null;
 	engine.latestMasterLoudnessMeter = null;
@@ -280,10 +282,19 @@ loadProject(project, sourceBuffers = new Map(), options = {}) {
 		const meterChannelCount = this.context && runtimeProject
 			? configureMasterLoudnessMeterChannelCount(this.context.destination, runtimeProject.masterChannels)
 			: null;
-		if (this.masterLoudnessMeterChannelCount !== meterChannelCount) {
+		const runtimeMetadata = runtimeProject?.metadata;
+		const meterChannelWeights = meterChannelCount === null ? null : resolveAdmEbuChannelWeights(
+			runtimeMetadata && typeof runtimeMetadata === 'object' && 'adm' in runtimeMetadata
+				? runtimeMetadata.adm
+				: null,
+			meterChannelCount,
+		);
+		if (this.masterLoudnessMeterChannelCount !== meterChannelCount
+			|| this.masterLoudnessMeterChannelWeights !== meterChannelWeights) {
 			this.masterLoudnessMeter?.dispose();
 			this.masterLoudnessMeter = null;
 			this.masterLoudnessMeterChannelCount = null;
+			this.masterLoudnessMeterChannelWeights = null;
 			this.masterLoudnessMeterPromise = null;
 			this.masterLoudnessMeterError = null;
 		}
@@ -439,6 +450,7 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		this.masterLoudnessMeter?.dispose();
 		this.masterLoudnessMeter = null;
 		this.masterLoudnessMeterChannelCount = null;
+		this.masterLoudnessMeterChannelWeights = null;
 		this.masterLoudnessMeterPromise = null;
 		this.latestMasterLoudnessMeter = null;
 		this.masterLoudnessMeterError = null;

@@ -3,6 +3,7 @@
 import {
 	createEbuR128MeterNode,
 } from '../ebu-r128-node.js';
+import { resolveAdmEbuChannelWeights } from '../loudness-channel-layout.ts';
 import { configureMasterLoudnessMeterChannelCount } from '../surround-monitoring.ts';
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
 import { hasProductionMixerProjectAuthority } from '../project-schema-version.ts';
@@ -297,11 +298,17 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 			context.destination,
 			this.project?.masterChannels,
 		);
-		if (this.masterLoudnessMeterChannelCount !== null
-			&& this.masterLoudnessMeterChannelCount !== meterChannelCount) {
+		const meterChannelWeights = meterChannelCount === null ? null : resolveAdmEbuChannelWeights(
+			this.project?.metadata?.adm,
+			meterChannelCount,
+		);
+		if ((this.masterLoudnessMeterChannelCount !== null
+			&& this.masterLoudnessMeterChannelCount !== meterChannelCount)
+			|| this.masterLoudnessMeterChannelWeights !== meterChannelWeights) {
 			this.masterLoudnessMeter?.dispose();
 			this.masterLoudnessMeter = null;
 			this.masterLoudnessMeterChannelCount = null;
+			this.masterLoudnessMeterChannelWeights = null;
 			this.masterLoudnessMeterPromise = null;
 			this.masterLoudnessMeterError = null;
 		}
@@ -318,15 +325,18 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		}
 		if (this.masterLoudnessMeterPromise) return this.masterLoudnessMeterPromise;
 		this.masterLoudnessMeterChannelCount = meterChannelCount;
+		this.masterLoudnessMeterChannelWeights = meterChannelWeights;
 		const lifecycleGeneration = this.lifecycleGeneration;
 		const requestIsCurrent = (): boolean => !this.disposed
 			&& this.lifecycleGeneration === lifecycleGeneration
 			&& this.context === context
-			&& this.masterLoudnessMeterChannelCount === meterChannelCount;
+			&& this.masterLoudnessMeterChannelCount === meterChannelCount
+			&& this.masterLoudnessMeterChannelWeights === meterChannelWeights;
 		const pending = (async () => {
 			try {
 				const meter = await createEbuR128MeterNode(context, {
 					channelCount: meterChannelCount,
+					...(meterChannelWeights ? { channelWeights: meterChannelWeights } : {}),
 					passthrough: true,
 					running: this.state === 'playing' && !this.loudnessMeasurementManuallyPaused,
 					onMeter: (reading: unknown) => {

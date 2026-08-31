@@ -38,6 +38,8 @@ export type RenderedLoudnessMeasurement = ReturnType<typeof measureBextLoudness>
 export interface NormalizeRenderedLoudnessRequest {
 	readonly channels: readonly Float32Array[];
 	readonly sampleRate: number;
+	/** Semantic BS.1770 weights for the measured channel order, when known. */
+	readonly channelWeights?: readonly number[];
 	/**
 	 * What the decision is measured from, when that is not the channels the gain
 	 * is applied to. A format whose channel mapping is applied by the encoder
@@ -83,7 +85,9 @@ export function normalizeRenderedLoudness(
 		throw new TypeError('A delivered loudness capture must measure the channels it writes.');
 	}
 
-	const measured = measureBextLoudness(measurementChannels, sampleRate);
+	const measured = measureBextLoudness(measurementChannels, sampleRate, {
+		channelWeights: request.channelWeights,
+	});
 	if (!target) {
 		// A delivery without normalization still reports its measured loudness,
 		// so the report says the same kind of thing either way.
@@ -104,7 +108,9 @@ export function normalizeRenderedLoudness(
 	return result(
 		channels,
 		decision,
-		captureLoudness ? measureBextLoudness(channels, sampleRate) : null,
+		captureLoudness ? measureBextLoudness(channels, sampleRate, {
+			channelWeights: request.channelWeights,
+		}) : null,
 	);
 }
 

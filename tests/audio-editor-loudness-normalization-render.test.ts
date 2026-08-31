@@ -286,3 +286,33 @@ test('the BEXT capture records what was written, not what was rendered', async (
 	);
 	assert.ok(Number(bext.loudnessValue) - Number(rendered.loudnessValue) > 1, 'and the two must actually differ here');
 });
+
+test('an authored 7.1 BEXT capture does not count its LFE programme channel', async () => {
+	const silence = new Float32Array(SAMPLE_RATE * 3);
+	const lfe = tone(0.1, 3);
+	const channels = Array.from({ length: 8 }, (_value, channel) => channel === 3 ? lfe : silence);
+	const fixture = encodingFixture('bw64', channels);
+	await encodeRenderedAudio(fixture.runtime, {
+		plan: {
+			...fixture.plan,
+			bext: { description: '7.1 master', version: 2 },
+			adm: { metadata: authoredSevenPointOneAdm() },
+		},
+		rendered: { sampleRate: SAMPLE_RATE },
+		settings: { measureLoudness: true },
+		signal: new AbortController().signal,
+	});
+
+	const bext = fixture.wavOptions[0].bext as Readonly<Record<string, number | string | null>>;
+	assert.equal(bext.loudnessValue, null);
+	assert.ok(Number.isFinite(bext.maxTruePeakLevel), 'true peak still observes the LFE samples');
+});
+
+function authoredSevenPointOneAdm() {
+	return {
+		mode: 'authored' as const,
+		programme: { name: 'Programme', language: '' },
+		content: { name: 'Content', language: '' },
+		bed: { name: 'Bed', layout: '7.1' as const, assignments: [] },
+	};
+}
