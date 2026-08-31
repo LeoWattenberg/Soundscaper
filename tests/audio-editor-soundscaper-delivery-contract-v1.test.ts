@@ -203,6 +203,12 @@ test('result validation rejects mismatched witnesses and dishonest report counts
 		/bounded non-empty string/iu,
 	);
 	assert.throws(
+		() => validateSoundscaperDeliveryResultV1({
+			...base, publication: { ...base.publication, fileName: 'report\u202efdp.wav' },
+		}, expected),
+		/bounded non-empty string/iu,
+	);
+	assert.throws(
 		() => createSoundscaperDeliveryDescriptionV1({
 			label: 'two\nlines', projectIdentity: PROJECT,
 			plan: { format: 'wav' }, destinationGrantId: 'delivery-grant-01',

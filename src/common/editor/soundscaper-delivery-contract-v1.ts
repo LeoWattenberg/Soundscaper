@@ -468,10 +468,10 @@ function patternText(value: unknown, pattern: RegExp, label: string): string {
 }
 
 function boundedText(value: unknown, maximumBytes: number, label: string): string {
-	// C0/C1 controls refuse: a NUL survives into any future filesystem binding,
-	// and a newline or bidi override lets a label spoof the surface showing it.
+	// Controls and formatting characters refuse: a NUL survives into any future
+	// filesystem binding, and a newline or bidi override can spoof its surface.
 	if (typeof value !== 'string' || value.length === 0 || value !== value.trim()
-		|| /[\u0000-\u001f\u007f-\u009f]/u.test(value)
+		|| /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(value)
 		|| new TextEncoder().encode(value).byteLength > maximumBytes) {
 		throw violation('malformed', `The ${label} must be a bounded non-empty string.`);
 	}
