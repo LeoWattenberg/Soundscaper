@@ -158,7 +158,7 @@ export class ChunkStreamClient {
 				stream.playRequested = true;
 				stream.playContextStartFrame = normalizeOptionalStartFrame(options?.contextStartFrame);
 				await primed.promise;
-				if (!stream.settled && !stream.playing) {
+				if (!stream.settled && stream.playRequested && !stream.playing) {
 					stream.playing = true;
 					try {
 						outputPort.postMessage({

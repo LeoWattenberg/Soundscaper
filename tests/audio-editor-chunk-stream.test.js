@@ -349,6 +349,31 @@ test('client bridges immutable storage to the worklet and completes atomically',
 	client.dispose();
 });
 
+test('pausing while a chunk stream primes prevents the pending play request', async () => {
+	const worker = new FakeWorkerScope();
+	const outputPort = new FakePort();
+	const client = new ChunkStreamClient({ workerFactory: () => worker });
+	const handle = client.open({
+		streamId: 'pause-during-prime',
+		source: createImmutablePcmChunks([new Float32Array(128)]),
+		outputPort,
+	});
+	const protocolVersion = outputPort.messages[0].protocolVersion;
+	worker.dispatch({ type: 'stream-ready', streamId: handle.streamId, protocolVersion });
+	outputPort.dispatch({ type: 'worklet-ready', streamId: handle.streamId, protocolVersion, capacity: 1 });
+	await handle.ready;
+
+	const play = handle.play();
+	handle.pause();
+	outputPort.dispatch({ type: 'stream-primed', streamId: handle.streamId, packets: 1, frames: 128 });
+	await play;
+	assert.equal(outputPort.messages.some((message) => message.type === 'play-stream'), false);
+
+	const done = assert.rejects(handle.done, { name: 'AbortError' });
+	client.dispose();
+	await done;
+});
+
 test('client cancellation aborts a pending storage read and rejects completion', async () => {
 	const worker = createLinkedWorker();
 	const [clientPort, processorPort] = createPortPair();
