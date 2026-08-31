@@ -92,11 +92,11 @@ test('semantic-search IPC revokes one session or every session for a renderer ow
 test('opening after expiry retires tracked ownership and aborts the expired session query', async () => {
 	let entered!: () => void;
 	const running = new Promise<void>((resolve) => { entered = resolve; });
-	let querySignal: AbortSignal | null = null;
+	const queryState: { signal: AbortSignal | null } = { signal: null };
 	const { handlers, setNow } = fixture(Object.freeze({ embed: async (
 		{ signal }: Readonly<{ signal: AbortSignal }>,
 	) => {
-		querySignal = signal;
+		queryState.signal = signal;
 		entered();
 		await new Promise<void>((_resolve, reject) => signal.addEventListener('abort', () => {
 			reject(signal.reason);
@@ -125,7 +125,7 @@ test('opening after expiry retires tracked ownership and aborts the expired sess
 
 	open({ owner }, PROJECT_AUTHORITY);
 
-	assert.equal(querySignal?.aborted, true);
+	assert.equal(queryState.signal?.aborted, true);
 	await assert.rejects(pending, { name: 'AbortError' });
 });
 
