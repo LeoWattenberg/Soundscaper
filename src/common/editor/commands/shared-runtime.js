@@ -215,11 +215,10 @@ function sourceRangeForSegment(clip, segmentStartFrame, segmentEndFrame, sourceD
 	let segmentSourceDuration = segmentEndFrame === clipEndFrame(clip)
 		? sourceDuration - sourceStartOffset
 		: Math.max(1, Math.round((segmentEndFrame - segmentStartFrame) * sourceDuration / timelineDuration));
-	if (clip.kind === 'video' && (
-		segmentSourceDuration < 1
+	if (segmentSourceDuration < 1
 		|| sourceStartOffset < 0
 		|| sourceStartOffset + segmentSourceDuration > sourceDuration
-	)) {
+	) {
 		// A slow or held source span can map several positive timeline ranges
 		// onto one discrete source frame. Retain that in-bounds frame in every
 		// survivor instead of emitting an impossible zero-length source range.

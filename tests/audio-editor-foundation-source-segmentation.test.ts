@@ -182,6 +182,25 @@ test('non-collapsed fractional-speed source segmentation preserves established m
 	);
 });
 
+test('fractional-speed audio tail segments retain one in-bounds source frame', () => {
+	const audio = segmentOfClip(PROJECT, {
+		id: 'audio',
+		kind: 'audio',
+		anchor: 'sample',
+		timelineStartFrame: 0,
+		durationFrames: 1_000,
+		sourceStartFrame: 100,
+		sourceDurationFrames: 100,
+		trimStartFrames: 0,
+		trimEndFrames: 0,
+	}, 996, 1_000, 996, 'audio-tail');
+
+	assert.deepEqual(
+		[audio.sourceStartFrame, audio.sourceDurationFrames],
+		[199, 1],
+	);
+});
+
 function videoProject(sourceFrameCount: number) {
 	const source = createVideoSource({
 		id: 'video-source',
