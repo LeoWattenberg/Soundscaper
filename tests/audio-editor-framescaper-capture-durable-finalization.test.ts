@@ -27,6 +27,20 @@ test('indeterminate publication refreshes recovery and never touches capture sto
 	assert.deepEqual(events, ['publish', 'refresh']);
 });
 
+test('recovery refresh failure warns without replacing the publication failure', async () => {
+	const publicationFailure = new Error('publication failed');
+	const refreshFailure = new Error('refresh failed');
+	const warnings: unknown[] = [];
+	await assert.rejects(finalizeFramescaperCaptureDurability({
+		state: 'finalizing',
+		publish: async () => { throw publicationFailure; },
+		retireCommitted: async () => undefined,
+		refreshRecovery: async () => { throw refreshFailure; },
+		onCleanupWarning: (error) => { warnings.push(error); },
+	}), (error) => error === publicationFailure);
+	assert.deepEqual(warnings, [refreshFailure]);
+});
+
 test('committed cleanup failure warns without regressing Stop and remains retryable maintenance', async () => {
 	const events: string[] = [];
 	const warning = new Error('cleanup interrupted');

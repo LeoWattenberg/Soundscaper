@@ -29,14 +29,26 @@ export async function finalizeFramescaperCaptureDurability(
 		committed = true;
 		await retireWithoutRegressingCommit(options);
 	} finally {
-		if (!committed) await options.refreshRecovery();
+		if (!committed) await refreshWithoutMaskingPublication(options);
 	}
+}
+
+async function refreshWithoutMaskingPublication(
+	options: FramescaperCaptureDurableFinalizationOptions,
+): Promise<void> {
+	try { await options.refreshRecovery(); }
+	catch (error) { warnWithoutRegressing(options, error); }
 }
 
 async function retireWithoutRegressingCommit(options: FramescaperCaptureDurableFinalizationOptions): Promise<void> {
 	try { await options.retireCommitted(); }
-	catch (error) {
-		try { options.onCleanupWarning?.(error); }
-		catch { /* Warning sinks cannot regress a committed capture. */ }
-	}
+	catch (error) { warnWithoutRegressing(options, error); }
+}
+
+function warnWithoutRegressing(
+	options: FramescaperCaptureDurableFinalizationOptions,
+	error: unknown,
+): void {
+	try { options.onCleanupWarning?.(error); }
+	catch { /* Warning sinks cannot regress capture settlement. */ }
 }
