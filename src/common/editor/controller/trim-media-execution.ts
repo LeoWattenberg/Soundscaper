@@ -92,6 +92,7 @@ export async function executeTrimMediaCopy(
 		const parts: string[] = [];
 		for (const [index, run] of runs.entries()) {
 			const partPath = `${inputPath}.part-${String(index)}.${request.extension}`;
+			written.push(partPath);
 			const cut = await runtime.exec(buildTrimMediaCutArgs({
 				inputPath,
 				startFrame: run.startFrame,
@@ -100,7 +101,6 @@ export async function executeTrimMediaCopy(
 				container: request.container,
 				outputPath: partPath,
 			}), signalOptions);
-			written.push(partPath);
 			if (cut.exitCode !== 0) {
 				throw new Error(`Copying a retained run exited with ${String(cut.exitCode)}.`);
 			}
@@ -108,13 +108,13 @@ export async function executeTrimMediaCopy(
 		}
 
 		const listPath = `${inputPath}.parts.txt`;
-		await runtime.writeText(listPath, trimMediaConcatListText(parts), signalOptions);
 		written.push(listPath);
+		await runtime.writeText(listPath, trimMediaConcatListText(parts), signalOptions);
 		const outputPath = `${inputPath}.trimmed.${request.extension}`;
+		written.push(outputPath);
 		const joined = await runtime.exec(buildTrimMediaConcatArgs({
 			listPath, container: request.container, outputPath,
 		}), signalOptions);
-		written.push(outputPath);
 		if (joined.exitCode !== 0) {
 			throw new Error(`Joining the retained runs exited with ${String(joined.exitCode)}.`);
 		}

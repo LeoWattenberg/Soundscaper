@@ -67,6 +67,13 @@ test('a failing cut surfaces its own reason, not the cleanup that followed it', 
 	);
 });
 
+test('a cut rejection still deletes the partially written output path', async () => {
+	const runtime = createRuntime({ cutThrows: true });
+	await assert.rejects(executeTrimMediaCopy(runtime.value, request()), /cut execution failed/u);
+	assert.deepEqual(runtime.remaining(), []);
+	assert.equal(runtime.deleted.some((path) => path.includes('.part-0.')), true);
+});
+
 test('a clean run whose cleanup fails still reports the leak', async () => {
 	const runtime = createRuntime({ deleteFails: true });
 	await assert.rejects(executeTrimMediaCopy(runtime.value, request()), (error: unknown) => {
@@ -101,6 +108,7 @@ function request() {
 function createRuntime(options: {
 	probeExit?: number;
 	cutExit?: number;
+	cutThrows?: boolean;
 	keyframes?: readonly number[];
 	deleteFails?: boolean;
 } = {}) {
@@ -133,6 +141,7 @@ function createRuntime(options: {
 			const frames = args[args.indexOf('-frames:v') + 1];
 			commands.push(`cut:${startFrameOf(String(start))}:${String(frames)}`);
 			paths.add(String(args.at(-1)));
+			if (options.cutThrows) throw new Error('cut execution failed');
 			return { exitCode: options.cutExit ?? 0, logs: [] };
 		},
 		async readOutput() { return Uint8Array.of(1, 2, 3); },
