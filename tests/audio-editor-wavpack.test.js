@@ -13,9 +13,13 @@ import {
 import {
 	PCM_CONTAINER_FOOTER_BYTES,
 	PCM_CONTAINER_HEADER_BYTES,
+	PCM_CONTAINER_CODEC_RAW,
 	PCM_ENCODING_RAW_F32LE,
 	PCM_ENCODING_WAVPACK_F32_V1,
 	PcmContainerWriter,
+	createPcmContainerFooter,
+	createPcmContainerHeader,
+	createPcmContainerIndex,
 	createWavPackRuntimeCache,
 	crc32,
 	encodePcmAdaptively,
@@ -292,6 +296,38 @@ test('PCM container finalization aborts on failure and never reports a later fal
 	await assert.rejects(writer.close(), (error) => error === failure);
 	assert.equal(writeCount, 2, 'a partially written index is not retried');
 	assert.equal(abortCount, 1, 'the failed finalization cleanup only runs once');
+});
+
+test('PCM containers reject short interior chunks at write and read boundaries', async () => {
+	const writer = new PcmContainerWriter(memoryWritable(), {
+		channelCount: 1, sampleRate: 48_000, chunkFrames: 4,
+	});
+	const shortPayload = new Float32Array(2).buffer;
+	await writer.write({
+		encoding: PCM_ENCODING_RAW_F32LE, payload: shortPayload, frames: 2,
+		pcmCrc32: crc32(shortPayload),
+	});
+	await assert.rejects(writer.write({
+		encoding: PCM_ENCODING_RAW_F32LE, payload: new Float32Array(4).buffer, frames: 4,
+		pcmCrc32: 0,
+	}), /final chunk|interior|nominal frame size/iu);
+
+	const finalPayload = new Float32Array(1).buffer;
+	const header = createPcmContainerHeader({ channelCount: 1, sampleRate: 48_000, chunkFrames: 4 });
+	const indexOffset = header.byteLength + shortPayload.byteLength + finalPayload.byteLength;
+	const index = createPcmContainerIndex([
+		{ offset: header.byteLength, length: shortPayload.byteLength, frames: 2,
+			codec: PCM_CONTAINER_CODEC_RAW, pcmCrc32: crc32(shortPayload) },
+		{ offset: header.byteLength + shortPayload.byteLength, length: finalPayload.byteLength, frames: 1,
+			codec: PCM_CONTAINER_CODEC_RAW, pcmCrc32: crc32(finalPayload) },
+	]);
+	const footer = createPcmContainerFooter({
+		chunkCount: 2, indexOffset, indexCrc32: crc32(index),
+	});
+	await assert.rejects(
+		parsePcmContainerIndex(new Blob([header, shortPayload, finalPayload, index, footer])),
+		/interior|chunk geometry/iu,
+	);
 });
 
 test('WavPack runtime caching retries failed loads and retires trapped instances', async () => {

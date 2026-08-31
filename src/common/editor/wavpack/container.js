@@ -66,6 +66,9 @@ export class PcmContainerWriter {
 		flags = 0,
 	} = {}) {
 		if (this.closed) throw new Error('The PCM container writer is closed.');
+		if (this.entries.length > 0 && this.entries.at(-1).frames !== this.chunkFrames) {
+			throw new RangeError('A short PCM container chunk can only be the final chunk.');
+		}
 		const geometry = validatePcmGeometry(frames, this.channelCount);
 		if (geometry.frames > this.chunkFrames) {
 			throw new RangeError('A PCM container chunk exceeds its nominal frame size.');
@@ -250,6 +253,7 @@ export async function parsePcmContainerIndex(file, {
 	}
 	const entries = parseEntries(indexBytes, {
 		channelCount: header.channelCount,
+		chunkFrames: header.chunkFrames,
 		indexOffset: footer.indexOffset,
 	});
 	const frameCount = entries.reduce((sum, entry) => sum + entry.frames, 0);
@@ -349,7 +353,7 @@ function parseFooter(bytes) {
 	});
 }
 
-function parseEntries(bytes, { channelCount, indexOffset }) {
+function parseEntries(bytes, { channelCount, chunkFrames, indexOffset }) {
 	const entries = [];
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	let expectedOffset = PCM_CONTAINER_HEADER_BYTES;
@@ -366,6 +370,10 @@ function parseEntries(bytes, { channelCount, indexOffset }) {
 			rawBytes = pcmRawByteLength(frames, channelCount);
 		} catch (error) {
 			throw corruption('PCM container chunk geometry is invalid.', 'PCM_CONTAINER_GEOMETRY', error);
+		}
+		const finalEntry = byteOffset + PCM_CONTAINER_INDEX_ENTRY_BYTES === bytes.byteLength;
+		if (frames > chunkFrames || (!finalEntry && frames !== chunkFrames)) {
+			throw corruption('PCM container chunk geometry is noncanonical.', 'PCM_CONTAINER_GEOMETRY');
 		}
 		if (reserved !== 0 || offset !== expectedOffset || !length
 			|| offset + length > indexOffset
