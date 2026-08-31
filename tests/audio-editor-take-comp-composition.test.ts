@@ -68,6 +68,22 @@ test('a retired take-comp preview engine cannot overwrite its replacement with a
 	await fixture.composition.dispose();
 });
 
+test('a rejected take preview stops its engine and the next audition retries playback', async () => {
+	const fixture = compositionFixture({ previewPlayFails: true });
+	await assert.rejects(
+		fixture.composition.auditionTake('group-a', 'take-b'),
+		/preview play failed/u,
+	);
+	await assert.rejects(
+		fixture.composition.auditionTake('group-a', 'take-b'),
+		/preview play failed/u,
+	);
+
+	assert.equal(fixture.previewEngines[0]?.playCount, 2);
+	assert.equal(fixture.previewEngines[0]?.pauseCount, 0);
+	assert.equal(fixture.previewEngines[0]?.stopCount, 3);
+});
+
 test('range promotion supplies exact split identities and boundary edits remain one command each', () => {
 	const fixture = compositionFixture();
 	fixture.composition.promoteTake('group-a', {
@@ -158,6 +174,7 @@ function compositionFixture(options: Readonly<{
 	locked?: boolean;
 	onRender?(): void;
 	switchProjectAfterPersist?: boolean;
+	previewPlayFails?: boolean;
 }> = {}) {
 	let current = project(options.locked === true);
 	const commands: AudioEditorCommand[] = [];
@@ -220,7 +237,10 @@ function compositionFixture(options: Readonly<{
 			return {
 				loadProject(value) { fixture.loaded.push(value); },
 				setSourceResolver: () => undefined,
-				async play() { fixture.playCount += 1; },
+				async play() {
+					fixture.playCount += 1;
+					if (options.previewPlayFails) throw new Error('preview play failed');
+				},
 				pause() { fixture.pauseCount += 1; },
 				stop() { fixture.stopCount += 1; },
 				async dispose() { fixture.disposeCount += 1; },

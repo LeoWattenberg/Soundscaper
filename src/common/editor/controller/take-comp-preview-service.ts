@@ -64,6 +64,7 @@ export function createTakeCompPreviewService(
 ): Readonly<TakeCompPreviewService> {
 	let engine: TakeCompPreviewEngine | null = null;
 	let active: Readonly<TakeCompPreviewState> | null = null;
+	let previewGeneration = 0;
 
 	return Object.freeze({ auditionTake, auditionLane, stop, dispose });
 
@@ -91,6 +92,7 @@ export function createTakeCompPreviewService(
 		dependencies.lifetime.assertActive();
 		if (active?.key === key && active.state !== 'stopped') return toggleActive();
 		await stop();
+		const generation = ++previewGeneration;
 		const token = dependencies.captureProject();
 		const project = dependencies.getProject();
 		const group = requireGroup(project, groupId);
@@ -103,7 +105,7 @@ export function createTakeCompPreviewService(
 			engine.loadProject(previewProject(project, group, selectedTakes, dependencies.createId), dependencies.sourceBuffers, {
 				chunkSources: dependencies.sourceChunkProviders,
 			});
-			active = Object.freeze({
+			const playing = Object.freeze({
 				key, groupId, laneId,
 				takeIds: Object.freeze([...takeIds]),
 				state: 'playing' as const,
@@ -111,7 +113,14 @@ export function createTakeCompPreviewService(
 			await engine.play();
 			task.assertCurrent();
 			dependencies.assertProject(token);
+			active = playing;
 			return active;
+		} catch (error) {
+			if (previewGeneration === generation) {
+				engine?.stop?.();
+				active = null;
+			}
+			throw error;
 		} finally {
 			task.finish();
 		}
@@ -125,6 +134,7 @@ export function createTakeCompPreviewService(
 			return active;
 		}
 		const token = dependencies.captureProject();
+		const generation = previewGeneration;
 		const task = dependencies.lifetime.startTask(TAKE_COMP_PREVIEW_TASK);
 		try {
 			await engine?.play();
@@ -132,12 +142,19 @@ export function createTakeCompPreviewService(
 			dependencies.assertProject(token);
 			active = Object.freeze({ ...current, state: 'playing' as const });
 			return active;
+		} catch (error) {
+			if (previewGeneration === generation) {
+				engine?.stop?.();
+				active = Object.freeze({ ...current, state: 'stopped' as const });
+			}
+			throw error;
 		} finally {
 			task.finish();
 		}
 	}
 
 	async function stop(): Promise<boolean> {
+		previewGeneration += 1;
 		dependencies.lifetime.cancelTask(TAKE_COMP_PREVIEW_TASK);
 		const changed = active !== null;
 		active = active ? Object.freeze({ ...active, state: 'stopped' as const }) : null;
