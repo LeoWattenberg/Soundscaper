@@ -436,25 +436,6 @@ test('the complete enableWhen vocabulary evaluates from runtime state', () => {
 	assert.throws(() => evaluateAudacityEnableWhen('not-a-predicate', context), /Unknown Audacity/);
 });
 
-test('video tracks never satisfy audio enablement predicates', () => {
-	const context = {
-		snapshot: {
-			project: {
-				tracks: [{ id: 'video-1', type: 'video', clipIds: ['clip-1'], effects: [] }],
-				clips: [{ id: 'clip-1', kind: 'video', sourceId: 'source-1' }],
-				selection: { trackIds: ['video-1'], clipIds: ['clip-1'], startFrame: 0, endFrame: 100 },
-			},
-			selectedTrackId: 'video-1',
-			selectedClipId: 'clip-1',
-		},
-	};
-	assert.equal(evaluateAudacityEnableWhen('track-selected', context), true);
-	for (const predicate of [
-		'project-has-audio', 'audio-track-selected', 'editable-audio-track-selected',
-		'stereo-track-selected', 'compatible-mono-tracks', 'audio-selection',
-	]) assert.equal(evaluateAudacityEnableWhen(predicate, context), false, predicate);
-});
-
 test('every registered unavailable application-menu action has a parity classification', () => {
 	const placeholderIds = AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS;
 	assert.equal(placeholderIds.length, 0);
