@@ -347,7 +347,7 @@ test('compact mixer commands refuse canonical-ID edges with advanced routing sem
 				return edge;
 			}),
 		},
-	} as AudioEditorCommand);
+	} as unknown as AudioEditorCommand);
 
 	assert.throws(() => applySoundscaperProjectCommand(advanced, {
 		type: 'mixer/route-update', trackId: 'voice', changes: { groupId: null },

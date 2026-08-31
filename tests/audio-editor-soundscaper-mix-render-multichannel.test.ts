@@ -6,7 +6,10 @@ import test from 'node:test';
 import { createDerivedSourceService } from '../src/common/editor/controller/derived-source-service.ts';
 import { createMixRenderService } from '../src/common/editor/controller/mix-render-service.ts';
 import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
-import type { ControllerSource } from '../src/common/editor/controller/track-domain-types.ts';
+import type {
+	ControllerSource,
+	SourceWriter,
+} from '../src/common/editor/controller/track-domain-types.ts';
 import {
 	createAudioClip,
 	createAudioSource,
@@ -137,13 +140,13 @@ for (const streamToStorage of [false, true]) {
 
 		assert.equal(preflightBytes, FRAME_COUNT * CHANNEL_COUNT * Float32Array.BYTES_PER_ELEMENT);
 		if (streamToStorage) {
-			assert.equal(beginMetadata?.channelCount, CHANNEL_COUNT);
-			assert.equal(commitMetadata?.channelCount, CHANNEL_COUNT);
-			assert.equal(activatedSource?.channelCount, CHANNEL_COUNT);
+			assert.equal((beginMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, CHANNEL_COUNT);
+			assert.equal((commitMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, CHANNEL_COUNT);
+			assert.equal((activatedSource as ControllerSource | null)?.channelCount, CHANNEL_COUNT);
 			assert.equal(writerChannelCount, CHANNEL_COUNT);
 			assert.equal(writerFrames, FRAME_COUNT);
 		} else {
-			assert.equal(persistedBuffer?.numberOfChannels, CHANNEL_COUNT);
+			assert.equal((persistedBuffer as AudioBufferLike | null)?.numberOfChannels, CHANNEL_COUNT);
 		}
 	});
 }
@@ -168,7 +171,7 @@ test('buffered derived mix persistence admits Soundscaper surround geometry', as
 		getAudioContext: () => Promise.resolve({}),
 		createBufferFromChannels: (values: Float32Array[]) => Promise.resolve(audioBuffer(values)),
 		loadSourceChannels: () => Promise.resolve(channels),
-		writeBuffer: async (writer, buffer) => {
+		writeBuffer: async (writer: SourceWriter, buffer: AudioBufferLike) => {
 			const values = Array.from(
 				{ length: buffer.numberOfChannels },
 				(_, channel) => buffer.getChannelData(channel),
@@ -201,8 +204,8 @@ test('buffered derived mix persistence admits Soundscaper surround geometry', as
 	const result = await service.persistRenderedMixSource(audioBuffer(channels), 'Surround mix');
 
 	assert.equal(result.source.channelCount, CHANNEL_COUNT);
-	assert.equal(beginMetadata?.channelCount, CHANNEL_COUNT);
-	assert.equal(commitMetadata?.channelCount, CHANNEL_COUNT);
+	assert.equal((beginMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, CHANNEL_COUNT);
+	assert.equal((commitMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, CHANNEL_COUNT);
 	assert.equal(writtenChannels, CHANNEL_COUNT);
 });
 
