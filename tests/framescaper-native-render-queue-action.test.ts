@@ -203,6 +203,38 @@ test('a destination root that fails its projection is refused', async (context) 
 	await assert.rejects(() => enqueue(runtime), /destination root projection is invalid/u);
 });
 
+test('a malformed live-stage acknowledgement abandons the main-created stage', async (context) => {
+	const stageId = 'd'.repeat(40);
+	const abandoned: string[] = [];
+	installBridge(context, {
+		selectRoot: async () => ({
+			grantId: 'a'.repeat(16), displayName: 'Exports', revoked: false,
+		}),
+		revalidateRoot: async () => true,
+		stageLiveRenderInputs: async () => ({
+			stageId, carrierByteLength: 2, scratchByteLength: 2,
+		}),
+		writeLiveRenderInput: async () => ({}),
+		completeLiveRenderInput: async () => ({}),
+		abandonRenderInputs: async (request: Data) => {
+			abandoned.push(String(request.stageId));
+			return true;
+		},
+		enqueue: async () => ({}),
+	});
+	const stream = async () => ({ byteLength: 1, sha256: '1'.repeat(64), chunkCount: 1 });
+	const runtime = createRuntime(PROFILE, {
+		...owner(),
+		prepareNativeRenderInputStreamNativeMedia: async () => ({
+			carrierByteLength: 1, stream,
+			audio: { role: 'staged-audio-mix', byteLength: 1, stream },
+		}),
+	} as never) as unknown as Data;
+
+	await assert.rejects(() => enqueue(runtime), /stage changed its exact admission/u);
+	assert.deepEqual(abandoned, [stageId]);
+});
+
 test('an audio-inclusive live carrier does not supersede its sibling video task', async (context) => {
 	type Role = 'evaluated-rgba-frame-pack' | 'staged-audio-mix';
 	const lifetime = new EditorControllerLifetime();

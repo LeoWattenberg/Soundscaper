@@ -202,12 +202,12 @@ async function prepareSelectedNativeMediaLiveCarrier(
 				role: producer.audio.role, byteLength: producer.audio.byteLength,
 			}),
 		}));
+		stageId = result?.stageId;
 		if (!result || typeof result.stageId !== 'string' || !/^[a-f0-9]{40}$/u.test(result.stageId)
 			|| result.carrierByteLength !== producer.carrierByteLength
 			|| !Number.isSafeInteger(result.scratchByteLength) || result.scratchByteLength < 1) {
 			throw new TypeError('The selected nativeMedia live carrier stage changed its exact admission.');
 		}
-		stageId = result.stageId;
 		scratchByteLength = result.scratchByteLength;
 	} catch (error) {
 		if (stageId) await abandonSelectedNativeMediaCarrier(bridge, stageId, error);
