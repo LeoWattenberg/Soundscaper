@@ -60,16 +60,36 @@ test('a new JavaScript UI localization violation is not hidden by the legacy bas
 });
 
 test('a new TypeScript core-recommended violation is not hidden by the legacy baseline', async () => {
-	const eslint = new ESLint({ cwd: ROOT, applySuppressions: true });
+	const eslint = new ESLint({
+		cwd: ROOT,
+		applySuppressions: true,
+		// CI makes typescript-eslint infer a single CLI run. Its project Program then
+		// reads this path from disk instead of using lintText's virtual first body.
+		overrideConfig: {
+			files: ['**/*.{cts,mts,ts,tsx}'],
+			languageOptions: {
+				parserOptions: { disallowAutomaticSingleRunInference: true },
+			},
+		},
+	});
 	const [result] = await eslint.lintText(
 		'const value = NaN;\nif (value === NaN) {}\n',
 		{ filePath: 'src/common/editor/project-media-types.ts' },
 	);
+	const diagnostics = JSON.stringify({
+		messages: result.messages,
+		suppressedMessages: result.suppressedMessages,
+	}, null, 2);
 
-	assert.ok(result.messages.some(message => message.ruleId === 'use-isnan'));
+	assert.equal(
+		result.messages.some(message => message.ruleId === 'use-isnan'),
+		true,
+		`use-isnan must report the virtual TypeScript violation; ESLint returned:\n${diagnostics}`,
+	);
 	assert.equal(
 		result.suppressedMessages.some(message => message.ruleId === 'use-isnan'),
 		false,
+		`use-isnan must not be suppressed; ESLint returned:\n${diagnostics}`,
 	);
 });
 
