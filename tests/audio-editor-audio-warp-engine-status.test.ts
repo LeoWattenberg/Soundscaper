@@ -45,6 +45,26 @@ test('engine reports the actual realtime and exact-offline warp facilities it ow
 	await fallback.dispose();
 });
 
+test('rejected variable-speed exact warp playback leaves transport state unchanged', async () => {
+	const engine = createAudioEditorEngine({
+		audioContextFactory: null,
+		offlineAudioContextFactory: null,
+		audioWarpRealtimeAcceleration: false,
+		softwareRenderer: () => ({ channels: [new Float32Array(4)], sampleRate: 48_000 }),
+	});
+	engine.loadProject(warpProject());
+	engine.seek(4);
+	const before = engine.getState();
+
+	await assert.rejects(
+		engine.playAtSpeed(2),
+		/requires realtime warp acceleration/iu,
+	);
+	assert.equal(engine.getState().playbackRate, before.playbackRate);
+	assert.equal(engine.getState().positionFrame, before.positionFrame);
+	await engine.dispose();
+});
+
 test('engine fails closed when neither exact warp runtime exists', async () => {
 	const engine = createAudioEditorEngine({
 		audioContextFactory: null,

@@ -122,6 +122,10 @@ async playAtSpeed(rate, {
 		this[ENGINE_CANCEL_SCRUB]();
 		const generation = this.scrubGeneration;
 		const normalizedRate = normalizePlayAtSpeedRate(rate);
+		if (projectHasAuthoredAudioWarp(this.project)
+			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
+			throw new Error('Variable-speed audio warp playback requires realtime warp acceleration.');
+		}
 		const cancelPendingPlayback = () => {
 			if (!playbackRequestIsCurrent(this, generation)) return;
 			const position = this.getPositionFrames();
@@ -145,10 +149,6 @@ async playAtSpeed(rate, {
 				normalizedRate,
 			);
 			this.playbackRate = normalizedRate;
-			if (projectHasAuthoredAudioWarp(this.project)
-				&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
-				throw new Error('Variable-speed audio warp playback requires realtime warp acceleration.');
-			}
 			if (!preservePitch) {
 				this.playbackMode = 'naive';
 				this.preparedSpeedPlayback = null;
