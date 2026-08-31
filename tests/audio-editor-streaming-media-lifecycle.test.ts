@@ -146,14 +146,9 @@ test('clear preempts a stalled OPFS write instead of waiting for storage I/O', a
 	void writing.catch(() => undefined);
 	await opfs.writeStarted;
 	const clearing = store.clear();
-	const completedBeforeRelease = await Promise.race([
-		clearing.then(() => true),
-		new Promise<false>((resolve) => { setTimeout(() => resolve(false), 50); }),
-	]);
-	if (!completedBeforeRelease) opfs.releaseWrite();
+	await opfs.abortStarted;
 	await Promise.allSettled([writing, clearing]);
 
-	assert.equal(completedBeforeRelease, true);
 	assert.equal(opfs.files.size, 0);
 	assert.equal(store.memory.mediaAssets.size, 0);
 });
@@ -419,9 +414,9 @@ function fakeOpfs({ stallAborts = false, stallWrites = false } = {}) {
 				},
 				async close() { files.set(path, { blob: new Blob(parts), lastModified: Date.now() }); },
 				async abort() {
+					markAbortStarted?.();
 					releaseWrite?.();
 					if (stallAborts) {
-						markAbortStarted?.();
 						await new Promise<void>((resolve) => { releaseAbort = resolve; });
 					}
 				},
@@ -440,7 +435,6 @@ function fakeOpfs({ stallAborts = false, stallWrites = false } = {}) {
 		abortStarted,
 		writeStarted,
 		releaseAbort: () => { releaseAbort?.(); },
-		releaseWrite: () => { releaseWrite?.(); },
 	};
 }
 
