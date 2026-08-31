@@ -26,6 +26,7 @@ const TARGET_NATIVE_RUNNERS = Object.freeze({
 	'Windows/ARM64': 'win-arm64',
 });
 const AUTHENTICATED_BUILD_PLANS = new WeakSet();
+const MAXIMUM_BUILD_STEP_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 /**
  * JUCE 9 moved every hosted plug-in format's vendored SDK into the headless
@@ -218,7 +219,10 @@ export function executeSoundscaperProfessionalNativeBuild(plan, options = {}) {
 		for (const witness of plan.sourceAuthentication) verifyMilestone5NativeSourceInput(witness);
 		const run = options.run ?? spawnSync;
 		for (const step of [plan.configure, plan.build, plan.test, plan.install]) {
-			const result = run(step.command, step.argv, { encoding: 'utf8', stdio: options.stdio ?? 'pipe' });
+			const result = run(step.command, step.argv, {
+				encoding: 'utf8', maxBuffer: MAXIMUM_BUILD_STEP_OUTPUT_BYTES,
+				stdio: options.stdio ?? 'pipe',
+			});
 			assert(result.status === 0, `Professional native build failed: ${result.stderr || result.stdout || 'unknown error'}`);
 		}
 		for (const witness of plan.sourceAuthentication) verifyMilestone5NativeSourceInput(witness);
