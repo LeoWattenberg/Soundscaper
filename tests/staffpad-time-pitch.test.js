@@ -257,6 +257,32 @@ test('Audacity dispatcher routes all four pitch-and-tempo effects through StaffP
 	);
 });
 
+test('the default StaffPad runtime retries after a transient load failure', async () => {
+	const originalFetch = globalThis.fetch;
+	const wasm = await readFile(WASM_PATH);
+	let requests = 0;
+	globalThis.fetch = async () => {
+		requests += 1;
+		return requests === 1
+			? new Response(null, { status: 503, statusText: 'Unavailable' })
+			: new Response(wasm, { status: 200 });
+	};
+	const input = Float32Array.from({ length: 256 }, (_, frame) =>
+		0.1 * Math.sin(2 * Math.PI * 220 * frame / 8_000));
+	const apply = () => applyAudacityEffectAsync(
+		'audacity-change-pitch', [input], 8_000, { semitones: 1 },
+	);
+	try {
+		await assert.rejects(apply(), (error) => error instanceof AudacityStaffPadError
+			&& error.code === 'STAFFPAD_WASM_UNAVAILABLE');
+		const [output] = await apply();
+		assert.equal(output.length, input.length);
+		assert.equal(requests, 2);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
 test('StaffPad worker client assembles contiguous chunks, reports progress, and cancels', async () => {
 	const worker = new FakeWorker();
 	const client = new StaffPadRenderClient({ workerFactory: () => worker, wasmUrl: '/staffpad.wasm' });

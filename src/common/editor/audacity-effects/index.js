@@ -354,7 +354,10 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 }
 
 function loadDefaultStaffPadRuntime() {
-	defaultStaffPadRuntimePromise ||= loadStaffPadWasm();
+	defaultStaffPadRuntimePromise ||= loadStaffPadWasm().catch((error) => {
+		defaultStaffPadRuntimePromise = undefined;
+		throw error;
+	});
 	return defaultStaffPadRuntimePromise;
 }
 
