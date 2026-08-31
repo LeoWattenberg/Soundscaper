@@ -33,9 +33,10 @@ test('Framescaper playback flattens inherited folder mute and hidden state', () 
 	const playback = createFramescaperPlaybackProjectService(FRAMESCAPER_PROJECT_RUNTIME_PROFILE)
 		.projectForPlayback(project).project;
 	const tracks = playback.tracks as readonly Readonly<Record<string, unknown>>[];
+	const originalTracks = project.tracks as readonly Readonly<Record<string, unknown>>[];
 	assert.equal(tracks.find(({ id }) => id === 'video-track')?.hidden, true);
 	assert.equal(isRuntimeProjectProjection(playback), true);
 	assert.equal(isTrackFolderMediaStateProjectionV12(playback), true);
-	assert.equal(project.tracks.find(({ id }) => id === 'video-track')?.hidden, false,
+	assert.equal(originalTracks.find(({ id }) => id === 'video-track')?.hidden, false,
 		'folder projection stays transient');
 });
