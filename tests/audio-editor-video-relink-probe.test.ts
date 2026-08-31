@@ -20,4 +20,3 @@ test('changed-content video relink admits the persisted sample-frame duration', 
 	}, runtime);
 	assert.equal(disposals, 1);
 });
-
