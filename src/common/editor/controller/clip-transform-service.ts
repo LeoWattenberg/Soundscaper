@@ -429,6 +429,7 @@ export function createClipTransformService(
 		changes: ClipTransformChanges = {},
 	): unknown {
 		dependencies.lifetime.assertActive();
+		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		const clip = findClip(project, clipId);
 		const clipIds = clip ? collectClipTransformIds(project, clip.id) : [];

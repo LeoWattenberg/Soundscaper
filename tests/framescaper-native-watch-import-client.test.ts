@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	createFramescaperNativeWatchImportClient,
 } from '../src/framescaper/editor-native-watch-import-client.ts';
+import { digestMediaContent } from '../src/common/editor/storage/media-content-digest.ts';
 
 type Data = Record<string, unknown>;
 
@@ -159,4 +160,64 @@ test('a fresh poll runs once the previous one has settled', async () => {
 	await poll();
 
 	assert.equal(claimed, 2, 'coalescing must not outlive the poll it coalesced onto');
+});
+
+test('disposal stops a committed watch import after its in-flight acknowledgement', async () => {
+	const file = new File(['video'], 'clip.mp4', { type: 'video/mp4', lastModified: 10 });
+	const contentSha256 = await digestMediaContent(file);
+	let releaseRetry!: () => void;
+	const retryReleased = new Promise<void>((resolve) => { releaseRetry = resolve; });
+	let retryStarted!: () => void;
+	const retrying = new Promise<void>((resolve) => { retryStarted = resolve; });
+	let completions = 0;
+	const controller: Data = {
+		project: PROJECT,
+		actions: { project: {
+			async importFiles() {
+				controller.project = Object.freeze({
+					...PROJECT,
+					revision: 3,
+					sources: [Object.freeze({
+						kind: 'video', id: 'source-imported', contentSha256, proxyAttachment: null,
+					})],
+					projectBin: { clips: [{ kind: 'video', sourceId: 'source-imported' }] },
+				});
+			},
+			flush: async () => undefined,
+		} },
+	};
+	const watcher = client({
+		controller,
+		linkedVideoOriginalPort: {
+			load: async () => ({ blob: file, locatorRevision: 'c'.repeat(32) }),
+		},
+		bridge: {
+			claimWatchImport: async () => ({
+				schemaFamily: 'framescaper', schemaVersion: 1,
+				claimId: 'd'.repeat(32), projectId: 'project-1', projectRevision: 2,
+				binId: 'project-bin', generateProxies: false, existingSourceId: null,
+				importMode: 'link', locatorId: 'b'.repeat(32), locatorRevision: 'c'.repeat(32),
+				name: file.name, size: file.size, mimeType: file.type,
+				lastModified: file.lastModified, contentSha256,
+			}),
+			completeWatchImport: async () => {
+				completions += 1;
+				if (completions === 2) {
+					retryStarted();
+					await retryReleased;
+				}
+				return false;
+			},
+		},
+	});
+
+	const poll = (watcher.pollNow as () => Promise<boolean>)();
+	await retrying;
+	const disposal = (watcher.dispose as () => Promise<void>)();
+	releaseRetry();
+	assert.equal(await poll, false);
+	await disposal;
+
+	assert.equal(completions, 2,
+		'disposal should allow the active acknowledgement to settle without starting another retry');
 });

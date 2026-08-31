@@ -37,6 +37,7 @@ test('freeze renders, hashes, verifies, persists, and CAS-installs only after ev
 	assert.equal(result.freeze.derivedSourceId, 'voice-freeze-1');
 	assert.deepEqual(track(result.project).audioFreeze, result.freeze);
 	assert.equal(fixture.published.has('voice-freeze-1'), true);
+	assert.deepEqual([...fixture.admissions], ['voice-freeze-1']);
 	assert.deepEqual(fixture.commands.map(({ type }) => type), ['audio-freeze/install']);
 	assert.deepEqual(fixture.log.filter((entry) => entry !== 'current'), [
 		'capture', 'hash-source:voice-live', 'render', 'hash-render',
@@ -226,6 +227,7 @@ test('late currentness loss and CAS refusal roll verified publication back', asy
 		}), /current|stale|generation/iu);
 		assert.equal(fixture.commands.length, 0);
 		assert.equal(fixture.published.size, 0);
+		assert.equal(fixture.admissions.size, 0);
 		assert.deepEqual(fixture.log.slice(-3), ['publish', 'current', 'rollback']);
 	});
 
@@ -236,6 +238,7 @@ test('late currentness loss and CAS refusal roll verified publication back', asy
 			trackId: 'voice', renderStartFrame: 0, renderFrameCount: 1_024,
 		}), /CAS refusal/);
 		assert.equal(fixture.published.size, 0);
+		assert.equal(fixture.admissions.size, 0);
 		assert.equal(fixture.log.at(-1), 'rollback');
 	});
 });
@@ -261,10 +264,12 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 	const log: string[] = [];
 	const commands: AudioTrackFreezeCoordinatorCommandV21[] = [];
 	const published = new Map<string, RenderBody>();
+	const admissions = new Set<string>();
 	const fixture = {
 		log,
 		commands,
 		published,
+		admissions,
 		afterAwait: null as ((boundary: string) => void) | null,
 		refuseCommand: false,
 		loseCurrentness() { generation += 1; },
@@ -345,6 +350,10 @@ function coordinatorFixture(options: Readonly<{ historyLimit?: number }> = {}) {
 				channelCount: stage.channelCount, sampleRate: stage.sampleRate,
 				originalSampleRate: stage.sampleRate, sampleFormat: 'float32', chunkFrames: 65_536,
 			});
+		},
+		admitVerifiedFreeze({ freeze }) {
+			admissions.add(freeze.derivedSourceId);
+			return () => { admissions.delete(freeze.derivedSourceId); };
 		},
 		async publishStagedSource({ stage }) {
 			log.push('publish');

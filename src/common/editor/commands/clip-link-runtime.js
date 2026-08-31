@@ -332,6 +332,8 @@ function clipsHaveContiguousSource(left, right) {
 		|| (left.speedRatio ?? 1) !== (right.speedRatio ?? 1)
 		|| Boolean(left.preserveFormants) !== Boolean(right.preserveFormants)
 		|| Boolean(left.stretchToTempo) !== Boolean(right.stretchToTempo)
+		|| left.warpMap != null
+		|| right.warpMap != null
 		|| !videoEffectStacksEquivalent(left.videoEffects, right.videoEffects)
 		|| !videoCompositionCarriersEqual(left, right)
 		|| !videoKeyframeCarriersJoinable(left, right)

@@ -105,14 +105,18 @@ export function createSoundscaperNativePluginProjectBinding(
 		persist(state: NativePluginProjectStateV1, operation: SoundscaperNativeProjectOperation): void {
 			operation.commit(() => controller.actions.nativePlugins.upsert(state))
 		},
-		admitBypassed(instanceId: string, bypassed: boolean): boolean {
-			return bypassed || locations.get(instanceId)?.faulted === true
+		admitBypassed(_instanceId: string, bypassed: boolean): boolean {
+			return bypassed
 		},
 		setBypassed(instanceId: string, bypassed: boolean) {
-			bypassed ||= locations.get(instanceId)?.faulted === true
+			pruneRemovedLocations()
 			const location = locations.get(instanceId)
 			let transition = null
 			if (location) {
+				if (!bypassed && location.faulted) {
+					location.faulted = false
+					location.changes = []
+				}
 				location.bypassed = bypassed
 				transition = reconcilePlan(instanceId)
 				controller.actions.effects.update(
@@ -124,6 +128,7 @@ export function createSoundscaperNativePluginProjectBinding(
 			return Object.freeze({ bypassed, transition })
 		},
 		runtime(instanceId: string, latencyFrames: number | null, state: string) {
+			pruneRemovedLocations()
 			const location = locations.get(instanceId)
 			if (state === 'host-lost' || state === 'closed') {
 				if (location) {
@@ -165,7 +170,10 @@ export function createSoundscaperNativePluginProjectBinding(
 			}, { skipPlaybackEngine: true })
 			return transition
 		},
-		pdc(instanceId: string) { return locations.has(instanceId) ? ledger?.authoritative ?? null : null },
+		pdc(instanceId: string) {
+			pruneRemovedLocations()
+			return locations.has(instanceId) ? ledger?.authoritative ?? null : null
+		},
 	})
 
 	function createLocation(
@@ -187,6 +195,7 @@ export function createSoundscaperNativePluginProjectBinding(
 
 	function reconcilePlan(instanceId: string): PdcTransition | null {
 		if (!controller.project || typeof controller.project !== 'object') return null
+		pruneRemovedLocations()
 		ledger = createNativeEffectLatencyLedgerV21({
 			project: controller.project,
 			instances: [...locations.values()].map((location) => ({
@@ -230,6 +239,32 @@ export function createSoundscaperNativePluginProjectBinding(
 			bypassed: ledger.authoritative.instanceStates.get(instanceId) !== 'active',
 		})
 	}
+
+	function pruneRemovedLocations(): void {
+		for (const [instanceId, location] of locations) {
+			if (!projectHasNativeEffectAtLocation(controller.project, location)) locations.delete(instanceId)
+		}
+	}
+}
+
+function projectHasNativeEffectAtLocation(project: unknown, location: EffectLocation): boolean {
+	const tracks = (project as { readonly tracks?: unknown } | null)?.tracks
+	if (!Array.isArray(tracks)) return false
+	const track = tracks.find((candidate) => (
+		candidate && typeof candidate === 'object'
+		&& (candidate as { readonly id?: unknown }).id === location.trackId
+	)) as { readonly effects?: unknown } | undefined
+	if (!Array.isArray(track?.effects)) return false
+	return track.effects.some((candidate) => {
+		if (!candidate || typeof candidate !== 'object') return false
+		const effect = candidate as {
+			readonly id?: unknown
+			readonly type?: unknown
+			readonly params?: { readonly instanceId?: unknown }
+		}
+		return effect.id === location.effectId && effect.type === 'native-plugin'
+			&& effect.params?.instanceId === location.instanceId
+	})
 }
 
 function effectOptions(

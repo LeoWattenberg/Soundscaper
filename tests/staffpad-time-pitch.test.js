@@ -93,6 +93,22 @@ test('StaffPad validation enforces safe scalar-engine limits and exact output le
 	}), /between 8000 and 192000/);
 });
 
+test('a first-use StaffPad spectral selection initializes the shared FFT runtime', async () => {
+	const sampleRate = 8_192;
+	const input = Float32Array.from({ length: 2_048 }, (_, frame) => (
+		0.2 * Math.sin(2 * Math.PI * 512 * frame / sampleRate)
+	));
+	const [output] = await applyAudacityEffectAsync(
+		'audacity-change-pitch',
+		[input],
+		sampleRate,
+		{ semitones: 0 },
+		{ spectralSelection: { minimumFrequency: 450, maximumFrequency: 575, windowSize: 1_024 } },
+	);
+	assert.equal(output.length, input.length);
+	assert.ok(output.every(Number.isFinite));
+});
+
 test('StaffPad cache keys are canonical and cover source identity, range, direction, and transform', async () => {
 	const request = {
 		channels: [new Float32Array(32)],

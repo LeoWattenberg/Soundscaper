@@ -51,26 +51,35 @@ test('persisted audio effects accept canonical EQ aliases without mutating the r
 });
 
 test('persisted audio effects reject invalid parametric EQ state', () => {
-	const invalid = [
-		parametricEq({ params: { bands: Array.from({ length: 13 }, () => ({})) } }),
-		parametricEq({ params: { bands: [
+	const invalid: readonly (readonly [Record<string, unknown>, RegExp])[] = [
+		[parametricEq({ params: { bands: Array.from({ length: 13 }, () => ({})) } }),
+			/supports between zero and 12 bands/iu],
+		[parametricEq({ params: { bands: [
 			{ id: 'duplicate', frequency: 100, gain: 0, q: 1 },
 			{ id: ' duplicate ', frequency: 200, gain: 0, q: 1 },
-		] } }),
-		parametricEq({ params: { outputGain: 25, bands: [] } }),
-		parametricEq({ params: { bands: [{ enabled: 'yes', frequency: 100, gain: 0, q: 1 }] } }),
-		parametricEq({ params: { bands: [{ type: 'peak', frequency: 100, gain: 0, q: 1 }] } }),
-		parametricEq({ params: { bands: [{ frequency: 0, gain: 0, q: 1 }] } }),
-		parametricEq({ params: { bands: [{ frequency: 100, gain: 25, q: 1 }] } }),
-		parametricEq({ params: { bands: [{ frequency: 100, gain: 0, q: 0.01 }] } }),
-		parametricEq({ params: { bands: [{ frequency: 100, gain: 0, q: 1, slope: 18 }] } }),
-		parametricEq({ context: new Date('2026-01-01T00:00:00.000Z') }),
+		] } }), /Duplicate parametric EQ band ID: duplicate/iu],
+		[parametricEq({ params: { outputGain: 25, bands: [] } }),
+			/eq\.outputGain must be between -24 and 24/iu],
+		[parametricEq({ params: { bands: [{ enabled: 'yes', frequency: 100, gain: 0, q: 1 }] } }),
+			/eq\.bands\[0\]\.enabled must be a boolean/iu],
+		[parametricEq({ params: { bands: [{ type: 'peak', frequency: 100, gain: 0, q: 1 }] } }),
+			/eq\.bands\[0\]\.type must be one of peaking/iu],
+		[parametricEq({ params: { bands: [{ frequency: 0, gain: 0, q: 1 }] } }),
+			/eq\.bands\[0\]\.frequency must be between 10 and 24000/iu],
+		[parametricEq({ params: { bands: [{ frequency: 100, gain: 25, q: 1 }] } }),
+			/eq\.bands\[0\]\.gain must be between -24 and 24/iu],
+		[parametricEq({ params: { bands: [{ frequency: 100, gain: 0, q: 0.01 }] } }),
+			/eq\.bands\[0\]\.q must be between 0\.1 and 30/iu],
+		[parametricEq({ params: { bands: [{ frequency: 100, gain: 0, q: 1, slope: 18 }] } }),
+			/eq\.bands\[0\]\.slope must be one of 12, 24, 36, 48/iu],
+		[parametricEq({ context: new Date('2026-01-01T00:00:00.000Z') }),
+			/master\.effects\[0\]\.context must be a JSON-safe object or null/iu],
 	];
 
-	for (const effect of invalid) {
+	for (const [effect, expected] of invalid) {
 		assert.throws(
 			() => validatePersistedAudioEffects([effect], 'master.effects'),
-			/error|effect|eq|band|context|range|between|supports|duplicate|boolean|one of|JSON-safe/iu,
+			expected,
 		);
 	}
 });

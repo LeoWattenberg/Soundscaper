@@ -18,7 +18,12 @@ const MAXIMUM_BODIES = 5_118;
  * stub `electron` rather than imported. Doing so exercises the bridge the packaged renderer
  * actually calls: source-text assertions cannot tell a working clone from one that throws.
  */
-async function exposedBridges() {
+async function exposedBridges(publicationInvoke = (_channel, value) => Promise.resolve({
+	publicationId: value.publicationId,
+	maximumChunkBytes: MAXIMUM_CHUNK_BYTES,
+	bodyCount: value.bodies.length,
+	requiredBodyIndexes: value.bodies.length ? [value.bodies.length - 1] : [],
+})) {
 	const source = await readFile(resolve(ROOT, 'desktop/preload.mjs'), 'utf8');
 	const exposed = new Map();
 	const invocations = [];
@@ -31,12 +36,7 @@ async function exposedBridges() {
 			invoke: (channel, value) => {
 				invocations.push({ channel, value });
 				if (channel === HANDSHAKE_CHANNEL) return Promise.resolve(structuredClone(value));
-				return Promise.resolve({
-					publicationId: value.publicationId,
-					maximumChunkBytes: MAXIMUM_CHUNK_BYTES,
-					bodyCount: value.bodies.length,
-					requiredBodyIndexes: value.bodies.length ? [value.bodies.length - 1] : [],
-				});
+				return publicationInvoke(channel, value);
 			},
 		},
 	};
@@ -111,4 +111,22 @@ test('the baseline preload admits its full transcript-extended body inventory an
 		expectedProject: null, project: {}, bodies: [...bodies, {}],
 	}), /bounded.*array/iu);
 	assert.equal(refusedFixture.invocations.length, 1, 'only the handshake crossed IPC');
+});
+
+test('a rejected publication completion still retires its preload-side active id', async () => {
+	const { library, invocations } = await exposedBridges((channel, value) => {
+		if (channel === BEGIN_CHANNEL) return Promise.resolve({
+			publicationId: value.publicationId, maximumChunkBytes: MAXIMUM_CHUNK_BYTES,
+			bodyCount: 0, requiredBodyIndexes: [],
+		});
+		return Promise.reject(new Error('main refused publication completion'));
+	});
+	await library.beginPublication({
+		publicationId: PUBLICATION_ID, expectedMetadataRevision: 0,
+		expectedProject: null, project: {}, bodies: [],
+	});
+	await assert.rejects(library.finishPublication({ publicationId: PUBLICATION_ID }),
+		/main refused publication completion/u);
+	await assert.rejects(async () => library.abortPublication({ publicationId: PUBLICATION_ID }), /not active/iu);
+	assert.equal(invocations.length, 3, 'the stale abort is refused before another IPC call');
 });

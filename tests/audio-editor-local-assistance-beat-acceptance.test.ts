@@ -193,6 +193,40 @@ test('label-track and tempo decisions are independent and an empty decision is m
 	assert.equal(empty.snapshot().phase, 'accepted');
 });
 
+test('a reviewed beat that rounds to the selection end clamps to its final timeline frame', async () => {
+	const edgeFence = { ...fence(), sourceEndFrame: 479_002 };
+	const baseline = authority();
+	const current = {
+		...baseline,
+		project: { ...baseline.project, sampleRate: 16_000 },
+		endFrame: 479_002,
+		sourceEndFrame: 479_002,
+		fence: edgeFence,
+	};
+	const commits: Readonly<Record<string, unknown>>[] = [];
+	const session = createLocalAssistanceBeatReviewSession({
+		currentAuthority: () => current,
+		captureProject: () => current.project,
+		assertProject: () => undefined,
+		commit: (command) => commits.push(command),
+	}, request(edgeFence, {
+		points: [{ sample: 660_124, kind: 'beat', confidence: 1 }],
+		tempoProposal: null,
+	}));
+	await session.accept([session.snapshot().proposals[0]!.id]);
+	const track = commits[0]!.track as Readonly<{
+		labels: readonly Readonly<{
+			id: string; title: string; startFrame: number; endFrame: number;
+		}>[];
+	}>;
+	assert.deepEqual(track.labels.map(({ id, title, startFrame, endFrame }) => ({
+		id, title, startFrame, endFrame,
+	})), [{
+		id: `${session.snapshot().trackId}:beat:660124`,
+		title: 'Beat', startFrame: 479_001, endFrame: 479_001,
+	}]);
+});
+
 test('reject, cancel, unknown, and duplicate choices cannot mutate the project', async () => {
 	const current = authority();
 	let commits = 0;

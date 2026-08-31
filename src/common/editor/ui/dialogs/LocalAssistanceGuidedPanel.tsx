@@ -10,8 +10,9 @@ import {
 } from '../../assistance/workflow-recipes.ts';
 import { serializeAssistanceWorkflowSettingsV1 } from '../../assistance/workflow-settings-v1.ts';
 import type { AssistanceWorkflowSettingsV1 } from '../../assistance/workflow-settings-v1.ts';
-import type {
-	LocalAssistanceGuidedSnapshot,
+import {
+	localAssistanceGuidedConfigurationLocked,
+	type LocalAssistanceGuidedSnapshot,
 } from '../local-assistance-guided-session-store.ts';
 import LocalAssistanceGuidedSettings from './LocalAssistanceGuidedSettings.tsx';
 
@@ -63,12 +64,13 @@ export default function LocalAssistanceGuidedPanel({
 	const graph = snapshot.selectedWorkflowId
 		? assistanceWorkflowStageGraph(snapshot.selectedWorkflowId) : null;
 	const message = statusMessage(copy, snapshot);
+	const configurationLocked = localAssistanceGuidedConfigurationLocked(snapshot.phase);
 	return <section id="local-assistance-guided-panel" className="kw-local-assistance__guided" role="tabpanel"
 		aria-label={text(copy, 'localAssistanceGuided', 'Guided')}>
 		<label htmlFor="local-assistance-guided-workflow">
 			{text(copy, 'localAssistanceGuidedWorkflow', 'Workflow')}
 			<select id="local-assistance-guided-workflow"
-				value={snapshot.selectedWorkflowId ?? ''} disabled={snapshot.canCancel}
+				value={snapshot.selectedWorkflowId ?? ''} disabled={configurationLocked}
 				onChange={(event) => {
 					void onSelectWorkflow(event.currentTarget.value as AssistanceGuidedWorkflowId);
 				}}>
@@ -87,7 +89,7 @@ export default function LocalAssistanceGuidedPanel({
 		</div>}
 		{snapshot.settings && <>
 			<LocalAssistanceGuidedSettings copy={copy} settings={snapshot.settings}
-				disabled={snapshot.canCancel} onChange={onSettingsChange} />
+				disabled={configurationLocked} onChange={onSettingsChange} />
 			<details className="kw-local-assistance__guided-settings">
 				<summary>{text(copy, 'localAssistanceExactSettings', 'Exact settings')}</summary>
 				<code>{serializeAssistanceWorkflowSettingsV1(snapshot.settings)}</code>

@@ -70,6 +70,7 @@ export function registerFramescaperNativeRenderInputMainIpc(
 			void options.staging.receive(renderer, value, port)
 				.catch(() => undefined).finally(() => active.delete(port));
 		} catch {
+			active.delete(port);
 			port.close();
 		}
 	};

@@ -97,7 +97,7 @@ export interface AudioTrackFreezeCoordinatorPortsV21<Project, Ticket, Body, Stag
 		readonly contentSha256: string;
 		readonly signal?: AbortSignal;
 	}>) => Promise<unknown>;
-	/** Register verified transient playback authority before the synchronous command publication. */
+	/** Register verified transient playback authority before publication and return its exact revoker. */
 	readonly admitVerifiedFreeze?: (request: Readonly<{
 		readonly project: Project;
 		readonly trackId: string;
@@ -107,7 +107,7 @@ export interface AudioTrackFreezeCoordinatorPortsV21<Project, Ticket, Body, Stag
 			readonly sourceId: string;
 			readonly contentSha256: string;
 		}>[];
-	}>) => void;
+	}>) => () => void;
 	/** Publish is reversible until executeIfCurrent succeeds. */
 	readonly publishStagedSource: (request: Readonly<{
 		readonly stage: Stage;
@@ -224,6 +224,7 @@ async function freeze<Project extends object, Ticket, Body, Stage extends object
 	});
 	let stage: Stage | null = null;
 	let installed = false;
+	let revokeAdmission: (() => void) | null = null;
 	try {
 		const rendered = await ports.render({
 			project: capture.project, trackId, renderStartFrame, renderFrameCount,
@@ -248,13 +249,18 @@ async function freeze<Project extends object, Ticket, Body, Stage extends object
 			trackId, expectedFreeze, replacementFreeze, derivedSource,
 			sourceContentIdentities: identities,
 		});
-		ports.admitVerifiedFreeze?.({
-			project: capture.project,
-			trackId,
-			freeze: replacementFreeze,
-			derivedSource,
-			sourceContentIdentities: identities,
-		});
+		if (ports.admitVerifiedFreeze) {
+			revokeAdmission = ports.admitVerifiedFreeze({
+				project: capture.project,
+				trackId,
+				freeze: replacementFreeze,
+				derivedSource,
+				sourceContentIdentities: identities,
+			});
+			if (typeof revokeAdmission !== 'function') {
+				throw new TypeError('Audio freeze playback admission must return a revocation function.');
+			}
+		}
 		await ports.publishStagedSource({ stage, ...signalOption(signal) });
 		guardCurrent(ports.controller, capture.ticket, signal);
 		const command = Object.freeze({
@@ -272,7 +278,7 @@ async function freeze<Project extends object, Ticket, Body, Stage extends object
 			freeze: replacementFreeze,
 		});
 	} catch (error) {
-		if (stage !== null && !installed) await rollbackOrAggregate(ports, stage, error);
+		if (stage !== null && !installed) await rollbackOrAggregate(ports, stage, revokeAdmission, error);
 		throw error;
 	}
 }
@@ -376,14 +382,16 @@ async function sourceContentIdentities<Project extends object, Ticket, Body, Sta
 async function rollbackOrAggregate<Project, Ticket, Body, Stage extends object>(
 	ports: AudioTrackFreezeCoordinatorPortsV21<Project, Ticket, Body, Stage>,
 	stage: Stage,
+	revokeAdmission: (() => void) | null,
 	primary: unknown,
 ): Promise<void> {
-	try {
-		await ports.rollbackStagedSource({ stage });
-	} catch (cleanup) {
+	const cleanupFailures: unknown[] = [];
+	try { revokeAdmission?.(); } catch (error) { cleanupFailures.push(error); }
+	try { await ports.rollbackStagedSource({ stage }); } catch (error) { cleanupFailures.push(error); }
+	if (cleanupFailures.length) {
 		throw new AggregateError(
-			[primary, cleanup],
-			'Audio freeze operation and determinate staging rollback both failed.',
+			[primary, ...cleanupFailures],
+			'Audio freeze operation and determinate cleanup both failed.',
 			{ cause: primary },
 		);
 	}

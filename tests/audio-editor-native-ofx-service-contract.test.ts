@@ -26,3 +26,18 @@ test('OpenFX projection identity fields reject coercible non-strings', () => {
 		);
 	}
 });
+
+test('OpenFX projection parameter names reject coercible non-strings', () => {
+	const parameter = { name: 'Gain', type: 'double', animates: true };
+	assert.equal(framescaperOpenFxPluginProjectionV1({
+		...projection, parameters: [parameter],
+	}).parameters[0]?.name, 'Gain');
+	for (const name of [['Gain'], new String('Gain'), { toString: () => 'Gain' }]) {
+		assert.throws(
+			() => framescaperOpenFxPluginProjectionV1({
+				...projection, parameters: [{ ...parameter, name }],
+			}),
+			/parameter projection is invalid/u,
+		);
+	}
+});

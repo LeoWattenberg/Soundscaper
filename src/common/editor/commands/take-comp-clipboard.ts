@@ -3,7 +3,6 @@
 import { isTakeCompProjectSchema } from '../project-schema-version.ts';
 import {
 	createTakeCompDocumentGroupsV17,
-	type TakeCompDocumentGroup,
 } from '../take-comp-document-v17.ts';
 import {
 	normalizeTakeCompGroup,
@@ -55,6 +54,7 @@ interface ClipboardCopyOptions {
 interface MutablePasteCommand extends DataRecord {
 	trackMap?: Record<string, string>;
 	sequenceMap?: Record<string, string>;
+	collisionTrackIds?: readonly string[];
 	takeGroupIds?: Record<string, string>;
 	takeLaneIds?: Record<string, string>;
 	takeIds?: Record<string, string>;
@@ -231,7 +231,10 @@ export function stageTakeCompClipboardPaste(
 	}
 	const groups = normalizeTakeCompClipboardGroups(clipboard.takeGroups);
 	const maps = validatePasteMaps(project, groups, command);
-	if (groups.length === 0) return () => undefined;
+	if (groups.length === 0) {
+		assertInsertPreservesTakeGroups(project, clipboard, command, mode);
+		return () => undefined;
+	}
 	// A take states no source length of its own: what it reads is defined by its
 	// timeline extent. Scaling that extent for a project at another sample rate
 	// therefore rewrites which audio the comp covers — silently when the scaled
@@ -244,10 +247,7 @@ export function stageTakeCompClipboardPaste(
 			+ 'flatten the comp first, or paste into a project at its own rate.',
 		);
 	}
-	if ((mode === 'insert-track' || mode === 'insert-all')
-		&& existingTargetGroups(project, groups, command).length > 0) {
-		throw new RangeError('Insert paste cannot move an existing take graph without explicit split identities.');
-	}
+	assertInsertPreservesTakeGroups(project, clipboard, command, mode);
 	const additions = groups.map((group) => pastedGroup(group, command, maps, scale, geometry));
 	const next = createTakeCompDocumentGroupsV17([
 		...denseArray(project.takeGroups, 'project.takeGroups', TAKE_COMP_MAXIMUM_ENTITIES),
@@ -415,13 +415,30 @@ function scaledTakeBoundaries(
 	return scaled;
 }
 
-function existingTargetGroups(
+function assertInsertPreservesTakeGroups(
 	project: DataRecord,
-	groups: readonly ClipboardTakeGroup[],
+	clipboard: AudioEditorClipboard,
 	command: MutablePasteCommand,
-): readonly TakeCompDocumentGroup[] {
-	const targetIds = new Set(groups.map((group) => command.trackMap?.[group.sourceTrackId] || group.sourceTrackId));
-	return createTakeCompDocumentGroupsV17(project.takeGroups, project).filter(({ trackId }) => targetIds.has(trackId));
+	mode: string,
+): void {
+	if (mode !== 'insert-track' && mode !== 'insert-all') return;
+	const groups = createTakeCompDocumentGroupsV17(project.takeGroups, project);
+	if (mode === 'insert-all' && groups.length > 0) {
+		throw new RangeError('Insert paste cannot move an existing take graph without explicit split identities.');
+	}
+	const targetIds = new Set<string>();
+	for (const track of clipboard.tracks) {
+		targetIds.add(stableId(
+			command.trackMap?.[track.sourceTrackId] || track.sourceTrackId,
+			'target take track ID',
+		));
+	}
+	for (const [index, trackId] of (command.collisionTrackIds ?? []).entries()) {
+		targetIds.add(stableId(trackId, `collisionTrackIds[${String(index)}]`));
+	}
+	if (groups.some(({ trackId }) => targetIds.has(trackId))) {
+		throw new RangeError('Insert paste cannot move an existing take graph without explicit split identities.');
+	}
 }
 
 function existingIdentities(project: DataRecord): readonly string[] {

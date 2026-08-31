@@ -145,7 +145,7 @@ async function createAudioRecorder<Recorder extends FramescaperMediaRecorderLike
 		)),
 		pause: () => {
 			const paused = recorder.pause();
-			if (paused) packetizer?.expectPauseGap();
+			if (paused) packetizer?.expectPauseGap(recorder.acceptedInputFrameEnd);
 			return paused;
 		},
 		resume: () => recorder.resume(),

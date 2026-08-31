@@ -126,6 +126,7 @@ export function createFramescaperWebVcrController(
 		else {
 			try {
 				const handshake = await bridge.handshake();
+				if (disposed) return;
 				if (handshake.version !== 1 || handshake.capability.status === 'checking') {
 					throw new Error('Web VCR desktop handshake is incomplete.');
 				}
@@ -502,7 +503,7 @@ export function createFramescaperWebVcrController(
 		if (reference) {
 			await setHostCaptureState('ready').catch(warn);
 			hostRecoveryRequested = false;
-			await bridge?.dispose(reference);
+			try { await bridge?.dispose(reference); } catch (error) { warn(error); }
 		}
 		options.adapter.select('devices');
 		modeActive = false;

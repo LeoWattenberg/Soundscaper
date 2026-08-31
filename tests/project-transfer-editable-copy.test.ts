@@ -316,6 +316,40 @@ test('Framescaper projection retains audio owned by every sequence without dangl
 	assert.deepEqual(records(result.project.sources).map(({ id }) => id), ['audio-source', 'secondary-source']);
 });
 
+test('Framescaper projection retains alternate sources referenced only by take groups', () => {
+	const options = framescaperBaselineOptions();
+	const source = createFramescaperProject(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {
+		...options,
+		sources: [...records(options.sources), {
+			kind: 'audio', id: 'alternate-take-source', name: 'Alternate take',
+			storageKey: 'alternate-take-source', mimeType: 'audio/wav', frameCount: 48_000,
+			channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+		}],
+		takeGroups: [{
+			id: 'take-group', sequenceId: 'main-sequence', trackId: 'audio-track',
+			startSample: 0, endSample: 48_000, laneOrder: ['take-lane'],
+			lanes: [{ id: 'take-lane' }],
+			takes: [{
+				id: 'alternate-take', laneId: 'take-lane', sourceId: 'alternate-take-source',
+				startSample: 0, endSample: 48_000, sourceStartSample: 0,
+			}],
+			compRegions: [{
+				id: 'alternate-region', takeId: 'alternate-take', startSample: 0, endSample: 48_000,
+			}],
+		}],
+	});
+	const intent = createCrossProductHandoffLaunchIntent({
+		sourceProject: source, destinationFamily: 'soundscaper',
+		invocationId: 'take-source-projection', destinationProjectId: 'take-source-copy',
+	});
+	const result = convertCrossProductEditableCopy({ intent, sourceProject: source });
+	assert.equal(validateSoundscaperProject(result.project), true);
+	assert.deepEqual(records(result.project.sources).map(({ id }) => id), [
+		'audio-source', 'alternate-take-source',
+	]);
+	assert.equal(records(result.project.takeGroups).length, 1);
+});
+
 test('unsupported audible Soundscaper state refuses with an exhaustive report before mutation', () => {
 	const source = createSoundscaperProject({
 		id: 'takes-source', now: NOW,

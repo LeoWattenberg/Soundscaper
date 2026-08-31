@@ -7,6 +7,7 @@ import {
 	mapVideoTimelineFrameToSource,
 	mapVideoSourceFrameToTimeline,
 	registerVideoTimingIndex,
+	selectVideoThumbnailTimestamps,
 	unregisterVideoTimingIndex,
 	videoClipPlaybackRate,
 } from '../src/common/editor/video-source-time.ts';
@@ -69,6 +70,25 @@ test('video source mapping consumes registered VFR PTS instead of nominal-rate d
 		sourceSampleRate: 24,
 		source,
 	}).sourceTimeSeconds, 0.0625);
+});
+
+test('legacy sample-coordinate thumbnails ignore an exact frame timing index for the same source', () => {
+	const source = { id: 'legacy-source', sampleRate: 1_000 };
+	const clip = {
+		timelineStartFrame: 0, durationFrames: 1,
+		sourceStartFrame: 1, sourceDurationFrames: 1,
+	};
+	registerVideoTimingIndex(source, {
+		timescale: 1_000, frameCount: 3, presentationTicks: [0n, 100n, 300n],
+		finalFrameDurationTicks: 200n, endTicks: 500n,
+	});
+	try {
+		assert.equal(selectVideoThumbnailTimestamps(clip, source, {
+			projectSampleRate: 1_000,
+		})[0]?.sourceTimeSeconds, 0.001);
+	} finally {
+		unregisterVideoTimingIndex(source);
+	}
 });
 
 test('VFR preview mapping and export use one exact PTS span', () => {

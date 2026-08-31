@@ -13,6 +13,7 @@ import {
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
 } from '../../../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import { terminatePackagedRuntime } from './packaged-runtime-process.js';
 
 const standardTest = base.extend({
 	runtimeBrowser: async ({ browser }, use) => use(browser),
@@ -63,7 +64,7 @@ const packagedTest = base.extend({
 			await use(Object.freeze({ browser, executablePath, output: () => output }));
 		} finally {
 			await browser?.close().catch(() => undefined);
-			await terminate(child);
+			await terminatePackagedRuntime(child);
 			await rm(profile, { recursive: true, force: true });
 		}
 	}, { scope: 'worker' }],
@@ -144,15 +145,6 @@ async function waitForRuntimePage(context, standaloneHarness) {
 		await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
 	}
 	throw new Error(`Packaged runtime did not expose its ${standaloneHarness ? 'diagnostic' : 'product'} page.`);
-}
-
-async function terminate(child) {
-	if (child.exitCode !== null || child.signalCode !== null) return;
-	child.kill();
-	await Promise.race([
-		once(child, 'exit'),
-		new Promise((resolvePromise) => setTimeout(resolvePromise, 5_000)),
-	]);
 }
 
 function requiredEnvironment(name) {

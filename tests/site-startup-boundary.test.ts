@@ -36,6 +36,12 @@ test('the site entry owns no editor CSS or complete catalog edge', async () => {
 	assert.match(editor, /audio-editor-design-system\.css/u);
 });
 
+test('route application localizes the initial-load progressbar before the editor mounts', async () => {
+	const app = await source('src/common/site/App.jsx');
+	assert.match(app, /querySelector\('\[data-initial-load-progress\]'\)/u);
+	assert.match(app, /setAttribute\(\s*'aria-label',\s*bundledSiteCopyForLocale\(route\.locale\)\.loading,?\s*\)/u);
+});
+
 test('selected product bootstraps construct full bundled English copy internally', async () => {
 	for (const path of [
 		'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',

@@ -5116,8 +5116,8 @@
 			],
 			"actor": "Compromised renderer content attempts to invoke arbitrary Electron or Node.js capabilities.",
 			"impact": "critical",
-			"status": "enforced",
-			"releaseDisposition": "qualified-current-surface",
+			"status": "partial",
+			"releaseDisposition": "conditional",
 			"ownerMilestone": "1 and 7",
 			"currentControls": [
 				{
@@ -6177,7 +6177,26 @@
 					"policyAuthority": "family-v1-active"
 				}
 			],
-			"residualRisks": []
+			"residualRisks": [
+				{
+					"id": "framescaper-broker-cross-process-no-clobber",
+					"exposure": "Framescaper revalidates a non-empty authenticated broker tree immediately before broker-relative destination publication, but Node.js has no portable atomic directory no-clobber rename. An external same-user process can still race an empty destination into the absence-check and rename window, so cross-process no-clobber publication is not qualified.",
+					"requiredControl": "Use a supported-platform atomic no-clobber directory publication primitive or an equivalent main-owned destination identity and exclusion authority that prevents an external process from winning the publication window.",
+					"ownerMilestone": "5",
+					"acceptanceCriteria": [
+						"Supported desktop platform race and fault-injection fixtures prove atomic no-clobber publication against an external same-user destination creator without overwriting, merging, or writing outside the admitted output root."
+					]
+				},
+				{
+					"id": "framescaper-capture-platform-qualification",
+					"exposure": "The pathless capture authority and synthetic workflow tests are implemented, but actual packaged cameras, microphones, operating-system pickers and loopback, encoder and timing behavior, teardown performance, signing, and long-session behavior remain unqualified while real-device and owner-lab evidence is provisional and unprovisioned.",
+					"requiredControl": "Complete the supported-platform packaged real-device, consent, signing, timing, teardown, and long-session qualification without weakening the pathless authority or explicit user-action gates.",
+					"ownerMilestone": "9",
+					"acceptanceCriteria": [
+						"Real-device and owner-lab evidence passes for every supported packaged platform and records picker and loopback consent, camera and microphone behavior, encoder timing, teardown, signing, and long-session drift and drop budgets."
+					]
+				}
+			]
 		},
 		{
 			"id": "desktop-static-resource-paths",

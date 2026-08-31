@@ -89,6 +89,31 @@ test('Soundscaper reclamation retains journal snapshots then removes unreference
 	await access(join(paths.managedMediaRoot, currentMedia.relativeFile));
 });
 
+test('Soundscaper reclamation reports and preserves a refused target', async (context) => {
+	const appDataPath = await mkdtemp(join(tmpdir(), 'soundscaper-retention-refusal-'));
+	const paths = createSoundscaperDesktopProjectLibraryPaths(appDataPath);
+	const database = new DatabaseSync(':memory:');
+	context.after(async () => {
+		database.close();
+		await rm(appDataPath, { recursive: true, force: true });
+	});
+	initializeSoundscaperDesktopProjectLibraryDatabase(database);
+	const target = join(paths.projectsRoot, 'not-a-file');
+	await mkdir(target, { recursive: true });
+	database.prepare(`
+		INSERT INTO storage_reclamation (relative_file, role, created_at_ms)
+		VALUES ('projects/not-a-file', 'project', 0)
+	`).run();
+	const reported: unknown[] = [];
+	await assert.rejects(
+		reclaimSoundscaperDesktopProjectLibraryStorage(database, paths,
+			(error: unknown) => { reported.push(error); }),
+		/not a regular file/iu,
+	);
+	assert.equal(reported.length, 1);
+	assert.equal(database.prepare('SELECT count(*) AS count FROM storage_reclamation').get()?.count, 1);
+});
+
 function projectRow(
 	id: string,
 	projectId: string,

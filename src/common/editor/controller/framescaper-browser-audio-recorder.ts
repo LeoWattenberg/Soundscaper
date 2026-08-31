@@ -104,6 +104,7 @@ export interface FramescaperBrowserAudioRecorder {
 	readonly monitoring: boolean;
 	readonly inputGain: number;
 	readonly pendingChunks: number;
+	readonly acceptedInputFrameEnd: number | null;
 	/** Exposed only for source ownership and diagnostics; the recorder never stops it. */
 	readonly track: FramescaperAudioTrackLike;
 	start(startFrame?: number): PromiseLike<void> | void;
@@ -167,9 +168,6 @@ export async function createFramescaperBrowserAudioRecorder(
 	if (!options.context) {
 		throw new Error('Capture audio requires AudioData track processing or an AudioWorklet context.');
 	}
-	if (options.context.sampleRate !== format.sampleRate) {
-		throw new Error('Capture AudioWorklet context must retain the source track sample rate.');
-	}
 	return createWorkletRecorder({
 		options, format, chunkFrames, maximumPendingChunks, monitoring, inputGain, sink, failures,
 	});
@@ -187,6 +185,7 @@ interface FailureChannel {
 
 interface BoundedPcmSink {
 	readonly pendingChunks: number;
+	readonly acceptedInputFrameEnd: number | null;
 	push(chunk: CapturePcmChunk): Promise<void>;
 	settle(): Promise<void>;
 }
@@ -202,6 +201,12 @@ async function createWorkletRecorder(input: Readonly<{
 	failures: FailureChannel;
 }>): Promise<FramescaperBrowserAudioRecorder> {
 	const { options, format, chunkFrames, maximumPendingChunks, monitoring, inputGain, sink, failures } = input;
+	if (!options.context) {
+		throw new Error('Capture audio requires an AudioWorklet context.');
+	}
+	if (options.context.sampleRate !== format.sampleRate) {
+		throw new Error('Capture AudioWorklet context must retain the source track sample rate.');
+	}
 	const factory = options.recordingControllerFactory
 		?? (createRecordingController as unknown as FramescaperWorkletRecordingControllerFactory);
 	const frameMapper = createFramescaperCapturePcmFrameMapper();
@@ -284,6 +289,7 @@ async function createWorkletRecorder(input: Readonly<{
 		monitoring,
 		inputGain,
 		get pendingChunks(): number { return sink.pendingChunks; },
+		get acceptedInputFrameEnd(): number | null { return sink.acceptedInputFrameEnd; },
 		track: options.track,
 		start,
 		pause,
@@ -329,6 +335,7 @@ function createBoundedPcmSink(input: Readonly<{
 
 	return Object.freeze({
 		get pendingChunks(): number { return pendingChunks; },
+		get acceptedInputFrameEnd(): number | null { return lastInputFrameEnd; },
 		push,
 		settle,
 	});

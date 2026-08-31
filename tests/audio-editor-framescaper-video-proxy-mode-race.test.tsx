@@ -11,6 +11,57 @@ import {
 	registerFramescaperVideoProxyActionRuntime,
 } from '../src/framescaper/editor-video-proxy-action-runtime.ts';
 
+test('the video source picker is locked while a proxy operation is pending', async () => {
+	const dom = installTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const generation = deferred<void>();
+	const controller = {};
+	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
+		mode: () => 'auto',
+		previewTrust: () => 'unverified',
+		setMode: async () => undefined,
+		pressure: () => null,
+		reportPreviewPressure: async () => undefined,
+		generate: () => generation.promise,
+		attachExisting: async () => undefined,
+		detach: async () => undefined,
+		regenerate: async () => undefined,
+		relinkOriginal: async () => 'relinked',
+	}));
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<FramescaperVideoProxyDialog
+			controller={controller}
+			snapshot={{ project: project(), selectedClipId: 'video-clip', missingSourceIds: [] }}
+			editingBlocked={false}
+			copy={{}}
+			fileService={{}}
+			run={(operation) => operation()}
+			onClose={() => undefined}
+		/>));
+		const generate = dom.elements('button').find((node) => node.hasAttribute('data-video-proxy-generate'));
+		assert.ok(generate);
+		await act(async () => {
+			props(generate).onClick();
+			await Promise.resolve();
+		});
+		assert.equal(dom.elements('select')[0]?.hasAttribute('disabled'), true);
+		await act(async () => {
+			generation.resolve();
+			await generation.promise;
+			await Promise.resolve();
+		});
+		assert.equal(dom.elements('select')[0]?.hasAttribute('disabled'), false);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('preview mode changes settle in intent order and ignore an older failure', async () => {
 	const dom = installTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

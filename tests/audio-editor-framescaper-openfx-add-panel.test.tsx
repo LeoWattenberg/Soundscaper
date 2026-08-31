@@ -10,7 +10,11 @@ import {
 	buildFramescaperOpenFxAuthoringRequestNativeMedia,
 	createFramescaperOpenFxFormState,
 } from '../src/common/editor/ui/dialogs/FramescaperOpenFxAddPanel.tsx';
-import type { FramescaperOpenFxAuthoringModelNativeMedia } from '../src/framescaper/editor-native-openfx-authoring-model.ts';
+import {
+	createFramescaperOpenFxAuthoringModelNativeMedia,
+	type FramescaperOpenFxAuthoringModelNativeMedia,
+} from '../src/framescaper/editor-native-openfx-authoring-model.ts';
+import type { FramescaperProjectNativeMedia } from '../src/framescaper/editor-project-native-media.ts';
 
 const TYPES = [
 	'integer', 'integer2d', 'integer3d', 'double', 'double2d', 'double3d',
@@ -83,6 +87,29 @@ test('OpenFX form excludes plug-ins without a compatible project target', () => 
 	/>);
 	assert.doesNotMatch(markup, /net\.example\.Incompatible/u);
 	assert.match(markup, /net\.example\.AllParameters/u);
+});
+
+test('OpenFX Paint targets bind the mask attached to each clip presentation', () => {
+	const project = {
+		sources: [],
+		clips: [
+			{ id: 'clip-a', kind: 'video', sourceId: 'source-a', name: 'A' },
+			{ id: 'clip-b', kind: 'video', sourceId: 'source-b', name: 'B' },
+		],
+		videoMaskMattes: [{ id: 'mask-a' }, { id: 'mask-b' }],
+		videoVisualPresentations: [
+			{ id: 'presentation-a', owner: { kind: 'clip', id: 'clip-a' }, maskMatteIds: ['mask-b'] },
+			{ id: 'presentation-b', owner: { kind: 'clip', id: 'clip-b' }, maskMatteIds: ['mask-a'] },
+		],
+		videoAdjustmentLayers: [],
+		tracks: [],
+	} as unknown as FramescaperProjectNativeMedia;
+	const targets = createFramescaperOpenFxAuthoringModelNativeMedia(project, []).targets
+		.filter(({ context }) => context === 'paint');
+	assert.deepEqual(targets.map(({ targetId, inputs }) => ({ targetId, mask: inputs[1]?.sourceRef })), [
+		{ targetId: 'clip-a', mask: 'mask-b' },
+		{ targetId: 'clip-b', mask: 'mask-a' },
+	]);
 });
 
 function model(): FramescaperOpenFxAuthoringModelNativeMedia {

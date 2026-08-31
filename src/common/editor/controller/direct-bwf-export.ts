@@ -62,7 +62,7 @@ export async function prepareDirectBwfDestination(
 	signal: AbortSignal,
 ): Promise<DirectPcmPreparation> {
 	const directPlan = directBwfPlan(plan);
-	if (directPlan && plan.render?.strategy === 'realtime-stream'
+	if (plan.render?.strategy === 'realtime-stream'
 		&& requestedSettings?.measureLoudness === true) {
 		throw new Error('Realtime Broadcast WAV loudness measurement is not supported.');
 	}

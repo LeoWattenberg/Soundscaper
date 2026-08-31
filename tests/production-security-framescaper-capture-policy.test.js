@@ -68,7 +68,8 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	const ipc = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
 	const desktop = ipc?.currentControls.find(({ id }) => id === DESKTOP_CONTROL);
 	assert.ok(desktop);
-	assert.equal(ipc.status, 'enforced');
+	assert.equal(ipc.status, 'partial');
+	assert.ok(ipc.residualRisks.some(({ id }) => id === 'framescaper-capture-platform-qualification'));
 	assert.match(desktop.summary, /Framescaper.*control plane.*no media bytes.*native source IDs.*filesystem paths.*Electron objects/isu);
 	assert.match(desktop.summary, /current owner.*focused trusted main document/isu);
 	assert.match(desktop.summary, /64.*five minutes.*owner- and generation-bound.*15-second single-use/isu);

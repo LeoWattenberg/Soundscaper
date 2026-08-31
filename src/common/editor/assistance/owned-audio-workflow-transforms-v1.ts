@@ -455,7 +455,9 @@ function cleanupVadProposals(
 function chunkLabel(transcript: AssistanceTranscript, start: number, end: number): string {
 	const value = transcript.segments.slice(start, end).map(({ text }) => text.trim())
 		.join(' ').replace(/\s+/gu, ' ').trim();
-	return [...value].slice(0, MAXIMUM_LABEL_UNITS).join('');
+	const bounded = value.slice(0, MAXIMUM_LABEL_UNITS);
+	const finalUnit = bounded.charCodeAt(bounded.length - 1);
+	return finalUnit >= 0xD800 && finalUnit <= 0xDBFF ? bounded.slice(0, -1) : bounded;
 }
 
 function binaryBytes(value: ArrayBuffer | ArrayBufferView): Uint8Array {

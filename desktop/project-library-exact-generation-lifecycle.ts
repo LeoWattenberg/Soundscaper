@@ -19,11 +19,21 @@ export interface FramescaperDesktopProjectLibraryExactPublicationDeclaration {
 	readonly expectedMetadataRevision: number;
 }
 
+export interface FramescaperDesktopProjectLibraryExactPublicationBody {
+	readonly bodyFile: string;
+	readonly kind: string;
+	readonly storageKey: string;
+}
+
 export interface FramescaperDesktopProjectLibraryExactGenerationLifecycle {
 	assertCanUse(): void;
 	snapshot(): Readonly<Record<string, unknown>>;
 	assertLeaseInTransaction(database: DatabaseSync): void;
 	preparePublication(value: Readonly<FramescaperDesktopProjectLibraryExactPublicationDeclaration>): Promise<void>;
+	preparePublicationBodies(
+		publicationId: string,
+		bodies: readonly Readonly<FramescaperDesktopProjectLibraryExactPublicationBody>[],
+	): Promise<void>;
 	publicationMaterialized(value: Readonly<FramescaperDesktopProjectLibraryExactPublicationDeclaration>): Promise<void>;
 	assertCanCommit(
 		database: DatabaseSync,
@@ -45,4 +55,23 @@ export interface FramescaperDesktopProjectLibraryExactGenerationExtension {
 		owner: Readonly<FramescaperDesktopProjectLibraryExactGenerationOwner>;
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
 	}>): Promise<FramescaperDesktopProjectLibraryExactGenerationLifecycle>;
+}
+
+export async function abortPublicationAfterFailure(
+	lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
+	publicationId: string,
+	error: unknown,
+	label: string,
+): Promise<never> {
+	try { await lifecycle?.abortPublication(publicationId); }
+	catch (cleanupError) {
+		throw publicationCleanupError(error, cleanupError, label);
+	}
+	throw error;
+}
+
+function publicationCleanupError(primary: unknown, cleanup: unknown, label: string): AggregateError {
+	return new AggregateError(
+		[primary, cleanup], `${label} publication cleanup failed`, { cause: primary },
+	);
 }

@@ -150,6 +150,7 @@ export function executeFramescaperMediaHostBuildRecipe(
 	const run = fields.run ?? spawnSync;
 	if (typeof run !== 'function') throw new TypeError('The media-host command runner must be callable.');
 	verifyWitnesses(state.witnesses);
+	existingDirectory(state.outputRoot, 'output root');
 	if (readdirSync(state.outputRoot).length !== 0) throw new Error('The explicit output root is no longer empty.');
 	EXECUTED.add(recipe);
 	for (const path of ['ffmpeg-build', 'ffmpeg-install', 'host-build', 'host-install']) {
@@ -343,7 +344,7 @@ function verifyPinnedSourceClosure(root, manifest, witnesses) {
 	for (const required of [
 		'CMakeLists.txt', 'CMakePresets.json', 'build/ffmpeg-9.0.1-configure.json',
 		'build/external-source-authentication.mjs', 'build/ffmpeg-9.0.1-external-sources.json',
-		'build/recipe-driver.mjs', 'build/targets.json',
+		'build/recipe-driver.mjs', 'build/source-authentication.mjs', 'build/targets.json',
 		...TARGETS.map(({ toolchainFile }) => toolchainFile),
 	]) if (!paths.includes(required)) throw new Error(`Required build input ${required} is not pinned.`);
 }

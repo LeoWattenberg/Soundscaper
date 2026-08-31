@@ -92,14 +92,18 @@ function temporalDenoiseCpu(
 	signal?: AbortSignal,
 ): GrayVideoFrameV1 {
 	const samples: number[] = [];
+	const resolvedNeighbors = neighbors.map((neighbor) => ({
+		frame: neighbor.frame,
+		transform: resolveStabilizationTransformV1(neighbor.transformToCurrent, 1),
+	}));
 	for (let y = 0; y < current.height; y += 1) {
 		throwIfAborted(signal);
 		for (let x = 0; x < current.width; x += 1) {
 			let total = pixel(current, x, y);
 			let count = 1;
-			for (const neighbor of neighbors) {
+			for (const neighbor of resolvedNeighbors) {
 				const coordinate = applySimilarityTransformV1(
-					{ x, y }, resolveStabilizationTransformV1(neighbor.transformToCurrent, 1),
+					{ x, y }, neighbor.transform,
 				);
 				if (!inside(neighbor.frame, coordinate.x, coordinate.y)) continue;
 				total += sampleBilinear(neighbor.frame, coordinate.x, coordinate.y);

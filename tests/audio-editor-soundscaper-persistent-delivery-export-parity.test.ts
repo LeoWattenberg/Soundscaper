@@ -6,7 +6,10 @@ import test from 'node:test';
 import { createEditorExportService } from '../src/common/editor/controller/export-service.ts';
 import { createDeferredEditorExportService } from '../src/common/editor/controller/deferred-export-service.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
-import { createSoundscaperPersistentDeliverySaveTarget } from '../src/common/editor/soundscaper-persistent-delivery-save-target.ts';
+import {
+	bindSoundscaperPersistentDeliverySave,
+	createSoundscaperPersistentDeliverySaveTarget,
+} from '../src/common/editor/soundscaper-persistent-delivery-save-target.ts';
 import { encodeWav } from '../src/common/editor/wav.js';
 import {
 	createDirectPcmExportFixture,
@@ -121,6 +124,21 @@ test('direct and persistent production exports produce identical bytes and deliv
 	assert.deepEqual(
 		(directFixture.state as { deliveryReport?: unknown }).deliveryReport,
 		(persistentFixture.state as { deliveryReport?: unknown }).deliveryReport,
+	);
+});
+
+test('persistent delivery rejects bidi-spoofed on-disk file names', () => {
+	const writer = {
+		beginWrite: () => ({}),
+		writeChunk: () => ({}),
+		patchFinalPrefix: () => ({}),
+		finishWrite: () => ({}),
+		abortWrite: () => ({}),
+	};
+	const target = createSoundscaperPersistentDeliverySaveTarget(CLAIM, writer);
+	assert.throws(
+		() => bindSoundscaperPersistentDeliverySave(target, 'report\u202efdp.wav'),
+		/file name is invalid/iu,
 	);
 });
 

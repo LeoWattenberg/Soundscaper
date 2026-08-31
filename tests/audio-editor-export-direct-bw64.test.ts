@@ -269,6 +269,23 @@ test('realtime BW64 loudness measurement fails closed before target, preflight, 
 	assert.equal(fixture.calls.includes('temporary:create'), false);
 });
 
+test('realtime BW64 loudness measurement refuses immersive beds before direct-route admission', async () => {
+	for (const layout of ['5.1.2', '5.1.4', '7.1', '7.1.4'] as const) {
+		let prepareCalls = 0;
+		await assert.rejects(
+			prepareDirectBw64Destination({
+				prepareSave() {
+					prepareCalls += 1;
+					return Object.freeze({ mode: 'blob' });
+				},
+			}, directBw64Plan({ layout }), { measureLoudness: true }, new AbortController().signal),
+			/realtime BW64 loudness measurement.*not supported/iu,
+			layout,
+		);
+		assert.equal(prepareCalls, 0, layout);
+	}
+});
+
 test('direct BW64 four-way byte diagnostics use the BW64 container label', async () => {
 	const plan = directBw64Plan();
 	for (const [label, fixture, destination, expectedCommitCalls, expectedAbortCalls] of [

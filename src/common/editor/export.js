@@ -138,6 +138,7 @@ function resolveBinauralBw64Delivery(project, options, format, mode) {
 export function sanitizeExportName(value, fallback = 'audio-project') {
 	const normalized = String(value || '')
 		.normalize('NFKD')
+		.replace(/[aouAOU]\u0308/g, (letter) => letter.normalize('NFC'))
 		.replace(/[\u0300-\u036f]/g, '')
 		.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '-')
 		.replace(/-{2,}/g, '-')

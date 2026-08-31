@@ -112,6 +112,13 @@ test('OFX helper dispatch preserves exact V1 and admits exact V2', () => {
 	}
 });
 
+test('OFX V2 rejects a backend value that only string-coerces to a qualified name', () => {
+	assert.throws(() => createOfxHostInvocationV2({
+		...invocation(2),
+		requestedBackend: ['cpu'],
+	}), /backend.*qualified/iu);
+});
+
 test('a V14 Retimer invocation admits the oracle SourceTime and survives the grant boundary', () => {
 	const timing = bindCfrTiming('curve-source', 20, { num: 1, den: 1 });
 	const authority = createVideoRetimeExactOrdinalAuthority(

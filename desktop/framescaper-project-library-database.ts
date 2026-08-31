@@ -38,6 +38,13 @@ export function initializeFramescaperDesktopProjectLibraryLifecycleDatabase(
 			created_at_ms INTEGER NOT NULL CHECK (created_at_ms >= 0),
 			updated_at_ms INTEGER NOT NULL CHECK (updated_at_ms >= created_at_ms)
 		) STRICT;
+		CREATE TABLE IF NOT EXISTS publication_body_journal (
+			publication_id TEXT NOT NULL REFERENCES publication_journal(publication_id) ON DELETE CASCADE,
+			body_file TEXT NOT NULL,
+			body_kind TEXT NOT NULL,
+			storage_key TEXT NOT NULL,
+			PRIMARY KEY (publication_id, body_file)
+		) STRICT;
 		COMMIT;
 	`);
 }

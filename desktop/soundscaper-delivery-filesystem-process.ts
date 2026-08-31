@@ -2,6 +2,7 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { isAbsolute } from 'node:path';
+import type { Readable } from 'node:stream';
 
 import {
 	SoundscaperDeliveryFilesystemUnavailableError,
@@ -369,18 +370,20 @@ class FramedPeer {
 }
 
 class FrameReader {
-	readonly #stream: NodeJS.ReadableStream;
+	readonly #stream: Readable;
 	#buffer = Buffer.alloc(0);
 	#waiting: (() => void) | null = null;
 	#error: Error | null = null;
 
-	constructor(stream: NodeJS.ReadableStream) {
+	constructor(stream: Readable) {
 		this.#stream = stream;
 		stream.on('data', (chunk: Buffer) => {
-			this.#buffer = Buffer.concat([this.#buffer, Buffer.from(chunk)]);
-			if (this.#buffer.byteLength > MAXIMUM_CONTROL_BYTES + HEADER_BYTES) {
+			if (this.#error !== null) return;
+			const bytes = Buffer.from(chunk);
+			if (this.#buffer.byteLength + bytes.byteLength > MAXIMUM_CONTROL_BYTES + HEADER_BYTES) {
 				this.#error = new Error('Soundscaper delivery helper exceeded its response bound.');
-			}
+				stream.destroy();
+			} else this.#buffer = Buffer.concat([this.#buffer, bytes]);
 			this.#waiting?.();
 		});
 		stream.on('end', () => { this.#error ??= new Error('Soundscaper delivery helper closed unexpectedly.'); this.#waiting?.(); });

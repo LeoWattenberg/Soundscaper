@@ -270,6 +270,37 @@ test('timing probe identifies a revision jump before the first import publicatio
 	);
 });
 
+test('timing probe refuses an enabled Import control until readiness reports success', async (context) => {
+	let clockReads = 0;
+	context.mock.method(Date, 'now', () => [0, 1, 20_000][Math.min(clockReads++, 2)]);
+	const importButton = { disabled: false, click() { throw new Error('Import must remain untouched'); } };
+	const status = { getAttribute: () => 'working', textContent: 'Still preparing' };
+	const editor = {
+		getAttribute: (name) => name === 'data-audio-editor-bound' ? 'true' : null,
+		querySelector: (selector) => selector === '[data-status]' ? status : null,
+	};
+	const scope = {
+		document: {
+			querySelector(selector) {
+				if (selector === '[data-audio-editor]') return editor;
+				if (selector === '[data-project-bin-import] button') return importButton;
+				return null;
+			},
+			querySelectorAll: () => [],
+		},
+		setTimeout: (resolve) => { resolve(); },
+		soundscaperProjectLibraryDesktop: {
+			v1: { listProjects: async () => { throw new Error('advanced past readiness'); } },
+		},
+	};
+	await assert.rejects(
+		runDesktopVideoTimingProbeRendererSmoke(
+			scope, timingPlan(), createDesktopVideoTimingProbeStorageProfile('soundscaper'),
+		),
+		/ordinary Import control is unavailable/u,
+	);
+});
+
 test('timing probe reads a project the desktop path published rather than stored locally', async (context) => {
 	// Bound the retry deadline so a regression fails in milliseconds, not 75s.
 	let clockReads = 0;

@@ -22,6 +22,28 @@ function project(): Data {
 	} as never) as unknown as Data;
 }
 
+function projectWithStill(): Data {
+	const options = framescaperV20Options();
+	const still = {
+		schemaVersion: 1, kind: 'still', id: 'still-source', name: 'Plate',
+		mimeType: 'image/png', storageKey: 'still-body',
+		contentSha256: '2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881',
+		width: 1, height: 1, hasAlpha: true,
+	};
+	const clip = {
+		schemaVersion: 1, kind: 'still', id: 'still-clip', sourceId: still.id,
+		sequenceId: 'main-sequence', sequenceStartFrame: 0, sequenceFrameCount: 10,
+	};
+	return createFramescaperProjectFinishing(PROFILE, {
+		...options,
+		clips: [...options.clips as Data[], clip],
+		tracks: (options.tracks as Data[]).map((track) => track.id === 'video-track'
+			? { ...track, clipIds: [...track.clipIds as string[], clip.id] } : track),
+		visualModel: { stillSources: [still] },
+		videoTransitionsByTrackId: { 'video-track': [] },
+	} as never) as unknown as Data;
+}
+
 function harness(overrides: Data = {}): never {
 	const source = project();
 	const video = (source.sources as Data[]).find(({ kind }) => kind === 'video')!;
@@ -55,8 +77,7 @@ test('a visual export execution compiles its own exact render plan', async () =>
 	const built = await execution();
 
 	assert.deepEqual(Object.keys(built), [
-		'exactPlan', 'timingSidecars', 'postprocess', 'accountFrame',
-		'createProducer', 'disposition', 'dispose',
+		'exactPlan', 'timingSidecars', 'accountFrame', 'disposition', 'dispose',
 	]);
 	assert.equal((built.exactPlan as Data).version, 13);
 	(built.dispose as () => void)();
@@ -85,17 +106,17 @@ test('an execution reports a disposition naming every node it accounted for', as
 	(built.dispose as () => void)();
 });
 
-test('postprocessing refuses a frame that arrives on a foreign signal', async () => {
-	const built = await execution();
+test('ledger setup leaves still decoding to the selected exact frame executor', async () => {
+	let loads = 0;
+	const built = await execution({
+		project: projectWithStill(),
+		store: {
+			loadMediaAsset: async () => { loads += 1; return new Blob(['x']); },
+			decodeStillAsset: async () => ({ width: 1, height: 1, pixels: new Uint8Array(4) }),
+		},
+	});
 
-	await assert.rejects(
-		() => (built.postprocess as (value: unknown) => Promise<unknown>)({
-			frame: 0, width: 640, height: 360,
-			rgba: new Uint8ClampedArray(640 * 360 * 4),
-			signal: new AbortController().signal,
-		}),
-		/requires its exact signal/u,
-	);
+	assert.equal(loads, 0);
 	(built.dispose as () => void)();
 });
 

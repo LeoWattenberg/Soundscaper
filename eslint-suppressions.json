@@ -242,11 +242,6 @@
       "count": 1
     }
   },
-  "src/common/editor/audio-track-freeze-coordinator-v21.ts": {
-    "preserve-caught-error": {
-      "count": 1
-    }
-  },
   "src/common/editor/aup-legacy-xml.ts": {
     "no-useless-escape": {
       "count": 3
@@ -667,11 +662,6 @@
   },
   "src/common/editor/scape-video-proxy-archive-plan.ts": {
     "no-useless-escape": {
-      "count": 1
-    }
-  },
-  "src/common/editor/soundscaper-persistent-delivery-plan-v1.ts": {
-    "no-control-regex": {
       "count": 1
     }
   },

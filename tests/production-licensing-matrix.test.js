@@ -117,6 +117,22 @@ test('matrix exactly covers the package-lock v3 non-development runtime closure'
 	assert.deepEqual(nobleHashes.artifactSurfaces, [
 		'web-pages-bundle', 'electron-renderer', 'electron-shell',
 	]);
+	for (const name of [
+		'sherpa-onnx-node', 'sherpa-onnx-darwin-arm64', 'sherpa-onnx-linux-arm64',
+		'sherpa-onnx-linux-x64', 'sherpa-onnx-win-x64',
+	]) {
+		const runtime = matrix.npmProductionClosure.find((dependency) => dependency.name === name);
+		assert.deepEqual(runtime.artifactSurfaces, ['electron-runtime-assets', 'desktop-release-assets'], name);
+	}
+	for (const name of ['sherpa-onnx-darwin-x64', 'sherpa-onnx-win-ia32']) {
+		const unsupported = matrix.npmProductionClosure.find((dependency) => dependency.name === name);
+		assert.deepEqual(unsupported.artifactSurfaces, [], name);
+	}
+	for (const id of ['electron-runtime-assets', 'desktop-release-assets']) {
+		const surface = matrix.distributionSurfaces.find((candidate) => candidate.id === id);
+		assert.match(surface.description, /sherpa-onnx/iu);
+		assert.ok(surface.evidence.includes('config/assistance-native-runtime-manifest.json'));
+	}
 	for (const name of ['@types/dom-mediacapture-transform', '@types/dom-webcodecs']) {
 		const types = matrix.npmProductionClosure.find((dependency) => dependency.name === name);
 		assert.equal(types.role, 'transitive-types-only');

@@ -1,4 +1,4 @@
-import { otherProductId } from '../../../products.js';
+import { otherProductId, productProfile } from '../../../products.js';
 import { privacyPolicyUrl } from '../../../site/privacy-policy-links.js';
 import { documentationUrl } from '../../documentation-links.ts';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
@@ -380,7 +380,7 @@ export function createWorkspaceApplicationMenus({
 					manual: () => openExternal(documentationUrl(productId, 'manual')),
 					tutorials: () => openExternal(documentationUrl(productId, 'tutorials')),
 					privacyPolicy: () => openExternal(privacyPolicyUrl(productId, locale)),
-					support: () => openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
+					support: () => openExternal(`mailto:team@kw.media?subject=${encodeURIComponent(`${productProfile(productId).name} support`)}`),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),
 					about: () => setDialog('about'),

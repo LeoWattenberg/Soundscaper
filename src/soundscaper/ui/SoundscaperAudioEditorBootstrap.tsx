@@ -125,7 +125,7 @@ export default function SoundscaperAudioEditorBootstrap({
 		void createSoundscaperWebEditorRuntime({ locale, copy }).then(
 			(candidate) => {
 				if (!active) {
-					void candidate.dispose();
+					void candidate.dispose().catch(reportRuntimeDisposalFailure);
 					return;
 				}
 				ownedRuntime = candidate;
@@ -135,7 +135,7 @@ export default function SoundscaperAudioEditorBootstrap({
 		);
 		return () => {
 			active = false;
-			if (ownedRuntime) void ownedRuntime.dispose();
+			if (ownedRuntime) void ownedRuntime.dispose().catch(reportRuntimeDisposalFailure);
 		};
 	}, [copy, locale]);
 
@@ -163,6 +163,10 @@ export default function SoundscaperAudioEditorBootstrap({
 			crossProductHandoffAvailable={true}
 		/>
 	</Suspense>;
+}
+
+function reportRuntimeDisposalFailure(error: unknown): void {
+	console.error('The Soundscaper web editor runtime did not close cleanly:', error);
 }
 
 function runtimeProjector(

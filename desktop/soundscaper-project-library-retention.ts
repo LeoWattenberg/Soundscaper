@@ -70,17 +70,31 @@ export function selectSoundscaperDesktopProjectLibraryCurrentMedia(
 export async function reclaimSoundscaperDesktopProjectLibraryStorage(
 	database: DatabaseSync,
 	paths: Readonly<SoundscaperDesktopProjectLibraryPaths>,
+	reportError: (error: unknown) => void = reportReclamationError,
+): Promise<Readonly<SoundscaperDesktopProjectLibraryReclamationResult>> {
+	try { return await reclaimStorage(database, paths); }
+	catch (error) {
+		try { reportError(error); } catch { /* The reclamation failure remains authoritative. */ }
+		throw error;
+	}
+}
+
+async function reclaimStorage(
+	database: DatabaseSync,
+	paths: Readonly<SoundscaperDesktopProjectLibraryPaths>,
 ): Promise<Readonly<SoundscaperDesktopProjectLibraryReclamationResult>> {
 	assertSoundscaperDesktopProjectLibraryDatabaseIdentity(database);
 	const roots = retainedRoots(database);
 	const queued = transaction(database, () => queueUnreferenced(database, roots));
 	const removed: ReclamationRow[] = [];
+	const failures: unknown[] = [];
 	for (const row of queued) {
 		try {
 			await unlinkReclamationFile(paths, row);
 			removed.push(row);
 		} catch (error) {
 			if (errorCode(error) === 'ENOENT') removed.push(row);
+			else failures.push(error);
 		}
 	}
 	if (removed.length > 0) {
@@ -91,10 +105,16 @@ export async function reclaimSoundscaperDesktopProjectLibraryStorage(
 			for (const row of removed) statement.run(row.relativeFile, row.role);
 		});
 	}
+	if (failures.length === 1) throw failures[0];
+	if (failures.length > 1) throw new AggregateError(failures, 'Soundscaper project-library reclamation failed');
 	return Object.freeze({
 		projectFiles: removed.filter(({ role }) => role === 'project').length,
 		mediaFiles: removed.filter(({ role }) => role === 'media').length,
 	});
+}
+
+function reportReclamationError(error: unknown): void {
+	console.error('Soundscaper project-library reclamation failed:', error);
 }
 
 async function unlinkReclamationFile(

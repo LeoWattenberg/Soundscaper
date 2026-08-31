@@ -13,7 +13,7 @@
 		"operationContractPath": "desktop/desktop-audio-codec-operation-contract.ts",
 		"operationContractSha256": "4296cd3cf74ade9d13edb4778feb8db6a9c1217586f0e3152b3c5f2811332ee7",
 		"planPath": "desktop/desktop-audio-ffmpeg-plan.ts",
-		"planSha256": "8c15d77a7407149bb2a1370a8d0e2b91e5c9b5d9dec76f1d4f27c0c3de8736b1",
+		"planSha256": "c0afe18a14d13a8fd9a7900c8d15ec5a62479990100017601fbb7bff1521fb36",
 		"probePath": "desktop/external-ffmpeg-probe.ts",
 		"probeSha256": "7ab8966d62e94cf14f0bf337078f46000cd2f8f511ebcfc2a86bc9583892bf04",
 		"waveParserPath": "desktop/desktop-audio-ffmpeg-wave-output.ts",

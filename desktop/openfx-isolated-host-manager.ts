@@ -143,6 +143,7 @@ export class OfxIsolatedHostManager {
 	async interact(
 		pluginFingerprint: string,
 		request: HelperJobRequest<'ofx-host'>,
+		onRuntimeFailure?: (error: unknown) => void,
 	): Promise<HelperOfxInteractJobResultV1> {
 		this.#assertActive();
 		const grant = validateHelperJobGrant('ofx-host', request.grant) as HelperOfxHostJobGrantV1OrV2;
@@ -150,10 +151,20 @@ export class OfxIsolatedHostManager {
 			throw new Error('An OpenFX Interact job does not bind its isolated binary fingerprint.');
 		}
 		const worker = this.#runtime(pluginFingerprint);
-		const result = await worker.runJob({ ...request, kind: 'ofx-host', grant });
-		const admitted = validateHelperJobResult('ofx-host', result, grant);
-		if (!('interact' in admitted)) throw new Error('An OpenFX Interact host returned a frame result.');
-		return admitted;
+		let result: unknown;
+		try { result = await worker.runJob({ ...request, kind: 'ofx-host', grant }); }
+		catch (error) {
+			if (!request.signal?.aborted) onRuntimeFailure?.(error);
+			throw error;
+		}
+		try {
+			const admitted = validateHelperJobResult('ofx-host', result, grant);
+			if (!('interact' in admitted)) throw new Error('An OpenFX Interact host returned a frame result.');
+			return admitted;
+		} catch (error) {
+			onRuntimeFailure?.(error);
+			throw error;
+		}
 	}
 
 	async renderWithCpuFallback(

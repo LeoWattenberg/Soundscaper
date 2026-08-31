@@ -427,6 +427,29 @@ test('highlight gathering drops a one-source-frame window without aborting valid
 	]);
 });
 
+test('highlight gathering skips a window whose edges collapse onto one sparse shot boundary', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const inputs = highlightInputs();
+	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
+		settings: HIGHLIGHT_SETTINGS, inputs: { ...inputs,
+			video: { ...inputs.video, windows: [
+				{ id: 'collapsed', startFrame: 40_000, endFrame: 50_000,
+					shotStructure: 0, visualInterest: 0 },
+				{ id: 'valid', startFrame: 80_000, endFrame: 160_000,
+					shotStructure: 0, visualInterest: 0 },
+			] },
+			audio: null, transcript: null,
+			'shot-boundaries': { ...inputs['shot-boundaries'], boundaries: [
+				{ sourceFrame: 60, presentationTick: '60', score: 1 },
+			] },
+			'audio-tags': null, 'reaction-ranges': null, embeddings: null,
+		} }).outputs['highlight-signals'];
+	assert.deepEqual(gathered.candidates.map(({ id, sourceStartFrame, sourceEndFrame }) =>
+		({ id, sourceStartFrame, sourceEndFrame })), [
+		{ id: 'valid', sourceStartFrame: 60, sourceEndFrame: 180 },
+	]);
+});
+
 test('highlight transcript excerpts honor the UTF-16 limit without splitting a surrogate pair', () => {
 	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
 	const inputs = highlightInputs();

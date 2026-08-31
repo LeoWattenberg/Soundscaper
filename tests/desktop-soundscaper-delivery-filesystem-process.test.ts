@@ -133,6 +133,39 @@ test('SDF1 turns helper spawn failure into a controlled session refusal', async 
 	}), /spawn ENOENT/u);
 });
 
+test('SDF1 destroys helper stdout immediately when its response bound is exceeded', async () => {
+	const output = new PassThrough();
+	const error = new PassThrough();
+	let outputDestroys = 0;
+	const destroy = output.destroy.bind(output);
+	output.destroy = ((failure?: Error) => {
+		outputDestroys += 1;
+		return destroy(failure);
+	}) as typeof output.destroy;
+	const child = new EventEmitter() as EventEmitter & Record<string, unknown>;
+	const input = new Writable({ write: (_chunk, _encoding, done) => {
+		output.write(Buffer.alloc(70 * 1_024));
+		done();
+	} });
+	input.on('finish', () => {
+		child.exitCode = 1;
+		child.emit('exit', 1, null);
+	});
+	Object.assign(child, {
+		stdin: input, stdout: output, stderr: error, exitCode: null, signalCode: null,
+		kill: () => { child.exitCode = 1; child.emit('exit', 1, null); return true; },
+	});
+	const authority = createSoundscaperDeliveryFilesystemProcessAuthority({
+		executablePath: '/installed/soundscaper_delivery_fs',
+		spawnProcess: (() => child) as never,
+	});
+	await assert.rejects(authority.open({
+		root: ROOT, reference: '2'.repeat(48), finalName: 'master.wav',
+		maximumBytes: 4, finalPrefixByteLength: 0, fence: () => undefined,
+	}), /response|frame|helper/iu);
+	assert.equal(outputDestroys, 1);
+});
+
 class FakeHelper {
 	readonly opcodes: number[] = [];
 	readonly output = new PassThrough();

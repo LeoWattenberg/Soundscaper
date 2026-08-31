@@ -35,6 +35,7 @@ import {
 	assertVideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
 import { framescaperProjectRetimeFoundationFinishing } from './editor-project-finishing-runtime.ts';
+import { runFramescaperFinishingEncode } from './video-export-encode-cleanup.ts';
 import { assertFramescaperProjectFinishingProfile } from './editor-domain-runtime-profile.ts';
 import {
 	validateFramescaperProjectFinishing,
@@ -244,14 +245,14 @@ async function encodeKeyedPicture(
 	const execution = await createKeyedExecution(
 		profile, authority, request, assetStore, exactDependencies,
 	);
-	try {
+	return runFramescaperFinishingEncode(async () => {
 		const result = await delegate.encode({
 			...request, canonicalProject: authority.retimeProject,
 			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
 		});
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
-	} finally { await execution.dispose(); }
+	}, () => execution.dispose());
 }
 
 async function encodeKeyedPictureToSink<Output>(
@@ -266,14 +267,14 @@ async function encodeKeyedPictureToSink<Output>(
 	const execution = await createKeyedExecution(
 		profile, authority, request, assetStore, exactDependencies,
 	);
-	try {
+	return runFramescaperFinishingEncode(async () => {
 		const result = await delegate.encodeToSink({
 			...request, canonicalProject: authority.retimeProject,
 			exportProject: authority.retimeExportProject, rgbaCompositor: execution.compositor,
 		}, sink);
 		DISPOSITIONS.set(request.plan, execution.disposition());
 		return result;
-	} finally { await execution.dispose(); }
+	}, () => execution.dispose());
 }
 
 async function createVisualExecution(
@@ -346,14 +347,14 @@ async function encodeVisualPicture(
 	exactDependencies: ExactExecutionDependenciesFinishing,
 ): Promise<ProductVideoExportEncodedOutput> {
 	const execution = await createVisualExecution(profile, authority, request, assetStore, exactDependencies);
-	try {
+	return runFramescaperFinishingEncode(async () => {
 		const encoded = await encoders.encodePicture(request.editorFfmpeg, execution.encoderRequest);
 		const result = framescaperPictureBrowserResultFinishing(
 			encoded, request.plan as FramescaperVideoVisualPlanFinishing,
 		);
 		DISPOSITIONS.set(request.plan, execution.exact.disposition());
 		return result;
-	} finally { await execution.exact.dispose(); }
+	}, () => execution.exact.dispose());
 }
 
 async function encodeVisualPictureToSink<Output>(
@@ -366,7 +367,7 @@ async function encodeVisualPictureToSink<Output>(
 	exactDependencies: ExactExecutionDependenciesFinishing,
 ): Promise<ProductVideoExportSinkOutput<Output>> {
 	const execution = await createVisualExecution(profile, authority, request, assetStore, exactDependencies);
-	try {
+	return runFramescaperFinishingEncode(async () => {
 		const encoded = await encoders.encodePictureToSink(
 			request.editorFfmpeg, execution.encoderRequest, sink,
 		);
@@ -375,7 +376,7 @@ async function encodeVisualPictureToSink<Output>(
 		);
 		DISPOSITIONS.set(request.plan, execution.exact.disposition());
 		return result;
-	} finally { await execution.exact.dispose(); }
+	}, () => execution.exact.dispose());
 }
 
 function snapshotPictureEncoders(

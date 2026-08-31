@@ -125,6 +125,14 @@ test('causal live processors are block-stable and sample-identical to one-shot D
 	assert.deepEqual(stereoOutput[1], stereoOutput[0]);
 });
 
+test('live cubic distortion at minimum amount is a neutral waveshaper', () => {
+	const input = signal(1_024);
+	const output = processStream(createAudacityLiveProcessor('audacity-distortion', SAMPLE_RATE, {
+		mode: 'cubic', parameter1: 0, parameter2: 100, repeats: 0,
+	}), [input])[0];
+	assert.ok(maximumDifference(output, input) < 1e-6);
+});
+
 test('linked Compressor and Limiter preserve lookahead DSP across arbitrary block boundaries', () => {
 	const input = signal(5_000).map((sample) => sample * 2.5);
 	for (const [type, params] of [

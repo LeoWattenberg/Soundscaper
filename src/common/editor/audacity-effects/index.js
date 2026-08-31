@@ -160,8 +160,9 @@ export function audacityStaffPadTransform(type, params = {}) {
 }
 
 export async function applyAudacityEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
-	if (!isAudacityStaffPadEffect(type)) {
-		await initializePffft();
+	const staffPad = isAudacityStaffPadEffect(type);
+	if (!staffPad || context?.spectralSelection) await initializePffft();
+	if (!staffPad) {
 		return applyAudacitySpectralContext(
 			channels,
 			applyAudacityEffect(type, channels, sampleRate, params, context),

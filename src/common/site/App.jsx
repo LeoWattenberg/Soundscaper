@@ -49,6 +49,9 @@ export default function App({ route }) {
 
 export function applyDocumentRoute(route) {
 	const root = document.documentElement;
+	document.querySelector('[data-initial-load-progress]')?.setAttribute(
+		'aria-label', bundledSiteCopyForLocale(route.locale).loading,
+	);
 	root.lang = route.locale;
 	root.dir = route.direction;
 	root.dataset.product = route.productId;

@@ -21,6 +21,7 @@ import { FRAMESCAPER_SEQUENCE_PROJECT_RUNTIME_PROFILE } from
 	'../../framescaper/editor-domain-runtime-profile.ts';
 import { materializeFramescaperNestedPlaybackFoundationSequence } from
 	'../../framescaper/editor-project-sequence-nested-playback.ts';
+import { collectTakeGroupSourceIds } from '../editor/take-group-source-references.ts';
 import { crossProductHandoffRootNames } from './cross-product-handoff-root-contract.ts';
 import {
 	crossProductHandoffDestinationAuthorityRefusals,
@@ -280,6 +281,7 @@ function framescaperSoundProjection(source: Record<string, unknown>): Record<str
 	const binClips = records(record(source.projectBin, 'Framescaper Project Bin').clips,
 		'Framescaper Project Bin clips').filter(({ kind }) => kind === 'audio');
 	const retainedSourceIds = new Set([...audioClips, ...binClips].map(({ sourceId }) => String(sourceId)));
+	collectTakeGroupSourceIds(materialized, retainedSourceIds);
 	const retainedSources = sources.filter(({ kind, id }) => kind === 'audio' && retainedSourceIds.has(String(id)));
 	const assistanceAssets = records(source.assistanceAssets, 'Framescaper assistance assets')
 		.filter(({ sourceId }) => retainedSourceIds.has(String(sourceId)));
@@ -479,7 +481,8 @@ function activeMaterializationRoot(family: ProjectSchemaFamily, source: Record<s
 		return ['takeGroups', 'masteringSequences', 'nativePluginStates']
 			.find((root) => nonempty(source[root])) ?? null;
 	}
-	return ['subsequences', 'multicameraGroups'].find((root) => nonempty(source[root])) ?? null;
+	return ['takeGroups', 'subsequences', 'multicameraGroups']
+		.find((root) => nonempty(source[root])) ?? null;
 }
 
 function validateOwningProject(family: ProjectSchemaFamily, source: unknown): void {

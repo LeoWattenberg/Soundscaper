@@ -297,6 +297,27 @@ test('unsupported processor construction falls back to the AudioWorklet controll
 	assert.deepEqual(delegateCalls, ['start:undefined', 'pause', 'resume', 'stop', 'detach']);
 });
 
+test('processor construction fallback preserves the AudioWorklet track sample-rate invariant', async () => {
+	const harness = createProcessorHarness({ constructError: new DOMException('unsupported', 'NotSupportedError') });
+	let factoryCalls = 0;
+	const recorder = await createFramescaperBrowserAudioRecorder({
+		role: 'microphone', track: audioTrack(48_000), stream: { id: 'stream' },
+		context: { sampleRate: 44_100 },
+		MediaStreamTrackProcessor: harness.TrackProcessor,
+		recordingControllerFactory: async () => {
+			factoryCalls += 1;
+			return {
+				start: () => {}, pause: () => true, resume: () => true,
+				stop: async () => {}, detach: async () => {},
+			};
+		},
+		onChunk: () => {},
+	});
+
+	await assert.rejects(Promise.resolve(recorder.start()), /retain the source track sample rate/iu);
+	assert.equal(factoryCalls, 0, 'an incompatible AudioWorklet must not be constructed');
+});
+
 test('monitoring selects AudioWorklet and retains configured capture gain', async () => {
 	const harness = createProcessorHarness();
 	const factoryOptions: Array<Record<string, unknown>> = [];

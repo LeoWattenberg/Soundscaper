@@ -76,7 +76,8 @@ export function framescaperOpenFxPluginProjectionV1(
 	const parameters = boundedArray(record.parameters, 4_096, 'OpenFX parameter projections')
 		.map((value_) => {
 			const parameter = exactRecord(value_, ['name', 'type', 'animates'], 'OpenFX parameter projection');
-			if (!NAME.test(String(parameter.name)) || typeof parameter.type !== 'string'
+			if (typeof parameter.name !== 'string' || !NAME.test(parameter.name)
+				|| typeof parameter.type !== 'string'
 				|| !(OFX_PARAMETER_TYPES as readonly string[]).includes(parameter.type)
 				|| typeof parameter.animates !== 'boolean') {
 				throw new TypeError('A pathless OpenFX parameter projection is invalid.');

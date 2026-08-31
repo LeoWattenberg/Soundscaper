@@ -30,3 +30,15 @@ test('AUP4 deserialize failure leaves FREEONCLOSE buffer ownership with SQLite',
 	assert.match(deserialize, /SQLITE_DESERIALIZE_FREEONCLOSE/u);
 	assert.doesNotMatch(deserialize, /dealloc/u);
 });
+
+test('AUP4 snapshot compatibility state is published only after COMMIT succeeds', async () => {
+	const source = await readFile(new URL('../src/common/editor/aup4-worker.js', import.meta.url), 'utf8');
+	const finalize = source.slice(
+		source.indexOf('function finalizeSnapshot'),
+		source.indexOf('function abortSnapshot'),
+	);
+	const commit = finalize.indexOf("database.exec('COMMIT')");
+	const publication = finalize.indexOf('entry.lastExportCompatibilityReport =');
+	assert.ok(commit >= 0 && publication > commit,
+		'the compatibility report must not describe a transaction that rolled back');
+});

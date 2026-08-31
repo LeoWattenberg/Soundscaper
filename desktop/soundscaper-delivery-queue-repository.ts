@@ -132,14 +132,21 @@ export class SoundscaperDeliveryQueueRepository {
 		`).all(jobId) as SoundscaperDeliveryAttemptReportRow[];
 	}
 
-	claim(jobId: string, claimId: string): void {
-		this.mutation('claimed', jobId, 'running', () => {
-			this.#database.prepare(`
+	claim(jobId: string, claimId: string): boolean {
+		try {
+			this.mutation('claimed', jobId, 'running', () => {
+				const claimed = this.#database.prepare(`
 				UPDATE delivery_queue SET state = 'running', claim_id = ?, attempt = attempt + 1,
 					progress = 0, last_failure_code = NULL,
-					updated_at_ms = ? WHERE job_id = ?
-			`).run(claimId, this.#now(), jobId);
-		});
+					updated_at_ms = ? WHERE job_id = ? AND state = 'queued'
+				`).run(claimId, this.#now(), jobId).changes;
+				if (claimed !== 1) throw new SoundscaperDeliveryClaimRaceError();
+			});
+			return true;
+		} catch (error) {
+			if (error instanceof SoundscaperDeliveryClaimRaceError) return false;
+			throw error;
+		}
 	}
 
 	progress(jobId: string, progress: number): void {
@@ -354,3 +361,5 @@ export class SoundscaperDeliveryQueueRepository {
 		`).run(jobId, row.attempt, outcome, failureCode, JSON.stringify(report), this.#now());
 	}
 }
+
+class SoundscaperDeliveryClaimRaceError extends Error {}

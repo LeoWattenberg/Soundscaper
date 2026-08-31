@@ -87,9 +87,10 @@ function resolveRelativeModule(fromPath: string, specifier: string): string | nu
 	return null;
 }
 
-function importsOnlyTypes(clause: string): boolean {
+export function importsOnlyTypes(clause: string): boolean {
 	const braces = /\{([\s\S]*)\}/u.exec(clause);
 	if (!braces) return false;
+	if (clause.slice(0, braces.index).trim() !== '') return false;
 	const names = braces[1].split(',').map((name) => name.trim()).filter(Boolean);
 	return names.length > 0 && names.every((name) => name.startsWith('type '));
 }

@@ -54,12 +54,12 @@ export const EDITOR_PFFFT_RUNTIME_CHUNK_TEST = new RegExp(
 
 /** Selection dispatcher and its destructive parametric-EQ implementation. */
 export const EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:selection-effects-runtime|parametric-eq[\\/]destructive)\\.js$`,
+	`${editorPath}(?:selection-effects-runtime|parametric-eq[\\\\/]destructive)\\.js$`,
 );
 
 /** Shared session-only production metering used by the engine and product UI. */
 export const EDITOR_PRODUCTION_METER_CHUNK_TEST = new RegExp(
-	`${editorPath}production-audio[\\/](?:loudness-history-session|strip-analysis-scheduler|strip-meter-session)\\.ts$`,
+	`${editorPath}production-audio[\\\\/](?:loudness-history-session|strip-analysis-scheduler|strip-meter-session)\\.ts$`,
 );
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */

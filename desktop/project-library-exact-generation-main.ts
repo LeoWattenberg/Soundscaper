@@ -12,9 +12,10 @@ import type {
 	FramescaperDesktopProjectLibraryExactGenerationOwner,
 	FramescaperDesktopProjectLibraryExactGenerationPaths,
 } from './project-library-exact-generation-contract.ts';
-import type {
-	FramescaperDesktopProjectLibraryExactGenerationExtension,
-	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+import {
+	abortPublicationAfterFailure,
+	type FramescaperDesktopProjectLibraryExactGenerationExtension,
+	type FramescaperDesktopProjectLibraryExactGenerationLifecycle,
 } from './project-library-exact-generation-lifecycle.ts';
 import {
 	framescaperDesktopExactConfiguredBodies as configuredBodies,
@@ -416,12 +417,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 				return bundle;
 			} catch (error) {
 				this.#publication = null;
-				try { await this.#lifecycle?.abortPublication(publication.publicationId); }
-				catch (cleanupError) {
-					throw new AggregateError([error, cleanupError],
-						`${this.#configuration.label} publication cleanup failed`, { cause: cleanupError });
-				}
-				throw error;
+				return abortPublicationAfterFailure(this.#lifecycle, publication.publicationId, error, this.#configuration.label);
 			}
 		});
 	}
@@ -497,16 +493,21 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			const admitted = exactGenerationProject(project, this.#configuration.label);
 			const document = JSON.stringify(admitted);
 			const bodies = configuredBodies(this.#configuration, admitted, sha256(document), sourceBundle.bodies);
-			return persistPublication(this.#configuration, this.#database, this.#paths, {
-				publicationId: randomBytes(24).toString('hex'),
-				expectedMetadataRevision,
-				expectedProject: null,
-				project: admitted,
-				document,
-				bodies,
-				chunks: bodies.map(() => []),
-				offsets: bodies.map(({ byteLength }) => byteLength),
-			}, this.#lifecycle, () => this.#assertAdmitted());
+			const publicationId = randomBytes(24).toString('hex');
+			try {
+				return await persistPublication(this.#configuration, this.#database, this.#paths, {
+					publicationId,
+					expectedMetadataRevision,
+					expectedProject: null,
+					project: admitted,
+					document,
+					bodies,
+					chunks: bodies.map(() => []),
+					offsets: bodies.map(({ byteLength }) => byteLength),
+				}, this.#lifecycle, () => this.#assertAdmitted());
+			} catch (error) {
+				return abortPublicationAfterFailure(this.#lifecycle, publicationId, error, this.#configuration.label);
+			}
 		});
 	}
 

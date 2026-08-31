@@ -90,6 +90,33 @@ test('reverse commits synchronously while normalization is owned by its clip tas
 	assert.equal(harness.commits.length, 1, 'a stale analysis must not publish gain');
 });
 
+test('normalization analyzes the selected source extent rather than its stretched timeline extent', async () => {
+	let analyzed: readonly Float32Array[] = [];
+	const project = projectFixture({
+		clips: [clipFixture({
+			sourceStartFrame: 100,
+			sourceDurationFrames: 1_000,
+			durationFrames: 500,
+			speedRatio: 2,
+		}), clipFixture({
+			id: 'companion', timelineStartFrame: 1_500, sourceStartFrame: 1_000,
+			sourceDurationFrames: 500, durationFrames: 500, renderCacheRevision: 4,
+		})],
+	});
+	const harness = createHarness(project, {
+		analyze: async (channels) => {
+			analyzed = channels;
+			return { peakAmplitude: 1, integratedLufs: -14 };
+		},
+	});
+
+	await harness.service.handleClipAction('normalize-peak', 'active');
+
+	assert.equal(analyzed[0]?.length, 1_000);
+	assert.equal(analyzed[0]?.[0], Math.fround(100 / 4_000));
+	assert.equal(analyzed[0]?.at(-1), Math.fround(1_099 / 4_000));
+});
+
 test('new normalization replaces the previous task and project switches suppress late gain commits', async () => {
 	const project = projectFixture();
 	const first = deferred<ClipAnalysisResult>();
@@ -185,7 +212,9 @@ test('left-edge grouped stretching clamps companions at the timeline origin', ()
 
 function createHarness(
 	initialProject: ClipTransformProject,
-	options: Readonly<{ analyze?: () => Promise<ClipAnalysisResult> }> = {},
+	options: Readonly<{
+		analyze?: (channels: readonly Float32Array[]) => Promise<ClipAnalysisResult>;
+	}> = {},
 ) {
 	let project = initialProject;
 	let analyze = options.analyze ?? (async () => ({ peakAmplitude: 1, integratedLufs: -14 }));
@@ -210,9 +239,9 @@ function createHarness(
 		editingBlocked: () => blocked,
 		captureProject: () => generation.capture(project.id),
 		assertProject: (token) => generation.assertCurrent(token),
-		analyzeChannels: async (_channels, _sampleRate, signal) => {
+		analyzeChannels: async (channels, _sampleRate, signal) => {
 			analysisSignals.push(signal);
-			return analyze();
+			return analyze(channels);
 		},
 		sourceBuffers,
 		createId: (prefix) => `${prefix}-id`,

@@ -313,6 +313,12 @@ test('encode plans select only canonical encoders, muxers and settings', () => {
 	}
 });
 
+test('24-bit FLAC plans declare their raw sample precision explicitly', () => {
+	const plan = buildDesktopAudioFfmpegPlan(encodeRequest('flac'));
+	assert.equal(argumentValue(plan.arguments, '-sample_fmt'), 's32');
+	assert.equal(argumentValue(plan.arguments, '-bits_per_raw_sample'), '24');
+});
+
 test('FFmpeg planning revalidates typed-looking objects instead of accepting authority by cast', () => {
 	const injected = { ...encodeRequest('mp3'), argv: ['-i', 'https://attacker.invalid/a'] };
 	assert.throws(() => buildDesktopAudioFfmpegPlan(injected as unknown as DesktopAudioCodecRequest), /inexact/u);

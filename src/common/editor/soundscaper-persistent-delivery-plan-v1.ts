@@ -156,7 +156,7 @@ function closedRecord<const Field extends string>(
 }
 
 function boundedText(value: unknown, label: string): string {
-	if (typeof value !== 'string' || !value || /[\0-\x1f]/u.test(value)
+	if (typeof value !== 'string' || !value || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(value)
 		|| new TextEncoder().encode(value).byteLength > 1_024) {
 		throw new TypeError(`The persistent delivery ${label} is invalid.`);
 	}

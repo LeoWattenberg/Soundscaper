@@ -203,7 +203,8 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 			&& editor.querySelector('[data-status]')?.getAttribute('data-state') === 'success') break;
 		await new Promise((resolve) => scope.setTimeout(resolve, 50));
 	}
-	if (!importButton || importButton.disabled) {
+	if (!importButton || importButton.disabled
+		|| editor.querySelector('[data-status]')?.getAttribute('data-state') !== 'success') {
 		throw new Error('Desktop video timing-probe ordinary Import control is unavailable');
 	}
 	const activeProjectId = scope.document.querySelector('[data-project-id]')?.getAttribute('data-project-id') ?? null;

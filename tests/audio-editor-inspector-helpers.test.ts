@@ -32,6 +32,8 @@ test('Inspector serialization helpers validate boundary input without UI state',
 	assert.equal(macroFileName('  My noisy / macro  '), 'My-noisy-macro');
 	assert.equal(secondsInputToFrames('1:02.5', copy, 48_000), 3_000_000);
 	assert.throws(() => secondsInputToFrames('   ', copy, 48_000), /Invalid time/u);
+	assert.throws(() => secondsInputToFrames(':', copy, 48_000), /Invalid time/u);
+	assert.throws(() => secondsInputToFrames('1:', copy, 48_000), /Invalid time/u);
 	assert.throws(() => nonNegativeFrame('', copy), /Invalid frame/u);
 	assert.throws(() => parseJsonObject('[]', 'Metadata', copy), /Metadata must be an object/);
 	assert.throws(() => parseJsonChannelMapping('{}', 'Channels', copy), /wrong shape/);

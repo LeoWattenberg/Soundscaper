@@ -153,6 +153,13 @@ test('OpenFX media-contract identity does not consult the ambient locale', (cont
 	}
 });
 
+test('each native recipe requires its own source authenticator to remain manifest pinned', (context) => {
+	for (const kind of ['media', 'openfx']) {
+		const fixture = buildFixture(context, kind, 'linux-x64'), manifest = json(fixture.manifestPath), create = kind === 'media' ? createFramescaperMediaHostBuildRecipe : createFramescaperOpenFxHostBuildRecipe;
+		manifest.sourceFiles = manifest.sourceFiles.filter(({ path }) => path !== 'build/source-authentication.mjs'); writeJson(fixture.manifestPath, manifest);
+		assert.throws(() => create(fixture.options), /Required build input build\/source-authentication\.mjs is not pinned/u);
+	}
+});
 test('fake execution runs only the admitted phases once and never writes a payload claim', (context) => {
 	const runtime = `${process.platform}-${process.arch}`;
 	const mediaTarget = FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.find(({ hostRuntime }) => hostRuntime === runtime);
@@ -180,6 +187,10 @@ test('fake execution runs only the admitted phases once and never writes a paylo
 		assert.equal(readFileSync(payload, 'utf8'), '{"targets":{}}\n');
 		assert.equal(recipe.payloadManifestMutation, false);
 		assert.throws(() => execute(recipe, { run: () => ({ status: 0 }) }), /fresh authentic/u);
+		const swapped = buildFixture(context, kind, target.id), redirected = join(swapped.root, 'redirected');
+		const swappedRecipe = kind === 'media' ? createFramescaperMediaHostBuildRecipe(swapped.options) : createFramescaperOpenFxHostBuildRecipe(swapped.options);
+		mkdirSync(redirected); rmSync(swapped.outputRoot, { recursive: true }); symlinkSync(redirected, swapped.outputRoot, 'dir');
+		assert.throws(() => execute(swappedRecipe, { run: () => ({ status: 0 }) }), /canonical non-symlink/iu); assert.deepEqual(readdirSync(redirected), []);
 	}
 });
 

@@ -139,6 +139,18 @@ test('the prototype rule is opt-in, so no caller is silently tightened', () => {
 	assert.equal(prototypeChecked.plainRecord(bare, 'strict subject'), bare);
 });
 
+test('plain-record admission rejects accessors without invoking them', () => {
+	let reads = 0;
+	const accessor = Object.defineProperty({}, 'key', {
+		enumerable: true,
+		get: () => { reads += 1; return 1; },
+	});
+	assert.throws(() => validators.plainRecord(accessor, 'native subject'), {
+		message: 'A native subject must be a plain record.',
+	});
+	assert.equal(reads, 0);
+});
+
 test('exact keys refuses an extra key, a missing key, and a renamed key', () => {
 	const keys = ['alpha', 'beta'];
 	validators.exactKeys({ alpha: 1, beta: 2 }, keys, 'native subject');

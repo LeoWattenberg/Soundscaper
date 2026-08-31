@@ -67,8 +67,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28895,
-			"sha256": "64808796f90cccbb2b2aaef24579890e45e1b7b466dd7c1fe6f119a5daa78e41"
+			"byteLength": 28983,
+			"sha256": "9da8fe02bb166c64077da5e432e9769315f844fd0e36267cae32ba926c3d737e"
 		},
 		{
 			"path": "build/source-authentication.mjs",

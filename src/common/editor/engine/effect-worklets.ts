@@ -20,6 +20,8 @@ const audacityWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const audacityReadyLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const parametricEqWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 
+export const AUDACITY_WORKLET_READY_TIMEOUT_MS = 10_000;
+
 export function isDynamicsWorkletLoaded(context: BaseAudioContext): boolean {
 	return dynamicsWorkletContexts.has(context);
 }
@@ -120,7 +122,11 @@ async function loadAudacityPffftWasmModule(context: BaseAudioContext): Promise<W
 	return module;
 }
 
-function warmAudacityWorklet(context: BaseAudioContext, wasmModule: WebAssembly.Module): Promise<void> {
+export function warmAudacityWorklet(
+	context: BaseAudioContext,
+	wasmModule: WebAssembly.Module,
+	timeoutMs = AUDACITY_WORKLET_READY_TIMEOUT_MS,
+): Promise<void> {
 	const WorkletNode = globalThis.AudioWorkletNode;
 	return new Promise<void>((resolve, reject) => {
 		let node: AudioWorkletNode;
@@ -140,9 +146,14 @@ function warmAudacityWorklet(context: BaseAudioContext, wasmModule: WebAssembly.
 			reject(error);
 			return;
 		}
+		const timeout = node.port ? setTimeout(
+			() => finish(new Error('The Audacity real-time processor timed out while initializing.')),
+			timeoutMs,
+		) : undefined;
 		const finish = (error?: Error): void => {
 			if (settled) return;
 			settled = true;
+			if (timeout !== undefined) clearTimeout(timeout);
 			if (node.port) node.port.onmessage = null;
 			node.onprocessorerror = null;
 			try { node.disconnect(); } catch { /* The probe is intentionally unconnected. */ }

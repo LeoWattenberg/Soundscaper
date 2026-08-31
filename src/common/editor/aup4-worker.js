@@ -456,8 +456,8 @@ function finalizeSnapshot(args, context) {
 		const document = createAup4ProjectDocument(session.plan.project, session.channelBlocks);
 		const encoded = encodeAudacityBinaryXml(document);
 		const result = writeAup4Document(session.entry.database, encoded, { autosave: session.autosave });
-		session.entry.lastExportCompatibilityReport = session.plan.compatibilityReport || null;
 		session.entry.database.exec('COMMIT');
+		session.entry.lastExportCompatibilityReport = session.plan.compatibilityReport || null;
 		completeSnapshotWrite(session);
 		context.progress(1, 'complete');
 		return {

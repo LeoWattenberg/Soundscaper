@@ -19,6 +19,7 @@ import {
 	type NativeImageSequenceCheckpointFrameV1,
 	type NativeImageSequenceCheckpointResultV1,
 } from './native-services-publication.ts';
+import { syncNativeCheckpointDirectory } from './native-services-checkpoint-directory-durability.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const JOB_ID = /^[a-f0-9]{40}$/u;
@@ -203,6 +204,7 @@ export function createFramescaperNativeFilesystemCheckpointStore(
 				throw new Error('The checkpoint scratch authority changed during persistence.');
 			}
 			await rename(temporary, destination);
+			await syncNativeCheckpointDirectory(directory);
 		},
 	});
 }

@@ -104,7 +104,9 @@ export function computeM6ReferenceMasterMetrics(measurementValue, context) {
 	const video = measurement.videoArtifacts;
 	const artifacts = [...audio, ...video];
 	const loudness = audio.flatMap((artifact) => loudnessErrors(artifact));
-	if (loudness.length === 0) {
+	const loudnessLu = loudness.flatMap((row) => row.loudnessLu === undefined ? [] : [row.loudnessLu]);
+	const truePeakDb = loudness.flatMap((row) => row.truePeakDb === undefined ? [] : [row.truePeakDb]);
+	if (loudnessLu.length === 0 || truePeakDb.length === 0) {
 		// Same policy the conformance metrics follow: a metric nothing measured
 		// fails rather than reporting the zero an empty set would average to. A
 		// run whose deliveries filed no delivered loudness cannot answer the
@@ -127,8 +129,8 @@ export function computeM6ReferenceMasterMetrics(measurementValue, context) {
 				video.map((artifact) => artifact.frameCountError),
 			),
 			'delivery.avDriftMaximumMs': maximumMagnitude(video.map((artifact) => artifact.avDriftMs)),
-			'delivery.integratedLoudnessErrorLu': maximumMagnitude(loudness.map(({ loudnessLu }) => loudnessLu)),
-			'delivery.truePeakErrorDb': maximumMagnitude(loudness.map(({ truePeakDb }) => truePeakDb)),
+			'delivery.integratedLoudnessErrorLu': maximumMagnitude(loudnessLu),
+			'delivery.truePeakErrorDb': maximumMagnitude(truePeakDb),
 			'delivery.captionCueErrorFrames': maximumMagnitude(
 				video.map((artifact) => artifact.captionCueErrorFrames),
 			),
@@ -208,12 +210,16 @@ export function loudnessErrors(artifact) {
 	for (const item of artifact.report.items) {
 		if (!M6_LOUDNESS_ITEM_CODES.has(item.code)) continue;
 		const data = requireRecord(item.data, `${artifact.artifactId} ${item.code} data`);
-		if (data.deliveredLoudnessLufs === undefined && data.deliveredTruePeakDb === undefined) continue;
+		const loudnessLu = data.deliveredLoudnessLufs == null ? null
+			: finiteNumber(data.deliveredLoudnessLufs, `${artifact.artifactId} deliveredLoudnessLufs`)
+				- finiteNumber(data.projectedLoudnessLufs, `${artifact.artifactId} projectedLoudnessLufs`);
+		const truePeakDb = data.deliveredTruePeakDb == null ? null
+			: finiteNumber(data.deliveredTruePeakDb, `${artifact.artifactId} deliveredTruePeakDb`)
+				- finiteNumber(data.projectedTruePeakDb, `${artifact.artifactId} projectedTruePeakDb`);
+		if (loudnessLu === null && truePeakDb === null) continue;
 		rows.push({
-			loudnessLu: finiteNumber(data.deliveredLoudnessLufs, `${artifact.artifactId} deliveredLoudnessLufs`)
-				- finiteNumber(data.projectedLoudnessLufs, `${artifact.artifactId} projectedLoudnessLufs`),
-			truePeakDb: finiteNumber(data.deliveredTruePeakDb, `${artifact.artifactId} deliveredTruePeakDb`)
-				- finiteNumber(data.projectedTruePeakDb, `${artifact.artifactId} projectedTruePeakDb`),
+			...(loudnessLu === null ? {} : { loudnessLu }),
+			...(truePeakDb === null ? {} : { truePeakDb }),
 		});
 	}
 	return rows;

@@ -142,7 +142,7 @@ test('security matrix covers the production threat-model surfaces without promot
 		'scape-archive-structure-integrity': 'enforced',
 		'scape-archive-expansion': 'enforced',
 		'cross-origin-project-transfer': 'partial',
-		'electron-renderer-ipc-boundary': 'enforced',
+		'electron-renderer-ipc-boundary': 'partial',
 		'desktop-static-resource-paths': 'enforced',
 		'desktop-read-path-capabilities': 'enforced',
 		'desktop-write-path-capabilities': 'partial',
@@ -188,6 +188,14 @@ test('security matrix covers the production threat-model surfaces without promot
 			assert.ok(risk.residualRisks.length > 0, `${risk.id} needs enablement criteria`);
 		}
 	}
+	const rendererBoundary = risks.get('electron-renderer-ipc-boundary');
+	assert.equal(rendererBoundary.releaseDisposition, 'conditional');
+	assert.deepEqual(rendererBoundary.residualRisks.map(({ id }) => id), [
+		'framescaper-broker-cross-process-no-clobber',
+		'framescaper-capture-platform-qualification',
+	]);
+	assert.match(rendererBoundary.residualRisks[0].acceptanceCriteria.join(' '), /atomic no-clobber/iu);
+	assert.match(rendererBoundary.residualRisks[1].acceptanceCriteria.join(' '), /real-device/iu);
 });
 
 test('native plug-in surfaces are conditional for testing and portable archive controls are qualified', async () => {

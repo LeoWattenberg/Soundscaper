@@ -13,17 +13,27 @@ import {
 	deserializeHelperError,
 	serializeHelperError,
 } from '../desktop/helper-contract.ts';
-import type {
-	HelperJobRequest,
-	HelperSupervisorSnapshot,
+import {
+	HelperSupervisionError,
+	type HelperJobRequest,
+	type HelperSupervisorSnapshot,
 } from '../desktop/helper-supervisor.ts';
+import {
+	framescaperOpenFxInteractEffectStateSha256V1,
+} from '../src/common/editor/native-ofx-interact-contract.ts';
 import {
 	createOfxHostInvocationV1,
 	OfxRetryableGpuError,
 } from '../src/common/editor/native-ofx-host-contract.ts';
+import {
+	candidatePlan,
+	interactEffect,
+} from './helpers/openfx-main-service-plan-fixture.ts';
 
 const PLUGIN_SHA = 'ab'.repeat(32);
 const OTHER_SHA = 'cd'.repeat(32);
+const INTERACT_PLUGIN_ID = 'org.framescaper.conformance';
+const INTERACT_FINGERPRINT = `${INTERACT_PLUGIN_ID}@${PLUGIN_SHA}`;
 const STREAM_BYTES = new Uint8Array([1, 2, 3, 4]);
 const STREAM_SHA = createHash('sha256').update(STREAM_BYTES).digest('hex');
 
@@ -109,6 +119,29 @@ test('a runtime refuses a mismatched grant before spawning or disclosing a path'
 	assert.equal(runtimeSpawns, 0);
 	assert.equal(JSON.stringify(manager.snapshot()).includes('/plugins'), false);
 	manager.dispose();
+});
+
+test('Interact cancellation and pre-admission failures do not report a plug-in failure', async () => {
+	const controller = new AbortController();
+	const runtime = new Worker();
+	runtime.runJob = async () => {
+		controller.abort();
+		throw new HelperSupervisionError('cancelled', 'request cancelled');
+	};
+	const manager = new OfxIsolatedHostManager({
+		createScanner: () => new Worker(), createRuntime: () => runtime,
+	});
+	let reported = 0;
+	const report = (): void => { reported += 1; };
+	await assert.rejects(manager.interact(
+		INTERACT_FINGERPRINT, interactRequest(controller.signal), report,
+	), /cancelled/iu);
+	assert.equal(reported, 0);
+	manager.dispose();
+	await assert.rejects(manager.interact(
+		INTERACT_FINGERPRINT, interactRequest(), report,
+	), /disposed/iu);
+	assert.equal(reported, 0);
 });
 
 test('only typed GPU failures retry once on CPU in the same fingerprint process', async (context) => {
@@ -306,6 +339,29 @@ function hostRequest(
 			scratch: scratch(),
 		},
 		...(options.signal ? { signal: options.signal } : {}),
+	};
+}
+
+function interactRequest(signal?: AbortSignal): HelperJobRequest<'ofx-host'> {
+	const plan = candidatePlan();
+	const effect = interactEffect(plan);
+	Object.assign(effect, { binarySha256: PLUGIN_SHA });
+	return {
+		kind: 'ofx-host',
+		grant: {
+			executable: executable('ofx-host', '/runtime/ofx-host', '56'.repeat(32)),
+			pluginBinary: executable('ofx-plugin', '/plugins/example.ofx', PLUGIN_SHA),
+			pluginFingerprint: INTERACT_FINGERPRINT, pluginId: INTERACT_PLUGIN_ID,
+			interact: {
+				protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+					...plan.project },
+				pluginHandle: 'ab'.repeat(20), effect,
+				effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect),
+				context: 'filter', target: 'overlay', parameterName: null, events: [],
+			},
+			scratch: scratch(),
+		},
+		...(signal ? { signal } : {}), dataPlaneTransfers: [],
 	};
 }
 

@@ -92,6 +92,16 @@ test('visual semantic review rejects invented timing, unsafe text, NaN, and esca
 	}, AUTHORITY), /saliency|finite|between/iu);
 });
 
+test('visual semantic review rejects text containing only Unicode whitespace', () => {
+	assert.throws(() => reviewAssistanceOcrResultV1({
+		schemaVersion: 1, width: 1_920, height: 1_080, timescale: 90_000,
+		frames: [{ sourceFrame: 10, presentationTick: '0', regions: [{
+			text: '\u0085', confidence: 1,
+			box: { x: 0, y: 0, width: 1, height: 1 },
+		}] }, { sourceFrame: 20, presentationTick: '3003', regions: [] }],
+	}, AUTHORITY), /text/iu);
+});
+
 test('reframe-path review admits only ordered crop keyframes bound to sampled authority', () => {
 	const reviewed = reviewAssistanceReframePathResultV1({
 		schemaVersion: 1,

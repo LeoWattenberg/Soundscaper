@@ -78,6 +78,47 @@ test('worklet-global frames are rebased onto the shared session origin', async (
 	assert.equal(packets[0]?.presentationTimeUs, 100_000);
 });
 
+test('factory fences queued pre-pause drops from the actual pause gap', async () => {
+	const packets: CapturePacket[] = [];
+	const firstPacket = deferred();
+	let emit!: (chunk: Readonly<{
+		frameStart: number; frames: number; channels: readonly Float32Array[];
+	}>) => PromiseLike<void> | void;
+	const createRecorder = createFramescaperBrowserRecorderFactory({
+		MediaRecorder: null,
+		MediaStreamTrackProcessor: null,
+		getAudioContext: () => ({ sampleRate: 48_000 }),
+		recordingControllerFactory: (options) => {
+			emit = options.onChunk;
+			return {
+				start() {}, pause: () => true, resume: () => true,
+				stop: async () => {}, detach: async () => {},
+			};
+		},
+	});
+	let packetIndex = 0;
+	const base = request('microphone', packets);
+	const recorder = await createRecorder({
+		...base,
+		async onPacket(packet: CapturePacket) {
+			packets.push(packet);
+			if (packetIndex++ === 0) await firstPacket.promise;
+		},
+	});
+	await recorder.start();
+	const first = emit({ frameStart: 0, frames: 2, channels: [new Float32Array(2)] });
+	const queuedDrop = emit({ frameStart: 5, frames: 2, channels: [new Float32Array(2)] });
+	assert.equal(await recorder.pause(), true);
+	firstPacket.resolve();
+	await first;
+	await queuedDrop;
+	assert.equal(await recorder.resume(), true);
+	await emit({ frameStart: 100, frames: 2, channels: [new Float32Array(2)] });
+	await recorder.stop();
+
+	assert.deepEqual(packets.map(({ droppedBefore }) => droppedBefore.value), [0, 3, 0]);
+});
+
 function request(role: 'camera' | 'microphone', packets: CapturePacket[]) {
 	const track = role === 'microphone'
 		? { kind: 'audio', stop() {}, getSettings: () => ({ sampleRate: 48_000, channelCount: 1 }) }
@@ -141,4 +182,10 @@ function audioData(frameStart: number, samples: readonly number[]) {
 async function eventually(predicate: () => boolean) {
 	for (let attempt = 0; attempt < 100 && !predicate(); attempt += 1) await new Promise(setImmediate);
 	assert.equal(predicate(), true);
+}
+
+function deferred() {
+	let resolve!: () => void;
+	const promise = new Promise<void>((accept) => { resolve = accept; });
+	return Object.freeze({ promise, resolve });
 }

@@ -356,11 +356,13 @@ function interpolateBox(
 	right: AssistanceReframeNormalizedBoxV1,
 	weight: number,
 ): AssistanceReframeNormalizedBoxV1 {
+	const width = interpolate(left.width, right.width, weight);
+	const height = interpolate(left.height, right.height, weight);
 	return Object.freeze({
-		x: interpolate(left.x, right.x, weight),
-		y: interpolate(left.y, right.y, weight),
-		width: interpolate(left.width, right.width, weight),
-		height: interpolate(left.height, right.height, weight),
+		x: Math.min(interpolate(left.x, right.x, weight), canonical(1 - width)),
+		y: Math.min(interpolate(left.y, right.y, weight), canonical(1 - height)),
+		width,
+		height,
 	});
 }
 

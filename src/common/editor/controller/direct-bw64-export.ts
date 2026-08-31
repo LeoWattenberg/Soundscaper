@@ -119,16 +119,17 @@ export async function prepareDirectBw64Destination(
 	requestedSettings: DirectBw64RequestedSettings | null | undefined,
 	signal: AbortSignal,
 ): Promise<DirectPcmPreparation> {
-	if (!directBw64Plan(plan)) return emptyPreparation();
+	const candidate = plan as DirectBw64Plan;
 	if (requestedSettings?.measureLoudness === true) {
-		const passthrough = canonicalPassthroughAdmPlan(plan.adm);
-		if (plan.render?.strategy === 'realtime-stream') {
+		const passthrough = canonicalPassthroughAdmPlan(candidate.adm);
+		if (candidate.render?.strategy === 'realtime-stream') {
 			throw new Error('Realtime BW64 loudness measurement is not supported.');
 		}
 		if (passthrough?.preserved.bext === true) {
 			throw new Error('Preserved-BEXT BW64 loudness measurement is not supported.');
 		}
 	}
+	if (!directBw64Plan(plan)) return emptyPreparation();
 	if (typeof fileService.prepareSave !== 'function') return emptyPreparation();
 	const fileName = String(plan.outputs[0].fileName || 'mix.wav');
 	const settings = requestedSettings || {};

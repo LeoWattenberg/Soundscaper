@@ -109,7 +109,8 @@ export function assertOfxHostInvocationV2(value: unknown): asserts value is OfxH
 	digest(invocation.stateSha256, 'stateSha256'); ids(invocation.inputFrameStreamIds);
 	if (invocation.outputFrameStreamId !== null) pattern(invocation.outputFrameStreamId, ID, 'outputFrameStreamId');
 	nonNegativeInteger(invocation.outputOrdinal, 'outputOrdinal');
-	if (!['cpu', 'opengl', 'opencl', 'cuda', 'metal'].includes(String(invocation.requestedBackend))) {
+	if (!(OFX_HOST_EXECUTION_CONTRACT_V2.qualifiedGpuBackends as readonly unknown[])
+		.includes(invocation.requestedBackend) && invocation.requestedBackend !== 'cpu') {
 		throw new RangeError('OFX V2 backend is not qualified.');
 	}
 	pattern(invocation.abortSignalId, ID, 'abortSignalId');

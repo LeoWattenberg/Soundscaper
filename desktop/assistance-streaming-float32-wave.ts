@@ -305,6 +305,7 @@ function createSink(
 			await unlink(spoolPath);
 		},
 		async rollback() {
+			if (cleaned) return;
 			if (!spoolClosed) {
 				spoolClosed = true;
 				await spool.close().catch(() => undefined);
