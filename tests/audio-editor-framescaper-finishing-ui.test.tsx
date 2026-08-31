@@ -74,6 +74,19 @@ test('Framescaper keeps only its motion analysis in Analyze when audio analyzers
 	}, 'framescaper'), []);
 });
 
+test('Framescaper omits capability-backed top-level menus whose project items are absent', () => {
+	assert.deepEqual(filterProductMenus([
+		{ id: 'generate', items: [] },
+		{ id: 'analyze', items: [] },
+	], {
+		audioGenerators: false,
+		audioAnalysis: false,
+		videoGenerators: true,
+		videoStills: true,
+		videoMotionTracking: true,
+	}, 'framescaper'), []);
+});
+
 test('a synchronous finishing commit failure is shown instead of reporting success', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

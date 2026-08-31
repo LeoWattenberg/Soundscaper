@@ -75,5 +75,5 @@ export function filterProductMenus(menus, capabilities, productId) {
 				}).filter((item) => capabilities.audioRecording || item.id !== 'show-arm-controls'),
 			};
 		})
-		.filter((menu) => menu.id !== 'effect' || capabilities.audioEffects || menu.items.length > 0);
+		.filter((menu) => menu.items.length > 0);
 }
