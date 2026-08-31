@@ -46,6 +46,8 @@ test('design-system time conversion rounds and clamps at canonical 48 kHz frame 
 	assert.equal(secondsToFrames(0.5 / 48_000), 0);
 	assert.equal(secondsToFrames(-100), 0);
 	assert.equal(secondsToFrames(10, { minimumFrame: 100, maximumFrame: 200 }), 200);
+	assert.equal(secondsToFrames(Number.MAX_VALUE), Number.MAX_SAFE_INTEGER);
+	assert.equal(secondsToFrames(Number.MAX_SAFE_INTEGER / 48_000), Number.MAX_SAFE_INTEGER);
 	assert.equal(framesToSeconds(48_000), 1);
 	assert.equal(framesToSeconds(1.6), 2 / 48_000);
 	assert.equal(framesToSeconds(-3), 0);

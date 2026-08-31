@@ -15,8 +15,9 @@ export function secondsToFrames(seconds: number, options: FrameConversionOptions
 	const { minimumFrame, maximumFrame } = frameBounds(options);
 	const sampleRate = normalizeSampleRate(options.sampleRate);
 	const value = finiteNumber(seconds, 'seconds');
-	const boundedSeconds = clamp(value, minimumFrame / sampleRate, maximumFrame / sampleRate);
-	return clamp(secondsToSampleFrame(boundedSeconds, sampleRate), minimumFrame, maximumFrame);
+	if (value <= minimumFrame / sampleRate) return minimumFrame;
+	if (value >= maximumFrame / sampleRate) return maximumFrame;
+	return clamp(secondsToSampleFrame(value, sampleRate), minimumFrame, maximumFrame);
 }
 
 /** Convert a possibly fractional frame value to design-system seconds. */
