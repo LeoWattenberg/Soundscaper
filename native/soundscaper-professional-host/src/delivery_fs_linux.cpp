@@ -8,7 +8,6 @@
 #include "delivery_fs_sha256.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -102,17 +101,18 @@ recovery_result inspect_relative_file(int root, const std::string& name) {
 	}
 	const auto identity = regular_file_identity(before);
 	sha256 digest;
-	std::array<std::byte, 1024U * 1024U> buffer{};
+	constexpr std::size_t authentication_buffer_bytes = 1024U * 1024U;
+	auto buffer = std::make_unique<std::byte[]>(authentication_buffer_bytes);
 	std::uint64_t offset = 0;
 	const auto length = static_cast<std::uint64_t>(before.st_size);
 	while (offset < length) {
 		const auto amount = static_cast<std::size_t>(
-			std::min<std::uint64_t>(buffer.size(), length - offset));
-		const auto count = ::pread(file.get(), buffer.data(), amount, static_cast<off_t>(offset));
+			std::min<std::uint64_t>(authentication_buffer_bytes, length - offset));
+		const auto count = ::pread(file.get(), buffer.get(), amount, static_cast<off_t>(offset));
 		if (count < 0) { if (errno == EINTR) continue; fail_errno("final-inspection-failed", "inspect-final-read", true); }
 		if (count == 0) throw protocol_error("final-inspection-failed", "inspect-final-read", true,
 			"The final delivery file returned an early end of file.");
-		digest.update(std::span(buffer).first(static_cast<std::size_t>(count)));
+		digest.update(std::span(buffer.get(), static_cast<std::size_t>(count)));
 		offset += static_cast<std::size_t>(count);
 	}
 	struct stat after {};

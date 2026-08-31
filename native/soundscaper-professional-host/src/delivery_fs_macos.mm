@@ -6,7 +6,6 @@
 #import <Foundation/Foundation.h>
 
 #include <algorithm>
-#include <array>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -143,16 +142,17 @@ std::string decode_reference(const std::string& reference) {
 
 std::string digest_fd(int descriptor, std::uint64_t size) {
 	sha256 digest;
-	std::array<std::byte, 1024U * 1024U> buffer{};
+	constexpr std::size_t authentication_buffer_bytes = 1024U * 1024U;
+	auto buffer = std::make_unique<std::byte[]>(authentication_buffer_bytes);
 	std::uint64_t offset = 0;
 	while (offset < size) {
 		const auto requested = static_cast<std::size_t>(
-			std::min<std::uint64_t>(buffer.size(), size - offset));
-		const auto count = ::pread(descriptor, buffer.data(), requested, static_cast<off_t>(offset));
+			std::min<std::uint64_t>(authentication_buffer_bytes, size - offset));
+		const auto count = ::pread(descriptor, buffer.get(), requested, static_cast<off_t>(offset));
 		if (count < 0) { if (errno == EINTR) continue; fail_errno("staging-read-failed", "recover-read", true); }
 		if (count == 0) throw protocol_error("staging-read-failed", "recover-read", true,
 			"The macOS recovery file returned an early end of file.");
-		digest.update(std::span(buffer).first(static_cast<std::size_t>(count)));
+		digest.update(std::span(buffer.get(), static_cast<std::size_t>(count)));
 		offset += static_cast<std::size_t>(count);
 	}
 	return digest.finish_hex();

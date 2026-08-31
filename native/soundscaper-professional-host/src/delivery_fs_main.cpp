@@ -5,7 +5,6 @@
 #include "delivery_fs_sha256.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -120,17 +119,19 @@ private:
 				"The retained delivery file changed size before authentication.");
 		}
 		sha256 digest;
-		std::array<std::byte, 1024U * 1024U> buffer{};
+		constexpr std::size_t authentication_buffer_bytes = 1024U * 1024U;
+		auto buffer = std::make_unique<std::byte[]>(authentication_buffer_bytes);
 		std::uint64_t offset = 0;
 		while (offset < total_bytes_) {
 			const auto requested_bytes = static_cast<std::size_t>(
-				std::min<std::uint64_t>(buffer.size(), total_bytes_ - offset));
-			const auto count = native_->read_at(offset, std::span(buffer).first(requested_bytes));
+				std::min<std::uint64_t>(authentication_buffer_bytes, total_bytes_ - offset));
+			const auto requested = std::span(buffer.get(), requested_bytes);
+			const auto count = native_->read_at(offset, requested);
 			if (count == 0 || count > requested_bytes) {
 				throw protocol_error("staging-read-failed", std::string(phase) + "-read", true,
 					"The retained delivery file returned a short authenticated read.");
 			}
-			digest.update(std::span(buffer).first(count));
+			digest.update(requested.first(count));
 			offset += count;
 		}
 		if (native_->size() != total_bytes_) {

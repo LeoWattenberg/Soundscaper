@@ -43,9 +43,10 @@ after(async () => {
 });
 
 test('the target-native delivery helper source admits only handle-anchored publication primitives', async () => {
-	const [cmake, protocol, linux, windows, macos, manifest] = await Promise.all([
+	const [cmake, protocol, main, linux, windows, macos, manifest] = await Promise.all([
 		readFile(join(ROOT, 'native/soundscaper-professional-host/CMakeLists.txt'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_protocol.hpp'), 'utf8'),
+		readFile(join(SOURCE_ROOT, 'delivery_fs_main.cpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_linux.cpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_windows.cpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_macos.mm'), 'utf8'),
@@ -54,6 +55,10 @@ test('the target-native delivery helper source admits only handle-anchored publi
 	assert.match(cmake, /add_executable\(soundscaper_delivery_fs/u);
 	assert.match(cmake, /install\(TARGETS soundscaper_delivery_fs RUNTIME DESTINATION \.\)/u);
 	assert.match(protocol, /SDF1/u);
+	for (const source of [main, linux, windows, macos]) {
+		assert.doesNotMatch(source, /std::array<std::byte, 1024U \* 1024U>/u,
+			'delivery authentication scratch space must not consume the Windows process stack reserve');
+	}
 	for (const opcode of ['init = 0x01', 'data = 0x02', 'seal = 0x03', 'publish = 0x04',
 		'abort = 0x05', 'patch_prefix = 0x06', 'recover = 0x07', 'inspect_final = 0x08']) {
 		assert.match(protocol, new RegExp(opcode, 'u'));
@@ -84,6 +89,29 @@ test('the target-native delivery helper source admits only handle-anchored publi
 	assert.deepEqual(parsed.deliveryFilesystem, {
 		payloadName: 'soundscaper_delivery_fs', protocol: 'SDF1', license: 'AGPL-3.0-only',
 	});
+});
+
+test('SDF1 sealing and publication fit the Windows one-MiB process stack reserve', {
+	skip: process.platform !== 'linux',
+}, async () => {
+	const root = await mkdtemp(join(temporary, 'stack-reserve-'));
+	const bytes = Buffer.from('authenticated delivery bytes');
+	const input = Buffer.concat([
+		requestFrame(REQUEST.init, 1, json({
+			schemaVersion: 1, sessionId: 'aa'.repeat(24), rootPath: root, finalName: 'mix.wav',
+			expectedRootIdentity: await rootIdentity(root),
+			limits: { maxBytes: bytes.byteLength, maxChunkBytes: 1024, finalPrefixByteLength: 0 },
+		})),
+		requestFrame(REQUEST.data, 2, bytes),
+		requestFrame(REQUEST.seal, 3, json({ byteLength: bytes.byteLength })),
+		requestFrame(REQUEST.publish, 4, json({ journalId: 'bb'.repeat(24) })),
+	]);
+	const result = spawnSync('bash', [
+		'-c', 'ulimit -s 1024; exec "$1"', 'soundscaper-delivery-fs-stack-reserve', executable,
+	], { cwd: ROOT, encoding: 'buffer', input });
+	assert.equal(result.status, 0, Buffer.concat([result.stdout, result.stderr]).toString('utf8'));
+	assert.deepEqual(await readFile(join(root, 'mix.wav')), bytes);
+	assert.deepEqual(await readdir(root), ['mix.wav']);
 });
 
 test('linux SDF1 keeps its unnamed handle through patched sealing and journal-authorized publication', {
@@ -238,6 +266,16 @@ async function rootIdentity(path) {
 function parseJson(frame, opcode) {
 	assert.equal(frame.opcode, opcode);
 	return JSON.parse(frame.payload.toString('utf8'));
+}
+
+function requestFrame(operation, requestId, payload) {
+	const header = Buffer.alloc(16);
+	MAGIC.copy(header);
+	header[4] = 1;
+	header[5] = operation;
+	header.writeUInt32BE(requestId, 8);
+	header.writeUInt32BE(payload.byteLength, 12);
+	return Buffer.concat([header, payload]);
 }
 
 function json(value) { return Buffer.from(JSON.stringify(value)); }
