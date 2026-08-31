@@ -83,6 +83,26 @@ test('RIFF import creates fresh primary-sequence markers and positive regions wi
 	assert.equal(result.report.items.length, 0);
 });
 
+test('RIFF import keeps truncated annotation names canonical', () => {
+	const prefix = 'a'.repeat(4_095);
+	let nextId = 0;
+	const result = createRiffAnnotationImport(annotationProject([]), [{
+		id: 1, sampleOffset: 0, sampleLength: 0, label: `${prefix} b`, note: '',
+	}, {
+		id: 2, sampleOffset: 1, sampleLength: 0, label: `${prefix}\ud83d\ude00`, note: '',
+	}], {
+		sourceSampleRate: 48_000,
+		timelineStartFrame: 0,
+		idFactory: () => `annotation-${String(++nextId)}`,
+	});
+
+	assert.deepEqual(result.annotations.map(({ name }) => name), [prefix, prefix]);
+	assert.deepEqual(result.report.items.map(({ code }) => code), [
+		'RIFF_ANNOTATION_NAME_NORMALIZED',
+		'RIFF_ANNOTATION_NAME_NORMALIZED',
+	]);
+});
+
 test('RIFF annotation interchange retains the inherited annotation authority on exact Soundscaper v1', () => {
 	const current = annotationProject([
 		annotation({ id: 'baseline-marker', kind: 'marker', anchor: 'sample', positionFrame: 120 }),

@@ -467,7 +467,9 @@ function labelNote(label: DataRecord): string {
 
 function canonicalAnnotationName(value: string): string {
 	return value.replace(INVALID_ANNOTATION_NAME_TEXT, ' ').trim()
-		.slice(0, AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumNameCodeUnits);
+		.slice(0, AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumNameCodeUnits)
+		.replace(/[\ud800-\udbff]$/u, '')
+		.trim();
 }
 
 function unrepresentableOffset(
