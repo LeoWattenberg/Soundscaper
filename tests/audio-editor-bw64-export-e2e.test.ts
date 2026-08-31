@@ -148,8 +148,8 @@ test('extensible 20-valid-bit ADM survives decode, project provenance, and 20-bi
 	});
 	const outputBlob = blobOf(outputBytes);
 	const output = await inspectWavBlobPcm(outputBlob);
-	assert.equal(output.sampleFormat, 'int20');
-	assert.equal(output.bitDepth, 20);
+	assert.equal(output.sampleFormat, 'int24');
+	assert.equal(output.bitDepth, 24);
 	assert.equal(output.validBitsPerSample, 20);
 	assert.equal(output.adm?.valid, true);
 	const roundTripped: Float32Array[][] = [];

@@ -237,6 +237,7 @@ function prepareWavLayout({
 	}
 	if (broadcast && normalizedChannels > 32) throw new RangeError('Broadcast WAV supports at most 32 channels.');
 	const bytesPerSample = Math.ceil(normalizedDepth / 8);
+	const containerBitDepth = bytesPerSample * 8;
 	if (!Number.isSafeInteger(normalizedRate) || normalizedRate > UINT32_MAX) {
 		throw new RangeError('WAV sampleRate must fit the unsigned 32-bit format field.');
 	}
@@ -276,7 +277,8 @@ function prepareWavLayout({
 		? 'bw64'
 		: classicRiffSize <= BigInt(UINT32_MAX) ? 'riff' : 'rf64';
 	const dataPadSize = classicDataPadSize;
-	const extensible = broadcast && normalizedChannels > 2 && container !== 'bw64';
+	const extensible = normalizedDepth === 20
+		|| broadcast && normalizedChannels > 2 && container !== 'bw64';
 	const formatChunkByteLength = extensible ? 48 : 24;
 	const headerByteLength = 12 + (container === 'riff' ? 0 : 36)
 		+ bextChunk.byteLength + formatChunkByteLength + preDataChunk.byteLength + 8;
@@ -299,6 +301,7 @@ function prepareWavLayout({
 		channelCount: normalizedChannels,
 		totalFrames: normalizedFrames,
 		bitDepth: normalizedDepth,
+		containerBitDepth,
 		float: Boolean(float),
 		bytesPerSample,
 		blockAlign,
@@ -344,7 +347,7 @@ function createWavHeaderFromLayout(layout) {
 	view.setUint32(formatOffset + 12, layout.sampleRate, true);
 	view.setUint32(formatOffset + 16, layout.byteRate, true);
 	view.setUint16(formatOffset + 20, layout.blockAlign, true);
-	view.setUint16(formatOffset + 22, layout.bitDepth, true);
+	view.setUint16(formatOffset + 22, layout.containerBitDepth, true);
 	if (layout.extensible) {
 		view.setUint16(formatOffset + 24, 22, true);
 		view.setUint16(formatOffset + 26, layout.bitDepth, true);

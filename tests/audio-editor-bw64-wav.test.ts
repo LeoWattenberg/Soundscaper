@@ -88,7 +88,7 @@ test('BW64 streaming places caller chunks around PCM and before generated metada
 	assert.equal(result.metadataBytes, axml.byteLength + emitted[4].chunk.byteLength);
 });
 
-test('BW64 encodes 20-bit PCM MSB-aligned in three-byte sample words', () => {
+test('BW64 encodes 20-bit precision MSB-aligned in 24-bit sample containers', () => {
 	const encoded = encodeWav([Float32Array.of(-1, 0, (2 ** 19 - 1) / 2 ** 19)], {
 		container: 'bw64',
 		sampleRate: 48_000,
@@ -99,8 +99,10 @@ test('BW64 encodes 20-bit PCM MSB-aligned in three-byte sample words', () => {
 	const dataOffset = findChunk(encoded, 'data');
 	const view = dataView(encoded);
 
+	assert.equal(view.getUint16(formatOffset + 8, true), 0xfffe);
 	assert.equal(view.getUint16(formatOffset + 20, true), 3);
-	assert.equal(view.getUint16(formatOffset + 22, true), 20);
+	assert.equal(view.getUint16(formatOffset + 22, true), 24);
+	assert.equal(view.getUint16(formatOffset + 26, true), 20);
 	assert.equal(view.getUint32(formatOffset + 16, true), 48_000 * 3);
 	assert.deepEqual([...encoded.subarray(dataOffset + 8, dataOffset + 17)], [
 		0x00, 0x00, 0x80,
