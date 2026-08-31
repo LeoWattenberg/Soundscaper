@@ -17,7 +17,7 @@ import { initializeFramescaperDesktopProjectLibraryLifecycleDatabase } from './f
 const PRODUCTION_LEASE_TTL_MS = 30_000;
 const PRODUCTION_RENEW_INTERVAL_MS = 10_000;
 
-export interface FramescaperDesktopProjectLibraryQualification {
+export interface FramescaperDesktopProjectLibraryTestControl {
 	readonly leaseTtlMs: number;
 	readonly renewIntervalMs: number;
 	readonly checkpoint: ((phase: FramescaperDesktopProjectLibraryPublicationCheckpoint) => void) | null;
@@ -42,13 +42,13 @@ interface Lease {
 
 interface WriterOptions {
 	readonly onLeaseLost: (error: unknown) => void;
-	readonly qualification: Readonly<FramescaperDesktopProjectLibraryQualification> | null;
+	readonly testControl: Readonly<FramescaperDesktopProjectLibraryTestControl> | null;
 }
 
 export function createFramescaperDesktopProjectLibraryExtension(
 	options: Readonly<WriterOptions>,
 ): FramescaperDesktopProjectLibraryExactGenerationExtension {
-	const timing = timingOptions(options.qualification);
+	const timing = timingOptions(options.testControl);
 	return Object.freeze({
 		async start(context: Parameters<FramescaperDesktopProjectLibraryExactGenerationExtension['start']>[0]) {
 			initializeFramescaperDesktopProjectLibraryLifecycleDatabase(context.database);
@@ -57,7 +57,7 @@ export function createFramescaperDesktopProjectLibraryExtension(
 				onLeaseLost: options.onLeaseLost,
 				leaseTtlMs: timing.leaseTtlMs,
 				renewIntervalMs: timing.renewIntervalMs,
-				checkpoint: options.qualification?.checkpoint ?? null,
+				checkpoint: options.testControl?.checkpoint ?? null,
 			});
 			try {
 				await writer.recover();
@@ -399,13 +399,13 @@ function acquireLease(
 	}
 }
 
-function timingOptions(qualification: Readonly<FramescaperDesktopProjectLibraryQualification> | null) {
-	if (!qualification) return Object.freeze({
+function timingOptions(testControl: Readonly<FramescaperDesktopProjectLibraryTestControl> | null) {
+	if (!testControl) return Object.freeze({
 		leaseTtlMs: PRODUCTION_LEASE_TTL_MS, renewIntervalMs: PRODUCTION_RENEW_INTERVAL_MS,
 	});
-	const leaseTtlMs = lowerOnly(qualification.leaseTtlMs, PRODUCTION_LEASE_TTL_MS, 'lease TTL');
+	const leaseTtlMs = lowerOnly(testControl.leaseTtlMs, PRODUCTION_LEASE_TTL_MS, 'lease TTL');
 	const renewIntervalMs = lowerOnly(
-		qualification.renewIntervalMs, PRODUCTION_RENEW_INTERVAL_MS, 'renewal interval',
+		testControl.renewIntervalMs, PRODUCTION_RENEW_INTERVAL_MS, 'renewal interval',
 	);
 	if (renewIntervalMs >= leaseTtlMs) throw new RangeError('Framescaper 1.0 renewal must precede lease expiry');
 	return Object.freeze({ leaseTtlMs, renewIntervalMs });
@@ -413,7 +413,7 @@ function timingOptions(qualification: Readonly<FramescaperDesktopProjectLibraryQ
 
 function lowerOnly(value: unknown, ceiling: number, label: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > ceiling) {
-		throw new RangeError(`Framescaper 1.0 qualification ${label} is outside its lower-only range`);
+		throw new RangeError(`Framescaper 1.0 test-control ${label} is outside its lower-only range`);
 	}
 	return Number(value);
 }

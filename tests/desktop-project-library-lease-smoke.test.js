@@ -142,10 +142,10 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 	});
 
 	// The packaged application publishes while it boots — its editor autosaves
-	// the project it opens — so a 'prepared' phase arrives before the matrix has
-	// even been told this process is ready. Crashing there strands the matrix
+	// the project it opens — so a 'prepared' phase arrives before the smoke has
+	// even been told this process is ready. Crashing there strands the smoke
 	// waiting on a ready signal main can no longer send.
-	session.leaseQualification.checkpoint('prepared');
+	session.leaseTestControl.checkpoint('prepared');
 	await assert.rejects(access(control.result), { code: 'ENOENT' });
 	await assert.rejects(access(control.ready), { code: 'ENOENT' });
 	assert.equal(crashes, 0);
@@ -153,7 +153,7 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 	let checkpointsDuringPlan = 0;
 	const pending = session.rendererReady({
 		async executeJavaScript() {
-			session.leaseQualification.checkpoint('prepared');
+			session.leaseTestControl.checkpoint('prepared');
 			checkpointsDuringPlan += 1;
 			return { status: 'committed', document };
 		},
@@ -189,7 +189,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 
 	const pending = session.rendererReady({
 		async executeJavaScript() {
-			session.leaseQualification.checkpoint('prepared');
+			session.leaseTestControl.checkpoint('prepared');
 			return { status: 'committed', document };
 		},
 	});
@@ -203,7 +203,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 	// staging a second crash.
 	const recovered = await session.rendererReady({
 		async executeJavaScript() {
-			session.leaseQualification.checkpoint('prepared');
+			session.leaseTestControl.checkpoint('prepared');
 			return { status: 'committed', document };
 		},
 	});
@@ -234,7 +234,7 @@ test('the staged crash composes with one cleanup-gated application reload', asyn
 	};
 	webContents.executeJavaScript = async () => {
 		if (crashes === 0) {
-			session.leaseQualification.checkpoint('prepared');
+			session.leaseTestControl.checkpoint('prepared');
 			throw new Error('The staged renderer exited');
 		}
 		return { status: 'committed', document };

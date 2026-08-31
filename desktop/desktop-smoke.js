@@ -390,7 +390,7 @@ export function createDesktopSmokeProbe(options) {
 		),
 		observeProjectDescriptor,
 		professionalNativeUtilitySmoke: runSoundscaperProfessionalNativeUtilitySmoke,
-		projectLibraryLeaseQualification: () => leaseSession?.leaseQualification ?? null,
+		projectLibraryLeaseTestControl: () => leaseSession?.leaseTestControl ?? null,
 		rendererReady,
 		resolveSavePath,
 		resolveOpenPaths,

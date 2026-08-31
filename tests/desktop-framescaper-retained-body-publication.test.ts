@@ -35,7 +35,7 @@ test('main admits an unchanged verified body without receiving its bytes again',
 	const main = await FramescaperDesktopProjectLibraryMain.start({
 		appDataPath: root,
 		owner: { product: 'framescaper', processId: 973, instanceId: 'retained-body' },
-		handshake, onLeaseLost: () => undefined, qualification: null,
+		handshake, onLeaseLost: () => undefined, testControl: null,
 	});
 	context.after(() => main.close());
 	const session = main.openSession(handshake);
@@ -89,7 +89,7 @@ test('renderer neither reloads nor uploads a body retained by main', async (cont
 	const main = await FramescaperDesktopProjectLibraryMain.start({
 		appDataPath: root,
 		owner: { product: 'framescaper', processId: 974, instanceId: 'retained-renderer-body' },
-		handshake, onLeaseLost: () => undefined, qualification: null,
+		handshake, onLeaseLost: () => undefined, testControl: null,
 	});
 	context.after(() => main.close());
 	const session = main.openSession(handshake);

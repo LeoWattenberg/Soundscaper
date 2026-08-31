@@ -71,7 +71,7 @@ test('Soundscaper desktop startup reclaims state left outside durable projects',
 		owner: { product: 'soundscaper', processId: 1, instanceId: 'native-state-gc' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	})
 	context.after(() => main.close())
 

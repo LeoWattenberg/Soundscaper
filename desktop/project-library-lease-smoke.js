@@ -52,13 +52,13 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 			attachedWindow = window;
 			// Production main-window recovery owns the renderer-loss cleanup barrier
 			// and its one trusted reload. The smoke only retains the window so its
-			// qualification checkpoint can stage the abrupt process loss.
+			// test checkpoint can stage the abrupt process loss.
 		},
-		leaseQualification: Object.freeze({
+		leaseTestControl: Object.freeze({
 			leaseTtlMs: admitted.leaseTtlMs,
 			renewIntervalMs: Math.max(100, Math.floor(admitted.leaseTtlMs / 3)),
 		// The baseline journal checkpoint is synchronous, so the phase is recorded with
-			// synchronous writes and the thread then parks until the matrix kills the
+			// synchronous writes and the thread then parks until the smoke kills the
 			// process. Parking rather than exiting leaves the journal and the
 			// unexpired lease exactly as a crash would.
 			//
@@ -66,7 +66,7 @@ export function createDesktopProjectLibraryLeaseSmokeSession({
 			// publishes while it boots — it autosaves the project it opens — so the
 			// first 'prepared' phase this process reaches belongs to startup, not to
 			// the workflow. Crashing there wrote the checkpoint and parked main
-			// before the renderer had signalled ready, so the matrix waited out its
+			// before the renderer had signalled ready, so the smoke waited out its
 			// full control timeout on a ready file main could no longer send.
 			checkpoint: (phase) => {
 				const target = admitted.action === 'crash-prepared' || admitted.action === 'renderer-loss'

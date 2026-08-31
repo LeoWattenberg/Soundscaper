@@ -24,13 +24,13 @@ import { framescaperDesktopExactMediaPath } from './project-library-exact-genera
 import { materializeProjectLibraryNativeBody } from './project-library-native-body-materialization.ts';
 import {
 	createFramescaperDesktopProjectLibraryExtension,
-	type FramescaperDesktopProjectLibraryQualification,
+	type FramescaperDesktopProjectLibraryTestControl,
 	type FramescaperDesktopProjectLibraryWriterSnapshot,
 } from './framescaper-project-library-writer.ts';
 import { framescaperDesktopProjectLibraryClosedRecord as closedRecord } from './framescaper-project-library-values.ts';
 
-const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'onLeaseLost', 'qualification'] as const;
-const QUALIFICATION_FIELDS = ['leaseTtlMs', 'renewIntervalMs', 'checkpoint'] as const;
+const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'onLeaseLost', 'testControl'] as const;
+const TEST_CONTROL_FIELDS = ['leaseTtlMs', 'renewIntervalMs', 'checkpoint'] as const;
 
 const CONFIGURATION = Object.freeze({
 	maximumBodies: 5_118,
@@ -75,7 +75,7 @@ export class FramescaperDesktopProjectLibraryMain {
 		if (typeof options.onLeaseLost !== 'function') {
 			throw new TypeError('Framescaper desktop 1.0 onLeaseLost must be a function');
 		}
-		const qualification = validateQualification(options.qualification);
+		const testControl = validateTestControl(options.testControl);
 		const owner = validateFramescaperDesktopProjectLibraryOwner(options.owner);
 		return new FramescaperDesktopProjectLibraryMain(
 			await FramescaperDesktopProjectLibraryExactGenerationMain.start(CONFIGURATION, {
@@ -84,7 +84,7 @@ export class FramescaperDesktopProjectLibraryMain {
 				handshake: options.handshake,
 			}, createFramescaperDesktopProjectLibraryExtension({
 				onLeaseLost: options.onLeaseLost as (error: unknown) => void,
-				qualification,
+				testControl,
 			})), CONFIGURATION.createPaths(options.appDataPath as string),
 		);
 	}
@@ -117,17 +117,17 @@ export class FramescaperDesktopProjectLibraryMain {
 	close(): Promise<void> { return this.#core.close(); }
 }
 
-function validateQualification(
+function validateTestControl(
 	value: unknown,
-): Readonly<FramescaperDesktopProjectLibraryQualification> | null {
+): Readonly<FramescaperDesktopProjectLibraryTestControl> | null {
 	if (value === null) return null;
-	const record = closedRecord(value, QUALIFICATION_FIELDS, 'Framescaper desktop 1.0 qualification');
+	const record = closedRecord(value, TEST_CONTROL_FIELDS, 'Framescaper desktop 1.0 test control');
 	if (record.checkpoint !== null && typeof record.checkpoint !== 'function') {
-		throw new TypeError('Framescaper desktop 1.0 qualification checkpoints are invalid');
+		throw new TypeError('Framescaper desktop 1.0 test-control checkpoints are invalid');
 	}
 	return Object.freeze({
 		leaseTtlMs: record.leaseTtlMs as number,
 		renewIntervalMs: record.renewIntervalMs as number,
-		checkpoint: record.checkpoint as FramescaperDesktopProjectLibraryQualification['checkpoint'],
+		checkpoint: record.checkpoint as FramescaperDesktopProjectLibraryTestControl['checkpoint'],
 	});
 }

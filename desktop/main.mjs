@@ -189,7 +189,7 @@ async function startApplication() {
 		}),
 		processId: process.pid,
 		instanceId: randomUUID(),
-		leaseQualification: desktopSmokeProbe.projectLibraryLeaseQualification(),
+		leaseTestControl: desktopSmokeProbe.projectLibraryLeaseTestControl(),
 		onLeaseLost: (error) => {
 			console.error('Shared desktop project library lease was lost:', cleanError(error));
 			void exitApplication(1);

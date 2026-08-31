@@ -35,7 +35,7 @@ test('Framescaper desktop conditional saves publish and compare against main aut
 		owner: { product: 'framescaper', processId: 972, instanceId: 'conditional-publication' },
 		handshake,
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	});
 	const session = main.openSession(handshake);
 	const store = createFramescaperProjectStore(FRAMESCAPER_PROJECT_RUNTIME_PROFILE, {

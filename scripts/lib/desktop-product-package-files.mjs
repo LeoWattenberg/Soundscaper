@@ -309,10 +309,10 @@ export function soundscaperProjectRuntimeSource(sourceValue) {
 		"\n\tif (productId === 'soundscaper') {",
 		'Framescaper project runtime branch');
 	source = replaceRange(source,
-		'\nfunction framescaperQualification(',
+		'\nfunction framescaperTestControl(',
 		'\nasync function createExactSmokeEvidence',
 		'\nasync function createExactSmokeEvidence',
-		'Framescaper project qualification');
+		'Framescaper project test control');
 	return source
 		.replace("\t\tif (this.#productId !== 'framescaper'", "\t\tif (true")
 		.replace("if (value !== 'soundscaper' && value !== 'framescaper')", "if (value !== 'soundscaper')");

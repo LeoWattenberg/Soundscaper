@@ -45,8 +45,8 @@ import {
 	type SoundscaperNativePluginStateBodyRecord,
 } from './soundscaper-native-plugin-state-store.ts';
 
-const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'onLeaseLost', 'qualification'] as const;
-const QUALIFICATION_FIELDS = ['leaseTtlMs', 'renewIntervalMs', 'checkpoint'] as const;
+const START_FIELDS = ['appDataPath', 'owner', 'handshake', 'onLeaseLost', 'testControl'] as const;
+const TEST_CONTROL_FIELDS = ['leaseTtlMs', 'renewIntervalMs', 'checkpoint'] as const;
 const LEASE_TTL_MS = 30_000;
 const RENEW_INTERVAL_MS = 10_000;
 
@@ -66,12 +66,11 @@ export interface SoundscaperDesktopProjectLibraryMainSnapshot {
 }
 
 /**
- * Lease timings and journal checkpoints the packaged lease matrix needs to
- * observe concurrency within a bounded run. Both timings are lower-only, so a
- * qualification run can only tighten the fence it is measuring, never relax it,
- * and production passes null.
+ * Lease timings and journal checkpoints used by bounded crash/concurrency
+ * tests. Both timings are lower-only, so a test can only tighten the fence it
+ * is measuring, never relax it, and production passes null.
  */
-export interface SoundscaperDesktopProjectLibraryQualification {
+export interface SoundscaperDesktopProjectLibraryTestControl {
 	readonly leaseTtlMs: number;
 	readonly renewIntervalMs: number;
 	readonly checkpoint: ((phase: SoundscaperDesktopProjectLibraryPublicationCheckpoint) => void) | null;
@@ -82,7 +81,7 @@ interface StartOptions {
 	readonly owner: SoundscaperDesktopProjectLibraryOwner;
 	readonly handshake: SoundscaperDesktopProjectLibraryHandshake;
 	readonly onLeaseLost: (error: unknown) => void;
-	readonly qualification: Readonly<SoundscaperDesktopProjectLibraryQualification> | null;
+	readonly testControl: Readonly<SoundscaperDesktopProjectLibraryTestControl> | null;
 }
 
 /** Product-owned baseline composition selected only by the packaged Soundscaper profile. */
@@ -145,7 +144,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 
 	static async start(value: unknown): Promise<SoundscaperDesktopProjectLibraryMain> {
 		const options = validateStartOptions(value);
-		const leaseTtlMs = options.qualification?.leaseTtlMs ?? LEASE_TTL_MS;
+		const leaseTtlMs = options.testControl?.leaseTtlMs ?? LEASE_TTL_MS;
 		const paths = createSoundscaperDesktopProjectLibraryPaths(options.appDataPath);
 		await createPrivateLibrary(paths);
 		const database = new DatabaseSync(paths.databasePath, {
@@ -168,13 +167,13 @@ export class SoundscaperDesktopProjectLibraryMain {
 			catalog = SoundscaperDesktopProjectLibraryCatalog.create({
 				database,
 				owner: options.owner,
-				...(options.qualification?.checkpoint ? { checkpoint: options.qualification.checkpoint } : {}),
+				...(options.testControl?.checkpoint ? { checkpoint: options.testControl.checkpoint } : {}),
 			});
 			catalog.acceptHandshake(options.handshake);
 			const host = SoundscaperDesktopProjectLibraryPublicationHost.create({
 				database,
 				appDataPath: options.appDataPath,
-				...(options.qualification?.checkpoint ? { checkpoint: options.qualification.checkpoint } : {}),
+				...(options.testControl?.checkpoint ? { checkpoint: options.testControl.checkpoint } : {}),
 			});
 			host.acceptHandshake(options.handshake);
 			// A crashed owner leaves its lease unexpired, so wait it out rather than
@@ -212,7 +211,7 @@ export class SoundscaperDesktopProjectLibraryMain {
 					tookOverStaleLease: lease.tookOverStaleLease,
 					recovery,
 				}),
-				options.qualification?.renewIntervalMs ?? RENEW_INTERVAL_MS,
+				options.testControl?.renewIntervalMs ?? RENEW_INTERVAL_MS,
 				leaseTtlMs,
 			);
 		} catch (error) {
@@ -317,7 +316,7 @@ async function recoverPending(
 	if (publicationPending) {
 		// The publication journal is finished here, so this is the only place that
 		// can say it happened. Discarding the outcome reported the restart as clean
-		// and made a recovery the packaged lease matrix asks for unprovable. The
+		// and made the recovery exercised by the packaged smoke unobservable. The
 		// journal does not record the metadata revision it superseded, so only the
 		// revision it published is known.
 		const publication = await host.recover({ lease });
@@ -344,28 +343,28 @@ function validateStartOptions(value: unknown): Readonly<StartOptions> {
 		owner: validateSoundscaperDesktopProjectLibraryOwner(record.owner),
 		handshake: validateSoundscaperDesktopProjectLibraryHandshake(record.handshake),
 		onLeaseLost: record.onLeaseLost as (error: unknown) => void,
-		qualification: validateQualification(record.qualification),
+		testControl: validateTestControl(record.testControl),
 	});
 }
 
-function validateQualification(
+function validateTestControl(
 	value: unknown,
-): Readonly<SoundscaperDesktopProjectLibraryQualification> | null {
+): Readonly<SoundscaperDesktopProjectLibraryTestControl> | null {
 	if (value === null) return null;
-	const record = snapshotClosedRecord(value, QUALIFICATION_FIELDS, 'Soundscaper desktop baseline qualification');
+	const record = snapshotClosedRecord(value, TEST_CONTROL_FIELDS, 'Soundscaper desktop baseline test control');
 	if (record.checkpoint !== null && typeof record.checkpoint !== 'function') {
-		throw new TypeError('Soundscaper desktop baseline qualification checkpoint must be a function or null');
+		throw new TypeError('Soundscaper desktop baseline test-control checkpoint must be a function or null');
 	}
 	return Object.freeze({
 		leaseTtlMs: lowerOnlyMilliseconds(record.leaseTtlMs, LEASE_TTL_MS, 'lease TTL'),
 		renewIntervalMs: lowerOnlyMilliseconds(record.renewIntervalMs, RENEW_INTERVAL_MS, 'lease renewal interval'),
-		checkpoint: record.checkpoint as SoundscaperDesktopProjectLibraryQualification['checkpoint'],
+		checkpoint: record.checkpoint as SoundscaperDesktopProjectLibraryTestControl['checkpoint'],
 	});
 }
 
 /**
- * A qualification run may only tighten a lease timing. Allowing a longer TTL
- * would let the matrix report a fence the shipped product does not enforce.
+ * A test may only tighten a lease timing. Allowing a longer TTL would exercise
+ * a fence the shipped product does not enforce.
  */
 function lowerOnlyMilliseconds(value: unknown, ceiling: number, name: string): number {
 	return admitLowerOnly(value, {
@@ -373,7 +372,7 @@ function lowerOnlyMilliseconds(value: unknown, ceiling: number, name: string): n
 		floor: 1,
 		absent: 'refuse',
 		refuse: () => new RangeError(
-			`Soundscaper desktop baseline qualification ${name} must be an integer from 1 through ${ceiling} milliseconds`,
+			`Soundscaper desktop baseline test-control ${name} must be an integer from 1 through ${ceiling} milliseconds`,
 		),
 	});
 }

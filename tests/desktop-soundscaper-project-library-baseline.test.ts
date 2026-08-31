@@ -174,7 +174,7 @@ test('Soundscaper main reports a writer-lease loss exactly once', async (context
 		owner: { product: 'soundscaper', processId: 931, instanceId: 'lease-loss' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: (error: unknown) => { losses.push(error) },
-		qualification: { leaseTtlMs: 1_000, renewIntervalMs: 1, checkpoint: null },
+		testControl: { leaseTtlMs: 1_000, renewIntervalMs: 1, checkpoint: null },
 	})
 	const database = new DatabaseSync(createSoundscaperDesktopProjectLibraryPaths(root).databasePath)
 	database.prepare('UPDATE library_lease SET lease_id = ? WHERE singleton = 1').run('f'.repeat(48))
@@ -229,7 +229,7 @@ setTimeout(() => {
 		owner: { product: 'soundscaper', processId: 933, instanceId: 'startup-contention' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: { leaseTtlMs: 1_000, renewIntervalMs: 500, checkpoint: null },
+		testControl: { leaseTtlMs: 1_000, renewIntervalMs: 500, checkpoint: null },
 	})
 	await main.close()
 	assert.equal(await lockerExit, 0)
@@ -258,7 +258,7 @@ test('Soundscaper baseline never opens or changes either pre-release desktop lib
 		owner: { product: 'soundscaper', processId: 932, instanceId: 'baseline-isolation' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	})
 	await main.close()
 

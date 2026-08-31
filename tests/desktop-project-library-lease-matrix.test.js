@@ -69,7 +69,7 @@ test('lease-matrix cleanup tolerates a child that failed before receiving a pid'
 	assert.equal(children.size, 0);
 });
 
-test('current packaged lease qualification admits both product-family v1 baselines', () => {
+test('current packaged lease smoke exercises both product-family v1 baselines', () => {
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_LEASE_WORKFLOWS, EXPECTED_WORKFLOWS);
 	assert.deepEqual(DESKTOP_PROJECT_LIBRARY_HISTORICAL_LEASE_WORKFLOWS, HISTORICAL_WORKFLOWS);
 	const controlRoot = resolve('test-lease-control');
@@ -83,7 +83,7 @@ test('current packaged lease qualification admits both product-family v1 baselin
 		action: 'commit',
 		control,
 		productId: 'soundscaper',
-		projectId: 'qualified-project',
+		projectId: 'lease-smoke-project',
 		request: { document: '{}', expectedRevision: null },
 	});
 	const decoded = decodeDesktopProjectLibraryLeaseSmokePlan(
@@ -107,8 +107,8 @@ test('current packaged lease qualification admits both product-family v1 baselin
 	], ['soundscaper', 'framescaper']);
 });
 
-// The closure register splits release-qualification evidence from automated test
-// activation: platformSet records what milestone 2 historically qualified, while
+// The closure register separates historical platform coverage from automated test
+// activation: platformSet records what milestone 2 historically exercised, while
 // testActivation records what CI must actually run. The packaged lease job has to
 // be exactly testActivation.desktopTargets — no fewer, so an activated target
 // cannot quietly stop running, and no more, so a retired target cannot reappear.
@@ -295,7 +295,7 @@ test('a workflow that advertises a managed-media body fails the source-free matr
 	assert.deepEqual(record.losingManagedMediaBodyCounts, [0, 0]);
 });
 
-test('the desktop smoke probe carries the product-neutral lease qualification seam', () => {
+test('the desktop smoke probe carries the product-neutral lease test control', () => {
 	const probe = createDesktopSmokeProbe({
 		argv: ['electron', '.'],
 		appName: 'Soundscaper',
@@ -303,7 +303,7 @@ test('the desktop smoke probe carries the product-neutral lease qualification se
 		productId: 'soundscaper',
 		exit: () => undefined,
 	});
-	assert.equal(probe.projectLibraryLeaseQualification(), null);
+	assert.equal(probe.projectLibraryLeaseTestControl(), null);
 	assert.equal(probe.projectLibraryHostOptions, undefined);
 });
 

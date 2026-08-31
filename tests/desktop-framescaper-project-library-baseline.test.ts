@@ -71,7 +71,7 @@ test('Framescaper desktop baseline leaves every pre-release library root untouch
 		owner: { product: 'framescaper', processId: 933, instanceId: 'baseline-isolation' },
 		handshake: createFramescaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	});
 	await main.close();
 	for (const [scope, userVersion] of retired) {

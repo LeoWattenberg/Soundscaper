@@ -33,7 +33,7 @@ test('the lease renderer smoke creates, observes, advances, and reports conflict
 		owner: { product: 'soundscaper', processId: 921, instanceId: 'lease-renderer-main' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	});
 	context.after(() => main.close());
 	const session = main.openSession(createSoundscaperDesktopProjectLibraryHandshake());
@@ -98,7 +98,7 @@ test('the lease renderer smoke refuses a create whose destination already exists
 		owner: { product: 'soundscaper', processId: 922, instanceId: 'lease-renderer-create' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	});
 	context.after(() => main.close());
 	const session = main.openSession(createSoundscaperDesktopProjectLibraryHandshake());
@@ -129,7 +129,7 @@ test('the lease renderer smoke publishes a contender against the base it was han
 		owner: { product: 'soundscaper', processId: 923, instanceId: 'lease-renderer-contend' },
 		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	});
 	context.after(() => main.close());
 	const session = main.openSession(createSoundscaperDesktopProjectLibraryHandshake());
@@ -195,7 +195,7 @@ test('the product-neutral renderer smoke publishes through the Framescaper v1 br
 		owner: { product: 'framescaper', processId: 924, instanceId: 'framescaper-v1-lease-renderer' },
 		handshake,
 		onLeaseLost: () => undefined,
-		qualification: null,
+		testControl: null,
 	});
 	context.after(() => main.close());
 	const session = main.openSession(handshake);

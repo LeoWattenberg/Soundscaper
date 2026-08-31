@@ -3,7 +3,7 @@
 import { isAbsolute, resolve } from 'node:path';
 
 const START_FIELDS = Object.freeze([
-	'productId', 'appDataPath', 'processId', 'instanceId', 'onLeaseLost', 'leaseQualification',
+	'productId', 'appDataPath', 'processId', 'instanceId', 'onLeaseLost', 'leaseTestControl',
 ]);
 const BRIDGE_FIELDS = Object.freeze([
 	'desktopRoot', 'handle', 'ownerFor', 'removeHandler', 'session',
@@ -38,7 +38,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			owner,
 			handshake: createFramescaperDesktopProjectLibraryHandshake(),
 			onLeaseLost: options.onLeaseLost,
-			qualification: framescaperQualification(options.leaseQualification),
+			testControl: framescaperTestControl(options.leaseTestControl),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
@@ -65,7 +65,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			owner,
 			handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 			onLeaseLost: options.onLeaseLost,
-			qualification: soundscaperQualification(options.leaseQualification),
+			testControl: soundscaperTestControl(options.leaseTestControl),
 		});
 		return new DesktopProjectLibraryProductRuntime({
 			productId,
@@ -82,7 +82,7 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 	throw new RangeError(`Unsupported desktop project-library product ${productId}`);
 }
 
-function soundscaperQualification(value) {
+function soundscaperTestControl(value) {
 	if (value === null) return null;
 	return Object.freeze({
 		leaseTtlMs: value.leaseTtlMs,
@@ -91,7 +91,7 @@ function soundscaperQualification(value) {
 	});
 }
 
-function framescaperQualification(value) {
+function framescaperTestControl(value) {
 	if (value === null) return null;
 	return Object.freeze({
 		leaseTtlMs: value.leaseTtlMs,
