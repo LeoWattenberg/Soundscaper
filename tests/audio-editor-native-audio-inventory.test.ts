@@ -116,5 +116,17 @@ test('a malformed or unbounded inventory is refused outright', () => {
 	assert.throws(() => adaptNativeAudioInventory({ ...INVENTORY, devices: 'many' }), /bounded device list/u);
 	assert.throws(() => adapt(Array.from({ length: 129 }, (_unused, index) => ({ handle: `hw:${index}`, label: '', direction: 'input' }))),
 		/bounded device list/u);
-	assert.throws(() => adapt([{ handle: 'hw:0', label: 'x'.repeat(257), direction: 'input' }]), /bounded text/u);
+});
+
+test('a malformed device label rejects only that row', () => {
+	const inventory = adapt([
+		{ handle: 'hw:bad-number', label: 42, direction: 'input' },
+		{ handle: 'hw:bad-length', label: 'x'.repeat(257), direction: 'output' },
+		{ handle: 'hw:good', label: 'Healthy input', direction: 'input', channelCount: 2 },
+	]);
+	assert.deepEqual(inventory.inputs.map(({ label }) => label), ['Healthy input']);
+	assert.deepEqual(inventory.rejected, [
+		{ label: '', reason: 'malformed' },
+		{ label: 'x'.repeat(256), reason: 'malformed' },
+	]);
 });

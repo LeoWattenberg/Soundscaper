@@ -82,10 +82,16 @@ export function adaptNativeAudioInventory(value: unknown): NativeAudioInventory 
 	for (const candidate of report.devices as readonly unknown[]) {
 		const device = candidate && typeof candidate === 'object' && !Array.isArray(candidate)
 			? candidate as Readonly<Record<string, unknown>> : null;
-		const label = device ? boundedLabel(device.label, 'label') : '';
+		const labelValue = device?.label;
+		const label = typeof labelValue === 'string'
+			? labelValue.slice(0, NATIVE_AUDIO_MAXIMUM_LABEL_LENGTH) : '';
+		const validLabel = typeof labelValue === 'string'
+			&& labelValue.length <= NATIVE_AUDIO_MAXIMUM_LABEL_LENGTH;
 		const handle = device?.handle;
 		const direction = device?.direction;
-		if (!device || typeof handle !== 'string' || !handle) rejected.push(Object.freeze({ label, reason: 'malformed' as const }));
+		if (!device || !validLabel || typeof handle !== 'string' || !handle) {
+			rejected.push(Object.freeze({ label, reason: 'malformed' as const }));
+		}
 		else if (direction !== 'input' && direction !== 'output' && direction !== 'duplex') {
 			rejected.push(Object.freeze({ label, reason: 'unknown-direction' as const }));
 		} else if (!isOpaqueNativeAudioHandle(handle)) {
