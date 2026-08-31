@@ -30,6 +30,7 @@ module.exports = {
 		'scripts/lib/m4-production-parity-video-fixture.mjs',
 		'scripts/lib/m4b2-keyframe-parity-metrics.mjs',
 		'scripts/lib/strict-json-snapshot.mjs',
+		'scripts/lib/quality-budget-config.mjs',
 		'scripts/collect-m4-production-parity-quality.mjs',
 		'scripts/collect-m4b2-keyframe-parity-quality.mjs',
 		'scripts/quality-budget-evaluator.mjs',

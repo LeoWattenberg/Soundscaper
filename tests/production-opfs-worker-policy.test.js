@@ -74,6 +74,6 @@ test('quality policy limits the dedicated OPFS worker claim to proved behavior',
 	);
 	assert.match(
 		documentation,
-		/Chromium and Firefox witness.*main-realm.*`createWritable`.*`getFile`.*persisted PCM, original video, and derivatives.*reload.*playback.*second tab.*read-only.*writer lock.*not WebKit.*not reference-scale.*heap.*RSS.*crash.*power-loss/isu,
+		/automated test runs Chromium, Firefox, and WebKit.*Chromium and Firefox witness.*main-realm.*`createWritable`.*`getFile`.*persisted PCM, original video, and derivatives.*reload.*playback.*second tab.*read-only.*writer lock.*WebKit.*supported fallback.*broader browser support.*release readiness/isu,
 	);
 });

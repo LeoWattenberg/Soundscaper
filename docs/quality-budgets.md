@@ -98,16 +98,18 @@ structural path-owned bytes from browser heap, process RSS, and durable storage.
 
 The dedicated OPFS storage worker exposes six closed operation IDs. It uses
 synchronous access handles only after capability detection and caps at 16 MiB
-both canonical PCM and exact bounded ranges. It handles media and derivative
-writes as slices and obtains worker-owned `File` snapshots. It performs an exact
-synchronous size check, records store close, and terminates. Asynchronous OPFS
-and IndexedDB remain correctness fallbacks.
+both canonical PCM and exact bounded ranges. It handles
+media and derivative writes as slices and obtains
+worker-owned `File` snapshots. It performs an exact synchronous size check,
+records store close, and terminates. Asynchronous OPFS and IndexedDB remain
+correctness fallbacks.
 
-The automated test runs Chromium, Firefox, and WebKit. The Chromium and Firefox
-witness covers main-realm `createWritable`, `getFile`, persisted PCM, original
-video, and derivatives across reload and playback. A second tab is read-only
-while the writer lock is held. WebKit still exercises the supported fallback;
-none of these runs makes a browser release-qualification claim.
+The automated test runs Chromium, Firefox, and WebKit.
+The Chromium and Firefox witness covers main-realm `createWritable`, `getFile`,
+persisted PCM, original video, and derivatives across reload and playback.
+A second tab is read-only while the writer lock is held. WebKit still exercises
+the supported fallback. None of these runs establishes broader browser support
+or release readiness.
 
 The browser suite exercises `indexeddb-quota-refusal`,
 `opfs-quota-refusal`, `indexeddb-multitab-writer`,

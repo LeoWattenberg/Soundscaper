@@ -60,6 +60,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/collect-m3-longform-editorial-quality.mjs', destination: 'scripts/collect-m3-longform-editorial-quality.mjs', kind: 'file', label: 'M3 long-form editorial metric collector' },
 	{ source: 'scripts/collect-m4-production-parity-quality.mjs', destination: 'scripts/collect-m4-production-parity-quality.mjs', kind: 'file', label: 'M4 production parity metric collector' },
 	{ source: 'scripts/collect-m4b2-keyframe-parity-quality.mjs', destination: 'scripts/collect-m4b2-keyframe-parity-quality.mjs', kind: 'file', label: 'M4B2 keyframe metric collector' },
+	{ source: 'scripts/lib/quality-budget-config.mjs', destination: 'scripts/lib/quality-budget-config.mjs', kind: 'file', label: 'quality budget config reader' },
 	{ source: 'scripts/quality-budget-evaluator.mjs', destination: 'scripts/quality-budget-evaluator.mjs', kind: 'file', label: 'quality budget evaluator' },
 	{ source: 'scripts/quality-budget-result.mjs', destination: 'scripts/quality-budget-result.mjs', kind: 'file', label: 'quality budget result evaluator' },
 	{ source: 'scripts/verify-quality-budget-result.mjs', destination: 'scripts/verify-quality-budget-result.mjs', kind: 'file', label: 'quality budget diagnostic verifier' },
