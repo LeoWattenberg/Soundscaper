@@ -69,8 +69,8 @@ export function compileVideoRetimeCurve(value: unknown): CompiledVideoRetimeCurv
 	const sourceStartFrame = nonNegativeSafeInteger(input.sourceStartFrame, 'curve.sourceStartFrame');
 	const sourceFrameCount = positiveSafeInteger(input.sourceFrameCount, 'curve.sourceFrameCount');
 	const sourceEndFrame = safeAdd(sourceStartFrame, sourceFrameCount, 'curve source range');
-	const pointValues = denseArray(input.points, 'curve.points');
-	const segmentValues = denseArray(input.segments, 'curve.segments');
+	const pointValues = denseArray(input.points, 'curve.points', MAXIMUM_SEGMENTS + 1);
+	const segmentValues = denseArray(input.segments, 'curve.segments', MAXIMUM_SEGMENTS);
 	if (segmentValues.length < 1 || segmentValues.length > MAXIMUM_SEGMENTS) {
 		throw new RangeError(`A curve requires 1 through ${String(MAXIMUM_SEGMENTS)} segments.`);
 	}
@@ -416,17 +416,22 @@ function dataProperty(value: Record<string, unknown>, key: string, name: string)
 	return descriptor.value;
 }
 
-function denseArray(value: unknown, name: string): unknown[] {
+function denseArray(value: unknown, name: string, maximumLength: number): unknown[] {
 	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
 	if (Object.getPrototypeOf(value) !== Array.prototype) {
 		throw new TypeError(`${name} must have the standard array prototype.`);
 	}
+	const length = Object.getOwnPropertyDescriptor(value, 'length')?.value;
+	if (typeof length !== 'number' || !Number.isSafeInteger(length) || length < 0) {
+		throw new TypeError(`${name}.length is invalid.`);
+	}
+	if (length > maximumLength) throw new RangeError(`${name} may contain at most ${String(maximumLength)} items.`);
 	for (const key of Reflect.ownKeys(value)) {
 		if (key === 'length') continue;
 		if (typeof key !== 'string' || !/^(?:0|[1-9]\d*)$/u.test(key)) throw new TypeError(`${name} has an unsupported field.`);
 	}
 	const result: unknown[] = [];
-	for (let index = 0; index < value.length; index += 1) {
+	for (let index = 0; index < length; index += 1) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) throw new TypeError(`${name} must be a dense data array.`);
 		result.push(descriptor.value);

@@ -515,7 +515,16 @@ test('compile admits at most 4096 segments and inverse stays bounded by segments
 	assert.deepEqual(invertVideoRetimeCurve(compiled, rational(2_048n), { policy: 'all' }), [
 		{ kind: 'point', outerFrame: 2_048 },
 	]);
-	assert.throws(() => compileVideoRetimeCurve(linearInput(4_097)), /4096|segment|maximum/iu);
+	let enumeratedOversizedPoints = false;
+	const oversizedPoints = new Proxy(new Array<unknown>(4_098), {
+		ownKeys() { enumeratedOversizedPoints = true; throw new Error('enumerated oversized input'); },
+	});
+	assert.throws(
+		() => compileVideoRetimeCurve({ ...baseInput(), points: oversizedPoints }),
+		/4097|maximum/iu,
+	);
+	assert.equal(enumeratedOversizedPoints, false);
+	assert.throws(() => compileVideoRetimeCurve(linearInput(4_097)), /4097|point|maximum/iu);
 });
 
 function baseInput() {
