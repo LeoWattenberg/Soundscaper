@@ -365,9 +365,11 @@ export async function runFramescaperImageSequenceImportV25(
 	}
 	catch (error) {
 		if (inventoryPublished && ports.cleanupInventory) {
-			await ports.cleanupInventory(inventory.reference);
+			try { await ports.cleanupInventory(inventory.reference); }
+			catch {}
 		}
-		await writer.discard();
+		try { await writer.discard(); }
+		catch {}
 		throw error;
 	}
 }

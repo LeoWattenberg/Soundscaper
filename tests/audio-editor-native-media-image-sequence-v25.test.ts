@@ -162,6 +162,33 @@ test('the controller discards an uncommitted source pack and publishes nothing a
 	assert.equal(events.includes('inventory-publish') || events.includes('project-commit'), false);
 });
 
+test('import rollback attempts every cleanup and preserves the project failure', async () => {
+	const frame = new TextEncoder().encode('valid-png');
+	const primary = new Error('project commit failed');
+	const events: string[] = [];
+	await assert.rejects(runFramescaperImageSequenceImportV25({
+		select: () => ({
+			id: 'rollback-sequence', name: 'Rollback', fileNames: ['take_001.png'],
+			frameRate: { num: 24, den: 1 },
+			entries: [{
+				fileName: 'take_001.png', frameNumber: 1, byteLength: frame.byteLength,
+				sha256: bytesToHex(sha256(frame)),
+			}],
+			frameChunks: () => [frame],
+			characteristics: createUnreportedVideoSourceCharacteristicsV25(),
+		}),
+		createSourcePackWriter: () => ({
+			write: () => undefined,
+			commit: () => undefined,
+			discard: () => { events.push('pack-discard'); throw new Error('discard failed'); },
+		}),
+		publishInventory: () => undefined,
+		commitSource: () => { throw primary; },
+		cleanupInventory: () => { events.push('inventory-cleanup'); throw new Error('cleanup failed'); },
+	}), (error: unknown) => error === primary);
+	assert.deepEqual(events, ['inventory-cleanup', 'pack-discard']);
+});
+
 function fixtureSource() {
 	const selection = resolveNativeMediaImageSequence({
 		fileNames: ['f_001.png'], frameRate: { num: 25, den: 1 },
