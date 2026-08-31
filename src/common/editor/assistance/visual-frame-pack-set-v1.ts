@@ -149,7 +149,7 @@ function validateReviewedPacks(
 		rasterHeight ??= pack.rasterHeight;
 		timescale ??= pack.timescale;
 		for (let frameIndex = 0; frameIndex < pack.frameCount; frameIndex += 1) {
-			const frame = pack.frame(frameIndex);
+			const frame = pack.frameTiming(frameIndex);
 			if (frame.sourceFrame <= priorSource || BigInt(frame.presentationTick) <= priorTick) {
 				throw new RangeError('Visual frame-pack set members must retain strict source/tick order.');
 			}

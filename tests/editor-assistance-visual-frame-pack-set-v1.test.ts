@@ -20,6 +20,10 @@ test('visual frame-pack sets strictly preserve ordered member custody', () => {
 	const reviewed = reviewAssistanceVisualFramePackSetV1(body);
 	assert.equal(reviewed.frameCount, 2);
 	assert.deepEqual(reviewed.packs.map((member) => member.frame(0).sourceFrame), [10, 20]);
+	assert.deepEqual(reviewed.packs.map((member) => member.frameTiming(0)), [
+		{ sourceFrame: 10, presentationTick: '100' },
+		{ sourceFrame: 20, presentationTick: '200' },
+	]);
 
 	assert.throws(() => reviewAssistanceVisualFramePackSetV1(body.subarray(0, body.length - 1)),
 		/truncated/iu);

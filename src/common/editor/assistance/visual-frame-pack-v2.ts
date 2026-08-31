@@ -42,6 +42,11 @@ export interface AssistanceVisualFramePackFrame {
 	readonly rgba: Uint8Array;
 }
 
+export interface AssistanceVisualFramePackTiming {
+	readonly sourceFrame: number;
+	readonly presentationTick: string;
+}
+
 export interface ReviewedAssistanceVisualFramePack {
 	readonly schemaVersion: 1 | typeof ASSISTANCE_VISUAL_FRAME_PACK_SCHEMA_VERSION;
 	readonly sourceWidth: number;
@@ -50,6 +55,8 @@ export interface ReviewedAssistanceVisualFramePack {
 	readonly rasterHeight: number;
 	readonly timescale: number;
 	readonly frameCount: number;
+	/** Returns timing metadata without copying the RGBA body. */
+	readonly frameTiming: (ordinal: number) => AssistanceVisualFramePackTiming;
 	/** Returns an isolated RGBA copy; callers cannot mutate reviewed custody. */
 	readonly frame: (ordinal: number) => AssistanceVisualFramePackFrame;
 }
@@ -186,6 +193,7 @@ export function reviewAssistanceVisualFramePack(
 		sourceWidth: legacy.width, sourceHeight: legacy.height,
 		rasterWidth: legacy.width, rasterHeight: legacy.height,
 		timescale: legacy.timescale, frameCount: legacy.frameCount,
+		frameTiming: (ordinal: number) => legacy.frameTiming(ordinal),
 		frame: (ordinal: number) => legacy.frame(ordinal) });
 }
 
@@ -200,6 +208,13 @@ function reviewedPack(
 ): ReviewedAssistanceVisualFramePackV2 {
 	return Object.freeze({ schemaVersion, sourceWidth, sourceHeight, rasterWidth, rasterHeight,
 		timescale, frameCount: frames.length,
+		frameTiming(ordinalValue: number) {
+			const ordinal = integer(ordinalValue, 0, frames.length - 1,
+				'visual frame-pack frame ordinal');
+			const source = frames[ordinal]!;
+			return Object.freeze({ sourceFrame: source.sourceFrame,
+				presentationTick: source.presentationTick });
+		},
 		frame(ordinalValue: number) {
 			const ordinal = integer(ordinalValue, 0, frames.length - 1,
 				'visual frame-pack frame ordinal');

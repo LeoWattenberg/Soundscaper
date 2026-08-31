@@ -56,12 +56,19 @@ export interface AssistanceFramePackV1Frame {
 	readonly rgba: Uint8Array;
 }
 
+export interface AssistanceFramePackV1Timing {
+	readonly sourceFrame: number;
+	readonly presentationTick: string;
+}
+
 export interface ReviewedAssistanceFramePackV1 {
 	readonly schemaVersion: typeof ASSISTANCE_FRAME_PACK_SCHEMA_VERSION;
 	readonly width: number;
 	readonly height: number;
 	readonly timescale: number;
 	readonly frameCount: number;
+	/** Returns timing metadata without copying the RGBA body. */
+	readonly frameTiming: (ordinal: number) => AssistanceFramePackV1Timing;
 	/** Returns an isolated RGBA copy; callers cannot mutate reviewed custody. */
 	readonly frame: (ordinal: number) => AssistanceFramePackV1Frame;
 }
@@ -261,6 +268,13 @@ export function reviewAssistanceFramePackV1(
 		height,
 		timescale,
 		frameCount,
+		frameTiming(ordinalValue: number): AssistanceFramePackV1Timing {
+			const ordinal = integer(ordinalValue, 0, frameCount - 1, 'frame-pack frame ordinal');
+			const source = frames[ordinal];
+			if (!source) throw new RangeError('The assistance frame-pack frame is unavailable.');
+			return Object.freeze({ sourceFrame: source.sourceFrame,
+				presentationTick: source.presentationTick });
+		},
 		frame(ordinalValue: number): AssistanceFramePackV1Frame {
 			const ordinal = integer(ordinalValue, 0, frameCount - 1, 'frame-pack frame ordinal');
 			const source = frames[ordinal];

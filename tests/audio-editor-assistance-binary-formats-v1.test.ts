@@ -87,6 +87,7 @@ test('assistance frame-pack v1 reviews arbitrary data-plane chunk boundaries', (
 		presentationTick: '3003',
 		rgba: new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255]),
 	});
+	assert.deepEqual(reviewed.frameTiming(1), { sourceFrame: 5, presentationTick: '6006' });
 	const frame = reviewed.frame(0);
 	frame.rgba[0] = 0;
 	assert.equal(reviewed.frame(0).rgba[0], 255);
@@ -150,6 +151,7 @@ test('assistance visual frame-pack v2 authenticates source and raster geometry i
 		presentationTick: '3003',
 		rgba: new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255]),
 	});
+	assert.deepEqual(reviewed.frameTiming(1), { sourceFrame: 5, presentationTick: '6006' });
 	const isolated = reviewed.frame(0);
 	isolated.rgba[0] = 0;
 	assert.equal(reviewed.frame(0).rgba[0], 255);
@@ -163,6 +165,7 @@ test('visual frame-pack review normalizes v1 geometry and keeps v2 strict', () =
 		sourceWidth: reviewed.sourceWidth, sourceHeight: reviewed.sourceHeight,
 		rasterWidth: reviewed.rasterWidth, rasterHeight: reviewed.rasterHeight,
 	}, { schemaVersion: 1, sourceWidth: 2, sourceHeight: 1, rasterWidth: 2, rasterHeight: 1 });
+	assert.deepEqual(reviewed.frameTiming(0), { sourceFrame: 7, presentationTick: '100' });
 	assert.throws(() => reviewAssistanceVisualFramePackV2(v1), /magic|version|unsupported/iu);
 });
 
