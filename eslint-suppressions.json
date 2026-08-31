@@ -546,9 +546,6 @@
   "src/common/editor/controller/take-cycle-recording-repository-composition.ts": {
     "no-control-regex": {
       "count": 1
-    },
-    "preserve-caught-error": {
-      "count": 1
     }
   },
   "src/common/editor/controller/take-cycle-recording-service.ts": {
