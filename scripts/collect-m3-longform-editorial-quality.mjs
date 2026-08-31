@@ -14,17 +14,15 @@ const CONFIG_URL = new URL('../config/quality-budgets.json', import.meta.url);
 const REPOSITORY_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const WORKLOAD_ID = 'm3-longform-editorial';
 const FIXTURE_ID = 'm3-longform-editorial-2h-v2';
-const REFERENCE_ENVIRONMENT_ID = 'owner-windows-x64-rtx3090-01';
-const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
+const LOCAL_ENVIRONMENT_ID = 'local-runtime-diagnostics';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;
 const PROFILE = 'deterministic-two-hour-editorial-v1';
 const BROWSER_SPEC = 'tests/browser/audio-editor-longform-editorial-benchmark.spec.js';
 
 /**
- * Run one no-retry browser measurement. The standalone collector publishes
- * diagnostic evidence only; formal acceptance belongs to the packaged-nightly
- * verifier, including when this process runs on the owner-designated host.
+ * Run one no-retry browser measurement. The standalone collector writes only
+ * an environment-specific diagnostic result.
  */
 export async function collectM3LongformEditorialDiagnostic(options, dependencies = {}) {
 	const outputDirectory = ownString(options, 'outputDirectory');
@@ -80,7 +78,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 	const config = snapshotJsonData(inputConfig, 'config');
 	const workload = exactDescriptor(config.workloads, WORKLOAD_ID, 'workload');
 	const fixture = exactDescriptor(config.fixtures, FIXTURE_ID, 'fixture');
-	const environment = exactDescriptor(config.environments, REFERENCE_ENVIRONMENT_ID, 'environment');
+	const environment = exactDescriptor(config.environments, LOCAL_ENVIRONMENT_ID, 'environment');
 	const policy = requireRecord(config.measurementPolicy, 'measurementPolicy');
 
 	assertIdentity(diagnostic);
@@ -96,7 +94,7 @@ export function createPendingM3LongformEditorialResult(input, inputConfig) {
 		|| workload.fixtureIds.length !== 1
 		|| workload.fixtureIds[0] !== FIXTURE_ID
 		|| !Array.isArray(workload.environmentIds)
-		|| !workload.environmentIds.includes(REFERENCE_ENVIRONMENT_ID)) {
+		|| !workload.environmentIds.includes(LOCAL_ENVIRONMENT_ID)) {
 		throw new Error(`Workload ${WORKLOAD_ID} must own exactly the frozen fixture and environment.`);
 	}
 
@@ -330,7 +328,7 @@ function assertIdentity(diagnostic) {
 }
 
 function isM3DiagnosticEnvironmentId(value) {
-	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID, REFERENCE_ENVIRONMENT_ID].includes(value)
+	return [LOCAL_ENVIRONMENT_ID, HOSTED_ENVIRONMENT_ID].includes(value)
 		|| (typeof value === 'string' && PACKAGED_RUNTIME_ENVIRONMENT_ID.test(value));
 }
 

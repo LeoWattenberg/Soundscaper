@@ -36,4 +36,10 @@ test('diagnostic environments and workloads retain runnable measurements and thr
 		assert.ok(Array.isArray(workload.thresholds) && workload.thresholds.length > 0, String(workload.id));
 		assert.match(String(workload.status), /^(?:active|planned|optional|blocked)$/u);
 	}
+	const localRuntime = environments.find(({ id }) => id === 'local-runtime-diagnostics');
+	assert.equal(localRuntime?.status, 'active');
+	assert.equal(localRuntime?.kind, 'observed-local-runtime-diagnostics');
+	assert.equal(localRuntime?.rendererRequirement, 'any');
+	assert.equal(Object.hasOwn(localRuntime ?? {}, 'fingerprint'), false);
+	assert.doesNotMatch(JSON.stringify(config), /owner-windows-x64-rtx3090-01|RTX 3090/iu);
 });

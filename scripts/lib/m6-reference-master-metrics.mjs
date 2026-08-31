@@ -47,7 +47,7 @@ export const M6_REFERENCE_MASTER_FIXTURE_IDS = Object.freeze([
 	'm6-reference-master-vertical-v1',
 ]);
 export const M6_REFERENCE_MASTER_ENVIRONMENT_IDS = Object.freeze([
-	'owner-windows-x64-rtx3090-01',
+	'local-runtime-diagnostics',
 	'native-os-diagnostics',
 ]);
 export const M6_REFERENCE_MASTER_PROFILE = 'reference-master-delivery-v1';

@@ -20,8 +20,9 @@ interface BudgetArtifact {
 
 interface BudgetEnvironment {
 	readonly evidence: readonly string[];
-	readonly fingerprint: Readonly<Record<string, string | number | null>>;
+	readonly fingerprint?: Readonly<Record<string, string | number | null>>;
 	readonly id: string;
+	readonly kind: string;
 	readonly rendererRequirement: RendererRequirement;
 	readonly status: EnvironmentStatus;
 }
@@ -331,6 +332,12 @@ test('quality budget contract names numeric diagnostic gates', async () => {
 
 	const hostedPlaywright = environments.get('github-ubuntu-playwright-1.62.1');
 	assert.equal(hostedPlaywright?.status, 'active');
+	const localRuntime = environments.get('local-runtime-diagnostics');
+	assert.equal(localRuntime?.status, 'active');
+	assert.equal(localRuntime?.kind, 'observed-local-runtime-diagnostics');
+	assert.equal(localRuntime?.rendererRequirement, 'any');
+	assert.equal(Object.hasOwn(localRuntime ?? {}, 'fingerprint'), false);
+	assert.equal(environments.has('owner-windows-x64-rtx3090-01'), false);
 
 	const keyedFixture = fixtures.get('m4b2-keyframe-parity-rgba-v1');
 	const keyedWorkload = config.workloads.find(({ id }) => id === 'm4b2-keyframe-render-parity');
@@ -366,7 +373,7 @@ test('quality budget contract names numeric diagnostic gates', async () => {
 	assert.match(keyedFixture?.limitation ?? '', /no hardware lower bound or release status/iu);
 	assert.deepEqual(keyedWorkload?.fixtureIds, ['m4b2-keyframe-parity-rgba-v1']);
 	assert.deepEqual(keyedWorkload?.environmentIds,
-		['github-ubuntu-playwright-1.62.1', 'owner-windows-x64-rtx3090-01']);
+		['github-ubuntu-playwright-1.62.1', 'local-runtime-diagnostics']);
 	assert.deepEqual(keyedWorkload?.thresholds, [
 		{ metricId: 'keyframes.videoMinimumSsim', comparison: 'gte', value: 0.98, unit: 'ratio' },
 		{ metricId: 'keyframes.videoMaximumChannelMae', comparison: 'lte', value: 6 / 255, unit: 'ratio' },

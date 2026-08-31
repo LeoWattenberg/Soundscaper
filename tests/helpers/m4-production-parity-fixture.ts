@@ -33,7 +33,7 @@ export function makeM4ProductionParityDiagnostic(omittedEffectId: string | null 
 		observationClass: 'complete-pcm-rgba-render-ledger-v1',
 		workloadId: 'm4-production-render-parity',
 		fixtureId: 'm4-production-parity-v1',
-		environmentId: 'local-browser-correctness',
+		environmentId: 'local-runtime-diagnostics',
 		rendererClass: 'hardware',
 		environmentFingerprint: {
 			browserVersion: 'Chromium 149.0.7827.55',

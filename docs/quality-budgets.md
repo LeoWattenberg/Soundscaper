@@ -84,10 +84,12 @@ write sizes, retained payloads, partial publications, and similar structural
 facts. They do not imply browser heap, process RSS, device, filesystem,
 operating-system, codec, or elapsed-time behavior.
 
-## Observed and reference environments
+## Observed local-runtime diagnostics
 
-The owner desktop is an optional reference context. Native, capture-device,
-and Web VCR diagnostics instead carry the environment they actually observed,
+`local-runtime-diagnostics` names whichever local browser or packaged runtime
+is executing the diagnostic. It does not select an owner machine, GPU, operating
+system, or representative hardware profile. Native, capture-device, Web VCR,
+and local-runtime results carry only the environment they actually observed,
 including renderer, platform, device, and package identity where relevant.
 There is no checked-in host/profile matrix to complete. No host is a release
 requirement and no result is promoted into a hardware lower-bound claim.

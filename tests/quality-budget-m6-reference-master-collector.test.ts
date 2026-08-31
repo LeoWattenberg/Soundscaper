@@ -133,7 +133,7 @@ function measurement(overrides: Record<string, unknown> = {}) {
 		schemaVersion: 1,
 		workloadId: M6_REFERENCE_MASTER_WORKLOAD_ID,
 		profile: 'reference-master-delivery-v1',
-		environmentId: 'owner-windows-x64-rtx3090-01',
+		environmentId: 'local-runtime-diagnostics',
 		platformId: 'win32-x64',
 		fingerprint: { osImage: 'observed', cpuModel: 'observed' },
 		audioArtifacts: [audioArtifact()],
@@ -422,8 +422,8 @@ test('the collected diagnostic lands as a passed file and never overwrites one',
 	);
 	const written = JSON.parse(await readFile(collected.resultPath, 'utf8'));
 	assert.equal(written.status, 'passed');
-	// The run's own observation stays beside the result rather than filling in
-	// the descriptor's null fingerprint rows.
+	// The run's own observation stays beside the result without turning it into
+	// a checked-in representative hardware profile.
 	assert.deepEqual(written.observedFingerprint, { osImage: 'observed', cpuModel: 'observed' });
 
 	await assert.rejects(

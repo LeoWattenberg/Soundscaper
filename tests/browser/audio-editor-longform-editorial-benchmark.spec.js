@@ -23,7 +23,7 @@ import {
 } from './helpers/interaction-to-attribute-latency.js';
 
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
-const LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
+const LOCAL_ENVIRONMENT_ID = 'local-runtime-diagnostics';
 const HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
 const ENVIRONMENT_ID = process.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID
 	|| (process.env.GITHUB_ACTIONS === 'true' ? HOSTED_ENVIRONMENT_ID : LOCAL_ENVIRONMENT_ID);

@@ -25,7 +25,7 @@ export function makeM4B2KeyframeParityDiagnostic(
 		observationClass: M4B2_KEYFRAME_PARITY_OBSERVATION_CLASS,
 		workloadId: M4B2_KEYFRAME_PARITY_WORKLOAD_ID,
 		fixtureId: M4B2_KEYFRAME_PARITY_FIXTURE_ID,
-		environmentId: 'local-browser-correctness',
+		environmentId: 'local-runtime-diagnostics',
 		rendererClass: 'hardware',
 		environmentFingerprint: {
 			browserVersion: 'Chromium 149.0.7827.55',

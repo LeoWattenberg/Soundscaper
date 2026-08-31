@@ -127,25 +127,14 @@
 			]
 		},
 		{
-			"id": "owner-windows-x64-rtx3090-01",
-			"status": "unprovisioned",
-			"kind": "owner-desktop-reference",
+			"id": "local-runtime-diagnostics",
+			"status": "active",
+			"kind": "observed-local-runtime-diagnostics",
 			"rendererRequirement": "any",
-			"fingerprint": {
-				"browserVersion": "150.0.7871.114",
-				"platform": "win32",
-				"architecture": "x64",
-				"webglVendor": "Google Inc. (NVIDIA)",
-				"webglRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)",
-				"gpuDriverVersion": null,
-				"gpuDeviceId": "10de:2204",
-				"powerMode": null,
-				"displayMode": null
-			},
 			"evidence": [
 				"scripts/lib/desktop-nightly-tests-metrics.mjs",
 				"tests/desktop-nightly-tests-metrics.test.ts",
-				"docs/quality-budgets.md#observed-and-reference-environments"
+				"docs/quality-budgets.md#observed-local-runtime-diagnostics"
 			]
 		},
 		{
@@ -1394,7 +1383,7 @@
 				"video-preview-12fx-720p-v1"
 			],
 			"environmentIds": [
-				"owner-windows-x64-rtx3090-01"
+				"local-runtime-diagnostics"
 			],
 			"thresholds": [
 				{
@@ -1424,7 +1413,7 @@
 				"m2-direct-wav-385mib-v1"
 			],
 			"environmentIds": [
-				"owner-windows-x64-rtx3090-01"
+				"local-runtime-diagnostics"
 			],
 			"thresholds": [
 				{
@@ -1713,7 +1702,7 @@
 			],
 			"environmentIds": [
 				"github-ubuntu-playwright-1.62.1",
-				"owner-windows-x64-rtx3090-01"
+				"local-runtime-diagnostics"
 			],
 			"thresholds": [
 				{
@@ -1771,7 +1760,7 @@
 			],
 			"environmentIds": [
 				"github-ubuntu-playwright-1.62.1",
-				"owner-windows-x64-rtx3090-01"
+				"local-runtime-diagnostics"
 			],
 			"thresholds": [
 				{
@@ -1822,7 +1811,7 @@
 			],
 			"environmentIds": [
 				"github-ubuntu-playwright-1.62.1",
-				"owner-windows-x64-rtx3090-01"
+				"local-runtime-diagnostics"
 			],
 			"thresholds": [
 				{
@@ -1946,7 +1935,7 @@
 				"m6-reference-master-vertical-v1"
 			],
 			"environmentIds": [
-				"owner-windows-x64-rtx3090-01",
+				"local-runtime-diagnostics",
 				"native-os-diagnostics"
 			],
 			"thresholds": [

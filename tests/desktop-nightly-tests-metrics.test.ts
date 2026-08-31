@@ -35,11 +35,11 @@ test('the packaged metrics plan is Chromium-only, single-worker, and no-retry', 
 	assert.equal(plan.env.SOUNDSCAPER_M4_PRODUCTION_PARITY, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M4B2_KEYFRAME_PARITY, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, '1');
-	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
-	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
+	assert.equal(plan.env.SOUNDSCAPER_M3_OBSERVED_ENVIRONMENT_ID, 'local-runtime-diagnostics');
+	assert.equal(plan.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID, 'local-runtime-diagnostics');
 	assert.equal(plan.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK, '1');
 	assert.equal(plan.env.AUDIO_EDITOR_FFMPEG_BROWSER, '1');
-	assert.equal(plan.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID, 'local-browser-correctness');
+	assert.equal(plan.env.SOUNDSCAPER_M4_OBSERVED_ENVIRONMENT_ID, 'local-runtime-diagnostics');
 	assert.deepEqual(environment, { PATH: '/usr/bin', GITHUB_ACTIONS: 'true' });
 });
 
@@ -193,15 +193,15 @@ test('metric diagnostic writer retains raw observations and a digest-bound summa
 function m1DiagnosticFixture() {
 	const sourceSha256 = 'f1319d3549943c190e5eb3f86b63fd2afb644bd49b32e3f257699b450271bc8c';
 	const environmentFingerprint = {
-		browserVersion: '150.0.7871.114',
-		platform: 'win32',
+		browserVersion: 'observed-browser',
+		platform: 'linux',
 		architecture: 'x64',
-		webglVendor: 'Google Inc. (NVIDIA)',
-		webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090)',
-		gpuDriverVersion: '32.0.15.6094',
-		gpuDeviceId: '10de:2204',
-		powerMode: 'maximum-performance-ac',
-		displayMode: '3840x2160@60Hz-150pct',
+		webglVendor: 'observed-vendor',
+		webglRenderer: 'observed-hardware-renderer',
+		gpuDriverVersion: 'observed-driver',
+		gpuDeviceId: 'observed-device',
+		powerMode: 'observed-power-mode',
+		displayMode: 'observed-display-mode',
 	};
 	const fixture = {
 		width: 1_280,

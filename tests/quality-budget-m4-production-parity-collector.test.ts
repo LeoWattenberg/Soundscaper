@@ -31,15 +31,16 @@ type QualityConfig = {
 	workloads: Array<{ id: string; status: string; thresholds: unknown[]; environmentIds?: string[] }>;
 	environments: Array<{
 		id: string;
+		kind: string;
 		status: string;
-		fingerprint: Record<string, unknown>;
+		fingerprint?: Record<string, unknown>;
 	}>;
 };
 
 test('the M4 collector independently recomputes exactly five parity metrics', () => {
 	const result = createPendingM4ProductionParityResult(makeDiagnostic(), config);
 	assert.equal(result.status, 'passed');
-	assert.equal(result.environmentId, 'local-browser-correctness');
+	assert.equal(result.environmentId, 'local-runtime-diagnostics');
 	assert.equal(result.metricGatePassed, true);
 	assert.equal(Object.keys(result.metrics).length, 5);
 	assert.deepEqual(result.metrics, {
@@ -284,7 +285,7 @@ test('metric diagnostics write only passed or failed results', async () => {
 test('collection identity admits local, hosted, and packaged diagnostics only', () => {
 	assert.deepEqual(
 		resolveM4ProductionParityCollectionEnvironment({}, config, {}),
-		{ environmentId: 'local-browser-correctness' },
+		{ environmentId: 'local-runtime-diagnostics' },
 	);
 	assert.deepEqual(
 		resolveM4ProductionParityCollectionEnvironment({}, config, { GITHUB_ACTIONS: 'true' }),
@@ -373,8 +374,8 @@ test('quality config retains the M4 diagnostic fixture and thresholds', () => {
 	const quality = config as QualityConfig;
 	const fixture = quality.fixtures.find(({ id }) => id === 'm4-production-parity-v1');
 	const workload = quality.workloads.find(({ id }) => id === 'm4-production-render-parity');
-	const owner = quality.environments.find(
-		({ id }) => id === 'owner-windows-x64-rtx3090-01',
+	const localRuntime = quality.environments.find(
+		({ id }) => id === 'local-runtime-diagnostics',
 	);
 	assert.equal(fixture?.status, 'active');
 	assert.equal(fixture?.kind, 'deterministic-audio-vectors-and-video-golden-frames');
@@ -383,9 +384,11 @@ test('quality config retains the M4 diagnostic fixture and thresholds', () => {
 	assert.equal(workload?.thresholds.length, 5);
 	assert.deepEqual(workload?.environmentIds, [
 		'github-ubuntu-playwright-1.62.1',
-		'owner-windows-x64-rtx3090-01',
+		'local-runtime-diagnostics',
 	]);
-	assert.equal(owner?.status, 'unprovisioned');
+	assert.equal(localRuntime?.status, 'active');
+	assert.equal(localRuntime?.kind, 'observed-local-runtime-diagnostics');
+	assert.equal(Object.hasOwn(localRuntime ?? {}, 'fingerprint'), false);
 	assert.equal(packageMetadata.scripts['quality:collect:m4-production-parity'],
 		'node scripts/collect-m4-production-parity-quality.mjs');
 });

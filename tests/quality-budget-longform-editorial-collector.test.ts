@@ -17,13 +17,13 @@ const packageMetadata = JSON.parse(await readFile(
 	new URL('../package.json', import.meta.url),
 	'utf8',
 )) as { readonly scripts: Readonly<Record<string, string>> };
-const DIAGNOSTIC_ENVIRONMENT_ID = 'owner-windows-x64-rtx3090-01';
+const DIAGNOSTIC_ENVIRONMENT_ID = 'local-runtime-diagnostics';
 const FINGERPRINT = Object.freeze({
-	browserVersion: '150.0.7871.114',
-	platform: 'win32',
+	browserVersion: 'observed-browser',
+	platform: 'observed-platform',
 	architecture: 'x64',
-	webglVendor: 'Google Inc. (NVIDIA)',
-	webglRenderer: 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3090 (0x00002204) Direct3D11 vs_5_0 ps_5_0, D3D11)',
+	webglVendor: 'observed-vendor',
+	webglRenderer: 'observed-renderer',
 });
 
 const expectedFixture = Object.freeze({
@@ -200,26 +200,16 @@ test('fixture drift and malformed raw observations fail before a result can exis
 	);
 });
 
-test('an explicitly owner-labeled exact diagnostic reports its measured result', async () => {
-	const activated = structuredClone(config) as {
-		environments: Array<{
-			id: string;
-			status: string;
-			fingerprint: Record<string, unknown>;
-		}>;
-	};
-	const environment = activated.environments.find(({ id }) => id === DIAGNOSTIC_ENVIRONMENT_ID);
-	assert.ok(environment);
+test('an observed local-runtime diagnostic reports its measured result', async () => {
 	const diagnostic = { ...makeDiagnostic(), environmentId: DIAGNOSTIC_ENVIRONMENT_ID };
-	environment.fingerprint = structuredClone(diagnostic.environmentFingerprint);
-	const result = createPendingM3LongformEditorialResult(diagnostic, activated);
+	const result = createPendingM3LongformEditorialResult(diagnostic, config);
 	assert.equal(result.status, 'passed');
 	assert.equal(result.metricGatePassed, true);
 	assert.equal(result.evaluation.passed, true);
 
 	let pendingWrites = 0;
 	const written = await writeM3LongformEditorialResult(
-		'/tmp/unused', diagnostic, result, activated,
+		'/tmp/unused', diagnostic, result, config,
 		{
 			writePending: async (_directory: string, pending: typeof result) => {
 				pendingWrites += 1;
@@ -237,8 +227,9 @@ test('the registered runnable harness is a diagnostic workload', () => {
 		workloads: Array<{ id: string; status: string }>;
 		environments: Array<{
 			id: string;
+			kind: string;
 			status: string;
-			fingerprint: Record<string, unknown>;
+			fingerprint?: Record<string, unknown>;
 		}>;
 	};
 	const fixture = quality.fixtures.find(({ id }) => id === 'm3-longform-editorial-2h-v2');
@@ -251,5 +242,7 @@ test('the registered runnable harness is a diagnostic workload', () => {
 	assert.equal(packageMetadata.scripts['quality:collect:m3-longform'],
 		'node scripts/collect-m3-longform-editorial-quality.mjs');
 	assert.equal(workload?.status, 'active');
-	assert.equal(environment?.status, 'unprovisioned');
+	assert.equal(environment?.status, 'active');
+	assert.equal(environment?.kind, 'observed-local-runtime-diagnostics');
+	assert.equal(Object.hasOwn(environment ?? {}, 'fingerprint'), false);
 });

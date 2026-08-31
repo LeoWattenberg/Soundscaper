@@ -81,7 +81,7 @@ test('benchmarks the complete 720p video preview effect stack', async ({ runtime
 		observationClass: 'fresh-context-presentation-cadence-and-retained-js-heap-v1',
 		workloadId: 'm1-video-preview-12fx-720p',
 		fixtureId: videoPreviewBenchmarkMedia.id,
-		environmentId: process.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID ?? 'local-browser-correctness',
+		environmentId: process.env.SOUNDSCAPER_M1_OBSERVED_ENVIRONMENT_ID ?? 'local-runtime-diagnostics',
 		rendererClass,
 		environmentFingerprint,
 		fixture: {

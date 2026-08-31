@@ -3,7 +3,7 @@
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const M4_PARITY_HOSTED_ENVIRONMENT_ID = 'github-ubuntu-playwright-1.62.1';
-export const M4_PARITY_LOCAL_ENVIRONMENT_ID = 'local-browser-correctness';
+export const M4_PARITY_LOCAL_ENVIRONMENT_ID = 'local-runtime-diagnostics';
 export const M4_PARITY_WORKLOAD_ID = 'm4-production-render-parity';
 
 const PACKAGED_RUNTIME_ENVIRONMENT_ID = /^packaged-runtime-(?:linux|win32|darwin)-(?:x64|arm64)$/u;

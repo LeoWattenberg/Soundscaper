@@ -34,7 +34,7 @@ const VIDEO_FIXTURE_ID = 'video-effect-parity-rgba-v1';
 const PROFILE = 'deterministic-production-parity-v1';
 const DIAGNOSTIC_MARKER = 'SOUNDSCAPER_M4_PRODUCTION_PARITY ';
 const BROWSER_SPEC = 'tests/browser/audio-editor-m4-production-parity.spec.js';
-const REFERENCE_ENVIRONMENT_ID = 'owner-windows-x64-rtx3090-01';
+const LOCAL_ENVIRONMENT_ID = 'local-runtime-diagnostics';
 const METRIC_IDS = Object.freeze([
 	'parity.audioMaximumAbsoluteSampleError',
 	'parity.pdcErrorSamples',
@@ -359,7 +359,7 @@ function assertWorkloadRegistration(workload) {
 	if (!deepEqualJson(workload.fixtureIds, [VIDEO_FIXTURE_ID, FIXTURE_ID])
 		|| !Array.isArray(workload.environmentIds)
 		|| !workload.environmentIds.includes(HOSTED_ENVIRONMENT_ID)
-		|| !workload.environmentIds.includes(REFERENCE_ENVIRONMENT_ID)
+		|| !workload.environmentIds.includes(LOCAL_ENVIRONMENT_ID)
 		|| !deepEqualJson(thresholdIds, METRIC_IDS)) {
 		throw new Error(`Workload ${WORKLOAD_ID} does not own the frozen fixtures, environments, and five metrics.`);
 	}
