@@ -23,8 +23,6 @@ export async function osCodecPackageTree(context, target) {
 		[`${nativePrefix}/native-addon-payload-manifest.json`]: Buffer.from('native manifest'),
 		[`${professionalPrefix}/soundscaper-professional-native-payload-manifest.json`]:
 			Buffer.from('professional manifest'),
-		[`${professionalPrefix}/milestone-5-native-isolation-review-policy.json`]:
-			Buffer.from('professional review policy'),
 	};
 	for (const [path, bytes] of Object.entries(payloads)) {
 		await mkdir(dirname(join(resourcesRoot, path)), { recursive: true });
@@ -50,14 +48,10 @@ export async function osCodecPackageTree(context, target) {
 			payloadManifest: { sha256: descriptor(`${nativePrefix}/native-addon-payload-manifest.json`).sha256 },
 		},
 		soundscaperProfessionalNative: {
-			target, status: 'pending-external', payload: null, productionReadiness: null,
+			target, status: 'pending-external', payload: null,
 			payloadManifest: descriptor(
 				`${professionalPrefix}/soundscaper-professional-native-payload-manifest.json`,
 			),
-			reviewPolicy: {
-				name: 'milestone-5-native-isolation-review-policy.json',
-				...descriptor(`${professionalPrefix}/milestone-5-native-isolation-review-policy.json`),
-			},
 		},
 		assistanceNativeRuntime: { target, status: 'unsupported', payload: null },
 		framescaperNativeHosts: null,

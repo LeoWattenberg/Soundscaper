@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Recursive dependency, RPATH, and binary-architecture closure admission. */
+/** Recursive dependency, RPATH, and binary-architecture closure verification. */
 
 import { spawnSync } from 'node:child_process';
 import { basename } from 'node:path';
@@ -15,9 +15,9 @@ import {
 } from './soundscaper-native-binary-architecture.mjs';
 import {
 	canonicalRegularFile,
-	resolveCandidatePath,
-	soundscaperProfessionalNativeCandidateArtifactPaths,
-} from './soundscaper-professional-native-candidate-contract.mjs';
+	resolveBuildResultPath,
+	soundscaperProfessionalNativeBuildResultArtifactPaths,
+} from './soundscaper-professional-native-build-result-contract.mjs';
 
 const MAXIMUM_OUTPUT_BYTES = 1024 * 1024;
 const WINDOWS_SYSTEM_LIBRARIES = new Set([
@@ -39,7 +39,7 @@ export async function validateSoundscaperProfessionalNativeDependencyClosure({
 	const inspections = [];
 	for (const artifact of artifacts) {
 		const inspected = await inspectDependencies({
-			target, path: artifact.absolutePath ?? resolveCandidatePath(root, artifact.path),
+			target, path: artifact.absolutePath ?? resolveBuildResultPath(root, artifact.path),
 		});
 		const imports = inspected?.imports;
 		const rpaths = inspected?.rpaths;
@@ -233,9 +233,9 @@ function validateRpaths(target, artifactPath, rpaths) {
 	const permitted = target.startsWith('linux-') ? '$ORIGIN/runtime'
 		: target === 'mac-arm64' ? '@loader_path/runtime' : null;
 	if (rpaths.some((entry) => entry !== permitted)
-		|| (artifactPath === soundscaperProfessionalNativeCandidateArtifactPaths(target).pluginPeer
+		|| (artifactPath === soundscaperProfessionalNativeBuildResultArtifactPaths(target).pluginPeer
 			&& permitted !== null && !rpaths.includes(permitted))) {
-		throw new Error(`${artifactPath} has an unreviewed native RPATH.`);
+		throw new Error(`${artifactPath} has an undeclared native RPATH.`);
 	}
 }
 

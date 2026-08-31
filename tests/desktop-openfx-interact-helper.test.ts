@@ -13,7 +13,6 @@ import { createOpenFxHelperJobRunner } from '../desktop/openfx-helper-job.ts';
 import type { OpenFxHostProcessInvocation } from '../desktop/openfx-host-process-contract.ts';
 import type { HelperOfxInteractJobResultV1 } from '../desktop/helper-native-job-result.ts';
 import { framescaperOpenFxInteractEffectStateSha256V1 } from '../src/common/editor/native-ofx-interact-contract.ts';
-import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 
 test('the isolated Interact helper authenticates one zero-port offscreen request', async (context) => {
 	const fixture = await createFixture(context);
@@ -112,10 +111,6 @@ async function createFixture(context: test.TestContext) {
 		isolation: { launcher: scanner, sandboxProfile: scanner,
 			brokerPolicy: scanner, runtimeLibraries: [] },
 		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
-		m9ReleaseReview: {
-			scope: 'stable-1.0-release', status: 'complete',
-			evidence: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
-		},
 	};
 	return { descriptor: host, plugin, scratch: {
 		rootPath: scratchPath, rootIdentity: { dev: scratch.dev, ino: scratch.ino },

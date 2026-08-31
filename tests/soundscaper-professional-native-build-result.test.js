@@ -9,12 +9,12 @@ import { dirname, join, resolve, win32 } from 'node:path';
 import test from 'node:test';
 
 import {
-	createSoundscaperProfessionalNativeCandidate,
-	promoteSoundscaperProfessionalNativeCandidate,
+	createSoundscaperProfessionalNativeBuildResult,
 	requiredSoundscaperProfessionalNativeSelfTestIds,
+	stageSoundscaperProfessionalNativeBuildResult,
 	soundscaperProfessionalNativeSourceIdsForTarget,
-	verifySoundscaperProfessionalNativeCandidate,
-} from '../scripts/lib/soundscaper-professional-native-build-candidate.mjs';
+	verifySoundscaperProfessionalNativeBuildResult,
+} from '../scripts/lib/soundscaper-professional-native-build-result.mjs';
 import {
 	assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 	createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
@@ -28,7 +28,7 @@ import {
 } from '../scripts/lib/soundscaper-professional-native-macos-signing.mjs';
 import {
 	soundscaperProfessionalNativePipelineSelfTestReceipts,
-} from '../scripts/lib/soundscaper-professional-native-candidate-pipeline.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result-pipeline.mjs';
 import {
 	createSoundscaperProfessionalNativeToolchainReceipt,
 	soundscaperProfessionalNativeToolchainIdentity,
@@ -49,7 +49,7 @@ test('self-test authority recognizes a normalized path on another Windows volume
 	assert.equal(isExternal('D:\\a\\Soundscaper\\sibling'), true);
 });
 
-test('Soundscaper candidate source scope excludes every Framescaper codec input', () => {
+test('Soundscaper build-result source scope excludes every Framescaper codec input', () => {
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('mac-arm64'), [
 		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
 	]);
@@ -142,11 +142,11 @@ test('self-test commands are closed, clean-HEAD authorities and refuse a changed
 	}), /clean.*HEAD|working tree/iu);
 });
 
-test('a candidate binds installed payloads, closed dependencies, and passing self-tests', async (context) => {
+test('a build result binds installed payloads, closed dependencies, and passing self-tests', async (context) => {
 	const fixture = await candidateFixture(context);
 	const selfTests = [];
 	const inspected = [];
-	const candidate = await createSoundscaperProfessionalNativeCandidate({
+	const candidate = await createSoundscaperProfessionalNativeBuildResult({
 		...fixture.options,
 		inspectDependencies: async ({ path }) => {
 			inspected.push(path);
@@ -163,9 +163,8 @@ test('a candidate binds installed payloads, closed dependencies, and passing sel
 		{ id: 'delivery-filesystem-protocol', expectedStatus: 0 },
 		{ id: 'launcher-refusal', expectedStatus: 125 },
 	]);
-	assert.equal(candidate.receipt.kind, 'soundscaper-professional-native-candidate');
+	assert.equal(candidate.receipt.kind, 'soundscaper-professional-native-build-result');
 	assert.equal(candidate.receipt.target, 'linux-x64');
-	assert.equal(candidate.receipt.productionReadiness, null);
 	assert.deepEqual(candidate.receipt.isolation.runtimeClosure.map(({ path }) => path), [
 		'payload/runtime/libowned.so',
 	]);
@@ -190,32 +189,32 @@ test('a candidate binds installed payloads, closed dependencies, and passing sel
 		'ambient-dependency-refusal', 'recursive-inspection', 'rpath-refusal',
 		'runtime-file-limit-refusal', 'symlink-refusal', 'undeclared-dependency-refusal',
 	]);
-	assert.deepEqual((await verifySoundscaperProfessionalNativeCandidate({
-		candidateRoot: fixture.candidateRoot,
+	assert.deepEqual((await verifySoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: fixture.candidateRoot,
 	})).receipt, candidate.receipt);
 });
 
-test('closure admission rejects symlinks, ambient paths, bad RPATHs, and more than 128 files', async (context) => {
+test('dependency closure rejects symlinks, ambient paths, bad RPATHs, and more than 128 files', async (context) => {
 	const ambient = await candidateFixture(context);
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...ambient.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path,
 			path.endsWith('soundscaper_professional_peer') ? ['/opt/private/libowned.so'] : []),
 		runSelfTest: passingSelfTest,
 	}), /ambient runtime dependency/iu);
 	const rpath = await candidateFixture(context);
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...rpath.options,
 		inspectDependencies: async ({ path }) => ({
 			architecture: architectureReceipt('linux-x64'),
 			imports: [], rpaths: path.endsWith('soundscaper_professional_peer') ? ['/tmp/runtime'] : [],
 		}),
 		runSelfTest: passingSelfTest,
-	}), /unreviewed native RPATH/iu);
+	}), /undeclared native RPATH/iu);
 	const linked = await candidateFixture(context);
 	await symlink(join(linked.options.runtimeRoot, 'libowned.so'),
 		join(linked.options.runtimeRoot, 'linked.so'));
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...linked.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, []),
 		runSelfTest: passingSelfTest,
@@ -223,154 +222,131 @@ test('closure admission rejects symlinks, ambient paths, bad RPATHs, and more th
 	const oversized = await candidateFixture(context);
 	await Promise.all(Array.from({ length: 128 }, (_, index) =>
 		writeFile(join(oversized.options.runtimeRoot, `extra-${String(index).padStart(3, '0')}.so`), 'x')));
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...oversized.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, []),
 		runSelfTest: passingSelfTest,
 	}), /exceeds 128 files/iu);
 });
 
-test('candidate creation refuses an undeclared imported library without publishing output', async (context) => {
+test('build-result creation refuses an undeclared imported library without publishing output', async (context) => {
 	const fixture = await candidateFixture(context);
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...fixture.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path,
 			path.endsWith('soundscaper_professional_peer') ? ['libmissing.so'] : []),
 		runSelfTest: async ({ expectedStatus }) => ({ status: expectedStatus, stdout: '', stderr: '' }),
 	}), /undeclared runtime dependency.*libmissing\.so/iu);
-	await assert.rejects(() => readFile(join(fixture.candidateRoot, 'candidate.json')), /ENOENT/u);
+	await assert.rejects(() => readFile(join(fixture.candidateRoot, 'build-result.json')), /ENOENT/u);
 });
 
-test('candidate creation refuses a wrong-architecture binary without publishing output', async (context) => {
+test('build-result creation refuses a wrong-architecture binary without publishing output', async (context) => {
 	const fixture = await candidateFixture(context);
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...fixture.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'linux-arm64'),
 		runSelfTest: passingSelfTest,
 	}), /architecture receipt.*does not match linux-x64/iu);
-	await assert.rejects(() => readFile(join(fixture.candidateRoot, 'candidate.json')), /ENOENT/u);
+	await assert.rejects(() => readFile(join(fixture.candidateRoot, 'build-result.json')), /ENOENT/u);
 });
 
-test('verification and promotion reject every missing or tampered evidence-receipt category', async (context) => {
+test('verification rejects every missing or tampered evidence-receipt category', async (context) => {
 	const fixture = await candidateFixture(context);
-	await createSoundscaperProfessionalNativeCandidate({
+	await createSoundscaperProfessionalNativeBuildResult({
 		...fixture.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, []),
 		runSelfTest: passingSelfTest,
 	});
-	const path = join(fixture.candidateRoot, 'candidate.json');
+	const path = join(fixture.candidateRoot, 'build-result.json');
 	const original = JSON.parse(await readFile(path, 'utf8'));
 	await chmod(path, 0o600);
 	for (const kind of original.evidenceReceipts.map(({ kind }) => kind)) {
 		const tampered = structuredClone(original);
 		tampered.evidenceReceipts.find((entry) => entry.kind === kind).evidence.tampered = true;
 		await writeFile(path, canonicalJson(tampered));
-		await assert.rejects(() => verifySoundscaperProfessionalNativeCandidate({
-			candidateRoot: fixture.candidateRoot,
+		await assert.rejects(() => verifySoundscaperProfessionalNativeBuildResult({
+			buildResultRoot: fixture.candidateRoot,
 		}), new RegExp(kind, 'iu'));
 	}
 	const missing = structuredClone(original);
 	missing.evidenceReceipts.pop();
 	await writeFile(path, canonicalJson(missing));
-	await assert.rejects(() => promoteSoundscaperProfessionalNativeCandidate({
-		candidateRoot: fixture.candidateRoot,
+	await assert.rejects(() => verifySoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: fixture.candidateRoot,
 	}), /evidence receipt inventory is incomplete/iu);
 });
 
-test('promotion is no-overwrite, idempotent for one exact candidate, and leaves readiness external', async (context) => {
-	const repository = await promotionRepository(context, 'soundscaper-pro-promotion-');
+test('staging is no-overwrite and idempotent for one exact build result', async (context) => {
+	const repository = await stagingRepository(context, 'soundscaper-pro-staging-');
 	const stale = await candidateFixture(context);
-	await createSoundscaperProfessionalNativeCandidate({
+	await createSoundscaperProfessionalNativeBuildResult({
 		...stale.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, []),
 		runSelfTest: passingSelfTest,
 	});
-	await assert.rejects(() => promoteSoundscaperProfessionalNativeCandidate({
-		candidateRoot: stale.candidateRoot, repositoryRoot: repository.root,
-	}), /candidate source revision.*checked-out|checked-out.*candidate source revision/iu);
+	await assert.rejects(() => stageSoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: stale.candidateRoot, repositoryRoot: repository.root,
+	}), /source revision.*checked-out|checked-out.*source revision/iu);
 	const fixture = await candidateFixture(context, 'linux-x64', repository.sourceRevision);
-	await createSoundscaperProfessionalNativeCandidate({
+	await createSoundscaperProfessionalNativeBuildResult({
 		...fixture.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, []),
 		runSelfTest: async ({ expectedStatus }) => ({ status: expectedStatus, stdout: 'passed', stderr: '' }),
 	});
-	const promoted = await promoteSoundscaperProfessionalNativeCandidate({
-		candidateRoot: fixture.candidateRoot, repositoryRoot: repository.root,
+	const staged = await stageSoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: fixture.candidateRoot, repositoryRoot: repository.root,
 	});
-	assert.equal(promoted.status, 'promoted');
+	assert.equal(staged.status, 'staged');
 	const manifest = JSON.parse(await readFile(
 		join(repository.root, 'config/soundscaper-professional-native-payload-manifest.json'), 'utf8',
 	));
 	const row = manifest.targets.find(({ id }) => id === 'linux-x64');
 	assert.equal(row.status, 'built');
 	assert.equal(row.blockedBy, null);
-	assert.equal(row.productionReadiness, null);
 	assert.match(row.payload.path, /prebuilt\/linux-x64\/soundscaper_professional\.node$/u);
 	assert.match(row.deliveryFilesystem.path,
 		/prebuilt\/linux-x64\/soundscaper_delivery_fs$/u);
-	assert.match(row.buildCandidate.path, /prebuilt\/linux-x64\/soundscaper-professional-native-candidate\.json$/u);
-	assert.equal((await promoteSoundscaperProfessionalNativeCandidate({
-		candidateRoot: fixture.candidateRoot, repositoryRoot: repository.root,
-	})).status, 'already-promoted');
+	assert.match(row.buildResult.path, /prebuilt\/linux-x64\/soundscaper-professional-native-build-result\.json$/u);
+	assert.equal((await stageSoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: fixture.candidateRoot, repositoryRoot: repository.root,
+	})).status, 'already-staged');
 	await writeFile(join(fixture.candidateRoot, 'payload/soundscaper_professional.node'), 'changed');
-	await assert.rejects(() => promoteSoundscaperProfessionalNativeCandidate({
-		candidateRoot: fixture.candidateRoot, repositoryRoot: repository.root,
+	await assert.rejects(() => stageSoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: fixture.candidateRoot, repositoryRoot: repository.root,
 	}), /digest|changed|authenticate/iu);
 });
 
-test('standalone concurrent target promotions serialize without losing either manifest row', async (context) => {
-	const repository = await promotionRepository(context, 'soundscaper-pro-concurrent-promotion-');
-	const linux = await candidateFixture(context, 'linux-x64', repository.sourceRevision);
-	const mac = await candidateFixture(context, 'mac-arm64', repository.sourceRevision);
-	for (const fixture of [linux, mac]) await createSoundscaperProfessionalNativeCandidate({
-		...fixture.options,
-		inspectDependencies: async ({ path }) => dependencyInspection(path, [], fixture.options.target),
-		runSelfTest: passingSelfTest,
-	});
-	const promoted = await Promise.all([linux, mac].map((fixture) =>
-		promoteSoundscaperProfessionalNativeCandidate({
-			candidateRoot: fixture.candidateRoot, repositoryRoot: repository.root,
-		})));
-	assert.deepEqual(promoted.map(({ status }) => status), ['promoted', 'promoted']);
-	const manifest = JSON.parse(await readFile(join(repository.root,
-		'config/soundscaper-professional-native-payload-manifest.json'), 'utf8'));
-	assert.equal(manifest.targets.find(({ id }) => id === 'linux-x64').status, 'built');
-	assert.equal(manifest.targets.find(({ id }) => id === 'mac-arm64').status, 'built');
-	await assert.rejects(() => readFile(join(repository.root,
-		'config/.soundscaper-professional-native-promotion.lock/owner.json')), /ENOENT/u);
-});
-
-test('mac candidates require, receipt-bind, and promote the OS audio codec addon while Linux is exactly null', async (context) => {
+test('mac build results require, receipt-bind, and stage the OS audio codec addon while Linux is exactly null', async (context) => {
 	const linux = await candidateFixture(context);
-	const linuxCandidate = await createSoundscaperProfessionalNativeCandidate({
+	const linuxCandidate = await createSoundscaperProfessionalNativeBuildResult({
 		...linux.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'linux-x64'),
 		runSelfTest: passingSelfTest,
 	});
 	assert.equal(linuxCandidate.receipt.osAudioCodec, null);
-	const repository = await promotionRepository(context, 'soundscaper-pro-mac-promotion-');
+	const repository = await stagingRepository(context, 'soundscaper-pro-mac-staging-');
 	const mac = await candidateFixture(context, 'mac-arm64', repository.sourceRevision);
 	const codecPath = join(mac.options.osAudioCodecInstallRoot, 'soundscaper_os_audio_codec.node');
 	await rm(codecPath);
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...mac.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
-	}), /OS audio codec|installed candidate input|ENOENT/iu);
+	}), /OS audio codec|installed build-result input|ENOENT/iu);
 	await writeFile(codecPath, 'os-codec');
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...mac.options, macSigningEvidence: null,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
 	}), /mac signing evidence/iu);
 	const tamperedSigning = structuredClone(mac.options.macSigningEvidence);
 	tamperedSigning.artifacts[0].sha256 = 'f'.repeat(64);
-	await assert.rejects(() => createSoundscaperProfessionalNativeCandidate({
+	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
 		...mac.options, macSigningEvidence: tamperedSigning,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
 	}), /mac signing evidence.*payload-misbound/iu);
-	const candidate = await createSoundscaperProfessionalNativeCandidate({ ...mac.options,
+	const candidate = await createSoundscaperProfessionalNativeBuildResult({ ...mac.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
 	});
@@ -385,14 +361,16 @@ test('mac candidates require, receipt-bind, and promote the OS audio codec addon
 			? 'native/soundscaper-professional-host/soundscaper-professional-peer-entitlements.mac.plist' : null);
 	}
 	assert(candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'installed-files').evidence.files.some(({ path }) => path === candidate.receipt.osAudioCodec.path));
-	await promoteSoundscaperProfessionalNativeCandidate({ candidateRoot: mac.candidateRoot, repositoryRoot: repository.root });
+	await stageSoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: mac.candidateRoot, repositoryRoot: repository.root,
+	});
 	const manifest = JSON.parse(await readFile(join(repository.root, 'config/soundscaper-professional-native-payload-manifest.json'), 'utf8'));
 	const row = manifest.targets.find(({ id }) => id === 'mac-arm64');
 	assert.match(row.osAudioCodec.path, /prebuilt\/mac-arm64\/soundscaper_os_audio_codec\.node$/u);
 	assert.equal(await readFile(join(repository.root, row.osAudioCodec.path), 'utf8'), 'os-codec');
 });
 
-async function promotionRepository(context, prefix) {
+async function stagingRepository(context, prefix) {
 	const root = await mkdtemp(join(tmpdir(), prefix));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	await mkdir(join(root, 'config'), { recursive: true });
@@ -402,7 +380,7 @@ async function promotionRepository(context, prefix) {
 	execFileSync('git', ['add', '.'], { cwd: root });
 	execFileSync('git', [
 		'-c', 'user.name=Soundscaper Tests', '-c', 'user.email=test@soundscaper.invalid',
-		'commit', '-qm', 'promotion fixture',
+		'commit', '-qm', 'staging fixture',
 	], { cwd: root });
 	return Object.freeze({
 		root,
@@ -452,7 +430,7 @@ async function candidateFixture(context, target = 'linux-x64', sourceRevision = 
 	return {
 		candidateRoot,
 		options: {
-			candidateRoot,
+			buildResultRoot: candidateRoot,
 			professionalInstallRoot,
 			isolationInstallRoot,
 			runtimeRoot,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import {
@@ -10,29 +10,20 @@ import {
 	framescaperMediaHostTargetFor,
 } from '../desktop/framescaper-media-host-payload.ts';
 
-const BYTES = Buffer.from('synthetic-framescaper-media-host');
-const LAUNCHER = Buffer.from('synthetic-media-isolation-launcher');
-const PROFILE = Buffer.from('synthetic-media-isolation-profile');
-const BROKER = Buffer.from('synthetic-media-isolation-broker');
-const LIBRARY = Buffer.from('synthetic-media-runtime-library');
-const SHA256 = createHash('sha256').update(BYTES).digest('hex');
+const FILES = Object.freeze({
+	'framescaper-media-host': Buffer.from('synthetic-framescaper-media-host'),
+	'milestone5-native-isolation-launcher': Buffer.from('synthetic-media-launcher'),
+	'milestone5-native-isolation-profile.json': Buffer.from('synthetic-media-profile'),
+	'milestone5-native-isolation-broker.json': Buffer.from('synthetic-media-broker'),
+	'libframescaper-media.so': Buffer.from('synthetic-media-library'),
+});
 const MANIFEST_PATH = '/application/config/framescaper-media-host-payload-manifest.json';
-const DEVELOPMENT_PATH =
-	'/application/native/framescaper-media-host/prebuilt/linux-x64/framescaper-media-host';
-const LAUNCHER_PATH =
-	'/application/native/framescaper-media-host/prebuilt/linux-x64/isolation/milestone5-native-isolation-launcher';
-const PROFILE_PATH =
-	'/application/native/framescaper-media-host/prebuilt/linux-x64/isolation/milestone5-native-isolation-profile.json';
-const BROKER_PATH =
-	'/application/native/framescaper-media-host/prebuilt/linux-x64/isolation/milestone5-native-isolation-broker.json';
-const LIBRARY_PATH =
-	'/application/native/framescaper-media-host/prebuilt/linux-x64/lib/libframescaper-media.so';
-const EVIDENCE_PATH =
-	'/application/config/framescaper-media-host-production-readiness/linux-x64.json';
-const PACKAGED_EVIDENCE_PATH =
-	'/resources/runtime/native/framescaper-media-host/linux-x64/framescaper-media-host-production-readiness.json';
-const KEY = generateKeyPairSync('ed25519');
-const KEY_ID = 'synthetic-media-review-v1';
+const SOURCE_PREFIX = 'native/framescaper-media-host/prebuilt/linux-x64';
+type MutableMediaTarget = {
+	productionReadiness?: unknown;
+	runtime: string;
+	payload: null | { path: string };
+};
 
 test('the media-host resolver admits only the five exact runtime targets', () => {
 	assert.equal(framescaperMediaHostTargetFor('linux', 'x64'), 'linux-x64');
@@ -42,124 +33,60 @@ test('the media-host resolver admits only the five exact runtime targets', () =>
 	assert.equal(framescaperMediaHostTargetFor('freebsd', 'x64'), null);
 });
 
-test('a built current-target payload is selected only after exact byte and identity verification', async () => {
+test('a built target exposes only the hash-verified media and isolation closure', async () => {
 	const reads: string[] = [];
-	const availability = await describeFramescaperMediaHostAvailability(location(), {
-		readFile: async (path) => {
-			reads.push(path);
-			return path === MANIFEST_PATH ? Buffer.from(JSON.stringify(manifest())) : payloadBytes(path);
-		},
-		stat: async (path) => fileStat(payloadBytes(path).byteLength, path),
-		resolveReviewPublicKey: () => KEY.publicKey.export({ type: 'spki', format: 'pem' }),
-	});
+	const availability = await describeFramescaperMediaHostAvailability(location(), ports(manifest(), reads));
 	assert.equal(availability.status, 'available');
 	if (availability.status !== 'available') return;
-	assert.deepEqual(availability.descriptor, {
-		target: 'linux-x64', runtime: 'linux-x64', path: DEVELOPMENT_PATH,
-		byteLength: BYTES.byteLength, sha256: SHA256, hostVersion: '1.0.0',
-		ffmpegVersion: '9.0.1', identity: { dev: 7, ino: identityFor(DEVELOPMENT_PATH) },
-		isolation: {
-			launcher: runtimeDescriptor(LAUNCHER_PATH, LAUNCHER),
-			sandboxProfile: runtimeDescriptor(PROFILE_PATH, PROFILE),
-			brokerPolicy: runtimeDescriptor(BROKER_PATH, BROKER),
-			runtimeLibraries: [runtimeDescriptor(LIBRARY_PATH, LIBRARY)],
-		},
-		m9ReleaseReview: {
-			scope: 'stable-1.0-release', status: 'complete', evidence: readinessEvidence(),
-		},
-	});
-	assert.deepEqual(reads, [
-		MANIFEST_PATH, DEVELOPMENT_PATH, LAUNCHER_PATH, PROFILE_PATH, BROKER_PATH,
-		LIBRARY_PATH, EVIDENCE_PATH, EVIDENCE_PATH,
-	]);
+	assert.equal(availability.descriptor.path, `/application/${SOURCE_PREFIX}/framescaper-media-host`);
+	assert.equal(availability.descriptor.sha256, digest(FILES['framescaper-media-host']));
+	assert.equal(availability.descriptor.isolation.runtimeLibraries.length, 1);
+	assert.equal(Object.hasOwn(availability.descriptor, 'm9ReleaseReview'), false);
+	assert.equal(reads.length, 6);
 });
 
-test('packaged payloads resolve only below the verified runtime prefix', async () => {
-	const reads: string[] = [];
-	const availability = await describeFramescaperMediaHostAvailability({
-		...location(), packaged: true, resourcesPath: '/resources',
-	}, {
-		readFile: async (path) => {
-			reads.push(path);
-			return path === MANIFEST_PATH ? Buffer.from(JSON.stringify(manifest())) : payloadBytes(path);
-		},
-		stat: async (path) => fileStat(payloadBytes(path).byteLength, path),
-		resolveReviewPublicKey: () => KEY.publicKey.export({ type: 'spki', format: 'pem' }),
-	});
-	assert.equal(availability.status, 'available');
-	if (availability.status !== 'available') return;
-	assert.equal(
-		availability.descriptor.path,
-		'/resources/runtime/native/framescaper-media-host/linux-x64/framescaper-media-host',
-	);
-	assert.ok(reads.includes(PACKAGED_EVIDENCE_PATH));
-});
-
-test('prepared desktop development resolves only from its staged external runtime', async () => {
-	const expected = '/build/runtime/native/framescaper-media-host/linux-x64/framescaper-media-host';
-	const reads: string[] = [];
-	const availability = await describeFramescaperMediaHostAvailability({
-		...location(), externalRuntimeRoot: '/build/runtime',
-	}, {
-		readFile: async (path) => {
-			reads.push(path);
-			return path === MANIFEST_PATH ? Buffer.from(JSON.stringify(manifest())) : payloadBytes(path);
-		},
-		stat: async (path) => fileStat(payloadBytes(path).byteLength, path),
-		resolveReviewPublicKey: () => KEY.publicKey.export({ type: 'spki', format: 'pem' }),
-	});
-	assert.equal(availability.status, 'available');
-	assert.equal(availability.status === 'available' ? availability.descriptor.path : null, expected);
-	assert.ok(reads.includes(expected));
-});
-
-test('pending, missing, altered, and malformed payloads stay explicitly unavailable', async () => {
-	const pending = manifest({ built: false });
-	const pendingResult = await describeFramescaperMediaHostAvailability(location(), ports(pending));
-	assert.equal(pendingResult.status, 'unavailable');
-	assert.equal(pendingResult.status === 'unavailable' ? pendingResult.reason : null, 'payload-pending-external');
-
-	for (const [label, alteredManifest, payload, reason] of [
-		['missing payload row', { ...manifest(), payloads: [] }, BYTES, 'manifest-unreadable'],
-		['duplicate payload row', { ...manifest(), payloads: [manifest().payloads[0], manifest().payloads[0]] }, BYTES,
-			'manifest-unreadable'],
-		['wrong runtime', manifest({ runtime: 'linux-arm64' }), BYTES, 'manifest-unreadable'],
-		['unsafe path', manifest({ path: '../framescaper-media-host' }), BYTES, 'manifest-unreadable'],
-		['altered bytes', manifest(), Buffer.from('altered'), 'payload-digest-mismatch'],
+test('packaged and prepared payloads stay inside their selected runtime root', async () => {
+	for (const [locationValue, expected] of [
+		[{ ...location(), packaged: true, resourcesPath: '/resources' },
+			'/resources/runtime/native/framescaper-media-host/linux-x64/framescaper-media-host'],
+		[{ ...location(), externalRuntimeRoot: '/build/runtime' },
+			'/build/runtime/native/framescaper-media-host/linux-x64/framescaper-media-host'],
 	] as const) {
-		const result = await describeFramescaperMediaHostAvailability(
-			location(), ports(alteredManifest, payload),
-		);
-		assert.equal(result.status, 'unavailable', label);
-		assert.equal(result.status === 'unavailable' ? result.reason : null, reason, label);
+		const availability = await describeFramescaperMediaHostAvailability(locationValue, ports(manifest()));
+		assert.equal(availability.status, 'available');
+		assert.equal(availability.status === 'available' ? availability.descriptor.path : null, expected);
 	}
 });
 
-test('built media bytes stay available while independent review remains M9 release metadata', async () => {
-	const result = await describeFramescaperMediaHostAvailability(
-		location(), ports(manifest({ attested: false })),
-	);
-	assert.equal(result.status, 'available');
-	if (result.status !== 'available') return;
-	assert.deepEqual(result.descriptor.m9ReleaseReview, {
-		scope: 'stable-1.0-release', status: 'pending',
-		detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
-	});
+test('pending, malformed, wrong-target, and altered media closures fail closed', async () => {
+	const pending = await describeFramescaperMediaHostAvailability(location(), ports(manifest(false)));
+	assert.equal(pending.status === 'unavailable' ? pending.reason : null, 'payload-pending-external');
+	for (const [label, value, alteredName, expected] of [
+		['extra target field', mutateManifest((row) => { row.productionReadiness = null; }), '', 'manifest-unreadable'],
+		['missing payload row', { ...manifest(), payloads: [] }, '', 'manifest-unreadable'],
+		['wrong target runtime', mutateManifest((row) => { row.runtime = 'linux-arm64'; }), '', 'manifest-unreadable'],
+		['unsafe payload path', mutateManifest((row) => { row.payload!.path = '../host'; }), '', 'manifest-unreadable'],
+		['altered bytes', manifest(), 'framescaper-media-host', 'payload-digest-mismatch'],
+	] as const) {
+		const availability = await describeFramescaperMediaHostAvailability(
+			location(), ports(value, [], alteredName),
+		);
+		assert.equal(availability.status === 'unavailable' ? availability.reason : null, expected, label);
+	}
 });
 
-test('the spawn verifier fails closed and rechecks the payload on every call', async () => {
-	let payloadReads = 0;
+test('the process-spawn verifier reopens every payload byte on each call', async () => {
+	let hostReads = 0;
 	const verify = createFramescaperMediaHostVerifier(location(), {
+		...ports(manifest()),
 		readFile: async (path) => {
 			if (path === MANIFEST_PATH) return Buffer.from(JSON.stringify(manifest()));
-			if (path === DEVELOPMENT_PATH) {
-				payloadReads += 1;
-				return payloadReads === 1 ? BYTES : Buffer.from('changed');
+			if (path.endsWith('/framescaper-media-host')) {
+				hostReads += 1;
+				return hostReads === 1 ? FILES['framescaper-media-host'] : Buffer.from('changed');
 			}
-			return payloadBytes(path);
+			return bytesFor(path);
 		},
-		stat: async (path) => fileStat(payloadBytes(path).byteLength, path),
-		resolveReviewPublicKey: () => KEY.publicKey.export({ type: 'spki', format: 'pem' }),
 	});
 	assert.equal((await verify()).target, 'linux-x64');
 	await assert.rejects(verify(), /payload-digest-mismatch/u);
@@ -172,150 +99,74 @@ function location() {
 	});
 }
 
-function manifest(overrides: Readonly<{
-	built?: boolean;
-	runtime?: string;
-	path?: string;
-	attested?: boolean;
-}> = {}) {
-	const built = overrides.built ?? true;
-	const runtime = overrides.runtime ?? 'linux-x64';
-	const path = overrides.path
-		?? 'native/framescaper-media-host/prebuilt/linux-x64/framescaper-media-host';
-	const payload = { path, byteLength: BYTES.byteLength, sha256: SHA256 };
-	const isolationPayload = isolationManifest();
-	const selected = {
-		id: 'linux-x64', runtime,
-		status: built ? 'built' : 'pending-external',
-		blockedBy: built ? null : 'No qualified synthetic payload exists.',
-		payload: built ? payload : null,
-		isolationPayload: built ? isolationPayload : null,
-		productionReadiness: built && (overrides.attested ?? true) ? readinessReference() : null,
+function manifest(built = true) {
+	const payload = descriptor(`${SOURCE_PREFIX}/framescaper-media-host`, FILES['framescaper-media-host']);
+	const isolationPayload = {
+		launcherPayload: descriptor(`${SOURCE_PREFIX}/isolation/milestone5-native-isolation-launcher`,
+			FILES['milestone5-native-isolation-launcher']),
+		sandboxProfilePayload: descriptor(`${SOURCE_PREFIX}/isolation/milestone5-native-isolation-profile.json`,
+			FILES['milestone5-native-isolation-profile.json']),
+		brokerPolicyPayload: descriptor(`${SOURCE_PREFIX}/isolation/milestone5-native-isolation-broker.json`,
+			FILES['milestone5-native-isolation-broker.json']),
+		runtimeLibraryPayloads: [descriptor(`${SOURCE_PREFIX}/lib/libframescaper-media.so`,
+			FILES['libframescaper-media.so'])],
 	};
-	const pending = [
-		['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
-		['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
-	].map(([id, targetRuntime]) => ({
-		id, runtime: targetRuntime, status: 'pending-external',
-		blockedBy: 'No qualified synthetic payload exists.', payload: null,
-		isolationPayload: null, productionReadiness: null,
-	}));
+	const targets = [
+		{
+			id: 'linux-x64', runtime: 'linux-x64', status: built ? 'built' : 'pending-external',
+			blockedBy: built ? null : 'No verified synthetic media payload exists.',
+			payload: built ? payload : null, isolationPayload: built ? isolationPayload : null,
+		},
+		...[
+			['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
+			['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
+		].map(([id, runtime]) => ({
+			id, runtime, status: 'pending-external',
+			blockedBy: 'No verified synthetic media payload exists.', payload: null, isolationPayload: null,
+		})),
+	];
 	return {
-		schemaVersion: 1,
-		id: 'framescaper-media-host-1.0.0',
+		schemaVersion: 1, id: 'framescaper-media-host-1.0.0',
 		sourceManifestPath: 'native/framescaper-media-host/source-manifest.json',
 		ffmpeg: {
 			version: '9.0.1',
 			sha256: 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635',
 		},
 		runtimePrefix: 'native/framescaper-media-host',
-		payloads: built ? [{ id: 'linux-x64', runtime, ...payload, isolationPayload }] : [],
-		targets: [selected, ...pending],
+		payloads: built ? [{ id: 'linux-x64', runtime: 'linux-x64', ...payload, isolationPayload }] : [],
+		targets,
 	};
 }
 
-function ports(value: unknown, payload = BYTES) {
-	return {
-		readFile: async (path: string) => path === MANIFEST_PATH
-			? Buffer.from(JSON.stringify(value))
-			: path === DEVELOPMENT_PATH ? payload : payloadBytes(path),
-		stat: async (path: string) => fileStat(
-			path === DEVELOPMENT_PATH ? payload.byteLength : payloadBytes(path).byteLength, path,
-		),
-		resolveReviewPublicKey: () => KEY.publicKey.export({ type: 'spki', format: 'pem' }),
-	};
+function mutateManifest(mutate: (row: MutableMediaTarget) => void) {
+	const value = structuredClone(manifest());
+	mutate(value.targets[0]);
+	return value;
 }
 
-function fileStat(size: number, path: string) {
-	return Object.freeze({
-		isFile: () => true, isSymbolicLink: () => false, size, dev: 7, ino: identityFor(path),
-	});
-}
-
-function isolationManifest() {
+function ports(value: unknown, reads: string[] = [], alteredName = '') {
 	return {
-		launcherPayload: sourceDescriptor(
-			'native/framescaper-media-host/prebuilt/linux-x64/isolation/milestone5-native-isolation-launcher',
-			LAUNCHER,
-		),
-		sandboxProfilePayload: sourceDescriptor(
-			'native/framescaper-media-host/prebuilt/linux-x64/isolation/milestone5-native-isolation-profile.json',
-			PROFILE,
-		),
-		brokerPolicyPayload: sourceDescriptor(
-			'native/framescaper-media-host/prebuilt/linux-x64/isolation/milestone5-native-isolation-broker.json',
-			BROKER,
-		),
-		runtimeLibraryPayloads: [sourceDescriptor(
-			'native/framescaper-media-host/prebuilt/linux-x64/lib/libframescaper-media.so',
-			LIBRARY,
-		)],
-	};
-}
-
-function readinessReference() {
-	const bytes = Buffer.from(JSON.stringify(readinessEvidence()));
-	return {
-		schemaVersion: 2, status: 'reviewed', target: 'linux-x64',
-		evidence: {
-			path: 'config/framescaper-media-host-production-readiness/linux-x64.json',
-			byteLength: bytes.byteLength, sha256: digest(bytes),
+		readFile: async (path: string) => {
+			reads.push(path);
+			if (path === MANIFEST_PATH) return Buffer.from(JSON.stringify(value));
+			return path.endsWith(`/${alteredName}`) && alteredName !== '' ? Buffer.from('altered') : bytesFor(path);
 		},
-		signature: {
-			algorithm: 'ed25519', reviewKeyId: KEY_ID,
-			valueBase64: sign(null, bytes, KEY.privateKey).toString('base64'),
-		},
+		stat: async (path: string) => ({
+			isFile: () => true, isSymbolicLink: () => false,
+			size: bytesFor(path).byteLength, dev: 7, ino: path.length,
+		}),
 	};
 }
 
-function readinessEvidence() {
-	const isolation = isolationManifest();
-	return {
-		schemaVersion: 1, kind: 'framescaper-media-host-production-readiness', target: 'linux-x64',
-		mediaHostSha256: SHA256,
-		runtimeLibraries: [{ name: 'libframescaper-media.so', byteLength: LIBRARY.byteLength,
-			sha256: digest(LIBRARY) }],
-		launcher: {
-			schemaVersion: 1, target: 'linux-x64',
-			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: isolation.launcherPayload.sha256,
-			sandboxProfileSha256: isolation.sandboxProfilePayload.sha256,
-			brokerPolicySha256: isolation.brokerPolicyPayload.sha256,
-			filesystem: 'broker-grant-only', network: 'denied', childProcesses: 'denied',
-			dynamicCode: 'denied',
-		},
-		ffmpegVersion: '9.0.1', osIsolationAttested: true,
-		hostileMediaDenialAttested: true, dualStreamFdRemapAttested: true,
-		twoHourContinuityAttested: true, reviewedAt: '2026-08-24',
-		reviewer: 'synthetic media isolation reviewer',
-	};
+function bytesFor(path: string): Buffer {
+	const name = path.split('/').at(-1) as keyof typeof FILES;
+	const bytes = FILES[name];
+	if (bytes === undefined) throw new Error(`Unknown fixture path ${path}.`);
+	return bytes;
 }
 
-function payloadBytes(path: string): Buffer {
-	if (path === EVIDENCE_PATH || path === PACKAGED_EVIDENCE_PATH) {
-		return Buffer.from(JSON.stringify(readinessEvidence()));
-	}
-	if (path.includes('launcher')) return LAUNCHER;
-	if (path.includes('profile')) return PROFILE;
-	if (path.includes('broker')) return BROKER;
-	if (path.includes('libframescaper')) return LIBRARY;
-	return BYTES;
-}
-
-function sourceDescriptor(path: string, bytes: Buffer) {
+function descriptor(path: string, bytes: Buffer) {
 	return { path, byteLength: bytes.byteLength, sha256: digest(bytes) };
-}
-
-function runtimeDescriptor(path: string, bytes: Buffer) {
-	return { ...sourceDescriptor(path, bytes), identity: { dev: 7, ino: identityFor(path) } };
-}
-
-function identityFor(path: string): number {
-	if (path.includes('launcher')) return 20;
-	if (path.includes('profile')) return 21;
-	if (path.includes('broker')) return 22;
-	if (path.includes('libframescaper')) return 23;
-	return 19;
 }
 
 function digest(bytes: Buffer): string {

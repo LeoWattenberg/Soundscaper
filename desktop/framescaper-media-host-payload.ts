@@ -6,13 +6,6 @@ import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { basename, join, relative, resolve } from 'node:path';
 
-import {
-	framescaperMediaProductionReadinessReference,
-	verifyFramescaperMediaProductionReadiness,
-	type FramescaperMediaProductionReadinessEvidenceV1,
-	type FramescaperMediaRuntimeLibraryEvidenceV1,
-} from './framescaper-media-production-readiness.ts';
-
 export const FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS = Object.freeze({
 	'linux-x64': 'linux-x64',
 	'linux-arm64': 'linux-arm64',
@@ -28,11 +21,9 @@ export type FramescaperMediaHostTargetId =
 export type FramescaperMediaHostUnavailableReason =
 	| 'unsupported-platform'
 	| 'payload-pending-external'
-	| 'production-readiness-unattested'
 	| 'isolation-launcher-unavailable'
 	| 'payload-missing'
 	| 'payload-digest-mismatch'
-	| 'production-readiness-evidence-mismatch'
 	| 'manifest-unreadable';
 
 export interface FramescaperMediaHostPayloadLocation {
@@ -59,20 +50,7 @@ export interface FramescaperMediaHostDescriptor {
 		readonly brokerPolicy: FramescaperMediaHostExecutableDescriptor;
 		readonly runtimeLibraries: readonly FramescaperMediaHostExecutableDescriptor[];
 	}>;
-	readonly m9ReleaseReview: FramescaperMediaHostM9ReleaseReview;
 }
-
-export type FramescaperMediaHostM9ReleaseReview =
-	| Readonly<{
-		readonly scope: 'stable-1.0-release';
-		readonly status: 'complete';
-		readonly evidence: FramescaperMediaProductionReadinessEvidenceV1;
-	}>
-	| Readonly<{
-		readonly scope: 'stable-1.0-release';
-		readonly status: 'pending' | 'invalid';
-		readonly detail: string;
-	}>;
 
 export interface FramescaperMediaHostExecutableDescriptor {
 	readonly path: string;
@@ -100,9 +78,6 @@ interface FileStat {
 export interface FramescaperMediaHostPayloadPorts {
 	readonly readFile: (path: string) => Promise<Buffer>;
 	readonly stat: (path: string) => Promise<FileStat>;
-	readonly resolveReviewPublicKey?: (
-		target: FramescaperMediaHostTargetId, reviewKeyId: string,
-	) => Promise<string | Buffer | null> | string | Buffer | null;
 }
 
 const DEFAULT_PORTS: FramescaperMediaHostPayloadPorts = Object.freeze({ readFile, stat });
@@ -145,7 +120,6 @@ interface TargetRecord {
 	readonly blockedBy: string | null;
 	readonly payload: PayloadIdentity | null;
 	readonly isolationPayload: IsolationPayloadIdentity | null;
-	readonly productionReadiness: unknown | null;
 }
 
 interface PayloadManifest {
@@ -203,17 +177,6 @@ export async function describeFramescaperMediaHostAvailability(
 				payloadPath(location, targetId, identity.path), identity, ports,
 			)),
 		]);
-		const m9ReleaseReview = await mediaHostM9ReleaseReview({
-			reference: target.productionReadiness,
-			location,
-			targetId,
-			mediaHost,
-			launcher: launcher!,
-			sandboxProfile: sandboxProfile!,
-			brokerPolicy: brokerPolicy!,
-			runtimeLibraries,
-			ports,
-		});
 		return Object.freeze({
 			status: 'available' as const,
 			descriptor: Object.freeze({
@@ -229,7 +192,6 @@ export async function describeFramescaperMediaHostAvailability(
 					launcher: launcher!, sandboxProfile: sandboxProfile!, brokerPolicy: brokerPolicy!,
 					runtimeLibraries: Object.freeze(runtimeLibraries),
 				}),
-				m9ReleaseReview,
 			}),
 		});
 	} catch (error) {
@@ -239,56 +201,6 @@ export async function describeFramescaperMediaHostAvailability(
 			missing ? `A Framescaper media-host payload is missing: ${errorMessage(error)}`
 				: 'The Framescaper media-host payload closure does not match its pinned bytes.',
 		);
-	}
-}
-
-async function mediaHostM9ReleaseReview(input: Readonly<{
-	reference: unknown | null;
-	location: FramescaperMediaHostPayloadLocation;
-	targetId: FramescaperMediaHostTargetId;
-	mediaHost: FramescaperMediaHostExecutableDescriptor;
-	launcher: FramescaperMediaHostExecutableDescriptor;
-	sandboxProfile: FramescaperMediaHostExecutableDescriptor;
-	brokerPolicy: FramescaperMediaHostExecutableDescriptor;
-	runtimeLibraries: readonly FramescaperMediaHostExecutableDescriptor[];
-	ports: FramescaperMediaHostPayloadPorts;
-}>): Promise<FramescaperMediaHostM9ReleaseReview> {
-	if (input.reference === null) return Object.freeze({
-		scope: 'stable-1.0-release' as const,
-		status: 'pending' as const,
-		detail: 'No independent media-host review is recorded for stable 1.0 release admission.',
-	});
-	try {
-		const reference = framescaperMediaProductionReadinessReference(
-			input.reference, input.targetId,
-		);
-		const evidence = await verifyFramescaperMediaProductionReadiness(
-			reference,
-			Object.freeze({
-				mediaHostSha256: input.mediaHost.sha256,
-				isolation: Object.freeze({
-					launcherSha256: input.launcher.sha256,
-					sandboxProfileSha256: input.sandboxProfile.sha256,
-					brokerPolicySha256: input.brokerPolicy.sha256,
-					runtimeLibraries: runtimeLibraryEvidence(input.runtimeLibraries),
-				}),
-			}),
-			Object.freeze({
-				readEvidence: (path: string) => input.ports.readFile(readinessEvidencePath(
-					input.location, input.targetId, path,
-				)),
-				resolveReviewPublicKey: input.ports.resolveReviewPublicKey ?? (() => null),
-			}),
-		);
-		return Object.freeze({
-			scope: 'stable-1.0-release' as const, status: 'complete' as const, evidence,
-		});
-	} catch (error) {
-		return Object.freeze({
-			scope: 'stable-1.0-release' as const,
-			status: 'invalid' as const,
-			detail: `The recorded media-host M9 release review is invalid: ${errorMessage(error)}`.slice(0, 512),
-		});
 	}
 }
 
@@ -339,7 +251,7 @@ function payloadManifest(value: unknown): PayloadManifest {
 				throw new TypeError(`Built media-host target ${id} has an inconsistent payload identity.`);
 			}
 		} else if (target.payload !== null || target.isolationPayload !== null
-			|| target.productionReadiness !== null || typeof target.blockedBy !== 'string'
+			|| typeof target.blockedBy !== 'string'
 			|| target.blockedBy.length < 16 || matchingPayloads.length !== 0) {
 			throw new TypeError(`Pending media-host target ${id} carries a payload claim.`);
 		}
@@ -357,7 +269,7 @@ function payloadManifest(value: unknown): PayloadManifest {
 
 function targetRecord(value: unknown): TargetRecord {
 	const record = closedRecord(value, [
-		'id', 'runtime', 'status', 'blockedBy', 'payload', 'isolationPayload', 'productionReadiness',
+		'id', 'runtime', 'status', 'blockedBy', 'payload', 'isolationPayload',
 	]);
 	const id = targetId(record.id);
 	const runtime = record.runtime;
@@ -376,7 +288,6 @@ function targetRecord(value: unknown): TargetRecord {
 		payload: record.payload === null ? null : payloadIdentity(record.payload, id),
 		isolationPayload: record.isolationPayload === null
 			? null : isolationPayload(record.isolationPayload, id),
-		productionReadiness: record.productionReadiness,
 	});
 }
 
@@ -516,14 +427,6 @@ async function verifyPayload(
 	});
 }
 
-function runtimeLibraryEvidence(
-	libraries: readonly FramescaperMediaHostExecutableDescriptor[],
-): readonly FramescaperMediaRuntimeLibraryEvidenceV1[] {
-	return Object.freeze(libraries.map((library) => Object.freeze({
-		name: basename(library.path), byteLength: library.byteLength, sha256: library.sha256,
-	})));
-}
-
 function payloadPath(
 	location: FramescaperMediaHostPayloadLocation,
 	targetId: FramescaperMediaHostTargetId,
@@ -534,20 +437,6 @@ function payloadPath(
 		: location.packaged
 		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(pinnedPath))
 		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
-}
-
-function readinessEvidencePath(
-	location: FramescaperMediaHostPayloadLocation,
-	targetId: FramescaperMediaHostTargetId,
-	referencePath: string,
-): string {
-	if (location.packaged) {
-		return join(
-			location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId,
-			'framescaper-media-host-production-readiness.json',
-		);
-	}
-	return safeDevelopmentPath(location.applicationRoot, referencePath);
 }
 
 function safeDevelopmentPath(applicationRoot: string, payloadPath: string): string {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated, target-native candidate assembly and explicit promotion for M5A. */
+/** Target-native build-result assembly, verification, and ephemeral package staging. */
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -12,7 +12,7 @@ import {
 	absentPath,
 	bindEvidenceReceipt,
 	boundedText,
-	candidateDescriptors,
+	buildResultDescriptors,
 	canonicalDirectory,
 	canonicalJson,
 	canonicalRegularFile,
@@ -21,27 +21,24 @@ import {
 	digestValue,
 	evidenceFor,
 	expectedSoundscaperProfessionalNativeInventory as expectedInventory,
-	executableCandidateArtifact,
+	executableBuildResultArtifact,
 	MAXIMUM_RUNTIME_FILES,
 	MAXIMUM_SELF_TEST_OUTPUT_BYTES,
 	normalizeSelfTests,
 	normalizeSourceAuthentication,
 	portableRelative,
 	regularFileInventory,
-	resolveCandidatePath,
+	resolveBuildResultPath,
 	revision,
 	sameJson,
 	sha256,
-	soundscaperProfessionalNativeCandidateArtifactPaths,
+	soundscaperProfessionalNativeBuildResultArtifactPaths,
 	targetId,
-	verifyCandidateDirectory,
+	verifyBuildResultDirectory,
 	verifyDescriptor,
-} from './soundscaper-professional-native-candidate-contract.mjs';
-import {
-	acquireSoundscaperProfessionalNativePromotionLock,
-} from './soundscaper-professional-native-promotion-lock.mjs';
-import { assertSoundscaperProfessionalNativePromotionSourceRevision as assertPromotionSourceRevision }
-	from './soundscaper-professional-native-promotion-source.mjs';
+} from './soundscaper-professional-native-build-result-contract.mjs';
+import { assertSoundscaperProfessionalNativeBuildSourceRevision as assertBuildSourceRevision }
+	from './soundscaper-professional-native-build-source.mjs';
 import {
 	validateSoundscaperProfessionalPackagedAppAuthority,
 } from './soundscaper-professional-packaged-app-authority.mjs';
@@ -60,11 +57,11 @@ import {
 export {
 	requiredSoundscaperProfessionalNativeSelfTestIds,
 	soundscaperProfessionalNativeSourceIdsForTarget,
-} from './soundscaper-professional-native-candidate-contract.mjs';
+} from './soundscaper-professional-native-build-result-contract.mjs';
 
-const RECEIPT_NAME = 'candidate.json';
-export const PROMOTED_CANDIDATE_RECEIPT_NAME =
-	'soundscaper-professional-native-candidate.json';
+const RECEIPT_NAME = 'build-result.json';
+export const STAGED_BUILD_RESULT_RECEIPT_NAME =
+	'soundscaper-professional-native-build-result.json';
 const MANIFEST_PATH = 'config/soundscaper-professional-native-payload-manifest.json';
 const PREBUILT_ROOT = 'native/soundscaper-professional-host/prebuilt';
 const CLOSURE_CHECKS = Object.freeze([
@@ -80,13 +77,13 @@ const PROFILE_PATHS = Object.freeze({
 });
 
 /**
- * Assemble one immutable candidate outside the repository. This function never
+ * Assemble one immutable build result outside the repository. This function never
  * mutates the production manifest and publishes its output only after every
  * file, dependency, and self-test receipt has been authenticated.
  */
-export async function createSoundscaperProfessionalNativeCandidate(options) {
+export async function createSoundscaperProfessionalNativeBuildResult(options) {
 	const target = targetId(options?.target);
-	const candidateRoot = absentPath(options?.candidateRoot, 'candidate root');
+	const buildResultRoot = absentPath(options?.buildResultRoot, 'build-result root');
 	const professionalInstallRoot = await canonicalDirectory(
 		options?.professionalInstallRoot, 'professional install root',
 	);
@@ -100,7 +97,7 @@ export async function createSoundscaperProfessionalNativeCandidate(options) {
 			'OS audio codec install root');
 	if (target.startsWith('linux-') && options?.osAudioCodecInstallRoot !== null
 		&& options?.osAudioCodecInstallRoot !== undefined) {
-		throw new TypeError('Linux candidates cannot accept an OS audio codec install root.');
+		throw new TypeError('Linux build results cannot accept an OS audio codec install root.');
 	}
 	const sourceAuthentication = normalizeSourceAuthentication(options?.sourceAuthentication, target);
 	const sourceRevision = revision(options?.sourceRevision);
@@ -122,43 +119,43 @@ export async function createSoundscaperProfessionalNativeCandidate(options) {
 	}
 	const macSigningEvidence = options?.macSigningEvidence ?? null;
 	if (target !== 'mac-arm64' && macSigningEvidence !== null) {
-		throw new TypeError('Only mac-arm64 candidates can accept mac signing evidence.');
+		throw new TypeError('Only mac-arm64 build results can accept mac sealing evidence.');
 	}
 	if (!Array.isArray(options?.buildSelfTests)) {
-		throw new TypeError('Candidate creation requires its pre-install self-test receipts.');
+		throw new TypeError('Build-result creation requires its pre-install self-test receipts.');
 	}
 	const buildSelfTests = structuredClone(options.buildSelfTests);
 	const inspectDependencies = options?.inspectDependencies
 		?? inspectSoundscaperProfessionalNativeDependencies;
 	const runSelfTest = options?.runSelfTest ?? runNativeSelfTest;
 	if (typeof inspectDependencies !== 'function' || typeof runSelfTest !== 'function') {
-		throw new TypeError('Candidate creation requires dependency-inspection and self-test ports.');
+		throw new TypeError('Build-result creation requires dependency-inspection and self-test ports.');
 	}
 
-	const parent = await canonicalDirectory(dirname(candidateRoot), 'candidate parent');
-	const temporary = await mkdtemp(join(parent, '.soundscaper-professional-candidate-'));
+	const parent = await canonicalDirectory(dirname(buildResultRoot), 'build-result parent');
+	const temporary = await mkdtemp(join(parent, '.soundscaper-professional-build-result-'));
 	let published = false;
 	try {
 		const payloadRoot = join(temporary, 'payload');
 		await mkdir(payloadRoot, { mode: 0o700 });
 		const installed = installedPaths(target, professionalInstallRoot, isolationInstallRoot);
-		const paths = soundscaperProfessionalNativeCandidateArtifactPaths(target);
+		const paths = soundscaperProfessionalNativeBuildResultArtifactPaths(target);
 		const copied = {
-			payload: await copyCandidateFile(installed.payload,
+			payload: await copyBuildResultFile(installed.payload,
 				resolve(temporary, paths.payload), temporary, 0o755),
 			osAudioCodec: osAudioCodecInstallRoot === null ? null
-				: await copyCandidateFile(resolve(osAudioCodecInstallRoot, 'soundscaper_os_audio_codec.node'),
+				: await copyBuildResultFile(resolve(osAudioCodecInstallRoot, 'soundscaper_os_audio_codec.node'),
 					resolve(temporary, paths.osAudioCodec), temporary, 0o755),
-			pluginPeer: await copyCandidateFile(installed.pluginPeer,
+			pluginPeer: await copyBuildResultFile(installed.pluginPeer,
 				resolve(temporary, paths.pluginPeer), temporary, 0o755),
-			deliveryFilesystem: await copyCandidateFile(installed.deliveryFilesystem,
+			deliveryFilesystem: await copyBuildResultFile(installed.deliveryFilesystem,
 				resolve(temporary, paths.deliveryFilesystem),
 				temporary, 0o755),
-			launcher: await copyCandidateFile(installed.launcher,
+			launcher: await copyBuildResultFile(installed.launcher,
 				resolve(temporary, paths.launcher), temporary, 0o755),
-			sandboxProfile: await copyCandidateFile(installed.sandboxProfile,
+			sandboxProfile: await copyBuildResultFile(installed.sandboxProfile,
 				join(payloadRoot, 'native-isolation-profile-v1.json'), temporary, 0o444),
-			brokerPolicy: await copyCandidateFile(installed.brokerPolicy,
+			brokerPolicy: await copyBuildResultFile(installed.brokerPolicy,
 				join(payloadRoot, 'native-isolation-broker-v1.json'), temporary, 0o444),
 		};
 		const runtimeClosure = runtimeRoot === null
@@ -213,7 +210,7 @@ export async function createSoundscaperProfessionalNativeCandidate(options) {
 		];
 		const receipt = deepFreeze({
 			schemaVersion: 1,
-			kind: 'soundscaper-professional-native-candidate',
+			kind: 'soundscaper-professional-native-build-result',
 			target,
 			sourceRevision,
 			buildPlanSha256,
@@ -229,108 +226,94 @@ export async function createSoundscaperProfessionalNativeCandidate(options) {
 				entrypointPath: copied.pluginPeer.path,
 				runtimeClosure: runtimeClosure.map(descriptorOnly),
 			},
-			productionReadiness: null,
 		});
 		await writeFile(join(temporary, RECEIPT_NAME), canonicalJson(receipt), { flag: 'wx', mode: 0o444 });
-		await verifySoundscaperProfessionalNativeCandidate({ candidateRoot: temporary });
-		await rename(temporary, candidateRoot);
+		await verifySoundscaperProfessionalNativeBuildResult({ buildResultRoot: temporary });
+		await rename(temporary, buildResultRoot);
 		published = true;
-		return deepFreeze({ candidateRoot, receipt });
+		return deepFreeze({ buildResultRoot, receipt });
 	} finally {
 		if (!published) await rm(temporary, { recursive: true, force: true });
 	}
 }
 
-export async function verifySoundscaperProfessionalNativeCandidate({ candidateRoot: rootValue }) {
-	return verifyCandidateDirectory(rootValue);
+export async function verifySoundscaperProfessionalNativeBuildResult({ buildResultRoot }) {
+	return verifyBuildResultDirectory(buildResultRoot);
 }
 
-/**
- * Promotion is explicit and no-overwrite. Payload files land first under an
- * unreferenced target directory; the canonical manifest is replaced last.
- */
-export async function promoteSoundscaperProfessionalNativeCandidate(options) {
-	const verified = await verifySoundscaperProfessionalNativeCandidate({
-		candidateRoot: options?.candidateRoot,
+/** Stage a verified result no-overwrite; replace the manifest only after copying its closed files. */
+export async function stageSoundscaperProfessionalNativeBuildResult(options) {
+	const verified = await verifySoundscaperProfessionalNativeBuildResult({
+		buildResultRoot: options?.buildResultRoot,
 	});
 	const repositoryRoot = await canonicalDirectory(options?.repositoryRoot, 'repository root');
-	assertPromotionSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
-	const promotionLock = await acquireSoundscaperProfessionalNativePromotionLock(repositoryRoot);
-	try {
-		return await promoteVerifiedCandidate(verified, repositoryRoot, promotionLock);
-	} finally {
-		await promotionLock.release();
-	}
+	assertBuildSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
+	return stageVerifiedBuildResult(verified, repositoryRoot);
 }
 
-async function promoteVerifiedCandidate(verified, repositoryRoot, promotionLock) {
-	await promotionLock.assertHeld();
-	assertPromotionSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
+async function stageVerifiedBuildResult(verified, repositoryRoot) {
+	assertBuildSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
 	const manifestPath = resolve(repositoryRoot, MANIFEST_PATH);
 	const originalBytes = await canonicalRegularFile(manifestPath, 'professional payload manifest');
 	let manifest;
 	try { manifest = JSON.parse(String(originalBytes)); }
 	catch (error) { throw new Error('The professional payload manifest is not JSON.', { cause: error }); }
 	const matches = manifest.targets?.filter(({ id }) => id === verified.receipt.target) ?? [];
-	if (matches.length !== 1) throw new Error('The professional payload manifest has no exact candidate target.');
+	if (matches.length !== 1) throw new Error('The professional payload manifest has no exact build-result target.');
 	const current = matches[0];
 	const targetRelativeRoot = `${PREBUILT_ROOT}/${verified.receipt.target}`;
 	const targetRoot = resolve(repositoryRoot, targetRelativeRoot);
-	const candidateDescriptor = {
-		path: `${targetRelativeRoot}/${PROMOTED_CANDIDATE_RECEIPT_NAME}`,
+	const buildResultDescriptor = {
+		path: `${targetRelativeRoot}/${STAGED_BUILD_RESULT_RECEIPT_NAME}`,
 		byteLength: verified.receiptBytes.byteLength,
 		sha256: verified.receiptSha256,
 	};
 	if (current.status === 'built') {
-		if (sameJson(current.buildCandidate, candidateDescriptor)) {
-			await verifyPromotedCandidateDirectory(targetRoot, verified);
-			return deepFreeze({ status: 'already-promoted', target: verified.receipt.target });
+		if (sameJson(current.buildResult, buildResultDescriptor)) {
+			await verifyStagedBuildResultDirectory(targetRoot, verified);
+			return deepFreeze({ status: 'already-staged', target: verified.receipt.target });
 		}
-		throw new Error('The professional native target is already built from a different candidate.');
+		throw new Error('The professional native target is already staged from a different build result.');
 	}
 	if (current.status !== 'pending-external' || current.payload !== null
 		|| current.osAudioCodec !== null || current.pluginPeer !== null
 		|| current.deliveryFilesystem !== null || current.isolation !== null
-		|| current.productionReadiness !== null
-		|| (current.buildCandidate !== undefined && current.buildCandidate !== null)) {
-		throw new Error('Only one exact pending professional native target can be promoted.');
+		|| (current.buildResult !== undefined && current.buildResult !== null)) {
+		throw new Error('Only one exact pending professional native target can be staged.');
 	}
 	await mkdir(dirname(targetRoot), { recursive: true, mode: 0o700 });
 	let targetCreated = false;
 	let manifestPublished = false;
 	let temporaryManifest = null;
 	try {
-		await promotionLock.assertHeld();
 		await mkdir(targetRoot, { mode: 0o700 });
 		targetCreated = true;
-		for (const descriptor of candidateDescriptors(verified.receipt)) {
+		for (const descriptor of buildResultDescriptors(verified.receipt)) {
 			const relativePath = descriptor.path.slice('payload/'.length);
 			const output = resolve(targetRoot, ...relativePath.split('/'));
 			await mkdir(dirname(output), { recursive: true, mode: 0o700 });
-			await copyFile(resolveCandidatePath(verified.candidateRoot, descriptor.path), output, 1);
-			await chmod(output, executableCandidateArtifact(verified.receipt, descriptor) ? 0o555 : 0o444);
+			await copyFile(resolveBuildResultPath(verified.buildResultRoot, descriptor.path), output, 1);
+			await chmod(output, executableBuildResultArtifact(verified.receipt, descriptor) ? 0o555 : 0o444);
 		}
-		await writeFile(resolve(targetRoot, PROMOTED_CANDIDATE_RECEIPT_NAME), verified.receiptBytes,
+		await writeFile(resolve(targetRoot, STAGED_BUILD_RESULT_RECEIPT_NAME), verified.receiptBytes,
 			{ flag: 'wx', mode: 0o444 });
-		const promotedRow = promotedManifestRow(verified.receipt, targetRelativeRoot, candidateDescriptor);
+		const stagedRow = stagedManifestRow(verified.receipt, targetRelativeRoot, buildResultDescriptor);
 		const updated = structuredClone(manifest);
-		updated.targets[updated.targets.findIndex(({ id }) => id === verified.receipt.target)] = promotedRow;
+		updated.targets[updated.targets.findIndex(({ id }) => id === verified.receipt.target)] = stagedRow;
 		const manifestBytes = canonicalJson(updated);
 		const reopened = await canonicalRegularFile(manifestPath, 'professional payload manifest');
 		if (!reopened.equals(originalBytes)) {
-			throw new Error('The professional payload manifest changed while promotion was prepared.');
+			throw new Error('The professional payload manifest changed while staging was prepared.');
 		}
-		await promotionLock.assertHeld();
-		temporaryManifest = `${manifestPath}.candidate-${process.pid}-${Date.now()}-${verified.receipt.target}`;
+		temporaryManifest = `${manifestPath}.build-result-${process.pid}-${Date.now()}-${verified.receipt.target}`;
 		await writeFile(temporaryManifest, manifestBytes, { flag: 'wx', mode: 0o644 });
 		const handle = await open(temporaryManifest, 'r');
 		try { await handle.sync(); } finally { await handle.close(); }
-		await promotionLock.assertHeld();
-		assertPromotionSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
+		assertBuildSourceRevision(repositoryRoot, verified.receipt.sourceRevision);
 		await rename(temporaryManifest, manifestPath);
 		temporaryManifest = null;
 		manifestPublished = true;
-		return deepFreeze({ status: 'promoted', target: verified.receipt.target,
+		return deepFreeze({ status: 'staged', target: verified.receipt.target,
 			manifestSha256: sha256(manifestBytes) });
 	} finally {
 		if (temporaryManifest !== null) await rm(temporaryManifest, { force: true });
@@ -355,18 +338,18 @@ function existingExecutable(root, name, target) {
 	return resolve(root, `${name}${target.startsWith('win-') ? '.exe' : ''}`);
 }
 
-async function copyCandidateFile(source, destination, candidateRoot, mode) {
-	const bytes = await canonicalRegularFile(source, `installed candidate input ${basename(source)}`);
+async function copyBuildResultFile(source, destination, buildResultRoot, mode) {
+	const bytes = await canonicalRegularFile(source, `installed build-result input ${basename(source)}`);
 	await writeFile(destination, bytes, { flag: 'wx', mode });
 	return Object.freeze({
-		path: portableRelative(candidateRoot, destination),
+		path: portableRelative(buildResultRoot, destination),
 		byteLength: bytes.byteLength,
 		sha256: sha256(bytes),
 		absolutePath: destination,
 	});
 }
 
-async function copyRuntimeClosure(sourceRoot, destinationRoot, candidateRoot) {
+async function copyRuntimeClosure(sourceRoot, destinationRoot, buildResultRoot) {
 	const files = await regularFileInventory(sourceRoot);
 	if (files.length > MAXIMUM_RUNTIME_FILES) {
 		throw new RangeError('The professional runtime closure exceeds 128 files.');
@@ -379,8 +362,8 @@ async function copyRuntimeClosure(sourceRoot, destinationRoot, candidateRoot) {
 	for (const relativePath of files) {
 		const output = resolve(destinationRoot, ...relativePath.split('/'));
 		await mkdir(dirname(output), { recursive: true, mode: 0o700 });
-		copied.push(await copyCandidateFile(resolve(sourceRoot, ...relativePath.split('/')),
-			output, candidateRoot, 0o444));
+		copied.push(await copyBuildResultFile(resolve(sourceRoot, ...relativePath.split('/')),
+			output, buildResultRoot, 0o444));
 	}
 	return Object.freeze(copied);
 }
@@ -388,17 +371,17 @@ async function copyRuntimeClosure(sourceRoot, destinationRoot, candidateRoot) {
 async function executeInstalledSelfTests({ target, copied, root, runSelfTest }) {
 	const requests = [
 		{
-			id: 'm5f1-malformed-frame', command: resolveCandidatePath(root, copied.pluginPeer.path),
+			id: 'm5f1-malformed-frame', command: resolveBuildResultPath(root, copied.pluginPeer.path),
 			args: [], input: Buffer.from([0]), expectedStatus: 125,
 		},
 		{
 			id: 'delivery-filesystem-protocol', command: process.execPath,
 			args: [resolve(import.meta.dirname, '..', 'self-test-soundscaper-delivery-fs.mjs'),
-				resolveCandidatePath(root, copied.deliveryFilesystem.path), target],
+				resolveBuildResultPath(root, copied.deliveryFilesystem.path), target],
 			input: null, expectedStatus: 0,
 		},
 		{
-			id: 'launcher-refusal', command: resolveCandidatePath(root, copied.launcher.path),
+			id: 'launcher-refusal', command: resolveBuildResultPath(root, copied.launcher.path),
 			args: [], input: null, expectedStatus: 125,
 		},
 	];
@@ -436,10 +419,10 @@ function runNativeSelfTest(request) {
 	return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 
-function promotedManifestRow(receipt, targetRoot, buildCandidate) {
+function stagedManifestRow(receipt, targetRoot, buildResult) {
 	const toolchain = evidenceFor(receipt, 'toolchain');
 	const sources = evidenceFor(receipt, 'source-authentication');
-	const promoted = (descriptor) => ({
+	const staged = (descriptor) => ({
 		path: `${targetRoot}/${descriptor.path.slice('payload/'.length)}`,
 		byteLength: descriptor.byteLength,
 		sha256: descriptor.sha256,
@@ -450,32 +433,31 @@ function promotedManifestRow(receipt, targetRoot, buildCandidate) {
 		blockedBy: null,
 		toolchainIdentity: toolchain.identity,
 		sourceAuthentication: structuredClone(sources.authentication),
-		productionReadiness: null,
-		buildCandidate,
-		payload: promoted(receipt.payload),
-		osAudioCodec: receipt.osAudioCodec === null ? null : promoted(receipt.osAudioCodec),
-		pluginPeer: promoted(receipt.pluginPeer),
-		deliveryFilesystem: promoted(receipt.deliveryFilesystem),
+		buildResult,
+		payload: staged(receipt.payload),
+		osAudioCodec: receipt.osAudioCodec === null ? null : staged(receipt.osAudioCodec),
+		pluginPeer: staged(receipt.pluginPeer),
+		deliveryFilesystem: staged(receipt.deliveryFilesystem),
 		isolation: {
-			launcher: promoted(receipt.isolation.launcher),
-			sandboxProfile: promoted(receipt.isolation.sandboxProfile),
-			brokerPolicy: promoted(receipt.isolation.brokerPolicy),
-			entrypointPath: promoted({ ...receipt.pluginPeer }).path,
-			runtimeClosure: receipt.isolation.runtimeClosure.map(promoted),
+			launcher: staged(receipt.isolation.launcher),
+			sandboxProfile: staged(receipt.isolation.sandboxProfile),
+			brokerPolicy: staged(receipt.isolation.brokerPolicy),
+			entrypointPath: staged({ ...receipt.pluginPeer }).path,
+			runtimeClosure: receipt.isolation.runtimeClosure.map(staged),
 		},
 	};
 }
 
-async function verifyPromotedCandidateDirectory(targetRoot, verified) {
+async function verifyStagedBuildResultDirectory(targetRoot, verified) {
 	const receiptBytes = await canonicalRegularFile(
-		resolve(targetRoot, PROMOTED_CANDIDATE_RECEIPT_NAME), 'promoted candidate receipt',
+		resolve(targetRoot, STAGED_BUILD_RESULT_RECEIPT_NAME), 'staged build-result receipt',
 	);
 	if (!receiptBytes.equals(verified.receiptBytes)) {
-		throw new Error('The promoted professional candidate receipt changed.');
+		throw new Error('The staged professional build-result receipt changed.');
 	}
-	for (const descriptor of candidateDescriptors(verified.receipt)) {
+	for (const descriptor of buildResultDescriptors(verified.receipt)) {
 		const path = resolve(targetRoot, ...descriptor.path.slice('payload/'.length).split('/'));
-		verifyDescriptor(await canonicalRegularFile(path, 'promoted candidate artifact'), descriptor,
-			'promoted candidate artifact');
+		verifyDescriptor(await canonicalRegularFile(path, 'staged build-result artifact'), descriptor,
+			'staged build-result artifact');
 	}
 }

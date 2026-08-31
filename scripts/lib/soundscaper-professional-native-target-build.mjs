@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed CMake target selection shared by professional candidate orchestration. */
+/** Closed CMake target selection shared by professional build-result orchestration. */
 
 import { isAbsolute, resolve } from 'node:path';
 

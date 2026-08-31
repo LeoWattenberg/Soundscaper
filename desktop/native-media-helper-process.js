@@ -14,7 +14,6 @@ import {
 import {
 	runFramescaperMediaHostSelfTest,
 } from './project-library-runtime/desktop/native-media-host-self-test.js';
-import { createFramescaperMediaReviewPayloadPorts } from './framescaper-media-review-policy.mjs';
 
 const SHA256 = /^[a-f\d]{64}$/u;
 
@@ -37,17 +36,10 @@ export function validateNativeMediaHelperProcessConfig(value) {
 }
 
 export async function reopenNativeMediaHelperDescriptor(config) {
-	const ports = createFramescaperMediaReviewPayloadPorts({
-		applicationRoot: config.location.applicationRoot,
-		packaged: config.location.packaged,
-		resourcesPath: config.location.resourcesPath,
-		platform: config.location.platform,
-		arch: config.location.arch,
-	});
-	const availability = await describeFramescaperMediaHostAvailability(config.location, ports);
+	const availability = await describeFramescaperMediaHostAvailability(config.location);
 	if (availability.status !== 'available') {
 		throw new Error(
-			`The utility process could not reopen media readiness (${availability.reason}): ${availability.detail}`,
+			`The utility process could not reopen the media payload (${availability.reason}): ${availability.detail}`,
 		);
 	}
 	assertExpectedDescriptor(config.expected, availability.descriptor);

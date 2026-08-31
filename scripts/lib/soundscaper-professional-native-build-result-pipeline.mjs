@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** One target's authenticated build, install, self-test, and candidate pipeline. */
+/** One target's authenticated build, install, self-test, and build-result pipeline. */
 
 import { spawnSync } from 'node:child_process';
 import { isAbsolute, resolve } from 'node:path';
 
 import {
-	createSoundscaperProfessionalNativeCandidate,
-} from './soundscaper-professional-native-build-candidate.mjs';
+	createSoundscaperProfessionalNativeBuildResult,
+} from './soundscaper-professional-native-build-result.mjs';
 import {
 	executeSoundscaperProfessionalNativeBuild,
 } from './soundscaper-professional-native-build.mjs';
@@ -19,7 +19,7 @@ import {
 	canonicalJson,
 	sha256,
 	targetId,
-} from './soundscaper-professional-native-candidate-contract.mjs';
+} from './soundscaper-professional-native-build-result-contract.mjs';
 import {
 	assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 	requiredPipelineSoundscaperProfessionalNativeSelfTestIds,
@@ -50,7 +50,7 @@ export function requiredExternalSoundscaperProfessionalNativeSelfTestIds(targetV
 	return requiredPipelineSoundscaperProfessionalNativeSelfTestIds(targetValue);
 }
 
-export function createSoundscaperProfessionalNativeCandidatePipelinePlan(options) {
+export function createSoundscaperProfessionalNativeBuildResultPipelinePlan(options) {
 	const target = targetId(options?.target);
 	if (options?.professionalBuildPlan?.target !== target) {
 		throw new TypeError('The professional build plan target is misbound.');
@@ -59,14 +59,10 @@ export function createSoundscaperProfessionalNativeCandidatePipelinePlan(options
 		: options?.osAudioCodecBuildPlan?.target !== target) {
 		throw new TypeError('The OS audio codec build-plan target is misbound.');
 	}
-	const signingIdentity = target === 'mac-arm64'
-		? options?.signingIdentity : null;
-	if (target === 'mac-arm64' && signingIdentity === undefined) {
-		throw new TypeError('The mac professional candidate requires a signing identity.');
+	if (options?.signingIdentity !== undefined) {
+		throw new TypeError('Professional native builds do not accept a signing identity.');
 	}
-	if (target !== 'mac-arm64' && options?.signingIdentity !== undefined) {
-		throw new TypeError('Only mac-arm64 accepts a professional candidate signing identity.');
-	}
+	const signingIdentity = target === 'mac-arm64' ? '-' : null;
 	const macSigning = target === 'mac-arm64'
 		? soundscaperProfessionalNativeMacSigningIdentity(signingIdentity) : null;
 	if (target === 'mac-arm64'
@@ -79,11 +75,11 @@ export function createSoundscaperProfessionalNativeCandidatePipelinePlan(options
 	const isolationBuildRoot = absolutePath(options?.isolationBuildRoot, 'isolation build root');
 	const isolationInstallRoot = absolutePath(options?.isolationInstallRoot, 'isolation install root');
 	const repositoryRoot = absolutePath(options?.repositoryRoot, 'repository root');
-	const candidateRoot = absolutePath(options?.candidateRoot, 'candidate root');
+	const buildResultRoot = absolutePath(options?.buildResultRoot, 'build-result root');
 	const runtimeRoot = options?.runtimeRoot === null ? null
 		: absolutePath(options?.runtimeRoot, 'runtime root');
 	if (target === 'mac-arm64' && runtimeRoot === null) {
-		throw new TypeError('The mac professional candidate requires an authenticated runtime closure root.');
+		throw new TypeError('The mac professional build result requires a runtime closure root.');
 	}
 	const sourceRevision = revisionValue(options?.sourceRevision);
 	if (selfTestPlan.target !== target || selfTestPlan.sourceRevision !== sourceRevision) {
@@ -111,7 +107,7 @@ export function createSoundscaperProfessionalNativeCandidatePipelinePlan(options
 	};
 	const plan = deepFreeze({
 		...identity,
-		repositoryRoot, candidateRoot, runtimeRoot, isolationBuildRoot, isolationInstallRoot,
+		repositoryRoot, buildResultRoot, runtimeRoot, isolationBuildRoot, isolationInstallRoot,
 		professionalBuildPlan: options.professionalBuildPlan,
 		osAudioCodecBuildPlan: options.osAudioCodecBuildPlan,
 		selfTestPlan,
@@ -122,15 +118,15 @@ export function createSoundscaperProfessionalNativeCandidatePipelinePlan(options
 	return plan;
 }
 
-export async function executeSoundscaperProfessionalNativeCandidatePipeline(plan, options = {}) {
+export async function executeSoundscaperProfessionalNativeBuildResultPipeline(plan, options = {}) {
 	if (!AUTHENTICATED_PIPELINE_PLANS.has(plan)) {
-		throw new TypeError('Candidate execution requires an authenticated pipeline plan.');
+		throw new TypeError('Build-result execution requires an authenticated pipeline plan.');
 	}
 	const run = options.run ?? spawnSync;
 	const executeProfessional = options.executeProfessional
 		?? executeSoundscaperProfessionalNativeBuild;
 	const executeOsCodec = options.executeOsCodec ?? executeOsAudioCodecHostBuild;
-	const createCandidate = options.createCandidate ?? createSoundscaperProfessionalNativeCandidate;
+	const createBuildResult = options.createBuildResult ?? createSoundscaperProfessionalNativeBuildResult;
 	const createMacSigningPlan = options.createMacSigningPlan
 		?? createSoundscaperProfessionalNativeMacSigningPlan;
 	const executeMacSigning = options.executeMacSigning
@@ -184,9 +180,9 @@ export async function executeSoundscaperProfessionalNativeCandidatePipeline(plan
 		osAudioCodec: osAudioCodec?.toolchainIdentity ?? null,
 	});
 	const toolchainIdentity = soundscaperProfessionalNativeToolchainIdentity(toolchainReceipt);
-	return createCandidate({
+	return createBuildResult({
 		target: plan.target,
-		candidateRoot: plan.candidateRoot,
+		buildResultRoot: plan.buildResultRoot,
 		professionalInstallRoot: professional.installRoot,
 		isolationInstallRoot: plan.isolationInstallRoot,
 		runtimeRoot: plan.runtimeRoot,
@@ -269,7 +265,7 @@ function absolutePath(value, label) {
 
 function revisionValue(value) {
 	if (typeof value !== 'string' || !/^(?:[a-f\d]{40}|[a-f\d]{64})$/u.test(value)) {
-		throw new TypeError('The candidate source revision is invalid.');
+		throw new TypeError('The build-result source revision is invalid.');
 	}
 	return value;
 }

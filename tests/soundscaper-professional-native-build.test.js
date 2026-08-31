@@ -237,7 +237,7 @@ test('professional build plans bind exact SDK pins and never treat the VST3 meta
 	}).status, 'built');
 	assert.throws(() => executeSoundscaperProfessionalNativeBuild({
 		...windows,
-		m9ReleaseReview: { status: 'complete', sourceIds: [], pendingSources: [] },
+		target: 'win-arm64',
 	}, {
 		run: () => ({ status: 0, stderr: '', stdout: '' }),
 	}), /authenticated build plan/u);
@@ -252,29 +252,6 @@ test('professional build refuses a JUCE embedded VST3 API other than exact 3.8.0
 		sourceSnapshotRoot,
 		buildRoot: join(roots.juce, '..', 'build-wrong-vst3'),
 	}), /embedded VST3.*3\.8\.0/iu);
-});
-
-test('the reviewed register reports complete Milestone 9 review for every professional source', async (context) => {
-	// The owner's recorded native-audio and native-plugins review accepted all
-	// six professional sources, so the plan must no longer report any blocked
-	// row. Execution is still gated elsewhere; only activation is asserted here.
-	const { archives, manifestPath, roots } = await sourceRoots(context, null);
-	const plan = createSoundscaperProfessionalNativeBuildPlan({
-		repositoryRoot: ROOT, target: 'linux-x64', sourceRoots: roots, sourceArchives: archives,
-		sourceManifestPath: manifestPath,
-		sourceSnapshotRoot: await createSnapshotParent(roots.juce, 'snapshots-reviewed'),
-		buildRoot: join(roots.juce, '..', 'build-reviewed'),
-	});
-	const review = structuredClone(plan.m9ReleaseReview);
-	// Snapshots are taken read-only, so they are released the way the build
-	// itself releases them; the fixture's own cleanup cannot remove them.
-	for (const snapshot of plan.sourceAuthentication) removeMilestone5NativeSourceSnapshot(snapshot);
-	assert.equal(review.status, 'complete');
-	assert.deepEqual(review.pendingSources, []);
-	// ASIO is absent because it is Windows-only, not because it is unreviewed.
-	assert.deepEqual([...review.sourceIds].sort(), [
-		'clap', 'electron-node-api-headers', 'juce', 'lv2', 'vst3-sdk',
-	]);
 });
 
 test('a plan that fails after snapshotting removes the snapshots it took', async (context) => {

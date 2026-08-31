@@ -16,7 +16,7 @@ import {
 } from '../scripts/lib/soundscaper-professional-native-notices.mjs';
 import {
 	soundscaperProfessionalNativeSourceIdsForTarget,
-} from '../scripts/lib/soundscaper-professional-native-candidate-contract.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result-contract.mjs';
 import {
 	addOsCodecPayload,
 	osCodecPackageTree,
@@ -33,7 +33,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 		targetId: 'linux-x64',
 	});
 	assert.equal(written.status, 'installed-resource-closure-audited');
-	assert.equal(written.fileCount, 15);
+	assert.equal(written.fileCount, 14);
 	const audit = await auditExtractedDesktopPackageContent({
 		extractedRoot: fixture.extractedRoot,
 		runtimeManifestBytes: await readFile(fixture.runtimeManifestPath),
@@ -42,7 +42,7 @@ test('the embedded package-content manifest binds the exact installed resource c
 	});
 	assert.equal(audit.contentManifestSha256, written.contentManifestSha256);
 	assert.equal(audit.sourceRevision, REVISION);
-	assert.equal(audit.fileCount, 15);
+	assert.equal(audit.fileCount, 14);
 	assert.match(audit.installedClosureSha256, /^[a-f\d]{64}$/u);
 	assert.match(audit.resourcesPath, /usr\/lib\/soundscaper\/resources$/u);
 });
@@ -59,7 +59,7 @@ test('Stable Soundscaper admits no legacy native-addon manifest or helper payloa
 		resourcesRoot: stable.resourcesRoot, runtimeManifestPath: stable.runtimeManifestPath,
 		productId: 'soundscaper', targetId: 'linux-x64',
 	}, stableNotices.dependencies);
-	assert.equal(written.fileCount, 18);
+	assert.equal(written.fileCount, 17);
 
 	const missingNotices = await packageTree(context);
 	await rm(join(missingNotices.resourcesRoot, 'runtime/native/linux-x64'), { recursive: true });
@@ -97,25 +97,6 @@ test('preview packages keep professional notices typed-unavailable and reject sm
 		runtimeManifestPath: fixture.runtimeManifestPath,
 		productId: 'soundscaper', targetId: 'linux-x64',
 	}), /unexpected files.*licenses\/professional-native/iu);
-});
-
-test('human professional readiness fields cannot suppress package-content auditing', async (context) => {
-	const fixture = await packageTree(context);
-	const professional = fixture.runtimeManifest.soundscaperProfessionalNative;
-	professional.reviewPolicy = null;
-	professional.productionReadiness = { verified: { status: 'pending-human-review' } };
-	await rm(join(
-		fixture.resourcesRoot,
-		'runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json',
-	));
-	await writeJson(fixture.runtimeManifestPath, fixture.runtimeManifest);
-	const written = await writeDesktopPackageContentManifest({
-		resourcesRoot: fixture.resourcesRoot,
-		runtimeManifestPath: fixture.runtimeManifestPath,
-		productId: 'soundscaper',
-		targetId: 'linux-x64',
-	});
-	assert.equal(written.status, 'installed-resource-closure-audited');
 });
 
 test('content audit rejects changed, extra, symbolic, and decoy resources', async (context) => {
@@ -326,21 +307,6 @@ test('Framescaper admits its authenticated media host but no unmanaged FFmpeg pa
 	const written = await writeFramescaperManifest(fixture);
 	assert.equal(written.status, 'installed-resource-closure-audited');
 
-	const reportOnly = await framescaperPackageTree(context);
-	await makeMediaHostPending(reportOnly);
-	const openFx = reportOnly.runtimeManifest.framescaperNativeHosts.openFxHost;
-	openFx.reviewPolicy = null;
-	openFx.productionReadiness = { verified: { status: 'pending-human-review' } };
-	for (const name of [
-		'milestone-5-native-isolation-review-policy.json',
-		'framescaper-openfx-production-readiness.json',
-	]) await rm(join(
-		reportOnly.resourcesRoot,
-		`runtime/native/framescaper-openfx-host/linux-x64/${name}`,
-	));
-	await writeJson(reportOnly.runtimeManifestPath, reportOnly.runtimeManifest);
-	const automated = await writeFramescaperManifest(reportOnly);
-	assert.equal(automated.status, 'installed-resource-closure-audited');
 });
 
 async function makeMediaHostPending(fixture) {
@@ -349,7 +315,7 @@ async function makeMediaHostPending(fixture) {
 	});
 	fixture.runtimeManifest.framescaperNativeHosts.mediaHost = {
 		status: 'pending-external', blockedBy: 'Static FFmpeg hosts are not distributable.',
-		payloads: [], reviewPolicy: null, productionReadiness: null,
+		payloads: [],
 	};
 	await writeFile(fixture.runtimeManifestPath,
 		`${JSON.stringify(fixture.runtimeManifest, null, 2)}\n`);
@@ -448,16 +414,8 @@ async function framescaperPackageTree(context) {
 	const mediaPath = `${mediaPrefix}/media-host`;
 	const files = {
 		[mediaPath]: Buffer.from('authenticated media host'),
-		[`${mediaPrefix}/milestone-5-native-isolation-review-policy.json`]:
-			Buffer.from('authenticated Framescaper media isolation policy'),
-		[`${mediaPrefix}/framescaper-media-host-production-readiness.json`]:
-			Buffer.from('authenticated Framescaper media readiness'),
 		[`${prefix}/scanner`]: Buffer.from('authenticated OpenFX scanner'),
 		[`${prefix}/runtime-host`]: Buffer.from('authenticated OpenFX runtime host'),
-		[`${prefix}/milestone-5-native-isolation-review-policy.json`]:
-			Buffer.from('authenticated Framescaper isolation policy'),
-		[`${prefix}/framescaper-openfx-production-readiness.json`]:
-			Buffer.from('authenticated Framescaper OpenFX readiness'),
 	};
 	for (const [path, bytes] of Object.entries(files)) {
 		await mkdir(dirname(join(fixture.resourcesRoot, path)), { recursive: true });
@@ -477,21 +435,6 @@ async function framescaperPackageTree(context) {
 			mediaHost: {
 				status: 'built', blockedBy: null,
 				payloads: [{ name: 'media-host', ...descriptor(mediaPath) }],
-				reviewPolicy: {
-					name: 'milestone-5-native-isolation-review-policy.json',
-					...descriptor(`${mediaPrefix}/milestone-5-native-isolation-review-policy.json`),
-				},
-				productionReadiness: {
-					reference: { target: 'linux-x64' },
-					evidence: {
-						name: 'framescaper-media-host-production-readiness.json',
-						...descriptor(`${mediaPrefix}/framescaper-media-host-production-readiness.json`),
-					},
-					verified: {
-						status: 'authenticated',
-						evidence: { target: 'linux-x64' },
-					},
-				},
 			},
 			openFxHost: {
 				status: 'built', blockedBy: null,
@@ -499,16 +442,6 @@ async function framescaperPackageTree(context) {
 					{ name: 'scanner', ...descriptor(`${prefix}/scanner`) },
 					{ name: 'runtime-host', ...descriptor(`${prefix}/runtime-host`) },
 				],
-				reviewPolicy: {
-					name: 'milestone-5-native-isolation-review-policy.json',
-					...descriptor(`${prefix}/milestone-5-native-isolation-review-policy.json`),
-				},
-				productionReadiness: {
-					evidence: {
-						name: 'framescaper-openfx-production-readiness.json',
-						...descriptor(`${prefix}/framescaper-openfx-production-readiness.json`),
-					},
-				},
 			},
 		},
 	};

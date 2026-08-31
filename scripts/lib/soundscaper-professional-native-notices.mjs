@@ -13,7 +13,7 @@ import { authenticateMilestone5NativeSourceInput } from './milestone-5-native-so
 import {
 	SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS,
 	soundscaperProfessionalNativeSourceIdsForTarget,
-} from './soundscaper-professional-native-candidate-contract.mjs';
+} from './soundscaper-professional-native-build-result-contract.mjs';
 
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_PREFIX = 'licenses/professional-native/';
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_MANIFEST_PATH =

@@ -13,7 +13,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { collectExtractedSourceTree } from '../../native/framescaper-media-host/build/source-authentication.mjs';
 import { prepareDesktopOsAudioCodecNativeRelease } from './desktop-os-audio-codec-native-staging.mjs';
 
-export const ELECTRON_HEADERS_CI_ADMISSION = deepFreeze({
+export const ELECTRON_HEADERS_CI_SOURCE = deepFreeze({
 	version: '43.1.1',
 	requestUrl: 'https://electronjs.org/headers/v43.1.1/node-v43.1.1-headers.tar.gz',
 	redirectUrl: 'https://artifacts.electronjs.org/headers/dist/v43.1.1/node-v43.1.1-headers.tar.gz',
@@ -47,29 +47,12 @@ export function resolveOsAudioCodecHostCiTarget({
 	return target;
 }
 
-export function resolveOsAudioCodecHostSigningIdentity(value) {
-	const identity = value ?? '-';
-	if (identity === '-') return identity;
-	if (typeof identity !== 'string' || identity.length > 256
-		|| Buffer.byteLength(identity, 'utf8') > 512 || identity.normalize('NFC') !== identity
-		|| identity.trim() !== identity || !identity.startsWith('Developer ID Application: ')
-		|| identity.length === 'Developer ID Application: '.length
-		|| [...identity].some((character) => {
-			const point = character.codePointAt(0);
-			return point <= 0x1f || point >= 0x7f && point <= 0x9f;
-		})) {
-		throw new TypeError('The macOS OS audio codec signing identity is invalid.');
-	}
-	return identity;
-}
-
 export async function runOsAudioCodecHostCi(options, dependencies = {}) {
 	const target = resolveOsAudioCodecHostCiTarget(options);
-	if (target !== 'mac-arm64' && options?.signingIdentity !== undefined) {
-		throw new TypeError('A macOS signing identity cannot be supplied for a Windows codec host.');
+	if (options?.signingIdentity !== undefined) {
+		throw new TypeError('OS audio codec CI does not accept a signing identity.');
 	}
-	const signingIdentity = target === 'mac-arm64'
-		? resolveOsAudioCodecHostSigningIdentity(options?.signingIdentity) : null;
+	const signingIdentity = target === 'mac-arm64' ? '-' : null;
 	const repositoryRoot = await canonicalDirectory(options?.repositoryRoot, 'repository root');
 	const runnerTemp = await canonicalDirectory(options?.runnerTemp, 'RUNNER_TEMP');
 	const githubEnvironmentPath = await canonicalFile(
@@ -79,7 +62,7 @@ export async function runOsAudioCodecHostCi(options, dependencies = {}) {
 	const workspace = await mkdtemp(join(runnerTemp, 'soundscaper-os-audio-codec-host-'));
 	const plan = deepFreeze({
 		target, repositoryRoot, runnerTemp, githubEnvironmentPath, workspace,
-		archivePath: join(workspace, ELECTRON_HEADERS_CI_ADMISSION.archive.fileName),
+		archivePath: join(workspace, ELECTRON_HEADERS_CI_SOURCE.archive.fileName),
 		extractionRoot: join(workspace, 'electron-headers'),
 		headersRoot: join(workspace, 'electron-headers/node_headers'),
 		outputRoot: join(workspace, 'host-build'),
@@ -106,7 +89,7 @@ export async function runOsAudioCodecHostCi(options, dependencies = {}) {
 		`--output=${plan.outputRoot}`,
 		`--result=${plan.resultPath}`,
 		...(macosSdkPath === null ? [] : [
-			`--macos-sdk=${macosSdkPath}`, `--signing-identity=${signingIdentity}`,
+			`--macos-sdk=${macosSdkPath}`,
 		]),
 	];
 	await runBuild({ command: process.execPath, arguments: arguments_, plan });
@@ -127,12 +110,12 @@ export async function downloadPinnedElectronHeaders({
 }) {
 	const path = absentPath(destination, 'Electron headers archive');
 	if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required.');
-	const response = await fetchImpl(ELECTRON_HEADERS_CI_ADMISSION.requestUrl, {
+	const response = await fetchImpl(ELECTRON_HEADERS_CI_SOURCE.requestUrl, {
 		redirect: 'follow', signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
 	});
-	const expected = ELECTRON_HEADERS_CI_ADMISSION.archive;
+	const expected = ELECTRON_HEADERS_CI_SOURCE.archive;
 	if (!response?.ok || response.status !== 200
-		|| response.url !== ELECTRON_HEADERS_CI_ADMISSION.redirectUrl
+		|| response.url !== ELECTRON_HEADERS_CI_SOURCE.redirectUrl
 		|| response.headers?.get('content-length') !== String(expected.byteLength)
 		|| response.body === null || response.body === undefined) {
 		throw new Error('Electron headers download did not match its exact URL and length admission.');
@@ -169,7 +152,7 @@ export async function downloadPinnedElectronHeaders({
 
 export function authenticateElectronHeadersTree(headersRoot) {
 	const actual = collectExtractedSourceTree(headersRoot);
-	const expected = ELECTRON_HEADERS_CI_ADMISSION.extractedTree;
+	const expected = ELECTRON_HEADERS_CI_SOURCE.extractedTree;
 	if (actual.algorithm !== expected.algorithm || actual.fileCount !== expected.fileCount
 		|| actual.sha256 !== expected.sha256) {
 		throw new Error('Electron headers extracted tree failed its exact identity admission.');

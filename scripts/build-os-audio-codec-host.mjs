@@ -23,7 +23,6 @@ import {
 
 const allowedArguments = new Set([
 	'root', 'target', 'headers-archive', 'headers-root', 'output', 'result', 'macos-sdk',
-	'signing-identity',
 ]);
 const argumentsByName = parseArguments(process.argv.slice(2));
 for (const required of ['target', 'headers-archive', 'headers-root', 'output', 'result']) {
@@ -36,11 +35,6 @@ if (argumentsByName.target === 'mac-arm64') {
 	if (!argumentsByName['macos-sdk']) {
 		throw new TypeError('--macos-sdk=... is required for mac-arm64.');
 	}
-	if (!argumentsByName['signing-identity']) {
-		throw new TypeError('--signing-identity=... is required for mac-arm64.');
-	}
-} else if (argumentsByName['signing-identity'] !== undefined) {
-	throw new TypeError('--signing-identity=... must not be used for Windows builds.');
 }
 const repositoryRoot = resolve(argumentsByName.root || process.cwd());
 const outputRoot = exclusiveDirectory(absolutePath(argumentsByName.output, 'Build output root'));
@@ -56,9 +50,7 @@ const plan = createOsAudioCodecHostBuildPlan({
 	buildRoot: resolve(outputRoot, 'build'),
 	installRoot: resolve(outputRoot, 'artifact'),
 	...(argumentsByName['macos-sdk']
-		? { macosSdkPath: resolve(argumentsByName['macos-sdk']) } : {}),
-	...(argumentsByName['signing-identity']
-		? { signingIdentity: argumentsByName['signing-identity'] } : {}),
+		? { macosSdkPath: resolve(argumentsByName['macos-sdk']), signingIdentity: '-' } : {}),
 });
 const build = executeOsAudioCodecHostBuild(plan, {
 	onStepOutput(step, stdout, stderr) {

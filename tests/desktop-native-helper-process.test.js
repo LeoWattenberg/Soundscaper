@@ -119,7 +119,6 @@ test('professional scanner and host roles derive machine containment and select 
 	});
 	const descriptor = Object.freeze({
 		target: 'linux-x64', path: '/trusted-audio.node', sha256: 'b'.repeat(64),
-		m9ReleaseReview: Object.freeze({ scope: 'stable-1.0-release', status: 'pending' }),
 		pluginPeer: artifact('/runtime/soundscaper_professional_peer'),
 		isolation: Object.freeze({
 			launcher: artifact('/runtime/isolation-launcher'),

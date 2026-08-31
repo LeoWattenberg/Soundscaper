@@ -1,18 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-
-import {
-	openFxProductionReadinessReference,
-	verifyOpenFxProductionReadiness,
-} from '../../desktop/openfx-production-readiness.ts';
-import {
-	MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
-	resolveNativeIsolationReviewPublicKey,
-	validateNativeIsolationReviewPolicy,
-} from '../../desktop/native-isolation-review-policy.mjs';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { compareCodeUnits } from './canonical-json.mjs';
 import { lineEndingPolicyFindings } from './line-ending-policy.mjs';
 import { listNativeSourceTree } from './native-source-tree.mjs';
@@ -22,8 +12,6 @@ export const FRAMESCAPER_OPENFX_SOURCE_MANIFEST =
 	`${FRAMESCAPER_OPENFX_HOST_ROOT}/source-manifest.json`;
 export const FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST =
 	'config/framescaper-openfx-host-payload-manifest.json';
-export const FRAMESCAPER_OPENFX_READINESS_EVIDENCE_NAME = 'framescaper-openfx-production-readiness.json';
-export const FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME = 'milestone-5-native-isolation-review-policy.json';
 
 const TARGET_IDS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
@@ -35,9 +23,8 @@ const LINUX_RUNTIME_LOADERS = Object.freeze({
 const SHA256 = /^[a-f0-9]{64}$/u;
 const TARGET_FIELDS = Object.freeze([
 	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'scannerPayload',
-	'runtimeHostPayload', 'isolationPayload', 'productionReadiness',
+	'runtimeHostPayload', 'isolationPayload',
 ]);
-const VERIFIED_PAYLOAD_RELEASES = new WeakSet();
 const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'CMakeLists.txt',
 	'fixtures/conformance_interact.inc',
@@ -235,7 +222,7 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 			if (target.toolchainIdentity !== null || target.scannerPayload !== null
 				|| target.runtimeHostPayload !== null || target.isolationPayload !== null
 				|| typeof target.blockedBy !== 'string'
-				|| target.blockedBy.length < 16 || target.productionReadiness !== null) {
+				|| target.blockedBy.length < 16) {
 				findings.push(`OpenFX target ${id} has an invalid pending-external record.`);
 			}
 		} else if (target.status === 'built') {
@@ -258,12 +245,10 @@ export function deriveFramescaperOpenFxPayloadManifest(sourceManifest) {
 					runtimeHostPayload: { ...target.runtimeHostPayload },
 					isolationPayload: cloneIsolationPayload(target.isolationPayload),
 				},
-				productionReadiness: target.productionReadiness === null
-					? null : { ...target.productionReadiness },
 			}
 			: {
 				id, runtime: target.runtime, status: 'pending-external',
-				blockedBy: target.blockedBy, payload: null, productionReadiness: null,
+				blockedBy: target.blockedBy, payload: null,
 			};
 	});
 	return {
@@ -308,128 +293,9 @@ export function verifyFramescaperOpenFxPayloadManifest({ repositoryRoot }) {
 	return Object.freeze({ source: audit.manifest, payload });
 }
 
-/** Reopen and authenticate every declared per-target isolation review. */
+/** Verify the source-bound payload closure used by desktop staging. */
 export async function verifyFramescaperOpenFxPayloadRelease({ repositoryRoot }) {
-	const root = resolve(repositoryRoot);
-	const release = verifyFramescaperOpenFxPayloadManifest({ repositoryRoot: root });
-	let reviewPolicyBytes = null;
-	let reviewPolicy = null;
-	let reviewPolicyFailure = null;
-	try {
-		reviewPolicyBytes = regularCanonicalFile(
-			root,
-			MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
-			'OpenFX native-isolation review policy',
-		);
-		reviewPolicy = parseJson(reviewPolicyBytes, 'OpenFX native-isolation review policy');
-		validateNativeIsolationReviewPolicy(reviewPolicy);
-	} catch (error) { reviewPolicyFailure = errorMessage(error); }
-	const productionReadiness = {};
-	const m9ReleaseReview = {};
-	for (const target of release.payload.targets) {
-		if (target.status !== 'built' || target.productionReadiness === null) {
-			productionReadiness[target.id] = null;
-			m9ReleaseReview[target.id] = Object.freeze({
-				scope: 'stable-1.0-release', status: 'pending',
-				detail: 'No independent OpenFX-host review is recorded for stable 1.0 release admission.',
-			});
-			continue;
-		}
-		try {
-			if (reviewPolicy === null) throw new Error(
-				`The M9 review policy is unavailable: ${reviewPolicyFailure ?? 'not mounted'}.`,
-			);
-			const reference = openFxProductionReadinessReference(
-				target.productionReadiness,
-				target.id,
-			);
-			const evidence = await verifyOpenFxProductionReadiness(reference, {
-				scannerSha256: target.payload.scannerPayload.sha256,
-				runtimeHostSha256: target.payload.runtimeHostPayload.sha256,
-				isolation: {
-					launcherSha256: target.payload.isolationPayload.launcherPayload.sha256,
-					sandboxProfileSha256: target.payload.isolationPayload.sandboxProfilePayload.sha256,
-					brokerPolicySha256: target.payload.isolationPayload.brokerPolicyPayload.sha256,
-					runtimeLibraries: target.payload.isolationPayload.runtimeLibraryPayloads.map((library) => ({
-						name: library.path.split('/').at(-1),
-						byteLength: library.byteLength,
-						sha256: library.sha256,
-					})),
-				},
-			}, {
-				readEvidence: async (path) => regularCanonicalFile(
-					root, path, `OpenFX ${target.id} production-readiness evidence`,
-				),
-				resolveReviewPublicKey: (_target, keyId) => resolveNativeIsolationReviewPublicKey(
-					reviewPolicy,
-					{ usage: 'framescaper-openfx-production-readiness', target: target.id, keyId },
-				),
-			});
-			const evidenceBytes = regularCanonicalFile(
-				root,
-				reference.evidence.path,
-				`reopened OpenFX ${target.id} production-readiness evidence`,
-			);
-			verifyDescriptor(evidenceBytes, reference.evidence,
-				`reopened OpenFX ${target.id} production-readiness evidence`);
-			productionReadiness[target.id] = Object.freeze({
-				reference,
-				evidence: Object.freeze({ status: 'authenticated', evidence }),
-				evidenceBytes,
-			});
-			m9ReleaseReview[target.id] = Object.freeze({
-				scope: 'stable-1.0-release', status: 'complete',
-				evidence: productionReadiness[target.id],
-			});
-		} catch (error) {
-			productionReadiness[target.id] = null;
-			m9ReleaseReview[target.id] = Object.freeze({
-				scope: 'stable-1.0-release', status: 'invalid',
-				detail: `The recorded OpenFX-host M9 review is invalid: ${errorMessage(error)}`.slice(0, 512),
-			});
-		}
-	}
-	const verified = Object.freeze({
-		...release,
-		reviewPolicy: reviewPolicyBytes === null ? null : Object.freeze({
-			name: FRAMESCAPER_OPENFX_REVIEW_POLICY_NAME,
-			byteLength: reviewPolicyBytes.byteLength,
-			sha256: digest(reviewPolicyBytes),
-			bytes: reviewPolicyBytes,
-		}),
-		productionReadiness: Object.freeze(productionReadiness),
-		m9ReleaseReview: Object.freeze(m9ReleaseReview),
-	});
-	VERIFIED_PAYLOAD_RELEASES.add(verified);
-	return verified;
-}
-
-export function framescaperOpenFxM9ReleaseReviewStageSummary(release, targetId) {
-	assertVerifiedPayloadRelease(release);
-	const review = release.m9ReleaseReview[targetId];
-	if (!review) throw new Error(`The OpenFX-host release has no ${String(targetId)} M9 review row.`);
-	if (review.status !== 'complete') return deepFreeze(structuredClone(review));
-	return deepFreeze({
-		scope: review.scope,
-		status: review.status,
-		reviewer: review.evidence.evidence.evidence.reviewer,
-		reviewedAt: review.evidence.evidence.evidence.reviewedAt,
-	});
-}
-
-export function framescaperOpenFxProductionReadinessStageSummary(release, targetId) {
-	assertVerifiedPayloadRelease(release);
-	const readiness = release.productionReadiness[targetId];
-	if (readiness === null) return null;
-	return deepFreeze({
-		reference: structuredClone(readiness.reference),
-		evidence: {
-			name: FRAMESCAPER_OPENFX_READINESS_EVIDENCE_NAME,
-			byteLength: readiness.evidenceBytes.byteLength,
-			sha256: digest(readiness.evidenceBytes),
-		},
-		verified: structuredClone(readiness.evidence),
-	});
+	return verifyFramescaperOpenFxPayloadManifest({ repositoryRoot: resolve(repositoryRoot) });
 }
 
 function sourceTree(root) {
@@ -507,44 +373,6 @@ function auditBuiltTarget(repositoryRoot, id, target) {
 	return findings;
 }
 
-function regularCanonicalFile(root, relativePath, label) {
-	const path = resolve(root, relativePath);
-	const localPath = relative(root, path);
-	if (!localPath || isAbsolute(localPath) || localPath === '..' || localPath.startsWith(`..${sep}`)) {
-		throw new Error(`${label} leaves its repository root.`);
-	}
-	const metadata = lstatSync(path);
-	if (metadata.isSymbolicLink() || !metadata.isFile() || realpathSync(path) !== path) {
-		throw new Error(`${label} is not a canonical regular file.`);
-	}
-	if (!Number.isSafeInteger(metadata.size) || metadata.size < 1 || metadata.size > 1024 * 1024) {
-		throw new Error(`${label} has an invalid byte length.`);
-	}
-	const descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-	try {
-		const opened = fstatSync(descriptor);
-		if (!opened.isFile() || opened.size !== metadata.size
-			|| (metadata.ino !== 0 && opened.ino !== 0
-				&& (opened.dev !== metadata.dev || opened.ino !== metadata.ino))) {
-			throw new Error(`${label} changed while it was opened.`);
-		}
-		const bytes = readFileSync(descriptor);
-		const after = fstatSync(descriptor);
-		if (after.size !== opened.size || bytes.byteLength !== opened.size) {
-			throw new Error(`${label} changed while it was read.`);
-		}
-		return bytes;
-	} finally {
-		closeSync(descriptor);
-	}
-}
-
-function verifyDescriptor(bytes, descriptor, label) {
-	if (bytes.byteLength !== descriptor.byteLength || digest(bytes) !== descriptor.sha256) {
-		throw new Error(`${label} changed bytes or digest.`);
-	}
-}
-
 function cloneIsolationPayload(value) {
 	return {
 		launcherPayload: { ...value.launcherPayload },
@@ -565,33 +393,6 @@ function payloadDescriptors(entry) {
 			['isolation runtimeLibraryPayloads', library]
 		)),
 	];
-}
-
-function parseJson(bytes, label) {
-	try { return JSON.parse(String(bytes)); }
-	catch (error) { throw new Error(`${label} is invalid JSON.`, { cause: error }); }
-}
-
-function assertVerifiedPayloadRelease(release) {
-	if (!VERIFIED_PAYLOAD_RELEASES.has(release)) {
-		throw new Error('A verified Framescaper OpenFX payload release is required.');
-	}
-}
-
-function digest(bytes) {
-	return createHash('sha256').update(bytes).digest('hex');
-}
-
-function deepFreeze(value) {
-	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-		Object.freeze(value);
-		for (const child of Object.values(value)) deepFreeze(child);
-	}
-	return value;
-}
-
-function errorMessage(error) {
-	return error instanceof Error ? error.message : String(error);
 }
 
 function sameFields(value, fields) {

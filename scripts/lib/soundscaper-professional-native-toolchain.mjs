@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Structured, target-bound toolchain evidence for professional native candidates. */
+/** Structured, target-bound toolchain evidence for professional native build results. */
 
 import { createHash } from 'node:crypto';
 import { lstat, readFile, realpath } from 'node:fs/promises';

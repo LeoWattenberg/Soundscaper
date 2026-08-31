@@ -9,8 +9,6 @@
 	},
 	"files": [
 		"desktop/display-capture.js",
-		"desktop/framescaper-media-review-policy.mjs",
-		"desktop/framescaper-openfx-review-policy.mjs",
 		"desktop/plugin-binary-authentication.mjs",
 		"src/common/editor/analysis-worker.js",
 		"src/common/editor/parametric-eq/wasm-loader.js",

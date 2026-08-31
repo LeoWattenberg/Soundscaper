@@ -29,11 +29,6 @@
       "count": 1
     }
   },
-  "desktop/framescaper-media-production-readiness.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "desktop/framescaper-project-library-writer.ts": {
     "preserve-caught-error": {
       "count": 1
@@ -97,11 +92,6 @@
   "desktop/native-services-publication.ts": {
     "preserve-caught-error": {
       "count": 2
-    }
-  },
-  "desktop/openfx-production-readiness.ts": {
-    "no-control-regex": {
-      "count": 1
     }
   },
   "desktop/plugin-consent.ts": {

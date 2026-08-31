@@ -65,7 +65,6 @@ const MAXIMUM_SOURCE_BYTES = 2 * 1024 * 1024;
 const MAXIMUM_ARTIFACT_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_TOOLCHAIN_BYTES = 4 * 1024;
 const MAXIMUM_STEP_OUTPUT_BYTES = 8 * 1024 * 1024;
-const MAXIMUM_SIGNING_IDENTITY_BYTES = 512;
 const AUTHENTICATED_PLANS = new WeakSet();
 const TRUSTED_POLICIES = new WeakSet();
 
@@ -88,7 +87,7 @@ export function deriveOsAudioCodecHostPolicyIdentity(options) {
 		electronHeaders,
 		sourceIdentity,
 		signing: signing.identity,
-		portable: portableCommands(target, signing.identity.mode),
+		portable: portableCommands(target),
 	});
 	const policy = deepFreeze({
 		target,
@@ -150,7 +149,7 @@ export function createOsAudioCodecHostBuildPlan(options) {
 	const sourceRoot = resolve(repositoryRoot, NATIVE_ROOT);
 	const sourceIdentity = sourceClosureIdentity(repositoryRoot);
 	const headerIdentity = electronHeaderIdentity(headerSource, headerAuthentication);
-	const portable = portableCommands(target, signing.identity.mode);
+	const portable = portableCommands(target);
 	const macosSdkPath = target === 'mac-arm64'
 		? canonicalDirectory(options?.macosSdkPath, 'macOS SDK root') : null;
 	const artifactPath = resolve(installRoot, ARTIFACT_NAME);
@@ -263,7 +262,7 @@ export function executeOsAudioCodecHostBuild(plan, options = {}) {
 	}
 }
 
-function portableCommands(target, signingMode) {
+function portableCommands(target) {
 	const configure = ['-S', '$SOURCE_ROOT', '-B', '$BUILD_ROOT'];
 	if (target === 'mac-arm64') configure.push(
 		'-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_TESTING=ON',
@@ -287,12 +286,7 @@ function portableCommands(target, signingMode) {
 		],
 		install: ['--install', '$BUILD_ROOT', '--config', 'Release', '--prefix', '$INSTALL_ROOT'],
 		sign: target === 'mac-arm64'
-			? signingMode === 'developer-id'
-				? [
-					'--force', '--timestamp', '--options', 'runtime', '--sign',
-					'$SIGNING_IDENTITY', '$ARTIFACT',
-				]
-				: ['--force', '--sign', '$SIGNING_IDENTITY', '$ARTIFACT']
+			? ['--force', '--sign', '$SIGNING_IDENTITY', '$ARTIFACT']
 			: null,
 		signatureVerification: target === 'mac-arm64'
 			? ['--verify', '--strict', '$ARTIFACT'] : null,
@@ -306,23 +300,10 @@ function signingValue(target, value) {
 			mode: 'not-applicable', identitySha256: null,
 		}, raw: null });
 	}
-	if (value === undefined) {
-		throw new TypeError('A mac-arm64 signing identity is required.');
-	}
 	if (value === '-') return deepFreeze({
 		identity: { mode: 'ad-hoc', identitySha256: sha256(Buffer.from(value)) }, raw: value,
 	});
-	const prefix = 'Developer ID Application: ';
-	if (typeof value !== 'string' || value !== value.normalize('NFC')
-		|| !value.startsWith(prefix) || value.length <= prefix.length || value.length > 256
-		|| Buffer.byteLength(value, 'utf8') > MAXIMUM_SIGNING_IDENTITY_BYTES
-		|| value !== value.trim() || /\p{Cc}/u.test(value)) {
-		throw new TypeError('mac-arm64 requires - or one bounded Developer ID Application signing identity.');
-	}
-	return deepFreeze({
-		identity: { mode: 'developer-id', identitySha256: sha256(Buffer.from(value, 'utf8')) },
-		raw: value,
-	});
+	throw new TypeError('mac-arm64 supports only ad-hoc code sealing with identity -.');
 }
 
 function signingResult(signing) {

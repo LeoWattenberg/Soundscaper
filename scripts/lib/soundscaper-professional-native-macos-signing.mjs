@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Pre-signing authority for the exact macOS professional-native candidate closure. */
+/** Ad-hoc code-sealing authority for the exact macOS professional-native closure. */
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -69,7 +69,7 @@ export function createSoundscaperProfessionalNativeMacSigningPlan(options) {
 			? peerEntitlements.descriptor : null,
 		preSigning: descriptor(artifact.absolutePath, artifact.candidatePath),
 	}));
-	const commands = commandTemplates(signing.identity.mode);
+	const commands = commandTemplates();
 	const plan = deepFreeze({
 		schemaVersion: 2,
 		target: 'mac-arm64',
@@ -159,11 +159,11 @@ export function validateSoundscaperProfessionalNativeMacSigningEvidence(value, c
 	],
 		'mac signing commands');
 	if (value.schemaVersion !== 2 || value.status !== 'signatures-verified'
-		|| value.target !== 'mac-arm64' || !['ad-hoc', 'developer-id'].includes(value.signing.mode)
+		|| value.target !== 'mac-arm64' || value.signing.mode !== 'ad-hoc'
 		|| !SHA256.test(String(value.signing.identitySha256))) {
 		throw new TypeError('The professional native mac signing evidence identity is invalid.');
 	}
-	const expectedCommands = commandTemplates(value.signing.mode);
+	const expectedCommands = commandTemplates();
 	if (JSON.stringify(value.commands) !== JSON.stringify(expectedCommands)) {
 		throw new TypeError('The professional native mac signing command evidence is invalid.');
 	}
@@ -208,31 +208,21 @@ export function validateSoundscaperProfessionalNativeMacSigningEvidence(value, c
 }
 
 function signingIdentity(value) {
-	if (value === '-') return deepFreeze({
-		identity: { mode: 'ad-hoc', identitySha256: sha256(Buffer.from(value)) }, raw: value,
-	});
-	const prefix = 'Developer ID Application: ';
-	if (typeof value !== 'string' || value !== value.normalize('NFC')
-		|| !value.startsWith(prefix) || value.length <= prefix.length || value.length > 256
-		|| Buffer.byteLength(value, 'utf8') > 512 || value !== value.trim() || /\p{Cc}/u.test(value)) {
-		throw new TypeError('mac-arm64 requires - or one bounded Developer ID Application signing identity.');
-	}
+	if (value !== '-') throw new TypeError('mac-arm64 supports only ad-hoc code sealing with identity -.');
 	return deepFreeze({
-		identity: { mode: 'developer-id', identitySha256: sha256(Buffer.from(value)) }, raw: value,
+		identity: { mode: 'ad-hoc', identitySha256: sha256(Buffer.from(value)) }, raw: value,
 	});
 }
 
-function commandTemplates(mode) {
-	const hardened = mode === 'developer-id'
-		? ['--timestamp', '--options', 'runtime'] : [];
+function commandTemplates() {
 	return deepFreeze({
 		sign: {
 			command: 'codesign',
-			argv: ['--force', ...hardened, '--sign', '$SIGNING_IDENTITY', '$ARTIFACT'],
+			argv: ['--force', '--sign', '$SIGNING_IDENTITY', '$ARTIFACT'],
 		},
 		peerSign: {
 			command: 'codesign',
-			argv: ['--force', ...hardened, '--entitlements', '$PEER_ENTITLEMENTS',
+			argv: ['--force', '--entitlements', '$PEER_ENTITLEMENTS',
 				'--sign', '$SIGNING_IDENTITY', '$ARTIFACT'],
 		},
 		verification: {

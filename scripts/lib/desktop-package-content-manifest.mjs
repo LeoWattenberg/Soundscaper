@@ -219,15 +219,6 @@ function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
 			expectedByPrefix.set(prefix, names);
 		}
 	};
-	const admitReportOnlyFiles = (prefix, names) => {
-		const expected = expectedByPrefix.get(prefix) ?? new Set();
-		for (const name of names) {
-			const path = `${prefix}${name}`;
-			if (inventory.has(path)) expected.add(path);
-		}
-		expectedByPrefix.set(prefix, expected);
-	};
-
 	if (Object.hasOwn(runtime, 'ffmpeg')) {
 		throw new Error('The desktop runtime manifest retains a legacy bundled FFmpeg runtime summary.');
 	}
@@ -279,10 +270,6 @@ function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
 		const professionalManifestPath = `${professionalPrefix}soundscaper-professional-native-payload-manifest.json`;
 		requireFile(professionalManifestPath, professional.payloadManifest,
 			'professional native payload manifest', professionalPrefix);
-		admitReportOnlyFiles(professionalPrefix, [
-			'milestone-5-native-isolation-review-policy.json',
-			'soundscaper-professional-native-readiness.json',
-		]);
 		if (professional.status === 'built') {
 			requireFile(`${professionalPrefix}${professional.payload?.name}`, professional.payload,
 				'professional native payload', professionalPrefix);
@@ -314,12 +301,6 @@ function assertRuntimePayloadClosure(runtime, files, dependencies = {}) {
 			const host = hosts[key];
 			if (!plainRecord(host) || !Array.isArray(host.payloads)) throw new Error(
 				`The Framescaper ${key} content authority is invalid.`);
-			admitReportOnlyFiles(prefix, [
-				'milestone-5-native-isolation-review-policy.json',
-				key === 'mediaHost'
-					? 'framescaper-media-host-production-readiness.json'
-					: 'framescaper-openfx-production-readiness.json',
-			]);
 			if (host.status === 'built') {
 				for (const descriptor of host.payloads) {
 					requireFile(`${prefix}${descriptor.name}`, descriptor,

@@ -25,22 +25,22 @@ import {
 	inspectSoundscaperProfessionalNativeDependencies,
 } from '../scripts/lib/soundscaper-professional-native-dependency-inspection.mjs';
 import {
-	soundscaperProfessionalNativeCandidateArtifactPaths,
-} from '../scripts/lib/soundscaper-professional-native-candidate-contract.mjs';
+	soundscaperProfessionalNativeBuildResultArtifactPaths,
+} from '../scripts/lib/soundscaper-professional-native-build-result-contract.mjs';
 
-test('candidate executable paths retain the Windows PE suffix', () => {
-	assert.deepEqual(soundscaperProfessionalNativeCandidateArtifactPaths('win-arm64'), {
+test('build-result executable paths retain the Windows PE suffix', () => {
+	assert.deepEqual(soundscaperProfessionalNativeBuildResultArtifactPaths('win-arm64'), {
 		payload: 'payload/soundscaper_professional.node',
 		osAudioCodec: 'payload/soundscaper_os_audio_codec.node',
 		pluginPeer: 'payload/soundscaper_professional_peer.exe',
 		deliveryFilesystem: 'payload/soundscaper_delivery_fs.exe',
 		launcher: 'payload/milestone5-native-isolation-launcher.exe',
 	});
-	assert.equal(soundscaperProfessionalNativeCandidateArtifactPaths('linux-x64').pluginPeer,
+	assert.equal(soundscaperProfessionalNativeBuildResultArtifactPaths('linux-x64').pluginPeer,
 		'payload/soundscaper_professional_peer');
 });
 
-test('binary architecture admission recognizes only exact target-native ELF, PE, and Mach-O', () => {
+test('binary architecture verification recognizes only exact target-native ELF, PE, and Mach-O', () => {
 	assert.deepEqual(assertSoundscaperNativeBinaryArchitecture(elf(62), 'linux-x64'), {
 		schemaVersion: 1, target: 'linux-x64', format: 'elf64-le',
 		architecture: 'x64', machine: 'EM_X86_64',
@@ -63,7 +63,7 @@ test('binary architecture admission recognizes only exact target-native ELF, PE,
 	});
 });
 
-test('binary architecture admission rejects cross-format, wrong-machine, fat, and malformed payloads', () => {
+test('binary architecture verification rejects cross-format, wrong-machine, fat, and malformed payloads', () => {
 	for (const [bytes, target] of [
 		[elf(62), 'linux-arm64'], [elf(183), 'linux-x64'],
 		[pe(0x8664), 'win-arm64'], [pe(0xaa64), 'win-x64'],
@@ -79,7 +79,7 @@ test('binary architecture admission rejects cross-format, wrong-machine, fat, an
 	assert.throws(() => assertSoundscaperNativeBinaryArchitecture(pe32, 'win-arm64'), /PE32\+/iu);
 });
 
-test('file architecture admission refuses aliases and bounded-file substitution', async (context) => {
+test('file architecture verification refuses aliases and bounded-file substitution', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-architecture-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const binary = join(root, 'payload.node');

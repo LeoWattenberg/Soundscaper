@@ -12,6 +12,12 @@ export function assertDesktopProfessionalNativeReleasePolicy(options, dependenci
 	const stableSelected = productId === 'soundscaper'
 		&& (metadata?.applicationVersionChannel === 'stable' || metadata?.releaseChannel === 'stable');
 	if (!stableSelected) return options?.release ?? null;
+	if (options?.harnessPreparation === true) {
+		if (!options?.release || !['built', 'pending-external'].includes(options.release.status)) {
+			throw new Error('Harness preparation requires a verified native payload manifest result.');
+		}
+		return options.release;
+	}
 	if (!options?.release) {
 		throw new Error('Stable Soundscaper desktop preparation requires a professional native release.');
 	}
@@ -19,10 +25,10 @@ export function assertDesktopProfessionalNativeReleasePolicy(options, dependenci
 		?? assertSoundscaperProfessionalNativeStablePackageRelease;
 	assertStable(options.release);
 	if (!/^(?:[a-f\d]{40}|[a-f\d]{64})$/u.test(String(options.sourceRevision))
-		|| options.release.productionReadiness?.candidateAuthority?.sourceRevision
+		|| options.release.buildAuthority?.sourceRevision
 			!== options.sourceRevision) {
 		throw new Error(
-			'Stable Soundscaper professional candidate source revision does not match the desktop source revision.',
+			'Stable Soundscaper professional native build result does not match the desktop source revision.',
 		);
 	}
 	return options.release;

@@ -7,14 +7,10 @@ import { isDeepStrictEqual } from 'node:util';
 
 import {
 	FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST,
+	verifyFramescaperMediaHostPayloadRelease,
 } from './framescaper-media-host-build.mjs';
 import {
-	framescaperMediaProductionReadinessStageSummary,
-	verifyFramescaperMediaHostPayloadRelease,
-} from './framescaper-media-host-readiness.mjs';
-import {
 	FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST,
-	framescaperOpenFxProductionReadinessStageSummary,
 	verifyFramescaperOpenFxPayloadRelease,
 } from './framescaper-openfx-host-build.mjs';
 import {
@@ -25,17 +21,12 @@ import {
 import {
 	PROFESSIONAL_NATIVE_MANIFEST_PATH,
 	PROFESSIONAL_NATIVE_TARGETS,
-	professionalNativePayloadStageSummary,
 	verifySoundscaperProfessionalNativePayload,
 } from './soundscaper-professional-native-payload.mjs';
-import { MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH } from '../../desktop/native-isolation-review-policy.mjs';
 import { milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
 
 const AUDITED = new WeakSet();
 export const MILESTONE_5_PAYLOAD_ROW_COUNT = 20;
-const READINESS_REQUIRED_PRODUCTS = Object.freeze([
-	'soundscaper-professional', 'framescaper-media', 'framescaper-openfx',
-]);
 
 /** Authenticate every built native payload against its owning source manifest and bytes. */
 export async function auditMilestone5Payloads(repositoryRootValue, productIdsValue) {
@@ -68,13 +59,6 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 		? await verifyFramescaperMediaHostPayloadRelease({ repositoryRoot }) : null;
 	const openFx = includes('framescaper-openfx')
 		? await verifyFramescaperOpenFxPayloadRelease({ repositoryRoot }) : null;
-	const reviewedReleases = [...professionalReleases, ...[media, openFx].filter(Boolean)];
-	const reviewPolicyBytes = reviewedReleases[0].reviewPolicy.bytes;
-	for (const release of reviewedReleases.slice(1)) {
-		if (!release.reviewPolicy.bytes.equals(reviewPolicyBytes)) {
-			throw new Error('Milestone 5 payload auditors did not use one native-isolation review policy.');
-		}
-	}
 	const mediaManifestBytes = media === null ? null : await authenticatedManifestBytes(
 		repositoryRoot, FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST, media.payload,
 	);
@@ -85,7 +69,6 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 		...nativeReleases.map((release) => createMilestone5PayloadAuditRow({
 			product: 'soundscaper', targetId: release.target.id, status: release.target.status,
 			blockedBy: release.target.blockedBy, payload: release.target.payload,
-			productionReadiness: null,
 		})),
 		...professionalReleases.map((release) => createMilestone5PayloadAuditRow({
 			product: 'soundscaper-professional', targetId: release.target.id,
@@ -97,7 +80,6 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 				sourceAuthentication: release.target.sourceAuthentication,
 				toolchainIdentity: release.target.toolchainIdentity,
 			} : null,
-			productionReadiness: professionalNativePayloadStageSummary(release).productionReadiness,
 		})),
 		...(media === null ? [] : media.payload.targets.map((target) => createMilestone5PayloadAuditRow({
 			product: 'framescaper-media', targetId: target.id, status: target.status,
@@ -105,12 +87,10 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 				payload: target.payload,
 				isolationPayload: target.isolationPayload,
 			} : null,
-			productionReadiness: framescaperMediaProductionReadinessStageSummary(media, target.id),
 		}))),
 		...(openFx === null ? [] : openFx.payload.targets.map((target) => createMilestone5PayloadAuditRow({
 			product: 'framescaper-openfx', targetId: target.id, status: target.status,
 			blockedBy: target.blockedBy, payload: target.payload,
-			productionReadiness: framescaperOpenFxProductionReadinessStageSummary(openFx, target.id),
 		}))),
 	];
 	const inputDigests = {
@@ -126,35 +106,9 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 		...(openFxManifestBytes === null ? {} : {
 			[FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST]: descriptor(openFxManifestBytes),
 		}),
-		[MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH]: descriptor(reviewPolicyBytes),
 	};
-	for (const release of professionalReleases) {
-		if (release.productionReadiness !== null) addEvidenceDigest(
-			inputDigests,
-			release.productionReadiness.reference.evidence.path,
-			release.productionReadiness.evidenceBytes,
-		);
-	}
-	for (const readiness of Object.values(media?.productionReadiness ?? {})) {
-		if (readiness !== null) addEvidenceDigest(
-			inputDigests,
-			readiness.reference.evidence.path,
-			readiness.evidenceBytes,
-		);
-	}
-	for (const readiness of Object.values(openFx?.productionReadiness ?? {})) {
-		if (readiness !== null) addEvidenceDigest(
-			inputDigests,
-			readiness.reference.evidence.path,
-			readiness.evidenceBytes,
-		);
-	}
 	const audit = deepFreeze({
-		schemaVersion: 2,
-		reviewPolicy: {
-			path: MILESTONE_5_NATIVE_ISOLATION_REVIEW_POLICY_PATH,
-			...descriptor(reviewPolicyBytes),
-		},
+		schemaVersion: 3,
 		manifests: {
 			...(nativeReleases.length === 0 ? {} : { nativeAddon: nativeReleases[0].manifest }),
 			...(professionalReleases.length === 0 ? {} : {
@@ -172,10 +126,6 @@ export async function auditMilestone5Payloads(repositoryRootValue, productIdsVal
 
 export function isAuditedMilestone5Payloads(value) {
 	return value !== null && typeof value === 'object' && AUDITED.has(value);
-}
-
-export function milestone5PayloadRequiresProductionReadiness(product) {
-	return READINESS_REQUIRED_PRODUCTS.includes(product);
 }
 
 async function authenticatedManifestBytes(repositoryRoot, path, expected) {
@@ -198,7 +148,6 @@ export function createMilestone5PayloadAuditRow({
 	status,
 	blockedBy,
 	payload,
-	productionReadiness,
 }) {
 	if (!['built', 'pending-external'].includes(status)) {
 		throw new Error(`Milestone 5 payload ${product}:${targetId} has an unsupported status.`);
@@ -207,12 +156,6 @@ export function createMilestone5PayloadAuditRow({
 		: payload !== null || typeof blockedBy !== 'string' || blockedBy.trim().length < 8) {
 		throw new Error(`Milestone 5 payload ${product}:${targetId} has inconsistent evidence.`);
 	}
-	const readinessRequired = milestone5PayloadRequiresProductionReadiness(product);
-	if ((!readinessRequired || status !== 'built') && productionReadiness !== null) {
-		throw new Error(`Milestone 5 payload ${product}:${targetId} carries unexpected readiness evidence.`);
-	}
-	const readinessAuthenticated = productionReadiness !== null
-		&& productionReadiness?.verified?.status === 'authenticated';
 	const automatedReady = status === 'built';
 	const payloadEvidence = payload === null ? null : structuredClone(payload);
 	const automatedEvidenceSha256 = createHash('sha256').update(JSON.stringify({
@@ -220,11 +163,6 @@ export function createMilestone5PayloadAuditRow({
 		buildStatus: status,
 		payloadEvidence,
 	})).digest('hex');
-	const releaseStatus = status === 'built' && (!readinessRequired || readinessAuthenticated)
-		? 'built' : 'pending-external';
-	const releaseBlocker = status === 'built' && readinessRequired && !readinessAuthenticated
-		? `The ${product}:${targetId} payload has no authenticated per-target production-readiness evidence.`
-		: blockedBy;
 	return {
 		identity: `${product}:${targetId}`,
 		product,
@@ -233,20 +171,9 @@ export function createMilestone5PayloadAuditRow({
 		automatedReady,
 		automatedEvidenceSha256,
 		payloadEvidence,
-		status: releaseStatus,
-		blockedBy: releaseBlocker,
-		productionReadiness: productionReadiness === null
-			? null : structuredClone(productionReadiness),
+		status,
+		blockedBy,
 	};
-}
-
-function addEvidenceDigest(inputDigests, path, bytes) {
-	const observed = descriptor(bytes);
-	if (Object.hasOwn(inputDigests, path)
-		&& !isDeepStrictEqual(inputDigests[path], observed)) {
-		throw new Error(`Milestone 5 readiness evidence path ${path} has conflicting bytes.`);
-	}
-	inputDigests[path] = observed;
 }
 
 function descriptor(bytes) {

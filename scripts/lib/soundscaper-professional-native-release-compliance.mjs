@@ -8,11 +8,9 @@ import { lstat, open, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import sourceRegisterDefault from '../../config/milestone-5-native-source-acquisitions.json' with { type: 'json' };
-import { soundscaperProfessionalSourceAuthenticationSha256 }
-	from '../../desktop/soundscaper-professional-native-readiness.mjs';
 import {
 	SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS,
-} from './soundscaper-professional-native-candidate-contract.mjs';
+} from './soundscaper-professional-native-build-result-contract.mjs';
 import {
 	assertSoundscaperProfessionalNativePackageNoticeSummary,
 	readSoundscaperProfessionalNativeNoticeFiles,
@@ -74,9 +72,9 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 	const targetBindings = runtimeManifests.map(({ name, value, bytes, target }) => Object.freeze({
 		target,
 		runtimeManifest: Object.freeze({ name, byteLength: bytes.byteLength, sha256: digest(bytes) }),
-		sourceAuthenticationSha256: soundscaperProfessionalSourceAuthenticationSha256(
+		sourceAuthenticationSha256: digest(Buffer.from(stableJson(
 			value.soundscaperProfessionalNative.sourceAuthentication,
-		),
+		))),
 		noticeInventorySha256: digest(Buffer.from(stableJson(
 			value.desktopNotices.professionalNative,
 		))),

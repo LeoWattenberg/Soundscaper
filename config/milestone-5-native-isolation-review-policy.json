@@ -1,6 +1,0 @@
-{
-	"schemaVersion": 1,
-	"algorithm": "Ed25519",
-	"trustedKeys": [],
-	"blockedBy": "The repository owner review replaces the independent-reviewer and trust-key requirement. No per-target technical isolation-readiness evidence has been supplied for Soundscaper professional, Framescaper OpenFX, or the Framescaper media host."
-}

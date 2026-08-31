@@ -3,7 +3,6 @@
 /** 5B leaf modules emitted through the desktop runtime's owning entry points. */
 export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/framescaper-m5b-diagnostic-runner.js',
-	'desktop/framescaper-media-production-readiness.js',
 	'desktop/framescaper-native-image-sequence-registration.js',
 	'desktop/native-image-sequence-decode-admission.js',
 	'desktop/native-image-sequence-decode-authority.js',
@@ -39,7 +38,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/native-child-launcher-environment.js',
 	'desktop/native-child-windows-authority.js',
 	'desktop/native-child-framed-control.js',
-	'desktop/soundscaper-professional-native-readiness.mjs',
 	'desktop/soundscaper-professional-linux-system-libraries.js',
 	'desktop/soundscaper-professional-linux-system-runtime.js',
 	'desktop/soundscaper-professional-plugin-peer.js',
@@ -101,7 +99,6 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/openfx-plugin-native-image.js',
 	'desktop/openfx-main-project-timing-authority.js',
 	'desktop/openfx-main-registered-plugin.js',
-	'desktop/openfx-production-readiness.js',
 	'desktop/openfx-scan-authentication.js',
 	'desktop/project-library-native-body-materialization.js',
 	'src/common/editor/native-watch-target.js',

@@ -56,7 +56,7 @@ test('the codec-only CMake and Node-API surfaces have no device or plug-in autho
 	assert.match(bridge, /GetProcAddress/u,
 		'Windows resolves Electron Node-API exports without an unpinned node.lib.');
 	assert.match(buildScript, /'result'/u);
-	assert.match(buildScript, /'signing-identity'/u);
+	assert.doesNotMatch(buildScript, /signing-identity/u);
 	assert.match(buildScript, /O_EXCL/u);
 	assert.match(buildScript, /Build result output is not one new regular file/u);
 	assert.match(buildScript, /JSON\.stringify\(value, null, 2\)/u,
@@ -69,16 +69,16 @@ test('the codec-only CMake and Node-API surfaces have no device or plug-in autho
 		'--headers-root=/missing/electron-headers', '--output=/missing/output',
 		'--result=/missing/result.json',
 	];
-	const windowsSigning = spawnSync(process.execPath, [
+	const externalIdentity = spawnSync(process.execPath, [
 		cli, '--target=win-x64', '--signing-identity=-', ...common,
 	], { encoding: 'utf8' });
-	assert.notEqual(windowsSigning.status, 0);
-	assert.match(windowsSigning.stderr, /must not be used for Windows builds/iu);
-	const unsignedMac = spawnSync(process.execPath, [
+	assert.notEqual(externalIdentity.status, 0);
+	assert.match(externalIdentity.stderr, /Unsupported.*signing-identity/iu);
+	const adHocMac = spawnSync(process.execPath, [
 		cli, '--target=mac-arm64', '--macos-sdk=/missing/MacOSX.sdk', ...common,
 	], { encoding: 'utf8' });
-	assert.notEqual(unsignedMac.status, 0);
-	assert.match(unsignedMac.stderr, /signing-identity=.*required for mac-arm64/iu);
+	assert.notEqual(adHocMac.status, 0);
+	assert.doesNotMatch(adHocMac.stderr, /signing-identity/iu);
 });
 
 test('build plans authenticate exact Electron 43.1.1 headers and close the target matrix', async (context) => {
@@ -150,7 +150,7 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	await mkdir(macSdk);
 	assert.throws(() => plan(fixture, 'mac-arm64', 'mac-unsigned', {
 		macosSdkPath: macSdk,
-	}), /signing identity is required/iu);
+	}), /only ad-hoc code sealing/iu);
 	assert.throws(() => plan(fixture, 'win-x64', 'windows-signed', {
 		signingIdentity: '-',
 	}), /must not accept a signing identity/iu);
@@ -175,32 +175,11 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	assert.deepEqual(mac.signatureVerification, {
 		command: 'codesign', argv: ['--verify', '--strict', mac.artifactPath],
 	});
-	const developerIdentity =
-		'Developer ID Application: Soundscaper $MACOS_SDK Test (ABCDE12345)';
-	const production = plan(fixture, 'mac-arm64', 'mac-production', {
-		macosSdkPath: macSdk, signingIdentity: developerIdentity,
-	});
-	assert.deepEqual(deriveOsAudioCodecHostPolicyIdentity({
-		repositoryRoot: ROOT, sourceManifestPath: fixture.manifestPath,
-		target: 'mac-arm64', signingIdentity: developerIdentity,
-	}).buildPlan, production.buildPlan);
-	assert.deepEqual(production.signing, {
-		mode: 'developer-id', identitySha256: sha256(Buffer.from(developerIdentity)),
-	});
-	assert.equal(production.sign.argv[5], developerIdentity,
-		'signing identities must not be interpreted as build-plan placeholders.');
-	assert.deepEqual(production.sign.argv, [
-		'--force', '--timestamp', '--options', 'runtime', '--sign', developerIdentity,
-		production.artifactPath,
-	]);
-	assert.notEqual(production.buildPlan.sha256, mac.buildPlan.sha256);
 	for (const signingIdentity of [
-		'Apple Development: Soundscaper Test (ABCDE12345)',
-		'Developer ID Application: Soundscaper Test\n(ABCDE12345)',
-		`Developer ID Application: ${'x'.repeat(300)}`,
+		'', 'identity', 'Apple Development', `identity-${'x'.repeat(300)}`,
 	]) assert.throws(() => plan(fixture, 'mac-arm64', `invalid-${signingIdentity.length}`, {
 		macosSdkPath: macSdk, signingIdentity,
-	}), /Developer ID Application/iu);
+	}), /only ad-hoc code sealing/iu);
 
 	const second = plan(fixture, 'win-x64', 'windows-two');
 	assert.deepEqual(osAudioCodecHostBuildPlanIdentity(windows),
@@ -312,7 +291,7 @@ test('macOS signs and strictly verifies the installed addon before hashing it', 
 		mode: 'ad-hoc', identitySha256: sha256(Buffer.from('-')),
 		verificationStatus: 'passed',
 	});
-	assert.doesNotMatch(JSON.stringify(result), /Developer ID Application/u);
+	assert.equal(result.signing.mode, 'ad-hoc');
 });
 
 test('the portable exact MP3 profile canary remains buildable without a target OS SDK', (context) => {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed, clean-HEAD authority for target-native candidate self-tests. */
+/** Closed, clean-HEAD authority for target-native build-result self-tests. */
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -10,7 +10,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import {
 	requiredSoundscaperProfessionalNativeSelfTestIds,
 	targetId,
-} from './soundscaper-professional-native-candidate-contract.mjs';
+} from './soundscaper-professional-native-build-result-contract.mjs';
 import {
 	assertSoundscaperProfessionalPackagedAppAuthority,
 	authenticateSoundscaperProfessionalPackagedApp,

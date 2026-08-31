@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -23,7 +23,7 @@ import {
 	canonicalJson,
 	expectedSoundscaperProfessionalNativeInventory,
 	requiredSoundscaperProfessionalNativeSelfTestIds,
-} from '../scripts/lib/soundscaper-professional-native-candidate-contract.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result-contract.mjs';
 import {
 	createSoundscaperProfessionalNativeToolchainReceipt,
 	soundscaperProfessionalNativeToolchainIdentity,
@@ -67,11 +67,10 @@ test('a verified professional Node bridge stages exactly its manifest and payloa
 	const outputRoot = professionalNativePayloadOutputRoot(runtimeRoot, release);
 	const summary = await stageVerifiedSoundscaperProfessionalNativePayload({ release, outputRoot });
 	assert.deepEqual((await readdir(outputRoot)).sort(), [
-		'milestone-5-native-isolation-review-policy.json',
 		'milestone5-native-isolation-launcher',
 		'native-isolation-broker-v1.json',
 		'native-isolation-profile-v1.json',
-		'soundscaper-professional-native-candidate.json',
+		'soundscaper-professional-native-build-result.json',
 		'soundscaper-professional-native-payload-manifest.json',
 		'soundscaper_delivery_fs',
 		'soundscaper_professional.node',
@@ -79,7 +78,6 @@ test('a verified professional Node bridge stages exactly its manifest and payloa
 	]);
 	assert.equal(summary.payload.sha256, fixture.sha256);
 	assert.deepEqual(Object.keys(summary.payloadManifest).sort(), ['byteLength', 'id', 'sha256']);
-	assert.deepEqual(Object.keys(summary.reviewPolicy).sort(), ['byteLength', 'name', 'sha256']);
 	assert.equal(summary.payloadManifest.byteLength,
 		(await readFile(join(fixture.root, PROFESSIONAL_NATIVE_MANIFEST_PATH))).byteLength);
 	assert.deepEqual(summary.sourceAuthentication, release.target.sourceAuthentication);
@@ -91,14 +89,8 @@ test('a verified professional Node bridge stages exactly its manifest and payloa
 	);
 });
 
-test('stable packaging rejects preview/pending readiness and admits an authenticated ready release', async (context) => {
-	const preview = await builtFixture(context);
-	const previewRelease = await verifySoundscaperProfessionalNativePayload({
-		repositoryRoot: preview.root, target: 'linux-x64',
-	});
-	assert.throws(() => assertSoundscaperProfessionalNativeStablePackageRelease(previewRelease),
-		/non-pending production readiness/iu);
-	const stable = await builtFixture(context, { productionReadiness: true });
+test('stable packaging accepts an exact matching build result', async (context) => {
+	const stable = await builtFixture(context);
 	const stableRelease = await verifySoundscaperProfessionalNativePayload({
 		repositoryRoot: stable.root, target: 'linux-x64',
 	});
@@ -106,8 +98,7 @@ test('stable packaging rejects preview/pending readiness and admits an authentic
 		id: 'linux-x64', status: 'ready',
 		sourceRevision: '1'.repeat(40),
 		payloadSha256: stableRelease.payload.sha256,
-		buildCandidateSha256: stableRelease.buildCandidate.sha256,
-		productionReadinessSha256: stableRelease.productionReadiness.reference.evidence.sha256,
+		buildResultSha256: stableRelease.buildResult.sha256,
 	});
 	const resourcesPath = join(stable.root, 'stable-resources');
 	await stageVerifiedSoundscaperProfessionalNativePayload({
@@ -119,9 +110,7 @@ test('stable packaging rejects preview/pending readiness and admits an authentic
 		platform: 'linux', arch: 'x64',
 	});
 	assert.equal(packaged.status, 'available');
-	assert.equal(packaged.descriptor.m9ReleaseReview.status, 'complete');
-	assert.equal(packaged.descriptor.m9ReleaseReview.evidence.evidence.buildProvenance.sourceRevision,
-		'1'.repeat(40));
+	assert.equal(packaged.descriptor.buildAuthority.sourceRevision, '1'.repeat(40));
 });
 
 test('runtime resolution selects only the authenticated professional payload', async (context) => {
@@ -145,10 +134,7 @@ test('runtime resolution selects only the authenticated professional payload', a
 	assert.match(available.descriptor.isolation.launcher.path, /milestone5-native-isolation-launcher$/u);
 	assert.equal(available.descriptor.isolation.entrypoint.path, available.descriptor.pluginPeer.path);
 	assert.equal(available.descriptor.sourceAudit.status, 'authenticated');
-	assert.deepEqual(available.descriptor.m9ReleaseReview, {
-		scope: 'stable-1.0-release', status: 'pending',
-		detail: 'No independent professional-native review is recorded for stable 1.0 release admission.',
-	});
+	assert.equal(Object.hasOwn(available.descriptor, 'm9ReleaseReview'), false);
 	const pending = await describeSoundscaperProfessionalNativePayload({
 		applicationRoot: ROOT, packaged: false, resourcesPath: '',
 		platform: 'darwin', arch: 'arm64',
@@ -168,24 +154,7 @@ test('a built payload cannot substitute well-shaped source digests for the pinne
 	}), /built record is invalid/iu);
 });
 
-test('signed review is M9 metadata and cannot disable the machine-authenticated payload', async (context) => {
-	const fixture = await builtFixture(context, { productionReadiness: true });
-	const release = await verifySoundscaperProfessionalNativePayload({
-		repositoryRoot: fixture.root, target: 'linux-x64',
-	});
-	assert.equal(release.m9ReleaseReview.status, 'complete');
-	assert.equal(release.m9ReleaseReview.evidence.evidence.evidence.launcher.network, 'denied');
-	const evidencePath = join(fixture.root,
-		'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-readiness.json');
-	await writeFile(evidencePath, `${await readFile(evidencePath)} `);
-	const changed = await verifySoundscaperProfessionalNativePayload({
-		repositoryRoot: fixture.root, target: 'linux-x64',
-	});
-	assert.equal(changed.payload.sha256, fixture.sha256);
-	assert.equal(changed.m9ReleaseReview.status, 'invalid');
-});
-
-async function builtFixture(context, options = {}) {
+async function builtFixture(context) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-professional-payload-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const manifest = JSON.parse(await readFile(join(ROOT, PROFESSIONAL_NATIVE_MANIFEST_PATH), 'utf8'));
@@ -225,50 +194,21 @@ async function builtFixture(context, options = {}) {
 	const payloadPath = join(root, target.payload.path);
 	await mkdir(dirname(payloadPath), { recursive: true });
 	await writeFile(payloadPath, bytes);
-	const candidateBytes = candidateReceipt(target);
-	const candidatePath = `${targetRoot}/soundscaper-professional-native-candidate.json`;
-	target.buildCandidate = {
-		path: candidatePath, byteLength: candidateBytes.byteLength, sha256: hash(candidateBytes),
+	const buildResultBytes = buildResultReceipt(target);
+	const buildResultPath = `${targetRoot}/soundscaper-professional-native-build-result.json`;
+	target.buildResult = {
+		path: buildResultPath, byteLength: buildResultBytes.byteLength, sha256: hash(buildResultBytes),
 	};
-	await writeFile(join(root, candidatePath), candidateBytes);
-	let policy = JSON.parse(await readFile(join(ROOT,
-		'config/milestone-5-native-isolation-review-policy.json'), 'utf8'));
-	if (options.productionReadiness === true) {
-		const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-		policy = { ...policy, trustedKeys: [{
-			id: 'fixture-review', status: 'accepted',
-			usages: ['soundscaper-professional-native-production-readiness'],
-			targets: ['linux-x64'],
-			publicKeyPem: publicKey.export({ type: 'spki', format: 'pem' }),
-		}] };
-		const evidence = readinessEvidence(target);
-		const evidenceBytes = Buffer.from(JSON.stringify(evidence));
-		const evidencePath = join(root,
-			'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-readiness.json');
-		await writeFile(evidencePath, evidenceBytes);
-		target.productionReadiness = {
-			schemaVersion: 1, status: 'reviewed', target: target.id,
-			evidence: {
-				path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-readiness.json',
-				byteLength: evidenceBytes.byteLength, sha256: hash(evidenceBytes),
-			},
-			signature: {
-				algorithm: 'ed25519', reviewKeyId: 'fixture-review',
-				valueBase64: sign(null, evidenceBytes, privateKey).toString('base64'),
-			},
-		};
-	}
+	await writeFile(join(root, buildResultPath), buildResultBytes);
 	const manifestPath = join(root, PROFESSIONAL_NATIVE_MANIFEST_PATH);
 	await mkdir(dirname(manifestPath), { recursive: true });
 	await writeFile(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
 	await writeFile(join(root, 'config/milestone-5-native-source-acquisitions.json'),
 		await readFile(join(ROOT, 'config/milestone-5-native-source-acquisitions.json')));
-	await writeFile(join(root, 'config/milestone-5-native-isolation-review-policy.json'),
-		`${JSON.stringify(policy, null, '\t')}\n`);
 	return { root, sha256 };
 }
 
-function candidateReceipt(target) {
+function buildResultReceipt(target) {
 	const local = (descriptor, path) => ({
 		path, byteLength: descriptor.byteLength, sha256: descriptor.sha256,
 	});
@@ -299,7 +239,7 @@ function candidateReceipt(target) {
 		rootFileCount: 2, rootTotalBytes: 2, rootClosureSha256: '8'.repeat(64),
 	};
 	return canonicalJson({
-		schemaVersion: 1, kind: 'soundscaper-professional-native-candidate',
+		schemaVersion: 1, kind: 'soundscaper-professional-native-build-result',
 		target: target.id, sourceRevision, buildPlanSha256,
 		evidenceReceipts: [
 			bindEvidenceReceipt('build', target.id, {
@@ -337,7 +277,6 @@ function candidateReceipt(target) {
 		payload, osAudioCodec: null, pluginPeer, deliveryFilesystem,
 		isolation: { launcher, sandboxProfile, brokerPolicy, entrypointPath: pluginPeer.path,
 			runtimeClosure: [] },
-		productionReadiness: null,
 	});
 }
 
@@ -357,47 +296,6 @@ function architectureReceipt(target) {
 	return {
 		schemaVersion: 1, target, format: 'elf64-le', architecture: 'x64', machine: 'EM_X86_64',
 	};
-}
-
-function readinessEvidence(target) {
-	return {
-		schemaVersion: 2, kind: 'soundscaper-professional-native-production-readiness',
-		target: target.id,
-		payload: { byteLength: target.payload.byteLength, sha256: target.payload.sha256 },
-		buildCandidate: artifactEvidence(target.buildCandidate),
-		deliveryFilesystem: artifactEvidence(target.deliveryFilesystem),
-		osAudioCodec: target.osAudioCodec === null ? null : artifactEvidence(target.osAudioCodec),
-		sourceAuthenticationSha256: hash(Buffer.from(stableJson(target.sourceAuthentication))),
-		toolchainIdentity: target.toolchainIdentity,
-		buildProvenance: {
-			sourceRevision: '1'.repeat(40), buildPlanSha256: '2'.repeat(64),
-			nativeHostTreeSha256: '3'.repeat(64), helperAddonTreeSha256: '4'.repeat(64),
-		},
-		macSigning: null,
-		launcher: {
-			schemaVersion: 1, target: target.id,
-			launcherId: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: target.isolation.launcher.sha256,
-			sandboxProfileSha256: target.isolation.sandboxProfile.sha256,
-			brokerPolicySha256: target.isolation.brokerPolicy.sha256,
-			peerPayloadSha256: target.pluginPeer.sha256,
-			runtimeClosureSha256: hash(Buffer.from('[]')), filesystem: 'broker-grant-only',
-			network: 'denied', childProcesses: 'denied', dynamicCode: 'admitted-plugin-only',
-		},
-		osIsolationAttested: true, hostilePluginDenialAttested: true,
-		realThirdPartyExecutionAttested: true, reviewedAt: '2026-08-24', reviewer: 'Fixture Reviewer',
-	};
-}
-
-function artifactEvidence(value) {
-	return { byteLength: value.byteLength, sha256: value.sha256 };
-}
-
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value && typeof value === 'object') return `{${Object.keys(value).sort()
-		.map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
-	return JSON.stringify(value);
 }
 
 function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); }

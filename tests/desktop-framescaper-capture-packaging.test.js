@@ -8,7 +8,7 @@ import test from 'node:test';
 
 const execFileAsync = promisify(execFile);
 
-test('signed Framescaper packages declare capture usage and hardened helper entitlements', async () => {
+test('Framescaper mac packages declare capture usage and hardened helper entitlements', async () => {
 	const config = await loadConfiguration('framescaper');
 	assert.equal(config.mac.hardenedRuntime, true);
 	assert.deepEqual(config.mac.extendInfo, {
@@ -41,11 +41,7 @@ async function loadConfiguration(productId) {
 	const script = "process.stdout.write(JSON.stringify(require('./electron-builder.config.cjs')))";
 	const { stdout } = await execFileAsync(process.execPath, ['-e', script], {
 		cwd: new URL('..', import.meta.url),
-		env: {
-			...process.env,
-			SCAPE_PRODUCT: productId,
-			SOUNDSCAPER_MAC_SIGNING_IDENTITY: 'Developer ID Application: Test (ABCDE12345)',
-		},
+		env: { ...process.env, SCAPE_PRODUCT: productId },
 	});
 	return JSON.parse(stdout);
 }

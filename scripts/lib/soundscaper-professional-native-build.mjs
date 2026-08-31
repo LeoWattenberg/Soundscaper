@@ -86,17 +86,12 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
 	assert(SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS.includes(target), `Unsupported professional native target ${target}.`);
 	const sourceManifestPath = options.sourceManifestPath;
 	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot, sourceManifestPath);
-	const sources = Object.fromEntries(Object.entries(EXPECTED).map(([id, expected]) => (
-		[id, assertSource(register, id, expected)]
-	)));
+	for (const [id, expected] of Object.entries(EXPECTED)) assertSource(register, id, expected);
 	const requiredSourceIds = [
 		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
 		...(target.startsWith('linux-') ? ['lv2'] : []),
 	];
-	const pendingReleaseReviewSources = requiredSourceIds
-		.filter((id) => sources[id].activationStatus !== 'accepted')
-		.map((id) => Object.freeze({ id, blockedBy: sources[id].blockedBy }));
 	const sourceRoots = normalizeSourceRoots(options.sourceRoots);
 	const sourceArchives = normalizeSourceArchives(options.sourceArchives);
 	const authenticatedInputs = requiredSourceIds.map((sourceId) => (
@@ -118,7 +113,7 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
 			}));
 		}
 		return authenticatedBuildPlan({
-			pendingReleaseReviewSources, options, repositoryRoot, requiredSourceIds,
+			options, repositoryRoot,
 			sourceAuthentication, snapshotParent, target,
 		});
 	} catch (error) {
@@ -136,7 +131,7 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
  * must be empty for the next plan to claim it.
  */
 function authenticatedBuildPlan({
-	pendingReleaseReviewSources, options, repositoryRoot, requiredSourceIds,
+	options, repositoryRoot,
 	sourceAuthentication, snapshotParent, target,
 }) {
 	const snapshotRoots = Object.fromEntries(sourceAuthentication.map((witness) => [witness.id, witness.extractedTree.root]));
@@ -182,11 +177,6 @@ function authenticatedBuildPlan({
 		installRoot,
 		sourceAuthentication: Object.freeze(sourceAuthentication),
 		sourceSnapshotRoot: snapshotParent,
-		m9ReleaseReview: Object.freeze({
-			status: pendingReleaseReviewSources.length === 0 ? 'complete' : 'pending',
-			sourceIds: Object.freeze(requiredSourceIds),
-			pendingSources: Object.freeze(pendingReleaseReviewSources),
-		}),
 		vst3Closure: Object.freeze({
 			kind: 'juce-embedded-sdk',
 			root: vst3Closure.root,

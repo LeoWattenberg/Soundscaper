@@ -293,11 +293,11 @@ function assertPendingTargets(manifest) {
 		const state = manifest.targets[target.id];
 		closedRecord(state, [
 			'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'payload',
-			'isolationPayload', 'productionReadiness',
+			'isolationPayload',
 		], `media-host ${target.id} target state`);
 		if (state?.status !== 'pending-external' || state.toolchainIdentity !== null
 			|| state.payload !== null || state.isolationPayload !== null
-			|| state.productionReadiness !== null || state.runtime !== target.runtime
+			|| state.runtime !== target.runtime
 			|| typeof state.blockedBy !== 'string' || state.blockedBy.length === 0) {
 			throw new Error(`Target ${target.id} must remain pending-external with no payload claim.`);
 		}

@@ -482,10 +482,6 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 						launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 					},
 					qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'] as const,
-					m9ReleaseReview: {
-						scope: 'stable-1.0-release' as const, status: 'pending' as const,
-						detail: 'Human OpenFX review remains a Milestone 9 release-admission input.',
-					},
 				} }
 				: { status: 'unavailable' as const, reason: 'payload-pending-external' as const,
 					detail: 'No authenticated OpenFX payload.' }; },

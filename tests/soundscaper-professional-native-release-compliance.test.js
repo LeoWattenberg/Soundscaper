@@ -15,7 +15,7 @@ import {
 } from '../scripts/lib/soundscaper-professional-native-release-compliance.mjs';
 import {
 	soundscaperProfessionalNativeSourceIdsForTarget,
-} from '../scripts/lib/soundscaper-professional-native-candidate-contract.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result-contract.mjs';
 
 const TARGETS = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'];
 const FORBIDDEN = ['x264', 'x265', 'libvpx', 'libopus'];
@@ -76,7 +76,8 @@ test('Stable compliance assembly refuses Frames source input, symbolic archives,
 test('the Stable desktop assembler invokes professional compliance only with its source root', async () => {
 	const source = await readFile(new URL('../scripts/desktop-release-assets.mjs', import.meta.url), 'utf8');
 	assert.match(source, /stageSoundscaperProfessionalNativeReleaseCompliance\(\{/u);
-	assert.match(source, /effectiveAdmissionProfile === 'soundscaper-stable-1'/u);
+	assert.match(source, /if \(stableSoundscaper\)/u);
+	assert.doesNotMatch(source, /admissionProfile|effectiveAdmissionProfile/iu);
 	assert.match(source, /SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT/u);
 	assert.match(source, /runtimeManifests: manifests/u);
 });

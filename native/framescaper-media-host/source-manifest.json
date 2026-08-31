@@ -67,8 +67,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 29042,
-			"sha256": "3c431b6bd803b6867729c9d6daee429357b5a67f0814221e71bb103597b7339d"
+			"byteLength": 28981,
+			"sha256": "b84e89a27c6ee73a5c69b7697b820c5496d522106e6fff57c00748d72b6ef32f"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -428,8 +428,7 @@
 			"blockedBy": "No authenticated Linux x64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"linux-arm64": {
 			"runtime": "linux-arm64",
@@ -437,8 +436,7 @@
 			"blockedBy": "No authenticated Linux ARM64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"mac-arm64": {
 			"runtime": "darwin-arm64",
@@ -446,8 +444,7 @@
 			"blockedBy": "No authenticated macOS ARM64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"win-x64": {
 			"runtime": "win32-x64",
@@ -455,8 +452,7 @@
 			"blockedBy": "No authenticated Windows x64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"win-arm64": {
 			"runtime": "win32-arm64",
@@ -464,8 +460,7 @@
 			"blockedBy": "No authenticated Windows Arm64EC FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"toolchainIdentity": null,
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		}
 	}
 }

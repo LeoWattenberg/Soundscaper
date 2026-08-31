@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Electron composition that reopens readiness before launching actual isolated native children. */
+/** Electron composition for actual isolated native children. */
 
 import { dirname, join } from 'node:path';
 
@@ -9,7 +9,6 @@ import { app } from 'electron/main';
 import {
 	startFramescaperOpenFxRuntime,
 } from './project-library-runtime/desktop/framescaper-openfx-runtime.js';
-import { createFramescaperOpenFxReviewPayloadPorts } from './framescaper-openfx-review-policy.mjs';
 
 export async function startFramescaperOpenFxElectronRuntime(options = {}) {
 	const desktopRoot = import.meta.dirname;
@@ -25,13 +24,6 @@ export async function startFramescaperOpenFxElectronRuntime(options = {}) {
 			platform: process.platform,
 			arch: process.arch,
 		},
-		payloadPorts: createFramescaperOpenFxReviewPayloadPorts({
-			applicationRoot,
-			packaged: app.isPackaged,
-			resourcesPath: process.resourcesPath,
-			platform: process.platform,
-			arch: process.arch,
-		}),
 		...(options.maximumRuntimeProcesses === undefined
 			? {} : { maximumRuntimeProcesses: options.maximumRuntimeProcesses }),
 	});

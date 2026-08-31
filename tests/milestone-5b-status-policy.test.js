@@ -47,7 +47,7 @@ test('5B generation prose remains provenance beneath the Framescaper-v1 authorit
 			status === 'pending-external' && payload === null
 		)));
 	}
-	assert.ok(openFxPayloads.targets.every(({ productionReadiness }) => productionReadiness === null));
+	assert.ok(openFxPayloads.targets.every((target) => !Object.hasOwn(target, 'productionReadiness')));
 });
 
 test('5B status preserves the OpenFX route while keeping execution unavailable', async () => {

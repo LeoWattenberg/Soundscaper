@@ -32,7 +32,6 @@ import { createOfxHostInvocationV1 } from '../src/common/editor/native-ofx-host-
 import { createUnifiedExactRenderPlan } from '../src/common/editor/unified-exact-render-plan.ts';
 import { fingerprintNativeMediaPlan } from '../src/common/editor/native-media-plan-canonical-form.ts';
 import { unifiedExactPlanFixture } from './helpers/unified-exact-render-plan-fixture.ts';
-import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 
 test('the scanner runner authenticates both executables and publishes only exact descriptor bytes', async (context) => {
 	const fixture = await createFixture(context);
@@ -466,10 +465,6 @@ async function createFixture(context: test.TestContext) {
 			launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 		},
 		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
-		m9ReleaseReview: {
-			scope: 'stable-1.0-release', status: 'complete',
-			evidence: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
-		},
 	};
 	return {
 		root, descriptor, plugin,

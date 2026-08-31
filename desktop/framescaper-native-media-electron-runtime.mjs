@@ -9,7 +9,6 @@ import { app, utilityProcess } from 'electron/main';
 import {
 	startFramescaperNativeMediaRuntime,
 } from './project-library-runtime/desktop/native-media-runtime.js';
-import { createFramescaperMediaReviewPayloadPorts } from './framescaper-media-review-policy.mjs';
 
 export async function startFramescaperNativeMediaElectronRuntime(options = {}) {
 	const desktopRoot = import.meta.dirname;
@@ -28,13 +27,6 @@ export async function startFramescaperNativeMediaElectronRuntime(options = {}) {
 	const runtime = await startFramescaperNativeMediaRuntime({
 		location,
 		...(options.enabled === undefined ? {} : { enabled: options.enabled }),
-		payloadPorts: createFramescaperMediaReviewPayloadPorts({
-			applicationRoot,
-			packaged: app.isPackaged,
-			resourcesPath: process.resourcesPath,
-			platform: process.platform,
-			arch: process.arch,
-		}),
 		...(options.size === undefined ? {} : { size: options.size }),
 		...(options.v14 === undefined ? {} : { v14: options.v14 }),
 		spawnHelper(descriptor, index) {

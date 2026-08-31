@@ -19,7 +19,7 @@ const RELEASE_LINES = validateProductReleaseLines(JSON.parse(
 	await readFile(new URL('config/product-release-lines.json', ROOT), 'utf8'),
 ));
 
-test('product release lines keep Soundscaper selection synchronized with stable admission', () => {
+test('product release lines select versions without an admission state machine', () => {
 	const soundscaper = RELEASE_LINES.products.soundscaper;
 	assert.equal(resolveProductApplicationVersion('soundscaper', RELEASE_LINES),
 		soundscaper[soundscaper.applicationVersionChannel].version);
@@ -28,22 +28,15 @@ test('product release lines keep Soundscaper selection synchronized with stable 
 		'soundscaper-v1.0.0-rc.1');
 	assert.equal(expectedProductReleaseTag('soundscaper', RELEASE_LINES, 'stable'),
 		'v1.0.0');
-	assert.match(soundscaper.stable.status, /^(?:pending-admission|admitted)$/u);
-	assert.equal(RELEASE_LINES.products.soundscaper.stable.admissionProfile, 'soundscaper-stable-1');
 	assert.equal(RELEASE_LINES.products.framescaper.releaseChannel, 'deferred');
-	assert.equal(RELEASE_LINES.products.framescaper.stable.status, 'deferred');
-	if (soundscaper.stable.status === 'admitted') {
-		assert.equal(resolveProductReleaseTag('v1.0.0', RELEASE_LINES).channel, 'stable');
-	} else {
-		assert.throws(() => resolveProductReleaseTag('v1.0.0', RELEASE_LINES), /not admitted/iu);
-	}
+	assert.throws(() => resolveProductReleaseTag('v1.0.0', RELEASE_LINES), /not active/iu);
+	assert.doesNotMatch(JSON.stringify(RELEASE_LINES), /admission|status/iu);
 });
 
 test('the resolver supports divergent product versions without package metadata', () => {
 	const divergent = structuredClone(RELEASE_LINES);
 	divergent.products.soundscaper.applicationVersionChannel = 'candidate';
 	divergent.products.soundscaper.releaseChannel = 'candidate';
-	divergent.products.soundscaper.stable.status = 'pending-admission';
 	divergent.products.soundscaper.candidate.version = '1.0.0-rc.2';
 	const validated = validateProductReleaseLines(divergent);
 	assert.equal(resolveProductApplicationVersion('soundscaper', validated), '1.0.0-rc.2');
@@ -59,13 +52,12 @@ test('the resolver supports divergent product versions without package metadata'
 	assert.equal(resolveProductDesktopMetadata('framescaper', validated).releaseChannel, 'deferred');
 
 	const stable = structuredClone(validated);
-	stable.products.soundscaper.stable.status = 'admitted';
 	stable.products.soundscaper.applicationVersionChannel = 'stable';
 	stable.products.soundscaper.releaseChannel = 'stable';
-	const admitted = validateProductReleaseLines(stable);
-	assert.equal(resolveProductApplicationVersion('soundscaper', admitted), '1.0.0');
-	assert.equal(resolveProductDesktopMetadata('soundscaper', admitted).updateTagPrefix, 'v');
-	assert.deepEqual(resolveProductReleaseTag('v1.0.0', admitted), {
+	const selected = validateProductReleaseLines(stable);
+	assert.equal(resolveProductApplicationVersion('soundscaper', selected), '1.0.0');
+	assert.equal(resolveProductDesktopMetadata('soundscaper', selected).updateTagPrefix, 'v');
+	assert.deepEqual(resolveProductReleaseTag('v1.0.0', selected), {
 		productId: 'soundscaper',
 		channel: 'stable',
 		version: '1.0.0',
@@ -83,7 +75,7 @@ test('release-line validation is strict and does not redefine project schema fam
 	]) {
 		const changed = structuredClone(RELEASE_LINES);
 		mutate(changed);
-		assert.throws(() => validateProductReleaseLines(changed), /release|exact|version|admitted/iu);
+		assert.throws(() => validateProductReleaseLines(changed), /release|exact|version/iu);
 	}
 	const configText = await readFile(new URL('config/product-release-lines.json', ROOT), 'utf8');
 	assert.doesNotMatch(configText, /schemaFamily|projectFormat|family-v1/iu);

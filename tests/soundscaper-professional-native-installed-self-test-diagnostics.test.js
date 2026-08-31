@@ -29,7 +29,7 @@ test('installed native self-test failures preserve bounded subprocess diagnostic
 	assert(Buffer.byteLength(message) <= 20 * 1024);
 
 	const candidateSource = await readFile(resolve(
-		'scripts/lib/soundscaper-professional-native-build-candidate.mjs'), 'utf8');
+		'scripts/lib/soundscaper-professional-native-build-result.mjs'), 'utf8');
 	assert.match(candidateSource,
 		/soundscaperProfessionalNativeProcessFailureMessage\(\s*`self-test \$\{request\.id\}`,[\s\S]*result/u);
 });

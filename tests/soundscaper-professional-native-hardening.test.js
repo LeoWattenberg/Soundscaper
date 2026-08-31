@@ -193,9 +193,7 @@ test('the target peer contains purpose-built filesystem, network, and child-proc
 test('desktop preparation invokes the stable native gate only for Soundscaper stable selection', () => {
 	const release = Object.freeze({
 		target: Object.freeze({ id: 'linux-x64' }),
-		productionReadiness: Object.freeze({
-			candidateAuthority: Object.freeze({ sourceRevision: REVISION }),
-		}),
+		buildAuthority: Object.freeze({ sourceRevision: REVISION }),
 	});
 	const calls = [];
 	const assertStable = (value) => { calls.push(value); return { status: 'ready' }; };
@@ -217,12 +215,19 @@ test('desktop preparation invokes the stable native gate only for Soundscaper st
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release,
 		sourceRevision: 'cd'.repeat(20),
-	}, { assertStable }), /candidate source revision.*desktop source revision/iu);
+	}, { assertStable }), /build result.*desktop source revision/iu);
 	assert.throws(() => assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release: null,
 	}, { assertStable }), /stable Soundscaper.*professional native/iu);
+	const harnessRelease = Object.freeze({ status: 'pending-external' });
+	assert.equal(assertDesktopProfessionalNativeReleasePolicy({
+		productId: 'soundscaper',
+		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
+		release: harnessRelease,
+		harnessPreparation: true,
+	}, { assertStable }), harnessRelease);
 });
 
 test('desktop preparation executes the professional native release policy before staging', async () => {

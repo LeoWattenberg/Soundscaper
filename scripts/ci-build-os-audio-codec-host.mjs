@@ -20,10 +20,8 @@ const result = await runOsAudioCodecHostCi({
 	desktopArch: argumentsByName['desktop-arch'],
 	runnerOs: argumentsByName['runner-os'],
 	runnerArch: argumentsByName['runner-arch'],
-	...(process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY === undefined
-		? {} : { signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY }),
 });
-process.stdout.write(`Built and admitted ${result.target} OS audio codec host in RUNNER_TEMP.\n`);
+process.stdout.write(`Built and verified ${result.target} OS audio codec host in RUNNER_TEMP.\n`);
 
 function parseArguments(values) {
 	const result = {};

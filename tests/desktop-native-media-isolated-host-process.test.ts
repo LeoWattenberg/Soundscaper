@@ -105,10 +105,6 @@ async function isolatedMediaFixture(context: test.TestContext) {
 		byteLength: host.byteLength, sha256: host.sha256,
 		hostVersion: '1.0.0', ffmpegVersion: '9.0.1', identity: host.identity,
 		isolation: Object.freeze({ launcher, sandboxProfile: profile, brokerPolicy: broker, runtimeLibraries }),
-		m9ReleaseReview: Object.freeze({
-			scope: 'stable-1.0-release', status: 'pending',
-			detail: 'Human acceptance is intentionally absent from this runtime test.',
-		}),
 	});
 	return { root, outputRoot, scratchPath, planPath: await realpath(planPath), descriptor: descriptorValue };
 }

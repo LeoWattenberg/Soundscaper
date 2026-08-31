@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { startFramescaperOpenFxRuntime } from '../desktop/framescaper-openfx-runtime.ts';
@@ -12,7 +12,6 @@ const LAUNCHER = Buffer.from('synthetic-native-isolation-launcher');
 const PROFILE = Buffer.from('synthetic-isolation-profile');
 const BROKER = Buffer.from('synthetic-isolation-broker');
 const LOADER = Buffer.from('synthetic-runtime-loader');
-const REVIEW_KEY = generateKeyPairSync('ed25519');
 
 test('an empty pending-external manifest creates no OpenFX manager or child authority', async () => {
 	const runtime = await startFramescaperOpenFxRuntime({
@@ -24,9 +23,9 @@ test('an empty pending-external manifest creates no OpenFX manager or child auth
 	assert.equal(runtime.dispose(), true);
 });
 
-test('a built payload without human review reaches the genuine machine-isolation gate', async () => {
+test('a built payload reaches the genuine machine-isolation gate', async () => {
 	const runtime = await startFramescaperOpenFxRuntime({
-		location: location(), payloadPorts: ports(manifest(true, false)),
+		location: location(), payloadPorts: ports(manifest(true)),
 	});
 	assert.equal(runtime.available(), false);
 	assert.equal(runtime.selfTestPassed(), false);
@@ -34,7 +33,7 @@ test('a built payload without human review reaches the genuine machine-isolation
 	assert.match(runtime.reason ?? '', /isolation-launcher-unavailable/iu);
 });
 
-test('signed caller-described bytes remain disabled without their actual reopened launcher artifacts', async () => {
+test('caller-described bytes remain disabled without their actual reopened launcher artifacts', async () => {
 	const runtime = await startFramescaperOpenFxRuntime({
 		location: location(), payloadPorts: ports(manifest(true)),
 	});
@@ -69,9 +68,6 @@ function ports(value: unknown) {
 	return Object.freeze({
 		readFile: async (path: string) => {
 			if (path.endsWith('manifest.json')) return Buffer.from(JSON.stringify(value));
-			if (path.endsWith('/framescaper-openfx-production-readiness/linux-x64.json')) {
-				return readinessBytes();
-			}
 			return payloadBytes(path);
 		},
 		stat: async (path: string) => {
@@ -81,11 +77,10 @@ function ports(value: unknown) {
 				dev: 7, ino: 10 + payloadOrdinal(path),
 			};
 		},
-		resolveReviewPublicKey: () => REVIEW_KEY.publicKey.export({ type: 'spki', format: 'pem' }),
 	});
 }
 
-function manifest(built: boolean, attested = true) {
+function manifest(built: boolean) {
 	const scannerPayload = payload(
 		'native/framescaper-openfx-host/prebuilt/linux-x64/bin/framescaper-ofx-scanner', SCANNER,
 	);
@@ -115,9 +110,8 @@ function manifest(built: boolean, attested = true) {
 		['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
 	].map(([id, runtime], index) => ({
 		id, runtime, status: index === 0 && built ? 'built' : 'pending-external',
-		blockedBy: index === 0 && built ? null : 'No qualified synthetic OpenFX payload exists.',
+		blockedBy: index === 0 && built ? null : 'No verified synthetic OpenFX payload exists.',
 		payload: index === 0 && built ? pair : null,
-		productionReadiness: index === 0 && built && attested ? readinessReference() : null,
 	}));
 	return {
 		schemaVersion: 1, id: 'framescaper-openfx-host-1.0.0',
@@ -130,39 +124,6 @@ function manifest(built: boolean, attested = true) {
 		payloads: built ? [{ id: 'linux-x64', runtime: 'linux-x64', ...pair }] : [],
 		targets,
 	};
-}
-
-function readinessReference() {
-	const bytes = readinessBytes();
-	return {
-		schemaVersion: 2, status: 'reviewed', target: 'linux-x64',
-		evidence: {
-			path: 'config/framescaper-openfx-production-readiness/linux-x64.json',
-			byteLength: bytes.byteLength, sha256: digest(bytes),
-		},
-		signature: {
-			algorithm: 'ed25519', reviewKeyId: 'synthetic-openfx-review-key-v1',
-			valueBase64: sign(null, bytes, REVIEW_KEY.privateKey).toString('base64'),
-		},
-	};
-}
-
-function readinessBytes(): Buffer {
-	return Buffer.from(JSON.stringify({
-		schemaVersion: 1, kind: 'framescaper-openfx-production-readiness', target: 'linux-x64',
-		scannerSha256: digest(SCANNER), runtimeHostSha256: digest(RUNTIME),
-		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
-		runtimeLibraries: [{ name: 'ld-linux-x86-64.so.2', byteLength: LOADER.byteLength, sha256: digest(LOADER) }],
-		launcher: {
-			schemaVersion: 1, target: 'linux-x64',
-			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: digest(LAUNCHER), sandboxProfileSha256: digest(PROFILE),
-			brokerPolicySha256: digest(BROKER), filesystem: 'broker-only', network: 'denied',
-			childProcesses: 'denied', dynamicCode: 'admitted-plugin-only',
-		},
-		openfxVersion: '1.5.1', osIsolationAttested: true, hostilePluginDenialAttested: true,
-		realThirdPartyExecutionAttested: true, reviewedAt: '2026-08-24', reviewer: 'Fixture Reviewer',
-	}));
 }
 
 function payload(path: string, bytes: Uint8Array) {

@@ -112,7 +112,7 @@ test('build verification binds target, source, plan, toolchain, headers, canary,
 	await assert.rejects(() => verifiedRelease(fixture), /payload.*digest/iu);
 });
 
-test('macOS payload authority requires verified ad-hoc or Developer ID signing evidence', async (context) => {
+test('macOS payload authority requires verified ad-hoc sealing evidence', async (context) => {
 	const fixture = await buildFixture(context);
 	fixture.build.target = 'mac-arm64';
 	fixture.build.toolchainIdentity = {

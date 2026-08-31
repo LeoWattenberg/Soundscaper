@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Closed candidate/receipt contract shared by assembly and promotion. */
+/** Closed build-result contract shared by assembly and package staging. */
 
 import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
@@ -23,7 +23,7 @@ import {
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_TARGETS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
-export const CANDIDATE_RECEIPT_NAME = 'candidate.json';
+export const BUILD_RESULT_RECEIPT_NAME = 'build-result.json';
 export const MAXIMUM_RUNTIME_FILES = 128;
 export const MAXIMUM_SELF_TEST_OUTPUT_BYTES = 1024 * 1024;
 const MAXIMUM_FILE_BYTES = 512 * 1024 * 1024;
@@ -80,7 +80,7 @@ export function expectedSoundscaperProfessionalNativeInventory(targetValue) {
 	});
 }
 
-export function soundscaperProfessionalNativeCandidateArtifactPaths(targetValue) {
+export function soundscaperProfessionalNativeBuildResultArtifactPaths(targetValue) {
 	const target = targetId(targetValue);
 	const executableSuffix = target.startsWith('win-') ? '.exe' : '';
 	return deepFreeze({
@@ -96,7 +96,7 @@ export function bindEvidenceReceipt(kind, targetValue, evidence) {
 	const target = targetId(targetValue);
 	if (!['build', 'self-test', 'toolchain', 'source-authentication',
 		'installed-files', 'dependency-closure'].includes(kind)) {
-		throw new TypeError('The professional candidate evidence kind is invalid.');
+		throw new TypeError('The professional build-result evidence kind is invalid.');
 	}
 	const value = deepFreeze(structuredClone(evidence));
 	return deepFreeze({
@@ -104,42 +104,42 @@ export function bindEvidenceReceipt(kind, targetValue, evidence) {
 	});
 }
 
-export function validateCandidateReceipt(value) {
+export function validateBuildResultReceipt(value) {
 	closedRecord(value, [
 		'schemaVersion', 'kind', 'target', 'sourceRevision', 'buildPlanSha256',
 		'evidenceReceipts', 'payload', 'osAudioCodec', 'pluginPeer', 'deliveryFilesystem',
-		'isolation', 'productionReadiness',
-	], 'candidate receipt');
-	if (value.schemaVersion !== 1 || value.kind !== 'soundscaper-professional-native-candidate'
+		'isolation',
+	], 'build-result receipt');
+	if (value.schemaVersion !== 1 || value.kind !== 'soundscaper-professional-native-build-result'
 		|| value.target !== targetId(value.target) || !REVISION.test(String(value.sourceRevision))
-		|| !SHA256.test(String(value.buildPlanSha256)) || value.productionReadiness !== null) {
-		throw new TypeError('The professional native candidate receipt identity is invalid.');
+		|| !SHA256.test(String(value.buildPlanSha256))) {
+		throw new TypeError('The professional native build-result receipt identity is invalid.');
 	}
-	const paths = soundscaperProfessionalNativeCandidateArtifactPaths(value.target);
+	const paths = soundscaperProfessionalNativeBuildResultArtifactPaths(value.target);
 	artifactDescriptor(value.payload, paths.payload);
 	if (value.target.startsWith('linux-')) {
 		if (value.osAudioCodec !== null) {
-			throw new TypeError('Linux candidates cannot carry an operating-system codec addon.');
+			throw new TypeError('Linux build results cannot carry an operating-system codec addon.');
 		}
 	} else artifactDescriptor(value.osAudioCodec, paths.osAudioCodec);
 	artifactDescriptor(value.pluginPeer, paths.pluginPeer);
 	artifactDescriptor(value.deliveryFilesystem, paths.deliveryFilesystem);
 	closedRecord(value.isolation, [
 		'launcher', 'sandboxProfile', 'brokerPolicy', 'entrypointPath', 'runtimeClosure',
-	], 'candidate isolation');
+	], 'build-result isolation');
 	artifactDescriptor(value.isolation.launcher, paths.launcher);
 	artifactDescriptor(value.isolation.sandboxProfile, 'payload/native-isolation-profile-v1.json');
 	artifactDescriptor(value.isolation.brokerPolicy, 'payload/native-isolation-broker-v1.json');
 	if (value.isolation.entrypointPath !== value.pluginPeer.path
 		|| !Array.isArray(value.isolation.runtimeClosure)
 		|| value.isolation.runtimeClosure.length > MAXIMUM_RUNTIME_FILES) {
-		throw new TypeError('The candidate isolation entrypoint or runtime closure is invalid.');
+		throw new TypeError('The build-result isolation entrypoint or runtime closure is invalid.');
 	}
 	for (const entry of value.isolation.runtimeClosure) artifactDescriptor(entry);
 	const runtimePaths = value.isolation.runtimeClosure.map(({ path }) => path);
 	if (runtimePaths.some((path) => !path.startsWith('payload/runtime/'))
 		|| new Set(runtimePaths).size !== runtimePaths.length) {
-		throw new TypeError('The candidate runtime closure paths are invalid.');
+		throw new TypeError('The build-result runtime closure paths are invalid.');
 	}
 	validateEvidenceReceipts(value);
 	return value;
@@ -154,14 +154,14 @@ function validateEvidenceReceipts(candidate) {
 		|| candidate.evidenceReceipts.length !== expectedKinds.length
 		|| JSON.stringify(candidate.evidenceReceipts.map(({ kind }) => kind).sort())
 			!== JSON.stringify([...expectedKinds].sort())) {
-		throw new TypeError('The candidate evidence receipt inventory is incomplete.');
+		throw new TypeError('The build-result evidence receipt inventory is incomplete.');
 	}
 	for (const receipt of candidate.evidenceReceipts) {
-		closedRecord(receipt, ['kind', 'target', 'sha256', 'evidence'], 'candidate evidence receipt');
+		closedRecord(receipt, ['kind', 'target', 'sha256', 'evidence'], 'build-result evidence receipt');
 		if (receipt.target !== candidate.target || !expectedKinds.includes(receipt.kind)
 			|| !SHA256.test(String(receipt.sha256))
 			|| receipt.sha256 !== sha256(canonicalJson(receipt.evidence))) {
-			throw new TypeError(`The candidate ${String(receipt.kind)} evidence receipt is invalid.`);
+			throw new TypeError(`The build-result ${String(receipt.kind)} evidence receipt is invalid.`);
 		}
 	}
 	const build = evidenceFor(candidate, 'build');
@@ -170,26 +170,26 @@ function validateEvidenceReceipts(candidate) {
 	], 'build evidence');
 	if (build.status !== 'passed' || build.sourceRevision !== candidate.sourceRevision
 		|| build.buildPlanSha256 !== candidate.buildPlanSha256) {
-		throw new TypeError('The candidate build evidence is misbound.');
+		throw new TypeError('The build-result build evidence is misbound.');
 	}
 	const packagedApp = validateSoundscaperProfessionalPackagedAppAuthority(
 		build.packagedAppAuthority,
 	);
 	if (packagedApp.target !== candidate.target
 		|| packagedApp.sourceRevision !== candidate.sourceRevision) {
-		throw new TypeError('The candidate packaged Electron authority is misbound.');
+		throw new TypeError('The build-result packaged Electron authority is misbound.');
 	}
 	if (candidate.target === 'mac-arm64') {
 		validateSoundscaperProfessionalNativeMacSigningEvidence(build.macSigning, candidate);
 	} else if (build.macSigning !== null) {
-		throw new TypeError('Only mac-arm64 candidates can carry mac signing evidence.');
+		throw new TypeError('Only mac-arm64 build results can carry mac sealing evidence.');
 	}
 	const selfTest = evidenceFor(candidate, 'self-test');
 	closedRecord(selfTest, ['status', 'inventory', 'tests'], 'self-test evidence');
 	if (selfTest.status !== 'passed'
 		|| JSON.stringify(selfTest.inventory) !== JSON.stringify(
 			expectedSoundscaperProfessionalNativeInventory(candidate.target))) {
-		throw new TypeError('The candidate self-test inventory evidence is invalid.');
+		throw new TypeError('The build-result self-test inventory evidence is invalid.');
 	}
 	normalizeSelfTests(selfTest.tests, candidate.target);
 	const expectedBuildTestIds = candidate.target.startsWith('linux-')
@@ -198,23 +198,23 @@ function validateEvidenceReceipts(candidate) {
 		|| JSON.stringify(build.tests.map(({ id }) => id).sort())
 			!== JSON.stringify(expectedBuildTestIds)
 		|| build.tests.some((receipt) => !selfTest.tests.some((entry) => sameJson(entry, receipt)))) {
-		throw new TypeError('The candidate build receipt omits its target-native CTest result.');
+		throw new TypeError('The build-result receipt omits its target-native CTest result.');
 	}
 	const toolchain = evidenceFor(candidate, 'toolchain');
 	closedRecord(toolchain, ['identity', 'receipt'], 'toolchain evidence');
-	boundedText(toolchain.identity, 3, 512, 'candidate toolchain identity');
+	boundedText(toolchain.identity, 3, 512, 'build-result toolchain identity');
 	validateSoundscaperProfessionalNativeToolchainReceipt(toolchain.receipt);
 	if (toolchain.receipt.target !== candidate.target
 		|| soundscaperProfessionalNativeToolchainIdentity(toolchain.receipt) !== toolchain.identity) {
-		throw new TypeError('The candidate structured toolchain evidence is misbound.');
+		throw new TypeError('The build-result structured toolchain evidence is misbound.');
 	}
 	const source = evidenceFor(candidate, 'source-authentication');
 	closedRecord(source, ['authentication'], 'source evidence');
 	normalizeSourceAuthentication(source.authentication, candidate.target);
 	const installed = evidenceFor(candidate, 'installed-files');
 	closedRecord(installed, ['files'], 'installed-file evidence');
-	if (JSON.stringify(installed.files) !== JSON.stringify(candidateDescriptors(candidate))) {
-		throw new TypeError('The candidate installed-file receipt does not bind its exact payload closure.');
+	if (JSON.stringify(installed.files) !== JSON.stringify(buildResultDescriptors(candidate))) {
+		throw new TypeError('The build-result installed-file receipt does not bind its exact payload closure.');
 	}
 	const closure = evidenceFor(candidate, 'dependency-closure');
 	closedRecord(closure, ['status', 'maximumRuntimeFiles', 'inspections', 'checks'], 'closure evidence');
@@ -224,12 +224,12 @@ function validateEvidenceReceipts(candidate) {
 			'ambient-dependency-refusal', 'recursive-inspection', 'rpath-refusal',
 			'runtime-file-limit-refusal', 'symlink-refusal', 'undeclared-dependency-refusal',
 		])) {
-		throw new TypeError('The candidate dependency-closure receipt is incomplete.');
+		throw new TypeError('The build-result dependency-closure receipt is incomplete.');
 	}
 	const paths = closure.inspections.map(({ artifactPath }) => artifactPath);
-	if (JSON.stringify(paths) !== JSON.stringify(candidateExecutableDescriptors(candidate)
+	if (JSON.stringify(paths) !== JSON.stringify(buildResultExecutableDescriptors(candidate)
 		.map(({ path }) => path).sort())) {
-		throw new TypeError('The candidate dependency-closure receipt omitted an executable or runtime file.');
+		throw new TypeError('The build-result dependency-closure receipt omitted an executable or runtime file.');
 	}
 	for (const inspection of closure.inspections) {
 		closedRecord(inspection, ['architecture', 'artifactPath', 'imports', 'rpaths'],
@@ -238,14 +238,14 @@ function validateEvidenceReceipts(candidate) {
 		if (!Array.isArray(inspection.imports) || !Array.isArray(inspection.rpaths)
 			|| inspection.imports.some((entry) => typeof entry !== 'string' || entry === '')
 			|| inspection.rpaths.some((entry) => typeof entry !== 'string' || entry === '')) {
-			throw new TypeError('A candidate dependency inspection is invalid.');
+			throw new TypeError('A build-result dependency inspection is invalid.');
 		}
 	}
 }
 
 export function evidenceFor(candidate, kind) {
 	const matches = candidate.evidenceReceipts?.filter((entry) => entry?.kind === kind) ?? [];
-	if (matches.length !== 1) throw new TypeError(`The candidate has no exact ${kind} evidence receipt.`);
+	if (matches.length !== 1) throw new TypeError(`The build result has no exact ${kind} evidence receipt.`);
 	return matches[0].evidence;
 }
 
@@ -255,7 +255,7 @@ export function normalizeSourceAuthentication(value, target) {
 	if (value.schemaVersion !== 1 || value.status !== 'authenticated'
 		|| !Array.isArray(value.sources) || value.sources.length !== ids.length
 		|| !ids.every((id) => value.sources.filter((source) => source?.id === id).length === 1)) {
-		throw new TypeError('The candidate source authentication is incomplete.');
+		throw new TypeError('The build-result source authentication is incomplete.');
 	}
 	for (const source of value.sources) {
 		if (source.authenticationStatus !== 'authenticated'
@@ -265,7 +265,7 @@ export function normalizeSourceAuthentication(value, target) {
 			|| !Number.isSafeInteger(source.extractedTreeEvidence.fileCount)
 			|| source.extractedTreeEvidence.fileCount < 1
 			|| !SHA256.test(String(source.extractedTreeEvidence.sha256))) {
-			throw new TypeError(`The candidate source authentication for ${String(source.id)} is invalid.`);
+			throw new TypeError(`The build-result source authentication for ${String(source.id)} is invalid.`);
 		}
 	}
 	return deepFreeze(structuredClone(value));
@@ -274,37 +274,37 @@ export function normalizeSourceAuthentication(value, target) {
 export function normalizeSelfTests(value, target) {
 	const required = requiredSoundscaperProfessionalNativeSelfTestIds(target);
 	if (!Array.isArray(value) || value.length !== required.length) {
-		throw new TypeError('The candidate self-test inventory is incomplete.');
+		throw new TypeError('The build-result self-test inventory is incomplete.');
 	}
 	const ids = [];
 	for (const receipt of value) {
 		closedRecord(receipt, ['id', 'status', 'commandSha256', 'outputSha256'], 'self-test receipt');
 		if (typeof receipt.id !== 'string' || receipt.status !== 'passed'
 			|| !SHA256.test(String(receipt.commandSha256)) || !SHA256.test(String(receipt.outputSha256))) {
-			throw new TypeError('The candidate self-test inventory contains an invalid receipt.');
+			throw new TypeError('The build-result self-test inventory contains an invalid receipt.');
 		}
 		ids.push(receipt.id);
 	}
 	if (JSON.stringify(ids.sort()) !== JSON.stringify(required)) {
-		throw new TypeError('The candidate self-test inventory is incomplete or target-inappropriate.');
+		throw new TypeError('The build-result self-test inventory is incomplete or target-inappropriate.');
 	}
 	return deepFreeze(structuredClone(value));
 }
 
-export function candidateDescriptors(receipt) {
+export function buildResultDescriptors(receipt) {
 	return [receipt.payload, ...(receipt.osAudioCodec === null ? [] : [receipt.osAudioCodec]),
 		receipt.pluginPeer, receipt.deliveryFilesystem, receipt.isolation.launcher,
 		receipt.isolation.sandboxProfile, receipt.isolation.brokerPolicy,
 		...receipt.isolation.runtimeClosure];
 }
 
-export function candidateExecutableDescriptors(receipt) {
+export function buildResultExecutableDescriptors(receipt) {
 	return [receipt.payload, ...(receipt.osAudioCodec === null ? [] : [receipt.osAudioCodec]),
 		receipt.pluginPeer, receipt.deliveryFilesystem, receipt.isolation.launcher,
 		...receipt.isolation.runtimeClosure];
 }
 
-export function executableCandidateArtifact(receipt, descriptor) {
+export function executableBuildResultArtifact(receipt, descriptor) {
 	return [receipt.payload.path, receipt.pluginPeer.path, receipt.deliveryFilesystem.path,
 		receipt.isolation.launcher.path,
 		...(receipt.osAudioCodec === null ? [] : [receipt.osAudioCodec.path]),
@@ -312,13 +312,13 @@ export function executableCandidateArtifact(receipt, descriptor) {
 }
 
 export function artifactDescriptor(value, exactPath = null) {
-	closedRecord(value, ['path', 'byteLength', 'sha256'], 'candidate artifact');
+	closedRecord(value, ['path', 'byteLength', 'sha256'], 'build-result artifact');
 	if (typeof value.path !== 'string' || value.path === '' || value.path.includes('\\')
 		|| value.path.startsWith('/') || value.path.split('/').includes('..')
 		|| (exactPath !== null && value.path !== exactPath)
 		|| !Number.isSafeInteger(value.byteLength) || value.byteLength < 1
 		|| value.byteLength > MAXIMUM_FILE_BYTES || !SHA256.test(String(value.sha256))) {
-		throw new TypeError('A professional native candidate artifact descriptor is invalid.');
+		throw new TypeError('A professional native build-result artifact descriptor is invalid.');
 	}
 	return value;
 }
@@ -327,28 +327,30 @@ export function descriptorOnly(value) {
 	return Object.freeze({ path: value.path, byteLength: value.byteLength, sha256: value.sha256 });
 }
 
-export async function verifyCandidateDirectory(rootValue) {
-	const candidateRoot = await canonicalDirectory(rootValue, 'candidate root');
-	const receiptBytes = await canonicalRegularFile(resolve(candidateRoot, CANDIDATE_RECEIPT_NAME), 'candidate receipt');
+export async function verifyBuildResultDirectory(rootValue) {
+	const buildResultRoot = await canonicalDirectory(rootValue, 'build-result root');
+	const receiptBytes = await canonicalRegularFile(
+		resolve(buildResultRoot, BUILD_RESULT_RECEIPT_NAME), 'build-result receipt',
+	);
 	let receipt;
 	try { receipt = JSON.parse(String(receiptBytes)); }
-	catch (error) { throw new Error('The professional native candidate receipt is not JSON.', { cause: error }); }
+	catch (error) { throw new Error('The professional native build-result receipt is not JSON.', { cause: error }); }
 	if (!receiptBytes.equals(canonicalJson(receipt))) {
-		throw new TypeError('The professional native candidate receipt is not canonical JSON.');
+		throw new TypeError('The professional native build-result receipt is not canonical JSON.');
 	}
-	validateCandidateReceipt(receipt);
-	for (const descriptor of candidateDescriptors(receipt)) {
-		const bytes = await canonicalRegularFile(resolveCandidatePath(candidateRoot, descriptor.path),
-			`candidate artifact ${descriptor.path}`);
-		verifyDescriptor(bytes, descriptor, `candidate artifact ${descriptor.path}`);
+	validateBuildResultReceipt(receipt);
+	for (const descriptor of buildResultDescriptors(receipt)) {
+		const bytes = await canonicalRegularFile(resolveBuildResultPath(buildResultRoot, descriptor.path),
+			`build-result artifact ${descriptor.path}`);
+		verifyDescriptor(bytes, descriptor, `build-result artifact ${descriptor.path}`);
 	}
-	const actual = await regularFileInventory(candidateRoot);
-	const expected = [CANDIDATE_RECEIPT_NAME,
-		...candidateDescriptors(receipt).map(({ path }) => path)].sort();
+	const actual = await regularFileInventory(buildResultRoot);
+	const expected = [BUILD_RESULT_RECEIPT_NAME,
+		...buildResultDescriptors(receipt).map(({ path }) => path)].sort();
 	if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-		throw new Error(`The professional native candidate inventory is not closed: ${actual.join(', ')}.`);
+		throw new Error(`The professional native build-result inventory is not closed: ${actual.join(', ')}.`);
 	}
-	return deepFreeze({ candidateRoot, receipt, receiptBytes, receiptSha256: sha256(receiptBytes) });
+	return deepFreeze({ buildResultRoot, receipt, receiptBytes, receiptSha256: sha256(receiptBytes) });
 }
 
 export async function canonicalRegularFile(path, label) {
@@ -371,24 +373,24 @@ export async function regularFileInventory(root) {
 	async function visit(directory) {
 		for (const entry of await readdir(directory, { withFileTypes: true })) {
 			const path = resolve(directory, entry.name);
-			if (entry.isSymbolicLink()) throw new Error('A professional native candidate cannot contain symbolic links.');
+			if (entry.isSymbolicLink()) throw new Error('A professional native build result cannot contain symbolic links.');
 			if (entry.isDirectory()) await visit(path);
 			else if (entry.isFile()) files.push(portableRelative(root, path));
-			else throw new Error('A professional native candidate cannot contain special files.');
+			else throw new Error('A professional native build result cannot contain special files.');
 		}
 	}
 	await visit(root);
 	return files.sort();
 }
 
-export function resolveCandidatePath(root, portablePath) {
+export function resolveBuildResultPath(root, portablePath) {
 	if (typeof portablePath !== 'string' || portablePath.startsWith('/')
 		|| portablePath.includes('\\') || portablePath.split('/').includes('..')) {
-		throw new TypeError('A professional candidate path is invalid.');
+		throw new TypeError('A professional build-result path is invalid.');
 	}
 	const path = resolve(root, ...portablePath.split('/'));
 	if (path !== root && !path.startsWith(`${root}${sep}`)) {
-		throw new TypeError('A professional candidate path escaped its root.');
+		throw new TypeError('A professional build-result path escaped its root.');
 	}
 	return path;
 }
@@ -396,7 +398,7 @@ export function resolveCandidatePath(root, portablePath) {
 export function portableRelative(root, path) {
 	const value = relative(root, path).split(sep).join('/');
 	if (value === '' || value.startsWith('../') || value.split('/').includes('..')) {
-		throw new TypeError('A professional candidate file escaped its root.');
+		throw new TypeError('A professional build-result file escaped its root.');
 	}
 	return value;
 }
@@ -435,7 +437,7 @@ export function targetId(value) {
 
 export function revision(value) {
 	if (typeof value !== 'string' || !REVISION.test(value)) {
-		throw new TypeError('The candidate source revision is invalid.');
+		throw new TypeError('The build-result source revision is invalid.');
 	}
 	return value;
 }

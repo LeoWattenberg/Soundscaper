@@ -198,7 +198,7 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	);
 	assert.match(testJob, /npx playwright install --no-shell chromium firefox webkit/u);
 	assert.doesNotMatch(testJob, /playwright install --only-shell/u);
-	assert.match(testJob, /Verify the nightly formal qualification contract[\s\S]*node --import tsx --test tests\/desktop-nightly-tests-qualification\.test\.ts/u);
+	assert.doesNotMatch(testJob, /qualification|admission|readiness signature/iu);
 	assert.match(
 		testJob,
 		/ci-electron-builder\.sh[\s\\]*--config electron-builder\.nightly-tests\.config\.cjs/u,

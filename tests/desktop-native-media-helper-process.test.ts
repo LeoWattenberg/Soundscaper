@@ -25,14 +25,14 @@ test('the utility helper negotiates only probe and the four media operations', (
 	harness.worker.dispose(0);
 });
 
-test('the production utility entry attests the media host before creating its negotiated worker', async () => {
+test('the production utility entry reopens and self-tests the media host before creating its worker', async () => {
 	const source = await readFile(new URL('../desktop/native-media-helper-process.js', import.meta.url), 'utf8');
 	const reopen = source.indexOf('await reopenNativeMediaHelperDescriptor(config)');
 	const selfTest = source.indexOf('await runFramescaperMediaHostSelfTest(descriptor)');
 	const worker = source.indexOf('createNativeMediaHelperWorker({');
 	assert.ok(reopen >= 0 && selfTest > reopen && worker > selfTest);
-	assert.match(source, /describeFramescaperMediaHostAvailability\(config\.location, ports\)/u);
-	assert.match(source, /createFramescaperMediaReviewPayloadPorts/u);
+	assert.match(source, /describeFramescaperMediaHostAvailability\(config\.location\)/u);
+	assert.doesNotMatch(source, /createFramescaperMediaReviewPayloadPorts/u);
 	assert.doesNotMatch(source, /JSON\.parse[^;]+productionReadiness/su);
 	assert.doesNotMatch(source, /child_process|\bspawn\s*\(/u);
 });

@@ -40,8 +40,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28386,
-			"sha256": "c8e71ba75914715ab2495c12a25ad97aed669ae7ea3ab50869156ef92e102056"
+			"byteLength": 28325,
+			"sha256": "fdcf27dcf3fdf2649334bee0b7e6f83776d9510aad5d4549087fcaaebca090d9"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -282,8 +282,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"linux-arm64": {
 			"runtime": "linux-arm64",
@@ -292,8 +291,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"mac-arm64": {
 			"runtime": "darwin-arm64",
@@ -302,8 +300,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"win-x64": {
 			"runtime": "win32-x64",
@@ -312,8 +309,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		"win-arm64": {
 			"runtime": "win32-arm64",
@@ -322,8 +318,7 @@
 			"toolchainIdentity": null,
 			"scannerPayload": null,
 			"runtimeHostPayload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		}
 	}
 }

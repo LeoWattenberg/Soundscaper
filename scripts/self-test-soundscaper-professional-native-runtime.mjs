@@ -24,7 +24,7 @@ import {
 } from './lib/desktop-smoke.mjs';
 import {
 	expectedSoundscaperProfessionalNativeInventory,
-} from './lib/soundscaper-professional-native-candidate-contract.mjs';
+} from './lib/soundscaper-professional-native-build-result-contract.mjs';
 import {
 	requiredPipelineSoundscaperProfessionalNativeSelfTestIds,
 } from './lib/soundscaper-professional-native-self-test-plan.mjs';

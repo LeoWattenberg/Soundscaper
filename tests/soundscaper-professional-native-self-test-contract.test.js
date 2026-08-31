@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import {
 	requiredSoundscaperProfessionalNativeSelfTestIds,
-} from '../scripts/lib/soundscaper-professional-native-build-candidate.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result.mjs';
 import {
 	requiredPipelineSoundscaperProfessionalNativeSelfTestIds,
 } from '../scripts/lib/soundscaper-professional-native-self-test-plan.mjs';

@@ -34,7 +34,6 @@ import type {
 	NativeChildIsolationTarget,
 	NativeChildMachineWorkload,
 } from './native-child-isolation-contract.ts';
-import { soundscaperProfessionalRuntimeClosureSha256 } from './soundscaper-professional-native-readiness.mjs';
 import { createNativeChildWindowsAuthorityProfile } from './native-child-windows-authority.ts';
 
 export type {
@@ -96,6 +95,21 @@ type NativeChildMachineWorkloadBinding =
 		readonly runtimeLibraries: readonly RuntimeLibraryBinding[] }>;
 
 const enforcedLaunches = new WeakSet<object>();
+
+function soundscaperProfessionalRuntimeClosureSha256(value: unknown): string {
+	if (!Array.isArray(value) || value.length > 128 || value.some((entry) => (
+		!entry || typeof entry !== 'object' || typeof entry.path !== 'string'
+		|| entry.path.length < 1 || entry.path.length > 4096 || entry.path.includes('\0')
+		|| !Number.isSafeInteger(entry.byteLength) || entry.byteLength < 1
+		|| typeof entry.sha256 !== 'string' || !SHA256.test(entry.sha256)
+	))) throw new TypeError('The professional runtime closure is invalid.');
+	const canonical = value.map(({ path, byteLength, sha256 }) => ({ path, byteLength, sha256 }))
+		.sort((left, right) => left.path.localeCompare(right.path));
+	if (new Set(canonical.map(({ path }) => path)).size !== canonical.length) {
+		throw new TypeError('The professional runtime closure paths are not unique.');
+	}
+	return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
 
 export function createNativeChildIsolationLauncher(options: NativeChildIsolationLauncherOptions) {
 	const input = closed(options, ['target', 'machineWorkload', 'artifacts', 'spawn', 'enforcementTimeoutMs'], 2);

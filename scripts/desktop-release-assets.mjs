@@ -54,11 +54,9 @@ const RELEASE_TARGET_PACKAGE_ROWS = Object.freeze({
 	]),
 });
 export async function main(args = process.argv.slice(2)) {
-	const { admissionProfile, assetRoot, productIds } = parseDesktopReleaseAssetArguments(args);
+	const { assetRoot, productIds } = parseDesktopReleaseAssetArguments(args);
 	const releaseLines = await readProductReleaseLines(ROOT);
-	const effectiveAdmissionProfile = validateDesktopReleaseAdmissionProfile(
-		admissionProfile, releaseLines, productIds,
-	);
+	const stableSoundscaper = validateDesktopStableReleaseSelection(releaseLines, productIds);
 	const expectedVersions = new Map(productIds.map((productId) => [
 		productId, resolveProductApplicationVersion(productId, releaseLines),
 	]));
@@ -74,9 +72,7 @@ export async function main(args = process.argv.slice(2)) {
 		const bytes = await readFile(resolve(assetRoot, name));
 		return { name, bytes, value: parseJson(bytes, name) };
 	}));
-	validateDesktopRuntimeManifests(manifests, productIds, expectedVersions, {
-		admissionProfile: effectiveAdmissionProfile,
-	});
+	validateDesktopRuntimeManifests(manifests, productIds, expectedVersions, { stableSoundscaper });
 	const canonical = manifests[0].value;
 	for (const manifest of manifests.slice(1)) {
 		assert(manifest.value.translations?.releaseId === canonical.translations?.releaseId,
@@ -104,7 +100,7 @@ export async function main(args = process.argv.slice(2)) {
 			applicationVersion,
 		});
 	}
-	if (effectiveAdmissionProfile === 'soundscaper-stable-1') {
+	if (stableSoundscaper) {
 		const sourceRoot = process.env.SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT?.trim() ?? '';
 		assert(sourceRoot !== '',
 			'Stable Soundscaper release assembly requires SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT.');
@@ -134,7 +130,6 @@ export function parseDesktopReleaseAssetArguments(args) {
 	}
 	let assetRoot = DEFAULT_ASSET_ROOT;
 	let productIds = null;
-	let admissionProfile = null;
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
 		if (argument === '--product') {
@@ -155,41 +150,23 @@ export function parseDesktopReleaseAssetArguments(args) {
 			assetRoot = resolve(path);
 			continue;
 		}
-		if (argument === '--admission-profile') {
-			assert(admissionProfile === null, 'Desktop release admission profile may be supplied once.');
-			admissionProfile = args[index += 1];
-			assert(admissionProfile === 'soundscaper-stable-1',
-				'Desktop release admission profile is invalid.');
-			continue;
-		}
 		throw new Error(`Unknown desktop release asset option ${argument}.`);
 	}
 	assert(productIds !== null, 'Desktop release assembly requires --product or --suite.');
-	assert(admissionProfile === null
-		|| (productIds.length === 1 && productIds[0] === 'soundscaper'),
-	'Desktop release admission profile requires the Soundscaper-only product scope.');
-	return Object.freeze({ admissionProfile, assetRoot, productIds: Object.freeze(productIds) });
+	return Object.freeze({ assetRoot, productIds: Object.freeze(productIds) });
 }
 
-export function validateDesktopReleaseAdmissionProfile(
-	admissionProfile, releaseLines, productIds = ['soundscaper'],
+export function validateDesktopStableReleaseSelection(
+	releaseLines, productIds = ['soundscaper'],
 ) {
 	const line = releaseLines?.products?.soundscaper;
 	const stableSelected = productIds.includes('soundscaper')
-		&& (line?.applicationVersionChannel === 'stable' || line?.releaseChannel === 'stable');
+		&& line?.applicationVersionChannel === 'stable' && line?.releaseChannel === 'stable';
 	if (stableSelected) {
 		assert(productIds.length === 1 && productIds[0] === 'soundscaper',
 			'The Soundscaper stable line requires the Soundscaper-only product scope.');
-		admissionProfile ??= line?.stable?.admissionProfile ?? null;
 	}
-	if (admissionProfile === null) return null;
-	assert(admissionProfile === 'soundscaper-stable-1'
-		&& line?.stable?.admissionProfile === admissionProfile,
-	'The requested desktop release admission profile is not authoritative.');
-	assert(line.applicationVersionChannel === 'stable' && line.releaseChannel === 'stable'
-		&& line.stable.status === 'admitted',
-	'The Soundscaper Stable 1 release line is not admitted and selected for assembly.');
-	return admissionProfile;
+	return stableSelected;
 }
 
 export function desktopReleaseRuntimeManifestNames(productIds) {
@@ -304,11 +281,13 @@ export function validateDesktopRuntimeManifests(
 		assert(manifest.value.productId === identity?.[1] && manifest.value.target?.platform === identity?.[2]
 			&& manifest.value.target?.arch === identity?.[3], `${manifest.name} has invalid product or target identity.`);
 		const targetId = `${identity?.[2]}-${identity?.[3]}`;
+		assert(manifest.value.nativeHarnessPreparation !== true,
+			`${manifest.name} is a non-publishable native self-test harness.`);
 		if (expectedVersions !== undefined) {
 			assert(manifest.value.applicationVersion === expectedVersions.get(identity[1]),
 				`${manifest.name} does not use its selected product release-line version.`);
 		}
-		if (options.admissionProfile === 'soundscaper-stable-1') {
+		if (options.stableSoundscaper === true) {
 			assert(manifest.value.applicationVersionChannel === 'stable'
 				&& manifest.value.releaseChannel === 'stable',
 			`${manifest.name} does not declare the stable release channel.`);
@@ -318,14 +297,14 @@ export function validateDesktopRuntimeManifests(
 			`${manifest.name} has invalid assistance native-runtime evidence.`);
 		validateDesktopNativeAddonSummary(manifest, targetId, {
 			stableSoundscaper: identity?.[1] === 'soundscaper'
-				&& options.admissionProfile === 'soundscaper-stable-1',
+				&& options.stableSoundscaper === true,
 		});
 		if (identity?.[1] === 'framescaper') validateFramescaperNativeHostSummary(manifest, targetId);
 		else {
 			assert(manifest.value.framescaperNativeHosts === null
 				|| manifest.value.framescaperNativeHosts === undefined,
 			`${manifest.name} unexpectedly carries Framescaper native-host state.`);
-			if (options.admissionProfile === 'soundscaper-stable-1') {
+			if (options.stableSoundscaper === true) {
 				validateSoundscaperStableProfessionalNativeSummary(
 					manifest.value.soundscaperProfessionalNative, targetId, manifest.name,
 					manifest.value.sourceRevision,

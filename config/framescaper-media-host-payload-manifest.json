@@ -15,8 +15,7 @@
 			"status": "pending-external",
 			"blockedBy": "No authenticated Linux x64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		{
 			"id": "linux-arm64",
@@ -24,8 +23,7 @@
 			"status": "pending-external",
 			"blockedBy": "No authenticated Linux ARM64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		{
 			"id": "mac-arm64",
@@ -33,8 +31,7 @@
 			"status": "pending-external",
 			"blockedBy": "No authenticated macOS ARM64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		{
 			"id": "win-x64",
@@ -42,8 +39,7 @@
 			"status": "pending-external",
 			"blockedBy": "No authenticated Windows x64 FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		},
 		{
 			"id": "win-arm64",
@@ -51,8 +47,7 @@
 			"status": "pending-external",
 			"blockedBy": "No authenticated Windows Arm64EC FFmpeg 9.0.1-linked media payload has been built for the exact target.",
 			"payload": null,
-			"isolationPayload": null,
-			"productionReadiness": null
+			"isolationPayload": null
 		}
 	]
 }

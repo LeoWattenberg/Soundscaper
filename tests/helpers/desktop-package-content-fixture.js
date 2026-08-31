@@ -26,10 +26,8 @@ export async function packageTree(context) {
 			Buffer.from('authenticated professional manifest'),
 		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper_professional.node':
 			Buffer.from('authenticated professional payload'),
-		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-candidate.json':
-			Buffer.from('authenticated professional build-candidate receipt'),
-		'runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json':
-			Buffer.from('authenticated native-isolation review policy'),
+		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-build-result.json':
+			Buffer.from('authenticated professional build-result receipt'),
 		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-plugin-peer':
 			Buffer.from('authenticated professional plug-in peer'),
 		'runtime/native/soundscaper-professional-host/linux-x64/soundscaper_delivery_fs':
@@ -76,11 +74,6 @@ export async function packageTree(context) {
 		soundscaperProfessionalNative: {
 			target: 'linux-x64', status: 'built',
 			osAudioCodec: null,
-			productionReadiness: null,
-			reviewPolicy: {
-				name: 'milestone-5-native-isolation-review-policy.json',
-				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/milestone-5-native-isolation-review-policy.json'),
-			},
 			payloadManifest: descriptor(
 				'runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-payload-manifest.json',
 			),
@@ -88,9 +81,9 @@ export async function packageTree(context) {
 				name: 'soundscaper_professional.node',
 				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper_professional.node'),
 			},
-			buildCandidate: {
-				path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-candidate.json',
-				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-candidate.json'),
+			buildResult: {
+				path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-native-build-result.json',
+				...descriptor('runtime/native/soundscaper-professional-host/linux-x64/soundscaper-professional-native-build-result.json'),
 			},
 			pluginPeer: {
 				path: 'native/soundscaper-professional-host/prebuilt/linux-x64/soundscaper-professional-plugin-peer',

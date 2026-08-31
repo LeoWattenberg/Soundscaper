@@ -222,11 +222,11 @@ function assertPendingTargets(manifest) {
 		const state = manifest.targets[target.id];
 		closedRecord(state, [
 			'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'scannerPayload',
-			'runtimeHostPayload', 'isolationPayload', 'productionReadiness',
+			'runtimeHostPayload', 'isolationPayload',
 		], `OpenFX-host ${target.id} target state`);
 		if (state?.status !== 'pending-external' || state.toolchainIdentity !== null
 			|| state.scannerPayload !== null || state.runtimeHostPayload !== null
-			|| state.isolationPayload !== null || state.productionReadiness !== null
+			|| state.isolationPayload !== null
 			|| state.runtime !== target.runtime
 			|| typeof state.blockedBy !== 'string' || state.blockedBy.length === 0) {
 			throw new Error(`Target ${target.id} must remain pending-external with no payload claim.`);

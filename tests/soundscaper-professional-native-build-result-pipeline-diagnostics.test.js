@@ -5,10 +5,10 @@ import test from 'node:test';
 
 import {
 	soundscaperProfessionalNativePipelineFailureMessage,
-} from '../scripts/lib/soundscaper-professional-native-candidate-pipeline.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result-pipeline.mjs';
 
-test('candidate pipeline failures expose bounded diagnostics without environment secrets', () => {
-	const secret = 'candidate-pipeline-secret-value';
+test('build-result pipeline failures expose bounded diagnostics without environment secrets', () => {
+	const secret = 'build-result-pipeline-secret-value';
 	const message = soundscaperProfessionalNativePipelineFailureMessage(
 		'self-test fixture-close',
 		{
@@ -24,13 +24,13 @@ test('candidate pipeline failures expose bounded diagnostics without environment
 	assert.match(message, /loader failed/u);
 	assert.match(message, /stdout-tail/u);
 	assert.match(message, /stderr-tail/u);
-	assert.doesNotMatch(message, /candidate-pipeline-secret-value|github_pat_fixture/iu);
+	assert.doesNotMatch(message, /build-result-pipeline-secret-value|github_pat_fixture/iu);
 	assert(!message.includes('\u001b'));
 	assert(Buffer.byteLength(message) <= 20 * 1024,
 		'the rendered failure diagnostic must stay far below the one-MiB capture bound');
 });
 
-test('candidate pipeline spawn errors remain actionable without command or environment dumps', () => {
+test('build-result pipeline spawn errors remain actionable without command or environment dumps', () => {
 	const message = soundscaperProfessionalNativePipelineFailureMessage(
 		'isolation build',
 		{ error: new Error('spawn cmake ENOENT'), signal: null, status: null },
@@ -40,7 +40,7 @@ test('candidate pipeline spawn errors remain actionable without command or envir
 	assert.doesNotMatch(message, /secret\/toolchain/u);
 });
 
-test('candidate pipeline diagnostics remain bounded after repeated short-secret redaction', () => {
+test('build-result pipeline diagnostics remain bounded after repeated short-secret redaction', () => {
 	const message = soundscaperProfessionalNativePipelineFailureMessage(
 		'self-test fixture-close',
 		{ status: 1, signal: null, stdout: '', stderr: 'aaaa'.repeat(256 * 1024) },
@@ -50,7 +50,7 @@ test('candidate pipeline diagnostics remain bounded after repeated short-secret 
 	assert(Buffer.byteLength(message) <= 8 * 1024);
 });
 
-test('candidate pipeline diagnostic byte bounds preserve complete UTF-8 code points', () => {
+test('build-result pipeline diagnostic byte bounds preserve complete UTF-8 code points', () => {
 	const baseline = soundscaperProfessionalNativePipelineFailureMessage(
 		'self-test fixture-close', { status: 1, signal: null, stdout: '', stderr: '' }, {},
 	);

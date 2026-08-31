@@ -2,191 +2,44 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import test from 'node:test';
 
-const ROOT = resolve(import.meta.dirname, '..');
+const ROOT = new URL('../', import.meta.url);
 
-test('reusable professional candidate workflow closes all five Soundscaper targets', async () => {
-	const source = await readFile(resolve(ROOT,
-		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	for (const [target, runner, platform, arch, toolingNodeArch, nodeArch] of [
-		['linux-x64', 'ubuntu-24.04', 'linux', 'x64', 'x64', 'x64'],
-		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64', 'arm64', 'arm64'],
-		['mac-arm64', 'macos-15', 'mac', 'arm64', 'arm64', 'arm64'],
-		['win-x64', 'windows-2025', 'win', 'x64', 'x64', 'x64'],
-		['win-arm64', 'windows-11-arm', 'win', 'arm64', 'x64', 'arm64'],
+test('reusable professional-native workflow produces five verified build results', async () => {
+	const source = await readFile(new URL(
+		'.github/workflows/soundscaper-professional-native-build.yml', ROOT,
+	), 'utf8');
+	assert.match(source, /workflow_call:/u);
+	for (const [target, runner, platform, arch] of [
+		['linux-x64', 'ubuntu-24.04', 'linux', 'x64'],
+		['linux-arm64', 'ubuntu-24.04-arm', 'linux', 'arm64'],
+		['mac-arm64', 'macos-15', 'mac', 'arm64'],
+		['win-x64', 'windows-2025', 'win', 'x64'],
+		['win-arm64', 'windows-11-arm', 'win', 'arm64'],
 	]) {
-		const row = [
-			`target: ${target}`, `runner: ${runner}`, `platform: ${platform}`,
-			`arch: ${arch}`, `tooling_node_arch: ${toolingNodeArch}`,
-			`node_arch: ${nodeArch}`,
-		].join('\\n\\s+');
+		const row = [`target: ${target}`, `runner: ${runner}`, `platform: ${platform}`, `arch: ${arch}`]
+			.join('\\n\\s+');
 		assert.equal([...source.matchAll(new RegExp(row, 'gu'))].length, 1);
 	}
-	assert.match(source, /workflow_call:/u);
-	assert.match(source, /npm run milestone5a:native-candidate/u);
-	assert.match(source, /npm run milestone5a:promote-native-candidate/u);
+	assert.match(source, /SOUNDSCAPER_NATIVE_HARNESS_PREPARATION: 'true'/u);
+	assert.match(source, /build-soundscaper-professional-native\.mjs/u);
+	assert.match(source, /soundscaper-professional-native-build-result-\$\{\{ matrix\.target \}\}/u);
+	assert.doesNotMatch(source, /signing-identity|certificate|notari[sz]/iu);
+	assert.doesNotMatch(source,
+		/promot|Developer ID|SIGNING_CERTIFICATE|SIGNING_PASSWORD|SOUNDSCAPER_MAC_SIGNING_IDENTITY|import-codesign-certs/iu);
+	assert.doesNotMatch(source, /secrets:/u);
 	assert.match(source, /architecture: \$\{\{ matrix\.tooling_node_arch \}\}/u);
-	assert.match(source,
-		/name: Activate target-native Node\.js[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*architecture: \$\{\{ matrix\.node_arch \}\}[\s\S]*package-manager-cache: false/u);
-	assert.match(source,
-		/name: Pin target-native npm[\s\S]*if: matrix\.tooling_node_arch != matrix\.node_arch[\s\S]*npm install --global npm@12\.0\.1/u);
-	assert.match(source,
-		/name: Verify target-native Node\.js[\s\S]*SOUNDSCAPER_EXPECTED_NODE_ARCH: \$\{\{ matrix\.node_arch \}\}[\s\S]*process\.arch !== process\.env\.SOUNDSCAPER_EXPECTED_NODE_ARCH[\s\S]*npm --version/u);
-	const packagedBuild = source.indexOf('- name: Build target packaged Electron utility-process harness');
-	const targetRuntime = source.indexOf('- name: Activate target-native Node.js');
-	const runtimeCheck = source.indexOf('- name: Verify target-native Node.js');
-	const candidateBuild = source.indexOf('- name: Build, install, close, self-test, and seal candidate');
-	assert(packagedBuild >= 0 && packagedBuild < targetRuntime
-		&& targetRuntime < runtimeCheck && runtimeCheck < candidateBuild,
-	'the x64 tooling phase must finish before target-native candidate orchestration');
-	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.platform \}\}/u);
-	assert.match(source, /SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.arch \}\}/u);
-	assert.match(source,
-		/npx electron-builder --config electron-builder\.config\.cjs[\s\\]*--\$\{\{ matrix\.platform \}\}[\s\\]*--\$\{\{ matrix\.arch \}\}[\s\\]*--dir/u);
-	assert.match(source,
-		/SOUNDSCAPER_SOURCE_REVISION="\$\(git rev-parse HEAD\)" npm run desktop:prepare/u);
-	for (const runnerArgument of [
-		'--runner-os=${{ runner.os }}', '--runner-arch=${{ runner.arch }}',
-	]) assert.equal(source.split(runnerArgument).length - 1, 2, runnerArgument);
-	assert.match(source, /soundscaper-professional-native-five-target-promotion/u);
-	assert.match(source, /SOUNDSCAPER_MAC_SIGNING_IDENTITY/u);
-	assert.match(source, /SOUNDSCAPER_MAC_SIGNING_CERTIFICATE/u);
-	assert.match(source, /SOUNDSCAPER_MAC_SIGNING_PASSWORD/u);
-	assert.match(source,
-		/apple-actions\/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466/u);
-	assert.match(source, /Developer ID Application:/u);
-	assert.match(source, /--signing-identity="\$signing_identity"/u);
-	assert.match(source, /if \[\[ "\$\{\{ inputs\.promote \}\}" == "true" \]\]/u);
-	assert.doesNotMatch(source, /--signing-identity=-/u,
-		'production-capable candidate commands must not hard-code ad-hoc signing');
-	assert.doesNotMatch(source, /framescaper/iu);
+	assert.match(source, /architecture: \$\{\{ matrix\.node_arch \}\}/u);
+	assert.match(source, /kernel\.apparmor_restrict_unprivileged_userns=0/u);
 	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
-	assert.equal([...source.matchAll(/npm install --global npm@12\.0\.1/gu)].length, 3);
-	for (const pin of [
-		'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd',
-		'actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f',
-		'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
-		'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
-	]) assert(source.includes(pin));
 });
 
-test('reusable professional candidate workflow installs the JUCE Linux header closure', async () => {
-	const source = await readFile(resolve(ROOT,
-		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	const step = /^ {6}- name: Install JUCE Linux development dependencies\n[\s\S]*?(?=^ {6}- )/mu
-		.exec(source)?.[0];
-	assert.ok(step, 'the reusable candidate job needs one JUCE dependency step');
-	assert.match(step, /^ {8}if: runner\.os == 'Linux'$/mu);
-	assert.match(step, /^ {8}timeout-minutes: 10$/mu);
-	assert.match(step, /^ {10}bash scripts\/ci-apt-install\.sh$/mu);
-	for (const packageName of [
-		'libasound2-dev',
-		'libfontconfig-dev', 'libfreetype-dev',
-		'libx11-dev', 'libxcomposite-dev', 'libxcursor-dev', 'libxext-dev',
-		'libxinerama-dev', 'libxi-dev', 'libxrandr-dev', 'libxrender-dev',
-	]) {
-		assert.match(step, new RegExp(`^ {10}${packageName}$`, 'mu'),
-			`${packageName} is required by the enabled JUCE modules`);
-	}
-});
-
-test('reusable professional candidate workflow enables Linux user namespaces', async () => {
-	const source = await readFile(resolve(ROOT,
-		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	const step = /^ {6}- name: Allow unprivileged user namespaces for the native isolation launcher\n[\s\S]*?(?=^ {6}- )/mu
-		.exec(source)?.[0];
-	assert.ok(step, 'the target-native Linux runners need an AppArmor setup step');
-	assert.match(step, /^ {8}if: runner\.os == 'Linux'$/mu);
-	assert.match(step,
-		/^ {8}run: sudo sysctl -w kernel\.apparmor_restrict_unprivileged_userns=0$/mu);
-});
-
-test('reusable professional candidate workflow keeps Windows native custody on the profile volume', async () => {
-	const source = await readFile(resolve(ROOT,
-		'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8');
-	const step = /^ {6}- name: Select Windows profile-volume native workspace\n[\s\S]*?(?=^ {6}- )/mu
-		.exec(source)?.[0];
-	assert.ok(step, 'Windows candidate self-tests need profile-volume native custody');
-	assert.match(step, /^ {8}if: runner\.os == 'Windows'$/mu);
-	assert.match(step, /\$env:LOCALAPPDATA/u);
-	assert.match(step, /\$env:SystemDrive/u);
-	assert.match(step, /\[IO\.FileAttributes\]::ReparsePoint/u);
-	assert.match(step, /\$env:GITHUB_RUN_ID-\$env:GITHUB_RUN_ATTEMPT-\$env:SOUNDSCAPER_NATIVE_TARGET/u);
-	assert.match(step, /\$env:GITHUB_ENV/u);
-	assert.match(step, /"TEMP=\$temporaryRoot"/u);
-	assert.match(step, /"TMP=\$temporaryRoot"/u);
-	assert.match(step, /"SOUNDSCAPER_NATIVE_WORK_ROOT=\$workRoot"/u);
-	assert(step.indexOf('$created = New-Item') < step.indexOf('"TEMP=$temporaryRoot"'));
-	assert.match(source,
-		/--work-root="\$\{SOUNDSCAPER_NATIVE_WORK_ROOT:-\$RUNNER_TEMP\/soundscaper-professional-work\}"/u);
-	assert(source.indexOf('- name: Select Windows profile-volume native workspace')
-		< source.indexOf('- name: Build, install, close, self-test, and seal candidate'));
-});
-
-test('dispatch workflow produces and passes one authenticated Soundscaper-only source cache', async () => {
-	const [source, reusable] = await Promise.all([
-		readFile(resolve(ROOT,
-			'.github/workflows/soundscaper-professional-native-candidate-run.yml'), 'utf8'),
-		readFile(resolve(ROOT,
-			'.github/workflows/soundscaper-professional-native-candidates.yml'), 'utf8'),
-	]);
-	assert.match(source, /^\s{2}workflow_dispatch:\s*$/mu);
-	assert.match(source, /uses: \.\/\.github\/workflows\/soundscaper-professional-native-candidates\.yml/u);
-	assert.match(source, /needs: source-cache/u);
-
-	const artifactNames = [...source.matchAll(
-		/name: (soundscaper-professional-native-source-cache)/gu,
-	)].map((match) => match[1]);
-	assert.deepEqual(artifactNames, ['soundscaper-professional-native-source-cache'],
-		'the source cache must have one exclusive artifact producer');
-	assert.match(source, /source-cache-artifact: soundscaper-professional-native-source-cache/u);
-	assert.match(reusable, /name: \$\{\{ inputs\.source-cache-artifact \}\}/u);
-	assert.match(reusable, /path: \$\{\{ runner\.temp \}\}\/soundscaper-native-sources/u);
-	assert.match(source, /include-hidden-files: true/u,
-		'portable source-tree authentication includes dotfiles');
-	assert.match(source, /secrets: inherit/u,
-		'the production run must pass configured signing credentials to the reusable workflow');
-
-	for (const id of [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
-	]) {
-		assert.equal([...source.matchAll(new RegExp(`--source ${id}(?:\\s|$)`, 'gu'))].length, 2,
-			`${id} must be provisioned and independently checked`);
-	}
-	for (const framescaperSource of ['x264', 'x265', 'libvpx', 'libopus']) {
-		assert.doesNotMatch(source, new RegExp(`--source ${framescaperSource}(?:\\s|$)`, 'u'));
-	}
-	assert.match(source, /provision:milestone-5-native-sources[^\n]+--check/u);
-	assert.doesNotMatch(source, /--root=/u,
-		'the provisioning CLI requires the root path as a separate argument');
-	assert.doesNotMatch(source, /pull_request|push:/u);
-	assert.doesNotMatch(source, /uses:\s+actions\/[a-z-]+@v\d+/u);
-	for (const pin of [
-		'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd',
-		'actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f',
-		'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
-	]) assert(source.includes(pin));
-});
-
-test('professional candidate and promotion package commands are explicit', async () => {
-	const package_ = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8'));
-	assert.equal(package_.scripts['milestone5a:native-candidate'],
-		'node scripts/build-m5a-professional-native-candidate.mjs');
-	assert.equal(package_.scripts['milestone5a:promote-native-candidate'],
-		'node scripts/promote-m5a-professional-native-candidate.mjs');
-	const candidateCommand = await readFile(resolve(ROOT,
-		'scripts/build-m5a-professional-native-candidate.mjs'), 'utf8');
-	const candidatePipeline = await readFile(resolve(ROOT,
-		'scripts/lib/soundscaper-professional-native-candidate-pipeline.mjs'), 'utf8');
-	assert.doesNotMatch(candidateCommand, /--self-test-plan|['"]self-test-plan['"]/iu);
-	assert.match(candidateCommand,
-		/createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan/u);
-	assert.match(candidateCommand, /signingIdentity: args\['signing-identity'\]/u);
-	assert.match(candidateCommand, /runnerOs: args\['runner-os'\]/u);
-	assert.match(candidateCommand, /runnerArch: args\['runner-arch'\]/u);
-	assert.match(candidatePipeline, /createSoundscaperProfessionalNativeMacSigningPlan/u);
-	assert.match(candidatePipeline, /executeSoundscaperProfessionalNativeMacSigningPlan/u);
-	assert.match(candidatePipeline, /macSigningEvidence/u);
+test('manual native-build workflow is debug-only and has no promotion controls', async () => {
+	const source = await readFile(new URL(
+		'.github/workflows/soundscaper-professional-native-build-run.yml', ROOT,
+	), 'utf8');
+	assert.match(source, /workflow_dispatch:/u);
+	assert.match(source, /soundscaper-professional-native-build\.yml/u);
+	assert.doesNotMatch(source, /promot|signing|certificate|secrets: inherit/iu);
 });

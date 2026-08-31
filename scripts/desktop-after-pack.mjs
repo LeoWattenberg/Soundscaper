@@ -168,7 +168,7 @@ export async function verifyPackagedOsAudioCodecNativeResources(context, depende
 			runtimeRoot: resolve(resourcesRoot, 'runtime'),
 			repositoryRoot,
 			...(target === 'mac-arm64' ? {
-				signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+				signingIdentity: '-',
 			} : {}),
 			productId,
 			target,
@@ -184,7 +184,7 @@ export async function verifyPackagedOsAudioCodecNativeResources(context, depende
  * The packed native payload is verified before any fuse is flipped, against the
  * target the packaged tree names and against the target electron-builder says
  * it is producing, so neither a resource tree that lost or gained a byte nor a
- * consistent tree assembled for another architecture can reach a signed package.
+ * consistent tree assembled for another architecture can reach a package.
  */
 export async function verifyPackagedNativeAddonResources(context, dependencies = {}) {
 	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);

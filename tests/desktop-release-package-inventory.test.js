@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
@@ -20,7 +19,7 @@ import {
 	validateSoundscaperStableProfessionalNativeSummary,
 	validateDesktopNativeAddonSummary,
 	validateDesktopReleaseInputInventory,
-	validateDesktopReleaseAdmissionProfile,
+	validateDesktopStableReleaseSelection,
 	validateDesktopReleasePackageInventory,
 	validateDesktopRuntimeManifests,
 } from '../scripts/desktop-release-assets.mjs';
@@ -121,80 +120,45 @@ test('stable Soundscaper assembly selects exactly nine packages and five runtime
 		parseDesktopReleaseAssetArguments(['--product', 'soundscaper']).productIds,
 		['soundscaper'],
 	);
-	assert.deepEqual(
-		parseDesktopReleaseAssetArguments([
-			'--product', 'soundscaper', '--admission-profile', 'soundscaper-stable-1',
-		]),
-		{
-			assetRoot: resolve(import.meta.dirname, '../release/desktop'),
-			productIds: ['soundscaper'],
-			admissionProfile: 'soundscaper-stable-1',
-		},
-	);
-	assert.throws(
-		() => parseDesktopReleaseAssetArguments([
-			'--suite', '--admission-profile', 'soundscaper-stable-1',
-		]),
-		/admission profile.*Soundscaper/iu,
-	);
+	assert.throws(() => parseDesktopReleaseAssetArguments([
+		'--product', 'soundscaper', '--admission-profile', 'soundscaper-stable-1',
+	]), /Unknown desktop release asset option/iu);
 	assert.deepEqual(parseDesktopReleaseAssetArguments(['--suite']).productIds,
 		['soundscaper', 'framescaper']);
 	assert.throws(() => parseDesktopReleaseAssetArguments([]), /requires --product or --suite/iu);
 });
 
-test('stable assembly requires the admitted Stable release line, not candidate metadata', () => {
-	assert.throws(() => validateDesktopReleaseAdmissionProfile(
-		'soundscaper-stable-1', productReleaseLines,
-	), /not admitted and selected/iu);
-	const admitted = structuredClone(productReleaseLines);
-	admitted.products.soundscaper.applicationVersionChannel = 'stable';
-	admitted.products.soundscaper.releaseChannel = 'stable';
-	admitted.products.soundscaper.stable.status = 'admitted';
-	assert.equal(validateDesktopReleaseAdmissionProfile(
-		'soundscaper-stable-1', admitted, ['soundscaper'],
-	), 'soundscaper-stable-1');
-	assert.equal(validateDesktopReleaseAdmissionProfile(
-		null, admitted, ['soundscaper'],
-	), 'soundscaper-stable-1', 'stable selection must activate its admission profile automatically');
-	assert.equal(validateDesktopReleaseAdmissionProfile(
-		null, productReleaseLines, ['soundscaper'],
-	), null);
-	assert.throws(() => validateDesktopReleaseAdmissionProfile(
-		null, admitted, ['soundscaper', 'framescaper'],
+test('stable assembly follows the selected release channel without an evidence profile', () => {
+	assert.equal(validateDesktopStableReleaseSelection(
+		productReleaseLines, ['soundscaper'],
+	), false);
+	const stable = structuredClone(productReleaseLines);
+	stable.products.soundscaper.applicationVersionChannel = 'stable';
+	stable.products.soundscaper.releaseChannel = 'stable';
+	assert.equal(validateDesktopStableReleaseSelection(stable, ['soundscaper']), true);
+	assert.throws(() => validateDesktopStableReleaseSelection(
+		stable, ['soundscaper', 'framescaper'],
 	), /Soundscaper-only product scope/iu);
 });
 
-test('stable Soundscaper assembly refuses incomplete or substituted professional-native evidence', () => {
+test('stable Soundscaper assembly refuses incomplete or substituted professional build results', () => {
 	const summary = stableProfessionalSummary('mac-arm64');
 	assert.doesNotThrow(() => validateSoundscaperStableProfessionalNativeSummary(
 		summary, 'mac-arm64', 'runtime-manifest-soundscaper-mac-arm64.json', '1'.repeat(40),
 	));
 	assert.throws(() => validateSoundscaperStableProfessionalNativeSummary(
 		summary, 'mac-arm64', 'runtime-manifest-soundscaper-mac-arm64.json', 'f'.repeat(40),
-	), /candidate source revision.*runtime manifest|runtime manifest.*candidate source revision/iu);
+	), /build source revision.*runtime manifest|runtime manifest.*build source revision/iu);
 	const mutations = [
-		[(value) => { value.status = 'pending-external'; }, /promoted professional candidate/iu],
-		[(value) => { value.productionReadiness = null; }, /production readiness/iu],
+		[(value) => { value.status = 'pending-external'; }, /professional build result/iu],
 		[(value) => { value.target = 'linux-x64'; }, /target/iu],
 		[(value) => { value.deliveryFilesystem = null; }, /delivery filesystem/iu],
 		[(value) => { value.osAudioCodec = null; }, /OS audio codec/iu],
-		[(value) => { value.productionReadiness.verified.evidence.deliveryFilesystem.sha256 = 'b'.repeat(64); },
-			/signed readiness.*delivery filesystem/iu],
-		[(value) => { value.productionReadiness.verified.evidence.osAudioCodec.sha256 = 'b'.repeat(64); },
-			/signed readiness.*OS audio codec/iu],
-		[(value) => { value.productionReadiness.verified.evidence.buildCandidate.sha256 = 'b'.repeat(64); },
-			/signed readiness.*build candidate/iu],
-		[(value) => { value.productionReadiness.verified.evidence.launcher.runtimeClosureSha256 = 'b'.repeat(64); },
-			/signed readiness.*runtime closure/iu],
-		[(value) => { value.productionReadiness.verified.evidence.unreviewedExtension = true; },
-			/exact record|non-canonical|production readiness/iu],
-		[(value) => { delete value.productionReadiness.verified.evidence.buildProvenance.buildPlanSha256; },
-			/exact record|invalid|production readiness/iu],
-		[(value) => { value.productionReadiness.verified.evidence.macSigning.mode = 'ad-hoc'; },
-			/Developer ID|mac signing|invalid/iu],
-		[(value) => { value.isolation.runtimeClosure[0].path = `${value.isolation.runtimeClosure[0].path}.foreign`; },
-			/signed readiness.*runtime closure/iu],
-		[(value) => { value.m9ReleaseReview.status = 'pending'; }, /M9 review/iu],
+		[(value) => { value.isolation.runtimeClosure[0].path = value.isolation.runtimeClosure[0].path
+			.replace('/runtime/', '/foreign/'); },
+			/runtime closure/iu],
+		[(value) => { value.buildAuthority.sourceRevision = 'f'.repeat(40); },
+			/build source revision.*runtime manifest|runtime manifest.*build source revision/iu],
 	];
 	for (const [mutate, expected] of mutations) {
 		const changed = structuredClone(summary);
@@ -208,13 +172,12 @@ test('stable Soundscaper assembly refuses incomplete or substituted professional
 	}
 	const linux = stableProfessionalSummary('linux-x64');
 	linux.osAudioCodec = null;
-	linux.productionReadiness.verified.evidence.osAudioCodec = null;
 	assert.doesNotThrow(() => validateSoundscaperStableProfessionalNativeSummary(
 		linux, 'linux-x64', 'runtime-manifest-soundscaper-linux-x64.json', '1'.repeat(40),
 	));
 });
 
-test('the stable admission profile activates professional-native refusal in the assembler', () => {
+test('the stable release channel activates professional-native refusal in the assembler', () => {
 	const summary = stableProfessionalSummary('linux-x64');
 	const manifest = {
 		name: 'runtime-manifest-soundscaper-linux-x64.json',
@@ -232,22 +195,27 @@ test('the stable admission profile activates professional-native refusal in the 
 		},
 	};
 	assert.doesNotThrow(() => validateDesktopRuntimeManifests(
-		[manifest], ['soundscaper'], undefined, { admissionProfile: 'soundscaper-stable-1' },
+		[manifest], ['soundscaper'], undefined, { stableSoundscaper: true },
 	));
+	const harness = structuredClone(manifest);
+	harness.value.nativeHarnessPreparation = true;
+	assert.throws(() => validateDesktopRuntimeManifests(
+		[harness], ['soundscaper'], undefined, { stableSoundscaper: true },
+	), /non-publishable native self-test harness/iu);
 	for (const field of ['applicationVersionChannel', 'releaseChannel']) {
 		const wrongChannel = structuredClone(manifest);
 		wrongChannel.value[field] = 'candidate';
 		assert.throws(() => validateDesktopRuntimeManifests(
 			[wrongChannel], ['soundscaper'], undefined,
-			{ admissionProfile: 'soundscaper-stable-1' },
+			{ stableSoundscaper: true },
 		), /stable release channel/iu);
 	}
 	const pending = structuredClone(manifest);
 	pending.value.soundscaperProfessionalNative.status = 'pending-external';
 	pending.value.soundscaperProfessionalNative.blockedBy = 'external target build required';
 	assert.throws(() => validateDesktopRuntimeManifests(
-		[pending], ['soundscaper'], undefined, { admissionProfile: 'soundscaper-stable-1' },
-	), /promoted professional candidate/iu);
+		[pending], ['soundscaper'], undefined, { stableSoundscaper: true },
+	), /professional build result/iu);
 	const preview = structuredClone(pending);
 	preview.value.applicationVersionChannel = 'candidate';
 	preview.value.releaseChannel = 'candidate';
@@ -383,7 +351,7 @@ function stableProfessionalSummary(target) {
 		path: `${root}/${name}`, byteLength, sha256: digest,
 	});
 	const payload = { name: 'soundscaper_professional.node', byteLength: 71, sha256: digest };
-	const buildCandidate = artifact('soundscaper-professional-native-candidate.json', 101);
+	const buildResult = artifact('soundscaper-professional-native-build-result.json', 101);
 	const pluginPeer = artifact(
 		target.startsWith('win-') ? 'soundscaper_professional_peer.exe' : 'soundscaper_professional_peer', 72,
 	);
@@ -397,93 +365,19 @@ function stableProfessionalSummary(target) {
 	const sandboxProfile = artifact('native-isolation-profile-v1.json', 76);
 	const brokerPolicy = artifact('native-isolation-broker-v1.json', 77);
 	const runtimeClosure = [artifact('runtime/libprofessional-runtime.dylib', 78)];
-	const evidencePath = `${root}/soundscaper-professional-native-readiness.json`;
 	const sourceAuthentication = {
 		schemaVersion: 1, status: 'authenticated', sources: [{ id: 'electron-node-api-headers' }],
 	};
-	const candidateAuthority = {
-		sourceRevision: '1'.repeat(40), buildPlanSha256: '2'.repeat(64),
-		macSigning: target === 'mac-arm64'
-			? { mode: 'developer-id', identitySha256: '9'.repeat(64) } : null,
-	};
+	const buildAuthority = { sourceRevision: '1'.repeat(40), buildPlanSha256: '2'.repeat(64) };
 	return {
 		target, targetSource: 'declared', status: 'built', blockedBy: null,
 		payloadManifest: { id: 'soundscaper-professional-native-host-1.0.0', byteLength: 401, sha256: digest },
-		reviewPolicy: { name: 'milestone-5-native-isolation-review-policy.json', byteLength: 402, sha256: digest },
-		m9ReleaseReview: {
-			scope: 'stable-1.0-release', status: 'complete', reviewer: 'release-reviewer', reviewedAt: '2026-08-30',
-		},
 		toolchainIdentity: 'fixture-cmake-toolchain',
 		sourceAuthentication,
-		candidateAuthority,
-		productionReadiness: {
-			reference: {
-				schemaVersion: 1, status: 'reviewed', target,
-				evidence: { path: evidencePath, byteLength: 403, sha256: digest },
-				signature: { algorithm: 'ed25519', reviewKeyId: 'release-reviewer', valueBase64: 'A'.repeat(86) + '==' },
-			},
-			evidence: { name: 'soundscaper-professional-native-readiness.json', byteLength: 403, sha256: digest },
-				verified: {
-					status: 'authenticated', evidence: {
-					schemaVersion: 2,
-					kind: 'soundscaper-professional-native-production-readiness',
-					target, payload: { byteLength: payload.byteLength, sha256: payload.sha256 },
-					buildCandidate: { byteLength: buildCandidate.byteLength, sha256: buildCandidate.sha256 },
-					deliveryFilesystem: {
-						byteLength: deliveryFilesystem.byteLength, sha256: deliveryFilesystem.sha256,
-					},
-						osAudioCodec: osAudioCodec === null ? null : {
-							byteLength: osAudioCodec.byteLength, sha256: osAudioCodec.sha256,
-						},
-						sourceAuthenticationSha256: hashStableJson(sourceAuthentication),
-						toolchainIdentity: 'fixture-cmake-toolchain',
-						buildProvenance: {
-							sourceRevision: candidateAuthority.sourceRevision,
-							buildPlanSha256: candidateAuthority.buildPlanSha256,
-							nativeHostTreeSha256: '3'.repeat(64),
-							helperAddonTreeSha256: '4'.repeat(64),
-						},
-						macSigning: candidateAuthority.macSigning,
-						launcher: {
-							schemaVersion: 1, target,
-							launcherId: target === 'mac-arm64'
-								? 'soundscaper-macos-seatbelt-broker-v1'
-								: 'soundscaper-linux-landlock-seccomp-namespaces-v1',
-							launcherPayloadSha256: launcher.sha256,
-						sandboxProfileSha256: sandboxProfile.sha256,
-						brokerPolicySha256: brokerPolicy.sha256,
-						peerPayloadSha256: pluginPeer.sha256,
-							runtimeClosureSha256: stableRuntimeClosureSha256(runtimeClosure),
-							filesystem: 'broker-grant-only', network: 'denied',
-							childProcesses: 'denied', dynamicCode: 'admitted-plugin-only',
-						},
-						osIsolationAttested: true,
-						hostilePluginDenialAttested: true,
-						realThirdPartyExecutionAttested: true,
-						reviewedAt: '2026-08-30', reviewer: 'release-reviewer',
-				},
-			},
-		},
-		payload, buildCandidate, osAudioCodec, pluginPeer, deliveryFilesystem,
+		buildAuthority,
+		payload, buildResult, osAudioCodec, pluginPeer, deliveryFilesystem,
 		isolation: {
 			launcher, sandboxProfile, brokerPolicy, entrypointPath: pluginPeer.path, runtimeClosure,
 		},
 	};
-}
-
-function stableRuntimeClosureSha256(closure) {
-	return createHash('sha256').update(JSON.stringify(closure
-		.map(({ path, byteLength, sha256 }) => ({ path, byteLength, sha256 }))
-		.sort((left, right) => left.path.localeCompare(right.path)))).digest('hex');
-}
-
-function hashStableJson(value) {
-	return createHash('sha256').update(stableJson(value)).digest('hex');
-}
-
-function stableJson(value) {
-	if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-	if (value && typeof value === 'object') return `{${Object.keys(value).sort()
-		.map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
-	return JSON.stringify(value);
 }

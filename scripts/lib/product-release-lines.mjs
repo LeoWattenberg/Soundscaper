@@ -32,7 +32,7 @@ export function readProductReleaseLinesSync(repositoryRoot) {
 
 export function validateProductReleaseLines(value) {
 	const root = exactRecord(value, ['schemaVersion', 'products'], 'Product release lines');
-	if (root.schemaVersion !== 1) throw new Error('Product release lines schemaVersion must be 1.');
+	if (root.schemaVersion !== 2) throw new Error('Product release lines schemaVersion must be 2.');
 	const products = exactRecord(root.products, PRODUCT_IDS, 'Product release-line products');
 	const validated = {};
 	for (const productId of PRODUCT_IDS) {
@@ -45,20 +45,12 @@ export function validateProductReleaseLines(value) {
 		}
 		const candidate = validateChannel(row.candidate, productId, 'candidate');
 		const stable = validateChannel(row.stable, productId, 'stable');
-		if (candidate.status !== 'active') {
-			throw new Error(`${productId} candidate release line must remain active until superseded.`);
-		}
-		if (row.applicationVersionChannel === 'stable' && stable.status !== 'admitted') {
-			throw new Error(`${productId} stable release is not admitted for builds.`);
-		}
-		if (row.releaseChannel === 'stable' && stable.status !== 'admitted') {
-			throw new Error(`${productId} stable release channel is not admitted.`);
-		}
-		if (row.releaseChannel === 'candidate' && candidate.status !== 'active') {
-			throw new Error(`${productId} candidate release channel is not active.`);
-		}
 		if (row.releaseChannel === 'deferred' && productId !== 'framescaper') {
 			throw new Error('Only the declared deferred product may have a deferred release channel.');
+		}
+		if (row.releaseChannel !== 'deferred'
+			&& row.applicationVersionChannel !== row.releaseChannel) {
+			throw new Error(`${productId} application and release channels must be synchronized.`);
 		}
 		validated[productId] = {
 			...row,
@@ -66,7 +58,7 @@ export function validateProductReleaseLines(value) {
 			stable,
 		};
 	}
-	return deepFreeze({ schemaVersion: 1, products: validated });
+	return deepFreeze({ schemaVersion: 2, products: validated });
 }
 
 export function resolveProductApplicationVersion(productId, releaseLinesValue) {
@@ -115,14 +107,8 @@ export function resolveProductReleaseTag(tagValue, releaseLinesValue) {
 			if (product.releaseChannel === 'deferred') {
 				throw new Error(`${productId} release channel is deferred.`);
 			}
-			if (channel === 'stable' && product.stable.status !== 'admitted') {
-				throw new Error(`${productId} stable release is not admitted.`);
-			}
-			if (channel === 'candidate' && product.candidate.status !== 'active') {
-				throw new Error(`${productId} candidate release is not active.`);
-			}
 			if (product.releaseChannel !== channel) {
-				throw new Error(`${productId} ${channel} release channel is not active.`);
+				throw new Error(`${productId} ${channel} release line is not active.`);
 			}
 			return deepFreeze({ productId, channel, version: product[channel].version });
 		}
@@ -131,13 +117,11 @@ export function resolveProductReleaseTag(tagValue, releaseLinesValue) {
 }
 
 function validateChannel(value, productId, channel) {
-	const row = exactRecord(value, ['version', 'status', 'tagPrefix', 'admissionProfile'],
+	const row = exactRecord(value, ['version', 'tagPrefix'],
 		`${productId} ${channel} release channel`);
 	if (!SEMVER.test(row.version) || (channel === 'stable' && !STABLE_SEMVER.test(row.version))) {
 		throw new Error(`${productId} ${channel} release version is invalid.`);
 	}
-	const statuses = channel === 'candidate' ? ['active'] : ['pending-admission', 'admitted', 'deferred'];
-	if (!statuses.includes(row.status)) throw new Error(`${productId} ${channel} release status is invalid.`);
 	if (typeof row.tagPrefix !== 'string' || !/^(?:v|(?:soundscaper|framescaper)-v)$/u.test(row.tagPrefix)) {
 		throw new Error(`${productId} ${channel} release tag prefix is invalid.`);
 	}
@@ -145,17 +129,6 @@ function validateChannel(value, productId, channel) {
 		|| (channel === 'candidate' && row.tagPrefix !== `${productId}-v`)
 		|| (productId === 'framescaper' && row.tagPrefix !== 'framescaper-v')) {
 		throw new Error(`${productId} ${channel} release tag ownership is invalid.`);
-	}
-	if (row.admissionProfile !== null
-		&& (typeof row.admissionProfile !== 'string'
-			|| !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(row.admissionProfile))) {
-		throw new Error(`${productId} ${channel} admission profile is invalid.`);
-	}
-	if (row.status === 'pending-admission' && row.admissionProfile === null) {
-		throw new Error(`${productId} pending stable release requires an admission profile.`);
-	}
-	if (row.status === 'deferred' && row.admissionProfile !== null) {
-		throw new Error(`${productId} deferred stable release must not claim an admission profile.`);
 	}
 	return { ...row };
 }

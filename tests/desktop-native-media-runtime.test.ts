@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { createHash, generateKeyPairSync, sign } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -364,44 +364,16 @@ async function runtimeFixture() {
 			'native/framescaper-media-host/prebuilt/linux-x64/lib/libframescaper-media.so', library,
 		)],
 	};
-	const evidence = Buffer.from(JSON.stringify({
-		schemaVersion: 1, kind: 'framescaper-media-host-production-readiness', target: 'linux-x64',
-		mediaHostSha256: sha256,
-		runtimeLibraries: [{ name: 'libframescaper-media.so', byteLength: library.byteLength,
-			sha256: isolationPayload.runtimeLibraryPayloads[0]!.sha256 }],
-		launcher: {
-			schemaVersion: 1, target: 'linux-x64',
-			launcherId: 'framescaper-linux-landlock-seccomp-namespaces-v1',
-			launcherPayloadSha256: isolationPayload.launcherPayload.sha256,
-			sandboxProfileSha256: isolationPayload.sandboxProfilePayload.sha256,
-			brokerPolicySha256: isolationPayload.brokerPolicyPayload.sha256,
-			filesystem: 'broker-grant-only', network: 'denied', childProcesses: 'denied', dynamicCode: 'denied',
-		},
-		ffmpegVersion: '9.0.1', osIsolationAttested: true, hostileMediaDenialAttested: true,
-		dualStreamFdRemapAttested: true, twoHourContinuityAttested: true,
-		reviewedAt: '2026-08-24', reviewer: 'synthetic media runtime reviewer',
-	}));
-	const key = generateKeyPairSync('ed25519');
-	const evidenceRelative = 'config/framescaper-media-host-production-readiness/linux-x64.json';
-	await mkdir(join(root, 'config/framescaper-media-host-production-readiness'), { recursive: true });
-	await writeFile(join(root, evidenceRelative), evidence);
-	const productionReadiness = {
-		schemaVersion: 2, status: 'reviewed', target: 'linux-x64',
-		evidence: { path: evidenceRelative, byteLength: evidence.byteLength,
-			sha256: createHash('sha256').update(evidence).digest('hex') },
-		signature: { algorithm: 'ed25519', reviewKeyId: 'synthetic-media-review',
-			valueBase64: sign(null, evidence, key.privateKey).toString('base64') },
-	};
 	const targets = [
 		{ id: 'linux-x64', runtime: 'linux-x64', status: 'built', blockedBy: null, payload,
-			isolationPayload, productionReadiness },
+			isolationPayload },
 		...[
 			['linux-arm64', 'linux-arm64'], ['mac-arm64', 'darwin-arm64'],
 			['win-x64', 'win32-x64'], ['win-arm64', 'win32-arm64'],
 		].map(([id, runtime]) => ({
 			id, runtime, status: 'pending-external',
-			blockedBy: 'No qualified synthetic payload exists.', payload: null,
-			isolationPayload: null, productionReadiness: null,
+			blockedBy: 'No synthetic payload has been built.', payload: null,
+			isolationPayload: null,
 		})),
 	];
 	await writeFile(join(root, 'config/framescaper-media-host-payload-manifest.json'), JSON.stringify({
@@ -424,7 +396,6 @@ async function runtimeFixture() {
 		payloadPorts: {
 			readFile,
 			stat,
-			resolveReviewPublicKey: () => key.publicKey.export({ type: 'spki', format: 'pem' }),
 		},
 		identity: { dev: identity.dev, ino: identity.ino },
 		dispose: () => rm(root, { recursive: true, force: true }),

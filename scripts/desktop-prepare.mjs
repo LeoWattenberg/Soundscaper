@@ -101,6 +101,7 @@ async function main() {
 	const applicationVersion = resolveProductApplicationVersion(PRODUCT_ID, releaseLines);
 	const productMetadata = resolveProductDesktopMetadata(PRODUCT_ID, releaseLines);
 	const sourceRevision = resolveDesktopSourceRevision();
+	const nativeHarnessPreparation = resolveNativeHarnessPreparation();
 	const legacyNativeAddonIncluded = desktopLegacyNativeAddonIncluded(PRODUCT_ID, productMetadata);
 	await assertFile(resolve(ROOT, 'desktop/main.mjs'), 'desktop/main.mjs');
 	await assertFile(resolve(ROOT, 'desktop/preload.mjs'), 'desktop/preload.mjs');
@@ -134,13 +135,14 @@ async function main() {
 		productMetadata,
 		release: soundscaperProfessionalNativeRelease,
 		sourceRevision,
+		harnessPreparation: nativeHarnessPreparation,
 	});
 	const osAudioCodecNativeRelease = PRODUCT_ID === 'soundscaper'
 		? await prepareDesktopOsAudioCodecNativeRelease({
 			buildResultPath: process.env.SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT ?? null,
 			repositoryRoot: ROOT,
 			...(nativeTarget.id === 'mac-arm64' ? {
-				signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+				signingIdentity: '-',
 			} : {}),
 			target: nativeTarget.id,
 			required: resolveDesktopOsAudioCodecNativeRequirement(
@@ -196,6 +198,7 @@ async function main() {
 
 	const stageManifest = {
 		schemaVersion: 1,
+		nativeHarnessPreparation,
 		productId: PRODUCT_ID,
 		applicationVersion,
 		applicationVersionChannel: productMetadata.applicationVersionChannel,
@@ -214,6 +217,14 @@ async function main() {
 	};
 	await writeJson(resolve(BUILD_ROOT, 'stage-manifest.json'), stageManifest);
 	console.log(`Prepared ${PRODUCT_NAME} desktop ${applicationVersion} in ${BUILD_ROOT}`);
+}
+
+export function resolveNativeHarnessPreparation(
+	value = process.env.SOUNDSCAPER_NATIVE_HARNESS_PREPARATION,
+) {
+	if (value === undefined || value === '') return false;
+	if (value === 'true') return true;
+	throw new TypeError('SOUNDSCAPER_NATIVE_HARNESS_PREPARATION must be true when supplied.');
 }
 
 export function resolveDesktopSourceRevision(

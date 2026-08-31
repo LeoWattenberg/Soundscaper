@@ -73,10 +73,6 @@ test('the actual OpenFX scanner child executes only the machine-authenticated an
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
 		qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
-		m9ReleaseReview: Object.freeze({
-			scope: 'stable-1.0-release', status: 'pending',
-			detail: 'Human acceptance is intentionally absent from this runtime test.',
-		}),
 	});
 	const authority = createIsolatedOpenFxNativeChildAuthority(descriptorValue);
 	assert.equal((await authority.machineReady()).status, 'ready');
@@ -102,13 +98,6 @@ test('the actual OpenFX scanner child executes only the machine-authenticated an
 		plugin: await pathGrant(plugin.path), pluginResources: [], pluginRuntime: [],
 		readOnly: [], writeOnly: [],
 	}).completion, /changed identity, bytes, or digest/iu);
-	const changedReleaseReview = createIsolatedOpenFxNativeChildAuthority({
-		...descriptorValue,
-		m9ReleaseReview: Object.freeze({
-			scope: 'stable-1.0-release', status: 'invalid', detail: 'fixture review failure',
-		}),
-	});
-	assert.equal((await changedReleaseReview.machineReady()).status, 'ready');
 });
 
 test('the isolated runtime admits the Interact invocation form without write authority', {
@@ -141,10 +130,6 @@ test('the isolated runtime admits the Interact invocation form without write aut
 		openfxVersion: '1.5.1', openfxCommit: 'ab77951', scanner, runtimeHost,
 		isolation: Object.freeze({ launcher, sandboxProfile, brokerPolicy, runtimeLibraries }),
 		qualifiedGpuBackends: Object.freeze(['opengl', 'opencl', 'cuda'] as const),
-		m9ReleaseReview: Object.freeze({
-			scope: 'stable-1.0-release', status: 'pending',
-			detail: 'Human acceptance is intentionally absent from this runtime test.',
-		}),
 	}));
 	const grantSha256 = digest(await readFile(grantPath));
 	const interactInvocation = {

@@ -15,7 +15,7 @@ import {
 } from '../scripts/lib/soundscaper-professional-native-notices.mjs';
 import {
 	soundscaperProfessionalNativeSourceIdsForTarget,
-} from '../scripts/lib/soundscaper-professional-native-candidate-contract.mjs';
+} from '../scripts/lib/soundscaper-professional-native-build-result-contract.mjs';
 
 const TARGETS = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'];
 

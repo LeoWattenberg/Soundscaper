@@ -27,7 +27,7 @@ test('checked-in native policy keeps payload-backed audio closed and exposes pla
 	}
 });
 
-test('activation requires the platform and every authenticated source, not human review state', () => {
+test('activation requires the platform and every authenticated source', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
 	activate(mutableLicensing.futureDistributionGates, 'native-audio', 'blocked');
@@ -39,7 +39,7 @@ test('activation requires the platform and every authenticated source, not human
 		licensing: mutableLicensing, sources: mutableSources, sourceAudit, platform: 'win32',
 	});
 	assert.equal(policy.audioBackend('asio'), true,
-		'Milestone 9 licensing and source-acceptance review cannot block test execution');
+		'licensing labels cannot replace authenticated source evidence');
 	sourceAudit.sources.find(({ id }) => id === 'asio-sdk').archiveEvidence.sha256 = '0'.repeat(64);
 	assert.equal(policy.audioBackend('asio'), false, 'runtime evidence must exactly match the pinned archive');
 	assert.equal(policy.audioBackend('pipewire'), false, 'a cleared backend stays OS-scoped');
@@ -52,7 +52,7 @@ test('fixture stays test-only even if its implemented evidence row exists', () =
 	assert.equal(policy.pluginFormat('fixture'), false);
 });
 
-test('third-party format visibility is platform-scoped and independent of release review', () => {
+test('third-party format visibility is platform-scoped', () => {
 	const mutableLicensing = structuredClone(licensing);
 	const mutableSources = structuredClone(sources);
 	activate(mutableLicensing.futureDistributionGates, 'native-plugins', 'enabled');
@@ -63,21 +63,13 @@ test('third-party format visibility is platform-scoped and independent of releas
 	const common = {
 		licensing: mutableLicensing, sources: mutableSources,
 		sourceAudit: authenticatedSourceAudit(mutableSources), platform: 'linux',
-		productionReadiness: {
-			status: 'pending-human-review',
-			evidence: {
-				osIsolationAttested: false,
-				hostilePluginDenialAttested: false,
-				realThirdPartyExecutionAttested: false,
-			},
-		},
 	};
 	assert.equal(createSoundscaperNativeActivationPolicy(common).pluginFormat('vst3'), true,
 		'the format surface is visible before a payload is selected');
 	assert.equal(createSoundscaperNativeActivationPolicy({
 		...common, pluginIsolationEnforced: true,
 	}).pluginFormat('vst3'), true,
-	'Milestone 9 release review does not change the test surface');
+	'the format surface remains available when isolation is enforced');
 	assert.equal(createSoundscaperNativeActivationPolicy({ ...common, platform: 'freebsd' })
 		.pluginFormat('vst3'), false, 'unsupported platforms remain machine-unavailable');
 });

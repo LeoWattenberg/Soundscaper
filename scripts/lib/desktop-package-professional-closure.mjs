@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * A built Soundscaper professional row stages its whole reviewed closure —
+ * A built Soundscaper professional row stages its whole verified closure —
  * plug-in peer, isolation launcher, sandbox profile, broker policy, and
  * runtime libraries — and the payload-manifest validator requires them, so a
  * package audit that admits only the payload rejects every genuine built
@@ -16,16 +16,16 @@ export function assertProfessionalNativeBuiltClosure({ professional, target, pre
 		return path.slice(sourcePrefix.length);
 	};
 	const isolation = professional.isolation;
-	if (!plainRecord(professional.buildCandidate) || !plainRecord(professional.pluginPeer)
+	if (!plainRecord(professional.buildResult) || !plainRecord(professional.pluginPeer)
 		|| !plainRecord(professional.deliveryFilesystem)
 		|| !plainRecord(isolation)
 		|| (target.startsWith('linux-') ? professional.osAudioCodec !== null
 			: !plainRecord(professional.osAudioCodec))
 		|| !Array.isArray(isolation.runtimeClosure)) {
-		throw new Error('A built professional native target requires its reviewed isolation closure.');
+		throw new Error('A built professional native target requires its verified isolation closure.');
 	}
 	for (const [label, artifact] of [
-		['build-candidate receipt', professional.buildCandidate],
+		['build-result receipt', professional.buildResult],
 		...(professional.osAudioCodec === null ? []
 			: [['operating-system audio codec addon', professional.osAudioCodec]]),
 		['plug-in peer', professional.pluginPeer],

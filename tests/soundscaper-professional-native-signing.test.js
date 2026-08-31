@@ -20,7 +20,7 @@ const LIBRARY_VALIDATION_KEY = 'com.apple.security.cs.disable-library-validation
 const PEER_REQUIREMENT = `=entitlement["${LIBRARY_VALIDATION_KEY}"] exists`;
 const NON_PEER_REQUIREMENT = `=! entitlement["${LIBRARY_VALIDATION_KEY}"] exists`;
 
-test('mac candidate signing covers runtime dependencies before every consumer and verifies each', async (context) => {
+test('mac ad-hoc sealing covers runtime dependencies before every consumer and verifies each', async (context) => {
 	const fixture = await signingFixture(context);
 	const plan = await createSoundscaperProfessionalNativeMacSigningPlan({
 		...fixture, target: 'mac-arm64', signingIdentity: '-',
@@ -121,36 +121,16 @@ test('mac candidate signing covers runtime dependencies before every consumer an
 	), /identity/iu);
 });
 
-test('production mac candidate signing uses hardened runtime and a timestamp without leaking identity', async (context) => {
+test('mac code sealing rejects every identity except ad-hoc', async (context) => {
 	const fixture = await signingFixture(context);
-	const identity = 'Developer ID Application: Soundscaper Release (ABC1234567)';
-	const plan = await createSoundscaperProfessionalNativeMacSigningPlan({
-		...fixture, target: 'mac-arm64', signingIdentity: identity,
-	});
-	assert.equal(plan.signing.mode, 'developer-id');
-	assert.equal(JSON.stringify(plan).includes(identity), false);
-	const calls = [];
-	await executeSoundscaperProfessionalNativeMacSigningPlan(plan, {
-		run(command, argv) {
-			calls.push({ command, argv });
-			return successfulCodesignResult(argv);
-		},
-	});
-	assert.deepEqual(calls[0].argv.slice(0, -1), [
-		'--force', '--timestamp', '--options', 'runtime', '--sign', identity,
-	]);
-	const peerSign = calls.find(({ argv }) => argv.includes('--sign')
-		&& argv.at(-1).endsWith('/soundscaper_professional_peer'));
-	assert.deepEqual(peerSign.argv.slice(0, -1), [
-		'--force', '--timestamp', '--options', 'runtime', '--entitlements',
-		plan.peerEntitlements.absolutePath, '--sign', identity,
-	]);
-	assert.throws(() => createSoundscaperProfessionalNativeMacSigningPlan({
-		...fixture, target: 'mac-arm64', signingIdentity: 'not-a-developer-id',
-	}), /Developer ID Application|signing identity/iu);
+	for (const signingIdentity of ['', 'identity', 'Apple Development']) {
+		assert.throws(() => createSoundscaperProfessionalNativeMacSigningPlan({
+			...fixture, target: 'mac-arm64', signingIdentity,
+		}), /only ad-hoc code sealing/iu);
+	}
 });
 
-test('mac candidate signing refuses failed verification', async (context) => {
+test('mac ad-hoc sealing refuses failed verification', async (context) => {
 	const fixture = await signingFixture(context);
 	const plan = await createSoundscaperProfessionalNativeMacSigningPlan({
 		...fixture, target: 'mac-arm64', signingIdentity: '-',
@@ -164,7 +144,7 @@ test('mac candidate signing refuses failed verification', async (context) => {
 	}), /signature verification failed/iu);
 });
 
-test('mac candidate signing proves the entitlement is peer-only', async (context) => {
+test('mac ad-hoc sealing proves the entitlement is peer-only', async (context) => {
 	const fixture = await signingFixture(context);
 	const plan = createSoundscaperProfessionalNativeMacSigningPlan({
 		...fixture, target: 'mac-arm64', signingIdentity: '-',

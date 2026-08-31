@@ -9,12 +9,11 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
-	ELECTRON_HEADERS_CI_ADMISSION,
+	ELECTRON_HEADERS_CI_SOURCE,
 	authenticateElectronHeadersTree,
 	canonicalMacosSdkRoot,
 	downloadPinnedElectronHeaders,
 	resolveOsAudioCodecHostCiTarget,
-	resolveOsAudioCodecHostSigningIdentity,
 	runOsAudioCodecHostCi,
 } from '../scripts/lib/os-audio-codec-host-ci.mjs';
 
@@ -22,8 +21,8 @@ const ROOT = resolve(import.meta.dirname, '..');
 const REDIRECT_URL =
 	'https://artifacts.electronjs.org/headers/dist/v43.1.1/node-v43.1.1-headers.tar.gz';
 
-test('CI admits only the exact Electron 43.1.1 archive and extracted tree', async (context) => {
-	assert.deepEqual(ELECTRON_HEADERS_CI_ADMISSION, {
+test('CI accepts only the exact Electron 43.1.1 archive and extracted tree', async (context) => {
+	assert.deepEqual(ELECTRON_HEADERS_CI_SOURCE, {
 		version: '43.1.1',
 		requestUrl: 'https://electronjs.org/headers/v43.1.1/node-v43.1.1-headers.tar.gz',
 		redirectUrl: REDIRECT_URL,
@@ -38,8 +37,8 @@ test('CI admits only the exact Electron 43.1.1 archive and extracted tree', asyn
 	});
 	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-codec-ci-auth-'));
 	context.after(() => rm(temporary, { recursive: true, force: true }));
-	const destination = join(temporary, ELECTRON_HEADERS_CI_ADMISSION.archive.fileName);
-	const wrong = Buffer.alloc(ELECTRON_HEADERS_CI_ADMISSION.archive.byteLength);
+	const destination = join(temporary, ELECTRON_HEADERS_CI_SOURCE.archive.fileName);
+	const wrong = Buffer.alloc(ELECTRON_HEADERS_CI_SOURCE.archive.byteLength);
 	await assert.rejects(downloadPinnedElectronHeaders({
 		destination,
 		fetchImpl: async () => response(wrong, { url: 'https://electronjs.org/unreviewed-redirect' }),
@@ -73,14 +72,6 @@ test('CI target resolution is target-native and excludes Linux and macOS x64', (
 		{ desktopPlatform: 'linux', desktopArch: 'arm64', runnerOs: 'Linux', runnerArch: 'ARM64' },
 		{ desktopPlatform: 'win', desktopArch: 'arm64', runnerOs: 'Windows', runnerArch: 'X64' },
 	]) assert.throws(() => resolveOsAudioCodecHostCiTarget(candidate), /target-native/iu);
-	assert.equal(resolveOsAudioCodecHostSigningIdentity(), '-');
-	assert.equal(resolveOsAudioCodecHostSigningIdentity(
-		'Developer ID Application: Soundscaper Audio (ABC123)',
-	), 'Developer ID Application: Soundscaper Audio (ABC123)');
-	for (const identity of [
-		'', 'Soundscaper Audio', 'Developer ID Application: ',
-		'Developer ID Application: Soundscaper\nAudio', `Developer ID Application: ${'x'.repeat(260)}`,
-	]) assert.throws(() => resolveOsAudioCodecHostSigningIdentity(identity), /identity/iu);
 });
 
 test('CI orchestration keeps all inputs and outputs in RUNNER_TEMP and publishes only a verified result', async (context) => {
@@ -160,7 +151,7 @@ test('macOS CI binds the canonical SDK and ad-hoc signing before publishing the 
 	});
 	assert.ok(buildArguments);
 	assert.equal(buildArguments.includes(`--macos-sdk=${sdkPath}`), true);
-	assert.equal(buildArguments.includes('--signing-identity=-'), true);
+	assert.equal(buildArguments.some((value) => value.startsWith('--signing-identity=')), false);
 	assert.equal(String(await readFile(githubEnvironmentPath)).includes(
 		'SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE=true\n',
 	), true);
@@ -208,8 +199,7 @@ test('all OS-capable package paths build the codec host while Linux receives no 
 	assert.match(leaseJob,
 		/if: matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
 	assert.doesNotMatch(workflow, /mac-x64|SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT:\s*[^$\n]/u);
-	assert.match(ciEntry, /process\.env\.SOUNDSCAPER_MAC_SIGNING_IDENTITY/u);
-	assert.doesNotMatch(ciEntry, /console[^\n]*SIGNING_IDENTITY|JSON\.stringify[^\n]*SIGNING_IDENTITY/u);
+	assert.doesNotMatch(ciEntry, /SIGNING_IDENTITY|certificate|notari/iu);
 });
 
 test('pull-request quality compiles every supported Windows and macOS native target', async () => {

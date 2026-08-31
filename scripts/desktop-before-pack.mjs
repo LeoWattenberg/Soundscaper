@@ -71,7 +71,7 @@ export async function verifyStagedOsAudioCodecNativeBeforePack({
 		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
 		repositoryRoot: policyRepositoryRoot,
 		...(packagedTarget === 'mac-arm64' ? {
-			signingIdentity: process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY ?? '-',
+			signingIdentity: '-',
 		} : {}),
 		productId: stage.productId,
 		target: packagedTarget,

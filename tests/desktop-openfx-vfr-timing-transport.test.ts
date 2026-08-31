@@ -38,7 +38,6 @@ import {
 	framescaperOpenFxExecutionRequestV1,
 } from '../desktop/openfx-main-execution-request.ts';
 import { openFxHelperTransferredPortCount } from '../desktop/openfx-helper-worker.ts';
-import { openFxProductionReadinessFixture } from './helpers/openfx-production-readiness-fixture.ts';
 import {
 	createUnifiedExactOfxHostAttemptV1,
 	type OfxUnifiedHostAttemptResourcesV1,
@@ -266,10 +265,6 @@ test('the OpenFX helper receives SCTI ports and emits only staged native timing 
 			launcher: scanner, sandboxProfile: scanner, brokerPolicy: scanner, runtimeLibraries: [],
 		},
 		qualifiedGpuBackends: ['opengl', 'opencl', 'cuda'],
-		m9ReleaseReview: {
-			scope: 'stable-1.0-release', status: 'complete',
-			evidence: openFxProductionReadinessFixture(scanner.sha256, runtimeHost.sha256),
-		},
 	};
 	let nativeTiming: unknown = null;
 	const runner = createOpenFxHelperJobRunner({

@@ -12,17 +12,11 @@ import {
 	FRAMESCAPER_MEDIA_HOST_ROOT,
 	FRAMESCAPER_MEDIA_HOST_TARGETS,
 	canonicalJson,
-} from './framescaper-media-host-build.mjs';
-import {
-	framescaperMediaM9ReleaseReviewStageSummary,
-	framescaperMediaProductionReadinessStageSummary,
 	verifyFramescaperMediaHostPayloadRelease,
-} from './framescaper-media-host-readiness.mjs';
+} from './framescaper-media-host-build.mjs';
 import {
 	FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST,
 	FRAMESCAPER_OPENFX_HOST_ROOT,
-	framescaperOpenFxM9ReleaseReviewStageSummary,
-	framescaperOpenFxProductionReadinessStageSummary,
 	verifyFramescaperOpenFxPayloadRelease,
 } from './framescaper-openfx-host-build.mjs';
 
@@ -92,15 +86,11 @@ export async function stageVerifiedFramescaperNativeHostPayloads({ release, outp
 		destination: resolve(root, MEDIA_RUNTIME_PREFIX, release.target),
 		label: 'Framescaper media-host payload output',
 		payloads: snapshot.mediaHost,
-		reviewPolicy: snapshot.mediaReviewPolicy,
-		productionReadiness: snapshot.mediaProductionReadiness,
 	});
 	await stageHost({
 		destination: resolve(root, OPENFX_RUNTIME_PREFIX, release.target),
 		label: 'Framescaper OpenFX-host payload output',
 		payloads: snapshot.openFxHost,
-		reviewPolicy: snapshot.openFxReviewPolicy,
-		productionReadiness: snapshot.openFxProductionReadiness,
 	});
 	return framescaperNativeHostPayloadStageSummary(release);
 }
@@ -119,16 +109,12 @@ export async function verifyStagedFramescaperNativeHostPayloads({
 		directory: resolve(root, MEDIA_RUNTIME_PREFIX, release.target),
 		label: 'staged Framescaper media-host payload',
 		payloads: release.mediaHost.payloads,
-		reviewPolicy: release.mediaHost.reviewPolicy,
-		productionReadiness: release.mediaHost.productionReadiness,
 	});
 	await verifyStagedHost({
 		prefix: resolve(root, OPENFX_RUNTIME_PREFIX),
 		directory: resolve(root, OPENFX_RUNTIME_PREFIX, release.target),
 		label: 'staged Framescaper OpenFX-host payload',
 		payloads: release.openFxHost.payloads,
-		reviewPolicy: release.openFxHost.reviewPolicy,
-		productionReadiness: release.openFxHost.productionReadiness,
 	});
 	if (stageManifestPath !== null) {
 		const bytes = await readAbsoluteRegularFile(stageManifestPath, 'desktop stage manifest');
@@ -167,15 +153,8 @@ async function snapshotMediaHost(root, release, manifestBytes, targetId) {
 			)),
 		])
 		: [];
-	const productionReadiness = framescaperMediaProductionReadinessStageSummary(release, targetId);
-	const readinessRecord = release.productionReadiness[targetId];
 	return freezeHost({
 		manifest, manifestBytes, target, payloads,
-		reviewPolicy: target.status === 'built' ? release.reviewPolicy : null,
-		m9ReleaseReview: framescaperMediaM9ReleaseReviewStageSummary(release, targetId),
-		productionReadiness: productionReadiness === null ? null : {
-			...productionReadiness, bytes: readinessRecord.evidenceBytes,
-		},
 	});
 }
 
@@ -195,19 +174,11 @@ async function snapshotOpenFxHost(root, release, manifestBytes, targetId) {
 			)),
 		])
 		: [];
-	const productionReadiness = framescaperOpenFxProductionReadinessStageSummary(release, targetId);
-	const readinessRecord = release.productionReadiness[targetId];
 	return freezeHost({
 		manifest,
 		manifestBytes,
 		target,
 		payloads,
-		reviewPolicy: target.status === 'built' ? release.reviewPolicy : null,
-		m9ReleaseReview: framescaperOpenFxM9ReleaseReviewStageSummary(release, targetId),
-		productionReadiness: productionReadiness === null ? null : {
-			...productionReadiness,
-			bytes: readinessRecord.evidenceBytes,
-		},
 	});
 }
 
@@ -276,9 +247,6 @@ function freezeHost({
 	manifestBytes,
 	target,
 	payloads,
-	reviewPolicy = undefined,
-	m9ReleaseReview = undefined,
-	productionReadiness = undefined,
 }) {
 	const host = Object.freeze({
 		manifest,
@@ -286,9 +254,6 @@ function freezeHost({
 		manifestSha256: sha256(manifestBytes),
 		target,
 		payloads: Object.freeze(payloads),
-		...(reviewPolicy === undefined ? {} : { reviewPolicy }),
-		...(m9ReleaseReview === undefined ? {} : { m9ReleaseReview }),
-		...(productionReadiness === undefined ? {} : { productionReadiness }),
 	});
 	return host;
 }
@@ -301,19 +266,6 @@ function hostSummary(host) {
 		payloads: host.payloads.map(({ name, byteLength, sha256: digest }) => ({
 			name, byteLength, sha256: digest,
 		})),
-		...(Object.hasOwn(host, 'reviewPolicy') ? {
-			reviewPolicy: host.reviewPolicy === null ? null : {
-				name: host.reviewPolicy.name,
-				byteLength: host.reviewPolicy.byteLength,
-				sha256: host.reviewPolicy.sha256,
-			},
-			m9ReleaseReview: structuredClone(host.m9ReleaseReview),
-			productionReadiness: host.productionReadiness === null ? null : {
-				reference: structuredClone(host.productionReadiness.reference),
-				evidence: structuredClone(host.productionReadiness.evidence),
-				verified: structuredClone(host.productionReadiness.verified),
-			},
-		} : {}),
 	};
 }
 
@@ -321,23 +273,7 @@ function snapshotRelease(release) {
 	verifyBufferedRelease(release);
 	return {
 		mediaHost: release.mediaHost.payloads.map((payload) => ({ ...payload, bytes: Buffer.from(payload.bytes) })),
-		mediaReviewPolicy: release.mediaHost.reviewPolicy === null ? null : {
-			...release.mediaHost.reviewPolicy,
-			bytes: Buffer.from(release.mediaHost.reviewPolicy.bytes),
-		},
-		mediaProductionReadiness: release.mediaHost.productionReadiness === null ? null : {
-			...release.mediaHost.productionReadiness,
-			bytes: Buffer.from(release.mediaHost.productionReadiness.bytes),
-		},
 		openFxHost: release.openFxHost.payloads.map((payload) => ({ ...payload, bytes: Buffer.from(payload.bytes) })),
-		openFxReviewPolicy: release.openFxHost.reviewPolicy === null ? null : {
-			...release.openFxHost.reviewPolicy,
-			bytes: Buffer.from(release.openFxHost.reviewPolicy.bytes),
-		},
-		openFxProductionReadiness: release.openFxHost.productionReadiness === null ? null : {
-			...release.openFxHost.productionReadiness,
-			bytes: Buffer.from(release.openFxHost.productionReadiness.bytes),
-		},
 	};
 }
 
@@ -351,26 +287,6 @@ function verifyBufferedRelease(release) {
 		`Buffered Framescaper ${label} manifest disagrees with the verified policy.`);
 		for (const payload of host.payloads) verifyBytes(payload.bytes, payload, `buffered Framescaper ${label}`);
 	}
-	if (release.openFxHost.reviewPolicy !== null) verifyBytes(
-		release.openFxHost.reviewPolicy.bytes,
-		release.openFxHost.reviewPolicy,
-		'buffered Framescaper OpenFX review policy',
-	);
-	if (release.mediaHost.reviewPolicy !== null) verifyBytes(
-		release.mediaHost.reviewPolicy.bytes,
-		release.mediaHost.reviewPolicy,
-		'buffered Framescaper media-host review policy',
-	);
-	if (release.mediaHost.productionReadiness !== null) verifyBytes(
-		release.mediaHost.productionReadiness.bytes,
-		release.mediaHost.productionReadiness.evidence,
-		'buffered Framescaper media-host production-readiness evidence',
-	);
-	if (release.openFxHost.productionReadiness !== null) verifyBytes(
-		release.openFxHost.productionReadiness.bytes,
-		release.openFxHost.productionReadiness.evidence,
-		'buffered Framescaper OpenFX production-readiness evidence',
-	);
 	return release;
 }
 
@@ -378,23 +294,11 @@ async function stageHost({
 	destination,
 	label,
 	payloads,
-	reviewPolicy = null,
-	productionReadiness = null,
 }) {
 	if (payloads.length === 0) return;
 	await renameIntoPlaceExclusively(destination, label, async (temporary) => {
 		for (const payload of payloads) {
 			await writeFile(resolve(temporary, payload.name), payload.bytes, { flag: 'wx', mode: 0o755 });
-		}
-		if (reviewPolicy !== null) {
-			await writeFile(resolve(temporary, reviewPolicy.name), reviewPolicy.bytes, { flag: 'wx' });
-		}
-		if (productionReadiness !== null) {
-			await writeFile(
-				resolve(temporary, productionReadiness.evidence.name),
-				productionReadiness.bytes,
-				{ flag: 'wx' },
-			);
 		}
 		return temporary;
 	});
@@ -405,8 +309,6 @@ async function verifyStagedHost({
 	directory,
 	label,
 	payloads,
-	reviewPolicy = null,
-	productionReadiness = null,
 }) {
 	if (payloads.length === 0) {
 		await assertPathMissing(prefix, label);
@@ -418,20 +320,13 @@ async function verifyStagedHost({
 	`${label} target inventory mismatch: ${targetEntries.map(({ name }) => name).join(', ') || '<empty>'}.`);
 	const entries = await readdir(directory, { withFileTypes: true });
 	const actual = entries.map(({ name }) => name).sort();
-	const expected = [
-		...payloads.map(({ name }) => name),
-		...(reviewPolicy === null ? [] : [reviewPolicy.name]),
-		...(productionReadiness === null ? [] : [productionReadiness.evidence.name]),
-	].sort();
+	const expected = payloads.map(({ name }) => name).sort();
 	assert(canonicalJson(actual) === canonicalJson(expected),
 		`${label} inventory mismatch: ${actual.join(', ') || '<empty>'}.`);
 	for (const entry of entries) {
 		assert(entry.isFile() && !entry.isSymbolicLink(), `${label} entry is not a regular file: ${entry.name}.`);
 		const bytes = await readAbsoluteRegularFile(resolve(directory, entry.name), `${label} ${entry.name}`);
-		const descriptor = payloads.find(({ name }) => name === entry.name)
-			?? (entry.name === reviewPolicy?.name ? reviewPolicy : null)
-			?? (entry.name === productionReadiness?.evidence?.name
-				? productionReadiness.evidence : null);
+		const descriptor = payloads.find(({ name }) => name === entry.name) ?? null;
 		assert(descriptor !== null, `${label} ${entry.name} has no authenticated descriptor.`);
 		verifyBytes(bytes, descriptor, `${label} ${entry.name}`);
 	}

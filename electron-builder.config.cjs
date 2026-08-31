@@ -9,18 +9,13 @@ const productName = framescaper ? 'Framescaper' : 'Soundscaper';
 const soundscaperStable = !framescaper
 	&& productReleaseLines.products.soundscaper.applicationVersionChannel === 'stable'
 	&& productReleaseLines.products.soundscaper.releaseChannel === 'stable';
-// The signing chain is enacted but identity-gated: with no acquired signing
-// identity (the named milestone-5 blocker), macOS stays ad-hoc-signed with the
-// hardened runtime off and Windows/Linux stay unsigned via the CI-wide
-// CSC_IDENTITY_AUTO_DISCOVERY=false. Providing SOUNDSCAPER_MAC_SIGNING_IDENTITY
-// (and Apple notarization credentials for SOUNDSCAPER_MAC_NOTARIZE=true) turns
-// the real chain on without any further configuration change.
-const macSigningIdentity = process.env.SOUNDSCAPER_MAC_SIGNING_IDENTITY || '-';
-const macSigned = macSigningIdentity !== '-';
+// macOS packages are ad-hoc code sealed solely so Electron and embedded native
+// binaries execute. No identity, secret, or trust claim is involved.
+const macSigningIdentity = '-';
 const macEntitlements = framescaper
 	? 'desktop/framescaper-entitlements.mac.plist'
 	: 'desktop/soundscaper-entitlements.mac.plist';
-// These Mach-O payloads already carry signatures when their exact digests
+// These Mach-O payloads already carry ad-hoc code seals when their exact digests
 // enter the stage manifest. Re-signing them here would change authenticated
 // runtime bytes and make both package and runtime verification reject them.
 const macAssistancePackage = assistanceNativeRuntimeManifest.targets['mac-arm64'].package;
@@ -47,7 +42,7 @@ module.exports = {
 	compression: 'maximum',
 	asar: true,
 	// Stock Electron enables proprietary codecs in its Chromium FFmpeg library.
-	// Replace it with Electron's matching alternate release asset before signing;
+	// Replace it with Electron's matching alternate release asset before code sealing;
 	// this framework library is not a Soundscaper codec-provider tier.
 	downloadAlternateFFmpeg: true,
 	npmRebuild: false,
@@ -119,11 +114,10 @@ module.exports = {
 	mac: {
 		icon: '.desktop-build/icons/icon.png',
 		identity: macSigningIdentity,
-		hardenedRuntime: macSigned,
+		hardenedRuntime: true,
 		entitlements: macEntitlements,
 		entitlementsInherit: macEntitlements,
 		signIgnore: macPreAuthenticatedRuntimePayload,
-		notarize: macSigned && process.env.SOUNDSCAPER_MAC_NOTARIZE === 'true',
 		gatekeeperAssess: false,
 		category: framescaper ? 'public.app-category.video' : 'public.app-category.music',
 		target: ['dmg'],

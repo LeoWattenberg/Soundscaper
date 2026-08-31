@@ -34,7 +34,7 @@ const SOURCE_EXCLUSIONS = new Set(['source-manifest.json']);
 const SHA256 = /^[a-f\d]{64}$/u;
 const TARGET_FIELDS = Object.freeze([
 	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'payload',
-	'isolationPayload', 'productionReadiness',
+	'isolationPayload',
 ]);
 
 export function readFramescaperMediaHostSourceManifest(repositoryRoot) {
@@ -138,7 +138,7 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 		if (record.runtime !== target.runtime) findings.push(`${target.id}: runtime identity mismatch.`);
 		if (record.status === 'pending-external') {
 			if (record.payload !== null || record.toolchainIdentity !== null
-				|| record.isolationPayload !== null || record.productionReadiness !== null) {
+				|| record.isolationPayload !== null) {
 				findings.push(`${target.id}: pending-external targets cannot carry payload claims.`);
 			}
 			if (typeof record.blockedBy !== 'string' || record.blockedBy.length < 16) {
@@ -313,8 +313,6 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 				blockedBy: null,
 				payload: { ...record.payload },
 				isolationPayload: cloneIsolationPayload(record.isolationPayload),
-				productionReadiness: record.productionReadiness === null
-					? null : { ...record.productionReadiness },
 			}
 			: {
 				id: target.id,
@@ -323,7 +321,6 @@ export function deriveFramescaperMediaHostPayloadManifest(sourceManifest) {
 				blockedBy: record.blockedBy,
 				payload: null,
 				isolationPayload: null,
-				productionReadiness: null,
 			};
 	});
 	return {
@@ -357,6 +354,10 @@ export function verifyFramescaperMediaHostPayloadManifest({ repositoryRoot }) {
 		}
 	}
 	return Object.freeze({ source: audited.manifest, payload });
+}
+
+export async function verifyFramescaperMediaHostPayloadRelease({ repositoryRoot }) {
+	return verifyFramescaperMediaHostPayloadManifest({ repositoryRoot });
 }
 
 export function framescaperMediaHostTargetForRuntime(platform, architecture) {

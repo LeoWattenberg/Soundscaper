@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Authenticated one-shot build/install/self-test/candidate command for one target. */
+/** One-shot build, install, self-test, and verified result command for one target. */
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -11,9 +11,9 @@ import { dirname, resolve } from 'node:path';
 
 import { normalizeAbsoluteCliPath } from './lib/absolute-cli-path.mjs';
 import {
-	createSoundscaperProfessionalNativeCandidatePipelinePlan,
-	executeSoundscaperProfessionalNativeCandidatePipeline,
-} from './lib/soundscaper-professional-native-candidate-pipeline.mjs';
+	createSoundscaperProfessionalNativeBuildResultPipelinePlan,
+	executeSoundscaperProfessionalNativeBuildResultPipeline,
+} from './lib/soundscaper-professional-native-build-result-pipeline.mjs';
 import {
 	createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 } from './lib/soundscaper-professional-native-self-test-plan.mjs';
@@ -30,15 +30,15 @@ import {
 } from './lib/milestone-5-native-source-acquisitions.mjs';
 import {
 	soundscaperProfessionalNativeSourceIdsForTarget,
-} from './lib/soundscaper-professional-native-candidate-contract.mjs';
+} from './lib/soundscaper-professional-native-build-result-contract.mjs';
 
 const allowed = new Set([
-	'candidate', 'macos-sdk', 'packaged-app', 'root', 'runtime-root',
-	'runner-arch', 'runner-os', 'signing-identity', 'sources', 'target', 'work-root',
+	'macos-sdk', 'output', 'packaged-app', 'root', 'runtime-root',
+	'runner-arch', 'runner-os', 'sources', 'target', 'work-root',
 ]);
 const args = parseArguments(process.argv.slice(2));
 for (const name of [
-	'candidate', 'packaged-app', 'runner-arch', 'runner-os', 'sources', 'target', 'work-root',
+	'output', 'packaged-app', 'runner-arch', 'runner-os', 'sources', 'target', 'work-root',
 ]) {
 	if (!args[name]) throw new TypeError(`--${name}=... is required.`);
 }
@@ -48,18 +48,15 @@ const sourceIds = soundscaperProfessionalNativeSourceIdsForTarget(target);
 resolveSoundscaperProfessionalNativeRunnerTarget({
 	target, runnerOs: args['runner-os'], runnerArch: args['runner-arch'],
 });
-if (target === 'mac-arm64' && (!args['macos-sdk'] || !args['signing-identity'])) {
-	throw new TypeError('mac-arm64 requires --macos-sdk and --signing-identity.');
-}
-if (!target.startsWith('mac-') && args['signing-identity'] !== undefined) {
-	throw new TypeError('Only mac-arm64 accepts --signing-identity.');
+if (target === 'mac-arm64' && !args['macos-sdk']) {
+	throw new TypeError('mac-arm64 requires --macos-sdk.');
 }
 const macosSdkPath = args['macos-sdk']
 	? canonicalSoundscaperProfessionalNativeMacosSdkPath(resolve(args['macos-sdk'])) : null;
 const sourcesRoot = canonicalDirectory(resolve(args.sources), 'native source cache');
 const workRoot = exclusiveDirectory(absolutePath(args['work-root'], 'work root'));
-const candidateRoot = absentPath(args.candidate, 'candidate root');
-canonicalDirectory(dirname(candidateRoot), 'candidate parent');
+const buildResultRoot = absentPath(args.output, 'build-result root');
+canonicalDirectory(dirname(buildResultRoot), 'build-result parent');
 const register = readMilestone5NativeSourceAcquisitions(repositoryRoot);
 const sourceRoots = Object.fromEntries(sourceIds.map((id) =>
 	[id, canonicalDirectory(resolve(sourcesRoot, id, 'source'), `${id} source root`)]));
@@ -88,7 +85,7 @@ if (!target.startsWith('linux-')) {
 		installRoot: resolve(workRoot, 'os-codec-install'),
 		...(macosSdkPath === null ? {} : {
 			macosSdkPath,
-			signingIdentity: args['signing-identity'],
+			signingIdentity: '-',
 		}),
 	});
 }
@@ -99,7 +96,7 @@ const revision = spawnSync('git', ['rev-parse', 'HEAD'], {
 	cwd: repositoryRoot, encoding: 'utf8', shell: false,
 });
 if (revision.status !== 0 || !/^(?:[a-f\d]{40}|[a-f\d]{64})\s*$/u.test(revision.stdout)) {
-	throw new Error('The candidate source revision could not be resolved.');
+	throw new Error('The build-result source revision could not be resolved.');
 }
 const selfTestPlan = createAuthenticatedSoundscaperProfessionalNativeSelfTestPlan({
 	repositoryRoot,
@@ -110,19 +107,18 @@ const selfTestPlan = createAuthenticatedSoundscaperProfessionalNativeSelfTestPla
 	runtimeRoot,
 	packagedAppRoot: canonicalDirectory(resolve(args['packaged-app']), 'packaged Electron app root'),
 });
-const plan = createSoundscaperProfessionalNativeCandidatePipelinePlan({
-	target, repositoryRoot, candidateRoot, runtimeRoot,
+const plan = createSoundscaperProfessionalNativeBuildResultPipelinePlan({
+	target, repositoryRoot, buildResultRoot, runtimeRoot,
 	professionalBuildPlan, osAudioCodecBuildPlan,
 	isolationBuildRoot: resolve(workRoot, 'isolation-build'),
 	isolationInstallRoot: resolve(workRoot, 'isolation-install'),
 	selfTestPlan,
 	sourceRevision: revision.stdout.trim(),
-	...(target === 'mac-arm64' ? { signingIdentity: args['signing-identity'] } : {}),
 });
-const candidate = await executeSoundscaperProfessionalNativeCandidatePipeline(plan);
+const result = await executeSoundscaperProfessionalNativeBuildResultPipeline(plan);
 process.stdout.write(`${JSON.stringify({
-	status: 'candidate-created', target, candidateRoot: candidate.candidateRoot,
-	buildPlanSha256: candidate.receipt.buildPlanSha256,
+	status: 'build-result-created', target, outputRoot: result.buildResultRoot,
+	buildPlanSha256: result.receipt.buildPlanSha256,
 }, null, '\t')}\n`);
 
 function parseArguments(values) {
