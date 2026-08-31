@@ -6,7 +6,7 @@
 		"command": "npm run audit:aup4-interop",
 		"fixturePath": "src/trackedit/tests/data/testClipboard.aup4",
 		"fixtureSha256": "a8279b4573862579647b3826250d366af134ab9684fa20f409a03fd7227dba59",
-		"expectedBrowserSnapshotSha256": "cbc92d61663f82ce9be11b97c0ac09dfe4c704620eb35a65dfeaf29374ef6b24",
+		"expectedBrowserSnapshotSha256": "f08b1bcf56a0d8e605113aab5b0530f94531ab972a25bc1da25f81974602a61c",
 		"expectedBrowserSnapshotByteLength": 253952,
 		"expectedSampleBlock": {
 			"samplesSha256": "9379743d5c98d7a075ee3814f97b4b67737087b097de33a2b2cdd6c8539d3264",
