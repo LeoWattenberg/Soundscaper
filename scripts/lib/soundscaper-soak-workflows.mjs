@@ -20,6 +20,7 @@ export function createSoundscaperSoakWorkflowDriver({ page, target, outputDirect
 
 	async function execute(operationId, options = {}) {
 		const variant = Number.isSafeInteger(options.variant) && options.variant >= 0 ? options.variant : 0;
+		const signal = abortSignal(options.signal);
 		const operations = {
 			'media-import': () => importTone(activePage, variant),
 			'edit-history': () => editUndoRedo(activePage),
@@ -40,7 +41,7 @@ export function createSoundscaperSoakWorkflowDriver({ page, target, outputDirect
 		};
 		const operation = operations[operationId];
 		if (!operation) throw new RangeError(`Unsupported soak-debug operation ${String(operationId)}.`);
-		return operation();
+		return abortableOperation(operation, signal);
 	}
 
 	async function restartPage(options = {}) {
@@ -54,6 +55,40 @@ export function createSoundscaperSoakWorkflowDriver({ page, target, outputDirect
 		activePage = await restartRuntime(options);
 		return activePage;
 	}
+}
+
+function abortSignal(value) {
+	if (value == null) return null;
+	if (typeof value !== 'object' || typeof value.aborted !== 'boolean'
+		|| typeof value.addEventListener !== 'function' || typeof value.removeEventListener !== 'function') {
+		throw new TypeError('A soak-debug operation signal must be an AbortSignal.');
+	}
+	return value;
+}
+
+function abortableOperation(operation, signal) {
+	if (!signal) return operation();
+	if (signal.aborted) return Promise.reject(abortReason(signal));
+	return new Promise((resolvePromise, reject) => {
+		let settled = false;
+		const finish = (callback, value) => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', abort);
+			callback(value);
+		};
+		const abort = () => finish(reject, abortReason(signal));
+		signal.addEventListener('abort', abort, { once: true });
+		Promise.resolve().then(operation).then(
+			(value) => finish(resolvePromise, value),
+			(error) => finish(reject, error),
+		);
+	});
+}
+
+function abortReason(signal) {
+	return signal.reason instanceof Error
+		? signal.reason : new Error('The soak-debug operation was aborted.');
 }
 
 async function importTone(page, variant) {

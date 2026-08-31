@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { mkdir } from 'node:fs/promises';
+import { access, mkdir } from 'node:fs/promises';
 import { basename, extname, isAbsolute, join, resolve } from 'node:path';
 
 import { SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
@@ -30,10 +30,9 @@ export function createSoakDebugDialog(delegate, argv) {
 			if (property === 'showSaveDialog') return async (...args) => {
 				const options = dialogOptions(args);
 				await mkdir(outputRoot, { recursive: true });
-				saveSequence += 1;
 				return {
 					canceled: false,
-					filePath: join(outputRoot, sequencedName(options.defaultPath, saveSequence)),
+					filePath: await nextUnusedSavePath(outputRoot, options.defaultPath),
 				};
 			};
 			if (property === 'showOpenDialog') return async (...args) => {
@@ -51,6 +50,19 @@ export function createSoakDebugDialog(delegate, argv) {
 			return typeof value === 'function' ? value.bind(target) : value;
 		},
 	});
+
+	async function nextUnusedSavePath(root, defaultPath) {
+		for (;;) {
+			saveSequence += 1;
+			const candidate = join(root, sequencedName(defaultPath, saveSequence));
+			try {
+				await access(candidate);
+			} catch (error) {
+				if (error?.code === 'ENOENT') return candidate;
+				throw error;
+			}
+		}
+	}
 }
 
 function boundDialog(delegate) {

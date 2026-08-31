@@ -41,17 +41,21 @@ async function openBrowserSession(options) {
 		browser = await chromium.launch({ headless: true, args: ['--enable-gpu'] });
 		const context = await browser.newContext({ acceptDownloads: true, serviceWorkers: 'block' });
 		await prepareSoundscaperSoakContext(context);
-		const page = await context.newPage();
-		await page.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
+		await context.route(`${TRANSLATIONS_ROOT}/**`, (route) => route.fulfill({
 			status: 200,
 			contentType: 'application/json',
 			headers: { 'Access-Control-Allow-Origin': '*' },
 			body: JSON.stringify({ schemaVersion: 1, locales: {} }),
 		}));
-		await page.goto(`http://127.0.0.1:${String(port)}/embed/en/`);
-		await waitForEditor(page);
+		const editorUrl = `http://127.0.0.1:${String(port)}/embed/en/`;
+		let page = await openBrowserPage(context, editorUrl);
 		return await createSoundscaperSoakPageSession({
 			...options, page, context, target: 'browser',
+			restartRuntime: async () => {
+				await page.close({ runBeforeUnload: false }).catch(() => undefined);
+				page = await openBrowserPage(context, editorUrl);
+				return { page, context };
+			},
 			closeRuntime: async () => {
 				await browser.close();
 				await server.close();
@@ -177,6 +181,7 @@ export async function createSoundscaperSoakPageSession({
 	let activeContext = context;
 	let cdp = null;
 	let workflows = null;
+	let restartInFlight = null;
 	const observedPages = new WeakSet();
 	await bindRuntime(page, context);
 	return Object.freeze({ sample, execute, captureFailure, reset, close });
@@ -219,9 +224,12 @@ export async function createSoundscaperSoakPageSession({
 		return activePage.screenshot({ type: 'png', animations: 'disabled' });
 	}
 
-	async function reset() {
+	async function reset({ signal } = {}) {
 		assertHealthy();
+		throwIfAborted(signal);
+		if (restartInFlight) await restartInFlight.catch(() => undefined);
 		await restartForWorkflow({ abrupt: true });
+		throwIfAborted(signal);
 	}
 
 	async function close(options) {
@@ -278,25 +286,40 @@ export async function createSoundscaperSoakPageSession({
 		});
 	}
 
-	async function restartForWorkflow(options = {}) {
-		restarting = true;
-		try {
-			await cdp?.detach().catch(() => undefined);
-			const replacement = typeof restartRuntime === 'function'
-				? await restartRuntime(options)
-				: await reloadBrowserRuntime(activePage, activeContext);
-			await bindRuntime(replacement.page, replacement.context);
-			return activePage;
-		} finally {
-			restarting = false;
-		}
+	function restartForWorkflow(options = {}) {
+		if (restartInFlight) return restartInFlight;
+		restartInFlight = (async () => {
+			restarting = true;
+			try {
+				await cdp?.detach().catch(() => undefined);
+				const replacement = typeof restartRuntime === 'function'
+					? await restartRuntime(options)
+					: await replaceBrowserRuntime(activePage, activeContext);
+				await bindRuntime(replacement.page, replacement.context);
+				return activePage;
+			} finally {
+				restarting = false;
+			}
+		})();
+		const pending = restartInFlight;
+		void pending.finally(() => {
+			if (restartInFlight === pending) restartInFlight = null;
+		}).catch(() => undefined);
+		return pending;
 	}
 }
 
-async function reloadBrowserRuntime(page, context) {
-	await page.reload({ waitUntil: 'domcontentloaded' });
+async function replaceBrowserRuntime(page, context) {
+	const url = page.url();
+	await page.close({ runBeforeUnload: false }).catch(() => undefined);
+	return { page: await openBrowserPage(context, url), context };
+}
+
+async function openBrowserPage(context, url) {
+	const page = await context.newPage();
+	await page.goto(url, { waitUntil: 'domcontentloaded' });
 	await waitForEditor(page);
-	return { page, context };
+	return page;
 }
 
 export async function prepareSoundscaperSoakContext(context) {
@@ -471,4 +494,9 @@ function bootstrapError(message, cause) {
 	const error = new Error(message, cause === undefined ? undefined : { cause });
 	error.code = 'SOAK_BOOTSTRAP';
 	return error;
+}
+
+function throwIfAborted(signal) {
+	if (signal?.aborted) throw signal.reason instanceof Error
+		? signal.reason : new Error('The soak-debug operation was aborted.');
 }

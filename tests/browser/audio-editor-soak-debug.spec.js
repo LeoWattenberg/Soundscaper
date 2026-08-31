@@ -65,6 +65,37 @@ test.describe('Soundscaper soak-debug UI driver', () => {
 			await session.close({ failed: false });
 		}
 	});
+
+	test('aborts old UI work and resets onto a fresh page before continuing', async ({
+		browserName, context, page,
+	}, testInfo) => {
+		test.skip(browserName !== 'chromium', 'The soak debugger uses the Chromium DevTools protocol.');
+		test.setTimeout(120_000);
+		await prepareSoundscaperSoakContext(context);
+		await bootEditor(page, '/embed/en/');
+		const session = await createSoundscaperSoakPageSession({
+			page,
+			context,
+			target: 'browser',
+			outputDirectory: testInfo.outputPath('soak-cancellation-output'),
+			onRuntimeEvent: async () => undefined,
+			closeRuntime: async () => undefined,
+		});
+		try {
+			const operationAbort = new AbortController();
+			const pending = session.execute('media-import', {
+				variant: 41,
+				signal: operationAbort.signal,
+			});
+			operationAbort.abort(new Error('test operation timed out'));
+			await expect(pending).rejects.toThrow('test operation timed out');
+			await session.reset({ reason: 'operation-timeout' });
+			expect(page.isClosed()).toBe(true);
+			await session.execute('media-import', { variant: 42 });
+		} finally {
+			await session.close({ failed: false });
+		}
+	});
 });
 
 test.describe('Soundscaper packaged soak-debug UI driver', () => {

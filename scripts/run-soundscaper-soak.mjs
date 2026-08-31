@@ -85,88 +85,62 @@ async function runTarget({ config, options, target, baseDirectory, clock, openSe
 	if (!contained(baseDirectory, outputDirectory)) throw new Error('The soak-debug run directory escaped its output root.');
 	await mkdir(outputDirectory, { recursive: false });
 	const journal = createJournal(resolve(outputDirectory, 'events.jsonl'), clock);
-	const startedAt = clock.monotonicNow();
-	const ceiling = targetCeiling(config, options.profile);
-	const targetSignal = signal ? AbortSignal.any([signal, ceiling.signal]) : ceiling.signal;
+	let startedAt = null;
+	let ceiling = null;
+	let targetSignal = signal;
 	let session = null;
 	let failed = false;
 	let failureArtifactCount = 0;
-	await journal.append('run-start', { target, profile: options.profile });
 	try {
 		session = await openSession({
 			target,
 			desktopExecutable: options.desktopExecutable,
 			keepProfileOnFailure: options.keepProfileOnFailure,
 			outputDirectory,
-			signal: targetSignal,
+			signal,
 			onRuntimeEvent: (type, details = {}) => journal.append(type, sanitizeRuntimeDetails(details)),
 		});
-		for (const item of createSoundscaperSoakSchedule(config, options.profile, target)) {
-			if (targetSignal.aborted) throw interruptedError(targetSignal.reason);
-			const dueAt = startedAt + (item.elapsedSeconds * 1_000);
-			await clock.sleep(Math.max(0, dueAt - clock.monotonicNow()), targetSignal);
-			if (item.kind === 'sample') {
-				const sample = await withTimeout(
-					session.sample(), 60_000, 'diagnostic-sample', targetSignal,
-				);
-				await journal.append('sample', sanitizeSample(sample));
-				continue;
-			}
-			const operation = config.operations.find(({ id }) => id === item.operationId);
-			const operationStartedAt = clock.monotonicNow();
-			const operationAbort = new AbortController();
-			const operationSignal = AbortSignal.any([targetSignal, operationAbort.signal]);
+		startedAt = clock.monotonicNow();
+		ceiling = targetCeiling(config, options.profile);
+		targetSignal = signal ? AbortSignal.any([signal, ceiling.signal]) : ceiling.signal;
+		await journal.append('run-start', { target, profile: options.profile });
+		if (targetSignal.aborted) throw interruptedError(targetSignal.reason);
+		const schedule = createSoundscaperSoakSchedule(config, options.profile, target);
+		const samples = schedule.filter(({ kind }) => kind === 'sample');
+		const operations = schedule.filter(({ kind }) => kind === 'operation');
+		const profile = config.profiles[options.profile];
+		const warmup = deferred();
+		const fatal = new AbortController();
+		const runSignal = AbortSignal.any([targetSignal, fatal.signal]);
+		let operationsComplete = false;
+		const samplingTask = guarded(async () => {
 			try {
-				const measurements = await withTimeout(
-					session.execute(item.operationId, { variant: item.variant, signal: operationSignal }),
-					operation.timeoutSeconds * 1_000,
-					item.operationId,
-					targetSignal,
-					(error) => operationAbort.abort(error),
-				);
-				await journal.append('operation', {
-					eventId: item.eventId, operationId: item.operationId, status: 'passed',
-					durationMs: Math.max(0, clock.monotonicNow() - operationStartedAt),
-					measurements: sanitizeMeasurements(measurements),
-				});
+				for (const item of samples) {
+					await sleepUntil(clock, startedAt + (item.elapsedSeconds * 1_000), runSignal);
+					const sample = await withTimeout(
+						session.sample(), 60_000, 'diagnostic-sample', runSignal,
+					);
+					await journal.append('sample', sanitizeSample(sample));
+					if (item.elapsedSeconds === profile.warmupSeconds) warmup.resolve();
+					if (options.profile === 'quick' && operationsComplete
+						&& item.elapsedSeconds > profile.warmupSeconds) return;
+				}
 			} catch (error) {
-				if (['SOAK_INTERRUPTED', 'SOAK_TARGET_TIMEOUT'].includes(errorCode(error))) throw error;
-				failed = true;
-				await journal.append('operation', {
-					eventId: item.eventId, operationId: item.operationId, status: 'failed',
-					durationMs: Math.max(0, clock.monotonicNow() - operationStartedAt),
-					reason: errorReason(error), code: errorCode(error), measurements: {},
-				});
-				if (failureArtifactCount < config.artifacts.maximumFailureArtifacts) {
-					failureArtifactCount += await captureFailure({
-						session, outputDirectory, operationId: item.operationId,
-						index: failureArtifactCount + 1,
-						maximumBytes: config.artifacts.maximumFailureArtifactBytes,
-					});
-				}
-				if (errorCode(error) === 'SOAK_RUNTIME_CRASH') throw error;
-				if (errorCode(error) === 'SOAK_OPERATION_TIMEOUT') {
-					try {
-						if (typeof session.reset !== 'function') {
-							throw new Error('The soak-debug session cannot reset timed-out work.', { cause: error });
-						}
-						await session.reset({ reason: 'operation-timeout', signal: targetSignal });
-						await journal.append('runtime-reset', { operationId: item.operationId });
-					} catch (resetError) {
-						const crash = new Error(
-							`The runtime could not reset after ${item.operationId} timed out: ${errorReason(resetError)}`,
-							{ cause: resetError },
-						);
-						crash.code = 'SOAK_RUNTIME_CRASH';
-						throw crash;
-					}
-				}
-			} finally {
-				if (!operationAbort.signal.aborted) {
-					operationAbort.abort(new Error(`The ${item.operationId} operation settled.`));
-				}
+				warmup.reject(error);
+				throw error;
 			}
-		}
+		}, fatal);
+		const operationsTask = guarded(async () => {
+			await abortablePromise(warmup.promise, runSignal);
+			for (const item of operations) {
+				await sleepUntil(clock, startedAt + (item.elapsedSeconds * 1_000), runSignal);
+				await executeOperation(item);
+			}
+			operationsComplete = true;
+		}, fatal);
+		const tasks = await Promise.allSettled([samplingTask, operationsTask]);
+		const rejected = tasks.find((result) => result.status === 'rejected');
+		if (rejected) throw fatal.signal.aborted ? fatal.signal.reason : rejected.reason;
 		await journal.append('run-end', {
 			outcome: 'completed', durationMs: Math.max(0, clock.monotonicNow() - startedAt),
 		});
@@ -186,7 +160,7 @@ async function runTarget({ config, options, target, baseDirectory, clock, openSe
 			});
 		}
 	} finally {
-		ceiling.cancel();
+		ceiling?.cancel();
 		try {
 			await session?.close({ failed });
 		} catch (error) {
@@ -205,6 +179,121 @@ async function runTarget({ config, options, target, baseDirectory, clock, openSe
 		encoding: 'utf8', flag: 'wx',
 	});
 	return Object.freeze({ target, outputDirectory, report, failureArtifactCount });
+
+	async function executeOperation(item) {
+		const operation = config.operations.find(({ id }) => id === item.operationId);
+		const operationStartedAt = clock.monotonicNow();
+		const operationAbort = new AbortController();
+		const operationSignal = AbortSignal.any([targetSignal, operationAbort.signal]);
+		const execution = Promise.resolve().then(() => session.execute(
+			item.operationId, { variant: item.variant, signal: operationSignal },
+		));
+		try {
+			const measurements = await withTimeout(
+				execution,
+				operation.timeoutSeconds * 1_000,
+				item.operationId,
+				targetSignal,
+				(error) => operationAbort.abort(error),
+			);
+			await journal.append('operation', {
+				eventId: item.eventId, operationId: item.operationId, status: 'passed',
+				durationMs: Math.max(0, clock.monotonicNow() - operationStartedAt),
+				measurements: sanitizeMeasurements(measurements),
+			});
+		} catch (error) {
+			if (['SOAK_INTERRUPTED', 'SOAK_TARGET_TIMEOUT'].includes(errorCode(error))) throw error;
+			failed = true;
+			await journal.append('operation', {
+				eventId: item.eventId, operationId: item.operationId, status: 'failed',
+				durationMs: Math.max(0, clock.monotonicNow() - operationStartedAt),
+				reason: errorReason(error), code: errorCode(error), measurements: {},
+			});
+			if (failureArtifactCount < config.artifacts.maximumFailureArtifacts) {
+				failureArtifactCount += await captureFailure({
+					session, outputDirectory, operationId: item.operationId,
+					index: failureArtifactCount + 1,
+					maximumBytes: config.artifacts.maximumFailureArtifactBytes,
+				});
+			}
+			if (errorCode(error) === 'SOAK_RUNTIME_CRASH') throw error;
+			if (errorCode(error) === 'SOAK_OPERATION_TIMEOUT') {
+				try {
+					if (typeof session.reset !== 'function') {
+						throw new Error('The soak-debug session cannot reset timed-out work.', { cause: error });
+					}
+					await session.reset({ reason: 'operation-timeout', signal: targetSignal });
+					await execution.catch(() => undefined);
+					await journal.append('runtime-reset', { operationId: item.operationId });
+				} catch (resetError) {
+					if (['SOAK_INTERRUPTED', 'SOAK_TARGET_TIMEOUT'].includes(errorCode(resetError))) {
+						throw resetError;
+					}
+					const crash = new Error(
+						`The runtime could not reset after ${item.operationId} timed out: ${errorReason(resetError)}`,
+						{ cause: resetError },
+					);
+					crash.code = 'SOAK_RUNTIME_CRASH';
+					throw crash;
+				}
+			}
+		} finally {
+			if (!operationAbort.signal.aborted) {
+				operationAbort.abort(new Error(`The ${item.operationId} operation settled.`));
+			}
+		}
+	}
+}
+
+function deferred() {
+	let resolvePromise;
+	let rejectPromise;
+	let settled = false;
+	const promise = new Promise((resolveValue, rejectValue) => {
+		resolvePromise = resolveValue;
+		rejectPromise = rejectValue;
+	});
+	return Object.freeze({
+		promise,
+		resolve: () => {
+			if (settled) return;
+			settled = true;
+			resolvePromise();
+		},
+		reject: (error) => {
+			if (settled) return;
+			settled = true;
+			rejectPromise(error);
+		},
+	});
+}
+
+async function guarded(task, controller) {
+	try {
+		return await task();
+	} catch (error) {
+		if (!controller.signal.aborted) controller.abort(error);
+		throw error;
+	}
+}
+
+async function sleepUntil(clock, dueAt, signal) {
+	if (signal.aborted) throw interruptedError(signal.reason);
+	const delay = Math.max(0, dueAt - clock.monotonicNow());
+	if (delay > 0) await clock.sleep(delay, signal);
+	if (signal.aborted) throw interruptedError(signal.reason);
+}
+
+function abortablePromise(promise, signal) {
+	if (signal.aborted) return Promise.reject(interruptedError(signal.reason));
+	let abort;
+	return Promise.race([
+		promise,
+		new Promise((_, reject) => {
+			abort = () => reject(interruptedError(signal.reason));
+			signal.addEventListener('abort', abort, { once: true });
+		}),
+	]).finally(() => signal.removeEventListener('abort', abort));
 }
 
 function createJournal(path, clock) {

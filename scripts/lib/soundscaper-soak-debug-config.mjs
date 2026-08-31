@@ -65,7 +65,7 @@ export function createSoundscaperSoakSchedule(configValue, profileValue, targetV
 	const rows = [];
 	const endSeconds = profile === 'extended'
 		? profileConfig.durationSeconds
-		: profileConfig.warmupSeconds;
+		: profileConfig.maximumDurationSeconds;
 	for (let elapsedSeconds = 0; elapsedSeconds <= endSeconds;
 		elapsedSeconds += profileConfig.sampleIntervalSeconds) {
 		rows.push({ kind: 'sample', elapsedSeconds });
@@ -78,13 +78,9 @@ export function createSoundscaperSoakSchedule(configValue, profileValue, targetV
 			variant: variant(config.seed, profile, target, operation.id, 0),
 		}));
 		const operationsEndSeconds = profileConfig.warmupSeconds + 2 + (operations.length * 2);
-		const finalElapsedSeconds = Math.ceil(
-			operationsEndSeconds / profileConfig.sampleIntervalSeconds,
-		) * profileConfig.sampleIntervalSeconds;
-		if (finalElapsedSeconds > profileConfig.maximumDurationSeconds) {
+		if (operationsEndSeconds > profileConfig.maximumDurationSeconds) {
 			throw new Error('The quick soak-debug schedule exceeds its maximum duration.');
 		}
-		rows.push({ kind: 'sample', elapsedSeconds: finalElapsedSeconds });
 	} else {
 		for (const operation of operations) {
 			let iteration = 0;
@@ -100,12 +96,16 @@ export function createSoundscaperSoakSchedule(configValue, profileValue, targetV
 		}
 	}
 	rows.sort((left, right) => left.elapsedSeconds - right.elapsedSeconds
-		|| left.kind.localeCompare(right.kind)
+		|| scheduleKindPriority(left.kind) - scheduleKindPriority(right.kind)
 		|| String(left.operationId ?? '').localeCompare(String(right.operationId ?? '')));
 	return deepFreeze(rows.map((row, index) => ({
 		eventId: `${target}-${profile}-${String(index + 1).padStart(5, '0')}`,
 		...row,
 	})));
+}
+
+function scheduleKindPriority(kind) {
+	return kind === 'sample' ? 0 : 1;
 }
 
 /** Watchdog budget; extended gets one sample-time grace after its exact eight-hour boundary. */

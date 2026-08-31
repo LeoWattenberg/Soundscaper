@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -111,6 +111,24 @@ test('the soak dialog rejects ambiguous or relative output roots', () => {
 		`${SOAK_DEBUG_OUTPUT_DIRECTORY_PREFIX}/tmp/one`,
 		`${SOAK_DEBUG_OUTPUT_DIRECTORY_PREFIX}/tmp/two`,
 	]), /exactly one/iu);
+});
+
+test('desktop soak output names remain unique after the Electron process restarts', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-soak-dialog-restart-test-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const delegate = { showSaveDialog() {}, showOpenDialog() {} };
+	const argumentsValue = [
+		'Soundscaper', SOAK_DEBUG_FLAG,
+		`${SOAK_DEBUG_OUTPUT_DIRECTORY_PREFIX}${resolve(directory)}`,
+	];
+	const beforeRestart = createSoakDebugDialog(delegate, argumentsValue);
+	const first = await beforeRestart.showSaveDialog({ defaultPath: 'mix.wav' });
+	await writeFile(first.filePath, 'first process output');
+
+	const afterRestart = createSoakDebugDialog(delegate, argumentsValue);
+	const second = await afterRestart.showSaveDialog({ defaultPath: 'mix.wav' });
+	assert.equal(first.filePath, join(resolve(directory), 'mix-0001.wav'));
+	assert.equal(second.filePath, join(resolve(directory), 'mix-0002.wav'));
 });
 
 function evaluatePreload(source, argv, response) {

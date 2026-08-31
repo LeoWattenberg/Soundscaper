@@ -47,10 +47,17 @@ test('quick and extended schedules are deterministic and exercise only truthful 
 		.every(({ elapsedSeconds }) => elapsedSeconds >= CONFIG.profiles.quick.warmupSeconds));
 	assert.ok(quick.filter(({ kind }) => kind === 'sample')
 		.every(({ elapsedSeconds }) => elapsedSeconds % CONFIG.profiles.quick.sampleIntervalSeconds === 0));
+	assert.deepEqual(quick.filter(({ kind }) => kind === 'sample').map(({ elapsedSeconds }) => elapsedSeconds),
+		Array.from({ length: 21 }, (_, index) => index * 30));
 	assert.ok(extended.filter(({ kind }) => kind === 'operation').length
 		> quick.filter(({ kind }) => kind === 'operation').length);
 	assert.equal(extended.at(-1).kind, 'sample');
 	assert.equal(extended.at(-1).elapsedSeconds, CONFIG.profiles.extended.durationSeconds);
+	assert.deepEqual(extended.filter(({ elapsedSeconds }) => elapsedSeconds === 1_800)
+		.map(({ kind, operationId }) => ({ kind, operationId: operationId ?? null })), [
+			{ kind: 'sample', operationId: null },
+			{ kind: 'operation', operationId: 'media-import' },
+		]);
 	assert.equal(soundscaperSoakWatchdogSeconds(CONFIG, 'extended'), 28_860);
 	assert.equal(soundscaperSoakWatchdogSeconds(CONFIG, 'quick'), 600);
 	assert.deepEqual(CONFIG.operations.map(({ id }) => id), [
@@ -253,6 +260,75 @@ test('the runner writes real journals/reports, continues after a timed-out opera
 	assert.ok(result.runs[0].failureArtifactCount <= CONFIG.artifacts.maximumFailureArtifacts);
 });
 
+test('target timing begins after readiness and quick samples keep their cadence during slow UI work', async (context) => {
+	const directory = await temporaryDirectory(context);
+	const clock = manualClock();
+	const sampleTimes = [];
+	const executed = [];
+	let announceOpen;
+	const openEntered = new Promise((resolvePromise) => { announceOpen = resolvePromise; });
+	let announceSlowOperation;
+	const slowOperationEntered = new Promise((resolvePromise) => { announceSlowOperation = resolvePromise; });
+	const running = runSoundscaperSoak({
+		target: 'browser', profile: 'quick', outputDirectory: directory,
+		desktopExecutable: null, keepProfileOnFailure: false,
+	}, {
+		config: CONFIG,
+		clock,
+		openSession: async () => {
+			announceOpen();
+			await clock.sleep(15_000);
+			return {
+				async sample() {
+					sampleTimes.push(clock.monotonicNow());
+					return sample(100 * 1024 * 1024);
+				},
+				async execute(operationId, { signal }) {
+					executed.push(operationId);
+					if (operationId === 'media-import') {
+						announceSlowOperation();
+						await clock.sleep(70_000, signal);
+					}
+					return operationId === 'decoded-media-probe'
+						? { decodedMediaAvDriftMaximumMs: 1, decodedVideoDroppedFrames: 0 }
+						: operationId === 'streamed-playback-diagnostics'
+							? { streamedPlaybackObserved: true, streamUnderrunFrames: 0 }
+							: {};
+				},
+				async captureFailure() { return null; },
+				async reset() {},
+				async close() {},
+			};
+		},
+	});
+	await openEntered;
+	await clock.advanceTo(15_000);
+	await waitForTestCondition(() => sampleTimes.length === 1);
+	await clock.advanceTo(45_000);
+	await waitForTestCondition(() => sampleTimes.length === 2);
+	await clock.advanceTo(75_000);
+	await waitForTestCondition(() => sampleTimes.length === 3);
+	await clock.advanceTo(76_000);
+	await slowOperationEntered;
+	await clock.advanceTo(105_000);
+	await waitForTestCondition(() => sampleTimes.length === 4);
+	await clock.advanceTo(135_000);
+	await waitForTestCondition(() => sampleTimes.length === 5);
+	await clock.advanceTo(146_000);
+	await waitForTestCondition(() => executed.length === 9);
+	await clock.advanceTo(165_000);
+	const result = await running;
+	assert.equal(result.exitCode, 0);
+	const journal = await readSoundscaperSoakJournal(join(
+		result.runs[0].outputDirectory, 'events.jsonl',
+	));
+	const startedAt = journal.events.find(({ type }) => type === 'run-start').monotonicMs;
+	assert.equal(startedAt, 15_000);
+	assert.deepEqual(sampleTimes.map((value) => value - startedAt), [
+		0, 30_000, 60_000, 90_000, 120_000, 150_000,
+	]);
+});
+
 test('bootstrap failures still produce an incomplete report and exit two', async (context) => {
 	const directory = await temporaryDirectory(context);
 	const result = await runSoundscaperSoak({
@@ -394,6 +470,58 @@ function virtualClock() {
 		monotonicNow: () => elapsedMs,
 		async sleep(milliseconds) { elapsedMs += milliseconds; wallMs += milliseconds; },
 	};
+}
+
+function manualClock() {
+	let elapsedMs = 0;
+	const wallOriginMs = Date.parse('2026-08-31T10:00:00.000Z');
+	const sleepers = [];
+	return {
+		now: () => new Date(wallOriginMs + elapsedMs),
+		monotonicNow: () => elapsedMs,
+		sleep(milliseconds, signal) {
+			if (signal?.aborted) return Promise.reject(signal.reason);
+			return new Promise((resolvePromise, reject) => {
+				const sleeper = {
+					dueAt: elapsedMs + milliseconds,
+					resolve: resolvePromise,
+					reject,
+					signal,
+					abort: null,
+				};
+				sleeper.abort = () => {
+					const index = sleepers.indexOf(sleeper);
+					if (index >= 0) sleepers.splice(index, 1);
+					reject(signal.reason);
+				};
+				signal?.addEventListener('abort', sleeper.abort, { once: true });
+				sleepers.push(sleeper);
+			});
+		},
+		async advanceTo(nextElapsedMs) {
+			assert.ok(nextElapsedMs >= elapsedMs);
+			elapsedMs = nextElapsedMs;
+			for (;;) {
+				const ready = sleepers.filter(({ dueAt }) => dueAt <= elapsedMs);
+				if (!ready.length) return;
+				for (const sleeper of ready) {
+					const index = sleepers.indexOf(sleeper);
+					if (index >= 0) sleepers.splice(index, 1);
+					sleeper.signal?.removeEventListener('abort', sleeper.abort);
+					sleeper.resolve();
+				}
+				await new Promise((resolvePromise) => setImmediate(resolvePromise));
+			}
+		},
+	};
+}
+
+async function waitForTestCondition(predicate) {
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		if (predicate()) return;
+		await new Promise((resolvePromise) => setImmediate(resolvePromise));
+	}
+	assert.fail('The deterministic soak timing condition was not reached.');
 }
 
 function inertSession() {
