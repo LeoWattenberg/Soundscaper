@@ -49,6 +49,7 @@ export const DESKTOP_SOUNDSCAPER_RUNTIME_FILES = Object.freeze([
 	'desktop/soundscaper-project-library-publication-host.js',
 	'desktop/soundscaper-project-library-publication-persistence.js',
 	'desktop/soundscaper-project-library-publication-transport.js',
+	'desktop/soundscaper-project-library-retention.js',
 	'desktop/soundscaper-project-library-transfer-contract.js',
 	'desktop/soundscaper-project-library-transfer-service.js',
 	'src/common/editor/assistance/assistance-asset-reference-v1.js',

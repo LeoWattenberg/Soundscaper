@@ -238,6 +238,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	...DESKTOP_SOUNDSCAPER_RUNTIME_FILES,
 	'src/common/editor/audacity-effects/live.js',
 	'src/common/editor/audacity-effects/live-capabilities.js',
+	'src/common/editor/audacity-effects/live-capability-policy.js',
 	'src/common/editor/audacity-effects/manifest.js',
 	'src/common/editor/audacity-effects/spectral.js',
 	'src/common/editor/audio-track-freeze-lifecycle-v21.js',
