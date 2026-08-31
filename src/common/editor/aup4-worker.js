@@ -255,7 +255,6 @@ function deserializeMemoryDatabase(sqlite, bytes) {
 	const flags = (sqlite.capi.SQLITE_DESERIALIZE_FREEONCLOSE || 1) | (sqlite.capi.SQLITE_DESERIALIZE_RESIZEABLE || 2);
 	const result = sqlite.capi.sqlite3_deserialize(database.pointer, 'main', pointer, serialized.byteLength, serialized.byteLength, flags);
 	if (result) {
-		sqlite.wasm.dealloc(pointer);
 		database.close();
 		throw operationError(`SQLite could not deserialize the AUP4 file (${result}).`, 'INVALID_DATABASE');
 	}
