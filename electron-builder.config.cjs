@@ -1,3 +1,4 @@
+// @ts-check
 const assistanceNativeRuntimeManifest = require('./config/assistance-native-runtime-manifest.json');
 const professionalNativePayloadManifest = require('./config/soundscaper-professional-native-payload-manifest.json');
 const productReleaseLines = require('./config/product-release-lines.json');
@@ -158,10 +159,15 @@ module.exports = {
 	publish: null,
 };
 
+/** @param {string} value */
 function regexEscape(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
+/**
+ * @param {string | undefined} value
+ * @returns {'soundscaper' | 'framescaper'}
+ */
 function resolveDesktopProductId(value) {
 	const requested = value === undefined ? 'soundscaper' : value;
 	if (requested !== 'soundscaper' && requested !== 'framescaper') {
