@@ -137,6 +137,118 @@ test('a failed automation release remains active so the user can retry or cancel
 	}
 });
 
+test('closing an active automation gesture cancels it before dismissing the dialog', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const operations: string[] = [];
+	let closeCalls = 0;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const renderDialog = async (editingBlocked = false): Promise<void> => {
+		await act(async () => root.render(<SoundscaperProductionDialog
+			productId="soundscaper"
+			capabilities={{ audioAutomation: true }}
+			snapshot={{
+				project: automationProject(), selectedTrackId: 'voice', selectedLaneId: 'voice-gain',
+				editingBlocked,
+			}}
+			initialSurface="automation"
+			automationMode="touch"
+			actions={{ execute: (operation) => { operations.push(operation.type); } }}
+			run={(operation) => operation()}
+			onClose={() => { closeCalls += 1; }}
+		/>));
+	};
+	try {
+		await renderDialog();
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.beginAutomationGesture)).onClick({});
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		await renderDialog(true);
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.close)).onClick({});
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		assert.deepEqual(operations, ['automation-gesture/begin', 'automation-gesture/cancel']);
+		assert.equal(closeCalls, 1, 'dismissal must wait until cancellation succeeds');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('a failed close cancellation leaves the automation gesture recoverable', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const cancellation = deferred<void>();
+	let cancellationAttempts = 0;
+	let closeCalls = 0;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperProductionDialog
+			productId="soundscaper"
+			capabilities={{ audioAutomation: true }}
+			snapshot={{
+				project: automationProject(), selectedTrackId: 'voice', selectedLaneId: 'voice-gain',
+			}}
+			initialSurface="automation"
+			automationMode="touch"
+			actions={{ execute: (operation) => {
+				if (operation.type !== 'automation-gesture/cancel') return undefined;
+				cancellationAttempts += 1;
+				return cancellationAttempts === 1 ? cancellation.promise : undefined;
+			} }}
+			run={(operation) => operation()}
+			onClose={() => { closeCalls += 1; }}
+		/>));
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.beginAutomationGesture)).onClick({});
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.close)).onClick({});
+			await Promise.resolve();
+		});
+		await act(async () => {
+			cancellation.reject(new Error('cancellation refused'));
+			await cancellation.promise.catch(() => undefined);
+			await Promise.resolve();
+		});
+
+		assert.equal(closeCalls, 0);
+		assert.equal(dom.container.textContent.includes('cancellation refused'), true);
+		assert.equal(
+			reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.cancelAutomationGesture)).disabled,
+			false,
+			'a failed close must leave the active gesture cancellable',
+		);
+
+		await act(async () => {
+			void reactProps(buttonWithText(dom.container, SOUNDSCAPER_PRODUCTION_COPY.close)).onClick({});
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		assert.equal(cancellationAttempts, 2);
+		assert.equal(closeCalls, 1);
+	} finally {
+		cancellation.resolve();
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('an automation draft cannot cross into a replacement project with identical lane data', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

@@ -198,10 +198,27 @@ export default function SoundscaperProductionDialog({
 			document.getElementById(tabId(next))?.focus({ preventScroll: true });
 		});
 	};
+	const requestClose = (): void => {
+		if (pending !== null) return;
+		if (!automationGestureActive) {
+			onClose();
+			return;
+		}
+		perform(
+			'automation-gesture-cancel',
+			() => ({ type: 'automation-gesture/cancel' }),
+			() => {
+				setAutomationGestureActive(false);
+				onClose();
+			},
+			undefined,
+			{ allowWhenBlocked: true },
+		);
+	};
 
 	return <AudioEditorDialogShell
 		title={copy.productionAudio}
-		onClose={onClose}
+		onClose={requestClose}
 		width={920}
 		initialFocus={`[data-production-surface-tab="${model.surface}"]`}
 		dataAttributes={{ 'data-soundscaper-production-dialog': 'true' }}
@@ -320,7 +337,7 @@ export default function SoundscaperProductionDialog({
 				{error || (pending ? `${surfaceLabel(copy, model.surface)}…` : status)}
 			</div>
 			<div className="kw-audio-editor-dialog__actions">
-				<button type="button" onClick={onClose}>{copy.close}</button>
+				<button type="button" disabled={pending !== null} onClick={requestClose}>{copy.close}</button>
 			</div>
 		</div>
 	</AudioEditorDialogShell>;

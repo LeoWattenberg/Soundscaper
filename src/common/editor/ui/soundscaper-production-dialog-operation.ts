@@ -15,6 +15,7 @@ export interface SoundscaperProductionDialogOperationState<Operation> {
 		operation: () => Operation,
 		onSuccess?: () => void,
 		onSettled?: () => void,
+		admission?: Readonly<{ readonly allowWhenBlocked?: boolean }>,
 	) => void;
 }
 
@@ -59,8 +60,11 @@ export function useSoundscaperProductionDialogOperation<Operation>(options: Read
 		operation: () => Operation,
 		onSuccess?: () => void,
 		onSettled?: () => void,
+		admission?: Readonly<{ readonly allowWhenBlocked?: boolean }>,
 	): void => {
-		if (disabled || activeOperationRef.current !== null) return;
+		if ((options.blocked && admission?.allowWhenBlocked !== true)
+			|| pending !== null
+			|| activeOperationRef.current !== null) return;
 		const ownership = Object.freeze({ projectIdentity });
 		const ownsOperation = (): boolean => activeOperationRef.current === ownership
 			&& currentProjectIdentityRef.current === projectIdentity;
