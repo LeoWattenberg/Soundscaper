@@ -87,8 +87,12 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 			assertCurrent: options.request.assertCurrent,
 		});
 	} catch (error) {
-		visual.dispose();
-		await sourceFrames.dispose();
+		const failures: unknown[] = [error];
+		try { visual.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
+		try { await sourceFrames.dispose(); } catch (cleanupError) { failures.push(cleanupError); }
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'finishing exact export startup cleanup failed.', { cause: error });
+		}
 		throw error;
 	}
 	let supplemental: FramescaperVideoExportSupplementalPictureExecutionFinishing | null = null;
