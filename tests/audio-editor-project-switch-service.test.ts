@@ -137,6 +137,70 @@ test('a source-load failure commits incoming ownership and allows same-project r
 	assert.deepEqual(fixture.publishedProjectIds, [next.id, next.id]);
 });
 
+test('failed export cleanup is detached before failed-target recovery', async () => {
+	const fixture = createFixture();
+	const next = project('failed-output-cleanup-project');
+	const cleanupFailure = new Error('injected output cleanup failure');
+	let cleanupCalls = 0;
+	fixture.state.outputCleanup = () => {
+		cleanupCalls += 1;
+		throw cleanupFailure;
+	};
+
+	await assert.rejects(fixture.service.switchProject(next), (error) => error === cleanupFailure);
+
+	assert.equal(cleanupCalls, 1);
+	assert.equal(fixture.state.outputCleanup, null);
+	assert.equal(fixture.state.readOnly, true);
+	assert.deepEqual(fixture.publishedProjectIds, [next.id]);
+
+	await fixture.service.switchProject(next);
+
+	assert.equal(cleanupCalls, 1, 'same-project repair must not repeat a one-shot cleanup');
+	assert.strictEqual(fixture.getLoadedEngineProject(), next);
+});
+
+test('terminal disposal during failed provider finalization skips degraded publication', async () => {
+	const fixture = createFixture();
+	const next = project('disposed-failed-project');
+	const sourceFailure = new Error('injected source loading failure');
+	const providerRetirementStarted = deferred<void>();
+	const providerRetirementRelease = deferred<void>();
+	let incomingProviderDisposals = 0;
+	fixture.setSourceChunkProvider('shared-source', {
+		dispose: async () => {
+			providerRetirementStarted.resolve();
+			await providerRetirementRelease.promise;
+		},
+	});
+	fixture.setLoadSources(async (candidate) => {
+		if (candidate.id !== next.id) return;
+		fixture.setSourceChunkProvider('shared-source', {
+			dispose: () => { incomingProviderDisposals += 1; },
+		});
+		throw sourceFailure;
+	});
+
+	const switching = fixture.service.switchProject(next);
+	await providerRetirementStarted.promise;
+	fixture.events.push('begin-disposal');
+	fixture.lifetime.beginDisposal();
+	providerRetirementRelease.resolve();
+
+	await assert.rejects(switching, (error) => error === sourceFailure);
+
+	const postDisposalEvents = fixture.events.slice(fixture.events.indexOf('begin-disposal') + 1);
+	assert.equal(postDisposalEvents.includes('publish'), false);
+	assert.equal(postDisposalEvents.includes('sync-meter'), false);
+	assert.equal(postDisposalEvents.includes(`schedule-lock:${next.id}`), false);
+	assert.ok(postDisposalEvents.includes('release-lock'));
+	assert.ok(postDisposalEvents.includes('clear-source-caches'));
+	assert.equal(fixture.state.projectLock, null);
+	assert.equal(fixture.getSourceChunkProvider('shared-source'), undefined);
+	assert.equal(incomingProviderDisposals, 1);
+	assert.deepEqual(fixture.publishedProjectIds, []);
+});
+
 test('active-project deduplication preserves a queued reversal intent', async () => {
 	const fixture = createFixture();
 	const activeProject = fixture.getProject();

@@ -313,8 +313,9 @@ export function createProjectSwitchService<
 			const outputUrl = runtime.state.outputUrl;
 			runtime.state.outputUrl = null;
 			if (outputUrl) runtime.revokeOutputUrl(outputUrl);
-			await guard(runtime.state.outputCleanup?.());
+			const outputCleanup = runtime.state.outputCleanup;
 			runtime.state.outputCleanup = null;
+			await guard(outputCleanup?.());
 			runtime.state.exportOutput = null;
 			runtime.state.missingSourceIds.clear();
 			await guard(runtime.revokeVideoVisuals());
@@ -397,13 +398,15 @@ export function createProjectSwitchService<
 					return false;
 				}
 			};
-			const publishFailedTarget = targetSessionActivated
-				&& readyProjectId !== projectId && !runtime.isDisposedError(error);
-			const targetLock = publishFailedTarget
+			const failedTarget = targetSessionActivated && readyProjectId !== projectId;
+			const lifetimeDisposed = () => runtime.isDisposedError(error)
+				|| runtime.lifetime.signal.aborted;
+			const canPublishFailedTarget = () => failedTarget && !lifetimeDisposed();
+			const targetLock = failedTarget
 				? runtime.state.projectLock?.projectId === projectId
 					? runtime.state.projectLock : activeLock
 				: null;
-			if (publishFailedTarget) {
+			if (canPublishFailedTarget()) {
 				await cleanup(() => {
 					if (runtime.state.history?.present.id !== projectId) runtime.state.history = activationHistory;
 					const failedProject = runtime.state.history.present;
@@ -415,6 +418,8 @@ export function createProjectSwitchService<
 					resetProjectScopedState();
 					runtime.state.missingSourceIds.clear();
 				}, 'Project switching and failed-target state alignment both failed.');
+			}
+			if (canPublishFailedTarget()) {
 				runtime.state.readOnly = true;
 				await cleanup(() => runtime.session.setProjectReadOnly(projectId, {
 					readOnly: true,
@@ -422,7 +427,7 @@ export function createProjectSwitchService<
 					lockMethod: targetLock?.method ?? 'unavailable',
 				}), 'Project switching and failed-target write fencing both failed.');
 			}
-			if ((providerReplacement && !providerReplacementFinalized) || publishFailedTarget) {
+			if ((providerReplacement && !providerReplacementFinalized) || canPublishFailedTarget()) {
 				await cleanup(
 					() => runtime.stopEngine(),
 					'Project switching and staged-engine shutdown both failed.',
@@ -439,7 +444,7 @@ export function createProjectSwitchService<
 						: 'Project switching and source-provider rollback both failed.',
 				);
 			}
-			if (publishFailedTarget) {
+			if (canPublishFailedTarget()) {
 				const failedOutputUrl = runtime.state.outputUrl;
 				runtime.state.outputUrl = null;
 				runtime.state.exportOutput = null;
@@ -447,29 +452,44 @@ export function createProjectSwitchService<
 					() => runtime.revokeOutputUrl(failedOutputUrl),
 					'Project switching and output URL cleanup both failed.',
 				);
+			}
+			if (canPublishFailedTarget()) {
 				const failedOutputCleanup = runtime.state.outputCleanup;
-				if (failedOutputCleanup && await cleanup(
+				runtime.state.outputCleanup = null;
+				if (failedOutputCleanup) await cleanup(
 					failedOutputCleanup,
 					'Project switching and export output cleanup both failed.',
-				)) runtime.state.outputCleanup = null;
+				);
+			}
+			if (canPublishFailedTarget()) {
 				await cleanup(() => {
 					runtime.clearWaveformPcmWindows();
 					runtime.retainLiveClipIds();
 					runtime.evictUnreferencedSourceCaches();
 				}, 'Project switching and source-cache alignment both failed.');
+			}
+			if (canPublishFailedTarget()) {
 				await cleanup(
 					() => runtime.revokeVideoVisuals(),
 					'Project switching and video visual cleanup both failed.',
 				);
+			}
+			if (canPublishFailedTarget()) {
 				runtime.state.saveState = runtime.sessionTab(projectId)?.dirty ? 'dirty' : 'saved';
+			}
+			if (canPublishFailedTarget()) {
 				await cleanup(() => runtime.synchronizeMicrophoneMeterTarget(),
 					'Project switching and microphone routing synchronization both failed.');
-				if (targetLock) await cleanup(() => runtime.scheduleProjectLockRecovery(projectId, targetLock),
+			}
+			if (canPublishFailedTarget() && targetLock) {
+				await cleanup(() => runtime.scheduleProjectLockRecovery(projectId, targetLock),
 					'Project switching and lock recovery scheduling both failed.');
+			}
+			if (canPublishFailedTarget()) {
 				await cleanup(() => runtime.publishProjectState(),
 					'Project switching and failed-target publication both failed.');
 			}
-			if (runtime.isDisposedError(error)) {
+			if (lifetimeDisposed()) {
 				await runtime.releaseProjectLock().catch(() => undefined);
 				try {
 					await runtime.clearSourceCaches();
