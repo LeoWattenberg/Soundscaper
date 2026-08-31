@@ -43,7 +43,7 @@ export function milestone5ProductIds(value = MILESTONE_5_PRODUCTS) {
 	return Object.freeze(productIds);
 }
 
-export function milestone5PackageCells(productIdsValue = MILESTONE_5_PRODUCTS) {
+export function milestone5PackageAuditIdentities(productIdsValue = MILESTONE_5_PRODUCTS) {
 	const productIds = milestone5ProductIds(productIdsValue);
 	return Object.freeze(productIds.flatMap((productId) => MILESTONE_5_TARGETS.map(
 		(targetId) => Object.freeze({ productId, targetId }),
@@ -51,7 +51,7 @@ export function milestone5PackageCells(productIdsValue = MILESTONE_5_PRODUCTS) {
 }
 
 /**
- * The retained dual-product campaign remains the default. Stable Soundscaper
+ * The retained dual-product audit remains the default. Stable Soundscaper
  * gets one explicitly smaller engineering authority; a Framescaper-only
  * package rehearsal intentionally keeps using the retained full campaign.
  */
@@ -78,15 +78,15 @@ export function milestone5EngineeringScope(productIdsValue = MILESTONE_5_PRODUCT
 	});
 }
 
-export function milestone5MatrixAssemblyOptions(value) {
+export function milestone5PackageAuditSummaryOptions(value) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new Error('Milestone 5 matrix assembly options have an invalid shape.');
+		throw new Error('Milestone 5 package-audit summary options have an invalid shape.');
 	}
 	const expectedKeys = value.productIds === undefined
 		? ['packageDirectory', 'repositoryRoot', 'sourceRevision']
 		: ['packageDirectory', 'productIds', 'repositoryRoot', 'sourceRevision'];
 	if (!isDeepStrictEqual(Object.keys(value).sort(), expectedKeys)) {
-		throw new Error('Milestone 5 matrix assembly options have an invalid shape.');
+		throw new Error('Milestone 5 package-audit summary options have an invalid shape.');
 	}
 	return Object.freeze({
 		...value,

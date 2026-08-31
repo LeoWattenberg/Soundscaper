@@ -51,7 +51,7 @@ jobs:
       release-products: ${{ steps.release-scope.outputs.products }}
       release-product-pattern: ${{ steps.release-scope.outputs.product-pattern }}
       release-assembler-arguments: ${{ steps.release-scope.outputs.assembler-arguments }}
-      release-m5-arguments: ${{ steps.release-scope.outputs.m5-arguments }}
+      package-audit-arguments: ${{ steps.release-scope.outputs.package-audit-arguments }}
       release-channel: ${{ steps.release-scope.outputs.channel }}
     steps:
       - name: Check out source
@@ -82,7 +82,7 @@ jobs:
           'products=' + JSON.stringify(products) + '\n'
           + 'product-pattern=' + (release ? release.productId : '*') + '\n'
           + 'assembler-arguments=' + (release ? '--product ' + release.productId : '--suite') + '\n'
-          + 'm5-arguments=' + (release ? '--product ' + release.productId : '') + '\n'
+          + 'package-audit-arguments=' + (release ? '--product ' + release.productId : '') + '\n'
           + 'channel=' + (release?.channel ?? 'nightly-suite') + '\n');"
 
       - name: Pin npm
@@ -163,7 +163,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          # tests/milestone-5-handoff.test.js resolves HEAD^ against the real
+          # tests/milestone-5-package-audit.test.js reads revision-bound Git inputs from the real
           # checkout, so a shard cannot run against a depth-1 clone.
           fetch-depth: 0
 
@@ -443,8 +443,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          # Accepted native-lab evidence binds its measured ancestor and the
-          # handoff verifies the evidence-only descendant relationship.
+          # Package audits bind their checked inputs to the exact source revision.
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -562,21 +561,21 @@ jobs:
           --product "${{ matrix.product }}"
           --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
 
-      - name: Assemble the fail-closed Milestone 5 handoff
+      - name: Audit the Milestone 5 package
         run: >-
-          node scripts/assemble-milestone-5-handoff.mjs --output
-          "${{ runner.temp }}/milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
+          node scripts/audit-milestone-5-package.mjs --output
+          "${{ runner.temp }}/milestone-5-package-audit-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
           --product "${{ matrix.product }}"
           --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
           --package-root "release/milestone-5-package"
         env:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
-      - name: Upload the Milestone 5 handoff
+      - name: Upload the Milestone 5 package audit
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/milestone-5-handoff-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          name: milestone-5-package-audit-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: ${{ runner.temp }}/milestone-5-package-audit-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
           if-no-files-found: error
           retention-days: 14
 
@@ -594,8 +593,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  milestone-5-handoff-matrix:
-    name: Aggregate the exact Milestone 5 package matrix
+  milestone-5-package-audit-summary:
+    name: Re-audit the Milestone 5 packages
     if: >-
       always()
       && needs.package.result == 'success'
@@ -608,7 +607,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - name: Check out the aggregated source revision
+      - name: Check out the audited source revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -636,20 +635,20 @@ jobs:
           pattern: nightly-${{ needs.quality.outputs.release-product-pattern }}-*
           path: ${{ runner.temp }}/milestone-5-packages
 
-      - name: Re-audit and aggregate the authenticated package matrix
+      - name: Re-audit and summarize the packages
         run: >-
-          node scripts/aggregate-milestone-5-handoffs.mjs
+          node scripts/audit-milestone-5-packages.mjs
           --package-directory "${{ runner.temp }}/milestone-5-packages"
-          --output "${{ runner.temp }}/milestone-5-handoff-matrix.json"
-          ${{ needs.quality.outputs.release-m5-arguments }}
+          --output "${{ runner.temp }}/milestone-5-package-audit-summary.json"
+          ${{ needs.quality.outputs.package-audit-arguments }}
         env:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
-      - name: Upload the Milestone 5 matrix assessment
+      - name: Upload the Milestone 5 package-audit summary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: milestone-5-handoff-matrix
-          path: ${{ runner.temp }}/milestone-5-handoff-matrix.json
+          name: milestone-5-package-audit-summary
+          path: ${{ runner.temp }}/milestone-5-package-audit-summary.json
           if-no-files-found: error
           retention-days: 14
 

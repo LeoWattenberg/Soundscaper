@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { validateMilestone5PackagePayloadBinding } from '../scripts/lib/milestone-5-handoff-package-binding.mjs';
+import { validateMilestone5PackagePayloadBinding } from '../scripts/lib/milestone-5-package-payload-binding.mjs';
 
 const DIGEST = 'a'.repeat(64);
 const INPUT_PATHS = {

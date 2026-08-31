@@ -16,14 +16,14 @@ test('Milestone 5 payload audit authenticates all twenty exact target rows', asy
 	const audit = await auditMilestone5Payloads(repositoryRoot);
 	assert.equal(isAuditedMilestone5Payloads(audit), true);
 	assert.equal(audit.rows.length, 20);
-	assert.equal(audit.rows.filter(({ status }) => status === 'built').length, 1);
-	assert.deepEqual(audit.rows.filter(({ status }) => status === 'built').map(({ identity }) => identity), [
+	assert.equal(audit.rows.filter(({ buildStatus }) => buildStatus === 'built').length, 1);
+	assert.deepEqual(audit.rows.filter(({ buildStatus }) => buildStatus === 'built').map(({ identity }) => identity), [
 		'soundscaper:linux-x64',
 	]);
 	assert.equal(audit.schemaVersion, 3);
 	assert.equal(Object.keys(audit.inputDigests).length, 4);
 	assert.equal('reviewPolicy' in audit, false);
-	assert.ok(audit.rows.every((row) => row.buildStatus === row.status));
+	assert.ok(audit.rows.every((row) => row.verified === (row.buildStatus === 'built')));
 	assert.ok(audit.rows.every((row) => !('productionReadiness' in row)));
 	assert.equal(isAuditedMilestone5Payloads(structuredClone(audit)), false);
 });
@@ -53,9 +53,13 @@ test('professional and Framescaper build bytes are audited from their payload de
 			blockedBy: null,
 			payload: { sha256: 'a'.repeat(64) },
 		});
-		assert.equal(built.automatedReady, true);
+		assert.equal(built.verified, true);
 		assert.equal(built.buildStatus, 'built');
-		assert.equal(built.status, 'built');
+		assert.deepEqual(built.payload, { sha256: 'a'.repeat(64) });
+		assert.equal(Object.hasOwn(built, 'status'), false);
+		assert.equal(Object.hasOwn(built, 'automatedReady'), false);
+		assert.equal(Object.hasOwn(built, 'automatedEvidenceSha256'), false);
+		assert.equal(Object.hasOwn(built, 'payloadEvidence'), false);
 		assert.equal('productionReadiness' in built, false);
 
 		const changedPayload = createMilestone5PayloadAuditRow({
@@ -65,7 +69,6 @@ test('professional and Framescaper build bytes are audited from their payload de
 			blockedBy: null,
 			payload: { sha256: 'b'.repeat(64) },
 		});
-		assert.notEqual(changedPayload.automatedEvidenceSha256,
-			built.automatedEvidenceSha256);
+		assert.notDeepEqual(changedPayload.payload, built.payload);
 	}
 });

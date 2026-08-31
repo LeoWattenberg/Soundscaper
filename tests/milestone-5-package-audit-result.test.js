@@ -4,28 +4,31 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	assessMilestone5AutomatedAudit,
-} from '../scripts/lib/milestone-5-handoff-automated-audit.mjs';
+	assessMilestone5PackageAuditResult,
+} from '../scripts/lib/milestone-5-package-audit-result.mjs';
 
 const DIGEST_A = 'a'.repeat(64);
 const DIGEST_B = 'b'.repeat(64);
 
-test('non-audit metadata cannot change the Milestone 5 automated audit or its digest', () => {
+test('non-audit metadata cannot change the Milestone 5 package-audit checks', () => {
 	const baseline = fixture();
 	const reviewed = structuredClone(baseline);
 	reviewed.sources[0].notes = 'local cache copy';
 	reviewed.payloadRows[0].notes = 'debug build log retained elsewhere';
 	reviewed.packageAudit.notes = 'package smoke log retained elsewhere';
 
-	const first = assessMilestone5AutomatedAudit(baseline);
-	const second = assessMilestone5AutomatedAudit(reviewed);
+	const first = assessMilestone5PackageAuditResult(baseline);
+	const second = assessMilestone5PackageAuditResult(reviewed);
 	assert.equal(first.passed, true);
 	assert.equal(first.status, 'passed');
+	assert.equal(Object.hasOwn(first, 'evidenceAuthenticated'), false);
+	assert.equal(Object.hasOwn(first, 'evidenceSha256'), false);
+	assert.equal(Object.hasOwn(first, 'evidence'), false);
 	assert.deepEqual(second, first);
 });
 
-test('source, payload, and package failures change audit data and fail the automated audit', () => {
-	const baseline = assessMilestone5AutomatedAudit(fixture());
+test('source, payload, and package failures change checks and fail the package audit', () => {
+	const baseline = assessMilestone5PackageAuditResult(fixture());
 	for (const [id, mutate] of [
 		['source-authentication:native-source', (value) => {
 			value.sources[0].authenticationStatus = 'pending-external';
@@ -34,7 +37,7 @@ test('source, payload, and package failures change audit data and fail the autom
 		}],
 		['payload:native:linux-x64', (value) => {
 			value.payloadRows[0].buildStatus = 'pending-external';
-			value.payloadRows[0].payloadEvidence = null;
+			value.payloadRows[0].payload = null;
 		}],
 		['package-content:native:linux-x64', (value) => {
 			value.packageAudit.packages[0].content = null;
@@ -42,17 +45,17 @@ test('source, payload, and package failures change audit data and fail the autom
 	]) {
 		const changed = fixture();
 		mutate(changed);
-		const result = assessMilestone5AutomatedAudit(changed);
+		const result = assessMilestone5PackageAuditResult(changed);
 		assert.equal(result.passed, false, id);
 		assert.equal(result.status, 'failed', id);
-		assert.notEqual(result.evidenceSha256, baseline.evidenceSha256, id);
+		assert.notDeepEqual(result.checks, baseline.checks, id);
 		assert.ok(result.failures.some((blocker) => blocker.id === id), id);
 	}
 	const hashMismatch = fixture();
 	hashMismatch.sources[0].archiveEvidence.sha256 = DIGEST_B;
-	const mismatched = assessMilestone5AutomatedAudit(hashMismatch);
+	const mismatched = assessMilestone5PackageAuditResult(hashMismatch);
 	assert.equal(mismatched.passed, false);
-	assert.notEqual(mismatched.evidenceSha256, baseline.evidenceSha256);
+	assert.notDeepEqual(mismatched.checks, baseline.checks);
 	assert.ok(mismatched.failures.some(({ id }) => (
 		id === 'source-authentication:native-source'
 	)));
@@ -60,11 +63,11 @@ test('source, payload, and package failures change audit data and fail the autom
 
 function fixture() {
 	return {
-		assemblyInputsAuthenticated: true,
+		repositoryInputsVerified: true,
 		sourceInputsAudited: true,
 		payloadsAuthenticated: true,
 		packageAudited: true,
-		sourceRevisionAuthenticated: true,
+		sourceRevisionVerified: true,
 		sources: [{
 			id: 'native-source',
 			version: '1.0.0',
@@ -89,7 +92,7 @@ function fixture() {
 			product: 'native',
 			targetId: 'linux-x64',
 			buildStatus: 'built',
-			payloadEvidence: { path: 'native/payload.node', byteLength: 19, sha256: DIGEST_A },
+			payload: { path: 'native/payload.node', byteLength: 19, sha256: DIGEST_A },
 		}],
 		packageAudit: {
 			status: 'installed-application-closure-audited',

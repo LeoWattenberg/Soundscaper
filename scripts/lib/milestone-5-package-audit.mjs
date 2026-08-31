@@ -1,396 +1,370 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { constants } from 'node:fs';
-import { createHash } from 'node:crypto';
-import {
-	lstat, mkdtemp, open, readdir, realpath, rm,
-} from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import {
-	basename, dirname, isAbsolute, join, relative, resolve, sep,
-} from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
 
 import {
-	desktopReleaseTargetPackageInventory,
-	regularDesktopReleaseFileNames,
-	validateDesktopRuntimeManifests,
-} from '../desktop-release-assets.mjs';
-import { auditDesktopPackageArtifactContent } from './desktop-package-artifact-extractor.mjs';
+	auditMilestone5NativeSourceAcquisitions,
+	auditMilestone5NativeSourceAcquisitionsForProducts,
+	isAuditedMilestone5NativeSourceAcquisitions,
+} from './milestone-5-native-source-acquisitions.mjs';
+import { auditMilestone5LicensingMatrix } from './milestone-5-licensing-audit.mjs';
+import { auditMilestone5Payloads, isAuditedMilestone5Payloads } from './milestone-5-payload-audit.mjs';
 import {
-	boundedString,
-	deepFreeze,
-	exactRecord,
-} from './measurement-admission.mjs';
+	auditMilestone5PackageContent,
+	isAuditedMilestone5PackageContent,
+} from './milestone-5-package-content-audit.mjs';
+import { validateMilestone5PackagePayloadBinding } from './milestone-5-package-payload-binding.mjs';
+import { assessMilestone5PackageAuditResult } from './milestone-5-package-audit-result.mjs';
 import {
-	readProductReleaseLines,
-	resolveProductApplicationVersion,
-} from './product-release-lines.mjs';
-import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
+	describeMilestone5PackageAuditBytes,
+	readMilestone5PackageAuditInputBytes,
+	readMilestone5PackageAuditInputSnapshot,
+	verifyMilestone5PackageAuditInputs,
+} from './milestone-5-package-audit-inputs.mjs';
+import { MILESTONE_5_PRODUCTS, milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
 
-const AUDITED_PACKAGES = new WeakSet();
-const OPTION_FIELDS = Object.freeze([
-	'repositoryRoot', 'packageRoot', 'productId', 'targetId',
-]);
-const PACKAGE_FILE_PATTERN = /\.(?:appimage|deb|dmg|exe|zip)$/iu;
-const RUNTIME_MANIFEST_PATTERN = /^runtime-manifest-.+\.json$/iu;
+export const MILESTONE_5_PACKAGE_AUDIT_INPUT_PATHS = Object.freeze({
+	licensingMatrix: 'config/production-licensing-matrix.json',
+	sourceAcquisitions: 'config/milestone-5-native-source-acquisitions.json',
+	nativeAddonPayload: 'config/native-addon-payload-manifest.json',
+	soundscaperProfessionalPayload: 'config/soundscaper-professional-native-payload-manifest.json',
+	mediaHostPayload: 'config/framescaper-media-host-payload-manifest.json',
+	openFxHostPayload: 'config/framescaper-openfx-host-payload-manifest.json',
+});
+
+const TARGET_IDS = Object.freeze(['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64']);
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
-const MAXIMUM_RUNTIME_MANIFEST_BYTES = 16 * 1024 * 1024;
-const MAXIMUM_PACKAGE_BYTES = 8 * 1024 * 1024 * 1024;
+const ASSEMBLED_PACKAGE_AUDIT_INPUTS = new WeakSet();
+const ASSEMBLED_PACKAGE_AUDITS = new WeakSet();
+const ASSEMBLED_PACKAGE_AUDIT_SOURCE_REVISIONS = new WeakMap();
 
-/**
- * Audit one isolated product/target package root. The returned object is an
- * in-process authority: serialize it for diagnostics, but re-audit the files to
- * regain authority in another process.
- */
-export async function auditMilestone5Package(optionsValue, dependencies = {}) {
-	const options = exactRecord(
-		snapshotStrictJsonData(optionsValue, 'Milestone 5 package-audit options'),
-		OPTION_FIELDS,
-		'Milestone 5 package-audit options',
+/** Produce an ordinary machine audit. It makes no human or release-readiness claim. */
+export function assessMilestone5PackageAudit(inputs, productIdsValue = MILESTONE_5_PRODUCTS) {
+	assertRecord(inputs, 'Milestone 5 package-audit inputs');
+	const engineeringScope = milestone5EngineeringScope(productIdsValue);
+	const repositoryInputsVerified = ASSEMBLED_PACKAGE_AUDIT_INPUTS.has(inputs);
+	const sourceInputsAudited = isAuditedMilestone5NativeSourceAcquisitions(inputs.sourceAcquisitions);
+	const sources = validateSourceAcquisitions(
+		inputs.sourceAcquisitions, sourceInputsAudited, engineeringScope,
 	);
-	const repositoryRoot = absoluteRoot(options.repositoryRoot, 'repositoryRoot');
-	const packageRoot = absoluteRoot(options.packageRoot, 'packageRoot');
-	const productId = boundedString(options.productId, 1, 40, 'package-audit productId');
-	const targetId = boundedString(options.targetId, 1, 40, 'package-audit targetId');
-	const auditPackageArtifactContent = dependencies.auditPackageArtifactContent
-		?? auditDesktopPackageArtifactContent;
-	// The shared inventory is the target/product vocabulary authority. Calling it
-	// before composing a file name keeps untrusted identities out of path logic.
-	desktopReleaseTargetPackageInventory(productId, targetId, 'identity-probe');
-
-	const rootStats = await lstat(packageRoot);
-	if (rootStats.isSymbolicLink() || !rootStats.isDirectory()) {
-		throw new Error('Milestone 5 package root must be a regular non-symbolic directory.');
+	const payloadsVerified = isAuditedMilestone5Payloads(inputs.payloadAudit);
+	const packageContentAudited = isAuditedMilestone5PackageContent(inputs.packageAudit);
+	const declaredPayloadRows = payloadManifestEntries(inputs, engineeringScope).flatMap(
+		([, manifest, product]) => validatePayloadManifest(manifest, product),
+	);
+	const payloadRows = payloadsVerified
+		? validateAuditedPayloads(inputs, declaredPayloadRows, engineeringScope)
+		: declaredPayloadRows;
+	if (packageContentAudited && payloadsVerified) {
+		validateMilestone5PackagePayloadBinding(
+			inputs.packageAudit, inputs.payloadAudit, MILESTONE_5_PACKAGE_AUDIT_INPUT_PATHS, engineeringScope,
+		);
 	}
-	const canonicalRoot = await realpath(packageRoot);
-	const entries = await readdir(packageRoot, { withFileTypes: true });
-	const rootNames = regularDesktopReleaseFileNames(entries);
-	const manifestName = `runtime-manifest-${productId}-${targetId}.json`;
-	const runtimeNames = rootNames.filter((name) => RUNTIME_MANIFEST_PATTERN.test(name));
-	if (runtimeNames.length !== 1 || runtimeNames[0] !== manifestName) {
-		throw new Error(`Milestone 5 package root must contain the one exact runtime manifest ${manifestName}.`);
-	}
-	const runtimeFile = await readAndDescribeRegularFile({
-		canonicalRoot,
-		label: 'Milestone 5 staged runtime manifest',
-		maximumBytes: MAXIMUM_RUNTIME_MANIFEST_BYTES,
-		name: manifestName,
-		packageRoot,
-		retainBytes: true,
+	const result = assessMilestone5PackageAuditResult({
+		repositoryInputsVerified,
+		sourceInputsAudited,
+		payloadsAuthenticated: payloadsVerified,
+		packageAudited: packageContentAudited,
+		sourceRevisionVerified: ASSEMBLED_PACKAGE_AUDIT_SOURCE_REVISIONS.get(inputs) === true,
+		sources,
+		payloadRows,
+		packageAudit: packageContentAudited ? inputs.packageAudit : null,
 	});
-	const manifest = parseJson(runtimeFile.bytes, manifestName);
-	const canonicalManifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
-	if (!runtimeFile.bytes.equals(canonicalManifestBytes)) {
-		throw new Error('Milestone 5 staged runtime manifest is not the exact canonical staged JSON.');
-	}
-	if (manifest.schemaVersion !== 1) {
-		throw new Error('Milestone 5 staged runtime manifest schemaVersion must be 1.');
-	}
-	const applicationVersion = boundedString(
-		manifest.applicationVersion,
-		1,
-		160,
-		'Milestone 5 staged runtime manifest applicationVersion',
-	);
-	if (!Object.hasOwn(manifest, 'sourceRevision')
-		|| (manifest.sourceRevision !== null && !SOURCE_REVISION.test(String(manifest.sourceRevision)))) {
-		throw new Error('Milestone 5 staged runtime manifest source revision is invalid.');
-	}
-	const sourceRevision = manifest.sourceRevision;
-	validateDesktopRuntimeManifests([{ name: manifestName, value: manifest }]);
-	const releaseLines = await readProductReleaseLines(repositoryRoot);
-	const selectedApplicationVersion = resolveProductApplicationVersion(productId, releaseLines);
-	if (selectedApplicationVersion !== applicationVersion) {
-		throw new Error('Milestone 5 staged runtime manifest application version disagrees with the selected product release line.');
-	}
-
-	const targetInventory = desktopReleaseTargetPackageInventory(
-		productId,
-		targetId,
-		applicationVersion,
-	);
-	const packageNames = rootNames.filter((name) => PACKAGE_FILE_PATTERN.test(name));
-	const selected = targetInventory.map(({ label, pattern }) => {
-		const matches = packageNames.filter((name) => pattern.test(name));
-		if (matches.length !== 1) {
-			throw new Error(`Milestone 5 package root expected exactly one ${label}.`);
-		}
-		return { label, name: matches[0] };
+	const built = payloadRows.filter(({ buildStatus }) => buildStatus === 'built').length;
+	return deepFreeze({
+		schemaVersion: 3,
+		kind: 'milestone-5-package-audit',
+		engineeringScope,
+		assessmentScope: packageContentAudited ? {
+			kind: 'package',
+			productId: inputs.packageAudit.productId,
+			targetId: inputs.packageAudit.targetId,
+		} : { kind: 'engineering-inputs' },
+		repositoryInputsVerified,
+		sourceInputsVerified: sourceInputsAudited,
+		...result,
+		sources: {
+			authenticated: sources.filter(({ authenticationStatus }) => (
+				authenticationStatus === 'authenticated'
+			)).length,
+			unavailable: sources.filter(({ authenticationStatus }) => (
+				authenticationStatus !== 'authenticated'
+			)).length,
+			total: sources.length,
+		},
+		payloads: { built, unavailable: payloadRows.length - built, total: payloadRows.length },
+		package: packageContentAudited ? packageAuditSummary(inputs.packageAudit) : null,
+		licensing: auditMilestone5LicensingMatrix(inputs.licensingMatrix),
 	});
-	if (packageNames.length !== selected.length) {
-		const expected = new Set(selected.map(({ name }) => name));
-		const unexpected = packageNames.filter((name) => !expected.has(name));
-		throw new Error(`Milestone 5 package root contains unexpected packaged files: ${unexpected.join(', ') || '<duplicate>'}.`);
-	}
-	const expectedRootNames = new Set([
-		manifestName,
-		...selected.map(({ name }) => name),
-	]);
-	const unexpectedRootNames = rootNames.filter((name) => !expectedRootNames.has(name));
-	if (rootNames.length !== expectedRootNames.size || unexpectedRootNames.length > 0) {
-		throw new Error(`Milestone 5 package root has foreign entries: ${unexpectedRootNames.join(', ') || '<duplicate>'}.`);
-	}
-	const snapshotRoot = await mkdtemp(join(tmpdir(), 'm5-package-snapshot-'));
-	const canonicalSnapshotRoot = await realpath(snapshotRoot);
-	const packages = [];
-	try {
-		for (const { label, name } of selected) {
-			const snapshotPath = resolve(canonicalSnapshotRoot, name);
-			const file = await readAndDescribeRegularFile({
-				canonicalRoot,
-				label: `Milestone 5 ${label}`,
-				maximumBytes: MAXIMUM_PACKAGE_BYTES,
-				name,
-				packageRoot,
-				retainBytes: false,
-				snapshotPath,
-			});
-			packages.push({
-				label,
-				name,
-				byteLength: file.byteLength,
-				sha256: file.sha256,
-				content: null,
-			});
-		}
-		for (const descriptor of packages) {
-			const snapshotPath = resolve(canonicalSnapshotRoot, descriptor.name);
-			const content = await auditPackageArtifactContent({
-				packagePath: snapshotPath,
-				repositoryRoot,
-				runtimeManifestBytes: runtimeFile.bytes,
-				productId,
-				targetId,
-			});
-			const after = await readAndDescribeRegularFile({
-				canonicalRoot: canonicalSnapshotRoot,
-				label: `Milestone 5 authenticated ${descriptor.label} snapshot`,
-				maximumBytes: MAXIMUM_PACKAGE_BYTES,
-				name: descriptor.name,
-				packageRoot: canonicalSnapshotRoot,
-				retainBytes: false,
-			});
-			if (after.byteLength !== descriptor.byteLength || after.sha256 !== descriptor.sha256) {
-				throw new Error(`Milestone 5 ${descriptor.label} snapshot changed during content extraction.`);
-			}
-			descriptor.content = packageContentSummary(content);
-		}
-		const [firstContent, ...otherContent] = packages.map(({ content }) => content);
-		if (otherContent.some((content) => content.closureSha256 !== firstContent.closureSha256
-			|| content.contentManifestSha256 !== firstContent.contentManifestSha256
-			|| content.installedClosureSha256 !== firstContent.installedClosureSha256
-			|| content.fileCount !== firstContent.fileCount || content.totalBytes !== firstContent.totalBytes
-			|| content.installedFileCount !== firstContent.installedFileCount
-			|| content.installedTotalBytes !== firstContent.installedTotalBytes)) {
-			throw new Error('Milestone 5 target package formats contain different installed application closures.');
-		}
-		return packageAudit({
-			status: 'installed-application-closure-audited',
-			productId,
-			targetId,
-			applicationVersion,
-			sourceRevision,
-			manifest,
-			manifestName,
-			runtimeFile,
-			packages,
-		});
-	} finally {
-		await rm(canonicalSnapshotRoot, { recursive: true, force: true });
-	}
 }
 
-function packageAudit({
-	status,
-	productId,
-	targetId,
-	applicationVersion,
+export async function assembleMilestone5PackageAudit(
+	repositoryRoot,
 	sourceRevision,
-	manifest,
-	manifestName,
-	runtimeFile,
-	packages: packageDescriptors,
-}) {
-	const automatedEvidence = {
-		schemaVersion: 1,
-		productId,
-		targetId,
-		applicationVersion,
+	packageOptions = null,
+	dependencies = {},
+) {
+	return assembleMilestone5PackageAuditScope({
+		repositoryRoot,
 		sourceRevision,
-		runtimeManifest: {
-			name: manifestName,
-			byteLength: runtimeFile.byteLength,
-			sha256: runtimeFile.sha256,
-		},
-		packages: packageDescriptors.map((descriptor) => ({
-			label: descriptor.label,
-			name: descriptor.name,
-			byteLength: descriptor.byteLength,
-			sha256: descriptor.sha256,
-			content: descriptor.content,
-		})),
-	};
+		packageOptions,
+		productIds: MILESTONE_5_PRODUCTS,
+	}, dependencies);
+}
+
+export async function assembleMilestone5ProductPackageAudit(options, dependencies = {}) {
+	assertRecord(options, 'Milestone 5 product package-audit options');
+	const keys = Object.keys(options).sort();
+	assert(keys.every((key) => [
+		'packageOptions', 'productIds', 'repositoryRoot', 'sourceRevision',
+	].includes(key)) && keys.includes('productIds') && keys.includes('repositoryRoot'),
+	'Milestone 5 product package-audit options have an unexpected shape.');
+	return assembleMilestone5PackageAuditScope({
+		repositoryRoot: options.repositoryRoot,
+		sourceRevision: options.sourceRevision,
+		packageOptions: options.packageOptions ?? null,
+		productIds: options.productIds,
+	}, dependencies);
+}
+
+async function assembleMilestone5PackageAuditScope(options, dependencies) {
+	const { repositoryRoot, sourceRevision, packageOptions } = options;
+	const engineeringScope = milestone5EngineeringScope(options.productIds);
+	const observedHeadRevision = currentRevision(repositoryRoot);
+	const sourceRevisionBinding = sourceRevision === undefined
+		? deepFreeze({ status: 'unverified-working-tree', sourceRevision: null, observedHeadRevision })
+		: verifyMilestone5PackageAuditSourceRevision(repositoryRoot, sourceRevision);
+	const revision = sourceRevisionBinding.sourceRevision ?? observedHeadRevision;
+	const inputRevision = sourceRevisionBinding.status === 'verified-clean-head' ? revision : null;
+	const inputPaths = milestone5PackageAuditInputPaths(engineeringScope);
+	const snapshot = readMilestone5PackageAuditInputSnapshot(repositoryRoot, inputPaths, inputRevision);
+	const { inputs, bytes: inputBytes, inputDigests } = snapshot;
+	inputs.sourceAcquisitionRegister = inputs.sourceAcquisitions;
+	for (const { manifestPath } of engineeringScope.includeDelegatedSources
+		? inputs.sourceAcquisitionRegister.delegatedSources : []) {
+		const bytes = readMilestone5PackageAuditInputBytes(
+			repositoryRoot, inputRevision, manifestPath,
+		);
+		inputDigests[manifestPath] = describeMilestone5PackageAuditBytes(bytes);
+	}
+	inputs.sourceAcquisitions = engineeringScope.kind === 'retained-dual-product'
+		? auditMilestone5NativeSourceAcquisitions(repositoryRoot)
+		: auditMilestone5NativeSourceAcquisitionsForProducts(
+			repositoryRoot, engineeringScope.products,
+		);
+	inputs.payloadAudit = await auditMilestone5Payloads(repositoryRoot, engineeringScope.products);
+	if (packageOptions !== null) {
+		validatePackageOptions(packageOptions);
+		inputs.packageAudit = await auditMilestone5PackageContent({
+			repositoryRoot: resolve(repositoryRoot),
+			packageRoot: resolve(repositoryRoot, packageOptions.packageRoot),
+			productId: packageOptions.productId,
+			targetId: packageOptions.targetId,
+		}, { auditPackageArtifactContent: dependencies.auditPackageArtifactContent });
+		if (sourceRevisionBinding.status === 'verified-clean-head') {
+			assert(inputs.packageAudit.sourceRevision === sourceRevisionBinding.sourceRevision,
+				'Milestone 5 package runtime manifest does not bind the audited revision.');
+		}
+		for (const descriptor of [inputs.packageAudit.runtimeManifest, ...inputs.packageAudit.packages]) {
+			inputDigests[
+				`desktop-package:${inputs.packageAudit.productId}:${inputs.packageAudit.targetId}:${descriptor.name}`
+			] = { byteLength: descriptor.byteLength, sha256: descriptor.sha256 };
+		}
+	}
+	for (const path of Object.keys(inputs.payloadAudit.inputDigests)) {
+		if (Object.hasOwn(inputDigests, path)) continue;
+		const bytes = readMilestone5PackageAuditInputBytes(repositoryRoot, inputRevision, path);
+		inputDigests[path] = describeMilestone5PackageAuditBytes(bytes);
+	}
+	verifyMilestone5PackageAuditInputs({ inputs, inputBytes, inputDigests });
+	Object.assign(inputDigests, inputs.sourceAcquisitions.inputDigests, inputs.payloadAudit.inputDigests);
+	ASSEMBLED_PACKAGE_AUDIT_INPUTS.add(inputs);
+	ASSEMBLED_PACKAGE_AUDIT_SOURCE_REVISIONS.set(
+		inputs, sourceRevisionBinding.status === 'verified-clean-head',
+	);
+	const assessment = assessMilestone5PackageAudit(inputs, engineeringScope.products);
+	if (sourceRevisionBinding.status === 'verified-clean-head') {
+		const postflight = verifyMilestone5PackageAuditSourceRevision(repositoryRoot, revision);
+		assert(postflight.sourceRevision === sourceRevisionBinding.sourceRevision,
+			'Milestone 5 package-audit source revision changed during assembly.');
+	}
 	const audit = deepFreeze({
-		schemaVersion: 1,
-		status,
-		automatedStatus: 'installed-application-closure-audited',
-		automatedEvidenceSha256: createHash('sha256')
-			.update(JSON.stringify(automatedEvidence)).digest('hex'),
-		productId,
-		targetId,
-		applicationVersion,
-		sourceRevision,
-		runtimeManifest: {
-			name: manifestName,
-			byteLength: runtimeFile.byteLength,
-			sha256: runtimeFile.sha256,
-			value: manifest,
-		},
-		desktopCodecPolicy: manifest.desktopCodecPolicy,
-		packages: packageDescriptors,
-		packageCount: packageDescriptors.length,
-		totalPackageBytes: packageDescriptors.reduce(
-			(total, descriptor) => total + descriptor.byteLength,
-			0,
-		),
+		...assessment,
+		sourceRevision: sourceRevisionBinding.status === 'verified-clean-head' ? revision : null,
+		observedHeadRevision,
+		sourceRevisionBinding,
+		inputDigests,
 	});
-	AUDITED_PACKAGES.add(audit);
+	ASSEMBLED_PACKAGE_AUDITS.add(audit);
 	return audit;
 }
 
-function packageContentSummary(content) {
+export function isAssembledMilestone5PackageAudit(value) {
+	return value !== null && typeof value === 'object' && ASSEMBLED_PACKAGE_AUDITS.has(value);
+}
+
+export function verifyMilestone5PackageAuditSourceRevision(repositoryRoot, assertedRevision) {
+	assert(SOURCE_REVISION.test(assertedRevision),
+		'Milestone 5 asserted package-audit revision must be one Git object ID.');
+	const resolved = gitText(repositoryRoot, ['rev-parse', '--verify', `${assertedRevision}^{commit}`]);
+	const head = gitText(repositoryRoot, ['rev-parse', '--verify', 'HEAD^{commit}']);
+	assert(resolved === head, 'Milestone 5 asserted package-audit revision does not resolve to HEAD.');
+	const status = execFileSync(
+		'git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
+		{ cwd: repositoryRoot, encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 },
+	);
+	assert(status.byteLength === 0, 'Milestone 5 package audit requires a clean worktree and index.');
+	return Object.freeze({ status: 'verified-clean-head', sourceRevision: head });
+}
+
+function validateAuditedPayloads(inputs, declaredRows, engineeringScope) {
+	const audit = inputs.payloadAudit;
+	assert(audit.schemaVersion === 3, 'Milestone 5 payload audit has an unsupported schema.');
+	for (const [key, , , inputKey] of payloadManifestEntries(inputs, engineeringScope)) {
+		assert(JSON.stringify(audit.manifests[key]) === JSON.stringify(inputs[inputKey]),
+			`Milestone 5 authenticated ${key} payload manifest disagrees with the audit input.`);
+	}
+	assert(Array.isArray(audit.rows) && audit.rows.length === declaredRows.length,
+		'Milestone 5 payload audit has an incomplete target inventory.');
+	for (const declared of declaredRows) {
+		const matches = audit.rows.filter((row) => row.identity === declared.identity);
+		assert(matches.length === 1 && matches[0].buildStatus === declared.buildStatus,
+			`Milestone 5 payload row ${declared.identity} disagrees with its manifest.`);
+		assert(JSON.stringify(matches[0].payload) === JSON.stringify(declared.payload),
+			`Milestone 5 payload row ${declared.identity} has inconsistent file checks.`);
+	}
+	return audit.rows.map((row) => ({
+		identity: row.identity,
+		product: row.product,
+		targetId: row.targetId,
+		buildStatus: row.buildStatus,
+		payload: row.payload,
+	}));
+}
+
+function packageAuditSummary(audit) {
 	return {
-		status: content.status,
-		productId: content.productId,
-		targetId: content.targetId,
-		applicationVersion: content.applicationVersion,
-		sourceRevision: content.sourceRevision,
-		fileCount: content.fileCount,
-		totalBytes: content.totalBytes,
-		closureSha256: content.closureSha256,
-		contentManifestByteLength: content.contentManifestByteLength,
-		contentManifestSha256: content.contentManifestSha256,
-		installedFileCount: content.installedFileCount,
-		installedTotalBytes: content.installedTotalBytes,
-		installedClosureSha256: content.installedClosureSha256,
+		status: audit.status,
+		productId: audit.productId,
+		targetId: audit.targetId,
+		applicationVersion: audit.applicationVersion,
+		sourceRevision: audit.sourceRevision,
+		runtimeManifest: descriptor(audit.runtimeManifest),
+		desktopCodecPolicy: structuredClone(audit.desktopCodecPolicy),
+		packages: audit.packages.map(({ label, name, byteLength, sha256, content }) => ({
+			label, name, byteLength, sha256,
+			content: content === null ? null : { ...content },
+		})),
+		packageCount: audit.packageCount,
+		totalPackageBytes: audit.totalPackageBytes,
 	};
 }
 
-export function isAuditedMilestone5Package(value) {
-	return value !== null && typeof value === 'object' && AUDITED_PACKAGES.has(value);
+function validateSourceAcquisitions(register, audited, engineeringScope) {
+	assertRecord(register, 'Milestone 5 native source acquisitions');
+	assert(register.schemaVersion === 1 && Array.isArray(register.sources),
+		'Milestone 5 native source acquisitions are invalid.');
+	assert(JSON.stringify(register.sources.map(({ id }) => id)) === JSON.stringify(engineeringScope.sourceIds),
+		'Milestone 5 native source IDs are incomplete or out of order.');
+	for (const source of register.sources) {
+		assert((audited
+			? ['authenticated', 'pending-external'].includes(source.authenticationStatus)
+			: source.authenticationStatus === 'pinned-metadata'),
+		`Milestone 5 native source ${source.id} has invalid audit state.`);
+	}
+	return register.sources;
 }
 
-async function readAndDescribeRegularFile({
-	canonicalRoot,
-	label,
-	maximumBytes,
-	name,
-	packageRoot,
-	retainBytes,
-	snapshotPath = null,
-}) {
-	if (typeof name !== 'string' || basename(name) !== name || name.includes('/') || name.includes('\\')) {
-		throw new Error(`${label} name is not one direct package-root file.`);
-	}
-	const path = resolve(packageRoot, name);
-	if (dirname(path) !== packageRoot) throw new Error(`${label} path leaves its package root.`);
-	const before = await lstat(path);
-	if (before.isSymbolicLink() || !before.isFile()) {
-		throw new Error(`${label} must be a regular non-symbolic file.`);
-	}
-	if (!Number.isSafeInteger(before.size) || before.size < 1 || before.size > maximumBytes) {
-		throw new Error(`${label} byte length is outside the accepted range.`);
-	}
-	const canonicalPath = await realpath(path);
-	if (!isContainedDirectFile(canonicalRoot, canonicalPath)) {
-		throw new Error(`${label} real path is not contained by its package root.`);
-	}
-	let handle;
-	let snapshotHandle;
-	try {
-		handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-		if (snapshotPath !== null) {
-			if (!isAbsolute(snapshotPath) || resolve(snapshotPath) !== snapshotPath) {
-				throw new TypeError(`${label} snapshot path must be absolute and normalized.`);
-			}
-			snapshotHandle = await open(
-				snapshotPath,
-				constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
-				0o400,
-			);
-		}
-		const opened = await handle.stat();
-		if (!opened.isFile() || opened.size !== before.size
-			|| (before.ino !== 0 && opened.ino !== 0
-				&& (before.dev !== opened.dev || before.ino !== opened.ino))) {
-			throw new Error(`${label} changed while it was being opened.`);
-		}
-		let bytes = null;
-		let byteLength = 0;
-		const hash = createHash('sha256');
-		if (retainBytes) {
-			bytes = await handle.readFile();
-			byteLength = bytes.byteLength;
-			hash.update(bytes);
-		} else {
-			const stream = handle.createReadStream({ autoClose: false });
-			for await (const chunk of stream) {
-				byteLength += chunk.byteLength;
-				if (byteLength > maximumBytes) throw new Error(`${label} exceeds its byte limit.`);
-				hash.update(chunk);
-				if (snapshotHandle) await writeAll(snapshotHandle, chunk);
-			}
-		}
-		const after = await handle.stat();
-		if (byteLength !== before.size || after.size !== before.size
-			|| after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) {
-			throw new Error(`${label} changed while it was being hashed.`);
-		}
-		if (snapshotHandle) {
-			await snapshotHandle.sync();
-			const snapshot = await snapshotHandle.stat();
-			if (!snapshot.isFile() || snapshot.size !== byteLength) {
-				throw new Error(`${label} snapshot did not retain the authenticated bytes.`);
-			}
-		}
+function payloadManifestEntries(inputs, engineeringScope) {
+	return [
+		['nativeAddon', inputs.nativeAddonPayload, 'soundscaper', 'nativeAddonPayload'],
+		['soundscaperProfessional', inputs.soundscaperProfessionalPayload,
+			'soundscaper-professional', 'soundscaperProfessionalPayload'],
+		['mediaHost', inputs.mediaHostPayload, 'framescaper-media', 'mediaHostPayload'],
+		['openFxHost', inputs.openFxHostPayload, 'framescaper-openfx', 'openFxHostPayload'],
+	].filter(([, , product]) => engineeringScope.payloadProducts.includes(product));
+}
+
+function milestone5PackageAuditInputPaths(engineeringScope) {
+	return Object.fromEntries(Object.entries(MILESTONE_5_PACKAGE_AUDIT_INPUT_PATHS).filter(([key]) => (
+		!['nativeAddonPayload', 'soundscaperProfessionalPayload', 'mediaHostPayload', 'openFxHostPayload']
+			.includes(key) || engineeringScope.payloadInputKeys.includes(key)
+	)));
+}
+
+function validatePayloadManifest(manifest, product) {
+	assertRecord(manifest, `Milestone 5 ${product} payload manifest`);
+	assert(manifest.schemaVersion === 1 && Array.isArray(manifest.targets),
+		`Milestone 5 ${product} payload manifest is invalid.`);
+	assert(JSON.stringify(manifest.targets.map(({ id }) => id)) === JSON.stringify(TARGET_IDS),
+		`Milestone 5 ${product} payload targets must be the exact five-target inventory.`);
+	return manifest.targets.map((target) => {
+		assert(['built', 'pending-external'].includes(target.status),
+			`Milestone 5 ${product} payload ${target.id} has an invalid status.`);
 		return {
-			byteLength,
-			sha256: hash.digest('hex'),
-			...(bytes === null ? {} : { bytes }),
+			identity: `${product}:${target.id}`,
+			product,
+			targetId: target.id,
+			buildStatus: target.status,
+			payload: target.status === 'built' ? machinePayload(target, product) : null,
 		};
-	} finally {
-		await snapshotHandle?.close();
-		await handle?.close();
+	});
+}
+
+function machinePayload(target, product) {
+	if (product === 'soundscaper') return structuredClone(target.payload);
+	if (product === 'soundscaper-professional') return structuredClone({
+		payload: target.payload,
+		pluginPeer: target.pluginPeer,
+		isolation: target.isolation,
+		sourceAuthentication: target.sourceAuthentication,
+		toolchainIdentity: target.toolchainIdentity,
+	});
+	if (product === 'framescaper-media') return structuredClone({
+		payload: target.payload,
+		isolationPayload: target.isolationPayload,
+	});
+	return structuredClone(target.payload);
+}
+
+function validatePackageOptions(options) {
+	assertRecord(options, 'Milestone 5 package audit options');
+	assert(JSON.stringify(Object.keys(options).sort())
+		=== JSON.stringify(['packageRoot', 'productId', 'targetId']),
+	'Milestone 5 package audit options have an unexpected shape.');
+	for (const field of ['packageRoot', 'productId', 'targetId']) {
+		assert(typeof options[field] === 'string' && options[field].length > 0,
+			`Milestone 5 package audit ${field} is required.`);
 	}
 }
 
-async function writeAll(handle, bytes) {
-	let offset = 0;
-	while (offset < bytes.byteLength) {
-		const { bytesWritten } = await handle.write(bytes, offset, bytes.byteLength - offset, null);
-		if (bytesWritten < 1) throw new Error('Milestone 5 package snapshot write made no progress.');
-		offset += bytesWritten;
-	}
+function descriptor(value) {
+	return { name: value.name, byteLength: value.byteLength, sha256: value.sha256 };
 }
 
-function absoluteRoot(value, field) {
-	const path = boundedString(value, 1, 4_096, `Milestone 5 package-audit ${field}`);
-	if (!isAbsolute(path) || resolve(path) !== path) {
-		throw new Error(`Milestone 5 package-audit ${field} must be one canonical absolute path.`);
-	}
-	return path;
+function currentRevision(repositoryRoot) {
+	return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryRoot, encoding: 'utf8' }).trim();
 }
 
-function isContainedDirectFile(root, candidate) {
-	const path = relative(root, candidate);
-	return path !== '' && path !== '..' && !path.startsWith(`..${sep}`)
-		&& !isAbsolute(path) && !path.includes(sep);
+function gitText(repositoryRoot, arguments_) {
+	return execFileSync('git', arguments_, {
+		cwd: repositoryRoot, encoding: 'utf8', maxBuffer: 1024 * 1024,
+	}).trim();
 }
 
-function parseJson(bytes, label) {
-	try {
-		return snapshotStrictJsonData(JSON.parse(bytes.toString('utf8')), label);
-	} catch (error) {
-		throw new Error(`${label} must contain strict valid JSON.`, { cause: error });
+function deepFreeze(value) {
+	if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+		Object.freeze(value);
+		for (const child of Object.values(value)) deepFreeze(child);
 	}
+	return value;
+}
+
+function assertRecord(value, label) {
+	assert(value && typeof value === 'object' && !Array.isArray(value), `${label} must be an object.`);
+}
+
+function assert(condition, message) {
+	if (!condition) throw new Error(message);
 }

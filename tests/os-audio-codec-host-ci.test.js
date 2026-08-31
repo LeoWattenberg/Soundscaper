@@ -189,7 +189,7 @@ test('all OS-capable package paths build the codec host while Linux receives no 
 		'--runner-os=${{ runner.os }}',
 		'--runner-arch=${{ runner.arch }}',
 	]) assert.equal(workflow.match(new RegExp(escapeRegExp(argument), 'gu'))?.length, 3, argument);
-	const packageJob = jobSource(workflow, 'package', 'milestone-5-handoff-matrix');
+	const packageJob = jobSource(workflow, 'package', 'milestone-5-package-audit-summary');
 	assert.match(packageJob,
 		/if: matrix\.product == 'soundscaper' && matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
 	const testsJob = jobSource(workflow, 'package-with-tests', 'soundscaper-project-library-lease-matrix');

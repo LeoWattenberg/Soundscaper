@@ -154,24 +154,15 @@ export function createMilestone5PayloadAuditRow({
 	}
 	if (status === 'built' ? payload === null || blockedBy !== null
 		: payload !== null || typeof blockedBy !== 'string' || blockedBy.trim().length < 8) {
-		throw new Error(`Milestone 5 payload ${product}:${targetId} has inconsistent evidence.`);
+		throw new Error(`Milestone 5 payload ${product}:${targetId} has inconsistent build state.`);
 	}
-	const automatedReady = status === 'built';
-	const payloadEvidence = payload === null ? null : structuredClone(payload);
-	const automatedEvidenceSha256 = createHash('sha256').update(JSON.stringify({
-		identity: `${product}:${targetId}`,
-		buildStatus: status,
-		payloadEvidence,
-	})).digest('hex');
 	return {
 		identity: `${product}:${targetId}`,
 		product,
 		targetId,
 		buildStatus: status,
-		automatedReady,
-		automatedEvidenceSha256,
-		payloadEvidence,
-		status,
+		verified: status === 'built',
+		payload: payload === null ? null : structuredClone(payload),
 		blockedBy,
 	};
 }

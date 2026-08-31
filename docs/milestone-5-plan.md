@@ -7,8 +7,9 @@
 > implementation source or explicit re-import boundary, and V25/V26 retain
 > opaque, read-only custody. The implemented native routes are enabled for
 > build and test whenever their exact payload, platform, containment, consent,
-> quarantine, and capacity checks pass. Human qualification remains a
-> Milestone 9 stable-1.0 release input, never a Milestone 5 activation gate.
+> quarantine, and capacity checks pass. Releases consume neutral target build
+> results with closed inventories, self-tests, architecture, lengths, and
+> SHA-256 checks; optional human observations belong in owner QA.
 
 > The source audit authenticates 0/10 required exact archive/extracted-tree
 > inputs until a cache is provisioned — see
@@ -17,12 +18,18 @@
 > All five Soundscaper professional payload rows are `pending-external`;
 > both five-target Framescaper payload manifests are empty and every row is
 > `pending-external`. Per-OS launcher source/contracts/tests exist, but
-> authenticated target payloads do not. Owner legal review is recorded in
-> `config/production-legal-review.json`, without an independent reviewer or
-> trust key. Per-target technical readiness evidence, signing/notarization
-> identities and keys, accepted packages/manual runs, and native-lab cohorts
-> are absent; those remaining records block stable 1.0 admission in Milestone 9, not current
-> build, test, package, catalog visibility, or otherwise machine-admitted use.
+> authenticated target payloads do not. Owner licensing notes are maintained
+> in `docs/legalchecklist.md` as practical distribution guidance, not approval
+> authority. A final package needs the matching neutral target build result,
+> source and notice closure, self-tests, architecture, lengths, hashes, package
+> inventory, and smoke checks. There is no readiness signature, publisher key,
+> accepted manual run, native-lab cohort, or milestone-9 admission record.
+
+> `npm run milestone5:package-audit` writes one product/target package audit;
+> `npm run milestone5:package-audit-summary` re-opens the downloaded package
+> roots and reports whether their source, licensing, payload, runtime-manifest,
+> architecture, self-test, content, length, and SHA-256 checks passed. These
+> reports are build diagnostics, not release verdicts.
 
 > Owning source for milestone-5 sequencing, the helper-contract and
 > plug-in/codec decisions, their invariants, and the bounded work

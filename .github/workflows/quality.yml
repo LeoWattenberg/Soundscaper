@@ -184,7 +184,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          # tests/milestone-5-handoff.test.js resolves HEAD^ against the real
+          # tests/milestone-5-package-audit.test.js reads revision-bound Git inputs from the real
           # checkout, so a shard cannot run against a depth-1 clone.
           fetch-depth: 0
 

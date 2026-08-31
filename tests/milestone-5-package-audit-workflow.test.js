@@ -7,19 +7,25 @@ import test from 'node:test';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-test('desktop packaging retains ten nightly cells while product tags select one exact release line', async () => {
+test('desktop packaging audits ten nightly product targets while tags select one release line', async () => {
 	const [workflow, metadata] = await Promise.all([
 		readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8'),
 		readFile(resolve(ROOT, 'package.json'), 'utf8').then(JSON.parse),
 	]);
 	assert.equal(
-		metadata.scripts['milestone5:handoff-matrix'],
-		'node scripts/aggregate-milestone-5-handoffs.mjs',
+		metadata.scripts['milestone5:package-audit-summary'],
+		'node scripts/audit-milestone-5-packages.mjs',
 	);
+	assert.equal(
+		metadata.scripts['milestone5:package-audit'],
+		'node scripts/audit-milestone-5-package.mjs',
+	);
+	assert.equal(metadata.scripts['milestone5:handoff'], undefined);
+	assert.equal(metadata.scripts['milestone5:handoff-matrix'], undefined);
 	const packageStart = workflow.indexOf('\n  package:');
 	const qualityStart = workflow.indexOf('\n  quality:');
 	const testsStart = workflow.indexOf('\n  tests:');
-	const aggregateStart = workflow.indexOf('\n  milestone-5-handoff-matrix:');
+	const aggregateStart = workflow.indexOf('\n  milestone-5-package-audit-summary:');
 	// Bounded by whichever job comes next rather than by one named job, so a job
 	// added after the aggregate cannot be read as part of it.
 	const nextJob = aggregateStart + 1
@@ -30,9 +36,9 @@ test('desktop packaging retains ten nightly cells while product tags select one 
 	const packageJob = workflow.slice(packageStart, aggregateStart);
 	const aggregateJob = workflow.slice(aggregateStart, nextJob);
 	assert.match(qualityJob, /resolveProductReleaseTag[\s\S]*?release \? \[release\.productId\] : \['soundscaper', 'framescaper'\]/u);
-	assert.match(qualityJob, /release-m5-arguments:[\s\S]*?m5-arguments=' \+ \(release \? '--product ' \+ release\.productId : ''\)/u);
+	assert.match(qualityJob, /package-audit-arguments:[\s\S]*?package-audit-arguments=' \+ \(release \? '--product ' \+ release\.productId : ''\)/u);
 	assert.match(packageJob, /strategy:\s+fail-fast: false\s+matrix:\s+product: \$\{\{ fromJSON\(needs\.quality\.outputs\.release-products\) \}\}[\s\S]*?platform: win\s+arch: x64[\s\S]*?platform: win\s+arch: arm64[\s\S]*?platform: mac\s+arch: arm64[\s\S]*?platform: linux\s+arch: x64[\s\S]*?platform: linux\s+arch: arm64/u);
-	assert.match(packageJob, /milestone-5-handoff-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
+	assert.match(packageJob, /milestone-5-package-audit-\$\{\{ matrix\.product \}\}-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}\.json/u);
 	assert.match(aggregateJob, /needs: \[quality, package\]/u);
 	assert.match(aggregateJob, /needs\.package\.result == 'success'/u);
 	assert.match(aggregateJob, /ref: \$\{\{ github\.sha \}\}/u);
@@ -43,8 +49,9 @@ test('desktop packaging retains ten nightly cells while product tags select one 
 	assert.match(aggregateJob, /ci-apt-install\.sh p7zip-full squashfs-tools/u);
 	assert.match(aggregateJob, /actions\/download-artifact@[a-f\d]{40}[\s\S]*?pattern: nightly-\$\{\{ needs\.quality\.outputs\.release-product-pattern \}\}-\*[\s\S]*?milestone-5-packages/u);
 	assert.doesNotMatch(aggregateJob, /merge-multiple: true/u);
-	assert.match(aggregateJob, /node scripts\/aggregate-milestone-5-handoffs\.mjs[\s\S]*?--package-directory[\s\S]*?--output[\s\S]*?needs\.quality\.outputs\.release-m5-arguments/u);
+	assert.match(aggregateJob, /node scripts\/audit-milestone-5-packages\.mjs[\s\S]*?--package-directory[\s\S]*?--output[\s\S]*?needs\.quality\.outputs\.package-audit-arguments/u);
 	assert.match(aggregateJob, /SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}/u);
-	assert.match(aggregateJob, /name: milestone-5-handoff-matrix[\s\S]*?milestone-5-handoff-matrix\.json/u);
+	assert.match(aggregateJob, /name: milestone-5-package-audit-summary[\s\S]*?milestone-5-package-audit-summary\.json/u);
+	assert.doesNotMatch(`${packageJob}\n${aggregateJob}`, /handoff|package matrix|evidenceAuthenticated|evidenceSha256/iu);
 	assert.doesNotMatch(packageJob, /--require-ready/u);
 });

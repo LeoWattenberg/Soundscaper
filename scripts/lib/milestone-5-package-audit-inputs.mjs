@@ -9,12 +9,12 @@ import { isDeepStrictEqual } from 'node:util';
 const SOURCE_REVISION = /^(?:[a-f\d]{40}|[a-f\d]{64})$/u;
 
 /**
- * Read handoff authorities from immutable Git blobs for an authenticated
- * release, or from the explicitly unattributed working tree for development.
+ * Read package-audit inputs from immutable Git blobs for a revision-bound
+ * audit, or from the explicitly unattributed working tree for development.
  */
-export function readMilestone5HandoffInputSnapshot(repositoryRoot, paths, sourceRevision) {
+export function readMilestone5PackageAuditInputSnapshot(repositoryRoot, paths, sourceRevision) {
 	if (sourceRevision !== null && !SOURCE_REVISION.test(sourceRevision)) {
-		throw new TypeError('Milestone 5 handoff input snapshot requires one Git revision or null.');
+		throw new TypeError('Milestone 5 package-audit input snapshot requires one Git revision or null.');
 	}
 	const inputs = {};
 	const bytes = {};
@@ -28,47 +28,47 @@ export function readMilestone5HandoffInputSnapshot(repositoryRoot, paths, source
 		try {
 			inputs[key] = JSON.parse(value.toString('utf8'));
 		} catch (error) {
-			throw new Error(`Milestone 5 handoff input ${path} is invalid JSON.`, { cause: error });
+			throw new Error(`Milestone 5 package-audit input ${path} is invalid JSON.`, { cause: error });
 		}
 	}
 	return { inputs, bytes, inputDigests };
 }
 
 /** Bind independently executing auditors back to the exact initial authority. */
-export function authenticateMilestone5HandoffAuditorInputs({
+export function verifyMilestone5PackageAuditInputs({
 	inputs,
 	inputBytes,
 	inputDigests,
 }) {
 	for (const [path, observed] of Object.entries(inputs.payloadAudit.inputDigests)) {
 		assertDescriptor(observed, inputDigests[path],
-			`Milestone 5 payload auditor input ${path} drifted from the handoff authority.`);
+			`Milestone 5 payload auditor input ${path} drifted from the package-audit input.`);
 	}
 	authenticateSourceRegister(inputs.sourceAcquisitions, inputs.sourceAcquisitionRegister);
 	for (const [path, observed] of Object.entries(inputs.sourceAcquisitions.inputDigests ?? {})) {
 		assertDescriptor(observed, inputDigests[path],
-			`Milestone 5 native-source auditor input ${path} drifted from the handoff authority.`);
+			`Milestone 5 native-source auditor input ${path} drifted from the package-audit input.`);
 	}
 	if (!inputBytes || typeof inputBytes !== 'object') {
 		throw new Error('Milestone 5 package-audit input bytes are unavailable.');
 	}
 }
 
-export function describeMilestone5HandoffBytes(bytes) {
+export function describeMilestone5PackageAuditBytes(bytes) {
 	return describe(bytes);
 }
 
-export function readMilestone5HandoffGitBlob(repositoryRoot, sourceRevision, path) {
+export function readMilestone5PackageAuditGitBlob(repositoryRoot, sourceRevision, path) {
 	if (!SOURCE_REVISION.test(sourceRevision)) {
 		throw new TypeError('Milestone 5 Git-blob read requires one exact revision.');
 	}
 	return gitBlob(repositoryRoot, sourceRevision, path);
 }
 
-export function readMilestone5HandoffAuthorityBytes(repositoryRoot, sourceRevision, path) {
+export function readMilestone5PackageAuditInputBytes(repositoryRoot, sourceRevision, path) {
 	return sourceRevision === null
 		? readFileSync(resolve(repositoryRoot, path))
-		: readMilestone5HandoffGitBlob(repositoryRoot, sourceRevision, path);
+		: readMilestone5PackageAuditGitBlob(repositoryRoot, sourceRevision, path);
 }
 
 function authenticateSourceRegister(audited, expected) {
@@ -79,7 +79,7 @@ function authenticateSourceRegister(audited, expected) {
 	}
 	if (!Array.isArray(expected.sources) || !Array.isArray(audited.sources)
 		|| audited.sources.length < 1 || audited.sources.length > expected.sources.length) {
-		throw new Error('Milestone 5 native-source auditor changed the source matrix.');
+		throw new Error('Milestone 5 native-source auditor changed the source inventory.');
 	}
 	if (!isDeepStrictEqual(audited.delegatedSources, expected.delegatedSources)
 		&& !isDeepStrictEqual(audited.delegatedSources, [])) {
@@ -88,7 +88,7 @@ function authenticateSourceRegister(audited, expected) {
 	const auditedIds = audited.sources.map(({ id }) => id);
 	const expectedOrder = expected.sources.filter(({ id }) => auditedIds.includes(id)).map(({ id }) => id);
 	if (!isDeepStrictEqual(auditedIds, expectedOrder) || new Set(auditedIds).size !== auditedIds.length) {
-		throw new Error('Milestone 5 native-source auditor changed the source matrix.');
+		throw new Error('Milestone 5 native-source auditor changed the source inventory.');
 	}
 	for (const auditedSource of audited.sources) {
 		const source = expected.sources.find(({ id }) => id === auditedSource.id);

@@ -4,7 +4,10 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { assembleMilestone5Handoff } from './lib/milestone-5-handoff.mjs';
+import {
+	assembleMilestone5PackageAudit,
+	assembleMilestone5ProductPackageAudit,
+} from './lib/milestone-5-package-audit.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '..');
 let outputPath = null;
@@ -12,9 +15,6 @@ let requirePass = false;
 const packageArguments = { productId: null, targetId: null, packageRoot: null };
 for (let index = 2; index < process.argv.length; index += 1) {
 	const argument = process.argv[index];
-	if (['--require-ready', '--require-automated-ready'].includes(argument)) {
-		throw new Error(`${argument} was removed; use --require-pass.`);
-	}
 	if (argument === '--require-pass') {
 		if (requirePass) {
 			throw new Error('--require-pass may be supplied only once.');
@@ -43,7 +43,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
 		packageArguments[packageField] = value;
 		continue;
 	}
-	throw new Error(`Unexpected Milestone 5 handoff argument: ${argument}`);
+	throw new Error(`Unexpected Milestone 5 package-audit argument: ${argument}`);
 }
 
 const suppliedPackageArguments = Object.values(packageArguments).filter((value) => value !== null).length;
@@ -55,12 +55,15 @@ if (requirePass && packageOptions === null) {
 	throw new Error('--require-pass requires --product, --target, and --package-root.');
 }
 
-const handoff = await assembleMilestone5Handoff(
-	repositoryRoot,
-	process.env.SOUNDSCAPER_SOURCE_REVISION,
-	packageOptions,
-);
-const bytes = `${JSON.stringify(handoff, null, '\t')}\n`;
+const audit = packageOptions === null
+	? await assembleMilestone5PackageAudit(repositoryRoot, process.env.SOUNDSCAPER_SOURCE_REVISION)
+	: await assembleMilestone5ProductPackageAudit({
+		repositoryRoot,
+		sourceRevision: process.env.SOUNDSCAPER_SOURCE_REVISION,
+		productIds: [packageOptions.productId],
+		packageOptions,
+	});
+const bytes = `${JSON.stringify(audit, null, '\t')}\n`;
 if (outputPath) writeFileSync(resolve(outputPath), bytes, { flag: 'wx' });
 else process.stdout.write(bytes);
-if (requirePass && !handoff.passed) process.exitCode = 1;
+if (requirePass && !audit.passed) process.exitCode = 1;

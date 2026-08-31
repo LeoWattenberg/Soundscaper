@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Bind an extracted package runtime to the independently authenticated payload audit. */
+/** Bind an extracted package runtime to the independently verified payload audit. */
 
 export function validateMilestone5PackagePayloadBinding(
 	packageAudit,

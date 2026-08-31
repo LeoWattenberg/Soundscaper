@@ -47,11 +47,11 @@ export function auditMilestone5LicensingMatrix(matrix) {
 	assertRecord(matrix, 'Milestone 5 production licensing matrix');
 	assert(Array.isArray(matrix.futureDistributionGates) && Array.isArray(matrix.nativeFormatPolicies),
 		'Milestone 5 licensing collections are invalid.');
-	const gates = NATIVE_GATE_IDS.map((id) => {
+	const policies = NATIVE_GATE_IDS.map((id) => {
 		const matches = matrix.futureDistributionGates.filter((gate) => gate.id === id);
-		assert(matches.length === 1, `Milestone 5 licensing gate ${id} must occur exactly once.`);
+		assert(matches.length === 1, `Milestone 5 licensing policy ${id} must occur exactly once.`);
 		assert(['disabled', 'enabled'].includes(matches[0].status),
-			`Milestone 5 licensing gate ${id} has an invalid status.`);
+			`Milestone 5 licensing policy ${id} has an invalid status.`);
 		return matches[0];
 	});
 	assert(JSON.stringify(matrix.nativeFormatPolicies.map(({ id }) => id))
@@ -62,7 +62,9 @@ export function auditMilestone5LicensingMatrix(matrix) {
 			`Milestone 5 native policy row ${row.id} has an invalid status.`);
 	}
 	return Object.freeze({
-		distributionGates: Object.freeze(gates.map(({ id, status }) => Object.freeze({ id, status }))),
+		distributionPolicies: Object.freeze(policies.map(
+			({ id, status }) => Object.freeze({ id, status }),
+		)),
 		nativeFormatPolicies: Object.freeze(matrix.nativeFormatPolicies.map(
 			({ id, status }) => Object.freeze({ id, status }),
 		)),
