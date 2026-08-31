@@ -267,7 +267,7 @@ export function createEditorVideoExportAction(
 			assertVideoExportCurrent();
 			// Same rule as the audio path: the report describes the plan that runs.
 			// It is session state, never project state.
-			state.deliveryReport = createVideoDeliveryReportForPlan(plan, {
+			const plannedDeliveryReport = createVideoDeliveryReportForPlan(plan, {
 				hasNonMediaStreams: videoSourcesCarryNonMediaStreams(exportProject, plan),
 				videoEncoder: encoderDecision.tier,
 				...(encoderDecision.codec ? { videoEncoderCodec: encoderDecision.codec } : {}),
@@ -289,6 +289,8 @@ export function createEditorVideoExportAction(
 			);
 			if (directPreparation.cancelled) return directPreparation.cancelled;
 			assertVideoExportCurrent();
+			const previousDeliveryReport = state.deliveryReport;
+			state.deliveryReport = plannedDeliveryReport;
 			pendingDirectDestination = directPreparation.destination;
 			const videoBlobs = new Map();
 			for (const input of plan.inputs.filter((candidate: RuntimeValue) => candidate.kind === 'video-source')) {
@@ -404,6 +406,9 @@ export function createEditorVideoExportAction(
 				} catch (error) {
 					const cancellation = directVideoCancellation(error);
 					if (cancellation) {
+						if (state.deliveryReport === plannedDeliveryReport) {
+							state.deliveryReport = previousDeliveryReport;
+						}
 						pendingDirectDestination = null;
 						return cancellation;
 					}

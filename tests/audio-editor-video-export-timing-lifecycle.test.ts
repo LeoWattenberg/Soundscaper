@@ -58,6 +58,8 @@ test('video export restores an independently registered preview timing index', a
 	});
 	try {
 		assert.equal(await fixture.exportVideo().then((result) => result?.cancelled), true);
+		assert.strictEqual(fixture.deliveryReport, fixture.previousDeliveryReport,
+			'a dismissed destination must preserve the last completed delivery report');
 		assert.equal(fixture.plannedSourceFrame, 1.75, 'the verified export timing owns planning');
 		assert.equal(mappedSourceFrame(fixture.source), 4 / 3, 'the preview timing is restored afterward');
 	} finally {
@@ -87,6 +89,7 @@ function createFixture(timingBlob: Blob, desktop = false) {
 		clips: Object.freeze([mappedClip]),
 		sources: Object.freeze([source]),
 	});
+	const previousDeliveryReport = Object.freeze({ id: 'previous-delivery-report' });
 	const state = {
 		exportGeneration: 0,
 		exportAbort: null as null | Readonly<{ signal: AbortSignal; abort(): void }>,
@@ -94,6 +97,7 @@ function createFixture(timingBlob: Blob, desktop = false) {
 		outputCleanup: null,
 		exportOutput: null,
 		disposed: false,
+		deliveryReport: previousDeliveryReport,
 	};
 	const runtime = {
 		abortError: () => new DOMException('Cancelled', 'AbortError'),
@@ -169,6 +173,8 @@ function createFixture(timingBlob: Blob, desktop = false) {
 		errors,
 		source,
 		get plannedSourceFrame() { return plannedSourceFrame; },
+		get deliveryReport() { return state.deliveryReport; },
+		previousDeliveryReport,
 		exportVideo: createEditorVideoExportAction(runtime, async () => Object.freeze({
 			sampleRate: project.sampleRate, channels: Object.freeze([]),
 		})),
