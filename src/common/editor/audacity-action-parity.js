@@ -615,7 +615,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	], tracks);
 	const selectedTracks = selectedTrackIds.map((trackId) => tracks.find((track) => track.id === trackId)).filter(Boolean);
 	const selectedTrack = selectedTracks[0] || null;
-	const selectedAudioTrack = selectedTracks.find((track) => track.type !== 'label') || null;
+	const selectedAudioTrack = selectedTracks.find((track) => track.type === 'audio') || null;
 	const selectedClip = selectedClips[0] || null;
 	const timeSelection = Number.isSafeInteger(selection.startFrame)
 		&& Number.isSafeInteger(selection.endFrame)
@@ -631,7 +631,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	const editingBlocked = !projectWritable
 		|| Boolean(snapshot.importing || recording || snapshot.exporting || snapshot.processingEffect || snapshot.sampleEdit?.processing);
 	const editable = projectWritable && !editingBlocked;
-	const projectHasAudio = tracks.some((track) => track.type !== 'label' && track.clipIds?.length);
+	const projectHasAudio = tracks.some((track) => track.type === 'audio' && track.clipIds?.length);
 	const audioSelection = timeSelection && Boolean(selectedAudioTrack || projectHasAudio);
 	const realtimeEffectId = resolvedContext?.realtimeEffectId || null;
 	const realtimeEffects = selectedAudioTrack?.effects || [];
@@ -670,7 +670,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'editable-audio-track-selected': editable && Boolean(selectedAudioTrack),
 		'stereo-track-selected': audioTrackChannelCount(project, selectedAudioTrack) === 2,
 		'compatible-mono-tracks': editable && audioTrackChannelCount(project, selectedAudioTrack) === 1 && tracks.some((track) => (
-			track.id !== selectedAudioTrack.id && track.type !== 'label' && audioTrackChannelCount(project, track) === 1
+			track.id !== selectedAudioTrack.id && track.type === 'audio' && audioTrackChannelCount(project, track) === 1
 		)),
 		'label-track-present': tracks.some((track) => track.type === 'label'),
 		'loop-region': Boolean(project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame),
