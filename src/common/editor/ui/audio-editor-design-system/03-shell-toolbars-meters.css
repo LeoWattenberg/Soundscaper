@@ -407,7 +407,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__audio-devices-note {
 	margin: 0;
-	color: var(--kw-editor-text-muted);
+	color: var(--kw-editor-muted);
 	line-height: 1.4;
 }
 

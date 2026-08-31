@@ -46,7 +46,7 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-monitor-readout span {
-	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	color: var(--kw-editor-muted);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-monitor-transport,
@@ -69,7 +69,7 @@
 
 #kw-audio-editor-design-system .kw-audio-editor__source-monitor button {
 	background: var(--kw-editor-surface, transparent);
-	border: 1px solid var(--kw-editor-border, currentcolor);
+	border: 1px solid var(--kw-editor-line);
 	border-radius: 3px;
 	color: inherit;
 	cursor: pointer;

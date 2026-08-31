@@ -114,7 +114,7 @@
 	align-items: center;
 	gap: 4px;
 	font-variant-numeric: tabular-nums;
-	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	color: var(--kw-editor-muted);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-timecode-note {
@@ -143,7 +143,7 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-properties dt {
-	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	color: var(--kw-editor-muted);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-properties dd {
@@ -161,11 +161,11 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-properties-notes {
-	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	color: var(--kw-editor-muted);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-properties-reprobe {
-	border-top: 1px solid var(--kw-editor-border, currentcolor);
+	border-top: 1px solid var(--kw-editor-line);
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
@@ -173,7 +173,7 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__source-properties-reprobe p {
-	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	color: var(--kw-editor-muted);
 	margin: 0;
 }
 

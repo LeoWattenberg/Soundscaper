@@ -6,6 +6,7 @@ import test from 'node:test';
 
 const ROOT = new URL('../', import.meta.url);
 const DESIGN_SYSTEM_RUNTIME = new URL('src/common/editor/ui/DesignSystemRuntime.jsx', ROOT);
+const DESIGN_SYSTEM_STYLES = new URL('src/common/editor/ui/audio-editor-design-system/', ROOT);
 const DIALOG_STYLES = new URL('src/common/editor/ui/dialogs/', ROOT);
 
 /**
@@ -29,6 +30,19 @@ test('dialog stylesheets only read theme tokens the runtime defines', async () =
 	}
 
 	assert.deepEqual(missing, [], 'undefined tokens always fall back to their literal colour');
+});
+
+test('editor design-system styles do not read nonexistent theme-token aliases', async () => {
+	const invalid = [];
+	for (const entry of await readdir(DESIGN_SYSTEM_STYLES)) {
+		if (!entry.endsWith('.css')) continue;
+		const css = await readFile(new URL(entry, DESIGN_SYSTEM_STYLES), 'utf8');
+		for (const [, name] of css.matchAll(
+			/var\(\s*(--kw-editor-(?:border|control-hover|text-muted))/gu,
+		)) invalid.push(`${entry}: ${name}`);
+	}
+
+	assert.deepEqual(invalid, []);
 });
 
 test('the inline video clip rename field does not inherit its light-on-dark header colour', async () => {

@@ -57,14 +57,14 @@
 	flex-wrap: wrap;
 	padding: 8px;
 	background: var(--kw-editor-bg);
-	border: 1px solid var(--kw-editor-border);
+	border: 1px solid var(--kw-editor-line);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__musical-map-event-id {
 	align-self: center;
 	max-width: 132px;
 	overflow: hidden;
-	color: var(--kw-editor-text-muted, var(--kw-editor-text));
+	color: var(--kw-editor-muted);
 	font: 10px ui-monospace, monospace;
 	text-overflow: ellipsis;
 	white-space: nowrap;

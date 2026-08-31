@@ -335,7 +335,7 @@
 
 .audio-editor-effect-picker-flyout__grid button:hover,
 .audio-editor-effect-picker-flyout__grid button:focus-visible {
-	background: var(--kw-editor-control-hover);
+	background: var(--kw-toolbar-button-hover);
 	border-color: var(--kw-editor-line);
 	outline: none;
 }

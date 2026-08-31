@@ -73,7 +73,7 @@
 	display: grid;
 	gap: 4px;
 	padding-top: 6px;
-	border-top: 1px solid var(--kw-editor-border);
+	border-top: 1px solid var(--kw-editor-line);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__project-feature-compatibility .kw-audio-editor-compatibility-audio-effects ul,
