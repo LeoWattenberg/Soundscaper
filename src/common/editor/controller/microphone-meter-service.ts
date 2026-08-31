@@ -352,6 +352,11 @@ export function createMicrophoneMeterService(
 				} else connectSource(loudnessMeter.node);
 				loudnessMeter.node.connect?.(context.destination);
 			} catch {
+				if (merger) disconnectFrom(splitter, merger);
+				else if (loudnessMeter) disconnectFrom(source, loudnessMeter.node);
+				disconnect(merger);
+				disconnect(loudnessMeter?.node);
+				try { loudnessMeter?.dispose?.(); } catch { /* Optional meter fallback still owns cleanup. */ }
 				loudnessMeter = null;
 				merger = null;
 			}
@@ -584,4 +589,9 @@ function disconnect(node: AudioNodePort | null | undefined): void {
 	} catch {
 		// Web Audio nodes may already be disconnected during terminal cleanup.
 	}
+}
+
+function disconnectFrom(source: AudioNodePort | null, destination: AudioNodePort): void {
+	try { (source?.disconnect as ((target: AudioNodePort) => void) | undefined)?.(destination); }
+	catch { /* Web Audio nodes may already be disconnected during partial construction. */ }
 }

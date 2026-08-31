@@ -52,6 +52,16 @@ test('disabling during loudness worklet setup tears down the pending graph and i
 	assert.deepEqual(harness.releasedDevices, ['default']);
 });
 
+test('loudness graph connection failure disposes the partial worklet before peak-meter fallback', async () => {
+	const harness = createHarness({ failLoudnessConnection: true });
+
+	assert.equal(await harness.service.setMicrophoneMetering(true), true);
+
+	assert.equal(harness.service.getSession()?.loudnessMeter, null);
+	assert.equal(harness.loudnessDisposeCount, 1);
+	assert.equal(harness.disconnectCount > 0, true);
+});
+
 test('concurrent enable requests share one acquisition and one meter session', async () => {
 	const acquisition = deferred<FakeStream>();
 	const harness = createHarness({ acquireHardware: () => acquisition.promise });
@@ -154,6 +164,7 @@ interface FakeStream extends MeterMediaStream {
 
 function createHarness(overrides: Readonly<{
 	acquireHardware?: (deviceId: string) => Promise<FakeStream>;
+	failLoudnessConnection?: boolean;
 	loudnessGate?: Promise<void>;
 }> = {}) {
 	const state: MicrophoneMeterState = {
@@ -226,7 +237,12 @@ function createHarness(overrides: Readonly<{
 		},
 		createLoudnessMeterNode: async () => {
 			await overrides.loudnessGate;
-			return { ...fakeLoudnessMeter(), node: node(),
+			return { ...fakeLoudnessMeter(), node: {
+				...node(),
+				connect: () => {
+					if (overrides.failLoudnessConnection) throw new Error('injected loudness connection failure');
+				},
+			},
 				dispose: () => { loudnessDisposeCount += 1; } };
 		},
 		streamAudioChannelCount: fakeStreamAudioChannelCount,
