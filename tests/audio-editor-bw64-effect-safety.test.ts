@@ -48,31 +48,75 @@ test('authored BW64 rejects effects that collapse a multichannel terminal to ste
 });
 
 test('ordinary Soundscaper multichannel export refuses a stereo-only reverb', () => {
+	const project = soundscaperSurroundProject({
+		masterEffects: [createEffect('reverb', { id: 'master-reverb' })],
+	});
+
+	assert.throws(
+		() => createExportPlan(project, ordinarySixChannelExport()),
+		/multichannel.*reverb|reverb.*channel width/iu,
+	);
+});
+
+test('ordinary safety checks stem racks without rejecting mono or excluded master processing', () => {
+	const monoReverb = soundscaperSurroundProject({
+		sourceChannelCount: 1,
+		trackEffects: [createEffect('reverb', { id: 'mono-reverb' })],
+	});
+	assert.doesNotThrow(() => createExportPlan(monoReverb, ordinarySixChannelExport()));
+
+	const surroundReverb = soundscaperSurroundProject({
+		trackEffects: [createEffect('reverb', { id: 'surround-reverb' })],
+	});
+	assert.throws(
+		() => createExportPlan(surroundReverb, { ...ordinarySixChannelExport(), mode: 'stems' }),
+		/multichannel.*reverb|reverb.*channel width/iu,
+	);
+
+	const masterOnly = soundscaperSurroundProject({
+		masterEffects: [createEffect('reverb', { id: 'excluded-master-reverb' })],
+	});
+	assert.doesNotThrow(() => createExportPlan(
+		masterOnly,
+		{ ...ordinarySixChannelExport(), mode: 'stems' },
+	));
+});
+
+function ordinarySixChannelExport() {
+	return {
+		format: 'wav' as const,
+		channelCount: 6,
+		channelMapping: 'preserve' as const,
+		includeTail: false,
+	};
+}
+
+function soundscaperSurroundProject({
+	sourceChannelCount = 6,
+	trackEffects = [],
+	masterEffects = [],
+}: Readonly<{
+	sourceChannelCount?: number;
+	trackEffects?: readonly ReturnType<typeof createEffect>[];
+	masterEffects?: readonly ReturnType<typeof createEffect>[];
+}> = {}) {
 	const source = createAudioSource({
 		id: 'surround-source', storageKey: 'pcm/surround-source', frameCount: 4,
-		channelCount: 6, sampleRate: 48_000, sampleFormat: 'float32',
+		channelCount: sourceChannelCount, sampleRate: 48_000, sampleFormat: 'float32',
 	});
 	const clip = createAudioClip({
 		id: 'surround-clip', sourceId: source.id, timelineStartFrame: 0,
 		sourceStartFrame: 0, sourceDurationFrames: 4, durationFrames: 4,
 	});
-	const project = createSoundscaperProject({
+	return createSoundscaperProject({
 		id: 'ordinary-surround-effect', title: 'Ordinary surround effect',
 		now: '2026-08-31T12:00:00.000Z', masterChannels: 6,
 		sources: [source], clips: [clip],
-		tracks: [createAudioTrack({ id: 'bed', name: 'Bed', clipIds: [clip.id] })],
+		tracks: [createAudioTrack({
+			id: 'bed', name: 'Bed', clipIds: [clip.id], effects: trackEffects,
+		})],
 		sequences: [{ id: 'main-sequence', trackIds: ['bed'] }],
 		primarySequenceId: 'main-sequence',
-		master: {
-			effectsActive: true,
-			effects: [createEffect('reverb', { id: 'master-reverb' })],
-		},
+		master: { effectsActive: true, effects: masterEffects },
 	});
-
-	assert.throws(
-		() => createExportPlan(project, {
-			format: 'wav', channelCount: 6, channelMapping: 'preserve', includeTail: false,
-		}),
-		/multichannel.*reverb|reverb.*channel width/iu,
-	);
-});
+}
