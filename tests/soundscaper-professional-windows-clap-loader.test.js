@@ -24,3 +24,8 @@ test('the Windows module handle has one explicit owner', () => {
 	assert.match(SOURCE, /PluginLibrary &operator=\(const PluginLibrary &\) = delete/u);
 	assert.match(SOURCE, /FreeLibrary\(handle\)/u);
 });
+
+test('JUCE symbol lookup uses its mutable DynamicLibrary API', () => {
+	assert.match(SOURCE, /void \*function\(const char \*name\)\s*\{/u);
+	assert.doesNotMatch(SOURCE, /void \*function\(const char \*name\) const/u);
+});
