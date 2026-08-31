@@ -50,7 +50,7 @@ const plan = createOsAudioCodecHostBuildPlan({
 	buildRoot: resolve(outputRoot, 'build'),
 	installRoot: resolve(outputRoot, 'artifact'),
 	...(argumentsByName['macos-sdk']
-		? { macosSdkPath: resolve(argumentsByName['macos-sdk']), signingIdentity: '-' } : {}),
+		? { macosSdkPath: resolve(argumentsByName['macos-sdk']) } : {}),
 });
 const build = executeOsAudioCodecHostBuild(plan, {
 	onStepOutput(step, stdout, stderr) {

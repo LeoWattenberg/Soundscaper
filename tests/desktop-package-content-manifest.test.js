@@ -243,8 +243,8 @@ test('package-content authority rejects changed codec evidence and unexpected su
 	}), /unexpected files.*soundscaper-os-audio-codec/iu);
 
 	const unsignedMac = await osCodecPackageTree(context, 'mac-arm64');
-	unsignedMac.runtimeManifest.osAudioCodecNative.signing = {
-		mode: 'not-applicable', identitySha256: null, verificationStatus: 'not-applicable',
+	unsignedMac.runtimeManifest.osAudioCodecNative.codeSeal = {
+		mode: 'not-applicable', verificationStatus: 'not-applicable',
 	};
 	await writeJson(unsignedMac.runtimeManifestPath, unsignedMac.runtimeManifest);
 	await assert.rejects(writeDesktopPackageContentManifest({
@@ -359,7 +359,7 @@ async function addStableProfessionalNotices(fixture, { writeNotices = true } = {
 	});
 	const sourceRegister = { schemaVersion: 1, sources };
 	const noticeRegister = {
-		schemaVersion: 1, id: 'desktop-package-fixture-notices-v1', legalApproval: null,
+		schemaVersion: 1, id: 'desktop-package-fixture-notices-v1',
 		sources: sources.map((source) => ({
 			id: source.id,
 			targets: targets.filter((target) =>

@@ -117,9 +117,9 @@ export async function createSoundscaperProfessionalNativeBuildResult(options) {
 		|| toolchainReceipt.target !== target) {
 		throw new TypeError('The structured toolchain receipt is target or identity misbound.');
 	}
-	const macSigningEvidence = options?.macSigningEvidence ?? null;
-	if (target !== 'mac-arm64' && macSigningEvidence !== null) {
-		throw new TypeError('Only mac-arm64 build results can accept mac sealing evidence.');
+	const macCodeSealResult = options?.macCodeSealResult ?? null;
+	if (target !== 'mac-arm64' && macCodeSealResult !== null) {
+		throw new TypeError('Only mac-arm64 build results can carry a code-seal result.');
 	}
 	if (!Array.isArray(options?.buildSelfTests)) {
 		throw new TypeError('Build-result creation requires its pre-install self-test receipts.');
@@ -186,8 +186,8 @@ export async function createSoundscaperProfessionalNativeBuildResult(options) {
 			bindEvidenceReceipt('build', target, {
 				status: 'passed', sourceRevision, buildPlanSha256,
 				packagedAppAuthority,
-				macSigning: macSigningEvidence === null
-					? null : structuredClone(macSigningEvidence),
+					macCodeSeal: macCodeSealResult === null
+						? null : structuredClone(macCodeSealResult),
 				tests: selfTests.filter(({ id }) => id.endsWith('-ctest')),
 			}),
 			bindEvidenceReceipt('self-test', target, {

@@ -337,9 +337,8 @@ export function validateFramescaperNativeHostSummary(manifest, targetId) {
 
 /**
  * Native payload summaries are deliberately different per target, so each is
- * checked against the target its filename declares. A release-shaped build
- * must also have declared its target: a summary that fell back to the build
- * host is a local build and is never release evidence.
+ * checked against the target its filename declares. Package assembly requires
+ * a declared target; a summary that fell back to the build host is local-only.
  */
 export function validateDesktopNativeAddonSummary(manifest, targetId, options = {}) {
 	const summary = manifest.value.nativeAddons;
@@ -353,7 +352,7 @@ export function validateDesktopNativeAddonSummary(manifest, targetId, options = 
 	assert(summary.target === targetId,
 		`${manifest.name} records the native addon payload for ${String(summary.target)} rather than ${targetId}.`);
 	assert(summary.targetSource === 'declared',
-		`${manifest.name} records a build-host native addon target; release evidence requires a declared target.`);
+		`${manifest.name} records a build-host native addon target; package assembly requires a declared target.`);
 	assert(summary.status === 'built' || summary.status === 'pending-external',
 		`${manifest.name} records an unsupported native addon payload status.`);
 	assert(summary.status === 'built'

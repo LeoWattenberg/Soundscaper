@@ -10,8 +10,8 @@ import {
 	validateSoundscaperProfessionalPackagedAppAuthority,
 } from './soundscaper-professional-packaged-app-authority.mjs';
 import {
-	validateSoundscaperProfessionalNativeMacSigningEvidence,
-} from './soundscaper-professional-native-macos-signing.mjs';
+	validateSoundscaperProfessionalNativeMacCodeSealResult,
+} from './soundscaper-professional-native-macos-code-seal.mjs';
 import {
 	validateSoundscaperNativeBinaryArchitectureReceipt,
 } from './soundscaper-native-binary-architecture.mjs';
@@ -166,7 +166,7 @@ function validateEvidenceReceipts(candidate) {
 	}
 	const build = evidenceFor(candidate, 'build');
 	closedRecord(build, [
-		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macSigning',
+		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macCodeSeal',
 	], 'build evidence');
 	if (build.status !== 'passed' || build.sourceRevision !== candidate.sourceRevision
 		|| build.buildPlanSha256 !== candidate.buildPlanSha256) {
@@ -180,9 +180,9 @@ function validateEvidenceReceipts(candidate) {
 		throw new TypeError('The build-result packaged Electron authority is misbound.');
 	}
 	if (candidate.target === 'mac-arm64') {
-		validateSoundscaperProfessionalNativeMacSigningEvidence(build.macSigning, candidate);
-	} else if (build.macSigning !== null) {
-		throw new TypeError('Only mac-arm64 build results can carry mac sealing evidence.');
+		validateSoundscaperProfessionalNativeMacCodeSealResult(build.macCodeSeal, candidate);
+	} else if (build.macCodeSeal !== null) {
+		throw new TypeError('Only mac-arm64 build results can carry a code-seal result.');
 	}
 	const selfTest = evidenceFor(candidate, 'self-test');
 	closedRecord(selfTest, ['status', 'inventory', 'tests'], 'self-test evidence');

@@ -1,8 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "soundscaper-professional-native-notices-v1",
-	"purpose": "Exact installed-notice inventory for authenticated Soundscaper professional-native source inputs. This technical inventory does not assert external legal approval.",
-	"legalApproval": null,
+	"purpose": "Exact installed-notice inventory for authenticated Soundscaper professional-native source inputs.",
 	"sources": [
 		{
 			"id": "electron-node-api-headers",

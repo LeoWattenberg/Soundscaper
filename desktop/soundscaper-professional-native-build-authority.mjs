@@ -38,7 +38,7 @@ export function soundscaperProfessionalNativeBuildAuthority(result, target) {
 	const receipt = receipts[0];
 	closed(receipt, ['kind', 'target', 'sha256', 'evidence'], 'build-result receipt');
 	closed(receipt.evidence, [
-		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macSigning',
+		'status', 'sourceRevision', 'buildPlanSha256', 'packagedAppAuthority', 'tests', 'macCodeSeal',
 	], 'build-result evidence');
 	if (receipt.target !== target || !SHA256.test(String(receipt.sha256))
 		|| receipt.sha256 !== sha256(canonicalJson(receipt.evidence))

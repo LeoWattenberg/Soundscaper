@@ -244,7 +244,7 @@ function buildResultReceipt(target) {
 		evidenceReceipts: [
 			bindEvidenceReceipt('build', target.id, {
 				status: 'passed', sourceRevision, buildPlanSha256, packagedAppAuthority,
-				macSigning: null, tests: [],
+				macCodeSeal: null, tests: [],
 			}),
 			bindEvidenceReceipt('self-test', target.id, {
 				status: 'passed', inventory: expectedSoundscaperProfessionalNativeInventory(target.id), tests,

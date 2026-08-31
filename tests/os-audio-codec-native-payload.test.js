@@ -49,7 +49,7 @@ test('an authenticated target-native build stages one canonical manifest and one
 		OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME,
 	]);
 	assert.deepEqual(Object.keys(summary).sort(), [
-		'buildPlanSha256', 'nativeCanary', 'payload', 'payloadManifest', 'signing',
+		'buildPlanSha256', 'codeSeal', 'nativeCanary', 'payload', 'payloadManifest',
 		'sourceRevision', 'status', 'target',
 	]);
 	assert.equal(summary.target, TARGET);
@@ -58,7 +58,7 @@ test('an authenticated target-native build stages one canonical manifest and one
 	assert.equal(summary.sourceRevision, SOURCE_REVISION);
 	assert.equal(summary.buildPlanSha256, BUILD_PLAN_SHA256);
 	assert.equal(summary.nativeCanary, 'passed');
-	assert.deepEqual(summary.signing, fixture.build.signing);
+	assert.deepEqual(summary.codeSeal, fixture.build.codeSeal);
 	assert.deepEqual(
 		await verifyStagedOsAudioCodecNativePayload({ release, outputRoot }),
 		osAudioCodecNativePayloadStageSummary(release),
@@ -97,7 +97,7 @@ test('build verification binds target, source, plan, toolchain, headers, canary,
 		['source identity', mutate(fixture.build, (build) => { build.sourceIdentity.algorithm = 'other'; }), {}, /source identity/iu],
 		['toolchain identity', mutate(fixture.build, (build) => { delete build.toolchainIdentity.generator; }), {}, /toolchain identity/iu],
 		['native canary', mutate(fixture.build, (build) => { build.nativeCanary.status = 'failed'; }), {}, /native canary/iu],
-		['signing evidence', mutate(fixture.build, (build) => { build.signing.mode = 'ad-hoc'; }), {}, /signing/iu],
+		['execution seal', mutate(fixture.build, (build) => { build.codeSeal.mode = 'ad-hoc'; }), {}, /seal/iu],
 		['exact schema', mutate(fixture.build, (build) => { build.extra = true; }), {}, /build result.*shape/iu],
 	];
 	for (const [label, build, overrides, pattern] of cases) {
@@ -112,29 +112,29 @@ test('build verification binds target, source, plan, toolchain, headers, canary,
 	await assert.rejects(() => verifiedRelease(fixture), /payload.*digest/iu);
 });
 
-test('macOS payload authority requires verified ad-hoc sealing evidence', async (context) => {
+test('macOS payload authority requires the fixed ad-hoc execution seal', async (context) => {
 	const fixture = await buildFixture(context);
 	fixture.build.target = 'mac-arm64';
 	fixture.build.toolchainIdentity = {
 		cmake: 'cmake version 4.4.0', generator: 'Ninja', cxxCompilerId: 'AppleClang',
 		cxxCompilerVersion: '17.0.0', systemName: 'Darwin', systemProcessor: 'arm64',
 	};
-	fixture.build.signing = {
-		mode: 'ad-hoc', identitySha256: '5'.repeat(64), verificationStatus: 'passed',
+	fixture.build.codeSeal = {
+		mode: 'ad-hoc', verificationStatus: 'passed',
 	};
 	const release = await verifyOsAudioCodecNativeBuildResult({
 		build: fixture.build, target: 'mac-arm64', sourceRevision: SOURCE_REVISION,
 		buildPlanSha256: BUILD_PLAN_SHA256,
 	});
-	assert.deepEqual(osAudioCodecNativePayloadStageSummary(release).signing,
-		fixture.build.signing);
+	assert.deepEqual(osAudioCodecNativePayloadStageSummary(release).codeSeal,
+		fixture.build.codeSeal);
 	const unverified = mutate(fixture.build, (build) => {
-		build.signing.verificationStatus = 'not-applicable';
+		build.codeSeal.verificationStatus = 'not-applicable';
 	});
 	await assert.rejects(() => verifyOsAudioCodecNativeBuildResult({
 		build: unverified, target: 'mac-arm64', sourceRevision: SOURCE_REVISION,
 		buildPlanSha256: BUILD_PLAN_SHA256,
-	}), /signing/iu);
+	}), /seal/iu);
 });
 
 test('build verification refuses symlink payloads and unsupported target IDs', async (context) => {
@@ -292,8 +292,8 @@ async function buildFixture(context) {
 			systemProcessor: 'AMD64',
 		},
 		nativeCanary: { status: 'passed', testCommand: 'ctest' },
-		signing: {
-			mode: 'not-applicable', identitySha256: null,
+		codeSeal: {
+			mode: 'not-applicable',
 			verificationStatus: 'not-applicable',
 		},
 	};

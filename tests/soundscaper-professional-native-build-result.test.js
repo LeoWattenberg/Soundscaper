@@ -23,9 +23,9 @@ import {
 	verifyAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 } from '../scripts/lib/soundscaper-professional-native-self-test-plan.mjs';
 import {
-	createSoundscaperProfessionalNativeMacSigningPlan,
-	executeSoundscaperProfessionalNativeMacSigningPlan,
-} from '../scripts/lib/soundscaper-professional-native-macos-signing.mjs';
+	createSoundscaperProfessionalNativeMacCodeSealPlan,
+	executeSoundscaperProfessionalNativeMacCodeSealPlan,
+} from '../scripts/lib/soundscaper-professional-native-macos-code-seal.mjs';
 import {
 	soundscaperProfessionalNativePipelineSelfTestReceipts,
 } from '../scripts/lib/soundscaper-professional-native-build-result-pipeline.mjs';
@@ -335,26 +335,26 @@ test('mac build results require, receipt-bind, and stage the OS audio codec addo
 	}), /OS audio codec|installed build-result input|ENOENT/iu);
 	await writeFile(codecPath, 'os-codec');
 	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
-		...mac.options, macSigningEvidence: null,
+		...mac.options, macCodeSealResult: null,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
-	}), /mac signing evidence/iu);
-	const tamperedSigning = structuredClone(mac.options.macSigningEvidence);
-	tamperedSigning.artifacts[0].sha256 = 'f'.repeat(64);
+	}), /mac code-seal result/iu);
+	const tamperedSeal = structuredClone(mac.options.macCodeSealResult);
+	tamperedSeal.artifacts[0].sha256 = 'f'.repeat(64);
 	await assert.rejects(() => createSoundscaperProfessionalNativeBuildResult({
-		...mac.options, macSigningEvidence: tamperedSigning,
+		...mac.options, macCodeSealResult: tamperedSeal,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
-	}), /mac signing evidence.*payload-misbound/iu);
+	}), /mac code-seal result.*payload-misbound/iu);
 	const candidate = await createSoundscaperProfessionalNativeBuildResult({ ...mac.options,
 		inspectDependencies: async ({ path }) => dependencyInspection(path, [], 'mac-arm64'),
 		runSelfTest: passingSelfTest,
 	});
 	assert.equal(candidate.receipt.osAudioCodec.path, 'payload/soundscaper_os_audio_codec.node');
-	const signing = candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'build').evidence.macSigning;
-	assert(signing.schemaVersion === 2 && signing.status === 'signatures-verified');
-	assert.deepEqual(signing, mac.options.macSigningEvidence);
-	for (const artifact of signing.artifacts) {
+	const codeSeal = candidate.receipt.evidenceReceipts.find(({ kind }) => kind === 'build').evidence.macCodeSeal;
+	assert(codeSeal.schemaVersion === 1 && codeSeal.status === 'execution-checked');
+	assert.deepEqual(codeSeal, mac.options.macCodeSealResult);
+	for (const artifact of codeSeal.artifacts) {
 		const peer = artifact.path === 'payload/soundscaper_professional_peer';
 		assert.equal(artifact.libraryValidation.expectation, peer ? 'present' : 'absent');
 		assert.equal(artifact.libraryValidation.entitlements?.path ?? null, peer
@@ -417,10 +417,10 @@ async function candidateFixture(context, target = 'linux-x64', sourceRevision = 
 		await mkdir(dirname(path), { recursive: true });
 		await writeFile(path, contents);
 	}
-	const macSigningEvidence = target === 'mac-arm64'
-		? await executeSoundscaperProfessionalNativeMacSigningPlan(
-			createSoundscaperProfessionalNativeMacSigningPlan({
-				target, signingIdentity: '-', professionalInstallRoot, isolationInstallRoot,
+	const macCodeSealResult = target === 'mac-arm64'
+		? await executeSoundscaperProfessionalNativeMacCodeSealPlan(
+			createSoundscaperProfessionalNativeMacCodeSealPlan({
+				target, professionalInstallRoot, isolationInstallRoot,
 				osAudioCodecInstallRoot, runtimeRoot,
 			}), {
 				run: () => ({ status: 0, signal: null, stdout: '', stderr: '' }),
@@ -443,7 +443,7 @@ async function candidateFixture(context, target = 'linux-x64', sourceRevision = 
 			packagedAppAuthority: packagedAppAuthority(target, sourceRevision),
 			sourceAuthentication: sourceAuthentication(target),
 			buildSelfTests: buildSelfTests(target),
-			macSigningEvidence,
+			macCodeSealResult,
 		},
 	};
 }

@@ -141,9 +141,6 @@ async function main() {
 		? await prepareDesktopOsAudioCodecNativeRelease({
 			buildResultPath: process.env.SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT ?? null,
 			repositoryRoot: ROOT,
-			...(nativeTarget.id === 'mac-arm64' ? {
-				signingIdentity: '-',
-			} : {}),
 			target: nativeTarget.id,
 			required: resolveDesktopOsAudioCodecNativeRequirement(
 				process.env.SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE,

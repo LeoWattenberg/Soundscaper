@@ -122,7 +122,7 @@ export function createOsAudioCodecNativeManifest(value) {
 		buildPlan: structuredClone(value.buildPlan),
 		toolchainIdentity: structuredClone(value.toolchainIdentity),
 		nativeCanary: structuredClone(value.nativeCanary),
-		signing: structuredClone(value.signing),
+		codeSeal: structuredClone(value.codeSeal),
 	};
 	validateOsAudioCodecNativeManifest(manifest);
 	return deepFreeze(manifest);
@@ -153,7 +153,7 @@ export function validateOsAudioCodecNativeManifest(manifest, expectedTarget = nu
 	closed(manifest, [
 		'schemaVersion', 'id', 'addon', 'staging', 'target', 'payload', 'electronHeaders',
 		'sourceIdentity', 'sourceRevision', 'buildPlan', 'toolchainIdentity', 'nativeCanary',
-		'signing',
+		'codeSeal',
 	], 'manifest');
 	if (manifest.schemaVersion !== 1 || manifest.id !== MANIFEST_ID) {
 		throw new TypeError('The OS audio codec native manifest identity is invalid.');
@@ -188,7 +188,7 @@ export function validateOsAudioCodecNativeManifest(manifest, expectedTarget = nu
 	if (manifest.nativeCanary.status !== 'passed' || manifest.nativeCanary.testCommand !== 'ctest') {
 		throw new TypeError('The OS audio codec native canary result is invalid.');
 	}
-	validateSigning(manifest.signing, target);
+	validateCodeSeal(manifest.codeSeal, target);
 	return manifest;
 }
 
@@ -236,18 +236,16 @@ function validateToolchainIdentity(value, target) {
 	if (!correctSystem) throw new TypeError('The OS audio codec native toolchain identity does not match its target.');
 }
 
-function validateSigning(value, target) {
-	closed(value, ['mode', 'identitySha256', 'verificationStatus'], 'signing evidence');
+function validateCodeSeal(value, target) {
+	closed(value, ['mode', 'verificationStatus'], 'execution seal');
 	if (target === 'mac-arm64') {
-		if (!['ad-hoc', 'developer-id'].includes(value.mode)
-			|| !digestValue(value.identitySha256) || value.verificationStatus !== 'passed') {
-			throw new TypeError('The OS audio codec native signing evidence is invalid.');
+		if (value.mode !== 'ad-hoc' || value.verificationStatus !== 'passed') {
+			throw new TypeError('The OS audio codec native execution seal is invalid.');
 		}
 		return;
 	}
-	if (value.mode !== 'not-applicable' || value.identitySha256 !== null
-		|| value.verificationStatus !== 'not-applicable') {
-		throw new TypeError('The OS audio codec native signing evidence is invalid.');
+	if (value.mode !== 'not-applicable' || value.verificationStatus !== 'not-applicable') {
+		throw new TypeError('The OS audio codec native execution seal is invalid.');
 	}
 }
 

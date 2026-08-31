@@ -83,7 +83,6 @@ export async function stageSoundscaperProfessionalNativeReleaseCompliance(option
 		schemaVersion: 1,
 		status: 'authenticated',
 		kind: 'soundscaper-professional-native-release-compliance',
-		legalApproval: null,
 		sources,
 		notices,
 		targetBindings,

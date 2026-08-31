@@ -70,9 +70,6 @@ export async function verifyStagedOsAudioCodecNativeBeforePack({
 	return verifyDesktopOsAudioCodecNativePackageTree({
 		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
 		repositoryRoot: policyRepositoryRoot,
-		...(packagedTarget === 'mac-arm64' ? {
-			signingIdentity: '-',
-		} : {}),
 		productId: stage.productId,
 		target: packagedTarget,
 		summary: stage.osAudioCodecNative,

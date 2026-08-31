@@ -43,8 +43,8 @@ const SOUNDSCAPER_PROFESSIONAL_PREFIX = PROFESSIONAL_NATIVE_RUNTIME_PREFIX.split
 const SOUNDSCAPER_OS_AUDIO_CODEC_PREFIX = OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX.split('/').at(-1);
 
 /**
- * Electron Builder afterPack hook. Fuses are flipped before macOS ad-hoc or
- * production signing, so no signature reset is needed here.
+ * Electron Builder afterPack hook. Fuses are flipped before the macOS ad-hoc
+ * execution seal is applied, so no seal reset is needed here.
  */
 export default async function hardenPackagedElectron(context, dependencies = {}) {
 	const auditCodecPolicy = dependencies.auditPackagedDesktopCodecPolicy
@@ -62,7 +62,7 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 	const verifyOsAudioCodec = dependencies.verifyPackagedOsAudioCodecNativeResources
 		?? verifyPackagedOsAudioCodecNativeResources;
 	// The absence audit and native payload verifiers cover disjoint policy
-	// concerns, so they run together before fuse or signing work begins.
+	// concerns, so they run together before fuse and package finalization.
 	await Promise.all([
 		auditCodecPolicy(context, dependencies),
 		verifyElectronFfmpeg(context, dependencies),
@@ -167,9 +167,6 @@ export async function verifyPackagedOsAudioCodecNativeResources(context, depende
 		return await verifyDesktopOsAudioCodecNativePackageTree({
 			runtimeRoot: resolve(resourcesRoot, 'runtime'),
 			repositoryRoot,
-			...(target === 'mac-arm64' ? {
-				signingIdentity: '-',
-			} : {}),
 			productId,
 			target,
 			summary: stage.osAudioCodecNative,

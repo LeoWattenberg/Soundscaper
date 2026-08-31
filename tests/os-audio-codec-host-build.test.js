@@ -132,7 +132,7 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	assert.deepEqual(windowsPolicy.sourceIdentity, windows.sourceIdentity);
 	assert.deepEqual(windowsPolicy.electronHeaders, windows.electronHeaders);
 	assert.deepEqual(windowsPolicy.buildPlan, windows.buildPlan);
-	assert.deepEqual(windowsPolicy.signing, windows.signing);
+	assert.deepEqual(windowsPolicy.codeSeal, windows.codeSeal);
 	assert.deepEqual(windows.configure.argv.slice(4, 6), ['-A', 'x64']);
 	assert.equal(windows.configure.argv.includes('-G'), false,
 		'a pinned Visual Studio generator fails outright on the image that ships the other one.');
@@ -148,38 +148,26 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	assert.equal(arm.configure.argv.includes('ARM64'), true);
 	const macSdk = join(fixture.root, 'MacOSX.sdk');
 	await mkdir(macSdk);
-	assert.throws(() => plan(fixture, 'mac-arm64', 'mac-unsigned', {
-		macosSdkPath: macSdk,
-	}), /only ad-hoc code sealing/iu);
-	assert.throws(() => plan(fixture, 'win-x64', 'windows-signed', {
-		signingIdentity: '-',
-	}), /must not accept a signing identity/iu);
 	const mac = plan(fixture, 'mac-arm64', 'mac', {
-		macosSdkPath: macSdk, signingIdentity: '-',
+		macosSdkPath: macSdk,
 	});
 	const macPolicy = deriveOsAudioCodecHostPolicyIdentity({
 		repositoryRoot: ROOT, sourceManifestPath: fixture.manifestPath,
-		target: 'mac-arm64', signingIdentity: '-',
+		target: 'mac-arm64',
 	});
 	assert.deepEqual(macPolicy.buildPlan, mac.buildPlan);
-	assert.deepEqual(macPolicy.signing, mac.signing);
+	assert.deepEqual(macPolicy.codeSeal, mac.codeSeal);
 	assert.deepEqual(mac.configure.argv.slice(4, 6), ['-G', 'Ninja']);
 	assert.match(mac.configure.argv.join('\n'), /CMAKE_OSX_ARCHITECTURES=arm64/u);
 	assert.match(mac.configure.argv.join('\n'), /CMAKE_OSX_SYSROOT=/u);
-	assert.deepEqual(mac.signing, {
-		mode: 'ad-hoc', identitySha256: sha256(Buffer.from('-')),
-	});
-	assert.deepEqual(mac.sign, {
+	assert.deepEqual(mac.codeSeal, { mode: 'ad-hoc' });
+	assert.deepEqual(mac.seal, {
 		command: 'codesign', argv: ['--force', '--sign', '-', mac.artifactPath],
 	});
-	assert.deepEqual(mac.signatureVerification, {
+	assert.deepEqual(mac.sealVerification, {
 		command: 'codesign', argv: ['--verify', '--strict', mac.artifactPath],
 	});
-	for (const signingIdentity of [
-		'', 'identity', 'Apple Development', `identity-${'x'.repeat(300)}`,
-	]) assert.throws(() => plan(fixture, 'mac-arm64', `invalid-${signingIdentity.length}`, {
-		macosSdkPath: macSdk, signingIdentity,
-	}), /only ad-hoc code sealing/iu);
+	assert.equal(Object.hasOwn(mac, 'signing'), false);
 
 	const second = plan(fixture, 'win-x64', 'windows-two');
 	assert.deepEqual(osAudioCodecHostBuildPlanIdentity(windows),
@@ -233,8 +221,8 @@ test('execution emits a bounded immutable artifact, plan, source, toolchain and 
 			systemName: 'Windows', systemProcessor: 'ARM64',
 		},
 		nativeCanary: { status: 'passed', testCommand: 'ctest' },
-		signing: {
-			mode: 'not-applicable', identitySha256: null,
+		codeSeal: {
+			mode: 'not-applicable',
 			verificationStatus: 'not-applicable',
 		},
 	});
@@ -245,12 +233,12 @@ test('execution emits a bounded immutable artifact, plan, source, toolchain and 
 	}), /authenticated build plan/iu);
 });
 
-test('macOS signs and strictly verifies the installed addon before hashing it', async (context) => {
+test('macOS ad-hoc seals and checks the installed addon before hashing it', async (context) => {
 	const fixture = await electronHeaderFixture(context);
 	const macSdk = join(fixture.root, 'MacOSX.sdk');
 	await mkdir(macSdk);
-	const buildPlan = plan(fixture, 'mac-arm64', 'signed-execution', {
-		macosSdkPath: macSdk, signingIdentity: '-',
+	const buildPlan = plan(fixture, 'mac-arm64', 'sealed-execution', {
+		macosSdkPath: macSdk,
 	});
 	const commands = [];
 	const unsigned = Buffer.from('unsigned-addon-fixture');
@@ -287,11 +275,11 @@ test('macOS signs and strictly verifies the installed addon before hashing it', 
 	assert.deepEqual(result.artifact, {
 		path: buildPlan.artifactPath, byteLength: signed.byteLength, sha256: sha256(signed),
 	});
-	assert.deepEqual(result.signing, {
-		mode: 'ad-hoc', identitySha256: sha256(Buffer.from('-')),
+	assert.deepEqual(result.codeSeal, {
+		mode: 'ad-hoc',
 		verificationStatus: 'passed',
 	});
-	assert.equal(result.signing.mode, 'ad-hoc');
+	assert.equal(Object.hasOwn(result, 'signing'), false);
 });
 
 test('the portable exact MP3 profile canary remains buildable without a target OS SDK', (context) => {

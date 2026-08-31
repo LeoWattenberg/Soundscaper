@@ -24,7 +24,7 @@ import {
 } from './os-audio-codec-host-build.mjs';
 
 export async function verifyDesktopOsAudioCodecNativePackageTree({
-	runtimeRoot, repositoryRoot, signingIdentity, productId, target, summary, placement,
+	runtimeRoot, repositoryRoot, productId, target, summary, placement,
 }) {
 	const prefix = resolve(runtimeRoot, OS_AUDIO_CODEC_NATIVE_RUNTIME_PREFIX);
 	const supported = productId === 'soundscaper' && OS_AUDIO_CODEC_NATIVE_TARGETS.includes(target);
@@ -53,7 +53,6 @@ export async function verifyDesktopOsAudioCodecNativePackageTree({
 	const policy = deriveOsAudioCodecHostPolicyIdentity({
 		repositoryRoot,
 		target,
-		...(signingIdentity === undefined ? {} : { signingIdentity }),
 	});
 	assertOsAudioCodecHostBuildMatchesPolicy(build, policy);
 	const release = await verifyOsAudioCodecNativeBuildResult({
@@ -83,6 +82,6 @@ function buildResultFromManifest(manifest, artifactPath) {
 		buildPlanSha256: manifest.buildPlan.sha256,
 		toolchainIdentity: manifest.toolchainIdentity,
 		nativeCanary: manifest.nativeCanary,
-		signing: manifest.signing,
+		codeSeal: manifest.codeSeal,
 	};
 }

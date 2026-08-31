@@ -27,7 +27,7 @@ test('professional-native notice summaries are exact, target-specific, and recei
 		});
 		assert.equal(summary.status, 'authenticated');
 		assert.equal(summary.target, target);
-		assert.equal(summary.legalApproval, null);
+		assert.equal(Object.hasOwn(summary, 'legalApproval'), false);
 		assert.deepEqual(summary.sources.map(({ id }) => id),
 			soundscaperProfessionalNativeSourceIdsForTarget(target));
 		assert.equal(summary.sources.some(({ id }) => ['x264', 'x265', 'libvpx', 'libopus'].includes(id)), false);
@@ -50,7 +50,6 @@ test('preview notice state stays explicitly unavailable and cannot claim legal a
 		status: 'typed-unavailable',
 		target: 'mac-arm64',
 		inventoryId: null,
-		legalApproval: null,
 		blockedBy: 'Professional-native installed notices are emitted only by Stable Soundscaper packaging.',
 		sources: [],
 		notices: [],
@@ -143,7 +142,7 @@ function fixtureRegisters() {
 	return {
 		sourceRegister: { schemaVersion: 1, sources },
 		noticeRegister: {
-			schemaVersion: 1, id: 'fixture-notices-v1', legalApproval: null,
+			schemaVersion: 1, id: 'fixture-notices-v1',
 			sources: sources.map((source) => ({
 				id: source.id,
 				targets: TARGETS.filter((target) =>

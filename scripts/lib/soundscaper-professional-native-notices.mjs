@@ -71,7 +71,6 @@ export function soundscaperProfessionalNativeNoticeSummary(input, authorities = 
 		status: 'authenticated',
 		target,
 		inventoryId: noticeRegister.id,
-		legalApproval: null,
 		sources,
 		notices: notices.sort((left, right) => left.name.localeCompare(right.name, 'en')),
 	});
@@ -83,7 +82,6 @@ export function typedUnavailableSoundscaperProfessionalNativeNotices(targetValue
 		status: 'typed-unavailable',
 		target: targetId(targetValue),
 		inventoryId: null,
-		legalApproval: null,
 		blockedBy: 'Professional-native installed notices are emitted only by Stable Soundscaper packaging.',
 		sources: [],
 		notices: [],
@@ -221,7 +219,7 @@ function validateAuthorities(sourceRegister, noticeRegister) {
 	if (sourceRegister?.schemaVersion !== 1 || !Array.isArray(sourceRegister.sources)) {
 		throw new Error('The professional-native source register is invalid.');
 	}
-	if (noticeRegister?.schemaVersion !== 1 || noticeRegister.legalApproval !== null
+	if (noticeRegister?.schemaVersion !== 1
 		|| typeof noticeRegister.id !== 'string' || !SAFE_NAME.test(noticeRegister.id)
 		|| !Array.isArray(noticeRegister.sources)
 		|| JSON.stringify(noticeRegister.sources.map(({ id }) => id).sort())

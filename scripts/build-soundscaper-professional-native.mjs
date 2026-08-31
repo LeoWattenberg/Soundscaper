@@ -83,10 +83,7 @@ if (!target.startsWith('linux-')) {
 		sourceSnapshotRoot: osSnapshotRoot,
 		buildRoot: resolve(workRoot, 'os-codec-build'),
 		installRoot: resolve(workRoot, 'os-codec-install'),
-		...(macosSdkPath === null ? {} : {
-			macosSdkPath,
-			signingIdentity: '-',
-		}),
+		...(macosSdkPath === null ? {} : { macosSdkPath }),
 	});
 }
 const runtimeRoot = args['runtime-root']

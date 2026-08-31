@@ -28,7 +28,7 @@ export function resolveDesktopOsAudioCodecNativeRequirement(value) {
 }
 
 export async function prepareDesktopOsAudioCodecNativeRelease({
-	buildResultPath, repositoryRoot, signingIdentity, target, required,
+	buildResultPath, repositoryRoot, target, required,
 }) {
 	const selectedTarget = desktopTarget(target);
 	if (typeof required !== 'boolean') {
@@ -61,7 +61,6 @@ export async function prepareDesktopOsAudioCodecNativeRelease({
 	const policy = deriveOsAudioCodecHostPolicyIdentity({
 		repositoryRoot,
 		target: selectedTarget,
-		...(signingIdentity === undefined ? {} : { signingIdentity }),
 	});
 	assertOsAudioCodecHostBuildMatchesPolicy(build, policy);
 	return verifyOsAudioCodecNativeBuildResult({

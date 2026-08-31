@@ -43,7 +43,7 @@ test('beforePack authenticates the exact built codec-only subtree and its stage 
 		packagedTarget: TARGET,
 	}), /stage manifest.*OS audio codec.*evidence/iu);
 	changedSummary.osAudioCodecNative = structuredClone(fixture.summary);
-	changedSummary.osAudioCodecNative.signing.verificationStatus = 'passed';
+	changedSummary.osAudioCodecNative.codeSeal.verificationStatus = 'passed';
 	await writeJson(fixture.stageManifestPath, changedSummary);
 	await assert.rejects(() => verifyStagedOsAudioCodecNativeBeforePack({
 		repositoryRoot: fixture.root,
@@ -228,8 +228,8 @@ async function releaseFixture(context, target, {
 			systemName: 'Windows', systemProcessor: 'AMD64',
 		},
 		nativeCanary: { status: 'passed', testCommand: 'ctest' },
-		signing: {
-			mode: 'not-applicable', identitySha256: null,
+		codeSeal: {
+			mode: 'not-applicable',
 			verificationStatus: 'not-applicable',
 		},
 	};

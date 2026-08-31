@@ -89,9 +89,9 @@ export async function addOsCodecPayload(fixture, target) {
 		sourceRevision: '3'.repeat(64),
 		buildPlanSha256: '4'.repeat(64),
 		nativeCanary: 'passed',
-		signing: target === 'mac-arm64'
-			? { mode: 'ad-hoc', identitySha256: '5'.repeat(64), verificationStatus: 'passed' }
-			: { mode: 'not-applicable', identitySha256: null, verificationStatus: 'not-applicable' },
+		codeSeal: target === 'mac-arm64'
+			? { mode: 'ad-hoc', verificationStatus: 'passed' }
+			: { mode: 'not-applicable', verificationStatus: 'not-applicable' },
 	};
 	await writeFile(fixture.runtimeManifestPath,
 		`${JSON.stringify(fixture.runtimeManifest, null, 2)}\n`);

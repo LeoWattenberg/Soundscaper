@@ -43,7 +43,7 @@ export function normalizeElectronAlternateFfmpegManifest(value) {
 	});
 }
 
-/** Verify the exact alternate Electron media library after packaging and before signing. */
+/** Verify the exact alternate Electron media library during package finalization. */
 export async function verifyPackagedElectronAlternateFfmpeg(context, dependencies = {}) {
 	const admittedManifest = normalizeElectronAlternateFfmpegManifest(
 		dependencies.manifest ?? ELECTRON_ALTERNATE_FFMPEG_MANIFEST,

@@ -23,7 +23,7 @@ export function assertDesktopPackageOsAudioCodecClosure({
 	if (!OS_AUDIO_CODEC_NATIVE_TARGETS.includes(target)
 		|| !exactRecord(summary, [
 			'target', 'status', 'payloadManifest', 'payload', 'sourceRevision',
-			'buildPlanSha256', 'nativeCanary', 'signing',
+			'buildPlanSha256', 'nativeCanary', 'codeSeal',
 		]) || summary.target !== target || summary.status !== 'built'
 		|| !exactRecord(summary.payloadManifest, ['id', 'name', 'byteLength', 'sha256'])
 		|| !exactRecord(summary.payload, ['name', 'byteLength', 'sha256'])
@@ -32,7 +32,7 @@ export function assertDesktopPackageOsAudioCodecClosure({
 		|| summary.payload.name !== OS_AUDIO_CODEC_NATIVE_PAYLOAD_NAME
 		|| !SHA256.test(String(summary.sourceRevision))
 		|| !SHA256.test(String(summary.buildPlanSha256)) || summary.nativeCanary !== 'passed'
-		|| !validSigning(summary.signing, target)) {
+		|| !validCodeSeal(summary.codeSeal, target)) {
 		throw new Error(`The desktop runtime manifest has invalid OS audio codec native evidence for ${target}.`);
 	}
 	const targetPrefix = `${prefix}${target}/`;
@@ -47,12 +47,11 @@ function exactRecord(value, fields) {
 		&& JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...fields].sort());
 }
 
-function validSigning(value, target) {
-	if (!exactRecord(value, ['mode', 'identitySha256', 'verificationStatus'])) return false;
+function validCodeSeal(value, target) {
+	if (!exactRecord(value, ['mode', 'verificationStatus'])) return false;
 	if (target.startsWith('win-')) return value.mode === 'not-applicable'
-		&& value.identitySha256 === null && value.verificationStatus === 'not-applicable';
-	return ['ad-hoc', 'developer-id'].includes(value.mode)
-		&& SHA256.test(String(value.identitySha256)) && value.verificationStatus === 'passed';
+		&& value.verificationStatus === 'not-applicable';
+	return value.mode === 'ad-hoc' && value.verificationStatus === 'passed';
 }
 
 function plainRecord(value) {

@@ -29,7 +29,7 @@ test('Stable assembly stages six receipt-bound source archives and the shared no
 		runtimeManifests: fixture.runtimeManifests,
 	}, fixture.dependencies);
 	assert.equal(result.status, 'authenticated');
-	assert.equal(result.legalApproval, null);
+	assert.equal(Object.hasOwn(result, 'legalApproval'), false);
 	assert.deepEqual(result.sources.map(({ id }) => id).sort(),
 		['asio-sdk', 'clap', 'electron-node-api-headers', 'juce', 'lv2', 'vst3-sdk']);
 	assert.equal(result.sources.some(({ id }) => FORBIDDEN.includes(id)), false);
@@ -42,7 +42,7 @@ test('Stable assembly stages six receipt-bound source archives and the shared no
 	const compliance = JSON.parse(await readFile(
 		join(fixture.outputRoot, 'Soundscaper-professional-native-compliance.json'), 'utf8',
 	));
-	assert.equal(compliance.legalApproval, null);
+	assert.equal(Object.hasOwn(compliance, 'legalApproval'), false);
 	assert.deepEqual(compliance.sources.map(({ archive }) => archive.sha256),
 		result.sources.map(({ archive }) => archive.sha256));
 });
@@ -142,7 +142,7 @@ function fixtureRegisters() {
 	return {
 		sourceRegister: { schemaVersion: 1, sources },
 		noticeRegister: {
-			schemaVersion: 1, id: 'fixture-notices-v1', legalApproval: null,
+			schemaVersion: 1, id: 'fixture-notices-v1',
 			sources: sources.map((source) => ({
 				id: source.id,
 				targets: TARGETS.filter((target) =>

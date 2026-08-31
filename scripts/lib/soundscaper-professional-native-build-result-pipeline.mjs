@@ -26,10 +26,9 @@ import {
 	verifyAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 } from './soundscaper-professional-native-self-test-plan.mjs';
 import {
-	createSoundscaperProfessionalNativeMacSigningPlan,
-	executeSoundscaperProfessionalNativeMacSigningPlan,
-	soundscaperProfessionalNativeMacSigningIdentity,
-} from './soundscaper-professional-native-macos-signing.mjs';
+	createSoundscaperProfessionalNativeMacCodeSealPlan,
+	executeSoundscaperProfessionalNativeMacCodeSealPlan,
+} from './soundscaper-professional-native-macos-code-seal.mjs';
 import {
 	soundscaperProfessionalNativeIsolationConfigureArguments,
 } from './soundscaper-professional-native-target-build.mjs';
@@ -44,7 +43,6 @@ import {
 export { soundscaperProfessionalNativePipelineFailureMessage };
 
 const AUTHENTICATED_PIPELINE_PLANS = new WeakSet();
-const PIPELINE_SIGNING_IDENTITIES = new WeakMap();
 
 export function requiredExternalSoundscaperProfessionalNativeSelfTestIds(targetValue) {
 	return requiredPipelineSoundscaperProfessionalNativeSelfTestIds(targetValue);
@@ -59,15 +57,9 @@ export function createSoundscaperProfessionalNativeBuildResultPipelinePlan(optio
 		: options?.osAudioCodecBuildPlan?.target !== target) {
 		throw new TypeError('The OS audio codec build-plan target is misbound.');
 	}
-	if (options?.signingIdentity !== undefined) {
-		throw new TypeError('Professional native builds do not accept a signing identity.');
-	}
-	const signingIdentity = target === 'mac-arm64' ? '-' : null;
-	const macSigning = target === 'mac-arm64'
-		? soundscaperProfessionalNativeMacSigningIdentity(signingIdentity) : null;
 	if (target === 'mac-arm64'
-		&& JSON.stringify(options.osAudioCodecBuildPlan.signing) !== JSON.stringify(macSigning)) {
-		throw new TypeError('The professional and OS codec signing identities are misbound.');
+		&& JSON.stringify(options.osAudioCodecBuildPlan.codeSeal) !== JSON.stringify({ mode: 'ad-hoc' })) {
+		throw new TypeError('The professional and OS codec execution seals are misbound.');
 	}
 	const selfTestPlan = assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan(
 		options?.selfTestPlan,
@@ -100,7 +92,7 @@ export function createSoundscaperProfessionalNativeBuildResultPipelinePlan(optio
 		professional: commandIdentity(options.professionalBuildPlan),
 		osAudioCodec: options.osAudioCodecBuildPlan === null
 			? null : commandIdentity(options.osAudioCodecBuildPlan),
-		macSigning,
+		macCodeSeal: target === 'mac-arm64' ? { method: 'codesign-ad-hoc' } : null,
 		isolationSteps,
 		selfTestAuthority: selfTestPlan.authority,
 		selfTestCommands,
@@ -114,7 +106,6 @@ export function createSoundscaperProfessionalNativeBuildResultPipelinePlan(optio
 		buildPlanSha256: sha256(canonicalJson(identity)),
 	});
 	AUTHENTICATED_PIPELINE_PLANS.add(plan);
-	if (target === 'mac-arm64') PIPELINE_SIGNING_IDENTITIES.set(plan, signingIdentity);
 	return plan;
 }
 
@@ -127,10 +118,10 @@ export async function executeSoundscaperProfessionalNativeBuildResultPipeline(pl
 		?? executeSoundscaperProfessionalNativeBuild;
 	const executeOsCodec = options.executeOsCodec ?? executeOsAudioCodecHostBuild;
 	const createBuildResult = options.createBuildResult ?? createSoundscaperProfessionalNativeBuildResult;
-	const createMacSigningPlan = options.createMacSigningPlan
-		?? createSoundscaperProfessionalNativeMacSigningPlan;
-	const executeMacSigning = options.executeMacSigning
-		?? executeSoundscaperProfessionalNativeMacSigningPlan;
+	const createMacCodeSealPlan = options.createMacCodeSealPlan
+		?? createSoundscaperProfessionalNativeMacCodeSealPlan;
+	const executeMacCodeSeal = options.executeMacCodeSeal
+		?? executeSoundscaperProfessionalNativeMacCodeSealPlan;
 	const professional = executeProfessional(plan.professionalBuildPlan, { run });
 	const osOutput = [];
 	const osAudioCodec = plan.osAudioCodecBuildPlan === null ? null
@@ -141,10 +132,9 @@ export async function executeSoundscaperProfessionalNativeBuildResultPipeline(pl
 			},
 	});
 	for (const step of plan.isolationSteps) runStep(run, step, 'isolation build');
-	const macSigningEvidence = plan.target === 'mac-arm64'
-		? await executeMacSigning(createMacSigningPlan({
+	const macCodeSealResult = plan.target === 'mac-arm64'
+		? await executeMacCodeSeal(createMacCodeSealPlan({
 			target: plan.target,
-			signingIdentity: PIPELINE_SIGNING_IDENTITIES.get(plan),
 			professionalInstallRoot: professional.installRoot,
 			isolationInstallRoot: plan.isolationInstallRoot,
 			osAudioCodecInstallRoot: plan.osAudioCodecBuildPlan.installRoot,
@@ -196,7 +186,7 @@ export async function executeSoundscaperProfessionalNativeBuildResultPipeline(pl
 		toolchainReceipt,
 		sourceAuthentication: professional.sourceAuthentication,
 		buildSelfTests,
-		macSigningEvidence,
+		macCodeSealResult,
 		...(options.inspectDependencies ? { inspectDependencies: options.inspectDependencies } : {}),
 		...(options.runInstalledSelfTest ? { runSelfTest: options.runInstalledSelfTest } : {}),
 	});

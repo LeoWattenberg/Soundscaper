@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Ad-hoc code-sealing authority for the exact macOS professional-native closure. */
+/** Identity-free ad-hoc execution sealing for the exact macOS native closure. */
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -18,17 +18,12 @@ const PEER_ENTITLEMENTS_DESCRIPTOR = Object.freeze({
 });
 const LIBRARY_VALIDATION_ENTITLEMENT = 'com.apple.security.cs.disable-library-validation';
 const LIBRARY_VALIDATION_POLICY = 'peer-only-disable-library-validation-v1';
-const SIGNING_IDENTITIES = new WeakMap();
+const AUTHENTICATED_PLANS = new WeakSet();
 
-export function soundscaperProfessionalNativeMacSigningIdentity(value) {
-	return signingIdentity(value).identity;
-}
-
-export function createSoundscaperProfessionalNativeMacSigningPlan(options) {
+export function createSoundscaperProfessionalNativeMacCodeSealPlan(options) {
 	if (options?.target !== 'mac-arm64') {
-		throw new TypeError('Professional native mac signing supports only mac-arm64.');
+		throw new TypeError('Professional native mac code sealing supports only mac-arm64.');
 	}
-	const signing = signingIdentity(options?.signingIdentity);
 	const professionalRoot = canonicalDirectory(options?.professionalInstallRoot,
 		'professional install root');
 	const isolationRoot = canonicalDirectory(options?.isolationInstallRoot,
@@ -67,105 +62,88 @@ export function createSoundscaperProfessionalNativeMacSigningPlan(options) {
 		...artifact,
 		entitlements: artifact.candidatePath === PEER_CANDIDATE_PATH
 			? peerEntitlements.descriptor : null,
-		preSigning: descriptor(artifact.absolutePath, artifact.candidatePath),
+		preSeal: descriptor(artifact.absolutePath, artifact.candidatePath),
 	}));
 	const commands = commandTemplates();
 	const plan = deepFreeze({
-		schemaVersion: 2,
+		schemaVersion: 1,
 		target: 'mac-arm64',
-		signing: signing.identity,
+		method: 'codesign-ad-hoc',
 		commands,
 		peerEntitlements,
 		artifacts,
 	});
-	SIGNING_IDENTITIES.set(plan, signing.raw);
+	AUTHENTICATED_PLANS.add(plan);
 	return plan;
 }
 
-export async function executeSoundscaperProfessionalNativeMacSigningPlan(plan, options = {}) {
-	const rawIdentity = SIGNING_IDENTITIES.get(plan);
-	if (rawIdentity === undefined) {
-		throw new TypeError('Professional native signing requires an authenticated signing plan.');
+export async function executeSoundscaperProfessionalNativeMacCodeSealPlan(plan, options = {}) {
+	if (!AUTHENTICATED_PLANS.has(plan)) {
+		throw new TypeError('Professional native code sealing requires an authenticated plan.');
 	}
 	const run = options.run ?? spawnSync;
 	assertPeerEntitlements(plan.peerEntitlements);
 	const artifacts = [];
 	for (const artifact of plan.artifacts) {
 		const before = descriptor(artifact.absolutePath, artifact.candidatePath);
-		if (!sameDescriptor(before, artifact.preSigning)) {
-			throw new Error(`Professional native signing input ${artifact.candidatePath} changed after planning.`);
+		if (!sameDescriptor(before, artifact.preSeal)) {
+			throw new Error(`Professional native code-seal input ${artifact.candidatePath} changed after planning.`);
 		}
 		const peer = artifact.candidatePath === PEER_CANDIDATE_PATH;
 		if ((peer && !sameDescriptor(artifact.entitlements, PEER_ENTITLEMENTS_DESCRIPTOR))
 			|| (!peer && artifact.entitlements !== null)) {
-			throw new Error('Professional native signing plan has target-inappropriate entitlements.');
+			throw new Error('Professional native code-seal plan has target-inappropriate entitlements.');
 		}
-		const signResult = runStep(run, materialize(
-			peer ? plan.commands.peerSign : plan.commands.sign,
-			rawIdentity,
+		runStep(run, materialize(
+			peer ? plan.commands.peerSeal : plan.commands.seal,
 			artifact.absolutePath,
 			plan.peerEntitlements.absolutePath,
-		), 'signing');
-		const verificationResult = runStep(run, materialize(plan.commands.verification, rawIdentity,
-			artifact.absolutePath), 'signature verification');
-		const entitlementResult = runStep(run, materialize(
+		), 'code sealing');
+		runStep(run, materialize(plan.commands.verification,
+			artifact.absolutePath), 'execution-seal verification');
+		runStep(run, materialize(
 			peer ? plan.commands.peerEntitlementVerification
 				: plan.commands.nonPeerEntitlementVerification,
-			rawIdentity, artifact.absolutePath,
+			artifact.absolutePath,
 			plan.peerEntitlements.absolutePath,
 		), peer ? 'peer entitlement verification' : 'non-peer entitlement verification');
 		assertPeerEntitlements(plan.peerEntitlements);
 		artifacts.push(Object.freeze({
 			...descriptor(artifact.absolutePath, artifact.candidatePath),
-			signOutputSha256: outputDigest(signResult),
-			verificationOutputSha256: outputDigest(verificationResult),
 			libraryValidation: Object.freeze({
 				policy: LIBRARY_VALIDATION_POLICY,
 				expectation: peer ? 'present' : 'absent',
 				entitlements: peer ? PEER_ENTITLEMENTS_DESCRIPTOR : null,
-				outputSha256: outputDigest(entitlementResult),
 			}),
 		}));
 	}
-	const evidence = deepFreeze({
-		schemaVersion: 2,
-		status: 'signatures-verified',
+	const result = deepFreeze({
+		schemaVersion: 1,
+		status: 'execution-checked',
 		target: plan.target,
-		signing: plan.signing,
-		commands: plan.commands,
+		method: plan.method,
 		artifacts,
 	});
-	validateSoundscaperProfessionalNativeMacSigningEvidence(evidence, {
-		payload: evidence.artifacts.find(({ path }) => path === 'payload/soundscaper_professional.node'),
-		osAudioCodec: evidence.artifacts.find(({ path }) => path === 'payload/soundscaper_os_audio_codec.node'),
-		pluginPeer: evidence.artifacts.find(({ path }) => path === 'payload/soundscaper_professional_peer'),
-		deliveryFilesystem: evidence.artifacts.find(({ path }) => path === 'payload/soundscaper_delivery_fs'),
+	validateSoundscaperProfessionalNativeMacCodeSealResult(result, {
+		payload: result.artifacts.find(({ path }) => path === 'payload/soundscaper_professional.node'),
+		osAudioCodec: result.artifacts.find(({ path }) => path === 'payload/soundscaper_os_audio_codec.node'),
+		pluginPeer: result.artifacts.find(({ path }) => path === 'payload/soundscaper_professional_peer'),
+		deliveryFilesystem: result.artifacts.find(({ path }) => path === 'payload/soundscaper_delivery_fs'),
 		isolation: {
-			launcher: evidence.artifacts.find(({ path }) =>
+			launcher: result.artifacts.find(({ path }) =>
 				path === 'payload/milestone5-native-isolation-launcher'),
-			runtimeClosure: evidence.artifacts.filter(({ path }) => path.startsWith('payload/runtime/')),
+			runtimeClosure: result.artifacts.filter(({ path }) => path.startsWith('payload/runtime/')),
 		},
 	});
-	return evidence;
+	return result;
 }
 
-export function validateSoundscaperProfessionalNativeMacSigningEvidence(value, candidate) {
-	closed(value, ['schemaVersion', 'status', 'target', 'signing', 'commands', 'artifacts'],
-		'mac signing evidence');
-	closed(value.signing, ['mode', 'identitySha256'], 'mac signing identity');
-	closed(value.commands, [
-		'sign', 'peerSign', 'verification',
-		'peerEntitlementVerification', 'nonPeerEntitlementVerification',
-	],
-		'mac signing commands');
-	if (value.schemaVersion !== 2 || value.status !== 'signatures-verified'
-		|| value.target !== 'mac-arm64' || value.signing.mode !== 'ad-hoc'
-		|| !SHA256.test(String(value.signing.identitySha256))) {
-		throw new TypeError('The professional native mac signing evidence identity is invalid.');
-	}
-	const expectedCommands = commandTemplates();
-	if (JSON.stringify(value.commands) !== JSON.stringify(expectedCommands)) {
-		throw new TypeError('The professional native mac signing command evidence is invalid.');
+export function validateSoundscaperProfessionalNativeMacCodeSealResult(value, candidate) {
+	closed(value, ['schemaVersion', 'status', 'target', 'method', 'artifacts'],
+		'mac code-seal result');
+	if (value.schemaVersion !== 1 || value.status !== 'execution-checked'
+		|| value.target !== 'mac-arm64' || value.method !== 'codesign-ad-hoc') {
+		throw new TypeError('The professional native mac code-seal result is invalid.');
 	}
 	const expected = [
 		...(candidate?.isolation?.runtimeClosure ?? []).slice()
@@ -178,52 +156,40 @@ export function validateSoundscaperProfessionalNativeMacSigningEvidence(value, c
 	];
 	if (expected.some((entry) => !entry) || !Array.isArray(value.artifacts)
 		|| value.artifacts.length !== expected.length) {
-		throw new TypeError('The professional native mac signing evidence omits an authenticated Mach-O.');
+		throw new TypeError('The professional native mac code-seal result omits a Mach-O.');
 	}
 	for (const [index, artifact] of value.artifacts.entries()) {
-		closed(artifact, [
-			'path', 'byteLength', 'sha256', 'signOutputSha256', 'verificationOutputSha256',
-			'libraryValidation',
-		], 'mac signing artifact');
+		closed(artifact, ['path', 'byteLength', 'sha256', 'libraryValidation'],
+			'mac code-seal artifact');
 		closed(artifact.libraryValidation, [
-			'policy', 'expectation', 'entitlements', 'outputSha256',
-		], 'mac signing library-validation evidence');
-		artifactEvidence(artifact);
+			'policy', 'expectation', 'entitlements',
+		], 'mac code-seal library-validation result');
+		artifactDescriptor(artifact);
 		const peer = artifact.path === PEER_CANDIDATE_PATH;
 		const libraryValidation = artifact.libraryValidation;
 		if (libraryValidation.policy !== LIBRARY_VALIDATION_POLICY
 			|| libraryValidation.expectation !== (peer ? 'present' : 'absent')
-			|| !SHA256.test(String(libraryValidation.outputSha256))
 			|| (peer ? !sameEntitlementsDescriptor(libraryValidation.entitlements)
 				: libraryValidation.entitlements !== null)) {
-			throw new TypeError('The professional native mac entitlement evidence is invalid.');
+			throw new TypeError('The professional native mac entitlement result is invalid.');
 		}
-		if (!sameDescriptor(artifact, expected[index])
-			|| !SHA256.test(String(artifact.signOutputSha256))
-			|| !SHA256.test(String(artifact.verificationOutputSha256))) {
-			throw new TypeError('The professional native mac signing evidence is payload-misbound.');
+		if (!sameDescriptor(artifact, expected[index])) {
+			throw new TypeError('The professional native mac code-seal result is payload-misbound.');
 		}
 	}
 	return value;
 }
 
-function signingIdentity(value) {
-	if (value !== '-') throw new TypeError('mac-arm64 supports only ad-hoc code sealing with identity -.');
-	return deepFreeze({
-		identity: { mode: 'ad-hoc', identitySha256: sha256(Buffer.from(value)) }, raw: value,
-	});
-}
-
 function commandTemplates() {
 	return deepFreeze({
-		sign: {
+		seal: {
 			command: 'codesign',
-			argv: ['--force', '--sign', '$SIGNING_IDENTITY', '$ARTIFACT'],
+			argv: ['--force', '--sign', '-', '$ARTIFACT'],
 		},
-		peerSign: {
+		peerSeal: {
 			command: 'codesign',
 			argv: ['--force', '--entitlements', '$PEER_ENTITLEMENTS',
-				'--sign', '$SIGNING_IDENTITY', '$ARTIFACT'],
+				'--sign', '-', '$ARTIFACT'],
 		},
 		verification: {
 			command: 'codesign',
@@ -244,11 +210,10 @@ function commandTemplates() {
 	});
 }
 
-function materialize(template, identity, path, peerEntitlements = '') {
+function materialize(template, path, peerEntitlements = '') {
 	return {
 		command: template.command,
-		argv: template.argv.map((value) => value === '$SIGNING_IDENTITY' ? identity
-			: value === '$ARTIFACT' ? path
+		argv: template.argv.map((value) => value === '$ARTIFACT' ? path
 				: value === '$PEER_ENTITLEMENTS' ? peerEntitlements : value),
 	};
 }
@@ -310,12 +275,12 @@ function sameEntitlementsDescriptor(value) {
 	}
 }
 
-function artifactEvidence(value) {
+function artifactDescriptor(value) {
 	if (typeof value.path !== 'string' || !value.path.startsWith('payload/')
 		|| value.path.includes('\\') || value.path.split('/').includes('..')
 		|| !Number.isSafeInteger(value.byteLength) || value.byteLength < 1
 		|| value.byteLength > MAXIMUM_ARTIFACT_BYTES || !SHA256.test(String(value.sha256))) {
-		throw new TypeError('The professional native mac signing artifact is invalid.');
+		throw new TypeError('The professional native mac code-seal artifact is invalid.');
 	}
 }
 
@@ -344,9 +309,6 @@ function canonicalDirectory(value, label) {
 	return value;
 }
 
-function outputDigest(result) {
-	return sha256(Buffer.from(`${result.stdout ?? ''}\0${result.stderr ?? ''}`));
-}
 function sameDescriptor(left, right) {
 	return !!left && !!right && left.path === right.path && left.byteLength === right.byteLength
 		&& left.sha256 === right.sha256;
