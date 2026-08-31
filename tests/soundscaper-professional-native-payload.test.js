@@ -11,8 +11,7 @@ import test from 'node:test';
 import {
 	PROFESSIONAL_NATIVE_MANIFEST_PATH,
 	PROFESSIONAL_NATIVE_TARGETS,
-	auditSoundscaperProfessionalNativeStablePayloads,
-	assertSoundscaperProfessionalNativeStablePackageRelease,
+	assertSoundscaperProfessionalNativePackageInputs,
 	professionalNativePayloadOutputRoot,
 	stageVerifiedSoundscaperProfessionalNativePayload,
 	verifySoundscaperProfessionalNativePayload,
@@ -43,19 +42,14 @@ test('professional payload authority is closed for every unbuilt target', async 
 	}
 });
 
-test('stable payload audit reports every valid pending target as typed blocked evidence', async () => {
-	const audit = await auditSoundscaperProfessionalNativeStablePayloads({ repositoryRoot: ROOT });
-	assert.equal(audit.schemaVersion, 1);
-	assert.equal(audit.status, 'blocked');
-	assert.deepEqual(audit.targets.map(({ id, status }) => ({ id, status })),
-		PROFESSIONAL_NATIVE_TARGETS.map((id) => ({ id, status: 'blocked' })));
-	assert.equal(audit.blockers.length, PROFESSIONAL_NATIVE_TARGETS.length);
-	for (const [index, target] of audit.targets.entries()) {
-		assert.deepEqual(Object.keys(target).sort(), ['blockers', 'id', 'status']);
-		assert.equal(target.blockers.length, 1);
-		assert.deepEqual(audit.blockers[index], { target: target.id, detail: target.blockers[0] });
-		assert.match(target.blockers[0], /authenticated.*payload.*built/iu);
-	}
+test('package-input verification rejects a target without a matching build result', async () => {
+	const release = await verifySoundscaperProfessionalNativePayload({
+		repositoryRoot: ROOT, target: 'linux-x64',
+	});
+	assert.throws(
+		() => assertSoundscaperProfessionalNativePackageInputs(release),
+		/professional build result/iu,
+	);
 });
 
 test('a verified professional Node bridge stages exactly its manifest and payload', async (context) => {
@@ -89,17 +83,19 @@ test('a verified professional Node bridge stages exactly its manifest and payloa
 	);
 });
 
-test('stable packaging accepts an exact matching build result', async (context) => {
+test('stable packaging consumes neutral inputs from an exact matching build result', async (context) => {
 	const stable = await builtFixture(context);
 	const stableRelease = await verifySoundscaperProfessionalNativePayload({
 		repositoryRoot: stable.root, target: 'linux-x64',
 	});
-	assert.deepEqual(assertSoundscaperProfessionalNativeStablePackageRelease(stableRelease), {
-		id: 'linux-x64', status: 'ready',
+	const inputs = assertSoundscaperProfessionalNativePackageInputs(stableRelease);
+	assert.deepEqual(inputs, {
+		target: 'linux-x64',
 		sourceRevision: '1'.repeat(40),
 		payloadSha256: stableRelease.payload.sha256,
 		buildResultSha256: stableRelease.buildResult.sha256,
 	});
+	assert.doesNotMatch(JSON.stringify(inputs), /ready|blocked|qualification|admission/iu);
 	const resourcesPath = join(stable.root, 'stable-resources');
 	await stageVerifiedSoundscaperProfessionalNativePayload({
 		release: stableRelease,

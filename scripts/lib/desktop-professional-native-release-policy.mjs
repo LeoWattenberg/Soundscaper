@@ -3,7 +3,7 @@
 /** Soundscaper stable packaging gate, kept separate from preview staging. */
 
 import {
-	assertSoundscaperProfessionalNativeStablePackageRelease,
+	assertSoundscaperProfessionalNativePackageInputs,
 } from './soundscaper-professional-native-payload.mjs';
 
 export function assertDesktopProfessionalNativeReleasePolicy(options, dependencies = {}) {
@@ -19,11 +19,11 @@ export function assertDesktopProfessionalNativeReleasePolicy(options, dependenci
 		return options.release;
 	}
 	if (!options?.release) {
-		throw new Error('Stable Soundscaper desktop preparation requires a professional native release.');
+		throw new Error('Stable Soundscaper desktop preparation requires professional native package inputs.');
 	}
-	const assertStable = dependencies.assertStable
-		?? assertSoundscaperProfessionalNativeStablePackageRelease;
-	assertStable(options.release);
+	const assertPackageInputs = dependencies.assertPackageInputs
+		?? assertSoundscaperProfessionalNativePackageInputs;
+	assertPackageInputs(options.release);
 	if (!/^(?:[a-f\d]{40}|[a-f\d]{64})$/u.test(String(options.sourceRevision))
 		|| options.release.buildAuthority?.sourceRevision
 			!== options.sourceRevision) {

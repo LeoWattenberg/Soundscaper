@@ -190,44 +190,44 @@ test('the target peer contains purpose-built filesystem, network, and child-proc
 		'the target peer must make a missing supervisor termination observable');
 });
 
-test('desktop preparation invokes the stable native gate only for Soundscaper stable selection', () => {
+test('desktop preparation verifies native package inputs only for Soundscaper stable selection', () => {
 	const release = Object.freeze({
 		target: Object.freeze({ id: 'linux-x64' }),
 		buildAuthority: Object.freeze({ sourceRevision: REVISION }),
 	});
 	const calls = [];
-	const assertStable = (value) => { calls.push(value); return { status: 'ready' }; };
+	const assertPackageInputs = (value) => { calls.push(value); return { target: 'linux-x64' }; };
 	assert.equal(assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'candidate', releaseChannel: 'candidate' },
 		release,
-	}, { assertStable }), release);
+	}, { assertPackageInputs }), release);
 	assert.equal(calls.length, 0);
 	assert.equal(assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release,
 		sourceRevision: REVISION,
-	}, { assertStable }), release);
+	}, { assertPackageInputs }), release);
 	assert.deepEqual(calls, [release]);
 	assert.throws(() => assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release,
 		sourceRevision: 'cd'.repeat(20),
-	}, { assertStable }), /build result.*desktop source revision/iu);
+	}, { assertPackageInputs }), /build result.*desktop source revision/iu);
 	assert.throws(() => assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release: null,
-	}, { assertStable }), /stable Soundscaper.*professional native/iu);
+	}, { assertPackageInputs }), /stable Soundscaper.*professional native/iu);
 	const harnessRelease = Object.freeze({ status: 'pending-external' });
 	assert.equal(assertDesktopProfessionalNativeReleasePolicy({
 		productId: 'soundscaper',
 		productMetadata: { applicationVersionChannel: 'stable', releaseChannel: 'stable' },
 		release: harnessRelease,
 		harnessPreparation: true,
-	}, { assertStable }), harnessRelease);
+	}, { assertPackageInputs }), harnessRelease);
 });
 
 test('desktop preparation executes the professional native release policy before staging', async () => {

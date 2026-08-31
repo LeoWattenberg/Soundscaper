@@ -147,46 +147,18 @@ export function professionalNativePayloadOutputRoot(runtimeRoot, release) {
 	return resolve(runtimeRoot, release.manifest.staging.runtimePrefix, release.target.id);
 }
 
-export function assertSoundscaperProfessionalNativeStablePackageRelease(release) {
+export function assertSoundscaperProfessionalNativePackageInputs(release) {
 	assertRelease(release);
 	assert(release.target.status === 'built' && release.payload !== null
 		&& release.buildResult !== null && release.buildAuthority !== null
 		&& release.deliveryFilesystem !== null,
 	`Stable Soundscaper packaging requires a professional build result for ${release.target.id}.`);
 	return deepFreeze({
-		id: release.target.id,
-		status: 'ready',
+		target: release.target.id,
 		sourceRevision: release.buildAuthority.sourceRevision,
 		payloadSha256: release.payload.sha256,
 		buildResultSha256: release.buildResult.sha256,
 	});
-}
-
-export async function auditSoundscaperProfessionalNativeStablePayloads({ repositoryRoot }) {
-	const releases = await Promise.all(PROFESSIONAL_NATIVE_TARGETS.map((target) =>
-		verifySoundscaperProfessionalNativePayload({ repositoryRoot, target, targetSource: 'declared' })));
-	const targets = releases.map(stableAuditTarget);
-	const blockers = targets.flatMap((target) => target.status === 'ready' ? []
-		: target.blockers.map((detail) => Object.freeze({ target: target.id, detail })));
-	return deepFreeze({
-		schemaVersion: 1,
-		status: blockers.length === 0 ? 'ready' : 'blocked',
-		targets,
-		blockers,
-	});
-}
-
-function stableAuditTarget(release) {
-	if (release.target.status !== 'built' || release.payload === null
-		|| release.buildResult === null || release.buildAuthority === null) {
-		return Object.freeze({
-			id: release.target.id,
-			status: 'blocked',
-			blockers: Object.freeze([release.target.blockedBy
-				?? `No professional build result exists for ${release.target.id}.`]),
-		});
-	}
-	return assertSoundscaperProfessionalNativeStablePackageRelease(release);
 }
 
 export async function stageVerifiedSoundscaperProfessionalNativePayload({ release, outputRoot }) {
