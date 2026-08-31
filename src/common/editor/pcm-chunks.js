@@ -250,7 +250,8 @@ export function smoothImmutablePcmRange(pcm, options = {}) {
 				sum += source[channel][sourceFrame - sourceStart] * weight;
 				weights += weight;
 			}
-			edits.push({ channel, frame, value: weights ? sum / weights : 0 });
+			const average = weights ? sum / weights : 0;
+			edits.push({ channel, frame, value: Math.max(-1, Math.min(1, average)) });
 		}
 	}
 	return editImmutablePcmSamples(pcm, edits, options);

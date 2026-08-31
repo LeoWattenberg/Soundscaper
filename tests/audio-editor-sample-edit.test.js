@@ -162,6 +162,23 @@ test('persistent pencil and smoothing edits publish new immutable sources atomic
 	assert.equal(store.hasSource('source-pencil'), true);
 });
 
+test('smoothing clamps finite float PCM that exceeds the pencil-edit range', async () => {
+	const input = new Float32Array(SOURCE.frameCount);
+	input.fill(2, 0, 8);
+	const store = createSampleStore(SOURCE, [input.subarray(0, 65_536), input.subarray(65_536)]);
+
+	await persistImmutableSampleEdit({
+		store,
+		source: SOURCE,
+		sourceId: 'source-smoothed-overshoot',
+		smooth: { startFrame: 1, endFrame: 4 },
+		radius: 2,
+	});
+
+	assert.equal(store.sample(SOURCE.id, 2), 2);
+	assert.equal(store.sample('source-smoothed-overshoot', 2), 1);
+});
+
 test('the production store persists only touched sample-edit chunks as a copy-on-write overlay', async () => {
 	const store = createProjectStore({
 		indexedDB: null,
