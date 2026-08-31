@@ -285,6 +285,11 @@ export function createFixture(
 		getLoadedEngineProject: () => loadedEngineProject,
 		getTabMetadata: (projectId: string) => tabs.get(projectId)?.metadata,
 		getTab: (projectId: string) => tabs.get(projectId) ?? null,
+		replaceTabHistory(projectId: string, history: TestHistory) {
+			const tab = tabs.get(projectId);
+			if (!tab) throw new ReferenceError(`Missing tab for ${projectId}.`);
+			tabs.set(projectId, { ...tab, history });
+		},
 		getSourceChunkProvider: (sourceId: string) => sourceChunkProviders.get(sourceId),
 		setSourceChunkProvider: (sourceId: string, provider: unknown) => { sourceChunkProviders.set(sourceId, provider); },
 		setAcquire(value: typeof acquire) { acquire = value; },

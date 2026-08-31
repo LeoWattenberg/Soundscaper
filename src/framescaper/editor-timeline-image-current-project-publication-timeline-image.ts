@@ -30,7 +30,9 @@ export interface FramescaperTimelineImagePublicationControllerTimelineImage {
 	readonly project: FramescaperProjectTimelineImage | null;
 	readonly actions: Readonly<{
 		readonly project: Readonly<{
-			openById(projectId: string): PromiseLike<unknown> | unknown;
+			openById(projectId: string, options?: Readonly<{
+				readonly adoptSessionRevision?: boolean;
+			}>): PromiseLike<unknown> | unknown;
 		}>;
 	}>;
 }
@@ -102,7 +104,9 @@ export function createFramescaperTimelineImageCurrentProjectPublicationTimelineI
 		}
 		dependencies.session.updateProjectHistory(expected.id, nextHistory, { dirty: false });
 		dependencies.session.markProjectSaved(expected.id);
-		await dependencies.controller.actions.project.openById(expected.id);
+		await dependencies.controller.actions.project.openById(expected.id, {
+			adoptSessionRevision: true,
+		});
 		if (!sameProject(dependencies.controller.project, published)) {
 			throw stale('The published image revision was not adopted by the active editor.');
 		}

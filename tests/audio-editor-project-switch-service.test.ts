@@ -83,6 +83,26 @@ test('reactivating the active project preserves playback and project-scoped task
 	fixture.projectGeneration.assertCurrent(projectGeneration);
 });
 
+test('explicit active-session revision adoption bypasses same-project deduplication', async () => {
+	const fixture = createFixture();
+	const activeProject = fixture.getProject();
+	assert.ok(activeProject);
+	const publishedProject = {
+		...activeProject,
+		title: 'Published same-ID revision',
+		revision: activeProject.revision + 1,
+	};
+	fixture.replaceTabHistory(activeProject.id, { present: publishedProject });
+
+	await fixture.service.switchProject(publishedProject, { adoptSessionRevision: true });
+
+	assert.strictEqual(fixture.getProject(), publishedProject);
+	assert.strictEqual(fixture.state.history?.present, publishedProject);
+	assert.deepEqual(fixture.events.filter((event) => event.startsWith('engine-load:')), [
+		'engine-load:old-project',
+	]);
+});
+
 test('active-project deduplication preserves a queued reversal intent', async () => {
 	const fixture = createFixture();
 	const activeProject = fixture.getProject();

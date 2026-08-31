@@ -25,6 +25,8 @@ export interface ProjectFallbackIntegrityAdmission<Project> {
 export interface ProjectSwitchOptions<History> {
 	readonly save?: boolean;
 	readonly skipFlush?: boolean;
+	/** Adopt a session history that advanced without changing its stable project ID. */
+	readonly adoptSessionRevision?: boolean;
 	readonly readOnly?: boolean;
 	readonly readOnlyReason?: string | null;
 	readonly history?: History;

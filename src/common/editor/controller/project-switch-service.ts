@@ -92,7 +92,8 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
-		if (pendingProjectSwitches === 0 && readyProjectId === nextProject.id
+		if (options.adoptSessionRevision !== true
+			&& pendingProjectSwitches === 0 && readyProjectId === nextProject.id
 			&& runtime.getProject()?.id === nextProject.id) {
 			runtime.lifetime.assertActive(token);
 			return Promise.resolve();
@@ -118,7 +119,8 @@ export function createProjectSwitchService<
 		token: EditorLifetimeToken = runtime.lifetime.capture(),
 	): Promise<void> {
 		runtime.lifetime.assertActive(token);
-		if (pendingProjectSwitches === 0 && readyProjectId === nextProject.id
+		if (options.adoptSessionRevision !== true
+			&& pendingProjectSwitches === 0 && readyProjectId === nextProject.id
 			&& runtime.getProject()?.id === nextProject.id) return;
 		const fence = beginScapeInspectionFence();
 		pendingProjectSwitches += 1;
@@ -137,7 +139,8 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History>,
 		token: EditorLifetimeToken,
 	): Promise<void> {
-		if (readyProjectId === nextProject.id && runtime.getProject()?.id === nextProject.id) return;
+		if (options.adoptSessionRevision !== true
+			&& readyProjectId === nextProject.id && runtime.getProject()?.id === nextProject.id) return;
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
 		const projectId = nextProject.id;
 		const existingCapture = runtime.sessionTab(projectId)

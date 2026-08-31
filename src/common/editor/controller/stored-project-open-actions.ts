@@ -8,6 +8,10 @@ interface StoredProjectTab<Project extends StoredProject> {
 	readonly history: Readonly<{ readonly present: Project }>;
 }
 
+interface StoredProjectOpenOptions {
+	readonly adoptSessionRevision?: boolean;
+}
+
 export interface StoredProjectOpenRuntime<Project extends StoredProject> {
 	readonly copy: Readonly<{ readonly projectNotFound: string }>;
 	readonly state: Readonly<{
@@ -16,7 +20,7 @@ export interface StoredProjectOpenRuntime<Project extends StoredProject> {
 	}>;
 	readonly store: Readonly<{ loadProject(projectId: string): Promise<Project | null> }>;
 	sessionTab(projectId: string): StoredProjectTab<Project> | null;
-	switchProject(project: Project): PromiseLike<unknown> | unknown;
+	switchProject(project: Project, options?: StoredProjectOpenOptions): PromiseLike<unknown> | unknown;
 	openProject(project: Project): PromiseLike<unknown> | unknown;
 }
 
@@ -26,10 +30,15 @@ export function createStoredProjectOpenActions<Project extends StoredProject>(
 ) {
 	let requestGeneration = 0;
 
-	async function activate(projectId: string): Promise<unknown> {
+	async function activate(
+		projectId: string,
+		options: StoredProjectOpenOptions = {},
+	): Promise<unknown> {
 		const generation = ++requestGeneration;
 		const openTab = runtime.sessionTab(projectId);
-		if (openTab) return runtime.switchProject(openTab.history.present);
+		if (openTab) return options.adoptSessionRevision === true
+			? runtime.switchProject(openTab.history.present, { adoptSessionRevision: true })
+			: runtime.switchProject(openTab.history.present);
 		const saved = await runtime.store.loadProject(projectId);
 		if (generation !== requestGeneration) return null;
 		if (!saved) throw new Error(runtime.copy.projectNotFound);

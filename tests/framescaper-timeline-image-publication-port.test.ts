@@ -51,8 +51,9 @@ function adopting(overrides: Data = {}): Readonly<{ dependencies: never; calls: 
 	const built = harness(overrides);
 	const controller = (built.dependencies as unknown as Data).controller as Data;
 	(controller.actions as Data).project = {
-		openById: async () => {
-			built.calls.push('openById');
+		openById: async (_projectId: string, options: Data = {}) => {
+			built.calls.push(options.adoptSessionRevision === true ? 'openById:adopt' : 'openById');
+			if (options.adoptSessionRevision !== true) return;
 			controller.project = PUBLISHED;
 		},
 	};
@@ -82,7 +83,7 @@ test('a current project publishes and the editor adopts the new revision', async
 
 	assert.equal(published, PUBLISHED);
 	assert.deepEqual(calls, [
-		'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById',
+		'assertToken', 'assertToken', 'assertToken', 'updateHistory', 'markSaved', 'openById:adopt',
 	]);
 });
 
