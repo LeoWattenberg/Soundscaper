@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	assertSoundscaperReleaseMetadataSynchronized,
 	createSoundscaperReleasePreparation,
 	parseSoundscaperReleasePrepareArguments,
 } from '../scripts/prepare-soundscaper-release.mjs';
@@ -53,6 +54,35 @@ test('release preparation selects the stable line and synchronizes version metad
 		applicationVersionChannel: 'stable', releaseChannel: 'stable', updateTagPrefix: 'v',
 	});
 	assert.doesNotMatch(JSON.stringify(prepared), /admission|status|review/iu);
+});
+
+test('stable release verification binds the tag to every synchronized metadata surface without mutation', () => {
+	const prepared = createSoundscaperReleasePreparation(documents(), '1.0.0');
+	const before = structuredClone(prepared);
+	assert.deepEqual(assertSoundscaperReleaseMetadataSynchronized(prepared, 'v1.0.0'), {
+		productId: 'soundscaper', channel: 'stable', version: '1.0.0',
+	});
+	assert.deepEqual(prepared, before);
+
+	for (const [label, mutate] of [
+		['release line', (value) => { value.releaseLines.products.soundscaper.releaseChannel = 'candidate'; }],
+		['package metadata', (value) => { value.packageMetadata.version = '1.0.1'; }],
+		['package-lock root', (value) => { value.packageLock.version = '1.0.1'; }],
+		['package-lock package', (value) => { value.packageLock.packages[''].version = '1.0.1'; }],
+		['desktop metadata', (value) => { value.desktopProduct.applicationVersion = '1.0.1'; }],
+	]) {
+		const drifted = structuredClone(prepared);
+		mutate(drifted);
+		assert.throws(
+			() => assertSoundscaperReleaseMetadataSynchronized(drifted, 'v1.0.0'),
+			/release|synchron|metadata/iu,
+			label,
+		);
+	}
+	assert.throws(
+		() => assertSoundscaperReleaseMetadataSynchronized(prepared, 'v1.0.1'),
+		/release tag/iu,
+	);
 });
 
 test('release preparation refuses invalid versions and unsynchronized inputs', () => {

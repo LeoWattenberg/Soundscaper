@@ -9,7 +9,8 @@ const ROOT = new URL('../', import.meta.url);
 test('the stable tag runs ordinary checks, packages every target, deploys, and publishes', async () => {
 	const workflow = await readFile(new URL('.github/workflows/soundscaper-stable-1.yml', ROOT), 'utf8');
 	assert.match(workflow, /tags:\s*\n\s*- 'v1\.0\.0'/u);
-	assert.match(workflow, /resolveProductReleaseTag/u);
+	assert.match(workflow, /verifyCheckedInSoundscaperRelease/u);
+	assert.match(workflow, /RELEASE_TAG:\s*\$\{\{ github\.ref_name \}\}/u);
 	assert.match(workflow, /npm run check:static/u);
 	for (const shard of ['framescaper', 'soundscaper', 'common']) {
 		assert.match(workflow, new RegExp(`shard: ${shard}`, 'u'));

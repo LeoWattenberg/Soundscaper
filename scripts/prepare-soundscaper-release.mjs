@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
 	resolveProductApplicationVersion,
 	resolveProductDesktopMetadata,
+	resolveProductReleaseTag,
 	validateProductReleaseLines,
 } from './lib/product-release-lines.mjs';
 
@@ -37,16 +38,7 @@ export function createSoundscaperReleasePreparation(documents, versionValue) {
 	if (!STABLE_SEMVER.test(version)) {
 		throw new TypeError('The Soundscaper stable version must be plain semantic versioning.');
 	}
-	if (!documents || typeof documents !== 'object' || Array.isArray(documents)) {
-		throw new TypeError('Soundscaper release preparation documents are invalid.');
-	}
-	const currentReleaseLines = validateProductReleaseLines(documents.releaseLines);
-	const currentVersion = resolveProductApplicationVersion('soundscaper', currentReleaseLines);
-	assertPackageDocuments(documents.packageMetadata, documents.packageLock, currentVersion);
-	const expectedDesktop = resolveProductDesktopMetadata('soundscaper', currentReleaseLines);
-	if (JSON.stringify(documents.desktopProduct) !== JSON.stringify(expectedDesktop)) {
-		throw new Error('The checked-in Soundscaper desktop metadata is not synchronized.');
-	}
+	const { releaseLines: currentReleaseLines } = assertSynchronizedSoundscaperMetadata(documents);
 
 	const releaseLines = structuredClone(currentReleaseLines);
 	releaseLines.products.soundscaper.stable.version = version;
@@ -66,6 +58,22 @@ export function createSoundscaperReleasePreparation(documents, versionValue) {
 			'soundscaper', validatedReleaseLines,
 		)),
 	});
+}
+
+export function assertSoundscaperReleaseMetadataSynchronized(documents, tagValue) {
+	const { releaseLines, version } = assertSynchronizedSoundscaperMetadata(documents);
+	const release = resolveProductReleaseTag(tagValue, releaseLines);
+	if (release.productId !== 'soundscaper' || release.channel !== 'stable'
+		|| release.version !== version) {
+		throw new Error('The tag does not match the selected Soundscaper stable release line.');
+	}
+	return release;
+}
+
+export async function verifyCheckedInSoundscaperRelease(options = {}) {
+	const repositoryRoot = resolve(options.repositoryRoot ?? DEFAULT_REPOSITORY_ROOT);
+	const documents = await readDocuments(repositoryRoot);
+	return assertSoundscaperReleaseMetadataSynchronized(documents, options.tag);
 }
 
 export async function prepareSoundscaperRelease(options = {}) {
@@ -127,6 +135,20 @@ function assertPackageDocuments(packageMetadata, packageLock, expectedVersion) {
 		|| packageLock.packages['']?.version !== expectedVersion) {
 		throw new Error('package.json and package-lock.json are not synchronized to Soundscaper.');
 	}
+}
+
+function assertSynchronizedSoundscaperMetadata(documents) {
+	if (!documents || typeof documents !== 'object' || Array.isArray(documents)) {
+		throw new TypeError('Soundscaper release preparation documents are invalid.');
+	}
+	const releaseLines = validateProductReleaseLines(documents.releaseLines);
+	const version = resolveProductApplicationVersion('soundscaper', releaseLines);
+	assertPackageDocuments(documents.packageMetadata, documents.packageLock, version);
+	const expectedDesktop = resolveProductDesktopMetadata('soundscaper', releaseLines);
+	if (JSON.stringify(documents.desktopProduct) !== JSON.stringify(expectedDesktop)) {
+		throw new Error('The checked-in Soundscaper desktop metadata is not synchronized.');
+	}
+	return Object.freeze({ releaseLines, version });
 }
 
 async function ignoreMissing(operation) {

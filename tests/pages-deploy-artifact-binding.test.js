@@ -123,7 +123,7 @@ test('Stable 1 binds the downloaded site artifact before policy verification and
 	assert.match(workflow, /path:\s*\|\s*pages-deployment\.log\s*pages-deployment-identity\.json/u);
 	assert.match(workflow,
 		/gh release upload "\$GITHUB_REF_NAME" pages-deployment\.log pages-deployment-identity\.json/u);
-	const download = workflow.indexOf('name: Download the preflighted Soundscaper site');
+	const download = workflow.indexOf('name: Download the built Soundscaper site');
 	const deploy = workflow.indexOf('name: Deploy Soundscaper Stable 1 to Pages');
 	const verify = workflow.indexOf('name: Verify the live Soundscaper deployment');
 	const publish = workflow.indexOf('name: Publish Soundscaper 1.0.0');
