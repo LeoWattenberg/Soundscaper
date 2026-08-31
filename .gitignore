@@ -8,6 +8,7 @@ playwright-report/
 coverage/
 .nyc_output/
 .desktop-build/
+.native-build/
 # Packaged Electron output includes unpacked binaries and many target-specific
 # smoke roots. Keep the complete generated release namespace out of history.
 release/*

@@ -2,9 +2,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { resolve } from 'node:path';
-import { mkdirSync } from 'node:fs';
 
-import { createSoundscaperProfessionalNativeBuildPlan } from './lib/soundscaper-professional-native-build.mjs';
+import {
+	createSoundscaperProfessionalNativeBuildPlan,
+	createSoundscaperProfessionalNativeSnapshotRoot,
+} from './lib/soundscaper-professional-native-build.mjs';
 import { readMilestone5NativeSourceAcquisitions } from './lib/milestone-5-native-source-acquisitions.mjs';
 
 const argumentsByName = Object.fromEntries(process.argv.slice(2).map((argument) => {
@@ -16,8 +18,9 @@ const sourcesRoot = resolve(argumentsByName.sources || 'native-sources');
 const target = argumentsByName.target || `${process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}`;
 const register = readMilestone5NativeSourceAcquisitions(repositoryRoot);
 const sourceIds = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2'];
-const snapshotRoot = resolve(argumentsByName.snapshots || `.native-build/soundscaper-${target}-source-snapshots`);
-mkdirSync(snapshotRoot, { recursive: false, mode: 0o700 });
+const snapshotRoot = createSoundscaperProfessionalNativeSnapshotRoot(
+	argumentsByName.snapshots || `.native-build/soundscaper-${target}-source-snapshots`,
+);
 const plan = createSoundscaperProfessionalNativeBuildPlan({
 	repositoryRoot,
 	target,

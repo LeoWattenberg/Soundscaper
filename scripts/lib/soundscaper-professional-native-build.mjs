@@ -2,8 +2,8 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
-import { isAbsolute, join, resolve } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 
 import {
 	authenticateMilestone5NativeSourceInput,
@@ -47,6 +47,13 @@ const EXPECTED = Object.freeze({
 	'asio-sdk': Object.freeze({ version: '2.3.4', commit: null, license: 'GPL-3.0-only' }),
 	lv2: Object.freeze({ version: '1.18.10', commit: '0bcde338db1c63bbc503b4d1f6d7b55ed43154af', license: 'ISC' }),
 });
+
+export function createSoundscaperProfessionalNativeSnapshotRoot(value) {
+	const snapshotRoot = resolve(value);
+	mkdirSync(dirname(snapshotRoot), { recursive: true, mode: 0o700 });
+	mkdirSync(snapshotRoot, { recursive: false, mode: 0o700 });
+	return snapshotRoot;
+}
 
 export function resolveSoundscaperProfessionalNativeRunnerTarget({
 	target, runnerOs, runnerArch,

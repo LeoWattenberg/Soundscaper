@@ -12,6 +12,7 @@ import { create as createTar } from 'tar';
 
 import {
 	canonicalSoundscaperProfessionalNativeMacosSdkPath,
+	createSoundscaperProfessionalNativeSnapshotRoot,
 	createSoundscaperProfessionalNativeBuildPlan,
 	executeSoundscaperProfessionalNativeBuild,
 	resolveSoundscaperProfessionalNativeRunnerTarget,
@@ -29,6 +30,20 @@ const ROOT = resolve(import.meta.dirname, '..');
  */
 const JUCE_VST3_SDK_CLOSURE = 'modules/juce_audio_processors_headless/format_types/VST3_SDK';
 const JUCE_VST3_VERSION_HEADER = `${JUCE_VST3_SDK_CLOSURE}/pluginterfaces/vst/vsttypes.h`;
+
+test('the build planner creates a missing private snapshot parent but claims its leaf exclusively', async (context) => {
+	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-pro-plan-'));
+	context.after(() => rm(temporary, { recursive: true, force: true }));
+	const snapshotRoot = join(temporary, '.native-build', 'linux-x64-source-snapshots');
+
+	assert.equal(createSoundscaperProfessionalNativeSnapshotRoot(snapshotRoot), resolve(snapshotRoot));
+	assert.deepEqual(await readdir(join(temporary, '.native-build')), ['linux-x64-source-snapshots']);
+	assert.throws(
+		() => createSoundscaperProfessionalNativeSnapshotRoot(snapshotRoot),
+		/EEXIST|already exists/iu,
+	);
+	assert.match(await readFile(join(ROOT, '.gitignore'), 'utf8'), /^\.native-build\/$/mu);
+});
 
 test('target CMake uses a closed runtime strategy on macOS and Windows', async () => {
 	const [professional, isolation, codec] = await Promise.all([
