@@ -186,6 +186,34 @@ function outputDeviceError(name: string, message: string): Error | DOMException 
 	return error;
 }
 
+async function reconcilePhysicalOutputDevice(
+	engine: EngineRuntimeHost,
+	context: EngineAudioContext,
+	knownPhysicalDeviceId: string | null,
+): Promise<void> {
+	if (typeof context.setSinkId !== 'function') return;
+	const setSinkId = context.setSinkId.bind(context);
+	while (!engine.disposed && context === engine.context) {
+		const generation = engine.outputDeviceGeneration;
+		const targetDeviceId = engine.activeOutputDeviceId;
+		if (knownPhysicalDeviceId === targetDeviceId) return;
+		try {
+			await setSinkId(targetDeviceId);
+			knownPhysicalDeviceId = targetDeviceId;
+		} catch (error) {
+			if (context === engine.context
+				&& generation === engine.outputDeviceGeneration
+				&& targetDeviceId === engine.activeOutputDeviceId) {
+				if (knownPhysicalDeviceId !== null) engine.activeOutputDeviceId = knownPhysicalDeviceId;
+				if (!engine.outputDeviceError) engine.outputDeviceError = error;
+			}
+			return;
+		}
+		if (generation === engine.outputDeviceGeneration
+			&& targetDeviceId === engine.activeOutputDeviceId) return;
+	}
+}
+
 function getOfflineAudioContextConstructor(): EngineOfflineContextFactory | null {
 	const browser = globalThis as unknown as EngineAudioGlobal;
 	return browser.OfflineAudioContext || browser.webkitOfflineAudioContext
@@ -357,6 +385,7 @@ async setOutputDevice(deviceId = '') {
 			await context.setSinkId(normalized);
 			this[ENGINE_ASSERT_ACTIVE]();
 			if (context !== this.context || generation !== this.outputDeviceGeneration) {
+				await reconcilePhysicalOutputDevice(this, context, normalized);
 				return this.getOutputDeviceState();
 			}
 			this.preferredOutputDeviceId = normalized;
@@ -368,6 +397,7 @@ async setOutputDevice(deviceId = '') {
 				this.preferredOutputDeviceId = previousPreferred;
 				this.activeOutputDeviceId = previousActive;
 				this.outputDeviceError = error;
+				await reconcilePhysicalOutputDevice(this, context, null);
 			}
 			throw error;
 		}
@@ -447,6 +477,8 @@ async [ENGINE_GET_CONTEXT]() {
 				this[ENGINE_ASSERT_ACTIVE]();
 				if (context === this.context && outputDeviceGeneration === this.outputDeviceGeneration) {
 					this.activeOutputDeviceId = preferredOutputDeviceId;
+				} else {
+					await reconcilePhysicalOutputDevice(this, context, preferredOutputDeviceId);
 				}
 			} catch (error) {
 				if (this.disposed || generation !== this.lifecycleGeneration) {
@@ -456,7 +488,7 @@ async [ENGINE_GET_CONTEXT]() {
 				if (context === this.context && outputDeviceGeneration === this.outputDeviceGeneration) {
 					this.outputDeviceError = error;
 					this.activeOutputDeviceId = '';
-					try { await context.setSinkId?.(''); } catch { /* The system output remains the browser fallback. */ }
+					await reconcilePhysicalOutputDevice(this, context, null);
 				}
 			}
 		}

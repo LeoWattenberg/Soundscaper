@@ -53,9 +53,13 @@ test('a stale output-device request cannot overwrite a newer completed switch', 
 		['speaker-a', deferred()],
 		['speaker-b', deferred()],
 	]);
+	const sinkIds = [];
 	const context = createContext({
-		setSinkId(deviceId) {
-			return switches.get(deviceId).promise;
+		sinkId: '',
+		async setSinkId(deviceId) {
+			sinkIds.push(deviceId);
+			await switches.get(deviceId).promise;
+			this.sinkId = deviceId;
 		},
 	});
 	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
@@ -68,6 +72,46 @@ test('a stale output-device request cannot overwrite a newer completed switch', 
 	switches.get('speaker-a').resolve();
 
 	assert.equal((await olderSwitch).activeDeviceId, 'speaker-b');
+	assert.deepEqual(engine.getOutputDeviceState(), {
+		preferredDeviceId: 'speaker-b',
+		activeDeviceId: 'speaker-b',
+		supported: true,
+		error: null,
+	});
+	assert.equal(context.sinkId, 'speaker-b');
+	assert.deepEqual(sinkIds, ['speaker-a', 'speaker-b', 'speaker-b']);
+	await engine.dispose();
+});
+
+test('lazy initial output setup cannot physically overwrite a newer switch', async () => {
+	const switches = new Map([
+		['speaker-a', deferred()],
+		['speaker-b', deferred()],
+	]);
+	const sinkIds = [];
+	const context = createContext({
+		sinkId: '',
+		async setSinkId(deviceId) {
+			sinkIds.push(deviceId);
+			await switches.get(deviceId).promise;
+			this.sinkId = deviceId;
+		},
+	});
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context });
+	await engine.setOutputDevice('speaker-a');
+
+	const loading = engine.getAudioContext({ resume: false });
+	assert.deepEqual(sinkIds, ['speaker-a']);
+	const newerSwitch = engine.setOutputDevice('speaker-b');
+	assert.deepEqual(sinkIds, ['speaker-a', 'speaker-b']);
+	switches.get('speaker-b').resolve();
+	await newerSwitch;
+	assert.equal(context.sinkId, 'speaker-b');
+	switches.get('speaker-a').resolve();
+	await loading;
+
+	assert.equal(context.sinkId, 'speaker-b');
+	assert.deepEqual(sinkIds, ['speaker-a', 'speaker-b', 'speaker-b']);
 	assert.deepEqual(engine.getOutputDeviceState(), {
 		preferredDeviceId: 'speaker-b',
 		activeDeviceId: 'speaker-b',
