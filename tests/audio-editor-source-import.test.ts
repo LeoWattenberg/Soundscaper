@@ -106,6 +106,10 @@ test('project-bin video import tolerates missing audio and disposable preview fa
 	assert.equal(result.audioSourceId, null);
 	assert.equal(result.audioClipId, null);
 	assert.equal(result.trackId, null);
+	assert.equal(
+		result.notice,
+		'The audio from Video 1.mp4 could not be decoded. The video was imported without audio.',
+	);
 	assert.equal(fixture.commits[0]?.command.commands.length, 2);
 	assert.deepEqual(fixture.derivatives.map(({ timestamp }) => timestamp), [2]);
 	assert.equal(fixture.calls.includes('warn-envelope'), true);

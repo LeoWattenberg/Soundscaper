@@ -197,7 +197,9 @@ export function createFixture() {
 			}
 			commits.push({ command, selection });
 		},
-		copy: {},
+		copy: {
+			videoAudioDecodeFailed: 'The audio from {file} could not be decoded. The video was imported without audio.',
+		},
 		createAddClipCommand: (trackId: string, clip: unknown) => ({ type: 'clip/add', trackId, clip }),
 		createAddSourceCommand: (source: unknown) => {
 			addedSources.push(source as Record<string, unknown>);

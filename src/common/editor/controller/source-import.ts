@@ -147,6 +147,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 		let audioSourceId: string | null = null;
 		let audioClipId = null;
 		let canonicalAudio = null;
+		let audioDecodeNotice: string | null = null;
 		let audioContentIdentity: ImportedAudioContentIdentity | null = null;
 		let originalAudioSampleRate = sampleRate;
 		let mediaPublication: OwnedMediaAssetPublication | null = null;
@@ -273,6 +274,10 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 			} catch {
 				throwIfImportAborted(importOptions.signal);
 				canonicalAudio = null;
+				const template = typeof copy?.videoAudioDecodeFailed === 'string'
+					? copy.videoAudioDecodeFailed
+					: 'The audio from {file} could not be decoded. The video was imported without audio.';
+				audioDecodeNotice = template.replace('{file}', () => sourceName);
 			}
 
 			if (canonicalAudio) {
@@ -486,6 +491,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				clipId: videoClipId,
 				audioClipId,
 				trackId: selectedTrackId,
+				...(audioDecodeNotice ? { notice: audioDecodeNotice } : {}),
 			});
 		} catch (error) {
 			const currentProject = getProject();
