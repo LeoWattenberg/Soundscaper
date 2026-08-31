@@ -3,7 +3,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 
 import type { ScapeArchiveEntry, ScapeDescriptor } from './scape-archive-envelope.ts';
-import { awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
+import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from './scape-abort.ts';
 import {
 	ScapeAudioChunkBudget,
 	SCAPE_MAXIMUM_AUDIO_CHUNKS,
@@ -169,7 +169,17 @@ export function scapeAudioSourceStream(
 				onBytes(bytes.byteLength);
 				controller.enqueue(bytes);
 			} catch (error) {
-				await closeIterator();
+				try {
+					await closeIterator();
+				} catch (cleanupError) {
+					if (cleanupError !== error) {
+						throw aggregateScapeErrors(
+							error,
+							[cleanupError],
+							'Scape audio streaming and source cleanup both failed.',
+						);
+					}
+				}
 				throw error;
 			}
 		},
