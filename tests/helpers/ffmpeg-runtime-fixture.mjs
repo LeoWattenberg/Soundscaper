@@ -108,7 +108,6 @@ export async function createFixture(context) {
 		lineEndings: '.gitattributes',
 		correspondingSource: 'desktop/ffmpeg-corresponding-source.json',
 		notices: 'THIRD_PARTY_LICENSES.md',
-		releaseSeverityPolicy: 'config/release-severity-policy.json',
 		licensingPolicy: 'docs/production-licensing-policy.md',
 		licensingMatrix: 'config/production-licensing-matrix.json',
 		securityMatrix: 'config/production-security-matrix.json',
@@ -140,7 +139,6 @@ export async function createFixture(context) {
 		'/config/ffmpeg-runtime-publication-policy.json text eol=lf',
 		'/config/production-licensing-matrix.json text eol=lf',
 		'/config/production-security-matrix.json text eol=lf',
-		'/config/release-severity-policy.json text eol=lf',
 		'/desktop/ffmpeg-corresponding-source.json text eol=lf',
 		'/docs/production-licensing-policy.md text eol=lf',
 		'/docs/production-threat-model.md text eol=lf',
@@ -161,10 +159,6 @@ export async function createFixture(context) {
 			buildSource: buildSourceDescriptor,
 		})),
 		notices: Buffer.from('Fixture notices for `@ffmpeg/core` 0.12.10 from https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v12.15\n'),
-		releaseSeverityPolicy: Buffer.from(JSON.stringify({
-			schemaVersion: 1,
-			releaseGate: { maximumOpen: { critical: 0, high: 0 } },
-		})),
 		licensingPolicy: Buffer.from('# Fixture licensing policy\n'),
 		licensingMatrix: Buffer.from(JSON.stringify({
 			schemaVersion: 1,

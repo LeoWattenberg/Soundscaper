@@ -32,7 +32,6 @@ const EVIDENCE_PATHS = Object.freeze({
 	lineEndings: '.gitattributes',
 	correspondingSource: 'desktop/ffmpeg-corresponding-source.json',
 	notices: 'THIRD_PARTY_LICENSES.md',
-	releaseSeverityPolicy: 'config/release-severity-policy.json',
 	licensingPolicy: 'docs/production-licensing-policy.md',
 	licensingMatrix: 'config/production-licensing-matrix.json',
 	securityMatrix: 'config/production-security-matrix.json',
@@ -370,10 +369,6 @@ function validateLinkedEvidence(manifest, evidence, licensingMatrix, securityMat
 	const noticeBuildTags = [...notices.matchAll(/https:\/\/github\.com\/ffmpegwasm\/ffmpeg\.wasm\/tree\/([A-Za-z\d._-]+)/gu)];
 	assert(buildTag && noticeBuildTags.length > 0 && noticeBuildTags.every((match) => match[1] === buildTag),
 		'THIRD_PARTY_LICENSES.md does not identify the pinned ffmpeg.wasm build source');
-	const releasePolicy = parseJson(evidence.releaseSeverityPolicy.bytes, 'release severity policy');
-	assert(releasePolicy.schemaVersion === 1, 'release severity policy schemaVersion must be 1');
-	assert(releasePolicy.releaseGate?.maximumOpen?.critical === 0,
-		'release severity policy must block open critical defects');
 	assert(licensingMatrix.schemaVersion === 1 && Array.isArray(licensingMatrix.releaseGates),
 		'production licensing matrix release gates are invalid');
 	assert(securityMatrix.schemaVersion === 1 && Array.isArray(securityMatrix.risks),

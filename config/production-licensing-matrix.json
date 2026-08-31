@@ -865,7 +865,7 @@
 			"id": "ffmpeg-runtime-manifest-integrity",
 			"status": "implemented",
 			"scope": "retained-legacy-publication-audit-tooling-not-production-browser-runtime",
-			"evidence": [".gitattributes", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "config/release-severity-policy.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/publish-runtime-assets.mjs", "scripts/audit-ffmpeg-runtime.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
+			"evidence": [".gitattributes", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/publish-runtime-assets.mjs", "scripts/audit-ffmpeg-runtime.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "web-notice-delivery",

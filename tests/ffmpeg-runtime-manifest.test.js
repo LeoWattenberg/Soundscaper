@@ -260,9 +260,9 @@ test('desktop release assembly requires the immutable no-FFmpeg provider policy'
 
 test('incomplete runtime evidence fails both gates before side effects', async (context) => {
 	const fixture = await createFixture(context);
-	delete fixture.manifest.evidence.releaseSeverityPolicy;
+	delete fixture.manifest.evidence.licensingPolicy;
 	await writeManifest(fixture);
-	await assertNoSideEffects(fixture, /evidence.*releaseSeverityPolicy/iu);
+	await assertNoSideEffects(fixture, /evidence.*licensingPolicy/iu);
 	const mismatch = await createFixture(context);
 	const notice = Buffer.from('`@ffmpeg/core` 0.12.10 https://github.com/ffmpegwasm/ffmpeg.wasm/tree/v0.12.10\n');
 	await writeFile(join(mismatch.root, 'THIRD_PARTY_LICENSES.md'), notice);
