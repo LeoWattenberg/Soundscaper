@@ -112,6 +112,23 @@ test('Windows dependency inspection parses target PE imports without an ambient 
 	assert.equal(inspected.architecture.machine, 'IMAGE_FILE_MACHINE_ARM64');
 });
 
+test('Windows dependency inspection accepts the case-insensitive DLL suffix', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-pe-import-case-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const binary = join(root, 'soundscaper_professional.node');
+	await writeFile(binary, peWithImports(0xaa64, ['KERNEL32.DLL', 'MFPlat.DlL']));
+	const inspected = await inspectSoundscaperProfessionalNativeDependencies({
+		target: 'win-arm64', path: binary,
+	});
+	assert.deepEqual(inspected.imports, ['KERNEL32.DLL', 'MFPlat.DlL']);
+	for (const name of ['folder\\KERNEL32.DLL', '../KERNEL32.DLL', 'C:KERNEL32.DLL']) {
+		await writeFile(binary, peWithImports(0xaa64, [name]));
+		await assert.rejects(inspectSoundscaperProfessionalNativeDependencies({
+			target: 'win-arm64', path: binary,
+		}), /portable DLL basename/u);
+	}
+});
+
 test('structured toolchain receipts bind professional, isolation, and applicable codec targets', () => {
 	const windows = createSoundscaperProfessionalNativeToolchainReceipt({
 		target: 'win-arm64',
