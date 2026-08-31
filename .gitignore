@@ -7,6 +7,8 @@ test-results/
 playwright-report/
 coverage/
 .nyc_output/
+# Owner QA runs are local observations, not repository or CI state.
+/qa-runs/
 .desktop-build/
 .native-build/
 # Packaged Electron output includes unpacked binaries and many target-specific
