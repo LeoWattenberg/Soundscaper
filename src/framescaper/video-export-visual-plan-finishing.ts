@@ -4,6 +4,7 @@ import type {
 	ProductVideoExportPlan,
 	ProductVideoExportStrategyPlanRequest,
 } from '../common/editor/controller/product-video-export-strategy.ts';
+import { compareCodeUnits } from '../common/editor/code-unit-order.ts';
 import { sequenceFrameBoundarySample } from '../common/editor/sequence-frame-navigation.ts';
 import { normalizeVideoDeliveryAudioLayout } from '../common/editor/video-delivery-audio-layout.ts';
 import { normalizeVideoDeliveryColor } from '../common/editor/video-delivery-color.ts';
@@ -154,20 +155,28 @@ function activeVisualPlacements(
 		.map((clip) => [String(clip.id), clip]));
 	const sources = new Map(records(project.sources, 'finishing visual sources')
 		.map((source) => [String(source.id), source]));
-	const sequenceTrackIds = new Set(strings(sequence.trackIds, 'finishing sequence track IDs'));
+	const sequenceTrackIds = strings(sequence.trackIds, 'finishing sequence track IDs');
+	const sequenceTrackIndex = new Map(sequenceTrackIds.map((id, index) => [id, index]));
 	const tracks = records(project.tracks, 'finishing visual tracks');
 	const visible = createVisibleVideoTrackPredicate(tracks);
 	const result: Array<Readonly<{
 		clip: Readonly<Record<string, unknown>>;
 		source: Readonly<Record<string, unknown>>;
+		sequenceStartFrame: number;
+		trackIndex: number;
 	}>> = [];
 	for (const track of tracks) {
-		if (!sequenceTrackIds.has(String(track.id)) || !visible(track)) continue;
+		const trackIndex = sequenceTrackIndex.get(String(track.id));
+		if (trackIndex === undefined || !visible(track)) continue;
 		for (const clipId of strings(track.clipIds, 'finishing visual track clip IDs')) {
 			const clip = clips.get(String(clipId));
 			if (!clip || (clip.kind !== 'still' && clip.kind !== 'generator')) continue;
+			const sequenceStartFrame = nonNegativeInteger(
+				clip.sequenceStartFrame,
+				'finishing visual clip start',
+			);
 			const start = sequenceFrameBoundarySample(
-				nonNegativeInteger(clip.sequenceStartFrame, 'finishing visual clip start'),
+				sequenceStartFrame,
 				sequenceRate, sampleRate,
 			);
 			const end = sequenceFrameBoundarySample(
@@ -177,10 +186,12 @@ function activeVisualPlacements(
 			if (start >= rangeValue.endFrame || end <= rangeValue.startFrame) continue;
 			const source = sources.get(String(clip.sourceId));
 			if (!source || source.kind !== clip.kind) throw new ReferenceError('finishing visual clip source is unavailable.');
-			result.push(Object.freeze({ clip, source }));
+			result.push(Object.freeze({ clip, source, sequenceStartFrame, trackIndex }));
 		}
 	}
-	return result;
+	return result.sort((left, right) => left.sequenceStartFrame - right.sequenceStartFrame
+		|| left.trackIndex - right.trackIndex
+		|| compareCodeUnits(String(left.clip.id), String(right.clip.id)));
 }
 
 function visualCanvas(value: unknown, source: Readonly<Record<string, unknown>>, sequenceRate: Rational) {
