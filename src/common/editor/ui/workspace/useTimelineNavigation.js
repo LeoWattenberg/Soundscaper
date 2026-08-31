@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import {
+	accumulateTimelineZoomWheel,
 	centeredTimelinePlayheadScroll,
 	resolveTimelineViewportGeometry,
 } from './timeline-navigation-geometry.js';
 
 export function useTimelineNavigation({ controller, editorRef, project, run, snapshot, workspaceRef }) {
 	const pendingZoomAnchorRef = useRef(null);
+	const wheelZoomRef = useRef(null);
 	const zoomProject = useCallback((direction, anchor = null) => {
 		const scroll = workspaceRef.current?.querySelector('.audio-editor-timeline-scroll');
 		if (!scroll) return undefined;
@@ -75,10 +77,15 @@ export function useTimelineNavigation({ controller, editorRef, project, run, sna
 	useEffect(() => {
 		const editor = editorRef.current;
 		if (!editor) return undefined;
+		wheelZoomRef.current = null;
 		const onWheel = (event) => {
 			if (event.altKey || (!event.ctrlKey && !event.metaKey) || event.deltaY === 0) return;
 			event.preventDefault();
-			zoomProject(event.deltaY < 0 ? 'in' : 'out', { clientX: event.clientX });
+			const accumulated = accumulateTimelineZoomWheel(
+				wheelZoomRef.current, event, editor.clientHeight,
+			);
+			wheelZoomRef.current = accumulated.state;
+			if (accumulated.zoom) zoomProject(accumulated.zoom, { clientX: event.clientX });
 		};
 		editor.addEventListener('wheel', onWheel, { passive: false });
 		return () => editor.removeEventListener('wheel', onWheel);
