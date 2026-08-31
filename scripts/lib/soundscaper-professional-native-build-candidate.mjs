@@ -53,6 +53,9 @@ import {
 	soundscaperProfessionalNativeToolchainIdentity,
 	validateSoundscaperProfessionalNativeToolchainReceipt,
 } from './soundscaper-professional-native-toolchain.mjs';
+import {
+	soundscaperProfessionalNativeProcessFailureMessage,
+} from './soundscaper-professional-native-process-diagnostics.mjs';
 
 export {
 	requiredSoundscaperProfessionalNativeSelfTestIds,
@@ -404,7 +407,9 @@ async function executeInstalledSelfTests({ target, copied, root, runSelfTest }) 
 		const result = await runSelfTest(Object.freeze({ ...request, args: Object.freeze(request.args) }));
 		if (!result || result.status !== request.expectedStatus
 			|| typeof result.stdout !== 'string' || typeof result.stderr !== 'string') {
-			throw new Error(`Professional native self-test ${request.id} failed.`);
+			throw new Error(soundscaperProfessionalNativeProcessFailureMessage(
+				`self-test ${request.id}`, result,
+			));
 		}
 		const output = Buffer.from(`${result.stdout}\n${result.stderr}`);
 		if (output.byteLength > MAXIMUM_SELF_TEST_OUTPUT_BYTES) {
