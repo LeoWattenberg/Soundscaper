@@ -90,18 +90,21 @@ export function createFramescaperNativeRenderQueueActionRuntimeNativeMedia(
 	if (!owner || (typeof owner !== 'object' && typeof owner !== 'function')) {
 		throw new TypeError('The selected nativeMedia render queue requires its controller owner.');
 	}
-	const enqueue = serialize((delivery: FramescaperNativeRenderDeliveryRequestNativeMedia) => (
-		enqueueCurrentProject(profile, owner, delivery)
+	const enqueue = serialize((request: Readonly<{
+		readonly delivery: FramescaperNativeRenderDeliveryRequestNativeMedia;
+		readonly restartJobId: string | null;
+	}>) => (
+		enqueueCurrentProject(profile, owner, request.delivery, request.restartJobId)
 	));
 	const runtime = createFramescaperNativeProjectActionSubsetRuntime(SURFACES, {
-		'render-queue-enqueue': (request) => enqueue(
-			snapshotFramescaperNativeRenderDeliveryRequestNativeMedia(request),
-		),
+		'render-queue-enqueue': (request) => enqueue({
+			delivery: snapshotFramescaperNativeRenderDeliveryRequestNativeMedia(request), restartJobId: null,
+		}),
 	});
 	bindFramescaperNativeCarrierRegeneration(runtime,
-		async (jobId) => enqueueCurrentProject(
-			profile, owner, await recoverableDelivery(profile, owner, jobId), jobId,
-		));
+		async (jobId) => enqueue({
+			delivery: await recoverableDelivery(profile, owner, jobId), restartJobId: jobId,
+		}));
 	return runtime;
 }
 

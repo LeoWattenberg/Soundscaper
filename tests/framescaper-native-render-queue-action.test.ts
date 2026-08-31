@@ -7,6 +7,8 @@ import { EditorControllerLifetime } from '../src/common/editor/controller/lifecy
 import {
 	createNativeMediaCapabilitySnapshotV1,
 } from '../src/common/editor/native-media-capability-snapshot.ts';
+import { runFramescaperNativeCarrierRegeneration } from
+	'../src/common/editor/ui/framescaper-native-project-actions.ts';
 import {
 	FRAMESCAPER_NATIVE_MEDIA_PROJECT_RUNTIME_PROFILE as PROFILE,
 } from '../src/framescaper/editor-domain-runtime-profile.ts';
@@ -150,6 +152,44 @@ test('an operator who declines the destination root leaves nothing enqueued', as
 
 	await assert.doesNotReject(() => enqueue(runtime));
 	assert.equal(enqueued, 0, 'a declined root must not queue work');
+});
+
+test('carrier regeneration shares queue-admission serialization with ordinary enqueue', async (context) => {
+	const runtimeOwner = owner();
+	const project = runtimeOwner.project as Data;
+	const jobId = 'c'.repeat(40);
+	let releaseFirst!: () => void;
+	let firstStarted!: () => void;
+	const held = new Promise<void>((resolve) => { releaseFirst = resolve; });
+	const started = new Promise<void>((resolve) => { firstStarted = resolve; });
+	let pickerCalls = 0;
+	installBridge(context, {
+		snapshot: async () => ({
+			snapshotVersion: 1, runtimeAvailable: true, nativeMediaEnabled: true,
+			queue: [{
+				jobId, schemaFamily: 'framescaper', schemaVersion: 1, taskKind: 'encoded-export',
+				projectId: project.id, relativeDestination: `renders/framescaper-${String(project.id)}-r${String(project.revision)}.mov`,
+				state: 'paused', position: 0, progress: null, attempt: 1,
+				lastFailureCode: 'awaiting-carrier-regeneration',
+			}], roots: [], watchRules: [],
+		}),
+		selectRoot: async () => {
+			pickerCalls += 1;
+			if (pickerCalls === 1) { firstStarted(); await held; }
+			return null;
+		},
+		revalidateRoot: async () => true,
+		enqueue: async () => ({}),
+	});
+	const runtime = createRuntime(PROFILE, runtimeOwner as never) as unknown as Data;
+	const ordinary = enqueue(runtime);
+	await started;
+	const regeneration = runFramescaperNativeCarrierRegeneration(runtime as never, jobId);
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	assert.equal(pickerCalls, 1, 'a second native destination picker must wait for the first admission');
+	releaseFirst();
+	await Promise.all([ordinary, regeneration]);
+	assert.equal(pickerCalls, 2);
 });
 
 test('a destination root that fails its projection is refused', async (context) => {
