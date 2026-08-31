@@ -13,6 +13,12 @@
 #include <set>
 #include <vector>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 namespace soundscaper {
 namespace {
 
@@ -67,8 +73,50 @@ std::unique_ptr<clap_host_t> makeHost(const std::shared_ptr<HostState> &state)
 	});
 }
 
-struct LoadedClap {
+class PluginLibrary {
+public:
+	PluginLibrary() = default;
+	PluginLibrary(const PluginLibrary &) = delete;
+	PluginLibrary &operator=(const PluginLibrary &) = delete;
+
+	~PluginLibrary()
+	{
+#if defined(_WIN32)
+		if (handle != nullptr) FreeLibrary(handle);
+#endif
+	}
+
+	bool open(const std::string &path)
+	{
+#if defined(_WIN32)
+		const juce::String nativePath(path);
+		handle = LoadLibraryExW(nativePath.toWideCharPointer(), nullptr,
+			LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+		return handle != nullptr;
+#else
+		return library.open(juce::String(path));
+#endif
+	}
+
+	void *function(const char *name) const
+	{
+#if defined(_WIN32)
+		return handle == nullptr ? nullptr : reinterpret_cast<void *>(GetProcAddress(handle, name));
+#else
+		return library.getFunction(name);
+#endif
+	}
+
+private:
+#if defined(_WIN32)
+	HMODULE handle = nullptr;
+#else
 	juce::DynamicLibrary library;
+#endif
+};
+
+struct LoadedClap {
+	PluginLibrary library;
 	const clap_plugin_entry_t *entry = nullptr;
 	const clap_plugin_factory_t *factory = nullptr;
 	std::string path;
@@ -81,8 +129,8 @@ std::unique_ptr<LoadedClap> load(const std::string &path)
 {
 	auto loaded = std::make_unique<LoadedClap>();
 	loaded->path = path;
-	if (!loaded->library.open(juce::String(path))) return nullptr;
-	loaded->entry = reinterpret_cast<const clap_plugin_entry_t *>(loaded->library.getFunction("clap_entry"));
+	if (!loaded->library.open(path)) return nullptr;
+	loaded->entry = reinterpret_cast<const clap_plugin_entry_t *>(loaded->library.function("clap_entry"));
 	if (loaded->entry == nullptr || !clap_version_is_compatible(loaded->entry->clap_version)) return nullptr;
 	loaded->initialized = loaded->entry->init(path.c_str());
 	if (!loaded->initialized) return nullptr;
