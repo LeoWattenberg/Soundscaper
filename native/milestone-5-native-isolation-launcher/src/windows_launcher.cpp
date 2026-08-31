@@ -133,7 +133,32 @@ PSID appContainerSid(const std::wstring &profile)
 	return sid;
 }
 
-void grantExactAccess(HANDLE source, PSID sid, Access access)
+PSID currentUserSid(std::vector<uintptr_t> &storage)
+{
+	HANDLE token = nullptr;
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+		nativeFailure("open-user-token", GetLastError());
+	}
+	DWORD bytes = 0u;
+	if (GetTokenInformation(token, TokenUser, nullptr, 0u, &bytes)
+		|| GetLastError() != ERROR_INSUFFICIENT_BUFFER || bytes < sizeof(TOKEN_USER)) {
+		const DWORD code = GetLastError();
+		(void)CloseHandle(token);
+		nativeFailure("size-user-token", code);
+	}
+	storage.resize((bytes + sizeof(uintptr_t) - 1u) / sizeof(uintptr_t));
+	if (!GetTokenInformation(token, TokenUser, storage.data(), bytes, &bytes)) {
+		const DWORD code = GetLastError();
+		(void)CloseHandle(token);
+		nativeFailure("read-user-token", code);
+	}
+	if (!CloseHandle(token)) nativeFailure("close-user-token", GetLastError());
+	const auto *user = reinterpret_cast<const TOKEN_USER *>(storage.data());
+	if (!IsValidSid(user->User.Sid)) nativeFailure("validate-user-sid", ERROR_INVALID_SID);
+	return user->User.Sid;
+}
+
+void grantExactAccess(HANDLE source, PSID packageSid, PSID userSid, Access access)
 {
 	const auto path = finalPath(source);
 	const HANDLE handle = CreateFileW(path.c_str(), READ_CONTROL | WRITE_DAC | FILE_READ_ATTRIBUTES,
@@ -144,16 +169,22 @@ void grantExactAccess(HANDLE source, PSID sid, Access access)
 	PACL currentAcl = nullptr, exactAcl = nullptr;
 	if (GetSecurityInfo(handle, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
 		nullptr, nullptr, &currentAcl, nullptr, &descriptor) != ERROR_SUCCESS) ExitProcess(125u);
-	EXPLICIT_ACCESSW entry{};
-	entry.grfAccessPermissions = access == Access::writeOnly
+	const DWORD permissions = access == Access::writeOnly
 		? FILE_GENERIC_WRITE | FILE_DELETE_CHILD : FILE_GENERIC_READ
 			| (access == Access::readExecute ? FILE_GENERIC_EXECUTE : 0u);
-	entry.grfAccessMode = SET_ACCESS;
-	entry.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
-	entry.Trustee.TrusteeForm = TRUSTEE_IS_SID;
-	entry.Trustee.TrusteeType = TRUSTEE_IS_GROUP;
-	entry.Trustee.ptstrName = static_cast<LPWSTR>(sid);
-	if (SetEntriesInAclW(1u, &entry, currentAcl, &exactAcl) != ERROR_SUCCESS
+	std::array<EXPLICIT_ACCESSW, 2> entries{};
+	for (auto &entry : entries) {
+		entry.grfAccessPermissions = permissions;
+		entry.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+		entry.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	}
+	entries[0].grfAccessMode = SET_ACCESS;
+	entries[0].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+	entries[0].Trustee.ptstrName = static_cast<LPWSTR>(packageSid);
+	entries[1].grfAccessMode = GRANT_ACCESS;
+	entries[1].Trustee.TrusteeType = TRUSTEE_IS_USER;
+	entries[1].Trustee.ptstrName = static_cast<LPWSTR>(userSid);
+	if (SetEntriesInAclW(2u, entries.data(), currentAcl, &exactAcl) != ERROR_SUCCESS
 		|| SetSecurityInfo(handle, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
 			nullptr, nullptr, exactAcl, nullptr) != ERROR_SUCCESS) ExitProcess(125u);
 	// This is an exact brand/payload AppContainer policy, not a launcher lease.
@@ -242,8 +273,10 @@ int wmain(int argc, wchar_t **argv)
 		command += L" " + quote(child[childIndex]);
 	}
 	PSID sid = appContainerSid(values.authorityProfile);
-	grantExactAccess(values.executable, sid, Access::readExecute);
-	for (const auto &grant : values.grants) grantExactAccess(grant.handle, sid, grant.access);
+	std::vector<uintptr_t> userSidStorage;
+	PSID userSid = currentUserSid(userSidStorage);
+	grantExactAccess(values.executable, sid, userSid, Access::readExecute);
+	for (const auto &grant : values.grants) grantExactAccess(grant.handle, sid, userSid, grant.access);
 	SECURITY_CAPABILITIES capabilities{ sid, nullptr, 0u, 0u };
 	DWORD allApplicationPackagesPolicy = PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT;
 	const auto crt = crtDescriptors(values.extraInput);

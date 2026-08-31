@@ -499,15 +499,15 @@ int containmentProbe(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+#if defined(_WIN32)
+	if (_setmode(_fileno(stdin), _O_BINARY) == -1
+		|| _setmode(_fileno(stdout), _O_BINARY) == -1) return 125;
+#endif
 #if defined(__APPLE__)
 	if (!soundscaper::professional::macosBootstrap::soundscaperProfessionalMacosBootstrap()) return 125;
 #endif
 	const int probe = containmentProbe(argc, argv);
 	if (probe >= 0) return probe;
-#if defined(_WIN32)
-	(void)_setmode(_fileno(stdin), _O_BINARY);
-	(void)_setmode(_fileno(stdout), _O_BINARY);
-#endif
 	Peer peer;
 	for (;;) {
 		std::vector<uint8_t> request, answer;
