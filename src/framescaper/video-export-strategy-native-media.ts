@@ -41,13 +41,18 @@ export function createFramescaperVideoExportStrategyNativeMedia(
 	openFxExecute?: FramescaperSelectedOpenFxExecutionNativeMedia['execute'],
 	createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing,
 ): ProductVideoExportStrategy {
-	const authorities = new Map<string, ExportAuthorityNativeMedia>();
+	const authorities = new Map<string, WeakRef<ExportAuthorityNativeMedia>>();
+	const authorityFinalizer = new FinalizationRegistry<Readonly<{
+		key: string; reference: WeakRef<ExportAuthorityNativeMedia>;
+	}>>(({ key, reference }) => {
+		if (authorities.get(key) === reference) authorities.delete(key);
+	});
 	const foundationAuthorities = new WeakMap<object, ExportAuthorityNativeMedia>();
 	const createOpenFxExecution = openFxExecute === undefined ? undefined
 		: ({ foundationPlan, timingViews }: Parameters<NonNullable<
 			Parameters<typeof createFramescaperVideoExportStrategyFinishing>[3]
 		>>[0]) => {
-			const authority = authorities.get(projectKey(foundationPlan.project));
+			const authority = authorities.get(projectKey(foundationPlan.project))?.deref();
 			if (!authority) throw new Error('Selected nativeMedia OpenFX export lost its exact project authority.');
 			return createFramescaperOpenFxExecutionForFoundationNativeMedia({
 				profile, project: authority.canonicalProject as unknown as FramescaperProjectNativeMedia,
@@ -72,7 +77,12 @@ export function createFramescaperVideoExportStrategyNativeMedia(
 	return Object.freeze({
 		createExportProject(request: ProductVideoExportProjectRequest) {
 			const authority = projectAuthority(profile, request.canonicalProject, openFxExecute !== undefined);
-			if (openFxExecute !== undefined) authorities.set(projectKey(authority.canonicalProject), authority);
+			if (openFxExecute !== undefined) {
+				const key = projectKey(authority.canonicalProject);
+				const reference = new WeakRef(authority);
+				authorities.set(key, reference);
+				authorityFinalizer.register(authority, { key, reference });
+			}
 			foundationAuthorities.set(authority.inheritedProject, authority);
 			const exportProject = delegate.createExportProject({
 				canonicalProject: authority.inheritedProject,
