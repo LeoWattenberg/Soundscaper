@@ -86,6 +86,25 @@ test('resolver accepts a browser drawable that already applied the admitted disp
 	assert.deepEqual(harness.revoked, ['blob:offline-1']);
 });
 
+test('resolver waits for current frame data after metadata before exposing a presentation', async () => {
+	const harness = runtimeHarness({ frameData: 'pending' });
+	const resolver = createVideoKeyframeOfflineHtmlVideoSourceResolver(options(harness));
+	let resolved = false;
+	const pending = Promise.resolve(resolver.resolveSource(entry(), {
+		signal: new AbortController().signal,
+	})).then((presentation) => {
+		resolved = true;
+		return presentation;
+	});
+	await new Promise((resolve) => { setTimeout(resolve, 0); });
+	assert.equal(resolved, false);
+	harness.videos[0]?.publishLoadedData();
+	const presentation = await pending;
+	assert.equal(harness.videos[0]?.readyState, 2);
+	presentation.dispose();
+	resolver.dispose();
+});
+
 test('resolver owns a distinct reusable decoder for each clip occurrence of one source', async () => {
 	const harness = runtimeHarness();
 	const resolver = createVideoKeyframeOfflineHtmlVideoSourceResolver(options(harness));
@@ -165,7 +184,7 @@ test('resolver rejects forged timing callback output before seeking and retires 
 	geometryResolver.dispose();
 });
 
-test('resolver bounds metadata timeout and abort, cleaning every partial URL and video', async () => {
+test('resolver bounds frame-data readiness timeout and abort, cleaning every partial URL and video', async () => {
 	const timeoutHarness = runtimeHarness({ metadata: 'pending' });
 	const timeoutResolver = createVideoKeyframeOfflineHtmlVideoSourceResolver(options(
 		timeoutHarness, [sourceAsset()], { timeoutMs: 10 },
@@ -224,6 +243,7 @@ interface RuntimeHarness {
 
 function runtimeHarness(options: Readonly<{
 	decodedWidth?: number;
+	frameData?: 'loaded' | 'pending';
 	metadata?: 'loaded' | 'pending';
 	revokeFailures?: number;
 	seek?: 'immediate' | 'pending';
@@ -243,6 +263,7 @@ function runtimeHarness(options: Readonly<{
 				options.decodedWidth ?? 64,
 				32,
 				options.metadata ?? 'loaded',
+				options.frameData ?? 'loaded',
 			);
 			videos.push(video);
 			return video;
@@ -295,19 +316,34 @@ class FakeVideo extends EventTarget {
 	};
 	readonly videoWidth: number;
 	readonly videoHeight: number;
+	readonly #frameData: 'loaded' | 'pending';
 	readonly #metadata: 'loaded' | 'pending';
 
-	constructor(width: number, height: number, metadata: 'loaded' | 'pending') {
+	constructor(
+		width: number,
+		height: number,
+		metadata: 'loaded' | 'pending',
+		frameData: 'loaded' | 'pending',
+	) {
 		super();
 		this.videoWidth = width;
 		this.videoHeight = height;
 		this.#metadata = metadata;
+		this.#frameData = frameData;
 	}
 
 	load(): void {
 		if (!this.src || this.#metadata === 'pending') return;
 		this.currentSrc = this.src;
-		queueMicrotask(() => this.dispatchEvent(new Event('loadedmetadata')));
+		queueMicrotask(() => {
+			this.dispatchEvent(new Event('loadedmetadata'));
+			if (this.#frameData === 'loaded') this.publishLoadedData();
+		});
+	}
+
+	publishLoadedData(): void {
+		this.readyState = 2;
+		this.dispatchEvent(new Event('loadeddata'));
 	}
 
 	pause(): void { this.paused = true; }

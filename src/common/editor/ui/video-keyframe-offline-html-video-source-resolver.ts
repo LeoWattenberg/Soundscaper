@@ -196,10 +196,12 @@ export function createVideoKeyframeOfflineHtmlVideoSourceResolver(
 		let lifecycle: SourceLifecycle | null = null;
 		try {
 			mountOffscreenVideo(video, options.document);
-			const loaded = waitForMetadata(video, signal, options.timeoutMs);
+			// HAVE_METADATA is not drawable readiness: Firefox can strand the first
+			// paused frame callback when a seek begins before current frame data exists.
+			const ready = waitForCurrentFrameData(video, signal, options.timeoutMs);
 			video.src = objectUrl;
 			video.load();
-			await loaded;
+			await ready;
 			throwIfAborted(signal);
 			const decodedWidth = video.videoWidth;
 			const decodedHeight = video.videoHeight;
@@ -398,7 +400,7 @@ function sourceRequest(value: unknown): Readonly<{ signal: AbortSignal }> {
 	return Object.freeze({ signal: request.signal });
 }
 
-function waitForMetadata(
+function waitForCurrentFrameData(
 	video: OfflineHtmlVideoElement,
 	signal: AbortSignal,
 	timeoutMs: number,
@@ -410,20 +412,20 @@ function waitForMetadata(
 			if (settled) return;
 			settled = true;
 			clearTimeout(timer);
-			video.removeEventListener('loadedmetadata', onLoaded);
+			video.removeEventListener('loadeddata', onLoaded);
 			video.removeEventListener('error', onError);
 			video.removeEventListener('abort', onMediaAbort);
 			signal.removeEventListener('abort', onSignalAbort);
 			if (error) reject(error); else resolve();
 		};
 		const onLoaded = (): void => { finish(); };
-		const onError = (): void => { finish(mediaError(video, 'The offline video metadata failed to load.')); };
-		const onMediaAbort = (): void => { finish(new Error('The offline video metadata load was aborted.')); };
+		const onError = (): void => { finish(mediaError(video, 'The offline video frame data failed to load.')); };
+		const onMediaAbort = (): void => { finish(new Error('The offline video frame data load was aborted.')); };
 		const onSignalAbort = (): void => { finish(abortError()); };
 		const timer = setTimeout(() => {
-			finish(new Error(`The offline video metadata load timed out after ${String(timeoutMs)} ms.`));
+			finish(new Error(`The offline video frame data load timed out after ${String(timeoutMs)} ms.`));
 		}, timeoutMs);
-		video.addEventListener('loadedmetadata', onLoaded, { once: true });
+		video.addEventListener('loadeddata', onLoaded, { once: true });
 		video.addEventListener('error', onError, { once: true });
 		video.addEventListener('abort', onMediaAbort, { once: true });
 		signal.addEventListener('abort', onSignalAbort, { once: true });
