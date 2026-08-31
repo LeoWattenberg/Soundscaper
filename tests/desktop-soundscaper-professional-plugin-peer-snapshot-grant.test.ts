@@ -13,7 +13,7 @@ import {
 	type ProfessionalPluginPeerLauncher,
 } from '../desktop/soundscaper-professional-plugin-peer.ts';
 
-test('the professional peer grants its immutable snapshot directory for DLL path traversal', async (context) => {
+test('the professional peer grants only its immutable snapshot file', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-peer-snapshot-grant-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const candidatePath = join(root, 'fixture.clap');
@@ -47,12 +47,12 @@ test('the professional peer grants its immutable snapshot directory for DLL path
 		}),
 	})), /captured snapshot launch/u);
 	assert.ok(request);
-	assert.equal(request.readExecute.length, 2);
+	assert.equal(request.readExecute.length, 1);
 	const fileGrant = request.readExecute.find(({ kind }) => kind === 'file');
 	const directoryGrant = request.readExecute.find(({ kind }) => kind === 'directory');
 	assert.ok(fileGrant);
-	assert.ok(directoryGrant);
-	assert.equal(directoryGrant.path, dirname(fileGrant.path));
+	assert.equal(directoryGrant, undefined);
+	assert.notEqual(fileGrant.path, dirname(fileGrant.path));
 });
 
 async function descriptor(path: string): Promise<NativeChildIsolationArtifactDescriptor> {
