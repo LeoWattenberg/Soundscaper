@@ -56,6 +56,21 @@ test('an unreachable original is planned as unreachable rather than attempted', 
 	assert.deepEqual(plan.copy, []);
 });
 
+test('planning propagates cancellation instead of reporting originals as unreachable', async () => {
+	const store = createStore();
+	const controller = new AbortController();
+	const reason = new DOMException('operator cancelled consolidation', 'AbortError');
+	store.value.resolveLinkedAudioOriginal = async () => {
+		controller.abort(reason);
+		throw reason;
+	};
+
+	await assert.rejects(planProjectConsolidation({
+		projectId: 'project-1', project: project(), store: store.value,
+		signal: controller.signal,
+	}), (error) => error === reason);
+});
+
 test('a source with no binding is already managed and is never read or written', async () => {
 	const store = createStore({ binding: null });
 	const { plan, run } = await consolidateProjectMedia({

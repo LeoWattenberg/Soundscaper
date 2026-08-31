@@ -100,14 +100,17 @@ export async function planProjectConsolidation(
 	const bindings: ConsolidateBinding[] = [];
 	const reachable = new Set<string>();
 	for (const source of projectSources(request.project)) {
+		throwIfAborted(request.signal);
 		const sourceId = String(source.id ?? '');
 		if (!sourceId) continue;
 		const record = await request.store.getLinkedOriginalBinding(request.projectId, sourceId);
+		throwIfAborted(request.signal);
 		const binding = consolidateBinding(record);
 		if (!binding) continue;
 		bindings.push(binding);
 		if (await isOriginalReachable(request, source, binding)) reachable.add(sourceId);
 	}
+	throwIfAborted(request.signal);
 	return createConsolidatePlan({
 		project: request.project,
 		bindings,
@@ -203,6 +206,7 @@ async function isOriginalReachable(
 	source: Readonly<Record<string, unknown>>,
 	binding: ConsolidateBinding,
 ): Promise<boolean> {
+	throwIfAborted(request.signal);
 	try {
 		const resolved = binding.kind === 'video'
 			? await request.store.resolveLinkedVideoOriginal(request.projectId, source, {
@@ -211,8 +215,10 @@ async function isOriginalReachable(
 			: await request.store.resolveLinkedAudioOriginal(request.projectId, source, {
 				...(request.signal ? { signal: request.signal } : {}),
 			});
+		throwIfAborted(request.signal);
 		return Boolean(resolved?.blob);
 	} catch {
+		throwIfAborted(request.signal);
 		// A drive that is not there answers by failing. That is an ordinary
 		// outcome for this question, not an error the run should carry.
 		return false;
@@ -274,6 +280,10 @@ function abortError(): Error {
 	return typeof DOMException === 'function'
 		? new DOMException('The operation was aborted.', 'AbortError')
 		: Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' });
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+	if (signal?.aborted) throw signal.reason ?? abortError();
 }
 
 export type { ConsolidatePlan, ConsolidateRunResult, ConsolidateSourcePlan };
