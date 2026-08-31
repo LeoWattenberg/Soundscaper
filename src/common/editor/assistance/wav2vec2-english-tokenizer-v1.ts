@@ -16,6 +16,7 @@ const MAXIMUM_SEGMENT_TEXT_UNITS = 16_384;
 const MAXIMUM_WORD_TEXT_UNITS = 512;
 const MAXIMUM_WORDS_PER_SEGMENT = 1_000;
 const WHITESPACE = /\p{White_Space}+/u;
+const BOUNDARY_WHITESPACE = /^\p{White_Space}+|\p{White_Space}+$/gu;
 const ANY_WHITESPACE = /\p{White_Space}/u;
 const MARK = /\p{Mark}/u;
 const PUNCTUATION = /\p{Punctuation}/u;
@@ -37,7 +38,7 @@ export function splitAssistanceWav2Vec2EnglishSegmentWordsV1(
 		|| value.length > MAXIMUM_SEGMENT_TEXT_UNITS || FORBIDDEN_CONTROL.test(value)) {
 		throw new TypeError('The English alignment segment text is invalid or oversized.');
 	}
-	const trimmed = value.trim();
+	const trimmed = value.replace(BOUNDARY_WHITESPACE, '');
 	if (trimmed === '') throw new TypeError('English alignment requires at least one transcript word.');
 	const words = trimmed.split(WHITESPACE);
 	if (words.length < 1 || words.length > MAXIMUM_WORDS_PER_SEGMENT

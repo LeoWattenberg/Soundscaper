@@ -123,6 +123,9 @@ test('the owned English tokenizer pins all 32 IDs and preserves transcript word 
 		[19, 7, 20, 5, 27, 12]);
 	assert.deepEqual(tokenizeAssistanceWav2Vec2EnglishWordV1('HELLO,'), [11, 5, 15, 15, 8]);
 	assert.deepEqual(tokenizeAssistanceWav2Vec2EnglishWordV1('2026'), [3]);
+	assert.deepEqual(splitAssistanceWav2Vec2EnglishSegmentWordsV1(
+		'\u0085hello\u0085world\u0085',
+	), ['hello', 'world']);
 	assert.throws(() => splitAssistanceWav2Vec2EnglishSegmentWordsV1('   '), /word|text/iu);
 });
 
