@@ -164,6 +164,7 @@ export function createRecordingInputCoordinationService(
 		runtime.routing.updateRecordingDeviceRows();
 		runtime.publishDocumentSnapshot();
 		const persist = runtime.routing.persistRecordingRouting();
+		void persist.catch(() => undefined);
 		const normalized = state.recordingRouting.routes[trackId] || null;
 		const meterRouteAfter = state.microphoneMetering ? runtime.meter.getRoute() : null;
 		const restartMetering = Boolean(

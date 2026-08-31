@@ -132,9 +132,9 @@ function createFixture(options: FixtureOptions = {}) {
 			},
 		},
 		routing: {
-			persistRecordingRouting: async () => {
+			persistRecordingRouting: () => {
 				events.push('persist-routing');
-				return options.persistRouting?.();
+				return options.persistRouting?.() ?? Promise.resolve();
 			},
 			releaseUnretainedRecordingInputs: () => {
 				events.push('release-unretained');
@@ -307,6 +307,32 @@ test('a replaced route owns the final health state when the older acquisition fi
 	await assert.rejects(stale, { name: 'AbortError' });
 	assert.equal(fixture.state.recordingRouting.routes['track-a'], replacement);
 	assert.equal(fixture.state.recordingRouteHealth['track-a'], 'open');
+});
+
+test('eager route persistence stays observed when an assignment is superseded', async () => {
+	const firstAcquisition = deferred<unknown>();
+	const firstPersistence = deferred<unknown>();
+	let persistenceCalls = 0;
+	let rejectionObservers = 0;
+	const originalCatch = firstPersistence.promise.catch.bind(firstPersistence.promise);
+	firstPersistence.promise.catch = ((onRejected) => {
+		rejectionObservers += 1;
+		return originalCatch(onRejected);
+	}) as typeof firstPersistence.promise.catch;
+	const fixture = createFixture({
+		acquireHardware: (deviceId) => deviceId === 'first'
+			? firstAcquisition.promise : Promise.resolve({ channelCount: 1 }),
+		persistRouting: () => ++persistenceCalls === 1
+			? firstPersistence.promise : Promise.resolve(),
+	});
+	const stale = fixture.service.setRecordingTrackInput('track-a', deviceRoute('first'));
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	await fixture.service.setRecordingTrackInput('track-a', deviceRoute('second'));
+	firstAcquisition.resolve({ channelCount: 1 });
+	firstPersistence.resolve(undefined);
+
+	await assert.rejects(stale, { name: 'AbortError' });
+	assert.equal(rejectionObservers, 1);
 });
 
 test('meter route changes stop and restart the meter without releasing a reused device', async () => {
