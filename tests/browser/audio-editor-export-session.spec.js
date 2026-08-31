@@ -94,6 +94,36 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('project tabs provide roving focus and automatic keyboard activation', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await editor.getByRole('button', { name: 'New project', exact: true }).click();
+		const tabs = editor.getByRole('tablist', { name: 'Project tabs' }).getByRole('tab');
+		await expect(tabs).toHaveCount(2);
+		const first = tabs.nth(0);
+		const second = tabs.nth(1);
+		await expect(first).toHaveAttribute('tabindex', '-1');
+		await expect(second).toHaveAttribute('tabindex', '0');
+
+		await second.focus();
+		await page.keyboard.press('ArrowRight');
+		await expect(first).toBeFocused();
+		await expect(first).toHaveAttribute('aria-selected', 'true');
+		await expect(first).toHaveAttribute('tabindex', '0');
+		await expect(second).toHaveAttribute('tabindex', '-1');
+
+		await page.keyboard.press('End');
+		await expect(second).toBeFocused();
+		await expect(second).toHaveAttribute('aria-selected', 'true');
+		await page.keyboard.press('Home');
+		await expect(first).toBeFocused();
+		await expect(first).toHaveAttribute('aria-selected', 'true');
+		await page.keyboard.press('ArrowLeft');
+		await expect(second).toBeFocused();
+		await expect(second).toHaveAttribute('aria-selected', 'true');
+		expect(errors).toEqual([]);
+	});
+
 	test('keeps settled playback smooth without redrawing clip waveforms or producing long tasks', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
