@@ -11,6 +11,7 @@ const TEXT_FRAME_IDS = Object.freeze({
 	genre: 'TCON',
 	copyright: 'TCOP',
 });
+const TEXT_FRAME_PRIORITIES = Object.freeze({ tracknumber: 2, date: 2 });
 
 /**
  * Creates a compact ID3v2.4 tag for native WAV/AIFF exports. UTF-8 text and
@@ -18,9 +19,15 @@ const TEXT_FRAME_IDS = Object.freeze({
  */
 export function createAudioMetadataId3Tag(metadata = {}) {
 	const normalized = normalizeMediaMetadata(metadata);
+	const entries = Object.entries(normalized).map(([key, value]) => ({
+		key,
+		value,
+		normalizedKey: key.toLowerCase().replace(/[^a-z0-9]/g, ''),
+	}));
+	const preferredTextFrames = selectPreferredTextFrames(entries);
 	const frames = [];
-	for (const [key, value] of Object.entries(normalized)) {
-		const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+	for (const entry of entries) {
+		const { key, normalizedKey, value } = entry;
 		if (normalizedKey === 'comment' || normalizedKey === 'comments') {
 			frames.push(createId3Frame('COMM', concatBytes(
 				Uint8Array.of(3),
@@ -33,7 +40,7 @@ export function createAudioMetadataId3Tag(metadata = {}) {
 		const frameId = Object.hasOwn(TEXT_FRAME_IDS, normalizedKey)
 			? TEXT_FRAME_IDS[normalizedKey]
 			: undefined;
-		if (frameId) {
+		if (frameId && preferredTextFrames.get(frameId) === entry) {
 			frames.push(createId3Frame(frameId, concatBytes(Uint8Array.of(3), new TextEncoder().encode(value))));
 			continue;
 		}
@@ -53,6 +60,23 @@ export function createAudioMetadataId3Tag(metadata = {}) {
 	header[5] = 0;
 	header.set(encodeSynchsafe(body.byteLength), 6);
 	return concatBytes(header, body);
+}
+
+function selectPreferredTextFrames(entries) {
+	const selected = new Map();
+	for (const entry of entries) {
+		const frameId = Object.hasOwn(TEXT_FRAME_IDS, entry.normalizedKey)
+			? TEXT_FRAME_IDS[entry.normalizedKey]
+			: undefined;
+		if (!frameId) continue;
+		const current = selected.get(frameId);
+		const priority = TEXT_FRAME_PRIORITIES[entry.normalizedKey] || 1;
+		const currentPriority = current ? TEXT_FRAME_PRIORITIES[current.normalizedKey] || 1 : 0;
+		if (!current || priority > currentPriority || (priority === currentPriority && entry.key < current.key)) {
+			selected.set(frameId, entry);
+		}
+	}
+	return selected;
 }
 
 export function createRiffId3Chunk(metadata = {}) {
