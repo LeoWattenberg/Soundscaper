@@ -42,6 +42,7 @@ export function createProjectSwitchService<
 	const playbackProjects = runtime.playbackProjectService
 		?? createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
 	let pendingProjectSwitches = 0;
+	let readyProjectId = runtime.getProject()?.id ?? null;
 	return Object.freeze({
 		newProject,
 		openProject,
@@ -91,7 +92,8 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History> = {},
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
-		if (pendingProjectSwitches === 0 && runtime.getProject()?.id === nextProject.id) {
+		if (pendingProjectSwitches === 0 && readyProjectId === nextProject.id
+			&& runtime.getProject()?.id === nextProject.id) {
 			runtime.lifetime.assertActive(token);
 			return Promise.resolve();
 		}
@@ -116,7 +118,8 @@ export function createProjectSwitchService<
 		token: EditorLifetimeToken = runtime.lifetime.capture(),
 	): Promise<void> {
 		runtime.lifetime.assertActive(token);
-		if (pendingProjectSwitches === 0 && runtime.getProject()?.id === nextProject.id) return;
+		if (pendingProjectSwitches === 0 && readyProjectId === nextProject.id
+			&& runtime.getProject()?.id === nextProject.id) return;
 		const fence = beginScapeInspectionFence();
 		pendingProjectSwitches += 1;
 		try {
@@ -134,7 +137,7 @@ export function createProjectSwitchService<
 		options: ProjectSwitchOptions<History>,
 		token: EditorLifetimeToken,
 	): Promise<void> {
-		if (runtime.getProject()?.id === nextProject.id) return;
+		if (readyProjectId === nextProject.id && runtime.getProject()?.id === nextProject.id) return;
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
 		const projectId = nextProject.id;
 		const existingCapture = runtime.sessionTab(projectId)
@@ -188,6 +191,9 @@ export function createProjectSwitchService<
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
 		let providerReplacement: SourceChunkProviderReplacement | null = null;
 		let providerReplacementFinalized = false;
+		// The session call's successful return is the activation authority boundary.
+		let targetSessionActivated = false;
+		let activeLock: ProjectLifecycleLock | null = null;
 		let switchFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
 		try {
 			runtime.lifetime.cancelTask(PLAYBACK_PROJECT_APPLY_TASK);
@@ -214,6 +220,7 @@ export function createProjectSwitchService<
 				await guard(runtime.saveNow());
 			}
 			runtime.cancelScheduledSave();
+			readyProjectId = null;
 			runtime.stopEngine();
 			await guard(runtime.stopProjectBinPreview({ dispose: true }));
 			await guard(runtime.disposeRenderEngines());
@@ -232,10 +239,11 @@ export function createProjectSwitchService<
 				}
 				runtime.state.projectLock = nextLock;
 			}
-			const activeLock = runtime.state.projectLock;
+			activeLock = runtime.state.projectLock;
 			if (!activeLock) throw new Error('Project activation requires an acquired project lock.');
-			runtime.watchProjectLockLoss(projectId, activeLock);
-			const lockReadOnly = Boolean(activeLock.readOnly);
+			const activationLock = activeLock;
+			runtime.watchProjectLockLoss(projectId, activationLock);
+			const lockReadOnly = Boolean(activationLock.readOnly);
 			const existingMetadata = existingCapture ? runtime.sessionTab(projectId)?.metadata || {} : {};
 			const retainStoredReadOnly = existingCapture != null || options.readOnly == null;
 			const declaredReadOnly = retainStoredReadOnly
@@ -259,7 +267,7 @@ export function createProjectSwitchService<
 				history: activationHistory,
 				readOnly: runtime.state.readOnly,
 				readOnlyReason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
-				lockMethod: activeLock.method,
+				lockMethod: activationLock.method,
 				metadata: {
 					declaredReadOnly,
 					declaredReadOnlyReason,
@@ -273,6 +281,7 @@ export function createProjectSwitchService<
 					featureRequirementsVideoRenderedFallback: playbackAdmission.videoRenderedFallback,
 				},
 			});
+			targetSessionActivated = true;
 			runtime.session.updateProjectMetadata(projectId, {
 				declaredReadOnly,
 				declaredReadOnlyReason,
@@ -288,7 +297,7 @@ export function createProjectSwitchService<
 			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
 				reason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
-				lockMethod: activeLock.method,
+				lockMethod: activationLock.method,
 			});
 			runtime.state.history = runtime.session.getProjectHistory(projectId);
 			const activeProject = runtime.state.history.present;
@@ -301,8 +310,9 @@ export function createProjectSwitchService<
 			runtime.restoreProjectSelection(activeProject, tabMetadata);
 			runtime.state.clipboard = runtime.session.clipboardForProject(projectId)?.descriptor ?? null;
 			resetProjectScopedState();
-			if (runtime.state.outputUrl) runtime.revokeOutputUrl(runtime.state.outputUrl);
+			const outputUrl = runtime.state.outputUrl;
 			runtime.state.outputUrl = null;
+			if (outputUrl) runtime.revokeOutputUrl(outputUrl);
 			await guard(runtime.state.outputCleanup?.());
 			runtime.state.outputCleanup = null;
 			runtime.state.exportOutput = null;
@@ -352,6 +362,7 @@ export function createProjectSwitchService<
 			runtime.state.projects = Object.freeze(await guard(runtime.listProjects()));
 			runtime.synchronizeMicrophoneMeterTarget();
 			runtime.publishProjectState();
+			readyProjectId = activeProject.id;
 			// Foreign/future custody is opaque; maintenance must not traverse or mutate it.
 			if (!runtime.state.readOnly) {
 				await guard(openRecovery.deferGarbageCollection(() => runtime.garbageCollectSources()));
@@ -361,8 +372,8 @@ export function createProjectSwitchService<
 					try { runtime.lifetime.assertActive(token); }
 					catch { return false; }
 					return runtime.getProject()?.id === projectId
-						&& runtime.state.projectLock === activeLock
-						&& !runtime.state.readOnly && !activeLock.readOnly;
+						&& runtime.state.projectLock === activationLock
+						&& !runtime.state.readOnly && !activationLock.readOnly;
 				};
 				await guard(openRecovery.deferMaintenance(async () => { try { await runtime.maintainOpenedProject(projectId, isCurrentWritable); } catch { /* Report-only. */ } }));
 				runtime.lifetime.assertActive(token);
@@ -371,28 +382,92 @@ export function createProjectSwitchService<
 			else if (runtime.state.readOnly) {
 				runtime.setStatus(options.readOnlyReason || runtime.copy.projectReadOnly, 'error');
 			}
-			runtime.scheduleProjectLockRecovery(projectId, activeLock);
+			runtime.scheduleProjectLockRecovery(projectId, activationLock);
 		} catch (error) {
 			let failure = error;
-			if (providerReplacement && !providerReplacementFinalized) {
+			const cleanup = async (
+				operation: () => PromiseLike<unknown> | unknown,
+				message: string,
+			): Promise<boolean> => {
 				try {
-					runtime.stopEngine();
+					await operation();
+					return true;
 				} catch (cleanupError) {
-					failure = projectSwitchCleanupError(
-						failure,
-						cleanupError,
-						'Project switching and staged-engine shutdown both failed.',
-					);
+					failure = projectSwitchCleanupError(failure, cleanupError, message);
+					return false;
 				}
-				try {
-					await providerReplacement.rollback();
-				} catch (cleanupError) {
-					failure = projectSwitchCleanupError(
-						failure,
-						cleanupError,
-						'Project switching and source-provider rollback both failed.',
-					);
-				}
+			};
+			const publishFailedTarget = targetSessionActivated
+				&& readyProjectId !== projectId && !runtime.isDisposedError(error);
+			const targetLock = publishFailedTarget
+				? runtime.state.projectLock?.projectId === projectId
+					? runtime.state.projectLock : activeLock
+				: null;
+			if (publishFailedTarget) {
+				await cleanup(() => {
+					if (runtime.state.history?.present.id !== projectId) runtime.state.history = activationHistory;
+					const failedProject = runtime.state.history.present;
+					if (runtime.getProject()?.id !== projectId) runtime.setProject(failedProject);
+					runtime.projectGeneration.activate(projectId);
+					const tabMetadata = runtime.sessionTab(projectId)?.metadata || {};
+					runtime.restoreProjectSelection(failedProject, tabMetadata);
+					runtime.state.clipboard = runtime.session.clipboardForProject(projectId)?.descriptor ?? null;
+					resetProjectScopedState();
+					runtime.state.missingSourceIds.clear();
+				}, 'Project switching and failed-target state alignment both failed.');
+				runtime.state.readOnly = true;
+				await cleanup(() => runtime.session.setProjectReadOnly(projectId, {
+					readOnly: true,
+					reason: 'project-activation-failed',
+					lockMethod: targetLock?.method ?? 'unavailable',
+				}), 'Project switching and failed-target write fencing both failed.');
+			}
+			if ((providerReplacement && !providerReplacementFinalized) || publishFailedTarget) {
+				await cleanup(
+					() => runtime.stopEngine(),
+					'Project switching and staged-engine shutdown both failed.',
+				);
+			}
+			const failedProviderReplacement = providerReplacement;
+			if (failedProviderReplacement && !providerReplacementFinalized) {
+				// Restoring prior-project providers after session activation would cross project ownership.
+				await cleanup(
+					() => targetSessionActivated
+						? failedProviderReplacement.commit() : failedProviderReplacement.rollback(),
+					targetSessionActivated
+						? 'Project switching and incoming source-provider finalization both failed.'
+						: 'Project switching and source-provider rollback both failed.',
+				);
+			}
+			if (publishFailedTarget) {
+				const failedOutputUrl = runtime.state.outputUrl;
+				runtime.state.outputUrl = null;
+				runtime.state.exportOutput = null;
+				if (failedOutputUrl) await cleanup(
+					() => runtime.revokeOutputUrl(failedOutputUrl),
+					'Project switching and output URL cleanup both failed.',
+				);
+				const failedOutputCleanup = runtime.state.outputCleanup;
+				if (failedOutputCleanup && await cleanup(
+					failedOutputCleanup,
+					'Project switching and export output cleanup both failed.',
+				)) runtime.state.outputCleanup = null;
+				await cleanup(() => {
+					runtime.clearWaveformPcmWindows();
+					runtime.retainLiveClipIds();
+					runtime.evictUnreferencedSourceCaches();
+				}, 'Project switching and source-cache alignment both failed.');
+				await cleanup(
+					() => runtime.revokeVideoVisuals(),
+					'Project switching and video visual cleanup both failed.',
+				);
+				runtime.state.saveState = runtime.sessionTab(projectId)?.dirty ? 'dirty' : 'saved';
+				await cleanup(() => runtime.synchronizeMicrophoneMeterTarget(),
+					'Project switching and microphone routing synchronization both failed.');
+				if (targetLock) await cleanup(() => runtime.scheduleProjectLockRecovery(projectId, targetLock),
+					'Project switching and lock recovery scheduling both failed.');
+				await cleanup(() => runtime.publishProjectState(),
+					'Project switching and failed-target publication both failed.');
 			}
 			if (runtime.isDisposedError(error)) {
 				await runtime.releaseProjectLock().catch(() => undefined);

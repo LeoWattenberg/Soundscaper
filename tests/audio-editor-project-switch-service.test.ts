@@ -83,6 +83,60 @@ test('reactivating the active project preserves playback and project-scoped task
 	fixture.projectGeneration.assertCurrent(projectGeneration);
 });
 
+test('a source-load failure commits incoming ownership and allows same-project repair', async () => {
+	const fixture = createFixture();
+	const next = project('failed-source-project');
+	const sourceFailure = new Error('injected source loading failure');
+	let attempts = 0;
+	let oldProviderDisposals = 0;
+	let firstIncomingProviderDisposals = 0;
+	const oldProvider = { dispose: () => { oldProviderDisposals += 1; } };
+	const firstIncomingProvider = { dispose: () => { firstIncomingProviderDisposals += 1; } };
+	const repairedIncomingProvider = { dispose: () => undefined };
+	fixture.setSourceChunkProvider('shared-source', oldProvider);
+	fixture.setLoadSources(async (candidate) => {
+		if (candidate.id !== next.id) return;
+		attempts += 1;
+		fixture.setSourceChunkProvider(
+			'shared-source',
+			attempts === 1 ? firstIncomingProvider : repairedIncomingProvider,
+		);
+		if (attempts === 1) throw sourceFailure;
+	});
+
+	await assert.rejects(fixture.service.switchProject(next), (error) => error === sourceFailure);
+
+	assert.strictEqual(fixture.getProject(), next);
+	assert.strictEqual(fixture.state.history?.present, next);
+	assert.equal(fixture.state.projectLock?.projectId, next.id);
+	assert.equal(fixture.state.projectLock?.readOnly, false);
+	assert.equal(fixture.state.readOnly, true);
+	assert.equal(fixture.getTab(next.id)?.readOnly, true);
+	assert.equal(fixture.readOnlyUpdates.at(-1)?.reason, 'project-activation-failed');
+	assert.equal(fixture.state.outputUrl, null);
+	assert.equal(fixture.state.exportOutput, null);
+	assert.deepEqual(fixture.revokedUrls, ['blob:old-output']);
+	assert.equal(fixture.events.filter((event) => event === 'output-cleanup').length, 1);
+	assert.strictEqual(fixture.getSourceChunkProvider('shared-source'), firstIncomingProvider);
+	assert.equal(oldProviderDisposals, 1);
+	assert.equal(firstIncomingProviderDisposals, 0);
+	assert.equal(fixture.getLoadedEngineProject(), null);
+	assert.deepEqual(fixture.publishedProjectIds, [next.id]);
+	assert.ok(fixture.events.includes(`schedule-lock:${next.id}`));
+	assert.equal(fixture.events.some((event) => event === `record-opened:${next.id}`), false);
+	assert.equal(fixture.events.includes('gc'), false);
+
+	await fixture.service.switchProject(next);
+
+	assert.equal(attempts, 2, 'the degraded active project must bypass same-ID deduplication');
+	assert.strictEqual(fixture.getLoadedEngineProject(), next);
+	assert.equal(fixture.state.readOnly, false);
+	assert.equal(fixture.getTab(next.id)?.readOnly, false);
+	assert.strictEqual(fixture.getSourceChunkProvider('shared-source'), repairedIncomingProvider);
+	assert.equal(firstIncomingProviderDisposals, 1);
+	assert.deepEqual(fixture.publishedProjectIds, [next.id, next.id]);
+});
+
 test('active-project deduplication preserves a queued reversal intent', async () => {
 	const fixture = createFixture();
 	const activeProject = fixture.getProject();

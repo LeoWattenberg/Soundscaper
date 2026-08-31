@@ -96,7 +96,7 @@ test('successful activation applies staged inputs before publishing them after r
 	assert.ok(engineLoad < fixture.events.indexOf('provider:prior:dispose'));
 });
 
-test('currentness failure before engine entry discards prepared provider identity', async () => {
+test('currentness failure before engine entry retires prior provider identity', async () => {
 	const fixture = createFixture({ failCurrentnessAt: 4 });
 
 	const failure = await captureFailure(fixture.service.switchProject(fixture.incoming, { skipFlush: true }));
@@ -104,15 +104,15 @@ test('currentness failure before engine entry discards prepared provider identit
 	assert.strictEqual(failure, fixture.currentnessFailure);
 	assert.equal(fixture.events.includes('engine:load'), false);
 	assert.strictEqual(fixture.sourceBuffers.get(FALLBACK_SOURCE_ID), fixture.priorBuffer);
-	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
+	assert.equal(fixture.sourceChunkProviders.has(FALLBACK_SOURCE_ID), false);
 	assert.deepEqual(fixture.chunkSourcePublications, []);
 	assert.equal(fixture.preparedProviderDisposals(), 1);
-	assert.equal(fixture.priorProviderDisposals(), 0);
+	assert.equal(fixture.priorProviderDisposals(), 1);
 	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 2);
-	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:rollback'));
+	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:commit'));
 });
 
-test('currentness failure after engine return blocks prepared provider publication', async () => {
+test('currentness failure after engine return retires prior and prepared providers', async () => {
 	const fixture = createFixture({ failCurrentnessAt: 5 });
 
 	const failure = await captureFailure(fixture.service.switchProject(fixture.incoming, { skipFlush: true }));
@@ -120,15 +120,15 @@ test('currentness failure after engine return blocks prepared provider publicati
 	assert.strictEqual(failure, fixture.currentnessFailure);
 	assert.equal(fixture.events.includes('engine:load'), true);
 	assert.strictEqual(fixture.sourceBuffers.get(FALLBACK_SOURCE_ID), fixture.priorBuffer);
-	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
+	assert.equal(fixture.sourceChunkProviders.has(FALLBACK_SOURCE_ID), false);
 	assert.deepEqual(fixture.chunkSourcePublications, []);
 	assert.equal(fixture.preparedProviderDisposals(), 1);
-	assert.equal(fixture.priorProviderDisposals(), 0);
+	assert.equal(fixture.priorProviderDisposals(), 1);
 	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 3);
 	const disposal = fixture.events.indexOf('provider:prepared:dispose');
 	const retirement = fixture.events.lastIndexOf('engine:stop', disposal);
 	assert.ok(fixture.events.indexOf('engine:load') < retirement && retirement < disposal);
-	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:rollback'));
+	assert.ok(fixture.events.lastIndexOf('engine:stop') < fixture.events.indexOf('provider:replacement:commit'));
 });
 
 test('failed activation releases its reservation and aggregates prepared-provider cleanup', async () => {
@@ -144,7 +144,7 @@ test('failed activation releases its reservation and aggregates prepared-provide
 	assert.deepEqual(failure.errors, [fixture.currentnessFailure, cleanupFailure]);
 	assert.strictEqual(failure.cause, fixture.currentnessFailure);
 	assert.equal(fixture.activationReleases(), 1);
-	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.priorProvider);
+	assert.equal(fixture.sourceChunkProviders.has(FALLBACK_SOURCE_ID), false);
 });
 
 test('provider cleanup failure after engine commit keeps the new registry authoritative', async () => {
@@ -157,7 +157,7 @@ test('provider cleanup failure after engine commit keeps the new registry author
 	assert.strictEqual(fixture.sourceChunkProviders.get(FALLBACK_SOURCE_ID), fixture.preparedProvider);
 	assert.equal(fixture.priorProviderDisposals(), 1);
 	assert.equal(fixture.preparedProviderDisposals(), 0);
-	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 1);
+	assert.equal(fixture.events.filter((event) => event === 'engine:stop').length, 2);
 });
 
 test('project activation loads a manifest-only video fallback before applying its preview projection', async () => {

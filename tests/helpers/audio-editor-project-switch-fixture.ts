@@ -25,7 +25,10 @@ interface TestProject extends ProjectLifecycleProject {
 	readonly trackFolders?: readonly unknown[];
 }
 interface TestHistory extends ProjectLifecycleHistory<TestProject> { readonly present: TestProject; }
-type TestTab = ProjectLifecycleTab<TestProject, TestHistory>;
+type TestTab = ProjectLifecycleTab<TestProject, TestHistory> & Readonly<{
+	readOnly?: boolean;
+	readOnlyReason?: string | null;
+}>;
 interface TestLock extends ProjectLifecycleLock { releases: number; }
 
 export function project(id: string, tracks: readonly TestTrack[] = [{ id: `${id}-track`, type: 'audio' }]): TestProject {
@@ -71,6 +74,7 @@ export function createFixture(
 	const assignedTracks: string[] = [];
 	const createdProjects: TestProject[] = [];
 	const revokedUrls: string[] = [];
+	const publishedProjectIds: Array<string | null> = [];
 	const readOnlyUpdates: Array<Readonly<Record<string, unknown>>> = [];
 	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
 	const tabs = new Map<string, TestTab>([[oldProject.id, {
@@ -129,7 +133,11 @@ export function createFixture(
 			if (!tab) return;
 			tabs.set(projectId, { ...tab, metadata: { ...tab.metadata, ...metadata } });
 		},
-		setProjectReadOnly(projectId: string, update: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['setProjectReadOnly']>[1]) { readOnlyUpdates.push({ projectId, ...update }); },
+		setProjectReadOnly(projectId: string, update: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['setProjectReadOnly']>[1]) {
+			readOnlyUpdates.push({ projectId, ...update });
+			const tab = tabs.get(projectId);
+			if (tab) tabs.set(projectId, { ...tab, readOnly: update.readOnly, readOnlyReason: update.reason });
+		},
 		getProjectHistory(projectId: string) { const history = tabs.get(projectId)?.history; if (!history) throw new Error(`Missing session history for ${projectId}.`); return history; },
 		clipboardForProject() { return { descriptor: { type: 'clip' } }; },
 		markProjectSaved(projectId: string) { events.push(`marked-saved:${projectId}`); },
@@ -252,7 +260,7 @@ export function createFixture(
 		saveProject: async (value: TestProject) => { events.push(`save-project:${value.id}`); },
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => { events.push('sync-meter'); },
-		publishProjectState: () => { events.push('publish'); },
+		publishProjectState: () => { events.push('publish'); publishedProjectIds.push(currentProject?.id ?? null); },
 		garbageCollectSources: async () => { events.push('gc'); },
 		setStatus: (message: string, status: 'error' | 'success') => { statuses.push([message, status]); },
 		isDisposedError: (error: unknown) => isEditorDisposedError(error),
@@ -265,6 +273,7 @@ export function createFixture(
 		initialLock,
 		lifetime,
 		projectGeneration,
+		publishedProjectIds,
 		scapeInspectionQuiescence,
 		readOnlyUpdates,
 		revokedUrls,
@@ -275,6 +284,9 @@ export function createFixture(
 		setProject(value: TestProject | null) { currentProject = value; },
 		getLoadedEngineProject: () => loadedEngineProject,
 		getTabMetadata: (projectId: string) => tabs.get(projectId)?.metadata,
+		getTab: (projectId: string) => tabs.get(projectId) ?? null,
+		getSourceChunkProvider: (sourceId: string) => sourceChunkProviders.get(sourceId),
+		setSourceChunkProvider: (sourceId: string, provider: unknown) => { sourceChunkProviders.set(sourceId, provider); },
 		setAcquire(value: typeof acquire) { acquire = value; },
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
 		setStopPreview(value: typeof stopPreview) { stopPreview = value; }, setDisposeRenderEngines(value: typeof disposeRenderEngines) { disposeRenderEngines = value; },
