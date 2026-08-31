@@ -44,6 +44,7 @@ test('V24 freezes the exact mask/matte graph bounds and all maintained node fami
 		maximumPathPoints: 16_384,
 		maximumInputs: 256,
 		maximumBooleanInputs: 64,
+		maximumFeatherRadius: 64,
 	});
 	const normalized = normalizeVideoMaskMatteGraphV1(graph());
 	assert.deepEqual(normalized.inputs.map(({ name }) => name), ['Alpha', 'Video']);
@@ -114,6 +115,13 @@ test('graph validation rejects duplicate identities, bad named inputs, and dangl
 	const raster = (wrongInputKind.nodes as Record<string, unknown>[]).find(({ id }) => id === 'raster')!;
 	raster.inputName = 'Alpha';
 	assert.throws(() => normalizeVideoMaskMatteGraphV1(wrongInputKind), /raster.*input|kind/iu);
+});
+
+test('feather radius admission matches the evaluator limit', () => {
+	const oversized = graph();
+	const feather = (oversized.nodes as Record<string, unknown>[]).find(({ id }) => id === 'feather')!;
+	feather.radius = 65;
+	assert.throws(() => normalizeVideoMaskMatteGraphV1(oversized), /radius.*bound/iu);
 });
 
 test('graph validation rejects cycles and every independent depth/node/path-point overflow', () => {

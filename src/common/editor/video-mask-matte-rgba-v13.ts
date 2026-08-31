@@ -2,6 +2,7 @@
 
 import {
 	normalizeVideoMaskMatteGraphV1,
+	VIDEO_MASK_MATTE_LIMITS_V1,
 	type VideoMaskMatteGraphV1,
 	type VideoMaskMatteNodeV1,
 } from './video-mask-matte-v24.ts';
@@ -164,7 +165,10 @@ function feather(
 	height: number,
 	radiusValue: number,
 ): Uint8Array<ArrayBuffer> {
-	const radius = Math.min(64, Math.max(0, Math.ceil(radiusValue)));
+	const radius = Math.min(
+		VIDEO_MASK_MATTE_LIMITS_V1.maximumFeatherRadius,
+		Math.max(0, Math.ceil(radiusValue)),
+	);
 	if (radius === 0) return source.slice() as Uint8Array<ArrayBuffer>;
 	const horizontal = new Float64Array(source.length);
 	for (let y = 0; y < height; y += 1) {

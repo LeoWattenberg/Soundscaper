@@ -13,6 +13,7 @@ export const VIDEO_MASK_MATTE_LIMITS_V1 = Object.freeze({
 	maximumPathPoints: 16_384,
 	maximumInputs: 256,
 	maximumBooleanInputs: 64,
+	maximumFeatherRadius: 64,
 });
 
 export interface VideoMaskMatteInputV1 {
@@ -289,7 +290,9 @@ function featherNode(value: unknown, name: string, id: string): VideoFeatherMask
 		id,
 		kind: 'feather' as const,
 		inputNodeId: stableId(field(record, 'inputNodeId', name), `${name}.inputNodeId`),
-		radius: boundedFinite(field(record, 'radius', name), 0, MAXIMUM_COORDINATE, `${name}.radius`),
+		radius: boundedFinite(
+			field(record, 'radius', name), 0, VIDEO_MASK_MATTE_LIMITS_V1.maximumFeatherRadius, `${name}.radius`,
+		),
 	});
 }
 
