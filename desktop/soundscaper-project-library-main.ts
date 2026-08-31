@@ -180,6 +180,13 @@ export class SoundscaperDesktopProjectLibraryMain {
 			);
 			const recovery = await recoverPending(database, catalog, host, lease);
 			await host.reclaimStorage().catch(() => undefined);
+			// Reclaim opaque state only before a renderer can open a session. A live
+			// undo stack may still own a newly persisted body not present in a durable
+			// project revision, so publication-time reclamation would be unsafe.
+			try {
+				new SoundscaperNativePluginStateStore(database)
+					.reclaimUnreferencedProjectStateBodies();
+			} catch { /* Reclamation is best-effort and leaves every body intact on failure. */ }
 			const lifecycle = SoundscaperDesktopProjectLibraryLifecycleHost.create({
 				catalog,
 				host,

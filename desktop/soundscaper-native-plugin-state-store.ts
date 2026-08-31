@@ -3,6 +3,10 @@
 import { createHash } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 
+import {
+	validateSoundscaperDesktopCurrentProject,
+} from './soundscaper-project-library-current-project.ts'
+
 export const SOUNDSCAPER_NATIVE_PLUGIN_STATE_BODY_MAXIMUM_BYTES = 16 * 1024 * 1024
 
 export interface SoundscaperNativePluginStateBodyDescriptor {
@@ -68,6 +72,56 @@ export class SoundscaperNativePluginStateStore {
 		}
 		return Object.freeze({ ...descriptor, bytes })
 	}
+
+	/** Reclaim bodies absent from every durable revision or publication journal. */
+	reclaimUnreferencedProjectStateBodies(): number {
+		if (this.#database.isTransaction) {
+			throw new Error('Native plug-in state reclamation cannot nest a transaction.')
+		}
+		this.#database.exec('BEGIN IMMEDIATE')
+		try {
+			const referenced = referencedProjectStateBodyIds(this.#database)
+			const bodies = this.#database.prepare(`
+				SELECT body_id AS bodyId FROM native_plugin_state_bodies
+			`).all() as { bodyId: unknown }[]
+			const remove = this.#database.prepare(
+				'DELETE FROM native_plugin_state_bodies WHERE body_id = ?',
+			)
+			let removed = 0
+			for (const { bodyId } of bodies) {
+				const id = stateBodyId(bodyId)
+				if (!referenced.has(id)) removed += Number(remove.run(id).changes)
+			}
+			this.#database.exec('COMMIT')
+			return removed
+		} catch (error) {
+			if (this.#database.isTransaction) this.#database.exec('ROLLBACK')
+			throw error
+		}
+	}
+}
+
+function referencedProjectStateBodyIds(database: DatabaseSync): ReadonlySet<string> {
+	const rows = database.prepare(`
+		SELECT document_json AS document FROM project_revisions
+		UNION ALL
+		SELECT project_json AS document FROM publication_journal
+	`).all() as { document: unknown }[]
+	const referenced = new Set<string>()
+	for (const row of rows) {
+		if (typeof row.document !== 'string') {
+			throw new TypeError('A retained Soundscaper project document is invalid.')
+		}
+		let parsed: unknown
+		try {
+			parsed = JSON.parse(row.document) as unknown
+		} catch (error) {
+			throw new TypeError('A retained Soundscaper project document is invalid.', { cause: error })
+		}
+		const project = validateSoundscaperDesktopCurrentProject(parsed)
+		for (const state of project.nativePluginStates) referenced.add(state.stateBody.bodyId)
+	}
+	return referenced
 }
 
 function ordinaryBytes(value: unknown): Uint8Array {
