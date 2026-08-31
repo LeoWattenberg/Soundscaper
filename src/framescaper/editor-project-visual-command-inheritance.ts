@@ -42,28 +42,98 @@ export function applyInheritedFramescaperProjectCommandVisual(
 	const visualSourceIds = ownedIds(original.sources, isVisual);
 	const originalBin = record(original.projectBin, 'projectBin');
 	const visualBinClipIds = ownedIds(originalBin.clips, isVisual);
+	const originalTracks = records(original.tracks, 'tracks');
+	const appliedTracks = records(applied.tracks, 'tracks');
+	const survivingTrackIds = new Set(appliedTracks.map(({ id }) => String(id)));
+	const visualTrackByClipId = trackByClipId(originalTracks, visualTimelineClipIds);
+	const retainedVisualTimelineClipIds = new Set([...visualTimelineClipIds].filter(
+		(id) => survivingTrackIds.has(visualTrackByClipId.get(id) ?? ''),
+	));
 	applied.schemaVersion =  1;
 	applied.sources = mergeCollections(original.sources, applied.sources, visualSourceIds, 'sources');
-	applied.clips = mergeCollections(original.clips, applied.clips, visualTimelineClipIds, 'clips');
+	applied.clips = mergeCollections(
+		original.clips,
+		applied.clips,
+		retainedVisualTimelineClipIds,
+		'clips',
+	);
 	const appliedBin = record(applied.projectBin, 'projectBin');
 	appliedBin.clips = mergeCollections(originalBin.clips, appliedBin.clips, visualBinClipIds, 'projectBin.clips');
-	const originalTracks = new Map(records(original.tracks, 'tracks').map((track) => [String(track.id), track]));
-	for (const track of records(applied.tracks, 'tracks')) {
-		const prior = originalTracks.get(String(track.id));
+	const originalTrackById = new Map(originalTracks.map((track) => [String(track.id), track]));
+	for (const track of appliedTracks) {
+		const prior = originalTrackById.get(String(track.id));
 		if (!prior || !Array.isArray(track.clipIds) || !Array.isArray(prior.clipIds)) continue;
-		track.clipIds = mergeIds(prior.clipIds, track.clipIds, visualTimelineClipIds);
+		track.clipIds = mergeIds(prior.clipIds, track.clipIds, retainedVisualTimelineClipIds);
 	}
-	for (const field of [
-		'videoAdjustmentLayers', 'videoVisualPresets', 'videoMaskMattes', 'videoFreezeFallbacks',
-	]) applied[field] = structuredClone(original[field]);
+	const sourceIds = new Set(records(applied.sources, 'sources').map(({ id }) => String(id)));
+	applied.videoAdjustmentLayers = retainedAdjustmentLayers(
+		original.videoAdjustmentLayers,
+		survivingTrackIds,
+	);
+	applied.videoVisualPresets = structuredClone(original.videoVisualPresets);
+	applied.videoMaskMattes = retainedMaskMattes(original.videoMaskMattes, sourceIds);
+	applied.videoFreezeFallbacks = records(original.videoFreezeFallbacks, 'videoFreezeFallbacks')
+		.filter(({ renderedSourceId }) => sourceIds.has(String(renderedSourceId)));
 	if (visualSelection !== null) {
 		const selection = record(applied.selection, 'selection');
-		selection.clipIds = visualSelection;
+		selection.clipIds = visualSelection.filter(
+			(id) => !visualTimelineClipIds.has(id) || retainedVisualTimelineClipIds.has(id),
+		);
 	}
 	normalizeFramescaperProjectVisualModelsVisual(applied);
 	applied.featureRequirements = reconcileFramescaperProjectFeatureRequirementsVisual(profile, applied);
 	validateFramescaperProjectVisual(profile, applied);
 	return applied as unknown as FramescaperProjectVisual;
+}
+
+function trackByClipId(
+	tracks: readonly Record<string, unknown>[],
+	clipIds: ReadonlySet<string>,
+): ReadonlyMap<string, string> {
+	const result = new Map<string, string>();
+	for (const track of tracks) {
+		if (!Array.isArray(track.clipIds)) continue;
+		for (const clipId of track.clipIds.map(String)) {
+			if (clipIds.has(clipId)) result.set(clipId, String(track.id));
+		}
+	}
+	return result;
+}
+
+function retainedAdjustmentLayers(
+	value: unknown,
+	trackIds: ReadonlySet<string>,
+): Record<string, unknown>[] {
+	const retained: Record<string, unknown>[] = [];
+	for (const layer of records(value, 'videoAdjustmentLayers')) {
+		if (!Array.isArray(layer.targetTrackIds)) continue;
+		const targetTrackIds = layer.targetTrackIds.map(String).filter((id) => trackIds.has(id));
+		if (targetTrackIds.length > 0) retained.push({ ...layer, targetTrackIds });
+	}
+	return retained;
+}
+
+function retainedMaskMattes(
+	value: unknown,
+	sourceIds: ReadonlySet<string>,
+): Record<string, unknown>[] {
+	const retained: Record<string, unknown>[] = [];
+	for (const mask of records(value, 'videoMaskMattes')) {
+		const inputs = records(mask.inputs, 'videoMaskMattes.inputs');
+		const missingInputNames = new Set(inputs
+			.filter(({ sourceRef }) => !sourceIds.has(String(sourceRef)))
+			.map(({ name }) => String(name)));
+		const nodes = records(mask.nodes, 'videoMaskMattes.nodes');
+		if (nodes.some((node) => (
+			(node.kind === 'raster' || node.kind === 'alpha')
+			&& missingInputNames.has(String(node.inputName))
+		))) continue;
+		retained.push({
+			...mask,
+			inputs: inputs.filter(({ sourceRef }) => sourceIds.has(String(sourceRef))),
+		});
+	}
+	return retained;
 }
 
 function selectedVisualClipIds(
