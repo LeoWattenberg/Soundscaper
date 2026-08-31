@@ -693,11 +693,6 @@
       "count": 1
     }
   },
-  "src/common/editor/soundscaper-delivery-contract-v1.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/soundscaper-persistent-delivery-plan-v1.ts": {
     "no-control-regex": {
       "count": 1
