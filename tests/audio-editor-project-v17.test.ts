@@ -21,6 +21,8 @@ import {
 	createAudioClip,
 	createAudioSource,
 	createAudioTrack,
+	createLabel,
+	createLabelTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import {
 	AUDIO_EDITOR_PROJECT_V17_SCHEMA_VERSION,
@@ -38,6 +40,22 @@ import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/proj
 import { normalizeProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 
 const NOW = '2026-08-12T10:00:00.000Z';
+
+test('minimal musical labels receive the defaults required by V17', () => {
+	const label = createLabel({ anchor: 'musical', startBeat: { num: 1, den: 1 } });
+	const projectOptions = options([]);
+	projectOptions.tracks = [
+		...(projectOptions.tracks as readonly Record<string, unknown>[]),
+		createLabelTrack({ id: 'labels', labels: [label] }),
+	];
+	projectOptions.sequences = [{ id: 'main-sequence', trackIds: ['track-a', 'labels'] }];
+
+	const project = createAudioEditorProjectV17(projectOptions);
+	assert.equal(label.title, '');
+	assert.equal(label.color, 'auto');
+	assert.deepEqual(label.opaqueExtensions, {});
+	assert.equal(validateAudioEditorProjectV17(project), true);
+});
 
 test('active audio-authoring authority requires a complete internal project or v1 tuple', () => {
 	assert.equal(isActiveAudioEditorProjectSchema(createAudioEditorProjectV17(options([]))), true);

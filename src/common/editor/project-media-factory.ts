@@ -454,6 +454,9 @@ function normalizeLabel(value: Record<string, unknown>): Record<string, unknown>
 	const result: Record<string, unknown> = {
 		...clone(value),
 		id: nonEmptyString(value.id ?? createStableId('label'), 'label.id'),
+		title: String(value.title || ''),
+		color: nonEmptyString(value.color || 'auto', 'label.color'),
+		opaqueExtensions: clone(value.opaqueExtensions ?? {}),
 		anchor,
 		startBeat: anchor === 'musical' ? coordinateRational(value.startBeat ?? 0, 'label.startBeat') : null,
 		endBeat: anchor === 'musical'
