@@ -186,6 +186,16 @@ test('timed serialization keeps a blank title line out of the cue block separato
 	}
 });
 
+test('timed serialization refuses timing arrows inside cue text', () => {
+	const labels = [{ id: 'arrow', title: 'intro --> verse', startFrame: 0, endFrame: 1_000 }];
+	for (const serialize of [serializeSubRipLabels, serializeWebVttLabels]) {
+		assert.throws(
+			() => serialize(labels, { sampleRate: 1_000 }),
+			(error) => error.code === 'INVALID_CHARACTER' && error.details.index === 0,
+		);
+	}
+});
+
 test('WebVTT import supports cue identifiers, settings, hourless timestamps, and metadata blocks', () => {
 	const input = [
 		'WEBVTT Kind: captions',
