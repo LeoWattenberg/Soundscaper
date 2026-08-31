@@ -14,6 +14,9 @@ import { applyMediaChannelMapping } from '../src/common/editor/media-export.js';
 
 const SAMPLE_RATE = 48_000;
 const R128 = { integratedLufs: -23, truePeakCeilingDb: -1 };
+const SEVEN_POINT_ONE_WEIGHTS = [
+	1, 1, 1, 0, Math.SQRT2, Math.SQRT2, 1, 1,
+];
 
 /** A steady tone, long enough for the R128 gate to have something to integrate. */
 function tone(amplitude: number, seconds = 4): Float32Array {
@@ -296,7 +299,7 @@ test('an authored 7.1 BEXT capture does not count its LFE programme channel', as
 		plan: {
 			...fixture.plan,
 			bext: { description: '7.1 master', version: 2 },
-			adm: { metadata: authoredSevenPointOneAdm() },
+			loudnessChannelWeights: SEVEN_POINT_ONE_WEIGHTS,
 		},
 		rendered: { sampleRate: SAMPLE_RATE },
 		settings: { measureLoudness: true },
@@ -308,11 +311,29 @@ test('an authored 7.1 BEXT capture does not count its LFE programme channel', as
 	assert.ok(Number.isFinite(bext.maxTruePeakLevel), 'true peak still observes the LFE samples');
 });
 
-function authoredSevenPointOneAdm() {
-	return {
-		mode: 'authored' as const,
-		programme: { name: 'Programme', language: '' },
-		content: { name: 'Content', language: '' },
-		bed: { name: 'Bed', layout: '7.1' as const, assignments: [] },
-	};
-}
+test('an authored 7.1 BWF capture gives rear surrounds unity loudness weight', async () => {
+	const silence = new Float32Array(SAMPLE_RATE * 3);
+	const leftRear = tone(0.1, 3);
+	const channels = Array.from({ length: 8 }, (_value, channel) => channel === 6 ? leftRear : silence);
+	const fixture = encodingFixture('bwf', channels);
+	await encodeRenderedAudio(fixture.runtime, {
+		plan: {
+			...fixture.plan,
+			bext: { description: '7.1 BWF master', version: 2 },
+			loudnessChannelWeights: SEVEN_POINT_ONE_WEIGHTS,
+		},
+		rendered: { sampleRate: SAMPLE_RATE },
+		settings: { measureLoudness: true },
+		signal: new AbortController().signal,
+	});
+
+	const expected = measureBextLoudness([leftRear], SAMPLE_RATE);
+	const expectedLoudness = expected.loudnessValue;
+	const bext = fixture.wavOptions[0].bext as Readonly<Record<string, number | string | null>>;
+	if (typeof expectedLoudness !== 'number') assert.fail('the rear-only reference must be measurable');
+	assert.ok(bext.loudnessValue !== null);
+	assert.ok(
+		Math.abs(Number(bext.loudnessValue) - expectedLoudness) <= 0.01,
+		`rear-only BWF measured ${String(bext.loudnessValue)} instead of ${String(expectedLoudness)}`,
+	);
+});

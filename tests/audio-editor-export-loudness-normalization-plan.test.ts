@@ -29,6 +29,10 @@ const options = {
 	date: '2026-08-17',
 };
 
+const SEVEN_POINT_ONE_WEIGHTS = [
+	1, 1, 1, 0, Math.SQRT2, Math.SQRT2, 1, 1,
+];
+
 test('the target rides on the plan, so no encoder ever receives a loudness flag', () => {
 	const plan = createExportPlan(project(), { ...options, loudnessNormalization: 'ebu-r128' });
 	assert.deepEqual(plan.loudnessNormalization, { integratedLufs: -23, truePeakCeilingDb: -1 });
@@ -59,6 +63,20 @@ test('every format that can be delivered offline can be normalized identically',
 			`${format} must carry the same target`,
 		);
 	}
+});
+
+test('a preserve-mapped BWF plan retains authored 7.1 loudness semantics without carrying ADM', () => {
+	const authored = authoredSevenPointOneProject();
+	const plan = createExportPlan(authored, { ...options, format: 'bwf', measureLoudness: true });
+	assert.equal('adm' in plan, false, 'BWF does not embed the project ADM document');
+	assert.deepEqual(plan.loudnessChannelWeights, SEVEN_POINT_ONE_WEIGHTS);
+
+	const remapped = createExportPlan(authored, {
+		...options, format: 'bwf', channelMapping: 'stereo', measureLoudness: true,
+	});
+	assert.equal('loudnessChannelWeights' in remapped, false, 'a remap no longer has the authored bed order');
+	assert.equal('loudnessChannelWeights' in createExportPlan(project(), options), false);
+	assert.equal('loudnessChannelWeights' in createExportPlan(authored, { ...options, format: 'bwf' }), false);
 });
 
 test('stems refuse normalization rather than drifting apart', () => {
@@ -94,3 +112,20 @@ test('an unreadable target is refused at plan time, before anything renders', ()
 		/Unknown loudness normalization target/u,
 	);
 });
+
+function authoredSevenPointOneProject() {
+	return createCurrentAudioEditorProject({
+		id: 'authored-seven-point-one',
+		title: 'Authored 7.1',
+		now: '2026-08-17T00:00:00.000Z',
+		sampleRate: 48_000,
+		metadata: {
+			adm: {
+				mode: 'authored',
+				programme: { name: 'Programme', language: '' },
+				content: { name: 'Content', language: '' },
+				bed: { name: 'Bed', layout: '7.1', assignments: [] },
+			},
+		},
+	});
+}

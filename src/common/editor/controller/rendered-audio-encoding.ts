@@ -7,7 +7,6 @@ import {
 	type RenderedLoudnessMeasurement,
 	normalizeRenderedLoudness,
 } from '../loudness-normalization-render.ts';
-import { resolveAdmEbuChannelWeights } from '../loudness-channel-layout.ts';
 import type {
 	LoudnessNormalizationDecision,
 	LoudnessNormalizationTarget,
@@ -41,7 +40,6 @@ interface RenderedAudioFormatSettings extends Readonly<Record<string, unknown>> 
 }
 
 export interface RenderedAudioEncodingPlan {
-	readonly adm?: Readonly<{ readonly metadata?: unknown }> | null;
 	readonly bext?: Readonly<Record<string, unknown>>;
 	readonly binaural?: BinauralDeliveryPlan | null;
 	readonly cart?: unknown;
@@ -54,6 +52,8 @@ export interface RenderedAudioEncodingPlan {
 	readonly ixml?: unknown;
 	/** The delivery's loudness target, decided by the plan rather than by an encoder. */
 	readonly loudnessNormalization?: LoudnessNormalizationTarget | null;
+	/** Semantic BS.1770 weights for the plan's preserved output channel order. */
+	readonly loudnessChannelWeights?: readonly number[];
 	readonly markers?: unknown;
 	readonly metadata: Readonly<Record<string, unknown>>;
 	readonly mimeType: string;
@@ -188,12 +188,11 @@ export async function encodeRenderedAudio(
 	const measurementChannels = native || !plan.loudnessNormalization
 		? encodeChannels
 		: applyMediaChannelMapping(renderedChannels, plan.channelMapping);
-	const channelWeights = resolveAdmEbuChannelWeights(plan.adm?.metadata, measurementChannels.length);
 	const normalized = normalizeRenderedLoudness({
 		channels: encodeChannels,
 		measurementChannels,
 		sampleRate: plan.sampleRate,
-		...(channelWeights ? { channelWeights } : {}),
+		...(plan.loudnessChannelWeights ? { channelWeights: plan.loudnessChannelWeights } : {}),
 		target: plan.loudnessNormalization,
 		captureLoudness,
 	});

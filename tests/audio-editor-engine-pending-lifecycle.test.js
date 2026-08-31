@@ -194,7 +194,7 @@ test('the realtime EBU meter uses canonical authored 7.1 roles without guessing 
 		engine.loadProject(authoredEightChannelProject('7.1'), engine.sources);
 		const semanticMeter = await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		assert.deepEqual(semanticMeter.node.options.processorOptions.channelWeights, [
-			1, 1, 1, 0, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2,
+			1, 1, 1, 0, Math.SQRT2, Math.SQRT2, 1, 1,
 		]);
 
 		engine.loadProject(authoredEightChannelProject('5.1.2'), engine.sources);

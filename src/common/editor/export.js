@@ -19,6 +19,7 @@ import { inspectAiffLayout } from './aiff.js';
 import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/stem-archive.ts';
 import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
+import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
 import { resolveBinauralDelivery } from './binaural-delivery.ts';
 import { resolveMasteringSequenceExport } from './mastering-sequence-export.ts';
@@ -68,6 +69,7 @@ export const FAST_RENDER_THRESHOLDS = Object.freeze({
  * @property {readonly import('./riff-markers.ts').RiffMarker[]} markers
  * @property {import('./timeline-annotation-interchange-report.ts').TimelineAnnotationInterchangeReport} markerInterchangeReport
  * @property {import('./loudness-normalization.ts').LoudnessNormalizationTarget|null} loudnessNormalization
+ * @property {readonly number[]} [loudnessChannelWeights]
  * @property {import('./binaural-delivery.ts').BinauralDeliveryPlan} [binaural]
  * @property {import('./mastering-sequence-delivery.ts').MasteringSequenceDeliveryPlan} [masteringSequence]
  * @property {{startFrame: number, endFrame: number, durationFrames: number}} range
@@ -318,6 +320,15 @@ export function createExportPlan(project, options = {}) {
 		admMetadata: bw64Adm?.metadata ?? null,
 		renderStrategy: render.strategy,
 	});
+	// Channel semantics belong to the mix even when its container does not carry
+	// ADM. Preserve them on the exact plan only while the delivery preserves the
+	// authored channel order; a stem or a remap no longer has those bed roles.
+	const measuresLoudness = loudnessNormalization !== null
+		|| ((format === 'bwf' || format === 'bw64') && options.measureLoudness === true);
+	const loudnessChannelWeights = measuresLoudness && mode === 'mix'
+		&& encoding.channelMapping.mode === 'preserve'
+		? resolveAdmEbuChannelWeights(runtimeProject.metadata?.adm, encoding.channelCount)
+		: null;
 	const fallbackTemporaryBytes = multiplySafeIntegers(outputBytes, outputs.length, 'Temporary export size');
 	const archive = mode === 'stems'
 		? createStemArchivePlan(
@@ -357,6 +368,7 @@ export function createExportPlan(project, options = {}) {
 			trailingChunks: adm.trailingChunks,
 		} : {}),
 		loudnessNormalization,
+		...(loudnessChannelWeights ? { loudnessChannelWeights } : {}),
 		...(binaural ? { binaural } : {}),
 		...(masteringSequence ? { masteringSequence: masteringSequence.plan } : {}),
 		range: masteringSequence ? masteringSequence.sourceRange : range,

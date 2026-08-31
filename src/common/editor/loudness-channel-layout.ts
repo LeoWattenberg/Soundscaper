@@ -7,7 +7,7 @@ import {
 } from './adm-project-metadata.ts';
 
 const CANONICAL_7_1_WEIGHTS = Object.freeze([
-	1, 1, 1, 0, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2,
+	1, 1, 1, 0, Math.SQRT2, Math.SQRT2, 1, 1,
 ]);
 
 /**
@@ -16,7 +16,8 @@ const CANONICAL_7_1_WEIGHTS = Object.freeze([
  * A bare eight-channel master is not enough: it may be 7.1, 5.1.2, or an
  * application-defined discrete layout. A bed-only authored ADM 7.1 programme is
  * narrower: its render order is L/R/C/LFE/Lss/Rss/Lrs/Rrs, so BS.1770's zero
- * LFE contribution and +1.5 dB surround contribution are unambiguous.
+ * LFE contribution, +1.5 dB side-surround contribution, and unity rear-
+ * surround contribution are unambiguous.
  */
 export function resolveAdmEbuChannelWeights(
 	metadataValue: unknown,
