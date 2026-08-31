@@ -127,6 +127,7 @@ test('legacy FFmpeg video bytes refuse oversized output before whole-file reads'
 test('FFmpeg video sink output aborts once for encoding and streaming failures', async () => {
 	const encoding = new VideoJobRuntime(Uint8Array.of(1));
 	encoding.instance.execCode = 7;
+	encoding.instance.outputDeleteFailure = new Error('missing output file');
 	const encodingSink = new RecordingSink();
 	await assert.rejects(
 		encodeFfmpegVideoToSink({
@@ -137,6 +138,7 @@ test('FFmpeg video sink output aborts once for encoding and streaming failures',
 	);
 	assert.equal(encodingSink.abortReasons.length, 1);
 	assert.equal(encoding.instance.statFileCalls, 0);
+	assert.equal(encoding.terminateCalls, 0);
 
 	const primary = new Error('range failed');
 	const cleanup = new Error('output delete failed');

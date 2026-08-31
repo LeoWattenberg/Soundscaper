@@ -353,6 +353,7 @@ export function createEditorFfmpeg(options = {}) {
 				const onAbort = () => terminateRuntime();
 				const cleanupSteps = [];
 				let operationError;
+				let outputWasFinalized = false;
 				signal?.addEventListener('abort', onAbort, { once: true });
 				try {
 					assertFfmpegOutputReady(settings);
@@ -364,11 +365,15 @@ export function createEditorFfmpeg(options = {}) {
 					await instance.mount(module.FFFSType.WORKERFS, mountOptions, mountPoint);
 					cleanupSteps.unshift(() => instance.unmount(mountPoint));
 					assertFfmpegOutputReady(settings);
-					cleanupSteps.unshift(() => instance.deleteFile(output));
+					cleanupSteps.unshift(async () => {
+						try { await instance.deleteFile(output); }
+						catch (error) { if (outputWasFinalized) throw error; }
+					});
 					const code = await instance.exec(encoderArgs(`${mountPoint}/${inputName}`, output, normalizedFormat, {
 						...normalized,
 						applyDither: settings.applyDither === true,
 					}), -1, { signal });
+					outputWasFinalized = code === 0;
 					assertFfmpegOutputReady(settings);
 					if (code !== 0) throw new FfmpegEncodingError(normalizedFormat, code);
 					streamOwnsFailure = true;

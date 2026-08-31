@@ -205,6 +205,7 @@ export async function encodeFfmpegVideoToSink<Output>(
 			const job = createJob(staged);
 			const cleanupSteps: Array<() => PromiseLike<unknown>> = [];
 			let operationError: unknown;
+			let outputWasFinalized = false;
 			const onAbort = () => options.terminateRuntime();
 			signal?.addEventListener('abort', onAbort, { once: true });
 			try {
@@ -221,9 +222,13 @@ export async function encodeFfmpegVideoToSink<Output>(
 				}
 				assertFfmpegOutputReady(options.settings);
 				const paths = stagedInputPaths(staged, job.mountPoint);
-				cleanupSteps.unshift(() => Promise.resolve(instance.deleteFile(job.output)));
+				cleanupSteps.unshift(async () => {
+					try { await instance.deleteFile(job.output); }
+					catch (error) { if (outputWasFinalized) throw error; }
+				});
 				const args = buildVideoFfmpegArgs(options.plan, paths, job.output);
 				const code = await instance.exec(args, -1, signalOptions(signal));
+				outputWasFinalized = code === 0;
 				assertFfmpegOutputReady(options.settings);
 				if (code !== 0) throw options.createEncodingError(staged.descriptor.id, code);
 				streamOwnsFailure = true;

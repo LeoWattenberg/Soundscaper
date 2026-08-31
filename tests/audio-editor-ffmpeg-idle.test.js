@@ -261,6 +261,7 @@ test('encodeFileToSink terminates cancellation and aborts the uncommitted sink e
 
 test('encodeFileToSink preserves pre-stream encoding and sink cleanup failures', async () => {
 	MockFfmpegRuntime.execCodeByDefault = 1;
+	MockFfmpegRuntime.outputDeleteFailureByDefault = new Error('missing output file');
 	const ffmpeg = createEditorFfmpeg({ idleTimeoutMs: false });
 	const cleanup = new Error('sink abort failed');
 	let abortCount = 0;
@@ -279,6 +280,7 @@ test('encodeFileToSink preserves pre-stream encoding and sink cleanup failures',
 	assert.equal(caught.errors[0].code, 'FFMPEG_ENCODING_FAILED');
 	assert.equal(caught.errors[1], cleanup);
 	assert.equal(abortCount, 1);
+	assert.equal(MockFfmpegRuntime.instances[0].terminateCalls, 0);
 	ffmpeg.dispose();
 });
 
