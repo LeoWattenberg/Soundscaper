@@ -206,7 +206,7 @@ function mediaCommands(input) {
 
 function ffmpegTargetArguments(target) {
 	if (target.id === 'linux-x64') return ['--target-os=linux', '--arch=x86_64'];
-	if (target.id === 'linux-arm64') return ['--target-os=linux', '--arch=aarch64', '--enable-cross-compile'];
+	if (target.id === 'linux-arm64') return ['--target-os=linux', '--arch=aarch64'];
 	if (target.id === 'mac-arm64') return ['--target-os=darwin', '--arch=arm64'];
 	if (target.id === 'win-x64') return ['--target-os=win64', '--arch=x86_64', '--toolchain=msvc'];
 	return [

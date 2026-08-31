@@ -114,6 +114,8 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 		]);
 		const configure = recipe.commands[0];
 		assert.equal(configure.args[1], '--disable-everything');
+		assert.ok(!configure.args.includes('--enable-cross-compile'),
+			`${target.id} recipe is admitted only on its matching native host`);
 		assert.ok(configure.args.includes(`--prefix=${join(fixture.outputRoot, 'ffmpeg-install')}`));
 		assert.ok(configure.args.includes(`--cc=${fixture.executables.c.path}`));
 		assert.ok(recipe.commands[3].args.includes(`-DBOOST_ROOT=${fixture.boostSourceRoot}`));
