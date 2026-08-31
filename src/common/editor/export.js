@@ -18,6 +18,7 @@ import {
 import { inspectAiffLayout } from './aiff.js';
 import { inspectWavLayout } from './wav.js';
 import { createStemArchivePlan } from './controller/stem-archive.ts';
+import { EBU_R128_MAXIMUM_CHANNELS } from './ebu-r128.js';
 import { normalizeLoudnessNormalizationTarget } from './loudness-normalization.ts';
 import { resolveAdmEbuChannelWeights } from './loudness-channel-layout.ts';
 import { createRiffAnnotationExport } from './timeline-annotation-riff-interchange.ts';
@@ -325,6 +326,14 @@ export function createExportPlan(project, options = {}) {
 	// authored channel order; a stem or a remap no longer has those bed roles.
 	const measuresLoudness = loudnessNormalization !== null
 		|| ((format === 'bwf' || format === 'bw64') && options.measureLoudness === true);
+	// PCM delivery supports wider immersive programmes, but the maintained meter
+	// has no admitted semantics beyond this width. Refuse at plan time rather
+	// than rendering the whole programme and failing during encoding.
+	if (measuresLoudness && encoding.channelCount > EBU_R128_MAXIMUM_CHANNELS) {
+		throw new RangeError(
+			`Loudness analysis supports at most ${EBU_R128_MAXIMUM_CHANNELS} delivered channels; downmix this delivery or turn off loudness measurement and normalization.`,
+		);
+	}
 	const loudnessChannelWeights = measuresLoudness && mode === 'mix'
 		&& encoding.channelMapping.mode === 'preserve'
 		? resolveAdmEbuChannelWeights(runtimeProject.metadata?.adm, encoding.channelCount)

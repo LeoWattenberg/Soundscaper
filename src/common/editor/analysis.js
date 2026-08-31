@@ -3,6 +3,7 @@ import {
 	calculateEbuLoudnessRange,
 	createEbuR128Meter,
 	ebuChannelWeights,
+	EBU_R128_MAXIMUM_CHANNELS,
 } from './ebu-r128.js';
 
 export { findNearestAudioZeroCrossing } from './zero-crossing.js';
@@ -43,8 +44,8 @@ export function createStreamingAudioAnalyzer(options = {}) {
 	const sampleRate = Number(options.sampleRate);
 	const channelCount = Number(options.channelCount ?? 2);
 	if (!Number.isInteger(sampleRate) || sampleRate < 8_000) throw new RangeError('A valid analysis sample rate is required.');
-	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 8) {
-		throw new RangeError('Analysis channel count must be from 1 to 8.');
+	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > EBU_R128_MAXIMUM_CHANNELS) {
+		throw new RangeError(`Analysis channel count must be from 1 to ${EBU_R128_MAXIMUM_CHANNELS}.`);
 	}
 	const oversample = Number(options.truePeakOversample ?? 4);
 	if (![1, 2, 4, 8].includes(oversample)) throw new RangeError('True-peak oversampling must be 1, 2, 4, or 8.');

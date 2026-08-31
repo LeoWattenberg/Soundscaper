@@ -8,12 +8,13 @@ import {
 	createCurrentAudioEditorProject,
 } from '../src/common/editor/project-current.ts';
 
-function project() {
+function project(masterChannels = 2) {
 	return createCurrentAudioEditorProject({
 		id: 'normalized-delivery',
 		title: 'Normalized delivery',
 		now: '2026-08-17T00:00:00.000Z',
 		sampleRate: 48_000,
+		masterChannels,
 		tracks: [
 			{ type: 'audio', id: 'one', name: 'One' },
 			{ type: 'audio', id: 'two', name: 'Two' },
@@ -111,6 +112,27 @@ test('an unreadable target is refused at plan time, before anything renders', ()
 		() => createExportPlan(project(), { ...options, loudnessNormalization: 'loud' }),
 		/Unknown loudness normalization target/u,
 	);
+});
+
+test('immersive loudness work is refused by the plan while ordinary delivery remains available', () => {
+	const immersive = project(16);
+	const ordinary = createExportPlan(immersive, options);
+	assert.equal(ordinary.channelCount, 16, 'an immersive export without loudness work remains valid');
+
+	assert.throws(
+		() => createExportPlan(immersive, { ...options, loudnessNormalization: 'ebu-r128' }),
+		/loudness analysis supports at most 8 delivered channels.*downmix/iu,
+	);
+	assert.throws(
+		() => createExportPlan(immersive, { ...options, format: 'bwf', measureLoudness: true }),
+		/loudness analysis supports at most 8 delivered channels.*downmix/iu,
+	);
+
+	const downmix = createExportPlan(immersive, {
+		...options, channelMapping: 'stereo', loudnessNormalization: 'ebu-r128',
+	});
+	assert.equal(downmix.channelCount, 2);
+	assert.deepEqual(downmix.loudnessNormalization, { integratedLufs: -23, truePeakCeilingDb: -1 });
 });
 
 function authoredSevenPointOneProject() {

@@ -3,6 +3,7 @@ import {
 	findAudioClippingRegions,
 } from '../analysis.js';
 import { measureBextLoudness } from '../broadcast-loudness.ts';
+import { EBU_R128_MAXIMUM_CHANNELS } from '../ebu-r128.js';
 import { resolveAdmEbuChannelWeights } from '../loudness-channel-layout.ts';
 import type { DeliveryReport } from '../delivery-report.ts';
 import {
@@ -51,6 +52,7 @@ interface AnalysisProjectIdentity {
 	readonly id: string;
 	readonly revision: number;
 	readonly clips: readonly unknown[];
+	readonly masterChannels?: number;
 	readonly metadata?: Readonly<{ readonly adm?: unknown }>;
 }
 
@@ -150,6 +152,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			range.endFrame,
 		].join(':');
 		try {
+			assertAnalysisChannelAdmission(project);
 			const cached = await dependencies.loadAnalysis(key);
 			assertCurrent(task, projectToken);
 			if (cached?.result) {
@@ -185,6 +188,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const projectToken = dependencies.captureProject();
 		const task = begin(copy.analysisRendering);
 		try {
+			assertAnalysisChannelAdmission(dependencies.getProject());
 			const range = dependencies.getRange();
 			const { channels, sampleRate, result } = await renderAndAnalyze(scope, range, task, projectToken);
 			const report = type === 'spectrum'
@@ -217,6 +221,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 			return null;
 		}
 		try {
+			assertAnalysisChannelAdmission(dependencies.getProject());
 			const { channels, sampleRate, result } = await renderAndAnalyze(scope, selection, task, projectToken);
 			const rmsDb = Number(result.rmsDbfs);
 			const selections = {
@@ -270,6 +275,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const task = begin(copy.measuringLoudness);
 		const range = dependencies.getRange();
 		try {
+			assertAnalysisChannelAdmission(project);
 			if (!(range.endFrame > range.startFrame)) throw new RangeError(copy.timeSelectionRequired);
 			const rendered = await dependencies.renderAudio('master', range, task.signal);
 			assertCurrent(task, projectToken);
@@ -350,6 +356,18 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 
 	function remember(request: AnalysisRepeatRequest): void {
 		dependencies.state.lastAnalysisRequest = Object.freeze(request);
+	}
+}
+
+function assertAnalysisChannelAdmission(project: AnalysisProjectIdentity): void {
+	// Every analyzer renders through the project master, including track scope;
+	// reject its known width before a cache lookup or an offline render can hide
+	// the meter's narrower contract.
+	const channelCount = Number(project.masterChannels ?? 2);
+	if (Number.isSafeInteger(channelCount) && channelCount > EBU_R128_MAXIMUM_CHANNELS) {
+		throw new RangeError(
+			`Audio analysis supports at most ${String(EBU_R128_MAXIMUM_CHANNELS)} channels because its levels include EBU R 128 loudness; downmix the master before running an analyzer.`,
+		);
 	}
 }
 

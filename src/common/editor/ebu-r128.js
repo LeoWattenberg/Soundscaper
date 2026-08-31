@@ -1,6 +1,7 @@
 export const EBU_R128_TARGET_LUFS = -23;
 export const EBU_R128_TRUE_PEAK_LIMIT_DBTP = -1;
 export const EBU_R128_FLOOR_DB = -120;
+export const EBU_R128_MAXIMUM_CHANNELS = 8;
 
 const ABSOLUTE_GATE_LUFS = -70;
 const MOMENTARY_SECONDS = 0.4;
@@ -76,8 +77,8 @@ export function createEbuR128Meter(options = {}) {
 	if (!Number.isInteger(sampleRate) || sampleRate < 8_000) {
 		throw new RangeError('A valid EBU R 128 sample rate is required.');
 	}
-	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 8) {
-		throw new RangeError('EBU R 128 channel count must be from 1 to 8.');
+	if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > EBU_R128_MAXIMUM_CHANNELS) {
+		throw new RangeError(`EBU R 128 channel count must be from 1 to ${EBU_R128_MAXIMUM_CHANNELS}.`);
 	}
 	const weights = options.channelWeights || ebuChannelWeights(channelCount);
 	if (weights.length !== channelCount || weights.some((weight) => !Number.isFinite(weight) || weight < 0)) {
