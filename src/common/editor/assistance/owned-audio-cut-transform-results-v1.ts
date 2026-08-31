@@ -37,6 +37,7 @@ import { normalizeAssistanceTranscriptCleanupPreset } from './transcript-cleanup
 
 const SHA256 = /^[a-f\d]{64}$/u;
 const IDS = new Set<unknown>(ASSISTANCE_OWNED_AUDIO_CUT_TRANSFORM_IDS_V1);
+const MAXIMUM_CAPTION_TEXT_UNITS = 16_384 + ': '.length + 160;
 
 export function reviewAssistanceOwnedAudioCutTransformResultV1(
 	value: unknown,
@@ -126,7 +127,8 @@ function reviewCaptions(value: unknown): AssistanceCaptionsV1 {
 		});
 		return Object.freeze({
 			cueId: cue.cueId, startFrame, endFrame,
-			text: ownedText(cue.text, 16_544, `${label} text`), words: Object.freeze(words),
+			text: ownedText(cue.text, MAXIMUM_CAPTION_TEXT_UNITS, `${label} text`),
+			words: Object.freeze(words),
 		});
 	});
 	return Object.freeze({

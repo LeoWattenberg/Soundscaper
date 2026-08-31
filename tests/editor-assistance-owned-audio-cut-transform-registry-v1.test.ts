@@ -137,6 +137,27 @@ test('caption assembly re-admits transcript and alignment semantics into bounded
 	assert.deepEqual(empty.outputs.captions.cues, []);
 });
 
+test('caption assembly admits the longest producer-valid diarized title', () => {
+	const text = 't'.repeat(16_384);
+	const speaker = 's'.repeat(160);
+	const result = registry.run({
+		schemaVersion: 1,
+		transformId: 'assemble-captions',
+		settings: settings('transcribe-captions', {
+			recognizer: 'parakeet', language: 'auto', englishWhisperAlignment: 'off',
+		}),
+		inputs: {
+			transcript: transcript([{
+				startFrame: 0, endFrame: 48_000, text, speaker, words: [],
+			}]),
+			'word-alignment': null,
+		},
+	});
+
+	assert.equal(result.outputs.captions.cues[0]?.text, `${speaker}: ${text}`);
+	assert.equal(result.outputs.captions.cues[0]?.text.length, 16_546);
+});
+
 test('cleanup uses the exact authenticated preset while keeping every proposal unselected', () => {
 	const voiceActivity = {
 		schemaVersion: 1, sourceSampleRate: 48_000, sourceStartFrame: 0, sourceEndFrame: 96_000,
