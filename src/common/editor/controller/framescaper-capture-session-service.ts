@@ -390,8 +390,8 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 	}
 	function reportActiveFailure(error: unknown): void {
 		if (disposed || recoveryPromise || stopPromise) return;
-		recoveryPromise = recoverActive(error, 'encoder-failed');
-		void recoveryPromise.catch(() => undefined);
+		if (!['countdown', 'recording', 'paused', 'finalizing'].includes(machine.snapshot.phase)) return;
+		void recoverActive(error, 'encoder-failed').catch(() => undefined);
 	}
 	function recoverActive(error: unknown, code: CaptureFailure['code']): Promise<void> {
 		if (recoveryPromise) return recoveryPromise;

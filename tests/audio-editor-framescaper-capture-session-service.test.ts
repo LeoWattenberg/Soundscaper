@@ -322,6 +322,26 @@ test('an active encoder failure seals recovery and exact discard releases its or
 	await harness.service.dispose();
 });
 
+test('a late recorder failure after settlement cannot disable recovery for the next capture', async () => {
+	const harness = serviceHarness();
+	await harness.service.initialize();
+	await harness.service.actions.requestPreview(['camera']);
+	harness.service.actions.arm({ destination: 'timeline', countdownMs: 0 });
+	await harness.service.actions.start();
+	const lateFailure = harness.recorderFailure('camera');
+	await harness.service.actions.stop();
+	lateFailure(new Error('late recorder callback'));
+
+	await harness.service.actions.requestPreview(['camera']);
+	harness.service.actions.arm({ destination: 'timeline', countdownMs: 0 });
+	await harness.service.actions.start();
+	harness.failRecorder('camera', new Error('current encoder crashed'));
+	await harness.service.settled();
+
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 2);
+});
+
 test('dispose and settled join active recovery while its durable seal is pending', async () => {
 	const sealed = deferred<void>();
 	const harness = serviceHarness({ sealGate: sealed.promise });
@@ -560,6 +580,11 @@ function serviceHarness(options: Readonly<{
 			const fail = errors.get(role);
 			if (!fail) throw new Error(`Missing ${role} error sink.`);
 			fail(error);
+		},
+		recorderFailure: (role: CaptureSourceRole) => {
+			const fail = errors.get(role);
+			if (!fail) throw new Error(`Missing ${role} error sink.`);
+			return fail;
 		},
 		settled: () => service.settled(),
 	};
