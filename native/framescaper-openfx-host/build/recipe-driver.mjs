@@ -345,7 +345,7 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 			queue.push(included);
 		}
 	}
-	closure.sort(({ path: left }, { path: right }) => left.localeCompare(right));
+	closure.sort(({ path: left }, { path: right }) => left < right ? -1 : left > right ? 1 : 0);
 	return Object.freeze({
 		root: mediaRoot,
 		boostHeaderClosure,

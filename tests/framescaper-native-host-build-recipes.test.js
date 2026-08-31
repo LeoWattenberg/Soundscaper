@@ -135,6 +135,22 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 	}
 });
 
+test('OpenFX media-contract identity does not consult the ambient locale', (context) => {
+	const fixture = buildFixture(context, 'openfx', 'linux-x64');
+	const localeCompare = String.prototype.localeCompare;
+	try {
+		String.prototype.localeCompare = () => {
+			throw new Error('ambient locale ordering was consulted');
+		};
+		assert.match(
+			createFramescaperOpenFxHostBuildRecipe(fixture.options).mediaContractIdentity,
+			/^[a-f0-9]{64}$/u,
+		);
+	} finally {
+		String.prototype.localeCompare = localeCompare;
+	}
+});
+
 test('fake execution runs only the admitted phases once and never writes a payload claim', (context) => {
 	const runtime = `${process.platform}-${process.arch}`;
 	const mediaTarget = FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.find(({ hostRuntime }) => hostRuntime === runtime);
