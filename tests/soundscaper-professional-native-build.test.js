@@ -427,7 +427,7 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(cmake, /set\(CMAKE_OBJCXX_STANDARD_REQUIRED ON\)/u);
 	assert.match(cmake, /set\(CMAKE_OBJCXX_EXTENSIONS OFF\)/u);
 	assert.match(cmake, /elseif\(APPLE\)[\s\S]*macos_launcher\.mm[\s\S]*"-lproc"/u);
-	assert.match(cmake, /elseif\(WIN32\)[\s\S]*windows_launcher\.cpp[\s\S]*advapi32 userenv/u);
+	assert.match(cmake, /elseif\(WIN32\)[\s\S]*windows_launcher\.cpp[\s\S]*advapi32 onecoreuap userenv/u);
 	assert.match(mac, /#include <cstdint>/u);
 	assert.match(mac, /#include <utility>/u);
 	assert.match(windows, /#include <utility>/u);

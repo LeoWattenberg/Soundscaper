@@ -53,6 +53,27 @@ test('Windows opts the peer out of ambient all-application-package access', () =
 		/persistent-exact-user-and-less-privileged-appcontainer-intersection-policy/u);
 });
 
+test('Windows grants LPAC only the read-only registry capability required by SxS manifests', () => {
+	const authorityBody = /bool registryReadAuthority\(const std::wstring &profile\)\n\{([\s\S]*?)\n\}/u
+		.exec(SOURCE)?.[1] ?? '';
+	assert.match(SOURCE, /DeriveCapabilitySidsFromName\(L"registryRead"/u);
+	assert.match(authorityBody, /soundscaper-professional/u);
+	assert.match(authorityBody, /framescaper-openfx/u);
+	assert.doesNotMatch(authorityBody, /framescaper-media/u);
+	assert.match(SOURCE,
+		/registryReadAuthority\(values\.authorityProfile\)[\s\S]*SID_AND_ATTRIBUTES registryRead[\s\S]*SE_GROUP_ENABLED[\s\S]*SECURITY_CAPABILITIES capabilities/u);
+	assert.doesNotMatch(SOURCE, /L"(?:internetClient|internetClientServer|privateNetworkClientServer|lpacCom)"/u);
+	assert.match(SOURCE,
+		/DeleteProcThreadAttributeList\(attributes\)[\s\S]*LocalFree\(registryReadSid\)[\s\S]*FreeSid\(sid\)/u,
+		'the process attributes must release before the SIDs they reference');
+	assert.deepEqual(JSON.parse(PROFILE).capabilitiesByBrand, {
+		'framescaper-media': [],
+		'framescaper-openfx': ['registryRead'],
+		'soundscaper-professional': ['registryRead'],
+	});
+	assert.match(BROKER, /dynamic-plugin-brands-acl-scoped-registryRead-capability/u);
+});
+
 test('Windows exact grants satisfy both LPAC access-check principals', () => {
 	assert.match(SOURCE,
 		/OpenProcessToken\(GetCurrentProcess\(\), TOKEN_QUERY[\s\S]*GetTokenInformation\([^,]+, TokenUser/u);
