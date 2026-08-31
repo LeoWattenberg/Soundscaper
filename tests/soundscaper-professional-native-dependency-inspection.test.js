@@ -68,6 +68,22 @@ test('Windows dependency closure admits the exact JUCE system libraries', async 
 	}), /undeclared runtime dependency foreign\.dll/iu);
 });
 
+test('Windows dependency closure admits only the exact registry capability API set', async () => {
+	const artifacts = [{
+		path: 'payload/milestone5-native-isolation-launcher.exe', absolutePath: '/unused',
+	}];
+	const validate = (imports) => validateSoundscaperProfessionalNativeDependencyClosure({
+		target: 'win-x64', artifacts, runtimeArtifacts: [], root: '/candidate',
+		inspectDependencies: async () => ({
+			architecture: WINDOWS_ARCHITECTURE, imports, rpaths: [],
+		}),
+	});
+	const admitted = await validate(['api-ms-win-security-base-l1-2-2.DLL']);
+	assert.deepEqual(admitted[0].imports, ['api-ms-win-security-base-l1-2-2.DLL']);
+	await assert.rejects(validate(['api-ms-win-security-base-l1-2-1.dll']),
+		/undeclared runtime dependency api-ms-win-security-base-l1-2-1\.dll/iu);
+});
+
 test('Linux dependency closure admits only slash-free case-sensitive system SONAMEs', async () => {
 	const artifacts = [{
 		path: 'payload/soundscaper_professional_peer', absolutePath: '/unused',
