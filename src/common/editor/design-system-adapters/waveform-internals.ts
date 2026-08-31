@@ -252,8 +252,19 @@ export function prepareAudacityWaveformRendering(
 	};
 
 	if (mode !== 'summary') {
-		const firstSample = Math.max(0, Math.floor(visibleSourceStart));
-		const lastSample = Math.min(options.sourceDurationFrames - 1, Math.ceil(visibleSourceEnd));
+		const sourceLength = sourceChannels[0]?.length ?? 0;
+		const firstAvailableSample = options.reversed
+			? options.sourceStartFrame + options.sourceDurationFrames - options.sourceFrameOffset - sourceLength
+			: options.sourceFrameOffset - options.sourceStartFrame;
+		const lastAvailableSample = options.reversed
+			? options.sourceStartFrame + options.sourceDurationFrames - options.sourceFrameOffset - 1
+			: options.sourceFrameOffset + sourceLength - options.sourceStartFrame - 1;
+		const firstSample = Math.max(0, firstAvailableSample, Math.floor(visibleSourceStart));
+		const lastSample = Math.min(
+			options.sourceDurationFrames - 1,
+			lastAvailableSample,
+			Math.ceil(visibleSourceEnd),
+		);
 		return {
 			...common,
 			channels: sourceChannels.map((_, channel) => {

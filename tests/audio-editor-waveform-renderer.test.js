@@ -251,6 +251,21 @@ test('connecting-dot rendering includes the sample at the visible end boundary',
 	assert.deepEqual(context.calls.strokes.slice(1).map((path) => path[1][1]), [2, 4, 6, 8]);
 });
 
+test('connecting-dot rendering stays inside the exact supplied source window', () => {
+	const sourceWindow = Float32Array.of(3, 4, 5, 6);
+	const result = prepareBoundedWaveformWindow([sourceWindow], clip(12), {
+		startFrame: 3,
+		endFrame: 7,
+		sourceFrameOffset: 3,
+		maxSamples: 16,
+		pixelWidth: 8,
+	});
+
+	assert.equal(result.rendering.mode, 'connecting-dots');
+	assert.equal(result.rendering.channels[0].firstSample, 3);
+	assert.deepEqual([...result.rendering.channels[0].samples], [3, 4, 5, 6]);
+});
+
 test('stem rendering includes the end boundary and adds a sample head to each point', () => {
 	const source = Float32Array.from({ length: 8 }, (_, frame) => frame / 8);
 	const result = prepareBoundedWaveformWindow([source], clip(source.length), {
