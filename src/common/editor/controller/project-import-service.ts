@@ -472,7 +472,18 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		} catch (error) {
 			sourceBuffers.delete(sourceId);
 			sourcePeaks.delete(sourceId);
-			await store.deleteSource(sourceId);
+			const cleanupErrors: unknown[] = [];
+			try { await store.deleteAnalysis?.(peakCacheKey(sourceId)); }
+			catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			try { await store.deleteSource(sourceId); }
+			catch (cleanupError) { cleanupErrors.push(cleanupError); }
+			if (cleanupErrors.length) {
+				throw new AggregateError(
+					[error, ...cleanupErrors],
+					'Decoded audio import and rollback both failed.',
+					{ cause: error },
+				);
+			}
 			throw error;
 		}
 		warnEnvelope();

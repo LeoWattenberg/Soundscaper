@@ -83,6 +83,26 @@ test('audio imports create indexed tracks and clean persisted data after analysi
 	assert.equal(fixture.calls.includes('writer-abort'), true);
 });
 
+test('decoded audio rollback preserves the import failure and removes persisted peaks', async () => {
+	const fixture = createFixture();
+	const deletedAnalysis: string[] = [];
+	fixture.options.commitFails = true;
+	fixture.runtime.store.deleteAnalysis = async (key: string) => { deletedAnalysis.push(key); };
+	fixture.runtime.store.deleteSource = async () => { throw new Error('source cleanup failed'); };
+
+	await assert.rejects(
+		createProjectImportService(fixture.runtime).importFile(file('rollback.mp3', 'audio/mpeg')),
+		(error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.match(String(error.cause), /commit failed/u);
+			assert.match(String(error.errors[0]), /commit failed/u);
+			assert.match(String(error.errors[1]), /source cleanup failed/u);
+			return true;
+		},
+	);
+	assert.deepEqual(deletedAnalysis, ['peaks:source-1']);
+});
+
 test('incremental WAV imports stream PCM and roll back activation failures', async () => {
 	const fixture = createFixture();
 	fixture.options.incrementalDescriptor = {
