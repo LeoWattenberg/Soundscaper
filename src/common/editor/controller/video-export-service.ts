@@ -406,9 +406,7 @@ export function createEditorVideoExportAction(
 				} catch (error) {
 					const cancellation = directVideoCancellation(error);
 					if (cancellation) {
-						if (state.deliveryReport === plannedDeliveryReport) {
-							state.deliveryReport = previousDeliveryReport;
-						}
+					if (state.deliveryReport === plannedDeliveryReport) state.deliveryReport = previousDeliveryReport;
 						pendingDirectDestination = null;
 						return cancellation;
 					}
