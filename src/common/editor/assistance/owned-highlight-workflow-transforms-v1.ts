@@ -81,6 +81,7 @@ const REACTION_FIELDS = Object.freeze([
 const RANK_FIELDS = Object.freeze(['highlight-signals'] as const);
 const ASSEMBLE_FIELDS = Object.freeze(['highlight-candidates', 'editorial'] as const);
 const MAXIMUM_DUPLICATION_MULTIPLY_ADDS = 10_000_000;
+const MAXIMUM_TRANSCRIPT_EXCERPT_UTF16_UNITS = 8_192;
 
 interface VideoWindow {
 	readonly id: string;
@@ -527,8 +528,13 @@ function boundedTranscriptExcerpt(
 	const excerpt = ranges.filter((range) => overlaps(start, end, range.start, range.end))
 		.map(({ text }) => text.trim()).filter(Boolean).join(' ').trim();
 	if (excerpt === '') throw new TypeError('Transcript evidence requires admitted nonempty text.');
-	const characters = [...excerpt];
-	return characters.length <= 8_192 ? excerpt : characters.slice(0, 8_192).join('').trim();
+	if (excerpt.length <= MAXIMUM_TRANSCRIPT_EXCERPT_UTF16_UNITS) return excerpt;
+	let endOffset = MAXIMUM_TRANSCRIPT_EXCERPT_UTF16_UNITS;
+	const boundaryUnit = excerpt.charCodeAt(endOffset - 1);
+	const followingUnit = excerpt.charCodeAt(endOffset);
+	if (boundaryUnit >= 0xD800 && boundaryUnit <= 0xDBFF
+		&& followingUnit >= 0xDC00 && followingUnit <= 0xDFFF) endOffset -= 1;
+	return excerpt.slice(0, endOffset).trim();
 }
 
 function admittedCandidate<T>(

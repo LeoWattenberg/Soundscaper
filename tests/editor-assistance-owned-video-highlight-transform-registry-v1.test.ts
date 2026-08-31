@@ -427,6 +427,23 @@ test('highlight gathering drops a one-source-frame window without aborting valid
 	]);
 });
 
+test('highlight transcript excerpts honor the UTF-16 limit without splitting a surrogate pair', () => {
+	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
+	const inputs = highlightInputs();
+	const transcript = inputs.transcript!;
+	const longText = '😀'.repeat(4_100);
+	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
+		settings: HIGHLIGHT_SETTINGS, inputs: { ...inputs, transcript: { ...transcript,
+			transcript: { ...transcript.transcript, segments: [
+				{ ...transcript.transcript.segments[0]!, text: longText },
+				...transcript.transcript.segments.slice(1),
+			] },
+		} } }).outputs['highlight-signals'];
+	const excerpt = gathered.candidates.find(({ id }) => id === 'a')?.transcriptExcerpt;
+	assert.equal(excerpt?.length, 8_192);
+	assert.equal(excerpt, '😀'.repeat(4_096));
+});
+
 test('owned highlight signal review rejects malformed speechless availability', () => {
 	const registry = createAssistanceOwnedVideoHighlightTransformRegistryV1();
 	const gathered = registry.run({ schemaVersion: 1, transformId: 'gather-signals',
