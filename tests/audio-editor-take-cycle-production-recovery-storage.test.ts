@@ -100,7 +100,7 @@ test('a failed production stop settles and can retry project synchronization', a
 	});
 	const controller = await composition.start(recordingScope(fixture));
 
-	await assert.rejects(controller.stop(), /project synchronization failed/u);
+	await assert.rejects(async () => { await controller.stop(); }, /project synchronization failed/u);
 	assert.equal(controller.state, 'stopped');
 	await controller.stop();
 	assert.equal(controller.state, 'stopped');
