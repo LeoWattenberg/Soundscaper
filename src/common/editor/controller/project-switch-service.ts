@@ -194,6 +194,7 @@ export function createProjectSwitchService<
 		const featureRequirementsReadOnly = Boolean(featureRequirementsReport && !featureRequirementsReport.compatible);
 		let providerReplacement: SourceChunkProviderReplacement | null = null;
 		let providerReplacementFinalized = false;
+		let playbackActivationComplete = false;
 		// The session call's successful return is the activation authority boundary.
 		let targetSessionActivated = false;
 		let activeLock: ProjectLifecycleLock | null = null;
@@ -350,6 +351,7 @@ export function createProjectSwitchService<
 			await providerReplacement.commit();
 			runtime.lifetime.assertActive(token);
 			fallbackAdmission.assertCurrent(activeProject);
+			playbackActivationComplete = true;
 			await guard(openRecovery.deferRecordOpened(() => runtime.recordOpenedProject(projectId, guard)));
 			if (options.save && !runtime.state.readOnly) {
 				await guard(openRecovery.deferInitialSave(async () => {
@@ -402,7 +404,7 @@ export function createProjectSwitchService<
 				}
 			};
 			const failedTarget = targetSessionActivated
-				&& !providerReplacementFinalized && readyProjectId !== projectId;
+				&& !playbackActivationComplete && readyProjectId !== projectId;
 			const lifetimeDisposed = () => runtime.isDisposedError(error)
 				|| runtime.lifetime.signal.aborted;
 			const canPublishFailedTarget = () => failedTarget && !lifetimeDisposed();
