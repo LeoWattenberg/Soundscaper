@@ -14,9 +14,10 @@ export interface ApplicationMenuAccessKeyController {
 	onKeyDown(event: ApplicationMenuAccessKeyEvent): void;
 	onKeyUp(event: ApplicationMenuAccessKeyEvent): void;
 	cancel(): void;
+	updateOptions(options: ApplicationMenuAccessKeyOptions): void;
 }
 
-interface ApplicationMenuAccessKeyOptions {
+export interface ApplicationMenuAccessKeyOptions {
 	focusFileMenu(): void;
 	openMenuByAccessKey(key: string): boolean;
 }
@@ -65,9 +66,10 @@ function normalizeAccessKey(value: string): string | null {
 
 /** Coordinate the platform menubar access keys without consuming editor shortcuts. */
 export function createApplicationMenuAccessKeyController(
-	options: ApplicationMenuAccessKeyOptions,
+	initialOptions: ApplicationMenuAccessKeyOptions,
 ): ApplicationMenuAccessKeyController {
 	let altPress: AltPressState = 'idle';
+	let options = initialOptions;
 
 	const cancel = (): void => {
 		altPress = 'idle';
@@ -121,5 +123,10 @@ export function createApplicationMenuAccessKeyController(
 		options.focusFileMenu();
 	};
 
-	return { onKeyDown, onKeyUp, cancel };
+	return {
+		onKeyDown,
+		onKeyUp,
+		cancel,
+		updateOptions(nextOptions) { options = nextOptions; },
+	};
 }

@@ -178,6 +178,30 @@ test('standalone Alt reaches File even when focus begins or ends in an edited co
 	assert.deepEqual(focused, ['file', 'file']);
 });
 
+test('updating menubar callbacks across a render preserves an armed Alt press', () => {
+	const focused: string[] = [];
+	const controller = createApplicationMenuAccessKeyController({
+		focusFileMenu: () => { focused.push('stale'); },
+		openMenuByAccessKey: () => false,
+	});
+	controller.onKeyDown(keyEvent('Alt', { altKey: true }).event);
+	const updateOptions = (controller as unknown as {
+		updateOptions(options: {
+			focusFileMenu(): void;
+			openMenuByAccessKey(key: string): boolean;
+		}): void;
+	}).updateOptions;
+	assert.equal(typeof updateOptions, 'function');
+	updateOptions({
+		focusFileMenu: () => { focused.push('current'); },
+		openMenuByAccessKey: () => false,
+	});
+
+	controller.onKeyUp(keyEvent('Alt').event);
+
+	assert.deepEqual(focused, ['current']);
+});
+
 test('the React menubar owns symmetric desktop-only access-key listeners', async () => {
 	const source = await readFile(new URL(
 		'../src/common/editor/ui/AudioEditorMenuBar.jsx',
@@ -185,6 +209,8 @@ test('the React menubar owns symmetric desktop-only access-key listeners', async
 	), 'utf8');
 
 	assert.match(source, /createApplicationMenuAccessKeyController/u);
+	assert.match(source, /const \[accessKeys\] = useState\(\(\) => createApplicationMenuAccessKeyController/u);
+	assert.match(source, /\}, \[accessKeys, menuAccessKeysEnabled\]\);/u);
 	assert.match(source, /desktopChromeSupportsMenuAccessKeys\(desktopChrome\?\.platform\)/u);
 	assert.match(source, /addEventListener\('keydown', accessKeys\.onKeyDown, true\)/u);
 	assert.match(source, /addEventListener\('keyup', accessKeys\.onKeyUp, true\)/u);

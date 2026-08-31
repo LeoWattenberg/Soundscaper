@@ -44,6 +44,10 @@ export default function AudioEditorMenuBar({
 	const { activeProfile } = useAccessibilityProfile();
 	const menuButtonsRef = useRef([]);
 	const openMenuRef = useRef(null);
+	const [accessKeys] = useState(() => createApplicationMenuAccessKeyController({
+		focusFileMenu: () => undefined,
+		openMenuByAccessKey: () => false,
+	}));
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [openMenu, setOpenMenu] = useState(null);
 	openMenuRef.current = openMenu;
@@ -123,20 +127,20 @@ export default function AudioEditorMenuBar({
 		button?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 		if (open) openMenuAt(nextIndex, { keyboard: true });
 	}, [openMenu, openMenuAt, orderedMenus.length]);
+	accessKeys.updateOptions({
+		focusFileMenu: () => focusMenuButton(0, { open: false }),
+		openMenuByAccessKey: (key) => {
+			const match = menuAccessKeys.find((candidate) => candidate.key === key);
+			if (!match) return false;
+			const index = orderedMenus.findIndex((menu) => menu.id === match.menuId);
+			if (index < 0) return false;
+			openMenuAt(index, { keyboard: true });
+			return true;
+		},
+	});
 
 	useEffect(() => {
-		if (!desktopChromeSupportsMenuAccessKeys(desktopChrome?.platform)) return undefined;
-		const accessKeys = createApplicationMenuAccessKeyController({
-			focusFileMenu: () => focusMenuButton(0, { open: false }),
-			openMenuByAccessKey: (key) => {
-				const match = menuAccessKeys.find((candidate) => candidate.key === key);
-				if (!match) return false;
-				const index = orderedMenus.findIndex((menu) => menu.id === match.menuId);
-				if (index < 0) return false;
-				openMenuAt(index, { keyboard: true });
-				return true;
-			},
-		});
+		if (!menuAccessKeysEnabled) return undefined;
 		document.addEventListener('keydown', accessKeys.onKeyDown, true);
 		document.addEventListener('keyup', accessKeys.onKeyUp, true);
 		window.addEventListener('blur', accessKeys.cancel);
@@ -146,7 +150,7 @@ export default function AudioEditorMenuBar({
 			window.removeEventListener('blur', accessKeys.cancel);
 			accessKeys.cancel();
 		};
-	}, [desktopChrome?.platform, focusMenuButton, menuAccessKeys, openMenuAt, orderedMenus]);
+	}, [accessKeys, menuAccessKeysEnabled]);
 
 	useEffect(() => {
 		if (!openMenu) return undefined;
