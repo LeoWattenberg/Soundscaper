@@ -88,12 +88,9 @@ test('failed explicit native closes remain owned so workspace teardown can retry
 test('a renderer vendor-window close failure is not replaced by the main close result', async () => {
 	const fixture = rendererFixture();
 	const renderer = createRenderer(fixture);
-	await assert.rejects(
-		() => renderer.bridge.closeNativePluginVendorUi({
-			instanceId: 'plugin-instance-1', windowHandleId: 'invalid/window',
-		}),
-		/vendor window ID is invalid/iu,
-	);
+	await assert.rejects(() => renderer.bridge.closeNativePluginVendorUi({
+		instanceId: 'plugin-instance-1', windowHandleId: 'invalid/window',
+	}), /vendor window ID is invalid/iu);
 	await renderer.dispose();
 });
 
