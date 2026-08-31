@@ -218,6 +218,38 @@ test('a repeatedly rejected pending release does not starve unrelated open maint
 	}]);
 });
 
+test('a successful project save retries cleanup left pending by an earlier lifecycle operation', async () => {
+	let attempts = 0;
+	const fixture = createFixture({
+		release: async (reference) => {
+			attempts += 1;
+			if (attempts === 1) throw new Error('planned release failure');
+			fixture.releases.push(reference);
+			return true;
+		},
+	});
+	const reference = {
+		kind: 'audio' as const,
+		locatorId: LOCATOR_ID,
+		locatorRevision: AUDIO_REVISION,
+	};
+	assert.equal(await fixture.lifecycle.maintainOpenedProject('project-a', async () => ({
+		durableSourceReferences: Object.freeze([]),
+		removedLocatorReferences: Object.freeze([reference]),
+		settledTransientBindings: Object.freeze([]),
+	})), true);
+	assert.equal(attempts, 1);
+
+	assert.equal(await fixture.lifecycle.saveProject(
+		'project-a',
+		async () => 'saved',
+		async () => null,
+	), 'saved');
+
+	assert.equal(attempts, 2);
+	assert.deepEqual(fixture.releases, [reference]);
+});
+
 test('clear releases only after the local binding commit and never owns external bodies', async () => {
 	const fixture = createFixture();
 	await seedBinding(fixture, 'project-a', 'audio-a', 'audio');

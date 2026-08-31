@@ -178,9 +178,8 @@ export class LinkedOriginalLifecycleCoordinator {
 				const result = await operation(maintain);
 				await maintain();
 				return result;
-			} catch (error) {
+			} finally {
 				await this.#drainPending('retry');
-				throw error;
 			}
 		});
 	}
