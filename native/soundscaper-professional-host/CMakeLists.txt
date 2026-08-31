@@ -271,6 +271,16 @@ set_target_properties(soundscaper_professional_peer PROPERTIES
 	OUTPUT_NAME "soundscaper_professional_peer"
 )
 install(TARGETS soundscaper_professional_peer RUNTIME DESTINATION .)
+if(APPLE AND BUILD_TESTING)
+	# Both executables close over the Release JUCE archive. Keep their final LTO
+	# links serial on the authenticated Ninja candidate runner instead of making
+	# them contend for the same four cores and memory.
+	set_property(GLOBAL APPEND PROPERTY JOB_POOLS soundscaper_apple_juce_lto_link=1)
+	set_property(TARGET
+		soundscaper_professional_peer
+		soundscaper_juce_message_dispatcher_mac_self_test
+		PROPERTY JOB_POOL_LINK soundscaper_apple_juce_lto_link)
+endif()
 
 # Persistent delivery runs in the Electron main process but keeps filesystem
 # paths and publication handles inside this one-session framed native peer.

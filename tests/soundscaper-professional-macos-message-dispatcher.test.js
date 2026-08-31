@@ -60,5 +60,8 @@ test('macOS pumps JUCE on the main CFRunLoop while framed RPC runs on a worker',
 	assert.match(cmake,
 		/APPLE[\s\S]*juce_message_dispatcher_mac\.mm[\s\S]*soundscaper_juce_message_dispatcher_mac_self_test[\s\S]*TIMEOUT 15/u);
 	assert.match(cmake,
+		/set_property\(GLOBAL APPEND PROPERTY JOB_POOLS soundscaper_apple_juce_lto_link=1\)[\s\S]*soundscaper_professional_peer[\s\S]*soundscaper_juce_message_dispatcher_mac_self_test[\s\S]*JOB_POOL_LINK soundscaper_apple_juce_lto_link/u,
+		'the Ninja mac build must not execute both full JUCE LTO links concurrently');
+	assert.match(cmake,
 		/soundscaper_professional_plugin PRIVATE "-framework CoreFoundation"/u);
 });
