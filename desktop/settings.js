@@ -26,6 +26,7 @@ const DEFAULTS = Object.freeze({
 const MAX_MODELS_DIRECTORY_LENGTH = 4096;
 const MAX_FFMPEG_EXECUTABLE_PATH_LENGTH = 4096;
 const MAX_FFMPEG_VERSION_LENGTH = 128;
+const MAX_NATIVE_AUDIO_CALIBRATION_MILLISECONDS = 2_000;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 
 /**
@@ -166,10 +167,14 @@ export class DesktopSettingsStore {
 	async persistNativeAudioCalibration(value) {
 		const identity = nativeAudioCalibrationIdentity(value?.identity);
 		const offsetFrames = boundedInteger(value?.offsetFrames, 0, 1_048_576, 'calibration frame offset');
+		const offsetMilliseconds = offsetFrames * 1000 / identity.sampleRate;
+		if (offsetMilliseconds > MAX_NATIVE_AUDIO_CALIBRATION_MILLISECONDS) {
+			throw new RangeError('Native audio calibration exceeds the durable 2,000 ms bound.');
+		}
 		const key = nativeAudioCalibrationKey(identity);
 		const entry = Object.freeze({
 			identity, key,
-			offsetMilliseconds: offsetFrames * 1000 / identity.sampleRate,
+			offsetMilliseconds,
 			measuredAtEpochMs: Date.now(),
 		});
 		const settings = await this.#update((current) => ({
@@ -389,7 +394,7 @@ function nativeAudioCalibrations(value) {
 			const key = nativeAudioCalibrationKey(identity);
 			if (candidate?.key !== key || typeof candidate.offsetMilliseconds !== 'number'
 				|| !Number.isFinite(candidate.offsetMilliseconds) || candidate.offsetMilliseconds < 0
-				|| candidate.offsetMilliseconds > 2_000) continue;
+				|| candidate.offsetMilliseconds > MAX_NATIVE_AUDIO_CALIBRATION_MILLISECONDS) continue;
 			const measuredAtEpochMs = boundedInteger(candidate.measuredAtEpochMs, 0, Number.MAX_SAFE_INTEGER, 'calibration time');
 			const entry = Object.freeze({ identity, key, offsetMilliseconds: candidate.offsetMilliseconds, measuredAtEpochMs });
 			const previous = admitted.get(key);

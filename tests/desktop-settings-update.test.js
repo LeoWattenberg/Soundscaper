@@ -198,6 +198,28 @@ test('native audio calibration and route preferences persist only for their exac
 	}), /JACK/iu);
 });
 
+test('native audio calibration refuses values the durable loader cannot restore', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-native-audio-calibration-bound-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const filePath = join(root, 'settings.json');
+	const identity = {
+		inputDeviceId: 'native:wasapi:in:device-1',
+		outputDeviceId: 'native:wasapi:out:device-1',
+		backend: 'wasapi', mode: 'exclusive', sampleRate: 48_000, bufferFrames: 256,
+	};
+	const settings = new DesktopSettingsStore(filePath);
+	await settings.load(['en']);
+
+	await assert.rejects(
+		() => settings.persistNativeAudioCalibration({ identity, offsetFrames: 96_001 }),
+		/calibration.*2,000|calibration.*bound/iu,
+	);
+	await settings.persistNativeAudioCalibration({ identity, offsetFrames: 96_000 });
+	const reloaded = new DesktopSettingsStore(filePath);
+	await reloaded.load(['en']);
+	assert.equal(reloaded.resolveNativeAudioCalibration(identity), 96_000);
+});
+
 test('semantic release selection respects preview and stable channels', () => {
 	assert.equal(compareVersions('1.0.0-beta.2', '1.0.0-beta.1'), 1);
 	assert.equal(compareVersions('1.0.0', '1.0.0-beta.9'), 1);
