@@ -193,6 +193,34 @@ function edge(
 		enabled: true, channelMap: [], ...overrides };
 }
 
+test('shared output reachability stays linear across many tracks and routing vertices', () => {
+	const size = 256;
+	const tracks = Array.from({ length: size }, (_value, index) => ({ id: `track-${String(index)}` }));
+	const nodes = Array.from({ length: size }, (_value, index) => strip(`shared-${String(index)}`));
+	const graph = {
+		schemaVersion: 1,
+		groups: nodes, sends: [], cues: [], vcas: [],
+		outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
+		edges: [
+			...tracks.map((track, index) => edge(
+				`track-shared-${String(index)}`,
+				{ kind: 'track', id: track.id },
+				{ kind: 'mixer-node', id: 'shared-0' },
+			)),
+			...nodes.slice(0, -1).map((_node, index) => edge(
+				`shared-link-${String(index)}`,
+				{ kind: 'mixer-node', id: `shared-${String(index)}` },
+				{ kind: 'mixer-node', id: `shared-${String(index + 1)}` },
+			)),
+			edge('shared-master', { kind: 'mixer-node', id: `shared-${String(size - 1)}` }, { kind: 'master' }),
+			edge('shared-output', { kind: 'master' }, { kind: 'output', id: 'main' }),
+		],
+	};
+	const startedAt = performance.now();
+	assert.equal(validateMixerGraphV21(graph, { audioTracks: tracks }), true);
+	assert.ok(performance.now() - startedAt < 500, 'reachability traverses the shared graph once');
+});
+
 test('channel maps are bounded by the destination width and the source width', () => {
 	const base = graphWithGroups();
 	const withMap = (id: string, channelMap: readonly number[]) => ({

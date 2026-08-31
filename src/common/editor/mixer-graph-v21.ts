@@ -408,13 +408,18 @@ export function validateMixerGraphV21(
 	}
 	const edgeIds = new Set<string>()
 	const adjacency = new Map<string, Set<string>>()
+	const routingPredecessors = new Map<string, Set<string>>()
+	const outputReachable = new Set<string>()
 	const outputIncoming = new Map<string, number>()
 	const vertices = [
 		...Array.from(trackIds, (id) => `track:${id}`),
 		...Array.from(nodeById.keys(), (id) => `mixer-node:${id}`),
 		'master',
 	]
-	for (const vertex of vertices) adjacency.set(vertex, new Set<string>())
+	for (const vertex of vertices) {
+		adjacency.set(vertex, new Set<string>())
+		routingPredecessors.set(vertex, new Set<string>())
+	}
 	const masterWidth = Number.isSafeInteger(context.masterChannels) && (context.masterChannels as number) >= 1
 		? Math.min(context.masterChannels as number, 32)
 		: undefined
@@ -482,6 +487,10 @@ export function validateMixerGraphV21(
 		}
 		const destination = destinationKey(edge.destination)
 		if (destination !== null) adjacency.get(source)?.add(destination)
+		if (edge.kind !== 'sidechain') {
+			if (destination === null) outputReachable.add(source)
+			else routingPredecessors.get(destination)?.add(source)
+		}
 		if (edge.destination.kind === 'output' && edge.kind !== 'sidechain') {
 			outputIncoming.set(edge.destination.id, (outputIncoming.get(edge.destination.id) ?? 0) + 1)
 		}
@@ -492,24 +501,17 @@ export function validateMixerGraphV21(
 		}
 	}
 	assertAcyclicRoutingV21(vertices, adjacency, 'mixer graph contains a routing cycle')
-	const reachesOutput = (origin: string): boolean => {
-		const pending = [origin]
-		const seen = new Set<string>()
-		while (pending.length > 0) {
-			const current = pending.pop() as string
-			if (seen.has(current)) continue
-			seen.add(current)
-			for (const edge of graph.edges) {
-				if (!edge.enabled || edge.kind === 'sidechain' || endpointKey(edge.source) !== current) continue
-				if (edge.destination.kind === 'output') return true
-				const next = destinationKey(edge.destination)
-				if (next !== null) pending.push(next)
-			}
+	const pending = [...outputReachable]
+	while (pending.length > 0) {
+		const current = pending.pop() as string
+		for (const source of routingPredecessors.get(current) ?? []) {
+			if (outputReachable.has(source)) continue
+			outputReachable.add(source)
+			pending.push(source)
 		}
-		return false
 	}
 	for (const trackId of trackIds) {
-		if (!reachesOutput(`track:${trackId}`)) throw new TypeError(`audio track ${trackId} cannot reach an output`)
+		if (!outputReachable.has(`track:${trackId}`)) throw new TypeError(`audio track ${trackId} cannot reach an output`)
 	}
 	const vcaIds = new Set<string>()
 	for (const vca of graph.vcas) {
