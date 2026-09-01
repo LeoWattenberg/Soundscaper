@@ -24,6 +24,36 @@ export type TimeCodeFormat =
   | 'beats:bars'
   | 'Hz';
 
+export type TimeCodeFormatDomain = 'time' | 'frequency';
+
+export interface TimeCodeFormatOption {
+  readonly format: TimeCodeFormat;
+  readonly label: string;
+}
+
+const TIME_FORMAT_OPTIONS: readonly TimeCodeFormatOption[] = Object.freeze([
+  { format: 'dd:hh:mm:ss', label: 'dd:hh:mm:ss' },
+  { format: 'hh:mm:ss', label: 'hh:mm:ss' },
+  { format: 'hh:mm:ss+hundredths', label: 'hh:mm:ss + hundredths' },
+  { format: 'hh:mm:ss+milliseconds', label: 'hh:mm:ss + milliseconds' },
+  { format: 'hh:mm:ss+samples', label: 'hh:mm:ss + samples' },
+  { format: 'hh:mm:ss+frames', label: 'hh:mm:ss + frames (24fps)' },
+  { format: 'samples', label: 'samples' },
+  { format: 'seconds', label: 'seconds' },
+  { format: 'seconds+milliseconds', label: 'seconds + milliseconds' },
+  { format: 'film-frames', label: 'film frames (24fps)' },
+  { format: 'beats:bars', label: 'beats:bars' },
+]);
+const FREQUENCY_FORMAT_OPTIONS: readonly TimeCodeFormatOption[] = Object.freeze([
+  { format: 'Hz', label: 'Hz' },
+]);
+
+export function timeCodeFormatOptionsForDomain(
+  domain: TimeCodeFormatDomain,
+): readonly TimeCodeFormatOption[] {
+  return domain === 'frequency' ? FREQUENCY_FORMAT_OPTIONS : TIME_FORMAT_OPTIONS;
+}
+
 export interface TimeCodeUnit {
   value: string;
   maxLength: number;
@@ -49,6 +79,8 @@ export interface TimeCodeProps {
    * @default 'hh:mm:ss'
    */
   format?: TimeCodeFormat;
+  /** Value domain used to constrain the format selector. */
+  formatDomain?: TimeCodeFormatDomain;
   /**
    * Sample rate for sample-based formats
    * @default 44100
@@ -110,6 +142,7 @@ export function TimeCode({
   ariaDescribedBy,
   value,
   format = 'hh:mm:ss',
+  formatDomain = format === 'Hz' ? 'frequency' : 'time',
   sampleRate = 44100,
   frameRate = 24,
   onChange,
@@ -120,6 +153,7 @@ export function TimeCode({
   className = '',
 }: TimeCodeProps) {
   const { theme } = useTheme();
+  const formatOptions = timeCodeFormatOptionsForDomain(formatDomain);
   const [isEditing, setIsEditing] = useState(false);
   const [editingDigitIndex, setEditingDigitIndex] = useState<number | null>(null);
   const [hoverDigitIndex, setHoverDigitIndex] = useState<number | null>(null);
@@ -497,66 +531,12 @@ export function TimeCode({
             y={menuPosition.y}
             autoFocus={menuOpenedViaKeyboard}
           >
-            <ContextMenuItem
-              label="dd:hh:mm:ss"
-              checked={format === 'dd:hh:mm:ss'}
-              onClick={() => handleFormatSelect('dd:hh:mm:ss')}
-            />
-            <ContextMenuItem
-              label="hh:mm:ss"
-              checked={format === 'hh:mm:ss'}
-              onClick={() => handleFormatSelect('hh:mm:ss')}
-            />
-            <ContextMenuItem
-              label="hh:mm:ss + hundredths"
-              checked={format === 'hh:mm:ss+hundredths'}
-              onClick={() => handleFormatSelect('hh:mm:ss+hundredths')}
-            />
-            <ContextMenuItem
-              label="hh:mm:ss + milliseconds"
-              checked={format === 'hh:mm:ss+milliseconds'}
-              onClick={() => handleFormatSelect('hh:mm:ss+milliseconds')}
-            />
-            <ContextMenuItem
-              label="hh:mm:ss + samples"
-              checked={format === 'hh:mm:ss+samples'}
-              onClick={() => handleFormatSelect('hh:mm:ss+samples')}
-            />
-            <ContextMenuItem
-              label="hh:mm:ss + frames (24fps)"
-              checked={format === 'hh:mm:ss+frames'}
-              onClick={() => handleFormatSelect('hh:mm:ss+frames')}
-            />
-            <ContextMenuItem
-              label="samples"
-              checked={format === 'samples'}
-              onClick={() => handleFormatSelect('samples')}
-            />
-            <ContextMenuItem
-              label="seconds"
-              checked={format === 'seconds'}
-              onClick={() => handleFormatSelect('seconds')}
-            />
-            <ContextMenuItem
-              label="seconds + milliseconds"
-              checked={format === 'seconds+milliseconds'}
-              onClick={() => handleFormatSelect('seconds+milliseconds')}
-            />
-            <ContextMenuItem
-              label="film frames (24fps)"
-              checked={format === 'film-frames'}
-              onClick={() => handleFormatSelect('film-frames')}
-            />
-            <ContextMenuItem
-              label="beats:bars"
-              checked={format === 'beats:bars'}
-              onClick={() => handleFormatSelect('beats:bars')}
-            />
-            <ContextMenuItem
-              label="Hz"
-              checked={format === 'Hz'}
-              onClick={() => handleFormatSelect('Hz')}
-            />
+            {formatOptions.map((option) => <ContextMenuItem
+              key={option.format}
+              label={option.label}
+              checked={format === option.format}
+              onClick={() => handleFormatSelect(option.format)}
+            />)}
           </ContextMenu>
         </>
       )}

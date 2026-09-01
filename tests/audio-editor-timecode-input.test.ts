@@ -10,6 +10,8 @@ import {
 	timeCodeSecondsFromEditorValue,
 	timeCodeSecondsToEditorValue,
 } from '../src/common/editor/ui/AudioEditorTimeCodeInput.tsx';
+import { timeCodeFormatOptionsForDomain } from
+	'../vendor/audacity-design-system/components/src/TimeCode/TimeCode.tsx';
 
 test('timecode input converts seconds, samples, and frames through their owning rates', () => {
 	assert.equal(timeCodeSecondsFromEditorValue(1.25, 'seconds', 48_000), 1.25);
@@ -45,4 +47,11 @@ test('timecode input resolves project sample and sequence frame rates with safe 
 		sequences: [{ id: 'a', rate: { num: 24, den: 1 } }, { id: 'b', rate: { num: 30_000, den: 1_001 } }],
 	}), 30_000 / 1_001);
 	assert.equal(audioEditorProjectFrameRate({ sequences: [] }), 24);
+});
+
+test('timecode dropdown domains keep Hz exclusive to frequencies', () => {
+	const timeFormats = timeCodeFormatOptionsForDomain('time').map(({ format }) => format);
+	const frequencyFormats = timeCodeFormatOptionsForDomain('frequency').map(({ format }) => format);
+	assert.equal(timeFormats.includes('Hz'), false);
+	assert.deepEqual(frequencyFormats, ['Hz']);
 });

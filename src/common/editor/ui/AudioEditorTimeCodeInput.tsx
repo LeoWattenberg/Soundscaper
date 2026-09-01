@@ -88,6 +88,7 @@ export default function AudioEditorTimeCodeInput({
 			ariaDescribedBy={describedBy}
 			value={timeCodeSecondsFromEditorValue(Math.abs(normalizedValue), unit, normalizedRate)}
 			format={format}
+			formatDomain="time"
 			sampleRate={unit === 'samples' ? normalizedRate : DEFAULT_SAMPLE_RATE}
 			frameRate={unit === 'frames' ? normalizedRate : DEFAULT_FRAME_RATE}
 			showFormatSelector={showFormatSelector}

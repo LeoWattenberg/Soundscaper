@@ -55,6 +55,16 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(dialog).toBeHidden();
 	});
 
+	test('keeps frequency units out of temporal format menus', async ({ page }) => {
+		const editor = await bootEditor(page);
+		await editor.locator('[data-time-display] .timecode__format-button').click();
+		const menu = page.locator('.context-menu').filter({
+			has: page.getByRole('menuitem', { name: 'seconds', exact: true }),
+		});
+		await expect(menu).toBeVisible();
+		await expect(menu.getByRole('menuitem', { name: 'Hz', exact: true })).toHaveCount(0);
+	});
+
 	test('offers Tone waveforms and amplitude endpoints in the Chirp generator', async ({ page }) => {
 		const editor = await bootEditor(page);
 		await chooseCommand(page, editor, 'Generate', 'Chirp');
