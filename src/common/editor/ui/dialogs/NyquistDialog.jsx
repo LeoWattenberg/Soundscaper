@@ -3,6 +3,7 @@ import { Button } from '@soundscaper/design-system/Button';
 
 import { getNyquistPlugin, loadNyquistPluginSource } from '../../nyquist/plugin-registry.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 
 export default function NyquistDialog({ controller, snapshot, copy, target, run, onClose }) {
 	const plugin = target?.pluginId ? getNyquistPlugin(target.pluginId) : null;
@@ -136,6 +137,7 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 							key={control.variable || `text-${index}`}
 							control={control}
 							value={control.variable ? controls[control.variable] : null}
+							sampleRate={snapshot.project?.sampleRate || 48_000}
 							disabled={processing}
 							onChange={(value) => control.variable && setControls((current) => ({ ...current, [control.variable]: value }))}
 						/>)}
@@ -158,7 +160,7 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 	);
 }
 
-function NyquistControl({ control, value, disabled, onChange }) {
+function NyquistControl({ control, value, sampleRate, disabled, onChange }) {
 	if (control.kind === 'text') return <p className="kw-audio-editor__nyquist-control-note">{control.label}</p>;
 	if (control.kind === 'choice') return (
 		<label className="kw-audio-editor-dialog__field">
@@ -175,10 +177,21 @@ function NyquistControl({ control, value, disabled, onChange }) {
 		</label>
 	);
 	const integer = control.type === 'int' || control.type === 'int-text';
+	const timeUnit = nyquistTimeUnit(control.unit);
 	return (
 		<label className="kw-audio-editor-dialog__field">
 			<span>{control.label}{control.unit ? ` — ${control.unit}` : ''}</span>
-			<input
+			{timeUnit ? <AudioEditorTimeCodeInput
+				label={control.label}
+				value={Number(value ?? control.defaultValue ?? 0)}
+				unit={timeUnit}
+				rate={sampleRate}
+				format={timeUnit === 'samples' ? 'samples' : 'hh:mm:ss+milliseconds'}
+				disabled={disabled}
+				minimum={Number.isFinite(control.min) ? control.min : 0}
+				maximum={Number.isFinite(control.max) ? control.max : undefined}
+				onChange={(next) => onChange(integer ? Math.round(next) : next)}
+			/> : <input
 				type="number"
 				value={String(value ?? control.defaultValue ?? 0)}
 				disabled={disabled}
@@ -186,9 +199,16 @@ function NyquistControl({ control, value, disabled, onChange }) {
 				max={Number.isFinite(control.max) ? control.max : undefined}
 				step={integer ? 1 : 'any'}
 				onChange={(event) => onChange(integer ? Math.round(Number(event.currentTarget.value)) : Number(event.currentTarget.value))}
-			/>
+			/>}
 		</label>
 	);
+}
+
+function nyquistTimeUnit(unit) {
+	if (unit === 's' || unit === 'sec' || unit === 'seconds') return 'seconds';
+	if (unit === 'ms' || unit === 'milliseconds') return 'milliseconds';
+	if (unit === 'samples') return 'samples';
+	return null;
 }
 
 function nyquistControlDefaults(plugin) {

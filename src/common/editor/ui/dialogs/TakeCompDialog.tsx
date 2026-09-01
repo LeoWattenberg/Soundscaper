@@ -6,11 +6,13 @@ import '../audio-editor-design-system/26-take-comp.css';
 
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput, {
+	audioEditorProjectSampleRate,
+} from '../AudioEditorTimeCodeInput.tsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createTakeCompDialogModel,
-	readTakeCompNumberEntry,
 	takeCompDialogDraftIdentity,
 	type TakeCompDialogGroupModel,
 } from '../take-comp-dialog-model.ts';
@@ -62,6 +64,7 @@ export default function TakeCompDialog({
 	onClose,
 }: TakeCompDialogProps) {
 	const projectId = projectIdOf(snapshot.project);
+	const sampleRate = audioEditorProjectSampleRate(snapshot.project);
 	const firstModel = useMemo(() => createTakeCompDialogModel({
 		productId, project: snapshot.project, snapshot,
 	}), [productId, snapshot]);
@@ -186,6 +189,7 @@ export default function TakeCompDialog({
 				{group && <TakeGroupEditor
 					group={group}
 					copy={copy}
+					sampleRate={sampleRate}
 					disabled={disabled}
 					takeId={takeId}
 					onTakeChange={setTakeId}
@@ -249,6 +253,7 @@ export default function TakeCompDialog({
 interface TakeGroupEditorProps {
 	readonly group: TakeCompDialogGroupModel;
 	readonly copy: Readonly<Record<string, string>>;
+	readonly sampleRate: number;
 	readonly disabled: boolean;
 	readonly takeId: string | null;
 	readonly promotionStart: number;
@@ -300,8 +305,8 @@ function TakeGroupEditor(props: TakeGroupEditorProps) {
 			<legend>{copy.takeCompPromotion}</legend>
 			<div className="audio-editor-take-comp__promotion">
 				<button type="button" onClick={props.onPromoteAll}>{copy.takeCompPromoteAll}</button>
-				<NumberField label={copy.takeCompRangeStart} value={props.promotionStart} minimum={group.startSample} maximum={group.endSample - 1} onChange={props.onPromotionStart} />
-				<NumberField label={copy.takeCompRangeEnd} value={props.promotionEnd} minimum={group.startSample + 1} maximum={group.endSample} onChange={props.onPromotionEnd} />
+				<NumberField label={copy.takeCompRangeStart} value={props.promotionStart} sampleRate={props.sampleRate} minimum={group.startSample} maximum={group.endSample - 1} onChange={props.onPromotionStart} />
+				<NumberField label={copy.takeCompRangeEnd} value={props.promotionEnd} sampleRate={props.sampleRate} minimum={group.startSample + 1} maximum={group.endSample} onChange={props.onPromotionEnd} />
 				<button type="button" disabled={!props.rangeValid} onClick={props.onPromoteRange}>{copy.takeCompPromoteRange}</button>
 			</div>
 		</fieldset>
@@ -321,15 +326,15 @@ function RegionEditor(props: TakeGroupEditorProps) {
 			<thead><tr><th scope="col">{copy.takeCompRegion}</th><th scope="col">{copy.takeCompSourceTake}</th><th scope="col">{copy.takeCompStart}</th><th scope="col">{copy.takeCompEnd}</th></tr></thead>
 			<tbody>{group.compRegions.map((region) => <tr key={region.id}>
 				<th scope="row">{region.id}</th><td>{region.takeId}</td>
-				<td><BoundaryField label={copy.takeCompStart} value={props.boundaries[region.id]?.start ?? region.startSample} disabled={disabled} onChange={(value) => props.onBoundaryChange(region.id, 'start', value)} onApply={() => props.onApplyBoundary(region.id, 'start')} applyLabel={copy.takeCompApplyStart} /></td>
-				<td><BoundaryField label={copy.takeCompEnd} value={props.boundaries[region.id]?.end ?? region.endSample} disabled={disabled} onChange={(value) => props.onBoundaryChange(region.id, 'end', value)} onApply={() => props.onApplyBoundary(region.id, 'end')} applyLabel={copy.takeCompApplyEnd} /></td>
+				<td><BoundaryField label={copy.takeCompStart} value={props.boundaries[region.id]?.start ?? region.startSample} sampleRate={props.sampleRate} disabled={disabled} onChange={(value) => props.onBoundaryChange(region.id, 'start', value)} onApply={() => props.onApplyBoundary(region.id, 'start')} applyLabel={copy.takeCompApplyStart} /></td>
+				<td><BoundaryField label={copy.takeCompEnd} value={props.boundaries[region.id]?.end ?? region.endSample} sampleRate={props.sampleRate} disabled={disabled} onChange={(value) => props.onBoundaryChange(region.id, 'end', value)} onApply={() => props.onApplyBoundary(region.id, 'end')} applyLabel={copy.takeCompApplyEnd} /></td>
 			</tr>)}</tbody>
 		</table>
 		<div className="audio-editor-take-comp__shared-boundaries">
 			{sharedBoundaries(group).map(({ leftRegionId, rightRegionId, boundarySample }) => {
 				const key = sharedBoundaryKey(leftRegionId, rightRegionId);
 				return <label key={key}><span>{copy.takeCompSharedBoundary}: {leftRegionId} → {rightRegionId}</span>
-					<IntegerField value={props.sharedBoundaries[key] ?? boundarySample} disabled={disabled} onChange={(value) => props.onSharedBoundaryChange(key, value)} />
+					<IntegerField label={copy.takeCompSharedBoundary} value={props.sharedBoundaries[key] ?? boundarySample} sampleRate={props.sampleRate} disabled={disabled} onChange={(value) => props.onSharedBoundaryChange(key, value)} />
 					<button type="button" disabled={disabled} onClick={() => props.onApplySharedBoundary(leftRegionId, rightRegionId)}>{copy.takeCompApplySharedBoundary}</button>
 				</label>;
 			})}
@@ -338,39 +343,27 @@ function RegionEditor(props: TakeGroupEditorProps) {
 }
 
 function BoundaryField(props: Readonly<{
-	label: string; value: number; disabled: boolean; applyLabel: string;
+	label: string; value: number; sampleRate: number; disabled: boolean; applyLabel: string;
 	onChange(value: number): void; onApply(): void;
 }>) {
-	return <label><span className="audio-editor-visually-hidden">{props.label}</span><IntegerField value={props.value} disabled={props.disabled} onChange={props.onChange} /><button type="button" disabled={props.disabled} onClick={props.onApply}>{props.applyLabel}</button></label>;
+	return <label><span className="audio-editor-visually-hidden">{props.label}</span><IntegerField label={props.label} value={props.value} sampleRate={props.sampleRate} disabled={props.disabled} onChange={props.onChange} /><button type="button" disabled={props.disabled} onClick={props.onApply}>{props.applyLabel}</button></label>;
 }
 
 function NumberField(props: Readonly<{
-	label: string; value: number; minimum: number; maximum: number; onChange(value: number): void;
+	label: string; value: number; sampleRate: number; minimum: number; maximum: number; onChange(value: number): void;
 }>) {
-	return <label><span>{props.label}</span><IntegerField required value={props.value} minimum={props.minimum} maximum={props.maximum} onChange={props.onChange} /></label>;
+	return <label><span>{props.label}</span><IntegerField label={props.label} required value={props.value} sampleRate={props.sampleRate} minimum={props.minimum} maximum={props.maximum} onChange={props.onChange} /></label>;
 }
 
-/** Hold half-typed text locally so clearing the field never commits an entry the user did not make. */
 function IntegerField(props: Readonly<{
-	value: number; disabled?: boolean; required?: boolean; minimum?: number; maximum?: number;
+	label: string; value: number; sampleRate: number; disabled?: boolean; required?: boolean;
+	minimum?: number; maximum?: number;
 	onChange(value: number): void;
 }>) {
-	const [draft, setDraft] = useState<string | null>(null);
-	return <input
-		required={props.required}
-		type="number"
-		min={props.minimum}
-		max={props.maximum}
-		step={1}
-		value={draft ?? String(props.value)}
-		disabled={props.disabled}
-		onChange={(event) => {
-			const entry = readTakeCompNumberEntry(event.currentTarget.value);
-			setDraft(entry.draft);
-			if (entry.value !== null) props.onChange(entry.value);
-		}}
-		onBlur={() => { setDraft(null); }}
-	/>;
+	return <AudioEditorTimeCodeInput label={props.label} value={props.value} unit="samples"
+		rate={props.sampleRate} format="hh:mm:ss+milliseconds" required={props.required}
+		minimum={props.minimum} maximum={props.maximum} disabled={props.disabled}
+		onChange={props.onChange} />;
 }
 
 function boundaryDrafts(group: TakeCompDialogGroupModel | null): BoundaryDrafts {

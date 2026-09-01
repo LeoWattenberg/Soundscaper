@@ -8,6 +8,7 @@ import type {
 	DocumentMasteringSequenceSnapshot,
 } from '../../controller/document-mastering-sequence-snapshot.ts';
 import type { SoundscaperProductionCopy } from '../soundscaper-production-copy.ts';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import type { MasteringSequenceDialogOperation } from './SoundscaperProductionDialog.tsx';
 
 /**
@@ -80,12 +81,13 @@ interface SoundscaperMasteringSequenceEditorProps {
 	readonly regions: readonly DocumentMasteringSequenceRegionSnapshot[];
 	/** A mastering sequence states the sequence it orders; without one it cannot be created. */
 	readonly primarySequenceId: string;
+	readonly sampleRate?: number;
 	readonly createId: () => string;
 	readonly onOperation: (operation: MasteringSequenceDialogOperation) => void;
 }
 
 export default function SoundscaperMasteringSequenceEditor({
-	copy, disabled, sequences, regions, primarySequenceId, createId, onOperation,
+	copy, disabled, sequences, regions, primarySequenceId, sampleRate = 48_000, createId, onOperation,
 }: SoundscaperMasteringSequenceEditorProps) {
 	const [selectedId, setSelectedId] = useState('');
 	const [regionId, setRegionId] = useState('');
@@ -152,6 +154,7 @@ export default function SoundscaperMasteringSequenceEditor({
 					index={index}
 					lastIndex={sequence.entries.length - 1}
 					sequenceId={sequence.id}
+					sampleRate={sampleRate}
 					onOperation={onOperation}
 				/>)}
 			</section>
@@ -181,15 +184,19 @@ function entryFormKey(sequenceId: string, entry: DocumentMasteringSequenceEntryS
 	]);
 }
 
-function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }: Readonly<{
+function EntryEditor({ copy, entry, index, lastIndex, sequenceId, sampleRate, onOperation }: Readonly<{
 	copy: SoundscaperProductionCopy;
 	entry: DocumentMasteringSequenceEntrySnapshot;
 	index: number;
 	lastIndex: number;
 	sequenceId: string;
+	sampleRate: number;
 	onOperation: (operation: MasteringSequenceDialogOperation) => void;
 }>) {
 	const [metadataError, setMetadataError] = useState('');
+	const [gapBeforeFrames, setGapBeforeFrames] = useState(entry.gapBeforeFrames);
+	const [fadeInFrames, setFadeInFrames] = useState(entry.fadeInFrames);
+	const [fadeOutFrames, setFadeOutFrames] = useState(entry.fadeOutFrames);
 	const move = (toIndex: number): void => onOperation({
 		type: 'mastering-sequence/entry-reorder', sequenceId, entryId: entry.id, toIndex,
 	});
@@ -232,9 +239,12 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }:
 			<input name="title" type="text" defaultValue={entry.titleOverride ?? ''} placeholder={entry.title} />
 		</label>
 		<p className="audio-editor-panel-hint">{copy.masteringEntryTitleFromRegion}</p>
-		<NumberField name="gapBeforeFrames" label={copy.masteringGapBefore} value={entry.gapBeforeFrames} />
-		<NumberField name="fadeInFrames" label={copy.masteringFadeIn} value={entry.fadeInFrames} />
-		<NumberField name="fadeOutFrames" label={copy.masteringFadeOut} value={entry.fadeOutFrames} />
+		<NumberField name="gapBeforeFrames" label={copy.masteringGapBefore} value={gapBeforeFrames}
+			sampleRate={sampleRate} onChange={setGapBeforeFrames} />
+		<NumberField name="fadeInFrames" label={copy.masteringFadeIn} value={fadeInFrames}
+			sampleRate={sampleRate} onChange={setFadeInFrames} />
+		<NumberField name="fadeOutFrames" label={copy.masteringFadeOut} value={fadeOutFrames}
+			sampleRate={sampleRate} onChange={setFadeOutFrames} />
 		<label className="kw-audio-editor-dialog__field">
 			<span>{copy.masteringEntryMetadata}</span>
 			<textarea name="metadata" rows={3} spellCheck={false} defaultValue={JSON.stringify(entry.metadata)} />
@@ -255,12 +265,14 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }:
 	</form>;
 }
 
-function NumberField({ name, label, value }: Readonly<{
-	name: string; label: string; value: number;
+function NumberField({ name, label, value, sampleRate, onChange }: Readonly<{
+	name: string; label: string; value: number; sampleRate: number; onChange(value: number): void;
 }>) {
 	return <label className="kw-audio-editor-dialog__field">
 		<span>{label}</span>
-		<input name={name} type="number" min={0} step={1} defaultValue={value} required />
+		<AudioEditorTimeCodeInput name={name} label={label} value={value} unit="samples"
+			rate={sampleRate} format="hh:mm:ss+milliseconds" minimum={0} required
+			onChange={onChange} />
 	</label>;
 }
 

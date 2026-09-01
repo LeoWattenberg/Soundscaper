@@ -10,6 +10,7 @@ import {
 	createSoundActivationUiModel,
 	type SoundActivationUiCopy,
 } from './sound-activation-ui-model.ts';
+import AudioEditorTimeCodeInput from './AudioEditorTimeCodeInput.tsx';
 
 interface SoundActivationActions {
 	setEnabled(value: boolean): unknown;
@@ -119,7 +120,7 @@ export default function SoundActivationPreferences({
 					dataAttribute="hysteresis"
 					onChange={(value) => update(() => actions.setHysteresisDb(value))}
 				/>
-				<SoundActivationRange
+				<SoundActivationTime
 					name="sound-activation-hold"
 					label={copy.soundActivationHold}
 					description={copy.soundActivationHoldDescription}
@@ -128,7 +129,6 @@ export default function SoundActivationPreferences({
 					range={SOUND_ACTIVATION_UI_RANGES.holdMilliseconds}
 					disabled={model.controlsDisabled}
 					statusId={statusId}
-					dataAttribute="hold"
 					onChange={(value) => update(() => actions.setHoldMilliseconds(value))}
 				/>
 			</fieldset>
@@ -188,5 +188,21 @@ function SoundActivationRange({
 			onChange={(event) => onChange(event.currentTarget.valueAsNumber)}
 		/>
 		<small id={descriptionId}>{description}</small>
+	</label>;
+}
+
+function SoundActivationTime({
+	name, label, description, value, valueText, range, disabled, statusId, onChange,
+}: Omit<SoundActivationRangeProps, 'dataAttribute'>) {
+	const descriptionId = useId();
+	return <label className="kw-audio-editor-sound-activation__control">
+		<span><strong>{label}</strong><output htmlFor={name}>{valueText}</output></span>
+		<span data-sound-activation-hold>
+			<AudioEditorTimeCodeInput name={name} label={label} value={value}
+				unit="milliseconds" minimum={range.minimum} maximum={range.maximum}
+				valueText={valueText} describedBy={`${descriptionId} ${statusId}`}
+				disabled={disabled} onChange={onChange} />
+		</span>
+		<small id={descriptionId} aria-describedby={statusId}>{description}</small>
 	</label>;
 }

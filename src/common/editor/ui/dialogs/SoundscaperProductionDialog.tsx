@@ -6,6 +6,7 @@ import type { SessionLoudnessHistorySnapshot } from '../../production-audio/loud
 import type { RestorationWorkflow } from '../../production-audio/restoration-workflow.ts';
 import type { StripMeterSnapshot } from '../../production-audio/strip-meter-session.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { audioEditorProjectSampleRate } from '../AudioEditorTimeCodeInput.tsx';
 import {
 	type SoundscaperAutomationMode,
 	type SoundscaperProductionMenuCapabilities,
@@ -309,6 +310,7 @@ export default function SoundscaperProductionDialog({
 					sequences={model.masteringSequences}
 					regions={model.masteringRegions}
 					primarySequenceId={model.masteringPrimarySequenceId}
+					sampleRate={audioEditorProjectSampleRate(snapshot.project)}
 					createId={() => createStableId('mastering-sequence')}
 					onOperation={(operation) => perform('mastering-sequence', () => operation)}
 				/>}

@@ -77,12 +77,14 @@ test('Guided highlight trim refusal restores the authored value and reports the 
 			}}
 		/>));
 		const start = dom.container.querySelectorAll('input').find((input) => (
-			input.type === 'number'
+			input.name === 'highlight-highlight-a-startFrame'
 		));
 		assert.ok(start);
-		start.value = '46000';
+		await act(async () => reactProps(start).onChange({ currentTarget: { value: '46000' } }));
+		const wrapper = start.closest('.audio-editor-timecode-input');
+		assert.ok(wrapper);
 		await act(async () => {
-			void reactProps(start).onBlur({ currentTarget: start });
+			reactProps(wrapper).onBlur({ currentTarget: wrapper, relatedTarget: null });
 			await Promise.resolve();
 		});
 		assert.equal(calls, 1);

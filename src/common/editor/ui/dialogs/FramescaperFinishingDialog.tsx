@@ -3,6 +3,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput, {
+	audioEditorProjectFrameRate,
+} from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createFramescaperFinishingCommand,
@@ -82,8 +85,8 @@ export default function FramescaperFinishingDialog({
 	const [motionStackId, setMotionStackId] = useState(() => motionTargets[0]?.stackId ?? '');
 	const motionTarget = motionTargets.find(({ stackId }) => stackId === motionStackId)
 		?? motionTargets[0] ?? null;
-	const [motionStartFrame, setMotionStartFrame] = useState(() => String(motionTarget?.startFrame ?? 0));
-	const [motionEndFrame, setMotionEndFrame] = useState(() => String(motionTarget?.endFrame ?? 0));
+	const [motionStartFrame, setMotionStartFrame] = useState(() => motionTarget?.startFrame ?? 0);
+	const [motionEndFrame, setMotionEndFrame] = useState(() => motionTarget?.endFrame ?? 0);
 	const [motionProgress, setMotionProgress] = useState<FramescaperMotionAnalysisProgress | null>(null);
 	const motionAbortRef = useRef<AbortController | null>(null);
 	const cubeLutRuntime = framescaperCubeLutActionsFor(controller);
@@ -323,14 +326,15 @@ export default function FramescaperFinishingDialog({
 				stackId={motionStackId}
 				startFrame={motionStartFrame}
 				endFrame={motionEndFrame}
+				frameRate={audioEditorProjectFrameRate(project)}
 				progress={motionProgress}
 				pending={pending && motionAbortRef.current !== null}
 				copy={copy}
 				onStack={(stackId) => {
 					setMotionStackId(stackId);
 					const target = motionTargets.find((candidate) => candidate.stackId === stackId);
-					setMotionStartFrame(String(target?.startFrame ?? 0));
-					setMotionEndFrame(String(target?.endFrame ?? 0));
+					setMotionStartFrame(target?.startFrame ?? 0);
+					setMotionEndFrame(target?.endFrame ?? 0);
 				}}
 				onStartFrame={setMotionStartFrame}
 				onEndFrame={setMotionEndFrame}
@@ -454,14 +458,15 @@ function MotionAnalysisControls(props: Readonly<{
 	readonly targets: readonly FramescaperMotionAnalysisTarget[];
 	readonly target: FramescaperMotionAnalysisTarget | null;
 	readonly stackId: string;
-	readonly startFrame: string;
-	readonly endFrame: string;
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly frameRate: number;
 	readonly progress: FramescaperMotionAnalysisProgress | null;
 	readonly pending: boolean;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly onStack: (value: string) => void;
-	readonly onStartFrame: (value: string) => void;
-	readonly onEndFrame: (value: string) => void;
+	readonly onStartFrame: (value: number) => void;
+	readonly onEndFrame: (value: number) => void;
 	readonly onAnalyze: () => void;
 	readonly onCancel: () => void;
 }>) {
@@ -477,11 +482,16 @@ function MotionAnalysisControls(props: Readonly<{
 					`${target.sourceName} — ${target.stackId}`
 				}</option>)}</select></label>
 			<label><span>{text(props.copy, 'motionAnalysisStartFrame', 'Start frame')}</span>
-				<input type="number" min={props.target?.startFrame ?? 0} step={1} value={props.startFrame}
-					disabled={props.blocked} onChange={(event) => props.onStartFrame(event.currentTarget.value)} /></label>
+				<AudioEditorTimeCodeInput label={text(props.copy, 'motionAnalysisStartFrame', 'Start frame')}
+					value={props.startFrame} unit="frames" rate={props.frameRate}
+					minimum={props.target?.startFrame ?? 0} maximum={Math.max(
+						props.target?.startFrame ?? 0, props.endFrame - 1,
+					)} disabled={props.blocked} onChange={props.onStartFrame} /></label>
 			<label><span>{text(props.copy, 'motionAnalysisEndFrame', 'End frame')}</span>
-				<input type="number" min={1} max={props.target?.endFrame ?? 1} step={1} value={props.endFrame}
-					disabled={props.blocked} onChange={(event) => props.onEndFrame(event.currentTarget.value)} /></label>
+				<AudioEditorTimeCodeInput label={text(props.copy, 'motionAnalysisEndFrame', 'End frame')}
+					value={props.endFrame} unit="frames" rate={props.frameRate}
+					minimum={props.startFrame + 1} maximum={props.target?.endFrame ?? 1}
+					disabled={props.blocked} onChange={props.onEndFrame} /></label>
 			<p role="status">{freshnessLabel(props.copy, props.target?.freshness ?? 'missing')}</p>
 			<button type="button" data-framescaper-motion-analyze disabled={props.blocked} onClick={props.onAnalyze}>{
 				props.target?.freshness === 'missing'
@@ -555,7 +565,7 @@ function targetToken(target: Readonly<{ readonly kind: string; readonly id: stri
 	return `${target.kind}:${target.id}`;
 }
 
-function inputFrame(value: string, name: string): number {
+function inputFrame(value: string | number, name: string): number {
 	const frame = Number(value);
 	if (!Number.isSafeInteger(frame) || frame < 0) throw new RangeError(`${name} must be a non-negative integer.`);
 	return frame;

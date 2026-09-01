@@ -18,6 +18,7 @@ import { createLocalAssistanceGuidedHighlightPreviewPlanV1,
 	'../../controller/local-assistance-guided-highlight-preview.ts';
 import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
 	'../../controller/local-assistance-selected-video-source-time.ts';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 type ReviewCrop = Readonly<{ left: number; top: number; right: number; bottom: number }>;
@@ -253,7 +254,7 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 		operation: () => unknown,
 		onAccepted?: () => void,
 		onRejected?: () => void,
-	): void => {
+	): boolean | Promise<boolean> => {
 		setEditError('');
 		const reject = (failure: unknown): void => {
 			onRejected?.();
@@ -262,27 +263,34 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 		try {
 			const outcome = operation();
 			if (isPromiseLike(outcome)) {
-				void Promise.resolve(outcome).then(() => onAccepted?.(), reject);
-			} else onAccepted?.();
+				return Promise.resolve(outcome).then(() => {
+					onAccepted?.();
+					return true;
+				}, (failure) => {
+					reject(failure);
+					return false;
+				});
+			}
+			onAccepted?.();
+			return true;
 		} catch (failure) {
 			reject(failure);
+			return false;
 		}
 	};
 	const applyTrim = (
-		input: HTMLInputElement,
+		requestedFrame: number,
 		proposal: AssistanceOwnedHighlightProposalsV1['proposals'][number],
 		edge: 'start' | 'end',
-	): void => {
+	): boolean | Promise<boolean> => {
 		let frame = edge === 'start' ? proposal.startFrame : proposal.endFrame;
-		applyEdit(() => {
+		return applyEdit(() => {
 			frame = snapLocalAssistanceGuidedHighlightTrimBoundaryV1(
-				authority, proposal, edge, Number(input.value),
+				authority, proposal, edge, requestedFrame,
 			);
 			return edge === 'start'
 				? onTrim(proposal.id, frame, proposal.endFrame)
 				: onTrim(proposal.id, proposal.startFrame, frame);
-		}, () => { input.value = String(frame); }, () => {
-			input.value = String(edge === 'start' ? proposal.startFrame : proposal.endFrame);
 		});
 	};
 	return <div className="kw-local-assistance__highlight-proposals">
@@ -298,7 +306,7 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 				key={proposal.title} defaultValue={proposal.title} minLength={1} maxLength={160} required
 				onBlur={(event) => {
 					const input = event.currentTarget;
-					applyEdit(() => onTitle(proposal.id, input.value), undefined, () => {
+					void applyEdit(() => onTitle(proposal.id, input.value), undefined, () => {
 						input.value = proposal.title;
 					});
 				}} /></label>
@@ -313,15 +321,21 @@ function HighlightProposals({ copy, draft, authority, activeId, onPreview, onTit
 				{proposal.explanation}</p>}
 			<div className="kw-local-assistance__highlight-trim">
 				<label>{text(copy, 'localAssistanceHighlightStartFrame', 'Start frame')}
-					<input type="number" key={`start:${String(proposal.startFrame)}`}
-					min={proposal.startFrame} max={proposal.endFrame - 1}
-					step={1} defaultValue={proposal.startFrame}
-					onBlur={(event) => applyTrim(event.currentTarget, proposal, 'start')} /></label>
+					<AudioEditorTimeCodeInput key={`start:${String(proposal.startFrame)}`}
+						name={`highlight-${proposal.id}-startFrame`}
+						label={text(copy, 'localAssistanceHighlightStartFrame', 'Start frame')}
+						value={proposal.startFrame} unit="samples" rate={authority.sampleRate}
+						format="hh:mm:ss+milliseconds"
+						minimum={proposal.startFrame} maximum={proposal.endFrame - 1}
+						onCommit={(value) => applyTrim(value, proposal, 'start')} /></label>
 				<label>{text(copy, 'localAssistanceHighlightEndFrame', 'End frame')}
-					<input type="number" key={`end:${String(proposal.endFrame)}`}
-					min={proposal.startFrame + 1} max={proposal.endFrame}
-					step={1} defaultValue={proposal.endFrame}
-					onBlur={(event) => applyTrim(event.currentTarget, proposal, 'end')} /></label>
+					<AudioEditorTimeCodeInput key={`end:${String(proposal.endFrame)}`}
+						name={`highlight-${proposal.id}-endFrame`}
+						label={text(copy, 'localAssistanceHighlightEndFrame', 'End frame')}
+						value={proposal.endFrame} unit="samples" rate={authority.sampleRate}
+						format="hh:mm:ss+milliseconds"
+						minimum={proposal.startFrame + 1} maximum={proposal.endFrame}
+						onCommit={(value) => applyTrim(value, proposal, 'end')} /></label>
 			</div>
 			<small>{text(copy, 'localAssistanceHighlightTrimSnap',
 				'Trim values snap inward to exact admitted source-time boundaries.')}</small>

@@ -32,6 +32,14 @@ export interface TimeCodeUnit {
 }
 
 export interface TimeCodeProps {
+  /** Accessible name for this editable time value. */
+  ariaLabel?: string;
+  /** Accessible name for the optional format menu button. */
+  formatAriaLabel?: string;
+  /** Optional localized value spoken instead of the rendered digit groups. */
+  ariaValueText?: string;
+  /** IDs of explanatory content for this editable time value. */
+  ariaDescribedBy?: string;
   /**
    * Current time value in seconds
    */
@@ -96,6 +104,10 @@ interface TimeCodeSegment {
  * Supports multiple time formats including SMPTE, samples, Hz, etc.
  */
 export function TimeCode({
+  ariaLabel = 'Time code',
+  formatAriaLabel = 'Time code format',
+  ariaValueText,
+  ariaDescribedBy,
   value,
   format = 'hh:mm:ss',
   sampleRate = 44100,
@@ -406,7 +418,10 @@ export function TimeCode({
       className={`timecode timecode--${variant} ${disabled ? 'timecode--disabled' : ''} ${className}`}
       style={style}
       role="group"
-      aria-label="Time code"
+      aria-label={ariaLabel}
+      aria-disabled={disabled}
+      aria-valuetext={ariaValueText}
+      aria-describedby={ariaDescribedBy}
       tabIndex={0}
       onKeyDown={handleContainerKeyDown}
     >
@@ -457,6 +472,7 @@ export function TimeCode({
             onClick={handleMenuButtonClick}
             disabled={disabled}
             tabIndex={-1}
+            aria-label={formatAriaLabel}
           >
             <Icon name="caret-down" size={16} color={caretColor} />
           </button>

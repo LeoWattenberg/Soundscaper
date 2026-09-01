@@ -237,8 +237,9 @@ test('annotation list exposes equivalent named editing fields and native workflo
 	assert.match(markup, />Add marker at playhead</u);
 	assert.match(markup, />Add region from selection</u);
 	assert.match(markup, /aria-label="Marker and region list"/u);
-	assert.match(markup, />Start sample<input type="number" min="0" max="47999" step="1" value="24000"/u);
-	assert.match(markup, />End sample<input type="number"/u);
+	assert.match(markup, />Start sample<span class="audio-editor-timecode-input" data-timecode-input="samples"/u);
+	assert.match(markup, /role="group" aria-label="Start sample"/u);
+	assert.match(markup, />End sample<span class="audio-editor-timecode-input" data-timecode-input="samples"/u);
 	assert.doesNotMatch(markup, /defaultValue/u);
 	assert.match(markup, />Batch selected annotations</u);
 	assert.match(markup, /role="status"/u);

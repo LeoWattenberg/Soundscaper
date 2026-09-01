@@ -9,6 +9,7 @@ import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
@@ -30,6 +31,19 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 			onChange={(value) => update(name, value)}
 		/>
 	);
+	const timeField = (name, label, options = {}) => <label
+		className="kw-audio-editor-dialog__field"
+		data-generator-field={name}
+	>
+		<span>{label}</span>
+		<AudioEditorTimeCodeInput
+			label={label}
+			value={params[name]}
+			minimum={options.min}
+			maximum={options.max}
+			onChange={(value) => update(name, value)}
+		/>
+	</label>;
 	const updateDtmfTiming = ({ totalSeconds, dutyPercent }) => {
 		setParams((current) => {
 			const currentTiming = generatorDtmfTiming(current);
@@ -93,7 +107,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 								<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={waveformOptions} />
 								{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
 								{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
-								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+								{timeField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400 })}
 							</div>
 						)}
 
@@ -131,7 +145,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										</div>
 									</PreferencePanel>
 								</div>
-								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+								{timeField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400 })}
 							</div>
 						)}
 
@@ -141,13 +155,13 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 									['white', copy.generatorWhite], ['pink', copy.generatorPink], ['brown', copy.generatorBrown],
 								]} />
 								{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
-								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+								{timeField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400 })}
 							</div>
 						)}
 
 						{type === 'silence' && (
 							<div className="kw-audio-editor-generator__standard-grid kw-audio-editor-generator__standard-grid--single" data-generator-layout="silence">
-								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
+								{timeField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400 })}
 							</div>
 						)}
 
@@ -161,15 +175,16 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 										</label>
 										<p className="kw-audio-editor-generator__explanation">{labels.dtmfExplanation}</p>
 										{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
-										<GeneratorNumberField
-											name="durationSeconds"
-											label={copy.generatorDuration}
-											value={dtmfTiming.totalSeconds}
-											min={0.001}
-											max={86_400}
-											step={0.01}
-											onChange={(value) => updateDtmfTiming({ totalSeconds: value })}
-										/>
+										<label className="kw-audio-editor-dialog__field" data-generator-field="durationSeconds">
+											<span>{copy.generatorDuration}</span>
+											<AudioEditorTimeCodeInput
+												label={copy.generatorDuration}
+												value={dtmfTiming.totalSeconds}
+												minimum={0.001}
+												maximum={86_400}
+												onChange={(value) => updateDtmfTiming({ totalSeconds: value })}
+											/>
+										</label>
 									</PreferencePanel>
 								</div>
 								<div role="group" aria-label={labels.toneSilenceRatio}>

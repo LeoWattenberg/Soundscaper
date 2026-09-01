@@ -108,7 +108,8 @@ test('Guided workflow settings are editable only through their exact validated b
 	const highlightsMarkup = renderDialog(guided.getSnapshot());
 	assert.match(highlightsMarkup, /Highlight proposals/u);
 	assert.match(highlightsMarkup, /min="1" max="20" step="1" value="20"/u);
-	assert.match(highlightsMarkup, /min="15" max="180" step="1" value="180"/u);
+	assert.match(highlightsMarkup, /data-timecode-input="seconds"/u);
+	assert.match(highlightsMarkup, /role="group" aria-label="Maximum seconds per proposal"/u);
 	assert.match(highlightsMarkup, /Use installed Qwen to rerank known candidates/u);
 	assert.match(highlightsMarkup, /type="checkbox" checked=""/u);
 });

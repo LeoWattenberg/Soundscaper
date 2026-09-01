@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { Knob } from '@soundscaper/design-system/Knob';
-import { audioEffectParamRange } from '../../effects.js';
+import { AUDIO_EFFECT_DEFINITIONS, audioEffectParamRange } from '../../effects.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectOptionLabel,
@@ -11,6 +11,7 @@ import {
 } from '../../audacity-effects/manifest.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import { AudacityEffectLayout } from '../AudacityEffectLayout.jsx';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { ParametricEqEditor } from '../ParametricEqEditor.jsx';
 import { CommitField, DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
 import {
@@ -88,6 +89,7 @@ export default function EffectParameterEditor({
 		const parameterNames = Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
 		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
 		const renderNativeParameter = (name) => {
+			const unit = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name]?.[2]?.unit;
 			return (
 				<ParameterNumber
 					label={effectParameterLabel(name, copy)}
@@ -96,6 +98,8 @@ export default function EffectParameterEditor({
 					copy={copy}
 					disabled={disabled}
 					hook={name}
+					timeUnit={editorTimeUnit(unit)}
+					sampleRate={sampleRate}
 					onCommit={(next) => updateParam(name, next)}
 					onGestureBegin={onRackEffectGestureBegin
 						? () => invoke(onRackEffectGestureBegin)
@@ -143,6 +147,7 @@ export default function EffectParameterEditor({
 				effectParams={effect.params}
 				copy={copy}
 				disabled={disabled}
+				sampleRate={sampleRate}
 				onCommit={(value) => updateParam(name, value)}
 			/>
 		) : null
@@ -199,7 +204,8 @@ export default function EffectParameterEditor({
 	);
 }
 
-function AudacityParameter({ name, effectType, descriptor, value, effectParams, copy, disabled, onCommit }) {
+function AudacityParameter({ name, effectType, descriptor, value, effectParams, copy, disabled,
+	sampleRate, onCommit }) {
 	const label = audacityEffectParameterLabel(effectType, name, copy);
 	if (descriptor.kind === 'boolean') {
 		return (
@@ -300,6 +306,8 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			copy={copy}
 			disabled={disabled}
 			hook={name}
+			timeUnit={editorTimeUnit(descriptor.unit)}
+			sampleRate={sampleRate}
 			onCommit={onCommit}
 		/>
 	);
@@ -314,6 +322,8 @@ function ParameterNumber({
 	copy,
 	disabled,
 	hook,
+	timeUnit,
+	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 	onCommit,
 	onGestureBegin,
 	onGesturePreview,
@@ -409,7 +419,7 @@ function ParameterNumber({
 			onMouseDownCapture={beginKnobGesture}
 		>
 			<span>{label}</span>
-			{knobRange && presentation === 'knob' && <Knob
+			{!timeUnit && knobRange && presentation === 'knob' && <Knob
 				value={gestureValue ?? (Number(value) || 0)}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -419,7 +429,7 @@ function ParameterNumber({
 				disabled={disabled}
 				onChange={previewKnobValue}
 			/>}
-			{knobRange && presentation === 'slider' && <SteppedSlider
+			{!timeUnit && knobRange && presentation === 'slider' && <SteppedSlider
 				value={Number(value) || 0}
 				min={knobRange[0]}
 				max={knobRange[1]}
@@ -428,7 +438,17 @@ function ParameterNumber({
 				disabled={disabled}
 				onChange={commitSlider}
 			/>}
-			<CommitField
+			{timeUnit ? <AudioEditorTimeCodeInput
+				label={label}
+				value={Number(value) || 0}
+				unit={timeUnit}
+				rate={sampleRate}
+				format={timeUnit === 'samples' ? 'samples' : 'hh:mm:ss+milliseconds'}
+				minimum={knobRange?.[0] ?? 0}
+				maximum={knobRange?.[1]}
+				disabled={disabled}
+				onCommit={commit}
+			/> : <CommitField
 				label={label}
 				name={hook}
 				value={String(value ?? '')}
@@ -437,7 +457,14 @@ function ParameterNumber({
 				hookName="effect-number-input"
 				visuallyHiddenLabel
 				onCommit={(_name, raw) => commit(raw)}
-			/>
+			/>}
 		</div>
 	);
+}
+
+function editorTimeUnit(unit) {
+	if (unit === 's') return 'seconds';
+	if (unit === 'ms') return 'milliseconds';
+	if (unit === 'samples') return 'samples';
+	return null;
 }

@@ -7,6 +7,7 @@ import '../audio-editor-design-system/18-musical-timeline.css';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { approximatePositiveRational } from '../../rational-approximation.ts';
 import { addRationals } from '../../timeline-time.ts';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { AudacityToolbarFlyoutButton } from './AudioEditorMeterControls.jsx';
 
 export function MusicalTimelineControls({ project, snapshot, controller, copy, run }) {
@@ -104,6 +105,7 @@ export function MusicalTimelineControls({ project, snapshot, controller, copy, r
 							event={event}
 							index={index}
 							mode={tempoMap.mode}
+							sampleRate={project.sampleRate}
 							disabled={disabled}
 							controller={controller}
 							copy={copy}
@@ -137,7 +139,7 @@ export function MusicalTimelineControls({ project, snapshot, controller, copy, r
 	</>;
 }
 
-function TempoEventForm({ event, index, mode, disabled, controller, copy, run }) {
+function TempoEventForm({ event, index, mode, sampleRate, disabled, controller, copy, run }) {
 	const formRef = useAuthoritativeFormRevision(`${mode}:${JSON.stringify(event)}`);
 	return <form
 		ref={formRef}
@@ -157,10 +159,11 @@ function TempoEventForm({ event, index, mode, disabled, controller, copy, run })
 		}}
 	>
 		<span className="kw-audio-editor__musical-map-event-id">{event.id}</span>
-		{mode === 'sampleLocked' ? <NumberField
+		{mode === 'sampleLocked' ? <TimePositionField
 			label={copy.samplePosition}
 			name="samplePosition"
 			value={event.samplePosition}
+			sampleRate={sampleRate}
 			disabled={disabled || index === 0}
 			minimum={0}
 		/> : <RationalFields
@@ -243,6 +246,12 @@ function NumberField({ label, name, value, disabled = false, minimum }) {
 		<span>{label}</span>
 		<input type="number" name={name} defaultValue={value ?? minimum ?? 0} min={minimum} step="1" disabled={disabled} />
 	</label>;
+}
+
+function TimePositionField({ label, name, value, sampleRate, disabled = false, minimum }) {
+	return <label><span>{label}</span><AudioEditorTimeCodeInput label={label} name={name}
+		value={value ?? minimum ?? 0} unit="samples" rate={sampleRate || 48_000}
+		format="hh:mm:ss+milliseconds" minimum={minimum} disabled={disabled} /></label>;
 }
 
 function exactRationalFields(fields, prefix) {

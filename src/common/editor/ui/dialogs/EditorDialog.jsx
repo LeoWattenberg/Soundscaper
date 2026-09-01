@@ -5,6 +5,7 @@ import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { formatDate } from '../workspace-runtime.js';
 import {
@@ -178,14 +179,9 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 							</label>
 							<label className="kw-audio-editor-dialog__field">
 								<span>{copy.latencyOffset}</span>
-								<NumberStepper
-									value={String(value)}
-									min={-500}
-									max={500}
-									step={1}
-									width="100%"
-									onChange={onValueChange}
-								/>
+								<AudioEditorTimeCodeInput label={copy.latencyOffset}
+									value={Number(value)} unit="milliseconds" minimum={-500} maximum={500}
+									onChange={(next) => onValueChange(String(next))} />
 							</label>
 							<div className="kw-audio-editor-dialog__actions">
 								<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>

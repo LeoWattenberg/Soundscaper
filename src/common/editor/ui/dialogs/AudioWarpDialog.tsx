@@ -7,6 +7,9 @@ import '../audio-editor-design-system/27-audio-warp.css';
 import type { RationalInput } from '../../timeline-time.ts';
 import type { AudioEditorEditBlockingSnapshot } from '../../edit-blocking.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput, {
+	audioEditorProjectSampleRate,
+} from '../AudioEditorTimeCodeInput.tsx';
 import { createAudioWarpDialogModel } from '../audio-warp-dialog-model.ts';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
@@ -51,6 +54,7 @@ export default function AudioWarpDialog({
 	}), [productId, snapshot]);
 	const runtime = controller.actions.audioWarp.view();
 	const projectIdValue = dataRecord(snapshot.project)?.id;
+	const sampleRate = audioEditorProjectSampleRate(snapshot.project);
 	const projectId = typeof projectIdValue === 'string' ? projectIdValue : null;
 	const activeOperationRef = useRef<symbol | null>(null);
 	const [pending, setPending] = useState<string | null>(null);
@@ -179,8 +183,8 @@ export default function AudioWarpDialog({
 			<fieldset disabled={disabled}>
 				<legend>{copy.audioWarpQuantization}</legend>
 				<div className="audio-editor-audio-warp__grid-fields">
-					<NumberField label={copy.audioWarpGridOrigin} value={gridOrigin} onChange={setGridOrigin} />
-					<NumberField label={copy.audioWarpGridInterval} value={gridInterval} minimum={1} onChange={setGridInterval} />
+					<NumberField label={copy.audioWarpGridOrigin} value={gridOrigin} sampleRate={sampleRate} onChange={setGridOrigin} />
+					<NumberField label={copy.audioWarpGridInterval} value={gridInterval} sampleRate={sampleRate} minimum={1} onChange={setGridInterval} />
 				</div>
 				<StrengthField
 					label={copy.audioWarpStrength}
@@ -323,21 +327,19 @@ function MarkerRow({ point, copy, onMove, onDelete }: Readonly<{
 function NumberField({
 	label,
 	value,
+	sampleRate,
 	minimum,
 	onChange,
 }: Readonly<{
 	label: string;
 	value: number;
+	sampleRate: number;
 	minimum?: number;
 	onChange(value: number): void;
 }>) {
-	return <label><span>{label}</span><input
-		type="number"
-		step="1"
-		{...(minimum === undefined ? {} : { min: minimum })}
-		value={value}
-		onChange={(event) => onChange(Number(event.currentTarget.value))}
-	/></label>;
+	return <label><span>{label}</span><AudioEditorTimeCodeInput label={label} value={value}
+		unit="samples" rate={sampleRate} format="samples" minimum={minimum}
+		onChange={onChange} /></label>;
 }
 
 function StrengthField({

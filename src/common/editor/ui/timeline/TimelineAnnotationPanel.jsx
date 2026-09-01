@@ -3,10 +3,10 @@
 import React, { useRef, useState } from 'react';
 
 import { AUDIO_EDITOR_TIMELINE_ANNOTATION_COLORS } from '../../timeline-annotation.ts';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import {
 	consumeTimelineAnnotationRenameKey,
 	createTimelineAnnotationUiModel,
-	resolveTimelineAnnotationFrameBlur,
 	resolveTimelineAnnotationKeyboardIntent,
 	timelineAnnotationConversionRequest,
 	timelineAnnotationCreateKind,
@@ -304,6 +304,8 @@ export function TimelineAnnotationPanel({
 								value={annotation.timelineStartFrame}
 								minimum={0}
 								maximum={annotation.kind === 'region' ? annotation.timelineEndFrame - 1 : Number.MAX_SAFE_INTEGER}
+								label={copy.annotationStartFrame}
+								sampleRate={sampleRate}
 								onCommit={(frame) => annotation.kind === 'region'
 									? resizeTo(annotation, 'start', frame)
 									: moveTo(annotation, frame)}
@@ -314,6 +316,8 @@ export function TimelineAnnotationPanel({
 								value={annotation.timelineEndFrame}
 								minimum={annotation.timelineStartFrame + 1}
 								maximum={Number.MAX_SAFE_INTEGER}
+								label={copy.annotationEndFrame}
+								sampleRate={sampleRate}
 								onCommit={(frame) => resizeTo(annotation, 'end', frame)}
 							/></label>}
 							<div className="audio-editor-timeline-annotation-list__editor-actions">
@@ -352,22 +356,11 @@ export function completeTimelineAnnotationNavigation(
 	return target.id;
 }
 
-function TimelineAnnotationFrameInput({ disabled, value, minimum, maximum, onCommit }) {
-	const [draft, setDraft] = useState(String(value));
-	return <input
-		type="number"
-		disabled={disabled}
-		min={minimum}
-		max={maximum}
-		step="1"
-		value={draft}
-		onChange={(event) => setDraft(event.target.value)}
-		onBlur={() => {
-			const result = resolveTimelineAnnotationFrameBlur(draft, value, minimum, maximum);
-			setDraft(result.restoredDraft);
-			if (result.frame !== null) onCommit(result.frame);
-		}}
-	/>;
+function TimelineAnnotationFrameInput({ disabled, value, minimum, maximum,
+	label, sampleRate, onCommit }) {
+	return <AudioEditorTimeCodeInput label={label} value={value} unit="samples"
+		rate={sampleRate} format="hh:mm:ss+milliseconds" disabled={disabled}
+		minimum={minimum} maximum={maximum} onCommit={onCommit} />;
 }
 
 function integerFrame(value) {

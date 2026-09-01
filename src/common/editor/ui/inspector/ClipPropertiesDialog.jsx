@@ -3,12 +3,12 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import {
 	dbToLinear,
-	framesToSecondsText,
 	linearToDb,
 	nonNegativeFrame,
 	secondsInputToFrames,
@@ -96,9 +96,13 @@ function ClipProperties({ controller, snapshot, copy }) {
 				controller.actions.clip.trim(clip.id, { sourceStartFrame, durationFrames });
 			} else if (name === 'gain') {
 				controller.actions.clip.update(clip.id, { gain: dbToLinear(rawValue, 16, copy) });
-			} else if (name === 'fadeIn' || name === 'fadeOut') {
-				const frames = Math.min(clip.durationFrames, secondsInputToFrames(rawValue, copy, sampleRate));
-				controller.actions.clip.update(clip.id, { [`${name}Frames`]: frames });
+			} else if (name === 'fadeIn' || name === 'fadeOut'
+				|| name === 'fadeInFrame' || name === 'fadeOutFrame') {
+				const field = name.startsWith('fadeIn') ? 'fadeInFrames' : 'fadeOutFrames';
+				const frames = Math.min(clip.durationFrames, name.endsWith('Frame')
+					? nonNegativeFrame(rawValue, copy)
+					: secondsInputToFrames(rawValue, copy, sampleRate));
+				controller.actions.clip.update(clip.id, { [field]: frames });
 			} else if (name === 'pitchCents') {
 				controller.actions.clip.setTimePitch(clip.id, { pitchCents: Number(rawValue) });
 			} else if (name === 'speedRatio') {
@@ -145,20 +149,27 @@ function ClipProperties({ controller, snapshot, copy }) {
 				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
 					<h3>{copy.clipStart} / {copy.clipDuration}</h3>
 					<div className="audio-editor-clip-properties__time-grid">
-						<CommitField label={`${copy.clipStart} (s)`} name="start" value={clip ? framesToSecondsText(clip.timelineStartFrame, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.clipStart} (${copy.frames})`} name="startFrame" value={clip?.timelineStartFrame ?? 0} type="number" disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.clipIn} (s)`} name="sourceIn" value={clip ? framesToSecondsText(clip.sourceStartFrame, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.clipIn} (${copy.frames})`} name="sourceInFrame" value={clip?.sourceStartFrame ?? 0} type="number" disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.clipDuration} (s)`} name="duration" value={clip ? framesToSecondsText(clip.durationFrames, sampleRate) : '0.000'} disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.clipDuration} (${copy.frames})`} name="durationFrame" value={clip?.durationFrames ?? 1} type="number" disabled={disabled} onCommit={commitField} />
+						<ClipTimeCodeField label={copy.clipStart} value={clip?.timelineStartFrame ?? 0}
+							sampleRate={sampleRate} disabled={disabled}
+							onCommit={(value) => commitField('startFrame', value)} />
+						<ClipTimeCodeField label={copy.clipIn} value={clip?.sourceStartFrame ?? 0}
+							sampleRate={sampleRate} disabled={disabled}
+							onCommit={(value) => commitField('sourceInFrame', value)} />
+						<ClipTimeCodeField label={copy.clipDuration} value={clip?.durationFrames ?? 1}
+							sampleRate={sampleRate} minimum={1} disabled={disabled}
+							onCommit={(value) => commitField('durationFrame', value)} />
 					</div>
 				</section>
 				{!isVideoClip && <section className="audio-editor-clip-properties__card">
 					<h3>{copy.fading}</h3>
 					<div className="audio-editor-clip-properties__stack">
 						<CommitField label={`${copy.clipGain} (dB)`} name="gain" value={clip ? linearToDb(clip.gain).toFixed(2) : '0.00'} type="number" disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.fadeIn} (s)`} name="fadeIn" value={clip ? framesToSecondsText(clip.fadeInFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
-						<CommitField label={`${copy.fadeOut} (s)`} name="fadeOut" value={clip ? framesToSecondsText(clip.fadeOutFrames, sampleRate) : '0.000'} type="number" disabled={disabled} onCommit={commitField} />
+						<ClipTimeCodeField label={copy.fadeIn} value={clip?.fadeInFrames ?? 0}
+							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
+							onCommit={(value) => commitField('fadeInFrame', value)} />
+						<ClipTimeCodeField label={copy.fadeOut} value={clip?.fadeOutFrames ?? 0}
+							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
+							onCommit={(value) => commitField('fadeOutFrame', value)} />
 					</div>
 				</section>}
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
@@ -182,6 +193,15 @@ function ClipProperties({ controller, snapshot, copy }) {
 			</div>}
 		</div>
 	);
+}
+
+function ClipTimeCodeField({ label, value, sampleRate, minimum = 0,
+	maximum = Number.POSITIVE_INFINITY, disabled, onCommit }) {
+	return <label className="audio-editor-field"><span>{label}</span>
+		<AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
+			format="hh:mm:ss+milliseconds" minimum={minimum} maximum={maximum}
+			disabled={disabled} onCommit={onCommit} />
+	</label>;
 }
 
 export default ClipPropertiesDialog;

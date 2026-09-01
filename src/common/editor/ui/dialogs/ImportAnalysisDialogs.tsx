@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { prepareRawPcmWaveFile, type RawPcmByteOrder, type RawPcmSampleFormat } from '../../controller/raw-pcm-import.ts';
 import type { RegularIntervalAnnotationOptions } from '../../controller/regular-interval-annotation-service.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 
 interface DialogController {
@@ -115,9 +116,12 @@ export function RegularIntervalAnnotationDialog({ controller, copy, run, onClose
 			}).catch(() => undefined);
 		}}>
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalKind}</span><select value={kind} onChange={(event) => setKind(event.currentTarget.value as 'marker' | 'region')}><option value="marker">{copy.regularIntervalMarker}</option><option value="region">{copy.regularIntervalRegion}</option></select></label>
-			<NumberField label={copy.regularIntervalStartFrame} value={startFrame} minimum={0} maximum={Number.MAX_SAFE_INTEGER} onChange={setStartFrame} />
-			<NumberField label={copy.regularIntervalEndFrame} value={endFrame} minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setEndFrame} />
-			<NumberField label={copy.regularIntervalFrames} value={intervalFrames} minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setIntervalFrames} />
+			<TimeField name="startFrame" label={copy.regularIntervalStartFrame} value={startFrame} sampleRate={project?.sampleRate}
+				minimum={0} maximum={Math.max(0, endFrame - 1)} onChange={setStartFrame} />
+			<TimeField name="endFrame" label={copy.regularIntervalEndFrame} value={endFrame} sampleRate={project?.sampleRate}
+				minimum={startFrame + 1} maximum={Number.MAX_SAFE_INTEGER} onChange={setEndFrame} />
+			<TimeField name="intervalFrames" label={copy.regularIntervalFrames} value={intervalFrames} sampleRate={project?.sampleRate}
+				minimum={1} maximum={Number.MAX_SAFE_INTEGER} onChange={setIntervalFrames} />
 			<label className="kw-audio-editor-dialog__field"><span>{copy.regularIntervalNamePrefix}</span><input value={namePrefix} onChange={(event) => setNamePrefix(event.currentTarget.value)} /></label>
 			<div className="kw-audio-editor-dialog__actions"><button type="button" onClick={onClose}>{copy.cancel}</button><button type="submit" disabled={!project}>{copy.regularIntervalCreate}</button></div>
 		</form>
@@ -138,4 +142,15 @@ function NumberField({ label, value, minimum, maximum, onChange }: Readonly<{
 	label: string; value: number; minimum: number; maximum: number; onChange(value: number): void;
 }>) {
 	return <label className="kw-audio-editor-dialog__field"><span>{label}</span><input required type="number" min={minimum} max={maximum} step={1} value={value} onChange={(event) => onChange(Number(event.currentTarget.value))} /></label>;
+}
+
+function TimeField({ name, label, value, sampleRate = 48_000, minimum, maximum, onChange }: Readonly<{
+	name: string; label: string; value: number; sampleRate?: number; minimum: number; maximum: number;
+	onChange(value: number): void;
+}>) {
+	return <label className="kw-audio-editor-dialog__field"><span>{label}</span>
+		<AudioEditorTimeCodeInput name={name} label={label} value={value} unit="samples" rate={sampleRate}
+			format="hh:mm:ss+milliseconds" minimum={minimum} maximum={maximum}
+			onChange={onChange} />
+	</label>;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
-import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import {
 	cancelDraftEditOnEscape,
 	createDraftBlurCommitGuard,
@@ -12,23 +12,12 @@ import {
 
 export function LabelManagerRow({ label, sampleRate, controller, copy, disabled, run }) {
 	const [title, setTitle] = useState(label.title || '');
-	const [startSeconds, setStartSeconds] = useState(() => framesToSeconds(label.startFrame, { sampleRate }).toFixed(3));
-	const [endSeconds, setEndSeconds] = useState(() => framesToSeconds(label.endFrame, { sampleRate }).toFixed(3));
 	useEffect(() => {
 		setTitle(label.title || '');
-		setStartSeconds(framesToSeconds(label.startFrame, { sampleRate }).toFixed(3));
-		setEndSeconds(framesToSeconds(label.endFrame, { sampleRate }).toFixed(3));
-	}, [label.endFrame, label.startFrame, label.title, sampleRate]);
-	const updateRange = () => {
-		const startValue = Number(startSeconds);
-		const endValue = Number(endSeconds);
-		if (!Number.isFinite(startValue) || !Number.isFinite(endValue) || startValue < 0 || endValue < startValue) {
-			setStartSeconds(framesToSeconds(label.startFrame, { sampleRate }).toFixed(3));
-			setEndSeconds(framesToSeconds(label.endFrame, { sampleRate }).toFixed(3));
-			return;
-		}
-		const startFrame = secondsToFrames(startValue, { sampleRate });
-		const endFrame = secondsToFrames(endValue, { minimumFrame: startFrame, sampleRate });
+	}, [label.title]);
+	const updateRange = (edge, value) => {
+		const startFrame = edge === 'start' ? value : label.startFrame;
+		const endFrame = edge === 'end' ? value : label.endFrame;
 		if (startFrame === label.startFrame && endFrame === label.endFrame) return;
 		run(() => controller.actions.labels.update(label.trackId, label.id, { startFrame, endFrame }));
 	};
@@ -54,8 +43,16 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 			</div>
 			<small>{label.trackName}</small>
 			<div className="kw-audio-editor__label-manager-range">
-				<label><span>{copy.selectionStart || copy.clipStart}</span><input type="number" min="0" step="0.001" value={startSeconds} disabled={disabled} onChange={(event) => setStartSeconds(event.currentTarget.value)} onBlur={updateRange} /></label>
-				<label><span>{copy.selectionEnd || copy.clipDuration}</span><input type="number" min="0" step="0.001" value={endSeconds} disabled={disabled} onChange={(event) => setEndSeconds(event.currentTarget.value)} onBlur={updateRange} /></label>
+				<label><span>{copy.selectionStart || copy.clipStart}</span><AudioEditorTimeCodeInput
+					label={copy.selectionStart || copy.clipStart} value={label.startFrame}
+					unit="samples" rate={sampleRate} format="hh:mm:ss+milliseconds"
+					maximum={label.endFrame} disabled={disabled}
+					onCommit={(value) => updateRange('start', value)} /></label>
+				<label><span>{copy.selectionEnd || copy.clipDuration}</span><AudioEditorTimeCodeInput
+					label={copy.selectionEnd || copy.clipDuration} value={label.endFrame}
+					unit="samples" rate={sampleRate} format="hh:mm:ss+milliseconds"
+					minimum={label.startFrame} disabled={disabled}
+					onCommit={(value) => updateRange('end', value)} /></label>
 			</div>
 			<Button variant="secondary" onClick={() => run(() => controller.actions.timeline.setSelection(label.startFrame, label.endFrame))}>{copy.select || copy.selection}</Button>
 		</li>

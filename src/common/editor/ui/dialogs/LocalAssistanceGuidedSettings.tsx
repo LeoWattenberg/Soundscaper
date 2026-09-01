@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type {
 	AssistanceWorkflowSettingsV1,
 } from '../../assistance/workflow-settings-v1.ts';
+import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 
 type Copy = Readonly<Record<string, string | undefined>>;
 type EditorialField = 'title' | 'hook' | 'chapters' | 'explanation';
@@ -129,9 +130,9 @@ export default function LocalAssistanceGuidedSettings({
 			<NumberSetting label={text(copy, 'localAssistanceHighlightCount', 'Highlight proposals')}
 				value={settings.resultCount} min={1} max={20} step={1} disabled={disabled}
 				onChange={(resultCount) => commit({ ...settings, resultCount })} />
-			<NumberSetting label={text(copy, 'localAssistanceHighlightMaximum',
+			<TimeSetting label={text(copy, 'localAssistanceHighlightMaximum',
 				'Maximum seconds per proposal')} value={settings.maximumDurationSeconds}
-				min={15} max={180} step={1} disabled={disabled}
+				min={15} max={180} disabled={disabled}
 				onChange={(maximumDurationSeconds) => commit({ ...settings, maximumDurationSeconds })} />
 			<CheckboxSetting disabled={disabled} checked={settings.editorialRerank}
 				onChange={(editorialRerank) => commit({ ...settings, editorialRerank })}>
@@ -197,6 +198,15 @@ function NumberSetting({ label, value, min, max, step, disabled, onChange }: Rea
 		disabled={disabled} onChange={(event) => {
 			if (event.currentTarget.value !== '') void onChange(event.currentTarget.valueAsNumber);
 		}} /></label>;
+}
+
+function TimeSetting({ label, value, min, max, disabled, onChange }: Readonly<{
+	label: string; value: number; min: number; max: number; disabled: boolean;
+	onChange: (value: number) => unknown;
+}>) {
+	return <label>{label}<AudioEditorTimeCodeInput label={label} value={value}
+		minimum={min} maximum={max} disabled={disabled}
+		onChange={(next) => { void onChange(next); }} /></label>;
 }
 
 function ModeSettings({ copy, name, legend, value, disabled, onChange }: Readonly<{
