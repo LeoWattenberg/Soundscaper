@@ -1,12 +1,24 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #kw-audio-editor-design-system .audio-editor-timecode-input {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
 	gap: 2px;
 	min-height: 28px;
 	max-width: 100%;
 	vertical-align: middle;
+}
+
+#kw-audio-editor-design-system .audio-editor-timecode-input__value {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	opacity: 0;
+	pointer-events: none;
 }
 
 #kw-audio-editor-design-system .audio-editor-timecode-input__sign {

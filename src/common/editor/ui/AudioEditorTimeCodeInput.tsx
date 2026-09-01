@@ -26,6 +26,8 @@ interface AudioEditorTimeCodeInputProps {
 	readonly onFormatChange?: (format: TimeCodeFormat) => void;
 	readonly valueText?: string;
 	readonly describedBy?: string;
+	readonly directEntryUnit?: AudioEditorTimeUnit;
+	readonly directEntryPrecision?: number;
 }
 
 const DEFAULT_SAMPLE_RATE = 48_000;
@@ -50,11 +52,17 @@ export default function AudioEditorTimeCodeInput({
 	onFormatChange,
 	valueText,
 	describedBy,
+	directEntryUnit = unit,
+	directEntryPrecision,
 }: AudioEditorTimeCodeInputProps) {
 	const [draft, setDraft] = useState(value);
 	useEffect(() => setDraft(value), [value]);
 	const normalizedRate = editorTimeRate(unit, rate);
 	const normalizedValue = clampAudioEditorTimeValue(draft, minimum, maximum);
+	const directEntryValue = editorValueInUnit(normalizedValue, unit, directEntryUnit, normalizedRate);
+	const directEntryMinimum = editorValueInUnit(minimum, unit, directEntryUnit, normalizedRate);
+	const directEntryMaximum = Number.isFinite(maximum)
+		? editorValueInUnit(maximum, unit, directEntryUnit, normalizedRate) : undefined;
 	const signed = minimum < 0;
 	return <span
 		className={`audio-editor-timecode-input${className ? ` ${className}` : ''}`}
@@ -82,9 +90,8 @@ export default function AudioEditorTimeCodeInput({
 				onChange?.(nextValue);
 			}}> {normalizedValue < 0 ? '−' : '+'} </button> : null}
 		<TimeCode
-			ariaLabel={label}
+			ariaLabel="Timecode value"
 			formatAriaLabel={`${label}: format`}
-			ariaValueText={valueText}
 			ariaDescribedBy={describedBy}
 			value={timeCodeSecondsFromEditorValue(Math.abs(normalizedValue), unit, normalizedRate)}
 			format={format}
@@ -104,15 +111,32 @@ export default function AudioEditorTimeCodeInput({
 				onChange?.(nextValue);
 			}}
 		/>
-		{name ? <input type="hidden" name={name} value={normalizedValue} disabled={disabled}
-			required={required} onChange={(event) => {
-				const nextValue = Number(event.currentTarget.value);
-				if (!Number.isFinite(nextValue)) return;
+		<input className="audio-editor-timecode-input__value" type="number" name={name}
+			aria-label={label} aria-valuetext={valueText} aria-describedby={describedBy} tabIndex={-1}
+			value={directEntryPrecision === undefined ? directEntryValue
+				: directEntryValue.toFixed(directEntryPrecision)} disabled={disabled}
+			required={required} min={directEntryMinimum} max={directEntryMaximum}
+			step={directEntryUnit === 'seconds' ? 0.001 : 1} onChange={(event) => {
+				const nextDirectValue = event.currentTarget.valueAsNumber;
+				if (!Number.isFinite(nextDirectValue)) return;
+				const nextValue = editorValueInUnit(
+					nextDirectValue, directEntryUnit, unit, normalizedRate,
+				);
 				const bounded = clampAudioEditorTimeValue(nextValue, minimum, maximum);
 				setDraft(bounded);
 				onChange?.(bounded);
-			}} /> : null}
+			}} />
 	</span>;
+}
+
+function editorValueInUnit(
+	value: number,
+	from: AudioEditorTimeUnit,
+	to: AudioEditorTimeUnit,
+	rate: number,
+): number {
+	if (from === to) return value;
+	return timeCodeSecondsToEditorValue(timeCodeSecondsFromEditorValue(value, from, rate), to, rate);
 }
 
 export function timeCodeSecondsFromEditorValue(

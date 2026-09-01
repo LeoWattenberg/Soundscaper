@@ -37,7 +37,7 @@ test.describe('Soundscaper sound-activated recording', () => {
 		const enabled = panel.getByRole('switch', { name: 'Sound-activated recording', exact: true });
 		const threshold = panel.getByRole('slider', { name: 'Activation threshold', exact: true });
 		const hysteresis = panel.getByRole('slider', { name: 'Release hysteresis', exact: true });
-		const hold = panel.getByRole('slider', { name: 'Hold after silence', exact: true });
+		const hold = panel.locator('[data-sound-activation-hold] input');
 		await expect(panel).toBeVisible();
 		await expect(threshold).toBeFocused();
 		await expect(enabled).toBeChecked();
@@ -60,8 +60,8 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await page.keyboard.press('ArrowRight');
 		await expectCommittedPreference(panel, 'data-sound-activation-hysteresis-db', '7');
 		await expect(hysteresis).toHaveValue('7');
-		await hold.focus();
-		await page.keyboard.press('ArrowRight');
+		await hold.fill('260');
+		await hold.blur();
 		await expectCommittedPreference(panel, 'data-sound-activation-hold-milliseconds', '260');
 		await expect(hold).toHaveValue('260');
 
@@ -103,7 +103,7 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await expect(restoredPanel.getByRole('switch', { name: 'Sound-activated recording', exact: true })).toBeChecked();
 		await expect(restoredPanel.getByRole('slider', { name: 'Activation threshold', exact: true })).toHaveValue(persistedThreshold);
 		await expect(restoredPanel.getByRole('slider', { name: 'Release hysteresis', exact: true })).toHaveValue('7');
-		await expect(restoredPanel.getByRole('slider', { name: 'Hold after silence', exact: true })).toHaveValue('260');
+		await expect(restoredPanel.locator('[data-sound-activation-hold] input')).toHaveValue('260');
 		expect(errors).toEqual([]);
 	});
 

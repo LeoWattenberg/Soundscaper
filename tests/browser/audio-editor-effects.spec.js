@@ -125,15 +125,19 @@ import {
 		await addRackEffect(page, effectsPanel, 'track', 'Reverb');
 		const reverb = page.getByRole('dialog', { name: 'Reverb', exact: true });
 		const decayInput = reverb.locator('[data-effect-param="decay"] input');
-		const decayKnob = reverb.locator('[data-effect-param="decay"]').getByRole('slider', { name: /Decay:/ });
-		const initialDecay = await decayInput.inputValue();
-		const decayBox = await decayKnob.boundingBox();
-		expect(decayBox).not.toBeNull();
-		await page.mouse.move(decayBox.x + decayBox.width / 2, decayBox.y + decayBox.height / 2);
+		await commitInput(decayInput, '3');
+		await expect(decayInput).toHaveValue('3');
+		const reverbMixInput = reverb.locator('[data-effect-param="mix"] input');
+		const reverbMixKnob = reverb.locator('[data-effect-param="mix"]')
+			.getByRole('slider', { name: /Mix:/ });
+		const initialMix = await reverbMixInput.inputValue();
+		const mixBox = await reverbMixKnob.boundingBox();
+		expect(mixBox).not.toBeNull();
+		await page.mouse.move(mixBox.x + mixBox.width / 2, mixBox.y + mixBox.height / 2);
 		await page.mouse.down();
 		try {
-			await page.mouse.move(decayBox.x + decayBox.width / 2 + 20, decayBox.y + decayBox.height / 2);
-			await expect.poll(() => decayInput.inputValue()).not.toBe(initialDecay);
+			await page.mouse.move(mixBox.x + mixBox.width / 2 + 20, mixBox.y + mixBox.height / 2);
+			await expect.poll(() => reverbMixInput.inputValue()).not.toBe(initialMix);
 		} finally {
 			await page.mouse.up();
 		}

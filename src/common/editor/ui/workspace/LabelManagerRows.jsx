@@ -46,11 +46,13 @@ export function LabelManagerRow({ label, sampleRate, controller, copy, disabled,
 				<label><span>{copy.selectionStart || copy.clipStart}</span><AudioEditorTimeCodeInput
 					label={copy.selectionStart || copy.clipStart} value={label.startFrame}
 					unit="samples" rate={sampleRate} format="hh:mm:ss+milliseconds"
+					directEntryUnit="seconds" directEntryPrecision={3}
 					maximum={label.endFrame} disabled={disabled}
 					onCommit={(value) => updateRange('start', value)} /></label>
 				<label><span>{copy.selectionEnd || copy.clipDuration}</span><AudioEditorTimeCodeInput
 					label={copy.selectionEnd || copy.clipDuration} value={label.endFrame}
 					unit="samples" rate={sampleRate} format="hh:mm:ss+milliseconds"
+					directEntryUnit="seconds" directEntryPrecision={3}
 					minimum={label.startFrame} disabled={disabled}
 					onCommit={(value) => updateRange('end', value)} /></label>
 			</div>
