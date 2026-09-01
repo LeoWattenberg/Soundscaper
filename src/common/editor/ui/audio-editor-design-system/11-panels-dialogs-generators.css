@@ -427,7 +427,7 @@
 	color: var(--kw-editor-text);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor-dialog__field :is(input, select) {
+#kw-audio-editor-design-system .kw-audio-editor-dialog__field > :is(input, select) {
 	width: 100%;
 	min-height: 38px;
 	padding: 7px 10px;
@@ -436,6 +436,12 @@
 	border: 1px solid var(--kw-editor-line);
 	border-radius: 5px;
 	font: inherit;
+}
+#kw-audio-editor-design-system .kw-audio-editor-dialog__field > .number-stepper {
+	background-color: var(--kw-editor-control);
+}
+#kw-audio-editor-design-system .kw-audio-editor-dialog__field > .number-stepper .number-stepper__arrows {
+	border-inline-start: 1px solid var(--kw-editor-line);
 }
 
 #kw-audio-editor-design-system .kw-audio-editor-dialog--nyquist {

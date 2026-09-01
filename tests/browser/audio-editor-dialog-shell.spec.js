@@ -55,6 +55,54 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(dialog).toBeHidden();
 	});
 
+	test('keeps dialog number steppers centered, single-surfaced, and theme-owned', async ({ page }) => {
+		const editor = await bootEditor(page);
+		await chooseCommand(page, editor, 'Generate', 'DTMF tones');
+		const dialog = page.getByRole('dialog', { name: 'DTMF tones', exact: true });
+		const stepper = dialog.locator('[data-generator-field="amplitude"] .number-stepper');
+		const stepperInput = stepper.locator('.number-stepper__input');
+		const sequence = dialog.locator('[data-generator-field="sequence"] .text-input');
+		const sequenceInput = sequence.locator('.text-input__field');
+
+		for (const theme of ['dark', 'light']) {
+			await page.evaluate((nextTheme) => { document.documentElement.dataset.theme = nextTheme; }, theme);
+			await expect(editor).toHaveCSS('color-scheme', theme);
+			const appearance = await stepper.evaluate((element) => {
+				const input = element.querySelector('.number-stepper__input');
+				const arrow = element.querySelector('.number-stepper__arrow');
+				const inputStyle = getComputedStyle(input);
+				const sequenceElement = element.closest('[role="dialog"]')
+					.querySelector('[data-generator-field="sequence"] .text-input');
+				const sequenceInputElement = sequenceElement.querySelector('.text-input__field');
+				const sequenceInputStyle = getComputedStyle(sequenceInputElement);
+				const box = element.getBoundingClientRect();
+				const inputBox = input.getBoundingClientRect();
+				return {
+					controlBackground: getComputedStyle(sequenceElement).backgroundColor,
+					stepperBackground: getComputedStyle(element).backgroundColor,
+					arrowBackground: getComputedStyle(arrow).backgroundColor,
+					inputBackground: inputStyle.backgroundColor,
+					inputBorder: inputStyle.borderWidth,
+					inputPaddingBlock: [inputStyle.paddingTop, inputStyle.paddingBottom],
+					centerDelta: Math.abs((box.top + box.height / 2) - (inputBox.top + inputBox.height / 2)),
+					sequenceInputBackground: sequenceInputStyle.backgroundColor,
+					sequenceInputBorder: sequenceInputStyle.borderWidth,
+				};
+			});
+			expect(appearance.stepperBackground).toBe(appearance.controlBackground);
+			expect(appearance.arrowBackground).toBe('rgba(0, 0, 0, 0)');
+			expect(appearance.inputBackground).toBe('rgba(0, 0, 0, 0)');
+			expect(appearance.inputBorder).toBe('0px');
+			expect(appearance.inputPaddingBlock).toEqual(['0px', '0px']);
+			expect(appearance.centerDelta).toBeLessThanOrEqual(0.5);
+			expect(appearance.sequenceInputBackground).toBe('rgba(0, 0, 0, 0)');
+			expect(appearance.sequenceInputBorder).toBe('0px');
+		}
+
+		await expect(stepperInput).toHaveValue('0.8');
+		await expect(sequenceInput).toHaveValue('123');
+	});
+
 	test('keeps workspace and search shortcuts behind an open modal dialog', async ({ page }) => {
 		const editor = await bootEditor(page);
 		await chooseCommand(page, editor, 'Edit', 'Preferences');
