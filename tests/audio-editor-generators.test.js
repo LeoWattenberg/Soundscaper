@@ -37,6 +37,25 @@ test('chirp supports the same waveforms as tone', () => {
 	assert.throws(() => generateAudioEditorSignal('chirp', { ...common, waveform: 'triangle' }), /waveform/);
 });
 
+test('chirp linearly sweeps from its start amplitude to its end amplitude', () => {
+	const chirp = generateAudioEditorSignal('chirp', {
+		sampleRate: 8_000,
+		durationSeconds: 0.001,
+		startFrequency: 1_000,
+		endFrequency: 1_000,
+		startAmplitude: 0.25,
+		endAmplitude: 0.75,
+		waveform: 'square',
+	});
+
+	assert.equal(chirp.channels[0][0], 0.25);
+	assert.equal(chirp.channels[0].at(-1), -0.75);
+	assert.throws(() => generateAudioEditorSignal('chirp', {
+		startAmplitude: -0.1,
+		endAmplitude: 0.75,
+	}), /startAmplitude/);
+});
+
 test('noise and DTMF generation are deterministic, bounded, and validated', () => {
 	const first = generateAudioEditorSignal('noise', { sampleRate: 8_000, durationSeconds: 0.1, color: 'pink', seed: 42, channelCount: 2 });
 	const second = generateAudioEditorSignal('noise', { sampleRate: 8_000, durationSeconds: 0.1, color: 'pink', seed: 42, channelCount: 2 });

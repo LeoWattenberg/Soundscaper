@@ -28,9 +28,9 @@ export function generateAudioEditorSignal(type, options = {}) {
 function generateFixedDuration(type, options, sampleRate, channelCount) {
 	const durationSeconds = finiteInRange(options.durationSeconds ?? 1, 1 / sampleRate, 24 * 60 * 60, 'durationSeconds');
 	const frameCount = boundedFrameCount(durationSeconds, sampleRate);
-	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 	if (type === 'silence') return allocate(channelCount, frameCount);
 	if (type === 'tone') {
+		const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 		const frequency = finiteInRange(options.frequency ?? 440, 0.01, sampleRate / 2, 'frequency');
 		const waveform = enumValue(options.waveform ?? 'sine', OSCILLATOR_WAVEFORMS, 'waveform');
 		return duplicateChannels(renderTone(frameCount, sampleRate, frequency, amplitude, waveform), channelCount);
@@ -38,10 +38,20 @@ function generateFixedDuration(type, options, sampleRate, channelCount) {
 	if (type === 'chirp') {
 		const startFrequency = finiteInRange(options.startFrequency ?? 440, 0.01, sampleRate / 2, 'startFrequency');
 		const endFrequency = finiteInRange(options.endFrequency ?? 1_320, 0.01, sampleRate / 2, 'endFrequency');
+		const startAmplitude = finiteInRange(options.startAmplitude ?? options.amplitude ?? 0.8, 0, 1, 'startAmplitude');
+		const endAmplitude = finiteInRange(options.endAmplitude ?? options.amplitude ?? 0.8, 0, 1, 'endAmplitude');
 		const interpolation = enumValue(options.interpolation ?? 'logarithmic', ['linear', 'logarithmic'], 'interpolation');
 		const waveform = enumValue(options.waveform ?? 'sine', OSCILLATOR_WAVEFORMS, 'waveform');
-		return duplicateChannels(renderChirp(frameCount, sampleRate, startFrequency, endFrequency, amplitude, interpolation, waveform), channelCount);
+		return duplicateChannels(renderChirp(frameCount, sampleRate, {
+			startFrequency,
+			endFrequency,
+			startAmplitude,
+			endAmplitude,
+			interpolation,
+			waveform,
+		}), channelCount);
 	}
+	const amplitude = finiteInRange(options.amplitude ?? 0.8, 0, 1, 'amplitude');
 	return renderNoise(frameCount, channelCount, amplitude, options);
 }
 
@@ -56,7 +66,14 @@ function renderTone(frameCount, sampleRate, frequency, amplitude, waveform) {
 	return output;
 }
 
-function renderChirp(frameCount, sampleRate, startFrequency, endFrequency, amplitude, interpolation, waveform) {
+function renderChirp(frameCount, sampleRate, {
+	startFrequency,
+	endFrequency,
+	startAmplitude,
+	endAmplitude,
+	interpolation,
+	waveform,
+}) {
 	const output = new Float32Array(frameCount);
 	let phase = 0;
 	for (let frame = 0; frame < frameCount; frame += 1) {
@@ -64,6 +81,7 @@ function renderChirp(frameCount, sampleRate, startFrequency, endFrequency, ampli
 		const frequency = interpolation === 'linear'
 			? startFrequency + (endFrequency - startFrequency) * progress
 			: startFrequency * (endFrequency / startFrequency) ** progress;
+		const amplitude = startAmplitude + (endAmplitude - startAmplitude) * progress;
 		output[frame] = amplitude * oscillator(phase, waveform);
 		phase = (phase + frequency / sampleRate) % 1;
 	}

@@ -55,13 +55,19 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(dialog).toBeHidden();
 	});
 
-	test('offers Tone waveforms in the Chirp generator', async ({ page }) => {
+	test('offers Tone waveforms and amplitude endpoints in the Chirp generator', async ({ page }) => {
 		const editor = await bootEditor(page);
 		await chooseCommand(page, editor, 'Generate', 'Chirp');
 		const dialog = page.getByRole('dialog', { name: 'Chirp', exact: true });
 		const waveform = dialog.getByRole('button', { name: 'Waveform', exact: true });
+		const startAmplitude = dialog.locator('[data-generator-field="startAmplitude"] input');
+		const endAmplitude = dialog.locator('[data-generator-field="endAmplitude"] input');
 
 		await expect(waveform).toBeEnabled();
+		await expect(startAmplitude).toHaveAttribute('aria-label', 'Start amplitude (0–1)');
+		await expect(endAmplitude).toHaveAttribute('aria-label', 'End amplitude (0–1)');
+		await expect(startAmplitude).toHaveValue('0.8');
+		await expect(endAmplitude).toHaveValue('0.8');
 		await waveform.click();
 		const options = page.getByRole('listbox').getByRole('option');
 		await expect(options).toHaveText(['Sine', 'Square', 'Sawtooth']);

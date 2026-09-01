@@ -125,8 +125,10 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 								</div>
 								<div role="group" aria-label={labels.amplitudeSweep}>
 									<PreferencePanel title={labels.amplitudeSweep} className="kw-audio-editor-generator__card">
-										{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
-										<p className="kw-audio-editor-generator__explanation">{labels.amplitudeExplanation}</p>
+										<div className="kw-audio-editor-generator__pair">
+											{numberField('startAmplitude', copy.generatorStartAmplitude, { min: 0, max: 1, step: 0.01 })}
+											{numberField('endAmplitude', copy.generatorEndAmplitude, { min: 0, max: 1, step: 0.01 })}
+										</div>
 									</PreferencePanel>
 								</div>
 								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
@@ -378,7 +380,6 @@ function generatorLayoutLabels(copy) {
 	return {
 		frequencySweep: copy.generatorFrequencySweep,
 		amplitudeSweep: copy.generatorAmplitudeSweep,
-		amplitudeExplanation: copy.generatorAmplitudeExplanation,
 		toneSilenceRatio: copy.generatorToneSilenceRatio,
 		dutyCycle: copy.generatorDutyCycle,
 		dtmfExplanation: copy.generatorDtmfExplanation,
@@ -390,13 +391,13 @@ function generatorWaveformOptions(copy) {
 }
 
 function generatorDefaults(type) {
-	const common = { durationSeconds: 30, amplitude: 0.8 };
-	if (type === 'tone') return { ...common, frequency: 440, waveform: 'sine' };
-	if (type === 'chirp') return { ...common, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic', waveform: 'sine' };
-	if (type === 'noise') return { ...common, color: 'white' };
+	const common = { durationSeconds: 30 };
+	if (type === 'tone') return { ...common, amplitude: 0.8, frequency: 440, waveform: 'sine' };
+	if (type === 'chirp') return { ...common, startAmplitude: 0.8, endAmplitude: 0.8, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic', waveform: 'sine' };
+	if (type === 'noise') return { ...common, amplitude: 0.8, color: 'white' };
 	if (type === 'dtmf') {
 		const durations = generatorDtmfDurations(30, 2 / 3 * 100, 3);
-		return { ...common, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
+		return { ...common, amplitude: 0.8, sequence: '123', toneSeconds: durations.toneSeconds, silenceSeconds: durations.silenceSeconds };
 	}
 	return { durationSeconds: 30 };
 }
