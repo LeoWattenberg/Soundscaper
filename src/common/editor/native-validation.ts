@@ -83,6 +83,12 @@ export function createNativeValidators(options: NativeValidatorOptions): NativeV
 					raise(`${article} ${label} must be a plain record.`);
 				}
 			}
+			for (const key of Reflect.ownKeys(value)) {
+				const descriptor = Object.getOwnPropertyDescriptor(value, key);
+				if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+					raise(`${article} ${label} must be a plain record.`);
+				}
+			}
 			return value as Record<string, unknown>;
 		},
 		exactKeys(record: Record<string, unknown>, keys: readonly string[], label: string): void {

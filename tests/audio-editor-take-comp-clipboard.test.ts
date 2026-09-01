@@ -18,6 +18,7 @@ import {
 	stageTakeCompClipboardPaste,
 } from '../src/common/editor/commands/take-comp-clipboard.ts';
 import {
+	createAudioClip,
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
@@ -138,6 +139,36 @@ test('one serializable paste restores a canonical, independently identified take
 		],
 	});
 	assert.deepEqual(source.takeGroups.map(({ id }) => id), ['group-a']);
+});
+
+test('insert paste refuses to ripple an existing take graph when the clipboard carries no takes', () => {
+	const base = project();
+	const source = {
+		...base,
+		takeGroups: [],
+		clips: [createAudioClip({
+			id: 'plain-clip', sourceId: 'take-source-a', title: 'Plain clip',
+			timelineStartFrame: 0, durationFrames: 100,
+			sourceStartFrame: 0, sourceDurationFrames: 100,
+		})],
+		tracks: base.tracks.map((track) => ({ ...track, clipIds: ['plain-clip'] })),
+	};
+	const clipboard = createClipboardDescriptor(source, {
+		startFrame: 0, endFrame: 100, trackIds: ['track-a'],
+	});
+	assert.deepEqual(clipboard.takeGroups, []);
+	const target = project();
+	const command = preparePasteCommand(clipboard, {
+		atFrame: 50, mode: 'insert-track', project: target,
+	}, idFactory());
+
+	assert.throws(
+		() => applyEditorCommand(target, command as AudioEditorCommand, { now: NOW }),
+		/existing take graph|explicit split identities/iu,
+	);
+	assert.deepEqual(target.takeGroups.map(({ id, startSample, endSample }) => ({
+		id, startSample, endSample,
+	})), [{ id: 'group-a', startSample: 100, endSample: 500 }]);
 });
 
 test('a take comp is not pasted into a project at another sample rate', () => {

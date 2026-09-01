@@ -16,6 +16,7 @@ interface ActualAudioFormat {
 
 interface PcmSink {
 	readonly pendingChunks: number;
+	readonly acceptedInputFrameEnd: number | null;
 	push(chunk: Readonly<{
 		readonly frameStart: number;
 		readonly frames: number;
@@ -217,6 +218,7 @@ export function createFramescaperBrowserAudioProcessorRecorder(input: Readonly<{
 		get monitoring() { return fallback?.monitoring ?? false; },
 		inputGain,
 		get pendingChunks() { return sink.pendingChunks; },
+		get acceptedInputFrameEnd() { return fallback?.acceptedInputFrameEnd ?? sink.acceptedInputFrameEnd; },
 		track: options.track,
 		start,
 		pause,

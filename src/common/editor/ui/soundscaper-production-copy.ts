@@ -55,6 +55,7 @@ export const SOUNDSCAPER_PRODUCTION_COPY = Object.freeze({
 	masteringFadeOut: 'Fade out (frames)',
 	masteringEntryMetadata: 'Delivery metadata (JSON object of text values)',
 	masteringEntryMetadataInvalid: 'Delivery metadata must be a JSON object whose values are all text.',
+	masteringEntryTimingInvalid: 'Gap and fade values must be whole non-negative frame counts.',
 	masteringIssues: 'Issues',
 	masteringMissingRegion: 'Region unavailable',
 	readOnly: 'Read-only projects can be inspected, but production changes are disabled.',

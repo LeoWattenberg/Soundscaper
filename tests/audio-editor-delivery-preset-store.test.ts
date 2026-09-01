@@ -123,6 +123,21 @@ test('importing an identical preset is idempotent', () => {
 	assert.deepEqual(again.presets, mine.presets);
 });
 
+test('an identical colliding preset is idempotent across settings key order', () => {
+	counter = 0;
+	const mine = stateWith({
+		label: 'Mine', kind: 'audio', format: 'wav',
+		settings: { sampleRate: 48_000, sampleFormat: 'int24' },
+	});
+	const [preset] = mine.presets;
+	const reordered = JSON.stringify({
+		schemaVersion: 1,
+		presets: [{ ...preset, settings: { sampleFormat: 'int24', sampleRate: 48_000 } }],
+	});
+	const again = importDeliveryPresets(mine, reordered, { idFactory });
+	assert.deepEqual(again.presets, mine.presets);
+});
+
 test('malformed input is refused with a useful reason', () => {
 	assert.throws(() => importDeliveryPresets(createDeliveryPresetState(), '{'), /Invalid delivery preset JSON/u);
 	assert.throws(

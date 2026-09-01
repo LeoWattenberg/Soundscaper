@@ -620,11 +620,11 @@ function makeDistortionTable(settings) {
 		const amount = settings.parameter1 * Math.sqrt(3) / 100;
 		const cubic = (value) => settings.parameter1 === 0 ? value : value - value ** 3 / 3;
 		const gain = amount === 0 ? 1 : 1 / cubic(Math.min(amount, 1));
-		let value = -amount;
+		let value = amount === 0 ? -1 : -amount;
 		for (let index = 0; index < DISTORTION_TABLE_SIZE; index += 1) {
 			table[index] = gain * cubic(value);
-			for (let repeat = 0; repeat < settings.repeats; repeat += 1) table[index] = gain * cubic(table[index] * amount);
-			value += amount / DISTORTION_STEPS;
+			for (let repeat = 0; amount !== 0 && repeat < settings.repeats; repeat += 1) table[index] = gain * cubic(table[index] * amount);
+			value += (amount === 0 ? 1 : amount) / DISTORTION_STEPS;
 		}
 	} else if (mode === 6) {
 		const amount = settings.parameter1 / -100;

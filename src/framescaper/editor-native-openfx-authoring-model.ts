@@ -56,6 +56,9 @@ export function createFramescaperOpenFxAuthoringModelNativeMedia(
 	const sources = records(project.sources, 'nativeMedia OpenFX sources');
 	const clips = records(project.clips, 'nativeMedia OpenFX clips');
 	const masks = records(project.videoMaskMattes, 'nativeMedia OpenFX masks');
+	const masksById = new Map(masks.map((mask) => [stableId(mask.id, 'paint mask'), mask]));
+	const presentations = records(project.videoVisualPresentations,
+		'nativeMedia OpenFX visual presentations');
 	const targets: FramescaperOpenFxAuthoringTargetNativeMedia[] = [];
 	const push = (target: FramescaperOpenFxAuthoringTargetNativeMedia): void => {
 		if (targets.length >= MAXIMUM_TARGETS) throw new RangeError('nativeMedia OpenFX authoring targets exceed their ceiling.');
@@ -84,7 +87,7 @@ export function createFramescaperOpenFxAuthoringModelNativeMedia(
 			inputs: frozenInputs([{ name: 'Source', sourceRef }]), label: label(clip, targetId) });
 		if (clip.kind === 'video') push({ context: 'retimer', targetId, instanceId: null,
 			inputs: frozenInputs([{ name: 'Source', sourceRef }]), label: label(clip, targetId) });
-		const mask = masks[0];
+		const mask = paintMaskForClip(targetId, presentations, masksById);
 		if (mask) push({ context: 'paint', targetId, instanceId: null,
 			inputs: frozenInputs([
 				{ name: 'Source', sourceRef },
@@ -108,6 +111,26 @@ export function createFramescaperOpenFxAuthoringModelNativeMedia(
 		}
 	}
 	return deepFreeze({ plugins, targets });
+}
+
+function paintMaskForClip(
+	clipId: string,
+	presentations: readonly Record<string, unknown>[],
+	masksById: ReadonlyMap<string, Record<string, unknown>>,
+): Record<string, unknown> | null {
+	const matches = presentations.filter((presentation) => {
+		const owner = record(presentation.owner, 'nativeMedia visual presentation owner');
+		return owner.kind === 'clip' && owner.id === clipId;
+	});
+	if (matches.length > 1) throw new RangeError('A visual clip has ambiguous OpenFX mask presentations.');
+	if (matches.length === 0) return null;
+	const maskIds = dense(matches[0]!.maskMatteIds, MAXIMUM_TARGETS,
+		'nativeMedia visual presentation mask IDs');
+	if (maskIds.length === 0) return null;
+	const maskId = stableId(maskIds[0], 'paint mask');
+	const mask = masksById.get(maskId);
+	if (!mask) throw new ReferenceError('The visual clip OpenFX paint mask is unavailable.');
+	return mask;
 }
 
 export function createFramescaperOpenFxAuthoringDraftNativeMedia(

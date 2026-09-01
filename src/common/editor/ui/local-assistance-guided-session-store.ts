@@ -73,6 +73,12 @@ export type LocalAssistanceGuidedUnavailableReason =
 	| 'aggregate-preparation-unavailable'
 	| 'aggregate-custody-unavailable';
 
+export function localAssistanceGuidedConfigurationLocked(
+	phase: LocalAssistanceGuidedPhase,
+): boolean {
+	return phase === 'preparing' || phase === 'running' || phase === 'reviewing' || phase === 'accepting';
+}
+
 export interface LocalAssistanceGuidedSnapshot {
 	readonly surface: LocalAssistanceDialogSurface;
 	readonly phase: LocalAssistanceGuidedPhase;
@@ -172,7 +178,9 @@ export function createLocalAssistanceGuidedSessionStore(
 		update({ surface });
 	};
 	const selectWorkflow = (workflowIdValue: AssistanceGuidedWorkflowId): void => {
-		if (snapshot.canCancel) throw new Error('The active Guided workflow selection is immutable.');
+		if (localAssistanceGuidedConfigurationLocked(snapshot.phase)) {
+			throw new Error('The active Guided workflow selection is immutable.');
+		}
 		const workflowId = normalizeAssistanceWorkflowId(workflowIdValue);
 		if (!GUIDED_IDS.has(workflowId)) throw new TypeError('The Guided assistance workflow is unsupported.');
 		const selected = workflowId as AssistanceGuidedWorkflowId;
@@ -191,7 +199,9 @@ export function createLocalAssistanceGuidedSessionStore(
 			selectedChoiceIds: Object.freeze([]), error: null });
 	};
 	const setSettings = (settingsValue: AssistanceWorkflowSettingsV1): void => {
-		if (snapshot.canCancel) throw new Error('The active Guided workflow settings are immutable.');
+		if (localAssistanceGuidedConfigurationLocked(snapshot.phase)) {
+			throw new Error('The active Guided workflow settings are immutable.');
+		}
 		if (snapshot.selectedWorkflowId === null) {
 			throw new Error('Choose a Guided workflow before changing its settings.');
 		}

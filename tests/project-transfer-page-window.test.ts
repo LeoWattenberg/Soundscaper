@@ -130,6 +130,72 @@ test('a ready that lands while the sender is still loading is not dropped', asyn
 	});
 });
 
+test('re-listing projects cannot replace the selection named by a pending confirmation', async () => {
+	await withUnreferencedTimers(async () => {
+		const sender = new FakeWindow(SOUNDSCAPER);
+		const popup = new FakeWindow(FRAMESCAPER);
+		sender.peer = popup;
+		popup.peer = sender;
+		sender.opens = () => popup;
+		const firstListing = new FakeStore([
+			{ id: 'video-old', title: 'Confirmed cut', schemaFamily: 'framescaper', schemaVersion: 1 },
+		] as never);
+		const secondListing = new FakeStore([
+			{ id: 'video-new', title: 'Relisted cut', schemaFamily: 'framescaper', schemaVersion: 1 },
+		] as never);
+		const exportingStore = new FakeStore([
+			{ id: 'video-old', title: 'Confirmed cut', schemaFamily: 'framescaper', schemaVersion: 1 },
+			{ id: 'video-new', title: 'Relisted cut', schemaFamily: 'framescaper', schemaVersion: 1 },
+		] as never);
+		const receivingStore = new FakeStore();
+		const runtime = runtimeFor(createFakeArchive());
+		let opened = 0;
+
+		await mountTransferPage({
+			scope: sender as never,
+			role: 'send',
+			configuration: CONFIGURATION as never,
+			dependencies: {
+				loadRuntime: async () => runtime,
+				openStore: async () => ({
+					id: 'fake', label: 'Fake',
+					store: [firstListing, secondListing, exportingStore][opened++]!,
+					close: async () => undefined,
+				}) as never,
+			},
+		});
+		await settle();
+		await sender.document.clickButton('Find my projects');
+		await settle();
+		await sender.document.clickButton(/^Send /u);
+		await settle();
+		assert.match(sender.document.querySelector('[data-transfer-confirm]')?.textContent ?? '', /Confirmed cut/u);
+
+		await sender.document.clickButton('Find my projects');
+		await settle();
+		assert.deepEqual(sender.document.querySelectorAll('input')
+			.filter(({ type }) => type === 'checkbox').map(({ value }) => value), ['framescaper:video-new']);
+		await sender.document.clickButton(/^Yes, send/u);
+		await settle();
+
+		const receiving = receiveTransferArchives({
+			runtime,
+			store: receivingStore,
+			port: createWindowTransferPort({
+				peer: sender, listener: popup, allowedOrigins: [...CONFIGURATION.allowedOrigins],
+				expectedSource: sender,
+			}),
+			sessionId: 'confirmation-listing-race',
+			targetOrigin: SOUNDSCAPER,
+			allowedOrigins: [...CONFIGURATION.allowedOrigins],
+			clock: boundedClock(),
+		});
+		await receiving;
+		await settle();
+		assert.deepEqual([...receivingStore.projects.keys()], ['video-old']);
+	});
+});
+
 test('one sender confirmation owns the popup until its run settles and always releases its port', async () => {
 	const sender = new FakeWindow(SOUNDSCAPER);
 	const popup = new FakeWindow(FRAMESCAPER);

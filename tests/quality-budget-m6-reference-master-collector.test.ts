@@ -12,6 +12,7 @@ import {
 	M6_REFERENCE_MASTER_METRIC_IDS,
 	M6_REFERENCE_MASTER_WORKLOAD_ID,
 	computeM6ReferenceMasterMetrics,
+	loudnessErrors,
 } from '../scripts/lib/m6-reference-master-metrics.mjs';
 import {
 	assertM6ReferenceMasterCollectionHost,
@@ -248,6 +249,26 @@ test('loudness error is the gap between what the gain promised and what the file
 	}));
 	assert.ok(Math.abs(withLoudness['delivery.integratedLoudnessErrorLu'] - 0.15) < 1e-9);
 	assert.ok(Math.abs(withLoudness['delivery.truePeakErrorDb'] - 0.05) < 1e-9);
+});
+
+test('partial delivered loudness measurements are derived independently', () => {
+	const loudnessOnly = audioArtifact({ loudness: deliveredLoudness({
+		deliveredLoudnessLufs: -23.15, deliveredTruePeakDb: null,
+	}) });
+	const peakOnly = audioArtifact({ loudness: deliveredLoudness({
+		deliveredLoudnessLufs: null, deliveredTruePeakDb: -0.95,
+	}) }, { artifactId: 'audio-master-peak' });
+	const [loudnessError] = loudnessErrors(loudnessOnly);
+	const [peakError] = loudnessErrors(peakOnly);
+	assert.deepEqual(Object.keys(loudnessError ?? {}), ['loudnessLu']);
+	assert.deepEqual(Object.keys(peakError ?? {}), ['truePeakDb']);
+	assert.ok(Math.abs((loudnessError?.loudnessLu ?? 0) + 0.15) < 1e-9);
+	assert.ok(Math.abs((peakError?.truePeakDb ?? 0) - 0.05) < 1e-9);
+	const withPartialMeasurements = metrics(measurement({
+		audioArtifacts: [loudnessOnly, peakOnly],
+	}));
+	assert.ok(Math.abs(withPartialMeasurements['delivery.integratedLoudnessErrorLu'] - 0.15) < 1e-9);
+	assert.ok(Math.abs(withPartialMeasurements['delivery.truePeakErrorDb'] - 0.05) < 1e-9);
 });
 
 test('every loudness code the collector accepts is one the exporter actually writes', () => {

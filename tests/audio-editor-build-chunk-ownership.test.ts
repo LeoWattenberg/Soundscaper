@@ -21,7 +21,11 @@ import {
 	workerChunkGroups,
 	WORKER_XML_VENDOR_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
-import { eagerImportsOfLazyOwners, sourceModules } from './helpers/eager-chunk-group-crossings.ts';
+import {
+	eagerImportsOfLazyOwners,
+	importsOnlyTypes,
+	sourceModules,
+} from './helpers/eager-chunk-group-crossings.ts';
 
 /**
  * Every flat editor domain module must be owned by a named chunk group.
@@ -63,6 +67,12 @@ test('no eagerly owned editor module statically imports a lazily owned one', () 
 	// byte budget - for code the user never opened. Reach lazy code through a dynamic import
 	// or a facade instead, or move the importer to the lazy side.
 	assert.deepEqual(eagerImportsOfLazyOwners(EAGER_ROOTS), []);
+});
+
+test('only a wholly type-only import clause is absent from the eager graph', () => {
+	assert.equal(importsOnlyTypes('{ type LazyShape, type LazyOptions as Options }'), true);
+	assert.equal(importsOnlyTypes('LazyRuntime, { type LazyShape }'), false);
+	assert.equal(importsOnlyTypes('* as LazyRuntime'), false);
 });
 
 test('assistance domain modules default to the lazy owner, with a named eager exception set', () => {
@@ -169,6 +179,7 @@ test('production meter session helpers have a shared non-recursive owner', () =>
 		'src/common/editor/production-audio/strip-meter-session.ts',
 	]) {
 		assert.ok(EDITOR_PRODUCTION_METER_CHUNK_TEST.test(path), path);
+		assert.ok(EDITOR_PRODUCTION_METER_CHUNK_TEST.test(path.replaceAll('/', '\\')), path);
 		assert.equal(chunkGroupForModulePath(path), 'editor-production-meter', path);
 	}
 	assert.equal(
@@ -291,6 +302,7 @@ test('selection effects have an isolated lazy runtime owner', () => {
 		'src/common/editor/parametric-eq/destructive.js',
 	]) {
 		assert.ok(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(path));
+		assert.ok(EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST.test(path.replaceAll('/', '\\')));
 		assert.equal(chunkGroupForModulePath(path), 'editor-selection-effects-runtime');
 	}
 	assert.ok(EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST.test('src/common/editor/selection-effects-runtime.js'));

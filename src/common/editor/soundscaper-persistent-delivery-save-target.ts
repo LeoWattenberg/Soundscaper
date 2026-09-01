@@ -98,7 +98,8 @@ function opaqueId(value: unknown, label: string): string {
 
 function leaf(value: unknown): string {
 	if (typeof value !== 'string' || !value || value === '.' || value === '..'
-		|| /[\0-\x1f/\\]/u.test(value) || new TextEncoder().encode(value).byteLength > 220) {
+		|| /[\0-\x1f/\\\p{Cf}\p{Zl}\p{Zp}]/u.test(value)
+		|| new TextEncoder().encode(value).byteLength > 220) {
 		throw new TypeError('The Soundscaper persistent delivery file name is invalid.');
 	}
 	return value;

@@ -20,6 +20,7 @@ import LocalAssistanceGuidedReview from
 	'../src/common/editor/ui/dialogs/LocalAssistanceGuidedReview.tsx';
 import {
 	createLocalAssistanceGuidedSessionStore,
+	localAssistanceGuidedConfigurationLocked,
 	type LocalAssistanceGuidedSnapshot,
 } from '../src/common/editor/ui/local-assistance-guided-session-store.ts';
 import type {
@@ -449,6 +450,7 @@ test('Guided acceptance publishes only checked choices and retries failed native
 	})], { type: 'application/vnd.soundscaper.captions+json' });
 	const fixture = workflowBridge({ completedBody: captions, releaseResults: [false, true] });
 	const accepted: unknown[] = [];
+	const acceptance = deferred<void>();
 	const preparation = primitivePreparation({
 		prepareGuidedWorkflow: async (request) => ({ outcome: 'prepared',
 			workflow: assistanceWorkflowFixture({ jobId: request.jobId,
@@ -458,6 +460,7 @@ test('Guided acceptance publishes only checked choices and retries failed native
 				media: { audio: null, video: null } } }),
 		acceptGuidedWorkflowResult: async (request) => {
 			accepted.push(request);
+			await acceptance.promise;
 			return { outcome: 'accepted', selectedIds: request.selectedChoiceIds };
 		},
 	});
@@ -468,7 +471,18 @@ test('Guided acceptance publishes only checked choices and retries failed native
 	assert.equal(guided.getSnapshot().canAccept, false);
 	guided.setReviewChoiceSelected('captions', true);
 	assert.equal(guided.getSnapshot().canAccept, true);
-	await guided.accept();
+	const accepting = guided.accept();
+	await Promise.resolve();
+	assert.equal(guided.getSnapshot().phase, 'accepting');
+	assert.equal(localAssistanceGuidedConfigurationLocked('accepting'), true);
+	assert.equal(localAssistanceGuidedConfigurationLocked('reviewing'), true);
+	assert.throws(() => guided.selectWorkflow('clean-filler-silence'), /immutable/iu);
+	assert.throws(() => guided.setSettings(defaultAssistanceWorkflowSettingsV1('transcribe-captions')),
+		/immutable/iu);
+	assert.match(renderDialog(guided.getSnapshot()),
+		/<select id="local-assistance-guided-workflow"[^>]*disabled=""/u);
+	acceptance.resolve(undefined);
+	await accepting;
 	assert.equal(guided.getSnapshot().phase, 'accepted');
 	assert.equal(guided.getSnapshot().canAccept, false);
 	assert.equal(accepted.length, 1);
@@ -479,6 +493,12 @@ test('Guided acceptance publishes only checked choices and retries failed native
 	await guided.dispose();
 	assert.equal(fixture.releases, 2, 'accepted output custody retries exactly once during disposal');
 });
+
+function deferred<Value>(): Readonly<{ readonly promise: Promise<Value>; readonly resolve: (value: Value) => void }> {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((accept) => { resolve = accept; });
+	return Object.freeze({ promise, resolve });
+}
 
 function primitivePreparation(
 	extra: Partial<LocalAssistanceSelectedMediaPreparationPort> = {},

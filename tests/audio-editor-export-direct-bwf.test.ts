@@ -299,6 +299,22 @@ test('realtime BWF loudness measurement fails closed before target or render wor
 	assert.deepEqual(fixture.downloads, []);
 });
 
+test('realtime BWF loudness measurement refuses float output before direct-route admission', async () => {
+	let prepareCalls = 0;
+	await assert.rejects(
+		prepareDirectBwfDestination({
+			prepareSave() {
+				prepareCalls += 1;
+				return Object.freeze({ mode: 'blob' });
+			},
+		}, directBwfPlan({ encoding: {
+			bitDepth: 32, floatingPoint: true, sampleFormat: 'float32', bext: BEXT,
+		} }), { measureLoudness: true }, new AbortController().signal),
+		/realtime Broadcast WAV loudness measurement.*not supported/iu,
+	);
+	assert.equal(prepareCalls, 0);
+});
+
 test('direct BWF four-way size diagnostics identify the Broadcast WAV container', async () => {
 	const plan = directBwfPlan();
 	for (const [label, fixture, destination, expectedCommitCalls, expectedAbortCalls] of [

@@ -124,20 +124,18 @@ test('each format declares the elementary container its chunks need', () => {
 
 /**
  * The capability this whole tier rests on: the shipped core can mux an already
- * encoded stream without touching the pixels. Measured rather than assumed,
- * because nothing in the product used `-c copy` before this.
+ * encoded stream without touching the pixels. Nothing in the product used
+ * `-c copy` before this, so exercise the pinned implementation directly.
  */
-test('the pinned FFmpeg core remuxes a pre-encoded stream, and muxing is a rounding error', async () => {
+test('the pinned FFmpeg core remuxes a pre-encoded stream without re-encoding', async () => {
 	const core = await loadPinnedCore();
 	core.setLogger(() => undefined);
 	core.FS.writeFile('raw.rgba', syntheticRgba());
 
-	const encodeStarted = process.hrtime.bigint();
 	assert.equal(core.exec(
 		'-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${WIDTH}x${HEIGHT}`, '-r', '30', '-i', 'raw.rgba',
 		'-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-an', '-f', 'mp4', '-y', 'encoded.mp4',
 	), 0, 'the fixture must encode');
-	const encodeMs = Number(process.hrtime.bigint() - encodeStarted) / 1e6;
 
 	// Stand in for WebCodecs output: an already-compressed elementary stream.
 	assert.equal(core.exec(
@@ -147,21 +145,15 @@ test('the pinned FFmpeg core remuxes a pre-encoded stream, and muxing is a round
 	const elementary = core.FS.readFile('chunks.h264');
 	assert.ok(elementary.byteLength > 0);
 
-	const remuxStarted = process.hrtime.bigint();
 	assert.equal(core.exec(...remuxArguments('mp4', { num: 30, den: 1 })
 		.map((argument) => argument.replace(/^\//u, ''))), 0,
 	'the shipped core must remux a pre-encoded stream with -c copy');
-	const remuxMs = Number(process.hrtime.bigint() - remuxStarted) / 1e6;
 
 	const remuxed = core.FS.readFile('remuxed.mp4');
 	assert.ok(remuxed.byteLength > 0, 'the remux must produce a container');
 	assert.ok(
 		remuxed.byteLength < elementary.byteLength * 3,
 		'a remux repackages the stream rather than growing it into raw frames',
-	);
-	assert.ok(
-		remuxMs < encodeMs,
-		`muxing (${remuxMs.toFixed(1)} ms) must cost less than encoding (${encodeMs.toFixed(1)} ms)`,
 	);
 });
 

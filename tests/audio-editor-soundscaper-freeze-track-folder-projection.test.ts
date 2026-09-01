@@ -43,54 +43,54 @@ const NOW = '2026-08-19T12:00:00.000Z';
 const CONTENT_SHA256 = 'a'.repeat(64);
 const DERIVED_SHA256 = 'b'.repeat(64);
 
-for (const revision of ['V21', 'V23'] as const) {
-	test(`a frozen track inside a folder still projects for ${revision} playback and delivery`, () => {
-		const { project, freeze, derivedSource, trackId } = fixture(revision);
-		const playback = revision === 'V21'
-			? createSoundscaperAudioTrackFreezePlaybackService(
-				createSoundscaperPlaybackProjectService(), pcmStore(),
-			)
-			: createSoundscaperAudioTrackFreezePlaybackService(
-				createSoundscaperPlaybackProjectService(), pcmStore(),
-			);
-		playback.admitVerifiedFreeze({
-			project, trackId, freeze, derivedSource,
-			sourceContentIdentities: [{ sourceId: 'voice-source', contentSha256: CONTENT_SHA256 }],
-		});
-
-		const projections = [
-			playback.projectForPlayback(project),
-			playback.projectForAudioRenderedFallbackDelivery(project),
-			playback.projectForVideoRenderedFallbackDelivery(project),
-		];
-		for (const projection of projections) {
-			// The rendered clip is what proves the freeze projection actually ran, so
-			// this asserts about the rebuilt document rather than a pass-through.
-			const clips = (projection.project as unknown as {
-				clips: readonly Record<string, unknown>[];
-			}).clips;
-			assert.ok(
-				clips.some((clip) => clip.sourceId === derivedSource.id),
-				'the projection must substitute the frozen render',
-			);
-			assert.equal(
-				isTrackFolderMediaStateProjectionV12(projection.project),
-				true,
-				'the rebuilt projection must carry the trust that goes with its marker',
-			);
-			// What the engine does with it on load, and the reason an untrusted
-			// marker is not a private detail: it refuses the whole document.
-			assert.doesNotThrow(() => projectTrackFolderMediaStateV12(projection.project));
-
-			// The folder's own mute still reaches the leaf inside it, which is what
-			// the projection exists to do and what the rebuild must not undo.
-			const track = (projection.project as unknown as {
-				tracks: readonly Record<string, unknown>[];
-			}).tracks.find(({ id }) => id === trackId);
-			assert.equal(track?.mute, true);
-		}
+test('a frozen track inside a folder still projects for playback and delivery', () => {
+	const { project, freeze, derivedSource, trackId } = fixture();
+	const playback = createSoundscaperAudioTrackFreezePlaybackService(
+		createSoundscaperPlaybackProjectService(), pcmStore(),
+	);
+	const revoke = playback.admitVerifiedFreeze({
+		project, trackId, freeze, derivedSource,
+		sourceContentIdentities: [{ sourceId: 'voice-source', contentSha256: CONTENT_SHA256 }],
 	});
-}
+
+	const projections = [
+		playback.projectForPlayback(project),
+		playback.projectForAudioRenderedFallbackDelivery(project),
+		playback.projectForVideoRenderedFallbackDelivery(project),
+	];
+	for (const projection of projections) {
+		// The rendered clip is what proves the freeze projection actually ran, so
+		// this asserts about the rebuilt document rather than a pass-through.
+		const clips = (projection.project as unknown as {
+			clips: readonly Record<string, unknown>[];
+		}).clips;
+		assert.ok(
+			clips.some((clip) => clip.sourceId === derivedSource.id),
+			'the projection must substitute the frozen render',
+		);
+		assert.equal(
+			isTrackFolderMediaStateProjectionV12(projection.project),
+			true,
+			'the rebuilt projection must carry the trust that goes with its marker',
+		);
+		// What the engine does with it on load, and the reason an untrusted
+		// marker is not a private detail: it refuses the whole document.
+		assert.doesNotThrow(() => projectTrackFolderMediaStateV12(projection.project));
+
+		// The folder's own mute still reaches the leaf inside it, which is what
+		// the projection exists to do and what the rebuild must not undo.
+		const track = (projection.project as unknown as {
+			tracks: readonly Record<string, unknown>[];
+		}).tracks.find(({ id }) => id === trackId);
+		assert.equal(track?.mute, true);
+	}
+	revoke();
+	assert.equal(
+		playback.projectForPlayback(project).requiredAudioSourceIds.includes(derivedSource.id),
+		false,
+	);
+	playback.dispose();
+});
 
 function pcmStore() {
 	// The projection under test reads no PCM; the service only needs a store that
@@ -102,7 +102,7 @@ function pcmStore() {
 	} as never;
 }
 
-function fixture(revision: 'V21' | 'V23') {
+function fixture() {
 	const source = createAudioSource({
 		id: 'voice-source', storageKey: 'pcm:voice', contentSha256: CONTENT_SHA256,
 		frameCount: 8, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
@@ -152,8 +152,6 @@ function fixture(revision: 'V21' | 'V23') {
 		}],
 		primarySequenceId: 'main-sequence',
 	};
-	const project = revision === 'V21'
-		? createSoundscaperProject(options)
-		: createSoundscaperProject(options);
+	const project = createSoundscaperProject(options);
 	return { project, freeze, derivedSource, trackId: 'voice' };
 }

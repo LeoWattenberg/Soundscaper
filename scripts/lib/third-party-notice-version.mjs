@@ -5,7 +5,7 @@ export function thirdPartyNoticeRecordsVersion(notices, dependency, version) {
 	const marker = dependency === 'electron'
 		? `Electron ${version}`
 		: `\`${dependency}\` ${version}`;
-	return new RegExp(`${escapeRegex(marker)}(?![0-9A-Za-z+_.-])`, 'u').test(notices);
+	return new RegExp(`(?<![0-9A-Za-z+_.-])${escapeRegex(marker)}(?![0-9A-Za-z+_.-])`, 'u').test(notices);
 }
 
 function escapeRegex(value) {

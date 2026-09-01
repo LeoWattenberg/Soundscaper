@@ -93,6 +93,46 @@ test('watch rules default to link and reconcile non-recursively after two stable
 	database.close();
 });
 
+test('watch reconciliation isolates an entry-local import failure and continues its sweep', async () => {
+	const database = open();
+	const roots = rootRepository(database);
+	const rules = new FramescaperNativeWatchRepository(database);
+	const lease = acquireFramescaperNativeServicesWriterLease(database, {
+		leaseId: 'lease-entry-error', instanceId: 'instance-entry-error', processId: 1, nowMs: 0,
+	});
+	const rule = rules.create({
+		...PROJECT_IDENTITY,
+		ruleId: 'e'.repeat(32), grantId: GRANT_ID, projectId: 'project-1',
+		binId: 'project-bin', extensions: ['mov'], createdAtMs: 0,
+	}, lease, 0);
+	const errors: unknown[] = [];
+	const imported: string[] = [];
+	const reconciler = new FramescaperNativeWatchReconciler({
+		repository: rules, roots,
+		scan: async () => [file('bad.mov', 'bad-file'), file('good.mov', 'good-file')],
+		probe: async (entry) => ({
+			succeeded: true, contentSha256: entry.name === 'bad.mov' ? SHA_A : SHA_B,
+		}),
+		projectState: () => ({ ...PROJECT_IDENTITY, open: true, writable: true,
+			binId: 'project-bin' }),
+		lease: () => lease,
+		importFile: async ({ entry }) => {
+			if (entry.name === 'bad.mov') throw new Error('entry-local locator refusal');
+			imported.push(entry.name);
+			return true;
+		},
+		onEntryError: (error) => { errors.push(error); },
+	});
+	assert.equal((await reconciler.reconcile(0)).imports, 0);
+	assert.equal((await reconciler.reconcile(1_999)).imports, 0);
+	assert.equal((await reconciler.reconcile(2_000)).imports, 1);
+	assert.deepEqual(imported, ['good.mov']);
+	assert.equal(errors.length, 1);
+	assert.match(String(errors[0]), /entry-local locator refusal/u);
+	assert.equal(rules.hasImported(rule.ruleId, 'good-file', SHA_B), true);
+	database.close();
+});
+
 test('fs.watch is only a hint and the coordinator always schedules an authoritative 30-second sweep', async () => {
 	const database = open();
 	const roots = rootRepository(database);

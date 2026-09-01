@@ -154,6 +154,9 @@ test('overwrite preparation assigns stable split IDs before the command is commi
 	if (command?.type !== 'clip/overwrite') assert.fail('Expected an overwrite command.');
 	assert.deepEqual(command.splitClipIds, { under: 'clip-1' });
 	assert.deepEqual(command.changes, { timelineStartFrame: 400 });
+	harness.setBlocked(true);
+	assert.equal(harness.service.overwriteClips('active', 'track-a', { timelineStartFrame: 500 }), null);
+	assert.equal(harness.commits.length, 1, 'a blocked single-clip overwrite cannot commit');
 });
 
 test('single-clip and current new-track moves preserve direct command and selection behavior', () => {

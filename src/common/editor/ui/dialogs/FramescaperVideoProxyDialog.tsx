@@ -243,6 +243,7 @@ export default function FramescaperVideoProxyDialog({
 			{model.sources.length > 0 && <>
 				<label><span>{label(copy, 'videoProxySource', 'Video source')}</span>
 					<select data-video-proxy-source value={selectedSourceId ?? ''}
+						disabled={pending !== null}
 						onChange={(event) => {
 							modeGenerationRef.current += 1;
 							setSelectedSourceId(event.currentTarget.value || null);

@@ -107,3 +107,40 @@ test('a tail beyond the shortened clip collapses onto its last frame', () => {
 		{ frame: 0, value: 0.2 }, { frame: 100, value: 0.3 },
 	]);
 });
+
+test('separate rendered components retain earlier ripple shifts', () => {
+	const source = createAudioSource({
+		id: 'source', storageKey: 'source', name: 'Source',
+		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
+	});
+	const project = createAudioEditorProjectV17({
+		id: 'separate-rendered-components', title: 'Separate rendered components', now: NOW,
+		sources: [source],
+		tracks: [createAudioTrack({ id: 'track', name: 'Track', clipIds: ['a', 'b', 'tail'] })],
+		clips: [
+			createAudioClip({ id: 'a', trackId: 'track', sourceId: source.id,
+				timelineStartFrame: 0, durationFrames: 100, sourceStartFrame: 0 }),
+			createAudioClip({ id: 'b', trackId: 'track', sourceId: source.id,
+				timelineStartFrame: 200, durationFrames: 100, sourceStartFrame: 100 }),
+			createAudioClip({ id: 'tail', trackId: 'track', sourceId: source.id,
+				timelineStartFrame: 400, durationFrames: 100, sourceStartFrame: 200 }),
+		],
+		sequences: [{ id: 'main', trackIds: ['track'] }], primarySequenceId: 'main',
+	});
+	const rendered = applyEditorCommand(project, {
+		type: 'clip/render-replace-many',
+		entries: [
+			{ clipId: 'a', source: { id: 'rendered-a', storageKey: 'rendered-a', name: 'A',
+				frameCount: 200, channelCount: 1, sampleRate: 48_000 } },
+			{ clipId: 'b', source: { id: 'rendered-b', storageKey: 'rendered-b', name: 'B',
+				frameCount: 200, channelCount: 1, sampleRate: 48_000 } },
+		],
+	}, { now: NOW });
+	assert.deepEqual(rendered.clips.map(({ id, timelineStartFrame, durationFrames }) => ({
+		id, timelineStartFrame, durationFrames,
+	})), [
+		{ id: 'a', timelineStartFrame: 0, durationFrames: 200 },
+		{ id: 'b', timelineStartFrame: 300, durationFrames: 200 },
+		{ id: 'tail', timelineStartFrame: 600, durationFrames: 100 },
+	]);
+});

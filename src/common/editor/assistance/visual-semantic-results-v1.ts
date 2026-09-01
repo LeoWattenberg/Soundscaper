@@ -13,6 +13,7 @@ const MAXIMUM_TICK = 0x7fff_ffff_ffff_ffffn;
 const TICK = /^(?:0|[1-9]\d*)$/u;
 const ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
+const NON_WHITESPACE = /[^\p{White_Space}]/u;
 
 const RESULT_FIELDS = Object.freeze(['schemaVersion', 'width', 'height', 'timescale', 'frames']);
 const AUTHORITY_FIELDS = Object.freeze(['width', 'height', 'timescale', 'frames']);
@@ -350,7 +351,7 @@ function boundedArray(value: unknown, maximum: number, label: string): readonly 
 }
 
 function boundedText(value: unknown, maximum: number, label: string): string {
-	if (typeof value !== 'string' || value.trim() === '' || value.length > maximum
+	if (typeof value !== 'string' || !NON_WHITESPACE.test(value) || value.length > maximum
 		|| CONTROL.test(value)) throw new TypeError(`The ${label} is invalid.`);
 	return value;
 }

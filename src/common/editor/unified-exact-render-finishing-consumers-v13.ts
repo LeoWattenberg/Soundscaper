@@ -182,19 +182,20 @@ async function resolveFrame(
 	let frame = rgbaFrame(request?.frame, 'V13 finishing frame');
 	const analysisCache = new Map<string, VideoMotionAnalysisBodyV1>();
 	const stacks = new Map(authority.finishing.processorStacks.map((stack) => [stack.id, stack]));
-	const processors = presentations.flatMap((presentation) => {
-		if (presentation.processorStackId === null) return [];
+	const processorStacks = new Map<string, VideoProcessorStackV1>();
+	for (const presentation of presentations) {
+		if (presentation.processorStackId === null) continue;
 		const stack = stacks.get(presentation.processorStackId);
 		if (!stack || stack.sourceId !== source.sourceId) {
 			throw new ReferenceError('The V13 finishing processor stack does not bind the clip source.');
 		}
-		return [{ presentation, stack }];
-	});
-	const executable = processors.flatMap(({ stack }) => stack.processors.filter((processor) => (
+		processorStacks.set(stack.id, stack);
+	}
+	const executable = [...processorStacks.values()].flatMap((stack) => stack.processors.filter((processor) => (
 		processor.enabled && processor.kind !== 'tracking'
 	)));
 	let completed = 0;
-	for (const { stack } of processors) {
+	for (const stack of processorStacks.values()) {
 		for (const processor of stack.processors) {
 			if (!processor.enabled || processor.kind === 'tracking') continue;
 			throwIfAborted(request.signal);

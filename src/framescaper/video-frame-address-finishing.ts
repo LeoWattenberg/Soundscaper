@@ -131,12 +131,12 @@ export function createFramescaperVideoFrameAddressFinishing(options: Readonly<{
 			return cloneFrame(retained);
 		}
 		const byteLength = frame.pixels.byteLength;
-		while (cache.size > 0 && retainedBytes + byteLength > maximumCacheBytes) {
-			const oldest = cache.keys().next().value as string;
-			retainedBytes -= cache.get(oldest)!.pixels.byteLength;
-			cache.delete(oldest);
-		}
 		if (byteLength <= maximumCacheBytes) {
+			while (cache.size > 0 && retainedBytes + byteLength > maximumCacheBytes) {
+				const oldest = cache.keys().next().value as string;
+				retainedBytes -= cache.get(oldest)!.pixels.byteLength;
+				cache.delete(oldest);
+			}
 			cache.set(key, frame);
 			retainedBytes += byteLength;
 		}

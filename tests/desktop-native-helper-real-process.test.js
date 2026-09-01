@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -35,6 +35,11 @@ const ELECTRON = join(ROOT, 'node_modules/.bin/electron');
 const SMOKE_PREFIX = 'NATIVE-HELPER-SMOKE ';
 const BLOCK_FRAMES = 1_024;
 const BLOCKS = 8;
+
+test('the real-process harness terminates a helper that exceeds its protocol deadline', async () => {
+	const source = await readFile(join(ROOT, 'tests/fixtures/native-helper-real-process-main.cjs'), 'utf8');
+	assert.match(source, /setTimeout\(\(\) => \{[\s\S]*?child\.kill\(\);[\s\S]*?settle\('timeout'\);/u);
+});
 
 test('the native helper runs the verified addon across a real Electron utility process', async (context) => {
 	const availability = await describeNativeAddonAvailability({

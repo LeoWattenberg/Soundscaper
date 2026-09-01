@@ -132,7 +132,7 @@ export default function FramescaperAudioEditorBootstrap({
 		void createFramescaperWebEditorRuntime({ locale, copy }).then(
 			(candidate) => {
 				if (!active) {
-					void candidate.dispose();
+					void candidate.dispose().catch(reportRuntimeDisposalFailure);
 					return;
 				}
 				owned = candidate;
@@ -142,7 +142,7 @@ export default function FramescaperAudioEditorBootstrap({
 		);
 		return () => {
 			active = false;
-			if (owned) void owned.dispose();
+			if (owned) void owned.dispose().catch(reportRuntimeDisposalFailure);
 		};
 	}, [copy, locale]);
 
@@ -172,6 +172,10 @@ export default function FramescaperAudioEditorBootstrap({
 			crossProductHandoffAvailable={true}
 		/>
 	</Suspense>;
+}
+
+function reportRuntimeDisposalFailure(error: unknown): void {
+	console.error('The Framescaper web editor runtime did not close cleanly:', error);
 }
 
 function runtimeProjector(runtime: Readonly<FramescaperWebEditorRuntime>): RuntimeProjection {

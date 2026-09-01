@@ -27,7 +27,7 @@ export interface FramescaperCapturePcmPacketizerOptions {
 export interface FramescaperCapturePcmPacketizer {
 	readonly frameCount: number;
 	readonly packetCount: number;
-	expectPauseGap(): void;
+	expectPauseGap(prePauseInputFrameEnd: number | null): void;
 	packet(chunk: CapturePcmChunk): Readonly<CapturePcmAudioPacket>;
 }
 
@@ -52,8 +52,15 @@ export function createFramescaperCapturePcmPacketizer(
 	let expectedInputFrame: number | null = null;
 	let excludedPauseFrames = 0;
 	let acceptsPauseGap = false;
+	let prePauseInputFrameEnd: number | null = null;
 
-	function expectPauseGap(): void {
+	function expectPauseGap(inputFrameEnd: number | null): void {
+		if (inputFrameEnd !== null) {
+			prePauseInputFrameEnd = nonNegativeInteger(inputFrameEnd, 'Capture PCM pre-pause input frame end');
+			if (expectedInputFrame !== null && prePauseInputFrameEnd < expectedInputFrame) {
+				throw new RangeError('Capture PCM pre-pause input frame end precedes published input.');
+			}
+		} else prePauseInputFrameEnd = null;
 		acceptsPauseGap = true;
 	}
 
@@ -76,8 +83,12 @@ export function createFramescaperCapturePcmPacketizer(
 			throw new Error('Capture PCM input chunks cannot overlap or move backward.');
 		}
 		const inputGapFrames = expectedInputFrame === null ? 0 : frameStart - expectedInputFrame;
-		const droppedFrames = acceptsPauseGap ? 0 : inputGapFrames;
-		if (acceptsPauseGap) {
+		const inputFrameEnd = exactSum(frameStart, frames, 'Capture PCM input frame end');
+		const queuedBeforePause = acceptsPauseGap && prePauseInputFrameEnd !== null
+			&& inputFrameEnd <= prePauseInputFrameEnd;
+		const pauseGap = acceptsPauseGap && inputGapFrames > 0 && !queuedBeforePause;
+		const droppedFrames = acceptsPauseGap && !queuedBeforePause ? 0 : inputGapFrames;
+		if (pauseGap) {
 			excludedPauseFrames = exactSum(
 				excludedPauseFrames,
 				inputGapFrames,
@@ -88,8 +99,11 @@ export function createFramescaperCapturePcmPacketizer(
 		// serialized queue, so a contiguous pre-pause chunk can still land first.
 		// Only a packet that actually carries a gap consumes the latch; otherwise
 		// the real pause would later be classified as dropped frames.
-		if (inputGapFrames > 0) acceptsPauseGap = false;
-		expectedInputFrame = exactSum(frameStart, frames, 'Capture PCM input frame end');
+		if (pauseGap) {
+			acceptsPauseGap = false;
+			prePauseInputFrameEnd = null;
+		}
+		expectedInputFrame = inputFrameEnd;
 		const presentationTimeUs = frameTimeMicroseconds(
 			frameStart - excludedPauseFrames,
 			sampleRate,

@@ -18,6 +18,7 @@ import type {
 import { FramescaperNativeRootRepository } from './native-services-root-repository.ts';
 import {
 	assertFramescaperNativeServicesWriterLease,
+	FramescaperNativeServicesDatabaseError,
 	type FramescaperNativeServicesLease,
 } from './native-services-database.ts';
 
@@ -82,6 +83,7 @@ export interface FramescaperNativeWatchReconcilerOptions {
 		entry: FramescaperNativeWatchEntry;
 		contentSha256: string;
 	}>) => Promise<void> | void;
+	readonly onEntryError?: (error: unknown) => void;
 }
 
 export interface FramescaperNativeWatchSweepResult {
@@ -232,6 +234,7 @@ export class FramescaperNativeWatchReconciler {
 	readonly #lease: FramescaperNativeWatchReconcilerOptions['lease'];
 	readonly #importFile: FramescaperNativeWatchReconcilerOptions['importFile'];
 	readonly #importRecorded: FramescaperNativeWatchReconcilerOptions['importRecorded'];
+	readonly #onEntryError: (error: unknown) => void;
 	readonly #candidates = new Map<string, Map<string, WatchCandidateStateV1>>();
 
 	constructor(options: FramescaperNativeWatchReconcilerOptions) {
@@ -243,6 +246,7 @@ export class FramescaperNativeWatchReconciler {
 		this.#lease = options.lease;
 		this.#importFile = options.importFile;
 		this.#importRecorded = options.importRecorded;
+		this.#onEntryError = options.onEntryError ?? (() => undefined);
 	}
 
 	async reconcile(nowMs: number): Promise<FramescaperNativeWatchSweepResult> {
@@ -268,54 +272,59 @@ export class FramescaperNativeWatchReconciler {
 			this.#candidates.set(rule.ruleId, candidates);
 			const seen = new Set<string>();
 			for (const entry of entries) {
-				if (entry.symbolicLink) {
-					skippedSymlinks += 1;
-					continue;
-				}
-				if (!watchRuleAdmitsEntry(rule, {
-					name: entry.name, depth: 0,
-					isDirectory: entry.isDirectory, isSymbolicLink: entry.symbolicLink,
-				})) continue;
-				seen.add(entry.fileIdentity);
-				const tracking = trackWatchCandidate(candidates, entry.fileIdentity, {
-					atMs: nowMs, sizeBytes: entry.sizeBytes, modifiedAtMs: entry.modifiedAtMs,
-				});
-				if (tracking.candidate === null) continue;
-				const probe = await this.#probeIfSettled(tracking.candidate, entry);
-				const digest = probe.contentSha256;
-				const alreadyImported = digest !== null
-					&& this.#repository.hasImported(rule.ruleId, entry.fileIdentity, digest);
-				const project = this.#projectState(rule.projectId);
-				const decision = decideWatchImport({
-					rule,
-					candidate: tracking.candidate,
-					probeSucceeded: probe.succeeded,
-					contentSha256: digest,
-					importedKeys: alreadyImported && digest !== null
-						? new Set([`${rule.ruleId}|${entry.fileIdentity}|${digest}`])
-						: new Set(),
-					projectOpen: project.open,
-					projectWritable: project.writable,
-					nowMs,
-				});
-				if (decision.decision === 'skip-duplicate') {
-					duplicates += 1;
-					if (digest !== null) await this.#importRecorded?.({
-						rule, entry, contentSha256: digest,
-					});
-					candidates.delete(entry.fileIdentity);
-				} else if (decision.decision === 'pending-project-closed'
-					|| decision.decision === 'pending-project-read-only') {
-					pending += 1;
-				} else if (decision.decision === 'import' && digest !== null) {
-					if (await this.#importFile({ rule, entry, contentSha256: digest })) {
-						this.#repository.recordImport(
-							rule.ruleId, entry.fileIdentity, digest, nowMs, this.#lease(),
-						);
-						await this.#importRecorded?.({ rule, entry, contentSha256: digest });
-						imports += 1;
-						candidates.delete(entry.fileIdentity);
+				try {
+					if (entry.symbolicLink) {
+						skippedSymlinks += 1;
+						continue;
 					}
+					if (!watchRuleAdmitsEntry(rule, {
+						name: entry.name, depth: 0,
+						isDirectory: entry.isDirectory, isSymbolicLink: entry.symbolicLink,
+					})) continue;
+					seen.add(entry.fileIdentity);
+					const tracking = trackWatchCandidate(candidates, entry.fileIdentity, {
+						atMs: nowMs, sizeBytes: entry.sizeBytes, modifiedAtMs: entry.modifiedAtMs,
+					});
+					if (tracking.candidate === null) continue;
+					const probe = await this.#probeIfSettled(tracking.candidate, entry);
+					const digest = probe.contentSha256;
+					const alreadyImported = digest !== null
+						&& this.#repository.hasImported(rule.ruleId, entry.fileIdentity, digest);
+					const project = this.#projectState(rule.projectId);
+					const decision = decideWatchImport({
+						rule,
+						candidate: tracking.candidate,
+						probeSucceeded: probe.succeeded,
+						contentSha256: digest,
+						importedKeys: alreadyImported && digest !== null
+							? new Set([`${rule.ruleId}|${entry.fileIdentity}|${digest}`])
+							: new Set(),
+						projectOpen: project.open,
+						projectWritable: project.writable,
+						nowMs,
+					});
+					if (decision.decision === 'skip-duplicate') {
+						duplicates += 1;
+						if (digest !== null) await this.#importRecorded?.({
+							rule, entry, contentSha256: digest,
+						});
+						candidates.delete(entry.fileIdentity);
+					} else if (decision.decision === 'pending-project-closed'
+						|| decision.decision === 'pending-project-read-only') {
+						pending += 1;
+					} else if (decision.decision === 'import' && digest !== null) {
+						if (await this.#importFile({ rule, entry, contentSha256: digest })) {
+							this.#repository.recordImport(
+								rule.ruleId, entry.fileIdentity, digest, nowMs, this.#lease(),
+							);
+							await this.#importRecorded?.({ rule, entry, contentSha256: digest });
+							imports += 1;
+							candidates.delete(entry.fileIdentity);
+						}
+					}
+				} catch (error) {
+					if (fatalWatchSweepError(error)) throw error;
+					this.#onEntryError(error);
 				}
 			}
 			for (const fileIdentity of candidates.keys()) {
@@ -335,6 +344,12 @@ export class FramescaperNativeWatchReconciler {
 		}
 		return this.#probe(entry);
 	}
+}
+
+function fatalWatchSweepError(error: unknown): boolean {
+	return error instanceof FramescaperNativeServicesDatabaseError
+		|| Boolean(error && typeof error === 'object' && 'code' in error
+			&& typeof error.code === 'string' && error.code.startsWith('ERR_SQLITE'));
 }
 
 function decodeRule(row: Record<string, unknown>): WatchRuleV1 {

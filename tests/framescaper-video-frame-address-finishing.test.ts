@@ -49,6 +49,36 @@ test('concurrent frame resolves share decoder creation and account for one cache
 	assert.deepEqual(disposed, [1]);
 });
 
+test('an oversized frame request preserves smaller warm cache entries', async () => {
+	let captures = 0;
+	const addressing = createFramescaperVideoFrameAddressFinishing({
+		sources: new Map([['video-source', new Blob(['video'])]]),
+		timingViewsBySourceId: new Map([[
+			'video-source', { kind: 'cfr' as const, rate: { num: 30, den: 1 }, frameCount: 2 },
+		]]),
+		maximumCacheBytes: 8,
+		createDecoder: () => ({
+			capture() {
+				captures += 1;
+				return { width: 1, height: 1, pixels: new Uint8Array([captures, 0, 0, 255]) };
+			},
+			dispose() {},
+		}),
+	});
+	const resolve = (sourceFrame: number, width: number) => addressing.resolve({
+		sourceId: 'video-source', sourceFrame, width, height: width,
+		signal: new AbortController().signal,
+	});
+
+	await resolve(0, 1);
+	await resolve(1, 2);
+	await resolve(0, 1);
+	await addressing.dispose();
+
+	assert.equal(captures, 2,
+		'a frame too large to retain must not evict an unrelated cache hit');
+});
+
 test('decoder creation finishing after disposal cannot reopen frame addressing', async () => {
 	let releaseDecoder!: () => void;
 	const decoderReady = new Promise<void>((resolve) => { releaseDecoder = resolve; });

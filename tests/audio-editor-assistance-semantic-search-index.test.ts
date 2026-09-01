@@ -6,6 +6,8 @@ import test from 'node:test';
 import {
 	createAssistanceSemanticIndexSearchProviderV1,
 } from '../src/common/editor/assistance/semantic-search-index-v1.ts';
+import { createAssistanceAsyncSearchCoordinator } from
+	'../src/common/editor/assistance/async-search-provider.ts';
 import { createAssistanceEmbeddingMatrixV1 } from
 	'../src/common/editor/assistance/binary-formats-v1.ts';
 
@@ -105,6 +107,27 @@ test('semantic index is project/revision bound and refuses malformed custody bef
 		},
 		embedQuery: async () => [1, 0],
 	}), /row.*matrix|inventory/iu);
+});
+
+test('semantic index admits the full label bound produced by visual and OCR indexing', async () => {
+	const maximum = index();
+	maximum.ocr[0] = { ...maximum.ocr[0], label: `launch ${'x'.repeat(4_089)}` };
+	const provider = createAssistanceSemanticIndexSearchProviderV1({
+		index: maximum,
+		now: () => NOW,
+		embedQuery: async () => [1, 0],
+	});
+	const result = await createAssistanceAsyncSearchCoordinator({
+		provider, session: SESSION, now: () => NOW,
+	}).search('launch');
+	assert.equal(result.entries[0]?.detail?.length, 4_096);
+
+	const oversized = index();
+	oversized.ocr[0] = { ...oversized.ocr[0], label: 'x'.repeat(4_097) };
+	assert.throws(() => createAssistanceSemanticIndexSearchProviderV1({
+		index: oversized,
+		embedQuery: async () => [1, 0],
+	}), /label/iu);
 });
 
 test('semantic index rejects non-normalized query vectors, timing disagreement, and cancellation', async () => {

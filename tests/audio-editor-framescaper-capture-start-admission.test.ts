@@ -12,6 +12,7 @@ import type {
 	FramescaperCaptureSessionService,
 } from '../src/common/editor/controller/framescaper-capture-session-types.ts';
 import type { CapturePacket, CaptureSourceRole } from '../src/common/editor/framescaper-capture-domain.ts';
+import { deferred, remainsPending, waitForEvent } from './helpers/async-test-control.ts';
 
 const SHA = 'ab'.repeat(32);
 
@@ -72,9 +73,62 @@ test('a second recorder start failure seals recovery and releases the whole grap
 	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 1);
 });
 
+test('stop during recorder startup preserves packets already admitted to durability', async () => {
+	const microphoneStart = deferred<void>();
+	const harness = startHarness({
+		immediatePacketRole: 'camera',
+		startGate: { role: 'microphone', promise: microphoneStart.promise },
+	});
+	await harness.preparePreview();
+	const starting = harness.service.actions.start();
+	await waitForEvent(harness.events, 'recorder:start:microphone');
+	const stopping = harness.service.actions.stop();
+	microphoneStart.reject(new Error('microphone start failed'));
+
+	await Promise.all([
+		assert.rejects(starting, /microphone start failed/iu),
+		stopping,
+	]);
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.equal(harness.events.includes('durable:discard'), false);
+	assert.equal(harness.events.filter((event) => event === 'durable:seal').length, 1);
+});
+
+test('active recovery waits for an in-flight recorder start before stopping it', async () => {
+	const microphoneStart = deferred<void>();
+	const harness = startHarness({
+		startGate: { role: 'microphone', promise: microphoneStart.promise },
+	});
+	await harness.preparePreview();
+	const starting = harness.service.actions.start();
+	await waitForEvent(harness.events, 'recorder:start:microphone');
+	harness.failRecorder('camera', new Error('camera encoder failed'));
+	const settling = harness.service.settled();
+
+	assert.equal(await remainsPending(settling), true);
+	assert.equal(harness.events.includes('recorder:stop:microphone'), false);
+	microphoneStart.resolve();
+	await Promise.all([starting, settling]);
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.ok(harness.events.indexOf('recorder:start:microphone')
+		< harness.events.indexOf('recorder:stop:microphone'));
+});
+
+test('startup does not start another recorder after the capture enters recovery', async () => {
+	const harness = startHarness({ failureDuringStartRole: 'camera' });
+	await harness.preparePreview();
+
+	await assert.rejects(harness.service.actions.start(), /startup was interrupted/iu);
+	await harness.service.settled();
+	assert.equal(harness.service.snapshot.phase, 'recovery');
+	assert.equal(harness.events.includes('recorder:start:microphone'), false);
+});
+
 function startHarness(options: Readonly<{
 	factoryFailureRole?: CaptureSourceRole;
+	failureDuringStartRole?: CaptureSourceRole;
 	immediatePacketRole?: CaptureSourceRole;
+	startGate?: Readonly<{ role: CaptureSourceRole; promise: Promise<void> }>;
 	startFailureRole?: CaptureSourceRole;
 }> = {}) {
 	const events: string[] = [];
@@ -82,6 +136,7 @@ function startHarness(options: Readonly<{
 	const appendPhases: string[] = [];
 	const startTimes: Array<number | undefined> = [];
 	const resumeDurations: Array<number | undefined> = [];
+	const requests = new Map<CaptureSourceRole, FramescaperCaptureRecorderRequest>();
 	let time = 100;
 	const durable: FramescaperCaptureDurablePort = {
 		async prepare(request) { events.push('durable:prepare'); return request; },
@@ -95,7 +150,7 @@ function startHarness(options: Readonly<{
 			return session;
 		},
 		async seal(session) { events.push('durable:seal'); return session; },
-		async discard() {},
+		async discard() { events.push('durable:discard'); },
 		async findRecovery() { return null; },
 	};
 	const service: FramescaperCaptureSessionService = createFramescaperCaptureSessionService({
@@ -124,6 +179,7 @@ function startHarness(options: Readonly<{
 		}),
 		createRecorder(request: FramescaperCaptureRecorderRequest): FramescaperCaptureRecorder {
 			const role = request.source.role;
+			requests.set(role, request);
 			events.push(`recorder:create:${role}`);
 			if (role === options.factoryFailureRole) throw new Error(`${role} factory failed`);
 			return {
@@ -134,7 +190,9 @@ function startHarness(options: Readonly<{
 					events.push(`recorder:start:${role}`);
 					startPhases.push(service.snapshot.phase);
 					startTimes.push(activeTimeUs);
+					if (role === options.failureDuringStartRole) request.onError(new Error(`${role} encoder failed`));
 					if (role === options.immediatePacketRole) await request.onPacket(packetFor(request));
+					if (role === options.startGate?.role) await options.startGate.promise;
 					if (role === options.startFailureRole) throw new Error(`${role} start failed`);
 				},
 				pause() { return true; },
@@ -153,6 +211,9 @@ function startHarness(options: Readonly<{
 	});
 	return {
 		service, events, startPhases, appendPhases, startTimes, resumeDurations,
+		failRecorder(role: CaptureSourceRole, error: unknown) {
+			requests.get(role)?.onError(error);
+		},
 		async preparePreview() {
 			await service.initialize();
 			await service.actions.requestPreview(['camera', 'microphone']);

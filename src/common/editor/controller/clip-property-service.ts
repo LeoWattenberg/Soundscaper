@@ -135,7 +135,7 @@ export function createClipPropertyService(
 			const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => (
 				buffer.getChannelData(channel).subarray(
 					clip.sourceStartFrame,
-					clip.sourceStartFrame + clip.durationFrames,
+					clip.sourceStartFrame + clip.sourceDurationFrames,
 				)
 			));
 			const result = await dependencies.analyzeChannels(channels, buffer.sampleRate, task.signal);

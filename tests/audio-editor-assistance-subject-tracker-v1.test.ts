@@ -100,6 +100,27 @@ test('ByteTrack-style low-confidence recovery interpolates only a bounded observ
 	assert.deepEqual(lowOnly.frames[0]?.subjects, []);
 });
 
+test('interpolated boxes stay inside normalized geometry after canonical rounding', () => {
+	const x = 0.1234567890125;
+	const width = 1 - x;
+	const detection = { ...face(x), box: { x, y: 0.1, width, height: 0.4 } };
+	const tracked = trackAssistanceSubjectsV1(request([
+		{ sourceFrame: 0, presentationTick: '0', subjects: [detection] },
+		{ sourceFrame: 15, presentationTick: '45000', subjects: [] },
+		{ sourceFrame: 30, presentationTick: '90000', subjects: [detection] },
+	]));
+	const box = tracked.frames[1]?.subjects[0]?.box;
+	assert.ok(box);
+	assert.ok(box.x + box.width <= 1);
+	assert.doesNotThrow(() => planAssistanceReframePathV1({
+		sourceSize: { width: 1_920, height: 1_080 },
+		targetAspect: { width: 9, height: 16 },
+		samples: tracked.frames.map(({ sourceFrame, subjects }) => ({
+			sourceFrame, subjects, saliency: null,
+		})),
+	}));
+});
+
 test('tracking expires long gaps and resets exact shot anchors without interpolation', () => {
 	const expired = trackAssistanceSubjectsV1(request([
 		{ sourceFrame: 0, presentationTick: '0', subjects: [face(0)] },

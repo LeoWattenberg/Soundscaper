@@ -260,41 +260,44 @@ export class FramescaperNativeRenderInputStaging
 	async finalize(ownerValue: unknown, value: unknown): Promise<Readonly<{ stageId: string }>> {
 		const owner = this.#activeOwner(requiredOwner(ownerValue));
 		const request = nativeRenderInputStageIdRequest(value, 'finalization');
-		const stage = this.#ownedPending(owner, request.stageId);
-		if (stage.finalized) throw new Error('The native render-input stage is already finalized.');
-		await Promise.all(stage.transfers.filter((transfer): transfer is Promise<void> => transfer !== null));
-		stage.abort.signal.throwIfAborted();
-		if (stage.states.some((state) => state !== 'received')) {
-			throw new Error('Every exact native render input must arrive before finalization.');
-		}
-		const files: NativeRenderInputStagedFile[] = [];
-		for (const [index, descriptor] of stage.descriptors.entries()) {
-			const path = join(stage.owned.directory,
-				nativeRenderInputManifestFileName(index, descriptor.role));
-			await inspectNativeRenderDerivedFile(path, descriptor, stage.envelope);
-			files.push(Object.freeze({
-				...descriptor, name: nativeRenderInputManifestFileName(index, descriptor.role),
-				identity: await nativeRenderInputFileIdentity(path),
-			}));
-		}
-		const manifest: NativeRenderInputStageManifest = Object.freeze({
-			stageVersion: 1,
-			stageId: request.stageId,
-			schemaFamily: stage.identity.schemaFamily,
-			schemaVersion: stage.identity.schemaVersion,
-			planVersion: stage.envelope.planVersion,
-			planFingerprint: stage.identity.planFingerprint,
-			projectId: stage.identity.projectId,
-			projectRevision: stage.identity.projectRevision,
-			inputFingerprints: stage.identity.inputFingerprints,
-			files: Object.freeze(files),
+		return this.#mutate(async () => {
+			this.#activeOwner(owner);
+			const stage = this.#ownedPending(owner, request.stageId);
+			if (stage.finalized) throw new Error('The native render-input stage is already finalized.');
+			await Promise.all(stage.transfers.filter((transfer): transfer is Promise<void> => transfer !== null));
+			stage.abort.signal.throwIfAborted();
+			if (stage.states.some((state) => state !== 'received')) {
+				throw new Error('Every exact native render input must arrive before finalization.');
+			}
+			const files: NativeRenderInputStagedFile[] = [];
+			for (const [index, descriptor] of stage.descriptors.entries()) {
+				const path = join(stage.owned.directory,
+					nativeRenderInputManifestFileName(index, descriptor.role));
+				await inspectNativeRenderDerivedFile(path, descriptor, stage.envelope);
+				files.push(Object.freeze({
+					...descriptor, name: nativeRenderInputManifestFileName(index, descriptor.role),
+					identity: await nativeRenderInputFileIdentity(path),
+				}));
+			}
+			const manifest: NativeRenderInputStageManifest = Object.freeze({
+				stageVersion: 1,
+				stageId: request.stageId,
+				schemaFamily: stage.identity.schemaFamily,
+				schemaVersion: stage.identity.schemaVersion,
+				planVersion: stage.envelope.planVersion,
+				planFingerprint: stage.identity.planFingerprint,
+				projectId: stage.identity.projectId,
+				projectRevision: stage.identity.projectRevision,
+				inputFingerprints: stage.identity.inputFingerprints,
+				files: Object.freeze(files),
+			});
+			const payload = JSON.stringify(manifest);
+			await writeFile(join(stage.owned.directory, 'manifest.json'), payload, { flag: 'wx', mode: 0o600 });
+			await writeFile(join(stage.owned.directory, 'manifest.sha256'),
+				`${nativeRenderInputDigest(payload)}\n`, { flag: 'wx', mode: 0o600 });
+			stage.finalized = true;
+			return Object.freeze({ stageId: request.stageId });
 		});
-		const payload = JSON.stringify(manifest);
-		await writeFile(join(stage.owned.directory, 'manifest.json'), payload, { flag: 'wx', mode: 0o600 });
-		await writeFile(join(stage.owned.directory, 'manifest.sha256'),
-			`${nativeRenderInputDigest(payload)}\n`, { flag: 'wx', mode: 0o600 });
-		stage.finalized = true;
-		return Object.freeze({ stageId: request.stageId });
 	}
 
 	async claim(ownerValue: unknown, value: unknown): Promise<void> {

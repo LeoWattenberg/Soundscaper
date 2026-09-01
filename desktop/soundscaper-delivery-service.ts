@@ -292,7 +292,7 @@ export class SoundscaperDeliveryService {
 				continue;
 			}
 			const claimId = randomId();
-			this.#repository.claim(row.job_id, claimId);
+			if (!this.#repository.claim(row.job_id, claimId)) return null;
 			return Object.freeze({
 				jobId: row.job_id, claimId, description, plan: parseSoundscaperDeliveryPlanV1(description),
 			});

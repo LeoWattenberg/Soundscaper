@@ -172,6 +172,7 @@ function encodeSettingsArguments(request: DesktopAudioEncodeRequest): readonly s
 		case 'flac':
 			return Object.freeze([
 				'-sample_fmt', request.settings.bitDepth === 16 ? 's16' : 's32',
+				...(request.settings.bitDepth === 24 ? ['-bits_per_raw_sample', '24'] : []),
 				'-compression_level', String(request.settings.compressionLevel),
 			]);
 		case 'mp3':

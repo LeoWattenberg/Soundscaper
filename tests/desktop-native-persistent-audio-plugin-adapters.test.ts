@@ -52,6 +52,18 @@ function nextMessage(port: FakePort): Promise<Record<string, unknown>> {
 	})
 }
 
+async function boundedMessage(port: FakePort): Promise<Record<string, unknown>> {
+	let timer: ReturnType<typeof setTimeout> | null = null
+	try {
+		return await Promise.race([
+			nextMessage(port),
+			new Promise<never>((_resolve, reject) => {
+				timer = setTimeout(() => reject(new Error('persistent audio response timed out')), 100)
+			}),
+		])
+	} finally { if (timer !== null) clearTimeout(timer) }
+}
+
 const AUDIO_GRANT = Object.freeze({
 	backend: 'pipewire',
 	deviceHandle: '@DEFAULT_SINK@',
@@ -138,6 +150,38 @@ test('a field-invalid audio block faults the session instead of killing the help
 	assert.equal(fault.kind, 'fault')
 	assert.equal(fault.code, 'malformed-message')
 	assert.equal(((await handle.completion) as { reason: string }).reason, 'malformed-message')
+})
+
+test('persistent audio faults unknown and direction-invalid messages', async () => {
+	for (const message of [
+		{ protocolVersion: 1, kind: 'unknown' },
+		{ protocolVersion: 1, kind: 'capture-credit' },
+	]) {
+		const link = channel()
+		const runner = createNativePersistentAudioJobRunner({
+			addonPath: '/addon.node', addonSha256: 'b'.repeat(64),
+			loadAddon: async () => ({
+				openAudioDevice: (request: Record<string, unknown>) => ({
+					status: 'ok', session: Object.freeze({}), grantedBackend: 'pipewire',
+					grantedSampleRate: request.sampleRate, grantedPeriodFrames: request.periodFrames,
+					grantedChannelCount: request.channelCount, grantedExclusive: false,
+				}),
+				closeAudioDevice: () => true,
+			}),
+		})
+		const handle = runner({ grant: AUDIO_GRANT, ports: [link.port1] })
+		const response = nextMessage(link.port2)
+		link.port2.postMessage({
+			protocolVersion: 1, kind: 'configure', sampleRate: 48_000,
+			periodFrames: 1_024, channelCount: 2,
+		})
+		assert.equal((await response).kind, 'configured')
+		const invalidResponse = boundedMessage(link.port2)
+		link.port2.postMessage(message)
+		assert.deepEqual({ kind: (await invalidResponse).kind, reason: (await handle.completion).reason }, {
+			kind: 'fault', reason: 'malformed-message',
+		})
+	}
 })
 
 test('main audio adapter transfers the peer directly after exact helper configuration', async () => {

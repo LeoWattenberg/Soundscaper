@@ -48,7 +48,7 @@ test('PCM packetizer reports unannounced source gaps and excludes declared pause
 	const dropped = packetizer.packet({ frameStart: 105, frames: 2, channels: [new Float32Array(2)] });
 	assert.deepEqual(dropped.droppedBefore, { value: 3, confidence: 'exact' });
 	assert.equal(dropped.presentationTimeUs, 105_000, 'unannounced holes remain on the active grid');
-	packetizer.expectPauseGap();
+	packetizer.expectPauseGap(107);
 	const resumed = packetizer.packet({ frameStart: 1_000, frames: 2, channels: [new Float32Array(2)] });
 	assert.deepEqual(resumed.droppedBefore, { value: 0, confidence: 'exact' });
 	assert.equal(resumed.presentationTimeUs, 107_000, 'declared pause input is removed from active time');
@@ -66,7 +66,7 @@ test('PCM packetizer keeps the pause latch armed across a contiguous in-flight c
 		sampleRate: 1_000, channelCount: 1,
 	});
 	packetizer.packet({ frameStart: 0, frames: 2, channels: [new Float32Array(2)] });
-	packetizer.expectPauseGap();
+	packetizer.expectPauseGap(4);
 	const inFlight = packetizer.packet({
 		frameStart: 2, frames: 2, channels: [new Float32Array(2)],
 	});
@@ -85,6 +85,28 @@ test('PCM packetizer keeps the pause latch armed across a contiguous in-flight c
 		4_000,
 		'active time continues straight after the pre-pause chunk',
 	);
+});
+
+test('PCM packetizer does not spend a pause latch on a queued pre-pause drop', () => {
+	const packetizer = createFramescaperCapturePcmPacketizer({
+		sessionId: 'session-1', streamId: 'system-1', role: 'system-audio',
+		sampleRate: 1_000, channelCount: 1,
+	});
+	packetizer.packet({ frameStart: 0, frames: 2, channels: [new Float32Array(2)] });
+	// The sink accepted a pre-pause chunk through frame 7, but durable packet
+	// publication has not reached it when pause synchronously arms the latch.
+	packetizer.expectPauseGap(7);
+	const queuedDrop = packetizer.packet({
+		frameStart: 5, frames: 2, channels: [new Float32Array(2)],
+	});
+	assert.deepEqual(queuedDrop.droppedBefore, { value: 3, confidence: 'exact' });
+	assert.equal(queuedDrop.presentationTimeUs, 5_000);
+
+	const resumed = packetizer.packet({
+		frameStart: 100, frames: 2, channels: [new Float32Array(2)],
+	});
+	assert.deepEqual(resumed.droppedBefore, { value: 0, confidence: 'exact' });
+	assert.equal(resumed.presentationTimeUs, 7_000);
 });
 
 test('PCM packetizer rejects malformed, overlapping, and wrong-format chunks', () => {

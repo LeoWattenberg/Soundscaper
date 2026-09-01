@@ -115,7 +115,9 @@ export function secondsInputToFrames(
 ): number {
 	const text = String(value ?? '').trim();
 	if (!text) throw new RangeError(copy.invalidTimeValue);
-	const parts = text.split(':').map(Number);
+	const fields = text.split(':');
+	if (fields.some((field) => field.trim() === '')) throw new RangeError(copy.invalidTimeValue);
+	const parts = fields.map(Number);
 	if (!parts.length || parts.some((part) => !Number.isFinite(part) || part < 0)) {
 		throw new RangeError(copy.invalidTimeValue);
 	}

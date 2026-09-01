@@ -140,6 +140,11 @@ test('Distortion preserves Audacity hard clipping, rectifier, repeats, and DC-bl
 		mode: 'cubic', parameter1: 80, parameter2: 100, repeats: 5,
 	})[0];
 	assert.ok(maximumDifference(cubicOnce, cubicRepeated) > 0.05);
+	const cubicNeutralInput = mixedSignal();
+	const cubicNeutral = applyAudacityDistortion([cubicNeutralInput], SAMPLE_RATE, {
+		mode: 'cubic', parameter1: 0, parameter2: 100, repeats: 0,
+	})[0];
+	assert.ok(maximumDifference(cubicNeutral, cubicNeutralInput) < 1e-6);
 
 	const constant = new Float32Array(128).fill(0.5);
 	const dcBlocked = applyAudacityDistortion([constant], SAMPLE_RATE, {

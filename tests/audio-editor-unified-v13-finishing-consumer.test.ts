@@ -74,6 +74,38 @@ test('preview and V13 export use the same managed-SDR grade and denoise resolver
 	assert.equal(preview.plan, exporting.plan);
 });
 
+test('a processor stack shared by two applicable presentations executes once', async () => {
+	const shared = finishing({
+		processors: [{
+			schemaVersion: 1, id: 'spatial-1', kind: 'spatial-denoise', enabled: true,
+			radius: 1, strength: 1,
+		}],
+		grade: null,
+	});
+	const project = createFramescaperProjectFinishing(PROFILE, {
+		...framescaperV20Options(), videoTransitionsByTrackId: { 'video-track': [] },
+		finishing: {
+			...shared,
+			visualPresentations: [
+				...shared.visualPresentations,
+				{
+					...shared.visualPresentations[0], id: 'presentation-source',
+					owner: { kind: 'source', id: 'video-source' },
+				},
+			],
+		},
+	});
+	const plan = createFramescaperProjectUnifiedExactRenderPlanFinishing(PROFILE, project, {
+		...renderAuthority(project, 10), visualFreshnessByModelId: new Map(),
+	});
+	const progress: string[] = [];
+	await createUnifiedExactRenderFinishingExportConsumerV13(plan).resolveFrame({
+		clipId: 'video-clip', sourceFrame: 0, sequenceFrame: 0, frame: rgba(3, 1, [0, 255, 0]),
+		onProgress(value) { progress.push(value.phase); },
+	});
+	assert.deepEqual(progress, ['spatial-denoise', 'managed-color']);
+});
+
 test('preview and V13 export both refuse legacy unmanaged source color before processing', async () => {
 	const project = createFramescaperProjectFinishing(PROFILE, {
 		...framescaperV20Options(),

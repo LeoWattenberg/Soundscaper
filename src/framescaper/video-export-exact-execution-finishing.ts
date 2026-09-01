@@ -66,7 +66,7 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 	const timingViewsBySourceId = rawTiming(options.request);
 	const visual = await createFramescaperVideoExportVisualExecutionFinishing({
 		profile: options.profile, project: options.project, plan: options.request.plan,
-		timingViewsBySourceId, ...(options.store ? { store: options.store } : {}),
+		timingViewsBySourceId,
 		signal: options.request.signal, assertCurrent: options.request.assertCurrent,
 	});
 	const sourceFrames = createFramescaperVideoFrameAddressFinishing({

@@ -190,6 +190,7 @@ export function startFramescaperNativeServicesRuntime(
 				lease: () => lease!.lease(),
 				importFile: options.watchImportFile!,
 				...(options.watchImportRecorded ? { importRecorded: options.watchImportRecorded } : {}),
+				...(options.onWatchError ? { onEntryError: options.onWatchError } : {}),
 			})
 			: null;
 		const watchCoordinator = new FramescaperNativeWatchCoordinator({

@@ -233,6 +233,16 @@ function admitLinkedTrackPadding(physicalPlans, budget) {
 			const leftClip = left.clipPlans[clipIndex];
 			const rightClip = right.clipPlans[clipIndex];
 			const first = leftClip || rightClip;
+			if (leftClip && rightClip && !legacyClipPlanStartsAlign(
+				leftClip, left.trackRate, rightClip, right.trackRate,
+			)) {
+				throw new LegacyAupError(
+					'Legacy linked-track clip timeline offsets do not match.',
+					'CORRUPT_LINKED_TRACK',
+					{ clipIndex, leftStart: legacyClipPlanStart(leftClip),
+						rightStart: legacyClipPlanStart(rightClip) },
+				);
+			}
 			if (leftClip && rightClip && leftClip.frameCount !== rightClip.frameCount) {
 				throw new LegacyAupError(
 					'Legacy linked-track clip lengths do not match.',
@@ -245,6 +255,16 @@ function admitLinkedTrackPadding(physicalPlans, budget) {
 		}
 		index += 1;
 	}
+}
+
+function legacyClipPlanStartsAlign(left, leftRate, right, rightRate) {
+	const tolerance = Math.max(1 / leftRate, 1 / rightRate) * 1.5 + 1e-9;
+	return Math.abs(legacyClipPlanStart(left) - legacyClipPlanStart(right)) <= tolerance;
+}
+
+function legacyClipPlanStart(plan) {
+	return finite(attribute(plan.clipNode, 'offset', 0))
+		+ nonNegative(attribute(plan.clipNode, 'trimleft', 0));
 }
 
 function linkLegacyAupTracks(physical) {

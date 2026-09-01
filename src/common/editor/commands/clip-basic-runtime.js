@@ -145,7 +145,6 @@ export function replaceRenderedClips(project, command) {
 	if (!Array.isArray(command.entries) || !command.entries.length) {
 		throw new TypeError('Rendered clip replacement entries are required.');
 	}
-	const originals = new Map(project.clips.map((clip) => [clip.id, { ...clip }]));
 	const entries = command.entries.map((entry) => {
 		const clip = requireClip(project, entry.clipId);
 		if (clip.kind === 'video') throw new RangeError('Rendered audio cannot replace a video clip.');
@@ -169,7 +168,7 @@ export function replaceRenderedClips(project, command) {
 	}
 
 	for (const component of components) {
-		const related = [...component.relatedIds].map((clipId) => originals.get(clipId)).filter(Boolean);
+		const related = [...component.relatedIds].map((clipId) => requireClip(project, clipId));
 		const anchor = Math.min(...related.map((clip) => clip.timelineStartFrame));
 		const oldEnd = Math.max(...related.map(clipEndFrame));
 		const newEnd = anchor + Math.max(1, Math.round((oldEnd - anchor) * component.ratio));

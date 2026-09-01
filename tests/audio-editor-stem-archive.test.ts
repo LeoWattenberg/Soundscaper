@@ -284,6 +284,42 @@ test('nullable ZIP plans preserve the fallback memory-storage threshold', async 
 	});
 });
 
+test('ZIP stem failures retain the write error when disposable sink cleanup also fails', async () => {
+	const primary = new Error('OPFS stem write failed');
+	const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+	Object.defineProperty(globalThis, 'navigator', {
+		configurable: true,
+		value: {
+			storage: {
+				getDirectory: async () => ({
+					getDirectoryHandle: async () => ({
+						getFileHandle: async () => ({
+							createWritable: async () => ({
+								async write() { throw primary; },
+								async abort() { throw new Error('OPFS abort cleanup failed'); },
+							}),
+						}),
+						async removeEntry() { throw new Error('OPFS remove cleanup failed'); },
+					}),
+				}),
+			},
+		},
+	});
+	try {
+		const plan = createStemArchivePlan('session', [{
+			fileName: 'lead.wav', expectedByteLength: 1,
+		}]);
+		const archive = await createStreamingStemArchive(plan, copy);
+		await assert.rejects(() => archive.add('lead.wav', Uint8Array.of(1)),
+			(error: unknown) => error === primary);
+		await assert.rejects(() => archive.finish(),
+			(error: unknown) => error === primary);
+	} finally {
+		if (descriptor) Object.defineProperty(globalThis, 'navigator', descriptor);
+		else Reflect.deleteProperty(globalThis, 'navigator');
+	}
+});
+
 test('native stem plans require persistent storage when archive plus staging exceeds the memory limit', async () => {
 	await withMemoryStorage(async () => {
 		const plan = createStemArchivePlan('session', [{

@@ -2,7 +2,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
 import {
@@ -12,6 +12,7 @@ import {
 import type { FramescaperDesktopProjectLibraryExactGenerationPaths } from './project-library-exact-generation-contract.ts';
 import type {
 	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+	FramescaperDesktopProjectLibraryExactPublicationBody,
 	FramescaperDesktopProjectLibraryExactPublicationDeclaration,
 } from './project-library-exact-generation-lifecycle.ts';
 import type { ExactGenerationProject } from './project-library-exact-generation-body-configuration.ts';
@@ -109,7 +110,11 @@ export async function persistFramescaperDesktopExactPublication(
 		expectedMetadataRevision: publication.expectedMetadataRevision,
 	});
 	const temporaryDocument = `${documentPath}.tmp-${randomBytes(8).toString('hex')}`;
-	const temporaryBodies: Array<Readonly<{ temporary: string; final: string }>> = [];
+	const temporaryBodies: Array<Readonly<{
+		temporary: string;
+		final: string;
+		journal: Readonly<FramescaperDesktopProjectLibraryExactPublicationBody>;
+	}>> = [];
 	try {
 		assertCurrent();
 		await lifecycle?.preparePublication(declaration);
@@ -128,9 +133,19 @@ export async function persistFramescaperDesktopExactPublication(
 				}
 				const temporary = `${final}.tmp-${randomBytes(8).toString('hex')}`;
 				await writeFile(temporary, bodyBytes, { mode: 0o600, flag: 'wx' });
-				temporaryBodies.push({ temporary, final });
+				temporaryBodies.push({
+					temporary, final,
+					journal: Object.freeze({
+						bodyFile: relative(paths.managedMediaRoot, final),
+						kind: body.kind,
+						storageKey: body.storageKey,
+					}),
+				});
 			}
 		}
+		if (temporaryBodies.length > 0) await lifecycle?.preparePublicationBodies(
+			declaration.publicationId, Object.freeze(temporaryBodies.map(({ journal }) => journal)),
+		);
 		for (const item of temporaryBodies) await rename(item.temporary, item.final);
 		await rename(temporaryDocument, documentPath);
 		assertCurrent();

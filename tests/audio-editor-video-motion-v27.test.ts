@@ -232,6 +232,31 @@ test('temporal denoise admits GPU-first output and computes CPU only after accel
 	assert.deepEqual(invalidGeometry, cpu);
 });
 
+test('CPU temporal denoise resolves each neighbor transform outside the pixel loop', async () => {
+	const current = createGrayVideoFrameV1({ width: 2, height: 2, samples: [1, 1, 1, 1] });
+	const neighbor = createGrayVideoFrameV1({ width: 2, height: 2, samples: [0, 0, 0, 0] });
+	const originalLog = Math.log;
+	let inverseResolutions = 0;
+	Math.log = (value: number): number => {
+		inverseResolutions += 1;
+		return originalLog(value);
+	};
+	try {
+		await processTemporalDenoiseV1({
+			current,
+			neighbors: [{ frame: neighbor, transformToCurrent: {
+				scale: 1, rotationRadians: 0, translateX: 0, translateY: 0,
+				inlierCount: 4, meanError: 0,
+			} }],
+			strength: 0.5,
+		});
+	} finally {
+		Math.log = originalLog;
+	}
+	assert.equal(inverseResolutions, 2,
+		'one validation and one CPU transform resolution are independent of pixel count');
+});
+
 test('motion processing observes cancellation', async () => {
 	const controller = new AbortController();
 	controller.abort(new Error('cancel motion'));

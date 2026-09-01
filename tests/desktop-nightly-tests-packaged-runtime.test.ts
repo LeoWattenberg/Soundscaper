@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -13,6 +14,7 @@ import {
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
 } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import { terminatePackagedRuntime } from './browser/helpers/packaged-runtime-process.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -136,6 +138,22 @@ test('packaged-runtime tests reuse one Electron process per product worker', asy
 	assert.match(source, /newContext:\s*\(options\) => packagedRuntime\.browser\.newContext\(options\)/u);
 	assert.match(source, /\{ scope: 'worker' \}\]/u);
 	assert.match(source, /auto: true/u);
+});
+
+test('packaged-runtime teardown escalates a process that ignores its grace signal', async () => {
+	const signals: NodeJS.Signals[] = [];
+	const child = Object.assign(new EventEmitter(), {
+		exitCode: null as number | null,
+		signalCode: null as NodeJS.Signals | null,
+		kill(signal: NodeJS.Signals = 'SIGTERM') {
+			signals.push(signal);
+			if (signal === 'SIGKILL') queueMicrotask(() => child.emit('exit', null, signal));
+			return true;
+		},
+	});
+
+	await terminatePackagedRuntime(child, 0);
+	assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
 });
 
 test('packaged video benchmark seeds exact effects and drives localized controls through stable hooks', async () => {

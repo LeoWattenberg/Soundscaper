@@ -6,6 +6,7 @@ import test from 'node:test';
 import type { DeliveryReport } from '../src/common/editor/delivery-report.ts';
 import {
 	createSoundscaperPersistentAudioDeliveryPlanV1,
+	validateSoundscaperPersistentDeliveryBatchMemberV1,
 } from '../src/common/editor/soundscaper-persistent-delivery-plan-v1.ts';
 import {
 	fingerprintSoundscaperDeliveryPlanV1,
@@ -39,6 +40,20 @@ test('browser composition preserves the session-only delivery queue', () => {
 	assert.equal(createSoundscaperPersistentDeliveryControllerComposition({
 		bridge: null,
 	} as never), null);
+});
+
+test('persistent delivery labels and identifiers reject invisible format and separator characters', () => {
+	assert.throws(() => createSoundscaperPersistentAudioDeliveryPlanV1({
+		settings: SETTINGS, exportPlan: EXPORT_PLAN,
+		batch: {
+			batchId: 'batch\u200b', memberId: 'member-1', presetId: 'preset-flac',
+			target: { kind: 'project' }, mode: 'mix',
+		},
+	}), /batchId.*invalid/iu);
+	assert.throws(() => validateSoundscaperPersistentDeliveryBatchMemberV1({
+		memberId: 'member-1', label: 'FLAC\u2028master', presetId: 'preset-flac',
+		target: { kind: 'region', id: 'region\u2029hidden' }, mode: 'mix', settings: SETTINGS,
+	}), /label|target id|invalid/iu);
 });
 
 test('desktop composition starts the persistent worker and wakes it after queue resume', async () => {

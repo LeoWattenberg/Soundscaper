@@ -104,7 +104,14 @@ test('a state mutation before the measured interaction does not start the clock'
 		probeId,
 		timeoutMs: 100,
 	});
+	let settled = false;
+	void reading.then(() => { settled = true; });
+	await Promise.resolve();
+	assert.equal(settled, false, 'a pre-interaction mutation must leave the reading pending');
 	actionTarget.dispatch('keydown');
 
-	assert.equal(typeof await reading, 'number');
+	const elapsedMs = await reading;
+	assert.equal(settled, true, 'the measured interaction should settle the reading');
+	assert.equal(typeof elapsedMs, 'number');
+	assert.ok(elapsedMs >= 0);
 });

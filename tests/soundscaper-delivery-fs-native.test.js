@@ -91,6 +91,24 @@ test('the target-native delivery helper source admits only handle-anchored publi
 	});
 });
 
+test('SDF1 session rejects pending and future frame reads after helper exit', async () => {
+	const session = runHelper(process.execPath, ['-e', 'process.exit(7)']);
+	const pending = session.next();
+	assert.equal(await session.exit, 7);
+	await assert.rejects(withDeadline(pending), /SDF1 helper.*code 7/iu);
+	await assert.rejects(withDeadline(session.next()), /SDF1 helper.*code 7/iu);
+});
+
+test('SDF1 session bounds a live helper that never emits its next frame', async () => {
+	const session = runHelper(process.execPath, ['-e', 'setInterval(() => {}, 1_000)'], 25);
+	try {
+		await assert.rejects(withDeadline(session.next()), /SDF1 helper.*25.*milliseconds/iu);
+	} finally {
+		session.terminate();
+		await session.exit;
+	}
+});
+
 test('SDF1 sealing and publication fit the Windows one-MiB process stack reserve', {
 	skip: process.platform !== 'linux',
 }, async () => {
@@ -210,11 +228,17 @@ test('linux SDF1 abort closes an unnamed session without leaving media behind', 
 	assert.deepEqual(await readdir(root), []);
 });
 
-function runHelper() {
-	const child = spawn(executable, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+function runHelper(command = executable, args = [], frameTimeoutMs = 10_000) {
+	const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'] });
 	let buffered = Buffer.alloc(0);
 	const waiting = [];
 	const queued = [];
+	let failure = null;
+	const rejectWaiting = (error) => {
+		if (failure) return;
+		failure = error;
+		for (const waiter of waiting.splice(0)) waiter.reject(error);
+	};
 	child.stdout.on('data', (chunk) => {
 		buffered = Buffer.concat([buffered, chunk]);
 		for (;;) {
@@ -232,12 +256,21 @@ function runHelper() {
 		}
 	});
 	const exit = new Promise((resolveExit, reject) => {
-		child.once('error', reject);
+		child.once('error', (cause) => {
+			const error = new Error('Native SDF1 helper failed before completing its protocol frame.', { cause });
+			rejectWaiting(error);
+			reject(error);
+		});
 		child.once('exit', (code) => resolveExit(code));
+	});
+	child.once('close', (code, signal) => {
+		const outcome = signal ? `signal ${signal}` : `code ${String(code)}`;
+		rejectWaiting(new Error(`Native SDF1 helper closed before its next protocol frame with ${outcome}.`));
 	});
 	let requestId = 0;
 	return {
 		exit,
+		terminate() { child.kill('SIGKILL'); },
 		send(opcode, payload) {
 		requestId += 1;
 		const header = Buffer.alloc(16);
@@ -250,7 +283,17 @@ function runHelper() {
 	},
 		next() {
 			if (queued.length > 0) return Promise.resolve(queued.shift());
-			return new Promise((resolveFrame, reject) => waiting.push({ resolve: resolveFrame, reject }));
+			if (failure) return Promise.reject(failure);
+			return new Promise((resolveFrame, reject) => {
+				const timer = setTimeout(() => {
+					rejectWaiting(new Error(`Native SDF1 helper did not emit its next frame within ${String(frameTimeoutMs)} milliseconds.`));
+					child.kill('SIGKILL');
+				}, frameTimeoutMs);
+				waiting.push({
+					resolve(frame) { clearTimeout(timer); resolveFrame(frame); },
+					reject(error) { clearTimeout(timer); reject(error); },
+				});
+			});
 		},
 	};
 }
@@ -280,3 +323,10 @@ function requestFrame(operation, requestId, payload) {
 
 function json(value) { return Buffer.from(JSON.stringify(value)); }
 function sha256(value) { return createHash('sha256').update(value).digest('hex'); }
+
+function withDeadline(operation) {
+	let timer;
+	return Promise.race([operation, new Promise((_, reject) => {
+		timer = setTimeout(() => reject(new Error('Timed out waiting for helper protocol state.')), 250);
+	})]).finally(() => clearTimeout(timer));
+}

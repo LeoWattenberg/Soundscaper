@@ -9,6 +9,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type {
 	FramescaperDesktopProjectLibraryExactGenerationExtension,
 	FramescaperDesktopProjectLibraryExactGenerationLifecycle,
+	FramescaperDesktopProjectLibraryExactPublicationBody,
 	FramescaperDesktopProjectLibraryExactPublicationDeclaration,
 	FramescaperDesktopProjectLibraryPublicationCheckpoint,
 } from './project-library-exact-generation-lifecycle.ts';
@@ -76,6 +77,7 @@ export function createFramescaperDesktopProjectLibraryExtension(
 class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjectLibraryExactGenerationLifecycle {
 	readonly #database: DatabaseSync;
 	readonly #projectsRoot: string;
+	readonly #managedMediaRoot: string;
 	readonly #onLeaseLost: (error: unknown) => void;
 	readonly #leaseTtlMs: number;
 	readonly #renewIntervalMs: number;
@@ -92,6 +94,7 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 	private constructor(value: Readonly<{
 		database: DatabaseSync;
 		projectsRoot: string;
+		managedMediaRoot: string;
 		lease: Readonly<Lease>;
 		onLeaseLost: (error: unknown) => void;
 		leaseTtlMs: number;
@@ -100,6 +103,7 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 	}>) {
 		this.#database = value.database;
 		this.#projectsRoot = value.projectsRoot;
+		this.#managedMediaRoot = value.managedMediaRoot;
 		this.#lease = value.lease;
 		this.#onLeaseLost = value.onLeaseLost;
 		this.#leaseTtlMs = value.leaseTtlMs;
@@ -111,7 +115,7 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 
 	static async acquire(value: Readonly<{
 		database: DatabaseSync;
-		paths: Readonly<{ projectsRoot: string }>;
+		paths: Readonly<{ projectsRoot: string; managedMediaRoot: string }>;
 		owner: Readonly<Record<string, unknown>>;
 		onLeaseLost: (error: unknown) => void;
 		leaseTtlMs: number;
@@ -132,6 +136,7 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 		return new FramescaperDesktopProjectLibraryWriter({
 			database: value.database,
 			projectsRoot: value.paths.projectsRoot,
+			managedMediaRoot: value.paths.managedMediaRoot,
 			lease,
 			onLeaseLost: value.onLeaseLost,
 			leaseTtlMs: value.leaseTtlMs,
@@ -201,6 +206,29 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 		this.#checkpoint?.('prepared');
 	}
 
+	async preparePublicationBodies(
+		publicationId: string,
+		bodies: readonly Readonly<FramescaperDesktopProjectLibraryExactPublicationBody>[],
+	): Promise<void> {
+		if (this.#activePublicationId !== publicationId) {
+			throw new Error('Framescaper 1.0 publication body journal lost its active publication');
+		}
+		this.#transaction(() => {
+			this.assertLeaseInTransaction(this.#database);
+			const insert = this.#database.prepare(`
+				INSERT INTO publication_body_journal (
+					publication_id, body_file, body_kind, storage_key
+				) VALUES (?, ?, ?, ?)
+			`);
+			for (const body of bodies) insert.run(
+				publicationId,
+				relative(this.#managedMediaRoot, containedBody(this.#managedMediaRoot, body.bodyFile)),
+				sqlText(body.kind, 'publication body kind'),
+				sqlText(body.storageKey, 'publication body storage key'),
+			);
+		});
+	}
+
 	async publicationMaterialized(value: Readonly<FramescaperDesktopProjectLibraryExactPublicationDeclaration>): Promise<void> {
 		this.#updateJournal(value.publicationId, 'prepared', 'materialized', null);
 		this.#checkpoint?.('materialized');
@@ -230,24 +258,36 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 	}
 
 	async publicationComplete(value: Readonly<FramescaperDesktopProjectLibraryExactPublicationDeclaration>): Promise<void> {
+		this.#completeCommittedPublication(value.publicationId);
+		this.#checkpoint?.('complete');
+	}
+
+	#completeCommittedPublication(publicationId: string): void {
 		this.#transaction(() => {
 			this.assertLeaseInTransaction(this.#database);
 			if (this.#database.prepare(`
 				DELETE FROM publication_journal
 				WHERE publication_id = ? AND state = 'committed' AND lease_id = ? AND fencing_token = ?
-			`).run(value.publicationId, this.#lease.leaseId, this.#lease.fencingToken).changes !== 1) {
+			`).run(publicationId, this.#lease.leaseId, this.#lease.fencingToken).changes !== 1) {
 				throw new Error('Framescaper 1.0 publication journal could not complete');
 			}
 		});
-		this.#activePublicationId = null;
-		this.#checkpoint?.('complete');
+		if (this.#activePublicationId === publicationId) this.#activePublicationId = null;
 	}
 
 	async abortPublication(publicationId: string): Promise<void> {
 		const row = this.#database.prepare(`
 			SELECT state, document_file AS documentFile FROM publication_journal WHERE publication_id = ?
 		`).get(publicationId) as Record<string, unknown> | undefined;
-		if (!row || row.state === 'committed') return;
+		if (!row) {
+			if (this.#activePublicationId === publicationId) this.#activePublicationId = null;
+			return;
+		}
+		if (row.state === 'committed') {
+			this.#completeCommittedPublication(publicationId);
+			return;
+		}
+		await this.#reclaimPublication(row, this.#publicationBodies(publicationId));
 		this.#transaction(() => {
 			this.assertLeaseInTransaction(this.#database);
 			this.#database.prepare(`
@@ -255,11 +295,6 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 			`).run(publicationId);
 		});
 		this.#activePublicationId = null;
-		if (row.state === 'materialized' && typeof row.documentFile === 'string') {
-			const path = containedDocument(this.#projectsRoot, row.documentFile);
-			const referenced = this.#database.prepare('SELECT 1 FROM projects WHERE document_file = ?').get(row.documentFile);
-			if (!referenced) await rm(path, { force: true });
-		}
 	}
 
 	async recover(): Promise<void> {
@@ -283,14 +318,14 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 		`).get(projectId) as Record<string, unknown> | undefined;
 		const committed = project !== undefined && project.projectRevision === projectRevision
 			&& project.sha256 === projectSha256 && project.documentFile === documentFile;
+		if (!committed) {
+			await this.#reclaimPublication(journal, this.#publicationBodies(publicationId));
+		}
 		this.#transaction(() => {
 			this.assertLeaseInTransaction(this.#database);
 			this.#database.prepare('DELETE FROM publication_journal WHERE publication_id = ?')
 				.run(publicationId);
 		});
-		if (!committed) {
-			await rm(containedDocument(this.#projectsRoot, documentFile), { force: true });
-		}
 		this.#recovery = Object.freeze({
 			outcome: committed ? 'committed' : 'discarded',
 			publishedRevision: committed ? projectRevision : null,
@@ -315,6 +350,54 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 				}
 			});
 		} finally { this.#closed = true; }
+	}
+
+	#publicationBodies(publicationId: string): Record<string, unknown>[] {
+		return this.#database.prepare(`
+			SELECT body_file AS bodyFile, body_kind AS bodyKind, storage_key AS storageKey
+			FROM publication_body_journal WHERE publication_id = ? ORDER BY body_file
+		`).all(publicationId) as Record<string, unknown>[];
+	}
+
+	async #reclaimPublication(
+		journal: Record<string, unknown>,
+		bodies: readonly Record<string, unknown>[],
+	): Promise<void> {
+		const documentFile = sqlText(journal.documentFile, 'journal document');
+		const document = this.#database.prepare('SELECT 1 FROM projects WHERE document_file = ?')
+			.get(documentFile);
+		const references = bodies.length > 0 ? this.#bodyReferences() : new Set<string>();
+		if (!document) await rm(containedDocument(this.#projectsRoot, documentFile), { force: true });
+		for (const body of bodies) {
+			const kind = sqlText(body.bodyKind, 'journal body kind');
+			const storageKey = sqlText(body.storageKey, 'journal body storage key');
+			if (!references.has(bodyReference(kind, storageKey))) {
+				await rm(containedBody(
+					this.#managedMediaRoot, sqlText(body.bodyFile, 'journal body file'),
+				), { force: true });
+			}
+		}
+	}
+
+	#bodyReferences(): Set<string> {
+		const references = new Set<string>();
+		const rows = this.#database.prepare('SELECT bodies_json AS bodiesJson FROM projects')
+			.all() as Record<string, unknown>[];
+		for (const row of rows) {
+			const bodies = JSON.parse(sqlText(row.bodiesJson, 'stored body inventory')) as unknown;
+			if (!Array.isArray(bodies)) throw new Error('Framescaper 1.0 stored body inventory is invalid');
+			for (const body of bodies) {
+				if (!body || typeof body !== 'object' || Array.isArray(body)) {
+					throw new Error('Framescaper 1.0 stored body descriptor is invalid');
+				}
+				const record = body as Record<string, unknown>;
+				references.add(bodyReference(
+					sqlText(record.kind, 'stored body kind'),
+					sqlText(record.storageKey, 'stored body storage key'),
+				));
+			}
+		}
+		return references;
 	}
 
 	#updateJournal(publicationId: string, previous: string, next: string, result: string | null): void {
@@ -438,4 +521,18 @@ function containedDocument(root: string, value: string): string {
 		throw new Error('Framescaper 1.0 journal document leaves its root');
 	}
 	return result;
+}
+
+function containedBody(root: string, value: string): string {
+	if (!value || value.includes('\0')) throw new Error('Framescaper 1.0 journal body file is invalid');
+	const result = resolve(root, value);
+	const relation = relative(resolve(root), result);
+	if (!relation || relation === '..' || relation.startsWith(`..${sep}`)) {
+		throw new Error('Framescaper 1.0 journal body file leaves its root');
+	}
+	return result;
+}
+
+function bodyReference(kind: string, storageKey: string): string {
+	return JSON.stringify([kind, storageKey]);
 }

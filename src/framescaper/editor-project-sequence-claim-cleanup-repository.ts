@@ -391,38 +391,33 @@ async function readInventory(
 	scope: NormalizedScope,
 	maximum: number,
 ): Promise<Inventory> {
-	try {
-		const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
-		let remaining = maximum - scope.inputCount;
-		if (remaining < 0) throw new CleanupInventoryError();
-		const claimValues = await request(staging.index('kind').getAll(
-			VIDEO_PROXY_CLAIM_KIND, remaining + 1,
-		));
-		remaining = remainingAfter(claimValues, remaining);
-		const tombstoneValues = await request(staging.index('kind').getAll(
-			VIDEO_PROXY_CLEANUP_TOMBSTONE_KIND, remaining + 1,
-		));
-		remaining = remainingAfter(tombstoneValues, remaining);
-		const projectValues = await request(stores.projects.getAll(undefined, remaining + 1));
-		remaining = remainingAfter(projectValues, remaining);
-		const revisionValues = await request(stores.revisions.getAll(undefined, remaining + 1));
-		remainingAfter(revisionValues, remaining);
-		const claims = claimValues.map(normalizeVideoProxyClaimRecord);
-		const tombstones = tombstoneValues.map(normalizeVideoProxyCleanupTombstoneRecord);
-		const durableProjects = projectValues.map((value) => profile.project(value));
-		for (const value of revisionValues) durableProjects.push(revisionProject(profile, value));
-		assertUniqueTombstones(tombstones);
-		const roots = rootInventory(durableProjects, scope.projects);
-		return {
-			claims: Object.freeze(claims),
-			tombstones: Object.freeze(tombstones),
-			roots: roots.keys,
-			committedAttachments: roots.committedAttachments,
-		};
-	} catch (error) {
-		if (error instanceof CleanupInventoryError) throw error;
-		throw new CleanupInventoryError(error);
-	}
+	const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
+	let remaining = maximum - scope.inputCount;
+	if (remaining < 0) throw new CleanupInventoryError();
+	const claimValues = await request(staging.index('kind').getAll(
+		VIDEO_PROXY_CLAIM_KIND, remaining + 1,
+	));
+	remaining = remainingAfter(claimValues, remaining);
+	const tombstoneValues = await request(staging.index('kind').getAll(
+		VIDEO_PROXY_CLEANUP_TOMBSTONE_KIND, remaining + 1,
+	));
+	remaining = remainingAfter(tombstoneValues, remaining);
+	const projectValues = await request(stores.projects.getAll(undefined, remaining + 1));
+	remaining = remainingAfter(projectValues, remaining);
+	const revisionValues = await request(stores.revisions.getAll(undefined, remaining + 1));
+	remainingAfter(revisionValues, remaining);
+	const claims = claimValues.map(normalizeVideoProxyClaimRecord);
+	const tombstones = tombstoneValues.map(normalizeVideoProxyCleanupTombstoneRecord);
+	const durableProjects = projectValues.map((value) => profile.project(value));
+	for (const value of revisionValues) durableProjects.push(revisionProject(profile, value));
+	assertUniqueTombstones(tombstones);
+	const roots = rootInventory(durableProjects, scope.projects);
+	return {
+		claims: Object.freeze(claims),
+		tombstones: Object.freeze(tombstones),
+		roots: roots.keys,
+		committedAttachments: roots.committedAttachments,
+	};
 }
 
 function rootInventory(

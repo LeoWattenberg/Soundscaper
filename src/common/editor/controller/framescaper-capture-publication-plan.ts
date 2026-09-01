@@ -5,6 +5,7 @@ import type { AudioEditorCommand, CommandObject } from '../commands/protocol.ts'
 import type { CaptureDestination, CaptureSourceRole } from '../framescaper-capture-domain.ts';
 import { sampleFrameToVideoFrame, videoFrameRangeToSampleRange, type RationalRate } from '../timeline-time.ts';
 import { normalizeFramescaperCaptureExactPresentationRange, type FramescaperCaptureExactPresentationRange } from './framescaper-capture-exact-presentation-range.ts';
+import { alignExactCaptureAvPairs } from './framescaper-capture-publication-links.ts';
 
 const ROLE_ORDER = Object.freeze([
 	'camera', 'microphone', 'display', 'system-audio',
@@ -85,6 +86,7 @@ export interface FramescaperCapturePublicationPlan {
 interface NormalizedStream extends FramescaperCaptureDurableStream {
 	readonly source: CommandObject;
 	readonly sourceId: string;
+	readonly exactPresentationRange: FramescaperCaptureExactPresentationRange | null;
 	readonly timelineStartFrame: number;
 	readonly timelineEndFrame: number;
 	readonly sequenceStartFrame: number | null;
@@ -303,7 +305,7 @@ function normalizeStreams(
 	if (roles.has('system-audio') && !roles.has('display')) {
 		throw new RangeError('Capture publication system audio requires its display stream.');
 	}
-	return Object.freeze([...normalized].sort((left, right) => (
+	return Object.freeze(alignExactCaptureAvPairs(normalized).sort((left, right) => (
 		ROLE_ORDER.indexOf(left.role) - ROLE_ORDER.indexOf(right.role)
 	)));
 }

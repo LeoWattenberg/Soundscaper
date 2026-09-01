@@ -93,8 +93,10 @@ export async function mountSender(context: TransferPageContext): Promise<void> {
 			view.status('A project transfer is already awaiting confirmation or in progress.', 'error');
 			return;
 		}
-		const chosen = requireChosen(context, choices, offers, intent);
-		if (!chosen) return;
+		const confirmationChoices = choices;
+		const confirmationOffers = offers;
+		const chosen = requireChosen(context, confirmationChoices, confirmationOffers, intent);
+		if (!chosen || !confirmationChoices) return;
 		// Confirmed by name before anything is read, let alone posted - and
 		// counted over what can actually cross. A ticked row this page cannot
 		// move is still listed below with its reason, but it is not one of the
@@ -118,9 +120,11 @@ export async function mountSender(context: TransferPageContext): Promise<void> {
 				// synchronous, because the popup below has to open inside this click.
 				confirm: async () => {
 					try {
-						const confirmed = requireChosen(context, choices, offers, intent);
+						const confirmed = requireChosen(
+							context, confirmationChoices, confirmationOffers, intent,
+						);
 						if (!confirmed) return;
-						await runSenderHandshake(context, confirmed, choices);
+						await runSenderHandshake(context, confirmed, confirmationChoices);
 					} finally {
 						finish();
 					}

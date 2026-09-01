@@ -134,9 +134,7 @@ export function gatherOwnedHighlightSignalsV1(
 	const candidates = video.windows.flatMap((window, index) => {
 		const startFrame = nearest(edges, window.startFrame);
 		const endFrame = nearest(edges, window.endFrame);
-		if (endFrame <= startFrame) {
-			throw new RangeError(`Highlight window ${window.id} collapsed while snapping to admitted edges.`);
-		}
+		if (endFrame <= startFrame) return [];
 		const sourceStartFrame = sourceAtTimeline(video.authority, startFrame);
 		const sourceEndFrame = sourceAtTimeline(video.authority, endFrame);
 		if (sourceEndFrame <= sourceStartFrame) {

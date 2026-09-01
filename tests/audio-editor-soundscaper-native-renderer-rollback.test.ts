@@ -114,7 +114,7 @@ test('workspace teardown waits for an in-flight open before snapshotting ownersh
 	assert.equal(fixture.audioCloses.length, 2);
 });
 
-test('native bypass transitions retain latency and enforce a faulted project override everywhere', async (context) => {
+test('native bypass transitions retain latency and an explicit un-bypass reinstates a faulted plug-in', async (context) => {
 	const worklet = useFakeAudioWorklet(context);
 	const fixture = rollbackFixture();
 	const renderer = createRenderer(fixture, true);
@@ -126,9 +126,24 @@ test('native bypass transitions retain latency and enforce a faulted project ove
 
 	worklet.faultPlugin();
 	await renderer.bridge.setNativePluginBypassed({ instanceId: instance.instanceId, bypassed: false });
-	assert.equal(fixture.effect().bypassed, true, 'the faulted project keeps the slot bypassed');
-	assert.equal(fixture.pluginBypasses.at(-1)?.bypassed, true, 'main receives the admitted override');
-	assert.equal(worklet.bypassMessages().at(-1)?.bypassed, true, 'the realtime worklet receives it too');
+	assert.equal(fixture.effect().bypassed, false, 'the explicit un-bypass reinstates the project slot');
+	assert.equal(fixture.pluginBypasses.at(-1)?.bypassed, false, 'main receives the explicit reinstatement');
+	assert.equal(worklet.bypassMessages().at(-1)?.bypassed, false, 'the realtime worklet receives it too');
+	await renderer.dispose();
+});
+
+test('removing a native rack effect cannot poison later native plug-in actions', async (context) => {
+	useFakeAudioWorklet(context);
+	const fixture = rollbackFixture();
+	const renderer = createRenderer(fixture, true);
+	const instance = await renderer.bridge.instantiateNativePlugin({
+		installationId: 'installation-1', instanceId: null,
+	});
+	fixture.project.tracks[0]!.effects.splice(0);
+	await assert.doesNotReject(() => renderer.bridge.setNativePluginBypassed({
+		instanceId: instance.instanceId,
+		bypassed: true,
+	}));
 	await renderer.dispose();
 });
 

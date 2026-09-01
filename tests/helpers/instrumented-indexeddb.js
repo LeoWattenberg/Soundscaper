@@ -375,6 +375,8 @@ function fakeRequest(transaction, operation) {
 
 function fakeGetAllRequest(transaction, data, index, query, count, values) {
 	return fakeRequest(transaction, () => {
+		const failure = transaction.database.takeRequestFailure('getAll', data.name);
+		if (failure) throw failure;
 		const returnedValues = values.slice(0, count);
 		transaction.database.stats.getAllRequests.push({
 			store: data.name,

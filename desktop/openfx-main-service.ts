@@ -313,15 +313,12 @@ export class FramescaperOpenFxMainService {
 				},
 			}) as HelperOfxInteractJobGrantV1;
 			await this.#assertInteractAuthority(plugin, epoch, manager, request);
-			let result;
-			try {
-				result = await manager.interact(fingerprint, Object.freeze({
-					kind: 'ofx-host' as const, grant, signal: abort.signal,
-					dataPlaneTransfers: Object.freeze([]),
-				}));
-			} catch (error) {
-				if (!abort.signal.aborted) this.#recordRuntimeFailure(plugin, error); throw error;
-			}
+			const result = await manager.interact(fingerprint, Object.freeze({
+				kind: 'ofx-host' as const, grant, signal: abort.signal,
+				dataPlaneTransfers: Object.freeze([]),
+			}), (error) => {
+				if (!abort.signal.aborted) this.#recordRuntimeFailure(plugin, error);
+			});
 			await this.#assertInteractAuthority(plugin, epoch, manager, request);
 			try { return framescaperOpenFxInteractResultV1(result.interact, request); }
 			catch (error) {
@@ -437,6 +434,7 @@ export class FramescaperOpenFxMainService {
 			disposals.push(plugin.custody.dispose());
 		}
 		await Promise.all(disposals);
+		this.#plugins.clear();
 	}
 
 	async dispose(): Promise<void> {

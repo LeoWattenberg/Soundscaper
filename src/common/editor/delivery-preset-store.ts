@@ -122,12 +122,21 @@ export function importDeliveryPresets(state: unknown, input: unknown, options: {
 	const byId = new Map(current.presets.map((preset) => [preset.id, preset]));
 	for (const preset of imported) {
 		let id = preset.id;
-		if (byId.has(id) && JSON.stringify(byId.get(id)) !== JSON.stringify(preset)) {
+		if (byId.has(id) && canonicalJson(byId.get(id)) !== canonicalJson(preset)) {
 			id = presetId(options.idFactory);
 		}
 		byId.set(id, validateDeliveryPreset({ ...preset, id }));
 	}
 	return freezeState([...byId.values()]);
+}
+
+function canonicalJson(value: unknown): string {
+	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? String(value);
+	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+	const row = value as Readonly<Record<string, unknown>>;
+	return `{${Object.keys(row).sort().map(
+		(key) => `${JSON.stringify(key)}:${canonicalJson(row[key])}`,
+	).join(',')}}`;
 }
 
 function presetId(idFactory?: () => string): string {

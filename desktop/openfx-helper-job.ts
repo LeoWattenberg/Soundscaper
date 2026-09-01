@@ -167,6 +167,7 @@ export class OpenFxHelperJobRunner implements OpenFxHelperJobRunnerPort {
 				insideReservation: true,
 			});
 			await filesystem.revalidate();
+			signal.throwIfAborted();
 			const process = this.#invokeHost({
 				executablePath: this.#descriptor.scanner.path,
 				arguments: ['--scan', plugin.path, '--sha256', grant.pluginBinary.sha256],

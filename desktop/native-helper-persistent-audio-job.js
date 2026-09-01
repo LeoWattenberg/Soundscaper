@@ -130,7 +130,9 @@ export function createNativePersistentAudioJobRunner({ loadAddon, addonPath, add
 				if (transferred.status !== 'ok' || transferred.framesTransferred !== block.frameCount) {
 					finish(transferred.status === 'device-unavailable' ? 'device-loss' : 'transfer-failed');
 				}
+				return;
 			}
+			throw new TypeError('The persistent audio message kind is not admitted for this session.');
 		};
 		// A field-invalid packet is a validation refusal, not a process fault: an
 		// escaped rejection here would kill the helper — and every session it

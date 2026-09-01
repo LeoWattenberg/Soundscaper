@@ -17,6 +17,7 @@ import {
 import SoundscaperMasteringSequenceEditor, {
 	masteringSequenceAddOperation,
 	masteringSequenceEntryApplyOperation,
+	parseMasteringSequenceEntryFrames,
 } from '../src/common/editor/ui/dialogs/SoundscaperMasteringSequenceEditor.tsx';
 import {
 	createDocumentMasteringSequenceSnapshot,
@@ -28,7 +29,7 @@ import {
 	executeSoundscaperProductionOperation,
 	soundscaperProductionSurface,
 } from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
-import { installReactTestDom, ReactTestElement } from './helpers/react-test-dom.ts';
+import { installReactTestDom, reactProps, ReactTestElement } from './helpers/react-test-dom.ts';
 
 const NOW = '2026-08-18T00:00:00.000Z';
 const CAPABILITIES = Object.freeze({
@@ -207,6 +208,58 @@ test('an entry form refreshes when the document updates the same entry id', asyn
 			'the updated document owns a fresh form rather than the stale same-id form');
 	} finally {
 		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('blank or invalid mastering timing is refused instead of becoming zero frames', async () => {
+	assert.equal(parseMasteringSequenceEntryFrames(''), null);
+	assert.equal(parseMasteringSequenceEntryFrames('1.5'), null);
+	assert.equal(parseMasteringSequenceEntryFrames('-1'), null);
+	assert.equal(parseMasteringSequenceEntryFrames('0'), 0);
+	assert.equal(parseMasteringSequenceEntryFrames('42'), 42);
+
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const formDataDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'FormData');
+	const operations: unknown[] = [];
+	const snapshot = createDocumentMasteringSequenceSnapshot(albumProject());
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperMasteringSequenceEditor
+			copy={SOUNDSCAPER_PRODUCTION_COPY}
+			disabled={false}
+			sequences={snapshot.sequences}
+			regions={snapshot.regions}
+			primarySequenceId={snapshot.primarySequenceId}
+			createId={() => 'generated'}
+			onOperation={(operation) => { operations.push(operation); }}
+		/>));
+		Object.defineProperty(globalThis, 'FormData', {
+			configurable: true,
+			value: class {
+				get(name: string): string {
+					if (name === 'metadata') return '{}';
+					if (name === 'gapBeforeFrames') return '';
+					return '0';
+				}
+			},
+		});
+		const form = dom.one('[aria-label="One"]');
+		await act(async () => {
+			reactProps(form).onSubmit({ preventDefault() {}, currentTarget: form });
+			await Promise.resolve();
+		});
+		assert.deepEqual(operations, []);
+		assert.match(dom.container.textContent, /whole non-negative frame counts/iu);
+	} finally {
+		await act(async () => root.unmount());
+		if (formDataDescriptor) Object.defineProperty(globalThis, 'FormData', formDataDescriptor);
+		else Reflect.deleteProperty(globalThis, 'FormData');
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
 		dom.restore();
 	}

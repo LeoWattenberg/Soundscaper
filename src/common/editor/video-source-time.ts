@@ -285,7 +285,7 @@ export function selectVideoThumbnailTimestamps(
 			sourceFrame: cacheFrame,
 			sourceTimeSeconds: sourceFrameTimeSeconds(
 				cacheFrame,
-				VIDEO_TIMING_INDEXES.get(videoTimingKey(source)),
+				timingIndexForClip(clip, source),
 			) ?? cacheFrame / sourceRate,
 			timelineFrame: mapped.timelineFrame,
 			timelineTimeSeconds: mapped.timelineTimeSeconds,

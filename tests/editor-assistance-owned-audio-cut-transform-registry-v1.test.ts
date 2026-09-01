@@ -317,6 +317,21 @@ test('transcript chunking and publication bind exact timing rows to one reviewed
 	assert.deepEqual(emptyIndex.outputs['transcript-index'].rows, []);
 });
 
+test('transcript chunk labels stay within the validator UTF-16 unit ceiling', () => {
+	const text = '🎧'.repeat(600);
+	const indexSettings = settings('index-transcript', { chunkTokens: 256, overlapTokens: 32 });
+	const chunked = registry.run({
+		schemaVersion: 1, transformId: 'chunk-transcript', settings: indexSettings,
+		inputs: { transcript: transcript([{
+			startFrame: 0, endFrame: 48_000, text, words: [], speaker: null,
+		}]) },
+	});
+	const label = chunked.outputs['text-chunks'].chunks[0]!.label;
+	assert.equal(label, '🎧'.repeat(512));
+	assert.equal(label.length, 1_024);
+	assert.doesNotThrow(() => reviewAssistanceOwnedAudioCutTransformResultV1(chunked));
+});
+
 test('beat and cut transforms retain no-event results and reject substitution or malformed values', () => {
 	const beats = registry.run({
 		schemaVersion: 1, transformId: 'propose-tempo-map',

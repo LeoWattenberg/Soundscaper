@@ -86,6 +86,19 @@ test('V21 mix retains an unselected Auto Duck control track and sidechain', asyn
 	}
 });
 
+test('V21 mix retains Auto Duck control tracks for master and mixer-node racks', () => {
+	for (const host of ['master', 'group', 'send', 'cue'] as const) {
+		const project = hostedAutoDuckFixture(host);
+		const targets = project.tracks
+			.filter(({ id }) => id === 'voice' || id === 'fx') as unknown as readonly ControllerTrack[];
+		const snapshot = createMixRenderSnapshot(project as unknown as ControllerProject, targets);
+		assert.equal(snapshot.tracks.some(({ id }) => id === 'music'), true, host);
+		assert.equal((snapshot.mixer as unknown as typeof project.mixer).edges
+			.some(({ id }) => id === `music-${host}-duck`), true, host);
+		assert.equal(validateSoundscaperProject(snapshot), true, host);
+	}
+});
+
 test('V21 mix snapshots reconcile owned requirements after pruning master-only automation', () => {
 	for (const project of [singleTrackMasterAutomationFixture(), fixture(false)]) {
 		const targets = project.tracks.filter(({ type }) => type === 'audio') as unknown as readonly ControllerTrack[];
@@ -234,6 +247,50 @@ function autoDuckFixture() {
 			routingEdge('music-voice-duck', 'sidechain', { kind: 'track', id: 'music' }, {
 				kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-duck',
 			})] },
+	} as never);
+}
+
+function hostedAutoDuckFixture(host: 'master' | 'group' | 'send' | 'cue') {
+	const duck = { id: `${host}-duck`, type: 'audacity-auto-duck', enabled: true, params: {} };
+	const node = {
+		id: `${host}-node`, name: `${host} node`, color: '#808080', gain: 1, pan: 0,
+		mute: false, solo: false, collapsed: false, effectsActive: true, effects: [duck],
+		channelCount: 2,
+	};
+	const destination = host === 'master'
+		? { kind: 'master' as const }
+		: { kind: 'mixer-node' as const, id: node.id };
+	return createSoundscaperProject({
+		id: `mix-v21-${host}-duck`, title: `${host} Auto Duck`, now: NOW,
+		sources: [source('voice-source'), source('fx-source'), source('music-source')],
+		clips: [
+			clip('voice-clip', 'voice-source'), clip('fx-clip', 'fx-source'),
+			clip('music-clip', 'music-source'),
+		],
+		tracks: [
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip'] }),
+			createAudioTrack({ id: 'fx', name: 'FX', clipIds: ['fx-clip'] }),
+			createAudioTrack({ id: 'music', name: 'Music', clipIds: ['music-clip'] }),
+		],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'fx', 'music'] }],
+		primarySequenceId: 'main-sequence',
+		master: host === 'master' ? { effectsActive: true, effects: [duck] } : undefined,
+		mixer: {
+			schemaVersion: 1,
+			groups: host === 'group' ? [node] : [],
+			sends: host === 'send' ? [node] : [],
+			cues: host === 'cue' ? [node] : [],
+			vcas: [], outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
+			edges: [
+				routingEdge('voice-master', 'assignment', { kind: 'track', id: 'voice' }, { kind: 'master' }),
+				routingEdge('fx-master', 'assignment', { kind: 'track', id: 'fx' }, { kind: 'master' }),
+				routingEdge('music-master', 'assignment', { kind: 'track', id: 'music' }, { kind: 'master' }),
+				routingEdge(`music-${host}-duck`, 'sidechain', { kind: 'track', id: 'music' }, {
+					kind: 'effect-sidechain', strip: destination, effectId: duck.id,
+				}),
+				routingEdge('master-main', 'assignment', { kind: 'master' }, { kind: 'output', id: 'main' }),
+			],
+		},
 	} as never);
 }
 

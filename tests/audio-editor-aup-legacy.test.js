@@ -40,6 +40,23 @@ test('legacy AUP import reports missing and corrupt block files explicitly', asy
 	assert.throws(() => decodeAuBlockFile(new Uint8Array(24)), (error) => error.code === 'CORRUPT_BLOCK_FILE');
 });
 
+test('legacy linked channels reject positional clip pairs whose timeline offsets differ', async () => {
+	const xml = `<project rate="44100">
+		<wavetrack name="Stereo" channel="0" linked="1" rate="44100">
+			<waveclip offset="0"><sequence/></waveclip>
+			<waveclip offset="10"><sequence><waveblock><silentblockfile len="4"/></waveblock></sequence></waveclip>
+		</wavetrack>
+		<wavetrack name="Stereo" channel="1" rate="44100">
+			<waveclip offset="0"><sequence><waveblock><silentblockfile len="4"/></waveblock></sequence></waveclip>
+			<waveclip offset="10"><sequence><waveblock><silentblockfile len="4"/></waveblock></sequence></waveclip>
+		</wavetrack>
+	</project>`;
+	await assert.rejects(
+		decodeLegacyAupProject(legacyProjectFile('misaligned.aup', xml), []),
+		(error) => error.code === 'CORRUPT_LINKED_TRACK' && /timeline offsets/u.test(error.message),
+	);
+});
+
 test('legacy AUP XML exposes fixed production hard limits', () => {
 	assert.deepEqual(legacyAup.LEGACY_AUP_XML_HARD_LIMITS, EXPECTED_XML_HARD_LIMITS);
 	assert.equal(Object.isFrozen(legacyAup.LEGACY_AUP_XML_HARD_LIMITS), true);

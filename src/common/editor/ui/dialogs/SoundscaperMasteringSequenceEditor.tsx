@@ -199,6 +199,13 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }:
 			event.preventDefault();
 			const form = new FormData(event.currentTarget);
 			const title = String(form.get('title') ?? '').trim();
+			const gapBeforeFrames = parseMasteringSequenceEntryFrames(form.get('gapBeforeFrames'));
+			const fadeInFrames = parseMasteringSequenceEntryFrames(form.get('fadeInFrames'));
+			const fadeOutFrames = parseMasteringSequenceEntryFrames(form.get('fadeOutFrames'));
+			if (gapBeforeFrames === null || fadeInFrames === null || fadeOutFrames === null) {
+				setMetadataError(copy.masteringEntryTimingInvalid);
+				return;
+			}
 			const metadata = parseMetadata(form.get('metadata'));
 			if (metadata === null) {
 				setMetadataError(copy.masteringEntryMetadataInvalid);
@@ -211,9 +218,9 @@ function EntryEditor({ copy, entry, index, lastIndex, sequenceId, onOperation }:
 				// An emptied title returns the entry to the region's own name rather
 				// than pinning the region's current name as an override.
 				title: title === '' ? null : title,
-				gapBeforeFrames: frames(form.get('gapBeforeFrames')),
-				fadeInFrames: frames(form.get('fadeInFrames')),
-				fadeOutFrames: frames(form.get('fadeOutFrames')),
+				gapBeforeFrames,
+				fadeInFrames,
+				fadeOutFrames,
 				metadata,
 			}));
 		}}
@@ -253,13 +260,15 @@ function NumberField({ name, label, value }: Readonly<{
 }>) {
 	return <label className="kw-audio-editor-dialog__field">
 		<span>{label}</span>
-		<input name={name} type="number" min={0} step={1} defaultValue={value} />
+		<input name={name} type="number" min={0} step={1} defaultValue={value} required />
 	</label>;
 }
 
-function frames(value: FormDataEntryValue | null): number {
-	const parsed = Number(String(value ?? '0'));
-	return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+export function parseMasteringSequenceEntryFrames(value: FormDataEntryValue | null): number | null {
+	const text = String(value ?? '').trim();
+	if (text === '') return null;
+	const parsed = Number(text);
+	return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 /** Null means the text is not a flat object of strings, which is a refusal rather than a silent drop. */

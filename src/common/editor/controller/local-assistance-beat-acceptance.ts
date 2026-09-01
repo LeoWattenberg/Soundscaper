@@ -332,10 +332,10 @@ function createLabels(
 		const offset = Number(scaleSampleFrame(
 			proposal.sample, ASSISTANCE_BEAT_SAMPLE_RATE, authority.sampleRate, 'point',
 		));
-		const position = safeAdd(authority.timelineStartFrame, offset, 'beat label position');
-		if (position >= authority.timelineEndFrame) {
-			throw new RangeError('A selected beat falls outside the selected timeline media.');
-		}
+		const position = Math.min(
+			safeAdd(authority.timelineStartFrame, offset, 'beat label position'),
+			authority.timelineEndFrame - 1,
+		);
 		return Object.freeze({
 			id: `${trackId}:${proposal.kind}:${String(proposal.sample)}`,
 			title: proposal.label,

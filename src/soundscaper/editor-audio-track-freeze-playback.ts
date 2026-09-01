@@ -44,7 +44,7 @@ export interface SoundscaperAudioTrackFreezePlaybackService extends PlaybackProj
 		source: DataRecord,
 		signal?: AbortSignal,
 	) => Promise<string>;
-	readonly admitVerifiedFreeze: (request: VerifiedSoundscaperAudioTrackFreeze) => void;
+	readonly admitVerifiedFreeze: (request: VerifiedSoundscaperAudioTrackFreeze) => () => void;
 	readonly getFreezeStatus: (
 		project: object,
 		trackId: string,
@@ -170,7 +170,7 @@ export function createSoundscaperAudioTrackFreezePlaybackService(
 		return actual;
 	}
 
-	function admitVerifiedFreeze(request: VerifiedSoundscaperAudioTrackFreeze): void {
+	function admitVerifiedFreeze(request: VerifiedSoundscaperAudioTrackFreeze): () => void {
 		const project = dataRecord(request.project, 'verified freeze project');
 		const projectId = stableId(project.id, 'verified freeze project');
 		const trackId = stableId(request.trackId, 'verified frozen audio track');
@@ -183,10 +183,13 @@ export function createSoundscaperAudioTrackFreezePlaybackService(
 			derivedSource.contentSha256, 'verified freeze derived source',
 		);
 		const identities = snapshotIdentities(request.sourceContentIdentities);
-		admissions.set(admissionKey(projectId, trackId, freeze.derivedSourceId), Object.freeze({
+		const key = admissionKey(projectId, trackId, freeze.derivedSourceId);
+		const admission = Object.freeze({
 			projectId, trackId, freeze, derivedSourceContentSha256,
 			sourceContentIdentities: identities,
-		}));
+		});
+		admissions.set(key, admission);
+		return () => { if (admissions.get(key) === admission) admissions.delete(key); };
 	}
 
 	function selectFreshAdmissions(projectValue: object): readonly FreezeAdmission[] {

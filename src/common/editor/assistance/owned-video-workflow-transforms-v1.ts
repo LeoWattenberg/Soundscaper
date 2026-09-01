@@ -54,6 +54,7 @@ const SUBJECT_SOURCE_FIELDS = Object.freeze([
 	'schemaVersion', 'kind', 'authority', 'shotAnchorFrames', 'result',
 ] as const);
 const PLAN_INPUT_FIELDS = Object.freeze(['tracked-subjects', 'saliency-map'] as const);
+const MAXIMUM_OCR_SEARCH_TEXT_UNITS = 4_096;
 
 export function sampleOwnedShotFramesV1(
 	inputsValue: unknown,
@@ -254,11 +255,20 @@ function ocrRecords(
 	const result = reviewAssistanceOcrResultV1(value, visualAuthority);
 	return result.frames.flatMap((frame, index) => {
 		if (frame.regions.length === 0) return [];
-		const text = ownedText(frame.regions.map((region) => region.text).join(' '), 4_096,
-			`OCR search row ${String(index)} text`);
+		const text = boundedOcrSearchText(frame.regions.map((region) => region.text).join(' '), index);
 		return [{ recordVersion: 1 as const, ...authority[index]!, text,
 			confidence: Math.max(...frame.regions.map(({ confidence }) => confidence)) }];
 	});
+}
+
+function boundedOcrSearchText(value: string, index: number): string {
+	let end = Math.min(value.length, MAXIMUM_OCR_SEARCH_TEXT_UNITS);
+	const boundary = value.charCodeAt(end - 1);
+	const following = value.charCodeAt(end);
+	if (boundary >= 0xD800 && boundary <= 0xDBFF
+		&& following >= 0xDC00 && following <= 0xDFFF) end -= 1;
+	return ownedText(value.slice(0, end).trim(), MAXIMUM_OCR_SEARCH_TEXT_UNITS,
+		`OCR search row ${String(index)} text`);
 }
 
 function binaryBytes(value: ArrayBuffer | ArrayBufferView): Uint8Array {

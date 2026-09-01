@@ -143,6 +143,27 @@ test('main carries one pathless offscreen Interact replay through the isolated h
 		[{ state: 'enabled', quarantined: false }]);
 });
 
+test('an unavailable Interact host does not count against the plug-in failure ledger', async (context) => {
+	const fixture = await createFixture(context);
+	fixture.preferences.nativeMediaEnabled = true;
+	fixture.preferences.ofxConsentEnabled = true;
+	const scanned = await fixture.service.scan();
+	assert.ok(scanned);
+	await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
+	fixture.manager.dispose();
+	const effect = interactEffect(fixture.plan);
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		await assert.rejects(() => fixture.service.interact({
+			protocolVersion: 1, project: { schemaFamily: 'framescaper', schemaVersion: 1,
+				...fixture.plan.project }, pluginHandle: scanned.pluginHandle,
+			effect, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect),
+			context: 'filter', target: 'overlay', parameterName: null, events: [],
+		}), /disposed/iu);
+	}
+	assert.deepEqual(fixture.service.inventory().map(({ state, quarantined }) => ({ state, quarantined })),
+		[{ state: 'enabled', quarantined: false }]);
+});
+
 test('main resolves VFR timing authority before staging a dormant Retimer attempt', async (context) => {
 	const candidate = retimerVfrCandidate();
 	const fixture = await createFixture(context, {
@@ -300,6 +321,26 @@ test('main-owned failure ledger quarantines repeated renders and immediate resou
 	}
 });
 
+test('Interact helper execution failures enter the plug-in failure ledger', async (context) => {
+	for (const [cause, attempts] of [['helper-error', 3], ['handshake', 1],
+		['binary-mismatch', 1]] as const) {
+		const fixture = await createFixture(context);
+		Object.assign(fixture.preferences, { nativeMediaEnabled: true, ofxConsentEnabled: true });
+		const scanned = await fixture.service.scan(); assert.ok(scanned);
+		await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
+		fixture.runtimeState.failures.push(...Array.from({ length: attempts },
+			() => new HelperSupervisionError(cause, `${cause} failure`)));
+		const effect = interactEffect(fixture.plan);
+		for (let attempt = 0; attempt < attempts; attempt += 1) await assert.rejects(
+			() => fixture.service.interact({ protocolVersion: 1, project: {
+				schemaFamily: 'framescaper', schemaVersion: 1, ...fixture.plan.project },
+				pluginHandle: scanned.pluginHandle, effect, effectStateSha256:
+					framescaperOpenFxInteractEffectStateSha256V1(effect),
+				context: 'filter', target: 'overlay', parameterName: null, events: [] }), /failure/iu,
+		);
+		assert.equal(fixture.service.inventory()[0]?.quarantined, true, cause);
+	}
+});
 test('scan cancellation and malformed descriptors leave no registration or scratch authority', async (context) => {
 	let releaseScan!: () => void;
 	let scanStarted!: () => void;
@@ -513,7 +554,7 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 		mintOpaqueId: () => '11'.repeat(20),
 	});
 	return {
-		service, pluginPath, preferences, runtimeAvailable, payloadAvailable, plan,
+		service, manager, pluginPath, preferences, runtimeAvailable, payloadAvailable, plan,
 		runtimeState, channelState, snapshotRoots, scratchRoot: join(root, 'scratch'),
 		get selections() { return selections; },
 		get scanJobs() { return scanJobs; },

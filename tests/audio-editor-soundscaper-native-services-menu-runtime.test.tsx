@@ -301,6 +301,17 @@ test('both desktop products gain the shared host controls without mounting the S
 	}
 });
 
+test('the shared support action names the active product', () => {
+	for (const [productId, productName] of [['soundscaper', 'Soundscaper'], ['framescaper', 'Framescaper']]) {
+		let opened = '';
+		const menus = createWorkspaceApplicationMenus({
+			...workspaceMenuInput(productId), openExternal: (value: string) => { opened = value; },
+		}) as readonly MenuItem[];
+		flatten(menus).find(({ id }) => id === 'support')?.onClick?.();
+		assert.equal(opened, `mailto:team@kw.media?subject=${productName}%20support`);
+	}
+});
+
 function workspaceMenuInput(productId: string, desktopHostRuntime: DesktopHostMenuRuntime | null = null) {
 	return {
 		aboutLabel: 'About',

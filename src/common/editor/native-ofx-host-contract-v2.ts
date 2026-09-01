@@ -3,6 +3,7 @@
 import { OFX_CONTEXTS, OFX_HOST_SUITES, OFX_PARAMETER_TYPES, OFX_THREADING_DECLARATIONS, type OfxContext } from './native-ofx-descriptor.ts';
 import {
 	OFX_HOST_ACTIONS_V1,
+	OFX_RENDER_BACKENDS_V1,
 	snapshotOfxRetimerSourceTimeWireV1,
 	type OfxHostActionV1,
 	type OfxRetimerSourceTimeWireV1,
@@ -109,7 +110,7 @@ export function assertOfxHostInvocationV2(value: unknown): asserts value is OfxH
 	digest(invocation.stateSha256, 'stateSha256'); ids(invocation.inputFrameStreamIds);
 	if (invocation.outputFrameStreamId !== null) pattern(invocation.outputFrameStreamId, ID, 'outputFrameStreamId');
 	nonNegativeInteger(invocation.outputOrdinal, 'outputOrdinal');
-	if (!['cpu', 'opengl', 'opencl', 'cuda', 'metal'].includes(String(invocation.requestedBackend))) {
+	if (!(OFX_RENDER_BACKENDS_V1 as readonly unknown[]).includes(invocation.requestedBackend)) {
 		throw new RangeError('OFX V2 backend is unsupported.');
 	}
 	pattern(invocation.abortSignalId, ID, 'abortSignalId');

@@ -3024,7 +3024,7 @@ test('a read-only project automatically becomes writable after its competing loc
 	});
 	await controller.ready;
 	assert.equal(controller.getSnapshot().readOnly, true);
-	await new Promise((resolve) => setTimeout(resolve, 150));
+	await waitFor(() => controller.getSnapshot().readOnly === false, 1_000);
 	assert.equal(controller.getSnapshot().readOnly, false);
 	assert.equal(controller.getSnapshot().status.message, COPY.ready);
 	assert.equal(acquisitions, 2);

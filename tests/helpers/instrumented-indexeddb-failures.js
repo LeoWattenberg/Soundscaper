@@ -6,6 +6,9 @@ export function createRequestFailurePlan() {
 	const failNext = (operation, storeName, error) => { failures.set(key(operation, storeName), error); };
 	return Object.freeze({
 		controls: Object.freeze({
+			failNextGetAllForStore(storeName, error = new Error(`Planned getAll failure for ${storeName}.`)) {
+				failNext('getAll', storeName, error);
+			},
 			failNextPutForStore(storeName, error = new Error(`Planned put failure for ${storeName}.`)) {
 				failNext('put', storeName, error);
 			},

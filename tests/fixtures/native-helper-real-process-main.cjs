@@ -36,7 +36,10 @@ app.whenReady().then(async () => {
 		`--helper-addon-config=${JSON.stringify({ addonPath: plan.addonPath, addonSha256: plan.addonSha256 })}`,
 	], { serviceName: 'soundscaper-native-helper-smoke' });
 
-	const timer = setTimeout(() => settle('timeout'), plan.timeoutMs ?? 30_000);
+	const timer = setTimeout(() => {
+		child.kill();
+		settle('timeout');
+	}, plan.timeoutMs ?? 30_000);
 	timer.unref?.();
 
 	child.on('exit', (code) => {

@@ -138,6 +138,7 @@ export function executeFramescaperOpenFxHostBuildRecipe(recipe, options = {}) {
 	const run = fields.run ?? spawnSync;
 	if (typeof run !== 'function') throw new TypeError('The OpenFX-host command runner must be callable.');
 	verifyWitnesses(state.witnesses);
+	existingDirectory(state.outputRoot, 'output root');
 	if (readdirSync(state.outputRoot).length !== 0) throw new Error('The explicit output root is no longer empty.');
 	EXECUTED.add(recipe);
 	mkdirSync(join(state.outputRoot, 'host-build'), { mode: 0o700 });
@@ -252,7 +253,8 @@ function verifyPinnedSourceClosure(root, manifest, witnesses) {
 		throw new Error('The OpenFX-host source-file inventory must be path sorted.');
 	}
 	for (const required of [
-		'CMakeLists.txt', 'CMakePresets.json', 'build/recipe-driver.mjs', 'build/targets.json',
+		'CMakeLists.txt', 'CMakePresets.json', 'build/recipe-driver.mjs',
+		'build/source-authentication.mjs', 'build/targets.json',
 		...TARGETS.map(({ toolchainFile }) => toolchainFile),
 	]) if (!paths.includes(required)) throw new Error(`Required build input ${required} is not pinned.`);
 }

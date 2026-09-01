@@ -37,6 +37,7 @@ const CONTROL = /[\u0000-\u001f\u007f]/u;
 const WORD = /[\p{L}\p{N}]+/gu;
 const MAXIMUM_INDEX_ROWS = 100_000;
 const MAXIMUM_PROVIDER_RANKS = 10_000;
+const MAXIMUM_RESULT_TEXT_UNITS = 4_096;
 const UNIT_NORM_TOLERANCE = 1e-4;
 
 export interface AssistanceSemanticIndexRowV1 {
@@ -153,7 +154,7 @@ export function createAssistanceSemanticIndexSearchProviderV1(
 					resultId: hit.resultId,
 					timelineFrame: hit.timelineFrame,
 					label,
-					detail: details.length === 0 ? null : details.join(' · '),
+					detail: details.length === 0 ? null : boundedResultText(details.join(' · ')),
 					providers: hit.providers,
 				});
 			}));
@@ -206,7 +207,7 @@ function reviewRows(value: unknown, label: string): readonly AssistanceSemanticI
 			resultId,
 			timelineFrame: integer(row.timelineFrame, 0, Number.MAX_SAFE_INTEGER,
 				`${label} result timeline frame`),
-			label: boundedText(row.label, 1_024, `${label} result label`),
+			label: boundedText(row.label, MAXIMUM_RESULT_TEXT_UNITS, `${label} result label`),
 		});
 	}));
 }
@@ -320,6 +321,15 @@ function boundedText(value: unknown, maximum: number, label: string): string {
 
 function queryText(value: unknown): string {
 	return boundedText(value, 512, 'semantic-search query').trim();
+}
+
+function boundedResultText(value: string): string {
+	if (value.length <= MAXIMUM_RESULT_TEXT_UNITS) return value;
+	let end = MAXIMUM_RESULT_TEXT_UNITS;
+	const prior = value.charCodeAt(end - 1);
+	const next = value.charCodeAt(end);
+	if (prior >= 0xD800 && prior <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) end -= 1;
+	return value.slice(0, end);
 }
 
 function integer(value: unknown, minimum: number, maximum: number, label: string): number {

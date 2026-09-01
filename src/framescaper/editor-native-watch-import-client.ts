@@ -192,7 +192,7 @@ export function createFramescaperNativeWatchImportClient(
 		committedSourceId: string,
 		project: WatchImportProject,
 	): Promise<boolean> {
-		for (let attempt = 0; attempt < 3 && !disposed; attempt += 1) {
+		for (let attempt = 0; attempt < 3 && !closing; attempt += 1) {
 			try {
 				await flushExact(project);
 				if (await acknowledge(claim, committedSourceId, project.revision, true)) return true;
