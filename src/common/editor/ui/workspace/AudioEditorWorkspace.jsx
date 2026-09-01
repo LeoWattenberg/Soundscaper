@@ -319,8 +319,8 @@ export default function AudioEditorWorkspace({
 		setGeneratorType(type);
 		openSurface('generator');
 	}, [openSurface]);
-	const closeNyquist = useCallback(() => {
-		controller.actions.nyquist.cancel();
+	const closeNyquist = useCallback(({ cancelEvaluation = true } = {}) => {
+		if (cancelEvaluation) controller.actions.nyquist.cancel();
 		setActiveSurface(null);
 	}, [controller, setActiveSurface]);
 	const openWorkspacePanel = useCallback((panelId) => {

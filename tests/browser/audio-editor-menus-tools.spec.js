@@ -392,20 +392,20 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(dialog.getByRole('spinbutton', { name: 'Frequency (Hz)', exact: true })).toBeVisible();
 		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveText('Applied the Nyquist result.', { timeout: 20_000 });
-		await expect(dialog.locator('.kw-audio-editor__nyquist-output')).toContainText('1 channel(s)');
+		await expect(dialog).toBeHidden();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(clipByName(editor, 'Audio clip')).toBeVisible();
 		await expect.poll(async () => (
 			(await effectSourceMetadata(page)).find((storedSource) => storedSource.name.includes('Tremolo'))?.channelCount
 		)).toBe(1);
-		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
 
 		await chooseNestedCommandAction(page, editor, 'Generate', ['Nyquist', 'Pluck']);
 		dialog = page.getByRole('dialog', { name: 'Pluck', exact: true });
 		await expect(dialog.getByRole('spinbutton', { name: 'Pluck MIDI pitch', exact: true })).toBeVisible();
-		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(dialog).toBeHidden({ timeout: 20_000 });
 
 		await chooseNestedCommandAction(page, editor, 'Analyze', ['Nyquist', 'Beat Finder']);
 		dialog = page.getByRole('dialog', { name: 'Beat Finder', exact: true });

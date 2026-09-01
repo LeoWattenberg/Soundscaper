@@ -93,7 +93,13 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 				}
 			});
 			const result = promise ? await promise : null;
-			if (result && !submission.signal.aborted) setOutput(formatNyquistDialogResult(result));
+			if (result && !submission.signal.aborted) {
+				if (!preview && (plugin?.role === 'generate' || plugin?.role === 'process')) {
+					onClose({ cancelEvaluation: false });
+					return;
+				}
+				setOutput(formatNyquistDialogResult(result));
+			}
 		} catch {
 			// The workspace's shared runner publishes the localized error.
 		} finally {
