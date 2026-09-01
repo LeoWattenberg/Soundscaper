@@ -34,6 +34,7 @@ import {
 import {
 	buildProjectGraph,
 } from './project-graph.ts';
+import { playbackOutputDestination } from './playback-output.ts';
 import { sampleProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import {
@@ -164,8 +165,10 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 		}
 		source.buffer = prepared.audioBuffer;
 		let masterAnalyser = null;
-		const meterDestination = this.masterLoudnessMeter?.node
-			|| soundscaperNativeAudioDestination(context, context.destination);
+		const playbackDestination = playbackOutputDestination(
+			this, context, soundscaperNativeAudioDestination(context, context.destination),
+		);
+		const meterDestination = this.masterLoudnessMeter?.node || playbackDestination;
 		if (this.meterListeners.size > 0) {
 			masterAnalyser = createAnalyser(context, nodes);
 			connect(source, masterAnalyser);
@@ -231,9 +234,12 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		this.playEndFrame = Math.max(fromFrame, loopEnd);
 		this.playbackStartFrame = fromFrame;
 		this.positionFrame = fromFrame;
+		const playbackDestination = playbackOutputDestination(
+			this, context, soundscaperNativeAudioDestination(context, context.destination),
+		);
 		this.graph = buildProjectGraph(
 			context,
-			this.masterLoudnessMeter?.node || soundscaperNativeAudioDestination(context, context.destination),
+			this.masterLoudnessMeter?.node || playbackDestination,
 			this.project,
 			{
 			metering: this.meterListeners.size > 0,
@@ -360,7 +366,9 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 					meter.dispose();
 					return this.masterLoudnessMeter;
 				}
-				meter.node.connect(soundscaperNativeAudioDestination(context, context.destination));
+				meter.node.connect(playbackOutputDestination(
+					this, context, soundscaperNativeAudioDestination(context, context.destination),
+				));
 				this.masterLoudnessMeterError = null;
 				this.masterLoudnessMeter = meter;
 				return meter;

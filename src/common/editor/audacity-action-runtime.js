@@ -474,7 +474,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			setPlaybackTime: controllerActions.transport.seek,
 		},
 		mixer: {
-			setPlaybackLevel: (level = 1) => controllerActions.effects.setMasterGain(Number(level)),
+			setPlaybackLevel: (level = 1) => controllerActions.audioDevices.setPlaybackGain(Number(level)),
 		},
 		track: {
 			...controllerActions.track,

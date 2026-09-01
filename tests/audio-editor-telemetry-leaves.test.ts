@@ -7,11 +7,12 @@ import test from 'node:test';
 const UI = new URL('../src/common/editor/ui/', import.meta.url);
 
 test('toolbar playback telemetry is owned by focused leaf controls', async () => {
-	const [toolbar, transport, meter, sequence] = await Promise.all([
+	const [toolbar, transport, meter, sequence, actionRuntime] = await Promise.all([
 		readFile(new URL('toolbar/EditorToolToolbar.jsx', UI), 'utf8'),
 		readFile(new URL('toolbar/AudioEditorTransportControls.jsx', UI), 'utf8'),
 		readFile(new URL('toolbar/AudioEditorMeterControls.jsx', UI), 'utf8'),
 		readFile(new URL('toolbar/SequenceTimingControls.jsx', UI), 'utf8'),
+		readFile(new URL('../audacity-action-runtime.js', UI), 'utf8'),
 	]);
 
 	assert.doesNotMatch(toolbar, /useAudioEditorTelemetrySelector/u);
@@ -22,6 +23,9 @@ test('toolbar playback telemetry is owned by focused leaf controls', async () =>
 	assert.match(transport, /function TelemetryPlayTransportControl/u);
 	assert.match(transport, /function TelemetryTimeCode/u);
 	assert.match(meter, /function PlaybackMeterToolbarGroup/u);
+	assert.match(meter, /audioDevices\.setPlaybackGain/u);
+	assert.doesNotMatch(meter, /effects\.setMasterGain/u);
+	assert.match(actionRuntime, /setPlaybackLevel:.*audioDevices\.setPlaybackGain/u);
 	assert.match(sequence, /useAudioEditorTelemetrySelector/u);
 });
 

@@ -100,6 +100,9 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	activeOutputDeviceId: string;
 	outputDeviceError: unknown;
 	outputDeviceGeneration: number;
+	playbackGain: number;
+	playbackOutputNode: GainNode | null;
+	playbackOutputDestination: AudioNode | null;
 	positionFrame: number;
 	playbackStartFrame: number;
 	playbackStartTime: number;

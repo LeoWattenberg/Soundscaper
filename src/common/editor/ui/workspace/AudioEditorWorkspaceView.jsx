@@ -408,7 +408,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					&& <SidePlaybackMeter
 						controller={controller}
 						copy={copy}
-						project={project}
+						snapshot={snapshot}
 						settings={playbackMeterSettings}
 						onSettingsChange={setPlaybackMeterSettings}
 						clippingEnabled={uiFlags.clipping}

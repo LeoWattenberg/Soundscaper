@@ -338,7 +338,7 @@ export default function EditorToolToolbar({
 					&& <PlaybackMeterToolbarGroup
 						controller={controller}
 						copy={copy}
-						project={project}
+						snapshot={snapshot}
 						settings={playbackMeterSettings}
 						onSettingsChange={onPlaybackMeterSettingsChange}
 						clippingEnabled={uiFlags.clipping}

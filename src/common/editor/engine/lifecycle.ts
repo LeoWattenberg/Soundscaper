@@ -112,6 +112,9 @@ export function initializeEngineRuntime(
 	engine.activeOutputDeviceId = '';
 	engine.outputDeviceError = null;
 	engine.outputDeviceGeneration = 0;
+	engine.playbackGain = 1;
+	engine.playbackOutputNode = null;
+	engine.playbackOutputDestination = null;
 	engine.positionFrame = 0;
 	engine.playbackStartFrame = 0;
 	engine.playbackStartTime = 0;
@@ -454,6 +457,9 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		this.masterLoudnessMeterPromise = null;
 		this.latestMasterLoudnessMeter = null;
 		this.masterLoudnessMeterError = null;
+		this.playbackOutputNode?.disconnect();
+		this.playbackOutputNode = null;
+		this.playbackOutputDestination = null;
 		const context = this.context;
 		this.context = null;
 		if (context?.state !== 'closed') await context?.close?.();

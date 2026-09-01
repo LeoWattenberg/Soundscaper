@@ -2411,7 +2411,7 @@ test('master EBU metering stays post-master and persists across transport graph 
 		await engine.play();
 		const meter = context.workletNodes.find(({ name }) => name === 'kw-ebu-r128-meter');
 		assert.ok(meter);
-		assert.equal(meter.connections[0], context.destination);
+		assert.deepEqual([engine.setPlaybackGain(0.5), engine.getPlaybackGain(), meter.connections[0].kind, meter.connections[0].connections[0], meter.connections[0].gain.value, project.master.gain], [0.5, 0.5, 'gain', context.destination, 0.5, 0.9]);
 		assert.ok(incomingConnections(engine.graph.nodes, meter, 0).length > 0);
 		assert.deepEqual(meter.messages.at(-1), { type: 'running', running: true });
 

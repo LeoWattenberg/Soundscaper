@@ -6,6 +6,7 @@ import { engineLifecycleMethods } from './lifecycle.ts';
 import { installEngineMethodMaps } from './method-installer.ts';
 import { engineRenderingMethods } from './rendering.ts';
 import { engineNativeEffectPdcControlMethods } from './native-effect-pdc-control.ts';
+import { enginePlaybackOutputMethods } from './playback-output.ts';
 import {
 	engineTransportAccessors,
 	engineTransportControlMethods,
@@ -25,6 +26,8 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'getAudioContext',
 	'setOutputDevice',
 	'getOutputDeviceState',
+	'setPlaybackGain',
+	'getPlaybackGain',
 	'play',
 	'playAtSpeed',
 	'playAt',
@@ -68,6 +71,7 @@ export type EnginePublicRegistryIsComplete = Assert<
 export function installEngineRuntimeMethods(target: object): void {
 	installEngineMethodMaps(target, [
 		engineLifecycleMethods,
+		enginePlaybackOutputMethods,
 		engineTransportControlMethods,
 		engineTransportAccessors,
 		engineAutomationControlMethods,

@@ -10,6 +10,7 @@ import {
 import { prepareExactAudioWarpPlayback } from './audio-warp-fallback.ts';
 import { clampFrame } from './buffer-math.ts';
 import { createAnalyser } from './effect-rack.ts';
+import { playbackOutputDestination } from './playback-output.ts';
 import type { ProjectGraph } from './project-graph.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import {
@@ -49,8 +50,10 @@ export async function scheduleExactWarpPlayback(
 	const frame = clampFrame(fromFrame, activeWindow.startFrame, activeWindow.endFrame);
 	const nodes: AudioNode[] = [];
 	let masterAnalyser = null;
-	const meterDestination = engine.masterLoudnessMeter?.node
-		|| soundscaperNativeAudioDestination(context, context.destination);
+	const playbackDestination = playbackOutputDestination(
+		engine, context, soundscaperNativeAudioDestination(context, context.destination),
+	);
+	const meterDestination = engine.masterLoudnessMeter?.node || playbackDestination;
 	if (engine.meterListeners.size > 0) {
 		masterAnalyser = createAnalyser(context, nodes);
 		connect(masterAnalyser, meterDestination);
@@ -110,7 +113,9 @@ function scheduleWindow(
 	prepared.audioBuffer ||= exactAudioBuffer(context, prepared);
 	source.buffer = prepared.audioBuffer;
 	connect(source, graph.masterAnalyser || engine.masterLoudnessMeter?.node
-		|| soundscaperNativeAudioDestination(context, context.destination));
+		|| playbackOutputDestination(
+			engine, context, soundscaperNativeAudioDestination(context, context.destination),
+		));
 	const wholeLoop = engine.loop.enabled
 		&& prepared.startFrame === engine.loop.startFrame
 		&& prepared.endFrame === engine.loop.endFrame

@@ -349,6 +349,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			setPreferredInputChannelCount,
 			configureDisplayInput,
 			setOutput: setAudioOutputDevice,
+			setPlaybackGain: (gain: RuntimeValue) => {
+				const value = engine.setPlaybackGain(Number(gain));
+				publishDocumentSnapshot();
+				return value;
+			},
 		}),
 		storage: Object.freeze({
 			refresh: refreshStorageUsage,

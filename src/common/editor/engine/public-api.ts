@@ -174,6 +174,8 @@ export interface EnginePublicApi {
 	getAudioContext(options?: Readonly<{ resume?: boolean }>): Promise<EngineAudioContext>;
 	setOutputDevice(deviceId?: string): Promise<EngineOutputDeviceState>;
 	getOutputDeviceState(): EngineOutputDeviceState;
+	setPlaybackGain(gain: number): number;
+	getPlaybackGain(): number;
 	getAudioWarpRenderStatus(): Readonly<AudioWarpRenderPathStatus>;
 	play(): Promise<void>;
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;

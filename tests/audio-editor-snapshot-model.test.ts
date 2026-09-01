@@ -69,6 +69,7 @@ test('audio-device snapshots distinguish availability, support, and active outpu
 		audioOutputStatus: 'active',
 	}, {
 		getOutputDeviceState: () => ({ activeDeviceId: 'speaker-1', supported: true }),
+		getPlaybackGain: () => 0.5,
 	}, {
 		getDisplayMedia: () => undefined,
 	}, 'default', 'display');
@@ -76,4 +77,5 @@ test('audio-device snapshots distinguish availability, support, and active outpu
 	assert.equal(snapshot.preferredOutputAvailable, true);
 	assert.equal(snapshot.displayCaptureOpen, true);
 	assert.equal(snapshot.activeOutputDeviceId, 'speaker-1');
+	assert.equal(snapshot.playbackGain, 0.5);
 });

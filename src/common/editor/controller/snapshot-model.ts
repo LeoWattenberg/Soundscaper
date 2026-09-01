@@ -113,6 +113,7 @@ export interface AudioDeviceSnapshotState {
 
 export interface AudioDeviceEngine {
 	getOutputDeviceState?(): Readonly<{ activeDeviceId?: string; supported?: boolean }>;
+	getPlaybackGain?(): number;
 }
 
 export interface AudioMediaDevices {
@@ -149,5 +150,6 @@ export function createAudioDeviceSnapshot(
 		preferredInputAvailable,
 		preferredOutputAvailable,
 		outputStatus: state.audioOutputStatus,
+		playbackGain: engine.getPlaybackGain?.() ?? 1,
 	});
 }

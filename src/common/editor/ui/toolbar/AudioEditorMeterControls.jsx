@@ -378,7 +378,7 @@ export function AudioDevicesFlyout({
 export function PlaybackMeterToolbarGroup({
 	controller,
 	copy,
-	project,
+	snapshot,
 	settings,
 	onSettingsChange,
 	clippingEnabled,
@@ -406,9 +406,9 @@ export function PlaybackMeterToolbarGroup({
 			clipped={clippingEnabled && (masterMeter?.peak || 0) >= 1}
 			slider={playbackMeterSlider(
 				copy,
-				Math.min(1, project?.master?.gain ?? 1),
+				snapshot.audioDevices?.playbackGain ?? 1,
 				settings,
-				(gain) => run(() => controller.actions.effects.setMasterGain(gain)),
+				(gain) => run(() => controller.actions.audioDevices.setPlaybackGain(gain)),
 			)}
 			compact={isCompact}
 		/>}
@@ -418,7 +418,7 @@ export function PlaybackMeterToolbarGroup({
 export function SidePlaybackMeter({
 	controller,
 	copy,
-	project,
+	snapshot,
 	settings,
 	onSettingsChange,
 	clippingEnabled,
@@ -450,9 +450,9 @@ export function SidePlaybackMeter({
 				clipped={clippingEnabled && (masterMeter?.peak || 0) >= 1}
 				slider={playbackMeterSlider(
 					copy,
-					Math.min(1, project?.master?.gain ?? 1),
+					snapshot.audioDevices?.playbackGain ?? 1,
 					settings,
-					(gain) => run(() => controller.actions.effects.setMasterGain(gain)),
+					(gain) => run(() => controller.actions.audioDevices.setPlaybackGain(gain)),
 				)}
 			/>
 		</aside>
