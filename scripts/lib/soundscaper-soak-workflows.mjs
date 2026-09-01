@@ -402,7 +402,9 @@ async function closeProjectBin(editor) {
 }
 
 async function waitForEditor(page) {
-	return waitForEditorBound(page);
+	const editor = await waitForEditorBound(page);
+	await waitForAttributePresent(editor, 'data-project-id', 30_000);
+	return editor;
 }
 
 async function waitForEditorBound(page) {
@@ -435,6 +437,15 @@ async function waitForAttribute(locator, attribute, value, timeout) {
 		await locator.page().waitForTimeout(50);
 	}
 	throw new Error(`${attribute} did not reach ${value}.`);
+}
+
+async function waitForAttributePresent(locator, attribute, timeout) {
+	const deadline = Date.now() + timeout;
+	while (Date.now() < deadline) {
+		if (await locator.getAttribute(attribute)) return;
+		await locator.page().waitForTimeout(50);
+	}
+	throw new Error(`${attribute} did not become available.`);
 }
 
 async function waitForAttributeChange(locator, attribute, value, timeout) {

@@ -424,7 +424,11 @@ async function waitForEditor(page, { allowPendingRecovery = false } = {}) {
 	await page.waitForFunction(() => document.querySelector('[data-audio-editor]')
 		?.getAttribute('data-audio-editor-bound') === 'true');
 	if (allowPendingRecovery) await waitForStatusOrRecovery(editor);
-	else await waitForStatus(editor);
+	else {
+		await waitForStatus(editor);
+		await page.waitForFunction(() => Boolean(document.querySelector('[data-audio-editor]')
+			?.getAttribute('data-project-id')), null, { timeout: 30_000 });
+	}
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/u });
 	if (await decline.isVisible().catch(() => false)) await decline.click();
 	return editor;
