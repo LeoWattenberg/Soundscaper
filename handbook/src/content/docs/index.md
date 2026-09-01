@@ -24,6 +24,7 @@ editing and compositing.
 - [Create your first Framescaper project](/framescaper/first-project/)
 - [Understand project files and Audacity interchange](/projects-and-data/project-files/)
 - [Protect locally stored work](/projects-and-data/storage-backups-and-privacy/)
+- [Compare Soundscaper with Audacity 4 and Audition](/start/how-soundscaper-compares/)
 
 ## Find an exact answer
 
