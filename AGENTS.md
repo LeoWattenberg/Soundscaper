@@ -15,9 +15,13 @@
   `test-results/`, or `node_modules/` content.
 - Keep FFmpeg runtime assets out of the Pages bundle; production assets are
   versioned under `https://assets.soundscaper.org/runtime/ffmpeg/`.
-- `npm run check` is the canonical non-browser gate. During development, run
-  `npm test` after helper changes, `npm run build` after Vite/UI changes, and
-  `npm run test:browser` for interactive workflows.
+- `npm run check` is the canonical non-browser gate. During development and task
+  handoff, lint added and modified lintable files with `npm run lint:changed`;
+  the complete repository lint is an authoritative CI/pre-merge gate and is
+  split into sequential bounded-memory shards by `npm run lint`. Run that full
+  lint locally when changing ESLint/TypeScript configuration, dependencies, or
+  shared types. Also run `npm test` after helper changes, `npm run build` after
+  Vite/UI changes, and `npm run test:browser` for interactive workflows.
 - CI runs that gate as several jobs, because one runner has four cores and the
   Node suite no longer fits in them: `npm run check:static` is everything except
   the suite, and the suite runs as one job per shard. A test belongs to the
