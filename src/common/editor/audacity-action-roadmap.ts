@@ -82,6 +82,7 @@ const plannedActionMilestones: Readonly<Record<string, string>> = Object.freeze(
 	'action://playback/change-recording-device': '5',
 	'action://playback/change-input-channels': '5',
 	'action://effects/toggle_vendor_ui': '5',
+	'action://playback/play-selection': '4',
 	'plugin-manager': '5',
 	'audio-setup': '5',
 	'audio-settings': '5',

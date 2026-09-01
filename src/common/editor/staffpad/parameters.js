@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-export const STAFFPAD_AUDACITY_REVISION = '908ad0a526e5bfdab68de780e893cebe172d27eb';
+export const STAFFPAD_AUDACITY_REVISION = 'd413849acab318b68c9d73b3ce5ac5324c1bb589';
 export const STAFFPAD_PFFFT_REVISION = '09796885cd5b';
 export const STAFFPAD_WASM_ABI_VERSION = 1;
 export const STAFFPAD_ALGORITHM_ID = 'audacity-staffpad-time-and-pitch';

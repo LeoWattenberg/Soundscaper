@@ -1,6 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 
-// Pinned verbatim from Audacity 908ad0a526e5bfdab68de780e893cebe172d27eb:
+// Pinned verbatim from Audacity d413849acab318b68c9d73b3ce5ac5324c1bb589:
 // src/trackedit/tests/data/testClipboard.aup4
 // This native project contains two audio tracks, five clips, group IDs,
 // stretch-to-tempo state, and one referenced Float32 sample block.

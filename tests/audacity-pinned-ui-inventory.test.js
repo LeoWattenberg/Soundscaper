@@ -28,7 +28,7 @@ import {
 	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
 } from '../src/common/editor/ui/application-menu-registry.ts';
 
-const PINNED_COMMIT = '908ad0a526e5bfdab68de780e893cebe172d27eb';
+const PINNED_COMMIT = 'd413849acab318b68c9d73b3ce5ac5324c1bb589';
 
 test('pinned Audacity UI inventory is immutable and carries exact source hashes', () => {
 	assert.equal(AUDACITY_PINNED_UI_COMMIT, PINNED_COMMIT);
@@ -36,7 +36,7 @@ test('pinned Audacity UI inventory is immutable and carries exact source hashes'
 	assert.ok(Object.isFrozen(AUDACITY_PINNED_UI_SOURCES));
 	assert.equal(
 		AUDACITY_PINNED_UI_SOURCES['src/au3cloud/internal/clouduiactions.cpp'].sha256,
-		'ba6f66ac53b5c8ab322124b6f6efef1db271a21cc6b38de8f9c350b716b6efd2',
+		'e7da5134d669a65bea61bc95827d3321034783c3e7b05be7ff4f550385d4f2b7',
 	);
 
 	for (const [source, record] of Object.entries(AUDACITY_PINNED_UI_SOURCES)) {
@@ -46,8 +46,8 @@ test('pinned Audacity UI inventory is immutable and carries exact source hashes'
 		assert.ok(Object.isFrozen(record.actions));
 	}
 
-	assert.equal(AUDACITY_PINNED_UI_ACTIONS.length, 280);
-	assert.equal(new Set(AUDACITY_PINNED_UI_ACTIONS.map(({ id }) => id)).size, 277);
+	assert.equal(AUDACITY_PINNED_UI_ACTIONS.length, 285);
+	assert.equal(new Set(AUDACITY_PINNED_UI_ACTIONS.map(({ id }) => id)).size, 282);
 	assert.ok(Object.isFrozen(AUDACITY_PINNED_UI_ACTIONS));
 	assert.ok(AUDACITY_PINNED_UI_ACTIONS.every(({ id, source }) => (
 		typeof id === 'string' && id.length > 0 && AUDACITY_PINNED_UI_SOURCES[source]
@@ -60,8 +60,8 @@ test('pinned Audacity UI inventory is immutable and carries exact source hashes'
 	assert.deepEqual(AUDACITY_PINNED_UI_AUDIT, {
 		literalRegistrations: 255,
 		uniqueLiteralActionIds: 251,
-		resolvedRegistrationRecords: 280,
-		uniqueResolvedActionIds: 277,
+		resolvedRegistrationRecords: 285,
+		uniqueResolvedActionIds: 282,
 	});
 });
 
@@ -80,8 +80,8 @@ test('pinned inventory retains dynamic actions, menu-only IDs, and builtin regis
 		assert.ok(actionIds.has(id), id);
 	}
 
-	assert.equal(AUDACITY_PINNED_APP_MENU_ACTIONS.length, 140);
-	assert.equal(new Set(AUDACITY_PINNED_APP_MENU_ACTIONS).size, 140);
+	assert.equal(AUDACITY_PINNED_APP_MENU_ACTIONS.length, 142);
+	assert.equal(new Set(AUDACITY_PINNED_APP_MENU_ACTIONS).size, 142);
 	assert.equal(AUDACITY_PINNED_APP_MENU_CONTAINERS.length, 48);
 	assert.equal(new Set(AUDACITY_PINNED_APP_MENU_CONTAINERS).size, 48);
 	assert.ok(AUDACITY_PINNED_APP_MENU_ACTIONS.includes('file-open-recent'));
@@ -120,7 +120,7 @@ test('every pinned registration and app-menu action has exactly one honest parit
 		...AUDACITY_PINNED_UI_ACTIONS.map(({ id }) => id),
 		...AUDACITY_PINNED_APP_MENU_ACTIONS,
 	])];
-	assert.equal(upstreamIds.length, 302);
+	assert.equal(upstreamIds.length, 307);
 
 	const missing = upstreamIds.filter((id) => !audacityActionDefinition(id));
 	assert.deepEqual(missing, []);

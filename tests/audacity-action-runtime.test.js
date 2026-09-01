@@ -186,6 +186,63 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 	}
 });
 
+test('beta-4 play/stop and play-from-cursor toggles read transport state and the selection', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createMemoryTimePitchCache(),
+		copy: COPY,
+	});
+	await controller.ready;
+	try {
+		const calls = [];
+		const state = { transportState: 'stopped', selection: { startFrame: 4800, endFrame: 96_000 } };
+		const probe = {
+			...controller,
+			getSnapshot: () => ({
+				...controller.getSnapshot(),
+				project: { ...controller.getSnapshot().project, selection: state.selection },
+			}),
+			getTelemetrySnapshot: () => ({ transportState: state.transportState }),
+			actions: {
+				...controller.actions,
+				transport: {
+					...controller.actions.transport,
+					playPause: () => calls.push('playPause'),
+					stop: () => calls.push('stop'),
+					seek: (frame) => calls.push(`seek:${frame}`),
+				},
+			},
+		};
+		const runtime = createAudacityActionRuntime(probe, { uiController: createAudioEditorUiActionController() });
+
+		runtime.actions.transport.playStop();
+		assert.deepEqual(calls, ['playPause'], 'a stopped transport starts playing');
+
+		state.transportState = 'playing';
+		runtime.actions.transport.playStop();
+		assert.deepEqual(calls, ['playPause', 'stop'], 'a playing transport stops rather than pausing');
+
+		calls.length = 0;
+		runtime.actions.transport.playFromCursor();
+		assert.deepEqual(calls, ['playPause'], 'a playing transport pauses without seeking');
+
+		calls.length = 0;
+		state.transportState = 'stopped';
+		runtime.actions.transport.playFromCursor();
+		assert.deepEqual(calls, ['seek:4800', 'playPause'], 'playback restarts at the selection start');
+
+		calls.length = 0;
+		state.selection = { startFrame: 4800, endFrame: 4800 };
+		runtime.actions.transport.playFromCursor();
+		assert.deepEqual(calls, ['playPause'], 'an empty selection leaves the playhead alone');
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('disabled, excluded, unknown, and malformed runtime paths never become executable', () => {
 	const accidentalHandlers = {
 		io: { exportAudio() { throw new Error('must not run'); } },

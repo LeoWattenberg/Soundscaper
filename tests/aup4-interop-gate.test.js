@@ -12,7 +12,7 @@ import {
 
 test('AUP4 fixture-codec audit is deterministic and does not claim compiled native execution', async () => {
 	const report = await auditAup4FixtureInterop({ nativeRunner: false });
-	assert.equal(report.audacityCommit, '908ad0a526e5bfdab68de780e893cebe172d27eb');
+	assert.equal(report.audacityCommit, 'd413849acab318b68c9d73b3ce5ac5324c1bb589');
 	assert.deepEqual(report.fixtureCodecInterop.browserSnapshot, {
 		sha256: 'f08b1bcf56a0d8e605113aab5b0530f94531ab972a25bc1da25f81974602a61c',
 		byteLength: 253_952,
@@ -78,7 +78,7 @@ test('AUP4 native-runner protocol test double exercises both directions without 
 		// The inspected artifact remains non-native, so this path cannot pass the release gate.
 		testRunnerExecutor: async ([command, inputPath, outputPath]) => {
 			if (command === '--revision') {
-				return { stdout: '908ad0a526e5bfdab68de780e893cebe172d27eb\n' };
+				return { stdout: 'd413849acab318b68c9d73b3ce5ac5324c1bb589\n' };
 			}
 			assert.equal(command, '--roundtrip');
 			await copyFile(inputPath, outputPath);

@@ -129,7 +129,8 @@ export default function createApplicationMenus({
 	const effectGroups = EFFECT_MENU_GROUPS.map(([labelKey, types]) => ({
 		id: labelKey,
 		label: copy[labelKey],
-		items: types.filter((type) => effectLabels.has(type)).map((type) => ({
+		items: types.filter((type) => effectLabels.has(type)
+			&& (type !== 'reviewed-utility-gain' || productId === 'soundscaper')).map((type) => ({
 			id: type,
 			label: effectLabels.get(type),
 			disabled: editBlocked || !selectedAudioTrack,
@@ -454,6 +455,8 @@ export default function createApplicationMenus({
 						divider(),
 						{ id: 'decrease-all-track-heights', label: copy.decreaseAllTrackHeights, shortcut: 'Ctrl+Shift+Down', disabled: !project?.tracks.length, onClick: actions.decreaseAllTrackHeights },
 						{ id: 'increase-all-track-heights', label: copy.increaseAllTrackHeights, shortcut: 'Ctrl+Shift+Up', disabled: !project?.tracks.length, onClick: actions.increaseAllTrackHeights },
+						{ id: 'collapse-all-tracks', label: copy.collapseAllTracks, disabled: !project?.tracks.length, onClick: actions.collapseAllTracks },
+						{ id: 'expand-all-tracks', label: copy.expandAllTracks, disabled: !project?.tracks.length, onClick: actions.expandAllTracks },
 					],
 				},
 				clipSelectionNavigationMenus.skip,

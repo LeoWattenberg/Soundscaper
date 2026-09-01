@@ -32,8 +32,8 @@ product enables see
   Several desktop-native routes are implemented but still gated on signed
   machine payloads; those rows say so.
 - **Audacity 4** rows come from the upstream inventory pinned in this
-  repository, `4.0.0-beta.2+` at commit `908ad0a5`. The feature set is unchanged
-  in beta 3. A capability that upstream registers but leaves disabled is
+  repository, `4.0.0-beta.4` at commit `d413849a`. A capability that upstream
+  registers but leaves disabled or comments out of the menu is
   recorded as such, and a capability with no registration in the pinned build is
   reported as not present in that build rather than as permanently absent.
 - **Audition** rows come from Adobe's published documentation for the current
@@ -117,7 +117,7 @@ product enables see
 | Real-time effect rack per track | Yes — a wider real-time set than upstream | Yes | Yes — sixteen slots per clip, track, and master |
 | Parametric EQ | Yes — a new parametric EQ with automatable bands | Partial — Filter Curve and Graphic EQ | Yes — parametric, graphic, and FFT filters |
 | Effect presets | Yes — apply, save, import, export | Yes — apply, save, import, export | Yes |
-| Macros and batch chains | Yes — macro manager with templates | No — the Macros menu is disabled in the pinned beta | Yes — Favorites and Batch Process |
+| Macros and batch chains | Yes — macro manager with templates | No — the pinned beta comments the Macros menu out | Yes — Favorites and Batch Process |
 | Third-party plug-in formats | Partial — VST3, CLAP, AU, and LV2 on desktop behind consent and containment, none in the browser | Yes — VST3, AU, LV2, and Nyquist, with a plug-in manager | Partial — VST3, and AU on macOS, no CLAP or LV2 |
 | Nyquist scripting | Yes — bundled plug-ins and the Nyquist prompt | Yes — bundled plug-ins and the Nyquist prompt | No |
 | Sandboxed effect packages | Partial — reviewed WebAssembly packages, one ships and external ones are fenced | No | No |
@@ -146,9 +146,9 @@ product enables see
 | Loudness meter | Yes — EBU R 128-style, with history | No — a Loudness Normalization effect but no meter | Yes — Loudness Radar to ITU-R BS.1770 |
 | Phase and correlation meter | Yes | No | Yes — phase meter and analysis |
 | Surround metering | Yes | No | Partial — up to 5.1 |
-| Spectrum plot | Yes — Plot Spectrum | Yes — Plot Spectrum | Yes — Frequency Analysis |
+| Spectrum plot | Yes — Plot Spectrum | Partial — registered, but the pinned beta comments it out of the Analyze menu | Yes — Frequency Analysis |
 | Clipping and RMS in the waveform | Yes — both, toggled per project | Yes — both, toggled per project | Partial — clip indicators, RMS in Amplitude Statistics |
-| Speech-intelligibility contrast | Yes — Contrast analyser | Yes — Contrast analyser | No |
+| Speech-intelligibility contrast | Yes — Contrast analyser | Partial — registered, but the pinned beta comments it out of the Analyze menu | No |
 
 ## Channels and immersive audio
 

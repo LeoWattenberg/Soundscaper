@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  *
  * Browser adaptation of Audacity's waveform display pipeline at commit
- * 908ad0a526e5bfdab68de780e893cebe172d27eb. Audacity keeps explicit
+ * d413849acab318b68c9d73b3ce5ac5324c1bb589. Audacity keeps explicit
  * min/max/RMS values for every screen column and switches to joined sample
  * lines once there is at least half a pixel per sample. Original code is by
  * the Audacity Team and named upstream authors; the cache sources credit

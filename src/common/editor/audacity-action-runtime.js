@@ -2,6 +2,7 @@ import { projectDurationFrames } from './project.js';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
 import { createAudacitySpectralActionRuntime } from './controller/audacity-spectral-action-runtime.ts';
 import { documentationUrl } from './documentation-links.ts';
+import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
 	changePitch: 'audacity-change-pitch',
 	changeTempo: 'audacity-change-tempo',
@@ -468,11 +469,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			toggleMicMetering: () => controllerActions.recording.setMetering(!snapshot().monitor?.metering),
 			toggleInputMonitoring: () => controllerActions.recording.setMonitoring(!snapshot().monitor?.enabled),
 		},
-		transport: {
-			...controllerActions.transport,
-			pause: controllerActions.transport.playPause,
-			setPlaybackTime: controllerActions.transport.seek,
-		},
+		transport: createTransportActionGroup({ controller, controllerActions, project }),
 		mixer: {
 			setPlaybackLevel: (level = 1) => controllerActions.audioDevices.setPlaybackGain(Number(level)),
 		},

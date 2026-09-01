@@ -2,7 +2,7 @@
 
 import { copyFile } from 'node:fs/promises';
 
-const PINNED_AUDACITY_COMMIT = '908ad0a526e5bfdab68de780e893cebe172d27eb';
+const PINNED_AUDACITY_COMMIT = 'd413849acab318b68c9d73b3ce5ac5324c1bb589';
 const [command, inputPath, outputPath] = process.argv.slice(2);
 
 if (command === '--revision' && inputPath === undefined) {
