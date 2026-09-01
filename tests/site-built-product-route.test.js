@@ -21,12 +21,12 @@ test('the Soundscaper build never revives Framescaper from its retired path pref
 	assert.deepEqual(resolveWebRoute('/', 'soundscaper'), { productId: 'soundscaper', locale: 'en', embedded: false });
 });
 
-test('privacy paths retain their locale and request the in-editor policy dialog', () => {
+test('privacy paths retain their locale and select the dialog-only route', () => {
 	assert.deepEqual(resolveWebRoute('/privacy/en/', 'soundscaper'), {
-		productId: 'soundscaper', locale: 'en', embedded: false, initialSurface: 'privacy-policy',
+		productId: 'soundscaper', locale: 'en', embedded: false, privacyPolicy: true,
 	});
 	assert.deepEqual(resolveWebRoute('/privacy/de/', 'framescaper'), {
-		productId: 'framescaper', locale: 'de', embedded: false, initialSurface: 'privacy-policy',
+		productId: 'framescaper', locale: 'de', embedded: false, privacyPolicy: true,
 	});
 });
 
@@ -68,7 +68,7 @@ test('the web route resolves through the built product', async () => {
 	});
 });
 
-test('the application route carries the privacy dialog request into the editor bootstrap', async () => {
+test('the application route carries the privacy dialog-only route without an editor surface', async () => {
 	const route = await resolveApplicationRoute({ location: { pathname: '/privacy/de/' } });
 	assert.deepEqual(route, {
 		productId: 'soundscaper',
@@ -76,7 +76,7 @@ test('the application route carries the privacy dialog request into the editor b
 		direction: 'ltr',
 		embedded: false,
 		desktop: false,
-		initialSurface: 'privacy-policy',
+		privacyPolicy: true,
 	});
 });
 

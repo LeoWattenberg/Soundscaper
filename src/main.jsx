@@ -1,7 +1,10 @@
 import { createRoot } from 'react-dom/client';
 
 import App, { applyDocumentRoute } from './common/site/App.jsx';
-import { APPLICATION_READY_EVENT } from './common/site/application-ready-scheduler.js';
+import {
+	APPLICATION_READY_EVENT,
+	APPLICATION_READY_SELECTOR,
+} from './common/site/application-ready-scheduler.js';
 import { resolveApplicationRoute } from './common/site/route.js';
 import { scheduleOfflineApplicationShellRegistration } from './common/offline/application-shell.ts';
 
@@ -9,7 +12,7 @@ const applicationRoot = document.getElementById('app');
 const initialLoadProgress = document.querySelector('[data-initial-load-progress]');
 let applicationReady = false;
 const markApplicationReady = () => {
-	if (applicationReady || !applicationRoot.querySelector('[data-audio-editor-bound="true"], [role="alert"]')) return;
+	if (applicationReady || !applicationRoot.querySelector(APPLICATION_READY_SELECTOR)) return;
 	applicationReady = true;
 	readinessObserver.disconnect();
 	initialLoadProgress?.remove();

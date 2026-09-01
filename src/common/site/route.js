@@ -41,7 +41,7 @@ export function resolveWebRoute(pathname, builtProductId = BUILT_PRODUCT_ID) {
 		productId: builtProductId,
 		locale: segments[0] || 'en',
 		embedded,
-		...(privacyPolicy ? { initialSurface: 'privacy-policy' } : {}),
+		...(privacyPolicy ? { privacyPolicy: true } : {}),
 	};
 }
 
@@ -54,8 +54,8 @@ export async function resolveApplicationRoute(scope = globalThis) {
 	if (isTransferRoutePath(scope.location?.pathname)) return mountTransferDocument(scope);
 	if (scope.location?.pathname === '/') scope.location.replace('/en/');
 
-	const { productId, locale, embedded, initialSurface } = resolveWebRoute(scope.location?.pathname);
-	return createRoute(productId, locale, embedded, false, initialSurface);
+	const { productId, locale, embedded, privacyPolicy } = resolveWebRoute(scope.location?.pathname);
+	return createRoute(productId, locale, embedded, false, privacyPolicy);
 }
 
 /**
@@ -81,7 +81,7 @@ async function mountTransferDocument(scope) {
 	return new Promise(() => {});
 }
 
-function createRoute(productId, locale, embedded, desktop, initialSurface = undefined) {
+function createRoute(productId, locale, embedded, desktop, privacyPolicy = false) {
 	const descriptor = getLocaleDescriptor(locale) || getLocaleDescriptor('en');
 	return Object.freeze({
 		productId,
@@ -89,6 +89,6 @@ function createRoute(productId, locale, embedded, desktop, initialSurface = unde
 		direction: descriptor.direction,
 		embedded,
 		desktop,
-		...(initialSurface ? { initialSurface } : {}),
+		...(privacyPolicy ? { privacyPolicy: true } : {}),
 	});
 }

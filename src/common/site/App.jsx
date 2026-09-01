@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
+import { productHref } from '../product-web-links.js';
 import BrandSidebar from './BrandSidebar.jsx';
 import { applyDocumentTheme } from './document-theme.js';
 import './site.css';
@@ -13,6 +14,7 @@ import './site.css';
 const EditorBootstrap = __SCAPE_PRODUCT__ === 'framescaper'
 	? lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'))
 	: lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
+const PrivacyPolicyRoute = lazy(() => import('../editor/ui/PrivacyPolicyRoute.tsx'));
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
@@ -22,6 +24,15 @@ export default function App({ route }) {
 		title: copy.framescaperTitle,
 		intro: copy.framescaperIntro,
 	} : copy;
+	if (route.privacyPolicy) {
+		return <Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
+			<PrivacyPolicyRoute
+				locale={locale}
+				copy={copy}
+				onClose={() => window.location.assign(productHref(productId, locale))}
+			/>
+		</Suspense>;
+	}
 
 	return (
 		<div className={`site-shell${embedded ? ' embedded' : ''}${desktop ? ' desktop' : ''}`}>
@@ -65,12 +76,12 @@ export function applyDocumentRoute(route) {
 	if (route.desktop) root.dataset.desktop = 'true';
 	else delete root.dataset.desktop;
 	applyDocumentTheme(root, route.productId);
-	updateProductHead(route.productId, route.initialSurface);
+	updateProductHead(route.productId, route.privacyPolicy);
 }
 
-function updateProductHead(productId, initialSurface) {
+function updateProductHead(productId, privacyPolicy) {
 	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
-	document.title = initialSurface === 'privacy-policy'
+	document.title = privacyPolicy
 		? `${bundledSiteCopyForLocale(document.documentElement.lang).legalLink} · ${productName}`
 		: productName;
 	updateSingleProductLink('link[data-product-manifest]', {

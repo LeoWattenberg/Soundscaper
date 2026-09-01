@@ -70,7 +70,7 @@ test('English and German dialog content carries equivalent privacy disclosures',
 	assert.match(policies[1].sections.map(({ body }) => body).join('\n'), /HTTP-Log-Aufbewahrung ist deaktiviert/iu);
 });
 
-test('the static route generator emits product-canonical policy routes that mount the in-editor dialog', async (t) => {
+test('the static route generator emits dialog-only policy application routes, including /privacy/', async (t) => {
 	for (const productId of ['soundscaper', 'framescaper']) {
 		await t.test(productId, async () => {
 			const outputRoot = await mkdtemp(join(tmpdir(), `scape-privacy-${productId}-`));
@@ -87,6 +87,10 @@ test('the static route generator emits product-canonical policy routes that moun
 				assert.match(html, /src="\/src\/main\.jsx"/u);
 				assert.doesNotMatch(html, /<main>\s*<p class="eyebrow"/u);
 			}
+			const rootHtml = await readFile(join(outputRoot, 'privacy', 'index.html'), 'utf8');
+			assert.match(rootHtml, new RegExp(`<link rel="canonical" href="https://${productId}\\.org/privacy/en/"`));
+			assert.match(rootHtml, /id="app"/u);
+			assert.match(rootHtml, /src="\/src\/main\.jsx"/u);
 		});
 	}
 });

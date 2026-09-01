@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export const APPLICATION_READY_EVENT = 'scape:application-ready';
-const READY_SELECTOR = '[data-audio-editor-bound="true"], [role="alert"]';
+export const APPLICATION_READY_SELECTOR =
+	'[data-audio-editor-bound="true"], [data-privacy-policy-dialog="true"], [role="alert"]';
 
 /** @typedef {{
  * addEventListener: (type: string, listener: EventListener) => void,
@@ -59,7 +60,7 @@ export function createApplicationReadyScheduler(options) {
 	const handleReady = () => { schedule(); };
 
 	windowObject.addEventListener(APPLICATION_READY_EVENT, handleReady);
-	if (documentObject.querySelector(READY_SELECTOR)) schedule();
+	if (documentObject.querySelector(APPLICATION_READY_SELECTOR)) schedule();
 
 	return Object.freeze({
 		request,

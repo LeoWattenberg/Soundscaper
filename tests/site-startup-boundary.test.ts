@@ -9,7 +9,10 @@ import {
 	SITE_COPY_BY_LOCALE,
 	bundledSiteCopyForLocale,
 } from '../src/common/i18n/site-copy.js';
-import { createApplicationReadyScheduler } from '../src/common/site/application-ready-scheduler.js';
+import {
+	APPLICATION_READY_SELECTOR,
+	createApplicationReadyScheduler,
+} from '../src/common/site/application-ready-scheduler.js';
 
 const ROOT = new URL('../', import.meta.url);
 
@@ -74,6 +77,7 @@ test('feature CSS is imported only by its owning editor surface', async () => {
 });
 
 test('application-ready scheduling waits for readiness, idles once, and supports an immediate request', () => {
+	assert.match(APPLICATION_READY_SELECTOR, /\[data-privacy-policy-dialog="true"\]/u);
 	const first = schedulerFixture(false);
 	const deferred = createApplicationReadyScheduler(first.options);
 	assert.equal(first.tasks, 0);

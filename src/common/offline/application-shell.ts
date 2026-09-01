@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { normalizeProductId } from '../product-identities.js';
+import { APPLICATION_READY_SELECTOR } from '../site/application-ready-scheduler.js';
 import { BUILT_PRODUCT_ID } from '../site/route.js';
 
 interface OfflineServiceWorkerContainer {
@@ -104,10 +105,10 @@ function waitForDocumentLoad(): Promise<void> {
 
 function waitForEditorReadiness(): Promise<void> {
 	const root = globalThis.document?.getElementById('app');
-	if (!root || root.querySelector('[data-audio-editor-bound="true"], [role="alert"]')) return Promise.resolve();
+	if (!root || root.querySelector(APPLICATION_READY_SELECTOR)) return Promise.resolve();
 	return new Promise((resolve) => {
 		const observer = new MutationObserver(() => {
-			if (!root.querySelector('[data-audio-editor-bound="true"], [role="alert"]')) return;
+			if (!root.querySelector(APPLICATION_READY_SELECTOR)) return;
 			observer.disconnect();
 			resolve();
 		});

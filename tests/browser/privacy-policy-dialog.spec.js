@@ -11,14 +11,14 @@ test.beforeEach(async ({ page }) => {
 	}));
 });
 
-test('the public privacy URL opens the policy in the Soundscaper dialog', async ({ page }) => {
-	await page.goto('/privacy/en/');
-	const editor = page.locator('[data-audio-editor]');
-	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
+test('the public privacy URL renders only the Soundscaper policy dialog', async ({ page }) => {
+	await page.goto('/privacy/');
 	const dialog = page.getByRole('dialog', { name: 'Privacy Policy', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByRole('heading', { name: '1. Scope and overview', exact: true })).toBeVisible();
 	await expect(dialog.getByText('privacy@support.soundscaper.org', { exact: true }).first()).toBeVisible();
+	await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
+	await expect(page.locator('.site-shell')).toHaveCount(0);
 });
 
 test('the sidebar and Help menu open the same policy dialog without leaving the editor', async ({ page }) => {

@@ -49,6 +49,14 @@ for (const locale of ['en', 'de']) {
 	if (!descriptor) throw new Error(`Privacy policy locale ${locale} has no route descriptor.`);
 	await writeFile(output, privacyRouteDocument(template, descriptor), 'utf8');
 }
+const defaultPrivacyDescriptor = ROUTE_LOCALES.find(({ locale }) => locale === 'en');
+if (!defaultPrivacyDescriptor) throw new Error('The default privacy policy has no English route descriptor.');
+await mkdir(resolve(outputRoot, './privacy'), { recursive: true });
+await writeFile(
+	resolve(outputRoot, './privacy/index.html'),
+	privacyRouteDocument(template, defaultPrivacyDescriptor),
+	'utf8',
+);
 await writeFile(
 	resolve(outputRoot, '_headers'),
 	composeProductHeaders(await readFile(resolve(outputRoot, '_headers'), 'utf8'), routing),
@@ -78,7 +86,7 @@ for (const route of TRANSFER_ROUTES) {
 
 console.log(
 	`Generated ${routeCount} localized ${routing.productId} routes canonical to ${site.origin}`
-	+ `, 2 privacy routes and ${TRANSFER_ROUTES.length} transfer routes from ${transferAssets.moduleUrl}.`,
+	+ `, 3 privacy routes and ${TRANSFER_ROUTES.length} transfer routes from ${transferAssets.moduleUrl}.`,
 );
 
 /**
