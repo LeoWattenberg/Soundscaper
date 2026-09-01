@@ -182,36 +182,52 @@ export async function createSoundscaperSoakPageSession({
 	let cdp = null;
 	let workflows = null;
 	let restartInFlight = null;
+	let runtimeAccessTail = Promise.resolve();
 	const observedPages = new WeakSet();
 	await bindRuntime(page, context);
 	return Object.freeze({ sample, execute, captureFailure, reset, close });
 
-	async function sample() {
-		assertHealthy();
-		for (let index = 0; index < 3; index += 1) await cdp.send('HeapProfiler.collectGarbage');
-		const usage = await cdp.send('Runtime.getHeapUsage');
-		let electronWorkingSetBytes = null;
-		let electronWorkingSetUnavailableReason = 'Browser runs have no Electron process.';
-		if (target === 'desktop') {
-			const metrics = await activePage.evaluate(async () => {
-				const bridge = globalThis.soundscaperDesktop?.v1 ?? globalThis.scapeDesktop?.v1;
-				return typeof bridge?.readSoakProcessMetrics === 'function'
-					? bridge.readSoakProcessMetrics() : null;
-			});
-			if (metrics?.schemaVersion === 1 && Number.isSafeInteger(metrics.workingSetBytes)
-				&& metrics.workingSetBytes >= 0) {
-				electronWorkingSetBytes = metrics.workingSetBytes;
-				electronWorkingSetUnavailableReason = null;
-			} else {
-				electronWorkingSetUnavailableReason = 'The packaged app did not expose flag-gated process metrics.';
-			}
+	async function sample(options = {}) {
+		const signal = options?.signal ?? null;
+		const onStarted = options?.onStarted ?? null;
+		if (onStarted !== null && typeof onStarted !== 'function') {
+			throw new TypeError('The soak-debug sample start callback must be a function.');
 		}
-		return {
-			usedJsHeapBytes: usage.usedSize,
-			forcedCollections: 3,
-			electronWorkingSetBytes,
-			electronWorkingSetUnavailableReason,
-		};
+		return withRuntimeAccess(async () => {
+			throwIfAborted(signal);
+			assertHealthy();
+			onStarted?.();
+			for (let index = 0; index < 3; index += 1) {
+				throwIfAborted(signal);
+				await cdp.send('HeapProfiler.collectGarbage');
+			}
+			throwIfAborted(signal);
+			const usage = await cdp.send('Runtime.getHeapUsage');
+			throwIfAborted(signal);
+			let electronWorkingSetBytes = null;
+			let electronWorkingSetUnavailableReason = 'Browser runs have no Electron process.';
+			if (target === 'desktop') {
+				const metrics = await activePage.evaluate(async () => {
+					const bridge = globalThis.soundscaperDesktop?.v1 ?? globalThis.scapeDesktop?.v1;
+					return typeof bridge?.readSoakProcessMetrics === 'function'
+						? bridge.readSoakProcessMetrics() : null;
+				});
+				throwIfAborted(signal);
+				if (metrics?.schemaVersion === 1 && Number.isSafeInteger(metrics.workingSetBytes)
+					&& metrics.workingSetBytes >= 0) {
+					electronWorkingSetBytes = metrics.workingSetBytes;
+					electronWorkingSetUnavailableReason = null;
+				} else {
+					electronWorkingSetUnavailableReason = 'The packaged app did not expose flag-gated process metrics.';
+				}
+			}
+			return {
+				usedJsHeapBytes: usage.usedSize,
+				forcedCollections: 3,
+				electronWorkingSetBytes,
+				electronWorkingSetUnavailableReason,
+			};
+		}, signal);
 	}
 
 	async function execute(operationId, operationOptions) {
@@ -288,7 +304,7 @@ export async function createSoundscaperSoakPageSession({
 
 	function restartForWorkflow(options = {}) {
 		if (restartInFlight) return restartInFlight;
-		restartInFlight = (async () => {
+		restartInFlight = withRuntimeAccess(async () => {
 			restarting = true;
 			try {
 				await cdp?.detach().catch(() => undefined);
@@ -300,13 +316,41 @@ export async function createSoundscaperSoakPageSession({
 			} finally {
 				restarting = false;
 			}
-		})();
+		});
 		const pending = restartInFlight;
 		void pending.finally(() => {
 			if (restartInFlight === pending) restartInFlight = null;
 		}).catch(() => undefined);
 		return pending;
 	}
+
+	async function withRuntimeAccess(operation, signal = null) {
+		let release;
+		const previous = runtimeAccessTail;
+		runtimeAccessTail = new Promise((resolvePromise) => { release = resolvePromise; });
+		let acquired = false;
+		try {
+			await waitForRuntimeAccess(previous, signal);
+			acquired = true;
+			return await operation();
+		} finally {
+			if (acquired) release();
+			else void previous.finally(release);
+		}
+	}
+}
+
+async function waitForRuntimeAccess(previous, signal) {
+	if (!signal) return previous;
+	throwIfAborted(signal);
+	let abort;
+	return Promise.race([
+		previous,
+		new Promise((_, reject) => {
+			abort = () => reject(soakAbortError(signal));
+			signal.addEventListener('abort', abort, { once: true });
+		}),
+	]).finally(() => signal.removeEventListener('abort', abort));
 }
 
 async function replaceBrowserRuntime(page, context) {
@@ -497,6 +541,15 @@ function bootstrapError(message, cause) {
 }
 
 function throwIfAborted(signal) {
-	if (signal?.aborted) throw signal.reason instanceof Error
-		? signal.reason : new Error('The soak-debug operation was aborted.');
+	if (signal?.aborted) throw soakAbortError(signal);
+}
+
+function soakAbortError(signal) {
+	const reason = signal?.reason;
+	const error = new Error(reason instanceof Error
+		? reason.message : 'The soak-debug operation was aborted.');
+	const code = reason?.code;
+	error.code = ['SOAK_INTERRUPTED', 'SOAK_TARGET_TIMEOUT', 'SOAK_OPERATION_TIMEOUT'].includes(code)
+		? code : 'SOAK_INTERRUPTED';
+	return error;
 }

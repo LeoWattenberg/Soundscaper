@@ -152,7 +152,8 @@ test.describe('Soundscaper packaged soak-debug UI driver', () => {
 		try {
 			await session.execute('media-import', { variant: 1 });
 			await session.execute('autosave-reload', { variant: 2 });
-			await session.execute('desktop-persistent-delivery-recovery', { variant: 3 });
+			await session.execute('streamed-playback-diagnostics', { variant: 3 });
+			await session.execute('desktop-persistent-delivery-recovery', { variant: 4 });
 			failed = false;
 		} finally {
 			await session.close({ failed });

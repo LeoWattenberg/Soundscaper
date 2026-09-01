@@ -215,7 +215,8 @@ test('the runner writes real journals/reports, continues after a timed-out opera
 		config: CONFIG,
 		clock: virtualClock(),
 		openSession: async ({ target }) => ({
-			async sample() {
+			async sample({ onStarted }) {
+				onStarted();
 				heap += 1024;
 				return {
 					usedJsHeapBytes: heap,
@@ -279,7 +280,8 @@ test('target timing begins after readiness and quick samples keep their cadence 
 			announceOpen();
 			await clock.sleep(15_000);
 			return {
-				async sample() {
+				async sample({ onStarted }) {
+					onStarted();
 					sampleTimes.push(clock.monotonicNow());
 					return sample(100 * 1024 * 1024);
 				},
@@ -373,8 +375,9 @@ test('interruptions are terminal incomplete events and renderer crashes are fail
 		clock: virtualClock(),
 		openSession: async () => ({
 			...inertSession(),
-			async sample() {
-				throw Object.assign(new Error('renderer crashed'), { code: 'SOAK_RUNTIME_CRASH' });
+				async sample({ onStarted }) {
+					onStarted();
+					throw Object.assign(new Error('renderer crashed'), { code: 'SOAK_RUNTIME_CRASH' });
 			},
 		}),
 	});
@@ -401,7 +404,7 @@ test('an actual operation timeout is journaled and later operations still execut
 		config,
 		clock: virtualClock(),
 		openSession: async () => ({
-			async sample() { return sample(100 * 1024 * 1024); },
+			async sample({ onStarted }) { onStarted(); return sample(100 * 1024 * 1024); },
 			async execute(operationId, { signal }) {
 				executed.push(operationId);
 				if (operationId === 'edit-history') return new Promise((resolvePromise, reject) => {
@@ -427,6 +430,43 @@ test('an actual operation timeout is journaled and later operations still execut
 		.find(({ operationId }) => operationId === 'edit-history');
 	assert.equal(timeout.status, 'failed');
 	assert.equal(timeout.code, 'SOAK_OPERATION_TIMEOUT');
+});
+
+test('a settled operation failure resets the runtime before later workflows continue', async (context) => {
+	const directory = await temporaryDirectory(context);
+	const executed = [];
+	const resets = [];
+	const result = await runSoundscaperSoak({
+		target: 'browser', profile: 'quick', outputDirectory: directory,
+		desktopExecutable: null, keepProfileOnFailure: false,
+	}, {
+		config: CONFIG,
+		clock: virtualClock(),
+		openSession: async () => ({
+			async sample({ onStarted }) { onStarted(); return sample(100 * 1024 * 1024); },
+			async execute(operationId) {
+				executed.push(operationId);
+				if (operationId === 'foreign-project-custody') {
+					throw new Error('foreign project could not be reopened');
+				}
+				return {};
+			},
+			async captureFailure() { return null; },
+			async reset({ reason }) { resets.push(reason); },
+			async close() {},
+		}),
+	});
+
+	assert.equal(result.exitCode, 1);
+	assert.deepEqual(resets, ['operation-failure']);
+	assert.ok(executed.indexOf('decoded-media-probe') > executed.indexOf('foreign-project-custody'));
+	const journal = await readSoundscaperSoakJournal(join(
+		result.runs[0].outputDirectory, 'events.jsonl',
+	));
+	assert.ok(journal.events.some(({ type, operationId, reason }) => (
+		type === 'runtime-reset' && operationId === 'foreign-project-custody'
+		&& reason === 'operation-failure'
+	)));
 });
 
 function successfulEvents(target, profile) {
@@ -527,7 +567,7 @@ async function waitForTestCondition(predicate) {
 
 function inertSession() {
 	return {
-		async sample() { return sample(100 * 1024 * 1024); },
+		async sample({ onStarted }) { onStarted(); return sample(100 * 1024 * 1024); },
 		async execute() { return {}; },
 		async captureFailure() { return null; },
 		async reset() {},

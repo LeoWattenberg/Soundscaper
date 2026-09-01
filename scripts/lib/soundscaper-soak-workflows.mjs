@@ -142,11 +142,7 @@ async function autosaveAndReload(page, target, restartPage) {
 	else {
 		if (!projectId) throw new Error('Desktop project reopen requires its persisted identity.');
 		const projectName = `Soak autosave ${projectId.slice(-8)}`;
-		await chooseMenu(page, editor, 'File', 'Rename project');
-		const renameDialog = page.getByRole('dialog', { name: 'Rename project', exact: true });
-		await renameDialog.getByRole('textbox', { name: 'Project name', exact: true }).fill(projectName);
-		await renameDialog.getByRole('button', { name: 'Save name', exact: true }).click();
-		await waitForText(editor.locator('[data-project-name]'), projectName, 30_000);
+		await renameProject(page, editor, projectName);
 		await waitForSaved(editor);
 		await chooseMenu(page, editor, 'File', 'Close project');
 		await waitForAttributeChange(editor, 'data-project-id', projectId, 30_000);
@@ -291,6 +287,9 @@ async function streamedPlaybackDiagnostics(page, variant, restartPage) {
 async function persistentDeliveryRecovery(page, target, variant, restartPage) {
 	if (target !== 'desktop') throw new Error('Persistent delivery is a packaged-desktop workflow.');
 	let editor = await waitForEditor(page);
+	const projectId = await editor.getAttribute('data-project-id');
+	if (!projectId) throw new Error('Persistent delivery requires its persisted project identity.');
+	await renameProject(page, editor, `Soak delivery ${projectId.slice(-8)}`);
 	await waitForSaved(editor);
 	const presetName = `Soak WAV ${String(variant >>> 0)}`;
 	await chooseMenu(page, editor, 'File', 'Export audio');
@@ -324,6 +323,14 @@ async function persistentDeliveryRecovery(page, target, variant, restartPage) {
 	await waitForQueueState(recovered, 'completed', 30_000);
 	await queue.getByRole('button', { name: 'Close', exact: true }).click();
 	return {};
+}
+
+async function renameProject(page, editor, projectName) {
+	await chooseMenu(page, editor, 'File', 'Rename project');
+	const renameDialog = page.getByRole('dialog', { name: 'Rename project', exact: true });
+	await renameDialog.getByRole('textbox', { name: 'Project name', exact: true }).fill(projectName);
+	await renameDialog.getByRole('button', { name: 'Save name', exact: true }).click();
+	await waitForText(editor.locator('[data-project-name]'), projectName, 30_000);
 }
 
 async function exportProject(page, editor, target, outputDirectory) {

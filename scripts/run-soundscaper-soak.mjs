@@ -117,9 +117,7 @@ async function runTarget({ config, options, target, baseDirectory, clock, openSe
 			try {
 				for (const item of samples) {
 					await sleepUntil(clock, startedAt + (item.elapsedSeconds * 1_000), runSignal);
-					const sample = await withTimeout(
-						session.sample(), 60_000, 'diagnostic-sample', runSignal,
-					);
+					const sample = await executeDiagnosticSample(session, runSignal);
 					await journal.append('sample', sanitizeSample(sample));
 					if (item.elapsedSeconds === profile.warmupSeconds) warmup.resolve();
 					if (options.profile === 'quick' && operationsComplete
@@ -217,25 +215,28 @@ async function runTarget({ config, options, target, baseDirectory, clock, openSe
 				});
 			}
 			if (errorCode(error) === 'SOAK_RUNTIME_CRASH') throw error;
-			if (errorCode(error) === 'SOAK_OPERATION_TIMEOUT') {
-				try {
-					if (typeof session.reset !== 'function') {
-						throw new Error('The soak-debug session cannot reset timed-out work.', { cause: error });
-					}
-					await session.reset({ reason: 'operation-timeout', signal: targetSignal });
-					await execution.catch(() => undefined);
-					await journal.append('runtime-reset', { operationId: item.operationId });
-				} catch (resetError) {
-					if (['SOAK_INTERRUPTED', 'SOAK_TARGET_TIMEOUT'].includes(errorCode(resetError))) {
-						throw resetError;
-					}
-					const crash = new Error(
-						`The runtime could not reset after ${item.operationId} timed out: ${errorReason(resetError)}`,
-						{ cause: resetError },
-					);
-					crash.code = 'SOAK_RUNTIME_CRASH';
-					throw crash;
+			const resetReason = errorCode(error) === 'SOAK_OPERATION_TIMEOUT'
+				? 'operation-timeout' : 'operation-failure';
+			try {
+				if (typeof session.reset !== 'function') {
+					throw new Error('The soak-debug session cannot reset failed work.', { cause: error });
 				}
+				await session.reset({ reason: resetReason, signal: targetSignal });
+				await execution.catch(() => undefined);
+				await journal.append('runtime-reset', {
+					operationId: item.operationId, reason: resetReason,
+				});
+			} catch (resetError) {
+				if (targetSignal.aborted) throw interruptedError(targetSignal.reason);
+				if (['SOAK_INTERRUPTED', 'SOAK_TARGET_TIMEOUT'].includes(errorCode(resetError))) {
+					throw resetError;
+				}
+				const crash = new Error(
+					`The runtime could not reset after ${item.operationId} failed: ${errorReason(resetError)}`,
+					{ cause: resetError },
+				);
+				crash.code = 'SOAK_RUNTIME_CRASH';
+				throw crash;
 			}
 		} finally {
 			if (!operationAbort.signal.aborted) {
@@ -243,6 +244,26 @@ async function runTarget({ config, options, target, baseDirectory, clock, openSe
 			}
 		}
 	}
+}
+
+async function executeDiagnosticSample(session, signal) {
+	const sampleAbort = new AbortController();
+	const sampleSignal = signal
+		? AbortSignal.any([signal, sampleAbort.signal]) : sampleAbort.signal;
+	const started = deferred();
+	const execution = Promise.resolve().then(() => session.sample({
+		signal: sampleSignal,
+		onStarted: started.resolve,
+	}));
+	void execution.then(
+		() => started.reject(new Error('The diagnostic sample settled before announcing its start.')),
+		(error) => started.reject(error),
+	);
+	await abortablePromise(started.promise, signal);
+	return withTimeout(
+		execution, 60_000, 'diagnostic-sample', signal,
+		(error) => sampleAbort.abort(error),
+	);
 }
 
 function deferred() {
