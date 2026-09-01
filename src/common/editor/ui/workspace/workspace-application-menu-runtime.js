@@ -1,5 +1,4 @@
 import { otherProductId, productProfile } from '../../../products.js';
-import { privacyPolicyUrl } from '../../../site/privacy-policy-links.js';
 import { documentationUrl } from '../../documentation-links.ts';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
@@ -379,7 +378,7 @@ export function createWorkspaceApplicationMenus({
 					togglePanel: toggleWorkspacePanel,
 					manual: () => openExternal(documentationUrl(productId, 'manual')),
 					tutorials: () => openExternal(documentationUrl(productId, 'tutorials')),
-					privacyPolicy: () => openExternal(privacyPolicyUrl(productId, locale)),
+					privacyPolicy: () => openSurface('privacy-policy'),
 					support: () => openExternal(`mailto:team@kw.media?subject=${encodeURIComponent(`${productProfile(productId).name} support`)}`),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),

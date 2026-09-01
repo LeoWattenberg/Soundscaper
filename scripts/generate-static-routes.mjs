@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { bundledCopyForLocale } from '../src/common/i18n/catalogs.js';
 import { ROUTE_LOCALES } from '../src/common/i18n/locales.js';
 import { productProfile } from '../src/common/products.js';
-import { privacyPolicyPath, renderPrivacyPolicyDocument } from '../src/common/site/privacy-policy.js';
+import { privacyPolicyContent, privacyPolicyPath } from '../src/common/site/privacy-policy.js';
 import {
 	renderTransferDocument,
 	TRANSFER_PAGE_DEV_MODULE_URL,
@@ -45,11 +45,9 @@ await writeFile(resolve(outputRoot, 'index.html'), rootDocument(template, rootPl
 for (const locale of ['en', 'de']) {
 	const output = resolve(outputRoot, `.${privacyPolicyPath(locale)}index.html`);
 	await mkdir(dirname(output), { recursive: true });
-	await writeFile(output, renderPrivacyPolicyDocument({
-		productId: routing.productId,
-		locale,
-		canonicalOrigin: site.origin,
-	}), 'utf8');
+	const descriptor = ROUTE_LOCALES.find((candidate) => candidate.locale === locale);
+	if (!descriptor) throw new Error(`Privacy policy locale ${locale} has no route descriptor.`);
+	await writeFile(output, privacyRouteDocument(template, descriptor), 'utf8');
 }
 await writeFile(
 	resolve(outputRoot, '_headers'),
@@ -165,6 +163,26 @@ function routeDocument(html, { descriptor, plan, route, embedded }) {
 		...alternates,
 	].join('\n\t\t');
 	return productDocument(html, productId, descriptor)
+		.replace('<!-- route-head -->', head);
+}
+
+function privacyRouteDocument(html, descriptor) {
+	const policy = privacyPolicyContent(descriptor.locale);
+	const canonical = new URL(privacyPolicyPath(descriptor.locale), site).href;
+	const alternates = ['en', 'de'].map((locale) => (
+		`<link rel="alternate" hreflang="${locale}" href="${escapeHtml(new URL(privacyPolicyPath(locale), site).href)}" />`
+	));
+	alternates.push(`<link rel="alternate" hreflang="x-default" href="${escapeHtml(new URL(privacyPolicyPath('en'), site).href)}" />`);
+	const head = [
+		productInstallHead(routing.productId),
+		`<meta name="description" content="${escapeHtml(policy.summary)}" />`,
+		'<meta name="robots" content="index,follow" />',
+		productIcons(routing.productId),
+		`<link rel="canonical" href="${escapeHtml(canonical)}" />`,
+		...alternates,
+	].join('\n\t\t');
+	return productDocument(html, routing.productId, descriptor)
+		.replace(/<title>[^<]*<\/title>/iu, `<title>${escapeHtml(policy.title)} · ${escapeHtml(productProfile(routing.productId).name)}</title>`)
 		.replace('<!-- route-head -->', head);
 }
 

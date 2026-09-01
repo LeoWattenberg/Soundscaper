@@ -9,10 +9,10 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import {
+	privacyPolicyContent,
 	privacyPolicyLocale,
 	privacyPolicyPath,
 	privacyPolicyUrl,
-	renderPrivacyPolicyDocument,
 } from '../src/common/site/privacy-policy.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_UTILITY_IDS } from '../src/common/editor/ui/application-menu-registry.ts';
 import { createPrivacyPolicyMenuItem } from '../src/common/editor/ui/privacy-policy-menu.ts';
@@ -38,42 +38,39 @@ test('privacy policy locale and product URLs are closed over English and German 
 	});
 });
 
-test('English and German policy documents carry equivalent standalone privacy disclosures', () => {
-	const english = renderPrivacyPolicyDocument({
-		productId: 'soundscaper', locale: 'en', canonicalOrigin: 'https://soundscaper.org',
-	});
-	const german = renderPrivacyPolicyDocument({
-		productId: 'framescaper', locale: 'de', canonicalOrigin: 'https://framescaper.org',
-	});
-	for (const [locale, html] of [['en', english], ['de', german]]) {
-		assert.match(html, new RegExp(`<html[^>]+lang="${locale}"`, 'iu'));
-		assert.match(html, new RegExp(CONTROLLER.replace(/[()]/gu, '\\$&'), 'u'));
-		assert.match(html, new RegExp(CONTACT, 'u'));
-		assert.match(html, /Cloudflare/iu);
-		assert.match(html, /GitHub/iu);
-		assert.match(html, /Web VCR/iu);
-		assert.match(html, /Migadu/iu);
-		assert.match(html, /Article 6\(1\)\(f\)|Art\. 6 Abs\. 1 lit\. f/iu);
-		assert.match(html, /microphone|Mikrofon/iu);
-		assert.match(html, /camera|Kamera/iu);
-		assert.match(html, /display|Bildschirm/iu);
-		assert.match(html, /local assistance|Lokale Assistenz/iu);
-		assert.match(html, /no accounts|keine Konten/iu);
-		assert.match(html, /no product analytics|keine Produktanalyse/iu);
-		assert.match(html, /supervisory authority|Aufsichtsbehörde/iu);
-		assert.match(html, /28 August 2026|28\. August 2026/iu);
-		assert.doesNotMatch(html, /<script\b/iu);
-		assert.doesNotMatch(html, /\s(?:src|srcset)=/iu);
-		assert.doesNotMatch(html, /rel="stylesheet"/iu);
-		assert.doesNotMatch(html, /google-analytics|googletagmanager|cloudflareinsights|posthog|sentry/iu);
+test('English and German dialog content carries equivalent privacy disclosures', () => {
+	const policies = [privacyPolicyContent('en'), privacyPolicyContent('de')];
+	for (const policy of policies) {
+		const prose = [policy.effectiveDate, policy.summary, ...policy.sections.flatMap(
+			({ heading, body }) => [heading, body],
+		)].join('\n');
+		assert.match(prose, new RegExp(CONTROLLER.replace(/[()]/gu, '\\$&'), 'u'));
+		assert.match(prose, new RegExp(CONTACT, 'u'));
+		assert.match(prose, /Cloudflare/iu);
+		assert.match(prose, /GitHub/iu);
+		assert.match(prose, /Web VCR/iu);
+		assert.match(prose, /Migadu/iu);
+		assert.match(prose, /Article 6\(1\)\(f\)|Art\. 6 Abs\. 1 lit\. f/iu);
+		assert.match(prose, /microphone|Mikrofon/iu);
+		assert.match(prose, /camera|Kamera/iu);
+		assert.match(prose, /display|Bildschirm/iu);
+		assert.match(prose, /local assistance|Lokale Assistenz/iu);
+		assert.match(prose, /no accounts|keine Konten/iu);
+		assert.match(prose, /no product analytics|keine Produktanalyse/iu);
+		assert.match(prose, /supervisory authority|Aufsichtsbehörde/iu);
+		assert.match(prose, /28 August 2026|28\. August 2026/iu);
+		assert.doesNotMatch(prose, /google-analytics|googletagmanager|cloudflareinsights|posthog|sentry/iu);
 	}
-	assert.deepEqual(sectionIds(english), sectionIds(german));
-	assert.equal(sectionIds(english).length, 13);
-	assert.match(english, /HTTP log retention is disabled/iu);
-	assert.match(german, /HTTP-Log-Aufbewahrung ist deaktiviert/iu);
+	assert.deepEqual(
+		policies[0].sections.map(({ id }) => id),
+		policies[1].sections.map(({ id }) => id),
+	);
+	assert.equal(policies[0].sections.length, 13);
+	assert.match(policies[0].sections.map(({ body }) => body).join('\n'), /HTTP log retention is disabled/iu);
+	assert.match(policies[1].sections.map(({ body }) => body).join('\n'), /HTTP-Log-Aufbewahrung ist deaktiviert/iu);
 });
 
-test('the static route generator emits product-canonical policy pages without the editor shell', async (t) => {
+test('the static route generator emits product-canonical policy routes that mount the in-editor dialog', async (t) => {
 	for (const productId of ['soundscaper', 'framescaper']) {
 		await t.test(productId, async () => {
 			const outputRoot = await mkdtemp(join(tmpdir(), `scape-privacy-${productId}-`));
@@ -86,15 +83,13 @@ test('the static route generator emits product-canonical policy pages without th
 			for (const locale of ['en', 'de']) {
 				const html = await readFile(join(outputRoot, 'privacy', locale, 'index.html'), 'utf8');
 				assert.match(html, new RegExp(`<link rel="canonical" href="https://${productId}\\.org/privacy/${locale}/"`));
-				assert.doesNotMatch(html, /id="app"|src="\/src\/main\.jsx"/u);
+				assert.match(html, /id="app"/u);
+				assert.match(html, /src="\/src\/main\.jsx"/u);
+				assert.doesNotMatch(html, /<main>\s*<p class="eyebrow"/u);
 			}
 		});
 	}
 });
-
-function sectionIds(html) {
-	return Array.from(html.matchAll(/<section\s+id="([^"]+)"/gu), ([, id]) => id);
-}
 
 async function writeBuildFixture(outputRoot) {
 	await mkdir(outputRoot, { recursive: true });

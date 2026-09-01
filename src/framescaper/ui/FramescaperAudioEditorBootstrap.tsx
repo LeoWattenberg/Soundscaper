@@ -42,6 +42,7 @@ export interface FramescaperWebEditorRuntime {
 export interface FramescaperAudioEditorBootstrapProps {
 	readonly locale: string;
 	readonly fallbackCopy: Readonly<Record<string, unknown>>;
+	readonly initialSurface?: string;
 }
 
 export async function createFramescaperWebEditorRuntime(
@@ -97,6 +98,7 @@ export async function createFramescaperWebEditorRuntime(
 export default function FramescaperAudioEditorBootstrap({
 	locale,
 	fallbackCopy: fallbackCopyValue,
+	initialSurface,
 }: FramescaperAudioEditorBootstrapProps) {
 	const fallbackCopy = useMemo(() => framescaperCopy(snapshotCopy(
 		fallbackCopyValue,
@@ -164,6 +166,7 @@ export default function FramescaperAudioEditorBootstrap({
 		<BoundAudioEditorApp
 			locale={locale}
 			copy={copy}
+			initialSurface={initialSurface}
 			productId="framescaper"
 			controller={runtime.controller}
 			fileService={runtime.fileService}

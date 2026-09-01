@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { productProfile } from '../products.js';
 import { privacyPolicyLocale, privacyPolicyPath, privacyPolicyUrl } from './privacy-policy-links.js';
 
 export { privacyPolicyLocale, privacyPolicyPath, privacyPolicyUrl };
@@ -13,7 +12,6 @@ const CONTACT = 'privacy@support.soundscaper.org';
 const POLICY = Object.freeze({
 	en: Object.freeze({
 		title: 'Privacy Policy',
-		languageName: 'Deutsch',
 		summary: 'Soundscaper and Framescaper are local-first media editors. Your projects and media normally stay on your device. This policy explains the limited situations in which technical data is sent over a network.',
 		sections: Object.freeze([
 			section('overview', '1. Scope and overview', `
@@ -63,7 +61,6 @@ const POLICY = Object.freeze({
 	}),
 	de: Object.freeze({
 		title: 'Datenschutzerklärung',
-		languageName: 'English',
 		summary: 'Soundscaper und Framescaper sind lokal ausgerichtete Medieneditoren. Projekte und Medien bleiben grundsätzlich auf Ihrem Gerät. Diese Erklärung beschreibt die wenigen Fälle, in denen technische Daten über ein Netzwerk übertragen werden.',
 		sections: Object.freeze([
 			section('overview', '1. Geltungsbereich und Überblick', `
@@ -113,78 +110,20 @@ const POLICY = Object.freeze({
 	}),
 });
 
-export function renderPrivacyPolicyDocument({ productId, locale = 'en', canonicalOrigin }) {
+export function privacyPolicyContent(locale = 'en') {
 	const policyLocale = privacyPolicyLocale(locale);
 	const copy = POLICY[policyLocale];
-	const productName = productProfile(productId).name;
-	const origin = admittedOrigin(canonicalOrigin);
-	const canonical = new URL(privacyPolicyPath(policyLocale), origin).href;
-	const alternateLocale = policyLocale === 'de' ? 'en' : 'de';
-	const alternate = new URL(privacyPolicyPath(alternateLocale), origin).href;
-	const direction = 'ltr';
-	return `<!doctype html>
-<html lang="${policyLocale}" dir="${direction}" data-product="${productId}">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta name="description" content="${escapeHtml(copy.summary)}" />
-		<meta name="robots" content="index,follow" />
-		<title>${escapeHtml(copy.title)} · ${escapeHtml(productName)}</title>
-		<link rel="canonical" href="${escapeHtml(canonical)}" />
-		<link rel="alternate" hreflang="${alternateLocale}" href="${escapeHtml(alternate)}" />
-		<link rel="alternate" hreflang="${policyLocale}" href="${escapeHtml(canonical)}" />
-		<link rel="alternate" hreflang="x-default" href="${escapeHtml(new URL(privacyPolicyPath('en'), origin).href)}" />
-		<style>${policyStyles()}</style>
-	</head>
-	<body>
-		<header><a class="product" href="/${policyLocale}/">${escapeHtml(productName)}</a><a class="language" href="${escapeHtml(alternate)}" hreflang="${alternateLocale}">${copy.languageName}</a></header>
-		<main>
-			<p class="eyebrow">${escapeHtml(productName)}</p>
-			<h1>${copy.title}</h1>
-			<p class="effective"><strong>${policyLocale === 'de' ? 'Gültig ab' : 'Effective'}:</strong> ${EFFECTIVE_DATE[policyLocale]}</p>
-			<p class="summary">${copy.summary}</p>
-			${copy.sections.map(({ id, heading, body }) => `<section id="${id}"><h2>${heading}</h2>${body}</section>`).join('\n\t\t\t')}
-		</main>
-		<footer><p>© 2026 ${CONTROLLER}</p></footer>
-	</body>
-</html>\n`;
+	return Object.freeze({
+		locale: policyLocale,
+		title: copy.title,
+		effectiveLabel: policyLocale === 'de' ? 'Gültig ab' : 'Effective',
+		effectiveDate: EFFECTIVE_DATE[policyLocale],
+		summary: copy.summary,
+		sections: copy.sections,
+		closeLabel: policyLocale === 'de' ? 'Schließen' : 'Close',
+	});
 }
 
 function section(id, heading, body) {
 	return Object.freeze({ id, heading, body: body.trim() });
-}
-
-function admittedOrigin(value) {
-	const origin = new URL(value);
-	if (!['http:', 'https:'].includes(origin.protocol) || origin.pathname !== '/' || origin.search || origin.hash) {
-		throw new RangeError('Privacy policy canonical origin must be an HTTP(S) origin.');
-	}
-	return origin;
-}
-
-function escapeHtml(value) {
-	return String(value)
-		.replaceAll('&', '&amp;')
-		.replaceAll('"', '&quot;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;');
-}
-
-function policyStyles() {
-	return `
-			:root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.6; }
-			body { margin: 0; background: #f7f7f5; color: #191919; }
-			header, main, footer { box-sizing: border-box; margin: auto; max-width: 52rem; padding: 1.25rem; }
-			header { display: flex; justify-content: space-between; border-bottom: 1px solid #ccc; }
-			a { color: #2456a6; }
-			.product { color: inherit; font-weight: 700; text-decoration: none; }
-			h1 { font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.1; margin: 0 0 1rem; }
-			h2 { font-size: 1.35rem; margin-top: 2.5rem; }
-			.eyebrow, .effective { color: #595959; }
-			.eyebrow { font-weight: 700; margin-bottom: .5rem; text-transform: uppercase; }
-			.summary { font-size: 1.15rem; }
-			li + li { margin-top: .65rem; }
-			footer { border-top: 1px solid #ccc; color: #595959; font-size: .9rem; }
-			@media (prefers-color-scheme: dark) { body { background: #151515; color: #f5f5f5; } header, footer { border-color: #444; } a { color: #8ab4ff; } .eyebrow, .effective, footer { color: #bbb; } }
-		`;
 }

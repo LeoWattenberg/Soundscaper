@@ -8,7 +8,6 @@ import {
 	selectAudioEditorEditBlock,
 	selectAudioEditorProjectHandoffBlock,
 } from '../edit-blocking.ts';
-
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
@@ -29,6 +28,7 @@ import {
 	useFramescaperNativeServicesMenuRefresh,
 	useSoundscaperNativeServicesMenuRefresh,
 } from './workspace-application-menu-runtime.js';
+import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
@@ -40,8 +40,7 @@ export default function AudioEditorWorkspace({
 	controller,
 	fileService,
 	selectedMediaPreparation = controller?.selectedMediaPreparation ?? null, assistanceSearchSource = null,
-	projectForRuntimeConsumers,
-	crossProductHandoffAvailable = false,
+	projectForRuntimeConsumers, crossProductHandoffAvailable = false, initialSurface = null,
 }) {
 	const product = useMemo(() => productProfile(productId), [productId]);
 	useFramescaperNativeServicesMenuRefresh({ productId });
@@ -52,6 +51,7 @@ export default function AudioEditorWorkspace({
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller, { productId }), [controller, productId]);
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
+	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface);
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
 	const [macroDraft, setMacroDraft] = useState(() => ({ name: copy.untitledMacro, effects: [] }));

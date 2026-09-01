@@ -38,7 +38,12 @@ export default function App({ route }) {
 				<section className="section audio-editor-section tool-workspace">
 					<div className="container audio-editor-container">
 						<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
-							<EditorBootstrap locale={locale} fallbackCopy={copy} productId={productId} />
+							<EditorBootstrap
+								locale={locale}
+								fallbackCopy={copy}
+								productId={productId}
+								initialSurface={route.initialSurface}
+							/>
 						</Suspense>
 					</div>
 				</section>
@@ -60,11 +65,14 @@ export function applyDocumentRoute(route) {
 	if (route.desktop) root.dataset.desktop = 'true';
 	else delete root.dataset.desktop;
 	applyDocumentTheme(root, route.productId);
-	updateProductHead(route.productId);
+	updateProductHead(route.productId, route.initialSurface);
 }
 
-function updateProductHead(productId) {
-	document.title = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+function updateProductHead(productId, initialSurface) {
+	const productName = productId === 'framescaper' ? 'Framescaper' : 'Soundscaper';
+	document.title = initialSurface === 'privacy-policy'
+		? `${bundledSiteCopyForLocale(document.documentElement.lang).legalLink} · ${productName}`
+		: productName;
 	updateSingleProductLink('link[data-product-manifest]', {
 		rel: 'manifest',
 		href: `/manifest-${productId}.webmanifest`,

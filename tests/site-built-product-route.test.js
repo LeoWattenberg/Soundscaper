@@ -21,6 +21,15 @@ test('the Soundscaper build never revives Framescaper from its retired path pref
 	assert.deepEqual(resolveWebRoute('/', 'soundscaper'), { productId: 'soundscaper', locale: 'en', embedded: false });
 });
 
+test('privacy paths retain their locale and request the in-editor policy dialog', () => {
+	assert.deepEqual(resolveWebRoute('/privacy/en/', 'soundscaper'), {
+		productId: 'soundscaper', locale: 'en', embedded: false, initialSurface: 'privacy-policy',
+	});
+	assert.deepEqual(resolveWebRoute('/privacy/de/', 'framescaper'), {
+		productId: 'framescaper', locale: 'de', embedded: false, initialSurface: 'privacy-policy',
+	});
+});
+
 test('a Framescaper build serves Framescaper from the origin root', () => {
 	// On framescaper.org the first segment is the locale: there is no product
 	// segment to read, so the built product is the only authority.
@@ -56,6 +65,18 @@ test('the web route resolves through the built product', async () => {
 		direction: 'ltr',
 		embedded: false,
 		desktop: false,
+	});
+});
+
+test('the application route carries the privacy dialog request into the editor bootstrap', async () => {
+	const route = await resolveApplicationRoute({ location: { pathname: '/privacy/de/' } });
+	assert.deepEqual(route, {
+		productId: 'soundscaper',
+		locale: 'de',
+		direction: 'ltr',
+		embedded: false,
+		desktop: false,
+		initialSurface: 'privacy-policy',
 	});
 });
 

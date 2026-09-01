@@ -7,7 +7,10 @@ import { otherProductId, productIdentity } from '../product-identities.js';
 import { productHref } from '../product-web-links.js';
 import { createApplicationReadyScheduler } from './application-ready-scheduler.js';
 import { storeDocumentTheme } from './document-theme.js';
-import { privacyPolicyUrl } from './privacy-policy-links.js';
+import {
+	PRIVACY_POLICY_REQUEST_EVENT,
+	privacyPolicyUrl,
+} from './privacy-policy-links.js';
 
 const TRANSLATIONS_BASE_URL = import.meta.env.PUBLIC_TRANSLATIONS_BASE_URL
 	|| 'https://translations.soundscaper.org/runtime/translations/audacity/4/';
@@ -109,6 +112,12 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 		}
 	};
 	const requestTranslationManifest = () => { requestTranslationManifestRef.current(); };
+	const openPrivacyPolicy = (event) => {
+		if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		if (!document.querySelector('[data-audio-editor-bound="true"]')) return;
+		event.preventDefault();
+		window.dispatchEvent(new CustomEvent(PRIVACY_POLICY_REQUEST_EVENT, { detail: { productId } }));
+	};
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
 	const darkTheme = theme === 'dark';
 
@@ -128,7 +137,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 						<a className="sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
 						<a className="sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
-						<a className="sidebar-link" href={privacyPolicyUrl(productId, locale)} target="_blank" rel="noreferrer">{copy.legal}</a>
+						<a className="sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
 						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
 						<a className="sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
 				</nav>

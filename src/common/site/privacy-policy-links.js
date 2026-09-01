@@ -3,6 +3,8 @@
 import { localeLanguage } from '../i18n/locale.js';
 import { productWebOrigin } from '../product-web-links.js';
 
+export const PRIVACY_POLICY_REQUEST_EVENT = 'scape:privacy-policy-request';
+
 export function privacyPolicyLocale(locale = 'en') {
 	return localeLanguage(locale) === 'de' ? 'de' : 'en';
 }

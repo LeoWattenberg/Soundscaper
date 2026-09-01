@@ -38,6 +38,7 @@ export interface SoundscaperWebEditorRuntime {
 export interface SoundscaperAudioEditorBootstrapProps {
 	readonly locale: string;
 	readonly fallbackCopy: Readonly<Record<string, unknown>>;
+	readonly initialSurface?: string;
 }
 
 /** Construct the baseline browser runtime from presentation-only input. */
@@ -89,6 +90,7 @@ export async function createSoundscaperWebEditorRuntime(
 export default function SoundscaperAudioEditorBootstrap({
 	locale,
 	fallbackCopy: fallbackCopyValue,
+	initialSurface,
 }: SoundscaperAudioEditorBootstrapProps) {
 	const fallbackCopy = useMemo(() => snapshotCopy(
 		fallbackCopyValue,
@@ -155,6 +157,7 @@ export default function SoundscaperAudioEditorBootstrap({
 		<BoundAudioEditorApp
 			locale={locale}
 			copy={copy}
+			initialSurface={initialSurface}
 			productId="soundscaper"
 			controller={runtime.controller}
 			fileService={runtime.fileService}
