@@ -55,6 +55,20 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(dialog).toBeHidden();
 	});
 
+	test('offers Tone waveforms in the Chirp generator', async ({ page }) => {
+		const editor = await bootEditor(page);
+		await chooseCommand(page, editor, 'Generate', 'Chirp');
+		const dialog = page.getByRole('dialog', { name: 'Chirp', exact: true });
+		const waveform = dialog.getByRole('button', { name: 'Waveform', exact: true });
+
+		await expect(waveform).toBeEnabled();
+		await waveform.click();
+		const options = page.getByRole('listbox').getByRole('option');
+		await expect(options).toHaveText(['Sine', 'Square', 'Sawtooth']);
+		await page.getByRole('option', { name: 'Square', exact: true }).click();
+		await expect(waveform.locator('.dropdown__text')).toHaveText('Square');
+	});
+
 	test('keeps dialog number steppers centered, single-surfaced, and theme-owned', async ({ page }) => {
 		const editor = await bootEditor(page);
 		await chooseCommand(page, editor, 'Generate', 'DTMF tones');

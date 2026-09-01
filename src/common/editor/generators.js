@@ -1,4 +1,5 @@
 export const AUDIO_EDITOR_GENERATOR_TYPES = Object.freeze(['silence', 'tone', 'chirp', 'noise', 'dtmf']);
+const OSCILLATOR_WAVEFORMS = Object.freeze(['sine', 'square', 'sawtooth']);
 
 const DTMF_FREQUENCIES = Object.freeze({
 	'1': [697, 1209], '2': [697, 1336], '3': [697, 1477], A: [697, 1633],
@@ -31,14 +32,15 @@ function generateFixedDuration(type, options, sampleRate, channelCount) {
 	if (type === 'silence') return allocate(channelCount, frameCount);
 	if (type === 'tone') {
 		const frequency = finiteInRange(options.frequency ?? 440, 0.01, sampleRate / 2, 'frequency');
-		const waveform = enumValue(options.waveform ?? 'sine', ['sine', 'square', 'sawtooth'], 'waveform');
+		const waveform = enumValue(options.waveform ?? 'sine', OSCILLATOR_WAVEFORMS, 'waveform');
 		return duplicateChannels(renderTone(frameCount, sampleRate, frequency, amplitude, waveform), channelCount);
 	}
 	if (type === 'chirp') {
 		const startFrequency = finiteInRange(options.startFrequency ?? 440, 0.01, sampleRate / 2, 'startFrequency');
 		const endFrequency = finiteInRange(options.endFrequency ?? 1_320, 0.01, sampleRate / 2, 'endFrequency');
 		const interpolation = enumValue(options.interpolation ?? 'logarithmic', ['linear', 'logarithmic'], 'interpolation');
-		return duplicateChannels(renderChirp(frameCount, sampleRate, startFrequency, endFrequency, amplitude, interpolation), channelCount);
+		const waveform = enumValue(options.waveform ?? 'sine', OSCILLATOR_WAVEFORMS, 'waveform');
+		return duplicateChannels(renderChirp(frameCount, sampleRate, startFrequency, endFrequency, amplitude, interpolation, waveform), channelCount);
 	}
 	return renderNoise(frameCount, channelCount, amplitude, options);
 }
@@ -54,7 +56,7 @@ function renderTone(frameCount, sampleRate, frequency, amplitude, waveform) {
 	return output;
 }
 
-function renderChirp(frameCount, sampleRate, startFrequency, endFrequency, amplitude, interpolation) {
+function renderChirp(frameCount, sampleRate, startFrequency, endFrequency, amplitude, interpolation, waveform) {
 	const output = new Float32Array(frameCount);
 	let phase = 0;
 	for (let frame = 0; frame < frameCount; frame += 1) {
@@ -62,7 +64,7 @@ function renderChirp(frameCount, sampleRate, startFrequency, endFrequency, ampli
 		const frequency = interpolation === 'linear'
 			? startFrequency + (endFrequency - startFrequency) * progress
 			: startFrequency * (endFrequency / startFrequency) ** progress;
-		output[frame] = amplitude * Math.sin(phase * Math.PI * 2);
+		output[frame] = amplitude * oscillator(phase, waveform);
 		phase = (phase + frequency / sampleRate) % 1;
 	}
 	return output;

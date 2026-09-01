@@ -19,6 +19,24 @@ test('built-in generators honor arbitrary project rates and channel layouts', ()
 	assert.ok(chirp.channels[0].some((sample) => sample !== 0));
 });
 
+test('chirp supports the same waveforms as tone', () => {
+	const common = {
+		sampleRate: 8_000,
+		durationSeconds: 0.001,
+		startFrequency: 1_000,
+		endFrequency: 1_000,
+		amplitude: 0.5,
+	};
+	const sine = generateAudioEditorSignal('chirp', { ...common, waveform: 'sine' });
+	const square = generateAudioEditorSignal('chirp', { ...common, waveform: 'square' });
+	const sawtooth = generateAudioEditorSignal('chirp', { ...common, waveform: 'sawtooth' });
+
+	assert.equal(sine.channels[0][0], 0);
+	assert.equal(square.channels[0][0], 0.5);
+	assert.equal(sawtooth.channels[0][0], -0.5);
+	assert.throws(() => generateAudioEditorSignal('chirp', { ...common, waveform: 'triangle' }), /waveform/);
+});
+
 test('noise and DTMF generation are deterministic, bounded, and validated', () => {
 	const first = generateAudioEditorSignal('noise', { sampleRate: 8_000, durationSeconds: 0.1, color: 'pink', seed: 42, channelCount: 2 });
 	const second = generateAudioEditorSignal('noise', { sampleRate: 8_000, durationSeconds: 0.1, color: 'pink', seed: 42, channelCount: 2 });

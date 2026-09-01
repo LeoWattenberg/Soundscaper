@@ -16,6 +16,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	useEffect(() => setParams(generatorDefaults(type)), [type]);
 	const update = (name, value) => setParams((current) => ({ ...current, [name]: value }));
 	const labels = generatorLayoutLabels(copy);
+	const waveformOptions = generatorWaveformOptions(copy);
 	const dtmfTiming = generatorDtmfTiming(params);
 	const numberField = (name, label, options = {}) => (
 		<GeneratorNumberField
@@ -89,9 +90,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 					<div className="kw-audio-editor-generator__content">
 						{type === 'tone' && (
 							<div className="kw-audio-editor-generator__standard-grid" data-generator-layout="tone">
-								<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={[
-									['sine', copy.generatorSine], ['square', copy.generatorSquare], ['sawtooth', copy.generatorSawtooth],
-								]} />
+								<GeneratorSelect label={copy.generatorWaveform} value={params.waveform} onChange={(value) => update('waveform', value)} options={waveformOptions} />
 								{numberField('frequency', copy.generatorFrequency, { min: 0.01, max: 96_000, step: 1 })}
 								{numberField('amplitude', copy.generatorAmplitude, { min: 0, max: 1, step: 0.01 })}
 								{numberField('durationSeconds', copy.generatorDuration, { min: 0.001, max: 86_400, step: 0.1 })}
@@ -102,10 +101,9 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 							<div className="kw-audio-editor-generator__chirp" data-generator-layout="chirp">
 								<GeneratorSelect
 									label={copy.generatorWaveform}
-									value="sine"
-									disabled
-									onChange={() => {}}
-									options={[['sine', copy.generatorSine]]}
+									value={params.waveform}
+									onChange={(value) => update('waveform', value)}
+									options={waveformOptions}
 								/>
 								<div role="group" aria-label={labels.frequencySweep}>
 									<PreferencePanel title={labels.frequencySweep} className="kw-audio-editor-generator__card">
@@ -387,10 +385,14 @@ function generatorLayoutLabels(copy) {
 	};
 }
 
+function generatorWaveformOptions(copy) {
+	return [['sine', copy.generatorSine], ['square', copy.generatorSquare], ['sawtooth', copy.generatorSawtooth]];
+}
+
 function generatorDefaults(type) {
 	const common = { durationSeconds: 30, amplitude: 0.8 };
 	if (type === 'tone') return { ...common, frequency: 440, waveform: 'sine' };
-	if (type === 'chirp') return { ...common, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic' };
+	if (type === 'chirp') return { ...common, startFrequency: 440, endFrequency: 1320, interpolation: 'logarithmic', waveform: 'sine' };
 	if (type === 'noise') return { ...common, color: 'white' };
 	if (type === 'dtmf') {
 		const durations = generatorDtmfDurations(30, 2 / 3 * 100, 3);
