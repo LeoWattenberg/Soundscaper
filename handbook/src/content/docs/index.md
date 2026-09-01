@@ -6,7 +6,7 @@ hero:
   tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
   actions:
     - text: Choose an editor
-      link: /start/choose-an-editor/
+      link: /docs/start/choose-an-editor/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper

@@ -29,6 +29,23 @@ const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
 	framescaper: Object.freeze({}),
 });
 
+/**
+ * The handbook is a path on a product origin, not an origin of its own.
+ *
+ * Serving it from `docs.soundscaper.org` would require a DNS record and a
+ * second Pages project whose custom domain has to be attached by hand before
+ * any documentation link resolves. A path on an origin that already exists
+ * needs none of that: the handbook is built into `dist/docs` and ships in the
+ * same deployment as the editor it documents, so a link into it is live the
+ * moment that deployment is.
+ *
+ * Only one product hosts it. Framescaper links to the same handbook across
+ * origins rather than publishing a second copy under its own root.
+ */
+const HANDBOOK_BASE_PATH = '/docs';
+const HANDBOOK_HOST_PRODUCT_ID = 'soundscaper';
+const HANDBOOK_ASSET_DIRECTORY = '_astro';
+
 const EDITOR_CAPTURE_POLICY =
 	'microphone=(self), speaker-selection=(self), display-capture=(self), camera=(), geolocation=()';
 const CAMERA_CAPTURE_POLICY =
@@ -66,6 +83,7 @@ export function webBuildProductId(environment = process.env) {
 export function webBuildRouting(environment = process.env) {
 	const productId = webBuildProductId(environment);
 	const plans = [documentPlan(productId, '')];
+	const handbook = handbookPlan(productId);
 	const workers = plans.map((plan) => Object.freeze({
 		productId: plan.productId,
 		scope: plan.scope,
@@ -84,6 +102,11 @@ export function webBuildRouting(environment = process.env) {
 			...Object.entries(RETIRED_PRODUCT_BASE_PATHS[plan.productId])
 				.filter(([productId]) => !plans.some((hosted) => hosted.productId === productId))
 				.map(([, basePath]) => `${basePath}/`),
+			// The handbook is a static site of its own under this worker's
+			// script scope. Declining it keeps the offline fallback from
+			// reading `docs` as a locale segment and answering a handbook
+			// navigation with the editor shell.
+			...(handbook && handbook.scope.startsWith(plan.scope) ? [handbook.scope] : []),
 		].sort()),
 		root: plan.root,
 	}));
@@ -92,7 +115,25 @@ export function webBuildRouting(environment = process.env) {
 		site: buildSite(productId, environment),
 		plans: Object.freeze(plans),
 		workers: Object.freeze(workers),
+		handbook,
 	});
+}
+
+/**
+ * The handbook's place in one product's build, or `null` when it hosts no handbook.
+ *
+ * @param {string} productId
+ * @returns {Readonly<{ basePath: string, scope: string, assetScope: string }> | null}
+ */
+export function handbookPlan(productId) {
+	if (!PRODUCT_IDS.includes(productId)) throw new Error(`Unsupported web build product: ${String(productId)}.`);
+	return productId === HANDBOOK_HOST_PRODUCT_ID
+		? Object.freeze({
+			basePath: HANDBOOK_BASE_PATH,
+			scope: `${HANDBOOK_BASE_PATH}/`,
+			assetScope: `${HANDBOOK_BASE_PATH}/${HANDBOOK_ASSET_DIRECTORY}/`,
+		})
+		: null;
 }
 
 /**
@@ -194,7 +235,7 @@ export function composeProductHeaders(shared, routing) {
 	}
 	assertSharedTemplate(shared);
 	const composed = replaceMarker(
-		replaceMarker(shared, DOCUMENT_RULES_MARKER, documentRules(routing.plans)),
+		replaceMarker(shared, DOCUMENT_RULES_MARKER, documentRules(routing.plans, routing.handbook)),
 		WORKER_RULES_MARKER,
 		workerRules(routing.workers),
 	);
@@ -222,7 +263,7 @@ function replaceMarker(text, marker, replacement) {
 	return lines.join('\n');
 }
 
-function documentRules(plans) {
+function documentRules(plans, handbook) {
 	const rules = [];
 	for (const plan of plans) {
 		if (plan.root) rules.push(documentRule('/', plan.policies.standard));
@@ -230,11 +271,34 @@ function documentRules(plans) {
 		rules.push(documentRule(`${plan.basePath}/embed/:locale/`, plan.policies.embedded));
 	}
 	rules.push(documentRule('/privacy/:locale/', SEALED_CAPTURE_POLICY));
+	rules.push(...handbookRules(handbook));
 	return rules.join('\n\n');
 }
 
 function documentRule(pattern, policy) {
 	return `${pattern}\n\tPermissions-Policy: ${policy}\n\tCache-Control: no-cache`;
+}
+
+/**
+ * The handbook's rules, which must come last because they detach before they set.
+ *
+ * `${HANDBOOK_BASE_PATH}/` is one path segment, so the product's own
+ * `/:locale/` document rule matches it and would otherwise hand the handbook
+ * index a second Permissions-Policy and a second Cache-Control - Cloudflare
+ * joins same-name headers from every matching rule. Detaching first replaces
+ * whatever an earlier rule set instead of appending to it, and the handbook is
+ * a static documentation site that needs no capture permission at all.
+ *
+ * Astro's hashed asset directory is the one place under the handbook where a
+ * response is immutable, so it detaches the revalidating policy in turn.
+ */
+function handbookRules(handbook) {
+	if (!handbook) return [];
+	return [
+		`${handbook.scope}*\n\t! Permissions-Policy\n\tPermissions-Policy: ${SEALED_CAPTURE_POLICY}`
+			+ '\n\t! Cache-Control\n\tCache-Control: no-cache',
+		`${handbook.assetScope}*\n\t! Cache-Control\n\tCache-Control: public, max-age=31536000, immutable`,
+	];
 }
 
 function workerRules(workers) {
@@ -279,7 +343,34 @@ export function auditComposedHeaders(text, routing) {
 		}
 		if (plan.root) assertDocumentPolicies(rules, '/', plan, false);
 	}
+	if (routing.handbook) assertHandbookPolicies(rules, routing.handbook);
 	return rules;
+}
+
+/**
+ * Holds the handbook to one capture policy and one cache policy per response.
+ *
+ * The index is checked alongside a nested page precisely because only the index
+ * collides with the product's `/:locale/` document rule: a joined
+ * `Permissions-Policy` there would be the failure this composition exists to
+ * prevent, and it is invisible on any deeper handbook path.
+ */
+function assertHandbookPolicies(rules, handbook) {
+	for (const path of [handbook.scope, `${handbook.scope}reference/generated/formats/`]) {
+		const headers = matchedHeaders(rules, path);
+		const policies = headers.get('permissions-policy') ?? [];
+		if (policies.length !== 1 || policies[0] !== SEALED_CAPTURE_POLICY) {
+			throw new Error(`${path} must receive exactly one Permissions-Policy: ${SEALED_CAPTURE_POLICY}.`);
+		}
+		const cache = headers.get('cache-control') ?? [];
+		if (cache.length !== 1 || cache[0] !== 'no-cache') {
+			throw new Error(`${path} must receive exactly one Cache-Control: no-cache.`);
+		}
+	}
+	const assetCache = matchedHeaders(rules, `${handbook.assetScope}index.js`).get('cache-control') ?? [];
+	if (assetCache.length !== 1 || assetCache[0] !== 'public, max-age=31536000, immutable') {
+		throw new Error(`${handbook.assetScope}* must receive exactly one immutable Cache-Control.`);
+	}
 }
 
 function assertDocumentPolicies(rules, path, plan, embedded) {

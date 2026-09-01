@@ -153,10 +153,11 @@ test('the Soundscaper build owns one root worker that declines the retired prefi
 	await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.'), environment: {} });
 	const audit = JSON.parse(await readFile(join(outputRoot, 'offline-shell.json'), 'utf8'));
 
-	// The origin answers `/framescaper/` with a redirect, so its worker must
-	// decline that prefix: the navigation fallback would otherwise read
-	// `framescaper` as a locale segment and serve this product's shell there.
-	assert.deepEqual(audit.workers.soundscaper.foreignScopes, ['/framescaper/']);
+	// The origin answers `/framescaper/` with a redirect and serves the handbook
+	// at `/docs/`, so its worker must decline both prefixes: the navigation
+	// fallback would otherwise read the first segment as a locale and answer
+	// either path with this product's editor shell.
+	assert.deepEqual(audit.workers.soundscaper.foreignScopes, ['/docs/', '/framescaper/']);
 	assert.equal(audit.workers.soundscaper.scriptUrl, '/service-worker.js');
 	assert.deepEqual(Object.keys(audit.workers), ['soundscaper']);
 });

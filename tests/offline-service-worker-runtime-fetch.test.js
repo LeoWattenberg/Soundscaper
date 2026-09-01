@@ -85,3 +85,39 @@ test('unknown offline navigations preserve embed mode and never cross product bo
 		/offline/u,
 	);
 });
+
+/**
+ * The handbook shares the editor's origin, so its pages are inside this
+ * worker's scope without being anything the worker can serve. Left undeclined,
+ * `/docs/soundscaper/` reads as the locale `docs` and an offline reader gets a
+ * mounted editor where a documentation page should be - a failure that looks
+ * like a broken handbook rather than a missing network.
+ */
+test('offline handbook navigations fail as network errors rather than mounting the editor', async () => {
+	const cacheStorage = new MemoryCacheStorage();
+	const configuration = shellConfiguration('9', [], { foreignScopes: ['/docs/'] });
+	const contents = new Map(configuration.assets.map(({ url }) => [
+		url,
+		url === '/en/' ? 'root shell' : url === '/embed/en/' ? 'embedded shell' : 'application code',
+	]));
+	await installOfflineShell({
+		configuration,
+		cacheStorage,
+		fetchImpl: async (url) => response(contents.get(url)),
+	});
+	const fetchImpl = async () => { throw new TypeError('offline'); };
+
+	for (const path of ['/docs/', '/docs/soundscaper/first-project/']) {
+		await assert.rejects(
+			() => handleOfflineShellFetch({
+				configuration,
+				cacheStorage,
+				fetchImpl,
+				request: { method: 'GET', mode: 'navigate', url: `https://soundscaper.org${path}` },
+				origin: 'https://soundscaper.org',
+			}),
+			/offline/u,
+			path,
+		);
+	}
+});

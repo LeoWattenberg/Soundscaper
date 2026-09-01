@@ -1,8 +1,14 @@
 # Soundscaper handbook
 
 This workspace builds the public product documentation at
-`https://docs.soundscaper.org`. Product and engineering evidence in the
+`https://soundscaper.org/docs`. Product and engineering evidence in the
 repository's existing `docs/` directory is intentionally not published here.
+
+The handbook is a path on the Soundscaper origin, not a documentation
+subdomain, so it needs no DNS record and no Pages project of its own.
+`scripts/lib/product-web-routing.mjs` owns the base path: the Astro config, the
+editor's documentation links, the Cloudflare header rules and the browser suite
+all read it from there rather than repeating it.
 
 Run commands from the repository root:
 
@@ -21,27 +27,32 @@ write draft files by default, record provenance, and never run in CI or a
 Cloudflare build. Review their Git diff and revert output that is not suitable
 for publication.
 
-## Cloudflare Pages deployment
+## Authoring links
 
-Use a separate Direct Upload Pages project so the handbook cannot accidentally
-inherit the editor application's root `wrangler.jsonc`. Create it once with
-`npx wrangler pages project create`, choose `soundscaper-docs` and `main` when
-prompted, then deploy from the repository root with:
+Write internal links root-absolute and base-free: `[Project files](/projects-and-data/project-files/)`.
+`src/plugins/rehype-handbook-base.mjs` supplies the base at build time, and
+`scripts/check-handbook-content.mjs` resolves the base-free target against the
+page tree so a link to a page that does not exist fails the check.
 
-```sh
-npm run deploy:docs
-```
+Frontmatter is the exception. A hero action's `link` is data read by a Starlight
+component rather than Markdown a transform ever sees, so it has to carry the
+base itself. The same content check enforces that in the opposite direction.
 
-That command selects `handbook/wrangler.jsonc`, runs deterministic reference,
-content, and static-build checks, exercises desktop and mobile Chromium
-navigation, local-search privacy, and accessibility, and only then uploads
-`handbook/dist`. Attach `docs.soundscaper.org` to the Pages project after the
-first deployment.
+## Deployment
 
-The repository's canonical quality and Chromium browser jobs run the same two
-validation layers on pull requests. Direct Upload intentionally keeps
-production publication explicit; add the same `npm run deploy:docs` command to
-an authorized CI release job if automatic publication becomes a requirement.
+The handbook ships inside the Soundscaper deployment. `npm run build:pages`
+runs the reference, content and static-build checks, then
+`scripts/stage-handbook-build.mjs` copies `handbook/dist` into the product
+build under the base path, and `npm run deploy` uploads the one `dist`. There is
+nothing to attach and no second project to publish to.
+
+Staging fails closed rather than deploying something broken: a `handbook/dist`
+built for a different base path is refused, because Astro bakes the base into
+every asset URL and a stale build looks complete while every stylesheet points
+somewhere the deployment does not serve.
+
+The repository's canonical quality and Chromium browser jobs run the handbook's
+deterministic checks and its browser suite on pull requests.
 
 Keep Cloudflare Web Analytics disabled so the deployed site continues to match
 the handbook's static, first-party-only privacy statement.

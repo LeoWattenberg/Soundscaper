@@ -68,6 +68,7 @@ await writeFile(
 	'utf8',
 );
 await writeFile(resolve(outputRoot, '404.html'), notFoundDocument(), 'utf8');
+await writeFile(resolve(outputRoot, 'robots.txt'), robotsDocument(routing), 'utf8');
 
 // The two transfer documents belong to the origin, not to a product: both
 // builds emit them, because a project crosses between soundscaper.org and
@@ -88,6 +89,26 @@ console.log(
 	`Generated ${routeCount} localized ${routing.productId} routes canonical to ${site.origin}`
 	+ `, 3 privacy routes and ${TRANSFER_ROUTES.length} transfer routes from ${transferAssets.moduleUrl}.`,
 );
+
+/**
+ * The origin's `robots.txt`, which exists for the sitemap line.
+ *
+ * A crawler assumes `Allow: /` without being told, but it cannot guess where a
+ * sitemap lives. The handbook publishes one and is served from a path on this
+ * origin rather than a subdomain, so its index has to be named from the
+ * origin's own root file; a `robots.txt` inside the handbook's base path is
+ * never read.
+ *
+ * @param {ReturnType<typeof webBuildRouting>} routing
+ * @returns {string}
+ */
+function robotsDocument(routing) {
+	const lines = ['User-agent: *', 'Allow: /'];
+	if (routing.handbook) {
+		lines.push('', `Sitemap: ${new URL(`${routing.handbook.scope}sitemap-index.xml`, routing.site).href}`);
+	}
+	return `${lines.join('\n')}\n`;
+}
 
 /**
  * Point the transfer documents at the already-built transfer chunk.

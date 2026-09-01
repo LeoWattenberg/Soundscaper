@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import { handbookPlan } from '../../../scripts/lib/product-web-routing.mjs';
+
 const HANDBOOK_ROOT = fileURLToPath(new URL('../../../handbook/', import.meta.url));
 const READY_TIMEOUT_MS = 30000;
 const POLL_INTERVAL_MS = 250;
@@ -20,7 +22,7 @@ async function waitForServer(baseURL) {
 	while (Date.now() < deadline) {
 		try {
 			const response = await fetch(baseURL, { redirect: 'manual' });
-			if (response.status < 500) return;
+			if (response.ok) return;
 		} catch {
 			// The daemon is still starting.
 		}
@@ -37,5 +39,9 @@ export default async function globalSetup(config) {
 	if (started.status !== 0) {
 		throw new Error(`Could not start the handbook preview: ${started.stderr || started.stdout}`);
 	}
-	await waitForServer(baseURL);
+	// Readiness is checked at the base path the deployment serves, not at the
+	// origin root: a preview built for the wrong base answers the root with the
+	// same 404 it answers everything else with, and every test would then fail
+	// on a missing heading instead of on the one thing that is actually wrong.
+	await waitForServer(new URL(handbookPlan('soundscaper').scope, baseURL).href);
 }

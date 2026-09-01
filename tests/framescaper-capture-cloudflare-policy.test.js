@@ -33,16 +33,49 @@ test('the Soundscaper build assigns exactly one product- and route-specific docu
 	const rules = parseHeaderRules(await productHeaders('soundscaper'));
 	const policyRules = rules.filter(({ headers }) => headers.has('permissions-policy'));
 	assert.deepEqual(policyRules.map(({ pattern }) => pattern), [
-		'/', '/:locale/', '/embed/:locale/', '/privacy/:locale/',
+		'/', '/:locale/', '/embed/:locale/', '/privacy/:locale/', '/docs/*',
 	]);
 	assertExactPolicies(rules, [
 		['/', SOUNDSCAPER_POLICY],
 		['/en/', SOUNDSCAPER_POLICY],
 		['/embed/en/', SOUNDSCAPER_POLICY],
 		['/privacy/en/', EMBEDDED_FRAMESCAPER_POLICY],
-	]);
+	], ['/docs/*']);
 	assert.deepEqual(workerRules(rules), [['/service-worker.js', '/']]);
 	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/framescaper/')), false);
+});
+
+/**
+ * The handbook index is one path segment deep, so the product's own
+ * `/:locale/` rule matches it. Cloudflare joins same-name headers from every
+ * matching rule, and a document that receives two `Permissions-Policy` values
+ * or two `Cache-Control` values has an unusable one of each.
+ */
+test('the handbook receives exactly one capture and cache policy on the origin that hosts it', async () => {
+	const rules = parseHeaderRules(await productHeaders('soundscaper'));
+	// The index is the collision: `/:locale/` matches `/docs/` and nothing
+	// deeper, so a handbook rule that set without detaching would leave the
+	// index alone carrying two of each header.
+	for (const path of ['/docs/', '/docs/soundscaper/first-project/']) {
+		assert.deepEqual(effectiveHeader(rules, path, 'permissions-policy'), [EMBEDDED_FRAMESCAPER_POLICY], path);
+		assert.deepEqual(effectiveHeader(rules, path, 'cache-control'), ['no-cache'], path);
+	}
+	const asset = '/docs/_astro/page.BQqJ0Ynq.js';
+	assert.deepEqual(effectiveHeader(rules, asset, 'permissions-policy'), [EMBEDDED_FRAMESCAPER_POLICY]);
+	assert.deepEqual(effectiveHeader(rules, asset, 'cache-control'), ['public, max-age=31536000, immutable']);
+	// The handbook never weakens the isolation every response on the origin shares.
+	assert.deepEqual(effectiveHeader(rules, '/docs/', 'cross-origin-opener-policy'), [ISOLATION[
+		'cross-origin-opener-policy'
+	]]);
+	assert.deepEqual(effectiveHeader(rules, '/docs/', 'cross-origin-embedder-policy'), [ISOLATION[
+		'cross-origin-embedder-policy'
+	]]);
+});
+
+test('the Framescaper build hosts no handbook and emits no rule for one', async () => {
+	const rules = parseHeaderRules(await productHeaders('framescaper'));
+	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/docs/')), false);
+	assert.deepEqual(webBuildRouting({ SCAPE_PRODUCT: 'framescaper' }).handbook, null);
 });
 
 test('the Framescaper build moves the same capture policies to its own origin root', async () => {
@@ -170,7 +203,7 @@ async function productHeaders(productId) {
 	);
 }
 
-function assertExactPolicies(rules, expectations) {
+function assertExactPolicies(rules, expectations, detaching = []) {
 	const policyRules = rules.filter(({ headers }) => headers.has('permissions-policy'));
 	for (const [path, expected] of expectations) {
 		const matched = policyRules.filter(({ pattern }) => matches(pattern, path));
@@ -179,14 +212,31 @@ function assertExactPolicies(rules, expectations) {
 	}
 	assert.equal(policyRules.some(({ pattern }) => pattern === '/*'), false);
 	assert.equal(policyRules.filter(({ pattern }) => matches(pattern, '/assets/editor.js')).length, 0);
-	// And nothing in either composed file detaches a capture policy on the way
-	// past: the substituted document rules are the only thing that decides what a
-	// document may capture. The two transfer documents detach an opener policy
-	// and nothing else.
+	// The substituted document rules are the only thing that decides what a
+	// document may capture, and only the handbook - whose index a locale rule
+	// also matches - is allowed to replace what one of them set. Every other
+	// path must reach its policy by matching a single rule.
 	assert.deepEqual(
 		rules.filter(({ detached }) => detached.has('permissions-policy')).map(({ pattern }) => pattern),
-		[],
+		detaching,
 	);
+}
+
+/**
+ * Applies Cloudflare's matching to one path, independently of the composer.
+ *
+ * Every matching rule contributes in file order, a repeated name joins rather
+ * than replaces, and `! Name` drops whatever earlier rules set. Returning the
+ * list rather than a value is what lets a test say "exactly one".
+ */
+function effectiveHeader(rules, path, name) {
+	let values = [];
+	for (const rule of rules) {
+		if (!matches(rule.pattern, path)) continue;
+		if (rule.detached.has(name)) values = [];
+		if (rule.headers.has(name)) values = [...values, rule.headers.get(name)];
+	}
+	return values;
 }
 
 function workerRules(rules) {

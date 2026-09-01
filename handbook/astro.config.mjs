@@ -3,12 +3,19 @@ import { unified } from '@astrojs/markdown-remark';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import rehypeAccessibleTables from './src/plugins/rehype-accessible-tables.mjs';
+import rehypeHandbookBase from './src/plugins/rehype-handbook-base.mjs';
+import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
 
 export default defineConfig({
-	site: 'https://docs.soundscaper.org',
+	// The handbook is a path on the product origin, not a subdomain of its own:
+	// `scripts/lib/product-web-routing.mjs` owns that decision and the Cloudflare
+	// rules that follow from it, and `scripts/stage-handbook-build.mjs` copies
+	// this build into the product's `dist` under the same base path.
+	site: 'https://soundscaper.org',
+	base: handbookPlan('soundscaper').basePath,
 	output: 'static',
 	markdown: {
-		processor: unified({ rehypePlugins: [rehypeAccessibleTables] }),
+		processor: unified({ rehypePlugins: [rehypeAccessibleTables, rehypeHandbookBase] }),
 	},
 	integrations: [
 		sitemap(),
