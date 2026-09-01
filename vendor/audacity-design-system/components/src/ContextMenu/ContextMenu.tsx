@@ -92,22 +92,25 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     }
   }, [isOpen, autoFocus]);
 
-  // Handle click outside to close
+  // Handle pointer interaction outside to close
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleClickOutside = (e: MouseEvent) => {
+    const handlePointerDownOutside = (e: PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
 
     // Add slight delay to prevent immediate close from the button click that opened it
-    setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
+    const listenerTimer = window.setTimeout(() => {
+      document.addEventListener('pointerdown', handlePointerDownOutside, true);
     }, 0);
 
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.clearTimeout(listenerTimer);
+      document.removeEventListener('pointerdown', handlePointerDownOutside, true);
+    };
   }, [isOpen, onClose]);
 
   // Handle keyboard navigation

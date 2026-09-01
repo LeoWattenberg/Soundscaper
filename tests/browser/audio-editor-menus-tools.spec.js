@@ -32,6 +32,21 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(prevented).toBe(true);
 	});
 
+	test('closes an application menu when the track area is clicked', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		const file = editor.getByRole('menubar', { name: 'Application menu' })
+			.getByRole('menuitem', { name: 'File', exact: true });
+		await file.click();
+		const menu = page.getByRole('menu', { name: 'File', exact: true });
+		await expect(menu).toBeVisible();
+
+		await clickClipInterior(page, clipByName(editor, monoTone.name));
+
+		await expect(menu).toBeHidden();
+		await expect(file).toHaveAttribute('aria-expanded', 'false');
+	});
+
 	test('presents the current menubar and the AU4 keyboard navigation model', async ({ page }) => {
 		await page.addInitScript(() => {
 			localStorage.setItem('audacity-accessibility-profile', 'au4-tab-groups');
