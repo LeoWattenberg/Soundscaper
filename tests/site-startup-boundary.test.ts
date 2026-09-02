@@ -69,6 +69,7 @@ test('feature CSS is imported only by its owning editor surface', async () => {
 		['28-take-cycle-recovery.css', 'src/common/editor/ui/dialogs/TakeCycleRecoveryDialog.tsx'],
 		['29-framescaper-capture.css', 'src/common/editor/ui/workspace/RecordingSetupPanel.tsx'],
 		['30-framescaper-web-vcr.css', 'src/common/editor/ui/workspace/WebVcrPanel.tsx'],
+		['33-workspace-onboarding.css', 'src/common/editor/ui/dialogs/WorkspaceOnboardingDialog.tsx'],
 	]);
 	for (const [css, owner] of ownership) {
 		assert.doesNotMatch(manifest, new RegExp(css.replace('.', '\\.')), css);

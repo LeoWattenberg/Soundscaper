@@ -5,6 +5,10 @@ import {
 	ordinaryBrowserProductSitePlan,
 	vitePreviewServer,
 } from './scripts/lib/browser-product-test-sites.mjs';
+import {
+	firstLaunchSetupSeedValue,
+	firstLaunchSetupStorageKey,
+} from './src/common/editor/ui/first-launch-setup.ts';
 
 const sitePlan = ordinaryBrowserProductSitePlan();
 const [soundscaper, framescaper] = sitePlan.sites;
@@ -35,6 +39,15 @@ export default defineConfig({
 	use: {
 		baseURL,
 		serviceWorkers: 'block',
+		// Every fresh context counts as a first launch; seed the finished-setup
+		// flag so only the onboarding spec ever meets the workspace chooser.
+		storageState: {
+			cookies: [],
+			origins: [{
+				origin: soundscaper.origin,
+				localStorage: [{ name: firstLaunchSetupStorageKey('soundscaper'), value: firstLaunchSetupSeedValue() }],
+			}],
+		},
 		trace: 'on-first-retry',
 		screenshot: 'only-on-failure',
 	},

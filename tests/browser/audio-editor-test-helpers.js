@@ -9,6 +9,7 @@ import { projectFileExtensionForProduct } from '../../src/common/project-file-ex
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
+import { seedWorkspaceOnboardingComplete } from './helpers/browser-environment-stubs.js';
 
 export { resolveBrowserProductTestUrl };
 
@@ -16,6 +17,7 @@ export { resolveBrowserProductTestUrl };
 export {
 	disableNativeSavePicker,
 	disableOfflineAudio,
+	seedWorkspaceOnboardingComplete,
 	stubDisplayCapture,
 	stubStorageEstimate,
 } from './helpers/browser-environment-stubs.js';
@@ -47,6 +49,7 @@ export function registerAudioEditorHooks() {
 }
 
 export async function bootEditor(page, path) {
+	await seedWorkspaceOnboardingComplete(page);
 	await page.goto(resolveBrowserProductTestUrl(path));
 	const editor = await waitForEditor(page);
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });

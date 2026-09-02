@@ -15,6 +15,8 @@ const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
 const SoundscaperMasteringSequenceDialog = SOUNDSCAPER_BUILD
 	? React.lazy(() => import('../dialogs/SoundscaperMasteringSequenceDialog.tsx')) : null;
+const WorkspaceOnboardingDialog = SOUNDSCAPER_BUILD
+	? React.lazy(() => import('../dialogs/WorkspaceOnboardingDialog.tsx')) : null;
 const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
@@ -114,6 +116,21 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 								setActiveSurface(null);
 								soundscaperWorkflow?.restoreFocus();
 							}}
+						/>
+					</React.Suspense>
+				</div>
+			)}
+			{productId === 'soundscaper' && activeSurface === 'workspace-onboarding'
+				&& WorkspaceOnboardingDialog && (
+				<div data-editor-surface="workspace-onboarding">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<WorkspaceOnboardingDialog
+							productId={productId}
+							controller={controller}
+							preferences={preferences}
+							copy={copy}
+							run={run}
+							onClose={() => setActiveSurface(null)}
 						/>
 					</React.Suspense>
 				</div>

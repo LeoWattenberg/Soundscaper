@@ -1,0 +1,87 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding {
+	display: grid;
+	gap: 16px;
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding p {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__options {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-rows: auto auto;
+	column-gap: 10px;
+	row-gap: 4px;
+	align-items: start;
+	padding: 12px;
+	border: 1px solid var(--kw-editor-line, currentColor);
+	border-radius: 6px;
+	background: var(--kw-editor-panel, transparent);
+	color: var(--kw-editor-text, inherit);
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option input {
+	grid-row: 1 / span 2;
+	margin: 2px 0 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option-title {
+	font-weight: 600;
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option-description,
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__hint {
+	font-size: 12px;
+	color: var(--kw-editor-muted, inherit);
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option--selected {
+	border-color: var(--kw-editor-accent, Highlight);
+	box-shadow: inset 0 0 0 1px var(--kw-editor-accent, Highlight);
+	background: var(--kw-editor-accent-soft, transparent);
+}
+
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:has(input:focus-visible) {
+	outline: 2px solid var(--kw-editor-accent, Highlight);
+	outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__options {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option {
+		forced-color-adjust: none;
+		border-color: ButtonText;
+		background: Canvas;
+		color: CanvasText;
+	}
+
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option-description,
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__hint {
+		color: CanvasText;
+	}
+
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option--selected {
+		border-color: Highlight;
+		box-shadow: inset 0 0 0 1px Highlight;
+	}
+
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:has(input:focus-visible) {
+		outline: 2px solid Highlight;
+		outline-offset: 2px;
+	}
+}

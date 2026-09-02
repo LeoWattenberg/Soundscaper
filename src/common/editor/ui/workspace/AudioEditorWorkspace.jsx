@@ -29,7 +29,7 @@ import {
 	useSoundscaperNativeServicesMenuRefresh,
 } from './workspace-application-menu-runtime.js';
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
-import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
+import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts'; import { useWorkspaceOnboardingSurface } from '../use-workspace-onboarding-surface.ts';
 import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
@@ -51,7 +51,7 @@ export default function AudioEditorWorkspace({
 	const parityRuntime = useMemo(() => createAudacityActionRuntime(controller, { productId }), [controller, productId]);
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
-	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface);
+	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface); useWorkspaceOnboardingSurface({ productId, phase: snapshot.phase, initialSurface, takeCycleRecovery: snapshot.takeCycleRecovery, activeSurface, setActiveSurface });
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
 	const [macroDraft, setMacroDraft] = useState(() => ({ name: copy.untitledMacro, effects: [] }));

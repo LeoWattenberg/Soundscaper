@@ -6,6 +6,11 @@
  * apart from the helpers that drive an editor that is already running.
  */
 
+import {
+	firstLaunchSetupSeedValue,
+	firstLaunchSetupStorageKey,
+} from '../../../src/common/editor/ui/first-launch-setup.ts';
+
 export async function disableNativeSavePicker(page) {
 	await page.addInitScript(() => {
 		Object.defineProperty(globalThis, 'showSaveFilePicker', { configurable: true, value: undefined });
@@ -70,4 +75,20 @@ export async function stubStorageEstimate(page, estimate) {
 			value: storage,
 		});
 	}, estimate);
+}
+
+/**
+ * Mark first-launch setup as finished before the editor boots so the
+ * "Getting started" workspace chooser never interrupts an ordinary spec.
+ * Accepts a page or a context; the write is best-effort because a blocked
+ * storage simply shows the chooser, which the onboarding spec covers itself.
+ */
+export async function seedWorkspaceOnboardingComplete(target) {
+	await target.addInitScript(({ key, value }) => {
+		try {
+			globalThis.localStorage?.setItem(key, value);
+		} catch {
+			// Storage-less contexts fall back to the onboarding dialog itself.
+		}
+	}, { key: firstLaunchSetupStorageKey('soundscaper'), value: firstLaunchSetupSeedValue() });
 }

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import {
+	firstLaunchSetupSeedValue,
+	firstLaunchSetupStorageKey,
+} from './src/common/editor/ui/first-launch-setup.ts';
+
 const soundscaperOrigin = 'http://127.0.0.1:4332';
 const framescaperOrigin = 'http://127.0.0.1:4333';
 const fixtureRoot = '.wrangler/dual-origin-browser';
@@ -39,6 +44,15 @@ export default defineConfig({
 	use: {
 		baseURL: soundscaperOrigin,
 		serviceWorkers: 'block',
+		// Seed the finished first-launch setup so the workspace chooser never
+		// sits in front of a handoff editor.
+		storageState: {
+			cookies: [],
+			origins: [{
+				origin: soundscaperOrigin,
+				localStorage: [{ name: firstLaunchSetupStorageKey('soundscaper'), value: firstLaunchSetupSeedValue() }],
+			}],
+		},
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure',
 	},
