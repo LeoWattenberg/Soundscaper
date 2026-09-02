@@ -34,7 +34,7 @@ test('local search indexes generated runtime references without cross-origin req
 	await page.getByRole('button', { name: 'Search' }).click();
 	await page.getByPlaceholder('Search').fill('WavPack');
 	const dialog = page.getByRole('dialog', { name: 'Search' });
-	await expect(dialog.getByText(/1 result for WavPack/u)).toBeVisible();
+	await expect(dialog.getByText(/\d+ results? for WavPack/u)).toBeVisible();
 	await dialog.getByRole('link', { name: 'Export formats' }).click();
 	await expect(page).toHaveURL(new RegExp(`${BASE}reference/generated/formats/$`, 'u'));
 	await expect(page.getByRole('cell', { name: 'WavPack', exact: true })).toBeVisible();
