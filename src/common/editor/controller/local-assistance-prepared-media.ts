@@ -42,6 +42,7 @@ const OPERATION_SPECS = Object.freeze({
 	'word-alignment': spec(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
 	'speaker-diarization': spec(['audio'], [['audio']], ['speaker-turns']),
 	'speech-enhancement': spec(['audio'], [['audio']], ['enhanced-audio']),
+	'dereverberation': spec(['audio'], [['audio']], ['enhanced-audio']),
 	'source-separation': spec(['audio'], [['audio']], ['separated-audio']),
 	'audio-tagging': spec(['audio'], [['audio']], ['audio-tags']),
 	'beat-tracking': spec(['audio'], [['audio']], ['beat-grid']),
@@ -168,7 +169,8 @@ function normalizeOutputs(
 	}
 	const slots = operationId === 'speech-enhancement'
 		? ['enhanced-audio'] as const
-		: operationId === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
+		: operationId === 'dereverberation' ? ['dereverberated-audio'] as const
+			: operationId === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
 	if (slots && value.length !== slots.length) {
 		throw new TypeError('Prepared selected media omitted an exact audio publication slot.');
 	}

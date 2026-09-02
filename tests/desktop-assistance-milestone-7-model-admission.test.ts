@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
 	assertAssistanceOnnxAudioModelBindingV1,
+	assertAssistanceOnnxDereverbModelBindingV1,
 	assertAssistanceOnnxEnhancementSeparationModelBindingV1,
 	assertAssistanceQwenEditorialModelBindingV1,
 	assertAssistanceTransNetV2ModelBindingV1,
@@ -32,10 +33,19 @@ test('main admission closes every pending derived-model catalog identity and ver
 	assert.doesNotThrow(() => assertAssistanceTransNetV2ModelBindingV1(
 		binding('transnetv2', '1.0.0'),
 	));
+	assert.doesNotThrow(() => assertAssistanceOnnxDereverbModelBindingV1(
+		binding('dereverb-room', '1.0.0'),
+	));
 
 	assert.throws(() => assertAssistanceOnnxAudioModelBindingV1(
 		'audio-tagging', binding('panns-cnn10', 'converted-v1'),
 	), /PANNs|1\.0\.0|identity/iu);
+	assert.throws(() => assertAssistanceOnnxDereverbModelBindingV1(
+		binding('dereverb-room', '2.0.0'),
+	), /dereverb-room|1\.0\.0/iu);
+	assert.throws(() => assertAssistanceOnnxDereverbModelBindingV1(
+		binding('tiger-dnr', '1.0.0'),
+	), /dereverb-room/u);
 	assert.throws(() => assertAssistanceTransNetV2ModelBindingV1(
 		binding('transnetv2', '2.0.0'),
 	), /TransNetV2|1\.0\.0|identity/iu);

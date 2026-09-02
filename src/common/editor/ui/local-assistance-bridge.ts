@@ -182,6 +182,7 @@ const OPERATION_ROLES = Object.freeze({
 	'word-alignment': roles(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
 	'speaker-diarization': roles(['audio'], [['audio']], ['speaker-turns']),
 	'speech-enhancement': roles(['audio'], [['audio']], ['enhanced-audio']),
+	'dereverberation': roles(['audio'], [['audio']], ['enhanced-audio']),
 	'source-separation': roles(['audio'], [['audio']], ['separated-audio']),
 	'audio-tagging': roles(['audio'], [['audio']], ['audio-tags']),
 	'beat-tracking': roles(['audio'], [['audio']], ['beat-grid']),

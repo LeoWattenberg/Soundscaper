@@ -102,8 +102,12 @@ interface PublicationPlan {
 const SOURCE_CHUNK_FRAMES = 65_536;
 const EXTENSION_KEY = 'org.soundscaper.local-assistance-audio-v1';
 const SOURCE_NAMES = Object.freeze({
-	'enhanced-audio': 'Enhanced Dialogue', dialogue: 'Dialogue', music: 'Music', effects: 'Effects',
+	'enhanced-audio': 'Enhanced Dialogue', 'dereverberated-audio': 'Reduced Reverb',
+	dialogue: 'Dialogue', music: 'Music', effects: 'Effects',
 } satisfies Readonly<Record<LocalAssistanceAudioOutputSlot, string>>);
+const OPERATION_SAMPLE_RATES = Object.freeze({
+	'speech-enhancement': 48_000, 'dereverberation': 44_100, 'source-separation': 44_100,
+} satisfies Readonly<Record<LocalAssistanceAudioOperation, number>>);
 
 export function createLocalAssistanceAudioPublicationAcceptance(
 	dependencies: LocalAssistanceAudioPublicationDependencies,
@@ -229,7 +233,8 @@ function publicationCommand(
 	createId: (prefix: string) => string,
 ): AudioEditorCommand {
 	const commands: AudioEditorCommand[] = [];
-	if (result.operation === 'speech-enhancement' && choice === 'replace-selection') {
+	if ((result.operation === 'speech-enhancement' || result.operation === 'dereverberation')
+		&& choice === 'replace-selection') {
 		const plan = plans[0]!;
 		commands.push(createAddSourceCommand(plan.source));
 		commands.push(replacementDeleteCommand(authority, createId));
@@ -335,7 +340,7 @@ function normalizeAuthority(
 		|| sourceStartFrame !== fence.sourceStartFrame || sourceEndFrame !== fence.sourceEndFrame) {
 		throw new AssistanceProposalStaleError();
 	}
-	const expectedRate = result.operation === 'speech-enhancement' ? 48_000 : 44_100;
+	const expectedRate = OPERATION_SAMPLE_RATES[result.operation];
 	const expectedFrames = Math.round(duration * expectedRate / projectSampleRate);
 	const channelCount = integer(source.channelCount, 1, 'selected source channel count');
 	if (result.outputs.some(({ review }) => review.sampleRate !== expectedRate
@@ -370,7 +375,7 @@ function normalizeChoice(
 		throw new TypeError('Audio publication choice has an unsupported field.');
 	}
 	const placement = choice.placement ?? 'project-bin';
-	const allowed = operation === 'speech-enhancement'
+	const allowed = operation === 'speech-enhancement' || operation === 'dereverberation'
 		? ['project-bin', 'replace-selection']
 		: ['project-bin', 'project-bin-and-muted-tracks'];
 	if (!allowed.includes(String(placement))) {

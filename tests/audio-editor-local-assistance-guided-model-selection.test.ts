@@ -46,6 +46,31 @@ test('Guided Beat This preparation pins small0 while final0 remains explicit-onl
 		model('beat-this-small0', '1.1.1', 'beat-tracking', 3), settings), false);
 });
 
+test('Guided enhancer and dereverberator slots bind their exact catalog identities', () => {
+	const enhanceSettings = defaultAssistanceWorkflowSettingsV1('enhance-dialogue');
+	const reverbSettings = defaultAssistanceWorkflowSettingsV1('reduce-reverb');
+	const installed = [
+		model('deepfilternet3', '3.0.0', 'speech-enhancement', 1),
+		model('dereverb-room', '1.0.0', 'dereverberation', 2),
+	];
+	assert.deepEqual(localAssistanceGuidedModelCandidates(
+		'enhancer', installed, enhanceSettings,
+	).map(({ modelId, version }) => ({ modelId, version })), [
+		{ modelId: 'deepfilternet3', version: '3.0.0' },
+	]);
+	assert.deepEqual(localAssistanceGuidedModelCandidates(
+		'dereverberator', installed, reverbSettings,
+	).map(({ modelId, version }) => ({ modelId, version })), [
+		{ modelId: 'dereverb-room', version: '1.0.0' },
+	]);
+	assert.equal(localAssistanceGuidedModelMatches('dereverberator',
+		model('dereverb-room', '1.0.1', 'dereverberation', 3), reverbSettings), false,
+	'another dereverb-room version cannot substitute for the catalog pin');
+	assert.equal(localAssistanceGuidedModelMatches('dereverberator',
+		model('deepfilternet3', '3.0.0', 'speech-enhancement', 4), reverbSettings), false,
+	'the denoiser cannot substitute for the dereverberator slot');
+});
+
 function model(
 	modelId: string,
 	version: string,

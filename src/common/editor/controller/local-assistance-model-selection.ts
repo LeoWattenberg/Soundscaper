@@ -25,6 +25,7 @@ const MODEL_TASK_SLOTS = Object.freeze({
 	'word-alignment': modelTaskSlots(['word-alignment']),
 	'speaker-diarization': modelTaskSlots(['speaker-segmentation'], ['speaker-embedding']),
 	'speech-enhancement': modelTaskSlots(['speech-enhancement']),
+	'dereverberation': modelTaskSlots(['dereverberation']),
 	'source-separation': modelTaskSlots(['source-separation']),
 	'audio-tagging': modelTaskSlots(['audio-tagging']),
 	'beat-tracking': modelTaskSlots(['beat-tracking']),

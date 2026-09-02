@@ -45,6 +45,7 @@ const LABELS: Readonly<Record<AssistanceGuidedWorkflowId, string>> = Object.free
 	'clean-filler-silence': 'Clean Filler & Silence',
 	'identify-speakers': 'Identify Speakers',
 	'enhance-dialogue': 'Enhance Dialogue',
+	'reduce-reverb': 'Reduce Reverb',
 	'separate-dialogue-music-effects': 'Separate Dialogue / Music / Effects',
 	'mark-reactions': 'Mark Reactions',
 	'index-transcript': 'Index Transcript',

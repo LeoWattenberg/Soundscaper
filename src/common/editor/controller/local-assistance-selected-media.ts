@@ -34,6 +34,7 @@ const AUDIO_OPERATIONS = Object.freeze([
 	'word-alignment',
 	'speaker-diarization',
 	'speech-enhancement',
+	'dereverberation',
 	'source-separation',
 	'audio-tagging',
 	'beat-tracking',
@@ -91,7 +92,7 @@ export interface LocalAssistanceSelectedMediaPrepared {
 		bytes: Blob;
 	}>[];
 	readonly outputs: readonly Readonly<{
-		readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
+		readonly slotId?: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
 		role: string;
 		mediaType: string;
 		maximumByteLength: number;
@@ -302,7 +303,7 @@ export function createLocalAssistanceSelectionFence(
 }
 
 function outputsFor(operation: AudioOperation, audioWaveByteLength: number): readonly Readonly<{
-	slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
+	slotId?: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
 	role: string; mediaType: string; maximumByteLength: number;
 }>[] {
 	const values = {
@@ -311,6 +312,7 @@ function outputsFor(operation: AudioOperation, audioWaveByteLength: number): rea
 		'word-alignment': ['word-alignment', 'application/vnd.soundscaper.word-alignment+json'],
 		'speaker-diarization': ['speaker-turns', 'application/vnd.soundscaper.speaker-turns+json'],
 		'speech-enhancement': ['enhanced-audio', 'audio/wav'],
+		'dereverberation': ['enhanced-audio', 'audio/wav'],
 		'source-separation': ['separated-audio', 'audio/wav'],
 		'audio-tagging': ['audio-tags', 'application/vnd.soundscaper.audio-tags+json'],
 		'beat-tracking': ['beat-grid', 'application/vnd.soundscaper.beat-grid+json'],
@@ -318,7 +320,8 @@ function outputsFor(operation: AudioOperation, audioWaveByteLength: number): rea
 	const [role, mediaType] = values[operation];
 	const slots = operation === 'speech-enhancement'
 		? ['enhanced-audio'] as const
-		: operation === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
+		: operation === 'dereverberation' ? ['dereverberated-audio'] as const
+			: operation === 'source-separation' ? ['dialogue', 'music', 'effects'] as const : null;
 	return Object.freeze((slots ?? [null]).map((slotId) => Object.freeze({
 		...(slotId === null ? {} : { slotId }), role, mediaType,
 		maximumByteLength: mediaType === 'audio/wav' ? audioWaveByteLength : MAXIMUM_OUTPUT_BYTES,

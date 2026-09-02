@@ -73,6 +73,16 @@ export default function LocalAssistanceGuidedSettings({
 					'Replace selected range')}</option>
 			</SelectSetting>
 		</SettingsGroup>;
+		case 'reduce-reverb': return <SettingsGroup copy={copy}>
+			<SelectSetting label={text(copy, 'localAssistancePlacement', 'Acceptance placement')}
+				value={settings.placement} disabled={disabled} onChange={(placement) => commit({
+					...settings, placement: placement as 'project-bin' | 'replace-selection',
+				})}>
+				<option value="project-bin">{text(copy, 'localAssistanceProjectBin', 'Project Bin')}</option>
+				<option value="replace-selection">{text(copy, 'localAssistanceReplaceSelection',
+					'Replace selected range')}</option>
+			</SelectSetting>
+		</SettingsGroup>;
 		case 'separate-dialogue-music-effects': return <SettingsGroup copy={copy}>
 			<SelectSetting label={text(copy, 'localAssistancePlacement', 'Acceptance placement')}
 				value={settings.placement} disabled={disabled} onChange={(placement) => commit({

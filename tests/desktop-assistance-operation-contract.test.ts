@@ -100,6 +100,7 @@ test('the operation contract closes the complete planned local-assistance vocabu
 		'word-alignment',
 		'speaker-diarization',
 		'speech-enhancement',
+		'dereverberation',
 		'source-separation',
 		'audio-tagging',
 		'beat-tracking',

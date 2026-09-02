@@ -33,6 +33,7 @@ import { encodeWav } from '../src/common/editor/wav.js';
 const SOURCE_SHA256 = 'ab'.repeat(32);
 const DEEPFILTER_ARTIFACTS = Object.freeze(['11'.repeat(32), '22'.repeat(32)]);
 const TIGER_ARTIFACTS = Object.freeze(['33'.repeat(32), '44'.repeat(32)]);
+const DEREVERB_ARTIFACTS = Object.freeze(['55'.repeat(32)]);
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -99,7 +100,11 @@ async function wave(
 	});
 }
 
-function model(operation: 'speech-enhancement' | 'source-separation') {
+function model(operation: 'speech-enhancement' | 'dereverberation' | 'source-separation') {
+	if (operation === 'dereverberation') {
+		return Object.freeze({ modelId: 'dereverb-room', version: '1.0.0', task: operation,
+			artifactSha256s: DEREVERB_ARTIFACTS });
+	}
 	return operation === 'speech-enhancement'
 		? Object.freeze({ modelId: 'deepfilternet3', version: '3.0.0', task: operation,
 			artifactSha256s: DEEPFILTER_ARTIFACTS })
@@ -108,23 +113,24 @@ function model(operation: 'speech-enhancement' | 'source-separation') {
 }
 
 async function output(
-	operation: 'speech-enhancement' | 'source-separation',
-	slotId: 'enhanced-audio' | 'dialogue' | 'music' | 'effects',
+	operation: 'speech-enhancement' | 'dereverberation' | 'source-separation',
+	slotId: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects',
 	claimId: string,
 	values: readonly (readonly number[])[],
 ) {
 	const sampleRate = operation === 'speech-enhancement' ? 48_000 : 44_100;
+	const role = operation === 'source-separation' ? 'separated-audio' : 'enhanced-audio';
 	const result = await wave(sampleRate, values);
 	return {
 		slotId,
 		claim: {
 			claimVersion: 1, claimId, jobId: '9'.repeat(40),
-			role: operation === 'speech-enhancement' ? 'enhanced-audio' : 'separated-audio',
+			role,
 			mediaType: 'audio/wav', byteLength: result.bytes.size, sha256: result.sha256,
 		},
 		review: {
 			kind: 'audio-wave',
-			role: operation === 'speech-enhancement' ? 'enhanced-audio' : 'separated-audio',
+			role,
 			sampleRate, channelCount: result.channelCount, frameCount: result.frameCount,
 			sampleFormat: 'float32',
 		},
@@ -133,12 +139,15 @@ async function output(
 }
 
 async function request(
-	operation: 'speech-enhancement' | 'source-separation',
+	operation: 'speech-enhancement' | 'dereverberation' | 'source-separation',
 	selectionFence: AssistanceSelectionFence = fence(),
 ) {
 	const outputs = operation === 'speech-enhancement'
 		? [await output(operation, 'enhanced-audio', '1'.repeat(40), [[0.1, 0.2, 0.3, 0.4], [0, 0, 0, 0]])]
-		: await Promise.all([
+		: operation === 'dereverberation'
+			? [await output(operation, 'dereverberated-audio', '1'.repeat(40),
+				[[0.1, 0.2, 0.3, 0.4], [0, 0, 0, 0]])]
+			: await Promise.all([
 			output(operation, 'dialogue', '1'.repeat(40), [[0.1, 0.2, 0.3, 0.4], [0, 0, 0, 0]]),
 			output(operation, 'music', '2'.repeat(40), [[0, 0.1, 0, 0.1], [0, 0, 0, 0]]),
 			output(operation, 'effects', '3'.repeat(40), [[0, 0, 0.2, 0], [0, 0, 0, 0]]),
@@ -382,6 +391,42 @@ test('enhancement can replace only the exact unlinked selected range as one undo
 	assert.equal(replacement.avLinkId, null);
 	assert.ok(batch.commands.every(({ type }) => type !== 'project-bin/add'
 		&& type !== 'source/remove'));
+});
+
+test('dereverberation publishes Reduced Reverb with enhancement placements and 44.1 kHz custody', async () => {
+	const binFixture = harness();
+	await binFixture.acceptance.acceptValidatedResult(await request('dereverberation'));
+	assert.equal(binFixture.commits.length, 1);
+	const batch = binFixture.commits[0] as Readonly<{ commands: readonly DataRecord[] }>;
+	const sourceCommand = batch.commands.find(({ type }) => type === 'source/add')!;
+	assert.equal((sourceCommand.source as DataRecord).name, 'Reduced Reverb');
+	assert.equal(batch.commands.filter(({ type }) => type === 'project-bin/add').length, 1);
+
+	const replaceFixture = harness();
+	await replaceFixture.acceptance.acceptValidatedResult(
+		await request('dereverberation'), { placement: 'replace-selection' },
+	);
+	const replaceBatch = replaceFixture.commits[0] as Readonly<{ commands: readonly DataRecord[] }>;
+	assert.deepEqual(replaceBatch.commands.map(({ type }) => type), [
+		'source/add', 'range/lift-delete', 'clip/add',
+	]);
+
+	// The muted-tracks placement belongs to separation only; the choice gate refuses it.
+	const mutedFixture = harness();
+	await assert.rejects(mutedFixture.acceptance.acceptValidatedResult(
+		await request('dereverberation'),
+		{ placement: 'project-bin-and-muted-tracks' } as never,
+	), /placement/iu);
+	assert.equal(mutedFixture.commits.length, 0);
+
+	// The 44.1 kHz rate table is enforced: a 48 kHz reviewed wave cannot publish.
+	const wrongRate = await request('dereverberation');
+	wrongRate.outputs[0] = await output('speech-enhancement', 'dereverberated-audio',
+		'1'.repeat(40), [[0.1, 0.2, 0.3, 0.4], [0, 0, 0, 0]]);
+	const rateFixture = harness();
+	await assert.rejects(rateFixture.acceptance.acceptValidatedResult(wrongRate),
+		/exact|geometry|sampleRate|44/iu);
+	assert.equal(rateFixture.commits.length, 0);
 });
 
 test('TIGER publishes exact D/M/E slots and optionally places three aligned muted tracks atomically', async () => {

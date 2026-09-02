@@ -25,7 +25,7 @@ const JOB_ID = '9a'.repeat(20);
 const SOURCE_SHA256 = '7b'.repeat(32);
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
 
-test('every one of the 15 Advanced primitives stages one closed valid workflow recipe', async () => {
+test('every one of the 16 Advanced primitives stages one closed valid workflow recipe', async () => {
 	assert.equal(OPERATION_FIXTURES.size, ASSISTANCE_OPERATIONS.length);
 	for (const operation of ASSISTANCE_OPERATIONS) {
 		const fixture = OPERATION_FIXTURES.get(operation)!;
@@ -159,6 +159,7 @@ const OPERATION_FIXTURES = new Map<AssistanceOperation, Fixture>([
 	row('speaker-diarization', 'audio', ['audio'], ['speaker-turns'],
 		['speaker-segmentation', 'speaker-embedding']),
 	row('speech-enhancement', 'audio', ['audio'], ['enhanced-audio']),
+	row('dereverberation', 'audio', ['audio'], ['dereverberated-audio']),
 	row('source-separation', 'audio', ['audio'], ['dialogue', 'music', 'effects']),
 	row('audio-tagging', 'audio', ['audio'], ['audio-tags']),
 	row('beat-tracking', 'audio', ['audio'], ['beat-grid']),
@@ -194,9 +195,10 @@ function preparedFor(operation: AssistanceOperation, fixture: Fixture) {
 
 function preparedInput(role: string, operation: AssistanceOperation, sourceFrame = 0) {
 	if (role === 'audio') {
-		const sampleRate = operation === 'source-separation' ? 44_100
-			: operation === 'speech-enhancement' ? 48_000 : 16_000;
+		const sampleRate = operation === 'source-separation' || operation === 'dereverberation'
+			? 44_100 : operation === 'speech-enhancement' ? 48_000 : 16_000;
 		const channels = operation === 'source-separation' || operation === 'speech-enhancement'
+			|| operation === 'dereverberation'
 			? [Float32Array.of(0.1, -0.1), Float32Array.of(-0.1, 0.1)]
 			: [Float32Array.of(0.1, -0.1)];
 		const wave = encodeWav(channels, { sampleRate, bitDepth: 32, float: true, dither: false });
@@ -217,8 +219,10 @@ function preparedInput(role: string, operation: AssistanceOperation, sourceFrame
 function preparedOutput(operation: AssistanceOperation, slotId: string) {
 	if (operation === 'source-separation') return Object.freeze({ slotId,
 		role: 'separated-audio', mediaType: 'audio/wav', maximumByteLength: 4096 });
-	if (operation === 'speech-enhancement') return Object.freeze({ slotId,
-		role: 'enhanced-audio', mediaType: 'audio/wav', maximumByteLength: 4096 });
+	if (operation === 'speech-enhancement' || operation === 'dereverberation') {
+		return Object.freeze({ slotId,
+			role: 'enhanced-audio', mediaType: 'audio/wav', maximumByteLength: 4096 });
+	}
 	const mediaType = slotId === 'embeddings'
 		? 'application/vnd.soundscaper.embedding-matrix-v1'
 		: `application/vnd.soundscaper.${slotId}+json`;

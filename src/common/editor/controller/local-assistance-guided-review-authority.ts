@@ -27,6 +27,7 @@ interface PreparedExternalInput {
 
 const AUDIO_RATE = Object.freeze({
 	'enhance-dialogue': 48_000,
+	'reduce-reverb': 44_100,
 	'separate-dialogue-music-effects': 44_100,
 } as const);
 
@@ -62,7 +63,8 @@ export async function deriveLocalAssistanceGuidedReviewAuthority(
 			audioWave: null, editorialCandidateIds: plan.authorizedCandidateIds,
 			highlightVideoSignals, media });
 	}
-	if (workflowId !== 'enhance-dialogue' && workflowId !== 'separate-dialogue-music-effects') {
+	if (workflowId !== 'enhance-dialogue' && workflowId !== 'reduce-reverb'
+		&& workflowId !== 'separate-dialogue-music-effects') {
 		return media.audio === null && media.video === null
 			? createEmptyAssistanceWorkflowReviewAuthorityV1()
 			: validateAssistanceWorkflowReviewAuthorityV1({ reviewAuthorityVersion: 1,
@@ -100,7 +102,8 @@ async function reviewMedia(
 	const audio = workflowId === 'clean-filler-silence'
 		? await equivalentAsset(inputs, (input) => input.mediaType === 'audio/wav', 'audio/wav',
 			Object.freeze({ stageId: 'detect-speech', slotId: 'audio' }), signal)
-		: workflowId === 'enhance-dialogue' || workflowId === 'separate-dialogue-music-effects'
+		: workflowId === 'enhance-dialogue' || workflowId === 'reduce-reverb'
+			|| workflowId === 'separate-dialogue-music-effects'
 			? await uniqueAsset(inputs, (input) => input.mediaType === 'audio/wav', 'audio/wav', signal)
 			: null;
 	const video = workflowId === 'make-highlights'

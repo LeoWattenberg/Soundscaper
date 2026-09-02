@@ -157,22 +157,30 @@ export function createGuidedReactionAcceptanceRequest(
 
 export function createGuidedAudioAcceptanceRequest(
 	workflow: AssistanceWorkflowV1,
-	workflowId: 'enhance-dialogue' | 'separate-dialogue-music-effects',
+	workflowId: 'enhance-dialogue' | 'reduce-reverb' | 'separate-dialogue-music-effects',
 	fence: AssistanceSelectionFence,
 	outputs: ReadonlyMap<string, LocalAssistanceGuidedAdaptedOutput>,
 ): DataRecord {
-	const enhancement = workflowId === 'enhance-dialogue';
-	const operation = enhancement ? 'speech-enhancement' : 'source-separation';
-	const stageId = enhancement ? 'enhance-dialogue' : 'separate-sources';
-	const slots = enhancement ? ['enhanced-audio'] : ['dialogue', 'music', 'effects'];
-	return Object.freeze({ sourceId: fence.sourceId, operation, selectionFence: fence,
-		models: Object.freeze([primitiveModel(modelBinding(workflow, stageId,
-			enhancement ? 'enhancer' : 'separator'), operation)]),
-		outputs: Object.freeze(slots.map((slotId) => {
+	const profile = workflowId === 'enhance-dialogue'
+		? Object.freeze({ operation: 'speech-enhancement', stageId: 'enhance-dialogue',
+			modelSlot: 'enhancer', role: 'enhanced-audio',
+			slots: ['enhanced-audio'] } as const)
+		: workflowId === 'reduce-reverb'
+			? Object.freeze({ operation: 'dereverberation', stageId: 'reduce-reverb',
+				modelSlot: 'dereverberator', role: 'enhanced-audio',
+				slots: ['dereverberated-audio'] } as const)
+			: Object.freeze({ operation: 'source-separation', stageId: 'separate-sources',
+				modelSlot: 'separator', role: 'separated-audio',
+				slots: ['dialogue', 'music', 'effects'] } as const);
+	return Object.freeze({ sourceId: fence.sourceId, operation: profile.operation,
+		selectionFence: fence,
+		models: Object.freeze([primitiveModel(modelBinding(workflow, profile.stageId,
+			profile.modelSlot), profile.operation)]),
+		outputs: Object.freeze(profile.slots.map((slotId) => {
 			const output = outputs.get(slotId)!;
 			return Object.freeze({ slotId,
 				claim: Object.freeze({ claimVersion: 1, claimId: output.claim.claimId,
-					jobId: workflow.jobId, role: enhancement ? 'enhanced-audio' : 'separated-audio',
+					jobId: workflow.jobId, role: profile.role,
 					mediaType: 'audio/wav', byteLength: output.byteLength, sha256: output.sha256 }),
 				review: output.semantic, bytes: output.body,
 			});

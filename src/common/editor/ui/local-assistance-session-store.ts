@@ -54,7 +54,7 @@ export type LocalAssistanceUiUnavailableReason =
 	| 'no-compatible-model';
 
 export interface LocalAssistanceOutputBody {
-	readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
+	readonly slotId?: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
 	readonly claim: LocalAssistanceOutputClaim;
 	readonly bytes: Blob;
 	readonly review: LocalAssistanceOutputReview;

@@ -29,6 +29,7 @@ export const LOCAL_MODEL_TASKS = Object.freeze([
 	'speaker-segmentation',
 	'speaker-embedding',
 	'speech-enhancement',
+	'dereverberation',
 	'source-separation',
 	'audio-tagging',
 	'beat-tracking',

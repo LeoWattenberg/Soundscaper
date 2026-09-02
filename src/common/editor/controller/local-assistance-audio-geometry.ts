@@ -17,6 +17,7 @@ const PROFILES = Object.freeze({
 	'word-alignment': profile(16_000, 'mono'),
 	'speaker-diarization': profile(16_000, 'mono'),
 	'speech-enhancement': profile(48_000, 'preserve'),
+	'dereverberation': profile(44_100, 'preserve'),
 	'source-separation': profile(44_100, 'preserve'),
 	'audio-tagging': profile(32_000, 'mono'),
 	'beat-tracking': profile(22_050, 'mono'),

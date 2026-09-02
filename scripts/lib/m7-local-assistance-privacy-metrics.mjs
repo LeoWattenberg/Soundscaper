@@ -28,12 +28,13 @@ export const M7_ASSISTANCE_PRIVACY_METRIC_IDS = Object.freeze([
 
 const WORKFLOW_IDS = Object.freeze([
 	'transcribe-captions', 'clean-filler-silence', 'identify-speakers', 'enhance-dialogue',
-	'separate-dialogue-music-effects', 'mark-reactions', 'index-transcript',
+	'reduce-reverb', 'separate-dialogue-music-effects', 'mark-reactions', 'index-transcript',
 	'detect-beats-tempo', 'mark-cuts', 'index-video', 'reframe', 'make-highlights',
 	'generate-editorial-text',
 	'advanced:voice-activity-detection', 'advanced:speech-recognition',
 	'advanced:word-alignment', 'advanced:speaker-diarization',
-	'advanced:speech-enhancement', 'advanced:source-separation', 'advanced:audio-tagging',
+	'advanced:speech-enhancement', 'advanced:dereverberation',
+	'advanced:source-separation', 'advanced:audio-tagging',
 	'advanced:beat-tracking', 'advanced:text-embedding', 'advanced:image-text-embedding',
 	'advanced:optical-character-recognition', 'advanced:shot-detection',
 	'advanced:subject-detection', 'advanced:saliency-detection',
@@ -41,7 +42,7 @@ const WORKFLOW_IDS = Object.freeze([
 ]);
 const MODEL_TASKS = Object.freeze([
 	'voice-activity-detection', 'speech-recognition', 'word-alignment', 'speaker-segmentation',
-	'speaker-embedding', 'speech-enhancement', 'source-separation', 'audio-tagging',
+	'speaker-embedding', 'speech-enhancement', 'dereverberation', 'source-separation', 'audio-tagging',
 	'beat-tracking', 'face-detection', 'object-detection', 'saliency-detection',
 	'optical-character-recognition', 'image-text-embedding', 'text-embedding',
 	'shot-detection', 'editorial-generation',

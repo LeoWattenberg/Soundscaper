@@ -61,7 +61,8 @@ test('selected-media inventory exposes only operations with an exact audio input
 		sourceId: 'voice-source', label: 'Interview clip', mediaKind: 'audio',
 		operations: [
 			'voice-activity-detection', 'speech-recognition', 'word-alignment', 'speaker-diarization',
-			'speech-enhancement', 'source-separation', 'audio-tagging', 'beat-tracking',
+			'speech-enhancement', 'dereverberation', 'source-separation', 'audio-tagging',
+			'beat-tracking',
 		],
 	}] });
 	assert.deepEqual(rendered, []);
@@ -102,6 +103,7 @@ test('audio preparation conforms each inference family without discarding requir
 		['word-alignment', 16_000, 1],
 		['speaker-diarization', 16_000, 1],
 		['speech-enhancement', 48_000, 2],
+		['dereverberation', 44_100, 2],
 		['source-separation', 44_100, 2],
 		['audio-tagging', 32_000, 1],
 		['beat-tracking', 22_050, 1],
@@ -135,6 +137,13 @@ test('enhancement and TIGER preparation reserve their closed publication slots',
 	assert.deepEqual(enhancement.outputs, [{
 		slotId: 'enhanced-audio', role: 'enhanced-audio', mediaType: 'audio/wav',
 		maximumByteLength: 44 + 48_000 * 2 * 4,
+	}]);
+	const dereverberation = await fixture().preparation.prepareSelectedMedia({
+		sourceId: 'voice-source', operation: 'dereverberation',
+	});
+	assert.deepEqual(dereverberation.outputs, [{
+		slotId: 'dereverberated-audio', role: 'enhanced-audio', mediaType: 'audio/wav',
+		maximumByteLength: 44 + 44_100 * 2 * 4,
 	}]);
 	const separation = await fixture().preparation.prepareSelectedMedia({
 		sourceId: 'voice-source', operation: 'source-separation',

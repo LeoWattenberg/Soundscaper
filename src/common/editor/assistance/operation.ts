@@ -7,6 +7,7 @@ export const ASSISTANCE_OPERATIONS = Object.freeze([
 	'word-alignment',
 	'speaker-diarization',
 	'speech-enhancement',
+	'dereverberation',
 	'source-separation',
 	'audio-tagging',
 	'beat-tracking',

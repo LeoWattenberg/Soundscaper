@@ -188,6 +188,7 @@ test('workflow IDs close every guided recipe and one advanced recipe per primiti
 		'clean-filler-silence',
 		'identify-speakers',
 		'enhance-dialogue',
+		'reduce-reverb',
 		'separate-dialogue-music-effects',
 		'mark-reactions',
 		'index-transcript',
@@ -203,7 +204,7 @@ test('workflow IDs close every guided recipe and one advanced recipe per primiti
 		ADVANCED_ASSISTANCE_WORKFLOW_IDS,
 		ASSISTANCE_OPERATIONS.map((operation) => `advanced:${operation}`),
 	);
-	assert.equal(ASSISTANCE_WORKFLOW_IDS.length, ASSISTANCE_GUIDED_WORKFLOW_IDS.length + 15);
+	assert.equal(ASSISTANCE_WORKFLOW_IDS.length, ASSISTANCE_GUIDED_WORKFLOW_IDS.length + 16);
 	assert.equal(normalizeAssistanceWorkflowId('mark-cuts'), 'mark-cuts');
 	assert.throws(() => normalizeAssistanceWorkflowId('arbitrary-pipeline'), /workflow/iu);
 	assert.equal(ASSISTANCE_OPERATION_CONTRACT_VERSION, 1, 'operation-v1 remains independently supported');

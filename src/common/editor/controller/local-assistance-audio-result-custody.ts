@@ -11,11 +11,13 @@ import { inspectWavBlobPcm } from '../wav-import.js';
 import { localAssistanceCanonicalWaveByteLength } from
 	'./local-assistance-audio-geometry.ts';
 
-export type LocalAssistanceAudioOperation = 'speech-enhancement' | 'source-separation';
-export type LocalAssistanceAudioOutputSlot = 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
+export type LocalAssistanceAudioOperation =
+	'speech-enhancement' | 'dereverberation' | 'source-separation';
+export type LocalAssistanceAudioOutputSlot =
+	'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
 
 export interface LocalAssistanceAudioModelBinding {
-	readonly modelId: 'deepfilternet3' | 'tiger-dnr';
+	readonly modelId: 'deepfilternet3' | 'dereverb-room' | 'tiger-dnr';
 	readonly version: '3.0.0' | '1.0.0';
 	readonly task: LocalAssistanceAudioOperation;
 	readonly artifactSha256s: readonly string[];
@@ -79,13 +81,18 @@ const OUTPUT_PROFILES = Object.freeze({
 		modelId: 'deepfilternet3', version: '3.0.0', role: 'enhanced-audio',
 		sampleRate: 48_000, slots: Object.freeze(['enhanced-audio']),
 	}),
+	'dereverberation': Object.freeze({
+		modelId: 'dereverb-room', version: '1.0.0', role: 'enhanced-audio',
+		sampleRate: 44_100, slots: Object.freeze(['dereverberated-audio']),
+	}),
 	'source-separation': Object.freeze({
 		modelId: 'tiger-dnr', version: '1.0.0', role: 'separated-audio',
 		sampleRate: 44_100, slots: Object.freeze(['dialogue', 'music', 'effects']),
 	}),
 } as const);
 const SLOT_ORDER = new Map<LocalAssistanceAudioOutputSlot, number>([
-	['enhanced-audio', 0], ['dialogue', 0], ['music', 1], ['effects', 2],
+	['enhanced-audio', 0], ['dereverberated-audio', 0],
+	['dialogue', 0], ['music', 1], ['effects', 2],
 ]);
 const OPAQUE_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
@@ -283,7 +290,8 @@ async function digestBlob(body: Blob): Promise<string> {
 }
 
 function audioOperation(value: unknown): LocalAssistanceAudioOperation {
-	if (value !== 'speech-enhancement' && value !== 'source-separation') {
+	if (value !== 'speech-enhancement' && value !== 'dereverberation'
+		&& value !== 'source-separation') {
 		throw new RangeError('This result is not an assistance audio publication operation.');
 	}
 	return value;

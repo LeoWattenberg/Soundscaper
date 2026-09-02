@@ -45,7 +45,7 @@ export type {
 } from './local-assistance-guided-framescaper-acceptance.ts';
 type Awaitable<Value> = PromiseLike<Value> | Value;
 type SupportedWorkflowId = 'transcribe-captions' | 'clean-filler-silence' | 'identify-speakers'
-	| 'enhance-dialogue' | 'separate-dialogue-music-effects' | 'mark-reactions'
+	| 'enhance-dialogue' | 'reduce-reverb' | 'separate-dialogue-music-effects' | 'mark-reactions'
 	| 'detect-beats-tempo' | 'mark-cuts' | 'reframe' | 'make-highlights';
 type AcceptancePhase = 'review' | 'accepting' | 'accepted' | 'rejected' | 'cancelled' | 'failed';
 
@@ -139,7 +139,7 @@ interface NormalizedReview {
 
 const SUPPORTED = new Set<AssistanceWorkflowId>([
 	'transcribe-captions', 'clean-filler-silence', 'identify-speakers', 'enhance-dialogue',
-	'separate-dialogue-music-effects',
+	'reduce-reverb', 'separate-dialogue-music-effects',
 	'mark-reactions', 'detect-beats-tempo', 'mark-cuts', 'reframe', 'make-highlights',
 ]);
 const TERMINALS = Object.freeze({
@@ -151,6 +151,7 @@ const TERMINALS = Object.freeze({
 		stageId: 'attribute-speakers', slots: ['attributed-transcript'],
 	}),
 	'enhance-dialogue': Object.freeze({ stageId: 'enhance-dialogue', slots: ['enhanced-audio'] }),
+	'reduce-reverb': Object.freeze({ stageId: 'reduce-reverb', slots: ['dereverberated-audio'] }),
 	'separate-dialogue-music-effects': Object.freeze({
 		stageId: 'separate-sources', slots: ['dialogue', 'music', 'effects'],
 	}),
@@ -326,7 +327,7 @@ async function publishSelection(
 		);
 		return;
 	}
-	const placement = workflowId === 'enhance-dialogue'
+	const placement = workflowId === 'enhance-dialogue' || workflowId === 'reduce-reverb'
 		? workflow.settings.workflowId === workflowId ? workflow.settings.placement : 'project-bin'
 		: workflow.settings.workflowId === workflowId && workflow.settings.placement === 'muted-aligned-tracks'
 			? 'project-bin-and-muted-tracks' : 'project-bin';
@@ -399,8 +400,10 @@ function reviewSemantics(
 	outputs: ReadonlyMap<string, ReviewedOutput>,
 	highlightDraft?: unknown, reframeDraft?: unknown, highlightSourceTimeAuthority?: unknown,
 ): ReadonlyMap<string, unknown> {
-	if (workflowId === 'enhance-dialogue' || workflowId === 'separate-dialogue-music-effects') {
-		const expectedRole = workflowId === 'enhance-dialogue' ? 'enhanced-audio' : 'separated-audio';
+	if (workflowId === 'enhance-dialogue' || workflowId === 'reduce-reverb'
+		|| workflowId === 'separate-dialogue-music-effects') {
+		const expectedRole = workflowId === 'separate-dialogue-music-effects'
+			? 'separated-audio' : 'enhanced-audio';
 		return new Map([...outputs].map(([slotId, output]) => {
 			const row = exactRecord(output.semantic,
 				['kind', 'role', 'sampleRate', 'channelCount', 'frameCount', 'sampleFormat'],
@@ -441,6 +444,7 @@ function expectedChoices(
 		return [{ id: 'attributed-transcript', kind: 'transcript' }];
 	}
 	if (workflowId === 'enhance-dialogue') return [{ id: 'enhanced-audio', kind: 'audio' }];
+	if (workflowId === 'reduce-reverb') return [{ id: 'dereverberated-audio', kind: 'audio' }];
 	if (workflowId === 'separate-dialogue-music-effects') return [
 		{ id: 'dialogue', kind: 'audio' }, { id: 'music', kind: 'audio' },
 		{ id: 'effects', kind: 'audio' },
@@ -543,7 +547,8 @@ function hasPort(
 	workflowId: SupportedWorkflowId,
 	dependencies: LocalAssistanceGuidedResultAcceptanceDependencies,
 ): boolean {
-	if (workflowId === 'enhance-dialogue' || workflowId === 'separate-dialogue-music-effects') {
+	if (workflowId === 'enhance-dialogue' || workflowId === 'reduce-reverb'
+		|| workflowId === 'separate-dialogue-music-effects') {
 		return Boolean(dependencies.acceptAudioResult);
 	}
 	if (workflowId === 'detect-beats-tempo') return Boolean(dependencies.createBeatReviewSession);

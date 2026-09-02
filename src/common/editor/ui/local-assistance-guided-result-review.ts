@@ -98,6 +98,7 @@ const TERMINALS = Object.freeze({
 	'clean-filler-silence': terminal('propose-cleanup', ['cleanup-proposals'], 'propose-cleanup'),
 	'identify-speakers': terminal('attribute-speakers', ['attributed-transcript'], 'attribute-speakers'),
 	'enhance-dialogue': terminal('enhance-dialogue', ['enhanced-audio'], 'audio'),
+	'reduce-reverb': terminal('reduce-reverb', ['dereverberated-audio'], 'audio'),
 	'separate-dialogue-music-effects': terminal('separate-sources',
 		['dialogue', 'music', 'effects'], 'audio'),
 	'mark-reactions': terminal('merge-reaction-ranges', ['reaction-ranges'], 'merge-reaction-ranges'),
@@ -173,7 +174,7 @@ async function loadOutput(
 		|| !slot.mediaTypes.includes(bodyValue.type)) {
 		throw new TypeError('A Guided terminal body disagrees with its reserved slot.');
 	}
-	const audio = claim.slotId === 'enhanced-audio'
+	const audio = claim.slotId === 'enhanced-audio' || claim.slotId === 'dereverberated-audio'
 		|| claim.slotId === 'dialogue' || claim.slotId === 'music' || claim.slotId === 'effects';
 	if (!audio && bodyValue.size > MAXIMUM_JSON_BYTES) {
 		throw new RangeError('A Guided terminal body exceeds its semantic review bound.');
@@ -218,7 +219,9 @@ async function reviewSemantics(
 ): Promise<ReadonlyMap<string, unknown>> {
 	if (spec.reviewer === 'audio') {
 		const reviewed = await Promise.all(outputs.map(async (output) => {
-			const role = output.claim.slotId === 'enhanced-audio' ? 'enhanced-audio' : 'separated-audio';
+			const role = output.claim.slotId === 'enhanced-audio'
+				|| output.claim.slotId === 'dereverberated-audio'
+				? 'enhanced-audio' : 'separated-audio';
 			const claim: LocalAssistanceOutputClaim = Object.freeze({ claimVersion: 1,
 				claimId: output.claim.claimId, jobId: output.claim.jobId, role,
 				mediaType: output.body.type, byteLength: output.body.size, sha256: output.sha256 });
@@ -265,6 +268,9 @@ function reviewChoices(
 		)]);
 		case 'enhance-dialogue': return Object.freeze([choice(
 			'enhanced-audio', 'audio', 'Enhanced Dialogue',
+		)]);
+		case 'reduce-reverb': return Object.freeze([choice(
+			'dereverberated-audio', 'audio', 'Reduced Reverb',
 		)]);
 		case 'separate-dialogue-music-effects': return Object.freeze([
 			choice('dialogue', 'audio', 'Dialogue'), choice('music', 'audio', 'Music'),

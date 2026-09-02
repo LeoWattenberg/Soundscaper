@@ -25,6 +25,9 @@ import {
 	createAssistanceOnnxAudioRuntimeWorkerAdapterV1,
 } from './assistance-onnx-audio-runtime-worker.ts';
 import {
+	createAssistanceOnnxDereverbWorkerAdapterV1,
+} from './assistance-onnx-dereverb-worker.ts';
+import {
 	createAssistanceOnnxEnhancementSeparationWorkerAdapterV1,
 } from './assistance-onnx-enhancement-separation-worker.ts';
 import {
@@ -99,6 +102,7 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
 	const executeEnhancementSeparation =
 		createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadRuntime);
+	const executeDereverb = createAssistanceOnnxDereverbWorkerAdapterV1(loadRuntime);
 	const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
 	const executeWordAlignment = createAssistanceOnnxWordAlignmentWorkerAdapterV1(loadRuntime);
 	const executeSiglip2 = createAssistanceOnnxSiglip2WorkerAdapterV1(loadRuntime);
@@ -111,6 +115,7 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 			|| context.grant.task === 'source-separation') {
 			return executeEnhancementSeparation(context);
 		}
+		if (context.grant.task === 'dereverberation') return executeDereverb(context);
 		if (context.grant.task === 'shot-detection') return executeTransNetV2(context, loadRuntime);
 		if (context.grant.task === 'audio-tagging' || context.grant.task === 'beat-tracking') {
 			return executeAudio(context);

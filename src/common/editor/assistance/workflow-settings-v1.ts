@@ -31,6 +31,9 @@ export type AssistanceWorkflowSettingsV1 =
 	| (SettingsBase<'enhance-dialogue'> & Readonly<{
 		placement: 'project-bin' | 'replace-selection';
 	}>)
+	| (SettingsBase<'reduce-reverb'> & Readonly<{
+		placement: 'project-bin' | 'replace-selection';
+	}>)
 	| (SettingsBase<'separate-dialogue-music-effects'> & Readonly<{
 		placement: 'project-bin' | 'muted-aligned-tracks';
 	}>)
@@ -84,6 +87,7 @@ export function defaultAssistanceWorkflowSettingsV1(
 		case 'clean-filler-silence': return Object.freeze({ ...base, workflowId, preset: 'balanced' });
 		case 'identify-speakers': return Object.freeze({ ...base, workflowId, speakerNames: 'anonymous' });
 		case 'enhance-dialogue': return Object.freeze({ ...base, workflowId, placement: 'project-bin' });
+		case 'reduce-reverb': return Object.freeze({ ...base, workflowId, placement: 'project-bin' });
 		case 'separate-dialogue-music-effects': return Object.freeze({ ...base, workflowId,
 			placement: 'project-bin' });
 		case 'mark-reactions': return Object.freeze({ ...base, workflowId, threshold: 0.5 });
@@ -140,6 +144,10 @@ export function validateAssistanceWorkflowSettingsV1(
 			exact(row, ['settingsVersion', 'workflowId', 'placement']);
 			return Object.freeze({ settingsVersion: 1, workflowId,
 				placement: oneOf(row.placement, ['project-bin', 'replace-selection'], 'enhancement placement') });
+		case 'reduce-reverb':
+			exact(row, ['settingsVersion', 'workflowId', 'placement']);
+			return Object.freeze({ settingsVersion: 1, workflowId,
+				placement: oneOf(row.placement, ['project-bin', 'replace-selection'], 'dereverberation placement') });
 		case 'separate-dialogue-music-effects':
 			exact(row, ['settingsVersion', 'workflowId', 'placement']);
 			return Object.freeze({ settingsVersion: 1, workflowId,

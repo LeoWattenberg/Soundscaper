@@ -84,7 +84,7 @@ export interface LocalAssistancePreparedInput {
 }
 
 export interface LocalAssistancePreparedOutput {
-	readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
+	readonly slotId?: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
 	readonly role: LocalAssistanceOutputRole;
 	readonly mediaType: string;
 	readonly maximumByteLength: number;
@@ -161,7 +161,7 @@ export interface LocalAssistanceValidatedResultAcceptanceRequest {
 	readonly selectionFence: AssistanceSelectionFence;
 	readonly models: readonly LocalAssistanceModel[];
 	readonly outputs: readonly Readonly<{
-		readonly slotId?: 'enhanced-audio' | 'dialogue' | 'music' | 'effects';
+		readonly slotId?: 'enhanced-audio' | 'dereverberated-audio' | 'dialogue' | 'music' | 'effects';
 		readonly claim: LocalAssistanceOutputClaim;
 		readonly review: LocalAssistanceOutputReview;
 		readonly bytes?: Blob;

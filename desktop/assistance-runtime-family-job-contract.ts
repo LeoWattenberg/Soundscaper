@@ -23,8 +23,8 @@ export const ASSISTANCE_RUNTIME_FAMILY_RESULT_VERSION = 1;
 
 export const ASSISTANCE_RUNTIME_FAMILY_TASKS = Object.freeze({
 	'onnxruntime-node': Object.freeze([
-		'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging',
-		'beat-tracking', 'text-embedding', 'image-text-embedding',
+		'word-alignment', 'speech-enhancement', 'dereverberation', 'source-separation',
+		'audio-tagging', 'beat-tracking', 'text-embedding', 'image-text-embedding',
 		'optical-character-recognition', 'shot-detection', 'subject-detection',
 		'saliency-detection',
 	] as const),

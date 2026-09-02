@@ -89,6 +89,7 @@ const OUTPUT_SPECS = Object.freeze({
 	'speaker-turns': spec('speaker-turns', JSON('speaker-turns')),
 	'attributed-transcript': spec('attributed-transcript', JSON('attributed-transcript')),
 	'enhanced-audio': spec('enhanced-audio', WAVE),
+	'dereverberated-audio': spec('enhanced-audio', WAVE),
 	dialogue: spec('separated-audio', WAVE),
 	music: spec('separated-audio', WAVE),
 	effects: spec('separated-audio', WAVE),

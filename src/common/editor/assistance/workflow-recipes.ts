@@ -18,6 +18,7 @@ export const ASSISTANCE_GUIDED_WORKFLOW_IDS = Object.freeze([
 	'clean-filler-silence',
 	'identify-speakers',
 	'enhance-dialogue',
+	'reduce-reverb',
 	'separate-dialogue-music-effects',
 	'mark-reactions',
 	'index-transcript',
@@ -101,6 +102,10 @@ const GUIDED_GRAPHS = Object.freeze({
 	'enhance-dialogue': graph([
 		stage({ stageId: 'enhance-dialogue', operation: 'speech-enhancement',
 			inputs: ['audio'], outputs: ['enhanced-audio'], models: ['enhancer'] }),
+	]),
+	'reduce-reverb': graph([
+		stage({ stageId: 'reduce-reverb', operation: 'dereverberation',
+			inputs: ['audio'], outputs: ['dereverberated-audio'], models: ['dereverberator'] }),
 	]),
 	'separate-dialogue-music-effects': graph([
 		stage({ stageId: 'separate-sources', operation: 'source-separation',
@@ -191,6 +196,7 @@ const ADVANCED_DECLARATIONS = Object.freeze({
 		models: ['diarizer', 'speaker-embedding'],
 	}),
 	'speech-enhancement': advanced(['audio'], ['enhanced-audio']),
+	'dereverberation': advanced(['audio'], ['dereverberated-audio']),
 	'source-separation': advanced(['audio'], ['dialogue', 'music', 'effects']),
 	'audio-tagging': advanced(['audio'], ['audio-tags']),
 	'beat-tracking': advanced(['audio'], ['beat-grid']),

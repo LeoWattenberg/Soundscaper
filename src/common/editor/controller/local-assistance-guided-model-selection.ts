@@ -17,6 +17,7 @@ const EXACT_GUIDED_MODELS: Readonly<Record<string, ExactGuidedModel>> = Object.f
 	diarizer: exact('pyannote-segmentation-3.0', '3.0.0', 'speaker-segmentation'),
 	'speaker-embedding': exact('speech-3d-speaker-eres2net', '1.0.0', 'speaker-embedding'),
 	enhancer: exact('deepfilternet3', '3.0.0', 'speech-enhancement'),
+	dereverberator: exact('dereverb-room', '1.0.0', 'dereverberation'),
 	separator: exact('tiger-dnr', '1.0.0', 'source-separation'),
 	'audio-tagger': exact('panns-cnn10', '1.0.0', 'audio-tagging'),
 	'beat-tracker': exact('beat-this-small0', '1.1.0', 'beat-tracking'),

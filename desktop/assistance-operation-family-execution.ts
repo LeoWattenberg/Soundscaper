@@ -47,8 +47,8 @@ interface AssistanceOperationModelSelection {
 }
 
 const DIRECT_ADDITIONAL_OPERATIONS = new Set<AssistanceOperationRequest['operation']>([
-	'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging',
-	'beat-tracking', 'text-embedding', 'image-text-embedding',
+	'word-alignment', 'speech-enhancement', 'dereverberation', 'source-separation',
+	'audio-tagging', 'beat-tracking', 'text-embedding', 'image-text-embedding',
 	'optical-character-recognition', 'subject-detection', 'saliency-detection',
 	'editorial-generation',
 ]);
@@ -168,6 +168,9 @@ async function resolveExactModel(
 			request.operation, request.models[0]!,
 		);
 	}
+	if (subjectBindings === null && request.operation === 'dereverberation') {
+		assertAssistanceOnnxDereverbModelBindingV1(request.models[0]!);
+	}
 	if (subjectBindings === null && request.operation === 'word-alignment') {
 		assertAssistanceWav2Vec2EnglishAlignmentModelBindingV1(request.models[0]!);
 	}
@@ -276,6 +279,15 @@ export function assertAssistanceOnnxEnhancementSeparationModelBindingV1(
 	}
 	if (binding.modelId !== 'tiger-dnr' || binding.version !== '1.0.0') {
 		throw new TypeError('Source separation requires the exact TIGER-DnR 1.0.0 identity.');
+	}
+}
+
+/** Close dereverberation substitution before catalog/status lookup. */
+export function assertAssistanceOnnxDereverbModelBindingV1(
+	binding: AssistanceOperationModelBinding,
+): void {
+	if (binding.modelId !== 'dereverb-room' || binding.version !== '1.0.0') {
+		throw new TypeError('Dereverberation requires the exact dereverb-room 1.0.0 identity.');
 	}
 }
 
