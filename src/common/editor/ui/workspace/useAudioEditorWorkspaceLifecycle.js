@@ -7,6 +7,7 @@ import {
 } from '../meter-settings.ts';
 import { isExpectedWorkspaceCancellation } from './scape-open-decision-continuation.ts';
 import { useDesktopHostMenuRuntime } from './useDesktopHostMenuRuntime.ts';
+import { useWorkspaceViewDefaults } from './useWorkspaceViewDefaults.ts';
 import { workspaceSwitcherOptions } from './workspace-switcher-options.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
@@ -25,7 +26,6 @@ export function useAudioEditorWorkspaceLifecycle({
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
 	const [localError, setLocalError] = useState('');
 	const [desktopEnvironment, setDesktopEnvironment] = useState(null);
-	const meterWorkspaceRef = useRef(null);
 	const requestedProjectOpenedRef = useRef(false);
 	useEffect(() => {
 		setParityUi(parityRuntime.uiController.getSnapshot());
@@ -58,18 +58,6 @@ export function useAudioEditorWorkspaceLifecycle({
 			// Meter presentation preferences are best-effort in restricted storage contexts.
 		}
 	}, [productId, recordingMeterSettings]);
-	useEffect(() => {
-		const activeWorkspaceId = preferences?.workspace?.activeId || 'modern';
-		const previousWorkspaceId = meterWorkspaceRef.current;
-		meterWorkspaceRef.current = activeWorkspaceId;
-		if (!previousWorkspaceId || previousWorkspaceId === activeWorkspaceId || activeWorkspaceId !== 'modern') return;
-		setPlaybackMeterSettings((settings) => settings.position === 'side'
-			? settings
-			: { ...settings, position: 'side' });
-		setRecordingMeterSettings((settings) => settings.position === 'side'
-			? settings
-			: { ...settings, position: 'side' });
-	}, [preferences?.workspace?.activeId]);
 	const uiFlags = parityUi.flags;
 
 	const onError = useCallback((error) => {
@@ -99,6 +87,13 @@ export function useAudioEditorWorkspaceLifecycle({
 			return undefined;
 		}
 	}, [onError]);
+	useWorkspaceViewDefaults({
+		activeWorkspaceId: preferences?.workspace?.activeId || product.defaultWorkspace,
+		controller,
+		run,
+		setPlaybackMeterSettings,
+		setRecordingMeterSettings,
+	});
 	const desktopHostRuntime = useDesktopHostMenuRuntime({
 		development: desktopEnvironment?.development === true,
 		fileService,
