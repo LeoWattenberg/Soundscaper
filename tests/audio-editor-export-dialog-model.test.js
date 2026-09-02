@@ -9,8 +9,8 @@ import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
 	createExportDialogRequest,
 	isVideoExportDialogFormat,
-	projectHasTimelineVideo,
 } from '../src/common/editor/ui/export-dialog-model.js';
+import { projectHasTimelineVideo } from '../src/common/editor/ui/timeline-media-presence.ts';
 import {
 	PLATFORM_DELIVERY_PRESETS,
 	resolvePlatformDeliveryAvailability,

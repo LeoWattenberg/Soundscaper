@@ -22,8 +22,8 @@ import {
 	VIDEO_EXPORT_DIALOG_FORMATS,
 	createExportDialogRequest,
 	isVideoExportDialogFormat,
-	projectHasTimelineVideo,
 } from '../export-dialog-model.js';
+import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
 import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';

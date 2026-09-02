@@ -540,6 +540,16 @@ test.describe('audio editor React/design-system workflows', () => {
 		const darkBackground = await applicationHeader.evaluate((element) => getComputedStyle(element).getPropertyValue('--header-bg'));
 		expect(darkBackground).not.toBe(lightBackground);
 
+		// The timeline still holds only an empty audio track, so there is nothing
+		// for a delivery to render and File > Export audio withholds itself.
+		await editor.getByRole('menubar', { name: 'Application menu' })
+			.getByRole('menuitem', { name: 'File', exact: true }).click();
+		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
+		await expect(getMenuItem(fileMenu, 'Export audio')).toHaveAttribute('aria-disabled', 'true');
+		await page.keyboard.press('Escape');
+		await expect(fileMenu).toBeHidden();
+		await importFiles(editor, [toneA]);
+
 		const exportDialog = await openExportDialog(page, editor);
 		await exportDialog.locator('[data-export-field="format"]').getByRole('button').click();
 		const portal = page.getByRole('listbox');

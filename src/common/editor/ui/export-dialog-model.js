@@ -24,19 +24,6 @@ export function isVideoExportDialogFormat(format) {
 	return VIDEO_EXPORT_DIALOG_FORMAT_IDS.has(format);
 }
 
-export function projectHasTimelineVideo(project) {
-	if (!project?.tracks?.length || !project?.clips?.length) return false;
-	const visualClipIds = new Set(
-		project.clips
-			.filter((clip) => ['video', 'still', 'generator', 'image'].includes(clip?.kind))
-			.map((clip) => clip.id),
-	);
-	return project.tracks.some((track) => (
-		track?.type === 'video'
-		&& track.clipIds?.some((clipId) => visualClipIds.has(clipId))
-	));
-}
-
 /**
  * The export request the dialog's settings mean.
  *

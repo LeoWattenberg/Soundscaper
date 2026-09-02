@@ -23,6 +23,7 @@ import { createLocalModelManagerMenuItems } from './local-model-manager-menu.ts'
 import { createLocalAssistanceMenuItems } from './local-assistance-menu.ts';
 import { resolveProjectExtensionCopy } from './project-extension-copy.ts';
 import { createCrossProductHandoffMenuItems } from './cross-product-handoff-menu.ts';
+import { projectHasTimelineAudio, projectHasTimelineVideo } from './timeline-media-presence.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -102,6 +103,11 @@ export default function createApplicationMenus({
 	// An EDL describes picture, so the entry only offers itself when there is a
 	// video track that composes — a list of nothing is not a useful export.
 	const edlTracks = edlExportableVideoTracks(project);
+	// Export audio opens the delivery dialog, and that dialog offers the video
+	// containers too, so the entry withholds itself only when the timeline holds
+	// nothing to render — greying it on missing audio alone would strip a
+	// picture-only project of its one route into the export.
+	const exportableTimelineMedia = projectHasTimelineAudio(project) || projectHasTimelineVideo(project);
 	const preferences = snapshot.preferences;
 	const framescaperEditControls = createFramescaperEditControlMenuItems({
 		productId, project, selectedClipId: selectedClip?.id ?? null,
@@ -212,7 +218,7 @@ export default function createApplicationMenus({
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
 				...productItems.fileImport,
-				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked, onClick: actions.exportAudio },
+				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked || !exportableTimelineMedia, onClick: actions.exportAudio },
 				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
 				{
 					id: 'export-other',
