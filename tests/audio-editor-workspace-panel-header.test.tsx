@@ -14,6 +14,9 @@ import {
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
 
 const WORKSPACE_ROOT = new URL('../src/common/editor/ui/workspace/', import.meta.url);
+// The header is a .jsx module, so its props arrive untyped; the tests mount it
+// with a spread of whatever the case under test needs.
+const Header = WorkspacePanelHeader as unknown as React.ComponentType<Record<string, unknown>>;
 const COPY = Object.freeze({
 	panelMenu: 'Panel menu',
 	close: 'Close',
@@ -46,7 +49,7 @@ async function mountHeader(props: Record<string, unknown>): Promise<MountedHeade
 	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
-	await act(async () => root.render(<WorkspacePanelHeader
+	await act(async () => root.render(<Header
 		panelId="history"
 		label="History"
 		copy={COPY}

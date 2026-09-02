@@ -24,7 +24,7 @@ test('the autofocus opt-out reaches the vendored panel from every docked host', 
 	assert.match(overlay, /autoFocusOnOpen=\{autoFocusOnOpen\}/u, 'the overlay forwards it');
 	const content = await source('src/common/editor/ui/workspace/WorkspacePanelContent.jsx');
 	assert.match(content, /<DockedEffectsPanel\s+host=\{dock\}/u, 'the docked rack is keyed by its host');
-	for (const [host, expected] of [['WorkspacePanelDock.jsx', /dock=\{dock\}/u], ['VideoEditorWorkspacePanels.jsx', /dock="video-editor"/u]]) {
+	for (const [host, expected] of [['WorkspacePanelDock.jsx', /dock=\{dock\}/u], ['VideoEditorWorkspacePanels.jsx', /dock="video-editor"/u]] as const) {
 		assert.match(await source(`src/common/editor/ui/workspace/${host}`), expected, `${host} names its host`);
 	}
 	const readme = await source('vendor/audacity-design-system/README.md');

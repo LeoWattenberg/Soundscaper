@@ -185,7 +185,9 @@ export class ReactTestElement extends ReactTestNode {
 	getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
 	hasAttribute(name: string): boolean { return this.attributes.has(name); }
 	focus(): void { this.ownerDocument.activeElement = this; }
-	override [Symbol.for('nodejs.util.inspect.custom')](): string {
+	// TypeScript forbids `override` on a computed name; this still replaces the
+	// node-level inspector above.
+	[Symbol.for('nodejs.util.inspect.custom')](): string {
 		const attributes = [...this.attributes].map(([name, value]) => ` ${name}="${value}"`).join('');
 		return `<${this.tagName.toLowerCase()}${attributes}>`;
 	}

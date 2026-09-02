@@ -5,6 +5,12 @@ export interface WorkspaceSwitcherOption {
 	readonly name: string;
 }
 
+// A stored custom workspace carries its whole layout; the switcher only needs
+// its identity, so accept the record as it is persisted and project it down.
+export interface CustomWorkspaceEntry extends WorkspaceSwitcherOption {
+	readonly [key: string]: unknown;
+}
+
 interface WorkspaceSwitcherCopy {
 	readonly workspaceModern: string;
 	readonly workspaceAudacity: string;
@@ -18,7 +24,7 @@ interface WorkspaceSwitcherCopy {
 export function workspaceSwitcherOptions(
 	productId: string,
 	copy: WorkspaceSwitcherCopy,
-	customWorkspaces: readonly WorkspaceSwitcherOption[] | null | undefined = [],
+	customWorkspaces: readonly CustomWorkspaceEntry[] | null | undefined = [],
 ): WorkspaceSwitcherOption[] {
 	const builtIn: WorkspaceSwitcherOption[] = productId === 'soundscaper'
 		? [

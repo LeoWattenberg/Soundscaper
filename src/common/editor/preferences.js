@@ -76,13 +76,25 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
 ]);
 
 /**
+ * @typedef {Object} AudioEditorPanelStateV1
+ * @property {boolean} visible
+ * @property {'left'|'right'|'bottom'|'floating'} [dock]
+ * @property {number} [order]
+ * @property {number} [size]
+ * @property {number} [x]
+ * @property {number} [y]
+ * @property {number} [width]
+ * @property {number} [height]
+ */
+
+/**
  * @typedef {Object} AudioEditorPreferencesV1
  * @property {1} schemaVersion
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {{theme: string, clipStyle: 'classic'|'colorful'}} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
- * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, Object>}} workspace
+ * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
  * @property {{detectTempo: boolean}} import
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
