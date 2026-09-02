@@ -4,6 +4,7 @@ import { Knob } from '@soundscaper/design-system/Knob';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
 	AUDIO_SELECTION_EFFECT_DEFINITIONS,
+	audioEffectParamChoices,
 	audioEffectParamRange,
 } from '../../effects.js';
 import {
@@ -23,8 +24,9 @@ import {
 	audacityParameterPresentation,
 	audacityParameterVisible,
 	audioEffectParamRangeFromDescriptor,
-	effectParameterLabel,
 	isAudacityDefinition,
+	nativeEffectOptionLabel,
+	nativeEffectParameterLabel,
 	safeEffectLabel,
 } from './effect-helpers.ts';
 import { createParameterAutomationControlRouterV21 } from '../soundscaper-workflow-product-runtime.tsx';
@@ -169,9 +171,31 @@ export default function EffectParameterEditor({
 				</div>
 			);
 		}
-		const parameterNames = Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
+		const parameterNames = Object.entries(effect.params || {}).filter(([name, value]) => (
+			typeof value === 'number' || audioEffectParamChoices(effect.type, name) !== null
+		)).map(([name]) => name);
 		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
 			const renderNativeParameter = (name) => {
+			const choices = audioEffectParamChoices(effect.type, name);
+			if (choices) {
+				return (
+					<LabeledDropdown
+						label={nativeEffectParameterLabel(effect.type, name, copy)}
+						value={String(effect.params?.[name])}
+						options={choices.map((option) => ({
+							value: String(option),
+							label: nativeEffectOptionLabel(effect.type, name, option, copy),
+						}))}
+						onChange={(next) => updateParam(name, next, {
+							controlValue: Math.max(0, choices.findIndex((option) => (
+								String(option) === String(next)
+							))),
+						})}
+						disabled={disabled}
+						hook={`effect-param-${name}`}
+					/>
+				);
+			}
 			const descriptor = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name]
 				|| AUDIO_SELECTION_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name];
 				const unit = descriptor?.[2]?.unit;
@@ -188,7 +212,7 @@ export default function EffectParameterEditor({
 					} : null;
 				return (
 					<ParameterNumber
-					label={effectParameterLabel(name, copy)}
+					label={nativeEffectParameterLabel(effect.type, name, copy)}
 					value={effect.params?.[name]}
 					range={audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2)}
 					step={descriptor?.[2]?.step}

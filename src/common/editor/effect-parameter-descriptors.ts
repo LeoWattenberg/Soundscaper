@@ -208,7 +208,32 @@ export function effectParameterInventory(
 		);
 		add(parameterId, range.metadata, range.minimum, range.maximum, defaultValue);
 	}
+	const choices = (definition as { choices?: Readonly<Record<string, NativeChoice>> }).choices;
+	for (const [parameterId, choice] of Object.entries(choices ?? {})) {
+		const defaultIndex = choice.options.indexOf(
+			(definition.defaults as Readonly<Record<string, unknown>>)[parameterId] as string,
+		);
+		add(
+			parameterId,
+			{
+				unit: 'enum',
+				step: 1,
+				taper: 'discrete',
+				automatable: choice.automatable,
+				automationBlockReason: choice.automationBlockReason,
+			},
+			0,
+			Math.max(0, choice.options.length - 1),
+			Math.max(0, defaultIndex),
+		);
+	}
 	return frozenInventory(descriptors, revisionInputs);
+}
+
+interface NativeChoice {
+	readonly options: readonly string[];
+	readonly automatable?: boolean;
+	readonly automationBlockReason?: string;
 }
 
 function workletBackedWithoutParameterQueue(type: string): boolean {

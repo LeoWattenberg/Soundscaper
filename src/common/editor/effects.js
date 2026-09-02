@@ -199,6 +199,14 @@ export function audioEffectParamRange(type, name) {
 	return range ? range.slice(0, 2) : null;
 }
 
+/** Selectable values for a native effect parameter, or null when it is numeric. */
+export function audioEffectParamChoices(type, name) {
+	const definition = ownMapValue(AUDIO_EFFECT_DEFINITIONS, type)
+		?? ownMapValue(AUDIO_SELECTION_EFFECT_DEFINITIONS, type);
+	const choice = ownMapValue(definition?.choices ?? {}, name);
+	return choice ? [...choice.options] : null;
+}
+
 /** @returns {AudioEditorEffect} */
 export function createEffect(type, options = {}) {
 	if (type === MISSING_EFFECT_TYPE) return createMissingEffect(options);
@@ -372,10 +380,20 @@ function normalizeEffectParams(type, params, effectId = null) {
 
 	const definition = ownMapValue(AUDIO_EFFECT_DEFINITIONS, type) ?? ownMapValue(AUDIO_SELECTION_EFFECT_DEFINITIONS, type);
 	const output = {};
-	for (const [name, [minimum, maximum]] of Object.entries(definition.ranges)) {
-		output[name] = range(params[name], minimum, maximum, `${type}.${name}`);
+	for (const [name, [minimum, maximum, metadata]] of Object.entries(definition.ranges)) {
+		const value = range(params[name], minimum, maximum, `${type}.${name}`);
+		output[name] = metadata?.integer ? Math.round(value) : value;
+	}
+	for (const [name, choice] of Object.entries(definition.choices ?? {})) {
+		output[name] = choiceValue(params[name], choice.options, `${type}.${name}`);
 	}
 	return output;
+}
+
+function choiceValue(value, options, name) {
+	const match = options.find((option) => String(option) === String(value));
+	if (match === undefined) throw new RangeError(`${name} is not a supported option.`);
+	return match;
 }
 
 function range(value, minimum, maximum, name) {

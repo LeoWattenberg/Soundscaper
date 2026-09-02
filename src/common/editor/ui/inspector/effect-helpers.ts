@@ -5,12 +5,19 @@ import {
 	audioEffectTypes,
 } from '../../effects.js';
 import { AUDACITY_EFFECT_DEFINITIONS } from '../../audacity-effects/manifest.js';
+import {
+	canonicalCopyValue, effectOptionCopyKey, effectParameterCopyKey,
+} from '../../../i18n/canonical-extras.js';
 import { formatLocalizedTemplate } from '../localization-template.ts';
 
 type Copy = Readonly<Record<string, string>>;
 type CopyOrLocale = Copy | string | undefined;
 const resolveAudioEffectLabel = audioSelectionEffectLabel as unknown as (
 	type: string | null | undefined,
+	copyOrLocale: CopyOrLocale,
+) => string;
+const resolveCanonicalCopy = canonicalCopyValue as unknown as (
+	key: string,
 	copyOrLocale: CopyOrLocale,
 ) => string;
 
@@ -203,4 +210,23 @@ export function effectParameterLabel(value: string, copy: Copy): string {
 	};
 	return labels[value]
 		|| value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (character) => character.toUpperCase());
+}
+
+/**
+ * Label a native effect parameter, preferring copy registered against that
+ * effect type so two effects may name the same parameter differently, and
+ * falling back to the vocabulary shared across the original rack effects.
+ */
+export function nativeEffectParameterLabel(type: string, name: string, copy: CopyOrLocale): string {
+	const key = effectParameterCopyKey(type, name);
+	const canonical = resolveCanonicalCopy(key, copy);
+	if (canonical !== key) return canonical;
+	return effectParameterLabel(name, (copy ?? {}) as Copy);
+}
+
+/** Label one selectable value of a native effect parameter. */
+export function nativeEffectOptionLabel(
+	type: string, name: string, value: string, copy: CopyOrLocale,
+): string {
+	return resolveCanonicalCopy(effectOptionCopyKey(type, name, value), copy);
 }
