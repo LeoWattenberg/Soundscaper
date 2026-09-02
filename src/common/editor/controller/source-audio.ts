@@ -184,6 +184,7 @@ export function createStoredChunkProvider(
 	const sourceId = source.storageKey || source.id;
 	const lifetime = new AbortController();
 	const disposedError = new Error('The stored source chunk provider was disposed.');
+	disposedError.name = STORED_CHUNK_PROVIDER_DISPOSED_ERROR_NAME;
 	let disposed = false;
 	let opening: Promise<StoredSourceReadSession | null> | null = null;
 	let disposal: Promise<void> | null = null;
@@ -253,6 +254,22 @@ export function createStoredChunkProvider(
  * an equivalent live provider is reused instead of rebuilt and the render keeps
  * the object it started with.
  */
+export const STORED_CHUNK_PROVIDER_DISPOSED_ERROR_NAME = 'StoredSourceChunkProviderDisposedError';
+
+/**
+ * Recognise a read that failed only because its provider was retired.
+ *
+ * Retiring a provider is routine bookkeeping — a required source that switches
+ * to a cached buffer drops its provider — and it releases the read session with
+ * it. A speculative reader such as a waveform window has nothing to report to
+ * the user for that: it drops the result and asks again against the successor.
+ */
+export function isRetiredSourceReadError(error: unknown): boolean {
+	if (isSourcePcmReadSessionReleasedError(error)) return true;
+	return typeof error === 'object' && error !== null
+		&& (error as Readonly<{ name?: unknown }>).name === STORED_CHUNK_PROVIDER_DISPOSED_ERROR_NAME;
+}
+
 export function matchesStoredChunkProvider(
 	provider: unknown,
 	source: StoredAudioSource,

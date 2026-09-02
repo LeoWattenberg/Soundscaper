@@ -8,6 +8,7 @@ import {
 	type PreparedRequiredProjectSources,
 } from './prepared-project-sources.ts';
 import { createSourceChunkProviderRegistration } from './source-chunk-provider-registration.ts';
+import { isRetiredSourceReadError } from './source-audio.ts';
 import { resolveWaveformPcmWindowRequest } from './waveform-pcm-window-request.ts';
 import { audioWarpSourceWindowRange } from '../audio-warp-runtime.ts';
 
@@ -197,6 +198,10 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			return window;
 		}).catch((error: unknown) => {
 			if (clipWaveformPcmRequests.get(cacheKey) === request) clipWaveformPcmRequests.delete(cacheKey);
+			// A window is a speculative cache fill. Losing its provider to routine
+			// retirement is not a fault the user can act on, and reporting it put a
+			// generic error over an export that was still running fine.
+			if (isRetiredSourceReadError(error)) return null;
 			throw error;
 		});
 		clipWaveformPcmRequests.set(cacheKey, request);
