@@ -10,6 +10,7 @@ import {
 	addNode,
 	connect,
 } from './audio-node-utils.ts';
+import { readDynamicsAnalysisTelemetry } from './dynamics-analysis-telemetry.ts';
 import {
 	applyEffect,
 	effectGraphKey,
@@ -115,6 +116,11 @@ readParametricEqSpectrum(scope, targetId, effectId, which, target) {
 		return readParametricEqSpectrumEntry(entry, which, target);
 	},
 
+readDynamicsAnalysis(scope, targetId, effectId) {
+		const key = effectGraphKey(scope, targetId, effectId);
+		return readDynamicsAnalysisTelemetry(this.graph?.effectNodes?.get(key));
+	},
+
 async createParametricEqPreview(buffer, params, { effectId = 'selection-preview-eq' } = {}) {
 		if (!buffer || !Number.isSafeInteger(buffer.numberOfChannels)
 			|| buffer.numberOfChannels < 1 || buffer.numberOfChannels > 32) {
@@ -209,5 +215,6 @@ async createParametricEqPreview(buffer, params, { effectId = 'selection-preview-
 	| 'auditionParametricEq'
 	| 'resetParametricEq'
 	| 'readParametricEqSpectrum'
+	| 'readDynamicsAnalysis'
 	| 'createParametricEqPreview'
 >;

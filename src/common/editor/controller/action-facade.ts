@@ -551,6 +551,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			cancelParametricEqGesture: restricted('audioEffects', cancelParametricEqGesture),
 			auditionParametricEq: (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue, bandId: RuntimeValue) => engine.auditionParametricEq?.(scope, trackId, effectId, bandId) ?? false,
 			readParametricEqSpectrum: (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue, which: RuntimeValue, target: RuntimeValue) => engine.readParametricEqSpectrum?.(scope, trackId, effectId, which, target) ?? null,
+			readDynamicsAnalysis: (scope: RuntimeValue, trackId: RuntimeValue, effectId: RuntimeValue) => engine.readDynamicsAnalysis?.(scope, trackId, effectId) ?? null,
 			readSelectionParametricEqSpectrum: (which: RuntimeValue, target: RuntimeValue) => state.audacityPreviewSource?.readSpectrum?.(which, target) ?? null,
 			auditionSelectionParametricEq: (bandId: RuntimeValue) => {
 				state.audacityPreviewAuditionBandId = bandId == null ? null : String(bandId);

@@ -21,6 +21,10 @@ import {
 	positiveInteger,
 } from './buffer-math.ts';
 import {
+	attachDynamicsAnalysisTelemetry,
+	releaseDynamicsAnalysisTelemetry,
+} from './dynamics-analysis-telemetry.ts';
+import {
 	getAudacityPffftWasmModule,
 	isAudacityWorkletLoaded,
 	isDelayWorkletLoaded,
@@ -224,6 +228,8 @@ export function applyEffect(
 				connect(delay, processor, 0, 1);
 			} else connect(controlInput, processor, 0, 1);
 		}
+		registerEffectNode(effect, processor, options);
+		attachDynamicsAnalysisTelemetry(processor);
 		return processor;
 	}
 	if ((type === 'limiter' || type === 'gate') && explicitSidechainCapable
@@ -567,6 +573,7 @@ export function safeMessageSequence(value: unknown, name: string): number {
 
 export function disposeEffectNodeBindings(node: AudioNode): void {
 	const worklet = node as AudioWorkletNode;
+	releaseDynamicsAnalysisTelemetry(worklet);
 	const registration = parametricEqPortMessageHandlers.get(worklet);
 	if (registration?.handler && worklet.port?.onmessage === registration.handler) worklet.port.onmessage = null;
 	if (registration?.processorErrorHandler) {

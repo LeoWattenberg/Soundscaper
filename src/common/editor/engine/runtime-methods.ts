@@ -55,6 +55,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'auditionParametricEq',
 	'resetParametricEq',
 	'readParametricEqSpectrum',
+	'readDynamicsAnalysis',
 	'createParametricEqPreview',
 	'renderMix',
 	'renderMixRealtime',

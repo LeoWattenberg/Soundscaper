@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { NormalizedLoop, PlanarPcm } from './buffer-math.ts';
+import type { DynamicsAnalysisWindow } from './dynamics-analysis-telemetry.ts';
 import type { EffectSpectrumMetadata } from './effect-rack.ts';
 import type { AudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import type { SessionLoudnessHistorySnapshot } from '../production-audio/loudness-history-session.ts';
@@ -204,6 +205,8 @@ export interface EnginePublicApi {
 	auditionParametricEq(scope: EngineEffectScope, targetId: unknown, effectId: string, bandId?: string | null): number | false;
 	resetParametricEq(scope: EngineEffectScope, targetId: unknown, effectId: string): number | false;
 	readParametricEqSpectrum(scope: EngineEffectScope, targetId: unknown, effectId: string, which: 'input' | 'output', target: Float32Array): EffectSpectrumMetadata | null;
+	/** Newest live reading from one dynamics effect, or null when it is not running. */
+	readDynamicsAnalysis(scope: EngineEffectScope, targetId: unknown, effectId: string): DynamicsAnalysisWindow | null;
 	createParametricEqPreview(buffer: AudioBuffer, params: UnknownRecord, options?: Readonly<{ effectId?: string }>): Promise<EngineParametricEqPreview>;
 	renderMix(options?: EngineRenderMixOptions): Promise<AudioBuffer | PlanarPcm>;
 	renderMixRealtime(options?: EngineRealtimeRenderOptions): Promise<EngineRenderResult>;
