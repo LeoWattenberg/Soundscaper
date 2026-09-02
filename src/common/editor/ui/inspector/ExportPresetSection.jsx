@@ -10,7 +10,7 @@ import { runDeliveryPresetAction } from '../export-preset-model.ts';
  * happens in the shared Save as… prompt instead of a permanent text field.
  */
 export default function ExportPresetSection({
-	copy, presets, selectedId, presetName, disabled, unsaved = false, resetKey = null,
+	copy, presets, selectedId, disabled, unsaved = false, resetKey = null,
 	onApply, onNameChange, onSave, onDelete, onImport, onExport, onError,
 }) {
 	const [busy, setBusy] = useState(false);
@@ -40,7 +40,6 @@ export default function ExportPresetSection({
 				onImport={(file) => guard(() => onImport(file))}
 				onExport={() => guard(onExport)}
 			/>
-			<span hidden data-delivery-preset-name>{presetName}</span>
 		</section>
 	);
 }

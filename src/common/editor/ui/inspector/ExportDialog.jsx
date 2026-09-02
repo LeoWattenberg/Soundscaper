@@ -465,7 +465,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					copy={copy}
 					presets={presets}
 					selectedId={presetId}
-					presetName={presetName}
 					disabled={exporting || blocked}
 					resetKey={projectIdentity}
 					unsaved={Boolean(presetId) && !samePresetParams(
