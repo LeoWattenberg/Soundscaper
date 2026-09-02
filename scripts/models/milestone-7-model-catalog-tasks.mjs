@@ -45,6 +45,9 @@ const TASKS = Object.freeze([
 	direct('qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation', 'optional-editorial',
 		'qwen3-4b-q4-k-m', 'llama-cpp', 16 * GIB,
 		'model', 'Qwen3-4B-Q4_K_M.gguf', 'model.gguf'),
+	derived('dereverb-room', '1.0.0', 'dereverberation', 'baseline',
+		'dereverb-room', 'network', 2 * GIB,
+		'network', 'dereverb-room.onnx', 'network.onnx'),
 ]);
 
 function direct(

@@ -32,7 +32,7 @@ function clone(value) {
 	return structuredClone(value);
 }
 
-test('seven pending catalog tasks map every Milestone 7 supply identity exactly', () => {
+test('eight pending catalog tasks map every Milestone 7 supply identity exactly', () => {
 	const register = validate();
 	assert.deepEqual(register.tasks.map(({ catalogModelId }) => catalogModelId), [
 		'wav2vec2-base-960h',
@@ -42,10 +42,11 @@ test('seven pending catalog tasks map every Milestone 7 supply identity exactly'
 		'beat-this-final0',
 		'transnetv2',
 		'qwen3-4b-q4-k-m',
+		'dereverb-room',
 	]);
 	assert.deepEqual(register.tasks.map(({ task }) => task), [
 		'word-alignment', 'source-separation', 'audio-tagging', 'beat-tracking',
-		'beat-tracking', 'shot-detection', 'editorial-generation',
+		'beat-tracking', 'shot-detection', 'editorial-generation', 'dereverberation',
 	]);
 	for (const task of register.tasks) {
 		assert.deepEqual(task.platforms, FIVE_PLATFORMS);
@@ -170,7 +171,7 @@ test('the catalog-task verifier is non-activating and reports every external blo
 	const report = JSON.parse(result.stdout);
 	assert.equal(report.schemaVersion, 1);
 	assert.equal(report.productionCatalogChanged, false);
-	assert.equal(report.tasks.length, 7);
+	assert.equal(report.tasks.length, 8);
 	assert.ok(report.tasks.every(({ catalogStatus }) => catalogStatus === 'pending-external'));
 	assert.ok(report.tasks.every(({ activationBlockedBy }) =>
 		activationBlockedBy.includes('runtime-target-closure')));

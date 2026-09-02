@@ -160,6 +160,25 @@
 			"catalogBlockedBy": ["external-catalog-signature", "immutable-public-readback"],
 			"activationStatus": "pending-external",
 			"activationBlockedBy": ["external-catalog-signature", "immutable-public-readback", "runtime-target-closure"]
+		},
+		{
+			"catalogModelId": "dereverb-room",
+			"version": "1.0.0",
+			"task": "dereverberation",
+			"installTier": "baseline",
+			"supplyBinding": { "kind": "converted-output", "supplyId": "dereverb-room", "outputRole": "network" },
+			"runtimeFamily": "onnxruntime-node",
+			"platforms": ["darwin-arm64", "linux-x64", "linux-arm64", "win32-x64", "win32-arm64"],
+			"minimumMemoryBytes": 2147483648,
+			"artifacts": [
+				{ "role": "network", "sourceFileName": "dereverb-room.onnx", "distributionFileName": "network.onnx", "byteLength": null, "sha256": null }
+			],
+			"sourceAuthorities": [],
+			"releaseEvidence": { "publicReadbackSha256": null, "signedCatalogEntrySha256": null },
+			"catalogStatus": "pending-external",
+			"catalogBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "source-code-archive-identity", "source-framework-parity"],
+			"activationStatus": "pending-external",
+			"activationBlockedBy": ["converted-artifact-identity", "converted-output-identity", "external-catalog-signature", "immutable-public-readback", "runtime-target-closure", "source-code-archive-identity", "source-framework-parity"]
 		}
 	]
 }
