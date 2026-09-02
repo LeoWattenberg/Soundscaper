@@ -14,12 +14,17 @@ const CEILING_DB = 6;
 const REDUCTION_FLOOR_DB = -24;
 const FRAME_INTERVAL_MS = 33;
 
+/**
+ * Effects that can say what they are doing.
+ *
+ * Only the Audacity compressor and limiter run in the live effect worklet that
+ * reports its readings. The native rack compressor and limiter are browser
+ * DynamicsCompressorNodes and the legacy compressor runs over a whole selection,
+ * so neither can report, and offering them an empty panel would read as a fault.
+ */
 export const DYNAMICS_ACTIVITY_TYPES = Object.freeze([
 	'audacity-compressor',
-	'audacity-legacy-compressor',
 	'audacity-limiter',
-	'compressor',
-	'limiter',
 ]);
 
 export function supportsDynamicsActivity(effectType) {

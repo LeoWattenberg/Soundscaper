@@ -1,5 +1,6 @@
 import {
 	expect,
+	longTone,
 	monoTone,
 	readFile,
 	test,
@@ -398,6 +399,44 @@ import {
 		await expect.poll(async () => readFile(downloadPath, 'utf8')).toBe(
 			'Invert:\nEcho:Delay="0.75" Decay="0.5"\n',
 		);
+		expect(errors).toEqual([]);
+	});
+
+	test('shows what the live compressor is doing to the signal while it plays', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		// The readout follows the signal, so the clip has to outlast the poll.
+		await importFiles(editor, [longTone]);
+		// The import lands on its own track; track 0 is the empty default.
+		const effectsPanel = await openEffectsForTrack(editor, 1);
+		await addRackEffect(page, effectsPanel, 'track', 'Compressor (Audacity)');
+		const dialog = page.getByRole('dialog', { name: 'Compressor (Audacity)', exact: true });
+		await expect(dialog).toBeVisible();
+
+		// The response curve alone cannot say whether the effect is doing anything,
+		// so the activity panel says so plainly until the project plays.
+		const activity = dialog.locator('[data-dynamics-activity]');
+		await expect(activity).toBeVisible();
+		await expect(activity).toContainText('Play the project to see what this effect is doing.');
+		await expect(activity.locator('[data-dynamics-activity-reduction]')).toHaveText('—');
+
+		// A threshold under the tone guarantees the curve has something to take off.
+		await commitInput(dialog.locator('[data-effect-param="thresholdDb"] input'), '-48');
+		await commitInput(dialog.locator('[data-effect-param="ratio"] input'), '8');
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+
+		const reduction = activity.locator('[data-dynamics-activity-reduction]');
+		await expect.poll(
+			async () => Number.parseFloat(String(await reduction.textContent()).replace(/[^\d.-]/gu, '')),
+			{ timeout: 10_000 },
+		).toBeLessThan(0);
+		const input = activity.locator('[data-dynamics-activity-input]');
+		const output = activity.locator('[data-dynamics-activity-output]');
+		await expect(input).not.toHaveText('—');
+		await expect(output).not.toHaveText('—');
+		await expect(activity).not.toContainText('Play the project to see what this effect is doing.');
+		await editor.getByRole('button', { name: 'Pause', exact: true }).click();
 		expect(errors).toEqual([]);
 	});
 
