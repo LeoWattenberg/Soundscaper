@@ -41,17 +41,19 @@ function createFixture() {
 	return { published, registration, sourceChunkProviders };
 }
 
-test('re-registering an unchanged stored source keeps its live provider and its read session', async () => {
+test('re-registering an unchanged stored source retires the provider it replaces', async () => {
 	const { registration, sourceChunkProviders } = createFixture();
 	const first = registration.registerStoredChunkProvider(source, metadata);
 	assert.ok(first);
 	const second = registration.registerStoredChunkProvider({ ...source }, { ...metadata });
-	// Building a second provider would retire the first, releasing the read
-	// session an in-flight export or playback render still streams through.
-	assert.strictEqual(second, first);
-	assert.strictEqual(sourceChunkProviders.get('source'), first);
+	// Reusing the live provider would spare its read session, but retirement is
+	// also how the exclusive OPFS access handle behind it is released; holding
+	// that handle made a later read of the same payload fail as a missing source.
+	assert.notStrictEqual(second, first);
+	assert.strictEqual(sourceChunkProviders.get('source'), second);
 	await sourceChunkProviders.drain();
-	assert.equal(await first.readStorageChunk(0), 'chunk');
+	assert.throws(() => first.readStorageChunk(0), /stored source chunk provider was disposed/u);
+	assert.equal(await second.readStorageChunk(0), 'chunk');
 });
 
 test('registering a changed stored source replaces and retires the stale provider', async () => {

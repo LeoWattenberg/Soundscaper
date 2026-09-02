@@ -2,8 +2,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep this migration seam typo-safe while source records are narrowed. */
 
-import { matchesStoredChunkProvider } from './source-audio.ts';
-
 interface SourceChunkProviderRegistryPort extends Map<string, any> {
 	drain?(): PromiseLike<void> | void;
 }
@@ -25,18 +23,16 @@ export function createSourceChunkProviderRegistration(
 	} = runtime;
 
 	/**
-	 * Resolve the provider that should serve one stored source.
+	 * Build the provider that should serve one stored source.
 	 *
-	 * Retiring a live provider releases the read session an in-flight export or
-	 * playback render is still reading through, which fails that render with a
-	 * released-session error even though nothing about the source changed. Stored
-	 * sources are immutable under their id, so an equivalent live provider is
-	 * reused rather than rebuilt and the render keeps the object it started with.
+	 * Every registration builds a fresh provider even when the stored record is
+	 * unchanged. Reusing the live one looks tempting — it would spare the read
+	 * session an in-flight render is streaming through — but retirement is also
+	 * how the previous provider's exclusive OPFS access handle is released, and
+	 * holding it made a later read of the same payload fail as a missing source.
 	 */
 	function createStoredChunkProviderCandidate(source: any, metadata: any) {
 		if (typeof store.readSourceChunk !== 'function' || !isStreamableStoredSource(source, metadata)) return null;
-		const live = sourceChunkProviders.get(source.id);
-		if (matchesStoredChunkProvider(live, source, metadata)) return live;
 		return createStoredChunkProvider(store, source, metadata);
 	}
 

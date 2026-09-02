@@ -236,7 +236,6 @@ export function createStoredChunkProvider(
 		frameCount: source.frameCount,
 		chunkFrames: Number(Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames),
 		sampleRate: source.sampleRate,
-		storageKey: sourceId,
 		readStorageChunk(chunkIndex: number, context: Record<string, unknown> = {}): Promise<unknown> | unknown {
 			if (disposed) throw disposedError;
 			if (store.openSourceReadSession) return readSessionChunk(chunkIndex, context);
@@ -268,22 +267,6 @@ export function isRetiredSourceReadError(error: unknown): boolean {
 	if (isSourcePcmReadSessionReleasedError(error)) return true;
 	return typeof error === 'object' && error !== null
 		&& (error as Readonly<{ name?: unknown }>).name === STORED_CHUNK_PROVIDER_DISPOSED_ERROR_NAME;
-}
-
-export function matchesStoredChunkProvider(
-	provider: unknown,
-	source: StoredAudioSource,
-	metadata: StoredSourceMetadata,
-): boolean {
-	if (!provider || typeof provider !== 'object') return false;
-	const candidate = provider as Readonly<Record<string, unknown>>;
-	const chunkFrames = Number(Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames);
-	return candidate.storageKey === (source.storageKey || source.id)
-		&& candidate.channelCount === source.channelCount
-		&& candidate.frameCount === source.frameCount
-		&& candidate.sampleRate === source.sampleRate
-		&& candidate.chunkFrames === chunkFrames
-		&& typeof candidate.readStorageChunk === 'function';
 }
 
 async function releaseStoredSourceSession(

@@ -12,7 +12,6 @@ import {
 	createCoalescingSourceWriter,
 	createStoredChunkProvider,
 	isStreamableStoredSource,
-	matchesStoredChunkProvider,
 	normalizeByteLimit,
 	readStoredAudioBuffer,
 	resampleBuffer,
@@ -539,15 +538,4 @@ test('a stored chunk provider reopens a released session only once and never aft
 	await provider.dispose();
 	assert.throws(() => provider.readStorageChunk(0), /stored source chunk provider was disposed/u);
 	assert.equal(opens, 2);
-});
-
-test('a live stored chunk provider matches its own source and rejects a changed one', () => {
-	const source = { id: 'source', storageKey: 'stored', frameCount: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
-	const metadata = { id: 'source', frameLength: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 2 };
-	const provider = createStoredChunkProvider({ readSourceChunk: () => 'chunk' }, source, metadata);
-	assert.equal(matchesStoredChunkProvider(provider, source, metadata), true);
-	assert.equal(matchesStoredChunkProvider(provider, { ...source, storageKey: 'other' }, metadata), false);
-	assert.equal(matchesStoredChunkProvider(provider, { ...source, frameCount: 16 }, metadata), false);
-	assert.equal(matchesStoredChunkProvider(provider, source, { ...metadata, chunkFrames: 8 }), false);
-	assert.equal(matchesStoredChunkProvider(null, source, metadata), false);
 });
