@@ -245,7 +245,7 @@ function controller(calls: string[]) {
 	return {
 		actions: {
 			capture: actions,
-			preferences: { setPanel: () => calls.push('setPanel') },
+			preferences: { setPanelVisibility: () => calls.push('setPanelVisibility') },
 			webVcr: actions,
 		},
 	};

@@ -484,7 +484,9 @@ export default function AudioEditorWorkspaceView({ model }) {
 								onDrop={(event) => {
 									if (!draggedWorkspacePanelId) return;
 									event.preventDefault();
-									moveWorkspacePanel(draggedWorkspacePanelId, dockId, Number.MAX_SAFE_INTEGER);
+									moveWorkspacePanel(draggedWorkspacePanelId, {
+										kind: 'dock', dock: dockId, groupIndex: Number.MAX_SAFE_INTEGER,
+									});
 								}}
 							>{workspaceDockLabel(copy, dockId)}</div>
 						))}

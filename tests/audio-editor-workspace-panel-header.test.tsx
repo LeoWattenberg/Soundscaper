@@ -18,7 +18,12 @@ const WORKSPACE_ROOT = new URL('../src/common/editor/ui/workspace/', import.meta
 // with a spread of whatever the case under test needs.
 const Header = WorkspacePanelHeader as unknown as React.ComponentType<Record<string, unknown>>;
 const COPY = Object.freeze({
+	arrangePanel: 'Arrange panel',
+	arrangeBefore: 'Before',
+	arrangeTab: 'As tab',
+	arrangeAfter: 'After',
 	panelMenu: 'Panel menu',
+	panels: 'Panels',
 	close: 'Close',
 	dockLeft: 'Left',
 	dockRight: 'Right',
@@ -104,6 +109,92 @@ test('the panel header carries a labelled overflow menu button instead of a dock
 		assert.equal(dom.one('h2').textContent, 'History');
 		assert.ok(!dom.find('.kw-audio-editor__workspace-drag-handle'), 'no drag handle without handlers');
 		assert.ok(!dom.find('.kw-audio-editor__workspace-resize-handle'), 'no resize handle without handlers');
+	} finally {
+		await mounted.unmount();
+	}
+});
+
+test('a grouped header exposes one roving tab stop and activates tabs with pointer or arrow keys', async () => {
+	const activated: string[] = [];
+	const dragged: string[] = [];
+	const dragHandle = (panelId: string) => ({
+		onDragStart: () => dragged.push(`start:${panelId}`),
+		onDragEnd: () => dragged.push(`end:${panelId}`),
+		onKeyDown() {},
+	});
+	const mounted = await mountHeader({
+		activePanelId: 'history',
+		currentDock: 'right',
+		onClose() {},
+		onDock() {},
+		onTabActivate: (panelId: string) => activated.push(panelId),
+		tabs: [
+			{ id: 'history', label: 'History', dragHandle: dragHandle('history') },
+			{ id: 'metadata', label: 'Metadata', dragHandle: dragHandle('metadata') },
+		],
+	});
+	try {
+		const tablist = mounted.dom.one('[role="tablist"]');
+		assert.equal(tablist.getAttribute('aria-label'), 'Panels');
+		const tabs = tablist.querySelectorAll('[role="tab"]');
+		assert.equal(tabs.length, 2);
+		assert.deepEqual(tabs.map((tab) => tab.getAttribute('aria-label')), ['History', 'Metadata']);
+		assert.deepEqual(tabs.map((tab) => tab.getAttribute('aria-selected')), ['true', 'false']);
+		assert.deepEqual(tabs.map((tab) => tab.getAttribute('tabindex')), ['0', '-1']);
+		assert.equal(tabs[0]?.getAttribute('aria-controls'), 'workspace-panel-content-history');
+		assert.equal(tabs[1]?.getAttribute('aria-controls'), 'workspace-panel-content-metadata');
+		assert.equal(mounted.menuButton.getAttribute('aria-label'), 'Panel menu: History');
+		assert.equal(mounted.dom.container.querySelectorAll('[data-workspace-panel-drag-handle]').length, 2);
+
+		await act(async () => reactProps(tabs[1]!).onClick({}));
+		let prevented = 0;
+		await act(async () => reactProps(tabs[0]!).onKeyDown({
+			key: 'ArrowRight',
+			currentTarget: tabs[0],
+			preventDefault: () => { prevented += 1; },
+		}));
+		assert.deepEqual(activated, ['metadata', 'metadata']);
+		assert.equal(prevented, 1);
+		assert.equal(mounted.dom.container.ownerDocument.activeElement, tabs[1]);
+
+		const metadataDrag = mounted.dom.one('[data-workspace-panel-drag-handle="metadata"]');
+		await act(async () => reactProps(metadataDrag).onDragStart({}));
+		await act(async () => reactProps(metadataDrag).onDragEnd({}));
+		assert.deepEqual(dragged, ['start:metadata', 'end:metadata']);
+	} finally {
+		await mounted.unmount();
+	}
+});
+
+test('the panel menu offers target-relative Before, As tab, and After arrangement', async () => {
+	const arrangements: Array<[string, string]> = [];
+	const mounted = await mountHeader({
+		arrangeTargets: [{ panelId: 'metadata', label: 'Metadata', dock: 'right' }],
+		currentDock: 'left',
+		onArrange: (targetPanelId: string, kind: string) => arrangements.push([targetPanelId, kind]),
+		onClose() {},
+		onDock() {},
+	});
+	try {
+		await mounted.openMenu();
+		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Arrange panel', 'Close']);
+		const arrange = mounted.menuItems().find((item) => (
+			item.querySelector('.context-menu-item-label')?.textContent === 'Arrange panel'
+		));
+		assert.ok(arrange);
+		await act(async () => reactProps(arrange).onClick({ stopPropagation() {} }));
+		const target = mounted.menuItems().find((item) => (
+			item.querySelector('.context-menu-item-label')?.textContent === 'Metadata — Right'
+		));
+		assert.ok(target);
+		await act(async () => reactProps(target).onClick({ stopPropagation() {} }));
+		const relationItems = mounted.menuItems().filter((item) => (
+			['Before', 'As tab', 'After'].includes(item.querySelector('.context-menu-item-label')?.textContent ?? '')
+		));
+		assert.deepEqual(relationItems.map((item) => item.textContent), ['Before', 'As tab', 'After']);
+		await act(async () => reactProps(relationItems[1]!).onClick({}));
+		assert.deepEqual(arrangements, [['metadata', 'tab']]);
+		assert.ok(!mounted.findMenu(), 'choosing a placement closes the complete menu tree');
 	} finally {
 		await mounted.unmount();
 	}
@@ -341,10 +432,17 @@ test('the menu button focus helper waits for the replacement instead of the butt
 
 test('both panel hosts render the shared header and no legacy dock picker or close button', async () => {
 	const dock = await readFile(new URL('WorkspacePanelDock.jsx', WORKSPACE_ROOT), 'utf8');
+	const group = await readFile(new URL('WorkspacePanelGroup.jsx', WORKSPACE_ROOT), 'utf8');
 	const video = await readFile(new URL('VideoEditorWorkspacePanels.jsx', WORKSPACE_ROOT), 'utf8');
-	for (const [name, source] of [['WorkspacePanelDock.jsx', dock], ['VideoEditorWorkspacePanels.jsx', video]]) {
+	for (const [name, source] of [['WorkspacePanelGroup.jsx', group], ['VideoEditorWorkspacePanels.jsx', video]]) {
 		assert.match(source, /from '\.\/WorkspacePanelHeader\.jsx'/u, `${name} imports the shared header`);
 		assert.match(source, /<WorkspacePanelHeader\b/u, `${name} renders the shared header`);
+	}
+	for (const [name, source] of [
+		['WorkspacePanelDock.jsx', dock],
+		['WorkspacePanelGroup.jsx', group],
+		['VideoEditorWorkspacePanels.jsx', video],
+	]) {
 		assert.doesNotMatch(source, /data-workspace-panel-dock-picker/u, `${name} has no dock picker`);
 		assert.doesNotMatch(source, /kw-audio-editor__workspace-panel-close/u, `${name} has no × button`);
 		assert.doesNotMatch(source, /<select/u, `${name} renders no select`);
@@ -354,9 +452,9 @@ test('both panel hosts render the shared header and no legacy dock picker or clo
 		/closest\('button, select, input, label, a, \[role="menu"\]'\)/u,
 		'clicks inside the panel menu never begin a floating drag',
 	);
-	assert.match(dock, /focusWorkspacePanelMenuButton\(/u, 'a dock change restores focus to the re-mounted menu button');
-	assert.match(dock, /closeWorkspacePanelAndRestoreFocus\(/u);
-	assert.doesNotMatch(dock, /closePanelAndRestoreFocus\(/u, 'the event-taking close helper is gone');
+	assert.match(group, /focusWorkspacePanelMenuButton\(/u, 'a dock change restores focus to the re-mounted menu button');
+	assert.match(group, /closeWorkspacePanelAndRestoreFocus\(/u);
+	assert.doesNotMatch(group, /closePanelAndRestoreFocus\(/u, 'the event-taking close helper is gone');
 	const focus = await readFile(new URL('workspace-panel-focus.js', WORKSPACE_ROOT), 'utf8');
 	assert.doesNotMatch(focus, /export function closePanelAndRestoreFocus/u);
 });

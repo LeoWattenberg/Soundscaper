@@ -38,7 +38,7 @@ interface CaptureController {
 		readonly capture?: CaptureActions;
 		readonly webVcr?: WebVcrUiActions;
 		readonly preferences: Readonly<{
-			setPanel(panelId: string, changes: Readonly<{ visible: boolean }>): unknown;
+			setPanelVisibility(panelId: string, visible: boolean): unknown;
 		}>;
 	}>;
 }
@@ -111,7 +111,7 @@ export default function FramescaperCaptureRecordControl({
 		: ['countdown', 'recording', 'paused'].includes(capture.phase);
 	const openSetup = (): void => {
 		if (webVcrActive) invoke(webVcrActions?.close);
-		void run(() => controller.actions.preferences.setPanel(FRAMESCAPER_CAPTURE_PANEL_ID, { visible: true }));
+		void run(() => controller.actions.preferences.setPanelVisibility(FRAMESCAPER_CAPTURE_PANEL_ID, true));
 		if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
 		requestAnimationFrame(() => {
 			const panel = document.querySelector(`[data-workspace-panel="${FRAMESCAPER_CAPTURE_PANEL_ID}"]`);

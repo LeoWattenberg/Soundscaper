@@ -371,7 +371,9 @@ export default function WorkspacePreferencesDialog({
 													label={`${label}: ${copy.panelDock}`}
 													visuallyHiddenLabel
 													value={panel.dock}
-													onChange={(value) => run(() => controller.actions.preferences.setPanel(panelId, { dock: value }))}
+													onChange={(value) => run(() => controller.actions.preferences.movePanel(panelId, {
+														kind: 'dock', dock: value, groupIndex: Number.MAX_SAFE_INTEGER,
+													}))}
 													options={WORKSPACE_DOCK_IDS.map((dockId) => ({ value: dockId, label: workspaceDockLabel(copy, dockId) }))}
 												/>
 											</div>

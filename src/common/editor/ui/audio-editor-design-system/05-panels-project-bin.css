@@ -53,11 +53,11 @@
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__panel-dock :is(
-	[data-workspace-panel='analysis'],
-	[data-workspace-panel='spectrum'],
-	[data-workspace-panel='clipping'],
-	[data-workspace-panel='contrast'],
-	[data-workspace-panel='ebu-r128']
+	[data-workspace-panel-members~='analysis'],
+	[data-workspace-panel-members~='spectrum'],
+	[data-workspace-panel-members~='clipping'],
+	[data-workspace-panel-members~='contrast'],
+	[data-workspace-panel-members~='ebu-r128']
 ) {
 	width: 100%;
 	height: auto;
@@ -93,13 +93,13 @@
 	flex-direction: column;
 }
 
-#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has([data-workspace-panel='effects']) {
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right):has([data-workspace-panel-members~='effects']) {
 	width: min(42vw, var(--workspace-dock-width, 440px));
 	min-width: 360px;
 	max-width: 520px;
 }
 
-#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) [data-workspace-panel='effects'] {
+#kw-audio-editor-design-system :is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) [data-workspace-panel-members~='effects'] {
 	height: 100%;
 	min-height: 320px;
 	flex: 1 1 auto;
