@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
-import { createEffect } from '../../effects.js';
+import { audioEffectTypes, createEffect } from '../../effects.js';
 import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -162,6 +162,11 @@ export function AudioEditorEffectsOverlay({
 		setPicker({ scope, replaceId, flyout: !replaceId, anchor: event?.currentTarget || null });
 		setMessage('');
 	};
+
+	const replaceEffectOptions = useMemo(
+		() => audioEffectTypes().map((type) => ({ id: type, name: safeEffectLabel(type, copy) })),
+		[copy],
+	);
 
 	const replaceFromRegistry = (scope, effect, candidate) => {
 		const type = resolveSupportedEffectType(candidate, locale, copy);
@@ -324,8 +329,10 @@ export function AudioEditorEffectsOverlay({
 							height: position.height,
 						})}
 						onClose={onClose}
-						trackSection={channel ? { trackName: channel.name, ...section(scope, channelEffects, channel) } : undefined}
-						masterSection={{ ...section('master', masterEffects, project?.master) }}
+						trackSection={channel
+							? { trackName: channel.name, replaceEffectOptions, ...section(scope, channelEffects, channel) }
+							: undefined}
+						masterSection={{ replaceEffectOptions, ...section('master', masterEffects, project?.master) }}
 					/>
 				</div>
 

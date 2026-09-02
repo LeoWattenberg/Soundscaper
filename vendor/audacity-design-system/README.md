@@ -128,6 +128,12 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     `Icon name="close"`, and maximize draws a CSS square through
     `.dialog-header__windows-glyph`. Covered by
     `tests/vendored-design-system-dialog-header-controls.test.ts`. Upstream-PR candidate.
+16. `EffectSlot.tsx` and `EffectsPanel.tsx` accept a `replaceEffectOptions` prop that replaces
+    `EFFECT_REGISTRY` as the source of the caret menu's swap list. The packaged registry holds
+    three sample effects (Compressor, Limiter, Reverb), so every slot in the realtime rack
+    offered only those three as replacements regardless of what the host actually implements.
+    Omitting the prop keeps upstream behaviour. Covered by
+    `tests/audio-editor-effect-slot-replace-options.test.tsx`. Upstream-PR candidate.
 
 ## Application-side adaptations
 

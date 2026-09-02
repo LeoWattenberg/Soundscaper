@@ -44,6 +44,13 @@ export interface EffectSlotProps {
   onReplaceEffect?: (effectName: string) => void;
 
   /**
+   * Replaces the built-in EFFECT_REGISTRY as the source of the caret menu's
+   * swap list. A host with its own effect catalogue passes it here rather
+   * than being limited to the effects this package happens to know about.
+   */
+  replaceEffectOptions?: Array<{ id: string; name: string }>;
+
+  /**
    * Optional list of effects the user has purchased from MuseHub this
    * session — grouped by vendor and rendered after the built-in categories
    * so power users can swap to a paid plugin without going through the
@@ -124,6 +131,7 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
   onShowSettings,
   onRemoveEffect,
   onReplaceEffect,
+  replaceEffectOptions,
   purchasedEffects,
   disabledPluginIds,
   isDragging = false,
@@ -367,20 +375,18 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
           }}
         />
         <ContextMenuItem isDivider />
-        {Object.values(EFFECT_REGISTRY).flatMap((effects) =>
-          effects
-            .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
-            .map((effect) => (
-              <ContextMenuItem
-                key={effect.id}
-                label={effect.name}
-                onClick={() => {
-                  onReplaceEffect?.(effect.name);
-                  setMenuOpen(false);
-                }}
-              />
-            )),
-        )}
+        {(replaceEffectOptions ?? Object.values(EFFECT_REGISTRY).flat())
+          .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
+          .map((effect) => (
+            <ContextMenuItem
+              key={effect.id}
+              label={effect.name}
+              onClick={() => {
+                onReplaceEffect?.(effect.name);
+                setMenuOpen(false);
+              }}
+            />
+          ))}
         {(purchasedEffects || [])
           .filter((e) => !disabledPluginIds || !disabledPluginIds.has(e.id))
           .sort((a, b) => `${a.vendor}:${a.name}`.localeCompare(`${b.vendor}:${b.name}`))

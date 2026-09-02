@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { EffectSlot } from '@soundscaper/design-system/EffectsPanel/EffectSlot';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import { useContainerTabGroup } from '@soundscaper/design-system/hooks/useContainerTabGroup';
-import { createEffect } from '../../effects.js';
+import { audioEffectTypes, createEffect } from '../../effects.js';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
 import {
 	createEffectMacroTemplateDraft,
@@ -39,6 +39,12 @@ export function AudioEditorMacroManagerDialog({
 	const project = snapshot.project;
 	const projectIdentity = project?.id ?? null;
 	const effects = draft?.effects || EMPTY_EFFECTS;
+	// The caret menu swaps through Soundscaper's registry, not the sample set
+	// the design-system package ships with.
+	const replaceEffectOptions = useMemo(
+		() => audioEffectTypes().map((type) => ({ id: type, name: safeEffectLabel(type, copy) })),
+		[copy],
+	);
 	const templateCopy = resolveEffectMacroTemplateCopy(locale);
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
@@ -363,6 +369,7 @@ export function AudioEditorMacroManagerDialog({
 								onSelectEffect={() => setSelectedEffectId(effect.id)}
 								onRemoveEffect={() => removeEffect(effect.id)}
 								onReplaceEffect={(candidate) => replaceFromRegistry(effect, candidate)}
+								replaceEffectOptions={replaceEffectOptions}
 								onChangeEffect={() => setPicker({ replaceId: effect.id })}
 								onDragStart={(event) => {
 									setDraggedIndex(index);
