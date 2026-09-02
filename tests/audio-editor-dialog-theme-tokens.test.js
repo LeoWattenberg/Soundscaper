@@ -32,6 +32,20 @@ test('dialog stylesheets only read theme tokens the runtime defines', async () =
 	assert.deepEqual(missing, [], 'undefined tokens always fall back to their literal colour');
 });
 
+test('the vendored footer stylesheet only reads tokens the runtime publishes', async () => {
+	const runtime = await readFile(DESIGN_SYSTEM_RUNTIME, 'utf8');
+	const defined = new Set([...runtime.matchAll(/'(--[\w-]+)'\s*:/gu)].map(([, name]) => name));
+	const css = await readFile(new URL('vendor/audacity-design-system/components/src/Footer/Footer.css', ROOT), 'utf8');
+	const read = [...new Set([...css.matchAll(/var\(\s*(--[\w-]+)/gu)].map(([, name]) => name))];
+
+	assert.ok(read.length > 0, 'the footer is themed through custom properties');
+	assert.deepEqual(
+		read.filter((name) => !defined.has(name)),
+		[],
+		'an undefined token leaves the footer on its light literal fallback in every theme',
+	);
+});
+
 test('editor design-system styles do not read nonexistent theme-token aliases', async () => {
 	const invalid = [];
 	for (const entry of await readdir(DESIGN_SYSTEM_STYLES)) {

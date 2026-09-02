@@ -111,6 +111,11 @@ export function useAudioEditorThemeVariables() {
 		'--kw-toolbar-button-active': theme.background.control.button.secondary.active,
 		'--kw-toolbar-button-primary': theme.background.control.button.primary.idle,
 		'--kw-toolbar-button-primary-hover': theme.background.control.button.primary.hover,
+		// The vendored Footer stylesheet reads these design tokens directly and
+		// falls back to a light literal when they are undefined, which painted
+		// every dialog footer light regardless of theme.
+		'--background-surface-bg-surface-primary-idle': theme.background.surface.default,
+		'--stroke-main-stroke-primary': theme.border.default,
 		colorScheme: theme === darkTheme ? 'dark' : 'light',
 	}), [theme]);
 }
