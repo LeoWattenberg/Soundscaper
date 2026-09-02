@@ -603,3 +603,14 @@
 #kw-audio-editor-design-system .kw-audio-editor__snap-interval .icon {
 	display: inline-flex;
 }
+
+/* Workspace switcher: the "Workspace: <name>" dropdown at the start of the
+   action bar's right column, mirroring Audacity's main toolbar row. */
+#kw-audio-editor-design-system .kw-audio-editor__workspace-switcher {
+	gap: 4px;
+	min-width: 0;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__workspace-switcher .icon {
+	display: inline-flex;
+}

@@ -126,6 +126,7 @@ export default function EditorToolToolbar({
 		{ id: 'snap', label: copy.snap, icon: iconNameToChar('MAGNET') },
 		...(capabilities.audioRecording ? [{ id: 'monitor', label: copy.recordLevel, icon: iconNameToChar('MICROPHONE') }] : []),
 		{ id: 'playback-volume', label: copy.playbackVolume, icon: iconNameToChar('AUDIO') },
+		{ id: 'workspace-switcher', label: copy.workspace, icon: iconNameToChar('WORKSPACE') },
 	];
 	const openToolbarSettings = () => {
 		const rect = toolbarSettingsTriggerRef.current?.getBoundingClientRect();

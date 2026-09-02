@@ -612,5 +612,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		await snapToggle.click();
 		await expect(snapToggle).toHaveAttribute('aria-checked', 'false');
 		await expect(snapInterval).toBeDisabled();
+
+		await expect(editor.locator('[data-workspace-switcher]')).toHaveCount(0);
+		await showToolbarButton(page, editor, 'Workspace');
+		const switcher = editor.getByRole('button', { name: 'Workspace: Soundscaper', exact: true });
+		await expect(switcher).toHaveAttribute('aria-haspopup', 'menu');
+		await switcher.click();
+		await expect(switcher).toHaveAttribute('aria-expanded', 'true');
+		// The menu is portaled to the body, so it lives outside the editor locator.
+		const switcherMenu = page.locator('.kw-audio-editor__workspace-switcher-menu');
+		await expect(switcherMenu).toBeVisible();
+		await expect(switcherMenu.getByRole('menuitem')).toContainText(['Soundscaper', 'Audacity', 'Music', 'Classic']);
+		await page.getByRole('menuitem', { name: 'Classic', exact: true }).click();
+		await expect(switcherMenu).toBeHidden();
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'classic');
+		// The Classic preset hides the switcher again; bring it back to return.
+		await expect(editor.locator('[data-workspace-switcher]')).toHaveCount(0);
+		await showToolbarButton(page, editor, 'Workspace');
+		await editor.getByRole('button', { name: 'Workspace: Classic', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Soundscaper', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'modern');
 	});
 });

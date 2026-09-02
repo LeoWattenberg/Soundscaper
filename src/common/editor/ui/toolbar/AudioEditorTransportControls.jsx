@@ -19,6 +19,7 @@ import { formatPlaybackSpeed } from '../meter-settings.ts';
 import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.ts';
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
+import WorkspaceSwitcherControl from './WorkspaceSwitcherControl.jsx';
 
 export function TelemetryPlayTransportControl({ copy, snapshot, blocked, controller, run }) {
 	const transportState = useAudioEditorTelemetrySelector(
@@ -265,6 +266,12 @@ export function EditorActionBar({
 				/>
 			</div>
 			<div className="kw-audio-editor__action-bar-right">
+				{snapshot.preferences?.workspace?.toolbarButtons?.['workspace-switcher'] === true && <WorkspaceSwitcherControl
+					copy={copy}
+					snapshot={snapshot}
+					controller={controller}
+					run={run}
+				/>}
 				<span data-edit="undo">
 					<ToolButton icon="undo" ariaLabel={copy.undo} disabled={editBlocked || !canUndo} onClick={() => executeEdit('undo')} />
 				</span>
