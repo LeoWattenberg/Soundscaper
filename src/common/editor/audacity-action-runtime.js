@@ -366,7 +366,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			}),
 			configure: () => openSurface('preferences', { section: 'workspace' }),
 			fullscreen: () => ui.issue('toggle-fullscreen'),
-			restoreDefault: () => controllerActions.preferences.setWorkspace('modern'),
+			restoreDefault: () => controllerActions.preferences.setWorkspace(snapshot().preferences?.workspace?.activeId || 'modern'),
 		},
 		clip: {
 			...controllerActions.clip,

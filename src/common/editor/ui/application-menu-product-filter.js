@@ -69,7 +69,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 					return {
 						...item,
 						items: item.items.filter((workspace) => productId === 'framescaper'
-							? !['workspace-modern', 'workspace-music', 'workspace-classic'].includes(workspace.id)
+							? !['workspace-modern', 'workspace-audacity', 'workspace-music', 'workspace-classic', 'workspace-onboarding'].includes(workspace.id)
 							: workspace.id !== 'workspace-video-editor'),
 					};
 				}).filter((item) => capabilities.audioRecording || item.id !== 'show-arm-controls'),

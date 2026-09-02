@@ -237,6 +237,7 @@ export default function WorkspacePreferencesDialog({
 									onChange={(value) => run(() => controller.actions.preferences.setWorkspace(value))}
 									options={[
 										{ value: 'modern', label: copy.workspaceModern },
+										{ value: 'audacity', label: copy.workspaceAudacity },
 										{ value: 'music', label: copy.workspaceMusic },
 										{ value: 'classic', label: copy.workspaceClassic },
 										{ value: 'video-editor', label: copy.workspaceVideo },

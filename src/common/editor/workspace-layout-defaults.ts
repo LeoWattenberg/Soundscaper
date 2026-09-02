@@ -4,6 +4,7 @@ export const AUDIO_EDITOR_BUILT_IN_WORKSPACES = Object.freeze([
 	'classic',
 	'music',
 	'modern',
+	'audacity',
 	'video-editor',
 ] as const);
 
@@ -45,6 +46,8 @@ export const DEFAULT_TOOLBAR_BUTTONS = Object.freeze({
 	'time-display': true,
 	monitor: true,
 	'playback-volume': true,
+	snap: false,
+	'workspace-switcher': false,
 });
 
 const MODERN_TOOLBAR_BUTTONS = Object.freeze({
@@ -54,6 +57,39 @@ const MODERN_TOOLBAR_BUTTONS = Object.freeze({
 	paste: false,
 	split: false,
 	deletePerTrackRipple: false,
+});
+
+// Audacity 4.0.0-beta.4 Modern workspace: play, stop, record, rewind, loop |
+// split, spectrogram, zoom in/out | timecode | snap | meters, plus the
+// "Workspace" dropdown in the action bar.
+export const AUDACITY_TOOLBAR_BUTTONS = Object.freeze({
+	...MODERN_TOOLBAR_BUTTONS,
+	'play-at-speed': false,
+	'spectral-box-select': false,
+	'spectral-brush': false,
+	'zoom-fit': false,
+	snap: true,
+	'workspace-switcher': true,
+});
+
+// The view block is the analogue of Audacity's `.mws` ui_settings: it is applied
+// when a preset is activated and never enters the persisted preferences.
+export interface WorkspaceViewDefaults {
+	readonly verticalRulers?: boolean;
+	readonly playbackMeterPosition?: 'flyout' | 'top' | 'side';
+	readonly recordingMeterPosition?: 'flyout' | 'top' | 'side';
+}
+
+const MODERN_VIEW_DEFAULTS: WorkspaceViewDefaults = Object.freeze({
+	verticalRulers: true,
+	playbackMeterPosition: 'side',
+	recordingMeterPosition: 'side',
+});
+
+const AUDACITY_VIEW_DEFAULTS: WorkspaceViewDefaults = Object.freeze({
+	verticalRulers: false,
+	playbackMeterPosition: 'side',
+	recordingMeterPosition: 'flyout',
 });
 
 export const DEFAULT_PANELS = Object.freeze({
@@ -133,6 +169,16 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		toolbars: DEFAULT_TOOLBARS,
 		toolbarButtons: MODERN_TOOLBAR_BUTTONS,
 		panels: DEFAULT_PANELS,
+		view: MODERN_VIEW_DEFAULTS,
+	}),
+	audacity: Object.freeze({
+		toolbars: DEFAULT_TOOLBARS,
+		toolbarButtons: AUDACITY_TOOLBAR_BUTTONS,
+		panels: Object.freeze({
+			...DEFAULT_PANELS,
+			'project-bin': Object.freeze({ visible: false, dock: 'left', order: 0, size: 380 }),
+		}),
+		view: AUDACITY_VIEW_DEFAULTS,
 	}),
 	'video-editor': Object.freeze({
 		toolbars: DEFAULT_TOOLBARS,
@@ -145,3 +191,11 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		}),
 	}),
 });
+
+export function workspaceViewDefaults(activeId: string): WorkspaceViewDefaults | null {
+	if (!Object.hasOwn(AUDIO_EDITOR_WORKSPACE_PRESETS, activeId)) return null;
+	const preset = AUDIO_EDITOR_WORKSPACE_PRESETS[activeId as keyof typeof AUDIO_EDITOR_WORKSPACE_PRESETS] as {
+		readonly view?: WorkspaceViewDefaults;
+	};
+	return preset.view ?? null;
+}

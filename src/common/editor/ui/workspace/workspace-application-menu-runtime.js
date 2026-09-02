@@ -379,6 +379,7 @@ export function createWorkspaceApplicationMenus({
 					manual: () => openExternal(documentationUrl(productId, 'manual')),
 					tutorials: () => openExternal(documentationUrl(productId, 'tutorials')),
 					privacyPolicy: () => openSurface('privacy-policy'),
+					openWorkspaceOnboarding: () => openSurface('workspace-onboarding'),
 					support: () => openExternal(`mailto:team@kw.media?subject=${encodeURIComponent(`${productProfile(productId).name} support`)}`),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),

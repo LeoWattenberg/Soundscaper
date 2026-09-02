@@ -7,6 +7,7 @@ import {
 } from '../meter-settings.ts';
 import { isExpectedWorkspaceCancellation } from './scape-open-decision-continuation.ts';
 import { useDesktopHostMenuRuntime } from './useDesktopHostMenuRuntime.ts';
+import { workspaceSwitcherOptions } from './workspace-switcher-options.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,
@@ -105,26 +106,15 @@ export function useAudioEditorWorkspaceLifecycle({
 		platform: desktopEnvironment?.platform,
 		productId,
 	});
-	const workspaceSwitcherOptions = useMemo(() => [
-		...(productId === 'soundscaper' ? [
-			{ id: 'modern', name: copy.workspaceModern },
-			{ id: 'music', name: copy.workspaceMusic },
-			{ id: 'classic', name: copy.workspaceClassic },
-		] : [{ id: 'video-editor', name: copy.workspaceVideo }]),
-		...(preferences?.workspace?.custom || []).map(({ id, name }) => ({ id, name })),
-	], [
-		copy.workspaceClassic,
-		copy.workspaceModern,
-		copy.workspaceMusic,
-		copy.workspaceVideo,
-		preferences?.workspace?.custom,
-		productId,
-	]);
+	const switcherOptions = useMemo(
+		() => workspaceSwitcherOptions(productId, copy, preferences?.workspace?.custom),
+		[copy, preferences?.workspace?.custom, productId],
+	);
 	const publishWorkspaceSwitcherState = useCallback(() => {
 		const detail = {
 			productId,
 			activeId: preferences?.workspace?.activeId || product.defaultWorkspace,
-			workspaces: workspaceSwitcherOptions,
+			workspaces: switcherOptions,
 		};
 		globalThis.dispatchEvent?.(new CustomEvent('scape:workspace-state', {
 			detail,
@@ -134,12 +124,12 @@ export function useAudioEditorWorkspaceLifecycle({
 				...detail,
 			},
 		}));
-	}, [preferences?.workspace?.activeId, product.defaultWorkspace, productId, workspaceSwitcherOptions]);
+	}, [preferences?.workspace?.activeId, product.defaultWorkspace, productId, switcherOptions]);
 	useEffect(() => {
 		const handleWorkspaceRequest = (event) => {
 			if (event?.detail?.productId && event.detail.productId !== productId) return;
 			const workspaceId = event?.detail?.workspaceId;
-			if (!workspaceSwitcherOptions.some(({ id }) => id === workspaceId)) return;
+			if (!switcherOptions.some(({ id }) => id === workspaceId)) return;
 			run(() => controller.actions.preferences.setWorkspace(workspaceId));
 		};
 		globalThis.addEventListener?.('scape:workspace-request', handleWorkspaceRequest);
@@ -153,7 +143,7 @@ export function useAudioEditorWorkspaceLifecycle({
 			globalThis.removeEventListener?.('scape:workspace-ready', publishWorkspaceSwitcherState);
 			globalThis.removeEventListener?.('soundscaper:workspace-ready', publishWorkspaceSwitcherState);
 		};
-	}, [controller, productId, publishWorkspaceSwitcherState, run, workspaceSwitcherOptions]);
+	}, [controller, productId, publishWorkspaceSwitcherState, run, switcherOptions]);
 	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;

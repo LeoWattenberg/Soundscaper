@@ -420,10 +420,12 @@ export default function createApplicationMenus({
 					label: copy.workspace,
 					items: [
 						{ id: 'workspace-modern', label: copy.workspaceModern, checked: preferences.workspace.activeId === 'modern', onClick: () => actions.setWorkspace('modern') },
+						{ id: 'workspace-audacity', label: copy.workspaceAudacity, checked: preferences.workspace.activeId === 'audacity', onClick: () => actions.setWorkspace('audacity') },
 						{ id: 'workspace-music', label: copy.workspaceMusic, checked: preferences.workspace.activeId === 'music', onClick: () => actions.setWorkspace('music') },
 						{ id: 'workspace-classic', label: copy.workspaceClassic, checked: preferences.workspace.activeId === 'classic', onClick: () => actions.setWorkspace('classic') },
 						{ id: 'workspace-video-editor', label: copy.workspaceVideo, checked: preferences.workspace.activeId === 'video-editor', onClick: () => actions.setWorkspace('video-editor') },
 						...preferences.workspace.custom.map((workspace) => ({ id: `workspace-${workspace.id}`, label: workspace.name, checked: preferences.workspace.activeId === workspace.id, onClick: () => actions.setWorkspace(workspace.id) })),
+						{ id: 'workspace-onboarding', label: copy.workspaceOnboardingMenu, onClick: actions.openWorkspaceOnboarding },
 					],
 				},
 				{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },

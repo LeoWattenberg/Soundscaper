@@ -6,6 +6,8 @@ import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from '../src/common/i18n/musical-timeline-copy.js';
 import { SITE_SIDEBAR_COPY_BY_LOCALE } from '../src/common/i18n/site-sidebar-copy.js';
 import { TIMELINE_ANNOTATION_COPY_BY_LOCALE } from '../src/common/i18n/timeline-annotation-copy.js';
+import { WORKSPACE_CHROME_COPY_BY_LOCALE } from '../src/common/i18n/workspace-chrome-copy.js';
+import { WORKSPACE_ONBOARDING_COPY_BY_LOCALE } from '../src/common/i18n/workspace-onboarding-copy.js';
 import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
 import {
 	loadTranslationManifest,
@@ -41,6 +43,41 @@ test('site sidebar copy stays localized and merged into the bundled catalogs', (
 		const catalog = locale === 'en' ? ENGLISH_COPY : GERMAN_COPY;
 		for (const [key, value] of Object.entries(SITE_SIDEBAR_COPY_BY_LOCALE[locale])) {
 			assert.equal(catalog[key], value, `${locale}.${key}`);
+		}
+	}
+});
+
+test('the Soundscaper and Audacity workspace labels and their chrome copy exist in both locales', () => {
+	assert.equal(ENGLISH_COPY.workspaceModern, 'Soundscaper');
+	assert.equal(GERMAN_COPY.workspaceModern, 'Soundscaper');
+	assert.equal(ENGLISH_COPY.workspaceAudacity, 'Audacity');
+	assert.equal(GERMAN_COPY.workspaceAudacity, 'Audacity');
+	assert.equal(ENGLISH_COPY.timecode, 'Timecode');
+	assert.equal(ENGLISH_COPY.panelMenu, 'Panel menu');
+	assert.equal(GERMAN_COPY.panelMenu, 'Bedienfeldmenü');
+	assert.equal(ENGLISH_COPY.snapInterval, 'Snap interval');
+	assert.equal(ENGLISH_COPY.workspaceOnboardingTitle, 'Getting started');
+	assert.equal(ENGLISH_COPY.workspaceOnboardingMenu, 'Set up workspace');
+	assert.equal(GERMAN_COPY.workspaceOnboardingMenu, 'Arbeitsbereich einrichten');
+	assert.equal(GERMAN_COPY.workspaceOnboardingDone, 'Fertig');
+	assert.deepEqual(Object.keys(WORKSPACE_CHROME_COPY_BY_LOCALE.de), Object.keys(WORKSPACE_CHROME_COPY_BY_LOCALE.en));
+	assert.deepEqual(Object.keys(WORKSPACE_ONBOARDING_COPY_BY_LOCALE.de), Object.keys(WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en));
+	for (const key of ['panelMenu', 'timecode', 'snapInterval']) {
+		assert.equal(typeof WORKSPACE_CHROME_COPY_BY_LOCALE.en[key], 'string', key);
+	}
+	for (const key of [
+		'workspaceOnboardingTitle', 'workspaceOnboardingQuestion', 'workspaceOnboardingAudacityDescription',
+		'workspaceOnboardingSoundscaperDescription', 'workspaceOnboardingHint', 'workspaceOnboardingSelect',
+		'workspaceOnboardingDone', 'workspaceOnboardingMenu',
+	]) {
+		assert.equal(typeof WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en[key], 'string', key);
+	}
+	for (const [locale, catalog] of Object.entries({ en: ENGLISH_COPY, de: GERMAN_COPY })) {
+		for (const module of [WORKSPACE_CHROME_COPY_BY_LOCALE, WORKSPACE_ONBOARDING_COPY_BY_LOCALE]) {
+			for (const [key, value] of Object.entries(module[locale])) {
+				assert.equal(catalog[key], value, `${locale}.${key}`);
+				assert.ok(value.length > 0, `${locale}.${key}`);
+			}
 		}
 	}
 });

@@ -243,6 +243,51 @@ test('beta-4 play/stop and play-from-cursor toggles read transport state and the
 	}
 });
 
+test('restoring the default layout re-applies the active built-in workspace', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createMemoryTimePitchCache(),
+		copy: COPY,
+	});
+	await controller.ready;
+	try {
+		const applied = [];
+		const state = { activeId: 'audacity' };
+		const probe = {
+			...controller,
+			getSnapshot: () => {
+				const snapshot = controller.getSnapshot();
+				return {
+					...snapshot,
+					preferences: { ...snapshot.preferences, workspace: { ...snapshot.preferences.workspace, activeId: state.activeId } },
+				};
+			},
+			actions: {
+				...controller.actions,
+				preferences: {
+					...controller.actions.preferences,
+					setWorkspace: (workspaceId) => { applied.push(workspaceId); },
+				},
+			},
+		};
+		const runtime = createAudacityActionRuntime(probe, { uiController: createAudioEditorUiActionController() });
+		runtime.actions.workspace.restoreDefault();
+		assert.deepEqual(applied, ['audacity'], 'the Audacity preset is restored rather than Soundscaper');
+		state.activeId = 'classic';
+		runtime.actions.workspace.restoreDefault();
+		assert.deepEqual(applied, ['audacity', 'classic']);
+		state.activeId = '';
+		runtime.actions.workspace.restoreDefault();
+		assert.deepEqual(applied, ['audacity', 'classic', 'modern'], 'a missing id falls back to the Soundscaper preset');
+		runtime.dispose();
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('disabled, excluded, unknown, and malformed runtime paths never become executable', () => {
 	const accidentalHandlers = {
 		io: { exportAudio() { throw new Error('must not run'); } },

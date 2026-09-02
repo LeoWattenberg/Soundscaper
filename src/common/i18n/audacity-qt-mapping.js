@@ -57,6 +57,7 @@ export const AUDACITY_QT_MAPPING = deepFreeze([
 	entry('statusBar', 'action', '&Status bar', '', ['stripMnemonic']),
 	entry('stop', 'action', 'Stop'),
 	entry('theme', 'preferences', 'Theme'),
+	entry('timecode', 'action', 'Timecode'),
 	entry('undo', 'action', 'Undo'),
 	entry('zoomIn', 'action', 'Zoom in'),
 	entry('zoomOut', 'action', 'Zoom out'),

@@ -180,6 +180,7 @@ function defaultWorkspaces(productId, copy) {
 		? [{ id: 'video-editor', name: copy.workspaceVideo }]
 		: [
 			{ id: 'modern', name: copy.workspaceModern },
+			{ id: 'audacity', name: copy.workspaceAudacity },
 			{ id: 'music', name: copy.workspaceMusic },
 			{ id: 'classic', name: copy.workspaceClassic },
 		];
@@ -201,6 +202,7 @@ function sidebarCopy(catalog) {
 		language: catalog.languageLabel,
 		workspace: catalog.workspace,
 		workspaceModern: catalog.workspaceModern,
+		workspaceAudacity: catalog.workspaceAudacity,
 		workspaceMusic: catalog.workspaceMusic,
 		workspaceClassic: catalog.workspaceClassic,
 		workspaceVideo: catalog.workspaceVideo,
