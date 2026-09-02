@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { parseAiffMarkChunk } from './aiff-markers.ts';
 import { parseRiffMarkers, type RiffMarker } from './riff-markers.ts';
 
 /**
@@ -37,6 +38,10 @@ export async function scanEncodedAudioMarkers(
 		const container = ascii(signature, 0, 4);
 		if (container === 'RIFF' && ascii(signature, 8, 4) === 'WAVE') {
 			return await scanRiffMarkers(source);
+		}
+		const formType = ascii(signature, 8, 4);
+		if (container === 'FORM' && (formType === 'AIFF' || formType === 'AIFC')) {
+			return await scanAiffMarkers(source);
 		}
 		return null;
 	} catch {
@@ -76,6 +81,45 @@ async function scanRiffMarkers(source: EncodedAudioMarkerScanSource): Promise<En
 	const markers = parseRiffMarkers(cue, adtl);
 	if (!markers.length) return null;
 	return Object.freeze({ markers, sampleRate });
+}
+
+async function scanAiffMarkers(source: EncodedAudioMarkerScanSource): Promise<EncodedAudioMarkerScan | null> {
+	let mark: Uint8Array | null = null;
+	let sampleRate: number | null = null;
+	let offset = 12;
+	let chunksRead = 0;
+	while (offset + 8 <= source.size && chunksRead < MAXIMUM_SCANNED_CHUNKS) {
+		chunksRead += 1;
+		const header = await readBytes(source, offset, offset + 8);
+		const id = ascii(header, 0, 4);
+		const size = new DataView(header.buffer, header.byteOffset + 4, 4).getUint32(0, false);
+		const payloadStart = offset + 8;
+		const payloadEnd = payloadStart + size;
+		if (!Number.isSafeInteger(payloadEnd) || payloadEnd > source.size) break;
+		if (id === 'COMM' && size >= 18) {
+			const comm = await readBytes(source, payloadStart, payloadStart + 18);
+			sampleRate = extended80SampleRate(new DataView(comm.buffer, comm.byteOffset, comm.byteLength), 8);
+		} else if (id === 'MARK' && !mark && size <= MAXIMUM_MARKER_PAYLOAD_BYTES) {
+			mark = await readBytes(source, payloadStart, payloadEnd);
+		}
+		offset = payloadEnd + (size & 1);
+	}
+	if (!mark) return null;
+	const markers = parseAiffMarkChunk(mark);
+	if (!markers.length) return null;
+	return Object.freeze({ markers, sampleRate });
+}
+
+/** The COMM sample rate is an 80-bit extended float; anything irregular scans as unknown. */
+function extended80SampleRate(view: DataView, offset: number): number | null {
+	const signAndExponent = view.getUint16(offset, false);
+	if ((signAndExponent & 0x8000) !== 0) return null;
+	const exponent = signAndExponent & 0x7fff;
+	const high = view.getUint32(offset + 2, false);
+	const low = view.getUint32(offset + 6, false);
+	if (exponent === 0 || exponent === 0x7fff || (high & 0x8000_0000) === 0) return null;
+	const value = (high * 0x1_0000_0000 + low) * 2 ** (exponent - 16_383 - 63);
+	return Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
 async function readBytes(

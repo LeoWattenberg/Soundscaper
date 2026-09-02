@@ -253,7 +253,7 @@ export function createExportPlan(project, options = {}) {
 	const outputLayout = format === 'aiff'
 		? inspectAiffLayout({
 			sampleRate, channelCount: encoding.channelCount, totalFrames: outputFrames,
-			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata,
+			sampleFormat: encoding.sampleFormat, metadata: encoding.metadata, markers,
 		})
 		: format === 'wav' || format === 'bwf' || format === 'bw64'
 			? inspectWavLayout({

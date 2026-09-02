@@ -1,4 +1,5 @@
 import { createAiffId3Chunk } from './id3-metadata.js';
+import { createAiffMarkChunk } from './aiff-markers.ts';
 
 const AIFF_VERSION_1 = 0xa2805140;
 const UINT32_MAX = 0xffffffff;
@@ -9,7 +10,7 @@ export const AIFF_MAXIMUM_FILE_BYTES = UINT32_MAX + 8;
  * Encodes aligned planar PCM as AIFF (integer) or AIFF-C (32-bit float).
  *
  * @param {ArrayLike<Float32Array> | AudioBuffer} input
- * @param {{sampleRate?: number, bitDepth?: 16|24|32, float?: boolean, sampleFormat?: string, dither?: boolean|string, metadata?: Record<string, *>, random?: () => number}} [options]
+ * @param {{sampleRate?: number, bitDepth?: 16|24|32, float?: boolean, sampleFormat?: string, dither?: boolean|string, metadata?: Record<string, *>, markers?: readonly import('./riff-markers.js').RiffMarkerInput[], random?: () => number}} [options]
  */
 export function encodeAiff(input, options = {}) {
 	const channels = getChannels(input);
@@ -29,8 +30,9 @@ export function encodeAiff(input, options = {}) {
  * the frame count is declared up front so the file header can be emitted first.
  */
 export function createAiffStreamEncoder(options = {}) {
+	const markerChunk = createAiffMarkChunk(options.markers);
 	const metadataChunk = createAiffId3Chunk(options.metadata);
-	const layout = prepareAiffLayout(options, metadataChunk.byteLength);
+	const layout = prepareAiffLayout(options, markerChunk.byteLength + metadataChunk.byteLength);
 	const {
 		sampleRate, channelCount, totalFrames, sampleFormat: format, floatingPoint,
 		bitDepth, bytesPerSample, dataPadByteLength: padBytes,
@@ -55,7 +57,7 @@ export function createAiffStreamEncoder(options = {}) {
 		get bitDepth() { return bitDepth; },
 		get sampleFormat() { return format; },
 		get writtenFrames() { return writtenFrames; },
-		get byteLength() { return header.byteLength + writtenFrames * channelCount * bytesPerSample + (finalized ? padBytes + metadataChunk.byteLength : 0); },
+		get byteLength() { return header.byteLength + writtenFrames * channelCount * bytesPerSample + (finalized ? padBytes + markerChunk.byteLength + metadataChunk.byteLength : 0); },
 		write,
 		finalize,
 		async settled() { await Promise.all(pending); },
@@ -93,6 +95,10 @@ export function createAiffStreamEncoder(options = {}) {
 			if (collect) chunks.push(padding);
 			emit(padding, { header: false, frameOffset: writtenFrames });
 		}
+		if (markerChunk.byteLength) {
+			if (collect) chunks.push(markerChunk);
+			emit(markerChunk, { header: false, metadata: true, frameOffset: writtenFrames });
+		}
 		if (metadataChunk.byteLength) {
 			if (collect) chunks.push(metadataChunk);
 			emit(metadataChunk, { header: false, metadata: true, frameOffset: writtenFrames });
@@ -102,7 +108,9 @@ export function createAiffStreamEncoder(options = {}) {
 			byteLength: totalByteLength,
 			frames: writtenFrames,
 			padBytes,
-			...(metadataChunk.byteLength ? { metadataBytes: metadataChunk.byteLength } : {}),
+			...(markerChunk.byteLength + metadataChunk.byteLength
+				? { metadataBytes: markerChunk.byteLength + metadataChunk.byteLength }
+				: {}),
 		};
 		const result = new Uint8Array(totalByteLength);
 		let offset = 0;
@@ -122,9 +130,9 @@ export function createAiffStreamEncoder(options = {}) {
 
 /**
  * Inspect the exact AIFF/AIFF-C file layout without allocating PCM or file-sized buffers.
- * An explicit `trailingByteLength` takes precedence over encoded `metadata` size.
+ * An explicit `trailingByteLength` takes precedence over encoded `metadata` and `markers` sizes.
  *
- * @param {{ sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16|24|32, float?: boolean, sampleFormat?: string, trailingByteLength?: number, metadata?: Record<string, *> }} [options]
+ * @param {{ sampleRate?: number, channelCount?: number, totalFrames?: number, bitDepth?: 16|24|32, float?: boolean, sampleFormat?: string, trailingByteLength?: number, metadata?: Record<string, *>, markers?: readonly import('./riff-markers.js').RiffMarkerInput[] }} [options]
  * @returns {{ container: 'aiff'|'aifc', byteLength: number, headerByteLength: number, formSize: number, dataByteLength: number, dataPadByteLength: number, trailingByteLength: number }}
  */
 export function inspectAiffLayout(options = {}) {
@@ -193,7 +201,7 @@ function prepareAiffLayout(options = {}, forcedTrailingByteLength) {
 	const dataPadByteLength = dataByteLength % 2;
 	const requestedTrailingByteLength = forcedTrailingByteLength ?? options.trailingByteLength;
 	const trailingByteLength = requestedTrailingByteLength == null
-		? createAiffId3Chunk(options.metadata).byteLength
+		? createAiffMarkChunk(options.markers).byteLength + createAiffId3Chunk(options.metadata).byteLength
 		: integerInRange(requestedTrailingByteLength, 0, UINT32_MAX, 0, 'AIFF trailing chunk size');
 	const compressionName = floatingPoint ? pascalString('32-bit floating point') : null;
 	const commSize = floatingPoint ? 18 + 4 + compressionName.byteLength : 18;

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from './pcm-chunks.js';
+import { parseAiffMarkChunk } from './aiff-markers.ts';
+import { normalizeRiffMarkers, type RiffMarker } from './riff-markers.ts';
 
 const FORM_HEADER_BYTES = 12;
 const CHUNK_HEADER_BYTES = 8;
@@ -14,6 +16,7 @@ const SSND_PREFIX_BYTES = 8;
 const DEFAULT_MAXIMUM_CHUNKS = 4_096;
 const MAXIMUM_CHUNKS = 65_536;
 const MAXIMUM_CHANNELS = 64;
+const MAXIMUM_MARK_BYTES = 16 * 1024 * 1024;
 
 export type AiffPcmSampleFormat = 'int8' | 'int16' | 'int24' | 'int32' | 'float32';
 
@@ -37,6 +40,8 @@ export interface AiffPcmDescriptor {
 	readonly dataByteLength: number;
 	readonly formByteLength: number;
 	readonly sourceByteLength: number;
+	/** MARK chunk markers, in the product's one marker vocabulary; absent on legacy descriptors. */
+	readonly markers?: readonly RiffMarker[];
 }
 
 export interface AiffBlobPcmChunk {
@@ -121,6 +126,7 @@ export async function inspectAiffBlobPcm(
 
 	let comm: AiffComm | null = null;
 	let sound: AiffSoundData | null = null;
+	let mark: Uint8Array | null = null;
 	let aifcVersion = false;
 	let offset = FORM_HEADER_BYTES;
 	let chunksRead = 0;
@@ -194,6 +200,8 @@ export async function inspectAiffBlobPcm(
 				dataOffset: payloadOffset + SSND_PREFIX_BYTES + soundOffset,
 				dataByteLength: chunkBytes - SSND_PREFIX_BYTES - soundOffset,
 			});
+		} else if (chunkId === 'MARK' && !mark && chunkBytes <= MAXIMUM_MARK_BYTES) {
+			mark = await readSourceBytes(source, payloadOffset, payloadEnd, signal);
 		}
 		const paddedEnd = payloadEnd + (chunkBytes % 2);
 		if (paddedEnd > formByteLength) {
@@ -213,7 +221,15 @@ export async function inspectAiffBlobPcm(
 		...sound,
 		formByteLength,
 		sourceByteLength: source.size,
+		markers: aiffMarkersFromChunk(mark),
 	}, isAifc);
+}
+
+/** A malformed MARK chunk loses its markers, not the audio import that carries them. */
+function aiffMarkersFromChunk(mark: Uint8Array | null): readonly RiffMarker[] {
+	if (!mark) return Object.freeze([]);
+	try { return parseAiffMarkChunk(mark); }
+	catch { return Object.freeze([]); }
 }
 
 /** Bind an inspected AIFF descriptor to bounded random-access PCM reads. */
@@ -408,6 +424,9 @@ function validateAiffPcmDescriptor(
 		|| dataEnd > formByteLength || formByteLength > sourceByteLength) {
 		throw new TypeError('AIFF PCM descriptor geometry or data range is invalid.');
 	}
+	const markers = candidate.markers === undefined
+		? undefined
+		: normalizeRiffMarkers(candidate.markers as readonly RiffMarker[]);
 	return descriptorFromFields({
 		sampleFormat,
 		sampleRate,
@@ -421,6 +440,7 @@ function validateAiffPcmDescriptor(
 		dataByteLength,
 		formByteLength,
 		sourceByteLength,
+		...(markers ? { markers } : {}),
 	}, floatingPoint);
 }
 
@@ -440,12 +460,14 @@ function closedDescriptor(value: unknown): Readonly<Record<string, unknown>> {
 		throw new TypeError('An AIFF PCM descriptor is required.');
 	}
 	const keys = Reflect.ownKeys(value);
-	if (keys.length !== DESCRIPTOR_FIELDS.length
-		|| keys.some((key) => typeof key !== 'string' || !DESCRIPTOR_FIELDS.includes(key as never))) {
+	// `markers` arrived after the closed field set, so descriptors without it stay valid.
+	const allowedFields: readonly string[] = [...DESCRIPTOR_FIELDS, 'markers'];
+	if (keys.some((key) => typeof key !== 'string' || !allowedFields.includes(key))
+		|| DESCRIPTOR_FIELDS.some((field) => !keys.includes(field))) {
 		throw new TypeError('AIFF PCM descriptor fields are invalid.');
 	}
 	const output: Record<string, unknown> = {};
-	for (const field of DESCRIPTOR_FIELDS) {
+	for (const field of keys as readonly string[]) {
 		const descriptor = Object.getOwnPropertyDescriptor(value, field);
 		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError(`AIFF PCM descriptor ${field} must be an enumerable data field.`);

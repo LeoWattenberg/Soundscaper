@@ -188,6 +188,22 @@ export function inventoryDeliveryConversions(
 		});
 	}
 
+	// AIFF MARK entries are named points: a region keeps only its start and a
+	// cue note has no field at all. The markers are written, but not whole.
+	const flattenedAiffMarkers = descriptor?.id === 'aiff' && Array.isArray(plan.markers)
+		? (plan.markers as readonly Readonly<{ sampleLength?: unknown; note?: unknown }>[])
+			.filter((marker) => Number(marker?.sampleLength) > 0 || Boolean(marker?.note)).length
+		: 0;
+	if (flattenedAiffMarkers > 0) {
+		conversions.push({
+			code: 'delivery.markers-flattened',
+			disposition: 'converted',
+			severity: 'info',
+			data: { markers: flattenedAiffMarkers, format: 'aiff' },
+			message: 'AIFF stores point markers without notes, so region lengths and cue notes were flattened out of the delivery.',
+		});
+	}
+
 	for (const conversion of masteringSequenceDeliveryConversions(plan.masteringSequence, carriesCues)) {
 		conversions.push(conversion);
 	}

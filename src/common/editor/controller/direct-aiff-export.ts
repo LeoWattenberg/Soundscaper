@@ -41,6 +41,7 @@ interface DirectAiffPlan {
 	readonly channelCount?: number;
 	readonly encoding?: DirectAiffEncoding;
 	readonly format?: unknown;
+	readonly markers?: unknown;
 	readonly metadata?: Readonly<Record<string, unknown>>;
 	readonly mimeType?: unknown;
 	readonly mode?: unknown;
@@ -175,6 +176,7 @@ function hasExactAiffLayout(plan: DirectAiffPlan, sampleFormat: DirectAiffSample
 			float: floatingPoint,
 			sampleFormat,
 			metadata: plan.metadata,
+			markers: plan.markers as never,
 		});
 		return layout.container === (floatingPoint ? 'aifc' : 'aiff')
 			&& layout.byteLength === plan.outputFileBytesPerRender

@@ -202,12 +202,12 @@ test('markers a format cannot carry are reported as omitted, not silently droppe
 		'and a report that never mentioned it would not pass the gate',
 	);
 
-	for (const format of ['wav', 'bwf', 'bw64']) {
+	for (const format of ['wav', 'bwf', 'bw64', 'aiff']) {
 		assert.equal(
 			inventoryDeliveryConversions(markedPlan(format), source)
 				.some(({ code }) => code === 'delivery.markers-omitted'),
 			false,
-			`${format} writes a cue chunk, so nothing is omitted`,
+			`${format} writes a marker chunk, so nothing is omitted`,
 		);
 	}
 	assert.equal(
@@ -215,5 +215,38 @@ test('markers a format cannot carry are reported as omitted, not silently droppe
 			.some(({ code }) => code === 'delivery.markers-omitted'),
 		false,
 		'a delivery with no markers omits nothing',
+	);
+});
+
+test('an AIFF delivery reports flattened regions and notes while writing its point markers', () => {
+	const plan = (markers: readonly Record<string, unknown>[]) => ({
+		format: 'aiff',
+		sampleRate: 48_000,
+		ditherMode: 'none',
+		encoding: { channelCount: 2, inputChannelCount: 2, sampleFormat: 'float32', floatingPoint: true },
+		markers,
+	});
+
+	const flattened = inventoryDeliveryConversions(plan([
+		{ id: 1, sampleOffset: 0, sampleLength: 480, label: 'Region', note: '' },
+		{ id: 2, sampleOffset: 5, sampleLength: 0, label: 'Noted', note: 'the note' },
+		{ id: 3, sampleOffset: 9, sampleLength: 0, label: 'Point', note: '' },
+	]), source).find(({ code }) => code === 'delivery.markers-flattened');
+	assert.equal(flattened?.disposition, 'converted');
+	assert.deepEqual(flattened?.data, { markers: 2, format: 'aiff' });
+
+	assert.equal(
+		inventoryDeliveryConversions(plan([
+			{ id: 1, sampleOffset: 9, sampleLength: 0, label: 'Point', note: '' },
+		]), source).some(({ code }) => code === 'delivery.markers-flattened'),
+		false,
+		'pure point markers flatten nothing',
+	);
+	assert.equal(
+		inventoryDeliveryConversions({ ...plan([
+			{ id: 1, sampleOffset: 0, sampleLength: 480, label: 'Region', note: '' },
+		]), format: 'wav' }, source).some(({ code }) => code === 'delivery.markers-flattened'),
+		false,
+		'WAV keeps region lengths and notes in its adtl chunks',
 	);
 });

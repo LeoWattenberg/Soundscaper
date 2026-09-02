@@ -62,6 +62,7 @@ test('bounded AIFF inspection and chunk reads decode signed big-endian PCM', asy
 		dataByteLength: 20,
 		formByteLength: encoded.byteLength,
 		sourceByteLength: encoded.byteLength,
+		markers: [],
 	});
 	assert.equal(Object.isFrozen(descriptor), true);
 	assert.ok(reads.length >= 5);
@@ -124,6 +125,7 @@ test('AIFF-C admission and chunk reads decode first-party big-endian float32 PCM
 		dataByteLength: 32,
 		formByteLength: encoded.byteLength,
 		sourceByteLength: encoded.byteLength,
+		markers: [],
 	});
 	const reader = createAiffBlobPcmChunkReader(source, { descriptor, chunkFrames: 2 });
 	assert.deepEqual([...((await reader.readChunk(0)).channels[0]!)], [-1.25, -0.5]);
