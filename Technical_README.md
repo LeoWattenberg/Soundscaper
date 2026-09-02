@@ -525,7 +525,11 @@ AWS Signature Version 4 with region `auto` and refuses endpoints outside
 Cloudflare's R2 S3 domain.
 
 [`sync-audacity-translations.yml`](.github/workflows/sync-audacity-translations.yml)
-runs at 03:37 UTC every Monday and can also be dispatched manually. Its first
+runs at 03:37 UTC every Monday and can also be dispatched manually. Dispatch it
+whenever `AUDACITY_QT_MAPPING` changes: desktop preparation stages only a
+release whose recorded mapping digest matches the reviewed mapping, so until a
+matching release is published every desktop packaging job fails with "No
+compatible released translation snapshot was staged". Its first
 job has no private credentials: it selects the newest successful scheduled run
 of Audacity's `translate_tx_pull_to_s3.yml` workflow, downloads the run-specific
 nightly.link artifact, and checks both the official GitHub byte length and

@@ -4,6 +4,12 @@
 // with a source-only lookup: the same English source often occurs in unrelated
 // Audacity contexts. The set intentionally favors high-value editor commands
 // that are complete in both a representative LTR locale and an RTL locale.
+//
+// Adding, removing or editing an entry changes the mapping digest, which no
+// longer matches the published translation release. Desktop preparation then
+// refuses to stage a snapshot and every packaging job fails. Dispatch
+// `sync-audacity-translations.yml` with `operation: sync` in the same change so
+// a matching release is published before the next nightly.
 export const AUDACITY_QT_MAPPING_VERSION = 2;
 
 export const AUDACITY_QT_MAPPING = deepFreeze([
