@@ -121,7 +121,7 @@ export default function EditorToolToolbar({
 		{ id: 'zoom-out', label: copy.zoomOut, icon: 'zoom-out' },
 		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
 		...editItems.map((item) => ({ id: item.action, label: item.label, icon: item.icon })),
-		{ id: 'time-display', label: copy.playhead, icon: 'playhead' },
+		{ id: 'time-display', label: copy.timecode, icon: 'playhead' },
 		...(capabilities.audioRecording ? [{ id: 'monitor', label: copy.recordLevel, icon: iconNameToChar('MICROPHONE') }] : []),
 		{ id: 'playback-volume', label: copy.playbackVolume, icon: iconNameToChar('AUDIO') },
 	];
