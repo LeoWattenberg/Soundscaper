@@ -15,6 +15,7 @@ import {
 	normalizeProjectImportTimelineStartFrame,
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
+import { scanEncodedAudioMarkers } from '../encoded-audio-marker-scan.ts';
 import { streamAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
 import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
 import { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
@@ -389,6 +390,11 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		}
 		await preflightStorage(Math.max(file.size * 8, 8 * 1024 * 1024), 'import');
 		assertImportProjectCurrent();
+		// A container the maintained PCM reader refused (a non-PCM WAV, say) still
+		// carries its cue chunk; scan it out before the codec decode discards
+		// everything but samples.
+		const rescuedMarkerScan = wavDescriptor ? null : await scanEncodedAudioMarkers(file);
+		assertImportProjectCurrent();
 		const { context, decoded, originalSampleRate } = await decodeStandaloneAudioForImport({
 			file, codecRuntime: ffmpeg, sampleRate: projectSampleRate(),
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
@@ -460,7 +466,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				durationFrames: Math.max(1, scaleSampleFrame(
 					canonical.length, canonical.sampleRate, projectSampleRate(), 'point',
 				)),
-			}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || [], wavDescriptor?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, wavDescriptor);
+			}, trackName, wavMetadata.importOptions, wavMetadata.projectBext, wavDescriptor?.markers || rescuedMarkerScan?.markers || [], wavDescriptor?.sampleRate || rescuedMarkerScan?.sampleRate || canonical.sampleRate, wavMetadata.projectIxml, wavMetadata.projectCart, wavMetadata.projectAdmCandidate, wavDescriptor);
 			cacheSourceBuffer(sourceId, canonical);
 			const peaks = await generateWaveformPeaks(audioBufferChannels(canonical), copy);
 			assertImportProjectCurrent();
