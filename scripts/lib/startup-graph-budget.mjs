@@ -15,9 +15,14 @@ export const STARTUP_GRAPH_BUDGETS = Object.freeze({
 		rawBytes: 6_200_000,
 		brotliBytes: 1_500_000,
 	}),
+	// Raised from 6_700_000 by the project owner. Framescaper's graph had drifted
+	// to within 2,381 bytes of that ceiling, so the next commit of any size
+	// breached it regardless of what it contained: the compressor and limiter
+	// metering work grew the graph 6,729 bytes and tipped it over. A ceiling with
+	// 0.036% slack reports commit order rather than startup cost.
 	framescaper: Object.freeze({
 		requests: 80,
-		rawBytes: 6_700_000,
+		rawBytes: 7_000_000,
 		brotliBytes: 1_600_000,
 	}),
 });
