@@ -65,9 +65,18 @@ export function reactProps(
 
 class ReactTestNode {
 	readonly childNodes: ReactTestNode[] = [];
-	parentNode: ReactTestNode | null = null;
-	ownerDocument!: ReactTestDocument;
-	constructor(readonly nodeType: number, readonly nodeName: string) {}
+	declare parentNode: ReactTestNode | null;
+	declare ownerDocument: ReactTestDocument;
+	constructor(readonly nodeType: number, readonly nodeName: string) {
+		// The upward links stay hidden from inspection so a printed node shows
+		// its own subtree rather than the whole document above it.
+		Object.defineProperty(this, 'parentNode', { value: null, writable: true, configurable: true, enumerable: false });
+		Object.defineProperty(this, 'ownerDocument', { value: undefined, writable: true, configurable: true, enumerable: false });
+	}
+	// A failing assertion prints its operands with util.inspect. Mounted nodes
+	// carry React's fiber links, so the default deep inspection walks the whole
+	// reconciler graph and exhausts memory before the message is ever shown.
+	[Symbol.for('nodejs.util.inspect.custom')](): string { return this.nodeName; }
 	get firstChild(): ReactTestNode | null { return this.childNodes[0] ?? null; }
 	get lastChild(): ReactTestNode | null { return this.childNodes.at(-1) ?? null; }
 	get isConnected(): boolean {
@@ -101,6 +110,23 @@ class ReactTestNode {
 		if (value) this.appendChild(this.ownerDocument.createTextNode(value));
 	}
 }
+
+// React attaches its fiber and props records to every host node as plain
+// own properties (`__reactFiber$…`, `__reactProps$…`). Those keys reach the
+// whole reconciler graph, and Node's assertion errors print operands with
+// `customInspect: false` at depth 1000, so a failed comparison against a
+// mounted node once walked that graph until the process ran out of memory.
+// A proxy in the prototype chain sees every assignment of a missing property
+// and records React's keys as non-enumerable, which keeps them out of inspect.
+Object.setPrototypeOf(ReactTestNode.prototype, new Proxy(Object.create(Object.prototype) as object, {
+	set(target, key, value, receiver: object) {
+		if (typeof key === 'string' && key.startsWith('__react')) {
+			Object.defineProperty(receiver, key, { value, writable: true, configurable: true, enumerable: false });
+			return true;
+		}
+		return Reflect.set(target, key, value, receiver);
+	},
+}));
 
 class ReactTestText extends ReactTestNode {
 	constructor(owner: ReactTestDocument, public nodeValue: string) {
@@ -159,6 +185,10 @@ export class ReactTestElement extends ReactTestNode {
 	getAttribute(name: string): string | null { return this.attributes.get(name) ?? null; }
 	hasAttribute(name: string): boolean { return this.attributes.has(name); }
 	focus(): void { this.ownerDocument.activeElement = this; }
+	override [Symbol.for('nodejs.util.inspect.custom')](): string {
+		const attributes = [...this.attributes].map(([name, value]) => ` ${name}="${value}"`).join('');
+		return `<${this.tagName.toLowerCase()}${attributes}>`;
+	}
 }
 
 class ReactTestStyle {
