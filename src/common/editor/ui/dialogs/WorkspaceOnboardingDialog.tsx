@@ -46,7 +46,7 @@ export default function WorkspaceOnboardingDialog({
 	const [error, setError] = useState('');
 	const activeId = preferences.workspace.activeId;
 	const [initialFocus] = useState(() => (
-		isOption(activeId) ? `[data-workspace-onboarding-option="${activeId}"]` : 'first'
+		isOption(activeId) ? `[data-workspace-onboarding-option="${activeId}"]` : '[data-workspace-onboarding-option]'
 	));
 	if (productId !== 'soundscaper') return null;
 	const finish = (): void => {

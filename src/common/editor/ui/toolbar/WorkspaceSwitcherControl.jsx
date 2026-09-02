@@ -6,6 +6,7 @@ import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { Icon } from '@soundscaper/design-system/Icon';
 
+import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { workspaceSwitcherOptions } from '../workspace/workspace-switcher-options.ts';
 
 // Audacity's main toolbar row ends in a "Workspace: <name>" dropdown. The
@@ -17,19 +18,25 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 	const activeId = workspace?.activeId;
 	const activeName = options.find((option) => option.id === activeId)?.name ?? '';
 	const triggerRef = useRef(null);
-	const dismissedByPointerRef = useRef(false);
 	const [position, setPosition] = useState(null);
 	const close = useCallback(() => setPosition(null), []);
-	// The menu already closes itself on any outside pointerdown, the trigger
-	// included; without this guard the following click would reopen it.
-	const rememberPointerDismissal = () => {
-		dismissedByPointerRef.current = Boolean(position);
+	const consumeTriggerDismissal = useMenuTriggerDismissal(triggerRef, Boolean(position));
+	// Presets other than Audacity hide this control, so choosing one unmounts
+	// the focused menu item; keep keyboard focus in the action bar instead of
+	// letting it fall to the body.
+	const choose = (workspaceId) => {
+		const trigger = triggerRef.current;
+		const bar = trigger?.closest('[role="toolbar"]');
+		const ownerDocument = trigger?.ownerDocument;
+		run(() => controller.actions.preferences.setWorkspace(workspaceId));
+		requestAnimationFrame(() => {
+			if (!ownerDocument || ownerDocument.activeElement !== ownerDocument.body) return;
+			const fallback = trigger?.isConnected ? trigger : bar?.querySelector('button:not([disabled])');
+			fallback?.focus();
+		});
 	};
 	const toggle = (event) => {
-		if (dismissedByPointerRef.current) {
-			dismissedByPointerRef.current = false;
-			return;
-		}
+		if (consumeTriggerDismissal()) return;
 		if (position) {
 			close();
 			return;
@@ -54,7 +61,7 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 					key={option.id}
 					label={option.name}
 					checked={option.id === activeId}
-					onClick={() => run(() => controller.actions.preferences.setWorkspace(option.id))}
+					onClick={() => choose(option.id)}
 					onClose={close}
 				/>
 			))}
@@ -69,7 +76,6 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 				className="button button--secondary button--small kw-audio-editor__action-bar-button kw-audio-editor__workspace-switcher"
 				aria-haspopup="menu"
 				aria-expanded={Boolean(position)}
-				onPointerDown={rememberPointerDismissal}
 				onClick={toggle}
 			>
 				<span className="button__text">{`${copy.workspace}: ${activeName}`}</span>

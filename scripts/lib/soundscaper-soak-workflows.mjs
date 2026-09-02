@@ -397,7 +397,7 @@ async function closeProjectBin(editor) {
 	const panel = editor.locator('[data-workspace-panel="project-bin"]');
 	if (await panel.isVisible().catch(() => false)) {
 		await panel.locator('[data-workspace-panel-menu="project-bin"] button').click();
-		await panel.getByRole('menuitem', { name: 'Close', exact: true }).click();
+		await editor.page().locator('.kw-audio-editor__workspace-panel-menu').getByRole('menuitem', { name: 'Close', exact: true }).click();
 		await panel.waitFor({ state: 'hidden' });
 	}
 }

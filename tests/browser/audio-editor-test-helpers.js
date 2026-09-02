@@ -22,7 +22,7 @@ export {
 	stubDisplayCapture,
 	stubStorageEstimate,
 } from './helpers/browser-environment-stubs.js';
-export { closeWorkspacePanel, dockWorkspacePanel, openWorkspacePanelMenu, workspacePanelMenuButton } from './helpers/workspace-panel-chrome.js';
+export { closeWorkspacePanel, dockWorkspacePanel, openWorkspacePanelMenu, workspacePanelMenu, workspacePanelMenuButton } from './helpers/workspace-panel-chrome.js';
 
 /**
  * The File-menu label for the Scape export, which names the suffix the running
@@ -267,7 +267,7 @@ export async function closeAup4CompatibilityReport(dialog) {
 
 export async function closeEffectsPanel(panel) {
 	await panel.locator('[data-workspace-panel-menu="effects"] button').click();
-	await panel.getByRole('menuitem', { name: 'Close', exact: true }).click();
+	await panel.page().locator('.kw-audio-editor__workspace-panel-menu').getByRole('menuitem', { name: 'Close', exact: true }).click();
 	await expect(panel).toBeHidden();
 }
 

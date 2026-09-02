@@ -8,6 +8,7 @@ import { ToolbarButtonGroup } from '@soundscaper/design-system/Toolbar';
 
 import { selectAudioEditorEditBlock } from '../../edit-blocking.ts';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
+import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { createSnapMenu, snapMenuCurrentLabel } from '../application-menu-model.js';
 
 // Audacity's Play toolbar keeps the musical divisions flat and folds the
@@ -26,19 +27,11 @@ export default function SnapToolbarControl({ controller, snapshot, copy, run }) 
 	const groups = Object.fromEntries(menu.items.map((item) => [item.id, item]));
 	const currentLabel = snapMenuCurrentLabel(menu);
 	const triggerRef = useRef(null);
-	const dismissedByPointerRef = useRef(false);
 	const [position, setPosition] = useState(null);
 	const close = useCallback(() => setPosition(null), []);
-	// The menu already closes itself on any outside pointerdown, the trigger
-	// included; without this guard the following click would reopen it.
-	const rememberPointerDismissal = () => {
-		dismissedByPointerRef.current = Boolean(position);
-	};
+	const consumeTriggerDismissal = useMenuTriggerDismissal(triggerRef, Boolean(position));
 	const toggle = (event) => {
-		if (dismissedByPointerRef.current) {
-			dismissedByPointerRef.current = false;
-			return;
-		}
+		if (consumeTriggerDismissal()) return;
 		if (position) {
 			close();
 			return;
@@ -75,8 +68,7 @@ export default function SnapToolbarControl({ controller, snapshot, copy, run }) 
 					aria-expanded={Boolean(position)}
 					aria-label={`${copy.snapInterval}: ${currentLabel}`}
 					disabled={disabled || !snapEnabled}
-					onPointerDown={rememberPointerDismissal}
-					onClick={toggle}
+						onClick={toggle}
 				>
 					<span className="kw-audio-editor__snap-interval-label">{currentLabel}</span>
 					<Icon name="caret-down" size={10} />

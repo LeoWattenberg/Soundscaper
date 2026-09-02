@@ -133,9 +133,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		query(selector) {
 			return selector === '[data-workspace-panel-menu="project-bin"] button' ? projectBinMenuButton : null;
 		},
-		queryAll(selector) {
-			return selector === '[role="menuitem"]' && fixture.projectBinMenuOpen ? projectBinMenuItems : [];
-		},
+
 	});
 	const exportButton = element({ click: () => { fixture.dialogOpen = true; } });
 	const newProject = element({ click: () => {
@@ -408,6 +406,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			return null;
 		},
 		querySelectorAll(selector) {
+			if (selector === '.kw-audio-editor__workspace-panel-menu [role="menuitem"]') return fixture.projectBinMenuOpen ? projectBinMenuItems : [];
 			return selector === '[role="option"]' ? fixture.activeOptions : [];
 		},
 	};

@@ -1,24 +1,31 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { Icon } from '@soundscaper/design-system/Icon';
 
 import { formatResizeLabel } from '../localization-template.ts';
+import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
 
 /**
  * The title bar every workspace panel shares: the ⠿ reorder handle, the
  * title, the floating ↘ resize handle and a "…" overflow menu that moves the
- * panel between docks or closes it. The menu is rendered as a sibling of the
- * header rather than inside it so a click on one of its items can never be
- * mistaken for the start of a floating-panel drag.
+ * panel between docks or closes it. The menu is portaled to the body: the
+ * docks are stacking contexts, so a menu rendered inside one would sit under
+ * floating effect windows and dialogs, and a click on one of its items could
+ * be mistaken for the start of a floating-panel drag.
  *
  * A pointer-opened menu leaves focus on its button; a keyboard-opened one
  * (`click.detail === 0`, or a keyboard context-menu request) focuses its first
  * item. Escape inside the menu returns focus to the button either way.
  */
+// Dialogs and floating effect windows sit at 10000; the menu must stay above
+// the window the user may have opened from the very panel it belongs to.
+const PANEL_MENU_STYLE = Object.freeze({ zIndex: 10_001 });
+
 export default function WorkspacePanelHeader({
 	panelId,
 	label,
@@ -33,10 +40,16 @@ export default function WorkspacePanelHeader({
 }) {
 	const menuButtonRef = useRef(null);
 	const [menu, setMenu] = useState(null);
+	const consumeTriggerDismissal = useMenuTriggerDismissal(menuButtonRef, Boolean(menu));
 	const closeMenu = () => setMenu(null);
 	const openMenu = ({ x, y, keyboard }) => {
 		menuButtonRef.current?.focus();
 		setMenu({ x, y, keyboard });
+	};
+	const openAtButton = (keyboard) => {
+		const bounds = menuButtonRef.current?.getBoundingClientRect();
+		if (!bounds) return;
+		openMenu({ x: bounds.left, y: bounds.bottom + 4, keyboard });
 	};
 	const ownerDocument = () => menuButtonRef.current?.ownerDocument ?? document;
 	return (
@@ -47,7 +60,10 @@ export default function WorkspacePanelHeader({
 				onPointerDown={onPointerDown}
 				onContextMenu={(event) => {
 					event.preventDefault();
-					openMenu({ x: event.clientX, y: event.clientY, keyboard: event.button !== 2 });
+					// A keyboard request (Shift+F10, the Menu key) carries no useful
+					// pointer position, so it anchors to the button like a click does.
+					if (event.button !== 2) openAtButton(true);
+					else openMenu({ x: event.clientX, y: event.clientY, keyboard: false });
 				}}
 			>
 				{dragHandle && <button
@@ -79,21 +95,26 @@ export default function WorkspacePanelHeader({
 						aria-haspopup="menu"
 						aria-expanded={Boolean(menu)}
 						onClick={(event) => {
-							const bounds = event.currentTarget.getBoundingClientRect();
-							openMenu({ x: bounds.left, y: bounds.bottom + 4, keyboard: event.detail === 0 });
+							if (consumeTriggerDismissal()) return;
+							if (menu) {
+								closeMenu();
+								return;
+							}
+							openAtButton(event.detail === 0);
 						}}
 					>
 						<Icon name="menu" size={16} />
 					</button>
 				</span>
 			</header>
-			<ContextMenu
-				isOpen={Boolean(menu)}
-				x={menu?.x || 0}
-				y={menu?.y || 0}
-				autoFocus={Boolean(menu?.keyboard)}
+			{menu && createPortal(<ContextMenu
+				isOpen
+				x={menu.x}
+				y={menu.y}
+				autoFocus={Boolean(menu.keyboard)}
 				onClose={closeMenu}
 				className="kw-audio-editor__workspace-panel-menu"
+				style={PANEL_MENU_STYLE}
 			>
 				{onDock && WORKSPACE_DOCK_IDS.map((dockId) => (
 					<ContextMenuItem
@@ -111,7 +132,7 @@ export default function WorkspacePanelHeader({
 					onClick={() => onClose(ownerDocument())}
 					onClose={closeMenu}
 				/>
-			</ContextMenu>
+			</ContextMenu>, ownerDocument().body)}
 		</>
 	);
 }

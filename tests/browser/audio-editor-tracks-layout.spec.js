@@ -604,6 +604,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		const snapMenu = page.locator('.kw-audio-editor__snap-menu');
 		await expect(snapMenu).toBeVisible();
 		await expect(snapInterval).toHaveAttribute('aria-expanded', 'true');
+		// The trigger closes its own menu; the menu's outside-press close must not reopen it.
+		await snapInterval.click();
+		await expect(snapMenu).toBeHidden();
+		await expect(snapInterval).toHaveAttribute('aria-expanded', 'false');
+		await snapInterval.click();
+		await expect(snapMenu).toBeVisible();
 		await expect(snapMenu.getByRole('menuitem', { name: 'Enable triplets', exact: true })).toHaveAttribute('aria-disabled', 'true');
 		await snapMenu.getByRole('menuitem', { name: 'Bar', exact: true }).click();
 		await expect(snapMenu).toBeHidden();
@@ -622,12 +628,18 @@ test.describe('audio editor React/design-system workflows', () => {
 		// The menu is portaled to the body, so it lives outside the editor locator.
 		const switcherMenu = page.locator('.kw-audio-editor__workspace-switcher-menu');
 		await expect(switcherMenu).toBeVisible();
+		await switcher.click();
+		await expect(switcherMenu).toBeHidden();
+		await expect(switcher).toHaveAttribute('aria-expanded', 'false');
+		await switcher.click();
+		await expect(switcherMenu).toBeVisible();
 		await expect(switcherMenu.getByRole('menuitem')).toContainText(['Soundscaper', 'Audacity', 'Music', 'Classic']);
 		await page.getByRole('menuitem', { name: 'Classic', exact: true }).click();
 		await expect(switcherMenu).toBeHidden();
 		await expect(editor).toHaveAttribute('data-workspace-preset', 'classic');
-		// The Classic preset hides the switcher again; bring it back to return.
+		// The Classic preset hides the switcher again; focus stays in the action bar.
 		await expect(editor.locator('[data-workspace-switcher]')).toHaveCount(0);
+		await expect(editor.locator('[data-action-bar] :focus')).toHaveCount(1);
 		await showToolbarButton(page, editor, 'Workspace');
 		await editor.getByRole('button', { name: 'Workspace: Classic', exact: true }).click();
 		await page.getByRole('menuitem', { name: 'Soundscaper', exact: true }).click();

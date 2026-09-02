@@ -20,6 +20,7 @@ import {
 	openClipProperties,
 	registerAudioEditorHooks,
 	waitForEditor,
+	workspacePanelMenu,
 	workspacePanelMenuButton,
 } from './audio-editor-test-helpers.js';
 
@@ -65,13 +66,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		const floatingDock = editor.locator('[data-panel-dock="floating"]');
 		// A keyboard-opened panel menu lands on its first item; Escape hands focus back to the button.
 		const metadataMenuButton = workspacePanelMenuButton(metadataPanel);
-		const metadataMenu = metadataPanel.locator('.kw-audio-editor__workspace-panel-menu');
+		const metadataMenu = workspacePanelMenu(editor);
 		await metadataMenuButton.press('Enter');
 		await expect(metadataMenu).toBeVisible();
 		await expect(metadataMenu.getByRole('menuitem').first()).toBeFocused();
 		await page.keyboard.press('Escape');
 		await expect(metadataMenu).toBeHidden();
 		await expect(metadataMenuButton).toBeFocused();
+		// A pointer user closes the menu with the same button that opened it.
+		await metadataMenuButton.click();
+		await expect(metadataMenu).toBeVisible();
+		await metadataMenuButton.click();
+		await expect(metadataMenu).toBeHidden();
+		await expect(metadataMenuButton).toHaveAttribute('aria-expanded', 'false');
 		await expect(floatingDock).toHaveCSS('resize', 'none');
 		await expect(floatingDock.locator('[data-workspace-panel="metadata"]')).toHaveCSS('resize', 'both');
 		await expect(floatingDock.locator('[data-floating-panel-move-handle="metadata"]')).toHaveCSS('touch-action', 'none');

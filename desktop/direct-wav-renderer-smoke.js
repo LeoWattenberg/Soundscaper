@@ -170,7 +170,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		const projectBinMenu = projectBin.querySelector('[data-workspace-panel-menu="project-bin"] button');
 		if (!projectBinMenu) throw new Error('Packaged direct WAV project bin menu is unavailable');
 		projectBinMenu.click();
-		const closeProjectBin = await waitFor(() => [...projectBin.querySelectorAll('[role="menuitem"]')]
+		const closeProjectBin = await waitFor(() => [...document.querySelectorAll('.kw-audio-editor__workspace-panel-menu [role="menuitem"]')]
 			.find((item) => String(item.textContent || '').trim() === 'Close') ?? null, 'project bin close action');
 		closeProjectBin.click();
 		await waitFor(() => !document.querySelector('[data-workspace-panel="project-bin"]'), 'project bin close');

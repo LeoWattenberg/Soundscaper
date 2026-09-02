@@ -21,11 +21,16 @@ export function workspacePanelMenuButton(panel) {
 	return panel.locator('.kw-audio-editor__workspace-panel-header [data-workspace-panel-menu] > button');
 }
 
+/** The open panel menu; it is portaled to the body so it clears the dock stacking context. */
+export function workspacePanelMenu(editor) {
+	return editor.page().locator('.kw-audio-editor__workspace-panel-menu');
+}
+
 /** Open a panel's overflow menu and return the menu locator. */
 export async function openWorkspacePanelMenu(editor, panelId) {
 	const panel = editor.locator(`[data-workspace-panel="${panelId}"]`);
 	await workspacePanelMenuButton(panel).click();
-	const menu = panel.locator('.kw-audio-editor__workspace-panel-menu');
+	const menu = workspacePanelMenu(editor);
 	await expect(menu).toBeVisible();
 	return menu;
 }

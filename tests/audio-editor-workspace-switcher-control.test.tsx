@@ -58,6 +58,28 @@ test('the switcher lists the product presets plus custom layouts and applies the
 	}
 });
 
+test('choosing a preset keeps keyboard focus in the action bar even when the choice hides the switcher', async () => {
+	const fixture = await mountedSwitcher(snapshot('soundscaper', 'audacity', { 'workspace-switcher': true }));
+	try {
+		Object.defineProperty(globalThis, 'requestAnimationFrame', {
+			configurable: true, writable: true, value: (callback: () => void) => { callback(); return 1; },
+		});
+		const trigger = fixture.dom.one('[data-workspace-switcher]').one('button');
+		// A pointer open: a keyboard open would leave the menu's own deferred
+		// autofocus timer pending, which the fake document cannot cancel.
+		await act(async () => { reactProps(trigger).onClick({ nativeEvent: { detail: 1 } }); });
+		const menu = fixture.body.querySelector('[role="menu"]');
+		assert.ok(menu);
+		// The activated item unmounts with the menu, which drops focus to the body.
+		trigger.ownerDocument.activeElement = fixture.body;
+		await act(async () => { reactProps(menuItem(menu, 'Soundscaper')).onClick({ stopPropagation() {} }); });
+		assert.deepEqual(fixture.calls.splice(0), ['modern']);
+		assert.equal(trigger.ownerDocument.activeElement, trigger, 'focus returns to the trigger while it is still mounted');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('Framescaper offers only the video-editor workspace', async () => {
 	const fixture = await mountedSwitcher(snapshot('framescaper', 'video-editor', { 'workspace-switcher': true }));
 	try {

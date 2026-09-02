@@ -29,6 +29,8 @@ interface MountedHeader {
 	readonly dom: ReturnType<typeof installReactTestDom>;
 	readonly menuButton: ReactTestElement;
 	menuItems(): ReactTestElement[];
+	findMenu(): ReactTestElement | null;
+	menu(): ReactTestElement;
 	menuItemLabels(): string[];
 	openMenu(detail?: number): Promise<void>;
 	unmount(): Promise<void>;
@@ -52,11 +54,20 @@ async function mountHeader(props: Record<string, unknown>): Promise<MountedHeade
 	/>));
 	const menuButton = dom.one('[data-workspace-panel-menu="history"]').querySelector('button');
 	assert.ok(menuButton, 'the header mounts a menu button');
-	const menuItems = () => dom.container.querySelectorAll('[role="menuitem"]');
+	// The menu is portaled to the body so it clears the dock's stacking context.
+	const body = dom.container.ownerDocument.body;
+	const menuItems = () => body.querySelectorAll('[role="menuitem"]');
+	const findMenu = () => body.querySelector('[role="menu"]');
 	return {
 		dom,
 		menuButton,
 		menuItems,
+		findMenu,
+		menu: () => {
+			const menu = findMenu();
+			assert.ok(menu, 'the menu is open');
+			return menu;
+		},
 		menuItemLabels: () => menuItems().map((item) => item.querySelector('.context-menu-item-label')?.textContent ?? ''),
 		async openMenu(detail = 1) {
 			await act(async () => reactProps(menuButton).onClick({ detail, currentTarget: menuButton }));
@@ -82,7 +93,7 @@ test('the panel header carries a labelled overflow menu button instead of a dock
 		assert.ok(menuButton.querySelector('.icon'), 'the button shows the design-system menu glyph');
 		assert.ok(!dom.find('select'), 'no dock <select> remains');
 		assert.ok(!dom.find('.kw-audio-editor__workspace-panel-close'), 'no × button remains');
-		assert.ok(!dom.find('[role="menu"]'), 'the menu is closed until asked for');
+		assert.ok(!mounted.findMenu(), 'the menu is closed until asked for');
 		assert.equal(dom.one('h2').textContent, 'History');
 		assert.ok(!dom.find('.kw-audio-editor__workspace-drag-handle'), 'no drag handle without handlers');
 		assert.ok(!dom.find('.kw-audio-editor__workspace-resize-handle'), 'no resize handle without handlers');
@@ -97,12 +108,14 @@ test('the menu lists every dock with the current one checked and disabled, then 
 	try {
 		const { dom, menuButton } = mounted;
 		await mounted.openMenu();
-		const menu = dom.one('[role="menu"]');
+		const menu = mounted.menu();
 		assert.ok(
 			(menu.getAttribute('class') ?? '').split(/\s+/u).includes('kw-audio-editor__workspace-panel-menu'),
 			'the menu carries the workspace panel menu class',
 		);
 		assert.equal(menuButton.getAttribute('aria-expanded'), 'true');
+		assert.equal(menu.parentNode, dom.container.ownerDocument.body, 'the menu escapes the dock stacking context');
+		assert.equal(String((menu.style as unknown as { zIndex?: unknown }).zIndex), '10001', 'the menu stays above effect windows and dialogs');
 		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Close']);
 		const items = mounted.menuItems();
 		assert.equal(items[1]?.getAttribute('aria-disabled'), 'true', 'the current dock cannot be re-chosen');
@@ -119,7 +132,7 @@ test('the menu lists every dock with the current one checked and disabled, then 
 
 		await act(async () => reactProps(items[3]!).onClick({}));
 		assert.deepEqual(docks, ['floating']);
-		assert.ok(!dom.find('[role="menu"]'), 'choosing a dock closes the menu');
+		assert.ok(!mounted.findMenu(), 'choosing a dock closes the menu');
 		assert.equal(menuButton.getAttribute('aria-expanded'), 'false');
 	} finally {
 		await mounted.unmount();
@@ -142,7 +155,7 @@ test('Close hands the owning document to the close callback', async () => {
 		assert.equal(closes.length, 1);
 		assert.equal(closes[0], mounted.dom.container.ownerDocument);
 		assert.deepEqual(docks, []);
-		assert.ok(!mounted.dom.find('[role="menu"]'), 'Close closes the menu');
+		assert.ok(!mounted.findMenu(), 'Close closes the menu');
 	} finally {
 		await mounted.unmount();
 	}
@@ -154,7 +167,7 @@ test('a header without dock support offers Close only', async () => {
 	try {
 		await mounted.openMenu();
 		assert.deepEqual(mounted.menuItemLabels(), ['Close']);
-		assert.equal(mounted.dom.one('[role="menu"]').querySelectorAll('[role="separator"]').length, 0);
+		assert.equal(mounted.menu().querySelectorAll('[role="separator"]').length, 0);
 		await act(async () => reactProps(mounted.menuItems()[0]!).onClick({}));
 		assert.equal(closes.length, 1);
 	} finally {
@@ -172,7 +185,7 @@ test('a keyboard-opened menu focuses its first item while a pointer-opened one l
 		assert.equal(ownerDocument.activeElement, menuButton, 'pointer opening keeps focus on the trigger');
 		const items = mounted.menuItems();
 		await act(async () => reactProps(items[1]!).onClick({}));
-		assert.ok(!dom.find('[role="menu"]'), 'choosing Right closes the menu');
+		assert.ok(!mounted.findMenu(), 'choosing Right closes the menu');
 
 		await mounted.openMenu(0);
 		await act(async () => { await new Promise((resolve) => setTimeout(resolve, 5)); });
@@ -191,7 +204,7 @@ test('right-clicking the header opens the same menu', async () => {
 			preventDefault: () => { prevented += 1; }, clientX: 40, clientY: 50, button: 2,
 		}));
 		assert.equal(prevented, 1, 'the native context menu is suppressed');
-		assert.ok(dom.find('[role="menu"]'));
+		assert.ok(mounted.findMenu());
 		assert.equal(menuButton.getAttribute('aria-expanded'), 'true');
 		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Close']);
 	} finally {

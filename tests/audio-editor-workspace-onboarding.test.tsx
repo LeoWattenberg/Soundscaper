@@ -358,3 +358,7 @@ async function source(path: string): Promise<string> {
 	return readFile(new URL(path, ROOT), 'utf8');
 }
 
+test('reopening the chooser on a preset without a card still starts on the first card', async () => {
+	const dialog = await readFile(new URL('../src/common/editor/ui/dialogs/WorkspaceOnboardingDialog.tsx', import.meta.url), 'utf8');
+	assert.match(dialog, /: '\[data-workspace-onboarding-option\]'/u, 'the fallback focus target is the first card, not the dialog close button');
+});
