@@ -112,7 +112,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 		// This source needs the composed-graph path. Framescaper owns the exact keyed
 		// compositor, so the browser-native tier can publish it without an FFmpeg fallback.
 		await installVideoSaveTarget(page);
-		const exportDialog = await openExportDialog(page, editor);
+		const exportDialog = await openExportDialog(page, editor, { label: 'Export video' });
 		const format = exportDialog.getByRole('group', { name: 'Format', exact: true });
 		await format.getByRole('button').click();
 		await page.getByRole('option', { name: 'MP4 video', exact: true }).click();

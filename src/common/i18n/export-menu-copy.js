@@ -11,6 +11,7 @@
  */
 const EXPORT_MENU_COPY_ENTRIES = Object.freeze([
 	['exportAudio', 'Export audio', 'Audio exportieren'],
+	['exportVideo', 'Export video', 'Video exportieren'],
 	['exportOther', 'Export other', 'Weitere Exporte'],
 	['exportLabels', 'Export labels', 'Beschriftungen exportieren'],
 	['exportEdl', 'Export edit list (EDL)', 'Schnittliste (EDL) exportieren'],

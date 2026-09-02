@@ -186,8 +186,8 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		})
 			.toBe(afterPreset);
 
-		await chooseFileAction(page, editor, 'Export audio', VISUAL_COMMAND_OPTIONS);
-		const exportDialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+		await chooseFileAction(page, editor, 'Export video', VISUAL_COMMAND_OPTIONS);
+		const exportDialog = page.getByRole('dialog', { name: 'Export video', exact: true });
 		await expect(exportDialog).toBeVisible(VISUAL_COMMAND_OPTIONS);
 		await chooseDropdown(
 			page,
@@ -311,8 +311,8 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await saveProjectAndWait(page, editor);
 		await waitForStoredVisualState(page, projectId, { generatorCount: 1 });
 
-		await chooseFileAction(page, editor, 'Export audio', VISUAL_COMMAND_OPTIONS);
-		const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+		await chooseFileAction(page, editor, 'Export video', VISUAL_COMMAND_OPTIONS);
+		const dialog = page.getByRole('dialog', { name: 'Export video', exact: true });
 		await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 		const canvasSize = dialog.locator('[data-export-field="canvasSize"] input');
 		await canvasSize.nth(0).fill('64');

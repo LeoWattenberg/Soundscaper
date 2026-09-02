@@ -24,6 +24,7 @@ import {
 	isVideoExportDialogFormat,
 } from '../export-dialog-model.js';
 import { projectHasTimelineVideo } from '../timeline-media-presence.ts';
+import { exportSurfaceDialogTitle } from '../export-surface-copy.ts';
 import { framescaperCaptionDeliveryUnavailable } from '../video-caption-delivery-surface.ts';
 import { DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
 import ExportPresetSection from './ExportPresetSection.jsx';
@@ -438,7 +439,7 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 	return (
 		<AudioEditorDialogShell
 			isOpen={isOpen}
-			title={copy.exportDialog || copy.export}
+			title={exportSurfaceDialogTitle(copy, productId)}
 			onClose={requestClose}
 			closeOnEscape={!exporting}
 			closeOnOutside={!exporting}

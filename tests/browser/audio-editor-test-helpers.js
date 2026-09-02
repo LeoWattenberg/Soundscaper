@@ -247,9 +247,11 @@ export async function openAnalysisPanel(page, editor) {
 	return panel;
 }
 
-export async function openExportDialog(page, editor) {
-	await chooseFileAction(page, editor, 'Export audio');
-	const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+// Framescaper names this command 'Export video', so a Framescaper workflow has
+// to say so; the surface behind it is the same delivery dialog.
+export async function openExportDialog(page, editor, { label = 'Export audio', ...options } = {}) {
+	await chooseFileAction(page, editor, label, options);
+	const dialog = page.getByRole('dialog', { name: label, exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="export"]')).toBeVisible();
 	return dialog;

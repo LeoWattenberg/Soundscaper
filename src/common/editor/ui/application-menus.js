@@ -24,6 +24,7 @@ import { createLocalAssistanceMenuItems } from './local-assistance-menu.ts';
 import { resolveProjectExtensionCopy } from './project-extension-copy.ts';
 import { createCrossProductHandoffMenuItems } from './cross-product-handoff-menu.ts';
 import { projectHasTimelineAudio, projectHasTimelineVideo } from './timeline-media-presence.ts';
+import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -218,7 +219,14 @@ export default function createApplicationMenus({
 				divider(),
 				{ id: 'import-audio', label: copy.importFile, preserveLabel: true, shortcut: 'Ctrl+I', disabled: blocked, onClick: actions.importFiles },
 				...productItems.fileImport,
-				{ id: 'export-audio', label: copy.exportAudio, shortcut: 'Ctrl+Shift+E', disabled: blocked || !exportableTimelineMedia, onClick: actions.exportAudio },
+				{
+					id: 'export-audio', label: exportSurfaceMenuLabel(copy, productId),
+					// Framescaper delivers picture here, so it keeps its own name instead of
+					// the upstream Audacity command the parity layer would otherwise impose.
+					preserveLabel: productId === 'framescaper',
+					shortcut: 'Ctrl+Shift+E', disabled: blocked || !exportableTimelineMedia,
+					onClick: actions.exportAudio,
+				},
 				{ id: 'delivery-queue', label: copy.deliveryQueue, disabled: blocked, onClick: actions.openDeliveryQueue },
 				{
 					id: 'export-other',

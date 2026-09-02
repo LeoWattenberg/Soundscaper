@@ -74,8 +74,8 @@ test.describe('Framescaper selected timeline images', () => {
 			schemaFamily: 'framescaper', schemaVersion: 1, sourceCount: 1, clipCount: 1, timelineOwned: true,
 		});
 
-		await chooseFileAction(page, editor, 'Export audio', { timeout: 120_000 });
-		const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+		await chooseFileAction(page, editor, 'Export video', { timeout: 120_000 });
+		const dialog = page.getByRole('dialog', { name: 'Export video', exact: true });
 		await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 		const canvasSize = dialog.locator('[data-export-field="canvasSize"] input');
 		await canvasSize.nth(0).fill('64');

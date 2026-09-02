@@ -87,8 +87,8 @@ test.describe('Framescaper v1 audio finishing', () => {
 			captionCueCount: 2,
 		});
 
-		await chooseFileAction(page, editor, 'Export audio');
-		const exportDialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
+		await chooseFileAction(page, editor, 'Export video');
+		const exportDialog = page.getByRole('dialog', { name: 'Export video', exact: true });
 		const loudness = exportDialog.getByRole('group', { name: 'Loudness normalization', exact: true })
 			.getByRole('button', { name: 'Loudness normalization', exact: true });
 		await expect(loudness).toContainText('None');

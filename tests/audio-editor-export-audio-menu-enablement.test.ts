@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
+import { EXPORT_MENU_COPY_BY_LOCALE } from '../src/common/i18n/export-menu-copy.js';
 import { projectHasTimelineAudio } from '../src/common/editor/ui/timeline-media-presence.ts';
 import { resolveAudioEditorShortcutHandler } from '../src/common/editor/ui/workspace-shortcuts.ts';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
@@ -47,6 +48,23 @@ test('a picture-only timeline keeps its one route into the export dialog', () =>
 	assert.equal(typeof item.onClick, 'function');
 });
 
+test('the delivery command carries each product its own name', () => {
+	const audio = [AUDIO_CLIP];
+	const audioTrack = [{ id: 'track-a', type: 'audio', clipIds: ['clip-a'], effects: [] }];
+	assert.equal(exportAudioItem(projectWith(audio, audioTrack)).label, EXPORT_MENU_COPY_BY_LOCALE.en.exportAudio);
+	// Framescaper delivers picture from this entry, and the Audacity parity layer
+	// must not canonicalize the video product's name back to the audio command.
+	assert.equal(
+		exportAudioItem(projectWith(audio, audioTrack), 'framescaper').label,
+		EXPORT_MENU_COPY_BY_LOCALE.en.exportVideo,
+	);
+	assert.notEqual(EXPORT_MENU_COPY_BY_LOCALE.en.exportVideo, EXPORT_MENU_COPY_BY_LOCALE.en.exportAudio);
+	for (const locale of ['en', 'de'] as const) {
+		assert.equal(typeof EXPORT_MENU_COPY_BY_LOCALE[locale].exportVideo, 'string');
+		assert.ok(EXPORT_MENU_COPY_BY_LOCALE[locale].exportVideo);
+	}
+});
+
 test('timeline audio presence counts only audio clips sitting on audio tracks', () => {
 	assert.equal(projectHasTimelineAudio(null), false);
 	assert.equal(projectHasTimelineAudio({ tracks: [], clips: [] }), false);
@@ -71,13 +89,14 @@ test('timeline audio presence counts only audio clips sitting on audio tracks', 
 
 interface MenuItem {
 	readonly id?: unknown;
+	readonly label?: unknown;
 	readonly disabled?: unknown;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: () => unknown;
 }
 
-function exportAudioItem(project: object | null): MenuItem {
-	const menus = createApplicationMenus(menuInput(project)) as readonly MenuItem[];
+function exportAudioItem(project: object | null, productId = 'soundscaper'): MenuItem {
+	const menus = createApplicationMenus(menuInput(project, productId)) as readonly MenuItem[];
 	const file = menus.find((menu) => menu.id === 'file');
 	assert.ok(file, 'file');
 	const item = file.items?.find((candidate) => candidate.id === 'export-audio');
@@ -95,9 +114,9 @@ function projectWith(clips: readonly object[], tracks: readonly object[]): objec
 	};
 }
 
-function menuInput(project: object | null) {
+function menuInput(project: object | null, productId = 'soundscaper') {
 	return {
-		productId: 'soundscaper', aboutLabel: 'About', capabilities: {}, locale: 'en',
+		productId, aboutLabel: 'About', capabilities: {}, locale: 'en',
 		copy: copyValues(), project,
 		snapshot: {
 			project, selectedTrackId: null,
@@ -119,6 +138,10 @@ function actionPorts(): object {
 	return new Proxy({}, { get: () => () => undefined });
 }
 
+// Real catalog copy, so a label assertion measures the shipped wording rather
+// than a stand-in; unrelated keys fall back to their own name.
 function copyValues(): object {
-	return new Proxy({}, { get: (target, property) => String(property) });
+	return new Proxy({ ...EXPORT_MENU_COPY_BY_LOCALE.en }, {
+		get: (target, property) => Reflect.get(target, property) ?? String(property),
+	});
 }

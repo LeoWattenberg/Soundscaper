@@ -36,7 +36,7 @@ test('Framescaper v1 imports and exports caption files and publishes built-in mo
 	await expect(dialog.getByRole('status')).toHaveText('1 interchange loss recorded.');
 	await closeFinishing(dialog);
 
-	const exportDialog = await openExportDialog(page, editor);
+	const exportDialog = await openExportDialog(page, editor, { label: 'Export video' });
 	await chooseDropdown(page,
 		exportDialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
 	await expect(exportDialog.locator('[data-export-field="captionDeliveryUnavailable"]')).toContainText(
