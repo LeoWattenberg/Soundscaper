@@ -47,6 +47,7 @@ export default function VideoEditorWorkspacePanels({
 					>
 						<WorkspacePanelContent
 							panelId={panelId}
+							dock="video-editor"
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}

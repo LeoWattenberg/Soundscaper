@@ -47,6 +47,7 @@ export function AudioEditorEffectsOverlay({
 	renderRack = true,
 	renderDialogs = true,
 	automationRuntime: automationRuntimeProp = null,
+	autoFocusOnOpen = true,
 }) {
 	const project = snapshot.project;
 	const inheritedAutomationRuntime = useTrackAutomationRuntime();
@@ -347,6 +348,7 @@ export function AudioEditorEffectsOverlay({
 				<div ref={rackRef} data-effect-rack>
 					<EffectsPanel
 						isOpen={isOpen}
+						autoFocusOnOpen={autoFocusOnOpen}
 						resizable={false}
 						mode={layout === 'docked' ? 'sidebar' : 'overlay'}
 						{...(layout === 'docked' ? {} : {

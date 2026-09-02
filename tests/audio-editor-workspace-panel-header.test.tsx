@@ -7,6 +7,7 @@ import React, { act } from 'react';
 
 import WorkspacePanelHeader from '../src/common/editor/ui/workspace/WorkspacePanelHeader.jsx';
 import {
+	FOCUS_ATTEMPTS,
 	closeWorkspacePanelAndRestoreFocus,
 	focusWorkspacePanelMenuButton,
 } from '../src/common/editor/ui/workspace/workspace-panel-focus.js';
@@ -284,7 +285,34 @@ test('the menu button focus helper retries across frames until the re-mounted pa
 
 		rafCalls = 0;
 		focusWorkspacePanelMenuButton({ querySelector: () => null }, 'metadata');
-		assert.equal(rafCalls, 4, 'the helper gives up after four frames');
+		assert.equal(rafCalls, FOCUS_ATTEMPTS, 'the helper gives up after a bounded number of frames');
+	} finally {
+		dom.restore();
+	}
+});
+
+test('the menu button focus helper waits for the replacement instead of the button that is about to unmount', () => {
+	const dom = installReactTestDom();
+	let rafCalls = 0;
+	try {
+		Object.defineProperty(globalThis, 'requestAnimationFrame', {
+			configurable: true, writable: true,
+			value: (callback: () => void) => { rafCalls += 1; callback(); return rafCalls; },
+		});
+		const previous = dom.container.ownerDocument.createElement('button');
+		const replacement = dom.container.ownerDocument.createElement('button');
+		let queries = 0;
+		const ownerDocument = {
+			querySelectorAll: (selector: string) => {
+				assert.equal(selector, '[data-workspace-panel-menu="effects"] button');
+				queries += 1;
+				// React has not committed the move yet: only the old button matches.
+				return queries < 3 ? [previous] : [previous, replacement];
+			},
+		};
+		focusWorkspacePanelMenuButton(ownerDocument, 'effects', previous);
+		assert.equal(dom.container.ownerDocument.activeElement, replacement, 'focus lands on the re-mounted button');
+		assert.equal(rafCalls, 3, 'the old button never receives focus while it still matches');
 	} finally {
 		dom.restore();
 	}

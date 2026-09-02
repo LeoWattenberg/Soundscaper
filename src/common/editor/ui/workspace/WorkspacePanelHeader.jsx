@@ -101,7 +101,7 @@ export default function WorkspacePanelHeader({
 						label={workspaceDockLabel(copy, dockId)}
 						checked={dockId === currentDock}
 						disabled={dockId === currentDock}
-						onClick={() => onDock(dockId, ownerDocument())}
+						onClick={() => onDock(dockId, ownerDocument(), menuButtonRef.current)}
 						onClose={closeMenu}
 					/>
 				))}

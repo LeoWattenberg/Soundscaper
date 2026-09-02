@@ -127,6 +127,12 @@ export interface EffectsPanelProps {
   width?: number;
   /** Height for overlay mode (px) */
   height?: number;
+  /**
+   * Whether opening the panel moves keyboard focus into it (default true).
+   * Hosts that re-mount an already-open panel — moving it between docks, for
+   * example — pass false so the focus the user holds elsewhere survives.
+   */
+  autoFocusOnOpen?: boolean;
 }
 
 /**
@@ -358,6 +364,7 @@ export const EffectsPanel: React.FC<EffectsPanelProps> = ({
   top = 0,
   width,
   height,
+  autoFocusOnOpen = true,
 }) => {
   const { theme } = useTheme();
   const [masterSectionHeight, setMasterSectionHeight] = React.useState(230); // Default master section height
@@ -442,7 +449,7 @@ export const EffectsPanel: React.FC<EffectsPanelProps> = ({
   // .focus() doesn't race the initial paint.
   const hasAutoFocused = React.useRef(false);
   React.useEffect(() => {
-    if (isOpen && panelRef.current && !hasAutoFocused.current) {
+    if (isOpen && autoFocusOnOpen && panelRef.current && !hasAutoFocused.current) {
       hasAutoFocused.current = true;
       // Prefer the Track section's "Add effect" button — that's the
       // canonical action when the user opens the panel (typically via
@@ -463,7 +470,7 @@ export const EffectsPanel: React.FC<EffectsPanelProps> = ({
     if (!isOpen) {
       hasAutoFocused.current = false;
     }
-  }, [isOpen]);
+  }, [isOpen, autoFocusOnOpen]);
 
   // Don't render if not open
   if (!isOpen) return null;

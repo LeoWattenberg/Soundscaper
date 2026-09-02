@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 
 import { EbuR128WorkspacePanel } from '../toolbar/AudioEditorMeters.jsx';
@@ -12,6 +12,34 @@ import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
 
 const AnalysisPanel = React.lazy(() => import('../inspector/AnalysisPanel.jsx'));
+
+// The docked effects rack claims keyboard focus when it opens. Moving the
+// panel to another dock unmounts that rack and mounts a fresh one, which would
+// claim focus again and pull it off the panel's own menu button. Remember
+// which host last showed the rack so a re-mount elsewhere can tell itself
+// apart from a genuine open.
+let effectsPanelHost = null;
+
+/** Whether a rack mounting in `nextHost` opens fresh rather than following a move. */
+export function effectsPanelAutoFocusOnMount(previousHost, nextHost) {
+	return previousHost === null || previousHost === nextHost;
+}
+
+function useEffectsPanelAutoFocus(host) {
+	const [autoFocus] = useState(() => effectsPanelAutoFocusOnMount(effectsPanelHost, host));
+	useEffect(() => {
+		effectsPanelHost = host;
+		return () => {
+			if (effectsPanelHost === host) effectsPanelHost = null;
+		};
+	}, [host]);
+	return autoFocus;
+}
+
+function DockedEffectsPanel({ host, ...props }) {
+	const autoFocusOnOpen = useEffectsPanelAutoFocus(host);
+	return <AudioEditorEffectsOverlay autoFocusOnOpen={autoFocusOnOpen} {...props} />;
+}
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
@@ -26,6 +54,7 @@ function LazyInspectorFallback({ copy }) {
 
 export default function WorkspacePanelContent({
 	panelId,
+	dock = 'main',
 	controller,
 	snapshot,
 	productId = snapshot.productId,
@@ -201,7 +230,8 @@ export default function WorkspacePanelContent({
 		const targetId = scope === 'track'
 			? selectedTrack?.id || null
 			: effectsPanelTarget?.trackId || null;
-		return <AudioEditorEffectsOverlay
+		return <DockedEffectsPanel
+			host={dock}
 			isOpen
 			controller={controller}
 			snapshot={snapshot}

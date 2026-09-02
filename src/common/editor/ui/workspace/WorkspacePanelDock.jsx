@@ -513,9 +513,9 @@ export default function WorkspacePanelDock({
 						resizeHandle={dock === 'floating' && !ANALYZER_PANEL_ID_SET.has(panelId)
 							? { onKeyDown: (event) => adjustFloatingPanelGeometry(event, panelId, panel, 'resize') }
 							: null}
-						onDock={(nextDock, ownerDocument) => {
+						onDock={(nextDock, ownerDocument, menuButton) => {
 							run(() => controller.actions.preferences.setPanel(panelId, { dock: nextDock }));
-							focusWorkspacePanelMenuButton(ownerDocument, panelId);
+							focusWorkspacePanelMenuButton(ownerDocument, panelId, menuButton);
 						}}
 						onClose={(ownerDocument) => closeWorkspacePanelAndRestoreFocus(ownerDocument, panelId, onTogglePanel)}
 					/>
@@ -525,6 +525,7 @@ export default function WorkspacePanelDock({
 					>
 						<WorkspacePanelContent
 							panelId={panelId}
+							dock={dock}
 							controller={controller}
 							snapshot={snapshot}
 							productId={productId}
