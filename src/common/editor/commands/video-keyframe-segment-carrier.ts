@@ -10,6 +10,7 @@ import {
 import { isRuntimeProjectProjection } from '../runtime-clip-projection.ts';
 import { VIDEO_KEYFRAME_CARRIER_EDITED } from './command-projection-transients.ts';
 import { applyCanonicalVideoTransformPlacement } from './canonical-video-transform-placement.ts';
+import { positiveSafeInteger, safeInteger } from './scalar-guards.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -176,16 +177,6 @@ function rangeField(value: Record<string, unknown>, key: string, name: string): 
 	return safeInteger(descriptor.value, `${name} sequence trim range.${key}`);
 }
 
-function safeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value)) throw new RangeError(`${name} must be a safe integer.`);
-	return Number(value);
-}
-
-function positiveSafeInteger(value: unknown, name: string): number {
-	const result = safeInteger(value, name);
-	if (result <= 0) throw new RangeError(`${name} must be positive.`);
-	return result;
-}
 
 function safeAdd(left: number, right: number, name: string): number {
 	const result = left + right;

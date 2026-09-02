@@ -6,6 +6,7 @@ import {
 	isSequenceDropFrameRate,
 	type SequenceTimecode,
 } from '../sequence-timecode.ts';
+import { nonNegativeSafeInteger, positiveSafeInteger } from './scalar-guards.ts';
 import {
 	normalizeRational,
 	sampleFrameToVideoFrame,
@@ -180,14 +181,4 @@ function safeSum(left: number, right: number): number {
 	const result = left + right;
 	if (!Number.isSafeInteger(result)) throw new RangeError('A clip range exceeds the safe integer range.');
 	return result;
-}
-
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
-	return Number(value);
-}
-
-function positiveSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
-	return Number(value);
 }

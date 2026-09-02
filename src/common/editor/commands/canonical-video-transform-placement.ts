@@ -3,6 +3,7 @@
 import { isBaselineFoundationProject, isFoundationProjectSchema } from '../project-schema-version.ts';
 import { videoFrameToSampleFrame, type RationalRate } from '../timeline-time.ts';
 import { CONFORMED_SEQUENCE_PLACEMENT } from './command-projection-transients.ts';
+import { nonNegativeSafeInteger, positiveSafeInteger } from './scalar-guards.ts';
 import type { CanonicalVideoPlacementCommandValue } from './protocol.ts';
 
 type DataRecord = Record<string | symbol, unknown>;
@@ -125,20 +126,6 @@ function rationalRate(value: unknown, name: string): RationalRate {
 		num: positiveSafeInteger(rate.num, `${name}.num`),
 		den: positiveSafeInteger(rate.den, `${name}.den`),
 	};
-}
-
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return Number(value);
-}
-
-function positiveSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError(`${name} must be a positive safe integer.`);
-	}
-	return Number(value);
 }
 
 function safeAdd(left: number, right: number, name: string): number {

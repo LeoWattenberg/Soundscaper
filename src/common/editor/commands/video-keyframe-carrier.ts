@@ -9,6 +9,7 @@ import {
 	type VideoKeyframeCurves,
 } from '../video-keyframe-curves.ts';
 import { multiplyDivideRationals, sampleFrameToVideoFrame } from '../timeline-time.ts';
+import { nonNegativeSafeInteger, positiveSafeInteger } from './scalar-guards.ts';
 
 type DataRecord = Record<PropertyKey, unknown>;
 
@@ -120,7 +121,7 @@ export function transformVideoKeyframeCarrier<Result extends DataRecord>(
 	if (!sourceClip) return result;
 	const target = dataRecord(destination, `${name} transform destination`);
 	dataRecord(changes ?? {}, `${name} transform changes`);
-	positiveOrZero(sourceClip.sequenceStartFrame, `${name}.sequenceStartFrame`);
+	nonNegativeSafeInteger(sourceClip.sequenceStartFrame, `${name}.sequenceStartFrame`);
 	const sourceCount = positiveSafeInteger(sourceClip.sequenceFrameCount, `${name}.sequenceFrameCount`);
 	const targetCount = positiveSafeInteger(dataProperty(target, 'sequenceFrameCount', `${name} transform destination`), `${name} destination sequenceFrameCount`);
 	const sourceChanged = sourceBoundsChanged(sourceClip, target, name);
@@ -335,7 +336,7 @@ export function videoKeyframeSequencePositionAtTimelineFrame(
 		positiveSafeInteger(dataProperty(projectRecord, 'sampleRate', 'project'), 'project.sampleRate'),
 		'point',
 	);
-	return frame - positiveOrZero(source.sequenceStartFrame, `${name}.sequenceStartFrame`);
+	return frame - nonNegativeSafeInteger(source.sequenceStartFrame, `${name}.sequenceStartFrame`);
 }
 
 function optionalKeyframedVideoClip(value: unknown, name: string): DataRecord | null {
@@ -443,15 +444,6 @@ function dataProperty(value: DataRecord, key: string, name: string): unknown {
 function nonEmptyString(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !value) throw new TypeError(`${name} must be a non-empty string.`);
 	return value;
-}
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
-	return Number(value);
-}
-function positiveOrZero(value: unknown, name: string): number { return nonNegativeSafeInteger(value, name); }
-function positiveSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) <= 0) throw new RangeError(`${name} must be a positive safe integer.`);
-	return Number(value);
 }
 function safeAdd(left: number, right: number, name: string): number {
 	const result = left + right;

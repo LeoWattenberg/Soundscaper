@@ -12,6 +12,7 @@ import {
 	type Rational,
 } from '../timeline-time.ts';
 import { defineTempoSignatureCommandHandlers } from './tempo-signature.ts';
+import { nonNegativeSafeInteger } from './scalar-guards.ts';
 import type {
 	EditorCommandProject,
 	SignatureEventCommandChanges,
@@ -447,13 +448,6 @@ function projectSampleRate(project: DataRecord): number {
 function stableId(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} must be a non-empty string.`);
 	return value;
-}
-
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return Number(value);
 }
 
 function isPowerOfTwo(value: number): boolean {

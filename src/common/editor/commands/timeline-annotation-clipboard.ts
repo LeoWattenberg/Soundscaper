@@ -13,6 +13,7 @@ import {
 	type TimelineAnnotationV11,
 } from '../timeline-annotation.ts';
 import { sampleFrameToBeat } from '../timeline-tempo-inverse.ts';
+import { nonNegativeSafeInteger } from './scalar-guards.ts';
 import {
 	addRationals,
 	compareRationals,
@@ -445,9 +446,4 @@ function canonicalIdArray(value: readonly unknown[], name: string): string[] {
 function canonicalId(value: unknown, name: string): string {
 	if (typeof value !== 'string' || !value.length || value !== value.trim()) throw new TypeError(`${name} must be a canonical non-empty string.`);
 	return value;
-}
-
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Object.is(value, -0) || Number(value) < 0) throw new RangeError(`${name} must be a non-negative safe integer.`);
-	return Number(value);
 }

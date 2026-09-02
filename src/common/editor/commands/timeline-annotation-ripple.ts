@@ -26,6 +26,7 @@ import type {
 	TimelineAnnotationRippleOperation,
 } from './protocol.ts';
 import type { RangeSequenceGeometry } from './range-sequence-geometry.ts';
+import { nonNegativeSafeInteger, positiveSafeInteger } from './scalar-guards.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -321,18 +322,4 @@ function stableId(value: unknown, name: string): string {
 		throw new TypeError(`${name} must be a canonical non-empty string.`);
 	}
 	return value;
-}
-
-function nonNegativeSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Object.is(value, -0) || Number(value) < 0) {
-		throw new RangeError(`${name} must be a non-negative safe integer.`);
-	}
-	return Number(value);
-}
-
-function positiveSafeInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) <= 0) {
-		throw new RangeError(`${name} must be a positive safe integer.`);
-	}
-	return Number(value);
 }
