@@ -30,7 +30,6 @@ interface AudioEditorTimelineProps {
 	readonly onRevealProjectBin?: () => void;
 	readonly onToggleArmControls?: () => void;
 	readonly onOpenSurface?: (surface: string) => void;
-	readonly onOpenTrackRate?: (track: Readonly<Record<string, unknown>>) => void;
 	readonly automationRuntime?: Readonly<TrackAutomationRuntime> | null;
 	readonly freezeRuntime?: Readonly<TrackFreezeRuntime> | null;
 	readonly searchRevealRequest?: TimelineSearchRevealRequest | null;
@@ -59,7 +58,6 @@ export default function AudioEditorTimeline({
 	onRevealProjectBin,
 	onToggleArmControls,
 	onOpenSurface,
-	onOpenTrackRate,
 	automationRuntime = null,
 	freezeRuntime = null,
 	searchRevealRequest = null,
@@ -78,7 +76,6 @@ export default function AudioEditorTimeline({
 		onRevealProjectBin,
 		onToggleArmControls,
 		onOpenSurface,
-		onOpenTrackRate,
 		automationRuntime,
 		freezeRuntime,
 		productId,

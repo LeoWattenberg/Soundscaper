@@ -10,6 +10,7 @@ import {
 } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
+import { resampledClipCommands } from './clip-resample-service.ts';
 import type { DerivedSourceService } from './derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from './mix-render-model.ts';
 import type {
@@ -447,26 +448,9 @@ export function createTrackTransformService(
 		const originalSource = findControllerSource(dependencies.getProject(), clip.sourceId);
 		const replacement = replacements.get(clip.sourceId);
 		if (!originalSource || !replacement) return;
-		const ratio = sampleRate / originalSource.sampleRate;
-		const sourceStartFrame = Math.min(replacement.source.frameCount - 1, Math.max(0, Math.round(clip.sourceStartFrame * ratio)));
-		const requestedDuration = Math.max(1, Math.round((clip.sourceDurationFrames || clip.durationFrames) * ratio));
-		const sourceDurationFrames = Math.min(requestedDuration, replacement.source.frameCount - sourceStartFrame);
-		const trimStartFrames = Math.min(sourceStartFrame, Math.max(0, Math.round((clip.trimStartFrames || 0) * ratio)));
-		const trimEndFrames = Math.min(
-			replacement.source.frameCount - sourceStartFrame - sourceDurationFrames,
-			Math.max(0, Math.round((clip.trimEndFrames || 0) * ratio)),
-		);
-		commands.push(
-			{ type: 'clip/remove', clipId: clip.id },
-			createAddClipCommand(track.id, {
-				...clip,
-				sourceId: replacement.source.id,
-				sourceStartFrame,
-				sourceDurationFrames,
-				trimStartFrames,
-				trimEndFrames,
-			}),
-		);
+		commands.push(...resampledClipCommands(
+			track.id, clip, originalSource, replacement.source, sampleRate,
+		));
 	}
 
 	function addSplitClipCommands(

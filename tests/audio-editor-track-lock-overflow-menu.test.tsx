@@ -91,7 +91,6 @@ function overflowInput({ productId, type, locked, mutationsBlocked, update }: Re
 		},
 		menuActions: { run: (handler: () => unknown) => handler() },
 		onOpenSurface: () => undefined,
-		onOpenTrackRate: () => undefined,
 		productId,
 		capabilities: {},
 	} as unknown;

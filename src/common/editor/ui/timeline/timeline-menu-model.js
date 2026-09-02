@@ -1,5 +1,5 @@
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
-import { trackSourceChannelCount, trackSources } from '../application-menu-model.js';
+import { trackSourceChannelCount } from '../application-menu-model.js';
 import {
 	createSoundscaperWorkflowApplicationMenuItems,
 	resolveTrackAutomationCopy,
@@ -40,7 +40,6 @@ export function createTimelineMenuModel({
 	model,
 	menuActions,
 	onOpenSurface,
-	onOpenTrackRate,
 	automationControls,
 	freezeRuntime,
 	productId,
@@ -115,7 +114,7 @@ export function createTimelineMenuModel({
 	] : [];
 	const trackOverflowItems = menuTrack ? createTrackOverflowItems({
 		controller, project, track: menuTrack, copy, productId, capabilities,
-		mutationsBlocked, run, onOpenSurface, onOpenTrackRate, freezeRuntime,
+		mutationsBlocked, run, onOpenSurface, freezeRuntime,
 	}) : [];
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'audio' ? [
@@ -257,13 +256,10 @@ export function createTimelineMenuModel({
 }
 
 function createTrackOverflowItems({
-	controller, project, track, copy, productId, capabilities, mutationsBlocked, run, onOpenSurface, onOpenTrackRate,
+	controller, project, track, copy, productId, capabilities, mutationsBlocked, run, onOpenSurface,
 	freezeRuntime,
 }) {
 	const audioTrack = track.type === 'audio' ? track : null;
-	const sources = trackSources(project, audioTrack);
-	const sourceRates = new Set(sources.map((source) => source.sampleRate));
-	const sourceFormats = new Set(sources.map((source) => source.sampleFormat));
 	const channelCount = trackSourceChannelCount(project, audioTrack);
 	const compatibleMonoTrack = channelCount === 1 && project.tracks.some((candidate) => (
 		candidate.id !== track.id && candidate.type === 'audio' && trackSourceChannelCount(project, candidate) === 1
@@ -304,35 +300,15 @@ function createTrackOverflowItems({
 		audio: audioTrack ? [
 			...workflow.tracks,
 			...takeComp,
-			// Sample rate, sample format, and channel layout are audio-effect work:
-			// their handlers refuse outright on a product without that capability,
-			// so a surface that offered them there only produced an error after the
-			// operator had chosen a value. The application menu already hides them.
+			// Sample rate and sample format are clip properties, not track
+			// properties: nothing stops the clips on one track carrying sources at
+			// different rates or formats, so the clip properties dialog owns both
+			// along with the resample that changes them. Channel layout stays here
+			// because it really is a whole-track operation, and it is audio-effect
+			// work whose handler refuses outright on a product without that
+			// capability, so offering it there only produced an error after the
+			// operator had chosen a value.
 			...(capabilities?.audioEffects === false ? [] : [
-			{
-				id: 'track-rate', label: copy.sampleRate, disabled: mutationsBlocked,
-				items: [44_100, 48_000, 88_200, 96_000, 192_000].map((sampleRate) => ({
-					id: `action://trackedit/track/change-rate?rate=${sampleRate}`,
-					label: `${sampleRate} Hz`, checked: sourceRates.size === 1 && sourceRates.has(sampleRate),
-					onClick: () => run(() => controller.actions.track.setRate(track.id, sampleRate)),
-				})).concat([{
-					id: 'track-change-rate-custom', label: copy.sampleRate,
-					disabled: mutationsBlocked,
-					onClick: () => onOpenTrackRate?.(track),
-				}]),
-			},
-			{
-				id: 'track-format', label: copy.sampleFormat, disabled: mutationsBlocked,
-				items: [
-					['int16', copy.sampleFormatPcm.replace('{bits}', '16')],
-					['int24', copy.sampleFormatPcm.replace('{bits}', '24')],
-					['float32', copy.sampleFormatFloat32],
-				].map(([sampleFormat, label]) => ({
-					id: `action://trackedit/track/change-format?format=${sampleFormat}`,
-					label, checked: sourceFormats.size === 1 && sourceFormats.has(sampleFormat),
-					onClick: () => run(() => controller.actions.track.setSampleFormat(track.id, sampleFormat)),
-				})),
-			},
 			{
 				id: 'track-channels', label: copy.trackChannels, disabled: mutationsBlocked,
 				items: [

@@ -46,7 +46,6 @@ test('the track overflow opts a track into inline automation and preserves the f
 		model: { project, sampleRate: 48_000 },
 		menuActions: { run: (operation: () => unknown) => operation() },
 		onOpenSurface: () => undefined,
-		onOpenTrackRate: () => undefined,
 		productId: 'soundscaper',
 		capabilities: { audioAutomation: true, audioTrackFreeze: true },
 		automationControls: {

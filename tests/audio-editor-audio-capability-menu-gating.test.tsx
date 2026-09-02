@@ -11,13 +11,13 @@ import React from 'react';
 /**
  * A surface offers a command the product can actually run.
  *
- * Sample rate, sample format, channel layout, reverse, normalize, and
- * pitch/speed are audio-effect work, and their handlers refuse outright on a
- * product without that capability. Two surfaces gated on it — the application
- * menu and the clip properties dialog — and their siblings did not: the track
- * control panel's overflow menu and the timeline's clip context menu offered the
- * same commands enabled on Framescaper, so choosing one produced
- * "Framescaper does not support audioEffects" instead of an edit.
+ * Channel layout, reverse, normalize, and pitch/speed are audio-effect work,
+ * and their handlers refuse outright on a product without that capability. Two
+ * surfaces gated on it — the application menu and the clip properties dialog —
+ * and their siblings did not: the track control panel's overflow menu and the
+ * timeline's clip context menu offered the same commands enabled on
+ * Framescaper, so choosing one produced "Framescaper does not support
+ * audioEffects" instead of an edit.
  */
 
 interface MenuItem {
@@ -27,7 +27,12 @@ interface MenuItem {
 	readonly items?: readonly MenuItem[];
 }
 
-const AUDIO_ONLY_TRACK_ITEMS = ['track-rate', 'track-format', 'track-channels'];
+const AUDIO_ONLY_TRACK_ITEMS = ['track-channels'];
+
+// Sample rate and sample format are clip properties, not track properties, and
+// the clip properties dialog owns them; the track overflow menu must not carry
+// them back.
+const CLIP_OWNED_TRACK_ITEMS = ['track-rate', 'track-format'];
 
 test('the track overflow menu offers audio-only commands only where they run', async () => {
 	const createTimelineMenuModel = await loadTimelineMenuModel();
@@ -43,6 +48,9 @@ test('the track overflow menu offers audio-only commands only where they run', a
 	}
 	// The commands that do not depend on the capability stay where they were.
 	assert.ok(withoutCapability.includes('track-lock-toggle'));
+	for (const id of CLIP_OWNED_TRACK_ITEMS) {
+		assert.equal(withCapability.includes(id), false, `${id} belongs to the clip, not the track`);
+	}
 });
 
 test('the clip context menu asks the same question the clip dialog asks', async () => {
@@ -108,7 +116,6 @@ function overflowInput(capabilities: Readonly<Record<string, boolean>>) {
 		},
 		menuActions: { run: (handler: () => unknown) => handler() },
 		onOpenSurface: () => undefined,
-		onOpenTrackRate: () => undefined,
 		productId: capabilities.audioEffects === false ? 'framescaper' : 'soundscaper',
 		capabilities,
 	} as unknown;

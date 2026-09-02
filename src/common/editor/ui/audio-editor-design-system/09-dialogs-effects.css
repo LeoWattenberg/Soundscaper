@@ -130,6 +130,18 @@
 	white-space: nowrap;
 }
 
+/* A value the dialog reports rather than edits still reads as the answer to the
+   label above it, not as a second label. */
+#kw-audio-editor-design-system .audio-editor-field__value {
+	min-height: 32px;
+	align-content: center;
+	color: var(--kw-editor-text);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-field .text-input,
 #kw-audio-editor-design-system .audio-editor-field .dropdown {
 	min-width: 0;

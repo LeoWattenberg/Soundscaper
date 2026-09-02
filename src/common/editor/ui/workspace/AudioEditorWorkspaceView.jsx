@@ -63,7 +63,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 		openEffects,
 		onRoutingGraphGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingGraphGestureHandler | undefined} */ (undefined),
 		onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined),
-		openTrackRate,
 		openProjectFile,
 		openSurface,
 		parityRuntime,
@@ -359,7 +358,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 						onRevealProjectBin={revealProjectBin}
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
 						onOpenSurface={openSurface}
-						onOpenTrackRate={openTrackRate}
 						automationRuntime={soundscaperWorkflow?.automationRuntime}
 						freezeRuntime={soundscaperWorkflow}
 						searchRevealRequest={timelineSearchReveal}

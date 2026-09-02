@@ -6,6 +6,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
+import ClipResampleDialog, { clipSampleFormatLabel } from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import {
 	dbToLinear,
@@ -55,6 +56,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 	const disabled = blocked || !clip;
 	const isVideoClip = clip?.kind === 'video';
 	const [error, setError] = useState('');
+	const [resampleOpen, setResampleOpen] = useState(false);
 	const projectIdentity = project?.id ?? null;
 	const clipIdentity = clip?.id ?? null;
 	const currentTarget = useRef({ projectIdentity, clipIdentity });
@@ -67,6 +69,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 
 	useEffect(() => {
 		setError('');
+		setResampleOpen(false);
 		return () => { activeOperation.current = null; };
 	}, [clipIdentity, projectIdentity]);
 
@@ -172,6 +175,21 @@ function ClipProperties({ controller, snapshot, copy }) {
 							onCommit={(value) => commitField('fadeOutFrame', value)} />
 					</div>
 				</section>}
+				{!isVideoClip && source && <section className="audio-editor-clip-properties__card">
+					<h3>{copy.clipAudioFormat}</h3>
+					<div className="audio-editor-clip-properties__stack">
+						<ClipFormatRow name="sampleRate" label={copy.sampleRateHz} value={source.sampleRate} />
+						<ClipFormatRow name="sampleFormat" label={copy.sampleFormat}
+							value={clipSampleFormatLabel(source.sampleFormat, copy)} />
+						{snapshot.capabilities?.audioEffects !== false && (
+							<div className="audio-editor-panel-actions">
+								<ActionHook hook="resample-clip">
+									<Button disabled={disabled} onClick={() => setResampleOpen(true)}>{copy.resample}</Button>
+								</ActionHook>
+							</div>
+						)}
+					</div>
+				</section>}
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
 					<h3>{copy.pitchTempo}</h3>
 					<div className="audio-editor-clip-properties__stack">
@@ -183,6 +201,19 @@ function ClipProperties({ controller, snapshot, copy }) {
 				</section>}
 				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={setError} />}
 			</div>
+			{resampleOpen && clip && source && (
+				<ClipResampleDialog
+					sampleRate={source.sampleRate}
+					sampleFormat={source.sampleFormat}
+					copy={copy}
+					disabled={disabled}
+					onCancel={() => setResampleOpen(false)}
+					onApply={(request) => {
+						setResampleOpen(false);
+						run((id) => controller.actions.clip.resample(id, request));
+					}}
+				/>
+			)}
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 			{!isVideoClip && snapshot.capabilities?.audioEffects && <div className="audio-editor-panel-actions">
 				<ActionHook hook="reverse"><Button disabled={disabled} onClick={() => run(controller.actions.clip.reverse)}>{copy.reverse}</Button></ActionHook>
@@ -193,6 +224,20 @@ function ClipProperties({ controller, snapshot, copy }) {
 			</div>}
 		</div>
 	);
+}
+
+/**
+ * One read-only fact about the material a clip plays.
+ *
+ * The rate and the declared format are not edited in place: changing either is
+ * a resample, which the dialog beside these rows asks for in full, so they are
+ * displayed as text rather than as inputs that would refuse every keystroke.
+ */
+function ClipFormatRow({ name, label, value }) {
+	return <div className="audio-editor-field" data-clip-format-field={name}>
+		<span>{label}</span>
+		<span className="audio-editor-field__value">{value}</span>
+	</div>;
 }
 
 function ClipTimeCodeField({ name, label, value, sampleRate, minimum = 0,

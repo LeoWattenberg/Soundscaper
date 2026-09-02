@@ -551,7 +551,6 @@ export default function AudioEditorWorkspace({
 		nyquistTarget,
 		onError,
 		openEffects,
-		openTrackRate,
 		openProjectFile,
 		openSurface,
 		parityRuntime,

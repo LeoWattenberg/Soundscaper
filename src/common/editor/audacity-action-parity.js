@@ -262,9 +262,15 @@ const definitions = [
 	implemented('action://trackedit/track-view-waveform', 'Waveform', ['Track context > Display'], 'track.setWaveformView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-spectrogram', 'Spectrogram', ['Track context > Display'], 'track.setSpectrogramView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-multi', 'Multi-view', ['Track context > Display'], 'track.setMultiView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-change-rate-custom', 'Custom track sample rate', ['Track context > Rate'], 'track.setCustomRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
-	implemented('action://trackedit/track/change-rate?rate=%1', 'Track sample rate', ['Track context > Rate'], 'track.setRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery rate action' }),
-	implemented('action://trackedit/track/change-format?format=%1', 'Track sample format', ['Track context > Format'], 'track.setSampleFormat', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery format action' }),
+	// Upstream treats sample rate and sample format as track properties. Nothing
+	// in the browser model does: rate and format live on the source a clip
+	// references, and one track's clips may legitimately carry several of each.
+	// The commands keep their track-wide handlers for the Audacity action
+	// runtime, but the surface that offers them is the clip properties dialog,
+	// which applies a rate and a format to the selected clip alone.
+	implemented('track-change-rate-custom', 'Custom track sample rate', ['Clip properties'], 'track.setCustomRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
+	implemented('action://trackedit/track/change-rate?rate=%1', 'Track sample rate', ['Clip properties'], 'track.setRate', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery rate action' }),
+	implemented('action://trackedit/track/change-format?format=%1', 'Track sample format', ['Clip properties'], 'track.setSampleFormat', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery format action' }),
 	implemented('track-spectrogram-settings', 'Spectrogram settings', ['Track context > Spectrogram'], 'track.openSpectrogramSettings', { enableWhen: 'audio-track-selected', source: UPSTREAM.spectrogram }),
 	implemented('action://projectscene/track-view-half-wave', 'Half-wave', ['Track context > Display'], 'track.setHalfWaveView', { enableWhen: 'audio-track-selected', source: UPSTREAM.projectScene }),
 	implemented('keep-tracks-synchronised', 'Keep tracks synchronized', ['Tracks'], 'preferences.toggleTrackSynchronization', { enableWhen: 'project-opened', source: UPSTREAM.project }),

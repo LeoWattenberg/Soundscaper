@@ -212,6 +212,7 @@ import { createTakeCycleRecordingAppSession } from './controller/take-cycle-reco
 import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
+import { createClipResampleService } from './controller/clip-resample-service.ts';
 import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
 import { createClipPropertyService } from './controller/clip-property-service.ts';
@@ -1151,6 +1152,21 @@ export function createAudioEditorController(_root = null, options = {}) {
 		resampleChannels: resampleChannelsWindowedSinc,
 		renderDryTrackRange,
 	});
+	const clipResampleService = createClipResampleService({
+		lifetime, copy, derivedSources: derivedSourceService,
+		getProject: () => project,
+		getSelectedClipId: () => state.selectedClipId,
+		editingBlocked,
+		captureProject: () => projectGeneration.capture(project?.id ?? null),
+		assertProject: (token) => projectGeneration.assertCurrent(token),
+		commit,
+		normalizeProjectSampleRate,
+		preflightStorage,
+		setProcessing: (processing) => { state.audacityEffectProcessing = processing; },
+		setStatus,
+		publish: publishDocumentSnapshot,
+		resampleChannels: resampleChannelsWindowedSinc,
+	});
 	trackService = createEditorTrackService({
 		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS,
 		getProject: () => project,
@@ -1843,7 +1859,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		projectBinInstanceCount, refreshAudioDevices, refreshRecordingInputs, refreshStorageUsage, releaseInputs, releaseVideoSourceVisual: revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: projectBinService.canRelinkLinkedAudio, classifyLinkedAudioRelink: projectBinService.classifyLinkedAudioRelink, relinkLinkedAudio: projectBinService.relinkLinkedAudio, canRelinkLinkedVideo: projectBinService.canRelinkLinkedVideo, classifyLinkedVideoRelink: projectBinService.classifyLinkedVideoRelink, relinkLinkedVideo: projectBinService.relinkLinkedVideo,
 		removeProjectBinClip, removeProjectBinSource, removeVideoClipEffect, renameProject,
 		renameProjectBinClip, renderClipPitchSpeed, reorderTrack, reorderVideoClipEffect,
-		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleTrack,
+		repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence: storageCapacityService.requestStoragePersistence, requestWaveformPcmWindow, resampleClip, resampleTrack,
 		resetClipPitchSpeed, resetLoudnessMeasurement, resizeTrackHeight, revertFactorySettings,
 		runEffectMacro, runNyquistEvaluation, saveAup4, saveEffectPreset,
 		saveNow, saveScape, scheduleTimedRecording, selectAllTracks,
@@ -2189,6 +2205,10 @@ export function createAudioEditorController(_root = null, options = {}) {
 
 	async function resampleTrack(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {
 		return taskProgress.run('transform', copy.resamplingTrack || copy.audacityProcessing, () => trackTransformService.resampleTrack(trackId, requestedSampleRate));
+	}
+
+	async function resampleClip(clipId = state.selectedClipId, request = {}) {
+		return taskProgress.run('transform', copy.resamplingClip || copy.audacityProcessing, () => clipResampleService.resampleClip(clipId, request));
 	}
 
 	async function swapTrackChannels(trackId = state.selectedTrackId) {
