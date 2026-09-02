@@ -81,6 +81,9 @@ export function createFixture() {
 			pcmBytes: number;
 			bext?: ReturnType<typeof bextMetadata> | null;
 			metadataWarnings?: ReadonlyArray<{ code: string; message: string }>;
+			markers?: ReadonlyArray<{
+				id: number; sampleOffset: number; sampleLength: number; label: string; note: string;
+			}>;
 		},
 		structuredDecoded: null as null | {
 			project?: Record<string, unknown>;

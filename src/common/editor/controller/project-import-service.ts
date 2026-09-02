@@ -499,8 +499,9 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
 	}
 	function importResultWithWarnings(result: RuntimeValue, warnings: readonly RuntimeValue[]) {
-		if (!warnings.length) return result;
-		const messages = [...new Set(warnings.map((warning) => {
+		const interchangeMessages = importInterchangeMessages(result);
+		if (!warnings.length && !interchangeMessages.length) return result;
+		const messages = [...new Set([...warnings.map((warning) => {
 			if (typeof warning === 'string') return warning;
 			if (warning?.code === 'bext-time-reference-conversion' || warning?.code === 'bext-spot-out-of-range') {
 				return warning.message;
@@ -510,12 +511,23 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 			}
 			if (typeof warning?.message === 'string') return warning.message;
 			return String(warning?.code || 'WAV metadata warning.');
-		}).filter(Boolean))];
+		}), ...interchangeMessages].filter(Boolean))];
 		return Object.freeze({
 			...result,
-			metadataWarnings: Object.freeze([...warnings]),
+			...(warnings.length ? { metadataWarnings: Object.freeze([...warnings]) } : {}),
 			...(messages.length ? { notice: messages.join(' ') } : {}),
 		});
+	}
+
+	// The interchange report names every cue the import converted, clipped, or
+	// dropped; without folding it into the notice those losses stay invisible.
+	function importInterchangeMessages(result: RuntimeValue): string[] {
+		const items = result?.timelineAnnotationInterchangeReport?.items;
+		if (!Array.isArray(items)) return [];
+		return items
+			.filter((item: RuntimeValue) => item?.disposition !== 'preserved')
+			.map((item: RuntimeValue) => (typeof item?.message === 'string' ? item.message : ''))
+			.filter(Boolean);
 	}
 
 	function isBextMetadataWarning(warning: RuntimeValue) {

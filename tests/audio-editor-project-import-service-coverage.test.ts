@@ -34,6 +34,20 @@ test('audio imports support existing tracks, project-bin placement, and decoder 
 	assert.equal(fixture.calls.filter((entry) => entry === 'warn-envelope').length, 2);
 });
 
+test('a project-bin import surfaces its cue omission in the import notice', async () => {
+	const fixture = createFixture();
+	fixture.options.incrementalDescriptor = {
+		channelCount: 1, frameCount: 4, sampleRate: 48_000, pcmBytes: 16,
+		markers: [{ id: 1, sampleOffset: 2, sampleLength: 0, label: 'Cue', note: '' }],
+	};
+	const service = createProjectImportService(fixture.runtime);
+	const result = await service.importFile(file('cues.wav'), { destination: 'project-bin' });
+
+	assert.equal(result.destination, 'project-bin');
+	assert.equal(result.timelineAnnotationInterchangeReport?.counts.omitted, 1);
+	assert.match(String(result.notice || ''), /Project Bin/u);
+});
+
 test('decoded audio imports cannot cross projects while decoding or after persistence', async () => {
 	const decoding = createFixture();
 	const decodeGate = deferred<void>();
