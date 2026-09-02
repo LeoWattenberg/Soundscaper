@@ -76,74 +76,72 @@ test('first-launch setup reads only a completed record and tolerates unusable st
 	assert.equal(JSON.parse(firstLaunchSetupSeedValue('audacity')).workspaceId, 'audacity');
 });
 
-test('the onboarding dialog renders an accessible radio-card choice for Soundscaper only', () => {
+test('the onboarding dialog offers two one-click cards and no confirmation controls, for Soundscaper only', () => {
 	const markup = renderDialogMarkup('audacity');
 	assert.match(markup, /role="dialog"[^>]*aria-label="Getting started"/u);
 	assert.match(markup, /data-workspace-onboarding-dialog="true"/u);
 	assert.match(markup, /aria-describedby="workspace-onboarding-question"/u);
 	assert.match(markup, /id="workspace-onboarding-question"[^>]*>What UI layout \(workspace\) do you want\?</u);
-	assert.match(markup, /role="radiogroup"[^>]*aria-label="Select workspace layout"/u);
+	assert.match(markup, /role="group"[^>]*aria-label="Select workspace layout"/u);
 	assert.match(markup, /Closely matches the layout of Audacity 4/u);
 	assert.match(markup, /vertical rulers and side meters/u);
 	assert.match(markup, /You can change between these layouts at any time from View &gt; Workspace/u);
-	assert.match(markup, /<button[^>]*data-workspace-onboarding-done="true"[^>]*>Done</u);
-	assert.match(markup, /kw-audio-editor-dialog__actions/u);
 	assert.match(markup, /role="status" aria-live="polite" aria-atomic="true"/u);
+	assert.doesNotMatch(markup, /type="radio"/u, 'the cards are the choice, not radios inside it');
+	assert.doesNotMatch(markup, /kw-audio-editor-dialog__actions/u, 'no footer confirms what a card already did');
+	assert.doesNotMatch(markup, />Done</u);
 
-	const radios = radioTags(markup);
-	assert.equal(radios.length, 2);
-	for (const radio of radios) assert.match(radio, /name="workspace-onboarding"/u);
-	assert.match(radioFor(radios, 'audacity'), /checked=""/u);
-	assert.doesNotMatch(radioFor(radios, 'modern'), /checked=""/u);
-	assert.match(markup, /audio-editor-workspace-onboarding__option--selected[^>]*>[\s\S]*data-workspace-onboarding-option="audacity"/u);
+	const cards = cardTags(markup);
+	assert.equal(cards.length, 2);
+	for (const card of cards) assert.match(card, /type="button"/u);
+	assert.match(cardFor(cards, 'audacity'), /aria-labelledby="workspace-onboarding-audacity-title"/u);
+	assert.match(cardFor(cards, 'audacity'), /aria-describedby="workspace-onboarding-audacity-description"/u);
+	assert.match(cardFor(cards, 'audacity'), /aria-current="true"/u);
+	assert.doesNotMatch(cardFor(cards, 'modern'), /aria-current/u);
+	assert.match(cardFor(cards, 'audacity'), /audio-editor-workspace-onboarding__option--selected/u);
+	assert.doesNotMatch(cardFor(cards, 'modern'), /audio-editor-workspace-onboarding__option--selected/u);
 	assert.match(markup, />Audacity</u);
 	assert.match(markup, />Soundscaper</u);
 
-	const modern = radioTags(renderDialogMarkup('modern'));
-	assert.match(radioFor(modern, 'modern'), /checked=""/u);
-	assert.doesNotMatch(radioFor(modern, 'audacity'), /checked=""/u);
+	const modern = cardTags(renderDialogMarkup('modern'));
+	assert.match(cardFor(modern, 'modern'), /aria-current="true"/u);
+	assert.doesNotMatch(cardFor(modern, 'audacity'), /aria-current/u);
 
 	const music = renderDialogMarkup('music');
-	assert.doesNotMatch(music, /checked=""/u, 'other presets leave both cards unchecked');
+	assert.doesNotMatch(music, /aria-current/u, 'other presets leave both cards unmarked');
 	assert.doesNotMatch(music, /audio-editor-workspace-onboarding__option--selected/u);
 
 	assert.equal(renderDialogMarkup('modern', 'framescaper'), '');
 });
 
-test('choosing a card switches the workspace at once and finishing records the choice', async () => {
+test('one click on a card switches the workspace, records the choice and closes the dialog', async () => {
 	const mounted = await mountDom();
 	const calls: string[] = [];
 	const storage = memoryStorage();
 	let closed = 0;
 	const controller = { actions: { preferences: { setWorkspace: (id: string) => { calls.push(id); } } } };
-	const renderDialog = (activeId: string) => (
-		<WorkspaceOnboardingDialog
+	try {
+		await act(async () => mounted.root.render(<WorkspaceOnboardingDialog
 			productId="soundscaper"
 			controller={controller}
-			preferences={{ workspace: { activeId } }}
+			preferences={{ workspace: { activeId: 'modern' } }}
 			copy={ENGLISH_COPY}
 			run={(operation) => operation()}
 			storage={storage}
 			onClose={() => { closed += 1; }}
-		/>
-	);
-	try {
-		await act(async () => mounted.root.render(renderDialog('modern')));
+		/>));
 		const audacity = mounted.dom.one('[data-workspace-onboarding-option="audacity"]');
 		await act(async () => {
-			void reactProps(audacity).onChange({ target: { checked: true, value: 'audacity' } });
+			void reactProps(audacity).onClick({});
 			await Promise.resolve();
 		});
-		assert.deepEqual(calls, ['audacity'], 'a card change applies the preset immediately');
-		assert.equal(readFirstLaunchSetup('soundscaper', storage), null, 'choosing does not finish setup');
-		assert.equal(closed, 0);
-
-		await act(async () => mounted.root.render(renderDialog('audacity')));
-		await act(async () => {
-			reactProps(mounted.dom.one('[data-workspace-onboarding-done]')).onClick({});
-		});
-		assert.equal(closed, 1);
-		assert.equal(readFirstLaunchSetup('soundscaper', storage)?.workspaceId, 'audacity');
+		assert.deepEqual(calls, ['audacity'], 'the card applies the preset immediately');
+		assert.equal(closed, 1, 'the card is the whole answer, so the dialog leaves');
+		assert.equal(
+			readFirstLaunchSetup('soundscaper', storage)?.workspaceId,
+			'audacity',
+			'the record follows the card, not the preference the dialog opened on',
+		);
 	} finally {
 		await mounted.unmount();
 	}
@@ -165,11 +163,11 @@ test('closing the shell also records the current workspace and reports apply fai
 			onClose={() => { closed += 1; }}
 		/>));
 		await act(async () => {
-			void reactProps(mounted.dom.one('[data-workspace-onboarding-option="audacity"]'))
-				.onChange({ target: { checked: true, value: 'audacity' } });
+			void reactProps(mounted.dom.one('[data-workspace-onboarding-option="audacity"]')).onClick({});
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
 		assert.equal(mounted.dom.one('[role="status"]').textContent, 'workspace locked');
+		assert.equal(closed, 0, 'a card that cannot be applied keeps the dialog open');
 
 		const backdrop = mounted.dom.one('.kw-audio-editor-dialog-backdrop');
 		await act(async () => {
@@ -295,14 +293,15 @@ function renderDialogMarkup(activeId: string, productId = 'soundscaper'): string
 	/>);
 }
 
-function radioTags(markup: string): string[] {
-	return (markup.match(/<input[^>]*>/gu) ?? []).filter((tag) => /type="radio"/u.test(tag));
+function cardTags(markup: string): string[] {
+	return (markup.match(/<button[^>]*>/gu) ?? [])
+		.filter((tag) => /data-workspace-onboarding-option="/u.test(tag));
 }
 
-function radioFor(radios: readonly string[], id: string): string {
-	const radio = radios.find((tag) => tag.includes(`data-workspace-onboarding-option="${id}"`));
-	assert.ok(radio, `missing ${id} radio`);
-	return radio;
+function cardFor(cards: readonly string[], id: string): string {
+	const card = cards.find((tag) => tag.includes(`data-workspace-onboarding-option="${id}"`));
+	assert.ok(card, `missing ${id} card`);
+	return card;
 }
 
 function memoryStorage(initial: Readonly<Record<string, string>> = {}) {

@@ -30,9 +30,11 @@ interface WorkspaceOnboardingDialogProps {
 }
 
 /**
- * Audacity's "Getting started" layout page: picking a card switches the
- * workspace immediately, and leaving the dialog by any route records that
- * setup happened so it never returns uninvited.
+ * Audacity's "Getting started" layout page. The page asks for one thing, so
+ * one click answers it: picking a card switches the workspace and finishes
+ * setup, without a radio to select and a Done button to confirm afterwards.
+ * A card that fails to apply keeps the dialog open with the reason. Leaving by
+ * any other route records that setup happened so it never returns uninvited.
  */
 export default function WorkspaceOnboardingDialog({
 	productId,
@@ -49,13 +51,14 @@ export default function WorkspaceOnboardingDialog({
 		isOption(activeId) ? `[data-workspace-onboarding-option="${activeId}"]` : '[data-workspace-onboarding-option]'
 	));
 	if (productId !== 'soundscaper') return null;
-	const finish = (): void => {
-		markFirstLaunchSetupComplete(productId, preferences.workspace.activeId, storage);
+	const finish = (workspaceId: string): void => {
+		markFirstLaunchSetupComplete(productId, workspaceId, storage);
 		onClose();
 	};
 	const choose = (workspaceId: WorkspaceOnboardingOption): void => {
 		setError('');
 		void runAwaitedAudioEditorOperation(run, () => controller.actions.preferences.setWorkspace(workspaceId))
+			.then(() => finish(workspaceId))
 			.catch((operationError: unknown) => {
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
 			});
@@ -63,45 +66,36 @@ export default function WorkspaceOnboardingDialog({
 	const questionId = 'workspace-onboarding-question';
 	return <AudioEditorDialogShell
 		title={copy.workspaceOnboardingTitle}
-		onClose={finish}
+		onClose={() => finish(activeId)}
 		initialFocus={initialFocus}
 		ariaDescribedBy={questionId}
 		dataAttributes={{ 'data-workspace-onboarding-dialog': 'true' }}
 		width={640}
-		footer={<div className="kw-audio-editor-dialog__actions">
-			<button type="button" data-workspace-onboarding-done="true" onClick={finish}>
-				{copy.workspaceOnboardingDone}
-			</button>
-		</div>}
 	>
 		<div className="audio-editor-workspace-onboarding">
 			<p id={questionId}>{copy.workspaceOnboardingQuestion}</p>
 			<div
 				className="audio-editor-workspace-onboarding__options"
-				role="radiogroup"
+				role="group"
 				aria-label={copy.workspaceOnboardingSelect}
 			>
 				{OPTIONS.map((workspaceId) => {
-					const checked = activeId === workspaceId;
+					const current = activeId === workspaceId;
 					const titleId = `workspace-onboarding-${workspaceId}-title`;
 					const descriptionId = `workspace-onboarding-${workspaceId}-description`;
-					return <label
+					return <button
 						key={workspaceId}
+						type="button"
 						className={[
 							'audio-editor-workspace-onboarding__option',
-							checked ? 'audio-editor-workspace-onboarding__option--selected' : '',
+							current ? 'audio-editor-workspace-onboarding__option--selected' : '',
 						].filter(Boolean).join(' ')}
+						data-workspace-onboarding-option={workspaceId}
+						aria-labelledby={titleId}
+						aria-describedby={descriptionId}
+						aria-current={current ? 'true' : undefined}
+						onClick={() => choose(workspaceId)}
 					>
-						<input
-							type="radio"
-							name="workspace-onboarding"
-							value={workspaceId}
-							data-workspace-onboarding-option={workspaceId}
-							aria-labelledby={titleId}
-							aria-describedby={descriptionId}
-							checked={checked}
-							onChange={() => choose(workspaceId)}
-						/>
 						<span id={titleId} className="audio-editor-workspace-onboarding__option-title">
 							{workspaceId === 'audacity' ? copy.workspaceAudacity : copy.workspaceModern}
 						</span>
@@ -110,7 +104,7 @@ export default function WorkspaceOnboardingDialog({
 								? copy.workspaceOnboardingAudacityDescription
 								: copy.workspaceOnboardingSoundscaperDescription}
 						</span>
-					</label>;
+					</button>;
 				})}
 			</div>
 			<p className="audio-editor-workspace-onboarding__hint">{copy.workspaceOnboardingHint}</p>

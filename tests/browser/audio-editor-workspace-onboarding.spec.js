@@ -22,17 +22,20 @@ test.describe('first-launch workspace chooser', () => {
 		const dialog = page.getByRole('dialog', { name: 'Getting started', exact: true });
 		await expect(dialog).toBeVisible();
 		await expect(dialog).toHaveAttribute('data-workspace-onboarding-dialog', 'true');
-		const group = dialog.getByRole('radiogroup', { name: 'Select workspace layout', exact: true });
-		const soundscaper = group.getByRole('radio', { name: 'Soundscaper', exact: true });
-		const audacity = group.getByRole('radio', { name: 'Audacity', exact: true });
-		await expect(soundscaper).toBeChecked();
-		await expect(audacity).not.toBeChecked();
+		const group = dialog.getByRole('group', { name: 'Select workspace layout', exact: true });
+		const soundscaper = group.getByRole('button', { name: 'Soundscaper', exact: true });
+		const audacity = group.getByRole('button', { name: 'Audacity', exact: true });
+		await expect(soundscaper).toHaveAttribute('aria-current', 'true');
+		await expect(audacity).not.toHaveAttribute('aria-current', 'true');
 		await expect(soundscaper).toBeFocused();
+		await expect(dialog.getByRole('button', { name: 'Done', exact: true })).toHaveCount(0);
 		await expect(page.locator('[data-sidebar] [data-workspace-select] option'))
 			.toHaveText(['Soundscaper', 'Audacity', 'Music', 'Classic']);
 
-		await audacity.check();
-		await expect(audacity).toBeChecked();
+		// The card is the whole answer: it applies the layout and dismisses the
+		// chooser without a second confirming click.
+		await audacity.click();
+		await expect(dialog).toBeHidden();
 		await expect(editor).toHaveAttribute('data-workspace-preset', 'audacity');
 		await expect(page.locator('[data-sidebar] [data-workspace-select]')).toHaveValue('audacity');
 		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toHaveCount(0);
@@ -40,8 +43,6 @@ test.describe('first-launch workspace chooser', () => {
 		await expect(editor.locator('[data-side-recording-meter]')).toHaveCount(0);
 		await expect(editor.locator('[data-snap-control]')).toHaveCount(1);
 
-		await dialog.getByRole('button', { name: 'Done', exact: true }).click();
-		await expect(dialog).toBeHidden();
 		await addAudioTrack(page, editor);
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 		await expect(editor.locator('[data-track-ruler]')).toHaveCount(0);
@@ -58,8 +59,9 @@ test.describe('first-launch workspace chooser', () => {
 		await chooseNestedCommandAction(page, reloaded, 'View', ['Workspace', 'Set up workspace']);
 		const reopened = page.getByRole('dialog', { name: 'Getting started', exact: true });
 		await expect(reopened).toBeVisible();
-		await expect(reopened.getByRole('radio', { name: 'Audacity', exact: true })).toBeChecked();
-		await expect(reopened.getByRole('radio', { name: 'Audacity', exact: true })).toBeFocused();
+		const reopenedAudacity = reopened.getByRole('button', { name: 'Audacity', exact: true });
+		await expect(reopenedAudacity).toHaveAttribute('aria-current', 'true');
+		await expect(reopenedAudacity).toBeFocused();
 		await page.keyboard.press('Escape');
 		await expect(reopened).toBeHidden();
 		await expect(reloaded).toHaveAttribute('data-workspace-preset', 'audacity');

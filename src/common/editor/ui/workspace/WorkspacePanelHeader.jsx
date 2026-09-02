@@ -6,6 +6,7 @@ import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { Icon } from '@soundscaper/design-system/Icon';
 
+import { EDITOR_OVERLAY_Z_INDEX_TIERS } from '../EditorOverlayHost.tsx';
 import { formatResizeLabel } from '../localization-template.ts';
 import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
@@ -13,18 +14,21 @@ import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.
 /**
  * The title bar every workspace panel shares: the ⠿ reorder handle, the
  * title, the floating ↘ resize handle and a "…" overflow menu that moves the
- * panel between docks or closes it. The menu is portaled to the body: the
- * docks are stacking contexts, so a menu rendered inside one would sit under
- * floating effect windows and dialogs, and a click on one of its items could
- * be mistaken for the start of a floating-panel drag.
+ * panel between docks or closes it. The menu is portaled to the editor root:
+ * the docks are stacking contexts, so a menu rendered inside one would sit
+ * under floating effect windows and dialogs, and a click on one of its items
+ * could be mistaken for the start of a floating-panel drag. The root is the
+ * portal target rather than the body because the design system's stylesheet is
+ * scoped to it — a body-level menu paints with no surface and renders its
+ * glyphs as tofu.
  *
  * A pointer-opened menu leaves focus on its button; a keyboard-opened one
  * (`click.detail === 0`, or a keyboard context-menu request) focuses its first
  * item. Escape inside the menu returns focus to the button either way.
  */
-// Dialogs and floating effect windows sit at 10000; the menu must stay above
-// the window the user may have opened from the very panel it belongs to.
-const PANEL_MENU_STYLE = Object.freeze({ zIndex: 10_001 });
+// The menu must stay above the effect window the user may have opened from the
+// very panel it belongs to, and above the effects-open workspace that hosts it.
+const PANEL_MENU_STYLE = Object.freeze({ zIndex: EDITOR_OVERLAY_Z_INDEX_TIERS.effects + 1 });
 
 export default function WorkspacePanelHeader({
 	panelId,
@@ -52,6 +56,7 @@ export default function WorkspacePanelHeader({
 		openMenu({ x: bounds.left, y: bounds.bottom + 4, keyboard });
 	};
 	const ownerDocument = () => menuButtonRef.current?.ownerDocument ?? document;
+	const menuHost = () => menuButtonRef.current?.closest('[data-audio-editor]') ?? ownerDocument().body;
 	return (
 		<>
 			<header
@@ -132,7 +137,7 @@ export default function WorkspacePanelHeader({
 					onClick={() => onClose(ownerDocument())}
 					onClose={closeMenu}
 				/>
-			</ContextMenu>, ownerDocument().body)}
+			</ContextMenu>, menuHost())}
 		</>
 	);
 }

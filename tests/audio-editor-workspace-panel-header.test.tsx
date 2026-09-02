@@ -48,6 +48,9 @@ async function mountHeader(props: Record<string, unknown>): Promise<MountedHeade
 	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
 	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
 	const { createRoot } = await import('react-dom/client');
+	// The design system's stylesheet is scoped to the editor root, so the menu
+	// portals there; the container stands in for it.
+	dom.container.setAttribute('data-audio-editor', 'true');
 	const root = createRoot(dom.container as unknown as Element);
 	await act(async () => root.render(<Header
 		panelId="history"
@@ -57,7 +60,8 @@ async function mountHeader(props: Record<string, unknown>): Promise<MountedHeade
 	/>));
 	const menuButton = dom.one('[data-workspace-panel-menu="history"]').querySelector('button');
 	assert.ok(menuButton, 'the header mounts a menu button');
-	// The menu is portaled to the body so it clears the dock's stacking context.
+	// The menu is portaled to the editor root so it clears the dock's stacking
+	// context while keeping the design system's scoped styles.
 	const body = dom.container.ownerDocument.body;
 	const menuItems = () => body.querySelectorAll('[role="menuitem"]');
 	const findMenu = () => body.querySelector('[role="menu"]');
@@ -117,8 +121,9 @@ test('the menu lists every dock with the current one checked and disabled, then 
 			'the menu carries the workspace panel menu class',
 		);
 		assert.equal(menuButton.getAttribute('aria-expanded'), 'true');
-		assert.equal(menu.parentNode, dom.container.ownerDocument.body, 'the menu escapes the dock stacking context');
-		assert.equal(String((menu.style as unknown as { zIndex?: unknown }).zIndex), '10001', 'the menu stays above effect windows and dialogs');
+		assert.equal(menu.parentNode, dom.container, 'the menu escapes the dock stacking context without leaving the styled editor root');
+		assert.ok(!dom.one('.kw-audio-editor__workspace-panel-header').contains(menu), 'the menu is not rendered inside the panel header');
+		assert.equal(String((menu.style as unknown as { zIndex?: unknown }).zIndex), '10031', 'the menu stays above effect windows and dialogs');
 		assert.deepEqual(mounted.menuItemLabels(), ['Left', 'Right', 'Bottom', 'Floating', 'Close']);
 		const items = mounted.menuItems();
 		assert.equal(items[1]?.getAttribute('aria-disabled'), 'true', 'the current dock cannot be re-chosen');

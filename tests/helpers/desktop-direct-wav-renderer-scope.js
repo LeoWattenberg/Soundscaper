@@ -390,12 +390,12 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			return [];
 		},
 	});
-	const onboardingDone = element({ click: () => { fixture.onboardingDismissed = true; } });
+	const onboardingCard = element({ click: () => { fixture.onboardingDismissed = true; } });
 	const document = {
 		fixture,
 		querySelector(selector) {
 			if (selector === '[data-audio-editor]') return root;
-			if (selector === '[data-workspace-onboarding-done]') return fixture.onboardingDismissed ? null : onboardingDone;
+			if (selector === '[data-workspace-onboarding-option="modern"]') return fixture.onboardingDismissed ? null : onboardingCard;
 			if (selector === '[data-workspace-panel="project-bin"]') return fixture.projectBinVisible ? projectBin : null;
 			if (selector === '[data-import-input]') return input;
 			if (selector === '[data-status]') return status;

@@ -59,7 +59,6 @@ test('the Soundscaper and Audacity workspace labels and their chrome copy exist 
 	assert.equal(ENGLISH_COPY.workspaceOnboardingTitle, 'Getting started');
 	assert.equal(ENGLISH_COPY.workspaceOnboardingMenu, 'Set up workspace');
 	assert.equal(GERMAN_COPY.workspaceOnboardingMenu, 'Arbeitsbereich einrichten');
-	assert.equal(GERMAN_COPY.workspaceOnboardingDone, 'Fertig');
 	assert.deepEqual(Object.keys(WORKSPACE_CHROME_COPY_BY_LOCALE.de), Object.keys(WORKSPACE_CHROME_COPY_BY_LOCALE.en));
 	assert.deepEqual(Object.keys(WORKSPACE_ONBOARDING_COPY_BY_LOCALE.de), Object.keys(WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en));
 	for (const key of ['panelMenu', 'timecode', 'snapInterval']) {
@@ -68,7 +67,7 @@ test('the Soundscaper and Audacity workspace labels and their chrome copy exist 
 	for (const key of [
 		'workspaceOnboardingTitle', 'workspaceOnboardingQuestion', 'workspaceOnboardingAudacityDescription',
 		'workspaceOnboardingSoundscaperDescription', 'workspaceOnboardingHint', 'workspaceOnboardingSelect',
-		'workspaceOnboardingDone', 'workspaceOnboardingMenu',
+		'workspaceOnboardingMenu',
 	]) {
 		assert.equal(typeof WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en[key], 'string', key);
 	}

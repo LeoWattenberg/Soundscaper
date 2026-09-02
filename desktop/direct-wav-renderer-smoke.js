@@ -161,8 +161,9 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	}, 'bound editor');
 	if (editor.getAttribute('data-product') !== plan.productId) throw new Error('Packaged direct WAV product does not match its plan');
 	// A fresh smoke profile is a first launch, so the workspace chooser opens
-	// over the editor; finish it with the default layout before driving the UI.
-	document.querySelector('[data-workspace-onboarding-done]')?.click();
+	// over the editor; one click on its Soundscaper card both keeps the default
+	// layout and finishes setup, which closes the dialog.
+	document.querySelector('[data-workspace-onboarding-option="modern"]')?.click();
 	const projectBin = document.querySelector('[data-workspace-panel="project-bin"]');
 	if (projectBin) {
 		// The panel header keeps its dock and close actions behind an overflow

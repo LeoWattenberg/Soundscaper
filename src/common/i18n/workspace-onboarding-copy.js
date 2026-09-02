@@ -7,7 +7,6 @@ const ENTRIES = Object.freeze([
 	['workspaceOnboardingSoundscaperDescription', "Soundscaper's own layout with the project bin, vertical rulers and side meters", 'Das eigene Soundscaper-Layout mit Projektablage, vertikalen Skalen und seitlichen Pegelanzeigen'],
 	['workspaceOnboardingHint', 'You can change between these layouts at any time from View > Workspace', 'Du kannst jederzeit unter Ansicht > Arbeitsbereich zwischen diesen Layouts wechseln'],
 	['workspaceOnboardingSelect', 'Select workspace layout', 'Arbeitsbereich-Layout auswählen'],
-	['workspaceOnboardingDone', 'Done', 'Fertig'],
 	['workspaceOnboardingMenu', 'Set up workspace', 'Arbeitsbereich einrichten'],
 ]);
 

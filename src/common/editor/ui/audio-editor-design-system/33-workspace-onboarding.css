@@ -15,24 +15,26 @@
 	gap: 12px;
 }
 
+/* One click on a card is the whole answer, so the card is the button. */
 #kw-audio-editor-design-system .audio-editor-workspace-onboarding__option {
 	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
 	grid-template-rows: auto auto;
-	column-gap: 10px;
 	row-gap: 4px;
-	align-items: start;
+	align-content: start;
+	justify-items: start;
+	width: 100%;
 	padding: 12px;
 	border: 1px solid var(--kw-editor-line, currentColor);
 	border-radius: 6px;
 	background: var(--kw-editor-panel, transparent);
 	color: var(--kw-editor-text, inherit);
 	cursor: pointer;
+	font: inherit;
+	text-align: left;
 }
 
-#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option input {
-	grid-row: 1 / span 2;
-	margin: 2px 0 0;
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:hover {
+	border-color: var(--kw-editor-accent, Highlight);
 }
 
 #kw-audio-editor-design-system .audio-editor-workspace-onboarding__option-title {
@@ -51,7 +53,7 @@
 	background: var(--kw-editor-accent-soft, transparent);
 }
 
-#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:has(input:focus-visible) {
+#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:focus-visible {
 	outline: 2px solid var(--kw-editor-accent, Highlight);
 	outline-offset: 2px;
 }
@@ -80,7 +82,7 @@
 		box-shadow: inset 0 0 0 1px Highlight;
 	}
 
-	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:has(input:focus-visible) {
+	#kw-audio-editor-design-system .audio-editor-workspace-onboarding__option:focus-visible {
 		outline: 2px solid Highlight;
 		outline-offset: 2px;
 	}
