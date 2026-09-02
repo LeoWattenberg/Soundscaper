@@ -144,6 +144,10 @@
 		,
 		{ "path": "src/common/editor/assistance/deepfilternet3-signal-v1.ts", "kind": "persisted-contract", "justification": "deepfilternet3-signal-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
+		{ "path": "src/common/editor/assistance/dereverb-room-signal-v1.ts", "kind": "persisted-contract", "justification": "dereverb-room-signal-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/dereverb-room-streaming-overlap-v1.ts", "kind": "persisted-contract", "justification": "dereverb-room-streaming-overlap-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
 		{ "path": "src/common/editor/assistance/editorial-generation-v1.ts", "kind": "persisted-contract", "justification": "editorial-generation-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
 		{ "path": "src/common/editor/assistance/float32-mono-wave-v1.ts", "kind": "persisted-contract", "justification": "float32-mono-wave-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
