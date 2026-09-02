@@ -10,11 +10,7 @@ import type {
 	AssistanceReactionRangesV1,
 	AssistanceTempoMapDiffV1,
 } from '../assistance/owned-audio-cut-transform-types-v1.ts';
-import {
-	AssistanceProposalStaleError,
-	validateAssistanceSelectionFence,
-	type AssistanceSelectionFence,
-} from '../assistance/proposal-session.ts';
+import type { AssistanceSelectionFence } from '../assistance/proposal-session.ts';
 import {
 	normalizeAssistanceWorkflowId,
 	validateAssistanceWorkflow,
@@ -33,6 +29,14 @@ import {
 	type LocalAssistanceGuidedAdaptedOutput,
 } from './local-assistance-guided-result-requests.ts';
 import {
+	assertCurrentFence,
+	exactRecord,
+	primitiveFence,
+	same,
+	soleSourceRange,
+	type LocalAssistanceGuidedSupportedWorkflowId,
+} from './local-assistance-guided-acceptance-fences.ts';
+import {
 	hasLocalAssistanceGuidedFramescaperPort,
 	localAssistanceGuidedFramescaperChoices,
 	publishLocalAssistanceGuidedFramescaperSelection,
@@ -44,9 +48,7 @@ export type {
 	LocalAssistanceGuidedReframeAcceptanceRequest,
 } from './local-assistance-guided-framescaper-acceptance.ts';
 type Awaitable<Value> = PromiseLike<Value> | Value;
-type SupportedWorkflowId = 'transcribe-captions' | 'clean-filler-silence' | 'identify-speakers'
-	| 'enhance-dialogue' | 'reduce-reverb' | 'separate-dialogue-music-effects' | 'mark-reactions'
-	| 'detect-beats-tempo' | 'mark-cuts' | 'reframe' | 'make-highlights';
+type SupportedWorkflowId = LocalAssistanceGuidedSupportedWorkflowId;
 type AcceptancePhase = 'review' | 'accepting' | 'accepted' | 'rejected' | 'cancelled' | 'failed';
 
 export type LocalAssistanceGuidedAcceptanceUnsupportedReason =
@@ -217,7 +219,7 @@ export function createLocalAssistanceGuidedResultAcceptance(
 		const fence = primitiveFence(workflow, range, workflowIdValue === 'make-highlights'
 			? workflow.fence.sourceRanges.flatMap(({ occurrenceIds }) => occurrenceIds).sort()
 			: range.occurrenceIds);
-		assertCurrentFence(dependencies, fence);
+		assertCurrentFence((sourceId) => dependencies.currentSelectionFence(sourceId), fence);
 		const review = normalizeReview(workflow, workflowIdValue, value.reviewedResult,
 			value.highlightDraft, value.reframeDraft, value.highlightSourceTimeAuthority);
 		return Object.freeze({ outcome: 'ready' as const,
@@ -261,7 +263,7 @@ function createSession(
 		phase = 'accepting';
 		try {
 			await dependencies.assertCurrentWorkflowFence(workflow, controller.signal);
-			assertCurrentFence(dependencies, fence);
+			assertCurrentFence((sourceId) => dependencies.currentSelectionFence(sourceId), fence);
 			if (proposalSession) await proposalSession.accept(ids);
 			else if (workflowId !== 'detect-beats-tempo' && workflowId !== 'mark-reactions'
 				&& ids.length > 0) await publishSelection(
@@ -508,41 +510,6 @@ function normalizeDecision(
 	return Object.freeze(ids);
 }
 
-function soleSourceRange(
-	workflow: AssistanceWorkflowV1,
-	workflowId: SupportedWorkflowId,
-): AssistanceWorkflowV1['fence']['sourceRanges'][number] {
-	const mediaKind = workflowId === 'mark-cuts' || workflowId === 'reframe'
-		|| workflowId === 'make-highlights' ? 'video' : 'audio';
-	const ranges = workflow.fence.sourceRanges.filter((range) => range.mediaKind === mediaKind);
-	if (ranges.length !== 1) throw new TypeError('Guided acceptance source authority is ambiguous.');
-	return ranges[0]!;
-}
-
-function primitiveFence(
-	workflow: AssistanceWorkflowV1,
-	range: AssistanceWorkflowV1['fence']['sourceRanges'][number],
-	occurrenceIds: readonly string[] = range.occurrenceIds,
-): AssistanceSelectionFence {
-	return validateAssistanceSelectionFence({
-		projectId: workflow.fence.projectId, schemaFamily: workflow.fence.schemaFamily,
-		schemaVersion: workflow.fence.schemaVersion,
-		revision: workflow.fence.revision, sequenceId: workflow.fence.sequenceId,
-		occurrenceIds, sourceId: range.sourceId,
-		sourceSha256: range.sourceSha256, sourceStartFrame: range.sourceStartFrame,
-		sourceEndFrame: range.sourceEndFrame, linkMembershipSha256: range.linkMembershipSha256,
-		timingAuthoritySha256: range.timingAuthoritySha256,
-	});
-}
-
-function assertCurrentFence(
-	dependencies: LocalAssistanceGuidedResultAcceptanceDependencies,
-	expected: AssistanceSelectionFence,
-): void {
-	const current = validateAssistanceSelectionFence(dependencies.currentSelectionFence(expected.sourceId));
-	if (!sameFence(expected, current)) throw new AssistanceProposalStaleError();
-}
-
 function hasPort(
 	workflowId: SupportedWorkflowId,
 	dependencies: LocalAssistanceGuidedResultAcceptanceDependencies,
@@ -572,33 +539,4 @@ function unsupported(
 	reason: Exclude<LocalAssistanceGuidedAcceptanceUnsupportedReason, 'partial-separation-selection'>,
 ): LocalAssistanceGuidedAcceptanceAvailability {
 	return Object.freeze({ outcome: 'unsupported', workflowId: workflowIdValue, reason });
-}
-
-function exactRecord(value: unknown, fields: readonly string[], label: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value) || ArrayBuffer.isView(value)
-		|| Object.getPrototypeOf(value) !== Object.prototype) {
-		throw new TypeError(`The ${label} must be a plain record.`);
-	}
-	const row = value as Record<string, unknown>;
-	const keys = Object.keys(row);
-	if (keys.length !== fields.length || keys.some((key) => !fields.includes(key))) {
-		throw new TypeError(`The ${label} must carry exactly its schema fields.`);
-	}
-	return row;
-}
-
-function sameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFence): boolean {
-	return left.projectId === right.projectId && left.schemaFamily === right.schemaFamily
-		&& left.schemaVersion === right.schemaVersion
-		&& left.revision === right.revision && left.sequenceId === right.sequenceId
-		&& left.sourceId === right.sourceId && left.sourceSha256 === right.sourceSha256
-		&& left.sourceStartFrame === right.sourceStartFrame && left.sourceEndFrame === right.sourceEndFrame
-		&& left.linkMembershipSha256 === right.linkMembershipSha256
-		&& left.timingAuthoritySha256 === right.timingAuthoritySha256
-		&& left.occurrenceIds.length === right.occurrenceIds.length
-		&& left.occurrenceIds.every((id, index) => id === right.occurrenceIds[index]);
-}
-
-function same(left: unknown, right: unknown): boolean {
-	return JSON.stringify(left) === JSON.stringify(right);
 }
