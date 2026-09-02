@@ -1,3 +1,4 @@
+import { normalizePcmEncoderDither, pcmDitherNoise } from './pcm-dither.js';
 import { createAiffId3Chunk } from './id3-metadata.js';
 import { createAiffMarkChunk } from './aiff-markers.ts';
 
@@ -40,7 +41,7 @@ export function createAiffStreamEncoder(options = {}) {
 	} = layout;
 	const collect = options.collect ?? !options.onChunk;
 	const onChunk = typeof options.onChunk === 'function' ? options.onChunk : null;
-	const dither = floatingPoint ? 'none' : normalizeDither(options.dither);
+	const dither = floatingPoint ? 'none' : normalizePcmEncoderDither(options.dither);
 	const ditherState = new Float64Array(channelCount);
 	const random = typeof options.random === 'function' ? options.random : Math.random;
 	const header = createAiffHeaderFromLayout(layout);
@@ -256,7 +257,7 @@ function writeSample(view, offset, value, bitDepth, floatingPoint, dither, rando
 	}
 	const sample = Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
 	const scale = 2 ** (bitDepth - 1);
-	const noise = ditherNoise(dither, random, channel, ditherState);
+	const noise = pcmDitherNoise(dither, random, channel, ditherState);
 	const quantized = Math.max(-scale, Math.min(scale - 1, Math.round(sample * scale + noise)));
 	if (bitDepth === 16) {
 		view.setInt16(offset, quantized, false);
@@ -270,21 +271,6 @@ function writeSample(view, offset, value, bitDepth, floatingPoint, dither, rando
 	}
 	view.setInt32(offset, quantized, false);
 	return offset + 4;
-}
-
-function normalizeDither(value) {
-	if (value === false || value === 'none') return 'none';
-	if (value === 'triangular-highpass') return value;
-	return 'triangular';
-}
-
-function ditherNoise(mode, random, channel, state) {
-	if (mode === 'none') return 0;
-	const current = random() - random();
-	if (mode !== 'triangular-highpass') return current;
-	const noise = (current - state[channel]) * 0.5;
-	state[channel] = current;
-	return noise;
 }
 
 function normalizeAiffSampleFormat(options) {

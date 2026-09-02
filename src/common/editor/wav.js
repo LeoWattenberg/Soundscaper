@@ -1,3 +1,4 @@
+import { normalizePcmEncoderDither, pcmDitherNoise } from './pcm-dither.js';
 import { createRiffId3Chunk } from './id3-metadata.js';
 import { createRiffBextChunk } from './broadcast-wave.ts';
 import { createRiffMarkerChunks } from './riff-markers.ts';
@@ -64,7 +65,7 @@ export function createWavStreamEncoder(options) {
 	const bytesPerSample = Math.ceil(bitDepth / 8);
 	const collect = options?.collect ?? !options?.onChunk;
 	const onChunk = typeof options?.onChunk === 'function' ? options.onChunk : null;
-	const dither = float ? 'none' : normalizeDither(options?.dither);
+	const dither = float ? 'none' : normalizePcmEncoderDither(options?.dither);
 	const ditherState = new Float64Array(channelCount);
 	const random = typeof options?.random === 'function' ? options.random : Math.random;
 	const metadataChunk = concatBytes(
@@ -419,7 +420,7 @@ function writeSample(view, byteOffset, original, bitDepth, float, dither, random
 	}
 
 	const scale = 2 ** (bitDepth - 1);
-	const noise = ditherNoise(dither, random, channel, ditherState);
+	const noise = pcmDitherNoise(dither, random, channel, ditherState);
 	const quantized = Math.max(-scale, Math.min(scale - 1, Math.round(original * scale + noise)));
 	if (bitDepth === 16) {
 		view.setInt16(byteOffset, quantized, true);
@@ -434,21 +435,6 @@ function writeSample(view, byteOffset, original, bitDepth, float, dither, random
 	view.setUint8(byteOffset + 1, (packed >> 8) & 0xff);
 	view.setUint8(byteOffset + 2, (packed >> 16) & 0xff);
 	return byteOffset + 3;
-}
-
-function normalizeDither(value) {
-	if (value === false || value === 'none') return 'none';
-	if (value === 'triangular-highpass') return value;
-	return 'triangular';
-}
-
-function ditherNoise(mode, random, channel, state) {
-	if (mode === 'none') return 0;
-	const current = random() - random();
-	if (mode !== 'triangular-highpass') return current;
-	const noise = (current - state[channel]) * 0.5;
-	state[channel] = current;
-	return noise;
 }
 
 function writeAscii(view, offset, value) {
