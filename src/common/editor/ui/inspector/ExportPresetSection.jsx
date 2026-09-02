@@ -37,7 +37,7 @@ export default function ExportPresetSection({
 				disabled={disabled || busy}
 				options={options}
 			/>
-			<label className="audio-editor-export-field">
+			<label className="audio-editor-field">
 				<span>{copy.deliveryPresetName}</span>
 				<input
 					type="text"
@@ -47,35 +47,43 @@ export default function ExportPresetSection({
 					data-delivery-preset-name
 				/>
 			</label>
-			<div className="audio-editor-export-preset-actions">
-				<Button
-					variant="secondary"
-					disabled={disabled || busy || !presetName.trim()}
-					onClick={() => guard(onSave)}
-				>
-					{copy.deliveryPresetSave}
-				</Button>
-				<Button
-					variant="secondary"
-					disabled={disabled || busy || !selectedId}
-					onClick={() => guard(onDelete)}
-				>
-					{copy.deliveryPresetDelete}
-				</Button>
-				<Button
-					variant="secondary"
-					disabled={disabled || busy}
-					onClick={() => fileRef.current?.click()}
-				>
-					{copy.deliveryPresetImport}
-				</Button>
-				<Button
-					variant="secondary"
-					disabled={disabled || busy || !selectedId}
-					onClick={() => guard(onExport)}
-				>
-					{copy.deliveryPresetExport}
-				</Button>
+			<div className="audio-editor-export-preset-actions audio-editor-panel-actions">
+				<span>
+					<Button
+						variant="secondary"
+						disabled={disabled || busy || !presetName.trim()}
+						onClick={() => guard(onSave)}
+					>
+						{copy.deliveryPresetSave}
+					</Button>
+				</span>
+				<span>
+					<Button
+						variant="secondary"
+						disabled={disabled || busy || !selectedId}
+						onClick={() => guard(onDelete)}
+					>
+						{copy.deliveryPresetDelete}
+					</Button>
+				</span>
+				<span>
+					<Button
+						variant="secondary"
+						disabled={disabled || busy}
+						onClick={() => fileRef.current?.click()}
+					>
+						{copy.deliveryPresetImport}
+					</Button>
+				</span>
+				<span>
+					<Button
+						variant="secondary"
+						disabled={disabled || busy || !selectedId}
+						onClick={() => guard(onExport)}
+					>
+						{copy.deliveryPresetExport}
+					</Button>
+				</span>
 				<input
 					ref={fileRef}
 					type="file"

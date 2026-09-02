@@ -62,6 +62,31 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps delivery preset controls aligned in the export dialog', async ({ page }) => {
+		await page.setViewportSize({ width: 700, height: 760 });
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const exportDialog = await openExportDialog(page, editor);
+		const presetSection = exportDialog.locator('[data-delivery-presets]');
+		const presetTrigger = presetSection.locator('[data-effect-field="delivery-preset"] .dropdown__trigger');
+		const presetName = presetSection.locator('[data-delivery-preset-name]');
+		const [triggerBounds, nameBounds] = await Promise.all([
+			presetTrigger.boundingBox(),
+			presetName.boundingBox(),
+		]);
+
+		expect(triggerBounds).not.toBeNull();
+		expect(nameBounds).not.toBeNull();
+		expect(nameBounds.x).toBeCloseTo(triggerBounds.x, 0);
+		expect(nameBounds.width).toBeCloseTo(triggerBounds.width, 0);
+
+		const actionBounds = await presetSection
+			.locator('.audio-editor-export-preset-actions .button')
+			.evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().toJSON()));
+		expect(actionBounds).toHaveLength(4);
+		expect(new Set(actionBounds.map(({ y }) => Math.round(y))).size).toBe(1);
+	});
+
 	test('completes an import, effect, and undo workflow in German', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/de/');
