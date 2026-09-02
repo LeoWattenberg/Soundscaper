@@ -1822,6 +1822,24 @@
 			},
 			"provenanceSources": ["https://github.com/soCzech/TransNetV2"],
 			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+		},
+		{
+			"id": "dereverb-room",
+			"purpose": "Room reverberation removal for recorded speech and vocals, selected by the de-reverb bake-off.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "MIT",
+			"weightsLicense": "GPL-3.0",
+			"attributionRequired": false,
+			"distributionStatus": "blocked",
+			"blockedBy": ["training-data-provenance-record", "versioned-download-notices-and-hashes", "weights-and-code-license-review"],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "pending", "summary": "The pinned Music-Source-Separation-Training inference framework is MIT. The anvuew dereverb_room weight repository declares GPL-3.0 only through Hugging Face card metadata (repository revision 0b85f5b80b7f779b2dfe80f33a1b35b38af9376d) and ships no licence text; the review stays pending until a recorded licence text or author confirmation exists." },
+				"training-data-provenance-record": { "status": "pending", "summary": "The model card documents the reverb side of training (convolutional room impulse responses generated with pyroomacoustics) but not the dry source corpus or any base-checkpoint lineage, so a provenance record cannot be completed from published material." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "The model card states no use restriction; GPL-3.0 imposes distribution conditions, not use restrictions, and is compatible with this AGPL-3.0-only product as a separately downloaded asset." },
+				"versioned-download-notices-and-hashes": { "status": "pending", "summary": "The source checkpoint is digest-pinned, but the repository-owned ONNX output, parity evidence, immutable product mirror read-back, signed catalog entry, and exact offline notice do not yet exist." }
+			},
+			"provenanceSources": ["https://huggingface.co/anvuew/dereverb_room", "https://github.com/ZFTurbo/Music-Source-Separation-Training"],
+			"evidence": ["docs/dereverb-plan.md", "docs/dereverb-bakeoff-evidence.md", "config/milestone-7-model-supply-candidates.json"]
 		}
 	],
 	"refusedLocalModels": [
@@ -1873,12 +1891,17 @@
 		{
 			"id": "bs-roformer-community-checkpoints",
 			"license": "Unstated, varies per checkpoint",
-			"reason": "No community checkpoint carries per-file terms and training-data provenance is undocumented, so no record can be completed."
+			"reason": "No community checkpoint carries per-file terms and training-data provenance is undocumented, so no record can be completed. The anvuew dereverb_room checkpoint, whose repository does declare GPL-3.0 card metadata, is tracked separately as dereverb-room."
 		},
 		{
 			"id": "beats-audioset-checkpoints",
 			"license": "Unstated in practice",
 			"reason": "Checkpoints are published only through shared-drive links with no stable source, and the hosting repository has a history of per-model licence exceptions. PANNs CNN14 covers the same tagging need."
+		},
+		{
+			"id": "uvr-deecho-dereverb",
+			"license": "No license grant",
+			"reason": "No weights licence grant exists from any source: the UVR repository has no LICENSE file despite README prose claiming MIT, no first-party model card exists on any mirror, and the model's author (FoxJoy) is uncredited in UVR's own credits. The dereverb-room record covers the need instead."
 		}
 	]
 }

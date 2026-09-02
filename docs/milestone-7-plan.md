@@ -375,7 +375,10 @@ community checkpoints (no per-file licenses), BEATs checkpoints
 (OneDrive-only hosting, unilm per-model license precedent), Gemma 3
 (custom terms with remote-restriction clause; only Gemma 4 is Apache),
 Llama 3.2 (gated download, naming/attribution/AUP flow-down, EU
-distributor exclusion on multimodal), NV-Embed/SFR embeddings (NC).
+distributor exclusion on multimodal), NV-Embed/SFR embeddings (NC), and
+the FoxJoy UVR De-Echo/De-Reverb and MDX "Reverb HQ" weights (no licence
+grant from any source; the author is uncredited in UVR's own credits —
+refused during the de-reverb model selection, docs/dereverb-plan.md).
 `enableRequires` on the `local-models` gate demands per-model license and
 provenance records (config/production-licensing-matrix.json:339-342);
 this table is the seed of that review, not its substitute.

@@ -40,6 +40,7 @@ const REFUSED_IDS = [
 	'nvidia-sortformer-diarization',
 	'open-unmix-umxhq',
 	'ten-vad',
+	'uvr-deecho-dereverb',
 ];
 
 function requirementEntries(overrides = {}) {
