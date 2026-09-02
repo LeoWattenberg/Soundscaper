@@ -144,11 +144,43 @@ test('Interact cancellation and pre-admission failures do not report a plug-in f
 	assert.equal(reported, 0);
 });
 
+test('render reports worker failures but not manager capacity or disposal failures', async () => {
+	const runtime = new Worker();
+	const pluginFailure = new Error('plug-in failed');
+	runtime.failure = pluginFailure;
+	const manager = new OfxIsolatedHostManager({
+		createScanner: () => new Worker(), createRuntime: () => runtime,
+		maximumRuntimeProcesses: 1,
+	});
+	const reported: unknown[] = [];
+	const report = (error: unknown): void => { reported.push(error); };
+	const invocation = invocationFor('worker-failure', PLUGIN_SHA, 'cpu');
+	await assert.rejects(manager.renderWithCpuFallback({
+		invocation, request: hostRequest(invocation), onRuntimeFailure: report,
+		createCpuAttempt: () => { throw new Error('must not be called'); },
+	}), (error: unknown) => error === pluginFailure);
+	assert.deepEqual(reported, [pluginFailure]);
+
+	runtime.failure = null;
+	const excess = invocationFor('capacity', OTHER_SHA, 'cpu');
+	await assert.rejects(manager.renderWithCpuFallback({
+		invocation: excess, request: hostRequest(excess), onRuntimeFailure: report,
+		createCpuAttempt: () => { throw new Error('must not be called'); },
+	}), /ceiling/iu);
+	manager.dispose();
+	await assert.rejects(manager.renderWithCpuFallback({
+		invocation, request: hostRequest(invocation), onRuntimeFailure: report,
+		createCpuAttempt: () => { throw new Error('must not be called'); },
+	}), /disposed/iu);
+	assert.deepEqual(reported, [pluginFailure]);
+});
+
 test('only typed GPU failures retry once on CPU in the same fingerprint process', async (context) => {
 	for (const code of ['OFX_UNSUPPORTED_BACKEND', 'OFX_GPU_EXECUTION_FAILED'] as const) {
 		await context.test(code, async () => {
 			const runtime = new Worker();
 			let attempts = 0;
+			let reported = 0;
 			runtime.runJob = async function runJob<Kind extends 'ofx-scan' | 'ofx-host'>(
 				request: HelperJobRequest<Kind>,
 			): Promise<unknown> {
@@ -171,6 +203,7 @@ test('only typed GPU failures retry once on CPU in the same fingerprint process'
 			const result = await manager.renderWithCpuFallback({
 				invocation: gpuInvocation,
 				request: hostRequest(gpuInvocation),
+				onRuntimeFailure: () => { reported += 1; },
 				createCpuAttempt: () => {
 					const invocation = invocationFor('cpu', PLUGIN_SHA, 'cpu');
 					return { invocation, request: hostRequest(invocation) };
@@ -188,12 +221,14 @@ test('only typed GPU failures retry once on CPU in the same fingerprint process'
 			const retained = await manager.renderWithCpuFallback({
 				invocation: gpuInvocation,
 				request: hostRequest(gpuInvocation),
+				onRuntimeFailure: () => { reported += 1; },
 				createCpuAttempt: () => {
 					const invocation = invocationFor('cpu-retained', PLUGIN_SHA, 'cpu');
 					return { invocation, request: hostRequest(invocation) };
 				},
 			});
 			assert.equal(attempts, 3, 'a degraded GPU backend is not retried on each frame');
+			assert.equal(reported, 0, 'a recovered GPU failure is not a terminal plug-in failure');
 			assert.equal(retained.backend, 'cpu');
 			assert.equal(retained.retriedOnCpu, true);
 			assert.deepEqual(manager.snapshot().runtimes[0]?.degradedBackends, ['cuda']);

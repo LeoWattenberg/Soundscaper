@@ -495,6 +495,7 @@ export class FramescaperOpenFxMainService {
 
 	#recordRuntimeFailure(plugin: RegisteredPlugin, error: unknown): void {
 		const kind = framescaperOpenFxFailureKind(error);
+		if (kind === null) return;
 		plugin.consent = recordOfxFailure(plugin.consent, kind, this.#options.now?.() ?? Date.now());
 		if (plugin.consent.state !== 'quarantined') return;
 		this.#invalidatePlugin(plugin);

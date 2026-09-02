@@ -73,6 +73,7 @@ export interface OfxCpuAttempt {
 
 export interface OfxRenderWithCpuFallbackRequest extends OfxCpuAttempt {
 	readonly createCpuAttempt: () => OfxCpuAttempt;
+	readonly onRuntimeFailure?: (error: unknown) => void;
 }
 
 export interface OfxRenderWithCpuFallbackResult {
@@ -119,6 +120,7 @@ export class OfxIsolatedHostManager {
 	async host(
 		invocation: OfxHostInvocationV1 | OfxHostInvocationV2,
 		request: HelperJobRequest<'ofx-host'>,
+		onRuntimeFailure?: (error: unknown) => void,
 	): Promise<HelperStreamOutputJobResult> {
 		this.#assertActive();
 		assertOfxHostInvocationV1OrV2(invocation);
@@ -134,10 +136,20 @@ export class OfxIsolatedHostManager {
 			throw new Error('The OpenFX runtime grant does not carry the exact admitted invocation.');
 		}
 		const worker = this.#runtime(invocation.pluginFingerprint);
-		const result = await worker.runJob({ ...request, kind: 'ofx-host', grant });
-		const admitted = validateHelperJobResult('ofx-host', result, grant);
-		if (!('output' in admitted)) throw new Error('An OpenFX frame host returned an Interact result.');
-		return admitted;
+		let result: unknown;
+		try { result = await worker.runJob({ ...request, kind: 'ofx-host', grant }); }
+		catch (error) {
+			if (!request.signal?.aborted) onRuntimeFailure?.(error);
+			throw error;
+		}
+		try {
+			const admitted = validateHelperJobResult('ofx-host', result, grant);
+			if (!('output' in admitted)) throw new Error('An OpenFX frame host returned an Interact result.');
+			return admitted;
+		} catch (error) {
+			onRuntimeFailure?.(error);
+			throw error;
+		}
 	}
 
 	async interact(
@@ -177,8 +189,14 @@ export class OfxIsolatedHostManager {
 			)) {
 			return this.#cpuFallback(request);
 		}
+		const primaryFailure: { reported: boolean; error: unknown } = {
+			reported: false, error: undefined,
+		};
 		try {
-			const result = await this.host(request.invocation, request.request);
+			const result = await this.host(request.invocation, request.request, (error) => {
+				primaryFailure.reported = true;
+				primaryFailure.error = error;
+			});
 			return Object.freeze({
 				backend: request.invocation.requestedBackend,
 				retriedOnCpu: false,
@@ -186,9 +204,11 @@ export class OfxIsolatedHostManager {
 				result,
 			});
 		} catch (error) {
-			if (request.request.signal?.aborted
-				|| request.invocation.requestedBackend === 'cpu'
-				|| !isOfxRetryableGpuError(error)) throw error;
+			if (request.request.signal?.aborted) throw error;
+			if (request.invocation.requestedBackend === 'cpu' || !isOfxRetryableGpuError(error)) {
+				if (primaryFailure.reported) request.onRuntimeFailure?.(primaryFailure.error);
+				throw error;
+			}
 			this.#degraded(request.invocation.pluginFingerprint)
 				.add(request.invocation.requestedBackend);
 			return this.#cpuFallback(request);
@@ -252,7 +272,7 @@ export class OfxIsolatedHostManager {
 			|| cpu.invocation.pluginFingerprint !== request.invocation.pluginFingerprint) {
 			throw new Error('An OpenFX GPU fallback must retry CPU for the identical binary fingerprint.');
 		}
-		const result = await this.host(cpu.invocation, cpu.request);
+		const result = await this.host(cpu.invocation, cpu.request, request.onRuntimeFailure);
 		return Object.freeze({
 			backend: 'cpu' as const, retriedOnCpu: true, reportsDegradation: true, result,
 		});

@@ -15,16 +15,17 @@ import { framescaperOpenFxPluginProjectionV1 } from '../src/common/editor/native
 import type { UnifiedExactRenderOpenFxNode } from '../src/common/editor/unified-exact-render-plan.ts';
 import type { OfxEffectStateV26 } from '../src/common/editor/native-ofx-state-v26.ts';
 
+/** Map only closed per-plugin runtime faults; supervisor and host-control failures return null. */
 export function framescaperOpenFxFailureKind(
 	error: unknown,
-): Parameters<typeof recordOfxFailure>[1] {
+): Parameters<typeof recordOfxFailure>[1] | null {
 	if (error && typeof error === 'object' && 'cause_' in error) {
 		const cause = (error as { cause_?: unknown }).cause_;
 		if (cause === 'heartbeat' || cause === 'cancellation-timeout') return 'hang';
 		if (cause === 'helper-exit') return 'crash';
 		if (cause === 'resource-violation' || cause === 'malformed-message'
-			|| cause === 'job-mismatch' || cause === 'binary-mismatch'
-			|| cause === 'handshake') return 'resource-violation';
+			|| cause === 'job-mismatch') return 'resource-violation';
+		return null;
 	}
 	return 'render-error';
 }

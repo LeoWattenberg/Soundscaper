@@ -264,9 +264,14 @@ export async function executeUnifiedExactOfxNodeV1(
 		request.signal,
 	);
 	if (cpu !== null) assertSameRenderAuthority(primary, cpu);
+	const runtimeFailure: { reported: boolean; error: unknown } = { reported: false, error: undefined };
 	try {
 		const rendered = await manager.renderWithCpuFallback({
 			...primary,
+			onRuntimeFailure: (error) => {
+				runtimeFailure.reported = true;
+				runtimeFailure.error = error;
+			},
 			createCpuAttempt: () => {
 				if (cpu === null) throw new Error('A CPU OpenFX request cannot retry itself.');
 				return cpu;
@@ -283,7 +288,7 @@ export async function executeUnifiedExactOfxNodeV1(
 		});
 	} catch (error) {
 		if (isCancellation(error, request.signal)) throw error;
-		request.onHostFailure?.(error);
+		if (runtimeFailure.reported) request.onHostFailure?.(runtimeFailure.error);
 		const fingerprint = primary.invocation.pluginFingerprint;
 		const quarantined = manager.snapshot().runtimes
 			.some((runtime) => runtime.pluginFingerprint === fingerprint && runtime.quarantined);

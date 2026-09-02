@@ -143,12 +143,10 @@ test('main carries one pathless offscreen Interact replay through the isolated h
 		[{ state: 'enabled', quarantined: false }]);
 });
 
-test('an unavailable Interact host does not count against the plug-in failure ledger', async (context) => {
+test('unavailable Interact and render hosts do not count against the plug-in ledger', async (context) => {
 	const fixture = await createFixture(context);
-	fixture.preferences.nativeMediaEnabled = true;
-	fixture.preferences.ofxConsentEnabled = true;
-	const scanned = await fixture.service.scan();
-	assert.ok(scanned);
+	Object.assign(fixture.preferences, { nativeMediaEnabled: true, ofxConsentEnabled: true });
+	const scanned = await fixture.service.scan(); assert.ok(scanned);
 	await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
 	fixture.manager.dispose();
 	const effect = interactEffect(fixture.plan);
@@ -159,6 +157,8 @@ test('an unavailable Interact host does not count against the plug-in failure le
 			effect, effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect),
 			context: 'filter', target: 'overlay', parameterName: null, events: [],
 		}), /disposed/iu);
+		const result = await fixture.service.execute(executionRequest(fixture, scanned.pluginHandle));
+		assert.notEqual(result.mode, 'render');
 	}
 	assert.deepEqual(fixture.service.inventory().map(({ state, quarantined }) => ({ state, quarantined })),
 		[{ state: 'enabled', quarantined: false }]);
@@ -321,25 +321,27 @@ test('main-owned failure ledger quarantines repeated renders and immediate resou
 	}
 });
 
-test('Interact helper execution failures enter the plug-in failure ledger', async (context) => {
-	for (const [cause, attempts] of [['helper-error', 3], ['handshake', 1],
-		['binary-mismatch', 1]] as const) {
-		const fixture = await createFixture(context);
-		Object.assign(fixture.preferences, { nativeMediaEnabled: true, ofxConsentEnabled: true });
-		const scanned = await fixture.service.scan(); assert.ok(scanned);
-		await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
-		fixture.runtimeState.failures.push(...Array.from({ length: attempts },
-			() => new HelperSupervisionError(cause, `${cause} failure`)));
-		const effect = interactEffect(fixture.plan);
-		for (let attempt = 0; attempt < attempts; attempt += 1) await assert.rejects(
-			() => fixture.service.interact({ protocolVersion: 1, project: {
-				schemaFamily: 'framescaper', schemaVersion: 1, ...fixture.plan.project },
-				pluginHandle: scanned.pluginHandle, effect, effectStateSha256:
-					framescaperOpenFxInteractEffectStateSha256V1(effect),
-				context: 'filter', target: 'overlay', parameterName: null, events: [] }), /failure/iu,
-		);
-		assert.equal(fixture.service.inventory()[0]?.quarantined, true, cause);
-	}
+test('Interact host disposal does not become a third plug-in failure', async (context) => {
+	const fixture = await createFixture(context);
+	Object.assign(fixture.preferences, { nativeMediaEnabled: true, ofxConsentEnabled: true });
+	const scanned = await fixture.service.scan(); assert.ok(scanned);
+	await fixture.service.control({ pluginHandle: scanned.pluginHandle, action: 'enable' });
+	fixture.runtimeState.failures.push(new Error('plug-in failure'), new Error('plug-in failure'),
+		new HelperSupervisionError('disposed', 'host disposed'), new Error('plug-in failure'),
+	);
+	const effect = interactEffect(fixture.plan);
+	const interact = () => fixture.service.interact({ protocolVersion: 1, project: {
+		schemaFamily: 'framescaper', schemaVersion: 1, ...fixture.plan.project },
+		pluginHandle: scanned.pluginHandle, effect,
+		effectStateSha256: framescaperOpenFxInteractEffectStateSha256V1(effect),
+		context: 'filter' as const, target: 'overlay' as const, parameterName: null, events: [] });
+	for (let attempt = 0; attempt < 3; attempt += 1) await assert.rejects(interact);
+	assert.deepEqual(
+		(({ state, quarantined }) => ({ state, quarantined }))(fixture.service.inventory()[0]!),
+		{ state: 'enabled', quarantined: false },
+	);
+	await assert.rejects(interact, /failure/iu);
+	assert.equal(fixture.service.inventory()[0]?.quarantined, true);
 });
 test('scan cancellation and malformed descriptors leave no registration or scratch authority', async (context) => {
 	let releaseScan!: () => void;
@@ -565,10 +567,8 @@ async function createFixture(context: TestContext, options: FixtureOptions = {})
 	};
 }
 
-function executionRequest(
-	fixture: Awaited<ReturnType<typeof createFixture>>,
-	pluginHandle: string,
-) {
+function executionRequest(fixture: Awaited<ReturnType<typeof createFixture>>,
+	pluginHandle: string) {
 	return {
 		pluginHandle, plan: fixture.plan, instanceId: 'ofx-1',
 		requestedBackend: 'cpu' as const, outputOrdinal: 3,
