@@ -99,6 +99,31 @@ const CANDIDATES = Object.freeze({
 				'inference/transnetv2-weights/variables/variables.index'),
 		]),
 	}),
+	'dereverb-room': Object.freeze({
+		framework: 'pytorch',
+		codeUrl: 'https://github.com/ZFTurbo/MSS_ONNX_TensorRT',
+		codeRevision: '43d939e7671d8ff6cf1922f98c2f2e4b56908e47',
+		recipeId: 'dereverb-room-onnx-v1',
+		parityFixtureId: 'dereverb-room-parity-v1',
+		parityGeneratorId: 'dereverb-room-audio-v1',
+		frameworks: Object.freeze(['source-pytorch', 'onnxruntime-cpu']),
+		artifacts: Object.freeze([
+			Object.freeze({
+				role: 'bs-roformer-checkpoint', required: true,
+				fileName: 'dereverb_room_anvuew_sdr_13.7432.ckpt',
+				url: 'https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew_sdr_13.7432.ckpt',
+				revision: '0b85f5b80b7f779b2dfe80f33a1b35b38af9376d', byteLength: 118_128_452,
+				integrity: { algorithm: 'sha256', value: '2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3' },
+			}),
+			Object.freeze({
+				role: 'bs-roformer-config', required: true,
+				fileName: 'dereverb_room_anvuew.yaml',
+				url: 'https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew.yaml',
+				revision: '0b85f5b80b7f779b2dfe80f33a1b35b38af9376d', byteLength: 1_991,
+				integrity: { algorithm: 'sha256', value: 'c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8' },
+			}),
+		]),
+	}),
 });
 
 function transNetArtifact(role, fileName, byteLength, sha256, path) {

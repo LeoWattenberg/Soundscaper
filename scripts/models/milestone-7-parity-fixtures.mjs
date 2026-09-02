@@ -24,6 +24,13 @@ const AUDIO_GENERATORS = Object.freeze({
 			pattern: '120bpm-downbeat-integer-v1',
 		}),
 	}),
+	'dereverb-room-audio-v1': Object.freeze({
+		id: 'dereverb-room-audio-v1', version: 1,
+		parameters: Object.freeze({
+			sampleRateHz: 44_100, channels: 1, frameCount: 384_000,
+			pattern: 'voiced-pulses-room-echoes-integer-v1',
+		}),
+	}),
 });
 
 const VIDEO_GENERATOR = Object.freeze({
@@ -90,6 +97,7 @@ function audioFixture(generator) {
 function audioSample(id, frame, channel) {
 	if (id === 'tiger-dnr-audio-v1') return tigerSample(frame, channel);
 	if (id === 'panns-cnn10-audio-v1') return pannsSample(frame);
+	if (id === 'dereverb-room-audio-v1') return dereverbRoomSample(frame);
 	return beatSample(frame);
 }
 
@@ -116,6 +124,28 @@ function beatSample(frame) {
 	const downbeat = downbeatPhase < 330 ? (330 - downbeatPhase) / 660 : 0;
 	const bed = ((frame * 29) % 1024 - 512) / 16_384;
 	return clampFloat(beat + downbeat + bed);
+}
+
+function dereverbRoomSample(frame) {
+	// A dry voiced pulse train plus fixed-delay decaying copies of itself: the
+	// echoes give the dereverberation core a genuinely reverberant input while
+	// every sample stays a pure function of the frame index.
+	const echoes = [[0, 1], [1_531, 0.5], [3_877, 0.34], [7_919, 0.22], [13_217, 0.13]];
+	let value = 0;
+	for (const [delay, gain] of echoes) {
+		const at = frame - delay;
+		if (at >= 0) value += dereverbRoomDrySample(at) * gain;
+	}
+	return clampFloat(value);
+}
+
+function dereverbRoomDrySample(frame) {
+	const phrasePhase = frame % 33_075;
+	if (phrasePhase >= 26_460) return 0;
+	const voiced = phrasePhase % 441 < 220 ? 0.27 : -0.23;
+	const burstPhase = frame % 5_513;
+	const burst = burstPhase < 96 ? pseudoNoise(frame, 137) * 0.4 : 0;
+	return voiced * (0.6 + 0.4 * ((frame % 8_820) / 8_820)) + burst;
 }
 
 function pseudoNoise(frame, salt) {

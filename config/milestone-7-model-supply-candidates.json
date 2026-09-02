@@ -429,6 +429,104 @@
 					}
 				]
 			}
+		},
+		{
+			"id": "dereverb-room",
+			"sourceStatus": "source-pinned",
+			"source": {
+				"framework": "pytorch",
+				"code": {
+					"url": "https://github.com/ZFTurbo/MSS_ONNX_TensorRT",
+					"revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47"
+				},
+				"artifacts": [
+					{
+						"role": "bs-roformer-checkpoint",
+						"required": true,
+						"fileName": "dereverb_room_anvuew_sdr_13.7432.ckpt",
+						"url": "https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew_sdr_13.7432.ckpt",
+						"revision": "0b85f5b80b7f779b2dfe80f33a1b35b38af9376d",
+						"byteLength": 118128452,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3"
+						}
+					},
+					{
+						"role": "bs-roformer-config",
+						"required": true,
+						"fileName": "dereverb_room_anvuew.yaml",
+						"url": "https://huggingface.co/anvuew/dereverb_room/resolve/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/dereverb_room_anvuew.yaml",
+						"revision": "0b85f5b80b7f779b2dfe80f33a1b35b38af9376d",
+						"byteLength": 1991,
+						"integrity": {
+							"algorithm": "sha256",
+							"value": "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8"
+						}
+					}
+				]
+			},
+			"conversion": {
+				"status": "converted-artifact-pending",
+				"blockedBy": "No converted ONNX digests or source-framework parity evidence has been recorded under the locked toolchain.",
+				"recipe": {
+					"id": "dereverb-room-onnx-v1",
+					"version": 1,
+					"sourceFrameworks": ["pytorch"],
+					"toolchain": {
+						"status": "locked",
+						"lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
+						"sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a",
+						"blockedBy": null
+					},
+					"input": {
+						"sampleRateHz": 44100,
+						"channels": "mono",
+						"sampleEncoding": "float32"
+					},
+					"graph": {
+						"inputs": [
+							{
+								"name": "input",
+								"dataType": "float32",
+								"dimensions": [1, 751, 2050]
+							}
+						],
+						"outputs": [
+							{
+								"name": "output",
+								"dataType": "float32",
+								"dimensions": [1, 1, 1025, 751, 2]
+							}
+						]
+					},
+					"onnx": {
+						"opset": 17,
+						"executionProvider": "cpu",
+						"externalData": false,
+						"customOperators": false,
+						"deterministicAlgorithms": true
+					},
+					"conversionStages": [
+						"verify-source-closure",
+						"load-source-checkpoint",
+						"export-onnx",
+						"validate-cpu-graph",
+						"run-source-parity"
+					],
+					"ownedRuntimeStages": ["stft", "mask-apply", "istft", "overlap-add"],
+					"parityFixtureId": "dereverb-room-parity-v1"
+				},
+				"outputs": [
+					{
+						"role": "network",
+						"required": true,
+						"fileName": "dereverb-room.onnx",
+						"byteLength": null,
+						"sha256": null
+					}
+				]
+			}
 		}
 	],
 	"directPins": [

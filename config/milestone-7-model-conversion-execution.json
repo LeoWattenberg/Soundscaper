@@ -255,6 +255,64 @@
 			},
 			"evidenceStatus": "pending-external",
 			"blockedBy": ["converted-output-identity", "source-code-archive-identity", "source-framework-parity"]
+		},
+		{
+			"candidateId": "dereverb-room",
+			"conversionPlanSha256": "4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da",
+			"sourceCode": {
+				"url": "https://github.com/ZFTurbo/MSS_ONNX_TensorRT",
+				"revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47",
+				"archive": {
+					"fileName": "mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz",
+					"byteLength": null,
+					"sha256": null
+				}
+			},
+			"sourceArtifacts": [
+				{
+					"role": "bs-roformer-checkpoint",
+					"fileName": "dereverb_room_anvuew_sdr_13.7432.ckpt",
+					"byteLength": 118128452,
+					"upstreamIntegrity": { "algorithm": "sha256", "value": "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3" },
+					"sha256Readback": "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3"
+				},
+				{
+					"role": "bs-roformer-config",
+					"fileName": "dereverb_room_anvuew.yaml",
+					"byteLength": 1991,
+					"upstreamIntegrity": { "algorithm": "sha256", "value": "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8" },
+					"sha256Readback": "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8"
+				}
+			],
+			"commands": [
+				{
+					"id": "convert",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "convert", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "dereverb-room", "--plan-sha256", "4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da", "--source-manifest", "source-input-manifest.json", "--output-manifest", "converted-artifacts.json"]
+				},
+				{
+					"id": "parity",
+					"argv": ["-I", "-B", "-m", "soundscaper_m7_conversion", "parity", "--protocol", "soundscaper-model-conversion-v1", "--candidate", "dereverb-room", "--plan-sha256", "4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da", "--fixture", "parity-fixture.bin", "--source-runs", "source-framework-runs", "--converted-manifest", "converted-artifacts.json", "--evidence", "parity-evidence.json", "--source-manifest", "source-input-manifest.json", "--toolchain-lock", "uv.lock", "--toolchain-sha256", "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"]
+				}
+			],
+			"outputManifest": {
+				"schemaVersion": 1,
+				"path": "evidence/milestone-7-model-conversion/dereverb-room/converted-artifacts.json",
+				"status": "pending-external",
+				"artifacts": [
+					{ "role": "network", "required": true, "fileName": "dereverb-room.onnx", "byteLength": null, "sha256": null }
+				]
+			},
+			"parity": {
+				"fixtureId": "dereverb-room-parity-v1",
+				"inputFileName": "dereverb-room-parity-v1.wav",
+				"inputByteLength": 1536044,
+				"inputSha256": "6d13831e2cc01f77e96ade4306f77029e1a5002b5ed75e1ac87049d22f984d06",
+				"evidencePath": "evidence/milestone-7-model-conversion/dereverb-room/parity-evidence.json",
+				"status": "pending-external",
+				"evidenceSha256": null
+			},
+			"evidenceStatus": "pending-external",
+			"blockedBy": ["converted-output-identity", "source-code-archive-identity", "source-framework-parity"]
 		}
 	]
 }

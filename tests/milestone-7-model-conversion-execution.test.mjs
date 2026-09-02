@@ -36,13 +36,13 @@ function canonicalJson(value) {
 	return JSON.stringify(value);
 }
 
-test('conversion execution recipes bind the four pinned supply candidates exactly', () => {
+test('conversion execution recipes bind the five pinned supply candidates exactly', () => {
 	const register = validateMilestone7ConversionExecutionRegister(
 		executionRegister, modelSupply, parityFixtures,
 	);
 
 	assert.deepEqual(register.recipes.map(({ candidateId }) => candidateId), [
-		'tiger-dnr-neural-core', 'panns-cnn10', 'beat-this', 'transnetv2',
+		'tiger-dnr-neural-core', 'panns-cnn10', 'beat-this', 'transnetv2', 'dereverb-room',
 	]);
 	for (const recipe of register.recipes) {
 		assert.equal(recipe.evidenceStatus, 'pending-external');
@@ -310,7 +310,7 @@ test('the repository checker reports external work without manufacturing evidenc
 	assert.equal(result.status, 0, result.stderr);
 	const report = JSON.parse(result.stdout);
 	assert.equal(report.schemaVersion, 1);
-	assert.equal(report.recipes.length, 4);
+	assert.equal(report.recipes.length, 5);
 	assert.ok(report.recipes.every(({ status }) => status === 'pending-external'));
 	assert.ok(report.recipes.every(({ outputArtifacts }) =>
 		outputArtifacts.every(({ byteLength, sha256 }) =>

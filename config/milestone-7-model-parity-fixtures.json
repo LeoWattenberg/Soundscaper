@@ -215,6 +215,40 @@
 			"evidenceStatus": "pending-external",
 			"evidenceSha256": null,
 			"blockedBy": "No retained TensorFlow-to-PyTorch-to-ONNX logits and boundary parity run exists."
+		},
+		{
+			"id": "dereverb-room-parity-v1",
+			"candidateId": "dereverb-room",
+			"generator": {
+				"id": "dereverb-room-audio-v1",
+				"version": 1,
+				"parameters": {
+					"sampleRateHz": 44100,
+					"channels": 1,
+					"frameCount": 384000,
+					"pattern": "voiced-pulses-room-echoes-integer-v1"
+				}
+			},
+			"input": {
+				"fileName": "dereverb-room-parity-v1.wav",
+				"mediaType": "audio/wav",
+				"byteLength": 1536044,
+				"sha256": "6d13831e2cc01f77e96ade4306f77029e1a5002b5ed75e1ac87049d22f984d06"
+			},
+			"frameworks": ["source-pytorch", "onnxruntime-cpu"],
+			"outputRoles": ["noreverb-waveform"],
+			"comparisons": [
+				{
+					"baseline": "source-pytorch",
+					"candidate": "onnxruntime-cpu",
+					"outputRole": "noreverb-waveform",
+					"metric": "maximum-absolute-error",
+					"maximum": 0.002
+				}
+			],
+			"evidenceStatus": "pending-external",
+			"evidenceSha256": null,
+			"blockedBy": "No PyTorch-to-ONNX dereverberated-waveform parity run is retained for the converted graph."
 		}
 	]
 }

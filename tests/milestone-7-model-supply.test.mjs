@@ -25,6 +25,7 @@ const EXPECTED_PLAN_SHA256 = Object.freeze({
 	'panns-cnn10': '03f4d0feb664ac4a409a126b6eb81efc94231475e9d1354fce5d3f725f4724fc',
 	'beat-this': '3d9f0a1a130fece450c64c01cfc6393aef9b2ab02a6af9114709e553322b9497',
 	transnetv2: '220564344d458cdf44ad5c10e7194e9469609735d4ec63a8617086daed9570eb',
+	'dereverb-room': '4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da',
 });
 
 function clone(value) {
@@ -42,12 +43,12 @@ function directPin(register, id) {
 test('derived model supply keeps exact primary-source pins separate from pending conversions', () => {
 	const register = validateMilestone7ModelSupplyRegister(modelSupply);
 	assert.deepEqual(register.candidates.map(({ id }) => id), [
-		'tiger-dnr-neural-core', 'panns-cnn10', 'beat-this', 'transnetv2',
+		'tiger-dnr-neural-core', 'panns-cnn10', 'beat-this', 'transnetv2', 'dereverb-room',
 	]);
 	assert.deepEqual(register.candidates.map(({ sourceStatus }) => sourceStatus),
-		Array(4).fill('source-pinned'));
+		Array(5).fill('source-pinned'));
 	assert.deepEqual(register.candidates.map(({ conversion }) => conversion.status),
-		Array(4).fill('converted-artifact-pending'));
+		Array(5).fill('converted-artifact-pending'));
 
 	const tiger = candidate(register, 'tiger-dnr-neural-core');
 	assert.equal(tiger.source.code.revision, '9f18d4a10a7137e1ce8052cfb62215179f1287b6');
@@ -206,7 +207,7 @@ test('the deterministic verifier reports pins and blockers without producing art
 	const report = JSON.parse(result.stdout);
 	assert.equal(report.schemaVersion, 1);
 	assert.deepEqual(report.candidates.map(({ status }) => status),
-		Array(4).fill('converted-artifact-pending'));
+		Array(5).fill('converted-artifact-pending'));
 	assert.equal(report.parityFixtures.every(({ status }) => status === 'pending-external'), true);
 	assert.equal(report.productionCatalogChanged, false);
 	assert.deepEqual(report.runtimeFamilies.map(({ status }) => status),

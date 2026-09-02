@@ -43,6 +43,7 @@ const SOURCE_ARCHIVE_NAMES = Object.freeze({
 	'panns-cnn10': 'audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz',
 	'beat-this': 'beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz',
 	transnetv2: 'transnetv2-85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed.tar.gz',
+	'dereverb-room': 'mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz',
 });
 
 export function validateMilestone7ConversionExecutionRegister(

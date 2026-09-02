@@ -31,6 +31,10 @@ RUNNER_INVENTORY = {
         "sourceFrameworks": ["source-tensorflow", "source-pytorch"],
         "onnxFramework": "onnxruntime-cpu",
     },
+    "dereverb-room": {
+        "runner": "dereverb-room-v1", "fixtureKind": "float32-wave",
+        "sourceFrameworks": ["source-pytorch"], "onnxFramework": "onnxruntime-cpu",
+    },
 }
 
 
@@ -86,4 +90,7 @@ def execute_candidate(candidate_id: str, source_root: Path, artifacts: dict,
         return run_panns(source_root, artifacts, converted, fixture, spec)
     if candidate_id == "beat-this":
         return run_beat(source_root, artifacts, converted, fixture, spec)
+    if candidate_id == "dereverb-room":
+        from .dereverb_room import run_dereverb_room
+        return run_dereverb_room(source_root, artifacts, converted, fixture, spec)
     raise ContractError("The parity runner candidate is unsupported.")

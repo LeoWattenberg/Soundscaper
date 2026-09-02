@@ -40,6 +40,11 @@ def convert_models(candidate_id: str, source_root: Path, artifacts: list, output
         elif candidate_id == "transnetv2":
             generated = [export_transnet(source_root, artifact_paths, output_root,
                                          spec["outputs"][0][2])]
+        elif candidate_id == "dereverb-room":
+            from .dereverb_room import export_dereverb_room
+            generated = [export_dereverb_room(source_root,
+                                              artifact_paths["bs-roformer-checkpoint"],
+                                              output_root, spec["outputs"][0][2])]
         else:
             raise ContractError("The conversion exporter candidate is unsupported.")
     results = []

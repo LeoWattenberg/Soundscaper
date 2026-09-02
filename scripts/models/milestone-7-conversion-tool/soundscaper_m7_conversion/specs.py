@@ -109,6 +109,28 @@ CANDIDATES = {
             )
         ],
     },
+    "dereverb-room": {
+        "plan": "4b1f08019ca7edc8977bf720bb377a243324a9ae0fd9dd0e67fdd933cc6182da",
+        "revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47",
+        "archive": "mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz",
+        "artifacts": [
+            ("bs-roformer-checkpoint", True, "dereverb_room_anvuew_sdr_13.7432.ckpt",
+             118_128_452, "sha256",
+             "2edec521f09e26341c1923dc82c8c52dbc86478b42b9999f679535743c970cb3"),
+            ("bs-roformer-config", True, "dereverb_room_anvuew.yaml", 1_991, "sha256",
+             "c37e3039521d79cd1daff129857f69fa80c6a1f383a0fe8cda757f2dfc5032f8"),
+        ],
+        "outputs": [("network", True, "dereverb-room.onnx")],
+        "fixture": ("dereverb-room-parity-v1", 1_536_044,
+                    "6d13831e2cc01f77e96ade4306f77029e1a5002b5ed75e1ac87049d22f984d06"),
+        "frameworks": ["source-pytorch", "onnxruntime-cpu"],
+        "roles": ["noreverb-waveform"],
+        "counts": {"noreverb-waveform": 384_000},
+        "comparisons": [
+            ("source-pytorch", "onnxruntime-cpu", "noreverb-waveform",
+             "maximum-absolute-error", 0.002),
+        ],
+    },
 }
 
 

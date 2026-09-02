@@ -35,7 +35,7 @@ function sha256(value) {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-test('the parity runner inventory is closed over all four conversion candidates', () => {
+test('the parity runner inventory is closed over all five conversion candidates', () => {
 	const result = python(['-c',
 		'import json; from soundscaper_m7_conversion.runner import RUNNER_INVENTORY; '
 		+ 'print(json.dumps(RUNNER_INVENTORY, sort_keys=True, separators=(",", ":")))']);
@@ -44,6 +44,10 @@ test('the parity runner inventory is closed over all four conversion candidates'
 		'beat-this': {
 			fixtureKind: 'float32-wave', sourceFrameworks: ['source-pytorch'],
 			onnxFramework: 'onnxruntime-cpu', runner: 'beat-this-small0-v1',
+		},
+		'dereverb-room': {
+			fixtureKind: 'float32-wave', sourceFrameworks: ['source-pytorch'],
+			onnxFramework: 'onnxruntime-cpu', runner: 'dereverb-room-v1',
 		},
 		'panns-cnn10': {
 			fixtureKind: 'float32-wave', sourceFrameworks: ['source-pytorch'],
@@ -71,7 +75,7 @@ test('the checked-in uv lock is digest-bound by the owned runner', async () => {
 	const identity = JSON.parse(result.stdout);
 	assert.equal(identity.sha256, sha256(body));
 	assert.deepEqual(Object.keys(identity.requirements).sort(), [
-		'beat-this', 'panns-cnn10', 'tiger-dnr-neural-core', 'transnetv2',
+		'beat-this', 'dereverb-room', 'panns-cnn10', 'tiger-dnr-neural-core', 'transnetv2',
 	]);
 	for (const dependencies of Object.values(identity.requirements)) {
 		assert.ok(dependencies.length > 1);
@@ -108,6 +112,7 @@ test('owned fixture readers admit every pinned fixture and reject non-finite aud
 			{ candidateId: 'panns-cnn10', frameCount: 64_000 },
 			{ candidateId: 'beat-this', frameCount: 176_400 },
 			{ candidateId: 'transnetv2', frameCount: 120 },
+			{ candidateId: 'dereverb-room', frameCount: 384_000 },
 		]);
 
 		const corrupt = createMilestone7ParityFixture(parityFixtures.fixtures[1].generator);

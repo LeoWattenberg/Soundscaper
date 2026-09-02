@@ -29,6 +29,7 @@ _AUDIO_GEOMETRY = {
     "tiger-dnr-neural-core": (44_100, 2, 88_200),
     "panns-cnn10": (32_000, 1, 64_000),
     "beat-this": (22_050, 1, 176_400),
+    "dereverb-room": (44_100, 1, 384_000),
 }
 
 

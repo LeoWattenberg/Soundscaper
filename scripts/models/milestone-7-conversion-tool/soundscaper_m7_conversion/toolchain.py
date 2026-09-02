@@ -38,6 +38,11 @@ REQUIRED_DISTRIBUTIONS = {
         {"name": "rotary-embedding-torch", "version": "0.8.5"},
         {"name": "torchaudio", "version": "2.11.0"},
     ],
+    "dereverb-room": [
+        *_COMMON,
+        {"name": "einops", "version": "0.8.0"},
+        {"name": "rotary-embedding-torch", "version": "0.8.5"},
+    ],
     "transnetv2": [
         *_COMMON,
         {"name": "onnx2torch", "version": "1.5.15"},
