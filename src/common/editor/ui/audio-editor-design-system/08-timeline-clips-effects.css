@@ -1,6 +1,6 @@
 #kw-audio-editor-design-system .audio-editor-label-lane {
 	position: absolute;
-	background-color: color-mix(in srgb, var(--kw-editor-accent) 6%, var(--kw-editor-stage));
+	background-color: color-mix(in srgb, var(--kw-editor-accent) 6%, transparent);
 }
 
 #kw-audio-editor-design-system .audio-editor-label-marker {
@@ -218,16 +218,12 @@
 	position: absolute;
 	top: 0;
 	overflow: hidden;
-	background-color: var(--kw-editor-stage);
-	background-image:
-		linear-gradient(90deg, var(--kw-editor-stage-grid-major) 1px, transparent 1px),
-		linear-gradient(0deg, var(--kw-editor-stage-grid-minor) 1px, transparent 1px);
-	background-size: 120px 100%, 100% 36px;
+	background-color: transparent;
 	outline: none;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-lane[aria-selected='true'] {
-	background-color: color-mix(in srgb, var(--kw-editor-accent) 7%, var(--kw-editor-stage));
+	background-color: color-mix(in srgb, var(--kw-editor-accent) 7%, transparent);
 }
 
 #kw-audio-editor-design-system .audio-editor-track-lane:focus-within {

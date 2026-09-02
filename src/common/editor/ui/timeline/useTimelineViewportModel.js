@@ -228,5 +228,7 @@ export function useTimelineViewportModel({
 		showTimelineAnnotations,
 		showMarkers,
 		markerLaneVisible,
+		rulerRowHeight,
+		scrollViewportHeight: timelineScrollSize.height,
 	};
 }

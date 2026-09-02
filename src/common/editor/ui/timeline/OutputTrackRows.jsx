@@ -25,6 +25,7 @@ import {
 } from './geometry.ts';
 import { COLLAPSED_TRACK_HEIGHT } from './constants.ts';
 import { focusFirst, focusPanelControl } from './timeline-navigation.js';
+import { TimelineGridLines } from './TimelineGridLines.jsx';
 import { OutputTelemetryMeters } from './TrackTelemetryMeters.tsx';
 
 export function OutputTrackDock({
@@ -40,6 +41,7 @@ export function OutputTrackDock({
 	scrollX,
 	pixelsPerSecond,
 	sampleRate,
+	rulerScale,
 	durationFrames,
 	selection,
 	height,
@@ -112,6 +114,7 @@ export function OutputTrackDock({
 				scrollX={scrollX}
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
+				rulerScale={rulerScale}
 				durationFrames={durationFrames}
 				selection={selection}
 				automationToolEnabled={automationToolEnabled}
@@ -147,6 +150,7 @@ export function OutputTrackRow({
 	scrollX,
 	pixelsPerSecond,
 	sampleRate,
+	rulerScale,
 	durationFrames,
 	selection,
 	automationToolEnabled,
@@ -284,6 +288,15 @@ export function OutputTrackRow({
 				className="audio-editor-output-lane-viewport"
 				style={{ left: panelWidth, right: verticalRulerWidth, width: viewportWidth }}
 			>
+				{rulerScale && <TimelineGridLines
+					variant="fill"
+					scale={rulerScale}
+					pixelsPerSecond={pixelsPerSecond}
+					scrollX={scrollX}
+					viewportWidth={viewportWidth}
+					height={rowHeight}
+					sampleRate={sampleRate}
+				/>}
 				<div
 					className="audio-editor-output-lane"
 					data-output-lane

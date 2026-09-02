@@ -1,7 +1,7 @@
 import { Button } from '@soundscaper/design-system/Button';
 import { Icon } from '@soundscaper/design-system/Icon';
 import { TimelineRuler } from '@soundscaper/design-system/TimelineRuler';
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import { framesToSeconds } from '../../design-system-adapters.js';
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
@@ -17,9 +17,8 @@ import {
 	useTimelineAnnotationCreateFeedback,
 } from './useTimelineAnnotationCreateFeedback.js';
 import { timelineAnnotationCreateKind } from './timeline-annotation-ui-model.ts';
-import { usesMusicalMapRuler } from './musical-ruler-model.ts';
-import { usesSequenceTimecodeDisplay } from './sequence-ruler-model.ts';
-import { resolveSequenceTimingView } from '../../sequence-timing-model.ts';
+import { resolveTimelineRulerScale } from './timeline-grid-model.ts';
+import { TimelineGridLines } from './TimelineGridLines.jsx';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
 	RulerPlayhead,
@@ -81,6 +80,8 @@ export function TimelineWorkspaceView({
 		showTimelineAnnotations,
 		showMarkers,
 		markerLaneVisible,
+		rulerRowHeight,
+		scrollViewportHeight,
 	} = geometry;
 	const { documentSelection, timeSelection, selectedClipIdSet } = selection;
 	const {
@@ -135,12 +136,9 @@ export function TimelineWorkspaceView({
 		onOpenEffects,
 	} = actions;
 	const { displayedLoop } = menuModel;
-	const tempoEvents = project.tempoMap?.events || [];
-	const signatureEvents = project.signatureMap?.events || [];
-	const mappedTempo = rationalValue(tempoEvents[0]?.bpm, project.tempo?.bpm || 120);
-	const mappedSignature = signatureEvents[0] || project.tempo?.timeSignature || { numerator: 4, denominator: 4 };
-	const useMusicalMapRuler = usesMusicalMapRuler(project);
-	const sequenceTimecodeView = usesSequenceTimecodeDisplay(project) ? resolveSequenceTimingView(project) : null;
+	// One resolved scale feeds the ruler canvas and the grid lines behind the
+	// tracks, so a tick and its line can never come from different models.
+	const rulerScale = useMemo(() => resolveTimelineRulerScale(project), [project]);
 	const timelinePanelRef = useRef(null);
 	const setTimelinePanelNode = useCallback((node) => {
 		timelinePanelRef.current = node;
@@ -245,8 +243,8 @@ export function TimelineWorkspaceView({
 							data-ruler
 							data-ruler-focus
 							data-ruler-interaction
-							data-time-format={sequenceTimecodeView ? 'timecode'
-								: project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
+							data-time-format={rulerScale.kind === 'timecode' ? 'timecode'
+								: rulerScale.kind === 'minutes-seconds' ? 'minutes-seconds' : 'beats-measures'}
 							data-track-lane
 							data-track-id={snapshot.selectedTrackId || project.tracks[0]?.id || ''}
 							role="region"
@@ -271,7 +269,7 @@ export function TimelineWorkspaceView({
 								}
 							}}
 						>
-							{sequenceTimecodeView ? <SequenceTimecodeRuler
+							{rulerScale.kind === 'timecode' ? <SequenceTimecodeRuler
 								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
@@ -279,12 +277,12 @@ export function TimelineWorkspaceView({
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
-								view={sequenceTimecodeView}
+								view={rulerScale.view}
 								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
 								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
-							/> : useMusicalMapRuler ? <MusicalTimelineRuler
+							/> : rulerScale.kind === 'musical-map' ? <MusicalTimelineRuler
 								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
 								pixelsPerSecond={pixelsPerSecond}
 								scrollX={scrollX}
@@ -292,8 +290,8 @@ export function TimelineWorkspaceView({
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
-								tempoMap={project.tempoMap}
-								signatureMap={project.signatureMap}
+								tempoMap={rulerScale.tempoMap}
+								signatureMap={rulerScale.signatureMap}
 								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
@@ -307,9 +305,9 @@ export function TimelineWorkspaceView({
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
-								timeFormat={project.timeDisplay?.format === 'beats+measures' ? 'beats-measures' : 'minutes-seconds'}
-								bpm={mappedTempo}
-								beatsPerMeasure={mappedSignature.numerator || 4}
+								timeFormat={rulerScale.kind === 'beats-measures' ? 'beats-measures' : 'minutes-seconds'}
+								bpm={rulerScale.kind === 'beats-measures' ? rulerScale.bpm : 120}
+								beatsPerMeasure={rulerScale.kind === 'beats-measures' ? rulerScale.beatsPerMeasure : 4}
 								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
 								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
 								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
@@ -338,6 +336,17 @@ export function TimelineWorkspaceView({
 							style={{ left: panelWidth + viewportWidth, width: verticalRulerWidth }}
 						/>}
 					</div>
+
+					<TimelineGridLines
+						scale={rulerScale}
+						pixelsPerSecond={pixelsPerSecond}
+						scrollX={scrollX}
+						viewportWidth={viewportWidth}
+						height={Math.max(1, scrollViewportHeight - rulerRowHeight)}
+						sampleRate={sampleRate}
+						top={rulerRowHeight}
+						left={panelWidth}
+					/>
 
 					<ContainerAddTrackFlyout
 						isOpen={Boolean(addTrackFlyout)}
@@ -482,6 +491,7 @@ export function TimelineWorkspaceView({
 				scrollX={scrollX}
 				pixelsPerSecond={pixelsPerSecond}
 				sampleRate={sampleRate}
+				rulerScale={rulerScale}
 				durationFrames={durationFrames}
 				selection={timeSelection}
 				height={outputDockHeight}
@@ -507,12 +517,4 @@ export function TimelineWorkspaceView({
 			/>
 		</section>
 	);
-}
-
-function rationalValue(value, fallback) {
-	const numerator = Number(value?.num);
-	const denominator = Number(value?.den);
-	return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0
-		? numerator / denominator
-		: fallback;
 }

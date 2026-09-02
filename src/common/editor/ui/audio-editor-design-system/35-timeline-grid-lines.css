@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* Ruler-aligned grid lines behind the track lanes. The viewport variant is a
+ * zero-height sticky block pinned under the ruler row and beside the track
+ * panel, so one viewport-sized canvas serves every track row and the empty
+ * stage beneath them; rows and lanes stay transparent so it shows through. */
+#kw-audio-editor-design-system .audio-editor-timeline-grid {
+	position: sticky;
+	height: 0;
+	overflow: visible;
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system .audio-editor-timeline-grid[data-timeline-grid='fill'] {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 100%;
+}
+
+#kw-audio-editor-design-system .audio-editor-timeline-grid__canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: block;
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system .audio-editor-timeline-grid {
+		display: none;
+	}
+}

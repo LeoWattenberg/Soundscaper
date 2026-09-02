@@ -13,10 +13,6 @@
 	min-width: 100%;
 	min-height: 100%;
 	background-color: var(--kw-editor-stage);
-	background-image:
-		linear-gradient(90deg, var(--kw-editor-stage-grid-major) 1px, transparent 1px),
-		linear-gradient(0deg, var(--kw-editor-stage-grid-minor) 1px, transparent 1px);
-	background-size: 120px 100%, 100% 36px;
 }
 
 #kw-audio-editor-design-system .audio-editor-ruler-row {
@@ -115,11 +111,12 @@
 	content: '';
 }
 
+/* Rows and lanes are transparent so the timeline grid canvas shows through. */
 #kw-audio-editor-design-system .audio-editor-track-row {
 	position: relative;
 	width: 100%;
 	min-width: 100%;
-	background: var(--kw-editor-stage);
+	background: transparent;
 	border-bottom: 1px solid var(--kw-editor-stage-line);
 	contain: layout paint;
 }
@@ -311,14 +308,11 @@
 }
 
 #kw-audio-editor-design-system .audio-editor-video-track-lane {
-	background-color: color-mix(in srgb, #11151c 86%, var(--kw-editor-stage));
-	background-image:
-		linear-gradient(90deg, color-mix(in srgb, var(--kw-editor-stage-grid-major) 86%, #fff) 1px, transparent 1px),
-		linear-gradient(0deg, color-mix(in srgb, var(--kw-editor-stage-grid-minor) 68%, transparent) 1px, transparent 1px);
+	background-color: color-mix(in srgb, #11151c 86%, transparent);
 }
 
 #kw-audio-editor-design-system .audio-editor-video-track-row[data-hidden='true'] .audio-editor-video-track-lane {
-	background-color: color-mix(in srgb, #080a0e 94%, var(--kw-editor-stage));
+	background-color: color-mix(in srgb, #080a0e 94%, transparent);
 }
 
 #kw-audio-editor-design-system .audio-editor-video-track-row[data-video-overlap-state='invalid'] .audio-editor-video-track-lane {

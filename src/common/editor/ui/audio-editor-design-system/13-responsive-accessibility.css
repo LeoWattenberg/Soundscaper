@@ -325,10 +325,6 @@
 	#kw-audio-editor-design-system {
 		border-color: CanvasText;
 	}
-
-	#kw-audio-editor-design-system :is(.audio-editor-track-lane, .audio-editor-timeline-inner) {
-		background-image: none;
-	}
 }
 
 #kw-audio-editor-design-system:fullscreen {
