@@ -8,47 +8,48 @@ import { framescaperFinishingSurface } from '../framescaper-finishing-menu.ts';
 import { framescaperSelectedVisualAuthoringSurface } from '../framescaper-selected-visual-authoring-menu.ts';
 import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import { resolveSoundscaperMasteringSequenceCopy } from '../soundscaper-workflow-product-runtime.tsx';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
-const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
-const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
+const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
+const AudioEditorMacroManagerDialog = lazyEditorModule(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
 const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
 const SoundscaperMasteringSequenceDialog = SOUNDSCAPER_BUILD
-	? React.lazy(() => import('../dialogs/SoundscaperMasteringSequenceDialog.tsx')) : null;
+	? lazyEditorModule(() => import('../dialogs/SoundscaperMasteringSequenceDialog.tsx')) : null;
 const WorkspaceOnboardingDialog = SOUNDSCAPER_BUILD
-	? React.lazy(() => import('../dialogs/WorkspaceOnboardingDialog.tsx')) : null;
-const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
-const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
-const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
-const VideoRetimeDialog = React.lazy(() => import('../dialogs/VideoRetimeDialog.tsx'));
+	? lazyEditorModule(() => import('../dialogs/WorkspaceOnboardingDialog.tsx')) : null;
+const ClipPropertiesDialog = lazyEditorModule(() => import('../inspector/ClipPropertiesDialog.jsx'));
+const VideoCompositionDialog = lazyEditorModule(() => import('../inspector/VideoCompositionDialog.tsx'));
+const VideoKeyframeDialog = lazyEditorModule(() => import('../inspector/VideoKeyframeDialog.tsx'));
+const VideoRetimeDialog = lazyEditorModule(() => import('../dialogs/VideoRetimeDialog.tsx'));
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
 const FramescaperVideoProxyDialog = FRAMESCAPER_BUILD
-	? React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx')) : null;
+	? lazyEditorModule(() => import('../dialogs/FramescaperVideoProxyDialog.tsx')) : null;
 const FramescaperFinishingDialog = FRAMESCAPER_BUILD
-	? React.lazy(() => import('../dialogs/FramescaperFinishingDialog.tsx')) : null;
+	? lazyEditorModule(() => import('../dialogs/FramescaperFinishingDialog.tsx')) : null;
 const FramescaperVisualInspectorDialog = FRAMESCAPER_BUILD
-	? React.lazy(() => import('../dialogs/FramescaperVisualInspectorDialog.tsx')) : null;
+	? lazyEditorModule(() => import('../dialogs/FramescaperVisualInspectorDialog.tsx')) : null;
 const FramescaperSelectedVisualAuthoringDialog = FRAMESCAPER_BUILD
-	? React.lazy(() => import('../dialogs/FramescaperSelectedVisualAuthoringDialog.tsx')) : null;
-const ExportDialog = React.lazy(() => import('../inspector/ExportDialog.jsx'));
-const DeliveryQueueDialog = React.lazy(() => import('../inspector/DeliveryQueueDialog.jsx'));
-const LabelExportDialog = React.lazy(() => import('../inspector/LabelExportDialog.jsx'));
-const SelectionEffectsDialog = React.lazy(() => import('../inspector/SelectionEffectsDialog.jsx'));
-const EditorDialog = React.lazy(() => import('../dialogs/EditorDialog.jsx'));
-const GeneratorDialog = React.lazy(() => import('../dialogs/GeneratorDialog.jsx'));
-const NyquistDialog = React.lazy(() => import('../dialogs/NyquistDialog.jsx'));
-const SpectralSelectionDialog = React.lazy(() => import('../dialogs/SpectralSelectionDialog.jsx'));
-const AudioWarpDialog = React.lazy(() => import('../dialogs/AudioWarpDialog.tsx'));
-const TakeCompDialog = React.lazy(() => import('../dialogs/TakeCompDialog.tsx'));
-const TakeCycleRecoveryDialog = React.lazy(() => import('../dialogs/TakeCycleRecoveryDialog.tsx'));
-const WorkspacePreferencesDialog = React.lazy(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
-const RawPcmImportDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
-const RegularIntervalAnnotationDialog = React.lazy(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
-const LocalModelManagerDialog = React.lazy(() => import('../dialogs/LocalModelManagerDialog.tsx'));
-const LocalAssistanceDialog = React.lazy(() => import('../dialogs/LocalAssistanceDialogSurface.tsx'));
-const LocalDiagnosticsDialog = React.lazy(() => import('../dialogs/LocalDiagnosticsDialog.tsx'));
-const PrivacyPolicyDialog = React.lazy(() => import('../dialogs/PrivacyPolicyDialog.tsx'));
+	? lazyEditorModule(() => import('../dialogs/FramescaperSelectedVisualAuthoringDialog.tsx')) : null;
+const ExportDialog = lazyEditorModule(() => import('../inspector/ExportDialog.jsx'));
+const DeliveryQueueDialog = lazyEditorModule(() => import('../inspector/DeliveryQueueDialog.jsx'));
+const LabelExportDialog = lazyEditorModule(() => import('../inspector/LabelExportDialog.jsx'));
+const SelectionEffectsDialog = lazyEditorModule(() => import('../inspector/SelectionEffectsDialog.jsx'));
+const EditorDialog = lazyEditorModule(() => import('../dialogs/EditorDialog.jsx'));
+const GeneratorDialog = lazyEditorModule(() => import('../dialogs/GeneratorDialog.jsx'));
+const NyquistDialog = lazyEditorModule(() => import('../dialogs/NyquistDialog.jsx'));
+const SpectralSelectionDialog = lazyEditorModule(() => import('../dialogs/SpectralSelectionDialog.jsx'));
+const AudioWarpDialog = lazyEditorModule(() => import('../dialogs/AudioWarpDialog.tsx'));
+const TakeCompDialog = lazyEditorModule(() => import('../dialogs/TakeCompDialog.tsx'));
+const TakeCycleRecoveryDialog = lazyEditorModule(() => import('../dialogs/TakeCycleRecoveryDialog.tsx'));
+const WorkspacePreferencesDialog = lazyEditorModule(() => import('../dialogs/WorkspacePreferencesDialog.jsx'));
+const RawPcmImportDialog = lazyEditorModule(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RawPcmImportDialog })));
+const RegularIntervalAnnotationDialog = lazyEditorModule(() => import('../dialogs/ImportAnalysisDialogs.tsx').then((module) => ({ default: module.RegularIntervalAnnotationDialog })));
+const LocalModelManagerDialog = lazyEditorModule(() => import('../dialogs/LocalModelManagerDialog.tsx'));
+const LocalAssistanceDialog = lazyEditorModule(() => import('../dialogs/LocalAssistanceDialogSurface.tsx'));
+const LocalDiagnosticsDialog = lazyEditorModule(() => import('../dialogs/LocalDiagnosticsDialog.tsx'));
+const PrivacyPolicyDialog = lazyEditorModule(() => import('../dialogs/PrivacyPolicyDialog.tsx'));
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;

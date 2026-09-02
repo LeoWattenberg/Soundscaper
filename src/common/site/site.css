@@ -198,3 +198,47 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 	.sidebar-settings { margin-top: 12px; padding-top: 0; }
 	.sidebar-actions { grid-template-columns: 1fr 1fr; }
 }
+
+/*
+	The stale-build prompt. Styled here rather than in the editor design system
+	because it has to render when the editor's own chunks are the thing that
+	could not be fetched, so it may only rely on what the startup graph carries.
+*/
+.stale-build-overlay {
+	position: fixed;
+	z-index: 2147483646;
+	display: grid;
+	padding: 16px;
+	background: rgb(0 0 0 / 45%);
+	inset: 0;
+	place-items: center;
+}
+.stale-build-dialog {
+	width: min(440px, 100%);
+	padding: 20px;
+	color: var(--color-ink);
+	background: var(--color-surface-raised);
+	border: 1px solid var(--color-line);
+	border-radius: 10px;
+	box-shadow: 0 18px 48px rgb(0 0 0 / 28%);
+}
+.stale-build-dialog h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.stale-build-dialog p { margin: 0; color: var(--color-muted); }
+.stale-build-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+.stale-build-actions button {
+	min-width: 96px;
+	min-height: 34px;
+	padding: 7px 14px;
+	color: var(--color-ink);
+	background: var(--color-control-surface);
+	border: 1px solid var(--color-line);
+	border-radius: 6px;
+	font: inherit;
+	font-weight: 800;
+	cursor: pointer;
+}
+.stale-build-actions button:hover:not(:disabled) { border-color: var(--color-accent); }
+.stale-build-actions button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.stale-build-actions button:disabled { opacity: 0.55; cursor: default; }
+.stale-build-actions .stale-build-confirm { color: #fff; background: var(--color-accent-dark); border-color: var(--color-accent-dark); }
+:root[data-theme='dark'] .stale-build-actions .stale-build-confirm { color: #14100d; }

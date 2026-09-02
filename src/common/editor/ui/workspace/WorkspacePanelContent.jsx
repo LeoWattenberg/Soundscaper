@@ -10,8 +10,9 @@ import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
-const AnalysisPanel = React.lazy(() => import('../inspector/AnalysisPanel.jsx'));
+const AnalysisPanel = lazyEditorModule(() => import('../inspector/AnalysisPanel.jsx'));
 
 // The docked effects rack claims keyboard focus when it opens. Moving the
 // panel to another dock unmounts that rack and mounts a fresh one, which would
@@ -40,13 +41,13 @@ function DockedEffectsPanel({ host, ...props }) {
 	const autoFocusOnOpen = useEffectsPanelAutoFocus(host);
 	return <AudioEditorEffectsOverlay autoFocusOnOpen={autoFocusOnOpen} {...props} />;
 }
-const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
+const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
 const RecordingSetupPanel = FRAMESCAPER_BUILD
-	? React.lazy(() => import('./RecordingSetupPanel.tsx')) : null;
+	? lazyEditorModule(() => import('./RecordingSetupPanel.tsx')) : null;
 const WebVcrPanel = FRAMESCAPER_BUILD
-	? React.lazy(() => import('./WebVcrPanel.tsx')) : null;
+	? lazyEditorModule(() => import('./WebVcrPanel.tsx')) : null;
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;

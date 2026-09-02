@@ -8,7 +8,7 @@ test('the workspace defers Local Assistance bridge resolution with its dialog', 
 	const workspace = source('src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx');
 	assert.match(
 		workspace,
-		/React\.lazy\(\(\) => import\('\.\.\/dialogs\/LocalAssistanceDialogSurface\.tsx'\)\)/u,
+		/lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/LocalAssistanceDialogSurface\.tsx'\)\)/u,
 	);
 	assert.doesNotMatch(
 		workspace,

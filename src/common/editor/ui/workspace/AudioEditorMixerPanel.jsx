@@ -1,8 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { Knob } from '@soundscaper/design-system/Knob';
 import { MixerPanel } from '@soundscaper/design-system/MixerPanel';
 
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import RecordingInputSelectors from '../RecordingInputSelectors.jsx';
 import { rackEffectLabel } from '../dialogs/editor-dialog-model.js';
 import {
@@ -25,7 +26,7 @@ import {
 const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
 const SoundscaperRoutingGraphView = SOUNDSCAPER_BUILD
-	? lazy(() => import('./SoundscaperRoutingGraphView.tsx')) : null;
+	? lazyEditorModule(() => import('./SoundscaperRoutingGraphView.tsx')) : null;
 
 export default function AudioEditorMixerPanel({ controller, snapshot, copy, run, showArmControls, displayAudioSupported, onOpenEffects, productId = snapshot.productId, capabilities = snapshot.capabilities, onRoutingGraphGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingGraphGestureHandler | undefined} */ (undefined), onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined), automationRuntime: automationRuntimeProp }) {
 	const project = snapshot.project;

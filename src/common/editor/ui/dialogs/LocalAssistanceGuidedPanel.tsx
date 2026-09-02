@@ -2,7 +2,7 @@
 
 /** Accessible Guided workflow reachability; aggregate execution stays behind its explicit seam. */
 
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 
 import {
 	assistanceWorkflowStageGraph,
@@ -15,8 +15,9 @@ import {
 	type LocalAssistanceGuidedSnapshot,
 } from '../local-assistance-guided-session-store.ts';
 import LocalAssistanceGuidedSettings from './LocalAssistanceGuidedSettings.tsx';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
-const LocalAssistanceGuidedReview = lazy(() => import('./LocalAssistanceGuidedReview.tsx'));
+const LocalAssistanceGuidedReview = lazyEditorModule(() => import('./LocalAssistanceGuidedReview.tsx'));
 
 type Copy = Readonly<Record<string, string | undefined>>;
 

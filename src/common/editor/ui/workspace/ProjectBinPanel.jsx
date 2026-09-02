@@ -13,12 +13,13 @@ import {
 	prepareLinkedAudioChoice,
 } from './linked-audio-choice-handoff.ts';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
 const FramescaperVideoProxyDialog = FRAMESCAPER_BUILD
-	? React.lazy(() => import('../dialogs/FramescaperVideoProxyDialog.tsx')) : null;
+	? lazyEditorModule(() => import('../dialogs/FramescaperVideoProxyDialog.tsx')) : null;
 
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);

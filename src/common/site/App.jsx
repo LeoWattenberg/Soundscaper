@@ -1,8 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { productHref } from '../product-web-links.js';
+import { lazyEditorModule } from '../offline/lazy-module.tsx';
 import BrandSidebar from './BrandSidebar.jsx';
+import StaleBuildDialog from './StaleBuildDialog.jsx';
 import { applyDocumentTheme } from './document-theme.js';
 import './site.css';
 
@@ -12,9 +14,9 @@ import './site.css';
 // serve. The final bundle assertion in startup-graph-budget.mjs enforces that
 // output property for both product builds.
 const EditorBootstrap = __SCAPE_PRODUCT__ === 'framescaper'
-	? lazy(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'))
-	: lazy(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
-const PrivacyPolicyRoute = lazy(() => import('../editor/ui/PrivacyPolicyRoute.tsx'));
+	? lazyEditorModule(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'))
+	: lazyEditorModule(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
+const PrivacyPolicyRoute = lazyEditorModule(() => import('../editor/ui/PrivacyPolicyRoute.tsx'));
 
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
@@ -25,13 +27,16 @@ export default function App({ route }) {
 		intro: copy.framescaperIntro,
 	} : copy;
 	if (route.privacyPolicy) {
-		return <Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
-			<PrivacyPolicyRoute
-				locale={locale}
-				copy={copy}
-				onClose={() => window.location.assign(productHref(productId, locale))}
-			/>
-		</Suspense>;
+		return <>
+			<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
+				<PrivacyPolicyRoute
+					locale={locale}
+					copy={copy}
+					onClose={() => window.location.assign(productHref(productId, locale))}
+				/>
+			</Suspense>
+			<StaleBuildDialog copy={copy} />
+		</>;
 	}
 
 	return (
@@ -59,6 +64,7 @@ export default function App({ route }) {
 					</div>
 				</section>
 			</main>
+			<StaleBuildDialog copy={copy} />
 		</div>
 	);
 }
