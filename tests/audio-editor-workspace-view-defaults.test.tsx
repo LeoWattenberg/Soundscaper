@@ -140,6 +140,42 @@ test('the first mount and dependency identity changes never apply a preset view'
 	}
 });
 
+test('the stored preset arriving at boot is not a switch, but a later switch still applies', async () => {
+	const fixture = await mountedViewDefaultsFixture({
+		showVerticalRulers: true,
+		recording: { position: 'side' },
+	});
+	try {
+		// The tree mounts on the product default while the stored preferences load.
+		await fixture.render('modern', { ready: false });
+		await fixture.render('audacity', { ready: false });
+		await fixture.render('audacity', { ready: true });
+		assert.equal(fixture.toggles, 0, 'the stored Audacity user keeps the rulers they turned on');
+		assert.equal(fixture.recordingCalls, 0);
+		assert.equal(fixture.recording.position, 'side');
+
+		await fixture.render('modern', { ready: true });
+		assert.equal(fixture.toggles, 0, 'rulers already match the Soundscaper preset');
+		await fixture.render('audacity', { ready: true });
+		assert.equal(fixture.toggles, 1, 'a switch made by the ready user applies the preset');
+		assert.equal(fixture.recording.position, 'flyout');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
+test('a stored preset that lands together with readiness is not a switch either', async () => {
+	const fixture = await mountedViewDefaultsFixture({ showVerticalRulers: true });
+	try {
+		await fixture.render('modern', { ready: false });
+		await fixture.render('audacity', { ready: true });
+		assert.equal(fixture.toggles, 0);
+		assert.equal(fixture.recordingCalls, 0);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('the workspace lifecycle applies view defaults through the shared hook', async () => {
 	const lifecycle = await readFile(
 		new URL('src/common/editor/ui/workspace/useAudioEditorWorkspaceLifecycle.js', ROOT),
@@ -148,6 +184,9 @@ test('the workspace lifecycle applies view defaults through the shared hook', as
 	assert.match(lifecycle, /import \{ useWorkspaceViewDefaults \} from '\.\/useWorkspaceViewDefaults\.ts';/u);
 	assert.match(lifecycle, /useWorkspaceViewDefaults\(\{/u);
 	assert.match(lifecycle, /activeWorkspaceId: preferences\?\.workspace\?\.activeId \|\| product\.defaultWorkspace,/u);
+	assert.match(lifecycle, /ready: phase === 'ready',/u, 'boot-time preset changes are not user switches');
+	const workspace = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx', ROOT), 'utf8');
+	assert.match(workspace, /phase: snapshot\.phase,/u, 'the workspace hands the lifecycle its boot phase');
 	assert.doesNotMatch(lifecycle, /meterWorkspaceRef/u);
 	assert.doesNotMatch(lifecycle, /activeWorkspaceId !== 'modern'/u);
 	assert.doesNotMatch(lifecycle, /position === 'side'/u);
@@ -155,7 +194,7 @@ test('the workspace lifecycle applies view defaults through the shared hook', as
 
 test('the Audacity preset narrows the side playback meter to the beta.4 panel width', async () => {
 	const css = await readFile(
-		new URL('src/common/editor/ui/audio-editor-design-system/03-shell-toolbars-meters.css', ROOT),
+		new URL('src/common/editor/ui/audio-editor-design-system/34-toolbar-snap-workspace.css', ROOT),
 		'utf8',
 	);
 	const panel = /#kw-audio-editor-design-system:where\(\[data-workspace-preset='audacity'\]\) \.kw-audio-editor__side-playback-meter \{([^}]*)\}/u.exec(css);
@@ -223,10 +262,11 @@ async function mountedViewDefaultsFixture(initial: Readonly<{
 		get showVerticalRulers() { return state.showVerticalRulers; },
 		get playback() { return state.playback; },
 		get recording() { return state.recording; },
-		render: async (activeWorkspaceId: string, options: Readonly<{ freshRun?: boolean }> = {}) => {
+		render: async (activeWorkspaceId: string, options: Readonly<{ freshRun?: boolean; ready?: boolean }> = {}) => {
 			if (options.freshRun) run = makeRun();
 			await act(async () => root.render(<ViewDefaultsHarness
 				activeWorkspaceId={activeWorkspaceId}
+				ready={options.ready ?? true}
 				controller={controller}
 				run={run}
 				setPlaybackMeterSettings={setPlaybackMeterSettings}

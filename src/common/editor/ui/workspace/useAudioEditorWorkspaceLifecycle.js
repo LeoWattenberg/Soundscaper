@@ -15,6 +15,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	copy,
 	fileService,
 	parityRuntime,
+	phase,
 	playbackMeterSettings,
 	preferences,
 	product,
@@ -89,6 +90,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	}, [onError]);
 	useWorkspaceViewDefaults({
 		activeWorkspaceId: preferences?.workspace?.activeId || product.defaultWorkspace,
+		ready: phase === 'ready',
 		controller,
 		run,
 		setPlaybackMeterSettings,

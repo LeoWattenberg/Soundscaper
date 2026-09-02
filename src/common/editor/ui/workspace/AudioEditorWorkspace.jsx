@@ -116,7 +116,7 @@ export default function AudioEditorWorkspace({
 		controller,
 		copy,
 		fileService,
-		parityRuntime,
+		parityRuntime, phase: snapshot.phase,
 		playbackMeterSettings,
 		preferences,
 		product,

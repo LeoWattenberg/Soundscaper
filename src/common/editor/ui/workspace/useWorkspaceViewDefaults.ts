@@ -27,16 +27,25 @@ export function resolveWorkspaceViewTransition(previous: string | null, next: st
 
 export function useWorkspaceViewDefaults(input: Readonly<{
 	activeWorkspaceId: string;
+	/**
+	 * Whether the editor has finished booting. The tree mounts on the product
+	 * default before the stored preferences arrive, so the first id seen while
+	 * booting is not the user's and a later change to the stored id is not a
+	 * switch the user made.
+	 */
+	ready?: boolean;
 	controller: WorkspaceViewControllerPort;
 	run(action: () => unknown): unknown;
 	setPlaybackMeterSettings: MeterSettingsUpdate;
 	setRecordingMeterSettings: MeterSettingsUpdate;
 }>): void {
-	const { activeWorkspaceId, controller, run, setPlaybackMeterSettings, setRecordingMeterSettings } = input;
-	const previousWorkspaceRef = useRef<string | null>(null);
+	const { activeWorkspaceId, ready = true, controller, run, setPlaybackMeterSettings, setRecordingMeterSettings } = input;
+	const previousRef = useRef<Readonly<{ id: string; ready: boolean }> | null>(null);
 	useEffect(() => {
-		const view = resolveWorkspaceViewTransition(previousWorkspaceRef.current, activeWorkspaceId);
-		previousWorkspaceRef.current = activeWorkspaceId;
+		const previous = previousRef.current;
+		previousRef.current = { id: activeWorkspaceId, ready };
+		if (!previous || !previous.ready || !ready) return;
+		const view = resolveWorkspaceViewTransition(previous.id, activeWorkspaceId);
 		if (view.playbackMeterPosition) setPlaybackMeterSettings(meterPositionUpdate(view.playbackMeterPosition));
 		if (view.recordingMeterPosition) setRecordingMeterSettings(meterPositionUpdate(view.recordingMeterPosition));
 		if (typeof view.verticalRulers !== 'boolean') return;
@@ -44,7 +53,7 @@ export function useWorkspaceViewDefaults(input: Readonly<{
 		// flip it exactly when it differs from the preset.
 		const shown = controller.getSnapshot().timeline?.showVerticalRulers !== false;
 		if (shown !== view.verticalRulers) run(() => controller.actions.timeline.toggleVerticalRulers());
-	}, [activeWorkspaceId, controller, run, setPlaybackMeterSettings, setRecordingMeterSettings]);
+	}, [activeWorkspaceId, controller, ready, run, setPlaybackMeterSettings, setRecordingMeterSettings]);
 }
 
 function meterPositionUpdate(position: MeterPosition): (settings: MeterSettings) => MeterSettings {
