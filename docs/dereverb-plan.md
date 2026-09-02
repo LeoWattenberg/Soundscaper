@@ -1,7 +1,11 @@
 # De-reverb plan: removing room reverberation from recorded audio
 
 Status: research complete; empirical bake-off run on the owner workstation
-(RTX 3090) with results recorded below; implementation not started. This plan
+(RTX 3090) with results recorded below; **Track B is source-complete** — the
+dereverb-room registers, owned signal DSP, desktop worker, and the
+Reduce Reverb guided workflow are implemented and gated pending-external,
+exactly like the DFN3/TIGER 7A-4 routes (see "Track B implementation status"
+below). Track A (the deterministic web effect) is not started. This plan
 was requested as a standalone feature plan; it registers no roadmap row and
 claims no milestone gate. Where it touches milestone-7 machinery it follows
 that plan's decisions (docs/milestone-7-plan.md) rather than restating them.
@@ -301,6 +305,33 @@ under the admitted CPU EP within a tolerable offline budget (the measured
 PyTorch CPU RTF is ~4.5 on the owner workstation; treat worse than ~30× real
 time on the qualification host as the stop line). The GPU-EP exclusion stays
 unless the owner explicitly revises the milestone-7 runtime decision.
+
+### Track B implementation status (2026-09-02)
+
+The conversion risk is retired: an owned opset-17 single-file ONNX export of
+the neural core runs under onnxruntime-node 1.29.0 CPU EP bit-identically to
+Python ORT, with parity 41.6–66.5 dB SI-SDR (max abs diff <1e-3 vs fp32
+PyTorch) and CPU RTF 2.4–4.0× — ~10× inside the stop line
+(docs/dereverb-room-conversion-record.md).
+
+Landed, in commit order: the licensing evidence row and FoxJoy refusal; the
+supply-candidate pin, deterministic parity fixture, conversion-execution
+recipe, and conversion-tool exporter/parity runner; the catalog task under
+the new `dereverberation` task id; the owned signal geometry
+(`dereverb-room-signal-v1.ts`, cross-validated numerically against the
+conversion run's reference DSP) with its fixed-memory streaming overlap; the
+desktop worker adapter and closed-enum wiring; the Reduce Reverb guided
+workflow (project-bin or replace-selection placement) through custody,
+review, acceptance, and publication; and browser qualification across the
+three engines.
+
+Still external, exactly the D5/D1/D8 shape the checklist recorded: the
+upstream licence text or author confirmation for the GPL-tagged weights (the
+licensing row's review requirement stays pending); the locked-toolchain
+conversion re-run, R2 mirroring, and the externally signed
+`config/local-model-catalog.json` entry that fill the pending digests and
+let `resolveExactModel` stop returning typed unavailability; blind listening
+before defaults ship; and an RTF measurement on hosted-CI-class hardware.
 
 ## Track C — optional: train or distill our own model
 
