@@ -3,6 +3,11 @@
 import { isAbsolute, resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
+import {
+	firstLaunchSetupSeedValue,
+	firstLaunchSetupStorageKey,
+} from './src/common/editor/ui/first-launch-setup.ts';
+
 const METRIC_SPECS = Object.freeze([
 	'audio-editor-video-preview-benchmark.spec.js',
 	'audio-editor-longform-editorial-benchmark.spec.js',
@@ -58,6 +63,15 @@ export function createNightlyMetricsConfig(environment = process.env) {
 			serviceWorkers: 'block',
 			trace: 'retain-on-failure',
 			screenshot: 'only-on-failure',
+			// Every fresh context counts as a first launch; seed the finished-setup
+			// flag so the workspace chooser never sits in front of a nightly spec.
+			storageState: {
+				cookies: [],
+				origins: [{
+					origin: new URL(requireLoopbackURL(environment)).origin,
+					localStorage: [{ name: firstLaunchSetupStorageKey('soundscaper'), value: firstLaunchSetupSeedValue() }],
+				}],
+			},
 		},
 		projects: [{
 			name: 'chromium',

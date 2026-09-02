@@ -315,6 +315,7 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 		realtimeCount: 5,
 		downloadVisible: false,
 	});
+	assert.equal(scope.document.fixture.onboardingDismissed, true, 'the smoke finishes the first-launch chooser before driving the editor');
 	assert.equal(scope.document.fixture.importedFiles[0].name, `direct-wav-smoke-${PLAN.token}.wav`);
 	assert.equal(scope.document.fixture.importedFiles[0].size, 3_168_044);
 	const input = new DataView(

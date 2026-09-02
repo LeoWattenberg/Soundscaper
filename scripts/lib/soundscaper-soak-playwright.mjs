@@ -368,6 +368,21 @@ async function openBrowserPage(context, url) {
 
 export async function prepareSoundscaperSoakContext(context) {
 	await context.addInitScript(installSoundscaperSoakRuntimeHooks);
+	await context.addInitScript(markSoundscaperFirstLaunchSetupComplete);
+}
+
+// A fresh soak profile counts as a first launch, and the workspace chooser it
+// opens would sit in front of every locator click. The literal mirrors
+// src/common/editor/ui/first-launch-setup.ts, which plain node cannot import.
+function markSoundscaperFirstLaunchSetupComplete() {
+	try {
+		globalThis.localStorage?.setItem(
+			'soundscaper-first-launch-setup-v1',
+			JSON.stringify({ completed: true, workspaceId: 'modern', completedAt: '1970-01-01T00:00:00.000Z' }),
+		);
+	} catch {
+		// Storage-less contexts fall back to the chooser itself.
+	}
 }
 
 function installSoundscaperSoakRuntimeHooks() {

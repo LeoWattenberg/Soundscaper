@@ -3,6 +3,11 @@
 import { isAbsolute, resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
+import {
+	firstLaunchSetupSeedValue,
+	firstLaunchSetupStorageKey,
+} from './src/common/editor/ui/first-launch-setup.ts';
+
 function requireAbsolutePath(environment, key) {
 	const value = environment[key];
 	if (typeof value !== 'string' || value.length === 0 || !isAbsolute(value)) {
@@ -75,6 +80,15 @@ export function createNightlyTestsConfig(environment = process.env, platform = p
 			serviceWorkers: 'block',
 			trace: 'on-first-retry',
 			screenshot: 'only-on-failure',
+			// Every fresh context counts as a first launch; seed the finished-setup
+			// flag so the workspace chooser never sits in front of a nightly spec.
+			storageState: {
+				cookies: [],
+				origins: [{
+					origin: new URL(baseURL).origin,
+					localStorage: [{ name: firstLaunchSetupStorageKey('soundscaper'), value: firstLaunchSetupSeedValue() }],
+				}],
+			},
 		},
 		// Playwright's Windows WebKit build disables Web Audio at compile time,
 		// while Soundscaper requires it to boot and decode its fixture projects.

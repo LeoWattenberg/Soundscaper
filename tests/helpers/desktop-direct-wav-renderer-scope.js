@@ -29,6 +29,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		metadataOpen: false,
 		metadataTab: 'general',
 		newProjectCount: 0,
+		onboardingDismissed: false,
 		projectBinCloseCount: 0,
 		projectBinMenuOpen: false,
 		projectBinVisible,
@@ -391,10 +392,12 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			return [];
 		},
 	});
+	const onboardingDone = element({ click: () => { fixture.onboardingDismissed = true; } });
 	const document = {
 		fixture,
 		querySelector(selector) {
 			if (selector === '[data-audio-editor]') return root;
+			if (selector === '[data-workspace-onboarding-done]') return fixture.onboardingDismissed ? null : onboardingDone;
 			if (selector === '[data-workspace-panel="project-bin"]') return fixture.projectBinVisible ? projectBin : null;
 			if (selector === '[data-import-input]') return input;
 			if (selector === '[data-status]') return status;

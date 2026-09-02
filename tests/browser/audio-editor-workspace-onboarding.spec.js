@@ -3,6 +3,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	chooseNestedCommandAction,
+	getMenuItem,
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 	resolveBrowserProductTestUrl,
@@ -76,9 +77,10 @@ test.describe('first-launch workspace chooser', () => {
 		await expect(page.locator('[data-editor-surface="workspace-onboarding"]')).toHaveCount(0);
 
 		const workspaceMenu = await openNestedCommandMenu(page, editor, 'View', ['Workspace']);
-		await expect(workspaceMenu.getByRole('menuitem', { name: 'Video editor', exact: true })).toBeVisible();
-		await expect(workspaceMenu.getByRole('menuitem', { name: 'Set up workspace', exact: true })).toHaveCount(0);
-		await expect(workspaceMenu.getByRole('menuitem', { name: 'Audacity', exact: true })).toHaveCount(0);
+		// The active preset renders as a checked item, so match either menu role.
+		await expect(getMenuItem(workspaceMenu, 'Video editor')).toBeVisible();
+		await expect(getMenuItem(workspaceMenu, 'Set up workspace')).toHaveCount(0);
+		await expect(getMenuItem(workspaceMenu, 'Audacity')).toHaveCount(0);
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('dialog', { name: 'Getting started', exact: true })).toHaveCount(0);
 	});
