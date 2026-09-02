@@ -126,8 +126,6 @@
   height: 28px;
   border: none;
   background-color: transparent;
-  font-family: 'Segoe MDL2 Assets', sans-serif;
-  font-size: 10px;
   line-height: normal;
   color: var(--dialog-header-text);
   cursor: pointer;
@@ -135,6 +133,35 @@
   align-items: center;
   justify-content: center;
   transition: background-color 0.15s ease;
+}
+
+/* The window controls draw their own marks rather than relying on the
+   Segoe MDL2 Assets private-use codepoints, which render as a missing-glyph
+   box on any platform without that font. Close uses the bundled icon font. */
+.dialog-header__windows-glyph {
+  position: relative;
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentcolor;
+  box-sizing: border-box;
+}
+
+.dialog-header__windows-glyph[data-maximized="true"] {
+  width: 8px;
+  height: 8px;
+  transform: translate(-1px, 1px);
+}
+
+.dialog-header__windows-glyph[data-maximized="true"]::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  bottom: 1px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentcolor;
+  box-sizing: border-box;
 }
 
 .dialog-header__windows-control:hover {

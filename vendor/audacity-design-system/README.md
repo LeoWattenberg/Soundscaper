@@ -120,6 +120,14 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     `npm run build:musescore-icon-font -- --check` verifies that the tracked derivative has not
     drifted. Covered by `tests/ui-font-assets.test.js`.
     Upstream-PR candidate.
+15. `DialogHeader.tsx` draws the Windows-variant controls itself instead of printing the Segoe
+    MDL2 Assets private-use codepoints `\uE8BB` (close) and `\uE922`/`\uE923` (maximize /
+    restore), and `DialogHeader.css` no longer sets `font-family: 'Segoe MDL2 Assets'`. That
+    font ships only with Windows, so on Linux — and anywhere else it is missing — the close
+    button rendered as a missing-glyph box. Close now uses the tree's own bundled
+    `Icon name="close"`, and maximize draws a CSS square through
+    `.dialog-header__windows-glyph`. Covered by
+    `tests/vendored-design-system-dialog-header-controls.test.ts`. Upstream-PR candidate.
 
 ## Application-side adaptations
 

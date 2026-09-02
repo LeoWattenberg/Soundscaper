@@ -519,7 +519,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		{removeConfirmation && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
-					<DialogHeader title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
+					<DialogHeader os="windows" title={copy.projectBinRemoveFromProject} onClose={() => setRemoveConfirmation(null)} />
 					<div className="kw-audio-editor-dialog__body">
 						<p id="project-bin-remove-title">
 							{copy.projectBinRemoveConfirm
@@ -542,6 +542,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-relink-changed-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-relink-changed-title">
 					<DialogHeader
+						os="windows"
 						title={relinkChangedChoice.kind === 'audio'
 							? copy.projectBinRelinkAudioChangedTitle
 							: copy.projectBinRelinkChangedTitle}
@@ -564,7 +565,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		{replacementChoice && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-replacement-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-replacement-title">
-					<DialogHeader title={copy.projectBinReplacementShortTitle} onClose={cancelReplacementChoice} />
+					<DialogHeader os="windows" title={copy.projectBinReplacementShortTitle} onClose={cancelReplacementChoice} />
 					<div className="kw-audio-editor-dialog__body">
 						<p id="project-bin-replacement-title">{copy.projectBinReplacementShortMessage}</p>
 						<div className="kw-audio-editor-dialog__actions">

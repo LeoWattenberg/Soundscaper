@@ -133,7 +133,7 @@ export function DialogHeader({
             aria-label={isMaximized ? "Restore" : "Maximize"}
             type="button"
           >
-            {isMaximized ? '\uE923' : '\uE922'}
+            <span className="dialog-header__windows-glyph" data-maximized={isMaximized ? 'true' : 'false'} aria-hidden="true" />
           </button>
         )}
         {onClose && (
@@ -143,7 +143,7 @@ export function DialogHeader({
             aria-label="Close"
             type="button"
           >
-            {'\uE8BB'}
+            <Icon name="close" size={12} />
           </button>
         )}
       </div>
