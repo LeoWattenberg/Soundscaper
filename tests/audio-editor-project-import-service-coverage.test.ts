@@ -156,22 +156,45 @@ test('incremental PCM imports cannot cross projects after persistence', async ()
 	assert.equal(fixture.sourceChunkProviders.size, 0);
 });
 
-test('small, multichannel, invalid, and unsliceable WAVs use the regular decoder path', async () => {
+test('PCM WAVs stream at every size, and only containers the reader refuses decode', async () => {
 	const fixture = createFixture();
 	const service = createProjectImportService(fixture.runtime);
+	const decodes = () => fixture.calls.filter((entry) => entry === 'decode-started').length;
+	const importedSource = (index: number) => commandOfType(
+		fixture.commands[index]?.command, 'source/add',
+	)?.source as { channelCount: number; sampleRate: number; originalSampleRate: number };
+
 	fixture.options.incrementalDescriptor = {
 		channelCount: 1, frameCount: 2, sampleRate: 48_000, pcmBytes: 8,
 	};
 	await service.importFile(file('small.wav'));
+	assert.equal(decodes(), 0, 'a short PCM WAV streams into the store like a long one');
+
+	// A short multichannel file keeps its channels, and a short high-rate file
+	// keeps its rate. Decoding folded anything above stereo to stereo and
+	// resampled to the output device's rate, so both used to depend on nothing
+	// but whether the file crossed the buffer-cache size limit.
 	fixture.options.incrementalDescriptor = {
 		channelCount: 6, frameCount: 64, sampleRate: 48_000, pcmBytes: 512,
 	};
 	await service.importFile(file('surround.wav'));
+	assert.equal(importedSource(1).channelCount, 6);
+
+	fixture.options.incrementalDescriptor = {
+		channelCount: 2, frameCount: 64, sampleRate: 192_000, pcmBytes: 512,
+	};
+	await service.importFile(file('field-recording.wav'));
+	assert.equal(importedSource(2).sampleRate, 192_000);
+	assert.equal(importedSource(2).originalSampleRate, 192_000);
+	assert.equal(decodes(), 0);
+
 	fixture.options.inspectThrows = true;
 	await service.importFile(file('invalid-header.wav'));
+	assert.equal(decodes(), 1, 'a container the maintained reader refuses still decodes');
 	const unsliceable = { ...file('unsliceable.wav'), slice: undefined };
 	await service.importFile(unsliceable);
-	assert.equal(fixture.commands.length, 4);
+	assert.equal(decodes(), 2);
+	assert.equal(fixture.commands.length, 5);
 });
 
 test('regular BWF imports preserve source metadata, seed the project once, and spot later sources', async () => {

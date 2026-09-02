@@ -46,7 +46,7 @@ type RuntimeValue = ProjectImportRuntime[string];
 
 export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
-		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
+		SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
 		bufferFromChannels, cacheSourceBuffer, canonicalizeBuffer, commit,
 		convertLegacyAupToProject, copy, createAddClipCommand, createAddSourceCommand,
 		createAddTrackCommand, createStableId, decodeLegacyAupProject, assertProject, captureProject,
@@ -380,7 +380,15 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 				requireChunkStream: true,
 			}, { assertCurrent: assertImportProjectCurrent });
 		}
-		if (requireChunkStream || isIncrementalWav(wavDescriptor)) {
+		// Every PCM WAV the maintained reader accepted streams straight into the
+		// store. Short ones used to be decoded instead, back when the codec
+		// runtime was the only import path and the streaming reader was a
+		// large-file escape hatch; the size split bought nothing but a skipped
+		// read-back, and it cost the file its identity — `decodeAudioData`
+		// resamples to the output device's rate and folds anything above two
+		// channels to stereo, so the same recording imported as 192 kHz 6-channel
+		// or as 48 kHz stereo depending only on whether it crossed 32 MB.
+		if (wavDescriptor) {
 			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata,
 				{ requireChunkStream }, { assertCurrent: assertImportProjectCurrent });
 		}
@@ -492,10 +500,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		return importResultWithWarnings(importedResult, wavMetadata.warnings);
 	}
 
-	function isIncrementalWav(descriptor: RuntimeValue) {
-		return Boolean(descriptor
-			&& sourcePcmBytes(descriptor) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES);
-	}
 	function prepareWavImportMetadata(descriptor: RuntimeValue, importOptions: RuntimeValue) {
 		return prepareImportedWavMetadata({ descriptor, importOptions, project: getProject(),
 			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
