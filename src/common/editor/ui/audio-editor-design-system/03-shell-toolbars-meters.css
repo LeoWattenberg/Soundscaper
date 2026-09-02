@@ -553,3 +553,53 @@
 	width: 44px;
 	min-width: 44px;
 }
+
+/* Snap control: label + checkbox + interval dropdown, after the timecode
+   like Audacity's Play toolbar. The data span only carries the test hook. */
+#kw-audio-editor-design-system .kw-audio-editor__snap-control {
+	align-items: center;
+}
+
+#kw-audio-editor-design-system [data-snap-control] {
+	display: contents;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__snap-control .labeled-checkbox {
+	gap: 4px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__snap-control .labeled-checkbox__label {
+	color: var(--kw-editor-text);
+	white-space: nowrap;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__snap-interval {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 24px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 2px;
+	background: var(--kw-editor-control);
+	color: var(--kw-editor-text);
+	font: inherit;
+	font-size: 12px;
+	line-height: 16px;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__snap-interval:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__snap-interval:focus-visible {
+	outline: var(--focus-ring-size) solid var(--kw-editor-accent);
+	outline-offset: 1px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__snap-interval .icon {
+	display: inline-flex;
+}

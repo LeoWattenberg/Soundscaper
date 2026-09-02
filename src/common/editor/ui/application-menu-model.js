@@ -96,3 +96,19 @@ export function trackSourceRate(project, track, fallback) {
 	const rates = new Set(trackSources(project, track).map((source) => Number(source.sampleRate)).filter(Number.isFinite));
 	return rates.size === 1 ? [...rates][0] : fallback;
 }
+
+// The label the Snap toolbar dropdown shows: the checked interval leaf, never
+// the "Snap to grid" / "Enable triplets" toggles that createSnapMenu also
+// marks checked. A menu without a checked interval reads as seconds.
+export function snapMenuCurrentLabel(menu) {
+	const leaves = [];
+	const collect = (items) => {
+		for (const item of items || []) {
+			if (item.items?.length) collect(item.items);
+			else leaves.push(item);
+		}
+	};
+	collect(menu?.items);
+	const current = leaves.find((item) => item.checked && item.id !== 'snap-enabled' && item.id !== 'snap-triplets');
+	return current?.label ?? leaves.find((item) => item.id === 'snap-seconds')?.label ?? '';
+}

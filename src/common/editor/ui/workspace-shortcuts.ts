@@ -219,7 +219,7 @@ export function handleEditorToolbarBlur(event: ReactFocusEvent<HTMLElement>): vo
 }
 
 export function editorToolbarFocusables(toolbar: Element): HTMLElement[] {
-	return [...toolbar.querySelectorAll<HTMLElement>('button, select, input, [role="group"]')].filter((element) => {
+	return [...toolbar.querySelectorAll<HTMLElement>('button, select, input, [role="group"], [role="checkbox"]')].filter((element) => {
 		if (element.matches(':disabled, [aria-disabled="true"]')) return false;
 		if (element.getAttribute('role') !== 'group' && element.closest('[role="group"]')) return false;
 		return element.getClientRects().length > 0;

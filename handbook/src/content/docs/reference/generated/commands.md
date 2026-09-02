@@ -231,7 +231,7 @@ Product availability follows each product profile’s command filters. “—”
 | Skip to end | `action://playback/rewind-end` | — | Transport | Soundscaper, Framescaper | Audacity |
 | Skip to start | `action://playback/rewind-start` | — | Transport | Soundscaper, Framescaper | Audacity |
 | Sliding stretch | `effect://builtin/sliding-stretch` | — | Effect > Pitch and tempo | Soundscaper | Audacity |
-| Snapping | `snap` | — | Selection toolbar | Soundscaper, Framescaper | Audacity |
+| Snapping | `snap` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |
 | Sort by name | `sort-by-name` | — | Tracks > Sort tracks | Soundscaper, Framescaper | Audacity |
 | Sort by time | `sort-by-time` | — | Tracks > Sort tracks | Soundscaper, Framescaper | Audacity |
 | Sound activation level | `set-sound-activation-level` | — | Record | Soundscaper | Audacity |

@@ -25,6 +25,7 @@ import {
 } from './AudioEditorTransportControls.jsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
+import SnapToolbarControl from './SnapToolbarControl.jsx';
 import FramescaperCaptureRecordControl, {
 	framescaperCaptureRecordRequired,
 	useFramescaperCaptureRecordVisibility,
@@ -122,6 +123,7 @@ export default function EditorToolToolbar({
 		{ id: 'zoom-fit', label: copy.zoomFit, icon: 'zoom-to-fit' },
 		...editItems.map((item) => ({ id: item.action, label: item.label, icon: item.icon })),
 		{ id: 'time-display', label: copy.timecode, icon: 'playhead' },
+		{ id: 'snap', label: copy.snap, icon: iconNameToChar('MAGNET') },
 		...(capabilities.audioRecording ? [{ id: 'monitor', label: copy.recordLevel, icon: iconNameToChar('MICROPHONE') }] : []),
 		{ id: 'playback-volume', label: copy.playbackVolume, icon: iconNameToChar('AUDIO') },
 	];
@@ -320,6 +322,12 @@ export default function EditorToolToolbar({
 					project={project}
 					snapshot={snapshot}
 					controller={controller}
+					copy={copy}
+					run={run}
+				/>}
+				{isToolbarButtonVisible('snap') && <SnapToolbarControl
+					controller={controller}
+					snapshot={snapshot}
 					copy={copy}
 					run={run}
 				/>}

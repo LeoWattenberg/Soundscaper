@@ -10,6 +10,7 @@ import {
 	openClipProperties,
 	registerAudioEditorHooks,
 	setDocumentTheme,
+	showToolbarButton,
 	trackNameText,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -586,5 +587,30 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-side-playback-meter]')).toHaveCount(0);
 		await playbackVolumeToggle.click();
 		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(flyout).toBeHidden();
+
+		await expect(editor.locator('[data-snap-control]')).toHaveCount(0);
+		await showToolbarButton(page, editor, 'Snap');
+		const snapToggle = editor.getByRole('checkbox', { name: 'Snap', exact: true });
+		const snapInterval = editor.locator('[data-snap-interval]');
+		await expect(snapToggle).toHaveAttribute('aria-checked', 'false');
+		await expect(snapInterval).toHaveAccessibleName('Snap interval: Seconds');
+		await expect(snapInterval).toBeDisabled();
+		await snapToggle.click();
+		await expect(snapToggle).toHaveAttribute('aria-checked', 'true');
+		await expect(snapInterval).toBeEnabled();
+		await snapInterval.click();
+		const snapMenu = page.locator('.kw-audio-editor__snap-menu');
+		await expect(snapMenu).toBeVisible();
+		await expect(snapInterval).toHaveAttribute('aria-expanded', 'true');
+		await expect(snapMenu.getByRole('menuitem', { name: 'Enable triplets', exact: true })).toHaveAttribute('aria-disabled', 'true');
+		await snapMenu.getByRole('menuitem', { name: 'Bar', exact: true }).click();
+		await expect(snapMenu).toBeHidden();
+		await expect(snapInterval).toHaveAccessibleName('Snap interval: Bar');
+		await expect(snapInterval).toContainText('Bar');
+		await snapToggle.click();
+		await expect(snapToggle).toHaveAttribute('aria-checked', 'false');
+		await expect(snapInterval).toBeDisabled();
 	});
 });

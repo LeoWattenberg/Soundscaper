@@ -205,7 +205,7 @@ const definitions = [
 	implemented('toggle-vertical-rulers', 'Show vertical rulers', ['View'], 'view.toggleVerticalRulers', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('dock-restore-default-layout', 'Reset layout', ['View'], 'workspace.restoreDefault', { source: UPSTREAM.menu }),
 	implemented('action://trackedit/global-view-spectrogram', 'Toggle spectral view', ['View', 'Tools toolbar'], 'view.toggleGlobalSpectrogram', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('snap', 'Snapping', ['Selection toolbar'], 'timeline.configureSnap', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
+	implemented('snap', 'Snapping', ['Transport toolbar'], 'timeline.configureSnap', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('minutes-seconds-ruler', 'Minutes and seconds ruler', ['Timeline ruler'], 'timeline.setSecondsRuler', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('beats-measures-ruler', 'Beats and measures ruler', ['Timeline ruler'], 'timeline.setMusicalRuler', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('show-master-track', 'Show master track', ['View'], 'workspace.toggleMasterTrack', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
