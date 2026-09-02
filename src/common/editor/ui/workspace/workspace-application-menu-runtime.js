@@ -339,8 +339,6 @@ export function createWorkspaceApplicationMenus({
 				splitStereoLr: () => run(() => controller.actions.track.splitStereoLR(snapshot.selectedTrackId)),
 				splitStereoCenter: () => run(() => controller.actions.track.splitStereoCenter(snapshot.selectedTrackId)),
 				decreaseAllTrackHeights: () => run(() => controller.actions.track.decreaseAllHeights()),
-				collapseAllTracks: () => run(() => controller.actions.track.collapseAllHeights()),
-				expandAllTracks: () => run(() => controller.actions.track.expandAllHeights()),
 				increaseAllTrackHeights: () => run(() => controller.actions.track.increaseAllHeights()),
 				setTrackDisplay: (mode) => snapshot.selectedTrackId && run(() => controller.actions.track.setDisplayMode(snapshot.selectedTrackId, mode)),
 				setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),

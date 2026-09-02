@@ -190,12 +190,13 @@ const definitions = [
 	implemented('zoom-to-fit-project', 'Fit project to width', ['View > Zoom'], 'timeline.zoomFit', { shortcut: 'Ctrl+0', enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('fit-height', 'Fit height', ['View > Zoom'], 'timeline.fitHeight', { enableWhen: 'project-opened' }),
 	implemented('center-view-on-playhead', 'Center view on playhead', ['View > Zoom'], 'timeline.centerOnPlayhead', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	// Upstream offers absolute Collapse/Expand all tracks; the relative step
-	// commands below are Soundscaper additions and are not Audacity actions.
+	// Upstream's absolute Collapse/Expand all tracks were deliberately replaced
+	// by the relative stepping commands below, which are Soundscaper's own
+	// ids rather than Audacity actions. Do not reinstate the upstream pair.
 	implemented('decrease-all-track-heights', 'Decrease all track heights', ['View > Zoom'], 'track.decreaseAllHeights', { shortcut: 'Ctrl+Shift+Down', enableWhen: 'project-opened', source: null, origin: 'local' }),
 	implemented('increase-all-track-heights', 'Increase all track heights', ['View > Zoom'], 'track.increaseAllHeights', { shortcut: 'Ctrl+Shift+Up', enableWhen: 'project-opened', source: null, origin: 'local' }),
-	implemented('collapse-all-tracks', 'Collapse all tracks', ['View > Zoom'], 'track.collapseAllHeights', { enableWhen: 'project-opened' }),
-	implemented('expand-all-tracks', 'Expand all tracks', ['View > Zoom'], 'track.expandAllHeights', { enableWhen: 'project-opened' }),
+	disabled('collapse-all-tracks', 'Collapse all tracks', ['View > Zoom'], DISABLED_REASONS.superseded, { source: UPSTREAM.project, menuVisible: false }),
+	disabled('expand-all-tracks', 'Expand all tracks', ['View > Zoom'], DISABLED_REASONS.superseded, { source: UPSTREAM.project, menuVisible: false }),
 	implemented('toggle-effects', 'Effects', ['View'], 'panels.effects', { enableWhen: 'project-opened' }),
 	implemented('toggle-history', 'History', ['View'], 'panels.history', { enableWhen: 'project-opened' }),
 	implemented('fullscreen', 'Fullscreen', ['View'], 'workspace.fullscreen', { shortcut: 'F11', source: UPSTREAM.menu }),

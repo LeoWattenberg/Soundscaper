@@ -99,6 +99,8 @@ const plannedActionMilestones: Readonly<Record<string, string>> = Object.freeze(
 
 const justifiedDisabledActionIds = new Set([
 	'apply-macros-palette',
+	'collapse-all-tracks',
+	'expand-all-tracks',
 	'macro-fade-ends',
 	'macro-mp3-conversion',
 	'menu-macros',

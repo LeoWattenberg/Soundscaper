@@ -1035,7 +1035,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		publishTelemetrySnapshot, sampleEditingAvailable, state,
 		stopMicrophoneMetering, syncMetronome,
 	});
-	const { adjustAllTrackHeights, setAllTrackHeights } = viewStateService;
+	const { adjustAllTrackHeights } = viewStateService;
 	const sampleEditService = createSampleEditService({
 		activeSelection, activateStoredSource, canEditAudioSamplesAtZoom, commit, copy,
 		createAddSourceCommand, createPencilSampleEdits, createReplaceClipSourceCommand,
@@ -1849,7 +1849,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		saveNow, saveScape, scheduleTimedRecording, selectAllTracks,
 		selectAtZeroCrossings, selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition,
 		selectProjectBinInstances, selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor,
-		selectTrackStartToEnd, sessionTab, setAllTrackHeights, setAllTracksView, setAudacityControlTrack,
+		selectTrackStartToEnd, sessionTab, setAllTracksView, setAudacityControlTrack,
 		setAudacityEffectParamsFromController, setAudacityEffectType, setAudioOutputDevice, setAutoFitTrackHeight,
 		setClipTimePitch, setLatencyOffset, setLoopRegion, setLoopRegionInOut, setStatus,
 		setLoopRegionToSelection, setMicrophoneMetering, setMonitoring, setPanelPreference,

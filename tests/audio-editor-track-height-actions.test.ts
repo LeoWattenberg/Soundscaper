@@ -1,111 +1,61 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { register } from 'node:module';
 import test from 'node:test';
 
-const assetLoader = `
-	export async function resolve(specifier, context, nextResolve) {
-		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
-			return { url: 'data:text/javascript,export default "mock-ffmpeg-asset"', shortCircuit: true };
-		}
-		return nextResolve(specifier, context);
+import {
+	AUDACITY_ACTION_STATUS,
+	applyAudacityParityToMenus,
+	audacityActionDefinition,
+} from '../src/common/editor/audacity-action-parity.js';
+import { AUDACITY_ACTION_ROADMAP_DISPOSITION } from '../src/common/editor/audacity-action-roadmap.ts';
+import { AUDACITY_PINNED_UI_ACTIONS } from '../src/common/editor/audacity-pinned-ui-inventory.js';
+
+// Audacity 4 registers absolute Collapse/Expand all tracks. Soundscaper
+// deliberately replaced that pair with relative stepping commands of its own,
+// so the upstream ids must stay inventoried, inert, and out of every menu.
+test('Audacity collapse and expand all tracks stay superseded by the relative stepping commands', () => {
+	for (const id of ['collapse-all-tracks', 'expand-all-tracks']) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.DISABLED_UPSTREAM, id);
+		assert.equal(definition.origin, 'upstream', id);
+		assert.equal(definition.handler, null, `${id} must not gain a runtime handler`);
+		assert.equal(definition.enableWhen, 'never', id);
+		assert.equal(definition.menuVisible, false, `${id} must never render as a menu item`);
+		assert.match(definition.reason.en, /superseded/u, id);
+		assert.ok(definition.reason.de, id);
+		assert.equal(definition.roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED, id);
+		assert.ok(
+			AUDACITY_PINNED_UI_ACTIONS.some((action) => action.id === id),
+			`${id} stays in the pinned inventory so a later upstream change cannot escape review`,
+		);
 	}
-`;
 
-register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
-
-const { createAudioEditorController } = await import('../src/common/editor/app.js');
-const { createCurrentAudioEditorProject } = await import('../src/common/editor/project-current.ts');
-const { createProjectStore } = await import('../src/common/editor/storage.js');
-
-const MINIMUM_TRACK_HEIGHT = 40;
-const DEFAULT_TRACK_HEIGHT = 114;
-
-test('Audacity collapse and expand all tracks set absolute heights, unlike the relative step commands', async () => {
-	const store = createProjectStore({ indexedDB: null, preferOpfs: false });
-	const controller = createAudioEditorController(null, {
-		headless: true,
-		store,
-		engine: createMemoryEngine(),
-		ffmpeg: { dispose() {} },
-		clipTimePitchCache: createMemoryTimePitchCache(),
-		copy: {
-			ready: 'Ready', untitledProject: 'Untitled', track: 'Track',
-			projectSaving: 'Saving', projectSaved: 'Saved', storage: 'Storage',
-			genericError: 'Error: {message}', unknownError: 'Unknown error',
-		},
-	});
-
-	try {
-		await controller.ready;
-		await controller.actions.project.open(createProject());
-		const heights = () => controller.getSnapshot().project.tracks.map((track: { height: number }) => track.height);
-		assert.deepEqual(heights(), [80, 200], 'the fixture starts with two differing track heights');
-
-		controller.actions.track.collapseAllHeights();
-		assert.deepEqual(
-			heights(),
-			[MINIMUM_TRACK_HEIGHT, MINIMUM_TRACK_HEIGHT],
-			'collapse pins every track to the minimum height rather than stepping down',
-		);
-
-		controller.actions.track.expandAllHeights();
-		assert.deepEqual(
-			heights(),
-			[DEFAULT_TRACK_HEIGHT, DEFAULT_TRACK_HEIGHT],
-			'expand pins every track to the default height rather than stepping up',
-		);
-
-		controller.actions.track.decreaseAllHeights();
-		assert.deepEqual(
-			heights(),
-			[DEFAULT_TRACK_HEIGHT - 16, DEFAULT_TRACK_HEIGHT - 16],
-			'the relative step commands keep working alongside the absolute ones',
-		);
-	} finally {
-		await controller.dispose();
+	for (const [id, shortcut] of [
+		['decrease-all-track-heights', 'Ctrl+Shift+Down'],
+		['increase-all-track-heights', 'Ctrl+Shift+Up'],
+	] as const) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.IMPLEMENTED, id);
+		assert.equal(definition.origin, 'local', `${id} is a Soundscaper command, not an Audacity action`);
+		assert.equal(definition.upstreamSource, null, id);
+		assert.equal(definition.shortcut, shortcut, id);
 	}
-});
 
-function createProject() {
-	return createCurrentAudioEditorProject({
-		id: 'track-height-project',
-		title: 'Track heights',
-		now: '2026-09-02T00:00:00.000Z',
-		sources: [{
-			id: 'audio-source', name: 'audio.wav', mimeType: 'audio/wav', storageKey: 'audio-source',
-			frameCount: 100, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
-			sampleFormat: 'float32', chunkFrames: 65_536,
-		}],
-		tracks: [
-			{ type: 'audio', id: 'short-track', name: 'Short', height: 80, clipIds: [] },
-			{ type: 'audio', id: 'tall-track', name: 'Tall', height: 200, clipIds: [] },
+	// Parity decoration is the backstop: even if the upstream pair were added to
+	// a menu again, it is stripped rather than rendered as a disabled leaf.
+	const [zoom] = applyAudacityParityToMenus([{
+		id: 'menu-zoom',
+		label: 'Zoom',
+		items: [
+			{ id: 'collapse-all-tracks', label: 'Collapse all tracks', onClick: () => null },
+			{ id: 'expand-all-tracks', label: 'Expand all tracks', onClick: () => null },
+			{ id: 'decrease-all-track-heights', label: 'Decrease all track heights', onClick: () => null },
+			{ id: 'increase-all-track-heights', label: 'Increase all track heights', onClick: () => null },
 		],
-		clips: [],
-	});
-}
-
-function createMemoryEngine() {
-	return {
-		positionFrame: 0,
-		loadProject() {},
-		async applyProject() {},
-		setSourceResolver() {},
-		getPositionFrames() { return this.positionFrame; },
-		getState() { return { state: 'stopped', loop: { enabled: false } }; },
-		stop() {},
-		seek(frame: number) { this.positionFrame = frame; return frame; },
-		async getAudioContext() { return null; },
-		async dispose() {},
-	};
-}
-
-function createMemoryTimePitchCache() {
-	return {
-		createEngineSourceResolver() { return null; },
-		retainClipIds() {},
-		getProtectedSourceIds() { return new Set<string>(); },
-		dispose() {},
-	};
-}
+	}], { locale: 'en' });
+	assert.deepEqual(
+		zoom.items.map((item: { id: string }) => item.id),
+		['decrease-all-track-heights', 'increase-all-track-heights'],
+	);
+});

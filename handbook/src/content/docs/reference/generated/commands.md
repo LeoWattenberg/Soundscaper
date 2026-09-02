@@ -47,7 +47,6 @@ Product availability follows each product profile’s command filters. “—”
 | Clip gain | `clip-gain` | — | Clip context | Soundscaper, Framescaper | Audacity |
 | Clip properties | `clip-properties` | — | Clip context | Soundscaper, Framescaper | Audacity |
 | Close project | `file-close` | Ctrl+W | File | Soundscaper, Framescaper | Audacity |
-| Collapse all tracks | `collapse-all-tracks` | — | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Configure workspaces | `configure-workspaces` | — | View > Workspaces | Soundscaper, Framescaper | Audacity |
 | Contract selection from left | `sel-cntr-left` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Contract selection from right | `sel-cntr-right` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |
@@ -77,7 +76,6 @@ Product availability follows each product profile’s command filters. “—”
 | Duplicate | `duplicate` | Ctrl+D | Edit | Soundscaper, Framescaper | Audacity |
 | Duplicate track | `duplicate-track` | — | Tracks; Track context | Soundscaper, Framescaper | Audacity |
 | Effects | `toggle-effects` | — | View | Soundscaper, Framescaper | Audacity |
-| Expand all tracks | `expand-all-tracks` | — | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Export audio | `export-audio` | Ctrl+Shift+E | File | Soundscaper, Framescaper | Audacity |
 | Export clip | `clip-export` | — | Clip context | Soundscaper, Framescaper | Audacity |
 | Export labels | `export-labels` | — | File > Export other | Soundscaper, Framescaper | Audacity |

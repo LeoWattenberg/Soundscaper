@@ -135,14 +135,6 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 	}
 
 	function adjustAllTrackHeights(delta: any) {
-		return applyAllTrackHeights((currentHeight: number) => currentHeight + delta);
-	}
-
-	function setAllTrackHeights(height: any) {
-		return applyAllTrackHeights(() => Number(height));
-	}
-
-	function applyAllTrackHeights(resolveHeight: (currentHeight: number) => number) {
 		if (editingBlocked()) return null;
 		const project = getProject();
 		const commands = project.tracks.map((track: any) => {
@@ -150,7 +142,7 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 			return {
 				type: 'track/update',
 				trackId: track.id,
-				changes: { height: Math.max(40, Math.round(resolveHeight(currentHeight))) },
+				changes: { height: Math.max(40, Math.round(currentHeight + delta)) },
 			};
 		});
 		state.autoFitTrackHeight = false;
@@ -185,7 +177,6 @@ export function createViewStateService(runtime: ViewStateServiceRuntime) {
 		adjustAllTrackHeights,
 		adjustTrackHeight,
 		resizeTrackHeight,
-		setAllTrackHeights,
 		setAutoFitTrackHeight,
 		setTimelineViewportWidth,
 		setVisibleTrackHeights,
