@@ -276,9 +276,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await chooseCommandAction(page, editor, 'Tools', 'Regular interval labels');
 		const regularDialog = page.getByRole('dialog', { name: 'Regular interval labels', exact: true });
-		await regularDialog.getByLabel('Start frame').fill('0');
-		await regularDialog.getByLabel('End frame').fill('10');
-		await regularDialog.getByLabel('Interval in frames').fill('2');
+		await directTimecodeInput(regularDialog, 'Start frame').fill('0');
+		await directTimecodeInput(regularDialog, 'End frame').fill('10');
+		await directTimecodeInput(regularDialog, 'Interval in frames').fill('2');
 		await regularDialog.getByRole('button', { name: 'Create annotations', exact: true }).click();
 		await expect(regularDialog).toBeHidden();
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
@@ -691,3 +691,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(preferences.locator('[data-shortcut-action="nyquist-prompt"]')).toBeVisible();
 	});
 });
+
+function directTimecodeInput(scope, label) {
+	return scope.getByRole('group', { name: label, exact: true })
+		.locator('..')
+		.locator('[data-timecode-direct-entry]');
+}

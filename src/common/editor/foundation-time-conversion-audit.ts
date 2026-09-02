@@ -104,6 +104,12 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
+		id: 'automation-lane-inline-editing',
+		file: 'src/common/editor/automation-lane-inline-edit-v21.ts',
+		behavior: 'Inline musical automation edits exactly invert each requested sample frame before placing a point or Bézier control in the lane-owned beat domain.',
+		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
+	},
+	{
 		id: 'scheduled-parameter-context-offset',
 		file: 'src/common/editor/engine/scheduled-parameter-registry.ts',
 		behavior: 'Scheduled worklet events convert one exact project-frame delta and transport-rate ratio to the nearest context frame with later-frame ownership at exact half ties.',

@@ -1,7 +1,7 @@
 import { normalizeBcp47Locale } from '../../../i18n/locale.js';
 import {
 	AUDIO_EFFECT_DEFINITIONS,
-	audioEffectLabel,
+	audioSelectionEffectLabel,
 	audioEffectTypes,
 } from '../../effects.js';
 import { AUDACITY_EFFECT_DEFINITIONS } from '../../audacity-effects/manifest.js';
@@ -9,7 +9,7 @@ import { formatLocalizedTemplate } from '../localization-template.ts';
 
 type Copy = Readonly<Record<string, string>>;
 type CopyOrLocale = Copy | string | undefined;
-const resolveAudioEffectLabel = audioEffectLabel as unknown as (
+const resolveAudioEffectLabel = audioSelectionEffectLabel as unknown as (
 	type: string | null | undefined,
 	copyOrLocale: CopyOrLocale,
 ) => string;

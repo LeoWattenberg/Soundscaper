@@ -68,7 +68,7 @@ test.describe('audio warp and transient workflow', () => {
 		await dialog.getByRole('button', { name: 'Delete marker 1', exact: true }).click();
 		await expect(map.getByRole('row')).toHaveCount(3);
 
-		await dialog.getByLabel('Grid interval', { exact: true }).fill('2048');
+		await directTimecodeInput(dialog, 'Grid interval').fill('2048');
 		const strength = dialog.getByRole('slider', { name: /Quantization strength/u });
 		await strength.focus();
 		await page.keyboard.press('Home');
@@ -195,6 +195,12 @@ test.describe('audio warp and transient workflow', () => {
 		await expect(editor.locator('[data-editor-surface="audio-warp"]')).toHaveCount(0);
 	});
 });
+
+function directTimecodeInput(scope, label) {
+	return scope.getByRole('group', { name: label, exact: true })
+		.locator('..')
+		.locator('[data-timecode-direct-entry]');
+}
 
 async function openAudioWarpDialog(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Effect', ['Pitch and tempo', 'Audio warp and transients']);

@@ -915,11 +915,6 @@
       "count": 7
     }
   },
-  "src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx": {
-    "no-useless-assignment": {
-      "count": 1
-    }
-  },
   "src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx": {
     "no-restricted-syntax": {
       "count": 2
@@ -955,11 +950,6 @@
   },
   "src/common/editor/ui/local-assistance-semantic-search-bridge.ts": {
     "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/ui/soundscaper-routing-editor-model.ts": {
-    "no-useless-assignment": {
       "count": 1
     }
   },
@@ -1001,11 +991,6 @@
   "src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx": {
     "no-restricted-syntax": {
       "count": 13
-    }
-  },
-  "src/common/editor/ui/workspace/AudioEditorMixerPanel.jsx": {
-    "no-restricted-syntax": {
-      "count": 2
     }
   },
   "src/common/editor/ui/workspace/ProjectBinPanel.jsx": {

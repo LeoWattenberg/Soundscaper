@@ -3,7 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { framesToSeconds } from '../../design-system-adapters.js';
 import {
 	MINIMUM_TRACK_HEIGHT,
-	RECORDING_INPUT_CONTROLS_HEIGHT,
+	trackOptionalControlsHeight,
 } from './geometry.ts';
 import {
 	focusCandidate,
@@ -15,6 +15,7 @@ import {
 export function useTimelineNavigation({
 	controller,
 	showArmControls,
+	automationVisibleTrackIds,
 	splitToolEnabled,
 	onToggleSplitTool,
 	searchRevealRequest,
@@ -42,10 +43,12 @@ export function useTimelineNavigation({
 
 	useEffect(() => {
 		controller.actions.timeline.setVisibleTrackHeights(Object.fromEntries((project?.tracks || []).map((track) => {
-			const controlsHeight = showArmControls && track.type === 'audio' ? RECORDING_INPUT_CONTROLS_HEIGHT : 0;
+			const controlsHeight = trackOptionalControlsHeight(
+				track, showArmControls, automationVisibleTrackIds?.has(track.id) === true,
+			);
 			return [track.id, Math.max(MINIMUM_TRACK_HEIGHT, visualTrackHeight(track) - controlsHeight)];
 		})));
-	}, [controller, project?.tracks, showArmControls, visualTrackHeight]);
+	}, [automationVisibleTrackIds, controller, project?.tracks, showArmControls, visualTrackHeight]);
 
 	useEffect(() => {
 		const editableTarget = (target) => target instanceof Element && Boolean(target.closest(

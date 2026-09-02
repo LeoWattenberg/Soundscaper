@@ -249,6 +249,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/commands/domain-registry.js',
 	'src/common/editor/commands/video-keyframe-carrier.js',
 	'src/common/editor/commands/video-keyframe-command-reconcile.js',
+	'src/common/editor/effect-explicit-sidechain-capability.js',
 	'src/common/editor/effect-parameter-descriptors.js',
 	'src/common/editor/effects.js',
 	'src/common/editor/folder-mixer-graph-v21.js',

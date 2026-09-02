@@ -22,11 +22,6 @@ import {
 	estimateAudioSelectionEffectOutputFrames,
 	estimateAudioSelectionEffectPeakBytes,
 } from '../src/common/editor/selection-effects.js';
-import type { SoundscaperProductionDialogOperation } from '../src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx';
-import {
-	executeSoundscaperProductionOperation,
-	type SoundscaperProductionControllerPort,
-} from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
 import {
 	createHarness,
 	deferred,
@@ -144,18 +139,9 @@ test('V21 dry rendering reaches the exact graph compiler without fabricating leg
 		state,
 	});
 	applySelected = execution.applySelectedAudacityEffect;
-	const controller: SoundscaperProductionControllerPort = {
-		actions: {
-			edit: { commit: () => undefined },
-			effects: { applySelection: controls.applyAudacityEffectFromController },
-		},
-	};
-
-	await executeSoundscaperProductionOperation(controller, {
-		type: 'reviewed-effect/apply',
-		package: { id: 'org.soundscaper.utility-gain', version: '1.0.0' },
-		params: { gain: 1.25 },
-	} satisfies SoundscaperProductionDialogOperation, () => undefined);
+	await controls.applyAudacityEffectFromController({
+		type: 'reviewed-utility-gain', params: { gain: 1.25 },
+	});
 
 	const snapshot = harness.snapshots[0]!;
 	assert.equal(workerRequests.length, 1);
@@ -343,6 +329,21 @@ test('late noise-profile completion cannot mutate a replacement project', async 
 	assert.notEqual(harness.statuses.at(-1), 'Profile ready');
 });
 
+test('selected noise-profile capture returns the serialized standalone profile', async () => {
+	const harness = createHarness();
+	const params = {
+		reductionDb: 18, sensitivity: 7.5, frequencySmoothingBands: 4,
+		output: 'reduce',
+	};
+
+	const profile = await harness.service.captureSelectedNoiseProfile(params);
+
+	assert.deepEqual(profile, { serialized: { bins: [1, 2] } });
+	assert.deepEqual(harness.noiseProfileWorkerParams, [params]);
+	assert.deepEqual(harness.state.audacityNoiseProfile, { bins: [1, 2] });
+	assert.equal(harness.statuses.at(-1), 'Profile ready');
+});
+
 test('rack noise profile commits once and spectral processing persists one atomic result', async () => {
 	const harness = createHarness();
 	await harness.service.captureRackNoiseProfile(
@@ -468,7 +469,7 @@ test('render and profile validation paths reject missing targets without leaking
 test('blocked and invalid spectral requests return before persistence while delete uses its stable label', async () => {
 	const harness = createHarness();
 	harness.state.audacityEffectProcessing = true;
-	assert.equal(await harness.service.captureSelectedNoiseProfile(), undefined);
+	assert.equal(await harness.service.captureSelectedNoiseProfile(), null);
 	assert.equal(await harness.service.applySpectralSelection(-6), null);
 	harness.state.audacityEffectProcessing = false;
 	await assert.rejects(() => harness.service.applySpectralSelection(121), /Bad spectral gain/u);

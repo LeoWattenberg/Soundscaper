@@ -90,7 +90,8 @@ export default function AudioEditorTimeCodeInput({
 				onChange?.(nextValue);
 			}}> {normalizedValue < 0 ? '−' : '+'} </button> : null}
 		<TimeCode
-			ariaLabel="Timecode value"
+			ariaLabel={label}
+			ariaDescription={valueText}
 			formatAriaLabel={`${label}: format`}
 			ariaDescribedBy={describedBy}
 			value={timeCodeSecondsFromEditorValue(Math.abs(normalizedValue), unit, normalizedRate)}
@@ -112,7 +113,7 @@ export default function AudioEditorTimeCodeInput({
 			}}
 		/>
 		<input className="audio-editor-timecode-input__value" type="number" name={name}
-			aria-label={label} aria-valuetext={valueText} aria-describedby={describedBy} tabIndex={-1}
+			aria-hidden="true" data-timecode-direct-entry="true" tabIndex={-1}
 			value={directEntryPrecision === undefined ? directEntryValue
 				: directEntryValue.toFixed(directEntryPrecision)} disabled={disabled}
 			required={required} min={directEntryMinimum} max={directEntryMaximum}

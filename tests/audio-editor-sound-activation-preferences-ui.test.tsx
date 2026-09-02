@@ -25,7 +25,7 @@ test('Soundscaper renders four accessible sound activation controls over the pub
 	assert.match(markup, /aria-label="Release hysteresis"/u);
 	assert.match(markup, /aria-valuetext="6 dB"/u);
 	assert.match(markup, /aria-label="Hold after silence"/u);
-	assert.match(markup, /aria-valuetext="250 ms"/u);
+	assert.match(markup, /aria-description="250 ms"/u);
 	assert.match(markup, /role="status"[^>]+aria-live="polite"/u);
 	assert.match(markup, /Sound-activated recording is off/u);
 });

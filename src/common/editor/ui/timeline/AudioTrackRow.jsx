@@ -4,6 +4,7 @@ import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 
 import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
+import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
 import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
@@ -53,6 +54,9 @@ export function AudioTrackRow({
 	projectBinDragPreview,
 	waveformCache,
 	automationToolEnabled,
+	automationRuntime,
+	automationTargets,
+	automationTarget,
 	spectralBrushEnabled,
 	blocked,
 	canonicalVideoTrim,
@@ -63,6 +67,7 @@ export function AudioTrackRow({
 	run,
 	onMenu,
 	onOpenEffects,
+	onAutomationTarget,
 	onOpenClipMenu,
 	onOpenRulerFlyout,
 	onFocusTimelineRuler,
@@ -173,11 +178,15 @@ export function AudioTrackRow({
 				showArmControls={showArmControls}
 				displayAudioSupported={displayAudioSupported}
 				recordingInputs={recordingInputs}
+				automationTargets={automationTargets}
+				automationTarget={automationTarget}
+				automationRuntime={automationRuntime}
 				isFlatNavigation={isFlatNavigation}
 				copy={copy}
 				run={run}
 				onMenu={onMenu}
 				onOpenEffects={onOpenEffects}
+				onAutomationTarget={onAutomationTarget}
 				onTabOut={focusAfterPanel}
 				onShiftTabOut={() => onFocusTrackContainer(trackIndex)}
 				onNavigateVertical={(direction) => {
@@ -319,6 +328,25 @@ export function AudioTrackRow({
 						spectrogramOptions={spectrogramOptions}
 					/>
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
+					{automationTarget && <TrackAutomationOverlay
+						controller={controller}
+						target={automationTarget}
+						clips={trackClips}
+						renderViewportStartFrame={renderViewportStartFrame}
+						viewportDurationFrames={viewportDurationFrames}
+						overscanStartFrame={projection.overscanStartFrame}
+						overscanEndFrame={projection.overscanEndFrame}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
+						width={windowWidth}
+						height={trackHeight}
+						tempoMap={project.tempoMap}
+						runtime={automationRuntime}
+						clipGainToolEnabled={automationToolEnabled}
+						disabled={blocked}
+						copy={copy}
+						run={run}
+					/>}
 					{spectralBrushEnabled && selectedTrackId === track.id
 						&& ['spectrogram', 'multiview'].includes(displayMode) && (
 						<SpectralBrushOverlay

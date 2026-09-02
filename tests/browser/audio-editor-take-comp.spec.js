@@ -47,8 +47,10 @@ test.describe('take lane and comp workflow', () => {
 		await expect(dialog.locator('.audio-editor-take-comp__lanes > [role="listitem"]')).toHaveCount(2);
 		await expect(dialog.getByRole('button', { name: 'Select Take A', exact: true })).toHaveAttribute('aria-pressed', 'true');
 		await expect(dialog.getByRole('button', { name: 'Select Take B', exact: true })).toHaveAttribute('aria-pressed', 'false');
-		await expect(dialog.getByRole('row', { name: /region-a take-a.*100.*5000/iu })).toBeVisible();
-		await expect(dialog.getByRole('row', { name: /region-b take-b.*5000.*10000/iu })).toBeVisible();
+		const firstRegion = dialog.getByRole('row', { name: /region-a take-a/iu });
+		const secondRegion = dialog.getByRole('row', { name: /region-b take-b/iu });
+		await expectCompRegion(firstRegion, 100, 5_000);
+		await expectCompRegion(secondRegion, 5_000, 10_000);
 		await assertAccessibleBasics(dialog);
 		await assertNoSeriousAxeViolations(page, '[data-take-comp-dialog]');
 
@@ -74,20 +76,19 @@ test.describe('take lane and comp workflow', () => {
 		await expect.poll(() => audioResumeCount(page)).toBeGreaterThan(laneResumeBaseline);
 
 		const sharedBoundary = dialog.getByText('Shared boundary: region-a → region-b', { exact: true }).locator('..');
-		await sharedBoundary.getByRole('spinbutton').fill('4800');
+		await sharedBoundary.locator('[data-timecode-direct-entry]').fill('4800');
 		await sharedBoundary.getByRole('button', { name: 'Apply shared boundary', exact: true }).click();
-		await expect(dialog.getByRole('row', { name: /region-a take-a.*100.*4800/iu })).toBeVisible();
-		await expect(dialog.getByRole('row', { name: /region-b take-b.*4800.*10000/iu })).toBeVisible();
+		await expectCompRegion(firstRegion, 100, 4_800);
+		await expectCompRegion(secondRegion, 4_800, 10_000);
 
-		const firstRegion = dialog.getByRole('row', { name: /region-a take-a/iu });
-		await firstRegion.getByRole('spinbutton').first().fill('200');
+		await firstRegion.locator('[data-timecode-direct-entry]').first().fill('200');
 		await firstRegion.getByRole('button', { name: 'Apply start', exact: true }).click();
-		await expect(dialog.getByRole('row', { name: /region-a take-a.*200.*4800/iu })).toBeVisible();
+		await expectCompRegion(firstRegion, 200, 4_800);
 
 		await dialog.getByRole('button', { name: 'Select Take B', exact: true }).click();
 		await expect(dialog.getByRole('button', { name: 'Select Take B', exact: true })).toHaveAttribute('aria-pressed', 'true');
-		await dialog.getByLabel('Range start sample', { exact: true }).fill('2500');
-		await dialog.getByLabel('Range end sample', { exact: true }).fill('3500');
+		await directTimecodeInput(dialog, 'Range start sample').fill('2500');
+		await directTimecodeInput(dialog, 'Range end sample').fill('3500');
 		await dialog.getByRole('button', { name: 'Promote range', exact: true }).click();
 		await expect(dialog.getByRole('table', { name: 'Comp regions', exact: true }).getByRole('row')).toHaveCount(5);
 
@@ -133,6 +134,20 @@ test.describe('take lane and comp workflow', () => {
 		await expect(editor.locator('[data-editor-surface="take-comp"]')).toHaveCount(0);
 	});
 });
+
+function directTimecodeInput(scope, label) {
+	return scope.getByRole('group', { name: label, exact: true })
+		.locator('..')
+		.locator('[data-timecode-direct-entry]');
+}
+
+async function expectCompRegion(row, startSample, endSample) {
+	await expect(row).toBeVisible();
+	const boundaries = row.locator('[data-timecode-direct-entry]');
+	await expect(boundaries).toHaveCount(2);
+	await expect(boundaries.nth(0)).toHaveValue(String(startSample));
+	await expect(boundaries.nth(1)).toHaveValue(String(endSample));
+}
 
 async function openTakeCompDialog(page, editor) {
 	await chooseTrackMenuAction(page, editor, null, 'Take lanes and comps');

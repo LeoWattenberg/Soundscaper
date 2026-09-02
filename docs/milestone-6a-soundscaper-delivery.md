@@ -168,10 +168,10 @@ because five tests use V21 + 1 as their future-schema sentinel.
   and semantic survival.
 
 **The editing surface landed with 6A-1b**, which is what turned the capability
-on. Tools > Mastering sequences opens the production dialog on its own surface,
-gated on the revision that owns the collection rather than on the production
-authority — a V21 document carries that authority and still has nowhere to put a
-sequence, so the entry is visible and disabled there.
+on. Tools > Mastering sequences opens a focused standalone dialog, gated on the
+revision that owns the collection rather than on the production authority — a
+V21 document carries that authority and still has nowhere to put a sequence, so
+the entry is visible and disabled there.
 
 **Two shared-code fixes the revision forced, both of the same shape.** Twenty
 places gated behaviour on `schemaVersion === 21` exactly, six on the shared

@@ -64,6 +64,7 @@ export function createHarness(options: Readonly<{
 	const preflightBytes: number[] = [];
 	const statuses: string[] = [];
 	const noiseProfileWorkerChannels: Float32Array[][] = [];
+	const noiseProfileWorkerParams: Readonly<Record<string, unknown>>[] = [];
 	let publications = 0;
 	let persistenceCommits = 0;
 	let prefixDisposals = 0;
@@ -124,8 +125,9 @@ export function createHarness(options: Readonly<{
 		sourceBuffers: new Map(),
 		audioBufferChannels: (buffer) => [...buffer.channels ?? []],
 		matchAudacitySelectionChannels,
-		runSelectionEffectWorker: async ({ channels }) => {
+		runSelectionEffectWorker: async ({ channels, params }) => {
 			noiseProfileWorkerChannels.push(channels.map((channel) => channel.slice()));
+			noiseProfileWorkerParams.push(params);
 			return options.deferWorker ? worker.promise : { profile: { bins: [1, 2] } };
 		},
 		runSpectralEditWorker: async (channels) => {
@@ -153,6 +155,7 @@ export function createHarness(options: Readonly<{
 		commands,
 		get prefixDisposals() { return prefixDisposals; },
 		noiseProfileWorkerChannels,
+		noiseProfileWorkerParams,
 		get publications() { return publications; },
 		persistence,
 		get persistenceCommits() { return persistenceCommits; },

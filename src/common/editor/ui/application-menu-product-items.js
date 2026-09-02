@@ -6,7 +6,7 @@ import { createFramescaperCandidateAuthoringMenuItems } from './framescaper-cand
 import { createFramescaperFinishingMenuItems } from './framescaper-finishing-menu.ts';
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
-import { createSoundscaperProductionApplicationMenuItems } from './soundscaper-production-application-menu.ts';
+import { createSoundscaperWorkflowApplicationMenuItems } from './soundscaper-workflow-product-runtime.tsx';
 
 export function createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions }) {
 	return createApplicationMenuProductItems({ productId, project, editBlocked, copy, actions }).tracks;
@@ -35,25 +35,20 @@ export function createApplicationMenuProductItems({
 			removeMulticamera: copy.removeMulticamera,
 		},
 	}, { execute: actions.executeMulticameraCommand });
-	const productionRuntime = actions.soundscaperProduction || null;
-	const production = createSoundscaperProductionApplicationMenuItems({
+	const workflowRuntime = actions.soundscaperWorkflow || null;
+	const soundscaperWorkflows = createSoundscaperWorkflowApplicationMenuItems({
 		productId,
-		capabilities: productionRuntime ? {
-			...capabilities,
-			reviewedEffectPackages: productionRuntime.reviewedPackagesAvailable === true,
-		} : {},
+		capabilities: workflowRuntime ? capabilities : {},
 		project,
 		selectedTrackId: snapshot.selectedTrackId ?? null,
-		automationMode: productionRuntime?.automationMode,
-		freezeStatus: productionRuntime?.freezeStatus,
-		freezeActionsAvailable: productionRuntime?.freezeActionsAvailable === true,
+		freezeStatus: workflowRuntime?.freezeStatus,
+		freezeActionsAvailable: workflowRuntime?.freezeActionsAvailable === true,
 		editingBlocked: editBlocked,
 		readOnly: snapshot.readOnly === true,
 		copy,
 	}, {
-		open: (surface) => productionRuntime?.open(surface),
-		setAutomationMode: (mode) => productionRuntime?.setAutomationMode(mode),
-		freeze: (operation, trackId) => productionRuntime?.freeze(operation, trackId),
+		openMasteringSequences: () => workflowRuntime?.openMasteringSequences?.(),
+		freeze: (operation, trackId) => workflowRuntime?.freeze(operation, trackId),
 	});
 	const nativeRuntime = actions.framescaperNativeServices || null;
 	const authoringRuntime = actions.framescaperCandidateAuthoring || null;
@@ -93,15 +88,15 @@ export function createApplicationMenuProductItems({
 		copy,
 	}, { open: (surface) => soundscaperNativeRuntime?.open(surface) });
 	return Object.freeze({
-		...production,
+		...soundscaperWorkflows,
 		tracks: Object.freeze([nestedSequences, multicamera, ...candidateAuthoring.tracks,
-			...selectedFinishing.tracks, ...production.tracks].filter(Boolean)),
+			...selectedFinishing.tracks, ...soundscaperWorkflows.tracks].filter(Boolean)),
 		generate: candidateAuthoring.generate,
 		effect: Object.freeze([...candidateAuthoring.effect, ...selectedFinishing.effect,
-			...production.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
-		analyze: Object.freeze([...selectedFinishing.analyze, ...production.analyze]),
-		mixer: Object.freeze([...selectedFinishing.mixer, ...production.mixer]),
-		tools: Object.freeze([...selectedFinishing.tools, ...production.tools,
+			...soundscaperWorkflows.effect, ...nativeServices.effect, ...soundscaperNativeServices.effect]),
+		analyze: Object.freeze([...selectedFinishing.analyze, ...soundscaperWorkflows.analyze]),
+		mixer: Object.freeze([...selectedFinishing.mixer, ...soundscaperWorkflows.mixer]),
+		tools: Object.freeze([...selectedFinishing.tools, ...soundscaperWorkflows.tools,
 			...nativeServices.tools, ...soundscaperNativeServices.tools]),
 		fileImport: nativeServices.fileImport,
 		fileExport: nativeServices.fileExport,

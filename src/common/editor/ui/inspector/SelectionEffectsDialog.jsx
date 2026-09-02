@@ -3,11 +3,11 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { Separator } from '@soundscaper/design-system/Separator';
 import { TextInput } from '@soundscaper/design-system/TextInput';
+import { audacityEffectTypes } from '../../audacity-effects/manifest.js';
 import {
-	AUDACITY_EFFECT_DEFINITIONS,
-	audacityEffectDefaults,
-	audacityEffectTypes,
-} from '../../audacity-effects/manifest.js';
+	audioSelectionEffectDefinition,
+	audioSelectionEffectDefaults,
+} from '../../effects.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
@@ -25,7 +25,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const initialType = snapshot.effects?.selectionType || audacityEffectTypes()[0];
 	const [selectionType, setSelectionType] = useState(initialType);
 	const [selectionParams, setSelectionParams] = useState(() => (
-		snapshot.effects?.selectionParams || audacityEffectDefaults(initialType)
+		snapshot.effects?.selectionParams || audioSelectionEffectDefaults(initialType)
 	));
 	const [controlTrackId, setControlTrackId] = useState(snapshot.effects?.controlTrackId || '');
 	const [message, setMessage] = useState('');
@@ -56,14 +56,14 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			if (projectChanged) {
 				const nextType = audacityEffectTypes()[0];
 				setSelectionType(nextType);
-				setSelectionParams(audacityEffectDefaults(nextType));
+				setSelectionParams(audioSelectionEffectDefaults(nextType));
 				setControlTrackId('');
 			}
 			return;
 		}
 		const nextType = snapshot.effects.selectionType || audacityEffectTypes()[0];
 		setSelectionType(nextType);
-		setSelectionParams(snapshot.effects.selectionParams || audacityEffectDefaults(nextType));
+		setSelectionParams(snapshot.effects.selectionParams || audioSelectionEffectDefaults(nextType));
 		setControlTrackId(snapshot.effects.controlTrackId || '');
 		if (!projectChanged && selectedPresetId
 			&& !snapshot.effects.presets?.some((preset) => preset.id === selectedPresetId && preset.effectType === nextType)) {
@@ -103,7 +103,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 		setSelectionParams((current) => ({ ...current, ...changes }));
 		controller.actions.effects.setSelectionParams(changes);
 	};
-	const selectionDefinition = AUDACITY_EFFECT_DEFINITIONS[selectionType];
+	const selectionDefinition = audioSelectionEffectDefinition(selectionType);
 	const selectionControlTracks = (project?.tracks || []).filter((track) => track.id !== selectedTrack?.id);
 	const effectPresets = (snapshot.effects?.presets || []).filter((preset) => preset.effectType === selectionType);
 	const applyPreset = (id = selectedPresetId) => run(() => (
@@ -276,7 +276,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 					tracks={project?.tracks || []}
 					targetTrackId={selectedTrack?.id || null}
 					captureNoiseProfile={selectionType === 'audacity-noise-reduction'
-						? () => run(controller.actions.effects.captureNoiseProfile)
+						? () => run(() => controller.actions.effects.captureNoiseProfile(selectionParams))
 						: null}
 					noiseProfileLabel={snapshot.effects?.noiseProfileReady ? copy.noiseProfileReady : copy.getNoiseProfile}
 					hideControlTrack

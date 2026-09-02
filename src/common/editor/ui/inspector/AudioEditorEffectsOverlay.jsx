@@ -18,6 +18,7 @@ import {
 	safeEffectLabel,
 } from './effect-helpers.ts';
 import { downloadTextFile, formatDb, linearToDb, macroFileName } from './inspector-helpers.ts';
+import { useTrackAutomationRuntime } from '../soundscaper-workflow-product-runtime.tsx';
 
 const EMPTY_EFFECTS = Object.freeze([]);
 // The master fader spans silence to the +12 dB ceiling the master gain accepts.
@@ -44,8 +45,11 @@ export function AudioEditorEffectsOverlay({
 	onSelectedEffectChange,
 	renderRack = true,
 	renderDialogs = true,
+	automationRuntime: automationRuntimeProp = null,
 }) {
 	const project = snapshot.project;
+	const inheritedAutomationRuntime = useTrackAutomationRuntime();
+	const automationRuntime = automationRuntimeProp ?? inheritedAutomationRuntime;
 	const projectIdentity = project?.id ?? null;
 	const selectedTrack = scope === 'track' && project ? findTrack(project, trackId || snapshot.selectedTrackId) : null;
 	const selectedBus = scope === 'group'
@@ -393,7 +397,12 @@ export function AudioEditorEffectsOverlay({
 							copy={copy}
 							disabled={blocked}
 							tracks={project?.tracks || []}
-							targetTrackId={effectScope === 'track' ? targetId : null}
+								targetTrackId={effectScope === 'track' ? targetId : null}
+								automationRuntime={automationRuntime}
+								automationProject={project}
+								automationStrip={effectScope === 'track' && targetId
+									? { kind: 'track', id: targetId }
+									: null}
 							captureNoiseProfile={controller.actions.effects.captureRackNoiseProfile
 								? () => run(() => controller.actions.effects.captureRackNoiseProfile(
 									effectScope,

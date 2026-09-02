@@ -1,6 +1,5 @@
 import React from 'react';
 import ScapeOpenDecisionDialog from './ScapeOpenDecisionDialog.jsx';
-import SoundscaperProductionWorkspaceOverlay from './SoundscaperProductionWorkspaceOverlay.tsx';
 import {
 	FRAMESCAPER_PROJECT_SCHEMA_FAMILY,
 	isCurrentProjectSchemaIdentity,
@@ -8,9 +7,14 @@ import {
 import { framescaperFinishingSurface } from '../framescaper-finishing-menu.ts';
 import { framescaperSelectedVisualAuthoringSurface } from '../framescaper-selected-visual-authoring-menu.ts';
 import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import { resolveSoundscaperMasteringSequenceCopy } from '../soundscaper-workflow-product-runtime.tsx';
 
 const AudioEditorEffectsOverlay = React.lazy(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const AudioEditorMacroManagerDialog = React.lazy(() => import('../inspector/AudioEditorMacroManagerDialog.jsx'));
+const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
+	|| __SCAPE_PRODUCT__ === 'soundscaper';
+const SoundscaperMasteringSequenceDialog = SOUNDSCAPER_BUILD
+	? React.lazy(() => import('../dialogs/SoundscaperMasteringSequenceDialog.tsx')) : null;
 const ClipPropertiesDialog = React.lazy(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = React.lazy(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = React.lazy(() => import('../inspector/VideoKeyframeDialog.tsx'));
@@ -83,6 +87,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		selectedMediaPreparation,
 		settleScapeOpenDecision,
 		showArmControls,
+		soundscaperWorkflow,
 		snapshot,
 		toggleWorkspacePanel,
 	} = model;
@@ -94,7 +99,25 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	const framescaperProxyProject = productId === 'framescaper'
 		&& isCurrentProjectSchemaIdentity(snapshot.project, FRAMESCAPER_PROJECT_SCHEMA_FAMILY);
 	return <>
-			<SoundscaperProductionWorkspaceOverlay model={model} />
+			{productId === 'soundscaper' && activeSurface === 'mastering-sequences'
+				&& SoundscaperMasteringSequenceDialog && (
+				<div data-editor-surface="mastering-sequences">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<SoundscaperMasteringSequenceDialog
+							isOpen
+							controller={controller}
+							snapshot={snapshot}
+							copy={resolveSoundscaperMasteringSequenceCopy(copy)}
+							locale={locale}
+							run={run}
+							onClose={() => {
+								setActiveSurface(null);
+								soundscaperWorkflow?.restoreFocus();
+							}}
+						/>
+					</React.Suspense>
+				</div>
+			)}
 			{activeSurface === 'privacy-policy' && (
 				<div data-editor-surface="privacy-policy">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
@@ -290,6 +313,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<AudioEditorMacroManagerDialog
 							isOpen
+							productId={productId}
 							controller={controller}
 							snapshot={snapshot}
 							copy={copy}

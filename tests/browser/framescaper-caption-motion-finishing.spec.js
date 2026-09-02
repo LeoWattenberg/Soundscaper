@@ -58,8 +58,8 @@ test('Framescaper v1 imports and exports caption files and publishes built-in mo
 	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
 	await expect(dialog.getByRole('status').last()).toHaveText('Finishing state updated.');
 	await expect(dialog.getByRole('combobox', { name: 'Motion-analysis target', exact: true })).toBeVisible();
-	await dialog.getByRole('spinbutton', { name: 'Start frame', exact: true }).fill('0');
-	await dialog.getByRole('spinbutton', { name: 'End frame', exact: true }).fill('2');
+	await directTimecodeInput(dialog, 'Start frame').fill('0');
+	await directTimecodeInput(dialog, 'End frame').fill('2');
 	await dialog.getByRole('button', { name: 'Analyze motion', exact: true }).click();
 	await expect(dialog.getByRole('status').last()).toHaveText(
 		'Motion analysis published and current.', { timeout: 60_000 },
@@ -91,6 +91,12 @@ async function openFinishing(page, editor, owner, itemName, title) {
 	const dialog = page.getByRole('dialog', { name: title, exact: true });
 	await expect(dialog).toBeVisible();
 	return dialog;
+}
+
+function directTimecodeInput(scope, label) {
+	return scope.getByRole('group', { name: label, exact: true })
+		.locator('..')
+		.locator('[data-timecode-direct-entry]');
 }
 
 async function closeFinishing(dialog) {

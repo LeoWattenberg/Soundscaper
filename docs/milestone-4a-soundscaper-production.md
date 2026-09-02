@@ -16,6 +16,28 @@
 > mixer-graph, per-path delay-compensation, freeze, preservation, UI, and
 > acceptance contracts.
 
+## Current integrated workflow topology
+
+The former six-tab **Production audio** dialog has been retired. Its retained
+responsibilities now live at the controls where they are used:
+
+- a track menu's checkable **Add automation** action reveals a session-only
+  automation row in that track header, and the selected curve is drawn over
+  the clips without changing the clip-gain envelope or waveform amplitude;
+- the Mixer switches between **Channel strips** and an in-panel **Routing
+  graph** beside the existing Add group/Add send actions;
+- **Tools > Manage macros** offers the built-in Restoration template, including
+  an embedded Noise Reduction profile before the macro may run;
+- **Analyze > EBU R 128** remains the only metering UI; production phase,
+  correlation, and history telemetry remains available to engine consumers;
+- **Effect > Special Effects > Utility Gain (Reviewed)** uses the ordinary
+  Selection Effects dialog and reviewed worker path; and
+- **Tools > Mastering sequences** opens a focused standalone dialog.
+
+These are presentation and workflow integrations only. V21 automation and
+mixer command wires, project schemas, meter telemetry, reviewed-package
+security boundaries, and mastering delivery semantics remain unchanged.
+
 ## Pickup status and sequencing authority
 
 **Historical status on 2026-08-22: Implemented (provisional).** Soundscaper V23 is the
@@ -70,10 +92,10 @@ The implementation landed in this order:
    together. The track-owned freeze record was reserved for 4A-4.
 2. **4A-1b — Automation lanes and modes: Implemented (provisional).** Lanes
    compile through the shared vocabulary and scheduled-parameter registry with
-   bounded gesture capture, deterministic thinning, history, and the
-   menu-opened editor.
+   bounded gesture capture, deterministic thinning, history, and per-track
+   header controls with clip-body overlays.
 3. **4A-2 — Mixer graph runtime: Implemented (provisional).** The exact graph,
-   revised folder-bus reconciliation, and existing-menu graph editor passed
+   revised folder-bus reconciliation, and Mixer-integrated graph view passed
    their local gate before the mixer capability was selected.
 4. **4A-3 — Per-path PDC: Implemented (provisional).** One graph-owned path plan
    replaces flat maxima across live playback, monitoring, offline render,
@@ -82,9 +104,10 @@ The implementation landed in this order:
 5. **4A-4 — Freeze, unfreeze, refresh, and commit: Implemented (provisional).**
    Verified derived bodies, the history-aware lifecycle, freeze capability, and
    `audio-freeze-fallback` compatibility rule landed together.
-6. **4A-5 — Restoration and metering: Implemented (provisional).** The
-   menu-reached restoration workflow and bounded session-only phase,
-   correlation, surround, and loudness-history surfaces are implemented.
+6. **4A-5 — Restoration and metering: Implemented (provisional).** Restoration
+   is an ordinary editable Macro Manager template. Bounded session-only phase,
+   correlation, surround, and loudness-history telemetry remains headless;
+   EBU R 128 remains the sole meter UI.
 7. **4A-6 — Reviewed effect packages: Implemented (provisional).** The pure-WASM
    ABI, release-pinned catalog and Utility Gain package, resource enforcement,
    revocation, security, and licensing evidence landed atomically.
@@ -281,19 +304,22 @@ canonical and below the cap. Sample lanes use sample coordinates; beat lanes
 use beat coordinates and the authoritative tempo map. No edit samples an
 eased/Bézier segment into a cache.
 
-The only new lane surface is reached through:
+Automation presentation is enabled per track through:
 
 ```text
-Tracks > Automation > Edit lanes…
-Tracks > Automation > Mode > Read | Trim | Touch | Latch | Write
+Track menu > Add automation
+Track header > Automation parameter
+Track header > Automation mode > Read | Trim | Touch | Latch | Write
 ```
 
-The first command opens a lazy overlay for the selected track, bus, master, or
-edge. It is not a default-visible timeline lane, toolbar, panel, rail, badge,
-handle, or mixer control. The overlay exposes descriptor-derived labels, units,
-ranges, time-base choice, curve editing, mode, and reset; it is keyboard and
-screen-reader operable, announces invalid or refused thinning, returns focus to
-the menu, and is inert when read-only or locked.
+The checkable action only toggles session visibility and never creates or
+deletes project data. The optional 24px row exposes descriptor-derived track,
+outgoing-route/send, and effect targets. Its accent curve and points are clipped
+to clip bodies; clip gain stays white and owns pointer interaction while its
+tool is active. A missing lane is displayed as the current flat value and the
+first accepted edit creates it. Curve-menu deletion is explicit and leaves the
+row visible. The controls and overlay support keyboard editing, announce
+refused or stale edits, and are inert when read-only or locked.
 
 ## 4A-2 — Mixer graph revision
 
@@ -466,15 +492,17 @@ The existing menu-owned Mixer panel remains the entry point:
 
 ```text
 View > Panels > Mixer
-Mixer > Routing graph…
+Mixer toolbar > Routing graph | Channel strips
 ```
 
-Opening Mixer is already opt-in. `Routing graph…` opens a lazy accessible
-editor for graph collections, endpoints, edge position, channel map, VCA
-membership, and output placeholders. Existing channel strips adapt to V21 but no new panel,
-toolbar, side rail, badge, inline route control, or default workspace visibility
-is introduced. Invalid cycles and channel maps are announced before commit and
-focus returns to the invoking control.
+Opening Mixer is already opt-in. Routing graph mode replaces the strip/table
+body inside that panel and resets to Channel strips when Mixer remounts. Its
+lazy dependency-free graph provides deterministic layout, zoom/Fit, scrolling,
+semantic node/edge inspectors, pointer and equivalent keyboard connection
+editing, and graph-local Cue/VCA/Output creation. Existing Add group/Add send
+actions remain authoritative. Invalid cycles, endpoints, cascades, and channel
+maps are announced before one optimistic `mixer-graph/set` commit; read-only
+projects remain inspectable.
 
 ## 4A-3 — Per-path plug-in delay compensation
 
@@ -796,11 +824,13 @@ workflow passes, or a new control must be visible by default.
 **Status: Implemented (provisional).** The local domain, controller, and
 menu-reached browser acceptance are green; external qualification remains open.
 
-- **Outcome:** add one menu-opened Restoration workflow that composes the
-  maintained Audacity Click Removal, Noise Reduction, and Filter Curve EQ
-  processors over the existing selection/rack services; add per-strip phase,
-  correlation, and declared-channel surround meters; and add bounded loudness
-  history over the existing EBU R128 meter.
+- **Outcome:** add a built-in Restoration template under **Tools > Manage
+  macros** that clones fresh IDs and canonical defaults for Click Removal,
+  Noise Reduction, and Filter Curve EQ into an ordinary editable draft. Noise
+  Reduction embeds a JSON-safe captured profile and gates Run until present.
+  Preserve per-strip phase, correlation, declared-channel surround, and bounded
+  loudness-history telemetry while keeping **Analyze > EBU R 128** as the only
+  meter surface.
 - **Invariants:** no new restoration DSP or project wire; effect parameters and
   history commits retain their current authorities. Meter history is bounded
   session state, resets on project/runtime lifecycle, never enters history or
@@ -812,7 +842,8 @@ menu-reached browser acceptance are green; external qualification remains open.
   menu/keyboard/screen-reader parity; unchanged transport underruns.
 - **Non-goals:** no export normalization, loudness write-back, AI cleanup,
   document meter history, new default-visible meter, or new restoration
-  algorithm.
+  algorithm. There is no bespoke Restoration compiler/dialog or Production
+  meters menu.
 - **Stop condition:** stop if a meter needs persisted state, a processor needs a
   second parameter definition, or scheduling requires one independent polling
   loop per strip.
@@ -828,7 +859,9 @@ External packages, arbitrary URLs, and user trust overrides remain fenced.
   pinned catalog, resource declarations, hash/signature and revocation policy,
   and repository-owned Utility Gain conformance package. Revise the threat
   model, security matrix, licensing matrix, notices, and runtime evidence pins
-  in the same atomic packet.
+  in the same atomic packet. Utility Gain is reached through **Effect > Special
+  Effects** and the canonical Selection Effects dialog, not a bespoke Tools
+  surface.
 - **Invariants:** packages are pure WASM; no package JavaScript, arbitrary URL,
   user trust override, same-origin storage/network access, ambient clock/random,
   or unbounded memory/output exists. Realtime approval is separate from offline
@@ -872,5 +905,5 @@ parallel 4B exit gate and the overall milestone-4 exit gate.
   export preset, cloud processing, or hosted processing.
 - No export-time normalization; no meter or PDC derived state in the document.
 - No third-party JavaScript or arbitrary effect-package URL in the origin.
-- Every new 4A surface is reached through an existing menu and remains closed
-  and invisible until the user opts in.
+- Every new 4A workflow is reached through an existing menu or an already
+  menu-opened Mixer, and remains closed or hidden until the user opts in.

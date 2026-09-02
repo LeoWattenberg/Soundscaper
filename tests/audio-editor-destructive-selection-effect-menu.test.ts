@@ -29,7 +29,7 @@ test('destructive effects without settings apply directly while configurable eff
 	};
 	const menus = createWorkspaceApplicationMenus(workspaceInput({
 		controller,
-		openSelectionEffect: (type: unknown) => opened.push(type),
+		openSelectionEffect: (type: unknown) => (opened as unknown[]).push(type),
 		run,
 	}));
 
@@ -40,6 +40,16 @@ test('destructive effects without settings apply directly while configurable eff
 	menuItem(menus, 'audacity-amplify').onClick?.();
 	assert.deepEqual(applied, [{ type: 'audacity-invert' }]);
 	assert.deepEqual(opened, ['audacity-amplify']);
+
+	menuItem(menus, 'reviewed-utility-gain').onClick?.();
+	assert.deepEqual(opened, ['audacity-amplify', 'reviewed-utility-gain']);
+	const framescaperMenus = createWorkspaceApplicationMenus(workspaceInput({
+		controller,
+		productId: 'framescaper',
+		openSelectionEffect: (type: unknown) => (opened as unknown[]).push(type),
+		run,
+	}));
+	assert.equal(optionalMenuItem(framescaperMenus as readonly MenuItem[], 'reviewed-utility-gain'), null);
 });
 
 test('selection effect inventory marks only definitions with editable settings or inputs', () => {
@@ -85,6 +95,7 @@ function workspaceInput(overrides: Readonly<Record<string, unknown>>) {
 			selectionTypes: [
 				{ type: 'audacity-amplify', label: 'Amplify', hasSettings: true },
 				{ type: 'audacity-invert', label: 'Invert', hasSettings: false },
+				{ type: 'reviewed-utility-gain', label: 'Utility Gain (Reviewed)', hasSettings: true },
 			],
 			canRepeatLast: false,
 		},

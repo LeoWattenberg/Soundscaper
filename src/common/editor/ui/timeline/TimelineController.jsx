@@ -10,6 +10,7 @@ import { useTimelinePointerMove } from './useTimelinePointerMove.js';
 import { useTimelinePointerStart } from './useTimelinePointerStart.js';
 import { useTimelineProjectBinDnd } from './useTimelineProjectBinDnd.js';
 import { useTimelineViewportModel } from './useTimelineViewportModel.js';
+import { useTrackAutomationControls } from '../soundscaper-workflow-product-runtime.tsx';
 
 export default function TimelineController({
 	controller,
@@ -37,24 +38,32 @@ export default function TimelineController({
 		onToggleArmControls,
 		onOpenSurface,
 		onOpenTrackRate,
-		soundscaperProduction,
+		automationRuntime,
+		freezeRuntime,
 		productId,
 		capabilities,
 	} = actionInput;
 	const editBlock = selectAudioEditorEditBlock(snapshot);
 	const mutationsBlocked = editBlock.blocked;
 	const state = useTimelineInteractionState();
+	const automationControls = useTrackAutomationControls(
+		runtimeProject ?? snapshot.project,
+		productId === 'soundscaper' && capabilities?.audioAutomation === true,
+		automationRuntime,
+	);
 	const model = useTimelineViewportModel({
 		controller,
 		snapshot,
 		runtimeProject,
 		mobile,
 		showArmControls,
+		automationVisibleTrackIds: automationControls.visibleTrackIds,
 		state,
 	});
 	const navigationRuntime = useTimelineNavigation({
 		controller,
 		showArmControls,
+		automationVisibleTrackIds: automationControls.visibleTrackIds,
 		splitToolEnabled,
 		onToggleSplitTool,
 		searchRevealRequest,
@@ -84,6 +93,7 @@ export default function TimelineController({
 		snapshot,
 		automationToolEnabled,
 		showArmControls,
+		automationVisibleTrackIds: automationControls.visibleTrackIds,
 		splitToolActive,
 		mutationsBlocked,
 		state,
@@ -125,7 +135,8 @@ export default function TimelineController({
 		menuActions,
 		onOpenSurface,
 		onOpenTrackRate,
-		soundscaperProduction,
+		automationControls,
+		freezeRuntime,
 		productId,
 		capabilities,
 	});
@@ -164,6 +175,8 @@ export default function TimelineController({
 		onOpenClipProperties,
 		onExportClip,
 		onRevealProjectBin,
+		automationControls,
+		automationRuntime,
 	};
 
 	return (
@@ -176,6 +189,8 @@ export default function TimelineController({
 			showArmControls={showArmControls}
 			displayAudioSupported={displayAudioSupported}
 			automationToolEnabled={automationToolEnabled}
+			automationRuntime={automationRuntime}
+			automationControls={automationControls}
 			geometry={geometry}
 			selection={selection}
 			preview={preview}

@@ -21,6 +21,7 @@ import {
 	copyMasterNoiseProfileChannels,
 	masterNoiseProfileChannelCount,
 } from './master-noise-profile-channels.ts';
+import { normalizeAudacityEffectParams } from '../audacity-effects/manifest.js';
 
 const NOISE_PROFILE_TASK = 'selection-effect-noise-profile';
 const SPECTRAL_EFFECT_TASK = 'selection-effect-spectral';
@@ -339,12 +340,17 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 		return channels;
 	}
 
-	async function captureSelectedNoiseProfile(): Promise<void> {
-		if (runtime.editingBlocked()) return;
+	async function captureSelectedNoiseProfile(paramsValue?: unknown): Promise<unknown | null> {
+		if (runtime.editingBlocked()) return null;
 		const target = runtime.audacityEffectTarget();
 		if (!target) throw new Error(runtime.copy.audacitySelectionHint);
 		const sampleRate = runtime.projectSampleRate();
-		const params = runtime.currentAudacityEffectParams('audacity-noise-reduction');
+		const suppliedParams = paramsValue !== null && typeof paramsValue === 'object' && !Array.isArray(paramsValue)
+			? paramsValue
+			: {};
+		const params = paramsValue === undefined
+			? runtime.currentAudacityEffectParams('audacity-noise-reduction')
+			: normalizeAudacityEffectParams('audacity-noise-reduction', suppliedParams) as unknown as Readonly<Record<string, unknown>>;
 		const estimatedPeakBytes = runtime.estimateAudacityEffectPeakBytes(
 			'audacity-noise-reduction', target.durationFrames, params,
 			{ channelCount: target.channelCount, sampleRate },
@@ -363,6 +369,7 @@ export function createEffectAudioService(runtime: EffectAudioServiceRuntime) {
 			assertOwnership(runtime, ownership);
 			runtime.state.audacityNoiseProfile = result.profile;
 			runtime.setStatus(runtime.copy.noiseProfileReady, 'success');
+			return runtime.serializeNoiseProfile(result.profile);
 		} finally {
 			finishProcessing(runtime, ownership);
 		}

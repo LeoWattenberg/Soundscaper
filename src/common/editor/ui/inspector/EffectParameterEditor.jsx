@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { Knob } from '@soundscaper/design-system/Knob';
-import { AUDIO_EFFECT_DEFINITIONS, audioEffectParamRange } from '../../effects.js';
+import {
+	AUDIO_EFFECT_DEFINITIONS,
+	AUDIO_SELECTION_EFFECT_DEFINITIONS,
+	audioEffectParamRange,
+} from '../../effects.js';
 import {
 	AUDACITY_EFFECT_DEFINITIONS,
 	audacityEffectOptionLabel,
@@ -23,6 +27,7 @@ import {
 	isAudacityDefinition,
 	safeEffectLabel,
 } from './effect-helpers.ts';
+import { createParameterAutomationControlRouterV21 } from '../soundscaper-workflow-product-runtime.tsx';
 
 export default function EffectParameterEditor({
 	effect,
@@ -32,6 +37,7 @@ export default function EffectParameterEditor({
 	targetTrackId,
 	sampleRate = AUDIO_EDITOR_SAMPLE_RATE,
 	captureNoiseProfile,
+	captureNoiseProfileDisabled = false,
 	noiseProfileLabel,
 	hideControlTrack = false,
 	onRackEffectGestureBegin,
@@ -44,9 +50,23 @@ export default function EffectParameterEditor({
 	onParametricEqCancel,
 	onParametricEqAudition,
 	readParametricEqSpectrum,
+	automationRuntime,
+	automationProject,
+	automationStrip,
 	onChange,
 }) {
 	const [error, setError] = useState('');
+	const automationRouterRef = useRef(null);
+	if (!automationRouterRef.current) {
+		automationRouterRef.current = createParameterAutomationControlRouterV21();
+	}
+	const automationRouter = automationRouterRef.current;
+	automationRouter.setContext({
+		runtime: automationRuntime,
+		project: automationProject,
+		onError: (cause) => setError(cause instanceof Error ? cause.message : String(cause)),
+	});
+	useEffect(() => () => { automationRouter.cancel(); }, [automationProject?.id, automationRouter, effect.id]);
 	if (effect.type === 'missing') {
 		return (
 			<div className="audio-editor-effect-parameters audio-editor-effect-parameters--missing" data-missing-effect>
@@ -63,7 +83,47 @@ export default function EffectParameterEditor({
 		});
 	};
 	const update = (changes) => invoke(() => onChange(changes));
-	const updateParam = (name, value) => update({ params: { [name]: value } });
+	const parameterAddress = (parameterId, elementId) => automationStrip ? {
+		kind: 'effect',
+		strip: automationStrip,
+		effectId: effect.id,
+		...(elementId ? { elementId } : {}),
+		parameterId,
+	} : null;
+	const updateParam = (name, value, automation = {}) => {
+		const address = parameterAddress(automation.parameterId || name, automation.elementId);
+		if (address && Number.isFinite(automation.controlValue)
+			&& automationRouter.performAtomic(address, automation.controlValue)) return undefined;
+		return update({ params: { [name]: value } });
+	};
+	const parameterGestureProps = (parameterId, elementId = null, fallback = null) => {
+		const address = parameterAddress(parameterId, elementId);
+		const routed = Boolean(address && (
+			automationRouter.owns(address) || automationRouter.captureAvailable(address)
+		));
+		if (!routed && !fallback) return {};
+		const reserved = () => Boolean(address && (
+			automationRouter.owns(address) || automationRouter.captureAvailable(address)
+		));
+		return {
+			onGestureBegin: (value) => {
+				if (address && (automationRouter.begin(address, value) || reserved())) return undefined;
+				return fallback?.begin?.(value);
+			},
+			onGesturePreview: (value) => {
+				if (address && (automationRouter.preview(address, value) || reserved())) return undefined;
+				return fallback?.preview?.(value);
+			},
+			onGestureCommit: (value) => {
+				if (address && (automationRouter.release(address, value) || reserved())) return undefined;
+				return fallback?.commit?.(value);
+			},
+			onGestureCancel: () => {
+				if (address && (automationRouter.cancel(address) || reserved())) return undefined;
+				return fallback?.cancel?.();
+			},
+		};
+	};
 
 	if (!definition) {
 		if (effect.type === 'eq') {
@@ -79,47 +139,66 @@ export default function EffectParameterEditor({
 						onPreview={onParametricEqPreview}
 						onCommit={(params) => onParametricEqCommit ? onParametricEqCommit(params) : update({ params })}
 						onCancel={onParametricEqCancel}
-						onAudition={onParametricEqAudition}
-						readSpectrum={readParametricEqSpectrum}
-					/>
+							onAudition={onParametricEqAudition}
+							readSpectrum={readParametricEqSpectrum}
+							parameterAutomation={automationStrip ? {
+								captureAvailable: (parameterId, elementId) => {
+									const address = parameterAddress(parameterId, elementId);
+									return Boolean(address && (automationRouter.owns(address)
+										|| automationRouter.captureAvailable(address)));
+								},
+								begin: (parameterId, elementId, value) => automationRouter.begin(
+									parameterAddress(parameterId, elementId), value,
+								),
+								preview: (parameterId, elementId, value) => automationRouter.preview(
+									parameterAddress(parameterId, elementId), value,
+								),
+								release: (parameterId, elementId, value) => automationRouter.release(
+									parameterAddress(parameterId, elementId), value,
+								),
+								cancel: (parameterId, elementId) => automationRouter.cancel(
+									parameterAddress(parameterId, elementId),
+								),
+								performAtomic: (parameterId, elementId, value) => automationRouter.performAtomic(
+									parameterAddress(parameterId, elementId), value,
+								),
+							} : null}
+						/>
 					{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 				</div>
 			);
 		}
 		const parameterNames = Object.entries(effect.params || {}).filter(([, value]) => typeof value === 'number').map(([name]) => name);
 		const nativeDefinition = { params: Object.fromEntries(parameterNames.map((name) => [name, {}])) };
-		const renderNativeParameter = (name) => {
-			const unit = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name]?.[2]?.unit;
-			return (
-				<ParameterNumber
+			const renderNativeParameter = (name) => {
+			const descriptor = AUDIO_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name]
+				|| AUDIO_SELECTION_EFFECT_DEFINITIONS[effect.type]?.ranges?.[name];
+				const unit = descriptor?.[2]?.unit;
+				const fallback = onRackEffectGestureBegin && onRackEffectPreview && onRackEffectCommit
+					? {
+						begin: () => invoke(onRackEffectGestureBegin),
+						preview: (next) => invoke(() => onRackEffectPreview({
+							...effect.params, [name]: next,
+						})),
+						commit: (next) => invoke(() => onRackEffectCommit({
+							...effect.params, [name]: next,
+						})),
+						cancel: onRackEffectCancel ? () => invoke(onRackEffectCancel) : null,
+					} : null;
+				return (
+					<ParameterNumber
 					label={effectParameterLabel(name, copy)}
 					value={effect.params?.[name]}
-					range={audioEffectParamRange(effect.type, name)}
+					range={audioEffectParamRange(effect.type, name) || descriptor?.slice(0, 2)}
+					step={descriptor?.[2]?.step}
 					copy={copy}
 					disabled={disabled}
 					hook={name}
 					timeUnit={editorTimeUnit(unit)}
 					sampleRate={sampleRate}
-					onCommit={(next) => updateParam(name, next)}
-					onGestureBegin={onRackEffectGestureBegin
-						? () => invoke(onRackEffectGestureBegin)
-						: null}
-					onGesturePreview={onRackEffectPreview
-						? (next) => invoke(() => onRackEffectPreview({
-							...effect.params,
-							[name]: next,
-						}))
-						: null}
-					onGestureCommit={onRackEffectCommit
-						? (next) => invoke(() => onRackEffectCommit({
-							...effect.params,
-							[name]: next,
-						}))
-						: null}
-					onGestureCancel={onRackEffectCancel
-						? () => invoke(onRackEffectCancel)
-						: null}
-				/>
+						onCommit={(next) => updateParam(name, next, { controlValue: next })}
+						{...parameterGestureProps(name, null, fallback)}
+					/>
 			);
 		};
 		return (
@@ -148,7 +227,10 @@ export default function EffectParameterEditor({
 				copy={copy}
 				disabled={disabled}
 				sampleRate={sampleRate}
-				onCommit={(value) => updateParam(name, value)}
+				onCommit={(value, automation) => updateParam(name, value, automation)}
+				gestureFor={(parameterId = name, elementId = null) => (
+					parameterGestureProps(parameterId, elementId)
+				)}
 			/>
 		) : null
 	);
@@ -175,7 +257,7 @@ export default function EffectParameterEditor({
 					</div>
 					{captureNoiseProfile && (
 						<span data-effect-noise-profile data-audacity-noise-profile>
-							<Button disabled={disabled} onClick={captureNoiseProfile}>{noiseProfileLabel}</Button>
+							<Button disabled={disabled || captureNoiseProfileDisabled} onClick={captureNoiseProfile}>{noiseProfileLabel}</Button>
 						</span>
 					)}
 				</section>
@@ -205,12 +287,17 @@ export default function EffectParameterEditor({
 }
 
 function AudacityParameter({ name, effectType, descriptor, value, effectParams, copy, disabled,
-	sampleRate, onCommit }) {
+	sampleRate, onCommit, gestureFor }) {
 	const label = audacityEffectParameterLabel(effectType, name, copy);
 	if (descriptor.kind === 'boolean') {
 		return (
 			<div data-effect-param={name}>
-				<DesignCheckbox label={label} checked={Boolean(value)} disabled={disabled} onChange={onCommit} />
+				<DesignCheckbox
+					label={label}
+					checked={Boolean(value)}
+					disabled={disabled}
+					onChange={(next) => onCommit(next, { controlValue: next ? 1 : 0 })}
+				/>
 			</div>
 		);
 	}
@@ -223,7 +310,11 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 					value: String(option.value),
 					label: audacityEffectOptionLabel(effectType, name, option.value, copy),
 				}))}
-				onChange={onCommit}
+				onChange={(next) => onCommit(next, {
+					controlValue: Math.max(0, descriptor.options.findIndex((option) => (
+						String(option.value) === String(next)
+					))),
+				})}
 				disabled={disabled}
 				hook={`effect-param-${name}`}
 			/>
@@ -265,6 +356,8 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 				<div className="audio-editor-graphic-eq__faders">
 					{descriptor.frequencies.map((frequency, index) => {
 						const gain = value?.[index] ?? 0;
+						const elementId = `frequency:${String(frequency)}`;
+						const gestures = gestureFor('gains', elementId);
 						return (
 							<div className="audio-editor-graphic-eq__fader" data-effect-param={`${name}.${index}`} key={frequency}>
 								<output>{Number(gain).toFixed(1)}</output>
@@ -276,11 +369,20 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 										step={descriptor.step}
 										ariaLabel={`${frequency} Hz`}
 										disabled={disabled}
-										onChange={(next) => {
-											const values = Array.isArray(value) ? [...value] : [...descriptor.default];
-											values[index] = Math.round(next / descriptor.step) * descriptor.step;
-											onCommit(values);
-										}}
+											onChange={(next) => {
+												const values = Array.isArray(value) ? [...value] : [...descriptor.default];
+												values[index] = Math.round(next / descriptor.step) * descriptor.step;
+												if (gestures.onGesturePreview) {
+													gestures.onGesturePreview(values[index]);
+													return;
+												}
+												onCommit(values, {
+													controlValue: values[index],
+													elementId,
+													parameterId: 'gains',
+												});
+											}}
+											{...gestures}
 									/>
 								</div>
 								<span>{frequency >= 1_000 ? `${frequency / 1_000}k` : frequency}</span>
@@ -308,7 +410,8 @@ function AudacityParameter({ name, effectType, descriptor, value, effectParams, 
 			hook={name}
 			timeUnit={editorTimeUnit(descriptor.unit)}
 			sampleRate={sampleRate}
-			onCommit={onCommit}
+			onCommit={(next) => onCommit(next, { controlValue: next })}
+			{...gestureFor(name)}
 		/>
 	);
 }
@@ -330,7 +433,6 @@ function ParameterNumber({
 	onGestureCommit,
 	onGestureCancel,
 }) {
-	const [gestureActive, setGestureActive] = useState(false);
 	const [gestureValue, setGestureValue] = useState(null);
 	const gestureActiveRef = useRef(false);
 	const gestureValueRef = useRef(null);
@@ -346,44 +448,17 @@ function ParameterNumber({
 		? step
 		: 0.01;
 	const gestureEnabled = Boolean(onGestureBegin && onGesturePreview && onGestureCommit);
-	useEffect(() => {
-		if (!gestureActive) return undefined;
-		const finish = (event) => {
-			if (!gestureActiveRef.current) return;
-			gestureActiveRef.current = false;
-			const next = gestureValueRef.current;
-			if (event?.type === 'blur' && typeof globalThis.MouseEvent === 'function') {
-				document.dispatchEvent(new globalThis.MouseEvent('mouseup', { bubbles: true }));
-			}
-			setGestureActive(false);
-			setGestureValue(null);
-			gestureCallbacksRef.current.commit?.(next);
-		};
-		document.addEventListener('mouseup', finish);
-		globalThis.addEventListener?.('blur', finish);
-		return () => {
-			document.removeEventListener('mouseup', finish);
-			globalThis.removeEventListener?.('blur', finish);
-		};
-	}, [gestureActive]);
 	useEffect(() => () => {
 		if (!gestureActiveRef.current) return;
 		gestureActiveRef.current = false;
 		gestureCallbacksRef.current.cancel?.();
 	}, []);
-	const beginKnobGesture = (event) => {
-		if (
-			disabled
-			|| !gestureEnabled
-			|| event.button !== 0
-			|| !event.target.closest?.('.knob')
-		) return;
-		const current = Number(value) || 0;
+	const beginKnobGesture = (current) => {
+		if (disabled || !gestureEnabled || gestureActiveRef.current) return;
 		gestureActiveRef.current = true;
 		gestureValueRef.current = current;
 		setGestureValue(current);
-		setGestureActive(true);
-		gestureCallbacksRef.current.begin?.();
+		gestureCallbacksRef.current.begin?.(current);
 	};
 	const previewKnobValue = (next) => {
 		if (!gestureActiveRef.current || !gestureEnabled) {
@@ -393,6 +468,19 @@ function ParameterNumber({
 		gestureValueRef.current = next;
 		setGestureValue(next);
 		gestureCallbacksRef.current.preview?.(next);
+	};
+	const finishKnobGesture = (next) => {
+		if (!gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		gestureValueRef.current = next;
+		setGestureValue(null);
+		gestureCallbacksRef.current.commit?.(next);
+	};
+	const cancelKnobGesture = () => {
+		if (!gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		setGestureValue(null);
+		gestureCallbacksRef.current.cancel?.();
 	};
 	const commit = (raw) => {
 		const next = Number(raw);
@@ -404,11 +492,13 @@ function ParameterNumber({
 		}
 		onCommit(next);
 	};
-	const commitSlider = (next) => {
+	const changeSlider = (next) => {
 		const snapped = knobStep > 0
 			? Math.round((next - knobRange[0]) / knobStep) * knobStep + knobRange[0]
 			: next;
-		onCommit(Number(snapped.toFixed(8)));
+		const value = Number(snapped.toFixed(8));
+		if (gestureEnabled) onGesturePreview(value);
+		else onCommit(value);
 	};
 	return (
 		<div
@@ -416,7 +506,6 @@ function ParameterNumber({
 			data-effect-param={hook}
 			role="group"
 			aria-label={label}
-			onMouseDownCapture={beginKnobGesture}
 		>
 			<span>{label}</span>
 			{!timeUnit && knobRange && presentation === 'knob' && <Knob
@@ -428,6 +517,9 @@ function ParameterNumber({
 				mode={knobRange[0] < 0 && knobRange[1] > 0 ? 'bipolar' : 'unipolar'}
 				disabled={disabled}
 				onChange={previewKnobValue}
+				onGestureStart={gestureEnabled ? beginKnobGesture : undefined}
+				onGestureEnd={gestureEnabled ? finishKnobGesture : undefined}
+				onGestureCancel={gestureEnabled ? cancelKnobGesture : undefined}
 			/>}
 			{!timeUnit && knobRange && presentation === 'slider' && <SteppedSlider
 				value={Number(value) || 0}
@@ -435,9 +527,12 @@ function ParameterNumber({
 				max={knobRange[1]}
 				step={knobStep}
 				ariaLabel={label}
-				disabled={disabled}
-				onChange={commitSlider}
-			/>}
+					disabled={disabled}
+					onChange={changeSlider}
+					onGestureStart={onGestureBegin}
+					onGestureEnd={onGestureCommit}
+					onGestureCancel={onGestureCancel}
+				/>}
 			{timeUnit ? <AudioEditorTimeCodeInput
 				label={label}
 				value={Number(value) || 0}

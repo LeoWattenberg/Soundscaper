@@ -34,6 +34,7 @@ import {
 import { isParametricEqType } from './project-effects.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
+import { effectSupportsExplicitSidechain } from '../effect-explicit-sidechain-capability.ts';
 import {
 	createNativePluginEffectNode,
 	isNativePluginEffect,
@@ -161,8 +162,13 @@ export function applyEffect(
 	const explicitSidechainInput = typeof effect.id === 'string'
 		? options.sidechainInputByEffectId?.get(effect.id) || null
 		: null;
-	if (isNativePluginEffect(effect)) {
-		if (explicitSidechainInput) throw new Error('Native plug-ins do not admit a sidechain in host contract v1.');
+	const explicitSidechainCapable = effectSupportsExplicitSidechain(effect);
+	const nativePlugin = isNativePluginEffect(effect);
+	if (explicitSidechainInput && !explicitSidechainCapable) {
+		if (nativePlugin) throw new Error('Native plug-ins do not admit a sidechain in host contract v1.');
+		throw new Error(`Effect ${String(effect.id)} does not expose a sidechain input.`);
+	}
+	if (nativePlugin) {
 		if (!isNativePluginRealtimeWorkletLoaded(context)) {
 			throw new Error('The native plug-in real-time processor was not loaded.');
 		}
@@ -183,10 +189,7 @@ export function applyEffect(
 		if (!(pffftWasmModule instanceof WebAssembly.Module)) {
 			throw new Error('The PFFFT WASM module was not compiled for the Audacity processor.');
 		}
-		const sidechain = type === 'audacity-auto-duck';
-		if (explicitSidechainInput && !sidechain) {
-			throw new Error(`Effect ${String(effect.id)} does not expose a sidechain input.`);
-		}
+		const sidechain = explicitSidechainCapable;
 		const controlTrackId = sidechain ? effect.context?.controlTrackId : null;
 		const controlInput = sidechain
 			? explicitSidechainInput || options.sidechainInputs?.get(String(controlTrackId))
@@ -223,7 +226,8 @@ export function applyEffect(
 		}
 		return processor;
 	}
-	if ((type === 'limiter' || type === 'gate') && isDynamicsWorkletLoaded(context)) {
+	if ((type === 'limiter' || type === 'gate') && explicitSidechainCapable
+		&& isDynamicsWorkletLoaded(context)) {
 		const WorkletNode = audioWorkletNodeConstructor();
 		if (WorkletNode) {
 			const dynamics = addNode(nodes, new WorkletNode(context, 'kw-audio-dynamics', {

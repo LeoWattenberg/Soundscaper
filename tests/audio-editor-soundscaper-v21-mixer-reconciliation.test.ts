@@ -10,7 +10,6 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import { createSoundscaperRoutingEditorModel } from '../src/common/editor/ui/soundscaper-routing-editor-model.ts';
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
@@ -138,24 +137,6 @@ test('narrowing a track restates its send route as well as its assignment', () =
 	assert.deepEqual(sendMap(narrowed), [0, 1, -1, -1, -1, -1]);
 });
 
-test('the routing editor accepts the graph the product authored for a wide master', () => {
-	// A track with no clips takes its width from the master, which is the fallback the
-	// reconciler uses when it authors that track's map. The editor must resolve it the
-	// same way or it refuses to open the very graph it would be used to repair.
-	const project = createSoundscaperProject({
-		id: 'wide', title: 'Wide', now: NOW, masterChannels: 6,
-		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
-		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
-		primarySequenceId: 'main-sequence',
-		mixer: createDefaultMixerGraphV21([{ id: 'voice', channelCount: 6 }], 6),
-	} as never);
-	const model = createSoundscaperRoutingEditorModel(
-		project, JSON.stringify(project.mixer, null, '\t'),
-	);
-	assert.equal(model.validationError, null);
-	assert.equal(model.canApply, true);
-});
-
 test('a clip edit that narrows a track restates its send route with the master unchanged', () => {
 	// The trigger need not be a master width change: a track takes its width from clip
 	// content, so swapping a six-channel clip for a mono one narrows the source under
@@ -227,7 +208,7 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 		tracks: [
 			createAudioTrack({
 				id: 'bed', name: 'Bed', clipIds: ['bed-clip'],
-				effects: [{ id: 'bed-comp', type: 'compressor', enabled: true, params: {} }],
+				effects: [{ id: 'bed-gate', type: 'gate', enabled: true, params: {} }],
 			}),
 			createAudioTrack({ id: 'key', name: 'Key', clipIds: ['key-clip'] }),
 		],
@@ -243,7 +224,7 @@ test('narrowing a key track restates the sidechain map it feeds', () => {
 				id: sidechainId, kind: 'sidechain',
 				source: { kind: 'track', id: 'key' },
 				destination: {
-					kind: 'effect-sidechain', strip: { kind: 'track', id: 'bed' }, effectId: 'bed-comp',
+					kind: 'effect-sidechain', strip: { kind: 'track', id: 'bed' }, effectId: 'bed-gate',
 				},
 				position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1, 2, 3, 4, 5],
 			}],

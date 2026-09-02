@@ -67,8 +67,35 @@ export function ActionHook({ hook, children }) {
 
 // v0.9.0's Slider parses values as integers and does not expose a step prop.
 // Preserve its DOM/CSS contract while keeping Audacity's fractional parameters.
-export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, disabled, onChange }) {
+export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, disabled, onChange,
+	onGestureStart, onGestureEnd, onGestureCancel }) {
 	const clampedValue = Math.max(min, Math.min(max, Number(value) || 0));
+	const gestureActiveRef = useRef(false);
+	const gestureValueRef = useRef(clampedValue);
+	const cancelRef = useRef(onGestureCancel);
+	cancelRef.current = onGestureCancel;
+	if (!gestureActiveRef.current) gestureValueRef.current = clampedValue;
+	const beginGesture = () => {
+		if (disabled || gestureActiveRef.current) return;
+		gestureActiveRef.current = true;
+		gestureValueRef.current = clampedValue;
+		onGestureStart?.(clampedValue);
+	};
+	const endGesture = () => {
+		if (!gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		onGestureEnd?.(gestureValueRef.current);
+	};
+	const cancelGesture = () => {
+		if (!gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		onGestureCancel?.();
+	};
+	useEffect(() => () => {
+		if (!gestureActiveRef.current) return;
+		gestureActiveRef.current = false;
+		cancelRef.current?.();
+	}, []);
 	const percentage = max === min ? 0 : (clampedValue - min) / (max - min) * 100;
 	return (
 		<div
@@ -90,7 +117,25 @@ export function SteppedSlider({ value, min, max, step, ariaLabel, valueText, dis
 				aria-label={ariaLabel}
 				aria-valuetext={valueText}
 				disabled={disabled}
-				onChange={(event) => onChange(Number(event.currentTarget.value))}
+				onChange={(event) => {
+					const next = Number(event.currentTarget.value);
+					const standalone = !gestureActiveRef.current;
+					if (standalone) beginGesture();
+					gestureValueRef.current = next;
+					onChange(next);
+					if (standalone) endGesture();
+				}}
+				onPointerDown={beginGesture}
+				onPointerUp={endGesture}
+				onPointerCancel={cancelGesture}
+				onKeyDown={(event) => {
+					if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) beginGesture();
+					else if (event.key === 'Escape') cancelGesture();
+				}}
+				onKeyUp={(event) => {
+					if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) endGesture();
+				}}
+				onBlur={endGesture}
 			/>
 			<div className="slider__track"><div className="slider__fill" style={{ width: `${percentage}%` }} /></div>
 			<div className="slider__handle" style={{ left: `calc(${percentage}% - ${percentage / 100 * 16}px)` }} />

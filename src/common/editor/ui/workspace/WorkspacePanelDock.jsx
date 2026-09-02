@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
-import {
-	workspacePanelAvailable,
-	workspacePanelRestoresCaptureFocus,
-} from './workspace-product-panel-runtime.ts';
+import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
+import { closePanelAndRestoreFocus } from './workspace-panel-focus.js';
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
@@ -22,6 +20,8 @@ export default function WorkspacePanelDock({
 	dock,
 	controller,
 	snapshot,
+	productId = snapshot.productId,
+	capabilities = snapshot.capabilities,
 	copy,
 	locale,
 	fileService,
@@ -30,6 +30,8 @@ export default function WorkspacePanelDock({
 	showArmControls,
 	displayAudioSupported,
 	onOpenEffects,
+	onRoutingGraphGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingGraphGestureHandler | undefined} */ (undefined),
+	onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined),
 	effectsPanelTarget,
 	onEffectWindowChange,
 	draggedPanelId,
@@ -49,9 +51,9 @@ export default function WorkspacePanelDock({
 		.map((id) => [id, snapshot.preferences?.workspace?.panels?.[id]])
 		.filter(([id, panel]) => (
 			panel?.visible
-			&& workspacePanelAvailable(snapshot.productId, id, snapshot.webVcr, snapshot.capture)
-			&& (snapshot.capabilities?.audioEffects || id !== 'effects')
-			&& (snapshot.capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
+			&& workspacePanelAvailable(productId, id, snapshot.webVcr, snapshot.capture)
+			&& (capabilities?.audioEffects || id !== 'effects')
+			&& (capabilities?.audioAnalysis || (!ANALYZER_PANEL_ID_SET.has(id) && id !== 'ebu-r128'))
 			&& (id !== 'markers' || timelineAnnotationsAvailable(snapshot))
 			&& panel.dock === dock
 			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
@@ -562,6 +564,8 @@ export default function WorkspacePanelDock({
 							panelId={panelId}
 							controller={controller}
 							snapshot={snapshot}
+							productId={productId}
+							capabilities={capabilities}
 							copy={copy}
 							locale={locale}
 							fileService={fileService}
@@ -570,6 +574,8 @@ export default function WorkspacePanelDock({
 							showArmControls={showArmControls}
 							displayAudioSupported={displayAudioSupported}
 							onOpenEffects={onOpenEffects}
+							onRoutingGraphGesture={onRoutingGraphGesture}
+							onRoutingParameterGesture={onRoutingParameterGesture}
 							effectsPanelTarget={effectsPanelTarget}
 							onEffectWindowChange={onEffectWindowChange}
 							blocked={blocked}
@@ -580,21 +586,4 @@ export default function WorkspacePanelDock({
 			})}
 		</aside>
 	);
-}
-
-function closePanelAndRestoreFocus(event, panelId, onTogglePanel) {
-	const ownerDocument = event.currentTarget.ownerDocument;
-	onTogglePanel(panelId);
-	if (!workspacePanelRestoresCaptureFocus(panelId)) return;
-	let attempts = 4;
-	const restore = () => {
-		const trigger = ownerDocument.querySelector('[data-transport="framescaper-record"] button');
-		if (trigger instanceof HTMLElement) {
-			trigger.focus();
-			return;
-		}
-		attempts -= 1;
-		if (attempts > 0) requestAnimationFrame(restore);
-	};
-	requestAnimationFrame(restore);
 }

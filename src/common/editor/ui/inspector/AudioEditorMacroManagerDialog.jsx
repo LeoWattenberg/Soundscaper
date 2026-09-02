@@ -7,12 +7,17 @@ import { TextInput } from '@soundscaper/design-system/TextInput';
 import { useContainerTabGroup } from '@soundscaper/design-system/hooks/useContainerTabGroup';
 import { createEffect } from '../../effects.js';
 import { parseAudacityEffectMacro, serializeAudacityEffectMacro } from '../../effect-macros.js';
+import {
+	createEffectMacroTemplateDraft,
+	effectMacroMissingEmbeddedNoiseProfile,
+} from '../../effect-macro-templates.ts';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { takeSelectedFile } from '../file-input-selection.ts';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
+import { resolveEffectMacroTemplateCopy } from './effect-macro-template-copy.ts';
 import { resolveSupportedEffectType, safeEffectLabel } from './effect-helpers.ts';
 import { downloadTextFile, macroFileName } from './inspector-helpers.ts';
 
@@ -21,6 +26,7 @@ const EMPTY_EFFECTS = Object.freeze([]);
 
 export function AudioEditorMacroManagerDialog({
 	isOpen,
+	productId,
 	controller,
 	snapshot,
 	copy,
@@ -33,20 +39,27 @@ export function AudioEditorMacroManagerDialog({
 	const project = snapshot.project;
 	const projectIdentity = project?.id ?? null;
 	const effects = draft?.effects || EMPTY_EFFECTS;
+	const templateCopy = resolveEffectMacroTemplateCopy(locale);
 	const blocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const hasRunTarget = Boolean(snapshot.selection || snapshot.selectedClipId);
+	const restorationAvailable = productId === 'soundscaper';
+	const missingEmbeddedNoiseProfile = restorationAvailable
+		&& effectMacroMissingEmbeddedNoiseProfile(effects);
 	const [picker, setPicker] = useState(null);
 	const [selectedEffectId, setSelectedEffectId] = useState(null);
+	const [pendingTemplateId, setPendingTemplateId] = useState(null);
 	const [draggedIndex, setDraggedIndex] = useState(null);
 	const [message, setMessage] = useState('');
 	const [messageState, setMessageState] = useState('info');
 	const [isRunning, setIsRunning] = useState(false);
+	const [isCapturingProfile, setIsCapturingProfile] = useState(false);
 	const fileInputRef = useRef(null);
 	const macroStackRef = useRef(null);
 	const mountedRef = useRef(false);
 	const operationSessionRef = useRef(null);
 	const activeImportRef = useRef(null);
 	const activeExportRef = useRef(null);
+	const activeProfileRef = useRef(null);
 	const runningRef = useRef(null);
 	const stateProjectIdentityRef = useRef(projectIdentity);
 	if (operationSessionRef.current?.projectIdentity !== projectIdentity
@@ -73,6 +86,7 @@ export function AudioEditorMacroManagerDialog({
 			mountedRef.current = false;
 			activeImportRef.current = null;
 			activeExportRef.current = null;
+			activeProfileRef.current = null;
 			runningRef.current = null;
 		};
 	}, []);
@@ -81,11 +95,14 @@ export function AudioEditorMacroManagerDialog({
 		if (!isOpen) {
 			activeImportRef.current = null;
 			activeExportRef.current = null;
+			activeProfileRef.current = null;
 			runningRef.current = null;
 			setPicker(null);
 			setSelectedEffectId(null);
+			setPendingTemplateId(null);
 			setMessage('');
 			setIsRunning(false);
+			setIsCapturingProfile(false);
 		}
 	}, [isOpen]);
 
@@ -94,10 +111,12 @@ export function AudioEditorMacroManagerDialog({
 		stateProjectIdentityRef.current = projectIdentity;
 		activeImportRef.current = null;
 		activeExportRef.current = null;
+		activeProfileRef.current = null;
 		runningRef.current = null;
 		setMessage('');
 		setMessageState('info');
 		setIsRunning(false);
+		setIsCapturingProfile(false);
 	}, [projectIdentity]);
 
 	useLayoutEffect(() => {
@@ -137,11 +156,57 @@ export function AudioEditorMacroManagerDialog({
 			id: effect.id,
 			enabled: true,
 			...preservedMetadata,
+			...(changes.context !== undefined ? { context: changes.context } : {}),
 			params: changes.type
 				? changes.params
 				: { ...effect.params, ...(changes.params || {}) },
 		});
 	}));
+	const loadRestorationTemplate = () => {
+		setDraft(createEffectMacroTemplateDraft('restoration'));
+		setSelectedEffectId(null);
+		setMessage('');
+		setPendingTemplateId(null);
+	};
+	const requestRestorationTemplate = () => {
+		const name = typeof draft?.name === 'string' ? draft.name.trim() : '';
+		if (!effects.length && (!name || name === copy.untitledMacro)) {
+			loadRestorationTemplate();
+			return;
+		}
+		setPendingTemplateId('restoration');
+	};
+	const captureMacroNoiseProfile = async (effectId) => {
+		if (activeProfileRef.current) return;
+		const operation = startOperation(activeProfileRef);
+		setIsCapturingProfile(true);
+		try {
+			const effect = effects.find((candidate) => candidate.id === effectId);
+			if (!effect || effect.type !== 'audacity-noise-reduction') return;
+			const profile = await controller.actions.effects.captureNoiseProfile(effect.params);
+			if (!ownsOperation(activeProfileRef, operation)) return;
+			if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+				throw new Error(copy.audacitySelectionHint || copy.rackNoiseProfileMissing);
+			}
+			setEffects((current) => current.map((effect) => effect.id === effectId
+				? createEffect(effect.type, {
+					id: effect.id,
+					enabled: true,
+					params: effect.params,
+					context: { ...(effect.context || {}), noiseProfile: profile },
+				})
+				: effect));
+		} catch (cause) {
+			if (!ownsOperation(activeProfileRef, operation)) return;
+			const detail = cause instanceof Error ? cause.message : String(cause);
+			showMessage(`${copy.effectProcessingFailed || 'Noise profile capture failed.'} ${detail}`, 'error');
+		} finally {
+			if (ownsOperation(activeProfileRef, operation)) {
+				activeProfileRef.current = null;
+				setIsCapturingProfile(false);
+			}
+		}
+	};
 	const removeEffect = (effectId) => setEffects((current) => current.filter((effect) => effect.id !== effectId));
 	const reorderEffect = (fromIndex, toIndex) => {
 		if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= effects.length) return;
@@ -207,6 +272,10 @@ export function AudioEditorMacroManagerDialog({
 	};
 	const runMacro = async () => {
 		if (runningRef.current) return;
+		if (missingEmbeddedNoiseProfile) {
+			showMessage(templateCopy.profileRequired, 'warning');
+			return;
+		}
 		const operation = startOperation(runningRef);
 		setIsRunning(true);
 		showMessage(copy.macroProcessing);
@@ -232,7 +301,7 @@ export function AudioEditorMacroManagerDialog({
 	return (
 		<>
 			<AudioEditorDialogShell
-				isOpen={isOpen && !selectedEffect && !picker}
+				isOpen={isOpen && !selectedEffect && !picker && !pendingTemplateId}
 				title={copy.macroManager}
 				onClose={onClose}
 				width={680}
@@ -258,13 +327,17 @@ export function AudioEditorMacroManagerDialog({
 										<Icon name="export" size={16} />
 									</button>
 								</div>
-								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length} onClick={runMacro}>{copy.runMacro}</Button>
+								<Button variant="primary" icon={<Icon name="play" size={14} />} disabled={blocked || isRunning || !hasRunTarget || !effects.length || missingEmbeddedNoiseProfile} onClick={runMacro}>{copy.runMacro}</Button>
 							</div>
 						)}
 					/>
 				)}
 			>
 				<section className="audio-editor-macro-manager__content">
+					{restorationAvailable && <section className="audio-editor-macro-manager__templates" data-macro-templates>
+						<h3>{templateCopy.templates}</h3>
+						<Button variant="secondary" onClick={requestRestorationTemplate}>{templateCopy.restoration}</Button>
+					</section>}
 					<label className="audio-editor-field audio-editor-macro-manager__name">
 						<span>{copy.macroName}</span>
 						<TextInput value={draft?.name || ''} onChange={(name) => setDraft((current) => ({ ...current, name }))} width="100%" />
@@ -308,6 +381,7 @@ export function AudioEditorMacroManagerDialog({
 						{!effects.length && <p className="audio-editor-panel-hint" data-macro-empty>{copy.macroEmptyHint}</p>}
 					</div>
 					{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
+					{missingEmbeddedNoiseProfile && <p className="audio-editor-panel-hint" data-macro-noise-profile-required>{templateCopy.profileRequired}</p>}
 					{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden data-macro-import-file onChange={(event) => { void importMacro(takeSelectedFile(event.currentTarget)); }} />
 				</section>
@@ -331,8 +405,16 @@ export function AudioEditorMacroManagerDialog({
 							tracks={project?.tracks || []}
 							targetTrackId={snapshot.selectedTrackId}
 							hideControlTrack
+							captureNoiseProfile={restorationAvailable && selectedEffect.type === 'audacity-noise-reduction'
+								? () => captureMacroNoiseProfile(selectedEffect.id)
+								: undefined}
+							captureNoiseProfileDisabled={blocked || isCapturingProfile || !hasRunTarget}
+							noiseProfileLabel={selectedEffect.context?.noiseProfile
+								? copy.replaceNoiseProfile
+								: copy.getNoiseProfile}
 							onChange={(changes) => updateEffect(selectedEffect.id, changes)}
 						/>
+						{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					</section>
 				</AudioEditorDialogShell>
 			)}
@@ -354,6 +436,26 @@ export function AudioEditorMacroManagerDialog({
 					}}
 				/>
 			)}
+
+			<AudioEditorDialogShell
+				isOpen={isOpen && pendingTemplateId === 'restoration'}
+				title={templateCopy.replaceTitle}
+				onClose={() => setPendingTemplateId(null)}
+				width={480}
+				dataAttributes={{ 'data-macro-template-confirmation': 'restoration' }}
+				footer={(
+					<DialogFooter
+						rightContent={(
+							<div className="audio-editor-macro-manager__footer-actions">
+								<Button variant="secondary" onClick={() => setPendingTemplateId(null)}>{copy.cancel}</Button>
+								<Button variant="primary" onClick={loadRestorationTemplate}>{templateCopy.replaceAction}</Button>
+							</div>
+						)}
+					/>
+				)}
+			>
+				<p>{templateCopy.replaceDescription}</p>
+			</AudioEditorDialogShell>
 		</>
 	);
 }

@@ -10,6 +10,7 @@ export const MAXIMUM_WAVEFORM_VERTICAL_ZOOM = 8;
 export const MINIMUM_TRACK_HEIGHT = 40;
 export const DEFAULT_TRACK_HEIGHT = 114;
 export const RECORDING_INPUT_CONTROLS_HEIGHT = 24;
+export const AUTOMATION_CONTROLS_HEIGHT = 24;
 
 export type SpectrogramScale = 'linear' | 'logarithmic' | 'mel' | 'bark' | 'erb' | 'period';
 export type WaveformRulerFormat = 'linear-db';
@@ -135,13 +136,25 @@ export function trackVisualHeight(
 	track: Pick<TimelineTrackGeometry, 'type' | 'height'> | null | undefined,
 	showArmControls = false,
 	heightOverride?: number,
+	showAutomationControls = false,
 ): number {
 	const expandedHeight = Math.max(
 		MINIMUM_TRACK_HEIGHT,
 		Number(heightOverride ?? track?.height) || DEFAULT_TRACK_HEIGHT,
 	);
-	if (!showArmControls || track?.type !== 'audio') return expandedHeight;
-	return expandedHeight + RECORDING_INPUT_CONTROLS_HEIGHT;
+	return expandedHeight + trackOptionalControlsHeight(
+		track, showArmControls, showAutomationControls,
+	);
+}
+
+export function trackOptionalControlsHeight(
+	track: Pick<TimelineTrackGeometry, 'type'> | null | undefined,
+	showArmControls = false,
+	showAutomationControls = false,
+): number {
+	if (track?.type !== 'audio') return 0;
+	return (showArmControls ? RECORDING_INPUT_CONTROLS_HEIGHT : 0)
+		+ (showAutomationControls ? AUTOMATION_CONTROLS_HEIGHT : 0);
 }
 
 export function linearToDb(value: number): number {

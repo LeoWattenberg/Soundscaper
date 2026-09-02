@@ -1,0 +1,123 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] {
+	display: grid;
+	gap: 14px;
+	min-width: 0;
+	padding: 14px;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-panel);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] legend {
+	padding: 0 6px;
+	color: var(--kw-editor-text);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	.kw-audio-editor-dialog__field > span {
+	color: var(--kw-editor-text);
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] .kw-audio-editor-dialog__actions {
+	display: flex;
+	align-items: end;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] > .kw-audio-editor-dialog__actions
+	.kw-audio-editor-dialog__field {
+	flex: 1 1 220px;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] button {
+	min-height: 34px;
+	padding: 7px 12px;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+	font: inherit;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] button:hover:not(:disabled) {
+	background: var(--kw-toolbar-button-hover, var(--kw-editor-stage-raised));
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] button:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] > form {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: end;
+	gap: 8px;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] section {
+	display: grid;
+	gap: 10px;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] section > form {
+	display: grid;
+	gap: 10px;
+	padding: 12px;
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 6px;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	[data-soundscaper-mastering-sequence-editor] :is(h4, h5, p) {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+	.kw-audio-editor-dialog__field > textarea {
+	width: 100%;
+	min-height: 72px;
+	padding: 7px 10px;
+	resize: vertical;
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 5px;
+	font: 12px/1.45 var(--kw-editor-monospace, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+}
+
+@media (max-width: 640px) {
+	#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+		[data-soundscaper-mastering-sequence-editor] > form {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (forced-colors: active) {
+	#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+		[data-soundscaper-mastering-sequence-editor],
+	#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+		[data-soundscaper-mastering-sequence-editor] :is(button, section > form),
+	#kw-audio-editor-design-system [data-soundscaper-mastering-sequence-dialog]
+		.kw-audio-editor-dialog__field > textarea {
+		border-color: CanvasText;
+	}
+}

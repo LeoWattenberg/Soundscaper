@@ -161,7 +161,8 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await title.fill('Edited launch title');
 		await title.press('Tab');
 		await expect(title).toHaveValue('Edited launch title');
-		const end = proposal.getByRole('spinbutton', { name: 'End frame', exact: true });
+		const end = proposal.getByRole('group', { name: 'End frame', exact: true })
+			.locator('..').locator('[data-timecode-direct-entry]');
 		await end.fill('41000');
 		await end.press('Tab');
 		await expect(end).toHaveValue('40000');

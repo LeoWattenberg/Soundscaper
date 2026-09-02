@@ -20,7 +20,7 @@ import { useDesktopEditorBridge } from './useDesktopEditorBridge.js';
 import { useScapeOpenDecisionContinuation } from './useScapeOpenDecisionContinuation.ts';
 import { useWorkspaceParityRequests } from './useWorkspaceParityRequests.js';
 import { useWorkspaceSearchRuntime } from './useWorkspaceSearchRuntime.js'; import { useWorkspaceAssistanceSearchRuntime } from './useWorkspaceAssistanceSearchRuntime.js';
-import { useSoundscaperProductionWorkspace } from './useSoundscaperProductionWorkspace.ts';
+import { useSoundscaperWorkflowWorkspace } from '../soundscaper-workflow-product-runtime.tsx';
 import { useTrackRateDialog } from './useTrackRateDialog.js';
 import { useWorkspaceThemePreference } from './useWorkspaceThemePreference.js';
 import {
@@ -261,7 +261,7 @@ export default function AudioEditorWorkspace({
 		}
 		setActiveSurface(surface);
 	}, [fileService.isDesktop, setActiveSurface]);
-	const soundscaperProduction = useSoundscaperProductionWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
+	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
 
 	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {
 		if (!trackId && scope !== 'master') return;
@@ -433,7 +433,7 @@ export default function AudioEditorWorkspace({
 		setNyquistTarget,
 		setShowArmControls,
 		showArmControls,
-		soundscaperProduction,
+		soundscaperWorkflow,
 		snapshot,
 		toggleFullscreen,
 		toggleRecording,
@@ -583,7 +583,7 @@ export default function AudioEditorWorkspace({
 		setShowArmControls,
 		settleScapeOpenDecision,
 		showArmControls,
-		soundscaperProduction,
+		soundscaperWorkflow,
 		snapshot,
 		statusMessage,
 		statusState,

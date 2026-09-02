@@ -8,6 +8,7 @@ import { normalizeBcp47Locale } from '../i18n/locale.js';
 
 export const AUDACITY_TRACK_CONTEXT_ACTION_IDS = Object.freeze({
 	showArmControls: 'local://show-arm-controls',
+	addAutomation: 'local://add-automation',
 	duplicate: 'duplicate-track',
 	moveTop: 'track-move-top',
 	moveUp: 'track-move-up',

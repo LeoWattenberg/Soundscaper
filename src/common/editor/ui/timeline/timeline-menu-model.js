@@ -1,8 +1,10 @@
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
 import { trackSourceChannelCount, trackSources } from '../application-menu-model.js';
-import { createSoundscaperProductionApplicationMenuItems } from '../soundscaper-production-application-menu.ts';
+import {
+	createSoundscaperWorkflowApplicationMenuItems,
+	resolveTrackAutomationCopy,
+} from '../soundscaper-workflow-product-runtime.tsx';
 import { createTakeCompApplicationMenuItems } from '../take-comp-application-menu.ts';
-import { resolveSoundscaperFreezeStatus, selectedTrackAutomationLaneId } from '../workspace/useSoundscaperProductionWorkspace.ts';
 import { mediaTrackBlockBounds } from '../timeline-track-block-geometry.ts';
 import {
 	DEFAULT_WAVEFORM_RULER_STATE,
@@ -39,7 +41,8 @@ export function createTimelineMenuModel({
 	menuActions,
 	onOpenSurface,
 	onOpenTrackRate,
-	soundscaperProduction,
+	automationControls,
+	freezeRuntime,
 	productId,
 	capabilities,
 }) {
@@ -112,7 +115,7 @@ export function createTimelineMenuModel({
 	] : [];
 	const trackOverflowItems = menuTrack ? createTrackOverflowItems({
 		controller, project, track: menuTrack, copy, productId, capabilities,
-		mutationsBlocked, run, onOpenSurface, onOpenTrackRate, soundscaperProduction,
+		mutationsBlocked, run, onOpenSurface, onOpenTrackRate, freezeRuntime,
 	}) : [];
 	const trackMenuItems = menuTrack ? [
 		...(menuTrack.type === 'audio' ? [
@@ -120,6 +123,13 @@ export function createTimelineMenuModel({
 				checked: showArmControls,
 				onClick: onToggleArmControls,
 			}, contextLocale, unavailableReason),
+			...(automationControls?.targetsByTrackId.has(menuTrack.id) ? [
+				manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.addAutomation, resolveTrackAutomationCopy(contextLocale).addAutomation, {
+					id: 'track-add-automation',
+					checked: automationControls.isVisible(menuTrack.id),
+					onClick: () => automationControls.toggle(menuTrack.id),
+				}, contextLocale, unavailableReason),
+			] : []),
 			{ divider: true, label: '' },
 		] : []),
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.duplicate, copy.duplicateTrack, {
@@ -248,7 +258,7 @@ export function createTimelineMenuModel({
 
 function createTrackOverflowItems({
 	controller, project, track, copy, productId, capabilities, mutationsBlocked, run, onOpenSurface, onOpenTrackRate,
-	soundscaperProduction,
+	freezeRuntime,
 }) {
 	const audioTrack = track.type === 'audio' ? track : null;
 	const sources = trackSources(project, audioTrack);
@@ -258,36 +268,20 @@ function createTrackOverflowItems({
 	const compatibleMonoTrack = channelCount === 1 && project.tracks.some((candidate) => (
 		candidate.id !== track.id && candidate.type === 'audio' && trackSourceChannelCount(project, candidate) === 1
 	));
-	const selectTrack = () => controller.actions.timeline.selectTrack(track.id);
-	const freezeActions = controller.actions.audioFreeze;
-	const production = createSoundscaperProductionApplicationMenuItems({
+	const workflow = createSoundscaperWorkflowApplicationMenuItems({
 		productId,
 		capabilities,
 		project,
 		selectedTrackId: track.id,
-		automationMode: soundscaperProduction?.automationMode
-			?? controller.actions.audioAutomation?.getSnapshot?.().mode,
-		freezeStatus: resolveSoundscaperFreezeStatus(controller, project, track.id),
-		freezeActionsAvailable: ['freeze', 'refresh', 'unfreeze', 'commit'].every((name) => (
-			typeof freezeActions?.[name] === 'function'
-		)),
+		freezeStatus: freezeRuntime?.freezeStatusForTrack?.(track.id)
+			?? freezeRuntime?.freezeStatus,
+		freezeActionsAvailable: freezeRuntime?.freezeActionsAvailable === true,
 		editingBlocked: mutationsBlocked,
 		readOnly: false,
 		copy,
 	}, {
-		open: (surface) => {
-			run(selectTrack);
-			onOpenSurface?.(`soundscaper-production:${surface}`);
-		},
-		setAutomationMode: (mode) => run(() => {
-			const laneId = selectedTrackAutomationLaneId(project, track.id);
-			return soundscaperProduction?.setAutomationMode
-				? soundscaperProduction.setAutomationMode(mode, laneId)
-				: controller.actions.audioAutomation?.setMode(mode, laneId);
-		}),
-		freeze: (operation, trackId) => run(() => soundscaperProduction?.freeze
-			? soundscaperProduction.freeze(operation, trackId)
-			: freezeActions?.[operation]?.(trackId)),
+		openMasteringSequences: () => onOpenSurface?.('mastering-sequences'),
+		freeze: (operation, trackId) => run(() => freezeRuntime?.freeze(operation, trackId)),
 	});
 	const takeComp = createTakeCompApplicationMenuItems({
 		productId,
@@ -308,7 +302,7 @@ function createTrackOverflowItems({
 			},
 		],
 		audio: audioTrack ? [
-			...production.tracks,
+			...workflow.tracks,
 			...takeComp,
 			// Sample rate, sample format, and channel layout are audio-effect work:
 			// their handlers refuse outright on a product without that capability,

@@ -23,6 +23,9 @@ export interface KnobProps {
    * Change handler
    */
   onChange?: (value: number) => void;
+  onGestureStart?: (value: number) => void;
+  onGestureEnd?: (value: number) => void;
+  onGestureCancel?: () => void;
   /**
    * Label for the knob
    */
@@ -59,6 +62,9 @@ export const Knob: React.FC<KnobProps> = ({
   max = 100,
   step = 1,
   onChange,
+  onGestureStart,
+  onGestureEnd,
+  onGestureCancel,
   label,
   className = '',
   disabled = false,
@@ -69,10 +75,19 @@ export const Knob: React.FC<KnobProps> = ({
 }) => {
   const { theme } = useTheme();
   const knobRef = useRef<HTMLButtonElement>(null);
+  const gestureEndRef = useRef(onGestureEnd);
+  gestureEndRef.current = onGestureEnd;
+  const gestureCancelRef = useRef(onGestureCancel);
+  gestureCancelRef.current = onGestureCancel;
   const [isDragging, setIsDragging] = useState(false);
   const dragStartXRef = useRef<number>(0);
   const dragStartYRef = useRef<number>(0);
   const dragStartValueRef = useRef<number>(0);
+  const gestureValueRef = useRef<number>(value);
+  const keyGestureRef = useRef(false);
+  const dragGestureRef = useRef(false);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const dragCaptureTargetRef = useRef<HTMLButtonElement | null>(null);
 
   // Clamp value to min/max
   const clampedValue = Math.max(min, Math.min(max, value));
@@ -139,65 +154,129 @@ export const Knob: React.FC<KnobProps> = ({
     ) {
       e.preventDefault();
       e.stopPropagation();
+      if (!keyGestureRef.current) {
+        keyGestureRef.current = true;
+        gestureValueRef.current = clampedValue;
+        onGestureStart?.(clampedValue);
+      }
       const direction = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : -1;
       const stepSize = e.shiftKey ? step * 10 : step;
       const newValue = Math.max(min, Math.min(max, clampedValue + direction * stepSize));
-      if (newValue !== clampedValue) onChange(newValue);
+      if (newValue !== clampedValue) {
+        gestureValueRef.current = newValue;
+        onChange(newValue);
+      }
+    } else if (e.key === 'Escape' && keyGestureRef.current) {
+      e.preventDefault();
+      keyGestureRef.current = false;
+      onGestureCancel?.();
     }
   };
 
-  // Handle mouse drag
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (disabled || !onChange) return;
+  const finishKeyGesture = (e?: React.KeyboardEvent) => {
+    if (e && !['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'].includes(e.key)) return;
+    if (!keyGestureRef.current) return;
+    keyGestureRef.current = false;
+    onGestureEnd?.(gestureValueRef.current);
+  };
+
+  const releaseCapturedPointer = React.useCallback((pointerId: number | null) => {
+    const target = dragCaptureTargetRef.current ?? knobRef.current;
+    dragCaptureTargetRef.current = null;
+    if (pointerId === null || !target) return;
+    try {
+      if (target.hasPointerCapture(pointerId)) {
+        target.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // The browser may already have released capture while dispatching a terminal event.
+    }
+  }, []);
+
+  const settleDrag = React.useCallback((
+    outcome: 'commit' | 'cancel',
+    pointerId?: number,
+  ) => {
+    if (!dragGestureRef.current) return;
+    const activePointerId = dragPointerIdRef.current;
+    if (pointerId !== undefined && pointerId !== activePointerId) return;
+    dragGestureRef.current = false;
+    dragPointerIdRef.current = null;
+    setIsDragging(false);
+    releaseCapturedPointer(activePointerId);
+    if (outcome === 'commit') gestureEndRef.current?.(gestureValueRef.current);
+    else gestureCancelRef.current?.();
+  }, [releaseCapturedPointer]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled || !onChange || e.button !== 0 || e.isPrimary === false
+      || dragGestureRef.current) return;
     e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      return;
+    }
     setIsDragging(true);
+    dragGestureRef.current = true;
+    dragPointerIdRef.current = e.pointerId;
+    dragCaptureTargetRef.current = e.currentTarget;
     dragStartXRef.current = e.clientX;
     dragStartYRef.current = e.clientY;
     dragStartValueRef.current = clampedValue;
+    gestureValueRef.current = clampedValue;
+    onGestureStart?.(clampedValue);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragGestureRef.current || dragPointerIdRef.current !== e.pointerId || !onChange) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Horizontal movement right and vertical movement up both increase the value.
+    const deltaX = e.clientX - dragStartXRef.current;
+    const deltaY = dragStartYRef.current - e.clientY;
+    const sensitivity = (max - min) / 200;
+    const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
+    let newValue = dragStartValueRef.current + deltaValue;
+    newValue = Math.round(newValue / step) * step;
+    newValue = Math.max(min, Math.min(max, newValue));
+
+    gestureValueRef.current = newValue;
+    onChange(newValue);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragPointerIdRef.current !== e.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    settleDrag('commit', e.pointerId);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragPointerIdRef.current !== e.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    settleDrag('cancel', e.pointerId);
   };
 
   React.useEffect(() => {
     if (!isDragging) return;
+    const handleWindowBlur = () => settleDrag('commit');
+    globalThis.addEventListener?.('blur', handleWindowBlur);
+    return () => globalThis.removeEventListener?.('blur', handleWindowBlur);
+  }, [isDragging, settleDrag]);
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!onChange) return;
-
-      // Calculate delta X (drag right increases, drag left decreases)
-      const deltaX = e.clientX - dragStartXRef.current;
-
-      // Calculate delta Y (inverted - drag up increases, drag down decreases)
-      const deltaY = dragStartYRef.current - e.clientY;
-
-      // Sensitivity: 200 pixels = full range
-      const sensitivity = (max - min) / 200;
-
-      // Apply whichever axis has moved further
-      const deltaValue = (Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY) * sensitivity;
-
-      // Calculate new value
-      let newValue = dragStartValueRef.current + deltaValue;
-
-      // Round to step
-      newValue = Math.round(newValue / step) * step;
-
-      // Clamp to range
-      newValue = Math.max(min, Math.min(max, newValue));
-
-      onChange(newValue);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, min, max, step, onChange]);
+  React.useEffect(() => () => {
+    const pointerId = dragPointerIdRef.current;
+    const gestureActive = dragGestureRef.current || keyGestureRef.current;
+    dragGestureRef.current = false;
+    dragPointerIdRef.current = null;
+    keyGestureRef.current = false;
+    releaseCapturedPointer(pointerId);
+    if (gestureActive) gestureCancelRef.current?.();
+  }, [releaseCapturedPointer]);
 
   return (
     <button
@@ -212,8 +291,14 @@ export const Knob: React.FC<KnobProps> = ({
       aria-valuemax={max}
       aria-valuenow={clampedValue}
       style={style}
-      onMouseDown={handleMouseDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onLostPointerCapture={(e) => settleDrag('cancel', e.pointerId)}
       onKeyDown={handleKeyDown}
+      onKeyUp={finishKeyGesture}
+      onBlur={() => finishKeyGesture()}
     >
       {/* Background gauge */}
       <div className="knob__gauge" />

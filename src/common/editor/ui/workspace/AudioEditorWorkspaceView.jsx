@@ -17,6 +17,7 @@ import WorkspacePanelDock from './WorkspacePanelDock.jsx';
 import AudioEditorWorkspaceOverlays from './AudioEditorWorkspaceOverlays.jsx';
 import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.ts';
 import { handleWorkspaceKeyboard } from '../workspace-shortcuts.ts';
+import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-runtime.tsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.webm,.wv';
 const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.txt,.srt,.vtt,text/plain,text/vtt,application/x-subrip`;
@@ -60,6 +61,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 		moveWorkspacePanel,
 		onError,
 		openEffects,
+		onRoutingGraphGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingGraphGestureHandler | undefined} */ (undefined),
+		onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined),
 		openTrackRate,
 		openProjectFile,
 		openSurface,
@@ -84,7 +87,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		setRecordingMeterSettings,
 		setShowArmControls,
 		showArmControls,
-		soundscaperProduction,
+		soundscaperWorkflow,
 		snapshot,
 		statusMessage,
 		statusState,
@@ -99,6 +102,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		workspaceRef,
 	} = model;
 	return (
+		<TrackAutomationRuntimeProvider runtime={soundscaperWorkflow?.automationRuntime}>
 		<div
 			ref={editorRef}
 			id="kw-audio-editor-design-system"
@@ -302,6 +306,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dock="left"
 					controller={controller}
 					snapshot={snapshot}
+					productId={productId}
+					capabilities={capabilities}
 					copy={copy}
 					aboutLabel={aboutLabel}
 					locale={locale}
@@ -311,6 +317,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					onRoutingGraphGesture={onRoutingGraphGesture}
+					onRoutingParameterGesture={onRoutingParameterGesture}
 					effectsPanelTarget={effectsPanelTarget}
 					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
@@ -352,7 +360,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
 						onOpenSurface={openSurface}
 						onOpenTrackRate={openTrackRate}
-						soundscaperProduction={soundscaperProduction}
+						automationRuntime={soundscaperWorkflow?.automationRuntime}
+						freezeRuntime={soundscaperWorkflow}
 						searchRevealRequest={timelineSearchReveal}
 						overlayTarget={editorOverlayTarget}
 					/>
@@ -362,6 +371,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dock="bottom"
 					controller={controller}
 					snapshot={snapshot}
+					productId={productId}
+					capabilities={capabilities}
 					copy={copy}
 					locale={locale}
 					fileService={fileService}
@@ -370,6 +381,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					onRoutingGraphGesture={onRoutingGraphGesture}
+					onRoutingParameterGesture={onRoutingParameterGesture}
 					effectsPanelTarget={effectsPanelTarget}
 					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
@@ -385,6 +398,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dock="right"
 					controller={controller}
 					snapshot={snapshot}
+					productId={productId}
+					capabilities={capabilities}
 					copy={copy}
 					locale={locale}
 					fileService={fileService}
@@ -393,6 +408,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					onRoutingGraphGesture={onRoutingGraphGesture}
+					onRoutingParameterGesture={onRoutingParameterGesture}
 					effectsPanelTarget={effectsPanelTarget}
 					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
@@ -428,6 +445,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dock="floating"
 					controller={controller}
 					snapshot={snapshot}
+					productId={productId}
+					capabilities={capabilities}
 					copy={copy}
 					locale={locale}
 					fileService={fileService}
@@ -436,6 +455,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					onOpenEffects={openEffects}
+					onRoutingGraphGesture={onRoutingGraphGesture}
+					onRoutingParameterGesture={onRoutingParameterGesture}
 					effectsPanelTarget={effectsPanelTarget}
 					onEffectWindowChange={setEffectWindow}
 					draggedPanelId={draggedWorkspacePanelId}
@@ -499,5 +520,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 			<EditorOverlayHost ref={setEditorOverlayTarget} />
 			<AudioEditorButtonTooltips rootRef={editorRef} />
 		</div>
+		</TrackAutomationRuntimeProvider>
 	);
 }

@@ -3,12 +3,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	RESTORATION_TOOL_CATALOG,
-	RESTORATION_WORKFLOW_POLICY,
-	compileRestorationWorkflowPlan,
-	normalizeRestorationWorkflow,
-} from '../src/common/editor/production-audio/restoration-workflow.ts';
-import {
 	METER_SESSION_POLICY,
 	createSessionStripMeterStore,
 } from '../src/common/editor/production-audio/strip-meter-session.ts';
@@ -26,102 +20,6 @@ import type { StripMeterAnalyserBankV21 } from '../src/common/editor/engine/stri
 import type { StripRef } from '../src/common/editor/parameter-address.ts';
 
 const track = (id: string): StripRef => ({ kind: 'track', id });
-
-test('restoration maps one bounded atomic workflow onto maintained Audacity processors', () => {
-	assert.deepEqual(
-		RESTORATION_TOOL_CATALOG.map(({ id, processorId }) => [id, processorId]),
-		[
-			['click-removal', 'audacity-click-removal'],
-			['noise-reduction', 'audacity-noise-reduction'],
-			['filter-curve-eq', 'audacity-filter-curve-eq'],
-			['clip-fix', 'nyquist:clipfix'],
-		],
-	);
-	const request = {
-		target: 'selection',
-		stages: [
-			{
-				id: 'clicks', tool: 'click-removal', enabled: true,
-				params: { threshold: 249.6, maximumWidth: 17.6 },
-			},
-			{
-				id: 'noise', tool: 'noise-reduction', enabled: true,
-				params: { reductionDb: 12, sensitivity: 6, frequencySmoothingBands: 4, output: 'reduce' },
-			},
-			{
-				id: 'tone', tool: 'filter-curve-eq', enabled: false,
-				params: {
-					points: [{ frequency: 80, gain: -12 }, { frequency: 12_000, gain: -2 }],
-					linearFrequencyScale: false,
-					filterLength: 4_095,
-				},
-			},
-			{
-				id: 'clipping', tool: 'clip-fix', enabled: true,
-				params: { thresholdPercent: 94, gainDb: -6 },
-			},
-		],
-	};
-	const workflow = normalizeRestorationWorkflow(request);
-	assert.notEqual(workflow, request);
-	assert.equal(workflow.stages[0]?.params.threshold, 250);
-	assert.equal(workflow.stages[0]?.params.maximumWidth, 18);
-	assert.ok(Object.isFrozen(workflow));
-	assert.ok(Object.isFrozen(workflow.stages[2]?.params.points));
-
-	const plan = compileRestorationWorkflowPlan(workflow);
-	assert.equal(plan.historyMode, 'single-transaction');
-	assert.deepEqual(plan.operations.map((operation) => operation.processorId), [
-		'audacity-click-removal',
-		'audacity-noise-reduction',
-		'nyquist:clipfix',
-	]);
-	assert.equal(plan.operations[1]?.requiresNoiseProfile, true);
-	assert.deepEqual(plan.operations[2]?.params, { THRESHOLD: 94, GAIN: -6 });
-	assert.deepEqual(RESTORATION_WORKFLOW_POLICY.projectFields, []);
-	assert.deepEqual(RESTORATION_WORKFLOW_POLICY.exportTransforms, []);
-});
-
-test('restoration rejects duplicate, unbounded, unsupported, and hostile requests without invoking accessors', () => {
-	const stage = { id: 'one', tool: 'click-removal', enabled: true, params: {} };
-	assert.throws(() => normalizeRestorationWorkflow({
-		target: 'selection', stages: [stage, stage],
-	}), /unique/iu);
-	assert.throws(() => normalizeRestorationWorkflow({
-		target: 'selection', stages: Array.from({ length: 17 }, (_, index) => ({
-			...stage, id: `stage-${String(index)}`,
-		})),
-	}), /through 16/iu);
-	assert.throws(() => normalizeRestorationWorkflow({
-		target: 'selection', stages: [{ ...stage, tool: 'de-hum' }],
-	}), /supported restoration tool/iu);
-	assert.throws(() => normalizeRestorationWorkflow({
-		target: 'rack', stages: [{ ...stage, tool: 'clip-fix' }],
-	}), /selection only/iu);
-	assert.throws(() => normalizeRestorationWorkflow({
-		target: 'selection', stages: [{
-			...stage,
-			params: { threshold: 901 },
-		}],
-	}), /between 0 and 900/iu);
-	assert.throws(() => normalizeRestorationWorkflow({
-		target: 'selection', stages: [{
-			...stage,
-			tool: 'filter-curve-eq',
-			params: { points: Array.from({ length: 129 }, (_, index) => ({ frequency: index + 1, gain: 0 })) },
-		}],
-	}), /through 128/iu);
-
-	let reads = 0;
-	const hostile = Object.create(null) as Record<string, unknown>;
-	Object.defineProperty(hostile, 'target', {
-		enumerable: true,
-		get() { reads += 1; return 'selection'; },
-	});
-	Object.defineProperty(hostile, 'stages', { enumerable: true, value: [] });
-	assert.throws(() => normalizeRestorationWorkflow(hostile), /data property/iu);
-	assert.equal(reads, 0);
-});
 
 test('per-strip session meters report mono, stereo phase references, and declared surround geometry', () => {
 	const meters = createSessionStripMeterStore({ maximumStrips: 8, maximumFramesPerUpdate: 16 });

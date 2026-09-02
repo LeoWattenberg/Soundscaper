@@ -7,9 +7,9 @@ import type {
 	DocumentMasteringSequenceRegionSnapshot,
 	DocumentMasteringSequenceSnapshot,
 } from '../../controller/document-mastering-sequence-snapshot.ts';
-import type { SoundscaperProductionCopy } from '../soundscaper-production-copy.ts';
+import type { SoundscaperMasteringSequenceCopy } from '../soundscaper-mastering-sequence-copy.ts';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
-import type { MasteringSequenceDialogOperation } from './SoundscaperProductionDialog.tsx';
+import type { MasteringSequenceDialogOperation } from './soundscaper-mastering-sequence-operation.ts';
 
 /**
  * Authoring the order a delivery realizes.
@@ -75,7 +75,7 @@ export function masteringSequenceEntryApplyOperation(input: Readonly<{
 }
 
 interface SoundscaperMasteringSequenceEditorProps {
-	readonly copy: SoundscaperProductionCopy;
+	readonly copy: SoundscaperMasteringSequenceCopy;
 	readonly disabled: boolean;
 	readonly sequences: readonly DocumentMasteringSequenceSnapshot[];
 	readonly regions: readonly DocumentMasteringSequenceRegionSnapshot[];
@@ -100,6 +100,7 @@ export default function SoundscaperMasteringSequenceEditor({
 			<label className="kw-audio-editor-dialog__field">
 				<span>{copy.masteringSequence}</span>
 				<select
+					data-mastering-sequence-picker
 					value={sequence?.id ?? ''}
 					onChange={(event) => setSelectedId(event.currentTarget.value)}
 				>
@@ -185,7 +186,7 @@ function entryFormKey(sequenceId: string, entry: DocumentMasteringSequenceEntryS
 }
 
 function EntryEditor({ copy, entry, index, lastIndex, sequenceId, sampleRate, onOperation }: Readonly<{
-	copy: SoundscaperProductionCopy;
+	copy: SoundscaperMasteringSequenceCopy;
 	entry: DocumentMasteringSequenceEntrySnapshot;
 	index: number;
 	lastIndex: number;

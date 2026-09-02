@@ -4,17 +4,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createEffectMacroService } from '../src/common/editor/controller/effect-macro-service.ts';
+import { createEffectMacroTemplateDraft } from '../src/common/editor/effect-macro-templates.ts';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/lifecycle.ts';
 import type { EffectTarget } from '../src/common/editor/controller/effect-selection-service.ts';
 import { projectGraphLatencyFramesV21 } from '../src/common/editor/engine/project-graph-v21.ts';
 import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
-import type { SoundscaperProductionDialogOperation } from '../src/common/editor/ui/dialogs/SoundscaperProductionDialog.tsx';
-import {
-	executeSoundscaperProductionOperation,
-	type SoundscaperProductionControllerPort,
-} from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 function deferred<Value>() {
@@ -166,24 +162,14 @@ test('V21 macro rendering isolates the selected track through the exact engine g
 			assert.doesNotThrow(() => projectGraphLatencyFramesV21(snapshot as never, { includeMaster: false }));
 		},
 	});
-	const controller: SoundscaperProductionControllerPort = {
-		actions: {
-			edit: { commit: () => undefined },
-			macros: { run: (request) => harness.service.runEffectMacro(request as never) },
-		},
-	};
-	const pending = Promise.resolve(executeSoundscaperProductionOperation(
-		controller,
-		{
-			type: 'restoration/apply',
-			workflow: {
-				target: 'selection',
-				stages: [{ id: 'clicks', tool: 'click-removal', enabled: true, params: {} }],
-			},
-		} satisfies SoundscaperProductionDialogOperation,
-		() => undefined,
-		'track-a',
-	));
+	const restoration = createEffectMacroTemplateDraft('restoration', {
+		idFactory: (prefix, index) => `${prefix}-${index ?? 0}`,
+	});
+	const pending = harness.service.runEffectMacro({
+		name: restoration.name,
+		trackId: 'track-a',
+		effects: [restoration.effects[0]!],
+	});
 	harness.render.resolve({ channels: [new Float32Array([0.25, 0.5])] });
 	assert.equal(await pending, true);
 

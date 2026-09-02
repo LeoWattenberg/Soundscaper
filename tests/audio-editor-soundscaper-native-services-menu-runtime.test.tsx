@@ -367,7 +367,6 @@ function workspaceMenuInput(productId: string, desktopHostRuntime: DesktopHostMe
 		setNyquistTarget: () => {},
 		setShowArmControls: () => {},
 		showArmControls: false,
-		soundscaperProduction: null,
 		snapshot: {
 			preferences: {
 				workspace: {

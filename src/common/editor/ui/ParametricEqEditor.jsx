@@ -40,6 +40,7 @@ export function ParametricEqEditor({
 	onCancel,
 	onAudition,
 	readSpectrum,
+	parameterAutomation,
 }) {
 	const normalized = useMemo(
 		() => normalizeParametricEqParams(params, effectId),
@@ -160,7 +161,11 @@ export function ParametricEqEditor({
 		}, effectId);
 		setDraft(next);
 		if (dragRef.current) dragRef.current.latest = next;
-		if (preview) queuePreview(next);
+		if (preview && dragRef.current?.automationParameter) {
+			const parameterId = dragRef.current.automationParameter;
+			const controlValue = next.bands.find((band) => band.id === bandId)?.[parameterId];
+			if (Number.isFinite(controlValue)) parameterAutomation?.preview(parameterId, bandId, controlValue);
+		} else if (preview) queuePreview(next);
 		return next;
 	};
 
@@ -175,6 +180,15 @@ export function ParametricEqEditor({
 		event.preventDefault();
 		event.stopPropagation();
 		setSelectedId(band.id);
+		const automationParameter = [
+			'frequency', ...(bandUsesGain(band.type) ? ['gain'] : []),
+		].find((parameterId) => (
+			Number.isFinite(band[parameterId])
+			&& parameterAutomation?.captureAvailable(parameterId, band.id)
+		)) || null;
+		if (automationParameter) parameterAutomation.begin(
+			automationParameter, band.id, band[automationParameter],
+		);
 		dragRef.current = {
 			bandId: band.id,
 			start: draft,
@@ -182,8 +196,9 @@ export function ParametricEqEditor({
 			startBand: band,
 			startX: event.clientX,
 			startY: event.clientY,
+			automationParameter,
 		};
-		onGestureBegin?.(draft);
+		if (!automationParameter) onGestureBegin?.(draft);
 		event.currentTarget.setPointerCapture?.(event.pointerId);
 	};
 
@@ -221,14 +236,19 @@ export function ParametricEqEditor({
 	const finishDrag = (event) => {
 		if (!dragRef.current) return;
 		event.currentTarget.releasePointerCapture?.(event.pointerId);
-		const latest = dragRef.current.latest;
+		const drag = dragRef.current;
+		const latest = drag.latest;
 		dragRef.current = null;
 		if (previewFrameRef.current) {
 			cancelAnimationFrame(previewFrameRef.current);
 			previewFrameRef.current = 0;
 		}
 		pendingPreviewRef.current = null;
-		commit(latest);
+		if (drag.automationParameter) {
+			const value = latest.bands.find((band) => band.id === drag.bandId)?.[drag.automationParameter];
+			if (Number.isFinite(value)) parameterAutomation?.release(drag.automationParameter, drag.bandId, value);
+			setDraft(drag.start);
+		} else commit(latest);
 	};
 
 	const cancelGesture = () => {
@@ -241,8 +261,12 @@ export function ParametricEqEditor({
 		previewFrameRef.current = 0;
 		pendingPreviewRef.current = null;
 		const start = drag?.start || outputGesture.start;
+		const automationParameter = drag?.automationParameter || outputGesture?.automationParameter;
+		if (automationParameter) parameterAutomation?.cancel(
+			automationParameter, drag?.bandId ?? null,
+		);
 		setDraft(start);
-		onCancel?.(start);
+		if (!automationParameter) onCancel?.(start);
 	};
 
 	const addBand = (event) => {
@@ -290,6 +314,14 @@ export function ParametricEqEditor({
 		commit(next, true);
 	};
 
+	const beginOutputGain = () => {
+		if (outputGestureRef.current) return;
+		const automationParameter = parameterAutomation?.captureAvailable('outputGain', null)
+			? 'outputGain' : null;
+		if (automationParameter) parameterAutomation.begin('outputGain', null, draft.outputGain);
+		else onGestureBegin?.(draft);
+		outputGestureRef.current = { start: draft, latest: draft, automationParameter };
+	};
 	const finishOutputGain = (event) => {
 		const gesture = outputGestureRef.current;
 		if (!gesture) return;
@@ -299,15 +331,25 @@ export function ParametricEqEditor({
 		if (previewFrameRef.current) cancelAnimationFrame(previewFrameRef.current);
 		previewFrameRef.current = 0;
 		pendingPreviewRef.current = null;
-		commit(latest);
+		if (gesture.automationParameter) {
+			parameterAutomation?.release('outputGain', null, latest.outputGain);
+			setDraft(gesture.start);
+		} else commit(latest);
 	};
 
 	const setSelectedValue = (key, rawValue) => {
 		if (!selectedBand) return;
 		const value = key === 'type' || key === 'enabled' ? rawValue : Number(rawValue);
+		if (parameterAutomation?.performAtomic(
+			key, selectedBand.id, automationValue(key, value),
+		)) return;
 		const next = replaceBand(selectedBand.id, { [key]: value });
 		commit(next, true);
 	};
+	const automateBandChanges = (band, changes) => Object.entries(changes).some(([key, value]) => (
+		Number.isFinite(Number(value))
+		&& parameterAutomation?.performAtomic(key, band.id, automationValue(key, value))
+	));
 
 	const handleBandKeyDown = (event, band) => {
 		if (disabled) return;
@@ -333,6 +375,7 @@ export function ParametricEqEditor({
 		} else {
 			changes.q = band.q * 2 ** ((event.key === 'ArrowUp' ? 1 : -1) * fine / 12);
 		}
+		if (automateBandChanges(band, changes)) return;
 		const next = replaceBand(band.id, changes);
 		commit(next, true);
 	};
@@ -342,6 +385,7 @@ export function ParametricEqEditor({
 		event.preventDefault();
 		setSelectedId(band.id);
 		const factor = 2 ** (-Math.sign(event.deltaY) * (event.shiftKey ? 1 / 48 : 1 / 12));
+		if (parameterAutomation?.performAtomic('q', band.id, band.q * factor)) return;
 		const next = replaceBand(band.id, { q: clamp(band.q * factor, MIN_Q, MAX_Q) });
 		commit(next, true);
 	};
@@ -440,34 +484,32 @@ export function ParametricEqEditor({
 			)}
 
 			<label className="audio-editor-parametric-eq__output">
-				<span>{copy.eqOutputGain || 'Output gain'} (dB)</span>
-				<input disabled={disabled} type="range" min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onPointerDown={(event) => {
-					if (!outputGestureRef.current) {
-						outputGestureRef.current = { start: draft, latest: draft };
-						onGestureBegin?.(draft);
-					}
-					event.currentTarget.setPointerCapture?.(event.pointerId);
-				}} onFocus={() => {
-					if (!outputGestureRef.current) {
-						outputGestureRef.current = { start: draft, latest: draft };
-						onGestureBegin?.(draft);
-					}
-				}} onChange={(event) => {
-					const next = normalizeParametricEqParams({ ...draft, outputGain: Number(event.currentTarget.value) }, effectId);
-					setDraft(next);
-					if (outputGestureRef.current) outputGestureRef.current.latest = next;
-					queuePreview(next);
-				}} onPointerUp={finishOutputGain} onPointerCancel={cancelGesture} onKeyDown={(event) => {
-					if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)
-						&& !outputGestureRef.current) {
-						outputGestureRef.current = { start: draft, latest: draft };
-						onGestureBegin?.(draft);
-					}
+					<span>{copy.eqOutputGain || 'Output gain'} (dB)</span>
+					<input disabled={disabled} type="range" min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onPointerDown={(event) => {
+						beginOutputGain();
+						event.currentTarget.setPointerCapture?.(event.pointerId);
+					}} onChange={(event) => {
+						const standalone = !outputGestureRef.current;
+						if (standalone && parameterAutomation?.performAtomic(
+							'outputGain', null, Number(event.currentTarget.value),
+						)) return;
+						if (standalone) beginOutputGain();
+						const next = normalizeParametricEqParams({ ...draft, outputGain: Number(event.currentTarget.value) }, effectId);
+						setDraft(next);
+						if (outputGestureRef.current) outputGestureRef.current.latest = next;
+						if (outputGestureRef.current?.automationParameter) {
+							parameterAutomation?.preview('outputGain', null, next.outputGain);
+						} else queuePreview(next);
+						if (standalone) finishOutputGain();
+					}} onPointerUp={finishOutputGain} onPointerCancel={cancelGesture} onKeyDown={(event) => {
+						if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)
+							&& !outputGestureRef.current) beginOutputGain();
 				}} onKeyUp={(event) => {
 					if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) finishOutputGain();
 				}} onBlur={finishOutputGain} />
-				<ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
-					const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);
+					<ParametricEqNumericInput disabled={disabled} min={MIN_GAIN} max={MAX_GAIN} step="0.1" value={draft.outputGain} onCommit={(value) => {
+						if (parameterAutomation?.performAtomic('outputGain', null, value)) return;
+						const next = normalizeParametricEqParams({ ...draft, outputGain: value }, effectId);
 					setDraft(next);
 					commit(next, true);
 				}} />
@@ -486,6 +528,12 @@ function bandUsesQ(type) {
 
 function bandUsesSlope(type) {
 	return type === 'highpass' || type === 'lowpass';
+}
+
+function automationValue(key, value) {
+	if (key === 'enabled') return value ? 1 : 0;
+	if (key === 'type') return Math.max(0, BAND_TYPES.findIndex(([type]) => type === value));
+	return Number(value);
 }
 
 function createBandId(effectId, bands) {

@@ -40,7 +40,7 @@ test('feeds an accepted native latency through send, group, sidechain and master
 	assert.equal(plan.nodeOutputLatencyFrames.get('master'), 1_376);
 	assert.equal(plan.outputLatencyFrames.get('main'), 1_376);
 	assert.deepEqual([...plan.edgeCompensationFrames].sort(byKey), [
-		['bus-master', 0], ['master-main', 0], ['music-bus', 1_040], ['music-ducks-verb', 528],
+		['bus-master', 0], ['master-main', 0], ['music-bus', 1_040], ['music-ducks-verb', 1_040],
 		['verb-bus', 0], ['voice-bus', 560], ['voice-verb', 0],
 	]);
 	assert.equal(plan.latencyFrames, 1_376);
@@ -476,13 +476,14 @@ function verbEffects(value: unknown): MutableEffect[] {
 
 /**
  * voice and music merge at a group, voice also feeds a send whose rack carries a
- * plain limiter ahead of the native effect, and music ducks that native effect
- * through an explicit sidechain — so one native latency has to align an output,
- * a group, a send and a sidechain at once.
+ * plain limiter ahead of the native effect and a gate after it. Music keys that
+ * gate through an explicit sidechain, so one native latency has to align an
+ * output, a group, a send and a sidechain at once.
  */
 function project(options: { native?: boolean; sidechainEffectId?: string } = {}): MutableProject {
 	const verb: MutableEffect[] = [{ id: 'verb-pre', type: 'limiter', enabled: true, params: { lookahead: 0.001 } }];
 	if (options.native !== false) verb.push({ id: 'verb-native', type: 'native-effect-host' });
+	verb.push({ id: 'verb-gate', type: 'gate', enabled: true, params: { threshold: -30 } });
 	return {
 		sampleRate: SAMPLE_RATE,
 		tracks: [
@@ -510,7 +511,7 @@ function project(options: { native?: boolean; sidechainEffectId?: string } = {})
 				edge('music-ducks-verb', { kind: 'track', id: 'music' }, {
 					kind: 'effect-sidechain',
 					strip: { kind: 'mixer-node', id: 'verb' },
-					effectId: options.sidechainEffectId ?? 'verb-native',
+					effectId: options.sidechainEffectId ?? 'verb-gate',
 				}, 'sidechain'),
 			],
 		},

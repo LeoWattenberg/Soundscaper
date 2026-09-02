@@ -66,8 +66,8 @@ export interface TimeCodeProps {
   ariaLabel?: string;
   /** Accessible name for the optional format menu button. */
   formatAriaLabel?: string;
-  /** Optional localized value spoken instead of the rendered digit groups. */
-  ariaValueText?: string;
+  /** Optional localized description of the rendered digit groups. */
+  ariaDescription?: string;
   /** IDs of explanatory content for this editable time value. */
   ariaDescribedBy?: string;
   /**
@@ -138,7 +138,7 @@ interface TimeCodeSegment {
 export function TimeCode({
   ariaLabel = 'Time code',
   formatAriaLabel = 'Time code format',
-  ariaValueText,
+  ariaDescription,
   ariaDescribedBy,
   value,
   format = 'hh:mm:ss',
@@ -454,7 +454,7 @@ export function TimeCode({
       role="group"
       aria-label={ariaLabel}
       aria-disabled={disabled}
-      aria-valuetext={ariaValueText}
+      aria-description={ariaDescription}
       aria-describedby={ariaDescribedBy}
       tabIndex={0}
       onKeyDown={handleContainerKeyDown}

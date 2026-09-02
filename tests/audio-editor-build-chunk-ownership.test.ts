@@ -170,6 +170,10 @@ test('the shell, controller, and storage groups keep the flat modules they name'
 		chunkGroupForModulePath('src/common/editor/ui/local-assistance-lazy-semantic-search-source.ts'),
 		'editor-shell',
 	);
+	assert.equal(
+		chunkGroupForModulePath('src/framescaper/editor-soundscaper-workflow-product-runtime.tsx'),
+		'editor-shell',
+	);
 });
 
 test('production meter session helpers have a shared non-recursive owner', () => {
@@ -182,12 +186,6 @@ test('production meter session helpers have a shared non-recursive owner', () =>
 		assert.ok(EDITOR_PRODUCTION_METER_CHUNK_TEST.test(path.replaceAll('/', '\\')), path);
 		assert.equal(chunkGroupForModulePath(path), 'editor-production-meter', path);
 	}
-	assert.equal(
-		EDITOR_PRODUCTION_METER_CHUNK_TEST.test(
-			'src/common/editor/production-audio/restoration-workflow.ts',
-		),
-		false,
-	);
 	const group = chunkGroups.find((candidate) => candidate.name === 'editor-production-meter');
 	assert.ok(group);
 	assert.equal(group.includeDependenciesRecursively, false);
@@ -407,6 +405,7 @@ test('stateful local assistance implementations share one dedicated lazy owner',
 
 test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 	for (const path of [
+		'src/common/editor/ui/PrivacyPolicyRoute.tsx',
 		'src/common/editor/ui/local-assistance-bridge.ts',
 		'src/common/editor/ui/local-assistance-guided-session-store.ts', 'src/common/editor/ui/local-assistance-review-authority.ts',
 		'src/common/editor/ui/local-assistance-result-review.ts',
@@ -414,6 +413,12 @@ test('menu-opened execution and UI surfaces use dedicated lazy owners', () => {
 		'src/common/editor/ui/local-assistance-shot-review.ts',
 		'src/common/editor/ui/local-assistance-workflow-bridge.ts',
 		'src/common/editor/ui/workspace/RecordingSetupPanel.tsx',
+		'src/common/editor/ui/workspace/SoundscaperRoutingGraphInspector.tsx',
+		'src/common/editor/ui/workspace/SoundscaperRoutingGraphView.tsx',
+		'src/common/editor/ui/workspace/soundscaper-routing-folder-authority.ts',
+		'src/common/editor/ui/workspace/soundscaper-routing-graph-candidates.ts',
+		'src/common/editor/ui/workspace/soundscaper-routing-graph-gesture.ts',
+		'src/common/editor/ui/workspace/soundscaper-routing-graph-layout.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_SURFACE_CHUNK_TEST.test(path), `${path} must be a lazy UI surface`);
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces');

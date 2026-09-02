@@ -19,6 +19,12 @@ export interface SliderProps {
    * Change handler
    */
   onChange?: (value: number) => void;
+  /** Starts one continuous pointer or keyboard edit. */
+  onGestureStart?: (value: number) => void;
+  /** Finishes the active edit with its last emitted value. */
+  onGestureEnd?: (value: number) => void;
+  /** Cancels an edit that the browser aborts. */
+  onGestureCancel?: () => void;
   /**
    * Additional CSS classes
    */
@@ -42,12 +48,19 @@ export const Slider: React.FC<SliderProps> = ({
   min = 0,
   max = 100,
   onChange,
+  onGestureStart,
+  onGestureEnd,
+  onGestureCancel,
   className = '',
   disabled = false,
   ariaLabel = 'Slider',
   tabIndex,
 }) => {
   const { theme } = useTheme();
+  const gestureActiveRef = React.useRef(false);
+  const gestureValueRef = React.useRef(value);
+  const gestureCancelRef = React.useRef(onGestureCancel);
+  gestureCancelRef.current = onGestureCancel;
 
   // Clamp value to valid range
   const clampedValue = Math.max(min, Math.min(max, value));
@@ -60,8 +73,45 @@ export const Slider: React.FC<SliderProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseInt(e.target.value, 10);
+    const standalone = !gestureActiveRef.current;
+    if (standalone) {
+      gestureActiveRef.current = true;
+      gestureValueRef.current = clampedValue;
+      onGestureStart?.(clampedValue);
+    }
+    gestureValueRef.current = newValue;
     onChange?.(newValue);
+    if (standalone) {
+      gestureActiveRef.current = false;
+      onGestureEnd?.(newValue);
+    }
   };
+
+  const beginGesture = () => {
+    if (disabled || gestureActiveRef.current) return;
+    gestureActiveRef.current = true;
+    gestureValueRef.current = clampedValue;
+    onGestureStart?.(clampedValue);
+  };
+
+  const endGesture = () => {
+    if (!gestureActiveRef.current) return;
+    gestureActiveRef.current = false;
+    onGestureEnd?.(gestureValueRef.current);
+  };
+
+  const cancelGesture = () => {
+    if (!gestureActiveRef.current) return;
+    gestureActiveRef.current = false;
+    onGestureCancel?.();
+  };
+
+  React.useEffect(() => () => {
+    if (gestureActiveRef.current) {
+      gestureActiveRef.current = false;
+      gestureCancelRef.current?.();
+    }
+  }, []);
 
   const style = {
     '--slider-track-bg': theme.background.control.slider.track,
@@ -78,6 +128,18 @@ export const Slider: React.FC<SliderProps> = ({
         max={max}
         value={clampedValue}
         onChange={handleChange}
+        onPointerDown={beginGesture}
+        onPointerUp={endGesture}
+        onPointerCancel={cancelGesture}
+        onKeyDown={(event) => {
+          if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) {
+            beginGesture();
+          } else if (event.key === 'Escape') cancelGesture();
+        }}
+        onKeyUp={(event) => {
+          if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'PageDown', 'PageUp'].includes(event.key)) endGesture();
+        }}
+        onBlur={endGesture}
         disabled={disabled}
         className="slider__input"
         aria-label={ariaLabel}

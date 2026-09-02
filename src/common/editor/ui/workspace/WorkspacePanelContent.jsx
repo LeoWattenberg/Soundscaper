@@ -28,6 +28,8 @@ export default function WorkspacePanelContent({
 	panelId,
 	controller,
 	snapshot,
+	productId = snapshot.productId,
+	capabilities = snapshot.capabilities,
 	copy,
 	locale,
 	fileService,
@@ -36,6 +38,8 @@ export default function WorkspacePanelContent({
 	showArmControls,
 	displayAudioSupported,
 	onOpenEffects,
+	onRoutingGraphGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingGraphGestureHandler | undefined} */ (undefined),
+	onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined),
 	effectsPanelTarget,
 	onEffectWindowChange,
 	blocked,
@@ -221,7 +225,7 @@ export default function WorkspacePanelContent({
 		/>;
 	}
 	if (panelId === 'mixer') {
-		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} copy={copy} run={run} showArmControls={showArmControls} displayAudioSupported={displayAudioSupported} onOpenEffects={onOpenEffects} />;
+		return <AudioEditorMixerPanel controller={controller} snapshot={snapshot} productId={productId} capabilities={capabilities} copy={copy} run={run} showArmControls={showArmControls} displayAudioSupported={displayAudioSupported} onOpenEffects={onOpenEffects} onRoutingGraphGesture={onRoutingGraphGesture} onRoutingParameterGesture={onRoutingParameterGesture} />;
 	}
 	return null;
 }

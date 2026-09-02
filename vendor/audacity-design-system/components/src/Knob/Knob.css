@@ -9,6 +9,7 @@
   margin: 0;
   background: transparent;
   cursor: pointer;
+  touch-action: none;
   outline: none;
   flex-shrink: 0;
   display: block;

@@ -11,6 +11,7 @@ import {
 } from './parameter-address.ts'
 import { snapshotInertJsonValue } from './inert-json-snapshot.ts'
 import { assertAcyclicRoutingV21 } from './routing-cycle-v21.ts'
+import { effectExplicitSidechainCapability } from './effect-explicit-sidechain-capability.ts'
 
 export const MIXER_GRAPH_V21_SCHEMA_VERSION = 1 as const
 export const MIXER_GRAPH_V21_MAX_ITEMS = 4096
@@ -449,8 +450,12 @@ export function validateMixerGraphV21(
 			if (!existingStrip(destination.strip)) {
 				throw new TypeError(`mixer edge ${edge.id} has a dangling sidechain strip`)
 			}
-			if (!effectsForStrip(destination.strip).some((effect) => effectId(effect) === destination.effectId)) {
+			const effect = effectsForStrip(destination.strip).find((candidate) => effectId(candidate) === destination.effectId)
+			if (!effect) {
 				throw new TypeError(`mixer edge ${edge.id} has a dangling sidechain effect`)
+			}
+			if (effectExplicitSidechainCapability(effect) === 'unsupported') {
+				throw new TypeError(`mixer edge ${edge.id} targets an effect without an explicit sidechain input`)
 			}
 		} else {
 			if (edge.kind === 'sidechain') throw new TypeError(`mixer edge ${edge.id} needs an effect sidechain destination`)

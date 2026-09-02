@@ -7,7 +7,7 @@ export const EFFECT_MENU_GROUPS = Object.freeze([
 	['noiseRepair', ['audacity-click-removal', 'audacity-noise-reduction', 'audacity-repair']],
 	['delayReverb', ['audacity-echo', 'audacity-reverb']],
 	['distortionModulation', ['audacity-distortion', 'audacity-phaser', 'audacity-wahwah']],
-	['specialEffects', ['audacity-invert', 'audacity-repeat', 'audacity-reverse', 'audacity-truncate-silence']],
+	['specialEffects', ['audacity-invert', 'audacity-repeat', 'audacity-reverse', 'audacity-truncate-silence', 'reviewed-utility-gain']],
 	['legacyEffects', ['audacity-legacy-compressor', 'audacity-classic-filters']],
 ]);
 

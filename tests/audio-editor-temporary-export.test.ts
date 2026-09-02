@@ -291,7 +291,10 @@ function productionStemProject() {
 		primarySequenceId: 'sequence',
 		master: {
 			effectsActive: true,
-			effects: [{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } }],
+			effects: [
+				{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } },
+				{ id: 'master-gate', type: 'gate', enabled: true, params: { threshold: -30 } },
+			],
 		},
 		mixer: {
 			schemaVersion: 1, groups: [], sends: [], cues: [], vcas: [],
@@ -305,7 +308,7 @@ function productionStemProject() {
 					kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'voice-gate',
 				}),
 				stemEdge('control-master-sidechain', 'sidechain', { kind: 'track', id: 'control' }, {
-					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-filter',
+					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-gate',
 				}),
 				stemEdge('master-main', 'assignment', { kind: 'master' }, { kind: 'output', id: 'main' }),
 			],

@@ -156,17 +156,10 @@ import {
 		try {
 			await expect(mixKnob).toHaveClass(/knob--dragging/);
 			await page.waitForTimeout(50);
-			await page.evaluate(({ clientX, clientY }) => {
-				document.dispatchEvent(new MouseEvent('mousemove', {
-					bubbles: true,
-					buttons: 1,
-					clientX,
-					clientY,
-				}));
-			}, {
-				clientX: dryBox.x + dryBox.width / 2,
-				clientY: dryBox.y + dryBox.height / 2 - 24,
-			});
+			await page.mouse.move(
+				dryBox.x + dryBox.width / 2,
+				dryBox.y + dryBox.height / 2 - 24,
+			);
 			await expect.poll(async () => Number(await mixKnob.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
 			await expect.poll(() => mixInput.inputValue()).not.toBe('0');
 		} finally {
@@ -180,17 +173,10 @@ import {
 		await page.mouse.down();
 		await expect(mixKnob).toHaveClass(/knob--dragging/);
 		await page.waitForTimeout(50);
-		await page.evaluate(({ clientX, clientY }) => {
-			document.dispatchEvent(new MouseEvent('mousemove', {
-				bubbles: true,
-				buttons: 1,
-				clientX,
-				clientY,
-			}));
-		}, {
-			clientX: liveBox.x + liveBox.width / 2,
-			clientY: liveBox.y + liveBox.height / 2 - 20,
-		});
+		await page.mouse.move(
+			liveBox.x + liveBox.width / 2,
+			liveBox.y + liveBox.height / 2 - 20,
+		);
 		await expect(mixInput).toHaveValue('0.2');
 		await page.evaluate(() => window.dispatchEvent(new Event('blur')));
 		await expect(mixKnob).not.toHaveClass(/knob--dragging/);

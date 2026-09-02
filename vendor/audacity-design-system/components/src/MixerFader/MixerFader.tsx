@@ -29,6 +29,12 @@ export interface MixerFaderProps {
    * Called when a drag interaction ends
    */
   onChangeEnd?: (value: number) => void;
+  /** Called once before a pointer or keyboard value gesture starts. */
+  onGestureStart?: (value: number) => void;
+  /** Called once after a completed pointer or keyboard value gesture. */
+  onGestureEnd?: (value: number) => void;
+  /** Called when an active pointer gesture is cancelled or the fader unmounts. */
+  onGestureCancel?: () => void;
   /**
    * Disabled state
    * @default false
@@ -66,6 +72,9 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
   max = 12,
   onChange,
   onChangeEnd,
+  onGestureStart,
+  onGestureEnd,
+  onGestureCancel,
   disabled = false,
   ariaLabel = 'Fader',
   tabIndex,
@@ -74,6 +83,8 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
   const { theme } = useTheme();
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const gestureCancelRef = useRef(onGestureCancel);
+  gestureCancelRef.current = onGestureCancel;
   const [internalValue, setInternalValue] = useState(valueProp);
 
   // Use internal state when uncontrolled (no onChange), external prop when controlled
@@ -106,13 +117,14 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
   }, [min, max, clampedValue]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (disabled) return;
+    if (disabled || e.button !== 0 || draggingRef.current) return;
     e.preventDefault();
     draggingRef.current = true;
+    onGestureStart?.(clampedValue);
     trackRef.current?.setPointerCapture(e.pointerId);
     const newValue = valueFromY(e.clientY);
     setValue(newValue);
-  }, [disabled, setValue, valueFromY]);
+  }, [clampedValue, disabled, onGestureStart, setValue, valueFromY]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingRef.current) return;
@@ -127,8 +139,15 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
     if (!isControlled) {
       setInternalValue(newValue);
     }
+    onGestureEnd?.(newValue);
     onChangeEnd?.(newValue);
-  }, [isControlled, onChangeEnd, valueFromY]);
+  }, [isControlled, onChangeEnd, onGestureEnd, valueFromY]);
+
+  const handlePointerCancel = useCallback(() => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    onGestureCancel?.();
+  }, [onGestureCancel]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (disabled) return;
@@ -165,9 +184,17 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
       default:
         return;
     }
+    onGestureStart?.(clampedValue);
     setValue(newValue);
+    onGestureEnd?.(newValue);
     onChangeEnd?.(newValue);
-  }, [disabled, clampedValue, min, max, setValue, onChangeEnd]);
+  }, [disabled, clampedValue, min, max, onChangeEnd, onGestureEnd, onGestureStart, setValue]);
+
+  React.useEffect(() => () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    gestureCancelRef.current?.();
+  }, []);
 
   const style = {
     '--fader-track-bg': theme.background.control.fader.track,
@@ -193,6 +220,7 @@ export const MixerFader: React.FC<MixerFaderProps> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
       >
         <div className="mixer-fader__track-bar" />
         <MixerFaderHandle

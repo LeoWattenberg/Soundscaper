@@ -8,7 +8,6 @@ const PANEL_URL = new URL(
 	'../vendor/audacity-design-system/components/src/TrackControlPanel/TrackControlPanel.tsx',
 	import.meta.url,
 );
-
 test('ending a rename by clicking another control leaves focus where the user put it', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
 	const commit = source.slice(source.indexOf('const commitRename'), source.indexOf('// Drag-to-reorder gesture'));
@@ -50,4 +49,17 @@ test('a consumer can isolate live meter rendering without replacing the track pa
 	assert.match(source, /meterContent\?: React\.ReactNode;/u);
 	assert.match(source, /meterContent !== undefined \? meterContent :/u);
 	assert.match(source, /<div className="track-control-panel__meter">/u);
+});
+
+test('volume and pan controls expose complete automation gesture lifecycles', async () => {
+	const source = await readFile(PANEL_URL, 'utf8');
+
+	for (const name of [
+		'onVolumeGestureStart', 'onVolumeGestureEnd', 'onVolumeGestureCancel',
+		'onPanGestureStart', 'onPanGestureEnd', 'onPanGestureCancel',
+	]) {
+		assert.match(source, new RegExp(`${name}\\?:`, 'u'));
+	}
+	assert.match(source, /<PanKnob[\s\S]*?onGestureStart=\{onPanGestureStart\}[\s\S]*?onGestureEnd=\{onPanGestureEnd\}[\s\S]*?onGestureCancel=\{onPanGestureCancel\}/u);
+	assert.match(source, /<Slider[\s\S]*?onGestureStart=\{onVolumeGestureStart\}[\s\S]*?onGestureEnd=\{onVolumeGestureEnd\}[\s\S]*?onGestureCancel=\{onVolumeGestureCancel\}/u);
 });

@@ -75,7 +75,13 @@ export interface MixerChannelProps {
    */
   onVolumeChange?: (value: number) => void;
   onVolumeChangeEnd?: (value: number) => void;
+  onVolumeGestureStart?: (value: number) => void;
+  onVolumeGestureEnd?: (value: number) => void;
+  onVolumeGestureCancel?: () => void;
   onPanChange?: (value: number) => void;
+  onPanGestureStart?: (value: number) => void;
+  onPanGestureEnd?: (value: number) => void;
+  onPanGestureCancel?: () => void;
   onMuteToggle?: () => void;
   onSoloToggle?: () => void;
   /**
@@ -134,7 +140,13 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
   meterContent,
   onVolumeChange,
   onVolumeChangeEnd,
+  onVolumeGestureStart,
+  onVolumeGestureEnd,
+  onVolumeGestureCancel,
   onPanChange,
+  onPanGestureStart,
+  onPanGestureEnd,
+  onPanGestureCancel,
   onMuteToggle,
   onSoloToggle,
   inputControls,
@@ -211,6 +223,9 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
             mode="bipolar"
             label="Pan"
             onChange={onPanChange}
+            onGestureStart={onPanGestureStart}
+            onGestureEnd={onPanGestureEnd}
+            onGestureCancel={onPanGestureCancel}
           />
           <div className="mixer-channel__number-input">
             <span className="mixer-channel__number-value">{pan}</span>
@@ -254,6 +269,9 @@ export const MixerChannel: React.FC<MixerChannelProps> = ({
               max={FADER_MAX}
               onChange={onVolumeChange}
               onChangeEnd={onVolumeChangeEnd}
+              onGestureStart={onVolumeGestureStart}
+              onGestureEnd={onVolumeGestureEnd}
+              onGestureCancel={onVolumeGestureCancel}
               ariaLabel={`${trackName} volume`}
             />
           </div>

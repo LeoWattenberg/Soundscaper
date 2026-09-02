@@ -1,5 +1,6 @@
 import type { EditorController, EditorSnapshot } from '../../types.ts';
-import type { SoundscaperProductionWorkspaceRuntime } from '../workspace/useSoundscaperProductionWorkspace.ts';
+import type { TrackAutomationRuntime } from '../../track-automation-runtime.ts';
+import type { TrackFreezeRuntime } from '../../track-freeze-runtime.ts';
 import TimelineController from './TimelineController.jsx';
 
 interface TimelineSearchRevealRequest {
@@ -30,7 +31,8 @@ interface AudioEditorTimelineProps {
 	readonly onToggleArmControls?: () => void;
 	readonly onOpenSurface?: (surface: string) => void;
 	readonly onOpenTrackRate?: (track: Readonly<Record<string, unknown>>) => void;
-	readonly soundscaperProduction?: Readonly<SoundscaperProductionWorkspaceRuntime> | null;
+	readonly automationRuntime?: Readonly<TrackAutomationRuntime> | null;
+	readonly freezeRuntime?: Readonly<TrackFreezeRuntime> | null;
 	readonly searchRevealRequest?: TimelineSearchRevealRequest | null;
 	readonly overlayTarget?: Element | null;
 }
@@ -58,7 +60,8 @@ export default function AudioEditorTimeline({
 	onToggleArmControls,
 	onOpenSurface,
 	onOpenTrackRate,
-	soundscaperProduction = null,
+	automationRuntime = null,
+	freezeRuntime = null,
 	searchRevealRequest = null,
 	overlayTarget = null,
 }: AudioEditorTimelineProps) {
@@ -76,7 +79,8 @@ export default function AudioEditorTimeline({
 		onToggleArmControls,
 		onOpenSurface,
 		onOpenTrackRate,
-		soundscaperProduction,
+		automationRuntime,
+		freezeRuntime,
 		productId,
 		capabilities,
 	};

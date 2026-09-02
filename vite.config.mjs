@@ -101,6 +101,13 @@ export default defineConfig({
 		// Public deep subpath imports remain unsupported. Mirrored in
 		// tsconfig.base.json "paths" for tsc, editors, and tsx-run node tests.
 		alias: [
+			...(productId === 'framescaper' ? [{
+				find: /^(?:\.\/|\.\.\/)soundscaper-workflow-product-runtime\.tsx$/u,
+				replacement: resolve(
+					import.meta.dirname,
+					'src/framescaper/editor-soundscaper-workflow-product-runtime.tsx',
+				),
+			}] : []),
 			...(productId === 'soundscaper' ? [
 				{
 					find: /^\.\/framescaper-capture-copy\.js$/u,

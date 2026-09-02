@@ -11,33 +11,25 @@ import React from 'react';
 
 interface MenuItem {
 	readonly id?: unknown;
+	readonly label?: unknown;
 	readonly checked?: unknown;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: () => unknown;
 }
 
-test('the track overflow shares automation mode ownership with the production workspace', async () => {
+test('the track overflow opts a track into inline automation and preserves the freeze runtime seam', async () => {
 	const { createTimelineMenuModel } = await import(
 		'../src/common/editor/ui/timeline/timeline-menu-model.js'
 	) as unknown as {
 		createTimelineMenuModel(input: unknown): { trackMenuItems: readonly MenuItem[] };
 	};
-	const runtimeModeCalls: unknown[][] = [];
 	const runtimeFreezeCalls: unknown[][] = [];
-	const directModeCalls: unknown[][] = [];
-	const directFreezeCalls: unknown[][] = [];
+	const automationToggleCalls: unknown[][] = [];
 	const project = soundscaperProject();
 	const model = createTimelineMenuModel({
 		controller: {
 			actions: {
 				track: { update: () => undefined },
-				audioAutomation: {
-					getSnapshot: () => ({ mode: 'read' }),
-					setMode: (mode: string, laneId: string | null) => { directModeCalls.push([mode, laneId]); },
-				},
-				audioFreeze: Object.fromEntries(['freeze', 'refresh', 'unfreeze', 'commit'].map((operation) => [
-					operation, (trackId: string) => { directFreezeCalls.push([operation, trackId]); },
-				])),
 			},
 		},
 		snapshot: { capabilities: { audioAutomation: true, audioTrackFreeze: true } },
@@ -57,29 +49,28 @@ test('the track overflow shares automation mode ownership with the production wo
 		onOpenTrackRate: () => undefined,
 		productId: 'soundscaper',
 		capabilities: { audioAutomation: true, audioTrackFreeze: true },
-		soundscaperProduction: {
-			automationMode: 'touch',
-			setAutomationMode: (mode: string, laneId: string | null) => {
-				runtimeModeCalls.push([mode, laneId]);
-			},
+		automationControls: {
+			targetsByTrackId: new Map([['voice', [{ key: 'gain' }]]]),
+			isVisible: () => false,
+			toggle: (trackId: string) => { automationToggleCalls.push([trackId]); },
+		},
+		freezeRuntime: {
+			freezeStatus: 'stale',
+			freezeStatusForTrack: (trackId: string) => trackId === 'voice' ? 'none' : 'unknown',
+			freezeActionsAvailable: true,
 			freeze: (operation: string, trackId: string) => { runtimeFreezeCalls.push([operation, trackId]); },
 		},
 	});
 
-	const automation = requiredItem(model.trackMenuItems, 'soundscaper-automation');
-	const modes = requiredItem(automation.items, 'soundscaper-automation-mode');
-	assert.equal(requiredItem(modes.items, 'soundscaper-automation-mode-read').checked, false);
-	assert.equal(requiredItem(modes.items, 'soundscaper-automation-mode-touch').checked, true,
-		'the context menu must draw the same mode as the application menu');
-
-	requiredItem(modes.items, 'soundscaper-automation-mode-write').onClick?.();
-	assert.deepEqual(runtimeModeCalls, [['write', 'voice-gain']]);
-	assert.deepEqual(directModeCalls, [], 'the context menu must not bypass workspace-owned mode state');
+	const automation = requiredItem(model.trackMenuItems, 'track-add-automation');
+	assert.equal(automation.checked, false);
+	automation.onClick?.();
+	assert.deepEqual(automationToggleCalls, [['voice']]);
 
 	const freeze = requiredItem(model.trackMenuItems, 'soundscaper-freeze');
+	assert.equal(freeze.label, 'freeze');
 	requiredItem(freeze.items, 'soundscaper-freeze-track').onClick?.();
 	assert.deepEqual(runtimeFreezeCalls, [['freeze', 'voice']]);
-	assert.deepEqual(directFreezeCalls, [], 'freeze progress must invalidate the same workspace runtime');
 });
 
 function requiredItem(items: readonly MenuItem[] | undefined, id: string): MenuItem {

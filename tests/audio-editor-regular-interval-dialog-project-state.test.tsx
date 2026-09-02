@@ -130,7 +130,7 @@ function annotationProject(
 
 async function change(element: ReactTestElement, value: string): Promise<void> {
 	await act(async () => {
-		reactProps(element).onChange({ currentTarget: { value } });
+		reactProps(element).onChange({ currentTarget: { value, valueAsNumber: Number(value) } });
 		await Promise.resolve();
 	});
 }

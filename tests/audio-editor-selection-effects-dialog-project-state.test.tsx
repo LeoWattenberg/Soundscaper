@@ -121,6 +121,26 @@ test('selection effect preset import cannot enter a newer project after a stale 
 	}
 });
 
+test('reviewed Utility Gain uses the canonical selection-effect label and parameter range', async () => {
+	const fixture = await mountedSelectionEffectsFixture();
+	try {
+		await fixture.render(effectProject('reviewed-project'), { gain: 1.25 }, 'reviewed-utility-gain');
+		assert.match(fixture.dialog().textContent, /Utility Gain \(Reviewed\)/u);
+		const gain = fixture.effectParameter('gain');
+		const slider = gain.querySelector('[role="slider"]');
+		assert.ok(slider, 'Reviewed Utility Gain must use the canonical bounded parameter control.');
+		assert.equal(slider.getAttribute('aria-valuemin'), '0');
+		assert.equal(slider.getAttribute('aria-valuemax'), '4');
+
+		await fixture.startApply();
+		assert.deepEqual(fixture.applyCalls[0]?.request, {
+			type: 'reviewed-utility-gain', params: { gain: 1.25 }, controlTrackId: null,
+		});
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 interface EffectProject {
 	readonly id: string;
 	readonly sampleRate: number;
@@ -199,18 +219,24 @@ async function mountedSelectionEffectsFixture() {
 		saveCalls,
 		importCalls,
 		closes,
-		render: async (project: EffectProject, params: Readonly<Record<string, unknown>>) => {
+		render: async (
+			project: EffectProject,
+			params: Readonly<Record<string, unknown>>,
+			type = 'audacity-amplify',
+		) => {
 			currentProject = project;
 			await act(async () => root.render(<SelectionEffectsDialog
 				isOpen
 				controller={controller}
-				snapshot={effectSnapshot(project, params)}
+				snapshot={effectSnapshot(project, params, type)}
 				copy={ENGLISH_COPY}
 				fileService={null}
 				onClose={() => { closes.count += 1; }}
 			/>));
 		},
 		switchControllerProject: (project: EffectProject) => { currentProject = project; },
+		dialog: () => dom.one('[data-selection-effects-dialog]'),
+		effectParameter: (name: string) => dom.one(`[data-effect-param="${name}"]`),
 		applyButton: () => descendantByTag(dom.one('[data-apply-audacity-effect]'), 'button'),
 		presetDrawer: () => dom.container.querySelector('.audio-editor-effect-preset-drawer'),
 		presetNameInput: () => {
@@ -275,14 +301,20 @@ function effectProject(id: string): EffectProject {
 	};
 }
 
-function effectSnapshot(project: EffectProject, params: Readonly<Record<string, unknown>>) {
+function effectSnapshot(
+	project: EffectProject,
+	params: Readonly<Record<string, unknown>>,
+	type = 'audacity-amplify',
+) {
 	return {
 		ready: true,
 		project,
 		selectedTrackId: project.tracks[0]?.id ?? null,
 		effects: {
-			selectionType: 'audacity-amplify',
-			selectionParams: { ...params, allowClipping: false },
+			selectionType: type,
+			selectionParams: type === 'audacity-amplify'
+				? { ...params, allowClipping: false }
+				: { ...params },
 			controlTrackId: null,
 			presets: [],
 			previewing: false,

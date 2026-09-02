@@ -44,6 +44,8 @@ export function TimelineWorkspaceView({
 	showArmControls,
 	displayAudioSupported,
 	automationToolEnabled,
+	automationRuntime,
+	automationControls,
 	geometry,
 	selection,
 	preview,
@@ -368,6 +370,7 @@ export function TimelineWorkspaceView({
 						clipDragPreview={clipDragPreview}
 						projectBinDragPreview={projectBinDragPreview}
 						mutationsBlocked={mutationsBlocked}
+						locale={locale}
 						copy={copy}
 						run={run}
 						setTrackMenu={setTrackMenu}
@@ -393,6 +396,8 @@ export function TimelineWorkspaceView({
 						recordingPreviews={recordingPreviews}
 						waveformCache={waveformCacheRef.current}
 						automationToolEnabled={automationToolEnabled}
+						automationRuntime={automationRuntime}
+						automationControls={automationControls}
 						spectralBrushEnabled={spectralBrushEnabled}
 						showArmControls={showArmControls}
 						displayAudioSupported={displayAudioSupported}

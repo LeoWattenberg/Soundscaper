@@ -242,6 +242,10 @@
 		,
 		{ "path": "src/common/editor/audio-track-freeze-v21.ts", "kind": "persisted-contract", "justification": "audio-track-freeze-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/automation-lane-inline-edit-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-inline-edit-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/automation-lane-interval-boundary-id-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-interval-boundary-id-v21.ts derives stable point identities for persisted automation interval edits." }
+		,
 		{ "path": "src/common/editor/automation-lane-interval-edit-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-interval-edit-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/automation-lane-thinning-v21.ts", "kind": "persisted-contract", "justification": "automation-lane-thinning-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -314,6 +318,10 @@
 		,
 		{ "path": "src/common/editor/native-rgba-frame-pack-v1-contract.ts", "kind": "ipc-contract", "justification": "native-rgba-frame-pack-v1-contract.ts is an independently versioned persisted or cross-process carrier contract." }
 		,
+		{ "path": "src/common/editor/parameter-automation-control-router-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-control-router-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/parameter-automation-gesture-adapter-v21.ts", "kind": "persisted-contract", "justification": "parameter-automation-gesture-adapter-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
 		{ "path": "src/common/editor/project-effect-tail-v21.ts", "kind": "persisted-contract", "justification": "project-effect-tail-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/project-feature-audio-track-render-v1.ts", "kind": "persisted-contract", "justification": "project-feature-audio-track-render-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -343,6 +351,8 @@
 		{ "path": "src/common/editor/timeline-image-frame-pack-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-frame-pack-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/timeline-image-native-decode-v1.ts", "kind": "persisted-contract", "justification": "timeline-image-native-decode-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/track-automation-targets-v21.ts", "kind": "persisted-contract", "justification": "track-automation-targets-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/track-folder-v12.ts", "kind": "persisted-contract", "justification": "track-folder-v12.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,

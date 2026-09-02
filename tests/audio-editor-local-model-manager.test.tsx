@@ -562,7 +562,6 @@ function workspaceMenuInput(
 		setNyquistTarget: () => undefined,
 		setShowArmControls: () => undefined,
 		showArmControls: false,
-		soundscaperProduction: null,
 		snapshot: {
 			preferences: {
 				workspace: {

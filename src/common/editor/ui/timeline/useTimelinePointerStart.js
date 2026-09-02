@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { collectClipTransformIds, collectClipTrimIds } from '../../commands.js';
 import {
 	MINIMUM_TRACK_HEIGHT,
-	RECORDING_INPUT_CONTROLS_HEIGHT,
+	trackOptionalControlsHeight,
 } from './geometry.ts';
 import {
 	CLIP_TRIM_EDGE_HIT_WIDTH,
@@ -18,6 +18,7 @@ export function useTimelinePointerStart({
 	snapshot,
 	automationToolEnabled,
 	showArmControls,
+	automationVisibleTrackIds,
 	splitToolActive,
 	mutationsBlocked,
 	state,
@@ -44,6 +45,7 @@ export function useTimelinePointerStart({
 	const { run } = menuActions;
 	const onPointerDown = useCallback((event) => {
 		if (event.target.closest?.('[data-timeline-annotation-interactive]')) return;
+		if (event.target.closest?.('[data-track-automation-interactive]')) return;
 		if (event.pointerType === 'touch') {
 			touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 			if (touchPointers.current.size === 2) {
@@ -72,9 +74,9 @@ export function useTimelinePointerStart({
 				if (track) {
 					const edge = distanceFromTop <= distanceFromBottom ? 'top' : 'bottom';
 					const originalVisualHeight = visualTrackHeight(track);
-					const controlsHeight = showArmControls && track.type === 'audio'
-						? RECORDING_INPUT_CONTROLS_HEIGHT
-						: 0;
+					const controlsHeight = trackOptionalControlsHeight(
+						track, showArmControls, automationVisibleTrackIds?.has(track.id) === true,
+					);
 					const originalHeight = Math.max(MINIMUM_TRACK_HEIGHT, originalVisualHeight - controlsHeight);
 					const timelineInnerHeight = scrollRef.current?.querySelector('.audio-editor-timeline-inner')?.getBoundingClientRect().height || originalVisualHeight;
 					pointerSession.current = {
@@ -88,9 +90,11 @@ export function useTimelinePointerStart({
 						maximumHeight: Math.max(MINIMUM_TRACK_HEIGHT + controlsHeight, Math.floor(timelineInnerHeight * 0.9)),
 						height: originalHeight,
 						fittedHeights: Object.fromEntries(project.tracks.map((candidate) => {
-							const candidateControlsHeight = showArmControls && candidate.type === 'audio'
-								? RECORDING_INPUT_CONTROLS_HEIGHT
-								: 0;
+							const candidateControlsHeight = trackOptionalControlsHeight(
+								candidate,
+								showArmControls,
+								automationVisibleTrackIds?.has(candidate.id) === true,
+							);
 							return [candidate.id, Math.max(
 								MINIMUM_TRACK_HEIGHT,
 								visualTrackHeight(candidate) - candidateControlsHeight,
@@ -272,7 +276,7 @@ export function useTimelinePointerStart({
 			run(() => controller.actions.timeline.selectClip(clip.id));
 		}
 		event.currentTarget.setPointerCapture?.(event.pointerId);
-	}, [automationToolEnabled, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView, visualTrackHeight]);
+	}, [automationToolEnabled, automationVisibleTrackIds, controller, frameAtClientX, mutationsBlocked, pixelsPerSecond, project, run, sampleRate, showArmControls, snapshot.sampleEdit?.available, snapshot.sampleEdit?.mode, splitToolActive, timelineView, visualTrackHeight]);
 
 	return { onPointerDown };
 }

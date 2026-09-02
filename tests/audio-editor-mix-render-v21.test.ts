@@ -41,7 +41,7 @@ test('V21 mix snapshots retain exact graph authority and never create legacy rou
 		(snapshot as unknown as { automationLanes: readonly { id: string }[] }).automationLanes.map(({ id }) => id),
 		['voice-gain', 'music-gain'],
 	);
-	assert.equal((snapshot.master as { readonly effects: readonly unknown[] }).effects.length, 1);
+	assert.equal((snapshot.master as { readonly effects: readonly unknown[] }).effects.length, 2);
 	assert.equal(mixer.edges.some(({ id }) => id === 'voice-master-sidechain'), false);
 	assert.equal(Object.hasOwn(project.mixer, 'routes'), false);
 });
@@ -171,7 +171,10 @@ function fixture(includeTrackAutomation = true) {
 		primarySequenceId: 'main-sequence',
 		master: {
 			effectsActive: true,
-			effects: [{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } }],
+			effects: [
+				{ id: 'master-filter', type: 'highpass', enabled: true, params: { frequency: 200 } },
+				{ id: 'master-gate', type: 'gate', enabled: true, params: { threshold: -30 } },
+			],
 		},
 		mixer: {
 			schemaVersion: 1, groups: [], sends: [], cues: [], vcas: [],
@@ -180,7 +183,7 @@ function fixture(includeTrackAutomation = true) {
 				routingEdge('voice-master', 'assignment', { kind: 'track', id: 'voice' }, { kind: 'master' }),
 				routingEdge('music-master', 'assignment', { kind: 'track', id: 'music' }, { kind: 'master' }),
 				routingEdge('voice-master-sidechain', 'sidechain', { kind: 'track', id: 'voice' }, {
-					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-filter',
+					kind: 'effect-sidechain', strip: { kind: 'master' }, effectId: 'master-gate',
 				}),
 				routingEdge('master-main', 'assignment', { kind: 'master' }, { kind: 'output', id: 'main' }),
 			],

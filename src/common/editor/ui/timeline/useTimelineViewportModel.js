@@ -12,6 +12,7 @@ import { resolveRuntimeProjectProjection } from '../../runtime-clip-projection.t
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT,
+	AUTOMATION_CONTROLS_HEIGHT,
 	RECORDING_INPUT_CONTROLS_HEIGHT,
 	trackVisualHeight,
 } from './geometry.ts';
@@ -34,6 +35,7 @@ export function useTimelineViewportModel({
 	runtimeProject,
 	mobile,
 	showArmControls,
+	automationVisibleTrackIds,
 	state,
 }) {
 	const {
@@ -91,12 +93,16 @@ export function useTimelineViewportModel({
 	const armedTrackCount = showArmControls
 		? (project?.tracks.filter((track) => track.type === 'audio').length || 0)
 		: 0;
+	const automationControlsTrackCount = project?.tracks.filter((track) => (
+		track.type === 'audio' && automationVisibleTrackIds?.has(track.id)
+	)).length || 0;
 	// The scroll viewport already excludes the output dock and the annotation
 	// panel, so only the sticky ruler row has to come off the top.
 	const availableTrackHeight = Math.max(
 		TRACK_HEIGHT,
 		Math.floor((timelineScrollSize.height || AUTO_FIT_TRACK_HEIGHT + rulerRowHeight) - rulerRowHeight)
-		- armedTrackCount * RECORDING_INPUT_CONTROLS_HEIGHT,
+		- armedTrackCount * RECORDING_INPUT_CONTROLS_HEIGHT
+		- automationControlsTrackCount * AUTOMATION_CONTROLS_HEIGHT,
 	);
 	const fittedTrackHeight = expandedTrackCount > 0
 		? Math.max(TRACK_HEIGHT, Math.min(
@@ -178,12 +184,15 @@ export function useTimelineViewportModel({
 		}
 		: null;
 	const visualTrackHeight = useCallback((track) => {
+		const showAutomationControls = automationVisibleTrackIds?.has(track.id) === true;
 		if (trackResizePreview?.trackId === track.id) {
-			return trackVisualHeight(track, showArmControls, trackResizePreview.height);
+			return trackVisualHeight(track, showArmControls, trackResizePreview.height, showAutomationControls);
 		}
-		if (autoFitTrackHeightEnabled) return trackVisualHeight(track, showArmControls, fittedTrackHeight);
-		return trackVisualHeight(track, showArmControls);
-	}, [autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
+		if (autoFitTrackHeightEnabled) return trackVisualHeight(
+			track, showArmControls, fittedTrackHeight, showAutomationControls,
+		);
+		return trackVisualHeight(track, showArmControls, undefined, showAutomationControls);
+	}, [automationVisibleTrackIds, autoFitTrackHeightEnabled, fittedTrackHeight, showArmControls, trackResizePreview]);
 	const totalTrackHeight = project?.tracks.reduce((total, track) => total + visualTrackHeight(track), 0) || TRACK_HEIGHT;
 
 	return {

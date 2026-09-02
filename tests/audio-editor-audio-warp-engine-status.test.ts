@@ -380,7 +380,8 @@ test('scheduled exact warp starts snap into the active loop instead of rejecting
 
 test('exact warp playback follows an attached native output route', async () => {
 	const connections: unknown[] = [];
-	const context = audioContext([], [], [], connections);
+	const gainNodes: MockGainNode[] = [];
+	const context = audioContext([], [], [], connections, gainNodes);
 	const engine = createAudioEditorEngine({
 		audioContextFactory: () => context as never,
 		offlineAudioContextFactory: null,
@@ -419,7 +420,9 @@ test('exact warp playback follows an attached native output route', async () => 
 	} as unknown as Event);
 	engine.loadProject(warpProject());
 	await engine.play();
-	assert.strictEqual(connections.at(-1), device);
+	const routedOutput = gainNodes.find(({ destinations }) => destinations.includes(device));
+	assert.ok(routedOutput);
+	assert.strictEqual(connections.at(-1), routedOutput);
 	await renderer.dispose();
 	await engine.dispose();
 });
@@ -508,17 +511,34 @@ interface MockScheduledSource {
 	onended: (() => void) | null;
 }
 
+interface MockGainNode {
+	readonly gain: { value: number };
+	readonly destinations: unknown[];
+	connect(destination: unknown): void;
+	disconnect(): void;
+}
+
 function audioContext(
 	events: string[],
 	played: number[][],
 	scheduledSources: MockScheduledSource[] = [],
 	connections: unknown[] = [],
+	gainNodes: MockGainNode[] = [],
 ) {
 	return {
 		currentTime: 0,
 		sampleRate: 48_000,
 		destination: { connect() {}, disconnect() {} },
-		createGain: () => ({ gain: { value: 1 }, connect() {}, disconnect() {} }),
+		createGain: () => {
+			const node: MockGainNode = {
+				gain: { value: 1 },
+				destinations: [],
+				connect(destination) { node.destinations.push(destination); },
+				disconnect() { node.destinations.length = 0; },
+			};
+			gainNodes.push(node);
+			return node;
+		},
 		resume: () => { events.push('resume'); return Promise.resolve(); },
 		close: () => Promise.resolve(),
 		createBuffer: (channels: number, frames: number, sampleRate: number) => {

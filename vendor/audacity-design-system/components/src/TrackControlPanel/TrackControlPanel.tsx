@@ -22,6 +22,12 @@ export interface TrackControlPanelProps {
   isMenuOpen?: boolean;
   onVolumeChange?: (volume: number) => void;
   onPanChange?: (pan: number) => void;
+  onVolumeGestureStart?: (volume: number) => void;
+  onVolumeGestureEnd?: (volume: number) => void;
+  onVolumeGestureCancel?: () => void;
+  onPanGestureStart?: (pan: number) => void;
+  onPanGestureEnd?: (pan: number) => void;
+  onPanGestureCancel?: () => void;
   /** Called when the user clicks the M button. Receives the mouse
    *  event so the host can distinguish plain click (toggle this
    *  track) from cmd/ctrl+click (exclusive mute — set this track,
@@ -106,6 +112,12 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
   isMenuOpen = false,
   onVolumeChange,
   onPanChange,
+  onVolumeGestureStart,
+  onVolumeGestureEnd,
+  onVolumeGestureCancel,
+  onPanGestureStart,
+  onPanGestureEnd,
+  onPanGestureCancel,
   onMuteToggle,
   onSoloToggle,
   onEffectsClick,
@@ -921,6 +933,9 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
               <PanKnob
                 value={pan}
                 onChange={onPanChange}
+                onGestureStart={onPanGestureStart}
+                onGestureEnd={onPanGestureEnd}
+                onGestureCancel={onPanGestureCancel}
                 tabIndex={childTabIndex}
               />
             </div>
@@ -937,6 +952,9 @@ export const TrackControlPanel: React.FC<TrackControlPanelProps> = ({
               <Slider
                 value={volume}
                 onChange={onVolumeChange}
+                onGestureStart={onVolumeGestureStart}
+                onGestureEnd={onVolumeGestureEnd}
+                onGestureCancel={onVolumeGestureCancel}
                 ariaLabel="Volume"
                 tabIndex={childTabIndex}
               />

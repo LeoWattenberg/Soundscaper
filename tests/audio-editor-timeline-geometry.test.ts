@@ -13,6 +13,7 @@ import {
 	secondsDeltaToFrames,
 	spectrogramFrequencyAtFraction,
 	spectrogramFrequencyFraction,
+	trackOptionalControlsHeight,
 	trackVisualHeight,
 } from '../src/common/editor/ui/timeline/geometry.ts';
 
@@ -33,6 +34,8 @@ test('timeline frame, meter, and height geometry keeps existing bounds', () => {
 	assert.equal(meterPercent(-60), 0);
 	assert.equal(meterPercent(0), 100);
 	assert.equal(trackVisualHeight({ type: 'audio', height: 80 }, true), 104);
+	assert.equal(trackVisualHeight({ type: 'audio', height: 80 }, true, undefined, true), 128);
+	assert.equal(trackOptionalControlsHeight({ type: 'audio' }, true, true), 48);
 	assert.equal(trackVisualHeight({ type: 'video', height: 80 }, true), 80);
 	assert.deepEqual(normalizeWaveformRulerState({ format: 'linear-amp', zoom: 2 }), {
 		format: 'linear-db', zoom: 2,

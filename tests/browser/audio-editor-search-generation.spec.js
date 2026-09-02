@@ -300,7 +300,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(labelTrackId).toBeTruthy();
 		await expect(editor.locator(`[data-label-track][data-track-id="${labelTrackId}"]`)).toHaveCount(1);
 		await commitInput(labelRow.getByRole('textbox', { name: /^Label title:/ }), 'Verse');
-		const rangeInputs = labelRow.getByRole('spinbutton');
+		const rangeInputs = labelRow.locator('[data-timecode-direct-entry]');
 		await commitInput(rangeInputs.nth(1), '0.500');
 		await commitInput(rangeInputs.nth(0), '0.125');
 		await expect(rangeInputs.nth(0)).toHaveValue('0.125');
@@ -324,7 +324,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Edit', 'Manage labels');
 		await expect.poll(async () => Number(await labelsPanel
 			.locator('[data-labels-panel-list] [data-label-id]')
-			.getByRole('spinbutton').nth(1).inputValue())).toBeGreaterThan(0.5);
+			.locator('[data-timecode-direct-entry]').nth(1).inputValue())).toBeGreaterThan(0.5);
 		await labelsPanel.getByRole('button', { name: 'Close: Labels', exact: true }).click();
 		await timelineLabel.dblclick();
 		await expect(timelineLabel.locator('input')).toHaveValue('Verse');
@@ -418,9 +418,9 @@ test.describe('audio editor React/design-system workflows', () => {
 			const intro = rows.nth(0);
 			await commitInput(intro.getByRole('textbox'), 'Edited intro');
 			await expect(editor.locator('[data-label-track] [data-label-id]').nth(0)).toContainText('Edited intro');
-			await commitInput(intro.getByRole('spinbutton').nth(1), '1.750');
+			await commitInput(intro.locator('[data-timecode-direct-entry]').nth(1), '1.750');
 			await expect(intro.getByRole('textbox')).toHaveValue('Edited intro');
-			await expect(intro.getByRole('spinbutton').nth(1)).toHaveValue('1.750');
+			await expect(intro.locator('[data-timecode-direct-entry]').nth(1)).toHaveValue('1.750');
 
 			await rows.nth(1).getByRole('button', { name: 'Delete label: Outro caption', exact: true }).click();
 			await expect(rows).toHaveCount(1);
@@ -439,8 +439,8 @@ test.describe('audio editor React/design-system workflows', () => {
 			const rows = labelsPanel.locator('[data-labels-panel-list] [data-label-id]');
 			await expect(rows).toHaveCount(1);
 			await expect(rows.getByRole('textbox')).toHaveValue('Edited intro');
-			await expect(rows.getByRole('spinbutton').nth(0)).toHaveValue('0.250');
-			await expect(rows.getByRole('spinbutton').nth(1)).toHaveValue('1.750');
+			await expect(rows.locator('[data-timecode-direct-entry]').nth(0)).toHaveValue('0.250');
+			await expect(rows.locator('[data-timecode-direct-entry]').nth(1)).toHaveValue('1.750');
 			await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'New label track']);
 			await expect(editor.locator('[data-label-track]')).toHaveCount(2);
 		});

@@ -184,6 +184,42 @@ test('normalizes nested buses, multiple assignments, sends, cues, VCAs, outputs,
 	assert.equal(graph.edges[5]!.level, 0.5);
 });
 
+test('explicit sidechains admit only effects implemented by the runtime contract', () => {
+	const base = createDefaultMixerGraphV21(context.audioTracks);
+	const graph = normalizeMixerGraphV21({
+		...base,
+		edges: [...base.edges, {
+			id: 'music-voice-sidechain', kind: 'sidechain',
+			source: { kind: 'track', id: 'music' },
+			destination: {
+				kind: 'effect-sidechain', strip: { kind: 'track', id: 'voice' }, effectId: 'target-fx',
+			},
+			position: 'post-fader', level: 1, enabled: true, channelMap: [0, 1],
+		}],
+	});
+	const validationContext = (effect: Readonly<Record<string, unknown>>) => ({
+		...context,
+		audioTracks: [
+			{ id: 'voice', effects: [{ id: 'target-fx', ...effect }] },
+			{ id: 'music', effects: [] },
+		],
+	});
+	for (const type of ['limiter', 'gate', 'audacity-auto-duck']) {
+		assert.equal(validateMixerGraphV21(graph, validationContext({ type })), true, type);
+	}
+	for (const effect of [
+		{ type: 'highpass' },
+		{ type: 'native-plugin', params: { instanceId: 'native-1' } },
+	]) {
+		assert.throws(
+			() => validateMixerGraphV21(graph, validationContext(effect)),
+			/explicit sidechain/iu,
+		);
+	}
+	assert.equal(validateMixerGraphV21(graph, validationContext({})), true,
+		'identity-only exact-render contexts cannot assert a runtime type');
+});
+
 test('rejects cycles across assignments, sends, and sidechains without repairing', () => {
 	const base = graphWithGroups();
 	const baseEdges = base.edges as readonly unknown[];

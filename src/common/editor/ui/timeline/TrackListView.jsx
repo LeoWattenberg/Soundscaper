@@ -12,6 +12,7 @@ import {
 	trackFolderRowDomId,
 } from './track-folder-ui-model.ts';
 import { VideoTrackRow } from './VideoTrackRow.jsx';
+import { resolveTrackAutomationCopy } from '../soundscaper-workflow-product-runtime.tsx';
 
 /**
  * The timeline's track rows, extracted verbatim from the workspace view so the
@@ -32,6 +33,7 @@ export function TrackListView({
 	clipDragPreview,
 	projectBinDragPreview,
 	mutationsBlocked,
+	locale,
 	copy,
 	run,
 	setTrackMenu,
@@ -57,10 +59,13 @@ export function TrackListView({
 	recordingPreviews,
 	waveformCache,
 	automationToolEnabled,
+	automationRuntime,
+	automationControls,
 	spectralBrushEnabled,
 	showArmControls,
 	displayAudioSupported,
 }) {
+	const rowCopy = useMemo(() => ({ ...copy, ...resolveTrackAutomationCopy(locale) }), [copy, locale]);
 	const [activeFolderId, setActiveFolderId] = useState(null);
 	const [editingFolderId, setEditingFolderId] = useState(null);
 	const plan = useMemo(
@@ -210,13 +215,17 @@ export function TrackListView({
 					projectBinDragPreview={projectBinDragPreview}
 					waveformCache={waveformCache}
 					automationToolEnabled={automationToolEnabled}
+					automationRuntime={automationRuntime}
+					automationTargets={automationControls?.targetsByTrackId.get(track.id) || []}
+					automationTarget={automationControls?.selectedTargetByTrackId.get(track.id) || null}
+					onAutomationTarget={(targetKey) => automationControls?.selectTarget(track.id, targetKey)}
 					spectralBrushEnabled={spectralBrushEnabled}
 					blocked={mutationsBlocked}
 					canonicalVideoTrim={snapshot.capabilities?.videoCompositing === true}
 					showArmControls={showArmControls}
 					displayAudioSupported={displayAudioSupported}
 					recordingInputs={snapshot.recordingInputs}
-					copy={copy}
+					copy={rowCopy}
 					run={run}
 					onMenu={(anchor) => setTrackMenu({ trackId: track.id, anchor })}
 					onOpenEffects={onOpenEffects}

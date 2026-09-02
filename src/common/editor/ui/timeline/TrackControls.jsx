@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
 import { TrackControlPanel } from '@soundscaper/design-system/TrackControlPanel';
@@ -16,6 +16,14 @@ import {
 } from './geometry.ts';
 import { TrackTelemetryMeters } from './TrackTelemetryMeters.tsx';
 import { focusCandidate, focusFirst, focusPanelControl } from './timeline-navigation.js';
+import {
+	beginParameterAutomationGestureV21,
+	cancelParameterAutomationGestureV21,
+	parameterAutomationCaptureAvailableV21,
+	previewParameterAutomationGestureV21,
+	releaseParameterAutomationGestureV21,
+	TrackAutomationSelectors,
+} from '../soundscaper-workflow-product-runtime.tsx';
 
 const COMPACT_TRACK_PANEL_WIDTH = 164;
 
@@ -29,18 +37,23 @@ export function TrackControls({
 	showArmControls,
 	displayAudioSupported,
 	recordingInputs,
+	automationTargets = [],
+	automationTarget,
+	automationRuntime,
 	isFlatNavigation,
 	copy,
 	run,
 	onMenu,
 	onOpenEffects,
+	onAutomationTarget,
 	onTabOut,
 	onShiftTabOut,
 	onNavigateVertical,
 }) {
 	const controlsRef = useRef(null);
+	const automationGestureRef = useRef(null);
 	const [editingName, setEditingName] = useState(false);
-	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled])';
+	const adapterSelector = '.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled]), .audio-editor-track-automation select:not([disabled])';
 	const focusAdapterControl = (last = false) => focusCandidate(
 		controlsRef.current,
 		adapterSelector,
@@ -65,10 +78,128 @@ export function TrackControls({
 
 	useEffect(() => {
 		const adapters = controlsRef.current?.querySelectorAll(
-			'.audio-editor-track-adapters input:not([disabled]), .audio-editor-track-adapters button:not([disabled]), .audio-editor-track-input select:not([disabled])',
+			adapterSelector,
 		);
 		for (const adapter of adapters || []) adapter.tabIndex = isFlatNavigation ? 0 : -1;
-	}, [blocked, isFlatNavigation, recordingInputs, showArmControls, track.id]);
+	}, [adapterSelector, automationTarget, blocked, isFlatNavigation, recordingInputs, showArmControls, track.id]);
+
+	const beginAutomationGesture = useCallback((parameterId, value) => {
+		if (blocked || automationGestureRef.current) return false;
+		const session = run(() => beginParameterAutomationGestureV21({
+			runtime: automationRuntime,
+			target: automationTarget,
+			address: {
+				kind: 'strip', strip: { kind: 'track', id: track.id }, parameterId,
+			},
+		}, value));
+		if (!session) return false;
+		automationGestureRef.current = { parameterId, session, value };
+		return true;
+	}, [automationRuntime, automationTarget, blocked, run, track.id]);
+	const automationCaptureReserved = useCallback((parameterId) => (
+		parameterAutomationCaptureAvailableV21({
+			runtime: automationRuntime,
+			target: automationTarget,
+			address: {
+				kind: 'strip', strip: { kind: 'track', id: track.id }, parameterId,
+			},
+		})
+	), [automationRuntime, automationTarget, track.id]);
+	const previewAutomationGesture = useCallback((parameterId, value) => {
+		const gesture = automationGestureRef.current;
+		if (!gesture || gesture.parameterId !== parameterId) return false;
+		gesture.value = value;
+		run(() => previewParameterAutomationGestureV21(gesture.session, value));
+		return true;
+	}, [run]);
+	const finishAutomationGesture = useCallback((gesture, operation, recoverWithCancellation) => {
+		run(() => {
+			const clear = () => {
+				if (automationGestureRef.current === gesture) automationGestureRef.current = null;
+			};
+			const reject = (error) => {
+				if (!recoverWithCancellation) {
+					clear();
+					throw error;
+				}
+				let cancellation;
+				try {
+					cancellation = cancelParameterAutomationGestureV21(gesture.session);
+				} catch (cancellationError) {
+					clear();
+					throw new AggregateError(
+						[error, cancellationError],
+						'Automation release and recovery cancellation both failed.',
+						{ cause: cancellationError },
+					);
+				}
+				if (cancellation && typeof cancellation.then === 'function') {
+					return Promise.resolve(cancellation).then(() => {
+						clear();
+						throw error;
+					}, (cancellationError) => {
+						clear();
+						throw new AggregateError(
+							[error, cancellationError],
+							'Automation release and recovery cancellation both failed.',
+							{ cause: cancellationError },
+						);
+					});
+				}
+				clear();
+				throw error;
+			};
+			let result;
+			try {
+				result = operation();
+			} catch (error) {
+				return reject(error);
+			}
+			if (result && typeof result.then === 'function') {
+				return Promise.resolve(result).then((value) => {
+					clear();
+					return value;
+				}, reject);
+			}
+			clear();
+			return result;
+		});
+		return true;
+	}, [run]);
+	const endAutomationGesture = useCallback((parameterId, value) => {
+		const gesture = automationGestureRef.current;
+		if (!gesture || gesture.parameterId !== parameterId) return false;
+		return finishAutomationGesture(
+			gesture, () => releaseParameterAutomationGestureV21(gesture.session, value),
+			true,
+		);
+	}, [finishAutomationGesture]);
+	const cancelAutomationGesture = useCallback((parameterId) => {
+		const gesture = automationGestureRef.current;
+		if (!gesture || gesture.parameterId !== parameterId) return false;
+		return finishAutomationGesture(
+			gesture, () => cancelParameterAutomationGestureV21(gesture.session),
+			false,
+		);
+	}, [finishAutomationGesture]);
+	useEffect(() => () => {
+		const gesture = automationGestureRef.current;
+		if (!gesture) return;
+		finishAutomationGesture(
+			gesture, () => cancelParameterAutomationGestureV21(gesture.session), false,
+		);
+	}, [automationTarget?.key, finishAutomationGesture]);
+	const updateMute = () => {
+		const value = track.mute ? 0 : 1;
+		const reserved = automationCaptureReserved('mute');
+		if (beginAutomationGesture('mute', value)) {
+			previewAutomationGesture('mute', value);
+			endAutomationGesture('mute', value);
+			return;
+		}
+		if (reserved) return;
+		if (!blocked) run(() => controller.actions.track.update(track.id, { mute: !track.mute }));
+	};
 
 	return (
 		<div ref={controlsRef} className="audio-editor-track-controls" data-track-header style={{ width: panelWidth }} onDoubleClick={(event) => {
@@ -92,11 +223,27 @@ export function TrackControls({
 				}}
 				onShiftTabOut={onShiftTabOut}
 				onNavigateVertical={onNavigateVertical}
-				onVolumeChange={(volume) => !blocked && run(() => controller.actions.track.update(track.id, {
-					gain: dbToLinear(designVolumeToGainDb(volume)),
-				}))}
-				onPanChange={(pan) => !blocked && run(() => controller.actions.track.update(track.id, { pan: designValueToPan(pan) }))}
-				onMuteToggle={() => !blocked && run(() => controller.actions.track.update(track.id, { mute: !track.mute }))}
+				onVolumeChange={(volume) => {
+					const value = dbToLinear(designVolumeToGainDb(volume));
+					if (!blocked && !previewAutomationGesture('gain', value)
+						&& !automationCaptureReserved('gain')) {
+						run(() => controller.actions.track.update(track.id, { gain: value }));
+					}
+				}}
+				onVolumeGestureStart={(volume) => beginAutomationGesture('gain', dbToLinear(designVolumeToGainDb(volume)))}
+				onVolumeGestureEnd={(volume) => endAutomationGesture('gain', dbToLinear(designVolumeToGainDb(volume)))}
+				onVolumeGestureCancel={() => cancelAutomationGesture('gain')}
+				onPanChange={(pan) => {
+					const value = designValueToPan(pan);
+					if (!blocked && !previewAutomationGesture('pan', value)
+						&& !automationCaptureReserved('pan')) {
+						run(() => controller.actions.track.update(track.id, { pan: value }));
+					}
+				}}
+				onPanGestureStart={(pan) => beginAutomationGesture('pan', designValueToPan(pan))}
+				onPanGestureEnd={(pan) => endAutomationGesture('pan', designValueToPan(pan))}
+				onPanGestureCancel={() => cancelAutomationGesture('pan')}
+				onMuteToggle={updateMute}
 				onSoloToggle={() => !blocked && run(() => controller.actions.track.update(track.id, { solo: !track.solo }))}
 				onEffectsClick={() => {
 					if (!selected) run(() => controller.actions.timeline.selectTrack(track.id));
@@ -139,6 +286,17 @@ export function TrackControls({
 						surface="track"
 					/>
 				</div>
+			)}
+			{automationTarget && (
+				<TrackAutomationSelectors
+					trackId={track.id}
+					targets={automationTargets}
+					selectedTarget={automationTarget}
+					runtime={automationRuntime}
+					disabled={blocked}
+					copy={copy}
+					onTarget={onAutomationTarget}
+				/>
 			)}
 		</div>
 	);

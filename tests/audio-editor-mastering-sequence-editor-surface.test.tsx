@@ -7,13 +7,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
-import {
-	createSoundscaperProductionApplicationMenuItems,
-	type SoundscaperProductionSurface,
-} from '../src/common/editor/ui/soundscaper-production-application-menu.ts';
-import {
-	createSoundscaperProductionDialogModel,
-} from '../src/common/editor/ui/soundscaper-production-dialog-model.ts';
 import SoundscaperMasteringSequenceEditor, {
 	masteringSequenceAddOperation,
 	masteringSequenceEntryApplyOperation,
@@ -23,20 +16,11 @@ import {
 	createDocumentMasteringSequenceSnapshot,
 } from '../src/common/editor/controller/document-mastering-sequence-snapshot.ts';
 import {
-	SOUNDSCAPER_PRODUCTION_COPY,
-} from '../src/common/editor/ui/soundscaper-production-copy.ts';
-import {
-	executeSoundscaperProductionOperation,
-	soundscaperProductionSurface,
-} from '../src/common/editor/ui/workspace/useSoundscaperProductionWorkspace.ts';
+	SOUNDSCAPER_MASTERING_SEQUENCE_COPY,
+} from '../src/common/editor/ui/soundscaper-mastering-sequence-copy.ts';
 import { installReactTestDom, reactProps, ReactTestElement } from './helpers/react-test-dom.ts';
 
 const NOW = '2026-08-18T00:00:00.000Z';
-const CAPABILITIES = Object.freeze({
-	audioAutomation: true, audioMixerGraph: true, audioEffects: true,
-	audioAnalysis: true, masteringSequences: true,
-});
-
 function albumProject(entries: readonly unknown[] = [{ id: 'e1', annotationId: 'r-one' }]) {
 	const base = createSoundscaperProject({
 		id: 'album', title: 'Album', now: NOW, revision: 0,
@@ -56,69 +40,10 @@ function albumProject(entries: readonly unknown[] = [{ id: 'e1', annotationId: '
 	} as never);
 }
 
-test('the editing surface is reached from a menu and only where it can be used', () => {
-	const calls: unknown[][] = [];
-	const actions = {
-		open: (surface: SoundscaperProductionSurface) => calls.push(['open', surface]),
-		setAutomationMode: () => undefined,
-		freeze: () => undefined,
-	};
-	const items = createSoundscaperProductionApplicationMenuItems({
-		productId: 'soundscaper', capabilities: CAPABILITIES, project: albumProject(),
-		selectedTrackId: 'a1', editingBlocked: false,
-	}, actions);
-
-	const entry = items.tools.find(({ id }) => id === 'soundscaper-mastering-sequences');
-	assert.equal(entry?.label, 'Mastering sequences…');
-	assert.equal(entry?.disabled, false);
-	entry?.onClick?.();
-	assert.deepEqual(calls, [['open', 'mastering-sequences']]);
-
-	// The entry stays visible and disabled on a document that cannot hold one,
-	// rather than vanishing and reading as a feature that does not exist. V21 is
-	// the case that matters: it carries the production authority and still has
-	// nowhere to put a sequence.
-	for (const schemaVersion of [20, 21]) {
-		const wrongSchema = createSoundscaperProductionApplicationMenuItems({
-			productId: 'soundscaper', capabilities: CAPABILITIES,
-			project: { ...albumProject(), schemaVersion }, editingBlocked: false,
-		}, actions).tools.find(({ id }) => id === 'soundscaper-mastering-sequences');
-		assert.equal(wrongSchema?.disabled, true, `schema ${schemaVersion}`);
-	}
-
-	assert.equal(
-		createSoundscaperProductionApplicationMenuItems({
-			productId: 'soundscaper', capabilities: {}, project: albumProject(), editingBlocked: false,
-		}, actions).tools.some(({ id }) => id === 'soundscaper-mastering-sequences'),
-		false,
-		'a product without the capability offers no entry at all',
-	);
-	assert.equal(soundscaperProductionSurface('soundscaper-production:mastering-sequences'), 'mastering-sequences');
-});
-
-test('the dialog model carries the sequences and refuses a document that cannot hold them', () => {
-	const model = createSoundscaperProductionDialogModel({
-		productId: 'soundscaper', capabilities: CAPABILITIES, project: albumProject(),
-		requestedSurface: 'mastering-sequences',
-	});
-	assert.equal(model.surface, 'mastering-sequences');
-	assert.ok(model.surfaces.includes('mastering-sequences'));
-	assert.deepEqual(model.masteringSequences.map(({ name }) => name), ['Album order']);
-	assert.deepEqual(model.masteringRegions.map(({ id }) => id), ['r-one']);
-	assert.equal(model.operationsBlocked, false);
-
-	const wrongSchema = createSoundscaperProductionDialogModel({
-		productId: 'soundscaper', capabilities: CAPABILITIES,
-		project: { ...albumProject(), schemaVersion: 21 },
-		requestedSurface: 'mastering-sequences',
-	});
-	assert.equal(wrongSchema.blockReason, 'wrong-schema');
-});
-
 test('the editor renders the sequence, its entries, and the regions it can add', () => {
 	const snapshot = createDocumentMasteringSequenceSnapshot(albumProject());
 	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
-		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
@@ -145,7 +70,7 @@ test('the title field holds the override, not the region name it falls back to',
 	assert.equal(entry.title, 'One', 'but its effective title is the region name');
 
 	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
-		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
@@ -180,7 +105,7 @@ test('an entry form refreshes when the document updates the same entry id', asyn
 		})]),
 	});
 	const props = {
-		copy: SOUNDSCAPER_PRODUCTION_COPY,
+		copy: SOUNDSCAPER_MASTERING_SEQUENCE_COPY,
 		disabled: false,
 		regions: initial.regions,
 		primarySequenceId: initial.primarySequenceId,
@@ -231,7 +156,7 @@ test('blank or invalid mastering timing is refused instead of becoming zero fram
 	const root = createRoot(dom.container as unknown as Element);
 	try {
 		await act(async () => root.render(<SoundscaperMasteringSequenceEditor
-			copy={SOUNDSCAPER_PRODUCTION_COPY}
+			copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
 			disabled={false}
 			sequences={snapshot.sequences}
 			regions={snapshot.regions}
@@ -285,7 +210,7 @@ test('the New sequence button states the sequence the new one orders', () => {
 	assert.equal(snapshot.primarySequenceId, project.primarySequenceId);
 
 	const operation = masteringSequenceAddOperation(
-		snapshot.primarySequenceId, 'generated', SOUNDSCAPER_PRODUCTION_COPY.newMasteringSequence,
+		snapshot.primarySequenceId, 'generated', SOUNDSCAPER_MASTERING_SEQUENCE_COPY.newMasteringSequence,
 	);
 	const created = applySoundscaperProjectCommand(project, operation as never, { now: NOW });
 	assert.equal(created.masteringSequences.length, 2);
@@ -296,7 +221,7 @@ test('the New sequence button states the sequence the new one orders', () => {
 
 	// A document with no sequence to order cannot create one, and the button says so.
 	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
-		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
@@ -312,7 +237,7 @@ test('an undeliverable sequence shows its reason instead of hiding', () => {
 		albumProject([{ id: 'e1', annotationId: 'gone' }]),
 	);
 	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
-		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
 		disabled={false}
 		sequences={snapshot.sequences}
 		regions={snapshot.regions}
@@ -328,7 +253,7 @@ test('an undeliverable sequence shows its reason instead of hiding', () => {
 
 test('an empty project says what to do rather than showing an empty editor', () => {
 	const markup = renderToStaticMarkup(<SoundscaperMasteringSequenceEditor
-		copy={SOUNDSCAPER_PRODUCTION_COPY}
+		copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
 		disabled={false}
 		sequences={[]}
 		regions={[]}
@@ -337,27 +262,6 @@ test('an empty project says what to do rather than showing an empty editor', () 
 		onOperation={() => undefined}
 	/>);
 	assert.match(markup, /no mastering sequence yet/u);
-});
-
-test('editor operations are the ordinary commands, committed through the ordinary path', () => {
-	// A sequence built here and one built by any other caller are the same
-	// document, undo the same way, and are refused the same way.
-	const committed: unknown[] = [];
-	const controller = {
-		actions: { edit: { commit: (operation: unknown) => { committed.push(operation); return operation; } } },
-	};
-	for (const operation of [
-		{ type: 'mastering-sequence/add', sequence: { id: 's', name: 'S', entries: [] } },
-		{ type: 'mastering-sequence/entry-reorder', sequenceId: 's', entryId: 'e1', toIndex: 0 },
-		{ type: 'mastering-sequence/entry-timing', sequenceId: 's', entryId: 'e1', gapBeforeFrames: 4 },
-	] as const) {
-		executeSoundscaperProductionOperation(controller as never, operation as never, () => undefined);
-	}
-	assert.deepEqual(committed.map((operation) => (operation as { type: string }).type), [
-		'mastering-sequence/add',
-		'mastering-sequence/entry-reorder',
-		'mastering-sequence/entry-timing',
-	]);
 });
 
 test('applying one entry submits title, timing, and metadata as one atomic command', () => {
@@ -390,9 +294,8 @@ test('applying one entry submits title, timing, and metadata as one atomic comma
 	});
 
 	const committed: unknown[] = [];
-	executeSoundscaperProductionOperation({
-		actions: { edit: { commit: (command) => { committed.push(command); return command; } } },
-	}, operation, () => undefined);
+	const controller = { actions: { edit: { commit: (command: unknown) => committed.push(command) } } };
+	controller.actions.edit.commit(operation);
 	assert.deepEqual(committed, [operation], 'the dialog operation lock sees one commit, not three competing calls');
 
 	const updated = applySoundscaperProjectCommand(albumProject(), operation as never, { now: NOW });

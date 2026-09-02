@@ -419,10 +419,6 @@
 	font-weight: 700;
 }
 
-#kw-audio-editor-design-system [data-soundscaper-production-dialog] .kw-audio-editor-dialog__field > span {
-	color: var(--kw-editor-text);
-}
-
 #kw-audio-editor-design-system [data-framescaper-native-services-dialog] .kw-audio-editor-dialog__field > span {
 	color: var(--kw-editor-text);
 }

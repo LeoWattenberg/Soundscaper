@@ -11,9 +11,9 @@ import {
 	resolveFramescaperNativeServicesCopy,
 } from '../src/common/editor/ui/framescaper-native-services-copy.ts';
 import {
-	SOUNDSCAPER_PRODUCTION_COPY,
-	resolveSoundscaperProductionCopy,
-} from '../src/common/editor/ui/soundscaper-production-copy.ts';
+	SOUNDSCAPER_MASTERING_SEQUENCE_COPY,
+	resolveSoundscaperMasteringSequenceCopy,
+} from '../src/common/editor/ui/soundscaper-mastering-sequence-copy.ts';
 
 const CATALOG = Object.freeze({ apply: 'Apply', cancel: 'Cancel' });
 
@@ -34,21 +34,21 @@ test('an override replaces a declared key only when it carries text', () => {
 	assert.equal(Object.isFrozen(resolveCopyCatalogOverrides(CATALOG, {})), true);
 });
 
-test('both editor copy catalogs resolve through the one override policy', () => {
+test('editor copy catalogs resolve through the one override policy', () => {
 	// The policy is decided once: a change to trimming or the empty-string rule
 	// cannot land in one catalog and be missed in the other.
 	for (const overrides of [
 		{},
-		{ proxies: 'Stellvertreter', freeze: 'Einfrieren' },
-		{ proxies: '', freeze: '', unknownKey: 'x' },
+		{ proxies: 'Stellvertreter', close: 'Schließen' },
+		{ proxies: '', close: '', unknownKey: 'x' },
 	]) {
 		assert.deepEqual(
 			resolveFramescaperNativeServicesCopy(overrides),
 			resolveCopyCatalogOverrides(FRAMESCAPER_NATIVE_SERVICES_COPY, overrides),
 		);
 		assert.deepEqual(
-			resolveSoundscaperProductionCopy(overrides),
-			resolveCopyCatalogOverrides(SOUNDSCAPER_PRODUCTION_COPY, overrides),
+			resolveSoundscaperMasteringSequenceCopy(overrides),
+			resolveCopyCatalogOverrides(SOUNDSCAPER_MASTERING_SEQUENCE_COPY, overrides),
 		);
 	}
 });

@@ -107,9 +107,165 @@ test('a stale macro export cannot replace the current project completion message
 	}
 });
 
+test('the Restoration template confirms replacement, embeds its captured profile, and only then admits Run', async () => {
+	const fixture = await mountedMacroManagerFixture();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button('Restoration'));
+		assert.ok(fixture.find('[data-macro-template-confirmation="restoration"]'));
+		assert.deepEqual(fixture.effectNames(), []);
+		await click(fixture.button(ENGLISH_COPY.cancel));
+		assert.deepEqual(fixture.effectNames(), ['Invert']);
+
+		await click(fixture.button('Restoration'));
+		await click(fixture.button('Replace macro'));
+		assert.deepEqual(fixture.effectNames(), ['Click Removal', 'Noise Reduction', 'Filter Curve EQ']);
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
+		assert.match(fixture.text(), /Capture a noise profile in every Noise Reduction step/u);
+
+		await click(fixture.selectEffect('Noise Reduction'));
+		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
+		assert.equal(fixture.profileCaptures(), 1);
+		assert.deepEqual(fixture.profileParams(), [{
+			reductionDb: 6, sensitivity: 6, frequencySmoothingBands: 6, output: 'reduce',
+		}]);
+		assert.ok(fixture.button(ENGLISH_COPY.replaceNoiseProfile));
+		await click(fixture.button('Close'));
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), false);
+
+		await click(fixture.button(ENGLISH_COPY.runMacro));
+		assert.equal(fixture.runs.length, 1);
+		const effects = fixture.runs[0]!.macro.effects as Array<Readonly<{
+			type: string;
+			context?: Readonly<{ noiseProfile?: unknown }>;
+		}>>;
+		assert.equal(effects[1]?.type, 'audacity-noise-reduction');
+		assert.deepEqual(effects[1]?.context?.noiseProfile, SERIALIZED_NOISE_PROFILE);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('an untouched empty macro loads the Restoration template without replacement confirmation', async () => {
+	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button('Restoration'));
+
+		assert.equal(fixture.find('[data-macro-template-confirmation="restoration"]'), null);
+		assert.deepEqual(fixture.effectNames(), ['Click Removal', 'Noise Reduction', 'Filter Curve EQ']);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('a failed Restoration profile capture stays gated and reports the failure in the dialog', async () => {
+	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button('Restoration'));
+		await click(fixture.selectEffect('Noise Reduction'));
+		fixture.failNextProfileCapture(new Error('profile worker unavailable'));
+		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
+
+		assert.match(fixture.message(), /profile worker unavailable/u);
+		await click(fixture.button('Close'));
+		assert.equal(fixture.button(ENGLISH_COPY.runMacro).hasAttribute('disabled'), true);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('Restoration profile recapture replaces the embedded portable profile', async () => {
+	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const replacement = Object.freeze({ ...SERIALIZED_NOISE_PROFILE, windowCount: 3 });
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button('Restoration'));
+		await click(fixture.selectEffect('Noise Reduction'));
+		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
+		fixture.queueProfileResponse(Promise.resolve(replacement));
+		await click(fixture.button(ENGLISH_COPY.replaceNoiseProfile));
+		await click(fixture.button('Close'));
+		await click(fixture.button(ENGLISH_COPY.runMacro));
+
+		const effects = fixture.runs[0]!.macro.effects as Array<Readonly<{
+			context?: Readonly<{ noiseProfile?: unknown }>;
+		}>>;
+		assert.deepEqual(effects[1]?.context?.noiseProfile, replacement);
+		assert.equal(fixture.profileCaptures(), 2);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('a stale Restoration recapture cannot replace the surviving embedded profile', async () => {
+	const fixture = await mountedMacroManagerFixture({ name: ENGLISH_COPY.untitledMacro, effects: [] });
+	const pending = deferred<unknown>();
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		await click(fixture.button('Restoration'));
+		await click(fixture.selectEffect('Noise Reduction'));
+		await click(fixture.button(ENGLISH_COPY.getNoiseProfile));
+		fixture.queueProfileResponse(pending.promise);
+		await click(fixture.button(ENGLISH_COPY.replaceNoiseProfile));
+		await fixture.render(macroSnapshot('project-b'));
+		await act(async () => {
+			pending.resolve({ ...SERIALIZED_NOISE_PROFILE, windowCount: 99 });
+			await pending.promise;
+			await Promise.resolve();
+		});
+		await click(fixture.button('Close'));
+		await click(fixture.button(ENGLISH_COPY.runMacro));
+
+		const effects = fixture.runs[0]!.macro.effects as Array<Readonly<{
+			context?: Readonly<{ noiseProfile?: unknown }>;
+		}>>;
+		assert.deepEqual(effects[1]?.context?.noiseProfile, SERIALIZED_NOISE_PROFILE);
+	} finally {
+		pending.resolve(SERIALIZED_NOISE_PROFILE);
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
+test('Framescaper keeps its shared Macro Manager unchanged', async () => {
+	const fixture = await mountedMacroManagerFixture(undefined, 'framescaper');
+	try {
+		await fixture.render(macroSnapshot('project-a'));
+		assert.equal(fixture.find('[data-macro-templates]'), null);
+		assert.doesNotMatch(fixture.text(), /Restoration/u);
+	} finally {
+		fixture.settlePending();
+		await fixture.cleanup();
+	}
+});
+
 type MacroProject = ReturnType<typeof macroProject>;
 
-async function mountedMacroManagerFixture() {
+const SERIALIZED_NOISE_PROFILE = Object.freeze({
+	type: 'audacity-noise-profile',
+	version: 1,
+	sampleRate: 48_000,
+	windowSize: 2_048,
+	stepsPerWindow: 4,
+	windowType: 'hann-hann',
+	channelCount: 1,
+	windowCount: 2,
+	meanPowers: Object.freeze(Array.from({ length: 1_025 }, () => 0.25)),
+});
+
+async function mountedMacroManagerFixture(initialDraft: Readonly<{
+	readonly name: string;
+	readonly effects: readonly ReturnType<typeof createEffect>[];
+}> = {
+	name: 'Portable chain',
+	effects: [createEffect('audacity-invert', { id: 'macro-effect-1' })],
+}, productId = 'soundscaper') {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -122,20 +278,39 @@ async function mountedMacroManagerFixture() {
 	let currentProject: MacroProject | null = null;
 	const runs: Array<Readonly<{
 		readonly projectId: string | null;
+		readonly macro: Readonly<{ readonly effects: readonly unknown[] }>;
 		readonly settlement: ReturnType<typeof deferred<true>>;
 	}>> = [];
 	const exports: Array<Readonly<{
 		readonly projectId: string | null;
 		readonly settlement: ReturnType<typeof deferred<Readonly<{ cancelled: boolean }>>>;
 	}>> = [];
+	let profileCaptures = 0;
+	let profileFailure: Error | null = null;
+	const profileResponses: Promise<unknown>[] = [];
+	const profileParams: unknown[] = [];
 	const controller = {
 		get project() { return currentProject; },
 		actions: {
 			macros: {
-				run: () => {
+				run: (macro: Readonly<{ readonly effects: readonly unknown[] }>) => {
 					const settlement = deferred<true>();
-					runs.push({ projectId: currentProject?.id ?? null, settlement });
+					runs.push({ projectId: currentProject?.id ?? null, macro, settlement });
 					return settlement.promise;
+				},
+			},
+			effects: {
+			captureNoiseProfile: (params: unknown) => {
+					profileCaptures += 1;
+					profileParams.push(params);
+					if (profileFailure) {
+						const cause = profileFailure;
+						profileFailure = null;
+						return Promise.reject(cause);
+					}
+					const response = profileResponses.shift();
+					if (response) return response;
+					return Promise.resolve(SERIALIZED_NOISE_PROFILE);
 				},
 			},
 		},
@@ -148,12 +323,10 @@ async function mountedMacroManagerFixture() {
 		},
 	};
 	function Host({ snapshot }: Readonly<{ snapshot: ReturnType<typeof macroSnapshot> }>) {
-		const [draft, setDraft] = useState(() => ({
-			name: 'Portable chain',
-			effects: [createEffect('audacity-invert', { id: 'macro-effect-1' })],
-		}));
+		const [draft, setDraft] = useState(() => initialDraft);
 		return <AudioEditorMacroManagerDialog
 			isOpen
+			productId={productId}
 			controller={controller}
 			snapshot={snapshot}
 			copy={ENGLISH_COPY}
@@ -170,7 +343,21 @@ async function mountedMacroManagerFixture() {
 		runs,
 		exports,
 		button: (label: string) => buttonByLabel(dom.container, label),
+		find: (selector: string) => dom.find(selector),
+		text: () => dom.container.textContent,
+		profileCaptures: () => profileCaptures,
+		profileParams: () => profileParams,
+		failNextProfileCapture: (cause: Error) => { profileFailure = cause; },
+		queueProfileResponse: (response: Promise<unknown>) => { profileResponses.push(response); },
 		effectNames: () => dom.container.querySelectorAll('.effect-slot__name-text').map(({ textContent }) => textContent),
+		selectEffect: (name: string) => {
+			const slot = dom.container.querySelectorAll('.effect-slot').find((candidate) => (
+				candidate.textContent.includes(name)
+			));
+			const button = slot?.querySelector('.effect-slot__name-field');
+			assert.ok(button, `Missing selectable ${name} effect.`);
+			return button;
+		},
 		importInput: () => dom.one('[data-macro-import-file]'),
 		message: () => dom.find('[role="status"]')?.textContent
 			?? dom.find('[role="alert"]')?.textContent

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
+import { createAutomationLaneBoundaryIdMinterV21 } from './automation-lane-interval-boundary-id-v21.ts';
 import {
 	AUTOMATION_LANE_MAXIMUM_POINTS_V21,
 	normalizeAutomationLaneV21,
@@ -50,7 +49,6 @@ interface SplitShape {
 	readonly right: InterpolationShape;
 }
 
-const ID_ENCODER = new TextEncoder();
 const NONCANONICAL_SPLICE_MESSAGE
 	= 'Automation ripple-delete cannot encode this discontinuous curve splice canonically.';
 
@@ -82,7 +80,9 @@ export function replaceAutomationLaneTimelineIntervalV21(
 	if (edit.startFrame === edit.endFrame
 		&& compareFractions(startPosition, curve.points.at(-1)!.position) > 0) return laneValue;
 
-	const mint = createBoundaryIdMinter(lane.id, edit, curve.points);
+	const mint = createAutomationLaneBoundaryIdMinterV21(
+		lane.id, edit, curve.points.map((point) => point.id),
+	);
 	const prefix = curvePrefixAt(
 		lane, curve, startPosition, edit.startFrame,
 		mint('left'), sampleRate, options,
@@ -109,6 +109,46 @@ export function replaceAutomationLaneTimelineIntervalV21(
 		timebase: lane.timebase,
 		points: edited.points.map((point) => publicPoint(point, lane.timebase)),
 		segments: edited.segments,
+	});
+}
+
+/**
+ * Insert one exact authored point without changing the evaluated curve. This is
+ * shared by interval preservation and the inline editor so eased and Bézier
+ * segments are never flattened to sampled linear data merely to expose a handle.
+ */
+export function splitAutomationLaneAtFrameV21(
+	laneValue: AutomationLaneV21,
+	frameValue: number,
+	pointId: string,
+	options: AutomationLaneFrameOptionsV21,
+): AutomationLaneV21 {
+	const lane = normalizeAutomationLaneV21(laneValue);
+	const frame = nonNegativeSafeInteger(frameValue, 'automation split frame');
+	const sampleRate = positiveSafeInteger(options.sampleRate, 'sampleRate');
+	const position = positionAtFrame(lane, frame, sampleRate, options);
+	const curve = editableCurve(lane);
+	const existing = curve.points.find((point) => compareFractions(point.position, position) === 0);
+	if (existing) throw new RangeError('An automation point already exists at the requested position.');
+	if (compareFractions(position, curve.points[0]!.position) <= 0
+		|| compareFractions(position, curve.points.at(-1)!.position) >= 0) {
+		throw new RangeError('An automation curve split must fall strictly between authored points.');
+	}
+	const prefix = curvePrefixAt(
+		lane, curve, position, frame, pointId, sampleRate, options,
+	);
+	const suffix = curveSuffixAt(
+		lane, curve, position, frame, pointId, sampleRate, options,
+	);
+	return normalizeAutomationLaneV21({
+		id: lane.id,
+		address: lane.address,
+		timebase: lane.timebase,
+		points: [
+			...prefix.points.map((point) => publicPoint(point, lane.timebase)),
+			...suffix.points.slice(1).map((point) => publicPoint(point, lane.timebase)),
+		],
+		segments: [...prefix.segments, ...suffix.segments],
 	});
 }
 
@@ -505,43 +545,6 @@ function normalizedEdit(value: AutomationLaneTimelineReplacementV21): Automation
 	);
 	if (endFrame < startFrame) throw new RangeError('An automation edit range must be ordered.');
 	return { startFrame, endFrame, insertedDurationFrames };
-}
-
-/**
- * Boundary IDs are derived from the edit alone, so repeating an identical ripple on a
- * lane that still carries an earlier boundary point would mint a live ID a second
- * time and the lane would be rejected for duplicate IDs. Disambiguate against the
- * authored lane, and against IDs already issued for this edit.
- */
-function createBoundaryIdMinter(
-	laneId: string,
-	edit: AutomationLaneTimelineReplacementV21,
-	points: readonly EditablePoint[],
-): (tag: string) => string {
-	const taken = new Set(points.map((point) => point.id));
-	return (tag: string): string => {
-		const base = boundaryId(laneId, edit, tag);
-		let candidate = base;
-		for (let index = 1; taken.has(candidate); index += 1) {
-			if (index > taken.size + 1) {
-				throw new RangeError('An automation interval edit could not mint a unique boundary ID.');
-			}
-			candidate = `${base}-${String(index)}`;
-		}
-		taken.add(candidate);
-		return candidate;
-	};
-}
-
-function boundaryId(
-	laneId: string,
-	edit: AutomationLaneTimelineReplacementV21,
-	tag: string,
-): string {
-	return `automation-edit-${bytesToHex(sha256(ID_ENCODER.encode(JSON.stringify([
-		'automation-lane-interval-edit-v21', laneId, edit.startFrame,
-		edit.endFrame, edit.insertedDurationFrames, tag,
-	]))))}`;
 }
 
 function nonNegativeSafeInteger(value: unknown, name: string): number {
