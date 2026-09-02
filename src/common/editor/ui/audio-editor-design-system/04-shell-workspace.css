@@ -522,10 +522,12 @@
 	outline-offset: 1px;
 }
 
+/* Audacity draws this button at 20px; WCAG 2.2 target size wants 24px, so the
+   hit box is 24px while the glyph keeps its 16px size. */
 #kw-audio-editor-design-system .kw-audio-editor__workspace-panel-menu-button {
 	display: inline-grid;
-	width: 20px;
-	height: 20px;
+	width: 24px;
+	height: 24px;
 	padding: 0;
 	place-items: center;
 	color: var(--kw-editor-muted);
