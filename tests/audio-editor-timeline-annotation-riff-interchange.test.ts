@@ -224,6 +224,33 @@ test('RIFF label export reports a positive region that collapses below one outpu
 	assert.equal(result.report.items[0]?.disposition, 'omitted');
 });
 
+test('RIFF import truncates at the annotation ceiling instead of failing the audio import', () => {
+	const markers = Array.from({ length: 4_097 }, (_, index) => ({
+		id: index + 1, sampleOffset: index, sampleLength: 0, label: `Cue ${String(index)}`, note: '',
+	}));
+	let nextId = 0;
+	const options = {
+		sourceSampleRate: 48_000,
+		timelineStartFrame: 0,
+		idFactory: () => `annotation-${String(++nextId)}`,
+	};
+
+	const result = createRiffAnnotationImport(annotationProject([]), markers, options);
+	assert.equal(result.annotations.length, 4_096);
+	assert.equal(result.annotations[0]?.name, 'Cue 0');
+	assert.equal(result.annotations.at(-1)?.name, 'Cue 4095');
+	const item = result.report.items.find(({ code }) => code === 'RIFF_ANNOTATIONS_LIMIT_TRUNCATED');
+	assert.equal(item?.disposition, 'omitted');
+	assert.deepEqual(item?.data, { markerCount: 4_097, importedCount: 4_096, maximumAnnotations: 4_096 });
+
+	const occupied = annotationProject([
+		annotation({ id: 'existing', kind: 'marker', anchor: 'sample', positionFrame: 5 }),
+	]);
+	const partial = createRiffAnnotationImport(occupied, markers.slice(0, 4_096), options);
+	assert.equal(partial.annotations.length, 4_095);
+	assert.equal(partial.report.counts.omitted, 1);
+});
+
 function annotation(overrides: Record<string, unknown>): Record<string, unknown> {
 	return {
 		id: 'annotation',

@@ -156,7 +156,24 @@ export function createRiffAnnotationImport(
 	const timelineStartFrame = nonNegativeSafeInteger(options.timelineStartFrame, 'timelineStartFrame');
 	if (typeof options.idFactory !== 'function') throw new TypeError('RIFF annotation import requires an ID factory.');
 	const report = createTimelineAnnotationInterchangeReport('import', 'timeline-annotations');
-	const candidates = markers.map((marker, index) => {
+	const headroom = Math.max(
+		0,
+		AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumAnnotations - project.timelineAnnotations.length,
+	);
+	const admitted = markers.length > headroom ? markers.slice(0, headroom) : markers;
+	if (admitted.length < markers.length) addItem(
+		report,
+		'RIFF_ANNOTATIONS_LIMIT_TRUNCATED',
+		'omitted',
+		null,
+		'The project holds at most its annotation ceiling; the cues past it were omitted so the audio import itself could proceed.',
+		{
+			markerCount: markers.length,
+			importedCount: admitted.length,
+			maximumAnnotations: AUDIO_EDITOR_TIMELINE_ANNOTATION_LIMITS.maximumAnnotations,
+		},
+	);
+	const candidates = admitted.map((marker, index) => {
 		const normalized = riffMarker(marker, index);
 		const relativeStart = scaleSampleFrame(normalized.sampleOffset, sourceSampleRate, projectSampleRate, 'point');
 		const startFrame = safeAdd(timelineStartFrame, relativeStart, 'RIFF annotation start');
