@@ -3,6 +3,7 @@
 import { normalizeStaffPadRenderRequest } from './parameters.js';
 import { loadStaffPadWasm, renderStaffPad } from './runtime.js';
 import { createStaffPadRuntimeLoader } from './runtime-loader.js';
+import { createWorkerAbortError, serializeWorkerError } from '../worker-error-transport.ts';
 
 const jobs = new Map();
 let renderQueue = Promise.resolve();
@@ -56,23 +57,13 @@ async function runRender(message, job) {
 		if (error?.name === 'AbortError' || job.cancelled) {
 			self.postMessage({ type: 'cancelled', id });
 		} else {
-			self.postMessage({ type: 'error', id, error: serializeError(error) });
+			self.postMessage({ type: 'error', id, error: serializeWorkerError(error) });
 		}
 	} finally {
 		jobs.delete(id);
 	}
 }
 
-function serializeError(error) {
-	return {
-		name: typeof error?.name === 'string' ? error.name : 'Error',
-		message: typeof error?.message === 'string' ? error.message : String(error),
-		stack: typeof error?.stack === 'string' ? error.stack : '',
-	};
-}
-
 function abortError() {
-	const error = new Error('StaffPad render was cancelled.');
-	error.name = 'AbortError';
-	return error;
+	return createWorkerAbortError('StaffPad render was cancelled.');
 }

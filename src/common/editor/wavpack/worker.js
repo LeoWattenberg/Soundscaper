@@ -3,6 +3,9 @@
 import { PCM_ENCODING_WAVPACK_F32_V1, exactArrayBuffer } from './pcm.js';
 import { decodePcmWithWavPack, encodePcmAdaptively } from './operations.js';
 import { createWavPackRuntimeCache } from './runtime.js';
+import { serializeWorkerError } from '../worker-error-transport.ts';
+
+const WAVPACK_ERROR_FIELDS = ['code'];
 
 const runtimeCache = createWavPackRuntimeCache();
 let work = Promise.resolve();
@@ -21,7 +24,7 @@ async function processMessage(message) {
 		self.postMessage({
 			type: 'error',
 			id: message.id,
-			error: serializeError(error),
+			error: serializeWorkerError(error, WAVPACK_ERROR_FIELDS),
 		});
 	}
 }
@@ -66,13 +69,4 @@ function postCodecResult(id, result) {
 		id,
 		result,
 	}, [result.payload]);
-}
-
-function serializeError(error) {
-	return {
-		name: typeof error?.name === 'string' ? error.name : 'Error',
-		message: typeof error?.message === 'string' ? error.message : String(error),
-		code: typeof error?.code === 'string' ? error.code : '',
-		stack: typeof error?.stack === 'string' ? error.stack : '',
-	};
 }

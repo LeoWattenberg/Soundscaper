@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { nyquistTransferableBuffers } from './protocol.js';
+import { NYQUIST_ERROR_FIELDS, nyquistTransferableBuffers } from './protocol.js';
 import { evaluateNyquist, loadNyquistWasm } from './runtime.js';
+import { createWorkerAbortError, serializeWorkerError } from '../worker-error-transport.ts';
 
 const jobs = new Map();
 const runtimePromises = new Map();
@@ -45,7 +46,7 @@ async function runEvaluation(message, job) {
 	} catch (error) {
 		if (isFatalRuntimeError(error)) runtimePromises.delete(runtimeKey(message.wasmUrl));
 		if (error?.name === 'AbortError' || job.cancelled) self.postMessage({ type: 'cancelled', id });
-		else self.postMessage({ type: 'error', id, error: serializeError(error) });
+		else self.postMessage({ type: 'error', id, error: serializeWorkerError(error, NYQUIST_ERROR_FIELDS) });
 	} finally {
 		jobs.delete(id);
 	}
@@ -70,18 +71,6 @@ function isFatalRuntimeError(error) {
 	return fatalRuntimeCodes.has(error?.code);
 }
 
-function serializeError(error) {
-	return {
-		name: typeof error?.name === 'string' ? error.name : 'Error',
-		message: typeof error?.message === 'string' ? error.message : String(error),
-		code: typeof error?.code === 'string' ? error.code : null,
-		output: typeof error?.output === 'string' ? error.output : '',
-		stack: typeof error?.stack === 'string' ? error.stack : '',
-	};
-}
-
 function abortError() {
-	const error = new Error('Nyquist evaluation was cancelled.');
-	error.name = 'AbortError';
-	return error;
+	return createWorkerAbortError('Nyquist evaluation was cancelled.');
 }

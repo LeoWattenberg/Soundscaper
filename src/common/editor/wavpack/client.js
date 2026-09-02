@@ -12,7 +12,9 @@ import {
 	normalizeWorkerRequestTimeout,
 } from '../worker-request-broker.ts';
 import { createWorkerRequestId } from '../worker-protocol.ts';
+import { createWorkerAbortError, deserializeWorkerError } from '../worker-error-transport.ts';
 
+const WAVPACK_ERROR_FIELDS = ['code'];
 let nextRequestId = 1;
 
 /**
@@ -251,15 +253,9 @@ function removeQueued(queue, request) {
 }
 
 function deserializeError(value) {
-	const error = new Error(typeof value?.message === 'string' ? value.message : 'WavPack worker failed.');
-	error.name = typeof value?.name === 'string' ? value.name : 'Error';
-	if (typeof value?.code === 'string' && value.code) error.code = value.code;
-	if (typeof value?.stack === 'string' && value.stack) error.stack = value.stack;
-	return error;
+	return deserializeWorkerError(value, 'WavPack worker failed.', WAVPACK_ERROR_FIELDS);
 }
 
 function abortError() {
-	const error = new Error('PCM codec work was cancelled.');
-	error.name = 'AbortError';
-	return error;
+	return createWorkerAbortError('PCM codec work was cancelled.');
 }

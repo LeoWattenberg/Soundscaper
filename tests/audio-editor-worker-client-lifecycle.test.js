@@ -4,7 +4,40 @@ import assert from 'node:assert/strict';
 import { Aup4WorkerClient } from '../src/common/editor/aup4-client.js';
 import { StaffPadRenderClient } from '../src/common/editor/staffpad/client.js';
 import { WavPackCodecClient } from '../src/common/editor/wavpack/client.js';
+import { NyquistEvaluationClient } from '../src/common/editor/nyquist/client.js';
 import { WorkerRequestBroker } from '../src/common/editor/worker-request-broker.ts';
+import {
+	createWorkerAbortError,
+	deserializeWorkerError,
+	serializeWorkerError,
+} from '../src/common/editor/worker-error-transport.ts';
+
+test('the shared worker error transport carries declared fields and drops absent ones', () => {
+	const thrown = Object.assign(new Error('decode failed'), { code: 'WAVPACK_TRAP', output: 'noise' });
+	const wire = serializeWorkerError(thrown, ['code']);
+	assert.deepEqual(Object.keys(wire).sort(), ['code', 'message', 'name', 'stack']);
+	assert.equal(wire.code, 'WAVPACK_TRAP');
+	assert.equal(wire.message, 'decode failed');
+	assert.equal(typeof wire.stack, 'string');
+
+	const restored = deserializeWorkerError(wire, 'fallback', ['code']);
+	assert.equal(restored.message, 'decode failed');
+	assert.equal(restored.code, 'WAVPACK_TRAP');
+	assert.equal(restored.stack, wire.stack);
+	assert.ok(!('output' in restored), 'undeclared fields must not cross the boundary');
+
+	// An absent extra field serializes as '' and must not land as an empty
+	// property on the rebuilt error, which is what the hand-rolled copies did.
+	const bare = serializeWorkerError(new Error('plain'), ['code']);
+	assert.equal(bare.code, '');
+	assert.ok(!('code' in deserializeWorkerError(bare, 'fallback', ['code'])));
+
+	// Non-Error rejections still produce a usable message rather than "undefined".
+	assert.equal(serializeWorkerError('exploded').message, 'exploded');
+	assert.equal(serializeWorkerError(null).name, 'Error');
+	assert.equal(deserializeWorkerError(null, 'worker failed.').message, 'worker failed.');
+	assert.equal(createWorkerAbortError('cancelled.').name, 'AbortError');
+});
 
 test('worker request broker rolls back failed posts and settles abort exactly once', async () => {
 	const broker = new WorkerRequestBroker({ timeoutMs: 120_000 });
@@ -183,6 +216,48 @@ test('WavPack active abort and inactivity timeout terminate the worker and allow
 	client.close();
 });
 
+test('Nyquist restarts the interpreter on a deadline and fails its collateral evaluations', async () => {
+	const workers = [];
+	const timers = createManualTimers();
+	const client = new NyquistEvaluationClient({
+		timeoutMs: 5,
+		setTimeout: timers.setTimeout,
+		clearTimeout: timers.clearTimeout,
+		workerFactory() {
+			const worker = new FakeWorker();
+			workers.push(worker);
+			return worker;
+		},
+	});
+	try {
+		const stuck = client.evaluate(nyquistRequest());
+		const collateral = client.evaluate(nyquistRequest());
+		assert.equal(timers.active().length, 2);
+		timers.fire(timers.active()[0].id);
+		await assert.rejects(
+			stuck,
+			(error) => error.name === 'TimeoutError' && error.code === 'NYQUIST_TIMEOUT',
+		);
+		// Nyquist cannot interrupt a running form, so the whole interpreter goes
+		// and every evaluation sharing it has to be reported as collateral.
+		await assert.rejects(collateral, /restarted after another evaluation timed out/);
+		assert.equal(workers[0].terminated, true);
+		assert.equal(timers.active().length, 0);
+
+		const afterRestart = client.evaluate(nyquistRequest());
+		assert.equal(workers.length, 2);
+		const id = workers[1].messages.at(-1).message.id;
+		workers[1].emit({
+			type: 'result',
+			id,
+			result: { type: 'number', value: 7, numericType: 'integer', output: '' },
+		});
+		assert.equal((await afterRestart).value, 7);
+	} finally {
+		client.dispose();
+	}
+});
+
 test('WavPack ignores late failures from a replaced worker', async () => {
 	const workers = [];
 	const client = new WavPackCodecClient({
@@ -262,6 +337,10 @@ function resolveStaffPad(worker) {
 
 function codecOptions(extra = {}) {
 	return { frames: 1, channelCount: 1, sampleRate: 48_000, ...extra };
+}
+
+function nyquistRequest() {
+	return { source: '(do () (nil))', sampleRate: 8_000, channels: [] };
 }
 
 function createManualTimers() {

@@ -2,20 +2,33 @@
 
 import {
 	NYQUIST_DEFAULT_TIMEOUT_MS,
+	NYQUIST_ERROR_FIELDS,
 	normalizeNyquistRequest,
 	normalizeNyquistResult,
 } from './protocol.js';
+import { WorkerRequestBroker, normalizeWorkerRequestTimeout } from '../worker-request-broker.ts';
+import { createWorkerRequestId } from '../worker-protocol.ts';
+import { createWorkerAbortError, deserializeWorkerError } from '../worker-error-transport.ts';
 
-const MAXIMUM_TIMEOUT_MS = 30 * 60 * 1_000;
 let nextJobId = 1;
 
+/**
+ * Nyquist has no way to interrupt an interpreter mid-form, so cancellation and
+ * timeouts are enforced by discarding the whole worker. The shared broker owns
+ * registration, deadlines, abort wiring and exactly-once settlement; this client
+ * keeps only the message interpretation and that hard-restart policy.
+ */
 export class NyquistEvaluationClient {
 	constructor(options = {}) {
 		this.workerFactory = options.workerFactory || defaultWorkerFactory;
 		this.wasmUrl = options.wasmUrl == null ? null : String(options.wasmUrl);
-		this.defaultTimeoutMs = normalizeTimeout(options.timeoutMs ?? NYQUIST_DEFAULT_TIMEOUT_MS);
+		this.requests = new WorkerRequestBroker({
+			timeoutMs: options.timeoutMs ?? NYQUIST_DEFAULT_TIMEOUT_MS,
+			setTimeout: options.setTimeout,
+			clearTimeout: options.clearTimeout,
+		});
+		this.jobs = this.requests.entries;
 		this.worker = null;
-		this.jobs = new Map();
 		this.disposed = false;
 	}
 
@@ -25,7 +38,7 @@ export class NyquistEvaluationClient {
 		let timeoutMs;
 		try {
 			normalized = normalizeNyquistRequest(request);
-			timeoutMs = normalizeTimeout(options.timeoutMs ?? this.defaultTimeoutMs);
+			timeoutMs = normalizeWorkerRequestTimeout(options.timeoutMs ?? this.requests.defaultTimeoutMs);
 		} catch (error) {
 			return Promise.reject(error);
 		}
@@ -36,38 +49,33 @@ export class NyquistEvaluationClient {
 		} catch (error) {
 			return Promise.reject(error);
 		}
-		const id = `nyquist-${nextJobId++}`;
-		return new Promise((resolve, reject) => {
-			const job = {
+		const id = createWorkerRequestId('nyquist', nextJobId++);
+		const job = {
+			id,
+			onProgress: typeof options.onProgress === 'function' ? options.onProgress : null,
+		};
+		const transfer = options.transferInput === true
+			? [...new Set(normalized.channels.map((channel) => channel.buffer))]
+				.filter((buffer) => buffer instanceof ArrayBuffer)
+			: [];
+		return this.requests.request({
+			id,
+			context: job,
+			signal: options.signal,
+			timeoutMs,
+			abortError,
+			timeoutError: nyquistTimeoutError,
+			onAbort: () => {
+				try { this.worker?.postMessage({ type: 'cancel', id }); } catch { /* Cancellation is best effort. */ }
+				this.restartWorker('Nyquist worker was restarted after an evaluation was cancelled.');
+			},
+			onTimeout: () => this.restartWorker('Nyquist worker was restarted after another evaluation timed out.'),
+			post: () => worker.postMessage({
+				type: 'evaluate',
 				id,
-				resolve,
-				reject,
-				onProgress: typeof options.onProgress === 'function' ? options.onProgress : null,
-				signal: options.signal || null,
-				onAbort: null,
-				timer: null,
-				timeoutMs,
-			};
-			if (job.signal) {
-				job.onAbort = () => this.abortJob(job);
-				job.signal.addEventListener('abort', job.onAbort, { once: true });
-			}
-			job.timer = setTimeout(() => this.timeoutJob(job), timeoutMs);
-			this.jobs.set(id, job);
-			const transfer = options.transferInput === true
-				? [...new Set(normalized.channels.map((channel) => channel.buffer))]
-					.filter((buffer) => buffer instanceof ArrayBuffer)
-				: [];
-			try {
-				worker.postMessage({
-					type: 'evaluate',
-					id,
-					request: normalized,
-					wasmUrl: this.wasmUrl,
-				}, transfer);
-			} catch (error) {
-				this.finishJob(job, error);
-			}
+				request: normalized,
+				wasmUrl: this.wasmUrl,
+			}, transfer),
 		});
 	}
 
@@ -76,10 +84,8 @@ export class NyquistEvaluationClient {
 		this.disposed = true;
 		const worker = this.worker;
 		this.worker = null;
-		try { worker?.terminate(); } catch {}
-		for (const job of Array.from(this.jobs.values())) {
-			this.finishJob(job, new Error('NyquistEvaluationClient was disposed.'));
-		}
+		try { worker?.terminate(); } catch { /* Termination is best effort. */ }
+		this.requests.dispose(new Error('NyquistEvaluationClient was disposed.'));
 	}
 
 	getWorker() {
@@ -103,73 +109,53 @@ export class NyquistEvaluationClient {
 
 	handleMessage(message) {
 		if (!message || typeof message !== 'object') return;
-		const job = this.jobs.get(message.id);
+		const job = this.requests.get(message.id)?.context;
 		if (!job) return;
 		if (message.type === 'progress') {
 			const progress = Number(message.progress);
 			if (!Number.isFinite(progress)) {
-				this.finishJob(job, new Error('Nyquist worker returned invalid progress.'));
+				this.requests.reject(job.id, new Error('Nyquist worker returned invalid progress.'));
 				return;
 			}
 			try {
 				job.onProgress?.(Math.max(0, Math.min(1, progress)));
 			} catch (error) {
-				this.finishJob(job, error);
+				this.requests.reject(job.id, error);
 			}
 			return;
 		}
 		if (message.type === 'result') {
 			try {
-				this.finishJob(job, null, normalizeNyquistResult(message.result));
+				this.requests.resolve(job.id, normalizeNyquistResult(message.result));
 			} catch (error) {
-				this.finishJob(job, error);
+				this.requests.reject(job.id, error);
 			}
 			return;
 		}
 		if (message.type === 'cancelled') {
-			this.finishJob(job, abortError());
+			this.requests.reject(job.id, abortError());
 			return;
 		}
-		if (message.type === 'error') this.finishJob(job, deserializeError(message.error));
+		if (message.type === 'error') this.requests.reject(job.id, deserializeError(message.error));
 	}
 
-	abortJob(job) {
-		if (!this.jobs.has(job.id)) return;
-		try { this.worker?.postMessage({ type: 'cancel', id: job.id }); } catch {}
-		this.terminateWorker(job, abortError(), 'Nyquist worker was restarted after an evaluation was cancelled.');
-	}
-
-	timeoutJob(job) {
-		if (!this.jobs.has(job.id)) return;
-		const error = new Error(`Nyquist evaluation exceeded its ${formatTimeout(job.timeoutMs)} time limit.`);
-		error.name = 'TimeoutError';
-		error.code = 'NYQUIST_TIMEOUT';
-		this.terminateWorker(job, error, 'Nyquist worker was restarted after another evaluation timed out.');
-	}
-
-	terminateWorker(primaryJob, primaryError, collateralMessage) {
+	/**
+	 * Drops the interpreter and fails every evaluation still riding on it. The
+	 * request that triggered the restart has already been settled by the broker,
+	 * so only its collateral is reported here.
+	 */
+	restartWorker(collateralMessage) {
 		const worker = this.worker;
 		this.worker = null;
-		try { worker?.terminate(); } catch {}
-		for (const job of Array.from(this.jobs.values())) {
-			this.finishJob(job, job === primaryJob ? primaryError : new Error(collateralMessage));
-		}
-	}
-
-	finishJob(job, error, result) {
-		if (!this.jobs.has(job.id)) return;
-		this.jobs.delete(job.id);
-		clearTimeout(job.timer);
-		if (job.signal && job.onAbort) job.signal.removeEventListener('abort', job.onAbort);
-		if (error) job.reject(error);
-		else job.resolve(result);
+		try { worker?.terminate(); } catch { /* Termination is best effort. */ }
+		this.requests.rejectAll(new Error(collateralMessage));
 	}
 
 	handleWorkerFailure(worker, error) {
 		if (worker !== this.worker) return;
 		this.worker = null;
-		try { worker.terminate(); } catch {}
-		for (const job of Array.from(this.jobs.values())) this.finishJob(job, error);
+		try { worker.terminate(); } catch { /* Termination is best effort. */ }
+		this.requests.rejectAll(error);
 	}
 }
 
@@ -189,12 +175,11 @@ function defaultWorkerFactory() {
 	});
 }
 
-function normalizeTimeout(value) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < 1 || number > MAXIMUM_TIMEOUT_MS) {
-		throw new RangeError(`Nyquist timeout must be between 1 and ${MAXIMUM_TIMEOUT_MS} milliseconds.`);
-	}
-	return number;
+function nyquistTimeoutError(timeoutMs) {
+	const error = new Error(`Nyquist evaluation exceeded its ${formatTimeout(timeoutMs)} time limit.`);
+	error.name = 'TimeoutError';
+	error.code = 'NYQUIST_TIMEOUT';
+	return error;
 }
 
 function formatTimeout(milliseconds) {
@@ -202,16 +187,9 @@ function formatTimeout(milliseconds) {
 }
 
 function deserializeError(value) {
-	const error = new Error(typeof value?.message === 'string' ? value.message : 'Nyquist worker failed.');
-	error.name = typeof value?.name === 'string' ? value.name : 'Error';
-	if (typeof value?.code === 'string') error.code = value.code;
-	if (typeof value?.output === 'string') error.output = value.output;
-	if (typeof value?.stack === 'string' && value.stack) error.stack = value.stack;
-	return error;
+	return deserializeWorkerError(value, 'Nyquist worker failed.', NYQUIST_ERROR_FIELDS);
 }
 
 function abortError() {
-	const error = new Error('Nyquist evaluation was cancelled.');
-	error.name = 'AbortError';
-	return error;
+	return createWorkerAbortError('Nyquist evaluation was cancelled.');
 }

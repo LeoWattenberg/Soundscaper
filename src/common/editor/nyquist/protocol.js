@@ -7,6 +7,8 @@ import { stripNyquistPluginHeader } from './plugin-parser.js';
 
 export const NYQUIST_WASM_ABI_VERSION = 1;
 export const NYQUIST_DEFAULT_TIMEOUT_MS = 120_000;
+/** Error fields the worker carries to the client on top of name/message/stack. */
+export const NYQUIST_ERROR_FIELDS = ['code', 'output'];
 export const NYQUIST_MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 export const NYQUIST_MAX_CHANNELS = 32;
 // Input and result buffers coexist in the 256 MiB WASM heap. Capping each

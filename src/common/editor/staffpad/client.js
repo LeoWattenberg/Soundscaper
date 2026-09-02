@@ -3,6 +3,7 @@
 import { normalizeStaffPadRenderRequest } from './parameters.js';
 import { WorkerRequestBroker } from '../worker-request-broker.ts';
 import { createWorkerRequestId } from '../worker-protocol.ts';
+import { createWorkerAbortError, deserializeWorkerError } from '../worker-error-transport.ts';
 
 let nextJobId = 1;
 
@@ -188,14 +189,9 @@ function defaultWorkerFactory() {
 }
 
 function deserializeError(value) {
-	const error = new Error(typeof value?.message === 'string' ? value.message : 'StaffPad worker failed.');
-	error.name = typeof value?.name === 'string' ? value.name : 'Error';
-	if (typeof value?.stack === 'string' && value.stack) error.stack = value.stack;
-	return error;
+	return deserializeWorkerError(value, 'StaffPad worker failed.');
 }
 
 function abortError() {
-	const error = new Error('StaffPad render was cancelled.');
-	error.name = 'AbortError';
-	return error;
+	return createWorkerAbortError('StaffPad render was cancelled.');
 }
