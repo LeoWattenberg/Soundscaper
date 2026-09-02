@@ -2,11 +2,14 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { installReactTestDom } from './helpers/react-test-dom.ts';
 import { resilientModuleLoader } from '../src/common/offline/lazy-module.tsx';
 import {
+	dismissStaleBuild,
 	installStaleBuildDetection,
 	staleBuildSnapshot,
 	subscribeStaleBuild,
@@ -33,6 +36,22 @@ function install(verdict: StaleBuildVerdict = 'stale') {
 
 /** One turn is enough: the injected probe resolves immediately. */
 const settle = async (): Promise<void> => { await Promise.resolve(); await Promise.resolve(); };
+
+/** Mounts an element for real, so its mount effects run, then takes it back down. */
+async function mount(element: React.ReactElement): Promise<void> {
+	const dom = installReactTestDom();
+	const actEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
+	actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => { root.render(element); });
+		await act(async () => { root.unmount(); });
+	} finally {
+		actEnvironment.IS_REACT_ACT_ENVIRONMENT = priorActEnvironment;
+		dom.restore();
+	}
+}
 
 test('a preload error on the window drives the shared snapshot', async () => {
 	const { target, teardown } = install();
@@ -82,6 +101,43 @@ test('a retired lazy surface resolves to a component that renders nothing and re
 		const load = resilientModuleLoader<Record<string, never>>(() => Promise.reject(RETIRED_CHUNK));
 		const module = await load();
 		assert.equal(renderToStaticMarkup(React.createElement(module.default)), '');
+		await settle();
+		assert.equal(staleBuildSnapshot().prompting, true);
+	} finally {
+		teardown();
+	}
+});
+
+test('the placeholder closes the surface it stood in for so its menu entry stays live', async () => {
+	const { teardown } = install();
+	try {
+		const load = resilientModuleLoader<{ onClose?: () => void }>(() => Promise.reject(RETIRED_CHUNK));
+		const Placeholder = (await load()).default;
+		const closes: number[] = [];
+		await mount(React.createElement(Placeholder, { onClose: () => closes.push(1) }));
+		assert.deepEqual(closes, [1]);
+	} finally {
+		teardown();
+	}
+});
+
+test('the placeholder stays silent on the mount that follows its own failure', async () => {
+	const { teardown } = install();
+	try {
+		const load = resilientModuleLoader<{ onClose?: () => void }>(() => Promise.reject(RETIRED_CHUNK));
+		const Placeholder = (await load()).default;
+		await settle();
+		assert.equal(staleBuildSnapshot().prompting, true);
+
+		// The user cancels before the module resolution has even reached React.
+		dismissStaleBuild();
+		assert.equal(staleBuildSnapshot().prompting, false);
+		await mount(React.createElement(Placeholder, {}));
+		await settle();
+		assert.equal(staleBuildSnapshot().prompting, false, 'a dismissed prompt must not return on its own');
+
+		// Reaching for the surface again mounts it a second time, which does explain itself.
+		await mount(React.createElement(Placeholder, {}));
 		await settle();
 		assert.equal(staleBuildSnapshot().prompting, true);
 	} finally {

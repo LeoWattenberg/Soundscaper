@@ -31,7 +31,14 @@ test.describe('Stale build reload prompt', () => {
 		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 
-		// A second reach for an unloadable surface explains itself again.
+		// The retired surface closes itself once its module finally resolves, which
+		// is measurably after the prompt appeared. Cancelling has to survive that:
+		// reporting the same failure again there would pop the prompt back up
+		// unbidden, seconds after the user dismissed it.
+		await expect(page.locator('[data-editor-surface="export"]')).toHaveCount(0);
+		await expect(prompt).toBeHidden();
+
+		// Reaching for the surface a second time does explain itself again.
 		await chooseCommand(page, editor, 'File', 'Export audio');
 		await expect(prompt).toBeVisible();
 	});
