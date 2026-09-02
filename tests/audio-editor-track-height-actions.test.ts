@@ -26,7 +26,7 @@ test('Audacity collapse and expand all tracks stay superseded by the relative st
 		assert.ok(definition.reason.de, id);
 		assert.equal(definition.roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED, id);
 		assert.ok(
-			AUDACITY_PINNED_UI_ACTIONS.some((action) => action.id === id),
+			AUDACITY_PINNED_UI_ACTIONS.some((action: { id: string }) => action.id === id),
 			`${id} stays in the pinned inventory so a later upstream change cannot escape review`,
 		);
 	}
