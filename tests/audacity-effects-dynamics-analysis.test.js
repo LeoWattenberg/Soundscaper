@@ -115,6 +115,8 @@ test('the live worklet reports dynamics analysis on its port at the display rate
 	assert.ok(Math.abs(analyses[0].seconds - analyses[0].frames / SAMPLE_RATE) < 1e-9);
 	assert.ok(analyses[0].reductionDb < 0);
 	assert.equal(analyses[0].effectType, 'audacity-compressor');
+	// Windows are a fixed length, so the sequence is what separates two reports.
+	assert.deepEqual(analyses.map((message) => message.sequence), [1, 2]);
 });
 
 test('the live worklet stays silent for effects that report no analysis', () => {

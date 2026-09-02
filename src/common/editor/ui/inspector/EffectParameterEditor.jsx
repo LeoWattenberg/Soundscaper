@@ -50,6 +50,7 @@ export default function EffectParameterEditor({
 	onParametricEqCancel,
 	onParametricEqAudition,
 	readParametricEqSpectrum,
+	readDynamicsAnalysis = null,
 	automationRuntime,
 	automationProject,
 	automationStrip,
@@ -209,6 +210,7 @@ export default function EffectParameterEditor({
 					parameters={effect.params}
 					copy={copy}
 					renderParameter={renderNativeParameter}
+					readDynamicsAnalysis={readDynamicsAnalysis}
 					after={error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 				/>
 			</div>
@@ -272,6 +274,7 @@ export default function EffectParameterEditor({
 				parameters={effect.params}
 				copy={copy}
 				renderParameter={renderParameter}
+				readDynamicsAnalysis={readDynamicsAnalysis}
 				before={contextControls}
 				after={(
 					<>

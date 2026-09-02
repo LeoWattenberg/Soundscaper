@@ -31,6 +31,7 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		this.sampleRate = sampleRate;
 		this.processor = null;
 		this.analysisWindow = null;
+		this.analysisSequence = 0;
 		this.analysisFramesPerReport = Math.max(1, Math.round(
 			sampleRate * AUDACITY_LIVE_ANALYSIS_INTERVAL_SECONDS,
 		));
@@ -121,8 +122,10 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 			return;
 		}
 		this.analysisWindow = null;
+		this.analysisSequence += 1;
 		this.port.postMessage({
 			type: 'analysis',
+			sequence: this.analysisSequence,
 			effectType: this.effectType,
 			frames: window.frames,
 			seconds: window.frames / this.sampleRate,

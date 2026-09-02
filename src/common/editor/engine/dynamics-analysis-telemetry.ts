@@ -8,6 +8,8 @@
  * `reductionDb` is at most zero and excludes makeup gain.
  */
 export interface DynamicsAnalysisWindow {
+	/** Counts reports from one processor, so a repeated read is recognisable. */
+	readonly sequence: number;
 	readonly effectType: string;
 	readonly frames: number;
 	readonly seconds: number;
@@ -64,17 +66,20 @@ function dynamicsAnalysisWindow(value: unknown): DynamicsAnalysisWindow | null {
 	if (!value || typeof value !== 'object') return null;
 	const message = value as Readonly<Record<string, unknown>>;
 	if (message.type !== 'analysis') return null;
+	const sequence = Number(message.sequence);
 	const frames = Number(message.frames);
 	const seconds = Number(message.seconds);
 	const inputPeak = Number(message.inputPeak);
 	const outputPeak = Number(message.outputPeak);
 	const reductionDb = Number(message.reductionDb);
+	if (!Number.isSafeInteger(sequence) || sequence <= 0) return null;
 	if (!Number.isSafeInteger(frames) || frames <= 0) return null;
 	if (!Number.isFinite(seconds) || seconds <= 0) return null;
 	if (!Number.isFinite(inputPeak) || inputPeak < 0) return null;
 	if (!Number.isFinite(outputPeak) || outputPeak < 0) return null;
 	if (!Number.isFinite(reductionDb) || reductionDb > 0) return null;
 	return Object.freeze({
+		sequence,
 		effectType: typeof message.effectType === 'string' ? message.effectType : '',
 		frames,
 		seconds,

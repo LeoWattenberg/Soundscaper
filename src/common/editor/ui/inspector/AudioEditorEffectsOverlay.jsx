@@ -541,6 +541,11 @@ export function AudioEditorEffectsOverlay({
 								which,
 								target,
 							)}
+							readDynamicsAnalysis={() => controller.actions.effects.readDynamicsAnalysis?.(
+								effectScope,
+								effectScope === 'master' ? null : targetId,
+								effect.id,
+							)}
 							onChange={(changes) => run(() => controller.actions.effects.update(
 								effectScope,
 								effectScope === 'master' ? null : targetId,

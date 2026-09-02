@@ -198,6 +198,7 @@
 	.selection-toolbar__timecodes,
 	.kw-audio-editor__timecode,
 	.audio-editor-audacity-layout__response,
+	.audio-editor-audacity-layout__activity,
 	.audio-editor-effect-bands
 ) {
 	direction: ltr;

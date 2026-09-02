@@ -1,5 +1,6 @@
 import React from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
+import DynamicsActivityPanel, { supportsDynamicsActivity } from './DynamicsActivityPanel.jsx';
 
 const EFFECT_LAYOUTS = Object.freeze({
 	'audacity-amplify': [
@@ -242,9 +243,15 @@ function localizedCardTitle(titleKey, copy) {
 	return canonicalCopyValue(titleKey, copy);
 }
 
-function ResponsePanel({ type, parameters }) {
+function ResponsePanel({ type, parameters, effectType, readDynamicsAnalysis, copy }) {
 	const path = responsePath(type, parameters);
+	// The curve is what the effect would do; the activity panel beside it is what
+	// the effect is doing. They share a card so the two can be read together.
+	const activity = readDynamicsAnalysis && supportsDynamicsActivity(effectType)
+		? <DynamicsActivityPanel readAnalysis={readDynamicsAnalysis} copy={copy} />
+		: null;
 	return (
+		<>
 		<div className="audio-editor-audacity-layout__response" aria-hidden="true">
 			<svg viewBox="0 0 240 72" preserveAspectRatio="none" focusable="false">
 				<g className="audio-editor-audacity-layout__response-grid" fill="none" stroke="currentColor" opacity="0.16">
@@ -262,6 +269,8 @@ function ResponsePanel({ type, parameters }) {
 				/>
 			</svg>
 		</div>
+		{activity}
+		</>
 	);
 }
 
@@ -277,6 +286,7 @@ export function AudacityEffectLayout({
 	before = null,
 	after = null,
 	copy,
+	readDynamicsAnalysis = null,
 }) {
 	const parameterNames = Object.keys(definition?.params || {});
 	const groups = layoutGroups(effectType, parameterNames);
@@ -313,7 +323,15 @@ export function AudacityEffectLayout({
 									))}
 								</div>
 							)}
-							{group.response && <ResponsePanel type={group.response} parameters={parameters} />}
+							{group.response && (
+								<ResponsePanel
+									type={group.response}
+									parameters={parameters}
+									effectType={effectType}
+									readDynamicsAnalysis={readDynamicsAnalysis}
+									copy={copy}
+								/>
+							)}
 						</section>
 					);
 				})}

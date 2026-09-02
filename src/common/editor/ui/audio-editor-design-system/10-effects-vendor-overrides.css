@@ -129,6 +129,51 @@
 	height: 70px;
 }
 
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity {
+	position: relative;
+	margin-top: 8px;
+	padding: 8px;
+	background: color-mix(in srgb, var(--kw-editor-control) 72%, transparent);
+	border: 1px solid var(--kw-editor-line);
+	border-radius: 4px;
+}
+
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity-canvas {
+	display: block;
+	width: 100%;
+	height: 70px;
+}
+
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity-readout {
+	display: flex;
+	gap: 16px;
+	margin: 6px 0 0;
+	font-variant-numeric: tabular-nums;
+}
+
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity-readout > div {
+	display: flex;
+	gap: 6px;
+}
+
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity-readout dt {
+	color: var(--kw-editor-muted);
+}
+
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity-readout dd {
+	margin: 0;
+}
+
+#kw-audio-editor-design-system .audio-editor-audacity-layout__activity-idle {
+	position: absolute;
+	inset: 8px 8px auto;
+	margin: 0;
+	padding-top: 24px;
+	color: var(--kw-editor-muted);
+	text-align: center;
+	pointer-events: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-audacity-layout__empty {
 	margin: 0;
 	padding: 18px;

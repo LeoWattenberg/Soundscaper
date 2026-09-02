@@ -25,6 +25,7 @@ function createNode() {
 
 const READING = Object.freeze({
 	type: 'analysis',
+	sequence: 1,
 	effectType: 'audacity-compressor',
 	frames: 800,
 	seconds: 800 / 48_000,
@@ -40,7 +41,7 @@ test('a live dynamics node keeps only its newest reading', () => {
 	assert.equal(readDynamicsAnalysisTelemetry(fixture.node), null);
 	fixture.deliver(READING);
 	assert.equal(readDynamicsAnalysisTelemetry(fixture.node)?.reductionDb, -6);
-	fixture.deliver({ ...READING, reductionDb: -12 });
+	fixture.deliver({ ...READING, sequence: 2, reductionDb: -12 });
 	assert.equal(readDynamicsAnalysisTelemetry(fixture.node)?.reductionDb, -12);
 	assert.equal(readDynamicsAnalysisTelemetry(fixture.node)?.effectType, 'audacity-compressor');
 });
@@ -63,6 +64,8 @@ test('status, error, and malformed messages leave the reading alone', () => {
 	for (const message of [
 		{ type: 'status', status: 'ready' },
 		{ type: 'error', message: 'broken' },
+		{ ...READING, sequence: 0 },
+		{ ...READING, sequence: 2.5 },
 		{ ...READING, frames: 0 },
 		{ ...READING, frames: 1.5 },
 		{ ...READING, seconds: 0 },
@@ -74,6 +77,17 @@ test('status, error, and malformed messages leave the reading alone', () => {
 		'analysis',
 	]) fixture.deliver(message);
 	assert.equal(readDynamicsAnalysisTelemetry(fixture.node)?.reductionDb, -6);
+});
+
+test('a reading carries the sequence that identifies it', () => {
+	const fixture = createNode();
+	attachDynamicsAnalysisTelemetry(fixture.node);
+	fixture.deliver(READING);
+	assert.equal(readDynamicsAnalysisTelemetry(fixture.node)?.sequence, 1);
+	// Windows are a fixed length, so consecutive reports carry the same frame
+	// count; only the sequence separates a new reading from a repeated read.
+	fixture.deliver({ ...READING, sequence: 2 });
+	assert.equal(readDynamicsAnalysisTelemetry(fixture.node)?.sequence, 2);
 });
 
 test('releasing a node detaches its handler and forgets its reading', () => {
