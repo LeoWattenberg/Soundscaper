@@ -14,7 +14,6 @@ import {
 	type TrackStructuralOperationService,
 } from './track-structural-operation-service.ts';
 import {
-	findControllerClip,
 	findControllerTrack,
 	type ControllerProject,
 	type ControllerTrack,
@@ -22,7 +21,6 @@ import {
 
 export type TrackMoveDirection = 'up' | 'down' | 'top' | 'bottom';
 export type TrackDisplayMode = 'waveform' | 'spectrogram' | 'multiview' | 'half-wave';
-export type TrackSampleFormat = 'int16' | 'int24' | 'int32' | 'float32' | 'float64';
 
 interface TrackCopy {
 	readonly track: string;
@@ -33,7 +31,6 @@ interface TrackCopy {
 	readonly v2Required: string;
 	readonly audioTrackRequired: string;
 	readonly unknownTrackDisplay: string;
-	readonly unsupportedSampleFormat: string;
 }
 
 export interface TrackCreateOptions extends Record<string, unknown> {
@@ -134,7 +131,6 @@ export interface EditorTrackService {
 	moveTrack(trackId: string | null, direction: TrackMoveDirection): string | null;
 	setTrackDisplayMode(trackId: string, displayMode: string): unknown;
 	setTrackRate(trackId?: string | null, requestedSampleRate?: unknown): Promise<string | null>;
-	setTrackSampleFormat(trackId?: string | null, sampleFormat?: string): unknown;
 	addLabel(trackId?: string | null, options?: LabelCreateOptions): string | null;
 }
 
@@ -151,7 +147,6 @@ export function createEditorTrackService(
 		moveTrack,
 		setTrackDisplayMode,
 		setTrackRate,
-		setTrackSampleFormat,
 		addLabel,
 	});
 
@@ -327,28 +322,6 @@ export function createEditorTrackService(
 		return dependencies.resampleTrack(trackId, requestedSampleRate);
 	}
 
-	function setTrackSampleFormat(
-		trackId: string | null = dependencies.getSelectedTrackId(),
-		sampleFormat = 'float32',
-	): unknown {
-		dependencies.lifetime.assertActive();
-		if (dependencies.editingBlocked()) return null;
-		const project = dependencies.getProject();
-		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
-		const track = findControllerTrack(project, trackId);
-		if (!track || track.type !== 'audio') throw new Error(dependencies.copy.audioTrackRequired);
-		if (!isTrackSampleFormat(sampleFormat)) throw new RangeError(dependencies.copy.unsupportedSampleFormat);
-		const sourceIds = new Set(track.clipIds
-			.map((clipId) => findControllerClip(project, clipId)?.sourceId)
-			.filter((sourceId): sourceId is string => Boolean(sourceId)));
-		const commands: AudioEditorCommand[] = [...sourceIds].map((sourceId) => ({
-			type: 'source/update', sourceId, changes: { sampleFormat },
-		}));
-		return commands.length
-			? dependencies.commit({ type: 'batch', commands }, { selectTrackId: track.id })
-			: track.id;
-	}
-
 	function addLabel(trackId: string | null = null, options: LabelCreateOptions = {}): string | null {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
@@ -376,9 +349,4 @@ export function createEditorTrackService(
 
 function isTrackDisplayMode(value: string): value is TrackDisplayMode {
 	return value === 'waveform' || value === 'spectrogram' || value === 'multiview' || value === 'half-wave';
-}
-
-function isTrackSampleFormat(value: string): value is TrackSampleFormat {
-	return value === 'int16' || value === 'int24' || value === 'int32'
-		|| value === 'float32' || value === 'float64';
 }

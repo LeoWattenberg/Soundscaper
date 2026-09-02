@@ -47,7 +47,7 @@ test('track service prepares stable atomic track commands and moves linked lanes
 			track: 'Track', labels: 'Labels', recordingDesktopAudio: 'Desktop audio',
 			trackDestinationInvalid: 'Invalid destination', trackNotFound: 'Track missing',
 			v2Required: 'V2 required', audioTrackRequired: 'Audio required',
-			unknownTrackDisplay: 'Unknown display', unsupportedSampleFormat: 'Bad format',
+			unknownTrackDisplay: 'Unknown display',
 		},
 		trackColors: ['blue', 'green'],
 		getProject: () => project,

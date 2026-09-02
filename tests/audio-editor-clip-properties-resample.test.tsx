@@ -11,17 +11,18 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { ClipPropertiesDialog } from '../src/common/editor/ui/inspector/ClipPropertiesDialog.jsx';
-import { clipSampleFormatLabel } from '../src/common/editor/ui/inspector/ClipResampleDialog.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
-test('clip properties report the rate and format of the clip that is selected', async () => {
+test('clip properties report the rate of the clip that is selected', async () => {
 	const fixture = await mountedFixture();
 	try {
 		await fixture.render();
-		assert.match(fixture.formatRow('sampleRate').textContent, /96000/u);
-		assert.match(fixture.formatRow('sampleFormat').textContent, /24-bit PCM/u);
+		assert.match(fixture.sourceFact('sampleRate').textContent, /96000/u);
+		// Sources are stored as float32 PCM whatever they declare, so the editor
+		// neither offers a format nor reports one it would never convert.
+		assert.equal(fixture.declaredFormatShown(), false);
 		assert.equal(Boolean(fixture.resampleDialog()), false);
 	} finally {
 		await fixture.cleanup();
@@ -38,20 +39,18 @@ test('the resample dialog opens seeded from the clip and applies to that clip al
 		assert.ok(dialog, 'the resample button opens its dialog');
 		await fixture.submitResample();
 
-		assert.deepEqual(fixture.resampleCalls, [
-			['shared-clip', { sampleRate: 96_000, sampleFormat: 'int24' }],
-		]);
+		assert.deepEqual(fixture.resampleCalls, [['shared-clip', { sampleRate: 96_000 }]]);
 		assert.equal(Boolean(fixture.resampleDialog()), false, 'applying closes the dialog');
 	} finally {
 		await fixture.cleanup();
 	}
 });
 
-test('a product without audio effects reports the format but cannot resample', async () => {
+test('a product without audio effects reports the rate but cannot resample', async () => {
 	const fixture = await mountedFixture({ audioEffects: false });
 	try {
 		await fixture.render();
-		assert.match(fixture.formatRow('sampleRate').textContent, /96000/u);
+		assert.match(fixture.sourceFact('sampleRate').textContent, /96000/u);
 		assert.equal(
 			fixture.buttons().some((button) => button.textContent === ENGLISH_COPY.resample),
 			false,
@@ -60,17 +59,6 @@ test('a product without audio effects reports the format but cannot resample', a
 	} finally {
 		await fixture.cleanup();
 	}
-});
-
-test('every declared sample format has a readable label', () => {
-	assert.equal(clipSampleFormatLabel('float32', ENGLISH_COPY), ENGLISH_COPY.sampleFormatFloat32);
-	assert.equal(clipSampleFormatLabel('int16', ENGLISH_COPY), '16-bit PCM');
-	assert.equal(clipSampleFormatLabel('int24', ENGLISH_COPY), '24-bit PCM');
-	assert.equal(clipSampleFormatLabel('int32', ENGLISH_COPY), '32-bit PCM');
-	assert.equal(clipSampleFormatLabel('float64', ENGLISH_COPY), '64-bit PCM');
-	// A source whose format a probe could not resolve still has to render.
-	assert.equal(clipSampleFormatLabel('unknown', ENGLISH_COPY), 'unknown');
-	assert.equal(clipSampleFormatLabel(undefined, ENGLISH_COPY), '');
 });
 
 async function mountedFixture(capabilities: Readonly<Record<string, boolean>> = { audioEffects: true }) {
@@ -123,7 +111,9 @@ async function mountedFixture(capabilities: Readonly<Record<string, boolean>> = 
 				onClose={() => undefined}
 			/>));
 		},
-		formatRow: (name: string) => dom.one(`[data-clip-format-field="${name}"]`),
+		sourceFact: (name: string) => dom.one(`[data-clip-source-fact="${name}"]`),
+		declaredFormatShown: () => Boolean(dom.find('[data-clip-source-fact="sampleFormat"]'))
+			|| dom.container.textContent.includes(ENGLISH_COPY.sampleFormat),
 		resampleDialog: () => dom.find('[data-clip-resample-dialog]'),
 		openResample: async () => {
 			await act(async () => { reactProps(named(ENGLISH_COPY.resample)).onClick(); });

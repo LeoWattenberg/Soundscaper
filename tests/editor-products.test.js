@@ -82,7 +82,7 @@ test('controllers enforce product authoring boundaries while retaining the share
 		'nyquist.evaluate', 'nyquist.preview', 'clip.setTimePitch', 'clip.stretch', 'clip.toggleStretchToTempo',
 		'clip.resetPitchSpeed', 'clip.renderPitchSpeed', 'clip.reverse', 'clip.normalizePeak', 'clip.normalizeLoudness',
 		'track.makeStereo', 'track.swapChannels', 'track.splitStereoLR', 'track.splitStereoCenter',
-		'track.setRate', 'track.setSampleFormat', 'track.mixAndRender', 'track.resample',
+		'track.setRate', 'track.mixAndRender', 'track.resample',
 		'effects.add', 'effects.update', 'effects.beginRackEffectGesture', 'effects.previewRackEffect',
 		'effects.commitRackEffectGesture', 'effects.cancelRackEffectGesture', 'effects.beginParametricEqGesture',
 		'effects.previewParametricEq', 'effects.commitParametricEqGesture', 'effects.cancelParametricEqGesture',

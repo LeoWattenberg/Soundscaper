@@ -23,22 +23,13 @@ import {
 
 const CLIP_RESAMPLE_TASK = 'clip-resample';
 
-/** The sample formats a clip may declare, mirroring the project media schema. */
-export const CLIP_SAMPLE_FORMATS = Object.freeze([
-	'int16', 'int24', 'int32', 'float32', 'float64',
-] as const);
-
-export type ClipSampleFormat = (typeof CLIP_SAMPLE_FORMATS)[number];
-
 export interface ClipResampleRequest {
 	readonly sampleRate?: unknown;
-	readonly sampleFormat?: unknown;
 }
 
 interface ClipResampleCopy {
 	readonly v2Required: string;
 	readonly audioClipNotFound: string;
-	readonly unsupportedSampleFormat: string;
 	readonly resamplingClip: string;
 	readonly audacityProcessing: string;
 	readonly done: string;
@@ -123,14 +114,13 @@ export function createClipResampleService(
 	return Object.freeze({ resampleClip });
 
 	/**
-	 * Resample one clip, and only that clip, to a requested rate and format.
+	 * Resample one clip, and only that clip, to a requested rate.
 	 *
-	 * A rate change writes a private derived source and repoints the clip at it,
-	 * so a source shared with other clips keeps its own rate for them. A format
-	 * change carries no sample conversion — the store holds float32 PCM whatever
-	 * the declared format is, and the field only states what the material is
-	 * meant to be delivered as — so it is applied to the source in place rather
-	 * than paying for a whole PCM copy to relabel it.
+	 * The clip is repointed at a private derived source, so a source shared with
+	 * other clips keeps its own rate for them. The replacement inherits whatever
+	 * format the original declared: the store holds float32 PCM regardless, and
+	 * the declaration exists only to carry an imported Audacity project's own
+	 * back out again.
 	 */
 	async function resampleClip(
 		clipId: string | null = dependencies.getSelectedClipId(),
@@ -146,20 +136,8 @@ export function createClipResampleService(
 		const source = findControllerSource(project, clip.sourceId);
 		if (!track || !source) throw new Error(dependencies.copy.audioClipNotFound);
 		const sampleRate = dependencies.normalizeProjectSampleRate(request.sampleRate ?? source.sampleRate);
-		const sampleFormat = resolveSampleFormat(request.sampleFormat, source);
-		if (!CLIP_SAMPLE_FORMATS.includes(sampleFormat as ClipSampleFormat)) {
-			throw new RangeError(dependencies.copy.unsupportedSampleFormat);
-		}
-		if (sampleRate === source.sampleRate) {
-			if (sampleFormat !== source.sampleFormat) {
-				dependencies.commit(
-					{ type: 'source/update', sourceId: source.id, changes: { sampleFormat } },
-					{ selectClipId: clip.id },
-				);
-			}
-			return clip.id;
-		}
-		return runResample(track, clip, source, sampleRate, sampleFormat);
+		if (sampleRate === source.sampleRate) return clip.id;
+		return runResample(track, clip, source, sampleRate);
 	}
 
 	async function runResample(
@@ -167,7 +145,6 @@ export function createClipResampleService(
 		clip: ControllerClip,
 		source: ControllerSource,
 		sampleRate: number,
-		sampleFormat: string,
 	): Promise<string | null> {
 		const outputFrames = Math.max(1, scaleSampleFrame(
 			source.frameCount, source.sampleRate, sampleRate, 'point',
@@ -188,7 +165,7 @@ export function createClipResampleService(
 			assertOwned(ownership);
 			const channels = dependencies.resampleChannels(input, source.sampleRate, sampleRate, outputFrames);
 			record = await dependencies.derivedSources.persistDerivedSource(
-				{ ...source, sampleRate, sampleFormat, originalSampleRate: source.originalSampleRate || source.sampleRate },
+				{ ...source, sampleRate, originalSampleRate: source.originalSampleRate || source.sampleRate },
 				channels,
 				`${source.name || clip.title} (${sampleRate} Hz)`,
 				'resampled-source',
@@ -237,9 +214,4 @@ export function createClipResampleService(
 			return false;
 		}
 	}
-}
-
-function resolveSampleFormat(requested: unknown, source: ControllerSource): string {
-	if (requested == null) return String(source.sampleFormat || 'float32');
-	return String(requested);
 }

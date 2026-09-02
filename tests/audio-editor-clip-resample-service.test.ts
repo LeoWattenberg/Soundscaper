@@ -98,7 +98,6 @@ function createResampleFixture(initialProject: ControllerProject) {
 		copy: {
 			v2Required: 'V2 required',
 			audioClipNotFound: 'Clip missing',
-			unsupportedSampleFormat: 'Unsupported format',
 			resamplingClip: 'Resampling clip',
 			audacityProcessing: 'Processing',
 			done: 'Done',
@@ -200,34 +199,23 @@ test('resampling one clip repoints only that clip and leaves its source for the 
 	assert.equal(added.clip.trimEndFrames, 6);
 });
 
-test('the resampled source carries the requested format and the original rate', async () => {
-	const source = sourceFixture('source', { sampleRate: 96_000, originalSampleRate: 0, frameCount: 100 });
+test('the resampled source keeps the original rate and the declared format', async () => {
+	// An imported Audacity project declares its own format, which the editor
+	// never converts between; a resample must not quietly restate it.
+	const source = sourceFixture('source', {
+		sampleRate: 96_000, originalSampleRate: 0, frameCount: 100, sampleFormat: 'int24',
+	});
 	const clip = clipFixture('clip', source.id);
 	const fixture = createResampleFixture(projectFixture({
 		tracks: [trackFixture({ clipIds: [clip.id] })], clips: [clip], sources: [source],
 	}));
 
-	await fixture.service.resampleClip('clip', { sampleRate: 48_000, sampleFormat: 'int24' });
+	await fixture.service.resampleClip('clip', { sampleRate: 48_000 });
 	const [persisted] = fixture.calls.persisted;
 	assert.equal(persisted?.sampleRate, 48_000);
 	assert.equal(persisted?.sampleFormat, 'int24');
 	assert.equal(persisted?.originalSampleRate, 96_000);
 	assert.match(String(persisted?.name), /48000 Hz/u);
-});
-
-test('a format change at the same rate relabels the source instead of copying it', async () => {
-	const source = sourceFixture('source');
-	const clip = clipFixture('clip', source.id);
-	const fixture = createResampleFixture(projectFixture({
-		tracks: [trackFixture({ clipIds: [clip.id] })], clips: [clip], sources: [source],
-	}));
-
-	assert.equal(await fixture.service.resampleClip('clip', { sampleRate: 48_000, sampleFormat: 'int16' }), 'clip');
-	assert.deepEqual(fixture.calls.persisted, []);
-	assert.deepEqual(fixture.calls.preflights, []);
-	assert.deepEqual(fixture.calls.commits.map(({ command }) => command), [
-		{ type: 'source/update', sourceId: 'source', changes: { sampleFormat: 'int16' } },
-	]);
 });
 
 test('a request that changes nothing commits nothing', async () => {
@@ -237,22 +225,18 @@ test('a request that changes nothing commits nothing', async () => {
 		tracks: [trackFixture({ clipIds: [clip.id] })], clips: [clip], sources: [source],
 	}));
 
-	assert.equal(await fixture.service.resampleClip('clip', { sampleRate: 48_000, sampleFormat: 'float32' }), 'clip');
+	assert.equal(await fixture.service.resampleClip('clip', { sampleRate: 48_000 }), 'clip');
 	assert.equal(await fixture.service.resampleClip('clip'), 'clip');
 	assert.deepEqual(fixture.calls.commits, []);
 });
 
-test('an unsupported format, a missing clip, and a blocked project all refuse', async () => {
+test('a missing clip and a blocked project both refuse', async () => {
 	const source = sourceFixture('source');
 	const clip = clipFixture('clip', source.id);
 	const fixture = createResampleFixture(projectFixture({
 		tracks: [trackFixture({ clipIds: [clip.id] })], clips: [clip], sources: [source],
 	}));
 
-	await assert.rejects(
-		() => fixture.service.resampleClip('clip', { sampleFormat: 'int12' }),
-		/Unsupported format/u,
-	);
 	await assert.rejects(() => fixture.service.resampleClip('absent'), /Clip missing/u);
 	fixture.setBlocked(true);
 	assert.equal(await fixture.service.resampleClip('clip', { sampleRate: 96_000 }), null);

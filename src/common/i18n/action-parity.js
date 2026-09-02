@@ -26,6 +26,7 @@ export const AUDACITY_DISABLED_REASONS = deepFreeze({
 
 export const AUDACITY_EXCLUDED_REASONS = deepFreeze({
 	cloud: reason('cloud'),
+	sampleFormat: reason('sample-format'),
 	plugins: reason('plugins'),
 	os: reason('os'),
 	developer: reason('developer'),

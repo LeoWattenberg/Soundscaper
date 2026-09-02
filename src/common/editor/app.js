@@ -1196,7 +1196,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	});
 	const {
 		addTrack, addVideoTrackPair, assignPreferredInputToTrack, addLabelTrack,
-		reorderTrack, moveTrack, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
+		reorderTrack, moveTrack, setTrackDisplayMode, setTrackRate,
 	} = createTrackActionAdapter({
 		service: trackService,
 		getSelectedTrackId: () => state.selectedTrackId,
@@ -1873,7 +1873,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
 		setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
 		setSnapSettings, effectSelectionService, setTimelineView, setTimelineViewportWidth,
-		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate, setTrackSampleFormat,
+		setToolbarButtonPreference, setTrackDisplayMode, setTrackRate,
 		setVisibleTrackHeights, setWorkspacePreference, setZoom, smoothSelectedSamples,
 		snapTimelineFrame, splitAtFrame, splitStereoTrack, startRecording, startTakeCycleRecording: () => recordingSessionService.startTakeCycleRecording(),
 		startRecordingOnNewTrack, state, stopProjectBinPreview, stopRecording, cleanupDisposableStorage: storageCapacityService.cleanupDisposableStorage, cleanupDerivativeCache: storageCapacityService.cleanupDerivativeCache,

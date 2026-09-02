@@ -6,7 +6,7 @@ import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { ActionHook, CommitField, DesignCheckbox } from './inspector-controls.jsx';
-import ClipResampleDialog, { clipSampleFormatLabel } from './ClipResampleDialog.jsx';
+import ClipResampleDialog from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
 import {
 	dbToLinear,
@@ -176,11 +176,9 @@ function ClipProperties({ controller, snapshot, copy }) {
 					</div>
 				</section>}
 				{!isVideoClip && source && <section className="audio-editor-clip-properties__card">
-					<h3>{copy.clipAudioFormat}</h3>
+					<h3>{copy.sampleRate}</h3>
 					<div className="audio-editor-clip-properties__stack">
-						<ClipFormatRow name="sampleRate" label={copy.sampleRateHz} value={source.sampleRate} />
-						<ClipFormatRow name="sampleFormat" label={copy.sampleFormat}
-							value={clipSampleFormatLabel(source.sampleFormat, copy)} />
+						<ClipSourceFactRow name="sampleRate" label={copy.sampleRateHz} value={source.sampleRate} />
 						{snapshot.capabilities?.audioEffects !== false && (
 							<div className="audio-editor-panel-actions">
 								<ActionHook hook="resample-clip">
@@ -204,7 +202,6 @@ function ClipProperties({ controller, snapshot, copy }) {
 			{resampleOpen && clip && source && (
 				<ClipResampleDialog
 					sampleRate={source.sampleRate}
-					sampleFormat={source.sampleFormat}
 					copy={copy}
 					disabled={disabled}
 					onCancel={() => setResampleOpen(false)}
@@ -229,12 +226,12 @@ function ClipProperties({ controller, snapshot, copy }) {
 /**
  * One read-only fact about the material a clip plays.
  *
- * The rate and the declared format are not edited in place: changing either is
- * a resample, which the dialog beside these rows asks for in full, so they are
- * displayed as text rather than as inputs that would refuse every keystroke.
+ * A rate is not edited in place: changing it is a resample, which the dialog
+ * beside this row asks for, so it is displayed as text rather than as an input
+ * that would refuse every keystroke.
  */
-function ClipFormatRow({ name, label, value }) {
-	return <div className="audio-editor-field" data-clip-format-field={name}>
+function ClipSourceFactRow({ name, label, value }) {
+	return <div className="audio-editor-field" data-clip-source-fact={name}>
 		<span>{label}</span>
 		<span className="audio-editor-field__value">{value}</span>
 	</div>;
