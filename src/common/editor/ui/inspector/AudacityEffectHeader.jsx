@@ -16,7 +16,7 @@ export default function AudacityEffectHeader({ copy, automationEnabled, ...props
 		}
 		const preset = root.querySelector('.effect-header__preset .dropdown__trigger');
 		preset?.setAttribute('aria-label', copy.effectPreset);
-		const actionLabels = [copy.saveEffectPreset, copy.undo, copy.deleteEffectPreset, copy.moreOptions];
+		const actionLabels = [copy.saveEffectPreset, copy.resetEffectPreset, copy.deleteEffectPreset, copy.moreOptions];
 		root.querySelectorAll('.effect-header__right .effect-header__icon-button').forEach((button, index) => {
 			const label = actionLabels[index];
 			if (!label) return;

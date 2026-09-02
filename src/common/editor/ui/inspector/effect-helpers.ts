@@ -53,6 +53,25 @@ export function effectPresetChoices<T extends EffectPreset>(
 	});
 }
 
+/**
+ * Whether an effect's live parameters still match the preset they came from.
+ *
+ * Audacity arms Reset preset and marks the dropdown entry from exactly this
+ * comparison, so an edited preset reads as unsaved until it is stored again.
+ */
+export function samePresetParams(
+	current: Readonly<Record<string, unknown>> | null | undefined,
+	preset: Readonly<Record<string, unknown>> | null | undefined,
+): boolean {
+	const left = current || {};
+	const right = preset || {};
+	const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+	for (const key of keys) {
+		if (JSON.stringify(left[key] ?? null) !== JSON.stringify(right[key] ?? null)) return false;
+	}
+	return true;
+}
+
 export function effectHasEditableSettings(type: string): boolean {
 	const nativeDefinition = AUDIO_EFFECT_DEFINITIONS[type as keyof typeof AUDIO_EFFECT_DEFINITIONS];
 	if (nativeDefinition) return Object.keys(nativeDefinition.defaults || {}).length > 0;

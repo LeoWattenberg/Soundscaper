@@ -61,12 +61,12 @@ test('selection effect preset drafts reset only when project identity changes', 
 		const projectA = effectProject('project-a');
 		const projectB = effectProject('project-b');
 		await fixture.render(projectA, { gainDb: 3 });
-		await fixture.openPresetDrawer();
+		await fixture.openPresetPrompt();
 		await fixture.typePresetName('Project A draft');
 
 		await fixture.render(projectB, { gainDb: 9 });
-		assert.equal(Boolean(fixture.presetDrawer()), false, 'project B starts with a closed preset drawer');
-		await fixture.openPresetDrawer();
+		assert.equal(Boolean(fixture.presetPrompt()), false, 'project B starts with no naming prompt open');
+		await fixture.openPresetPrompt();
 		await fixture.typePresetName('Project B draft');
 
 		await fixture.render(projectB, { gainDb: 10 });
@@ -82,13 +82,13 @@ test('selection effect preset save completion cannot overwrite the newer project
 		const projectA = effectProject('project-a');
 		const projectB = effectProject('project-b');
 		await fixture.render(projectA, { gainDb: 3 });
-		await fixture.openPresetDrawer();
+		await fixture.openPresetPrompt();
 		await fixture.typePresetName('Project A preset');
 		await fixture.startPresetSaveAs();
 		assert.equal(fixture.saveCalls.length, 1);
 
 		await fixture.render(projectB, { gainDb: 9 });
-		if (!fixture.presetDrawer()) await fixture.openPresetDrawer();
+		await fixture.openPresetPrompt();
 		await fixture.typePresetName('Project B draft');
 		await settle(fixture.saveCalls[0]!.completion, {
 			id: 'preset-a',
@@ -109,7 +109,7 @@ test('selection effect preset import cannot enter a newer project after a stale 
 	try {
 		const fileText = deferred<string>();
 		await fixture.render(effectProject('project-a'), { gainDb: 3 });
-		await fixture.openPresetDrawer();
+		await fixture.openPresetOptions();
 		await fixture.startPresetImport(fileText.promise);
 
 		await fixture.render(effectProject('project-b'), { gainDb: 9 });
@@ -238,30 +238,36 @@ async function mountedSelectionEffectsFixture() {
 		dialog: () => dom.one('[data-selection-effects-dialog]'),
 		effectParameter: (name: string) => dom.one(`[data-effect-param="${name}"]`),
 		applyButton: () => descendantByTag(dom.one('[data-apply-audacity-effect]'), 'button'),
-		presetDrawer: () => dom.container.querySelector('.audio-editor-effect-preset-drawer'),
+		presetPrompt: () => dom.container.querySelector('[data-preset-name-dialog]'),
 		presetNameInput: () => {
-			const drawer = dom.container.querySelector('.audio-editor-effect-preset-drawer');
-			assert.ok(drawer, 'Missing mounted preset drawer.');
-			return descendantByTag(drawer, 'input');
+			const prompt = dom.container.querySelector('[data-preset-name-dialog]');
+			assert.ok(prompt, 'Missing mounted Save as… prompt.');
+			return descendantByTag(prompt, 'input');
 		},
 		alert: () => dom.container.querySelector('[role="alert"]'),
-		openPresetDrawer: async () => {
+		openPresetPrompt: async () => {
 			const buttons = dom.container.querySelectorAll('.effect-header__icon-button');
-			assert.ok(buttons[3], 'Missing mounted more-options button.');
+			assert.ok(buttons[0], 'Missing mounted save-preset button.');
+			await click(buttons[0]);
+			await click(menuItemNamed(dom.container, ENGLISH_COPY.saveEffectPresetAs));
+		},
+		openPresetOptions: async () => {
+			const buttons = dom.container.querySelectorAll('.effect-header__icon-button');
+			assert.ok(buttons[3], 'Missing mounted preset-options button.');
 			await click(buttons[3]);
 		},
 		typePresetName: async (value: string) => {
-			const drawer = dom.container.querySelector('.audio-editor-effect-preset-drawer');
-			assert.ok(drawer, 'Missing mounted preset drawer.');
+			const prompt = dom.container.querySelector('[data-preset-name-dialog]');
+			assert.ok(prompt, 'Missing mounted Save as… prompt.');
 			await act(async () => {
-				reactProps(descendantByTag(drawer, 'input')).onChange({ target: { value } });
+				reactProps(descendantByTag(prompt, 'input')).onChange({ target: { value }, currentTarget: { value } });
 				await Promise.resolve();
 			});
 		},
 		startPresetSaveAs: async () => {
-			const drawer = dom.container.querySelector('.audio-editor-effect-preset-drawer');
-			assert.ok(drawer, 'Missing mounted preset drawer.');
-			await click(elementNamed(drawer, 'button', ENGLISH_COPY.saveEffectPresetAs));
+			const prompt = dom.container.querySelector('[data-preset-name-dialog]');
+			assert.ok(prompt, 'Missing mounted Save as… prompt.');
+			await click(elementNamed(prompt, 'button', ENGLISH_COPY.saveEffectPreset));
 		},
 		startPresetImport: async (text: Promise<string>) => {
 			const input = dom.one('[data-effect-preset-file]');
@@ -337,6 +343,15 @@ function elementNamed(root: ReactTestElement, tagName: string, text: string): Re
 	));
 	assert.ok(element, `Missing mounted ${tagName} named ${text}.`);
 	return element;
+}
+
+function menuItemNamed(root: ReactTestElement, label: string): ReactTestElement {
+	const item = [...root.querySelectorAll('.context-menu-item')].find((candidate) => (
+		[...candidate.querySelectorAll('.context-menu-item-label')]
+			.some((text) => text.textContent.trim() === label)
+	));
+	assert.ok(item, `Missing mounted menu item named ${label}.`);
+	return item;
 }
 
 async function click(element: ReactTestElement): Promise<void> {

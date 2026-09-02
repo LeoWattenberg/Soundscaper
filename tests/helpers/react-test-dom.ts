@@ -16,6 +16,10 @@ export function installReactTestDom(): ReactTestDom {
 		document, Node: ReactTestNode, Element: ReactTestElement, HTMLElement: ReactTestElement,
 		HTMLIFrameElement: class {}, addEventListener() {}, removeEventListener() {},
 		getSelection: () => null, location: { protocol: 'http:' },
+		// Components that defer work through the window timers rather than the
+		// bare globals still have to run under the fake document.
+		setTimeout: globalThis.setTimeout.bind(globalThis),
+		clearTimeout: globalThis.clearTimeout.bind(globalThis),
 	};
 	document.defaultView = window;
 	for (const [key, value] of Object.entries({
@@ -126,6 +130,14 @@ export class ReactTestElement extends ReactTestNode {
 	}
 	get options(): ReactTestElement[] {
 		return descendants(this).filter((node) => node.tagName === 'OPTION');
+	}
+	// The fake tree has no layout, so every box is empty at the origin. Real
+	// elements always answer this, and overlays that measure themselves would
+	// otherwise throw rather than simply position at zero.
+	getBoundingClientRect(): Readonly<Record<string, number>> {
+		return Object.freeze({
+			x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0,
+		});
 	}
 	querySelector(selector: string): ReactTestElement | null {
 		return this.querySelectorAll(selector)[0] ?? null;

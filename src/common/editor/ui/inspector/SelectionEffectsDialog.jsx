@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { Separator } from '@soundscaper/design-system/Separator';
-import { TextInput } from '@soundscaper/design-system/TextInput';
 import { audacityEffectTypes } from '../../audacity-effects/manifest.js';
 import {
 	audioSelectionEffectDefinition,
@@ -11,11 +10,10 @@ import {
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { takeSelectedFile } from '../file-input-selection.ts';
-import AudacityEffectHeader from './AudacityEffectHeader.jsx';
+import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import { LabeledDropdown } from './inspector-controls.jsx';
-import { effectPresetChoices, safeEffectLabel } from './effect-helpers.ts';
+import { effectPresetChoices, safeEffectLabel, samePresetParams } from './effect-helpers.ts';
 import { createFallbackFileService } from './inspector-helpers.ts';
 
 export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fileService, onClose }) {
@@ -31,8 +29,6 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const [message, setMessage] = useState('');
 	const [selectedPresetId, setSelectedPresetId] = useState('');
 	const [presetName, setPresetName] = useState('');
-	const [presetsExpanded, setPresetsExpanded] = useState(false);
-	const presetFileRef = useRef(null);
 	const projectIdentity = project?.id ?? null;
 	const currentProjectIdentity = useRef(projectIdentity);
 	const stateProjectIdentity = useRef(projectIdentity);
@@ -50,7 +46,6 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			setMessage('');
 			setSelectedPresetId('');
 			setPresetName('');
-			setPresetsExpanded(false);
 		}
 		if (!snapshot.effects) {
 			if (projectChanged) {
@@ -115,10 +110,10 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 		setSelectionParams(preset.params);
 		setPresetName(preset.name);
 	});
-	const savePreset = (id = null) => run(() => controller.actions.effects.presets.save({
+	const savePreset = (id = null, name = presetName) => run(() => controller.actions.effects.presets.save({
 		...(id ? { id } : {}),
 		effectType: selectionType,
-		name: presetName,
+		name,
 		params: selectionParams,
 	}), (preset) => {
 		setSelectedPresetId(preset.id);
@@ -161,49 +156,33 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			className="audio-editor-selection-effects-dialog"
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
 			headerSlot={(
-				<div className="audio-editor-effect-preset-header" data-effect-presets>
-					<AudacityEffectHeader
-						copy={copy}
-						isDestructive
-						presetName={selectedPresetChoice?.label || copy.noEffectPreset}
-						presets={[copy.noEffectPreset, ...presetChoices.map((choice) => choice.label)]}
-						onPresetChange={(value) => {
-							if (blocked) return;
-							if (value === copy.noEffectPreset) {
-								setSelectedPresetId('');
-								setPresetName('');
-								return;
-							}
-							const choice = presetChoices.find((candidate) => candidate.label === value);
-							if (choice) applyPreset(choice.id);
-						}}
-						onSavePreset={() => {
-							if (blocked) return;
-							if (presetName.trim()) savePreset(selectedPresetId || null);
-							else setPresetsExpanded(true);
-						}}
-						canDelete={Boolean(selectedPresetId) && !blocked}
-						onDeletePreset={deletePreset}
-						onMoreOptions={() => setPresetsExpanded((current) => !current)}
-					/>
-					{presetsExpanded && (
-						<div className="audio-editor-effect-preset-drawer">
-							<label className="audio-editor-field">
-								<span>{copy.effectPresetName}</span>
-								<TextInput value={presetName} onChange={setPresetName} disabled={blocked} width="100%" />
-							</label>
-							<div className="audio-editor-panel-actions">
-								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={() => applyPreset()}>{copy.applyEffectPreset}</Button>
-								<Button variant="secondary" disabled={blocked || !selectedPresetId || !presetName.trim()} onClick={() => savePreset(selectedPresetId)}>{copy.saveEffectPreset}</Button>
-								<Button variant="secondary" disabled={blocked || !presetName.trim()} onClick={() => savePreset()}>{copy.saveEffectPresetAs}</Button>
-								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={deletePreset}>{copy.deleteEffectPreset}</Button>
-								<Button variant="secondary" disabled={blocked} onClick={() => presetFileRef.current?.click()}>{copy.importEffectPreset}</Button>
-								<Button variant="secondary" disabled={blocked || !selectedPresetId} onClick={exportPreset}>{copy.exportEffectPreset}</Button>
-								<input ref={presetFileRef} type="file" accept="application/json,.json" hidden data-effect-preset-file onChange={(event) => { void importPreset(takeSelectedFile(event.currentTarget)); }} />
-							</div>
-						</div>
-					)}
-				</div>
+				<EffectPresetBar
+					copy={copy}
+					disabled={blocked}
+					resetKey={projectIdentity}
+					presets={presetChoices.map((choice) => ({ id: choice.id, label: choice.label, custom: true }))}
+					selectedId={selectedPresetId}
+					unsaved={Boolean(selectedPresetChoice)
+						&& !samePresetParams(selectionParams, selectedPresetChoice.preset.params)}
+					onSelect={(id) => {
+						if (blocked) return;
+						if (!id) {
+							setSelectedPresetId('');
+							setPresetName('');
+							return;
+						}
+						applyPreset(id);
+					}}
+					onSave={() => savePreset(selectedPresetId)}
+					onSaveAs={(name) => {
+						setPresetName(name);
+						savePreset(null, name);
+					}}
+					onReset={() => applyPreset()}
+					onDelete={deletePreset}
+					onImport={(file) => { void importPreset(file); }}
+					onExport={exportPreset}
+				/>
 			)}
 			footer={(
 				<DialogFooter

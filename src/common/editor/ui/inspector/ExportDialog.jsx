@@ -43,6 +43,7 @@ import {
 	exportDialogVorbisQualityOptions, normalizeExportDialogAudioSettings,
 } from '../export-dialog-audio-codec-options.ts';
 import { useDesktopVideoExportCapabilities } from '../use-desktop-video-export-capabilities.ts';
+import { samePresetParams } from './effect-helpers.ts';
 
 const METADATA_FIELDS = Object.freeze(['metadataTitle', 'metadataArtist', 'metadataAlbum', 'metadataTrack', 'metadataYear', 'metadataGenre', 'metadataComments', 'metadataCopyright']);
 
@@ -95,10 +96,10 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			));
 		},
 		onNameChange: setPresetName,
-		onSave: async () => {
+		onSave: async (name) => {
 			const preset = await controller.actions.export.presets.save({
-				...(presetId ? { id: presetId } : {}),
-				label: presetName.trim(),
+				...(presetId && name === undefined ? { id: presetId } : {}),
+				label: (name ?? presetName).trim(),
 				kind: presetKind,
 				format: presetFormatFromDialog(settings.format, presetKind),
 				settings: presetSettingsFromDialog(settings, presetKind),
@@ -466,6 +467,11 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 					selectedId={presetId}
 					presetName={presetName}
 					disabled={exporting || blocked}
+					resetKey={projectIdentity}
+					unsaved={Boolean(presetId) && !samePresetParams(
+						presetSettingsFromDialog(settings, presetKind),
+						presets.find((preset) => preset.id === presetId)?.settings,
+					)}
 					onError={(cause) => setError(
 						cause == null ? '' : (cause instanceof Error ? cause.message : String(cause)),
 					)}

@@ -7,7 +7,7 @@ import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import AudacityEffectHeader from './AudacityEffectHeader.jsx';
+import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
 import { SteppedSlider } from './inspector-controls.jsx';
@@ -15,6 +15,7 @@ import {
 	effectHasEditableSettings,
 	effectPresetChoices,
 	resolveSupportedEffectType,
+	samePresetParams,
 	safeEffectLabel,
 } from './effect-helpers.ts';
 import { downloadTextFile, formatDb, linearToDb, macroFileName } from './inspector-helpers.ts';
@@ -259,22 +260,48 @@ export function AudioEditorEffectsOverlay({
 		: [];
 	const rackPresetChoices = effectPresetChoices(rackPresets, copy.noEffectPreset);
 	const selectedRackPreset = rackPresetChoices.find((choice) => choice.id === rackPresetId);
-	const applyRackPreset = (value) => {
+	// Upstream flags a preset whose parameters have been edited away from the
+	// stored values, which is what arms Reset and marks the dropdown entry.
+	const rackPresetEdited = Boolean(selectedRackPreset) && !samePresetParams(
+		effect?.params, selectedRackPreset.preset.params,
+	);
+	const rackPresetOptions = rackPresetChoices.map((choice) => ({
+		id: choice.id, label: choice.label, custom: true,
+	}));
+	const writeRackParams = (params) => run(() => controller.actions.effects.update(
+		effectScope,
+		effectScope === 'master' ? null : targetId,
+		effect.id,
+		{ params },
+	));
+	const selectRackPreset = (id) => {
 		if (!effect || blocked) return;
-		if (value === copy.noEffectPreset) {
-			setRackPresetId('');
-			return;
-		}
-		const choice = rackPresetChoices.find((candidate) => candidate.label === value);
-		if (!choice) return;
-		setRackPresetId(choice.id);
-		run(() => controller.actions.effects.update(
-			effectScope,
-			effectScope === 'master' ? null : targetId,
-			effect.id,
-			{ params: choice.preset.params },
-		));
+		setRackPresetId(id);
+		const choice = rackPresetChoices.find((candidate) => candidate.id === id);
+		if (choice) writeRackParams(choice.preset.params);
 	};
+	const saveRackPreset = (name) => run(async (ownsOperation) => {
+		const saved = await controller.actions.effects.presets.save({
+			...(name === undefined ? { id: rackPresetId } : {}),
+			effectType: effect.type,
+			name: name ?? selectedRackPreset?.preset.name,
+			params: effect.params,
+		});
+		if (ownsOperation() && saved) setRackPresetId(saved.id);
+	});
+	const exportRackPreset = () => run(async () => {
+		const encoded = controller.actions.effects.presets.export(rackPresetId);
+		await fileService.saveFile({
+			purpose: 'preset',
+			suggestedName: `${(selectedRackPreset?.preset.name || 'audacity-effect-preset').replace(/[^a-z0-9_-]+/gi, '-')}.json`,
+			mimeType: 'application/json',
+			text: encoded,
+		});
+	});
+	const importRackPreset = (file) => run(async (ownsOperation) => {
+		const encoded = await file.text();
+		if (ownsOperation()) await controller.actions.effects.presets.import(encoded);
+	});
 	const menuEffects = stackMenu?.scope === 'master' ? masterEffects : channelEffects;
 	const menuTrackId = stackMenu?.scope === 'master' ? null : targetId;
 	const closeStackMenu = () => {
@@ -385,15 +412,31 @@ export function AudioEditorEffectsOverlay({
 					dataAttributes={{ 'data-effect': effect.id }}
 					headerSlot={effect.type === 'missing' ? null : (
 						<div className="audio-editor-rack-effect-header">
-							<AudacityEffectHeader
+							<EffectPresetBar
 								copy={copy}
-								automationEnabled={effect.enabled}
-								onToggleAutomation={(enabled) => {
-									if (!blocked) controller.actions.effects.update(effectScope, effectScope === 'master' ? null : targetId, effect.id, { enabled });
+								disabled={blocked}
+								resetKey={`${projectIdentity ?? ''}:${effect.id}`}
+								automation={{
+									enabled: effect.enabled,
+									onToggle: (enabled) => {
+										if (!blocked) controller.actions.effects.update(effectScope, effectScope === 'master' ? null : targetId, effect.id, { enabled });
+									},
 								}}
-								presetName={selectedRackPreset?.label || copy.noEffectPreset}
-								presets={[copy.noEffectPreset, ...rackPresetChoices.map((choice) => choice.label)]}
-								onPresetChange={applyRackPreset}
+								presets={rackPresetOptions}
+								selectedId={rackPresetId}
+								unsaved={rackPresetEdited}
+								onSelect={selectRackPreset}
+								onSave={() => saveRackPreset()}
+								onSaveAs={(name) => saveRackPreset(name)}
+								onReset={() => {
+									if (selectedRackPreset) writeRackParams(selectedRackPreset.preset.params);
+								}}
+								onDelete={() => run(async (ownsOperation) => {
+									await controller.actions.effects.presets.delete(rackPresetId);
+									if (ownsOperation()) setRackPresetId('');
+								})}
+								onImport={importRackPreset}
+								onExport={exportRackPreset}
 							/>
 						</div>
 					)}

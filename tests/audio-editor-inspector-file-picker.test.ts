@@ -83,5 +83,8 @@ test('every Inspector file picker is read through the re-arming helper', async (
 			`${moduleName} renders a file input, so it must read it through takeSelectedFile(s)`,
 		);
 	}
-	assert.ok(pickers.length >= 3, `expected the known Inspector pickers, saw ${JSON.stringify(pickers)}`);
+	assert.ok(
+		pickers.length >= 1,
+		`the scan must find the Inspector pickers rather than pass vacuously, saw ${JSON.stringify(pickers)}`,
+	);
 });
