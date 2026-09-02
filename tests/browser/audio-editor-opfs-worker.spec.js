@@ -4,6 +4,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
+import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const DATABASE_VERSION = 1;
@@ -122,11 +123,7 @@ async function waitForVideoEditor(page) {
 }
 
 async function importVideo(editor, fixture) {
-	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-	if (await projectBin.isVisible()) {
-		await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
-		await expect(projectBin).toBeHidden();
-	}
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 	await editor.locator('[data-import-input]').setInputFiles(fixture);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
 }

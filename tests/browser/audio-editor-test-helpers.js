@@ -9,6 +9,7 @@ import { projectFileExtensionForProduct } from '../../src/common/project-file-ex
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
+import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 import { seedWorkspaceOnboardingComplete } from './helpers/browser-environment-stubs.js';
 
 export { resolveBrowserProductTestUrl };
@@ -21,6 +22,7 @@ export {
 	stubDisplayCapture,
 	stubStorageEstimate,
 } from './helpers/browser-environment-stubs.js';
+export { closeWorkspacePanel, dockWorkspacePanel, openWorkspacePanelMenu, workspacePanelMenuButton } from './helpers/workspace-panel-chrome.js';
 
 /**
  * The File-menu label for the Scape export, which names the suffix the running
@@ -121,11 +123,7 @@ export async function fileDataTransfer(page, files) {
 }
 
 export async function importFiles(editor, files, options = { timeout: 20_000 }) {
-	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-	if (await projectBin.isVisible()) {
-		await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
-		await expect(projectBin).toBeHidden();
-	}
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 	await editor.locator('[data-import-input]').setInputFiles(files);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', options);
 }
@@ -268,7 +266,8 @@ export async function closeAup4CompatibilityReport(dialog) {
 }
 
 export async function closeEffectsPanel(panel) {
-	await panel.getByRole('button', { name: 'Close: Effects', exact: true }).click();
+	await panel.locator('[data-workspace-panel-menu="effects"] button').click();
+	await panel.getByRole('menuitem', { name: 'Close', exact: true }).click();
 	await expect(panel).toBeHidden();
 }
 

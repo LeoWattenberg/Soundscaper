@@ -16,6 +16,7 @@ import {
 	clipByName,
 	closeDialog,
 	closeEffectsPanel,
+	closeWorkspacePanel,
 	collectClientErrors,
 	disableNativeSavePicker,
 	disableOfflineAudio,
@@ -470,7 +471,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const analysisPanel = await openAnalysisPanel(page, editor);
 		await assertAccessibleBasics(analysisPanel);
 		await assertNoSeriousAxeViolations(page);
-		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await closeWorkspacePanel(editor, 'analysis');
 
 		const exportDialog = await openExportDialog(page, editor);
 		await assertAccessibleBasics(exportDialog);

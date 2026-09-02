@@ -3,6 +3,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
+	closeWorkspacePanel,
 	commitInput,
 	importFiles,
 	openExportDialog,
@@ -46,12 +47,12 @@ test.describe('BW64 ADM metadata UI', () => {
 		await expect(panel.locator('.audio-editor-adm-route select')).toHaveCount(3);
 		for (const route of await panel.locator('.audio-editor-adm-route select').all()) await expect(route).toHaveValue('M');
 
-		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await closeWorkspacePanel(editor, 'metadata');
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		panel = editor.locator('[data-workspace-panel="metadata"]');
 		await panel.getByRole('tab', { name: 'ADM', exact: true }).click();
 		await expect(panel.locator('input[name="adm-programme-name"]')).toHaveValue('Evening programme');
-		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await closeWorkspacePanel(editor, 'metadata');
 
 		const dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'BW64 / ADM');

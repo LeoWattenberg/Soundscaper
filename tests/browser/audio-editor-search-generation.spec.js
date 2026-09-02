@@ -16,6 +16,7 @@ import {
 	clipByName,
 	clipField,
 	closeDialog,
+	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	getMenuItem,
@@ -157,8 +158,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		let card = projectBinPanel.locator('[data-project-bin-item]').first();
 		await expect(card).toBeVisible();
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
-		await projectBinPanel.locator('.kw-audio-editor__workspace-panel-close').click();
-		await expect(projectBinPanel).toBeHidden();
+		await closeWorkspacePanel(editor, 'project-bin');
 
 		await trigger.click();
 		await search.fill(toneA.name);
@@ -305,7 +305,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await commitInput(rangeInputs.nth(0), '0.125');
 		await expect(rangeInputs.nth(0)).toHaveValue('0.125');
 		await expect(rangeInputs.nth(1)).toHaveValue('0.500');
-		await labelsPanel.getByRole('button', { name: 'Close: Labels', exact: true }).click();
+		await closeWorkspacePanel(editor, 'labels');
 		await expect(labelsPanel).toHaveCount(0);
 		const timelineLabel = editor.locator('[data-label-track] [data-label-id]', { hasText: 'Verse' });
 		await expect(timelineLabel).toBeVisible();
@@ -325,7 +325,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect.poll(async () => Number(await labelsPanel
 			.locator('[data-labels-panel-list] [data-label-id]')
 			.locator('[data-timecode-direct-entry]').nth(1).inputValue())).toBeGreaterThan(0.5);
-		await labelsPanel.getByRole('button', { name: 'Close: Labels', exact: true }).click();
+		await closeWorkspacePanel(editor, 'labels');
 		await timelineLabel.dblclick();
 		await expect(timelineLabel.locator('input')).toHaveValue('Verse');
 		await page.keyboard.press('Escape');
@@ -344,7 +344,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(artistInput).toHaveValue('Audacity tester');
 		await expect(saveState).toHaveAttribute('data-state', 'saving');
 		await expect(saveState).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
-		await metadataPanel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await closeWorkspacePanel(editor, 'metadata');
 		await expect(metadataPanel).toHaveCount(0);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		await expect(editor.locator('[data-workspace-panel="metadata"] input[name="title"]')).toHaveValue('Browser parity project');

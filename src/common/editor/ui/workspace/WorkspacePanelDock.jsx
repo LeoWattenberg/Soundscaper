@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { formatResizeLabel } from '../localization-template.ts';
 import { timelineAnnotationsAvailable } from '../timeline/timeline-annotation-ui-model.ts';
 import { workspacePanelAvailable } from './workspace-product-panel-runtime.ts';
-import { closePanelAndRestoreFocus } from './workspace-panel-focus.js';
+import { closeWorkspacePanelAndRestoreFocus, focusWorkspacePanelMenuButton } from './workspace-panel-focus.js';
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
+import WorkspacePanelHeader from './WorkspacePanelHeader.jsx';
 import {
 	ANALYZER_PANEL_ID_SET,
 	FLOATING_PANEL_MIN_HEIGHT,
 	FLOATING_PANEL_MIN_WIDTH,
-	WORKSPACE_DOCK_IDS,
 	WORKSPACE_PANEL_IDS,
 	clampFloatingPanelGeometry,
 	workspaceDockLabel,
@@ -269,7 +269,7 @@ export default function WorkspacePanelDock({
 			return;
 		}
 		const element = event.target.closest?.('[data-workspace-panel]');
-		if (!element) return;
+		if (!element || event.target.closest?.('[role="menu"]')) return;
 		const bounds = element.getBoundingClientRect();
 		const threshold = 14;
 		const horizontal = dock === 'bottom' || dock === 'floating';
@@ -304,7 +304,7 @@ export default function WorkspacePanelDock({
 	};
 	const beginFloatingMove = (event, panelId) => {
 		if (dock !== 'floating' || event.button !== 0 || resizeSessionRef.current) return;
-		if (event.target.closest('button, select, input, label, a')) return;
+		if (event.target.closest('button, select, input, label, a, [role="menu"]')) return;
 		const element = event.currentTarget.closest('[data-workspace-panel]');
 		const workspace = dockRef.current;
 		if (!element || !workspace) return;
@@ -487,75 +487,38 @@ export default function WorkspacePanelDock({
 						onPanelMove(draggedPanelId, dock, targetIndex + (after ? 1 : 0));
 					}}
 				>
-					<header
-						className="kw-audio-editor__workspace-panel-header"
-						data-floating-panel-move-handle={dock === 'floating' ? panelId : undefined}
+					<WorkspacePanelHeader
+						panelId={panelId}
+						label={workspacePanelLabel(copy, panelId)}
+						copy={copy}
+						currentDock={dock}
+						floatingMoveHandle={dock === 'floating'}
 						onPointerDown={(event) => beginFloatingMove(event, panelId)}
-					>
-						<button
-							type="button"
-							className="kw-audio-editor__workspace-drag-handle"
-							data-workspace-panel-drag-handle={panelId}
-							draggable
-							aria-label={`${copy.workspaceMove}: ${workspacePanelLabel(copy, panelId)}`}
-							onClick={(event) => event.currentTarget.focus()}
-							onDragStart={(event) => {
+						dragHandle={{
+							onDragStart: (event) => {
 								event.dataTransfer.effectAllowed = 'move';
 								event.dataTransfer.setData('text/plain', panelId);
 								onPanelDragStart(panelId);
-							}}
-							onDragEnd={onPanelDragEnd}
-							onKeyDown={(event) => {
+							},
+							onDragEnd: onPanelDragEnd,
+							onKeyDown: (event) => {
 								if (adjustFloatingPanelGeometry(event, panelId, panel, 'move')) return;
 								const backwards = dock === 'bottom' ? event.key === 'ArrowLeft' : event.key === 'ArrowUp';
 								const forwards = dock === 'bottom' ? event.key === 'ArrowRight' : event.key === 'ArrowDown';
 								if (!backwards && !forwards) return;
 								event.preventDefault();
 								onPanelMove(panelId, dock, panelIndex + (forwards ? 1 : -1));
-							}}
-						>⠿</button>
-						<h2>{workspacePanelLabel(copy, panelId)}</h2>
-						{dock === 'floating' && !ANALYZER_PANEL_ID_SET.has(panelId) && <button
-							type="button"
-							className="kw-audio-editor__workspace-resize-handle"
-							data-floating-panel-resize-handle={panelId}
-							aria-label={formatResizeLabel(copy, workspacePanelLabel(copy, panelId))}
-							onClick={(event) => event.currentTarget.focus()}
-							onKeyDown={(event) => adjustFloatingPanelGeometry(event, panelId, panel, 'resize')}
-						>↘</button>}
-						<label className="kw-audio-editor__panel-dock-picker">
-							<span className="kw-audio-editor-sr-only">{copy.panelDock}</span>
-							<select
-								data-workspace-panel-dock-picker={panelId}
-								aria-label={`${workspacePanelLabel(copy, panelId)}: ${copy.panelDock}`}
-								value={panel.dock}
-								onChange={(event) => {
-									const ownerDocument = event.currentTarget.ownerDocument;
-									const nextDock = event.currentTarget.value;
-									run(() => controller.actions.preferences.setPanel(panelId, { dock: nextDock }));
-									let remainingAttempts = 4;
-									const restoreFocus = () => {
-										const picker = ownerDocument.querySelector(`[data-workspace-panel-dock-picker="${panelId}"]`);
-										if (picker instanceof HTMLElement) {
-											picker.focus();
-											return;
-										}
-										remainingAttempts -= 1;
-										if (remainingAttempts > 0) requestAnimationFrame(restoreFocus);
-									};
-									requestAnimationFrame(restoreFocus);
-								}}
-							>
-								{WORKSPACE_DOCK_IDS.map((dockId) => <option key={dockId} value={dockId}>{workspaceDockLabel(copy, dockId)}</option>)}
-							</select>
-						</label>
-						<button
-							type="button"
-							className="kw-audio-editor__workspace-panel-close"
-							aria-label={`${copy.close}: ${workspacePanelLabel(copy, panelId)}`}
-							onClick={(event) => closePanelAndRestoreFocus(event, panelId, onTogglePanel)}
-						>×</button>
-					</header>
+							},
+						}}
+						resizeHandle={dock === 'floating' && !ANALYZER_PANEL_ID_SET.has(panelId)
+							? { onKeyDown: (event) => adjustFloatingPanelGeometry(event, panelId, panel, 'resize') }
+							: null}
+						onDock={(nextDock, ownerDocument) => {
+							run(() => controller.actions.preferences.setPanel(panelId, { dock: nextDock }));
+							focusWorkspacePanelMenuButton(ownerDocument, panelId);
+						}}
+						onClose={(ownerDocument) => closeWorkspacePanelAndRestoreFocus(ownerDocument, panelId, onTogglePanel)}
+					/>
 					<div
 						className="kw-audio-editor__workspace-panel-content"
 						tabIndex={panelId === 'source-monitor' ? 0 : undefined}

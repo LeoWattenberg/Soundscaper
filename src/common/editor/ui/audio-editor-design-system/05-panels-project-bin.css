@@ -28,21 +28,17 @@
 	transform: translate(-50%, -50%);
 }
 
-#kw-audio-editor-design-system .kw-audio-editor__panel-dock-picker select,
 #kw-audio-editor-design-system .kw-audio-editor__workspace-panel-close {
+	width: 25px;
 	height: 25px;
+	padding: 0;
 	color: var(--kw-editor-text);
 	background: var(--kw-editor-control);
 	border: 1px solid var(--kw-editor-line);
 	border-radius: 4px;
+	cursor: pointer;
 	font: inherit;
 	font-size: 10px;
-}
-
-#kw-audio-editor-design-system .kw-audio-editor__workspace-panel-close {
-	width: 25px;
-	padding: 0;
-	cursor: pointer;
 }
 
 #kw-audio-editor-design-system .kw-audio-editor__workspace-panel-content {

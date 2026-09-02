@@ -522,6 +522,36 @@
 	outline-offset: 1px;
 }
 
+#kw-audio-editor-design-system .kw-audio-editor__workspace-panel-menu-button {
+	display: inline-grid;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	place-items: center;
+	color: var(--kw-editor-muted);
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	font: inherit;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__workspace-panel-menu-button:hover,
+#kw-audio-editor-design-system .kw-audio-editor__workspace-panel-menu-button[aria-expanded='true'] {
+	color: var(--kw-editor-text);
+	background: var(--kw-editor-control);
+	border-color: var(--kw-editor-line);
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__workspace-panel-menu-button:focus-visible {
+	outline: 2px solid var(--kw-editor-focus, var(--kw-editor-accent));
+	outline-offset: 1px;
+}
+
+#kw-audio-editor-design-system .kw-audio-editor__workspace-panel-menu {
+	min-width: 160px;
+}
+
 #kw-audio-editor-design-system .kw-audio-editor__workspace-drop-targets {
 	position: absolute;
 	z-index: 90;

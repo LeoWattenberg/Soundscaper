@@ -7,6 +7,7 @@ import {
 } from '../../src/framescaper/editor-project-feature-requirements-assistance.ts';
 import { validateFramescaperProject } from '../../src/framescaper/editor-project.ts';
 import { expect, test } from './helpers/nightly-packaged-electron.js';
+import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 import {
 	createVideoPreviewBenchmarkFixture,
@@ -349,11 +350,7 @@ async function usedHeapAfterCollections(cdp, collectionCount) {
 }
 
 async function importTimelineFiles(editor, files) {
-	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-	if (await projectBin.isVisible()) {
-		await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
-		await expect(projectBin).toBeHidden();
-	}
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 	await editor.locator('[data-import-input]').setInputFiles(files);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 30_000 });
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });

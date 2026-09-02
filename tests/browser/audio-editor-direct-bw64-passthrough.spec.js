@@ -9,6 +9,7 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { installDirectPcmTarget } from './helpers/direct-pcm-save-target.js';
+import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const BLOCK_FRAMES = 16_384;
 const PCM_BLOCKS = 257;
@@ -181,11 +182,7 @@ async function waitForPublicationOrExportFailure(page, editor, sessionIndex) {
 }
 
 async function importLazyBw64(page, editor, fixture) {
-	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-	if (await projectBin.isVisible()) {
-		await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
-		await expect(projectBin).toBeHidden();
-	}
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 	const importedBytes = await editor.locator('[data-import-input]').evaluate((input, configuration) => {
 		const decode = (value) => {
 			const binary = atob(value);

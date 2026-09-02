@@ -7,6 +7,7 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseNestedCommandAction,
+	closeWorkspacePanel,
 	getMenuItem,
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
@@ -63,7 +64,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 
 		const toolbarRecord = editor.getByRole('button', { name: 'Recording setup', exact: true });
 		await expect(toolbarRecord).toBeVisible();
-		await editor.getByRole('button', { name: 'Close: Recording setup', exact: true }).click();
+		await closeWorkspacePanel(editor, 'recording-setup');
 		await expect(workspacePanel).toHaveCount(0);
 		await expect(toolbarRecord).toBeFocused();
 		await toolbarRecord.press('Enter');
@@ -188,7 +189,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		await expectCapturePhase(panel, 'recording');
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(3);
 		await expectCapturePhase(panel, 'recording');
-		await editor.getByRole('button', { name: 'Close: Recording setup', exact: true }).click();
+		await closeWorkspacePanel(editor, 'recording-setup');
 		await expect(editor.getByRole('button', { name: 'Stop and import', exact: true })).toBeVisible();
 		panel = await openRecordingSetup(page, editor);
 		await expectCapturePhase(panel, 'recording');

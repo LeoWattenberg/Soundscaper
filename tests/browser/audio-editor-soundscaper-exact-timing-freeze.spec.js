@@ -10,6 +10,7 @@ import {
 	chooseFileAction,
 	closeDialog,
 	closeEffectsPanel,
+	closeWorkspacePanel,
 	commitInput,
 	collectClientErrors,
 	importFiles,
@@ -93,8 +94,7 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 			await expect(history.locator('[data-history-list] > li'))
 				.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
 		}
-		await history.getByRole('button', { name: 'Close: History', exact: true }).click();
-		await expect(history).toBeHidden();
+		await closeWorkspacePanel(editor, 'history');
 
 		const effectsPanel = await openEffectsForTrack(editor, 1);
 		await addRackEffect(page, effectsPanel, 'track', 'Limiter');

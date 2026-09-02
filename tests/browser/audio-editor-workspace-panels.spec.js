@@ -12,12 +12,15 @@ import {
 	clipByName,
 	clipField,
 	closeDialog,
+	closeWorkspacePanel,
 	collectClientErrors,
+	dockWorkspacePanel,
 	fileDataTransfer,
 	importFiles,
 	openClipProperties,
 	registerAudioEditorHooks,
 	waitForEditor,
+	workspacePanelMenuButton,
 } from './audio-editor-test-helpers.js';
 
 test.describe('audio editor React/design-system workflows', () => {
@@ -58,9 +61,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
 		await expect(metadataPanel).toBeVisible();
-		await metadataPanel.locator('[data-workspace-panel-dock-picker="metadata"]').selectOption('floating');
+		await dockWorkspacePanel(editor, 'metadata', 'floating');
 		const floatingDock = editor.locator('[data-panel-dock="floating"]');
-		await expect(floatingDock.locator('[data-workspace-panel-dock-picker="metadata"]')).toBeFocused();
+		// A keyboard-opened panel menu lands on its first item; Escape hands focus back to the button.
+		const metadataMenuButton = workspacePanelMenuButton(metadataPanel);
+		const metadataMenu = metadataPanel.locator('.kw-audio-editor__workspace-panel-menu');
+		await metadataMenuButton.press('Enter');
+		await expect(metadataMenu).toBeVisible();
+		await expect(metadataMenu.getByRole('menuitem').first()).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(metadataMenu).toBeHidden();
+		await expect(metadataMenuButton).toBeFocused();
 		await expect(floatingDock).toHaveCSS('resize', 'none');
 		await expect(floatingDock.locator('[data-workspace-panel="metadata"]')).toHaveCSS('resize', 'both');
 		await expect(floatingDock.locator('[data-floating-panel-move-handle="metadata"]')).toHaveCSS('touch-action', 'none');
@@ -236,10 +247,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
-		const historyDockPicker = editor.locator('[data-workspace-panel-dock-picker="history"]');
-		if (!await historyDockPicker.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
-		await historyDockPicker.selectOption('left');
-		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel-dock-picker="history"]')).toBeFocused();
+		const historyPanel = editor.locator('[data-workspace-panel="history"]');
+		if (!await historyPanel.isVisible()) await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'History']);
+		await dockWorkspacePanel(editor, 'history', 'left');
 
 		const leftDock = editor.locator('[data-panel-dock="left"]');
 		const rightDock = editor.locator('[data-panel-dock="right"]');
@@ -338,8 +348,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(projectBin.locator('[data-project-bin-name]')).toHaveValue('Reusable browser tone');
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 
-		await projectBinPanel.locator('.kw-audio-editor__workspace-panel-close').click();
-		await expect(projectBinPanel).toBeHidden();
+		await closeWorkspacePanel(editor, 'project-bin');
 		await editor.locator('[data-import-input]').setInputFiles([toneB]);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		await expect(clipByName(editor, toneB.name)).toBeVisible();

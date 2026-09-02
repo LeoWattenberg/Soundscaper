@@ -3,6 +3,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
+	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	disableNativeSavePicker,
@@ -32,7 +33,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await commitInput(panel.locator('input[name="loudnessValue"]'), '-23');
 		await commitInput(panel.locator('textarea[name="codingHistory"]'), 'A=PCM,F=48000,W=24,M=stereo,T=Recorder');
 
-		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await closeWorkspacePanel(editor, 'metadata');
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		panel = editor.locator('[data-workspace-panel="metadata"]');
 		await panel.getByRole('tab', { name: 'BEXT', exact: true }).click();
@@ -82,7 +83,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		await description.fill('Cancelled description');
 		await description.press('Escape');
 		await expect(description).toHaveValue(original);
-		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await closeWorkspacePanel(editor, 'metadata');
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		panel = editor.locator('[data-workspace-panel="metadata"]');
 		await panel.getByRole('tab', { name: 'BEXT', exact: true }).click();
@@ -91,7 +92,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 
 		await description.fill('Committed description');
 		await description.press('Enter');
-		await panel.getByRole('button', { name: 'Close: Metadata', exact: true }).click();
+		await closeWorkspacePanel(editor, 'metadata');
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		panel = editor.locator('[data-workspace-panel="metadata"]');
 		await panel.getByRole('tab', { name: 'BEXT', exact: true }).click();

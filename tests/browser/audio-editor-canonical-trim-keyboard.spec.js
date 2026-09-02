@@ -1,5 +1,5 @@
 import { expect, test, toneA, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
-import { bootEditor, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, closeWorkspacePanel, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -189,11 +189,7 @@ async function setNtscSequenceRate(page, editor) {
 }
 
 async function importAvFixture(editor, name) {
-	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-	if (await projectBin.isVisible()) {
-		await projectBin.getByRole('button', { name: /Schließen: Projektablage|Close: Project bin/ }).click();
-		await expect(projectBin).toBeHidden();
-	}
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 	await editor.locator('[data-import-input]').setInputFiles([createDeterministicAvFixture(name)]);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 60_000 });
 }

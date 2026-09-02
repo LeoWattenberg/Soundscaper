@@ -30,6 +30,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		metadataTab: 'general',
 		newProjectCount: 0,
 		projectBinCloseCount: 0,
+		projectBinMenuOpen: false,
 		projectBinVisible,
 		progress: 0,
 		progressQueries: 0,
@@ -114,13 +115,25 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			root.attributes['data-clip-count'] = '1';
 		},
 	});
-	const projectBinClose = element({ click: () => {
-		fixture.projectBinCloseCount += 1;
-		fixture.projectBinVisible = false;
-	} });
+	const projectBinMenuButton = element({ click: () => { fixture.projectBinMenuOpen = true; } });
+	const projectBinMenuItems = [
+		element({ textContent: 'Left' }),
+		element({ textContent: 'Right' }),
+		element({ textContent: 'Bottom' }),
+		element({ textContent: 'Floating' }),
+		element({ textContent: 'Close', click: () => {
+			if (!fixture.projectBinMenuOpen) throw new Error('The project bin close item was clicked while its menu was closed.');
+			fixture.projectBinCloseCount += 1;
+			fixture.projectBinMenuOpen = false;
+			fixture.projectBinVisible = false;
+		} }),
+	];
 	const projectBin = element({
 		query(selector) {
-			return selector === '.kw-audio-editor__workspace-panel-close' ? projectBinClose : null;
+			return selector === '[data-workspace-panel-menu="project-bin"] button' ? projectBinMenuButton : null;
+		},
+		queryAll(selector) {
+			return selector === '[role="menuitem"]' && fixture.projectBinMenuOpen ? projectBinMenuItems : [];
 		},
 	});
 	const exportButton = element({ click: () => { fixture.dialogOpen = true; } });

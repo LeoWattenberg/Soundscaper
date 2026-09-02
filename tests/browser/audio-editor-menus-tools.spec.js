@@ -8,6 +8,7 @@ import {
 	clipByName,
 	closeDialog,
 	closeEffectsPanel,
+	closeWorkspacePanel,
 	collectClientErrors,
 	effectSourceMetadata,
 	getMenuItem,
@@ -301,7 +302,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const analysis = await openAnalysisPanel(page, editor);
 		await analysis.getByRole('button', { name: 'Analyze master', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
-		await analysis.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await closeWorkspacePanel(editor, 'analysis');
 		await chooseCommandAction(page, editor, 'Analyze', 'Repeat last analyzer');
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
 		expect(errors).toEqual([]);

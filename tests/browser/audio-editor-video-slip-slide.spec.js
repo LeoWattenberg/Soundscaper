@@ -1,6 +1,7 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	closeWorkspacePanel,
 	getMenuItem,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -172,8 +173,7 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 async function createContiguousMarkedEdits(page, editor, fixture) {
 	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
 	await expect(projectBin).toBeVisible();
-	await projectBin.getByRole('button', { name: 'Schließen: Projektablage', exact: true }).click();
-	await expect(projectBin).toBeHidden();
+	await closeWorkspacePanel(editor, 'project-bin');
 	await editor.locator('[data-import-input]').setInputFiles([fixture]);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 60_000 });
 	await expect.poll(() => persistedClips(page, 'timeline'), { timeout: 30_000 }).toHaveLength(2);

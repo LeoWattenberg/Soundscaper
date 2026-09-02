@@ -1,6 +1,7 @@
 import { expect, test, TRANSLATIONS_ROOT } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	closeWorkspacePanel,
 	getMenuItem,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -150,11 +151,7 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 });
 
 async function importAvFixture(editor) {
-	const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-	if (await projectBin.isVisible()) {
-		await projectBin.getByRole('button', { name: 'Schließen: Projektablage', exact: true }).click();
-		await expect(projectBin).toBeHidden();
-	}
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 	await editor.locator('[data-import-input]').setInputFiles([
 		createDeterministicAvFixture('framescaper-rate-stretch.webm'),
 	]);

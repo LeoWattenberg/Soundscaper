@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 const TRANSLATIONS_ROOT = 'https://translations.soundscaper.org/runtime/translations/audacity/4';
 
@@ -175,7 +176,7 @@ test.describe('shared audio editor dialog behavior', () => {
 		const dialog = page.getByRole('dialog', { name: 'Reverb', exact: true });
 		await expect(dialog).toBeVisible();
 
-		await effectsPanel.getByRole('button', { name: 'Close: Effects', exact: true }).click();
+		await closeWorkspacePanel(editor, 'effects');
 		await expect(dialog).toBeVisible();
 		const header = dialog.locator('.dialog-header');
 		const [before, headerBounds] = await Promise.all([dialog.boundingBox(), header.boundingBox()]);

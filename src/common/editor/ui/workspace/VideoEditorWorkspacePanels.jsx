@@ -1,4 +1,5 @@
 import WorkspacePanelContent from './WorkspacePanelContent.jsx';
+import WorkspacePanelHeader from './WorkspacePanelHeader.jsx';
 import { workspacePanelLabel } from './workspace-panel-model.ts';
 
 export default function VideoEditorWorkspacePanels({
@@ -34,15 +35,12 @@ export default function VideoEditorWorkspacePanels({
 					data-workspace-panel={panelId}
 					data-video-workspace-panel={panelId}
 				>
-					<header className="kw-audio-editor__workspace-panel-header">
-						<h2>{workspacePanelLabel(copy, panelId)}</h2>
-						<button
-							type="button"
-							className="kw-audio-editor__workspace-panel-close"
-							aria-label={`${copy.close}: ${workspacePanelLabel(copy, panelId)}`}
-							onClick={() => onTogglePanel(panelId)}
-						>×</button>
-					</header>
+					<WorkspacePanelHeader
+						panelId={panelId}
+						label={workspacePanelLabel(copy, panelId)}
+						copy={copy}
+						onClose={() => onTogglePanel(panelId)}
+					/>
 					<div
 						className="kw-audio-editor__workspace-panel-content"
 						tabIndex={panelId === 'source-monitor' ? 0 : undefined}

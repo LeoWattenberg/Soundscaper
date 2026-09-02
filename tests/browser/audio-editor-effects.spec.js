@@ -16,9 +16,11 @@ import {
 	clipByName,
 	closeDialog,
 	closeEffectsPanel,
+	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	disableNativeSavePicker,
+	dockWorkspacePanel,
 	effectSourceMetadata,
 	importFiles,
 	openEffectsForTrack,
@@ -194,11 +196,7 @@ import {
 	test('opens effects in a full-width dock and keeps effect settings open when the dock closes', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
-		if (await projectBinPanel.isVisible()) {
-			await projectBinPanel.locator('.kw-audio-editor__workspace-panel-close').click();
-			await expect(projectBinPanel).toBeHidden();
-		}
+		if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 		const effectsPanel = await openEffectsForTrack(editor, 0);
 		const rack = effectsPanel.locator('[data-effect-rack]');
 		const packagePanel = rack.locator('.effects-panel');
@@ -218,7 +216,7 @@ import {
 		await page.mouse.move(initialDockBox.x - 46, initialDockBox.y + initialDockBox.height / 2, { steps: 4 });
 		await page.mouse.up();
 		await expect.poll(async () => (await sideDock.boundingBox())?.width || 0).toBeGreaterThan(initialDockBox.width + 30);
-		await effectsPanel.locator('[data-workspace-panel-dock-picker="effects"]').selectOption('left');
+		await dockWorkspacePanel(editor, 'effects', 'left');
 		const leftDock = editor.locator('[data-panel-dock="left"]:has([data-workspace-panel="effects"])');
 		const leftResizeHandle = leftDock.locator('[data-workspace-dock-resize-handle="left"]');
 		await expect(leftResizeHandle).toHaveCSS('cursor', 'ew-resize');

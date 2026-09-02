@@ -5,6 +5,7 @@ import {
 	bootEditor,
 	chooseFileAction,
 	chooseNestedCommandAction,
+	closeWorkspacePanel,
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -31,11 +32,7 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
 
-		const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
-		if (await projectBin.isVisible()) {
-			await projectBin.locator('.kw-audio-editor__workspace-panel-close').click();
-			await expect(projectBin).toBeHidden();
-		}
+		if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 		await editor.getByRole('button', { name: 'Sequence timing', exact: true }).focus();
 		await page.keyboard.press('Enter');
 		const sequenceTiming = page.getByRole('dialog', { name: 'Sequence timing', exact: true });

@@ -18,6 +18,7 @@ import {
 	closeAup4CompatibilityReport,
 	closeDialog,
 	closeEffectsPanel,
+	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	importFiles,
@@ -108,14 +109,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(analysisPanel.locator('[data-analysis-value="clipping"]')).toHaveText('0');
 		await expect(analysisPanel.locator('[data-analysis-spectrum]')).toBeVisible();
 		await expect(analysisPanel.locator('[data-analysis-spectrogram]')).toBeVisible();
-		await analysisPanel.getByRole('button', { name: 'Close: Analysis', exact: true }).click();
+		await closeWorkspacePanel(editor, 'analysis');
 		await expect(analysisPanel).toHaveCount(0);
 
-		for (const [command, panelId, panelName] of [
-			['Plot spectrum', 'spectrum', 'Plot spectrum'],
-			['Find clipping', 'clipping', 'Find clipping'],
-			['Contrast', 'contrast', 'Contrast'],
-			['EBU R 128', 'ebu-r128', 'EBU R 128'],
+		for (const [command, panelId] of [
+			['Plot spectrum', 'spectrum'],
+			['Find clipping', 'clipping'],
+			['Contrast', 'contrast'],
+			['EBU R 128', 'ebu-r128'],
 		]) {
 			await chooseCommandAction(page, editor, 'Analyze', command);
 			const analyzerPanel = editor.locator(`[data-workspace-panel="${panelId}"]`);
@@ -125,7 +126,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			if (panelId === 'ebu-r128') {
 				await expect(analyzerPanel.locator('.kw-audio-editor__ebu-dashboard')).toBeVisible();
 			}
-			await analyzerPanel.getByRole('button', { name: `Close: ${panelName}`, exact: true }).click();
+			await closeWorkspacePanel(editor, panelId);
 			await expect(analyzerPanel).toHaveCount(0);
 		}
 
