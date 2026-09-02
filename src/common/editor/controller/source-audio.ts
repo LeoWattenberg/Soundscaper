@@ -1,6 +1,7 @@
 import { createPlanarPcmChunkCoalescer } from '../pcm-chunks.js';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
 import { createStreamingWindowedSincResampler } from '../resample.js';
+import { isSourcePcmReadSessionReleasedError } from '../storage/source-pcm-read-session.ts';
 import { downmixSurroundToStereo } from '../surround-monitoring.ts';
 import { scaleSampleFrame } from '../timeline-time.ts';
 import { abortError, throwIfAborted } from './app-helpers.ts';
@@ -198,15 +199,29 @@ export function createStoredChunkProvider(
 		}
 		return opening;
 	};
+	// Storage maintenance and required-source preparation both release live read
+	// sessions, and a release is a lifetime event rather than a data fault. A
+	// long render that happens to be mid-read would otherwise fail outright, so
+	// an undisposed provider reopens its session once and repeats the read; the
+	// reopened session revalidates the same expected source identity.
 	const readSessionChunk = async (
 		chunkIndex: number,
 		context: Record<string, unknown>,
 	): Promise<unknown> => {
 		const signal = validAbortSignal(context.signal);
-		const session = await waitForStoredSourceSession(openSession(), signal);
-		if (disposed) throw disposedError;
-		if (!session) return store.readSourceChunk(sourceId, chunkIndex, context);
-		return session.chunk(chunkIndex, signal ? { signal } : {});
+		for (let attempt = 0; ; attempt += 1) {
+			const pending = openSession();
+			const session = await waitForStoredSourceSession(pending, signal);
+			if (disposed) throw disposedError;
+			if (!session) return store.readSourceChunk(sourceId, chunkIndex, context);
+			try {
+				return await session.chunk(chunkIndex, signal ? { signal } : {});
+			} catch (error) {
+				if (attempt > 0 || disposed || signal?.aborted
+					|| !isSourcePcmReadSessionReleasedError(error)) throw error;
+				if (opening === pending) opening = null;
+			}
+		}
 	};
 	const dispose = (): Promise<void> => {
 		if (disposal) return disposal;
@@ -220,6 +235,7 @@ export function createStoredChunkProvider(
 		frameCount: source.frameCount,
 		chunkFrames: Number(Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames),
 		sampleRate: source.sampleRate,
+		storageKey: sourceId,
 		readStorageChunk(chunkIndex: number, context: Record<string, unknown> = {}): Promise<unknown> | unknown {
 			if (disposed) throw disposedError;
 			if (store.openSourceReadSession) return readSessionChunk(chunkIndex, context);
@@ -227,6 +243,30 @@ export function createStoredChunkProvider(
 		},
 		dispose,
 	});
+}
+
+/**
+ * Decide whether a live provider already serves exactly this stored source.
+ *
+ * Providers own a read session, so replacing one retires the session a render
+ * may still be reading through. Stored sources are immutable under their id, so
+ * an equivalent live provider is reused instead of rebuilt and the render keeps
+ * the object it started with.
+ */
+export function matchesStoredChunkProvider(
+	provider: unknown,
+	source: StoredAudioSource,
+	metadata: StoredSourceMetadata,
+): boolean {
+	if (!provider || typeof provider !== 'object') return false;
+	const candidate = provider as Readonly<Record<string, unknown>>;
+	const chunkFrames = Number(Object.hasOwn(metadata, 'chunkFrames') ? metadata.chunkFrames : source.chunkFrames);
+	return candidate.storageKey === (source.storageKey || source.id)
+		&& candidate.channelCount === source.channelCount
+		&& candidate.frameCount === source.frameCount
+		&& candidate.sampleRate === source.sampleRate
+		&& candidate.chunkFrames === chunkFrames
+		&& typeof candidate.readStorageChunk === 'function';
 }
 
 async function releaseStoredSourceSession(

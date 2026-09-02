@@ -1,0 +1,76 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- Explicit legacy ports keep this migration seam typo-safe while source records are narrowed. */
+
+import { matchesStoredChunkProvider } from './source-audio.ts';
+
+interface SourceChunkProviderRegistryPort extends Map<string, any> {
+	drain?(): PromiseLike<void> | void;
+}
+
+export interface SourceChunkProviderRegistrationRuntime {
+	readonly createStoredChunkProvider: (store: any, source: any, metadata: any) => any;
+	readonly engine: any;
+	readonly isStreamableStoredSource: (source: any, metadata: any) => boolean;
+	readonly sourceChunkProviders: SourceChunkProviderRegistryPort;
+	readonly store: any;
+}
+
+/** Own the registry side of stored chunk providers: candidacy, publication, retirement. */
+export function createSourceChunkProviderRegistration(
+	runtime: SourceChunkProviderRegistrationRuntime,
+) {
+	const {
+		createStoredChunkProvider, engine, isStreamableStoredSource, sourceChunkProviders, store,
+	} = runtime;
+
+	/**
+	 * Resolve the provider that should serve one stored source.
+	 *
+	 * Retiring a live provider releases the read session an in-flight export or
+	 * playback render is still reading through, which fails that render with a
+	 * released-session error even though nothing about the source changed. Stored
+	 * sources are immutable under their id, so an equivalent live provider is
+	 * reused rather than rebuilt and the render keeps the object it started with.
+	 */
+	function createStoredChunkProviderCandidate(source: any, metadata: any) {
+		if (typeof store.readSourceChunk !== 'function' || !isStreamableStoredSource(source, metadata)) return null;
+		const live = sourceChunkProviders.get(source.id);
+		if (matchesStoredChunkProvider(live, source, metadata)) return live;
+		return createStoredChunkProvider(store, source, metadata);
+	}
+
+	function registerStoredChunkProvider(source: any, metadata: any) {
+		const provider = createStoredChunkProviderCandidate(source, metadata);
+		if (!provider) return null;
+		sourceChunkProviders.set(source.id, provider);
+		// Project application is intentionally asynchronous. Publish the provider
+		// immediately so cache eviction cannot create a transient unplayable source.
+		engine.setChunkSources?.(sourceChunkProviders);
+		return provider;
+	}
+
+	function forgetChunkProvider(sourceId: string) {
+		if (!sourceChunkProviders.delete(sourceId)) return;
+		engine.setChunkSources?.(sourceChunkProviders);
+	}
+
+	async function retireSourceChunkProvider(sourceId: string): Promise<void> {
+		const failures: unknown[] = [];
+		try { forgetChunkProvider(sourceId); }
+		catch (error) { failures.push(error); }
+		try { await sourceChunkProviders.drain?.(); }
+		catch (error) { failures.push(error); }
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1) {
+			throw new AggregateError(failures, 'Source chunk provider retirement failed.');
+		}
+	}
+
+	return Object.freeze({
+		createStoredChunkProviderCandidate,
+		forgetChunkProvider,
+		registerStoredChunkProvider,
+		retireSourceChunkProvider,
+	});
+}

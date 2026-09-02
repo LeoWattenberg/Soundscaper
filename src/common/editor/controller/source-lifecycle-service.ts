@@ -7,6 +7,7 @@ import {
 	type PreparedProjectSourceEntry,
 	type PreparedRequiredProjectSources,
 } from './prepared-project-sources.ts';
+import { createSourceChunkProviderRegistration } from './source-chunk-provider-registration.ts';
 import { resolveWaveformPcmWindowRequest } from './waveform-pcm-window-request.ts';
 import { audioWarpSourceWindowRange } from '../audio-warp-runtime.ts';
 
@@ -116,6 +117,13 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 		sourcePcmBytes, sourcePeaks, state, store, waveformPcmWindowContains,
 		waveformPeaksHaveRms,
 	} = runtime;
+
+	const {
+		createStoredChunkProviderCandidate, forgetChunkProvider,
+		registerStoredChunkProvider, retireSourceChunkProvider,
+	} = createSourceChunkProviderRegistration({
+		createStoredChunkProvider, engine, isStreamableStoredSource, sourceChunkProviders, store,
+	});
 
 	function cacheSourceBuffer(sourceId: string, buffer: any) {
 		if (!buffer || sourceAudioBufferBytes(buffer) > SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES) {
@@ -372,38 +380,6 @@ export function createSourceLifecycleService(runtime: SourceLifecycleServiceRunt
 			throw error;
 		}
 		return ownership;
-	}
-
-	function createStoredChunkProviderCandidate(source: any, metadata: any) {
-		if (typeof store.readSourceChunk !== 'function' || !isStreamableStoredSource(source, metadata)) return null;
-		return createStoredChunkProvider(store, source, metadata);
-	}
-
-	function registerStoredChunkProvider(source: any, metadata: any) {
-		const provider = createStoredChunkProviderCandidate(source, metadata);
-		if (!provider) return null;
-		sourceChunkProviders.set(source.id, provider);
-		// Project application is intentionally asynchronous. Publish the provider
-		// immediately so cache eviction cannot create a transient unplayable source.
-		engine.setChunkSources?.(sourceChunkProviders);
-		return provider;
-	}
-
-	function forgetChunkProvider(sourceId: string) {
-		if (!sourceChunkProviders.delete(sourceId)) return;
-		engine.setChunkSources?.(sourceChunkProviders);
-	}
-
-	async function retireSourceChunkProvider(sourceId: string): Promise<void> {
-		const failures: unknown[] = [];
-		try { forgetChunkProvider(sourceId); }
-		catch (error) { failures.push(error); }
-		try { await sourceChunkProviders.drain?.(); }
-		catch (error) { failures.push(error); }
-		if (failures.length === 1) throw failures[0];
-		if (failures.length > 1) {
-			throw new AggregateError(failures, 'Source chunk provider retirement failed.');
-		}
 	}
 
 	async function activateStoredSource(source: any, metadata: any, {

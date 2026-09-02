@@ -8,6 +8,21 @@ import type {
 
 const NO_PRIMARY_FAILURE = Symbol('no source PCM read failure');
 
+/**
+ * Name carried by the rejection a released session answers reads with.
+ *
+ * Releasing a session is a lifetime event rather than a data fault: storage
+ * maintenance and provider replacement both release live sessions while an
+ * unrelated render is still reading through them. Callers that own a stable
+ * source identity recognise this name and reopen instead of failing the render.
+ */
+export const SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME = 'SourcePcmReadSessionReleasedError';
+
+export function isSourcePcmReadSessionReleasedError(error: unknown): boolean {
+	return typeof error === 'object' && error !== null
+		&& (error as Readonly<{ name?: unknown }>).name === SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME;
+}
+
 export interface SourcePcmReadSessionFactoryOptions {
 	readChunk(chunkIndex: number, signal?: AbortSignal): Promise<SourcePcmChunk>;
 	release(): Promise<void>;
@@ -23,6 +38,7 @@ export function createSourcePcmReadSession(
 	let primaryFailure: unknown = NO_PRIMARY_FAILURE;
 	let releasePromise: Promise<void> | null = null;
 	const closedError = new Error('The source PCM read session was released.');
+	closedError.name = SOURCE_PCM_READ_SESSION_RELEASED_ERROR_NAME;
 	const lifetime = new AbortController();
 	const release = (): Promise<void> => {
 		closed = true;

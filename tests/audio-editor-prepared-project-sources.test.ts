@@ -129,3 +129,53 @@ function deferred<Value>(): Deferred<Value> {
 		},
 	};
 }
+
+test('discarding a preparation leaves a reused published provider owned by the registry', async () => {
+	let disposals = 0;
+	const live = Object.freeze({ dispose() { disposals += 1; } });
+	const staged = Object.freeze({ dispose() { disposals += 1; } });
+	const providers = new SourceChunkProviderRegistry<string, unknown>([['reused', live]]);
+	const prepared = new Map([
+		['reused', Object.freeze({ kind: 'provider' as const, value: live })],
+		['fresh', Object.freeze({ kind: 'provider' as const, value: staged })],
+	]);
+	const ownership = createPreparedProjectSources({
+		prepared,
+		sourceBuffers: new Map(),
+		sourceChunkProviders: providers,
+		cacheSourceBuffer: () => undefined,
+		throwIfAborted: () => undefined,
+	});
+	await ownership.discard();
+	// Only the never-published provider is disposed; releasing the live one would
+	// cancel the read session a render is still streaming through.
+	assert.equal(disposals, 1);
+	assert.strictEqual(providers.get('reused'), live);
+});
+
+test('a failed commit keeps the reused published provider while disposing staged ones', async () => {
+	let liveDisposals = 0;
+	let stagedDisposals = 0;
+	const live = Object.freeze({ dispose() { liveDisposals += 1; } });
+	const staged = Object.freeze({ dispose() { stagedDisposals += 1; } });
+	const providers = new SourceChunkProviderRegistry<string, unknown>([['reused', live]]);
+	const prepared = new Map([
+		['reused', Object.freeze({ kind: 'provider' as const, value: live })],
+		['fresh', Object.freeze({ kind: 'provider' as const, value: staged })],
+	]);
+	const ownership = createPreparedProjectSources({
+		prepared,
+		sourceBuffers: new Map(),
+		sourceChunkProviders: providers,
+		cacheSourceBuffer: () => undefined,
+		throwIfAborted: () => undefined,
+	});
+	const failure = new Error('apply failed');
+	await assert.rejects(
+		ownership.commit(() => { throw failure; }),
+		(error: unknown) => error === failure,
+	);
+	assert.equal(liveDisposals, 0);
+	assert.equal(stagedDisposals, 1);
+	assert.strictEqual(providers.get('reused'), live);
+});

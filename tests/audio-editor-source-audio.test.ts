@@ -12,6 +12,7 @@ import {
 	createCoalescingSourceWriter,
 	createStoredChunkProvider,
 	isStreamableStoredSource,
+	matchesStoredChunkProvider,
 	normalizeByteLimit,
 	readStoredAudioBuffer,
 	resampleBuffer,
@@ -488,3 +489,65 @@ function restoreProperty(name: string, descriptor: PropertyDescriptor | undefine
 	if (descriptor) Object.defineProperty(globalThis, name, descriptor);
 	else Reflect.deleteProperty(globalThis, name);
 }
+
+test('a stored chunk provider reopens a read session that storage maintenance released', async () => {
+	const source = { id: 'source', storageKey: 'stored', frameCount: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 2 };
+	const released = new Error('The source PCM read session was released.');
+	released.name = 'SourcePcmReadSessionReleasedError';
+	let opens = 0;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => { throw new Error('The fallback reader must not be used.'); },
+		openSourceReadSession() {
+			opens += 1;
+			const generation = opens;
+			return Promise.resolve({
+				async chunk(index: number) {
+					if (generation === 1) throw released;
+					return `chunk-${index}`;
+				},
+				async release() { /* released by storage maintenance */ },
+			});
+		},
+	}, source, metadata);
+	assert.equal(await provider.readStorageChunk(1), 'chunk-1');
+	assert.equal(opens, 2);
+	await provider.dispose();
+});
+
+test('a stored chunk provider reopens a released session only once and never after disposal', async () => {
+	const source = { id: 'source', storageKey: 'stored', frameCount: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 2 };
+	const released = new Error('The source PCM read session was released.');
+	released.name = 'SourcePcmReadSessionReleasedError';
+	let opens = 0;
+	const provider = createStoredChunkProvider({
+		readSourceChunk: () => { throw new Error('The fallback reader must not be used.'); },
+		openSourceReadSession() {
+			opens += 1;
+			return Promise.resolve({
+				async chunk() { throw released; },
+				async release() { /* released by storage maintenance */ },
+			});
+		},
+	}, source, metadata);
+	await assert.rejects(
+		async () => provider.readStorageChunk(0),
+		(error: unknown) => error === released,
+	);
+	assert.equal(opens, 2);
+	await provider.dispose();
+	assert.throws(() => provider.readStorageChunk(0), /stored source chunk provider was disposed/u);
+	assert.equal(opens, 2);
+});
+
+test('a live stored chunk provider matches its own source and rejects a changed one', () => {
+	const source = { id: 'source', storageKey: 'stored', frameCount: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4 };
+	const metadata = { id: 'source', frameLength: 8, channelCount: 1, sampleRate: 48_000, chunkFrames: 4, chunkCount: 2 };
+	const provider = createStoredChunkProvider({ readSourceChunk: () => 'chunk' }, source, metadata);
+	assert.equal(matchesStoredChunkProvider(provider, source, metadata), true);
+	assert.equal(matchesStoredChunkProvider(provider, { ...source, storageKey: 'other' }, metadata), false);
+	assert.equal(matchesStoredChunkProvider(provider, { ...source, frameCount: 16 }, metadata), false);
+	assert.equal(matchesStoredChunkProvider(provider, source, { ...metadata, chunkFrames: 8 }), false);
+	assert.equal(matchesStoredChunkProvider(null, source, metadata), false);
+});

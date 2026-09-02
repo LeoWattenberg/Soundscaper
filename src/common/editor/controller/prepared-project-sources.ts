@@ -116,7 +116,7 @@ export function createPreparedProjectSources(
 				}
 			}
 			state = 'discarded';
-			cleanupPromise = disposePreparedProviders(options.prepared).finally(() => {
+			cleanupPromise = disposePreparedProviders(options.prepared, publishedProviders()).finally(() => {
 				options.prepared.clear();
 			});
 			try {
@@ -138,19 +138,31 @@ export function createPreparedProjectSources(
 		if (state === 'discarded') return cleanupPromise ?? Promise.resolve();
 		if (state !== 'prepared') return Promise.resolve();
 		state = 'discarded';
-		cleanupPromise = disposePreparedProviders(options.prepared).finally(() => {
+		cleanupPromise = disposePreparedProviders(options.prepared, publishedProviders()).finally(() => {
 			options.prepared.clear();
 		});
 		return cleanupPromise;
+	}
+
+	// A staged entry may be the provider the registry already publishes, because
+	// an unchanged stored source reuses its live provider instead of building a
+	// second one. Disposing it here would release a read session that playback or
+	// an in-flight export is still reading through, so the registry keeps owning it.
+	function publishedProviders(): ReadonlySet<unknown> {
+		const published = new Set<unknown>();
+		for (const [, provider] of options.sourceChunkProviders) published.add(provider);
+		return published;
 	}
 }
 
 async function disposePreparedProviders(
 	prepared: ReadonlyMap<string, PreparedProjectSourceEntry>,
+	published: ReadonlySet<unknown>,
 ): Promise<void> {
 	const providers = new Set<Readonly<{ dispose(): PromiseLike<void> | void }>>();
 	for (const entry of prepared.values()) {
-		if (entry.kind === 'provider' && isDisposable(entry.value)) providers.add(entry.value);
+		if (entry.kind !== 'provider' || published.has(entry.value)) continue;
+		if (isDisposable(entry.value)) providers.add(entry.value);
 	}
 	const results = await Promise.allSettled([...providers].map(
 		(provider) => Promise.resolve().then(() => provider.dispose()),
