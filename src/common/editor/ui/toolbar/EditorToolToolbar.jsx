@@ -111,8 +111,8 @@ export default function EditorToolToolbar({
 		{ id: 'jump-end', label: copy.jumpEnd, icon: 'skip-forward' },
 		{ id: 'loop', label: copy.loop, icon: 'loop' },
 		{ id: 'metronome', label: copy.metronome, icon: 'metronome' },
-		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
 		{ id: 'volume-automation', label: copy.clipGain, icon: 'automation' },
+		{ id: 'split-tool', label: copy.splitTool, icon: 'split' },
 		...(capabilities.audioSpectralEditing ? [
 			{ id: 'spectrogram-view', label: copy.spectrogramView, icon: 'spectrogram' },
 			{ id: 'spectral-box-select', label: copy.spectralBoxSelect, icon: 'spectrogram' },
@@ -227,6 +227,16 @@ export default function EditorToolToolbar({
 				<WorkspaceToolbarSection key="tools" {...toolbarSectionProps('tools')}>
 				{viewButtonsVisible && <ToolbarDivider />}
 				{viewButtonsVisible && <ToolbarButtonGroup className="kw-audio-editor__view-actions" gap={2}>
+					{isToolbarButtonVisible('volume-automation') && <span data-action-id="volume-automation">
+						<ToggleToolButton
+							icon="automation"
+							isActive={automationToolEnabled}
+							ariaLabel={copy.clipGain}
+							disabled={(!selectedTrack && !outputAutomationAvailable) || blocked}
+							onClick={onToggleAutomationTool}
+						/>
+					</span>
+					}
 					{isToolbarButtonVisible('split-tool') && <span data-action-id="split-tool">
 						<ToggleToolButton
 							icon="split"
@@ -236,16 +246,6 @@ export default function EditorToolToolbar({
 								if (automationToolEnabled) onToggleAutomationTool();
 								actionRuntime.tools.toggleSplitTool();
 							}}
-						/>
-					</span>
-					}
-					{isToolbarButtonVisible('volume-automation') && <span data-action-id="volume-automation">
-						<ToggleToolButton
-							icon="automation"
-							isActive={automationToolEnabled}
-							ariaLabel={copy.clipGain}
-							disabled={(!selectedTrack && !outputAutomationAvailable) || blocked}
-							onClick={onToggleAutomationTool}
 						/>
 					</span>
 					}
