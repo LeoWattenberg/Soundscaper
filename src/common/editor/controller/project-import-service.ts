@@ -15,6 +15,7 @@ import {
 	normalizeProjectImportTimelineStartFrame,
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
+import { createImportResultWithWarnings } from './import-result-warnings.ts';
 import { scanEncodedAudioMarkers } from '../encoded-audio-marker-scan.ts';
 import { streamAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
 import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
@@ -43,12 +44,6 @@ export interface ProjectImportRuntime {
 
 type RuntimeValue = ProjectImportRuntime[string];
 
-const BEXT_CODEC_WARNING_CODES = new Set([
-	'invalid-ascii', 'invalid-chunk-id', 'invalid-date', 'invalid-line-ending',
-	'invalid-loudness', 'invalid-padding', 'invalid-time', 'nonzero-reserved',
-	'payload-too-large', 'truncated-chunk', 'truncated-payload',
-	'unterminated-coding-history', 'unsupported-version',
-]);
 export function createProjectImportService(runtime: ProjectImportRuntime) {
 	const {
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, SOURCE_CHUNK_FRAMES, activateStoredSource, audioBufferChannels,
@@ -66,6 +61,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		writeBuffer, taskProgress,
 	} = runtime;
 	let activeImportProgress: RuntimeValue = null;
+	const importResultWithWarnings = createImportResultWithWarnings(copy);
 	const importIncrementalPcm = createIncrementalPcmImporter({
 		SOURCE_CHUNK_FRAMES, activateStoredSource, commit, copy, createStableId,
 		getProject, importResultWithWarnings, preflightStorage,
@@ -504,43 +500,6 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		return prepareImportedWavMetadata({ descriptor, importOptions, project: getProject(),
 			projectSampleRate: projectSampleRate(), copy, freezeImportOptions });
 	}
-	function importResultWithWarnings(result: RuntimeValue, warnings: readonly RuntimeValue[]) {
-		const interchangeMessages = importInterchangeMessages(result);
-		if (!warnings.length && !interchangeMessages.length) return result;
-		const messages = [...new Set([...warnings.map((warning) => {
-			if (typeof warning === 'string') return warning;
-			if (warning?.code === 'bext-time-reference-conversion' || warning?.code === 'bext-spot-out-of-range') {
-				return warning.message;
-			}
-			if (isBextMetadataWarning(warning)) {
-				return copy.bextMetadataImportWarning || warning.message;
-			}
-			if (typeof warning?.message === 'string') return warning.message;
-			return String(warning?.code || 'WAV metadata warning.');
-		}), ...interchangeMessages].filter(Boolean))];
-		return Object.freeze({
-			...result,
-			...(warnings.length ? { metadataWarnings: Object.freeze([...warnings]) } : {}),
-			...(messages.length ? { notice: messages.join(' ') } : {}),
-		});
-	}
-
-	// The interchange report names every cue the import converted, clipped, or
-	// dropped; without folding it into the notice those losses stay invisible.
-	function importInterchangeMessages(result: RuntimeValue): string[] {
-		const items = result?.timelineAnnotationInterchangeReport?.items;
-		if (!Array.isArray(items)) return [];
-		return items
-			.filter((item: RuntimeValue) => item?.disposition !== 'preserved')
-			.map((item: RuntimeValue) => (typeof item?.message === 'string' ? item.message : ''))
-			.filter(Boolean);
-	}
-
-	function isBextMetadataWarning(warning: RuntimeValue) {
-		const code = typeof warning?.code === 'string' ? warning.code : '';
-		return code.startsWith('bext-') || BEXT_CODEC_WARNING_CODES.has(code);
-	}
-
 	async function importLegacyAudacityProject(file: RuntimeValue, legacyDataFiles: RuntimeValue = []) {
 		const assertImportProjectCurrent = captureImportProjectCurrentAssertion(
 			'The project changed during Audacity project import.',
