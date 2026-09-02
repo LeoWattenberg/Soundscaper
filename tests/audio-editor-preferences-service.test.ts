@@ -14,7 +14,15 @@ interface Preferences extends Record<string, unknown> {
 	readonly workspace: {
 		readonly activeId: string;
 		readonly toolbars: Record<string, { readonly visible: boolean; readonly order: number }>;
-		readonly panels: Record<string, { readonly visible: boolean; readonly dock: unknown; readonly order: number }>;
+		readonly panels: Record<string, {
+			readonly visible: boolean;
+			readonly dock: unknown;
+			readonly order: number;
+			readonly size?: number;
+			readonly width?: number;
+			readonly tabGroup?: string;
+			readonly tabActive?: boolean;
+		}>;
 		readonly toolbarButtons: Record<string, boolean>;
 	};
 	readonly shortcuts: Record<string, string[]>;
@@ -182,6 +190,44 @@ test('preferences mutations cover toolbar, panel, shortcut, and workspace operat
 	assert.equal(fixture.preferences().workspace.activeId, 'modern');
 	assert.equal(fixture.publishes() > 10, true);
 	assert.equal(fixture.persisted.some(([key]) => key === 'audio-editor-preferences-v1'), true);
+});
+
+test('panel preference mutations place, activate, and hide tabs atomically', async () => {
+	const fixture = createFixture();
+	const service = createEditorPreferencesService(fixture.dependencies);
+
+	await service.setPanel('meter', { visible: true });
+	await service.movePanel('meter', { kind: 'tab', targetPanelId: 'effects' });
+	let panels = fixture.preferences().workspace.panels;
+	assert.equal(panels.effects?.tabGroup, 'effects');
+	assert.equal(panels.effects?.tabActive, false);
+	assert.equal(panels.meter?.tabGroup, 'effects');
+	assert.equal(panels.meter?.tabActive, true);
+
+	await service.activatePanelTab('effects');
+	panels = fixture.preferences().workspace.panels;
+	assert.equal(panels.effects?.tabActive, true);
+	assert.equal(panels.meter?.tabActive, false);
+
+	await service.setPanel('effects', { visible: false });
+	panels = fixture.preferences().workspace.panels;
+	assert.equal(panels.meter?.tabActive, true);
+	await service.setPanel('effects', { visible: true });
+	panels = fixture.preferences().workspace.panels;
+	assert.equal(panels.effects?.tabActive, true);
+
+	await service.movePanel('meter', { kind: 'dock', dock: 'left', groupIndex: 1 });
+	panels = fixture.preferences().workspace.panels;
+	assert.equal(panels.meter?.dock, 'left');
+	assert.equal(panels.meter?.tabGroup, undefined);
+	assert.equal(panels.effects?.tabGroup, undefined);
+
+	await service.setPanelVisibility('meter', false);
+	assert.equal(fixture.preferences().workspace.panels.meter?.visible, false);
+	await service.setPanelFrameSize('effects', 480);
+	assert.equal(fixture.preferences().workspace.panels.effects?.size, 480);
+	await service.setPanelDockExtent('right', { width: 444 });
+	assert.equal(fixture.preferences().workspace.panels.effects?.width, 444);
 });
 
 test('preferences reject invalid targets and shortcut conflicts without persisting', async () => {
@@ -394,6 +440,10 @@ test('preference action delegates forward every editor action to its service met
 		togglePanel: record('togglePanel'),
 		setPanel: record('setPanel'),
 		movePanel: record('movePanel'),
+		activatePanelTab: record('activatePanelTab'),
+		setPanelVisibility: record('setPanelVisibility'),
+		setPanelFrameSize: record('setPanelFrameSize'),
+		setPanelDockExtent: record('setPanelDockExtent'),
 		setShortcut: record('setShortcut'),
 		createWorkspace: record('createWorkspace'),
 		updateWorkspace: record('updateWorkspace'),
@@ -408,6 +458,10 @@ test('preference action delegates forward every editor action to its service met
 	delegates.togglePanelPreference('mixer');
 	delegates.setPanelPreference('mixer');
 	delegates.movePanelPreference('mixer', 'left', 1);
+	delegates.activatePanelTabPreference('mixer');
+	delegates.setPanelVisibilityPreference('mixer', true);
+	delegates.setPanelFrameSizePreference('mixer', 480);
+	delegates.setPanelDockExtentPreference('bottom', { size: 480 });
 	delegates.setShortcutPreference('play', ['Space']);
 	delegates.createWorkspacePreference('Mine');
 	delegates.updateWorkspacePreference('mine');
@@ -421,6 +475,10 @@ test('preference action delegates forward every editor action to its service met
 		['togglePanel', 'mixer'],
 		['setPanel', 'mixer', {}],
 		['movePanel', 'mixer', 'left', 1],
+		['activatePanelTab', 'mixer'],
+		['setPanelVisibility', 'mixer', true],
+		['setPanelFrameSize', 'mixer', 480],
+		['setPanelDockExtent', 'bottom', { size: 480 }],
 		['setShortcut', 'play', ['Space']],
 		['createWorkspace', 'Mine', 'workspace-1'],
 		['updateWorkspace', 'mine', {}],
@@ -438,6 +496,10 @@ test('preference action delegates keep an explicitly supplied workspace identifi
 		togglePanel: () => undefined,
 		setPanel: () => undefined,
 		movePanel: () => undefined,
+		activatePanelTab: () => undefined,
+		setPanelVisibility: () => undefined,
+		setPanelFrameSize: () => undefined,
+		setPanelDockExtent: () => undefined,
 		setShortcut: () => undefined,
 		createWorkspace: (name, workspaceId) => { created.push([name, workspaceId]); },
 		updateWorkspace: () => undefined,

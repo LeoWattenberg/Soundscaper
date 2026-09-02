@@ -1,3 +1,15 @@
+import {
+	activateWorkspacePanelTab,
+	canonicalizeWorkspacePanelGroups,
+	placeWorkspacePanel,
+	setWorkspacePanelDockExtent,
+	setWorkspacePanelFrameSize,
+	setWorkspacePanelVisibility,
+	type WorkspacePanelDockExtent,
+	type WorkspacePanelDock,
+	type WorkspacePanelPlacement,
+} from '../workspace-panel-layout.ts';
+
 export interface ToolbarPreference extends Record<string, unknown> {
 	readonly visible: boolean;
 	readonly order: number;
@@ -7,6 +19,8 @@ export interface PanelPreference extends Record<string, unknown> {
 	readonly visible: boolean;
 	readonly dock: unknown;
 	readonly order: number;
+	readonly tabGroup?: string;
+	readonly tabActive?: boolean;
 }
 
 export interface EditorPreferencesShape extends Record<string, unknown> {
@@ -69,7 +83,11 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 		setToolbarButton,
 		togglePanel,
 		setPanel,
+		setPanelVisibility,
+		setPanelFrameSize,
+		setPanelDockExtent,
 		movePanel,
+		activatePanelTab,
 		setShortcut,
 		createWorkspace,
 		updateWorkspace,
@@ -195,44 +213,60 @@ export function createEditorPreferencesService<Preferences extends EditorPrefere
 	function togglePanel(panelId: string): Promise<Preferences> {
 		const panel = dependencies.getPreferences().workspace.panels[panelId];
 		if (!panel) throw new ReferenceError(`Panel ${panelId} does not exist.`);
-		return setPanel(panelId, { visible: !panel.visible });
+		return setPanelVisibility(panelId, !panel.visible);
+	}
+
+	function setPanelVisibility(panelId: string, visible: boolean): Promise<Preferences> {
+		const panels = dependencies.getPreferences().workspace.panels;
+		return update({ workspace: { panels: setWorkspacePanelVisibility(panels, panelId, visible) } });
+	}
+
+	function setPanelFrameSize(panelId: string, size: number): Promise<Preferences> {
+		const panels = dependencies.getPreferences().workspace.panels;
+		return update({ workspace: { panels: setWorkspacePanelFrameSize(panels, panelId, size) } });
+	}
+
+	function setPanelDockExtent(dock: WorkspacePanelDock, changes: WorkspacePanelDockExtent): Promise<Preferences> {
+		const panels = dependencies.getPreferences().workspace.panels;
+		return update({ workspace: { panels: setWorkspacePanelDockExtent(panels, dock, changes) } });
 	}
 
 	function setPanel(panelId: string, changes: Record<string, unknown> = {}): Promise<Preferences> {
-		const panel = dependencies.getPreferences().workspace.panels[panelId];
+		const currentPanels = dependencies.getPreferences().workspace.panels;
+		const panel = currentPanels[panelId];
 		if (!panel) throw new ReferenceError(`Panel ${panelId} does not exist.`);
-		return update({ workspace: { panels: { [panelId]: { ...panel, ...changes } } } });
+		let panels = canonicalizeWorkspacePanelGroups(currentPanels);
+		if (changes.visible !== undefined) {
+			panels = setWorkspacePanelVisibility(panels, panelId, changes.visible as boolean);
+		}
+		panels = canonicalizeWorkspacePanelGroups({
+			...panels,
+			[panelId]: { ...panels[panelId], ...changes },
+		});
+		return update({ workspace: { panels } });
 	}
 
-	function movePanel(panelId: string, dock: unknown, requestedIndex: unknown): Promise<Preferences> {
+	function movePanel(panelId: string, placement: WorkspacePanelPlacement): Promise<Preferences>;
+	function movePanel(panelId: string, dock: unknown, requestedIndex: unknown): Promise<Preferences>;
+	function movePanel(
+		panelId: string,
+		placementOrDock: WorkspacePanelPlacement | unknown,
+		requestedIndex?: unknown,
+	): Promise<Preferences> {
 		const panels = dependencies.getPreferences().workspace.panels;
-		const panel = panels[panelId];
-		if (!panel) throw new ReferenceError(`Panel ${panelId} does not exist.`);
-		const destinationIds = Object.keys(panels)
-			.filter((id) => id !== panelId && panels[id]!.dock === dock)
-			.sort((left, right) => panels[left]!.order - panels[right]!.order);
-		const visibleDestinationIds = destinationIds.filter((id) => panels[id]!.visible);
-		const index = Math.max(0, Math.min(visibleDestinationIds.length, Math.round(Number(requestedIndex) || 0)));
-		const nextVisibleId = visibleDestinationIds[index];
-		const previousVisibleId = visibleDestinationIds[index - 1];
-		const insertionIndex = nextVisibleId
-			? destinationIds.indexOf(nextVisibleId)
-			: previousVisibleId
-				? destinationIds.indexOf(previousVisibleId) + 1
-				: destinationIds.length;
-		destinationIds.splice(insertionIndex, 0, panelId);
-		const changes: Record<string, Record<string, unknown>> = Object.fromEntries(destinationIds.map((id, order) => [id, {
-			...panels[id],
-			dock,
-			order,
-		}]));
-		if (panel.dock !== dock) {
-			Object.keys(panels)
-				.filter((id) => id !== panelId && panels[id]!.dock === panel.dock)
-				.sort((left, right) => panels[left]!.order - panels[right]!.order)
-				.forEach((id, order) => { changes[id] = { ...panels[id], order }; });
-		}
-		return update({ workspace: { panels: changes } });
+		const placement = placementOrDock !== null && typeof placementOrDock === 'object'
+			? placementOrDock as WorkspacePanelPlacement
+			: {
+				kind: 'dock' as const,
+				dock: placementOrDock as WorkspacePanelDock,
+				groupIndex: Number(requestedIndex),
+			};
+		return update({ workspace: { panels: placeWorkspacePanel(panels, panelId, placement) } });
+	}
+
+	function activatePanelTab(panelId: string): Promise<Preferences> {
+		const panels = dependencies.getPreferences().workspace.panels;
+		return update({ workspace: { panels: activateWorkspacePanelTab(panels, panelId) } });
 	}
 
 	function setShortcut(actionId: string, bindings: string | string[]): Promise<Preferences> {
@@ -280,7 +314,14 @@ export interface EditorPreferenceActionSource {
 	readonly setToolbarButton: (buttonId: string, visible: unknown) => unknown;
 	readonly togglePanel: (panelId: string) => unknown;
 	readonly setPanel: (panelId: string, changes?: unknown) => unknown;
-	readonly movePanel: (panelId: string, dock: unknown, requestedIndex: unknown) => unknown;
+	readonly setPanelVisibility: (panelId: string, visible: boolean) => unknown;
+	readonly setPanelFrameSize: (panelId: string, size: number) => unknown;
+	readonly setPanelDockExtent: (dock: WorkspacePanelDock, changes: WorkspacePanelDockExtent) => unknown;
+	readonly movePanel: {
+		(panelId: string, placement: WorkspacePanelPlacement): unknown;
+		(panelId: string, dock: unknown, requestedIndex: unknown): unknown;
+	};
+	readonly activatePanelTab: (panelId: string) => unknown;
 	readonly setShortcut: (actionId: string, bindings: unknown) => unknown;
 	readonly createWorkspace: (name: unknown, workspaceId: string) => unknown;
 	readonly updateWorkspace: (workspaceId: string, changes?: unknown) => unknown;
@@ -295,6 +336,13 @@ export function createEditorPreferenceActionDelegates(
 	preferences: EditorPreferenceActionSource,
 	createId: (prefix: string) => string,
 ) {
+	function movePanelPreference(panelId: string, placement: WorkspacePanelPlacement): unknown;
+	function movePanelPreference(panelId: string, dock: unknown, requestedIndex: unknown): unknown;
+	function movePanelPreference(panelId: string, placementOrDock: unknown, requestedIndex?: unknown): unknown {
+		return placementOrDock !== null && typeof placementOrDock === 'object'
+			? preferences.movePanel(panelId, placementOrDock as WorkspacePanelPlacement)
+			: preferences.movePanel(panelId, placementOrDock, requestedIndex);
+	}
 	return Object.freeze({
 		setWorkspacePreference: (workspaceId: string) => preferences.setWorkspace(workspaceId),
 		toggleToolbarPreference: (toolbarId: string) => preferences.toggleToolbar(toolbarId),
@@ -302,7 +350,11 @@ export function createEditorPreferenceActionDelegates(
 		setToolbarButtonPreference: (buttonId: string, visible: unknown) => preferences.setToolbarButton(buttonId, visible),
 		togglePanelPreference: (panelId: string) => preferences.togglePanel(panelId),
 		setPanelPreference: (panelId: string, changes: unknown = {}) => preferences.setPanel(panelId, changes),
-		movePanelPreference: (panelId: string, dock: unknown, requestedIndex: unknown) => preferences.movePanel(panelId, dock, requestedIndex),
+		setPanelVisibilityPreference: (panelId: string, visible: boolean) => preferences.setPanelVisibility(panelId, visible),
+		setPanelFrameSizePreference: (panelId: string, size: number) => preferences.setPanelFrameSize(panelId, size),
+		setPanelDockExtentPreference: (dock: WorkspacePanelDock, changes: WorkspacePanelDockExtent) => preferences.setPanelDockExtent(dock, changes),
+		movePanelPreference,
+		activatePanelTabPreference: (panelId: string) => preferences.activatePanelTab(panelId),
 		setShortcutPreference: (actionId: string, bindings: unknown) => preferences.setShortcut(actionId, bindings),
 		createWorkspacePreference: (name: unknown, workspaceId: string = createId('workspace')) => preferences.createWorkspace(name, workspaceId),
 		updateWorkspacePreference: (workspaceId: string, changes: unknown = {}) => preferences.updateWorkspace(workspaceId, changes),

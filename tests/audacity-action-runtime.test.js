@@ -83,6 +83,12 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		runtime.actions.panels.labels();
 		assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.visible, true);
 		assert.equal(uiController.getSnapshot().request.type, 'focus-panel');
+		await controller.actions.preferences.setPanelVisibility('history', true);
+		await controller.actions.preferences.movePanel('labels', { kind: 'tab', targetPanelId: 'history' });
+		await controller.actions.preferences.activatePanelTab('history');
+		assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.tabActive, false);
+		runtime.actions.panels.labels();
+		assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.tabActive, true);
 		runtime.actions.track.openSpectrogramSettings();
 		assert.equal(uiController.getSnapshot().request.type, 'open-surface');
 		assert.equal(uiController.getSnapshot().request.payload.surface, 'preferences');

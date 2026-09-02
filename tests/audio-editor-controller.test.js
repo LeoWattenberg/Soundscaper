@@ -1018,6 +1018,28 @@ test('controller persists direct workspace panel and toolbar moves', async () =>
 			.map(([id]) => id),
 		['labels', 'mixer', 'effects'],
 	);
+	await controller.actions.preferences.movePanel('mixer', { kind: 'tab', targetPanelId: 'effects' });
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.panels.mixer.tabGroup, workspace.panels.effects.tabGroup);
+	assert.equal(workspace.panels.mixer.tabActive, true);
+	assert.equal(workspace.panels.effects.tabActive, false);
+	await controller.actions.preferences.activatePanelTab('effects');
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.panels.mixer.tabActive, false);
+	assert.equal(workspace.panels.effects.tabActive, true);
+	await controller.actions.preferences.setPanelVisibility('effects', false);
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.panels.effects.visible, false);
+	assert.equal(workspace.panels.mixer.tabActive, true);
+	await controller.actions.preferences.setPanelVisibility('effects', true);
+	await controller.actions.preferences.setPanelFrameSize('effects', 480);
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.panels.effects.size, 480);
+	assert.equal(workspace.panels.mixer.size, 480);
+	await controller.actions.preferences.setPanelDockExtent('right', { width: 444 });
+	workspace = controller.getSnapshot().preferences.workspace;
+	assert.equal(workspace.panels.effects.width, 444);
+	assert.equal(workspace.panels.mixer.width, 444);
 	await controller.actions.preferences.setPanel('mixer', {
 		dock: 'floating', size: 512, x: 44, y: 52, width: 512, height: 384,
 	});
