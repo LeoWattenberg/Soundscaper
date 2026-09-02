@@ -560,6 +560,10 @@ export function loadAudioEditorPreferencesV1(value) {
 			view: normalized.view,
 			workspace: {
 				...clone(value.workspace),
+				// Buttons added after a document was saved must resolve to their
+				// defaults rather than to "visible" (the toolbar treats an absent
+				// entry as shown); stored choices win over the defaults.
+				toolbarButtons: normalized.workspace.toolbarButtons,
 				panels: {
 					...normalized.workspace.panels,
 					'web-vcr': { ...normalized.workspace.panels['web-vcr'], visible: false },

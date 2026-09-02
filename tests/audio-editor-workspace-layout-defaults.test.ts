@@ -6,6 +6,7 @@ import {
 	AUDIO_EDITOR_WORKSPACE_PRESETS,
 	applyAudioEditorWorkspace,
 	createAudioEditorPreferencesV1,
+	loadAudioEditorPreferencesV1,
 } from '../src/common/editor/preferences.js';
 import {
 	DEFAULT_TOOLBAR_BUTTONS,
@@ -137,4 +138,15 @@ test('workspace view defaults describe the meter and ruler state of a preset wit
 		assert.equal(Object.hasOwn(applied.workspace, 'view'), false, id);
 		assert.equal(Object.hasOwn(JSON.parse(JSON.stringify(applied)).workspace, 'view'), false, id);
 	}
+});
+
+test('a saved document that predates a toolbar button loads it hidden rather than shown', () => {
+	const saved = JSON.parse(JSON.stringify(createAudioEditorPreferencesV1()));
+	delete saved.workspace.toolbarButtons.snap;
+	delete saved.workspace.toolbarButtons['workspace-switcher'];
+	saved.workspace.toolbarButtons.metronome = true;
+	const { preferences } = loadAudioEditorPreferencesV1(saved);
+	assert.equal(preferences.workspace.toolbarButtons.snap, false, 'the toolbar shows any button that is not explicitly hidden');
+	assert.equal(preferences.workspace.toolbarButtons['workspace-switcher'], false);
+	assert.equal(preferences.workspace.toolbarButtons.metronome, true, 'stored choices survive the fill-in');
 });
