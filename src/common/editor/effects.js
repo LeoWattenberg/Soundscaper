@@ -16,56 +16,18 @@ import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
+import {
+	PARAMETRIC_EQ_BAND_TYPES,
+	PARAMETRIC_EQ_EFFECT_DEFINITION,
+	PARAMETRIC_EQ_MAXIMUM_BANDS,
+	PARAMETRIC_EQ_SLOPES,
+	isParametricEqEffectAlias,
+	normalizeParametricEqEffectParams,
+} from './parametric-eq/effect-definition.js';
 
-const EQ_FREQUENCIES = Object.freeze([100, 500, 2_000, 8_000]);
 export const MISSING_EFFECT_TYPE = 'missing';
 
-export const PARAMETRIC_EQ_BAND_TYPES = Object.freeze([
-	'peaking',
-	'lowshelf',
-	'highshelf',
-	'highpass',
-	'lowpass',
-	'notch',
-]);
-export const PARAMETRIC_EQ_SLOPES = Object.freeze([12, 24, 36, 48]);
-export const PARAMETRIC_EQ_MAXIMUM_BANDS = 12;
-
-const PARAMETRIC_EQ_BAND_DEFAULTS = Object.freeze({
-	enabled: true,
-	type: 'peaking',
-	frequency: 1_000,
-	gain: 0,
-	q: 1,
-	slope: 12,
-});
-
-const PARAMETRIC_EQ_BAND_PARAMETER_METADATA = Object.freeze({
-	enabled: Object.freeze({
-		unit: 'boolean', step: 1, taper: 'discrete', automatable: false,
-		automationBlockReason: 'Changing band topology is not sample-offset safe.',
-	}),
-	type: Object.freeze({
-		unit: 'enum', step: 1, taper: 'discrete', automatable: false,
-		automationBlockReason: 'Changing filter topology is not sample-offset safe.',
-	}),
-	slope: Object.freeze({
-		unit: 'dB/oct', step: 12, taper: 'discrete', automatable: false,
-		automationBlockReason: 'Changing filter topology is not sample-offset safe.',
-	}),
-});
-
-const PARAMETRIC_EQ_BAND_TYPE_SET = new Set(PARAMETRIC_EQ_BAND_TYPES);
-const PARAMETRIC_EQ_SLOPE_SET = new Set(PARAMETRIC_EQ_SLOPES);
-const PARAMETRIC_EQ_EFFECT_ALIASES = new Set(['eq', 'parametric-eq', 'parametric_eq']);
-const PARAMETRIC_EQ_DEFAULTS = Object.freeze({
-	outputGain: 0,
-	bands: Object.freeze(EQ_FREQUENCIES.map((frequency, index) => Object.freeze({
-		id: `band-${index + 1}`,
-		...PARAMETRIC_EQ_BAND_DEFAULTS,
-		frequency,
-	}))),
-});
+export { PARAMETRIC_EQ_BAND_TYPES, PARAMETRIC_EQ_MAXIMUM_BANDS, PARAMETRIC_EQ_SLOPES };
 
 /**
  * @typedef {Object} AudioEditorEffect
@@ -95,20 +57,7 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 			q: [0.1, 30, { unit: 'Q', step: 0.01, taper: 'logarithmic' }],
 		},
 	},
-	eq: {
-		defaults: PARAMETRIC_EQ_DEFAULTS,
-		ranges: {
-			outputGain: [-24, 24, { unit: 'dB', step: 0.1, taper: 'decibel' }],
-			frequency: [10, 24_000, { unit: 'Hz', step: 1, taper: 'logarithmic' }],
-			gain: [-24, 24, { unit: 'dB', step: 0.1, taper: 'decibel' }],
-			q: [0.1, 30, { unit: 'Q', step: 0.01, taper: 'logarithmic' }],
-		},
-		bandTypes: PARAMETRIC_EQ_BAND_TYPES,
-		slopes: PARAMETRIC_EQ_SLOPES,
-		maximumBands: PARAMETRIC_EQ_MAXIMUM_BANDS,
-		bandDefaults: PARAMETRIC_EQ_BAND_DEFAULTS,
-		bandParameterMetadata: PARAMETRIC_EQ_BAND_PARAMETER_METADATA,
-	},
+	eq: PARAMETRIC_EQ_EFFECT_DEFINITION,
 	compressor: {
 		defaults: { threshold: -24, knee: 30, ratio: 4, attack: 0.003, release: 0.25, makeupGain: 0 },
 		ranges: {
@@ -328,7 +277,7 @@ export function normalizeEffect(effect) {
 	if (typeof effect.id !== 'string' || !effect.id) throw new TypeError('Every effect needs a stable ID.');
 	if (effect.type === 'native-plugin') return normalizeNativePluginEffect(effect);
 	if (effect.type === MISSING_EFFECT_TYPE) return createMissingEffect(effect);
-	const type = PARAMETRIC_EQ_EFFECT_ALIASES.has(effect.type) ? 'eq' : effect.type;
+	const type = isParametricEqEffectAlias(effect.type) ? 'eq' : effect.type;
 	return createEffect(type, { ...effect, type });
 }
 
@@ -419,24 +368,7 @@ export function projectEffectTailFrames(project, {
 }
 
 function normalizeEffectParams(type, params, effectId = null) {
-	if (type === 'eq') {
-		if (!Array.isArray(params.bands) || params.bands.length > PARAMETRIC_EQ_MAXIMUM_BANDS) {
-			throw new RangeError(`The parametric EQ supports between zero and ${PARAMETRIC_EQ_MAXIMUM_BANDS} bands.`);
-		}
-		const ids = normalizeParametricEqBandIds(params.bands, effectId);
-		return {
-			outputGain: range(params.outputGain ?? 0, -24, 24, 'eq.outputGain'),
-			bands: params.bands.map((band, index) => ({
-				id: ids[index],
-				enabled: normalizeBoolean(band?.enabled, true, `eq.bands[${index}].enabled`),
-				type: parametricEqBandType(band?.type ?? 'peaking', `eq.bands[${index}].type`),
-				frequency: range(band.frequency, 10, 24_000, `eq.bands[${index}].frequency`),
-				gain: range(band.gain, -24, 24, `eq.bands[${index}].gain`),
-				q: range(band.q, 0.1, 30, `eq.bands[${index}].q`),
-				slope: parametricEqSlope(band?.slope ?? 12, `eq.bands[${index}].slope`),
-			})),
-		};
-	}
+	if (type === 'eq') return normalizeParametricEqEffectParams(params, effectId);
 
 	const definition = ownMapValue(AUDIO_EFFECT_DEFINITIONS, type) ?? ownMapValue(AUDIO_SELECTION_EFFECT_DEFINITIONS, type);
 	const output = {};
@@ -444,54 +376,6 @@ function normalizeEffectParams(type, params, effectId = null) {
 		output[name] = range(params[name], minimum, maximum, `${type}.${name}`);
 	}
 	return output;
-}
-
-function normalizeParametricEqBandIds(bands, effectId) {
-	const explicitIds = new Set();
-	const sourceIds = bands.map((band, index) => {
-		if (!band || typeof band !== 'object' || Array.isArray(band)) {
-			throw new TypeError(`eq.bands[${index}] must be an object.`);
-		}
-		if (band.id == null || band.id === '') return null;
-		if (typeof band.id !== 'string' || !band.id.trim()) {
-			throw new TypeError(`eq.bands[${index}].id must be a non-empty string.`);
-		}
-		const id = band.id.trim();
-		if (explicitIds.has(id)) throw new RangeError(`Duplicate parametric EQ band ID: ${id}.`);
-		explicitIds.add(id);
-		return id;
-	});
-	const assignedIds = new Set(explicitIds);
-	return sourceIds.map((id, index) => {
-		if (id) return id;
-		const base = `${effectId ? `${effectId}-` : ''}band-${index + 1}`;
-		let generated = base;
-		let suffix = 2;
-		while (assignedIds.has(generated)) generated = `${base}-${suffix++}`;
-		assignedIds.add(generated);
-		return generated;
-	});
-}
-
-function normalizeBoolean(value, defaultValue, name) {
-	if (value === undefined) return defaultValue;
-	if (typeof value !== 'boolean') throw new TypeError(`${name} must be a boolean.`);
-	return value;
-}
-
-function parametricEqBandType(value, name) {
-	if (typeof value !== 'string' || !PARAMETRIC_EQ_BAND_TYPE_SET.has(value)) {
-		throw new RangeError(`${name} must be one of ${PARAMETRIC_EQ_BAND_TYPES.join(', ')}.`);
-	}
-	return value;
-}
-
-function parametricEqSlope(value, name) {
-	const slope = Number(value);
-	if (!PARAMETRIC_EQ_SLOPE_SET.has(slope)) {
-		throw new RangeError(`${name} must be one of ${PARAMETRIC_EQ_SLOPES.join(', ')}.`);
-	}
-	return slope;
 }
 
 function range(value, minimum, maximum, name) {
