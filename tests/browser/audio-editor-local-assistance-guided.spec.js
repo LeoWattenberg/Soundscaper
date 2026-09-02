@@ -11,6 +11,7 @@ import {
 } from './audio-editor-test-helpers.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { ASSISTANCE_OPERATIONS } from '../../src/common/editor/assistance/operation.ts';
 
 // Keep this desktop-assistance workflow focused on consent and publication.
 // This repository-owned VP8 fixture carries the exact container timing
@@ -22,23 +23,11 @@ const CUT_FIXTURE = Object.freeze({
 	sourceFrame: 4,
 	presentationTick: '542',
 });
-const ADVANCED_OPERATIONS = Object.freeze([
-	'voice-activity-detection',
-	'speech-recognition',
-	'word-alignment',
-	'speaker-diarization',
-	'speech-enhancement',
-	'source-separation',
-	'audio-tagging',
-	'beat-tracking',
-	'text-embedding',
-	'image-text-embedding',
-	'optical-character-recognition',
-	'shot-detection',
-	'subject-detection',
-	'saliency-detection',
-	'editorial-generation',
-]);
+// The picker offers the whole closed vocabulary in its canonical order. Reading
+// that order from the vocabulary itself is the assertion: a second hand-written
+// copy only records when someone last remembered to extend it, and adding
+// dereverberation to the vocabulary broke this spec for exactly that reason.
+const ADVANCED_OPERATIONS = ASSISTANCE_OPERATIONS;
 
 test.describe('menu-only Local Assistance workflows', () => {
 	registerAudioEditorHooks();
