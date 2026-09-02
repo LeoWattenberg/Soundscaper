@@ -3,51 +3,189 @@
 	"defaultMaxLines": 600,
 	"browserSpecMaxLines": 800,
 	"allow": {
-		"scripts/audacity-qt-translations.mjs": { "maxLines": 942, "reason": "Legacy translation conversion pipeline with provenance and integrity validation." },
-		"scripts/audit-aup4-interop.mjs": { "maxLines": 863, "reason": "Pinned interoperability audit and fixture evidence pipeline." },
-		"scripts/manage-audacity-translation-release.mjs": { "maxLines": 1136, "reason": "Legacy translation publication workflow; split by command before extending it." },
-		"src/common/editor/app.js": { "maxLines": 2906, "reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration." },
-		"src/common/editor/audacity-action-parity.js": { "maxLines": 953, "reason": "Pinned Audacity action inventory and policy implementation." },
-		"src/common/editor/audacity-effects/basic.js": { "maxLines": 718, "reason": "Legacy basic-effect implementations; new effects belong in focused modules." },
-		"src/common/editor/audacity-effects/live.js": { "maxLines": 1232, "reason": "Legacy realtime effect graph implementation." },
-		"src/common/editor/audacity-effects/realtime.js": { "maxLines": 788, "reason": "Legacy realtime effect processors and routing helpers." },
-		"src/common/editor/audacity-effects/spectral.js": { "maxLines": 916, "reason": "Legacy spectral effect algorithms with shared FFT plumbing." },
-		"src/common/editor/aup4-conversion.js": { "maxLines": 772, "reason": "AUP4 compatibility conversion matrix retained for interoperability." },
-		"src/common/editor/aup4-database.js": { "maxLines": 726, "reason": "Legacy SQLite AUP4 codec with strict schema validation." },
-		"src/common/editor/aup4-effects.js": { "maxLines": 912, "reason": "Audacity effect mapping and compatibility policy." },
-		"src/common/editor/aup4-export.js": { "maxLines": 877, "reason": "AUP4 exporter with interoperability fixtures and release audit." },
-		"src/common/editor/aup4-profile.js": { "maxLines": 961, "reason": "Audacity profile and plug-in metadata compatibility mapping." },
-		"src/common/editor/aup4-worker.js": { "maxLines": 786, "reason": "Legacy worker-side AUP4 database command boundary." },
-		"src/common/editor/clip-time-pitch-cache.js": { "maxLines": 874, "reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery." },
-		"src/common/editor/nyquist/plugins/catalog.js": { "maxLines": 630, "reason": "Reviewed bundled Nyquist plug-in catalog." },
-		"src/common/editor/parametric-eq/native/parametric_eq_wasm.cpp": { "maxLines": 1570, "reason": "First-party parametric-EQ WASM implementation predating the native size gate; split DSP design, processing, and ABI surfaces before extending it." },
-		"src/common/editor/recording.js": { "maxLines": 674, "reason": "Legacy recording graph and device lifecycle implementation." },
-		"src/common/editor/staffpad/native/pffft/pffft.c": { "maxLines": 1866, "reason": "Digest-pinned patched PFFFT upstream source; preserve its audited byte-for-byte reproducibility." },
-		"src/common/editor/wavpack/native/common_utils.c": { "maxLines": 853, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/decorr_tables.h": { "maxLines": 1077, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/extra1.c": { "maxLines": 725, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/extra2.c": { "maxLines": 954, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/open_utils.c": { "maxLines": 1345, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/pack.c": { "maxLines": 1772, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/pack_utils.c": { "maxLines": 1893, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/read_words.c": { "maxLines": 630, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/unpack.c": { "maxLines": 828, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/unpack_utils.c": { "maxLines": 641, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/wavpack_local.h": { "maxLines": 805, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/editor/wavpack/native/write_words.c": { "maxLines": 688, "reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility." },
-		"src/common/i18n/catalogs.js": { "maxLines": 2037, "reason": "Reviewed canonical fallback catalog." },
-		"tests/audio-editor-controller.test.js": { "maxLines": 3338, "reason": "Legacy controller regression suite; place new subsystem tests in focused files." },
-		"tests/audio-editor-disk-backed-sources.test.js": { "maxLines": 740, "reason": "Legacy bounded-storage integration scenarios." },
-		"tests/audio-editor-mix-render.test.js": { "maxLines": 743, "reason": "Legacy mix/render integration matrix." },
-		"tests/audio-editor-model.test.js": { "maxLines": 856, "reason": "Legacy project model regression matrix." },
-		"tests/audio-editor-multitrack-selection-effects.test.js": { "maxLines": 602, "reason": "Legacy multitrack selection/effect integration scenarios." },
-		"tests/audio-editor-nyquist-controller.test.js": { "maxLines": 625, "reason": "Legacy Nyquist controller integration scenarios." },
-		"tests/audio-editor-recording-controller.test.js": { "maxLines": 1284, "reason": "Legacy recording-controller regression suite." },
-		"tests/audio-editor-runtime.test.js": { "maxLines": 2628, "reason": "Legacy runtime integration suite; its shared Web Audio doubles now live in tests/helpers/mock-audio-context.js." },
-		"tests/audio-editor-video-ffmpeg.test.js": { "maxLines": 825, "reason": "Legacy FFmpeg video argument and composition matrix." },
-		"tests/aup4-conversion.test.js": { "maxLines": 1021, "reason": "AUP4 conversion compatibility matrix." },
-		"tests/aup4-database.test.js": { "maxLines": 830, "reason": "Legacy AUP4 database codec and corruption matrix." },
-		"tests/aup4-export.test.js": { "maxLines": 877, "reason": "Legacy AUP4 export interoperability matrix." },
-		"tests/parametric-eq-wasm.test.js": { "maxLines": 729, "reason": "Pinned native/WASM parity and reproducibility matrix." }
+		"scripts/audacity-qt-translations.mjs": {
+			"maxLines": 942,
+			"reason": "Legacy translation conversion pipeline with provenance and integrity validation."
+		},
+		"scripts/audit-aup4-interop.mjs": {
+			"maxLines": 863,
+			"reason": "Pinned interoperability audit and fixture evidence pipeline."
+		},
+		"scripts/manage-audacity-translation-release.mjs": {
+			"maxLines": 1136,
+			"reason": "Legacy translation publication workflow; split by command before extending it."
+		},
+		"src/common/editor/app.js": {
+			"maxLines": 2906,
+			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
+		},
+		"src/common/editor/audacity-action-parity.js": {
+			"maxLines": 953,
+			"reason": "Pinned Audacity action inventory and policy implementation."
+		},
+		"src/common/editor/audacity-effects/basic.js": {
+			"maxLines": 718,
+			"reason": "Legacy basic-effect implementations; new effects belong in focused modules."
+		},
+		"src/common/editor/audacity-effects/live.js": {
+			"maxLines": 1156,
+			"reason": "Legacy realtime effect graph implementation."
+		},
+		"src/common/editor/audacity-effects/realtime.js": {
+			"maxLines": 788,
+			"reason": "Legacy realtime effect processors and routing helpers."
+		},
+		"src/common/editor/audacity-effects/spectral.js": {
+			"maxLines": 916,
+			"reason": "Legacy spectral effect algorithms with shared FFT plumbing."
+		},
+		"src/common/editor/aup4-conversion.js": {
+			"maxLines": 772,
+			"reason": "AUP4 compatibility conversion matrix retained for interoperability."
+		},
+		"src/common/editor/aup4-database.js": {
+			"maxLines": 726,
+			"reason": "Legacy SQLite AUP4 codec with strict schema validation."
+		},
+		"src/common/editor/aup4-effects.js": {
+			"maxLines": 912,
+			"reason": "Audacity effect mapping and compatibility policy."
+		},
+		"src/common/editor/aup4-export.js": {
+			"maxLines": 877,
+			"reason": "AUP4 exporter with interoperability fixtures and release audit."
+		},
+		"src/common/editor/aup4-profile.js": {
+			"maxLines": 961,
+			"reason": "Audacity profile and plug-in metadata compatibility mapping."
+		},
+		"src/common/editor/aup4-worker.js": {
+			"maxLines": 786,
+			"reason": "Legacy worker-side AUP4 database command boundary."
+		},
+		"src/common/editor/clip-time-pitch-cache.js": {
+			"maxLines": 874,
+			"reason": "Legacy disk-backed pitch-cache pipeline with cancellation and recovery."
+		},
+		"src/common/editor/nyquist/plugins/catalog.js": {
+			"maxLines": 630,
+			"reason": "Reviewed bundled Nyquist plug-in catalog."
+		},
+		"src/common/editor/parametric-eq/native/parametric_eq_wasm.cpp": {
+			"maxLines": 1570,
+			"reason": "First-party parametric-EQ WASM implementation predating the native size gate; split DSP design, processing, and ABI surfaces before extending it."
+		},
+		"src/common/editor/recording.js": {
+			"maxLines": 674,
+			"reason": "Legacy recording graph and device lifecycle implementation."
+		},
+		"src/common/editor/staffpad/native/pffft/pffft.c": {
+			"maxLines": 1866,
+			"reason": "Digest-pinned patched PFFFT upstream source; preserve its audited byte-for-byte reproducibility."
+		},
+		"src/common/editor/wavpack/native/common_utils.c": {
+			"maxLines": 853,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/decorr_tables.h": {
+			"maxLines": 1077,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/extra1.c": {
+			"maxLines": 725,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/extra2.c": {
+			"maxLines": 954,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/open_utils.c": {
+			"maxLines": 1345,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/pack.c": {
+			"maxLines": 1772,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/pack_utils.c": {
+			"maxLines": 1893,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/read_words.c": {
+			"maxLines": 630,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/unpack.c": {
+			"maxLines": 828,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/unpack_utils.c": {
+			"maxLines": 641,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/wavpack_local.h": {
+			"maxLines": 805,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/editor/wavpack/native/write_words.c": {
+			"maxLines": 688,
+			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
+		},
+		"src/common/i18n/catalogs.js": {
+			"maxLines": 2041,
+			"reason": "Reviewed canonical fallback catalog."
+		},
+		"tests/audio-editor-controller.test.js": {
+			"maxLines": 3338,
+			"reason": "Legacy controller regression suite; place new subsystem tests in focused files."
+		},
+		"tests/audio-editor-disk-backed-sources.test.js": {
+			"maxLines": 740,
+			"reason": "Legacy bounded-storage integration scenarios."
+		},
+		"tests/audio-editor-mix-render.test.js": {
+			"maxLines": 743,
+			"reason": "Legacy mix/render integration matrix."
+		},
+		"tests/audio-editor-model.test.js": {
+			"maxLines": 856,
+			"reason": "Legacy project model regression matrix."
+		},
+		"tests/audio-editor-multitrack-selection-effects.test.js": {
+			"maxLines": 602,
+			"reason": "Legacy multitrack selection/effect integration scenarios."
+		},
+		"tests/audio-editor-nyquist-controller.test.js": {
+			"maxLines": 625,
+			"reason": "Legacy Nyquist controller integration scenarios."
+		},
+		"tests/audio-editor-recording-controller.test.js": {
+			"maxLines": 1284,
+			"reason": "Legacy recording-controller regression suite."
+		},
+		"tests/audio-editor-runtime.test.js": {
+			"maxLines": 2628,
+			"reason": "Legacy runtime integration suite; its shared Web Audio doubles now live in tests/helpers/mock-audio-context.js."
+		},
+		"tests/audio-editor-video-ffmpeg.test.js": {
+			"maxLines": 825,
+			"reason": "Legacy FFmpeg video argument and composition matrix."
+		},
+		"tests/aup4-conversion.test.js": {
+			"maxLines": 1021,
+			"reason": "AUP4 conversion compatibility matrix."
+		},
+		"tests/aup4-database.test.js": {
+			"maxLines": 830,
+			"reason": "Legacy AUP4 database codec and corruption matrix."
+		},
+		"tests/aup4-export.test.js": {
+			"maxLines": 877,
+			"reason": "Legacy AUP4 export interoperability matrix."
+		},
+		"tests/parametric-eq-wasm.test.js": {
+			"maxLines": 729,
+			"reason": "Pinned native/WASM parity and reproducibility matrix."
+		}
 	}
 }

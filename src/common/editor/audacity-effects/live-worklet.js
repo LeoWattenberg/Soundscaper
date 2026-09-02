@@ -8,6 +8,14 @@ import { initializePffft, isPffftReady } from '../pffft.js';
 
 export const AUDACITY_LIVE_WORKLET_NAME = 'kw-audacity-live-effect';
 
+/**
+ * How often a self-describing effect reports what it is doing.
+ *
+ * The display refreshes on animation frames, so anything faster is discarded
+ * before it is drawn while still costing a structured-clone per render quantum.
+ */
+export const AUDACITY_LIVE_ANALYSIS_INTERVAL_SECONDS = 1 / 60;
+
 const ProcessorBase = globalThis.AudioWorkletProcessor || class {
 	constructor() {
 		this.port = { postMessage() {}, onmessage: null, start() {} };
@@ -20,7 +28,12 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		const settings = options.processorOptions || {};
 		const sampleRate = Number(settings.sampleRate ?? globalThis.sampleRate ?? 48_000);
 		this.effectType = settings.effectType;
+		this.sampleRate = sampleRate;
 		this.processor = null;
+		this.analysisWindow = null;
+		this.analysisFramesPerReport = Math.max(1, Math.round(
+			sampleRate * AUDACITY_LIVE_ANALYSIS_INTERVAL_SECONDS,
+		));
 		this.pendingMessages = [];
 		this.lastError = null;
 		this.port.onmessage = (event) => this.#handleMessage(event.data || {});
@@ -59,6 +72,7 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		try {
 			this.processor.process(inputs[0] || [], output, inputs[1] || []);
 			this.lastError = null;
+			this.#reportAnalysis();
 			return true;
 		} catch (error) {
 			for (const channel of output) channel.fill(0);
@@ -79,7 +93,7 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 		try {
 			if (message.type === 'params') this.processor.updateParams(message.params || {});
 			else if (message.type === 'noise-profile') this.processor.setNoiseProfile(message.profile);
-			else if (message.type === 'reset') this.processor.reset();
+			else if (message.type === 'reset') { this.processor.reset(); this.analysisWindow = null; }
 			else return;
 			this.lastError = null;
 			this.#postStatus(message.type === 'reset' ? 'reset' : 'updated');
@@ -90,6 +104,32 @@ export class AudacityLiveEffectProcessor extends ProcessorBase {
 				message: error instanceof Error ? error.message : String(error),
 			});
 		}
+	}
+
+	#reportAnalysis() {
+		const analysis = this.processor.readAnalysis?.();
+		if (!analysis) return;
+		const window = this.analysisWindow ?? {
+			frames: 0, inputPeak: 0, outputPeak: 0, reductionDb: 0,
+		};
+		window.frames += analysis.frames;
+		if (analysis.inputPeak > window.inputPeak) window.inputPeak = analysis.inputPeak;
+		if (analysis.outputPeak > window.outputPeak) window.outputPeak = analysis.outputPeak;
+		if (analysis.reductionDb < window.reductionDb) window.reductionDb = analysis.reductionDb;
+		if (window.frames < this.analysisFramesPerReport) {
+			this.analysisWindow = window;
+			return;
+		}
+		this.analysisWindow = null;
+		this.port.postMessage({
+			type: 'analysis',
+			effectType: this.effectType,
+			frames: window.frames,
+			seconds: window.frames / this.sampleRate,
+			inputPeak: window.inputPeak,
+			outputPeak: window.outputPeak,
+			reductionDb: window.reductionDb,
+		});
 	}
 
 	#postStatus(status) {
