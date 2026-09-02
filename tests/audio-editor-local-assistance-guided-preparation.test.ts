@@ -69,6 +69,29 @@ test('enhancement preparation binds exact media, model, settings, recipe, and ca
 	assert.equal(Object.isFrozen(result.workflow), true);
 });
 
+test('dereverberation preparation binds the dereverb-room model and 44.1 kHz authority', async () => {
+	const fixture = preparationFixture();
+	const result = await fixture.preparation.prepareGuidedWorkflow({
+		jobId: JOB_ID, workflowId: 'reduce-reverb',
+		settings: defaultAssistanceWorkflowSettingsV1('reduce-reverb'),
+		models: [model('dereverb-room', '1.0.0', 'dereverberation', 1)],
+		custody: fixture.custody, signal: new AbortController().signal,
+	});
+	assert.equal(result.outcome, 'prepared', JSON.stringify(result));
+	if (result.outcome !== 'prepared') return;
+	assert.deepEqual(result.workflow.stageIds, ['reduce-reverb']);
+	assert.deepEqual(result.workflow.models, [{
+		bindingVersion: 1, stageId: 'reduce-reverb', slotId: 'dereverberator',
+		modelId: 'dereverb-room', version: '1.0.0',
+		artifactSha256s: ['1'.padStart(64, '0')],
+	}]);
+	assert.equal(result.workflow.inputs.length, 1);
+	assert.deepEqual(result.workflow.outputs.map(({ slotId }) => slotId),
+		['dereverberated-audio']);
+	assert.equal(result.reviewAuthority.audioWave?.sampleRate, 44_100);
+	assert.deepEqual(fixture.operations, ['dereverberation']);
+});
+
 test('TIGER preparation reserves dialogue, music, and effects once in canonical order', async () => {
 	const fixture = preparationFixture();
 	const result = await fixture.preparation.prepareGuidedWorkflow({

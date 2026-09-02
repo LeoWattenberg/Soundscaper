@@ -59,6 +59,14 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await expect(review.getByRole('checkbox', { name: 'Enhanced Dialogue', exact: true }))
 			.not.toBeChecked();
 
+		review = await runAndReview(page, guided, 'Reduce Reverb');
+		await expect(review.locator('label', { hasText: 'Original selection' }).locator('audio'))
+			.toHaveCount(1);
+		await expect(review.locator('label', { hasText: 'dereverberated-audio' }).locator('audio'))
+			.toHaveCount(1);
+		await expect(review.getByRole('checkbox', { name: 'Reduced Reverb', exact: true }))
+			.not.toBeChecked();
+
 		await selectWorkflow(guided, 'Detect Beats & Tempo');
 		const beatLabels = guided.getByRole('checkbox', {
 			name: 'Publish an owned Beats label track', exact: true,
@@ -82,16 +90,19 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await beatChoice.uncheck();
 		await expect(tempoChoice).toBeChecked();
 
-		expect(consentMessages).toHaveLength(3);
+		expect(consentMessages).toHaveLength(4);
 		expect(consentMessages[0]).toContain('Workflow: transcribe-captions');
 		expect(consentMessages[0]).toContain(
 			'Stages: detect-speech, recognize-speech, assemble-captions',
 		);
 		expect(consentMessages[1]).toContain('Workflow: enhance-dialogue');
-		expect(consentMessages[2]).toContain('Workflow: detect-beats-tempo');
-		expect(consentMessages[2]).toContain('Outputs: beat-grid, beat-labels, tempo-map-diff');
+		expect(consentMessages[2]).toContain('Workflow: reduce-reverb');
+		expect(consentMessages[2]).toContain('Models: dereverb-room@1.0.0');
+		expect(consentMessages[2]).toContain('Outputs: dereverberated-audio');
+		expect(consentMessages[3]).toContain('Workflow: detect-beats-tempo');
+		expect(consentMessages[3]).toContain('Outputs: beat-grid, beat-labels, tempo-map-diff');
 		await expect.poll(() => milestone7FixtureSnapshot(page).then(({ progressEvents }) =>
-			progressEvents)).toBe(3);
+			progressEvents)).toBe(4);
 		expect(errors).toEqual([]);
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 	});

@@ -4,6 +4,7 @@ const MODELS = Object.freeze([
 	['silero-vad-v6', '6.2.1', 'voice-activity-detection'],
 	['parakeet-tdt-0.6b-v3', '3.0.0', 'speech-recognition'],
 	['deepfilternet3', '3.0.0', 'speech-enhancement'],
+	['dereverb-room', '1.0.0', 'dereverberation'],
 	['panns-cnn10', '1.0.0', 'audio-tagging'],
 	['beat-this-small0', '1.1.0', 'beat-tracking'],
 	['nomic-embed-text-v1.5', '1.5.0', 'text-embedding'],
@@ -193,7 +194,8 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 		});
 
 		function outputMediaType(slotId) {
-			if (['dialogue', 'music', 'effects', 'enhanced-audio'].includes(slotId)) return 'audio/wav';
+			if (['dialogue', 'music', 'effects', 'enhanced-audio', 'dereverberated-audio']
+				.includes(slotId)) return 'audio/wav';
 			if (slotId === 'frame-pack') return 'application/vnd.soundscaper.frame-pack';
 			if (['embeddings', 'visual-embeddings'].includes(slotId)) {
 				return 'application/vnd.soundscaper.embedding-matrix-v1';
@@ -202,6 +204,7 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 		}
 		function outputRole(slotId) {
 			if (['dialogue', 'music', 'effects'].includes(slotId)) return 'separated-audio';
+			if (slotId === 'dereverberated-audio') return 'enhanced-audio';
 			if (slotId === 'visual-embeddings') return 'embeddings';
 			return slotId;
 		}
@@ -212,7 +215,8 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 			return `highlight-${request.slotId}-signals`;
 		}
 		async function workflowOutput(request, slotId) {
-			if (['enhanced-audio', 'dialogue', 'music', 'effects'].includes(slotId)) {
+			if (['enhanced-audio', 'dereverberated-audio', 'dialogue', 'music', 'effects']
+				.includes(slotId)) {
 				if (!(state.latestInput instanceof Blob) || state.latestInput.type !== 'audio/wav') {
 					throw new Error('Fixture audio audition custody is unavailable.');
 				}

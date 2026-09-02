@@ -53,7 +53,8 @@ const SHA256 = /^[a-f\d]{64}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,126}[a-z\d])?$/u;
 const AUDIO_OPERATIONS = new Set<AssistanceOperation>([
 	'voice-activity-detection', 'speech-recognition', 'speaker-diarization',
-	'word-alignment', 'speech-enhancement', 'source-separation', 'audio-tagging', 'beat-tracking',
+	'word-alignment', 'speech-enhancement', 'dereverberation', 'source-separation',
+	'audio-tagging', 'beat-tracking',
 ]);
 export type {
 	LocalAssistanceGuidedPreparationUnavailableReason,

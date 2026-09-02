@@ -109,7 +109,8 @@ export function preparationFixture(
 				label: 'Voice', mediaKind: 'audio', operations: [] }] }),
 			prepareSelectedMedia: async ({ operation }) => {
 				operations.push(operation);
-				const sampleRate = operation === 'source-separation' ? 44_100 : 48_000;
+				const sampleRate = operation === 'source-separation'
+					|| operation === 'dereverberation' ? 44_100 : 48_000;
 				const wav = encodeWav([
 					Float32Array.of(0.25, 0, -0.25), Float32Array.of(-0.25, 0, 0.25),
 				], { sampleRate, bitDepth: 32, float: true, dither: false });
@@ -120,8 +121,11 @@ export function preparationFixture(
 						? ['dialogue', 'music', 'effects'].map((slotId) => ({ slotId,
 							role: 'separated-audio', mediaType: 'audio/wav',
 							maximumByteLength: MAXIMUM_OUTPUT_BYTES }))
-						: [{ slotId: 'enhanced-audio', role: 'enhanced-audio', mediaType: 'audio/wav',
-							maximumByteLength: MAXIMUM_OUTPUT_BYTES }],
+						: operation === 'dereverberation'
+							? [{ slotId: 'dereverberated-audio', role: 'enhanced-audio',
+								mediaType: 'audio/wav', maximumByteLength: MAXIMUM_OUTPUT_BYTES }]
+							: [{ slotId: 'enhanced-audio', role: 'enhanced-audio', mediaType: 'audio/wav',
+								maximumByteLength: MAXIMUM_OUTPUT_BYTES }],
 				};
 			},
 		},
