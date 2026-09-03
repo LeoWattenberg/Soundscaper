@@ -68,7 +68,9 @@ if (invokedDirectly) {
 		for (const example of staged) console.log(`${example.sha256}  ${String(example.bytes).padStart(8)}  ${example.url}`);
 		if (upload) {
 			for (const example of staged) {
-				await run('npx', ['wrangler', 'r2', 'object', 'put', `${BUCKET_NAME}/${example.key}`, '--file', example.path, '--content-type', 'audio/wav']);
+				// Wrangler 4 writes to its local R2 simulation unless told otherwise;
+				// `--remote` is what puts the object in the real bucket.
+				await run('npx', ['wrangler', 'r2', 'object', 'put', `${BUCKET_NAME}/${example.key}`, '--file', example.path, '--content-type', 'audio/wav', '--remote']);
 			}
 			console.log(`Uploaded ${String(staged.length)} example recordings.`);
 		}
