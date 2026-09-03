@@ -254,6 +254,10 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 		'src/common/editor/scape-import-transaction.ts',
 		'src/common/editor/aup-legacy.js',
 		'src/common/editor/aup4-client.js',
+		'src/common/editor/dawproject-archive.ts',
+		'src/common/editor/dawproject-export.ts',
+		'src/common/editor/dawproject-import.ts',
+		'src/common/editor/dawproject-xml.ts',
 	]) {
 		assert.ok(EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path), `${path} must be an archive implementation`);
 		assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
@@ -268,6 +272,29 @@ test('optional archive code and its ZIP vendor are placed by dynamic reachabilit
 		null,
 		'FFmpeg client code must stay behind its existing dynamic runtime import',
 	);
+});
+
+test('the DAWproject exchange stays behind its deferred controller facade', () => {
+	// Composing the service eagerly is what put the exchange reader, writer, XML
+	// parser and their ZIP container into the product-ready startup graph: the
+	// Framescaper graph went to 82 requests and 1,659,051 brotli bytes, past both
+	// of its ceilings, for a File menu entry most sessions never open.
+	const implementation = flatEditorModules().filter((path) => /dawproject-/u.test(path));
+	assert.ok(implementation.length >= 10, 'the exchange implementation must be found');
+	for (const path of [...implementation, 'src/common/editor/controller/dawproject-service.ts']) {
+		assert.ok(EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST.test(path) || path.includes('/controller/'), path);
+		assert.equal(chunkGroupForModulePath(path), null, `${path} must stay behind its lazy action`);
+	}
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/controller/deferred-dawproject-service.ts'),
+		'editor-controller-core',
+	);
+	const composition = readFileSync(
+		new URL('../src/common/editor/controller/native-project-service.ts', import.meta.url),
+		'utf8',
+	);
+	assert.match(composition, /createDeferredDawprojectService\(/u);
+	assert.doesNotMatch(composition, /^import\s+(?!type\b)[^\n]*'\.\/dawproject-service\.ts'/mu);
 });
 
 test('optional effect and analysis implementations have a dedicated lazy owner', () => {

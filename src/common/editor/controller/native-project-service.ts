@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isProjectFileName } from '../../project-file-extensions.ts';
-import { createDawprojectService } from './dawproject-service.ts';
+import { createDeferredDawprojectService } from './deferred-dawproject-service.ts';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
@@ -46,7 +46,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	let importOwner: EditorTaskScope | null = null;
 	let saveOwner: EditorTaskScope | null = null;
 	let futureScapeArchive: NativeRetainedScapeArchive | null = null;
-	const dawproject = createDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, updateNativeProjectProgress, requireProject });
+	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, updateNativeProjectProgress, requireProject });
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,
