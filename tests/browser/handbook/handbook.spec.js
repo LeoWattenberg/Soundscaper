@@ -49,7 +49,15 @@ test('mobile readers can navigate the handbook sidebar', async ({ page }) => {
 	await expect(page).toHaveURL(new RegExp(`${BASE}projects-and-data/storage-backups-and-privacy/$`, 'u'));
 });
 
-for (const route of [BASE, `${BASE}soundscaper/first-project/`, `${BASE}reference/generated/formats/`]) {
+// The generated reference pages carry the widest and longest tables in the
+// handbook, so one of each shape is checked: a short one and the effect
+// inventory, whose parameter table is the largest the generator produces.
+for (const route of [
+	BASE,
+	`${BASE}soundscaper/first-project/`,
+	`${BASE}reference/generated/formats/`,
+	`${BASE}reference/generated/audio-effects/`,
+]) {
 	test(`has no serious accessibility violations at ${route}`, async ({ page }) => {
 		await page.goto(route);
 		const results = await new AxeBuilder({ page }).analyze();

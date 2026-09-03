@@ -18,9 +18,18 @@ npm run docs:check
 npm run docs:dev
 ```
 
-The generated command, format, and capability pages are committed. Change
-their authoritative runtime registries, run `npm run docs:generate`, and review
-the resulting Markdown in the same pull request.
+The generated reference pages are committed. Change one of the authoritative
+runtime registries, run `npm run docs:generate`, and review the resulting
+Markdown in the same pull request. `scripts/lib/docs-reference-generator.mjs`
+is the only module that knows which registries exist; each page has its own
+renderer under `scripts/lib/docs-reference/`, and a renderer is a pure function
+of the values it is handed so a test can supply them.
+
+A generated page never invents wording for a runtime identifier. Where an ID
+was not written for readers, the renderer looks it up in a reviewed label map
+and throws when it finds nothing, so a new capability, effect category, model
+task, or package format fails `npm run docs:check` until somebody writes its
+public name.
 
 Local AI authoring and translation commands are optional maintainer tools. They
 write draft files by default, record provenance, and never run in CI or a

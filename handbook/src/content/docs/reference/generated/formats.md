@@ -12,6 +12,8 @@ These are the concrete formats registered by the current export runtime. Product
 
 “Built in” means the application has a native writer for that format. “FFmpeg runtime required” is conditional: the table does not promise that the FFmpeg runtime can be loaded in every build or environment, or that an arbitrary replacement runtime contains the listed encoder and muxer.
 
+Project files and label files are listed separately in [Project and label files](/reference/generated/project-files/).
+
 ## Audio
 
 | Format | Extension | Codec / container | Fidelity | Maximum channels | Runtime requirement | Products |

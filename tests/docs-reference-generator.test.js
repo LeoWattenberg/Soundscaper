@@ -189,6 +189,6 @@ test('reference sync check reports drift without creating or changing files', as
 test('checked-in documentation references match the current runtime registries', async () => {
 	const repositoryRoot = join(import.meta.dirname, '..');
 	const result = await generateReferenceDocuments(repositoryRoot, { write: false });
-	assert.equal(result.documentCount, 3);
+	assert.equal(result.documentCount, 11);
 	assert.deepEqual(result.stale, []);
 });
