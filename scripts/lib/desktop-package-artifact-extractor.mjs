@@ -400,7 +400,20 @@ async function canonicalDirectory(value, label) {
 	return value;
 }
 
+// Decoding the entities one after another would decode the output of an earlier
+// pass, so "&amp;lt;" would collapse to "<" instead of the literal "&lt;".
+// A single pass over the source resolves each entity exactly once.
+const XML_ENTITY_REPLACEMENTS = new Map([
+	['&amp;', '&'],
+	['&lt;', '<'],
+	['&gt;', '>'],
+	['&quot;', '"'],
+	['&apos;', "'"],
+]);
+
 function decodeXml(value) {
-	return value.replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>')
-		.replaceAll('&quot;', '"').replaceAll('&apos;', "'");
+	return String(value).replace(
+		/&(?:amp|lt|gt|quot|apos);/gu,
+		(entity) => XML_ENTITY_REPLACEMENTS.get(entity) ?? entity,
+	);
 }

@@ -44,8 +44,12 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		const prose = [policy.effectiveDate, policy.summary, ...policy.sections.flatMap(
 			({ heading, body }) => [heading, body],
 		)].join('\n');
-		assert.match(prose, new RegExp(CONTROLLER.replace(/[()]/gu, '\\$&'), 'u'));
-		assert.match(prose, new RegExp(CONTACT, 'u'));
+		// Both are literal strings, so a substring check asserts what the test
+		// means. Compiling them as patterns instead escaped only the parentheses
+		// of the controller name and left the address's dots matching any
+		// character at all.
+		assert.ok(prose.includes(CONTROLLER), `the policy names the controller ${CONTROLLER}`);
+		assert.ok(prose.includes(CONTACT), `the policy names the contact address ${CONTACT}`);
 		assert.match(prose, /Cloudflare/iu);
 		assert.match(prose, /GitHub/iu);
 		assert.match(prose, /Web VCR/iu);
@@ -102,3 +106,22 @@ async function writeBuildFixture(outputRoot) {
 <body><div id="app"></div><script type="module" src="/src/main.jsx"></script></body></html>`);
 	await writeFile(join(outputRoot, '_headers'), await readFile('public/_headers', 'utf8'));
 }
+
+/**
+ * The manual destination was once chosen by searching the whole URL for the
+ * support host, so any address that merely mentioned it — in a path, a query or
+ * a fragment an outside page controls — opened as though it were the Audacity
+ * manual. Matching the parsed hostname is what confines the decision to the
+ * host that actually serves the page.
+ */
+test('the desktop manual destination is chosen by host rather than by substring', () => {
+	assert.equal(desktopExternalDestination('https://support.audacityteam.org/'), 'manual');
+	assert.equal(desktopExternalDestination('https://support.audacityteam.org/quick_help.html'), 'manual');
+	assert.equal(desktopExternalDestination('https://SUPPORT.AUDACITYTEAM.ORG/'), 'manual');
+
+	assert.equal(desktopExternalDestination('https://example.invalid/?ref=support.audacityteam.org'), 'homepage');
+	assert.equal(desktopExternalDestination('https://example.invalid/support.audacityteam.org/'), 'homepage');
+	assert.equal(desktopExternalDestination('https://support.audacityteam.org.example.invalid/'), 'homepage');
+	assert.equal(desktopExternalDestination('not a url at all'), 'homepage');
+	assert.equal(desktopExternalDestination('mailto:privacy@support.soundscaper.org'), 'support');
+});

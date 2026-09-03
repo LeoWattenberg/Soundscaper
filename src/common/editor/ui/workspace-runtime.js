@@ -14,11 +14,24 @@ export function useMediaQuery(query) {
 	return matches;
 }
 
+// Matching the manual host on a substring would also route a link whose path or
+// query merely mentions it, so the host is compared after the URL is parsed.
+const DESKTOP_MANUAL_HOST = 'support.audacityteam.org';
+
+function externalUrlHostname(href) {
+	try {
+		return new URL(href).hostname.toLowerCase();
+	} catch {
+		return '';
+	}
+}
+
 export function desktopExternalDestination(url) {
-	if (String(url).startsWith('mailto:')) return 'support';
-	if (/\/privacy\/de\/$/u.test(String(url))) return 'privacy-de';
-	if (/\/privacy\/en\/$/u.test(String(url))) return 'privacy-en';
-	if (String(url).includes('support.audacityteam.org')) return 'manual';
+	const href = String(url);
+	if (href.startsWith('mailto:')) return 'support';
+	if (/\/privacy\/de\/$/u.test(href)) return 'privacy-de';
+	if (/\/privacy\/en\/$/u.test(href)) return 'privacy-en';
+	if (externalUrlHostname(href) === DESKTOP_MANUAL_HOST) return 'manual';
 	return 'homepage';
 }
 

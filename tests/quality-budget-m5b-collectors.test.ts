@@ -267,13 +267,18 @@ test('a timed-out workload cannot leave a descendant process running', {
 }, async () => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m5b-workload-tree-'));
 	const markerPath = join(directory, 'descendant-survived');
-	const descendantSource = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(markerPath)}, 'survived'), 400);`;
-	const parentSource = `require('node:child_process').spawn(process.execPath, ['--eval', ${JSON.stringify(descendantSource)}], { stdio: 'ignore' }); setInterval(() => {}, 1_000);`;
+	// The marker path travels as an argument rather than being spliced into the
+	// evaluated source, so neither script is assembled from a runtime value.
+	const descendantSource = "setTimeout(() => require('node:fs').writeFileSync(process.argv[1], 'survived'), 400);";
+	const parentSource = `require('node:child_process').spawn(process.execPath, ['--eval', ${JSON.stringify(descendantSource)}, process.argv[1]], { stdio: 'ignore' }); setInterval(() => {}, 1_000);`;
 	try {
 		await assert.rejects(
 			collectM5bQuality('native-media', {
 				outputDirectory: directory,
-				workloadCommand: nodeCommand(parentSource, { timeoutMilliseconds: 100 }),
+				workloadCommand: nodeCommand(parentSource, {
+					timeoutMilliseconds: 100,
+					scriptArguments: [markerPath],
+				}),
 			}, { config, processEnvironment: {} }),
 			/time limit/iu,
 		);
@@ -440,7 +445,11 @@ function makeWorkloadDiagnostic(profileId: string): Record<string, unknown> {
 
 function nodeCommand(
 	source: string,
-	overrides: Partial<Readonly<{ timeoutMilliseconds: number; maxOutputBytes: number }>> = {},
+	overrides: Partial<Readonly<{
+		timeoutMilliseconds: number;
+		maxOutputBytes: number;
+		scriptArguments: readonly string[];
+	}>> = {},
 ): Readonly<{
 	executable: string;
 	arguments: readonly string[];
@@ -449,7 +458,7 @@ function nodeCommand(
 }> {
 	return {
 		executable: process.execPath,
-		arguments: ['--eval', source],
+		arguments: ['--eval', source, ...(overrides.scriptArguments ?? [])],
 		timeoutMilliseconds: overrides.timeoutMilliseconds ?? 5_000,
 		maxOutputBytes: overrides.maxOutputBytes ?? 128 * 1_024,
 	};

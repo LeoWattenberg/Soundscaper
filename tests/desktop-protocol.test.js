@@ -597,3 +597,24 @@ function streamEnd(stream) {
 		stream.once('error', reject);
 	});
 }
+
+/**
+ * A hash that covers the wrong span produces a content-security-policy which
+ * rejects the very script it was computed for, and the page then fails to boot
+ * with no clue pointing back here. The open tag once ended at the first ">",
+ * which an attribute value containing ">" reaches early, and the close tag once
+ * demanded "</script>" exactly, which the whitespace HTML permits before that
+ * ">" defeats. Either miss silently slides the hashed body to the next script.
+ */
+test('inline script hashing survives attribute angle brackets and a spaced end tag', () => {
+	const spaced = inlineScriptHashes('<script>boot();</script >');
+	assert.equal(spaced.length, 1);
+	assert.deepEqual(spaced, inlineScriptHashes('<script>boot();</script>'));
+
+	const attributed = inlineScriptHashes('<script data-selector="a>b">boot();</script>');
+	assert.equal(attributed.length, 1);
+	assert.deepEqual(attributed, spaced);
+
+	assert.deepEqual(inlineScriptHashes('<script src="/app.js"></script>'), []);
+	assert.equal(inlineScriptHashes('<script>one()</script><script>two()</script>').length, 2);
+});

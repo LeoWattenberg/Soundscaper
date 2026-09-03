@@ -4,6 +4,16 @@ import { stripProvenance } from './provenance.mjs';
 
 const TOKEN_PATTERN = /<docs-ai-token id="(\d{4,})"\/>/gu;
 
+// A markdown link destination is scanned with "\\." and a bare character in
+// disjoint alternatives. Letting a backslash match both — as "(?:\\.|[^)])+"
+// does — splits a run of backslashes exponentially many ways when no ")" ever
+// closes the run, so a single malformed link in a handbook page would hang the
+// docs pipeline instead of failing its check.
+const LINK_LABEL_SOURCE = String.raw`!?\[[^\]\r\n]*\]`;
+const LINK_DESTINATION_SOURCE = String.raw`(\((?:\\.|[^\\)\r\n])+\)|\[[^\]\r\n]+\])`;
+const LINK_PATTERN = new RegExp(`(${LINK_LABEL_SOURCE})${LINK_DESTINATION_SOURCE}`, 'gu');
+const LINK_DESTINATION_PATTERN = new RegExp(`${LINK_LABEL_SOURCE}${LINK_DESTINATION_SOURCE}`, 'gu');
+
 function protectMatches(state, pattern, replacer = (match) => match[0]) {
 	state.markdown = state.markdown.replace(pattern, (...values) => {
 		const match = values.slice(0, -2);
@@ -29,7 +39,7 @@ export function protectMarkdown(markdown) {
 	protectMatches(state, /\{#[A-Za-z][\w-]*\}/gu);
 	protectMatches(state, /(`+)([^`\r\n]*?)\1/gu);
 	state.markdown = state.markdown.replace(
-		/(!?\[[^\]\r\n]*\])(\((?:\\.|[^)\r\n])+\)|\[[^\]\r\n]+\])/gu,
+		LINK_PATTERN,
 		(_full, label, destination) => `${label}${addToken(state, destination)}`,
 	);
 	protectMatches(state, /https?:\/\/[^\s<>"')\]]+/gu);
@@ -177,7 +187,7 @@ function structuralSignature(markdown) {
 		frontmatter: frontmatterOf(clean),
 		fences: [...clean.matchAll(/^ {0,3}(`{3,}|~{3,})[^\r\n]*\r?\n[\s\S]*?^ {0,3}\1[ \t]*$/gmu)].map((match) => match[0]),
 		inlineCode: [...clean.matchAll(/(`+)([^`\r\n]*?)\1/gu)].map((match) => match[0]),
-		linkDestinations: [...clean.matchAll(/!?\[[^\]\r\n]*\](\((?:\\.|[^)\r\n])+\)|\[[^\]\r\n]+\])/gu)].map((match) => match[1]),
+		linkDestinations: [...clean.matchAll(LINK_DESTINATION_PATTERN)].map((match) => match[1]),
 		urls: [...clean.matchAll(/https?:\/\/[^\s<>"')\]]+/gu)].map((match) => match[0]),
 		identifiers: [...clean.matchAll(/\b[a-z][a-z0-9_-]*(?:[.:/][a-z][a-z0-9_-]*)+\b|(?<![\w/])\.[a-z][a-z0-9]{1,9}\b/giu)].map((match) => match[0]),
 		headings: [...clean.matchAll(/^ {0,3}(#{1,6})\s+/gmu)].map((match) => match[1].length),

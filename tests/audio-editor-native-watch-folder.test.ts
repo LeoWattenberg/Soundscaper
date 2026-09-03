@@ -30,7 +30,7 @@ import {
 
 const RULE_ID = 'aa'.repeat(16);
 const GRANT_ID = 'bb'.repeat(16);
-const IDENTITY = 'dev:1|ino:42'.replace('|', '-');
+const IDENTITY = 'dev:1-ino:42';
 const DIGEST = 'c'.repeat(64);
 
 test('a watch rule links, stays shallow, and generates no proxies by default', () => {

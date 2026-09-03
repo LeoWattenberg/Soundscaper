@@ -167,9 +167,17 @@ function capturePermissionsPolicy(productId, editorDocument) {
 	return DENIED_CAPTURE_POLICY;
 }
 
+// The attribute run steps over quoted values so an attribute containing ">" does
+// not truncate the open tag, and the end tag tolerates the whitespace HTML
+// permits before its ">". Matching either loosely would hash the wrong span and
+// silently emit a content-security-policy that rejects the script it covers.
+// The three attribute alternatives are mutually exclusive, so the run stays
+// linear rather than backtracking over an ambiguous split.
+const INLINE_SCRIPT_PATTERN = /<script\b((?:"[^"]*"|'[^']*'|[^"'>])*)>([\s\S]*?)<\/script\s*>/giu;
+
 export function inlineScriptHashes(html) {
 	const hashes = [];
-	const scripts = String(html || '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/giu);
+	const scripts = String(html || '').matchAll(INLINE_SCRIPT_PATTERN);
 	for (const match of scripts) {
 		if (/\bsrc\s*=/iu.test(match[1])) continue;
 		hashes.push(createHash('sha256').update(match[2], 'utf8').digest('base64'));

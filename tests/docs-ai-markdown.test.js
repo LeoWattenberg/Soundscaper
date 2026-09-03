@@ -116,3 +116,37 @@ test('model Markdown validation rejects frontmatter, control bytes, and unclosed
 	assert.throws(() => assertModelMarkdown('# Guide\n\n```sh\ncommand\n'), /unclosed fenced/u);
 	assert.throws(() => assertModelMarkdown('Text\u0000'), /control characters/u);
 });
+
+/**
+ * The link-destination scan once kept "\\." and a bare character in overlapping
+ * alternatives, so a run of backslashes that no ")" ever closed could be split
+ * exponentially many ways. Thirty-two backslashes already cost twelve
+ * milliseconds and each further pair multiplied that by about two and a half,
+ * which put a single malformed link in a handbook page hours away from
+ * returning. The budget below is far looser than the microseconds the disjoint
+ * alternatives take, and still unreachable if the ambiguity comes back.
+ */
+test('an unterminated link destination cannot stall the protection pass', () => {
+	const hostile = `[label](${'\\'.repeat(64)}`;
+	const started = process.hrtime.bigint();
+	const state = protectMarkdown(hostile);
+	const elapsedMilliseconds = Number(process.hrtime.bigint() - started) / 1e6;
+	assert.ok(
+		elapsedMilliseconds < 2_000,
+		`protecting an unterminated link destination took ${elapsedMilliseconds.toFixed(0)}ms`,
+	);
+	assert.equal(restoreMarkdown(state.markdown, state.tokens), hostile);
+});
+
+test('link protection still round-trips every destination form', () => {
+	for (const sample of [
+		'[guide](/guide/index.md)',
+		'![shot](../media/shot.png)',
+		'[guide][reference]',
+		'[spaced](<a b.md>)',
+		'[escaped](a\\(b\\).md)',
+	]) {
+		const state = protectMarkdown(sample);
+		assert.equal(restoreMarkdown(state.markdown, state.tokens), sample);
+	}
+});

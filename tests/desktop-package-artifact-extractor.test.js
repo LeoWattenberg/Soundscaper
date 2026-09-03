@@ -207,3 +207,23 @@ function dmgListing({
 function dmgExtractionOutput() {
 	return ['Type = Dmg', 'Type = HFS', 'Everything is Ok', ''].join('\n');
 }
+
+/**
+ * The mount point arrives as XML, and decoding its entities one after another
+ * fed each pass the output of the last: "&amp;lt;" became "&lt;" on the ampersand
+ * pass and then "<" on the next, so a volume name containing a literal entity
+ * resolved to a path that does not exist. Resolving every entity in one pass is
+ * what keeps an already-decoded ampersand from being decoded a second time.
+ */
+test('a mounted DMG volume name decodes each XML entity exactly once', async () => {
+	const encoded = '/Volumes/Soundscaper &amp;lt;1.0&amp;gt; &amp;amp; more';
+	let mountedRoot;
+	await withMountedDmg('/fixture/package.dmg', async (root) => { mountedRoot = root; }, {
+		runCommand: async () => ({
+			stdout: `<key>mount-point</key><string>${encoded}</string>`,
+			stderr: '',
+		}),
+		resolveRealpath: async (value) => value,
+	});
+	assert.equal(mountedRoot, '/Volumes/Soundscaper &lt;1.0&gt; &amp; more');
+});
