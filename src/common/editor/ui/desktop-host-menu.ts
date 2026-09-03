@@ -101,11 +101,10 @@ export function createDesktopHostMenuItems(input: DesktopHostMenuInput | null): 
 	const apply = (action: DesktopNativeTierControlAction, enabled?: boolean) => () => {
 		input.applyNativeTierControl(action, enabled);
 	};
-	const mac = input.platform === 'darwin';
 	return Object.freeze({
 		view: Object.freeze(input.development ? [
-			item('desktop-reload', input.copy.reloadApplication, () => input.runWindowAction('reload'), mac ? 'Cmd+R' : 'Ctrl+R'),
-			item('desktop-toggle-dev-tools', input.copy.toggleDeveloperTools, () => input.runWindowAction('toggle-dev-tools'), mac ? 'Option+Cmd+I' : 'Ctrl+Shift+I'),
+			item('desktop-reload', input.copy.reloadApplication, () => input.runWindowAction('reload'), 'F5'),
+			item('desktop-toggle-dev-tools', input.copy.toggleDeveloperTools, () => input.runWindowAction('toggle-dev-tools'), 'F12'),
 		] : []),
 		tools: Object.freeze([item('desktop-services', input.copy.desktopServices, undefined, undefined, [
 			checkedItem('desktop-use-native-probe-helper', input.copy.useNativeProbeHelper,

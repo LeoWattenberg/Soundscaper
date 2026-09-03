@@ -447,6 +447,11 @@
 }
 
 #kw-audio-editor-design-system .audio-editor-timeline-panel[data-split-tool="true"] .audio-editor-track-lane {
+	cursor: auto;
+}
+
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-split-tool="true"] .audio-editor-track-lane [data-clip-id],
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-split-tool="true"] .audio-editor-track-lane [data-clip-id] * {
 	cursor: col-resize;
 }
 

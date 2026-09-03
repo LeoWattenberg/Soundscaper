@@ -8,7 +8,6 @@ import { Separator } from '@soundscaper/design-system/Separator';
 
 import { ROUTE_LOCALES } from '../../../i18n/locales.js';
 import { productProfile } from '../../../products.js';
-import { collectAudacityShortcutCommands } from '../../audacity-action-parity.js';
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { findAudioEditorShortcutConflicts, normalizeAudioEditorShortcut } from '../../preferences.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -18,6 +17,7 @@ import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-worksp
 import { workspacePanelAvailable } from '../workspace/workspace-product-panel-runtime.ts';
 import { workspacePreferencesPage } from '../workspace/workspace-preferences-routing.ts';
 import DesktopFfmpegPreferencePanel from './DesktopFfmpegPreferencePanel.tsx';
+import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
 import {
 	WORKSPACE_DOCK_IDS,
 	WORKSPACE_DISCOVERABLE_PANEL_IDS,
@@ -473,22 +473,47 @@ function preferencePreview(kind) {
 	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
-	const preferenceId = command.id;
-	const persisted = preferences.shortcuts[command.id]?.[0] || preferences.shortcuts[command.preferenceId]?.[0] || '';
-	const [binding, setBinding] = useState(persisted);
-	useLayoutEffect(() => setBinding(persisted), [persisted]);
+export function shortcutEditorDraft({
+	shortcuts,
+	preferenceId,
+	persistedBindings,
+	binding,
+	disabled = false,
+}) {
 	let normalized = '';
+	let bindings = [];
 	let conflict = null;
-	if (!command.disabled && binding.trim()) {
+	if (!disabled && binding.trim()) {
 		try {
 			normalized = normalizeAudioEditorShortcut(binding);
-			const shortcuts = { ...preferences.shortcuts, [preferenceId]: [normalized] };
-			conflict = findAudioEditorShortcutConflicts(shortcuts).find((entry) => entry.actionIds.includes(preferenceId)) || null;
+			bindings = [normalized, ...persistedBindings.slice(1)];
+			const candidateShortcuts = { ...shortcuts, [preferenceId]: bindings };
+			conflict = findAudioEditorShortcutConflicts(candidateShortcuts)
+				.find((entry) => entry.actionIds.includes(preferenceId)) || null;
 		} catch {
 			conflict = { binding, actionIds: [preferenceId] };
 		}
 	}
+	return { normalized, bindings, conflict };
+}
+
+export function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
+	const preferenceId = command.id;
+	const persistedBindings = preferences.shortcuts[command.id]
+		|| (command.preferenceId ? preferences.shortcuts[command.preferenceId] : null)
+		|| [];
+	const persisted = persistedBindings[0] || '';
+	const alternatives = persistedBindings.slice(1);
+	const [binding, setBinding] = useState(persisted);
+	useLayoutEffect(() => setBinding(persisted), [persisted]);
+	const draft = shortcutEditorDraft({
+		shortcuts: preferences.shortcuts,
+		preferenceId,
+		persistedBindings,
+		binding,
+		disabled: command.disabled,
+	});
+	const { normalized, bindings, conflict } = draft;
 	const conflictAction = conflict?.actionIds.find((id) => id !== preferenceId);
 	const error = conflict
 		? (conflictAction
@@ -504,7 +529,8 @@ function ShortcutEditorRow({ command, preferences, controller, copy, run }) {
 			title={command.disabledReason || undefined}
 		>
 			<label><span>{command.label}</span><input disabled={command.disabled} value={binding} aria-invalid={error ? 'true' : 'false'} onChange={(event) => setBinding(event.currentTarget.value)} /></label>
-			<Button variant="secondary" disabled={command.disabled || Boolean(error) || normalized === persisted} onClick={() => run(() => controller.actions.preferences.setShortcut(preferenceId, normalized))}>{copy.shortcutAssign}</Button>
+			{alternatives.length > 0 && <small data-shortcut-alternatives="true">{copy.shortcutColumn}: {alternatives.join(', ')}</small>}
+			<Button variant="secondary" disabled={command.disabled || Boolean(error) || normalized === persisted} onClick={() => run(() => controller.actions.preferences.setShortcut(preferenceId, bindings))}>{copy.shortcutAssign}</Button>
 			{error && <small role="alert">{error}</small>}
 			{command.disabledReason && <small data-shortcut-disabled-reason>{command.disabledReason}</small>}
 		</div>

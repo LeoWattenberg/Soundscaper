@@ -13,6 +13,10 @@ import { captureTimelineRollRippleTrimPointerMode } from './roll-ripple-trim-poi
 import { captureTimelineSlipSlidePointerGesture } from './slip-slide-pointer-routing.ts';
 import { isRulerLoopBand, samplePointAtPointer } from './track-row-helpers.jsx';
 import { readTimelineContentScrollX } from './timeline-scroll-space.ts';
+import {
+	resolveSplitToolGuidelineFrame,
+	splitToolTargetTrackIds,
+} from './timeline-tool-precedence.ts';
 
 export function useTimelinePointerStart({
 	controller,
@@ -135,11 +139,28 @@ export function useTimelinePointerStart({
 			event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
+		const trackId = lane.dataset.trackId;
+		const laneTrack = project.tracks.find((track) => track.id === trackId);
+		if (splitToolActive && !event.altKey && trackId
+			&& laneTrack?.type !== 'label' && Array.isArray(laneTrack?.clipIds)) {
+			const rawStartFrame = frameAtClientX(event.clientX, lane);
+			const startFrame = resolveSplitToolGuidelineFrame({
+				frame: rawStartFrame,
+				pixelsPerSecond,
+				project,
+				sampleRate,
+			});
+			const trackIds = splitToolTargetTrackIds(project.tracks, trackId, event.shiftKey);
+			pointerSession.current = { kind: 'split', startFrame, lane };
+			if (clipElement) run(() => controller.actions.edit.splitAt(startFrame, trackIds));
+			event.preventDefault();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+			return;
+		}
 		if (!clipElement) {
-			const laneTrack = project.tracks.find((track) => track.id === lane.dataset.trackId);
 			if (automationToolEnabled && laneTrack?.type === 'audio') return;
-			if (lane.dataset.trackId && lane.dataset.rulerInteraction === undefined) {
-				run(() => controller.actions.timeline.selectTrack(lane.dataset.trackId));
+			if (trackId && lane.dataset.rulerInteraction === undefined) {
+				run(() => controller.actions.timeline.selectTrack(trackId));
 			}
 			const startFrame = frameAtClientX(event.clientX, lane);
 			pointerSession.current = { kind: 'selection', startFrame, startX: event.clientX, lane };
@@ -149,7 +170,6 @@ export function useTimelinePointerStart({
 		}
 		const clipId = String(clipElement.dataset.clipId);
 		const clip = project?.clips.find((item) => String(item.id) === clipId);
-		const trackId = lane.dataset.trackId;
 		if (!clip || !trackId) return;
 		const source = project.sources.find((item) => item.id === clip.sourceId);
 		const clipTrack = project.tracks.find((track) => track.id === trackId);
@@ -180,17 +200,6 @@ export function useTimelinePointerStart({
 			return;
 		}
 		if (automationToolEnabled && clipTrack?.type === 'audio') return;
-		if (splitToolActive) {
-			const startFrame = frameAtClientX(event.clientX, lane);
-			const trackIds = event.shiftKey
-				? project.tracks.filter((track) => Array.isArray(track.clipIds)).map((track) => track.id)
-				: [trackId];
-			pointerSession.current = { kind: 'split', startFrame, trackIds, lane };
-			run(() => controller.actions.edit.splitAt(startFrame, trackIds));
-			event.preventDefault();
-			event.currentTarget.setPointerCapture?.(event.pointerId);
-			return;
-		}
 		const clipEditHandle = event.target.closest('.clip-display__handle');
 		let edgeKind = null;
 		if (event.target.closest('.clip-display') && !clipEditHandle) {

@@ -507,6 +507,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(duplicateTrack).toHaveAttribute('data-parity-status', 'implemented');
 		await expect(duplicateTrack).toHaveAttribute('data-action-origin', 'upstream');
 		await expect(duplicateTrack).toHaveAttribute('data-enable-when', 'editable-audio-track-selected');
+		await expect(trackMenu.locator('[data-action-id="remove-tracks"]')
+			.locator('xpath=ancestor::div[@role="menuitem"]')
+			.locator('.context-menu-item-shortcut')).toHaveText('Shift+C');
 		await expect(trackMenu.locator('[data-action-id="local://show-arm-controls"]')).toHaveAttribute(
 			'data-parity-status',
 			'supplemental',
@@ -536,7 +539,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const split = clipMenu.locator('[data-action-id="split"]');
 		await expect(split).toHaveAttribute('data-parity-status', 'implemented');
 		await expect(split).toHaveAttribute('data-enable-when', 'editable-selection-or-clip');
-		await expect(split.locator('xpath=ancestor::div[@role="menuitem"]')).toContainText('S');
+		await expect(split.locator('xpath=ancestor::div[@role="menuitem"]')
+			.locator('.context-menu-item-shortcut')).toHaveText('Ctrl+I');
 		await expect(clipMenu.locator('[data-action-id="local://reverse-clip"]')).toHaveAttribute(
 			'data-parity-status',
 			'supplemental',

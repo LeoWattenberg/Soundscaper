@@ -3,6 +3,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	collectClientErrors,
+	getMenuItem,
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -100,8 +101,10 @@ test.describe('Soundscaper punch and count-in recording', () => {
 		expect(originalClips).toHaveLength(1);
 
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		const leadIn = page.getByRole('menu', { name: 'Record options', exact: true })
-			.getByRole('menuitem', { name: 'Enable lead-in time', exact: true });
+		const leadIn = getMenuItem(
+			page.getByRole('menu', { name: 'Record options', exact: true }),
+			'Enable lead-in time',
+		);
 		await expect(leadIn).toBeVisible();
 		await leadIn.click();
 

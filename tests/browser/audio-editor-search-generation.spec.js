@@ -38,8 +38,14 @@ test.describe('audio editor React/design-system workflows', () => {
 		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
 
 		await expect(sourceInput).toBeVisible();
+		await expect(search.locator('xpath=following-sibling::kbd')).toHaveText('Ctrl/⌘ K');
 		await sourceInput.focus();
-		await page.keyboard.press('Control+f');
+		await sourceInput.evaluate((target) => target.dispatchEvent(new KeyboardEvent('keydown', {
+			bubbles: true, cancelable: true, code: 'KeyK', ctrlKey: true, key: 'k', metaKey: true,
+		})));
+		await expect(search).not.toBeFocused();
+		await expect(popup).toHaveCount(0);
+		await page.keyboard.press('Control+k');
 		await expect(search).toBeFocused();
 		await expect(search).toHaveAttribute('role', 'combobox');
 		await expect(search).toHaveAttribute('aria-expanded', 'true');
@@ -70,7 +76,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(search).toHaveValue('');
 		await expect(sourceInput).toBeFocused();
 
-		for (const shortcut of ['F3', 'Meta+f']) {
+		for (const shortcut of ['Meta+k']) {
 			await page.keyboard.press(shortcut);
 			await expect(search).toBeFocused();
 			await expect(popup).toBeVisible();
@@ -81,7 +87,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await menubar.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
 		await expect(fileMenu).toBeVisible();
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await expect(fileMenu).toBeHidden();
 		await expect(search).toBeFocused();
 		await menubar.getByRole('menuitem', { name: 'View', exact: true }).click();
@@ -95,7 +101,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const search = editor.locator('[data-editor-search-input]');
 		const popup = editor.locator('[data-editor-search-popup]');
 
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await search.fill('project-properties');
 		const projectProperties = popup.locator('[data-editor-search-key="command:project-properties"]');
 		await expect(projectProperties).toBeVisible();
@@ -112,7 +118,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			clips: root.dataset.clipCount,
 			tracks: root.dataset.trackCount,
 		}));
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await search.fill('I want to make this louder');
 		const amplify = popup.locator('[data-editor-search-key="command:audacity-amplify"]');
 		await expect(amplify).toBeVisible();
@@ -128,7 +134,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		await closeDialog(effectDialog);
 
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await search.fill('Invert');
 		const invert = popup.locator('[data-editor-search-key="command:audacity-invert"]');
 		await expect(invert).toBeVisible();
@@ -147,7 +153,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const search = editor.locator('[data-editor-search-input]');
 		const popup = editor.locator('[data-editor-search-popup]');
 
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await search.fill('Mix & Render');
 		const result = popup.locator('[data-editor-search-key="command:mix-render"]');
 		await expect(result).toBeVisible();
@@ -232,7 +238,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			element.dispatchEvent(new Event('scroll'));
 		});
 		await expect(clipByName(editor, toneB.name)).toHaveCount(0);
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		const search = editor.locator('[data-editor-search-input]');
 		await search.fill(toneB.name);
 		const timelineResult = editor
@@ -265,7 +271,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		}
 		const fitProject = getMenuItem(zoomMenu, 'Fit project to width');
 		await expect(fitProject).toBeVisible();
-		await expect(fitProject).toContainText('Ctrl+0');
+		await expect(fitProject).toContainText('Ctrl+F');
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
 
@@ -277,7 +283,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			element.tabIndex = -1;
 			element.focus();
 		});
-		await page.keyboard.press('Control+0');
+		await page.keyboard.press('Control+f');
 		const ruler = editor.locator('[data-ruler]');
 		const fittedClip = clipByName(editor, toneA.name);
 		await expect.poll(async () => {

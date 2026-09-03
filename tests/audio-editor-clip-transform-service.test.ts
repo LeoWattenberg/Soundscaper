@@ -136,6 +136,30 @@ test('shared trims preserve source ratios and reversed-edge accounting', () => {
 	}]);
 });
 
+test('shared trims honor a caller minimum across the shortest selected clip', () => {
+	const project = projectFixture({
+		clips: [
+			clipFixture({ id: 'active', durationFrames: 35, sourceDurationFrames: 35 }),
+			clipFixture({ id: 'companion', durationFrames: 32, sourceDurationFrames: 32 }),
+		],
+	});
+	const harness = createHarness(project);
+
+	harness.service.trimClips(
+		'active', { durationFrames: 30 }, { minimumDurationFrames: 30 },
+	);
+
+	const command = harness.commits[0]?.command;
+	assert.equal(command?.type, 'clip/transform-many');
+	if (command?.type !== 'clip/transform-many') assert.fail('Expected a shared trim transform.');
+	assert.deepEqual(command.transforms.map(({ clipId, changes }) => ({
+		clipId, durationFrames: changes.durationFrames,
+	})), [
+		{ clipId: 'active', durationFrames: 33 },
+		{ clipId: 'companion', durationFrames: 30 },
+	]);
+});
+
 test('overwrite preparation assigns stable split IDs before the command is committed', () => {
 	const project = projectFixture({
 		tracks: [{ id: 'track-a', name: 'A', type: 'audio', clipIds: ['active', 'under'] }],

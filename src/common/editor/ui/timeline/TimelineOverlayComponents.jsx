@@ -15,13 +15,14 @@ export function TimelineOverlayPortal({ target, children }) {
 	return target ? createPortal(children, target) : children;
 }
 
-export function manifestMenuItem(actionId, label, item, locale, disabledReason) {
+export function manifestMenuItem(actionId, label, item, locale, disabledReason, shortcuts) {
 	const action = audacityContextMenuAction(actionId, {
 		locale,
 		label,
 		disabled: item.disabled,
 		disabledReason,
 		shortcut: item.shortcut,
+		shortcuts,
 	});
 	if (action.hidden) return null;
 	return {
@@ -33,8 +34,10 @@ export function manifestMenuItem(actionId, label, item, locale, disabledReason) 
 	};
 }
 
-export function ManifestContextMenuItem({ actionId, label, disabled, disabledReason, locale, onClick, ...props }) {
-	const action = audacityContextMenuAction(actionId, { locale, label, disabled, disabledReason });
+export function ManifestContextMenuItem({ actionId, label, disabled, disabledReason, locale, shortcuts, onClick, ...props }) {
+	const action = audacityContextMenuAction(actionId, {
+		locale, label, disabled, disabledReason, shortcuts,
+	});
 	if (action.hidden) return null;
 	return (
 		<ContextMenuItem
@@ -217,6 +220,30 @@ export function TimeSelectionOverlay({ selection, panelWidth, pixelsPerSecond, h
 				left: timelineContentLeft(panelWidth + CLIP_CONTENT_OFFSET + selection.startTime * pixelsPerSecond),
 				width: Math.max(1, (selection.endTime - selection.startTime) * pixelsPerSecond),
 				height,
+			}}
+		/>
+	);
+}
+
+export function SplitToolGuideline({ guideline, panelWidth, pixelsPerSecond, sampleRate }) {
+	if (!Number.isSafeInteger(guideline?.frame)) return null;
+	const allTracks = guideline.allTracks === true;
+	return (
+		<div
+			className="audio-editor-split-tool-guideline"
+			data-split-tool-guideline
+			data-split-tool-guideline-frame={guideline.frame}
+			data-split-tool-scope={allTracks ? 'all-tracks' : 'track'}
+			aria-hidden="true"
+			style={{
+				left: timelineContentLeft(timelineTrimPreviewGuideLeft(
+					guideline.frame,
+					panelWidth,
+					pixelsPerSecond,
+					sampleRate,
+				)),
+				top: allTracks ? guideline.allTop : guideline.singleTop,
+				height: allTracks ? guideline.allHeight : guideline.singleHeight,
 			}}
 		/>
 	);

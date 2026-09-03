@@ -73,7 +73,7 @@ test('exact product menus disable cross-product editing until an admitted carrie
 					locked: false, editBlocked: false, actions: actionPorts({}),
 				}),
 				crossProductHandoffAvailable: false,
-			}) as readonly MenuItem[], 'save-scape').label,
+			}) as readonly MenuItem[], 'file-save-as').label,
 			`Export project file (${projectExtension})`,
 		);
 
@@ -154,7 +154,7 @@ function scapeSaveItem(value: unknown): MenuItem {
 	const file = menus.find(({ id }) => id === 'file');
 	assert.ok(file);
 	const materialized = materializeApplicationMenu(file);
-	const item = materialized.items?.find(({ id }) => id === 'save-scape');
+	const item = materialized.items?.find(({ id }) => id === 'file-save-as');
 	assert.ok(item);
 	return item as MenuItem;
 }

@@ -108,12 +108,14 @@ test('web has no desktop host rows and packaged desktop hides development comman
 });
 
 test('development menu shortcut labels follow the desktop platform', () => {
-	const menus = createDesktopHostMenuItems({
-		copy: copy(), development: true, platform: 'darwin', productName: 'Soundscaper', snapshot: snapshot(),
+	const menusForPlatform = (platform: string) => createDesktopHostMenuItems({
+		copy: copy(), development: true, platform, productName: 'Soundscaper', snapshot: snapshot(),
 		applyNativeTierControl: () => undefined, runWindowAction: () => undefined,
 		checkForUpdates: () => undefined, openExternal: () => undefined,
 	});
-	assert.deepEqual(menus.view.map(({ shortcut }) => shortcut), ['Cmd+R', 'Option+Cmd+I']);
+	assert.deepEqual(menusForPlatform('darwin').view.map(({ shortcut }) => shortcut), ['F5', 'F12']);
+	assert.deepEqual(menusForPlatform('linux').view.map(({ shortcut }) => shortcut), ['F5', 'F12']);
+	assert.deepEqual(menusForPlatform('win32').view.map(({ shortcut }) => shortcut), ['F5', 'F12']);
 });
 
 test('desktop native-tier control stores preserve identity and reject stale replies', async () => {

@@ -1,9 +1,12 @@
 import {
+	audacityActionDefinition,
+	evaluateAudacityActionEnablement,
 	isAudacityShortcutCommandDisabled,
 	resolveAudacityActionHandler,
 	resolveAudacityActionId,
 } from '../audacity-action-parity.js';
 import { normalizeAudioEditorShortcut } from '../preferences.js';
+import { keyboardShortcutEventKey } from './keyboard-shortcut-key.ts';
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 type ShortcutHandler = () => unknown;
@@ -32,6 +35,7 @@ interface ShortcutMenuItem {
 }
 
 interface ShortcutRegistry {
+	actionContext?: unknown;
 	actionRuntime?: unknown;
 	disabledActionIds?: readonly string[];
 	menus?: readonly ShortcutMenuItem[];
@@ -51,6 +55,15 @@ interface ShortcutMenuMatch {
 	matched: boolean;
 }
 
+const NATIVE_CONTROL_KEYS = new Set([
+	' ', 'arrowdown', 'arrowleft', 'arrowright', 'arrowup', 'end', 'enter', 'escape', 'home', 'tab',
+]);
+const NATIVE_EDITABLE_KEYS = new Set([
+	'+', '-', '=', 'a', 'b', 'c', 'i', 'u', 'v', 'x', 'y', 'z',
+	'backspace', 'delete', 'down', 'end', 'enter', 'home', 'left',
+	'numpadenter', 'pagedown', 'pageup', 'right', 'tab', 'up',
+]);
+
 export function handleWorkspaceKeyboard(
 	event: KeyboardEventLike,
 	snapshot: ShortcutSnapshot,
@@ -59,8 +72,9 @@ export function handleWorkspaceKeyboard(
 ): void {
 	if (event.defaultPrevented) return;
 	if (isWorkspaceModalShortcutTarget(event.target)) return;
-	if (handleProjectZoomShortcut(event, run, registry)) return;
-	if (typeof Element !== 'undefined' && event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="menu"], [role="menubar"], [role="toolbar"], [role="slider"], [role="spinbutton"]')) return;
+	const targetDisposition = workspaceShortcutTargetDisposition(event);
+	if (targetDisposition === 'blocked') return;
+	if (handleProjectZoomShortcut(event, snapshot, run, registry)) return;
 	const reservedVideoNavigationAction = registry.videoNavigation
 		? videoNavigationShortcut({
 			altKey: event.altKey,
@@ -82,21 +96,50 @@ export function handleWorkspaceKeyboard(
 		return;
 	}
 	const shortcutAction = matchAudioEditorShortcut(event, snapshot.preferences?.shortcuts || {});
+	if (targetDisposition === 'modified-control' && resolveAudacityActionId(shortcutAction) === 'split-tool') return;
 	const handler = shortcutAction ? resolveAudioEditorShortcutHandler(shortcutAction, registry) : null;
 	if (handler) {
 		run(handler);
 		event.preventDefault();
+	} else if (shortcutAction) {
+		const canonicalActionId = resolveAudacityActionId(shortcutAction);
+		if (audacityActionDefinition(canonicalActionId)
+			|| findShortcutMenuHandler(registry.menus, canonicalActionId).matched) event.preventDefault();
 	}
+}
+
+function workspaceShortcutTargetDisposition(
+	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey' | 'target'>,
+): 'allowed' | 'blocked' | 'modified-control' {
+	if (typeof Element === 'undefined' || !(event.target instanceof Element)) return 'allowed';
+	if (event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) {
+		return isNativeEditableShortcut(event) ? 'blocked' : 'modified-control';
+	}
+	const control = event.target.closest('button, a, [role="menu"], [role="menubar"], [role="menuitem"], [role="toolbar"], [role="slider"], [role="spinbutton"]');
+	if (!control) return 'allowed';
+	if (event.ctrlKey || event.metaKey || event.altKey) return 'modified-control';
+	if (control.closest('[role="menu"], [role="menubar"], [role="menuitem"]')) return 'blocked';
+	return NATIVE_CONTROL_KEYS.has(event.key.toLowerCase()) ? 'blocked' : 'modified-control';
+}
+
+function isNativeEditableShortcut(
+	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
+): boolean {
+	const key = keyboardShortcutEventKey(event).toLowerCase();
+	if (event.altKey) return true;
+	if (!event.ctrlKey && !event.metaKey && event.shiftKey && key === 'f10') return true;
+	if (!event.ctrlKey && !event.metaKey) return !/^f(?:[1-9]|1\d|2[0-4])$/u.test(key);
+	return NATIVE_EDITABLE_KEYS.has(key.replace(/^arrow/u, ''));
 }
 
 export function isWorkspaceModalShortcutTarget(target: EventTarget | null): boolean {
 	const element = target as Element | null;
 	if (typeof element?.closest !== 'function') return false;
-	if (element.closest('[role="dialog"]') !== null) return true;
+	if (element.closest('[role="dialog"], [role="alertdialog"]') !== null) return true;
 	const body = element.ownerDocument?.body;
 	return typeof body?.querySelectorAll === 'function'
 		&& [...body.querySelectorAll('[aria-modal="true"]')]
-			.some((candidate) => candidate.getAttribute('role') === 'dialog');
+			.some((candidate) => ['dialog', 'alertdialog'].includes(candidate.getAttribute('role') || ''));
 }
 
 export function videoNavigationShortcut(
@@ -113,16 +156,30 @@ export function videoNavigationShortcut(
 
 export function handleProjectZoomShortcut(
 	event: KeyboardEventLike,
+	snapshot: ShortcutSnapshot,
 	run: ShortcutRun,
 	registry: ShortcutRegistry = {},
 ): boolean {
 	const zoomActionId = projectZoomShortcut(event);
 	if (!zoomActionId) return false;
+	const bindings = snapshot.preferences?.shortcuts?.[zoomActionId] || [];
+	const normalizedEvent = normalizedProjectZoomEvent(event, zoomActionId);
+	if (!bindings.some((binding) => matchesAudioEditorShortcutBinding(normalizedEvent, binding))) return false;
 	const handler = resolveAudioEditorShortcutHandler(zoomActionId, registry);
 	if (!handler) return false;
 	event.preventDefault();
 	run(handler);
 	return true;
+}
+
+function normalizedProjectZoomEvent(event: KeyboardEventLike, actionId: string): KeyboardEventLike {
+	if (actionId === 'zoom-in' && (event.key === '+' || event.code === 'NumpadAdd')) {
+		return { ...event, code: 'Equal', key: '=', shiftKey: false };
+	}
+	if (actionId === 'zoom-out' && event.code === 'NumpadSubtract') {
+		return { ...event, code: 'Minus', key: '-', shiftKey: false };
+	}
+	return event;
 }
 
 export function projectZoomShortcut(event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey'>): string | null {
@@ -133,27 +190,52 @@ export function projectZoomShortcut(event: Pick<KeyboardEventLike, 'altKey' | 'c
 }
 
 export function matchAudioEditorShortcut(
-	event: Pick<KeyboardEventLike, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
+	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
 	shortcuts: Record<string, readonly string[]>,
 ): string | null {
-	const key = event.key === ' ' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
-	const modifiers = [];
-	if (event.ctrlKey || event.metaKey) modifiers.push('Ctrl');
-	if (event.altKey) modifiers.push('Alt');
-	if (event.shiftKey) modifiers.push('Shift');
-	const binding = normalizeAudioEditorShortcut([...modifiers, key].join('+')).toLowerCase();
 	for (const [actionId, bindings] of Object.entries(shortcuts)) {
-		if (bindings.some((candidate) => normalizeAudioEditorShortcut(candidate).toLowerCase() === binding)) return actionId;
+		if (bindings.some((candidate) => matchesAudioEditorShortcutBinding(event, candidate))) return actionId;
 	}
 	return null;
 }
 
+export function matchesAudioEditorShortcutBinding(
+	event: Pick<KeyboardEventLike, 'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
+	candidate: string,
+): boolean {
+	const eventKeyValue = keyboardShortcutEventKey(event);
+	const eventKey = eventKeyValue === ' '
+		? 'Space'
+		: eventKeyValue.length === 1 ? eventKeyValue.toUpperCase() : eventKeyValue;
+	const parts = normalizeAudioEditorShortcut(candidate).split('+');
+	const configuredKey = parts.pop();
+	const modifiers = new Set(parts);
+	if (!configuredKey || normalizeAudioEditorShortcut(configuredKey).toLowerCase()
+		!== normalizeAudioEditorShortcut(eventKey).toLowerCase()) return false;
+	if (event.altKey !== modifiers.has('Alt') || event.shiftKey !== modifiers.has('Shift')) return false;
+	const ctrl = modifiers.has('Ctrl');
+	const meta = modifiers.has('Meta');
+	if (ctrl && meta) return event.ctrlKey && event.metaKey;
+	if (ctrl) return event.ctrlKey !== event.metaKey;
+	if (meta) return event.metaKey && !event.ctrlKey;
+	return !event.ctrlKey && !event.metaKey;
+}
+
 export function resolveAudioEditorShortcutHandler(
 	actionId: string,
-	{ actionRuntime, disabledActionIds = [], menus = [] }: ShortcutRegistry = {},
+	{ actionContext, actionRuntime, disabledActionIds = [], menus = [] }: ShortcutRegistry = {},
 ): ShortcutHandler | null {
 	const canonicalActionId = resolveAudacityActionId(actionId);
 	if (isAudacityShortcutCommandDisabled(canonicalActionId, disabledActionIds)) return null;
+	const definition = audacityActionDefinition(canonicalActionId);
+	const enablementContext = actionContext ?? (
+		actionRuntime && typeof actionRuntime === 'object'
+		&& typeof (actionRuntime as { getActionContext?: unknown }).getActionContext === 'function'
+			? actionRuntime
+			: undefined
+	);
+	if (definition && enablementContext !== undefined
+		&& !evaluateAudacityActionEnablement(canonicalActionId, enablementContext)) return null;
 	const menuMatch = findShortcutMenuHandler(menus, canonicalActionId);
 	if (menuMatch.matched) return menuMatch.handler;
 	const runtimeHandler: unknown = resolveAudacityActionHandler(canonicalActionId, actionRuntime);

@@ -161,7 +161,7 @@ export default function createApplicationMenus({
 					items: [
 						{ id: 'open-aup4', label: copy.openAup4, disabled: blocked, onClick: actions.openAup4 },
 						{ id: 'open-legacy-aup', label: copy.openLegacyAup, disabled: blocked, onClick: actions.openLegacyAup },
-						...(productId === 'soundscaper' ? [{ id: 'save-project-as', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
+						...(productId === 'soundscaper' ? [{ id: 'save-aup4', label: copy.saveAsAup4, preserveLabel: true, disabled: blocked, onClick: actions.saveAup4 }] : []),
 						{
 							id: 'aup4-compatibility-report',
 							label: copy.aup4CompatibilityReport,
@@ -196,7 +196,7 @@ export default function createApplicationMenus({
 				divider(),
 				{ id: 'save-project', label: copy.saveProject, shortcut: 'Ctrl+S', disabled: editBlocked, onClick: actions.saveProject },
 				{
-					id: 'save-scape', label: projectFileCopy.saveScape, shortcut: 'Ctrl+Shift+S',
+					id: 'file-save-as', label: projectFileCopy.saveScape, preserveLabel: true,
 					resolve: () => ({ disabled: blocked && !snapshot.readOnly }),
 					onClick: actions.saveScape,
 				},
@@ -588,6 +588,9 @@ export default function createApplicationMenus({
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.aboutAudacity, label: aboutLabel, preserveLabel: true, onClick: actions.about },
 			],
 		},
-	], { locale, copy, materializeDisabled: true, actionRuntime });
+	], {
+		locale, copy, materializeDisabled: true, actionRuntime,
+		shortcuts: preferences?.shortcuts,
+	});
 	return filterProductMenus(menus, capabilities, productId);
 }

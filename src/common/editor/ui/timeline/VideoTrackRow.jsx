@@ -353,6 +353,7 @@ export function VideoTrackControls({
 			data-track-header
 			data-selected={selected ? 'true' : 'false'}
 			style={{ width: panelWidth }}
+			onFocusCapture={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
 			onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}
 			onKeyDownCapture={handleKeyDown}
 		>

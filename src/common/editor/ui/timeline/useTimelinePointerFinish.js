@@ -7,11 +7,19 @@ import {
 } from './rate-stretch-pointer-routing.ts';
 import { commitTimelineRollRippleTrimPointer } from './roll-ripple-trim-pointer-routing.ts';
 import { commitTimelineSlipSlidePointer } from './slip-slide-pointer-routing.ts';
+import {
+	SPLIT_TOOL_DOUBLE_SPLIT_DISTANCE_PIXELS,
+	resolveSplitToolGuidelineFrame,
+	splitToolGuidelineDistancePixels,
+	splitToolTargetTrackIds,
+	splitToolTrackHasClipAt,
+} from './timeline-tool-precedence.ts';
 import { commitTimelineTrimPointer } from './trim-pointer-routing.ts';
 
 export function useTimelinePointerFinish({
 	controller,
 	snapshot,
+	splitToolActive,
 	onRevealProjectBin,
 	state,
 	model,
@@ -126,9 +134,21 @@ export function useTimelinePointerFinish({
 			return;
 		}
 		if (session.kind === 'split') {
-			const endFrame = frameAtClientX(event.clientX, session.lane);
-			if (Math.abs(endFrame - session.startFrame) >= Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
-				run(() => controller.actions.edit.splitAt(endFrame, session.trackIds));
+			if (!splitToolActive) return;
+			const rawEndFrame = frameAtClientX(event.clientX, session.lane);
+			const endFrame = resolveSplitToolGuidelineFrame({
+				frame: rawEndFrame,
+				pixelsPerSecond,
+				project,
+				sampleRate,
+			});
+			if (splitToolGuidelineDistancePixels(
+				session.startFrame, endFrame, pixelsPerSecond, sampleRate,
+			) >= SPLIT_TOOL_DOUBLE_SPLIT_DISTANCE_PIXELS) {
+				const trackId = trackAtClientY(event.clientY, null);
+				if (!trackId || !splitToolTrackHasClipAt(project.tracks, project.clips, trackId, rawEndFrame)) return;
+				const trackIds = splitToolTargetTrackIds(project.tracks, trackId, event.shiftKey);
+				run(() => controller.actions.edit.splitAt(endFrame, trackIds));
 			}
 			return;
 		}
@@ -186,7 +206,7 @@ export function useTimelinePointerFinish({
 				}),
 			});
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, isOverOutputDock, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);

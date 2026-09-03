@@ -404,8 +404,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(recordingWaveform).toHaveAttribute('data-waveform-renderer', 'audacity');
 		await expect(recordingWaveform).toHaveAttribute('data-waveform-mode', 'summary');
 		await page.waitForTimeout(350);
-		await record.click();
+		await editor.evaluate((element) => {
+			element.tabIndex = -1;
+			element.focus();
+		});
+		await page.keyboard.press('Space');
 		await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 10_000 });
+		await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 		await expect(recordingPreview).toHaveCount(0);
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(tracks.nth(0).locator('[data-clip-id]')).toHaveCount(0);

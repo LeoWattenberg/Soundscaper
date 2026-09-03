@@ -45,4 +45,33 @@ test.describe('Soundscaper clip-selection navigation menus', () => {
 		await chooseNestedCommandAction(page, editor, 'Select', ['Tracks', 'No tracks']);
 		await expect(editor.locator('[data-track-lane][data-selected="true"]')).toHaveCount(0);
 	});
+
+	test('momentary Split Tool overrides the spectral brush while a tap replaces it', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
+		await chooseNestedCommandAction(page, editor, 'Select', ['Spectral', 'Spectral brush']);
+
+		await expect(editor.locator('[data-spectral-brush]')).toBeVisible();
+		const clip = clipByName(editor, toneA.name);
+		await clip.focus();
+		await page.keyboard.down('s');
+		await expect(editor.locator('[data-spectral-brush]')).toHaveCount(0);
+		await expect(editor.getByRole('button', { name: 'Split tool', exact: true }))
+			.toHaveAttribute('aria-pressed', 'true');
+		await page.waitForTimeout(300);
+		await clickClipInterior(page, clip, 0.5);
+		await expect(editor.locator('[data-clip-id]')).toHaveCount(2);
+		await page.keyboard.up('s');
+		await expect(editor.locator('[data-spectral-brush]')).toBeVisible();
+
+		await editor.locator('[data-clip-id]').first().focus();
+		await page.keyboard.press('s');
+		const splitTool = editor.getByRole('button', { name: 'Split tool', exact: true });
+		await expect(splitTool).toHaveAttribute('aria-pressed', 'true');
+		await expect(editor.locator('[data-spectral-brush]')).toHaveCount(0);
+		await splitTool.focus();
+		await page.keyboard.press('s');
+		await expect(splitTool).toHaveAttribute('aria-pressed', 'false');
+	});
 });

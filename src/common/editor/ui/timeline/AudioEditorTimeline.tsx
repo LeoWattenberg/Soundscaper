@@ -27,9 +27,9 @@ interface AudioEditorTimelineProps {
 	readonly productId: string;
 	readonly capabilities: Readonly<Record<string, unknown>>;
 	readonly splitToolEnabled?: boolean;
+	readonly splitToolMomentary?: boolean;
 	readonly automationToolEnabled?: boolean;
 	readonly spectralBrushEnabled?: boolean;
-	readonly onToggleSplitTool?: () => void;
 	readonly onError: (error: unknown) => void;
 	readonly onOpenEffects?: (...args: readonly unknown[]) => void;
 	readonly onOpenClipProperties?: (clipId: string) => void;
@@ -56,9 +56,9 @@ export default function AudioEditorTimeline({
 	productId,
 	capabilities,
 	splitToolEnabled = false,
+	splitToolMomentary = false,
 	automationToolEnabled = false,
 	spectralBrushEnabled = false,
-	onToggleSplitTool,
 	onError,
 	onOpenEffects,
 	onOpenClipProperties,
@@ -74,9 +74,13 @@ export default function AudioEditorTimeline({
 	const geometry = { mobile, showArmControls, displayAudioSupported, trackHeaderDrawer };
 	const selection = { searchRevealRequest };
 	const preview = { overlayTarget };
-	const navigation = { splitToolEnabled, automationToolEnabled, spectralBrushEnabled };
+	const navigation = {
+		splitToolEnabled,
+		splitToolMomentary,
+		automationToolEnabled,
+		spectralBrushEnabled,
+	};
 	const actions = {
-		onToggleSplitTool,
 		onError,
 		onOpenEffects,
 		onOpenClipProperties,

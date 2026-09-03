@@ -104,6 +104,10 @@ export function RecordFlyout({
 	onOpenTakeCycleRecovery = () => undefined,
 	onClose,
 }) {
+	const shortcut = (actionId) => {
+		const bindings = snapshot.preferences?.shortcuts?.[actionId];
+		return bindings?.length ? bindings.join(', ') : undefined;
+	};
 	const recoveryBlocked = Boolean(snapshot.takeCycleRecovery);
 	const ordinaryRecording = snapshot.recordingKind !== 'take-cycle';
 	const recordingInputBlocked = recoveryBlocked || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
@@ -120,18 +124,22 @@ export function RecordFlyout({
 	const items = [
 		{
 			label: snapshot.recording ? copy.stopRecording : recordLabel,
-			shortcut: 'R',
+			shortcut: shortcut('record-on-current-track'),
 			disabled: recoveryBlocked || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording,
 			onClick: toggleRecording,
 		},
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.recordOnNewTrack,
 			label: copy.recordNewTrack,
-			shortcut: 'Shift+R',
+			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.recordOnNewTrack),
 			disabled: snapshot.readOnly || recordingInputBlocked,
 			onClick: () => run(() => controller.actions.recording.startNewTrack()),
 		},
-		{ label: copy.stop, onClick: () => run(() => controller.actions.transport.stop()) },
+		{
+			label: copy.stop,
+			shortcut: shortcut('action://playback/toggle-play-stop'),
+			onClick: () => run(() => controller.actions.transport.stop()),
+		},
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.pauseRecording,
 			label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording,
@@ -165,6 +173,7 @@ export function RecordFlyout({
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.leadInRecording,
 			label: copy.leadInTime,
+			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.leadInRecording),
 			checked: Boolean(snapshot.recordingOptions?.leadIn),
 			disabled: recordingInputBlocked,
 			onClick: () => run(() => controller.actions.recording.toggleLeadIn()),
@@ -172,6 +181,7 @@ export function RecordFlyout({
 		{
 			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setUpTimedRecording,
 			label: copy.timedRecording,
+			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setUpTimedRecording),
 			disabled: recoveryBlocked || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling,
 			onClick: onOpenTimedRecording,
 		},

@@ -69,7 +69,7 @@ export interface ClipTransformService {
 	trimClips(
 		clipId?: string | null,
 		changes?: ClipTransformChanges,
-		options?: Readonly<{ overwrite?: boolean }>,
+		options?: Readonly<{ minimumDurationFrames?: number; overwrite?: boolean }>,
 	): unknown;
 	overwriteClips(
 		clipId?: string | null,
@@ -312,7 +312,7 @@ export function createClipTransformService(
 	function trimClips(
 		clipId: string | null = dependencies.getSelectedClipId(),
 		changes: ClipTransformChanges = {},
-		options: Readonly<{ overwrite?: boolean }> = {},
+		options: Readonly<{ minimumDurationFrames?: number; overwrite?: boolean }> = {},
 	): unknown {
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return null;
@@ -331,6 +331,7 @@ export function createClipTransformService(
 		}
 		const clipIds = collectClipTrimIds(project, clip.id, timelineStartChanged ? 'left' : 'right');
 		const clips = clipIds.map((id) => findClip(project, id)).filter(isClip);
+		const minimumDurationFrames = Math.max(1, Math.round(Number(options.minimumDurationFrames) || 1));
 		const trimsLeft = timelineStartChanged;
 		let requestedDelta: number;
 		let lowerBound = Number.NEGATIVE_INFINITY;
@@ -346,7 +347,7 @@ export function createClipTransformService(
 					: item.sourceStartFrame;
 				const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
 				lowerBound = Math.max(lowerBound, -Math.min(item.timelineStartFrame, timelineExtension));
-				upperBound = Math.min(upperBound, item.durationFrames - 1);
+				upperBound = Math.min(upperBound, item.durationFrames - Math.min(item.durationFrames, minimumDurationFrames));
 			}
 		} else {
 			requestedDelta = Math.round(Number(changes.durationFrames)) - clip.durationFrames;
@@ -357,7 +358,7 @@ export function createClipTransformService(
 				const sourceExtension = item.reversed
 					? item.sourceStartFrame
 					: source.frameCount - item.sourceStartFrame - item.sourceDurationFrames;
-				lowerBound = Math.max(lowerBound, 1 - item.durationFrames);
+				lowerBound = Math.max(lowerBound, Math.min(item.durationFrames, minimumDurationFrames) - item.durationFrames);
 				upperBound = Math.min(upperBound, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
 			}
 		}

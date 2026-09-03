@@ -144,6 +144,12 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     checkbox so application adapters can associate explanatory copy with the control it
     describes. Omitting the prop keeps upstream behaviour. Covered by
     `tests/audio-editor-mix-render-dialog.test.tsx`. Upstream-PR candidate.
+19. `TrackNew.tsx` leaves Shift+Up/Down and modified Home/End unhandled when a clip is
+    focused. Those chords belong to the host's imported Audacity shortcut registry (track
+    selection and project/selection boundaries); upstream either consumes them as a no-op or
+    redirects Home/End into clip-list roving focus before the host can act. Plain Up/Down and
+    plain Home/End retain the upstream focus-navigation behaviour. Covered by
+    `tests/audio-editor-clip-focus-trim-keyboard-hooks.test.ts`. Upstream-PR candidate.
 
 ## Application-side adaptations
 

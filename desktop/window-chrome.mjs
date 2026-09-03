@@ -4,9 +4,9 @@
  * Main-process ownership of the desktop window's custom chrome.
  *
  * The renderer may ask for one of the closed actions below, but it never gets
- * a BrowserWindow-shaped capability. Menu accelerators are likewise admitted
- * here rather than installed as global shortcuts: they belong to one focused
- * editor window and must stop existing when that window does.
+ * a BrowserWindow-shaped capability. Window-owned accelerators are admitted
+ * here rather than installed globally; renderer commands remain preference-
+ * driven and all focused shortcuts stop existing when their window does.
  */
 
 export const WINDOW_ACTIONS = Object.freeze([
@@ -17,19 +17,6 @@ export const WINDOW_ACTIONS = Object.freeze([
 	'reload',
 	'toggle-dev-tools',
 ]);
-
-const PRIMARY_ACCELERATORS = Object.freeze({
-	',': Object.freeze({ plain: 'preferences' }),
-	o: Object.freeze({ plain: 'project:open' }),
-	s: Object.freeze({ plain: 'project:save', shifted: 'project:save-as' }),
-	e: Object.freeze({ shifted: 'audio:export' }),
-	z: Object.freeze({ plain: 'edit:undo', macShifted: 'edit:redo' }),
-	y: Object.freeze({ nonMacPlain: 'edit:redo' }),
-	x: Object.freeze({ plain: 'edit:cut' }),
-	c: Object.freeze({ plain: 'edit:copy' }),
-	v: Object.freeze({ plain: 'edit:paste' }),
-	a: Object.freeze({ plain: 'edit:select-all' }),
-});
 
 export function desktopWindowOptions() {
 	return Object.freeze({ titleBarStyle: 'hidden' });
@@ -62,7 +49,7 @@ export function installDesktopApplicationMenu({ Menu, appName, platform, onPrefe
 			submenu: [
 				{ role: 'about' },
 				{ type: 'separator' },
-				{ label: 'Preferences', accelerator: 'CmdOrCtrl+,', click: onPreferences },
+				{ label: 'Preferences', click: onPreferences },
 				{ type: 'separator' },
 				{ role: 'services' },
 				{ type: 'separator' },
@@ -79,30 +66,12 @@ export function installDesktopApplicationMenu({ Menu, appName, platform, onPrefe
 	return menu;
 }
 
-/** Translate Chromium's before-input record into the command the removed native menu owned. */
-export function menuCommandForAccelerator(input, platform) {
-	if (!input || input.type !== 'keyDown' || input.isAutoRepeat === true || input.alt === true) return null;
-	const key = String(input.key || '').toLowerCase();
-	const control = input.control === true;
-	const meta = input.meta === true;
-	const shift = input.shift === true;
-
-	if (platform === 'darwin' && key === 'f' && control && meta && !shift) {
-		return 'view:toggle-fullscreen';
-	}
-	if (key === 'f11' && !control && !meta && !shift) {
-		return 'view:toggle-fullscreen';
-	}
-
-	const primary = platform === 'darwin' ? meta && !control : control && !meta;
-	if (!primary) return null;
-	const binding = PRIMARY_ACCELERATORS[key];
-	if (!binding) return null;
-	if (shift) return platform === 'darwin' ? binding.macShifted ?? binding.shifted ?? null : binding.shifted ?? null;
-	return platform === 'darwin' ? binding.plain ?? null : binding.nonMacPlain ?? binding.plain ?? null;
+/** Production editor commands, including fullscreen, follow saved renderer preferences. */
+export function menuCommandForAccelerator() {
+	return null;
 }
 
-/** Development chrome keeps the native View-role accelerators without keeping its menu. */
+/** Development chrome reserves unmodified reload and developer-tools keys. */
 export function windowActionForAccelerator(input, platform, development) {
 	if (development !== true || !input || input.type !== 'keyDown' || input.isAutoRepeat === true) return null;
 	const key = String(input.key || '').toLowerCase();
@@ -110,12 +79,9 @@ export function windowActionForAccelerator(input, platform, development) {
 	const meta = input.meta === true;
 	const alt = input.alt === true;
 	const shift = input.shift === true;
-	if (key === 'r' && !alt && !shift) {
-		if (platform === 'darwin' ? meta && !control : control && !meta) return 'reload';
-	}
-	if (key !== 'i') return null;
-	if (platform === 'darwin') return meta && alt && !control && !shift ? 'toggle-dev-tools' : null;
-	return control && shift && !meta && !alt ? 'toggle-dev-tools' : null;
+	if (control || meta || alt || shift) return null;
+	if (key === 'f5') return 'reload';
+	return key === 'f12' ? 'toggle-dev-tools' : null;
 }
 
 /** Install window-scoped accelerators without creating an OS-global shortcut. */

@@ -146,11 +146,11 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(play).toHaveAttribute('aria-pressed', 'false');
 		await play.focus();
 		await expect(play).toBeFocused();
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await expect(search, 'the modal owns shortcuts before its deferred focus lands')
 			.toHaveAttribute('aria-expanded', 'false');
 
-		for (const shortcut of ['Control+f', 'F3', 'Space']) {
+		for (const shortcut of ['Control+k', 'Meta+k', 'Space']) {
 			await dialog.focus();
 			await page.keyboard.press(shortcut);
 			await expect(dialog).toBeVisible();

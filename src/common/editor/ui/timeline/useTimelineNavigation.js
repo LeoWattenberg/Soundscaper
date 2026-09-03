@@ -21,8 +21,6 @@ export function useTimelineNavigation({
 	trackHeaderDrawer = null,
 	showArmControls,
 	automationVisibleTrackIds,
-	splitToolEnabled,
-	onToggleSplitTool,
 	searchRevealRequest,
 	state,
 	model,
@@ -30,10 +28,6 @@ export function useTimelineNavigation({
 	const {
 		navigationRootRef,
 		scrollRef,
-		splitToolTimer,
-		splitToolPress,
-		splitToolHeldRef,
-		setSplitToolHeld,
 		setScrollX,
 		timelineRef,
 	} = state;
@@ -54,65 +48,6 @@ export function useTimelineNavigation({
 			return [track.id, Math.max(MINIMUM_TRACK_HEIGHT, visualTrackHeight(track) - controlsHeight)];
 		})));
 	}, [automationVisibleTrackIds, controller, project?.tracks, showArmControls, visualTrackHeight]);
-
-	useEffect(() => {
-		const editableTarget = (target) => target instanceof Element && Boolean(target.closest(
-			'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"]',
-		));
-		const clearTimer = () => {
-			globalThis.clearTimeout(splitToolTimer.current);
-			splitToolTimer.current = 0;
-		};
-		const keyDown = (event) => {
-			if (event.repeat || event.key.toLowerCase() !== 's' || event.altKey || event.ctrlKey || event.metaKey || editableTarget(event.target)) return;
-			event.preventDefault();
-			splitToolPress.current = { persistentBefore: Boolean(splitToolEnabled), held: false };
-			splitToolHeldRef.current = true;
-			setSplitToolHeld(true);
-			clearTimer();
-			splitToolTimer.current = globalThis.setTimeout(() => {
-				if (splitToolPress.current) splitToolPress.current.held = true;
-			}, 300);
-		};
-		const keyUp = (event) => {
-			if (event.key.toLowerCase() !== 's' || !splitToolPress.current) return;
-			event.preventDefault();
-			const press = splitToolPress.current;
-			splitToolPress.current = null;
-			clearTimer();
-			splitToolHeldRef.current = false;
-			setSplitToolHeld(false);
-			if (!press.held || press.persistentBefore) onToggleSplitTool?.();
-		};
-		const blur = () => {
-			const press = splitToolPress.current;
-			splitToolPress.current = null;
-			clearTimer();
-			splitToolHeldRef.current = false;
-			setSplitToolHeld(false);
-			if (press?.persistentBefore) onToggleSplitTool?.();
-		};
-		const escape = (event) => {
-			if (event.key !== 'Escape' || (!splitToolEnabled && !splitToolHeldRef.current)) return;
-			event.preventDefault();
-			splitToolPress.current = null;
-			clearTimer();
-			splitToolHeldRef.current = false;
-			setSplitToolHeld(false);
-			if (splitToolEnabled) onToggleSplitTool?.();
-		};
-		globalThis.addEventListener('keydown', keyDown, true);
-		globalThis.addEventListener('keyup', keyUp, true);
-		globalThis.addEventListener('blur', blur);
-		globalThis.addEventListener('keydown', escape);
-		return () => {
-			clearTimer();
-			globalThis.removeEventListener('keydown', keyDown, true);
-			globalThis.removeEventListener('keyup', keyUp, true);
-			globalThis.removeEventListener('blur', blur);
-			globalThis.removeEventListener('keydown', escape);
-		};
-	}, [onToggleSplitTool, splitToolEnabled]);
 
 	const focusTimelineRuler = useCallback(() => {
 		return focusFirst(navigationRootRef.current?.querySelector('[data-ruler-focus]'));

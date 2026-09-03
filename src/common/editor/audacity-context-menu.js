@@ -4,6 +4,7 @@ import {
 	audacityActionReason,
 	resolveAudacityActionId,
 } from './audacity-action-parity.js';
+import { AUDACITY_SHORTCUT_BINDINGS_BY_ACTION } from './audacity-shortcut-bindings.ts';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 
 export const AUDACITY_TRACK_CONTEXT_ACTION_IDS = Object.freeze({
@@ -57,10 +58,20 @@ export function audacityContextMenuAction(actionId, options = {}) {
 	const disabledReason = hidden || manifestDisabled
 		? audacityActionReason(canonicalId, locale)
 		: disabled ? options.disabledReason || null : null;
+	const hasPersistedShortcuts = options.shortcuts !== undefined;
+	const importedShortcuts = definition
+		? hasPersistedShortcuts
+			? options.shortcuts?.[definition.id]
+			: AUDACITY_SHORTCUT_BINDINGS_BY_ACTION[definition.id]
+		: null;
 	return Object.freeze({
 		actionId: definition?.id || canonicalId,
 		label: options.label || definition?.label || canonicalId,
-		shortcut: options.shortcut ?? definition?.shortcut ?? null,
+		shortcut: options.shortcut ?? (
+			importedShortcuts?.join(', ')
+			|| (hasPersistedShortcuts ? null : definition?.shortcut)
+			|| null
+		),
 		parityStatus,
 		enableWhen: definition?.enableWhen || null,
 		origin: definition?.origin || 'local',

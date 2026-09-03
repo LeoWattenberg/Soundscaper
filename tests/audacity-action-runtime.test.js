@@ -50,11 +50,18 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(audit.complete, true);
 		assert.equal(audit.resolved.length, implemented.length);
 		assert.deepEqual(audit.missing, []);
+		assert.strictEqual(
+			runtime.actions.project.saveAs,
+			controller.actions.project.saveAs,
+			'the parity fallback keeps the facade\'s native Scape save-as action',
+		);
 
 		for (const definition of implemented) {
 			const resolved = resolveAudacityActionHandler(definition.id, runtime.actions);
 			assert.equal(typeof resolved, 'function', `${definition.id}: ${definition.handler}`);
-			assert.strictEqual(resolved, valueAtPath(runtime.actions, definition.handler));
+			if (definition.handler !== 'track.audacityMixer') {
+				assert.strictEqual(resolved, valueAtPath(runtime.actions, definition.handler));
+			}
 		}
 		const [helpMenu] = applyAudacityParityToMenus([{
 			id: 'help',
@@ -121,6 +128,16 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(controller.getSnapshot().project.tracks[0].color, '#123456');
 		runtime.actions.track.setHalfWaveView();
 		assert.equal(controller.getSnapshot().project.tracks[0].displayMode, 'half-wave');
+		const mixerTrackId = controller.getSnapshot().selectedTrackId;
+		await resolveAudacityActionHandler('track-pan-right', runtime.actions)();
+		assert.equal(controller.getSnapshot().project.tracks[0].pan, 0.1);
+		await resolveAudacityActionHandler('track-gain-inc', runtime.actions)();
+		assert.ok(controller.getSnapshot().project.tracks[0].gain > 1);
+		await resolveAudacityActionHandler('track-mute', runtime.actions)();
+		assert.equal(controller.getSnapshot().project.tracks[0].mute, true);
+		await controller.actions.edit.undo();
+		assert.equal(controller.getSnapshot().project.tracks[0].mute, false);
+		assert.equal(controller.getSnapshot().selectedTrackId, mixerTrackId);
 		runtime.actions.timeline.setMusicalRuler();
 		assert.equal(controller.getSnapshot().project.timeDisplay.format, 'beats+measures');
 		controller.actions.timeline.setZoom(120);
@@ -208,11 +225,18 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 	await controller.ready;
 	try {
 		const calls = [];
-		const state = { transportState: 'stopped', selection: { startFrame: 4800, endFrame: 96_000 } };
+		const state = {
+			recording: false, recordingStarting: false, recordingScheduling: false,
+			scheduledRecording: null, transportState: 'stopped', selection: { startFrame: 4800, endFrame: 96_000 },
+		};
 		const probe = {
 			...controller,
 			getSnapshot: () => ({
 				...controller.getSnapshot(),
+				recording: state.recording,
+				recordingStarting: state.recordingStarting,
+				recordingScheduling: state.recordingScheduling,
+				scheduledRecording: state.scheduledRecording,
 				project: { ...controller.getSnapshot().project, selection: state.selection },
 			}),
 			getTelemetrySnapshot: () => ({ transportState: state.transportState }),
@@ -223,6 +247,10 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 					playPause: () => calls.push('playPause'),
 					stop: () => calls.push('stop'),
 					seek: (frame) => calls.push(`seek:${frame}`),
+				},
+				recording: {
+					...controller.actions.recording,
+					stop: () => calls.push('recording.stop'),
 				},
 			},
 		};
@@ -235,7 +263,20 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 		runtime.actions.transport.playStop();
 		assert.deepEqual(calls, ['playPause', 'stop'], 'a playing transport stops rather than pausing');
 
+		state.transportState = 'stopped';
+		state.recording = true;
+		runtime.actions.transport.playStop();
+		assert.deepEqual(calls, ['playPause', 'stop', 'recording.stop'], 'Space stops an active recording');
+		state.recording = false;
+		for (const field of ['recordingStarting', 'recordingScheduling', 'scheduledRecording']) {
+			state[field] = true;
+			runtime.actions.transport.playStop();
+			state[field] = field === 'scheduledRecording' ? null : false;
+		}
+		assert.deepEqual(calls.slice(-3), ['recording.stop', 'recording.stop', 'recording.stop'], 'Space cancels every pending recording state');
+
 		calls.length = 0;
+		state.transportState = 'playing';
 		runtime.actions.transport.playFromCursor();
 		assert.deepEqual(calls, ['playPause'], 'a playing transport pauses without seeking');
 
@@ -248,6 +289,157 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 		state.selection = { startFrame: 4800, endFrame: 4800 };
 		runtime.actions.transport.playFromCursor();
 		assert.deepEqual(calls, ['playPause'], 'an empty selection leaves the playhead alone');
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('shared Audacity selection chords trim a selected clip before adjusting the time selection', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createMemoryTimePitchCache(),
+		copy: COPY,
+	});
+	await controller.ready;
+	try {
+		const base = controller.getSnapshot();
+		const source = { id: 'source-context', frameCount: 100 };
+		const clip = {
+			id: 'clip-context',
+			kind: 'audio',
+			sourceId: source.id,
+			timelineStartFrame: 10,
+			durationFrames: 20,
+			sourceStartFrame: 10,
+			sourceDurationFrames: 20,
+		};
+		const track = { ...base.project.tracks[0], type: 'audio', clipIds: [clip.id] };
+		const state = {
+			selectedClipId: clip.id,
+			selection: { startFrame: 5, endFrame: 15, trackIds: [track.id], clipIds: [] },
+			transportState: 'stopped',
+		};
+		const trims = [];
+		const selections = [];
+		const seeks = [];
+		const probe = {
+			...controller,
+			getTelemetrySnapshot: () => ({ positionFrame: 1_000_000, transportState: state.transportState }),
+			getSnapshot: () => ({
+				...base,
+				selectedClipId: state.selectedClipId,
+				selectedTrackId: track.id,
+				project: {
+					...base.project,
+					sources: [source],
+					clips: [clip],
+					tracks: [track],
+					selection: state.selection,
+				},
+			}),
+			actions: {
+				...controller.actions,
+				clip: {
+					...controller.actions.clip,
+					trim: (clipId, changes) => trims.push([clipId, changes]),
+				},
+				timeline: {
+					...controller.actions.timeline,
+					setSelection: (...args) => selections.push(args),
+				},
+				transport: {
+					...controller.actions.transport,
+					seek: (frame) => seeks.push(frame),
+				},
+			},
+		};
+		const runtime = createAudacityActionRuntime(probe, { uiController: createAudioEditorUiActionController() });
+
+		await runtime.actions.selection.extendLeft();
+		await runtime.actions.selection.extendRight();
+		await runtime.actions.selection.contractLeft();
+		await runtime.actions.selection.contractRight();
+		assert.deepEqual(trims, [
+			[clip.id, { timelineStartFrame: 0, durationFrames: 30 }],
+			[clip.id, { durationFrames: 90 }],
+		]);
+		assert.deepEqual(selections, []);
+
+		state.selectedClipId = null;
+		await runtime.actions.selection.extendLeft();
+		await runtime.actions.selection.extendRight();
+		await runtime.actions.selection.contractLeft();
+		await runtime.actions.selection.contractRight();
+		assert.deepEqual(selections, [
+			[0, 15, {}],
+			[5, 415, {}],
+			[15, 15, {}],
+			[5, 5, {}],
+		]);
+
+		state.selection = { startFrame: 0, endFrame: 0, trackIds: [track.id], clipIds: [] };
+		await runtime.actions.selection.extendLeft();
+		await runtime.actions.selection.extendRight();
+		assert.deepEqual(selections.slice(-2), [
+			[999_600, 1_000_000, {}],
+			[1_000_000, 1_000_400, {}],
+		], 'an empty stopped selection extends from the live cursor rather than frame zero');
+
+		state.selectedClipId = clip.id;
+		state.transportState = 'playing';
+		await runtime.actions.selection.extendLeft();
+		await runtime.actions.selection.extendRight();
+		assert.deepEqual(seeks, [280_000, 1_720_000], 'Shift+arrows seek by Audacity\'s 15-second long period');
+		assert.equal(trims.length, 2, 'playback seeking never mutates the selected clip');
+
+		state.selectedClipId = null;
+		state.selection = { startFrame: 5, endFrame: 15, trackIds: [track.id], clipIds: [] };
+		await runtime.actions.selection.contractLeft();
+		await runtime.actions.selection.contractRight();
+		assert.deepEqual(seeks, [280_000, 1_720_000], 'selection contraction never seeks to an undefined direction');
+		assert.deepEqual(selections.slice(-2), [[15, 15, {}], [5, 5, {}]]);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('Audacity track-selection actions advance focus and fill a Shift+Enter range', async () => {
+	const controller = createAudioEditorController(null, {
+		headless: true,
+		store: createMemoryStore(),
+		engine: createMemoryEngine(),
+		ffmpeg: { dispose() {} },
+		clipTimePitchCache: createMemoryTimePitchCache(),
+		copy: COPY,
+	});
+	await controller.ready;
+	try {
+		const firstTrackId = controller.getSnapshot().project.tracks[0].id;
+		const secondTrackId = controller.actions.track.add({ name: 'Second' });
+		const thirdTrackId = controller.actions.track.add({ name: 'Third' });
+		controller.actions.timeline.selectTrack(firstTrackId);
+		controller.actions.timeline.setSelection(0, 0, { trackIds: [firstTrackId] });
+		const runtime = createAudacityActionRuntime(controller, { uiController: createAudioEditorUiActionController() });
+
+		runtime.actions.navigation.extendTrackSelectionDown();
+		runtime.actions.navigation.extendTrackSelectionDown();
+		assert.equal(controller.getSnapshot().selectedTrackId, thirdTrackId);
+		assert.deepEqual(controller.getSnapshot().project.selection.trackIds, [
+			firstTrackId, secondTrackId, thirdTrackId,
+		]);
+		runtime.actions.navigation.extendTrackSelectionUp();
+		assert.equal(controller.getSnapshot().selectedTrackId, secondTrackId);
+		assert.deepEqual(controller.getSnapshot().project.selection.trackIds, [firstTrackId, secondTrackId]);
+
+		controller.actions.timeline.setSelection(0, 0, { trackIds: [firstTrackId] });
+		controller.actions.timeline.selectTrack(thirdTrackId);
+		runtime.actions.navigation.rangeSelection();
+		assert.deepEqual(controller.getSnapshot().project.selection.trackIds, [
+			firstTrackId, secondTrackId, thirdTrackId,
+		]);
 	} finally {
 		await controller.dispose();
 	}

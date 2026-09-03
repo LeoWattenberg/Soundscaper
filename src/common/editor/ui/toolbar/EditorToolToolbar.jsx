@@ -56,6 +56,8 @@ export default function EditorToolToolbar({
 	onRecordingMeterSettingsChange,
 	automationToolEnabled,
 	onToggleAutomationTool,
+	onToggleSplitTool,
+	splitToolMomentary = false,
 	actionRuntime,
 	onOpenSpectralSelection,
 	onOpenRecordingOffset,
@@ -192,12 +194,9 @@ export default function EditorToolToolbar({
 					{isToolbarButtonVisible('split-tool') && <span data-action-id="split-tool">
 						<ToggleToolButton
 							icon="split"
-							isActive={uiFlags.splitTool}
+							isActive={uiFlags.splitTool || splitToolMomentary}
 							ariaLabel={copy.splitTool}
-							onClick={() => {
-								if (automationToolEnabled) onToggleAutomationTool();
-								actionRuntime.tools.toggleSplitTool();
-							}}
+							onClick={onToggleSplitTool}
 						/>
 					</span>
 					}

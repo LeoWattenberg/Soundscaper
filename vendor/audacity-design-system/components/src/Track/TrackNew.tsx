@@ -889,12 +889,6 @@ const TrackNewComponent: React.FC<TrackProps> = ({
               return;
             }
 
-            // Shift+Arrow Up/Down on a clip: no-op for now, prevent browser default
-            if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && e.shiftKey && !e.metaKey && !e.ctrlKey) {
-              e.preventDefault();
-              return;
-            }
-
             // Plain Arrow Up/Down on a focused clip: move TRACK focus
             // to the row above / below. The clip loses focus, the
             // track row gains it — matches the "arrows always move
@@ -1317,7 +1311,9 @@ const TrackNewComponent: React.FC<TrackProps> = ({
           ) {
             return;
           }
-          // Home / End still delegate for clip-list bookends.
+          // Modified Home / End belong to the host shortcut registry.
+          if ((e.key === 'Home' || e.key === 'End') && (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey)) return;
+          // Plain Home / End still delegate for clip-list bookends.
           clipNavKeyDown(e);
         }}
         onFocus={handleTrackFocus}

@@ -69,6 +69,17 @@ test('no eagerly owned editor module statically imports a lazily owned one', () 
 	assert.deepEqual(eagerImportsOfLazyOwners(EAGER_ROOTS), []);
 });
 
+test('Split Tool runtime stays behind its optional feature boundary', () => {
+	for (const path of [
+		'src/common/editor/ui/timeline/split-tool-guideline.ts',
+		'src/common/editor/ui/timeline/split-tool-shortcut.ts',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-split-tool', path);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-optional-split-tool');
+	assert.ok(group);
+	assert.equal(group.minSize, 0);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
 test('only a wholly type-only import clause is absent from the eager graph', () => {
 	assert.equal(importsOnlyTypes('{ type LazyShape, type LazyOptions as Options }'), true);
 	assert.equal(importsOnlyTypes('LazyRuntime, { type LazyShape }'), false);

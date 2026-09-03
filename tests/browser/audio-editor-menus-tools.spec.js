@@ -16,6 +16,7 @@ import {
 	openAnalysisPanel,
 	openExportDialog,
 	registerAudioEditorHooks,
+	seekOnRuler,
 	setDocumentTheme,
 } from './audio-editor-test-helpers.js';
 
@@ -367,7 +368,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		await editor.getByRole('menuitem', { name: 'Set up timed recording', exact: true }).click();
+		await getMenuItem(
+			page.getByRole('menu', { name: 'Record options', exact: true }),
+			'Set up timed recording',
+		).click();
 		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 		await expect(dialog).toBeVisible();
 		await expect(dialog).toContainText('opens the recording input immediately');
@@ -571,7 +575,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('s');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'true');
 		await expect(splitButton).toHaveAttribute('aria-pressed', 'true');
-		await clickClipInterior(page, clipByName(editor, toneA.name), 0.35);
+		const splitClip = clipByName(editor, toneA.name);
+		const splitCursors = await splitClip.evaluate((clip) => ({
+			clip: getComputedStyle(clip).cursor,
+			lane: getComputedStyle(clip.closest('[data-track-lane]')).cursor,
+		}));
+		expect(splitCursors).toEqual({ clip: 'col-resize', lane: 'auto' });
+		await clickClipInterior(page, splitClip, 0.35);
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 
 		await page.keyboard.press('s');
@@ -588,6 +598,83 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
 		await page.keyboard.up('s');
 		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
+		await expect(splitButton).toHaveAttribute('aria-pressed', 'false');
+		expect(errors).toEqual([]);
+	});
+
+	test('keeps the Audacity Import and Split chords distinct', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const fileMenuButton = editor.getByRole('menubar', { name: 'Application menu' })
+			.getByRole('menuitem', { name: 'File', exact: true });
+		await fileMenuButton.click();
+		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
+		await expect(getMenuItem(fileMenu, 'Import').locator('.context-menu-item-shortcut'))
+			.toHaveText('Ctrl+Shift+I');
+		await page.keyboard.press('Escape');
+		await closeWorkspacePanel(editor, 'project-bin');
+
+		await editor.locator('.kw-audio-editor__keyboard-help').focus();
+		const chooserPromise = page.waitForEvent('filechooser');
+		await page.keyboard.press('Control+Shift+i');
+		await (await chooserPromise).setFiles(toneA);
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 20_000 });
+
+		await seekOnRuler(page, editor, 60);
+		await clipByName(editor, toneA.name).locator('.clip-header').click();
+		await page.keyboard.press('Control+i');
+		await expect(editor).toHaveAttribute('data-clip-count', '2');
+		expect(errors).toEqual([]);
+	});
+
+	test('uses the configured Split Tool chord only and clears it when UI context changes', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const timeline = editor.locator('.audio-editor-timeline-panel');
+		const splitButton = editor.getByRole('button', { name: 'Split tool', exact: true });
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		let preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		const splitRow = preferences.locator('[data-shortcut-action="split-tool"]');
+		const splitShortcut = splitRow.locator('input');
+		await splitShortcut.focus();
+		await page.keyboard.press('s');
+		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
+		await splitShortcut.fill('K');
+		await splitRow.getByRole('button', { name: 'Assign', exact: true }).click();
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await expect(preferences).toBeHidden();
+
+		await editor.locator('.kw-audio-editor__keyboard-help').focus();
+		await page.keyboard.press('s');
+		await page.keyboard.press('Shift+s');
+		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
+		await page.keyboard.press('k');
+		await expect(splitButton).toHaveAttribute('aria-pressed', 'true');
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await expect(preferences).toBeVisible();
+		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await expect(preferences).toBeHidden();
+
+		await editor.locator('.kw-audio-editor__keyboard-help').focus();
+		await page.keyboard.press('k');
+		await expect(timeline).toHaveAttribute('data-split-tool', 'true');
+		await page.keyboard.press('Escape');
+		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
+		await page.keyboard.press('k');
+		await expect(timeline).toHaveAttribute('data-split-tool', 'true');
+		await page.evaluate(() => globalThis.dispatchEvent(new Event('blur')));
+		await expect(timeline).toHaveAttribute('data-split-tool', 'false');
+
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Tracks panel']);
+		await expect(timeline).toHaveCount(0);
+		await editor.evaluate((element) => { element.tabIndex = -1; element.focus(); });
+		await page.keyboard.down('k');
+		await page.waitForTimeout(300);
+		await page.keyboard.up('k');
 		await expect(splitButton).toHaveAttribute('aria-pressed', 'false');
 		expect(errors).toEqual([]);
 	});

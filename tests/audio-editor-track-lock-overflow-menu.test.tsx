@@ -18,6 +18,7 @@ async function loadTimelineMenuModel(): Promise<TimelineMenuModelFactory> {
 interface MenuItem {
 	readonly id?: unknown;
 	readonly label?: unknown;
+	readonly shortcut?: unknown;
 	readonly disabled?: unknown;
 	readonly onClick?: () => unknown;
 }
@@ -56,6 +57,30 @@ test('blocked editing keeps one disabled track-overflow lock item', async () => 
 	assert.equal(blocked.disabled, true);
 });
 
+test('track removal exposes the persisted shortcut instead of the imported fallback', async () => {
+	const createTimelineMenuModel = await loadTimelineMenuModel();
+	const configured = createTimelineMenuModel(overflowInput({
+		productId: 'soundscaper', type: 'audio', locked: false, mutationsBlocked: false,
+		shortcuts: { 'remove-tracks': ['Alt+Shift+C'] },
+		update: () => undefined,
+	}));
+	const removed = createTimelineMenuModel(overflowInput({
+		productId: 'soundscaper', type: 'audio', locked: false, mutationsBlocked: false,
+		shortcuts: {},
+		update: () => undefined,
+	}));
+
+	assert.equal(trackRemoveItem(configured)?.shortcut, 'Alt+Shift+C');
+	assert.equal(trackRemoveItem(removed)?.shortcut, undefined);
+});
+
+function trackRemoveItem(model: { trackMenuItems: readonly MenuItem[] }): MenuItem | undefined {
+	return model.trackMenuItems.find((item) => (
+		React.isValidElement<{ action?: { actionId?: string } }>(item.label)
+		&& item.label.props.action?.actionId === 'remove-tracks'
+	));
+}
+
 function trackLockOverflowItem(createTimelineMenuModel: TimelineMenuModelFactory, input: unknown): MenuItem {
 	const model = createTimelineMenuModel(input);
 	const item = model.trackMenuItems.find(({ id }) => id === 'track-lock-toggle');
@@ -63,17 +88,18 @@ function trackLockOverflowItem(createTimelineMenuModel: TimelineMenuModelFactory
 	return item;
 }
 
-function overflowInput({ productId, type, locked, mutationsBlocked, update }: Readonly<{
+function overflowInput({ productId, type, locked, mutationsBlocked, shortcuts = {}, update }: Readonly<{
 	productId: 'soundscaper' | 'framescaper';
 	type: 'audio' | 'video' | 'label';
 	locked: boolean;
 	mutationsBlocked: boolean;
+	shortcuts?: Readonly<Record<string, readonly string[]>>;
 	update: (trackId: string, changes: unknown) => unknown;
 }>) {
 	const track = { id: `${type}-track`, type, locked, clipIds: [], hidden: false, effects: [] };
 	return {
 		controller: { actions: { track: { update } } },
-		snapshot: { capabilities: {} },
+		snapshot: { capabilities: {}, preferences: { shortcuts } },
 		locale: 'en',
 		copy: copyValues(),
 		showArmControls: false,

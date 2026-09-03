@@ -31,9 +31,19 @@ test('context metadata preserves localized labels and consumes manifest shortcut
 		label: 'An Abspielposition teilen',
 	});
 	assert.equal(split.label, 'An Abspielposition teilen');
-	assert.equal(split.shortcut, 'S');
+	assert.equal(split.shortcut, 'Ctrl+I');
 	assert.equal(split.enableWhen, 'editable-selection-or-clip');
 	assert.equal(split.disabled, false);
+	assert.equal(
+		audacityContextMenuAction(AUDACITY_CLIP_CONTEXT_ACTION_IDS.remove).shortcut,
+		'Del, Backspace',
+	);
+	assert.equal(audacityContextMenuAction(AUDACITY_CLIP_CONTEXT_ACTION_IDS.split, {
+		shortcuts: { split: ['K', 'Shift+K'] },
+	}).shortcut, 'K, Shift+K');
+	assert.equal(audacityContextMenuAction(AUDACITY_CLIP_CONTEXT_ACTION_IDS.split, {
+		shortcuts: {},
+	}).shortcut, null);
 
 	const unavailable = audacityContextMenuAction(AUDACITY_CLIP_CONTEXT_ACTION_IDS.renderPitchSpeed, {
 		disabled: true,

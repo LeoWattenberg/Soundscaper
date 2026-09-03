@@ -20,6 +20,7 @@ import { TimelineGridLines } from './TimelineGridLines.jsx';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
 	RulerPlayhead,
+	SplitToolGuideline,
 	TelemetryPlayhead,
 	TimeSelectionOverlay,
 	TimelineRateStretchPreviewGuide,
@@ -91,6 +92,7 @@ export function TimelineWorkspaceView({
 		clipDragPreview,
 		projectBinDragPreview,
 		loopPreview,
+		splitToolGuideline,
 		focusedOutputKey,
 		waveformCacheRef,
 		waveformRulerState,
@@ -111,6 +113,7 @@ export function TimelineWorkspaceView({
 		onPointerDown,
 		onTrackHeaderDrawerKeyDown,
 		onPointerMove,
+		clearSplitToolGuideline,
 		finishPointerSession,
 		finishTouch,
 		onTimelineDragOver,
@@ -122,6 +125,7 @@ export function TimelineWorkspaceView({
 		editBlock,
 		mutationsBlocked,
 		splitToolActive,
+		showAutomationOverlay,
 		run,
 		openAddTrackFlyout,
 		addTrackFromFlyout,
@@ -208,6 +212,7 @@ export function TimelineWorkspaceView({
 				onPointerDownCapture={onPointerDown}
 				onKeyDown={onTrackHeaderDrawerKeyDown}
 				onPointerMove={onPointerMove}
+				onPointerLeave={clearSplitToolGuideline}
 				onPointerUp={(event) => { finishTouch(event); finishPointerSession(event); }}
 				onPointerCancel={(event) => {
 					finishTouch(event);
@@ -393,6 +398,7 @@ export function TimelineWorkspaceView({
 						automationToolEnabled={automationToolEnabled}
 						automationRuntime={automationRuntime}
 						automationControls={automationControls}
+						showAutomationOverlay={showAutomationOverlay}
 						spectralBrushEnabled={spectralBrushEnabled}
 						showArmControls={showArmControls}
 						displayAudioSupported={displayAudioSupported}
@@ -403,6 +409,12 @@ export function TimelineWorkspaceView({
 						panelWidth={panelWidth}
 						pixelsPerSecond={pixelsPerSecond}
 						height={totalTrackHeight}
+					/>
+					<SplitToolGuideline
+						guideline={splitToolActive ? splitToolGuideline : null}
+						panelWidth={panelWidth}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
 					/>
 					<TimelineTrimPreviewGuide
 						sample={clipDragPreview?.guideSample}

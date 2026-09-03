@@ -355,10 +355,6 @@ export function createWorkspaceApplicationMenus({
 					setDialog('resample');
 				},
 					zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
-				toggleTrackMute: () => {
-					const track = project?.tracks.find((candidate) => candidate.id === snapshot.selectedTrackId);
-					if (track) run(() => controller.actions.track.update(track.id, { mute: !track.mute }));
-				},
 				openEffects: () => openEffects(snapshot.selectedTrackId),
 				openMacroManager: () => openSurface('macro-manager'),
 				openSelectionEffect: (type) => snapshot.effects?.selectionTypes

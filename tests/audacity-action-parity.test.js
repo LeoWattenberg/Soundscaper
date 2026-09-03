@@ -9,11 +9,11 @@ import {
 	applyAudacityParityToMenus,
 	audacityActionDefinition,
 	audacityActionReason,
-	collectAudacityShortcutCommands,
 	evaluateAudacityActionEnablement,
 	evaluateAudacityEnableWhen,
 	resolveAudacityActionId,
 } from '../src/common/editor/audacity-action-parity.js';
+import { collectAudacityShortcutCommands } from '../src/common/editor/ui/dialogs/workspace-preferences-shortcut-commands.ts';
 import { AUDACITY_ACTION_ROADMAP_DISPOSITION, AUDACITY_MIDI_FENCE } from '../src/common/editor/audacity-action-roadmap.ts';
 import {
 	AUDIO_EDITOR_CRITICAL_APPLICATION_MENU_ACTION_IDS,

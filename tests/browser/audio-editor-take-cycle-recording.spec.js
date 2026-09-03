@@ -10,6 +10,7 @@ import {
 	chooseCommandAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
+	getMenuItem,
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -110,7 +111,7 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 			'Set up timed recording',
 			'Sound-activated recording',
 		]) {
-			await expect(menu.getByRole('menuitem', { name: label, exact: true })).toBeDisabled();
+			await expect(getMenuItem(menu, label)).toBeDisabled();
 		}
 		const disabledRecordItems = menu.locator('[role="menuitem"][aria-disabled="true"]');
 		await expect(disabledRecordItems.filter({ hasText: 'Record onto the active track' })).toHaveCount(1);

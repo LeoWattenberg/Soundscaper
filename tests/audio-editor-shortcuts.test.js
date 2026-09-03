@@ -2,45 +2,72 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	AUDACITY_ACTION_MANIFEST,
-	AUDACITY_ACTION_STATUS,
-} from '../src/common/editor/audacity-action-parity.js';
-import {
 	AUDIO_EDITOR_DEFAULT_SHORTCUTS,
 	AUDIO_EDITOR_RESERVED_SHORTCUTS,
 	AUDIO_EDITOR_SEARCH_ACTION_ID,
 	AUDIO_EDITOR_SEARCH_SHORTCUTS,
+	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
 	createAudioEditorPreferencesV1,
 	findAudioEditorShortcutConflicts,
 	loadAudioEditorPreferencesV1,
+	normalizeAudioEditorShortcut,
 } from '../src/common/editor/preferences.js';
+import { AUDACITY_ACTION_MANIFEST } from '../src/common/editor/audacity-action-parity.js';
 
-test('default editor shortcuts are derived from implemented pinned-manifest actions', () => {
-	const expected = Object.fromEntries(Object.values(AUDACITY_ACTION_MANIFEST)
-		.filter((action) => action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED && action.shortcut)
-		.map((action) => [action.id, [action.shortcut]]));
-	expected['delete-all-tracks-ripple'] = ['Ctrl+Delete', 'Ctrl+Backspace'];
-
-	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS, expected);
+test('default editor shortcuts use the complete mapped Audacity profile', () => {
 	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['zoom-default'][0], 'Ctrl+2');
-	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['zoom-to-fit-project'][0], 'Ctrl+0');
-	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['action://playback/play'][0], 'Space');
-	assert.equal(Object.hasOwn(AUDIO_EDITOR_DEFAULT_SHORTCUTS, 'spectral-brush'), false);
+	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['zoom-to-fit-project'][0], 'Ctrl+F');
+	assert.equal(AUDIO_EDITOR_DEFAULT_SHORTCUTS['action://playback/play'][0], 'P');
+	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['action://delete'], ['Del', 'Backspace']);
+	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['track-view-toggle-selection'], ['Ctrl+Enter', 'Ctrl+Return', 'Return', 'NUMPAD_ENTER']);
+	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS['split-tool'], ['S']);
+	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS.split, ['Ctrl+I']);
+	assert.deepEqual(AUDIO_EDITOR_DEFAULT_SHORTCUTS.fullscreen, ['F11']);
+	assert.equal(AUDACITY_ACTION_MANIFEST.fullscreen.shortcut, 'F11');
 	assert.deepEqual(findAudioEditorShortcutConflicts(AUDIO_EDITOR_DEFAULT_SHORTCUTS), []);
 });
 
+test('new editor preferences identify the installed shortcut-default profile', () => {
+	assert.equal(
+		createAudioEditorPreferencesV1().shortcutDefaultsVersion,
+		AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
+	);
+});
+
 test('fixed search accelerators participate in shortcut conflict detection', () => {
-	assert.deepEqual(AUDIO_EDITOR_SEARCH_SHORTCUTS, ['Ctrl+F', 'F3']);
+	assert.deepEqual(AUDIO_EDITOR_SEARCH_SHORTCUTS, ['Ctrl+K']);
 	assert.deepEqual(AUDIO_EDITOR_RESERVED_SHORTCUTS, {
-		[AUDIO_EDITOR_SEARCH_ACTION_ID]: ['Ctrl+F', 'F3'],
+		[AUDIO_EDITOR_SEARCH_ACTION_ID]: ['Ctrl+K'],
 	});
 	assert.deepEqual(findAudioEditorShortcutConflicts({
-		'custom-find': ['control+f'],
-		'custom-find-next': ['f3'],
+		'custom-find': ['control+k'],
 	}), [
-		{ binding: 'Ctrl+F', actionIds: ['custom-find', AUDIO_EDITOR_SEARCH_ACTION_ID] },
-		{ binding: 'f3', actionIds: ['custom-find-next', AUDIO_EDITOR_SEARCH_ACTION_ID] },
+		{ binding: 'Ctrl+K', actionIds: ['custom-find', AUDIO_EDITOR_SEARCH_ACTION_ID] },
 	]);
+	assert.deepEqual(findAudioEditorShortcutConflicts({
+		'custom-find': ['Meta+K'],
+	}), [
+		{ binding: 'Meta+K', actionIds: ['custom-find', AUDIO_EDITOR_SEARCH_ACTION_ID] },
+	], 'Ctrl and Meta spellings collide because Ctrl is the platform-primary modifier');
+});
+
+test('shortcut conflicts distinguish the combined Ctrl+Meta chord from platform-primary chords', () => {
+	assert.deepEqual(findAudioEditorShortcutConflicts({
+		primary: ['Ctrl+O'],
+		macPrimary: ['Meta+O'],
+		combined: ['Ctrl+Meta+O'],
+	}), [
+		{ binding: 'Ctrl+O', actionIds: ['primary', 'macPrimary'] },
+	]);
+});
+
+test('shortcut normalization understands every Audacity key spelling', () => {
+	assert.equal(normalizeAudioEditorShortcut('Del'), 'Delete');
+	assert.equal(normalizeAudioEditorShortcut('Esc'), 'Escape');
+	assert.equal(normalizeAudioEditorShortcut('Ctrl+Return'), 'Ctrl+Enter');
+	assert.equal(normalizeAudioEditorShortcut('PgUp'), 'PageUp');
+	assert.equal(normalizeAudioEditorShortcut('PgDown'), 'PageDown');
+	assert.equal(normalizeAudioEditorShortcut('NUMPAD_ENTER'), 'NumpadEnter');
 });
 
 test('legacy shortcut action IDs migrate to the canonical runtime registry IDs', () => {
@@ -77,56 +104,111 @@ test('prototype-named custom shortcut action IDs remain literal own fields', () 
 	}
 });
 
-test('loading saved shortcuts migrates search reservations and the former zoom binding idempotently', () => {
+test('pre-profile preferences receive imported defaults without replacing custom bindings or removals', () => {
 	const saved = createAudioEditorPreferencesV1({
 		shortcuts: {
-			'zoom-fit': ['Ctrl+F', 'Alt+F', 'control+0'],
-			'zoom-in': ['Ctrl+0', 'Ctrl+1'],
-			'file-save': ['Ctrl+F', 'Ctrl+S'],
-			split: ['F3', 'S'],
-			'custom-search-only': ['F3'],
+			'file-new': ['Ctrl+N'],
+			'project-import': ['Ctrl+I'],
+			'file-save': ['Alt+S'],
+			'file-save-as': ['Ctrl+Shift+S'],
+			'zoom-fit': ['Ctrl+0'],
+			'zoom-in': ['Ctrl+1'],
+			'action://trackedit/paste-insert': ['Insert'],
+			split: ['S'],
+			play: ['Space'],
+			'custom-delete': ['Backspace'],
+			'custom-search-only': ['Ctrl+K'],
 			'custom-unrelated': ['Alt+Q'],
+			constructor: ['Alt+C'],
 		},
 	});
+	delete saved.shortcutDefaultsVersion;
 
 	const loaded = loadAudioEditorPreferencesV1(saved).preferences;
-	assert.deepEqual(loaded.shortcuts, {
-		'zoom-to-fit-project': ['Ctrl+0', 'Alt+F'],
-		'zoom-in': ['Ctrl+1'],
-		'file-save': ['Ctrl+S'],
-		split: ['S'],
-		'custom-search-only': [],
-		'custom-unrelated': ['Alt+Q'],
-	});
+	assert.equal(loaded.shortcutDefaultsVersion, AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION);
+	assert.deepEqual(loaded.shortcuts['file-new'], ['Ctrl+N']);
+	assert.equal(Object.hasOwn(loaded.shortcuts, 'file-open'), false);
+	assert.deepEqual(loaded.shortcuts['project-import'], ['Ctrl+Shift+I']);
+	assert.deepEqual(loaded.shortcuts['file-save'], ['Alt+S']);
+	assert.equal(Object.hasOwn(loaded.shortcuts, 'file-save-as'), false);
+	assert.deepEqual(loaded.shortcuts['zoom-to-fit-project'], ['Ctrl+F']);
+	assert.deepEqual(loaded.shortcuts['zoom-in'], ['Ctrl+=']);
+	assert.deepEqual(loaded.shortcuts.insert, ['Shift+V']);
+	assert.equal(Object.hasOwn(loaded.shortcuts, 'action://trackedit/paste-insert'), false);
+	assert.deepEqual(loaded.shortcuts.split, ['Ctrl+I']);
+	assert.deepEqual(loaded.shortcuts['split-tool'], ['S']);
+	assert.deepEqual(loaded.shortcuts['action://playback/play'], ['P']);
+	assert.deepEqual(loaded.shortcuts['action://delete'], ['Del']);
+	assert.deepEqual(loaded.shortcuts['custom-delete'], ['Backspace']);
+	assert.deepEqual(loaded.shortcuts['custom-search-only'], []);
+	assert.deepEqual(loaded.shortcuts['custom-unrelated'], ['Alt+Q']);
+	assert.deepEqual(Object.getOwnPropertyDescriptor(loaded.shortcuts, 'constructor')?.value, ['Alt+C']);
 	assert.deepEqual(loadAudioEditorPreferencesV1(loaded).preferences, loaded);
 });
 
-test('loading current custom shortcuts does not reserve Ctrl+0 when zoom no longer uses its former default', () => {
+test('pre-profile preferences treat modified legacy defaults as custom bindings', () => {
+	const saved = createAudioEditorPreferencesV1({
+		shortcuts: {
+			'zoom-fit': ['Ctrl+0', 'Alt+F'],
+			'action://trackedit/paste-insert': ['Insert', 'Alt+V'],
+			'file-save': ['Ctrl+S', 'Alt+S'],
+		},
+	});
+	delete saved.shortcutDefaultsVersion;
+
+	const loaded = loadAudioEditorPreferencesV1(saved).preferences;
+	assert.deepEqual(loaded.shortcuts['zoom-to-fit-project'], ['Ctrl+0', 'Alt+F']);
+	assert.deepEqual(loaded.shortcuts.insert, ['Insert', 'Alt+V']);
+	assert.deepEqual(loaded.shortcuts['file-save'], ['Ctrl+S', 'Alt+S']);
+});
+
+test('the profile marker keeps current explicit removals removed on later loads', () => {
+	const saved = createAudioEditorPreferencesV1();
+	delete saved.shortcuts['action://delete'];
+
+	const loaded = loadAudioEditorPreferencesV1(saved).preferences;
+	assert.equal(Object.hasOwn(loaded.shortcuts, 'action://delete'), false);
+	assert.deepEqual(loadAudioEditorPreferencesV1(loaded).preferences, loaded);
+});
+
+test('loading current custom shortcuts does not reserve Ctrl+F when zoom no longer uses its default', () => {
 	const saved = createAudioEditorPreferencesV1({
 		shortcuts: {
 			'zoom-to-fit-project': ['Alt+F'],
-			'custom-zero': ['Ctrl+0'],
-			'custom-search': ['Ctrl+F', 'Alt+S'],
+			'custom-find': ['Ctrl+F'],
+			'custom-search': ['Ctrl+K', 'Alt+S'],
 		},
 	});
 
 	assert.deepEqual(loadAudioEditorPreferencesV1(saved).preferences.shortcuts, {
 		'zoom-to-fit-project': ['Alt+F'],
-		'custom-zero': ['Ctrl+0'],
+		'custom-find': ['Ctrl+F'],
 		'custom-search': ['Alt+S'],
 	});
 });
 
-test('loading current Fit project defaults resolves Ctrl+0 collisions in favor of Fit project', () => {
+test('loading current shortcuts preserves custom collisions for the shortcut editor to resolve', () => {
 	const saved = createAudioEditorPreferencesV1({
 		shortcuts: {
-			'zoom-to-fit-project': ['Ctrl+0'],
-			'custom-zero': ['Ctrl+0', 'Alt+0'],
+			'zoom-to-fit-project': ['Ctrl+F'],
+			'custom-find': ['Ctrl+F', 'Alt+F'],
 		},
 	});
 
 	assert.deepEqual(loadAudioEditorPreferencesV1(saved).preferences.shortcuts, {
-		'zoom-to-fit-project': ['Ctrl+0'],
-		'custom-zero': ['Alt+0'],
+		'zoom-to-fit-project': ['Ctrl+F'],
+		'custom-find': ['Ctrl+F', 'Alt+F'],
+	});
+});
+
+test('loading shortcuts removes a Meta spelling of the platform-primary reserved search chord', () => {
+	const saved = createAudioEditorPreferencesV1({
+		shortcuts: {
+			'custom-search': ['Meta+K', 'Ctrl+Meta+K'],
+		},
+	});
+
+	assert.deepEqual(loadAudioEditorPreferencesV1(saved).preferences.shortcuts, {
+		'custom-search': ['Ctrl+Meta+K'],
 	});
 });

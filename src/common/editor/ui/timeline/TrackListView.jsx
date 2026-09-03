@@ -62,6 +62,7 @@ export function TrackListView({
 	automationToolEnabled,
 	automationRuntime,
 	automationControls,
+	showAutomationOverlay = true,
 	spectralBrushEnabled,
 	showArmControls,
 	displayAudioSupported,
@@ -221,7 +222,9 @@ export function TrackListView({
 					automationToolEnabled={automationToolEnabled}
 					automationRuntime={automationRuntime}
 					automationTargets={automationControls?.targetsByTrackId.get(track.id) || []}
-					automationTarget={automationControls?.selectedTargetByTrackId.get(track.id) || null}
+					automationTarget={showAutomationOverlay
+						? automationControls?.selectedTargetByTrackId.get(track.id) || null
+						: null}
 					onAutomationTarget={(targetKey) => automationControls?.selectTarget(track.id, targetKey)}
 					spectralBrushEnabled={spectralBrushEnabled}
 					blocked={mutationsBlocked}

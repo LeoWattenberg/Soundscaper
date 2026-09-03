@@ -82,6 +82,10 @@ export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts)$`,
 );
 
+/** Split Tool interaction runtimes kept out of the product-ready startup graph. */
+export const EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST =
+	/src[\\/]common[\\/]editor[\\/]ui[\\/]timeline[\\/]split-tool-(?:guideline|shortcut)\.ts$/;
+
 /** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
 export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
 	`${editorPath}ui[\\/](?:AudacityEffectLayout|ParametricEqEditor|inspector[\\/]EffectParameterEditor)\\.jsx$`,
@@ -392,6 +396,14 @@ export const chunkGroups = [
 		name: 'editor-optional-assistance',
 		test: EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 		priority: 93,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		name: 'editor-optional-split-tool',
+		test: EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST,
+		priority: 93,
+		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,
 	},

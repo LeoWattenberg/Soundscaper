@@ -77,30 +77,26 @@ test('only macOS keeps a minimal system application menu', () => {
 		template[0].submenu.map(({ label, role, type }) => label ?? role ?? type),
 		['about', 'separator', 'Preferences', 'separator', 'services', 'separator', 'hide', 'hideOthers', 'unhide', 'separator', 'quit'],
 	);
+	assert.equal(template[0].submenu.find(({ label }) => label === 'Preferences').accelerator, undefined);
 	template[0].submenu.find(({ label }) => label === 'Preferences').click();
 	assert.equal(preferences, 1);
 });
 
-test('the accelerator map preserves the removed native File, Edit, Preferences and fullscreen shortcuts', () => {
+test('the accelerator map leaves every production editor command to preferences', () => {
 	const keyDown = (key, modifiers = {}) => ({
 		type: 'keyDown', key, alt: false, control: false, meta: false, shift: false, isAutoRepeat: false, ...modifiers,
 	});
-	assert.equal(menuCommandForAccelerator(keyDown('o', { control: true }), 'linux'), 'project:open');
-	assert.equal(menuCommandForAccelerator(keyDown('S', { control: true }), 'linux'), 'project:save');
-	assert.equal(menuCommandForAccelerator(keyDown('s', { control: true, shift: true }), 'linux'), 'project:save-as');
-	assert.equal(menuCommandForAccelerator(keyDown('e', { control: true, shift: true }), 'linux'), 'audio:export');
-	assert.equal(menuCommandForAccelerator(keyDown('z', { meta: true }), 'darwin'), 'edit:undo');
-	assert.equal(menuCommandForAccelerator(keyDown('z', { meta: true, shift: true }), 'darwin'), 'edit:redo');
-	assert.equal(menuCommandForAccelerator(keyDown('y', { control: true }), 'win32'), 'edit:redo');
-	assert.equal(menuCommandForAccelerator(keyDown('x', { control: true }), 'linux'), 'edit:cut');
-	assert.equal(menuCommandForAccelerator(keyDown('c', { meta: true }), 'darwin'), 'edit:copy');
-	assert.equal(menuCommandForAccelerator(keyDown('v', { control: true }), 'linux'), 'edit:paste');
-	assert.equal(menuCommandForAccelerator(keyDown('a', { control: true }), 'linux'), 'edit:select-all');
-	assert.equal(menuCommandForAccelerator(keyDown(',', { control: true }), 'linux'), 'preferences');
-	assert.equal(menuCommandForAccelerator(keyDown(',', { meta: true }), 'darwin'), 'preferences');
-	assert.equal(menuCommandForAccelerator(keyDown('F11'), 'linux'), 'view:toggle-fullscreen');
-	assert.equal(menuCommandForAccelerator(keyDown('F11'), 'darwin'), 'view:toggle-fullscreen');
-	assert.equal(menuCommandForAccelerator(keyDown('f', { control: true, meta: true }), 'darwin'), 'view:toggle-fullscreen');
+	for (const [key, modifiers, platform] of [
+		['o', { control: true }, 'linux'],
+		['s', { control: true }, 'linux'],
+		['s', { control: true, shift: true }, 'linux'],
+		['e', { control: true, shift: true }, 'linux'],
+		['z', { meta: true }, 'darwin'],
+		[',', { meta: true }, 'darwin'],
+	]) assert.equal(menuCommandForAccelerator(keyDown(key, modifiers), platform), null);
+	assert.equal(menuCommandForAccelerator(keyDown('F11'), 'linux'), null);
+	assert.equal(menuCommandForAccelerator(keyDown('F11'), 'darwin'), null);
+	assert.equal(menuCommandForAccelerator(keyDown('f', { control: true, meta: true }), 'darwin'), null);
 	assert.equal(menuCommandForAccelerator(keyDown('s', { control: true, alt: true }), 'linux'), null);
 	assert.equal(menuCommandForAccelerator(keyDown('s', { control: true, isAutoRepeat: true }), 'linux'), null);
 	assert.equal(menuCommandForAccelerator({ ...keyDown('s', { control: true }), type: 'keyUp' }, 'linux'), null);
@@ -110,13 +106,16 @@ test('development accelerator actions preserve reload and developer tools only i
 	const keyDown = (key, modifiers = {}) => ({
 		type: 'keyDown', key, alt: false, control: false, meta: false, shift: false, isAutoRepeat: false, ...modifiers,
 	});
-	assert.equal(windowActionForAccelerator(keyDown('r', { control: true }), 'linux', true), 'reload');
-	assert.equal(windowActionForAccelerator(keyDown('r', { meta: true }), 'darwin', true), 'reload');
-	assert.equal(windowActionForAccelerator(keyDown('i', { control: true, shift: true }), 'win32', true), 'toggle-dev-tools');
-	assert.equal(windowActionForAccelerator(keyDown('i', { meta: true, alt: true }), 'darwin', true), 'toggle-dev-tools');
-	assert.equal(windowActionForAccelerator(keyDown('r', { control: true }), 'linux', false), null);
-	assert.equal(windowActionForAccelerator(keyDown('i', { control: true }), 'linux', true), null);
-	assert.equal(windowActionForAccelerator(keyDown('i', { meta: true, shift: true }), 'darwin', true), null);
+	assert.equal(windowActionForAccelerator(keyDown('F5'), 'linux', true), 'reload');
+	assert.equal(windowActionForAccelerator(keyDown('F5'), 'darwin', true), 'reload');
+	assert.equal(windowActionForAccelerator(keyDown('F12'), 'win32', true), 'toggle-dev-tools');
+	assert.equal(windowActionForAccelerator(keyDown('F12'), 'darwin', true), 'toggle-dev-tools');
+	assert.equal(windowActionForAccelerator(keyDown('F5'), 'linux', false), null);
+	assert.equal(windowActionForAccelerator(keyDown('F12'), 'linux', false), null);
+	assert.equal(windowActionForAccelerator(keyDown('r', { control: true }), 'linux', true), null);
+	assert.equal(windowActionForAccelerator(keyDown('i', { control: true, shift: true }), 'linux', true), null);
+	assert.equal(windowActionForAccelerator(keyDown('i', { meta: true, alt: true }), 'darwin', true), null);
+	assert.equal(windowActionForAccelerator(keyDown('F12', { control: true }), 'linux', true), null);
 });
 
 test('accelerators dispatch only while their owning window is focused and can be detached', () => {
@@ -146,12 +145,13 @@ test('accelerators dispatch only while their owning window is focused and can be
 	listener(event, input);
 	focused = true;
 	listener(event, input);
-	assert.deepEqual(commands, ['project:save']);
-	listener(event, { ...input, key: 'r' });
-	listener(event, { ...input, key: 'i', shift: true });
-	listener(event, { ...input, key: 'i' });
+	assert.deepEqual(commands, [], 'renderer-owned shortcuts are not intercepted by Electron');
+	listener(event, { ...input, key: 'F11', control: false });
+	listener(event, { ...input, key: 'F5', control: false });
+	listener(event, { ...input, key: 'F12', control: false });
+	assert.deepEqual(commands, []);
 	assert.deepEqual(actions, ['reload', 'toggle-dev-tools']);
-	assert.equal(prevented, 3);
+	assert.equal(prevented, 2);
 	detach();
 	assert.deepEqual(removed, [['before-input-event', listener]]);
 });

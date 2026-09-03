@@ -12,6 +12,7 @@ import { useTimelinePointerStart } from './useTimelinePointerStart.js';
 import { useTimelineProjectBinDnd } from './useTimelineProjectBinDnd.js';
 import { useTimelineViewportModel } from './useTimelineViewportModel.js';
 import { useTrackAutomationControls } from '../soundscaper-workflow-product-runtime.tsx';
+import { resolveTimelineToolPrecedence } from './timeline-tool-precedence.ts';
 
 export default function TimelineController({
 	controller,
@@ -28,9 +29,13 @@ export default function TimelineController({
 	const { mobile, showArmControls, displayAudioSupported, trackHeaderDrawer = null } = geometryInput;
 	const { searchRevealRequest } = selectionInput;
 	const { overlayTarget } = previewInput;
-	const { splitToolEnabled, automationToolEnabled, spectralBrushEnabled } = navigationInput;
 	const {
-		onToggleSplitTool,
+		splitToolEnabled,
+		splitToolMomentary,
+		automationToolEnabled,
+		spectralBrushEnabled,
+	} = navigationInput;
+	const {
 		onError,
 		onOpenEffects,
 		onOpenClipProperties,
@@ -66,8 +71,6 @@ export default function TimelineController({
 		trackHeaderDrawer,
 		showArmControls,
 		automationVisibleTrackIds: automationControls.visibleTrackIds,
-		splitToolEnabled,
-		onToggleSplitTool,
 		searchRevealRequest,
 		state,
 		model,
@@ -80,20 +83,26 @@ export default function TimelineController({
 		model,
 	});
 	const hitTesting = useTimelineHitTesting({ state, model });
+	const splitToolActive = Boolean(splitToolEnabled || splitToolMomentary);
 	const pointerFinish = useTimelinePointerFinish({
 		controller,
 		snapshot,
+		splitToolActive,
 		onRevealProjectBin,
 		state,
 		model,
 		hitTesting,
 		menuActions,
 	});
-	const splitToolActive = Boolean(splitToolEnabled || state.splitToolHeld);
+	const toolPrecedence = resolveTimelineToolPrecedence({
+		automationToolEnabled,
+		spectralBrushEnabled,
+		splitToolActive,
+	});
 	const pointerStart = useTimelinePointerStart({
 		controller,
 		snapshot,
-		automationToolEnabled,
+		automationToolEnabled: toolPrecedence.automationToolEnabled,
 		showArmControls,
 		automationVisibleTrackIds: automationControls.visibleTrackIds,
 		splitToolActive,
@@ -110,6 +119,7 @@ export default function TimelineController({
 	const pointerMove = useTimelinePointerMove({
 		controller,
 		snapshot,
+		splitToolActive,
 		state,
 		model,
 		hitTesting,
@@ -163,13 +173,14 @@ export default function TimelineController({
 		scrollRef: state.scrollRef,
 		timelineScrollRef: state.timelineScrollRef,
 		addTrackTriggerRef: state.addTrackTriggerRef,
-		spectralBrushEnabled,
+		spectralBrushEnabled: toolPrecedence.spectralBrushEnabled,
 	};
 	const actions = {
 		...menuActions,
 		editBlock,
 		mutationsBlocked,
 		splitToolActive,
+		showAutomationOverlay: toolPrecedence.showAutomationOverlay,
 		closeAddTrackFlyout: state.closeAddTrackFlyout,
 		setTrackMenu: state.setTrackMenu,
 		setOutputMenu: state.setOutputMenu,
@@ -196,7 +207,7 @@ export default function TimelineController({
 			trackHeaderDrawer={trackHeaderDrawer}
 			showArmControls={showArmControls}
 			displayAudioSupported={displayAudioSupported}
-			automationToolEnabled={automationToolEnabled}
+			automationToolEnabled={toolPrecedence.automationToolEnabled}
 			automationRuntime={automationRuntime}
 			automationControls={automationControls}
 			geometry={geometry}

@@ -16,10 +16,15 @@ import {
 } from '../i18n/action-parity.js';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
 import { audacitySpectrogramTrackSelected } from './audacity-action-enablement.ts';
-import { createAudacityShortcutCommandInventory } from './audacity-shortcut-command-inventory.ts';
+import { audacityShortcutCommandDisabled } from './audacity-shortcut-command-inventory.ts';
+import { selectAudioEditorEditBlock } from './edit-blocking.ts';
 import { audioTrackChannelCount } from './project-audio-factory.js';
 import { AUDACITY_ACTION_ALIASES } from './audacity-action-aliases.js';
 import { AUDACITY_ACTION_DEFINITIONS, AUDACITY_ACTION_STATUS } from './audacity-action-inventory.js';
+import {
+	AUDACITY_SHORTCUT_BINDINGS_BY_ACTION,
+	audioEditorPrimaryShortcut,
+} from './audacity-shortcut-bindings.ts';
 
 export const AUDACITY_ACTION_SOURCE = deepFreeze({
 	version: '4.0.0',
@@ -81,7 +86,11 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	const selectedTracks = selectedTrackIds.map((trackId) => tracks.find((track) => track.id === trackId)).filter(Boolean);
 	const selectedTrack = selectedTracks[0] || null;
 	const selectedAudioTrack = selectedTracks.find((track) => track.type === 'audio') || null;
+	const focusedTrack = tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
+	const selectedMediaTrack = (selection.trackIds?.length ? selection.trackIds : [snapshot.selectedTrackId])
+		.some((id) => tracks.some((track) => track.id === id && track.type !== 'label'));
 	const selectedClip = selectedClips[0] || null;
+	const selectedAudioClip = selectedClip?.kind === 'audio' ? selectedClip : null;
 	const timeSelection = Number.isSafeInteger(selection.startFrame)
 		&& Number.isSafeInteger(selection.endFrame)
 		&& selection.endFrame > selection.startFrame;
@@ -93,14 +102,15 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 	const projectWritable = projectOpened && !snapshot.readOnly;
 	const recording = Boolean(snapshot.recording || snapshot.recordingStarting || telemetry.recording);
 	const playing = telemetry.transportState === 'playing';
-	const editingBlocked = !projectWritable
-		|| Boolean(snapshot.importing || recording || snapshot.exporting || snapshot.processingEffect || snapshot.sampleEdit?.processing);
-	const editable = projectWritable && !editingBlocked;
+	const editable = projectWritable && !selectAudioEditorEditBlock(snapshot).blocked && !telemetry.recording;
 	const projectHasAudio = tracks.some((track) => track.type === 'audio' && track.clipIds?.length);
 	const audioSelection = timeSelection && Boolean(selectedAudioTrack || projectHasAudio);
 	const realtimeEffectId = resolvedContext?.realtimeEffectId || null;
 	const realtimeEffects = selectedAudioTrack?.effects || [];
 	const realtimeEffectIndex = realtimeEffects.findIndex((effect) => effect.id === realtimeEffectId);
+	const selectedClipPitchCents = Number.isFinite(Number(selectedAudioClip?.pitchCents))
+		? Number(selectedAudioClip.pitchCents)
+		: 0;
 	const effectOpened = typeof resolvedContext?.effectOpened === 'boolean'
 		? resolvedContext.effectOpened
 		: ['selection-effect', 'generator'].includes(ui.request?.payload?.surface);
@@ -118,6 +128,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		never: false,
 		'project-opened': projectOpened,
 		'project-writable': projectWritable,
+		'editable-project': editable,
 		'project-writable-and-not-recording': projectWritable && !recording,
 		'project-has-audio': projectHasAudio,
 		'recent-projects': Boolean(snapshot.recentProjects?.length),
@@ -129,6 +140,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'audio-selection-or-clip': audioSelection || Boolean(selectedClip),
 		'editable-selection': editable && audioSelection,
 		'editable-selection-or-clip': editable && (audioSelection || Boolean(selectedClip)),
+		'playing-or-editable-clip-or-project-cursor': playing || (projectOpened && (!selectedClip || editable)),
 		'clipboard-and-project-writable': projectWritable && Boolean(snapshot.history?.hasClipboard),
 		'clip-selected': Boolean(selectedClip),
 		'editable-clip-selected': editable && Boolean(selectedClip),
@@ -139,6 +151,9 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'editable-track-selected': editable && Boolean(selectedTrack),
 		'audio-track-selected': Boolean(selectedAudioTrack),
 		'editable-audio-track-selected': editable && Boolean(selectedAudioTrack),
+		'editable-selected-media-tracks': editable && selectedMediaTrack,
+		'editable-focused-audio-track': editable && focusedTrack?.type === 'audio',
+		'editable-focused-media-track': editable && Boolean(focusedTrack && focusedTrack.type !== 'label'),
 		'stereo-track-selected': audioTrackChannelCount(project, selectedAudioTrack) === 2,
 		'compatible-mono-tracks': editable && audioTrackChannelCount(project, selectedAudioTrack) === 1 && tracks.some((track) => (
 			track.id !== selectedAudioTrack.id && track.type === 'audio' && audioTrackChannelCount(project, track) === 1
@@ -154,6 +169,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'spectrogram-track-selected': audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
 		'editable-spectrogram-track-selected': editable && audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot),
 		'editable-frequency-selection': editable && Boolean(selectedAudioTrack) && frequencySelection,
+		'sample-pencil-available': editable && Boolean(selectedAudioClip) && snapshot.sampleEdit?.available === true,
 		'repeatable-effect-and-editable-selection': editable && (audioSelection || Boolean(selectedClip)) && Boolean(snapshot.effects?.canRepeatLast),
 		'repeatable-generator': editable && Boolean(snapshot.generators?.canRepeatLast),
 		'repeatable-analyzer': projectHasAudio && Boolean(snapshot.analysisRepeatable),
@@ -163,6 +179,12 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'realtime-effect-selected': realtimeEffectIndex >= 0,
 		'realtime-effect-can-move-up': realtimeEffectIndex > 0,
 		'realtime-effect-can-move-down': realtimeEffectIndex >= 0 && realtimeEffectIndex < realtimeEffects.length - 1,
+		'contextual-pitch-or-effect-up': realtimeEffectId
+			? realtimeEffectIndex > 0
+			: editable && Boolean(selectedAudioClip) && selectedClipPitchCents <= 1_100,
+		'contextual-pitch-or-effect-down': realtimeEffectId
+			? realtimeEffectIndex >= 0 && realtimeEffectIndex < realtimeEffects.length - 1
+			: editable && Boolean(selectedAudioClip) && selectedClipPitchCents >= -1_100,
 	};
 	if (!Object.hasOwn(predicates, enableWhen)) throw new ReferenceError(`Unknown Audacity enableWhen predicate: ${enableWhen}.`);
 	return Boolean(predicates[enableWhen]);
@@ -188,6 +210,7 @@ export function resolveAudacityActionHandler(id, actionRuntime) {
 		candidate = candidate[segment];
 	}
 	if (typeof candidate !== 'function') return null;
+	if (definition.handler === 'track.audacityMixer') return () => candidate(definition.id);
 	if (!match.dynamic || match.template) return candidate;
 	if (!match.valid) return null;
 	return () => candidate(...match.parameters);
@@ -223,6 +246,7 @@ export function applyAudacityParityToMenus(menus, {
 	materializeDisabled = false,
 	actionRuntime = null,
 	actionContext,
+	shortcuts = null,
 } = {}) {
 	if (!Array.isArray(menus)) throw new TypeError('menus must be an array.');
 	const completeMenus = materializeDisabled
@@ -239,10 +263,11 @@ export function applyAudacityParityToMenus(menus, {
 		actionRuntime,
 		resolvedContext,
 		normalizedLocale === 'en',
+		shortcuts,
 	)).filter(Boolean));
 }
 
-function decorateMenuItem(item, localization, actionRuntime, actionContext, canonicalEnglish) {
+function decorateMenuItem(item, localization, actionRuntime, actionContext, canonicalEnglish, shortcuts) {
 	if (!item || typeof item !== 'object') throw new TypeError('Each menu item must be an object.');
 	if (item.divider) return { ...item };
 	if (item.id && AUDACITY_ACTION_MANIFEST[item.id]?.menuVisible === false) return null;
@@ -256,6 +281,7 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 			actionRuntime,
 			actionContext,
 			canonicalEnglish,
+			shortcuts,
 		)).filter(Boolean))
 		: undefined;
 	const result = { ...item };
@@ -264,6 +290,11 @@ function decorateMenuItem(item, localization, actionRuntime, actionContext, cano
 	if (definition) {
 		result.parityActionId = definition.id;
 		result.parityStatus = definition.status;
+		const bindings = shortcuts === null
+			? AUDACITY_SHORTCUT_BINDINGS_BY_ACTION[definition.id]
+			: shortcuts?.[definition.id];
+		if (bindings?.length) result.shortcut = bindings.join(', ');
+		else if (shortcuts !== null || definition.origin === 'upstream') delete result.shortcut;
 		// The reviewed parity manifest owns upstream command labels. Keeping a
 		// second label at every menu call site caused Audacity wording to drift.
 		// Value-bearing query actions (for example a concrete sample rate) and
@@ -444,20 +475,14 @@ export function materializeAudacityDisabledMenuActions(menus, { locale = 'en', c
 }
 
 /**
- * Build the searchable shortcut/command inventory from the pinned manifest,
- * while keeping product capability filters out of this allowlisted policy file.
+ * Apply product capability filters without loading the Preferences-only collector.
+ *
+ * @param {string} id
+ * @param {readonly string[]} [disabledCommandIds]
  */
-export const {
-	collectAudacityShortcutCommands,
-	isAudacityShortcutCommandDisabled,
-} = createAudacityShortcutCommandInventory({
-	manifest: AUDACITY_ACTION_MANIFEST,
-	status: AUDACITY_ACTION_STATUS,
-	normalizeLocale: normalizeBcp47Locale,
-	localizedLabel: localizedParityLabel,
-	localizedReason: localizedAudacityReason,
-	resolveDefinition: audacityActionDefinition,
-});
+export function isAudacityShortcutCommandDisabled(id, disabledCommandIds = []) {
+	return audacityShortcutCommandDisabled(audacityActionDefinition, id, disabledCommandIds);
+}
 
 function menuItemMatchesManifestLabel(item, label) {
 	return item?.label === label || item?.parityLabel === label || audacityActionDefinition(item?.id)?.label === label;
@@ -500,7 +525,11 @@ function toManifest(entries) {
 	const manifest = {};
 	for (const entry of entries) {
 		if (manifest[entry.id]) throw new Error(`Duplicate Audacity action ID: ${entry.id}.`);
-		manifest[entry.id] = entry;
+		manifest[entry.id] = {
+			...entry,
+			shortcut: audioEditorPrimaryShortcut(entry.id)
+				|| (entry.origin === 'local' ? entry.shortcut : null),
+		};
 	}
 	return manifest;
 }

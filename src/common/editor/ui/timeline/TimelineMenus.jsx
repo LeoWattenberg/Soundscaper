@@ -288,6 +288,7 @@ export function TimelineMenus({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.split}
 					label={copy.split}
+					shortcuts={snapshot.preferences?.shortcuts}
 					disabled={mutationsBlocked || !menuClip}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
@@ -368,6 +369,7 @@ export function TimelineMenus({
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.remove}
 					label={copy.deleteClip || copy.liftDelete}
+					shortcuts={snapshot.preferences?.shortcuts}
 					disabled={mutationsBlocked || !menuClip}
 					disabledReason={unavailableReason}
 					locale={contextLocale}
@@ -384,6 +386,7 @@ function renderTrackMenuItem(item, index, setTrackMenu) {
 	return <ContextMenuItem
 		key={item.id || `${item.label}-${index}`}
 		label={item.label}
+		shortcut={item.shortcut}
 		checked={item.checked}
 		disabled={item.disabled}
 		onClick={item.onClick}

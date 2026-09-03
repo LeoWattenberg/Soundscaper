@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { getLocaleDescriptor } from '../../i18n/locales.js';
 import { searchAudioEditorEntries } from '../search.js';
+import {
+	isWorkspaceModalShortcutTarget,
+	matchesAudioEditorShortcutBinding,
+} from './workspace-shortcuts.ts';
 
 const SEARCH_LIMIT = 50;
 const EMPTY_GROUP_LIMIT = 4;
@@ -12,15 +16,6 @@ const SEARCH_GROUPS = Object.freeze([
 ]);
 
 const text = (copy, key, fallback) => copy?.[key] || fallback;
-
-function isModalShortcutTarget(target) {
-	if (typeof target?.closest !== 'function') return false;
-	if (target.closest('[role="dialog"]') !== null) return true;
-	const body = target.ownerDocument?.body;
-	return typeof body?.querySelectorAll === 'function'
-		&& [...body.querySelectorAll('[aria-modal="true"]')]
-			.some((candidate) => candidate.getAttribute('role') === 'dialog');
-}
 
 function formatCount(copy, count) {
 	return text(copy, 'editorSearchResultCount', '{count} search results').replace('{count}', String(count));
@@ -159,17 +154,9 @@ export default function AudioEditorSearch({
 
 	useEffect(() => {
 		const openFromShortcut = (event) => {
-			if (isModalShortcutTarget(event.target)) return;
-			const commandFind = event.key.toLowerCase() === 'f'
-				&& (event.ctrlKey || event.metaKey)
-				&& !event.altKey
-				&& !event.shiftKey;
-			const plainF3 = event.key === 'F3'
-				&& !event.ctrlKey
-				&& !event.metaKey
-				&& !event.altKey
-				&& !event.shiftKey;
-			if (!commandFind && !plainF3) return;
+			if (isWorkspaceModalShortcutTarget(event.target)) return;
+			const commandFind = matchesAudioEditorShortcutBinding(event, 'Ctrl+K');
+			if (!commandFind) return;
 			event.preventDefault();
 			event.stopPropagation();
 			requestOpen(event.target);
@@ -296,7 +283,7 @@ export default function AudioEditorSearch({
 						}}
 						onKeyDown={onInputKeyDown}
 					/>
-					<kbd aria-hidden="true">{text(copy, 'editorSearchShortcut', 'Ctrl/⌘ F')}</kbd>
+					<kbd aria-hidden="true">{text(copy, 'editorSearchShortcut', 'Ctrl/⌘ K')}</kbd>
 				</div>
 
 				{open && (

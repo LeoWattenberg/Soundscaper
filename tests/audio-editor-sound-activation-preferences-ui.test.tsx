@@ -52,6 +52,37 @@ test('record flyout includes real Soundscaper actions and omits them for Framesc
 	assert.doesNotMatch(framescaper, /Set activation level/u);
 });
 
+test('record flyout labels every recording command with its configured shortcut bindings', () => {
+	const markup = renderRecordFlyout('soundscaper', {
+		'record-on-current-track': ['Alt+R', 'Ctrl+R'],
+		'record-on-new-track': ['Ctrl+Shift+R'],
+		'action://playback/toggle-play-stop': ['K', 'Space'],
+		'action://record/lead-in-recording': ['Shift+L', 'Alt+L'],
+		'set-up-timed-recording': ['Ctrl+T'],
+	});
+
+	assertShortcut(markup, ENGLISH_COPY.record, 'Alt+R, Ctrl+R');
+	assertShortcut(markup, ENGLISH_COPY.recordNewTrack, 'Ctrl+Shift+R');
+	assertShortcut(markup, ENGLISH_COPY.stop, 'K, Space');
+	assertShortcut(markup, ENGLISH_COPY.leadInTime, 'Shift+L, Alt+L');
+	assertShortcut(markup, ENGLISH_COPY.timedRecording, 'Ctrl+T');
+});
+
+test('record flyout does not advertise a shortcut for an unbound command', () => {
+	const markup = renderRecordFlyout('soundscaper', {
+		'record-on-current-track': ['R'],
+		'action://playback/toggle-play-stop': ['Space'],
+		'action://record/lead-in-recording': ['Shift+D'],
+		'set-up-timed-recording': ['Shift+T'],
+	});
+
+	assert.doesNotMatch(markup, /Shift\+R/u);
+	assert.doesNotMatch(
+		markup,
+		new RegExp(`<span class="context-menu-item-label">${ENGLISH_COPY.recordNewTrack}</span><span class="context-menu-item-shortcut">`, 'u'),
+	);
+});
+
 function render(
 	readOnly: boolean,
 	soundActivation: SoundActivationPolicySnapshot,
@@ -90,7 +121,10 @@ function policy(
 	});
 }
 
-function renderRecordFlyout(productId: string): string {
+function renderRecordFlyout(
+	productId: string,
+	shortcuts: Readonly<Record<string, readonly string[]>> = {},
+): string {
 	const action = () => undefined;
 	const runtimeGlobal = globalThis as typeof globalThis & { React?: typeof React };
 	const priorReact = Object.getOwnPropertyDescriptor(runtimeGlobal, 'React');
@@ -99,6 +133,7 @@ function renderRecordFlyout(productId: string): string {
 		copy: ENGLISH_COPY,
 		snapshot: {
 			productId,
+			preferences: { shortcuts },
 			readOnly: false,
 			recording: false,
 			recordingStarting: false,
@@ -132,4 +167,10 @@ function renderRecordFlyout(productId: string): string {
 		if (priorReact) Object.defineProperty(runtimeGlobal, 'React', priorReact);
 		else Reflect.deleteProperty(runtimeGlobal, 'React');
 	}
+}
+
+function assertShortcut(markup: string, label: string, shortcut: string): void {
+	assert.ok(markup.includes(
+		`<span class="context-menu-item-label">${label}</span><span class="context-menu-item-shortcut">${shortcut}</span>`,
+	), `${label} should advertise ${shortcut}`);
 }

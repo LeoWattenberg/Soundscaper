@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createClipTrimPreview } from './interaction-helpers.js';
@@ -10,9 +10,12 @@ import { resolveTimelineSlipSlidePointerPreview } from './slip-slide-pointer-rou
 import { samplePointAtPointer } from './track-row-helpers.jsx';
 import { resolveTimelineTrimPointerPreview } from './trim-pointer-routing.ts';
 
+const NOOP = () => undefined;
+
 export function useTimelinePointerMove({
 	controller,
 	snapshot,
+	splitToolActive,
 	state,
 	model,
 	hitTesting,
@@ -29,6 +32,7 @@ export function useTimelinePointerMove({
 		setTrackResizePreview,
 		setLoopPreview,
 		setSelectionPreview,
+		setSplitToolGuideline = NOOP,
 	} = state;
 	const {
 		project,
@@ -45,9 +49,79 @@ export function useTimelinePointerMove({
 		trackAtClientY,
 	} = hitTesting;
 	const { run } = menuActions;
+	const splitToolGuidelineRuntimeRef = useRef(
+		/** @type {typeof import('./split-tool-guideline.ts') | null} */ (null),
+	);
+	const splitToolHoverRef = useRef(null);
+	const splitToolGuidelineRef = useRef(null);
+	const clearSplitToolGuideline = useCallback(() => {
+		splitToolHoverRef.current = null;
+		splitToolGuidelineRef.current = null;
+		setSplitToolGuideline(null);
+	}, [setSplitToolGuideline]);
+	const resolveCurrentSplitToolGuideline = useCallback(() => {
+		const hover = splitToolHoverRef.current;
+		const runtime = splitToolGuidelineRuntimeRef.current;
+		return hover && runtime ? runtime.resolveSplitToolHoverGuideline({
+			...hover,
+			frameAtClientX,
+			pixelsPerSecond,
+			project,
+			sampleRate,
+			scrollRoot: scrollRef.current,
+		}) : null;
+	}, [frameAtClientX, pixelsPerSecond, project, sampleRate, scrollRef]);
+
+	useEffect(() => {
+		let subscribed = true;
+		if (!splitToolActive && splitToolHoverRef.current?.allTracks) {
+			splitToolHoverRef.current = { ...splitToolHoverRef.current, allTracks: false };
+		}
+		const currentGuideline = splitToolActive ? resolveCurrentSplitToolGuideline() : null;
+		splitToolGuidelineRef.current = currentGuideline;
+		setSplitToolGuideline((current) => sameSplitToolGuideline(current, currentGuideline)
+			? current
+			: currentGuideline);
+		if (splitToolActive && !splitToolGuidelineRuntimeRef.current) {
+			void import('./split-tool-guideline.ts').then((runtime) => {
+				if (!subscribed) return;
+				splitToolGuidelineRuntimeRef.current = runtime;
+				const loadedGuideline = resolveCurrentSplitToolGuideline();
+				splitToolGuidelineRef.current = loadedGuideline;
+				setSplitToolGuideline((current) => sameSplitToolGuideline(current, loadedGuideline)
+					? current
+					: loadedGuideline);
+			});
+		}
+		const setAllTracks = (allTracks) => {
+			if (splitToolHoverRef.current) {
+				splitToolHoverRef.current = { ...splitToolHoverRef.current, allTracks };
+			}
+			const guideline = splitToolGuidelineRuntimeRef.current?.setSplitToolGuidelineAllTracks(
+				splitToolGuidelineRef.current,
+				allTracks,
+			) ?? splitToolGuidelineRef.current;
+			splitToolGuidelineRef.current = guideline;
+			if (splitToolActive) setSplitToolGuideline(guideline);
+		};
+		const updateShiftSpan = (event) => {
+			if (event.key === 'Shift') setAllTracks(event.type === 'keydown');
+		};
+		const resetShiftSpan = () => setAllTracks(false);
+		globalThis.addEventListener('keydown', updateShiftSpan, true);
+		globalThis.addEventListener('keyup', updateShiftSpan, true);
+		globalThis.addEventListener('blur', resetShiftSpan);
+		return () => {
+			subscribed = false;
+			globalThis.removeEventListener('keydown', updateShiftSpan, true);
+			globalThis.removeEventListener('keyup', updateShiftSpan, true);
+			globalThis.removeEventListener('blur', resetShiftSpan);
+		};
+	}, [resolveCurrentSplitToolGuideline, setSplitToolGuideline, splitToolActive]);
 
 	const onPointerMove = useCallback((event) => {
 		if (touchPointers.current.has(event.pointerId)) {
+			clearSplitToolGuideline();
 			touchPointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
 			if (touchPointers.current.size === 2 && pinchSession.current) {
 				event.preventDefault();
@@ -70,6 +144,24 @@ export function useTimelinePointerMove({
 			return;
 		}
 		const session = pointerSession.current;
+		const runtime = splitToolGuidelineRuntimeRef.current;
+		const lane = runtime ? runtime.resolveSplitToolPointerLane(
+			event.target, event.clientY, scrollRef.current,
+			session?.kind === 'split' ? session.lane : null,
+		) : event.target?.closest?.('.audio-editor-track-lane[data-track-lane]')
+			?? (session?.kind === 'split' ? session.lane : null);
+		splitToolHoverRef.current = lane ? {
+			allTracks: event.shiftKey,
+			clientX: event.clientX,
+			lane,
+		} : null;
+		const guideline = splitToolActive ? resolveCurrentSplitToolGuideline() : null;
+		splitToolGuidelineRef.current = guideline;
+		if (splitToolActive) {
+			setSplitToolGuideline((current) => sameSplitToolGuideline(current, guideline)
+				? current
+				: guideline);
+		}
 		if (session?.kind === 'track-resize') {
 			const delta = (event.clientY - session.startY) * (session.edge === 'top' ? -1 : 1);
 			const visualHeight = Math.max(
@@ -287,7 +379,18 @@ export function useTimelinePointerMove({
 				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
 			}
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, run, sampleRate, setDraggingClipIds, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, trackAtClientY]);
+	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
 
-	return { onPointerMove };
+	return { onPointerMove, clearSplitToolGuideline };
+}
+
+function sameSplitToolGuideline(left, right) {
+	if (left === right) return true;
+	if (!left || !right) return false;
+	return left.frame === right.frame
+		&& left.allTracks === right.allTracks
+		&& left.singleTop === right.singleTop
+		&& left.singleHeight === right.singleHeight
+		&& left.allTop === right.allTop
+		&& left.allHeight === right.allHeight;
 }

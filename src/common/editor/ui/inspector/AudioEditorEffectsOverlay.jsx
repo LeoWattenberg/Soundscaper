@@ -10,6 +10,7 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import EffectPresetBar from './EffectPresetBar.jsx';
 import EffectParameterEditor from './EffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
+import { createAudacityRealtimeEffectShortcutHandler } from './audacity-realtime-effect-shortcut.ts';
 import { SteppedSlider } from './inspector-controls.jsx';
 import {
 	effectHasEditableSettings,
@@ -315,6 +316,11 @@ export function AudioEditorEffectsOverlay({
 			}
 		});
 	};
+	const handleRackShortcut = createAudacityRealtimeEffectShortcutHandler(
+		controller.actions.effects.reorder,
+		channel ? { effects: channelEffects, scope, targetId } : null,
+		masterEffects, snapshot.preferences?.shortcuts, blocked,
+	);
 	const copyStack = () => {
 		controller.actions.effects.copyStack(stackMenu.scope, menuTrackId);
 		setMessage(copy.effectsCopied);
@@ -343,7 +349,7 @@ export function AudioEditorEffectsOverlay({
 				data-open={isOpen ? 'true' : 'false'}
 				data-layout={layout}
 			>
-				<div ref={rackRef} data-effect-rack>
+				<div ref={rackRef} data-effect-rack onKeyDownCapture={handleRackShortcut}>
 					<EffectsPanel
 						isOpen={isOpen}
 						autoFocusOnOpen={autoFocusOnOpen}

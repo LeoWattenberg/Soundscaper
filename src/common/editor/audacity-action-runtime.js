@@ -1,6 +1,8 @@
 import { projectDurationFrames } from './project.js';
+import { audacityTimelineStepFrame, createAudacityCursorActionRuntime, freezeAudacityActionTree } from './audacity-action-runtime-helpers.ts';
 import { NYQUIST_BUNDLED_PLUGINS } from './nyquist/plugin-registry.js';
-import { createAudacitySpectralActionRuntime } from './controller/audacity-spectral-action-runtime.ts';
+import { createAudacityClipPitchActionRuntime, createAudacityToolActionRuntime } from './controller/audacity-tool-action-runtime.ts';
+import { advanceAudacityTrackSelection, audacityToggledTrackSelection, audacityTrackRangeSelection } from './audacity-track-selection.ts';
 import { documentationUrl } from './documentation-links.ts';
 import { createTransportActionGroup } from './audacity-action-runtime-transport.js';
 const STAFFPAD_EFFECT_TYPES = Object.freeze({
@@ -14,6 +16,7 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	halfWave: false,
 	masterTrack: false,
 	selectionToolbar: true,
+	automationTool: false,
 	spectralBrush: false,
 	splitTool: false,
 	statusbar: true,
@@ -172,18 +175,18 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		return panel;
 	};
 	const setSelection = (startFrame, endFrame, details = {}) => controllerActions.timeline.setSelection(startFrame, endFrame, details);
-	const spectralTools = createAudacitySpectralActionRuntime({
-		getProject: project,
-		setSelection,
-		spectralActions: controllerActions.spectral,
-		openSurface,
-		getUiFlags: () => uiController.getSnapshot().flags,
-		setUiFlag: ui.setFlag,
+	const tools = createAudacityToolActionRuntime({
+		getSnapshot: snapshot, setSampleEditMode: controllerActions.sampleEdit.setMode,
+		getProject: project, setSelection, spectralActions: controllerActions.spectral, openSurface,
+		getUiFlags: () => uiController.getSnapshot().flags, setUiFlag: ui.setFlag,
 	});
+	const clipPitch = createAudacityClipPitchActionRuntime({ getSelectedClip: selectedClip, setTimePitch: controllerActions.clip.setTimePitch });
 	const selectEntireProject = () => setSelection(0, projectDurationFrames(project()));
-	const nudgeFrames = () => 1;
+	const nudgeFrame = (frame, direction) => audacityTimelineStepFrame(frame, direction, project(), snapshot().timeline?.pixelsPerSecond);
+	const cursorActions = createAudacityCursorActionRuntime(controller, project, setSelection, nudgeFrame);
+	const navigateItem = (action) => import('./audacity-shortcut-actions/item-navigation.ts')
+		.then(({ applyAudacityItemNavigationAction }) => applyAudacityItemNavigationAction(action, controller));
 	let alternateZoom = 240;
-
 	function openEffect(type = null) {
 		if (type) controllerActions.effects.setSelectionType(type);
 		return openSurface('selection-effect', type ? { type } : {});
@@ -199,63 +202,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		return controllerActions.clip.update(clip.id, changes);
 	}
 
-	function updateSelectedTrack(changes) {
-		const track = selectedTrack();
-		if (!track) return null;
-		return controllerActions.track.update(track.id, changes);
-	}
-
-	function moveSelectedClip(deltaFrames, trackDelta = 0) {
-		const clip = selectedClip();
-		const currentProject = project();
-		if (!clip || !currentProject) return null;
-		const currentTrackIndex = currentProject.tracks.findIndex((track) => track.clipIds?.includes(clip.id));
-		const currentTrack = currentProject.tracks[currentTrackIndex];
-		const targetType = clip.kind || currentTrack?.type;
-		let targetTrackIndex = Math.max(0, Math.min(currentProject.tracks.length - 1, currentTrackIndex + trackDelta));
-		while (
-			targetTrackIndex >= 0
-			&& targetTrackIndex < currentProject.tracks.length
-			&& currentProject.tracks[targetTrackIndex]?.type !== targetType
-		) {
-			targetTrackIndex += Math.sign(trackDelta);
-		}
-		const targetTrack = currentProject.tracks[targetTrackIndex];
-		if (!targetTrack || targetTrack.type === 'label') return null;
-		return controllerActions.clip.move(
-			clip.id,
-			targetTrack.id,
-			Math.max(0, clip.timelineStartFrame + deltaFrames),
-		);
-	}
-
-	function trimSelectedClip(edge, deltaFrames) {
-		const clip = selectedClip();
-		const source = project()?.sources?.find((candidate) => candidate.id === clip?.sourceId);
-		if (!clip || !source) return null;
-		const sourceDurationFrames = clip.sourceDurationFrames || clip.durationFrames;
-		const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
-		if (edge === 'left') {
-			const sourceExtension = clip.reversed
-				? source.frameCount - clip.sourceStartFrame - sourceDurationFrames
-				: clip.sourceStartFrame;
-			const timelineExtension = Math.floor(sourceExtension / sourceFramesPerTimelineFrame);
-			const delta = Math.max(
-				-Math.min(clip.timelineStartFrame, timelineExtension),
-				Math.min(clip.durationFrames - 1, deltaFrames),
-			);
-			return controllerActions.clip.trim(clip.id, {
-				timelineStartFrame: clip.timelineStartFrame + delta,
-				durationFrames: clip.durationFrames - delta,
-			});
-		}
-		const sourceExtension = clip.reversed
-			? clip.sourceStartFrame
-			: source.frameCount - clip.sourceStartFrame - sourceDurationFrames;
-		const maximumGrowth = Math.max(0, Math.floor(sourceExtension / sourceFramesPerTimelineFrame));
-		const delta = Math.max(-(clip.durationFrames - 1), Math.min(maximumGrowth, deltaFrames));
-		return controllerActions.clip.trim(clip.id, { durationFrames: clip.durationFrames + delta });
-	}
+	function updateSelectedTrack(changes) { const track = selectedTrack(); return track ? controllerActions.track.update(track.id, changes) : null; }
 
 	function selectRelativeClip(direction) {
 		const clips = [...(project()?.clips || [])].sort((left, right) => (
@@ -267,39 +214,37 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		controllerActions.timeline.selectClip(next.id);
 		return next.id;
 	}
-
 	function selectRelativeTrack(direction, mode = 'replace') {
-		const tracks = project()?.tracks || [];
+		const currentProject = project();
+		const tracks = currentProject?.tracks || [];
 		if (!tracks.length) return null;
-		const current = Math.max(0, tracks.findIndex((track) => track.id === snapshot().selectedTrackId));
+		const current = Math.max(0, tracks.findIndex((track) => track.id === selectedTrackId()));
 		const next = tracks[Math.max(0, Math.min(tracks.length - 1, current + direction))];
-		const selection = project().selection || { startFrame: 0, endFrame: 0, trackIds: [] };
 		if (mode === 'extend') {
-			const trackIds = [...new Set([...(selection.trackIds || []), next.id])];
-			setSelection(selection.startFrame, selection.endFrame, { trackIds });
+			const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
+			const advanced = advanceAudacityTrackSelection({ trackIds: tracks.map(({ id }) => id), focusedTrackId: selectedTrackId(), selectedTrackIds: selection.trackIds || [], direction });
+			if (!advanced) return null;
+			controllerActions.timeline.selectTrack(advanced.focusedTrackId);
+			setSelection(selection.startFrame, selection.endFrame, { trackIds: advanced.selectedTrackIds });
+			return advanced.focusedTrackId;
 		} else controllerActions.timeline.selectTrack(next.id);
 		return next.id;
 	}
-
 	function toggleCurrentTrackSelection(mode = 'toggle') {
 		const track = selectedTrack();
 		if (!track) return null;
-		const selection = project().selection || { startFrame: 0, endFrame: 0, trackIds: [] };
-		const currentIds = selection.trackIds || [];
-		const trackIds = mode === 'replace'
-			? [track.id]
-			: currentIds.includes(track.id)
-				? currentIds.filter((id) => id !== track.id)
-				: [...currentIds, track.id];
+		const currentProject = project();
+		const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
+		const trackIds = audacityToggledTrackSelection({ trackIds: currentProject.tracks.map(({ id }) => id), focusedTrackId: track.id, selectedTrackIds: selection.trackIds || [] }, mode);
 		return setSelection(selection.startFrame, selection.endFrame, { trackIds });
 	}
-
-	function adjustSelection(edge, deltaFrames) {
-		const selection = project()?.selection || { startFrame: 0, endFrame: 0 };
-		if (edge === 'left') return setSelection(Math.max(0, selection.startFrame + deltaFrames), selection.endFrame);
-		return setSelection(selection.startFrame, Math.max(selection.startFrame, selection.endFrame + deltaFrames));
+	function selectCurrentTrackRange() {
+		const currentProject = project();
+		if (!currentProject) return null;
+		const selection = currentProject.selection || { startFrame: 0, endFrame: 0, trackIds: [] };
+		const trackIds = audacityTrackRangeSelection({ trackIds: currentProject.tracks.map(({ id }) => id), focusedTrackId: selectedTrackId(), selectedTrackIds: selection.trackIds || [] });
+		return setSelection(selection.startFrame, selection.endFrame, { trackIds });
 	}
-
 	function removeRealtimeEffect(effectId = null) {
 		const track = selectedTrack();
 		const effect = selectedRackEffect(effectId);
@@ -312,7 +257,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		const effect = selectedRackEffect(effectId);
 		if (!track || !effect) return null;
 		const index = track.effects.findIndex((candidate) => candidate.id === effect.id);
-		return controllerActions.effects.reorder('track', track.id, effect.id, Math.max(0, index + direction));
+		const targetIndex = index + direction;
+		return targetIndex >= 0 && targetIndex < track.effects.length
+			? controllerActions.effects.reorder('track', track.id, effect.id, targetIndex)
+			: null;
 	}
 
 	function addRealtimeEffect(type, replaceEffectId = null) {
@@ -334,7 +282,6 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			...controllerActions.project,
 			openRecent: (projectId = null) => projectId ? controllerActions.project.openById(projectId) : controllerActions.project.list(),
 			clearRecent: () => controllerActions.project.clearRecent?.() || ui.issue('clear-recent-projects'),
-			saveAs: (saveOptions) => controllerActions.project.saveAup4(saveOptions),
 		},
 		io: {
 			importAudio: (files = null) => files ? controllerActions.project.importFiles(files) : ui.issue('choose-audio-files'),
@@ -417,10 +364,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			cursorToTrackEnd: controllerActions.timeline.selectCursorToTrackEnd,
 			trackStartToEnd: controllerActions.timeline.selectTrackStartToEnd,
 			zeroCross: controllerActions.timeline.zeroCross,
-			extendLeft: () => adjustSelection('left', -nudgeFrames()),
-			extendRight: () => adjustSelection('right', nudgeFrames()),
-			contractLeft: () => adjustSelection('left', nudgeFrames()),
-			contractRight: () => adjustSelection('right', -nudgeFrames()),
+			extendLeft: () => navigateItem('track-view-item-extend-left'),
+			extendRight: () => navigateItem('track-view-item-extend-right'),
+			contractLeft: () => navigateItem('track-view-item-reduce-right'),
+			contractRight: () => navigateItem('track-view-item-reduce-left'),
 		},
 		timeline: {
 			...controllerActions.timeline,
@@ -442,8 +389,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			configureSnap: () => openSurface('preferences', { section: 'snap' }),
 			setSecondsRuler: () => controllerActions.project.setTimeDisplay('hh:mm:ss+milliseconds'),
 			setMusicalRuler: () => controllerActions.project.setTimeDisplay('beats+measures'),
-			nudgePlayheadLeft: () => controllerActions.transport.seek(Math.max(0, (controller.getTelemetrySnapshot?.().positionFrame || 0) - nudgeFrames())),
-			nudgePlayheadRight: () => controllerActions.transport.seek((controller.getTelemetrySnapshot?.().positionFrame || 0) + nudgeFrames()),
+			...cursorActions,
 		},
 		view: {
 			toggleClipping: () => ui.toggleFlag('clipping'),
@@ -478,6 +424,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		},
 		track: {
 			...controllerActions.track,
+			audacityMixer: (action) => import('./audacity-shortcut-actions/track-mixer.ts')
+				.then(({ applyAudacityTrackMixerAction }) => applyAudacityTrackMixerAction(
+					action, snapshot(), controllerActions.edit.commit,
+				)),
 			duplicate: (context = null) => {
 				const requestedTrackId = typeof context === 'string' ? context : context?.trackId;
 				const requestedTrack = requestedTrackId
@@ -505,14 +455,14 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			setColor: (color = 'auto') => updateSelectedTrack({ color }), openAlignMenu: () => ui.issue('open-menu', { menuId: 'tracks', itemId: 'menu-align' }), openSortMenu: () => ui.issue('open-menu', { menuId: 'tracks', itemId: 'menu-sort' }),
 		},
 		navigation: {
-			moveItemLeft: () => moveSelectedClip(-nudgeFrames()),
-			moveItemRight: () => moveSelectedClip(nudgeFrames()),
-			extendItemLeft: () => trimSelectedClip('left', -nudgeFrames()),
-			extendItemRight: () => trimSelectedClip('right', nudgeFrames()),
-			reduceItemLeft: () => trimSelectedClip('left', nudgeFrames()),
-			reduceItemRight: () => trimSelectedClip('right', -nudgeFrames()),
-			moveItemUp: () => moveSelectedClip(0, -1),
-			moveItemDown: () => moveSelectedClip(0, 1),
+			moveItemLeft: () => navigateItem('track-view-item-move-left'),
+			moveItemRight: () => navigateItem('track-view-item-move-right'),
+			extendItemLeft: () => navigateItem('track-view-item-extend-left'),
+			extendItemRight: () => navigateItem('track-view-item-extend-right'),
+			reduceItemLeft: () => navigateItem('track-view-item-reduce-left'),
+			reduceItemRight: () => navigateItem('track-view-item-reduce-right'),
+			moveItemUp: () => navigateItem('track-view-item-move-up'),
+			moveItemDown: () => navigateItem('track-view-item-move-down'),
 			nextPanel: () => ui.focusPanel(null, 'next'),
 			previousPanel: () => ui.focusPanel(null, 'previous'),
 			nextItem: () => selectRelativeClip(1),
@@ -523,7 +473,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			lastTrack: () => selectRelativeTrack(Number.MAX_SAFE_INTEGER),
 			replaceSelection: () => toggleCurrentTrackSelection('replace'),
 			toggleSelection: () => toggleCurrentTrackSelection('toggle'),
-			rangeSelection: () => toggleCurrentTrackSelection('toggle'),
+			rangeSelection: selectCurrentTrackRange,
 			extendTrackSelectionUp: () => selectRelativeTrack(-1, 'extend'),
 			extendTrackSelectionDown: () => selectRelativeTrack(1, 'extend'),
 			openContextMenu: () => ui.openContextMenu({
@@ -531,10 +481,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 				clipId: snapshot().selectedClipId,
 			}),
 		},
-		tools: {
-			...spectralTools,
-			toggleSplitTool: () => ui.toggleFlag('splitTool'),
-		},
+		tools,
 		nyquist: {
 			openPrompt: () => openSurface('nyquist', { prompt: true }),
 			openById: (pluginId = null) => openSurface('nyquist', { pluginId }),
@@ -549,8 +496,8 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			openGenerator: () => openGenerator(),
 			openRealtimeRack: () => openPanel('effects'),
 			removeRealtime: removeRealtimeEffect,
-			moveRealtimeUp: (effectId) => moveRealtimeEffect(-1, effectId),
-			moveRealtimeDown: (effectId) => moveRealtimeEffect(1, effectId),
+			moveRealtimeUp: (effectId) => typeof effectId === 'string' ? moveRealtimeEffect(-1, effectId) : clipPitch.pitchUp(),
+			moveRealtimeDown: (effectId) => typeof effectId === 'string' ? moveRealtimeEffect(1, effectId) : clipPitch.pitchDown(),
 			openById: (effectId) => openEffect(effectId),
 			addRealtimeById: (effectId) => addRealtimeEffect(effectId),
 			replaceRealtimeById: (effectId, replacedEffectId = selectedRackEffect()?.id) => addRealtimeEffect(effectId, replacedEffectId),
@@ -582,16 +529,10 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	};
 
 	return Object.freeze({
-		actions: freezeActionTree(runtime),
+		actions: freezeAudacityActionTree(runtime),
 		uiController,
 		dispose() {
 			if (!options.uiController) uiController.dispose();
 		},
 	});
-}
-
-function freezeActionTree(value) {
-	if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
-	for (const child of Object.values(value)) freezeActionTree(child);
-	return Object.freeze(value);
 }

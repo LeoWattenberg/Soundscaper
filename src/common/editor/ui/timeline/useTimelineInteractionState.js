@@ -13,11 +13,7 @@ export function useTimelineInteractionState() {
 	const touchPointers = useRef(new Map());
 	const pinchSession = useRef(null);
 	const pendingPinchAnchorRef = useRef(null);
-	const splitToolTimer = useRef(0);
-	const splitToolPress = useRef(null);
-	const splitToolHeldRef = useRef(false);
 	const waveformCacheRef = useRef(new Map());
-	const [splitToolHeld, setSplitToolHeld] = useState(false);
 	const [scrollX, setScrollX] = useState(0);
 	const [selectionPreview, setSelectionPreview] = useState(null);
 	const [loopPreview, setLoopPreview] = useState(null);
@@ -35,6 +31,7 @@ export function useTimelineInteractionState() {
 	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
 	const [trackResizePreview, setTrackResizePreview] = useState(null);
+	const [splitToolGuideline, setSplitToolGuideline] = useState(null);
 	const [projectBinDragPreview, setProjectBinDragPreview] = useState(null);
 
 	return {
@@ -48,12 +45,7 @@ export function useTimelineInteractionState() {
 		touchPointers,
 		pinchSession,
 		pendingPinchAnchorRef,
-		splitToolTimer,
-		splitToolPress,
-		splitToolHeldRef,
 		waveformCacheRef,
-		splitToolHeld,
-		setSplitToolHeld,
 		scrollX,
 		setScrollX,
 		selectionPreview,
@@ -86,6 +78,8 @@ export function useTimelineInteractionState() {
 		setClipDragPreview,
 		trackResizePreview,
 		setTrackResizePreview,
+		splitToolGuideline,
+		setSplitToolGuideline,
 		projectBinDragPreview,
 		setProjectBinDragPreview,
 	};

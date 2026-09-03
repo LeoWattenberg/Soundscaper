@@ -15,7 +15,7 @@ test.describe('effect presets Audacity ships', () => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 
-		await page.keyboard.press('Control+f');
+		await page.keyboard.press('Control+k');
 		await editor.locator('[data-editor-search-input]').fill('Reverb');
 		const reverb = editor.locator('[data-editor-search-popup] [data-editor-search-key="command:audacity-reverb"]');
 		await expect(reverb).toBeVisible();

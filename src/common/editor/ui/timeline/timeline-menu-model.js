@@ -184,7 +184,7 @@ export function createTimelineMenuModel({
 		manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.remove, copy.deleteTrack, {
 			disabled: mutationsBlocked,
 			onClick: () => run(() => controller.actions.track.remove(menuTrack.id)),
-		}, contextLocale, unavailableReason),
+		}, contextLocale, unavailableReason, snapshot.preferences?.shortcuts),
 		...trackFolderMenuItems,
 	].filter(Boolean) : [];
 	const outputMenuTarget = outputMenu?.scope === 'master'

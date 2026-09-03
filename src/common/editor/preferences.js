@@ -3,6 +3,11 @@ import {
 	AUDACITY_ACTION_STATUS,
 	resolveAudacityActionId,
 } from './audacity-action-parity.js';
+import { AUDACITY_ACTION_DEFINITIONS } from './audacity-action-inventory.js';
+import {
+	AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION,
+	AUDACITY_SHORTCUT_BINDINGS_BY_ACTION,
+} from './audacity-shortcut-bindings.ts';
 import {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
 	AUDIO_EDITOR_WORKSPACE_PRESETS,
@@ -15,12 +20,24 @@ import {
 	DEFAULT_SOUND_ACTIVATION_PREFERENCES,
 	normalizeSoundActivationPreferences,
 } from './sound-activation-preferences.ts';
+import {
+	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
+	migrateAudioEditorShortcutDefaults,
+} from './shortcut-default-migration.ts';
+import {
+	audioEditorShortcutConflictKey,
+	collectAudioEditorShortcutConflicts,
+	normalizeAudioEditorShortcut,
+} from './audio-editor-shortcut-normalization.ts';
 import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
 
 export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
+	AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
 	AUDIO_EDITOR_WORKSPACE_PRESETS,
+	audioEditorShortcutConflictKey,
+	normalizeAudioEditorShortcut,
 };
 
 export const AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION = 1;
@@ -36,19 +53,34 @@ export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
 
-const AUDIO_EDITOR_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze(Object.fromEntries(
-	Object.values(AUDACITY_ACTION_MANIFEST)
-		.filter((action) => action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED && action.shortcut)
-		.map((action) => [action.id, Object.freeze([action.shortcut])]),
-));
+const AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze({
+	...Object.fromEntries(Object.values(AUDACITY_ACTION_MANIFEST)
+		.filter((action) => (
+			action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED
+			&& action.origin === 'local'
+			&& action.shortcut
+			&& !Object.hasOwn(AUDACITY_SHORTCUT_BINDINGS_BY_ACTION, action.id)
+		))
+		.map((action) => [action.id, Object.freeze([action.shortcut])])),
+	...AUDIO_EDITOR_SUPPLEMENTAL_SHORTCUT_BINDINGS_BY_ACTION,
+});
 
 export const AUDIO_EDITOR_DEFAULT_SHORTCUTS = Object.freeze({
-	...AUDIO_EDITOR_DEFAULT_SHORTCUTS_BY_ACTION,
+	...AUDACITY_SHORTCUT_BINDINGS_BY_ACTION,
+	...AUDIO_EDITOR_LOCAL_DEFAULT_SHORTCUTS_BY_ACTION,
+});
+
+// `shortcut` metadata is the immutable pre-Audacity-profile default snapshot;
+// live defaults come from the imported binding table above.
+const AUDIO_EDITOR_SHORTCUT_DEFAULTS_V0 = Object.freeze({
+	...Object.fromEntries(AUDACITY_ACTION_DEFINITIONS
+		.filter((action) => action.status === AUDACITY_ACTION_STATUS.IMPLEMENTED && action.shortcut)
+		.map((action) => [resolveAudacityActionId(action.id), Object.freeze([action.shortcut])])),
 	'delete-all-tracks-ripple': Object.freeze(['Ctrl+Delete', 'Ctrl+Backspace']),
 });
 
 export const AUDIO_EDITOR_SEARCH_ACTION_ID = 'application-search';
-export const AUDIO_EDITOR_SEARCH_SHORTCUTS = Object.freeze(['Ctrl+F', 'F3']);
+export const AUDIO_EDITOR_SEARCH_SHORTCUTS = Object.freeze(['Ctrl+K']);
 export const AUDIO_EDITOR_RESERVED_SHORTCUTS = Object.freeze({
 	[AUDIO_EDITOR_SEARCH_ACTION_ID]: AUDIO_EDITOR_SEARCH_SHORTCUTS,
 });
@@ -96,6 +128,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
 /**
  * @typedef {Object} AudioEditorPreferencesV1
  * @property {1} schemaVersion
+ * @property {number} shortcutDefaultsVersion
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {{theme: string, clipStyle: 'classic'|'colorful', layout: 'auto'|'compact'|'desktop'}} appearance
@@ -280,6 +313,14 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if (typeof showMarkers !== 'boolean') throw new TypeError('view.showMarkers must be boolean.');
 	return {
 		schemaVersion: AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION,
+		shortcutDefaultsVersion: Math.max(
+			AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
+			integer(
+				options.shortcutDefaultsVersion ?? AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
+				0,
+				'shortcutDefaultsVersion',
+			),
+		),
 		editing: {
 			rippleMode: oneOf(options.editing?.rippleMode ?? 'off', RIPPLE_MODE_SET, 'editing.rippleMode'),
 			collisionBehavior: 'audacity',
@@ -406,88 +447,36 @@ export function deleteCustomAudioEditorWorkspace(preferences, workspaceId) {
 	return preferences.workspace.activeId === workspaceId ? applyAudioEditorWorkspace(next, 'modern') : next;
 }
 
-export function normalizeAudioEditorShortcut(binding) {
-	const value = nonEmptyString(binding, 'shortcut binding').trim();
-	const aliases = new Map([
-		['control', 'Ctrl'], ['ctrl', 'Ctrl'], ['cmd', 'Meta'], ['command', 'Meta'], ['meta', 'Meta'],
-		['option', 'Alt'], ['alt', 'Alt'], ['shift', 'Shift'], ['spacebar', 'Space'], [' ', 'Space'],
-		['arrowdown', 'Down'], ['arrowup', 'Up'], ['arrowleft', 'Left'], ['arrowright', 'Right'],
-	]);
-	const parts = value.split('+').map((part) => part.trim()).filter(Boolean);
-	const key = parts.pop() || value;
-	const modifiers = new Set(parts.map((part) => aliases.get(part.toLowerCase()) || part));
-	const ordered = ['Ctrl', 'Meta', 'Alt', 'Shift'].filter((modifier) => modifiers.has(modifier));
-	const normalizedKey = aliases.get(key.toLowerCase()) || (key.length === 1 ? key.toUpperCase() : key);
-	return [...ordered, normalizedKey].join('+');
-}
-
 function normalizedShortcutKey(binding) {
 	return normalizeAudioEditorShortcut(binding).toLowerCase();
 }
 
-function migrateLoadedAudioEditorShortcuts(shortcuts) {
-	const normalized = normalizeShortcuts(shortcuts);
-	const zoomActionId = 'zoom-to-fit-project';
-	const formerZoomBinding = normalizedShortcutKey('Ctrl+F');
-	const replacementZoomBinding = normalizedShortcutKey('Ctrl+0');
-	const reservedBindings = new Set(AUDIO_EDITOR_SEARCH_SHORTCUTS.map(normalizedShortcutKey));
-	const zoomBindings = normalized[zoomActionId] || [];
-	const migrateZoomBinding = zoomBindings
-		.some((binding) => normalizedShortcutKey(binding) === formerZoomBinding);
-	const zoomOwnsReplacementBinding = migrateZoomBinding || zoomBindings
-		.some((binding) => normalizedShortcutKey(binding) === replacementZoomBinding);
-	const migrated = {};
-
-	for (const [actionId, bindings] of Object.entries(normalized)) {
-		const nextBindings = [];
-		const seen = new Set();
-		for (const binding of bindings) {
-			const key = normalizedShortcutKey(binding);
-			let nextBinding = binding;
-			let nextKey = key;
-			if (actionId === zoomActionId && key === formerZoomBinding) {
-				nextBinding = 'Ctrl+0';
-				nextKey = replacementZoomBinding;
-			} else if (reservedBindings.has(key)) {
-				continue;
-			}
-			if (zoomOwnsReplacementBinding && actionId !== zoomActionId && nextKey === replacementZoomBinding) continue;
-			if (seen.has(nextKey)) continue;
-			seen.add(nextKey);
-			nextBindings.push(nextBinding);
-		}
-		Object.defineProperty(migrated, actionId, {
-			value: nextBindings,
-			enumerable: true,
-			writable: true,
-			configurable: true,
-		});
-	}
-
-	return migrated;
+function migrateLoadedAudioEditorShortcuts(shortcuts, shortcutDefaultsVersion) {
+	return migrateAudioEditorShortcutDefaults({
+		shortcuts: normalizeShortcuts(shortcuts),
+		currentDefaults: AUDIO_EDITOR_DEFAULT_SHORTCUTS,
+		formerDefaults: AUDIO_EDITOR_SHORTCUT_DEFAULTS_V0,
+		shortcutDefaultsVersion,
+		normalizedKey: normalizedShortcutKey,
+		conflictKey: audioEditorShortcutConflictKey,
+		reservedBindings: AUDIO_EDITOR_SEARCH_SHORTCUTS,
+	});
 }
 
 export function findAudioEditorShortcutConflicts(shortcuts) {
-	const normalized = normalizeShortcuts(shortcuts);
-	const byBinding = new Map();
-	const allShortcuts = {
-		...normalized,
-		...AUDIO_EDITOR_RESERVED_SHORTCUTS,
-	};
-	for (const [actionId, bindings] of Object.entries(allShortcuts)) {
-		for (const binding of bindings) {
-			const key = normalizedShortcutKey(binding);
-			if (!byBinding.has(key)) byBinding.set(key, { binding: normalizeAudioEditorShortcut(binding), actionIds: [] });
-			byBinding.get(key).actionIds.push(actionId);
-		}
-	}
-	return [...byBinding.values()].filter((entry) => entry.actionIds.length > 1);
+	return collectAudioEditorShortcutConflicts(
+		normalizeShortcuts(shortcuts),
+		AUDIO_EDITOR_RESERVED_SHORTCUTS,
+	);
 }
 
 export function validateAudioEditorPreferencesV1(preferences) {
 	if (!preferences || typeof preferences !== 'object') throw new TypeError('Audio editor preferences are required.');
 	if (preferences.schemaVersion !== AUDIO_EDITOR_PREFERENCES_SCHEMA_VERSION) {
 		throw new RangeError(`Unsupported audio editor preferences schema version: ${preferences.schemaVersion}.`);
+	}
+	if (preferences.shortcutDefaultsVersion !== undefined) {
+		integer(preferences.shortcutDefaultsVersion, 0, 'shortcutDefaultsVersion');
 	}
 	for (const section of ['editing', 'shortcuts', 'appearance', 'workspace', 'spectrogram', 'import']) {
 		if (!preferences[section] || typeof preferences[section] !== 'object' || Array.isArray(preferences[section])) {
@@ -542,11 +531,18 @@ export function loadAudioEditorPreferencesV1(value) {
 		return { preferences: clone(value), readOnly: true, reason: 'newer-schema' };
 	}
 	validateAudioEditorPreferencesV1(value);
+	const shortcutDefaultsVersion = value.shortcutDefaultsVersion === undefined
+		? 0
+		: integer(value.shortcutDefaultsVersion, 0, 'shortcutDefaultsVersion');
 	const normalized = createAudioEditorPreferencesV1(value);
 	return {
 		preferences: {
 			...clone(value),
-			shortcuts: migrateLoadedAudioEditorShortcuts(normalized.shortcuts),
+			shortcutDefaultsVersion: Math.max(
+				shortcutDefaultsVersion,
+				AUDIO_EDITOR_SHORTCUT_DEFAULTS_VERSION,
+			),
+			shortcuts: migrateLoadedAudioEditorShortcuts(normalized.shortcuts, shortcutDefaultsVersion),
 			// Documents saved before the layout preference existed carry an
 			// appearance section without it; normalization supplies the default.
 			appearance: normalized.appearance,

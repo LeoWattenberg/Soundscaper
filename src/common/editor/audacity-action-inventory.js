@@ -8,6 +8,8 @@
  * commit, not merely changing AUDACITY_ACTION_SOURCE.commit. It sits apart from
  * the parity runtime that reads it so that the inventory stays a list, and the
  * code that resolves, localizes and decorates entries stays readable beside it.
+ * A definition's `shortcut` is also the immutable pre-profile default used to
+ * recognize untouched saved preferences; imported live defaults are separate.
  */
 
 import {
@@ -78,6 +80,11 @@ const excluded = (id, label, locations, reason, options = {}) => actionDefinitio
 	origin: options.origin || 'upstream',
 	reason,
 });
+
+const legacyMixer = (id, label, enableWhen, location = 'Track context') => implemented(
+	id, label, [location], 'track.audacityMixer',
+	{ enableWhen, source: 'au3/src/menus/TrackMenus.cpp' },
+);
 
 const nyquistDefinitions = NYQUIST_BUNDLED_PLUGINS.map((plugin) => {
 	const location = 'Nyquist';
@@ -249,6 +256,14 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('track-split-stereo-to-lr', 'Split stereo to L/R mono', ['Track context'], 'track.splitStereoLR', { enableWhen: 'stereo-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('track-split-stereo-to-center', 'Split stereo to center mono', ['Track context'], 'track.splitStereoCenter', { enableWhen: 'stereo-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('track-resample', 'Resample track', ['Track context'], 'track.resample', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.trackEdit }),
+	legacyMixer('mute-tracks', 'Mute Tracks', 'editable-selected-media-tracks', 'Tracks > Mute/Unmute'),
+	legacyMixer('unmute-tracks', 'Unmute Tracks', 'editable-selected-media-tracks', 'Tracks > Mute/Unmute'),
+	legacyMixer('track-pan-left', 'Pan Left on Focused Track', 'editable-focused-audio-track'),
+	legacyMixer('track-pan-right', 'Pan Right on Focused Track', 'editable-focused-audio-track'),
+	legacyMixer('track-gain-inc', 'Increase Gain on Focused Track', 'editable-focused-audio-track'),
+	legacyMixer('track-gain-dec', 'Decrease Gain on Focused Track', 'editable-focused-audio-track'),
+	legacyMixer('track-mute', 'Mute/Unmute Focused Track', 'editable-focused-media-track'),
+	legacyMixer('track-solo', 'Solo/Unsolo Focused Track', 'editable-focused-media-track'),
 	implemented('action://trackedit/track-view-waveform', 'Waveform', ['Track context > Display'], 'track.setWaveformView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-spectrogram', 'Spectrogram', ['Track context > Display'], 'track.setSpectrogramView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	implemented('action://trackedit/track-view-multi', 'Multi-view', ['Track context > Display'], 'track.setMultiView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
@@ -269,14 +284,14 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('track-spectrogram-settings', 'Spectrogram settings', ['Track context > Spectrogram'], 'track.openSpectrogramSettings', { enableWhen: 'audio-track-selected', source: UPSTREAM.spectrogram }),
 	implemented('action://projectscene/track-view-half-wave', 'Half-wave', ['Track context > Display'], 'track.setHalfWaveView', { enableWhen: 'audio-track-selected', source: UPSTREAM.projectScene }),
 	implemented('keep-tracks-synchronised', 'Keep tracks synchronized', ['Tracks'], 'preferences.toggleTrackSynchronization', { enableWhen: 'project-opened', source: UPSTREAM.project }),
-	implemented('track-view-item-move-left', 'Move item left', ['Keyboard navigation'], 'navigation.moveItemLeft', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-move-right', 'Move item right', ['Keyboard navigation'], 'navigation.moveItemRight', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-extend-left', 'Extend item left', ['Keyboard navigation'], 'navigation.extendItemLeft', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-extend-right', 'Extend item right', ['Keyboard navigation'], 'navigation.extendItemRight', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-reduce-left', 'Reduce item from left', ['Keyboard navigation'], 'navigation.reduceItemLeft', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-reduce-right', 'Reduce item from right', ['Keyboard navigation'], 'navigation.reduceItemRight', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-move-up', 'Move item up', ['Keyboard navigation'], 'navigation.moveItemUp', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
-	implemented('track-view-item-move-down', 'Move item down', ['Keyboard navigation'], 'navigation.moveItemDown', { enableWhen: 'editable-clip-selected', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-move-left', 'Move item left', ['Keyboard navigation'], 'navigation.moveItemLeft', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-move-right', 'Move item right', ['Keyboard navigation'], 'navigation.moveItemRight', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-extend-left', 'Extend item left', ['Keyboard navigation'], 'navigation.extendItemLeft', { enableWhen: 'playing-or-editable-clip-or-project-cursor', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-extend-right', 'Extend item right', ['Keyboard navigation'], 'navigation.extendItemRight', { enableWhen: 'playing-or-editable-clip-or-project-cursor', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-reduce-left', 'Reduce item from left', ['Keyboard navigation'], 'navigation.reduceItemLeft', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-reduce-right', 'Reduce item from right', ['Keyboard navigation'], 'navigation.reduceItemRight', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-move-up', 'Move item up', ['Keyboard navigation'], 'navigation.moveItemUp', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
+	implemented('track-view-item-move-down', 'Move item down', ['Keyboard navigation'], 'navigation.moveItemDown', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
 	implemented('track-view-next-panel', 'Next panel', ['Keyboard navigation'], 'navigation.nextPanel', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('track-view-prev-panel', 'Previous panel', ['Keyboard navigation'], 'navigation.previousPanel', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('local://track-view-next-item', 'Next item', ['Keyboard navigation'], 'navigation.nextItem', { enableWhen: 'project-opened', source: null, origin: 'local' }),
@@ -307,6 +322,8 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 
 	// Clip properties and spectral tools.
 	implemented('clip-properties', 'Clip properties', ['Clip context'], 'clip.openProperties', { enableWhen: 'clip-selected', source: UPSTREAM.projectScene }),
+	implemented('select-tool', 'Selection tool', ['Tools toolbar'], 'tools.selectTool', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
+	implemented('draw-tool', 'Draw tool', ['Tools toolbar'], 'tools.drawTool', { enableWhen: 'sample-pencil-available', source: UPSTREAM.projectScene }),
 	implemented('split-tool', 'Split tool', ['Tools toolbar'], 'tools.toggleSplitTool', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('clip-gain', 'Clip gain', ['Clip context'], 'clip.setGain', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene }),
 	implemented('clip-pitch-speed', 'Pitch and speed', ['Clip context'], 'clip.openPitchSpeed', { enableWhen: 'editable-clip-selected', source: UPSTREAM.projectScene }),
@@ -319,10 +336,14 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('action://trackedit/track/change-color?colorindex=%1', 'Change track color', ['Track context > Color'], 'track.setColor', { enableWhen: 'editable-track-selected', source: UPSTREAM.projectScene, upstreamAction: 'dynamic ActionQuery track-color action' }),
 	implemented('play-position-decrease', 'Move play cursor left', ['Keyboard navigation'], 'timeline.nudgePlayheadLeft', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
 	implemented('play-position-increase', 'Move play cursor right', ['Keyboard navigation'], 'timeline.nudgePlayheadRight', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('sel-ext-left', 'Extend selection left', ['Keyboard navigation'], 'selection.extendLeft', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('sel-ext-right', 'Extend selection right', ['Keyboard navigation'], 'selection.extendRight', { enableWhen: 'project-opened', source: UPSTREAM.projectScene }),
-	implemented('sel-cntr-left', 'Contract selection from left', ['Keyboard navigation'], 'selection.contractLeft', { enableWhen: 'time-selection', source: UPSTREAM.projectScene }),
-	implemented('sel-cntr-right', 'Contract selection from right', ['Keyboard navigation'], 'selection.contractRight', { enableWhen: 'time-selection', source: UPSTREAM.projectScene }),
+	implemented('cursor-short-jump-left', 'Cursor short jump left', ['Keyboard navigation'], 'timeline.cursorShortJumpLeft', { enableWhen: 'project-opened', source: 'src/app/configs/data/shortcuts.xml' }),
+	implemented('cursor-short-jump-right', 'Cursor short jump right', ['Keyboard navigation'], 'timeline.cursorShortJumpRight', { enableWhen: 'project-opened', source: 'src/app/configs/data/shortcuts.xml' }),
+	implemented('cursor-long-jump-left', 'Cursor long jump left', ['Keyboard navigation'], 'timeline.cursorLongJumpLeft', { enableWhen: 'project-opened', source: 'src/app/configs/data/shortcuts.xml' }),
+	implemented('cursor-long-jump-right', 'Cursor long jump right', ['Keyboard navigation'], 'timeline.cursorLongJumpRight', { enableWhen: 'project-opened', source: 'src/app/configs/data/shortcuts.xml' }),
+	implemented('sel-ext-left', 'Extend selection left', ['Keyboard navigation'], 'selection.extendLeft', { enableWhen: 'playing-or-editable-clip-or-project-cursor', source: UPSTREAM.projectScene }),
+	implemented('sel-ext-right', 'Extend selection right', ['Keyboard navigation'], 'selection.extendRight', { enableWhen: 'playing-or-editable-clip-or-project-cursor', source: UPSTREAM.projectScene }),
+	implemented('sel-cntr-left', 'Contract selection from left', ['Keyboard navigation'], 'selection.contractLeft', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.projectScene }),
+	implemented('sel-cntr-right', 'Contract selection from right', ['Keyboard navigation'], 'selection.contractRight', { enableWhen: 'editable-selection-or-clip', source: UPSTREAM.projectScene }),
 	implemented('curs-sel-start', 'Move playhead to selection start', ['Keyboard navigation'], 'selection.skipToSelectionStart', { enableWhen: 'time-selection', source: UPSTREAM.projectScene }),
 	implemented('curs-sel-end', 'Move playhead to selection end', ['Keyboard navigation'], 'selection.skipToSelectionEnd', { enableWhen: 'time-selection', source: UPSTREAM.projectScene }),
 	implemented('spectral-box-select', 'Spectral box select', ['Tools toolbar'], 'spectral.boxSelect', { enableWhen: 'spectrogram-track-selected', source: UPSTREAM.projectScene }),
@@ -337,8 +358,8 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('add-realtime-effects', 'Add track effects', ['Effect'], 'effects.openRealtimeRack', { enableWhen: 'audio-track-selected', source: UPSTREAM.effects }),
 	implemented('repeat-last-effect', 'Repeat last effect', ['Effect'], 'effects.repeatLast', { enableWhen: 'repeatable-effect-and-editable-selection', source: UPSTREAM.effects }),
 	implemented('realtimeeffect-remove', 'Remove realtime effect', ['Realtime effect context'], 'effects.removeRealtime', { enableWhen: 'realtime-effect-selected', source: UPSTREAM.effects }),
-	implemented('realtime-effect-move-up', 'Move realtime effect up', ['Realtime effect context'], 'effects.moveRealtimeUp', { enableWhen: 'realtime-effect-can-move-up', source: UPSTREAM.projectScene }),
-	implemented('realtime-effect-move-down', 'Move realtime effect down', ['Realtime effect context'], 'effects.moveRealtimeDown', { enableWhen: 'realtime-effect-can-move-down', source: UPSTREAM.projectScene }),
+	implemented('realtime-effect-move-up', 'Pitch up / move realtime effect up', ['Clip context', 'Realtime effect context'], 'effects.moveRealtimeUp', { enableWhen: 'contextual-pitch-or-effect-up', source: UPSTREAM.projectScene }),
+	implemented('realtime-effect-move-down', 'Pitch down / move realtime effect down', ['Clip context', 'Realtime effect context'], 'effects.moveRealtimeDown', { enableWhen: 'contextual-pitch-or-effect-down', source: UPSTREAM.projectScene }),
 	implemented('action://effects/presets/apply', 'Apply preset', ['Effect dialog > Presets'], 'effects.presets.apply', { enableWhen: 'effect-preset-selected', source: UPSTREAM.effects }),
 	implemented('action://effects/presets/save_as', 'Save preset as', ['Effect dialog > Presets'], 'effects.presets.saveAs', { enableWhen: 'effect-opened', source: UPSTREAM.effects }),
 	implemented('action://effects/presets/save', 'Save preset', ['Effect dialog > Presets'], 'effects.presets.save', { enableWhen: 'editable-effect-preset-selected', source: UPSTREAM.effects }),

@@ -61,7 +61,6 @@ export default function AudioEditorWorkspace({
 	const [dialogSourceKey, setDialogSourceKey] = useState('global');
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [showArmControls, setShowArmControls] = useState(false);
-	const [automationToolEnabled, setAutomationToolEnabled] = useState(false);
 	const [generatorType, setGeneratorType] = useState('tone');
 	const [nyquistTarget, setNyquistTarget] = useState(() => ({ prompt: true, pluginId: null }));
 	const [preferencesPage, setPreferencesPage] = useState('shortcuts');
@@ -126,6 +125,7 @@ export default function AudioEditorWorkspace({
 		setRecordingMeterSettings,
 	});
 	const trackHeaderDrawer = useTrackHeaderDrawerFlag(parityRuntime.uiController, uiFlags.trackHeaderDrawer, compactLayout);
+	const automationToolEnabled = Boolean(uiFlags.automationTool);
 	const busyBlock = selectAudioEditorBusyBlock(snapshot);
 	const editBlock = selectAudioEditorEditBlock(snapshot);
 	const handoffBlock = selectAudioEditorProjectHandoffBlock(snapshot);
@@ -169,25 +169,16 @@ export default function AudioEditorWorkspace({
 		setIsFullscreen((current) => !current);
 		return undefined;
 	}, [fileService]);
-	const toggleSplitTool = useCallback(() => {
-		if (snapshot.sampleEdit?.mode === 'pencil') run(() => controller.actions.sampleEdit.setMode(null));
-		setAutomationToolEnabled(false);
-		return parityRuntime.actions.tools.toggleSplitTool();
-	}, [controller, parityRuntime, run, snapshot.sampleEdit?.mode]);
-	const toggleAutomationTool = useCallback(() => {
-		if (snapshot.sampleEdit?.mode === 'pencil') run(() => controller.actions.sampleEdit.setMode(null));
-		setAutomationToolEnabled((enabled) => {
-			if (!enabled && parityRuntime.uiController.getSnapshot().flags.splitTool) {
-				parityRuntime.actions.tools.toggleSplitTool();
-			}
-			return !enabled;
-		});
-	}, [controller, parityRuntime, run, snapshot.sampleEdit?.mode]);
+	const toggleSplitTool = useCallback(() => (
+		run(() => parityRuntime.actions.tools.toggleSplitTool())
+	), [parityRuntime, run]);
+	const toggleAutomationTool = useCallback(() => (
+		run(() => parityRuntime.actions.tools.toggleAutomationTool())
+	), [parityRuntime, run]);
 	useEffect(() => {
 		if (snapshot.sampleEdit?.mode !== 'pencil') return;
-		if (uiFlags.splitTool) parityRuntime.actions.tools.toggleSplitTool();
-		setAutomationToolEnabled(false);
-	}, [parityRuntime, snapshot.sampleEdit?.mode, uiFlags.splitTool]);
+		parityRuntime.actions.tools.synchronizeDrawTool();
+	}, [parityRuntime, snapshot.sampleEdit?.mode]);
 	const toggleRecording = useCallback(() => {
 		if (snapshot.recording) return run(() => controller.actions.recording.stop());
 		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
@@ -438,12 +429,14 @@ export default function AudioEditorWorkspace({
 	const { activateSearchEntry, searchEntries } = useWorkspaceSearchRuntime({
 		applicationMenus,
 		controller,
+		editorRef,
 		openWorkspacePanel,
 		parityRuntime,
 		project,
 		run,
 		setProjectBinSearchReveal,
 		setTimelineSearchReveal,
+		snapshot,
 	});
 	const desktopChrome = useDesktopEditorBridge({
 		copy,
@@ -467,7 +460,7 @@ export default function AudioEditorWorkspace({
 		onJumpToStart: jumpToStart, onOpenRecordingOffset: openRecordingOffset, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
 		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
-		onToggleAutomationTool: toggleAutomationTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
+		onToggleAutomationTool: toggleAutomationTool, onToggleSplitTool: toggleSplitTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
 		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject,
 	};
 

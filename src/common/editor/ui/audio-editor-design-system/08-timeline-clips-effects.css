@@ -387,6 +387,15 @@
 	pointer-events: none;
 }
 
+#kw-audio-editor-design-system .audio-editor-split-tool-guideline {
+	position: absolute;
+	z-index: 56;
+	width: 1px;
+	background: color-mix(in srgb, var(--kw-editor-accent) 82%, white);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--kw-editor-stage) 55%, transparent);
+	pointer-events: none;
+}
+
 #kw-audio-editor-design-system .audio-editor-playhead-boundary {
 	position: absolute;
 	z-index: 70;
