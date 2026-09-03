@@ -19,7 +19,7 @@ Soundscaper is the full audio workstation. Use it to:
 - Work with labels, spectral selections, macros, and mastering tools.
 - Export audio, stems, project files, or compatible Audacity interchange files.
 
-[Start a Soundscaper project](/soundscaper/first-project/)
+[Start a Soundscaper project](/tutorials/your-first-project/)
 
 ## Choose Framescaper for video
 

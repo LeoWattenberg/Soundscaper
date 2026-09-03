@@ -10,7 +10,7 @@
 import { expect, test } from '@playwright/test';
 
 import { describeStep } from '../../../handbook/guides/steps.mjs';
-import { guideFixtureFile as guideFixtureName } from '../../../handbook/guides/fixtures.mjs';
+import { GUIDE_FIXTURES } from '../../../handbook/guides/fixtures.mjs';
 import {
 	bootEditor,
 	chooseCommandAction,
@@ -56,11 +56,15 @@ async function expectSuccess(editor, timeout = EFFECT_TIMEOUT) {
 
 /**
  * An imported clip carries its file name; the clip an effect writes back drops
- * the extension. Both are the reader's "the clip", so accept either.
+ * the extension, and one that replaces the whole clip is simply "Audio clip".
+ * All three are the reader's "the clip", so the named form wins when it exists
+ * and the renamed form stands in when it does not.
  */
 function guideClip(editor, clipName) {
 	const base = clipName.replace(/\.wav$/u, '').replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-	return editor.getByRole('group', { name: new RegExp(`^${base}(?:\\.wav)? clip(?:,|$)`, 'u') }).first();
+	const named = editor.getByRole('group', { name: new RegExp(`^${base}(?:\\.wav)? clip(?:,|$)`, 'u') });
+	const renamed = editor.getByRole('group', { name: /^Audio clip clip(?:,|$)/u });
+	return named.or(renamed).first();
 }
 
 async function currentClip(state) {
@@ -350,7 +354,9 @@ export async function runGuide(page, guide) {
 	const errors = collectClientErrors(page);
 	const state = { editor: null, clipName: null, fixture: null, projectFile: null };
 	for (const [index, entry] of guide.steps.entries()) {
-		const title = `${String(index + 1)}. ${plainText(describeStep(entry, { fixtureFile: guideFixtureName }))}`;
+		// Step titles name the example and the exact stretch, the way a tutorial does,
+		// so a failing report says what the suite actually did.
+		const title = `${String(index + 1)}. ${plainText(describeStep(entry, { fixture: (id) => GUIDE_FIXTURES[id], facet: 'tutorial' }))}`;
 		await test.step(title, () => executeStep(page, state, entry));
 	}
 	expect(errors).toEqual([]);

@@ -20,7 +20,7 @@ editing and compositing.
 
 ## Start with a workflow
 
-- [Create your first Soundscaper project](/soundscaper/first-project/)
+- [Your first Soundscaper project](/tutorials/your-first-project/)
 - [Create your first Framescaper project](/framescaper/first-project/)
 - [Understand project files and Audacity interchange](/projects-and-data/project-files/)
 - [Protect locally stored work](/projects-and-data/storage-backups-and-privacy/)

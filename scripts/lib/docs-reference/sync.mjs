@@ -7,6 +7,7 @@ import { compareText } from './markdown.mjs';
 
 export const GENERATED_REFERENCE_DIRECTORY = 'handbook/src/content/docs/reference/generated';
 export const GENERATED_GUIDE_DIRECTORY = 'handbook/src/content/docs/guides';
+export const GENERATED_TUTORIAL_DIRECTORY = 'handbook/src/content/docs/tutorials';
 
 /**
  * A generated document is named by its path under the output directory. The

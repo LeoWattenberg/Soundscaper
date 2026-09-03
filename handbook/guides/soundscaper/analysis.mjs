@@ -13,7 +13,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 		intro: 'Before you normalize or export, it helps to know where you are. The EBU R 128 analyzer measures the programme the way streaming platforms and broadcasters do — integrated loudness in LUFS, loudness range, and true peak — so you can compare against a target instead of guessing from the meter.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the mix you want to measure' }),
 			selectAll(),
 			analyze({ name: 'EBU R 128', panel: 'ebu-r128' }, { see: 'Integrated loudness, loudness range and true peak for the selection.' }),
 		],
@@ -30,7 +30,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 		intro: 'A waveform shows how loud a sound is over time; a spectrum shows which frequencies it is made of. Plotting the spectrum of a problem passage is the fastest way to find a 50 or 60 Hz hum, a whistle from a monitor, or the frequency a room is ringing at — and then to know where to point an equalizer.',
 		steps: [
 			open(),
-			importAudio('noisy-take'),
+			importAudio('noisy-take', { what: 'the recording with the problem in it' }),
 			selectAll(),
 			analyze({ name: 'Plot spectrum', panel: 'spectrum' }, { see: 'A graph of level against frequency for the selection.' }),
 		],
@@ -47,7 +47,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 		intro: 'A recording made too hot flattens against the top of the range and distorts. The damage is easy to hear but hard to find by eye in a long take. Find Clipping scans the selection and lists every run of samples that sits at full scale, so you can decide whether to repair, redo or live with each one.',
 		steps: [
 			open(),
-			importAudio('clicky-take'),
+			importAudio('clicky-take', { what: 'the recording you want to check' }),
 			selectAll(),
 			analyze({ name: 'Find clipping', panel: 'clipping' }, { see: 'A list of the clipped runs, or a note that none were found.' }),
 		],
@@ -64,7 +64,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 		intro: 'Beat Finder is one of the bundled Nyquist analyzers. It listens for sudden rises in level above a threshold and writes a label at each one, which is a quick way to mark the beats of a loop or the hits in a drum take before you cut it up.',
 		steps: [
 			open(),
-			importAudio('gapped-take'),
+			importAudio('gapped-take', { what: 'the recording you want to mark' }),
 			selectAll(),
 			nyquist({
 				menu: 'Analyze',

@@ -105,7 +105,7 @@ function routeForMarkdown(relativePath) {
 
 function resolveTargetRoute(pathPart, sourceRelativePath) {
 	if (!pathPart) return routeForMarkdown(sourceRelativePath);
-	if (/\.(?:avif|gif|jpe?g|pdf|png|svg|webp)$/iu.test(pathPart)) return null;
+	if (/\.(?:avif|gif|jpe?g|pdf|png|svg|webp|wav)$/iu.test(pathPart)) return null;
 
 	let path = pathPart;
 	if (!path.startsWith('/')) {

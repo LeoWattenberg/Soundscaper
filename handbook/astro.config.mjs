@@ -43,10 +43,11 @@ export default defineConfig({
 			sidebar: [
 				{ label: 'Start here', items: [{ autogenerate: { directory: 'start' } }] },
 				{ label: 'Soundscaper', items: [{ autogenerate: { directory: 'soundscaper' } }] },
+				{ label: 'Tutorials', items: [{ autogenerate: { directory: 'tutorials' } }] },
 				// One sidebar group per guide category, built from the same catalog
 				// the pages are generated from, so a new category needs no edit here.
 				{
-					label: 'Guides',
+					label: 'How-to guides',
 					items: [
 						{ label: 'All guides', link: '/guides/' },
 						...SOUNDSCAPER_GUIDE_GROUPS.map((group) => ({

@@ -11,7 +11,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		intro: 'A project is more than the audio: it is the tracks, clips, effects, markers and history. Saving keeps all of that in the browser’s local project library on this computer, where it can be reopened from the File menu. Soundscaper also saves as you go, so this is mostly a way to be sure.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'something to work on' }),
 			save(),
 		],
 		tips: [
@@ -27,7 +27,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		intro: 'The project library lives in one browser on one computer. To carry a project anywhere else — another machine, a colleague, a backup drive — export it as a project file. The `.sscape` file holds the audio and every edit, and opens in any Soundscaper.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the project material' }),
 			exportProject({ why: 'Keep the file somewhere safe; it is the complete project.' }),
 			openProjectFile({ see: 'The project opens with its track and clip exactly as exported.' }),
 		],
@@ -60,8 +60,8 @@ export const PROJECT_GUIDES = Object.freeze([
 		intro: 'A mixing engineer, a video editor or a collaborator on another program usually wants the parts, not the mix. A stems export renders every track to its own file, all the same length and aligned to the project start, and packs them into one archive.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			importAudio('second-loop'),
+			importAudio('music-loop', { what: 'the first track' }),
+			importAudio('second-loop', { what: 'the second track' }),
 			exportAudio({ format: 'WAV', extension: 'zip', mode: 'Individual stems (archive)' }, { why: 'Each track becomes a WAV inside the ZIP, trimmed to the same length so they line up when imported elsewhere.' }),
 		],
 		tips: [
@@ -77,7 +77,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		intro: 'A clip recorded at 44.1 kHz will still play correctly in a 48 kHz project — Soundscaper converts on the fly — but for a delivery that must be at one rate, or before an effect that expects it, you can convert the clip itself. Resampling recalculates every sample at the new rate and keeps the timing exactly.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the clip at the wrong rate' }),
 			resample(44100, { why: 'The clip’s properties show its current rate; 44100 Hz is CD standard.' }),
 			play({ see: 'The clip sounds exactly as before; only its stored rate has changed.' }),
 		],

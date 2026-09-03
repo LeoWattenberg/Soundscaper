@@ -13,8 +13,8 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		intro: 'Steady background noise — a fan, a fridge, mains hum — can be removed in two passes. First you show Noise Reduction a stretch of noise on its own so it can build a profile; then you apply the effect to everything. The profile is what makes this work, so pick a part of the recording where nobody is speaking.',
 		steps: [
 			open(),
-			importAudio('noisy-take'),
-			selectRange(0, 0.15, { why: 'This is the noise-only lead-in before the voice starts. The profile should contain nothing but the noise you want gone.' }),
+			importAudio('noisy-take', { what: 'the recording you want to clean up' }),
+			selectRange(0, 0.15, { where: 'a stretch that contains only the noise — usually the lead-in before anyone speaks', why: 'The profile should contain nothing but the noise you want gone.' }),
 			noiseProfile(),
 			selectAll({ why: 'The profile is kept; now the effect needs to know what to clean.' }),
 			effect({
@@ -37,7 +37,7 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		intro: 'Clicks from a cable, a mouse or an old record are only a few samples long. Click Removal finds spikes that stand out from their surroundings and smooths them over, which is far quicker than cutting each one by hand.',
 		steps: [
 			open(),
-			importAudio('clicky-take'),
+			importAudio('clicky-take', { what: 'the recording with the clicks in it' }),
 			selectAll(),
 			effect({
 				group: 'Noise removal and repair',
@@ -59,7 +59,7 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		intro: 'A long take with slow pauses between sentences is tiring to listen to. Truncate Silence finds every stretch below a threshold that lasts longer than a minimum length and shortens it, so the pacing tightens without cutting into any words.',
 		steps: [
 			open(),
-			importAudio('gapped-take'),
+			importAudio('gapped-take', { what: 'the take with the long pauses' }),
 			selectAll(),
 			effect({
 				group: 'Special',
@@ -81,8 +81,8 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		intro: 'Sometimes you want a passage gone but not the time it occupies — a phone ringing under a pause, a name you need to bleep. Silencing keeps the clip exactly as long as it was and only flattens the selected part.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			selectRange(0.4, 0.6, { why: 'Select just the part you want to mute.' }),
+			importAudio('music-loop', { what: 'the recording with the passage to mute' }),
+			selectRange(0.4, 0.6, { where: 'just the part you want to mute' }),
 			menu(['Edit', 'Remove special', 'Silence audio']),
 			check({ clips: 1 }, { see: 'The waveform is flat across the selection and the clip is still one piece.' }),
 		],
@@ -99,7 +99,7 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		intro: 'Traffic, air conditioning, wind on the microphone and the desk being bumped all live below the voice, in frequencies a small speaker cannot even reproduce. A high-pass filter lets everything above a cutoff through and rolls off what is below it, cleaning up the low end without touching the speech.',
 		steps: [
 			open(),
-			importAudio('noisy-take'),
+			importAudio('noisy-take', { what: 'the recording with the rumble' }),
 			selectAll(),
 			effect({
 				group: 'Legacy effects',
@@ -124,7 +124,7 @@ export const CLEAN_UP_GUIDES = Object.freeze([
 		intro: 'Some sound cards and cheap interfaces add a constant voltage to a recording, so the whole waveform sits slightly above or below the centre line. You cannot hear it directly, but it wastes headroom and produces a click at every edit. Remove DC Offset centres the waveform again.',
 		steps: [
 			open(),
-			importAudio('quiet-take'),
+			importAudio('quiet-take', { what: 'the recording that sits off centre' }),
 			selectAll(),
 			effect({ group: 'Volume and compression', name: 'Remove DC Offset', direct: true }),
 			play({ see: 'The waveform is centred on the zero line.' }),

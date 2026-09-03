@@ -12,10 +12,10 @@ project interchange.
 
 ## Recommended path
 
-1. [Create a first project](/soundscaper/first-project/).
+1. Follow the tutorial [Your first Soundscaper project](/tutorials/your-first-project/).
 2. [Set up recording](/soundscaper/recording/), if you need new material.
 3. [Edit, mix, and export](/soundscaper/edit-mix-and-export/).
 4. Review [storage and backup behavior](/projects-and-data/storage-backups-and-privacy/).
-5. Pick a [guide](/guides/) for the task in front of you — noise removal, fades, loudness, export and more.
+5. Pick a [how-to guide](/guides/) for the task in front of you — noise removal, fades, loudness, export and more.
 
 Open the browser editor at [soundscaper.org/en](https://soundscaper.org/en/).

@@ -11,7 +11,7 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		intro: 'A stereo recording is one track with two channels. When the channels hold different things — an interviewer on the left, a guest on the right, or a guitar and a click track from a two-channel recorder — you want them on separate tracks with their own levels and effects.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the stereo recording' }),
 			trackMenu(['Track channels', 'Split stereo to left/right mono'], { why: 'Each channel becomes its own mono track, panned hard left and hard right so the mix still sounds the same.' }),
 			check({ clips: 2 }, { see: 'Two mono clips, one per channel, on two tracks named after their side.' }),
 		],
@@ -28,9 +28,9 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		intro: 'Once a bed of tracks is balanced, mixing them down to one makes the project lighter to work with and gives you a single clip to export or take elsewhere. The mix uses each selected track’s gain, pan, automation and effects. Mute and solo are ignored for selected tracks during this operation, and master processing stays live.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			importAudio('second-loop'),
-			selectClips(['music-loop', 'second-loop'], { why: 'Every track with a selected clip goes into the mix.' }),
+			importAudio('music-loop', { what: 'the first part' }),
+			importAudio('second-loop', { what: 'the second part' }),
+			selectClips(['music-loop', 'second-loop'], { which: ['the first clip', 'the second clip'], why: 'Every track with a selected clip goes into the mix.' }),
 			mixRender(),
 			check({ clip: 'Mix' }, { see: 'One track holds a clip named Mix; the source tracks are gone.' }),
 		],
@@ -69,7 +69,7 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		intro: 'An MP3 is small, plays everywhere and is what most podcast hosts and messaging apps expect. The export renders the whole project — every track, effect and edit — into one file.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the recording to publish' }),
 			exportAudio({ format: 'MP3', extension: 'mp3' }, { why: 'The file is encoded in the browser; nothing leaves your computer.' }),
 		],
 		tips: [
@@ -85,7 +85,7 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		intro: 'WAV keeps every sample exactly as the editor has it. Use it for masters, for handing audio to a video editor or another DAW, and for anything you may want to process again.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the recording to deliver' }),
 			exportAudio({ format: 'WAV', extension: 'wav' }),
 		],
 		tips: [
@@ -101,10 +101,10 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 		intro: 'Every track has a Mute button and a Solo button in its header. Mute silences that track; Solo silences every other track so you hear this one alone. Both are listening aids only — they change what you hear while you work, and the export still renders every unmuted track.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			importAudio('second-loop'),
+			importAudio('music-loop', { what: 'one track' }),
+			importAudio('second-loop', { what: 'another track' }),
 			trackButton('Mute', { why: 'The second track drops out of playback.' }),
-			trackButton('Solo', { why: 'Solo overrides mute on this track and silences every other one, so you hear the second loop on its own.' }),
+			trackButton('Solo', { why: 'Solo overrides mute on this track and silences every other one, so you hear this track on its own.' }),
 		],
 		tips: [
 			'Press a button again to release it. **Tracks → Mute all tracks** clears every track at once.',

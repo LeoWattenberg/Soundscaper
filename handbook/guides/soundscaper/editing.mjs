@@ -13,8 +13,8 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'The most common edit there is: a false start, a cough, a retake. Select the part you do not want, remove it, and let the rest of the track slide left to close the gap.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			selectRange(0.4, 0.6, { why: 'Select exactly the part you want gone. Zoom in with **View → Zoom → Zoom in** if the mistake is short.' }),
+			importAudio('music-loop', { what: 'the recording with the mistake in it' }),
+			selectRange(0.4, 0.6, { where: 'exactly the part you want gone', why: 'Zoom in with **View → Zoom → Zoom in** if the mistake is short.' }),
 			menu(['Edit', 'Cut', 'Cut and close gap per track'], { why: 'The selection is removed and everything after it moves left, so no silence is left behind.' }),
 			check({ clips: 2 }, { see: 'Two clips sit end to end where the selection was, and the track is shorter by exactly that much. Play across the join to check it.' }),
 		],
@@ -31,9 +31,9 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'A split does not remove anything. It turns one clip into two that sit end to end, so you can drag one part elsewhere, delete it, or apply an effect to it alone. The quickest way is the split tool: while it is active, every click on a clip cuts it at that point.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the recording you want to split' }),
 			tool('Split tool', { why: 'The pointer now cuts instead of selecting. Press **S** to toggle the tool from the keyboard.' }),
-			cursor(0.5, { why: 'With the split tool active, the click cuts the clip here.' }),
+			cursor(0.5, { where: 'where you want the cut', why: 'With the split tool active, the click cuts the clip here.' }),
 			check({ clips: 2 }, { see: 'Two clips now sit where there was one.' }),
 			tool('Split tool', { why: 'Press it again to return to the normal pointer.' }),
 		],
@@ -50,8 +50,8 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'When a long recording contains one good take, it is quicker to select the take and throw away the rest than to delete the surroundings in pieces. Trim keeps the selection and removes the audio on both sides of it.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			selectRange(0.25, 0.75, { why: 'Select the passage you want to keep.' }),
+			importAudio('music-loop', { what: 'the recording that holds the take' }),
+			selectRange(0.25, 0.75, { where: 'the passage you want to keep', why: 'Everything outside it is about to go.' }),
 			menu(['Edit', 'Remove special', 'Trim audio outside selection']),
 			check({ clips: 1 }, { see: 'Only the selected passage remains on the track.' }),
 		],
@@ -68,14 +68,14 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'A two-bar loop, a background bed that needs to run under a longer voice-over, a sound effect that should go on: Repeat copies the selection straight after itself as many times as you ask.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the sound you want to repeat' }),
 			selectAll(),
 			effect({
 				group: 'Special',
 				name: 'Repeat',
 				settings: [{ label: 'Number of repeats', value: '2' }],
 			}, { why: 'Two repeats give three copies in a row.' }),
-			play({ see: 'The loop plays three times without a gap.' }),
+			play({ see: 'The passage plays three times without a gap.' }),
 		],
 		tips: [
 			'For a seamless loop, make sure the selection starts and ends on silence or at a zero crossing (**Select → At zero crossings**).',
@@ -90,10 +90,10 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Reverse flips the selection in time. It is an effect for sound design — reversed cymbals, swelling pre-echoes — and occasionally for checking whether a room’s reverb tail hides anything.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the recording to reverse' }),
 			selectAll(),
 			effect({ group: 'Special', name: 'Reverse', direct: true }),
-			play({ see: 'The loop plays backwards.' }),
+			play({ see: 'The recording plays backwards.' }),
 		],
 		tips: [
 			'Apply Reverse twice and you are back where you started, sample for sample.',
@@ -108,9 +108,9 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Markers are notes on the timeline: where a chapter starts, where a mistake needs fixing, where the good take begins. They do not change the audio, they travel with the project, and they can be exported as a label file for other tools.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the recording you want to mark up' }),
 			menu(['View', 'Show markers'], { why: 'This adds a marker lane above the tracks. Markers exist without it, but the lane is where you see and edit them.' }),
-			cursor(0.5, { why: 'The marker goes where the cursor is.' }),
+			cursor(0.5, { where: 'where the marker should go', why: 'The marker goes where the cursor is.' }),
 			marker('Chorus', { see: 'The marker shows in the lane above the tracks and in the panel’s list, with the name you typed.' }),
 		],
 		tips: [
@@ -126,10 +126,10 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Copying a good chorus to replace a weak one, repeating a bar, moving a sentence to the end: copy and paste work on audio the way they do on text. Select a passage, copy it, put the cursor where it should go, and paste.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			selectRange(0.25, 0.5, { why: 'Select the passage to copy.' }),
+			importAudio('music-loop', { what: 'the recording with the passage you want to copy' }),
+			selectRange(0.25, 0.5, { where: 'the passage to copy' }),
 			menu(['Edit', 'Copy']),
-			cursor(1, { why: 'The paste lands at the cursor, so put it at the end of the clip.' }),
+			cursor(1, { where: 'where the copy should go', why: 'The paste lands at the cursor; the end of the clip is the usual place.' }),
 			menu(['Edit', 'Paste', 'Paste']),
 			check({ clips: 2 }, { see: 'The copied passage is a new clip after the original.' }),
 		],
@@ -146,8 +146,8 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Duplicate copies the selection onto a new track directly below, at the same position in time. It is the usual first step for parallel processing — a heavily compressed copy mixed under the original, a reverb-only track, a doubled vocal.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			selectRange(0.25, 0.75, { why: 'Select the passage to duplicate.' }),
+			importAudio('music-loop', { what: 'the recording with the passage to duplicate' }),
+			selectRange(0.25, 0.75, { where: 'the passage to duplicate' }),
 			menu(['Edit', 'Duplicate']),
 			check({ clips: 2 }, { see: 'A second clip holding just the selection, on a new track under the first, lined up in time.' }),
 		],
@@ -164,8 +164,8 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Effects like echo and reverb need room to ring out, and a podcast needs a breath between segments. The Silence generator inserts a gap of exactly the length you type at the cursor, which is more precise than dragging clips apart by eye.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			cursor(1, { why: 'The silence goes in at the cursor, so put it at the end of the clip.' }),
+			importAudio('music-loop', { what: 'the recording that needs a gap after it' }),
+			cursor(1, { where: 'at the end of the clip', why: 'The silence goes in at the cursor.' }),
 			generate({
 				name: 'Silence',
 				fields: [{ field: 'durationSeconds', label: 'Duration (seconds)', value: '1' }],
@@ -185,11 +185,11 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Two takes recorded separately land on their own tracks, both starting at zero. To play one after the other, the second has to move to where the first ends. Align end to end does that arithmetic for every selected clip in track order.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			importAudio('second-loop'),
-			selectClips(['music-loop', 'second-loop']),
+			importAudio('music-loop', { what: 'the first take' }),
+			importAudio('second-loop', { what: 'the second take' }),
+			selectClips(['music-loop', 'second-loop'], { which: ['the first clip', 'the second clip'] }),
 			menu(['Tracks', 'Align content', 'Align end to end']),
-			check({ startsAt: { fixture: 'second-loop', seconds: 2 } }, { see: 'The second clip now starts where the first one ends.' }),
+			check({ startsAt: { fixture: 'second-loop', seconds: 2 } }, { that: 'The second clip now starts where the first one ends.', see: 'The clips play one after the other with no overlap and no gap.' }),
 		],
 		tips: [
 			'**Align together** does the opposite: it moves the selected clips to start at the same time.',
@@ -204,10 +204,10 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'At the default zoom a whole song fits on the screen and a single word is a few pixels wide. Zooming in lets you place the cursor exactly on a beat or in the gap between two words; zoom to selection frames just the passage you are working on.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'the recording you want to edit closely' }),
 			menu(['View', 'Zoom', 'Zoom in'], { why: 'Each step doubles the width of a second. Ctrl+1 does the same.' }),
 			menu(['View', 'Zoom', 'Zoom in']),
-			selectRange(0.4, 0.6, { why: 'Select the passage you want to work on.' }),
+			selectRange(0.4, 0.6, { where: 'the passage you want to work on' }),
 			menu(['View', 'Zoom', 'Zoom to selection'], { why: 'The selection now fills the timeline.' }),
 			menu(['View', 'Zoom', 'Zoom normal'], { why: 'Ctrl+2 brings the default zoom back.' }),
 		],
@@ -224,9 +224,9 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Every edit and effect goes on the project’s history, so nothing you try is a risk. Undo steps back one change at a time — an effect, a cut, a move — and Redo puts it back. The history survives saving and reopening the project.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
+			importAudio('music-loop', { what: 'any recording' }),
 			tool('Split tool'),
-			cursor(0.5, { why: 'A split is a good edit to practise on because you can see it.' }),
+			cursor(0.5, { where: 'anywhere in the clip', why: 'A split is a good edit to practise on because you can see it.' }),
 			tool('Split tool', { why: 'Back to the normal pointer.' }),
 			check({ clips: 2 }),
 			tool('Undo', { why: 'The toolbar button and **Edit → Undo** do the same thing.' }),
@@ -247,8 +247,8 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Learning a riff, checking an edit point, auditioning an effect setting: all go faster when the passage plays round and round without you restarting it. Set the loop region to the selection and playback stays inside it until you turn the loop off.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			selectRange(0.25, 0.75, { why: 'Select the passage to repeat.' }),
+			importAudio('music-loop', { what: 'the recording with the passage to practise' }),
+			selectRange(0.25, 0.75, { where: 'the passage to repeat' }),
 			menu(['Select', 'Loop region', 'Set loop to selection']),
 			check({ loop: true }, { see: 'The loop button in the transport bar lights up and the loop region shows above the ruler.' }),
 			play({ see: 'Playback runs round the selected passage.' }),
@@ -266,9 +266,9 @@ export const EDITING_GUIDES = Object.freeze([
 		intro: 'Clips are free to move. Dragging a clip by its name bar slides it along the track — to leave a gap at the start, to sit after another clip, or to line up with a cue in the video. Dragging up or down moves it to another track.',
 		steps: [
 			open(),
-			importAudio('music-loop'),
-			dragClip(1, { why: 'The clip follows the pointer; its new start time shows in the selection bar as you drag.' }),
-			check({ moved: 'music-loop' }, { see: 'The clip now begins later, and the track is silent until it starts.' }),
+			importAudio('music-loop', { what: 'the recording you want to move' }),
+			dragClip(1, { where: 'to where it should start', why: 'The clip follows the pointer; its new start time shows in the selection bar as you drag.' }),
+			check({ moved: 'music-loop' }, { that: 'The clip now begins where you dropped it.', see: 'The track is silent until the clip starts.' }),
 		],
 		tips: [
 			'Turn on snapping from the transport bar so a dragged clip locks to seconds, beats or frames.',

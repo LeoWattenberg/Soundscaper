@@ -44,4 +44,4 @@ More [tracks and export](/guides/tracks-and-export/) guides:
 
 ## About this guide
 
-Every step on this page is replayed against each build of Soundscaper by the browser suite (`tests/browser/soundscaper-guides.spec.js`). If a menu entry, field or button stops matching, the build fails until the guide is corrected, so the steps you read are the steps the editor accepts.
+The procedure on this page — every menu entry, dialog, field and button, and the result it produces — is replayed against each build of Soundscaper by the browser suite (`tests/browser/soundscaper-guides.spec.js`). If any of it stops matching the editor, the build fails until the guide is corrected. The values suggested are starting points that the editor is proven to accept; whether they suit your recording is for your ears to decide.
