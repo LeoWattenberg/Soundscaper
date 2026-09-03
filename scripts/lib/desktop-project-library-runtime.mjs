@@ -298,6 +298,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/worker-request-broker.js',
 	'src/common/i18n/canonical-extras.js',
 	'src/common/i18n/canonical-extras-audacity-effects.js',
+	'src/common/i18n/canonical-extras-audacity-presets.js',
 	'src/common/i18n/locale.js',
 	...DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES,
 	'src/common/editor/native-durable-root-grant.js',
