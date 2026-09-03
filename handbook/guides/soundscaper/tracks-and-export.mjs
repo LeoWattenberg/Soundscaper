@@ -35,6 +35,7 @@ export const TRACK_AND_EXPORT_GUIDES = Object.freeze([
 			check({ clip: 'Mix' }, { see: 'One track holds a clip named Mix; the source tracks are gone.' }),
 		],
 		tips: [
+			'Choose **Mono**, **Stereo**, or the project’s configured multichannel layout under **Mix down to** before rendering.',
 			'**Edit → Undo** brings the original tracks back if you need to change the balance.',
 			'You do not have to mix down to export. **File → Export audio** renders the whole project on its own.',
 		],

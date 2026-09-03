@@ -9,6 +9,7 @@ import {
 import {
 	bootEditor,
 	chooseCommandAction,
+	chooseDropdown,
 	chooseNestedCommandAction,
 	clipByName,
 	closeDialog,
@@ -23,12 +24,32 @@ import {
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
+import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 async function openMixRenderDialog(page, editor) {
 	await chooseCommandAction(page, editor, 'Tracks', 'Mix & Render');
 	const dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
 	await expect(dialog).toBeVisible();
 	return dialog;
+}
+
+async function mixedSourceChannelCount(page) {
+	return page.evaluate((databaseName) => new Promise((resolve, reject) => {
+		const openRequest = indexedDB.open(databaseName);
+		openRequest.onerror = () => reject(openRequest.error);
+		openRequest.onsuccess = () => {
+			const database = openRequest.result;
+			const request = database.transaction('sources', 'readonly').objectStore('sources').getAll();
+			request.onerror = () => {
+				database.close();
+				reject(request.error);
+			};
+			request.onsuccess = () => {
+				database.close();
+				resolve(request.result.find(({ id }) => id?.startsWith('mixed-source-'))?.channelCount ?? null);
+			};
+		};
+	}), SOUNDSCAPER_DATABASE_NAME);
 }
 
 test.describe('audio editor React/design-system workflows', () => {
@@ -44,15 +65,19 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 
 		const dialog = await openMixRenderDialog(page, editor);
-		for (const label of ['Mix down to stereo', 'Render effects', 'Replace originals']) {
+		for (const label of ['Mix down', 'Render effects', 'Replace originals']) {
 			await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
 		}
+		const channels = dialog.getByRole('group', { name: 'Mix down to', exact: true });
+		await expect(channels.getByRole('button')).toContainText('Stereo');
+		await chooseDropdown(page, channels, 'Mono');
 		await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
 		await expect(dialog).toBeHidden({ timeout: 20_000 });
 		const mixedClip = clipByName(editor, 'Mix');
 		await expect(mixedClip).toBeVisible({ timeout: 20_000 });
 		await expect(firstClip).toHaveCount(0);
 		await expect(secondClip).toHaveCount(0);
+		await expect.poll(() => mixedSourceChannelCount(page)).toBe(1);
 
 		await chooseCommandAction(page, editor, 'Edit', 'Undo');
 		await expect(clipByName(editor, toneA.name)).toBeVisible();
@@ -73,7 +98,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 
 		const dialog = await openMixRenderDialog(page, editor);
-		await dialog.getByRole('checkbox', { name: 'Mix down to stereo', exact: true }).setChecked(false);
+		await dialog.getByRole('checkbox', { name: 'Mix down', exact: true }).setChecked(false);
+		await expect(dialog.getByRole('group', { name: 'Mix down to', exact: true })
+			.getByRole('button')).toBeDisabled();
 		await dialog.getByRole('checkbox', { name: 'Replace originals', exact: true }).setChecked(false);
 		await expect(dialog.getByRole('checkbox', { name: 'Render effects', exact: true })).toBeChecked();
 		await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
@@ -495,7 +522,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const split = clipMenu.locator('[data-action-id="split"]');
 		await expect(split).toHaveAttribute('data-parity-status', 'implemented');
 		await expect(split).toHaveAttribute('data-enable-when', 'editable-selection-or-clip');
-		await expect(split.locator('xpath=ancestor::div[@role="menuitem"]')).toContainText('S');
+		await expect(split.locator('xpath=ancestor::div[@role="menuitem"]')
+			.locator('.context-menu-item-shortcut')).toHaveText('Ctrl+I');
 		await expect(clipMenu.locator('[data-action-id="local://reverse-clip"]')).toHaveAttribute(
 			'data-parity-status',
 			'supplemental',

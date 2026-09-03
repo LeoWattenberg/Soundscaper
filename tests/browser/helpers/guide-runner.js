@@ -179,9 +179,10 @@ async function runMixRender(page, state) {
 	await chooseCommandAction(page, state.editor, 'Tracks', 'Mix & Render');
 	const dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
 	await expect(dialog).toBeVisible();
-	for (const label of ['Mix down to stereo', 'Render effects', 'Replace originals']) {
+	for (const label of ['Mix down', 'Render effects', 'Replace originals']) {
 		await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
 	}
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Mix down to', exact: true }), 'Stereo');
 	await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
 	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
 }

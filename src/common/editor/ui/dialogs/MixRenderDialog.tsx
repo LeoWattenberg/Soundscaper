@@ -5,11 +5,15 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import '../audio-editor-design-system/28-mix-render.css';
 
 import type { MixRenderOptions } from '../../controller/mix-render-options.ts';
-import { predictMixRenderOutputChannelCount } from '../../controller/mix-render-output-layout.ts';
+import {
+	mixRenderOutputChannelChoices,
+	predictMixRenderOutputChannelCount,
+} from '../../controller/mix-render-output-layout.ts';
 import { selectAudioTracksForMix } from '../../controller/mix-render-model.ts';
 import type { ControllerProject } from '../../controller/track-domain-types.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
+import { LabeledDropdown } from '../inspector/inspector-controls.jsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';
 import {
 	runAwaitedAudioEditorOperation,
@@ -19,9 +23,10 @@ import {
 interface MixRenderDialogCopy {
 	readonly mixRenderTitle: string;
 	readonly mixDown: string;
-	readonly mixDownToMono: string;
-	readonly mixDownToStereo: string;
-	readonly mixDownToChannels: string;
+	readonly mixDownTo: string;
+	readonly mixDownMono: string;
+	readonly mixDownStereo: string;
+	readonly mixDownChannels: string;
 	readonly mixDownDescription: string;
 	readonly renderEffects: string;
 	readonly renderEffectsDescription: string;
@@ -68,31 +73,49 @@ export default function MixRenderDialog({
 	const [mixDown, setMixDown] = useState(true);
 	const [renderEffects, setRenderEffects] = useState(true);
 	const [replaceOriginals, setReplaceOriginals] = useState(true);
+	const predictedOutputChannelCount = useMemo(() => project
+		? predictMixRenderOutputChannelCount(project, targetTracks, true)
+		: null, [project, targetTracks]);
+	const [mixDownChannelCount, setMixDownChannelCount] = useState(
+		predictedOutputChannelCount ?? 2,
+	);
+	const defaultOutputChannelCountRef = useRef(predictedOutputChannelCount ?? 2);
+	defaultOutputChannelCountRef.current = predictedOutputChannelCount ?? 2;
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState('');
 	const activeOperationRef = useRef<symbol | null>(null);
-	const outputChannelCount = useMemo(() => project
-		? predictMixRenderOutputChannelCount(project, targetTracks, renderEffects)
-		: null, [project, renderEffects, targetTracks]);
-	const mixDownLabel = outputLayoutLabel(copy, outputChannelCount);
+	const outputChannelCounts = useMemo(
+		() => project ? mixRenderOutputChannelChoices(project) : Object.freeze([1, 2]),
+		[project],
+	);
+	const outputChannelOptions = useMemo(() => outputChannelCounts.map((channelCount) => ({
+		value: String(channelCount),
+		label: outputLayoutChoiceLabel(copy, channelCount),
+	})), [copy, outputChannelCounts]);
 
 	useEffect(() => {
 		activeOperationRef.current = null;
 		setMixDown(true);
 		setRenderEffects(true);
 		setReplaceOriginals(true);
+		setMixDownChannelCount(defaultOutputChannelCountRef.current);
 		setPending(false);
 		setError('');
 	}, [projectId]);
 	useEffect(() => () => { activeOperationRef.current = null; }, []);
 
 	const emptyOperation = !mixDown && !renderEffects;
-	const submitDisabled = pending || emptyOperation || outputChannelCount === null;
+	const submitDisabled = pending || emptyOperation || predictedOutputChannelCount === null;
 	const submit = (): void => {
 		if (submitDisabled || activeOperationRef.current !== null) return;
 		const operationId = Symbol('mix-render');
 		const submittedProjectId = projectId;
-		const options: MixRenderOptions = { mixDown, renderEffects, replaceOriginals };
+		const options = {
+			mixDown,
+			renderEffects,
+			replaceOriginals,
+			...(mixDown ? { mixDownChannelCount } : {}),
+		};
 		activeOperationRef.current = operationId;
 		setPending(true);
 		setError('');
@@ -126,12 +149,28 @@ export default function MixRenderDialog({
 			submit();
 		}}>
 			<Option
-				label={mixDownLabel}
+				label={copy.mixDown}
 				description={copy.mixDownDescription}
 				checked={mixDown}
 				disabled={pending}
 				onChange={setMixDown}
-			/>
+			>
+				<div className="audio-editor-mix-render__layout" data-mix-render-channel-count>
+					<LabeledDropdown
+						label={copy.mixDownTo}
+						hook={null}
+						value={String(mixDownChannelCount)}
+						disabled={pending || !mixDown}
+						options={outputChannelOptions}
+						onChange={(value: string) => {
+							const channelCount = Number(value);
+							if (outputChannelCounts.includes(channelCount)) {
+								setMixDownChannelCount(channelCount);
+							}
+						}}
+					/>
+				</div>
+			</Option>
 			<Option
 				label={copy.renderEffects}
 				description={copy.renderEffectsDescription}
@@ -160,26 +199,25 @@ export default function MixRenderDialog({
 	</AudioEditorDialogShell>;
 }
 
-function Option({ label, description, checked, disabled, onChange }: Readonly<{
+function Option({ label, description, checked, disabled, onChange, children }: Readonly<{
 	label: string;
 	description: string;
 	checked: boolean;
 	disabled: boolean;
 	onChange(checked: boolean): void;
+	children?: React.ReactNode;
 }>) {
 	const descriptionId = useId();
 	return <div className="audio-editor-mix-render__option">
 		<PreferenceCheckbox label={label} ariaDescribedBy={descriptionId}
 			checked={checked} disabled={disabled} onChange={onChange} />
+		{children}
 		<p id={descriptionId}>{description}</p>
 	</div>;
 }
 
-export function outputLayoutLabel(copy: MixRenderDialogCopy, channelCount: number | null): string {
-	if (channelCount === 1) return copy.mixDownToMono;
-	if (channelCount === 2) return copy.mixDownToStereo;
-	if (channelCount !== null && channelCount > 2) {
-		return formatLocalizedTemplate(copy.mixDownToChannels, { count: channelCount });
-	}
-	return copy.mixDown;
+export function outputLayoutChoiceLabel(copy: MixRenderDialogCopy, channelCount: number): string {
+	if (channelCount === 1) return copy.mixDownMono;
+	if (channelCount === 2) return copy.mixDownStereo;
+	return formatLocalizedTemplate(copy.mixDownChannels, { count: channelCount });
 }

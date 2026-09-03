@@ -38,13 +38,14 @@ test('individual Mix and Render skips empty targets and stages project-ordered o
 	const service = createMixRenderService(dependencies);
 
 	const result = await service.mixAndRenderTracks({
-		mixDown: false, renderEffects: true, replaceOriginals: true,
+		mixDown: false, mixDownChannelCount: 6, renderEffects: true, replaceOriginals: true,
 	});
 
 	assert.deepEqual(renders.map((snapshot) => snapshot.tracks.map(({ id }) => id)), [['first'], ['second']]);
 	assert.deepEqual(renders.map((snapshot) => snapshot.mixer.groups), [[], []]);
 	assert.equal(preflightBytes, 2 * 6 * Float32Array.BYTES_PER_ELEMENT);
 	assert.equal(persisted.length, 2);
+	assert.deepEqual(persisted.map(({ source }) => source.channelCount), [1, 1]);
 	assert.deepEqual(result, { trackId: 'first', clipId: 'rendered-clip-1', sourceId: 'render-1' });
 	assert.equal(commits.length, 1);
 	const command = commits[0];
@@ -125,6 +126,61 @@ test('a dry combined keep-original render has no effect tail and creates a mono 
 	if (added?.type !== 'track/add') assert.fail('Expected a new combined track.');
 	assert.equal(added.track.name, 'Mix');
 	assert.equal(command.commands.some(({ type }) => type === 'track/remove'), false);
+});
+
+test('an explicit combined layout overrides legacy automatic mono and stereo choices', async () => {
+	const cases = [
+		{
+			name: 'stereo from a mono target',
+			project: fixture({
+				selection: { startFrame: 0, endFrame: 0, trackIds: ['first'], clipIds: [] },
+			}),
+			channelCount: 2,
+			rendered: buffer([
+				new Float32Array(8).fill(Math.SQRT1_2),
+				new Float32Array(8).fill(Math.SQRT1_2),
+			]),
+		},
+		{
+			name: 'mono from a stereo target',
+			project: fixture({
+				selection: { startFrame: 0, endFrame: 0, trackIds: ['first'], clipIds: [] },
+				sources: [
+					{ ...source('first-source'), channelCount: 2 },
+					source('second-source'),
+				],
+			}),
+			channelCount: 1,
+			rendered: buffer([
+				new Float32Array(8).fill(0.25),
+				new Float32Array(8).fill(0.5),
+			]),
+		},
+	] as const;
+	for (const entry of cases) {
+		let persisted: DerivedSourceRecord | null = null;
+		let preflightBytes = 0;
+		const service = createMixRenderService(runtime(entry.project, {
+			renderSnapshot: async () => entry.rendered,
+			persistRenderedMixSource: async (rendered, name) => {
+				persisted = derived(`chosen-${String(entry.channelCount)}`, rendered, name);
+				return persisted;
+			},
+			preflightStorage: async (bytes) => { preflightBytes = bytes; },
+		}));
+
+		await service.mixAndRenderTracks({
+			mixDown: true,
+			mixDownChannelCount: entry.channelCount,
+			renderEffects: true,
+			replaceOriginals: false,
+		});
+
+		assert.equal((persisted as DerivedSourceRecord | null)?.source.channelCount,
+			entry.channelCount, entry.name);
+		assert.equal(preflightBytes, entry.channelCount * 8 * Float32Array.BYTES_PER_ELEMENT,
+			entry.name);
+	}
 });
 
 test('buffered Mix and Render rejects a frame-count mismatch before persistence or commit', async () => {

@@ -13,7 +13,9 @@ import {
 	createMixRenderSnapshot,
 } from '../src/common/editor/controller/mix-render-model.ts';
 import {
+	mixRenderOutputChannelChoices,
 	predictMixRenderOutputChannelCount,
+	resolveMixRenderOutputChannelCount,
 } from '../src/common/editor/controller/mix-render-output-layout.ts';
 import type {
 	ControllerProject,
@@ -22,12 +24,17 @@ import type {
 
 test('Mix and Render defaults only the omitted object and rejects incomplete, invalid, or no-op requests', () => {
 	assert.deepEqual(normalizeMixRenderOptions(), {
-		mixDown: true, renderEffects: true, replaceOriginals: true,
+		mixDown: true, renderEffects: true, replaceOriginals: true, mixDownChannelCount: null,
 	});
 	assert.deepEqual(normalizeMixRenderOptions({
 		mixDown: true, renderEffects: true, replaceOriginals: false,
 	}), {
-		mixDown: true, renderEffects: true, replaceOriginals: false,
+		mixDown: true, renderEffects: true, replaceOriginals: false, mixDownChannelCount: null,
+	});
+	assert.deepEqual(normalizeMixRenderOptions({
+		mixDown: true, renderEffects: true, replaceOriginals: false, mixDownChannelCount: 6,
+	}), {
+		mixDown: true, renderEffects: true, replaceOriginals: false, mixDownChannelCount: 6,
 	});
 	assert.throws(
 		() => normalizeMixRenderOptions({ replaceOriginals: false } as never),
@@ -45,6 +52,15 @@ test('Mix and Render defaults only the omitted object and rejects incomplete, in
 		}),
 		/Mix and Render must mix down, render effects, or both/,
 	);
+	for (const invalid of [0, 33, 1.5, '2']) {
+		assert.throws(
+			() => normalizeMixRenderOptions({
+				mixDown: true, renderEffects: true, replaceOriginals: true,
+				mixDownChannelCount: invalid,
+			} as never),
+			/1 through 32/iu,
+		);
+	}
 });
 
 test('the Mix and Render layout predictor matches effect inclusion and skips empty targets', () => {
@@ -68,6 +84,41 @@ test('the Mix and Render layout predictor preserves exact production master widt
 	project.schemaFamily = 'soundscaper';
 	project.masterChannels = 6;
 	assert.equal(predictMixRenderOutputChannelCount(project, [target], false), 6);
+});
+
+test('Mix and Render offers mono, stereo, and the configured production layout without duplicates', () => {
+	assert.deepEqual(mixRenderOutputChannelChoices(fixture()), [1, 2]);
+	for (const masterChannels of [1, 2, 6, 32]) {
+		const project = fixture({ schemaVersion: 1 }) as ControllerProject & {
+			schemaFamily: 'soundscaper'; masterChannels: number;
+		};
+		project.schemaFamily = 'soundscaper';
+		project.masterChannels = masterChannels;
+		assert.deepEqual(
+			mixRenderOutputChannelChoices(project),
+			masterChannels > 2 ? [1, 2, masterChannels] : [1, 2],
+		);
+	}
+});
+
+test('Mix and Render resolves only selectable explicit output layouts', () => {
+	const target = track({ id: 'mono', clipIds: ['mono-clip'] });
+	const legacy = fixture({ tracks: [target] });
+	assert.equal(resolveMixRenderOutputChannelCount(legacy, [target], true, null), 1);
+	assert.equal(resolveMixRenderOutputChannelCount(legacy, [target], true, 2), 2);
+	assert.throws(
+		() => resolveMixRenderOutputChannelCount(legacy, [target], true, 6),
+		/cannot mix this project down to 6 channels/iu,
+	);
+	const production = fixture({ schemaVersion: 1, tracks: [target] }) as ControllerProject & {
+		schemaFamily: 'soundscaper'; masterChannels: number;
+	};
+	production.schemaFamily = 'soundscaper';
+	production.masterChannels = 6;
+	assert.equal(resolveMixRenderOutputChannelCount(production, [target], true, null), 6);
+	assert.equal(resolveMixRenderOutputChannelCount(production, [target], true, 1), 1);
+	assert.equal(resolveMixRenderOutputChannelCount(production, [target], true, 2), 2);
+	assert.equal(resolveMixRenderOutputChannelCount(production, [target], true, 6), 6);
 });
 
 test('combined and individual snapshots differ at downstream routing and can omit effects', () => {

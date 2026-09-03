@@ -399,7 +399,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		case 'menu':
 			return `Choose ${menuPath(entry.path)}.`;
 		case 'mix-render':
-			return `Choose ${menuPath(['Tracks', 'Mix & Render'])}. In the ${bold('Mix & Render')} dialog, leave ${bold('Mix down to stereo')}, ${bold('Render effects')} and ${bold('Replace originals')} checked, then press ${bold('Mix & Render')}.`;
+			return `Choose ${menuPath(['Tracks', 'Mix & Render'])}. In the ${bold('Mix & Render')} dialog, leave ${bold('Mix down')}, ${bold('Render effects')} and ${bold('Replace originals')} checked, choose ${bold('Stereo')} for ${bold('Mix down to')}, then press ${bold('Mix & Render')}.`;
 		case 'select-range':
 			return howto
 				? `Drag in the ruler above the clip to select ${entry.where}.`

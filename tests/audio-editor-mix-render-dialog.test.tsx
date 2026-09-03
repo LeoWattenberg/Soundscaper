@@ -12,20 +12,21 @@ import {
 	installReactTestDom, reactProps, type ReactTestElement,
 } from './helpers/react-test-dom.ts';
 
-test('Mix & Render presents checked defaults and labels the predicted output layout', () => {
+test('Mix & Render presents checked defaults and selectable predicted output layouts', () => {
 	const mono = renderDialog(project(1));
 	assert.match(mono, /role="dialog"[^>]*aria-label="Mix &amp; Render"/u);
-	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Mix down to mono"/u);
+	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Mix down"/u);
 	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Render effects"/u);
 	assert.match(mono, /role="checkbox"[^>]*aria-checked="true"[^>]*aria-label="Replace originals"/u);
-	assertCheckboxDescription(mono, 'Mix down to mono',
+	assertCheckboxDescription(mono, 'Mix down',
 		'Combine the selected tracks into one rendered track. Clear this option to render each track separately.');
 	assertCheckboxDescription(mono, 'Render effects',
 		'Burn realtime effects into the rendered audio.');
 	assertCheckboxDescription(mono, 'Replace originals',
 		'Replace the selected tracks. Clear this option to create new tracks.');
-	assert.match(renderDialog(project(2)), /aria-label="Mix down to stereo"/u);
-	assert.match(renderDialog(project(1, 6)), /aria-label="Mix down to 6 channels"/u);
+	assertDropdownMarkup(mono, 'Mono');
+	assertDropdownMarkup(renderDialog(project(2)), 'Stereo');
+	assertDropdownMarkup(renderDialog(project(1, 6)), '6 channels');
 	const empty = project(1);
 	assert.match(renderDialog({
 		...empty,
@@ -44,8 +45,9 @@ test('Mix & Render disables an empty operation, submits every boolean once, and 
 		onClose: () => { closes += 1; },
 	});
 	try {
-		await toggle(mounted.dom.container, 'Mix down to mono');
-		assert.equal(checkbox(mounted.dom.container, 'Mix down to mono').getAttribute('aria-checked'), 'false');
+		await toggle(mounted.dom.container, 'Mix down');
+		assert.equal(checkbox(mounted.dom.container, 'Mix down').getAttribute('aria-checked'), 'false');
+		assert.equal(reactProps(dropdownTrigger(mounted.dom.container)).disabled, true);
 		await toggle(mounted.dom.container, 'Render effects');
 		assert.equal(checkbox(mounted.dom.container, 'Render effects').getAttribute('aria-checked'), 'false');
 		assert.equal(reactProps(buttonWithText(mounted.dom.container, 'Mix & Render')).disabled, true);
@@ -78,6 +80,36 @@ test('Mix & Render disables an empty operation, submits every boolean once, and 
 	}
 });
 
+test('Mix & Render submits the chosen mix-down layout and locks it while pending', async () => {
+	const completion = deferred<void>();
+	const calls: unknown[] = [];
+	const mounted = await mountDialog({
+		project: project(1),
+		mixAndRender: (options) => { calls.push(options); return completion.promise; },
+	});
+	try {
+		assert.equal(dropdownSelectedText(mounted.dom.container), 'Mono');
+		await chooseDropdown(mounted.dom.container, 'Stereo');
+		assert.equal(dropdownSelectedText(mounted.dom.container), 'Stereo');
+		await submit(mounted.dom.container, false);
+		assert.deepEqual(calls, [{
+			mixDown: true,
+			mixDownChannelCount: 2,
+			renderEffects: true,
+			replaceOriginals: true,
+		}]);
+		assert.equal(reactProps(dropdownTrigger(mounted.dom.container)).disabled, true);
+		await act(async () => {
+			completion.resolve();
+			await completion.promise;
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+	} finally {
+		await mounted.unmount();
+	}
+});
+
 test('Mix & Render cancels without mutation and restores defaults on the next opening', async () => {
 	const calls: unknown[] = [];
 	const mounted = await mountDialog({
@@ -85,9 +117,11 @@ test('Mix & Render cancels without mutation and restores defaults on the next op
 		mixAndRender: (options) => { calls.push(options); },
 	});
 	try {
-		await toggle(mounted.dom.container, 'Mix down to mono');
+		await chooseDropdown(mounted.dom.container, 'Stereo');
+		await toggle(mounted.dom.container, 'Mix down');
 		await toggle(mounted.dom.container, 'Render effects');
 		await toggle(mounted.dom.container, 'Replace originals');
+		assert.equal(dropdownSelectedText(mounted.dom.container), 'Stereo');
 		await act(async () => {
 			void reactProps(buttonWithText(mounted.dom.container, 'Cancel')).onClick({});
 		});
@@ -96,9 +130,10 @@ test('Mix & Render cancels without mutation and restores defaults on the next op
 
 		await mounted.hide();
 		await mounted.render(project(1));
-		for (const label of ['Mix down to mono', 'Render effects', 'Replace originals']) {
+		for (const label of ['Mix down', 'Render effects', 'Replace originals']) {
 			assert.equal(checkbox(mounted.dom.container, label).getAttribute('aria-checked'), 'true', label);
 		}
+		assert.equal(dropdownSelectedText(mounted.dom.container), 'Mono');
 		assert.deepEqual(calls, []);
 	} finally {
 		await mounted.unmount();
@@ -128,6 +163,7 @@ test('Mix & Render reports failure without closing and fences completion to its 
 		await submit(fenced.dom.container, false);
 		await fenced.render(project(2, undefined, 'project-b'));
 		assert.equal(checkbox(fenced.dom.container, 'Replace originals').getAttribute('aria-checked'), 'true');
+		assert.equal(dropdownSelectedText(fenced.dom.container), 'Stereo');
 		await act(async () => {
 			completion.resolve();
 			await completion.promise;
@@ -141,13 +177,20 @@ test('Mix & Render reports failure without closing and fences completion to its 
 });
 
 function renderDialog(value: ReturnType<typeof project>): string {
-	return renderToStaticMarkup(<MixRenderDialog
-		controller={{ actions: { track: { mixAndRender: () => undefined } } }}
-		snapshot={snapshot(value)}
-		copy={ENGLISH_COPY}
-		run={(operation) => operation()}
-		onClose={() => undefined}
-	/>);
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	try {
+		return renderToStaticMarkup(<MixRenderDialog
+			controller={{ actions: { track: { mixAndRender: () => undefined } } }}
+			snapshot={snapshot(value)}
+			copy={ENGLISH_COPY}
+			run={(operation) => operation()}
+			onClose={() => undefined}
+		/>);
+	} finally {
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+	}
 }
 
 async function mountDialog({
@@ -156,7 +199,12 @@ async function mountDialog({
 	onClose,
 }: Readonly<{
 	project: ReturnType<typeof project>;
-	mixAndRender(options: Readonly<{ mixDown: boolean; renderEffects: boolean; replaceOriginals: boolean }>): unknown;
+	mixAndRender(options: Readonly<{
+		mixDown: boolean;
+		mixDownChannelCount?: number;
+		renderEffects: boolean;
+		replaceOriginals: boolean;
+	}>): unknown;
 	onClose?: () => void;
 }>) {
 	const dom = installReactTestDom();
@@ -250,6 +298,40 @@ function checkbox(root: ReactTestElement, label: string): ReactTestElement {
 	return result;
 }
 
+function dropdownTrigger(root: ReactTestElement): ReactTestElement {
+	const wrapper = root.querySelector('[data-mix-render-channel-count]');
+	assert.ok(wrapper, 'Missing Mix down channel-count wrapper.');
+	const group = wrapper.querySelectorAll('[role="group"]')
+		.find((candidate) => candidate.getAttribute('aria-label') === 'Mix down to');
+	assert.ok(group, 'Missing labelled Mix down to dropdown group.');
+	const trigger = group.querySelector('.dropdown__trigger');
+	assert.ok(trigger, 'Missing Mix down to dropdown trigger.');
+	assert.equal(trigger.getAttribute('aria-label'), 'Mix down to');
+	return trigger;
+}
+
+function dropdownSelectedText(root: ReactTestElement): string {
+	const text = dropdownTrigger(root).querySelector('.dropdown__text');
+	assert.ok(text, 'Missing selected Mix down layout text.');
+	return text.textContent;
+}
+
+async function chooseDropdown(root: ReactTestElement, optionLabel: string): Promise<void> {
+	await act(async () => {
+		void reactProps(dropdownTrigger(root)).onClick({});
+		await Promise.resolve();
+		await Promise.resolve();
+	});
+	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
+	const option = body.querySelectorAll('[role="option"]')
+		.find((candidate) => candidate.textContent === optionLabel);
+	assert.ok(option, `Missing Mix down to option ${optionLabel}.`);
+	await act(async () => {
+		void reactProps(option).onClick({});
+		await Promise.resolve();
+	});
+}
+
 function buttonWithText(root: ReactTestElement, text: string): ReactTestElement {
 	const button = root.querySelectorAll('button').find((candidate) => candidate.textContent === text);
 	assert.ok(button, `Missing button ${text}.`);
@@ -266,6 +348,15 @@ function assertCheckboxDescription(markup: string, label: string, description: s
 	assert.ok(descriptionId, `Checkbox ${label} must describe its explanatory copy.`);
 	assert.match(markup, new RegExp(
 		`<p id="${escapeRegex(descriptionId)}">${escapeRegex(description)}</p>`,
+		'u',
+	));
+}
+
+function assertDropdownMarkup(markup: string, selectedLabel: string): void {
+	assert.match(markup, /data-mix-render-channel-count="true"/u);
+	assert.match(markup, /role="group"[^>]*aria-label="Mix down to"/u);
+	assert.match(markup, new RegExp(
+		`<span class="dropdown__text">${escapeRegex(selectedLabel)}</span>`,
 		'u',
 	));
 }

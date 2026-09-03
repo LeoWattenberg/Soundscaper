@@ -8,6 +8,7 @@ import { createMixRenderService } from '../src/common/editor/controller/mix-rend
 import type { AudioBufferLike } from '../src/common/editor/controller/source-audio.ts';
 import { createEffect } from '../src/common/editor/effects.js';
 import type {
+	ControllerProject,
 	ControllerSource,
 	SourceWriter,
 } from '../src/common/editor/controller/track-domain-types.ts';
@@ -22,9 +23,13 @@ import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-projec
 const SAMPLE_RATE = 48_000;
 const FRAME_COUNT = 4;
 const CHANNEL_COUNT = 6;
+const MIX_RENDER_LAYOUT_CASES = [1, 2, CHANNEL_COUNT].flatMap((outputChannelCount) => [
+	{ outputChannelCount, streamToStorage: false },
+	{ outputChannelCount, streamToStorage: true },
+]);
 
-for (const streamToStorage of [false, true]) {
-	test(`Soundscaper Mix and Render preserves six channels through the ${streamToStorage ? 'streamed' : 'buffered'} path`, async () => {
+for (const { outputChannelCount, streamToStorage } of MIX_RENDER_LAYOUT_CASES) {
+	test(`Soundscaper Mix and Render writes a chosen ${String(outputChannelCount)}-channel ${streamToStorage ? 'streamed' : 'buffered'} mix`, async () => {
 		const channels = Array.from({ length: CHANNEL_COUNT }, (_, channel) => (
 			Float32Array.from({ length: FRAME_COUNT }, (_, frame) => channel + frame / 10)
 		));
@@ -37,6 +42,8 @@ for (const streamToStorage of [false, true]) {
 		let activatedSource: ControllerSource | null = null;
 		let writerChannelCount = 0;
 		let writerFrames = 0;
+		let writerOutput: Float32Array[] | null = null;
+		let renderedMasterChannels = 0;
 		let id = 0;
 		const streamingWriter = {
 			get channelCount() { return writerChannelCount; },
@@ -45,6 +52,7 @@ for (const streamToStorage of [false, true]) {
 				writerChannelCount ||= packet.length;
 				assert.equal(packet.length, writerChannelCount);
 				writerFrames += packet[0]?.length ?? 0;
+				writerOutput = packet.map((channel) => channel.slice());
 			},
 			commit(metadata?: Readonly<Record<string, unknown>>) {
 				commitMetadata = metadata ?? null;
@@ -110,13 +118,18 @@ for (const streamToStorage of [false, true]) {
 			handleError() {},
 			rackTailFrames: () => 0,
 			isFixedStereoEffect: () => false,
-			renderSnapshot: () => Promise.resolve(rendered),
+			renderSnapshot: (candidate: ControllerProject) => {
+				renderedMasterChannels = Number(candidate.masterChannels);
+				return Promise.resolve(rendered);
+			},
 			getAudioContext: () => Promise.resolve({}),
 			createBufferFromChannels: (outputChannels: Float32Array[]) => (
 				Promise.resolve(audioBuffer(outputChannels))
 			),
 			createRenderEngine: () => ({
-				loadProject() {},
+				loadProject(candidate: ControllerProject) {
+					renderedMasterChannels = Number(candidate.masterChannels);
+				},
 				async renderMixToSink(options: Readonly<Record<string, unknown>>) {
 					const sink = options.sink as Readonly<{
 						write(packet: Float32Array[]): Promise<unknown> | unknown;
@@ -141,17 +154,28 @@ for (const streamToStorage of [false, true]) {
 			) as never,
 		} as never);
 
-		await service.mixAndRenderTracks();
+		await service.mixAndRenderTracks({
+			mixDown: true,
+			mixDownChannelCount: outputChannelCount,
+			renderEffects: true,
+			replaceOriginals: true,
+		});
 
-		assert.equal(preflightBytes, FRAME_COUNT * CHANNEL_COUNT * Float32Array.BYTES_PER_ELEMENT);
+		assert.equal(preflightBytes, FRAME_COUNT * outputChannelCount * Float32Array.BYTES_PER_ELEMENT);
+		assert.equal(renderedMasterChannels, CHANNEL_COUNT, 'the authored render topology stays six-channel');
 		if (streamToStorage) {
-			assert.equal((beginMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, CHANNEL_COUNT);
-			assert.equal((commitMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, CHANNEL_COUNT);
-			assert.equal((activatedSource as ControllerSource | null)?.channelCount, CHANNEL_COUNT);
-			assert.equal(writerChannelCount, CHANNEL_COUNT);
+			assert.equal((beginMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, outputChannelCount);
+			assert.equal((commitMetadata as Readonly<Record<string, unknown>> | null)?.channelCount, outputChannelCount);
+			assert.equal((activatedSource as ControllerSource | null)?.channelCount, outputChannelCount);
+			assert.equal(writerChannelCount, outputChannelCount);
 			assert.equal(writerFrames, FRAME_COUNT);
+			assertMixOutput(writerOutput, channels, outputChannelCount);
 		} else {
-			assert.equal((persistedBuffer as AudioBufferLike | null)?.numberOfChannels, CHANNEL_COUNT);
+			assert.equal((persistedBuffer as AudioBufferLike | null)?.numberOfChannels, outputChannelCount);
+			const output = persistedBuffer as AudioBufferLike | null;
+			assertMixOutput(output && Array.from(
+				{ length: output.numberOfChannels }, (_, channel) => output.getChannelData(channel),
+			), channels, outputChannelCount);
 		}
 	});
 }
@@ -286,6 +310,40 @@ function audioBuffer(channels: Float32Array[]): AudioBufferLike {
 		sampleRate: SAMPLE_RATE,
 		getChannelData: (channel: number) => channels[channel]!,
 	};
+}
+
+function assertMixOutput(
+	actual: readonly Float32Array[] | null,
+	input: readonly Float32Array[],
+	outputChannelCount: number,
+): void {
+	assert.ok(actual);
+	assert.equal(actual.length, outputChannelCount);
+	if (outputChannelCount === CHANNEL_COUNT) {
+		for (let channel = 0; channel < CHANNEL_COUNT; channel += 1) {
+			assert.deepEqual(actual[channel], input[channel]);
+		}
+		return;
+	}
+	for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
+		const left = input[0]![frame]!
+			+ input[2]![frame]! * Math.SQRT1_2
+			+ input[3]![frame]! * 0.5
+			+ input[4]![frame]! * Math.SQRT1_2;
+		const right = input[1]![frame]!
+			+ input[2]![frame]! * Math.SQRT1_2
+			+ input[3]![frame]! * 0.5
+			+ input[5]![frame]! * Math.SQRT1_2;
+		const expected = outputChannelCount === 1
+			? [(left + right) * Math.SQRT1_2]
+			: [left, right];
+		for (let channel = 0; channel < outputChannelCount; channel += 1) {
+			assert.ok(
+				Math.abs(actual[channel]![frame]! - expected[channel]!) < 1e-5,
+				`channel ${String(channel)} frame ${String(frame)} must use the selected fold-down`,
+			);
+		}
+	}
 }
 
 function derivedSource(channelCount: number, name: string): ControllerSource {

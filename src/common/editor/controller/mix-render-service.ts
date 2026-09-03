@@ -24,7 +24,10 @@ import {
 	type MixRenderRenderedOutput,
 	type MixRenderResult,
 } from './mix-render-commit.ts';
-import { createNormalizingMixRenderPacketSink } from './mix-render-channel-normalizer.ts';
+import {
+	createNormalizingMixRenderPacketSink,
+	normalizeMixRenderChannels,
+} from './mix-render-channel-normalizer.ts';
 import { assertMixRenderPreflight } from './mix-render-operation-model.ts';
 import {
 	normalizeMixRenderOptions,
@@ -33,7 +36,7 @@ import {
 import {
 	nonemptyAudioTargets,
 	predictIndividualMixRenderOutputChannelCount,
-	predictMixRenderOutputChannelCount,
+	resolveMixRenderOutputChannelCount,
 } from './mix-render-output-layout.ts';
 import {
 	preserveProductionMixRenderRouting,
@@ -276,7 +279,9 @@ export function createMixRenderService(
 				{ includeBuses: options.mixDown, renderEffects: options.renderEffects },
 			);
 			const outputChannelCount = options.mixDown
-				? predictMixRenderOutputChannelCount(project, jobTracks, options.renderEffects)
+				? resolveMixRenderOutputChannelCount(
+					project, jobTracks, options.renderEffects, options.mixDownChannelCount,
+				)
 				: predictIndividualMixRenderOutputChannelCount(project, jobTracks[0]!, options.renderEffects);
 			if (outputChannelCount === null) throw new Error(dependencies.copy.mixRenderRequiresAudio
 				|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
@@ -316,17 +321,17 @@ export function createMixRenderService(
 			|| Number(rendered.sampleRate) !== dependencies.getProject().sampleRate) {
 			throw new Error(dependencies.copy.effectInvalidAudio);
 		}
+		const normalizedChannels = normalizeMixRenderChannels(
+			channels,
+			outputChannelCount,
+			() => new Error(dependencies.copy.effectInvalidAudio),
+		);
 		if (channels.length === outputChannelCount) return rendered;
-		if (outputChannelCount !== 1 || channels.length !== 2) {
-			throw new Error(dependencies.copy.effectInvalidAudio);
-		}
-		const mono = new Float32Array(channels[0].length);
-		for (let frame = 0; frame < mono.length; frame += 1) {
-			mono[frame] = (channels[0][frame]! + channels[1]![frame]!) * Math.SQRT1_2;
-		}
 		const context = await dependencies.getAudioContext();
 		assertOwned(ownership);
-		const output = await dependencies.createBufferFromChannels([mono], rendered.sampleRate, context);
+		const output = await dependencies.createBufferFromChannels(
+			normalizedChannels, rendered.sampleRate, context,
+		);
 		assertOwned(ownership);
 		return output;
 	}

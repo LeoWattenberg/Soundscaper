@@ -2,12 +2,14 @@
 
 export interface MixRenderOptions {
 	readonly mixDown: boolean;
+	readonly mixDownChannelCount?: number;
 	readonly renderEffects: boolean;
 	readonly replaceOriginals: boolean;
 }
 
 export interface NormalizedMixRenderOptions {
 	readonly mixDown: boolean;
+	readonly mixDownChannelCount: number | null;
 	readonly renderEffects: boolean;
 	readonly replaceOriginals: boolean;
 }
@@ -21,7 +23,12 @@ export function normalizeMixRenderOptions(
 		throw new TypeError('Mix and Render options must be an object.');
 	}
 	if (options === undefined) {
-		return Object.freeze({ mixDown: true, renderEffects: true, replaceOriginals: true });
+		return Object.freeze({
+			mixDown: true,
+			mixDownChannelCount: null,
+			renderEffects: true,
+			replaceOriginals: true,
+		});
 	}
 	const requested = options;
 	for (const key of OPTION_KEYS) {
@@ -29,8 +36,17 @@ export function normalizeMixRenderOptions(
 			throw new TypeError(`Mix and Render option ${key} must be a boolean.`);
 		}
 	}
+	const requestedChannelCount = requested.mixDownChannelCount;
+	if (requestedChannelCount !== undefined && (
+		!Number.isSafeInteger(requestedChannelCount)
+		|| requestedChannelCount < 1
+		|| requestedChannelCount > 32
+	)) {
+		throw new RangeError('Mix and Render output channel count must be an integer from 1 through 32.');
+	}
 	const normalized = Object.freeze({
 		mixDown: requested.mixDown,
+		mixDownChannelCount: requestedChannelCount ?? null,
 		renderEffects: requested.renderEffects,
 		replaceOriginals: requested.replaceOriginals,
 	});

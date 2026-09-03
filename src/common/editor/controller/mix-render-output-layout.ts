@@ -33,6 +33,36 @@ export function predictIndividualMixRenderOutputChannelCount(
 	return predictOutputChannelCount(project, [targetTrack], renderEffects, false);
 }
 
+/** Return the exact combined-output widths offered by the Mix and Render dialog. */
+export function mixRenderOutputChannelChoices(
+	project: ControllerProject,
+): readonly number[] {
+	const choices = [1, 2];
+	if (isSoundscaperProductionProject(project)) {
+		const masterChannels = productionMasterChannelCount(project);
+		if (!choices.includes(masterChannels)) choices.push(masterChannels);
+	}
+	return Object.freeze(choices);
+}
+
+/** Resolve an optional user choice without changing legacy automatic layout selection. */
+export function resolveMixRenderOutputChannelCount(
+	project: ControllerProject,
+	targetTracks: readonly ControllerTrack[],
+	renderEffects: boolean,
+	requestedChannelCount: number | null,
+): number | null {
+	const predicted = predictMixRenderOutputChannelCount(project, targetTracks, renderEffects);
+	if (requestedChannelCount !== null
+		&& !mixRenderOutputChannelChoices(project).includes(requestedChannelCount)) {
+		throw new RangeError(
+			`Mix and Render cannot mix this project down to ${String(requestedChannelCount)} channels.`,
+		);
+	}
+	if (predicted === null || requestedChannelCount === null) return predicted;
+	return requestedChannelCount;
+}
+
 function predictOutputChannelCount(
 	project: ControllerProject,
 	targetTracks: readonly ControllerTrack[],
