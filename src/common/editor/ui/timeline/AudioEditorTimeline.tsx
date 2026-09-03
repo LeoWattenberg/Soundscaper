@@ -3,6 +3,12 @@ import type { TrackAutomationRuntime } from '../../track-automation-runtime.ts';
 import type { TrackFreezeRuntime } from '../../track-freeze-runtime.ts';
 import TimelineController from './TimelineController.jsx';
 
+export interface TrackHeaderDrawer {
+	readonly isOpen: boolean;
+	toggle(): void;
+	close(): void;
+}
+
 interface TimelineSearchRevealRequest {
 	readonly clipId?: string;
 	readonly revision?: number;
@@ -15,6 +21,7 @@ interface AudioEditorTimelineProps {
 	readonly locale: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly mobile: boolean;
+	readonly trackHeaderDrawer?: TrackHeaderDrawer | null;
 	readonly showArmControls: boolean;
 	readonly displayAudioSupported: boolean;
 	readonly productId: string;
@@ -43,6 +50,7 @@ export default function AudioEditorTimeline({
 	locale,
 	copy,
 	mobile,
+	trackHeaderDrawer = null,
 	showArmControls,
 	displayAudioSupported,
 	productId,
@@ -63,7 +71,7 @@ export default function AudioEditorTimeline({
 	searchRevealRequest = null,
 	overlayTarget = null,
 }: AudioEditorTimelineProps) {
-	const geometry = { mobile, showArmControls, displayAudioSupported };
+	const geometry = { mobile, showArmControls, displayAudioSupported, trackHeaderDrawer };
 	const selection = { searchRevealRequest };
 	const preview = { overlayTarget };
 	const navigation = { splitToolEnabled, automationToolEnabled, spectralBrushEnabled };

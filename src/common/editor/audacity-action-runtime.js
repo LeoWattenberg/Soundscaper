@@ -19,6 +19,8 @@ const UI_FLAG_DEFAULTS = Object.freeze({
 	statusbar: true,
 	// Storage capacity is a diagnostic surface, not everyday chrome; Help opts in.
 	storagePanel: false,
+	// The compact layout keeps the track headers in a drawer; this is its open state.
+	trackHeaderDrawer: false,
 	tracksPanel: true,
 });
 /**
@@ -361,6 +363,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 			toggleSelectionToolbar: () => ui.toggleFlag('selectionToolbar'),
 			toggleTracksPanel: () => ui.toggleFlag('tracksPanel'),
 			toggleStatusbar: () => ui.toggleFlag('statusbar'),
+			toggleTrackHeaderDrawer: () => ui.toggleFlag('trackHeaderDrawer'),
 			toggleMasterTrack: () => controllerActions.preferences.update({
 				view: { showMasterTrack: !Boolean(snapshot().preferences?.view?.showMasterTrack) },
 			}),

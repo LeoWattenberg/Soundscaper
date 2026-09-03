@@ -392,6 +392,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('about-audacity', 'About this editor', ['Help'], 'help.openAbout', { source: UPSTREAM.menu }),
 	implemented('local://transport-toolbar', 'Transport toolbar', ['View > Toolbars'], 'workspace.toggleTransportToolbar', { source: null, origin: 'local' }),
 	implemented('local://selection-toolbar', 'Selection toolbar', ['View > Toolbars'], 'workspace.toggleSelectionToolbar', { source: null, origin: 'local' }),
+	implemented('local://track-header-drawer', 'Track headers', ['View'], 'workspace.toggleTrackHeaderDrawer', { source: null, origin: 'local' }),
 
 		// Existing browser placeholders explicitly retained by the user's parity policy.
 		implemented('local://select-no-tracks', 'Select no tracks', ['Select > Tracks'], 'selection.selectNoTracks', { enableWhen: 'track-selected', source: null, origin: 'local' }),

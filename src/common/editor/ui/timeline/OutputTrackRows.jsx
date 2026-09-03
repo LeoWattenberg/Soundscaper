@@ -36,6 +36,7 @@ export function OutputTrackDock({
 	onFocusOutput,
 	onMenu,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	verticalRulerWidth,
 	viewportWidth,
 	timelineWidth,
@@ -109,6 +110,7 @@ export function OutputTrackDock({
 					return targetIndex >= 0 && targetIndex < rows.length && focusOutputLane(targetIndex);
 				}}
 				panelWidth={panelWidth}
+				trackHeaderWidth={trackHeaderWidth}
 				verticalRulerWidth={verticalRulerWidth}
 				viewportWidth={viewportWidth}
 				timelineWidth={timelineWidth}
@@ -145,6 +147,7 @@ export function OutputTrackRow({
 	onNavigatePanel,
 	onNavigateLane,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	verticalRulerWidth,
 	viewportWidth,
 	timelineWidth,
@@ -271,6 +274,7 @@ export function OutputTrackRow({
 				bus={bus}
 				trackHeight={rowHeight}
 				panelWidth={panelWidth}
+				trackHeaderWidth={trackHeaderWidth}
 				focused={focused}
 				onFocus={onFocus}
 				onMenu={onMenu}
@@ -398,6 +402,7 @@ export function OutputTrackControls({
 	bus,
 	trackHeight,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	focused,
 	onFocus,
 	onMenu,
@@ -420,7 +425,7 @@ export function OutputTrackControls({
 			ref={controlsRef}
 			className="audio-editor-track-controls audio-editor-output-track-controls"
 			data-output-track-header
-			style={{ width: panelWidth }}
+			style={{ width: trackHeaderWidth }}
 			onKeyDownCapture={(event) => {
 				const panel = controlsRef.current?.querySelector('.track-control-panel');
 				if (event.key !== 'Tab' || event.target !== panel) return;

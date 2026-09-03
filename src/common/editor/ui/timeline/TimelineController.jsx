@@ -7,6 +7,7 @@ import { useTimelineMenuActions } from './useTimelineMenuActions.js';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
 import { useTimelinePointerFinish } from './useTimelinePointerFinish.js';
 import { useTimelinePointerMove } from './useTimelinePointerMove.js';
+import { useTrackHeaderDrawerDismissal } from './useTrackHeaderDrawerDismissal.js';
 import { useTimelinePointerStart } from './useTimelinePointerStart.js';
 import { useTimelineProjectBinDnd } from './useTimelineProjectBinDnd.js';
 import { useTimelineViewportModel } from './useTimelineViewportModel.js';
@@ -24,7 +25,7 @@ export default function TimelineController({
 	navigation: navigationInput,
 	actions: actionInput,
 }) {
-	const { mobile, showArmControls, displayAudioSupported } = geometryInput;
+	const { mobile, showArmControls, displayAudioSupported, trackHeaderDrawer = null } = geometryInput;
 	const { searchRevealRequest } = selectionInput;
 	const { overlayTarget } = previewInput;
 	const { splitToolEnabled, automationToolEnabled, spectralBrushEnabled } = navigationInput;
@@ -55,12 +56,14 @@ export default function TimelineController({
 		snapshot,
 		runtimeProject,
 		mobile,
+		trackHeaderDrawer,
 		showArmControls,
 		automationVisibleTrackIds: automationControls.visibleTrackIds,
 		state,
 	});
 	const navigationRuntime = useTimelineNavigation({
 		controller,
+		trackHeaderDrawer,
 		showArmControls,
 		automationVisibleTrackIds: automationControls.visibleTrackIds,
 		splitToolEnabled,
@@ -99,6 +102,10 @@ export default function TimelineController({
 		model,
 		hitTesting,
 		menuActions,
+	});
+	const headerDrawerDismissal = useTrackHeaderDrawerDismissal({
+		drawer: trackHeaderDrawer,
+		onPointerDown: pointerStart.onPointerDown,
 	});
 	const pointerMove = useTimelinePointerMove({
 		controller,
@@ -149,6 +156,8 @@ export default function TimelineController({
 		...navigationRuntime,
 		...pointerFinish,
 		...pointerStart,
+		onPointerDown: headerDrawerDismissal.onPointerDownCapture,
+		onTrackHeaderDrawerKeyDown: headerDrawerDismissal.onKeyDown,
 		...pointerMove,
 		...projectBinDnd,
 		scrollRef: state.scrollRef,
@@ -184,6 +193,7 @@ export default function TimelineController({
 			copy={copy}
 			locale={locale}
 			mobile={mobile}
+			trackHeaderDrawer={trackHeaderDrawer}
 			showArmControls={showArmControls}
 			displayAudioSupported={displayAudioSupported}
 			automationToolEnabled={automationToolEnabled}

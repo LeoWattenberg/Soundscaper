@@ -18,6 +18,7 @@ import {
 
 export function useTimelineNavigation({
 	controller,
+	trackHeaderDrawer = null,
 	showArmControls,
 	automationVisibleTrackIds,
 	splitToolEnabled,
@@ -120,9 +121,18 @@ export function useTimelineNavigation({
 		return focusFirst(trackNavigationRow(navigationRootRef.current, trackIndex)?.querySelector('.track'));
 	}, []);
 	const focusTrackPanelControl = useCallback((trackIndex, last = false) => {
-		const panel = trackNavigationRow(navigationRootRef.current, trackIndex)?.querySelector('.track-control-panel');
-		return focusPanelControl(panel, last);
-	}, []);
+		const focusPanel = () => focusPanelControl(
+			trackNavigationRow(navigationRootRef.current, trackIndex)?.querySelector('.track-control-panel'),
+			last,
+		);
+		// A hidden header cannot take focus: open the drawer first and focus once it shows.
+		if (trackHeaderDrawer && !trackHeaderDrawer.isOpen) {
+			trackHeaderDrawer.toggle();
+			requestAnimationFrame(() => focusPanel());
+			return true;
+		}
+		return focusPanel();
+	}, [trackHeaderDrawer]);
 	const focusTrackClip = useCallback((trackIndex, last = false, clipId = null) => {
 		const row = trackNavigationRow(navigationRootRef.current, trackIndex);
 		if (clipId !== null) {

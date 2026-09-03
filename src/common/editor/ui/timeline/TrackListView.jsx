@@ -49,6 +49,7 @@ export function TrackListView({
 	isFlatNavigation,
 	trackBaseTabIndex,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	timelineWidth,
 	verticalRulerWidth,
 	pixelsPerSecond,
@@ -128,6 +129,7 @@ export function TrackListView({
 					visualHeight={visualTrackHeight(track)}
 					trackIndex={trackIndex}
 					panelWidth={panelWidth}
+					trackHeaderWidth={trackHeaderWidth}
 					timelineWidth={timelineWidth}
 					verticalRulerWidth={verticalRulerWidth}
 					pixelsPerSecond={pixelsPerSecond}
@@ -154,6 +156,7 @@ export function TrackListView({
 					isFlatNavigation={isFlatNavigation}
 					trackBaseTabIndex={trackBaseTabIndex}
 					panelWidth={panelWidth}
+					trackHeaderWidth={trackHeaderWidth}
 					renderViewportStartFrame={renderViewportStartFrame}
 					viewportDurationFrames={viewportDurationFrames}
 					pixelsPerSecond={pixelsPerSecond}
@@ -192,6 +195,7 @@ export function TrackListView({
 					isFlatNavigation={isFlatNavigation}
 					trackBaseTabIndex={trackBaseTabIndex}
 					panelWidth={panelWidth}
+					trackHeaderWidth={trackHeaderWidth}
 					renderViewportStartFrame={renderViewportStartFrame}
 					viewModelRevision={snapshot}
 					viewportDurationFrames={viewportDurationFrames}
@@ -261,6 +265,7 @@ export function TrackListView({
 							selected={activeFolderId === entry.row.id}
 							activeFolderId={activeFolderId}
 							panelWidth={panelWidth}
+							trackHeaderWidth={trackHeaderWidth}
 							editing={editingFolderId === entry.row.id}
 							onSelect={selectFolder}
 							onKeyDown={onFolderKeyDown}

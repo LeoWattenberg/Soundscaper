@@ -122,4 +122,81 @@ test.describe('compact layout', () => {
 		await expect(preferences).toBeHidden();
 		await expect(menuToggle(editor)).toBeVisible();
 	});
+
+	test('a phone viewport keeps the track headers in a drawer that slides over full-width lanes', async ({ page }) => {
+		const editor = await bootCompactEditor(page);
+		await importFiles(editor, [toneA]);
+		const row = editor.locator('[data-track-row]').first();
+		const header = row.locator('[data-track-header]');
+		const lane = row.locator('[data-track-lane]');
+		await expect(header).toBeHidden();
+		const timelineBox = await editor.locator('[data-timeline]').boundingBox();
+		const laneBox = await lane.boundingBox();
+		expect(Math.abs(laneBox.x - timelineBox.x)).toBeLessThanOrEqual(2);
+		expect(await editor.locator('.audio-editor-timeline-panel').evaluate((panel) => (
+			panel.style.getPropertyValue('--track-panel-width')
+		))).toBe('0px');
+
+		const toggle = editor.locator('[data-track-header-toggle]');
+		await expect(toggle).toHaveAccessibleName('Show track headers');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await expect(toggle).toHaveAccessibleName('Hide track headers');
+		await expect(header).toBeVisible();
+		await expect.poll(async () => (await header.boundingBox())?.width).toBe(268);
+		await expect(editor.locator('[data-track-header-drawer-strip][data-open="true"]')).toBeVisible();
+		await expect(row.getByRole('button', { name: 'Track menu', exact: true })).toBeVisible();
+
+		// A tap in the timeline beside the headers closes the drawer. It lands on
+		// whatever the timeline shows there, as a finger would.
+		await page.mouse.click(timelineBox.x + timelineBox.width - 10, laneBox.y + 40);
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await expect(header).toBeHidden();
+
+		// The View menu carries the same toggle in the compact layout.
+		await chooseCommandAction(page, editor, 'View', 'Track headers');
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	});
+
+	test('a landscape phone fits the editor without page scroll', async ({ page }) => {
+		const editor = await bootCompactEditor(page, { width: 844, height: 390 });
+		await importFiles(editor, [toneA]);
+		await expectSurfaceWithinViewport(editor, page);
+		expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true);
+		const timelineBox = await editor.locator('[data-timeline]').boundingBox();
+		expect(timelineBox.height).toBeGreaterThan(120);
+		expect(timelineBox.y + timelineBox.height).toBeLessThanOrEqual(390);
+	});
+
+	test('the site introduction folds away on narrow screens and stays open on wide ones', async ({ page }) => {
+		await page.setViewportSize(PHONE_PORTRAIT);
+		const editor = await bootEditor(page, '/en/');
+		await waitForResponsiveEditorLayout(editor);
+		const intro = page.locator('.tool-intro');
+		const body = intro.locator('.tool-intro-body');
+		const toggle = intro.getByRole('button', { name: 'Show introduction', exact: true });
+		await expect(intro).toHaveAttribute('data-expanded', 'false');
+		await expect(body).toBeHidden();
+		await expect(toggle).toBeVisible();
+		await toggle.click();
+		await expect(intro).toHaveAttribute('data-expanded', 'true');
+		await expect(body).toBeVisible();
+		await expect(intro.getByRole('button', { name: 'Hide introduction', exact: true })).toBeVisible();
+
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await waitForResponsiveEditorLayout(editor);
+		await expect(intro.getByRole('button', { name: /introduction$/u })).toBeHidden();
+		await expect(body).toBeVisible();
+	});
+
+	test('the desktop layout keeps the track header column and no drawer handle', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await expect(editor.locator('[data-track-row]').first().locator('[data-track-header]')).toBeVisible();
+		await expect(editor.locator('[data-track-header-toggle]')).toHaveCount(0);
+		await expect(editor.locator('.audio-editor-timeline-panel')).not.toHaveAttribute('data-track-header-drawer', /.*/u);
+	});
 });

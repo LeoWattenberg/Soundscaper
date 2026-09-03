@@ -32,6 +32,7 @@ export function AudioTrackRow({
 	isFlatNavigation,
 	trackBaseTabIndex,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	renderViewportStartFrame,
 	viewportDurationFrames,
 	viewModelRevision,
@@ -173,7 +174,7 @@ export function AudioTrackRow({
 				controller={controller}
 				track={track}
 				trackHeight={trackHeight}
-				panelWidth={panelWidth}
+				panelWidth={trackHeaderWidth}
 				selected={selectedTrackId === track.id}
 				blocked={blocked}
 				showArmControls={showArmControls}

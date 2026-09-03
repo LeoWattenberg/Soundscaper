@@ -41,6 +41,8 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 .container { width: min(1120px, calc(100% - 32px)); margin-inline: auto; }
 .tool-intro { padding-block: clamp(16px, 2.5vw, 28px); background: var(--color-surface-alt); border-bottom: 1px solid var(--color-line); }
 .tool-intro h1 { max-width: 780px; margin: 0; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1; }
+.tool-intro-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tool-intro-toggle { display: none; }
 .tool-lede, .tool-note { max-width: 760px; margin: 10px 0 0; color: var(--color-muted); }
 .tool-note { font-size: 0.98rem; font-weight: 700; }
 .eyebrow { margin: 0 0 6px; color: var(--color-accent-dark); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -197,6 +199,31 @@ html, body { color: var(--color-ink); background: var(--color-surface); font-fam
 	.sidebar-link { flex: 0 0 auto; }
 	.sidebar-settings { margin-top: 12px; padding-top: 0; }
 	.sidebar-actions { grid-template-columns: 1fr 1fr; }
+	/* The introduction folds away by default so the editor keeps its room. */
+	.tool-intro { padding-block: 10px; }
+	.tool-intro .eyebrow { display: none; }
+	.tool-intro h1 { font-size: 1.35rem; line-height: 1.2; }
+	.tool-intro-heading { align-items: center; }
+	.tool-intro-toggle {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		min-height: 36px;
+		padding: 6px 12px;
+		color: var(--color-ink);
+		background: var(--color-control-surface);
+		border: 1px solid var(--color-line);
+		border-radius: 6px;
+		font: inherit;
+		font-size: 0.85rem;
+		font-weight: 800;
+		cursor: pointer;
+	}
+	.tool-intro[data-expanded='false'] .tool-intro-body { display: none; }
+	/* The editor takes the full width and, embedded, the full height. */
+	.audio-editor-container { width: 100%; }
+	.audio-editor-section { padding-block: 12px 16px; }
+	:root[data-embedded='true'] .audio-editor-section { height: 100dvh; min-height: 0; }
 }
 
 /*

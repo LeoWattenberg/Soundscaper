@@ -19,12 +19,11 @@ import {
 import {
 	AUTO_FIT_TRACK_HEIGHT,
 	COLLAPSED_TRACK_HEIGHT,
-	COMPACT_TRACK_PANEL_WIDTH,
-	DESKTOP_TRACK_PANEL_WIDTH,
 	SPECTROGRAM_RULER_WIDTH,
 	TIMELINE_RULER_ROW_HEIGHT,
 	TIMELINE_RULER_ROW_HEIGHT_WITH_ANNOTATIONS,
 	VERTICAL_RULER_WIDTH,
+	resolveTrackPanelGeometry,
 } from './constants.ts';
 import { timelineAnnotationsAvailable } from './timeline-annotation-ui-model.ts';
 import { useAnchoredTimelineRenderScrollX } from './timeline-render-window.ts';
@@ -40,6 +39,7 @@ export function useTimelineViewportModel({
 	snapshot,
 	runtimeProject,
 	mobile,
+	trackHeaderDrawer = null,
 	showArmControls,
 	automationVisibleTrackIds,
 	state,
@@ -65,7 +65,7 @@ export function useTimelineViewportModel({
 	const timelineRulerTabIndex = useTabOrder('timeline-ruler');
 	const trackBaseTabIndex = useTabOrder('tracks');
 	const addTrackTabIndex = useTabOrder('add-track');
-	const panelWidth = mobile ? COMPACT_TRACK_PANEL_WIDTH : DESKTOP_TRACK_PANEL_WIDTH;
+	const { panelWidth, trackHeaderWidth } = resolveTrackPanelGeometry({ drawer: Boolean(trackHeaderDrawer), mobile });
 	const showMasterTrack = Boolean(snapshot.preferences?.view?.showMasterTrack);
 	const outputTracks = useMemo(() => [
 		...(project?.mixer?.groups || []).map((bus) => ({ key: `group:${bus.id}`, scope: 'group', bus })),
@@ -219,6 +219,7 @@ export function useTimelineViewportModel({
 		trackBaseTabIndex,
 		addTrackTabIndex,
 		panelWidth,
+		trackHeaderWidth,
 		showMasterTrack,
 		outputTracks,
 		outputDockHeight,

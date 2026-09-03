@@ -478,9 +478,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(trackMenuButtonBox).not.toBeNull();
 		expect(trackMenuBox).not.toBeNull();
 		// The track menu is a context menu, so it carries its own edge inset rather than
-		// sitting flush with the trigger. What must hold is that it stays anchored to that
-		// trigger and opens below it.
-		expect(Math.abs(trackMenuBox.x - trackMenuButtonBox.x)).toBeLessThanOrEqual(8);
+		// sitting flush with the trigger, and on a phone the full-width header puts the
+		// trigger near the right edge, where the menu shifts left to stay on screen. What
+		// must hold is that it stays on screen, overlaps its trigger and opens below it.
+		expect(trackMenuBox.x).toBeGreaterThanOrEqual(0);
+		expect(trackMenuBox.x + trackMenuBox.width).toBeLessThanOrEqual(page.viewportSize().width);
+		expect(trackMenuBox.x + trackMenuBox.width).toBeGreaterThanOrEqual(trackMenuButtonBox.x);
+		expect(trackMenuBox.x).toBeLessThanOrEqual(trackMenuButtonBox.x + trackMenuButtonBox.width);
 		expect(trackMenuBox.y).toBeGreaterThanOrEqual(trackMenuButtonBox.y + trackMenuButtonBox.height - 1);
 		await trackMenu.getByRole('menuitem', { name: 'Enable multi-track recording', exact: true }).click();
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();

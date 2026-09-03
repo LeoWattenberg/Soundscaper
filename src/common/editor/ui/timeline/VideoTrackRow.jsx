@@ -22,6 +22,7 @@ export function VideoTrackRow({
 	isFlatNavigation,
 	trackBaseTabIndex,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	renderViewportStartFrame,
 	viewportDurationFrames,
 	pixelsPerSecond,
@@ -154,7 +155,7 @@ export function VideoTrackRow({
 			<VideoTrackControls
 				controller={controller}
 				track={track}
-				panelWidth={panelWidth}
+				panelWidth={trackHeaderWidth}
 				selected={selectedTrackId === track.id}
 				blocked={blocked}
 				isFlatNavigation={isFlatNavigation}

@@ -13,6 +13,8 @@ const SITE_COPY_ENTRIES = Object.freeze([
 	['intro', 'Record audio, edit multiple tracks nondestructively, mix effects, and inspect loudness and frequency content.', 'Nimm Audio auf, schneide mehrere Spuren nondestruktiv, mische Effekte und prüfe Lautheit und Spektrum.'],
 	['privacy', 'Your recordings, projects, and audio files stay on this device and are processed entirely in your browser.', 'Deine Aufnahmen, Projekte und Audiodateien bleiben auf diesem Gerät und werden ausschließlich in deinem Browser verarbeitet.'],
 	['metaDescription', 'Local-first multitrack audio editor in your browser.', 'Lokaler Mehrspur-Audio-Editor im Browser.'],
+	['introExpand', 'Show introduction', 'Einführung anzeigen'],
+	['introCollapse', 'Hide introduction', 'Einführung ausblenden'],
 	['workspace', 'Workspace', 'Arbeitsbereich'],
 	['workspaceModern', 'Soundscaper', 'Soundscaper'],
 	['workspaceAudacity', 'Audacity', 'Audacity'],

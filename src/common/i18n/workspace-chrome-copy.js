@@ -14,6 +14,9 @@ const ENTRIES = Object.freeze([
 	['layoutDesktop', 'Desktop', 'Desktop'],
 	['chromeMenu', 'Menu', 'Menü'],
 	['chromeMenuClose', 'Close menu', 'Menü schließen'],
+	['trackHeaders', 'Track headers', 'Spurköpfe'],
+	['trackHeadersShow', 'Show track headers', 'Spurköpfe einblenden'],
+	['trackHeadersHide', 'Hide track headers', 'Spurköpfe ausblenden'],
 ]);
 
 export const WORKSPACE_CHROME_COPY_BY_LOCALE = Object.freeze({

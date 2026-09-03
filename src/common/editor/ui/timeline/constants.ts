@@ -13,3 +13,14 @@ export const TRACK_HEADER_RESIZE_HIT_HEIGHT = 4;
 export const NEW_AUDIO_TRACK_DROP_TARGET = '__new-audio-track__';
 export const NEW_AUDIO_TRACK_DROP_ZONE_HEIGHT = 48;
 export const EMPTY_TIMELINE_CLIPS = Object.freeze([]);
+
+/**
+ * The lane offset and the header element width. In the compact layout's
+ * track-header drawer the lanes start at the left edge while the headers keep
+ * their full desktop width and slide over the lanes when opened.
+ */
+export function resolveTrackPanelGeometry({ drawer, mobile }: { readonly drawer: boolean; readonly mobile: boolean }) {
+	if (drawer) return { panelWidth: 0, trackHeaderWidth: DESKTOP_TRACK_PANEL_WIDTH };
+	const columnWidth = mobile ? COMPACT_TRACK_PANEL_WIDTH : DESKTOP_TRACK_PANEL_WIDTH;
+	return { panelWidth: columnWidth, trackHeaderWidth: columnWidth };
+}

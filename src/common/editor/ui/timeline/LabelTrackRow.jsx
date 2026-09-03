@@ -14,6 +14,7 @@ export function LabelTrackRow({
 	visualHeight,
 	trackIndex,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	timelineWidth,
 	verticalRulerWidth,
 	pixelsPerSecond,
@@ -57,7 +58,7 @@ export function LabelTrackRow({
 			data-collapsed="false"
 			style={{ height: trackHeight }}
 		>
-			<div className="audio-editor-label-track-controls" data-track-header style={{ width: panelWidth }}>
+			<div className="audio-editor-label-track-controls" data-track-header style={{ width: trackHeaderWidth }}>
 				<div className="audio-editor-label-track-title">
 					<Icon name="label" size={16} aria-hidden="true" />
 					{editingName ? (

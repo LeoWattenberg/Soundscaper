@@ -22,6 +22,7 @@ export function createWorkspaceApplicationMenus({
 		aup4InputRef,
 		blocked,
 		capabilities,
+		compactLayout = false,
 		controller,
 		copy,
 		crossProductHandoffAvailable = false,
@@ -110,6 +111,7 @@ export function createWorkspaceApplicationMenus({
 			effectsPanelOpen: Boolean(snapshot.preferences?.workspace?.panels?.effects?.visible),
 			projectBinEffectivelyOpen,
 			uiFlags,
+			compactLayout,
 			actionRuntime: parityRuntime.actions,
 			actions: {
 				openDiagnostics: () => openSurface('local-diagnostics'),

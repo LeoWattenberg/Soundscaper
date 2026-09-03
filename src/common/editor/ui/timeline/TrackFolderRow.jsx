@@ -17,6 +17,7 @@ export function TrackFolderRow({
 	selected,
 	activeFolderId,
 	panelWidth,
+	trackHeaderWidth = panelWidth,
 	editing,
 	onSelect,
 	onKeyDown,
@@ -68,7 +69,7 @@ export function TrackFolderRow({
 				onMenu(row.id, { x: event.clientX, y: event.clientY });
 			}}
 		>
-			<div className="audio-editor-track-folder-row__panel" style={{ width: panelWidth }}>
+			<div className="audio-editor-track-folder-row__panel" style={{ width: trackHeaderWidth }}>
 				<button
 					type="button"
 					className="audio-editor-track-folder-row__chevron"

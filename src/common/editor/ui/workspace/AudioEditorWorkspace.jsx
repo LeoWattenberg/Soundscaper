@@ -31,7 +31,7 @@ import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts'; import { useWorkspaceOnboardingSurface } from '../use-workspace-onboarding-surface.ts';
 import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { desktopExternalDestination, formatDateTimeLocalInput } from '../workspace-runtime.js';
-import { useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
+import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 export default function AudioEditorWorkspace({
@@ -125,6 +125,7 @@ export default function AudioEditorWorkspace({
 		setPlaybackMeterSettings,
 		setRecordingMeterSettings,
 	});
+	const trackHeaderDrawer = useTrackHeaderDrawerFlag(parityRuntime.uiController, uiFlags.trackHeaderDrawer, compactLayout);
 	const busyBlock = selectAudioEditorBusyBlock(snapshot);
 	const editBlock = selectAudioEditorEditBlock(snapshot);
 	const handoffBlock = selectAudioEditorProjectHandoffBlock(snapshot);
@@ -387,6 +388,7 @@ export default function AudioEditorWorkspace({
 		aup4InputRef,
 		blocked,
 		capabilities,
+		compactLayout,
 		controller,
 		copy,
 		crossProductHandoffAvailable,
@@ -557,7 +559,7 @@ export default function AudioEditorWorkspace({
 		toggleWorkspacePanel,
 		toolbarButtonPreferences,
 		toolbarDock,
-		toolbarDragRef, toolbarProps,
+		toolbarDragRef, toolbarProps, trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
 	}} />;

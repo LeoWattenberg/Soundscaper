@@ -101,6 +101,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		toolbarDock,
 		toolbarDragRef,
 		toolbarProps,
+		trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
 	} = model;
@@ -352,6 +353,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 						locale={locale}
 						copy={copy}
 						mobile={isCompact}
+						trackHeaderDrawer={trackHeaderDrawer}
 						productId={productId}
 						capabilities={capabilities}
 						showArmControls={showArmControls}

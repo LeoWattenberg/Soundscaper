@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 
 import { bundledSiteCopyForLocale } from '../i18n/site-copy.js';
 import { productHref } from '../product-web-links.js';
@@ -21,6 +21,9 @@ const PrivacyPolicyRoute = lazyEditorModule(() => import('../editor/ui/PrivacyPo
 export default function App({ route }) {
 	const { desktop, direction, embedded, locale, productId } = route;
 	const copy = bundledSiteCopyForLocale(locale);
+	// Narrow screens fold the introduction away by default so the editor keeps
+	// its room; wide screens always show it and never render the toggle.
+	const [introExpanded, setIntroExpanded] = useState(false);
 	const intro = productId === 'framescaper' ? {
 		eyebrow: copy.framescaperEyebrow,
 		title: copy.framescaperTitle,
@@ -43,12 +46,27 @@ export default function App({ route }) {
 		<div className={`site-shell${embedded ? ' embedded' : ''}${desktop ? ' desktop' : ''}`}>
 			{!embedded && <BrandSidebar locale={locale} productId={productId} />}
 			<main>
-				<section className="tool-intro">
+				<section className="tool-intro" data-expanded={introExpanded ? 'true' : 'false'}>
 					<div className="container">
-						<p className="eyebrow">{intro.eyebrow}</p>
-						<h1>{intro.title}</h1>
-						<p className="tool-lede">{intro.intro}</p>
-						{copy.privacy && <p className="tool-note">{copy.privacy}</p>}
+						<div className="tool-intro-heading">
+							<div>
+								<p className="eyebrow">{intro.eyebrow}</p>
+								<h1>{intro.title}</h1>
+							</div>
+							<button
+								type="button"
+								className="tool-intro-toggle"
+								aria-expanded={introExpanded}
+								aria-controls="tool-intro-body"
+								onClick={() => setIntroExpanded((expanded) => !expanded)}
+							>
+								{introExpanded ? copy.introCollapse : copy.introExpand}
+							</button>
+						</div>
+						<div id="tool-intro-body" className="tool-intro-body">
+							<p className="tool-lede">{intro.intro}</p>
+							{copy.privacy && <p className="tool-note">{copy.privacy}</p>}
+						</div>
 					</div>
 				</section>
 				<section className="section audio-editor-section tool-workspace">

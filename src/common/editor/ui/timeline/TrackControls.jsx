@@ -24,8 +24,7 @@ import {
 	releaseParameterAutomationGestureV21,
 	TrackAutomationSelectors,
 } from '../soundscaper-workflow-product-runtime.tsx';
-
-const COMPACT_TRACK_PANEL_WIDTH = 164;
+import { COMPACT_TRACK_PANEL_WIDTH } from './constants.ts';
 
 export function TrackControls({
 	controller,

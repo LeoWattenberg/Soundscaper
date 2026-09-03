@@ -62,6 +62,7 @@ export default function createApplicationMenus({
 	effectsPanelOpen,
 	projectBinEffectivelyOpen,
 	uiFlags,
+	compactLayout = false,
 	actionRuntime,
 	actions,
 	crossProductHandoffAvailable = false,
@@ -430,6 +431,8 @@ export default function createApplicationMenus({
 					],
 				},
 				{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },
+			// The compact layout keeps the track headers in a drawer; the desktop column has no such state.
+			...(compactLayout ? [{ id: 'local://track-header-drawer', label: copy.trackHeaders, checked: Boolean(uiFlags.trackHeaderDrawer) }] : []),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
 				{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
 				{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },

@@ -49,3 +49,21 @@ export function useWorkspaceCompactLayout({ layoutPreference = 'auto' } = {}) {
 	}), [chromeDrawerOpen, close, compactLayout, open, toggle]);
 	return { chromeDrawer, compactLayout, isCompact, isProjectBinCompact };
 }
+
+/**
+ * The track-header drawer's open state lives in the session UI flags so the
+ * View menu, search and shortcuts can toggle it. Outside the compact layout
+ * there is no drawer: the timeline shows its header column and gets null.
+ *
+ * @param {{actions: {toggleFlag(name: string): boolean, setFlag(name: string, value: boolean): boolean}} | null | undefined} uiController
+ * @param {boolean | undefined} flag
+ * @param {boolean} compactLayout
+ */
+export function useTrackHeaderDrawerFlag(uiController, flag, compactLayout) {
+	const toggle = useCallback(() => uiController?.actions?.toggleFlag('trackHeaderDrawer'), [uiController]);
+	const close = useCallback(() => uiController?.actions?.setFlag('trackHeaderDrawer', false), [uiController]);
+	return useMemo(
+		() => (compactLayout ? { isOpen: Boolean(flag), toggle, close } : null),
+		[close, compactLayout, flag, toggle],
+	);
+}

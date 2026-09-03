@@ -1,15 +1,12 @@
-import { Button } from '@soundscaper/design-system/Button';
-import { Icon } from '@soundscaper/design-system/Icon';
-import { TimelineRuler } from '@soundscaper/design-system/TimelineRuler';
 import { useCallback, useMemo, useRef } from 'react';
 
-import { framesToSeconds } from '../../design-system-adapters.js';
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT } from './geometry.ts';
 import { TrackListView } from './TrackListView.jsx';
-import { MusicalTimelineRuler } from './MusicalTimelineRuler.jsx';
-import { SequenceTimecodeRuler } from './SequenceTimecodeRuler.jsx';
+import { TimelineRulerCanvas } from './TimelineRulerCanvas.jsx';
+import { TimelineRulerCornerContent } from './TimelineRulerCornerContent.jsx';
+import { TrackHeaderDrawerStrip } from './TrackHeaderDrawerStrip.jsx';
 import { TimelineAnnotationLayer } from './TimelineAnnotationLayer.jsx';
 import { TimelineAnnotationLaneActions } from './TimelineAnnotationLaneActions.jsx';
 import {
@@ -32,14 +29,13 @@ import { TimelinePlaybackProjection } from './TimelinePlaybackProjection.tsx';
 import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
 
-const TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS = 33;
-
 export function TimelineWorkspaceView({
 	controller,
 	snapshot,
 	copy,
 	locale,
 	mobile,
+	trackHeaderDrawer = null,
 	showArmControls,
 	displayAudioSupported,
 	automationToolEnabled,
@@ -60,6 +56,7 @@ export function TimelineWorkspaceView({
 		trackBaseTabIndex,
 		addTrackTabIndex,
 		panelWidth,
+		trackHeaderWidth,
 		showMasterTrack,
 		outputTracks,
 		outputDockHeight,
@@ -111,6 +108,7 @@ export function TimelineWorkspaceView({
 		focusTrackRuler,
 		focusSelectionToolbar,
 		onPointerDown,
+		onTrackHeaderDrawerKeyDown,
 		onPointerMove,
 		finishPointerSession,
 		finishTouch,
@@ -158,6 +156,25 @@ export function TimelineWorkspaceView({
 		controller, copy, locale, sampleRate, run,
 	});
 
+	const cornerContent = (
+		<TimelineRulerCornerContent
+			copy={copy}
+			addTrackTriggerRef={addTrackTriggerRef}
+			addTrackTabIndex={addTrackTabIndex}
+			onOpenAddTrackFlyout={openAddTrackFlyout}
+			annotationActions={markerLaneVisible ? <TimelineAnnotationLaneActions
+				controller={controller}
+				project={project}
+				annotations={snapshot.timelineAnnotations || []}
+				copy={copy}
+				blocked={mutationsBlocked}
+				run={run}
+				createAnnotation={createAnnotation}
+				focusCreated={focusCreatedInLayer}
+			/> : null}
+		/>
+	);
+
 	return (
 		<section
 			className="audio-editor-timeline-panel"
@@ -172,8 +189,10 @@ export function TimelineWorkspaceView({
 			data-show-markers={markerLaneVisible ? 'true' : 'false'}
 			data-render-scroll-x={renderScrollX}
 			data-edit-block-reason={editBlock.reason || undefined}
+			data-track-header-drawer={trackHeaderDrawer ? (trackHeaderDrawer.isOpen ? 'open' : 'closed') : undefined}
 			style={{
 				'--track-panel-width': `${panelWidth}px`,
+				'--track-header-width': `${trackHeaderWidth}px`,
 				'--timeline-viewport-width': `${viewportWidth}px`,
 				'--timeline-scroll-x': `${scrollX}px`,
 				'--timeline-render-origin-x': `${renderOriginX}px`,
@@ -199,6 +218,7 @@ export function TimelineWorkspaceView({
 				ref={setTimelineScrollNode}
 				onScroll={handleTimelineScroll}
 				onPointerDownCapture={onPointerDown}
+				onKeyDown={onTrackHeaderDrawerKeyDown}
 				onPointerMove={onPointerMove}
 				onPointerUp={(event) => { finishTouch(event); finishPointerSession(event); }}
 				onPointerCancel={(event) => {
@@ -219,29 +239,7 @@ export function TimelineWorkspaceView({
 					'--audio-editor-track-sidebar-width': `${panelWidth}px`,
 				}}>
 					<div className="audio-editor-ruler-row">
-						<div className="audio-editor-ruler-corner" style={{ width: panelWidth }}>
-							<span>{copy.tracks}</span>
-							<Button
-								ref={addTrackTriggerRef}
-								variant="secondary"
-								size="small"
-								icon={<Icon name="plus" size={14} />}
-								tabIndex={addTrackTabIndex}
-								onClick={openAddTrackFlyout}
-							>
-								{copy.addTrack}
-							</Button>
-							{markerLaneVisible && <TimelineAnnotationLaneActions
-								controller={controller}
-								project={project}
-								annotations={snapshot.timelineAnnotations || []}
-								copy={copy}
-								blocked={mutationsBlocked}
-								run={run}
-								createAnnotation={createAnnotation}
-								focusCreated={focusCreatedInLayer}
-							/>}
-						</div>
+						{!trackHeaderDrawer && <div className="audio-editor-ruler-corner" style={{ width: panelWidth }}>{cornerContent}</div>}
 						<div
 							className="audio-editor-ruler-viewport"
 							data-ruler
@@ -273,50 +271,22 @@ export function TimelineWorkspaceView({
 								}
 							}}
 						>
-							{rulerScale.kind === 'timecode' ? <SequenceTimecodeRuler
-								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
+							<TimelineRulerCanvas
+								controller={controller}
+								run={run}
+								project={project}
+								rulerScale={rulerScale}
+								markerLaneVisible={markerLaneVisible}
 								pixelsPerSecond={pixelsPerSecond}
-								scrollX={contentScrollX}
-								width={timelineWidth}
+								contentScrollX={contentScrollX}
+								timelineWidth={timelineWidth}
 								viewportWidth={viewportWidth}
 								timeSelection={timeSelection}
 								sampleRate={sampleRate}
-								view={rulerScale.view}
-								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
-								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
-								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
-								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
-							/> : rulerScale.kind === 'musical-map' ? <MusicalTimelineRuler
-								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
-								pixelsPerSecond={pixelsPerSecond}
-								scrollX={contentScrollX}
-								width={timelineWidth}
-								viewportWidth={viewportWidth}
-								timeSelection={timeSelection}
-								sampleRate={sampleRate}
-								tempoMap={rulerScale.tempoMap}
-								signatureMap={rulerScale.signatureMap}
-								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
-								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
-								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
-								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
-							/> : <TimelineRuler
-								height={markerLaneVisible ? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined}
-								pixelsPerSecond={pixelsPerSecond}
-								scrollX={contentScrollX}
-								totalDuration={durationSeconds}
-								width={timelineWidth}
-								viewportWidth={viewportWidth}
-								timeSelection={timeSelection}
-								sampleRate={sampleRate}
-								timeFormat={rulerScale.kind === 'beats-measures' ? 'beats-measures' : 'minutes-seconds'}
-								bpm={rulerScale.kind === 'beats-measures' ? rulerScale.bpm : 120}
-								beatsPerMeasure={rulerScale.kind === 'beats-measures' ? rulerScale.beatsPerMeasure : 4}
-								loopRegionEnabled={loopPreview ? true : Boolean(project.loop?.enabled)}
-								loopRegionStart={framesToSeconds(displayedLoop.startFrame || 0, { sampleRate })}
-								loopRegionEnd={framesToSeconds(displayedLoop.endFrame || 0, { sampleRate })}
-								onLoopRegionEnabledToggle={() => run(() => controller.actions.transport.toggleLoop())}
-							/>}
+								durationSeconds={durationSeconds}
+								loopPreview={loopPreview}
+								displayedLoop={displayedLoop}
+							/>
 							{markerLaneVisible && <TimelineAnnotationLayer
 								controller={controller}
 								project={project}
@@ -399,6 +369,7 @@ export function TimelineWorkspaceView({
 						isFlatNavigation={isFlatNavigation}
 						trackBaseTabIndex={trackBaseTabIndex}
 						panelWidth={panelWidth}
+						trackHeaderWidth={trackHeaderWidth}
 						timelineWidth={timelineWidth}
 						verticalRulerWidth={verticalRulerWidth}
 						pixelsPerSecond={pixelsPerSecond}
@@ -465,6 +436,9 @@ export function TimelineWorkspaceView({
 					/>
 				</div>
 			</div>
+			{trackHeaderDrawer && <TrackHeaderDrawerStrip copy={copy} drawer={trackHeaderDrawer} height={rulerRowHeight} width={trackHeaderWidth}>
+				{cornerContent}
+			</TrackHeaderDrawerStrip>}
 			{showTimelineAnnotations && <span
 				className="kw-audio-editor-sr-only"
 				data-timeline-annotation-create-status
@@ -489,6 +463,7 @@ export function TimelineWorkspaceView({
 					});
 				}}
 				panelWidth={panelWidth}
+				trackHeaderWidth={trackHeaderWidth}
 				verticalRulerWidth={verticalRulerWidth}
 				viewportWidth={viewportWidth}
 				timelineWidth={timelineWidth}

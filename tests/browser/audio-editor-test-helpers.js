@@ -10,7 +10,7 @@ import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
-import { openChromeDrawer } from './helpers/responsive-layout.js';
+import { openChromeDrawer, openTrackHeaderDrawer } from './helpers/responsive-layout.js';
 import { seedWorkspaceOnboardingComplete } from './helpers/browser-environment-stubs.js';
 
 export { resolveBrowserProductTestUrl };
@@ -212,6 +212,7 @@ export async function openClipProperties(page, editor, clip, clickOptions = {}) 
 }
 
 export async function openEffectsForTrack(editor, trackIndex) {
+	await openTrackHeaderDrawer(editor);
 	await editor.locator('[data-track-row]').nth(trackIndex).getByRole('button', { name: 'Effects', exact: true }).click();
 	const panel = editor.locator('[data-workspace-panel="effects"]');
 	await expect(panel).toBeVisible();
