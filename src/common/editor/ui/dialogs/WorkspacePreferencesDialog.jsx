@@ -226,6 +226,20 @@ export default function WorkspacePreferencesDialog({
 										/>
 									</div>
 								</PreferencePanel>
+								<Separator />
+								<PreferencePanel title={copy.layout}>
+									<PreferenceDropdownField
+										label={copy.layout}
+										visuallyHiddenLabel
+										value={preferences.appearance.layout ?? 'auto'}
+										onChange={(value) => run(() => controller.actions.preferences.setLayout(value))}
+										options={[
+											{ value: 'auto', label: copy.layoutAuto },
+											{ value: 'compact', label: copy.layoutCompact },
+											{ value: 'desktop', label: copy.layoutDesktop },
+										]}
+									/>
+								</PreferencePanel>
 							</div>
 						)}
 

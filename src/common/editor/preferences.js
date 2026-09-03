@@ -16,6 +16,7 @@ import {
 	normalizeSoundActivationPreferences,
 } from './sound-activation-preferences.ts';
 import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
+import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
 
 export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
@@ -33,6 +34,7 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 ]);
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_PLAY_AT_SPEED_MODES = Object.freeze(['naive', 'staffpad']);
+export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
 
 const AUDIO_EDITOR_DEFAULT_SHORTCUTS_BY_ACTION = Object.freeze(Object.fromEntries(
 	Object.values(AUDACITY_ACTION_MANIFEST)
@@ -60,6 +62,7 @@ const BUILT_IN_WORKSPACE_SET = new Set(AUDIO_EDITOR_BUILT_IN_WORKSPACES);
 const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
 const PLAY_AT_SPEED_MODE_SET = new Set(AUDIO_EDITOR_PLAY_AT_SPEED_MODES);
+const LAYOUT_SET = new Set(AUDIO_EDITOR_LAYOUTS);
 const RIPPLE_MODE_SET = new Set(['off', 'per-track', 'all-tracks']);
 const DOCK_SET = new Set(['left', 'right', 'bottom', 'floating']);
 const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
@@ -95,7 +98,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {1} schemaVersion
  * @property {{rippleMode: 'off'|'per-track'|'all-tracks', collisionBehavior: 'audacity', snapToZeroCrossings: boolean}} editing
  * @property {Record<string, string[]>} shortcuts
- * @property {{theme: string, clipStyle: 'classic'|'colorful'}} appearance
+ * @property {{theme: string, clipStyle: 'classic'|'colorful', layout: 'auto'|'compact'|'desktop'}} appearance
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, Object>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
@@ -103,38 +106,6 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
  */
-
-function clone(value) {
-	if (value === undefined || value === null) return value;
-	if (typeof structuredClone === 'function') return structuredClone(value);
-	return JSON.parse(JSON.stringify(value));
-}
-
-function nonEmptyString(value, name) {
-	if (typeof value !== 'string' || !value.trim()) throw new TypeError(`${name} must be a non-empty string.`);
-	return value;
-}
-
-function integer(value, minimum, name) {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number) || number < minimum) {
-		throw new RangeError(`${name} must be a safe integer greater than or equal to ${minimum}.`);
-	}
-	return number;
-}
-
-function finiteInRange(value, minimum, maximum, name) {
-	const number = Number(value);
-	if (!Number.isFinite(number) || number < minimum || number > maximum) {
-		throw new RangeError(`${name} must be between ${minimum} and ${maximum}.`);
-	}
-	return number;
-}
-
-function oneOf(value, allowed, name) {
-	if (!allowed.has(value)) throw new RangeError(`${name} has an unsupported value: ${value}.`);
-	return value;
-}
 
 function normalizeShortcuts(value = {}) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('shortcuts must be an object.');
@@ -318,6 +289,9 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		appearance: {
 			theme: oneOf(options.appearance?.theme ?? 'system', THEME_SET, 'appearance.theme'),
 			clipStyle: oneOf(options.appearance?.clipStyle ?? 'colorful', CLIP_STYLE_SET, 'appearance.clipStyle'),
+			// 'auto' follows the viewport width; the explicit values force the
+			// compact (drawer) or desktop chrome regardless of window size.
+			layout: oneOf(options.appearance?.layout ?? 'auto', LAYOUT_SET, 'appearance.layout'),
 		},
 		view: {
 			showMasterTrack,
@@ -573,6 +547,9 @@ export function loadAudioEditorPreferencesV1(value) {
 		preferences: {
 			...clone(value),
 			shortcuts: migrateLoadedAudioEditorShortcuts(normalized.shortcuts),
+			// Documents saved before the layout preference existed carry an
+			// appearance section without it; normalization supplies the default.
+			appearance: normalized.appearance,
 			view: normalized.view,
 			workspace: {
 				...clone(value.workspace),

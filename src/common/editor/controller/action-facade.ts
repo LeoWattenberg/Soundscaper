@@ -509,6 +509,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			setWorkspace: setWorkspacePreference,
 			setTheme: (theme: RuntimeValue) => updatePreferences({ appearance: { theme } }),
 			setClipStyle: (clipStyle: RuntimeValue) => updatePreferences({ appearance: { clipStyle } }),
+			setLayout: (layout: RuntimeValue) => updatePreferences({ appearance: { layout } }),
 			toggleToolbar: toggleToolbarPreference,
 			moveToolbar: moveToolbarPreference,
 			setToolbarButton: setToolbarButtonPreference,

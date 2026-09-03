@@ -1079,7 +1079,7 @@ test('controller reverts editor preferences to product factory defaults without 
 	const projectId = controller.getSnapshot().project.id;
 
 	await controller.actions.preferences.update({
-		appearance: { theme: 'dark', clipStyle: 'classic' },
+		appearance: { theme: 'dark', clipStyle: 'classic', layout: 'compact' },
 		shortcuts: {},
 	});
 	await controller.actions.preferences.setWorkspace('music');
@@ -1087,8 +1087,7 @@ test('controller reverts editor preferences to product factory defaults without 
 
 	const snapshot = controller.getSnapshot();
 	assert.equal(snapshot.project.id, projectId);
-	assert.equal(snapshot.preferences.appearance.theme, 'system');
-	assert.equal(snapshot.preferences.appearance.clipStyle, 'colorful');
+	assert.deepEqual(snapshot.preferences.appearance, { theme: 'system', clipStyle: 'colorful', layout: 'auto' });
 	assert.equal(snapshot.preferences.workspace.activeId, 'modern');
 	assert.ok(Object.keys(snapshot.preferences.shortcuts).length > 0);
 	assert.deepEqual(store.settings.get('audio-editor-preferences-v1'), snapshot.preferences);

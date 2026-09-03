@@ -2,10 +2,17 @@ import { useEffect, useState } from 'react';
 
 import { normalizeBcp47Locale } from '../../i18n/locale.js';
 
+// Hosts without matchMedia (the node test document, older embedders) report
+// no match instead of throwing during render.
+function mediaQueryList(query) {
+	return globalThis.window?.matchMedia?.(query) ?? null;
+}
+
 export function useMediaQuery(query) {
-	const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+	const [matches, setMatches] = useState(() => Boolean(mediaQueryList(query)?.matches));
 	useEffect(() => {
-		const media = window.matchMedia(query);
+		const media = mediaQueryList(query);
+		if (!media) return undefined;
 		const update = () => setMatches(media.matches);
 		update();
 		media.addEventListener('change', update);

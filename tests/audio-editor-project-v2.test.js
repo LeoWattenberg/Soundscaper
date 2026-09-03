@@ -242,6 +242,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	);
 	assert.equal(preferences.appearance.theme, 'system');
 	assert.equal(preferences.appearance.clipStyle, 'colorful');
+	assert.equal(preferences.appearance.layout, 'auto');
 	assert.equal(preferences.view.showMasterTrack, false);
 	assert.equal(preferences.import.detectTempo, true);
 	assert.equal(preferences.recording.retainInputs, true);
@@ -368,4 +369,17 @@ test('shortcut normalization reports conflicts without persisting device-specifi
 		'split-delete': ['control+shift+s'],
 		play: ['Space'],
 	}), [{ binding: 'Ctrl+Shift+S', actionIds: ['file-save-as', 'delete-per-clip-ripple'] }]);
+});
+
+test('the layout preference accepts the three chrome modes and defaults older documents to auto', () => {
+	for (const layout of ['auto', 'compact', 'desktop']) {
+		assert.equal(createAudioEditorPreferencesV1({ appearance: { layout } }).appearance.layout, layout);
+	}
+	assert.throws(() => createAudioEditorPreferencesV1({ appearance: { layout: 'phone' } }), RangeError);
+	const saved = createAudioEditorPreferencesV1({ appearance: { theme: 'dark', clipStyle: 'classic' } });
+	delete saved.appearance.layout;
+	assert.deepEqual(
+		loadAudioEditorPreferencesV1(saved).preferences.appearance,
+		{ theme: 'dark', clipStyle: 'classic', layout: 'auto' },
+	);
 });

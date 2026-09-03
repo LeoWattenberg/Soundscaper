@@ -132,7 +132,7 @@
 			"reason": "Reviewed canonical fallback catalog."
 		},
 		"tests/audio-editor-controller.test.js": {
-			"maxLines": 3267,
+			"maxLines": 3266,
 			"reason": "Legacy controller regression suite; place new subsystem tests in focused files."
 		},
 		"tests/audio-editor-disk-backed-sources.test.js": {

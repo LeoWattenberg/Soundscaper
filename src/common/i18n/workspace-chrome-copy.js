@@ -8,6 +8,10 @@ const ENTRIES = Object.freeze([
 	['panelMenu', 'Panel menu', 'Bedienfeldmenü'],
 	['timecode', 'Timecode', 'Timecode'],
 	['snapInterval', 'Snap interval', 'Rasterintervall'],
+	['layout', 'Layout', 'Layout'],
+	['layoutAuto', 'Automatic', 'Automatisch'],
+	['layoutCompact', 'Compact (menus and track headers in drawers)', 'Kompakt (Menüs und Spurköpfe in Schubladen)'],
+	['layoutDesktop', 'Desktop', 'Desktop'],
 ]);
 
 export const WORKSPACE_CHROME_COPY_BY_LOCALE = Object.freeze({

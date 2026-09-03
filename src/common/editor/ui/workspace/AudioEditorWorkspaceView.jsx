@@ -33,6 +33,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		automationToolEnabled,
 		blocked,
 		capabilities,
+		compactLayout,
 		controller,
 		copy,
 		displayAudioSupported,
@@ -109,6 +110,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			className={`kw-audio-editor ${isCompact ? 'kw-audio-editor--compact' : ''}${isFullscreen ? ' kw-audio-editor--viewport-fullscreen' : ''}`}
 			data-audio-editor
 			data-audio-editor-bound="true"
+			data-layout={compactLayout ? 'compact' : 'desktop'}
 			data-product={productId}
 			data-project-id={project?.id || ''}
 			data-track-count={project?.tracks.length || 0}

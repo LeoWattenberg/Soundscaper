@@ -31,7 +31,9 @@ import {
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts'; import { useWorkspaceOnboardingSurface } from '../use-workspace-onboarding-surface.ts';
 import { isProjectFileName, partitionWorkspaceFiles } from './workspace-file-routing.js';
-import { desktopExternalDestination, formatDateTimeLocalInput, useMediaQuery } from '../workspace-runtime.js';
+import { desktopExternalDestination, formatDateTimeLocalInput } from '../workspace-runtime.js';
+import { useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
+import { createWorkspaceEditItems } from './workspace-edit-items.js';
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 export default function AudioEditorWorkspace({
 	locale,
@@ -90,13 +92,12 @@ export default function AudioEditorWorkspace({
 		toolbarDock,
 		toolbarDragRef,
 	} = useWorkspaceToolbarDocking(editorRef);
-	const isCompact = useMediaQuery('(max-width: 900px)');
-	const isProjectBinCompact = useMediaQuery('(max-width: 520px)');
 	const project = snapshot.project;
 	const runtimeProject = useMemo(() => (
 		project && projectForRuntimeConsumers ? projectForRuntimeConsumers(project) : null
 	), [project, projectForRuntimeConsumers]);
 	const preferences = snapshot.preferences;
+	const { chromeDrawer, compactLayout, isCompact, isProjectBinCompact } = useWorkspaceCompactLayout({ layoutPreference: preferences?.appearance?.layout });
 	useWorkspaceThemePreference(preferences?.appearance?.theme, productId);
 	const isVideoEditorWorkspace = preferences?.workspace?.activeId === 'video-editor';
 	const projectBinPreferenceVisible = preferences?.workspace?.panels?.['project-bin']?.visible === true;
@@ -292,17 +293,9 @@ export default function AudioEditorWorkspace({
 			: copy.projectSaved;
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
 
-	const editItems = [
-		{ action: 'cutPerTrackRipple', label: copy.cutPerTrackRipple, icon: 'cut', disabled: editBlocked || !editSelectionActive },
-		{ action: 'cutLeaveGap', label: copy.cutLeaveGap, icon: 'cut', disabled: editBlocked || !editSelectionActive },
-		{ action: 'cutAllTracksRipple', label: copy.cutAllTracksRipple, icon: 'cut', disabled: editBlocked || !editSelectionActive },
-		{ action: 'copy', label: copy.copy, icon: 'copy', disabled: editBlocked || !editSelectionActive },
-		{ action: 'paste', label: copy.paste, icon: 'paste', disabled: editBlocked || !snapshot.history?.hasClipboard },
-		{ action: 'split', label: copy.split, icon: 'split', disabled: editBlocked || !splitAvailable },
-		{ action: 'deletePerTrackRipple', label: copy.deletePerTrackRipple, icon: 'trash', disabled: editBlocked || !editSelectionActive },
-		{ action: 'deleteLeaveGap', label: copy.deleteLeaveGap, icon: 'trash', disabled: editBlocked || !editSelectionActive },
-		{ action: 'deleteAllTracksRipple', label: copy.deleteAllTracksRipple, icon: 'trash', disabled: editBlocked || !editSelectionActive },
-	];
+	const editItems = createWorkspaceEditItems({
+		copy, editBlocked, editSelectionActive, hasClipboard: Boolean(snapshot.history?.hasClipboard), splitAvailable,
+	});
 
 	const executeEdit = useCallback(
 		(action) => run(() => controller.actions.edit[action]()),
@@ -514,6 +507,7 @@ export default function AudioEditorWorkspace({
 		automationToolEnabled,
 		blocked,
 		capabilities,
+		chromeDrawer, compactLayout,
 		closeNyquist,
 		controller,
 		copy,
