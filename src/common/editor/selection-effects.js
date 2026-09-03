@@ -10,6 +10,7 @@ import {
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 	estimateReviewedUtilityGainOutputFrames, estimateReviewedUtilityGainPeakBytes,
 } from './reviewed-effects/selection-effect-contract.ts';
+import { BITCRUSHER_EFFECT_TYPE } from './first-party-effects/bitcrusher/definition.js';
 
 const FLOAT32_BYTES = Float32Array.BYTES_PER_ELEMENT;
 const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
@@ -17,6 +18,11 @@ const MEMORY_ESTIMATE_OVERHEAD_BYTES = 2 * 1024 ** 2;
 export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, params = {}) {
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return estimateReviewedUtilityGainOutputFrames(inputFrames, params);
+	}
+	if (type === BITCRUSHER_EFFECT_TYPE) {
+		const bitcrusherFrames = positiveInteger(inputFrames, 'inputFrames');
+		normalizeAudioSelectionEffectParams(type, params);
+		return bitcrusherFrames;
 	}
 	if (type !== 'eq') return estimateAudacityEffectOutputFrames(type, inputFrames, params);
 	const frames = positiveInteger(inputFrames, 'inputFrames');
@@ -27,6 +33,15 @@ export function estimateAudioSelectionEffectOutputFrames(type, inputFrames, para
 export function estimateAudioSelectionEffectPeakBytes(type, inputFrames, params = {}, options = {}) {
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return estimateReviewedUtilityGainPeakBytes(inputFrames, params, options.channelCount ?? 2);
+	}
+	if (type === BITCRUSHER_EFFECT_TYPE) {
+		// One input copy, one output copy, and a few doubles of per-channel state.
+		const bitcrusherFrames = positiveInteger(inputFrames, 'inputFrames');
+		const bitcrusherChannels = positiveInteger(options.channelCount ?? 2, 'channelCount', 32);
+		normalizeAudioSelectionEffectParams(type, params);
+		return safeBytes(
+			bitcrusherFrames * bitcrusherChannels * FLOAT32_BYTES * 2 + MEMORY_ESTIMATE_OVERHEAD_BYTES,
+		);
 	}
 	if (type !== 'eq') return estimateAudacityEffectPeakBytes(type, inputFrames, params, options);
 	const frames = positiveInteger(inputFrames, 'inputFrames');

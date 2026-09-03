@@ -37,13 +37,17 @@ import type {
 	EngineRuntimeMethodMap,
 } from './runtime-types.ts';
 
+/** Rack effects whose processors accept a live parameter frame over their port. */
+const CONFIGURABLE_RACK_EFFECT_TYPES = new Set(['delay', 'bitcrusher']);
+
 export const engineEffectControlMethods = {
 configureRackEffect(scope, targetId, effectId, params, options = {}) {
 		if (!params || typeof params !== 'object' || Array.isArray(params)) {
 			throw new TypeError('Rack effect parameters must be an object.');
 		}
 		const effect = projectRackEffect(this.project, scope, targetId, effectId);
-		if (!effect || String(effect.type || '').toLowerCase() !== 'delay') return false;
+		const configurable = String(effect?.type || '').toLowerCase();
+		if (!effect || !CONFIGURABLE_RACK_EFFECT_TYPES.has(configurable)) return false;
 		const normalized = normalizeEffect({
 			...effect,
 			params: { ...(effect.params || {}), ...params },
@@ -63,7 +67,7 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 				targetId,
 				effectId,
 				normalized,
-				(candidate) => String(candidate?.type || '').toLowerCase() === 'delay',
+				(candidate) => String(candidate?.type || '').toLowerCase() === configurable,
 			) || this.project;
 		}
 		return sequence;

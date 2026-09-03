@@ -13,6 +13,8 @@ import {
 	applyReviewedUtilityGainSelection,
 	REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE,
 } from './reviewed-effects/selection-effect.ts';
+import { applyBitcrusher } from './first-party-effects/bitcrusher/dsp.js';
+import { BITCRUSHER_EFFECT_TYPE } from './first-party-effects/bitcrusher/definition.js';
 
 export async function applyAudioSelectionEffectAsync(type, channels, sampleRate, params = {}, context = {}) {
 	if (!AUDIO_SELECTION_EFFECT_DEFINITIONS[type]) {
@@ -20,6 +22,13 @@ export async function applyAudioSelectionEffectAsync(type, channels, sampleRate,
 	}
 	if (type === REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE) {
 		return applyReviewedUtilityGainSelection(channels, sampleRate, params);
+	}
+	if (type === BITCRUSHER_EFFECT_TYPE) {
+		return assertAudacityEffectOutput(applyBitcrusher(
+			assertAudacityEffectOutput(channels),
+			sampleRate,
+			normalizeAudioSelectionEffectParams(type, params),
+		));
 	}
 	if (type !== 'eq') return applyAudacityEffectAsync(type, channels, sampleRate, params, context);
 	await initializePffft();

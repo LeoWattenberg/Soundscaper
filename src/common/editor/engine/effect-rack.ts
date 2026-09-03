@@ -36,6 +36,7 @@ import {
 	registerEffectAudioParamGroup,
 } from './effect-parameter-bindings.ts';
 import { isParametricEqType } from './project-effects.ts';
+import { BITCRUSHER_EFFECT_TYPE, createBitcrusherEffectNode } from './bitcrusher-node.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import type { EngineEffect, UnknownRecord } from './types.ts';
 import { effectSupportsExplicitSidechain } from '../effect-explicit-sidechain-capability.ts';
@@ -230,6 +231,13 @@ export function applyEffect(
 		}
 		registerEffectNode(effect, processor, options);
 		attachDynamicsAnalysisTelemetry(processor);
+		return processor;
+	}
+	if (type === BITCRUSHER_EFFECT_TYPE) {
+		const width = clamp(positiveInteger(options.effectChannelCount, 2), 1, 32);
+		const processor = addNode(nodes, createBitcrusherEffectNode(context, audioWorkletNodeConstructor(), params, width));
+		connect(input, processor);
+		registerEffectNode(effect, processor, options);
 		return processor;
 	}
 	if ((type === 'limiter' || type === 'gate') && explicitSidechainCapable

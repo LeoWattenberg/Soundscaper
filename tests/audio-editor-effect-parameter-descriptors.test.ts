@@ -225,7 +225,7 @@ test('descriptor inventory exactly covers every rack scalar owned by built-in an
 					'enabled', 'type', 'frequency', 'gain', 'q', 'slope',
 				].map((parameterId) => `${band.id}:${parameterId}`)),
 			]
-			: Object.keys(definition.ranges);
+			: [...Object.keys(definition.ranges), ...Object.keys(definition.choices ?? {})];
 		const actual = inventory.descriptors.map((descriptor) => {
 			assert.equal(descriptor.address.kind, 'effect');
 			if (descriptor.address.kind !== 'effect') return '';

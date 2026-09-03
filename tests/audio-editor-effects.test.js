@@ -341,8 +341,11 @@ test('parametric EQ accepts zero through twelve uniquely identified bands and va
 	}), /between -24 and 24/);
 });
 
-test('selection effect registry adds canonical EQ and the release-reviewed Utility Gain package', () => {
-	assert.deepEqual(audioSelectionEffectTypes(), [...audacityEffectTypes(), 'eq', 'reviewed-utility-gain']);
+test('selection effect registry adds canonical EQ, the bitcrusher, and the release-reviewed Utility Gain package', () => {
+	assert.deepEqual(
+		audioSelectionEffectTypes(),
+		[...audacityEffectTypes(), 'eq', 'bitcrusher', 'reviewed-utility-gain'],
+	);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.maximumBands, 12);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.preRollSeconds, 10);
 	assert.equal(audioSelectionEffectLabel('eq', 'en'), audioEffectLabel('eq', 'en'));

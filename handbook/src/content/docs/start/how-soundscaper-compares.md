@@ -113,7 +113,7 @@ product enables see
 
 | Capability | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Built-in effect suite | Yes — the 30 Audacity effects plus bundled Nyquist plug-ins | Yes — the same 30-effect built-in collection | Yes — around fifty, including multiband dynamics |
+| Built-in effect suite | Yes — the 30 Audacity effects, bundled Nyquist plug-ins, and first-party effects with no upstream equivalent, such as the bitcrusher | Yes — the same 30-effect built-in collection | Yes — around fifty, including multiband dynamics |
 | Real-time effect rack per track | Yes — a wider real-time set than upstream | Yes | Yes — sixteen slots per clip, track, and master |
 | Parametric EQ | Yes — a new parametric EQ with automatable bands | Partial — Filter Curve and Graphic EQ | Yes — parametric, graphic, and FFT filters |
 | Effect presets | Yes — apply, save, import, export | Yes — apply, save, import, export | Yes |

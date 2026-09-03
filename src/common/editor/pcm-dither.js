@@ -48,7 +48,21 @@ export function normalizePcmEncoderDither(value) {
 export function pcmDitherNoise(mode, random, channel, state) {
 	if (mode === 'none') return 0;
 	if (mode === 'rectangular') return random() - 0.5;
-	const current = random() - random();
+	return ditherFromUniforms(mode, random(), random(), channel, state);
+}
+
+/**
+ * The same noise from two uniforms the caller has already drawn.
+ *
+ * A real-time processor has to advance its generator the same number of times
+ * per sample whatever mode is selected, or the noise stream desynchronizes
+ * from the sample index the moment a parameter changes and a render stops
+ * matching playback. Such callers draw unconditionally and come here.
+ */
+export function ditherFromUniforms(mode, first, second, channel, state) {
+	if (mode === 'none') return 0;
+	if (mode === 'rectangular') return first - 0.5;
+	const current = first - second;
 	if (mode !== 'triangular-highpass') return current;
 	const noise = (current - state[channel]) * 0.5;
 	state[channel] = current;

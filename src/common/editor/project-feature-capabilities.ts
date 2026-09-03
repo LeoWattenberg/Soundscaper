@@ -127,6 +127,7 @@ export const PROJECT_FEATURE_AUDIO_EFFECT_TYPES = Object.freeze([
 	'gate',
 	'reverb',
 	'delay',
+	'bitcrusher',
 	'audacity-auto-duck',
 	'audacity-bass-treble',
 	'audacity-click-removal',

@@ -177,6 +177,7 @@ export function audacityParameterPresentation(effectType: string, name: string):
 	};
 	if (sliderParameters[effectType]?.includes(name)) return 'slider';
 	if ([
+		'bitcrusher',
 		'audacity-bass-treble',
 		'audacity-compressor',
 		'audacity-legacy-compressor',

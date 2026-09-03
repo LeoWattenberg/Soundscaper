@@ -17,6 +17,9 @@ import {
 } from './reviewed-effects/selection-effect-contract.ts';
 import { projectEffectTailFramesV21 } from './project-effect-tail-v21.ts';
 import {
+	BITCRUSHER_EFFECT_DEFINITION, BITCRUSHER_EFFECT_TYPE,
+} from './first-party-effects/bitcrusher/definition.js';
+import {
 	PARAMETRIC_EQ_BAND_TYPES,
 	PARAMETRIC_EQ_EFFECT_DEFINITION,
 	PARAMETRIC_EQ_MAXIMUM_BANDS,
@@ -95,6 +98,7 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 			preDelay: [0, 1, { unit: 's', step: 0.001, taper: 'linear', automatable: false, automationBlockReason: 'Reverb parameters currently rebuild the native effect graph.' }],
 		},
 	},
+	[BITCRUSHER_EFFECT_TYPE]: BITCRUSHER_EFFECT_DEFINITION,
 	delay: {
 		defaults: { time: 0.25, feedback: 0.3, mix: 0.2 },
 		ranges: {
@@ -138,6 +142,7 @@ export const AUDIO_SELECTION_EFFECT_DEFINITIONS = Object.freeze({
 		...AUDIO_EFFECT_DEFINITIONS.eq,
 		preRollSeconds: 10,
 	}),
+	[BITCRUSHER_EFFECT_TYPE]: BITCRUSHER_EFFECT_DEFINITION,
 	[REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_TYPE]: REVIEWED_UTILITY_GAIN_SELECTION_EFFECT_DEFINITION,
 });
 

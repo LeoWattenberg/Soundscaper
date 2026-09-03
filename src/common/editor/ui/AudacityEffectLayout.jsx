@@ -46,6 +46,11 @@ const EFFECT_LAYOUTS = Object.freeze({
 		{ titleKey: 'effectCardOutput', names: ['normalize', 'usePeak'], wide: true },
 		{ titleKey: 'effectCardResponse', names: [], response: 'compressor', wide: true },
 	],
+	bitcrusher: [
+		{ titleKey: 'effectCardResolution', names: ['bitDepth', 'downsampling'], knobs: true },
+		{ titleKey: 'effectCardMode', names: ['dither', 'interpolation'], wide: true },
+		{ titleKey: 'effectCardOutput', names: ['mix'], knobs: true },
+	],
 	'audacity-distortion': [
 		{ titleKey: 'effectCardMode', names: ['mode', 'dcBlock'], wide: true },
 		{ titleKey: 'effectCardDrive', names: ['thresholdDb', 'noiseFloorDb', 'parameter1', 'parameter2'], knobs: true },

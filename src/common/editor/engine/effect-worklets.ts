@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isAudacityLiveEffect } from '../audacity-effects/live-capabilities.js';
+import { BITCRUSHER_EFFECT_TYPE } from '../first-party-effects/bitcrusher/definition.js';
 import { loadParametricEqWasmModule } from '../parametric-eq/wasm-loader.js';
 import { loadPffftWasmModule } from '../pffft-wasm-loader.js';
 import { isParametricEqType, projectEffectRacks } from './project-effects.ts';
@@ -9,6 +10,7 @@ import { ensureNativePluginRealtimeWorklet } from '../native-plugin-realtime-nod
 
 const dynamicsWorkletContexts = new WeakSet<BaseAudioContext>();
 const delayWorkletContexts = new WeakSet<BaseAudioContext>();
+const bitcrusherWorkletContexts = new WeakSet<BaseAudioContext>();
 const audacityWorkletContexts = new WeakSet<BaseAudioContext>();
 const audacityReadyContexts = new WeakSet<BaseAudioContext>();
 const parametricEqWorkletContexts = new WeakSet<BaseAudioContext>();
@@ -16,6 +18,7 @@ const audacityPffftWasmModules = new WeakMap<BaseAudioContext, WebAssembly.Modul
 const parametricEqWasmModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
 const dynamicsWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const delayWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
+const bitcrusherWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const audacityWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const audacityReadyLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const parametricEqWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
@@ -28,6 +31,10 @@ export function isDynamicsWorkletLoaded(context: BaseAudioContext): boolean {
 
 export function isDelayWorkletLoaded(context: BaseAudioContext): boolean {
 	return delayWorkletContexts.has(context);
+}
+
+export function isBitcrusherWorkletLoaded(context: BaseAudioContext): boolean {
+	return bitcrusherWorkletContexts.has(context);
 }
 
 export function isAudacityWorkletLoaded(context: BaseAudioContext): boolean {
@@ -52,18 +59,20 @@ export async function ensureProjectWorklets(
 ): Promise<void> {
 	const needsDynamics = projectUsesDynamicsWorklet(project) && !dynamicsWorkletContexts.has(context);
 	const needsDelay = projectUsesDelayWorklet(project) && !delayWorkletContexts.has(context);
+	const needsBitcrusher = projectUsesBitcrusherWorklet(project) && !bitcrusherWorkletContexts.has(context);
 	const usesAudacity = projectUsesAudacityWorklet(project);
 	const needsAudacity = usesAudacity && !audacityReadyContexts.has(context);
 	const usesParametricEq = projectUsesParametricEqWorklet(project);
 	const needsParametricEq = usesParametricEq && !parametricEqWorkletContexts.has(context);
 	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
 	const usesNativePlugin = projectUsesNativePluginWorklet(project);
-	if (!needsDynamics && !needsDelay && !needsAudacity && !needsParametricEq
+	if (!needsDynamics && !needsDelay && !needsBitcrusher && !needsAudacity && !needsParametricEq
 		&& !needsParametricEqWasm && !usesNativePlugin) return;
 	if (!context.audioWorklet?.addModule || typeof globalThis.AudioWorkletNode !== 'function') {
 		if (needsAudacity) throw new Error('This browser cannot run Audacity real-time effects without bypassing them.');
 		if (needsParametricEq || needsParametricEqWasm) throw new Error('This browser cannot run the parametric EQ without bypassing it.');
 		if (needsDynamics) throw new Error('This browser cannot run the limiter or gate without bypassing it.');
+		if (needsBitcrusher) throw new Error('This browser cannot run the bitcrusher without bypassing it.');
 		return;
 	}
 	const loads: Promise<unknown>[] = [];
@@ -85,6 +94,14 @@ export async function ensureProjectWorklets(
 			delayWorkletLoads,
 			() => new URL('../delay-worklet.js', import.meta.url),
 		).catch(() => undefined));
+	}
+	if (needsBitcrusher) {
+		loads.push(addWorkletModuleOnce(
+			context,
+			bitcrusherWorkletContexts,
+			bitcrusherWorkletLoads,
+			bitcrusherWorkletModuleUrl,
+		));
 	}
 	if (needsAudacity) {
 		loads.push(ensureAudacityWorkletReady(context));
@@ -230,6 +247,16 @@ async function audacityWorkletModuleUrl(): Promise<URL | string> {
 	return new URL('../audacity-effects/live-worklet.js', import.meta.url);
 }
 
+async function bitcrusherWorkletModuleUrl(): Promise<URL | string> {
+	// The processor imports the shared DSP core, so it has to be bundled rather
+	// than copied beside a source path that does not survive the build.
+	if (import.meta.env?.DEV || import.meta.env?.PROD) {
+		const module = await import('../bitcrusher-worklet.js?worker&url');
+		return module.default;
+	}
+	return new URL('../bitcrusher-worklet.js', import.meta.url);
+}
+
 async function parametricEqWorkletModuleUrl(): Promise<URL | string> {
 	if (import.meta.env?.DEV || import.meta.env?.PROD) {
 		const module = await import('../parametric-eq/worklet.js?worker&url');
@@ -244,6 +271,10 @@ function projectUsesDynamicsWorklet(project: EngineProject): boolean {
 
 function projectUsesDelayWorklet(project: EngineProject): boolean {
 	return projectUsesEffect(project, (type) => type === 'delay');
+}
+
+function projectUsesBitcrusherWorklet(project: EngineProject): boolean {
+	return projectUsesEffect(project, (type) => type === BITCRUSHER_EFFECT_TYPE);
 }
 
 function projectUsesAudacityWorklet(project: EngineProject): boolean {

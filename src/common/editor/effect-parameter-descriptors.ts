@@ -238,7 +238,7 @@ interface NativeChoice {
 
 function workletBackedWithoutParameterQueue(type: string): boolean {
 	return type === 'eq' || type === 'limiter' || type === 'gate' || type === 'delay'
-		|| isAudacityRackEffectType(type);
+		|| type === 'bitcrusher' || isAudacityRackEffectType(type);
 }
 
 export function stripParameterDescriptor(
