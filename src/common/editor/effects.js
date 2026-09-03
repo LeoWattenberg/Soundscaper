@@ -26,7 +26,7 @@ import {
 	PARAMETRIC_EQ_SLOPES,
 	isParametricEqEffectAlias,
 	normalizeParametricEqEffectParams,
-} from './parametric-eq/effect-definition.js';
+} from './first-party-effects/parametric-eq/definition.js';
 
 export const MISSING_EFFECT_TYPE = 'missing';
 
