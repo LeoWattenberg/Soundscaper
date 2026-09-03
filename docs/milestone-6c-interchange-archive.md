@@ -210,6 +210,47 @@ before code.
   code path at all. `1001/30000s` is what Final Cut Pro itself writes, so our
   output is correct and must not be bent to suit an integer-only reader.
 
+## 6C-1d — DAWproject profile, both directions
+
+Landed after 6C closed, as the fourth interchange profile and the first with an
+importer. DAWproject is Bitwig's open project-exchange format (a ZIP holding
+`project.xml`, `metadata.xml`, and the embedded media), read by Bitwig Studio,
+Studio One, Cubase, and others.
+
+- **Outcome.** `src/common/editor/dawproject-export.ts` and
+  `dawproject-export-lanes.ts` write the structure and arrangement;
+  `dawproject-import.ts`, `dawproject-import-timeline.ts`, and
+  `dawproject-import-project.ts` read them back into a current document;
+  `dawproject-archive.ts` owns the container and `dawproject-xml.ts` the bounded
+  XML layer both share. `controller/dawproject-service.ts` composes open and
+  export into the native project service, and File > DAWproject reaches both
+  plus the exchange report.
+- **Invariants.** DAWproject is a project exchange, not an edit list, so the
+  visibility rule the other three profiles share does not apply: a muted track
+  is written muted, never omitted. Time is written in seconds because every
+  delivered clip has an exact sample position; the tempo and signature maps ride
+  along as beat-positioned automation so the receiving grid still agrees. Every
+  embedded source is float32 WAV at its own rate — the same samples the project
+  holds. Import decodes everything before it builds, persists sources before it
+  switches, and deletes what it persisted if the switch fails, exactly as the
+  Audacity path does.
+- **Acceptance.** Unit coverage per module; a service test that opens a real
+  archive through `createNativeProjectService` and exports one back; and
+  `tests/audio-editor-dawproject-reference-conformance.test.ts`, which holds
+  `project.xml` and `metadata.xml` to Bitwig's published `Project.xsd` and
+  `MetaData.xsd` (vendored under `tests/fixtures/dawproject`, MIT) with a
+  validator that is not ours — see
+  [interchange-conformance.md](interchange-conformance.md).
+- **Reported, not approximated.** Export: effect stacks, clip gain, envelopes,
+  pitch shift, reverse, region extents, cue and VCA strips, non-channel
+  automation, video whose container cannot be embedded. Import: notes, plug-ins,
+  clip looping, alias cycles, pan and mute automation, marker colours, a track
+  routed into a group it is not inside, a nested group's own fader. Speed
+  changes and warp maps cross as `Warps` on export and come back as an average
+  stretch on import, and both say so.
+- **Non-goals.** Notes, plug-in state, scenes, and video import. Interior warp
+  points on import (the average speed is kept, the curve reported).
+
 ## 6C-2 — Archive, consolidate, trim-media, manifests
 
 - **Outcome:** project archive with a checksum manifest (every referenced

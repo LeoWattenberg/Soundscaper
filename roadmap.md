@@ -731,6 +731,12 @@ invariants, and the bounded work packets are owned by the
 - **Shared — Implemented:** EDL, OTIO, and FCPXML export profiles itemize every
   conversion; consolidate, checksums, lossless trim-media, and the maintained
   linked-media relink lifecycle are active.
+- **Shared — Implemented:** DAWproject 1.0 exchange in both directions. Export
+  embeds every referenced source as float32 WAV and writes tracks, folders,
+  buses, sends, clips, fades, warps, volume/pan/mute automation, tempo and
+  signature maps, and markers; import reads the same vocabulary from any
+  DAWproject-writing DAW, decodes the embedded audio, and itemizes what it could
+  not carry in the same delivery report the exporters use.
 
 ### Shared exit gate
 

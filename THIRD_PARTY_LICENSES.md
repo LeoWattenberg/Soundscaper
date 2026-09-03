@@ -576,9 +576,21 @@ with Soundscaper or Framescaper:
 - `opentimelineio 0.18.1` — Apache-2.0; source: <https://github.com/AcademySoftwareFoundation/OpenTimelineIO/tree/v0.18.1>
 - `otio-cmx3600-adapter 1.0.0` — Apache-2.0; source: <https://github.com/OpenTimelineIO/otio-cmx3600-adapter/tree/v1.0.0>
 - `otio-fcpx-xml-adapter 1.0.0` — Apache-2.0; source: <https://github.com/OpenTimelineIO/otio-fcpx-xml-adapter/tree/v1.0.0>
+- `xmlschema 3.4.5` — MIT; Copyright (c) 2016-2024 SISSA; source: <https://github.com/sissaschool/xmlschema/tree/v3.4.5>
+- `elementpath 4.8.0` — MIT; Copyright (c) 2018-2025 SISSA; source: <https://github.com/sissaschool/elementpath/tree/v4.8.0>
 
 Exact package versions and wheel SHA-256 verification rules are recorded in
 [`config/interchange-conformance-tools.json`](config/interchange-conformance-tools.json).
+
+The DAWproject conformance test validates against the format's published XML
+schemas, which are committed as test fixtures and are not part of any shipped
+artifact: `tests/fixtures/dawproject/Project.xsd` and
+`tests/fixtures/dawproject/MetaData.xsd` — MIT; Copyright (c) 2020 Bitwig;
+DAWproject 1.0, from <https://github.com/bitwig/dawproject> at commit
+`2c45c639e06e7a7e03b634e2a97bf867d94ca177`; license text retained in
+`tests/fixtures/dawproject/LICENSE`. The DAWproject reader and writer in
+`src/common/editor/dawproject-*.ts` are original implementations written from
+that schema and include no code from the reference library.
 
 ## Packaged browser dependencies
 

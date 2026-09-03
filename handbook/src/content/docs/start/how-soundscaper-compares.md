@@ -184,6 +184,7 @@ product enables see
 | EDL | Partial — CMX3600-class export, no import | No | No |
 | OpenTimelineIO | Partial — export only | No | No |
 | FCPXML | Partial — export only | No | Yes — import and export |
+| DAWproject | Yes — import and export, with an exchange report | No | No |
 | OMF | No | No | Partial — import and export |
 | Round-trip with a video editor | Partial — hands the same project to Framescaper without copying media | No | Yes — Dynamic Link with Premiere Pro |
 | Labels and markers exchange | Yes — import and export | Yes — import and export | Yes — marker lists |

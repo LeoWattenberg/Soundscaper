@@ -6,8 +6,10 @@
 		"distribution. They are recorded anyway because a dependency that decides whether a test",
 		"passes deserves the same provenance discipline as one that ships.",
 		"",
-		"Every package is Apache-2.0, which is one-way compatible with GPLv3-family licensing and",
-		"would remain acceptable even if any of this were ever linked rather than merely executed.",
+		"Every OpenTimelineIO package is Apache-2.0, which is one-way compatible with GPLv3-family",
+		"licensing and would remain acceptable even if any of this were ever linked rather than",
+		"merely executed. The two XML Schema packages that validate DAWproject output against the",
+		"schemas Bitwig publishes are MIT, which is compatible the same way.",
 		"",
 		"Pure-Python wheels are pinned by sha256 here because they are identical on every platform.",
 		"The opentimelineio core is a native extension published as twenty platform wheels, so the",
@@ -40,6 +42,22 @@
 			"purpose": "Reference FCPXML (Final Cut Pro X) reader for the 6C-1c round trip.",
 			"wheel": "otio_fcpx_xml_adapter-1.0.0-py3-none-any.whl",
 			"sha256": "9891fcba190e1a2ebc339d2da42398ce98927dfb0055d57d8b37ea8769477f73"
+		},
+		{
+			"name": "xmlschema",
+			"version": "3.4.5",
+			"license": "MIT",
+			"purpose": "Pure-Python XSD validator that holds emitted DAWproject project.xml and metadata.xml to the Bitwig schemas vendored under tests/fixtures/dawproject.",
+			"wheel": "xmlschema-3.4.5-py3-none-any.whl",
+			"sha256": "c91a2fca387dc4e8a2f2cb4a411ed23bef9da539968e5d858a3fe7f76a65464e"
+		},
+		{
+			"name": "elementpath",
+			"version": "4.8.0",
+			"license": "MIT",
+			"purpose": "XPath engine xmlschema depends on.",
+			"wheel": "elementpath-4.8.0-py3-none-any.whl",
+			"sha256": "5393191f84969bcf8033b05ec4593ef940e58622ea13cefe60ecefbbf09d58d9"
 		}
 	]
 }

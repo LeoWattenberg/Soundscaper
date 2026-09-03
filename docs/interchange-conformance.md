@@ -28,14 +28,31 @@ what came back.
 | `opentimelineio` | 0.18.1 | Apache-2.0 | 6C-1b round trip; plugin host for the adapters |
 | `otio-cmx3600-adapter` | 1.0.0 | Apache-2.0 | reference CMX3600 reader |
 | `otio-fcpx-xml-adapter` | 1.0.0 | Apache-2.0 | reference FCPXML reader |
+| `xmlschema` | 3.4.5 | MIT | XSD validator for the DAWproject profile |
+| `elementpath` | 4.8.0 | MIT | XPath engine `xmlschema` depends on |
 
 Run `npm run provision:interchange-conformance` once, then
 `npm run test:reference:interchange`.
 
 These are **conformance-time tools**. Nothing is bundled, linked, or shipped, so
-no obligation flows into the AGPL-3.0-only distribution. Apache-2.0 is one-way
-compatible with GPLv3-family licensing and would remain acceptable even if any
-of it were ever linked rather than merely executed.
+no obligation flows into the AGPL-3.0-only distribution. Apache-2.0 and MIT are
+one-way compatible with GPLv3-family licensing and would remain acceptable even
+if any of it were ever linked rather than merely executed.
+
+### DAWproject: the published schema rather than a reference reader
+
+DAWproject's reference implementation is a Java library, and this project's
+toolchain carries no JVM. What the reference repository publishes alongside it
+is `Project.xsd` and `MetaData.xsd`, generated from the same Java model the
+reference reader is built from — so the schema states exactly what that reader
+accepts: element names, the order of children, attribute types, the
+enumerations, and that every `IDREF` resolves to an `xs:ID`. The two files are
+vendored under `tests/fixtures/dawproject/` with their MIT notice (from
+`bitwig/dawproject` commit `2c45c639`), and
+`tests/audio-editor-dawproject-reference-conformance.test.ts` validates our
+output against them with `xmlschema`, a validator that is not ours. The test
+fails with the provisioning command when the validator is absent; it never
+skips.
 
 ### Why the wheels are provisioned rather than committed
 
