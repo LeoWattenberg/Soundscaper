@@ -94,7 +94,7 @@ const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]a
 // it in the Framescaper bootstrap and makes the desktop codec runtime import
 // that bootstrap back, so it needs the same non-recursive owner as codec leaves.
 const EDITOR_CODEC_FOUNDATION_CHUNK_TEST = /(?:src[\\/]common[\\/]editor[\\/](?:wavpack[\\/]|staffpad[\\/]|parametric-eq[\\/](?:parameters|design|wasm-runtime|wasm-loader)\.js$)|desktop[\\/]desktop-video-codec-operation-contract\.ts$)/;
-const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|live-capabilities)\.js|first-party-effects[\\/](?:bitcrusher|parametric-eq)[\\/]definition\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
+const EDITOR_EFFECT_CONTRACT_CHUNK_TEST = /(?:src[\\/]common[\\/](?:i18n[\\/]action-parity\.js|editor[\\/](?:audacity-effects[\\/](?:contracts|factory-preset-tables|factory-presets|live-capabilities)\.js|first-party-effects[\\/](?:bitcrusher|parametric-eq)[\\/]definition\.js|nyquist[\\/]plugin-registry\.js|reviewed-effects[\\/](?:errors|manifest|selection-effect-contract|utility-gain-package)\.ts)))$/;
 /**
  * Soundscaper family-v1 project and archive authority shared with transfer pages.
  *
