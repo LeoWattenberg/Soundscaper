@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { inspectEncodedAudioSampleRate } from '../audio-file-metadata.js';
+import { inspectDecodedAudioSampleRate, inspectEncodedAudioSampleRate } from '../audio-file-metadata.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from '../wav-import.js';
 import { audioBufferChannels, bufferFromChannels, type AudioBufferLike } from './source-audio.ts';
 import { decodeStandaloneAudioForImport } from './standalone-audio-import-decoder.ts';
@@ -24,7 +24,10 @@ export type DawprojectAudioFileDecoder = (file: Blob, name: string) => Promise<D
 
 interface DecoderEngine {
 	getAudioContext(options: Readonly<{ resume: boolean }>): Promise<unknown>;
-	decodeAudioData(encoded: ArrayBuffer): Promise<AudioBufferLike>;
+	decodeAudioData(
+		encoded: ArrayBuffer,
+		options?: Readonly<{ sampleRate: number | null }>,
+	): Promise<AudioBufferLike>;
 }
 
 interface DecoderCodecRuntime {
@@ -50,17 +53,22 @@ export function createDawprojectAudioDecoder(dependencies: Readonly<{
 		const named = typeof File === 'function' && !(file instanceof File)
 			? new File([file], name, { type: file.type })
 			: file;
-		const { decoded } = await decodeStandaloneAudioForImport({
+		const { decoded } = await decodeStandaloneAudioForImport<Blob, unknown, AudioBufferLike>({
 			file: named,
 			codecRuntime: dependencies.ffmpeg,
 			sampleRate: FALLBACK_SAMPLE_RATE,
 			getAudioContext: () => dependencies.engine.getAudioContext({ resume: false }),
-			decodeWithWebAudio: (encoded) => dependencies.engine.decodeAudioData(encoded),
+			// Pinned to the file's own rate, as the ordinary import is, so a
+			// compressed file does not come in at the output device's rate.
+			decodeWithWebAudio: (encoded, decodedSampleRate) => (
+				dependencies.engine.decodeAudioData(encoded, { sampleRate: decodedSampleRate })
+			),
 			decodeWithCodec: (input, settings) => dependencies.ffmpeg.decode(input, settings),
 			bufferFromChannels: (channels, sampleRate, context) => (
 				bufferFromChannels([...channels], sampleRate, context as never, dependencies.copy as never)
 			),
 			inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
+			inspectDecodedSampleRate: inspectDecodedAudioSampleRate,
 		});
 		return Object.freeze({ channels: audioBufferChannels(decoded), sampleRate: decoded.sampleRate });
 	};
