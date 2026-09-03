@@ -90,6 +90,23 @@ test('reverse commits synchronously while normalization is owned by its clip tas
 	assert.equal(harness.commits.length, 1, 'a stale analysis must not publish gain');
 });
 
+test('invert toggles clip polarity without touching any other clip field', async () => {
+	const harness = createHarness(projectFixture());
+
+	await harness.service.handleClipAction('invert', 'active');
+	assert.deepEqual(harness.commits[0]?.command, {
+		type: 'clip/update', clipId: 'active', changes: { inverted: true },
+	});
+
+	const inverted = createHarness(projectFixture({
+		clips: [clipFixture({ inverted: true }), clipFixture({ id: 'companion' })],
+	}));
+	await inverted.service.handleClipAction('invert', 'active');
+	assert.deepEqual(inverted.commits[0]?.command, {
+		type: 'clip/update', clipId: 'active', changes: { inverted: false },
+	});
+});
+
 test('normalization analyzes the selected source extent rather than its stretched timeline extent', async () => {
 	let analyzed: readonly Float32Array[] = [];
 	const project = projectFixture({
@@ -300,7 +317,7 @@ function clipFixture(overrides: Readonly<Record<string, unknown>> = {}) {
 		id: 'active', sourceId: 'source', title: 'Clip', kind: 'audio' as const,
 		timelineStartFrame: 0, sourceStartFrame: 0, sourceDurationFrames: 1_000,
 		durationFrames: 1_000, trimStartFrames: 0, trimEndFrames: 0,
-		gain: 1, fadeInFrames: 25, fadeOutFrames: 25, reversed: false,
+		gain: 1, fadeInFrames: 25, fadeOutFrames: 25, reversed: false, inverted: false,
 		envelope: [{ frame: 500, value: 0.5 }], groupId: 'group', avLinkId: null,
 		pitchCents: 0, speedRatio: 1, preserveFormants: false,
 		stretchToTempo: false, renderCacheRevision: 2, opaqueExtensions: {},

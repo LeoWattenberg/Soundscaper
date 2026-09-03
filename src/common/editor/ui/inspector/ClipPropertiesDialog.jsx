@@ -150,7 +150,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 					<CommitField label={copy.clipName} name="name" value={displayedName} disabled={disabled} onCommit={commitField} />
 				</section>
 				<section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide">
-					<h3>{copy.clipStart} / {copy.clipDuration}</h3>
+					<h3>{copy.clipMediaSettings}</h3>
 					<div className="audio-editor-clip-properties__time-grid">
 						<ClipTimeCodeField name="startFrame" label={copy.clipStart} value={clip?.timelineStartFrame ?? 0}
 							sampleRate={sampleRate} disabled={disabled}
@@ -162,6 +162,18 @@ function ClipProperties({ controller, snapshot, copy }) {
 							sampleRate={sampleRate} minimum={1} disabled={disabled}
 							onCommit={(value) => commitField('durationFrame', value)} />
 					</div>
+					{!isVideoClip && snapshot.capabilities?.audioEffects && (
+						<div className="audio-editor-clip-properties__toggles">
+							<div data-clip-field="reversed">
+								<DesignCheckbox label={copy.reverse} checked={Boolean(clip?.reversed)} disabled={disabled}
+									onChange={() => run(controller.actions.clip.reverse)} />
+							</div>
+							<div data-clip-field="inverted">
+								<DesignCheckbox label={copy.invert} checked={Boolean(clip?.inverted)} disabled={disabled}
+									onChange={() => run(controller.actions.clip.invert)} />
+							</div>
+						</div>
+					)}
 				</section>
 				{!isVideoClip && <section className="audio-editor-clip-properties__card">
 					<h3>{copy.fading}</h3>
@@ -195,6 +207,10 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<CommitField label={copy.clipSpeedRatio} name="speedRatio" value={clip?.speedRatio ?? 1} type="number" disabled={disabled} onCommit={commitField} />
 						<div data-clip-field="preserveFormants"><DesignCheckbox label={copy.preserveFormants} checked={Boolean(clip?.preserveFormants)} disabled={disabled} onChange={(checked) => controller.actions.clip.setTimePitch(clip.id, { preserveFormants: checked })} /></div>
 						<div data-clip-field="stretchToTempo"><DesignCheckbox label={copy.stretchToTempo} checked={Boolean(clip?.stretchToTempo)} disabled={disabled} onChange={() => controller.actions.clip.toggleStretchToTempo(clip.id)} /></div>
+						<div className="audio-editor-panel-actions">
+							<ActionHook hook="render-pitch-speed"><Button disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.renderPitchSpeed)}>{copy.render}</Button></ActionHook>
+							<ActionHook hook="reset-pitch-speed"><Button variant="secondary" disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.resetPitchSpeed)}>{copy.reset}</Button></ActionHook>
+						</div>
 					</div>
 				</section>}
 				{isVideoClip && snapshot.capabilities?.videoEffects && <VideoEffectRack clip={clip} controller={controller} copy={copy} disabled={disabled} onError={setError} />}
@@ -213,11 +229,8 @@ function ClipProperties({ controller, snapshot, copy }) {
 			)}
 			{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 			{!isVideoClip && snapshot.capabilities?.audioEffects && <div className="audio-editor-panel-actions">
-				<ActionHook hook="reverse"><Button disabled={disabled} onClick={() => run(controller.actions.clip.reverse)}>{copy.reverse}</Button></ActionHook>
 				<ActionHook hook="normalize-peak"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizePeak)}>{copy.normalizePeak}</Button></ActionHook>
 				<ActionHook hook="normalize-lufs"><Button disabled={disabled} onClick={() => run(controller.actions.clip.normalizeLoudness)}>{copy.normalizeLufs}</Button></ActionHook>
-				<ActionHook hook="render-pitch-speed"><Button disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.renderPitchSpeed)}>{copy.renderPitchSpeed}</Button></ActionHook>
-				<ActionHook hook="reset-pitch-speed"><Button variant="secondary" disabled={disabled || !clip || (clip.pitchCents === 0 && clip.speedRatio === 1)} onClick={() => run(controller.actions.clip.resetPitchSpeed)}>{copy.resetPitchSpeed}</Button></ActionHook>
 			</div>}
 		</div>
 	);

@@ -39,6 +39,7 @@ export interface EngineClip extends Readonly<Record<string, unknown>> {
 	readonly sourceStartFrame?: number;
 	readonly sourceDurationFrames?: number;
 	readonly reversed?: boolean;
+	readonly inverted?: boolean;
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;

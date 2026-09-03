@@ -80,7 +80,8 @@ test('controllers enforce product authoring boundaries while retaining the share
 	]) assertRestricted(framescaper, path, 'audioSpectralEditing');
 	for (const path of [
 		'nyquist.evaluate', 'nyquist.preview', 'clip.setTimePitch', 'clip.stretch', 'clip.toggleStretchToTempo',
-		'clip.resetPitchSpeed', 'clip.renderPitchSpeed', 'clip.reverse', 'clip.normalizePeak', 'clip.normalizeLoudness',
+		'clip.resetPitchSpeed', 'clip.renderPitchSpeed', 'clip.reverse', 'clip.invert',
+		'clip.normalizePeak', 'clip.normalizeLoudness',
 		'track.makeStereo', 'track.swapChannels', 'track.splitStereoLR', 'track.splitStereoCenter',
 		'track.setRate', 'track.mixAndRender', 'track.resample',
 		'effects.add', 'effects.update', 'effects.beginRackEffectGesture', 'effects.previewRackEffect',

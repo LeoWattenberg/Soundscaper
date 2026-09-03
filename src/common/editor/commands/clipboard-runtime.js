@@ -166,6 +166,7 @@ export function createClipboardDescriptor(project, options = {}) {
 					...(Number.isSafeInteger(segment.fadeInFrames) ? { fadeInFrames: segment.fadeInFrames } : {}),
 					...(Number.isSafeInteger(segment.fadeOutFrames) ? { fadeOutFrames: segment.fadeOutFrames } : {}),
 					...(typeof segment.reversed === 'boolean' ? { reversed: segment.reversed } : {}),
+					...(typeof segment.inverted === 'boolean' ? { inverted: segment.inverted } : {}),
 					...(Array.isArray(segment.envelope) ? { envelope: segment.envelope } : {}),
 					...(Number.isFinite(segment.pitchCents) ? { pitchCents: segment.pitchCents } : {}),
 					...(typeof segment.preserveFormants === 'boolean' ? { preserveFormants: segment.preserveFormants } : {}),

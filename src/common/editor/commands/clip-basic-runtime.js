@@ -87,7 +87,7 @@ export function updateClip(project, clipId, changes = {}) {
 	const allowed = clip.kind === 'video'
 		? new Set(['title', 'groupId', 'color'])
 		: new Set([
-			'gain', 'fadeInFrames', 'fadeOutFrames', 'reversed', 'title', 'envelope',
+			'gain', 'fadeInFrames', 'fadeOutFrames', 'reversed', 'inverted', 'title', 'envelope',
 			'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants',
 			'stretchToTempo', 'renderCacheRevision',
 		]);
@@ -200,6 +200,7 @@ export function replaceRenderedClips(project, command) {
 					fadeInFrames: 0,
 					fadeOutFrames: 0,
 					reversed: false,
+					inverted: false,
 					envelope: [],
 					pitchCents: 0,
 					speedRatio: 1,

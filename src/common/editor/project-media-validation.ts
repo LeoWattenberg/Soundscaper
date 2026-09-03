@@ -127,6 +127,7 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation
 		if (duration != null && (fadeIn > duration || fadeOut > duration)) throw new RangeError('Clip fades cannot be longer than the clip.');
 		projectFiniteInRange(clip.gain, 0, 16, `${prefix}.gain`);
 		projectBoolean(clip.reversed, `${prefix}.reversed`);
+		projectBoolean(clip.inverted, `${prefix}.inverted`);
 		validateProjectEnvelope(clip.envelope, `${prefix}.envelope`);
 		for (const point of recordArray(clip.envelope, `${prefix}.envelope`)) {
 			if (duration != null && Number(point.frame) > duration) throw new RangeError(`${prefix}.envelope points must be inside the clip.`);

@@ -95,7 +95,7 @@ export const M3_LONGFORM_EDITORIAL_SPECIFICATION: M3LongformEditorialSpecificati
 		DURATION_SAMPLES - SAMPLE_RATE,
 	]),
 	scrollFrameIntervalSampleCount: 240,
-	expectedProjectSha256: 'efb8d4b75df622a5cbea035bb2fc968deddee82df0cd61007622059f78c61f4e',
+	expectedProjectSha256: '1bad63b7a377295d9fe0fb14a54435cea3c603e83cfc5be3a7371218062d7dad',
 	expectedEditPlanSha256: '2167cb31e4ff5454c6443c40904aadc12ae9cb2ca7cb22addee906f71a1fcadf',
 });
 

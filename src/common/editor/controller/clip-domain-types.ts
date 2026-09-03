@@ -22,6 +22,7 @@ export interface ClipTransformClip extends Readonly<Record<string, unknown>> {
 	readonly fadeInFrames: number;
 	readonly fadeOutFrames: number;
 	readonly reversed: boolean;
+	readonly inverted?: boolean;
 	readonly envelope?: readonly ClipTransformEnvelopePoint[];
 	readonly groupId?: string | null;
 	readonly avLinkId?: string | null;

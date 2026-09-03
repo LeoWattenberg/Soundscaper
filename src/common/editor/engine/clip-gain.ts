@@ -82,7 +82,11 @@ export function scheduleClipGain(
 	sampleRate: number,
 	options: ClipGainOptions = {},
 ): void {
-	const baseGain = Math.max(0, finite(clip.gain, 1));
+	const magnitude = Math.max(0, finite(clip.gain, 1));
+	// Polarity inversion rides on the clip gain: the envelope, fades and
+	// crossfades stay positive multipliers on separate nodes, so flipping the
+	// sign here inverts the clip without disturbing any of them.
+	const baseGain = clip.inverted ? -magnitude : magnitude;
 	const envelope = Array.isArray(clip.envelope) ? clip.envelope : [];
 	setParam(clipGainParam, baseGain * envelopeValueAtFrame(envelope, segmentStart, duration), startTime);
 	if (envelope.length) {

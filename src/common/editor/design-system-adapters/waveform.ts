@@ -92,7 +92,10 @@ export function prepareBoundedWaveformWindow(
 			})),
 		});
 	}
-	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	// A clip's polarity is a flag rather than rewritten samples, so it draws as
+	// a negative gain and every peak below follows from that one sign.
+	const clipGain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
 	const transformSample = (channel: number, localFrame: number): number => {
@@ -257,7 +260,8 @@ export function preparePeakPyramidWaveformWindow(
 	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
 	const pixelsPerSample = visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0;
 	const level = selectWaveformPeakLevel(levels, sourceSamplesPerPixel);
-	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const clipGain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
 	const reversed = Boolean(clip.reversed);

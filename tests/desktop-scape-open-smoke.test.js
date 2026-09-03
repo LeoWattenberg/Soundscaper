@@ -36,7 +36,7 @@ import {
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const ARCHIVE_BYTES = 70_000;
-const EXPORTED_FIXTURE_BYTES = 70_725;
+const EXPORTED_FIXTURE_BYTES = 70_742;
 
 test('Scape-open fixture is a production-exported Soundscaper v1 mono project with bounded range geometry', async (t) => {
 	const profile = await mkdtemp(join(tmpdir(), 'scape-open-fixture-test-'));

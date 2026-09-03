@@ -28,7 +28,7 @@ test.describe('BW64 ADM metadata UI', () => {
 		const metadataDialog = page.getByRole('dialog', { name: 'Metadata', exact: true });
 		await metadataDialog.getByRole('tab', { name: 'ADM', exact: true }).click();
 		await metadataDialog.getByRole('button', { name: 'Enable ADM', exact: true }).click();
-		await metadataDialog.getByRole('button', { name: 'Done.', exact: true }).click();
+		await metadataDialog.getByRole('button', { name: 'Done', exact: true }).click();
 
 		await expect(dialog.getByRole('alert')).toHaveCount(0);
 		await expect(dialog.getByRole('button', { name: 'Start export', exact: true })).toBeEnabled();

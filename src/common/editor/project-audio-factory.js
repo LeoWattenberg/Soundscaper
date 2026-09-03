@@ -283,6 +283,7 @@ export function createAudioClip(options = {}) {
 		fadeInFrames,
 		fadeOutFrames,
 		reversed: Boolean(options.reversed),
+		inverted: Boolean(options.inverted),
 		envelope,
 		groupId: options.groupId == null ? null : nonEmptyString(options.groupId, 'clip.groupId'),
 		color: nonEmptyString(options.color || 'auto', 'clip.color'),

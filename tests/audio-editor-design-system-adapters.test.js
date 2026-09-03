@@ -331,6 +331,20 @@ test('bounded waveform preprocessing reads a demand-loaded PCM source window', (
 	}), /requested clip window/);
 });
 
+test('an inverted clip draws its waveform mirrored about the zero line', () => {
+	const window = Float32Array.of(2, 3, 4, 5, 6, 7);
+	const sourceClip = clip({ sourceStartFrame: 100, durationFrames: 8 });
+	const inverted = prepareBoundedWaveformWindow([window], { ...sourceClip, inverted: true }, {
+		startFrame: 2,
+		endFrame: 6,
+		maxSamples: 8,
+		pixelWidth: 8,
+		sourceFrameOffset: 102,
+	});
+	assert.deepEqual([...inverted.channels[0]], [-2, -3, -4, -5]);
+	assert.deepEqual([...inverted.rendering.channels[0].samples], [-2, -3, -4, -5, -6]);
+});
+
 test('bounded waveform preprocessing maps stretched timeline frames onto source frames', () => {
 	const source = Float32Array.of(1, 2, 3, 4);
 	const result = prepareBoundedWaveformWindow([source], clip({
@@ -511,6 +525,30 @@ test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gai
 	assert.deepEqual([...result.rendering.channels[0].minimum], [-10, -8]);
 	assert.deepEqual([...result.rendering.channels[0].maximum], [10, 8]);
 	assert.deepEqual([...result.channels[0]], [-10, 10, -8, 8]);
+});
+
+test('peak-pyramid waveform rendering swaps an inverted clip minimum and maximum', () => {
+	const peaks = {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: 1,
+		levels: [{
+			blockSize: 4,
+			channels: [{ minimums: Float32Array.of(-1), maximums: Float32Array.of(3) }],
+		}],
+	};
+	const clipOptions = { sourceStartFrame: 0, sourceDurationFrames: 4, durationFrames: 4 };
+	const window = { startFrame: 0, endFrame: 4, pixelWidth: 1, sourceFrameCount: 4 };
+	const upright = preparePeakPyramidWaveformWindow(peaks, clip(clipOptions), window);
+	assert.deepEqual([...upright.rendering.channels[0].minimum], [-1]);
+	assert.deepEqual([...upright.rendering.channels[0].maximum], [3]);
+
+	const inverted = preparePeakPyramidWaveformWindow(
+		peaks,
+		{ ...clip(clipOptions), inverted: true },
+		window,
+	);
+	assert.deepEqual([...inverted.rendering.channels[0].minimum], [-3]);
+	assert.deepEqual([...inverted.rendering.channels[0].maximum], [1]);
 });
 
 test('peak-pyramid waveform rendering validates cache geometry and clip source bounds', () => {

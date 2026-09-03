@@ -66,6 +66,7 @@ export interface AudioClipLeaf {
 	readonly fadeInFrames: number;
 	readonly fadeOutFrames: number;
 	readonly reversed: boolean;
+	readonly inverted: boolean;
 	readonly envelope: readonly Readonly<{ readonly frame: number; readonly value: number }>[];
 	readonly groupId: string | null;
 	readonly color: string;

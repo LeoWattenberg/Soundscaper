@@ -240,6 +240,7 @@ test('an admitted first-party audio-effects render becomes one neutral whole-mix
 		fadeInFrames: 0,
 		fadeOutFrames: 0,
 		reversed: false,
+		inverted: false,
 		envelope: [],
 		groupId: null,
 		color: 'auto',

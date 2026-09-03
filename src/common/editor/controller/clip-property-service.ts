@@ -20,7 +20,7 @@ import type {
 	EditorTaskScope,
 } from './lifecycle.ts';
 
-export type ClipPropertyAction = 'reverse' | 'normalize-peak' | 'normalize-lufs';
+export type ClipPropertyAction = 'reverse' | 'invert' | 'normalize-peak' | 'normalize-lufs';
 
 export interface ClipAnalysisResult {
 	readonly peakAmplitude: number;
@@ -52,6 +52,7 @@ interface CommitSelection {
 
 interface TimePitchClip extends ClipTransformClip {
 	readonly gain: number;
+	readonly inverted: boolean;
 	readonly pitchCents: number;
 	readonly speedRatio: number;
 	readonly preserveFormants: boolean;
@@ -124,6 +125,11 @@ export function createClipPropertyService(
 		if (action === 'reverse') {
 			return dependencies.commit({
 				type: 'clip/update', clipId: clip.id, changes: { reversed: !clip.reversed },
+			}, { selectClipId: clip.id });
+		}
+		if (action === 'invert') {
+			return dependencies.commit({
+				type: 'clip/update', clipId: clip.id, changes: { inverted: !clip.inverted },
 			}, { selectClipId: clip.id });
 		}
 		const buffer = dependencies.sourceBuffers.get(clip.sourceId);

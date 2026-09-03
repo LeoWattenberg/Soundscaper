@@ -16,6 +16,11 @@ import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts
 import { scaleSampleFrame } from './timeline-time.ts';
 import { flattenAup4TimelineAnnotations } from './aup4-annotation-interchange.ts';
 import {
+	applyMaterialTransform,
+	normalizeInputChannels,
+	normalizeMaterialTransform,
+} from './aup4-export-material.js';
+import {
 	scaleBoundary, scaledRangeLength,
 	positiveRate,
 	positiveChannelCount,
@@ -151,6 +156,7 @@ export function createAup4ExportPlan(project) {
 				sliceStartFrame,
 				sliceEndFrame,
 				reversed: Boolean(clip.reversed),
+				inverted: Boolean(clip.inverted),
 				pcmGain: envelopeConversion.pcmGain,
 			};
 			const variant = materializeVariant(source, targetRate, targetChannels, transform);
@@ -185,6 +191,7 @@ export function createAup4ExportPlan(project) {
 			if (Object.hasOwn(clip, 'fadeInFrames') || envelopeConversion.converted) normalizedClip.fadeInFrames = 0;
 			if (Object.hasOwn(clip, 'fadeOutFrames') || envelopeConversion.converted) normalizedClip.fadeOutFrames = 0;
 			if (Object.hasOwn(clip, 'reversed') || clip.reversed) normalizedClip.reversed = false;
+			if (Object.hasOwn(clip, 'inverted') || clip.inverted) normalizedClip.inverted = false;
 			normalizedClip.envelope = envelopeConversion.points;
 			if (sourceRate !== targetRate) {
 				addAup4CompatibilityItem(compatibilityReport, {
@@ -215,6 +222,15 @@ export function createAup4ExportPlan(project) {
 			if (clip.reversed) {
 				addAup4CompatibilityItem(compatibilityReport, {
 					code: 'REVERSED_CLIP_RENDERED',
+					severity: 'info',
+					disposition: 'converted',
+					scope: { kind: 'clip', trackId: track.id, clipId: clip.id },
+					data: { sourceId: source.id },
+				});
+			}
+			if (clip.inverted) {
+				addAup4CompatibilityItem(compatibilityReport, {
+					code: 'INVERTED_CLIP_RENDERED',
 					severity: 'info',
 					disposition: 'converted',
 					scope: { kind: 'clip', trackId: track.id, clipId: clip.id },
@@ -750,72 +766,8 @@ function expandSplitTrackSelection(project, replacements) {
 	if (project.view) project.view.selectedTrackIds = expand(project.view.selectedTrackIds);
 }
 
-function normalizeMaterialTransform(transform, inputFrameCount) {
-	const reversed = Boolean(transform?.reversed);
-	const pcmGain = finiteNonNegative(transform?.pcmGain, 1);
-	const sliceStartFrame = nonNegativeFrame(transform?.sliceStartFrame ?? 0, 'AUP4 material transform sliceStartFrame');
-	const sliceEndFrame = nonNegativeFrame(
-		transform?.sliceEndFrame ?? inputFrameCount,
-		'AUP4 material transform sliceEndFrame',
-	);
-	if (sliceEndFrame <= sliceStartFrame || sliceEndFrame > inputFrameCount) {
-		throw exportError('AUP4 material transform range is invalid.', 'INVALID_SNAPSHOT');
-	}
-	if (!reversed && pcmGain === 1 && sliceStartFrame === 0 && sliceEndFrame === inputFrameCount) return null;
-	return {
-		sliceStartFrame,
-		sliceEndFrame,
-		reversed,
-		pcmGain,
-	};
-}
-
-function applyMaterialTransform(channels, transform, inputRate, outputRate) {
-	if (!transform) return channels;
-	const ratio = outputRate / inputRate;
-	const start = Math.min(channels[0].length - 1, scaleBoundary(transform.sliceStartFrame, ratio));
-	const end = Math.min(channels[0].length, Math.max(start + 1, scaleBoundary(transform.sliceEndFrame, ratio)));
-	return channels.map((input) => {
-		const channel = input.slice(start, end);
-		if (transform.reversed) {
-			for (let left = 0, right = channel.length - 1; left < right; left += 1, right -= 1) {
-				const value = channel[left];
-				channel[left] = channel[right];
-				channel[right] = value;
-			}
-		}
-		if (transform.pcmGain !== 1) {
-			for (let frame = 0; frame < channel.length; frame += 1) channel[frame] *= transform.pcmGain;
-		}
-		return channel;
-	});
-}
-
 function assertExportPlan(plan) {
 	if (!plan?.project || !Array.isArray(plan.sources)) throw exportError('An AUP4 export plan is required.', 'INVALID_SNAPSHOT');
-}
-
-function normalizeInputChannels(values, source) {
-	if (!Array.isArray(values) || !values.length) {
-		throw exportError(`PCM for project source ${source.id} has no channels.`, 'INVALID_SOURCE_AUDIO');
-	}
-	const channels = values.map((channel) => {
-		if (channel instanceof Float32Array) return channel;
-		if (ArrayBuffer.isView(channel) || Array.isArray(channel)) return Float32Array.from(channel);
-		throw exportError(`PCM for project source ${source.id} must contain Float32 samples.`, 'INVALID_SOURCE_AUDIO');
-	});
-	const frameCount = channels[0].length;
-	if (!frameCount || channels.some((channel) => channel.length !== frameCount)) {
-		throw exportError(`PCM channels for project source ${source.id} must have the same positive length.`, 'INVALID_SOURCE_AUDIO');
-	}
-	if (frameCount !== positiveFrame(source.frameCount, `source ${source.id} frameCount`)) {
-		throw exportError(`PCM frame count for project source ${source.id} does not match its metadata.`, 'INVALID_SOURCE_AUDIO');
-	}
-	const declaredChannels = positiveChannelCount(source.channelCount);
-	if (channels.length !== declaredChannels) {
-		throw exportError(`PCM channel count for project source ${source.id} does not match its metadata.`, 'INVALID_SOURCE_AUDIO');
-	}
-	return channels;
 }
 
 function mapChannels(channels, targetChannels) {

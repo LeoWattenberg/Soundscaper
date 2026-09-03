@@ -318,6 +318,7 @@ function renderedLaneClip(
 		fadeInFrames: 0,
 		fadeOutFrames: 0,
 		reversed: false,
+		inverted: false,
 		envelope: Object.freeze([]),
 		groupId: null,
 		color: 'auto',

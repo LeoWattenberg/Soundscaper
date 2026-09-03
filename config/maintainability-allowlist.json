@@ -52,7 +52,7 @@
 			"reason": "Audacity effect mapping and compatibility policy."
 		},
 		"src/common/editor/aup4-export.js": {
-			"maxLines": 877,
+			"maxLines": 829,
 			"reason": "AUP4 exporter with interoperability fixtures and release audit."
 		},
 		"src/common/editor/aup4-profile.js": {
@@ -132,7 +132,7 @@
 			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
 		},
 		"src/common/i18n/catalogs.js": {
-			"maxLines": 2041,
+			"maxLines": 2053,
 			"reason": "Reviewed canonical fallback catalog."
 		},
 		"tests/audio-editor-controller.test.js": {

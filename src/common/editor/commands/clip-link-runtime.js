@@ -327,6 +327,7 @@ function clipsHaveContiguousSource(left, right) {
 	if (
 		left.sourceId !== right.sourceId
 		|| left.reversed !== right.reversed
+		|| Boolean(left.inverted) !== Boolean(right.inverted)
 		|| left.gain !== right.gain
 		|| (left.pitchCents ?? 0) !== (right.pitchCents ?? 0)
 		|| (left.speedRatio ?? 1) !== (right.speedRatio ?? 1)

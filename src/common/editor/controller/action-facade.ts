@@ -535,6 +535,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime): RuntimeV
 			overwrite: overwriteClips,
 			remove: (clipId: RuntimeValue) => commit({ type: 'clip/remove', clipId }),
 			reverse: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('reverse', clipId)),
+			invert: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('invert', clipId)),
 			normalizePeak: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('normalize-peak', clipId)),
 			normalizeLoudness: restricted('audioEffects', (clipId: RuntimeValue) => handleClipAction('normalize-lufs', clipId)),
 		}),

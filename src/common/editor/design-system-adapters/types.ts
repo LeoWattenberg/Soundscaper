@@ -106,6 +106,7 @@ export interface WaveformClipLike {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
+	readonly inverted?: boolean;
 }
 
 export interface WaveformWindowOptions {

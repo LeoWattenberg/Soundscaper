@@ -85,6 +85,7 @@ function isExactFullSourceClip(
 		&& clip.fadeInFrames === 0
 		&& clip.fadeOutFrames === 0
 		&& clip.reversed === false
+		&& clip.inverted === false
 		&& Array.isArray(clip.envelope) && clip.envelope.length === 0
 		&& clip.pitchCents === 0
 		&& clip.speedRatio === 1

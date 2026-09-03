@@ -14,6 +14,7 @@ interface ProjectBinClip {
 	preserveFormants?: boolean;
 	renderCacheRevision?: number;
 	reversed?: boolean;
+	inverted?: boolean;
 	sourceDurationFrames?: number;
 	sourceStartFrame?: number;
 	speedRatio?: number;
@@ -98,6 +99,7 @@ export function projectBinTransformBadges(
 	if ((clip.fadeInFrames || 0) > 0 || (clip.fadeOutFrames || 0) > 0) badges.push(copy.projectBinTransformFade || 'fade');
 	if (clip.envelope?.length) badges.push(copy.projectBinTransformEnvelope || 'envelope');
 	if (clip.reversed) badges.push(copy.projectBinTransformReverse || 'reverse');
+	if (clip.inverted) badges.push(copy.projectBinTransformInvert || 'invert');
 	if (Math.abs(clip.pitchCents || 0) > 1e-9) badges.push(copy.projectBinTransformPitch || 'pitch');
 	if (Math.abs((clip.speedRatio ?? 1) - 1) > 1e-9 || clip.stretchToTempo) {
 		badges.push(copy.projectBinTransformSpeed || 'speed');

@@ -339,7 +339,7 @@ function renderedFreezeClip(id: string, freeze: AudioTrackFreezeV1): DataRecord 
 		timelineStartFrame: freeze.renderStartFrame, sourceStartFrame: 0,
 		sourceDurationFrames: freeze.renderFrameCount, durationFrames: freeze.renderFrameCount,
 		trimStartFrames: 0, trimEndFrames: 0, gain: 1, fadeInFrames: 0, fadeOutFrames: 0,
-		reversed: false, envelope: Object.freeze([]), groupId: null, color: 'auto',
+		reversed: false, inverted: false, envelope: Object.freeze([]), groupId: null, color: 'auto',
 		pitchCents: 0, speedRatio: 1, preserveFormants: false, stretchToTempo: false,
 		renderCacheRevision: 0, avLinkId: null, binItemId: null, opaqueExtensions: Object.freeze({}),
 		anchor: 'sample', musicalStartBeat: null, musicalExtent: 'fixedSamples',
