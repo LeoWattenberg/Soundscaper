@@ -1069,8 +1069,10 @@ Sequencing, the vehicle decision, and the bounded work packets are owned by the
   targets and explains the absence of the rest instead of throwing.
 - **Web Core — Planned:** touch and viewport work so every editor control is
   operable with a finger at tablet sizes in both orientations, kept that way by
-  a curated mobile browser configuration. Tablet-first is the recorded scope;
-  phone support is a later, separately scoped decision.
+  a curated mobile browser configuration. Tablet-first is the recorded scope
+  for the touch pass; phones and portrait tablets already get the compact
+  layout of the same shell (menus, action bar and toolbar in a chrome drawer,
+  track headers in a drawer over the lanes), chosen by the Layout preference.
 - **Web Enhanced — Planned:** device survival — page lifecycle, wake lock, media
   session, output-route change, and a preview decoder cap drawn from the
   measured device ceiling, each with a fallback when the facility is absent or

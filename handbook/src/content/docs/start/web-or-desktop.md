@@ -32,6 +32,25 @@ Opening an `.aup4` file imports an independent project into the desktop
 library. Later edits do not rewrite the file you opened. **Save** updates the
 library copy; **Save As** creates a new Audacity interchange file.
 
+## Phones and tablets
+
+The web editor keeps its desktop layout on every screen, but below 900px wide
+(a phone, or a tablet held upright) it folds the chrome into drawers so the
+timeline keeps the room:
+
+- The **Menu** button at the top left opens a drawer with the full application
+  menu, the project tabs, the action bar, and the tool toolbar. Play, stop,
+  record, and search stay in the bar. Choosing a command closes the drawer.
+- Track headers slide in over the lanes from the **Track headers** handle in the
+  timeline's top-left corner, or from **View › Track headers**. Tapping the
+  lanes or pressing Escape puts them away again.
+- The introduction above the editor is collapsed by default on narrow screens;
+  **Show introduction** brings it back.
+
+**Edit › Preferences › Appearance › Layout** switches between Automatic,
+Compact, and Desktop, so a small window on a desktop can keep the desktop
+chrome and a wide tablet can opt into the drawers.
+
 ## Projects do not move automatically
 
 The browser and desktop libraries are separate. Move a project deliberately:

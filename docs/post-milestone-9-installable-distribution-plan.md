@@ -232,7 +232,9 @@ single hardest constraint in this plan.
   drag family asserting the model changed; `crossOriginIsolated === true` on
   every route in the mobile project.
 - **Non-goals:** No pixel screenshot baselines across three viewports, two
-  products and seventeen locales; no phone-shaped second shell.
+  products and seventeen locales; no phone-shaped second shell. The compact
+  layout that ships below 900px is the same shell with its chrome and track
+  headers in drawers, not a second shell.
 - **Stop condition:** Stop if the vendored route cannot be settled — an
   unrecorded divergence in the vendored tree is a provenance defect, not a
   shortcut.
@@ -377,4 +379,6 @@ single hardest constraint in this plan.
 - No relaxation of COOP, COEP or the CSP on a route that renders an editor.
 - No bundling of the FFmpeg core into the deployed asset set.
 - No phone-shaped second shell in this plan; tablet-first is the recorded
-  scope.
+  scope for the touch pass. The compact layout (drawers for the chrome and
+  the track headers, automatic below 900px or forced by the Layout
+  preference) is the same shell and already covers phones.
