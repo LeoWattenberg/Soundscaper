@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, cursor, effect, importAudio, marker, menu, open, play, selectRange, tool } from '../steps.mjs';
+import { check, cursor, effect, generate, importAudio, marker, menu, open, play, selectClips, selectRange, tool } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -115,7 +115,105 @@ export const EDITING_LESSONS = Object.freeze([
 		],
 		tips: [
 			'With a time range selected, the same button adds a named region instead of a single point.',
-			'**File → Export labels** writes the markers as a text file that Audacity and other editors can read.',
+			'**File → Export other → Export labels** writes the markers as a text file that Audacity and other editors can read.',
+		],
+	},
+	{
+		id: 'copy-and-paste-a-section',
+		title: 'Copy and paste a section',
+		description: 'Copy a passage and paste it in somewhere else on the track.',
+		audacity: 'Edit → Copy, then Edit → Paste (Ctrl+C, Ctrl+V)',
+		intro: 'Copying a good chorus to replace a weak one, repeating a bar, moving a sentence to the end: copy and paste work on audio the way they do on text. Select a passage, copy it, put the cursor where it should go, and paste.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectRange(0.25, 0.5, { why: 'Select the passage to copy.' }),
+			menu(['Edit', 'Copy']),
+			cursor(1, { why: 'The paste lands at the cursor, so put it at the end of the clip.' }),
+			menu(['Edit', 'Paste', 'Paste']),
+			check({ clips: 2 }, { see: 'The copied passage is a new clip after the original.' }),
+		],
+		tips: [
+			'**Edit → Paste → Insert** pushes later audio along instead of laying the paste over it.',
+			'The clipboard works across project tabs, so a passage can be copied from one project into another.',
+		],
+	},
+	{
+		id: 'duplicate-a-selection-to-a-new-track',
+		title: 'Duplicate a selection to a new track',
+		description: 'Copy a passage onto its own track so you can process it separately.',
+		audacity: 'Edit → Duplicate (Ctrl+D)',
+		intro: 'Duplicate copies the selection onto a new track directly below, at the same position in time. It is the usual first step for parallel processing — a heavily compressed copy mixed under the original, a reverb-only track, a doubled vocal.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectRange(0.25, 0.75, { why: 'Select the passage to duplicate.' }),
+			menu(['Edit', 'Duplicate']),
+			check({ clips: 2 }, { see: 'A second clip holding just the selection, on a new track under the first, lined up in time.' }),
+		],
+		tips: [
+			'Mute one of the two tracks to hear the other on its own while you shape it.',
+			'When you are happy with the blend, [mix the tracks down](/lessons/mix-tracks-into-one/).',
+		],
+	},
+	{
+		id: 'add-silence-after-a-clip',
+		title: 'Add silence after a clip',
+		description: 'Generate a gap of exact length at the cursor.',
+		audacity: 'Generate → Silence',
+		intro: 'Effects like echo and reverb need room to ring out, and a podcast needs a breath between segments. The Silence generator inserts a gap of exactly the length you type at the cursor, which is more precise than dragging clips apart by eye.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			cursor(1, { why: 'The silence goes in at the cursor, so put it at the end of the clip.' }),
+			generate({
+				name: 'Silence',
+				fields: [{ field: 'durationSeconds', label: 'Duration (seconds)', value: '1' }],
+			}),
+			check({ clips: 2 }, { see: 'A one-second silent clip follows the loop.' }),
+		],
+		tips: [
+			'With a time range selected, the generator replaces the selection instead of inserting at the cursor.',
+			'To silence audio that is already there rather than add time, see [Silence part of a recording](/lessons/silence-part-of-a-recording/).',
+		],
+	},
+	{
+		id: 'line-up-clips-end-to-end',
+		title: 'Line up clips end to end',
+		description: 'Butt two clips on different tracks against each other so one follows the other.',
+		audacity: 'Tracks → Align Tracks → Align End to End',
+		intro: 'Two takes recorded separately land on their own tracks, both starting at zero. To play one after the other, the second has to move to where the first ends. Align end to end does that arithmetic for every selected clip in track order.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			importAudio('second-loop'),
+			selectClips(['music-loop', 'second-loop']),
+			menu(['Tracks', 'Align content', 'Align end to end']),
+			check({ startsAt: { fixture: 'second-loop', seconds: 2 } }, { see: 'The second clip now starts where the first one ends.' }),
+		],
+		tips: [
+			'**Align together** does the opposite: it moves the selected clips to start at the same time.',
+			'Drag a clip by its name bar to place it by hand; hold Shift to keep it on the same track.',
+		],
+	},
+	{
+		id: 'zoom-in-for-precise-edits',
+		title: 'Zoom in for precise edits',
+		description: 'Get close enough to the waveform to cut on a beat or between words.',
+		audacity: 'View → Zoom (Ctrl+1, Ctrl+2, Ctrl+3)',
+		intro: 'At the default zoom a whole song fits on the screen and a single word is a few pixels wide. Zooming in lets you place the cursor exactly on a beat or in the gap between two words; zoom to selection frames just the passage you are working on.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			menu(['View', 'Zoom', 'Zoom in'], { why: 'Each step doubles the width of a second. Ctrl+1 does the same.' }),
+			menu(['View', 'Zoom', 'Zoom in']),
+			selectRange(0.4, 0.6, { why: 'Select the passage you want to work on.' }),
+			menu(['View', 'Zoom', 'Zoom to selection'], { why: 'The selection now fills the timeline.' }),
+			menu(['View', 'Zoom', 'Zoom normal'], { why: 'Ctrl+2 brings the default zoom back.' }),
+		],
+		tips: [
+			'Ctrl and the mouse wheel zoom around the pointer, which is the quickest way to dive into one spot.',
+			'Zooming changes nothing in the project; it is only your view.',
 		],
 	},
 ]);

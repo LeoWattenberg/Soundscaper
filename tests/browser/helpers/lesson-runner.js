@@ -180,8 +180,24 @@ async function runMarker(page, state, entry) {
 	await expect(marker).toHaveAttribute('aria-label', new RegExp(`^${entry.name}, Marker`, 'u'));
 }
 
+async function runNyquist(page, state, entry) {
+	await chooseNestedCommandAction(page, state.editor, entry.menu, ['Nyquist', entry.name]);
+	const dialog = page.getByRole('dialog', { name: entry.name, exact: true });
+	await expect(dialog).toBeVisible();
+	for (const field of entry.fields) {
+		await commitInput(dialog.getByRole('spinbutton', { name: field.label, exact: true }), field.value);
+	}
+	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
+	await expectSuccess(state.editor);
+}
+
 async function runCheck(state, entry) {
 	const { editor } = state;
+	if (entry.startsAt !== null) {
+		const clip = lessonClip(editor, lessonFixtureClipName(entry.startsAt.fixture));
+		await expect(clip).toHaveAttribute('aria-label', new RegExp(`starts at ${String(entry.startsAt.seconds)} seconds`, 'u'), { timeout: EFFECT_TIMEOUT });
+	}
 	if (entry.clips !== null) await expect(editor).toHaveAttribute('data-clip-count', String(entry.clips), { timeout: EFFECT_TIMEOUT });
 	if (entry.tracks !== null) await expect(editor).toHaveAttribute('data-track-count', String(entry.tracks), { timeout: EFFECT_TIMEOUT });
 	if (entry.clip !== null) await expect(clipByName(editor, entry.clip)).toBeVisible({ timeout: EFFECT_TIMEOUT });
@@ -223,6 +239,27 @@ async function executeStep(page, state, entry) {
 			return;
 		case 'noise-profile':
 			await runNoiseProfile(page, state);
+			return;
+		case 'nyquist':
+			await runNyquist(page, state, entry);
+			return;
+		case 'analyze':
+			await chooseCommandAction(page, state.editor, 'Analyze', entry.name);
+			await expect(state.editor.locator(`[data-workspace-panel="${entry.panel}"]`)).toBeVisible();
+			return;
+		case 'save':
+			await chooseCommandAction(page, state.editor, 'File', 'Save project');
+			await expect(state.editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: EFFECT_TIMEOUT });
+			return;
+		case 'track-button': {
+			const button = state.editor.locator('[data-track-row]').last().getByRole('button', { name: entry.name, exact: true });
+			await button.click();
+			await expect(button).toHaveAttribute('aria-pressed', 'true');
+			return;
+		}
+		case 'add-track':
+			await state.editor.getByRole('button', { name: 'Add track', exact: true }).click();
+			await page.getByRole('menuitem', { name: entry.type, exact: true }).click();
 			return;
 		case 'export':
 			await runExport(page, state, entry);

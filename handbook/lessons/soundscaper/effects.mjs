@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { effect, importAudio, menu, open, play } from '../steps.mjs';
+import { effect, importAudio, menu, nyquist, open, play } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -119,6 +119,122 @@ export const EFFECT_LESSONS = Object.freeze([
 		tips: [
 			'Boosting adds level. If the waveform touches the top afterwards, lower **Volume** in the same dialog or normalize.',
 			'For precise control over particular frequencies, use **Filter Curve EQ** or **Graphic EQ** in the same submenu.',
+		],
+	},
+	{
+		id: 'change-speed-like-a-tape',
+		title: 'Change speed like a tape machine',
+		description: 'Speed a recording up or slow it down with the pitch following, the way tape does.',
+		audacity: 'Effect → Pitch and Tempo → Change Speed',
+		intro: 'Sometimes the old-fashioned effect is the one you want: slow a recording down and it drops in pitch, speed it up and it rises, like a record played at the wrong speed. Change speed and pitch does exactly that, and because it does not have to separate pitch from time it is the cleanest of the speed effects.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectAll(),
+			effect({
+				group: 'Pitch and tempo',
+				name: 'Change speed and pitch',
+				settings: [{ label: 'Speed change', value: '25' }],
+			}, { why: 'A positive percentage speeds the selection up and raises its pitch; −50 halves the speed and drops it an octave.' }),
+			play({ see: 'The loop is faster and higher, and shorter than before.' }),
+		],
+		tips: [
+			'To fix a recording made at the wrong sample rate — 44.1 kHz material played as 48 kHz sounds sped up by about 9 percent — the exact correction is −8.16 percent.',
+			'To change speed without the pitch moving, use [Change tempo](/lessons/change-tempo-without-changing-pitch/) instead.',
+		],
+	},
+	{
+		id: 'stretch-a-sound-into-a-drone',
+		title: 'Stretch a sound into a drone',
+		description: 'Slow a short sound down enormously with Paulstretch to make ambient textures.',
+		audacity: 'Effect → Pitch and Tempo → Paulstretch',
+		intro: 'Paulstretch is the effect behind the slowed-down pop songs that turn into cathedrals of sound. It stretches a selection by a large factor while smearing the detail into a smooth wash, which no ordinary tempo change can do. Use it for drones, pads and atmospheres.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectAll(),
+			effect({
+				group: 'Pitch and tempo',
+				name: 'Paulstretch',
+				settings: [{ label: 'Stretch factor', value: '4' }],
+			}, { why: 'Four makes the selection four times as long. Factors of 10 and beyond are where it gets dreamlike; they also take proportionally longer to render.' }),
+			play({ see: 'The loop has become a slow, smooth eight-second wash.' }),
+		],
+		tips: [
+			'A larger **Time resolution** smooths the result further and loses more of the rhythm; a smaller one keeps more attack.',
+			'The output is long. Trim what you need and fade the ends.',
+		],
+	},
+	{
+		id: 'add-distortion',
+		title: 'Add distortion',
+		description: 'Overdrive a sound from gentle warmth to full fuzz.',
+		audacity: 'Effect → Distortion',
+		intro: 'Distortion clips or bends the waveform so it gains harmonics. A little soft overdrive warms a bass or a synth; a lot turns a guitar into a wall. The type chooses the shape of the curve; the threshold sets how much of the signal reaches it.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectAll(),
+			effect({
+				group: 'Distortion and modulation',
+				name: 'Distortion',
+				settings: [
+					{ label: 'Distortion type', option: 'Soft Overdrive' },
+					{ label: 'Threshold', value: '-12' },
+				],
+			}, { why: 'Soft Overdrive rounds the peaks instead of chopping them. A lower threshold drives more of the signal into the curve.' }),
+			play({ see: 'The loop is grittier and its peaks are rounded.' }),
+		],
+		tips: [
+			'Turn on **DC block** if the result sits off-centre in the waveform.',
+			'Distortion adds level. Normalize afterwards if the peaks reach the top.',
+		],
+	},
+	{
+		id: 'add-a-wah-wah',
+		title: 'Add a wah-wah',
+		description: 'Sweep a resonant filter across a sound for the classic funk effect.',
+		audacity: 'Effect → Wahwah',
+		intro: 'A wah pedal sweeps a resonant filter up and down the spectrum; the Wahwah effect does the sweep for you at a rate you set. It suits guitars, keyboards and anything with steady sustain.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectAll(),
+			effect({
+				group: 'Distortion and modulation',
+				name: 'Wahwah',
+				settings: [
+					{ label: 'LFO frequency', value: '2' },
+					{ label: 'Depth', value: '80' },
+				],
+			}, { why: 'The LFO frequency is how many sweeps happen a second; depth is how far the filter travels.' }),
+			play({ see: 'The loop wobbles with a sweeping, vowel-like tone.' }),
+		],
+		tips: [
+			'**Resonance** sharpens the peak of the filter; high values squeal.',
+			'The **Phaser** in the same submenu gives a gentler, swirling movement.',
+		],
+	},
+	{
+		id: 'use-a-nyquist-plugin',
+		title: 'Use a Nyquist plug-in',
+		description: 'Run one of the bundled Nyquist effects — here, a tremolo.',
+		audacity: 'Effect → Tremolo (a Nyquist plug-in)',
+		intro: 'Audacity’s Nyquist plug-ins are small scripts that add effects, generators and analyzers, and Soundscaper bundles the same ones under a Nyquist submenu of each menu. Tremolo is a good first one: it wobbles the volume at a set rate.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectAll(),
+			nyquist({
+				menu: 'Effect',
+				name: 'Tremolo',
+				fields: [{ label: 'Frequency (Hz)', value: '6' }],
+			}, { why: 'Six wobbles a second is a classic amp tremolo. Nyquist dialogs use **Apply** rather than Apply to selection.' }),
+			play({ see: 'The loop pulses in volume.' }),
+		],
+		tips: [
+			'The Generate and Analyze menus have Nyquist submenus of their own, with plug-ins such as Pluck and Beat Finder.',
+			'**Tools → Nyquist prompt** runs a script you type yourself.',
 		],
 	},
 ]);

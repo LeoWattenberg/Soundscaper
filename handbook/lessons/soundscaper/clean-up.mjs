@@ -91,4 +91,47 @@ export const CLEAN_UP_LESSONS = Object.freeze([
 			'To remove the time as well as the sound, see [Cut a mistake out of a recording](/lessons/cut-out-a-mistake/).',
 		],
 	},
+	{
+		id: 'remove-low-rumble',
+		title: 'Remove low rumble',
+		description: 'Cut the sub-bass thumps from traffic, wind and handling with a high-pass filter.',
+		audacity: 'Effect → High-Pass Filter',
+		intro: 'Traffic, air conditioning, wind on the microphone and the desk being bumped all live below the voice, in frequencies a small speaker cannot even reproduce. A high-pass filter lets everything above a cutoff through and rolls off what is below it, cleaning up the low end without touching the speech.',
+		steps: [
+			open(),
+			importAudio('noisy-take'),
+			selectAll(),
+			effect({
+				group: 'Legacy effects',
+				name: 'Classic Filters',
+				settings: [
+					{ label: 'Filter type', option: 'High-pass' },
+					{ label: 'Cutoff frequency', value: '100' },
+				],
+			}, { why: '100 Hz is safe for speech. Raise the order for a steeper roll-off.' }),
+			play({ see: 'The low rumble is gone and the voice sounds the same.' }),
+		],
+		tips: [
+			'For music, start lower — around 40 Hz — so bass instruments are not thinned.',
+			'The realtime **High-pass filter** in a track’s effect rack does the same job while you play, without rendering.',
+		],
+	},
+	{
+		id: 'fix-dc-offset',
+		title: 'Fix a DC offset',
+		description: 'Recentre a waveform that sits above or below the zero line.',
+		audacity: 'Effect → Normalize with Remove DC offset',
+		intro: 'Some sound cards and cheap interfaces add a constant voltage to a recording, so the whole waveform sits slightly above or below the centre line. You cannot hear it directly, but it wastes headroom and produces a click at every edit. Remove DC Offset centres the waveform again.',
+		steps: [
+			open(),
+			importAudio('quiet-take'),
+			selectAll(),
+			effect({ group: 'Volume and compression', name: 'Remove DC Offset', direct: true }),
+			play({ see: 'The waveform is centred on the zero line.' }),
+		],
+		tips: [
+			'[Normalize](/lessons/normalize-peaks/) removes DC offset as part of its job, so if you normalize anyway there is nothing extra to do.',
+			'An offset that changes over the recording is not DC; use a [high-pass filter](/lessons/remove-low-rumble/) instead.',
+		],
+	},
 ]);

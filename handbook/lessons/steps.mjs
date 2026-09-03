@@ -13,7 +13,8 @@
 
 const STEP_KINDS = Object.freeze([
 	'open', 'import', 'menu', 'select-range', 'cursor', 'select-clips', 'tool', 'effect',
-	'noise-profile', 'export', 'track-menu', 'play', 'generate', 'marker', 'check', 'note',
+	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
+	'add-track', 'play', 'generate', 'marker', 'check', 'note',
 ]);
 
 const KIND_SET = new Set(STEP_KINDS);
@@ -98,6 +99,42 @@ export function effect({ group, name, settings = [], direct = false }, extras) {
 	return step({ kind: 'effect', group, name, settings: Object.freeze(settings.map((setting) => Object.freeze({ ...setting }))), direct }, extras);
 }
 
+/**
+ * Run a bundled Nyquist plug-in from the Nyquist submenu of the Effect,
+ * Generate or Analyze menu. Fields name the plug-in's inputs by label.
+ */
+export function nyquist({ menu: menuName, name, fields = [] }, extras) {
+	if (!['Effect', 'Generate', 'Analyze'].includes(menuName)) throw new RangeError('A Nyquist step runs from the Effect, Generate or Analyze menu.');
+	if (typeof name !== 'string' || name.length === 0) throw new TypeError('A Nyquist step needs the plug-in name.');
+	for (const field of fields) {
+		if (typeof field?.label !== 'string' || typeof field?.value !== 'string') throw new TypeError('Every Nyquist field needs a label and a value.');
+	}
+	return step({ kind: 'nyquist', menu: menuName, name, fields: Object.freeze(fields.map((field) => Object.freeze({ ...field }))) }, extras);
+}
+
+/** Open an analyzer from the Analyze menu; `panel` is the workspace panel it opens. */
+export function analyze({ name, panel }, extras) {
+	if (typeof name !== 'string' || typeof panel !== 'string') throw new TypeError('An analyze step needs the analyzer name and its panel id.');
+	return step({ kind: 'analyze', name, panel }, extras);
+}
+
+/** Save the project to the local project library through File → Save project. */
+export function save(extras) {
+	return step({ kind: 'save' }, extras);
+}
+
+/** Press a button in the header of the most recently added track, such as Mute or Solo. */
+export function trackButton(name, extras) {
+	if (typeof name !== 'string' || name.length === 0) throw new TypeError('A track-button step needs the button name.');
+	return step({ kind: 'track-button', name }, extras);
+}
+
+/** Add a track of the named type from the Add track button above the track list. */
+export function addTrack(type, extras) {
+	if (typeof type !== 'string' || type.length === 0) throw new TypeError('An add-track step needs the track type label.');
+	return step({ kind: 'add-track', type }, extras);
+}
+
 /** Capture the Noise Reduction profile from the current selection. */
 export function noiseProfile(extras) {
 	return step({ kind: 'noise-profile' }, extras);
@@ -137,9 +174,12 @@ export function marker(name, extras) {
 }
 
 /** State what the project should now contain; the browser suite asserts it. */
-export function check({ clips = null, tracks = null, clip = null }, extras) {
-	if (clips === null && tracks === null && clip === null) throw new TypeError('A check step must state at least one expectation.');
-	return step({ kind: 'check', clips, tracks, clip }, extras);
+export function check({ clips = null, tracks = null, clip = null, startsAt = null }, extras) {
+	if (clips === null && tracks === null && clip === null && startsAt === null) throw new TypeError('A check step must state at least one expectation.');
+	if (startsAt !== null && (typeof startsAt.fixture !== 'string' || typeof startsAt.seconds !== 'number')) {
+		throw new TypeError('A start-time check names a fixture and a whole number of seconds.');
+	}
+	return step({ kind: 'check', clips, tracks, clip, startsAt: startsAt && Object.freeze({ ...startsAt }) }, extras);
 }
 
 /** Prose with nothing to replay. */
@@ -239,6 +279,20 @@ export function describeStep(entry, { fixtureFile }) {
 				: ` In the ${bold(entry.name)} dialog,`;
 			return `Choose ${path}.${settings} press ${bold('Apply to selection')}.`;
 		}
+		case 'nyquist': {
+			const fields = entry.fields.length > 0
+				? ` In the ${bold(entry.name)} dialog, ${listPhrases(entry.fields.map((field) => `set ${bold(field.label)} to \`${field.value}\``))}, then`
+				: ` In the ${bold(entry.name)} dialog,`;
+			return `Choose ${menuPath([entry.menu, 'Nyquist', entry.name])}.${fields} press ${bold('Apply')}.`;
+		}
+		case 'analyze':
+			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.name)} panel opens with the result.`;
+		case 'save':
+			return `Choose ${menuPath(['File', 'Save project'])}. The save indicator in the status bar shows the project is saved.`;
+		case 'track-button':
+			return `Press ${bold(entry.name)} in the track's header.`;
+		case 'add-track':
+			return `Press ${bold('Add track')} above the track list and choose ${bold(entry.type)}.`;
 		case 'noise-profile':
 			return `Choose ${menuPath(['Effect', 'Noise removal and repair', 'Noise Reduction'])} and press ${bold('Get noise profile')}. The status line reports that the profile is ready. Press ${bold('Close')} to leave the dialog for now.`;
 		case 'export':
@@ -260,6 +314,7 @@ export function describeStep(entry, { fixtureFile }) {
 			if (entry.clips !== null) parts.push(`${String(entry.clips)} clip${entry.clips === 1 ? '' : 's'}`);
 			if (entry.tracks !== null) parts.push(`${String(entry.tracks)} track${entry.tracks === 1 ? '' : 's'}`);
 			if (entry.clip !== null) parts.push(`a clip named ${bold(entry.clip)}`);
+			if (entry.startsAt !== null) parts.push(`the \`${fixtureFile(entry.startsAt.fixture)}\` clip starting at ${String(entry.startsAt.seconds)} s`);
 			return `The project now shows ${listPhrases(parts)}.`;
 		}
 		case 'note':

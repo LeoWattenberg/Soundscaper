@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, exportAudio, generate, importAudio, menu, open, selectClips, trackMenu } from '../steps.mjs';
+import { addTrack, check, exportAudio, generate, importAudio, menu, open, save, selectClips, trackButton, trackMenu } from '../steps.mjs';
 
 export const TRACK_AND_EXPORT_LESSONS = Object.freeze([
 	{
@@ -91,6 +91,56 @@ export const TRACK_AND_EXPORT_LESSONS = Object.freeze([
 		tips: [
 			'WAV files are large: about ten megabytes a minute for stereo at CD quality.',
 			'To export each track as its own file, set **Mode** in the export dialog to individual stems.',
+		],
+	},
+	{
+		id: 'mute-and-solo-tracks',
+		title: 'Mute and solo tracks',
+		description: 'Silence a track, or listen to one track by itself, while you work on a mix.',
+		audacity: 'The Mute and Solo buttons in the track control panel',
+		intro: 'Every track has a Mute button and a Solo button in its header. Mute silences that track; Solo silences every other track so you hear this one alone. Both are listening aids only — they change what you hear while you work, and the export still renders every unmuted track.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			importAudio('second-loop'),
+			trackButton('Mute', { why: 'The second track drops out of playback.' }),
+			trackButton('Solo', { why: 'Solo overrides mute on this track and silences every other one, so you hear the second loop on its own.' }),
+		],
+		tips: [
+			'Press a button again to release it. **Tracks → Mute all tracks** clears every track at once.',
+			'Solo several tracks to audition a group together; muting is then only needed for the odd one out.',
+		],
+	},
+	{
+		id: 'add-an-empty-track',
+		title: 'Add an empty track',
+		description: 'Create a new track to record into or to paste onto.',
+		audacity: 'Tracks → Add New → Mono Track',
+		intro: 'Importing a file makes a track for you, but a recording or a paste needs somewhere to land. The Add track button above the track list creates an empty audio track; a label track holds markers and text instead of sound.',
+		steps: [
+			open(),
+			addTrack('Audio track'),
+			check({ tracks: 2 }, { see: 'A second, empty audio track under the first.' }),
+		],
+		tips: [
+			'Rename the track from its menu so a session with many tracks stays readable.',
+			'Drag a track by its header to reorder it.',
+		],
+	},
+	{
+		id: 'save-your-project',
+		title: 'Save your project',
+		description: 'Keep the project, with every track and edit, in the local project library.',
+		audacity: 'File → Save Project',
+		intro: 'A project is more than the audio: it is the tracks, clips, effects, markers and history. Saving keeps all of that in the browser’s local project library on this computer, where it can be reopened from the File menu. Soundscaper also saves as you go, so this is mostly a way to be sure.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			save(),
+		],
+		tips: [
+			'To move a project to another computer or keep a copy outside the browser, choose **File → Export project file (.sscape)**; the file reopens with **File → Open project file**.',
+			'An audio export is a listening copy, not a project. Keep the project if you may edit again.',
 		],
 	},
 ]);

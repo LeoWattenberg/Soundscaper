@@ -18,6 +18,8 @@ The lessons use short example recordings you can stand in for with your own file
 - [Remove clicks and pops](/lessons/remove-clicks-and-pops/) — Take short sharp clicks out of a recording without touching the rest.
 - [Shorten long pauses](/lessons/remove-silent-pauses/) — Tighten a recording by trimming every long silence to the same short gap.
 - [Silence part of a recording](/lessons/silence-part-of-a-recording/) — Replace a stretch of audio with silence while keeping everything in place.
+- [Remove low rumble](/lessons/remove-low-rumble/) — Cut the sub-bass thumps from traffic, wind and handling with a high-pass filter.
+- [Fix a DC offset](/lessons/fix-dc-offset/) — Recentre a waveform that sits above or below the zero line.
 
 ## Volume and dynamics
 
@@ -26,6 +28,7 @@ The lessons use short example recordings you can stand in for with your own file
 - [Normalize loudness for a podcast](/lessons/normalize-loudness-for-podcasts/) — Match the perceived loudness of an episode to the level streaming platforms expect.
 - [Even out volume with a compressor](/lessons/even-out-volume-with-a-compressor/) — Reduce the gap between loud and quiet moments so speech is easier to follow.
 - [Fade in and fade out](/lessons/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
+- [Tame peaks with a limiter](/lessons/tame-peaks-with-a-limiter/) — Stop the loudest moments from going over a ceiling without touching the rest.
 
 ## Editing
 
@@ -35,6 +38,11 @@ The lessons use short example recordings you can stand in for with your own file
 - [Repeat a section](/lessons/repeat-a-section/) — Loop a selection a set number of times to make it longer.
 - [Play a recording backwards](/lessons/reverse-audio/) — Reverse a selection so it plays from end to start.
 - [Mark places in a recording](/lessons/add-markers/) — Drop named markers on the timeline so you can find points again later.
+- [Copy and paste a section](/lessons/copy-and-paste-a-section/) — Copy a passage and paste it in somewhere else on the track.
+- [Duplicate a selection to a new track](/lessons/duplicate-a-selection-to-a-new-track/) — Copy a passage onto its own track so you can process it separately.
+- [Add silence after a clip](/lessons/add-silence-after-a-clip/) — Generate a gap of exact length at the cursor.
+- [Line up clips end to end](/lessons/line-up-clips-end-to-end/) — Butt two clips on different tracks against each other so one follows the other.
+- [Zoom in for precise edits](/lessons/zoom-in-for-precise-edits/) — Get close enough to the waveform to cut on a beat or between words.
 
 ## Effects
 
@@ -43,6 +51,11 @@ The lessons use short example recordings you can stand in for with your own file
 - [Add an echo](/lessons/add-echo/) — Repeat a sound at a fixed interval, quieter each time.
 - [Put a recording in a room](/lessons/add-reverb/) — Add reverb so a dry recording sounds like it was made in a real space.
 - [Boost bass and treble](/lessons/boost-bass-and-treble/) — Warm up or brighten a recording with two simple tone controls.
+- [Change speed like a tape machine](/lessons/change-speed-like-a-tape/) — Speed a recording up or slow it down with the pitch following, the way tape does.
+- [Stretch a sound into a drone](/lessons/stretch-a-sound-into-a-drone/) — Slow a short sound down enormously with Paulstretch to make ambient textures.
+- [Add distortion](/lessons/add-distortion/) — Overdrive a sound from gentle warmth to full fuzz.
+- [Add a wah-wah](/lessons/add-a-wah-wah/) — Sweep a resonant filter across a sound for the classic funk effect.
+- [Use a Nyquist plug-in](/lessons/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, a tremolo.
 
 ## Tracks and export
 
@@ -51,6 +64,15 @@ The lessons use short example recordings you can stand in for with your own file
 - [Generate a test tone](/lessons/generate-a-test-tone/) — Create a sine wave of a set frequency and length from nothing.
 - [Export an MP3](/lessons/export-an-mp3/) — Render the project to an MP3 file for sharing or publishing.
 - [Export a WAV](/lessons/export-a-wav/) — Render the project to an uncompressed WAV file.
+- [Mute and solo tracks](/lessons/mute-and-solo-tracks/) — Silence a track, or listen to one track by itself, while you work on a mix.
+- [Add an empty track](/lessons/add-an-empty-track/) — Create a new track to record into or to paste onto.
+- [Save your project](/lessons/save-your-project/) — Keep the project, with every track and edit, in the local project library.
+
+## Analysis
+
+- [Measure how loud your mix is](/lessons/measure-loudness/) — Read the integrated loudness, range and true peak of the project the way broadcasters do.
+- [See which frequencies a sound contains](/lessons/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
+- [Find where a recording clipped](/lessons/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 
 ## How the lessons stay correct
 

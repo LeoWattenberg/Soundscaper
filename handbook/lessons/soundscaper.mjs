@@ -11,6 +11,7 @@
  */
 
 import { LESSON_FIXTURES } from './fixtures.mjs';
+import { ANALYSIS_LESSONS } from './soundscaper/analysis.mjs';
 import { CLEAN_UP_LESSONS } from './soundscaper/clean-up.mjs';
 import { EDITING_LESSONS } from './soundscaper/editing.mjs';
 import { EFFECT_LESSONS } from './soundscaper/effects.mjs';
@@ -24,6 +25,7 @@ const GROUPS = Object.freeze([
 	Object.freeze({ title: 'Editing', lessons: EDITING_LESSONS }),
 	Object.freeze({ title: 'Effects', lessons: EFFECT_LESSONS }),
 	Object.freeze({ title: 'Tracks and export', lessons: TRACK_AND_EXPORT_LESSONS }),
+	Object.freeze({ title: 'Analysis', lessons: ANALYSIS_LESSONS }),
 ]);
 
 const seen = new Set();

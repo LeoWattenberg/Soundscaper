@@ -117,4 +117,26 @@ export const VOLUME_LESSONS = Object.freeze([
 			'Fades are edits, so **Edit → Undo** reverses them like anything else.',
 		],
 	},
+	{
+		id: 'tame-peaks-with-a-limiter',
+		title: 'Tame peaks with a limiter',
+		description: 'Stop the loudest moments from going over a ceiling without touching the rest.',
+		audacity: 'Effect → Volume and Compression → Limiter',
+		intro: 'A limiter is a compressor with a very high ratio: below the threshold it does nothing, and above it nothing gets through. It is the tool for catching a few stray peaks before export, or for raising the overall level of a mix without the peaks clipping.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectAll(),
+			effect({
+				group: 'Volume and compression',
+				name: 'Limiter (Audacity)',
+				settings: [{ label: 'Threshold', value: '-6' }],
+			}, { why: 'Nothing will exceed −6 dB. The make-up target then lifts the result so the ceiling sits near full scale.' }),
+			play({ see: 'The loudest moments are held down; the rest is unchanged.' }),
+		],
+		tips: [
+			'Use a limiter for peaks and a [compressor](/lessons/even-out-volume-with-a-compressor/) for overall evenness; they are not the same job.',
+			'Heavy limiting makes everything feel loud and flat. If you need more than a few decibels, the mix itself is probably too hot.',
+		],
+	},
 ]);
