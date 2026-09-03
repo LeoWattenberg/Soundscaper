@@ -114,7 +114,7 @@ test('Scape feature decisions are explicit in English and German', () => {
 	assert.equal(ENGLISH_COPY.scapeCompatibilityRenderedFallback, 'Rendered fallback declared');
 	assert.equal(GERMAN_COPY.scapeCompatibilityRenderedFallback, 'Gerenderte Ersatzquelle deklariert');
 	assert.equal(ENGLISH_COPY.scapeCompatibilityEditorPlaybackFallback, 'Rendered fallback active during editor playback');
-	assert.equal(GERMAN_COPY.scapeCompatibilityEditorPlaybackFallback, 'Gerenderte Ersatzwiedergabe im Editor aktiv');
+	assert.equal(GERMAN_COPY.scapeCompatibilityEditorPlaybackFallback, 'Gerenderte Ersatzquelle bei der Wiedergabe im Editor aktiv');
 });
 
 test('normalizes explicit BCP-47 locales without a German/English clamp', () => {

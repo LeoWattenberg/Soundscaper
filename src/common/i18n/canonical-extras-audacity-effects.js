@@ -3,7 +3,7 @@
 export const AUDACITY_EFFECT_COPY_ENTRIES = Object.freeze([
 	["effectNameAudacityAmplify","Amplify","Verstärken"],
 	["effectParamAudacityAmplifyGainDb","Amplification","Verstärkung"],
-	["effectParamAudacityAmplifyAllowClipping","Allow clipping","Übersteuerung erlauben"],
+	["effectParamAudacityAmplifyAllowClipping","Allow clipping","Clipping erlauben"],
 	["effectNameAudacityAutoDuck","Auto Duck","Auto-Duck"],
 	["effectParamAudacityAutoDuckDuckAmountDb","Duck amount","Absenkung"],
 	["effectParamAudacityAutoDuckInnerFadeDown","Inner fade down","Innere Abblendzeit"],

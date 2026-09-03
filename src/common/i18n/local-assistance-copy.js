@@ -4,7 +4,7 @@ export const LOCAL_ASSISTANCE_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 		localAssistance: 'Lokale Assistenz',
 		localAssistanceIndexedSearch: 'Indexierte Suche',
-		localAssistanceDescription: 'Verarbeite die ausdrücklich ausgewählten Medien lokal mit einem installierten, kompatiblen Modell.',
+		localAssistanceDescription: 'Verarbeitet die ausdrücklich ausgewählten Medien lokal mit einem installierten, kompatiblen Modell.',
 		localAssistanceSource: 'Ausgewählte Medien',
 		localAssistanceSourceRequired: 'Wähle zuerst Medien in der Zeitleiste aus.',
 		localAssistanceOperation: 'Vorgang',

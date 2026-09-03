@@ -182,7 +182,7 @@ async function openClipBoundariesByKeyboard(page, editor) {
 	await page.keyboard.press('Enter');
 	const editMenu = page.getByRole('menu', { name: 'Bearbeiten', exact: true });
 	await expect(editMenu).toBeVisible();
-	const boundariesItem = getMenuItem(editMenu, 'Clip-Grenzen');
+	const boundariesItem = getMenuItem(editMenu, 'Audio-Clips');
 	await boundariesItem.focus();
 	await page.keyboard.press('ArrowRight');
 	const boundaries = boundariesItem.getByRole('menu');

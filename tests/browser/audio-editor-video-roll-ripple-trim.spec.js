@@ -14,8 +14,8 @@ const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob 
 const LABELS = Object.freeze({
 	rollLeft: 'Linke Kante bis zur Abspielposition rollen',
 	rollRight: 'Rechte Kante bis zur Abspielposition rollen',
-	rippleLeft: 'Linke Kante bis zur Abspielposition mit Lücke trimmen',
-	rippleRight: 'Rechte Kante bis zur Abspielposition mit Lücke trimmen',
+	rippleLeft: 'Linke Kante bis zur Abspielposition trimmen und Lücke schließen',
+	rippleRight: 'Rechte Kante bis zur Abspielposition trimmen und Lücke schließen',
 });
 const MENU_ROWS = Object.freeze([
 	{ mode: 'roll', edge: 'left', label: LABELS.rollLeft, delta: 1 },
@@ -251,7 +251,7 @@ async function openClipBoundariesByKeyboard(page, editor) {
 	await page.keyboard.press('Enter');
 	const editMenu = page.getByRole('menu', { name: 'Bearbeiten', exact: true });
 	await expect(editMenu).toBeVisible();
-	const boundariesItem = getMenuItem(editMenu, 'Clip-Grenzen');
+	const boundariesItem = getMenuItem(editMenu, 'Audio-Clips');
 	await boundariesItem.focus();
 	await page.keyboard.press('ArrowRight');
 	const boundaries = boundariesItem.getByRole('menu');
@@ -450,7 +450,7 @@ function expectedGermanStatus(timing, active, mode, edge, delta) {
 		: sourceFrame;
 	const prefix = mode === 'roll'
 		? `${edge === 'left' ? 'Linke' : 'Rechte'} Kante um ${delta > 0 ? '+' : ''}${delta} Frames gerollt`
-		: `${edge === 'left' ? 'Linke' : 'Rechte'} Kante um ${delta > 0 ? '+' : ''}${delta} Frames mit Lücke getrimmt`;
+		: `${edge === 'left' ? 'Linke' : 'Rechte'} Kante um ${delta > 0 ? '+' : ''}${delta} Frames getrimmt und Lücke geschlossen`;
 	return `${prefix}; Quellschnitt ${sequenceTimecode(sourceFrame, timing.sequence.rate)}; Programmschnitt ${sequenceTimecode(programFrame, timing.sequence.rate)}.`;
 }
 

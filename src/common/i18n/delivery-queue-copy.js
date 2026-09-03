@@ -44,7 +44,7 @@ const DELIVERY_QUEUE_COPY_ENTRIES = Object.freeze([
 	['deliveryBatchQueue', 'Queue batch', 'Stapel einreihen'],
 	['deliveryBatchRetryFailures', 'Retry what did not deliver', 'Nicht Ausgeliefertes wiederholen'],
 	['deliveryBatchQueued', '{members} deliveries queued.', '{members} Auslieferungen eingereiht.'],
-	['deliveryBatchNoFormats', 'Save a delivery preset to queue a batch.', 'Speichere eine Auslieferungsvorlage, um einen Stapel einzureihen.'],
+	['deliveryBatchNoFormats', 'Save a delivery preset to queue a batch.', 'Speichere eine Auslieferungsvorgabe, um einen Stapel einzureihen.'],
 	['deliveryBatchNoTargets', 'Choose at least one thing to deliver.', 'Wähle mindestens etwas zum Ausliefern.'],
 	[
 		'deliveryBatchSummary',

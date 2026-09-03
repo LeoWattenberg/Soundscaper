@@ -310,7 +310,7 @@ test('audio rendered fallback activation is localized and bound to its exact req
 
 	assert.equal(english.match(/data-project-feature-audio-rendered-fallback/gu)?.length, 1);
 	assert.match(english, /Rendered fallback active during editor playback/u);
-	assert.match(german, /Gerenderte Ersatzwiedergabe im Editor aktiv/u);
+	assert.match(german, /Gerenderte Ersatzquelle bei der Wiedergabe im Editor aktiv/u);
 	assert.doesNotMatch(english, /rendered-source|soundscaper:rendered-audio-fallback/iu);
 	assert.doesNotMatch(mismatched, /data-project-feature-audio-rendered-fallback/iu);
 	for (const markup of malformed) assert.doesNotMatch(markup, /data-project-feature-audio-rendered-fallback/iu);

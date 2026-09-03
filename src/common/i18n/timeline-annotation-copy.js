@@ -13,7 +13,7 @@ export const TIMELINE_ANNOTATION_COPY_BY_LOCALE = Object.freeze({
 		timelineAnnotationList: 'Marker- und Bereichsliste',
 		panelMarkers: 'Marker',
 		showMarkers: 'Marker anzeigen',
-		addTimelineMarker: 'Marker am Abspielkopf hinzufügen',
+		addTimelineMarker: 'Marker an der Abspielposition hinzufügen',
 		addTimelineRegion: 'Bereich aus Auswahl hinzufügen',
 		previousTimelineAnnotation: 'Vorherige Annotation',
 		nextTimelineAnnotation: 'Nächste Annotation',

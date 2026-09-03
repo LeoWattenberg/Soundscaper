@@ -43,7 +43,7 @@ export const FRAMESCAPER_CAPTURE_COPY_BY_LOCALE = Object.freeze({
 		captureConfidenceEstimated: 'Geschätzt',
 		captureConfidenceUnavailable: 'Nicht verfügbar',
 		captureStatusInactive: 'Aufnahme ist nicht aktiv.',
-		captureStatusPermissionPending: 'Warte auf die Freigabe der Quellen.',
+		captureStatusPermissionPending: 'Aufnahme wartet auf die Freigabe der Quellen.',
 		captureStatusPreviewing: 'Vorschau ist bereit.',
 		captureStatusArmed: 'Aufnahme ist scharfgestellt.',
 		captureStatusCountdown: 'Aufnahme startet nach dem Countdown.',
