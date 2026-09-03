@@ -159,9 +159,9 @@ export default function AudioEditorWorkspace({
 		snapshot,
 		workspaceRef,
 	});
-	const moveWorkspacePanel = useCallback((panelId, dock, index) => {
+	const moveWorkspacePanel = useCallback((panelId, placement) => {
 		setDraggedWorkspacePanelId(null);
-		return run(() => controller.actions.preferences.movePanel(panelId, dock, index));
+		return run(() => controller.actions.preferences.movePanel(panelId, placement));
 	}, [controller, run]);
 	const toggleFullscreen = useCallback(() => {
 		if (fileService.isDesktop) return fileService.runWindowAction('toggle-fullscreen');
@@ -271,7 +271,7 @@ export default function AudioEditorWorkspace({
 			if (scope === 'track' && trackId !== snapshot.selectedTrackId) {
 				controller.actions.timeline.selectTrack(trackId);
 			}
-			controller.actions.preferences.setPanel('effects', { visible: true });
+			controller.actions.preferences.setPanelVisibility('effects', true);
 		});
 		requestAnimationFrame(() => {
 			const panel = workspaceRef.current?.querySelector('[data-workspace-panel="effects"]');
@@ -325,7 +325,7 @@ export default function AudioEditorWorkspace({
 	}, [controller, setActiveSurface]);
 	const openWorkspacePanel = useCallback((panelId) => {
 		if (panelId === 'project-bin') setProjectBinSessionOpened(true);
-		run(() => controller.actions.preferences.setPanel(panelId, { visible: true }));
+		run(() => controller.actions.preferences.setPanelVisibility(panelId, true));
 		requestAnimationFrame(() => {
 			const panel = workspaceRef.current?.querySelector(`[data-workspace-panel="${panelId}"]`);
 			if (!panel) return;
@@ -337,7 +337,7 @@ export default function AudioEditorWorkspace({
 		if (panelId === DEFERRED_WEB_VCR_PANEL_ID) return run(() => controller.actions.webVcr.close());
 		if (panelId !== 'project-bin') return run(() => controller.actions.preferences.togglePanel(panelId));
 		if (!projectBinEffectivelyOpen) setProjectBinSessionOpened(true);
-		return run(() => controller.actions.preferences.setPanel(panelId, { visible: !projectBinEffectivelyOpen }));
+		return run(() => controller.actions.preferences.setPanelVisibility(panelId, !projectBinEffectivelyOpen));
 	}, [controller, projectBinEffectivelyOpen, run]);
 	const revealProjectBin = useCallback(
 		() => openWorkspacePanel('project-bin'),

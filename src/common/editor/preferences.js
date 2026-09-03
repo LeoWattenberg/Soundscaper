@@ -15,6 +15,7 @@ import {
 	DEFAULT_SOUND_ACTIVATION_PREFERENCES,
 	normalizeSoundActivationPreferences,
 } from './sound-activation-preferences.ts';
+import { canonicalizeWorkspacePanelGroups, normalizeWorkspacePanelGroupFields } from './workspace-panel-layout.ts';
 
 export {
 	AUDIO_EDITOR_BUILT_IN_WORKSPACES,
@@ -85,6 +86,8 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {number} [y]
  * @property {number} [width]
  * @property {number} [height]
+ * @property {string} [tabGroup]
+ * @property {boolean} [tabActive]
  */
 
 /**
@@ -256,9 +259,10 @@ function normalizePanelEntries(value = {}) {
 			y: finiteInRange(entry.y ?? floatingDefaults.y, 0, 1_000_000, `workspace.panels.${id}.y`),
 			width: finiteInRange(entry.width ?? entry.size ?? floatingDefaults.width, 80, 4_096, `workspace.panels.${id}.width`),
 			height: finiteInRange(entry.height ?? floatingDefaults.height, 80, 4_096, `workspace.panels.${id}.height`),
+			...normalizeWorkspacePanelGroupFields(entry, `workspace.panels.${id}`),
 		};
 	}
-	return entries;
+	return canonicalizeWorkspacePanelGroups(entries);
 }
 
 function normalizeCustomWorkspaces(value = []) {

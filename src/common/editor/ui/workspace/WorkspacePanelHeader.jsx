@@ -35,8 +35,13 @@ export default function WorkspacePanelHeader({
 	label,
 	copy,
 	currentDock,
+	activePanelId = panelId,
+	arrangeTargets = [],
 	onDock,
+	onArrange,
 	onClose,
+	onTabActivate,
+	tabs = [],
 	dragHandle,
 	resizeHandle,
 	floatingMoveHandle = false,
@@ -57,11 +62,32 @@ export default function WorkspacePanelHeader({
 	};
 	const ownerDocument = () => menuButtonRef.current?.ownerDocument ?? document;
 	const menuHost = () => menuButtonRef.current?.closest('[data-audio-editor]') ?? ownerDocument().body;
+	const grouped = tabs.length > 1;
+	const activeTab = grouped
+		? tabs.find((tab) => tab.id === activePanelId) ?? tabs[0]
+		: null;
+	const menuPanelId = activeTab?.id ?? panelId;
+	const menuLabel = activeTab?.label ?? label;
+	const activateRelativeTab = (event, tabIndex) => {
+		const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+		if (!keys.includes(event.key)) return;
+		event.preventDefault();
+		let nextIndex;
+		if (event.key === 'Home') nextIndex = 0;
+		else if (event.key === 'End') nextIndex = tabs.length - 1;
+		else if (event.key === 'ArrowLeft') nextIndex = (tabIndex - 1 + tabs.length) % tabs.length;
+		else nextIndex = (tabIndex + 1) % tabs.length;
+		const next = tabs[nextIndex];
+		if (!next) return;
+		event.currentTarget.closest('[role="tablist"]')
+			?.querySelector(`[data-workspace-panel-tab="${next.id}"]`)?.focus();
+		onTabActivate?.(next.id);
+	};
 	return (
 		<>
 			<header
 				className="kw-audio-editor__workspace-panel-header"
-				data-floating-panel-move-handle={floatingMoveHandle ? panelId : undefined}
+				data-floating-panel-move-handle={floatingMoveHandle ? menuPanelId : undefined}
 				onPointerDown={onPointerDown}
 				onContextMenu={(event) => {
 					event.preventDefault();
@@ -71,7 +97,33 @@ export default function WorkspacePanelHeader({
 					else openMenu({ x: event.clientX, y: event.clientY, keyboard: false });
 				}}
 			>
-				{dragHandle && <button
+				{grouped ? <div
+					className="kw-audio-editor__workspace-panel-tabs"
+					role="tablist"
+					aria-label={copy.panels}
+				>
+					{tabs.map((tab, tabIndex) => <button
+						key={tab.id}
+						type="button"
+						className={`kw-audio-editor__workspace-panel-tab${tab.id === activeTab?.id ? ' kw-audio-editor__workspace-panel-tab--active' : ''}`}
+						role="tab"
+						id={`workspace-panel-tab-${tab.id}`}
+						data-workspace-panel-tab={tab.id}
+						data-workspace-panel-drag-handle={tab.dragHandle ? tab.id : undefined}
+						draggable={Boolean(tab.dragHandle)}
+						aria-label={tab.label}
+						aria-controls={`workspace-panel-content-${tab.id}`}
+						aria-selected={tab.id === activeTab?.id}
+						tabIndex={tab.id === activeTab?.id ? 0 : -1}
+						onClick={() => onTabActivate?.(tab.id)}
+						onDragStart={tab.dragHandle?.onDragStart}
+						onDragEnd={tab.dragHandle?.onDragEnd}
+						onKeyDown={(event) => activateRelativeTab(event, tabIndex)}
+					>
+						<span className="kw-audio-editor__workspace-panel-tab-grip" aria-hidden="true">⠿</span>
+						<span>{tab.label}</span>
+					</button>)}
+				</div> : <>{dragHandle && <button
 					type="button"
 					className="kw-audio-editor__workspace-drag-handle"
 					data-workspace-panel-drag-handle={panelId}
@@ -82,7 +134,7 @@ export default function WorkspacePanelHeader({
 					onDragEnd={dragHandle.onDragEnd}
 					onKeyDown={dragHandle.onKeyDown}
 				>⠿</button>}
-				<h2>{label}</h2>
+				<h2>{label}</h2></>}
 				{resizeHandle && <button
 					type="button"
 					className="kw-audio-editor__workspace-resize-handle"
@@ -91,12 +143,12 @@ export default function WorkspacePanelHeader({
 					onClick={(event) => event.currentTarget.focus()}
 					onKeyDown={resizeHandle.onKeyDown}
 				>↘</button>}
-				<span data-workspace-panel-menu={panelId}>
+				<span data-workspace-panel-menu={menuPanelId}>
 					<button
 						ref={menuButtonRef}
 						type="button"
 						className="kw-audio-editor__workspace-panel-menu-button"
-						aria-label={`${copy.panelMenu}: ${label}`}
+						aria-label={`${copy.panelMenu}: ${menuLabel}`}
 						aria-haspopup="menu"
 						aria-expanded={Boolean(menu)}
 						onClick={(event) => {
@@ -126,11 +178,35 @@ export default function WorkspacePanelHeader({
 						key={dockId}
 						label={workspaceDockLabel(copy, dockId)}
 						checked={dockId === currentDock}
-						disabled={dockId === currentDock}
+						disabled={dockId === currentDock && !grouped}
 						onClick={() => onDock(dockId, ownerDocument(), menuButtonRef.current)}
 						onClose={closeMenu}
 					/>
 				))}
+				{onArrange && arrangeTargets.length > 0 && <ContextMenuItem
+					label={copy.arrangePanel}
+					hasSubmenu
+					onClose={closeMenu}
+				>
+					{arrangeTargets.map((target) => <ContextMenuItem
+						key={target.panelId}
+						label={`${target.label} — ${workspaceDockLabel(copy, target.dock)}`}
+						hasSubmenu
+						onClose={closeMenu}
+					>
+						{[
+							['before', copy.arrangeBefore],
+							['tab', copy.arrangeTab],
+							['after', copy.arrangeAfter],
+						].map(([kind, placementLabel]) => <ContextMenuItem
+							key={kind}
+							label={placementLabel}
+							disabled={kind === 'tab' ? target.tabDisabled : target.splitDisabled}
+							onClick={() => onArrange(target.panelId, kind, ownerDocument(), menuButtonRef.current)}
+							onClose={closeMenu}
+						/>)}
+					</ContextMenuItem>)}
+				</ContextMenuItem>}
 				{onDock && <ContextMenuItem isDivider />}
 				<ContextMenuItem
 					label={copy.close}

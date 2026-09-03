@@ -37,9 +37,9 @@ function useEffectsPanelAutoFocus(host) {
 	return autoFocus;
 }
 
-function DockedEffectsPanel({ host, ...props }) {
+function DockedEffectsPanel({ host, panelActive = true, ...props }) {
 	const autoFocusOnOpen = useEffectsPanelAutoFocus(host);
-	return <AudioEditorEffectsOverlay autoFocusOnOpen={autoFocusOnOpen} {...props} />;
+	return <AudioEditorEffectsOverlay autoFocusOnOpen={panelActive && autoFocusOnOpen} {...props} />;
 }
 const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
@@ -55,6 +55,7 @@ function LazyInspectorFallback({ copy }) {
 
 export default function WorkspacePanelContent({
 	panelId,
+	panelActive = true,
 	dock = 'main',
 	controller,
 	snapshot,
@@ -233,6 +234,7 @@ export default function WorkspacePanelContent({
 			: effectsPanelTarget?.trackId || null;
 		return <DockedEffectsPanel
 			host={dock}
+			panelActive={panelActive}
 			isOpen
 			controller={controller}
 			snapshot={snapshot}

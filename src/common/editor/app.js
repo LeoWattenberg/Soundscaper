@@ -598,8 +598,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		deleteWorkspace: deleteCustomAudioEditorWorkspace,
 	});
 	const {
-		createWorkspacePreference, deleteWorkspacePreference, movePanelPreference, moveToolbarPreference,
-		setPanelPreference, setShortcutPreference, setToolbarButtonPreference, setWorkspacePreference,
+		activatePanelTabPreference, createWorkspacePreference, deleteWorkspacePreference, movePanelPreference, moveToolbarPreference,
+		setPanelDockExtentPreference, setPanelFrameSizePreference, setPanelPreference, setPanelVisibilityPreference, setShortcutPreference, setToolbarButtonPreference, setWorkspacePreference,
 		togglePanelPreference, toggleToolbarPreference, updateWorkspacePreference,
 	} = createEditorPreferenceActionDelegates(preferencesService, createStableId);
 	const projectSessionService = createProjectSessionService({
@@ -926,7 +926,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		MediaStreamTrackProcessor: options.MediaStreamTrackProcessor,
 		recordingControllerFactory: options.recordingControllerFactory, AudioWorkletNode: options.AudioWorkletNode,
 		helperTimingProbe: fileService.helperTimingProbe, ffmpeg,
-		desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => preferencesService.setPanel('web-vcr', { visible: true }), hideWebVcrPanel: () => preferencesService.setPanel('web-vcr', { visible: false }),
+		desktopBridge: globalThis.framescaperCaptureDesktop?.v1 ?? null, webVcrBridge: globalThis.framescaperWebVcr?.v1 ?? null, webVcrEnabled: product.applicationFeatures?.framescaperWebVcr === true, showWebVcrPanel: () => preferencesService.setPanelVisibility('web-vcr', true), hideWebVcrPanel: () => preferencesService.setPanelVisibility('web-vcr', false),
 		createId: createStableId, now: currentTimeMs,
 		...(framescaperCaptureDerivatives ? { scheduleDerivatives: framescaperCaptureDerivatives } : {}),
 		onWarning: handleError, onChange: publishDocumentSnapshot,
@@ -1850,7 +1850,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		handleExportAction, handlePlayAtSpeed, handleTransport, hasMissingTimelineSources,
 		importEffectPresets, importFiles, importLabelFile, inspectScape,
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
-		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference,
+		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference, activatePanelTabPreference,
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
 		openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
@@ -1868,7 +1868,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		selectTrackStartToEnd, sessionTab, setAllTracksView, setAudacityControlTrack,
 		setAudacityEffectParamsFromController, setAudacityEffectType, setAudioOutputDevice, setAutoFitTrackHeight,
 		setClipTimePitch, setLatencyOffset, setLoopRegion, setLoopRegionInOut, setStatus,
-		setLoopRegionToSelection, setMicrophoneMetering, setMonitoring, setPanelPreference,
+		setLoopRegionToSelection, setMicrophoneMetering, setMonitoring, setPanelDockExtentPreference, setPanelFrameSizePreference, setPanelPreference, setPanelVisibilityPreference,
 		setPlayAtSpeedRate, setPreferredInputChannelCount, setPreferredInputDevice, setProjectBinClipColor,
 		setRecordingInputGain, setRecordingSourceLatency, setRecordingTrackInput, setRetainInputs,
 		setSampleEditMode, setSelection, setSelectionToLoopRegion, setShortcutPreference,
@@ -1884,7 +1884,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		toggleStretchToTempo: clipPropertyService.toggleStretchToTempo,
 		toggleToolbarPreference, toggleUpdateWhilePlaying, toggleVerticalRulers, toggleVideoClipEffect,
 		selectionViewService, sequenceTimingService, timelineAnnotationService, regularIntervalAnnotationController, trackFolderService, trackStructuralOperations: trackService.structuralOperations, soundActivationPolicyService, trimClips, updatePreferences, updateRackEffect,
-		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => preferencesService.setPanel('recording-setup', { visible: true }) } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
+		audioWarpService, sourceMonitorService, takeCompService, taskProgress, videoTrimServices, videoEditService, videoNavigationService, videoSourceReprobeService, framescaperCaptureActions: framescaperCapture ? { ...framescaperCapture.actions, openSetup: () => preferencesService.setPanelVisibility('recording-setup', true) } : undefined, framescaperWebVcrActions: framescaperCapture?.webVcrActions, ...productActionRuntime(options),
 		updateVideoClipEffect, updateWorkspacePreference, updateZoom,
 	}), () => lifetime.assertActive());
 	let disposePromise = null;

@@ -363,7 +363,7 @@ function controller(calls: string[]) {
 	return {
 		actions: {
 			capture: captureActions,
-			preferences: { setPanel: () => calls.push('setPanel') },
+			preferences: { setPanelVisibility: () => calls.push('setPanelVisibility') },
 		},
 	};
 }

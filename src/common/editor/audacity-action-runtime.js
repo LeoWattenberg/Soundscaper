@@ -165,7 +165,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 	const openSurface = (surface, payload) => ui.openSurface(surface, payload);
 	const openPanel = (panel) => {
 		const entry = snapshot().preferences?.workspace?.panels?.[panel];
-		if (entry && !entry.visible) controllerActions.preferences.setPanel(panel, { visible: true });
+		if (entry) controllerActions.preferences.setPanelVisibility(panel, true);
 		ui.focusPanel(panel);
 		return panel;
 	};
