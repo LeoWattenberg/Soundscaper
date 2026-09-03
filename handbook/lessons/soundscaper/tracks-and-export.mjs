@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { addTrack, check, exportAudio, generate, importAudio, menu, open, save, selectClips, trackButton, trackMenu } from '../steps.mjs';
+import { addTrack, check, exportAudio, generate, importAudio, menu, open, selectClips, trackButton, trackMenu } from '../steps.mjs';
 
 export const TRACK_AND_EXPORT_LESSONS = Object.freeze([
 	{
@@ -125,22 +125,6 @@ export const TRACK_AND_EXPORT_LESSONS = Object.freeze([
 		tips: [
 			'Rename the track from its menu so a session with many tracks stays readable.',
 			'Drag a track by its header to reorder it.',
-		],
-	},
-	{
-		id: 'save-your-project',
-		title: 'Save your project',
-		description: 'Keep the project, with every track and edit, in the local project library.',
-		audacity: 'File → Save Project',
-		intro: 'A project is more than the audio: it is the tracks, clips, effects, markers and history. Saving keeps all of that in the browser’s local project library on this computer, where it can be reopened from the File menu. Soundscaper also saves as you go, so this is mostly a way to be sure.',
-		steps: [
-			open(),
-			importAudio('music-loop'),
-			save(),
-		],
-		tips: [
-			'To move a project to another computer or keep a copy outside the browser, choose **File → Export project file (.sscape)**; the file reopens with **File → Open project file**.',
-			'An audio export is a listening copy, not a project. Keep the project if you may edit again.',
 		],
 	},
 ]);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { effect, importAudio, menu, open, play, selectRange } from '../steps.mjs';
+import { effect, importAudio, menu, open, play, selectClips, selectRange } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -137,6 +137,32 @@ export const VOLUME_LESSONS = Object.freeze([
 		tips: [
 			'Use a limiter for peaks and a [compressor](/lessons/even-out-volume-with-a-compressor/) for overall evenness; they are not the same job.',
 			'Heavy limiting makes everything feel loud and flat. If you need more than a few decibels, the mix itself is probably too hot.',
+		],
+	},
+	{
+		id: 'duck-music-under-a-voice',
+		title: 'Duck music under a voice',
+		description: 'Turn a music bed down automatically whenever a voice track is speaking.',
+		audacity: 'Effect → Volume and Compression → Auto Duck',
+		intro: 'Podcasts and videos keep music running under speech by lowering it every time someone talks and bringing it back in the gaps. Auto Duck does this from a control track: wherever the control track is louder than a threshold, the selected track is turned down, with fades at the edges.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			importAudio('second-loop'),
+			selectClips(['music-loop'], { why: 'Select the clip to duck — the music, not the voice.' }),
+			effect({
+				group: 'Volume and compression',
+				name: 'Auto Duck',
+				settings: [
+					{ label: 'Control track', option: 'lesson-second-loop' },
+					{ label: 'Duck amount', value: '-12' },
+				],
+			}, { why: 'The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.' }),
+			play({ see: 'The music drops while the other track plays and recovers where it is quiet.' }),
+		],
+		tips: [
+			'Lengthen the **Outer fade** times if the music pumps up and down too quickly between words.',
+			'Put the voice track above the music in the track list so the relationship is easy to see.',
 		],
 	},
 ]);

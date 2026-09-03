@@ -25,6 +25,14 @@ import {
 	importFiles,
 	openExportDialog,
 } from '../audio-editor-test-helpers.js';
+import {
+	runDragClip,
+	runExportProject,
+	runOpenAudacityProject,
+	runOpenProjectFile,
+	runRackEffect,
+	runResample,
+} from './lesson-actions.js';
 import { lessonFixtureClipName, lessonFixtureFile } from './lesson-fixtures.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 
@@ -133,6 +141,7 @@ async function runNoiseProfile(page, state) {
 
 async function runExport(page, state, entry) {
 	const dialog = await openExportDialog(page, state.editor);
+	if (entry.mode) await chooseDropdown(page, dialog.locator('[data-export-field="mode"]'), entry.mode);
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), entry.format);
 	await dialog.getByRole('button', { name: 'Start export', exact: true }).click();
 	const download = dialog.locator('[data-export-download]');
@@ -188,6 +197,12 @@ async function runNyquist(page, state, entry) {
 		await commitInput(dialog.getByRole('spinbutton', { name: field.label, exact: true }), field.value);
 	}
 	await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+	if (entry.menu === 'Analyze') {
+		// An analyzer keeps its dialog open to report what it found.
+		await expect(dialog).toContainText('Nyquist output', { timeout: EFFECT_TIMEOUT });
+		await closeDialog(dialog);
+		return;
+	}
 	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
 	await expectSuccess(state.editor);
 }
@@ -201,6 +216,15 @@ async function runCheck(state, entry) {
 	if (entry.clips !== null) await expect(editor).toHaveAttribute('data-clip-count', String(entry.clips), { timeout: EFFECT_TIMEOUT });
 	if (entry.tracks !== null) await expect(editor).toHaveAttribute('data-track-count', String(entry.tracks), { timeout: EFFECT_TIMEOUT });
 	if (entry.clip !== null) await expect(clipByName(editor, entry.clip)).toBeVisible({ timeout: EFFECT_TIMEOUT });
+	if (entry.moved !== null) {
+		await expect(lessonClip(editor, lessonFixtureClipName(entry.moved))).not.toHaveAttribute('aria-label', /starts at 0 seconds/u);
+	}
+	if (entry.track !== null) {
+		await expect(editor.locator('.track-control-panel__track-name-text').filter({ hasText: entry.track }).first()).toBeVisible();
+	}
+	if (entry.loop !== null) {
+		await expect(editor.getByRole('button', { name: 'Loop selection', exact: true })).toHaveAttribute('aria-pressed', String(entry.loop));
+	}
 }
 
 async function executeStep(page, state, entry) {
@@ -211,6 +235,7 @@ async function executeStep(page, state, entry) {
 		case 'import':
 			await importFiles(state.editor, [lessonFixtureFile(entry.fixture)]);
 			state.clipName = lessonFixtureClipName(entry.fixture);
+			state.fixture = entry.fixture;
 			await expect(lessonClip(state.editor, state.clipName)).toBeVisible();
 			return;
 		case 'menu':
@@ -280,6 +305,24 @@ async function executeStep(page, state, entry) {
 		case 'check':
 			await runCheck(state, entry);
 			return;
+		case 'rack-effect':
+			await runRackEffect(page, state, entry);
+			return;
+		case 'open-audacity-project':
+			await runOpenAudacityProject(state);
+			return;
+		case 'export-project':
+			await runExportProject(page, state);
+			return;
+		case 'open-project-file':
+			await runOpenProjectFile(page, state);
+			return;
+		case 'resample':
+			await runResample(page, state, entry, (await currentClip(state)).clip);
+			return;
+		case 'drag-clip':
+			await runDragClip(page, state, entry, (await currentClip(state)).clip, state.fixture);
+			return;
 		case 'note':
 			return;
 		default:
@@ -291,7 +334,7 @@ async function executeStep(page, state, entry) {
 export async function runLesson(page, lesson) {
 	await disableNativeSavePicker(page);
 	const errors = collectClientErrors(page);
-	const state = { editor: null, clipName: null };
+	const state = { editor: null, clipName: null, fixture: null, projectFile: null };
 	for (const [index, entry] of lesson.steps.entries()) {
 		const title = `${String(index + 1)}. ${plainText(describeStep(entry, { fixtureFile: lessonFixtureName }))}`;
 		await test.step(title, () => executeStep(page, state, entry));

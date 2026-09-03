@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { analyze, importAudio, menu, open } from '../steps.mjs';
+import { analyze, check, importAudio, menu, nyquist, open } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -54,6 +54,28 @@ export const ANALYSIS_LESSONS = Object.freeze([
 		tips: [
 			'Turning a clipped recording down does not repair it; the flattened peaks stay flattened. **Effect → Noise removal and repair → Repair** can rebuild a very short clipped run.',
 			'To avoid clipping next time, record with peaks around −12 dB and raise the level afterwards.',
+		],
+	},
+	{
+		id: 'find-the-beats',
+		title: 'Find the beats in a loop',
+		description: 'Let the Beat Finder analyzer mark every beat it hears.',
+		audacity: 'Analyze → Beat Finder',
+		intro: 'Beat Finder is one of the bundled Nyquist analyzers. It listens for sudden rises in level above a threshold and writes a label at each one, which is a quick way to mark the beats of a loop or the hits in a drum take before you cut it up.',
+		steps: [
+			open(),
+			importAudio('gapped-take'),
+			selectAll(),
+			nyquist({
+				menu: 'Analyze',
+				name: 'Beat Finder',
+				fields: [{ label: 'Threshold Percentage', value: '60' }],
+			}, { why: 'A lower percentage finds quieter beats as well; raise it if it marks too much.' }),
+			check({ track: 'Beat Finder' }, { see: 'A new label track named Beat Finder under the audio, with one label at each beat.' }),
+		],
+		tips: [
+			'The labels land on a new label track under the audio. Rename or delete any the analyzer got wrong.',
+			'**Analyze → Nyquist → Label Sounds** does a similar job for whole sounds separated by silence.',
 		],
 	},
 ]);

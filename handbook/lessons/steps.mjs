@@ -14,7 +14,8 @@
 const STEP_KINDS = Object.freeze([
 	'open', 'import', 'menu', 'select-range', 'cursor', 'select-clips', 'tool', 'effect',
 	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
-	'add-track', 'play', 'generate', 'marker', 'check', 'note',
+	'add-track', 'play', 'generate', 'marker', 'check', 'note', 'rack-effect',
+	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip',
 ]);
 
 const KIND_SET = new Set(STEP_KINDS);
@@ -140,10 +141,44 @@ export function noiseProfile(extras) {
 	return step({ kind: 'noise-profile' }, extras);
 }
 
-/** Export the project through File → Export audio in the named format. */
-export function exportAudio({ format, extension }, extras) {
+/** Export the project through File → Export audio in the named format; `mode` picks a non-default export mode. */
+export function exportAudio({ format, extension, mode = null }, extras) {
 	if (typeof format !== 'string' || typeof extension !== 'string') throw new TypeError('An export step needs a format label and a file extension.');
-	return step({ kind: 'export', format, extension }, extras);
+	if (mode !== null && typeof mode !== 'string') throw new TypeError('An export mode must be its dropdown label.');
+	return step({ kind: 'export', format, extension, mode }, extras);
+}
+
+/** Add a realtime effect to the most recently added track's effect rack. */
+export function rackEffect(name, extras) {
+	if (typeof name !== 'string' || name.length === 0) throw new TypeError('A rack-effect step needs the effect name.');
+	return step({ kind: 'rack-effect', name }, extras);
+}
+
+/** Open the lesson's example Audacity project through File → Audacity projects. */
+export function openAudacityProject(extras) {
+	return step({ kind: 'open-audacity-project' }, extras);
+}
+
+/** Export the project as a portable project file. */
+export function exportProject(extras) {
+	return step({ kind: 'export-project' }, extras);
+}
+
+/** Open the project file the previous export step produced. */
+export function openProjectFile(extras) {
+	return step({ kind: 'open-project-file' }, extras);
+}
+
+/** Resample the most recently imported clip from its Clip properties. */
+export function resample(rate, extras) {
+	if (!Number.isInteger(rate) || rate <= 0) throw new TypeError('A resample step needs a whole sample rate in hertz.');
+	return step({ kind: 'resample', rate }, extras);
+}
+
+/** Drag the most recently imported clip later by its name bar, in whole seconds. */
+export function dragClip(seconds, extras) {
+	if (!Number.isInteger(seconds) || seconds <= 0) throw new TypeError('A drag-clip step needs a whole number of seconds to move by.');
+	return step({ kind: 'drag-clip', seconds }, extras);
 }
 
 /** Choose a command from a track's own menu in the track header. */
@@ -174,12 +209,12 @@ export function marker(name, extras) {
 }
 
 /** State what the project should now contain; the browser suite asserts it. */
-export function check({ clips = null, tracks = null, clip = null, startsAt = null }, extras) {
-	if (clips === null && tracks === null && clip === null && startsAt === null) throw new TypeError('A check step must state at least one expectation.');
+export function check({ clips = null, tracks = null, clip = null, startsAt = null, moved = null, track = null, loop = null }, extras) {
+	if ([clips, tracks, clip, startsAt, moved, track, loop].every((value) => value === null)) throw new TypeError('A check step must state at least one expectation.');
 	if (startsAt !== null && (typeof startsAt.fixture !== 'string' || typeof startsAt.seconds !== 'number')) {
 		throw new TypeError('A start-time check names a fixture and a whole number of seconds.');
 	}
-	return step({ kind: 'check', clips, tracks, clip, startsAt: startsAt && Object.freeze({ ...startsAt }) }, extras);
+	return step({ kind: 'check', clips, tracks, clip, startsAt: startsAt && Object.freeze({ ...startsAt }), moved, track, loop }, extras);
 }
 
 /** Prose with nothing to replay. */
@@ -283,7 +318,8 @@ export function describeStep(entry, { fixtureFile }) {
 			const fields = entry.fields.length > 0
 				? ` In the ${bold(entry.name)} dialog, ${listPhrases(entry.fields.map((field) => `set ${bold(field.label)} to \`${field.value}\``))}, then`
 				: ` In the ${bold(entry.name)} dialog,`;
-			return `Choose ${menuPath([entry.menu, 'Nyquist', entry.name])}.${fields} press ${bold('Apply')}.`;
+			const report = entry.menu === 'Analyze' ? ` The dialog reports what it found; press ${bold('Close')} to dismiss it.` : '';
+			return `Choose ${menuPath([entry.menu, 'Nyquist', entry.name])}.${fields} press ${bold('Apply')}.${report}`;
 		}
 		case 'analyze':
 			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.name)} panel opens with the result.`;
@@ -295,8 +331,22 @@ export function describeStep(entry, { fixtureFile }) {
 			return `Press ${bold('Add track')} above the track list and choose ${bold(entry.type)}.`;
 		case 'noise-profile':
 			return `Choose ${menuPath(['Effect', 'Noise removal and repair', 'Noise Reduction'])} and press ${bold('Get noise profile')}. The status line reports that the profile is ready. Press ${bold('Close')} to leave the dialog for now.`;
-		case 'export':
-			return `Choose ${menuPath(['File', 'Export audio'])}, set ${bold('Format')} to ${bold(entry.format)} and press ${bold('Start export')}. When the render finishes, a download link for the \`.${entry.extension}\` file appears in the dialog.`;
+		case 'export': {
+			const mode = entry.mode ? ` set ${bold('Mode')} to ${bold(entry.mode)},` : '';
+			return `Choose ${menuPath(['File', 'Export audio'])},${mode} set ${bold('Format')} to ${bold(entry.format)} and press ${bold('Start export')}. When the render finishes, a download link for the \`.${entry.extension}\` file appears in the dialog.`;
+		}
+		case 'rack-effect':
+			return `Press ${bold('Effects')} in the track's header to open the Effects panel, press ${bold('Effects')} in the track's rack and choose ${bold(entry.name)}. Its settings window opens; press ${bold('Close')} when you are done with it.`;
+		case 'open-audacity-project':
+			return `Choose ${menuPath(['File', 'Audacity projects', 'Open Audacity project (.aup3, .aup4)'])} and pick the project. This lesson uses a small example project. Its tracks and clips appear as they were in Audacity.`;
+		case 'export-project':
+			return `Choose ${menuPath(['File', 'Export project file (.sscape)'])}. The whole project downloads as one \`.sscape\` file.`;
+		case 'open-project-file':
+			return `Choose ${menuPath(['File', 'Open Scape project file (.sscape)'])} and pick the file. On a computer that does not have the project yet it opens directly; here, where the library already holds it, Soundscaper offers ${bold('Open as read-only copy')} — press it.`;
+		case 'resample':
+			return `Open the clip's menu from the ${bold('Clip menu')} button on its name bar and choose ${bold('Clip properties')}. Press ${bold('Resample')}, set the rate to \`${String(entry.rate)}\` and press ${bold('Resample')} again.`;
+		case 'drag-clip':
+			return `Drag the clip by its name bar about ${String(entry.seconds)} second${entry.seconds === 1 ? '' : 's'} to the right.`;
 		case 'track-menu':
 			return `Open the track's menu from the ${bold('Track menu')} button in its header and choose ${menuPath(entry.path)}.`;
 		case 'play':
@@ -315,6 +365,9 @@ export function describeStep(entry, { fixtureFile }) {
 			if (entry.tracks !== null) parts.push(`${String(entry.tracks)} track${entry.tracks === 1 ? '' : 's'}`);
 			if (entry.clip !== null) parts.push(`a clip named ${bold(entry.clip)}`);
 			if (entry.startsAt !== null) parts.push(`the \`${fixtureFile(entry.startsAt.fixture)}\` clip starting at ${String(entry.startsAt.seconds)} s`);
+			if (entry.moved !== null) parts.push('the clip starting later than 0 s');
+			if (entry.track !== null) parts.push(`a track named ${bold(entry.track)}`);
+			if (entry.loop !== null) parts.push(`the ${bold('Loop selection')} button lit`);
 			return `The project now shows ${listPhrases(parts)}.`;
 		}
 		case 'note':

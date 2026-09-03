@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { effect, importAudio, menu, nyquist, open, play } from '../steps.mjs';
+import { effect, importAudio, menu, nyquist, open, play, rackEffect } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -235,6 +235,23 @@ export const EFFECT_LESSONS = Object.freeze([
 		tips: [
 			'The Generate and Analyze menus have Nyquist submenus of their own, with plug-ins such as Pluck and Beat Finder.',
 			'**Tools → Nyquist prompt** runs a script you type yourself.',
+		],
+	},
+	{
+		id: 'add-a-realtime-effect-to-a-track',
+		title: 'Add a realtime effect to a track',
+		description: 'Put an effect on a track so it runs while you play, without rendering.',
+		audacity: 'Effect → Add Realtime Effects',
+		intro: 'The effects in the Effect menu change the audio once and for all. A realtime effect sits on a track instead: it runs during playback and export, its settings can be changed at any time, and the original audio is never touched. It is the right choice for reverb, EQ and compression that you want to keep adjusting as the mix develops.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			rackEffect('Reverb', { why: 'The track’s rack now lists Reverb. Its settings window stays available from the rack whenever you want to adjust it.' }),
+			play({ see: 'The loop plays through the reverb.' }),
+		],
+		tips: [
+			'Add several effects to a rack and drag them to change their order; each feeds the next.',
+			'The master rack, at the bottom of the Effects panel, processes the whole mix.',
 		],
 	},
 ]);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, cursor, effect, generate, importAudio, marker, menu, open, play, selectClips, selectRange, tool } from '../steps.mjs';
+import { check, cursor, dragClip, effect, generate, importAudio, marker, menu, open, play, selectClips, selectRange, tool } from '../steps.mjs';
 
 const selectAll = (extras) => menu(['Select', 'Select all'], extras);
 
@@ -214,6 +214,65 @@ export const EDITING_LESSONS = Object.freeze([
 		tips: [
 			'Ctrl and the mouse wheel zoom around the pointer, which is the quickest way to dive into one spot.',
 			'Zooming changes nothing in the project; it is only your view.',
+		],
+	},
+	{
+		id: 'undo-and-redo',
+		title: 'Undo and redo',
+		description: 'Step back through your edits and forward again.',
+		audacity: 'Edit → Undo and Edit → Redo (Ctrl+Z, Ctrl+Y)',
+		intro: 'Every edit and effect goes on the project’s history, so nothing you try is a risk. Undo steps back one change at a time — an effect, a cut, a move — and Redo puts it back. The history survives saving and reopening the project.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			tool('Split tool'),
+			cursor(0.5, { why: 'A split is a good edit to practise on because you can see it.' }),
+			tool('Split tool', { why: 'Back to the normal pointer.' }),
+			check({ clips: 2 }),
+			tool('Undo', { why: 'The toolbar button and **Edit → Undo** do the same thing.' }),
+			check({ clips: 1 }, { see: 'The split is gone and the clip is whole again.' }),
+			tool('Redo'),
+			check({ clips: 2 }, { see: 'The split is back.' }),
+		],
+		tips: [
+			'**View → Panels → History** lists every step, and clicking one jumps straight to it.',
+			'Undo covers edits to the project, not exports; a file you have already saved stays as it is.',
+		],
+	},
+	{
+		id: 'loop-a-section-while-you-practise',
+		title: 'Loop a section while you practise',
+		description: 'Play a selected passage over and over.',
+		audacity: 'Transport → Looping → Set Loop to Selection',
+		intro: 'Learning a riff, checking an edit point, auditioning an effect setting: all go faster when the passage plays round and round without you restarting it. Set the loop region to the selection and playback stays inside it until you turn the loop off.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			selectRange(0.25, 0.75, { why: 'Select the passage to repeat.' }),
+			menu(['Select', 'Loop region', 'Set loop to selection']),
+			check({ loop: true }, { see: 'The loop button in the transport bar lights up and the loop region shows above the ruler.' }),
+			play({ see: 'Playback runs round the selected passage.' }),
+		],
+		tips: [
+			'Press **L** or the transport bar’s loop button to turn the loop off and on without losing the region.',
+			'Drag the ends of the loop region in the ruler to adjust it.',
+		],
+	},
+	{
+		id: 'move-a-clip-along-the-timeline',
+		title: 'Move a clip along the timeline',
+		description: 'Drag a clip to a different time on its track.',
+		audacity: 'The Time Shift tool (F5), or dragging the clip bar in Audacity 3.1 and later',
+		intro: 'Clips are free to move. Dragging a clip by its name bar slides it along the track — to leave a gap at the start, to sit after another clip, or to line up with a cue in the video. Dragging up or down moves it to another track.',
+		steps: [
+			open(),
+			importAudio('music-loop'),
+			dragClip(1, { why: 'The clip follows the pointer; its new start time shows in the selection bar as you drag.' }),
+			check({ moved: 'music-loop' }, { see: 'The clip now begins later, and the track is silent until it starts.' }),
+		],
+		tips: [
+			'Turn on snapping from the transport bar so a dragged clip locks to seconds, beats or frames.',
+			'Hold Shift while dragging to keep the clip on its own track.',
 		],
 	},
 ]);

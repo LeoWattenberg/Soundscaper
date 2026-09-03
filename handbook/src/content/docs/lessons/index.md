@@ -29,6 +29,7 @@ The lessons use short example recordings you can stand in for with your own file
 - [Even out volume with a compressor](/lessons/even-out-volume-with-a-compressor/) — Reduce the gap between loud and quiet moments so speech is easier to follow.
 - [Fade in and fade out](/lessons/fade-in-and-fade-out/) — Start a clip from silence and end it smoothly instead of cutting off.
 - [Tame peaks with a limiter](/lessons/tame-peaks-with-a-limiter/) — Stop the loudest moments from going over a ceiling without touching the rest.
+- [Duck music under a voice](/lessons/duck-music-under-a-voice/) — Turn a music bed down automatically whenever a voice track is speaking.
 
 ## Editing
 
@@ -43,6 +44,9 @@ The lessons use short example recordings you can stand in for with your own file
 - [Add silence after a clip](/lessons/add-silence-after-a-clip/) — Generate a gap of exact length at the cursor.
 - [Line up clips end to end](/lessons/line-up-clips-end-to-end/) — Butt two clips on different tracks against each other so one follows the other.
 - [Zoom in for precise edits](/lessons/zoom-in-for-precise-edits/) — Get close enough to the waveform to cut on a beat or between words.
+- [Undo and redo](/lessons/undo-and-redo/) — Step back through your edits and forward again.
+- [Loop a section while you practise](/lessons/loop-a-section-while-you-practise/) — Play a selected passage over and over.
+- [Move a clip along the timeline](/lessons/move-a-clip-along-the-timeline/) — Drag a clip to a different time on its track.
 
 ## Effects
 
@@ -56,6 +60,7 @@ The lessons use short example recordings you can stand in for with your own file
 - [Add distortion](/lessons/add-distortion/) — Overdrive a sound from gentle warmth to full fuzz.
 - [Add a wah-wah](/lessons/add-a-wah-wah/) — Sweep a resonant filter across a sound for the classic funk effect.
 - [Use a Nyquist plug-in](/lessons/use-a-nyquist-plugin/) — Run one of the bundled Nyquist effects — here, a tremolo.
+- [Add a realtime effect to a track](/lessons/add-a-realtime-effect-to-a-track/) — Put an effect on a track so it runs while you play, without rendering.
 
 ## Tracks and export
 
@@ -66,13 +71,21 @@ The lessons use short example recordings you can stand in for with your own file
 - [Export a WAV](/lessons/export-a-wav/) — Render the project to an uncompressed WAV file.
 - [Mute and solo tracks](/lessons/mute-and-solo-tracks/) — Silence a track, or listen to one track by itself, while you work on a mix.
 - [Add an empty track](/lessons/add-an-empty-track/) — Create a new track to record into or to paste onto.
+
+## Projects and files
+
 - [Save your project](/lessons/save-your-project/) — Keep the project, with every track and edit, in the local project library.
+- [Move a project between computers](/lessons/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
+- [Open an Audacity project](/lessons/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
+- [Export each track as its own file](/lessons/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.
+- [Change a clip’s sample rate](/lessons/change-a-clips-sample-rate/) — Resample a clip so it matches the rate the rest of the project uses.
 
 ## Analysis
 
 - [Measure how loud your mix is](/lessons/measure-loudness/) — Read the integrated loudness, range and true peak of the project the way broadcasters do.
 - [See which frequencies a sound contains](/lessons/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
 - [Find where a recording clipped](/lessons/find-clipping/) — Locate the places where a recording hit full scale and distorted.
+- [Find the beats in a loop](/lessons/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
 
 ## How the lessons stay correct
 

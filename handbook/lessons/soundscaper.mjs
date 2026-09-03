@@ -15,6 +15,7 @@ import { ANALYSIS_LESSONS } from './soundscaper/analysis.mjs';
 import { CLEAN_UP_LESSONS } from './soundscaper/clean-up.mjs';
 import { EDITING_LESSONS } from './soundscaper/editing.mjs';
 import { EFFECT_LESSONS } from './soundscaper/effects.mjs';
+import { PROJECT_LESSONS } from './soundscaper/projects.mjs';
 import { TRACK_AND_EXPORT_LESSONS } from './soundscaper/tracks-and-export.mjs';
 import { VOLUME_LESSONS } from './soundscaper/volume.mjs';
 import { validateLesson } from './steps.mjs';
@@ -25,6 +26,7 @@ const GROUPS = Object.freeze([
 	Object.freeze({ title: 'Editing', lessons: EDITING_LESSONS }),
 	Object.freeze({ title: 'Effects', lessons: EFFECT_LESSONS }),
 	Object.freeze({ title: 'Tracks and export', lessons: TRACK_AND_EXPORT_LESSONS }),
+	Object.freeze({ title: 'Projects and files', lessons: PROJECT_LESSONS }),
 	Object.freeze({ title: 'Analysis', lessons: ANALYSIS_LESSONS }),
 ]);
 
