@@ -192,7 +192,7 @@ import { createRoutedRecordingFinalization } from './controller/routed-recording
 import { createSampleEditService } from './controller/sample-edit-service.ts';
 import { createSelectionViewService } from './controller/selection-view-service.ts';
 import { createSourceLifecycleService } from './controller/source-lifecycle-service.ts';
-import { createDerivedSourceService } from './controller/derived-source-service.ts';
+import { createDerivedAudioComposition } from './controller/derived-audio-composition.ts';
 import { createMixRenderService } from './controller/mix-render-service.ts';
 import { createNativeProjectService } from './controller/native-project-service.ts';
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
@@ -212,8 +212,6 @@ import { createTakeCycleRecordingAppSession } from './controller/take-cycle-reco
 import { createTakeCycleOpenRecoveryAppPort, createTakeCycleOpenRecoveryCoordinator } from './controller/take-cycle-open-recovery-app-port.ts';
 import { createAudioWarpControllerComposition } from './controller/audio-warp-composition.ts';
 import { createEditorTrackService } from './controller/track-service.ts';
-import { createClipResampleService } from './controller/clip-resample-service.ts';
-import { createTrackTransformService } from './controller/track-transform-service.ts';
 import { createClipTransformService } from './controller/clip-transform-service.ts';
 import { createClipPropertyService } from './controller/clip-property-service.ts';
 import { createClipTimePitchCacheService } from './controller/clip-time-pitch-service.ts';
@@ -1115,28 +1113,12 @@ export function createAudioEditorController(_root = null, options = {}) {
 		recordingRoutingSettingKey, setRecordingSourceOffset, setRecordingTrackInput,
 		state, stopMicrophoneMetering, store, updatePreferences,
 	});
-	const derivedSourceService = createDerivedSourceService({
+	const derivedAudio = createDerivedAudioComposition({
 		lifetime, copy, store, retireSourceChunkProvider: sourceLifecycleService.retireSourceChunkProvider, sourceBuffers, sourcePeaks,
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		getProject: () => project,
-		captureProject: () => projectGeneration.capture(project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		createId: createStableId,
-		projectSampleRate,
-		getAudioContext: () => engine.getAudioContext({ resume: false }),
-		createBufferFromChannels: (channels, sampleRate, context) => (
-			bufferFromChannels(channels, sampleRate, context, copy)
-		),
-		loadSourceChannels: (source) => loadStoredSourceChannels(store, source),
-		writeBuffer,
-		generateWaveformPeaks: (channels) => generateWaveformPeaks(channels, copy),
-		peakCacheKey,
-		cacheSourceBuffer,
-	});
-	const trackTransformService = createTrackTransformService({
-		lifetime, copy, derivedSources: derivedSourceService,
-		getProject: () => project,
 		getSelectedTrackId: () => state.selectedTrackId,
+		getSelectedClipId: () => state.selectedClipId,
 		editingBlocked,
 		captureProject: () => projectGeneration.capture(project?.id ?? null),
 		assertProject: (token) => projectGeneration.assertCurrent(token),
@@ -1146,27 +1128,22 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeProjectSampleRate,
 		audioTrackChannelCount,
 		preflightStorage,
+		getAudioContext: () => engine.getAudioContext({ resume: false }),
+		createBufferFromChannels: (channels, sampleRate, context) => (
+			bufferFromChannels(channels, sampleRate, context, copy)
+		),
+		loadSourceChannels: (source) => loadStoredSourceChannels(store, source),
+		writeBuffer,
+		generateWaveformPeaks: (channels) => generateWaveformPeaks(channels, copy),
+		peakCacheKey,
+		cacheSourceBuffer,
 		setProcessing: (processing) => { state.audacityEffectProcessing = processing; },
 		setStatus,
 		publish: publishDocumentSnapshot,
 		resampleChannels: resampleChannelsWindowedSinc,
 		renderDryTrackRange,
 	});
-	const clipResampleService = createClipResampleService({
-		lifetime, copy, derivedSources: derivedSourceService,
-		getProject: () => project,
-		getSelectedClipId: () => state.selectedClipId,
-		editingBlocked,
-		captureProject: () => projectGeneration.capture(project?.id ?? null),
-		assertProject: (token) => projectGeneration.assertCurrent(token),
-		commit,
-		normalizeProjectSampleRate,
-		preflightStorage,
-		setProcessing: (processing) => { state.audacityEffectProcessing = processing; },
-		setStatus,
-		publish: publishDocumentSnapshot,
-		resampleChannels: resampleChannelsWindowedSinc,
-	});
+	const derivedSourceService = derivedAudio.derivedSources;
 	trackService = createEditorTrackService({
 		lifetime, copy, trackColors: AUDIO_EDITOR_TRACK_COLORS,
 		getProject: () => project,
@@ -1177,7 +1154,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getPositionFrames: () => engine.getPositionFrames(),
 		snapTimelineFrame,
 		setTimelineView: (value) => { state.timelineView = value; },
-		resampleTrack: (...args) => trackTransformService.resampleTrack(...args),
+		resampleTrack: (...args) => derivedAudio.resampleTrack(...args),
 		recording: {
 			defaultDeviceId: RECORDING_DEFAULT_DEVICE_ID,
 			displaySourceKey: RECORDING_DISPLAY_SOURCE_KEY,
@@ -2204,23 +2181,23 @@ export function createAudioEditorController(_root = null, options = {}) {
 	}
 
 	async function resampleTrack(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {
-		return taskProgress.run('transform', copy.resamplingTrack || copy.audacityProcessing, () => trackTransformService.resampleTrack(trackId, requestedSampleRate));
+		return taskProgress.run('transform', copy.resamplingTrack || copy.audacityProcessing, () => derivedAudio.resampleTrack(trackId, requestedSampleRate));
 	}
 
 	async function resampleClip(clipId = state.selectedClipId, request = {}) {
-		return taskProgress.run('transform', copy.resamplingClip || copy.audacityProcessing, () => clipResampleService.resampleClip(clipId, request));
+		return taskProgress.run('transform', copy.resamplingClip || copy.audacityProcessing, () => derivedAudio.resampleClip(clipId, request));
 	}
 
 	async function swapTrackChannels(trackId = state.selectedTrackId) {
-		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => trackTransformService.swapTrackChannels(trackId));
+		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => derivedAudio.swapTrackChannels(trackId));
 	}
 
 	async function splitStereoTrack(trackId = state.selectedTrackId, panChannels = true) {
-		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => trackTransformService.splitStereoTrack(trackId, panChannels));
+		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => derivedAudio.splitStereoTrack(trackId, panChannels));
 	}
 
 	async function makeStereoTrack(trackId = state.selectedTrackId, partnerTrackId = null) {
-		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => trackTransformService.makeStereoTrack(trackId, partnerTrackId));
+		return taskProgress.run('transform', copy.rewritingChannels || copy.audacityProcessing, () => derivedAudio.makeStereoTrack(trackId, partnerTrackId));
 	}
 
 	function addLabel(trackId, labelOptions = {}) {

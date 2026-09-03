@@ -9,6 +9,7 @@
 @import './audio-editor-design-system/07-timeline-tracks.css';
 @import './audio-editor-design-system/08-timeline-clips-effects.css';
 @import './audio-editor-design-system/09-dialogs-effects.css';
+@import './audio-editor-design-system/09a-dialog-parametric-eq.css';
 @import './audio-editor-design-system/10-effects-vendor-overrides.css';
 @import './audio-editor-design-system/11-panels-dialogs-generators.css';
 @import './audio-editor-design-system/12-dialogs-preferences-responsive.css';

@@ -1,5 +1,4 @@
 import { applyAudacityParityToMenus } from '../audacity-action-parity.js';
-import { listNyquistPlugins } from '../nyquist/plugin-registry.js';
 import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from './application-menu-registry.ts';
 import { EFFECT_MENU_GROUPS, createSnapMenu } from './application-menu-model.js';
 import { timelineAnnotationsAvailable } from './timeline/timeline-annotation-ui-model.ts';
@@ -25,6 +24,7 @@ import { resolveProjectExtensionCopy } from './project-extension-copy.ts';
 import { createCrossProductHandoffMenuItems } from './cross-product-handoff-menu.ts';
 import { projectHasTimelineAudio, projectHasTimelineVideo } from './timeline-media-presence.ts';
 import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
+import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
 
 /**
  * The video tracks an edit list would describe.
@@ -144,22 +144,7 @@ export default function createApplicationMenus({
 			onClick: () => actions.openSelectionEffect(type),
 		})),
 	})).filter((group) => group.items.length);
-	const nyquistPlugins = listNyquistPlugins();
-	const nyquistDisabled = (plugin) => {
-		if (plugin.category === 'legacy') return editBlocked || !selectedAudioTrack || (plugin.spectral && !frequencySelectionActive);
-		if (plugin.category === 'generate') return editBlocked;
-		if (plugin.category === 'analyze') return blocked || !selectedAudioTrack;
-		return editBlocked || !selectedAudioTrack;
-	};
-	const nyquistItem = (plugin, disabled) => ({
-		id: plugin.id,
-		label: plugin.name,
-		disabled,
-		onClick: () => actions.openNyquist(plugin.id),
-	});
-	const nyquistItems = (category) => nyquistPlugins
-		.filter((plugin) => plugin.category === category)
-		.map((plugin) => nyquistItem(plugin, nyquistDisabled(plugin)));
+	const nyquistItems = createNyquistPluginMenuItems({ editBlocked, blocked, selectedAudioTrack, frequencySelectionActive }, actions);
 	const menus = applyAudacityParityToMenus([
 		{
 			id: 'file',

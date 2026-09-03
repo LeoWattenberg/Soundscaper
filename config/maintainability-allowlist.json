@@ -16,12 +16,8 @@
 			"reason": "Legacy translation publication workflow; split by command before extending it."
 		},
 		"src/common/editor/app.js": {
-			"maxLines": 2906,
+			"maxLines": 2903,
 			"reason": "Legacy JavaScript composition root retained while its typed services and ports complete staged migration."
-		},
-		"src/common/editor/audacity-action-parity.js": {
-			"maxLines": 953,
-			"reason": "Pinned Audacity action inventory and policy implementation."
 		},
 		"src/common/editor/audacity-effects/basic.js": {
 			"maxLines": 718,
@@ -136,7 +132,7 @@
 			"reason": "Reviewed canonical fallback catalog."
 		},
 		"tests/audio-editor-controller.test.js": {
-			"maxLines": 3338,
+			"maxLines": 3283,
 			"reason": "Legacy controller regression suite; place new subsystem tests in focused files."
 		},
 		"tests/audio-editor-disk-backed-sources.test.js": {
