@@ -12,6 +12,7 @@ import {
 	chooseDropdown,
 	chooseNestedCommandAction,
 	clipByName,
+	closeChromeDrawer,
 	closeDialog,
 	closeEffectsPanel,
 	collectClientErrors,
@@ -19,9 +20,11 @@ import {
 	expectSurfaceWithinViewport,
 	getMenuItem,
 	importFiles,
+	openChromeDrawer,
 	openClipProperties,
 	openEffectsForTrack,
 	openNestedCommandMenu,
+	openTrackHeaderDrawer,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -413,9 +416,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
+		// The phone layout keeps the tool toolbar in the chrome drawer.
+		await openChromeDrawer(editor);
 		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
 		await expect(editor.getByRole('button', { name: 'Spectrogram', exact: true })).toHaveAttribute('aria-pressed', 'true');
+		await closeChromeDrawer(editor);
 		await expect(clipByName(editor, toneA.name).locator('canvas.clip-body__waveform'))
 			.toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 
@@ -442,8 +448,10 @@ test.describe('audio editor React/design-system workflows', () => {
 		await dispatchPinch(timeline);
 		await expect.poll(() => timeline.evaluate((element) => element.scrollWidth)).toBeGreaterThan(beforeWidth);
 		await expect(editor.locator('[data-inspector]')).toHaveCount(0);
+		await openChromeDrawer(editor);
 		await expect(editor.getByRole('tablist', { name: 'Project tabs' })).toBeVisible();
 		await expect(editor.getByRole('tab')).toHaveCount(1);
+		await closeChromeDrawer(editor);
 
 		const mobileClip = clipByName(editor, toneA.name);
 		const clipDialog = await openClipProperties(page, editor, mobileClip, { force: true });
@@ -461,6 +469,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(effectsPanel).toBeHidden();
 
 		const firstTrack = editor.locator('[data-track-row]').first();
+		await openTrackHeaderDrawer(editor);
 		const trackMenuButton = firstTrack.getByRole('button', { name: 'Track menu' });
 		await trackMenuButton.click();
 		const trackMenu = page.locator('.audio-editor-track-menu');
@@ -475,6 +484,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(trackMenuBox.y).toBeGreaterThanOrEqual(trackMenuButtonBox.y + trackMenuButtonBox.height - 1);
 		await trackMenu.getByRole('menuitem', { name: 'Enable multi-track recording', exact: true }).click();
 		await expect(firstTrack.getByRole('button', { name: /^Arm for recording:/ })).toBeVisible();
+		await openTrackHeaderDrawer(editor);
 		await trackMenuButton.click();
 		await trackMenu.getByRole('menuitem', { name: 'Duplicate track', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-track-count', '3');

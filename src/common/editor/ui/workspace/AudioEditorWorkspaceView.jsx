@@ -10,6 +10,7 @@ import { formatAup4CompatibilitySummary } from '../dialogs/editor-dialog-model.j
 import { SidePlaybackMeter, SideRecordingMeter } from '../toolbar/AudioEditorMeterControls.jsx';
 import { AccessibleSelectionToolbar, EditorActionBar } from '../toolbar/AudioEditorTransportControls.jsx';
 import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
+import TransportToolbarGroup, { COMPACT_BAR_TRANSPORT_BUTTONS, DRAWER_TRANSPORT_BUTTONS } from '../toolbar/TransportToolbarGroup.jsx';
 import ProjectTabs from './ProjectTabs.jsx';
 import ProjectFeatureCompatibilityNotice from './ProjectFeatureCompatibilityNotice.tsx';
 import StorageCapacityPanel from './StorageCapacityPanel.tsx';
@@ -34,6 +35,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		automationToolEnabled,
 		blocked,
 		capabilities,
+		chromeDrawer,
 		compactLayout,
 		controller,
 		copy,
@@ -102,7 +104,24 @@ export default function AudioEditorWorkspaceView({ model }) {
 		uiFlags,
 		workspaceRef,
 	} = model;
-	const editorToolbar = <EditorToolToolbar {...toolbarProps} />;
+	// In the compact layout the action bar and the tool toolbar live in the
+	// chrome drawer; the primary transport moves into the compact bar.
+	const editorToolbar = <EditorToolToolbar {...toolbarProps} transportButtons={compactLayout ? DRAWER_TRANSPORT_BUTTONS : undefined} />;
+	const actionBar = (
+		<EditorActionBar
+			copy={copy}
+			snapshot={snapshot}
+			controller={controller}
+			showAup4={productId === 'soundscaper'}
+			run={run}
+			editBlocked={editBlocked}
+			blocked={blocked}
+			executeEdit={executeEdit}
+			onSaveAup4={() => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly }))}
+			onExportAudio={() => openSurface('export')}
+			onToggleMixer={() => run(() => controller.actions.preferences.togglePanel('mixer'))}
+		/>
+	);
 	return (
 		<TrackAutomationRuntimeProvider runtime={soundscaperWorkflow?.automationRuntime}>
 		<div
@@ -138,6 +157,10 @@ export default function AudioEditorWorkspaceView({ model }) {
 				desktopChrome={desktopChrome}
 				locale={locale}
 				menus={applicationMenus}
+				chromeDrawer={chromeDrawer}
+				compact={compactLayout}
+				compactBarSlot={compactLayout ? <TransportToolbarGroup {...toolbarProps} buttons={COMPACT_BAR_TRANSPORT_BUTTONS} /> : null}
+				drawerSlot={compactLayout ? <>{actionBar}{editorToolbar}</> : null}
 				projectName={project?.title || copy.untitledProject}
 				searchEntries={searchEntries}
 				saveState={snapshot.save?.state || 'saved'}
@@ -221,19 +244,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				}}
 			/>
 
-			<EditorActionBar
-				copy={copy}
-				snapshot={snapshot}
-				controller={controller}
-				showAup4={productId === 'soundscaper'}
-				run={run}
-				editBlocked={editBlocked}
-				blocked={blocked}
-				executeEdit={executeEdit}
-				onSaveAup4={() => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly }))}
-				onExportAudio={() => openSurface('export')}
-				onToggleMixer={() => run(() => controller.actions.preferences.togglePanel('mixer'))}
-			/>
+			{!compactLayout && actionBar}
 
 			{isVideoEditorWorkspace && <VideoEditorWorkspacePanels
 				controller={controller}
@@ -252,7 +263,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				blocked={blocked}
 			/>}
 
-			{toolbarDock === 'top' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="top">{editorToolbar}</div>}
+			{!compactLayout && toolbarDock === 'top' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="top">{editorToolbar}</div>}
 
 			{snapshot.monitor?.enabled && (
 				<div className="kw-audio-editor__monitor-warning" role="alert">{copy.monitorWarning}</div>
@@ -496,8 +507,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 
 			</div>
 
-			{toolbarDock === 'bottom' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="bottom">{editorToolbar}</div>}
-			{toolbarDock === 'floating' && <div
+			{!compactLayout && toolbarDock === 'bottom' && <div className="kw-audio-editor__toolbars" data-toolbar-dock="bottom">{editorToolbar}</div>}
+			{!compactLayout && toolbarDock === 'floating' && <div
 				ref={floatingToolbarRef}
 				className="kw-audio-editor__floating-toolbar"
 				data-toolbar-dock="floating"

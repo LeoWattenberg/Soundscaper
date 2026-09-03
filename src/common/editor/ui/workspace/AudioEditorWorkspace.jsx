@@ -461,7 +461,7 @@ export default function AudioEditorWorkspace({
 	});
 	const toolbarProps = {
 		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames,
-		editItems, executeEdit, isCompact, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
+		editItems, executeEdit, isCompact: isCompact || compactLayout, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
 		onJumpToStart: jumpToStart, onOpenRecordingOffset: openRecordingOffset, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
 		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,

@@ -12,6 +12,8 @@ const ENTRIES = Object.freeze([
 	['layoutAuto', 'Automatic', 'Automatisch'],
 	['layoutCompact', 'Compact (menus and track headers in drawers)', 'Kompakt (Menüs und Spurköpfe in Schubladen)'],
 	['layoutDesktop', 'Desktop', 'Desktop'],
+	['chromeMenu', 'Menu', 'Menü'],
+	['chromeMenuClose', 'Close menu', 'Menü schließen'],
 ]);
 
 export const WORKSPACE_CHROME_COPY_BY_LOCALE = Object.freeze({

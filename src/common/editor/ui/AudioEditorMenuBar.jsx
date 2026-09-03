@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
-import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { useAccessibilityProfile } from '@soundscaper/design-system/contexts/AccessibilityProfileContext';
 import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 // This file renders .application-header* markup by class name without
@@ -17,18 +16,27 @@ import {
 } from './application-menu-access-key.ts';
 import { materializeApplicationMenu } from './application-menu-materialization.ts';
 import { AUDACITY_MENU_ORDER } from './application-menu-order.ts';
+import {
+	DIRECT_ENABLED_MENU_ITEM_SELECTOR,
+	DIRECT_MENU_ITEM_SELECTOR,
+	MENU_ITEM_SELECTOR,
+	renderApplicationMenuItem,
+} from './application-menu-items.jsx';
+import { useApplicationMenuKeyboard } from './useApplicationMenuKeyboard.js';
+import WorkspaceChromeDrawer from './workspace/WorkspaceChromeDrawer.jsx';
 
 const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
 const applicationMarkDarkSrc = withBase('/logo/logo-klein-weiß.svg');
-const MENU_ITEM_SELECTOR = '[role="menuitem"], [role="menuitemcheckbox"]';
-const DIRECT_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"], :scope > [role="menuitemcheckbox"]';
-const DIRECT_ENABLED_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"]:not([aria-disabled="true"]), :scope > [role="menuitemcheckbox"]:not([aria-disabled="true"])';
 
 export default function AudioEditorMenuBar({
 	assistanceSearch = null,
 	appName,
+	chromeDrawer = /** @type {{isOpen: boolean, toggle: () => void, close: () => void} | null} */ (null),
+	compact = false,
+	compactBarSlot = /** @type {import('react').ReactNode} */ (null),
 	copy,
 	desktopChrome = null,
+	drawerSlot = /** @type {import('react').ReactNode} */ (null),
 	locale,
 	menus,
 	onAssistanceSearchClose,
@@ -44,6 +52,9 @@ export default function AudioEditorMenuBar({
 	const { activeProfile } = useAccessibilityProfile();
 	const menuButtonsRef = useRef([]);
 	const openMenuRef = useRef(null);
+	const compactBarRef = useRef(null);
+	const drawerToggleRef = useRef(null);
+	const drawerId = useId();
 	const [accessKeys] = useState(() => createApplicationMenuAccessKeyController({
 		focusFileMenu: () => undefined,
 		openMenuByAccessKey: () => false,
@@ -88,7 +99,10 @@ export default function AudioEditorMenuBar({
 	const openMenuAt = useCallback((index, { keyboard = false } = {}) => {
 		const trigger = menuButtonsRef.current[index];
 		if (!trigger) return;
-		const rect = trigger.getBoundingClientRect();
+		// The compact layout shows the menu as a sheet under the compact bar
+		// rather than beside its trigger inside the drawer.
+		const anchor = compact && compactBarRef.current ? compactBarRef.current : trigger;
+		const rect = anchor.getBoundingClientRect();
 		setSearchOpen(false);
 		onAssistanceSearchClose?.();
 		setActiveIndex(index);
@@ -97,11 +111,11 @@ export default function AudioEditorMenuBar({
 			id: menu.id,
 			index,
 			menu,
-			x: rect.left,
-			y: rect.bottom,
+			x: compact ? 8 : rect.left,
+			y: compact ? rect.bottom + 4 : rect.bottom,
 			autoFocus: keyboard,
 		});
-	}, [onAssistanceSearchClose, orderedMenus]);
+	}, [compact, onAssistanceSearchClose, orderedMenus]);
 
 	const onSearchOpenChange = useCallback((nextOpen) => {
 		if (nextOpen) closeMenu(false);
@@ -194,20 +208,26 @@ export default function AudioEditorMenuBar({
 		};
 	}, [copy.applicationMenu, openMenu]);
 
+	// The drawer lays the menubar out vertically, so Up/Down move between menus
+	// there and Right opens one; the desktop row keeps the horizontal keys.
 	const onTopLevelKeyDown = (event, index) => {
-		if (event.key === 'ArrowRight') {
+		const nextKey = compact ? 'ArrowDown' : 'ArrowRight';
+		const previousKey = compact ? 'ArrowUp' : 'ArrowLeft';
+		const step = compact ? 1 : horizontalRightDelta;
+		const openKeys = compact ? ['ArrowRight', 'Enter', ' '] : ['ArrowDown', 'ArrowUp', 'Enter', ' '];
+		if (event.key === nextKey) {
 			event.preventDefault();
-			focusMenuButton(index + horizontalRightDelta);
-		} else if (event.key === 'ArrowLeft') {
+			focusMenuButton(index + step);
+		} else if (event.key === previousKey) {
 			event.preventDefault();
-			focusMenuButton(index - horizontalRightDelta);
+			focusMenuButton(index - step);
 		} else if (event.key === 'Home') {
 			event.preventDefault();
 			focusMenuButton(0);
 		} else if (event.key === 'End') {
 			event.preventDefault();
 			focusMenuButton(orderedMenus.length - 1);
-		} else if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+		} else if (openKeys.includes(event.key)) {
 			event.preventDefault();
 			openMenuAt(index, { keyboard: true });
 		} else if (event.key === 'Escape' && openMenu) {
@@ -216,97 +236,17 @@ export default function AudioEditorMenuBar({
 		}
 	};
 
-	const onOpenMenuKeyDownCapture = (event) => {
-		if (!openMenu || !(event.target instanceof Element)) return;
-		const menu = event.target.closest('[role="menu"]');
-		if (!menu?.closest('.kw-audio-editor__application-menu')) return;
-		if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-			const items = Array.from(menu.querySelectorAll(DIRECT_ENABLED_MENU_ITEM_SELECTOR));
-			if (!items.length) return;
-			const currentIndex = items.indexOf(event.target);
-			let nextIndex = currentIndex;
-			if (event.key === 'Home') nextIndex = 0;
-			else if (event.key === 'End') nextIndex = items.length - 1;
-			else if (event.key === 'ArrowDown') nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
-			else nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
-			event.preventDefault();
-			event.stopImmediatePropagation();
-			items[nextIndex]?.focus?.({ preventScroll: true });
-			return;
-		}
-		const inSubmenu = Boolean(event.target.closest('.context-menu-submenu'));
-		const submenuItem = event.target.closest('.context-menu-item');
-		const hasSubmenu = Boolean(submenuItem?.querySelector(
-			':scope > .context-menu-item-content .context-menu-item-arrow',
-		));
-		const opensSubmenu = !inSubmenu && hasSubmenu;
-		if (!inSubmenu && event.key === 'Escape') {
-			event.preventDefault();
-			event.stopImmediatePropagation();
-			closeMenu();
-		} else if (!inSubmenu && !opensSubmenu && event.key === 'ArrowRight') {
-			event.preventDefault();
-			event.stopPropagation();
-			focusMenuButton(openMenu.index + horizontalRightDelta, { open: true });
-		} else if (!inSubmenu && event.key === 'ArrowLeft') {
-			event.preventDefault();
-			event.stopPropagation();
-			focusMenuButton(openMenu.index - horizontalRightDelta, { open: true });
-		} else if (hasSubmenu && ['ArrowRight', 'Enter'].includes(event.key)) {
-			setTimeout(() => {
-				setTimeout(() => {
-					submenuItem?.querySelector(':scope > .context-menu-submenu')
-						?.querySelector(MENU_ITEM_SELECTOR)?.focus?.({ preventScroll: true });
-				}, 0);
-			}, 0);
-		} else if (event.key === 'Tab') {
-			event.preventDefault();
-			event.stopPropagation();
-			event.stopImmediatePropagation?.();
-			const trigger = menuButtonsRef.current[openMenu.index];
-			const nextMenuIndex = openMenu.index + 1;
-			setOpenMenu(null);
-			requestAnimationFrame(() => {
-				if (event.shiftKey) {
-					trigger?.focus?.({ preventScroll: true });
-					return;
-				}
-				if (flatNavigation && nextMenuIndex < orderedMenus.length) {
-					focusMenuButton(nextMenuIndex, { open: false });
-					return;
-				}
-				if (!flatNavigation) setActiveIndex(0);
-				const toolbarStop = document.querySelector(
-					'#kw-audio-editor-design-system [data-editor-tool-toolbar] [tabindex]:not([tabindex="-1"]), '
-					+ '#kw-audio-editor-design-system [data-editor-tool-toolbar] button:not([disabled])',
-				);
-				toolbarStop?.focus?.({ preventScroll: true });
-			});
-		}
-	};
-
-	// The design system's ContextMenu also listens on `document` in the capture
-	// phase. Claim application-menu navigation one level earlier so listener
-	// registration timing cannot apply a key twice or swallow Tab.
-	const openMenuKeyDownRef = useRef(onOpenMenuKeyDownCapture);
-	openMenuKeyDownRef.current = onOpenMenuKeyDownCapture;
-	useLayoutEffect(() => {
-		const handleKeyDownCapture = (event) => openMenuKeyDownRef.current(event);
-		window.addEventListener('keydown', handleKeyDownCapture, true);
-		return () => window.removeEventListener('keydown', handleKeyDownCapture, true);
-	}, []);
-
-	const onOpenMenuClickCapture = (event) => {
-		if (!(event.target instanceof Element)) return;
-		const item = event.target.closest('.context-menu-item');
-		if (!item?.classList.contains('submenu-open')) return;
-		if (!item.querySelector(':scope > .context-menu-item-content .context-menu-item-arrow')) return;
-		// ContextMenuItem opens submenus on hover, then toggles them on click.
-		// Keep an already-open submenu open so a normal pointer click is stable.
-		event.preventDefault();
-		event.stopPropagation();
-		item.querySelector(':scope > .context-menu-submenu')?.querySelector(MENU_ITEM_SELECTOR)?.focus?.({ preventScroll: true });
-	};
+	const { onOpenMenuClickCapture } = useApplicationMenuKeyboard({
+		closeMenu,
+		flatNavigation,
+		focusMenuButton,
+		horizontalRightDelta,
+		menuButtonsRef,
+		menuCount: orderedMenus.length,
+		openMenu,
+		setActiveIndex,
+		setOpenMenu,
+	});
 
 	const style = {
 		'--header-bg': theme.background.surface.default,
@@ -315,20 +255,94 @@ export default function AudioEditorMenuBar({
 		'--header-menu-hover': theme.background.surface.hover,
 	};
 	const currentMenu = openMenu?.menu || null;
+	const drawer = compact && chromeDrawer ? chromeDrawer : null;
+	const search = (
+		<AudioEditorSearch
+			assistanceSearch={assistanceSearch}
+			copy={copy}
+			entries={searchEntries}
+			locale={locale}
+			onActivate={onSearchActivate}
+			onOpenChange={onSearchOpenChange}
+			open={searchOpen}
+		/>
+	);
+
+	const menuRow = (
+		<div className="application-header__windows-menu-row" data-application-menu-row>
+			<div
+				className="application-header__windows-menubar kw-audio-editor__menubar-scroll"
+				role="menubar"
+				aria-label={copy.applicationMenu}
+				aria-orientation={compact ? 'vertical' : undefined}
+				data-application-menubar
+				onBlur={(event) => {
+					if (flatNavigation || event.currentTarget.contains(event.relatedTarget)) return;
+					if (event.relatedTarget instanceof Element && event.relatedTarget.closest('.kw-audio-editor__application-menu')) return;
+					setActiveIndex(0);
+				}}
+			>
+				{orderedMenus.map((menu, index) => (
+					<button
+						key={menu.id}
+						ref={(element) => { menuButtonsRef.current[index] = element; }}
+						type="button"
+						className={`application-header__menu-item${openMenu?.index === index ? ' application-header__menu-item--open' : ''}`}
+						role="menuitem"
+						aria-haspopup="menu"
+						aria-expanded={openMenu?.index === index}
+						aria-keyshortcuts={menuAccessKeysEnabled && menuAccessKeysById.has(menu.id)
+							? `Alt+${menuAccessKeysById.get(menu.id).toUpperCase()}`
+							: undefined}
+						tabIndex={flatNavigation ? 0 : index === activeIndex ? menuTabIndex : -1}
+						onFocus={() => setActiveIndex(index)}
+						onMouseEnter={() => { if (openMenu) openMenuAt(index); }}
+						onClick={() => openMenu?.index === index ? closeMenu(false) : openMenuAt(index)}
+						onKeyDown={(event) => onTopLevelKeyDown(event, index)}
+					>
+						{menu.label}
+					</button>
+				))}
+			</div>
+			{!compact && search}
+		</div>
+	);
 
 	return (
 		<header
 			className={`kw-audio-editor__application-header application-header application-header--windows${desktopChrome ? ' kw-audio-editor__application-header--desktop' : ''}`}
 			data-desktop-chrome={desktopChrome ? 'true' : undefined}
+			data-chrome-layout={compact ? 'compact' : 'desktop'}
 			style={style}
 		>
-			<div className="application-header__windows-titlebar">
+			<div
+				ref={compactBarRef}
+				className={`application-header__windows-titlebar${compact ? ' kw-audio-editor__compact-bar' : ''}`}
+				data-compact-bar={compact ? 'true' : undefined}
+			>
+				{drawer && (
+					<button
+						ref={drawerToggleRef}
+						type="button"
+						className="kw-audio-editor__chrome-drawer-toggle"
+						data-chrome-drawer-toggle
+						aria-label={drawer.isOpen ? copy.chromeMenuClose : copy.chromeMenu}
+						aria-expanded={drawer.isOpen}
+						aria-controls={drawerId}
+						onClick={() => drawer.toggle()}
+					>
+						<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+							<path d="M2 4h12M2 8h12M2 12h12" />
+						</svg>
+					</button>
+				)}
 				<div className="application-header__windows-title">
 					<img className="kw-audio-editor__application-mark kw-audio-editor__application-mark--light" src={applicationMarkLightSrc} alt="" aria-hidden="true" width="16" height="16" />
 					<img className="kw-audio-editor__application-mark kw-audio-editor__application-mark--dark" src={applicationMarkDarkSrc} alt="" aria-hidden="true" width="16" height="16" />
-					<span className="application-header__app-name">{projectName} — {appName}</span>
+					<span className="application-header__app-name">{projectName}{!compact && <> — {appName}</>}</span>
 				</div>
-				{projectTabs}
+				{compact ? compactBarSlot : projectTabs}
+				{compact && search}
 				<AudioEditorWindowControls
 					desktopChrome={desktopChrome}
 					fullscreenLabel={copy.fullscreen}
@@ -337,50 +351,20 @@ export default function AudioEditorMenuBar({
 				<span className="kw-audio-editor-sr-only" data-save-state data-state={saveState}>{saveText}</span>
 			</div>
 
-			<div className="application-header__windows-menu-row" data-application-menu-row>
-				<div
-					className="application-header__windows-menubar kw-audio-editor__menubar-scroll"
-					role="menubar"
-					aria-label={copy.applicationMenu}
-					data-application-menubar
-					onBlur={(event) => {
-						if (flatNavigation || event.currentTarget.contains(event.relatedTarget)) return;
-						if (event.relatedTarget instanceof Element && event.relatedTarget.closest('.kw-audio-editor__application-menu')) return;
-						setActiveIndex(0);
-					}}
+			{drawer ? (
+				<WorkspaceChromeDrawer
+					id={drawerId}
+					open={drawer.isOpen}
+					onClose={drawer.close}
+					label={copy.chromeMenu}
+					closeLabel={copy.chromeMenuClose}
+					toggleRef={drawerToggleRef}
 				>
-					{orderedMenus.map((menu, index) => (
-						<button
-							key={menu.id}
-							ref={(element) => { menuButtonsRef.current[index] = element; }}
-							type="button"
-							className={`application-header__menu-item${openMenu?.index === index ? ' application-header__menu-item--open' : ''}`}
-							role="menuitem"
-							aria-haspopup="menu"
-							aria-expanded={openMenu?.index === index}
-							aria-keyshortcuts={menuAccessKeysEnabled && menuAccessKeysById.has(menu.id)
-								? `Alt+${menuAccessKeysById.get(menu.id).toUpperCase()}`
-								: undefined}
-							tabIndex={flatNavigation ? 0 : index === activeIndex ? menuTabIndex : -1}
-							onFocus={() => setActiveIndex(index)}
-							onMouseEnter={() => { if (openMenu) openMenuAt(index); }}
-							onClick={() => openMenu?.index === index ? closeMenu(false) : openMenuAt(index)}
-							onKeyDown={(event) => onTopLevelKeyDown(event, index)}
-						>
-							{menu.label}
-						</button>
-					))}
-				</div>
-				<AudioEditorSearch
-					assistanceSearch={assistanceSearch}
-					copy={copy}
-					entries={searchEntries}
-					locale={locale}
-					onActivate={onSearchActivate}
-					onOpenChange={onSearchOpenChange}
-					open={searchOpen}
-				/>
-			</div>
+					{menuRow}
+					{projectTabs}
+					{drawerSlot}
+				</WorkspaceChromeDrawer>
+			) : menuRow}
 
 			<span className="kw-audio-editor-sr-only" data-project-name>{projectName}</span>
 			{currentMenu && (
@@ -393,44 +377,14 @@ export default function AudioEditorMenuBar({
 						onClose={() => closeMenu()}
 						className="kw-audio-editor__application-menu"
 					>
-						{currentMenu.items.map((item, index) => renderMenuItem(item, `${currentMenu.id}-${index}`, closeMenu))}
+						{currentMenu.items.map((item, index) => renderApplicationMenuItem(
+							item,
+							`${currentMenu.id}-${index}`,
+							{ closeMenu, onActivate: drawer ? drawer.close : null },
+						))}
 					</ContextMenu>
 				</div>
 			)}
 		</header>
-	);
-}
-
-function renderMenuItem(item, key, closeMenu) {
-	if (item.divider) return <ContextMenuItem key={key} isDivider />;
-	const children = item.items?.map((child, index) => renderMenuItem(child, `${key}-${index}`, closeMenu));
-	const activate = item.disabled || typeof item.onClick !== 'function' ? undefined : (...args) => {
-		// The vendor item invokes onClose after its action. Close first so a
-		// dialog opened by the action captures the top-level menu as its return target.
-		closeMenu();
-		return item.onClick(...args);
-	};
-	const plainLabel = item.disabledReason ? (
-		<span title={item.disabledReason} data-disabled-reason={item.disabledReason}>
-			{item.label}
-			<span className="kw-audio-editor-sr-only"> — {item.disabledReason}</span>
-		</span>
-	) : item.label;
-	const label = item.checked === undefined ? plainLabel : (
-		<span data-audio-editor-menu-checked={item.checked ? 'true' : 'false'}>{plainLabel}</span>
-	);
-	return (
-		<ContextMenuItem
-			key={item.id || key}
-			label={label}
-			shortcut={item.shortcut}
-			disabled={item.disabled}
-			checked={item.checked}
-			hasSubmenu={Boolean(children?.length)}
-			onClick={activate}
-			onClose={() => closeMenu()}
-		>
-			{children}
-		</ContextMenuItem>
 	);
 }

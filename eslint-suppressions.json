@@ -882,9 +882,6 @@
   "src/common/editor/ui/AudioEditorMenuBar.jsx": {
     "no-restricted-syntax": {
       "count": 3
-    },
-    "no-useless-assignment": {
-      "count": 1
     }
   },
   "src/common/editor/ui/DesignSystemRuntime.jsx": {

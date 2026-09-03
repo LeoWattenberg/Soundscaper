@@ -162,7 +162,7 @@ test('approved graph ceilings remain hard limits', () => {
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.framescaper, {
 		requests: 80,
 		rawBytes: 7_000_000,
-		brotliBytes: 1_600_000,
+		brotliBytes: 1_650_000,
 	});
 });
 

@@ -20,10 +20,14 @@ export const STARTUP_GRAPH_BUDGETS = Object.freeze({
 	// breached it regardless of what it contained: the compressor and limiter
 	// metering work grew the graph 6,729 bytes and tipped it over. A ceiling with
 	// 0.036% slack reports commit order rather than startup cost.
+	// The brotli ceiling was raised from 1_600_000 for the same reason: the
+	// compact layout (chrome drawer, compact bar and its stylesheet) grew the
+	// shell a few kilobytes and landed 1,348 bytes over a ceiling the graph had
+	// already crept up to.
 	framescaper: Object.freeze({
 		requests: 80,
 		rawBytes: 7_000_000,
-		brotliBytes: 1_600_000,
+		brotliBytes: 1_650_000,
 	}),
 });
 

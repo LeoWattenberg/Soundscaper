@@ -10,6 +10,7 @@ import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { settleFiniteAnimations } from './helpers/settle-finite-animations.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
+import { openChromeDrawer } from './helpers/responsive-layout.js';
 import { seedWorkspaceOnboardingComplete } from './helpers/browser-environment-stubs.js';
 
 export { resolveBrowserProductTestUrl };
@@ -23,6 +24,13 @@ export {
 	stubStorageEstimate,
 } from './helpers/browser-environment-stubs.js';
 export { closeWorkspacePanel, dockWorkspacePanel, openWorkspacePanelMenu, workspacePanelMenu, workspacePanelMenuButton } from './helpers/workspace-panel-chrome.js';
+export {
+	closeChromeDrawer,
+	expectSurfaceWithinViewport,
+	openChromeDrawer,
+	openTrackHeaderDrawer,
+	waitForResponsiveEditorLayout,
+} from './helpers/responsive-layout.js';
 
 /**
  * The File-menu label for the Scape export, which names the suffix the running
@@ -220,6 +228,7 @@ export async function openSelectionEffectDialog(page, editor) {
 }
 
 export async function openParametricEqSelectionEffect(page, editor) {
+	await openChromeDrawer(editor);
 	const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
 	await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
 	const effectMenu = page.getByRole('menu', { name: 'Effect', exact: true });
@@ -345,6 +354,7 @@ export async function openNestedCommandMenu(page, editor, menu, actions, options
 	return currentMenu;
 }
 async function openCommandMenu(page, editor, menu, options) {
+	await openChromeDrawer(editor);
 	await editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
 		.getByRole('menuitem', { name: menu, exact: true }).click();
 	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
@@ -366,31 +376,11 @@ export function getMenuItem(menu, label) {
 		.first();
 }
 
-export async function expectSurfaceWithinViewport(surface, page) {
-	const box = await surface.boundingBox();
-	expect(box).not.toBeNull();
-	const viewport = page.viewportSize();
-	expect(viewport).not.toBeNull();
-	expect(box.x).toBeGreaterThanOrEqual(0);
-	expect(box.y).toBeGreaterThanOrEqual(0);
-	expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
-	expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
-}
-
 export async function setDocumentTheme(page, theme) {
 	await page.evaluate((value) => { document.documentElement.dataset.theme = value; }, theme);
 	await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 	await expect.poll(() => page.locator('[data-audio-editor]').evaluate((root) => root.style.colorScheme)).toBe(theme);
 	await page.waitForTimeout(50);
-}
-
-export async function waitForResponsiveEditorLayout(editor) {
-	await expect.poll(() => editor.evaluate((root) => (
-		root.classList.contains('kw-audio-editor--compact') === window.matchMedia('(max-width: 900px)').matches
-	))).toBe(true);
-	await editor.evaluate(() => new Promise((resolve) => {
-		requestAnimationFrame(() => requestAnimationFrame(resolve));
-	}));
 }
 
 export async function dispatchPinch(timeline) {

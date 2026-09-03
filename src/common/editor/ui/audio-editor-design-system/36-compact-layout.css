@@ -1,0 +1,301 @@
+/*
+	Compact layout: the desktop chrome (menubar, action bar, tool toolbar) and
+	the track-header column move into drawers while a 44px compact bar keeps
+	the menu toggle, the project name, the primary transport and search. Every
+	rule keys off the root's data-layout attribute so the Layout preference can
+	force the layout at any width; the 900px media query only decides 'auto'.
+*/
+
+#kw-audio-editor-design-system[data-layout='compact'] {
+	min-height: 0;
+}
+
+/* ---------- Compact bar ---------- */
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__application-header {
+	flex: 0 0 44px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__application-header.application-header--windows {
+	height: 44px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__compact-bar {
+	display: flex;
+	height: 44px;
+	align-items: center;
+	gap: 4px;
+	padding: 0 6px 0 2px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__compact-bar .application-header__windows-title {
+	min-width: 0;
+	flex: 1 1 auto;
+	gap: 6px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__compact-bar .application-header__app-name {
+	font-size: 13px;
+	line-height: 16px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-toggle {
+	display: grid;
+	width: 40px;
+	height: 40px;
+	flex: none;
+	place-items: center;
+	padding: 0;
+	color: var(--header-text);
+	background: transparent;
+	border: 0;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-toggle svg {
+	width: 20px;
+	height: 20px;
+	fill: none;
+	stroke: currentcolor;
+	stroke-linecap: round;
+	stroke-width: 1.75;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-toggle:hover,
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-toggle:focus-visible,
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-toggle[aria-expanded='true'] {
+	background: var(--header-menu-hover);
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__compact-bar .kw-audio-editor__transport {
+	flex: none;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__compact-bar .kw-audio-editor__fullscreen {
+	margin-right: 0;
+}
+
+/* ---------- Chrome drawer ---------- */
+
+/* The drawer hangs off the header, which already stacks above the workspace
+   and below flyouts and dialogs. It is fixed to the viewport, placed under the
+   header's measured edge, so its scrollable height is exactly what is visible. */
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer {
+	position: fixed;
+	z-index: 5;
+	top: var(--chrome-drawer-top, 44px);
+	bottom: 0;
+	left: var(--chrome-drawer-left, 0);
+	width: var(--chrome-drawer-width, 100%);
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer[data-open='true'] {
+	pointer-events: auto;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-scrim {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	padding: 0;
+	background: rgb(0 0 0 / 38%);
+	border: 0;
+	opacity: 0;
+	inset: 0;
+	transition: opacity 160ms ease;
+	pointer-events: none;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer[data-open='true'] .kw-audio-editor__chrome-drawer-scrim {
+	opacity: 1;
+	cursor: pointer;
+	pointer-events: auto;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	width: min(340px, 88%);
+	flex-direction: column;
+	overflow: hidden auto;
+	color: var(--header-text);
+	background: var(--header-bg, var(--kw-editor-panel));
+	border-inline-end: 1px solid var(--header-border, var(--kw-editor-line));
+	box-shadow: var(--kw-editor-shadow);
+	inset-inline-start: 0;
+	visibility: hidden;
+	transform: translateX(-100%);
+	transition: transform 180ms ease, visibility 0s linear 180ms;
+}
+
+:where(html[dir='rtl']) #kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel {
+	transform: translateX(100%);
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer[data-open='true'] .kw-audio-editor__chrome-drawer-panel {
+	visibility: visible;
+	transform: none;
+	transition: transform 180ms ease;
+}
+
+/* The menubar stands vertically inside the drawer. */
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .application-header__windows-menu-row {
+	display: block;
+	height: auto;
+	border-top: 0;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .application-header__windows-menubar {
+	display: flex;
+	height: auto;
+	flex-direction: column;
+	align-items: stretch;
+	padding: 6px 0;
+	overflow: visible;
+	border-top: 0;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .application-header__menu-item {
+	height: 40px;
+	justify-content: flex-start;
+	padding: 0 16px;
+	font-size: 14px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .application-header__menu-item--open {
+	background-color: var(--header-menu-hover);
+}
+
+/* Project tabs, the action bar and the tool toolbar stack below the menus. */
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .kw-audio-editor__project-tabs {
+	height: auto;
+	flex: none;
+	padding: 6px 8px;
+	border-top: 1px solid var(--header-border);
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .kw-audio-editor__action-bar {
+	height: auto;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+	gap: 6px;
+	padding: 8px;
+	border-top: 1px solid var(--header-border);
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .kw-audio-editor__action-bar-center {
+	flex-wrap: wrap;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .kw-audio-editor__action-bar-right {
+	position: static;
+	transform: none;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel [data-editor-tool-toolbar] .toolbar {
+	height: auto;
+	min-height: 0;
+	padding: 8px;
+	border-top: 1px solid var(--header-border);
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel [data-editor-tool-toolbar] .toolbar__content {
+	flex-wrap: wrap;
+	row-gap: 6px;
+}
+
+/* The application menu opens as a sheet under the compact bar. */
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__application-menu.context-menu {
+	width: calc(100vw - 16px);
+	min-width: 0;
+	max-width: none;
+	max-height: calc(100dvh - 60px);
+	overflow-y: auto;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__application-menu .context-menu-submenu {
+	position: fixed;
+	top: 52px;
+	right: 8px;
+	left: 8px;
+	max-height: calc(100dvh - 64px);
+	overflow-y: auto;
+}
+
+/* ---------- Search collapses to its icon trigger in the compact bar ---------- */
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search {
+	position: static;
+	width: 40px;
+	padding: 0 2px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search-compact-trigger {
+	display: grid;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search-surface {
+	display: none;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search[data-editor-search-open='true'] .kw-audio-editor__search-surface {
+	position: absolute;
+	z-index: var(--kw-editor-flyout-z);
+	top: calc(100% + 4px);
+	right: 8px;
+	left: 8px;
+	display: block;
+	width: auto;
+	padding: 8px;
+	background: var(--flyout-bg, var(--kw-editor-panel));
+	border: 1px solid var(--flyout-border, var(--kw-editor-line));
+	border-radius: 6px;
+	box-shadow: var(--kw-editor-shadow);
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search-field {
+	height: 34px;
+	grid-template-columns: 18px minmax(0, 1fr);
+	gap: 6px;
+	padding: 0 8px;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search-field > kbd {
+	display: none;
+}
+
+#kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__search-popup {
+	position: static;
+	width: auto;
+	max-height: min(62dvh, calc(100dvh - 128px));
+	margin-top: 6px;
+	padding: 0;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+/* ---------- Host integration ---------- */
+
+/* Viewport fullscreen pins the desktop header; the compact bar stays in flow
+   so nothing below it needs a fixed offset. */
+#kw-audio-editor-design-system[data-layout='compact'].kw-audio-editor--viewport-fullscreen .kw-audio-editor__application-header {
+	position: relative;
+	z-index: 1000;
+}
+
+/* The desktop titlebar is a window drag region; its controls are not. */
+#kw-audio-editor-design-system[data-layout='compact'] [data-desktop-chrome='true'] :is(
+	.kw-audio-editor__chrome-drawer-toggle,
+	.kw-audio-editor__compact-bar .kw-audio-editor__transport,
+	.kw-audio-editor__compact-bar .kw-audio-editor__search,
+	.kw-audio-editor__chrome-drawer
+) {
+	-webkit-app-region: no-drag;
+	app-region: no-drag;
+}
