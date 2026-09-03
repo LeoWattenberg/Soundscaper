@@ -55,7 +55,7 @@ const INCLUDED_EFFECTS = [
 test('Audacity manifest pins the legacy inventory and current StaffPad processing effects', () => {
 	assert.equal(AUDACITY_EFFECT_SOURCE.version, '3.7.7');
 	assert.equal(AUDACITY_EFFECT_SOURCE.commit, '5ef610ed23260d6d648175735bb16b32536eb30b');
-	assert.equal(AUDACITY_STAFFPAD_SOURCE.commit, 'd413849acab318b68c9d73b3ce5ac5324c1bb589');
+	assert.equal(AUDACITY_STAFFPAD_SOURCE.commit, '4c177d436e48c1d20f231eada44035593cb26292');
 	assert.deepEqual(audacityEffectTypes(), INCLUDED_EFFECTS);
 	assert.equal(Object.keys(AUDACITY_EFFECT_DEFINITIONS).length, 31);
 	assert.deepEqual(Object.keys(AUDACITY_EFFECT_UPSTREAM_FILES), INCLUDED_EFFECTS);

@@ -71,7 +71,7 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	assert.notEqual(modern.workspace.panels, AUDIO_EDITOR_WORKSPACE_PRESETS.modern.panels);
 });
 
-test('the Audacity preset mirrors the beta.4 Modern layout while the others keep the new chrome hidden', () => {
+test('the Audacity preset mirrors the 4.0.0 Modern layout while the others keep the new chrome hidden', () => {
 	const audacity = AUDIO_EDITOR_WORKSPACE_PRESETS.audacity;
 	const modern = AUDIO_EDITOR_WORKSPACE_PRESETS.modern;
 

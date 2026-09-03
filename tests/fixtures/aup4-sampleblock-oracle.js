@@ -1,5 +1,5 @@
 // Extracted from block 1 of Audacity's src/trackedit/tests/data/empty.aup4 at
-// commit d413849acab318b68c9d73b3ce5ac5324c1bb589.
+// commit 4c177d436e48c1d20f231eada44035593cb26292.
 export const AUP4_SAMPLEBLOCK_ORACLE = Object.freeze({
 	sampleCount: 470,
 	words: Object.freeze([

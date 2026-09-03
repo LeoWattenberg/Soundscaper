@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  *
  * Immutable, reviewable inventory of Audacity UI registrations at
- * d413849acab318b68c9d73b3ce5ac5324c1bb589. This is source evidence for the
+ * 4c177d436e48c1d20f231eada44035593cb26292. This is source evidence for the
  * browser parity manifest, not a second command registry. Update the hashes
  * and every list together when (and only when) the pinned revision changes.
  *
@@ -10,7 +10,7 @@
  * track-rate, and track-format actions.
  */
 
-export const AUDACITY_PINNED_UI_COMMIT = 'd413849acab318b68c9d73b3ce5ac5324c1bb589';
+export const AUDACITY_PINNED_UI_COMMIT = '4c177d436e48c1d20f231eada44035593cb26292';
 
 export const AUDACITY_PINNED_UI_AUDIT = deepFreeze({
 	literalRegistrations: 255,
@@ -237,7 +237,7 @@ export const AUDACITY_PINNED_BUILTIN_EFFECT_POLICY = deepFreeze({
 
 // Every literal action referenced by appmenumodel.cpp, including entries in
 // upstream-disabled/TODO builders, hidden developer menu builders, and the
-// builders beta-4 commented out (Export other, Skip to, Align content, Sort
+// builders 4.0.0 leaves commented out (Export other, Skip to, Align content, Sort
 // tracks, Macros, Diagnostics, Audio clips/Spectral selection, and the
 // Tutorials, Link account, Trim clip, Paste new label, Collapse/Expand all
 // tracks, Manage macros, Contrast analyzer, Plot spectrum, Raw data import

@@ -22,9 +22,9 @@ import { AUDACITY_ACTION_ALIASES } from './audacity-action-aliases.js';
 import { AUDACITY_ACTION_DEFINITIONS, AUDACITY_ACTION_STATUS } from './audacity-action-inventory.js';
 
 export const AUDACITY_ACTION_SOURCE = deepFreeze({
-	version: '4.0.0-beta.4',
-	commit: 'd413849acab318b68c9d73b3ce5ac5324c1bb589',
-	url: 'https://github.com/audacity/audacity/tree/d413849acab318b68c9d73b3ce5ac5324c1bb589/src',
+	version: '4.0.0',
+	commit: '4c177d436e48c1d20f231eada44035593cb26292',
+	url: 'https://github.com/audacity/audacity/tree/4c177d436e48c1d20f231eada44035593cb26292/src',
 });
 
 export { AUDACITY_ACTION_ALIASES, AUDACITY_ACTION_STATUS };

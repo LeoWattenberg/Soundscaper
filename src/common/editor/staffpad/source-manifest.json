@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"audacity": {
 		"repository": "https://github.com/audacity/audacity.git",
-		"revision": "d413849acab318b68c9d73b3ce5ac5324c1bb589",
+		"revision": "4c177d436e48c1d20f231eada44035593cb26292",
 		"license": "GPL-2.0-or-later (GPL-3.0 selected for this distribution)"
 	},
 	"pffft": {

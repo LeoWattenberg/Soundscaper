@@ -59,7 +59,7 @@ const MODERN_TOOLBAR_BUTTONS = Object.freeze({
 	deletePerTrackRipple: false,
 });
 
-// Audacity 4.0.0-beta.4 Modern workspace: play, stop, record, rewind, loop |
+// Audacity 4.0.0 Modern workspace: play, stop, record, rewind, loop |
 // split, spectrogram, zoom in/out | timecode | snap | meters, plus the
 // "Workspace" dropdown in the action bar.
 export const AUDACITY_TOOLBAR_BUTTONS = Object.freeze({

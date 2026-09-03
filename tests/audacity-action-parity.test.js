@@ -21,12 +21,12 @@ import {
 	createUnavailableApplicationMenuItem,
 } from '../src/common/editor/ui/application-menu-registry.ts';
 
-const PINNED_COMMIT = 'd413849acab318b68c9d73b3ce5ac5324c1bb589';
+const PINNED_COMMIT = '4c177d436e48c1d20f231eada44035593cb26292';
 
 test('Audacity action parity is pinned to the reviewed Audacity 4 source revision', () => {
 	assert.equal(AUDACITY_ACTION_SOURCE.commit, PINNED_COMMIT);
 	assert.match(AUDACITY_ACTION_SOURCE.url, new RegExp(PINNED_COMMIT));
-	assert.equal(AUDACITY_ACTION_SOURCE.version, '4.0.0-beta.4');
+	assert.equal(AUDACITY_ACTION_SOURCE.version, '4.0.0');
 	assert.ok(Object.isFrozen(AUDACITY_ACTION_SOURCE));
 });
 

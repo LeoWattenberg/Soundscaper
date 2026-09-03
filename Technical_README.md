@@ -657,7 +657,7 @@ AUDACITY_AUP4_NATIVE_RUNNER=/path/to/aup4-native-runner npm run audit:aup4-inter
 Runner protocol version 1 requires a direct compiled ELF, PE, Mach-O, or
 universal Mach-O executable, not a script or wrapper. Invoking
 `<runner> --revision` must print exactly
-`d413849acab318b68c9d73b3ce5ac5324c1bb589` followed only by optional trailing
+`4c177d436e48c1d20f231eada44035593cb26292` followed only by optional trailing
 whitespace. Invoking
 `<runner> --roundtrip <input.aup4> <output.aup4>` must open the read-only input
 through that revision's Audacity loader, save to the distinct output path

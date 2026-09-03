@@ -4,8 +4,8 @@ This directory contains a browser adaptation of Audacity's StaffPad time-and-pit
 
 ## Audacity StaffPad
 
-- Source: <https://github.com/audacity/audacity/tree/d413849acab318b68c9d73b3ce5ac5324c1bb589/au3/libraries/au3-time-and-pitch>
-- Exact revision: `d413849acab318b68c9d73b3ce5ac5324c1bb589`
+- Source: <https://github.com/audacity/audacity/tree/4c177d436e48c1d20f231eada44035593cb26292/au3/libraries/au3-time-and-pitch>
+- Exact revision: `4c177d436e48c1d20f231eada44035593cb26292`
 - Upstream license: GPL-2.0-or-later where an individual file does not state narrower terms. The GPLv3 option is selected when combined with this AGPLv3 application.
 - Copyright: the Audacity Team and the authors retained in individual source headers.
 

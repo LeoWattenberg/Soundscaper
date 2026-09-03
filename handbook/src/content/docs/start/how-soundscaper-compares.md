@@ -32,7 +32,7 @@ product enables see
   Several desktop-native routes are implemented but still gated on signed
   machine payloads; those rows say so.
 - **Audacity 4** rows come from the upstream inventory pinned in this
-  repository, `4.0.0-beta.4` at commit `d413849a`. A capability that upstream
+  repository, `4.0.0` at commit `4c177d43`. A capability that upstream
   registers but leaves disabled or comments out of the menu is
   recorded as such, and a capability with no registration in the pinned build is
   reported as not present in that build rather than as permanently absent.
@@ -212,7 +212,7 @@ product enables see
 
 ## What the differences add up to
 
-Audacity 4 beta is a single-pass editor. It has no buses, no sends, no
+Audacity 4 is a single-pass editor. It has no buses, no sends, no
 automation lanes, and no macros in the pinned build. Soundscaper keeps that
 editing model and adds the mixing, automation, and delivery layer on top of it,
 plus recording, video, and interchange work that Audacity does not attempt.

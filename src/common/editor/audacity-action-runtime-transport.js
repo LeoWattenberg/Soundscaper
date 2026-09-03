@@ -3,7 +3,7 @@
 /**
  * Transport action group for the Audacity parity runtime.
  *
- * Audacity 4.0.0-beta.4 splits the single `action://playback/play` action into
+ * Audacity 4.0.0 splits the single `action://playback/play` action into
  * `toggle-play-pause`, `toggle-play-stop` and `toggle-play-from-cursor`. The
  * first keeps the existing controller behaviour; the other two are composed
  * here from the controller's own play, stop and seek operations so that the

@@ -28,7 +28,7 @@ import {
 	AUDIO_EDITOR_UNAVAILABLE_APPLICATION_MENU_ACTION_IDS,
 } from '../src/common/editor/ui/application-menu-registry.ts';
 
-const PINNED_COMMIT = 'd413849acab318b68c9d73b3ce5ac5324c1bb589';
+const PINNED_COMMIT = '4c177d436e48c1d20f231eada44035593cb26292';
 
 test('pinned Audacity UI inventory is immutable and carries exact source hashes', () => {
 	assert.equal(AUDACITY_PINNED_UI_COMMIT, PINNED_COMMIT);

@@ -1,7 +1,7 @@
-/* Toolbar additions that mirror Audacity 4.0.0-beta.4: the Snap control,
+/* Toolbar additions that mirror Audacity 4.0.0: the Snap control,
    the workspace switcher and the Audacity preset's side-bar meter width. */
 
-/* Audacity 4.0.0-beta.4 keeps its side-bar playback meter in a 56px panel.
+/* Audacity 4.0.0 keeps its side-bar playback meter in a 56px panel.
    :where() holds this at the specificity of the base side-meter rules so the
    compact override in 13-responsive-accessibility.css still shrinks it. */
 #kw-audio-editor-design-system:where([data-workspace-preset='audacity']) .kw-audio-editor__side-playback-meter {

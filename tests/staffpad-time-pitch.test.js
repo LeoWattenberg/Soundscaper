@@ -35,7 +35,7 @@ const WASM_PATH = new URL('../src/common/editor/staffpad/staffpad.wasm', import.
 
 test('StaffPad mappings preserve Audacity pitch, tempo, speed, and sliding duration semantics', () => {
 	assert.equal(BarrelStaffPadRenderClient, StaffPadRenderClient);
-	assert.equal(STAFFPAD_AUDACITY_REVISION, 'd413849acab318b68c9d73b3ce5ac5324c1bb589');
+	assert.equal(STAFFPAD_AUDACITY_REVISION, '4c177d436e48c1d20f231eada44035593cb26292');
 	assert.equal(pitchCentsToRatio(1200), 2);
 	assert.equal(pitchCentsToRatio(-1200), 0.5);
 

@@ -1,6 +1,6 @@
 import { gunzipSync } from 'node:zlib';
 
-// Pinned verbatim from Audacity d413849acab318b68c9d73b3ce5ac5324c1bb589:
+// Pinned verbatim from Audacity 4c177d436e48c1d20f231eada44035593cb26292:
 // src/project/tests/data/empty.aup4
 // The gzip wrapper keeps the checked-in fixture reviewable as text; the
 // exported bytes hash to cb073217e4b224c4712c652d5559bc752e1d43df26114de6532fa2fb7c0def1d.

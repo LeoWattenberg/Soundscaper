@@ -45,12 +45,12 @@ The effect registry covers Audacity's menu-visible native processors and browser
 
 ## Audacity-derived waveform rendering
 
-Parts of `src/common/editor/audacity-waveform-renderer.js`, the waveform-window adapters under `src/common/editor/design-system-adapters/`, and the canvas/recording-preview integration under `src/common/editor/ui/timeline/` are JavaScript and TypeScript translations and browser adaptations of Audacity waveform rendering at exact commit `d413849acab318b68c9d73b3ce5ac5324c1bb589`:
+Parts of `src/common/editor/audacity-waveform-renderer.js`, the waveform-window adapters under `src/common/editor/design-system-adapters/`, and the canvas/recording-preview integration under `src/common/editor/ui/timeline/` are JavaScript and TypeScript translations and browser adaptations of Audacity waveform rendering at exact commit `4c177d436e48c1d20f231eada44035593cb26292`:
 
-- source: <https://github.com/audacity/audacity/tree/d413849acab318b68c9d73b3ce5ac5324c1bb589>
+- source: <https://github.com/audacity/audacity/tree/4c177d436e48c1d20f231eada44035593cb26292>
 - rendering-mode and sample-painter sources: `src/projectscene/view/tracksitemsview/au3/wavepainterutils.cpp`, `src/projectscene/view/tracksitemsview/au3/connectingdotspainter.cpp`, `src/projectscene/view/tracksitemsview/au3/samplespainterutils.cpp`, and `src/projectscene/view/tracksitemsview/au3/samplespainter.cpp`
 - waveform-summary and bitmap-painter sources: `au3/libraries/au3-wave-track-paint/waveform/WaveDataCache.cpp` and `au3/libraries/au3-wave-track-paint/waveform/WaveBitmapCache.cpp`
-- upstream license and notices: <https://github.com/audacity/audacity/blob/d413849acab318b68c9d73b3ce5ac5324c1bb589/LICENSE.txt>
+- upstream license and notices: <https://github.com/audacity/audacity/blob/4c177d436e48c1d20f231eada44035593cb26292/LICENSE.txt>
 - selected GPLv3 terms: [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)
 
 The cited Audacity files are GPL-2.0-or-later. GPL-3.0-only is selected for the adapted portions so they can be combined with this AGPL-3.0-only application under section 13 of both licenses. The Audacity-derived portions remain governed by GPLv3. Original code is copyright the Audacity Team and the individual authors named in the upstream source headers; the waveform cache sources credit Dmitry Vedenko.
@@ -59,13 +59,13 @@ The implementation was translated from C++ to JavaScript, adapted from Audacity'
 
 ## Audacity 4 parity and native AUP4 profile
 
-The action-parity manifest, native AUP4 codec/profile implementation, compatibility fixtures, and StaffPad selection are pinned to Audacity commit `d413849acab318b68c9d73b3ce5ac5324c1bb589`:
+The action-parity manifest, native AUP4 codec/profile implementation, compatibility fixtures, and StaffPad selection are pinned to Audacity commit `4c177d436e48c1d20f231eada44035593cb26292`:
 
-- source: <https://github.com/audacity/audacity/tree/d413849acab318b68c9d73b3ce5ac5324c1bb589>
+- source: <https://github.com/audacity/audacity/tree/4c177d436e48c1d20f231eada44035593cb26292>
 - AUP4 behavior sources: `au3/libraries/au3-project-file-io/ProjectSerializer.cpp`, `au3/libraries/au3-project-file-io/ProjectFileIO.cpp`, `au3/libraries/au3-project-file-io/SqliteSampleBlock.cpp`, and `au3/libraries/au3-realtime-effects/RealtimeEffectState.cpp`; native parameter names additionally follow the registered effect implementations under `src/effects/builtin_collection/` and `au3/libraries/au3-builtin-effects/`
 - StaffPad source allowlist: `au3/libraries/au3-time-and-pitch`
 - pinned Audacity-created fixtures: `src/project/tests/data/empty.aup4` SHA-256 `cb073217e4b224c4712c652d5559bc752e1d43df26114de6532fa2fb7c0def1d`, `src/project/tests/data/legacy_schema.aup4` SHA-256 `d726ad50c90df0472d567982e3706643799460e3bfb79256c30c9bd9431ef56b`, and the richer `src/trackedit/tests/data/testClipboard.aup4` SHA-256 `a8279b4573862579647b3826250d366af134ab9684fa20f409a03fd7227dba59`
-- upstream license and notices: <https://github.com/audacity/audacity/blob/d413849acab318b68c9d73b3ce5ac5324c1bb589/LICENSE.txt>
+- upstream license and notices: <https://github.com/audacity/audacity/blob/4c177d436e48c1d20f231eada44035593cb26292/LICENSE.txt>
 - selected GPLv3 terms: [`LICENSES/GPL-3.0.txt`](LICENSES/GPL-3.0.txt)
 
 `tests/fixtures/aup4-native-empty.js`, `tests/fixtures/aup4-native-legacy.js`, `tests/fixtures/aup4-native-rich.js`, `tests/fixtures/aup4-binary-xml-oracle.js`, and `tests/fixtures/aup4-sampleblock-oracle.js` contain the compressed Audacity-created empty/legacy/rich projects and compact interoperability data derived from the pinned Audacity sources. The rich fixture exercises two tracks, five clips, group state, stretch-to-tempo state, Float32 block reuse, and byte-exact Audacity-created summaries through an Audacity-created fixture → browser decode → browser write → browser reopen cycle. That fixture-codec audit does not execute Audacity's compiled native loader or writer. The separate compiled-native round-trip release gate is recorded as pending, with its required evidence, in `tests/fixtures/aup4-interop-gate.json`; `npm run audit:aup4-interop:release` fails closed until that evidence is produced. The browser codec is a clean JavaScript adaptation with typed opaque-node preservation; no QML, wxWidgets, or other `au3/` UI code is included.
@@ -112,7 +112,7 @@ are available from <https://github.com/lddubeau/saxes/tree/v6.0.0> and
 
 The committed scalar, single-threaded StaffPad module and its preferred source are in `src/common/editor/staffpad/`:
 
-- Audacity revision: `d413849acab318b68c9d73b3ce5ac5324c1bb589`; GPL-2.0-or-later with GPLv3 selected for this distribution
+- Audacity revision: `4c177d436e48c1d20f231eada44035593cb26292`; GPL-2.0-or-later with GPLv3 selected for this distribution
 - PFFFT revision: `09796885cd5b`; archive SHA-256 `fdc80563de8c31d6380886bc1ba0ffb897abde58611707ac94eb8edab850cbb`; UCAR/NCAR permissive license
 - Audacity/Muse dependency patch: muse_deps revision `adcefed921921cb090110b4a71a91966c1306889`; patch SHA-256 `e1e44efe52192f9ae919442a8a282b32679ed94d8a6351b084f7a3a4d07e613c`
 - Emscripten toolchain/runtime: `3.1.64`, including the retained musl, libc++, libc++abi, and compiler-rt notices

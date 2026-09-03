@@ -1,5 +1,5 @@
 // Compact PCM fingerprints for the scalar StaffPad source set vendored from
-// Audacity d413849acab318b68c9d73b3ce5ac5324c1bb589 with PFFFT 09796885cd5b.
+// Audacity 4c177d436e48c1d20f231eada44035593cb26292 with PFFFT 09796885cd5b.
 // Inputs are generated with integer-only arithmetic in staffpad-time-pitch.test.js.
 // `pcmSha256` fingerprints the committed WebAssembly artifact's canonical
 // little-endian Float32 output after native StaffPad latency trimming.
@@ -8,7 +8,7 @@
 // native hashes are retained for provenance; tests compare latency exactly and
 // RMS within a cross-toolchain tolerance because libm output is not bit-exact.
 export const STAFFPAD_NATIVE_GOLDEN = Object.freeze({
-	audacityRevision: 'd413849acab318b68c9d73b3ce5ac5324c1bb589',
+	audacityRevision: '4c177d436e48c1d20f231eada44035593cb26292',
 	pffftRevision: '09796885cd5b',
 	wasmSha256: '6b7e3fa86ddd90ddd6c358cf431742bd890fb76354509aa5732e4d3686791b7b',
 	cases: Object.freeze({

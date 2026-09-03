@@ -192,7 +192,7 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 	}
 });
 
-test('beta-4 play/stop and play-from-cursor toggles read transport state and the selection', async () => {
+test('4.0.0 play/stop and play-from-cursor toggles read transport state and the selection', async () => {
 	const controller = createAudioEditorController(null, {
 		headless: true,
 		store: createMemoryStore(),

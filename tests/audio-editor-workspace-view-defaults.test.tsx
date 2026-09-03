@@ -192,7 +192,7 @@ test('the workspace lifecycle applies view defaults through the shared hook', as
 	assert.doesNotMatch(lifecycle, /position === 'side'/u);
 });
 
-test('the Audacity preset narrows the side playback meter to the beta.4 panel width', async () => {
+test('the Audacity preset narrows the side playback meter to the 4.0.0 panel width', async () => {
 	const css = await readFile(
 		new URL('src/common/editor/ui/audio-editor-design-system/34-toolbar-snap-workspace.css', ROOT),
 		'utf8',
