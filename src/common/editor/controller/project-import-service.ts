@@ -16,6 +16,7 @@ import {
 	type LinkedOriginalImportLocatorReference,
 } from './project-import-options.ts';
 import { createImportResultWithWarnings } from './import-result-warnings.ts';
+import { inspectDecodedAudioSampleRate } from '../audio-file-metadata.js';
 import { scanEncodedAudioMarkers } from '../encoded-audio-marker-scan.ts';
 import { streamAiffBlobPcm } from '../aiff-pcm-chunk-reader.ts';
 import { inspectDesktopStandalonePcm } from './desktop-standalone-pcm-import.ts';
@@ -402,12 +403,18 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		const { context, decoded, originalSampleRate } = await decodeStandaloneAudioForImport({
 			file, codecRuntime: ffmpeg, sampleRate: projectSampleRate(),
 			getAudioContext: () => engine.getAudioContext({ resume: false }),
-			decodeWithWebAudio: (encoded) => engine.decodeAudioData(encoded),
+			// Pinning the native decode to the file's own rate keeps a compressed
+			// import from inheriting the output device's rate, the way the PCM
+			// streaming path above keeps a WAV's.
+			decodeWithWebAudio: (encoded: ArrayBuffer, decodedSampleRate: number | null) => (
+				engine.decodeAudioData(encoded, { sampleRate: decodedSampleRate })
+			),
 			decodeWithCodec: (input, settings) => ffmpeg.decode(input, settings),
 			bufferFromChannels: (channels, sampleRate, audioContext) => (
 				bufferFromChannels(channels, sampleRate, audioContext, copy)
 			),
 			inspectEncodedSampleRate: inspectEncodedAudioSampleRate,
+			inspectDecodedSampleRate: inspectDecodedAudioSampleRate,
 		});
 		assertImportProjectCurrent();
 		const canonical = await canonicalizeBuffer(decoded, context, null, copy);

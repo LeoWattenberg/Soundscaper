@@ -17,6 +17,10 @@ import {
 	normalizeSourceResolver,
 } from './clip-schedule-plan.ts';
 import {
+	decodeAtSourceSampleRate,
+	normalizeDecodeSampleRate,
+} from './pinned-decode.ts';
+import {
 	configureMasterLoudnessMeterChannelCount,
 	configureNativeSurroundDestination,
 } from '../surround-monitoring.ts';
@@ -360,10 +364,20 @@ getAudioWarpRenderStatus() {
 		});
 	},
 
-async decodeAudioData(data) {
+async decodeAudioData(data, { sampleRate = null } = {}) {
 		const context = await this.getAudioContext({ resume: false });
 		if (!context?.decodeAudioData) throw new Error('This AudioContext cannot decode audio.');
 		const arrayBuffer = data instanceof ArrayBuffer ? data : await data.arrayBuffer();
+		const sourceSampleRate = normalizeDecodeSampleRate(sampleRate);
+		const offlineAudioContextFactory = this.offlineAudioContextFactory;
+		if (offlineAudioContextFactory && sourceSampleRate !== null && sourceSampleRate !== context.sampleRate) {
+			const decoded = await decodeAtSourceSampleRate(
+				(rate) => createOfflineContext(offlineAudioContextFactory, 1, 1, rate),
+				arrayBuffer,
+				sourceSampleRate,
+			);
+			if (decoded) return decoded;
+		}
 		return context.decodeAudioData(arrayBuffer);
 	},
 

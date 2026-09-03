@@ -171,7 +171,15 @@ export interface EnginePublicApi {
 	applyProject(project: EngineProject | null, sourceBuffers?: EngineSourceBufferInput, options?: EngineLoadProjectOptions): Promise<void>;
 	setSourceResolver(sourceResolver?: EngineSourceResolver | null): this;
 	setChunkSources(chunkSources?: EngineChunkSourceInput): this;
-	decodeAudioData(data: ArrayBuffer | Blob): Promise<AudioBuffer>;
+	/**
+	 * Decodes encoded audio. `sampleRate` names the rate the file's own decoder
+	 * emits, which pins the decode so the browser does not resample the result to
+	 * the output device's rate; omit it to decode on the realtime context.
+	 */
+	decodeAudioData(
+		data: ArrayBuffer | Blob,
+		options?: Readonly<{ sampleRate?: number | null }>,
+	): Promise<AudioBuffer>;
 	getAudioContext(options?: Readonly<{ resume?: boolean }>): Promise<EngineAudioContext>;
 	setOutputDevice(deviceId?: string): Promise<EngineOutputDeviceState>;
 	getOutputDeviceState(): EngineOutputDeviceState;

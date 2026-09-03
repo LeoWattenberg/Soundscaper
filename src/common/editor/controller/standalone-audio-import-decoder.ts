@@ -24,7 +24,10 @@ interface StandaloneAudioImportDecodeOptions<
 	readonly codecRuntime: unknown;
 	readonly sampleRate: number;
 	readonly getAudioContext: () => Promise<Context>;
-	readonly decodeWithWebAudio: (encoded: ArrayBuffer) => Promise<Decoded>;
+	readonly decodeWithWebAudio: (
+		encoded: ArrayBuffer,
+		decodedSampleRate: number | null,
+	) => Promise<Decoded>;
 	readonly decodeWithCodec: (
 		file: File,
 		settings: Readonly<{ sampleRate: number }>,
@@ -35,6 +38,13 @@ interface StandaloneAudioImportDecodeOptions<
 		context: Context,
 	) => Promise<Decoded>;
 	readonly inspectEncodedSampleRate: (encoded: ArrayBuffer) => number | null;
+	/**
+	 * The rate the file's own decoder emits, where the container states it
+	 * unambiguously. Native decoding is pinned to it so the browser does not
+	 * resample the import to the output device's rate; containers that only
+	 * declare a core rate report null and decode unpinned.
+	 */
+	readonly inspectDecodedSampleRate: (encoded: ArrayBuffer) => number | null;
 }
 
 export interface StandaloneAudioImportDecodeResult<Context, Decoded extends DecodedAudio> {
@@ -67,7 +77,7 @@ export async function decodeStandaloneAudioForImport<
 	try {
 		const encoded = await options.file.arrayBuffer();
 		originalSampleRate = options.inspectEncodedSampleRate(encoded);
-		const decoded = await options.decodeWithWebAudio(encoded);
+		const decoded = await options.decodeWithWebAudio(encoded, options.inspectDecodedSampleRate(encoded));
 		return Object.freeze({ context, decoded, originalSampleRate });
 	} catch {
 		const codec = await options.decodeWithCodec(options.file, { sampleRate: options.sampleRate });

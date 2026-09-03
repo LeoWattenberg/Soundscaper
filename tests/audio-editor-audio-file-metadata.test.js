@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { inspectEncodedAudioSampleRate } from '../src/common/editor/audio-file-metadata.js';
+import {
+	inspectDecodedAudioSampleRate,
+	inspectEncodedAudioSampleRate,
+} from '../src/common/editor/audio-file-metadata.js';
 import { encodeWav } from '../src/common/editor/wav.js';
 
 test('encoded audio metadata preserves rates from common native decode containers', () => {
@@ -17,6 +20,27 @@ test('encoded audio metadata preserves rates from common native decode container
 	assert.equal(inspectEncodedAudioSampleRate(oggOpus()), 48_000);
 	assert.equal(inspectEncodedAudioSampleRate(mp3(32_000)), 32_000);
 	assert.equal(inspectEncodedAudioSampleRate(adts(44_100)), 44_100);
+});
+
+test('decode-rate inspection reports only the rates a decoder is bound to emit', () => {
+	assert.equal(inspectDecodedAudioSampleRate(flac(96_000)), 96_000);
+	assert.equal(inspectDecodedAudioSampleRate(oggVorbis(32_000)), 32_000);
+	assert.equal(inspectDecodedAudioSampleRate(oggOpus()), 48_000);
+	assert.equal(inspectDecodedAudioSampleRate(mp3(32_000)), 32_000);
+	assert.equal(inspectDecodedAudioSampleRate(wavPack(44_100)), 44_100);
+	assert.equal(inspectDecodedAudioSampleRate(null), null);
+});
+
+test('decode-rate inspection withholds the core rate AAC reconstructs above', () => {
+	// Spectral band replication emits twice the declared rate, so pinning a
+	// decode to the header would resample the reconstructed band away.
+	const elementaryStream = adts(44_100);
+	assert.equal(inspectEncodedAudioSampleRate(elementaryStream), 44_100);
+	assert.equal(inspectDecodedAudioSampleRate(elementaryStream), null);
+
+	const media = isoMedia(track('soun', 1_000, 48_000));
+	assert.equal(inspectEncodedAudioSampleRate(media), 48_000);
+	assert.equal(inspectDecodedAudioSampleRate(media), null);
 });
 
 test('ISO media inspection reads the audio sample entry instead of a track timescale', () => {
@@ -139,6 +163,14 @@ function mp3(rate) {
 		...asciiBytes('ID3'), 4, 0, 0, 0, 0, 0, 0,
 		0xff, 0xfb, 0x98, 0,
 	);
+}
+
+function wavPack(rate) {
+	assert.equal(rate, 44_100);
+	const bytes = new Uint8Array(32);
+	bytes.set(asciiBytes('wvpk'), 0);
+	new DataView(bytes.buffer).setUint32(24, 9 << 23, true);
+	return bytes;
 }
 
 function adts(rate) {

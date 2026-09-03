@@ -47,6 +47,31 @@ export function inspectEncodedAudioSampleRate(input) {
 	}
 }
 
+/**
+ * The subset of `inspectEncodedAudioSampleRate` that may be used to pin a
+ * decoding context to a file's own rate. A container's declared rate is not
+ * always the rate its decoder emits: HE-AAC declares the core rate in its ADTS
+ * header and MP4 sample entry while the decoder reconstructs twice that with
+ * spectral band replication, so pinning the decode to the declared rate would
+ * resample the reconstructed high band away. Containers whose declared rate is
+ * by definition the decoded rate are read here; everything else returns null and
+ * decodes wherever the caller was going to decode it anyway.
+ */
+export function inspectDecodedAudioSampleRate(input) {
+	const bytes = byteView(input);
+	if (!bytes || bytes.byteLength < 4) return null;
+	try {
+		return inspectWaveSampleRate(bytes)
+			?? inspectAiffSampleRate(bytes)
+			?? inspectFlacSampleRate(bytes)
+			?? inspectOggSampleRate(bytes)
+			?? inspectWavPackSampleRate(bytes)
+			?? inspectMpegOrAdtsSampleRate(bytes, false);
+	} catch {
+		return null;
+	}
+}
+
 function inspectWaveSampleRate(bytes) {
 	const signature = ascii(bytes, 0, 4);
 	const littleEndian = signature === 'RIFF' || signature === 'RF64';
@@ -192,7 +217,7 @@ function inspectWavPackSampleRate(bytes) {
 	return sampleRate(WAVPACK_SAMPLE_RATES[(flags >>> 23) & 0x0f]);
 }
 
-function inspectMpegOrAdtsSampleRate(bytes) {
+function inspectMpegOrAdtsSampleRate(bytes, includeAdts = true) {
 	const view = dataView(bytes);
 	let offset = 0;
 	let tagged = false;
@@ -215,6 +240,11 @@ function inspectMpegOrAdtsSampleRate(bytes) {
 
 		// ADTS uses layer bits 00 and carries its frequency index in byte 2.
 		if ((second & 0x06) === 0) {
+			// The frequency index is the core rate, which spectral band
+			// replication doubles, so a caller pinning a decode to the declared
+			// rate would throw the reconstructed band away. Abandon the scan
+			// rather than resynchronizing onto the AAC payload below.
+			if (!includeAdts) return null;
 			const frequencyIndex = (bytes[offset + 2] >>> 2) & 0x0f;
 			const rate = sampleRate(AAC_SAMPLE_RATES[frequencyIndex]);
 			if (rate) return rate;
