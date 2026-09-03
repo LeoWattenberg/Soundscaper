@@ -533,13 +533,7 @@ async function createFixture(context) {
 		{ name: 'winldd', revision: '105', installByDefault: false },
 	] })}\n`);
 	const browserSourceRoot = join(repositoryRoot, 'node_modules/playwright-core/.local-browsers');
-	for (const directory of [
-		'chromium-101',
-		'firefox-102',
-		'webkit-103',
-		'ffmpeg-104',
-		'winldd-105',
-	]) {
+	for (const directory of ['chromium-101', 'firefox-102', 'webkit-103', 'ffmpeg-104', 'winldd-105']) {
 		await writeFixtureFile(browserSourceRoot, `${directory}/INSTALLATION_COMPLETE`, '');
 		await writeFixtureFile(browserSourceRoot, `${directory}/bin/runtime`, directory);
 	}
