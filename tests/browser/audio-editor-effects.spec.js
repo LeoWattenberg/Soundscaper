@@ -601,4 +601,46 @@ import {
 		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
 		expect(errors).toEqual([]);
 	});
+	test('offers the bitcrusher with its named modes and applies it to a selection', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
+
+		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
+		await menubar.getByRole('menuitem', { name: 'Effect', exact: true }).click();
+		const effectMenu = page.getByRole('menu', { name: 'Effect', exact: true });
+		await expect(effectMenu).toBeVisible();
+		const distortion = effectMenu
+			.getByRole('menuitem', { name: /^Distortion and modulation(?:\s|$)/i })
+			.first();
+		await expect(distortion).toBeVisible();
+		await distortion.focus();
+		await page.keyboard.press('ArrowRight');
+		const bitcrusher = distortion.getByRole('menu').getByRole('menuitem', { name: /bitcrusher/i }).first();
+		await expect(bitcrusher).toBeVisible();
+		await bitcrusher.focus();
+		await page.keyboard.press('Enter');
+
+		const effectDialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
+		await expect(effectDialog).toBeVisible();
+		// Both choice parameters have to reach the dialog as real dropdowns;
+		// a native effect parameter that is not a number used to be dropped.
+		const dither = effectDialog.getByRole('group', { name: 'Dither', exact: true });
+		const interpolation = effectDialog.getByRole('group', { name: 'Interpolation', exact: true });
+		await expect(dither).toBeVisible();
+		await expect(interpolation).toBeVisible();
+		await chooseDropdown(page, dither, 'Triangular');
+		await chooseDropdown(page, interpolation, 'Linear');
+		await effectDialog.getByRole('button', { name: 'Apply to selection', exact: true }).click();
+
+		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000 });
+		await expect(effectDialog).toBeHidden();
+		await expect.poll(async () => (
+			(await effectSourceMetadata(page)).some((source) => /bitcrusher/i.test(source.name || ''))
+		)).toBe(true);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(clipByName(editor, monoTone.name)).toHaveCount(1);
+		expect(errors).toEqual([]);
+	});
 });

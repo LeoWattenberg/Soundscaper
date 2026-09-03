@@ -2,19 +2,31 @@
  * Bitcrusher catalogue entry.
  *
  * Kept out of effects.js so the catalogue stays a list rather than a place
- * effects are written, and so the parameter contract sits next to the DSP it
- * describes.
+ * effects are written. This module is the contract, and owns the parameter
+ * vocabulary: the catalogue reaches it during startup, so it must not pull the
+ * DSP in behind it. dsp.js depends on this file, never the other way round.
  */
 
-import {
-	BITCRUSHER_DITHER_MODES,
-	BITCRUSHER_INTERPOLATION_MODES,
-	BITCRUSHER_MAXIMUM_BITS,
-	BITCRUSHER_MAXIMUM_DOWNSAMPLING,
-	BITCRUSHER_MINIMUM_BITS,
-} from './dsp.js';
-
 export const BITCRUSHER_EFFECT_TYPE = 'bitcrusher';
+
+export const BITCRUSHER_DITHER_MODES = Object.freeze([
+	'none',
+	'rectangular',
+	'triangular',
+	'triangular-highpass',
+	'shaped',
+]);
+
+export const BITCRUSHER_INTERPOLATION_MODES = Object.freeze([
+	'sample-hold',
+	'linear',
+	'cubic',
+	'smooth',
+]);
+
+export const BITCRUSHER_MINIMUM_BITS = 1;
+export const BITCRUSHER_MAXIMUM_BITS = 16;
+export const BITCRUSHER_MAXIMUM_DOWNSAMPLING = 64;
 
 const TOPOLOGY_REASON = 'Changing the reconstruction or dither mode rebuilds the processor state.';
 

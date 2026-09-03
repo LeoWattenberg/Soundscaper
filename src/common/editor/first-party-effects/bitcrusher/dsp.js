@@ -29,25 +29,21 @@
  */
 
 import { createSeededRandom, ditherFromUniforms } from '../../pcm-dither.js';
+import {
+	BITCRUSHER_DITHER_MODES,
+	BITCRUSHER_INTERPOLATION_MODES,
+	BITCRUSHER_MAXIMUM_BITS,
+	BITCRUSHER_MAXIMUM_DOWNSAMPLING,
+	BITCRUSHER_MINIMUM_BITS,
+} from './definition.js';
 
-export const BITCRUSHER_DITHER_MODES = Object.freeze([
-	'none',
-	'rectangular',
-	'triangular',
-	'triangular-highpass',
-	'shaped',
-]);
-
-export const BITCRUSHER_INTERPOLATION_MODES = Object.freeze([
-	'sample-hold',
-	'linear',
-	'cubic',
-	'smooth',
-]);
-
-export const BITCRUSHER_MINIMUM_BITS = 1;
-export const BITCRUSHER_MAXIMUM_BITS = 16;
-export const BITCRUSHER_MAXIMUM_DOWNSAMPLING = 64;
+export {
+	BITCRUSHER_DITHER_MODES,
+	BITCRUSHER_INTERPOLATION_MODES,
+	BITCRUSHER_MAXIMUM_BITS,
+	BITCRUSHER_MAXIMUM_DOWNSAMPLING,
+	BITCRUSHER_MINIMUM_BITS,
+};
 
 /*
  * Lipshitz, Vanderkooy and Wannamaker's minimally audible noise shaping
