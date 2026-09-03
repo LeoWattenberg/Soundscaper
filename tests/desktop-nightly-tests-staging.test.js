@@ -481,6 +481,8 @@ async function createFixture(context) {
 		['scripts/lib/strict-json-snapshot.mjs', 'export const snapshot = true;\n'],
 		['.wrangler/browser-products/soundscaper/en/index.html', '<p>Soundscaper fixture</p>'],
 		['.wrangler/browser-products/framescaper/en/index.html', '<p>Framescaper fixture</p>'],
+		['handbook/lessons/steps.mjs', 'export const steps = true;\n'],
+		['handbook/lessons/soundscaper/volume.mjs', 'export const lesson = true;\n'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
 		['tests/browser/example.spec.js-snapshots/example-chromium-linux.png', 'png'],
 		['tests/browser/AGENTS.md', 'Do not package instructions.\n'],
