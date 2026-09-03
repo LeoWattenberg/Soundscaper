@@ -18,8 +18,8 @@ shows whether project saving is in progress or complete.
 
 ## 2. Import media
 
-Choose **File → Import**, then select an audio or supported video file. Imported
-material appears in the project and can also be organized in the Project Bin.
+Choose **File → Import audio**, then select an audio file. Imported material
+appears in the project and can also be organized in the Project Bin.
 
 For Audacity projects, use **File → Audacity projects** and choose the matching
 AUP, AUP3, or AUP4 import command. Legacy AUP projects also require their
@@ -42,3 +42,6 @@ rendered file.
 
 An audio export is a delivery copy, not an editable backup. Also export a
 [`.sscape` project file](/projects-and-data/project-files/) for important work.
+
+Working with picture rather than sound? Start with
+[your first Framescaper project](/framescaper/first-project/) instead.

@@ -60,7 +60,7 @@ function headLines(head) {
 	return lines;
 }
 
-export function page({ title, description, order, body, head = [] }) {
+export function page({ title, description, order, body, label = null, head = [] }) {
 	return [
 		'---',
 		`title: ${JSON.stringify(title)}`,
@@ -68,6 +68,7 @@ export function page({ title, description, order, body, head = [] }) {
 		'editUrl: false',
 		'sidebar:',
 		`  order: ${String(order)}`,
+		...(label ? [`  label: ${JSON.stringify(label)}`] : []),
 		...headLines(head),
 		'---',
 		'',

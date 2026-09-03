@@ -23,6 +23,25 @@ test('routes readers to product-specific first-project guides', async ({ page })
 	await expect(page.getByRole('heading', { level: 1, name: 'Your first Framescaper project' })).toBeVisible();
 });
 
+test('reaches a guide through its category, and back out again', async ({ page }) => {
+	await page.goto(`${BASE}guides/`);
+	await expect(page.getByRole('heading', { level: 1, name: 'Guides' })).toBeVisible();
+
+	// The index groups the guides by category, and each category heading is a
+	// link to the category's own page rather than a bare label.
+	await page.getByRole('heading', { level: 2, name: 'Volume and dynamics' }).getByRole('link').click();
+	await expect(page).toHaveURL(new RegExp(`${BASE}guides/volume/$`, 'u'));
+	await expect(page.getByRole('heading', { level: 1, name: 'Volume and dynamics' })).toBeVisible();
+
+	await page.getByRole('link', { name: 'Normalize peaks to a set level' }).first().click();
+	await expect(page).toHaveURL(new RegExp(`${BASE}guides/volume/normalize-peaks/$`, 'u'));
+	await expect(page.getByRole('heading', { level: 1, name: 'Normalize peaks to a set level' })).toBeVisible();
+
+	// Every guide leads back to the rest of its category and on to a related one.
+	await page.getByRole('link', { name: 'Even out volume with a compressor' }).first().click();
+	await expect(page).toHaveURL(new RegExp(`${BASE}guides/volume/even-out-volume-with-a-compressor/$`, 'u'));
+});
+
 test('local search indexes generated runtime references without cross-origin requests', async ({ page, baseURL }) => {
 	const firstPartyOrigin = new URL(baseURL).origin;
 	const crossOriginRequests = [];
@@ -57,6 +76,8 @@ for (const route of [
 	`${BASE}soundscaper/first-project/`,
 	`${BASE}reference/generated/formats/`,
 	`${BASE}reference/generated/audio-effects/`,
+	`${BASE}guides/`,
+	`${BASE}guides/volume/normalize-peaks/`,
 ]) {
 	test(`has no serious accessibility violations at ${route}`, async ({ page }) => {
 		await page.goto(route);

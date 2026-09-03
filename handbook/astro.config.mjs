@@ -5,6 +5,7 @@ import { defineConfig } from 'astro/config';
 import rehypeAccessibleTables from './src/plugins/rehype-accessible-tables.mjs';
 import rehypeHandbookBase from './src/plugins/rehype-handbook-base.mjs';
 import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
+import { SOUNDSCAPER_GUIDE_GROUPS } from './guides/soundscaper.mjs';
 
 export default defineConfig({
 	// The handbook is a path on the product origin, not a subdomain of its own:
@@ -42,7 +43,19 @@ export default defineConfig({
 			sidebar: [
 				{ label: 'Start here', items: [{ autogenerate: { directory: 'start' } }] },
 				{ label: 'Soundscaper', items: [{ autogenerate: { directory: 'soundscaper' } }] },
-				{ label: 'Lessons', items: [{ autogenerate: { directory: 'lessons' } }] },
+				// One sidebar group per guide category, built from the same catalog
+				// the pages are generated from, so a new category needs no edit here.
+				{
+					label: 'Guides',
+					items: [
+						{ label: 'All guides', link: '/guides/' },
+						...SOUNDSCAPER_GUIDE_GROUPS.map((group) => ({
+							label: group.title,
+							collapsed: true,
+							items: [{ autogenerate: { directory: `guides/${group.slug}` } }],
+						})),
+					],
+				},
 				{ label: 'Framescaper', items: [{ autogenerate: { directory: 'framescaper' } }] },
 				{ label: 'Projects and data', items: [{ autogenerate: { directory: 'projects-and-data' } }] },
 				{ label: 'Help', items: [{ autogenerate: { directory: 'help' } }] },

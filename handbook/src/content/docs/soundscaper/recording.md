@@ -5,9 +5,6 @@ sidebar:
   order: 3
 ---
 
-Recording is available in Soundscaper. Framescaper uses a different capture
-workflow and does not expose Soundscaper's audio recording toolset.
-
 ## Prepare the input
 
 1. Open the recording-device controls and choose an available input.

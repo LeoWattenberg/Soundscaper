@@ -12,8 +12,7 @@ edit boundary at the playhead. Gap-preserving and ripple variants determine
 whether later material stays in place or moves to close the removed region.
 
 Use track folders, clip groups, and the Project Bin to keep larger projects
-organized. Linked video and audio lanes remain synchronized until explicitly
-unlinked.
+organized.
 
 ## Build the mix
 
@@ -28,11 +27,15 @@ treating a meter target as a substitute for listening to the complete export.
 ## Export
 
 Choose **File → Export audio** for a mixed delivery or **Export selected audio**
-when only a selection should be rendered. Soundscaper can also export stems,
-labels, and video when the project and runtime support those outputs.
+when only a selection should be rendered. Soundscaper can also export stems and
+labels.
 
 Compressed formats use the FFmpeg runtime. Exact formats and conditional
 availability are listed in the [generated format reference](/reference/).
 
 Play the exported file in another application before delivering or deleting
 source material.
+
+For picture work — composing a sequence, video effects, and an MP4 or WebM
+delivery — hand the project to [Framescaper](/framescaper/) and see
+[export video](/framescaper/video-export/).

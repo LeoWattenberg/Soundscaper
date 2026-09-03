@@ -24,11 +24,11 @@ import { renderNyquistReference } from './docs-reference/nyquist.mjs';
 import { renderPlatformReference } from './docs-reference/platforms.mjs';
 import { renderProjectFileReference } from './docs-reference/project-files.mjs';
 import { renderVideoEffectReference } from './docs-reference/video-effects.mjs';
-import { renderLessonPages } from './docs-reference/lessons.mjs';
+import { renderGuidePages } from './docs-reference/guides.mjs';
 import { renderWorkspaceReference } from './docs-reference/workspaces.mjs';
-import { GENERATED_LESSON_DIRECTORY, GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments } from './docs-reference/sync.mjs';
+import { GENERATED_GUIDE_DIRECTORY, GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments } from './docs-reference/sync.mjs';
 
-export { GENERATED_LESSON_DIRECTORY, GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments };
+export { GENERATED_GUIDE_DIRECTORY, GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments };
 export { escapeMarkdownTableCell } from './docs-reference/markdown.mjs';
 export {
 	renderAssistanceReference,
@@ -37,7 +37,7 @@ export {
 	renderCommandReference,
 	renderFormatReference,
 	renderLanguageReference,
-	renderLessonPages,
+	renderGuidePages,
 	renderNyquistReference,
 	renderPlatformReference,
 	renderProjectFileReference,
@@ -45,10 +45,10 @@ export {
 	renderWorkspaceReference,
 };
 
-const LESSON_MODULES = Object.freeze({
-	lessons: 'handbook/lessons/soundscaper.mjs',
-	lessonFixtures: 'handbook/lessons/fixtures.mjs',
-	lessonSteps: 'handbook/lessons/steps.mjs',
+const GUIDE_MODULES = Object.freeze({
+	guides: 'handbook/guides/soundscaper.mjs',
+	guideFixtures: 'handbook/guides/fixtures.mjs',
+	guideSteps: 'handbook/guides/steps.mjs',
 });
 
 const RUNTIME_MODULES = Object.freeze({
@@ -230,18 +230,18 @@ export function renderReferenceDocuments(sources) {
 	]);
 }
 
-/** The lesson catalog and the two modules that give it words and example files. */
-export async function loadLessonSources(repositoryRoot) {
-	const names = Object.keys(LESSON_MODULES);
-	const loaded = await Promise.all(names.map((name) => import(moduleUrl(repositoryRoot, LESSON_MODULES[name]))));
+/** The guide catalog and the two modules that give it words and example files. */
+export async function loadGuideSources(repositoryRoot) {
+	const names = Object.keys(GUIDE_MODULES);
+	const loaded = await Promise.all(names.map((name) => import(moduleUrl(repositoryRoot, GUIDE_MODULES[name]))));
 	return Object.freeze(Object.fromEntries(names.map((name, index) => [name, loaded[index]])));
 }
 
-export function renderLessonDocuments({ lessons, lessonFixtures, lessonSteps }) {
-	return renderLessonPages({
-		groups: lessons.SOUNDSCAPER_LESSON_GROUPS,
-		describeStep: lessonSteps.describeStep,
-		fixtureFile: lessonFixtures.lessonFixtureFile,
+export function renderGuideDocuments({ guides, guideFixtures, guideSteps }) {
+	return renderGuidePages({
+		groups: guides.SOUNDSCAPER_GUIDE_GROUPS,
+		describeStep: guideSteps.describeStep,
+		fixtureFile: guideFixtures.guideFixtureFile,
 	});
 }
 
@@ -249,12 +249,12 @@ export async function generateReferenceDocuments(repositoryRoot, { write = true 
 	const sources = await loadReferenceSources(repositoryRoot);
 	const documents = renderReferenceDocuments(sources);
 	const result = await syncReferenceDocuments(repositoryRoot, documents, { write });
-	const lessonDocuments = renderLessonDocuments(await loadLessonSources(repositoryRoot));
-	const lessonResult = await syncReferenceDocuments(repositoryRoot, lessonDocuments, {
-		write, directory: GENERATED_LESSON_DIRECTORY,
+	const guideDocuments = renderGuideDocuments(await loadGuideSources(repositoryRoot));
+	const guideResult = await syncReferenceDocuments(repositoryRoot, guideDocuments, {
+		write, directory: GENERATED_GUIDE_DIRECTORY,
 	});
 	return Object.freeze({
-		stale: Object.freeze([...result.stale, ...lessonResult.stale.map((name) => `lessons/${name}`)]),
-		documentCount: documents.size + lessonDocuments.size,
+		stale: Object.freeze([...result.stale, ...guideResult.stale.map((name) => `guides/${name}`)]),
+		documentCount: documents.size + guideDocuments.size,
 	});
 }
