@@ -25,6 +25,8 @@ import { GUIDE_EXAMPLE_BASE_URL, exampleAudio } from '../handbook/guides/example
 
 export const STAGING_DIRECTORY = '.wrangler/guide-examples';
 export const BUCKET_NAME = 'soundscaper-assets';
+/** The bucket was created in the EU jurisdiction; Wrangler cannot find it without being told so. */
+export const BUCKET_JURISDICTION = 'eu';
 const BUCKET_PREFIX = new URL(GUIDE_EXAMPLE_BASE_URL).pathname.replace(/^\/+/u, '');
 
 function run(command, args) {
@@ -69,8 +71,12 @@ if (invokedDirectly) {
 		if (upload) {
 			for (const example of staged) {
 				// Wrangler 4 writes to its local R2 simulation unless told otherwise;
-				// `--remote` is what puts the object in the real bucket.
-				await run('npx', ['wrangler', 'r2', 'object', 'put', `${BUCKET_NAME}/${example.key}`, '--file', example.path, '--content-type', 'audio/wav', '--remote']);
+				// `--remote` is what puts the object in the real bucket, and the
+				// jurisdiction is part of the bucket's identity there.
+				await run('npx', [
+					'wrangler', 'r2', 'object', 'put', `${BUCKET_NAME}/${example.key}`,
+					'--file', example.path, '--content-type', 'audio/wav', '--remote', '--jurisdiction', BUCKET_JURISDICTION,
+				]);
 			}
 			console.log(`Uploaded ${String(staged.length)} example recordings.`);
 		}
