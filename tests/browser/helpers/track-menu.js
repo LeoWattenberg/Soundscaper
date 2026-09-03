@@ -11,29 +11,10 @@ export const TRACK_MENU_TRIGGER = /^(?:Track menu|Track options|Spuroptionen|Spu
 /**
  * Drive a per-track command from the track control panel's overflow menu, which is where
  * track-scoped commands live rather than the application menubar. Pass a nested path to
- * reach a submenu such as Move track, Display, or Sample rate.
+ * reach a submenu such as Move track or Display.
  */
 export async function chooseTrackMenuAction(page, editor, trackRow, path) {
 	await (await openTrackMenuPath(page, editor, trackRow, path)).click();
-}
-
-/**
- * Take a track menu command only where it would change something, and report whether it
- * ran. A checked item restates state the track already carries - a sample rate the device
- * clock already decoded to - and commits nothing, so a caller that asserts a history entry
- * has to tell the two apart rather than read the no-op as a lost command.
- */
-export async function chooseUncheckedTrackMenuAction(page, editor, trackRow, path) {
-	const item = await openTrackMenuPath(page, editor, trackRow, path);
-	if (await item.locator('> .context-menu-item-content > .context-menu-item-checkmark > *').count() === 0) {
-		await item.click();
-		return true;
-	}
-	// The first Escape closes the submenu the path opened, the second the track menu.
-	await page.keyboard.press('Escape');
-	await page.keyboard.press('Escape');
-	await expect(page.locator('.audio-editor-track-menu')).toBeHidden();
-	return false;
 }
 
 async function openTrackMenuPath(page, editor, trackRow, path) {

@@ -58,11 +58,11 @@ test('the proxy workflow is lazy, menu-only, and does not activate native M5 pro
 	const finishingMenu = readFileSync('src/common/editor/ui/framescaper-video-finishing-menu.ts', 'utf8');
 	const projectBin = readFileSync('src/common/editor/ui/workspace/ProjectBinPanel.jsx', 'utf8');
 	const nativeMenu = readFileSync('src/common/editor/ui/framescaper-native-services-menu.ts', 'utf8');
-	assert.match(overlays, /React\.lazy\(\(\) => import\('\.\.\/dialogs\/FramescaperVideoProxyDialog\.tsx'\)\)/u);
+	assert.match(overlays, /lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/FramescaperVideoProxyDialog\.tsx'\)\)/u);
 	assert.match(workspaceRuntime, /openVideoProxy:\s*\(\) => openSurface\('video-proxy'\)/u);
 	assert.match(finishingMenu, /createFramescaperVideoProxyApplicationMenuItems/u);
 	assert.match(projectBin,
-		/React\.lazy\(\(\) => import\('\.\.\/dialogs\/FramescaperVideoProxyDialog\.tsx'\)\)/u);
+		/lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/FramescaperVideoProxyDialog\.tsx'\)\)/u);
 	assert.match(projectBin, /createFramescaperVideoProxyApplicationMenuItems\(\{[\s\S]*productId: snapshot\.productId,[\s\S]*setProxyClipId\(menuVideoClip\.id\)/u);
 	assert.match(projectBin, /label=\{proxyMenuItem\.label\}[\s\S]*onClick=\{proxyMenuItem\.onClick\}/u);
 	assert.match(projectBin, /selectedClipId: proxyClipId/u,

@@ -79,7 +79,7 @@ export const DESKTOP_BUNDLED_CODEC_NOTICE_FILES = Object.freeze([
 	codecFile('wavpack', 'licenses/WAVPACK.txt', 1_561,
 		'1703dd391c9b422910287add8483a27d9bead0b0b5ccd6d5017e995a7192b3e2'),
 	codecFile('wavpack', 'source-manifest.json', 5_776,
-		'2b191f53f10c56aea3be86f00ed495c81b3f5f12c095dd8fdf2d01f0b98f712e'),
+		'9b2125389bbdb96c2c0d96c891389659fc3049197c9b42b2bf87add82ae2dbf8'),
 ]);
 
 /** Stage immutable codec notices into the generated desktop license tree. */

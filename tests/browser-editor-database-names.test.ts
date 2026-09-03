@@ -23,7 +23,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 test('the browser workflows open the database the web Framescaper bootstrap mounts', async () => {
 	const app = await readFile(resolve(ROOT, 'src/common/site/App.jsx'), 'utf8');
 	assert.match(app,
-		/lazy\(\(\) => import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrap\.tsx'\)\)/u);
+		/lazyEditorModule\(\(\) => import\('\.\.\/\.\.\/framescaper\/ui\/FramescaperAudioEditorBootstrap\.tsx'\)\)/u);
 	assert.match(app, /__SCAPE_PRODUCT__ === 'framescaper'[\s\S]*FramescaperAudioEditorBootstrap/u);
 	const profile = await readFile(
 		resolve(ROOT, 'src/framescaper/editor-project-storage-profile.ts'),

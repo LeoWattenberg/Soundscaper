@@ -69,17 +69,24 @@ test('maintained AIFF streaming observes cancellation before reading another chu
 	assert.deepEqual(input.ranges.at(-1), [54, 62]);
 });
 
-test('browser small WAV import retains Web Audio before codec fallback', async () => {
-	const stop = new Error('stop after browser decode');
+// The browser build has no codec runtime, so a small PCM WAV used to fall back to
+// decodeAudioData here. It streams on the maintained reader now, which is what
+// keeps an import's own rate and channel count instead of the output device's.
+test('browser small WAV import streams on the maintained reader rather than Web Audio', async () => {
 	const input = trackedAudioFile(pcmWav(), 'browser.wav', 'audio/wav');
-	const fixture = importFixture({ browser: true, canonicalFailure: stop });
+	const fixture = importFixture({ browser: true });
 
-	await assert.rejects(() => fixture.service.importFile(input), (error) => error === stop);
-	assert.equal(fixture.contextCalls, 1);
-	assert.equal(fixture.webAudioDecodeCalls, 1);
+	const result = await fixture.service.importFile(input);
+
+	assert.equal(result.destination, 'timeline');
+	assert.equal(fixture.contextCalls, 0);
+	assert.equal(fixture.webAudioDecodeCalls, 0);
 	assert.equal(fixture.brokerCalls, 0);
-	assert.equal(input.wholeBodyReads, 1);
-	assert.deepEqual(fixture.writtenFrameCounts, []);
+	assert.equal(input.wholeBodyReads, 0);
+	assert.deepEqual(fixture.writtenFrameCounts, [2, 2, 1]);
+	// The desktop standalone path forces a chunk stream; the browser build does not,
+	// because its engine is supported and can read the stored source back.
+	assert.deepEqual(fixture.activationOptions, [{ requireChunkStream: false }]);
 });
 
 test('maintained WAV imports reject sources above the 32-channel application limit before decode or storage', async () => {
@@ -101,7 +108,6 @@ test('maintained WAV imports reject sources above the 32-channel application lim
 
 function importFixture(options: Readonly<{
 	browser?: boolean;
-	canonicalFailure?: Error;
 	writerFailure?: Error;
 }> = {}) {
 	let nextId = 0;
@@ -131,10 +137,7 @@ function importFixture(options: Readonly<{
 			activation: Readonly<{ requireChunkStream?: boolean }>,
 		) => { activations += 1; activationOptions.push(activation); },
 		bufferFromChannels: async () => decoded,
-		canonicalizeBuffer: async () => {
-			if (options.canonicalFailure) throw options.canonicalFailure;
-			return decoded;
-		},
+		canonicalizeBuffer: async () => decoded,
 		commit: () => undefined,
 		copy: {
 			audioTrackNotFound: 'Audio track not found.',

@@ -13,12 +13,13 @@ import {
 	closeWorkspacePanel,
 	commitInput,
 	collectClientErrors,
+	clipByName,
 	importFiles,
 	getMenuItem,
+	openClipProperties,
 	openEffectsForTrack,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { chooseUncheckedTrackMenuAction } from './helpers/track-menu.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
@@ -81,19 +82,31 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		expect(projectId).toBeTruthy();
 		const history = await openHistoryPanel(page, editor);
 		const historyBeforeResample = await history.locator('[data-history-list] > li').count();
-		// Import decodes through the device AudioContext, so the track arrives at whatever
-		// rate that clock runs at: CI drives Firefox from a 48 kHz null sink and this
-		// machine from a 44.1 kHz one. Resampling to a rate the track already carries
-		// commits nothing, so only claim the entry where the command had work to do.
-		const resampled = await chooseUncheckedTrackMenuAction(
-			page, editor,
-			editor.locator(`[data-track-row][data-track-id="${trackId}"]`),
-			['Sample rate', '48000 Hz'],
-		);
-		if (resampled) {
+		// Import decodes through the device AudioContext, so the material arrives at
+		// whatever rate that clock runs at: CI drives Firefox from a 48 kHz null sink and
+		// this machine from a 44.1 kHz one. The rate is a clip property rather than a
+		// track menu entry, and resampling to the rate the source already carries commits
+		// nothing, so only claim the entry where the command had work to do.
+		const properties = await openClipProperties(page, editor, clipByName(editor, freezeImpulse.name));
+		const sourceRate = Number(await properties
+			.locator('[data-clip-source-fact="sampleRate"] .audio-editor-field__value').innerText());
+		expect(Number.isFinite(sourceRate)).toBe(true);
+		if (sourceRate !== FREEZE_SAMPLE_RATE) {
+			await properties.getByRole('button', { name: 'Resample', exact: true }).click();
+			const resampleDialog = page.locator('[data-clip-resample-dialog]');
+			await expect(resampleDialog).toBeVisible();
+			await commitInput(
+				resampleDialog.locator('[data-clip-resample-field="sampleRate"] input'),
+				String(FREEZE_SAMPLE_RATE),
+			);
+			await resampleDialog.getByRole('button', { name: 'Resample', exact: true }).click();
+			await expect(resampleDialog).toBeHidden();
 			await expect(history.locator('[data-history-list] > li'))
 				.toHaveCount(historyBeforeResample + 1, { timeout: 10_000 });
 		}
+		await closeDialog(properties);
+		await track.locator('[data-track-header]').click();
+		await expect(track.locator('[data-track-lane]')).toHaveAttribute('data-selected', 'true');
 		await closeWorkspacePanel(editor, 'history');
 
 		const effectsPanel = await openEffectsForTrack(editor, 1);

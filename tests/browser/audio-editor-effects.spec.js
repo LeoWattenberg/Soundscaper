@@ -42,8 +42,9 @@ import {
 
 		await openRackPicker(effectsPanel, 'track');
 		const picker = page.getByRole('menu', { name: 'Choose an effect' });
-		await expect(picker.getByRole('menuitem')).toHaveCount(22);
+		await expect(picker.getByRole('menuitem')).toHaveCount(23);
 		await expect(picker.getByRole('menuitem', { name: 'Invert' })).toHaveCount(1);
+		await expect(picker.getByRole('menuitem', { name: 'Bitcrusher' })).toHaveCount(1);
 		await expect(picker.getByRole('menuitem', { name: 'Paulstretch' })).toHaveCount(0);
 		await picker.getByRole('menuitem', { name: 'Invert' }).click();
 		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Invert' })).toHaveCount(1);
