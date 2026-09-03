@@ -19,10 +19,10 @@ const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
 		// Every product opens every product's projects; only saving is native.
-		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup3', 'aup4']),
+		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup3', 'aup4', 'dawproject']),
 		filters: Object.freeze([{
-			name: 'Scape and Audacity projects',
-			extensions: [...PROJECT_EXTENSIONS, 'aup3', 'aup4'],
+			name: 'Scape, Audacity and DAWproject projects',
+			extensions: [...PROJECT_EXTENSIONS, 'aup3', 'aup4', 'dawproject'],
 		}]),
 	}),
 	audio: Object.freeze({
@@ -86,7 +86,7 @@ const SAVE_PURPOSES = Object.freeze({
 	// here rather than each adding a purpose of its own.
 	interchange: Object.freeze({
 		defaultExtension: 'edl',
-		filters: [{ name: 'Edit interchange', extensions: ['edl', 'otio', 'fcpxml', 'xml'] }],
+		filters: [{ name: 'Edit interchange', extensions: ['edl', 'otio', 'fcpxml', 'xml', 'dawproject'] }],
 	}),
 });
 

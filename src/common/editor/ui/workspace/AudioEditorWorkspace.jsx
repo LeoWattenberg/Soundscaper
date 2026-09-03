@@ -223,7 +223,7 @@ export default function AudioEditorWorkspace({
 		controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
 	), [controller, requestScapeOpenDecision]);
 	const openProjectFile = useCallback((file) => (isProjectFileName(file?.name || '')
-		? openScapeProjectFile(file)
+		? openScapeProjectFile(file) : /\.dawproject$/iu.test(file?.name || '') ? controller.actions.project.openDawproject(file)
 		: controller.actions.project.openAudacityProject(file)), [controller, openScapeProjectFile]);
 	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(
 		fileService,

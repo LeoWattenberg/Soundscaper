@@ -6,7 +6,7 @@ import { isProjectFileName } from '../../../project-file-extensions.ts';
 // classifier, so both reach it from this one module.
 export { isProjectFileName };
 
-const LEGACY_AUDACITY_PROJECT_PATTERN = /\.(?:aup3|aup4)$/iu;
+const LEGACY_AUDACITY_PROJECT_PATTERN = /\.(?:aup3|aup4|dawproject)$/iu;
 const LABEL_PATTERN = /\.(?:srt|txt|vtt)$/iu;
 
 export function partitionWorkspaceFiles(files) {

@@ -1,7 +1,7 @@
 import { localeLanguage } from './locale.js';
 import { CANONICAL_EXTRA_COPY_BY_LOCALE } from './canonical-extras.js';
 import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
-import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js';
+import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
@@ -88,7 +88,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importLabels: 'Beschriftungen importieren',
 		importFile: 'Importieren',
 		...REPORT_COPY_BY_LOCALE.de,
-		...EXPORT_MENU_COPY_BY_LOCALE.de,
+		...EXPORT_MENU_COPY_BY_LOCALE.de, ...DAWPROJECT_COPY_BY_LOCALE.de,
 		...LABEL_EXPORT_COPY_BY_LOCALE.de,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.de,
 		exportSelectedAudio: 'Ausgewähltes Audio exportieren',
@@ -1102,7 +1102,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		importLabels: 'Import labels',
 		importFile: 'Import',
 		...REPORT_COPY_BY_LOCALE.en,
-		...EXPORT_MENU_COPY_BY_LOCALE.en,
+		...EXPORT_MENU_COPY_BY_LOCALE.en, ...DAWPROJECT_COPY_BY_LOCALE.en,
 		...LABEL_EXPORT_COPY_BY_LOCALE.en,
 		...DELIVERY_QUEUE_COPY_BY_LOCALE.en,
 		exportSelectedAudio: 'Export selected audio',

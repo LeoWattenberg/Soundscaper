@@ -62,6 +62,8 @@ export interface NativeProjectState {
 	saveState: NativeSaveState;
 	readOnly: boolean;
 	mobile: boolean;
+	/** The interchange report the File menu shows; DAWproject open and export publish here. */
+	deliveryReport?: unknown;
 }
 
 export interface NativeProjectCopy {
@@ -80,6 +82,10 @@ export interface NativeProjectCopy {
 	readonly aup4Saving: string;
 	readonly sourcePcmUnavailable: string;
 	readonly aup4Saved: string;
+	readonly chooseDawprojectFile?: string;
+	readonly dawprojectOpened?: string;
+	readonly dawprojectSaving?: string;
+	readonly dawprojectSaved?: string;
 }
 
 export type NativeProjectFile = Blob & Readonly<{ name: string }>;
@@ -104,10 +110,12 @@ export interface NativeProjectStore {
 		chunkFrames: number;
 	}>): Promise<NativeSourceWriter>;
 	deleteSource(sourceId: string): PromiseLike<unknown> | unknown;
+	/** The immutable original container of a video source, when the store keeps one. */
+	loadMediaAsset?(storageKey: string): Promise<Blob | null>;
 }
 
 export interface NativeFileSaveRequest {
-	readonly purpose: 'project';
+	readonly purpose: 'project' | 'interchange';
 	readonly blob: Blob;
 	readonly suggestedName: string;
 	readonly mimeType: string;
@@ -368,6 +376,13 @@ export interface NativeProjectServiceRuntime {
 	readonly sourceBuffers: ReadonlyMap<string, NativeAudioBuffer>;
 	readonly sourceChunkFrames: number;
 	readonly scapeMimeType: string;
+	/** Decodes an embedded DAWproject audio file the PCM reader cannot; absent means WAV only. */
+	readonly decodeAudioFile?: (file: Blob, name: string) => Promise<Readonly<{
+		channels: readonly Float32Array[];
+		sampleRate: number;
+	}>>;
+	readonly product?: Readonly<{ name?: string }>;
+	readonly applicationVersion?: string;
 }
 
 export interface OpenScapeOptions {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isProjectFileName } from '../../project-file-extensions.ts';
+import { createDawprojectService } from './dawproject-service.ts';
 import { hasCoreEditingProjectAuthority } from '../project-schema-version.ts';
 import { EditorDisposedError, type EditorProjectToken, type EditorTaskScope } from './lifecycle.ts';
 import { nativeProjectProgressMessage, publishAup4OpenStatus } from './native-project-status.ts';
@@ -45,6 +46,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	let importOwner: EditorTaskScope | null = null;
 	let saveOwner: EditorTaskScope | null = null;
 	let futureScapeArchive: NativeRetainedScapeArchive | null = null;
+	const dawproject = createDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, updateNativeProjectProgress, requireProject });
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,
@@ -52,7 +54,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		getAup4Client,
 		nativeProjectProgressMessage,
 		openAudacityProject,
-		openAup4,
+		openAup4, openDawproject: dawproject.openDawproject, saveDawproject: dawproject.saveDawproject,
 		openScape,
 		rememberAup4CompatibilityReport,
 		saveAup4,
@@ -256,9 +258,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 	}
 
 	/** Compatibility alias for integrations that opened only AUP4. */
-	async function openAup4(file: NativeProjectFile): Promise<Readonly<Record<string, unknown>> | undefined> {
-		return openAudacityProject(file);
-	}
+	async function openAup4(file: NativeProjectFile): Promise<Readonly<Record<string, unknown>> | undefined> { return openAudacityProject(file); }
 
 	async function saveAup4(options: SaveAup4Options = {}): Promise<NativeSavedFile | Readonly<{
 		cancelled: true;

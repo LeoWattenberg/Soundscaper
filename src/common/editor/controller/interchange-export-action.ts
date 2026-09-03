@@ -89,7 +89,7 @@ export async function exportProjectFcpxml(
  * all — a persisted video clip states sequence frames, and a musical audio clip
  * states beats, so all three profiles refused every real document outright.
  */
-function resolveDeliveredProject(
+export function resolveDeliveredProject(
 	runtime: InterchangeRuntime,
 ): Readonly<Record<string, unknown>> | null {
 	const persistedProject = runtime?.getProject?.();

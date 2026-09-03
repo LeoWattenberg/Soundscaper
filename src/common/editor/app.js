@@ -194,7 +194,7 @@ import { createSelectionViewService } from './controller/selection-view-service.
 import { createSourceLifecycleService } from './controller/source-lifecycle-service.ts';
 import { createDerivedAudioComposition } from './controller/derived-audio-composition.ts';
 import { createMixRenderService } from './controller/mix-render-service.ts';
-import { createNativeProjectService } from './controller/native-project-service.ts';
+import { createNativeProjectService } from './controller/native-project-service.ts'; import { createDawprojectAudioDecoder } from './controller/dawproject-audio-decode.ts'; import { applicationVersion } from './application-version.ts';
 import { createTrackActionAdapter } from './controller/track-action-adapter.ts';
 import { createTimelineAnnotationService } from './controller/timeline-annotation-service.ts';
 import { createSequenceTimingService } from './controller/sequence-timing-service.ts';
@@ -888,7 +888,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus,
 		publishDocumentSnapshot,
 		sourceBuffers,
-		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
+		sourceChunkFrames: SOURCE_CHUNK_FRAMES, decodeAudioFile: createDawprojectAudioDecoder({ engine, ffmpeg, copy }), product, applicationVersion: applicationVersion(),
 		scapeMimeType: SCAPE_MIME_TYPE,
 	});
 	const framescaperCaptureProxyScheduler = (framescaperCaptureRuntime
@@ -1829,7 +1829,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		listAudioEditorEffectPresets, listProjects, makeStereoTrack, mixAndRenderTracks,
 		moveClips, moveClipsToNewTrack, moveClipsToProjectBin, movePanelPreference, activatePanelTabPreference,
 		moveToolbarPreference, moveTrack, newProject, normalizePlaybackFrame,
-		openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
+		openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file)), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions)),
 		pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip, playPauseProjectBinClip,
 		prepareProjectBinReplacement, prepareProjectHandoff, assertProjectHandoffAllowed: () => { if (project) framescaperCapture?.assertOriginHandoffAllowed(project.id); projectAdminService.assertProjectHandoffAllowed(); }, previewAudacityEffectFromController, previewParametricEq,
 		previewRackEffect, previewVideoEffectGesture, product, getProject: () => project,

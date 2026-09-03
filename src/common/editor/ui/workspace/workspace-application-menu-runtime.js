@@ -181,6 +181,10 @@ export function createWorkspaceApplicationMenus({
 					? run(() => openDesktopFiles('project'))
 					: aup4InputRef.current?.click(),
 				openLegacyAup: () => legacyAupInputRef.current?.click(),
+				openDawproject: () => fileService.isDesktop
+					? run(() => openDesktopFiles('project'))
+					: aup4InputRef.current?.click(),
+				saveDawproject: () => run(() => controller.actions.project.saveDawproject()),
 				saveProject: () => run(() => controller.actions.project.save()),
 				saveScape: () => run(() => controller.actions.project.saveScape({ saveCopy: snapshot.readOnly })),
 				saveAup4: () => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly })),
