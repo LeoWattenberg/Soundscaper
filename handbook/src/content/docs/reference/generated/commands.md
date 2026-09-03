@@ -57,7 +57,7 @@ Product availability follows each product profile’s command filters. “—”
 | Crossfade Tracks | `nyquist:crossfadetracks` | — | Nyquist | Soundscaper | Audacity |
 | Cursor to next clip boundary | `select-cursor-to-next-clip-boundary` | — | Select > Audio clips | Soundscaper, Framescaper | Audacity |
 | Cursor to track end | `select-cursor-to-track-end` | — | Select > Region | Soundscaper, Framescaper | Audacity |
-| Custom track sample rate | `track-change-rate-custom` | — | Track context > Rate | Soundscaper, Framescaper | Audacity |
+| Custom track sample rate | `track-change-rate-custom` | — | Clip properties | Soundscaper, Framescaper | Audacity |
 | Cut | `action://cut` | — | Edit | Soundscaper, Framescaper | Audacity |
 | Cut and close gap on all tracks | `cut-all-tracks-ripple` | Shift+Ctrl+X | Edit > Cut | Soundscaper, Framescaper | Audacity |
 | Cut and close gap per clip | `cut-per-clip-ripple` | — | Edit > Cut | Soundscaper, Framescaper | Audacity |
@@ -265,8 +265,7 @@ Product availability follows each product profile’s command filters. “—”
 | Toggle spectral view | `action://trackedit/global-view-spectrogram` | — | View; Tools toolbar | Soundscaper, Framescaper | Audacity |
 | Toggle track selection | `track-view-toggle-selection` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Tone | `generator://tone` | — | Generate | Soundscaper | Audacity |
-| Track sample format | `action://trackedit/track/change-format?format=%1` | — | Track context > Format | Soundscaper, Framescaper | Audacity |
-| Track sample rate | `action://trackedit/track/change-rate?rate=%1` | — | Track context > Rate | Soundscaper, Framescaper | Audacity |
+| Track sample rate | `action://trackedit/track/change-rate?rate=%1` | — | Clip properties | Soundscaper, Framescaper | Audacity |
 | Track start to cursor | `select-track-start-to-cursor` | — | Select > Region | Soundscaper, Framescaper | Audacity |
 | Track start to end | `select-track-start-to-end` | — | Select > Region | Soundscaper, Framescaper | Audacity |
 | Tracks panel | `toggle-tracks` | — | View > Panels | Soundscaper, Framescaper | Audacity |

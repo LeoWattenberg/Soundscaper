@@ -295,6 +295,12 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'sampleFrameToBeat', policies: ['exact'] }],
 	},
 	{
+		id: 'clip-resample-output-extent',
+		file: 'src/common/editor/controller/clip-resample-service.ts',
+		behavior: 'Resampling point-rounds the source frame count once into the requested rate so the rendered extent and its storage preflight agree on one output length.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'video-source-import-placement',
 		file: 'src/common/editor/controller/source-import.ts',
 		behavior: 'Metadata-only imported video duration encloses the probed source; exact timing-sidecar placement is delegated to its separately registered authority helper.',
