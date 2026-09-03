@@ -7,6 +7,17 @@
 const COMB_DELAYS_44K = Object.freeze([1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617]);
 const ALLPASS_DELAYS_44K = Object.freeze([556, 441, 341, 225]);
 
+/*
+ * `Reverb_libSoX.h` positions the wet tone controls as one MIDI note range
+ * either side of note 72: a high-pass whose corner falls as `toneLow` rises,
+ * and a low-pass whose corner rises with `toneHigh`. Both use the same
+ * single-pole forms, so keeping the upstream note arithmetic keeps a preset's
+ * bright or dark character intact even though the reverberator itself is a
+ * browser adaptation rather than a SoX port.
+ */
+const TONE_CENTRE_NOTE = 72;
+const TONE_NOTE_SPAN = 48;
+
 export function applyAudacityBrowserReverb(channels, sampleRate = 48_000, params = {}) {
 	validateAudio(channels, sampleRate);
 	const settings = normalizeReverbParams(params);
@@ -17,6 +28,11 @@ export function applyAudacityBrowserReverb(channels, sampleRate = 48_000, params
 	const dry = settings.wetOnly ? 0 : dbToLinear(settings.dryGainDb);
 	const width = settings.stereoWidth / 100;
 	const scale = sampleRate / 44_100;
+	// Upstream pads the reverberator's input queue with silence, so pre-delay
+	// moves the wet signal only; the dry path stays aligned with the source.
+	const preDelayFrames = Math.round(settings.preDelay / 1_000 * sampleRate);
+	const highpass = createOnePoleHighpass(toneCornerHz(-settings.toneLow), sampleRate);
+	const lowpass = createOnePoleLowpass(toneCornerHz(settings.toneHigh), sampleRate);
 	const processed = channels.map((input, channel) => {
 		const combs = COMB_DELAYS_44K.map((delay, index) => createComb(
 			Math.max(1, Math.round((delay + channel * 23 + index * channel * 3) * scale)),
@@ -24,12 +40,15 @@ export function applyAudacityBrowserReverb(channels, sampleRate = 48_000, params
 		const allpasses = ALLPASS_DELAYS_44K.map((delay, index) => createAllpass(
 			Math.max(1, Math.round((delay + channel * 17 + index * channel * 2) * scale)),
 		));
+		const tone = [createOnePoleState(highpass), createOnePoleState(lowpass)];
 		const output = new Float32Array(input.length);
 		for (let frame = 0; frame < input.length; frame += 1) {
+			const source = frame >= preDelayFrames ? input[frame - preDelayFrames] : 0;
 			let value = 0;
-			for (const comb of combs) value += processComb(comb, input[frame], room * reverberance, damping);
+			for (const comb of combs) value += processComb(comb, source, room * reverberance, damping);
 			value /= combs.length;
 			for (const allpass of allpasses) value = processAllpass(allpass, value, 0.5);
+			for (const state of tone) value = processOnePole(state, value);
 			output[frame] = value;
 		}
 		return output;
@@ -50,13 +69,43 @@ export function applyAudacityBrowserReverb(channels, sampleRate = 48_000, params
 export function normalizeReverbParams(params = {}) {
 	return {
 		roomSize: numberInRange(params.roomSize, 75, 0, 100, 'roomSize'),
+		preDelay: numberInRange(params.preDelay, 10, 0, 200, 'preDelay'),
 		reverberance: numberInRange(params.reverberance, 50, 0, 100, 'reverberance'),
 		damping: numberInRange(params.damping, 50, 0, 100, 'damping'),
+		toneLow: numberInRange(params.toneLow, 100, 0, 100, 'toneLow'),
+		toneHigh: numberInRange(params.toneHigh, 100, 0, 100, 'toneHigh'),
 		wetGainDb: numberInRange(params.wetGainDb, -6, -60, 12, 'wetGainDb'),
 		dryGainDb: numberInRange(params.dryGainDb, 0, -60, 12, 'dryGainDb'),
 		stereoWidth: numberInRange(params.stereoWidth, 100, 0, 100, 'stereoWidth'),
 		wetOnly: Boolean(params.wetOnly),
 	};
+}
+
+function toneCornerHz(percent) {
+	return 440 * 2 ** ((TONE_CENTRE_NOTE + percent / 100 * TONE_NOTE_SPAN - 69) / 12);
+}
+
+function createOnePoleHighpass(cornerHz, sampleRate) {
+	const a1 = -Math.exp(-2 * Math.PI * cornerHz / sampleRate);
+	const b0 = (1 - a1) / 2;
+	return Object.freeze({ b0, b1: -b0, a1 });
+}
+
+function createOnePoleLowpass(cornerHz, sampleRate) {
+	const a1 = -Math.exp(-2 * Math.PI * cornerHz / sampleRate);
+	return Object.freeze({ b0: 1 + a1, b1: 0, a1 });
+}
+
+function createOnePoleState(coefficients) {
+	return { coefficients, input: 0, output: 0 };
+}
+
+function processOnePole(state, input) {
+	const { b0, b1, a1 } = state.coefficients;
+	const output = input * b0 + state.input * b1 - state.output * a1;
+	state.input = input;
+	state.output = output;
+	return output;
 }
 
 function createComb(length) {

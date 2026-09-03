@@ -93,8 +93,8 @@ const EFFECT_LAYOUTS = Object.freeze({
 		{ titleKey: 'effectCardMix', names: ['dryWet', 'feedbackPercent', 'outputGainDb'], knobs: true },
 	],
 	'audacity-reverb': [
-		{ titleKey: 'effectCardSpace', names: ['roomSize', 'stereoWidth'], knobs: true },
-		{ titleKey: 'effectCardTone', names: ['damping', 'reverberance'], knobs: true },
+		{ titleKey: 'effectCardSpace', names: ['roomSize', 'preDelay', 'stereoWidth'], knobs: true },
+		{ titleKey: 'effectCardTone', names: ['damping', 'reverberance', 'toneLow', 'toneHigh'], knobs: true },
 		{ titleKey: 'effectCardMix', names: ['wetGainDb', 'dryGainDb', 'wetOnly'], knobs: true, wide: true },
 	],
 	'audacity-repeat': [

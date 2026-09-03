@@ -201,8 +201,11 @@ Defaults and limits come from the same definitions the editor validates against,
 | Phaser | `audacity-phaser` | Output gain | -6 | -30 to 30 | dB |
 | Repeat | `audacity-repeat` | Number of repeats | 1 | 1 to 2147483647 | — |
 | Reverb | `audacity-reverb` | Room size | 75 | 0 to 100 | % |
+| Reverb | `audacity-reverb` | Pre-delay | 10 | 0 to 200 | ms |
 | Reverb | `audacity-reverb` | Reverberance | 50 | 0 to 100 | % |
 | Reverb | `audacity-reverb` | Damping | 50 | 0 to 100 | % |
+| Reverb | `audacity-reverb` | Tone low | 100 | 0 to 100 | % |
+| Reverb | `audacity-reverb` | Tone high | 100 | 0 to 100 | % |
 | Reverb | `audacity-reverb` | Wet gain | -6 | -60 to 12 | dB |
 | Reverb | `audacity-reverb` | Dry gain | 0 | -60 to 12 | dB |
 | Reverb | `audacity-reverb` | Stereo width | 100 | 0 to 100 | % |

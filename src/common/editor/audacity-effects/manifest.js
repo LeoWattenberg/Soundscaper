@@ -352,8 +352,11 @@ const definitions = {
 		browserAdaptation: 'schroeder',
 		params: {
 			roomSize: number(75, 0, 100, { unit: '%', step: 1 }),
+			preDelay: number(10, 0, 200, { unit: 'ms', step: 1 }),
 			reverberance: number(50, 0, 100, { unit: '%', step: 1 }),
 			damping: number(50, 0, 100, { unit: '%', step: 1 }),
+			toneLow: number(100, 0, 100, { unit: '%', step: 1 }),
+			toneHigh: number(100, 0, 100, { unit: '%', step: 1 }),
 			wetGainDb: number(-6, -60, 12, { unit: 'dB', step: 0.1 }),
 			dryGainDb: number(0, -60, 12, { unit: 'dB', step: 0.1 }),
 			stereoWidth: number(100, 0, 100, { unit: '%', step: 1 }),
