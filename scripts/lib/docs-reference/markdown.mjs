@@ -39,7 +39,28 @@ export function table(headers, rows) {
 	].join('\n');
 }
 
-export function page({ title, description, order, body }) {
+/**
+ * Frontmatter `head` entries, which Starlight injects into the page's <head>.
+ * Each entry is a tag with string attributes and optional text content; the
+ * JSON string form is also valid YAML, so nothing needs escaping by hand.
+ */
+function headLines(head) {
+	if (!head || head.length === 0) return [];
+	const lines = ['head:'];
+	for (const { tag, attrs = {}, content = '' } of head) {
+		if (typeof tag !== 'string' || !/^[a-z]+$/u.test(tag)) throw new TypeError('A head entry needs a lowercase tag name.');
+		lines.push(`  - tag: ${tag}`);
+		const attributeNames = Object.keys(attrs);
+		if (attributeNames.length > 0) {
+			lines.push('    attrs:');
+			for (const name of attributeNames) lines.push(`      ${name}: ${JSON.stringify(String(attrs[name]))}`);
+		}
+		if (content) lines.push(`    content: ${JSON.stringify(content)}`);
+	}
+	return lines;
+}
+
+export function page({ title, description, order, body, head = [] }) {
 	return [
 		'---',
 		`title: ${JSON.stringify(title)}`,
@@ -47,6 +68,7 @@ export function page({ title, description, order, body }) {
 		'editUrl: false',
 		'sidebar:',
 		`  order: ${String(order)}`,
+		...headLines(head),
 		'---',
 		'',
 		GENERATED_BANNER,

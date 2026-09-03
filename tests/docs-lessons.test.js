@@ -16,7 +16,7 @@ import {
 	selectRange,
 	validateLesson,
 } from '../handbook/lessons/steps.mjs';
-import { renderLessonPages } from '../scripts/lib/docs-reference/lessons.mjs';
+import { howToSchema, plainText, relatedLessons, renderLessonPages } from '../scripts/lib/docs-reference/lessons.mjs';
 
 const describe = (entry) => describeStep(entry, { fixtureFile: lessonFixtureFile });
 
@@ -92,4 +92,32 @@ test('lesson pages carry the generated banner, the Audacity aside, and every ste
 		assert.match(index, new RegExp(`\\[${lesson.title.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}\\]\\(/lessons/${lesson.id}/\\)`, 'u'));
 	}
 	assert.throws(() => renderLessonPages({ groups: [], describeStep, fixtureFile: lessonFixtureFile }), TypeError);
+});
+
+test('lesson pages link to related lessons, their reference pages, and carry a HowTo schema', () => {
+	const pages = renderLessonPages({ groups: SOUNDSCAPER_LESSON_GROUPS, describeStep, fixtureFile: lessonFixtureFile });
+	for (const lesson of SOUNDSCAPER_LESSONS) {
+		const page = pages.get(`${lesson.id}.md`);
+		const related = relatedLessons(lesson, SOUNDSCAPER_LESSON_GROUPS);
+		assert.ok(related.length > 0, `${lesson.id} has no related lessons`);
+		assert.ok(!related.includes(lesson), 'a lesson never lists itself');
+		for (const entry of related) assert.match(page, new RegExp(`\\]\\(/lessons/${entry.id}/\\)`, 'u'));
+		assert.match(page, /## Related lessons\n\n- \[/u);
+		const referenced = ['menu', 'effect', 'export', 'nyquist', 'save', 'analyze', 'track-menu', 'rack-effect', 'noise-profile', 'export-project', 'open-project-file', 'open-audacity-project'];
+		assert.equal(page.includes('## Reference\n\n- ['), lesson.steps.some((entry) => referenced.includes(entry.kind)), `${lesson.id} reference section`);
+		if (lesson.steps.some((entry) => entry.kind === 'effect')) assert.match(page, /audio-effects\/#parameters/u);
+		if (lesson.steps.some((entry) => entry.kind === 'export')) assert.match(page, /generated\/formats\//u);
+		assert.ok(page.includes('\nhead:\n  - tag: script\n    attrs:\n      type: "application/ld+json"\n    content: "'), `${lesson.id} declares the HowTo head entry`);
+		const schema = howToSchema(lesson, describe);
+		assert.equal(schema['@type'], 'HowTo');
+		assert.equal(schema.step.length, lesson.steps.filter((entry) => entry.kind !== 'note').length);
+		assert.ok(page.includes(JSON.stringify(JSON.stringify(schema))), 'the page head carries the schema verbatim');
+	}
+	// Cross-links in tips come first, ahead of the rest of the group.
+	const amplify = SOUNDSCAPER_LESSONS.find((lesson) => lesson.id === 'make-a-recording-louder');
+	assert.equal(relatedLessons(amplify, SOUNDSCAPER_LESSON_GROUPS)[0].id, 'normalize-peaks');
+	assert.equal(plainText('Choose **File → Import audio** and pick `x.wav`; see [Normalize](/lessons/normalize-peaks/).'), 'Choose File → Import audio and pick x.wav; see Normalize.');
+	const broken = { ...amplify, tips: ['[x](/lessons/does-not-exist/)'] };
+	assert.throws(() => relatedLessons(broken, [{ title: 'Broken', lessons: [broken] }]), /unknown lesson does-not-exist/u);
+	assert.throws(() => relatedLessons(broken, SOUNDSCAPER_LESSON_GROUPS), /not in any lesson group/u);
 });
