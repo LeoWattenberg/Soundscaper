@@ -213,7 +213,10 @@ test('compound parameters without stable element IDs become explicit 4A revision
 test('descriptor inventory exactly covers every rack scalar owned by built-in and Audacity definitions', () => {
 	const builtIns = Object.entries(AUDIO_EFFECT_DEFINITIONS) as Array<[
 		string,
-		{ readonly ranges: Readonly<Record<string, unknown>> },
+		{
+			readonly ranges: Readonly<Record<string, unknown>>;
+			readonly choices?: Readonly<Record<string, unknown>>;
+		},
 	]>;
 	for (const [type, definition] of builtIns) {
 		const effect = createEffect(type, { id: `${type}-inventory` });
