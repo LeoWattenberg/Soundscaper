@@ -9,6 +9,7 @@ import AudioEditorTimeline from '../AudioEditorTimeline.jsx';
 import { formatAup4CompatibilitySummary } from '../dialogs/editor-dialog-model.js';
 import { SidePlaybackMeter, SideRecordingMeter } from '../toolbar/AudioEditorMeterControls.jsx';
 import { AccessibleSelectionToolbar, EditorActionBar } from '../toolbar/AudioEditorTransportControls.jsx';
+import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import ProjectTabs from './ProjectTabs.jsx';
 import ProjectFeatureCompatibilityNotice from './ProjectFeatureCompatibilityNotice.tsx';
 import StorageCapacityPanel from './StorageCapacityPanel.tsx';
@@ -45,7 +46,6 @@ export default function AudioEditorWorkspaceView({ model }) {
 		editorOverlayTarget,
 		editorRef,
 		editorThemeVariables,
-		editorToolbar,
 		effectsPanelTarget,
 		executeEdit,
 		fileService,
@@ -98,9 +98,11 @@ export default function AudioEditorWorkspaceView({ model }) {
 		toolbarButtonPreferences,
 		toolbarDock,
 		toolbarDragRef,
+		toolbarProps,
 		uiFlags,
 		workspaceRef,
 	} = model;
+	const editorToolbar = <EditorToolToolbar {...toolbarProps} />;
 	return (
 		<TrackAutomationRuntimeProvider runtime={soundscaperWorkflow?.automationRuntime}>
 		<div

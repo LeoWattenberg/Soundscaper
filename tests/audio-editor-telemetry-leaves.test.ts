@@ -7,8 +7,9 @@ import test from 'node:test';
 const UI = new URL('../src/common/editor/ui/', import.meta.url);
 
 test('toolbar playback telemetry is owned by focused leaf controls', async () => {
-	const [toolbar, transport, meter, sequence, actionRuntime] = await Promise.all([
+	const [toolbar, transportGroup, transport, meter, sequence, actionRuntime] = await Promise.all([
 		readFile(new URL('toolbar/EditorToolToolbar.jsx', UI), 'utf8'),
+		readFile(new URL('toolbar/TransportToolbarGroup.jsx', UI), 'utf8'),
 		readFile(new URL('toolbar/AudioEditorTransportControls.jsx', UI), 'utf8'),
 		readFile(new URL('toolbar/AudioEditorMeterControls.jsx', UI), 'utf8'),
 		readFile(new URL('toolbar/SequenceTimingControls.jsx', UI), 'utf8'),
@@ -16,7 +17,9 @@ test('toolbar playback telemetry is owned by focused leaf controls', async () =>
 	]);
 
 	assert.doesNotMatch(toolbar, /useAudioEditorTelemetrySelector/u);
-	assert.match(toolbar, /<TelemetryPlayTransportControl/u);
+	assert.doesNotMatch(transportGroup, /useAudioEditorTelemetrySelector/u);
+	assert.match(toolbar, /<TransportToolbarGroup/u);
+	assert.match(transportGroup, /<TelemetryPlayTransportControl/u);
 	assert.match(toolbar, /<TelemetryTimeCode/u);
 	assert.match(toolbar, /<PlaybackMeterToolbarGroup/u);
 	assert.doesNotMatch(toolbar, /telemetry=\{telemetry\}/u);

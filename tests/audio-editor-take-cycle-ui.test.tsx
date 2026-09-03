@@ -113,7 +113,7 @@ test('workspace auto-offers each authority once and keeps recovery menu-only', a
 		readFile(new URL('../src/common/editor/ui/audio-editor-design-system/28-take-cycle-recovery.css', import.meta.url), 'utf8'),
 	]);
 	assert.match(workspace, /useTakeCycleRecoverySurface\(productId, snapshot\.takeCycleRecovery\)/u);
-	assert.match(workspace, /onOpenTakeCycleRecovery=\{\(\) => openSurface\('take-cycle-recovery'\)\}/u);
+	assert.match(workspace, /onOpenTakeCycleRecovery: \(\) => openSurface\('take-cycle-recovery'\)/u);
 	assert.match(toolbar, /onOpenTakeCycleRecovery=\{onOpenTakeCycleRecovery\}/u);
 	assert.match(transport, /createTakeCycleRecordingMenuItems/u);
 	assert.match(overlays, /activeSurface === 'take-cycle-recovery' && snapshot\.takeCycleRecovery/u);
@@ -127,7 +127,7 @@ test('workspace auto-offers each authority once and keeps recovery menu-only', a
 test('pending recovery visibly blocks ordinary recording mutations and cycle pause', async () => {
 	const [transport, toolbar] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx', import.meta.url), 'utf8'),
-		readFile(new URL('../src/common/editor/ui/toolbar/EditorToolToolbar.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx', import.meta.url), 'utf8'),
 	]);
 	assert.match(transport, /const recoveryBlocked = Boolean\(snapshot\.takeCycleRecovery\)/u);
 	assert.match(transport, /const ordinaryRecording = snapshot\.recordingKind !== 'take-cycle'/u);

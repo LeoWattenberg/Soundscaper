@@ -6,7 +6,6 @@ import { Icon } from '@soundscaper/design-system/Icon';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
 import { Toolbar, ToolbarButtonGroup, ToolbarDivider } from '@soundscaper/design-system/Toolbar';
-import { TransportButton } from '@soundscaper/design-system/TransportButton';
 import { ToolButton } from '@soundscaper/design-system/ToolButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
@@ -17,19 +16,15 @@ import {
 	PlaybackMeterToolbarGroup,
 	RecordingMeterToolbarGroup,
 } from './AudioEditorMeterControls.jsx';
-import {
-	AccessibleTransportButton,
-	RecordFlyout,
-	TelemetryPlayTransportControl,
-	TelemetryTimeCode,
-} from './AudioEditorTransportControls.jsx';
+import { TelemetryTimeCode } from './AudioEditorTransportControls.jsx';
 import { MusicalTimelineControls } from './MusicalTimelineControls.jsx';
 import { SequenceTimingControls } from './SequenceTimingControls.jsx';
 import SnapToolbarControl from './SnapToolbarControl.jsx';
-import FramescaperCaptureRecordControl, {
+import {
 	framescaperCaptureRecordRequired,
 	useFramescaperCaptureRecordVisibility,
 } from './FramescaperCaptureRecordControl.tsx';
+import TransportToolbarGroup, { TRANSPORT_BUTTON_IDS, transportToolbarButtonsVisible } from './TransportToolbarGroup.jsx';
 import { WORKSPACE_TOOLBAR_IDS } from '../workspace/workspace-panel-model.ts';
 import {
 	handleEditorToolbarBlur,
@@ -53,6 +48,7 @@ export default function EditorToolToolbar({
 	run,
 	toolbars,
 	toolbarButtons,
+	transportButtons = TRANSPORT_BUTTON_IDS,
 	uiFlags,
 	playbackMeterSettings,
 	onPlaybackMeterSettingsChange,
@@ -81,9 +77,6 @@ export default function EditorToolToolbar({
 		|| selectedTrack.displayMode === 'multiview'
 		|| snapshot.timeline?.view === 'spectrogram'
 	));
-	const recordControlLabel = snapshot.readOnly
-		? `${recordLabel} — ${copy.projectReadOnly}`
-		: recordLabel;
 	const toolbarSettingsTriggerRef = useRef(null);
 	const [toolbarSettingsPosition, setToolbarSettingsPosition] = useState(null);
 	const setToolbarSettingsTrigger = useCallback((element) => {
@@ -96,10 +89,12 @@ export default function EditorToolToolbar({
 		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
 		&& Boolean(project?.sequences?.length);
 	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
-	const captureRecordRequired = framescaperCaptureRecordRequired(snapshot.capture);
-	const captureRecordSlotVisible = isToolbarButtonVisible('record') || captureRecordRequired;
-	const transportButtonsVisible = ['play', 'stop', ...((capabilities.audioRecording || framescaperCaptureRecordVisible) ? ['record'] : []), 'jump-start', 'jump-end', 'loop', 'metronome']
-		.some((buttonId) => buttonId === 'record' ? captureRecordSlotVisible : isToolbarButtonVisible(buttonId));
+	const transportButtonsVisible = transportToolbarButtonsVisible(transportButtons, {
+		capabilities,
+		captureRecordRequired: framescaperCaptureRecordRequired(snapshot.capture),
+		framescaperCaptureRecordVisible,
+		isToolbarButtonVisible,
+	});
 	const viewButtonsVisible = ['split-tool', 'volume-automation', 'spectrogram-view', 'spectral-box-select', 'spectral-brush']
 		.some(isToolbarButtonVisible);
 	const zoomButtonsVisible = ['zoom-in', 'zoom-out', 'zoom-fit'].some(isToolbarButtonVisible);
@@ -161,67 +156,24 @@ export default function EditorToolToolbar({
 			>
 				{[
 				transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
-				<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
-					{isToolbarButtonVisible('play') && <TelemetryPlayTransportControl
-						copy={copy}
-						snapshot={snapshot}
-						blocked={blocked}
-						controller={controller}
-						run={run}
-					/>}
-					{isToolbarButtonVisible('stop') && <span data-transport="stop"><TransportButton icon="stop" ariaLabel={copy.stop} onClick={() => run(() => controller.actions.transport.stop())} /></span>}
-					{capabilities.audioRecording && isToolbarButtonVisible('record') && <span data-transport="record">
-						<AudioEditorSplitButton
-							icon="record"
-							className="kw-audio-editor__transport-record kw-audio-editor__transport-record-split"
-							ariaLabel={recordControlLabel}
-							optionsAriaLabel={formatOptionsLabel(copy, copy.recordMenu)}
-							recording={snapshot.recording}
-							pressed={Boolean(snapshot.recording)}
-							disabled={Boolean(snapshot.takeCycleRecovery) || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
-							onClick={toggleRecording}
-						>
-							{({ close }) => <RecordFlyout
-								copy={copy}
-								snapshot={snapshot}
-								controller={controller}
-								recordLabel={recordLabel}
-								toggleRecording={toggleRecording}
-								actionRuntime={actionRuntime}
-								run={run}
-								onOpenRecordingOffset={onOpenRecordingOffset}
-								onOpenTimedRecording={onOpenTimedRecording}
-								onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
-								onClose={close}
-							/>}
-						</AudioEditorSplitButton>
-					</span>
-					}
-					{framescaperCaptureRecordVisible && captureRecordSlotVisible && <FramescaperCaptureRecordControl
-						controller={controller}
-						snapshot={snapshot}
-						copy={copy}
-						blocked={blocked}
-						run={run}
-					/>}
-					{isToolbarButtonVisible('jump-start') && <TransportButton icon="skip-back" ariaLabel={copy.jumpStart} disabled={blocked} onClick={onJumpToStart} />}
-					{isToolbarButtonVisible('jump-end') && <TransportButton icon="skip-forward" ariaLabel={copy.jumpEnd} disabled={blocked} onClick={onJumpToEnd} />}
-					{isToolbarButtonVisible('loop') && <AccessibleTransportButton
-						icon="loop"
-						ariaLabel={copy.loop}
-						active={Boolean(project?.loop?.enabled)}
-						pressed={Boolean(project?.loop?.enabled)}
-						disabled={blocked}
-						onClick={() => run(() => controller.actions.transport.toggleLoop())}
-					/>
-					}
-					{isToolbarButtonVisible('metronome') && <ToggleToolButton
-						icon="metronome"
-						isActive={Boolean(snapshot.recordingOptions?.metronome)}
-						ariaLabel={copy.metronome}
-						onClick={() => run(() => controller.actions.transport.toggleMetronome())}
-					/>}
-				</ToolbarButtonGroup>
+				<TransportToolbarGroup
+					buttons={transportButtons}
+					actionRuntime={actionRuntime}
+					blocked={blocked}
+					capabilities={capabilities}
+					controller={controller}
+					copy={copy}
+					onJumpToEnd={onJumpToEnd}
+					onJumpToStart={onJumpToStart}
+					onOpenRecordingOffset={onOpenRecordingOffset}
+					onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
+					onOpenTimedRecording={onOpenTimedRecording}
+					recordLabel={recordLabel}
+					run={run}
+					snapshot={snapshot}
+					toggleRecording={toggleRecording}
+					toolbarButtons={toolbarButtons}
+				/>
 				</WorkspaceToolbarSection>,
 
 				<WorkspaceToolbarSection key="tools" {...toolbarSectionProps('tools')}>

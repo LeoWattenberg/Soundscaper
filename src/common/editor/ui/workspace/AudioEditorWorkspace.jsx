@@ -9,7 +9,6 @@ import {
 	selectAudioEditorProjectHandoffBlock,
 } from '../edit-blocking.ts';
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
-import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
@@ -460,42 +459,15 @@ export default function AudioEditorWorkspace({
 		snapshot,
 		toggleFullscreen,
 	});
-	const editorToolbar = (
-		<EditorToolToolbar
-			capabilities={capabilities}
-			controller={controller}
-			snapshot={snapshot}
-			locale={locale}
-			copy={copy}
-			isCompact={isCompact}
-			zoomProject={zoomProject}
-			blocked={blocked}
-			selectionActive={selectionActive}
-			durationFrames={durationFrames}
-			editItems={editItems}
-			executeEdit={executeEdit}
-			recordLabel={recordLabel}
-			toggleRecording={toggleRecording}
-			run={run}
-			toolbars={toolbarPreferences}
-			toolbarButtons={toolbarButtonPreferences}
-			uiFlags={uiFlags}
-			playbackMeterSettings={playbackMeterSettings}
-			onPlaybackMeterSettingsChange={setPlaybackMeterSettings}
-			recordingMeterSettings={recordingMeterSettings}
-			onRecordingMeterSettingsChange={setRecordingMeterSettings}
-			automationToolEnabled={automationToolEnabled}
-			onToggleAutomationTool={toggleAutomationTool}
-			actionRuntime={parityRuntime.actions}
-			onOpenSpectralSelection={openSpectralSelection}
-			onOpenRecordingOffset={openRecordingOffset}
-			onOpenTimedRecording={openTimedRecording}
-			onOpenTakeCycleRecovery={() => openSurface('take-cycle-recovery')}
-			onJumpToStart={jumpToStart}
-			onJumpToEnd={jumpToEnd}
-			onGripperMouseDown={handleToolbarGripperMouseDown}
-		/>
-	);
+	const toolbarProps = {
+		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames,
+		editItems, executeEdit, isCompact, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
+		onJumpToStart: jumpToStart, onOpenRecordingOffset: openRecordingOffset, onOpenSpectralSelection: openSpectralSelection,
+		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
+		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
+		onToggleAutomationTool: toggleAutomationTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
+		toggleRecording, toolbarButtons: toolbarButtonPreferences, toolbars: toolbarPreferences, uiFlags, zoomProject,
+	};
 
 	return <AudioEditorWorkspaceView model={{
 		aboutLabel,
@@ -524,7 +496,6 @@ export default function AudioEditorWorkspace({
 		editorOverlayTarget,
 		editorRef,
 		editorThemeVariables,
-		editorToolbar,
 		effectWindow,
 		effectsPanelTarget,
 		executeEdit,
@@ -586,7 +557,7 @@ export default function AudioEditorWorkspace({
 		toggleWorkspacePanel,
 		toolbarButtonPreferences,
 		toolbarDock,
-		toolbarDragRef,
+		toolbarDragRef, toolbarProps,
 		uiFlags,
 		workspaceRef,
 	}} />;
