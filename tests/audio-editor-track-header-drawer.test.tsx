@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -13,7 +14,7 @@ import {
 	DESKTOP_TRACK_PANEL_WIDTH,
 	resolveTrackPanelGeometry,
 } from '../src/common/editor/ui/timeline/constants.ts';
-import { TrackHeaderDrawerStrip } from '../src/common/editor/ui/timeline/TrackHeaderDrawerStrip.jsx';
+import { TrackHeaderDrawerToggle } from '../src/common/editor/ui/timeline/TrackHeaderDrawerToggle.jsx';
 import { isWithinTrackHeaderDrawer } from '../src/common/editor/ui/timeline/useTrackHeaderDrawerDismissal.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -62,26 +63,22 @@ test('the View menu offers the track headers toggle only in the compact layout',
 	assert.equal(item(true, true)?.label, ENGLISH_COPY.trackHeaders);
 });
 
-test('the drawer strip names its state and hosts the corner content only while open', () => {
-	const closed = renderToStaticMarkup(
-		<TrackHeaderDrawerStrip copy={ENGLISH_COPY} drawer={{ isOpen: false, toggle: () => undefined, close: () => undefined }} height={34} width={268}>
-			<span data-test-corner="true" />
-		</TrackHeaderDrawerStrip>,
-	);
+test('the drawer handle names its state', () => {
+	const drawer = (isOpen: boolean) => ({ isOpen, toggle: () => undefined, close: () => undefined });
+	const closed = renderToStaticMarkup(<TrackHeaderDrawerToggle copy={ENGLISH_COPY} drawer={drawer(false)} />);
 	assert.match(closed, /data-track-header-toggle[^>]*aria-expanded="false"/u);
 	assert.match(closed, new RegExp(`aria-label="${ENGLISH_COPY.trackHeadersShow}"`, 'u'));
-	assert.doesNotMatch(closed, /data-test-corner/u);
-	assert.doesNotMatch(closed, /width:268px/u);
-
-	const open = renderToStaticMarkup(
-		<TrackHeaderDrawerStrip copy={ENGLISH_COPY} drawer={{ isOpen: true, toggle: () => undefined, close: () => undefined }} height={34} width={268}>
-			<span data-test-corner="true" />
-		</TrackHeaderDrawerStrip>,
-	);
+	const open = renderToStaticMarkup(<TrackHeaderDrawerToggle copy={ENGLISH_COPY} drawer={drawer(true)} />);
 	assert.match(open, /aria-expanded="true"/u);
 	assert.match(open, new RegExp(`aria-label="${ENGLISH_COPY.trackHeadersHide}"`, 'u'));
-	assert.match(open, /data-test-corner/u);
-	assert.match(open, /width:268px/u);
+});
+
+test('the ruler corner is the handle and shows its content only while the drawer is open', () => {
+	const view = readFileSync(new URL('../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url), 'utf8');
+	assert.match(view, /data-track-header-drawer-strip=\{trackHeaderDrawer \? 'true' : undefined\}/u);
+	assert.match(view, /\{trackHeaderDrawer && <TrackHeaderDrawerToggle/u);
+	assert.match(view, /\{\(!trackHeaderDrawer \|\| trackHeaderDrawer\.isOpen\) && <TimelineRulerCornerContent/u);
+	assert.match(view, /trackHeaderDrawer\.isOpen \? trackHeaderWidth : TRACK_HEADER_DRAWER_HANDLE_WIDTH/u);
 });
 
 test('pointer targets inside a header or the handle strip do not dismiss the drawer', () => {

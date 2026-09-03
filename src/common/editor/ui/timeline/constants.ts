@@ -1,5 +1,7 @@
 export const DESKTOP_TRACK_PANEL_WIDTH = 268;
 export const COMPACT_TRACK_PANEL_WIDTH = 164;
+// The ruler corner's width while it is only the closed track-header drawer's handle.
+export const TRACK_HEADER_DRAWER_HANDLE_WIDTH = 40;
 export const AUTO_FIT_TRACK_HEIGHT = 300;
 export const COLLAPSED_TRACK_HEIGHT = 54;
 export const VERTICAL_RULER_WIDTH = 40;

@@ -354,40 +354,21 @@
 	isolation: isolate;
 }
 
-/* The handle strip sits over the ruler corner, outside the scroll container,
-   so it never scrolls away; open, it widens to the header width and hosts
-   the Tracks label and Add track. */
-#kw-audio-editor-design-system .audio-editor-track-header-drawer-strip {
-	position: absolute;
+/* The ruler corner is the drawer's handle. Its row rises above the playhead
+   boundary (z 70) so the toggle takes the tap; the corner is already sticky
+   at the left edge, so the handle never scrolls away. */
+#kw-audio-editor-design-system .audio-editor-timeline-panel[data-track-header-drawer] .audio-editor-ruler-row {
 	z-index: 72;
-	top: 0;
-	left: 0;
-	display: flex;
-	box-sizing: border-box;
-	align-items: center;
-	gap: 6px;
-	padding: 0 4px;
-	background: var(--kw-editor-stage-raised);
-	border-right: 1px solid var(--kw-editor-stage-line);
-	border-bottom: 1px solid var(--kw-editor-stage-line);
 }
 
-#kw-audio-editor-design-system .audio-editor-track-header-drawer-strip[data-open='true'] {
+#kw-audio-editor-design-system .audio-editor-ruler-corner[data-track-header-drawer-strip] {
+	justify-content: flex-start;
+	gap: 6px;
+	padding-inline: 4px;
+}
+
+#kw-audio-editor-design-system .audio-editor-ruler-corner[data-track-header-drawer-strip][data-open='true'] {
 	box-shadow: 4px 0 12px rgb(0 0 0 / 22%);
-}
-
-#kw-audio-editor-design-system .audio-editor-track-header-drawer-strip__content {
-	display: flex;
-	min-width: 0;
-	flex: 1 1 auto;
-	align-items: center;
-	gap: 6px;
-	overflow: hidden;
-	color: var(--kw-editor-stage-text);
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
 }
 
 #kw-audio-editor-design-system .audio-editor-track-header-toggle {

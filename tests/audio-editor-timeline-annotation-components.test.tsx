@@ -204,6 +204,9 @@ test('shown annotation visuals occupy a dedicated lane below the unblocked ruler
 	const workspace = readFileSync(new URL(
 		'../src/common/editor/ui/timeline/TimelineWorkspaceView.jsx', import.meta.url,
 	), 'utf8');
+	const rulerCanvas = readFileSync(new URL(
+		'../src/common/editor/ui/timeline/TimelineRulerCanvas.jsx', import.meta.url,
+	), 'utf8');
 	const cornerIndex = workspace.indexOf('className="audio-editor-ruler-corner"');
 	const actionsIndex = workspace.indexOf('<TimelineAnnotationLaneActions', cornerIndex);
 	const viewportIndex = workspace.indexOf('className="audio-editor-ruler-viewport"', actionsIndex);
@@ -211,11 +214,11 @@ test('shown annotation visuals occupy a dedicated lane below the unblocked ruler
 	assert.match(css, /audio-editor-timeline-annotations\s*\{[^}]*top: 33px;/u);
 	assert.match(css, /audio-editor-timeline-annotation\s*\{[^}]*min-width: 16px;/u);
 	assert.ok(cornerIndex >= 0 && cornerIndex < actionsIndex && actionsIndex < viewportIndex);
-	assert.equal(
-		workspace.match(/height=\{markerLaneVisible \? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined\}/gu)?.length,
-		3,
-		'every ruler variant reserves the annotation lane',
-	);
+	// The three ruler variants share one prop bag, so the lane is reserved once
+	// and every variant spreads it.
+	assert.match(rulerCanvas, /height: markerLaneVisible \? TIMELINE_RULER_HEIGHT_WITH_ANNOTATIONS : undefined,/u);
+	assert.equal(rulerCanvas.match(/\{\.\.\.shared\}/gu)?.length, 3, 'every ruler variant reserves the annotation lane');
+	assert.match(workspace, /<TimelineRulerCanvas/u);
 	assert.match(workspace, /\{markerLaneVisible && <TimelineAnnotationLayer/u);
 });
 

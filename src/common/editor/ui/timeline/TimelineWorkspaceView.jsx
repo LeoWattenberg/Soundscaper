@@ -2,11 +2,12 @@ import { useCallback, useMemo, useRef } from 'react';
 
 import { isSoundscaperProductionProject } from '../../project-schema-version.ts';
 import AudioEditorSampleTools from '../AudioEditorSampleTools.jsx';
+import { TRACK_HEADER_DRAWER_HANDLE_WIDTH } from './constants.ts';
 import { DEFAULT_TRACK_HEIGHT as TRACK_HEIGHT } from './geometry.ts';
 import { TrackListView } from './TrackListView.jsx';
 import { TimelineRulerCanvas } from './TimelineRulerCanvas.jsx';
 import { TimelineRulerCornerContent } from './TimelineRulerCornerContent.jsx';
-import { TrackHeaderDrawerStrip } from './TrackHeaderDrawerStrip.jsx';
+import { TrackHeaderDrawerToggle } from './TrackHeaderDrawerToggle.jsx';
 import { TimelineAnnotationLayer } from './TimelineAnnotationLayer.jsx';
 import { TimelineAnnotationLaneActions } from './TimelineAnnotationLaneActions.jsx';
 import {
@@ -156,24 +157,11 @@ export function TimelineWorkspaceView({
 		controller, copy, locale, sampleRate, run,
 	});
 
-	const cornerContent = (
-		<TimelineRulerCornerContent
-			copy={copy}
-			addTrackTriggerRef={addTrackTriggerRef}
-			addTrackTabIndex={addTrackTabIndex}
-			onOpenAddTrackFlyout={openAddTrackFlyout}
-			annotationActions={markerLaneVisible ? <TimelineAnnotationLaneActions
-				controller={controller}
-				project={project}
-				annotations={snapshot.timelineAnnotations || []}
-				copy={copy}
-				blocked={mutationsBlocked}
-				run={run}
-				createAnnotation={createAnnotation}
-				focusCreated={focusCreatedInLayer}
-			/> : null}
-		/>
-	);
+	// In the compact layout the sticky ruler corner is the track-header drawer's
+	// handle: only the toggle while closed, the usual corner content while open.
+	const cornerWidth = trackHeaderDrawer
+		? (trackHeaderDrawer.isOpen ? trackHeaderWidth : TRACK_HEADER_DRAWER_HANDLE_WIDTH)
+		: panelWidth;
 
 	return (
 		<section
@@ -239,7 +227,30 @@ export function TimelineWorkspaceView({
 					'--audio-editor-track-sidebar-width': `${panelWidth}px`,
 				}}>
 					<div className="audio-editor-ruler-row">
-						{!trackHeaderDrawer && <div className="audio-editor-ruler-corner" style={{ width: panelWidth }}>{cornerContent}</div>}
+						<div
+							className="audio-editor-ruler-corner"
+							data-track-header-drawer-strip={trackHeaderDrawer ? 'true' : undefined}
+							data-open={trackHeaderDrawer ? (trackHeaderDrawer.isOpen ? 'true' : 'false') : undefined}
+							style={{ width: cornerWidth }}
+						>
+							{trackHeaderDrawer && <TrackHeaderDrawerToggle copy={copy} drawer={trackHeaderDrawer} />}
+							{(!trackHeaderDrawer || trackHeaderDrawer.isOpen) && <TimelineRulerCornerContent
+								copy={copy}
+								addTrackTriggerRef={addTrackTriggerRef}
+								addTrackTabIndex={addTrackTabIndex}
+								onOpenAddTrackFlyout={openAddTrackFlyout}
+								annotationActions={markerLaneVisible && <TimelineAnnotationLaneActions
+									controller={controller}
+									project={project}
+									annotations={snapshot.timelineAnnotations || []}
+									copy={copy}
+									blocked={mutationsBlocked}
+									run={run}
+									createAnnotation={createAnnotation}
+									focusCreated={focusCreatedInLayer}
+								/>}
+							/>}
+						</div>
 						<div
 							className="audio-editor-ruler-viewport"
 							data-ruler
@@ -436,9 +447,6 @@ export function TimelineWorkspaceView({
 					/>
 				</div>
 			</div>
-			{trackHeaderDrawer && <TrackHeaderDrawerStrip copy={copy} drawer={trackHeaderDrawer} height={rulerRowHeight} width={trackHeaderWidth}>
-				{cornerContent}
-			</TrackHeaderDrawerStrip>}
 			{showTimelineAnnotations && <span
 				className="kw-audio-editor-sr-only"
 				data-timeline-annotation-create-status
