@@ -167,13 +167,19 @@ function capturePermissionsPolicy(productId, editorDocument) {
 	return DENIED_CAPTURE_POLICY;
 }
 
-// The attribute run steps over quoted values so an attribute containing ">" does
-// not truncate the open tag, and the end tag tolerates the whitespace HTML
-// permits before its ">". Matching either loosely would hash the wrong span and
-// silently emit a content-security-policy that rejects the script it covers.
-// The three attribute alternatives are mutually exclusive, so the run stays
-// linear rather than backtracking over an ambiguous split.
-const INLINE_SCRIPT_PATTERN = /<script\b((?:"[^"]*"|'[^']*'|[^"'>])*)>([\s\S]*?)<\/script\s*>/giu;
+// Both tags run over the same attribute alternation, which steps across quoted
+// values so an attribute containing ">" cannot truncate the tag. An end tag
+// takes it too: HTML parses and discards attributes on a closing tag, so
+// "</script foo>" ends the element exactly as "</script>" does, and a pattern
+// that only tolerated whitespace there would run the hashed span on to the next
+// script and emit a content-security-policy that rejects the script it covers.
+// The three alternatives are mutually exclusive, so each run stays linear
+// rather than backtracking over an ambiguous split.
+const INLINE_SCRIPT_ATTRIBUTES = String.raw`(?:"[^"]*"|'[^']*'|[^"'>])*`;
+const INLINE_SCRIPT_PATTERN = new RegExp(
+	`<script\\b(${INLINE_SCRIPT_ATTRIBUTES})>([\\s\\S]*?)<\\/script\\b${INLINE_SCRIPT_ATTRIBUTES}>`,
+	'giu',
+);
 
 export function inlineScriptHashes(html) {
 	const hashes = [];

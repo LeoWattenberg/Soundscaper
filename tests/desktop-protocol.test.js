@@ -431,18 +431,23 @@ function streamEnd(stream) {
  * rejects the very script it was computed for, and the page then fails to boot
  * with no clue pointing back here. The open tag once ended at the first ">",
  * which an attribute value containing ">" reaches early, and the close tag once
- * demanded "</script>" exactly, which the whitespace HTML permits before that
- * ">" defeats. Either miss silently slides the hashed body to the next script.
+ * demanded "</script>" exactly. HTML is looser than that on both sides: it
+ * permits whitespace before the closing ">", and it parses and discards
+ * attributes on an end tag, so "</script foo>" ends the element too. Every one
+ * of those forms must hash the same body as the plain pair, because a missed
+ * end tag slides the hashed span on to the next script.
  */
-test('inline script hashing survives attribute angle brackets and a spaced end tag', () => {
-	const spaced = inlineScriptHashes('<script>boot();</script >');
-	assert.equal(spaced.length, 1);
-	assert.deepEqual(spaced, inlineScriptHashes('<script>boot();</script>'));
-
-	const attributed = inlineScriptHashes('<script data-selector="a>b">boot();</script>');
-	assert.equal(attributed.length, 1);
-	assert.deepEqual(attributed, spaced);
+test('inline script hashing survives attribute angle brackets and loose end tags', () => {
+	const plain = inlineScriptHashes('<script>boot();</script>');
+	assert.equal(plain.length, 1);
+	for (const html of [
+		'<script>boot();</script >',
+		'<script>boot();</script\t\n foo>',
+		'<script>boot();</script foo="a>b">',
+		'<script data-selector="a>b">boot();</script>',
+	]) assert.deepEqual(inlineScriptHashes(html), plain, html);
 
 	assert.deepEqual(inlineScriptHashes('<script src="/app.js"></script>'), []);
+	assert.deepEqual(inlineScriptHashes('<scriptfoo>boot();</scriptfoo>'), []);
 	assert.equal(inlineScriptHashes('<script>one()</script><script>two()</script>').length, 2);
 });
