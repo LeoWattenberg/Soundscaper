@@ -747,7 +747,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		saveAnalysis: (key, value) => store.saveAnalysis(key, value),
 		renderAudio: renderAnalysisAudio,
 		analyzeChannels: (channels, sampleRate, signal, analysisOptions) => analyzeChannelsInWorker(channels, sampleRate, copy, 65_536, signal, analysisOptions),
-		createVisuals: createAnalysisVisuals,
+		createVisuals: createEditorAnalysisVisuals,
 		showAnalysis,
 		setProcessing: (processing) => { state.analysisProcessing = processing; },
 		setStatus,
@@ -2869,10 +2869,6 @@ export function createAudioEditorController(_root = null, options = {}) {
 		state.analysisVisuals = visuals;
 		state.analysisReport = report;
 		publishDocumentSnapshot();
-	}
-
-	function createAnalysisVisuals(channels, sampleRate) {
-		return createEditorAnalysisVisuals(channels, sampleRate);
 	}
 
 	function setStatus(message, status = 'info') {

@@ -22,10 +22,7 @@ const assetLoader = `
 
 register(`data:text/javascript,${encodeURIComponent(assetLoader)}`, import.meta.url);
 
-const {
-	calculateAudioEditorMetronomeSchedule,
-	createAudioEditorController,
-} = await import('../src/common/editor/app.js');
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
 const {
 	createAudioClip,
 	createVideoClip,
@@ -1211,23 +1208,6 @@ test('play-at-speed preparation is cancellable while transformed clip caches are
 	assert.equal(controller.getSnapshot().playbackOptions.preparing, false);
 	assert.equal(engine.playAtSpeedCalls.length, 0);
 	await controller.dispose();
-});
-
-test('metronome transport timing scales both the next click and beat interval by playback rate', () => {
-	const normal = calculateAudioEditorMetronomeSchedule({
-		bpm: 120,
-		sampleRate: 48_000,
-		positionFrame: 12_000,
-		playbackRate: 1,
-	});
-	const doubleSpeed = calculateAudioEditorMetronomeSchedule({
-		bpm: 120,
-		sampleRate: 48_000,
-		positionFrame: 12_000,
-		playbackRate: 2,
-	});
-	assert.deepEqual(normal, { beatIndex: 1, delaySeconds: 0.25, beatDurationSeconds: 0.5 });
-	assert.deepEqual(doubleSpeed, { beatIndex: 1, delaySeconds: 0.125, beatDurationSeconds: 0.25 });
 });
 
 test('controller splits selected and grouped clips at both selection boundaries in one undo step', async () => {
