@@ -160,7 +160,11 @@ async function applySampleEdit(page, editor, name) {
 	await clip.click({ position: { x: 24, y: 10 } });
 	await editor.getByRole('button', { name: 'Split tool', exact: true }).click();
 	const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
-	for (let step = 0; step < 9; step += 1) await zoomIn.click();
+	// Two notches deeper than one pixel per sample, where the renderer stops
+	// joining samples with a line and draws each one as its own stem. Sample
+	// editing waits for that stem threshold, so nine notches leave the toolbar
+	// unrendered and the pencil unreachable.
+	for (let step = 0; step < 11; step += 1) await zoomIn.click();
 	const sampleTools = editor.getByRole('toolbar', { name: 'Sample tools', exact: true });
 	await expect(sampleTools).toBeVisible();
 	await expect(sampleTools.getByRole('button', { name: 'Sample pencil', exact: true })).toHaveAttribute('aria-pressed', 'true');
