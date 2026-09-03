@@ -77,7 +77,7 @@ export const FRAMESCAPER_PROFILE = {
 	panels: ['project-bin', 'track-list', 'mixer', 'video-preview', 'source-monitor', 'video-effects', 'playback-meter'],
 	importChoices: ['scape', 'audacity-project', 'audio', 'video', 'labels'],
 	exportChoices: ['scape', 'audio', 'video', 'labels'],
-	shortcuts: { disabledCommandIds: ['record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt'] },
+	shortcuts: { disabledCommandIds: ['record', 'generate', 'selection-effect', 'spectral-edit', 'analyze', 'manage-macros', 'nyquist-prompt', 'mix-render'] },
 	applicationFeatures: { framescaperCapture: true, framescaperWebVcr: true },
 	capabilities: {
 		...SHARED_CAPABILITIES,

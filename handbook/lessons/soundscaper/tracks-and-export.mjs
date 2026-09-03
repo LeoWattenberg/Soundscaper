@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { addTrack, check, exportAudio, generate, importAudio, menu, open, selectClips, trackButton, trackMenu } from '../steps.mjs';
+import { addTrack, check, exportAudio, generate, importAudio, mixRender, open, selectClips, trackButton, trackMenu } from '../steps.mjs';
 
 export const TRACK_AND_EXPORT_LESSONS = Object.freeze([
 	{
@@ -25,13 +25,13 @@ export const TRACK_AND_EXPORT_LESSONS = Object.freeze([
 		title: 'Mix several tracks into one',
 		description: 'Render the selected tracks down to a single track.',
 		audacity: 'Tracks → Mix → Mix and Render',
-		intro: 'Once a bed of tracks is balanced, mixing them down to one makes the project lighter to work with and gives you a single clip to export or take elsewhere. The mix uses each track’s gain, pan, mute and effects, exactly as playback does.',
+		intro: 'Once a bed of tracks is balanced, mixing them down to one makes the project lighter to work with and gives you a single clip to export or take elsewhere. The mix uses each selected track’s gain, pan, automation and effects. Mute and solo are ignored for selected tracks during this operation, and master processing stays live.',
 		steps: [
 			open(),
 			importAudio('music-loop'),
 			importAudio('second-loop'),
 			selectClips(['music-loop', 'second-loop'], { why: 'Every track with a selected clip goes into the mix.' }),
-			menu(['Tracks', 'Mix', 'Mix-down to']),
+			mixRender(),
 			check({ clip: 'Mix' }, { see: 'One track holds a clip named Mix; the source tracks are gone.' }),
 		],
 		tips: [

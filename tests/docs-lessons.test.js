@@ -12,6 +12,7 @@ import {
 	effect,
 	importAudio,
 	menu,
+	mixRender,
 	open,
 	selectRange,
 	validateLesson,
@@ -61,6 +62,7 @@ test('every step kind describes itself with the labels the browser suite clicks'
 		}
 	}
 	assert.match(describe(menu(['Select', 'Select all'])), /\*\*Select → Select all\*\*/u);
+	assert.match(describe(mixRender()), /\*\*Tracks → Mix & Render\*\*.*\*\*Mix down to stereo\*\*.*\*\*Render effects\*\*.*\*\*Replace originals\*\*/u);
 	assert.match(describe(effect({ group: 'Fading', name: 'Fade In', direct: true })), /\*\*Effect → Fading → Fade In\*\*/u);
 	assert.match(
 		describe(effect({ group: 'Volume and compression', name: 'Normalize', settings: [{ label: 'Peak amplitude', value: '-3' }] })),
@@ -103,7 +105,7 @@ test('lesson pages link to related lessons, their reference pages, and carry a H
 		assert.ok(!related.includes(lesson), 'a lesson never lists itself');
 		for (const entry of related) assert.match(page, new RegExp(`\\]\\(/lessons/${entry.id}/\\)`, 'u'));
 		assert.match(page, /## Related lessons\n\n- \[/u);
-		const referenced = ['menu', 'effect', 'export', 'nyquist', 'save', 'analyze', 'track-menu', 'rack-effect', 'noise-profile', 'export-project', 'open-project-file', 'open-audacity-project'];
+		const referenced = ['menu', 'mix-render', 'effect', 'export', 'nyquist', 'save', 'analyze', 'track-menu', 'rack-effect', 'noise-profile', 'export-project', 'open-project-file', 'open-audacity-project'];
 		assert.equal(page.includes('## Reference\n\n- ['), lesson.steps.some((entry) => referenced.includes(entry.kind)), `${lesson.id} reference section`);
 		if (lesson.steps.some((entry) => entry.kind === 'effect')) assert.match(page, /audio-effects\/#parameters/u);
 		if (lesson.steps.some((entry) => entry.kind === 'export')) assert.match(page, /generated\/formats\//u);

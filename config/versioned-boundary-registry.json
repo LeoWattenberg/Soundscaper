@@ -264,6 +264,8 @@
 		,
 		{ "path": "src/common/editor/controller/isolated-track-render-project-v21.ts", "kind": "persisted-contract", "justification": "isolated-track-render-project-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/controller/mix-render-snapshot-v21.ts", "kind": "persisted-contract", "justification": "mix-render-snapshot-v21.ts projects production mixer and automation authority for a persisted render-contract revision independent of product schema." }
+		,
 		{ "path": "src/common/editor/controller/soundscaper-delivery-publication-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-delivery-publication-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/controller/soundscaper-persistent-delivery-adapter-v1.ts", "kind": "persisted-contract", "justification": "soundscaper-persistent-delivery-adapter-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }

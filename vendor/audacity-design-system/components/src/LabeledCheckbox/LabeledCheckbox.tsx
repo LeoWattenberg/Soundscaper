@@ -34,6 +34,10 @@ export interface LabeledCheckboxProps {
    * Additional CSS classes
    */
   className?: string;
+  /**
+   * ID of explanatory copy for the checkbox
+   */
+  'aria-describedby'?: string;
 }
 
 /**
@@ -46,6 +50,7 @@ export function LabeledCheckbox({
   onChange,
   tabIndex,
   className = '',
+  'aria-describedby': ariaDescribedBy,
 }: LabeledCheckboxProps) {
   const { theme } = useTheme();
 
@@ -72,6 +77,7 @@ export function LabeledCheckbox({
         onChange={onChange}
         tabIndex={tabIndex}
         aria-label={label}
+        aria-describedby={ariaDescribedBy}
       />
       <span className="labeled-checkbox__label">
         {label}

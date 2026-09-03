@@ -86,15 +86,16 @@ test('V21 mix retains an unselected Auto Duck control track and sidechain', asyn
 	}
 });
 
-test('V21 mix retains Auto Duck control tracks for master and mixer-node racks', () => {
+test('V21 combined mix retains Auto Duck controls only for relevant group and send racks', () => {
 	for (const host of ['master', 'group', 'send', 'cue'] as const) {
 		const project = hostedAutoDuckFixture(host);
 		const targets = project.tracks
 			.filter(({ id }) => id === 'voice' || id === 'fx') as unknown as readonly ControllerTrack[];
 		const snapshot = createMixRenderSnapshot(project as unknown as ControllerProject, targets);
-		assert.equal(snapshot.tracks.some(({ id }) => id === 'music'), true, host);
+		const expected = host === 'group' || host === 'send';
+		assert.equal(snapshot.tracks.some(({ id }) => id === 'music'), expected, host);
 		assert.equal((snapshot.mixer as unknown as typeof project.mixer).edges
-			.some(({ id }) => id === `music-${host}-duck`), true, host);
+			.some(({ id }) => id === `music-${host}-duck`), expected, host);
 		assert.equal(validateSoundscaperProject(snapshot), true, host);
 	}
 });
@@ -288,6 +289,12 @@ function hostedAutoDuckFixture(host: 'master' | 'group' | 'send' | 'cue') {
 				routingEdge('voice-master', 'assignment', { kind: 'track', id: 'voice' }, { kind: 'master' }),
 				routingEdge('fx-master', 'assignment', { kind: 'track', id: 'fx' }, { kind: 'master' }),
 				routingEdge('music-master', 'assignment', { kind: 'track', id: 'music' }, { kind: 'master' }),
+				...(host === 'group' || host === 'send' ? [
+					routingEdge(`voice-${host}`, host === 'send' ? 'send' : 'assignment',
+						{ kind: 'track', id: 'voice' }, { kind: 'mixer-node', id: node.id }),
+					routingEdge(`${host}-master`, 'assignment',
+						{ kind: 'mixer-node', id: node.id }, { kind: 'master' }),
+				] : []),
 				routingEdge(`music-${host}-duck`, 'sidechain', { kind: 'track', id: 'music' }, {
 					kind: 'effect-sidechain', strip: destination, effectId: duck.id,
 				}),

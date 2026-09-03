@@ -47,6 +47,7 @@ const implemented = (id, label, locations, handler, options = {}) => actionDefin
 	upstreamAction: options.upstreamAction || id,
 	upstreamSource: options.source === undefined ? UPSTREAM.project : options.source,
 	origin: options.origin || 'upstream',
+	menuVisible: options.menuVisible !== false,
 });
 
 const disabled = (id, label, locations, reason = DISABLED_REASONS.menu, options = {}) => actionDefinition({
@@ -290,7 +291,8 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('track-view-extend-track-selection-prev', 'Extend track selection up', ['Keyboard navigation'], 'navigation.extendTrackSelectionUp', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('track-view-extend-track-selection-next', 'Extend track selection down', ['Keyboard navigation'], 'navigation.extendTrackSelectionDown', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
 	implemented('track-view-item-context-menu', 'Open item context menu', ['Keyboard navigation'], 'navigation.openContextMenu', { enableWhen: 'project-opened', source: UPSTREAM.trackEdit }),
-	implemented('mixdown-to', 'Mix-down to', ['Tracks > Mix'], 'track.mixAndRender', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.project }),
+	implemented('mixdown-to', 'Mix-down to', ['Tracks > Mix'], 'track.openMixRender', { enableWhen: 'editable-audio-track-selected', source: UPSTREAM.project, menuVisible: false }),
+	implemented('mix-render', 'Mix & Render', ['Tracks'], 'track.openMixRender', { enableWhen: 'editable-audio-track-selected', source: null, origin: 'local' }),
 	implemented('menu-align', 'Align content', ['Tracks'], 'track.openAlignMenu', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
 	implemented('align-end-to-end', 'Align end to end', ['Tracks > Align content'], 'track.alignEndToEnd', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),
 	implemented('align-together', 'Align together', ['Tracks > Align content'], 'track.alignTogether', { enableWhen: 'editable-track-selected', source: UPSTREAM.menu }),

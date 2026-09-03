@@ -423,7 +423,7 @@ test('mix render service publishes one prepared atomic command after source pers
 	const mixCommits: AudioEditorCommand[] = [];
 	let sequence = 0;
 	let processing = false;
-	const rendered = audioBufferFixture([new Float32Array([0.25, 0.5])], 48_000);
+	const rendered = audioBufferFixture([new Float32Array(100).fill(0.25)], 48_000);
 	const service = createMixRenderService({
 		lifetime: {
 			assertActive() {},

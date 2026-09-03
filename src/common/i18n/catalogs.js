@@ -4,6 +4,7 @@ import { REPORT_COPY_BY_LOCALE } from './report-copy.js';
 import { EXPORT_MENU_COPY_BY_LOCALE } from './export-menu-copy.js'; import { DAWPROJECT_COPY_BY_LOCALE } from './dawproject-copy.js';
 import { LABEL_EXPORT_COPY_BY_LOCALE } from './label-export-copy.js';
 import { DELIVERY_QUEUE_COPY_BY_LOCALE } from './delivery-queue-copy.js';
+import { MIX_RENDER_COPY_BY_LOCALE } from './mix-render-copy.js';
 import { MUSICAL_TIMELINE_COPY_BY_LOCALE } from './musical-timeline-copy.js';
 import { SEQUENCE_TIMING_COPY_BY_LOCALE } from './sequence-timing-copy.js';
 import { SITE_COPY_BY_LOCALE } from './site-copy.js';
@@ -19,6 +20,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.de,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.de,
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.de,
+		...MIX_RENDER_COPY_BY_LOCALE.de,
 		...TRACK_FOLDER_COPY_BY_LOCALE.de, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.de, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.de, ...LOCAL_ASSISTANCE_COPY_BY_LOCALE.de, ...LOCAL_DIAGNOSTICS_COPY_BY_LOCALE.de, ...WORKSPACE_CHROME_COPY_BY_LOCALE.de, ...WORKSPACE_ONBOARDING_COPY_BY_LOCALE.de,
 		framescaperEyebrow: 'Video lokal bearbeiten',
 		framescaperTitle: 'Framescaper',
@@ -417,7 +419,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		timedRecordingCancelled: 'Geplante Aufnahme abgebrochen.',
 		timedRecordingPast: 'Wähle einen Aufnahmezeitpunkt in der Zukunft.',
 		soundActivationLevel: 'Aktivierungspegel einstellen',
-		mixdownTo: 'Abmischen nach',
 		alignEndToEnd: 'Ende an Ende ausrichten',
 		alignTogether: 'Zusammen ausrichten',
 		sortByTime: 'Nach Zeit sortieren',
@@ -539,11 +540,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		unmuteTrack: 'Spurstummschaltung aufheben',
 		muteAllTracks: 'Alle Spuren stummschalten',
 		unmuteAllTracks: 'Alle Spurstummschaltungen aufheben',
-		mixMenu: 'Mischen',
-		mixedTrack: 'Mix',
-		mixRender: 'Mischen und rendern',
-		mixRenderNew: 'Mischen und auf neuer Spur rendern',
-		mixRenderRequiresAudio: 'Wähle mindestens eine Audiospur mit Audio aus.',
 		resample: 'Neu abtasten',
 		alignTracks: 'Spuren ausrichten',
 		sortTracks: 'Spuren sortieren',
@@ -1033,6 +1029,7 @@ export const COPY_BY_LOCALE = deepFreeze({
 		...MUSICAL_TIMELINE_COPY_BY_LOCALE.en,
 		...SEQUENCE_TIMING_COPY_BY_LOCALE.en,
 		...TIMELINE_ANNOTATION_COPY_BY_LOCALE.en,
+		...MIX_RENDER_COPY_BY_LOCALE.en,
 		...TRACK_FOLDER_COPY_BY_LOCALE.en, ...FRAMESCAPER_CAPTURE_COPY_BY_LOCALE.en, ...LOCAL_MODEL_MANAGER_COPY_BY_LOCALE.en, ...LOCAL_ASSISTANCE_COPY_BY_LOCALE.en, ...LOCAL_DIAGNOSTICS_COPY_BY_LOCALE.en, ...WORKSPACE_CHROME_COPY_BY_LOCALE.en, ...WORKSPACE_ONBOARDING_COPY_BY_LOCALE.en,
 		framescaperEyebrow: 'Local video editing',
 		framescaperTitle: 'Framescaper',
@@ -1431,7 +1428,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		timedRecordingCancelled: 'Scheduled recording cancelled.',
 		timedRecordingPast: 'Choose a recording time in the future.',
 		soundActivationLevel: 'Set activation level',
-		mixdownTo: 'Mix-down to',
 		alignEndToEnd: 'Align end to end',
 		alignTogether: 'Align together',
 		sortByTime: 'Sort by time',
@@ -1553,11 +1549,6 @@ export const COPY_BY_LOCALE = deepFreeze({
 		unmuteTrack: 'Unmute track',
 		muteAllTracks: 'Mute all tracks',
 		unmuteAllTracks: 'Unmute all tracks',
-		mixMenu: 'Mix',
-		mixedTrack: 'Mix',
-		mixRender: 'Mix and render',
-		mixRenderNew: 'Mix and render to new track',
-		mixRenderRequiresAudio: 'Select at least one audio track containing audio.',
 		resample: 'Resample',
 		alignTracks: 'Align tracks',
 		sortTracks: 'Sort tracks',

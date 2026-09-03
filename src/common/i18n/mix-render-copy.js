@@ -1,0 +1,43 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Copy for the Tracks menu Mix & Render workflow and its rendered source names. */
+export const MIX_RENDER_COPY_BY_LOCALE = Object.freeze({
+	de: Object.freeze({
+		mixdownTo: 'Abmischen nach',
+		mixMenu: 'Mischen',
+		mixedTrack: 'Mix',
+		mixRender: 'Mischen und rendern',
+		mixRenderNew: 'Mischen und auf neuer Spur rendern',
+		mixRenderRequiresAudio: 'Wähle mindestens eine Audiospur mit Audio aus.',
+		mixRenderTitle: 'Mischen & rendern',
+		mixDown: 'Ausgewählte Spuren abmischen',
+		mixDownToMono: 'Auf Mono abmischen',
+		mixDownToStereo: 'Auf Stereo abmischen',
+		mixDownToChannels: 'Auf {count} Kanäle abmischen',
+		mixDownDescription: 'Fasst die ausgewählten Spuren zu einer gerenderten Spur zusammen. Deaktiviere diese Option, um jede Spur einzeln zu rendern.',
+		renderEffects: 'Effekte rendern',
+		renderEffectsDescription: 'Brennt Echtzeiteffekte in das gerenderte Audio ein.',
+		replaceOriginals: 'Originale ersetzen',
+		replaceOriginalsDescription: 'Ersetzt die ausgewählten Spuren. Deaktiviere diese Option, um neue Spuren zu erstellen.',
+		mixRenderNoOperation: 'Aktiviere „Abmischen“ oder „Effekte rendern“, um fortzufahren.',
+	}),
+	en: Object.freeze({
+		mixdownTo: 'Mix-down to',
+		mixMenu: 'Mix',
+		mixedTrack: 'Mix',
+		mixRender: 'Mix and render',
+		mixRenderNew: 'Mix and render to new track',
+		mixRenderRequiresAudio: 'Select at least one audio track containing audio.',
+		mixRenderTitle: 'Mix & Render',
+		mixDown: 'Mix down selected tracks',
+		mixDownToMono: 'Mix down to mono',
+		mixDownToStereo: 'Mix down to stereo',
+		mixDownToChannels: 'Mix down to {count} channels',
+		mixDownDescription: 'Combine the selected tracks into one rendered track. Clear this option to render each track separately.',
+		renderEffects: 'Render effects',
+		renderEffectsDescription: 'Burn realtime effects into the rendered audio.',
+		replaceOriginals: 'Replace originals',
+		replaceOriginalsDescription: 'Replace the selected tracks. Clear this option to create new tracks.',
+		mixRenderNoOperation: 'Select Mix down or Render effects to continue.',
+	}),
+});

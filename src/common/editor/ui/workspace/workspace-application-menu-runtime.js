@@ -346,7 +346,7 @@ export function createWorkspaceApplicationMenus({
 				increaseAllTrackHeights: () => run(() => controller.actions.track.increaseAllHeights()),
 				setTrackDisplay: (mode) => snapshot.selectedTrackId && run(() => controller.actions.track.setDisplayMode(snapshot.selectedTrackId, mode)),
 				setTrackRate: (sampleRate) => snapshot.selectedTrackId && run(() => controller.actions.track.setRate(snapshot.selectedTrackId, sampleRate)),
-				mixAndRender: () => run(() => controller.actions.track.mixAndRender()),
+				mixAndRender: () => openSurface('mix-render'),
 				openTrackRate: () => openTrackRate(selectedAudioTrack),
 				openResample: () => {
 					setDialogValue(String(trackSourceRate(project, selectedAudioTrack, project?.sampleRate || 48_000)));

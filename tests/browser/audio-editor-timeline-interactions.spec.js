@@ -24,6 +24,13 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
+async function openMixRenderDialog(page, editor) {
+	await chooseCommandAction(page, editor, 'Tracks', 'Mix & Render');
+	const dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
+	await expect(dialog).toBeVisible();
+	return dialog;
+}
+
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
@@ -36,7 +43,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await firstClip.locator('.clip-header').click();
 		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
 
-		await chooseNestedCommandAction(page, editor, 'Tracks', ['Mix', 'Mix-down to']);
+		const dialog = await openMixRenderDialog(page, editor);
+		for (const label of ['Mix down to stereo', 'Render effects', 'Replace originals']) {
+			await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
+		}
+		await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
+		await expect(dialog).toBeHidden({ timeout: 20_000 });
 		const mixedClip = clipByName(editor, 'Mix');
 		await expect(mixedClip).toBeVisible({ timeout: 20_000 });
 		await expect(firstClip).toHaveCount(0);
@@ -46,6 +58,37 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(clipByName(editor, toneA.name)).toBeVisible();
 		await expect(clipByName(editor, toneB.name)).toBeVisible();
 		await expect(mixedClip).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
+
+	test('renders selected tracks separately while keeping each original', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		const firstClip = clipByName(editor, toneA.name);
+		const secondClip = clipByName(editor, toneB.name);
+		const firstTrack = firstClip.locator('xpath=ancestor::div[@data-track-row][1]');
+		const secondTrack = secondClip.locator('xpath=ancestor::div[@data-track-row][1]');
+		await firstClip.locator('.clip-header').click();
+		await secondClip.locator('.clip-header').click({ modifiers: ['Shift'] });
+
+		const dialog = await openMixRenderDialog(page, editor);
+		await dialog.getByRole('checkbox', { name: 'Mix down to stereo', exact: true }).setChecked(false);
+		await dialog.getByRole('checkbox', { name: 'Replace originals', exact: true }).setChecked(false);
+		await expect(dialog.getByRole('checkbox', { name: 'Render effects', exact: true })).toBeChecked();
+		await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
+		await expect(dialog).toBeHidden({ timeout: 20_000 });
+		const firstRenderedName = `${toneA.name.replace(/\.[^.]+$/u, '')} — Rendered`;
+		const secondRenderedName = `${toneB.name.replace(/\.[^.]+$/u, '')} — Rendered`;
+		const firstRendered = clipByName(editor, firstRenderedName);
+		const secondRendered = clipByName(editor, secondRenderedName);
+		await expect(firstRendered).toBeVisible({ timeout: 20_000 });
+		await expect(secondRendered).toBeVisible({ timeout: 20_000 });
+		await expect(firstClip).toBeVisible();
+		await expect(secondClip).toBeVisible();
+		await expect(clipByName(firstTrack.locator('xpath=following-sibling::*[1]'), firstRenderedName)).toBeVisible();
+		await expect(clipByName(secondTrack.locator('xpath=following-sibling::*[1]'), secondRenderedName)).toBeVisible();
+		await expect(clipByName(editor, 'Mix')).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});
 

@@ -93,6 +93,10 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		assert.equal(uiController.getSnapshot().request.type, 'open-surface');
 		assert.equal(uiController.getSnapshot().request.payload.surface, 'preferences');
 		assert.equal(uiController.getSnapshot().request.payload.section, 'spectrogram');
+		resolveAudacityActionHandler('mix-render', runtime.actions)();
+		assert.equal(uiController.getSnapshot().request.payload.surface, 'mix-render');
+		resolveAudacityActionHandler('mixdown-to', runtime.actions)();
+		assert.equal(uiController.getSnapshot().request.payload.surface, 'mix-render');
 		assert.equal(controller.getSnapshot().recordingInputs.soundActivation.preferences.enabled, false);
 		assert.equal(await runtime.actions.recording.toggleSoundActivation(), true);
 		assert.equal(controller.getSnapshot().recordingInputs.soundActivation.preferences.enabled, true);

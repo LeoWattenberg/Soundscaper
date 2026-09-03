@@ -245,6 +245,7 @@ export function applyAudacityParityToMenus(menus, {
 function decorateMenuItem(item, localization, actionRuntime, actionContext, canonicalEnglish) {
 	if (!item || typeof item !== 'object') throw new TypeError('Each menu item must be an object.');
 	if (item.divider) return { ...item };
+	if (item.id && AUDACITY_ACTION_MANIFEST[item.id]?.menuVisible === false) return null;
 	const definition = item.id ? audacityActionDefinition(item.id) : null;
 	if (definition?.status === AUDACITY_ACTION_STATUS.EXCLUDED || definition?.menuVisible === false) return null;
 

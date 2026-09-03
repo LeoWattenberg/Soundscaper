@@ -6,20 +6,16 @@ import {
 	createAddTrackCommand,
 } from '../commands/factories.ts';
 import type { AudioEditorCommand } from '../commands/protocol.ts';
-import {
-	createDefaultMixerGraphV21,
-	normalizeMixerGraphV21,
-	type MixerGraphV21,
-} from '../mixer-graph-v21.ts';
-import type { ProjectFeatureRequirementsManifest } from '../project-feature-requirements.ts';
 import { isSoundscaperProductionProject } from '../project-schema-version.ts';
-import { resolveTerminalChannelWidths } from '../terminal-channel-widths.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../track-folder-media-runtime.ts';
 import type { AudioBufferLike } from './source-audio.ts';
-import { projectTransientRenderFeatures } from './transient-render-feature-projection.ts';
+import {
+	createMixRenderSnapshotV21 as createFocusedMixRenderSnapshotV21,
+	v21TrackAutomationRemovalCommands,
+} from './mix-render-snapshot-v21.ts';
 import {
 	findControllerClip,
 	findControllerClipTrack,
@@ -50,6 +46,11 @@ export interface MixRenderCommit {
 	readonly clipId: string;
 }
 
+export interface MixRenderSnapshotOptions {
+	readonly mixDown?: boolean;
+	readonly renderEffects?: boolean;
+}
+
 export function selectAudioTracksForMix(
 	project: ControllerProject,
 	selectedTrackId: string | null,
@@ -74,6 +75,7 @@ export function createMixRenderPlan(
 	targetTracks: readonly ControllerTrack[],
 	tailFrames: number,
 	memoryLimitBytes: number,
+	requestedOutputChannelCount?: number,
 ): MixRenderPlan | null {
 	const clips = targetTracks.flatMap((track) => track.clipIds
 		.map((clipId) => findControllerClip(project, clipId))
@@ -83,10 +85,14 @@ export function createMixRenderPlan(
 	const endFrame = Math.max(...clips.map((clip) => clip.timelineStartFrame + clip.durationFrames));
 	const preRollFrames = Math.min(startFrame, project.sampleRate * 10);
 	const outputFrames = endFrame - startFrame + tailFrames;
-	const outputChannelCount = mixRenderPlannedOutputChannelCount(project);
+	const outputChannelCount = requestedOutputChannelCount ?? mixRenderPlannedOutputChannelCount(project);
+	if (!Number.isSafeInteger(outputChannelCount) || outputChannelCount < 1 || outputChannelCount > 32) {
+		throw new RangeError('A mix render requires between 1 and 32 output channels.');
+	}
 	const outputBytes = outputFrames * outputChannelCount * Float32Array.BYTES_PER_ELEMENT;
+	const processingChannelCount = Math.max(outputChannelCount, mixRenderPlannedOutputChannelCount(project));
 	const processingBytes = (outputFrames + preRollFrames)
-		* outputChannelCount * Float32Array.BYTES_PER_ELEMENT * 3;
+		* processingChannelCount * Float32Array.BYTES_PER_ELEMENT * 3;
 	return Object.freeze({
 		startFrame,
 		endFrame,
@@ -102,9 +108,10 @@ export function createMixRenderPlan(
 export function createMixRenderSnapshot(
 	project: ControllerProject,
 	targetTracks: readonly ControllerTrack[],
+	options: Readonly<MixRenderSnapshotOptions> = {},
 ): MutableControllerProject {
 	if (isSoundscaperProductionProject(project)) {
-		return createMixRenderSnapshotV21(project, targetTracks);
+		return createFocusedMixRenderSnapshotV21(project, targetTracks, options);
 	}
 	const mediaProject = projectTrackFolderMediaStateV12(project);
 	const snapshot = inheritTrackFolderMediaStateProjectionV12(
@@ -112,13 +119,14 @@ export function createMixRenderSnapshot(
 		cloneProject(mediaProject),
 	);
 	const targetIds = new Set(targetTracks.map((track) => track.id));
-	const multipleTracks = targetTracks.length > 1;
-	const relevantBusIds = multipleTracks ? mixRenderBusIds(snapshot, targetIds) : new Set<string>();
+	const includeDownstream = options.mixDown ?? targetTracks.length > 1;
+	const renderEffects = options.renderEffects ?? true;
+	const relevantBusIds = includeDownstream ? mixRenderBusIds(snapshot, targetIds) : new Set<string>();
 	const relevantBuses = [...snapshot.mixer.groups, ...snapshot.mixer.sends]
 		.filter((bus) => relevantBusIds.has(bus.id));
-	const controlTrackIds = new Set(targetTracks
+	const controlTrackIds = new Set((renderEffects ? targetTracks : [])
 		.flatMap((track) => track.effectsActive === false ? [] : track.effects || [])
-		.concat(relevantBuses.flatMap((bus) => bus.effectsActive === false ? [] : bus.effects || []))
+		.concat(renderEffects ? relevantBuses.flatMap((bus) => bus.effectsActive === false ? [] : bus.effects || []) : [])
 		.filter(isActiveAutoDuckEffect)
 		.map((effect) => String(effect.context?.controlTrackId || ''))
 		.filter((trackId) => findControllerTrack(snapshot, trackId)?.type === 'audio'));
@@ -126,7 +134,7 @@ export function createMixRenderSnapshot(
 	snapshot.tracks = snapshot.tracks
 		.filter((track) => track.type === 'audio' && renderTrackIds.has(track.id))
 		.map((track) => targetIds.has(track.id)
-			? { ...track, mute: false, solo: false }
+			? { ...track, mute: false, solo: false, ...(renderEffects ? {} : { effects: [] }) }
 			: { ...track, gain: 0, pan: 0, mute: false, solo: false, effects: [], envelope: [] });
 	const clipIds = new Set(snapshot.tracks.flatMap((track) => track.clipIds));
 	snapshot.clips = snapshot.clips.filter((clip) => clipIds.has(clip.id));
@@ -139,7 +147,7 @@ export function createMixRenderSnapshot(
 		clipIds: [],
 		frequencyRange: null,
 	};
-	if (!multipleTracks) {
+	if (!includeDownstream) {
 		snapshot.mixer = { groups: [], sends: [], routes: {} };
 		return snapshot;
 	}
@@ -155,8 +163,10 @@ export function createMixRenderSnapshot(
 		};
 	}
 	snapshot.mixer = {
-		groups: snapshot.mixer.groups.filter((bus) => relevantBusIds.has(bus.id)),
-		sends: snapshot.mixer.sends.filter((bus) => relevantBusIds.has(bus.id)),
+		groups: snapshot.mixer.groups.filter((bus) => relevantBusIds.has(bus.id))
+			.map((bus) => renderEffects ? bus : { ...bus, effects: [] }),
+		sends: snapshot.mixer.sends.filter((bus) => relevantBusIds.has(bus.id))
+			.map((bus) => renderEffects ? bus : { ...bus, effects: [] }),
 		routes,
 	};
 	return snapshot;
@@ -182,11 +192,13 @@ export function mixRenderTailFrames(
 	snapshot: ControllerProject,
 	sampleRate: number,
 	rackTailFrames: (effects: readonly ControllerEffect[], sampleRate: number, maximumSeconds: number) => number,
+	options: Readonly<{ readonly includeBuses?: boolean; readonly renderEffects?: boolean }> = {},
 ): number {
+	if (options.renderEffects === false) return 0;
 	const trackTail = Math.max(0, ...targetTracks.map((track) => (
 		track.effectsActive === false ? 0 : rackTailFrames(track.effects || [], sampleRate, 10)
 	)));
-	const busTail = targetTracks.length > 1
+	const busTail = (options.includeBuses ?? targetTracks.length > 1)
 		? Math.max(0, ...mixerStrips(snapshot)
 			.map((bus) => bus.effectsActive === false ? 0 : rackTailFrames(bus.effects || [], sampleRate, 10)))
 		: 0;
@@ -325,128 +337,6 @@ function isActiveAutoDuckEffect(effect: ControllerEffect): boolean {
 	return effect.type === 'audacity-auto-duck' && effect.enabled !== false && effect.bypassed !== true;
 }
 
-interface MutableMixRenderProjectV21 extends MutableControllerProject {
-	featureRequirements: ProjectFeatureRequirementsManifest;
-	mixer: MutableControllerProject['mixer'] & MixerGraphV21;
-	automationLanes: unknown[];
-	masterChannels: number;
-}
-
-function createMixRenderSnapshotV21(
-	authored: ControllerProject,
-	targetTracks: readonly ControllerTrack[],
-): MutableControllerProject {
-	// Flatten folder state and inherit that projection before narrowing, exactly
-	// as the pre-production branch above does. The snapshot keeps the authored
-	// folders and sequence nodes, so an unprojected one describes a hierarchy the
-	// engine cannot reconcile with the tracks the mix actually renders.
-	const project = projectTrackFolderMediaStateV12(authored);
-	const snapshot = inheritTrackFolderMediaStateProjectionV12(
-		project,
-		cloneProject(project),
-	) as MutableMixRenderProjectV21;
-	const targetIds = new Set(targetTracks.map(({ id }) => id));
-	const graph = normalizeMixerGraphV21(snapshot.mixer);
-	const autoDuckSidechains = v21AutoDuckSidechains(snapshot, graph, targetTracks);
-	const controlTrackIds = autoDuckSidechains.controlTrackIds;
-	const renderTrackIds = new Set([...targetIds, ...controlTrackIds]);
-	snapshot.tracks = snapshot.tracks
-		.filter((track) => track.type === 'audio' && renderTrackIds.has(track.id))
-		.map((track) => {
-			const result = (targetIds.has(track.id)
-				? { ...track, mute: false, solo: false }
-				: { ...track, gain: 0, pan: 0, mute: false, solo: false, effects: [] }
-			) as Record<string, unknown>;
-			delete result.envelope;
-			return result as unknown as ControllerTrack;
-		});
-	const clipIds = new Set(snapshot.tracks.flatMap((track) => track.clipIds));
-	snapshot.clips = snapshot.clips.filter((clip) => clipIds.has(clip.id));
-	const sourceIds = new Set(snapshot.clips.map((clip) => clip.sourceId));
-	snapshot.sources = snapshot.sources.filter((source) => sourceIds.has(source.id));
-	snapshot.selection = {
-		...snapshot.selection,
-		startFrame: 0, endFrame: 0, trackIds: [], clipIds: [], frequencyRange: null,
-	};
-	if (targetTracks.length === 1 && controlTrackIds.size === 0) {
-		const widths = resolveTerminalChannelWidths(snapshot as never, snapshot.masterChannels).tracks;
-		snapshot.mixer = createDefaultMixerGraphV21([{
-			id: targetTracks[0]!.id,
-			channelCount: widths.get(targetTracks[0]!.id) ?? snapshot.masterChannels,
-		}], snapshot.masterChannels) as MutableMixRenderProjectV21['mixer'];
-		snapshot.automationLanes = snapshot.automationLanes.filter((lane) => (
-			laneTargetsTrack(lane, targetTracks[0]!.id)
-		));
-		return reconcileMixRenderRequirementsV21(snapshot);
-	}
-	const edges = graph.edges.filter((edge) => {
-		if (edge.source.kind === 'track' && !renderTrackIds.has(edge.source.id)) return false;
-		if (edge.destination.kind === 'effect-sidechain'
-			&& edge.destination.strip.kind === 'master') return autoDuckSidechains.edgeIds.has(edge.id);
-		return edge.destination.kind !== 'effect-sidechain'
-			|| edge.destination.strip.kind !== 'track'
-			|| targetIds.has(edge.destination.strip.id);
-	});
-	const edgeIds = new Set(edges.map(({ id }) => id));
-	snapshot.mixer = normalizeMixerGraphV21({
-		...graph,
-		vcas: graph.vcas.map((vca) => ({
-			...vca,
-			members: vca.members.filter((member) => member.kind !== 'track' || renderTrackIds.has(member.id)),
-		})),
-		edges,
-	}) as MutableMixRenderProjectV21['mixer'];
-	const nodeIds = new Set([
-		...snapshot.mixer.groups.map(({ id }) => id),
-		...snapshot.mixer.sends.map(({ id }) => id),
-		...snapshot.mixer.cues.map(({ id }) => id),
-	]);
-	snapshot.automationLanes = snapshot.automationLanes.filter((lane) => (
-		laneSurvivesMixSnapshot(lane, targetIds, nodeIds, edgeIds)
-	));
-	return reconcileMixRenderRequirementsV21(snapshot);
-}
-
-function v21AutoDuckSidechains(
-	project: MutableMixRenderProjectV21,
-	graph: MixerGraphV21,
-	targetTracks: readonly ControllerTrack[],
-): Readonly<{ readonly controlTrackIds: ReadonlySet<string>; readonly edgeIds: ReadonlySet<string> }> {
-	const targets = new Set<string>();
-	const addTargets = (strip: string, effectsActive: unknown,
-		effects: readonly Readonly<Record<string, unknown>>[]): void => {
-		if (effectsActive === false) return;
-		for (const effect of effects) if (isActiveAutoDuckEffect(effect as ControllerEffect)) {
-			targets.add(`${strip}\0${String(effect.id)}`);
-		}
-	};
-	for (const track of targetTracks) addTargets(`track:${track.id}`, track.effectsActive, track.effects || []);
-	const master = project.master as Readonly<{ readonly effectsActive?: boolean;
-		readonly effects?: readonly ControllerEffect[] }>;
-	addTargets('master', master.effectsActive, master.effects || []);
-	for (const node of [...graph.groups, ...graph.sends, ...graph.cues]) {
-		addTargets(`mixer-node:${node.id}`, node.effectsActive, node.effects);
-	}
-	const edges = graph.edges.filter((edge) => {
-		if (edge.source.kind !== 'track' || edge.destination.kind !== 'effect-sidechain'
-			|| !targets.has(`${edge.destination.strip.kind === 'master' ? 'master'
-				: `${edge.destination.strip.kind}:${edge.destination.strip.id}`}\0${edge.destination.effectId}`)
-			|| findControllerTrack(project, edge.source.id)?.type !== 'audio') return false;
-		return true;
-	});
-	return Object.freeze({
-		controlTrackIds: new Set(edges.map((edge) => edge.source.kind === 'track' ? edge.source.id : '')),
-		edgeIds: new Set(edges.map(({ id }) => id)),
-	});
-}
-
-function reconcileMixRenderRequirementsV21(
-	snapshot: MutableMixRenderProjectV21,
-): MutableMixRenderProjectV21 {
-	projectTransientRenderFeatures(snapshot);
-	return snapshot;
-}
-
 function mixerStrips(project: ControllerProject): readonly ControllerMixerStrip[] {
 	const mixer = project.mixer as unknown as Readonly<Record<string, unknown>>;
 	const cues = Array.isArray(mixer.cues) ? mixer.cues as readonly ControllerMixerStrip[] : [];
@@ -460,55 +350,7 @@ export function v21StripLaneRemovalCommands(
 	trackId: string,
 ): AudioEditorCommand[] {
 	if (!isSoundscaperProductionProject(project)) return [];
-	const lanes = (project as unknown as Readonly<Record<string, unknown>>).automationLanes;
-	if (!Array.isArray(lanes)) throw new TypeError('A V21 mix render requires automationLanes.');
-	return lanes.flatMap((lane): AudioEditorCommand[] => {
-		if (!laneTargetsTrackStrip(lane, trackId)) return [];
-		const record = dataRecord(lane, 'automation lane');
-		return [{
-			type: 'automation-lane/set',
-			laneId: String(record.id),
-			expected: record,
-			lane: null,
-		}];
-	});
-}
-
-function laneTargetsTrack(value: unknown, trackId: string): boolean {
-	const lane = dataRecord(value, 'automation lane');
-	const address = dataRecord(lane.address, 'automation lane address');
-	if (address.kind !== 'strip' && address.kind !== 'effect') return false;
-	const strip = dataRecord(address.strip, 'automation lane strip');
-	return strip.kind === 'track' && strip.id === trackId;
-}
-
-function laneTargetsTrackStrip(value: unknown, trackId: string): boolean {
-	const lane = dataRecord(value, 'automation lane');
-	const address = dataRecord(lane.address, 'automation lane address');
-	if (address.kind !== 'strip') return false;
-	const strip = dataRecord(address.strip, 'automation lane strip');
-	return strip.kind === 'track' && strip.id === trackId;
-}
-
-function laneSurvivesMixSnapshot(
-	value: unknown,
-	trackIds: ReadonlySet<string>,
-	nodeIds: ReadonlySet<string>,
-	edgeIds: ReadonlySet<string>,
-): boolean {
-	const lane = dataRecord(value, 'automation lane');
-	const address = dataRecord(lane.address, 'automation lane address');
-	if (address.kind === 'edge') return edgeIds.has(String(address.edgeId));
-	if (address.kind !== 'strip' && address.kind !== 'effect') return false;
-	const strip = dataRecord(address.strip, 'automation lane strip');
-	if (strip.kind === 'master') return false;
-	if (strip.kind === 'track') return trackIds.has(String(strip.id));
-	return strip.kind === 'mixer-node' && nodeIds.has(String(strip.id));
-}
-
-function dataRecord(value: unknown, name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
-	return value as Record<string, unknown>;
+	return v21TrackAutomationRemovalCommands(project, trackId);
 }
 
 function cloneProject(project: ControllerProject): MutableControllerProject {

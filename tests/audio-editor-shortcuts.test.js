@@ -51,6 +51,7 @@ test('legacy shortcut action IDs migrate to the canonical runtime registry IDs',
 			play: ['P'],
 			'quick-help': ['F2'],
 			'zoom-fit': ['Alt+F'],
+			'mixdown-to': ['Alt+M'],
 		},
 	});
 
@@ -60,6 +61,7 @@ test('legacy shortcut action IDs migrate to the canonical runtime registry IDs',
 		'action://playback/play': ['P'],
 		'online-handbook': ['F2'],
 		'zoom-to-fit-project': ['Alt+F'],
+		'mix-render': ['Alt+M'],
 	});
 });
 

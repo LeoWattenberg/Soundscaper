@@ -202,7 +202,20 @@ export function createDerivedSourceService(
 	async function rollbackDerivedSources(
 		records: readonly Pick<DerivedSourceRecord, 'source'>[],
 	): Promise<void> {
-		for (const { source } of records) await discardSource(source.id);
+		const cleanupErrors: unknown[] = [];
+		for (const { source } of records) {
+			try {
+				await discardSource(source.id);
+			} catch (error) {
+				cleanupErrors.push(error);
+			}
+		}
+		if (cleanupErrors.length) {
+			throw new AggregateError(
+				cleanupErrors,
+				'Derived source rollback cleanup was incomplete.',
+			);
+		}
 	}
 
 	async function discardSource(sourceId: string): Promise<void> {
@@ -211,7 +224,7 @@ export function createDerivedSourceService(
 		dependencies.sourcePeaks.delete(sourceId);
 		await Promise.resolve(dependencies.store.deleteAnalysis?.(dependencies.peakCacheKey(sourceId)))
 			.catch(() => undefined);
-		await dependencies.store.deleteSource(sourceId).catch(() => undefined);
+		await dependencies.store.deleteSource(sourceId);
 	}
 
 	function assertOwned(token: EditorProjectToken): void {

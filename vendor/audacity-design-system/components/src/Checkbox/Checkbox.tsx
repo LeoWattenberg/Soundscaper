@@ -33,6 +33,10 @@ export interface CheckboxProps {
    * Accessible label for screen readers
    */
   'aria-label'?: string;
+  /**
+   * ID of explanatory copy for screen readers
+   */
+  'aria-describedby'?: string;
 }
 
 /**
@@ -45,6 +49,7 @@ export function Checkbox({
   tabIndex,
   className = '',
   'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: CheckboxProps) {
   const { theme } = useTheme();
   const [isHovered, setIsHovered] = React.useState(false);
@@ -82,6 +87,7 @@ export function Checkbox({
       role="checkbox"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
       tabIndex={tabIndex !== undefined ? tabIndex : (disabled ? -1 : 0)}
       onClick={handleClick}
       onKeyDown={handleKeyDown}

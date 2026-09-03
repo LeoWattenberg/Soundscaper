@@ -5,6 +5,7 @@ import { LabeledCheckbox } from '@soundscaper/design-system/LabeledCheckbox';
 
 interface PreferenceCheckboxProps {
 	readonly label: string;
+	readonly ariaDescribedBy?: string;
 	readonly checked: boolean;
 	readonly disabled?: boolean;
 	readonly onChange: (checked: boolean) => void;
@@ -28,6 +29,7 @@ export function createCheckboxChangeCoalescer(
 
 export default function PreferenceCheckbox({
 	label,
+	ariaDescribedBy,
 	checked,
 	disabled = false,
 	onChange,
@@ -39,6 +41,7 @@ export default function PreferenceCheckbox({
 	return (
 		<LabeledCheckbox
 			label={label}
+			aria-describedby={ariaDescribedBy}
 			checked={checked}
 			disabled={disabled}
 			onChange={changeRef.current}

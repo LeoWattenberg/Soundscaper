@@ -123,7 +123,7 @@ Product availability follows each product profile’s command filters. “—”
 | Metadata editor | `open-metadata-editor` | — | Edit; View | Soundscaper, Framescaper | Audacity |
 | Metronome | `metronome` | — | Transport | Soundscaper, Framescaper | Audacity |
 | Minutes and seconds ruler | `minutes-seconds-ruler` | — | Timeline ruler | Soundscaper, Framescaper | Audacity |
-| Mix-down to | `mixdown-to` | — | Tracks > Mix | Soundscaper, Framescaper | Audacity |
+| Mix & Render | `mix-render` | — | Tracks | Soundscaper | Soundscaper local |
 | Move item down | `track-view-item-move-down` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Move item left | `track-view-item-move-left` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Move item right | `track-view-item-move-right` | — | Keyboard navigation | Soundscaper, Framescaper | Audacity |

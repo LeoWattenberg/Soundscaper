@@ -306,13 +306,15 @@ test('the unimplemented milestone 8B MIDI plan stays inert and post-1.0', () => 
 	assert.deepEqual(shortcutIds.filter((id) => midiActionIds.includes(id)), []);
 });
 
-test('Audacity Mix-down to is a concrete destructive track action', () => {
-	const definition = audacityActionDefinition('mixdown-to');
-	assert.equal(definition?.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
-	assert.equal(definition.handler, 'track.mixAndRender');
-	assert.equal(definition.enableWhen, 'editable-audio-track-selected');
-	assert.equal(resolveAudacityActionId('mix-render'), 'mixdown-to');
-	assert.equal(audacityActionDefinition('mix-render-new'), null);
+test('Mix & Render is canonical while the Audacity Mix-down to record stays compatibility-only', () => {
+	const definition = audacityActionDefinition('mix-render');
+	assert.deepEqual([definition?.label, definition?.locations, definition?.handler, definition?.origin],
+		['Mix & Render', ['Tracks'], 'track.openMixRender', 'local']);
+	assert.equal(resolveAudacityActionId('mixdown-to'), 'mix-render');
+	assert.equal(audacityActionDefinition('mixdown-to'), definition);
+	assert.deepEqual([AUDACITY_ACTION_MANIFEST['mixdown-to'].label, AUDACITY_ACTION_MANIFEST['mixdown-to'].locations,
+		AUDACITY_ACTION_MANIFEST['mixdown-to'].menuVisible, AUDACITY_ACTION_MANIFEST['mixdown-to'].origin],
+		['Mix-down to', ['Tracks > Mix'], false, 'upstream']);
 });
 
 test('cloud, installable plugins, OS audio, MIDI tracks, Extra, developer diagnostics, and updates remain excluded', () => {
@@ -493,7 +495,7 @@ test('menu decoration removes hidden actions and preserves pending local actions
 			id: 'file',
 			label: 'Datei',
 			items: [
-				{ id: 'plugin-manager', label: 'Plugin-Manager' },
+				{ id: 'plugin-manager', label: 'Plugin-Manager' }, { id: 'mixdown-to', label: 'Mix-down to' },
 				{ divider: true },
 				{ id: 'export-midi', label: 'MIDI exportieren', onClick: exportMidi },
 				{ divider: true },
@@ -519,7 +521,7 @@ test('menu decoration removes hidden actions and preserves pending local actions
 	assert.equal(newProject.parityActionId, 'file-new');
 
 	assert.equal(menus.length, 2);
-	assert.equal(menus[0].items[2].onClick, exportMidi);
+	assert.equal(menus[0].items.find(({ id }) => id === 'export-midi').onClick, exportMidi);
 	assert.equal(menus[0].items.at(-1).divider, true);
 	assert.throws(() => applyAudacityParityToMenus(null), /menus must be an array/);
 });

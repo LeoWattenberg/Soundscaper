@@ -128,7 +128,7 @@
 			"reason": "Unaltered digest-pinned WavPack 5.9.0 upstream source; preserve byte-for-byte corresponding-source reproducibility."
 		},
 		"src/common/i18n/catalogs.js": {
-			"maxLines": 2053,
+			"maxLines": 2044,
 			"reason": "Reviewed canonical fallback catalog."
 		},
 		"tests/audio-editor-controller.test.js": {

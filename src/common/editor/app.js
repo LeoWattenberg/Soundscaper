@@ -1232,8 +1232,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		),
 		createRenderEngine: createCacheAwareRenderEngine,
 		createStreamingWriter: createCoalescingSourceWriter,
-		prepareCommittedTimePitchCaches,
-		activateStoredSource,
+		prepareCommittedTimePitchCaches, activateStoredSource,
+		previewCommand: (candidate, command) => projectRuntime.applyCommand(candidate, command),
 	});
 	const selectionViewService = createSelectionViewService({
 		DEFAULT_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND,
@@ -2179,8 +2179,8 @@ export function createAudioEditorController(_root = null, options = {}) {
 		return projectBinService.stopProjectBinPreview({ dispose });
 	}
 
-	async function mixAndRenderTracks() {
-		return taskProgress.run('render', copy.rendering, () => mixRenderService.mixAndRenderTracks());
+	async function mixAndRenderTracks(options) {
+		return taskProgress.run('render', copy.rendering, () => mixRenderService.mixAndRenderTracks(options));
 	}
 
 	async function resampleTrack(trackId = state.selectedTrackId, requestedSampleRate = projectSampleRate()) {

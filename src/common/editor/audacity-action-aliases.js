@@ -67,7 +67,7 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 	resample: 'track-resample',
 	align: 'menu-align',
 	sort: 'menu-sort',
-	'mix-render': 'mixdown-to',
+	'mixdown-to': 'mix-render',
 	'plugin-manager': 'plugin-manager',
 	'effect-plugin-manager': 'plugin-manager',
 	'analyze-plugin-manager': 'plugin-manager',

@@ -138,6 +138,51 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('[data-editor-surface="selection-effect"]')).toHaveCount(0);
 	});
 
+	test('opens Mix & Render from search and from its configurable shortcut', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA, toneB]);
+		await clipByName(editor, toneA.name).locator('.clip-header').click();
+		await clipByName(editor, toneB.name).locator('.clip-header').click({ modifiers: ['Shift'] });
+		const search = editor.locator('[data-editor-search-input]');
+		const popup = editor.locator('[data-editor-search-popup]');
+
+		await page.keyboard.press('Control+f');
+		await search.fill('Mix & Render');
+		const result = popup.locator('[data-editor-search-key="command:mix-render"]');
+		await expect(result).toBeVisible();
+		await expect(result).toContainText('Mix & Render');
+		await expect(result).toContainText('Tracks');
+		await expect(popup.locator('[data-editor-search-key="command:mixdown-to"]')).toHaveCount(0);
+		await expect(popup).not.toContainText('Mix-down to');
+		await result.click();
+		let dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		const shortcutSearch = preferences.getByRole('searchbox', { name: 'Search commands', exact: true });
+		await shortcutSearch.fill('Mix & Render');
+		const shortcut = preferences.locator('[data-shortcut-action="mix-render"]');
+		await expect(shortcut).toBeVisible();
+		await expect(preferences.locator('[data-shortcut-action="mixdown-to"]')).toHaveCount(0);
+		await shortcut.locator('input').fill('Alt+Shift+M');
+		await shortcut.getByRole('button', { name: 'Assign', exact: true }).click();
+		await page.keyboard.press('Escape');
+		await expect(preferences).toBeHidden();
+
+		await editor.locator('.audio-editor-timeline-panel').evaluate((element) => {
+			element.tabIndex = -1;
+			element.focus();
+		});
+		await page.keyboard.press('Alt+Shift+M');
+		dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		expect(errors).toEqual([]);
+	});
+
 	test('reveals a compact Project Bin search result without previewing or inserting it', async ({ page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		const editor = await bootEditor(page, '/embed/en/');

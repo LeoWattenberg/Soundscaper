@@ -36,6 +36,7 @@ const ExportDialog = lazyEditorModule(() => import('../inspector/ExportDialog.js
 const DeliveryQueueDialog = lazyEditorModule(() => import('../inspector/DeliveryQueueDialog.jsx'));
 const LabelExportDialog = lazyEditorModule(() => import('../inspector/LabelExportDialog.jsx'));
 const SelectionEffectsDialog = lazyEditorModule(() => import('../inspector/SelectionEffectsDialog.jsx'));
+const MixRenderDialog = lazyEditorModule(() => import('../dialogs/MixRenderDialog.tsx'));
 const EditorDialog = lazyEditorModule(() => import('../dialogs/EditorDialog.jsx'));
 const GeneratorDialog = lazyEditorModule(() => import('../dialogs/GeneratorDialog.jsx'));
 const NyquistDialog = lazyEditorModule(() => import('../dialogs/NyquistDialog.jsx'));
@@ -323,6 +324,14 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 							fileService={fileService}
 							onClose={() => setActiveSurface(null)}
 						/>
+					</React.Suspense>
+				</div>
+			)}
+			{capabilities.audioEffects && activeSurface === 'mix-render' && (
+				<div data-editor-surface="mix-render">
+					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+						<MixRenderDialog controller={controller} snapshot={snapshot} copy={copy} run={run}
+							onClose={() => setActiveSurface(null)} />
 					</React.Suspense>
 				</div>
 			)}

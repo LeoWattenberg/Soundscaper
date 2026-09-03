@@ -30,6 +30,8 @@ test('product profiles are immutable and resolve distinct routes and capability 
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.timelineAnnotations, true);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.audioWarp, false);
 	assert.equal(PRODUCT_PROFILES.framescaper.capabilities.videoRetime, true);
+	assert.equal(PRODUCT_PROFILES.framescaper.shortcuts.disabledCommandIds.includes('mix-render'), true);
+	assert.equal(PRODUCT_PROFILES.soundscaper.shortcuts.disabledCommandIds.includes('mix-render'), false);
 	assert.deepEqual(PRODUCT_PROFILES.framescaper.panels.includes('analysis'), false);
 	assert.deepEqual(PRODUCT_PROFILES.soundscaper.exportChoices.includes('aup4-audio-only'), true);
 	assert.deepEqual(PRODUCT_PROFILES.framescaper.exportChoices.includes('aup4-audio-only'), false);

@@ -38,7 +38,7 @@ export function filterProductMenus(menus, capabilities, productId) {
 				};
 			}
 			if (menu.id === 'tracks' && !capabilities.audioEffects) {
-				const hiddenTrackItems = new Set(['track-channels', 'mix', 'resample']);
+				const hiddenTrackItems = new Set(['track-channels', 'mix-render', 'resample']);
 				return { ...menu, items: menu.items.filter((item) => !hiddenTrackItems.has(item.id)) };
 			}
 			if (menu.id === 'analyze' && !capabilities.audioAnalysis) {

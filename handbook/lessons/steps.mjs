@@ -15,7 +15,7 @@ const STEP_KINDS = Object.freeze([
 	'open', 'import', 'menu', 'select-range', 'cursor', 'select-clips', 'tool', 'effect',
 	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
 	'add-track', 'play', 'generate', 'marker', 'check', 'note', 'rack-effect',
-	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip',
+	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip', 'mix-render',
 ]);
 
 const KIND_SET = new Set(STEP_KINDS);
@@ -53,6 +53,11 @@ export function importAudio(fixture, extras) {
 /** Choose a command from the application menu bar, given the labels along its path. */
 export function menu(path, extras) {
 	return step({ kind: 'menu', path: requireLabelPath(path, 'menu') }, extras);
+}
+
+/** Mix selected stereo lesson tracks with the Mix & Render dialog defaults. */
+export function mixRender(extras) {
+	return step({ kind: 'mix-render' }, extras);
 }
 
 /** Select a time range, as fractions of the most recently imported clip. */
@@ -295,6 +300,8 @@ export function describeStep(entry, { fixtureFile }) {
 			return `Choose ${menuPath(['File', 'Import audio'])} and pick your recording. This lesson uses \`${fixtureFile(entry.fixture)}\`. The file lands as a clip on its own track.`;
 		case 'menu':
 			return `Choose ${menuPath(entry.path)}.`;
+		case 'mix-render':
+			return `Choose ${menuPath(['Tracks', 'Mix & Render'])}. In the ${bold('Mix & Render')} dialog, leave ${bold('Mix down to stereo')}, ${bold('Render effects')} and ${bold('Replace originals')} checked, then press ${bold('Mix & Render')}.`;
 		case 'select-range':
 			return `Drag in the ruler above the clip, from ${describePoint(entry.from)} to ${describePoint(entry.to)} of the clip, to select that range.`;
 		case 'cursor':

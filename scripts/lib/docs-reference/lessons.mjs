@@ -42,7 +42,7 @@ const REFERENCES = Object.freeze([
 		text: 'Project file suffixes and label file formats are in the project and label files reference.',
 	}),
 	Object.freeze({
-		kinds: ['menu', 'analyze', 'track-menu'],
+		kinds: ['menu', 'mix-render', 'analyze', 'track-menu'],
 		route: '/reference/generated/commands/',
 		text: 'Every menu command and its keyboard shortcut is in the commands and shortcuts reference.',
 	}),

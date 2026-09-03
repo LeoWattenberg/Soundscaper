@@ -140,6 +140,10 @@ Tracked so upstream syncs know what to preserve. Aside from this list, keep the 
     unconditional focus pulled focus off the panel menu button the move was made from. Omitting
     the prop keeps upstream behaviour. Covered by
     `tests/audio-editor-effects-panel-dock-move-focus.test.ts`. Upstream-PR candidate.
+18. `Checkbox.tsx` and `LabeledCheckbox.tsx` forward `aria-describedby` to the role-bearing
+    checkbox so application adapters can associate explanatory copy with the control it
+    describes. Omitting the prop keeps upstream behaviour. Covered by
+    `tests/audio-editor-mix-render-dialog.test.tsx`. Upstream-PR candidate.
 
 ## Application-side adaptations
 

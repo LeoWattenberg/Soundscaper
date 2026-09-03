@@ -171,6 +171,17 @@ async function runGenerate(page, state, entry) {
 	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
 }
 
+async function runMixRender(page, state) {
+	await chooseCommandAction(page, state.editor, 'Tracks', 'Mix & Render');
+	const dialog = page.getByRole('dialog', { name: 'Mix & Render', exact: true });
+	await expect(dialog).toBeVisible();
+	for (const label of ['Mix down to stereo', 'Render effects', 'Replace originals']) {
+		await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
+	}
+	await dialog.getByRole('button', { name: 'Mix & Render', exact: true }).click();
+	await expect(dialog).toBeHidden({ timeout: EFFECT_TIMEOUT });
+}
+
 async function runMarker(page, state, entry) {
 	const { editor } = state;
 	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
@@ -241,6 +252,9 @@ async function executeStep(page, state, entry) {
 		case 'menu':
 			if (entry.path.length === 2) await chooseCommandAction(page, state.editor, entry.path[0], entry.path[1]);
 			else await chooseNestedCommandAction(page, state.editor, entry.path[0], entry.path.slice(1));
+			return;
+		case 'mix-render':
+			await runMixRender(page, state);
 			return;
 		case 'select-range':
 			await dragSelection(page, state, entry.from, entry.to);

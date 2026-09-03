@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+#kw-audio-editor-design-system .audio-editor-mix-render {
+	display: grid;
+	gap: 14px;
+}
+
+#kw-audio-editor-design-system .audio-editor-mix-render__option {
+	display: grid;
+	gap: 4px;
+}
+
+#kw-audio-editor-design-system .audio-editor-mix-render__option > p,
+#kw-audio-editor-design-system .audio-editor-mix-render__message {
+	margin: 0;
+	color: var(--kw-editor-muted);
+	font-size: 11px;
+	line-height: 1.45;
+}
+
+#kw-audio-editor-design-system .audio-editor-mix-render__error {
+	color: var(--kw-editor-danger, #b91c1c);
+}

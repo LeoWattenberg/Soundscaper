@@ -157,7 +157,7 @@ test('Mix-down to renders whole selected tracks, replaces them atomically, and r
 	}
 });
 
-test('single-track Mix-down to keeps the track and routing while baking its controls and rack', async () => {
+test('single-track Mix and Render keeps identity but bakes routing, controls, and rack', async () => {
 	const store = createTestStore('single');
 	await writeSource(store, 'single-source', [new Float32Array(12).fill(0.4)]);
 	const project = createCurrentAudioEditorProject({
@@ -200,7 +200,7 @@ test('single-track Mix-down to keeps the track and routing while baking its cont
 		const historyBefore = controller.getSnapshot().history.undoEntries.length;
 		const result = await controller.actions.track.mixAndRender();
 		assert.equal(result.trackId, 'single-track');
-		assert.deepEqual(renderCall.snapshot.mixer, { groups: [], sends: [], routes: {} });
+		assert.equal(renderCall.snapshot.mixer.routes['single-track'].groupId, renderCall.snapshot.mixer.groups[0].id);
 		assert.deepEqual(renderCall.snapshot.tracks.map(({ id, gain, pan, mute, effects }) => ({
 			id, gain, pan, mute, effects: effects.map((effect) => effect.id),
 		})), [{ id: 'single-track', gain: 0.6, pan: -0.4, mute: false, effects: ['single-effect'] }]);
@@ -227,7 +227,7 @@ test('single-track Mix-down to keeps the track and routing while baking its cont
 		});
 		assert.deepEqual(track.envelope, []);
 		assert.deepEqual(track.effects, []);
-		assert.equal(snapshot.project.mixer.routes['single-track'].groupId, 'single-group');
+		assert.equal(snapshot.project.mixer.routes['single-track'].groupId, null);
 		assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
 
 		controller.actions.edit.undo();
@@ -476,7 +476,7 @@ test('a centered track with a stereo source persists a stereo Mix-down', async (
 	}
 });
 
-test('oversized Mix-down streams stereo packets directly into canonical storage', async () => {
+test('oversized Mix and Render normalizes streamed stereo packets into exact mono storage', async () => {
 	const store = createTestStore('streamed-success');
 	await writeSource(store, 'stream-input', [new Float32Array(8).fill(0.25)]);
 	const project = createCurrentAudioEditorProject({
@@ -491,8 +491,8 @@ test('oversized Mix-down streams stereo packets directly into canonical storage'
 	});
 	await store.saveProject(project);
 	await store.saveSetting('last-project-id', project.id);
-	const left = Float32Array.from([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]);
-	const right = Float32Array.from([-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8]);
+	const left = Float32Array.from([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8], (sample) => sample * Math.SQRT1_2);
+	const right = left.slice();
 	const renderCalls = [];
 	let renderEngineDisposals = 0;
 	const controller = createAudioEditorController(null, {
@@ -549,24 +549,24 @@ test('oversized Mix-down streams stereo packets directly into canonical storage'
 
 		let snapshot = controller.getSnapshot();
 		const mixedSource = snapshot.project.sources.find((candidate) => candidate.id === result.sourceId);
-		assert.equal(mixedSource.channelCount, 2);
+		assert.equal(mixedSource.channelCount, 1);
 		assert.equal(mixedSource.frameCount, 8);
 		assert.equal(mixedSource.chunkFrames, 65_536);
-		assert.equal(await storedSample(store, result.sourceId, 0, 6), left[6]);
-		assert.equal(await storedSample(store, result.sourceId, 1, 4), right[4]);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, 6) - 0.7) < 1e-6);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, 4) - 0.5) < 1e-6);
 		const metadata = await store.getSourceMetadata(result.sourceId);
 		assert.deepEqual({
 			frameCount: metadata.frameCount,
 			channelCount: metadata.channelCount,
 			chunkFrames: metadata.chunkFrames,
 			chunkCount: metadata.chunkCount,
-		}, { frameCount: 8, channelCount: 2, chunkFrames: 65_536, chunkCount: 1 });
+		}, { frameCount: 8, channelCount: 1, chunkFrames: 65_536, chunkCount: 1 });
 		assert.deepEqual(controller.sourceBufferCacheStats, { byteLength: 0, maxBytes: 0, entryCount: 0 });
 		const peaks = await store.loadAnalysis(`audio-editor-peaks-v2:${result.sourceId}`);
 		assert.equal(peaks.version, WAVEFORM_PEAKS_VERSION);
-		assert.equal(peaks.channelCount, 2);
-		assert.equal(peaks.levels[0].channels[0].maximums[0], left[7]);
-		assert.equal(peaks.levels[0].channels[1].minimums[0], right[7]);
+		assert.equal(peaks.channelCount, 1);
+		assert.ok(Math.abs(peaks.levels[0].channels[0].maximums[0] - 0.8) < 1e-6);
+		assert.ok(Math.abs(peaks.levels[0].channels[0].minimums[0] - 0.1) < 1e-6);
 		assert.equal(snapshot.history.undoEntries.length, historyBefore + 1);
 
 		controller.actions.edit.undo();
@@ -576,7 +576,7 @@ test('oversized Mix-down streams stereo packets directly into canonical storage'
 		controller.actions.edit.redo();
 		snapshot = controller.getSnapshot();
 		assert.ok(snapshot.project.sources.some((candidate) => candidate.id === result.sourceId));
-		assert.equal(await storedSample(store, result.sourceId, 1, 7), right[7]);
+		assert.ok(Math.abs(await storedSample(store, result.sourceId, 0, 7) - 0.8) < 1e-6);
 	} finally {
 		await controller.dispose();
 	}

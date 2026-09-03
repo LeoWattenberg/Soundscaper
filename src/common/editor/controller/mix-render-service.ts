@@ -16,16 +16,35 @@ import type {
 import {
 	createMixRenderPlan,
 	createMixRenderSnapshot,
-	mixRenderOutputChannelCount,
 	mixRenderTailFrames,
-	prepareMixRenderCommit,
 	selectAudioTracksForMix,
 } from './mix-render-model.ts';
+import {
+	prepareMixRenderOperationCommit,
+	type MixRenderRenderedOutput,
+	type MixRenderResult,
+} from './mix-render-commit.ts';
+import { createNormalizingMixRenderPacketSink } from './mix-render-channel-normalizer.ts';
+import { assertMixRenderPreflight } from './mix-render-operation-model.ts';
+import {
+	normalizeMixRenderOptions,
+	type MixRenderOptions,
+} from './mix-render-options.ts';
+import {
+	nonemptyAudioTargets,
+	predictIndividualMixRenderOutputChannelCount,
+	predictMixRenderOutputChannelCount,
+} from './mix-render-output-layout.ts';
+import {
+	preserveProductionMixRenderRouting,
+	type MixRenderCommandPreview,
+} from './mix-render-routing.ts';
 import type { AudioBufferLike } from './source-audio.ts';
 import type {
 	ControllerEffect,
 	ControllerProject,
 	ControllerSource,
+	ControllerTrack,
 	DerivedSourceRecord,
 	MutableControllerProject,
 	SourceStoragePort,
@@ -108,14 +127,11 @@ export interface MixRenderServiceDependencies {
 	createStreamingWriter(writer: SourceWriter): StreamingSourceWriter;
 	prepareCommittedTimePitchCaches(project: ControllerProject): Promise<unknown>;
 	activateStoredSource(source: ControllerSource, metadata: unknown): Promise<unknown>;
+	previewCommand?: MixRenderCommandPreview;
 }
 
 export interface MixRenderService {
-	mixAndRenderTracks(): Promise<Readonly<{
-		trackId: string;
-		clipId: string;
-		sourceId: string;
-	}> | null>;
+	mixAndRenderTracks(options?: MixRenderOptions): Promise<Readonly<MixRenderResult> | null>;
 }
 
 interface MixOwnership {
@@ -123,36 +139,40 @@ interface MixOwnership {
 	readonly project: EditorProjectToken;
 }
 
+interface MixRenderJob {
+	readonly targetTracks: readonly ControllerTrack[];
+	readonly renderProject: MutableControllerProject;
+	readonly plan: NonNullable<ReturnType<typeof createMixRenderPlan>>;
+	readonly name: string;
+	readonly sourceName: string;
+}
+
 export function createMixRenderService(
 	dependencies: MixRenderServiceDependencies,
 ): Readonly<MixRenderService> {
 	return Object.freeze({ mixAndRenderTracks });
 
-	async function mixAndRenderTracks(): Promise<Readonly<{
-		trackId: string;
-		clipId: string;
-		sourceId: string;
-	}> | null> {
+	async function mixAndRenderTracks(
+		requestedOptions?: MixRenderOptions,
+	): Promise<Readonly<MixRenderResult> | null> {
 		dependencies.lifetime.assertActive();
+		const options = normalizeMixRenderOptions(requestedOptions);
 		if (dependencies.editingBlocked()) return null;
 		const project = dependencies.getProject();
 		if (!hasCoreEditingProjectAuthority(project)) throw new Error(dependencies.copy.v2Required);
-		const targetTracks = selectAudioTracksForMix(
+		const targetTracks = nonemptyAudioTargets(project, selectAudioTracksForMix(
 			project,
 			dependencies.getSelectedTrackId(),
 			dependencies.getSelectedClipId(),
-		);
-		const renderProject = createMixRenderSnapshot(project, targetTracks);
-		assertMixRenderEffectChannelSafety(renderProject);
-		const tailFrames = mixRenderTailFrames(
-			targetTracks,
-			renderProject,
-			project.sampleRate,
-			dependencies.rackTailFrames,
-		);
-		const plan = createMixRenderPlan(project, targetTracks, tailFrames, dependencies.memoryLimitBytes);
-		if (!plan) throw new Error(dependencies.copy.mixRenderRequiresAudio
+		));
+		if (!targetTracks.length) throw new Error(dependencies.copy.mixRenderRequiresAudio
 			|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
+		assertMixRenderPreflight(project, targetTracks, options);
+		const jobs = prepareJobs(project, targetTracks, options);
+		const outputBytes = jobs.reduce((total, job) => total + job.plan.outputBytes, 0);
+		if (!Number.isSafeInteger(outputBytes) || outputBytes < 0) {
+			throw new RangeError('Mix and Render storage size exceeds the supported range.');
+		}
 		const ownership = {
 			project: dependencies.captureProject(),
 			task: dependencies.lifetime.startTask(MIX_RENDER_TASK),
@@ -160,63 +180,73 @@ export function createMixRenderService(
 		dependencies.setProcessing(true);
 		dependencies.setStatus(dependencies.copy.rendering);
 		dependencies.publish();
-		let renderedSource: DerivedSourceRecord | null = null;
+		const renderedSources: DerivedSourceRecord[] = [];
 		let published = false;
 		try {
-			await dependencies.preflightStorage(plan.outputBytes, 'effect');
+			await dependencies.preflightStorage(outputBytes, 'effect');
 			assertOwned(ownership);
-			const mixName = targetTracks.length === 1
-				? targetTracks[0]!.name
-				: dependencies.copy.mixedTrack || 'Mix';
-			const sourceName = `${mixName} — ${dependencies.copy.mixRender
-				|| dependencies.copy.mixdownTo || 'Mix and render'}.wav`;
-			if (plan.streamToStorage) {
-				renderedSource = await persistStreamedMixSource(renderProject, sourceName, plan, ownership);
-			} else {
-				const rendered = await dependencies.renderSnapshot(renderProject, {
-					startFrame: plan.startFrame,
-					endFrame: plan.endFrame,
-					includeTail: plan.tailFrames ? plan.tailFrames / project.sampleRate : false,
-					includeMaster: false,
-					includeTrackPan: true,
-					respectMuteSolo: false,
-					preRollFrames: plan.preRollFrames,
-				});
-				assertOwned(ownership);
-				const channelCount = mixRenderOutputChannelCount(
-					project,
-					targetTracks,
-					renderProject,
-					rendered,
-					dependencies.isFixedStereoEffect,
-				);
-				const normalized = await normalizeMixOutput(rendered, channelCount, ownership);
-				renderedSource = await dependencies.derivedSources.persistRenderedMixSource(normalized, sourceName);
+			for (const job of jobs) {
+				let renderedSource: DerivedSourceRecord;
+				if (job.plan.streamToStorage) {
+					renderedSource = await persistStreamedMixSource(
+						job.renderProject, job.sourceName, job.plan, ownership,
+					);
+				} else {
+					const rendered = await dependencies.renderSnapshot(job.renderProject, {
+						startFrame: job.plan.startFrame,
+						endFrame: job.plan.endFrame,
+						includeTail: job.plan.tailFrames
+							? job.plan.tailFrames / project.sampleRate : false,
+						includeMaster: false,
+						includeTrackPan: true,
+						respectMuteSolo: false,
+						preRollFrames: job.plan.preRollFrames,
+					});
+					assertOwned(ownership);
+					const normalized = await normalizeMixOutput(
+						rendered, job.plan.outputChannelCount, job.plan.outputFrames, ownership,
+					);
+					renderedSource = await dependencies.derivedSources.persistRenderedMixSource(
+						normalized, job.sourceName,
+					);
+				}
+				renderedSources.push(renderedSource);
 				assertOwned(ownership);
 			}
-			const prepared = prepareMixRenderCommit(project, targetTracks, renderedSource.source, {
-				startFrame: plan.startFrame,
-				mixName,
+			const outputs: MixRenderRenderedOutput[] = jobs.map((job, index) => ({
+				targetTracks: job.targetTracks,
+				source: renderedSources[index]!.source,
+				startFrame: job.plan.startFrame,
+				name: job.name,
+			}));
+			let prepared = prepareMixRenderOperationCommit(project, outputs, options, {
 				createId: dependencies.createId,
 			});
+			if (prepared.routingCopies.length || prepared.directRoutingTrackIds.length) {
+				if (!dependencies.previewCommand) {
+					throw new Error('Production Mix and Render routing preview is unavailable.');
+				}
+				prepared = preserveProductionMixRenderRouting(
+					project, prepared, dependencies.previewCommand, dependencies.createId,
+				);
+			}
 			assertOwned(ownership);
+			dependencies.previewCommand?.(project, prepared.command);
+			const primary = prepared.results[0]!;
 			dependencies.commit(prepared.command, {
-				selectTrackId: prepared.trackId,
-				selectClipId: prepared.clipId,
+				selectTrackId: primary.trackId,
+				selectClipId: primary.clipId,
 			});
 			published = true;
 			dependencies.setStatus(dependencies.copy.done, 'success');
-			return Object.freeze({
-				trackId: prepared.trackId,
-				clipId: prepared.clipId,
-				sourceId: renderedSource.source.id,
-			});
+			return primary;
 		} catch (error) {
-			if (renderedSource && !published) {
-				await dependencies.derivedSources.rollbackDerivedSources([renderedSource]);
+			let failure = error;
+			if (renderedSources.length && !published) {
+				failure = await rollbackStagedSources(renderedSources, error);
 			}
-			if (isOwned(ownership)) dependencies.handleError(error);
-			throw error;
+			if (isOwned(ownership)) dependencies.handleError(failure);
+			throw failure;
 		} finally {
 			if (taskIsCurrent(ownership.task)) {
 				dependencies.setProcessing(false);
@@ -226,14 +256,63 @@ export function createMixRenderService(
 		}
 	}
 
+	function prepareJobs(
+		project: ControllerProject,
+		targetTracks: readonly ControllerTrack[],
+		options: ReturnType<typeof normalizeMixRenderOptions>,
+	): MixRenderJob[] {
+		const groups = options.mixDown ? [targetTracks] : targetTracks.map((track) => [track]);
+		return groups.map((jobTracks) => {
+			const renderProject = createMixRenderSnapshot(project, jobTracks, {
+				mixDown: options.mixDown,
+				renderEffects: options.renderEffects,
+			});
+			assertMixRenderEffectChannelSafety(renderProject);
+			const tailFrames = mixRenderTailFrames(
+				jobTracks,
+				renderProject,
+				project.sampleRate,
+				dependencies.rackTailFrames,
+				{ includeBuses: options.mixDown, renderEffects: options.renderEffects },
+			);
+			const outputChannelCount = options.mixDown
+				? predictMixRenderOutputChannelCount(project, jobTracks, options.renderEffects)
+				: predictIndividualMixRenderOutputChannelCount(project, jobTracks[0]!, options.renderEffects);
+			if (outputChannelCount === null) throw new Error(dependencies.copy.mixRenderRequiresAudio
+				|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
+			const plan = createMixRenderPlan(
+				project, jobTracks, tailFrames, dependencies.memoryLimitBytes, outputChannelCount,
+			);
+			if (!plan) throw new Error(dependencies.copy.mixRenderRequiresAudio
+				|| dependencies.copy.audacitySelectionHint || dependencies.copy.audioTrackRequired);
+			const name = options.mixDown
+				? options.replaceOriginals && targetTracks.length === 1
+					? jobTracks[0]!.name
+					: dependencies.copy.mixedTrack || 'Mix'
+				: options.replaceOriginals
+					? jobTracks[0]!.name
+					: `${jobTracks[0]!.name} — Rendered`;
+			return Object.freeze({
+				targetTracks: jobTracks,
+				renderProject,
+				plan,
+				name,
+				sourceName: `${name} — ${dependencies.copy.mixRender
+					|| dependencies.copy.mixdownTo || 'Mix and render'}.wav`,
+			});
+		});
+	}
+
 	async function normalizeMixOutput(
 		rendered: AudioBufferLike,
 		outputChannelCount: number,
+		outputFrames: number,
 		ownership: MixOwnership,
 	): Promise<AudioBufferLike> {
 		const channels = bufferChannels(rendered);
 		if (!channels.length || channels.length > 32 || !channels[0]?.length
 			|| channels.some((channel) => channel.length !== channels[0]!.length)
+			|| Number(rendered.length) !== outputFrames
 			|| Number(rendered.sampleRate) !== dependencies.getProject().sampleRate) {
 			throw new Error(dependencies.copy.effectInvalidAudio);
 		}
@@ -268,12 +347,13 @@ export function createMixRenderService(
 		const sampleRate = project.sampleRate;
 		const sourceId = dependencies.createId('mixed-source');
 		const renderEngine = dependencies.createRenderEngine();
+		let rawWriter: SourceWriter | null = null;
 		let writer: StreamingSourceWriter | null = null;
 		let committed = false;
 		try {
 			await dependencies.prepareCommittedTimePitchCaches(project);
 			assertOwned(ownership);
-			const rawWriter = await dependencies.store.beginSourceWrite(sourceId, {
+			rawWriter = await dependencies.store.beginSourceWrite(sourceId, {
 				name,
 				mimeType: 'audio/wav',
 				sampleRate,
@@ -282,9 +362,15 @@ export function createMixRenderService(
 			});
 			assertOwned(ownership);
 			writer = dependencies.createStreamingWriter(rawWriter);
+			rawWriter = null;
+			const sink = createNormalizingMixRenderPacketSink(
+				writer,
+				plan.outputChannelCount,
+				() => new Error(dependencies.copy.effectInvalidAudio),
+			);
 			renderEngine.loadProject(project, dependencies.sourceBuffers);
 			const result = await renderEngine.renderMixToSink({
-				sink: writer,
+				sink,
 				startFrame: plan.startFrame,
 				endFrame: plan.endFrame,
 				includeTail: plan.tailFrames ? plan.tailFrames / sampleRate : false,
@@ -297,7 +383,7 @@ export function createMixRenderService(
 			});
 			assertOwned(ownership);
 			if (Number(result.sampleRate) !== sampleRate
-				|| Number(result.channelCount) !== plan.outputChannelCount
+				|| Number(result.channelCount) !== sink.inputChannelCount
 				|| Number(result.frameCount) !== plan.outputFrames
 				|| writer.channelCount !== plan.outputChannelCount
 				|| writer.framesWritten !== plan.outputFrames) {
@@ -338,7 +424,7 @@ export function createMixRenderService(
 					),
 				}]);
 			} else {
-				await Promise.resolve(writer?.abort()).catch(() => undefined);
+				await Promise.resolve((writer ?? rawWriter)?.abort(error)).catch(() => undefined);
 			}
 			throw error;
 		} finally {
@@ -371,6 +457,26 @@ export function createMixRenderService(
 		} catch {
 			return false;
 		}
+	}
+
+	async function rollbackStagedSources(
+		records: readonly DerivedSourceRecord[],
+		primaryError: unknown,
+	): Promise<unknown> {
+		const cleanupErrors: unknown[] = [];
+		for (const record of [...records].reverse()) {
+			try {
+				await dependencies.derivedSources.rollbackDerivedSources([record]);
+			} catch (cleanupError) {
+				cleanupErrors.push(cleanupError);
+			}
+		}
+		if (!cleanupErrors.length) return primaryError;
+		return new AggregateError(
+			[primaryError, ...cleanupErrors],
+			'Mix and Render failed and staged source cleanup was incomplete.',
+			{ cause: primaryError },
+		);
 	}
 }
 

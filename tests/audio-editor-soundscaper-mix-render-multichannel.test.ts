@@ -17,6 +17,7 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
 
 const SAMPLE_RATE = 48_000;
 const FRAME_COUNT = 4;
@@ -135,6 +136,9 @@ for (const streamToStorage of [false, true]) {
 				activatedSource = source;
 				return Promise.resolve();
 			},
+			previewCommand: (candidate: never, command: never) => applySoundscaperProjectCommand(
+				candidate, command, { now: '2026-09-03T00:00:00.000Z' },
+			) as never,
 		} as never);
 
 		await service.mixAndRenderTracks();
