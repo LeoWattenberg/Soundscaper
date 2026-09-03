@@ -6,6 +6,7 @@ import { basename, join, resolve } from 'node:path';
 import { compareText } from './markdown.mjs';
 
 export const GENERATED_REFERENCE_DIRECTORY = 'handbook/src/content/docs/reference/generated';
+export const GENERATED_LESSON_DIRECTORY = 'handbook/src/content/docs/lessons';
 
 function validateDocumentMap(documents) {
 	if (!(documents instanceof Map) || documents.size === 0) throw new TypeError('Generated reference documents are required.');
@@ -40,9 +41,13 @@ async function generatedMarkdownNames(directory) {
 	}
 }
 
-export async function syncReferenceDocuments(repositoryRoot, documents, { write = true } = {}) {
+export async function syncReferenceDocuments(
+	repositoryRoot,
+	documents,
+	{ write = true, directory = GENERATED_REFERENCE_DIRECTORY } = {},
+) {
 	validateDocumentMap(documents);
-	const outputDirectory = resolve(repositoryRoot, GENERATED_REFERENCE_DIRECTORY);
+	const outputDirectory = resolve(repositoryRoot, directory);
 	const expectedNames = [...documents.keys()].sort(compareText);
 	const actualNames = await generatedMarkdownNames(outputDirectory);
 	const unexpectedNames = actualNames.filter((name) => !documents.has(name));

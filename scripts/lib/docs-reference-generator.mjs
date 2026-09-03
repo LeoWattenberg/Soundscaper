@@ -24,10 +24,11 @@ import { renderNyquistReference } from './docs-reference/nyquist.mjs';
 import { renderPlatformReference } from './docs-reference/platforms.mjs';
 import { renderProjectFileReference } from './docs-reference/project-files.mjs';
 import { renderVideoEffectReference } from './docs-reference/video-effects.mjs';
+import { renderLessonPages } from './docs-reference/lessons.mjs';
 import { renderWorkspaceReference } from './docs-reference/workspaces.mjs';
-import { GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments } from './docs-reference/sync.mjs';
+import { GENERATED_LESSON_DIRECTORY, GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments } from './docs-reference/sync.mjs';
 
-export { GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments };
+export { GENERATED_LESSON_DIRECTORY, GENERATED_REFERENCE_DIRECTORY, syncReferenceDocuments };
 export { escapeMarkdownTableCell } from './docs-reference/markdown.mjs';
 export {
 	renderAssistanceReference,
@@ -36,12 +37,19 @@ export {
 	renderCommandReference,
 	renderFormatReference,
 	renderLanguageReference,
+	renderLessonPages,
 	renderNyquistReference,
 	renderPlatformReference,
 	renderProjectFileReference,
 	renderVideoEffectReference,
 	renderWorkspaceReference,
 };
+
+const LESSON_MODULES = Object.freeze({
+	lessons: 'handbook/lessons/soundscaper.mjs',
+	lessonFixtures: 'handbook/lessons/fixtures.mjs',
+	lessonSteps: 'handbook/lessons/steps.mjs',
+});
 
 const RUNTIME_MODULES = Object.freeze({
 	actions: 'src/common/editor/audacity-action-parity.js',
@@ -217,9 +225,31 @@ export function renderReferenceDocuments(sources) {
 	]);
 }
 
+/** The lesson catalog and the two modules that give it words and example files. */
+export async function loadLessonSources(repositoryRoot) {
+	const names = Object.keys(LESSON_MODULES);
+	const loaded = await Promise.all(names.map((name) => import(moduleUrl(repositoryRoot, LESSON_MODULES[name]))));
+	return Object.freeze(Object.fromEntries(names.map((name, index) => [name, loaded[index]])));
+}
+
+export function renderLessonDocuments({ lessons, lessonFixtures, lessonSteps }) {
+	return renderLessonPages({
+		groups: lessons.SOUNDSCAPER_LESSON_GROUPS,
+		describeStep: lessonSteps.describeStep,
+		fixtureFile: lessonFixtures.lessonFixtureFile,
+	});
+}
+
 export async function generateReferenceDocuments(repositoryRoot, { write = true } = {}) {
 	const sources = await loadReferenceSources(repositoryRoot);
 	const documents = renderReferenceDocuments(sources);
 	const result = await syncReferenceDocuments(repositoryRoot, documents, { write });
-	return Object.freeze({ ...result, documentCount: documents.size });
+	const lessonDocuments = renderLessonDocuments(await loadLessonSources(repositoryRoot));
+	const lessonResult = await syncReferenceDocuments(repositoryRoot, lessonDocuments, {
+		write, directory: GENERATED_LESSON_DIRECTORY,
+	});
+	return Object.freeze({
+		stale: Object.freeze([...result.stale, ...lessonResult.stale.map((name) => `lessons/${name}`)]),
+		documentCount: documents.size + lessonDocuments.size,
+	});
 }

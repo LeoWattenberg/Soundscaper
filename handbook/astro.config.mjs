@@ -42,6 +42,7 @@ export default defineConfig({
 			sidebar: [
 				{ label: 'Start here', items: [{ autogenerate: { directory: 'start' } }] },
 				{ label: 'Soundscaper', items: [{ autogenerate: { directory: 'soundscaper' } }] },
+				{ label: 'Lessons', items: [{ autogenerate: { directory: 'lessons' } }] },
 				{ label: 'Framescaper', items: [{ autogenerate: { directory: 'framescaper' } }] },
 				{ label: 'Projects and data', items: [{ autogenerate: { directory: 'projects-and-data' } }] },
 				{ label: 'Help', items: [{ autogenerate: { directory: 'help' } }] },

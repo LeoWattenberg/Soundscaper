@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
+import { SOUNDSCAPER_LESSONS } from '../handbook/lessons/soundscaper.mjs';
 import {
 	GENERATED_REFERENCE_DIRECTORY,
 	escapeMarkdownTableCell,
@@ -189,6 +190,7 @@ test('reference sync check reports drift without creating or changing files', as
 test('checked-in documentation references match the current runtime registries', async () => {
 	const repositoryRoot = join(import.meta.dirname, '..');
 	const result = await generateReferenceDocuments(repositoryRoot, { write: false });
-	assert.equal(result.documentCount, 11);
+	// Eleven reference pages, plus one page per lesson and the lesson index.
+	assert.equal(result.documentCount, 11 + SOUNDSCAPER_LESSONS.length + 1);
 	assert.deepEqual(result.stale, []);
 });

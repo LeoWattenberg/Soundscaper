@@ -16,5 +16,6 @@ project interchange.
 2. [Set up recording](/soundscaper/recording/), if you need new material.
 3. [Edit, mix, and export](/soundscaper/edit-mix-and-export/).
 4. Review [storage and backup behavior](/projects-and-data/storage-backups-and-privacy/).
+5. Pick a [lesson](/lessons/) for the task in front of you — noise removal, fades, loudness, export and more.
 
 Open the browser editor at [soundscaper.org/en](https://soundscaper.org/en/).
